@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "NORVA",
+    "slug": "norva",
+    "scheme": "norva",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.norva.mobile"
+    },
+    "android": {
+      "package": "app.norva.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#F7F6F3",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["expo-router", "expo-localization", "expo-sqlite"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
