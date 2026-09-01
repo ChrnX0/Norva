@@ -48,6 +48,7 @@ type ProductCost = { id: string; name: string; recipeId: string | null; unitCent
 type Summary = { products: ProductCost[]; changes: CostChange[] };
 
 const AREAS: { area: Ambient; label: string; hint: string; route: string }[] = [
+  { area: 'sky', label: 'Pergunte', hint: 'escreva o que quer saber', route: '/assistant' },
   { area: 'mist', label: 'Insumos', hint: 'o que você compra', route: '/inputs' },
   { area: 'apricot', label: 'Receitas', hint: 'o que entra no tacho', route: '/recipe' },
   { area: 'mist', label: 'Produtos', hint: 'o que sai para vender', route: '/products' },

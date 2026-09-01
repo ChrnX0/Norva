@@ -12,12 +12,12 @@ import { fromDecimal } from '@/domain/money';
 import { roundUpToFullContainer, type PackagingHierarchy } from '@/domain/units';
 import {
   defaultLocale,
-  detectLanguage,
   dictionary,
   fill,
   formatMoney,
   formatQuantity,
 } from '@/i18n';
+import { detectLanguage } from '@/i18n/device';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**

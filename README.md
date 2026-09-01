@@ -75,6 +75,28 @@ cria retroativamente.
 
 ---
 
+## O assistente
+
+O dono da fábrica não deveria precisar aprender a navegar — ele pergunta. O
+Modo Conversa é outra porta para a mesma casa: mesmos dados, mesmas permissões,
+mesmas ações.
+
+Três regras o mantêm confiável, e todas as três são testadas:
+
+1. **Ele nunca produz um número.** A frase escolhe a consulta, o motor
+   determinístico calcula, e a resposta é montada em volta do que o motor
+   devolveu. Quando o modelo de linguagem entrar, ele vai mapear a pergunta para
+   uma habilidade e seus campos — nada mais. Intérprete, nunca contador.
+2. **Ele nunca escreve no livro-razão.** Uma frase que registraria algo preenche
+   uma ficha em português e espera confirmação humana. Se entendeu errado, isso
+   aparece antes de gravar, não meses depois num relatório.
+3. **A trava de permissão está na consulta, não numa instrução ao modelo.**
+   Modelo instruído a guardar segredo acaba contando; consulta que nunca
+   devolveu o número não tem o que vazar.
+
+Ele também funciona offline, porque reconhecer as perguntas que se repetem é
+aritmética sobre texto — e câmara fria não tem sinal.
+
 ## Design
 
 **Cor é acento, nunca superfície.** Oito ambientes pastéis (um por área) apontam
@@ -126,6 +148,7 @@ src/config/brand.ts     nome, marca e deep link — ponto único
 src/theme/              tokens e provedor de tema
 src/domain/             livro-razão, dinheiro, receita, custo médio, embalagem
 src/data/               SQLite local e o caminho único de consulta
+src/assistant/          habilidades, permissão e a ficha de confirmação
 src/components/         Card, Chip, Button, UnitStepper, PulseDot, CountUp…
 src/i18n/               pt-BR · es · en, com moeda e data por locale
 supabase/migrations/    esquema versionado (não aplicado a nenhum projeto)

@@ -1,4 +1,3 @@
-import { getLocales } from 'expo-localization';
 import { en } from './locales/en';
 import { es } from './locales/es';
 import { ptBR, type Dictionary } from './locales/pt-BR';
@@ -26,13 +25,6 @@ export const defaultLocale: LocaleSettings = {
   currency: 'BRL',
   timeZone: 'America/Sao_Paulo',
 };
-
-export function detectLanguage(): LanguageTag {
-  const tags = getLocales().map((l) => l.languageTag.toLowerCase());
-  if (tags.some((t) => t.startsWith('pt'))) return 'pt-BR';
-  if (tags.some((t) => t.startsWith('es'))) return 'es';
-  return 'en';
-}
 
 export function dictionary(language: LanguageTag): Dictionary {
   return dictionaries[language];

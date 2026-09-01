@@ -77,6 +77,28 @@ historial no se crea retroactivamente.
 
 ---
 
+## El asistente
+
+El dueño de la fábrica no debería tener que aprender a navegar: pregunta. El
+modo conversación es otra puerta a la misma casa: mismos datos, mismos permisos,
+mismas acciones.
+
+Tres reglas lo mantienen confiable, y las tres están cubiertas por pruebas:
+
+1. **Nunca produce un número.** La frase elige la consulta, el motor
+   determinista calcula, y la respuesta se arma alrededor de lo que el motor
+   devolvió. Cuando entre el modelo de lenguaje, mapeará la pregunta a una
+   habilidad y sus campos, nada más. Intérprete, nunca contador.
+2. **Nunca escribe en el libro mayor.** Una frase que registraría algo llena una
+   ficha en lenguaje natural y espera un sí humano. Si entendió mal, se ve antes
+   de guardar, no meses después en un informe.
+3. **El permiso se aplica en la consulta, no en una instrucción al modelo.** Un
+   modelo al que se le pide guardar un secreto termina contándolo; una consulta
+   que nunca devolvió la cifra no tiene nada que filtrar.
+
+También funciona sin conexión, porque reconocer las preguntas que se repiten es
+aritmética sobre texto, y una cámara fría no tiene señal.
+
 ## Diseño
 
 **El color es acento, nunca superficie.** Ocho ambientes pastel (uno por área)
@@ -128,6 +150,7 @@ src/config/brand.ts     nombre, marca y deep link - punto único
 src/theme/              tokens y proveedor de tema
 src/domain/             libro mayor, dinero, receta, costo promedio, empaque
 src/data/               SQLite local y el camino único de consulta
+src/assistant/          habilidades, permisos y la ficha de confirmación
 src/components/         Card, Chip, Button, UnitStepper, PulseDot, CountUp…
 src/i18n/               pt-BR · es · en, con moneda y fecha por locale
 supabase/migrations/    esquema versionado (no aplicado a ningún proyecto)

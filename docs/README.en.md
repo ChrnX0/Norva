@@ -75,6 +75,28 @@ cannot be created retroactively.
 
 ---
 
+## The assistant
+
+The person who owns the factory should not have to learn to navigate - they
+ask. Conversation mode is another door into the same house: same data, same
+permissions, same actions.
+
+Three rules keep it trustworthy, and all three are covered by tests:
+
+1. **It never produces a number.** The phrase selects the query, the
+   deterministic engine computes, and the sentence is assembled around what the
+   engine returned. When a language model is added it will map wording to a
+   skill and its slots - nothing more. An interpreter, never an accountant.
+2. **It never writes to the ledger.** A phrase that would record something fills
+   a form in plain language and waits for a human yes. A misunderstanding shows
+   up before anything is stored, not months later in a report.
+3. **The permission check lives in the query, not in an instruction to a
+   model.** A model told to keep a secret eventually tells it; a query that
+   never returned the figure has nothing to leak.
+
+It works offline too, because recognising the questions people repeat is
+arithmetic over text - and a cold room has no signal.
+
 ## Design
 
 **Color is an accent, never a surface.** Eight pastel ambients (one per area)
@@ -125,6 +147,7 @@ src/config/brand.ts     name, mark and deep link - single point
 src/theme/              tokens and theme provider
 src/domain/             ledger, money, recipe, moving average, packaging
 src/data/               local SQLite and the single query path
+src/assistant/          skills, permission and the confirmation draft
 src/components/         Card, Chip, Button, UnitStepper, PulseDot, CountUp…
 src/i18n/               pt-BR · es · en, with per-locale money and dates
 supabase/migrations/    versioned schema (not applied to any project)

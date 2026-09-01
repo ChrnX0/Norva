@@ -19,7 +19,8 @@ import { useQuery } from '@/data/useQuery';
 import { fromDecimal } from '@/domain/money';
 import { costPerProductUnit, costRecipe, unitsPerBatch, type ItemCosts, type Recipe } from '@/domain/recipe';
 import { type PackagingHierarchy } from '@/domain/units';
-import { defaultLocale, dictionary, detectLanguage, formatMoney, formatQuantity } from '@/i18n';
+import { defaultLocale, dictionary, formatMoney, formatQuantity } from '@/i18n';
+import { detectLanguage } from '@/i18n/device';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
