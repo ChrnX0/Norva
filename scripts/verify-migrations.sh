@@ -256,6 +256,15 @@ CHECKER=00000000-0000-4000-8000-000000000004
 M=00000000-0000-4000-8000-0000000000
 rows() { psql -d "$DB" -Atqc "$1"; }
 
+# The probes below interpolate `$M` into SQL, which is normally the shape of an
+# injection and is flagged as such. It is safe here for a reason worth writing
+# down rather than waving away: `$M` is a fixed UUID prefix set on the line
+# above, `$CHECKER` and `$OPERATOR` are literals from this file, and nothing on
+# these lines comes from outside it. Binding them through psql variables would
+# hide which row each statement is about, which is the only thing these checks
+# are for. The marker goes on each line so the exemption is per statement and
+# a new one has to justify itself.
+
 # Some of the inserts below are meant to be refused, so a non-zero exit is a
 # result rather than a crash. What is asserted is what ended up in the table.
 
@@ -264,7 +273,7 @@ rows() { psql -d "$DB" -Atqc "$1"; }
 # invoice. Until 0007 the enum had no word for it.
 as_user "$CHECKER" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
   item_id, quantity_base_units, location_id, unit_cost_rate) values
-  ('${M}d4','${M}c1','purchase',now(),'$CHECKER','${M}b1',25000,'${M}a1',0.472);" >/dev/null 2>&1 || true
+  ('${M}d4','${M}c1','purchase',now(),'$CHECKER','${M}b1',25000,'${M}a1',0.472);" >/dev/null 2>&1 || true  # proofgate-allow
 posted=$(rows "select count(*) from movements where kind = 'purchase';")
 [ "$posted" = "1" ] || fail "a purchase could not be recorded"
 
@@ -272,7 +281,7 @@ posted=$(rows "select count(*) from movements where kind = 'purchase';")
 # nothing moved: it is the difference between a checked shelf and a forgotten one.
 as_user "$CHECKER" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
   item_id, quantity_base_units, location_id) values
-  ('${M}d5','${M}c1','adjustment',now(),'$CHECKER','${M}b1',0,'${M}a1');" >/dev/null 2>&1 || true
+  ('${M}d5','${M}c1','adjustment',now(),'$CHECKER','${M}b1',0,'${M}a1');" >/dev/null 2>&1 || true  # proofgate-allow
 counted=$(rows "select count(*) from movements where kind = 'adjustment' and quantity_base_units = 0;")
 [ "$counted" = "1" ] || fail "a count that found nothing wrong was refused"
 
@@ -280,7 +289,7 @@ counted=$(rows "select count(*) from movements where kind = 'adjustment' and qua
 # still nonsense and is still refused.
 as_user "$OWNER" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
   item_id, quantity_base_units, location_id) values
-  ('${M}d6','${M}c1','production',now(),'$OWNER','${M}b1',0,'${M}a1');" >/dev/null 2>&1 || true
+  ('${M}d6','${M}c1','production',now(),'$OWNER','${M}b1',0,'${M}a1');" >/dev/null 2>&1 || true  # proofgate-allow
 empty=$(rows "select count(*) from movements where kind = 'production' and quantity_base_units = 0;")
 [ "$empty" = "0" ] || fail "a production that made nothing was accepted"
 
@@ -288,8 +297,8 @@ empty=$(rows "select count(*) from movements where kind = 'production' and quant
 # may record production may not sign for a delivery.
 as_user "$OPERATOR" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
   item_id, quantity_base_units, location_id) values
-  ('${M}d7','${M}c1','purchase',now(),'$OPERATOR','${M}b1',1000,'${M}a1');" >/dev/null 2>&1 || true
-sneaked=$(rows "select count(*) from movements where id = '${M}d7';")
+  ('${M}d7','${M}c1','purchase',now(),'$OPERATOR','${M}b1',1000,'${M}a1');" >/dev/null 2>&1 || true  # proofgate-allow
+sneaked=$(rows "select count(*) from movements where id = '${M}d7';")  # proofgate-allow
 [ "$sneaked" = "0" ] || fail "someone without check_receipt signed for a delivery"
 
 echo "    purchases post, an empty count is kept, an empty production is not"
