@@ -38,6 +38,17 @@ Um módulo que sabe o que depende do quê não deve saber falar.
 **Multi-empresa desde a primeira linha.** `company_id` em toda tabela, RLS no
 servidor.
 
+**"Depende" vira dado, nunca código — e nunca uma pergunta.** Cada fábrica é um
+caso: uma usa celular compartilhado na câmara fria, outra dá um aparelho por
+pessoa; uma quer aprovação de pedido, outra não. Quando a resposta certa é
+"depende de quem usa", **não se escolhe um dos lados e não se pergunta qual** —
+constrói-se a escolha como configuração da empresa, e os dois caminhos existem.
+
+Isto vale inclusive para as perguntas feitas ao dono: pedir que ele escolha
+entre A e B quando A e B são preferências de cliente é empurrar para ele uma
+decisão que o produto deveria absorver. A pergunta certa nesse caso é qual é o
+**padrão** — não qual é o único.
+
 ---
 
 ## A Lei da Inteligência
@@ -161,6 +172,25 @@ que o esquema faz · o que o domínio exporta contra o que as telas chamam · o 
 o aparelho grava contra o que o servidor aceitaria · o que um teste afirma
 contra o que ele exercita de verdade · o que a Lei da Inteligência exige de cada
 tela contra o que ela responde hoje.
+
+---
+
+## Decisões do dono, já tomadas
+
+Registradas aqui porque decisão esquecida vira pergunta repetida.
+
+- **Entrada no chão de fábrica: configuração da empresa, não escolha nossa.**
+  Compartilhado usa PIN numa grade de nomes — dois segundos, de luva, offline.
+  Pessoal entra uma vez e fica. Os dois existem; a empresa escolhe.
+- **Quem cria a empresa é o dono**, cadastrando-se sozinho. A partir daí ele
+  cadastra as outras pessoas diretamente **ou** aprova quem pediu associação por
+  um código da empresa. Os dois caminhos.
+
+Ainda em aberto, e é dele: se o movimento operacional grava **quem** fez ou
+**onde** aconteceu. O tom de voz manda nunca culpar pessoa, e a cadeia de
+custódia existe para localizar a perda sem acusar ninguém — o que argumenta por
+aparelho e posto. E se o operador pode conferir a prateleira, já que contagem
+está no piso de autonomia.
 
 ---
 

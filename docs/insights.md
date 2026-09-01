@@ -459,6 +459,40 @@ está no piso de autonomia.
 
 ---
 
+## 2026-09-01 — a fundação que eu violo é exatamente a que não está no CLAUDE.md
+
+**O que se viu.** Perguntei ao dono se o celular do chão de fábrica é
+compartilhado ou pessoal, pedindo que ele escolhesse um. Ele respondeu que isso
+é o que ele repete desde o começo: **depende de quem usa, então vira opção.** É a
+fundação F7 do plano — *"Depende" vira DADO, não código.*
+
+Fui procurar por que continuo escorregando nisso, e o padrão é limpo demais para
+ser coincidência. `grep -i depende CLAUDE.md` devolve **uma** ocorrência, e é
+sobre outro assunto. **F7 nunca entrou no `CLAUDE.md`** — mora só no documento
+de plano, que é lido uma vez e não a cada sessão.
+
+E as seis fundações que **estão** no `CLAUDE.md` são exatamente as que eu
+respeitei o dia inteiro: achei e consertei violação do livro-razão append-only,
+do `Cents`/`Rate`, da permissão na consulta, do i18n, do "camada de dados devolve
+fato" e do multi-empresa. Seis por seis. A que ficou de fora é a única que eu
+violei — e violei perguntando.
+
+**O que mudou.** F7 entrou nas fundações, com um acréscimo que o plano não
+tinha: **vale também para as perguntas feitas ao dono.** Pedir que ele escolha
+entre A e B, quando A e B são preferências de cliente, é empurrar para ele uma
+decisão que o produto deveria absorver. A pergunta certa é qual é o **padrão** —
+não qual é o único.
+
+E as decisões dele foram escritas no `CLAUDE.md` também, porque decisão
+esquecida vira pergunta repetida, que é como isto começou.
+
+**A lição sobre o próprio arquivo.** Regra que não está no `CLAUDE.md` não está
+em lugar nenhum, por mais bem escrita que esteja num plano. O teste é brutal e
+já foi feito: seis das sete fundações estavam lá e valeram; a sétima não estava
+e não valeu.
+
+---
+
 ## Em aberto
 
 Achados desta rodada que ainda não viraram mudança. Ficam aqui até virarem.
