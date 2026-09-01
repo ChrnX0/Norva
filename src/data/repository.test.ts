@@ -6,6 +6,7 @@ import { costRecipe } from '@/domain/recipe';
 import { __setDb, migrate, migrationSteps, type Db, type SqlParam } from './db';
 import {
   balanceByLocation,
+  recordProduction,
   countForErase,
   eraseArea,
   itemCosts,
@@ -709,4 +710,68 @@ test('the balance splits by place, and the company total does not move', async (
     after?.onHandBaseUnits,
     'the places add up to the company - that is what makes both queries one arithmetic',
   );
+});
+
+test('a production run writes one line per item, and freezes what each cost', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const where = defaultLocationId(LOCAL_COMPANY_ID);
+
+  const before = await listItems(LOCAL_COMPANY_ID);
+  const run = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: where,
+    batches: 1,
+    unitsProduced: 500,
+  });
+
+  const lines = await live.getAllAsync<{ kind: string; item_id: string; q: number; r: number }>(
+    `SELECT kind, item_id, quantity_base_units AS q, unit_cost_rate AS r
+       FROM movements WHERE movement_group_id = ? ORDER BY kind`,
+    [run.groupId],
+  );
+
+  // One production and one consumption per ingredient - never a single row
+  // carrying a payload, because then the balance stops being a sum.
+  const made = lines.filter((l) => l.kind === 'production');
+  const used = lines.filter((l) => l.kind === 'consumption');
+  assert.equal(made.length, 1);
+  assert.ok(used.length >= 2, 'the seeded recipe has ingredients');
+  assert.equal(made[0].item_id, product.itemId);
+  assert.equal(made[0].q, 500);
+  assert.ok(used.every((l) => l.q < 0), 'what is consumed leaves');
+
+  // The frozen rate is the arithmetic of what actually happened: the value that
+  // went in, over the units that actually came out. Not the recipe's promise.
+  const value = used.reduce((sum, l) => sum + Math.abs(l.q) * (l.r ?? 0), 0);
+  assert.ok(Math.abs(run.unitCostRate - value / 500) < 1e-9);
+  assert.ok(Math.abs((made[0].r ?? 0) - run.unitCostRate) < 1e-9);
+
+  // And the stock moved both ways: ingredients down, product up.
+  const after = await listItems(LOCAL_COMPANY_ID);
+  for (const line of used) {
+    const was = before.find((i) => i.id === line.item_id)?.onHandBaseUnits ?? 0;
+    const now = after.find((i) => i.id === line.item_id)?.onHandBaseUnits ?? 0;
+    assert.equal(now, was + line.q, 'the ingredient came down by exactly what was used');
+  }
+});
+
+test('a run that yielded less freezes the higher cost, because that is what happened', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const where = defaultLocationId(LOCAL_COMPANY_ID);
+
+  const full = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id, locationId: where, batches: 1, unitsProduced: 500,
+  });
+  const short = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id, locationId: where, batches: 1, unitsProduced: 400,
+  });
+
+  // The same tub of mix over fewer popsicles is a dearer popsicle, and the
+  // ledger says so. Freezing the recipe's theoretical yield instead would hide
+  // the loss at the exact moment it happened - which is the number the owner
+  // most needs to see.
+  assert.ok(short.unitCostRate > full.unitCostRate);
+  assert.ok(Math.abs(short.unitCostRate / full.unitCostRate - 500 / 400) < 1e-9);
 });

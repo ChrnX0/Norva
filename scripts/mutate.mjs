@@ -189,6 +189,18 @@ const DEFECTS = [
     to: '       FROM movements WHERE company_id = ? AND item_id = ?`,',
     hurts: 'contar a prateleira de um lugar compara com o saldo da empresa inteira e teleporta estoque entre salas, com o operador tendo feito tudo certo',
   },
+  {
+    file: 'src/data/repository.ts',
+    from: '  const unitCostRate = (consumedValue / input.unitsProduced) as Rate;',
+    to: '  const unitCostRate = (consumedValue / (input.batches * 500)) as Rate;',
+    hurts: 'o custo congela pelo rendimento prometido em vez do que saiu do tacho, e a perda some no instante em que aconteceu',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: "      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate);",
+    to: "      await write(newId(), 'consumption', line.itemId, line.baseUnits, line.rate);",
+    hurts: 'produzir passa a AUMENTAR o estoque de insumo, e o almoxarifado enche sozinho a cada tacho',
+  },
 ];
 
 /**

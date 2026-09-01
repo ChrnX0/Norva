@@ -1,5 +1,6 @@
 import { applyCostEvent, type StockCostState } from '@/domain/cost';
 import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
+import { explodeRequirements } from '@/domain/recipe';
 import type { ItemCosts, Recipe, RecipeLine } from '@/domain/recipe';
 import type { PackagingHierarchy } from '@/domain/units';
 import { db, newId, nowIso, type Db } from './db';
@@ -800,6 +801,131 @@ export function purchaseToBaseUnits(item: Item, purchaseQuantity: number): numbe
 export { cents };
 
 // --- products ---------------------------------------------------------------
+
+export type ProductionResult = {
+  /** O que amarra as linhas deste ato. */
+  groupId: string;
+  unitsProduced: number;
+  /** Custo congelado do produto, por unidade, em taxa fracionária. */
+  unitCostRate: Rate;
+  consumed: { itemId: string; baseUnits: number; rate: Rate }[];
+};
+
+/**
+ * Uma corrida de produção: um movimento de entrada e um de saída por insumo.
+ *
+ * Sete linhas para uma corrida que faz 500 picolés com seis insumos, e não uma.
+ * `movements` tem UM `item_id` e uma quantidade assinada, e o saldo é
+ * `sum(...) group by empresa, item, local` — sete itens numa linha exigiriam um
+ * leitor que abre payload, e o saldo deixaria de ser uma soma. A política do
+ * servidor concorda: `movements_append` é um CASE por `kind` sem ELSE, e uma
+ * linha não pode ser dois tipos.
+ *
+ * O custo congela aqui, linha por linha, e é a razão de a corrida existir como
+ * evento. No consumo, a média móvel do insumo **naquele instante**. Na produção,
+ * a soma exata dos consumos dividida pelas unidades que **de fato** saíram —
+ * não pelo rendimento teórico. Se o tacho rendeu 480 onde a ficha prometia 500,
+ * congelar o teórico esconderia a perda que acabou de acontecer, e ela é
+ * exatamente o número que o dono precisa ver.
+ *
+ * Nada é escrito em `item_costs`. Valor derivado tem um autor só, e a média já
+ * responde sozinha: consumo à taxa média não move a média (`applyCostEvent`),
+ * então valor do razão dividido por quantidade do razão continua sendo ela.
+ */
+export async function recordProduction(
+  companyId: string,
+  input: {
+    /** Qual produto saiu. A receita e o rendimento vêm dele. */
+    productId: string;
+    /** Onde foi feito, e onde o produto passa a estar. */
+    locationId: string;
+    /** Quantos tachos foram rodados. É o que decide o consumo. */
+    batches: number;
+    /**
+     * Quantas unidades saíram de verdade.
+     *
+     * Fato separado do número de tachos, e não dedutível dele: a razão entre os
+     * dois É o rendimento real, que é metade do valor de registrar produção.
+     */
+    unitsProduced: number;
+    occurredAt?: string;
+    note?: string;
+    assistantPhrase?: string;
+  },
+): Promise<ProductionResult> {
+  const conn = await db();
+  const at = nowIso();
+
+  const product = (await listProducts(companyId)).find((p) => p.id === input.productId);
+  if (!product) throw new Error(`produto ${input.productId} não existe`);
+  if (!product.recipeId) throw new Error(`${product.name} é revenda: não se produz`);
+  if (input.batches <= 0) throw new Error('uma corrida tem pelo menos um tacho');
+  if (input.unitsProduced <= 0) throw new Error('uma corrida que não rendeu nada é um erro, não um fato');
+
+  const graph = await loadRecipeGraph(companyId);
+  const recipe = graph[product.recipeId];
+  if (!recipe) throw new Error(`a receita de ${product.name} não está no aparelho`);
+
+  const rates = await itemCosts(companyId);
+  const needed = explodeRequirements(product.recipeId, input.batches, graph);
+
+  const groupId = newId();
+  const occurred = input.occurredAt ?? at;
+
+  // O valor total consumido, em taxa × quantidade, sem arredondar em lugar
+  // nenhum: a taxa do produto sai daqui e continua fracionária.
+  let consumedValue = 0;
+  const consumed: { itemId: string; baseUnits: number; rate: Rate }[] = [];
+  for (const [itemId, baseUnits] of needed) {
+    const rate = (rates[itemId] ?? 0) as Rate;
+    consumedValue += rate * baseUnits;
+    consumed.push({ itemId, baseUnits, rate });
+  }
+
+  const unitCostRate = (consumedValue / input.unitsProduced) as Rate;
+  const productionId = newId();
+
+  await conn.withTransactionAsync(async () => {
+    await ensureLocation(conn, companyId);
+
+    const write = async (
+      id: string,
+      kind: 'production' | 'consumption',
+      itemId: string,
+      quantity: number,
+      rate: number,
+    ) => {
+      await conn.runAsync(
+        `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
+                                quantity_base_units, location_id, unit_cost_rate,
+                                movement_group_id, note, assistant_phrase)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          companyId,
+          kind,
+          occurred,
+          at,
+          itemId,
+          quantity,
+          input.locationId,
+          rate || null,
+          groupId,
+          input.note ?? null,
+          input.assistantPhrase ?? null,
+        ],
+      );
+      await enqueue(conn, [{ table: 'movements', rowId: id }]);
+    };
+
+    await write(productionId, 'production', product.itemId, input.unitsProduced, unitCostRate);
+    for (const line of consumed) {
+      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate);
+    }
+  });
+
+  return { groupId, unitsProduced: input.unitsProduced, unitCostRate, consumed };
+}
 
 export type Product = {
   id: string;

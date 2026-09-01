@@ -1194,3 +1194,30 @@ ambiguidade caía em nulo por outro caminho, e um guarda pareceu não morder por
 total da empresa em vez do seu próprio. Aí o teste cai com a mensagem certa — *"the six
 kilos are in the cold room"*. O teste ficou como estava; quem estava errado era a prova
 dele, e a lição é que **a sabotagem precisa alterar o resultado, não só o texto**.
+
+## 1 de setembro — a produção existe, e ela é sete linhas
+
+**O que mudou.** `recordProduction` escreve um movimento de `production` e um de
+`consumption` por insumo, todos com o mesmo `movement_group_id`. Sete linhas para uma
+corrida com seis insumos, e não uma: `movements` tem UM `item_id` e uma quantidade
+assinada, e o saldo é `sum(...) group by empresa, item, local`. Sete itens numa linha só
+exigiriam um leitor que abre payload, e o saldo deixaria de ser uma soma.
+
+**A decisão que mais importa, e ela não era óbvia.** O custo do produto congela como
+`Σ(consumo) ÷ unidades que saíram de verdade` — **não** pelo rendimento da ficha técnica.
+Se o tacho prometia 500 e rendeu 400, o picolé custou 25% mais, e é isso que fica gravado.
+Congelar o teórico esconderia a perda **no instante em que ela aconteceu**, que é
+exatamente o número que o dono precisa ver. Teste com as duas corridas lado a lado, e a
+razão dos custos tem de ser 500/400.
+
+E nada é escrito em `item_costs`: valor derivado tem um autor só, e a média já responde
+sozinha — consumo à taxa média não move a média, então valor do razão dividido por
+quantidade do razão continua sendo ela.
+
+**Primeiro chamador de `explodeRequirements`.** A função existia, era testada e nunca
+tinha sido chamada por linha de produção nenhuma — estava na lista dos doze exports órfãos
+da auditoria de hoje. A P1 do portão novo diz "sem chamador, não entra"; este é o commit
+em que ela ganha um.
+
+Duas mutações novas, com o dano por extenso: congelar pelo prometido, e o consumo entrando
+com sinal trocado — que faria o almoxarifado **encher sozinho** a cada tacho.
