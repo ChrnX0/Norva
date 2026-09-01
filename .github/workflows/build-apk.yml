@@ -22,6 +22,10 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Uma hora é folga generosa para uma compilação fria de NDK num runner de
+    # dois núcleos, e é o bastante para um travamento de verdade falhar em vez
+    # de queimar as seis horas padrão do GitHub.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -36,6 +40,21 @@ jobs:
           java-version: 17
 
       - uses: android-actions/setup-android@v3
+
+      # A primeira execução compila o NDK inteiro do React Native e leva perto
+      # de uma hora. O caché guarda o que não muda entre commits - dependências
+      # do Gradle e os objetos nativos já compilados - e a segunda execução
+      # passa a levar minutos. A chave inclui o lockfile porque uma dependência
+      # nova invalida o que estava compilado.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.cxx
+          key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
 
       - name: Instalar as dependências
         run: npm ci
