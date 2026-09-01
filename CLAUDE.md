@@ -100,6 +100,24 @@ com o comando que provou. "Compilou" não é "funciona".
 
 ---
 
+## `/insights`
+
+O comando `/insights` gera um relatório sobre as sessões deste projeto. **Ele é
+reservado ao usuário** — está marcado como `disable-model-invocation`, então
+Claude não consegue rodá-lo nem deve reproduzir o que ele faz por outro caminho.
+
+A diretriz, então, é de mão dupla e vale para os dois lados:
+
+- **O usuário roda `/insights` com frequência** — é a única leitura de fora
+  sobre como o trabalho está indo: onde o tempo foi, o que se repetiu, o que
+  deu errado mais de uma vez.
+- **Claude age sobre o que ele mostra.** Achado de `/insights` não é conversa:
+  vira mudança no código, no `CLAUDE.md` ou na barra de verificação, do mesmo
+  jeito que um ⚠️ da proofgate exige justificativa escrita. Padrão que aparece
+  duas vezes num relatório é dívida, não coincidência.
+
+---
+
 ## Faseamento
 
 **Nenhuma fase começa antes da anterior estar em uso real.** Hoje a Fase 1
