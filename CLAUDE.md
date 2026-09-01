@@ -118,6 +118,35 @@ A diretriz, então, é de mão dupla e vale para os dois lados:
 
 ---
 
+## Insight constante — diretriz obrigatória
+
+**Toda rodada de trabalho termina com uma pergunta: o que apareceu aqui que
+ninguém tinha visto?** Não é enfeite de conversa e não é opinião — insight neste
+projeto é achado que muda alguma coisa, e a prova de que mudou é o arquivo que
+foi editado por causa dele.
+
+Três regras, para não virar decoração:
+
+1. **Todo insight vira uma linha em `docs/insights.md`**, com o que se viu, por
+   que importa e o que mudou por causa disso. Achado sem consequência não entra
+   — se não mudou nada, ou não era achado, ou o trabalho não acabou.
+2. **Insight se procura, não se espera.** Antes de escrever código novo, a
+   pergunta é o que o código existente está contradizendo: uma fundação que só
+   vale no papel, uma função construída e nunca chamada, um número que só sobe,
+   um teste que passa pelo motivo errado. Foi assim que se descobriu que o
+   aplicativo tinha o livro-razão no domínio e um `estoque_atual` no banco.
+3. **"Não achei nada" é resposta válida e precisa ser dita.** Inventar um achado
+   para parecer diligente é o mesmo defeito do alerta inventado: treina a
+   ignorar. Vale a mesma regra do briefing — está tudo bem é um estado.
+
+Onde procurar, quando não houver pista óbvia: o que a fundação promete contra o
+que o esquema faz · o que o domínio exporta contra o que as telas chamam · o que
+o aparelho grava contra o que o servidor aceitaria · o que um teste afirma
+contra o que ele exercita de verdade · o que a Lei da Inteligência exige de cada
+tela contra o que ela responde hoje.
+
+---
+
 ## Faseamento
 
 **Nenhuma fase começa antes da anterior estar em uso real.** Hoje a Fase 1
