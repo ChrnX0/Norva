@@ -382,7 +382,15 @@ try {
 
   await browser.close();
   console.log(`\n${checks.length - failures}/${checks.length} passaram`);
-  if (failures > 0) process.exitCode = 1;
+
+  // A suite that registered nothing prints "0/0 passaram" and exits happy,
+  // which is the same shape as every silent defect found today: a mechanism
+  // reporting success without doing its work. If a syntax slip or a bad merge
+  // ever drops the checks, this is what says so instead of a clean green.
+  if (checks.length === 0) {
+    console.log('NENHUMA checagem registrada - a suíte não exercitou nada.');
+  }
+  if (failures > 0 || checks.length === 0) process.exitCode = 1;
 } finally {
   server.close();
 }

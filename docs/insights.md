@@ -820,3 +820,24 @@ domínio, telas, assistente e sincronização estão limpos. A promessa da funda
 telas") se sustenta hoje, e agora tem teste, com um controle junto: se as
 consultas saírem de `src/data`, o teste que as proíbe em outro lugar deixaria de
 provar coisa alguma, e é o controle que avisa.
+
+## 1 de setembro — a forma comum dos três defeitos silenciosos
+
+**O que apareceu.** Olhando os achados do dia juntos, três têm a mesma forma:
+o marcador `proofgate-allow` que não suprimia, a fila reproduzida como
+superusuário que não exercitava política nenhuma, e o `**` sem aspas que pulava
+um arquivo de teste inteiro. Nenhum é um erro de cálculo. Todos são **um
+mecanismo reportando sucesso sem ter feito o trabalho**.
+
+Com essa lente, varri o resto da barra. A `db:verify` está disciplinada
+(`set -euo pipefail` mais `fail()` explícito: comando que falha aborta). O
+`mutate` conta como sobrevivente a mutação cujo trecho sumiu, o que é o
+comportamento certo. **O e2e tinha o buraco:** se nenhuma checagem se
+registrasse — um deslize de sintaxe, um merge ruim — ele imprimia
+`0/0 passaram` e saía com sucesso.
+
+**O que mudou.** Suíte vazia agora é falha, com a razão escrita na tela. Provado
+esvaziando o registro de checagens: código de saída **1**, não zero. Medi errado
+na primeira tentativa (peguei o `$?` do `tail` em vez do `npm`) — e "imprime a
+mensagem mas sai zero" seria exatamente o defeito que eu estava consertando, o
+que torna a medição errada pior que não medir.
