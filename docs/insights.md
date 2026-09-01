@@ -876,3 +876,25 @@ tela atendem por **"Embalagem"** — o tipo do insumo (palito, saquinho) e o cam
 da embalagem de compra (saco 25 kg). Foi o Playwright que reclamou, e ele estava
 certo: se a ferramenta não distingue, uma pessoa de luva também não. Renomear é
 tom de voz, e tom de voz é decisão do dono.
+
+## 1 de setembro — empurrei duas vezes sem ler o portão
+
+**O que apareceu.** Não no código: em mim. Duas vezes hoje encadeei o commit
+numa linha separada da verificação e empurrei sem olhar a saída — a primeira com
+o shellcheck reclamando de um padrão redundante, a segunda com uma mutação
+**sobrevivente** que o meu próprio `mutate` tinha acabado de imprimir. O CI pegou
+a segunda três minutos depois, o que prova que o portão funciona e que o elo
+fraco é o operador dele.
+
+**Por que importa.** A barra deste projeto existe escrita há semanas, e escrita
+não bastou: eu a li, concordei com ela, e furei duas vezes no mesmo dia. Regra
+que depende de atenção é regra que falha no dia cansado — e o dia cansado é
+exatamente quando o erro custa caro.
+
+**O que mudou.** O `push-guard` da proofgate está instalado como hook
+`PreToolUse(Bash)`: ele lê o comando **antes** do git, e recusa `git push`
+enquanto não houver veredito fresco e passante para o HEAD atual. Também bloqueia
+`--no-verify` e `core.hooksPath`, e explica que a tentativa foi vista — porque um
+hook de git seria contornável por quem está com pressa, e quem está com pressa
+aqui sou eu. Provado nos dois sentidos: veredito no HEAD libera, HEAD adiantado
+recusa com saída 2.

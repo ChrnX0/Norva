@@ -135,6 +135,14 @@ Duas regras de operação, ambas cicatriz:
   justificativa em arquivo sem commit não existe para ela. Commit primeiro,
   depois confira.
 
+**E o portão passou a valer sozinho.** Duas vezes num dia eu empurrei antes de
+ler a saída da barra — uma com o shellcheck vermelho, outra com uma mutação
+sobrevivente que o CI pegou logo depois. Isso não se conserta com atenção. O
+`push-guard` da proofgate roda antes de qualquer `git push` e recusa enquanto não
+houver veredito fresco e passante para o HEAD atual; ele também bloqueia
+`--no-verify`, porque o adversário nesse caso sou eu. Desliga em
+`proofgate.json` (`pushGuard: false`) ou com `PROOFGATE_HOOK_OFF=1`.
+
 O `proofgate` é o portão de entrega. **Qualquer ❌ significa que não está
 pronto**, e todo ⚠️ pede justificativa escrita — nunca dispensa em silêncio.
 Depois dele vem o portão de julgamento: diga em que nível a afirmação central
