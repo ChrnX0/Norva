@@ -139,6 +139,40 @@ nunca teve dinheiro dentro.
 
 ---
 
+## 2026-09-01 — o guarda achou a mesma violação do outro lado, na primeira execução
+
+**O que se viu.** Um relatório de `/insights` apontou que eu tinha consertado a
+violação do livro-razão e não deixado nada impedindo ela de voltar. Estava
+certo, e é metade do trabalho pela régua deste projeto: consertar uma vez vale
+menos do que tornar difícil desfazer, porque um total guardado é sempre a opção
+mais barata **no instante** em que alguém a escreve — uma coluna, um `UPDATE`,
+nenhum `JOIN`.
+
+Escrevi o guarda: um teste que varre o esquema do aparelho e um comando no
+`db:verify` que varre o do servidor, procurando nome de coluna que signifique
+"quantidade que alguém mantém atualizada".
+
+**E ele mordeu na primeira execução.** O servidor tinha a coluna idêntica —
+`item_costs.on_hand_base_units` — que eu tirei do celular e não olhei do outro
+lado, na mesma rodada. Pior que duplicata: o gatilho a mantinha **só a partir
+das notas**, contando chegadas e mais nada. Bastaria existir uma contagem, uma
+perda ou uma produção para a coluna e o livro-razão responderem "quanto tem" com
+números diferentes — e o custo médio ser calculado contra o errado.
+
+**O que mudou.** Migração `0009`: o gatilho pergunta aos movimentos e a coluna
+some. O que torna isso seguro é uma decisão já tomada no aparelho — a linha da
+nota e o movimento dela dividem um id, porque são um fato visto duas vezes. O
+gatilho exclui o próprio movimento da soma por id, então acerta se o movimento
+chegou antes da linha, depois dela, ou ainda não chegou. Sem ordem para
+depender, e uma reentrega não dobra nada.
+
+**A lição que fica é sobre o guarda, não sobre a coluna.** Eu tinha acabado de
+escrever quatro parágrafos sobre essa fundação e ainda assim deixei a violação
+viva a um `SELECT` de distância. Achado não vira garantia enquanto não vira
+teste.
+
+---
+
 ## Em aberto
 
 Achados desta rodada que ainda não viraram mudança. Ficam aqui até virarem.

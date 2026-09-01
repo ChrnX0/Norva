@@ -105,24 +105,65 @@ balance=$(psql -d "$DB" -Atc "select base_units from stock_balances;")
 [ "$balance" = "4800" ] || fail "balance changed after the refused mutations (got $balance)"
 echo "    refused both, balance intact at $balance"
 
+# And nothing anywhere keeps a second answer to the same question.
+#
+# An append-only ledger is only the source of truth while it is the *only*
+# source. This project shipped a `on_hand_base_units` column on the device for
+# months, next to a ledger that was never written to, and every test passed the
+# whole time - the arithmetic was right, so nothing looked wrong. The name is
+# what gives it away, every time, because whoever adds one is describing
+# exactly what it is.
+stored=$(psql -d "$DB" -Atqc "select count(*) from information_schema.columns
+   where table_schema = 'public'
+     and column_name ~* '(^|_)(on_hand|current_stock|stock_level|estoque_atual|quantity_on_hand|saldo_atual)';")
+[ "$stored" = "0" ] || fail "$stored column(s) store a stock total the ledger would disagree with"
+echo "    and no table keeps a running total beside it"
+
 echo "==> check 2: a purchase moves the moving average, keeping precision"
+# On its own item, with no opening balance. Sugar carries a production movement
+# from the seed, and blending against it would make this check about two things
+# at once - which is how a test ends up asserting a number nobody can derive.
 psql -d "$DB" -v ON_ERROR_STOP=1 -q <<'SQL'
+insert into items (id, company_id, kind, name, purchase_unit, purchase_to_base)
+  values ('00000000-0000-4000-8000-0000000000b4', '00000000-0000-4000-8000-0000000000c1',
+          'input', 'Cane sugar', '25kg sack', 25000);
+
 insert into purchases (id, company_id, ordered_at, received_at, created_by)
   values ('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000c1',
           now() - interval '6 days', now(), '00000000-0000-4000-8000-000000000001');
--- 100 kg at R$ 4.72/kg, then 100 kg at R$ 5.90/kg
-insert into purchase_lines (company_id, purchase_id, item_id, purchase_quantity, base_units, total_cents)
-  values ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-0000000000e1',
-          '00000000-0000-4000-8000-0000000000b1', 4, 100000, 47200);
-insert into purchase_lines (company_id, purchase_id, item_id, purchase_quantity, base_units, total_cents)
-  values ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-0000000000e1',
-          '00000000-0000-4000-8000-0000000000b1', 4, 100000, 59000);
+
+-- 100 kg at R$ 4.72/kg, then 100 kg at R$ 5.90/kg. Each line is followed by the
+-- movement it causes, carrying the same id - which is what lets the trigger ask
+-- the ledger what was held *before* this arrival without depending on which of
+-- the two rows reaches the server first.
+insert into purchase_lines (id, company_id, purchase_id, item_id, purchase_quantity, base_units, total_cents)
+  values ('00000000-0000-4000-8000-0000000000f1', '00000000-0000-4000-8000-0000000000c1',
+          '00000000-0000-4000-8000-0000000000e1',
+          '00000000-0000-4000-8000-0000000000b4', 4, 100000, 47200);
+insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id,
+                       quantity_base_units, location_id, unit_cost_rate)
+  values ('00000000-0000-4000-8000-0000000000f1', '00000000-0000-4000-8000-0000000000c1',
+          'purchase', now(), '00000000-0000-4000-8000-000000000001',
+          '00000000-0000-4000-8000-0000000000b4', 100000,
+          '00000000-0000-4000-8000-0000000000a1', 0.472);
+
+insert into purchase_lines (id, company_id, purchase_id, item_id, purchase_quantity, base_units, total_cents)
+  values ('00000000-0000-4000-8000-0000000000f2', '00000000-0000-4000-8000-0000000000c1',
+          '00000000-0000-4000-8000-0000000000e1',
+          '00000000-0000-4000-8000-0000000000b4', 4, 100000, 59000);
+insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id,
+                       quantity_base_units, location_id, unit_cost_rate)
+  values ('00000000-0000-4000-8000-0000000000f2', '00000000-0000-4000-8000-0000000000c1',
+          'purchase', now(), '00000000-0000-4000-8000-000000000001',
+          '00000000-0000-4000-8000-0000000000b4', 100000,
+          '00000000-0000-4000-8000-0000000000a1', 0.590);
 SQL
 
-average=$(psql -d "$DB" -Atc "select round(average_rate, 3) from item_costs;")
+CANE=00000000-0000-4000-8000-0000000000b4
+average=$(psql -d "$DB" -Atc "select round(average_rate, 3) from item_costs where item_id = '$CANE';")  # proofgate-allow
 [ "$average" = "0.531" ] || fail "expected the average to land at 0.531 cents/g, got $average"
 
-last=$(psql -d "$DB" -Atc "select round(last_rate, 3) from item_costs;")
+last=$(psql -d "$DB" -Atc "select round(last_rate, 3) from item_costs where item_id = '$CANE';")  # proofgate-allow
 [ "$last" = "0.590" ] || fail "expected the last price to be 0.590 cents/g, got $last"
 
 history=$(psql -d "$DB" -Atc "select count(*) from item_cost_history;")
@@ -221,7 +262,7 @@ theirs=$(as_user "$OWNER" "select count(*) from items where name = 'Their secret
 [ "$theirs" = "0" ] || fail "company 1 could see company 2's items (got $theirs)"
 
 mine=$(as_user "$OWNER" "select count(*) from items;")
-[ "$mine" = "2" ] || fail "the owner should see exactly their own 2 items, got $mine"
+[ "$mine" = "3" ] || fail "the owner should see exactly their own 3 items, got $mine"
 
 # The same query, run by someone with no membership at all.
 stranger=$(as_user "00000000-0000-4000-8000-000000000001" "select count(*) from items;")
@@ -235,8 +276,10 @@ owner_cost=$(as_user "$OWNER" "select unit_cost_rate from movements_visible wher
 operator_cost=$(as_user "$OPERATOR" "select coalesce(unit_cost_rate::text, 'null') from movements_visible where id = '00000000-0000-4000-8000-0000000000d3';")
 [ "$operator_cost" = "null" ] || fail "an operator without view_cost saw the cost: '$operator_cost'"
 
+# The seeded production, the two purchases from check 2, and the costed
+# production above - all of company 1, none of the rival's.
 operator_rows=$(as_user "$OPERATOR" "select count(*) from movements_visible;")
-[ "$operator_rows" = "2" ] || fail "the operator should still see their movements, got $operator_rows"
+[ "$operator_rows" = "4" ] || fail "the operator should still see their movements, got $operator_rows"
 
 echo "    tenants isolated, and the operator sees the movement without the money"
 
@@ -274,7 +317,9 @@ rows() { psql -d "$DB" -Atqc "$1"; }
 as_user "$CHECKER" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
   item_id, quantity_base_units, location_id, unit_cost_rate) values
   ('${M}d4','${M}c1','purchase',now(),'$CHECKER','${M}b1',25000,'${M}a1',0.472);" >/dev/null 2>&1 || true  # proofgate-allow
-posted=$(rows "select count(*) from movements where kind = 'purchase';")
+# Asked by id, not by kind: check 2 posts purchases of its own, and an
+# assertion that counts everything breaks whenever a neighbouring check grows.
+posted=$(rows "select count(*) from movements where id = '${M}d4';")  # proofgate-allow
 [ "$posted" = "1" ] || fail "a purchase could not be recorded"
 
 # A count that found the books correct. Worth storing precisely because
