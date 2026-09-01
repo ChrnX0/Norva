@@ -1,9 +1,10 @@
+$ cd /tmp/claude-0/-home-user-SZG-app/3cd30dd5-15bc-5fda-b553-6d2524a27ce3/scratchpad
+cat > settings-proposto.json <<'JSON'
 {
   "permissions": {
     "defaultMode": "bypassPermissions",
     "allow": [
       "Bash",
-
       "Read", "Edit", "MultiEdit", "Write", "NotebookEdit",
       "Glob", "Grep", "WebFetch", "WebSearch",
       "Task", "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet",
@@ -11,18 +12,59 @@
       "SendUserFile", "PushNotification", "SendMessage", "Monitor",
       "ScheduleWakeup", "CronCreate", "CronList", "CronDelete",
       "ListMcpResourcesTool", "ReadMcpResourceTool", "ListConnectors",
-
       "mcp__github", "mcp__GitHub",
       "mcp__Vercel", "mcp__Expo", "mcp__Supabase",
       "mcp__Claude_Code_Remote", "mcp__Figma", "mcp__GoDaddy"
-    ],
-    *"deny"*: [
-      "Bash(git push --force*)", "Bash(git push -f*)", "Bash(git push origin main*)",
-      "Bash(git reset --hard*)", "Bash(rm -rf /*)", "Bash(rm -rf ~*)",
-      "mcp__github__delete_repository", "mcp__github__merge_pull_request",
-      "mcp__Supabase__pause_project", "mcp__Supabase__delete_branch",
-      "mcp__Expo__build_submit",
-      "mcp__Vercel__buy_domain", "mcp__Vercel__buy_pro", "mcp__Vercel__buy_credits"
+    ]
+  },
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"$NORVA_INSIGHTS_CHILD\" ] || NORVA_INSIGHTS_CHILD=1 claude -p '/insights' >> \"$HOME/.claude/insights-auto.log\" 2>&1 &",
+            "async": true
+          }
+        ]
+      }
     ]
   }
 }
+JSON
+python3 -c "import json; json.load(open('settings-proposto.json')); print('JSON válido')"
+cat settings-proposto.json
+
+JSON válido
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Bash",
+      "Read", "Edit", "MultiEdit", "Write", "NotebookEdit",
+      "Glob", "Grep", "WebFetch", "WebSearch",
+      "Task", "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet",
+      "TaskOutput", "TaskStop", "Skill", "ListSkills", "SearchSkills",
+      "SendUserFile", "PushNotification", "SendMessage", "Monitor",
+      "ScheduleWakeup", "CronCreate", "CronList", "CronDelete",
+      "ListMcpResourcesTool", "ReadMcpResourceTool", "ListConnectors",
+      "mcp__github", "mcp__GitHub",
+      "mcp__Vercel", "mcp__Expo", "mcp__Supabase",
+      "mcp__Claude_Code_Remote", "mcp__Figma", "mcp__GoDaddy"
+    ]
+  },
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"$NORVA_INSIGHTS_CHILD\" ] || NORVA_INSIGHTS_CHILD=1 claude -p '/insights' >> \"$HOME/.claude/insights-auto.log\" 2>&1 &",
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}
+Shell cwd was reset to /home/user/SZG-app
