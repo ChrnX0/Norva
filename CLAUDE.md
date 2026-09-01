@@ -242,6 +242,18 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
 
 ---
 
+**Antes de chamar algo de defeito, procure a decisão.** Três vezes numa sessão eu
+apontei "violação de fundação" no que era fronteira registrada: o `UnitStepper`
+sem uso (é componente da Fase 2), o `[por quê?]` ausente na home (a conta abre
+num toque, na receita), e o assistente monolíngue — que tem o raciocínio inteiro
+escrito no topo do `src/assistant/index.ts`, inclusive quando deixa de valer.
+
+O custo não é o tempo perdido, é pior: eu quase "consertei" uma decisão que
+alguém tomou por um motivo que eu não tinha lido. Então a busca vem antes da
+acusação — `grep` no docblock do arquivo, no `docs/insights.md` e nas decisões
+deste arquivo. Se houver decisão escrita, o achado não é defeito: ou é pedido de
+mudança para o dono, ou não é nada.
+
 **Contradição achada é suspeita de leitura errada, até virar prova.** Quando o
 esquema parece contrariar uma fundação, a primeira hipótese é que eu li errado —
 não que a fundação esteja furada. Antes de construir qualquer coisa em cima

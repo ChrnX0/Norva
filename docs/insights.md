@@ -1019,3 +1019,26 @@ parou na hora, sem tocar em nada.
 
 **E a disciplina que faltou foi minha:** disparei um build a partir de uma árvore suja sem
 conferir. O `git status` custa um segundo e teria mostrado.
+
+## 1 de setembro — três vezes acusei fronteira registrada de ser defeito
+
+**O que apareceu.** Num mesmo dia apontei "violação de fundação" em três coisas
+que eram decisão escrita: o `UnitStepper` sem chamador (é componente da Fase 2,
+e a tela de compra já dá a conversão por extenso), o `[por quê?]` ausente na
+home (a conta abre em um toque, na receita), e o assistente guardar 39 frases em
+português — que tem o raciocínio inteiro no topo do `src/assistant/index.ts`,
+inclusive a condição de quando deixa de valer: *"as respostas vão para o
+dicionário quando um modelo de linguagem fizer o casamento, nessa mesma
+mudança"*.
+
+**Por que importa mais que o tempo perdido.** No terceiro caso eu já tinha
+disparado um workflow para preparar a correção, e já tinha dito ao dono que era
+defeito. Quase "consertei" uma decisão que alguém tomou por um motivo que eu não
+tinha lido — e a correção teria deixado o assistente respondendo em espanhol
+sem entender espanhol, que é exatamente o resultado pior que a decisão evitava.
+
+**O que mudou.** Regra nova no `CLAUDE.md`: antes de chamar algo de defeito,
+procurar a decisão — no docblock do próprio arquivo, no `docs/insights.md`, nas
+decisões do dono. Havendo decisão escrita, o achado não é defeito: ou vira
+pedido de mudança para o dono, ou não é nada. O docblock do `index.ts` estava a
+um `grep` de distância nas três vezes.
