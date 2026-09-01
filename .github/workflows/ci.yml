@@ -3,9 +3,12 @@ name: CI
 # The bar every push has to clear. It is deliberately the same one a person
 # runs locally - a check that only exists in CI drifts from what contributors
 # actually do, and then nobody trusts either of them.
+# Pushes to main and every pull request. Not both for the same commit: a
+# branch with an open PR would otherwise run the whole bar twice, which costs
+# minutes and makes a red check ambiguous about which run it belongs to.
 on:
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
 
 jobs:
