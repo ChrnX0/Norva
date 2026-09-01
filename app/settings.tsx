@@ -16,6 +16,8 @@ import {
 } from '@/data/erase';
 import { hasSeeded, LOCAL_COMPANY_ID, restoreStarterData } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
+import { fill } from '@/i18n';
+import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -40,15 +42,16 @@ export default function SettingsScreen() {
   );
 }
 
-const AREAS: { area: EraseArea; label: string; hint: string }[] = [
-  { area: 'purchases', label: 'Compras', hint: 'notas lançadas, custo médio e histórico de preço' },
-  { area: 'recipes', label: 'Receitas', hint: 'fichas técnicas e todas as versões' },
-  { area: 'products', label: 'Produtos', hint: 'o que sai para vender' },
-  { area: 'inputs', label: 'Insumos', hint: 'almoxarifado, embalagem e material de loja' },
+const AREAS: { area: Exclude<EraseArea, 'all'> }[] = [
+  { area: 'purchases' },
+  { area: 'recipes' },
+  { area: 'products' },
+  { area: 'inputs' },
 ];
 
 function Settings() {
   const { color, type, space } = useTheme();
+  const { t } = useLocale();
   const confirm = useConfirm();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -70,18 +73,21 @@ function Settings() {
       // Law 5 again: this is not an error report after the fact - the button
       // was already disabled, and this explains the same thing on demand.
       await confirm({
-        title: 'Ainda não dá',
+        title: t.app.settings.cannotYet,
         message: blocker,
         acknowledge: true,
-        confirmLabel: 'Entendi',
+        confirmLabel: t.app.confirm.understood,
       });
       return;
     }
 
     const go = await confirm({
-      title: area === 'all' ? 'Apagar tudo?' : `Apagar ${label.toLowerCase()}?`,
-      message: `${summaryFor(area, counts)}\n\nIsso não tem volta.`,
-      confirmLabel: 'Apagar',
+      title:
+        area === 'all'
+          ? t.app.settings.eraseAllTitle
+          : fill(t.app.settings.eraseTitle, { area: label.toLowerCase() }),
+      message: `${summaryFor(area, counts)}\n\n${t.app.settings.noUndo}`,
+      confirmLabel: t.app.settings.erase,
       destructive: true,
     });
     if (!go) return;
@@ -92,10 +98,10 @@ function Settings() {
       refresh();
     } catch (e) {
       await confirm({
-        title: 'Não deu para apagar',
+        title: t.app.settings.failedToErase,
         message: e instanceof Error ? e.message : String(e),
         acknowledge: true,
-        confirmLabel: 'Entendi',
+        confirmLabel: t.app.confirm.understood,
       });
     } finally {
       setBusy(false);
@@ -106,11 +112,9 @@ function Settings() {
     if (busy) return;
 
     const go = await confirm({
-      title: 'Trazer o exemplo de volta?',
-      message:
-        'Recoloca os insumos, a receita e o produto de demonstração, com as compras que dão o ' +
-        'custo a eles. Só funciona se estiver vazio.',
-      confirmLabel: 'Restaurar',
+      title: t.app.settings.restoreTitle,
+      message: t.app.settings.restoreBody,
+      confirmLabel: t.app.settings.restoreConfirm,
     });
     if (!go) return;
 
@@ -120,10 +124,10 @@ function Settings() {
       refresh();
     } catch (e) {
       await confirm({
-        title: 'Não deu para restaurar',
+        title: t.app.settings.failedToRestore,
         message: e instanceof Error ? e.message : String(e),
         acknowledge: true,
-        confirmLabel: 'Entendi',
+        confirmLabel: t.app.confirm.understood,
       });
     } finally {
       setBusy(false);
@@ -137,19 +141,19 @@ function Settings() {
     (counts?.purchases ?? 0);
 
   return (
-    <CollapsingHeader title="Ajustes" overline={`${brand.name} · versão ${Constants.expoConfig?.version ?? '—'}`}>
+    <CollapsingHeader title={t.app.settings.title} overline={`${brand.name} · versão ${Constants.expoConfig?.version ?? '—'}`}>
       <Card tone="area">
-        <Text style={[type.cardTitle, { color: color.ink }]}>O que está guardado</Text>
+        <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.settings.stored}</Text>
         {loading || !counts ? (
           <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-            Conferindo…
+            {t.app.settings.checking}
           </Text>
         ) : (
           <View style={{ marginTop: space.md, gap: space.sm }}>
-            <Line label="Insumos" value={counts.inputs} />
-            <Line label="Receitas" value={counts.recipes} />
-            <Line label="Produtos" value={counts.products} />
-            <Line label="Compras lançadas" value={counts.purchases} />
+            <Line label={t.app.settings.inputs} value={counts.inputs} />
+            <Line label={t.app.settings.recipes} value={counts.recipes} />
+            <Line label={t.app.settings.products} value={counts.products} />
+            <Line label={t.app.settings.purchases} value={counts.purchases} />
           </View>
         )}
 
@@ -157,7 +161,7 @@ function Settings() {
           <View style={{ marginTop: space.md }}>
             <Chip
               signal="neutral"
-              label={total > 0 ? 'Inclui os dados de exemplo' : 'Vazio, sem exemplo'}
+              label={total > 0 ? t.app.settings.hasExample : t.app.settings.emptyNoExample}
             />
           </View>
         ) : null}
@@ -165,32 +169,33 @@ function Settings() {
 
       <Card tone="area">
         <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.xs }]}>
-          Limpar por área
+          {t.app.settings.clearByArea}
         </Text>
         <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.md }]}>
-          Uma área de cada vez, quando você quiser refazer só uma parte.
+          {t.app.settings.clearByAreaHint}
         </Text>
 
         {AREAS.map((entry) => {
-          const blocked = counts ? blockerFor(entry.area, counts) : 'Carregando…';
+          const label = t.app.settings[entry.area];
+          const blocked = counts ? blockerFor(entry.area, counts) : t.app.settings.checking;
           return (
             <Pressable
               key={entry.area}
-              onPress={() => void run(entry.area, entry.label)}
+              onPress={() => void run(entry.area, label)}
               disabled={busy || !counts}
               accessibilityRole="button"
-              accessibilityLabel={`Apagar ${entry.label}`}
+              accessibilityLabel={`${t.app.settings.erase} ${label}`}
               accessibilityState={{ disabled: Boolean(blocked) }}
               style={[styles.row, { paddingVertical: space.md, gap: space.md }]}
             >
               <View style={{ flex: 1 }}>
                 <Text style={[type.body, { color: blocked ? color.inkFaint : color.ink }]}>
-                  {entry.label}
+                  {label}
                 </Text>
                 <Text style={[type.caption, { color: color.inkFaint }]}>
                   {/* The reason replaces the hint rather than sitting beside a
                       dead button: the person needs the way out, not the label. */}
-                  {blocked ?? entry.hint}
+                  {blocked ?? t.app.settings.areas[entry.area]}
                 </Text>
               </View>
               <Text style={[type.body, { color: blocked ? color.inkFaint : color.inkMuted }]}>
@@ -202,17 +207,16 @@ function Settings() {
       </Card>
 
       <Card tone="danger">
-        <Text style={[type.cardTitle, { color: color.ink }]}>Começar do zero</Text>
+        <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.settings.startOver}</Text>
         <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-          Apaga tudo de uma vez, na ordem certa. Depois disso o aplicativo abre vazio e o exemplo
-          não volta sozinho.
+          {t.app.settings.startOverHint}
         </Text>
 
         <Pressable
-          onPress={() => void run('all', 'tudo')}
+          onPress={() => void run('all', t.app.settings.eraseAll)}
           disabled={busy || !counts || total === 0}
           accessibilityRole="button"
-          accessibilityLabel="Apagar tudo"
+          accessibilityLabel={t.app.settings.eraseAll}
           style={[
             styles.destructive,
             {
@@ -224,17 +228,16 @@ function Settings() {
           ]}
         >
           <Text style={[type.body, { color: color.danger, fontWeight: '600' }]}>
-            {busy ? 'Apagando…' : 'Apagar tudo'}
+            {busy ? t.app.settings.erasing : t.app.settings.eraseAll}
           </Text>
         </Pressable>
       </Card>
 
       {total === 0 && !loading ? (
         <Card>
-          <Text style={[type.cardTitle, { color: color.ink }]}>Dados de exemplo</Text>
+          <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.settings.exampleTitle}</Text>
           <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-            Está vazio. Se quiser ver o aplicativo funcionando antes de cadastrar o seu, dá para
-            trazer o exemplo de volta.
+            {t.app.settings.exampleEmpty}
           </Text>
           <Pressable
             onPress={() => void restore()}
@@ -246,7 +249,7 @@ function Settings() {
             ]}
           >
             <Text style={[type.body, { color: color.inkMuted, fontWeight: '600' }]}>
-              Restaurar dados de exemplo
+              {t.app.settings.restore}
             </Text>
           </Pressable>
         </Card>
@@ -254,7 +257,7 @@ function Settings() {
 
       <Pressable onPress={() => router.back()} accessibilityRole="button">
         <Text style={[type.secondary, { color: color.inkFaint, textAlign: 'center' }]}>
-          Voltar
+          {t.app.settings.back}
         </Text>
       </Pressable>
     </CollapsingHeader>

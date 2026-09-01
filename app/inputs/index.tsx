@@ -8,7 +8,8 @@ import { ListRow } from '@/components/ListRow';
 import { listItems, type ItemKind, type ItemWithCost } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
-import { defaultLocale, formatMoney } from '@/i18n';
+import { fill, formatMoney, formatQuantity } from '@/i18n';
+import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -30,16 +31,17 @@ export default function InputsListScreen() {
   );
 }
 
-const TABS: { kind: ItemKind; label: string; empty: string }[] = [
-  { kind: 'input', label: 'Insumos', empty: 'Nada cadastrado ainda.' },
-  { kind: 'packaging', label: 'Embalagem', empty: 'Palito, saquinho, rótulo — nada ainda.' },
-  { kind: 'store_supply', label: 'Material de loja', empty: 'Copo, colher, guardanapo — nada ainda.' },
+/** The order of the tabs; their words come from the dictionary. */
+const TABS: { kind: ItemKind; key: 'input' | 'packaging' | 'storeSupply' }[] = [
+  { kind: 'input', key: 'input' },
+  { kind: 'packaging', key: 'packaging' },
+  { kind: 'store_supply', key: 'storeSupply' },
 ];
 
 function InputsList() {
   const { color, space, type, accent } = useTheme();
   const router = useRouter();
-  const locale = defaultLocale;
+  const { locale, t } = useLocale();
   const [kind, setKind] = useState<ItemKind>('input');
 
   const { data, loading } = useQuery(() => listItems(LOCAL_COMPANY_ID));
@@ -56,10 +58,11 @@ function InputsList() {
   );
 
   const withoutPrice = shown.filter((item) => item.averageRate <= 0).length;
-  const tab = TABS.find((t) => t.kind === kind);
+  const tab = TABS.find((entry) => entry.kind === kind);
+  const empty = tab ? t.app.inputs.empty[tab.key] : '';
 
   return (
-    <CollapsingHeader title="Almoxarifado" overline="o que você compra">
+    <CollapsingHeader title={t.app.inputs.title} overline={t.app.inputs.overline}>
       <Card tone="area">
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={{ flexDirection: 'row', gap: space.sm }}>
@@ -90,7 +93,7 @@ function InputsList() {
                       },
                     ]}
                   >
-                    {entry.label} {count > 0 ? `· ${count}` : ''}
+                    {t.app.inputs.tabs[entry.key]} {count > 0 ? `· ${count}` : ''}
                   </Text>
                 </Pressable>
               );
@@ -101,17 +104,24 @@ function InputsList() {
 
       {shown.length > 0 ? (
         <Card tone="area">
-          <Text style={[type.overline, { color: color.inkFaint }]}>PARADO NO ESTOQUE</Text>
+          <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.inputs.heldTitle}</Text>
           <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
             {formatMoney(heldCents, locale)}
           </Text>
           <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {shown.length} {shown.length === 1 ? 'item' : 'itens'} ·  ao custo médio de cada um
+            {fill(t.app.inputs.heldDetail, {
+              count: `${formatQuantity(shown.length, locale)} ${
+                shown.length === 1 ? t.units.unit.one : t.units.unit.other
+              }`,
+            })}
           </Text>
           {withoutPrice > 0 ? (
             <Text style={[type.caption, { color: color.warning, marginTop: space.sm }]}>
-              {withoutPrice} {withoutPrice === 1 ? 'item ainda não tem' : 'itens ainda não têm'}{' '}
-              preço — lance a nota de compra e o custo aparece sozinho.
+              {fill(t.app.inputs.withoutPrice, {
+                count: `${formatQuantity(withoutPrice, locale)} ${
+                  withoutPrice === 1 ? t.units.unit.one : t.units.unit.other
+                }`,
+              })}
             </Text>
           ) : null}
         </Card>
@@ -119,15 +129,15 @@ function InputsList() {
 
       <Card>
         {loading ? (
-          <Text style={[type.secondary, { color: color.inkMuted }]}>Abrindo…</Text>
+          <Text style={[type.secondary, { color: color.inkMuted }]}>{t.app.inputs.opening}</Text>
         ) : shown.length === 0 ? (
-          <Text style={[type.secondary, { color: color.inkMuted }]}>{tab?.empty}</Text>
+          <Text style={[type.secondary, { color: color.inkMuted }]}>{empty}</Text>
         ) : (
           shown.map((item) => (
             <ListRow
               key={item.id}
               label={item.name}
-              detail={describe(item)}
+              detail={describe(item, t.app.inputs.inStock)}
               trailing={
                 item.averageRate > 0
                   ? formatMoney(Math.round(item.averageRate * 1_000), locale)
@@ -142,24 +152,30 @@ function InputsList() {
 
       {shown.length > 0 ? (
         <Text style={[type.caption, { color: color.inkFaint, textAlign: 'center' }]}>
-          O valor à direita é o custo a cada 1.000 {shown[0].baseUnit}.
+          {fill(t.app.inputs.perThousand, { unit: shown[0].baseUnit })}
         </Text>
       ) : null}
 
-      <Button label="Cadastrar novo" onPress={() => router.push('/inputs/new')} weighty />
+      <Button label={t.app.inputs.addNew} onPress={() => router.push('/inputs/new')} weighty />
     </CollapsingHeader>
   );
 }
 
 /** What the row says under the name: how it is bought, and what is on hand. */
-function describe(item: ItemWithCost): string {
+function describe(item: ItemWithCost, inStock: string): string {
   const parts: string[] = [];
 
   if (item.purchaseUnit && item.purchaseToBase) {
-    parts.push(`${item.purchaseUnit} · ${item.purchaseToBase.toLocaleString('pt-BR')} ${item.baseUnit}`);
+    parts.push(
+      `${item.purchaseUnit} · ${item.purchaseToBase.toLocaleString('pt-BR')} ${item.baseUnit}`,
+    );
   }
   if (item.onHandBaseUnits > 0) {
-    parts.push(`${item.onHandBaseUnits.toLocaleString('pt-BR')} ${item.baseUnit} em estoque`);
+    parts.push(
+      fill(inStock, {
+        amount: `${item.onHandBaseUnits.toLocaleString('pt-BR')} ${item.baseUnit}`,
+      }),
+    );
   }
 
   return parts.join('  ·  ');

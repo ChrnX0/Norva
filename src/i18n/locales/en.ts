@@ -72,6 +72,70 @@ export const en: Dictionary = {
         settings: { label: 'Settings', hint: 'clear data and start over' },
       },
     },
+    settings: {
+      title: 'Settings',
+      stored: 'What is stored',
+      checking: 'Checking…',
+      inputs: 'Inputs',
+      recipes: 'Recipes',
+      products: 'Products',
+      purchases: 'Invoices recorded',
+      hasExample: 'Includes the example data',
+      emptyNoExample: 'Empty, no example',
+      clearByArea: 'Clear one area',
+      clearByAreaHint: 'One area at a time, when you only want to redo part of it.',
+      areas: {
+        purchases: 'recorded invoices, average cost and price history',
+        recipes: 'recipes and every version of them',
+        products: 'what goes out to sell',
+        inputs: 'storeroom, packaging and store supplies',
+      },
+      startOver: 'Start over',
+      startOverHint:
+        'Erases everything at once, in the right order. After that the app opens empty and the example does not come back on its own.',
+      eraseAll: 'Erase everything',
+      erasing: 'Erasing…',
+      cannotYet: 'Not yet',
+      noUndo: 'There is no undo.',
+      eraseTitle: 'Erase {{area}}?',
+      eraseAllTitle: 'Erase everything?',
+      erase: 'Erase',
+      failedToErase: 'Could not erase',
+      exampleTitle: 'Example data',
+      exampleEmpty:
+        'It is empty. If you want to see the app working before entering your own, you can bring the example back.',
+      restore: 'Restore the example data',
+      restoreTitle: 'Bring the example back?',
+      restoreBody:
+        'Puts back the demonstration inputs, recipe and product, with the purchases that give them their cost. Only works if it is empty.',
+      restoreConfirm: 'Restore',
+      failedToRestore: 'Could not restore',
+      back: 'Back',
+    },
+
+    inputs: {
+      title: 'Storeroom',
+      overline: 'what you buy',
+      tabs: {
+        input: 'Inputs',
+        packaging: 'Packaging',
+        storeSupply: 'Store supplies',
+      },
+      empty: {
+        input: 'Nothing registered yet.',
+        packaging: 'Stick, wrapper, label — nothing yet.',
+        storeSupply: 'Cup, spoon, napkin — nothing yet.',
+      },
+      heldTitle: 'SITTING IN THE STOREROOM',
+      heldDetail: '{{count}} · at each one average cost',
+      withoutPrice:
+        '{{count}} with no price yet — record the invoice and the cost appears on its own.',
+      opening: 'Opening…',
+      perThousand: 'The figure on the right is the cost per 1,000 {{unit}}.',
+      addNew: 'Register a new one',
+      inStock: '{{amount}} in stock',
+    },
+
   },
 
   signals: {

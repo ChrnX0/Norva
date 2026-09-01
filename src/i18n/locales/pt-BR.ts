@@ -91,6 +91,70 @@ export const ptBR = {
         settings: { label: 'Ajustes', hint: 'limpar dados e recomeçar' },
       },
     },
+    settings: {
+      title: 'Ajustes',
+      stored: 'O que está guardado',
+      checking: 'Conferindo…',
+      inputs: 'Insumos',
+      recipes: 'Receitas',
+      products: 'Produtos',
+      purchases: 'Compras lançadas',
+      hasExample: 'Inclui os dados de exemplo',
+      emptyNoExample: 'Vazio, sem exemplo',
+      clearByArea: 'Limpar por área',
+      clearByAreaHint: 'Uma área de cada vez, quando você quiser refazer só uma parte.',
+      areas: {
+        purchases: 'notas lançadas, custo médio e histórico de preço',
+        recipes: 'fichas técnicas e todas as versões',
+        products: 'o que sai para vender',
+        inputs: 'almoxarifado, embalagem e material de loja',
+      },
+      startOver: 'Começar do zero',
+      startOverHint:
+        'Apaga tudo de uma vez, na ordem certa. Depois disso o aplicativo abre vazio e o exemplo não volta sozinho.',
+      eraseAll: 'Apagar tudo',
+      erasing: 'Apagando…',
+      cannotYet: 'Ainda não dá',
+      noUndo: 'Isso não tem volta.',
+      eraseTitle: 'Apagar {{area}}?',
+      eraseAllTitle: 'Apagar tudo?',
+      erase: 'Apagar',
+      failedToErase: 'Não deu para apagar',
+      exampleTitle: 'Dados de exemplo',
+      exampleEmpty:
+        'Está vazio. Se quiser ver o aplicativo funcionando antes de cadastrar o seu, dá para trazer o exemplo de volta.',
+      restore: 'Restaurar dados de exemplo',
+      restoreTitle: 'Trazer o exemplo de volta?',
+      restoreBody:
+        'Recoloca os insumos, a receita e o produto de demonstração, com as compras que dão o custo a eles. Só funciona se estiver vazio.',
+      restoreConfirm: 'Restaurar',
+      failedToRestore: 'Não deu para restaurar',
+      back: 'Voltar',
+    },
+
+    inputs: {
+      title: 'Almoxarifado',
+      overline: 'o que você compra',
+      tabs: {
+        input: 'Insumos',
+        packaging: 'Embalagem',
+        storeSupply: 'Material de loja',
+      },
+      empty: {
+        input: 'Nada cadastrado ainda.',
+        packaging: 'Palito, saquinho, rótulo — nada ainda.',
+        storeSupply: 'Copo, colher, guardanapo — nada ainda.',
+      },
+      heldTitle: 'PARADO NO ESTOQUE',
+      heldDetail: '{{count}} · ao custo médio de cada um',
+      withoutPrice:
+        '{{count}} sem preço — lance a nota de compra e o custo aparece sozinho.',
+      opening: 'Abrindo…',
+      perThousand: 'O valor à direita é o custo a cada 1.000 {{unit}}.',
+      addNew: 'Cadastrar novo',
+      inStock: '{{amount}} em estoque',
+    },
+
   },
 
   signals: {

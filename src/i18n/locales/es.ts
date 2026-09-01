@@ -77,6 +77,70 @@ export const es: Dictionary = {
         settings: { label: 'Ajustes', hint: 'limpiar datos y empezar de nuevo' },
       },
     },
+    settings: {
+      title: 'Ajustes',
+      stored: 'Lo que está guardado',
+      checking: 'Comprobando…',
+      inputs: 'Insumos',
+      recipes: 'Recetas',
+      products: 'Productos',
+      purchases: 'Compras registradas',
+      hasExample: 'Incluye los datos de ejemplo',
+      emptyNoExample: 'Vacío, sin ejemplo',
+      clearByArea: 'Limpiar por área',
+      clearByAreaHint: 'Un área a la vez, cuando quieras rehacer solo una parte.',
+      areas: {
+        purchases: 'facturas registradas, costo promedio e historial de precio',
+        recipes: 'fichas técnicas y todas las versiones',
+        products: 'lo que sale para vender',
+        inputs: 'almacén, empaque y material de tienda',
+      },
+      startOver: 'Empezar de cero',
+      startOverHint:
+        'Borra todo de una vez, en el orden correcto. Después la aplicación abre vacía y el ejemplo no vuelve solo.',
+      eraseAll: 'Borrar todo',
+      erasing: 'Borrando…',
+      cannotYet: 'Todavía no se puede',
+      noUndo: 'Esto no tiene vuelta atrás.',
+      eraseTitle: '¿Borrar {{area}}?',
+      eraseAllTitle: '¿Borrar todo?',
+      erase: 'Borrar',
+      failedToErase: 'No se pudo borrar',
+      exampleTitle: 'Datos de ejemplo',
+      exampleEmpty:
+        'Está vacío. Si quieres ver la aplicación funcionando antes de cargar lo tuyo, puedes traer el ejemplo de vuelta.',
+      restore: 'Restaurar datos de ejemplo',
+      restoreTitle: '¿Traer el ejemplo de vuelta?',
+      restoreBody:
+        'Repone los insumos, la receta y el producto de demostración, con las compras que les dan su costo. Solo funciona si está vacío.',
+      restoreConfirm: 'Restaurar',
+      failedToRestore: 'No se pudo restaurar',
+      back: 'Volver',
+    },
+
+    inputs: {
+      title: 'Almacén',
+      overline: 'lo que compras',
+      tabs: {
+        input: 'Insumos',
+        packaging: 'Empaque',
+        storeSupply: 'Material de tienda',
+      },
+      empty: {
+        input: 'Nada cargado todavía.',
+        packaging: 'Palito, bolsita, etiqueta — nada todavía.',
+        storeSupply: 'Vaso, cuchara, servilleta — nada todavía.',
+      },
+      heldTitle: 'PARADO EN EL ALMACÉN',
+      heldDetail: '{{count}} · al costo promedio de cada uno',
+      withoutPrice:
+        '{{count}} sin precio — registra la factura y el costo aparece solo.',
+      opening: 'Abriendo…',
+      perThousand: 'El valor a la derecha es el costo por cada 1.000 {{unit}}.',
+      addNew: 'Cargar nuevo',
+      inStock: '{{amount}} en existencia',
+    },
+
   },
 
   signals: {
