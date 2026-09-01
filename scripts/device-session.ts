@@ -28,7 +28,7 @@ import {
 } from '@/data/repository';
 import { ensureStarterData, LOCAL_COMPANY_ID } from '@/data/seed';
 import { fromDecimal } from '@/domain/money';
-import { serialize, type SyncActor } from '@/sync/serialize';
+import { sendableTables, serialize, type SyncActor } from '@/sync/serialize';
 
 /** Stands in for whoever is signed in when the phone finally finds a tower. */
 const ACTOR: SyncActor = { userId: '00000000-0000-4000-8000-000000000001' };
@@ -104,6 +104,7 @@ async function main() {
 
   const queue = await pendingEntries(500);
   const out: string[] = [];
+  const exercised = new Set<string>();
 
   out.push('-- Gerado por scripts/device-session.ts. Não editar à mão.');
   out.push(`-- ${queue.length} escritas na fila, na ordem em que o aparelho gravou.`);
@@ -158,11 +159,26 @@ async function main() {
     // table does not have fail on the column list, loudly, which is the entire
     // point of running this. Every name here comes from `serialize`'s own closed
     // list, never from outside. proofgate-allow
+    exercised.add(write.table);
+
     const columns = keys.join(', ');
     out.push(
       `insert into ${write.table} (${columns}) select ${columns} from ` +
         `jsonb_populate_record(null::${write.table}, $sync$${json}$sync$::jsonb) ` +
         `on conflict (${conflict.join(', ')}) ${onConflict};`,
+    );
+  }
+
+  // The guard checks itself.
+  //
+  // Every table `serialize` claims it can send has to actually appear in this
+  // session, or the sixth guarantee quietly covers nine tables out of ten and
+  // reads exactly the same. A table added tomorrow that nothing here exercises
+  // stops the run rather than passing.
+  const untouched = sendableTables.filter((table) => !exercised.has(table));
+  if (untouched.length > 0) {
+    throw new Error(
+      `a sessão não exercita ${untouched.join(', ')} — a checagem 6 cobriria menos do que promete`,
     );
   }
 

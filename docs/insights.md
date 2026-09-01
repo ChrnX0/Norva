@@ -320,6 +320,38 @@ de plpgsql no Postgres — e exige que fechem o mesmo número. Hoje fecham: sald
 
 ---
 
+## 2026-09-01 — a regra da capa não estava presa em lugar nenhum
+
+**O que se viu.** Auditoria por mutação: introduzir defeitos plausíveis no
+domínio do dinheiro e ver se a suíte morde. Seis defeitos, cinco pegos na hora
+— e **um passou por noventa e dois testes sem que ninguém percebesse.**
+
+`amountOf` trocando `Math.round` por `Math.floor`. Ou seja: *o* ponto de
+arredondamento do sistema inteiro, aquele que o `CLAUDE.md` anuncia em letra
+maiúscula — *"só o valor final arredonda, uma vez"* — não tinha nada segurando a
+**direção** desse arredondamento.
+
+Passou porque todo fixture caía em centavo exato, então piso e arredondamento
+davam o mesmo número. A regra da capa do projeto estava sustentada por
+coincidência aritmética.
+
+**Por que a direção importa.** Piso derruba uma fração de centavo em toda linha,
+sempre para o mesmo lado, e o erro se acumula numa direção só ao longo de uma
+receita: custo sai baixo, margem sai alta, e alguém precifica abaixo do custo
+sem que um único número pareça errado. É a mesma família do bug da polpa.
+
+**O que mudou.** `src/domain/money.test.ts`, prendendo a direção nos dois
+sentidos — piso e teto agora derrubam a suíte — com o caso que faltava: meio
+centavo. E de quebra o que nunca some nem inventa centavo na repartição, e que
+taxa continua fracionária.
+
+**A lição sobre a barra, não sobre o centavo.** Suíte verde não diz que a regra
+está protegida; diz que os exemplos escolhidos não a exercitam. Mutação é barata
+e é a única coisa que responde a pergunta certa: *este teste passaria se o
+código estivesse errado?*
+
+---
+
 ## Em aberto
 
 Achados desta rodada que ainda não viraram mudança. Ficam aqui até virarem.
@@ -334,6 +366,13 @@ Achados desta rodada que ainda não viraram mudança. Ficam aqui até virarem.
   `explodeRequirements` sobre o estoque atual já responde hoje, com dados só da
   Fase 1: *"se eu fizer 3 tachos de cada sabor, o que falta comprar?"* Isso é
   simulação, não previsão — não precisa de histórico nenhum.
+- **"Apagar tudo" não tem lado servidor, e a decisão é sua.** O comando
+  sobrevive à limpeza e o `serialize` o emite, mas o servidor não o recebe —
+  então hoje um sync futuro traria de volta o que a pessoa mandou destruir.
+  Construir isso exige decidir o que "apagar" significa num servidor
+  multiempresa: destruir o histórico daquela empresa, ou só marcar que aquele
+  aparelho não quer mais o dado. A primeira é irreversível e o livro-razão recusa
+  DELETE por desenho. Não construo sem você escolher.
 - **O aparelho ainda não tem consumo nem perda.** A contagem faz o saldo descer,
   mas a perda com motivo obrigatório continua sem existir, e sem ela toda
   diferença legítima vira "inexplicada".
