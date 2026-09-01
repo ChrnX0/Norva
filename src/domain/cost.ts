@@ -181,3 +181,32 @@ export function ratesBefore(
 
   return { ...current, ...Object.fromEntries(earliest) };
 }
+
+/**
+ * How a price change should be read. A verdict, not a sentence - the screen
+ * owns the words, in three languages.
+ */
+export type PriceVerdict = 'wellAbove' | 'smallChange' | 'cheaper';
+
+/**
+ * Where "it went up" becomes "it went up enough to say something".
+ *
+ * The two numbers are deliberately not symmetric. It takes more than 5% to
+ * raise an alarm and only 2% to call something cheaper, because the costs of
+ * being wrong are not symmetric either: a false alarm teaches the person to
+ * ignore alarms, and then the real one arrives and is ignored too. Good news
+ * that turns out to be noise costs nothing.
+ *
+ * They live here rather than in the screen that draws them because they are a
+ * business rule, not a style - and until now they were four magic numbers
+ * inside JSX, deciding what a person is warned about before they spend money,
+ * with no test anywhere.
+ */
+export const PRICE_ALARM = 0.05;
+export const PRICE_RELIEF = -0.02;
+
+export function judgePriceChange(change: number): PriceVerdict {
+  if (change > PRICE_ALARM) return 'wellAbove';
+  if (change < PRICE_RELIEF) return 'cheaper';
+  return 'smallChange';
+}

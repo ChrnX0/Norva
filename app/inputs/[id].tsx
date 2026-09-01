@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { Chip } from '@/components/Chip';
+import { Chip, priceSignal } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
 import { ListRow } from '@/components/ListRow';
@@ -20,6 +20,7 @@ import {
   type PriceMoveRow,
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { judgePriceChange } from '@/domain/cost';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatDayMonth, formatMoney, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -195,7 +196,7 @@ function InputDetail() {
         {latestChange !== null && Math.abs(latestChange) >= 0.001 ? (
           <View style={{ marginTop: space.md }}>
             <Chip
-              signal={latestChange > 0.05 ? 'warning' : latestChange < 0 ? 'ok' : 'neutral'}
+              signal={priceSignal(judgePriceChange(latestChange))}
               label={fill(
                 latestChange > 0 ? t.app.inputDetail.wentUp : t.app.inputDetail.wentDown,
                 { percent: `${(Math.abs(latestChange) * 100).toFixed(1)}%` },

@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { Chip } from '@/components/Chip';
+import { Chip, priceSignal } from '@/components/Chip';
 import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
@@ -19,7 +19,7 @@ import {
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { fromDecimal, rate, type Rate } from '@/domain/money';
-import { applyCostEvent } from '@/domain/cost';
+import { applyCostEvent, judgePriceChange } from '@/domain/cost';
 import { costPerProductUnit, costRecipe } from '@/domain/recipe';
 import { fill, formatMoney, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -98,6 +98,10 @@ function PurchaseForm() {
 
     return { packs, paid, factor, baseUnits, totalCents, thisRate, after, previous, change };
   }, [selected, quantity, total]);
+
+  // How this price should be read, decided in one place that has a test rather
+  // than by three copies of the same threshold inside the markup below.
+  const verdict = draft && draft.change !== null ? judgePriceChange(draft.change) : null;
 
   const perPackNow = draft ? draft.paid / draft.packs : 0;
   const perPackBefore =
@@ -239,7 +243,7 @@ function PurchaseForm() {
       ) : null}
 
       {draft && selected ? (
-        <Card tone={draft.change !== null && draft.change > 0.05 ? 'warning' : 'area'}>
+        <Card tone={verdict === 'wellAbove' ? 'warning' : 'area'}>
           <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.purchase.beforeClosing}</Text>
 
           {draft.change === null || perPackBefore === null ? (
@@ -258,15 +262,11 @@ function PurchaseForm() {
                 })}
               </Text>
               <View style={{ marginTop: space.md }}>
+                {/* The verdict names the key; the dictionary writes the words.
+                    Three languages, one rule, and the rule is tested. */}
                 <Chip
-                  signal={draft.change > 0.05 ? 'warning' : draft.change < -0.02 ? 'ok' : 'neutral'}
-                  label={
-                    draft.change > 0.05
-                      ? t.app.purchase.wellAbove
-                      : draft.change < -0.02
-                        ? t.app.purchase.cheaper
-                        : t.app.purchase.smallChange
-                  }
+                  signal={priceSignal(verdict)}
+                  label={verdict ? t.app.purchase[verdict] : t.app.purchase.smallChange}
                 />
               </View>
             </>

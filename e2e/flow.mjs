@@ -313,7 +313,11 @@ try {
   // loud, for the case it was really for: iterating on the checks themselves.
   if (!existsSync(ROOT) || !process.env.E2E_REUSE_BUILD) {
     console.log('› exportando a versão web');
-    await run('npx', ['expo', 'export', '--platform', 'web', '--clear']);
+    // No `--clear`: that empties the *bundler* cache, which buys nothing here.
+    // `expo export` rewrites `dist` on every run regardless, and the bug this
+    // guards against was skipping the export entirely, not reusing a warm
+    // cache. Clearing it cost two or three minutes of every run.
+    await run('npx', ['expo', 'export', '--platform', 'web']);
   }
 
   await new Promise((resolve) => server.listen(PORT, resolve));

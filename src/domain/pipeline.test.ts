@@ -3,6 +3,9 @@ import { test } from 'node:test';
 import {
   applyCostEvent,
   emptyStock,
+  judgePriceChange,
+  PRICE_ALARM,
+  PRICE_RELIEF,
   priceMove,
   ratesBefore,
   type PurchaseEvent,
@@ -248,4 +251,32 @@ test('the price moves land on the finished unit, in reais', () => {
 test('nothing moved means the comparison says nothing, not zero-ish noise', () => {
   const now: ItemCosts = { pulp: rate(12.4, 1_000) };
   assert.deepEqual(ratesBefore(now, []), { pulp: now.pulp });
+});
+
+/**
+ * The verdict that decides what somebody is warned about before they spend
+ * money. It lived as four magic numbers inside JSX, written three different
+ * ways on the same card, and nothing tested it.
+ */
+
+test('the price verdict names its buckets, and the boundaries are exact', () => {
+  assert.equal(judgePriceChange(0.41), 'wellAbove');
+  assert.equal(judgePriceChange(0.02), 'smallChange');
+  assert.equal(judgePriceChange(0), 'smallChange');
+  assert.equal(judgePriceChange(-0.05), 'cheaper');
+
+  // Exactly at a threshold is not past it. Both are written down so a later
+  // change to either one is a decision somebody made, not a drift.
+  assert.equal(judgePriceChange(PRICE_ALARM), 'smallChange');
+  assert.equal(judgePriceChange(PRICE_RELIEF), 'smallChange');
+  assert.equal(judgePriceChange(PRICE_ALARM + 1e-9), 'wellAbove');
+  assert.equal(judgePriceChange(PRICE_RELIEF - 1e-9), 'cheaper');
+});
+
+test('it takes more to raise an alarm than to call something cheaper', () => {
+  // Deliberately not symmetric: a false alarm teaches people to ignore alarms,
+  // and then the real one arrives and is ignored too.
+  assert.ok(PRICE_ALARM > Math.abs(PRICE_RELIEF));
+  assert.equal(judgePriceChange(0.04), 'smallChange', 'four percent up is noise');
+  assert.equal(judgePriceChange(-0.04), 'cheaper', 'four percent down is worth saying');
 });

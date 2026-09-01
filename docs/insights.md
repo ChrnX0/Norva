@@ -205,6 +205,39 @@ avisa. Fica em aberto até existir dado que sustente a sugestão.
 
 ---
 
+## 2026-09-01 — a regra que avisa antes de gastar dinheiro morava no JSX
+
+**O que se viu.** Uma varredura mecânica por funções do domínio sem chamador —
+o mesmo padrão que já tinha entregado o livro-razão inutilizado — devolveu
+quinze nomes. Antes de chamar isso de achado eu conferi um por um, e é aí que
+estava a parte útil: `priceMove` **não** é duplicata da tela de compra. Ela
+compara as duas últimas notas do passado; a tela compara a nota que está sendo
+digitada. Perguntas diferentes.
+
+O problema real era o outro lado. A tela decidia sozinha o que é um aumento
+digno de aviso, com `0.05` e `-0.02` escritos **quatro vezes** dentro do JSX, a
+mesma regra expressa de três jeitos — cor do cartão, sinal da etiqueta, texto da
+etiqueta. Nenhum teste em lugar nenhum. É a regra que decide o que o dono é
+avisado **antes de gastar dinheiro**, e ela morava na marcação.
+
+**O que mudou.** `judgePriceChange()` devolve um veredito — `wellAbove`,
+`smallChange`, `cheaper` — e os dois limiares passam a ser constantes com o
+motivo escrito ao lado. O veredito **nomeia a chave do dicionário**, então a
+tela continua dona das palavras nos três idiomas enquanto a regra fica num lugar
+só, com teste que fixa as fronteiras exatas.
+
+O teste também prende a assimetria, que era acidente e virou decisão: **precisa
+de mais de 5% para alarmar e só 2% para dizer que está mais barato.** Os custos
+de errar não são simétricos — alarme falso ensina a ignorar alarme, e aí o
+verdadeiro chega e é ignorado junto. Boa notícia que vira ruído não custa nada.
+
+**Sobre as outras catorze:** não são achado. `explodeRequirements`,
+`reorderPoint`, `daysOfCover` e as de lote existem para fases que ainda não
+foram construídas, e a fundação F8 do plano manda coletar o sinal antes de
+ativar a inteligência. Construir adiantado ali é a regra, não a exceção.
+
+---
+
 ## Em aberto
 
 Achados desta rodada que ainda não viraram mudança. Ficam aqui até virarem.
