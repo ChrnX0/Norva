@@ -1,0 +1,50 @@
+name: CI
+
+# The bar every push has to clear. It is deliberately the same one a person
+# runs locally - a check that only exists in CI drifts from what contributors
+# actually do, and then nobody trusts either of them.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  app:
+    name: types, tests, bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Types
+        run: npm run typecheck
+
+      - name: The cost engine
+        run: npm test
+
+      # Typechecking proves the code is consistent; only bundling proves it can
+      # actually reach a phone.
+      - name: Android bundle
+        run: npx expo export --platform android
+        env:
+          EXPO_NO_TELEMETRY: '1'
+
+  schema:
+    name: the database keeps its promises
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The script stands up a throwaway Postgres of its own, so it needs the
+      # binaries rather than a running service.
+      - name: Locate the Postgres binaries
+        run: echo "PGBIN=$(ls -d /usr/lib/postgresql/*/bin | tail -1)" >> "$GITHUB_ENV"
+
+      - name: Append-only ledger, moving average, product constraint
+        run: npm run db:verify
