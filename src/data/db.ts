@@ -1,5 +1,3 @@
-import * as SQLite from 'expo-sqlite';
-
 /**
  * The on-device database.
  *
@@ -149,17 +147,57 @@ CREATE INDEX IF NOT EXISTS recipe_lines_version_idx ON recipe_lines (recipe_vers
 CREATE INDEX IF NOT EXISTS outbox_pending_idx ON outbox (queued_at) WHERE sent_at IS NULL;
 `;
 
-let handle: SQLite.SQLiteDatabase | null = null;
+export type SqlParam = string | number | null;
 
-export async function db(): Promise<SQLite.SQLiteDatabase> {
+/**
+ * The slice of the database the app actually uses.
+ *
+ * Naming it is what makes the data layer testable: `expo-sqlite` only exists on
+ * a device, but any object with these five methods will do, so the tests drive
+ * the real SQL against Node's own SQLite instead of mocking the queries and
+ * proving nothing.
+ */
+export type Db = {
+  getAllAsync<T>(sql: string, params?: SqlParam[]): Promise<T[]>;
+  getFirstAsync<T>(sql: string, params?: SqlParam[]): Promise<T | null>;
+  runAsync(sql: string, params?: SqlParam[]): Promise<unknown>;
+  execAsync(sql: string): Promise<void>;
+  withTransactionAsync(task: () => Promise<void>): Promise<void>;
+};
+
+let handle: Db | null = null;
+
+export async function db(): Promise<Db> {
   if (handle) return handle;
-  handle = await SQLite.openDatabaseAsync('norva.db');
-  await handle.execAsync(SCHEMA);
+
+  // Imported here rather than at the top of the file: `expo-sqlite` reaches
+  // into React Native, which only exists on a device. Loading it lazily is what
+  // lets the tests point `__setDb` at Node's own SQLite and run the real
+  // queries, instead of mocking them and proving nothing.
+  const SQLite = await import('expo-sqlite');
+
+  const native = await SQLite.openDatabaseAsync('norva.db');
+  await native.execAsync(SCHEMA);
+
+  // A thin wrapper rather than the driver itself, so "no parameters" means the
+  // same thing here as it does in Node's SQLite.
+  handle = {
+    getAllAsync: <T,>(sql: string, params: SqlParam[] = []) => native.getAllAsync<T>(sql, params),
+    getFirstAsync: <T,>(sql: string, params: SqlParam[] = []) =>
+      native.getFirstAsync<T>(sql, params),
+    runAsync: (sql: string, params: SqlParam[] = []) => native.runAsync(sql, params),
+    execAsync: (sql: string) => native.execAsync(sql),
+    withTransactionAsync: (task: () => Promise<void>) => native.withTransactionAsync(task),
+  };
+
   return handle;
 }
 
+/** The schema, so a test can stand up the same tables the device has. */
+export const schemaSql = SCHEMA;
+
 /** Test seam: lets a test point at a fresh in-memory database. */
-export function __setDb(next: SQLite.SQLiteDatabase | null) {
+export function __setDb(next: Db | null) {
   handle = next;
 }
 
