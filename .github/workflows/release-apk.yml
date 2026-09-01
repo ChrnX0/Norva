@@ -68,6 +68,15 @@ jobs:
           NOTES
           )
 
+          # De qual código este arquivo saiu. Sem isto, dois releases com a
+          # mesma tag são indistinguíveis, e a pergunta "eu já estou com o
+          # novo?" não tem resposta.
+          NOTES="$NOTES
+
+          ---
+          Compilado de \`$(git rev-parse --short HEAD)\` · publicado em $(date -u +'%d/%m/%Y %H:%M UTC')"
+
+
           gh release create "$TAG" norva.apk \
             --target "${{ github.event.pull_request.head.sha || github.sha }}" \
             --title "NORVA $TAG" \

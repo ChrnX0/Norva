@@ -2,5 +2,12 @@
 # publicação (.github/workflows/release-apk.yml) — a URL abaixo é o artefato
 # que o runner baixa e anexa.
 #
-# apk-0.1.0 · build fd07c9df-72e2-41f5-9425-0ebf41bc802b · commit 63269a1
-https://expo.dev/artifacts/eas/4Td1bK5KC1_zKPbB9Nu9Ue50iL_SAzKA-pWj9vXG-f8.apk
+# O link direto da Expo termina numa URL assinada que devolve 110 MiB como
+# download bruto, e navegador de celular desiste disso em silêncio. Por isso o
+# release: endereço estável, que o Android trata como download normal.
+#
+# apk-0.1.0 · build f2f18c23-3d9f-4cce-a395-603b8358969c · commit 5703790
+# 65 commits à frente do APK anterior. runtimeVersion mudou (7e964c8 contra
+# 2b936c01), então quem tem o antigo instalado precisa instalar por cima — não
+# chega por atualização automática.
+https://expo.dev/artifacts/eas/Pzo73ZR3iFsCW1UC-sTcVEZ7HUluJ4PqUCn8FSCVdHU.apk
