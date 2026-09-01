@@ -197,3 +197,17 @@ Duas configurações fazem isso funcionar e não são opcionais:
 
 Os dados ficam **no navegador de quem abre**, não num servidor — é o mesmo
 desenho offline-first do aplicativo.
+
+### Testes
+
+```bash
+npm test        # motor de custo, dados e assistente
+npm run e2e     # o aplicativo dirigido num navegador de verdade
+npm run db:verify
+```
+
+O `e2e` existe porque três bugs passaram por toda a bateria de testes unitários
+e só apareceram quando o aplicativo foi aberto de fato: uma caixa de confirmação
+que não existe na web (e portanto nada era gravado), rotas que abriam num banco
+vazio, e uma tela falando dois idiomas ao mesmo tempo. Nenhum deles é visível de
+dentro de um módulo.

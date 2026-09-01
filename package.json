@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "test": "tsx --test src/**/*.test.ts",
-    "db:verify": "bash scripts/verify-migrations.sh"
+    "db:verify": "bash scripts/verify-migrations.sh",
+    "e2e": "node e2e/flow.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.14",
@@ -39,6 +40,8 @@
     "@types/node": "^26.4.0",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "^57.0.9",
+    "playwright": "^1.56.0",
+    "playwright-core": "^1.56.0",
     "tsx": "^4.23.13",
     "typescript": "~6.0.3"
   }

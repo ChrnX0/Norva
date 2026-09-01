@@ -38,6 +38,30 @@ jobs:
         env:
           EXPO_NO_TELEMETRY: '1'
 
+  browser:
+    name: the app, driven the way a person drives it
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Chromium
+        run: npx playwright install --with-deps chromium
+
+      # The checks that found what unit tests structurally cannot: a platform
+      # dialog that does nothing, a route that opens onto an empty database, a
+      # screen speaking two languages. All only visible from outside the app.
+      - name: End to end
+        run: npm run e2e
+        env:
+          EXPO_NO_TELEMETRY: '1'
+
   schema:
     name: the database keeps its promises
     runs-on: ubuntu-latest
