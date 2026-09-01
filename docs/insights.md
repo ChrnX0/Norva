@@ -385,6 +385,32 @@ realidade. Aqui elas divergiram no dia em que a checagem entrou.
 
 ---
 
+## 2026-09-01 — o contrato entre os dois esquemas cabia em milissegundos
+
+**O que se viu.** A checagem 6 prova o acordo entre aparelho e servidor de forma
+honesta — sessão real, fila real, Postgres real. E custa meio minuto e um banco,
+então roda uma vez no fim, longe de quem está digitando. Pior: o portão de
+mutação, que roda a suíte unitária, **não alcança nada disso**. A divergência
+`storeroom` contra `store_room` era invisível para ele.
+
+**O que mudou.** Um teste que lê os dois lados e compara: as migrações do
+servidor, tal como ele é construído, contra o que o `serialize` promete mandar.
+Não prova comportamento — prova **acordo**, que é exatamente onde moraram todas
+as divergências de hoje.
+
+Ele achou uma na primeira execução, e a divergência era **minha, no parser**: a
+migração usa `add column if not exists`, e o regex leu `if` como nome da coluna,
+reportando `items.base_unit` ausente numa coluna que existe desde a 0003.
+Consertei o parser e pus canários nele — uma coluna do CREATE, uma acrescentada
+por ALTER, uma removida. Sem esses três, o teste mediria o parser em vez do
+esquema, e é assim que um guarda passa a sempre passar.
+
+**O ganho real:** as três divergências que só o Postgres pegava agora morrem na
+suíte unitária, o que as coloca ao alcance do `npm run mutate`. O portão foi de
+treze para quinze defeitos, e os quinze são pegos.
+
+---
+
 ## Em aberto
 
 Achados desta rodada que ainda não viraram mudança. Ficam aqui até virarem.

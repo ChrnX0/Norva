@@ -100,6 +100,18 @@ const DEFECTS = [
     hurts: 'a migração congela o custo de toda compra antiga cem vezes menor',
   },
   {
+    file: 'src/data/repository.ts',
+    from: "VALUES (?, ?, '', 'store_room', ?)",
+    to: "VALUES (?, ?, '', 'storeroom', ?)",
+    hurts: 'o local vai com um kind que o servidor não conhece e trava a fila inteira atrás dele',
+  },
+  {
+    file: 'src/sync/serialize.ts',
+    from: "  if (entry.table === 'item_costs' || entry.table === 'item_cost_history') {",
+    to: '  if (false) {',
+    hurts: 'a média derivada volta a ter dois autores, e eles discordam',
+  },
+  {
     file: 'src/assistant/index.ts',
     from: 'if (skill.requires && !context.capabilities.has(skill.requires)) {',
     to: 'if (false) {',
