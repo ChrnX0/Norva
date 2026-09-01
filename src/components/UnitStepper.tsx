@@ -1,11 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { formatQuantity, type LocaleSettings } from '@/i18n';
 import { breakdown, toBaseUnits, type PackagingHierarchy, type PackagingTier } from '@/domain/units';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -132,19 +128,18 @@ function StepButton({
   onPress: () => void;
 }) {
   const { color, space, motion } = useTheme();
-  const scale = useSharedValue(1);
-  const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const [pressed, setPressed] = useState(false);
+
+  const animated = useAnimatedStyle(() => ({
+    transform: [{ scale: withSpring(pressed ? 0.92 : 1, motion.press) }],
+  }));
 
   return (
     <AnimatedPressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      onPressIn={() => {
-        scale.value = withSpring(0.92, motion.press);
-      }}
-      onPressOut={() => {
-        scale.value = withSpring(1, motion.press);
-      }}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
       onPress={onPress}
       style={[
         styles.stepButton,

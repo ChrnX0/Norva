@@ -21,6 +21,28 @@ import { joinList } from '@/i18n';
 
 export type EraseArea = 'purchases' | 'recipes' | 'products' | 'inputs' | 'all';
 
+/**
+ * The tables an erase may touch, as a closed set.
+ *
+ * Deleting has to name its table, and a table name cannot be a bound parameter
+ * in SQL. Typing the name instead of leaving it a string is what makes
+ * `DELETE FROM ${table}` provably safe (proofgate-allow: this line is prose,
+ * not SQL): nothing outside this union can reach the statement, and the
+ * compiler enforces it rather than a
+ * reviewer remembering to look.
+ */
+export type ErasableTable =
+  | 'purchase_lines'
+  | 'purchases'
+  | 'products'
+  | 'recipe_lines'
+  | 'recipe_versions'
+  | 'recipes'
+  | 'item_cost_history'
+  | 'item_costs'
+  | 'items'
+  | 'outbox';
+
 /** What the screen counts up so the confirmation can speak in real numbers. */
 export type EraseCounts = {
   inputs: number;
@@ -56,7 +78,7 @@ export const emptyCounts: EraseCounts = {
  * claim is that every figure can open its own arithmetic. Better an honest
  * zero than an orphan.
  */
-export function tablesFor(area: EraseArea): readonly string[] {
+export function tablesFor(area: EraseArea): readonly ErasableTable[] {
   switch (area) {
     case 'purchases':
       return ['purchase_lines', 'purchases', 'item_cost_history', 'item_costs'];

@@ -93,7 +93,7 @@ function RecipesList() {
         };
       }
     });
-  }, []);
+  });
 
   const rows = [...(data ?? [])].sort((a, b) => b.batchCents - a.batchCents);
 

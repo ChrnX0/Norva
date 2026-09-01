@@ -12,7 +12,7 @@
  * is what the cost of a batch is measured against.
  */
 
-import { cents, rateFromCents, type Cents, type Rate } from './money';
+import { rateFromCents, type Cents, type Rate } from './money';
 
 export type StockCostState = {
   /** On hand, in the item's base unit. */

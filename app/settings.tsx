@@ -58,7 +58,6 @@ function Settings() {
       counts: await countForErase(LOCAL_COMPANY_ID),
       seeded: await hasSeeded(),
     }),
-    [],
   );
 
   const counts: EraseCounts | null = data?.counts ?? null;

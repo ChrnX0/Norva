@@ -42,3 +42,6 @@ yarn-error.*
 
 # Claude Code personal overrides (never commit)
 .claude/settings.local.json
+
+# ProofGate writes its verdict beside the git metadata, not in the tree.
+.proofgate/verdict.json

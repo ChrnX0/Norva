@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -66,6 +66,15 @@ type Loaded = {
 /** The id the edited draft holds in the graph while it is being changed. */
 const DRAFT = '__draft__';
 
+/** An edit in progress, tied to the recipe it belongs to. */
+type Draft = {
+  recipeId: string;
+  lines: RecipeLine[];
+  lossPercent: string;
+  yieldAmount: string;
+  perUnit: string;
+};
+
 function RecipeEditor() {
   const { color, type, space, accent } = useTheme();
   const confirm = useConfirm();
@@ -96,26 +105,48 @@ function RecipeEditor() {
       unitPackagingCents: (product?.unitPackagingCents ?? 0) as Cents,
       packaging: product?.packaging.tiers ?? [{ id: 'unit', perBaseUnit: 1 }],
     };
-  }, [params.id]);
+  }, params.id ?? '');
 
   const recipeId = params.id ?? (data ? Object.keys(data.recipes)[0] : undefined);
   const stored = recipeId && data ? data.recipes[recipeId] : undefined;
 
-  const [lossPercent, setLossPercent] = useState('');
-  const [yieldAmount, setYieldAmount] = useState('');
-  const [perUnit, setPerUnit] = useState('');
-  const [lines, setLines] = useState<RecipeLine[] | null>(null);
   const [whyOpen, setWhyOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // The form is filled from what is stored - Law 2: no field is born empty.
-  useEffect(() => {
-    if (!stored || lines !== null) return;
-    setLines(stored.lines);
-    setLossPercent(String(Number((stored.lossFraction * 100).toFixed(2))));
-    setYieldAmount(String(stored.yieldAmount));
-    setPerUnit(data?.yieldPerUnit ? String(data.yieldPerUnit) : '');
-  }, [stored, lines, data]);
+  /**
+   * The form is derived from what is stored, not copied into state when the
+   * screen mounts. An edit produces a draft that stands in front of it, and the
+   * draft remembers which recipe it belongs to - so opening a different one
+   * shows that recipe rather than the last one's numbers, which is what a
+   * copy-on-mount quietly got wrong.
+   *
+   * Law 2 either way: no field is born empty.
+   */
+  const [draft, setDraft] = useState<Draft | null>(null);
+
+  const form: Draft | null =
+    draft && draft.recipeId === recipeId
+      ? draft
+      : stored && recipeId
+        ? {
+            recipeId,
+            lines: stored.lines,
+            // A percentage for a text field, not money. proofgate-allow
+            lossPercent: String(Number((stored.lossFraction * 100).toFixed(2))),
+            yieldAmount: String(stored.yieldAmount),
+            perUnit: data?.yieldPerUnit ? String(data.yieldPerUnit) : '',
+          }
+        : null;
+
+  const edit = (change: Partial<Omit<Draft, 'recipeId'>>) => {
+    if (!form) return;
+    setDraft({ ...form, ...change });
+  };
+
+  const lossPercent = form?.lossPercent ?? '';
+  const yieldAmount = form?.yieldAmount ?? '';
+  const perUnit = form?.perUnit ?? '';
+  const lines = form?.lines ?? null;
 
   const num = (s: string) => Number(s.replace(/\./g, '').replace(',', '.'));
 
@@ -232,17 +263,16 @@ function RecipeEditor() {
   };
 
   const setQuantity = (index: number, next: number) =>
-    setLines((prev) =>
-      prev
-        ? prev.map((l, i) => (i === index ? { ...l, quantity: Math.max(0, Math.round(next)) } : l))
-        : prev,
-    );
+    edit({
+      lines: (lines ?? []).map((l, i) =>
+        i === index ? { ...l, quantity: Math.max(0, Math.round(next)) } : l,
+      ),
+    });
 
-  const removeLine = (index: number) =>
-    setLines((prev) => (prev ? prev.filter((_, i) => i !== index) : prev));
+  const removeLine = (index: number) => edit({ lines: (lines ?? []).filter((_, i) => i !== index) });
 
   const addItem = (itemId: string) =>
-    setLines((prev) => [...(prev ?? []), { kind: 'item', itemId, quantity: 1_000 }]);
+    edit({ lines: [...(lines ?? []), { kind: 'item', itemId, quantity: 1_000 }] });
 
   const title = recipeId && data ? (data.labels[recipeId] ?? 'Receita') : 'Receita';
 
@@ -390,14 +420,14 @@ function RecipeEditor() {
           <Field
             label="Rendimento do tacho"
             value={yieldAmount}
-            onChangeText={setYieldAmount}
+            onChangeText={(value) => edit({ yieldAmount: value })}
             suffix="ml"
             keyboardType="numeric"
           />
           <Field
             label="Perda esperada"
             value={lossPercent}
-            onChangeText={setLossPercent}
+            onChangeText={(value) => edit({ lossPercent: value })}
             suffix="%"
             keyboardType="numeric"
             hint={
@@ -412,7 +442,7 @@ function RecipeEditor() {
           <Field
             label="Vai em cada unidade"
             value={perUnit}
-            onChangeText={setPerUnit}
+            onChangeText={(value) => edit({ perUnit: value })}
             suffix="ml"
             keyboardType="numeric"
             hint={

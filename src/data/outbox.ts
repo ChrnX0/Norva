@@ -122,7 +122,8 @@ export async function markSent(ids: readonly string[]): Promise<void> {
 
   const conn = await db();
   const at = nowIso();
-  const marks = ids.map(() => '?').join(', ');
+  // Question marks only - every id below is bound, never interpolated.
+  const marks = ids.map(() => '?').join(', ');  // proofgate-allow
 
   await conn.runAsync(
     `UPDATE outbox SET sent_at = ? WHERE id IN (${marks}) AND sent_at IS NULL`,

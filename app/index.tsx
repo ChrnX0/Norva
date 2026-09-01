@@ -85,7 +85,7 @@ function Briefing() {
             : 0,
       })),
     };
-  }, []);
+  });
 
   const palette = palettes[scheme];
   const moved = (data?.changes ?? []).filter(

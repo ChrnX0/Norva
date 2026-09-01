@@ -54,7 +54,6 @@ function PurchaseForm() {
 
   const { data, loading, refresh } = useQuery(
     () => listItems(LOCAL_COMPANY_ID).then((all) => all.filter((i) => i.purchaseToBase !== null)),
-    [],
   );
 
   // Arriving from an item opens on that item, so the buyer does not hunt for

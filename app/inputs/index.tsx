@@ -42,7 +42,7 @@ function InputsList() {
   const locale = defaultLocale;
   const [kind, setKind] = useState<ItemKind>('input');
 
-  const { data, loading } = useQuery(() => listItems(LOCAL_COMPANY_ID), []);
+  const { data, loading } = useQuery(() => listItems(LOCAL_COMPANY_ID));
   const all = useMemo(() => data ?? [], [data]);
   const shown = all.filter((item) => item.kind === kind);
 

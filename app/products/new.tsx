@@ -55,7 +55,7 @@ type Loaded = {
 };
 
 function ProductForm() {
-  const { color, type, space, accent } = useTheme();
+  const { color, type, space } = useTheme();
   const confirm = useConfirm();
   const router = useRouter();
   const { locale, t } = useLocale();
@@ -68,7 +68,7 @@ function ProductForm() {
       loadLabels(LOCAL_COMPANY_ID),
     ]);
     return { recipes, graph, costs, labels };
-  }, []);
+  });
 
   const [kind, setKind] = useState<Kind>('product');
   const [name, setName] = useState('');

@@ -59,7 +59,7 @@ function InputDetail() {
       recipesUsingItem(LOCAL_COMPANY_ID, id),
     ]);
     return { item, history, recipes };
-  }, [id]);
+  }, id ?? '');
 
   const item = data?.item ?? null;
 

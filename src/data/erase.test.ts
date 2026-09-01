@@ -8,6 +8,7 @@ import {
   tablesFor,
   type EraseArea,
   type EraseCounts,
+  type ErasableTable,
 } from './erase';
 
 /**
@@ -21,7 +22,7 @@ import {
  * The schema's own `ON DELETE RESTRICT` edges, as child -> parents. Written out
  * here so the test fails if the delete order and the schema ever disagree.
  */
-const DEPENDS_ON: Record<string, readonly string[]> = {
+const DEPENDS_ON: Record<ErasableTable, readonly ErasableTable[]> = {
   purchase_lines: ['purchases', 'items'],
   purchases: [],
   products: ['items', 'recipes'],
@@ -39,7 +40,7 @@ test('every area deletes children before the rows they point at', () => {
 
   for (const area of areas) {
     const order = tablesFor(area);
-    const gone = new Set<string>();
+    const gone = new Set<ErasableTable>();
 
     for (const table of order) {
       for (const parent of DEPENDS_ON[table] ?? []) {
@@ -55,7 +56,7 @@ test('every area deletes children before the rows they point at', () => {
 
 test('erasing everything reaches every table that holds business data', () => {
   const all = new Set(tablesFor('all'));
-  for (const table of Object.keys(DEPENDS_ON)) {
+  for (const table of Object.keys(DEPENDS_ON) as ErasableTable[]) {
     assert.ok(all.has(table), `"apagar tudo" leaves ${table} behind`);
   }
 });

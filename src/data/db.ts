@@ -255,8 +255,8 @@ export async function migrate(conn: Db): Promise<number> {
     await conn.withTransactionAsync(async () => {
       await conn.execAsync(step);
     });
-    // PRAGMA takes no parameters, and the value is an index into a constant
-    // list rather than anything a user can reach.
+    // PRAGMA cannot take a bound parameter, and the value is an index into a
+    // constant list rather than anything a caller can reach. proofgate-allow
     await conn.execAsync(`PRAGMA user_version = ${version + 1}`);
   }
 

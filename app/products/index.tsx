@@ -88,7 +88,7 @@ function ProductsList() {
         detail: `Um tacho rende ${formatQuantity(units, locale)} — ${packed}`,
       };
     });
-  }, []);
+  });
 
   const rows = data ?? [];
 

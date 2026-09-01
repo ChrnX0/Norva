@@ -662,7 +662,8 @@ export async function eraseArea(companyId: string, area: EraseArea): Promise<voi
       // `items` is the one table shared by two areas, so it is the one place a
       // delete has to say which kinds it owns.
       if (table === 'items' && kinds) {
-        const marks = kinds.map(() => '?').join(', ');
+        // `marks` is only ever question marks; the kinds themselves are bound.
+        const marks = kinds.map(() => '?').join(', ');  // proofgate-allow
         await conn.runAsync(
           `DELETE FROM items WHERE company_id = ? AND kind IN (${marks})`,
           [companyId, ...kinds],
@@ -676,6 +677,8 @@ export async function eraseArea(companyId: string, area: EraseArea): Promise<voi
       } else if (table === 'outbox') {
         await conn.runAsync(`DELETE FROM outbox`);
       } else {
+        // The table name comes from `ErasableTable`, a closed union, so this
+        // interpolation cannot carry anything a caller chose. proofgate-allow
         await conn.runAsync(`DELETE FROM ${table} WHERE company_id = ?`, [companyId]);
       }
     }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { CostChange, ItemWithCost, Product } from '@/data/repository';
-import { fromDecimal, rate, type Cents, type Rate } from '@/domain/money';
+import { fromDecimal, rate, type Cents } from '@/domain/money';
 import type { ItemCosts, Recipe } from '@/domain/recipe';
 import { defaultLocale } from '@/i18n';
 import { ask } from './index';

@@ -28,6 +28,9 @@ jobs:
       - name: Types
         run: npm run typecheck
 
+      - name: Lint
+        run: npm run lint
+
       - name: The cost engine
         run: npm test
 
@@ -37,6 +40,28 @@ jobs:
         run: npx expo export --platform android
         env:
           EXPO_NO_TELEMETRY: '1'
+
+  gate:
+    name: proofgate
+    runs-on: ubuntu-latest
+    steps:
+      # The gate reads the diff against the base, so it needs the history.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Nineteen guards over the diff itself: credential-shaped lines, money
+      # through a float, SQL built by concatenation, a constraint added without
+      # a migration, a focused test that silently switches the suite off.
+      - name: Delivery gate
+        run: bash .proofgate/verify.sh
 
   browser:
     name: the app, driven the way a person drives it
