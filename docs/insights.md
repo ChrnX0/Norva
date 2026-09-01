@@ -795,3 +795,28 @@ De 118 para 131 testes, e quatro mutações novas (21 no total) para provar que 
 testes novos mordem: cobertura infinita quando nada sai, o saldo "às 3h" perdendo
 o movimento das 3h em ponto, hierarquia que começa na caixa, e multiplicação de
 dinheiro cortando em vez de arredondar.
+
+## 1 de setembro — um arquivo de teste inteiro que nunca rodava
+
+**O que apareceu.** Escrevi `src/layers.test.ts`, rodei a suíte, e o total
+**não se moveu**: 131 antes, 131 depois. O script era
+`tsx --test src/**/*.test.ts` — **sem aspas**. O shell expande antes do runner
+ver, e sem `globstar` ele lê `**` como **um nível só**. Todo arquivo de teste em
+`src/algo/x.test.ts` rodava; um em `src/x.test.ts` não existia para a suíte.
+
+**Por que importa.** Teste que não roda é indistinguível de teste que passa. Não
+há vermelho, não há aviso, e o número no fim da execução parece uma promessa
+cumprida. Foi só porque eu contei que apareceu — e contar não é hábito, é sorte.
+
+**O que mudou.** O glob entrou entre aspas e passou a ser expandido pelo node,
+que entende `**` em qualquer profundidade: 131 → 134 testes, com os dois que eu
+tinha acabado de escrever mais o pino que fixa as aspas, porque as aspas **são** o
+defeito. E virou guard na proofgate (`47-unquoted-globstar`), já que isso vale
+para qualquer repositório JS.
+
+**E o que a busca que gerou tudo isso encontrou:** que só `src/data` fala SQL —
+domínio, telas, assistente e sincronização estão limpos. A promessa da fundação
+("o assistente nunca escreve consulta própria; chama as mesmas funções que as
+telas") se sustenta hoje, e agora tem teste, com um controle junto: se as
+consultas saírem de `src/data`, o teste que as proíbe em outro lugar deixaria de
+provar coisa alguma, e é o controle que avisa.

@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
-    "test": "tsx --test src/**/*.test.ts",
+    "test": "tsx --test 'src/**/*.test.ts'",
     "db:verify": "bash scripts/verify-migrations.sh",
     "e2e": "node e2e/flow.mjs",
     "mutate": "node scripts/mutate.mjs"
