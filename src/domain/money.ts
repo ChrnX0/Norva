@@ -37,3 +37,33 @@ export function allocateCents(total: Cents, parts: number): Cents[] {
     (base + (i < remainder ? 1 : 0)) as Cents,
   );
 }
+
+/**
+ * A unit rate: fractional cents per base unit.
+ *
+ * This is NOT money and must never be rounded to an integer. Strawberry pulp at
+ * R$ 12.40/kg is 1.24 cents per gram; forcing that into a whole cent loses 19%
+ * of it, and the error then multiplies through every recipe in the system. Cost
+ * per millilitre of mix is smaller still and rounds straight to zero.
+ *
+ * The rule: `Cents` is an amount somebody pays. `Rate` is a price per unit.
+ * Rates stay fractional all the way through the calculation, and only the final
+ * amount is rounded - once.
+ */
+export type Rate = number & { readonly __brand: 'Rate' };
+
+/** R$ 12.40 per kilo, with 1000 g per kilo, is `rate(12.40, 1000)`. */
+export function rate(pricePerPurchaseUnit: number, baseUnitsPerPurchaseUnit: number): Rate {
+  if (baseUnitsPerPurchaseUnit <= 0) return 0 as Rate;
+  return ((pricePerPurchaseUnit * 100) / baseUnitsPerPurchaseUnit) as Rate;
+}
+
+/** Turns a rate and a quantity into an amount - the one place rounding happens. */
+export function amountOf(unitRate: Rate, quantity: number): Cents {
+  return Math.round(unitRate * quantity) as Cents;
+}
+
+export function rateFromCents(total: Cents, quantity: number): Rate {
+  if (quantity <= 0) return 0 as Rate;
+  return (total / quantity) as Rate;
+}

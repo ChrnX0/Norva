@@ -9,7 +9,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "tsx --test src/**/*.test.ts",
+    "db:verify": "bash scripts/verify-migrations.sh"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.14",
@@ -33,8 +35,10 @@
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
+    "@types/node": "^26.4.0",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "^57.0.9",
+    "tsx": "^4.23.13",
     "typescript": "~6.0.3"
   }
 }
