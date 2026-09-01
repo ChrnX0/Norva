@@ -181,6 +181,11 @@ test('registering by talking produces a draft, never a write', async () => {
     purchaseQuantity: 4,
     baseUnits: 40_000,
     totalCents: fromDecimal(496) as Cents,
+    // The sentence travels with the movement. It is the plan's condition for
+    // letting the assistant write at all: "o que o assistente lançou este mês?"
+    // has to be answerable, and a movement that cannot say where it came from
+    // makes autonomy unauditable.
+    assistantPhrase: 'comprei 4 baldes de polpa de morango por 496',
   });
 });
 
@@ -283,7 +288,16 @@ test('counting by talking fills a form and stops, whatever the difference', asyn
   assert.equal(recorded.length, 0);
 
   await short.draft.apply();
-  assert.deepEqual(recorded, [{ itemId: 'sugar', countedBaseUnits: 25_000 }]);
+  assert.deepEqual(recorded, [
+    {
+      itemId: 'sugar',
+      countedBaseUnits: 25_000,
+      // A count corrected by talking carries the words that corrected it. The
+      // difference the ledger keeps is only defensible if somebody can see
+      // where it came from months later.
+      assistantPhrase: 'contei 1 saco de açúcar',
+    },
+  ]);
 });
 
 test('counting is refused to a role that may not adjust stock', async () => {

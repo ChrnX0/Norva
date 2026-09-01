@@ -553,3 +553,39 @@ test('the outbox forgets what went up, and only what went up', async () => {
   );
   assert.equal(rows?.n, 0);
 });
+
+test('a movement made by talking carries the sentence; one made by hand does not', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [sugar] = (await listItems(LOCAL_COMPANY_ID)).filter((i) => i.name.includes('Açúcar'));
+
+  await recordPurchase(LOCAL_COMPANY_ID, {
+    itemId: sugar.id,
+    purchaseQuantity: 1,
+    baseUnits: 25_000,
+    totalCents: fromDecimal(118),
+    assistantPhrase: 'comprei 1 saco de açúcar por 118',
+  });
+  await recordPurchase(LOCAL_COMPANY_ID, {
+    itemId: sugar.id,
+    purchaseQuantity: 1,
+    baseUnits: 25_000,
+    totalCents: fromDecimal(118),
+  });
+
+  const rows = await live.getAllAsync<{ assistant_phrase: string | null }>(
+    `SELECT assistant_phrase FROM movements WHERE item_id = ? AND kind = 'purchase'
+     ORDER BY recorded_at, rowid`,
+    [sugar.id],
+  );
+
+  // The condition the plan put on letting an assistant write: its writes stay
+  // auditable. The column, its index and the crossing to the server were all in
+  // place and nothing ever filled it - which made every assistant movement
+  // indistinguishable from one a person typed.
+  const phrases = rows.map((r) => r.assistant_phrase);
+  assert.ok(phrases.includes('comprei 1 saco de açúcar por 118'), 'the sentence is kept');
+  assert.ok(
+    phrases.includes(null),
+    'and a movement somebody typed themselves is not labelled as the assistant',
+  );
+});

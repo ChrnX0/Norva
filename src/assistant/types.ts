@@ -46,7 +46,11 @@ export type AssistantData = {
   recentCostChanges(limit: number): Promise<CostChange[]>;
   /** The movements behind one item's balance - what `[por quê?]` opens. */
   itemMovements(itemId: string, limit?: number): Promise<MovementRow[]>;
-  recordCount(input: { itemId: string; countedBaseUnits: number }): Promise<unknown>;
+  recordCount(input: {
+    itemId: string;
+    countedBaseUnits: number;
+    assistantPhrase?: string;
+  }): Promise<unknown>;
   /** Creates an input from a conversation. Same function the cadastro screen calls. */
   saveItem(input: {
     kind: 'input' | 'packaging' | 'store_supply';
@@ -61,6 +65,7 @@ export type AssistantData = {
     baseUnits: number;
     totalCents: Cents;
     supplierName?: string;
+    assistantPhrase?: string;
   }): Promise<unknown>;
 };
 
@@ -88,6 +93,15 @@ export type Answer = {
 
 export type SkillContext = {
   data: AssistantData;
+  /**
+   * What the person actually said, filled in by `ask`.
+   *
+   * Only the skills that WRITE use it, and they use it for one thing: stamping
+   * the movement with the sentence that created it. The plan's condition for
+   * letting an assistant write at all is that its writes stay auditable, and a
+   * movement that cannot say where it came from is not.
+   */
+  question?: string;
   capabilities: ReadonlySet<Capability>;
   locale: import('@/i18n').LocaleSettings;
 };

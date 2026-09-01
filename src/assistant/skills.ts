@@ -242,6 +242,7 @@ const registerPurchase: Skill = {
             purchaseQuantity: packs,
             baseUnits,
             totalCents,
+            assistantPhrase: ctx.question,
           });
         },
       },
@@ -440,7 +441,11 @@ const registerCount: Skill = {
           `Registrar que você contou ${asWords(countedBaseUnits)} de ${item.name}. ` +
           `${difference} A diferença fica registrada e nada é apagado.`,
         apply: async () => {
-          await ctx.data.recordCount({ itemId: item.id, countedBaseUnits });
+          await ctx.data.recordCount({
+            itemId: item.id,
+            countedBaseUnits,
+            assistantPhrase: ctx.question,
+          });
         },
       },
       route: `/inputs/${item.id}`,

@@ -177,6 +177,12 @@ const DEFECTS = [
     to: "  match: (q) => normalize(q).match(/(?:cadastrar|cadastre|criar|crie|novo)\\s+(?:insumo\\s+)?(.+?)\\s*,\\s*(.+)$/),",
     hurts: 'o insumo entra no catálogo sem acento - "polpa de acai" - e fica assim para sempre',
   },
+  {
+    file: 'src/assistant/skills.ts',
+    from: '            assistantPhrase: ctx.question,',
+    to: '            assistantPhrase: undefined,',
+    hurts: 'o que o assistente lançou fica indistinguível do que a pessoa digitou, e "o que ele lançou este mês?" deixa de ter resposta',
+  },
 ];
 
 function suitePasses() {

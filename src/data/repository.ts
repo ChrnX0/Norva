@@ -192,6 +192,16 @@ export async function recordPurchase(
     baseUnits: number;
     totalCents: Cents;
     orderedAt?: string;
+    /**
+     * The phrase somebody said, when this came from the assistant.
+     *
+     * The plan's own condition for letting an assistant write at all: every
+     * movement it creates is marked as such, with the words that created it. A
+     * ledger that cannot say "this one came from a sentence" makes autonomy
+     * unauditable, and unauditable autonomy is what people stop trusting.
+     * Null when a person filled the screen themselves.
+     */
+    assistantPhrase?: string;
   },
 ): Promise<{ previousRate: Rate | null; newRate: Rate }> {
   const conn = await db();
@@ -266,9 +276,19 @@ export async function recordPurchase(
     // sugar price change in March must not rewrite what January cost.
     await conn.runAsync(
       `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
-                              quantity_base_units, location_id, unit_cost_rate)
-       VALUES (?, ?, 'purchase', ?, ?, ?, ?, ?, ?)`,
-      [lineId, companyId, at, at, input.itemId, input.baseUnits, locationId, lineRate],
+                              quantity_base_units, location_id, unit_cost_rate, assistant_phrase)
+       VALUES (?, ?, 'purchase', ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        lineId,
+        companyId,
+        at,
+        at,
+        input.itemId,
+        input.baseUnits,
+        locationId,
+        lineRate,
+        input.assistantPhrase ?? null,
+      ],
     );
 
     await conn.runAsync(
@@ -393,6 +413,17 @@ export async function recordCount(
     itemId: string;
     countedBaseUnits: number;
     note?: string;
+    /**
+     * The phrase somebody said, when this came from the assistant.
+     *
+     * The plan's own condition for letting an assistant write at all: every
+     * movement it creates is marked as such, with the words that created it. A
+     * ledger that cannot say "this one came from a sentence" makes autonomy
+     * unauditable, and unauditable autonomy is what people stop trusting.
+     * Null when a person filled the screen themselves.
+     */
+    assistantPhrase?: string;
+
     /** Defaults to now. A count written on paper in a cold room keeps its hour. */
     occurredAt?: string;
   },
@@ -422,8 +453,9 @@ export async function recordCount(
 
     await conn.runAsync(
       `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
-                              quantity_base_units, location_id, unit_cost_rate, note)
-       VALUES (?, ?, 'adjustment', ?, ?, ?, ?, ?, ?, ?)`,
+                              quantity_base_units, location_id, unit_cost_rate, note,
+                              assistant_phrase)
+       VALUES (?, ?, 'adjustment', ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         companyId,
@@ -434,6 +466,7 @@ export async function recordCount(
         locationId,
         averageRate || null,
         input.note ?? null,
+        input.assistantPhrase ?? null,
       ],
     );
     await enqueue(conn, [{ table: 'movements', rowId: id }]);

@@ -67,7 +67,9 @@ export async function ask(question: string, context: SkillContext): Promise<Answ
       };
     }
 
-    return skill.run(match, context);
+    // The words that reached here travel with the context, so a skill that
+    // writes can put them in the ledger. Nothing else needs them.
+    return skill.run(match, { ...context, question: trimmed });
   }
 
   const available = knownSkills(context.capabilities);

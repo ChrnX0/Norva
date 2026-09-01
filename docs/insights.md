@@ -929,3 +929,30 @@ Embalagem ilegível não impede o cadastro: cria o insumo sem fator e diz isso, 
 vez de chutar um número que ficaria embaixo de todo custo daquele item. Quatro
 testes (cria, ilegível, duplicado, sem permissão) e duas mutações novas — 25 no
 total —, cada uma sendo exatamente um dos dois bugs acima.
+
+## 1 de setembro — a coluna com índice próprio que ninguém preenchia
+
+**O que apareceu.** Puxando o fio de um campo `kind` do rascunho que nunca é
+lido, cheguei em `movements.assistant_phrase`: existe na fundação do servidor,
+**com índice dedicado** (`where assistant_phrase is not null`) para responder "o
+que o assistente lançou este mês?", existe no aparelho, atravessa no
+serializador — e **nenhuma linha de código jamais escreveu nela**.
+
+**Por que importa.** É a condição que o plano impôs para deixar o assistente
+escrever: todo movimento criado por conversa fica marcado, com a frase original
+guardada, porque *autonomia sem rastro quebra a confiança no dado*. Sem a
+escrita, um lançamento feito por conversa é indistinguível de um digitado — a
+auditoria prometida não existia, e o índice construído para ela apontava para
+zero linhas, para sempre.
+
+**O que mudou.** A frase viaja do `ask` para a habilidade e daí para o
+livro-razão, nos dois lugares em que o assistente escreve (compra e contagem).
+Provado no banco de verdade, com o controle junto: um lançamento por conversa
+guarda a frase, um lançamento pela tela guarda nulo — e é o segundo que torna o
+primeiro uma informação em vez de uma coluna sempre preenchida. Mutação nova
+(26 no total).
+
+**E o `Draft.kind` continua sem leitor** — é um campo carregado e nunca usado.
+Não apaguei: quando a marcação de origem virar tela ("mostre o que o assistente
+lançou"), é ele que diz de que tipo era o rascunho. Fica anotado aqui para não
+virar mais um achado repetido daqui a um mês.
