@@ -1,4 +1,11 @@
-import type { CostChange, ItemWithCost, MovementRow, Product } from '@/data/repository';
+import type {
+  CostChange,
+  ItemWithCost,
+  MovementRow,
+  Place,
+  PlaceStock,
+  Product,
+} from '@/data/repository';
 import type { Capability } from '@/domain/access';
 import type { Cents } from '@/domain/money';
 import type { ItemCosts, Recipe } from '@/domain/recipe';
@@ -46,6 +53,24 @@ export type AssistantData = {
   recentCostChanges(limit: number): Promise<CostChange[]>;
   /** The movements behind one item's balance - what `[por quê?]` opens. */
   itemMovements(itemId: string, limit?: number): Promise<MovementRow[]>;
+  /** Os lugares cadastrados, para o assistente saber para onde a carga pode ir. */
+  listPlaces(): Promise<Place[]>;
+  /** O saldo de cada lugar - a mesma consulta que a tela de estoque faz. */
+  stockByPlace(): Promise<PlaceStock[]>;
+  /** Onde fica a fábrica, que é a origem de toda saída até existir uma segunda. */
+  defaultPlaceId(): string;
+  recordProduction(input: {
+    productId: string;
+    batches: number;
+    unitsProduced: number;
+    assistantPhrase?: string;
+  }): Promise<unknown>;
+  recordTransfer(input: {
+    itemId: string;
+    toLocationId: string;
+    baseUnits: number;
+    assistantPhrase?: string;
+  }): Promise<unknown>;
   recordCount(input: {
     itemId: string;
     countedBaseUnits: number;
@@ -76,7 +101,7 @@ export type AssistantData = {
  * would say it out loud - with the numbers spelled out, never as field labels.
  */
 export type Draft = {
-  kind: 'purchase' | 'count' | 'item';
+  kind: 'purchase' | 'count' | 'item' | 'production' | 'transfer';
   summary: string;
   apply: () => Promise<void>;
 };

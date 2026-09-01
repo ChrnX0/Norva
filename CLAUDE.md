@@ -172,6 +172,12 @@ A diretriz, então, é de mão dupla e vale para os dois lados:
   recusado e por quê, e **o que o relatório errou**. Relatório é leitura de
   fora, não autoridade: já aconteceu de ele dizer que um PR fechou sem os checks
   verdes quando tinha fechado cinco de cinco.
+- **E o relatório vem junto, em texto, não como link.** O comando devolve um
+  `file:///root/...` que só abre na máquina onde a sessão roda — o dono lê no
+  celular, e lá o link não abre nada. Então a mensagem seguinte **transcreve o
+  que o relatório disse**: os números do topo, o que ele viu como objetivo, o
+  atrito que contou e o que ele achou de errado. Link sozinho é relatório não
+  entregue.
 
 ---
 

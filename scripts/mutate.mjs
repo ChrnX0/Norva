@@ -230,6 +230,34 @@ const DEFECTS = [
     to: '    void inId;',
     hurts: 'a carga sai da fábrica e não chega em lugar nenhum: some do saldo da empresa como se tivesse evaporado no caminho',
   },
+  {
+    file: 'src/assistant/skills.ts',
+    from: '  stockAtPlace,\n  whereIsItem,\n  stockOfInput,',
+    to: '  stockOfInput,\n  stockAtPlace,\n  whereIsItem,',
+    hurts:
+      '"quanto tem na loja centro" vira procura por um insumo chamado "na loja centro" e responde que não existe, com o saldo da loja ali do lado',
+  },
+  {
+    file: 'src/assistant/skills.ts',
+    from: '    if (amount > held) {',
+    to: '    if (amount > held * 1000) {',
+    hurts:
+      'o rascunho da carga é preparado sem ter o que mandar, e só falha na hora de gravar - depois que a pessoa já confiou nele',
+  },
+  {
+    file: 'src/assistant/skills.ts',
+    from: "      : ' Entendi um tacho; se foram mais, diga \"em 2 tachos\" que eu refaço.';",
+    to: "      : '';",
+    hurts:
+      'o assistente supõe um tacho e não diz, e o rendimento por tacho sai errado sem ninguém saber que houve suposição',
+  },
+  {
+    file: 'src/assistant/skills.ts',
+    from: "  requires: 'record_production',",
+    to: "  requires: 'dispatch',",
+    hurts:
+      'quem só pode despachar passa a poder gravar produção, e o consumo de insumo entra pelas mãos de quem nunca esteve no tacho',
+  },
 ];
 
 /**

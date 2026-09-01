@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { CostChange, ItemWithCost, MovementRow, Product } from '@/data/repository';
+import type {
+  CostChange,
+  ItemWithCost,
+  MovementRow,
+  Place,
+  PlaceStock,
+  Product,
+} from '@/data/repository';
 import { fromDecimal, rate, type Cents, type Rate } from '@/domain/money';
 import type { ItemCosts, Recipe } from '@/domain/recipe';
 import { defaultLocale } from '@/i18n';
@@ -116,6 +123,48 @@ const MOVEMENTS: (MovementRow & { itemId: string })[] = [
   },
 ];
 
+/**
+ * Dois lugares, e o padrão gravado sem nome de propósito - é o caso que a
+ * habilidade tem de saber nomear sozinha, porque o banco não nomeia.
+ */
+const PLACES: Place[] = [
+  { id: 'factory', name: '', kind: 'store_room', isDefault: true },
+  { id: 'centro', name: 'Loja Centro', kind: 'own_store', isDefault: false },
+];
+
+const PLACE_STOCK: PlaceStock[] = [
+  {
+    locationId: 'factory',
+    locationName: '',
+    kind: 'store_room',
+    valueCents: 23_600 as Cents,
+    lines: [
+      {
+        itemId: 'sugar',
+        name: 'Açúcar cristal',
+        baseUnits: 50_000,
+        baseUnit: 'g',
+        valueCents: 23_600 as Cents,
+      },
+    ],
+  },
+  {
+    locationId: 'centro',
+    locationName: 'Loja Centro',
+    kind: 'own_store',
+    valueCents: 2_832 as Cents,
+    lines: [
+      {
+        itemId: 'sugar',
+        name: 'Açúcar cristal',
+        baseUnits: 6_000,
+        baseUnit: 'g',
+        valueCents: 2_832 as Cents,
+      },
+    ],
+  },
+];
+
 /** Records what the assistant tried to do, so a silent write cannot hide. */
 let recorded: unknown[] = [];
 
@@ -134,6 +183,17 @@ const data: AssistantData = {
   saveItem: async (input) => {
     recorded.push(input);
     return 'new-item';
+  },
+  listPlaces: async () => PLACES,
+  stockByPlace: async () => PLACE_STOCK,
+  defaultPlaceId: () => 'factory',
+  recordProduction: async (input) => {
+    recorded.push(input);
+    return undefined;
+  },
+  recordTransfer: async (input) => {
+    recorded.push(input);
+    return undefined;
   },
   recordCount: async (input) => {
     recorded.push(input);
@@ -376,5 +436,114 @@ test('creating something that already exists points at it instead', async () => 
 test('creating an input is a manage_company act, not something an operator does', async () => {
   const answer = await ask('cadastrar polpa de açaí, balde 10 kg', context('record_production'));
   assert.equal(answer.draft, undefined);
+  assert.equal(recorded.length, 0);
+});
+
+test('a place is asked about by name, and the unnamed default answers to "fábrica"', async () => {
+  const store = await ask('o que tem na loja centro', context('view_cost'));
+  assert.match(store.text, /Loja Centro/);
+  assert.match(store.text, /6\.000 g de Açúcar cristal/);
+  assert.equal(store.route, '/places');
+
+  // The default place is written with an empty name on purpose. Nothing in the
+  // database calls it anything, so the skill has to - the same word the screen
+  // uses, from the same reasoning.
+  const factory = await ask('o que tem na fábrica', context('view_cost'));
+  assert.match(factory.text, /50\.000 g/);
+
+  // "quanto tem na loja centro" também casa com `stockOfInput`, que leria "na
+  // loja centro" como nome de insumo e responderia que não existe. Quem
+  // pergunta por um lugar tem de ser atendido pelo lugar - a ordem do registro
+  // é semântica, e é esta linha que a segura.
+  const ambiguous = await ask('quanto tem na loja centro', context('view_cost'));
+  assert.match(ambiguous.text, /6\.000 g de Açúcar cristal/);
+
+  const nowhere = await ask('o que tem na loja norte', context('view_cost'));
+  assert.match(nowhere.text, /Não encontrei um lugar chamado "loja norte"/);
+});
+
+test('what a place is worth is a figure, and figures obey the role', async () => {
+  const owner = await ask('o que tem na loja centro', context('view_cost'));
+  assert.ok(owner.detail?.some((d) => d.label === 'Valor parado'));
+
+  // The operator gets the same quantities and no money at all - and it is not
+  // hidden from a rendered answer, it never entered one.
+  const operator = await ask('o que tem na loja centro', context('record_production'));
+  assert.match(operator.text, /6\.000 g/);
+  assert.ok(!operator.detail?.some((d) => d.label === 'Valor parado'));
+});
+
+test('where a thing is reads the same sum from the other side', async () => {
+  const answer = await ask('onde está o açúcar', context('view_cost'));
+
+  assert.match(answer.text, /2 lugares/);
+  assert.deepEqual(answer.detail, [
+    { label: 'Fábrica', value: '50.000 g' },
+    { label: 'Loja Centro', value: '6.000 g' },
+  ]);
+});
+
+test('producing by talking says out loud that it assumed one kettle', async () => {
+  recorded = [];
+
+  const guessed = await ask('produzi 480 picolés de morango', context('record_production'));
+  assert.ok(guessed.draft, 'the phrase should fill a form');
+  assert.equal(recorded.length, 0);
+  assert.match(guessed.text, /Entendi um tacho/, 'an assumption has to be visible before it is written');
+  assert.match(guessed.draft.summary, /480 unidades de Picolé de morango/);
+  assert.match(guessed.draft.summary, /em um tacho/);
+
+  // Said explicitly, it is obeyed to the letter and stops guessing.
+  const told = await ask('produzi 900 picolés de morango em 2 tachos', context('record_production'));
+  assert.ok(told.draft);
+  assert.ok(!/Entendi um tacho/.test(told.text));
+  assert.match(told.draft.summary, /em 2 tachos/);
+
+  await told.draft.apply();
+  assert.deepEqual(recorded, [
+    {
+      productId: 'p1',
+      batches: 2,
+      unitsProduced: 900,
+      assistantPhrase: 'produzi 900 picolés de morango em 2 tachos',
+    },
+  ]);
+});
+
+test('a load is refused before it is prepared, never after it is trusted', async () => {
+  recorded = [];
+
+  // More than the factory holds. Nothing is drafted, because a draft that only
+  // fails at write time is worse than none - the person already believed it.
+  const tooMuch = await ask('mandei 90000 de açúcar para a loja centro', context('dispatch'));
+  assert.ok(!tooMuch.draft);
+  assert.match(tooMuch.text, /Tem só 50\.000 g/);
+
+  // A place that does not exist points at where places are made.
+  const nowhere = await ask('mandei 100 de açúcar para a loja norte', context('dispatch'));
+  assert.ok(!nowhere.draft);
+  assert.equal(nowhere.route, '/places');
+
+  const ok = await ask('mandei 6000 de açúcar para a loja centro', context('dispatch'));
+  assert.ok(ok.draft);
+  assert.equal(recorded.length, 0);
+  assert.match(ok.draft.summary, /6\.000 g de Açúcar cristal da Fábrica para Loja Centro/);
+  assert.match(ok.draft.summary, /transferência, não venda/);
+
+  await ok.draft.apply();
+  assert.deepEqual(recorded, [
+    {
+      itemId: 'sugar',
+      toLocationId: 'centro',
+      baseUnits: 6000,
+      assistantPhrase: 'mandei 6000 de açúcar para a loja centro',
+    },
+  ]);
+});
+
+test('producing and dispatching are each their own permission', async () => {
+  recorded = [];
+  assert.ok(!(await ask('produzi 480 picolés de morango', context('dispatch'))).draft);
+  assert.ok(!(await ask('mandei 6000 de açúcar para a loja centro', context('record_production'))).draft);
   assert.equal(recorded.length, 0);
 });

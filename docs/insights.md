@@ -1281,3 +1281,38 @@ copiada em dois pontos de `app/settings.tsx` e ia virar o terceiro na produção
 `plural()` em `src/i18n`, com um detalhe que só aparece na terceira chamada: o número que
 **escolhe o ramo** não é a string que **entra na frase** — 1200 escolhe o plural, mas quem
 vai na frase é "1.200".
+
+## 1 de setembro — a ordem do registro era regra, e nenhum teste a exercitava
+
+**O que se viu.** As habilidades novas do assistente (o saldo de um lugar, onde
+está um item, produzir e mandar carga) entraram no `phase1Skills` com um
+comentário afirmando que a ordem é semântica: `stockAtPlace` **antes** de
+`stockOfInput`, porque "quanto tem na loja centro" casa com as duas e quem
+pergunta por um lugar não está perguntando por um insumo chamado "na loja
+centro". O comentário estava certo. O teste ao lado dele perguntava **"o que**
+tem na loja centro" — frase que o `stockOfInput` nem casa, porque o regex dele
+exige a palavra "quanto". A regra estava escrita, e a suíte passava sem tocar
+nela.
+
+**Por que importa.** É a mesma doença que o `mutate` existe para achar, num
+lugar onde ele não olhava: teste verde que protege outra coisa. Trocar a ordem
+das duas linhas no registro não quebraria nada — e o efeito no aparelho é o
+assistente responder "não encontrei 'na loja centro' no almoxarifado" com o
+saldo daquela loja na tela ao lado. Regra sustentada por coincidência de
+vocabulário é exatamente o que a barra de verificação deste projeto foi feita
+para não deixar passar.
+
+**O que mudou.** O teste passou a perguntar a frase ambígua — "quanto tem na
+loja centro" —, que é a única que distingue as duas ordens. E quatro mutações
+novas (30 no total), uma por regra que só existia em prosa: a ordem do registro,
+a recusa da carga **antes** de preparar o rascunho, a suposição de um tacho dita
+em voz alta, e a permissão de produzir não sendo a de despachar.
+
+**Uma segunda coisa, menor e cara.** O `mutate` se recusa a rodar com a árvore
+suja nos arquivos que ele altera — e a sessão anterior morreu no limite de uso
+com quatro arquivos por commitar. A recusa está certa (mutação esquecida dentro
+de código compilado é pior que suíte vermelha), mas o efeito prático é que **a
+barra inteira fica inacessível até o commit acontecer**. A ordem correta ficou
+registrada: rodar `typecheck`, `lint` e `test` na árvore suja, commitar, e só
+então `mutate`, `e2e`, `db:verify` e a proofgate — que leem `base..HEAD`, não o
+que está aberto no editor.

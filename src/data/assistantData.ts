@@ -8,8 +8,12 @@ import {
   loadRecipeGraph,
   recentCostChanges,
   recordCount,
+  listPlaces,
+  recordProduction,
   recordPurchase,
+  recordTransfer,
   saveItem,
+  stockByPlace,
   defaultLocationId,
 } from './repository';
 
@@ -38,6 +42,15 @@ export function liveData(companyId: string): AssistantData {
     // que sabe fazê-la, não escondida numa função de dados.
     recordCount: (input) =>
       recordCount(companyId, { ...input, locationId: defaultLocationId(companyId) }),
+    listPlaces: () => listPlaces(companyId),
+    stockByPlace: () => stockByPlace(companyId),
+    defaultPlaceId: () => defaultLocationId(companyId),
+    // A produção sai no lugar padrão, pelo mesmo motivo da contagem: enquanto
+    // há uma fábrica só, perguntar qual é pedir o que o sistema já sabe.
+    recordProduction: (input) =>
+      recordProduction(companyId, { ...input, locationId: defaultLocationId(companyId) }),
+    recordTransfer: (input) =>
+      recordTransfer(companyId, { ...input, fromLocationId: defaultLocationId(companyId) }),
     saveItem: (input) =>
       saveItem(companyId, { ...input, packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }] } }),
   };

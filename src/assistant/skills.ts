@@ -536,6 +536,263 @@ const registerInput: Skill = {
   },
 };
 
+
+/**
+ * "o que tem na loja centro" — a pergunta que só existe depois de haver lugares.
+ *
+ * Vem antes de `stockOfInput` no registro, e a ordem não é estética: "quanto
+ * tem na loja centro" casa com as duas, e a que responde certo é esta. Quem
+ * pergunta por um lugar não está perguntando por um item chamado "na loja".
+ */
+const stockAtPlace: Skill = {
+  id: 'stock_at_place',
+  example: 'o que tem na loja centro',
+  match: (q) =>
+    normalize(q).match(/(?:o que|quanto|quantos|que)\s+(?:tem|tenho|ha|resta|restam)\s+(?:na|no|em)\s+(.+)/),
+  run: async (m, ctx) => {
+    const asked = m[1].trim();
+    const places = await ctx.data.stockByPlace();
+    const named = await ctx.data.listPlaces();
+
+    // O padrão nasce sem nome. Quem pergunta pela fábrica está perguntando por
+    // ele, e é aqui que a palavra existe.
+    const nameOf = (id: string, raw: string) =>
+      raw.trim() || (id === ctx.data.defaultPlaceId() ? 'Fábrica' : id);
+
+    const place =
+      places.find((p) => normalize(nameOf(p.locationId, p.locationName)).includes(normalize(asked))) ??
+      (normalize(asked).match(/fabrica|almoxarifado|estoque/)
+        ? places.find((p) => p.locationId === ctx.data.defaultPlaceId())
+        : undefined);
+
+    if (!place) {
+      const exists = named.some((p) => normalize(nameOf(p.id, p.name)).includes(normalize(asked)));
+      return {
+        text: exists
+          ? `Não tem nada em ${asked} agora.`
+          : `Não encontrei um lugar chamado "${asked}".`,
+        route: '/places',
+      };
+    }
+
+    const where = nameOf(place.locationId, place.locationName);
+    const detail = place.lines.map((l) => ({
+      label: l.name,
+      value: `${formatQuantity(l.baseUnits, ctx.locale)} ${l.baseUnit}`,
+    }));
+
+    if (ctx.capabilities.has('view_cost')) {
+      detail.push({ label: 'Valor parado', value: formatMoney(place.valueCents, ctx.locale) });
+    }
+
+    const first = place.lines[0];
+    return {
+      text:
+        place.lines.length === 1 && first
+          ? `Em ${where} tem ${formatQuantity(first.baseUnits, ctx.locale)} ${first.baseUnit} de ${first.name}.`
+          : `Em ${where} tem ${place.lines.length} itens.`,
+      detail,
+      route: '/places',
+    };
+  },
+};
+
+/**
+ * "onde está o açúcar" — o mesmo saldo lido pelo outro eixo.
+ *
+ * Uma consulta só, dois eixos: se esta habilidade tivesse SQL próprio ela
+ * acabaria discordando da tela na semana em que alguém mexesse numa das duas.
+ */
+const whereIsItem: Skill = {
+  id: 'where_is_item',
+  example: 'onde está o açúcar',
+  match: (q) => normalize(q).match(/onde\s+(?:esta|estao|fica|ficam|tem)\s+(?:o |a |os |as )?(.+)/),
+  run: async (m, ctx) => {
+    const items = await ctx.data.listItems();
+    const item = findByName(items, m[1]);
+    if (!item) return { text: `Não encontrei "${m[1].trim()}" no almoxarifado.` };
+
+    const places = await ctx.data.stockByPlace();
+    const nameOf = (id: string, raw: string) =>
+      raw.trim() || (id === ctx.data.defaultPlaceId() ? 'Fábrica' : id);
+
+    const spread = places
+      .map((p) => ({
+        where: nameOf(p.locationId, p.locationName),
+        line: p.lines.find((l) => l.itemId === item.id),
+      }))
+      .filter((r) => r.line != null);
+
+    if (spread.length === 0) {
+      return { text: `Não tem ${item.name} em lugar nenhum agora.`, route: '/places' };
+    }
+
+    const say = (n: number) => `${formatQuantity(n, ctx.locale)} ${item.baseUnit}`;
+    return {
+      text:
+        spread.length === 1
+          ? `Todo o ${item.name} está em ${spread[0].where}: ${say(spread[0].line!.baseUnits)}.`
+          : `O ${item.name} está em ${spread.length} lugares.`,
+      detail: spread.map((r) => ({ label: r.where, value: say(r.line!.baseUnits) })),
+      route: '/places',
+    };
+  },
+};
+
+/**
+ * "produzi 480 picolés de morango" — a corrida do tacho, dita em voz alta.
+ *
+ * O número de tachos não está na frase e não é dedutível dela: 480 unidades
+ * podem ser um tacho que rendeu menos ou dois que renderam muito menos, e a
+ * razão entre os dois **é** o rendimento real, que é metade do valor de
+ * registrar produção. Então o assistente assume um, **diz que assumiu**, e
+ * ensina a frase que corrige — a suposição aparece antes de gravar, nunca
+ * depois. Quem disser "em 2 tachos" é obedecido ao pé da letra.
+ */
+const registerProduction: Skill = {
+  id: 'register_production',
+  example: 'produzi 480 picolés de morango',
+  requires: 'record_production',
+  match: (q) =>
+    normalize(q).match(
+      /(?:produzi|fiz|fabriquei|sairam|rodei)\s+([\d.,]+)\s+(?:\w+\s+)??(?:de\s+)?(.+?)(?:\s+em\s+([\d.,]+)\s+tachos?)?$/,
+    ),
+  run: async (m, ctx) => {
+    const units = parseNumber(m[1]);
+    const products = (await ctx.data.listProducts()).filter((p) => p.recipeId);
+    const product = findByName(products, m[2]);
+    const batches = m[3] ? parseNumber(m[3]) : 1;
+
+    if (!product) return { text: `Não encontrei um produto chamado "${m[2].trim()}" com ficha técnica.` };
+    if (units === null || units <= 0) {
+      return { text: 'Não entendi quantas unidades saíram. Pode repetir com o número?' };
+    }
+    if (batches === null || batches <= 0) return { text: 'Não entendi quantos tachos foram.' };
+
+    const graph = await ctx.data.loadRecipeGraph();
+    const recipe = product.recipeId ? graph[product.recipeId] : undefined;
+    if (!recipe) return { text: `A receita de ${product.name} não está neste aparelho.` };
+
+    const perUnit = product.yieldPerUnit ?? 0;
+    const planned =
+      perUnit > 0 ? Math.floor(((recipe.yieldAmount * (1 - recipe.lossFraction)) / perUnit) * batches) : 0;
+
+    const detail = [
+      { label: 'Produto', value: product.name },
+      { label: 'Tachos', value: m[3] ? String(batches) : '1 (entendi assim)' },
+      { label: 'Saíram', value: `${formatQuantity(units, ctx.locale)} un` },
+    ];
+    if (planned > 0) {
+      detail.push({
+        label: 'A ficha previa',
+        value: `${formatQuantity(planned, ctx.locale)} un`,
+      });
+    }
+
+    const assumed = m[3]
+      ? ''
+      : ' Entendi um tacho; se foram mais, diga "em 2 tachos" que eu refaço.';
+
+    return {
+      text: 'Preparei a produção. Confira antes de eu gravar.' + assumed,
+      detail,
+      draft: {
+        kind: 'production',
+        summary:
+          `Registrar ${formatQuantity(units, ctx.locale)} unidades de ${product.name}, ` +
+          `em ${batches === 1 ? 'um tacho' : `${batches} tachos`}. ` +
+          'Os insumos saem do almoxarifado e o custo por unidade fica congelado nesta corrida.',
+        apply: async () => {
+          await ctx.data.recordProduction({
+            productId: product.id,
+            batches,
+            unitsProduced: units,
+            assistantPhrase: ctx.question,
+          });
+        },
+      },
+      route: '/production',
+    };
+  },
+};
+
+/**
+ * "mandei 6000 de açúcar para a loja centro" — a carga que sai da fábrica.
+ *
+ * Recusa cedo e por escrito: se o lugar não existe, se o item não existe, ou se
+ * não tem tanto lá, nada é preparado. Um rascunho que só falha na hora de
+ * gravar é pior que nenhum, porque a pessoa já confiou nele.
+ */
+const registerTransfer: Skill = {
+  id: 'register_transfer',
+  example: 'mandei 6000 de açúcar para a loja centro',
+  requires: 'dispatch',
+  match: (q) =>
+    normalize(q).match(
+      /(?:mandei|enviei|levei|transferi|mandar)\s+([\d.,]+)\s*(?:\w+\s+)??(?:de\s+)?(.+?)\s+(?:para|pra|pro)\s+(?:a |o |as |os )?(.+)/,
+    ),
+  run: async (m, ctx) => {
+    const amount = parseNumber(m[1]);
+    const items = await ctx.data.listItems();
+    const item = findByName(items, m[2]);
+    const places = await ctx.data.listPlaces();
+    const from = ctx.data.defaultPlaceId();
+
+    const nameOf = (id: string, raw: string) => raw.trim() || (id === from ? 'Fábrica' : id);
+    const to = places
+      .filter((p) => p.id !== from)
+      .find((p) => normalize(nameOf(p.id, p.name)).includes(normalize(m[3])));
+
+    if (!item) return { text: `Não encontrei "${m[2].trim()}" no almoxarifado.` };
+    if (!to) {
+      return {
+        text: `Não encontrei um lugar chamado "${m[3].trim()}". Cadastre ele primeiro.`,
+        route: '/places',
+      };
+    }
+    if (amount === null || amount <= 0) {
+      return { text: 'Não entendi a quantidade. Pode repetir com o número?' };
+    }
+
+    const here = (await ctx.data.stockByPlace()).find((p) => p.locationId === from);
+    const held = here?.lines.find((l) => l.itemId === item.id)?.baseUnits ?? 0;
+    const say = (n: number) => `${formatQuantity(n, ctx.locale)} ${item.baseUnit}`;
+
+    if (amount > held) {
+      return {
+        text: `Tem só ${say(held)} de ${item.name} na fábrica, e você falou em ${say(amount)}.`,
+        route: '/transfer',
+      };
+    }
+
+    return {
+      text: 'Preparei a transferência. Confira antes de eu gravar.',
+      detail: [
+        { label: 'O que vai', value: item.name },
+        { label: 'Quanto', value: say(amount) },
+        { label: 'De onde', value: nameOf(from, '') },
+        { label: 'Para onde', value: nameOf(to.id, to.name) },
+        { label: 'Fica na fábrica', value: say(held - amount) },
+      ],
+      draft: {
+        kind: 'transfer',
+        summary:
+          `Mandar ${say(amount)} de ${item.name} da ${nameOf(from, '')} para ${nameOf(to.id, to.name)}. ` +
+          'Loja própria é transferência, não venda: o saldo muda de sala e a empresa continua com a mesma coisa.',
+        apply: async () => {
+          await ctx.data.recordTransfer({
+            itemId: item.id,
+            toLocationId: to.id,
+            baseUnits: amount,
+            assistantPhrase: ctx.question,
+          });
+        },
+      },
+      route: '/transfer',
+    };
+  },
+};
+
 export const phase1Skills: Skill[] = [
   registerPurchase,
   // Before the questions: "cadastrar X, Y" is somebody creating, and no
@@ -544,6 +801,13 @@ export const phase1Skills: Skill[] = [
   // Before `stockOfInput`, which also answers to "tem": a phrase carrying a
   // number is somebody counting, not somebody asking.
   registerCount,
+  registerProduction,
+  registerTransfer,
+  // Antes de `stockOfInput`: "quanto tem na loja centro" casa com as duas, e
+  // quem pergunta por um lugar não está perguntando por um item chamado "na
+  // loja". Ordem é semântica aqui, não arrumação.
+  stockAtPlace,
+  whereIsItem,
   stockOfInput,
   eraseHelp,
   listInputs,
