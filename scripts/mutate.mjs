@@ -191,9 +191,32 @@ const DEFECTS = [
   },
   {
     file: 'src/data/repository.ts',
-    from: '  const unitCostRate = (consumedValue / input.unitsProduced) as Rate;',
-    to: '  const unitCostRate = (consumedValue / (input.batches * 500)) as Rate;',
+    from:
+      '  const unitCostRate = (consumedValue / input.unitsProduced + product.unitPackagingCents) as Rate;',
+    to: '  const unitCostRate = (consumedValue / (input.batches * 500) + product.unitPackagingCents) as Rate;',
     hurts: 'o custo congela pelo rendimento prometido em vez do que saiu do tacho, e a perda some no instante em que aconteceu',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from:
+      '  const unitCostRate = (consumedValue / input.unitsProduced + product.unitPackagingCents) as Rate;',
+    to: '  const unitCostRate = (consumedValue / input.unitsProduced) as Rate;',
+    hurts:
+      'o palito e o saquinho somem do custo congelado, e toda margem futura sai inflada exatamente pela embalagem - com sete telas continuando a prometer o número certo',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: '      HAVING SUM(m.quantity_base_units) <> 0',
+    to: '      HAVING SUM(m.quantity_base_units) <> -1',
+    hurts:
+      'lugar esvaziado volta a aparecer como "0 g", e a tela manda alguém conferir uma prateleira onde não tem nada',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: "        AND kind = 'transfer' AND quantity_base_units > 0",
+    to: "        AND kind = 'transfer' AND quantity_base_units < 0",
+    hurts:
+      'o palpite da remessa lê a perna de saída em vez da de entrada, e o campo nasce com um número negativo que o botão recusa em silêncio',
   },
   {
     file: 'src/data/repository.ts',
