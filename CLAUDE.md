@@ -217,8 +217,12 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   passa de mão; quem está com ele usa o papel `operator` — sem custo, sem preço,
   sem dinheiro. O aparelho continua respondendo.
 
-Ainda em aberto, e é dele: se o operador pode conferir a prateleira, já que
-contagem está no piso de autonomia.
+- **O operador confere a prateleira.** Numa fábrica de seis pessoas quem anda
+  até a prateleira é quem trabalha lá, não o dono. Negar a permissão não deixa o
+  número mais seguro — deixa a contagem sem acontecer, e saldo que ninguém
+  conferiu há meses é pior que saldo corrigido hoje de manhã. O que protege é o
+  piso, não a permissão: contagem é perguntada toda vez, e é gravada como
+  diferença que o livro-razão guarda, nunca como valor que sobrescreve.
 
 ---
 

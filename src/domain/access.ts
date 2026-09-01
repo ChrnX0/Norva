@@ -71,7 +71,20 @@ export const ROLES: Record<Role, readonly Capability[]> = {
   /** Everything. There is always exactly one person who can do anything. */
   owner: capabilities,
 
-  operator: ['record_production', 'dispatch', 'check_receipt', 'record_loss'],
+  /**
+   * `adjust_stock` is here on purpose, and it is the one that looks generous.
+   *
+   * A count is what makes the storeroom figure true, and in a factory of six
+   * the person who walks to the shelf is the person who works there - not the
+   * owner. Withholding it does not make the number safer; it makes the count
+   * never happen, and a balance nobody has checked in months is worse than one
+   * an operator corrected this morning.
+   *
+   * What protects it is the floor, not the permission: `adjustStock` is asked
+   * about every single time, at any level of autonomy, and the count is written
+   * as a difference the ledger keeps rather than a value that overwrites.
+   */
+  operator: ['record_production', 'dispatch', 'check_receipt', 'record_loss', 'adjust_stock'],
 
   storeManager: ['view_sale_price', 'check_receipt', 'record_loss', 'place_order'],
 

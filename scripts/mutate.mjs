@@ -113,8 +113,8 @@ const DEFECTS = [
   },
   {
     file: 'src/domain/access.ts',
-    from: "  operator: ['record_production', 'dispatch', 'check_receipt', 'record_loss'],",
-    to: "  operator: ['record_production', 'dispatch', 'check_receipt', 'record_loss', 'view_cost'],",
+    from: "  operator: ['record_production', 'dispatch', 'check_receipt', 'record_loss', 'adjust_stock'],",
+    to: "  operator: ['record_production', 'dispatch', 'check_receipt', 'record_loss', 'adjust_stock', 'view_cost'],",
     hurts: 'o operador de fábrica passa a ver o custo, e ninguém pediu isso',
   },
   {
