@@ -286,9 +286,21 @@ test('erasing invoices drops the average with them', async () => {
   const before = await itemCosts(CO);
   assert.ok(Object.values(before).some((r) => r > 0), 'the example arrives with costs');
 
+  const held = await listItems(CO);
+  assert.ok(held.some((i) => i.onHandBaseUnits > 0), 'and it arrives with stock');
+
   await eraseArea(CO, 'purchases');
 
   assert.deepEqual(await itemCosts(CO), {}, 'no invoice, no average');
+
+  // The stock goes with them, and the reason is worth pinning down because the
+  // rule looks too broad at a glance. A count is stored as a difference from a
+  // balance - delete the arrivals it was measured against and what is left is
+  // arithmetic about nothing.
+  assert.ok(
+    (await listItems(CO)).every((i) => i.onHandBaseUnits === 0),
+    'no invoice, no stock either',
+  );
 
   // Six inputs plus the popsicle, which is an item as well as a product.
   assert.equal((await listItems(CO)).length, 7, 'the things themselves stay');
