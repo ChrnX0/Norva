@@ -493,6 +493,52 @@ e não valeu.
 
 ---
 
+## 2026-09-01 — a pergunta que eu repeti três vezes já estava respondida no esquema
+
+**O que se viu.** O dono pôs uma diretriz permanente: **não fazer pergunta
+óbvia.** Se tem que ser feito, faz. Fui aplicar na única pergunta que eu vinha
+repetindo — se movimento de chão de fábrica grava *quem* fez ou *onde*
+aconteceu — e ela se desmontou em duas.
+
+Primeiro: **é preferência de empresa.** Uma fábrica de três pessoas não quer
+nome nenhum; uma de quarenta com furo de estoque quer. Pela F7 isso vira dado, e
+pela regra nova nem chega a ser pergunta.
+
+Segundo, e eu não tinha percebido: **`movements.recorded_by` já é `not null`
+desde a primeira migração.** O livro-razão sempre soube quem fez. A pergunta
+nunca foi sobre armazenamento — era sobre a **interface** nomear a pessoa. Eu
+levei três mensagens perguntando algo que o esquema já tinha decidido, e bastava
+ter lido.
+
+**O que mudou.** `companies.names_who_recorded`, padrão `false`. O padrão vem do
+tom de voz: a cadeia de custódia existe para **localizar** a perda — a diferença
+entre dois postos diz se foi separação, rota ou recebimento — e *"faltaram 3
+caixas na conferência"* resolve sem nomear ninguém. Equipe que vê o app como
+inimigo sabota o dado, e aí não há relatório nenhum.
+
+**A lição.** Antes de levar uma pergunta ao dono, ler o esquema. Metade das
+perguntas que parecem de produto já foram respondidas por quem escreveu a
+tabela.
+
+---
+
+## 2026-09-01 — o guarda de acordo só olhava para um lado
+
+**O que se viu.** O teste de acordo entre esquemas checava as colunas que o
+aparelho **manda**. A direção inversa — coluna que o servidor **exige** e o
+aparelho nunca manda — continuava só ao alcance do Postgres. É a classe do
+`freight_cents`, que custou uma corrida de CI para aparecer.
+
+**O que mudou.** O parser passou a ler `not null` e `default` de cada coluna, e
+o teste exige que toda coluna obrigatória sem padrão venha do aparelho — não há
+outro lugar de onde ela possa vir. Com canários no parser de novo: sem eles, uma
+regra que lesse tudo como "tem padrão" reportaria nada faltando para sempre.
+
+Visto mordendo: tirando o carimbo de `recorded_by`, dois testes ficam vermelhos e
+o primeiro nomeia `movements.recorded_by`. O portão de mutação foi a dezessete.
+
+---
+
 ## Em aberto
 
 Achados desta rodada que ainda não viraram mudança. Ficam aqui até virarem.

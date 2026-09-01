@@ -44,18 +44,26 @@ function serverSql(): string {
  * Creates, then adds, then drops - because a column removed in a later step is
  * not there any more, and 0009 removes one this device used to send.
  */
-function serverColumns(sql: string): Map<string, Set<string>> {
-  const tables = new Map<string, Set<string>>();
+type Column = { notNull: boolean; hasDefault: boolean };
+
+function serverColumns(sql: string): Map<string, Map<string, Column>> {
+  const tables = new Map<string, Map<string, Column>>();
+
+  const rule = (line: string): Column => ({
+    notNull: /\bnot null\b/i.test(line),
+    // A primary key with a generated id needs nothing from the device either.
+    hasDefault: /\bdefault\b/i.test(line) || /\bprimary key\b/i.test(line),
+  });
 
   for (const m of sql.matchAll(/create table (\w+) \(([\s\S]*?)\n\);/g)) {
-    const columns = new Set<string>();
+    const columns = new Map<string, Column>();
     for (const raw of m[2].split('\n')) {
       const line = raw.trim();
       if (!line || line.startsWith('--') || /^(constraint|check|unique|primary|foreign)\b/i.test(line)) {
         continue;
       }
       const name = line.split(/\s+/)[0];
-      if (/^\w+$/.test(name)) columns.add(name);
+      if (/^\w+$/.test(name)) columns.set(name, rule(line));
     }
     tables.set(m[1], columns);
   }
@@ -70,8 +78,8 @@ function serverColumns(sql: string): Map<string, Set<string>> {
     const table = statement.match(/alter table (\w+)/);
     if (!table) continue;
 
-    for (const m of statement.matchAll(/add column (?:if not exists )?(\w+)/g)) {
-      tables.get(table[1])?.add(m[1]);
+    for (const m of statement.matchAll(/add column (?:if not exists )?(\w+)([^,]*)/g)) {
+      tables.get(table[1])?.set(m[1], rule(m[2]));
     }
     for (const m of statement.matchAll(/drop column (?:if exists )?(\w+)/g)) {
       tables.get(table[1])?.delete(m[1]);
@@ -203,4 +211,50 @@ test('the capability vocabulary is the same word list on both sides', () => {
     [...server].sort(),
     'the device and the server disagree about what a permission even is',
   );
+});
+
+test('nothing the server insists on is left for the device to forget', () => {
+  const tables = serverColumns(serverSql());
+
+  // The other direction of the same contract, and the one the replay found the
+  // hard way: `purchases.freight_cents` is `not null default 0`, and an insert
+  // that names its columns lets the default do its job - while one that sends
+  // every column with NULL in the silent ones defeats it and is refused.
+  //
+  // So a column the server requires and gives no default for has to come from
+  // here. There is nowhere else for it to come from.
+  const forgotten: string[] = [];
+
+  for (const table of sendableTables) {
+    const columns = tables.get(table);
+    assert.ok(columns, `the server has no ${table}`);
+
+    const write = serialize(entry(table), {}, ACTOR);
+    if (write.kind !== 'upsert') continue;
+    const sent = new Set(Object.keys(write.row));
+
+    for (const [name, rule] of columns) {
+      if (rule.notNull && !rule.hasDefault && !sent.has(name)) {
+        forgotten.push(`${table}.${name}`);
+      }
+    }
+  }
+
+  assert.deepEqual(
+    forgotten,
+    [],
+    'the server requires these and the device never sends them, so every write is refused',
+  );
+});
+
+test('the parser can tell a required column from a defaulted one', () => {
+  const tables = serverColumns(serverSql());
+
+  // Canaries again. Without these the test above is measuring the parser: a
+  // rule that reads everything as "has a default" would report nothing missing
+  // for ever.
+  assert.equal(tables.get('movements')?.get('recorded_by')?.notNull, true);
+  assert.equal(tables.get('movements')?.get('recorded_by')?.hasDefault, false);
+  assert.equal(tables.get('purchases')?.get('freight_cents')?.hasDefault, true);
+  assert.equal(tables.get('movements')?.get('note')?.notNull, false);
 });

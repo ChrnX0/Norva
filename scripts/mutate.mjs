@@ -118,6 +118,12 @@ const DEFECTS = [
     hurts: 'o operador de fábrica passa a ver o custo, e ninguém pediu isso',
   },
   {
+    file: 'src/sync/serialize.ts',
+    from: '    build: (_row, actor) => ({ recorded_by: actor.userId }),',
+    to: '    build: () => ({}),',
+    hurts: 'o movimento vai sem quem gravou, e o servidor recusa toda a fila',
+  },
+  {
     file: 'src/assistant/index.ts',
     from: 'if (skill.requires && !context.capabilities.has(skill.requires)) {',
     to: 'if (false) {',

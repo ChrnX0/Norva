@@ -49,6 +49,21 @@ entre A e B quando A e B são preferências de cliente é empurrar para ele uma
 decisão que o produto deveria absorver. A pergunta certa nesse caso é qual é o
 **padrão** — não qual é o único.
 
+**E quando não há escolha, não há pergunta.** Se a coisa tem que ser feita,
+faça — pedir permissão para o óbvio ("achei o bug; quer que eu conserte?") não
+é cautela, é devolver trabalho embrulhado como consulta. Perguntar custa uma
+rodada dele e não compra informação nenhuma.
+
+A borda, para a regra não virar desculpa. Pergunta-se em três casos, e só:
+
+1. **A resposta muda o que é construído** — e não é preferência de cliente, que
+   vira configuração em vez de pergunta.
+2. **É irreversível** — destruir dado, publicar para fora, gastar dinheiro dele.
+3. **É decisão de dono** — faseamento, preço, marca, o que entra em produção.
+
+Fora desses três: decida, faça, e **diga o que foi feito e por quê**. Assumir e
+avisar é melhor que perguntar e esperar; assumir e calar é pior que as duas.
+
 ---
 
 ## A Lei da Inteligência
