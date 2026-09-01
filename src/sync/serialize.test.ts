@@ -62,18 +62,37 @@ test('a column the server does not have stays behind', () => {
   assert.equal(write.row.purchase_id, 'p1');
 });
 
-test('who operated beats who synced', () => {
-  // The defect this replaced was quiet: the actor was stamped at sync time, so
-  // a shared cold-room phone that somebody else uploads at night would have
-  // attributed the morning's movements to whoever happened to sync. A ledger
-  // answering "who" with the wrong name is worse than one that says nothing.
-  const operated = serialize(
+test('who wrote it and who was holding it are two answers', () => {
+  // The login authenticates the SYSTEM: the account belongs to the company,
+  // which hands out access by creating other emails or sending an invite code
+  // per role. So `recorded_by` is that account - the server enforces
+  // `recorded_by = auth.uid()` and nobody signs in anybody else's name - while
+  // who was actually operating is noted at the moment of the record.
+  //
+  // One column answering both was the mistake this replaced. Separated, a
+  // shared phone stops being an authentication problem and becomes one more
+  // question on the screen, for the company that wants to ask it.
+  const write = serialize(
     queued('movements'),
-    { id: 'm1', kind: 'adjustment', recorded_by: 'the-one-holding-the-phone' },
+    { id: 'm1', kind: 'production', operator_id: 'the-one-holding-the-phone' },
     ACTOR,
   );
-  if (operated.kind !== 'upsert') throw new Error('expected an upsert');
-  assert.equal(operated.row.recorded_by, 'the-one-holding-the-phone');
+  if (write.kind !== 'upsert') throw new Error('expected an upsert');
+
+  assert.equal(write.row.recorded_by, ACTOR.userId);
+  assert.equal(write.row.operator_id, 'the-one-holding-the-phone');
+});
+
+test('a company that names nobody still records the movement', () => {
+  // Null is an answer, not a gap: the line still answers through the device and
+  // the account. Naming is `companies.names_who_recorded`, off by default.
+  const write = serialize(queued('movements'), { id: 'm1', kind: 'production' }, ACTOR);
+  if (write.kind !== 'upsert') throw new Error('expected an upsert');
+  // Nulo explícito, não coluna ausente: a travessia nomeia o que ela promete
+  // atravessar, e uma coluna que sumisse do payload seria indistinguível de uma
+  // que ninguém ensinou a mandar.
+  assert.equal(write.row.operator_id, null);
+  assert.equal(write.row.recorded_by, ACTOR.userId);
 });
 
 test('who did it is stamped on the way out, because the device has no user', () => {

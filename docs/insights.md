@@ -591,6 +591,10 @@ e só carimba o ator quando o aparelho não sabia. Nulo virou resposta honesta:
 "o aparelho não sabia", não "ninguém fez". Teste novo e mutação nova — a suíte
 fica vermelha se o carimbo do sync voltar a mandar.
 
+> **Corrigido no mesmo dia, mais abaixo.** A conclusão acima estava pela metade:
+> mandar o valor gravado é necessário, mas o servidor recusa quando ele difere
+> de quem está sincronizando. O achado seguinte fecha isso.
+
 ## 1 de setembro — o marcador que não suprime nada
 
 **O que apareceu.** Eu tinha escrito `proofgate-allow` três vezes em linhas de
@@ -610,3 +614,37 @@ build SQL around an identifier like "x; drop table movements"`). Onde o risco er
 mesmo inexistente (uma `Rate` impressa com `toFixed`, fracionária por fundação),
 o marcador foi para a linha certa. Nenhuma justificativa ficou em comentário
 fingindo suprimir.
+
+## 1 de setembro — duas perguntas, e eu tentei responder com uma coluna
+
+**O que apareceu.** A política de INSERT da fundação é `recorded_by = auth.uid()`:
+o servidor só aceita movimento atribuído à própria conta que insere. Eu li isso
+como uma contradição com o aparelho compartilhado e comecei a construir em cima
+— recusa no serializador, sessão por pessoa, PIN destrancando token guardado.
+Era premissa inventada. **A contradição não existia: eram duas perguntas
+diferentes que eu estava empilhando numa coluna só.**
+
+O dono desfez em duas frases: o login autentica **o sistema** — a conta é da
+empresa, que distribui acesso por e-mail ou código de convite por perfil — e
+**quem estava operando é anotação do registro**, não identidade da sessão.
+
+**Por que importa, e o que quase aconteceu.** O código errado estava bonito:
+teste verde, erro claro, comentário explicando. Verde protegendo uma regra que
+ninguém pediu é pior que vermelho — não avisa. Custou uma rodada inteira, e o
+que a evitaria era barato: conferir a lista de decisões antes de aceitar que a
+fundação está furada.
+
+**O que mudou.** `movements.operator_id` no servidor (0014) e no aparelho (V5),
+referenciando a pessoa cadastrada; `recorded_by` volta a ser simplesmente a
+conta que sincroniza. A `AttributionMismatchError` e a sessão-por-pessoa foram
+deletadas. A `db:verify` guarda os dois lados agora: nomear outro em
+`recorded_by` é **recusado**, nomear outro em `operator_id` é **aceito** — e a
+recusa foi isolada trocando só a atribuição, para provar que é ela e não outra
+coisa. No `CLAUDE.md`, a decisão do dono ficou escrita e ganhou uma regra de
+método: contradição achada é suspeita de leitura errada até virar prova.
+
+**E um buraco de verdade, que sobreviveu à correção.** Os 45 writes da fila são
+reproduzidos como **superusuário**, que ignora RLS por completo. A "fila
+reproduzida contra um servidor de verdade" prova que as colunas batem — nunca
+provou que a escrita seria aceita. É o próximo item, e é o que teria contrariado
+minha premissa antes de eu construir sobre ela.

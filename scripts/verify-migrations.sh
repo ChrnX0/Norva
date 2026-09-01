@@ -376,7 +376,41 @@ as_user "$OPERATOR" "insert into movements (id, company_id, kind, occurred_at, r
 sneaked=$(rows "select count(*) from movements where id = '${M}d7';")  # proofgate-allow
 [ "$sneaked" = "0" ] || fail "someone without check_receipt signed for a delivery"
 
+# Attribution cannot be handed to somebody else, and this is the check that
+# decides whether a shared phone can work at all.
+#
+# The owner holds every capability there is. He still cannot post a movement
+# that says the operator recorded it. That is `recorded_by = auth.uid()` in the
+# append policy doing its job: you may only say that YOU did something, so the
+# ledger's answer to "who" cannot be handed around.
+#
+# Which settles the shared-device question in the only place that counts. A
+# phone that passes from hand to hand cannot sync everybody's work under one
+# account and label each movement with whoever was holding it - the server
+# refuses. The person operating has to BE the session, and the device carries
+# one per person.
+as_user "$OWNER" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
+  item_id, quantity_base_units, location_id) values
+  ('${M}d8','${M}c1','production',now(),'$OPERATOR','${M}b1',500,'${M}a1');" >/dev/null 2>&1 || true  # proofgate-allow
+borrowed=$(rows "select count(*) from movements where id = '${M}d8';")  # proofgate-allow
+[ "$borrowed" = "0" ] || fail "somebody signed a movement in another person's name"
+
+# And the answer that the refusal above does NOT block: naming who was holding
+# the phone. The account stays the session's own - incedível - while
+# `operator_id` says who was operating, chosen at the moment of the record.
+# Two questions, two columns; that is what makes a shared device a question on
+# a screen instead of an authentication problem.
+as_user "$OWNER" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
+  operator_id, item_id, quantity_base_units, location_id) values
+  ('${M}d9','${M}c1','production',now(),'$OWNER',
+   (select id from memberships where user_id = '$OPERATOR'),
+   '${M}b1',500,'${M}a1');" >/dev/null 2>&1 || true  # proofgate-allow
+named=$(rows "select count(*) from movements m join memberships mb on mb.id = m.operator_id
+  where m.id = '${M}d9' and mb.user_id = '$OPERATOR';")  # proofgate-allow
+[ "$named" = "1" ] || fail "a linha não pôde dizer quem estava operando"
+
 echo "    purchases post, an empty count is kept, an empty production is not"
+echo "    and nobody can record a movement in somebody else's name"
 
 echo "==> check 6: a fila do aparelho chega inteira, e os dois lados fecham o mesmo número"
 

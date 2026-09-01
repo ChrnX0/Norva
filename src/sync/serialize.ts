@@ -214,19 +214,25 @@ const CROSSINGS: Record<
       // esperar alguém lembrar. Quando a identidade chegar, o valor entra; o
       // lugar onde ele entra já está escrito.
       'device_id',
+      // Quem estava operando na hora, anotado no registro. Nulo quando a
+      // empresa não quer nomear ninguém - e nulo é resposta, não ausência: a
+      // linha continua respondendo pelo aparelho e pela conta.
+      'operator_id',
       'reverses_movement_id',
       'assistant_phrase',
       'note',
     ],
     /**
-     * Quem operou vence quem sincroniza.
+     * A conta que escreveu, e ela não se cede.
      *
-     * O carimbo do ator só entra quando o aparelho não sabia — que é o caso
-     * enquanto não existe sessão com dono. Assim que existir, o valor gravado na
-     * hora prevalece, e é isso que impede o livro-razão de atribuir a alguém um
-     * movimento que outra pessoa fez com o mesmo celular.
+     * O servidor impõe `recorded_by = auth.uid()` na política de append, provado
+     * contra o Postgres na `db:verify`: a mesma escrita é aceita nomeando o
+     * próprio usuário da sessão e recusada nomeando qualquer outro. Como o login
+     * é da empresa, essa conta É quem sincroniza - não há o que decidir aqui.
+     *
+     * Quem estava operando é outra pergunta, e viaja em `operator_id`.
      */
-    build: (row, actor) => ({ recorded_by: row.recorded_by ?? actor.userId }),
+    build: (_row, actor) => ({ recorded_by: actor.userId }),
   },
 };
 

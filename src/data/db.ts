@@ -291,12 +291,39 @@ ALTER TABLE item_costs DROP COLUMN on_hand_base_units;
  * Então a pessoa entra na linha no instante em que o movimento é escrito. Nulo
  * enquanto não existe sessão com dono — e nulo é honesto: significa que o
  * aparelho não sabia, não que ninguém fez.
+ *
+ * E a coluna diz mais do que quem gravou: diz **por qual sessão esta linha pode
+ * subir**. A política do servidor é `recorded_by = auth.uid()`, provada contra
+ * o Postgres na `db:verify` — a mesma escrita é aceita nomeando o próprio
+ * usuário da sessão e recusada nomeando qualquer outro. Ninguém assina no nome
+ * de ninguém, nem o dono. É por isso que um celular que passa de mão carrega
+ * uma sessão por pessoa, em vez de uma conta só carimbando todo mundo.
  */
 const V4 = `
 ALTER TABLE movements ADD COLUMN recorded_by TEXT;
 `;
 
-const MIGRATIONS: readonly string[] = [V1, V2, V3, V4];
+/**
+ * Quem gravou e quem estava operando são duas perguntas, não uma.
+ *
+ * A V4 tentou fazer uma coluna responder as duas e estava errada. O login
+ * autentica **o sistema**: a conta é da empresa, e ela distribui acesso criando
+ * outros e-mails ou mandando código de convite por perfil — não é o e-mail
+ * pessoal do operador que entra no app. Então a conta que escreve é uma coisa
+ * (e o servidor impõe `recorded_by = auth.uid()`, provado na `db:verify`), e
+ * quem estava com o aparelho na hora é outra: anotada no momento do registro.
+ *
+ * Com as duas separadas, o celular compartilhado para de ser um problema de
+ * autenticação e vira uma pergunta a mais na tela — para a empresa que quiser
+ * fazê-la. `recorded_by` sai daqui porque no aparelho ele nunca teve valor
+ * próprio: é sempre a conta que sincroniza, e o serializador já sabe qual é.
+ */
+const V5 = `
+ALTER TABLE movements ADD COLUMN operator_id TEXT;
+ALTER TABLE movements DROP COLUMN recorded_by;
+`;
+
+const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5];
 
 export type SqlParam = string | number | null;
 

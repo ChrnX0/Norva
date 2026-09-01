@@ -119,9 +119,9 @@ const DEFECTS = [
   },
   {
     file: 'src/sync/serialize.ts',
-    from: '    build: (row, actor) => ({ recorded_by: row.recorded_by ?? actor.userId }),',
-    to: '    build: () => ({}),',
-    hurts: 'o movimento vai sem quem gravou, e o servidor recusa toda a fila',
+    from: "      'operator_id',",
+    to: "      // 'operator_id',",
+    hurts: 'quem estava operando some no caminho, e a empresa que ligou a pergunta não recebe a resposta',
   },
   {
     file: 'src/assistant/index.ts',

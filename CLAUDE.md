@@ -213,6 +213,14 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   responsabilidade vem do aparelho ser cadastrado com um responsável: o
   movimento aponta para o aparelho, o aparelho aponta para uma pessoa. Quem
   quiser nomear a cada caixa liga `names_who_recorded`.
+- **O login autentica o sistema, não a pessoa.** A conta é da empresa. Ela
+  distribui acesso criando outros e-mails ou mandando código de convite por
+  perfil — não é o e-mail pessoal do operador que entra no app. **Quem estava
+  operando é anotação do registro**, escolhida na hora, não identidade da sessão.
+  São duas perguntas (`recorded_by` = qual conta escreveu, imposto pelo servidor
+  e incedível; `operator_id` = quem estava com o aparelho), e uma coluna só
+  respondendo as duas é erro — já custou uma rodada inteira.
+
 - **Aparelho emprestado entra como produção e nada mais.** Celular da empresa
   passa de mão; quem está com ele usa o papel `operator` — sem custo, sem preço,
   sem dinheiro. O aparelho continua respondendo.
@@ -225,6 +233,14 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   diferença que o livro-razão guarda, nunca como valor que sobrescreve.
 
 ---
+
+**Contradição achada é suspeita de leitura errada, até virar prova.** Quando o
+esquema parece contrariar uma fundação, a primeira hipótese é que eu li errado —
+não que a fundação esteja furada. Antes de construir qualquer coisa em cima
+disso: conferir a lista de decisões acima, e **rodar a contradição contra o
+sistema** até ela falhar ou passar de verdade. Construir sobre uma premissa
+inventada custa a rodada inteira, e o pior é que o código fica bonito: testes
+verdes protegendo uma regra que ninguém pediu.
 
 ## Faseamento
 
