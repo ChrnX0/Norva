@@ -1106,3 +1106,24 @@ deliberada em vez de descoberta por uma chave estrangeira falhando às quatro da
 **E um erro meu na verificação, que registro porque quase me enganou:** o primeiro guarda
 pareceu não morder. Era o meu `grep` — procurei "names no column" onde a mensagem diz
 "name no column". O teste estava certo; a checagem da checagem é que estava errada.
+
+## 1 de setembro — o parser do meu próprio guarda lia só metade do esquema
+
+**O que apareceu.** Acrescentei `movement_group_id` e `counterpart_location_id` ao
+aparelho por uma migração nova (V6) e o guarda que eu tinha escrito uma hora antes
+falhou dizendo que `counterpart_location_id` **continuava ausente**. Estava lá.
+
+O parser lia só o `CREATE TABLE` e ignorava os `ALTER TABLE` dos passos seguintes — a
+mesma cegueira que o lado do servidor, no mesmo arquivo, trata desde o começo
+("creates, then adds, then drops"). Escrevi o guarda novo sem copiar a lição que já
+estava dez linhas acima.
+
+**Por que importa, e por que quase passou.** Se eu tivesse escrito a migração antes do
+guarda, ele teria nascido verde e cego: reportando lacunas fechadas para sempre, ou pior,
+deixando de reportar as reais. Foi a ordem — guarda primeiro, migração depois — que o
+denunciou. Não foi cuidado meu.
+
+**O que mudou.** O parser aplica os `ADD COLUMN` e `DROP COLUMN` sobre o resultado do
+`CREATE`. E a lista de lacunas conhecidas passou a **apodrecer em voz alta**: entrada que
+afirma uma falta já fechada agora quebra o teste, porque uma lista mentindo sobre uma
+ausência deliberada é a mesma família do marcador que não suprime nada.

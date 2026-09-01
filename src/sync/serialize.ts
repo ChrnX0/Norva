@@ -214,6 +214,12 @@ const CROSSINGS: Record<
       // esperar alguém lembrar. Quando a identidade chegar, o valor entra; o
       // lugar onde ele entra já está escrito.
       'device_id',
+      // As duas colunas que um ato de mais de uma linha precisa: o grupo que
+      // amarra as sete linhas de uma corrida, e para onde foi a outra metade de
+      // uma transferência. Explícitas aqui de propósito - a lista é fechada
+      // para que coluna nova não vire falha silenciosa.
+      'movement_group_id',
+      'counterpart_location_id',
       // Quem estava operando na hora, anotado no registro. Nulo quando a
       // empresa não quer nomear ninguém - e nulo é resposta, não ausência: a
       // linha continua respondendo pelo aparelho e pela conta.

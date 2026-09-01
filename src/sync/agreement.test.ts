@@ -312,6 +312,14 @@ test('what the device does not keep is a list somebody wrote, not a surprise', (
   const columns = new Set(
     [...table.slice(0, table.indexOf(');')).matchAll(/^\s{2}([a-z_]+)\s/gm)].map((m) => m[1]),
   );
+
+  // The later steps count too. Reading only the CREATE was this check's own
+  // blind spot, and it announced itself the first time a migration added a
+  // column: the test reported a gap that had just been closed. The server side
+  // of this file has handled creates-then-adds-then-drops from the start.
+  for (const m of device.matchAll(/ALTER TABLE movements ADD COLUMN (\w+)/g)) columns.add(m[1]);
+  for (const m of device.matchAll(/ALTER TABLE movements DROP COLUMN (\w+)/g)) columns.delete(m[1]);
+
   assert.ok(columns.size > 8, `parsed ${columns.size} columns - the parse itself is broken`);
 
   const domain = readFileSync('src/domain/ledger.ts', 'utf8');
@@ -326,11 +334,14 @@ test('what the device does not keep is a list somebody wrote, not a surprise', (
     'recorded_by',
     // The four control posts are phase 3 - dispatch, delivery, receipt.
     'post',
-    // Needed the day a transfer is written: the second leg has to say where
-    // its other half went. The server has had the column since 0001.
-    'counterpart_location_id',
   ];
 
   const surprises = fields.filter((f) => !columns.has(f) && !known.includes(f));
   assert.deepEqual(surprises, [], `absent from the device and from the list: ${surprises.join(', ')}`);
+
+  // And the list has to rot out loud. An entry claiming a gap that was closed
+  // reads as deliberate absence for ever, which is the same defect as a
+  // suppression marker that suppresses nothing.
+  const stale = known.filter((f) => columns.has(f));
+  assert.deepEqual(stale, [], `the device has these now - take them off the list: ${stale.join(', ')}`);
 });

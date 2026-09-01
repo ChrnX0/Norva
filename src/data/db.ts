@@ -323,7 +323,29 @@ ALTER TABLE movements ADD COLUMN operator_id TEXT;
 ALTER TABLE movements DROP COLUMN recorded_by;
 `;
 
-const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5];
+/**
+ * As colunas que um ato de mais de uma linha precisa.
+ *
+ * `movement_group_id` amarra as sete linhas de uma corrida de produção e as
+ * duas pernas de uma transferência. Sem ela, o estorno de uma corrida inteira
+ * não se diz atômico e "explique este número" vira arqueologia por horário.
+ *
+ * `counterpart_location_id` existe no servidor desde a 0001 e nunca existiu
+ * aqui. A transferência escreve duas linhas — saída e entrada — e cada uma
+ * precisa dizer para onde foi a outra metade; sem a coluna, a perna sobe muda e
+ * o servidor recebe metade da explicação. Um guarda em `agreement.test.ts`
+ * listava esta ausência de propósito, para ela ser deliberada em vez de
+ * descoberta por uma chave estrangeira falhando de madrugada.
+ *
+ * As duas são nulas nas linhas antigas: compra e contagem são atos de uma linha
+ * só, sem grupo e sem contraparte.
+ */
+const V6 = `
+ALTER TABLE movements ADD COLUMN movement_group_id TEXT;
+ALTER TABLE movements ADD COLUMN counterpart_location_id TEXT REFERENCES locations(id);
+`;
+
+const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5, V6];
 
 export type SqlParam = string | number | null;
 
