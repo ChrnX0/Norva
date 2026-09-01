@@ -100,10 +100,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # This job used to need nothing but psql. Check 6 changed that: it runs a
+      # real device session in TypeScript to produce the queue it replays, so
+      # the job now needs the project's dependencies like any other. Without
+      # them `npx` fetched a standalone tsx that could not resolve a single
+      # project import - green locally, red here, which is the whole reason the
+      # bar runs in both places.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
       # The script stands up a throwaway Postgres of its own, so it needs the
       # binaries rather than a running service.
       - name: Locate the Postgres binaries
         run: echo "PGBIN=$(ls -d /usr/lib/postgresql/*/bin | tail -1)" >> "$GITHUB_ENV"
 
-      - name: Append-only ledger, moving average, product constraint
+      - name: Six guarantees, including the device's queue replayed here
         run: npm run db:verify

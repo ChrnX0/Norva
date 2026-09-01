@@ -364,6 +364,27 @@ código estivesse errado?*
 
 ---
 
+## 2026-09-01 — a checagem nova mudou o que o job precisava, e não avisou
+
+**O que se viu.** O `db:verify` ficou vermelho no CI e verde local, nos três
+pushes seguidos. O log não deixa dúvida: `Cannot find module '@/data/db'`,
+depois de o `npx` anunciar que ia **baixar** o `tsx`.
+
+O job do banco nunca rodou `npm ci`. Durante meses ele não precisou — era bash e
+`psql`, e mais nada. A checagem 6 mudou isso em silêncio: ela roda uma sessão de
+aparelho em TypeScript para produzir a fila que reproduz, então o job passou a
+depender das dependências do projeto como qualquer outro.
+
+**Por que passou local.** Porque local tem `node_modules`. Reproduzido copiando
+o script para uma pasta sem dependências: mesma mensagem, na mesma linha.
+
+**A lição.** Um passo novo pode mudar os pré-requisitos do job que o hospeda, e
+nada no repositório checa isso. É a mesma família dos outros achados do dia —
+duas fontes de verdade sobre o que o job precisa: a lista de passos e a
+realidade. Aqui elas divergiram no dia em que a checagem entrou.
+
+---
+
 ## Em aberto
 
 Achados desta rodada que ainda não viraram mudança. Ficam aqui até virarem.
