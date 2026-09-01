@@ -174,3 +174,26 @@ enquanto a busca de marca no INPI ainda está pendente.
 ## Licença
 
 Proprietário. Todos os direitos reservados.
+
+---
+
+## Rodando na web
+
+O mesmo código roda no navegador, o que é útil para ver o aplicativo sem
+instalar nada:
+
+```bash
+npx expo export --platform web
+```
+
+Duas configurações fazem isso funcionar e não são opcionais:
+
+- `metro.config.js` trata `.wasm` como asset. O `expo-sqlite` roda no navegador
+  através de uma compilação WebAssembly do SQLite, e sem isso o banco não existe.
+- O servidor precisa mandar `Cross-Origin-Opener-Policy: same-origin` e
+  `Cross-Origin-Embedder-Policy: require-corp`. Sem isolamento de origem o
+  navegador recusa `SharedArrayBuffer` e o banco não abre. O `vercel.json` já
+  manda esses cabeçalhos.
+
+Os dados ficam **no navegador de quem abre**, não num servidor — é o mesmo
+desenho offline-first do aplicativo.
