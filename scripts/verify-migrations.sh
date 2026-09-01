@@ -281,7 +281,37 @@ operator_cost=$(as_user "$OPERATOR" "select coalesce(unit_cost_rate::text, 'null
 operator_rows=$(as_user "$OPERATOR" "select count(*) from movements_visible;")
 [ "$operator_rows" = "4" ] || fail "the operator should still see their movements, got $operator_rows"
 
-echo "    tenants isolated, and the operator sees the movement without the money"
+# Pedir para entrar não é entrar.
+#
+# O dono manda um código; quem digita vira uma linha em `memberships`, e é aí
+# que estava o buraco: a permissão inteira deste sistema perguntava se existe
+# uma linha, não se ela está ativa. Quem descobrisse o código entrava antes de
+# alguém dizer sim.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<'SQL'
+insert into auth.users (id) values ('00000000-0000-4000-8000-000000000005');
+insert into memberships (company_id, user_id, display_name, capabilities, state)
+  values ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-000000000005',
+          'Pediu para entrar', array['view_cost','manage_company']::capability[], 'pending');
+SQL
+
+WAITING=00000000-0000-4000-8000-000000000005
+
+pending_items=$(as_user "$WAITING" "select count(*) from items;")
+[ "$pending_items" = "0" ] || fail "quem está esperando aprovação viu $pending_items itens"
+
+pending_cost=$(as_user "$WAITING" "select count(*) from movements_visible;")
+[ "$pending_cost" = "0" ] || fail "quem está esperando aprovação viu movimento"
+
+# E aprovar é o que abre a porta - senão esta checagem passaria com um usuário
+# simplesmente quebrado.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
+  update memberships set state = 'active'
+   where user_id = '00000000-0000-4000-8000-000000000005';" >/dev/null
+
+approved_items=$(as_user "$WAITING" "select count(*) from items;")
+[ "$approved_items" = "3" ] || fail "aprovado deveria ver os 3 itens da empresa, viu $approved_items"
+
+echo "    tenants isolated, the operator sees no money, and pending sees nothing at all"
 
 echo "==> check 5: the ledger accepts what phase 1 actually records"
 psql -d "$DB" -v ON_ERROR_STOP=1 -q <<'SQL'

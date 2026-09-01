@@ -143,6 +143,12 @@ A diretriz, então, é de mão dupla e vale para os dois lados:
   vira mudança no código, no `CLAUDE.md` ou na barra de verificação, do mesmo
   jeito que um ⚠️ da proofgate exige justificativa escrita. Padrão que aparece
   duas vezes num relatório é dívida, não coincidência.
+- **E o resultado é dito na tela, na mensagem seguinte.** O comando obriga uma
+  resposta de texto fixo no turno em que roda — não dá para comentar ali. Então
+  a mensagem logo depois traz, sempre: o que virou mudança e onde, o que foi
+  recusado e por quê, e **o que o relatório errou**. Relatório é leitura de
+  fora, não autoridade: já aconteceu de ele dizer que um PR fechou sem os checks
+  verdes quando tinha fechado cinco de cinco.
 
 ---
 
