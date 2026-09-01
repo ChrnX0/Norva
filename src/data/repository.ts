@@ -2,7 +2,8 @@ import { applyCostEvent, type StockCostState } from '@/domain/cost';
 import { cents, rate, type Cents, type Rate } from '@/domain/money';
 import type { ItemCosts, Recipe, RecipeLine } from '@/domain/recipe';
 import type { PackagingHierarchy } from '@/domain/units';
-import { db, newId, nowIso } from './db';
+import { db, newId, nowIso, type Db } from './db';
+import { enqueue } from './outbox';
 import {
   blockerFor,
   emptyCounts,
@@ -97,6 +98,25 @@ export async function saveItem(
   item: Omit<Item, 'id'> & { id?: string },
 ): Promise<string> {
   const conn = await db();
+  let id = '';
+  await conn.withTransactionAsync(async () => {
+    id = await writeItem(conn, companyId, item);
+  });
+  return id;
+}
+
+/**
+ * The write itself, without opening a transaction.
+ *
+ * Split out because `saveProduct` writes an item and a product together and
+ * they have to land as one thing. SQLite has no nested transactions, so the
+ * transaction belongs to the public function and the private one joins it.
+ */
+async function writeItem(
+  conn: Db,
+  companyId: string,
+  item: Omit<Item, 'id'> & { id?: string },
+): Promise<string> {
   const id = item.id ?? newId();
 
   await conn.runAsync(
@@ -122,6 +142,8 @@ export async function saveItem(
       nowIso(),
     ],
   );
+
+  await enqueue(conn, [{ table: 'items', rowId: id }]);
 
   return id;
 }
@@ -179,47 +201,58 @@ export async function recordPurchase(
     at,
   });
 
+  // Five rows describe one event, so they land together or not at all. A
+  // purchase that recorded its invoice and not its cost would leave a price
+  // history with a hole in it that nothing could reconstruct.
   const purchaseId = newId();
-  await conn.runAsync(
-    `INSERT INTO purchases (id, company_id, supplier_name, ordered_at, received_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [purchaseId, companyId, input.supplierName ?? null, input.orderedAt ?? null, at, at],
-  );
 
-  await conn.runAsync(
-    `INSERT INTO purchase_lines (id, company_id, purchase_id, item_id, purchase_quantity,
-                                 base_units, total_cents, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      newId(),
-      companyId,
-      purchaseId,
-      input.itemId,
-      input.purchaseQuantity,
-      input.baseUnits,
-      input.totalCents,
-      at,
-    ],
-  );
+  await conn.withTransactionAsync(async () => {
+    await conn.runAsync(
+      `INSERT INTO purchases (id, company_id, supplier_name, ordered_at, received_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [purchaseId, companyId, input.supplierName ?? null, input.orderedAt ?? null, at, at],
+    );
 
-  const lineRate = rate(input.totalCents / 100, input.baseUnits);
+    await conn.runAsync(
+      `INSERT INTO purchase_lines (id, company_id, purchase_id, item_id, purchase_quantity,
+                                   base_units, total_cents, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        newId(),
+        companyId,
+        purchaseId,
+        input.itemId,
+        input.purchaseQuantity,
+        input.baseUnits,
+        input.totalCents,
+        at,
+      ],
+    );
 
-  await conn.runAsync(
-    `INSERT INTO item_costs (item_id, company_id, average_rate, last_rate, on_hand_base_units, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT(item_id) DO UPDATE SET
-       average_rate = excluded.average_rate,
-       last_rate = excluded.last_rate,
-       on_hand_base_units = excluded.on_hand_base_units,
-       updated_at = excluded.updated_at`,
-    [input.itemId, companyId, after.averageRate, lineRate, after.baseUnits, at],
-  );
+    const lineRate = rate(input.totalCents / 100, input.baseUnits);
 
-  await conn.runAsync(
-    `INSERT INTO item_cost_history (id, company_id, item_id, previous_rate, new_rate, observed_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [newId(), companyId, input.itemId, before.averageRate || null, after.averageRate, at],
-  );
+    await conn.runAsync(
+      `INSERT INTO item_costs (item_id, company_id, average_rate, last_rate, on_hand_base_units, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(item_id) DO UPDATE SET
+         average_rate = excluded.average_rate,
+         last_rate = excluded.last_rate,
+         on_hand_base_units = excluded.on_hand_base_units,
+         updated_at = excluded.updated_at`,
+      [input.itemId, companyId, after.averageRate, lineRate, after.baseUnits, at],
+    );
+
+    await conn.runAsync(
+      `INSERT INTO item_cost_history (id, company_id, item_id, previous_rate, new_rate, observed_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [newId(), companyId, input.itemId, before.averageRate || null, after.averageRate, at],
+    );
+
+    await enqueue(conn, [
+      { table: 'purchases', rowId: purchaseId },
+      { table: 'item_costs', rowId: input.itemId },
+    ]);
+  });
 
   return {
     previousRate: before.averageRate > 0 ? before.averageRate : null,
@@ -336,47 +369,66 @@ export async function saveRecipeVersion(
   const conn = await db();
   const at = nowIso();
   const recipeId = input.recipeId ?? newId();
-
-  await conn.runAsync(
-    `INSERT INTO recipes (id, company_id, name, yield_amount, yield_unit, active, created_at)
-     VALUES (?, ?, ?, ?, ?, 1, ?)
-     ON CONFLICT(id) DO UPDATE SET
-       name = excluded.name,
-       yield_amount = excluded.yield_amount,
-       yield_unit = excluded.yield_unit`,
-    [recipeId, companyId, input.name, input.yieldAmount, input.yieldUnit, at],
-  );
-
-  const previous = await conn.getFirstAsync<{ v: number }>(
-    `SELECT MAX(version) AS v FROM recipe_versions WHERE recipe_id = ?`,
-    [recipeId],
-  );
-  const version = (previous?.v ?? 0) + 1;
-
   const versionId = newId();
-  await conn.runAsync(
-    `INSERT INTO recipe_versions (id, company_id, recipe_id, version, effective_from,
-                                  loss_fraction, note, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [versionId, companyId, recipeId, version, at.slice(0, 10), input.lossFraction, input.note ?? null, at],
-  );
+  let version = 1;
 
-  for (const [position, line] of input.lines.entries()) {
+  // A version without its lines is a recipe that costs nothing, which is worse
+  // than no version at all - so the whole thing is one transaction.
+  await conn.withTransactionAsync(async () => {
     await conn.runAsync(
-      `INSERT INTO recipe_lines (id, company_id, recipe_version_id, item_id, sub_recipe_id,
-                                 quantity, position)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO recipes (id, company_id, name, yield_amount, yield_unit, active, created_at)
+       VALUES (?, ?, ?, ?, ?, 1, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name,
+         yield_amount = excluded.yield_amount,
+         yield_unit = excluded.yield_unit`,
+      [recipeId, companyId, input.name, input.yieldAmount, input.yieldUnit, at],
+    );
+
+    const previous = await conn.getFirstAsync<{ v: number }>(
+      `SELECT MAX(version) AS v FROM recipe_versions WHERE recipe_id = ?`,
+      [recipeId],
+    );
+    version = (previous?.v ?? 0) + 1;
+
+    await conn.runAsync(
+      `INSERT INTO recipe_versions (id, company_id, recipe_id, version, effective_from,
+                                    loss_fraction, note, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        newId(),
-        companyId,
         versionId,
-        line.kind === 'item' ? line.itemId : null,
-        line.kind === 'recipe' ? line.recipeId : null,
-        line.quantity,
-        position,
+        companyId,
+        recipeId,
+        version,
+        at.slice(0, 10),
+        input.lossFraction,
+        input.note ?? null,
+        at,
       ],
     );
-  }
+
+    for (const [position, line] of input.lines.entries()) {
+      await conn.runAsync(
+        `INSERT INTO recipe_lines (id, company_id, recipe_version_id, item_id, sub_recipe_id,
+                                   quantity, position)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          newId(),
+          companyId,
+          versionId,
+          line.kind === 'item' ? line.itemId : null,
+          line.kind === 'recipe' ? line.recipeId : null,
+          line.quantity,
+          position,
+        ],
+      );
+    }
+
+    await enqueue(conn, [
+      { table: 'recipes', rowId: recipeId },
+      { table: 'recipe_versions', rowId: versionId },
+    ]);
+  });
 
   return { recipeId, version };
 }
@@ -468,35 +520,41 @@ export async function saveProduct(
   },
 ): Promise<{ productId: string; itemId: string }> {
   const conn = await db();
+  let itemId = '';
+  let productId = '';
 
-  const itemId = await saveItem(companyId, {
-    id: input.itemId,
-    kind: input.kind,
-    name: input.name,
-    purchaseUnit: null,
-    purchaseToBase: null,
-    baseUnit: 'un',
-    packaging: input.packaging,
+  await conn.withTransactionAsync(async () => {
+    itemId = await writeItem(conn, companyId, {
+      id: input.itemId,
+      kind: input.kind,
+      name: input.name,
+      purchaseUnit: null,
+      purchaseToBase: null,
+      baseUnit: 'un',
+      packaging: input.packaging,
+    });
+
+    productId = input.id ?? newId();
+    await conn.runAsync(
+      `INSERT INTO products (id, company_id, item_id, recipe_id, yield_per_unit,
+                             unit_packaging_cents, active)
+       VALUES (?, ?, ?, ?, ?, ?, 1)
+       ON CONFLICT(id) DO UPDATE SET
+         recipe_id = excluded.recipe_id,
+         yield_per_unit = excluded.yield_per_unit,
+         unit_packaging_cents = excluded.unit_packaging_cents`,
+      [
+        productId,
+        companyId,
+        itemId,
+        input.recipeId,
+        input.yieldPerUnit,
+        input.unitPackagingCents,
+      ],
+    );
+
+    await enqueue(conn, [{ table: 'products', rowId: productId }]);
   });
-
-  const productId = input.id ?? newId();
-  await conn.runAsync(
-    `INSERT INTO products (id, company_id, item_id, recipe_id, yield_per_unit,
-                           unit_packaging_cents, active)
-     VALUES (?, ?, ?, ?, ?, ?, 1)
-     ON CONFLICT(id) DO UPDATE SET
-       recipe_id = excluded.recipe_id,
-       yield_per_unit = excluded.yield_per_unit,
-       unit_packaging_cents = excluded.unit_packaging_cents`,
-    [
-      productId,
-      companyId,
-      itemId,
-      input.recipeId,
-      input.yieldPerUnit,
-      input.unitPackagingCents,
-    ],
-  );
 
   return { productId, itemId };
 }
@@ -594,6 +652,12 @@ export async function eraseArea(companyId: string, area: EraseArea): Promise<voi
   const kinds = itemKindsFor(area);
 
   await conn.withTransactionAsync(async () => {
+    // What was cleared has to reach the server as well, or the next sync pulls
+    // it all straight back down. The area is the unit here rather than the row:
+    // a wipe is one decision, and replaying it row by row would be a worse
+    // description of what the person actually did.
+    await enqueue(conn, [{ table: 'erase', rowId: area, op: 'delete', payload: { area } }]);
+
     for (const table of tablesFor(area)) {
       // `items` is the one table shared by two areas, so it is the one place a
       // delete has to say which kinds it owns.

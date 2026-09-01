@@ -13,10 +13,20 @@
  *     domain enforces - a price per gram is not money and must not be rounded
  */
 
-const SCHEMA = `
+/**
+ * Connection settings, applied on open and never inside a transaction.
+ *
+ * `foreign_keys` has to live here rather than in a migration: SQLite ignores
+ * the pragma while a transaction is open, and every migration step runs in
+ * one. A silently ignored pragma would leave the references unenforced, which
+ * is precisely the protection the erase order depends on.
+ */
+const PRAGMAS = `
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
+`;
 
+const V1 = `
 CREATE TABLE IF NOT EXISTS items (
   id                TEXT PRIMARY KEY,
   company_id        TEXT NOT NULL,
@@ -147,6 +157,33 @@ CREATE INDEX IF NOT EXISTS recipe_lines_version_idx ON recipe_lines (recipe_vers
 CREATE INDEX IF NOT EXISTS outbox_pending_idx ON outbox (queued_at) WHERE sent_at IS NULL;
 `;
 
+/**
+ * Every change to the on-device schema, in order, forever.
+ *
+ * The device holds the only copy of anything written in a cold room with no
+ * signal, so a schema change here can never be "drop it and recreate". Adding
+ * a step to this list is the only way the tables change, and SQLite's own
+ * `user_version` records how far a given phone has got.
+ *
+ * Never edit a step that has shipped. A phone that already ran it will not run
+ * it again, so the edit reaches new installations only, and the two diverge
+ * silently - which is the same reason the SQL migrations on the server are
+ * append-only.
+ */
+/**
+ * Adds the operation to a queued write.
+ *
+ * The first version of the outbox could only say "this row changed", which is
+ * enough for a create or an update and useless for a delete: there is nothing
+ * left on the device to send. Carrying the verb makes the queue able to
+ * describe everything the app actually does.
+ */
+const V2 = `
+ALTER TABLE outbox ADD COLUMN op TEXT NOT NULL DEFAULT 'upsert';
+`;
+
+const MIGRATIONS: readonly string[] = [V1, V2];
+
 export type SqlParam = string | number | null;
 
 /**
@@ -177,7 +214,15 @@ export async function db(): Promise<Db> {
   const SQLite = await import('expo-sqlite');
 
   const native = await SQLite.openDatabaseAsync('norva.db');
-  await native.execAsync(SCHEMA);
+  await native.execAsync(PRAGMAS);
+  await migrate({
+    getAllAsync: <T,>(sql: string, params: SqlParam[] = []) => native.getAllAsync<T>(sql, params),
+    getFirstAsync: <T,>(sql: string, params: SqlParam[] = []) =>
+      native.getFirstAsync<T>(sql, params),
+    runAsync: (sql: string, params: SqlParam[] = []) => native.runAsync(sql, params),
+    execAsync: (sql: string) => native.execAsync(sql),
+    withTransactionAsync: (task: () => Promise<void>) => native.withTransactionAsync(task),
+  });
 
   // A thin wrapper rather than the driver itself, so "no parameters" means the
   // same thing here as it does in Node's SQLite.
@@ -193,8 +238,36 @@ export async function db(): Promise<Db> {
   return handle;
 }
 
-/** The schema, so a test can stand up the same tables the device has. */
-export const schemaSql = SCHEMA;
+/**
+ * Brings a database up to the current schema, and says nothing if it is
+ * already there. Safe to call on every launch - that is when it runs.
+ *
+ * Each step is applied inside its own transaction, so a phone that dies
+ * mid-upgrade comes back on the last version that completed rather than on
+ * half of the next one.
+ */
+export async function migrate(conn: Db): Promise<number> {
+  const row = await conn.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  const applied = row?.user_version ?? 0;
+
+  for (let version = applied; version < MIGRATIONS.length; version += 1) {
+    const step = MIGRATIONS[version];
+    await conn.withTransactionAsync(async () => {
+      await conn.execAsync(step);
+    });
+    // PRAGMA takes no parameters, and the value is an index into a constant
+    // list rather than anything a user can reach.
+    await conn.execAsync(`PRAGMA user_version = ${version + 1}`);
+  }
+
+  return MIGRATIONS.length;
+}
+
+/** How many steps exist, so a test can assert it moved. */
+export const schemaVersion = MIGRATIONS.length;
+
+/** The pragmas a connection needs before anything else touches it. */
+export const connectionPragmas = PRAGMAS;
 
 /** Test seam: lets a test point at a fresh in-memory database. */
 export function __setDb(next: Db | null) {

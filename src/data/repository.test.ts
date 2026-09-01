@@ -3,7 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { beforeEach, test } from 'node:test';
 import { fromDecimal, rate } from '@/domain/money';
 import { costRecipe } from '@/domain/recipe';
-import { __setDb, schemaSql, type Db, type SqlParam } from './db';
+import { __setDb, migrate, type Db, type SqlParam } from './db';
 import {
   countForErase,
   eraseArea,
@@ -37,10 +37,9 @@ import { ensureStarterData, hasSeeded, LOCAL_COMPANY_ID } from './seed';
 
 /** Node's SQLite is synchronous; the app's is not. This bridges the two. */
 function inMemoryDb(): Db {
+  // Foreign keys are on by default here, which matters: the erase order is
+  // only meaningful if the references are actually enforced.
   const sqlite = new DatabaseSync(':memory:');
-
-  // The device runs these as part of opening the file.
-  sqlite.exec(schemaSql.replace(/PRAGMA journal_mode = WAL;/, ''));
 
   const bind = (params: SqlParam[]) => params.map((p) => (p === undefined ? null : p));
 
@@ -69,8 +68,12 @@ function inMemoryDb(): Db {
 
 const CO = LOCAL_COMPANY_ID;
 
-beforeEach(() => {
-  __setDb(inMemoryDb());
+beforeEach(async () => {
+  const conn = inMemoryDb();
+  // The same runner the phone uses on launch, so the tests exercise the
+  // migration path rather than a schema written out a second time.
+  await migrate(conn);
+  __setDb(conn);
 });
 
 const loose = { tiers: [{ id: 'unit', perBaseUnit: 1 }] };

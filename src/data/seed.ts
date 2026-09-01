@@ -91,17 +91,16 @@ async function writeStarterData(companyId: string): Promise<void> {
       packaging: LOOSE,
     });
 
-  const [pulp, sugar, milkPowder, glucose] = await Promise.all([
-    input('Polpa de morango', 'balde 10 kg', 10_000, 'g'),
-    input('Açúcar cristal', 'saco 25 kg', 25_000, 'g'),
-    input('Leite em pó', 'saco 25 kg', 25_000, 'g'),
-    input('Glucose 38DE', 'balde 5 kg', 5_000, 'g'),
-  ]);
+  // Written one at a time, not with Promise.all. There is a single SQLite
+  // connection behind all of this and each write opens a transaction, so
+  // running them together is not faster - it is an error.
+  const pulp = await input('Polpa de morango', 'balde 10 kg', 10_000, 'g');
+  const sugar = await input('Açúcar cristal', 'saco 25 kg', 25_000, 'g');
+  const milkPowder = await input('Leite em pó', 'saco 25 kg', 25_000, 'g');
+  const glucose = await input('Glucose 38DE', 'balde 5 kg', 5_000, 'g');
 
-  const [stick, wrapper] = await Promise.all([
-    packaging('Palito de picolé', 'caixa 5.000', 5_000),
-    packaging('Embalagem plástica', 'fardo 2.000', 2_000),
-  ]);
+  const stick = await packaging('Palito de picolé', 'caixa 5.000', 5_000);
+  const wrapper = await packaging('Embalagem plástica', 'fardo 2.000', 2_000);
 
   // Invoices, not typed-in prices. The average falls out of these.
   const buy = (itemId: string, packs: number, perPack: number, priceReais: number) =>
