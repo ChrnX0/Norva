@@ -1,0 +1,102 @@
+name: CI
+
+# The bar every push has to clear. It is deliberately the same one a person
+# runs locally - a check that only exists in CI drifts from what contributors
+# actually do, and then nobody trusts either of them.
+# Pushes to main and every pull request. Not both for the same commit: a
+# branch with an open PR would otherwise run the whole bar twice, which costs
+# minutes and makes a red check ambiguous about which run it belongs to.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  app:
+    name: types, tests, bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Types
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: The cost engine
+        run: npm test
+
+      # Typechecking proves the code is consistent; only bundling proves it can
+      # actually reach a phone.
+      - name: Android bundle
+        run: npx expo export --platform android
+        env:
+          EXPO_NO_TELEMETRY: '1'
+
+  gate:
+    name: proofgate
+    runs-on: ubuntu-latest
+    steps:
+      # The gate reads the diff against the base, so it needs the history.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Nineteen guards over the diff itself: credential-shaped lines, money
+      # through a float, SQL built by concatenation, a constraint added without
+      # a migration, a focused test that silently switches the suite off.
+      - name: Delivery gate
+        run: bash .proofgate/verify.sh
+
+  browser:
+    name: the app, driven the way a person drives it
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Chromium
+        run: npx playwright install --with-deps chromium
+
+      # The checks that found what unit tests structurally cannot: a platform
+      # dialog that does nothing, a route that opens onto an empty database, a
+      # screen speaking two languages. All only visible from outside the app.
+      - name: End to end
+        run: npm run e2e
+        env:
+          EXPO_NO_TELEMETRY: '1'
+
+  schema:
+    name: the database keeps its promises
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The script stands up a throwaway Postgres of its own, so it needs the
+      # binaries rather than a running service.
+      - name: Locate the Postgres binaries
+        run: echo "PGBIN=$(ls -d /usr/lib/postgresql/*/bin | tail -1)" >> "$GITHUB_ENV"
+
+      - name: Append-only ledger, moving average, product constraint
+        run: npm run db:verify

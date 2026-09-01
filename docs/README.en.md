@@ -11,9 +11,10 @@ is hardcoded — the packaging hierarchy, the modules and the roles are all
 configurable, because the product is meant to ship on the Android and Apple
 stores.
 
-> **Status: Phase 0 — Foundation.** What is here is the base: the ledger,
-> tenancy, capability permissions, the design system and i18n. No product
-> screens yet.
+> **Status: Phase 1 — what you make and what it costs.** On top of the phase 0
+> base (ledger, multi-company, capability permissions, design system, i18n) the
+> input, recipe, product and purchase screens now run, with cost recalculating
+> as you type. Production, lots and distribution come next.
 
 ---
 
@@ -74,6 +75,28 @@ cannot be created retroactively.
 
 ---
 
+## The assistant
+
+The person who owns the factory should not have to learn to navigate - they
+ask. Conversation mode is another door into the same house: same data, same
+permissions, same actions.
+
+Three rules keep it trustworthy, and all three are covered by tests:
+
+1. **It never produces a number.** The phrase selects the query, the
+   deterministic engine computes, and the sentence is assembled around what the
+   engine returned. When a language model is added it will map wording to a
+   skill and its slots - nothing more. An interpreter, never an accountant.
+2. **It never writes to the ledger.** A phrase that would record something fills
+   a form in plain language and waits for a human yes. A misunderstanding shows
+   up before anything is stored, not months later in a report.
+3. **The permission check lives in the query, not in an instruction to a
+   model.** A model told to keep a secret eventually tells it; a query that
+   never returned the figure has nothing to leak.
+
+It works offline too, because recognising the questions people repeat is
+arithmetic over text - and a cold room has no signal.
+
 ## Design
 
 **Color is an accent, never a surface.** Eight pastel ambients (one per area)
@@ -109,7 +132,9 @@ npx expo start
 Verification:
 
 ```bash
-npm run typecheck
+npm run typecheck   # types
+npm test            # the cost engine, including invoice → recipe → product
+npm run db:verify   # stands up a throwaway Postgres and proves what the schema promises
 ```
 
 ---
@@ -120,7 +145,9 @@ npm run typecheck
 app/                    routes (Expo Router)
 src/config/brand.ts     name, mark and deep link - single point
 src/theme/              tokens and theme provider
-src/domain/             ledger, money, packaging hierarchy
+src/domain/             ledger, money, recipe, moving average, packaging
+src/data/               local SQLite and the single query path
+src/assistant/          skills, permission and the confirmation draft
 src/components/         Card, Chip, Button, UnitStepper, PulseDot, CountUp…
 src/i18n/               pt-BR · es · en, with per-locale money and dates
 supabase/migrations/    versioned schema (not applied to any project)
@@ -134,8 +161,9 @@ trademark search is still outstanding.
 
 ## What is left, and needs a human
 
-- **Trademark search (INPI classes 9 and 42).** Not automatable: INPI requires a
-  gov.br login and WIPO's database sits behind a CAPTCHA.
+- **Formal trademark filing at INPI.** The clearance search came back green for
+  Brazil; filing is still the owner's act. The search itself is not automatable:
+  INPI requires a gov.br login and WIPO's database sits behind a CAPTCHA.
 - **Supabase project.** Migrations are ready; applying them needs an account.
 - **Expo/EAS account** for builds and OTA updates.
 - **Domain.**

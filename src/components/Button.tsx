@@ -1,10 +1,7 @@
 import * as Haptics from 'expo-haptics';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useTheme } from '@/theme/ThemeProvider';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -33,9 +30,14 @@ export function Button({
   style?: ViewStyle;
 }) {
   const { color, radius, type, space, accent, motion } = useTheme();
-  const scale = useSharedValue(1);
+  const [pressed, setPressed] = useState(false);
 
-  const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  // The spring is driven by state rather than by writing to a shared value in
+  // the handler. Same physics, and it keeps the press readable from React -
+  // mutating a shared value inside a callback is invisible to everything else.
+  const animated = useAnimatedStyle(() => ({
+    transform: [{ scale: withSpring(pressed ? motion.pressScale : 1, motion.press) }],
+  }));
 
   const isPrimary = variant === 'primary';
 
@@ -45,12 +47,8 @@ export function Button({
       accessibilityLabel={label}
       accessibilityState={{ disabled }}
       disabled={disabled}
-      onPressIn={() => {
-        scale.value = withSpring(motion.pressScale, motion.press);
-      }}
-      onPressOut={() => {
-        scale.value = withSpring(1, motion.press);
-      }}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
       onPress={() => {
         if (weighty) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         onPress?.();

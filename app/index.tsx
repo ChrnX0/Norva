@@ -1,171 +1,244 @@
-import { useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
-import { Button } from '@/components/Button';
+import { useRouter } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { CountUp } from '@/components/CountUp';
 import { PulseDot } from '@/components/PulseDot';
-import { UnitStepper } from '@/components/UnitStepper';
-import { balanceOf, daysOfCover, type Movement } from '@/domain/ledger';
-import { fromDecimal } from '@/domain/money';
-import { roundUpToFullContainer, type PackagingHierarchy } from '@/domain/units';
+import { brand } from '@/config/brand';
 import {
-  defaultLocale,
-  detectLanguage,
-  dictionary,
-  fill,
-  formatMoney,
-  formatQuantity,
-} from '@/i18n';
+  itemCosts,
+  labels as loadLabels,
+  listProducts,
+  loadRecipeGraph,
+  recentCostChanges,
+  type CostChange,
+} from '@/data/repository';
+import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { useQuery } from '@/data/useQuery';
+import { ratesBefore } from '@/domain/cost';
+import { costPerProductUnit, costRecipe } from '@/domain/recipe';
+import { fill, formatMoney } from '@/i18n';
+import { useLocale } from '@/i18n/useLocale';
+import { palettes, type Ambient } from '@/theme/tokens';
+import type { Dictionary } from '@/i18n';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
- * Foundation smoke screen.
+ * The home screen.
  *
- * Not a product screen - it exists so phase 0 can be seen working end to end:
- * the ledger folding into a balance, the packaging hierarchy speaking the
- * operator's language, the locale formatting money and quantities, and the
- * motion vocabulary running on a real device.
+ * A dashboard shows totals; a briefing says what moved and what to do about it.
+ * The owner already knows roughly how much stock is in the cold room - what
+ * they cannot know without this app is that pulp went up 9% on Tuesday and took
+ * three cents a unit with it.
+ *
+ * So nothing here is a bare number: every figure carries the consequence next
+ * to it, and every line leads to the screen that resolves it. "Everything is
+ * steady" is a valid, well-drawn state - invented alerts teach people to ignore
+ * alerts.
  */
 export default function Home() {
   return (
-    <AreaProvider area="mint">
-      <Foundation />
+    <AreaProvider area="sky">
+      <Briefing />
     </AreaProvider>
   );
 }
 
-/** A packaging hierarchy exactly as a popsicle factory would configure it. */
-const hierarchy: PackagingHierarchy = {
-  tiers: [
-    { id: 'unit', perBaseUnit: 1 },
-    { id: 'box', perBaseUnit: 50 },
-    { id: 'crate', perBaseUnit: 300 },
-  ],
+type ProductCost = {
+  id: string;
+  name: string;
+  recipeId: string | null;
+  unitCents: number;
+  /** The same unit, priced before the recent invoices. Null when nothing moved. */
+  unitCentsBefore: number | null;
 };
 
-/** A handful of movements. Balance is derived, never stored. */
-const movements: Movement[] = [
-  {
-    id: '11111111-1111-4111-8111-111111111111',
-    companyId: 'demo',
-    kind: 'production',
-    occurredAt: '2026-08-28T11:00:00Z',
-    recordedAt: '2026-08-28T11:04:00Z',
-    recordedBy: 'operator',
-    itemId: 'strawberry',
-    quantityBaseUnits: 4800,
-    locationId: 'coldRoom',
-    lotId: 'L-2291',
-    unitCostCents: fromDecimal(1.18),
-  },
-  {
-    id: '22222222-2222-4222-8222-222222222222',
-    companyId: 'demo',
-    kind: 'transfer',
-    occurredAt: '2026-08-30T08:20:00Z',
-    recordedAt: '2026-08-30T08:20:00Z',
-    recordedBy: 'operator',
-    itemId: 'strawberry',
-    quantityBaseUnits: -1388,
-    locationId: 'coldRoom',
-    counterpartLocationId: 'storeCentro',
-    lotId: 'L-2291',
-    post: 'picked',
-  },
+type Summary = { products: ProductCost[]; changes: CostChange[] };
+
+/** The wording lives in the dictionary; only the colour and route are here. */
+const AREAS: { area: Ambient; key: keyof Dictionary['app']['home']['nav']; route: string }[] = [
+  { area: 'sky', key: 'ask', route: '/assistant' },
+  { area: 'mist', key: 'inputs', route: '/inputs' },
+  { area: 'apricot', key: 'recipes', route: '/recipes' },
+  { area: 'mist', key: 'products', route: '/products' },
+  { area: 'sage', key: 'purchases', route: '/purchase' },
+  { area: 'mist', key: 'settings', route: '/settings' },
 ];
 
-function Foundation() {
-  const { color, type, space } = useTheme();
-  const t = dictionary(detectLanguage());
-  const locale = defaultLocale;
+function Briefing() {
+  const { color, scheme, type, space } = useTheme();
+  const router = useRouter();
+  const { locale, t } = useLocale();
 
-  const [quantity, setQuantity] = useState(3600);
+  const { data, loading } = useQuery<Summary | null>(async () => {
+    const [products, graph, costs, names, changes] = await Promise.all([
+      listProducts(LOCAL_COMPANY_ID),
+      loadRecipeGraph(LOCAL_COMPANY_ID),
+      itemCosts(LOCAL_COMPANY_ID),
+      loadLabels(LOCAL_COMPANY_ID),
+      recentCostChanges(LOCAL_COMPANY_ID, 4),
+    ]);
 
-  const stock = useMemo(() => {
-    const coldRoom = balanceOf(movements).find((b) => b.locationId === 'coldRoom');
-    return coldRoom?.baseUnits ?? 0;
-  }, []);
+    // The same products, priced twice: with today's costs and with the costs
+    // as they stood before the recent invoices. The second pass is what lets a
+    // figure arrive with its comparison instead of asking to be trusted.
+    const before = ratesBefore(costs, changes);
 
-  const cover = daysOfCover(stock, 850);
-  const rounding = roundUpToFullContainer(1599, hierarchy, 'box');
+    const priced = (product: (typeof products)[number], rates: typeof costs) =>
+      product.recipeId && product.yieldPerUnit
+        ? costPerProductUnit(
+            costRecipe(product.recipeId, graph, rates, names),
+            product.yieldPerUnit,
+            product.unitPackagingCents,
+          )
+        : 0;
 
-  const tierLabel = (tierId: string, count: number) => {
-    const entry = t.units[tierId as keyof typeof t.units];
-    if (!entry) return tierId;
-    return count === 1 ? entry.one : entry.other;
-  };
+    return {
+      changes,
+      products: products.map((product) => ({
+        id: product.id,
+        name: product.name,
+        recipeId: product.recipeId,
+        unitCents: priced(product, costs),
+        unitCentsBefore: changes.length > 0 ? priced(product, before) : null,
+      })),
+    };
+  });
+
+  const palette = palettes[scheme];
+  const moved = (data?.changes ?? []).filter(
+    (c) => c.previousRate !== null && c.previousRate !== c.newRate,
+  );
 
   return (
-    <CollapsingHeader title={t.areas.inventory} overline="fundação · fase 0">
-      <Card tone="area">
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <PulseDot />
-          <Text style={[type.cardTitle, { color: color.ink }]}>
-            {t.areas.inventory}
-          </Text>
-        </View>
-        <CountUp
-          value={stock}
-          format={(v) => formatQuantity(v, locale)}
-          style={{ ...type.figure, color: color.ink, marginTop: space.sm }}
-        />
-        <Text style={[type.secondary, { color: color.inkMuted }]}>
-          {cover === null
-            ? '—'
-            : `${cover.toFixed(0)} dias de cobertura · saldo somado do livro-razão`}
-        </Text>
-      </Card>
+    <CollapsingHeader title={brand.name} overline={t.app.home.overline}>
+      {data?.products.map((product) => (
+        <Pressable
+          key={product.id}
+          onPress={() =>
+            router.push(
+              product.recipeId ? `/recipes/${product.recipeId}` : '/products',
+            )
+          }
+          accessibilityRole="button"
+        >
+          <Card tone="area">
+            <View style={[styles.row, { gap: space.sm }]}>
+              <PulseDot />
+              <Text style={[type.cardTitle, { color: color.ink, flex: 1 }]} numberOfLines={1}>
+                {product.name}
+              </Text>
+            </View>
+            <CountUp
+              value={product.unitCents}
+              format={(v) => formatMoney(Math.round(v), locale)}
+              style={{ ...type.figure, color: color.ink, marginTop: space.xs }}
+            />
+            <Text style={[type.secondary, { color: color.inkMuted }]}>
+              {t.app.home.unitCost}
+            </Text>
 
-      <Card tone="warning">
-        <Text style={[type.cardTitle, { color: color.ink }]}>Lote L-2291</Text>
-        <View style={{ marginTop: space.sm }}>
-          <Chip signal="warning" label={fill(t.signals.expiringIn, { days: 9 })} />
-        </View>
-      </Card>
+            {/* Law 3: no number appears alone. 55 cents is neither good nor bad
+                until it sits beside what it was, and the history that answers
+                that was already being written by every invoice. */}
+            {product.unitCentsBefore !== null &&
+            product.unitCentsBefore !== product.unitCents ? (
+              <View style={{ marginTop: space.md, gap: space.xs }}>
+                <Chip
+                  signal={product.unitCents > product.unitCentsBefore ? 'warning' : 'ok'}
+                  label={`${product.unitCents > product.unitCentsBefore ? '▲' : '▼'} ${formatMoney(
+                    Math.abs(product.unitCents - product.unitCentsBefore),
+                    locale,
+                  )}`}
+                />
+                <Text style={[type.caption, { color: color.inkFaint }]}>
+                  {fill(t.app.home.costWas, {
+                    before: formatMoney(product.unitCentsBefore, locale),
+                  })}
+                </Text>
+              </View>
+            ) : null}
+          </Card>
+        </Pressable>
+      ))}
 
-      <Card tone="area">
+      <Card tone={moved.length > 0 ? 'warning' : 'area'}>
         <Text style={[type.cardTitle, { color: color.ink }]}>
-          {t.production.costOfRun}
+          {moved.length > 0 ? t.app.home.changed : t.app.home.steady}
         </Text>
-        <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
-          {formatMoney(118, locale)}
-        </Text>
-        <Text style={[type.secondary, { color: color.inkMuted }]}>
-          {t.production.frozenAtRecord}
-        </Text>
+
+        {moved.length === 0 ? (
+          <>
+            <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
+              {loading ? t.app.home.checking : t.app.home.steadyDetail}
+            </Text>
+            {!loading ? (
+              <View style={{ marginTop: space.md }}>
+                <Chip signal="ok" label={t.app.home.allSteady} />
+              </View>
+            ) : null}
+          </>
+        ) : (
+          <View style={{ marginTop: space.md, gap: space.sm }}>
+            {moved.map((change) => {
+              const previous = change.previousRate ?? change.newRate;
+              const delta = previous > 0 ? (change.newRate - previous) / previous : 0;
+              return (
+                <View key={`${change.itemId}-${change.observedAt}`} style={styles.row}>
+                  <Text style={[type.secondary, { color: color.ink, flex: 1 }]} numberOfLines={1}>
+                    {change.name}
+                  </Text>
+                  <Text
+                    style={[
+                      type.secondary,
+                      styles.number,
+                      { color: delta > 0 ? color.warning : color.ok },
+                    ]}
+                  >
+                    {delta > 0 ? '▲' : '▼'} {(Math.abs(delta) * 100).toFixed(1)}%
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
       </Card>
 
-      <Card tone="area">
-        <Text style={[type.cardTitle, { color: color.ink }]}>
-          {fill(t.production.yields, {
-            units: `${formatQuantity(rounding.rounded, locale)} un`,
-          })}
-        </Text>
-        <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-          {fill(t.production.roundedUp, {
-            from: formatQuantity(1599, locale),
-            boxes: formatQuantity(rounding.rounded / 50, locale),
-          })}
-        </Text>
-      </Card>
-
-      <Card tone="area">
+      <Card>
         <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.md }]}>
-          Quantidade a enviar
+          {t.app.home.whereTo}
         </Text>
-        <UnitStepper
-          hierarchy={hierarchy}
-          locale={locale}
-          tierLabel={tierLabel}
-          value={quantity}
-          onChange={setQuantity}
-          labels={{ decrease: t.stepper.decrease, increase: t.stepper.increase }}
-        />
-      </Card>
 
-      <Button label={t.production.register} weighty />
+        {AREAS.map((entry) => {
+          const words = t.app.home.nav[entry.key];
+          return (
+          <Pressable
+            key={entry.route}
+            onPress={() => router.push(entry.route as never)}
+            accessibilityRole="button"
+            accessibilityLabel={`${words.label}: ${words.hint}`}
+            style={[styles.navRow, { paddingVertical: space.md, gap: space.md }]}
+          >
+            {/* The area's colour arrives as a small mark, never as a surface -
+                enough to make the screen recognisable before it is read. */}
+            <View style={[styles.swatch, { backgroundColor: palette[entry.area] }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={[type.body, { color: color.ink }]}>{words.label}</Text>
+              <Text style={[type.caption, { color: color.inkFaint }]}>{words.hint}</Text>
+            </View>
+            <Text style={[type.body, { color: color.inkFaint }]}>›</Text>
+          </Pressable>
+          );
+        })}
+      </Card>
     </CollapsingHeader>
   );
 }
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center' },
+  navRow: { flexDirection: 'row', alignItems: 'center' },
+  number: { fontVariant: ['tabular-nums'], fontWeight: '600' },
+  swatch: { width: 10, height: 10, borderRadius: 5 },
+});

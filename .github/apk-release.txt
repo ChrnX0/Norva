@@ -1,0 +1,6 @@
+# O APK a publicar como release. Mexer neste arquivo é o que dispara a
+# publicação (.github/workflows/release-apk.yml) — a URL abaixo é o artefato
+# que o runner baixa e anexa.
+#
+# apk-0.1.0 · build fd07c9df-72e2-41f5-9425-0ebf41bc802b · commit 63269a1
+https://expo.dev/artifacts/eas/4Td1bK5KC1_zKPbB9Nu9Ue50iL_SAzKA-pWj9vXG-f8.apk

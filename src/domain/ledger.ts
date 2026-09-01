@@ -17,6 +17,7 @@
 import type { Cents } from './money';
 
 export type MovementKind =
+  | 'purchase' // arrived from a supplier against an invoice
   | 'production' // finished goods created
   | 'consumption' // inputs drawn by a production run
   | 'transfer' // moved between locations (own store: not revenue)

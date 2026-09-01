@@ -9,7 +9,10 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "tsx --test src/**/*.test.ts",
+    "db:verify": "bash scripts/verify-migrations.sh",
+    "e2e": "node e2e/flow.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.14",
@@ -22,6 +25,7 @@
     "expo-router": "~57.0.17",
     "expo-sqlite": "~57.0.2",
     "expo-status-bar": "~57.0.1",
+    "expo-updates": "~57.0.19",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
@@ -33,8 +37,14 @@
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
+    "@types/node": "^26.4.0",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "^57.0.9",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~57.0.2",
+    "playwright": "^1.56.0",
+    "playwright-core": "^1.56.0",
+    "tsx": "^4.23.13",
     "typescript": "~6.0.3"
   }
 }

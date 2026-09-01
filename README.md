@@ -10,9 +10,11 @@ Nasce para uma fábrica de picolés e sorvetes, mas sem nenhuma regra chumbada d
 sorvete — a hierarquia de embalagem, os módulos e os papéis são todos
 configuráveis, porque o produto será publicado nas lojas Android e Apple.
 
-> **Estado: Fase 0 — Alicerce.** O que está aqui é a fundação: livro-razão,
-> multi-empresa, permissão por capacidade, design system e i18n. Ainda não há
-> telas de produto.
+> **Estado: Fase 1 — o que você produz e quanto custa.** Sobre o alicerce da
+> Fase 0 (livro-razão, multi-empresa, permissão por capacidade, design system,
+> i18n) já rodam as telas de insumo, receita, produto e nota de compra, com o
+> custo recalculando enquanto se digita. Produção, lote e distribuição são as
+> fases seguintes.
 
 ---
 
@@ -73,6 +75,28 @@ cria retroativamente.
 
 ---
 
+## O assistente
+
+O dono da fábrica não deveria precisar aprender a navegar — ele pergunta. O
+Modo Conversa é outra porta para a mesma casa: mesmos dados, mesmas permissões,
+mesmas ações.
+
+Três regras o mantêm confiável, e todas as três são testadas:
+
+1. **Ele nunca produz um número.** A frase escolhe a consulta, o motor
+   determinístico calcula, e a resposta é montada em volta do que o motor
+   devolveu. Quando o modelo de linguagem entrar, ele vai mapear a pergunta para
+   uma habilidade e seus campos — nada mais. Intérprete, nunca contador.
+2. **Ele nunca escreve no livro-razão.** Uma frase que registraria algo preenche
+   uma ficha em português e espera confirmação humana. Se entendeu errado, isso
+   aparece antes de gravar, não meses depois num relatório.
+3. **A trava de permissão está na consulta, não numa instrução ao modelo.**
+   Modelo instruído a guardar segredo acaba contando; consulta que nunca
+   devolveu o número não tem o que vazar.
+
+Ele também funciona offline, porque reconhecer as perguntas que se repetem é
+aritmética sobre texto — e câmara fria não tem sinal.
+
 ## Design
 
 **Cor é acento, nunca superfície.** Oito ambientes pastéis (um por área) apontam
@@ -109,7 +133,9 @@ npx expo start
 Verificação:
 
 ```bash
-npm run typecheck
+npm run typecheck   # tipos
+npm test            # o motor de custo, incluindo a cadeia nota → receita → produto
+npm run db:verify   # sobe um Postgres descartável e prova o que o esquema promete
 ```
 
 ---
@@ -120,7 +146,9 @@ npm run typecheck
 app/                    rotas (Expo Router)
 src/config/brand.ts     nome, marca e deep link — ponto único
 src/theme/              tokens e provedor de tema
-src/domain/             livro-razão, dinheiro, hierarquia de embalagem
+src/domain/             livro-razão, dinheiro, receita, custo médio, embalagem
+src/data/               SQLite local e o caminho único de consulta
+src/assistant/          habilidades, permissão e a ficha de confirmação
 src/components/         Card, Chip, Button, UnitStepper, PulseDot, CountUp…
 src/i18n/               pt-BR · es · en, com moeda e data por locale
 supabase/migrations/    esquema versionado (não aplicado a nenhum projeto)
@@ -134,8 +162,9 @@ enquanto a busca de marca no INPI ainda está pendente.
 
 ## O que falta e depende de decisão humana
 
-- **Busca de marca (INPI classes 9 e 42).** Não automatizável: o INPI exige
-  login gov.br e a base da WIPO tem CAPTCHA.
+- **Registro formal da marca no INPI.** A busca prévia foi feita e voltou
+  verde para o Brasil; o depósito continua sendo ato do titular. A consulta não
+  é automatizável: o INPI exige login gov.br e a base da WIPO tem CAPTCHA.
 - **Projeto Supabase.** As migrações estão prontas; aplicá-las exige uma conta.
 - **Conta Expo/EAS** para build e atualização OTA.
 - **Domínio.**
@@ -145,3 +174,63 @@ enquanto a busca de marca no INPI ainda está pendente.
 ## Licença
 
 Proprietário. Todos os direitos reservados.
+
+---
+
+## Idiomas
+
+As telas leem cada palavra de `src/i18n/locales/`, em **pt-BR, espanhol e
+inglês**. O tipo `Widen<T>` faz a estrutura ser verificada e a redação ser
+livre: acrescentar uma chave em português quebra a compilação das outras duas
+até serem escritas. Não existe caminho em que uma tela chegue ao aparelho com
+tradução faltando.
+
+O idioma é propriedade da **empresa**, não do aparelho — uma fábrica brasileira
+cujo dono lê em inglês continua rodando em português no chão de fábrica. Quem
+decide isso é `src/i18n/useLocale.ts`, num lugar só.
+
+**O assistente ainda é só português**, e isso é fronteira, não descuido: o que
+ele reconhece são frases em português. Traduzir as respostas seria meio
+trabalho — as perguntas continuariam chegando num idioma só. Quando o modelo de
+linguagem fizer o reconhecimento, o idioma da pergunta deixa de ser problema do
+casador, e as respostas vão para o dicionário na mesma mudança.
+
+---
+
+## Rodando na web
+
+O mesmo código roda no navegador, o que é útil para ver o aplicativo sem
+instalar nada:
+
+```bash
+npx expo export --platform web
+```
+
+Duas configurações fazem isso funcionar e não são opcionais:
+
+- `metro.config.js` trata `.wasm` como asset. O `expo-sqlite` roda no navegador
+  através de uma compilação WebAssembly do SQLite, e sem isso o banco não existe.
+- O servidor precisa mandar `Cross-Origin-Opener-Policy: same-origin` e
+  `Cross-Origin-Embedder-Policy: require-corp`. Sem isolamento de origem o
+  navegador recusa `SharedArrayBuffer` e o banco não abre. O `vercel.json` já
+  manda esses cabeçalhos.
+
+Os dados ficam **no navegador de quem abre**, não num servidor — é o mesmo
+desenho offline-first do aplicativo.
+
+### Testes
+
+```bash
+npm run typecheck
+npm run lint
+npm test        # motor de custo, dados e assistente
+npm run e2e     # o aplicativo dirigido num navegador de verdade
+npm run db:verify
+bash .proofgate/verify.sh   # o portão de entrega, sobre o diff
+```
+
+O `e2e` existe porque três bugs passaram por toda a bateria de testes unitários
+e só apareceram quando o aplicativo foi aberto de fato: uma caixa de confirmação
+que não existe na web (e portanto nada era gravado), rotas que abriam num banco
+vazio, e uma tela falando dois idiomas ao mesmo tempo. Nenhum deles é visível de
+dentro de um módulo.
