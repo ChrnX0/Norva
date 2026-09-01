@@ -27,6 +27,7 @@ const ITEMS: ItemWithCost[] = [
     averageRate: rate(12.4, 1_000),
     lastRate: rate(12.4, 1_000),
     onHandBaseUnits: 40_000,
+    active: true,
   },
   {
     id: 'sugar',
@@ -39,6 +40,7 @@ const ITEMS: ItemWithCost[] = [
     averageRate: rate(4.72, 1_000),
     lastRate: rate(4.72, 1_000),
     onHandBaseUnits: 50_000,
+    active: true,
   },
 ];
 

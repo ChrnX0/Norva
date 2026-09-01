@@ -5,10 +5,12 @@ import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { ListRow } from '@/components/ListRow';
+import { useConfirm } from '@/components/Confirm';
 import {
   findItem,
   itemHistory,
   recipesUsingItem,
+  setItemActive,
   type ItemWithCost,
   type PriceMoveRow,
 } from '@/data/repository';
@@ -47,11 +49,12 @@ type Loaded = {
 
 function InputDetail() {
   const { color, space, type } = useTheme();
+  const confirm = useConfirm();
   const router = useRouter();
   const { locale } = useLocale();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const { data, loading } = useQuery<Loaded>(async () => {
+  const { data, loading, refresh } = useQuery<Loaded>(async () => {
     if (!id) return { item: null, history: [], recipes: [] };
     const [item, history, recipes] = await Promise.all([
       findItem(LOCAL_COMPANY_ID, id),
@@ -86,8 +89,35 @@ function InputDetail() {
       ? (latest.newRate - latest.previousRate) / latest.previousRate
       : null;
 
+  const toggleActive = async () => {
+    const go = await confirm({
+      title: item.active ? 'Tirar de circulação?' : 'Voltar a usar?',
+      message: item.active
+        ? `${item.name} some das listas de escolha, mas continua no histórico: as compras já ` +
+          `lançadas e as receitas que o usam ficam intactas. Dá para voltar atrás quando quiser.`
+        : `${item.name} volta a aparecer nas listas de escolha.`,
+      confirmLabel: item.active ? 'Tirar' : 'Voltar a usar',
+      destructive: item.active,
+    });
+    if (!go) return;
+
+    await setItemActive(LOCAL_COMPANY_ID, item.id, !item.active).then(refresh);
+  };
+
   return (
-    <CollapsingHeader title={item.name} overline="almoxarifado">
+    <CollapsingHeader
+      title={item.name}
+      overline={item.active ? 'almoxarifado' : 'almoxarifado · fora de circulação'}
+    >
+      {item.active ? null : (
+        <Card tone="warning">
+          <Text style={[type.cardTitle, { color: color.ink }]}>Fora de circulação</Text>
+          <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
+            Ele não aparece mais quando você escolhe um item, e tudo o que já passou por ele
+            continua como estava.
+          </Text>
+        </Card>
+      )}
       <Card tone="area">
         <Text style={[type.overline, { color: color.inkFaint }]}>CUSTO ATUAL</Text>
         <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
@@ -196,6 +226,18 @@ function InputDetail() {
         label="Lançar uma compra deste item"
         onPress={() => router.push(`/purchase?itemId=${item.id}`)}
         weighty
+      />
+
+      <Button
+        label="Corrigir o cadastro"
+        variant="ghost"
+        onPress={() => router.push(`/inputs/new?id=${item.id}`)}
+      />
+
+      <Button
+        label={item.active ? 'Tirar de circulação' : 'Voltar a usar'}
+        variant="ghost"
+        onPress={() => void toggleActive()}
       />
     </CollapsingHeader>
   );

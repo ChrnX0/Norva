@@ -40,6 +40,8 @@ export type ItemWithCost = Item & {
   averageRate: Rate;
   lastRate: Rate | null;
   onHandBaseUnits: number;
+  /** False once it is out of circulation: kept for history, hidden from pickers. */
+  active: boolean;
 };
 
 const DEFAULT_PACKAGING: PackagingHierarchy = { tiers: [{ id: 'unit', perBaseUnit: 1 }] };
@@ -55,7 +57,12 @@ function parsePackaging(json: string): PackagingHierarchy {
 
 // --- items -----------------------------------------------------------------
 
-export async function listItems(companyId: string, kind?: ItemKind): Promise<ItemWithCost[]> {
+export async function listItems(
+  companyId: string,
+  kind?: ItemKind,
+  /** Deactivated items are excluded unless a screen is explicitly showing them. */
+  includeInactive = false,
+): Promise<ItemWithCost[]> {
   const conn = await db();
   const rows = await conn.getAllAsync<{
     id: string;
@@ -65,18 +72,20 @@ export async function listItems(companyId: string, kind?: ItemKind): Promise<Ite
     purchase_to_base: number | null;
     base_unit: string;
     packaging: string;
+    active: number;
     average_rate: number | null;
     last_rate: number | null;
     on_hand_base_units: number | null;
   }>(
     `SELECT i.id, i.kind, i.name, i.purchase_unit, i.purchase_to_base, i.base_unit, i.packaging,
-            c.average_rate, c.last_rate, c.on_hand_base_units
+            i.active, c.average_rate, c.last_rate, c.on_hand_base_units
        FROM items i
        LEFT JOIN item_costs c ON c.item_id = i.id
-      WHERE i.company_id = ? AND i.active = 1
+      WHERE i.company_id = ?
+        AND (? = 1 OR i.active = 1)
         AND (? IS NULL OR i.kind = ?)
       ORDER BY i.name COLLATE NOCASE`,
-    [companyId, kind ?? null, kind ?? null],
+    [companyId, includeInactive ? 1 : 0, kind ?? null, kind ?? null],
   );
 
   return rows.map((r) => ({
@@ -87,6 +96,7 @@ export async function listItems(companyId: string, kind?: ItemKind): Promise<Ite
     purchaseToBase: r.purchase_to_base,
     baseUnit: r.base_unit,
     packaging: parsePackaging(r.packaging),
+    active: r.active === 1,
     averageRate: (r.average_rate ?? 0) as Rate,
     lastRate: r.last_rate === null || r.last_rate === undefined ? null : (r.last_rate as Rate),
     onHandBaseUnits: r.on_hand_base_units ?? 0,
@@ -752,6 +762,36 @@ export async function recipesUsingItem(
 }
 
 export async function findItem(companyId: string, itemId: string): Promise<ItemWithCost | null> {
-  const all = await listItems(companyId);
+  // Includes the inactive: the screen that offers to reactivate an item has to
+  // be able to open it.
+  const all = await listItems(companyId, undefined, true);
   return all.find((item) => item.id === itemId) ?? null;
 }
+
+/**
+ * Takes an item out of circulation without taking it out of history.
+ *
+ * Deleting is often refused - a purchase or a recipe stands on the row - and
+ * that refusal is correct: erasing an item that an invoice points at would
+ * leave a cost nobody can explain. But "I typed the name wrong" and "we stopped
+ * buying this" are ordinary things that must have an answer.
+ *
+ * So the row stays, the past stays intact, and the item stops appearing in the
+ * places where you pick something. Reversible, because nothing was destroyed.
+ */
+export async function setItemActive(
+  companyId: string,
+  itemId: string,
+  active: boolean,
+): Promise<void> {
+  const conn = await db();
+  await conn.withTransactionAsync(async () => {
+    await conn.runAsync(`UPDATE items SET active = ? WHERE id = ? AND company_id = ?`, [
+      active ? 1 : 0,
+      itemId,
+      companyId,
+    ]);
+    await enqueue(conn, [{ table: 'items', rowId: itemId }]);
+  });
+}
+

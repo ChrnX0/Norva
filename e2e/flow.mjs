@@ -173,6 +173,53 @@ check('an invoice warns before it is committed, then moves everything', async (p
   assert.match(history, /Picolé de morango/, 'and it says which recipe stands on it');
 });
 
+check('a name can be corrected without moving the money', async (page) => {
+  await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  await page.getByText('Glucose 38DE').first().click();
+  await page.waitForTimeout(1800);
+  await page.getByText('Corrigir o cadastro').first().click();
+  await page.waitForTimeout(1800);
+
+  // The price is deliberately not asked again: it belongs to the invoices.
+  assert.match(await screen(page), /O preço não é perguntado aqui/);
+
+  await page.getByLabel('Nome').fill('Glucose 38 DE');
+  await page.getByText('Salvar correção').first().click();
+  await page.waitForTimeout(800);
+  await page.getByText('Confirmar', { exact: true }).first().click();
+  await page.waitForTimeout(2200);
+
+  await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2000);
+
+  const list = await screen(page);
+  assert.match(list, /Glucose 38 DE/, 'the correction stuck');
+  assert.match(list, /R\$ 9,80/, 'and the average cost did not move');
+});
+
+check('an item can leave circulation without leaving history', async (page) => {
+  await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Glucose 38DE').first().click();
+  await page.waitForTimeout(1800);
+
+  await page.getByText('Tirar de circulação').first().click();
+  await page.waitForTimeout(800);
+  await page.getByText('Tirar', { exact: true }).first().click();
+  await page.waitForTimeout(1800);
+
+  // Still itself, still costed - just not offered any more.
+  const detail = await screen(page);
+  assert.match(detail, /Fora de circulação/);
+  assert.match(detail, /R\$ 9,80/);
+
+  await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2000);
+  assert.doesNotMatch(await screen(page), /Glucose/, 'gone from the picker');
+});
+
 check('erasing refuses in an order, and explains the way out', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
