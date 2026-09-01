@@ -6,6 +6,7 @@ import {
   amountOf,
   cents,
   fromDecimal,
+  multiplyCents,
   rate,
   rateFromCents,
   toDecimal,
@@ -106,4 +107,15 @@ test('nothing to split is nothing, not a crash', () => {
 test('a Cents value is always whole', () => {
   const half: Cents = cents(10.6);
   assert.equal(half, 11, 'cents is an integer type, and the constructor enforces it');
+});
+
+test('multiplying money rounds once, at the end, and never drifts', () => {
+  // The rule the whole project is built on, applied to the other operator: a
+  // third of ten cents is not three and a third cents, because there is no such
+  // coin. Rounding here and rounding again downstream is how a cent appears
+  // from nowhere in a total.
+  assert.equal(multiplyCents(cents(1000), 0.333), 333);
+  assert.equal(multiplyCents(cents(1000), 1 / 3), 333);
+  assert.equal(multiplyCents(cents(5), 0.5), 3, 'half of five cents rounds up, once');
+  assert.equal(multiplyCents(cents(0), 99), 0);
 });

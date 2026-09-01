@@ -129,6 +129,30 @@ const DEFECTS = [
     to: 'if (false) {',
     hurts: 'o assistente entrega custo a quem não pode ver custo',
   },
+  {
+    file: 'src/domain/ledger.ts',
+    from: 'if (dailyOutflow <= 0) return null;',
+    to: 'if (false) return null;',
+    hurts: 'item que não sai nada vira cobertura infinita, e o briefing manda não produzir para sempre',
+  },
+  {
+    file: 'src/domain/ledger.ts',
+    from: 'return balanceOf(movements.filter((m) => new Date(m.occurredAt).getTime() <= cutoff));',
+    to: 'return balanceOf(movements.filter((m) => new Date(m.occurredAt).getTime() < cutoff));',
+    hurts: 'o saldo "às 3h" perde o movimento das 3h em ponto, e a excursão de temperatura acusa o lote errado',
+  },
+  {
+    file: 'src/domain/units.ts',
+    from: 'if (h.tiers[0].perBaseUnit !== 1) return false;',
+    to: 'if (false) return false;',
+    hurts: 'hierarquia que começa na caixa passa a valer, e toda quantidade sai multiplicada por cinquenta',
+  },
+  {
+    file: 'src/domain/money.ts',
+    from: 'return Math.round(value * factor) as Cents;',
+    to: 'return Math.trunc(value * factor) as Cents;',
+    hurts: 'multiplicar dinheiro passa a cortar em vez de arredondar, sempre para baixo',
+  },
 ];
 
 function suitePasses() {

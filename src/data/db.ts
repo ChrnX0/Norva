@@ -427,8 +427,6 @@ export const migrationSteps: readonly string[] = MIGRATIONS;
 export const schemaVersion = MIGRATIONS.length;
 
 /** The pragmas a connection needs before anything else touches it. */
-export const connectionPragmas = PRAGMAS;
-
 /** Test seam: lets a test point at a fresh in-memory database. */
 export function __setDb(next: Db | null) {
   handle = next;

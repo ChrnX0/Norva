@@ -23,10 +23,6 @@ export type PackagingHierarchy = {
   tiers: PackagingTier[];
 };
 
-export function baseUnitTier(): PackagingTier {
-  return { id: 'unit', perBaseUnit: 1 };
-}
-
 export function isValidHierarchy(h: PackagingHierarchy): boolean {
   if (h.tiers.length === 0) return false;
   if (h.tiers[0].perBaseUnit !== 1) return false;

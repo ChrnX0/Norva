@@ -20,9 +20,10 @@ import {
   saveItem,
   saveProduct,
   saveRecipeVersion,
+  purchaseToBaseUnits,
 } from './repository';
 import { EraseBlockedError } from './erase';
-import { pendingEntries } from './outbox';
+import { markSent, pendingCount, pendingEntries, forgetSentBefore } from './outbox';
 import { ensureStarterData, hasSeeded, LOCAL_COMPANY_ID } from './seed';
 
 /**
@@ -501,4 +502,54 @@ test('erasing everything leaves the order to erase, and nothing else', async () 
   );
   assert.equal(queued[0].op, 'delete');
   assert.equal(queued[0].rowId, 'all');
+});
+
+/**
+ * Two more the audit found exported with nobody calling them.
+ *
+ * `purchaseToBaseUnits` had a caller after all - it was just a second copy of
+ * itself, typed by hand inside the purchase screen. Two implementations of one
+ * rule agree until somebody corrects one of them, and then there is no way to
+ * say which number is right. The screen now calls this; this is what checks it.
+ *
+ * `forgetSentBefore` is the outbox's own housekeeping, and the reason it needs
+ * a test rather than a delete is what it must NOT do: dropping something that
+ * has not gone up yet loses a write a person believes they made.
+ */
+
+test('what the buyer typed becomes base units through one rule, not two', () => {
+  const sack = { purchaseToBase: 25_000 } as Parameters<typeof purchaseToBaseUnits>[0];
+  assert.equal(purchaseToBaseUnits(sack, 4), 100_000);
+
+  // A fractional pack is real - half a sack happens - and the base unit is the
+  // smallest thing that exists, so it lands on a whole one.
+  assert.equal(purchaseToBaseUnits(sack, 0.5), 12_500);
+
+  // No factor means the purchase unit IS the base unit. Defaulting to zero here
+  // would make an invoice arrive carrying nothing.
+  const each = { purchaseToBase: null } as Parameters<typeof purchaseToBaseUnits>[0];
+  assert.equal(purchaseToBaseUnits(each, 7), 7);
+});
+
+test('the outbox forgets what went up, and only what went up', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+
+  const queued = await pendingEntries();
+  assert.ok(queued.length > 2, 'the seed leaves a queue to work with');
+
+  // Half of them have been accepted by the server; the rest have not.
+  const sent = queued.slice(0, 2).map((e) => e.id);
+  await markSent(sent);
+  const stillWaiting = await pendingCount();
+
+  await forgetSentBefore('2099-01-01T00:00:00Z');
+
+  // Everything already accepted is gone, and nothing that is still waiting is -
+  // a write dropped before it arrives is a write the person watched themselves
+  // make and the factory will never see.
+  assert.equal(await pendingCount(), stillWaiting);
+  const rows = await live.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM outbox WHERE sent_at IS NOT NULL`,
+  );
+  assert.equal(rows?.n, 0);
 });

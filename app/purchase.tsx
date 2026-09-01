@@ -15,6 +15,7 @@ import {
   loadRecipeGraph,
   recordPurchase,
   type ItemWithCost,
+  purchaseToBaseUnits,
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
@@ -78,11 +79,14 @@ function PurchaseForm() {
 
     const packs = num(quantity);
     const paid = num(total);
-    const factor = selected.purchaseToBase ?? 1;
     if (!Number.isFinite(packs) || packs <= 0) return null;
     if (!Number.isFinite(paid) || paid <= 0) return null;
 
-    const baseUnits = Math.round(packs * factor);
+    // The conversion lives in one place. This screen used to do its own
+    // `Math.round(packs * factor)` while the repository exported the same rule
+    // to nobody: two implementations that agree today and diverge the first
+    // time one of them is corrected, with nothing to say which is right.
+    const baseUnits = purchaseToBaseUnits(selected, packs);
     const totalCents = fromDecimal(paid);
 
     // What this invoice alone costs per base unit, and where it lands the
@@ -96,7 +100,19 @@ function PurchaseForm() {
     const previous = selected.lastRate;
     const change = previous && previous > 0 ? (thisRate - previous) / previous : null;
 
-    return { packs, paid, factor, baseUnits, totalCents, thisRate, after, previous, change };
+    return {
+      packs,
+      paid,
+      // Only for the sentence that spells the conversion out loud; the maths
+      // above no longer touches it.
+      factor: selected.purchaseToBase ?? 1,
+      baseUnits,
+      totalCents,
+      thisRate,
+      after,
+      previous,
+      change,
+    };
   }, [selected, quantity, total]);
 
   // How this price should be read, decided in one place that has a test rather

@@ -755,3 +755,43 @@ terceira — **qual é a próxima ação provável** — não existe em nenhuma 
 Nada diz "produza até segunda" nem "a polpa subiu 9%, reveja o preço". Não é
 esquecimento: é a Fase 4, e construir antes de a Fase 1 ser usada seria adivinhar
 qual ação é provável. Fica registrado para não passar por pronto.
+
+## 1 de setembro — doze funções exportadas que ninguém chamava, e nenhuma tinha teste
+
+**O que apareceu.** Varrendo o que o domínio exporta contra o que as telas
+chamam, doze exports não tinham **nenhum** chamador — nem em tela, nem em script,
+nem em teste. Entre eles `balanceAt` (o saldo num instante, que a excursão de
+temperatura vai precisar), `daysOfCover` (a frase que manda produzir) e
+`observedLeadTimeDays` (o "promete três dias e entrega em seis").
+
+Um deles quase me assustou: `connectionPragmas`. Se os PRAGMAs nunca fossem
+aplicados, o aparelho rodaria **sem chave estrangeira**, e a ordem de exclusão da
+tela de ajustes depende disso. Conferido: os PRAGMAs rodam na linha 358. O export
+é que não servia para nada.
+
+**Por que importa.** Não eram descuido — cada uma carrega uma decisão já tomada,
+com docblock explicando o porquê. O defeito é outro: **nunca foram executadas.**
+Uma função exportada e documentada lê como capacidade, e quem for ligá-la a uma
+tela herda uma resposta que ninguém viu sair. É a mesma família do marcador que
+não suprime e do pulso ao lado de número parado — sinal que afirma e não está
+ligado a nada.
+
+**O que mudou, e a decisão que quase saiu errada.** Meu primeiro impulso foi
+apagar as doze. Lendo, mudei: apagar `observedLeadTimeDays` jogaria fora um bom
+raciocínio já correto. Então:
+
+- **Três apagadas** por serem triviais ou vazias — `addCents` (é `a+b` com tipo),
+  `baseUnitTier` (constante disfarçada de função), `connectionPragmas`.
+- **Uma tinha chamador afinal**, e esse é o achado real: `purchaseToBaseUnits`
+  estava duplicada **dentro da tela de compra**, digitada à mão
+  (`Math.round(packs * factor)`). Duas implementações da mesma regra concordam
+  até alguém corrigir uma delas, e aí não há como dizer qual número está certo.
+  A tela passou a chamar a função.
+- **As oito restantes ganharam teste** — arquivos dedicados para `cost.ts`,
+  `ledger.ts` e `units.ts`, que **não existiam**: fundação exercitada só de
+  esguelha por `pipeline.test.ts`.
+
+De 118 para 131 testes, e quatro mutações novas (21 no total) para provar que os
+testes novos mordem: cobertura infinita quando nada sai, o saldo "às 3h" perdendo
+o movimento das 3h em ponto, hierarquia que começa na caixa, e multiplicação de
+dinheiro cortando em vez de arredondar.

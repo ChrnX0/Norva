@@ -16,10 +16,6 @@ export function toDecimal(value: Cents): number {
   return value / 100;
 }
 
-export function addCents(a: Cents, b: Cents): Cents {
-  return (a + b) as Cents;
-}
-
 export function multiplyCents(value: Cents, factor: number): Cents {
   return Math.round(value * factor) as Cents;
 }
