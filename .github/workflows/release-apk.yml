@@ -1,0 +1,73 @@
+name: Publicar o APK
+
+# Põe o instalador num lugar de onde um celular consegue baixar.
+#
+# O link direto da Expo termina numa URL assinada da Amazon que devolve 109 MiB
+# como download bruto, e navegador de celular costuma desistir disso em silêncio.
+# Um release do GitHub serve o mesmo arquivo de um endereço estável, que o
+# Android trata como um download normal.
+#
+# O arquivo não pode ir num commit: o GitHub recusa acima de 100 MiB. Como
+# anexo de release ele cabe (o limite lá é 2 GB), e quem baixa é o runner, não
+# esta sessão - o binário nunca entra no histórico do repositório.
+#
+# Dispara de dois jeitos:
+#   - empurrando uma tag `apk-*` (usa o build abaixo)
+#   - manualmente, informando a URL de outro build
+
+on:
+  push:
+    tags:
+      - 'apk-*'
+  workflow_dispatch:
+    inputs:
+      apkUrl:
+        description: 'URL do artefato .apk na Expo'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  # Build fd07c9df-72e2-41f5-9425-0ebf41bc802b, commit 63269a1, canal preview.
+  DEFAULT_APK_URL: https://expo.dev/artifacts/eas/4Td1bK5KC1_zKPbB9Nu9Ue50iL_SAzKA-pWj9vXG-f8.apk
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar o APK da Expo
+        run: |
+          URL="${{ inputs.apkUrl || env.DEFAULT_APK_URL }}"
+          echo "baixando $URL"
+          curl -fL --retry 3 --retry-delay 5 -o norva.apk "$URL"
+
+          # Um HTML de erro também sai com 200; o arquivo tem de ser um APK.
+          file norva.apk
+          unzip -l norva.apk | grep -q AndroidManifest.xml || {
+            echo "o que baixou não é um APK"; exit 1;
+          }
+          ls -lh norva.apk
+
+      - name: Publicar o release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || format('apk-{0}', github.run_number) }}
+        run: |
+          gh release create "$TAG" norva.apk \
+            --title "NORVA $TAG" \
+            --prerelease \
+            --notes "$(cat <<'NOTES'
+          Instalador de teste do NORVA para Android.
+
+          **Como instalar:** baixe `norva.apk` abaixo pelo próprio celular. O
+          Android vai pedir permissão para instalar de fora da Play Store — é
+          normal em aplicativo de teste, e é uma vez só.
+
+          Este é um build interno com todas as arquiteturas no mesmo arquivo,
+          por isso é grande. A versão de loja sai bem menor.
+          NOTES
+          )" || gh release upload "$TAG" norva.apk --clobber
