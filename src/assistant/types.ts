@@ -1,4 +1,5 @@
 import type { CostChange, ItemWithCost, MovementRow, Product } from '@/data/repository';
+import type { Capability } from '@/domain/access';
 import type { Cents } from '@/domain/money';
 import type { ItemCosts, Recipe } from '@/domain/recipe';
 
@@ -20,20 +21,14 @@ import type { ItemCosts, Recipe } from '@/domain/recipe';
  *      anything is recorded rather than months later in a report.
  */
 
-/** The same enum the database declares. A role is a bundle of these. */
-export type Capability =
-  | 'view_cost'
-  | 'view_sale_price'
-  | 'record_production'
-  | 'dispatch'
-  | 'check_receipt'
-  | 'record_loss'
-  | 'place_order'
-  | 'approve_order'
-  | 'adjust_stock'
-  | 'view_finance'
-  | 'issue_invoice'
-  | 'manage_company';
+/**
+ * Re-exported, never redefined.
+ *
+ * The vocabulary lives in the domain because three different things speak it:
+ * the server's row level security, this assistant, and the screens. A second
+ * copy here would drift from the first the week somebody adds a capability.
+ */
+export type { Capability } from '@/domain/access';
 
 /**
  * Everything the assistant is allowed to reach, as functions rather than SQL.

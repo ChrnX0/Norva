@@ -112,6 +112,12 @@ const DEFECTS = [
     hurts: 'a média derivada volta a ter dois autores, e eles discordam',
   },
   {
+    file: 'src/domain/access.ts',
+    from: "  operator: ['record_production', 'dispatch', 'check_receipt', 'record_loss'],",
+    to: "  operator: ['record_production', 'dispatch', 'check_receipt', 'record_loss', 'view_cost'],",
+    hurts: 'o operador de fábrica passa a ver o custo, e ninguém pediu isso',
+  },
+  {
     file: 'src/assistant/index.ts',
     from: 'if (skill.requires && !context.capabilities.has(skill.requires)) {',
     to: 'if (false) {',

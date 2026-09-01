@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import type { OutboxEntry } from '@/data/outbox';
+import { capabilities } from '@/domain/access';
 import { sendableTables, serialize, type SyncActor } from './serialize';
 
 /**
@@ -186,5 +187,20 @@ test('the device schema does not carry a column the server dropped', () => {
   assert.ok(
     device.includes('ALTER TABLE item_costs DROP COLUMN on_hand_base_units'),
     'the device migration that removes the stored stock total has gone',
+  );
+});
+
+test('the capability vocabulary is the same word list on both sides', () => {
+  const server = enumValues(serverSql(), 'capability');
+
+  // Permission is enforced in two places that must agree exactly: row level
+  // security in Postgres, and the check this device runs before its own
+  // queries. A capability the code knows and the server does not is a policy
+  // that silently never matches; one the server knows and the code does not is
+  // a door nobody on this side can open.
+  assert.deepEqual(
+    [...capabilities].sort(),
+    [...server].sort(),
+    'the device and the server disagree about what a permission even is',
   );
 });

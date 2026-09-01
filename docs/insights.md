@@ -411,6 +411,54 @@ treze para quinze defeitos, e os quinze são pegos.
 
 ---
 
+## 2026-09-01 — a permissão existe em três lugares e vale em dois
+
+**O que se viu.** Perguntado sobre login e perfis, olhei o estado real antes de
+opinar. A fundação F6 — *permissão por capacidade, nunca por tela* — está
+construída e aplicada em **dois** dos três lugares onde precisa valer:
+
+| | |
+|---|---|
+| Servidor (RLS no Postgres) | aplicado, provado pela checagem 4 |
+| Assistente | aplicado **antes** da consulta, com teste |
+| Telas | **nada** |
+
+Nenhuma tela verifica nada. `listItems` devolve custo médio para quem chamar, e
+o conjunto inteiro de capacidades estava escrito à mão em `app/assistant.tsx`,
+sob um comentário dizendo *"até o login chegar, o usuário local é o dono"* — e
+aquela lista à mão já estava **faltando três capacidades** que o dono tem.
+
+Hoje não vaza porque só existe uma pessoa. Vaza no dia do segundo celular.
+
+**A pergunta que isso reformula.** Login não é acrescentar uma tela de entrar. É
+o que faz o sistema de permissão que **já existe** significar alguma coisa no
+aparelho.
+
+**O que mudou.** `src/domain/access.ts`: o vocabulário sai de dentro do módulo
+do assistente e vira domínio, com uma fonte só — e um teste que compara a lista
+do código com o enum do servidor, valor por valor. Mais o mapa papel→capacidades
+da tabela do plano, com as **ausências** presas por teste: o operador de fábrica
+e o entregador não veem custo, preço nem dinheiro; só o dono administra a
+empresa; ninguém de fora vê custo. Ampliar um papel passa a ser ato deliberado
+com suíte vermelha na frente.
+
+**Um desalinho honesto que apareceu escrevendo.** O piso de autonomia do plano
+tem cinco atos, e só dois têm capacidade própria hoje — mudança de preço,
+estorno e lançamento financeiro são coisas que o aplicativo ainda não faz.
+Nomear capacidade para elas agora seria inventar vocabulário para recurso
+ausente, então ficaram escritas como **atos**, não permissões. O piso é uma
+promessa feita antes do recurso existir: quem construir herda a regra em vez de
+decidir de novo.
+
+**Em aberto, e é decisão do dono:** celular compartilhado ou pessoal no chão de
+fábrica; e se o movimento operacional grava **quem** ou grava **onde**. O tom de
+voz do projeto diz nunca culpar pessoa, e a cadeia de custódia existe para
+localizar a perda sem acusar ninguém — o que argumenta por aparelho e posto, não
+por pessoa. E o operador poder ou não conferir a prateleira, já que contagem
+está no piso de autonomia.
+
+---
+
 ## Em aberto
 
 Achados desta rodada que ainda não viraram mudança. Ficam aqui até virarem.

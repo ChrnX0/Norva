@@ -8,6 +8,7 @@ import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { ask, knownSkills, type Answer, type Capability } from '@/assistant';
 import { liveData } from '@/data/assistantData';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { capabilitiesFor } from '@/domain/access';
 import { defaultLocale, fill } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -34,14 +35,15 @@ export default function AssistantScreen() {
   );
 }
 
-/** Until sign-in lands, the local user is the owner. */
-const CAPABILITIES: ReadonlySet<Capability> = new Set<Capability>([
-  'view_cost',
-  'view_sale_price',
-  'record_production',
-  'place_order',
-  'view_finance',
-]);
+/**
+ * Until sign-in lands, whoever holds this phone is the owner.
+ *
+ * The set comes from the role table rather than being typed out here, and that
+ * is the point: the day this reads a real membership, only this line changes.
+ * A hand-written list beside a role table is two answers to one question, and
+ * the one written by hand was already missing three capabilities the owner has.
+ */
+const CAPABILITIES: ReadonlySet<Capability> = capabilitiesFor('owner');
 
 type Turn = { question: string; answer: Answer; open: boolean; applied: boolean };
 
