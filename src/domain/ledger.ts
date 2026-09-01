@@ -14,7 +14,7 @@
  *     written anything down
  */
 
-import type { Cents } from './money';
+import type { Rate } from './money';
 
 export type MovementKind =
   | 'purchase' // arrived from a supplier against an invoice
@@ -67,9 +67,20 @@ export type Movement = {
   /**
    * Cost frozen at the instant this movement happened. A sugar price change in
    * March must not rewrite January's margin.
+   *
+   * A `Rate`, not `Cents`, and the distinction is the headline rule of this
+   * project rather than a detail. Pulp at R$ 12,40/kg is 1,24 cents per gram;
+   * as an integer that is 1, and a fifth of the cost is gone before the first
+   * multiplication. The migration that fixed this on the server said so in
+   * writing - `0008_ledger_speaks_phase_one.sql` dropped `unit_cost_cents` and
+   * added `unit_cost_rate double precision`, and the device followed with
+   * `unit_cost_rate REAL`.
+   *
+   * This type did not follow, and nothing noticed for one reason: no line of
+   * production code imports this module. The type that defines what a movement
+   * IS was describing a schema neither database has had for days.
    */
-  unitCostCents?: Cents;
-  unitPriceCents?: Cents;
+  unitCostRate?: Rate;
 
   /** Set when this movement cancels another one. */
   reversesMovementId?: string;

@@ -258,3 +258,79 @@ test('the parser can tell a required column from a defaulted one', () => {
   assert.equal(tables.get('purchases')?.get('freight_cents')?.hasDefault, true);
   assert.equal(tables.get('movements')?.get('note')?.notNull, false);
 });
+
+/**
+ * The domain type and the schema it claims to describe.
+ *
+ * This one exists because the drift it catches survived for days in plain
+ * sight. `0008` dropped `unit_cost_cents` on the server and added
+ * `unit_cost_rate`; the device followed; and `src/domain/ledger.ts` went on
+ * declaring `unitCostCents?: Cents` - the exact inversion of this project's
+ * headline rule, sitting in the type that defines what a movement IS.
+ *
+ * Nothing caught it, and the reason is the finding: no line of production code
+ * imports that module, so no test exercised it and no compile error could
+ * arise. A type nobody uses is not harmless - it is a lie waiting for its
+ * first caller, and the first caller here is the production screen.
+ */
+test('the movement type names only columns the ledger actually has', () => {
+  const tables = serverColumns(serverSql());
+  const movements = tables.get('movements');
+  assert.ok(movements && movements.size > 10, 'the movements table did not parse');
+
+  const domain = readFileSync('src/domain/ledger.ts', 'utf8');
+  const body = domain.slice(domain.indexOf('export type Movement = {'));
+  const fields = [...body.slice(0, body.indexOf('\n};')).matchAll(/^\s{2}([a-zA-Z]+)\??:/gm)].map(
+    (m) => m[1],
+  );
+  assert.ok(fields.length > 8, `parsed ${fields.length} fields - the parse itself is broken`);
+
+  const snake = (f: string) => f.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+  const invented = fields.filter((f) => !movements.has(snake(f)));
+
+  assert.deepEqual(
+    invented,
+    [],
+    `these fields name no column the server has: ${invented.map(snake).join(', ')}. ` +
+      'The server is the authority on what a movement is - a field it does not have is ' +
+      'either a schema that moved without the type, or something the type invented.',
+  );
+});
+
+/**
+ * And the other direction, which is a gap rather than a lie.
+ *
+ * The device is a partial local store: it does not keep `recorded_by` (the
+ * serializer stamps it from whoever syncs) and has never needed the control
+ * posts. That is fine, and listing it here is what keeps it deliberate - the
+ * day a screen needs one of these, the missing column is named rather than
+ * discovered by a foreign key failing at four in the morning.
+ */
+test('what the device does not keep is a list somebody wrote, not a surprise', () => {
+  const device = readFileSync('src/data/db.ts', 'utf8');
+  const table = device.slice(device.indexOf('CREATE TABLE IF NOT EXISTS movements'));
+  const columns = new Set(
+    [...table.slice(0, table.indexOf(');')).matchAll(/^\s{2}([a-z_]+)\s/gm)].map((m) => m[1]),
+  );
+  assert.ok(columns.size > 8, `parsed ${columns.size} columns - the parse itself is broken`);
+
+  const domain = readFileSync('src/domain/ledger.ts', 'utf8');
+  const body = domain.slice(domain.indexOf('export type Movement = {'));
+  const fields = [...body.slice(0, body.indexOf('\n};')).matchAll(/^\s{2}([a-zA-Z]+)\??:/gm)].map(
+    (m) => m[1].replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`),
+  );
+
+  const known = [
+    // Stamped by `serialize` from the account doing the sync; the server
+    // enforces `recorded_by = auth.uid()` and no device value could be right.
+    'recorded_by',
+    // The four control posts are phase 3 - dispatch, delivery, receipt.
+    'post',
+    // Needed the day a transfer is written: the second leg has to say where
+    // its other half went. The server has had the column since 0001.
+    'counterpart_location_id',
+  ];
+
+  const surprises = fields.filter((f) => !columns.has(f) && !known.includes(f));
+  assert.deepEqual(surprises, [], `absent from the device and from the list: ${surprises.join(', ')}`);
+});

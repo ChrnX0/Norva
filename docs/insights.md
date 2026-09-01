@@ -1072,3 +1072,37 @@ instala, e o erro no celular não explica nada), o bundle JS tem de estar dentro
 assinado com chave de debug e o da Expo com a chave do EAS. Assinaturas
 diferentes fazem o Android **recusar instalar um por cima do outro** — é preciso
 desinstalar antes, e isso apaga os dados locais.
+
+## 1 de setembro — o tipo que define um movimento descrevia um esquema morto
+
+**O que apareceu.** Antes de escrever a produção, pus o modelo de movimento sob três
+lentes independentes. A síntese derrubou as três em pontos concretos — e achou o que
+nenhuma delas viu: **`src/domain/ledger.ts` ainda declarava `unitCostCents?: Cents`**,
+enquanto a migração `0008` derrubou `unit_cost_cents` no servidor e pôs
+`unit_cost_rate double precision`, e o aparelho seguiu com `unit_cost_rate REAL`.
+
+**Por que importa.** É a fundação da capa deste projeto invertida, no tipo que define o
+que um movimento **é**: `Cents` é inteiro, `Rate` é fracionário, e polpa a R$ 12,40/kg é
+1,24 centavo por grama — como inteiro vira 1, e um quinto do custo some antes da
+primeira multiplicação. O bug que originou a regra, de volta na definição.
+
+Sobreviveu por um motivo só, e a auditoria de hoje já tinha apontado: **nenhuma linha de
+produção importa esse módulo.** Sem chamador não há erro de compilação, sem teste não há
+vermelho. Tipo que ninguém usa não é inofensivo — é mentira esperando o primeiro
+chamador, e o primeiro chamador aqui seria a tela de produção.
+
+**Segundo achado, do mesmo desenho:** `loadRecipeGraph` devolve `id: v.recipe_id` — o id
+da *receita*, nunca o da *versão* (`repository.ts:594-606`), e o tipo `Recipe` não tem
+campo para ele. Ou seja, gravar qual versão a produção usou era **impossível hoje**, e
+esse era o único item "ausente" da Fase 1 na auditoria. Ninguém tinha achado o motivo.
+
+**O que mudou.** O tipo passou a dizer `unitCostRate?: Rate`. E dois guardas novos: um
+afirma que todo campo do `Movement` nomeia uma coluna que **o servidor tem** — visto
+falhando com `unit_cost_cents`, que é a deriva real; o outro transforma o que o aparelho
+**não** guarda numa lista escrita (`recorded_by`, que o serializador carimba; `post`, que
+é Fase 3; e `counterpart_location_id`, que a transferência vai precisar), para a falta ser
+deliberada em vez de descoberta por uma chave estrangeira falhando às quatro da manhã.
+
+**E um erro meu na verificação, que registro porque quase me enganou:** o primeiro guarda
+pareceu não morder. Era o meu `grep` — procurei "names no column" onde a mensagem diz
+"name no column". O teste estava certo; a checagem da checagem é que estava errada.
