@@ -29,6 +29,16 @@ export type RecipeLine =
 
 export type Recipe = {
   id: string;
+  /**
+   * The identity of THIS version, not of the recipe.
+   *
+   * The line below has promised since the beginning that production records
+   * which version it used - and it was impossible: the query selected
+   * `recipe_versions.id` and then mapped `id: v.recipe_id`, so the version's
+   * own identity never left the data layer and this type had nowhere to put
+   * it. A promise in a doc comment with no field behind it.
+   */
+  versionId: string;
   /** Versions are numbered and kept. Production records which one it used, so
    *  historical cost stays correct after the formula changes. */
   version: number;

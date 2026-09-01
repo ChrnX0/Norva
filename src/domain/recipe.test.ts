@@ -126,6 +126,7 @@ const itemCosts = {
 const recipes: Record<string, Recipe> = {
   creamBase: {
     id: 'creamBase',
+    versionId: 'creamBase-v',
     version: 1,
     effectiveFrom: '2026-01-01',
     // 20,000 ml of base
@@ -138,6 +139,7 @@ const recipes: Record<string, Recipe> = {
   },
   strawberry: {
     id: 'strawberry',
+    versionId: 'strawberry-v',
     version: 4,
     effectiveFrom: '2026-06-01',
     yieldAmount: 40_000, // 40 L of mix
@@ -200,6 +202,7 @@ test('a recipe that contains itself raises instead of hanging', () => {
   const looping: Record<string, Recipe> = {
     a: {
       id: 'a',
+      versionId: 'a-v',
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 100,
@@ -208,6 +211,7 @@ test('a recipe that contains itself raises instead of hanging', () => {
     },
     b: {
       id: 'b',
+      versionId: 'b-v',
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 100,
@@ -327,6 +331,7 @@ test('cheap lines add up instead of each rounding away to nothing', () => {
   const graph: Record<string, Recipe> = {
     tiny: {
       id: 'tiny',
+      versionId: 'tiny-v',
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 1_000,
@@ -356,6 +361,7 @@ test('the breakdown always sums to the figure, however the cents fall', () => {
   const graph: Record<string, Recipe> = {
     odd: {
       id: 'odd',
+      versionId: 'odd-v',
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 1_000,
@@ -380,6 +386,7 @@ test('a share is the line\'s real weight, not its rounded one', () => {
   const graph: Record<string, Recipe> = {
     mix: {
       id: 'mix',
+      versionId: 'mix-v',
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 1_000,
@@ -414,6 +421,7 @@ test('a sub-recipe that is not there stops the costing, and names itself', () =>
   const orphan: Record<string, Recipe> = {
     popsicle: {
       id: 'popsicle',
+      versionId: 'popsicle-v',
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 10_000,
@@ -434,6 +442,7 @@ test('an item with no invoice yet is free, and that is not the same thing', () =
   const priced: Record<string, Recipe> = {
     base: {
       id: 'base',
+      versionId: 'base-v',
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 1_000,

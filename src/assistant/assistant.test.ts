@@ -59,6 +59,7 @@ const PRODUCTS: Product[] = [
 const RECIPES: Record<string, Recipe> = {
   popsicle: {
     id: 'popsicle',
+    versionId: 'popsicle-v',
     version: 3,
     effectiveFrom: '2026-06-01',
     yieldAmount: 40_000,

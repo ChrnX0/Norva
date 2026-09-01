@@ -1127,3 +1127,30 @@ denunciou. Não foi cuidado meu.
 `CREATE`. E a lista de lacunas conhecidas passou a **apodrecer em voz alta**: entrada que
 afirma uma falta já fechada agora quebra o teste, porque uma lista mentindo sobre uma
 ausência deliberada é a mesma família do marcador que não suprime nada.
+
+## 1 de setembro — a promessa estava no comentário e o campo não existia
+
+**O que apareceu.** O tipo `Recipe` diz, desde o começo: *"Versions are numbered and kept.
+**Production records which one it used**, so historical cost stays correct after the
+formula changes."* Era impossível. A consulta `loadRecipeGraph` **seleciona** `v.id` —
+o id da versão — e depois mapeia `id: v.recipe_id`. A identidade da versão nunca saía da
+camada de dados, e o tipo não tinha onde guardá-la.
+
+**Por que ninguém viu.** Compilava. Todos os testes passavam. O comentário descrevia a
+intenção e nada afirmava o fato. A auditoria das fases marcou "a produção grava a versão
+de receita que usou" como **ausente** e não achou o motivo — porque o motivo não era uma
+funcionalidade faltando, era um campo que sumia no meio do caminho.
+
+**O que mudou.** `Recipe.versionId`, mapeado de `v.id`. O compilador achou os cinco
+lugares que constroem uma receita, incluindo o rascunho da tela de edição — que agora diz
+`versionId: DRAFT` em vez de emprestar o id da versão anterior, porque apontar uma corrida
+para uma fórmula que não é a que ela usou é pior que não apontar.
+
+O teste afirma o que o comentário prometia, e foi visto falhando com exatamente o bug
+original (`versionId: v.recipe_id`): *"versionId is the recipe id again"*. E confere no
+banco que aquele id é a linha que de fato guarda esta versão e suas linhas.
+
+**O padrão, que é o mesmo do dia:** comentário promete, código não entrega, nada exercita.
+Já apareceu no `assistant_phrase` com índice e sem escrita, no tipo do movimento
+descrevendo colunas mortas, e agora aqui. Onde o docblock afirma um fato, ou existe teste
+afirmando o mesmo, ou é ficção.

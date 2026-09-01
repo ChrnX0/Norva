@@ -596,6 +596,7 @@ export async function loadRecipeGraph(companyId: string): Promise<Record<string,
       v.recipe_id,
       {
         id: v.recipe_id,
+        versionId: v.id,
         version: v.version,
         effectiveFrom: v.effective_from,
         yieldAmount: v.yield_amount,

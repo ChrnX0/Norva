@@ -171,6 +171,11 @@ function RecipeEditor() {
       ...data.recipes,
       [DRAFT]: {
         id: DRAFT,
+        // Um rascunho ainda não é uma versão: ele não foi salvo, então não tem
+        // identidade que uma produção pudesse gravar. O DRAFT diz isso em vez
+        // de emprestar o id da versão anterior, que apontaria uma corrida para
+        // uma fórmula que não é a que ela usou.
+        versionId: DRAFT,
         version: stored.version + 1,
         effectiveFrom: stored.effectiveFrom,
         yieldAmount: yieldValue,

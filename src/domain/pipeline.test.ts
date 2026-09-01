@@ -36,6 +36,7 @@ const SUGAR = 'sugar';
 const recipes: Record<string, Recipe> = {
   base: {
     id: 'base',
+    versionId: 'base-v',
     version: 1,
     effectiveFrom: '2026-01-01',
     yieldAmount: 20_000,
@@ -44,6 +45,7 @@ const recipes: Record<string, Recipe> = {
   },
   popsicle: {
     id: 'popsicle',
+    versionId: 'popsicle-v',
     version: 3,
     effectiveFrom: '2026-06-01',
     yieldAmount: 40_000,
@@ -215,6 +217,7 @@ test('the price moves land on the finished unit, in reais', () => {
   const graph: Record<string, Recipe> = {
     base: {
       id: 'base',
+      versionId: 'base-v',
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 10_000,

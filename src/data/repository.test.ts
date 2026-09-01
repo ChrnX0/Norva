@@ -589,3 +589,33 @@ test('a movement made by talking carries the sentence; one made by hand does not
     'and a movement somebody typed themselves is not labelled as the assistant',
   );
 });
+
+test('a recipe carries the identity of the version it is, not just its number', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const graph = await loadRecipeGraph(LOCAL_COMPANY_ID);
+  const recipes = Object.values(graph);
+  assert.ok(recipes.length > 0, 'the seed should leave recipes to look at');
+
+  for (const recipe of recipes) {
+    assert.ok(recipe.versionId, `${recipe.id} came back with no version identity`);
+    // The bug this replaced: the query selected `recipe_versions.id` and then
+    // mapped `id: v.recipe_id`, so the version's own identity never left the
+    // data layer. Everything still typechecked, every test still passed, and
+    // recording which formula a production used was quietly impossible - the
+    // one item the phase audit could only mark "ausente" without a reason.
+    assert.notEqual(
+      recipe.versionId,
+      recipe.id,
+      'versionId is the recipe id again - the version identity is still not coming out',
+    );
+  }
+
+  // And it has to be the row that actually holds this version's lines.
+  const first = recipes[0];
+  const row = await live.getFirstAsync<{ recipe_id: string; version: number }>(
+    `SELECT recipe_id, version FROM recipe_versions WHERE id = ?`,
+    [first.versionId],
+  );
+  assert.equal(row?.recipe_id, first.id);
+  assert.equal(row?.version, first.version);
+});
