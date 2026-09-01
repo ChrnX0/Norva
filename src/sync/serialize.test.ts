@@ -62,6 +62,20 @@ test('a column the server does not have stays behind', () => {
   assert.equal(write.row.purchase_id, 'p1');
 });
 
+test('who operated beats who synced', () => {
+  // The defect this replaced was quiet: the actor was stamped at sync time, so
+  // a shared cold-room phone that somebody else uploads at night would have
+  // attributed the morning's movements to whoever happened to sync. A ledger
+  // answering "who" with the wrong name is worse than one that says nothing.
+  const operated = serialize(
+    queued('movements'),
+    { id: 'm1', kind: 'adjustment', recorded_by: 'the-one-holding-the-phone' },
+    ACTOR,
+  );
+  if (operated.kind !== 'upsert') throw new Error('expected an upsert');
+  assert.equal(operated.row.recorded_by, 'the-one-holding-the-phone');
+});
+
 test('who did it is stamped on the way out, because the device has no user', () => {
   const movement = serialize(queued('movements'), { id: 'm1', kind: 'purchase' }, ACTOR);
   const purchase = serialize(queued('purchases'), { id: 'p1' }, ACTOR);

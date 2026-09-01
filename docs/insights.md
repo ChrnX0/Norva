@@ -573,3 +573,20 @@ Achados desta rodada que ainda não viraram mudança. Ficam aqui até virarem.
 - **O aparelho ainda não tem consumo nem perda.** A contagem faz o saldo descer,
   mas a perda com motivo obrigatório continua sem existir, e sem ela toda
   diferença legítima vira "inexplicada".
+
+## 1 de setembro — a identidade carimbada na hora errada
+
+**O que apareceu.** O serializador escrevia `recorded_by: actor.userId` — o usuário
+**da sincronização**. Num celular compartilhado (o caso que o dono descreveu: o
+aparelho é da empresa e passa de mão), quem sobe os dados à noite não é quem
+registrou de manhã. O livro-razão responderia "quem" com o nome errado.
+
+**Por que importa.** Errar o "quem" é pior do que não saber: um nome errado no
+histórico é usado para cobrar a pessoa errada, e a equipe que se sente acusada
+sabota o dado — que é exatamente o que o tom de voz do projeto existe para evitar.
+
+**O que mudou.** `movements` ganhou `recorded_by` no aparelho (migração V4),
+preenchido no instante da escrita; o serializador passou a mandar o valor gravado
+e só carimba o ator quando o aparelho não sabia. Nulo virou resposta honesta:
+"o aparelho não sabia", não "ninguém fez". Teste novo e mutação nova — a suíte
+fica vermelha se o carimbo do sync voltar a mandar.

@@ -1,20 +1,47 @@
-$ cd /tmp/claude-0/-home-user-SZG-app/3cd30dd5-15bc-5fda-b553-6d2524a27ce3/scratchpad
-cat > settings-proposto.json <<'JSON'
 {
   "permissions": {
     "defaultMode": "bypassPermissions",
     "allow": [
       "Bash",
-      "Read", "Edit", "MultiEdit", "Write", "NotebookEdit",
-      "Glob", "Grep", "WebFetch", "WebSearch",
-      "Task", "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet",
-      "TaskOutput", "TaskStop", "Skill", "ListSkills", "SearchSkills",
-      "SendUserFile", "PushNotification", "SendMessage", "Monitor",
-      "ScheduleWakeup", "CronCreate", "CronList", "CronDelete",
-      "ListMcpResourcesTool", "ReadMcpResourceTool", "ListConnectors",
-      "mcp__github", "mcp__GitHub",
-      "mcp__Vercel", "mcp__Expo", "mcp__Supabase",
-      "mcp__Claude_Code_Remote", "mcp__Figma", "mcp__GoDaddy"
+      "Read",
+      "Edit",
+      "MultiEdit",
+      "Write",
+      "NotebookEdit",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "Task",
+      "TodoWrite",
+      "TaskCreate",
+      "TaskUpdate",
+      "TaskList",
+      "TaskGet",
+      "TaskOutput",
+      "TaskStop",
+      "Skill",
+      "ListSkills",
+      "SearchSkills",
+      "SendUserFile",
+      "PushNotification",
+      "SendMessage",
+      "Monitor",
+      "ScheduleWakeup",
+      "CronCreate",
+      "CronList",
+      "CronDelete",
+      "ListMcpResourcesTool",
+      "ReadMcpResourceTool",
+      "ListConnectors",
+      "mcp__github",
+      "mcp__GitHub",
+      "mcp__Vercel",
+      "mcp__Expo",
+      "mcp__Supabase",
+      "mcp__Claude_Code_Remote",
+      "mcp__Figma",
+      "mcp__GoDaddy"
     ]
   },
   "hooks": {
@@ -23,48 +50,10 @@ cat > settings-proposto.json <<'JSON'
         "hooks": [
           {
             "type": "command",
-            "command": "[ -n \"$NORVA_INSIGHTS_CHILD\" ] || NORVA_INSIGHTS_CHILD=1 claude -p '/insights' >> \"$HOME/.claude/insights-auto.log\" 2>&1 &",
-            "async": true
+            "command": "[ -n \"$NORVA_INSIGHTS_CHILD\" ] || NORVA_INSIGHTS_CHILD=1 claude -p '/insights' >> \"$HOME/.claude/insights-auto.log\" 2>&1 &"
           }
         ]
       }
     ]
   }
 }
-JSON
-python3 -c "import json; json.load(open('settings-proposto.json')); print('JSON válido')"
-cat settings-proposto.json
-
-JSON válido
-{
-  "permissions": {
-    "defaultMode": "bypassPermissions",
-    "allow": [
-      "Bash",
-      "Read", "Edit", "MultiEdit", "Write", "NotebookEdit",
-      "Glob", "Grep", "WebFetch", "WebSearch",
-      "Task", "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet",
-      "TaskOutput", "TaskStop", "Skill", "ListSkills", "SearchSkills",
-      "SendUserFile", "PushNotification", "SendMessage", "Monitor",
-      "ScheduleWakeup", "CronCreate", "CronList", "CronDelete",
-      "ListMcpResourcesTool", "ReadMcpResourceTool", "ListConnectors",
-      "mcp__github", "mcp__GitHub",
-      "mcp__Vercel", "mcp__Expo", "mcp__Supabase",
-      "mcp__Claude_Code_Remote", "mcp__Figma", "mcp__GoDaddy"
-    ]
-  },
-  "hooks": {
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "[ -n \"$NORVA_INSIGHTS_CHILD\" ] || NORVA_INSIGHTS_CHILD=1 claude -p '/insights' >> \"$HOME/.claude/insights-auto.log\" 2>&1 &",
-            "async": true
-          }
-        ]
-      }
-    ]
-  }
-}
-Shell cwd was reset to /home/user/SZG-app

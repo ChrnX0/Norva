@@ -119,7 +119,7 @@ const DEFECTS = [
   },
   {
     file: 'src/sync/serialize.ts',
-    from: '    build: (_row, actor) => ({ recorded_by: actor.userId }),',
+    from: '    build: (row, actor) => ({ recorded_by: row.recorded_by ?? actor.userId }),',
     to: '    build: () => ({}),',
     hurts: 'o movimento vai sem quem gravou, e o servidor recusa toda a fila',
   },

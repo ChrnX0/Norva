@@ -279,7 +279,24 @@ SELECT l.id, l.company_id, 'purchase', l.created_at, l.created_at, l.item_id, l.
 ALTER TABLE item_costs DROP COLUMN on_hand_base_units;
 `;
 
-const MIGRATIONS: readonly string[] = [V1, V2, V3];
+/**
+ * Quem estava operando, gravado na hora — não na hora de sincronizar.
+ *
+ * O `recorded_by` do servidor era carimbado pelo serializador com o usuário da
+ * sincronização, e isso é uma mentira num aparelho compartilhado: o celular da
+ * câmara fria passa de mão, e quem sincroniza à noite pode não ser quem
+ * registrou de manhã. O livro-razão responderia "quem" com o nome errado, que é
+ * pior do que não responder.
+ *
+ * Então a pessoa entra na linha no instante em que o movimento é escrito. Nulo
+ * enquanto não existe sessão com dono — e nulo é honesto: significa que o
+ * aparelho não sabia, não que ninguém fez.
+ */
+const V4 = `
+ALTER TABLE movements ADD COLUMN recorded_by TEXT;
+`;
+
+const MIGRATIONS: readonly string[] = [V1, V2, V3, V4];
 
 export type SqlParam = string | number | null;
 

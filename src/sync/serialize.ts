@@ -218,7 +218,15 @@ const CROSSINGS: Record<
       'assistant_phrase',
       'note',
     ],
-    build: (_row, actor) => ({ recorded_by: actor.userId }),
+    /**
+     * Quem operou vence quem sincroniza.
+     *
+     * O carimbo do ator só entra quando o aparelho não sabia — que é o caso
+     * enquanto não existe sessão com dono. Assim que existir, o valor gravado na
+     * hora prevalece, e é isso que impede o livro-razão de atribuir a alguém um
+     * movimento que outra pessoa fez com o mesmo celular.
+     */
+    build: (row, actor) => ({ recorded_by: row.recorded_by ?? actor.userId }),
   },
 };
 
