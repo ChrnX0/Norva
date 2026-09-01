@@ -11,10 +11,6 @@ name: Compilar o APK
 
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag do release onde anexar'
-        default: 'apk-0.1.0'
 
 permissions:
   contents: write
@@ -89,8 +85,16 @@ jobs:
       - name: Anexar ao release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
         run: |
+          # A tag sai do app.json, e nunca de um texto escrito à mão.
+          #
+          # Era fixa em `apk-0.1.0`, então o release seguia dizendo 0.1.0
+          # enquanto o conteúdo mudava - e do celular isso é indistinguível da
+          # primeira versão. Quem baixa não lê o diff; lê o título.
+          VERSION="$(node -p "require('./app.json').expo.version")"
+          TAG="apk-$VERSION"
+          echo "publicando $TAG"
+
           gh release upload "$TAG" norva-arm64.apk --clobber
 
           # A pagina tem de dizer o que carrega. Trocar o arquivo sem trocar o

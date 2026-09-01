@@ -6,7 +6,7 @@
 # download bruto, e navegador de celular desiste disso em silêncio. Por isso o
 # release: endereço estável, que o Android trata como download normal.
 #
-# apk-0.1.0 · build f2f18c23-3d9f-4cce-a395-603b8358969c · commit 5703790
+# apk-0.2.0 · build f2f18c23-3d9f-4cce-a395-603b8358969c · commit 5703790
 # 65 commits à frente do APK anterior. runtimeVersion mudou (7e964c8 contra
 # 2b936c01), então quem tem o antigo instalado precisa instalar por cima — não
 # chega por atualização automática.

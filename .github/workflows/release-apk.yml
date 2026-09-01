@@ -35,7 +35,9 @@ jobs:
         run: |
           # Primeira linha não vazia que não é comentário: a URL do artefato.
           URL="$(grep -vE '^\s*(#|$)' .github/apk-release.txt | head -1)"
-          TAG="$(grep -oE 'apk-[0-9]+\.[0-9]+\.[0-9]+' .github/apk-release.txt | head -1)"
+          # A versão manda, não o comentário do arquivo: uma tag escrita à mão
+          # envelhece calada e o release passa a mentir sobre o que carrega.
+          TAG="apk-$(node -p "require('./app.json').expo.version")"
           [ -n "$URL" ] || { echo "sem URL em .github/apk-release.txt"; exit 1; }
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG:-apk-${{ github.run_number }}}" >> "$GITHUB_OUTPUT"
