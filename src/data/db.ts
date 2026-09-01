@@ -182,7 +182,104 @@ const V2 = `
 ALTER TABLE outbox ADD COLUMN op TEXT NOT NULL DEFAULT 'upsert';
 `;
 
-const MIGRATIONS: readonly string[] = [V1, V2];
+/**
+ * The ledger arrives on the device, where it should have been from the start.
+ *
+ * Foundation 1 of this project says there is no `estoque_atual` column and that
+ * a balance is the sum of its movements. The server schema honoured that; this
+ * database did not. It carried `item_costs.on_hand_base_units`, an integer
+ * updated in place by every purchase - which is precisely the column the
+ * foundation forbids, wearing a longer name. Nothing was wrong with the
+ * arithmetic. What was wrong is that the number had no history, so it could
+ * never be audited, corrected by reversal, or replayed after a sync - and those
+ * three properties are the entire reason the rule exists.
+ *
+ * The backfill matters as much as the table. A phone already holding invoices
+ * must come out of this migration with the same balance it went in with, so
+ * every purchase line becomes the movement that line always was, keeping its
+ * own id: replaying the step twice cannot double a balance.
+ *
+ * Only then does the column go. Leaving it would leave the trap - a tempting,
+ * cheap-looking number sitting one autocomplete away from the correct one.
+ *
+ * The column names are the server's, down to `quantity_base_units`, because
+ * this file's first promise is that the device mirrors the server rather than
+ * inventing a second shape. The first draft of this table did invent one -
+ * shorter names, an extra column - which reads as tidier and would have meant
+ * a translation layer between two schemas that must stay identical for an
+ * offline queue to replay at all.
+ *
+ * A purchase movement keeps its purchase line's id. They are one fact seen
+ * twice, so sharing the id makes the link free and makes a replay idempotent
+ * without a column to hold it.
+ */
+const V3 = `
+CREATE TABLE IF NOT EXISTS locations (
+  id         TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  name       TEXT NOT NULL,
+  kind       TEXT NOT NULL DEFAULT 'storeroom',
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS movements (
+  id                   TEXT PRIMARY KEY,
+  company_id           TEXT NOT NULL,
+  kind                 TEXT NOT NULL,
+  -- When it happened in the world, not when it reached the server.
+  occurred_at          TEXT NOT NULL,
+  recorded_at          TEXT NOT NULL,
+  item_id              TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+  -- Signed, always the smallest unit: positive arrives, negative leaves.
+  quantity_base_units  INTEGER NOT NULL,
+  location_id          TEXT NOT NULL REFERENCES locations(id) ON DELETE RESTRICT,
+  lot_id               TEXT,
+  loss_reason          TEXT,
+  -- Fractional cents per base unit, frozen at this instant. A sugar price
+  -- change in March must not rewrite what January cost. A rate, never money,
+  -- so it is never rounded.
+  unit_cost_rate       REAL,
+  -- Deferred on purpose. RESTRICT fires row by row, so wiping the table would
+  -- trip over its own rows: the reversal is still there when the movement it
+  -- cancels goes. Checked at commit instead, the pair leaves together or the
+  -- whole erase rolls back.
+  reverses_movement_id TEXT REFERENCES movements(id) DEFERRABLE INITIALLY DEFERRED,
+  assistant_phrase     TEXT,
+  note                 TEXT
+);
+
+CREATE INDEX IF NOT EXISTS movements_balance_idx
+  ON movements (company_id, item_id, location_id, occurred_at);
+
+-- One place to keep things, for a company that has not been asked to name any.
+-- Its id is the company's own: deterministic, so two phones creating the
+-- default at the same moment create the same row instead of two.
+--
+-- The name is left empty on purpose rather than written here in Portuguese.
+-- This app puts every word a person reads in the dictionary, and a default
+-- that ships as one language would be the single string that escaped. An
+-- unnamed location means "the one place", and the interface is what names it.
+INSERT OR IGNORE INTO locations (id, company_id, name, kind, created_at)
+SELECT company_id, company_id, '', 'storeroom', MIN(created_at)
+  FROM items GROUP BY company_id;
+
+INSERT OR IGNORE INTO movements
+  (id, company_id, kind, occurred_at, recorded_at, item_id, quantity_base_units,
+   location_id, unit_cost_rate)
+SELECT l.id, l.company_id, 'purchase', l.created_at, l.created_at, l.item_id, l.base_units,
+       l.company_id,
+       -- The same arithmetic rateFromCents does: cents over base units. Both
+       -- sides are already in their smallest unit, so nothing is converted and
+       -- nothing is rounded - a rate is not money.
+       CASE WHEN l.base_units > 0
+            THEN CAST(l.total_cents AS REAL) / l.base_units
+       END
+  FROM purchase_lines l;
+
+ALTER TABLE item_costs DROP COLUMN on_hand_base_units;
+`;
+
+const MIGRATIONS: readonly string[] = [V1, V2, V3];
 
 export type SqlParam = string | number | null;
 
@@ -262,6 +359,14 @@ export async function migrate(conn: Db): Promise<number> {
 
   return MIGRATIONS.length;
 }
+
+/**
+ * Test seam: lets a test stand a database up at an older version deliberately,
+ * so the upgrade path is exercised rather than assumed. A migration is only
+ * ever run once on a real phone, which makes it the one piece of code where a
+ * mistake is unreachable by every other test.
+ */
+export const migrationSteps: readonly string[] = MIGRATIONS;
 
 /** How many steps exist, so a test can assert it moved. */
 export const schemaVersion = MIGRATIONS.length;

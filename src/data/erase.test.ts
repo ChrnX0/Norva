@@ -24,6 +24,7 @@ import {
  * here so the test fails if the delete order and the schema ever disagree.
  */
 const DEPENDS_ON: Record<ErasableTable, readonly ErasableTable[]> = {
+  movements: ['items'],
   purchase_lines: ['purchases', 'items'],
   purchases: [],
   products: ['items', 'recipes'],

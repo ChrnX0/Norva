@@ -1,5 +1,5 @@
 import { applyCostEvent, type StockCostState } from '@/domain/cost';
-import { cents, rate, type Cents, type Rate } from '@/domain/money';
+import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
 import type { ItemCosts, Recipe, RecipeLine } from '@/domain/recipe';
 import type { PackagingHierarchy } from '@/domain/units';
 import { db, newId, nowIso, type Db } from './db';
@@ -79,7 +79,10 @@ export async function listItems(
     on_hand_base_units: number | null;
   }>(
     `SELECT i.id, i.kind, i.name, i.purchase_unit, i.purchase_to_base, i.base_unit, i.packaging,
-            i.active, c.average_rate, c.last_rate, c.on_hand_base_units
+            i.active, c.average_rate, c.last_rate,
+            (SELECT COALESCE(SUM(m.quantity_base_units), 0) FROM movements m
+              WHERE m.company_id = i.company_id AND m.item_id = i.id)
+              AS on_hand_base_units
        FROM items i
        LEFT JOIN item_costs c ON c.item_id = i.id
       WHERE i.company_id = ?
@@ -194,13 +197,23 @@ export async function recordPurchase(
   const conn = await db();
   const at = nowIso();
 
-  const current = await conn.getFirstAsync<{
-    average_rate: number;
-    on_hand_base_units: number;
-  }>(`SELECT average_rate, on_hand_base_units FROM item_costs WHERE item_id = ?`, [input.itemId]);
+  const current = await conn.getFirstAsync<{ average_rate: number }>(
+    `SELECT average_rate FROM item_costs WHERE item_id = ?`,
+    [input.itemId],
+  );
+
+  // How much is on hand is a question for the ledger, never for a stored
+  // total. The moving average needs the quantity it is averaging over, and
+  // taking it from the movements is what keeps the cost and the balance
+  // answering to one history instead of drifting apart.
+  const held = await conn.getFirstAsync<{ base_units: number }>(
+    `SELECT COALESCE(SUM(quantity_base_units), 0) AS base_units
+       FROM movements WHERE company_id = ? AND item_id = ?`,
+    [companyId, input.itemId],
+  );
 
   const before: StockCostState = {
-    baseUnits: current?.on_hand_base_units ?? 0,
+    baseUnits: held?.base_units ?? 0,
     averageRate: (current?.average_rate ?? 0) as Rate,
   };
 
@@ -216,8 +229,15 @@ export async function recordPurchase(
   // purchase that recorded its invoice and not its cost would leave a price
   // history with a hole in it that nothing could reconstruct.
   const purchaseId = newId();
+  // The line and the movement it causes share one id, because they are one
+  // fact seen twice. Replaying the queue cannot post the arrival again.
+  const lineId = newId();
 
   await conn.withTransactionAsync(async () => {
+    // Inside the transaction: a place that exists only because a purchase was
+    // attempted, and the purchase then failed, would be a row nobody asked for.
+    const locationId = await ensureLocation(conn, companyId);
+
     await conn.runAsync(
       `INSERT INTO purchases (id, company_id, supplier_name, ordered_at, received_at, created_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -229,7 +249,7 @@ export async function recordPurchase(
                                    base_units, total_cents, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        newId(),
+        lineId,
         companyId,
         purchaseId,
         input.itemId,
@@ -242,15 +262,23 @@ export async function recordPurchase(
 
     const lineRate = rate(input.totalCents / 100, input.baseUnits);
 
+    // The arrival itself, in the ledger, with what it cost frozen onto it. A
+    // sugar price change in March must not rewrite what January cost.
     await conn.runAsync(
-      `INSERT INTO item_costs (item_id, company_id, average_rate, last_rate, on_hand_base_units, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
+                              quantity_base_units, location_id, unit_cost_rate)
+       VALUES (?, ?, 'purchase', ?, ?, ?, ?, ?, ?)`,
+      [lineId, companyId, at, at, input.itemId, input.baseUnits, locationId, lineRate],
+    );
+
+    await conn.runAsync(
+      `INSERT INTO item_costs (item_id, company_id, average_rate, last_rate, updated_at)
+       VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(item_id) DO UPDATE SET
          average_rate = excluded.average_rate,
          last_rate = excluded.last_rate,
-         on_hand_base_units = excluded.on_hand_base_units,
          updated_at = excluded.updated_at`,
-      [input.itemId, companyId, after.averageRate, lineRate, after.baseUnits, at],
+      [input.itemId, companyId, after.averageRate, lineRate, at],
     );
 
     await conn.runAsync(
@@ -261,6 +289,7 @@ export async function recordPurchase(
 
     await enqueue(conn, [
       { table: 'purchases', rowId: purchaseId },
+      { table: 'movements', rowId: lineId },
       { table: 'item_costs', rowId: input.itemId },
     ]);
   });
@@ -269,6 +298,178 @@ export async function recordPurchase(
     previousRate: before.averageRate > 0 ? before.averageRate : null,
     newRate: after.averageRate,
   };
+}
+
+// --- counting what is really on the shelf ------------------------------------
+
+export type CountResult = {
+  /** What the ledger believed before anybody walked to the shelf. */
+  expectedBaseUnits: number;
+  countedBaseUnits: number;
+  /** Signed. Negative means less was there than the ledger thought. */
+  deltaBaseUnits: number;
+  /** What that difference is worth, at the item's average cost. */
+  deltaCents: Cents;
+};
+
+export type MovementRow = {
+  id: string;
+  kind: string;
+  /** Signed, in base units: positive arrived, negative left. */
+  baseUnits: number;
+  /** What one base unit was worth when it moved, frozen. */
+  unitCostRate: Rate | null;
+  note: string | null;
+  occurredAt: string;
+};
+
+/**
+ * The company's one place to keep things, created the first time something
+ * moves.
+ *
+ * A movement has to happen somewhere. That is not ceremony: it is what makes
+ * "how much is in the cold room" answerable later without going back and
+ * rewriting history that was recorded without a place. Phase 1 has a single
+ * storeroom and no screen to name a second, so the default carries the
+ * company's own id - deterministic, so two phones that create it in the same
+ * minute create one row rather than two.
+ */
+async function ensureLocation(conn: Db, companyId: string): Promise<string> {
+  const existing = await conn.getFirstAsync<{ id: string }>(
+    `SELECT id FROM locations WHERE id = ?`,
+    [companyId],
+  );
+  if (existing) return existing.id;
+
+  await conn.runAsync(
+    `INSERT INTO locations (id, company_id, name, kind, created_at)
+     VALUES (?, ?, '', 'storeroom', ?)`,
+    [companyId, companyId, nowIso()],
+  );
+  // It has to reach the server before the movement that stands on it does, or
+  // the first sync fails a foreign key on a row nobody knew was missing. It
+  // queues once, on the day the first thing moves, and never again.
+  await enqueue(conn, [{ table: 'locations', rowId: companyId }]);
+
+  return companyId;
+}
+
+/**
+ * Records a physical count.
+ *
+ * Until this existed a balance in this app could only rise. Purchases added and
+ * nothing ever took away, so "how much sugar do I have" was right exactly once,
+ * on the morning the sack arrived. A storeroom number that only grows is worse
+ * than no number at all, because people believe it.
+ *
+ * The count does not overwrite the balance - nothing here overwrites a balance.
+ * It appends the difference as its own movement, so the shelf and the ledger
+ * agree from this moment on while the disagreement stays on the record. That is
+ * what turns "we keep losing sugar" from a feeling into a question the data can
+ * answer.
+ *
+ * A count that finds exactly what was expected is written too, with a
+ * difference of zero. Somebody looked, and the storeroom was right: that is
+ * information. Discarding it would leave a shelf nobody has checked in months
+ * indistinguishable from one verified this morning.
+ */
+export async function recordCount(
+  companyId: string,
+  input: {
+    itemId: string;
+    countedBaseUnits: number;
+    note?: string;
+    /** Defaults to now. A count written on paper in a cold room keeps its hour. */
+    occurredAt?: string;
+  },
+): Promise<CountResult> {
+  const conn = await db();
+  const at = nowIso();
+
+  const held = await conn.getFirstAsync<{ base_units: number }>(
+    `SELECT COALESCE(SUM(quantity_base_units), 0) AS base_units
+       FROM movements WHERE company_id = ? AND item_id = ?`,
+    [companyId, input.itemId],
+  );
+  const cost = await conn.getFirstAsync<{ average_rate: number }>(
+    `SELECT average_rate FROM item_costs WHERE item_id = ?`,
+    [input.itemId],
+  );
+
+  const expected = held?.base_units ?? 0;
+  const counted = Math.round(input.countedBaseUnits);
+  const averageRate = (cost?.average_rate ?? 0) as Rate;
+  const delta = counted - expected;
+
+  const id = newId();
+
+  await conn.withTransactionAsync(async () => {
+    const locationId = await ensureLocation(conn, companyId);
+
+    await conn.runAsync(
+      `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
+                              quantity_base_units, location_id, unit_cost_rate, note)
+       VALUES (?, ?, 'adjustment', ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        companyId,
+        input.occurredAt ?? at,
+        at,
+        input.itemId,
+        delta,
+        locationId,
+        averageRate || null,
+        input.note ?? null,
+      ],
+    );
+    await enqueue(conn, [{ table: 'movements', rowId: id }]);
+  });
+
+  return {
+    expectedBaseUnits: expected,
+    countedBaseUnits: counted,
+    deltaBaseUnits: delta,
+    deltaCents: amountOf(averageRate, delta),
+  };
+}
+
+/**
+ * The movements behind one item's balance, newest first.
+ *
+ * This is the `[por quê?]` of a stock figure. A number the person cannot open
+ * is a number they have to take on faith, and faith is exactly what an app
+ * asking someone to change how they run their factory has not earned yet.
+ */
+export async function itemMovements(
+  companyId: string,
+  itemId: string,
+  limit = 20,
+): Promise<MovementRow[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    id: string;
+    kind: string;
+    quantity_base_units: number;
+    unit_cost_rate: number | null;
+    note: string | null;
+    occurred_at: string;
+  }>(
+    `SELECT id, kind, quantity_base_units, unit_cost_rate, note, occurred_at
+       FROM movements
+      WHERE company_id = ? AND item_id = ?
+      ORDER BY occurred_at DESC, rowid DESC
+      LIMIT ?`,
+    [companyId, itemId, limit],
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    baseUnits: r.quantity_base_units,
+    unitCostRate: r.unit_cost_rate === null ? null : (r.unit_cost_rate as Rate),
+    note: r.note,
+    occurredAt: r.occurred_at,
+  }));
 }
 
 // --- recipes ----------------------------------------------------------------

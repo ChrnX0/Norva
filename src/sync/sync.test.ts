@@ -91,7 +91,15 @@ test('every write queues itself, and nothing writes without queueing', async () 
 
   assert.deepEqual(tables, [
     'items',
+    // The place the stock arrives at, queued the one time it is created - and
+    // ahead of the movement that stands on it, which is what stops the first
+    // sync failing a foreign key.
+    'locations',
     'purchases',
+    // The arrival in the ledger. It queues beside the invoice rather than being
+    // recomputed on the server: a movement written in a freezer with no signal
+    // has to reach the server as the record it already is.
+    'movements',
     'item_costs',
     'recipes',
     'recipe_versions',

@@ -30,6 +30,7 @@ export type EraseArea = 'purchases' | 'recipes' | 'products' | 'inputs' | 'all';
  * reviewer remembering to look.
  */
 export type ErasableTable =
+  | 'movements'
   | 'purchase_lines'
   | 'purchases'
   | 'products'
@@ -75,19 +76,27 @@ export const emptyCounts: EraseCounts = {
  * invoices no longer exist is a number nobody can audit, and this app's whole
  * claim is that every figure can open its own arithmetic. Better an honest
  * zero than an orphan.
+ *
+ * It takes `movements` for the same reason, and the reason is worth stating
+ * because the rule looks too broad at first glance. A count says "the shelf
+ * held 300 g less than the ledger expected" - it stores the difference, not the
+ * quantity. Delete the arrivals that difference was measured against and what
+ * is left is arithmetic about nothing. An adjustment cannot outlive the
+ * balance it adjusted.
  */
 export function tablesFor(area: EraseArea): readonly ErasableTable[] {
   switch (area) {
     case 'purchases':
-      return ['purchase_lines', 'purchases', 'item_cost_history', 'item_costs'];
+      return ['movements', 'purchase_lines', 'purchases', 'item_cost_history', 'item_costs'];
     case 'recipes':
       return ['recipe_lines', 'recipe_versions', 'recipes'];
     case 'products':
       return ['products'];
     case 'inputs':
-      return ['item_cost_history', 'item_costs', 'items'];
+      return ['movements', 'item_cost_history', 'item_costs', 'items'];
     case 'all':
       return [
+        'movements',
         'purchase_lines',
         'purchases',
         'products',

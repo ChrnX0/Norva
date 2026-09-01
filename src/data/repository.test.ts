@@ -3,7 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { beforeEach, test } from 'node:test';
 import { fromDecimal, rate } from '@/domain/money';
 import { costRecipe } from '@/domain/recipe';
-import { __setDb, migrate, type Db, type SqlParam } from './db';
+import { __setDb, migrate, migrationSteps, type Db, type SqlParam } from './db';
 import {
   countForErase,
   eraseArea,
@@ -11,9 +11,11 @@ import {
   labels,
   listItems,
   listProducts,
+  itemMovements,
   listRecipes,
   loadRecipeGraph,
   recentCostChanges,
+  recordCount,
   recordPurchase,
   saveItem,
   saveProduct,
@@ -69,12 +71,16 @@ function inMemoryDb(): Db {
 
 const CO = LOCAL_COMPANY_ID;
 
+/** Kept so a test can ask the schema about itself, not just the data. */
+let live: Db;
+
 beforeEach(async () => {
   const conn = inMemoryDb();
   // The same runner the phone uses on launch, so the tests exercise the
   // migration path rather than a schema written out a second time.
   await migrate(conn);
   __setDb(conn);
+  live = conn;
 });
 
 const loose = { tiers: [{ id: 'unit', perBaseUnit: 1 }] };
@@ -317,4 +323,151 @@ test('a product is an item too, and saving one creates both', async () => {
   // It does not show up among the things you buy.
   const inputs = await listItems(CO, 'input');
   assert.equal(inputs.length, 0);
+});
+
+/**
+ * The ledger, which is foundation 1 of this project and was for a while the one
+ * foundation the device did not have.
+ *
+ * These tests exist because the violation was invisible: the arithmetic was
+ * right, the screens showed sensible numbers, and every test passed. What was
+ * missing could only be seen by asking where the number came from.
+ */
+
+test('the stock figure is the sum of movements, and the tempting column is gone', async () => {
+  const sugar = await anInput('Açúcar cristal', 25_000);
+
+  await recordPurchase(CO, {
+    itemId: sugar,
+    purchaseQuantity: 4,
+    baseUnits: 100_000,
+    totalCents: fromDecimal(472),
+  });
+
+  const moves = await itemMovements(CO, sugar);
+  assert.equal(moves.length, 1, 'the arrival is on the record, not only in a total');
+  assert.equal(moves[0].kind, 'purchase');
+  assert.equal(moves[0].baseUnits, 100_000);
+
+  const [item] = await listItems(CO);
+  assert.equal(item.onHandBaseUnits, 100_000);
+
+  // The point of the whole change: there is no longer a stored total to drift
+  // away from the history. If this column ever comes back, so does the bug.
+  const columns = await live.getAllAsync<{ name: string }>('PRAGMA table_info(item_costs)');
+  assert.ok(
+    !columns.some((c) => c.name === 'on_hand_base_units'),
+    'a mutable stock column is exactly what foundation 1 forbids',
+  );
+});
+
+test('a count can take stock down - which nothing in this app could do before', async () => {
+  const sugar = await anInput('Açúcar cristal', 25_000);
+  await recordPurchase(CO, {
+    itemId: sugar,
+    purchaseQuantity: 4,
+    baseUnits: 100_000,
+    totalCents: fromDecimal(472),
+  });
+
+  // Somebody walks to the shelf and finds 92 kg where the ledger expected 100.
+  const result = await recordCount(CO, { itemId: sugar, countedBaseUnits: 92_000 });
+
+  assert.equal(result.expectedBaseUnits, 100_000);
+  assert.equal(result.countedBaseUnits, 92_000);
+  assert.equal(result.deltaBaseUnits, -8_000);
+  // 8 kg missing, at 0,472 cents per gram: 8000 x 0.472 = 3776 cents, R$ 37,76
+  // walked out of the storeroom without an invoice.
+  assert.equal(result.deltaCents, -3_776);
+
+  const [item] = await listItems(CO);
+  assert.equal(item.onHandBaseUnits, 92_000, 'the shelf and the ledger now agree');
+
+  // And the disagreement itself is still there to be asked about later.
+  const moves = await itemMovements(CO, sugar);
+  assert.equal(moves.length, 2);
+  // 'adjustment' is the ledger's own word for a physical count correction, so
+  // the count needs no column of its own to say what it was.
+  assert.equal(moves[0].kind, 'adjustment');
+  assert.equal(moves[0].baseUnits, -8_000);
+});
+
+test('a count that finds exactly what was expected is still written down', async () => {
+  const sugar = await anInput('Açúcar cristal', 25_000);
+  await recordPurchase(CO, {
+    itemId: sugar,
+    purchaseQuantity: 1,
+    baseUnits: 25_000,
+    totalCents: fromDecimal(118),
+  });
+
+  const result = await recordCount(CO, { itemId: sugar, countedBaseUnits: 25_000 });
+  assert.equal(result.deltaBaseUnits, 0);
+
+  // A shelf nobody has looked at in months must not read the same as one
+  // somebody verified this morning.
+  const moves = await itemMovements(CO, sugar);
+  assert.equal(moves.length, 2);
+  assert.equal(moves[0].kind, 'adjustment');
+  assert.equal(moves[0].baseUnits, 0, 'nothing moved, and that is the finding');
+});
+
+test('a phone that already holds invoices keeps its balance through the upgrade', async () => {
+  const conn = inMemoryDb();
+
+  // Stand the database up at the version before the ledger existed - the state
+  // every phone already carrying data is in.
+  await conn.execAsync(migrationSteps[0]);
+  await conn.execAsync(migrationSteps[1]);
+  await conn.execAsync('PRAGMA user_version = 2');
+
+  await conn.runAsync(
+    `INSERT INTO items (id, company_id, kind, name, base_unit, created_at)
+     VALUES ('i1', ?, 'input', 'Açúcar cristal', 'g', '2026-01-01T00:00:00.000Z')`,
+    [CO],
+  );
+  await conn.runAsync(
+    `INSERT INTO purchases (id, company_id, created_at)
+     VALUES ('p1', ?, '2026-01-02T00:00:00.000Z')`,
+    [CO],
+  );
+  await conn.runAsync(
+    `INSERT INTO purchase_lines (id, company_id, purchase_id, item_id, purchase_quantity,
+                                 base_units, total_cents, created_at)
+     VALUES ('l1', ?, 'p1', 'i1', 4, 100000, 47200, '2026-01-02T00:00:00.000Z')`,
+    [CO],
+  );
+  await conn.runAsync(
+    `INSERT INTO item_costs (item_id, company_id, average_rate, last_rate,
+                             on_hand_base_units, updated_at)
+     VALUES ('i1', ?, 0.472, 0.472, 100000, '2026-01-02T00:00:00.000Z')`,
+    [CO],
+  );
+
+  await migrate(conn);
+
+  const held = await conn.getFirstAsync<{ total: number }>(
+    `SELECT COALESCE(SUM(quantity_base_units), 0) AS total
+       FROM movements WHERE item_id = 'i1'`,
+  );
+  assert.equal(held?.total, 100_000, 'the balance survived the upgrade unchanged');
+
+  const move = await conn.getFirstAsync<{ id: string; kind: string; unit_cost_rate: number }>(
+    `SELECT id, kind, unit_cost_rate FROM movements WHERE item_id = 'i1'`,
+  );
+  assert.equal(move?.id, 'l1', 'the line keeps its identity, so a replay cannot double it');
+  assert.equal(move?.kind, 'purchase');
+  assert.ok(
+    Math.abs((move?.unit_cost_rate ?? 0) - 0.472) < 1e-9,
+    'and what it cost came with it',
+  );
+
+  // Running the whole thing again must be a no-op, because a phone that dies
+  // mid-upgrade will come back and try.
+  await migrate(conn);
+  const again = await conn.getFirstAsync<{ total: number }>(
+    `SELECT COALESCE(SUM(quantity_base_units), 0) AS total
+       FROM movements WHERE item_id = 'i1'`,
+  );
+  assert.equal(again?.total, 100_000, 'the backfill did not run twice');
 });
