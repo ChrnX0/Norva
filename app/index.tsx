@@ -113,7 +113,13 @@ function Briefing() {
 
   return (
     <CollapsingHeader title={brand.name} overline={t.app.home.overline}>
-      {data?.products.map((product) => (
+      {data?.products.map((product) => {
+        // Law 3's comparison decides the pulse too: this product's cost moved
+        // with the recent invoices, so the number beside the dot is genuinely
+        // news. The ones that did not move show the same dot, still.
+        const before = product.unitCentsBefore;
+        const moved = before !== null && before !== product.unitCents;
+        return (
         <Pressable
           key={product.id}
           onPress={() =>
@@ -125,7 +131,7 @@ function Briefing() {
         >
           <Card tone="area">
             <View style={[styles.row, { gap: space.sm }]}>
-              <PulseDot />
+              <PulseDot live={moved} />
               <Text style={[type.cardTitle, { color: color.ink, flex: 1 }]} numberOfLines={1}>
                 {product.name}
               </Text>
@@ -142,26 +148,24 @@ function Briefing() {
             {/* Law 3: no number appears alone. 55 cents is neither good nor bad
                 until it sits beside what it was, and the history that answers
                 that was already being written by every invoice. */}
-            {product.unitCentsBefore !== null &&
-            product.unitCentsBefore !== product.unitCents ? (
+            {moved ? (
               <View style={{ marginTop: space.md, gap: space.xs }}>
                 <Chip
-                  signal={product.unitCents > product.unitCentsBefore ? 'warning' : 'ok'}
-                  label={`${product.unitCents > product.unitCentsBefore ? '▲' : '▼'} ${formatMoney(
-                    Math.abs(product.unitCents - product.unitCentsBefore),
+                  signal={product.unitCents > before ? 'warning' : 'ok'}
+                  label={`${product.unitCents > before ? '▲' : '▼'} ${formatMoney(
+                    Math.abs(product.unitCents - before),
                     locale,
                   )}`}
                 />
                 <Text style={[type.caption, { color: color.inkFaint }]}>
-                  {fill(t.app.home.costWas, {
-                    before: formatMoney(product.unitCentsBefore, locale),
-                  })}
+                  {fill(t.app.home.costWas, { before: formatMoney(before, locale) })}
                 </Text>
               </View>
             ) : null}
           </Card>
         </Pressable>
-      ))}
+        );
+      })}
 
       <Card tone={moved.length > 0 ? 'warning' : 'area'}>
         <Text style={[type.cardTitle, { color: color.ink }]}>

@@ -130,6 +130,36 @@ check('a product says how many units a batch makes, in one language', async (pag
   assert.doesNotMatch(text, /\bcrate\b|\bboxes\b|\bunits\b/, 'no English leaking through');
 });
 
+check('the recipe list opens on a deep link and shows the seeded sheets', async (page) => {
+  // Linked from home and never driven until now. The scar that created this
+  // suite was routes that opened on an empty database - two were still
+  // unexercised, and an unexercised route is the one that greets somebody with
+  // "nothing here yet" the first time they tap it.
+  await page.goto(`http://localhost:${PORT}/recipes`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const text = await screen(page);
+  assert.match(text, /Base de creme/, 'the sub-recipe is there');
+  assert.match(text, /Picolé de morango/);
+  assert.doesNotMatch(text, /Nada cadastrado ainda/);
+});
+
+check('settings counts what erasing would take, in Portuguese', async (page) => {
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const text = await screen(page);
+  // The confirmation has to say what disappears with the real count - "confirm
+  // deletion?" is what a person clicks through without reading.
+  assert.match(text, /O que está guardado/);
+  assert.match(text, /Insumos/);
+  // The seed marker is read, not guessed: this line only appears when the flag
+  // written by the seeder is still in app_meta, which is what stops the example
+  // from creeping back after somebody wipes everything.
+  assert.match(text, /Inclui os dados de exemplo/);
+  assert.doesNotMatch(text, /\bDelete\b|\bSettings\b|\bErase\b/, 'no English leaking through');
+});
+
 check('the assistant answers with the number the engine computed', async (page) => {
   await page.goto(`http://localhost:${PORT}/assistant`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
