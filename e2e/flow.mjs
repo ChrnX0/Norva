@@ -28,7 +28,20 @@ const ROOT = join(process.cwd(), 'dist');
  * `npx playwright install chromium` provides on a fresh machine. Set
  * E2E_CHROMIUM to point at a browser that is already on disk.
  */
-const BROWSER = process.env.E2E_CHROMIUM;
+/**
+ * Which Chromium to drive.
+ *
+ * `playwright-core` looks for the exact build its version pins, which is a
+ * download this machine is not allowed to make. Every environment that runs
+ * this suite already has a browser; it is just not the numbered one. So: the
+ * env var wins, then the well-known symlink these images ship, and only then
+ * Playwright's own guess. Without this the suite fails with a message about
+ * installing browsers, which reads like a broken test rather than a missing
+ * path - and a suite that looks broken is a suite people stop running.
+ */
+const BROWSER =
+  process.env.E2E_CHROMIUM ??
+  (existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined);
 
 const TYPES = {
   '.html': 'text/html',
@@ -173,6 +186,44 @@ check('an invoice warns before it is committed, then moves everything', async (p
   assert.match(history, /Picolé de morango/, 'and it says which recipe stands on it');
 });
 
+check('counting is blind, and it is the only way stock goes down', async (page) => {
+  await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Açúcar cristal').first().click();
+  await page.waitForTimeout(2000);
+
+  // Two sacks of 25 kg arrived on the first launch, and nothing has left.
+  const before = await screen(page);
+  assert.match(before, /50\.000 g/);
+
+  await page.getByText('Conferir estoque', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+
+  // The rule this app set itself: with the expected number on screen, the
+  // person confirms the screen instead of the shelf.
+  const blind = await screen(page);
+  assert.ok(!/50\.000 g/.test(blind), 'the expected quantity was still visible while counting');
+  assert.match(blind, /escondido enquanto você conta/);
+
+  await page.getByLabel('Quanto tem de verdade').fill('46000');
+  await page.getByText('Registrar a contagem', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+
+  // The whole comparison, in words, before anything is written.
+  const asking = await screen(page);
+  assert.match(asking, /Você contou 46\.000 g/);
+  assert.match(asking, /esperava 50\.000 g/);
+  assert.match(asking, /faltando 4\.000 g, que valem R\$ 18,88/);
+  assert.match(asking, /nada é apagado/);
+
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await page.waitForTimeout(2000);
+
+  const after = await screen(page);
+  assert.match(after, /46\.000 g/, 'the shelf and the ledger should now agree');
+  assert.match(after, /conferido em/);
+});
+
 check('a name can be corrected without moving the money', async (page) => {
   await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
@@ -242,9 +293,16 @@ check('erasing refuses in an order, and explains the way out', async (page) => {
 const server = serve();
 
 try {
-  if (!existsSync(ROOT)) {
+  // Rebuilt every run unless somebody explicitly asks to reuse the last one.
+  //
+  // This used to skip the export whenever `dist` existed, which meant a change
+  // to a screen was tested against yesterday's bundle. The suite went green for
+  // a screen that did not contain the change - the worst failure a test can
+  // have, because it looks exactly like success. Reuse is now a choice made out
+  // loud, for the case it was really for: iterating on the checks themselves.
+  if (!existsSync(ROOT) || !process.env.E2E_REUSE_BUILD) {
     console.log('› exportando a versão web');
-    await run('npx', ['expo', 'export', '--platform', 'web']);
+    await run('npx', ['expo', 'export', '--platform', 'web', '--clear']);
   }
 
   await new Promise((resolve) => server.listen(PORT, resolve));
