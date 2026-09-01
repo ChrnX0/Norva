@@ -9,29 +9,20 @@ name: Publicar o APK
 #
 # O arquivo não pode ir num commit: o GitHub recusa acima de 100 MiB. Como
 # anexo de release ele cabe (o limite lá é 2 GB), e quem baixa é o runner, não
-# esta sessão - o binário nunca entra no histórico do repositório.
+# o repositório - o binário nunca entra no histórico.
 #
-# Dispara de dois jeitos:
-#   - empurrando uma tag `apk-*` (usa o build abaixo)
-#   - manualmente, informando a URL de outro build
+# O gatilho é o próprio pedido: mexer em `.github/apk-release.txt`, que contém a
+# URL do build a publicar. Uma tag seria mais natural, e não está disponível
+# para quem escreve isto aqui - o push de tag volta 403.
 
 on:
-  push:
-    tags:
-      - 'apk-*'
+  pull_request:
+    paths:
+      - '.github/apk-release.txt'
   workflow_dispatch:
-    inputs:
-      apkUrl:
-        description: 'URL do artefato .apk na Expo'
-        required: false
-        type: string
 
 permissions:
   contents: write
-
-env:
-  # Build fd07c9df-72e2-41f5-9425-0ebf41bc802b, commit 63269a1, canal preview.
-  DEFAULT_APK_URL: https://expo.dev/artifacts/eas/4Td1bK5KC1_zKPbB9Nu9Ue50iL_SAzKA-pWj9vXG-f8.apk
 
 jobs:
   publish:
@@ -39,14 +30,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Ler o pedido
+        id: request
+        run: |
+          # Primeira linha não vazia que não é comentário: a URL do artefato.
+          URL="$(grep -vE '^\s*(#|$)' .github/apk-release.txt | head -1)"
+          TAG="$(grep -oE 'apk-[0-9]+\.[0-9]+\.[0-9]+' .github/apk-release.txt | head -1)"
+          [ -n "$URL" ] || { echo "sem URL em .github/apk-release.txt"; exit 1; }
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG:-apk-${{ github.run_number }}}" >> "$GITHUB_OUTPUT"
+
       - name: Baixar o APK da Expo
         run: |
-          URL="${{ inputs.apkUrl || env.DEFAULT_APK_URL }}"
-          echo "baixando $URL"
-          curl -fL --retry 3 --retry-delay 5 -o norva.apk "$URL"
+          echo "baixando ${{ steps.request.outputs.url }}"
+          curl -fL --retry 3 --retry-delay 5 -o norva.apk "${{ steps.request.outputs.url }}"
 
-          # Um HTML de erro também sai com 200; o arquivo tem de ser um APK.
-          file norva.apk
+          # Uma página de erro também sai com 200, então o que vale é o conteúdo.
           unzip -l norva.apk | grep -q AndroidManifest.xml || {
             echo "o que baixou não é um APK"; exit 1;
           }
@@ -55,19 +54,25 @@ jobs:
       - name: Publicar o release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_type == 'tag' && github.ref_name || format('apk-{0}', github.run_number) }}
+          TAG: ${{ steps.request.outputs.tag }}
         run: |
-          gh release create "$TAG" norva.apk \
-            --title "NORVA $TAG" \
-            --prerelease \
-            --notes "$(cat <<'NOTES'
+          NOTES=$(cat <<'NOTES'
           Instalador de teste do NORVA para Android.
 
           **Como instalar:** baixe `norva.apk` abaixo pelo próprio celular. O
           Android vai pedir permissão para instalar de fora da Play Store — é
           normal em aplicativo de teste, e é uma vez só.
 
-          Este é um build interno com todas as arquiteturas no mesmo arquivo,
-          por isso é grande. A versão de loja sai bem menor.
+          Build interno, com todas as arquiteturas no mesmo arquivo — por isso é
+          grande. A versão de loja sai bem menor.
           NOTES
-          )" || gh release upload "$TAG" norva.apk --clobber
+          )
+
+          gh release create "$TAG" norva.apk \
+            --target "${{ github.event.pull_request.head.sha || github.sha }}" \
+            --title "NORVA $TAG" \
+            --prerelease \
+            --notes "$NOTES" \
+          || gh release upload "$TAG" norva.apk --clobber
+
+          echo "release: $(gh release view "$TAG" --json url -q .url)"
