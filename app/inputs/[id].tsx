@@ -1,17 +1,22 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
+import { Field } from '@/components/Field';
 import { ListRow } from '@/components/ListRow';
 import { useConfirm } from '@/components/Confirm';
 import {
   findItem,
   itemHistory,
+  itemMovements,
   recipesUsingItem,
+  recordCount,
   setItemActive,
   type ItemWithCost,
+  type MovementRow,
   type PriceMoveRow,
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
@@ -45,6 +50,7 @@ type Loaded = {
   item: ItemWithCost | null;
   history: PriceMoveRow[];
   recipes: { id: string; name: string; quantity: number }[];
+  movements: MovementRow[];
 };
 
 function InputDetail() {
@@ -54,14 +60,22 @@ function InputDetail() {
   const { locale, t } = useLocale();
   const { id } = useLocalSearchParams<{ id: string }>();
 
+  // While a count is open the stock figure is deliberately hidden. This app's
+  // own rule for counting says the expected number must not be on screen: a
+  // person who can see it confirms the screen instead of the shelf, and the
+  // check becomes theatre that nobody can tell apart from a real one.
+  const [counting, setCounting] = useState(false);
+  const [typed, setTyped] = useState('');
+
   const { data, loading, refresh } = useQuery<Loaded>(async () => {
-    if (!id) return { item: null, history: [], recipes: [] };
-    const [item, history, recipes] = await Promise.all([
+    if (!id) return { item: null, history: [], recipes: [], movements: [] };
+    const [item, history, recipes, movements] = await Promise.all([
       findItem(LOCAL_COMPANY_ID, id),
       itemHistory(LOCAL_COMPANY_ID, id),
       recipesUsingItem(LOCAL_COMPANY_ID, id),
+      itemMovements(LOCAL_COMPANY_ID, id),
     ]);
-    return { item, history, recipes };
+    return { item, history, recipes, movements };
   }, id ?? '');
 
   const item = data?.item ?? null;
@@ -88,6 +102,56 @@ function InputDetail() {
     latest && latest.previousRate
       ? (latest.newRate - latest.previousRate) / latest.previousRate
       : null;
+
+  const lastCount = (data?.movements ?? []).find((m) => m.kind === 'adjustment');
+  const lastCounted = lastCount
+    ? fill(t.app.inputDetail.lastCounted, { date: formatDayMonth(lastCount.occurredAt, locale) })
+    : null;
+  const heldWorth =
+    held > 0 ? fill(t.app.inputDetail.heldHere, { amount: formatMoney(held, locale) }) : undefined;
+
+  /**
+   * Counting, spelled out before anything is written.
+   *
+   * The confirmation carries the whole comparison in words - what was counted,
+   * what was expected, the difference and what it is worth - because this is
+   * the moment a tired person is one keystroke from writing a wrong number
+   * into a ledger that never forgets.
+   */
+  const submitCount = async () => {
+    const counted = Number(typed.replace(',', '.'));
+    if (!Number.isFinite(counted) || counted < 0) return;
+
+    const expected = item.onHandBaseUnits;
+    const delta = Math.round(counted) - expected;
+    const worth = Math.abs(Math.round(item.averageRate * delta));
+
+    const shown = {
+      counted: `${formatQuantity(Math.round(counted), locale)} ${item.baseUnit}`,
+      expected: `${formatQuantity(expected, locale)} ${item.baseUnit}`,
+      diff: `${formatQuantity(Math.abs(delta), locale)} ${item.baseUnit}`,
+      money: formatMoney(worth, locale),
+    };
+
+    const go = await confirm({
+      title: t.app.inputDetail.countConfirmTitle,
+      message: fill(
+        delta === 0
+          ? t.app.inputDetail.countConfirmExact
+          : delta < 0
+            ? t.app.inputDetail.countConfirmShort
+            : t.app.inputDetail.countConfirmOver,
+        shown,
+      ),
+      confirmLabel: t.app.inputDetail.countConfirmAction,
+    });
+    if (!go) return;
+
+    await recordCount(LOCAL_COMPANY_ID, { itemId: item.id, countedBaseUnits: Math.round(counted) });
+    setCounting(false);
+    setTyped('');
+    await refresh();
+  };
 
   const toggleActive = async () => {
     const go = await confirm({
@@ -166,13 +230,48 @@ function InputDetail() {
         />
         <ListRow
           label={t.app.inputDetail.inStock}
-          detail={
-            held > 0
-              ? fill(t.app.inputDetail.heldHere, { amount: formatMoney(held, locale) })
-              : undefined
+          detail={counting ? t.app.inputDetail.countHidden : lastCounted ?? heldWorth}
+          trailing={
+            counting ? '—' : `${formatQuantity(item.onHandBaseUnits, locale)} ${item.baseUnit}`
           }
-          trailing={`${formatQuantity(item.onHandBaseUnits, locale)} ${item.baseUnit}`}
         />
+      </Card>
+
+      <Card tone="area">
+        <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.inputDetail.countTitle}</Text>
+        <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
+          {t.app.inputDetail.countHint}
+        </Text>
+
+        {counting ? (
+          <View style={{ marginTop: space.md, gap: space.md }}>
+            <Field
+              label={t.app.inputDetail.countLabel}
+              value={typed}
+              onChangeText={setTyped}
+              keyboardType="numeric"
+              suffix={item.baseUnit}
+              autoFocus
+            />
+            <Button label={t.app.inputDetail.countConfirm} onPress={submitCount} />
+            <Button
+              label={t.app.inputDetail.countCancel}
+              variant="ghost"
+              onPress={() => {
+                setCounting(false);
+                setTyped('');
+              }}
+            />
+          </View>
+        ) : (
+          <View style={{ marginTop: space.md }}>
+            <Button
+              label={t.app.inputDetail.countStart}
+              variant="ghost"
+              onPress={() => setCounting(true)}
+            />
+          </View>
+        )}
       </Card>
 
       <Card tone="area">

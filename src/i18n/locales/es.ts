@@ -232,6 +232,23 @@ export const es: Dictionary = {
       pricePer: 'Precio por {{pack}}',
       inStock: 'En existencia',
       heldHere: '{{amount}} parados aquí',
+      countTitle: 'Verificar el stock',
+      countHint:
+        'Cuente lo que hay en el estante y escríbalo aquí. El número que el sistema espera queda oculto hasta que termine: con él en la pantalla, verificar se vuelve copiar.',
+      countLabel: 'Cuánto hay de verdad',
+      countStart: 'Verificar stock',
+      countCancel: 'Dejar para después',
+      countConfirm: 'Registrar el conteo',
+      countConfirmAction: 'Registrar',
+      countHidden: 'oculto mientras usted cuenta',
+      countConfirmTitle: '¿Registrar el conteo?',
+      countConfirmShort:
+        'Usted contó {{counted}}. El sistema esperaba {{expected}}. Faltan {{diff}}, que valen {{money}}. La diferencia queda registrada y nada se borra.',
+      countConfirmOver:
+        'Usted contó {{counted}}. El sistema esperaba {{expected}}. Sobran {{diff}}, que valen {{money}}. La diferencia queda registrada y nada se borra.',
+      countConfirmExact:
+        'Usted contó {{counted}}, exactamente lo que el sistema esperaba. Queda registrado que usted verificó.',
+      lastCounted: 'verificado el {{date}}',
       history: 'Historial de precio',
       historyHint: 'Nadie escribió esto. Cada línea nació de una factura registrada.',
       historyEmpty: 'Solo hubo una compra hasta ahora, así que todavía no hay con qué comparar.',

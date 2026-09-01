@@ -226,6 +226,23 @@ export const en: Dictionary = {
       pricePer: 'Price per {{pack}}',
       inStock: 'In stock',
       heldHere: '{{amount}} sitting here',
+      countTitle: 'Check the stock',
+      countHint:
+        'Count what is on the shelf and write it here. The number the system expects stays hidden until you are done - with it on screen, checking turns into copying.',
+      countLabel: 'How much is really there',
+      countStart: 'Check stock',
+      countCancel: 'Leave it for later',
+      countConfirm: 'Record the count',
+      countConfirmAction: 'Record',
+      countHidden: 'hidden while you count',
+      countConfirmTitle: 'Record the count?',
+      countConfirmShort:
+        'You counted {{counted}}. The system expected {{expected}}. That is {{diff}} missing, worth {{money}}. The difference is recorded and nothing is erased.',
+      countConfirmOver:
+        'You counted {{counted}}. The system expected {{expected}}. That is {{diff}} extra, worth {{money}}. The difference is recorded and nothing is erased.',
+      countConfirmExact:
+        'You counted {{counted}}, exactly what the system expected. It is recorded that you checked.',
+      lastCounted: 'checked on {{date}}',
       history: 'Price history',
       historyHint: 'Nobody wrote this. Every line came from an invoice.',
       historyEmpty: 'There has only been one purchase so far, so there is nothing to compare yet.',

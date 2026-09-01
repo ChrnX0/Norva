@@ -246,6 +246,23 @@ export const ptBR = {
       pricePer: 'Preço por {{pack}}',
       inStock: 'Em estoque',
       heldHere: '{{amount}} parados aqui',
+      countTitle: 'Conferir o estoque',
+      countHint:
+        'Conte o que está na prateleira e escreva aqui. O número que o sistema espera fica escondido até você terminar — se ele estiver na tela, a conferência vira cópia.',
+      countLabel: 'Quanto tem de verdade',
+      countStart: 'Conferir estoque',
+      countCancel: 'Deixar para depois',
+      countConfirm: 'Registrar a contagem',
+      countConfirmAction: 'Registrar',
+      countHidden: 'escondido enquanto você conta',
+      countConfirmTitle: 'Registrar a contagem?',
+      countConfirmShort:
+        'Você contou {{counted}}. O sistema esperava {{expected}}. Estão faltando {{diff}}, que valem {{money}}. A diferença fica registrada e nada é apagado.',
+      countConfirmOver:
+        'Você contou {{counted}}. O sistema esperava {{expected}}. Estão sobrando {{diff}}, que valem {{money}}. A diferença fica registrada e nada é apagado.',
+      countConfirmExact:
+        'Você contou {{counted}}, exatamente o que o sistema esperava. Fica registrado que você conferiu.',
+      lastCounted: 'conferido em {{date}}',
       history: 'Histórico de preço',
       historyHint: 'Ninguém escreveu isto. Cada linha nasceu de uma nota lançada.',
       historyEmpty: 'Só houve uma compra até agora, então ainda não há o que comparar.',
