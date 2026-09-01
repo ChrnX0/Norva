@@ -50,7 +50,7 @@ type Summary = { products: ProductCost[]; changes: CostChange[] };
 const AREAS: { area: Ambient; label: string; hint: string; route: string }[] = [
   { area: 'sky', label: 'Pergunte', hint: 'escreva o que quer saber', route: '/assistant' },
   { area: 'mist', label: 'Insumos', hint: 'o que você compra', route: '/inputs' },
-  { area: 'apricot', label: 'Receitas', hint: 'o que entra no tacho', route: '/recipe' },
+  { area: 'apricot', label: 'Receitas', hint: 'o que entra no tacho', route: '/recipes' },
   { area: 'mist', label: 'Produtos', hint: 'o que sai para vender', route: '/products' },
   { area: 'sage', label: 'Compras', hint: 'a nota que move o custo', route: '/purchase' },
   { area: 'mist', label: 'Ajustes', hint: 'limpar dados e recomeçar', route: '/settings' },
@@ -110,7 +110,7 @@ function Briefing() {
           key={product.id}
           onPress={() =>
             router.push(
-              product.recipeId ? `/recipe?recipeId=${product.recipeId}` : '/products',
+              product.recipeId ? `/recipes/${product.recipeId}` : '/products',
             )
           }
           accessibilityRole="button"

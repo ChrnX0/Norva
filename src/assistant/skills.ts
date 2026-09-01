@@ -51,7 +51,7 @@ const costOfProduct: Skill = {
             value: `${(cost.lossFraction * 100).toFixed(1).replace('.', ',')}%`,
           },
         ],
-        route: `/recipe?recipeId=${product.recipeId}`,
+        route: `/recipes/${product.recipeId}`,
       };
     }
 
@@ -176,7 +176,7 @@ const whatDominates: Skill = {
         label: line.label,
         value: `${formatMoney(line.totalCents, ctx.locale)} · ${Math.round(line.share * 100)}%`,
       })),
-      route: `/recipe?recipeId=${product.recipeId}`,
+      route: `/recipes/${product.recipeId}`,
     };
   },
 };
@@ -244,9 +244,79 @@ const registerPurchase: Skill = {
   },
 };
 
+/** "quais insumos eu tenho" - the second question anybody asks. */
+const listInputs: Skill = {
+  id: 'list_inputs',
+  example: 'quais insumos eu tenho',
+  requires: 'view_cost',
+  match: (q) =>
+    normalize(q).match(
+      /(?:quais|quantos|liste?|lista de|meus|minhas)\s+(?:os |as )?(?:insumos|ingredientes|materiais|itens)/,
+    ),
+  run: async (_m, ctx) => {
+    const items = await ctx.data.listItems();
+    const stock = items.filter((i) => i.kind === 'input' || i.kind === 'packaging');
+
+    if (stock.length === 0) {
+      return { text: 'Ainda não há nenhum insumo cadastrado.', route: '/inputs' };
+    }
+
+    const held = stock.reduce(
+      (total, item) => total + Math.round(item.averageRate * item.onHandBaseUnits),
+      0,
+    );
+    const unpriced = stock.filter((i) => i.averageRate <= 0);
+
+    return {
+      text:
+        `Você tem ${stock.length} itens cadastrados, com ${formatMoney(held, ctx.locale)} ` +
+        `parado no almoxarifado.` +
+        (unpriced.length > 0
+          ? ` ${unpriced.length} ainda sem preço — lance a nota e o custo aparece sozinho.`
+          : ''),
+      detail: stock.map((item) => ({
+        label: item.name,
+        value:
+          item.averageRate > 0
+            ? `${formatMoney(Math.round(item.averageRate * 1_000), ctx.locale)} / 1.000 ${item.baseUnit}`
+            : 'sem preço',
+      })),
+      route: '/inputs',
+    };
+  },
+};
+
+/**
+ * "quero apagar tudo" - answered with directions, never with an action.
+ *
+ * Erasing sits on the floor no autonomy level crosses: it is irreversible and
+ * it is exactly the kind of thing a misread sentence would do catastrophically
+ * well. So the assistant explains where the button is and what it will say.
+ */
+const eraseHelp: Skill = {
+  id: 'erase_help',
+  example: 'como apago os dados de exemplo',
+  requires: 'manage_company',
+  match: (q) =>
+    normalize(q).match(/(?:apagar|apago|limpar|limpo|zerar|zero|excluir)\s+(?:os |as |o |a )?(?:dados|tudo|exemplo|cadastro|banco)/),
+  run: async (_m, _ctx) => ({
+    text:
+      'Isso fica em Ajustes. Dá para limpar uma área de cada vez ou tudo de uma vez, e antes de ' +
+      'apagar o aplicativo conta exatamente quantos insumos, receitas e produtos vão embora.',
+    detail: [
+      { label: 'Uma área', value: 'compras, receitas, produtos ou insumos' },
+      { label: 'Tudo', value: 'e o exemplo não volta sozinho depois' },
+      { label: 'Voltar atrás', value: 'não tem — por isso a confirmação é por extenso' },
+    ],
+    route: '/settings',
+  }),
+};
+
 /** Skills are ordered: the most specific phrasing gets first refusal. */
 export const phase1Skills: Skill[] = [
   registerPurchase,
+  eraseHelp,
+  listInputs,
   whatDominates,
   whatMoved,
   costOfProduct,

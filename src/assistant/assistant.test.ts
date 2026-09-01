@@ -116,7 +116,7 @@ test('the number in the answer is the one the engine computed', async () => {
   // x 75 ml = 50 cents of mix, plus 5 cents of packaging.
   assert.match(answer.text, /R\$\s*0,55/);
   assert.ok(answer.detail?.some((d) => d.label === 'Massa'));
-  assert.equal(answer.route, '/recipe?recipeId=popsicle');
+  assert.equal(answer.route, '/recipes/popsicle');
 });
 
 test('a role without view_cost cannot get a figure out of it', async () => {
@@ -175,6 +175,26 @@ test('the examples offered never include skills the role cannot use', async () =
   const offered = (answer.detail ?? []).map((d) => d.value).join(' ');
 
   assert.doesNotMatch(offered, /custa|preço/);
+});
+
+test('it lists what is in the storeroom, with the money that is sitting there', async () => {
+  const answer = await ask('quais insumos eu tenho', context('view_cost'));
+
+  // 40,000 g of pulp at 1.24 c/g is R$ 496,00; 50,000 g of sugar at 0.472 c/g
+  // is R$ 236,00.
+  assert.match(answer.text, /2 itens/);
+  assert.match(answer.text, /R\$\s*732,00/);
+  assert.equal(answer.route, '/inputs');
+  assert.equal(answer.detail?.length, 2);
+});
+
+test('asking to erase gets directions, never an erasure', async () => {
+  const answer = await ask('quero apagar tudo', context('manage_company'));
+
+  assert.match(answer.text, /Ajustes/);
+  assert.equal(answer.route, '/settings');
+  // The skill has no way to act: it returns words and a route, and nothing else.
+  assert.equal(answer.draft, undefined);
 });
 
 test('it finds the item by the word people actually type', () => {

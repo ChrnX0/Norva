@@ -69,7 +69,7 @@ function RecipeEditor() {
   const { color, type, space, accent } = useTheme();
   const router = useRouter();
   const locale = defaultLocale;
-  const params = useLocalSearchParams<{ recipeId?: string }>();
+  const params = useLocalSearchParams<{ id?: string }>();
 
   const { data, loading } = useQuery<Loaded>(async () => {
     const [recipes, costs, labels, items, products] = await Promise.all([
@@ -80,7 +80,7 @@ function RecipeEditor() {
       listProducts(LOCAL_COMPANY_ID),
     ]);
 
-    const recipeId = params.recipeId ?? Object.keys(recipes)[0];
+    const recipeId = params.id ?? Object.keys(recipes)[0];
     const product = products.find((p) => p.recipeId === recipeId);
 
     return {
@@ -94,9 +94,9 @@ function RecipeEditor() {
       unitPackagingCents: (product?.unitPackagingCents ?? 0) as Cents,
       packaging: product?.packaging.tiers ?? [{ id: 'unit', perBaseUnit: 1 }],
     };
-  }, [params.recipeId]);
+  }, [params.id]);
 
-  const recipeId = params.recipeId ?? (data ? Object.keys(data.recipes)[0] : undefined);
+  const recipeId = params.id ?? (data ? Object.keys(data.recipes)[0] : undefined);
   const stored = recipeId && data ? data.recipes[recipeId] : undefined;
 
   const [lossPercent, setLossPercent] = useState('');
