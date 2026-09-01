@@ -254,6 +254,48 @@ check('an invoice warns before it is committed, then moves everything', async (p
   assert.match(history, /Picolé de morango/, 'and it says which recipe stands on it');
 });
 
+check('production pre-fills what the sheet promises, and records what happened', async (page) => {
+  await page.goto(`http://localhost:${PORT}/production`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  // Law 2: no field is born empty. The sheet says 40 L, 5% loss, 75 ml a stick,
+  // so one kettle promises 506 - and that number is typed by nobody.
+  const opened = await screen(page);
+  assert.match(opened, /Quantas unidades saíram/i);
+  assert.match(opened, /A ficha prevê 506/);
+  assert.match(opened, /Vai baixar do estoque/);
+  assert.match(opened, /Polpa de morango/);
+
+  // The kettle rendered less than the sheet promised. That correction is the
+  // most valuable thing this screen collects, so it has to be visible before
+  // anything is written.
+  await page.getByLabel(/Quantas unidades/).fill('480');
+  await page.waitForTimeout(700);
+
+  const short = await screen(page);
+  assert.match(short, /26 unidades a menos que o previsto/);
+
+  await page.getByText('Registrar produção', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+
+  // The confirmation is the app's own and spells the act out in words, with the
+  // frozen cost in it - the number every future margin will be measured against.
+  const asking = await screen(page);
+  assert.match(asking, /Confirmar a produção/, 'Alert would have shown nothing here');
+  assert.match(asking, /Você produziu 480 unidades de Picolé de morango, em um tacho/);
+  assert.match(asking, /congela o custo em R\$ \d+,\d\d por unidade/);
+
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  // And the ledger moved: eighteen kilos of pulp left the storeroom, which is
+  // the whole point of recording production at all.
+  await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2000);
+  const stock = await screen(page);
+  assert.match(stock, /22\.000 g/, 'the pulp came down by exactly one kettle');
+});
+
 check('counting is blind, and it is the only way stock goes down', async (page) => {
   await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

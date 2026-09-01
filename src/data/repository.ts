@@ -882,7 +882,21 @@ export async function recordProduction(
     consumed.push({ itemId, baseUnits, rate });
   }
 
-  const unitCostRate = (consumedValue / input.unitsProduced) as Rate;
+  // A embalagem entra aqui, e não entrar era um defeito silencioso.
+  //
+  // Sete telas cotam o custo de uma unidade como `costPerProductUnit`, que soma
+  // a embalagem por unidade. Se a produção congelasse só a receita, a margem de
+  // toda venda futura sairia inflada exatamente pelo palito e pelo saquinho -
+  // R$ 0,05 numa corrida de 500 unidades é R$ 25 que ninguém explicaria depois.
+  // O número que a tela promete e o número que o livro-razão guarda passam a ser
+  // um só.
+  //
+  // O que ainda falta, e está escrito para não se perder: a embalagem é um
+  // valor digitado no produto, enquanto palito e saquinho são itens comprados
+  // por nota. Ou seja, o custo sai certo, mas o estoque de palito só sobe.
+  // Ligar os dois é mudança de esquema (produto -> itens de embalagem, com
+  // quantidade por unidade), e vem separada desta.
+  const unitCostRate = (consumedValue / input.unitsProduced + product.unitPackagingCents) as Rate;
   const productionId = newId();
 
   await conn.withTransactionAsync(async () => {

@@ -43,6 +43,28 @@ export function fill(template: string, values: Record<string, string | number> =
 }
 
 /**
+ * Singular and plural as whole sentences, never a number dropped into one.
+ *
+ * The verb has to agree, and it does not agree with a placeholder: Portuguese
+ * needs "apaga 1 insumo" against "apaga 6 insumos", and a language that
+ * inflects harder than that writes both halves itself instead of receiving a
+ * count and a noun glued together. Both variants may carry `{{n}}`, so a locale
+ * decides for itself whether the singular even shows the number.
+ */
+export function plural(
+  n: number,
+  variants: { one: string; other: string },
+  /**
+   * How the number should read, when the bare count is not how it reads. A
+   * thousand units is "1.000" in Portuguese and "1,000" in English, and the
+   * count that chooses the branch is not the string that goes in the sentence.
+   */
+  display?: string,
+): string {
+  return fill(n === 1 ? variants.one : variants.other, { n: display ?? n });
+}
+
+/**
  * Real internationalisation: money, dates and the decimal separator move with
  * the language. Translating the words and still showing "R$" to a Mexican
  * customer is not internationalisation.

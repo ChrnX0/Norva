@@ -744,8 +744,15 @@ test('a production run writes one line per item, and freezes what each cost', as
 
   // The frozen rate is the arithmetic of what actually happened: the value that
   // went in, over the units that actually came out. Not the recipe's promise.
+  //
+  // Plus the packaging, and that term is the whole point of this line. Seven
+  // screens quote a unit's cost as recipe + packaging; if the ledger froze only
+  // the recipe, every future margin would be overstated by the stick and the
+  // wrapper. The number the screen promises and the number the ledger keeps are
+  // one number, and this assertion is what keeps them one.
   const value = used.reduce((sum, l) => sum + Math.abs(l.q) * (l.r ?? 0), 0);
-  assert.ok(Math.abs(run.unitCostRate - value / 500) < 1e-9);
+  assert.ok(product.unitPackagingCents > 0, 'the seeded product has packaging, or this proves nothing');
+  assert.ok(Math.abs(run.unitCostRate - (value / 500 + product.unitPackagingCents)) < 1e-9);
   assert.ok(Math.abs((made[0].r ?? 0) - run.unitCostRate) < 1e-9);
 
   // And the stock moved both ways: ingredients down, product up.
@@ -774,7 +781,13 @@ test('a run that yielded less freezes the higher cost, because that is what happ
   // the loss at the exact moment it happened - which is the number the owner
   // most needs to see.
   assert.ok(short.unitCostRate > full.unitCostRate);
-  assert.ok(Math.abs(short.unitCostRate / full.unitCostRate - 500 / 400) < 1e-9);
+
+  // And the two halves of the cost behave differently, which is why the ratio
+  // is taken on the mix alone. Mix spreads over however many units came out, so
+  // a short run makes each one dearer by exactly 500/400. A stick is a stick:
+  // it costs the same whether the tub rendered 400 or 500, so it never scales.
+  const pack = product.unitPackagingCents;
+  assert.ok(Math.abs((short.unitCostRate - pack) / (full.unitCostRate - pack) - 500 / 400) < 1e-9);
 });
 
 test('what leaves the factory arrives at the store, and the company has the same', async () => {

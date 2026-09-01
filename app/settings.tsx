@@ -20,7 +20,7 @@ import {
 } from '@/data/erase';
 import { hasSeeded, LOCAL_COMPANY_ID, restoreStarterData } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
-import { fill, joinList } from '@/i18n';
+import { fill, joinList, plural } from '@/i18n';
 import type { Dictionary } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -58,10 +58,7 @@ const AREAS: { area: Exclude<EraseArea, 'all'> }[] = [
 function sayBlocker(blocker: EraseBlocker, t: Dictionary): string {
   const words = t.app.settings;
 
-  // Singular and plural are whole sentences, not a number dropped into one:
-  // the verb has to agree, and it does not agree with a placeholder.
-  const say = (n: number, variants: { one: string; other: string }) =>
-    n === 1 ? variants.one : fill(variants.other, { n });
+  const say = plural;
 
   switch (blocker.reason) {
     case 'recipesUseInputs':
@@ -82,7 +79,7 @@ function sayTally(area: EraseArea, tally: EraseTally, t: Dictionary): string {
 
   const parts: string[] = [];
   const add = (n: number, key: keyof Dictionary['app']['settings']['counted']) => {
-    if (n > 0) parts.push(n === 1 ? words.counted[key].one : fill(words.counted[key].other, { n }));
+    if (n > 0) parts.push(plural(n, words.counted[key]));
   };
   add(tally.inputs, 'inputs');
   add(tally.recipes, 'recipes');

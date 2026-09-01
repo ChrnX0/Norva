@@ -1244,3 +1244,40 @@ entrada — o erro se impede, não se reclama.
 
 **Loja própria é transferência, não venda:** não há faturamento nem margem aqui, o valor
 apenas muda de sala. É a distinção que o plano faz desde o começo e agora está no código.
+
+---
+
+## O custo que sete telas prometiam e o livro-razão não guardava
+
+**O que se viu.** Antes de escrever a tela de produção, procurei o que o código existente
+estava contradizendo. `costPerProductUnit(cost, yieldPerUnit, unitPackagingCents)` é
+chamado em **sete lugares** — briefing, receitas, produtos, compras, assistente — e todos
+os sete somam a embalagem. `recordProduction` congelava
+`consumedValue / unitsProduced`, e só. O palito e o saquinho ficavam de fora do número
+que o livro-razão guarda para sempre.
+
+**Por que importa.** O custo congelado é o denominador de toda margem futura (Fundação 2).
+Sem a embalagem, toda venda sairia com a margem inflada em exatamente R$ 0,05 por
+unidade — R$ 25 numa corrida de 500, e nenhum relatório teria como explicar a diferença,
+porque a tela e o banco diriam números diferentes com a mesma cara. A tela de produção ia
+ser construída em cima disso.
+
+**O que mudou.** `recordProduction` soma `product.unitPackagingCents` na taxa congelada.
+Dois testes que afirmavam a aritmética antiga foram reescritos, e o segundo ficou mais
+forte: o custo do tacho se espalha pelas unidades que saíram (500/400 quando rende
+menos), mas **o palito não se espalha** — um palito custa o mesmo tenha o tacho rendido
+400 ou 500. O e2e fecha a volta no navegador: a mesma unidade lê R$ 0,64 na produção e
+R$ 0,64 no briefing.
+
+**O que ficou aberto, escrito para não se perder.** A embalagem é um valor **digitado à
+mão** no produto, enquanto palito e saquinho são **itens comprados por nota**. O custo
+agora sai certo, mas nenhum movimento tira palito do estoque: o saldo de palito **só
+sobe**. É exatamente o cheiro que o `CLAUDE.md` manda procurar ("um número que só sobe"),
+e a cura é ligar produto → itens de embalagem com quantidade por unidade — mudança de
+esquema, que vem separada desta e sem a pressa de vir junto.
+
+**E uma regra de plural subiu de nível no caminho.** `n === 1 ? one : fill(other)` estava
+copiada em dois pontos de `app/settings.tsx` e ia virar o terceiro na produção. Virou
+`plural()` em `src/i18n`, com um detalhe que só aparece na terceira chamada: o número que
+**escolhe o ramo** não é a string que **entra na frase** — 1200 escolhe o plural, mas quem
+vai na frase é "1.200".
