@@ -201,9 +201,12 @@ desenho offline-first do aplicativo.
 ### Testes
 
 ```bash
+npm run typecheck
+npm run lint
 npm test        # motor de custo, dados e assistente
 npm run e2e     # o aplicativo dirigido num navegador de verdade
 npm run db:verify
+bash .proofgate/verify.sh   # o portão de entrega, sobre o diff
 ```
 
 O `e2e` existe porque três bugs passaram por toda a bateria de testes unitários
