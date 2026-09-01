@@ -541,6 +541,16 @@ o primeiro nomeia `movements.recorded_by`. O portão de mutação foi a dezesset
 
 ## Em aberto
 
+- **O servidor está três migrações à frente do aparelho.** As decisões do dono
+  sobre identidade viraram esquema — estado de associação, código da empresa,
+  modo de entrada no chão de fábrica, atribuição do relatório, e o aparelho como
+  coisa cadastrada com responsável. Nada disso existe no SQLite do celular, e o
+  guarda de acordo **não vê essa divergência**: ele compara o que o aparelho
+  manda, e o aparelho não manda nenhuma dessas tabelas. É dívida consciente, não
+  esquecimento — ela se paga quando a identidade chegar ao aparelho, e até lá o
+  `movements.device_id` já está escrito no serializador, nulo, para que o lugar
+  onde o valor entra não dependa de alguém lembrar.
+
 Achados desta rodada que ainda não viraram mudança. Ficam aqui até virarem.
 
 - **Seis inteligências construídas e nunca chamadas:** `daysOfCover`,

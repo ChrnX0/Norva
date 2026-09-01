@@ -207,6 +207,13 @@ const CROSSINGS: Record<
       'lot_id',
       'loss_reason',
       'unit_cost_rate',
+      // Nulo até o aparelho saber qual aparelho ele é.
+      //
+      // A coluna existe no servidor e é opcional, então nada quebra e nada
+      // reclama - que é exatamente por que ela está listada aqui em vez de
+      // esperar alguém lembrar. Quando a identidade chegar, o valor entra; o
+      // lugar onde ele entra já está escrito.
+      'device_id',
       'reverses_movement_id',
       'assistant_phrase',
       'note',
