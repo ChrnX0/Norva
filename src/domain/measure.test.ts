@@ -13,7 +13,10 @@ test('the size printed on the sack is read, not asked for', () => {
 test('what cannot be read with certainty is left for the person', () => {
   // A bucket has no size printed on it.
   assert.equal(packSize('balde', 'g'), null);
-  // Two numbers is ambiguous - "caixa 6 x 500 ml" is not this function's job.
+  // Two numbers is ambiguous, and the dangerous shape is the one where BOTH
+  // are readable: a label reading "pacote 500 g, 12 unidades" would otherwise
+  // take whichever came first and put it under every cost of that item.
+  assert.equal(packSize('pacote 500 g 12 unidades', 'g'), null);
   assert.equal(packSize('caixa 6 x 500 ml', 'ml'), null);
   // A unit it does not know is not a unit it should guess.
   assert.equal(packSize('saco 25 lb', 'g'), null);

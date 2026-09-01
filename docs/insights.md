@@ -863,7 +863,13 @@ tamanho), "caixa 6 x 500 ml" (dois números), unidade desconhecida, e fração d
 unidade base — 0,0025 kg são 2,5 g, e arredondar isso caladamente põe um fator
 errado embaixo de todo custo daquele insumo para sempre.
 
-Provado no navegador (12/12 no e2e) e com duas mutações novas (23 no total).
+Provado no navegador (12/12 no e2e) e com duas mutações novas (23 no total) — e a
+segunda **sobreviveu na primeira tentativa**, o que é o portão fazendo o trabalho
+dele. Meu exemplo de ambiguidade era "caixa 6 x 500 ml", e ali o primeiro número
+vem com "x", que não é unidade conhecida: a função caía em nulo por outro
+caminho, não pela regra que eu queria provar. O caso perigoso é aquele em que os
+**dois** números são legíveis — "pacote 500 g 12 unidades" — e é esse que o teste
+afirma agora.
 
 **E um achado de lambuja que eu não conserto sozinho:** dois controles na mesma
 tela atendem por **"Embalagem"** — o tipo do insumo (palito, saquinho) e o campo
