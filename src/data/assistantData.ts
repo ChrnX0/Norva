@@ -10,6 +10,7 @@ import {
   recordCount,
   recordPurchase,
   saveItem,
+  defaultLocationId,
 } from './repository';
 
 /**
@@ -31,7 +32,12 @@ export function liveData(companyId: string): AssistantData {
     recentCostChanges: (limit) => recentCostChanges(companyId, limit),
     itemMovements: (itemId, limit) => itemMovements(companyId, itemId, limit),
     recordPurchase: (input) => recordPurchase(companyId, input),
-    recordCount: (input) => recordCount(companyId, input),
+    // O assistente conta a prateleira do lugar padrão. Quando existir mais de
+    // um, a habilidade passa a perguntar qual - e é por isso que o local é
+    // exigido aqui em vez de ter padrão lá dentro: a pergunta aparece na tela
+    // que sabe fazê-la, não escondida numa função de dados.
+    recordCount: (input) =>
+      recordCount(companyId, { ...input, locationId: defaultLocationId(companyId) }),
     saveItem: (input) =>
       saveItem(companyId, { ...input, packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }] } }),
   };

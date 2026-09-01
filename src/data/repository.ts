@@ -368,6 +368,17 @@ export type MovementRow = {
  * company's own id - deterministic, so two phones that create it in the same
  * minute create one row rather than two.
  */
+/**
+ * O lugar que existe desde sempre, nomeável pelo chamador.
+ *
+ * Enquanto há um lugar só, o id dele é o da própria empresa - foi assim que
+ * todo movimento já gravado foi carimbado. Expor isto é o que permite exigir
+ * `locationId` de quem conta sem obrigar cada tela a saber desse detalhe.
+ */
+export function defaultLocationId(companyId: string): string {
+  return companyId;
+}
+
 async function ensureLocation(conn: Db, companyId: string): Promise<string> {
   const existing = await conn.getFirstAsync<{ id: string }>(
     `SELECT id FROM locations WHERE id = ?`,
@@ -426,6 +437,19 @@ export async function recordCount(
 
     /** Defaults to now. A count written on paper in a cold room keeps its hour. */
     occurredAt?: string;
+
+    /**
+     * Which shelf was counted. Required, and deliberately without a default.
+     *
+     * A count is the one figure that comes from somebody standing in front of
+     * the goods, so it belongs to a place. With a default, counting the cold
+     * room without saying so would compare against the company's whole balance
+     * and write the difference into the cold room - stock teleported between
+     * rooms by an operator who did everything right. The rule of this project
+     * is that the error is prevented, not complained about: the caller says
+     * where, or it does not compile.
+     */
+    locationId: string;
   },
 ): Promise<CountResult> {
   const conn = await db();
@@ -433,8 +457,8 @@ export async function recordCount(
 
   const held = await conn.getFirstAsync<{ base_units: number }>(
     `SELECT COALESCE(SUM(quantity_base_units), 0) AS base_units
-       FROM movements WHERE company_id = ? AND item_id = ?`,
-    [companyId, input.itemId],
+       FROM movements WHERE company_id = ? AND item_id = ? AND location_id = ?`,
+    [companyId, input.itemId, input.locationId],
   );
   const cost = await conn.getFirstAsync<{ average_rate: number }>(
     `SELECT average_rate FROM item_costs WHERE item_id = ?`,
@@ -449,7 +473,9 @@ export async function recordCount(
   const id = newId();
 
   await conn.withTransactionAsync(async () => {
-    const locationId = await ensureLocation(conn, companyId);
+    // The place still has to exist as a row before a movement can point at it.
+    await ensureLocation(conn, companyId);
+    const locationId = input.locationId;
 
     await conn.runAsync(
       `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,

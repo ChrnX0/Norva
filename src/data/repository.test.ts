@@ -21,6 +21,7 @@ import {
   saveProduct,
   saveRecipeVersion,
   purchaseToBaseUnits,
+  defaultLocationId,
 } from './repository';
 import { EraseBlockedError } from './erase';
 import { markSent, pendingCount, pendingEntries, forgetSentBefore } from './outbox';
@@ -385,7 +386,7 @@ test('a count can take stock down - which nothing in this app could do before', 
   });
 
   // Somebody walks to the shelf and finds 92 kg where the ledger expected 100.
-  const result = await recordCount(CO, { itemId: sugar, countedBaseUnits: 92_000 });
+  const result = await recordCount(CO, { locationId: defaultLocationId(CO), itemId: sugar, countedBaseUnits: 92_000 });
 
   assert.equal(result.expectedBaseUnits, 100_000);
   assert.equal(result.countedBaseUnits, 92_000);
@@ -415,7 +416,7 @@ test('a count that finds exactly what was expected is still written down', async
     totalCents: fromDecimal(118),
   });
 
-  const result = await recordCount(CO, { itemId: sugar, countedBaseUnits: 25_000 });
+  const result = await recordCount(CO, { locationId: defaultLocationId(CO), itemId: sugar, countedBaseUnits: 25_000 });
   assert.equal(result.deltaBaseUnits, 0);
 
   // A shelf nobody has looked at in months must not read the same as one
@@ -618,4 +619,49 @@ test('a recipe carries the identity of the version it is, not just its number', 
   );
   assert.equal(row?.recipe_id, first.id);
   assert.equal(row?.version, first.version);
+});
+
+test('counting a shelf compares against that shelf, not the whole company', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [sugar] = (await listItems(LOCAL_COMPANY_ID)).filter((i) => i.name.includes('Açúcar'));
+  const storeroom = defaultLocationId(LOCAL_COMPANY_ID);
+
+  // A second place, which is what the cold room will be.
+  const coldRoom = 'cold-room-for-this-test';
+  await live.runAsync(
+    `INSERT INTO locations (id, company_id, name, kind, created_at) VALUES (?, ?, ?, 'cold_room', ?)`,
+    [coldRoom, LOCAL_COMPANY_ID, 'Câmara', '2026-09-01T00:00:00Z'],
+  );
+  await live.runAsync(
+    `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
+                            quantity_base_units, location_id)
+     VALUES ('m-cold', ?, 'transfer', ?, ?, ?, 4000, ?)`,
+    [LOCAL_COMPANY_ID, '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z', sugar.id, coldRoom],
+  );
+
+  const inStoreroom = await live.getFirstAsync<{ n: number }>(
+    `SELECT COALESCE(SUM(quantity_base_units),0) AS n FROM movements
+      WHERE item_id = ? AND location_id = ?`,
+    [sugar.id, storeroom],
+  );
+
+  // Counting the cold room finds the 4 kg that are there. Before the location
+  // filter, the expected figure was the company's whole balance, so this count
+  // would have written a difference of minus everything in the storeroom -
+  // into the cold room. Stock teleported between rooms by somebody who did the
+  // job correctly.
+  const counted = await recordCount(LOCAL_COMPANY_ID, {
+    locationId: coldRoom,
+    itemId: sugar.id,
+    countedBaseUnits: 4000,
+  });
+  assert.equal(counted.deltaBaseUnits, 0, 'the cold room agreed with itself');
+
+  // And the storeroom is untouched by a count taken somewhere else.
+  const after = await live.getFirstAsync<{ n: number }>(
+    `SELECT COALESCE(SUM(quantity_base_units),0) AS n FROM movements
+      WHERE item_id = ? AND location_id = ?`,
+    [sugar.id, storeroom],
+  );
+  assert.equal(after?.n, inStoreroom?.n);
 });

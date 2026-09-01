@@ -20,6 +20,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { __setDb, migrate, type Db, type SqlParam } from '@/data/db';
 import { pendingEntries } from '@/data/outbox';
 import {
+  defaultLocationId,
   listItems,
   recordCount,
   recordPurchase,
@@ -103,7 +104,11 @@ async function main() {
   });
 
   // Somebody walks to the shelf and finds less than the books expected.
-  await recordCount(LOCAL_COMPANY_ID, { itemId: sugar.id, countedBaseUnits: 92_000 });
+  await recordCount(LOCAL_COMPANY_ID, {
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    itemId: sugar.id,
+    countedBaseUnits: 92_000,
+  });
 
   // And a recipe, whose lines carry an order somebody chose.
   await saveRecipeVersion(LOCAL_COMPANY_ID, {

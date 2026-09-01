@@ -183,6 +183,12 @@ const DEFECTS = [
     to: '            assistantPhrase: undefined,',
     hurts: 'o que o assistente lançou fica indistinguível do que a pessoa digitou, e "o que ele lançou este mês?" deixa de ter resposta',
   },
+  {
+    file: 'src/data/repository.ts',
+    from: '       FROM movements WHERE company_id = ? AND item_id = ? AND location_id = ?`,',
+    to: '       FROM movements WHERE company_id = ? AND item_id = ?`,',
+    hurts: 'contar a prateleira de um lugar compara com o saldo da empresa inteira e teleporta estoque entre salas, com o operador tendo feito tudo certo',
+  },
 ];
 
 /**

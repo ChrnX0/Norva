@@ -1154,3 +1154,25 @@ banco que aquele id é a linha que de fato guarda esta versão e suas linhas.
 Já apareceu no `assistant_phrase` com índice e sem escrita, no tipo do movimento
 descrevendo colunas mortas, e agora aqui. Onde o docblock afirma um fato, ou existe teste
 afirmando o mesmo, ou é ficção.
+
+## 1 de setembro — a contagem somava a empresa e escrevia num lugar só
+
+**O que apareceu.** `recordCount` calculava o esperado com
+`WHERE company_id = ? AND item_id = ?` — a empresa inteira — e gravava a diferença
+**num local**. Está correto enquanto existe um lugar só, e vira teletransporte de estoque
+no dia em que existir o segundo: contar a prateleira da Loja Centro compararia com o saldo
+da fábrica mais o da câmara mais o da loja, e escreveria a diferença de tudo isso dentro
+da loja. Com o operador tendo feito o trabalho certo.
+
+**O que mudou, e por que sem padrão.** `locationId` passou a ser **exigido**. Um padrão
+seria pior que o bug: contar a câmara sem dizer qual escreveria no almoxarifado,
+calado. A regra deste projeto é que o erro se impede — o chamador diz onde, ou não
+compila. O compilador achou os cinco chamadores; nenhum foi descoberto por leitura.
+
+Teste com dois lugares de verdade, visto falhando sem o filtro, e mutação nova (27) com o
+dano escrito: *"contar a prateleira de um lugar compara com o saldo da empresa inteira"*.
+
+**O que NÃO mudou, e é a parte que eu ia errar:** a média móvel continua somando a empresa
+inteira. Custo não é por lugar — o mesmo grama de açúcar não custa uma coisa na câmara e
+outra no almoxarifado. Generalizar as três consultas do mesmo jeito teria quebrado o custo
+para consertar a contagem.

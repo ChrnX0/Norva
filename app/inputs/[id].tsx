@@ -9,6 +9,7 @@ import { Field } from '@/components/Field';
 import { ListRow } from '@/components/ListRow';
 import { useConfirm } from '@/components/Confirm';
 import {
+  defaultLocationId,
   findItem,
   itemHistory,
   itemMovements,
@@ -148,7 +149,7 @@ function InputDetail() {
     });
     if (!go) return;
 
-    await recordCount(LOCAL_COMPANY_ID, { itemId: item.id, countedBaseUnits: Math.round(counted) });
+    await recordCount(LOCAL_COMPANY_ID, { locationId: defaultLocationId(LOCAL_COMPANY_ID), itemId: item.id, countedBaseUnits: Math.round(counted) });
     setCounting(false);
     setTyped('');
     await refresh();
