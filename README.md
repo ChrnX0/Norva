@@ -10,9 +10,11 @@ Nasce para uma fábrica de picolés e sorvetes, mas sem nenhuma regra chumbada d
 sorvete — a hierarquia de embalagem, os módulos e os papéis são todos
 configuráveis, porque o produto será publicado nas lojas Android e Apple.
 
-> **Estado: Fase 0 — Alicerce.** O que está aqui é a fundação: livro-razão,
-> multi-empresa, permissão por capacidade, design system e i18n. Ainda não há
-> telas de produto.
+> **Estado: Fase 1 — o que você produz e quanto custa.** Sobre o alicerce da
+> Fase 0 (livro-razão, multi-empresa, permissão por capacidade, design system,
+> i18n) já rodam as telas de insumo, receita, produto e nota de compra, com o
+> custo recalculando enquanto se digita. Produção, lote e distribuição são as
+> fases seguintes.
 
 ---
 
@@ -109,7 +111,9 @@ npx expo start
 Verificação:
 
 ```bash
-npm run typecheck
+npm run typecheck   # tipos
+npm test            # o motor de custo, incluindo a cadeia nota → receita → produto
+npm run db:verify   # sobe um Postgres descartável e prova o que o esquema promete
 ```
 
 ---
@@ -120,7 +124,8 @@ npm run typecheck
 app/                    rotas (Expo Router)
 src/config/brand.ts     nome, marca e deep link — ponto único
 src/theme/              tokens e provedor de tema
-src/domain/             livro-razão, dinheiro, hierarquia de embalagem
+src/domain/             livro-razão, dinheiro, receita, custo médio, embalagem
+src/data/               SQLite local e o caminho único de consulta
 src/components/         Card, Chip, Button, UnitStepper, PulseDot, CountUp…
 src/i18n/               pt-BR · es · en, com moeda e data por locale
 supabase/migrations/    esquema versionado (não aplicado a nenhum projeto)
@@ -134,8 +139,9 @@ enquanto a busca de marca no INPI ainda está pendente.
 
 ## O que falta e depende de decisão humana
 
-- **Busca de marca (INPI classes 9 e 42).** Não automatizável: o INPI exige
-  login gov.br e a base da WIPO tem CAPTCHA.
+- **Registro formal da marca no INPI.** A busca prévia foi feita e voltou
+  verde para o Brasil; o depósito continua sendo ato do titular. A consulta não
+  é automatizável: o INPI exige login gov.br e a base da WIPO tem CAPTCHA.
 - **Projeto Supabase.** As migrações estão prontas; aplicá-las exige uma conta.
 - **Conta Expo/EAS** para build e atualização OTA.
 - **Domínio.**

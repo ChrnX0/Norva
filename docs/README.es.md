@@ -10,9 +10,11 @@ Nace en una fábrica de paletas y helados, pero nada del helado está fijo en el
 código — la jerarquía de empaque, los módulos y los roles son configurables,
 porque el producto se publicará en las tiendas de Android y Apple.
 
-> **Estado: Fase 0 — Cimiento.** Lo que hay aquí es la base: libro mayor,
-> multiempresa, permisos por capacidad, sistema de diseño e i18n. Todavía no hay
-> pantallas de producto.
+> **Estado: Fase 1 — qué produces y cuánto cuesta.** Sobre el cimiento de la
+> fase 0 (libro mayor, multiempresa, permisos por capacidad, sistema de diseño,
+> i18n) ya funcionan las pantallas de insumo, receta, producto y factura de
+> compra, con el costo recalculando mientras se escribe. Producción, lote y
+> distribución vienen después.
 
 ---
 
@@ -111,7 +113,9 @@ npx expo start
 Verificación:
 
 ```bash
-npm run typecheck
+npm run typecheck   # tipos
+npm test            # el motor de costo, incluida la cadena factura → receta → producto
+npm run db:verify   # levanta un Postgres descartable y prueba lo que el esquema promete
 ```
 
 ---
@@ -122,7 +126,8 @@ npm run typecheck
 app/                    rutas (Expo Router)
 src/config/brand.ts     nombre, marca y deep link - punto único
 src/theme/              tokens y proveedor de tema
-src/domain/             libro mayor, dinero, jerarquía de empaque
+src/domain/             libro mayor, dinero, receta, costo promedio, empaque
+src/data/               SQLite local y el camino único de consulta
 src/components/         Card, Chip, Button, UnitStepper, PulseDot, CountUp…
 src/i18n/               pt-BR · es · en, con moneda y fecha por locale
 supabase/migrations/    esquema versionado (no aplicado a ningún proyecto)
@@ -136,8 +141,9 @@ mientras la búsqueda de marca en el INPI sigue pendiente.
 
 ## Lo que falta y necesita a una persona
 
-- **Búsqueda de marca (INPI clases 9 y 42).** No automatizable: el INPI exige
-  login gov.br y la base de la WIPO tiene CAPTCHA.
+- **Registro formal de la marca en el INPI.** La búsqueda previa salió verde
+  para Brasil; el depósito sigue siendo acto del titular. La consulta no es
+  automatizable: el INPI exige login gov.br y la base de la WIPO tiene CAPTCHA.
 - **Proyecto Supabase.** Las migraciones están listas; aplicarlas requiere una
   cuenta.
 - **Cuenta Expo/EAS** para compilaciones y actualizaciones OTA.

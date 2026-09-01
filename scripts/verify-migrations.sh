@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 #
-# Runs the migrations against a throwaway Postgres and checks that the two
+# Runs the migrations against a throwaway Postgres and checks that the
 # guarantees the schema is supposed to enforce actually hold.
 #
 # "The tables were created" proves nothing. What matters is behaviour:
 #   1. The ledger really is append-only - UPDATE and DELETE must be refused.
 #   2. A purchase really does move the moving average, at full precision.
+#   3. A product cannot exist half-manufactured - a recipe without a portion
+#      size cannot say what one unit costs, so the database refuses it.
 #
 # Needs a local postgres (any recent version) and psql. Nothing is left running.
 
@@ -116,5 +118,31 @@ history=$(psql -d "$DB" -Atc "select count(*) from item_cost_history;")
 [ "$history" = "2" ] || fail "price history should have written itself twice, got $history"
 
 echo "    average $average, last $last, $history history rows written on their own"
+
+echo "==> check 3: a product cannot be half-manufactured"
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<'SQL'
+insert into items (id, company_id, kind, name, base_unit)
+  values ('00000000-0000-4000-8000-0000000000b2', '00000000-0000-4000-8000-0000000000c1',
+          'product', 'Popsicle', 'un');
+insert into recipes (id, company_id, name, yield_amount, yield_unit)
+  values ('00000000-0000-4000-8000-0000000000f1', '00000000-0000-4000-8000-0000000000c1',
+          'Strawberry mix', 40000, 'ml');
+SQL
+
+# A recipe with no portion size cannot say what one unit costs, and a portion
+# size with no recipe has nothing to take a portion of. Either both or neither.
+if psql -d "$DB" -q -c "insert into products (company_id, item_id, recipe_id)
+    values ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-0000000000b2',
+            '00000000-0000-4000-8000-0000000000f1');" >/dev/null 2>&1; then
+  fail "a product was accepted with a recipe but no portion size"
+fi
+
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "insert into products (company_id, item_id, recipe_id, yield_per_unit, unit_packaging_cents)
+  values ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-0000000000b2',
+          '00000000-0000-4000-8000-0000000000f1', 75, 5);"
+
+unit=$(psql -d "$DB" -Atc "select base_unit from items where id = '00000000-0000-4000-8000-0000000000b2';")
+[ "$unit" = "un" ] || fail "expected the base unit to survive the insert, got $unit"
+echo "    half-manufactured product refused, complete one accepted in $unit"
 echo
-echo "OK - migrations apply and both guarantees hold."
+echo "OK - migrations apply and all three guarantees hold."

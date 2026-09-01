@@ -1,171 +1,210 @@
-import { useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
-import { Button } from '@/components/Button';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { CountUp } from '@/components/CountUp';
 import { PulseDot } from '@/components/PulseDot';
-import { UnitStepper } from '@/components/UnitStepper';
-import { balanceOf, daysOfCover, type Movement } from '@/domain/ledger';
-import { fromDecimal } from '@/domain/money';
-import { roundUpToFullContainer, type PackagingHierarchy } from '@/domain/units';
+import { brand } from '@/config/brand';
 import {
-  defaultLocale,
-  detectLanguage,
-  dictionary,
-  fill,
-  formatMoney,
-  formatQuantity,
-} from '@/i18n';
+  itemCosts,
+  labels as loadLabels,
+  listProducts,
+  loadRecipeGraph,
+  recentCostChanges,
+  type CostChange,
+} from '@/data/repository';
+import { ensureStarterData, LOCAL_COMPANY_ID } from '@/data/seed';
+import { useQuery } from '@/data/useQuery';
+import { costPerProductUnit, costRecipe } from '@/domain/recipe';
+import { defaultLocale, formatMoney } from '@/i18n';
+import { palettes, type Ambient } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
- * Foundation smoke screen.
+ * The home screen.
  *
- * Not a product screen - it exists so phase 0 can be seen working end to end:
- * the ledger folding into a balance, the packaging hierarchy speaking the
- * operator's language, the locale formatting money and quantities, and the
- * motion vocabulary running on a real device.
+ * A dashboard shows totals; a briefing says what moved and what to do about it.
+ * The owner already knows roughly how much stock is in the cold room - what
+ * they cannot know without this app is that pulp went up 9% on Tuesday and took
+ * three cents a unit with it.
+ *
+ * So nothing here is a bare number: every figure carries the consequence next
+ * to it, and every line leads to the screen that resolves it. "Everything is
+ * steady" is a valid, well-drawn state - invented alerts teach people to ignore
+ * alerts.
  */
 export default function Home() {
   return (
-    <AreaProvider area="mint">
-      <Foundation />
+    <AreaProvider area="sky">
+      <Briefing />
     </AreaProvider>
   );
 }
 
-/** A packaging hierarchy exactly as a popsicle factory would configure it. */
-const hierarchy: PackagingHierarchy = {
-  tiers: [
-    { id: 'unit', perBaseUnit: 1 },
-    { id: 'box', perBaseUnit: 50 },
-    { id: 'crate', perBaseUnit: 300 },
-  ],
-};
+type ProductCost = { id: string; name: string; recipeId: string | null; unitCents: number };
 
-/** A handful of movements. Balance is derived, never stored. */
-const movements: Movement[] = [
-  {
-    id: '11111111-1111-4111-8111-111111111111',
-    companyId: 'demo',
-    kind: 'production',
-    occurredAt: '2026-08-28T11:00:00Z',
-    recordedAt: '2026-08-28T11:04:00Z',
-    recordedBy: 'operator',
-    itemId: 'strawberry',
-    quantityBaseUnits: 4800,
-    locationId: 'coldRoom',
-    lotId: 'L-2291',
-    unitCostCents: fromDecimal(1.18),
-  },
-  {
-    id: '22222222-2222-4222-8222-222222222222',
-    companyId: 'demo',
-    kind: 'transfer',
-    occurredAt: '2026-08-30T08:20:00Z',
-    recordedAt: '2026-08-30T08:20:00Z',
-    recordedBy: 'operator',
-    itemId: 'strawberry',
-    quantityBaseUnits: -1388,
-    locationId: 'coldRoom',
-    counterpartLocationId: 'storeCentro',
-    lotId: 'L-2291',
-    post: 'picked',
-  },
+type Summary = { products: ProductCost[]; changes: CostChange[] };
+
+const AREAS: { area: Ambient; label: string; hint: string; route: string }[] = [
+  { area: 'mist', label: 'Insumos', hint: 'o que você compra', route: '/inputs' },
+  { area: 'apricot', label: 'Receitas', hint: 'o que entra no tacho', route: '/recipe' },
+  { area: 'mist', label: 'Produtos', hint: 'o que sai para vender', route: '/products' },
+  { area: 'sage', label: 'Compras', hint: 'a nota que move o custo', route: '/purchase' },
 ];
 
-function Foundation() {
-  const { color, type, space } = useTheme();
-  const t = dictionary(detectLanguage());
+function Briefing() {
+  const { color, scheme, type, space } = useTheme();
+  const router = useRouter();
   const locale = defaultLocale;
+  const [ready, setReady] = useState(false);
 
-  const [quantity, setQuantity] = useState(3600);
-
-  const stock = useMemo(() => {
-    const coldRoom = balanceOf(movements).find((b) => b.locationId === 'coldRoom');
-    return coldRoom?.baseUnits ?? 0;
+  // Starter data is written once, into an empty database, and never again.
+  useEffect(() => {
+    ensureStarterData()
+      .catch(() => undefined)
+      .finally(() => setReady(true));
   }, []);
 
-  const cover = daysOfCover(stock, 850);
-  const rounding = roundUpToFullContainer(1599, hierarchy, 'box');
+  const { data, loading } = useQuery<Summary | null>(async () => {
+    if (!ready) return null;
 
-  const tierLabel = (tierId: string, count: number) => {
-    const entry = t.units[tierId as keyof typeof t.units];
-    if (!entry) return tierId;
-    return count === 1 ? entry.one : entry.other;
-  };
+    const [products, graph, costs, names, changes] = await Promise.all([
+      listProducts(LOCAL_COMPANY_ID),
+      loadRecipeGraph(LOCAL_COMPANY_ID),
+      itemCosts(LOCAL_COMPANY_ID),
+      loadLabels(LOCAL_COMPANY_ID),
+      recentCostChanges(LOCAL_COMPANY_ID, 4),
+    ]);
+
+    return {
+      changes,
+      products: products.map((product) => ({
+        id: product.id,
+        name: product.name,
+        recipeId: product.recipeId,
+        unitCents:
+          product.recipeId && product.yieldPerUnit
+            ? costPerProductUnit(
+                costRecipe(product.recipeId, graph, costs, names),
+                product.yieldPerUnit,
+                product.unitPackagingCents,
+              )
+            : 0,
+      })),
+    };
+  }, [ready]);
+
+  const palette = palettes[scheme];
+  const moved = (data?.changes ?? []).filter(
+    (c) => c.previousRate !== null && c.previousRate !== c.newRate,
+  );
 
   return (
-    <CollapsingHeader title={t.areas.inventory} overline="fundação · fase 0">
-      <Card tone="area">
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <PulseDot />
-          <Text style={[type.cardTitle, { color: color.ink }]}>
-            {t.areas.inventory}
-          </Text>
-        </View>
-        <CountUp
-          value={stock}
-          format={(v) => formatQuantity(v, locale)}
-          style={{ ...type.figure, color: color.ink, marginTop: space.sm }}
-        />
-        <Text style={[type.secondary, { color: color.inkMuted }]}>
-          {cover === null
-            ? '—'
-            : `${cover.toFixed(0)} dias de cobertura · saldo somado do livro-razão`}
-        </Text>
-      </Card>
+    <CollapsingHeader title={brand.name} overline="hoje na fábrica">
+      {data?.products.map((product) => (
+        <Pressable
+          key={product.id}
+          onPress={() =>
+            router.push(
+              product.recipeId ? `/recipe?recipeId=${product.recipeId}` : '/products',
+            )
+          }
+          accessibilityRole="button"
+        >
+          <Card tone="area">
+            <View style={[styles.row, { gap: space.sm }]}>
+              <PulseDot />
+              <Text style={[type.cardTitle, { color: color.ink, flex: 1 }]} numberOfLines={1}>
+                {product.name}
+              </Text>
+            </View>
+            <CountUp
+              value={product.unitCents}
+              format={(v) => formatMoney(Math.round(v), locale)}
+              style={{ ...type.figure, color: color.ink, marginTop: space.xs }}
+            />
+            <Text style={[type.secondary, { color: color.inkMuted }]}>
+              custo por unidade · calculado da receita e das notas de compra
+            </Text>
+          </Card>
+        </Pressable>
+      ))}
 
-      <Card tone="warning">
-        <Text style={[type.cardTitle, { color: color.ink }]}>Lote L-2291</Text>
-        <View style={{ marginTop: space.sm }}>
-          <Chip signal="warning" label={fill(t.signals.expiringIn, { days: 9 })} />
-        </View>
-      </Card>
-
-      <Card tone="area">
+      <Card tone={moved.length > 0 ? 'warning' : 'area'}>
         <Text style={[type.cardTitle, { color: color.ink }]}>
-          {t.production.costOfRun}
+          {moved.length > 0 ? 'Mudou desde a última vez' : 'Nada mudou de preço'}
         </Text>
-        <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
-          {formatMoney(118, locale)}
-        </Text>
-        <Text style={[type.secondary, { color: color.inkMuted }]}>
-          {t.production.frozenAtRecord}
-        </Text>
+
+        {moved.length === 0 ? (
+          <>
+            <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
+              {loading ? 'Conferindo…' : 'Os custos estão estáveis. Não há nada para decidir hoje.'}
+            </Text>
+            {!loading ? (
+              <View style={{ marginTop: space.md }}>
+                <Chip signal="ok" label="Tudo estável" />
+              </View>
+            ) : null}
+          </>
+        ) : (
+          <View style={{ marginTop: space.md, gap: space.sm }}>
+            {moved.map((change) => {
+              const previous = change.previousRate ?? change.newRate;
+              const delta = previous > 0 ? (change.newRate - previous) / previous : 0;
+              return (
+                <View key={`${change.itemId}-${change.observedAt}`} style={styles.row}>
+                  <Text style={[type.secondary, { color: color.ink, flex: 1 }]} numberOfLines={1}>
+                    {change.name}
+                  </Text>
+                  <Text
+                    style={[
+                      type.secondary,
+                      styles.number,
+                      { color: delta > 0 ? color.warning : color.ok },
+                    ]}
+                  >
+                    {delta > 0 ? '▲' : '▼'} {(Math.abs(delta) * 100).toFixed(1)}%
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
       </Card>
 
-      <Card tone="area">
-        <Text style={[type.cardTitle, { color: color.ink }]}>
-          {fill(t.production.yields, {
-            units: `${formatQuantity(rounding.rounded, locale)} un`,
-          })}
-        </Text>
-        <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-          {fill(t.production.roundedUp, {
-            from: formatQuantity(1599, locale),
-            boxes: formatQuantity(rounding.rounded / 50, locale),
-          })}
-        </Text>
-      </Card>
-
-      <Card tone="area">
+      <Card>
         <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.md }]}>
-          Quantidade a enviar
+          Onde você quer ir
         </Text>
-        <UnitStepper
-          hierarchy={hierarchy}
-          locale={locale}
-          tierLabel={tierLabel}
-          value={quantity}
-          onChange={setQuantity}
-          labels={{ decrease: t.stepper.decrease, increase: t.stepper.increase }}
-        />
-      </Card>
 
-      <Button label={t.production.register} weighty />
+        {AREAS.map((entry) => (
+          <Pressable
+            key={entry.route}
+            onPress={() => router.push(entry.route as never)}
+            accessibilityRole="button"
+            accessibilityLabel={`${entry.label}: ${entry.hint}`}
+            style={[styles.navRow, { paddingVertical: space.md, gap: space.md }]}
+          >
+            {/* The area's colour arrives as a small mark, never as a surface -
+                enough to make the screen recognisable before it is read. */}
+            <View style={[styles.swatch, { backgroundColor: palette[entry.area] }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={[type.body, { color: color.ink }]}>{entry.label}</Text>
+              <Text style={[type.caption, { color: color.inkFaint }]}>{entry.hint}</Text>
+            </View>
+            <Text style={[type.body, { color: color.inkFaint }]}>›</Text>
+          </Pressable>
+        ))}
+      </Card>
     </CollapsingHeader>
   );
 }
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center' },
+  navRow: { flexDirection: 'row', alignItems: 'center' },
+  number: { fontVariant: ['tabular-nums'], fontWeight: '600' },
+  swatch: { width: 10, height: 10, borderRadius: 5 },
+});
