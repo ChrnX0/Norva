@@ -76,6 +76,7 @@ export const ptBR = {
     home: {
       overline: 'hoje na fábrica',
       unitCost: 'custo por unidade · calculado da receita e das notas de compra',
+      costWas: 'custava {{before}} antes das últimas compras',
       changed: 'Mudou desde a última vez',
       steady: 'Nada mudou de preço',
       steadyDetail: 'Os custos estão estáveis. Não há nada para decidir hoje.',

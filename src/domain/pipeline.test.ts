@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyCostEvent, emptyStock, priceMove, type PurchaseEvent } from './cost';
+import {
+  applyCostEvent,
+  emptyStock,
+  priceMove,
+  ratesBefore,
+  type PurchaseEvent,
+} from './cost';
 import { fromDecimal, rate, type Cents, type Rate } from './money';
 import {
   compareVersions,
@@ -167,4 +173,79 @@ test('an empty stock takes the first invoice as the whole average', () => {
 
   assert.equal(after.baseUnits, 10_000);
   assert.ok(Math.abs(after.averageRate - (1.24 as Rate)) < 1e-9);
+});
+
+/**
+ * The comparison the home screen owes every figure it shows.
+ *
+ * Law 3 of this project: no number appears alone. A unit cost of 55 cents is
+ * neither good nor bad on its own, and the briefing was showing exactly that -
+ * the first card the owner sees, with nothing beside it.
+ */
+
+test('rolling the price history back gives the cost before the recent invoices', () => {
+  const now: ItemCosts = {
+    pulp: rate(14.95, 1_000),
+    sugar: rate(5.9, 1_000),
+    stick: rate(0.04, 1),
+  };
+
+  // Pulp moved twice this week, sugar once, the stick not at all.
+  const moves = [
+    { itemId: 'pulp', previousRate: rate(13.6, 1_000), observedAt: '2026-08-30T10:00:00Z' },
+    { itemId: 'sugar', previousRate: rate(4.72, 1_000), observedAt: '2026-08-28T10:00:00Z' },
+    { itemId: 'pulp', previousRate: rate(12.4, 1_000), observedAt: '2026-08-26T10:00:00Z' },
+  ];
+
+  const before = ratesBefore(now, moves);
+
+  // The earliest of the two pulp moves wins. Rolling back only the last step
+  // would report a 9% rise as if it were 2% - which is how a run of increases
+  // hides in plain sight.
+  assert.ok(Math.abs(before.pulp - rate(12.4, 1_000)) < 1e-9);
+  assert.ok(Math.abs(before.sugar - rate(4.72, 1_000)) < 1e-9);
+  assert.equal(before.stick, now.stick, 'what did not move must come back identical');
+});
+
+test('the price moves land on the finished unit, in reais', () => {
+  const graph: Record<string, Recipe> = {
+    base: {
+      id: 'base',
+      version: 1,
+      effectiveFrom: '2026-01-01',
+      yieldAmount: 10_000,
+      lossFraction: 0,
+      lines: [
+        { kind: 'item', itemId: 'pulp', quantity: 3_000 },
+        { kind: 'item', itemId: 'sugar', quantity: 1_500 },
+      ],
+    },
+  };
+  const names = { pulp: 'Polpa', sugar: 'Açúcar' };
+
+  const now: ItemCosts = { pulp: rate(14.95, 1_000), sugar: rate(5.9, 1_000) };
+  const moves = [
+    { itemId: 'pulp', previousRate: rate(12.4, 1_000), observedAt: '2026-08-26T10:00:00Z' },
+    { itemId: 'sugar', previousRate: rate(4.72, 1_000), observedAt: '2026-08-28T10:00:00Z' },
+  ];
+
+  const unitNow = costPerProductUnit(costRecipe('base', graph, now, names), 75, 0 as Cents);
+  const unitBefore = costPerProductUnit(
+    costRecipe('base', graph, ratesBefore(now, moves), names),
+    75,
+    0 as Cents,
+  );
+
+  // Now:    3000 x 1.495 + 1500 x 0.590 = 4485 + 885 = 5370 cents per 10 L
+  //         5370 / 10000 x 75 = 40.275 -> 40 cents a unit
+  // Before: 3000 x 1.240 + 1500 x 0.472 = 3720 + 708 = 4428 cents per 10 L
+  //         4428 / 10000 x 75 = 33.21  -> 33 cents a unit
+  assert.equal(unitNow, 40);
+  assert.equal(unitBefore, 33);
+  assert.equal(unitNow - unitBefore, 7, 'seven cents a unit, and nobody typed a price');
+});
+
+test('nothing moved means the comparison says nothing, not zero-ish noise', () => {
+  const now: ItemCosts = { pulp: rate(12.4, 1_000) };
+  assert.deepEqual(ratesBefore(now, []), { pulp: now.pulp });
 });

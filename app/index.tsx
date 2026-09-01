@@ -16,8 +16,9 @@ import {
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
+import { ratesBefore } from '@/domain/cost';
 import { costPerProductUnit, costRecipe } from '@/domain/recipe';
-import { formatMoney } from '@/i18n';
+import { fill, formatMoney } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { palettes, type Ambient } from '@/theme/tokens';
 import type { Dictionary } from '@/i18n';
@@ -44,7 +45,14 @@ export default function Home() {
   );
 }
 
-type ProductCost = { id: string; name: string; recipeId: string | null; unitCents: number };
+type ProductCost = {
+  id: string;
+  name: string;
+  recipeId: string | null;
+  unitCents: number;
+  /** The same unit, priced before the recent invoices. Null when nothing moved. */
+  unitCentsBefore: number | null;
+};
 
 type Summary = { products: ProductCost[]; changes: CostChange[] };
 
@@ -72,20 +80,28 @@ function Briefing() {
       recentCostChanges(LOCAL_COMPANY_ID, 4),
     ]);
 
+    // The same products, priced twice: with today's costs and with the costs
+    // as they stood before the recent invoices. The second pass is what lets a
+    // figure arrive with its comparison instead of asking to be trusted.
+    const before = ratesBefore(costs, changes);
+
+    const priced = (product: (typeof products)[number], rates: typeof costs) =>
+      product.recipeId && product.yieldPerUnit
+        ? costPerProductUnit(
+            costRecipe(product.recipeId, graph, rates, names),
+            product.yieldPerUnit,
+            product.unitPackagingCents,
+          )
+        : 0;
+
     return {
       changes,
       products: products.map((product) => ({
         id: product.id,
         name: product.name,
         recipeId: product.recipeId,
-        unitCents:
-          product.recipeId && product.yieldPerUnit
-            ? costPerProductUnit(
-                costRecipe(product.recipeId, graph, costs, names),
-                product.yieldPerUnit,
-                product.unitPackagingCents,
-              )
-            : 0,
+        unitCents: priced(product, costs),
+        unitCentsBefore: changes.length > 0 ? priced(product, before) : null,
       })),
     };
   });
@@ -122,6 +138,27 @@ function Briefing() {
             <Text style={[type.secondary, { color: color.inkMuted }]}>
               {t.app.home.unitCost}
             </Text>
+
+            {/* Law 3: no number appears alone. 55 cents is neither good nor bad
+                until it sits beside what it was, and the history that answers
+                that was already being written by every invoice. */}
+            {product.unitCentsBefore !== null &&
+            product.unitCentsBefore !== product.unitCents ? (
+              <View style={{ marginTop: space.md, gap: space.xs }}>
+                <Chip
+                  signal={product.unitCents > product.unitCentsBefore ? 'warning' : 'ok'}
+                  label={`${product.unitCents > product.unitCentsBefore ? '▲' : '▼'} ${formatMoney(
+                    Math.abs(product.unitCents - product.unitCentsBefore),
+                    locale,
+                  )}`}
+                />
+                <Text style={[type.caption, { color: color.inkFaint }]}>
+                  {fill(t.app.home.costWas, {
+                    before: formatMoney(product.unitCentsBefore, locale),
+                  })}
+                </Text>
+              </View>
+            ) : null}
           </Card>
         </Pressable>
       ))}

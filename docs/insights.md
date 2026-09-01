@@ -173,6 +173,38 @@ teste.
 
 ---
 
+## 2026-09-01 — a tela inicial respondia uma das três perguntas
+
+**O que se viu.** A Lei da Inteligência é uma régua, não um lema: *toda tela
+responde o que é normal ali, o que está diferente agora e qual é a próxima ação
+provável — tela que não responde as três não está pronta.* Medindo a tela
+inicial contra ela, ela respondia **uma**.
+
+Pior, violava a Lei 3 no primeiro cartão que o dono vê. O custo por unidade
+aparecia sozinho: **R$ 0,55**, sem nada ao lado. Cinquenta e cinco centavos não
+é caro nem barato — é um número pedindo para ser acreditado, que é exatamente o
+que este aplicativo diz não fazer.
+
+**O que mudou.** A comparação já estava escrita no banco e ninguém tinha ido
+buscá-la: toda nota lançada grava a taxa anterior do insumo. `ratesBefore()`
+dobra o histórico de volta e a tela precifica os mesmos produtos duas vezes —
+com o custo de hoje e com o de antes das últimas notas. O cartão passa a dizer
+"▲ R$ 0,09 · custava R$ 0,64 antes das últimas compras", verificado no navegador
+contra uma nota lançada de verdade.
+
+Um detalhe que decide se o número é honesto: quando um insumo subiu **mais de
+uma vez** na janela, vale a taxa anterior à **primeira** delas. Desfazer só o
+último passo reportaria uma alta de 9% como se fosse 2% — é assim que uma
+sequência de aumentos se esconde à vista.
+
+**E a terceira pergunta continua sem resposta, de propósito.** "Qual é a próxima
+ação provável" precisa de preço de venda (para sugerir repreço) ou de consumo
+(para sugerir compra), e a Fase 1 não tem nenhum dos dois. Encher a tela de
+"confira alguma coisa" seria o alerta inventado contra o qual a própria Lei
+avisa. Fica em aberto até existir dado que sustente a sugestão.
+
+---
+
 ## Em aberto
 
 Achados desta rodada que ainda não viraram mudança. Ficam aqui até virarem.

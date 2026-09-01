@@ -62,6 +62,7 @@ export const es: Dictionary = {
     home: {
       overline: 'hoy en la fábrica',
       unitCost: 'costo por unidad · calculado de la receta y de las facturas de compra',
+      costWas: 'costaba {{before}} antes de las últimas compras',
       changed: 'Cambió desde la última vez',
       steady: 'Ningún precio cambió',
       steadyDetail: 'Los costos están estables. No hay nada que decidir hoy.',

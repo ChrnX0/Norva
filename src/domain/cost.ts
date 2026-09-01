@@ -136,3 +136,48 @@ export function observedLeadTimeDays(
 export function reorderPoint(dailyConsumption: number, leadTimeDays: number, safetyDays = 2): number {
   return Math.ceil(dailyConsumption * (leadTimeDays + safetyDays));
 }
+
+/** One move in what an item costs, as the price history records it. */
+export type RateMove = {
+  itemId: string;
+  previousRate: Rate | null;
+  observedAt: string;
+};
+
+/**
+ * The rates as they stood before a run of recent moves.
+ *
+ * A unit cost on its own is a number somebody has to take on trust: 55 cents is
+ * neither good nor bad without knowing it was 52 before the last invoices. The
+ * comparison the Law of Intelligence asks for is already written down - every
+ * purchase leaves a row saying what the rate was before it - so this is a fold
+ * over history rather than a snapshot somebody has to remember to store.
+ *
+ * When an item moved more than once inside the window, the *earliest* of those
+ * moves wins. The question a briefing answers is "what did this week do to my
+ * costs", not "what did the last invoice do", and rolling back only the final
+ * step would quietly under-report a run of rises.
+ *
+ * Items with no move keep their current rate, so a product built entirely from
+ * things that did not change comes out identical - which is how "nothing moved"
+ * stays a real answer instead of rounding noise.
+ */
+export function ratesBefore(
+  current: Readonly<Record<string, Rate>>,
+  moves: readonly RateMove[],
+): Record<string, Rate> {
+  const earliest = new Map<string, Rate>();
+
+  for (const move of moves) {
+    if (move.previousRate === null) continue;
+    const seen = moves.find(
+      (other) =>
+        other.itemId === move.itemId &&
+        other.previousRate !== null &&
+        other.observedAt < move.observedAt,
+    );
+    if (!seen) earliest.set(move.itemId, move.previousRate);
+  }
+
+  return { ...current, ...Object.fromEntries(earliest) };
+}

@@ -172,6 +172,17 @@ check('an invoice warns before it is committed, then moves everything', async (p
   assert.match(after, /O que essa nota mexeu/);
   assert.match(after, /R\$ 0,64 → R\$ 0,73/);
 
+  // And the briefing carries the consequence, not just the figure. Until now
+  // the first card the owner saw was a bare unit cost - 55 cents, neither good
+  // nor bad, with nothing beside it.
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2000);
+
+  const briefing = await screen(page);
+  assert.match(briefing, /R\$ 0,73/, 'the new unit cost');
+  assert.match(briefing, /▲ R\$ 0,09/, 'and what the invoice added to it');
+  assert.match(briefing, /custava R\$ 0,64 antes das últimas compras/);
+
   // And the history wrote itself on the way past. Same check, because it is
   // the same story: each context starts on an empty install, so the invoice
   // has to be entered here for the line to exist.
