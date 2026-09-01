@@ -994,3 +994,28 @@ fechar junto com a produção e caríssimo descobrir depois.
 (quem chama · o que eu precisaria ver · custa um commit ou uma migração), e
 passou a **nomear o que o bloqueia, com data** — porque o bloqueio de hoje é um
 ato administrativo, não falta de aprendizado.
+
+## 1 de setembro — o script que quebra o código de propósito deixou um pedaço quebrado no disco
+
+**O que apareceu.** O hook de fim de turno acusou `src/domain/recipe.ts` modificado, e eu
+não tinha mexido nele. O diff era uma **mutação do próprio `mutate`**: o guarda de ciclo de
+receita trocado por `if (false)`. Alguma execução foi interrompida, o `finally` não rodou,
+e a mutação ficou no disco.
+
+**Por que é o pior lugar possível para isso acontecer.** No momento em que apareceu, um
+build de APK estava começando a empacotar **exatamente esse diretório**. Se tivesse chegado
+na tarefa de bundle, o aplicativo sairia com o guarda de ciclo desativado — a receita que se
+referencia trava o app em vez de recusar, que é literalmente o dano descrito na própria
+lista de mutações. O script cujo trabalho é quebrar o código de propósito precisa ser o mais
+paranóico do repositório sobre desfazer, porque a falha dele não é um teste vermelho: é
+código quebrado viajando dentro de um aplicativo.
+
+**O que mudou.** `finally` cobre exceção e não cobre SIGINT/SIGTERM, que é como um processo
+de fundo morre. Agora há tratador para os três sinais mais `process.on('exit')`, com a
+restauração idempotente. E, antes de começar, o script **recusa rodar** se a árvore já
+estiver suja num arquivo que ele mexe — porque seguir em frente sobrescreveria a evidência
+de que a execução anterior morreu no meio. Provado: sujei um arquivo de propósito e ele
+parou na hora, sem tocar em nada.
+
+**E a disciplina que faltou foi minha:** disparei um build a partir de uma árvore suja sem
+conferir. O `git status` custa um segundo e teria mostrado.

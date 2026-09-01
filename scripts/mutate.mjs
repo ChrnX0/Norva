@@ -185,10 +185,61 @@ const DEFECTS = [
   },
 ];
 
+/**
+ * Duas defesas contra o pior resultado possível deste script: deixar uma
+ * mutação no disco.
+ *
+ * Aconteceu. Uma execução foi interrompida, o `finally` não rodou, e o guarda de
+ * ciclo de receita ficou desativado na árvore de trabalho — enquanto um build
+ * de APK começava a empacotar exatamente esse diretório. Um script cujo trabalho
+ * é quebrar o código de propósito precisa ser o mais paranóico do repositório
+ * sobre desfazer, porque a falha dele não é um teste vermelho: é código quebrado
+ * viajando dentro de um aplicativo.
+ *
+ * `finally` cobre exceção. Não cobre SIGINT nem SIGTERM, que é como um processo
+ * de fundo morre.
+ */
+let emVoo = null;
+
+function desfazer() {
+  if (!emVoo) return;
+  writeFileSync(emVoo.file, emVoo.original);
+  emVoo = null;
+}
+
+for (const sinal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(sinal, () => {
+    desfazer();
+    process.exit(130);
+  });
+}
+process.on('exit', desfazer);
+
+/**
+ * E antes de começar: se a árvore já estiver suja num arquivo que este script
+ * mexe, alguma execução anterior morreu no meio. Seguir em frente sobrescreveria
+ * a evidência disso com a mutação seguinte.
+ */
+function arvoreLimpa() {
+  const alvos = [...new Set(DEFECTS.map((d) => d.file))];
+  const sujo = spawnSync('git', ['status', '--porcelain', '--', ...alvos], { encoding: 'utf8' });
+  const linhas = `${sujo.stdout}`.trim();
+  if (linhas) {
+    console.log('A árvore já está suja nos arquivos que este script muda:\n');
+    console.log(linhas);
+    console.log('\nUma execução anterior foi interrompida antes de restaurar. Confira o');
+    console.log('diff e reverta antes de rodar de novo — se for uma mutação esquecida,');
+    console.log('ela está agora dentro de qualquer coisa que você compilar.');
+    process.exit(1);
+  }
+}
+
 function suitePasses() {
   const run = spawnSync('npm', ['test'], { encoding: 'utf8' });
   return `${run.stdout}`.includes('# fail 0');
 }
+
+arvoreLimpa();
 
 let survivors = 0;
 
@@ -204,12 +255,13 @@ for (const defect of DEFECTS) {
     continue;
   }
 
+  emVoo = { file: defect.file, original };
   writeFileSync(defect.file, original.replace(defect.from, defect.to));
   let caught = false;
   try {
     caught = !suitePasses();
   } finally {
-    writeFileSync(defect.file, original);
+    desfazer();
   }
 
   if (caught) {
