@@ -432,14 +432,77 @@ if ! npx tsx scripts/device-session.ts > "$QUEUE" 2>"$PGDATA/queue.err"; then
   fail "a sessão do aparelho não rodou"
 fi
 
+# A empresa e a conta dela. O login autentica o SISTEMA: quem sincroniza é a
+# conta da empresa, e é sob ela que a fila inteira entra.
+DEVICE_ACCOUNT=00000000-0000-4000-8000-000000000001
 psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
   insert into companies (id, name)
-    values ('00000000-0000-4000-8000-000000000001', 'Fábrica local');" >/dev/null
+    values ('$DEVICE_ACCOUNT', 'Fábrica local');
+  insert into memberships (company_id, user_id, display_name, capabilities)
+    values ('$DEVICE_ACCOUNT', '$DEVICE_ACCOUNT', 'Conta da empresa',
+            enum_range(null::capability));
+  -- INSERT e UPDATE, e o UPDATE não é excesso: a fila sobe com
+  -- ON CONFLICT DO UPDATE, porque uma linha corrigida no aparelho offline tem
+  -- de alcançar o servidor. A exceção é movements, que sobe com DO NOTHING -
+  -- o livro-razão não se corrige, se estorna. Faltando o UPDATE, o Postgres
+  -- responde apenas 'permission denied', sem dizer qual dos dois falta.
+  grant insert, update on items, locations, products, purchases, purchase_lines,
+        recipes, recipe_versions, recipe_lines to app_user;
+  grant insert on movements to app_user;" >/dev/null ||
+  fail "não deu para preparar a conta da empresa"
 
-psql -d "$DB" -v ON_ERROR_STOP=1 -q -f "$QUEUE" >/dev/null || fail "a fila do aparelho foi recusada pelo servidor"
+# E aqui está a diferença que faltava: a fila entra COMO A CONTA, não como
+# superusuário.
+#
+# Rodar isto com `-U postgres` foi o buraco desta checagem por semanas. Um
+# superusuário ignora row level security por completo, então as 45 escritas
+# passavam sem que uma única política fosse avaliada: provava que as colunas
+# batiam e absolutamente nada sobre o servidor aceitar a escrita. A regra que
+# decide se a sincronização funciona - `recorded_by = auth.uid()`, capacidade por
+# tipo de movimento, isolamento por empresa - nunca era executada.
+#
+# Uma premissa errada minha atravessou a barra verde inteira por causa disso.
+printf 'set role app_user;\nset test.uid = %s;\n' "'$DEVICE_ACCOUNT'" > "$PGDATA/queue-rls.sql"
+cat "$QUEUE" >> "$PGDATA/queue-rls.sql"
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -f "$PGDATA/queue-rls.sql" >/dev/null 2>"$PGDATA/queue-rls.err" || {
+  head -5 "$PGDATA/queue-rls.err"
+  fail "a fila do aparelho foi recusada pelo servidor sob a política"
+}
 
 writes=$(grep -c '^insert into' "$QUEUE")
-echo "    $writes escritas replicadas sem uma recusa"
+echo "    $writes escritas replicadas sob a política, sem uma recusa"
+
+# E a política está mesmo sendo avaliada, não apenas presente.
+#
+# A mesma fila, byte por byte, sob uma conta que não é membro desta empresa. Se
+# passar, a checagem acima não provou nada - foi o que aconteceu por semanas com
+# o superusuário. A primeira escrita tem de ser recusada.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
+  insert into auth.users (id) values ('00000000-0000-4000-8000-00000000000f');" >/dev/null ||
+  fail "não deu para criar a conta de fora"
+printf 'set role app_user;\nset test.uid = %s;\n' "'00000000-0000-4000-8000-00000000000f'" \
+  > "$PGDATA/queue-outsider.sql"
+cat "$QUEUE" >> "$PGDATA/queue-outsider.sql"
+if psql -d "$DB" -v ON_ERROR_STOP=1 -q -f "$PGDATA/queue-outsider.sql" >/dev/null 2>&1; then
+  fail "uma conta de fora da empresa conseguiu subir a fila inteira"
+fi
+echo "    e a mesma fila, por quem não é da empresa, para na primeira linha"
+
+# A mesma fila de novo, e é aqui que o ON CONFLICT sai do papel.
+#
+# Num banco vazio nenhuma linha conflita, então o DO UPDATE nunca dispara e a
+# política de UPDATE nunca é avaliada - a passagem anterior não diz nada sobre
+# ela. Um aparelho reenvia a fila o tempo todo: sinal que caiu no meio, tela
+# fechada antes do fim, bateria acabando. Reenviar tem de ser inofensivo.
+#
+# E o livro-razão tem de se comportar diferente do resto: movements sobe com DO
+# NOTHING, então a segunda passagem não pode mexer em nenhum movimento. Se o
+# saldo mudar aqui, o ledger virou mutável sem ninguém notar.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -f "$PGDATA/queue-rls.sql" >/dev/null 2>"$PGDATA/queue-again.err" || {
+  head -3 "$PGDATA/queue-again.err"
+  fail "reenviar a fila foi recusado - a sincronização não é idempotente"
+}
+echo "    e reenviada inteira, sem estrago"
 
 SUGAR=$(grep -oE 'DEVICE_SUGAR_ID=[0-9a-f-]+' "$QUEUE" | cut -d= -f2)
 DEV_BALANCE=$(grep -oE 'DEVICE_SUGAR_BALANCE=-?[0-9]+' "$QUEUE" | cut -d= -f2)

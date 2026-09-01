@@ -242,6 +242,12 @@ sistema** até ela falhar ou passar de verdade. Construir sobre uma premissa
 inventada custa a rodada inteira, e o pior é que o código fica bonito: testes
 verdes protegendo uma regra que ninguém pediu.
 
+**A proofgate cresce com o uso — é diretriz, não cortesia.** Toda vez que um erro
+aqui vira um padrão que um script pegaria, ele vira guard no repositório dela
+(`ChrnX0/proofgate`), com teste positivo e negativo, e sobe por PR. Conselho eu
+esqueço na próxima sessão; guard roda sozinho. Vale para o que a ferramenta erra
+sobre si mesma: o `dead-allow` nasceu de um marcador dela que não suprimia nada.
+
 ## Faseamento
 
 **Nenhuma fase começa antes da anterior estar em uso real.** Hoje a Fase 1

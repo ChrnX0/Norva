@@ -648,3 +648,44 @@ reproduzidos como **superusuário**, que ignora RLS por completo. A "fila
 reproduzida contra um servidor de verdade" prova que as colunas batem — nunca
 provou que a escrita seria aceita. É o próximo item, e é o que teria contrariado
 minha premissa antes de eu construir sobre ela.
+
+## 1 de setembro — o aparelho não conseguia reenviar a fila
+
+**O que apareceu.** Assim que a checagem 6 parou de rodar como superusuário e
+passou a subir a fila como a conta da empresa, sob RLS, a **segunda** passagem da
+mesma fila foi recusada:
+
+    new row violates row-level security policy (USING expression)
+    for table "purchases"
+
+`purchases` e `purchase_lines` tinham política de leitura e de INSERT e **nenhuma
+de UPDATE** — e a fila sobe com `ON CONFLICT DO UPDATE`. Todas as outras tabelas
+que ela escreve têm um `_manage FOR ALL`, que cobre update; essas duas ficaram de
+fora quando foram escritas, e nada apontava para isso porque nenhuma política era
+avaliada.
+
+**Por que importa.** Reenviar não é caso raro, é o caso normal: sinal que cai no
+meio da subida, aplicativo fechado antes do fim, bateria acabando na câmara fria.
+O aparelho reenvia até ter certeza. Sem isso ele reenviaria **para sempre**, com a
+fila travada atrás da primeira nota e nada na tela explicando o quê — o pior tipo
+de defeito, porque some do lado de quem programa e mora do lado de quem usa.
+
+**O que mudou.** Migração 0015 com política de UPDATE para as duas, na mesma
+capacidade que já podia inseri-las. Não foi `DO NOTHING`: com ele, uma nota
+corrigida no aparelho seria descartada em silêncio, e silêncio é a única coisa
+pior que a recusa. `movements` continua sem política de UPDATE e subindo com
+`DO NOTHING` — a nota é documento, o movimento é fato, e só o fato é imutável.
+
+E a checagem 6 virou quatro afirmações em vez de uma: a fila entra **sob a
+política** como a conta da empresa; a **mesma fila** por quem não é da empresa
+para na primeira linha (que é o que prova que a política está sendo avaliada, e
+não apenas presente); reenviada inteira, não estraga nada; e o saldo aferido
+**depois das duas passagens** continua 92000, que é o livro-razão provando que não
+dobrou.
+
+**De quebra, três coisas menores.** `ON CONFLICT DO UPDATE` exige privilégio de
+UPDATE, e o Postgres responde só `permission denied` sem dizer qual dos dois
+falta — meia hora nisso. Um backtick dentro de string com aspas duplas fez o bash
+executar um comentário SQL (segunda vez hoje que essa família me pega, a primeira
+em template literal). E `has_capability` mudou para o schema `private` na 0004, o
+que só aparece quando se escreve uma política nova.
