@@ -104,7 +104,10 @@ test('every write queues itself, and nothing writes without queueing', async () 
     // recomputed on the server: a movement written in a freezer with no signal
     // has to reach the server as the record it already is.
     'movements',
-    'item_costs',
+    // `item_costs` is deliberately absent. The average is derived, and a
+    // derived number gets one author: this device computes its own to survive
+    // offline, the server computes its own from these same lines. Sending both
+    // gave the figure two authors and they disagreed on the first real replay.
     'recipes',
     'recipe_versions',
     // And its lines. A version that lands without them is a recipe that costs

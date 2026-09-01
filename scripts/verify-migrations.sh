@@ -347,6 +347,55 @@ sneaked=$(rows "select count(*) from movements where id = '${M}d7';")  # proofga
 [ "$sneaked" = "0" ] || fail "someone without check_receipt signed for a delivery"
 
 echo "    purchases post, an empty count is kept, an empty production is not"
+
+echo "==> check 6: a fila do aparelho chega inteira, e os dois lados fecham o mesmo número"
+
+# A metade da barra que faltava.
+#
+# Tudo o mais exercita um módulo ou dirige o aplicativo, e nenhum dos dois
+# enxerga a costura entre o SQLite do celular e o Postgres do servidor. Seis
+# defeitos moraram exatamente ali - coluna que não existe do outro lado, enum
+# escrito diferente, inteiro onde o servidor quer booleano - porque não havia
+# código para estar errado.
+#
+# Aqui uma sessão de verdade roda no aparelho, a fila que ela produz é
+# serializada pelo mesmo `serialize` que a sincronização vai usar, e o SQL
+# entra neste Postgres com ON_ERROR_STOP. Qualquer divergência de forma para a
+# execução.
+QUEUE="$PGDATA/queue.sql"
+if ! npx tsx scripts/device-session.ts > "$QUEUE" 2>"$PGDATA/queue.err"; then
+  cat "$PGDATA/queue.err"
+  fail "a sessão do aparelho não rodou"
+fi
+
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
+  insert into companies (id, name)
+    values ('00000000-0000-4000-8000-000000000001', 'Fábrica local');" >/dev/null
+
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -f "$QUEUE" >/dev/null || fail "a fila do aparelho foi recusada pelo servidor"
+
+writes=$(grep -c '^insert into' "$QUEUE")
+echo "    $writes escritas replicadas sem uma recusa"
+
+SUGAR=$(grep -oE 'DEVICE_SUGAR_ID=[0-9a-f-]+' "$QUEUE" | cut -d= -f2)
+DEV_BALANCE=$(grep -oE 'DEVICE_SUGAR_BALANCE=-?[0-9]+' "$QUEUE" | cut -d= -f2)
+DEV_AVERAGE=$(grep -oE 'DEVICE_SUGAR_AVERAGE=[0-9.]+' "$QUEUE" | cut -d= -f2)
+
+# O saldo do servidor é a soma do livro-razão, calculada por ele, não enviada.
+srv_balance=$(psql -d "$DB" -Atqc "select coalesce(sum(quantity_base_units), 0)
+  from movements where item_id = '$SUGAR';")  # proofgate-allow
+[ "$srv_balance" = "$DEV_BALANCE" ] || fail "saldo divergente: aparelho $DEV_BALANCE, servidor $srv_balance"
+
+# E a média: o gatilho do Postgres calculou a dele sozinho, a partir das linhas
+# de nota que chegaram. Se as duas implementações da média móvel discordarem,
+# é aqui que aparece - e é a única checagem do projeto que compara duas
+# implementações independentes da mesma regra.
+srv_average=$(psql -d "$DB" -Atqc "select round(new_rate, 4) from item_cost_history
+  where item_id = '$SUGAR' order by observed_at desc, ctid desc limit 1;")  # proofgate-allow
+[ "$srv_average" = "$DEV_AVERAGE" ] || fail "média divergente: aparelho $DEV_AVERAGE, servidor $srv_average"
+
+echo "    saldo $srv_balance e média $srv_average, iguais nos dois lados"
+
 echo
-echo "OK - migrations apply and all five guarantees hold."
+echo "OK - migrations apply and all six guarantees hold."
 

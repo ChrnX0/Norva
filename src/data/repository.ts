@@ -291,11 +291,20 @@ export async function recordPurchase(
     // completeness: the server's `apply_purchase_to_cost` trigger fires on an
     // insert into `purchase_lines`. Without it the invoice replays as an empty
     // header, and the authoritative cost and price history are never written.
+    // `item_costs` is not queued, and that omission is the design.
+    //
+    // The average is derived, and a derived number gets one author. This device
+    // computes its own so it can show a cost with no signal; the server
+    // computes its own from these very lines, by the same rule. Sending both
+    // gives the figure two authors and they disagree - replaying the queue put
+    // the server at 0.5605 where the phone said 0.5310, because the queue
+    // carries row ids and resends whatever the row says *now*.
+    //
+    // What travels is the invoice. The average is what each side concludes.
     await enqueue(conn, [
       { table: 'purchases', rowId: purchaseId },
       { table: 'purchase_lines', rowId: lineId },
       { table: 'movements', rowId: lineId },
-      { table: 'item_costs', rowId: input.itemId },
     ]);
   });
 

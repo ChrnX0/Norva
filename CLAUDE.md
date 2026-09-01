@@ -83,7 +83,8 @@ npm run typecheck
 npm run lint
 npm test
 npm run e2e          # o app dirigido num navegador de verdade
-npm run db:verify    # Postgres descartável, quatro garantias
+npm run db:verify    # Postgres descartável, seis garantias — inclui a fila
+                     # do aparelho reproduzida contra o servidor de verdade
 bash .proofgate/verify.sh
 ```
 

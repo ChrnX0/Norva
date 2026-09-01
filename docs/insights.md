@@ -281,6 +281,45 @@ de ligar sincronização.
 
 ---
 
+## 2026-09-01 — a média móvel tinha dois autores, e eles discordavam
+
+**O que se viu.** A dívida escrita de manhã era construir o terceiro nível da
+barra: reproduzir a fila do aparelho contra um Postgres de verdade. Foi
+construída — uma sessão real roda no celular, a fila que ela produz passa pelo
+mesmo `serialize` que a sincronização vai usar, e o SQL entra no servidor com
+`ON_ERROR_STOP`.
+
+**Antes de rodar, comparar os dois esquemas coluna a coluna já achou seis
+divergências**, e uma delas é defeito de produto: `recipe_lines` não tinha
+`position` no servidor, então a ordem em que a pessoa escreveu os ingredientes
+se perderia no sync — e ficha técnica é lida de cima para baixo, com alguém
+trabalhando. As outras cinco: `supplier_name` sem destino, `created_by` e
+`recorded_by` obrigatórios sem equivalente no aparelho, `active` inteiro contra
+booleano (o insert simplesmente falha), `packaging` texto contra `jsonb` (esse
+não falha — grava uma string entre aspas onde deveria haver estrutura, e nada
+reclama), e `freight_cents not null default 0` anulado porque `select *` manda
+NULL para campo ausente e derruba o default do servidor.
+
+**E a primeira execução real achou o que nenhuma leitura acharia.** Aparelho
+0,5310, servidor 0,5605. A causa: **`item_costs` é valor derivado com dois
+autores.** O aparelho calcula a média para sobreviver offline, o servidor
+recalcula sozinho no gatilho, e os dois se sobrescrevem. Pior: a fila guarda
+**id de linha, não o valor** da época, então a reprodução reenvia sempre o
+estado atual — e o gatilho misturou uma nota nova contra uma média que só
+passou a existir depois dela.
+
+**O que mudou.** `item_costs` deixou de viajar. Valor derivado tem um dono só: o
+que atravessa é a nota, e a média é o que cada lado conclui dela, pela mesma
+regra. O serializador devolve `derived` em vez de silêncio, porque escrita que
+nunca chega é idêntica a escrita que chegou.
+
+**A garantia que sobra é a mais forte do projeto:** a checagem 6 compara **duas
+implementações independentes da média móvel** — a de TypeScript no celular e a
+de plpgsql no Postgres — e exige que fechem o mesmo número. Hoje fecham: saldo
+92.000, média 0,5310.
+
+---
+
 ## Em aberto
 
 Achados desta rodada que ainda não viraram mudança. Ficam aqui até virarem.
