@@ -2,6 +2,8 @@ import { en } from './locales/en';
 import { es } from './locales/es';
 import { ptBR, type Dictionary } from './locales/pt-BR';
 
+export type { Dictionary };
+
 export type LanguageTag = 'pt-BR' | 'es' | 'en';
 
 const dictionaries: Record<LanguageTag, Dictionary> = { 'pt-BR': ptBR, es, en };
@@ -81,4 +83,16 @@ export function formatDayMonth(iso: string, locale: LocaleSettings): string {
     month: '2-digit',
     timeZone: locale.timeZone,
   }).format(new Date(iso));
+}
+
+/**
+ * Joins a list the way a person says it: "6 insumos, 2 receitas e 1 produto".
+ *
+ * Commas everywhere reads like a form; a conjunction before the last item is
+ * what makes a confirmation sound like a sentence somebody wrote.
+ */
+export function joinList(parts: readonly string[], and: string): string {
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0];
+  return `${parts.slice(0, -1).join(', ')} ${and} ${parts[parts.length - 1]}`;
 }

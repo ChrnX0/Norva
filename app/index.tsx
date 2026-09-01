@@ -1,5 +1,4 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
@@ -15,7 +14,7 @@ import {
   recentCostChanges,
   type CostChange,
 } from '@/data/repository';
-import { ensureStarterData, LOCAL_COMPANY_ID } from '@/data/seed';
+import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { costPerProductUnit, costRecipe } from '@/domain/recipe';
 import { defaultLocale, formatMoney } from '@/i18n';
@@ -60,18 +59,8 @@ function Briefing() {
   const { color, scheme, type, space } = useTheme();
   const router = useRouter();
   const locale = defaultLocale;
-  const [ready, setReady] = useState(false);
-
-  // Starter data is written once, into an empty database, and never again.
-  useEffect(() => {
-    ensureStarterData()
-      .catch(() => undefined)
-      .finally(() => setReady(true));
-  }, []);
 
   const { data, loading } = useQuery<Summary | null>(async () => {
-    if (!ready) return null;
-
     const [products, graph, costs, names, changes] = await Promise.all([
       listProducts(LOCAL_COMPANY_ID),
       loadRecipeGraph(LOCAL_COMPANY_ID),
@@ -96,7 +85,7 @@ function Briefing() {
             : 0,
       })),
     };
-  }, [ready]);
+  }, []);
 
   const palette = palettes[scheme];
   const moved = (data?.changes ?? []).filter(

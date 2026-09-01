@@ -19,8 +19,8 @@ import { useQuery } from '@/data/useQuery';
 import { fromDecimal } from '@/domain/money';
 import { costPerProductUnit, costRecipe, unitsPerBatch, type ItemCosts, type Recipe } from '@/domain/recipe';
 import { type PackagingHierarchy } from '@/domain/units';
-import { defaultLocale, dictionary, formatMoney, formatQuantity } from '@/i18n';
-import { detectLanguage } from '@/i18n/device';
+import { formatMoney, formatQuantity } from '@/i18n';
+import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -56,8 +56,7 @@ type Loaded = {
 function ProductForm() {
   const { color, type, space, accent } = useTheme();
   const router = useRouter();
-  const locale = defaultLocale;
-  const t = dictionary(detectLanguage());
+  const { locale, t } = useLocale();
 
   const { data, loading } = useQuery<Loaded>(async () => {
     const [recipes, graph, costs, labels] = await Promise.all([

@@ -10,14 +10,8 @@ import { UnitStepper } from '@/components/UnitStepper';
 import { balanceOf, daysOfCover, type Movement } from '@/domain/ledger';
 import { fromDecimal } from '@/domain/money';
 import { roundUpToFullContainer, type PackagingHierarchy } from '@/domain/units';
-import {
-  defaultLocale,
-  dictionary,
-  fill,
-  formatMoney,
-  formatQuantity,
-} from '@/i18n';
-import { detectLanguage } from '@/i18n/device';
+import { fill, formatMoney, formatQuantity } from '@/i18n';
+import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -82,8 +76,7 @@ const movements: Movement[] = [
 
 function Foundation() {
   const { color, type, space } = useTheme();
-  const t = dictionary(detectLanguage());
-  const locale = defaultLocale;
+  const { locale, t } = useLocale();
 
   const [quantity, setQuantity] = useState(3600);
 

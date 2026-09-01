@@ -12,6 +12,8 @@
  */
 export const ptBR = {
   common: {
+    /** Joins the last two items of a spoken list: "a, b e c". */
+    and: 'e',
     confirm: 'Confirmar',
     adjust: 'Ajustar',
     cancel: 'Cancelar',

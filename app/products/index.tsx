@@ -14,8 +14,8 @@ import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { costPerProductUnit, costRecipe, unitsPerBatch } from '@/domain/recipe';
 import { breakdown } from '@/domain/units';
-import { defaultLocale, dictionary, formatMoney, formatQuantity } from '@/i18n';
-import { detectLanguage } from '@/i18n/device';
+import { formatMoney, formatQuantity, joinList } from '@/i18n';
+import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -45,8 +45,7 @@ type Row = {
 function ProductsList() {
   const { color, type } = useTheme();
   const router = useRouter();
-  const locale = defaultLocale;
-  const t = dictionary(detectLanguage());
+  const { locale, t } = useLocale();
 
   const { data, loading } = useQuery<Row[]>(async () => {
     const [products, graph, costs, names] = await Promise.all([
@@ -72,13 +71,14 @@ function ProductsList() {
 
       // Said in the operator's packaging, not in a bare number: "7 caixas e 6
       // soltas" is what somebody stacking a cold room can actually act on.
-      const packed = breakdown(units, product.packaging)
-        .map((part) => {
+      const packed = joinList(
+        breakdown(units, product.packaging).map((part) => {
           const entry = t.units[part.tier.id as keyof typeof t.units];
           const word = entry ? (part.quantity === 1 ? entry.one : entry.other) : part.tier.id;
           return `${formatQuantity(part.quantity, locale)} ${word}`;
-        })
-        .join(' e ');
+        }),
+        t.common.and,
+      );
 
       return {
         id: product.id,

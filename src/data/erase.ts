@@ -17,6 +17,8 @@
  * database.
  */
 
+import { joinList } from '@/i18n';
+
 export type EraseArea = 'purchases' | 'recipes' | 'products' | 'inputs' | 'all';
 
 /** What the screen counts up so the confirmation can speak in real numbers. */
@@ -171,6 +173,5 @@ function plural(count: number, one: string, many: string): string {
 
 /** "6 insumos, 2 receitas e 1 produto" - the way a person would say it. */
 function list(parts: readonly string[]): string {
-  if (parts.length === 1) return parts[0];
-  return `${parts.slice(0, -1).join(', ')} e ${parts[parts.length - 1]}`;
+  return joinList(parts, 'e');
 }

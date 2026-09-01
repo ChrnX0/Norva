@@ -31,7 +31,18 @@ export function WhatsNew() {
 
     AsyncStorage.getItem(SEEN_KEY)
       .then((seen) => {
-        if (alive && seen !== latestRelease.version) setVisible(true);
+        if (!alive || seen === latestRelease.version) return;
+
+        // Nothing was updated on a first install, and saying so would be the
+        // app's first sentence to somebody who has not decided to trust it yet.
+        // So the current release is filed as already seen, silently, and the
+        // sheet waits for a real update to have something true to report.
+        if (seen === null) {
+          void AsyncStorage.setItem(SEEN_KEY, latestRelease.version).catch(() => undefined);
+          return;
+        }
+
+        setVisible(true);
       })
       .catch(() => undefined);
 

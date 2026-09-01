@@ -3,6 +3,8 @@ import type { Dictionary } from './pt-BR';
 /** English. */
 export const en: Dictionary = {
   common: {
+    /** Joins the last two items of a spoken list: "a, b and c". */
+    and: 'and',
     confirm: 'Confirm',
     adjust: 'Adjust',
     cancel: 'Cancel',
