@@ -218,7 +218,7 @@ CREATE TABLE IF NOT EXISTS locations (
   id         TEXT PRIMARY KEY,
   company_id TEXT NOT NULL,
   name       TEXT NOT NULL,
-  kind       TEXT NOT NULL DEFAULT 'storeroom',
+  kind       TEXT NOT NULL DEFAULT 'store_room',
   created_at TEXT NOT NULL
 );
 
@@ -260,7 +260,7 @@ CREATE INDEX IF NOT EXISTS movements_balance_idx
 -- that ships as one language would be the single string that escaped. An
 -- unnamed location means "the one place", and the interface is what names it.
 INSERT OR IGNORE INTO locations (id, company_id, name, kind, created_at)
-SELECT company_id, company_id, '', 'storeroom', MIN(created_at)
+SELECT company_id, company_id, '', 'store_room', MIN(created_at)
   FROM items GROUP BY company_id;
 
 INSERT OR IGNORE INTO movements
@@ -351,10 +351,21 @@ export async function migrate(conn: Db): Promise<number> {
     const step = MIGRATIONS[version];
     await conn.withTransactionAsync(async () => {
       await conn.execAsync(step);
+      // Inside the transaction, and that is the whole point.
+      //
+      // Written after the commit, this line was a way to brick a phone. A
+      // process killed in the gap between the two would come back believing
+      // the step had not run, and re-run it - and a step like V2's
+      // `ALTER TABLE ... ADD COLUMN` fails on a column that already exists.
+      // Not once: on every launch, for ever, with no way in.
+      //
+      // `PRAGMA user_version` participates in the transaction like any other
+      // write, so the schema change and the record of it now land together or
+      // not at all. PRAGMA takes no bound parameter, and the value is an index
+      // into a constant list rather than anything a caller can reach.
+      // proofgate-allow
+      await conn.execAsync(`PRAGMA user_version = ${version + 1}`);
     });
-    // PRAGMA cannot take a bound parameter, and the value is an index into a
-    // constant list rather than anything a caller can reach. proofgate-allow
-    await conn.execAsync(`PRAGMA user_version = ${version + 1}`);
   }
 
   return MIGRATIONS.length;

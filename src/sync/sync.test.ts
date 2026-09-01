@@ -96,6 +96,10 @@ test('every write queues itself, and nothing writes without queueing', async () 
     // sync failing a foreign key.
     'locations',
     'purchases',
+    // The line, not only its header: the server's costing trigger fires on an
+    // insert into `purchase_lines`, so a header alone replays as an invoice
+    // that moved no cost and wrote no history.
+    'purchase_lines',
     // The arrival in the ledger. It queues beside the invoice rather than being
     // recomputed on the server: a movement written in a freezer with no signal
     // has to reach the server as the record it already is.
@@ -103,6 +107,9 @@ test('every write queues itself, and nothing writes without queueing', async () 
     'item_costs',
     'recipes',
     'recipe_versions',
+    // And its lines. A version that lands without them is a recipe that costs
+    // nothing on the other device.
+    'recipe_lines',
   ]);
   assert.ok(queued.every((e) => e.op === 'upsert'));
   assert.equal(queued[0].rowId, sugar);

@@ -22,6 +22,7 @@ import {
   saveRecipeVersion,
 } from './repository';
 import { EraseBlockedError } from './erase';
+import { pendingEntries } from './outbox';
 import { ensureStarterData, hasSeeded, LOCAL_COMPANY_ID } from './seed';
 
 /**
@@ -482,4 +483,22 @@ test('a phone that already holds invoices keeps its balance through the upgrade'
        FROM movements WHERE item_id = 'i1'`,
   );
   assert.equal(again?.total, 100_000, 'the backfill did not run twice');
+});
+
+test('erasing everything leaves the order to erase, and nothing else', async () => {
+  await ensureStarterData(CO);
+  await eraseArea(CO, 'all');
+
+  // "Apagar tudo" clears the outbox as well, so the command describing the
+  // wipe used to delete itself on the way past: the device came out empty, the
+  // server never heard, and the next sync restored exactly what the person had
+  // asked to destroy.
+  const queued = await pendingEntries();
+  assert.deepEqual(
+    queued.map((e) => e.table),
+    ['erase'],
+    'the order to erase has to survive the erase it describes',
+  );
+  assert.equal(queued[0].op, 'delete');
+  assert.equal(queued[0].rowId, 'all');
 });

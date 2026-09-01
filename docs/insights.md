@@ -238,6 +238,49 @@ ativar a inteligência. Construir adiantado ali é a regra, não a exceção.
 
 ---
 
+## 2026-09-01 — seis defeitos que a minha barra inteira não podia ver
+
+**O que se viu.** Uma revisão automática do Codex apontou seis coisas no PR.
+Conferi uma a uma antes de aceitar qualquer uma, e **as seis eram reais** —
+em código que passou por typecheck, 78 testes, lint, `db:verify` e nove
+checagens de navegador.
+
+O que importa não é a contagem, é o padrão: **cinco delas só existem no caminho
+que nada exercita.** A fila de sincronização tem teste de ordem e de
+idempotência, e nunca ninguém a reproduziu contra o esquema real do servidor.
+Então a compra saía sem a linha da nota (e é a linha que dispara o gatilho de
+custo no Postgres), a receita saía sem as linhas dela, o local ia com
+`'storeroom'` onde o enum do servidor diz `store_room`, e o comando de "apagar
+tudo" **se apagava**, porque o `outbox` está na lista de tabelas que a limpeza
+esvazia — o aparelho ficava vazio, o servidor nunca ficava sabendo, e a próxima
+sincronização traria de volta exatamente o que a pessoa mandou destruir.
+
+Duas não eram de sync, e são as piores:
+
+**Um jeito de inutilizar o celular.** `PRAGMA user_version` era escrito **depois**
+da transação da migração. Um processo morto naquela fresta volta acreditando que
+o passo não rodou e roda de novo — e um passo como `ALTER TABLE ... ADD COLUMN`
+falha na coluna que já existe. Não uma vez: em toda abertura, para sempre, sem
+porta de entrada. O pragma é transacional (provado), então agora o esquema e o
+registro dele caem juntos ou não caem.
+
+**A fundação do dinheiro, quebrada onde ela foi escrita.** O custo do tacho
+arredondava **cada linha** antes de somar. Dez ingredientes de quatro décimos de
+centavo somavam zero num tacho que custa quatro. É o mesmo defeito do bug da
+polpa, de terno novo — e o `CLAUDE.md` diz, em letra maiúscula, *"só o valor
+final arredonda, uma vez"*. Agora as linhas acumulam fracionário, o tacho
+arredonda uma vez, e a repartição por maior resto faz o detalhamento somar
+exatamente o número que ele explica. Um `[por quê?]` que não bate com a conta
+acima dele é pior que nenhum.
+
+**A conclusão desconfortável.** A barra de verificação deste projeto é boa e não
+tinha como pegar nada disso. Ela exercita módulos e exercita o aplicativo, e o
+que faltou é o terceiro: **reproduzir a fila contra um Postgres de verdade.**
+Isso é dívida registrada, não conserto — e é a próxima coisa a construir antes
+de ligar sincronização.
+
+---
+
 ## Em aberto
 
 Achados desta rodada que ainda não viraram mudança. Ficam aqui até virarem.

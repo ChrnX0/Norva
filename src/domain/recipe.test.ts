@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { applyCostEvent, emptyStock, priceMove, reorderPoint } from './cost';
 import { balanceOf, buildReversal, lotsPresentDuring, type Movement } from './ledger';
-import { allocateCents, cents, fromDecimal, rate } from './money';
+import { allocateCents, cents, fromDecimal, rate, type Rate } from './money';
 import {
   compareVersions,
   costPerProductUnit,
@@ -10,6 +10,7 @@ import {
   explodeRequirements,
   RecipeCycleError,
   unitsPerBatch,
+  type ItemCosts,
   type Recipe,
 } from './recipe';
 import { breakdown, roundUpToFullContainer, type PackagingHierarchy } from './units';
@@ -307,4 +308,92 @@ test('the reorder point uses the observed lead time, not the promised one', () =
   // Supplier says three days; six is what actually happens.
   assert.equal(reorderPoint(50, 6, 2), 400);
   assert.ok(reorderPoint(50, 6) > reorderPoint(50, 3));
+});
+
+/**
+ * The rounding defect, and the rule it broke.
+ *
+ * `Cents` is an integer and `Rate` is fractional, and only the final value
+ * rounds - once. The batch cost was rounding every line first and summing the
+ * results, which is the same mistake in a different coat: cheap lines vanished
+ * one by one and the recipe came out understated with every intermediate step
+ * looking perfectly sane.
+ */
+
+test('cheap lines add up instead of each rounding away to nothing', () => {
+  // Ten ingredients at four tenths of a cent apiece. Rounded line by line they
+  // are all zero; together they are four cents.
+  const graph: Record<string, Recipe> = {
+    tiny: {
+      id: 'tiny',
+      version: 1,
+      effectiveFrom: '2026-01-01',
+      yieldAmount: 1_000,
+      lossFraction: 0,
+      lines: Array.from({ length: 10 }, (_, i) => ({
+        kind: 'item' as const,
+        itemId: `i${i}`,
+        quantity: 1,
+      })),
+    },
+  };
+  const costs: ItemCosts = Object.fromEntries(
+    Array.from({ length: 10 }, (_, i) => [`i${i}`, 0.4 as Rate]),
+  );
+
+  const cost = costRecipe('tiny', graph, costs);
+
+  assert.equal(cost.batchCents, 4, 'ten times four tenths is four cents, not zero');
+
+  // And the breakdown adds up to the figure it explains. A `[por quê?]` whose
+  // lines do not sum to the number above them is worse than none.
+  const shown = cost.lines.reduce((a, l) => a + l.totalCents, 0);
+  assert.equal(shown, cost.batchCents);
+});
+
+test('the breakdown always sums to the figure, however the cents fall', () => {
+  const graph: Record<string, Recipe> = {
+    odd: {
+      id: 'odd',
+      version: 1,
+      effectiveFrom: '2026-01-01',
+      yieldAmount: 1_000,
+      lossFraction: 0,
+      lines: [
+        { kind: 'item', itemId: 'a', quantity: 3 },
+        { kind: 'item', itemId: 'b', quantity: 3 },
+        { kind: 'item', itemId: 'c', quantity: 3 },
+      ],
+    },
+  };
+  // 3 x 0.3333 three times: 2.9997 cents, which is 3 after one rounding.
+  const costs: ItemCosts = { a: 0.3333 as Rate, b: 0.3333 as Rate, c: 0.3333 as Rate };
+
+  const cost = costRecipe('odd', graph, costs);
+  assert.equal(cost.batchCents, 3);
+  assert.equal(cost.lines.reduce((a, l) => a + l.totalCents, 0), 3);
+  assert.deepEqual(cost.lines.map((l) => l.totalCents), [1, 1, 1]);
+});
+
+test('a share is the line\'s real weight, not its rounded one', () => {
+  const graph: Record<string, Recipe> = {
+    mix: {
+      id: 'mix',
+      version: 1,
+      effectiveFrom: '2026-01-01',
+      yieldAmount: 1_000,
+      lossFraction: 0,
+      lines: [
+        { kind: 'item', itemId: 'big', quantity: 1_000 },
+        { kind: 'item', itemId: 'small', quantity: 1 },
+      ],
+    },
+  };
+  const costs: ItemCosts = { big: 1 as Rate, small: 0.4 as Rate };
+
+  const cost = costRecipe('mix', graph, costs);
+  // The tiny line still rounds to nothing on screen, and must still carry its
+  // real weight - otherwise "what dominates this recipe" answers with noise.
+  assert.ok(cost.lines[1].share > 0, 'a line worth less than a cent is not weightless');
+  assert.ok(Math.abs(cost.lines[0].share + cost.lines[1].share - 1) < 1e-9);
 });

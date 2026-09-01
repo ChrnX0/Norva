@@ -20,7 +20,7 @@
  *      according to its own users' reviews about liquid inputs.
  */
 
-import { amountOf, cents, rateFromCents, type Cents, type Rate } from './money';
+import { allocateByWeight, cents, rateFromCents, type Cents, type Rate } from './money';
 
 /** A line of a recipe: either a raw item or another recipe. */
 export type RecipeLine =
@@ -120,7 +120,9 @@ export function costRecipe(
 
   const nextStack = [...stack, recipeId];
   const lines: CostLine[] = [];
-  let batch = cents(0);
+  /** Fractional cents per line, kept fractional until the batch is settled. */
+  const exactTotals: number[] = [];
+  let batchExact = 0;
 
   for (const line of recipe.lines) {
     let unitRate: Rate;
@@ -135,15 +137,28 @@ export function costRecipe(
       label = labels[line.recipeId] ?? line.recipeId;
     }
 
-    // A line total is a real amount, so this is where rounding belongs.
-    const total = amountOf(unitRate, line.quantity);
-    batch = cents(batch + total);
-    lines.push({ label, quantity: line.quantity, totalCents: total, share: 0 });
+    // Deliberately not rounded here. Rounding each line and summing afterwards
+    // was the mistake: ten ingredients at four tenths of a cent each summed to
+    // nothing while the batch really cost four cents, and every product built
+    // on the recipe came out understated with the arithmetic looking sane at
+    // every step. This project's rule is that only the final value rounds, and
+    // the batch is the final value.
+    const exact = unitRate * line.quantity;
+    exactTotals.push(exact);
+    batchExact += exact;
+    lines.push({ label, quantity: line.quantity, totalCents: cents(0), share: 0 });
   }
 
-  for (const line of lines) {
-    line.share = batch > 0 ? line.totalCents / batch : 0;
-  }
+  const batch = cents(Math.round(batchExact));
+
+  // The lines shown under the figure add up to it exactly, because a
+  // breakdown that disagrees with the number it explains is worse than no
+  // breakdown at all.
+  const shown = allocateByWeight(batch, exactTotals);
+  lines.forEach((line, index) => {
+    line.totalCents = shown[index];
+    line.share = batchExact > 0 ? exactTotals[index] / batchExact : 0;
+  });
 
   // Loss raises the unit cost: the batch is paid for in full, but less of it
   // reaches a customer.

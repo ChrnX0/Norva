@@ -287,8 +287,13 @@ export async function recordPurchase(
       [newId(), companyId, input.itemId, before.averageRate || null, after.averageRate, at],
     );
 
+    // The line matters as much as its header, and for a reason beyond
+    // completeness: the server's `apply_purchase_to_cost` trigger fires on an
+    // insert into `purchase_lines`. Without it the invoice replays as an empty
+    // header, and the authoritative cost and price history are never written.
     await enqueue(conn, [
       { table: 'purchases', rowId: purchaseId },
+      { table: 'purchase_lines', rowId: lineId },
       { table: 'movements', rowId: lineId },
       { table: 'item_costs', rowId: input.itemId },
     ]);
@@ -343,7 +348,7 @@ async function ensureLocation(conn: Db, companyId: string): Promise<string> {
 
   await conn.runAsync(
     `INSERT INTO locations (id, company_id, name, kind, created_at)
-     VALUES (?, ?, '', 'storeroom', ?)`,
+     VALUES (?, ?, '', 'store_room', ?)`,
     [companyId, companyId, nowIso()],
   );
   // It has to reach the server before the movement that stands on it does, or
@@ -582,6 +587,7 @@ export async function saveRecipeVersion(
   const at = nowIso();
   const recipeId = input.recipeId ?? newId();
   const versionId = newId();
+  const lineIds: string[] = [];
   let version = 1;
 
   // A version without its lines is a recipe that costs nothing, which is worse
@@ -620,12 +626,15 @@ export async function saveRecipeVersion(
     );
 
     for (const [position, line] of input.lines.entries()) {
+      const lineId = newId();
+      lineIds.push(lineId);
+
       await conn.runAsync(
         `INSERT INTO recipe_lines (id, company_id, recipe_version_id, item_id, sub_recipe_id,
                                    quantity, position)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
-          newId(),
+          lineId,
           companyId,
           versionId,
           line.kind === 'item' ? line.itemId : null,
@@ -636,9 +645,13 @@ export async function saveRecipeVersion(
       );
     }
 
+    // The lines go with the version, in order, after it. A version that
+    // arrives without them is a recipe that costs nothing on the other device,
+    // which is worse than one that has not arrived at all.
     await enqueue(conn, [
       { table: 'recipes', rowId: recipeId },
       { table: 'recipe_versions', rowId: versionId },
+      ...lineIds.map((id) => ({ table: 'recipe_lines', rowId: id })),
     ]);
   });
 
@@ -864,12 +877,6 @@ export async function eraseArea(companyId: string, area: EraseArea): Promise<voi
   const kinds = itemKindsFor(area);
 
   await conn.withTransactionAsync(async () => {
-    // What was cleared has to reach the server as well, or the next sync pulls
-    // it all straight back down. The area is the unit here rather than the row:
-    // a wipe is one decision, and replaying it row by row would be a worse
-    // description of what the person actually did.
-    await enqueue(conn, [{ table: 'erase', rowId: area, op: 'delete', payload: { area } }]);
-
     for (const table of tablesFor(area)) {
       // `items` is the one table shared by two areas, so it is the one place a
       // delete has to say which kinds it owns.
@@ -894,6 +901,17 @@ export async function eraseArea(companyId: string, area: EraseArea): Promise<voi
         await conn.runAsync(`DELETE FROM ${table} WHERE company_id = ?`, [companyId]);
       }
     }
+
+    // Enqueued *after* the deletes, and that order is the whole point.
+    //
+    // Erasing everything clears `outbox` too, so a command queued before the
+    // loop deleted itself on the way past: the device came out empty and the
+    // server never heard, so the next pull restored precisely what the person
+    // had asked to destroy.
+    //
+    // The area is the unit rather than the row: a wipe is one decision, and
+    // replaying it row by row would describe something the person never did.
+    await enqueue(conn, [{ table: 'erase', rowId: area, op: 'delete', payload: { area } }]);
   });
 }
 

@@ -67,3 +67,38 @@ export function rateFromCents(total: Cents, quantity: number): Rate {
   if (quantity <= 0) return 0 as Rate;
   return (total / quantity) as Rate;
 }
+
+/**
+ * Splits a total across weighted parts without losing or inventing a cent.
+ *
+ * The sibling of `allocateCents`, for the case where the parts are not equal.
+ * It exists because of a real defect: a recipe's batch cost was the sum of its
+ * lines *after each line had been rounded*, so ten ingredients at four tenths
+ * of a cent each summed to nothing while the batch really cost four cents.
+ * Every product built on that recipe was understated, and the arithmetic
+ * looked perfectly reasonable at every step.
+ *
+ * Largest remainder: whatever is left after flooring goes to the parts that
+ * lost the most in the floor. The result always sums to exactly `total`, which
+ * is what lets a breakdown be shown next to a figure without the two
+ * disagreeing.
+ */
+export function allocateByWeight(total: Cents, weights: readonly number[]): Cents[] {
+  if (weights.length === 0) return [];
+
+  const sum = weights.reduce((a, b) => a + b, 0);
+  if (sum <= 0 || total <= 0) return weights.map(() => cents(0));
+
+  const exact = weights.map((w) => (w / sum) * total);
+  const floors = exact.map((value) => Math.floor(value));
+  const shortfall = total - floors.reduce((a, b) => a + b, 0);
+
+  const byRemainder = exact
+    .map((value, index) => ({ index, remainder: value - Math.floor(value) }))
+    .sort((a, b) => b.remainder - a.remainder);
+
+  const out = [...floors];
+  for (let k = 0; k < shortfall; k += 1) out[byRemainder[k].index] += 1;
+
+  return out.map((value) => cents(value));
+}

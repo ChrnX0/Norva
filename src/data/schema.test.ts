@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
-import { migrate, type Db, type SqlParam } from './db';
+import { migrate, schemaVersion, type Db, type SqlParam } from './db';
 
 /**
  * The guard for the one architectural mistake this project has actually made.
@@ -101,4 +101,41 @@ test('no table on the device stores a stock total', async () => {
     [],
     'a balance is the sum of its movements; this column would become a second answer',
   );
+});
+
+test('a phone that dies mid-upgrade comes back on the version it finished', async () => {
+  const real = inMemoryDb();
+
+  // The cut lands exactly where the danger was: between applying a step and
+  // recording that it was applied. Written outside the transaction, that gap
+  // was a way to brick an installation - the next launch would re-run a step
+  // like `ALTER TABLE ... ADD COLUMN`, fail on the column already being there,
+  // and fail again on every launch after that, with no way in.
+  let powerCut = true;
+  const flaky: Db = {
+    ...real,
+    execAsync: async (sql: string) => {
+      if (powerCut && sql.trimStart().startsWith('PRAGMA user_version')) {
+        throw new Error('power cut');
+      }
+      return real.execAsync(sql);
+    },
+  };
+
+  await assert.rejects(() => migrate(flaky), /power cut/);
+
+  const stopped = await real.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  assert.equal(stopped?.user_version, 0, 'a step that did not finish is not recorded as done');
+
+  const tables = await real.getAllAsync<{ name: string }>(
+    `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`,
+  );
+  assert.deepEqual(tables, [], 'and it left no half-built schema behind');
+
+  // The next launch, with power, gets all the way there.
+  powerCut = false;
+  await migrate(flaky);
+
+  const done = await real.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  assert.equal(done?.user_version, schemaVersion);
 });
