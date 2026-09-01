@@ -118,6 +118,19 @@ CREATE TABLE IF NOT EXISTS purchase_lines (
 );
 
 /**
+ * Small facts about this installation that are not business data.
+ *
+ * It exists for one specific reason: the starter data must know it has already
+ * run. Seeding on "the items table is empty" would put the demo back the next
+ * morning after somebody deliberately wiped it, and an app that undoes your
+ * deletions is one nobody trusts with anything else.
+ */
+CREATE TABLE IF NOT EXISTS app_meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+/**
  * Everything written offline queues here until the server accepts it. The row
  * carries its own id, so replaying the queue twice changes nothing - which is
  * what makes a flaky connection harmless instead of dangerous.

@@ -3,6 +3,14 @@ import { cents, rate, type Cents, type Rate } from '@/domain/money';
 import type { ItemCosts, Recipe, RecipeLine } from '@/domain/recipe';
 import type { PackagingHierarchy } from '@/domain/units';
 import { db, newId, nowIso } from './db';
+import {
+  blockerFor,
+  emptyCounts,
+  itemKindsFor,
+  tablesFor,
+  type EraseArea,
+  type EraseCounts,
+} from './erase';
 
 /**
  * Every query the app needs, in one place.
@@ -535,4 +543,77 @@ export async function recentCostChanges(companyId: string, limit = 5): Promise<C
     newRate: r.new_rate as Rate,
     observedAt: r.observed_at,
   }));
+}
+
+// --- erasing -----------------------------------------------------------------
+
+/**
+ * Counts everything the confirmation dialog needs to speak in real numbers,
+ * including the references that block an area from being cleared.
+ *
+ * One round trip per fact would be simpler to read and slower to run on a cold
+ * phone; one query that returns them together keeps the settings screen instant.
+ */
+export async function countForErase(companyId: string): Promise<EraseCounts> {
+  const conn = await db();
+  const row = await conn.getFirstAsync<Record<keyof EraseCounts, number>>(
+    `SELECT
+       (SELECT COUNT(*) FROM items WHERE company_id = ?1
+          AND kind IN ('input','packaging','store_supply')) AS inputs,
+       (SELECT COUNT(*) FROM recipes   WHERE company_id = ?1) AS recipes,
+       (SELECT COUNT(*) FROM products  WHERE company_id = ?1) AS products,
+       (SELECT COUNT(*) FROM purchases WHERE company_id = ?1) AS purchases,
+       (SELECT COUNT(*) FROM recipe_lines WHERE company_id = ?1
+          AND item_id IS NOT NULL) AS recipeLinesUsingInputs,
+       (SELECT COUNT(*) FROM purchase_lines pl JOIN items i ON i.id = pl.item_id
+          WHERE pl.company_id = ?1
+            AND i.kind IN ('input','packaging','store_supply')) AS purchaseLinesUsingItems,
+       (SELECT COUNT(*) FROM products WHERE company_id = ?1
+          AND recipe_id IS NOT NULL) AS productsUsingRecipes,
+       (SELECT COUNT(*) FROM purchase_lines pl JOIN items i ON i.id = pl.item_id
+          WHERE pl.company_id = ?1
+            AND i.kind IN ('product','resale')) AS purchaseLinesUsingProducts`,
+    [companyId],
+  );
+
+  return { ...emptyCounts, ...(row ?? {}) };
+}
+
+/**
+ * Clears an area, in the only order the foreign keys allow.
+ *
+ * It refuses rather than half-succeeds: the blocker is checked first, and the
+ * whole thing runs in one transaction, so an interruption cannot leave a recipe
+ * whose ingredients are gone. Half-erased data is worse than either state.
+ */
+export async function eraseArea(companyId: string, area: EraseArea): Promise<void> {
+  const blocker = blockerFor(area, await countForErase(companyId));
+  if (blocker) throw new Error(blocker);
+
+  const conn = await db();
+  const kinds = itemKindsFor(area);
+
+  await conn.withTransactionAsync(async () => {
+    for (const table of tablesFor(area)) {
+      // `items` is the one table shared by two areas, so it is the one place a
+      // delete has to say which kinds it owns.
+      if (table === 'items' && kinds) {
+        const marks = kinds.map(() => '?').join(', ');
+        await conn.runAsync(
+          `DELETE FROM items WHERE company_id = ? AND kind IN (${marks})`,
+          [companyId, ...kinds],
+        );
+      } else if (table === 'products' && area === 'products') {
+        await conn.runAsync(`DELETE FROM products WHERE company_id = ?`, [companyId]);
+        await conn.runAsync(
+          `DELETE FROM items WHERE company_id = ? AND kind IN ('product','resale')`,
+          [companyId],
+        );
+      } else if (table === 'outbox') {
+        await conn.runAsync(`DELETE FROM outbox`);
+      } else {
+        await conn.runAsync(`DELETE FROM ${table} WHERE company_id = ?`, [companyId]);
+      }
+    }
+  });
 }

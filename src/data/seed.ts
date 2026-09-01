@@ -30,15 +30,41 @@ const STACKED: PackagingHierarchy = {
  * same event that moves the moving average - so nothing in the app is looking
  * at figures that could not have come from an invoice.
  *
- * It never runs twice, and it never runs over data that already exists.
+ * The "already ran" mark is a stored fact, not "the items table is empty".
+ * Inferring it from emptiness would put the demo back the morning after
+ * somebody deliberately wiped it, and an app that undoes your deletions is one
+ * nobody trusts with anything else.
  */
 export async function ensureStarterData(companyId = LOCAL_COMPANY_ID): Promise<void> {
+  if (await hasSeeded()) return;
+  await writeStarterData(companyId);
+}
+
+/** Puts the example back on purpose, after somebody cleared it. */
+export async function restoreStarterData(companyId = LOCAL_COMPANY_ID): Promise<void> {
+  await writeStarterData(companyId);
+}
+
+export async function hasSeeded(): Promise<boolean> {
   const conn = await db();
+  const row = await conn.getFirstAsync<{ value: string }>(
+    `SELECT value FROM app_meta WHERE key = 'seeded'`,
+  );
+  return row?.value === '1';
+}
+
+async function writeStarterData(companyId: string): Promise<void> {
+  const conn = await db();
+
+  // Never write over data that is already there, whatever the mark says.
   const existing = await conn.getFirstAsync<{ n: number }>(
     `SELECT COUNT(*) AS n FROM items WHERE company_id = ?`,
     [companyId],
   );
-  if ((existing?.n ?? 0) > 0) return;
+  if ((existing?.n ?? 0) > 0) {
+    await markSeeded();
+    return;
+  }
 
   const input = (
     name: string,
@@ -128,4 +154,14 @@ export async function ensureStarterData(companyId = LOCAL_COMPANY_ID): Promise<v
     unitPackagingCents: fromDecimal(0.05),
     packaging: STACKED,
   });
+
+  await markSeeded();
+}
+
+async function markSeeded(): Promise<void> {
+  const conn = await db();
+  await conn.runAsync(
+    `INSERT INTO app_meta (key, value) VALUES ('seeded', '1')
+     ON CONFLICT(key) DO UPDATE SET value = '1'`,
+  );
 }

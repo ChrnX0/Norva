@@ -53,6 +53,7 @@ const AREAS: { area: Ambient; label: string; hint: string; route: string }[] = [
   { area: 'apricot', label: 'Receitas', hint: 'o que entra no tacho', route: '/recipe' },
   { area: 'mist', label: 'Produtos', hint: 'o que sai para vender', route: '/products' },
   { area: 'sage', label: 'Compras', hint: 'a nota que move o custo', route: '/purchase' },
+  { area: 'mist', label: 'Ajustes', hint: 'limpar dados e recomeçar', route: '/settings' },
 ];
 
 function Briefing() {
