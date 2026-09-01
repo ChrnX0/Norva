@@ -40,6 +40,59 @@ export const ptBR = {
     crate: { one: 'engradado', other: 'engradados' },
   },
 
+  /**
+   * Screen wording.
+   *
+   * The screens used to hold these as literals, which quietly broke the rule
+   * this project set for itself on day one: i18n from the first string. It was
+   * cheap to fix while there are nine screens and it would not have been later.
+   *
+   * Grouped by screen rather than by phrase so a translator reads them in the
+   * order a person meets them.
+   */
+  app: {
+    crash: {
+      title: 'Alguma coisa travou aqui',
+      reassurance:
+        'Nada do que você registrou se perdeu. O aplicativo guarda cada lançamento no aparelho no momento em que você confirma, então é só voltar e continuar de onde parou.',
+      retry: 'Tentar de novo',
+      detail: 'DETALHE TÉCNICO',
+    },
+
+    whatsNew: {
+      title: 'Novidades',
+      subtitle: 'O aplicativo se atualizou sozinho. Isto é o que mudou.',
+      dismiss: 'Entendi',
+    },
+
+    confirm: {
+      confirm: 'Confirmar',
+      cancel: 'Cancelar',
+      adjust: 'Ajustar',
+      understood: 'Entendi',
+      close: 'Fechar',
+    },
+
+    home: {
+      overline: 'hoje na fábrica',
+      unitCost: 'custo por unidade · calculado da receita e das notas de compra',
+      changed: 'Mudou desde a última vez',
+      steady: 'Nada mudou de preço',
+      steadyDetail: 'Os custos estão estáveis. Não há nada para decidir hoje.',
+      checking: 'Conferindo…',
+      allSteady: 'Tudo estável',
+      whereTo: 'Onde você quer ir',
+      nav: {
+        ask: { label: 'Pergunte', hint: 'escreva o que quer saber' },
+        inputs: { label: 'Insumos', hint: 'o que você compra' },
+        recipes: { label: 'Receitas', hint: 'o que entra no tacho' },
+        products: { label: 'Produtos', hint: 'o que sai para vender' },
+        purchases: { label: 'Compras', hint: 'a nota que move o custo' },
+        settings: { label: 'Ajustes', hint: 'limpar dados e recomeçar' },
+      },
+    },
+  },
+
   signals: {
     checked: 'Conferido',
     expiringIn: 'Vence em {{days}} dias',

@@ -4,6 +4,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { brand } from '@/config/brand';
 import { latestRelease, releaseLines } from '@/config/releases';
+import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
 
 const SEEN_KEY = `${brand.slug}:release-seen`;
@@ -23,6 +24,7 @@ const SEEN_KEY = `${brand.slug}:release-seen`;
  */
 export function WhatsNew() {
   const { color, radius, space, type, accent } = useTheme();
+  const { t } = useLocale();
   const insets = useSafeAreaInsets();
   const [visible, setVisible] = useState(false);
 
@@ -72,9 +74,9 @@ export function WhatsNew() {
       >
         <View style={[styles.grabber, { backgroundColor: color.lineStrong }]} />
 
-        <Text style={[type.section, { color: color.ink }]}>Novidades</Text>
+        <Text style={[type.section, { color: color.ink }]}>{t.app.whatsNew.title}</Text>
         <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-          O aplicativo se atualizou sozinho. Isto é o que mudou.
+          {t.app.whatsNew.subtitle}
         </Text>
 
         <View style={{ marginTop: space.lg, gap: space.md }}>
@@ -99,7 +101,9 @@ export function WhatsNew() {
             },
           ]}
         >
-          <Text style={[type.body, { color: color.onAccent, fontWeight: '600' }]}>Entendi</Text>
+          <Text style={[type.body, { color: color.onAccent, fontWeight: '600' }]}>
+            {t.app.whatsNew.dismiss}
+          </Text>
         </Pressable>
       </View>
     </Modal>

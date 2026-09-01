@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -90,6 +91,7 @@ function ConfirmSurface({
   onAnswer: (ok: boolean) => void;
 }) {
   const { color, radius, space, type, accent } = useTheme();
+  const { t } = useLocale();
   const insets = useSafeAreaInsets();
 
   const destructive = request.destructive ?? false;
@@ -119,7 +121,7 @@ function ConfirmSurface({
           ]}
         >
           <Text style={[type.body, { color: color.onAccent, fontWeight: '600' }]}>
-            {request.confirmLabel ?? 'Confirmar'}
+            {request.confirmLabel ?? t.app.confirm.confirm}
           </Text>
         </Pressable>
 
@@ -138,7 +140,7 @@ function ConfirmSurface({
             ]}
           >
             <Text style={[type.body, { color: color.inkMuted, fontWeight: '600' }]}>
-              {request.cancelLabel ?? 'Cancelar'}
+              {request.cancelLabel ?? t.app.confirm.cancel}
             </Text>
           </Pressable>
         )}
@@ -172,7 +174,7 @@ function ConfirmSurface({
           <Pressable
             style={styles.backdrop}
             onPress={() => onAnswer(false)}
-            accessibilityLabel={request.cancelLabel ?? 'Cancelar'}
+            accessibilityLabel={request.cancelLabel ?? t.app.confirm.cancel}
           />
           <View
             style={{

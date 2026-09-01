@@ -17,8 +17,10 @@ import {
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { costPerProductUnit, costRecipe } from '@/domain/recipe';
-import { defaultLocale, formatMoney } from '@/i18n';
+import { formatMoney } from '@/i18n';
+import { useLocale } from '@/i18n/useLocale';
 import { palettes, type Ambient } from '@/theme/tokens';
+import type { Dictionary } from '@/i18n';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -46,19 +48,20 @@ type ProductCost = { id: string; name: string; recipeId: string | null; unitCent
 
 type Summary = { products: ProductCost[]; changes: CostChange[] };
 
-const AREAS: { area: Ambient; label: string; hint: string; route: string }[] = [
-  { area: 'sky', label: 'Pergunte', hint: 'escreva o que quer saber', route: '/assistant' },
-  { area: 'mist', label: 'Insumos', hint: 'o que você compra', route: '/inputs' },
-  { area: 'apricot', label: 'Receitas', hint: 'o que entra no tacho', route: '/recipes' },
-  { area: 'mist', label: 'Produtos', hint: 'o que sai para vender', route: '/products' },
-  { area: 'sage', label: 'Compras', hint: 'a nota que move o custo', route: '/purchase' },
-  { area: 'mist', label: 'Ajustes', hint: 'limpar dados e recomeçar', route: '/settings' },
+/** The wording lives in the dictionary; only the colour and route are here. */
+const AREAS: { area: Ambient; key: keyof Dictionary['app']['home']['nav']; route: string }[] = [
+  { area: 'sky', key: 'ask', route: '/assistant' },
+  { area: 'mist', key: 'inputs', route: '/inputs' },
+  { area: 'apricot', key: 'recipes', route: '/recipes' },
+  { area: 'mist', key: 'products', route: '/products' },
+  { area: 'sage', key: 'purchases', route: '/purchase' },
+  { area: 'mist', key: 'settings', route: '/settings' },
 ];
 
 function Briefing() {
   const { color, scheme, type, space } = useTheme();
   const router = useRouter();
-  const locale = defaultLocale;
+  const { locale, t } = useLocale();
 
   const { data, loading } = useQuery<Summary | null>(async () => {
     const [products, graph, costs, names, changes] = await Promise.all([
@@ -93,7 +96,7 @@ function Briefing() {
   );
 
   return (
-    <CollapsingHeader title={brand.name} overline="hoje na fábrica">
+    <CollapsingHeader title={brand.name} overline={t.app.home.overline}>
       {data?.products.map((product) => (
         <Pressable
           key={product.id}
@@ -117,7 +120,7 @@ function Briefing() {
               style={{ ...type.figure, color: color.ink, marginTop: space.xs }}
             />
             <Text style={[type.secondary, { color: color.inkMuted }]}>
-              custo por unidade · calculado da receita e das notas de compra
+              {t.app.home.unitCost}
             </Text>
           </Card>
         </Pressable>
@@ -125,17 +128,17 @@ function Briefing() {
 
       <Card tone={moved.length > 0 ? 'warning' : 'area'}>
         <Text style={[type.cardTitle, { color: color.ink }]}>
-          {moved.length > 0 ? 'Mudou desde a última vez' : 'Nada mudou de preço'}
+          {moved.length > 0 ? t.app.home.changed : t.app.home.steady}
         </Text>
 
         {moved.length === 0 ? (
           <>
             <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-              {loading ? 'Conferindo…' : 'Os custos estão estáveis. Não há nada para decidir hoje.'}
+              {loading ? t.app.home.checking : t.app.home.steadyDetail}
             </Text>
             {!loading ? (
               <View style={{ marginTop: space.md }}>
-                <Chip signal="ok" label="Tudo estável" />
+                <Chip signal="ok" label={t.app.home.allSteady} />
               </View>
             ) : null}
           </>
@@ -167,27 +170,30 @@ function Briefing() {
 
       <Card>
         <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.md }]}>
-          Onde você quer ir
+          {t.app.home.whereTo}
         </Text>
 
-        {AREAS.map((entry) => (
+        {AREAS.map((entry) => {
+          const words = t.app.home.nav[entry.key];
+          return (
           <Pressable
             key={entry.route}
             onPress={() => router.push(entry.route as never)}
             accessibilityRole="button"
-            accessibilityLabel={`${entry.label}: ${entry.hint}`}
+            accessibilityLabel={`${words.label}: ${words.hint}`}
             style={[styles.navRow, { paddingVertical: space.md, gap: space.md }]}
           >
             {/* The area's colour arrives as a small mark, never as a surface -
                 enough to make the screen recognisable before it is read. */}
             <View style={[styles.swatch, { backgroundColor: palette[entry.area] }]} />
             <View style={{ flex: 1 }}>
-              <Text style={[type.body, { color: color.ink }]}>{entry.label}</Text>
-              <Text style={[type.caption, { color: color.inkFaint }]}>{entry.hint}</Text>
+              <Text style={[type.body, { color: color.ink }]}>{words.label}</Text>
+              <Text style={[type.caption, { color: color.inkFaint }]}>{words.hint}</Text>
             </View>
             <Text style={[type.body, { color: color.inkFaint }]}>›</Text>
           </Pressable>
-        ))}
+          );
+        })}
       </Card>
     </CollapsingHeader>
   );

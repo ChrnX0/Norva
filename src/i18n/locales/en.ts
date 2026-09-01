@@ -31,6 +31,49 @@ export const en: Dictionary = {
     crate: { one: 'crate', other: 'crates' },
   },
 
+  app: {
+    crash: {
+      title: 'Something broke here',
+      reassurance:
+        'Nothing you recorded was lost. The app saves every entry on the device the moment you confirm it, so you can go back and carry on where you left off.',
+      retry: 'Try again',
+      detail: 'TECHNICAL DETAIL',
+    },
+
+    whatsNew: {
+      title: "What's new",
+      subtitle: 'The app updated itself. Here is what changed.',
+      dismiss: 'Got it',
+    },
+
+    confirm: {
+      confirm: 'Confirm',
+      cancel: 'Cancel',
+      adjust: 'Adjust',
+      understood: 'Got it',
+      close: 'Close',
+    },
+
+    home: {
+      overline: 'at the factory today',
+      unitCost: 'cost per unit · worked out from the recipe and the invoices',
+      changed: 'Changed since last time',
+      steady: 'No price moved',
+      steadyDetail: 'Costs are steady. There is nothing to decide today.',
+      checking: 'Checking…',
+      allSteady: 'All steady',
+      whereTo: 'Where do you want to go',
+      nav: {
+        ask: { label: 'Ask', hint: 'type what you want to know' },
+        inputs: { label: 'Inputs', hint: 'what you buy' },
+        recipes: { label: 'Recipes', hint: 'what goes in the batch' },
+        products: { label: 'Products', hint: 'what goes out to sell' },
+        purchases: { label: 'Purchases', hint: 'the invoice that moves the cost' },
+        settings: { label: 'Settings', hint: 'clear data and start over' },
+      },
+    },
+  },
+
   signals: {
     checked: 'Checked',
     expiringIn: 'Expires in {{days}} days',

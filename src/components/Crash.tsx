@@ -1,6 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { brand } from '@/config/brand';
+import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -24,6 +25,7 @@ import { useTheme } from '@/theme/ThemeProvider';
  */
 export function Crash({ error, retry }: { error: Error; retry: () => void }) {
   const { color, radius, space, type } = useTheme();
+  const { t } = useLocale();
   const insets = useSafeAreaInsets();
 
   return (
@@ -38,11 +40,10 @@ export function Crash({ error, retry }: { error: Error; retry: () => void }) {
         },
       ]}
     >
-      <Text style={[type.section, { color: color.ink }]}>Alguma coisa travou aqui</Text>
+      <Text style={[type.section, { color: color.ink }]}>{t.app.crash.title}</Text>
 
       <Text style={[type.body, { color: color.inkMuted, marginTop: space.md }]}>
-        Nada do que você registrou se perdeu. O aplicativo guarda cada lançamento no aparelho no
-        momento em que você confirma, então é só voltar e continuar de onde parou.
+        {t.app.crash.reassurance}
       </Text>
 
       <Pressable
@@ -58,12 +59,14 @@ export function Crash({ error, retry }: { error: Error; retry: () => void }) {
           },
         ]}
       >
-        <Text style={[type.body, { color: color.paper, fontWeight: '600' }]}>Tentar de novo</Text>
+        <Text style={[type.body, { color: color.paper, fontWeight: '600' }]}>
+          {t.app.crash.retry}
+        </Text>
       </Pressable>
 
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Text style={[type.overline, { color: color.inkFaint, marginBottom: space.sm }]}>
-          DETALHE TÉCNICO
+          {t.app.crash.detail}
         </Text>
         <ScrollView
           style={[
