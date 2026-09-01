@@ -1176,3 +1176,21 @@ dano escrito: *"contar a prateleira de um lugar compara com o saldo da empresa i
 inteira. Custo não é por lugar — o mesmo grama de açúcar não custa uma coisa na câmara e
 outra no almoxarifado. Generalizar as três consultas do mesmo jeito teria quebrado o custo
 para consertar a contagem.
+
+## 1 de setembro — a sabotagem equivalente não prova nada
+
+**O que apareceu.** Escrevi `balanceByLocation` e fui provar que o teste morde, trocando
+o `GROUP BY m.location_id` por `GROUP BY l.name, l.kind`. **Passou.** E passou por um
+motivo correto: no teste cada lugar tem nome distinto, então as duas formas dão o mesmo
+número. Sabotagem que não muda o comportamento não mede nada — só me daria a sensação de
+ter verificado.
+
+**Por que registro.** É a versão sutil do teste que passa pelo motivo errado. Hoje já
+aconteceu duas vezes na mesma família: uma mutação sobreviveu porque meu exemplo de
+ambiguidade caía em nulo por outro caminho, e um guarda pareceu não morder porque meu
+`grep` procurava a palavra errada. Agora a sabotagem em si era equivalente ao original.
+
+**O que mudou.** A sabotagem certa é a que muda a resposta: fazer cada lugar reportar o
+total da empresa em vez do seu próprio. Aí o teste cai com a mensagem certa — *"the six
+kilos are in the cold room"*. O teste ficou como estava; quem estava errado era a prova
+dele, e a lição é que **a sabotagem precisa alterar o resultado, não só o texto**.

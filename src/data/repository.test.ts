@@ -5,6 +5,7 @@ import { fromDecimal, rate } from '@/domain/money';
 import { costRecipe } from '@/domain/recipe';
 import { __setDb, migrate, migrationSteps, type Db, type SqlParam } from './db';
 import {
+  balanceByLocation,
   countForErase,
   eraseArea,
   itemCosts,
@@ -664,4 +665,48 @@ test('counting a shelf compares against that shelf, not the whole company', asyn
     [sugar.id, storeroom],
   );
   assert.equal(after?.n, inStoreroom?.n);
+});
+
+test('the balance splits by place, and the company total does not move', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [sugar] = (await listItems(LOCAL_COMPANY_ID)).filter((i) => i.name.includes('Açúcar'));
+  const before = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.id === sugar.id);
+
+  const cold = 'cold-room-split';
+  await live.runAsync(
+    `INSERT INTO locations (id, company_id, name, kind, created_at) VALUES (?, ?, 'Câmara', 'cold_room', ?)`,
+    [cold, LOCAL_COMPANY_ID, '2026-09-01T00:00:00Z'],
+  );
+  // Six kilos move out of the storeroom and into the cold room: two legs, one
+  // act. The sum over the company cannot notice.
+  await live.runAsync(
+    `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
+                            quantity_base_units, location_id, counterpart_location_id,
+                            movement_group_id)
+     VALUES ('leg-out', ?, 'transfer', ?, ?, ?, -6000, ?, ?, 'grp-1'),
+            ('leg-in',  ?, 'transfer', ?, ?, ?,  6000, ?, ?, 'grp-1')`,
+    [
+      LOCAL_COMPANY_ID, '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z', sugar.id,
+      defaultLocationId(LOCAL_COMPANY_ID), cold,
+      LOCAL_COMPANY_ID, '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z', sugar.id,
+      cold, defaultLocationId(LOCAL_COMPANY_ID),
+    ],
+  );
+
+  const places = await balanceByLocation(LOCAL_COMPANY_ID, sugar.id);
+  const inCold = places.find((p) => p.locationId === cold);
+  const inStoreroom = places.find((p) => p.locationId === defaultLocationId(LOCAL_COMPANY_ID));
+
+  assert.equal(inCold?.baseUnits, 6000, 'the six kilos are in the cold room');
+  assert.equal(inCold?.kind, 'cold_room');
+  assert.ok(inStoreroom && inStoreroom.baseUnits > 0, 'the storeroom still holds the rest');
+
+  // Two legs, one act: the company has exactly as much sugar as before.
+  const after = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.id === sugar.id);
+  assert.equal(after?.onHandBaseUnits, before?.onHandBaseUnits);
+  assert.equal(
+    (inCold?.baseUnits ?? 0) + (inStoreroom?.baseUnits ?? 0),
+    after?.onHandBaseUnits,
+    'the places add up to the company - that is what makes both queries one arithmetic',
+  );
 });

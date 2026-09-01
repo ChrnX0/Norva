@@ -368,6 +368,58 @@ export type MovementRow = {
  * company's own id - deterministic, so two phones that create it in the same
  * minute create one row rather than two.
  */
+export type LocationBalance = {
+  locationId: string;
+  /** How the people there call it. Empty on the default place, which no screen names yet. */
+  locationName: string;
+  kind: string;
+  baseUnits: number;
+};
+
+/**
+ * Quanto tem de um item em cada lugar.
+ *
+ * A mesma aritmética da view `stock_balances` do servidor, de propósito
+ * (`0001_foundation.sql:253-260`): as duas pontas respondem "quanto tem aqui"
+ * pela mesma soma, que é o que a checagem 6 da `db:verify` compara.
+ *
+ * O total por empresa continua onde estava, em `listItems`, e não muda uma
+ * linha: enquanto existe um lugar só, a soma de um é igual à soma de todos.
+ * Local vira `GROUP BY`, nunca um `WHERE` obrigatório — a tela que quer o total
+ * não passa a precisar saber de lugar nenhum.
+ *
+ * Devolve os lugares que têm movimento, e não todos os cadastrados: um lugar
+ * onde nunca entrou nada não tem saldo zero, não tem saldo. A diferença
+ * importa numa tela — "0 kg" convida a conferir, uma ausência não.
+ */
+export async function balanceByLocation(
+  companyId: string,
+  itemId: string,
+): Promise<LocationBalance[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    location_id: string;
+    name: string;
+    kind: string;
+    base_units: number;
+  }>(
+    `SELECT m.location_id, l.name, l.kind, SUM(m.quantity_base_units) AS base_units
+       FROM movements m
+       JOIN locations l ON l.id = m.location_id
+      WHERE m.company_id = ? AND m.item_id = ?
+      GROUP BY m.location_id, l.name, l.kind
+      ORDER BY l.kind, l.name`,
+    [companyId, itemId],
+  );
+
+  return rows.map((r) => ({
+    locationId: r.location_id,
+    locationName: r.name,
+    kind: r.kind,
+    baseUnits: r.base_units,
+  }));
+}
+
 /**
  * O lugar que existe desde sempre, nomeável pelo chamador.
  *
