@@ -8,6 +8,9 @@
 #   2. A purchase really does move the moving average, at full precision.
 #   3. A product cannot exist half-manufactured - a recipe without a portion
 #      size cannot say what one unit costs, so the database refuses it.
+#   4. One company cannot read another's rows, and someone without view_cost
+#      gets a null where the money is - enforced by the policy, in the query,
+#      not by hiding a control in the interface.
 #
 # Needs a local postgres (any recent version) and psql. Nothing is left running.
 
@@ -53,8 +56,16 @@ psql -q -c "create database $DB;"
 psql -d "$DB" -q <<'SQL'
 create schema if not exists auth;
 create table auth.users (id uuid primary key default gen_random_uuid());
-create or replace function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;
-insert into auth.users (id) values ('00000000-0000-4000-8000-000000000001');
+-- Supabase derives auth.uid() from the request's JWT. Here it reads a settable
+-- GUC instead, which is what lets check 4 below run a query *as a given user*
+-- and watch row level security decide what they may see.
+create or replace function auth.uid() returns uuid language sql stable as $$
+  select nullif(current_setting('test.uid', true), '')::uuid
+$$;
+insert into auth.users (id) values
+  ('00000000-0000-4000-8000-000000000001'),
+  ('00000000-0000-4000-8000-000000000002'),
+  ('00000000-0000-4000-8000-000000000003');
 SQL
 
 echo "==> applying migrations"
@@ -144,5 +155,87 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "insert into products (company_id, item_i
 unit=$(psql -d "$DB" -Atc "select base_unit from items where id = '00000000-0000-4000-8000-0000000000b2';")
 [ "$unit" = "un" ] || fail "expected the base unit to survive the insert, got $unit"
 echo "    half-manufactured product refused, complete one accepted in $unit"
+
+echo "==> check 4: one company cannot see another, and an operator cannot see money"
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<'SQL'
+-- A second company on the same server, with its own stock. This is the shape
+-- of the real risk: the app is sold to many factories and they share a database.
+insert into companies (id, name)
+  values ('00000000-0000-4000-8000-0000000000c2', 'Rival Co');
+insert into locations (id, company_id, kind, name, capacity_crates)
+  values ('00000000-0000-4000-8000-0000000000a2', '00000000-0000-4000-8000-0000000000c2',
+          'cold_room', 'Their cold room', 80);
+insert into items (id, company_id, kind, name, base_unit)
+  values ('00000000-0000-4000-8000-0000000000b3', '00000000-0000-4000-8000-0000000000c2',
+          'input', 'Their secret input', 'g');
+insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id,
+                       quantity_base_units, location_id, unit_cost_cents)
+  values ('00000000-0000-4000-8000-0000000000d2', '00000000-0000-4000-8000-0000000000c2',
+          'production', now(), '00000000-0000-4000-8000-000000000001',
+          '00000000-0000-4000-8000-0000000000b3', 1000,
+          '00000000-0000-4000-8000-0000000000a2', 999);
+
+-- Give the first company's movement a cost, so there is something to hide.
+insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id,
+                       quantity_base_units, location_id, unit_cost_cents)
+  values ('00000000-0000-4000-8000-0000000000d3', '00000000-0000-4000-8000-0000000000c1',
+          'production', now(), '00000000-0000-4000-8000-000000000001',
+          '00000000-0000-4000-8000-0000000000b1', 100,
+          '00000000-0000-4000-8000-0000000000a1', 118);
+
+-- An owner of company 1, and an operator of company 1 with no view_cost.
+insert into memberships (company_id, user_id, display_name, capabilities)
+  values ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-000000000002',
+          'Dona', array['view_cost','manage_company','record_production']::capability[]),
+         ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-000000000003',
+          'Operador', array['record_production']::capability[]);
+
+-- A role that is not the table owner, so row level security actually applies.
+-- On Supabase this is `authenticated`; the grants below mirror what it holds.
+do $$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'app_user') then
+    create role app_user;
+  end if;
+end
+$$;
+grant usage on schema public, private, auth to app_user;
+grant select on all tables in schema public to app_user;
+grant execute on function private.current_companies() to app_user;
+grant execute on function private.has_capability(uuid, capability) to app_user;
+grant execute on function auth.uid() to app_user;
+SQL
+
+# Runs one query as a given signed-in user. `-q` keeps psql from echoing the
+# SET command tags, so what comes back is only the answer.
+as_user() {
+  psql -d "$DB" -Atqc "set role app_user; set test.uid = '$1'; $2"
+}
+
+OWNER=00000000-0000-4000-8000-000000000002
+OPERATOR=00000000-0000-4000-8000-000000000003
+
+theirs=$(as_user "$OWNER" "select count(*) from items where name = 'Their secret input';")
+[ "$theirs" = "0" ] || fail "company 1 could see company 2's items (got $theirs)"
+
+mine=$(as_user "$OWNER" "select count(*) from items;")
+[ "$mine" = "2" ] || fail "the owner should see exactly their own 2 items, got $mine"
+
+# The same query, run by someone with no membership at all.
+stranger=$(as_user "00000000-0000-4000-8000-000000000001" "select count(*) from items;")
+[ "$stranger" = "0" ] || fail "a user with no membership saw $stranger items"
+
+# Cost is filtered by the policy, not by hiding a button: same row, same view,
+# and the operator gets a null where the owner gets a number.
+owner_cost=$(as_user "$OWNER" "select unit_cost_cents from movements_visible where id = '00000000-0000-4000-8000-0000000000d3';")
+[ "$owner_cost" = "118" ] || fail "the owner should see the cost, got '$owner_cost'"
+
+operator_cost=$(as_user "$OPERATOR" "select coalesce(unit_cost_cents::text, 'null') from movements_visible where id = '00000000-0000-4000-8000-0000000000d3';")
+[ "$operator_cost" = "null" ] || fail "an operator without view_cost saw the cost: '$operator_cost'"
+
+operator_rows=$(as_user "$OPERATOR" "select count(*) from movements_visible;")
+[ "$operator_rows" = "2" ] || fail "the operator should still see their movements, got $operator_rows"
+
+echo "    tenants isolated, and the operator sees the movement without the money"
 echo
-echo "OK - migrations apply and all three guarantees hold."
+echo "OK - migrations apply and all four guarantees hold."
