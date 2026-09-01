@@ -714,3 +714,44 @@ lados: script trocado passa, versão bumpada com lock velho continua avisando.
 
 **E o portão ficou limpo pela primeira vez neste projeto** — zero ⚠️, zero ❌.
 Que é o estado em que ele volta a significar alguma coisa.
+
+## 1 de setembro — o pulso mentia, e a regra estava escrita no próprio arquivo
+
+**O que apareceu.** Auditando as telas da Fase 1 contra a Lei da Inteligência,
+o `<PulseDot />` da tela inicial estava dentro do `map` de produtos **sem
+condição**: todo produto pulsava, sempre, inclusive os de custo parado há
+semanas. E o docblock do próprio componente já dizia por que isso é errado —
+*"pulso ao lado de valor congelado é mentira visual, e as pessoas percebem"*.
+
+A regra foi escrita e quebrada pelo primeiro chamador. O motivo não foi
+desatenção: o componente **não tinha como dizer que não estava vivo**. Ele só
+pulsava. Respeitar a regra dependia de lembrar de não renderizar — e lembrar não
+é mecanismo.
+
+**Por que importa.** É a mesma família do marcador que não suprime e do teste
+verde pelo motivo errado: um sinal que afirma uma coisa e está ligado a nada. Só
+que este mora na tela, onde quem olha é o operador de luva na câmara fria, que
+aprende em uma semana que a bolinha não quer dizer nada.
+
+**O que mudou.** `live` virou obrigatório — o compilador apontou o único ponto
+que mentia. Parar de pulsar agora também **desfaz** a animação em vez de só não
+começar; deixar o halo onde o último quadro parou é a mesma mentira com outra
+forma. E o docblock ainda guardava o "no máximo dois por tela" que o dono já
+tinha derrubado; virou o princípio: quantos pulsam depende de quantas coisas
+estão acontecendo, e o limite real é a bateria de um celular ligado o turno
+inteiro.
+
+**Dois achados menores, da mesma varredura.** `app/foundation.tsx` — 168 linhas —
+não era alcançável por nenhum caminho do aplicativo; apagada, porque a tela de
+estoque de verdade é Fase 2 e demo parado apodrece. E o e2e nunca abria
+`/recipes` nem `/settings`, as duas ligadas na home: mesma família da cicatriz
+que criou o e2e. Agora abre — e as duas checagens foram vistas **falhando** antes
+de aceitas, cada uma pela sua causa: renomear a receita semeada derruba a de
+receitas; trocar `hasSeeded()` por `false` derruba a de ajustes.
+
+**O que ficou por responder.** A Lei pede três coisas de toda tela, e a inicial
+responde duas: o que mudou (o custo se moveu, com a comparação) e onde ir. A
+terceira — **qual é a próxima ação provável** — não existe em nenhuma tela ainda.
+Nada diz "produza até segunda" nem "a polpa subiu 9%, reveja o preço". Não é
+esquecimento: é a Fase 4, e construir antes de a Fase 1 ser usada seria adivinhar
+qual ação é provável. Fica registrado para não passar por pronto.
