@@ -153,6 +153,18 @@ const DEFECTS = [
     to: 'return Math.trunc(value * factor) as Cents;',
     hurts: 'multiplicar dinheiro passa a cortar em vez de arredondar, sempre para baixo',
   },
+  {
+    file: 'src/domain/measure.ts',
+    from: 'return Number.isInteger(total) ? total : null;',
+    to: 'return Math.round(total);',
+    hurts: 'uma embalagem de 2,5 g vira 3 g calado, e o fator errado fica embaixo de todo custo daquele insumo',
+  },
+  {
+    file: 'src/domain/measure.ts',
+    from: 'if (matches.length !== 1) return null; // two numbers is ambiguous, not clever',
+    to: 'if (matches.length === 0) return null;',
+    hurts: '"caixa 6 x 500 ml" é lido como 6 ml, e o custo do insumo sai cem vezes errado',
+  },
 ];
 
 function suitePasses() {

@@ -841,3 +841,32 @@ esvaziando o registro de checagens: código de saída **1**, não zero. Medi err
 na primeira tentativa (peguei o `$?` do `tail` em vez do `npm`) — e "imprime a
 mensagem mas sai zero" seria exatamente o defeito que eu estava consertando, o
 que torna a medição errada pior que não medir.
+
+## 1 de setembro — o app pedia 25000 para quem comprou "saco 25 kg"
+
+**O que apareceu.** Procurando por que o assistente não sabe cadastrar insumo
+(a cláusula de pronto do projeto exige responder **e** preencher, e ele só
+responde), esbarrei no cadastro em si: o campo "Quanto vem dentro" tem
+`placeholder="25000"`. O dono da fábrica sabe que comprou um **saco de 25 kg** —
+o app pedia que ele convertesse para gramas.
+
+**Por que importa.** É a Lei 1 quebrada no lugar mais visível: nunca peça o que
+o sistema pode deduzir. E o dado já estava na tela — a pessoa acabou de escrever
+"saco 25 kg" no campo de cima. Pior: a fricção cai justamente sobre o usuário de
+baixa habilidade técnica, que é a restrição dominante deste projeto inteiro.
+
+**O que mudou.** `src/domain/measure.ts`, deliberadamente minúsculo: massa e
+volume nas duas escalas que uma fábrica escreve, e mais nada. Digitar a
+embalagem preenche o fator, **e só um campo que a pessoa não tocou**. O que não
+dá para ler com certeza fica em branco em vez de virar chute: "balde" (sem
+tamanho), "caixa 6 x 500 ml" (dois números), unidade desconhecida, e fração de
+unidade base — 0,0025 kg são 2,5 g, e arredondar isso caladamente põe um fator
+errado embaixo de todo custo daquele insumo para sempre.
+
+Provado no navegador (12/12 no e2e) e com duas mutações novas (23 no total).
+
+**E um achado de lambuja que eu não conserto sozinho:** dois controles na mesma
+tela atendem por **"Embalagem"** — o tipo do insumo (palito, saquinho) e o campo
+da embalagem de compra (saco 25 kg). Foi o Playwright que reclamou, e ele estava
+certo: se a ferramenta não distingue, uma pessoa de luva também não. Renomear é
+tom de voz, e tom de voz é decisão do dono.

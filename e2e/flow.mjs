@@ -160,6 +160,33 @@ check('settings counts what erasing would take, in Portuguese', async (page) => 
   assert.doesNotMatch(text, /\bDelete\b|\bSettings\b|\bErase\b/, 'no English leaking through');
 });
 
+check('typing the package fills in how much is inside it', async (page) => {
+  // Law 1, in a real browser: somebody who buys sugar writes what is printed on
+  // the sack. Asking them for 25000 afterwards is arithmetic the system can do,
+  // and the person who should not have to do it is the one this product is for.
+  await page.goto(`http://localhost:${PORT}/inputs/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  // Two controls answer to "Embalagem" on this screen - the kind of item and
+  // the package it is bought in - so this asks for the text box by name.
+  const pack = page.getByRole('textbox', { name: 'Embalagem' });
+  const inside = page.getByRole('textbox', { name: 'Quanto vem dentro' });
+
+  await pack.fill('saco 25 kg');
+  await page.waitForTimeout(600);
+  assert.equal(await inside.inputValue(), '25000');
+
+  // And what cannot be read with certainty is left alone rather than guessed:
+  // a bucket has no size printed on it.
+  await pack.fill('balde');
+  await page.waitForTimeout(600);
+  assert.equal(
+    await inside.inputValue(),
+    '25000',
+    'an unreadable package must not wipe what is already there',
+  );
+});
+
 check('the assistant answers with the number the engine computed', async (page) => {
   await page.goto(`http://localhost:${PORT}/assistant`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

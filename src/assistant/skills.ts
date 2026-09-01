@@ -1,3 +1,4 @@
+import { purchaseToBaseUnits } from '@/data/repository';
 import { fromDecimal } from '@/domain/money';
 import { costPerProductUnit, costRecipe } from '@/domain/recipe';
 import { formatDayMonth, formatMoney, formatQuantity } from '@/i18n';
@@ -207,8 +208,12 @@ const registerPurchase: Skill = {
       return { text: 'Não entendi a quantidade ou o valor. Pode repetir com os números?' };
     }
 
-    const factor = item.purchaseToBase ?? 1;
-    const baseUnits = Math.round(packs * factor);
+    // The same conversion the purchase screen calls. It was typed by hand here
+    // as well, which made three copies of one rule: screen, repository, and
+    // assistant. Three copies agree until one is corrected, and then the
+    // assistant answers a different number than the screen for the same
+    // invoice - which is exactly the credibility this product cannot spend.
+    const baseUnits = purchaseToBaseUnits(item, packs);
     const totalCents = fromDecimal(paid);
 
     return {

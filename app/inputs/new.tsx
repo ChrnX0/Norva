@@ -7,6 +7,7 @@ import { Chip } from '@/components/Chip';
 import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
+import { packSize } from '@/domain/measure';
 import { findItem, recordPurchase, saveItem, type ItemKind } from '@/data/repository';
 import { useQuery } from '@/data/useQuery';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
@@ -109,8 +110,29 @@ function InputForm() {
 
   const setKind = (next: Draft['kind']) => edit({ kind: next });
   const setName = (next: string) => edit({ name: next });
-  const setPurchaseUnit = (next: string) => edit({ purchaseUnit: next });
-  const setPurchaseToBase = (next: string) => edit({ purchaseToBase: next });
+  /**
+   * Typing the package fills in how much is inside it - Law 1, in the one place
+   * it was most obviously broken.
+   *
+   * Somebody who buys sugar writes "saco 25 kg", because that is what is printed
+   * on the sack, and the app then asked them for 25000. That is arithmetic the
+   * system can do, and the person who should not have to do it is exactly the
+   * person this product is for.
+   *
+   * Only ever fills a field the person has not touched, and only when the size
+   * can be read with certainty: `packSize` returns null for "balde", for
+   * "6 x 500 ml", and for any unit it does not know. A wrong factor here would
+   * sit under every cost the item ever touches.
+   */
+  const [factorTyped, setFactorTyped] = useState(false);
+  const setPurchaseUnit = (next: string) => {
+    const deduced = factorTyped ? null : packSize(next, baseUnit);
+    edit(deduced === null ? { purchaseUnit: next } : { purchaseUnit: next, purchaseToBase: String(deduced) });
+  };
+  const setPurchaseToBase = (next: string) => {
+    setFactorTyped(true);
+    edit({ purchaseToBase: next });
+  };
   const setBaseUnit = (next: string) => edit({ baseUnit: next });
   const setPrice = (next: string) => edit({ price: next });
 
