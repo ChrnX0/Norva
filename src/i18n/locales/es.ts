@@ -115,6 +115,36 @@ export const es: Dictionary = {
         'Repone los insumos, la receta y el producto de demostración, con las compras que les dan su costo. Solo funciona si está vacío.',
       restoreConfirm: 'Restaurar',
       failedToRestore: 'No se pudo restaurar',
+      blocked: {
+        recipesUseInputs: {
+          one: 'No se pueden borrar los insumos mientras 1 receta los usa. Borra las recetas primero.',
+          other: 'No se pueden borrar los insumos mientras {{n}} recetas los usan. Borra las recetas primero.',
+        },
+        purchasesUseInputs: {
+          one: 'No se pueden borrar los insumos mientras 1 compra registrada apunta a ellos. Borra las compras primero.',
+          other: 'No se pueden borrar los insumos mientras {{n}} compras registradas apuntan a ellos. Borra las compras primero.',
+        },
+        productsUseRecipes: {
+          one: 'No se pueden borrar las recetas mientras 1 producto se hace con ellas. Borra los productos primero.',
+          other: 'No se pueden borrar las recetas mientras {{n}} productos se hacen con ellas. Borra los productos primero.',
+        },
+        purchasesUseProducts:
+          'No se pueden borrar los productos mientras haya compras de reventa registradas en ellos. Borra las compras primero.',
+      },
+      purchasesRow: 'Compras',
+      erases: 'Esto borra {{what}}.',
+      nothingToErase: 'No hay nada que borrar aquí.',
+      alreadyEmpty: 'Ya está todo vacío.',
+      alsoPurchases: 'Esto borra {{what}}, y pone en cero el costo promedio de todos los insumos — quedan sin precio hasta la próxima factura.',
+      alsoRecipes: 'Esto borra {{what}}, con todas sus versiones y líneas. El historial de versiones se va con ellas.',
+      alsoInputs: 'Esto borra {{what}}, junto con su costo promedio y su historial de precio.',
+      alsoAll: 'Esto borra {{what}}. La aplicación vuelve a abrir vacía, y los datos de ejemplo no vuelven solos.',
+      counted: {
+        inputs: { one: '1 insumo', other: '{{n}} insumos' },
+        recipes: { one: '1 receta', other: '{{n}} recetas' },
+        products: { one: '1 producto', other: '{{n}} productos' },
+        purchases: { one: '1 compra', other: '{{n}} compras' },
+      },
       back: 'Volver',
     },
 

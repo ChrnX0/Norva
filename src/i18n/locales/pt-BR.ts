@@ -129,6 +129,36 @@ export const ptBR = {
         'Recoloca os insumos, a receita e o produto de demonstração, com as compras que dão o custo a eles. Só funciona se estiver vazio.',
       restoreConfirm: 'Restaurar',
       failedToRestore: 'Não deu para restaurar',
+      blocked: {
+        recipesUseInputs: {
+          one: 'Não dá para apagar os insumos enquanto 1 receita usa eles. Apague as receitas primeiro.',
+          other: 'Não dá para apagar os insumos enquanto {{n}} receitas usam eles. Apague as receitas primeiro.',
+        },
+        purchasesUseInputs: {
+          one: 'Não dá para apagar os insumos enquanto 1 compra lançada aponta para eles. Apague as compras primeiro.',
+          other: 'Não dá para apagar os insumos enquanto {{n}} compras lançadas apontam para eles. Apague as compras primeiro.',
+        },
+        productsUseRecipes: {
+          one: 'Não dá para apagar as receitas enquanto 1 produto é feito delas. Apague os produtos primeiro.',
+          other: 'Não dá para apagar as receitas enquanto {{n}} produtos são feitos delas. Apague os produtos primeiro.',
+        },
+        purchasesUseProducts:
+          'Não dá para apagar os produtos enquanto há compras de revenda lançadas neles. Apague as compras primeiro.',
+      },
+      purchasesRow: 'Compras',
+      erases: 'Isso apaga {{what}}.',
+      nothingToErase: 'Não há nada para apagar aqui.',
+      alreadyEmpty: 'Já está tudo vazio.',
+      alsoPurchases: 'Isso apaga {{what}}, e zera o custo médio de todos os insumos — eles ficam sem preço até a próxima nota.',
+      alsoRecipes: 'Isso apaga {{what}}, com todas as versões e linhas delas. O histórico de versões vai junto.',
+      alsoInputs: 'Isso apaga {{what}}, junto com o custo médio e o histórico de preço deles.',
+      alsoAll: 'Isso apaga {{what}}. O aplicativo volta a abrir vazio, e os dados de exemplo não voltam sozinhos.',
+      counted: {
+        inputs: { one: '1 insumo', other: '{{n}} insumos' },
+        recipes: { one: '1 receita', other: '{{n}} receitas' },
+        products: { one: '1 produto', other: '{{n}} produtos' },
+        purchases: { one: '1 compra', other: '{{n}} compras' },
+      },
       back: 'Voltar',
     },
 

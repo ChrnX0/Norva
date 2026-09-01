@@ -110,6 +110,36 @@ export const en: Dictionary = {
         'Puts back the demonstration inputs, recipe and product, with the purchases that give them their cost. Only works if it is empty.',
       restoreConfirm: 'Restore',
       failedToRestore: 'Could not restore',
+      blocked: {
+        recipesUseInputs: {
+          one: 'The inputs cannot go while 1 recipe uses them. Erase the recipes first.',
+          other: 'The inputs cannot go while {{n}} recipes use them. Erase the recipes first.',
+        },
+        purchasesUseInputs: {
+          one: 'The inputs cannot go while 1 recorded purchase points at them. Erase the purchases first.',
+          other: 'The inputs cannot go while {{n}} recorded purchases point at them. Erase the purchases first.',
+        },
+        productsUseRecipes: {
+          one: 'The recipes cannot go while 1 product is made from them. Erase the products first.',
+          other: 'The recipes cannot go while {{n}} products are made from them. Erase the products first.',
+        },
+        purchasesUseProducts:
+          'The products cannot go while there are resale purchases recorded against them. Erase the purchases first.',
+      },
+      purchasesRow: 'Purchases',
+      erases: 'This erases {{what}}.',
+      nothingToErase: 'There is nothing here to erase.',
+      alreadyEmpty: 'It is all empty already.',
+      alsoPurchases: 'This erases {{what}}, and zeroes the average cost of every input — they have no price until the next invoice.',
+      alsoRecipes: 'This erases {{what}}, with every version and line of them. The version history goes too.',
+      alsoInputs: 'This erases {{what}}, along with their average cost and price history.',
+      alsoAll: 'This erases {{what}}. The app opens empty again, and the example data does not come back on its own.',
+      counted: {
+        inputs: { one: '1 input', other: '{{n}} inputs' },
+        recipes: { one: '1 recipe', other: '{{n}} recipes' },
+        products: { one: '1 product', other: '{{n}} products' },
+        purchases: { one: '1 purchase', other: '{{n}} purchases' },
+      },
       back: 'Back',
     },
 

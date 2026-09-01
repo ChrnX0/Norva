@@ -6,6 +6,7 @@ import { db, newId, nowIso, type Db } from './db';
 import { enqueue } from './outbox';
 import {
   blockerFor,
+  EraseBlockedError,
   emptyCounts,
   itemKindsFor,
   tablesFor,
@@ -656,7 +657,7 @@ export async function countForErase(companyId: string): Promise<EraseCounts> {
  */
 export async function eraseArea(companyId: string, area: EraseArea): Promise<void> {
   const blocker = blockerFor(area, await countForErase(companyId));
-  if (blocker) throw new Error(blocker);
+  if (blocker) throw new EraseBlockedError(blocker);
 
   const conn = await db();
   const kinds = itemKindsFor(area);

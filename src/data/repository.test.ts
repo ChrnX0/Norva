@@ -19,6 +19,7 @@ import {
   saveProduct,
   saveRecipeVersion,
 } from './repository';
+import { EraseBlockedError } from './erase';
 import { ensureStarterData, hasSeeded, LOCAL_COMPANY_ID } from './seed';
 
 /**
@@ -234,15 +235,19 @@ test('the starter data lands, and does not come back after it is wiped', async (
 test('erasing an area is refused when another area stands on it', async () => {
   await ensureStarterData(CO);
 
+  // The refusal carries the reason, not a sentence - the screen writes the
+  // sentence, which is what lets the same rule speak three languages.
   await assert.rejects(
     () => eraseArea(CO, 'inputs'),
-    /receitas usam eles/,
+    (e: unknown) =>
+      e instanceof EraseBlockedError && e.blocker.reason === 'recipesUseInputs',
     'inputs under a recipe cannot go first',
   );
 
   await assert.rejects(
     () => eraseArea(CO, 'recipes'),
-    /produtos? (é|são) feitos? delas|produto é feito delas/,
+    (e: unknown) =>
+      e instanceof EraseBlockedError && e.blocker.reason === 'productsUseRecipes',
     'a recipe under a product cannot go first',
   );
 

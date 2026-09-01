@@ -17,8 +17,6 @@
  * database.
  */
 
-import { joinList } from '@/i18n';
-
 export type EraseArea = 'purchases' | 'recipes' | 'products' | 'inputs' | 'all';
 
 /**
@@ -112,88 +110,91 @@ export function itemKindsFor(area: EraseArea): readonly string[] | null {
 }
 
 /**
- * Why an area cannot be erased yet, in the words the person will read.
+ * Why an area cannot be erased yet - as a fact, not as a sentence.
  *
- * It names what is in the way *and* what to do about it, because "operation
- * failed" teaches nothing and the dependency is not obvious from outside.
+ * This used to return Portuguese prose, which put the interface's voice inside
+ * the data layer and made the rule untranslatable. The reason and the number
+ * are what this module knows; the wording belongs to whoever is speaking to the
+ * person, and lives in the dictionary with every other phrase.
  */
-export function blockerFor(area: EraseArea, counts: EraseCounts): string | null {
+export type EraseBlocker =
+  | { reason: 'recipesUseInputs'; count: number }
+  | { reason: 'purchasesUseInputs'; count: number }
+  | { reason: 'productsUseRecipes'; count: number }
+  | { reason: 'purchasesUseProducts'; count: number };
+
+export function blockerFor(area: EraseArea, counts: EraseCounts): EraseBlocker | null {
   if (area === 'all') return null;
 
   if (area === 'inputs') {
     if (counts.recipeLinesUsingInputs > 0) {
-      return plural(
-        counts.recipes,
-        'Não dá para apagar os insumos enquanto 1 receita usa eles. Apague as receitas primeiro.',
-        `Não dá para apagar os insumos enquanto ${counts.recipes} receitas usam eles. Apague as receitas primeiro.`,
-      );
+      return { reason: 'recipesUseInputs', count: counts.recipes };
     }
     if (counts.purchaseLinesUsingItems > 0) {
-      return plural(
-        counts.purchases,
-        'Não dá para apagar os insumos enquanto 1 compra lançada aponta para eles. Apague as compras primeiro.',
-        `Não dá para apagar os insumos enquanto ${counts.purchases} compras lançadas apontam para eles. Apague as compras primeiro.`,
-      );
+      return { reason: 'purchasesUseInputs', count: counts.purchases };
     }
   }
 
   if (area === 'recipes' && counts.productsUsingRecipes > 0) {
-    return plural(
-      counts.productsUsingRecipes,
-      'Não dá para apagar as receitas enquanto 1 produto é feito delas. Apague os produtos primeiro.',
-      `Não dá para apagar as receitas enquanto ${counts.productsUsingRecipes} produtos são feitos delas. Apague os produtos primeiro.`,
-    );
+    return { reason: 'productsUseRecipes', count: counts.productsUsingRecipes };
   }
 
   if (area === 'products' && counts.purchaseLinesUsingProducts > 0) {
-    return 'Não dá para apagar os produtos enquanto há compras de revenda lançadas neles. Apague as compras primeiro.';
+    return { reason: 'purchasesUseProducts', count: counts.purchaseLinesUsingProducts };
   }
 
   return null;
 }
 
-/** What disappears, spelled out, so the confirmation is not a blank cheque. */
-export function summaryFor(area: EraseArea, counts: EraseCounts): string {
-  const parts: string[] = [];
-  const add = (n: number, one: string, many: string) => {
-    if (n > 0) parts.push(`${n} ${n === 1 ? one : many}`);
-  };
-
-  switch (area) {
-    case 'purchases':
-      add(counts.purchases, 'compra lançada', 'compras lançadas');
-      return parts.length > 0
-        ? `Isso apaga ${list(parts)}, e zera o custo médio de todos os insumos — eles ficam sem preço até a próxima nota.`
-        : 'Não há compras lançadas para apagar.';
-    case 'recipes':
-      add(counts.recipes, 'receita', 'receitas');
-      return parts.length > 0
-        ? `Isso apaga ${list(parts)}, com todas as versões e linhas delas. O histórico de versões vai junto.`
-        : 'Não há receitas para apagar.';
-    case 'products':
-      add(counts.products, 'produto', 'produtos');
-      return parts.length > 0 ? `Isso apaga ${list(parts)}.` : 'Não há produtos para apagar.';
-    case 'inputs':
-      add(counts.inputs, 'insumo', 'insumos');
-      return parts.length > 0
-        ? `Isso apaga ${list(parts)}, junto com o custo médio e o histórico de preço deles.`
-        : 'Não há insumos para apagar.';
-    case 'all':
-      add(counts.inputs, 'insumo', 'insumos');
-      add(counts.recipes, 'receita', 'receitas');
-      add(counts.products, 'produto', 'produtos');
-      add(counts.purchases, 'compra', 'compras');
-      return parts.length > 0
-        ? `Isso apaga ${list(parts)}. O aplicativo volta a abrir vazio, e os dados de exemplo não voltam sozinhos.`
-        : 'Já está tudo vazio.';
+/**
+ * Refusing an erase, as an error that carries the reason rather than a
+ * sentence. The screen that catches it is the one that speaks a language.
+ */
+export class EraseBlockedError extends Error {
+  constructor(public readonly blocker: EraseBlocker) {
+    super(`Erase blocked: ${blocker.reason}`);
+    this.name = 'EraseBlockedError';
   }
 }
 
-function plural(count: number, one: string, many: string): string {
-  return count === 1 ? one : many;
+/**
+ * What an area takes with it when it goes, counted.
+ *
+ * The confirmation is built from this, so it can say "6 insumos, 2 receitas e
+ * 1 produto" in whatever language is on screen instead of a number the person
+ * has to take on trust.
+ */
+export type EraseTally = {
+  inputs: number;
+  recipes: number;
+  products: number;
+  purchases: number;
+};
+
+export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
+  const nothing: EraseTally = { inputs: 0, recipes: 0, products: 0, purchases: 0 };
+
+  switch (area) {
+    case 'purchases':
+      return { ...nothing, purchases: counts.purchases };
+    case 'recipes':
+      return { ...nothing, recipes: counts.recipes };
+    case 'products':
+      return { ...nothing, products: counts.products };
+    case 'inputs':
+      return { ...nothing, inputs: counts.inputs };
+    case 'all':
+      return {
+        inputs: counts.inputs,
+        recipes: counts.recipes,
+        products: counts.products,
+        purchases: counts.purchases,
+      };
+  }
 }
 
-/** "6 insumos, 2 receitas e 1 produto" - the way a person would say it. */
-function list(parts: readonly string[]): string {
-  return joinList(parts, 'e');
+/** Whether there is anything at all to erase in this area. */
+export function isEmpty(tally: EraseTally): boolean {
+  return tally.inputs + tally.recipes + tally.products + tally.purchases === 0;
 }
+

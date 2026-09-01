@@ -10,13 +10,18 @@ import { brand } from '@/config/brand';
 import { countForErase, eraseArea } from '@/data/repository';
 import {
   blockerFor,
-  summaryFor,
+  EraseBlockedError,
+  isEmpty,
+  tallyFor,
   type EraseArea,
+  type EraseBlocker,
   type EraseCounts,
+  type EraseTally,
 } from '@/data/erase';
 import { hasSeeded, LOCAL_COMPANY_ID, restoreStarterData } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
-import { fill } from '@/i18n';
+import { fill, joinList } from '@/i18n';
+import type { Dictionary } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -49,6 +54,56 @@ const AREAS: { area: Exclude<EraseArea, 'all'> }[] = [
   { area: 'inputs' },
 ];
 
+/** Puts the blocker into words - the reason and the count, in one sentence. */
+function sayBlocker(blocker: EraseBlocker, t: Dictionary): string {
+  const words = t.app.settings;
+
+  // Singular and plural are whole sentences, not a number dropped into one:
+  // the verb has to agree, and it does not agree with a placeholder.
+  const say = (n: number, variants: { one: string; other: string }) =>
+    n === 1 ? variants.one : fill(variants.other, { n });
+
+  switch (blocker.reason) {
+    case 'recipesUseInputs':
+      return say(blocker.count, words.blocked.recipesUseInputs);
+    case 'purchasesUseInputs':
+      return say(blocker.count, words.blocked.purchasesUseInputs);
+    case 'productsUseRecipes':
+      return say(blocker.count, words.blocked.productsUseRecipes);
+    case 'purchasesUseProducts':
+      return words.blocked.purchasesUseProducts;
+  }
+}
+
+/** "Isso apaga 6 insumos, 2 receitas e 1 produto." plus what else goes with it. */
+function sayTally(area: EraseArea, tally: EraseTally, t: Dictionary): string {
+  const words = t.app.settings;
+  if (isEmpty(tally)) return area === 'all' ? words.alreadyEmpty : words.nothingToErase;
+
+  const parts: string[] = [];
+  const add = (n: number, key: keyof Dictionary['app']['settings']['counted']) => {
+    if (n > 0) parts.push(n === 1 ? words.counted[key].one : fill(words.counted[key].other, { n }));
+  };
+  add(tally.inputs, 'inputs');
+  add(tally.recipes, 'recipes');
+  add(tally.products, 'products');
+  add(tally.purchases, 'purchases');
+
+  const what = joinList(parts, t.common.and);
+  const sentence =
+    area === 'purchases'
+      ? words.alsoPurchases
+      : area === 'recipes'
+        ? words.alsoRecipes
+        : area === 'inputs'
+          ? words.alsoInputs
+          : area === 'all'
+            ? words.alsoAll
+            : words.erases;
+
+  return fill(sentence, { what });
+}
+
 function Settings() {
   const { color, type, space } = useTheme();
   const { t } = useLocale();
@@ -74,7 +129,7 @@ function Settings() {
       // was already disabled, and this explains the same thing on demand.
       await confirm({
         title: t.app.settings.cannotYet,
-        message: blocker,
+        message: sayBlocker(blocker, t),
         acknowledge: true,
         confirmLabel: t.app.confirm.understood,
       });
@@ -86,7 +141,7 @@ function Settings() {
         area === 'all'
           ? t.app.settings.eraseAllTitle
           : fill(t.app.settings.eraseTitle, { area: label.toLowerCase() }),
-      message: `${summaryFor(area, counts)}\n\n${t.app.settings.noUndo}`,
+      message: `${sayTally(area, tallyFor(area, counts), t)}\n\n${t.app.settings.noUndo}`,
       confirmLabel: t.app.settings.erase,
       destructive: true,
     });
@@ -98,8 +153,13 @@ function Settings() {
       refresh();
     } catch (e) {
       await confirm({
-        title: t.app.settings.failedToErase,
-        message: e instanceof Error ? e.message : String(e),
+        title: e instanceof EraseBlockedError ? t.app.settings.cannotYet : t.app.settings.failedToErase,
+        message:
+          e instanceof EraseBlockedError
+            ? sayBlocker(e.blocker, t)
+            : e instanceof Error
+              ? e.message
+              : String(e),
         acknowledge: true,
         confirmLabel: t.app.confirm.understood,
       });
@@ -176,8 +236,10 @@ function Settings() {
         </Text>
 
         {AREAS.map((entry) => {
-          const label = t.app.settings[entry.area];
-          const blocked = counts ? blockerFor(entry.area, counts) : t.app.settings.checking;
+          const label =
+            entry.area === 'purchases' ? t.app.settings.purchasesRow : t.app.settings[entry.area];
+          const blocker = counts ? blockerFor(entry.area, counts) : null;
+          const blocked = counts ? (blocker ? sayBlocker(blocker, t) : null) : t.app.settings.checking;
           return (
             <Pressable
               key={entry.area}
