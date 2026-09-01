@@ -689,3 +689,28 @@ falta — meia hora nisso. Um backtick dentro de string com aspas duplas fez o b
 executar um comentário SQL (segunda vez hoje que essa família me pega, a primeira
 em template literal). E `has_capability` mudou para o schema `private` na 0004, o
 que só aparece quando se escreve uma política nova.
+
+## 1 de setembro — o aviso que errava sempre
+
+**O que apareceu.** Toda execução do portão trazia a mesma ⚠️: "manifesto mudou
+sem o lockfile". Eu justificava em prosa toda vez — rodei `npm install
+--package-lock-only`, o lockfile não muda, segue o jogo. Justificar duas vezes é
+sinal; justificar cinco é dívida.
+
+O guard testava se a linha adicionada **parecia** uma dependência: aspas,
+circunflexo, til. Em JSON toda linha parece. Acrescentar o script `mutate` ao
+`package.json` exigia lockfile novo, e nenhum lockfile poderia mudar.
+
+**Por que importa.** É a Lei 7 aplicada à minha própria ferramenta: alerta
+inventado ensina a ignorar alerta. Um aviso que erra sempre não custa só o tempo
+de conferir — ele treina a passar os olhos por cima da lista, e é lá que o aviso
+verdadeiro vai estar um dia.
+
+**O que mudou.** O guard passou a ler os blocos que de fato decidem resolução
+(`dependencies`, `devDependencies`, `peer`, `optional`, `overrides`,
+`resolutions`, `require`) nas duas revisões e comparar; iguais, acabou. Onde não
+há parser de JSON, cai no heurístico antigo em vez de chutar. Com teste dos dois
+lados: script trocado passa, versão bumpada com lock velho continua avisando.
+
+**E o portão ficou limpo pela primeira vez neste projeto** — zero ⚠️, zero ❌.
+Que é o estado em que ele volta a significar alguma coisa.
