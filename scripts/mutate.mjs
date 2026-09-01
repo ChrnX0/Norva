@@ -201,6 +201,12 @@ const DEFECTS = [
     to: "      await write(newId(), 'consumption', line.itemId, line.baseUnits, line.rate);",
     hurts: 'produzir passa a AUMENTAR o estoque de insumo, e o almoxarifado enche sozinho a cada tacho',
   },
+  {
+    file: 'src/data/repository.ts',
+    from: '    await leg(inId, at, input.baseUnits, input.toLocationId, input.fromLocationId);',
+    to: '    void inId;',
+    hurts: 'a carga sai da fábrica e não chega em lugar nenhum: some do saldo da empresa como se tivesse evaporado no caminho',
+  },
 ];
 
 /**

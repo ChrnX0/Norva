@@ -7,6 +7,7 @@ import { __setDb, migrate, migrationSteps, type Db, type SqlParam } from './db';
 import {
   balanceByLocation,
   recordProduction,
+  recordTransfer,
   countForErase,
   eraseArea,
   itemCosts,
@@ -774,4 +775,69 @@ test('a run that yielded less freezes the higher cost, because that is what happ
   // most needs to see.
   assert.ok(short.unitCostRate > full.unitCostRate);
   assert.ok(Math.abs(short.unitCostRate / full.unitCostRate - 500 / 400) < 1e-9);
+});
+
+test('what leaves the factory arrives at the store, and the company has the same', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [sugar] = (await listItems(LOCAL_COMPANY_ID)).filter((i) => i.name.includes('Açúcar'));
+  const factory = defaultLocationId(LOCAL_COMPANY_ID);
+
+  const store = 'loja-centro';
+  await live.runAsync(
+    `INSERT INTO locations (id, company_id, name, kind, created_at) VALUES (?, ?, 'Loja Centro', 'store_room', ?)`,
+    [store, LOCAL_COMPANY_ID, '2026-09-01T00:00:00Z'],
+  );
+
+  const before = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.id === sugar.id);
+  const moved = await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: sugar.id,
+    fromLocationId: factory,
+    toLocationId: store,
+    baseUnits: 5000,
+  });
+
+  const places = await balanceByLocation(LOCAL_COMPANY_ID, sugar.id);
+  assert.equal(places.find((p) => p.locationId === store)?.baseUnits, 5000);
+
+  // The whole point of two legs: the sum over the company cannot notice that
+  // anything happened, because nothing entered or left the business.
+  const after = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.id === sugar.id);
+  assert.equal(after?.onHandBaseUnits, before?.onHandBaseUnits);
+
+  // Each leg says where its other half went. That is explanation, not
+  // arithmetic - "how much is here" stays a plain sum with no special case.
+  const legs = await live.getAllAsync<{ q: number; here: string; there: string }>(
+    `SELECT quantity_base_units AS q, location_id AS here, counterpart_location_id AS there
+       FROM movements WHERE movement_group_id = ? ORDER BY quantity_base_units`,
+    [moved.groupId],
+  );
+  assert.equal(legs.length, 2);
+  assert.deepEqual(
+    legs.map((l) => [l.q, l.here, l.there]),
+    [
+      [-5000, factory, store],
+      [5000, store, factory],
+    ],
+  );
+});
+
+test('a transfer to the same place, or of nothing, is refused rather than recorded', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [sugar] = (await listItems(LOCAL_COMPANY_ID)).filter((i) => i.name.includes('Açúcar'));
+  const here = defaultLocationId(LOCAL_COMPANY_ID);
+
+  // Both would append rows to a ledger that cannot be edited afterwards, and
+  // neither describes anything that happened. The error is prevented.
+  await assert.rejects(
+    recordTransfer(LOCAL_COMPANY_ID, {
+      itemId: sugar.id, fromLocationId: here, toLocationId: here, baseUnits: 100,
+    }),
+    /mesmo lugar/,
+  );
+  await assert.rejects(
+    recordTransfer(LOCAL_COMPANY_ID, {
+      itemId: sugar.id, fromLocationId: here, toLocationId: 'outro', baseUnits: 0,
+    }),
+    /move alguma coisa/,
+  );
 });

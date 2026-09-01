@@ -927,6 +927,98 @@ export async function recordProduction(
   return { groupId, unitsProduced: input.unitsProduced, unitCostRate, consumed };
 }
 
+export type TransferResult = {
+  groupId: string;
+  baseUnits: number;
+  unitCostRate: Rate;
+};
+
+/**
+ * O que sai da fábrica e chega na loja: duas linhas, um ato.
+ *
+ * Saída negativa na origem, entrada positiva no destino, as duas com o mesmo
+ * `movement_group_id` e cada uma apontando para o outro lado em
+ * `counterpart_location_id`.
+ *
+ * Duas e não uma, e o motivo é aritmético. O saldo agrupa por `location_id`;
+ * com uma linha só o destino não existiria em consulta nenhuma, e fechar
+ * exigiria um UNION trocando `location_id` por `counterpart_location_id` e
+ * invertendo o sinal — em cada lugar que soma. A contraparte fica como
+ * **explicação**, nunca como aritmética: ela responde "para onde foi", e quem
+ * responde "quanto tem" é a soma, sozinha.
+ *
+ * A carga leva o custo consigo, congelado na média do instante em que saiu.
+ * Loja própria é transferência e não venda: não há faturamento nem margem
+ * aqui, e o valor apenas muda de sala.
+ */
+export async function recordTransfer(
+  companyId: string,
+  input: {
+    itemId: string;
+    fromLocationId: string;
+    toLocationId: string;
+    /** Sempre na menor unidade. Positivo: quanto sai de lá e chega aqui. */
+    baseUnits: number;
+    occurredAt?: string;
+    note?: string;
+    assistantPhrase?: string;
+  },
+): Promise<TransferResult> {
+  if (input.fromLocationId === input.toLocationId) {
+    throw new Error('origem e destino são o mesmo lugar');
+  }
+  if (input.baseUnits <= 0) {
+    throw new Error('uma transferência move alguma coisa; para o sentido inverso, troque os lugares');
+  }
+
+  const conn = await db();
+  const at = nowIso();
+  const occurred = input.occurredAt ?? at;
+
+  const cost = await conn.getFirstAsync<{ average_rate: number }>(
+    `SELECT average_rate FROM item_costs WHERE item_id = ?`,
+    [input.itemId],
+  );
+  const unitCostRate = (cost?.average_rate ?? 0) as Rate;
+
+  const groupId = newId();
+  const outId = newId();
+  const inId = newId();
+
+  await conn.withTransactionAsync(async () => {
+    await ensureLocation(conn, companyId);
+
+    const leg = async (id: string, at_: string, quantity: number, here: string, there: string) => {
+      await conn.runAsync(
+        `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
+                                quantity_base_units, location_id, counterpart_location_id,
+                                unit_cost_rate, movement_group_id, note, assistant_phrase)
+         VALUES (?, ?, 'transfer', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          companyId,
+          occurred,
+          at_,
+          input.itemId,
+          quantity,
+          here,
+          there,
+          unitCostRate || null,
+          groupId,
+          input.note ?? null,
+          input.assistantPhrase ?? null,
+        ],
+      );
+      await enqueue(conn, [{ table: 'movements', rowId: id }]);
+    };
+
+    await leg(outId, at, -input.baseUnits, input.fromLocationId, input.toLocationId);
+    await leg(inId, at, input.baseUnits, input.toLocationId, input.fromLocationId);
+  });
+
+  return { groupId, baseUnits: input.baseUnits, unitCostRate };
+}
+
 export type Product = {
   id: string;
   itemId: string;

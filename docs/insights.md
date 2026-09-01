@@ -1221,3 +1221,26 @@ em que ela ganha um.
 
 Duas mutações novas, com o dano por extenso: congelar pelo prometido, e o consumo entrando
 com sinal trocado — que faria o almoxarifado **encher sozinho** a cada tacho.
+
+## 1 de setembro — a transferência é duas linhas, e o motivo é aritmético
+
+**O que mudou.** `recordTransfer` escreve saída negativa na origem e entrada positiva no
+destino, as duas com o mesmo grupo e cada uma apontando para o outro lado em
+`counterpart_location_id`.
+
+**Por que duas e não uma, que era a escolha tentadora.** O saldo agrupa por
+`location_id`. Com uma linha só, o destino **não existiria em consulta nenhuma** — fechar
+exigiria um UNION trocando `location_id` por `counterpart_location_id` e invertendo o
+sinal, em cada um dos lugares que somam. Esse é precisamente o caso especial que a
+fundação existe para não ter.
+
+A contraparte fica como **explicação, nunca como aritmética**: ela responde "para onde
+foi", e quem responde "quanto tem" é a soma, sozinha. Sabotado para uma perna só, o teste
+cai — a carga sai da fábrica e evapora no caminho.
+
+**E as duas recusas.** Transferir para o mesmo lugar, ou transferir nada, seriam linhas
+apendadas num livro que não se edita depois, descrevendo coisa nenhuma. Recusadas na
+entrada — o erro se impede, não se reclama.
+
+**Loja própria é transferência, não venda:** não há faturamento nem margem aqui, o valor
+apenas muda de sala. É a distinção que o plano faz desde o começo e agora está no código.
