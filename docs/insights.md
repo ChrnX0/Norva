@@ -590,3 +590,23 @@ preenchido no instante da escrita; o serializador passou a mandar o valor gravad
 e só carimba o ator quando o aparelho não sabia. Nulo virou resposta honesta:
 "o aparelho não sabia", não "ninguém fez". Teste novo e mutação nova — a suíte
 fica vermelha se o carimbo do sync voltar a mandar.
+
+## 1 de setembro — o marcador que não suprime nada
+
+**O que apareceu.** Eu tinha escrito `proofgate-allow` três vezes em linhas de
+**comentário**, acima do código apontado. O portão filtra `if (l !~
+/proofgate-allow/)` sobre a própria linha adicionada: marcador em comentário
+vizinho não suprime coisa alguma. Os três liam como "já justificado" e o portão
+continuava contando ⚠️ — ninguém percebeu porque o resumo só mostra o número.
+
+**Por que importa.** É a mesma família do teste que passa pelo motivo errado: um
+sinal de "resolvido" que não está ligado a nada. Pior que o alerta ignorado, é o
+alerta que alguém acredita ter tratado.
+
+**O que mudou.** Onde o marcador era prosa, virou verificação: `ident()` em
+`scripts/device-session.ts` recusa qualquer nome de tabela ou coluna que não seja
+identificador simples, antes de entrar no SQL — provado quebrando (`refusing to
+build SQL around an identifier like "x; drop table movements"`). Onde o risco era
+mesmo inexistente (uma `Rate` impressa com `toFixed`, fracionária por fundação),
+o marcador foi para a linha certa. Nenhuma justificativa ficou em comentário
+fingindo suprimir.

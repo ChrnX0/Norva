@@ -33,6 +33,23 @@ import { sendableTables, serialize, type SyncActor } from '@/sync/serialize';
 /** Stands in for whoever is signed in when the phone finally finds a tower. */
 const ACTOR: SyncActor = { userId: '00000000-0000-4000-8000-000000000001' };
 
+/**
+ * An identifier on its way into SQL, checked instead of trusted.
+ *
+ * Table and column names cannot be bound parameters - Postgres takes an
+ * identifier only as text in the statement - so the usual defence is not
+ * available here and prose is what is left. Prose is not a defence: a comment
+ * saying "these come from a closed list" stays on the page after somebody
+ * widens the list. This does the same argument as a check, so widening it
+ * wrongly stops the script instead of building the statement.
+ */
+function ident(name: string): string {
+  if (!/^[a-z][a-z0-9_]*$/.test(name)) {
+    throw new Error(`refusing to build SQL around an identifier like "${name}"`);
+  }
+  return name;
+}
+
 function connect(): { db: Db; raw: DatabaseSync } {
   const sqlite = new DatabaseSync(':memory:');
   const bind = (params: SqlParam[]) => params.map((p) => (p === undefined ? null : p));
@@ -117,9 +134,10 @@ async function main() {
     }
 
     // The table name comes from the device's own outbox, and the row from the
-    // database this script just built in memory. proofgate-allow
+    // database this script just built in memory, and `ident` refuses anything
+    // that is not a plain identifier.
     const row = raw
-      .prepare(`SELECT * FROM ${entry.table} WHERE id = ?`)
+      .prepare(`SELECT * FROM ${ident(entry.table)} WHERE id = ?`) // proofgate-allow: ident() above
       .get(entry.rowId) as Record<string, unknown> | undefined;
 
     const write = serialize(entry, row ?? null, ACTOR);
@@ -147,7 +165,7 @@ async function main() {
     const onConflict =
       write.table === 'movements'
         ? 'do nothing'
-        : `do update set ${settled.map((k) => `${k} = excluded.${k}`).join(', ')}`;
+        : `do update set ${settled.map((k) => `${ident(k)} = excluded.${ident(k)}`).join(', ')}`;
 
     // The columns are named, and that is not cosmetic.
     //
@@ -158,12 +176,12 @@ async function main() {
     // server fill the rest, so that is what this does. It also makes a field the
     // table does not have fail on the column list, loudly, which is the entire
     // point of running this. Every name here comes from `serialize`'s own closed
-    // list, never from outside. proofgate-allow
+    // list, never from outside, and `ident` enforces that rather than asserting it.
     exercised.add(write.table);
 
-    const columns = keys.join(', ');
+    const columns = keys.map(ident).join(', ');
     out.push(
-      `insert into ${write.table} (${columns}) select ${columns} from ` +
+      `insert into ${ident(write.table)} (${columns}) select ${columns} from ` + // proofgate-allow: ident() above
         `jsonb_populate_record(null::${write.table}, $sync$${json}$sync$::jsonb) ` +
         `on conflict (${conflict.join(', ')}) ${onConflict};`,
     );
@@ -190,7 +208,9 @@ async function main() {
   out.push('');
   out.push(`-- DEVICE_SUGAR_ID=${sugar.id}`);
   out.push(`-- DEVICE_SUGAR_BALANCE=${heldSugar?.onHandBaseUnits ?? 0}`);
-  out.push(`-- DEVICE_SUGAR_AVERAGE=${(costs[sugar.id] ?? 0).toFixed(4)}`);
+  // A Rate, not money: fractional by foundation, and printed here only so the
+  // server's own average can be compared against it.
+  out.push(`-- DEVICE_SUGAR_AVERAGE=${(costs[sugar.id] ?? 0).toFixed(4)}`); // proofgate-allow
   out.push(`-- DEVICE_QUEUE_LENGTH=${queue.length}`);
 
   process.stdout.write(out.join('\n') + '\n');
