@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -11,7 +11,8 @@ import { findItem, recordPurchase, saveItem, type ItemKind } from '@/data/reposi
 import { useQuery } from '@/data/useQuery';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { fromDecimal, rate } from '@/domain/money';
-import { defaultLocale, formatMoney } from '@/i18n';
+import { fill, formatMoney } from '@/i18n';
+import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -44,17 +45,21 @@ type Draft = {
   price: string;
 };
 
-const KINDS: { kind: Extract<ItemKind, 'input' | 'packaging' | 'store_supply'>; label: string }[] = [
-  { kind: 'input', label: 'Insumo' },
-  { kind: 'packaging', label: 'Embalagem' },
-  { kind: 'store_supply', label: 'Material de loja' },
+/** Order only; the words are in the dictionary, keyed the same way. */
+const KINDS: {
+  kind: Extract<ItemKind, 'input' | 'packaging' | 'store_supply'>;
+  key: 'input' | 'packaging' | 'storeSupply';
+}[] = [
+  { kind: 'input', key: 'input' },
+  { kind: 'packaging', key: 'packaging' },
+  { kind: 'store_supply', key: 'storeSupply' },
 ];
 
 function InputForm() {
   const { color, type, space } = useTheme();
   const confirm = useConfirm();
   const router = useRouter();
-  const locale = defaultLocale;
+  const { locale, t } = useLocale();
 
   /**
    * The same screen registers and corrects.
@@ -130,29 +135,35 @@ function InputForm() {
   const conversionHint = (() => {
     if (!parsed.valid || parsed.unitRate === null) return undefined;
     const perThousand = formatMoney(Math.round(parsed.unitRate * 1000), locale);
-    return `${formatMoney(fromDecimal(parsed.paid), locale)} ÷ ${parsed.factor.toLocaleString(
-      locale.formatting,
-    )} = ${perThousand} a cada 1.000 ${baseUnit} · ${parsed.unitRate.toFixed(4)} centavos por ${baseUnit}`;
+    return fill(t.app.inputForm.conversion, {
+      paid: formatMoney(fromDecimal(parsed.paid), locale),
+      factor: parsed.factor.toLocaleString(locale.formatting),
+      perThousand,
+      rate: parsed.unitRate.toFixed(4),
+      unit: baseUnit,
+    });
   })();
 
   // Correcting a name does not require re-entering a price: the price lives in
   // the invoices, and asking for it again here would move the average by accident.
   const canSave = name.trim().length > 0 && (editing ? parsed.factor > 0 : parsed.valid);
 
-  const onSave = useCallback(async () => {
+  // Not memoised: it is a click handler, and a hand-written memo here only
+  // gives the compiler something it cannot preserve.
+  const onSave = async () => {
     // Law 5: the error is prevented by the design, not complained about after.
     if (!canSave) return;
 
     const go = await confirm({
-      title: editing ? 'Salvar a correção?' : 'Confirma?',
-      message: editing
-        ? `${name.trim()} passa a ser comprado em ${purchaseUnit || 'unidade'}, com ` +
-          `${parsed.factor.toLocaleString(locale.formatting)} ${baseUnit} por embalagem. ` +
-          `O custo médio e o histórico de compras não mudam.`
-        : `Você vai cadastrar ${name.trim()}, comprado em ${purchaseUnit || 'unidade'} ` +
-          `com ${parsed.factor.toLocaleString(locale.formatting)} ${baseUnit} por embalagem, ` +
-          `custando ${formatMoney(fromDecimal(parsed.paid), locale)}.`,
-      cancelLabel: 'Ajustar',
+      title: editing ? t.app.inputForm.saveEdit : t.app.inputForm.confirmTitle,
+      message: fill(editing ? t.app.inputForm.confirmEdit : t.app.inputForm.confirmNew, {
+        name: name.trim(),
+        pack: purchaseUnit || t.units.unit.one,
+        factor: parsed.factor.toLocaleString(locale.formatting),
+        unit: baseUnit,
+        price: formatMoney(fromDecimal(parsed.paid), locale),
+      }),
+      cancelLabel: t.app.confirm.adjust,
     });
     if (!go) return;
 
@@ -162,10 +173,10 @@ function InputForm() {
       router.back();
     } catch (e) {
       await confirm({
-        title: 'Não deu para salvar',
+        title: t.app.inputForm.failedToSave,
         message: e instanceof Error ? e.message : String(e),
         acknowledge: true,
-        confirmLabel: 'Entendi',
+        confirmLabel: t.app.confirm.understood,
       });
     } finally {
       setSaving(false);
@@ -198,28 +209,31 @@ function InputForm() {
         totalCents: fromDecimal(parsed.paid),
       });
     }
-  }, [canSave, confirm, editing, id, name, purchaseUnit, parsed, locale, kind, baseUnit, router]);
+  };
 
   return (
-    <CollapsingHeader title={editing ? name || 'Insumo' : 'Novo insumo'} overline={editing ? 'corrigindo o cadastro' : 'cadastro'}>
+    <CollapsingHeader
+      title={editing ? name || t.app.inputForm.fallbackTitle : t.app.inputForm.newTitle}
+      overline={editing ? t.app.inputForm.editOverline : t.app.inputForm.newOverline}
+    >
       <Card tone="area">
         <Field
-          label="Nome"
+          label={t.app.inputForm.name}
           value={name}
           onChangeText={setName}
-          placeholder="Açúcar cristal"
+          placeholder={t.app.inputForm.namePlaceholder}
           autoFocus
         />
 
         <View style={{ marginTop: space.lg }}>
           <Text style={[type.overline, { color: color.inkFaint, marginBottom: space.sm }]}>
-            PARA QUE SERVE
+            {t.app.inputForm.whatFor}
           </Text>
           <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
             {KINDS.map((entry) => (
               <Button
                 key={entry.kind}
-                label={entry.label}
+                label={t.app.inputForm.kinds[entry.key]}
                 variant={kind === entry.kind ? 'primary' : 'ghost'}
                 onPress={() => setKind(entry.kind)}
                 style={{ paddingVertical: space.sm, paddingHorizontal: space.md }}
@@ -228,31 +242,31 @@ function InputForm() {
           </View>
           <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
             {kind === 'input'
-              ? 'Entra na receita e vira custo do produto.'
+              ? t.app.inputForm.kindHint.input
               : kind === 'packaging'
-                ? 'Palito, saquinho, rótulo — custa por unidade produzida.'
-                : 'Copo, colher, guardanapo — custa dinheiro na loja, mas não entra em receita.'}
+                ? t.app.inputForm.kindHint.packaging
+                : t.app.inputForm.kindHint.storeSupply}
           </Text>
         </View>
       </Card>
 
       <Card tone="area">
         <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.xs }]}>
-          Como você compra
+          {t.app.inputForm.howYouBuy}
         </Text>
         <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.md }]}>
-          Do jeito que vem do fornecedor, não do jeito que entra na receita.
+          {t.app.inputForm.howYouBuyHint}
         </Text>
 
         <View style={{ gap: space.lg }}>
           <Field
-            label="Embalagem"
+            label={t.app.inputForm.pack}
             value={purchaseUnit}
             onChangeText={setPurchaseUnit}
-            placeholder="saco 25 kg"
+            placeholder={t.app.inputForm.packPlaceholder}
           />
           <Field
-            label="Quanto vem dentro"
+            label={t.app.inputForm.perPack}
             value={purchaseToBase}
             onChangeText={setPurchaseToBase}
             placeholder="25000"
@@ -260,20 +274,19 @@ function InputForm() {
             keyboardType="numeric"
           />
           <Field
-            label="Medida de uso"
+            label={t.app.inputForm.useUnit}
             value={baseUnit}
             onChangeText={setBaseUnit}
             placeholder="g"
-            hint="A menor medida com que a receita trabalha: g, ml, un."
+            hint={t.app.inputForm.useUnitHint}
           />
           {editing ? (
             <Text style={[type.caption, { color: color.inkMuted }]}>
-              O preço não é perguntado aqui. Ele vem das notas de compra, e mexer nele por este
-              caminho moveria o custo médio sem uma nota por trás.
+              {t.app.inputForm.priceNotAsked}
             </Text>
           ) : (
             <Field
-              label="Preço pago"
+              label={t.app.inputForm.price}
               value={price}
               onChangeText={setPrice}
               placeholder="118,00"
@@ -287,27 +300,33 @@ function InputForm() {
 
       {parsed.valid && !editing ? (
         <Card tone="area">
-          <Text style={[type.overline, { color: color.inkFaint }]}>ENTRA NA RECEITA COMO</Text>
+          <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.inputForm.entersAs}</Text>
           <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
             {formatMoney(Math.round((parsed.unitRate ?? 0) * 1000), locale)}
           </Text>
           <Text style={[type.secondary, { color: color.inkMuted }]}>
-            a cada 1.000 {baseUnit}
+            {fill(t.app.inputForm.perThousandOf, { unit: baseUnit })}
           </Text>
           <View style={{ marginTop: space.md }}>
-            <Chip signal="ok" label="Conversão confere" />
+            <Chip signal="ok" label={t.app.inputForm.conversionOk} />
           </View>
         </Card>
       ) : (
         <Card>
           <Text style={[type.secondary, { color: color.inkMuted }]}>
-            Preencha a embalagem e o preço para o app calcular o custo por unidade de uso.
+            {t.app.inputForm.fillFirst}
           </Text>
         </Card>
       )}
 
       <Button
-        label={saving ? 'Salvando…' : editing ? 'Salvar correção' : 'Salvar insumo'}
+        label={
+          saving
+            ? t.app.inputForm.saving
+            : editing
+              ? t.app.inputForm.saveEdit
+              : t.app.inputForm.save
+        }
         onPress={() => void onSave()}
         disabled={!canSave || saving}
         weighty

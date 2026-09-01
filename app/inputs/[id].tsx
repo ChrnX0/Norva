@@ -16,7 +16,7 @@ import {
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
-import { formatDayMonth, formatMoney, formatQuantity } from '@/i18n';
+import { fill, formatDayMonth, formatMoney, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -51,7 +51,7 @@ function InputDetail() {
   const { color, space, type } = useTheme();
   const confirm = useConfirm();
   const router = useRouter();
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const { data, loading, refresh } = useQuery<Loaded>(async () => {
@@ -68,10 +68,10 @@ function InputDetail() {
 
   if (loading || !item) {
     return (
-      <CollapsingHeader title="Insumo" overline="almoxarifado">
+      <CollapsingHeader title={t.app.inputForm.fallbackTitle} overline={t.app.inputDetail.overline}>
         <Card>
           <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {loading ? 'Abrindo…' : 'Esse item não está mais cadastrado.'}
+            {loading ? t.app.inputDetail.opening : t.app.inputDetail.gone}
           </Text>
         </Card>
       </CollapsingHeader>
@@ -91,12 +91,12 @@ function InputDetail() {
 
   const toggleActive = async () => {
     const go = await confirm({
-      title: item.active ? 'Tirar de circulação?' : 'Voltar a usar?',
-      message: item.active
-        ? `${item.name} some das listas de escolha, mas continua no histórico: as compras já ` +
-          `lançadas e as receitas que o usam ficam intactas. Dá para voltar atrás quando quiser.`
-        : `${item.name} volta a aparecer nas listas de escolha.`,
-      confirmLabel: item.active ? 'Tirar' : 'Voltar a usar',
+      title: item.active ? t.app.inputDetail.retireTitle : t.app.inputDetail.bringBackTitle,
+      message: fill(
+        item.active ? t.app.inputDetail.retireBody : t.app.inputDetail.bringBackBody,
+        { name: item.name },
+      ),
+      confirmLabel: item.active ? t.app.inputDetail.retireConfirm : t.app.inputDetail.bringBack,
       destructive: item.active,
     });
     if (!go) return;
@@ -107,35 +107,35 @@ function InputDetail() {
   return (
     <CollapsingHeader
       title={item.name}
-      overline={item.active ? 'almoxarifado' : 'almoxarifado · fora de circulação'}
+      overline={item.active ? t.app.inputDetail.overline : t.app.inputDetail.retiredOverline}
     >
       {item.active ? null : (
         <Card tone="warning">
-          <Text style={[type.cardTitle, { color: color.ink }]}>Fora de circulação</Text>
+          <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.inputDetail.retiredTitle}</Text>
           <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-            Ele não aparece mais quando você escolhe um item, e tudo o que já passou por ele
-            continua como estava.
+            {t.app.inputDetail.retiredBody}
           </Text>
         </Card>
       )}
       <Card tone="area">
-        <Text style={[type.overline, { color: color.inkFaint }]}>CUSTO ATUAL</Text>
+        <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.inputDetail.currentCost}</Text>
         <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
           {item.averageRate > 0 ? formatMoney(perThousand, locale) : '—'}
         </Text>
         <Text style={[type.secondary, { color: color.inkMuted }]}>
           {item.averageRate > 0
-            ? `a cada 1.000 ${item.baseUnit} · média das compras`
-            : 'ainda sem nota lançada'}
+            ? fill(t.app.inputDetail.averageOf, { unit: item.baseUnit })
+            : t.app.inputDetail.noInvoiceYet}
         </Text>
 
         {latestChange !== null && Math.abs(latestChange) >= 0.001 ? (
           <View style={{ marginTop: space.md }}>
             <Chip
               signal={latestChange > 0.05 ? 'warning' : latestChange < 0 ? 'ok' : 'neutral'}
-              label={`${latestChange > 0 ? 'Subiu' : 'Caiu'} ${(
-                Math.abs(latestChange) * 100
-              ).toFixed(1)}% na última compra`}
+              label={fill(
+                latestChange > 0 ? t.app.inputDetail.wentUp : t.app.inputDetail.wentDown,
+                { percent: `${(Math.abs(latestChange) * 100).toFixed(1)}%` },
+              )}
             />
           </View>
         ) : null}
@@ -143,11 +143,11 @@ function InputDetail() {
 
       <Card tone="area">
         <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.sm }]}>
-          Como você compra
+          {t.app.inputDetail.howYouBuy}
         </Text>
-        <ListRow label="Embalagem" trailing={item.purchaseUnit ?? '—'} />
+        <ListRow label={t.app.inputDetail.pack} trailing={item.purchaseUnit ?? '—'} />
         <ListRow
-          label="Quanto vem dentro"
+          label={t.app.inputDetail.perPack}
           trailing={
             item.purchaseToBase
               ? `${formatQuantity(item.purchaseToBase, locale)} ${item.baseUnit}`
@@ -155,7 +155,9 @@ function InputDetail() {
           }
         />
         <ListRow
-          label={`Preço por ${item.purchaseUnit ?? 'embalagem'}`}
+          label={fill(t.app.inputDetail.pricePer, {
+            pack: item.purchaseUnit ?? t.app.inputDetail.pack.toLowerCase(),
+          })}
           trailing={
             item.purchaseToBase && item.averageRate > 0
               ? formatMoney(Math.round(item.averageRate * item.purchaseToBase), locale)
@@ -163,22 +165,26 @@ function InputDetail() {
           }
         />
         <ListRow
-          label="Em estoque"
-          detail={held > 0 ? `${formatMoney(held, locale)} parados aqui` : undefined}
+          label={t.app.inputDetail.inStock}
+          detail={
+            held > 0
+              ? fill(t.app.inputDetail.heldHere, { amount: formatMoney(held, locale) })
+              : undefined
+          }
           trailing={`${formatQuantity(item.onHandBaseUnits, locale)} ${item.baseUnit}`}
         />
       </Card>
 
       <Card tone="area">
-        <Text style={[type.cardTitle, { color: color.ink }]}>Histórico de preço</Text>
+        <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.inputDetail.history}</Text>
         <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-          Ninguém escreveu isto. Cada linha nasceu de uma nota lançada.
+          {t.app.inputDetail.historyHint}
         </Text>
 
         <View style={{ marginTop: space.md }}>
           {moves.length === 0 ? (
             <Text style={[type.secondary, { color: color.inkFaint }]}>
-              Só houve uma compra até agora, então ainda não há o que comparar.
+              {t.app.inputDetail.historyEmpty}
             </Text>
           ) : (
             moves.map((move) => {
@@ -203,11 +209,11 @@ function InputDetail() {
 
       {(data?.recipes.length ?? 0) > 0 ? (
         <Card tone="area">
-          <Text style={[type.cardTitle, { color: color.ink }]}>Quem usa isto</Text>
+          <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.inputDetail.usedBy}</Text>
           <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
             {data!.recipes.length === 1
-              ? 'Uma receita depende deste item.'
-              : `${data!.recipes.length} receitas dependem deste item — um aumento aqui move todas elas.`}
+              ? t.app.inputDetail.usedByOne
+              : fill(t.app.inputDetail.usedByMany, { count: data!.recipes.length })}
           </Text>
           <View style={{ marginTop: space.md }}>
             {data!.recipes.map((recipe) => (
@@ -223,19 +229,19 @@ function InputDetail() {
       ) : null}
 
       <Button
-        label="Lançar uma compra deste item"
+        label={t.app.inputDetail.recordPurchase}
         onPress={() => router.push(`/purchase?itemId=${item.id}`)}
         weighty
       />
 
       <Button
-        label="Corrigir o cadastro"
+        label={t.app.inputDetail.correct}
         variant="ghost"
         onPress={() => router.push(`/inputs/new?id=${item.id}`)}
       />
 
       <Button
-        label={item.active ? 'Tirar de circulação' : 'Voltar a usar'}
+        label={item.active ? t.app.inputDetail.retire : t.app.inputDetail.bringBack}
         variant="ghost"
         onPress={() => void toggleActive()}
       />

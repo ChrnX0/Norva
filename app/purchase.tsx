@@ -21,7 +21,8 @@ import { useQuery } from '@/data/useQuery';
 import { fromDecimal, rate, type Rate } from '@/domain/money';
 import { applyCostEvent } from '@/domain/cost';
 import { costPerProductUnit, costRecipe } from '@/domain/recipe';
-import { defaultLocale, formatMoney, formatQuantity } from '@/i18n';
+import { fill, formatMoney, formatQuantity } from '@/i18n';
+import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -50,7 +51,7 @@ type Impact = { name: string; before: number; after: number };
 function PurchaseForm() {
   const { color, type, space, accent } = useTheme();
   const confirm = useConfirm();
-  const locale = defaultLocale;
+  const { locale, t } = useLocale();
 
   const { data, loading, refresh } = useQuery(
     () => listItems(LOCAL_COMPANY_ID).then((all) => all.filter((i) => i.purchaseToBase !== null)),
@@ -107,15 +108,16 @@ function PurchaseForm() {
   const onSave = async () => {
     if (!selected || !draft) return;
 
-    const words =
-      `${formatQuantity(draft.packs, locale)} × ${selected.purchaseUnit ?? 'unidade'} de ` +
-      `${selected.name}, por ${formatMoney(draft.totalCents, locale)}.`;
-
     const go = await confirm({
-      title: 'Lançar esta compra?',
-      message: words,
-      confirmLabel: 'Lançar',
-      cancelLabel: 'Ajustar',
+      title: t.app.purchase.confirmTitle,
+      message: fill(t.app.purchase.confirmBody, {
+        packs: formatQuantity(draft.packs, locale),
+        pack: selected.purchaseUnit ?? t.units.unit.one,
+        name: selected.name,
+        total: formatMoney(draft.totalCents, locale),
+      }),
+      confirmLabel: t.app.purchase.confirmAction,
+      cancelLabel: t.app.confirm.adjust,
     });
     if (!go) return;
 
@@ -127,10 +129,10 @@ function PurchaseForm() {
       refresh();
     } catch (e) {
       await confirm({
-        title: 'Não deu para lançar',
+        title: t.app.purchase.failed,
         message: e instanceof Error ? e.message : String(e),
         acknowledge: true,
-        confirmLabel: 'Entendi',
+        confirmLabel: t.app.confirm.understood,
       });
     } finally {
       setSaving(false);
@@ -139,19 +141,21 @@ function PurchaseForm() {
 
   if (loading) {
     return (
-      <CollapsingHeader title="Nova compra" overline="compras">
+      <CollapsingHeader title={t.app.purchase.title} overline={t.app.purchase.overline}>
         <Card>
-          <Text style={[type.secondary, { color: color.inkMuted }]}>Abrindo o almoxarifado…</Text>
+          <Text style={[type.secondary, { color: color.inkMuted }]}>
+            {t.app.purchase.openingStoreroom}
+          </Text>
         </Card>
       </CollapsingHeader>
     );
   }
 
   return (
-    <CollapsingHeader title="Nova compra" overline="compras · a nota move o custo">
+    <CollapsingHeader title={t.app.purchase.title} overline={t.app.purchase.overline}>
       <Card tone="area">
         <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.sm }]}>
-          O que você comprou
+          {t.app.purchase.whatYouBought}
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={{ flexDirection: 'row', gap: space.sm }}>
@@ -191,27 +195,31 @@ function PurchaseForm() {
         <Card tone="area">
           <View style={{ gap: space.lg }}>
             <Field
-              label="Fornecedor"
+              label={t.app.purchase.supplier}
               value={supplier}
               onChangeText={setSupplier}
-              placeholder="quem vendeu"
+              placeholder={t.app.purchase.supplierPlaceholder}
             />
             <Field
-              label={`Quantas ${selected.purchaseUnit ?? 'unidades'}`}
+              label={fill(t.app.purchase.howMany, {
+                pack: selected.purchaseUnit ?? t.units.unit.other,
+              })}
               value={quantity}
               onChangeText={setQuantity}
               keyboardType="numeric"
               hint={
                 draft
-                  ? `${formatQuantity(draft.packs, locale)} × ${formatQuantity(
-                      draft.factor,
-                      locale,
-                    )} = ${formatQuantity(draft.baseUnits, locale)} ${selected.baseUnit} entrando no estoque.`
+                  ? fill(t.app.purchase.conversion, {
+                      packs: formatQuantity(draft.packs, locale),
+                      factor: formatQuantity(draft.factor, locale),
+                      baseUnits: formatQuantity(draft.baseUnits, locale),
+                      unit: selected.baseUnit,
+                    })
                   : undefined
               }
             />
             <Field
-              label="Total da nota"
+              label={t.app.purchase.total}
               value={total}
               onChangeText={setTotal}
               placeholder="118,00"
@@ -219,7 +227,10 @@ function PurchaseForm() {
               keyboardType="numeric"
               hint={
                 draft
-                  ? `${formatMoney(fromDecimal(perPackNow), locale)} por ${selected.purchaseUnit ?? 'unidade'}`
+                  ? fill(t.app.purchase.perPack, {
+                      price: formatMoney(fromDecimal(perPackNow), locale),
+                      pack: selected.purchaseUnit ?? t.units.unit.one,
+                    })
                   : undefined
               }
             />
@@ -229,11 +240,11 @@ function PurchaseForm() {
 
       {draft && selected ? (
         <Card tone={draft.change !== null && draft.change > 0.05 ? 'warning' : 'area'}>
-          <Text style={[type.overline, { color: color.inkFaint }]}>ANTES DE FECHAR</Text>
+          <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.purchase.beforeClosing}</Text>
 
           {draft.change === null || perPackBefore === null ? (
             <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-              Primeira compra deste item. A próxima já vem com a comparação.
+              {t.app.purchase.firstPurchase}
             </Text>
           ) : (
             <>
@@ -241,18 +252,20 @@ function PurchaseForm() {
                 {draft.change >= 0 ? '▲' : '▼'} {(Math.abs(draft.change) * 100).toFixed(1)}%
               </Text>
               <Text style={[type.secondary, { color: color.inkMuted }]}>
-                {formatMoney(fromDecimal(perPackNow), locale)} agora ·{' '}
-                {formatMoney(fromDecimal(perPackBefore), locale)} na compra anterior
+                {fill(t.app.purchase.nowVsBefore, {
+                  now: formatMoney(fromDecimal(perPackNow), locale),
+                  before: formatMoney(fromDecimal(perPackBefore), locale),
+                })}
               </Text>
               <View style={{ marginTop: space.md }}>
                 <Chip
                   signal={draft.change > 0.05 ? 'warning' : draft.change < -0.02 ? 'ok' : 'neutral'}
                   label={
                     draft.change > 0.05
-                      ? 'Subiu bem acima do normal'
+                      ? t.app.purchase.wellAbove
                       : draft.change < -0.02
-                        ? 'Está mais barato que da última vez'
-                        : 'Variação pequena'
+                        ? t.app.purchase.cheaper
+                        : t.app.purchase.smallChange
                   }
                 />
               </View>
@@ -260,19 +273,21 @@ function PurchaseForm() {
           )}
 
           <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
-            O custo médio de {selected.name} passa de{' '}
-            {formatMoney(Math.round(selected.averageRate * 1_000), locale)} para{' '}
-            {formatMoney(Math.round(draft.after.averageRate * 1_000), locale)} a cada 1.000{' '}
-            {selected.baseUnit}.
+            {fill(t.app.purchase.averageMoves, {
+              name: selected.name,
+              from: formatMoney(Math.round(selected.averageRate * 1_000), locale),
+              to: formatMoney(Math.round(draft.after.averageRate * 1_000), locale),
+              unit: selected.baseUnit,
+            })}
           </Text>
         </Card>
       ) : null}
 
       {impact && impact.length > 0 ? (
         <Card tone="area">
-          <Text style={[type.cardTitle, { color: color.ink }]}>O que essa nota mexeu</Text>
+          <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.purchase.whatItMoved}</Text>
           <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-            Ninguém precisou atualizar preço nenhum.
+            {t.app.purchase.nobodyUpdated}
           </Text>
           <View style={{ marginTop: space.md, gap: space.sm }}>
             {impact.map((row) => (
@@ -296,7 +311,7 @@ function PurchaseForm() {
       ) : null}
 
       <Button
-        label={saving ? 'Lançando…' : 'Lançar compra'}
+        label={saving ? t.app.purchase.recording : t.app.purchase.record}
         onPress={() => void onSave()}
         disabled={!draft || saving}
         weighty
