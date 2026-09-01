@@ -345,6 +345,18 @@ sentidos — piso e teto agora derrubam a suíte — com o caso que faltava: mei
 centavo. E de quebra o que nunca some nem inventa centavo na repartição, e que
 taxa continua fracionária.
 
+**Segunda rodada, no resto do domínio:** mais dois passaram. O ponto de pedido
+arredondando para baixo — que pede menos do que o consumo, e é a única direção
+em que ele nunca pode errar — e, pior, **sub-receita ausente virando custo zero
+em silêncio**. `MissingRecipeError` existia e nada provava que ela disparava:
+um semi-acabado que sumisse deixaria todos os sabores em cima dele mais
+baratos, sem um número parecer errado.
+
+**O que mudou de vez.** A auditoria virou portão: `npm run mutate`, na barra e
+no CI, com treze defeitos curados — cada um uma frase sobre o que quebraria na
+fábrica. Lista curada e não aleatória de propósito: mutação cega gasta o tempo
+em mudanças que ninguém faria. Hoje os treze são pegos.
+
 **A lição sobre a barra, não sobre o centavo.** Suíte verde não diz que a regra
 está protegida; diz que os exemplos escolhidos não a exercitam. Mutação é barata
 e é a única coisa que responde a pergunta certa: *este teste passaria se o

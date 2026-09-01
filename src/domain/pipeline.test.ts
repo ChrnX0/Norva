@@ -8,6 +8,7 @@ import {
   PRICE_RELIEF,
   priceMove,
   ratesBefore,
+  reorderPoint,
   type PurchaseEvent,
 } from './cost';
 import { fromDecimal, rate, type Cents, type Rate } from './money';
@@ -279,4 +280,13 @@ test('it takes more to raise an alarm than to call something cheaper', () => {
   assert.ok(PRICE_ALARM > Math.abs(PRICE_RELIEF));
   assert.equal(judgePriceChange(0.04), 'smallChange', 'four percent up is noise');
   assert.equal(judgePriceChange(-0.04), 'cheaper', 'four percent down is worth saying');
+});
+
+test('the reorder point rounds up, because half a sack is not a sack', () => {
+  // 3.2 sacks of cover is four sacks to order. Rounding down orders less than
+  // the consumption it was calculated from, which is the one direction a
+  // reorder point must never err in - it exists to prevent a stockout.
+  assert.equal(reorderPoint(1.6, 1, 1), 4);
+  assert.equal(reorderPoint(10, 3, 2), 50);
+  assert.equal(reorderPoint(0.1, 1, 0), 1, 'a trickle still needs one');
 });

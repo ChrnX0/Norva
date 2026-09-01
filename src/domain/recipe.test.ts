@@ -8,6 +8,7 @@ import {
   costPerProductUnit,
   costRecipe,
   explodeRequirements,
+  MissingRecipeError,
   RecipeCycleError,
   unitsPerBatch,
   type ItemCosts,
@@ -396,4 +397,60 @@ test('a share is the line\'s real weight, not its rounded one', () => {
   // real weight - otherwise "what dominates this recipe" answers with noise.
   assert.ok(cost.lines[1].share > 0, 'a line worth less than a cent is not weightless');
   assert.ok(Math.abs(cost.lines[0].share + cost.lines[1].share - 1) < 1e-9);
+});
+
+/**
+ * The two ways a recipe can point at something that is not there, and why they
+ * are answered differently.
+ *
+ * A mutation check turned the missing-recipe throw into a zero-cost result and
+ * the whole suite stayed green - the error class existed and nothing ever
+ * proved it fired. That is the dangerous half: a semi-finished base that has
+ * gone missing would make every flavour standing on it quietly cheaper, with
+ * no number ever looking wrong.
+ */
+
+test('a sub-recipe that is not there stops the costing, and names itself', () => {
+  const orphan: Record<string, Recipe> = {
+    popsicle: {
+      id: 'popsicle',
+      version: 1,
+      effectiveFrom: '2026-01-01',
+      yieldAmount: 10_000,
+      lossFraction: 0,
+      lines: [{ kind: 'recipe', recipeId: 'creamBase', quantity: 4_000 }],
+    },
+  };
+
+  // Silence here is the failure that looks like success: the popsicle would
+  // simply come out cheaper, and every product standing on it with it.
+  assert.throws(
+    () => costRecipe('popsicle', orphan, {}),
+    (e: unknown) => e instanceof MissingRecipeError && String(e.message).includes('creamBase'),
+  );
+});
+
+test('an item with no invoice yet is free, and that is not the same thing', () => {
+  const priced: Record<string, Recipe> = {
+    base: {
+      id: 'base',
+      version: 1,
+      effectiveFrom: '2026-01-01',
+      yieldAmount: 1_000,
+      lossFraction: 0,
+      lines: [
+        { kind: 'item', itemId: 'sugar', quantity: 500 },
+        { kind: 'item', itemId: 'brandNew', quantity: 500 },
+      ],
+    },
+  };
+
+  // Deliberately asymmetric. A missing recipe is structural - something was
+  // deleted or never arrived. An item nobody has bought yet genuinely has no
+  // cost, and the storeroom screen already says so in words: "ainda sem nota
+  // lançada". Refusing to cost the recipe would make the app unusable on the
+  // first day, before any invoice exists.
+  const cost = costRecipe('base', priced, { sugar: 0.472 as Rate });
+  assert.equal(cost.batchCents, 236);
+  assert.equal(cost.lines[1].totalCents, 0);
 });

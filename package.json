@@ -12,7 +12,8 @@
     "lint": "expo lint",
     "test": "tsx --test src/**/*.test.ts",
     "db:verify": "bash scripts/verify-migrations.sh",
-    "e2e": "node e2e/flow.mjs"
+    "e2e": "node e2e/flow.mjs",
+    "mutate": "node scripts/mutate.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.14",

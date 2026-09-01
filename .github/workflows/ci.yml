@@ -34,6 +34,13 @@ jobs:
       - name: The cost engine
         run: npm test
 
+      # A green suite says the chosen examples passed, not that the rules are
+      # protected. This breaks the code on purpose, one defect at a time, and
+      # fails on any the tests do not notice. Its first run found the project's
+      # own headline rule about rounding held up by nothing.
+      - name: Does the suite bite?
+        run: npm run mutate
+
       # Typechecking proves the code is consistent; only bundling proves it can
       # actually reach a phone.
       - name: Android bundle

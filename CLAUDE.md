@@ -82,11 +82,18 @@ amostragem:
 npm run typecheck
 npm run lint
 npm test
+npm run mutate       # quebra o código de propósito: a suíte morde mesmo?
 npm run e2e          # o app dirigido num navegador de verdade
 npm run db:verify    # Postgres descartável, seis garantias — inclui a fila
                      # do aparelho reproduzida contra o servidor de verdade
 bash .proofgate/verify.sh
 ```
+
+O `mutate` existe porque suíte verde não quer dizer regra protegida: quer dizer
+que os exemplos escolhidos não a exercitam. Na primeira execução ele trocou o
+`Math.round` do `amountOf` por `Math.floor` — *o* ponto de arredondamento do
+sistema — e **noventa e dois testes continuaram verdes**. A regra da capa deste
+projeto estava sustentada por coincidência aritmética.
 
 O `e2e` existe porque três bugs passaram por toda a bateria unitária e só
 apareceram quando o app foi aberto: uma confirmação que não existe na web,
