@@ -1,6 +1,6 @@
 import { fromDecimal } from '@/domain/money';
 import { costPerProductUnit, costRecipe } from '@/domain/recipe';
-import { formatMoney, formatQuantity } from '@/i18n';
+import { formatDayMonth, formatMoney, formatQuantity } from '@/i18n';
 import { findByName, movePhrase, normalize, parseNumber } from './text';
 import type { Answer, Skill, SkillContext } from './types';
 
@@ -313,8 +313,141 @@ const eraseHelp: Skill = {
 };
 
 /** Skills are ordered: the most specific phrasing gets first refusal. */
+/**
+ * "quanto tem de açúcar" - the question the storeroom is for.
+ *
+ * The quantity is not money, so everyone may have it. What it is *worth* is,
+ * so that line is assembled only for someone who may see cost - decided here,
+ * before the sentence exists, rather than by leaving a figure out of the text
+ * and hoping. Same principle as the capability gate on a whole skill, applied
+ * to one line of an answer.
+ *
+ * Law 3: no number appears alone. A balance without the date it was last
+ * checked is a number asking to be trusted, and this one says outright when
+ * nobody has ever counted it.
+ */
+const stockOfInput: Skill = {
+  id: 'stock_of_input',
+  example: 'quanto tem de açúcar',
+  match: (q) =>
+    normalize(q).match(
+      /(?:quantos?\s+(?:tem|tenho|resta|restam|sobra|sobrou|sobraram)|estoque\s+(?:de|do|da))\s+(?:de\s+)?(?:o |a |os |as )?(.+)/,
+    ),
+  run: async (m, ctx) => {
+    const items = await ctx.data.listItems();
+    const item = findByName(items, m[1]);
+    if (!item) return { text: `Não encontrei "${m[1].trim()}" no almoxarifado.` };
+
+    const held = `${formatQuantity(item.onHandBaseUnits, ctx.locale)} ${item.baseUnit}`;
+    const movements = await ctx.data.itemMovements(item.id, 20);
+    const counted = movements.find((mv) => mv.kind === 'adjustment');
+
+    const detail = [{ label: 'Em estoque', value: held }];
+
+    detail.push({
+      label: 'Última conferência',
+      value: counted
+        ? formatDayMonth(counted.occurredAt, ctx.locale)
+        : 'ninguém conferiu ainda',
+    });
+
+    if (ctx.capabilities.has('view_cost')) {
+      detail.push({
+        label: 'Valor parado',
+        value: formatMoney(Math.round(item.averageRate * item.onHandBaseUnits), ctx.locale),
+      });
+    }
+
+    if (item.purchaseUnit && item.purchaseToBase) {
+      detail.push({
+        label: 'Dá quantos ' + item.purchaseUnit,
+        value: formatQuantity(item.onHandBaseUnits / item.purchaseToBase, ctx.locale),
+      });
+    }
+
+    return {
+      text: counted
+        ? `Você tem ${held} de ${item.name}, conferido em ${formatDayMonth(counted.occurredAt, ctx.locale)}.`
+        : `Você tem ${held} de ${item.name}, pelas notas lançadas. Ninguém conferiu a prateleira ainda.`,
+      detail,
+      route: `/inputs/${item.id}`,
+    };
+  },
+};
+
+/**
+ * "contei 2 sacos de açúcar" - counting, out loud.
+ *
+ * The assistant fills the form and stops. A stock adjustment sits on the floor
+ * no level of autonomy may cross on its own: the count is the moment the books
+ * are made to agree with a shelf, and a wrong one is believed for months.
+ *
+ * The number is read as packages, the way a storeroom is actually counted, and
+ * the draft spells the conversion out - "2 sacos = 50.000 g" - so a
+ * misunderstanding is visible before it is written rather than after.
+ */
+const registerCount: Skill = {
+  id: 'register_count',
+  example: 'contei 2 sacos de açúcar',
+  requires: 'adjust_stock',
+  match: (q) =>
+    normalize(q).match(
+      /(?:contei|conferi|tem|sobrou|sobraram|restam)\s+([\d.,]+)\s*(?:\w+\s+)?(?:de\s+)?(.+)/,
+    ),
+  run: async (m, ctx) => {
+    const packs = parseNumber(m[1]);
+    const items = await ctx.data.listItems();
+    const item = findByName(items, m[2]);
+
+    if (!item) return { text: `Não encontrei "${m[2].trim()}" no almoxarifado.` };
+    if (packs === null || packs < 0) {
+      return { text: 'Não entendi a quantidade. Pode repetir com o número?' };
+    }
+
+    const factor = item.purchaseToBase ?? 1;
+    const countedBaseUnits = Math.round(packs * factor);
+    const expected = item.onHandBaseUnits;
+    const delta = countedBaseUnits - expected;
+
+    const asWords = (n: number) => `${formatQuantity(n, ctx.locale)} ${item.baseUnit}`;
+    const difference =
+      delta === 0
+        ? 'Bate com o que o sistema esperava.'
+        : delta < 0
+          ? `Estão faltando ${asWords(-delta)}.`
+          : `Estão sobrando ${asWords(delta)}.`;
+
+    return {
+      text: 'Preparei a contagem. Confira antes de eu gravar.',
+      detail: [
+        { label: 'Item', value: item.name },
+        {
+          label: 'Você contou',
+          value: `${formatQuantity(packs, ctx.locale)} × ${item.purchaseUnit ?? 'unidade'} = ${asWords(countedBaseUnits)}`,
+        },
+        { label: 'O sistema esperava', value: asWords(expected) },
+        { label: 'Diferença', value: difference },
+      ],
+      draft: {
+        kind: 'count',
+        summary:
+          `Registrar que você contou ${asWords(countedBaseUnits)} de ${item.name}. ` +
+          `${difference} A diferença fica registrada e nada é apagado.`,
+        apply: async () => {
+          await ctx.data.recordCount({ itemId: item.id, countedBaseUnits });
+        },
+      },
+      route: `/inputs/${item.id}`,
+    };
+  },
+};
+
 export const phase1Skills: Skill[] = [
   registerPurchase,
+  // Before `stockOfInput`, which also answers to "tem": a phrase carrying a
+  // number is somebody counting, not somebody asking.
+  registerCount,
+  stockOfInput,
   eraseHelp,
   listInputs,
   whatDominates,

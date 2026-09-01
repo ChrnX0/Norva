@@ -1,4 +1,4 @@
-import type { CostChange, ItemWithCost, Product } from '@/data/repository';
+import type { CostChange, ItemWithCost, MovementRow, Product } from '@/data/repository';
 import type { Cents } from '@/domain/money';
 import type { ItemCosts, Recipe } from '@/domain/recipe';
 
@@ -49,6 +49,9 @@ export type AssistantData = {
   itemCosts(): Promise<ItemCosts>;
   labels(): Promise<Record<string, string>>;
   recentCostChanges(limit: number): Promise<CostChange[]>;
+  /** The movements behind one item's balance - what `[por quê?]` opens. */
+  itemMovements(itemId: string, limit?: number): Promise<MovementRow[]>;
+  recordCount(input: { itemId: string; countedBaseUnits: number }): Promise<unknown>;
   recordPurchase(input: {
     itemId: string;
     purchaseQuantity: number;
@@ -65,7 +68,7 @@ export type AssistantData = {
  * would say it out loud - with the numbers spelled out, never as field labels.
  */
 export type Draft = {
-  kind: 'purchase';
+  kind: 'purchase' | 'count';
   summary: string;
   apply: () => Promise<void>;
 };

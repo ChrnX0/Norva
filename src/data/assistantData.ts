@@ -1,11 +1,13 @@
 import type { AssistantData } from '@/assistant/types';
 import {
   itemCosts,
+  itemMovements,
   labels,
   listItems,
   listProducts,
   loadRecipeGraph,
   recentCostChanges,
+  recordCount,
   recordPurchase,
 } from './repository';
 
@@ -26,6 +28,8 @@ export function liveData(companyId: string): AssistantData {
     itemCosts: () => itemCosts(companyId),
     labels: () => labels(companyId),
     recentCostChanges: (limit) => recentCostChanges(companyId, limit),
+    itemMovements: (itemId, limit) => itemMovements(companyId, itemId, limit),
     recordPurchase: (input) => recordPurchase(companyId, input),
+    recordCount: (input) => recordCount(companyId, input),
   };
 }

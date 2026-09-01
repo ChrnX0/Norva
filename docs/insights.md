@@ -109,6 +109,36 @@ iterar nas próprias checagens.
 
 ---
 
+## 2026-09-01 — a dívida que eu criei vinte minutos antes
+
+**O que se viu.** A cláusula de pronto deste projeto diz que um módulo só está
+concluído quando o assistente **sabe responder** sobre ele e **sabe preencher**
+os registros dele. Ela existe para impedir exatamente um cenário: o assistente
+que nasce ótimo e vai ficando para trás a cada módulo novo até virar mentira.
+
+Eu tinha acabado de acrescentar o estoque real e a contagem, e não toquei no
+assistente. Sete habilidades, e nenhuma sabia dizer *quanto tem* nem registrar
+uma conferência. A dívida não veio de trás — veio de mim, na mesma rodada.
+
+**Por que importa mais do que parece.** O achado não é "faltou uma função". É
+que a regra não estava sendo aplicada a quem a escreveu. Auditar o código
+antigo é fácil; auditar o próprio diff contra a regra do projeto é o que ela
+pede de verdade.
+
+**O que mudou.** Duas habilidades. `quanto tem de açúcar` responde a quantidade
+**com a data da última conferência** — Lei 3, número nenhum aparece sozinho — e
+diz na cara quando ninguém nunca conferiu, porque um saldo que só veio de nota
+é outro tipo de número. E `contei 2 sacos de açúcar` preenche uma ficha e
+**para**: ajuste de inventário está no piso que nenhum nível de autonomia
+atravessa sozinho.
+
+Um detalhe que valeu por si: **a quantidade não é segredo, o valor dela é.** A
+linha "valor parado" só é montada para quem tem `view_cost` — não é omitida do
+texto, é nunca construída. Quem não pode ver dinheiro recebe uma resposta que
+nunca teve dinheiro dentro.
+
+---
+
 ## Em aberto
 
 Achados desta rodada que ainda não viraram mudança. Ficam aqui até virarem.

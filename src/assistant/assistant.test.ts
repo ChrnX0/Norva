@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { CostChange, ItemWithCost, Product } from '@/data/repository';
-import { fromDecimal, rate, type Cents } from '@/domain/money';
+import type { CostChange, ItemWithCost, MovementRow, Product } from '@/data/repository';
+import { fromDecimal, rate, type Cents, type Rate } from '@/domain/money';
 import type { ItemCosts, Recipe } from '@/domain/recipe';
 import { defaultLocale } from '@/i18n';
 import { ask } from './index';
@@ -89,6 +89,32 @@ const CHANGES: CostChange[] = [
   },
 ];
 
+/**
+ * Sugar was counted on the 20th; the pulp never has been. The difference is
+ * what the answer has to say out loud - a balance nobody has ever checked
+ * against a shelf is a different kind of number from one that was.
+ */
+const MOVEMENTS: (MovementRow & { itemId: string })[] = [
+  {
+    itemId: 'sugar',
+    id: 'm1',
+    kind: 'adjustment',
+    baseUnits: -500,
+    unitCostRate: 0.472 as Rate,
+    note: null,
+    occurredAt: '2026-08-20T09:00:00Z',
+  },
+  {
+    itemId: 'sugar',
+    id: 'm2',
+    kind: 'purchase',
+    baseUnits: 50_500,
+    unitCostRate: 0.472 as Rate,
+    note: null,
+    occurredAt: '2026-08-01T09:00:00Z',
+  },
+];
+
 /** Records what the assistant tried to do, so a silent write cannot hide. */
 let recorded: unknown[] = [];
 
@@ -99,7 +125,12 @@ const data: AssistantData = {
   itemCosts: async () => COSTS,
   labels: async () => ({ pulp: 'Polpa de morango', sugar: 'Açúcar cristal' }),
   recentCostChanges: async () => CHANGES,
+  itemMovements: async (itemId) => MOVEMENTS.filter((m) => m.itemId === itemId),
   recordPurchase: async (input) => {
+    recorded.push(input);
+    return undefined;
+  },
+  recordCount: async (input) => {
     recorded.push(input);
     return undefined;
   },
@@ -197,6 +228,66 @@ test('asking to erase gets directions, never an erasure', async () => {
   assert.equal(answer.route, '/settings');
   // The skill has no way to act: it returns words and a route, and nothing else.
   assert.equal(answer.draft, undefined);
+});
+
+test('it says how much is there, and when anyone last checked', async () => {
+  const answer = await ask('quanto tem de açúcar', context('view_cost'));
+
+  assert.match(answer.text, /50\.000 g/);
+  // Law 3: the balance never appears alone. The date it was verified is what
+  // turns a stored number into one somebody stood in front of.
+  assert.match(answer.text, /conferido em 20\/08/);
+  assert.ok(
+    answer.detail?.some((d) => d.label === 'Valor parado' && /R\$\s*236,00/.test(d.value)),
+  );
+});
+
+test('a shelf nobody has ever counted says so, instead of sounding certain', async () => {
+  const answer = await ask('quanto tem de polpa de morango', context('view_cost'));
+
+  assert.match(answer.text, /40\.000 g/);
+  assert.match(answer.text, /Ninguém conferiu a prateleira ainda/);
+});
+
+test('how much is there is not a secret; what it is worth is', async () => {
+  // The quantity is not money, so an operator gets it. The value is money, and
+  // that line is never assembled - there is no figure in the answer to leak.
+  const answer = await ask('quanto tem de açúcar', context('record_production'));
+
+  assert.match(answer.text, /50\.000 g/, 'the quantity belongs to whoever works there');
+  assert.ok(
+    !answer.detail?.some((d) => d.label === 'Valor parado'),
+    'someone without view_cost was handed the money',
+  );
+});
+
+test('counting by talking fills a form and stops, whatever the difference', async () => {
+  recorded = [];
+
+  // Two sacks of 25 kg is exactly what the ledger holds.
+  const agrees = await ask('contei 2 sacos de açúcar', context('adjust_stock'));
+  assert.ok(agrees.draft, 'the phrase should fill a form');
+  assert.equal(recorded.length, 0, 'a stock adjustment may never be written unconfirmed');
+  assert.match(agrees.draft.summary, /50\.000 g de Açúcar cristal/);
+  assert.match(agrees.draft.summary, /Bate com o que o sistema esperava/);
+
+  // One sack is 25 kg short, and the summary has to say so in words.
+  const short = await ask('contei 1 saco de açúcar', context('adjust_stock'));
+  assert.ok(short.draft);
+  assert.match(short.draft.summary, /Estão faltando 25\.000 g/);
+  assert.match(short.draft.summary, /nada é apagado/);
+  assert.equal(recorded.length, 0);
+
+  await short.draft.apply();
+  assert.deepEqual(recorded, [{ itemId: 'sugar', countedBaseUnits: 25_000 }]);
+});
+
+test('counting is refused to a role that may not adjust stock', async () => {
+  recorded = [];
+  const answer = await ask('contei 2 sacos de açúcar', context('record_production'));
+
+  assert.ok(!answer.draft, 'no form for someone who may not change a balance');
+  assert.equal(recorded.length, 0);
 });
 
 test('it finds the item by the word people actually type', () => {
