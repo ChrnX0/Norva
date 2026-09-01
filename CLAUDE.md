@@ -207,11 +207,18 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   cadastra as outras pessoas diretamente **ou** aprova quem pediu associação por
   um código da empresa. Os dois caminhos.
 
-Ainda em aberto, e é dele: se o movimento operacional grava **quem** fez ou
-**onde** aconteceu. O tom de voz manda nunca culpar pessoa, e a cadeia de
-custódia existe para localizar a perda sem acusar ninguém — o que argumenta por
-aparelho e posto. E se o operador pode conferir a prateleira, já que contagem
-está no piso de autonomia.
+- **O relatório fala de onde, não de quem — e o aparelho tem responsável.** O
+  livro-razão sempre grava quem (`recorded_by` é obrigatório desde a primeira
+  migração); o que a tela conta é outra coisa, e o padrão é não nomear. A
+  responsabilidade vem do aparelho ser cadastrado com um responsável: o
+  movimento aponta para o aparelho, o aparelho aponta para uma pessoa. Quem
+  quiser nomear a cada caixa liga `names_who_recorded`.
+- **Aparelho emprestado entra como produção e nada mais.** Celular da empresa
+  passa de mão; quem está com ele usa o papel `operator` — sem custo, sem preço,
+  sem dinheiro. O aparelho continua respondendo.
+
+Ainda em aberto, e é dele: se o operador pode conferir a prateleira, já que
+contagem está no piso de autonomia.
 
 ---
 
