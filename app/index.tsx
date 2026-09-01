@@ -63,6 +63,8 @@ const AREAS: { area: Ambient; key: keyof Dictionary['app']['home']['nav']; route
   { area: 'apricot', key: 'recipes', route: '/recipes' },
   { area: 'mist', key: 'products', route: '/products' },
   { area: 'apricot', key: 'production', route: '/production' },
+  { area: 'mint', key: 'places', route: '/places' },
+  { area: 'lilac', key: 'transfer', route: '/transfer' },
   { area: 'sage', key: 'purchases', route: '/purchase' },
   { area: 'mist', key: 'settings', route: '/settings' },
 ];

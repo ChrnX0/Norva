@@ -7,6 +7,8 @@ import { __setDb, migrate, migrationSteps, type Db, type SqlParam } from './db';
 import {
   balanceByLocation,
   recordProduction,
+  savePlace,
+  stockByPlace,
   recordTransfer,
   countForErase,
   eraseArea,
@@ -853,4 +855,90 @@ test('a transfer to the same place, or of nothing, is refused rather than record
     }),
     /move alguma coisa/,
   );
+});
+
+test('renaming a place moves no money, because no movement carries its name', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [sugar] = (await listItems(LOCAL_COMPANY_ID)).filter((i) => i.name.includes('Açúcar'));
+  const factory = defaultLocationId(LOCAL_COMPANY_ID);
+
+  const store = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: sugar.id,
+    fromLocationId: factory,
+    toLocationId: store.id,
+    baseUnits: 6000,
+  });
+
+  const before = await stockByPlace(LOCAL_COMPANY_ID);
+  await savePlace(LOCAL_COMPANY_ID, { id: store.id, name: 'Loja da Praça', kind: 'own_store' });
+  const after = await stockByPlace(LOCAL_COMPANY_ID);
+
+  const was = before.find((p) => p.locationId === store.id);
+  const now = after.find((p) => p.locationId === store.id);
+  assert.equal(now?.locationName, 'Loja da Praça');
+  assert.equal(now?.valueCents, was?.valueCents, 'the money did not notice the new name');
+  assert.deepEqual(
+    now?.lines.map((l) => [l.itemId, l.baseUnits]),
+    was?.lines.map((l) => [l.itemId, l.baseUnits]),
+  );
+});
+
+test('the places add up to the company, in quantity and in money', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [sugar] = (await listItems(LOCAL_COMPANY_ID)).filter((i) => i.name.includes('Açúcar'));
+  const factory = defaultLocationId(LOCAL_COMPANY_ID);
+  const store = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: sugar.id,
+    fromLocationId: factory,
+    toLocationId: store.id,
+    baseUnits: 6000,
+  });
+
+  const places = await stockByPlace(LOCAL_COMPANY_ID);
+  const company = await listItems(LOCAL_COMPANY_ID);
+
+  // Two screens, one arithmetic. "What is in the Centro store" and "how much
+  // sugar does the company have" are the same sum read along two axes, and the
+  // moment they stop agreeing one of the two is lying.
+  for (const item of company.filter((i) => i.onHandBaseUnits !== 0)) {
+    const spread = places
+      .flatMap((p) => p.lines)
+      .filter((l) => l.itemId === item.id)
+      .reduce((sum, l) => sum + l.baseUnits, 0);
+    assert.equal(spread, item.onHandBaseUnits, `${item.name} is in one piece across the places`);
+  }
+
+  const inStore = places.find((p) => p.locationId === store.id);
+  assert.equal(inStore?.lines.length, 1, 'only the sugar ever went there');
+  assert.equal(inStore?.lines[0].baseUnits, 6000);
+});
+
+test('a place that was emptied is absent, not zero', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [sugar] = (await listItems(LOCAL_COMPANY_ID)).filter((i) => i.name.includes('Açúcar'));
+  const factory = defaultLocationId(LOCAL_COMPANY_ID);
+  const store = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+
+  const there = { itemId: sugar.id, fromLocationId: factory, toLocationId: store.id, baseUnits: 6000 };
+  await recordTransfer(LOCAL_COMPANY_ID, there);
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    ...there,
+    fromLocationId: store.id,
+    toLocationId: factory,
+  });
+
+  // Four movements are on the ledger and none of them was deleted - the store
+  // simply has nothing right now. A screen that printed "0 g" would be inviting
+  // somebody to go and check a shelf that holds no sugar.
+  const places = await stockByPlace(LOCAL_COMPANY_ID);
+  assert.equal(places.find((p) => p.locationId === store.id), undefined);
+
+  const ledger = await live.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM movements WHERE location_id = ? OR counterpart_location_id = ?`,
+    [store.id, store.id],
+  );
+  assert.equal(ledger?.n, 4, 'the history of the round trip is all still there');
 });

@@ -84,6 +84,7 @@ function sayTally(area: EraseArea, tally: EraseTally, t: Dictionary): string {
   add(tally.inputs, 'inputs');
   add(tally.recipes, 'recipes');
   add(tally.products, 'products');
+  add(tally.places, 'places');
   add(tally.purchases, 'purchases');
 
   const what = joinList(parts, t.common.and);

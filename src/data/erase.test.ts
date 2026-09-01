@@ -24,7 +24,7 @@ import {
  * here so the test fails if the delete order and the schema ever disagree.
  */
 const DEPENDS_ON: Record<ErasableTable, readonly ErasableTable[]> = {
-  movements: ['items'],
+  movements: ['items', 'locations'],
   purchase_lines: ['purchases', 'items'],
   purchases: [],
   products: ['items', 'recipes'],
@@ -34,6 +34,7 @@ const DEPENDS_ON: Record<ErasableTable, readonly ErasableTable[]> = {
   item_cost_history: ['items'],
   item_costs: ['items'],
   items: [],
+  locations: [],
   outbox: [],
 };
 
@@ -108,6 +109,7 @@ test('erasing everything is never blocked - that is the point of it', () => {
     recipes: 2,
     products: 1,
     purchases: 6,
+    places: 3,
     recipeLinesUsingInputs: 8,
     purchaseLinesUsingItems: 6,
     productsUsingRecipes: 1,
@@ -118,27 +120,39 @@ test('erasing everything is never blocked - that is the point of it', () => {
 });
 
 test('the confirmation is told exactly what disappears, so it can count it', () => {
-  const counts: EraseCounts = { ...emptyCounts, inputs: 6, recipes: 2, products: 1, purchases: 6 };
+  const counts: EraseCounts = {
+    ...emptyCounts,
+    inputs: 6,
+    recipes: 2,
+    products: 1,
+    purchases: 6,
+    places: 3,
+  };
 
   assert.deepEqual(tallyFor('all', counts), {
     inputs: 6,
     recipes: 2,
     products: 1,
     purchases: 6,
+    places: 3,
   });
 
-  // One area takes only its own with it.
+  // One area takes only its own with it. Places are the sharpest case: a store
+  // is not an input, a recipe, a product or an invoice, so no smaller area is
+  // allowed to carry it off - only "erase everything" is.
   assert.deepEqual(tallyFor('purchases', counts), {
     inputs: 0,
     recipes: 0,
     products: 0,
     purchases: 6,
+    places: 0,
   });
   assert.deepEqual(tallyFor('inputs', counts), {
     inputs: 6,
     recipes: 0,
     products: 0,
     purchases: 0,
+    places: 0,
   });
 
   assert.equal(isEmpty(tallyFor('all', emptyCounts)), true);

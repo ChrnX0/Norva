@@ -334,6 +334,64 @@ check('counting is blind, and it is the only way stock goes down', async (page) 
   assert.match(after, /conferido em/);
 });
 
+check('a store is created, loaded, and the company still has the same sugar', async (page) => {
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  // The default place is written with an empty name on purpose - the word is
+  // this layer's, in three languages, never the database's.
+  const opened = await screen(page);
+  assert.match(opened, /Fábrica/);
+  assert.match(opened, /Açúcar cristal/);
+  assert.match(opened, /vale R\$/, 'a quantity never shows up alone');
+
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Como se chama').fill('Loja Centro');
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  // Only what is actually in the factory is on offer: Law 5 written as design.
+  // There is nowhere to pick a thing that is not there from.
+  const loading = await screen(page);
+  assert.match(loading, /Loja Centro/);
+  assert.match(loading, /Açúcar cristal/);
+  assert.match(loading, /transferência, não venda/);
+
+  await page.getByLabel('Açúcar cristal').first().click();
+  await page.waitForTimeout(400);
+  await page.getByLabel('Quanto vai').fill('60000');
+  await page.waitForTimeout(500);
+
+  // More than the factory holds is refused before anything is written.
+  const tooMuch = await screen(page);
+  assert.match(tooMuch, /mais do que tem em Fábrica/);
+
+  await page.getByLabel('Quanto vai').fill('6000');
+  await page.waitForTimeout(500);
+  await page.getByText('Registrar a transferência', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+
+  const asking = await screen(page);
+  assert.match(asking, /Você vai mandar 6\.000 g de Açúcar cristal de Fábrica para Loja Centro/);
+  assert.match(asking, /a empresa continua com a mesma coisa/);
+
+  await page.getByText('Mandar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  // Two legs, one act: the sugar is in two rooms and the company has all of it.
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const after = await screen(page);
+  assert.match(after, /Loja Centro/);
+  assert.match(after, /6\.000 g/, 'what arrived at the store');
+  assert.match(after, /44\.000 g/, 'and what stayed in the factory');
+});
+
 check('a name can be corrected without moving the money', async (page) => {
   await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

@@ -40,11 +40,14 @@ export type ErasableTable =
   | 'item_cost_history'
   | 'item_costs'
   | 'items'
+  | 'locations'
   | 'outbox';
 
 /** What the screen counts up so the confirmation can speak in real numbers. */
 export type EraseCounts = {
   inputs: number;
+  /** Lugares que a pessoa cadastrou. O padrão, que nasce sem nome, não conta. */
+  places: number;
   recipes: number;
   products: number;
   purchases: number;
@@ -60,6 +63,7 @@ export type EraseCounts = {
 
 export const emptyCounts: EraseCounts = {
   inputs: 0,
+  places: 0,
   recipes: 0,
   products: 0,
   purchases: 0,
@@ -106,6 +110,10 @@ export function tablesFor(area: EraseArea): readonly ErasableTable[] {
         'item_cost_history',
         'item_costs',
         'items',
+        // Depois de `movements`, que aponta para cá. O lugar padrão é recriado
+        // sozinho por `ensureLocation` no primeiro movimento seguinte, então
+        // apagar todos é seguro: o que some é o que a pessoa cadastrou.
+        'locations',
         'outbox',
       ];
   }
@@ -178,10 +186,12 @@ export type EraseTally = {
   recipes: number;
   products: number;
   purchases: number;
+  /** Só "apagar tudo" leva os lugares; nenhuma área menor é dona deles. */
+  places: number;
 };
 
 export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
-  const nothing: EraseTally = { inputs: 0, recipes: 0, products: 0, purchases: 0 };
+  const nothing: EraseTally = { inputs: 0, recipes: 0, products: 0, purchases: 0, places: 0 };
 
   switch (area) {
     case 'purchases':
@@ -198,12 +208,13 @@ export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
         recipes: counts.recipes,
         products: counts.products,
         purchases: counts.purchases,
+        places: counts.places,
       };
   }
 }
 
 /** Whether there is anything at all to erase in this area. */
 export function isEmpty(tally: EraseTally): boolean {
-  return tally.inputs + tally.recipes + tally.products + tally.purchases === 0;
+  return tally.inputs + tally.recipes + tally.products + tally.purchases + tally.places === 0;
 }
 

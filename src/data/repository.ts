@@ -421,6 +421,176 @@ export async function balanceByLocation(
   }));
 }
 
+export type Place = {
+  id: string;
+  name: string;
+  kind: string;
+  /** Verdadeiro só para o lugar que nasceu junto com a empresa. */
+  isDefault: boolean;
+};
+
+/**
+ * Os lugares cadastrados, incluindo o que nasceu sem nome.
+ *
+ * O padrão é gravado com `name` vazio de propósito, e continua assim: o nome
+ * dele é uma palavra em três idiomas, e essa palavra é da tela. Aqui devolve-se
+ * o fato — string vazia e `isDefault` — e quem fala português é quem desenha.
+ */
+export async function listPlaces(companyId: string): Promise<Place[]> {
+  const conn = await db();
+  await ensureLocation(conn, companyId);
+  const rows = await conn.getAllAsync<{ id: string; name: string; kind: string }>(
+    `SELECT id, name, kind FROM locations WHERE company_id = ? ORDER BY kind, name`,
+    [companyId],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    kind: r.kind,
+    isDefault: r.id === defaultLocationId(companyId),
+  }));
+}
+
+/**
+ * Cadastra ou renomeia um lugar.
+ *
+ * Renomear é seguro sem cerimônia nenhuma, e é por causa da fundação: o saldo é
+ * a soma dos movimentos, e nenhum movimento carrega o nome do lugar - carrega o
+ * id. Trocar "Loja Centro" por "Loja da Praça" não move um centavo, exatamente
+ * como corrigir o nome de um insumo já não movia.
+ */
+export async function savePlace(
+  companyId: string,
+  input: { id?: string; name: string; kind: string },
+): Promise<Place> {
+  const name = input.name.trim();
+  if (!name) throw new Error('um lugar sem nome não se distingue de outro');
+
+  const conn = await db();
+  const id = input.id ?? newId();
+
+  await conn.withTransactionAsync(async () => {
+    await conn.runAsync(
+      `INSERT INTO locations (id, company_id, name, kind, created_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET name = excluded.name, kind = excluded.kind`,
+      [id, companyId, name, input.kind, nowIso()],
+    );
+    await enqueue(conn, [{ table: 'locations', rowId: id }]);
+  });
+
+  return { id, name, kind: input.kind, isDefault: id === defaultLocationId(companyId) };
+}
+
+/**
+ * Quanto foi da última vez, para o campo não nascer vazio.
+ *
+ * Lei 1: não se pergunta o que o sistema pode deduzir, e Lei 2: nenhum campo
+ * nasce vazio. A primeira remessa de um produto para uma loja não tem palpite
+ * nenhum, e é honesto que não tenha - mas da segunda em diante o livro-razão já
+ * sabe, e quem carrega a caixa confirma em vez de digitar.
+ *
+ * Lê a perna de **entrada** no destino, e não a saída na origem, porque é a
+ * quantidade que aquela loja recebeu que responde "quanto costuma ir para lá".
+ */
+export async function lastSentBaseUnits(
+  companyId: string,
+  itemId: string,
+  toLocationId: string,
+): Promise<number | null> {
+  const conn = await db();
+  const row = await conn.getFirstAsync<{ q: number }>(
+    `SELECT quantity_base_units AS q FROM movements
+      WHERE company_id = ? AND item_id = ? AND location_id = ?
+        AND kind = 'transfer' AND quantity_base_units > 0
+      ORDER BY occurred_at DESC, recorded_at DESC LIMIT 1`,
+    [companyId, itemId, toLocationId],
+  );
+  return row?.q ?? null;
+}
+
+export type PlaceStock = {
+  locationId: string;
+  locationName: string;
+  kind: string;
+  /** Quanto vale tudo o que está ali, somado uma vez só, no fim. */
+  valueCents: Cents;
+  lines: {
+    itemId: string;
+    name: string;
+    baseUnits: number;
+    baseUnit: string;
+    valueCents: Cents;
+  }[];
+};
+
+/**
+ * O saldo de cada lugar, item por item.
+ *
+ * A mesma soma de `balanceByLocation`, sem o `WHERE` do item: uma tela que
+ * pergunta "o que tem na Loja Centro" e uma que pergunta "onde está o açúcar"
+ * são a mesma aritmética lida por dois eixos, e ter duas aritméticas seria ter
+ * duas verdades.
+ *
+ * Linha de saldo zero não aparece. Um item que entrou e saiu inteiro não está
+ * ali, e listá-lo como "0 g" enche a tela de coisa que não está lá - o que é
+ * pior que inútil numa tela cujo trabalho é dizer o que tem.
+ */
+export async function stockByPlace(companyId: string): Promise<PlaceStock[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    location_id: string;
+    location_name: string;
+    kind: string;
+    item_id: string;
+    item_name: string;
+    base_unit: string;
+    base_units: number;
+    rate: number | null;
+  }>(
+    `SELECT m.location_id, l.name AS location_name, l.kind,
+            m.item_id, i.name AS item_name, i.base_unit,
+            SUM(m.quantity_base_units) AS base_units,
+            c.average_rate AS rate
+       FROM movements m
+       JOIN locations l ON l.id = m.location_id
+       JOIN items i ON i.id = m.item_id
+       LEFT JOIN item_costs c ON c.item_id = m.item_id
+      WHERE m.company_id = ?
+      GROUP BY m.location_id, l.name, l.kind, m.item_id, i.name, i.base_unit, c.average_rate
+     HAVING SUM(m.quantity_base_units) <> 0
+      ORDER BY l.kind, l.name, i.name`,
+    [companyId],
+  );
+
+  const byPlace = new Map<string, PlaceStock>();
+  for (const r of rows) {
+    let place = byPlace.get(r.location_id);
+    if (!place) {
+      place = {
+        locationId: r.location_id,
+        locationName: r.location_name,
+        kind: r.kind,
+        valueCents: cents(0),
+        lines: [],
+      };
+      byPlace.set(r.location_id, place);
+    }
+    // Taxa fracionária vezes quantidade, arredondada aqui e só aqui.
+    const value = cents((r.rate ?? 0) * r.base_units);
+    place.lines.push({
+      itemId: r.item_id,
+      name: r.item_name,
+      baseUnits: r.base_units,
+      baseUnit: r.base_unit,
+      valueCents: value,
+    });
+    place.valueCents = cents(place.valueCents + value);
+  }
+
+  return [...byPlace.values()];
+}
+
 /**
  * O lugar que existe desde sempre, nomeável pelo chamador.
  *
@@ -1198,6 +1368,8 @@ export async function countForErase(companyId: string): Promise<EraseCounts> {
           AND kind IN ('input','packaging','store_supply')) AS inputs,
        (SELECT COUNT(*) FROM recipes   WHERE company_id = ?1) AS recipes,
        (SELECT COUNT(*) FROM products  WHERE company_id = ?1) AS products,
+       (SELECT COUNT(*) FROM locations WHERE company_id = ?1
+          AND id <> ?1) AS places,
        (SELECT COUNT(*) FROM purchases WHERE company_id = ?1) AS purchases,
        (SELECT COUNT(*) FROM recipe_lines WHERE company_id = ?1
           AND item_id IS NOT NULL) AS recipeLinesUsingInputs,
