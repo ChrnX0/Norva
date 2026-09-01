@@ -956,3 +956,41 @@ primeiro uma informação em vez de uma coluna sempre preenchida. Mutação nova
 Não apaguei: quando a marcação de origem virar tela ("mostre o que o assistente
 lançou"), é ele que diz de que tipo era o rascunho. Fica anotado aqui para não
 virar mais um achado repetido daqui a um mês.
+
+## 1 de setembro — o portão de fase pegava a fase errada
+
+**O que apareceu.** Um painel adversarial de quatro lentes contra a regra
+"nenhuma fase começa antes da anterior estar em uso real", e as quatro
+concordaram no mesmo ponto sem se verem: o portão **não tem predicado de saída
+nem prazo**. Num projeto onde a `db:verify` tem seis garantias nomeadas e a
+proofgate tem vinte e duas guardas numeradas, esse era o único portão sem número
+e sem comando — e regra assim vira álibi, não disciplina.
+
+Pior: ele travava a coisa errada. Travava o fiscal, cujo layout quem decide é a
+SEFAZ. E **não** travava o defeito que este repositório de fato tem — coisa
+construída sem chamador, quatro vezes, nenhuma pega pelo número da fase.
+
+**Duas coisas que o painel afirmou e que eu verifiquei serem falsas**, e registro
+porque relatório é leitura de fora, não autoridade: que `main` teria um commit só
+(tem 49, com a Fase 1 mesclada) e que o caminho de publicação do APK só existiria
+na branch (`.github/apk-release.txt` e `release-apk.yml` estão em `main`).
+
+**O achado que sobreviveu, e é arquitetural.** A lente que *defendia* a regra
+achou o motivo certo, que não era o escrito: **o saldo não filtra por local.**
+`ensureLocation` cria uma única `location` cujo id é o próprio `company_id`, e as
+três consultas de saldo somam `WHERE company_id = ? AND item_id = ?` — zero
+ocorrências de `location_id = ?` no repositório inteiro. Está correto enquanto
+existe um lugar só. A câmara fria é o segundo, e "é saldo separado ou o mesmo
+saldo noutra sala?" é pergunta de fábrica, não de código.
+
+**Segundo achado, latente:** o servidor tem `create table lots` desde a 0001, o
+aparelho tem `lot_id TEXT` e **nenhuma tabela `lots`**, e o `serialize` manda
+`lot_id`. Hoje é sempre nulo e nulo passa na chave estrangeira, então a fila não
+trava. Trava no dia em que a Fase 2 gravar o primeiro lote. Pela regra nova, P1
+decide: ninguém chama, não entra agora — mas fica escrito, porque é barato
+fechar junto com a produção e caríssimo descobrir depois.
+
+**O que mudou.** O portão passou a ser por item, com três perguntas objetivas
+(quem chama · o que eu precisaria ver · custa um commit ou uma migração), e
+passou a **nomear o que o bloqueia, com data** — porque o bloqueio de hoje é um
+ato administrativo, não falta de aprendizado.

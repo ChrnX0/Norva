@@ -258,11 +258,51 @@ sobre si mesma: o `dead-allow` nasceu de um marcador dela que não suprimia nada
 
 ## Faseamento
 
-**Nenhuma fase começa antes da anterior estar em uso real.** Hoje a Fase 1
-(insumo → receita → custo → nota) está entregue e ainda não foi usada na
-fábrica, então **Fase 2 está travada** — produção, lote, QR e câmara fria não
-começam. Isso não é cautela, é a regra: construir a tela de produção sem ver um
-operador registrar é adivinhar.
+A regra antiga dizia "nenhuma fase começa antes da anterior estar em uso real",
+e ela travava demais e de menos ao mesmo tempo. Travava a 0016 do fiscal, cujo
+layout quem decide é a SEFAZ e nenhuma observação da fábrica corrigiria. E não
+travava o defeito que este projeto de fato tem — coisa construída sem chamador,
+que já apareceu quatro vezes: `assistant_phrase` com índice dedicado e nenhuma
+escrita, `Draft.kind` sem leitor, `balanceAt` e `daysOfCover` chamados só por
+teste, e as seções `production`, `loss`, `posts` e `scan` do dicionário, nos
+três idiomas, sem uma tela. **O número da fase não pegou nenhum dos quatro.**
+
+O portão agora é por item, não por fase. Três perguntas, nesta ordem, respondidas
+em menos de um minuto. **A primeira que reprovar decide.**
+
+**P1 — Quem chama isto no mesmo commit?** Sem chamador, não entra. Fim. Esta é a
+doença provada do repositório, e nenhuma justificativa a dispensa: código sem
+chamador fica verde para sempre porque nada depende dele.
+
+**P2 — Complete a frase: "eu mudaria isto se eu visse ___".** Se a frase sai, o
+item depende de observar alguém e está travado até haver quem observar. Se não
+sai, não é observação-dependente, e **o número da fase não tem autoridade sobre
+ele**.
+
+**P3 — Entrando errado, conserta com um commit ou com migração e estorno?** Se
+toca `supabase/migrations/`, o caminho de escrita de `movements`, ou a semântica
+de `movement_kind`/`location_kind`, é caro e permanente: exige a observação
+**mesmo que a P2 não tenha saído**. Forma de esquema se adivinha de graça
+enquanto há zero linhas; conteúdo de livro-razão não se corrige, se estorna.
+
+**E o portão nomeia o que o bloqueia, com data.** "Está em uso real" não tem
+condição de término: dá para passar seis meses respeitando o faseamento sem
+nunca produzir a evidência que ele exige, e aí ele deixa de ser disciplina e
+vira álibi. Então o que bloqueia se escreve por extenso — hoje é *mesclar o PR,
+publicar o APK e alguém registrar uma compra na fábrica* — e se a data passa sem
+o ato acontecer, o que se revisa é o ato, não o portão.
+
+**O que continua travado, e por quê.** A câmara fria é o segundo lugar que este
+sistema vai ter, e hoje o saldo não filtra por local nenhum: `ensureLocation`
+cria uma única `location` cujo id **é** o `company_id`, e as três consultas de
+saldo somam `WHERE company_id = ? AND item_id = ?`, sem `location_id`. Isso está
+certo enquanto existe um lugar só. A pergunta que a Fase 2 obriga — a câmara é
+saldo separado ou o mesmo saldo noutra sala? — **não tem resposta no código, tem
+resposta na fábrica**, e uma semana vendo onde o açúcar é guardado responde de
+graça. Escolher agora propaga o chute para toda consulta de saldo, para a média
+móvel, para a contagem e para a etiqueta. Mesma coisa para o Espelho da Loja, que
+precisa de meses de movimento: rodá-lo com duas semanas de dado dá número errado
+e decisão errada em cima.
 
 ---
 
