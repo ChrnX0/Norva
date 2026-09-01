@@ -1042,3 +1042,33 @@ procurar a decisão — no docblock do próprio arquivo, no `docs/insights.md`, 
 decisões do dono. Havendo decisão escrita, o achado não é defeito: ou vira
 pedido de mudança para o dono, ou não é nada. O docblock do `index.ts` estava a
 um `grep` de distância nas três vezes.
+
+## 1 de setembro — afirmei que o link funcionava depois de testá-lo por dentro
+
+**O que apareceu.** Publiquei o APK como release, verifiquei pela API que o
+artefato estava lá com o sha256 certo, e disse ao dono que ele podia baixar. Ele
+tentou: **404**.
+
+**A causa, e ela é a mesma família do dia inteiro.** O repositório é privado, e
+artefato de release privado exige sessão logada. Meu `curl` respondia 200 porque
+**o proxy deste ambiente injeta credencial** — eu testei por um caminho
+autenticado e concluí sobre um caminho anônimo. É exatamente o superusuário que
+ignora a política, com outra roupa: verificar por dentro e afirmar sobre fora.
+
+**O que mudou.** Duas coisas, e nenhuma delas é "prometer conferir melhor".
+
+O APK carregava **quatro arquiteturas**: 23,8 MB de `x86` e 23,2 de `x86_64`, que
+só existem em emulador — 47 dos 110 MB eram peso morto para qualquer telefone.
+Agora compila só `arm64-v8a`: **47 MB, em 3 min 29 s**, contra 110 MB e vinte
+minutos.
+
+E a compilação saiu da Expo e foi para o CI do GitHub, com três conferências
+antes de publicar: a assinatura passa pelo `apksigner` (APK sem assinatura não
+instala, e o erro no celular não explica nada), o bundle JS tem de estar dentro
+(sem ele o app abre em tela branca), e a contagem de arquiteturas tem de ser um
+(senão o ganho de tamanho se perdeu no caminho).
+
+**E uma armadilha anotada porque surpreenderia qualquer pessoa:** o APK local é
+assinado com chave de debug e o da Expo com a chave do EAS. Assinaturas
+diferentes fazem o Android **recusar instalar um por cima do outro** — é preciso
+desinstalar antes, e isso apaga os dados locais.

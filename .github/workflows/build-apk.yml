@@ -1,0 +1,76 @@
+name: Compilar o APK
+
+# Compila o instalador no próprio runner, em vez de na Expo.
+#
+# Dois motivos. A cota da Expo é limitada e o dono pediu para guardá-la para
+# versão madura e OTA. E o APK da Expo sai com quatro arquiteturas — 110 MB, dos
+# quais 47 são x86 e x86_64, que só existem em emulador. Aqui sai só arm64-v8a,
+# que é o que qualquer celular dos últimos dez anos usa: 47 MB.
+#
+# O artefato é anexado ao release, que é de onde um celular consegue baixar.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag do release onde anexar'
+        default: 'apk-0.1.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Instalar as dependências
+        run: npm ci
+
+      - name: Gerar o projeto nativo
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Compilar, só arm64
+        run: |
+          cd android
+          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+
+      - name: Conferir que o que saiu instala
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          ls -lh "$APK"
+
+          # Assinatura: um APK sem ela não instala, e o erro no celular não
+          # explica nada. A ferramenta oficial responde antes de publicarmos.
+          SIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
+          "$SIGNER" verify --verbose "$APK" | tee /tmp/sig.txt
+          grep -q "^Verifies" /tmp/sig.txt
+
+          # E o bundle tem de estar dentro: um APK sem JS abre numa tela branca.
+          unzip -l "$APK" | grep -q assets/index.android.bundle
+
+          # Uma arquitetura só, senão o ganho de tamanho se perdeu no caminho.
+          test "$(unzip -l "$APK" | grep -oE 'lib/[a-z0-9_-]+/' | sort -u | wc -l)" -eq 1
+
+          cp "$APK" norva-arm64.apk
+
+      - name: Anexar ao release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          gh release upload "$TAG" norva-arm64.apk --clobber
+          echo "no release: $(gh release view "$TAG" --json url -q .url)"
