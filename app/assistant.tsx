@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { ask, knownSkills, type Answer, type Capability } from '@/assistant';
 import { liveData } from '@/data/assistantData';
@@ -45,6 +46,9 @@ type Turn = { question: string; answer: Answer; open: boolean; applied: boolean 
 
 function Conversation() {
   const { color, radius, space, type, accent } = useTheme();
+  // Named apart from the assistant's own `ask`, which answers questions rather
+  // than asking them.
+  const askConfirm = useConfirm();
   const router = useRouter();
 
   const [question, setQuestion] = useState('');
@@ -90,28 +94,30 @@ function Conversation() {
   const toggleWhy = (index: number) =>
     setTurns((prev) => prev.map((t, i) => (i === index ? { ...t, open: !t.open } : t)));
 
-  const confirm = (index: number) => {
+  const confirmDraft = async (index: number) => {
     const turn = turns[index];
     if (!turn.answer.draft || turn.applied) return;
 
     // The floor no autonomy level crosses: a price, an adjustment or a
     // financial entry is confirmed by a person, in words, every time.
-    Alert.alert('Confirma?', turn.answer.draft.summary, [
-      { text: 'Não', style: 'cancel' },
-      {
-        text: 'Confirmar',
-        onPress: () => {
-          void turn.answer
-            .draft!.apply()
-            .then(() =>
-              setTurns((prev) => prev.map((t, i) => (i === index ? { ...t, applied: true } : t))),
-            )
-            .catch((e: unknown) =>
-              Alert.alert('Não deu para gravar', e instanceof Error ? e.message : String(e)),
-            );
-        },
-      },
-    ]);
+    const go = await askConfirm({
+      title: 'Confirma?',
+      message: turn.answer.draft.summary,
+      cancelLabel: 'Não',
+    });
+    if (!go) return;
+
+    try {
+      await turn.answer.draft.apply();
+      setTurns((prev) => prev.map((t, i) => (i === index ? { ...t, applied: true } : t)));
+    } catch (e) {
+      await askConfirm({
+        title: 'Não deu para gravar',
+        message: e instanceof Error ? e.message : String(e),
+        acknowledge: true,
+        confirmLabel: 'Entendi',
+      });
+    }
   };
 
   return (
@@ -233,7 +239,7 @@ function Conversation() {
               {!turn.applied ? (
                 <Button
                   label="Confirmar e lançar"
-                  onPress={() => confirm(index)}
+                  onPress={() => void confirmDraft(index)}
                   weighty
                   style={{ marginTop: space.md }}
                 />

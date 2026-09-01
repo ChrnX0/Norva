@@ -134,7 +134,7 @@ function InputsList() {
                   : '—'
               }
               trailingTone={item.averageRate > 0 ? 'ink' : 'muted'}
-              onPress={() => router.push('/purchase')}
+              onPress={() => router.push(`/inputs/${item.id}`)}
             />
           ))
         )}

@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
+import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
 import { recordPurchase, saveItem, type ItemKind } from '@/data/repository';
@@ -41,6 +42,7 @@ const KINDS: { kind: Extract<ItemKind, 'input' | 'packaging' | 'store_supply'>; 
 
 function InputForm() {
   const { color, type, space } = useTheme();
+  const confirm = useConfirm();
   const router = useRouter();
   const locale = defaultLocale;
 
@@ -76,31 +78,34 @@ function InputForm() {
 
   const canSave = name.trim().length > 0 && parsed.valid;
 
-  const onSave = useCallback(() => {
+  const onSave = useCallback(async () => {
     // Law 5: the error is prevented by the design, not complained about after.
     if (!canSave) return;
 
-    Alert.alert(
-      'Confirma?',
-      `Você vai cadastrar ${name.trim()}, comprado em ${purchaseUnit || 'unidade'} ` +
+    const go = await confirm({
+      title: 'Confirma?',
+      message:
+        `Você vai cadastrar ${name.trim()}, comprado em ${purchaseUnit || 'unidade'} ` +
         `com ${parsed.factor.toLocaleString(locale.formatting)} ${baseUnit} por embalagem, ` +
         `custando ${formatMoney(fromDecimal(parsed.paid), locale)}.`,
-      [
-        { text: 'Ajustar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          onPress: () => {
-            setSaving(true);
-            void save()
-              .then(() => router.back())
-              .catch((e: unknown) =>
-                Alert.alert('Não deu para salvar', e instanceof Error ? e.message : String(e)),
-              )
-              .finally(() => setSaving(false));
-          },
-        },
-      ],
-    );
+      cancelLabel: 'Ajustar',
+    });
+    if (!go) return;
+
+    setSaving(true);
+    try {
+      await save();
+      router.back();
+    } catch (e) {
+      await confirm({
+        title: 'Não deu para salvar',
+        message: e instanceof Error ? e.message : String(e),
+        acknowledge: true,
+        confirmLabel: 'Entendi',
+      });
+    } finally {
+      setSaving(false);
+    }
 
     /**
      * The price typed here is not a "price field" - it is the first invoice.
@@ -124,7 +129,7 @@ function InputForm() {
         totalCents: fromDecimal(parsed.paid),
       });
     }
-  }, [canSave, name, purchaseUnit, parsed, locale, kind, baseUnit, router]);
+  }, [canSave, confirm, name, purchaseUnit, parsed, locale, kind, baseUnit, router]);
 
   return (
     <CollapsingHeader title="Novo insumo" overline="cadastro">
@@ -227,7 +232,7 @@ function InputForm() {
 
       <Button
         label={saving ? 'Salvando…' : 'Salvar insumo'}
-        onPress={onSave}
+        onPress={() => void onSave()}
         disabled={!canSave || saving}
         weighty
       />

@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
+import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
 import {
@@ -55,6 +56,7 @@ type Loaded = {
 
 function ProductForm() {
   const { color, type, space, accent } = useTheme();
+  const confirm = useConfirm();
   const router = useRouter();
   const { locale, t } = useLocale();
 
@@ -129,7 +131,7 @@ function ProductForm() {
   const canSave =
     name.trim().length > 0 && (kind === 'resale' || (chosenRecipe !== null && num(perUnit) > 0));
 
-  const onSave = () => {
+  const onSave = async () => {
     if (!canSave) return;
 
     const words =
@@ -139,28 +141,35 @@ function ProductForm() {
           }, ${formatQuantity(num(perUnit), locale)} ml por unidade. ${packagingEcho}`
         : `${name.trim()}, produto de revenda. ${packagingEcho}`;
 
-    Alert.alert('Cadastrar este produto?', words, [
-      { text: 'Ajustar', style: 'cancel' },
-      {
-        text: 'Cadastrar',
-        onPress: () => {
-          setSaving(true);
-          saveProduct(LOCAL_COMPANY_ID, {
-            name: name.trim(),
-            kind,
-            recipeId: kind === 'product' ? chosenRecipe : null,
-            yieldPerUnit: kind === 'product' ? num(perUnit) : null,
-            unitPackagingCents: fromDecimal(num(packagingCost) || 0),
-            packaging: hierarchy,
-          })
-            .then(() => router.back())
-            .catch((e: unknown) =>
-              Alert.alert('Não deu para cadastrar', e instanceof Error ? e.message : String(e)),
-            )
-            .finally(() => setSaving(false));
-        },
-      },
-    ]);
+    const go = await confirm({
+      title: 'Cadastrar este produto?',
+      message: words,
+      confirmLabel: 'Cadastrar',
+      cancelLabel: 'Ajustar',
+    });
+    if (!go) return;
+
+    setSaving(true);
+    try {
+      await saveProduct(LOCAL_COMPANY_ID, {
+        name: name.trim(),
+        kind,
+        recipeId: kind === 'product' ? chosenRecipe : null,
+        yieldPerUnit: kind === 'product' ? num(perUnit) : null,
+        unitPackagingCents: fromDecimal(num(packagingCost) || 0),
+        packaging: hierarchy,
+      });
+      router.back();
+    } catch (e) {
+      await confirm({
+        title: 'Não deu para cadastrar',
+        message: e instanceof Error ? e.message : String(e),
+        acknowledge: true,
+        confirmLabel: 'Entendi',
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -293,7 +302,7 @@ function ProductForm() {
 
       <Button
         label={saving ? 'Cadastrando…' : 'Cadastrar produto'}
-        onPress={onSave}
+        onPress={() => void onSave()}
         disabled={!canSave || saving}
         weighty
       />

@@ -1,8 +1,10 @@
+import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
+import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
 import {
@@ -47,6 +49,7 @@ type Impact = { name: string; before: number; after: number };
 
 function PurchaseForm() {
   const { color, type, space, accent } = useTheme();
+  const confirm = useConfirm();
   const locale = defaultLocale;
 
   const { data, loading, refresh } = useQuery(
@@ -54,7 +57,10 @@ function PurchaseForm() {
     [],
   );
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Arriving from an item opens on that item, so the buyer does not hunt for
+  // what they were already looking at.
+  const { itemId } = useLocalSearchParams<{ itemId?: string }>();
+  const [selectedId, setSelectedId] = useState<string | null>(itemId ?? null);
   const [supplier, setSupplier] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [total, setTotal] = useState('');
@@ -99,33 +105,37 @@ function PurchaseForm() {
       ? (selected.lastRate * selected.purchaseToBase) / 100
       : null;
 
-  const onSave = () => {
+  const onSave = async () => {
     if (!selected || !draft) return;
 
     const words =
       `${formatQuantity(draft.packs, locale)} × ${selected.purchaseUnit ?? 'unidade'} de ` +
       `${selected.name}, por ${formatMoney(draft.totalCents, locale)}.`;
 
-    Alert.alert('Lançar esta compra?', words, [
-      { text: 'Ajustar', style: 'cancel' },
-      {
-        text: 'Lançar',
-        onPress: () => {
-          setSaving(true);
-          void recordAndMeasure(selected, draft.packs, draft.baseUnits, draft.totalCents, supplier)
-            .then((result) => {
-              setImpact(result);
-              setTotal('');
-              setQuantity('1');
-              refresh();
-            })
-            .catch((e: unknown) =>
-              Alert.alert('Não deu para lançar', e instanceof Error ? e.message : String(e)),
-            )
-            .finally(() => setSaving(false));
-        },
-      },
-    ]);
+    const go = await confirm({
+      title: 'Lançar esta compra?',
+      message: words,
+      confirmLabel: 'Lançar',
+      cancelLabel: 'Ajustar',
+    });
+    if (!go) return;
+
+    setSaving(true);
+    try {
+      setImpact(await recordAndMeasure(selected, draft.packs, draft.baseUnits, draft.totalCents, supplier));
+      setTotal('');
+      setQuantity('1');
+      refresh();
+    } catch (e) {
+      await confirm({
+        title: 'Não deu para lançar',
+        message: e instanceof Error ? e.message : String(e),
+        acknowledge: true,
+        confirmLabel: 'Entendi',
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -288,7 +298,7 @@ function PurchaseForm() {
 
       <Button
         label={saving ? 'Lançando…' : 'Lançar compra'}
-        onPress={onSave}
+        onPress={() => void onSave()}
         disabled={!draft || saving}
         weighty
       />

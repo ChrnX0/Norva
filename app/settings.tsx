@@ -1,9 +1,10 @@
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
+import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { brand } from '@/config/brand';
 import { countForErase, eraseArea } from '@/data/repository';
@@ -48,6 +49,7 @@ const AREAS: { area: EraseArea; label: string; hint: string }[] = [
 
 function Settings() {
   const { color, type, space } = useTheme();
+  const confirm = useConfirm();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
@@ -61,60 +63,72 @@ function Settings() {
 
   const counts: EraseCounts | null = data?.counts ?? null;
 
-  const run = (area: EraseArea, label: string) => {
+  const run = async (area: EraseArea, label: string) => {
     if (!counts || busy) return;
 
     const blocker = blockerFor(area, counts);
     if (blocker) {
       // Law 5 again: this is not an error report after the fact - the button
       // was already disabled, and this explains the same thing on demand.
-      Alert.alert('Ainda não dá', blocker);
+      await confirm({
+        title: 'Ainda não dá',
+        message: blocker,
+        acknowledge: true,
+        confirmLabel: 'Entendi',
+      });
       return;
     }
 
-    Alert.alert(
-      area === 'all' ? 'Apagar tudo?' : `Apagar ${label.toLowerCase()}?`,
-      `${summaryFor(area, counts)}\n\nIsso não tem volta.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Apagar',
-          style: 'destructive',
-          onPress: () => {
-            setBusy(true);
-            eraseArea(LOCAL_COMPANY_ID, area)
-              .then(() => refresh())
-              .catch((e: unknown) =>
-                Alert.alert('Não deu para apagar', e instanceof Error ? e.message : String(e)),
-              )
-              .finally(() => setBusy(false));
-          },
-        },
-      ],
-    );
+    const go = await confirm({
+      title: area === 'all' ? 'Apagar tudo?' : `Apagar ${label.toLowerCase()}?`,
+      message: `${summaryFor(area, counts)}\n\nIsso não tem volta.`,
+      confirmLabel: 'Apagar',
+      destructive: true,
+    });
+    if (!go) return;
+
+    setBusy(true);
+    try {
+      await eraseArea(LOCAL_COMPANY_ID, area);
+      refresh();
+    } catch (e) {
+      await confirm({
+        title: 'Não deu para apagar',
+        message: e instanceof Error ? e.message : String(e),
+        acknowledge: true,
+        confirmLabel: 'Entendi',
+      });
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const restore = () => {
+  const restore = async () => {
     if (busy) return;
-    Alert.alert(
-      'Trazer o exemplo de volta?',
-      'Recoloca os insumos, a receita e o produto de demonstração, com as compras que dão o custo a eles. Só funciona se estiver vazio.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Restaurar',
-          onPress: () => {
-            setBusy(true);
-            restoreStarterData()
-              .then(() => refresh())
-              .catch((e: unknown) =>
-                Alert.alert('Não deu para restaurar', e instanceof Error ? e.message : String(e)),
-              )
-              .finally(() => setBusy(false));
-          },
-        },
-      ],
-    );
+
+    const go = await confirm({
+      title: 'Trazer o exemplo de volta?',
+      message:
+        'Recoloca os insumos, a receita e o produto de demonstração, com as compras que dão o ' +
+        'custo a eles. Só funciona se estiver vazio.',
+      confirmLabel: 'Restaurar',
+    });
+    if (!go) return;
+
+    setBusy(true);
+    try {
+      await restoreStarterData();
+      refresh();
+    } catch (e) {
+      await confirm({
+        title: 'Não deu para restaurar',
+        message: e instanceof Error ? e.message : String(e),
+        acknowledge: true,
+        confirmLabel: 'Entendi',
+      });
+    } finally {
+      setBusy(false);
+    }
   };
 
   const total =
@@ -163,7 +177,7 @@ function Settings() {
           return (
             <Pressable
               key={entry.area}
-              onPress={() => run(entry.area, entry.label)}
+              onPress={() => void run(entry.area, entry.label)}
               disabled={busy || !counts}
               accessibilityRole="button"
               accessibilityLabel={`Apagar ${entry.label}`}
@@ -196,7 +210,7 @@ function Settings() {
         </Text>
 
         <Pressable
-          onPress={() => run('all', 'tudo')}
+          onPress={() => void run('all', 'tudo')}
           disabled={busy || !counts || total === 0}
           accessibilityRole="button"
           accessibilityLabel="Apagar tudo"
@@ -224,7 +238,7 @@ function Settings() {
             trazer o exemplo de volta.
           </Text>
           <Pressable
-            onPress={restore}
+            onPress={() => void restore()}
             disabled={busy}
             accessibilityRole="button"
             style={[

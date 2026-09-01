@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ConfirmProvider } from '@/components/Confirm';
 import { Crash } from '@/components/Crash';
 import { WhatsNew } from '@/components/WhatsNew';
 import { ensureStarterData } from '@/data/seed';
@@ -45,10 +46,12 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <StatusBar style="auto" />
-          <Stack screenOptions={{ headerShown: false }} />
-          {/* Sits above every screen: the update may land on any of them. */}
-          <WhatsNew />
+          <ConfirmProvider>
+            <StatusBar style="auto" />
+            <Stack screenOptions={{ headerShown: false }} />
+            {/* Sits above every screen: the update may land on any of them. */}
+            <WhatsNew />
+          </ConfirmProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

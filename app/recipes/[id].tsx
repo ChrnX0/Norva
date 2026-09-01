@@ -1,9 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
+import { useConfirm } from '@/components/Confirm';
 import { Field } from '@/components/Field';
 import { WhySheet } from '@/components/WhySheet';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
@@ -67,6 +68,7 @@ const DRAFT = '__draft__';
 
 function RecipeEditor() {
   const { color, type, space, accent } = useTheme();
+  const confirm = useConfirm();
   const router = useRouter();
   const locale = defaultLocale;
   const params = useLocalSearchParams<{ id?: string }>();
@@ -185,7 +187,7 @@ function RecipeEditor() {
     );
   }, [stored, lines, yieldAmount, lossPercent]);
 
-  const onSave = () => {
+  const onSave = async () => {
     if (!stored || !lines || !recipeId || computed?.error) return;
 
     const summary = computed?.delta
@@ -198,32 +200,35 @@ function RecipeEditor() {
       : '';
 
     // Law 5: the confirmation spells out what is about to happen, in words.
-    Alert.alert(
-      `Salvar versão ${stored.version + 1}?`,
-      `A versão ${stored.version} continua guardada — as produções antigas mantêm o custo delas. ${summary}`,
-      [
-        { text: 'Continuar editando', style: 'cancel' },
-        {
-          text: 'Salvar',
-          onPress: () => {
-            setSaving(true);
-            saveRecipeVersion(LOCAL_COMPANY_ID, {
-              recipeId,
-              name: data?.labels[recipeId] ?? 'Receita',
-              yieldAmount: num(yieldAmount),
-              yieldUnit: 'ml',
-              lossFraction: num(lossPercent) / 100,
-              lines,
-            })
-              .then(() => router.back())
-              .catch((e: unknown) =>
-                Alert.alert('Não deu para salvar', e instanceof Error ? e.message : String(e)),
-              )
-              .finally(() => setSaving(false));
-          },
-        },
-      ],
-    );
+    const go = await confirm({
+      title: `Salvar versão ${stored.version + 1}?`,
+      message: `A versão ${stored.version} continua guardada — as produções antigas mantêm o custo delas. ${summary}`,
+      confirmLabel: 'Salvar',
+      cancelLabel: 'Continuar editando',
+    });
+    if (!go) return;
+
+    setSaving(true);
+    try {
+      await saveRecipeVersion(LOCAL_COMPANY_ID, {
+        recipeId,
+        name: data?.labels[recipeId] ?? 'Receita',
+        yieldAmount: num(yieldAmount),
+        yieldUnit: 'ml',
+        lossFraction: num(lossPercent) / 100,
+        lines,
+      });
+      router.back();
+    } catch (e) {
+      await confirm({
+        title: 'Não deu para salvar',
+        message: e instanceof Error ? e.message : String(e),
+        acknowledge: true,
+        confirmLabel: 'Entendi',
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const setQuantity = (index: number, next: number) =>
@@ -421,7 +426,7 @@ function RecipeEditor() {
 
       <Button
         label={saving ? 'Salvando…' : `Salvar como versão ${stored.version + 1}`}
-        onPress={onSave}
+        onPress={() => void onSave()}
         disabled={!changed || saving || Boolean(computed?.error)}
         weighty
       />

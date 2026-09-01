@@ -681,3 +681,74 @@ export async function eraseArea(companyId: string, area: EraseArea): Promise<voi
     }
   });
 }
+
+// --- one item, in depth --------------------------------------------------------
+
+export type PriceMoveRow = {
+  previousRate: Rate | null;
+  newRate: Rate;
+  observedAt: string;
+};
+
+/**
+ * Everything one input has been through.
+ *
+ * The price history is not a feature anybody maintains - it is the by-product
+ * of buying, written by `recordPurchase` on the way past. This is the query
+ * that finally shows it, which is what turns "trust me, it went up" into
+ * something the person can look at.
+ */
+export async function itemHistory(
+  companyId: string,
+  itemId: string,
+  limit = 24,
+): Promise<PriceMoveRow[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    previous_rate: number | null;
+    new_rate: number;
+    observed_at: string;
+  }>(
+    `SELECT previous_rate, new_rate, observed_at
+       FROM item_cost_history
+      WHERE company_id = ? AND item_id = ?
+      ORDER BY observed_at DESC
+      LIMIT ?`,
+    [companyId, itemId, limit],
+  );
+
+  return rows.map((r) => ({
+    previousRate: r.previous_rate === null ? null : (r.previous_rate as Rate),
+    newRate: r.new_rate as Rate,
+    observedAt: r.observed_at,
+  }));
+}
+
+/**
+ * Which recipes stand on this item, at their newest version.
+ *
+ * It answers the question that decides whether a price move matters: sugar
+ * going up 9% is a headline only if eight flavours use it.
+ */
+export async function recipesUsingItem(
+  companyId: string,
+  itemId: string,
+): Promise<{ id: string; name: string; quantity: number }[]> {
+  const conn = await db();
+  return conn.getAllAsync<{ id: string; name: string; quantity: number }>(
+    `SELECT r.id, r.name, l.quantity
+       FROM recipe_lines l
+       JOIN recipe_versions v ON v.id = l.recipe_version_id
+       JOIN recipes r ON r.id = v.recipe_id
+      WHERE l.company_id = ? AND l.item_id = ?
+        AND v.version = (SELECT MAX(v2.version) FROM recipe_versions v2
+                          WHERE v2.recipe_id = v.recipe_id)
+      ORDER BY r.name COLLATE NOCASE`,
+    [companyId, itemId],
+  );
+}
+
+export async function findItem(companyId: string, itemId: string): Promise<ItemWithCost | null> {
+  const all = await listItems(companyId);
+  return all.find((item) => item.id === itemId) ?? null;
+}
