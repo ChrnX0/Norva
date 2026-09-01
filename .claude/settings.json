@@ -1,21 +1,25 @@
 {
   "permissions": {
+    "defaultMode": "acceptEdits",
     "allow": [
-      "mcp__github",
-      "mcp__GitHub",
-      "Bash(npm *)",
-      "Bash(npx *)",
-      "Bash(node *)",
-      "Bash(tsx *)",
-      "Bash(git *)",
-      "Bash(psql *)",
-      "Bash(python3 *)",
-      "Bash(bash scripts/*)"
+      "Read", "Edit", "MultiEdit", "Write", "Glob", "Grep", "Task", "TodoWrite",
+      "Skill", "WebFetch", "WebSearch", "SendUserFile",
+      "mcp__github", "mcp__GitHub", "mcp__Claude_Code_Remote",
+      "mcp__Supabase", "mcp__Expo", "mcp__Figma",
+      "Bash(npm *)", "Bash(npx *)", "Bash(node *)", "Bash(tsx *)", "Bash(git *)",
+      "Bash(psql *)", "Bash(python3 *)", "Bash(bash scripts/*)",
+      "Bash(cat *)", "Bash(head *)", "Bash(tail *)", "Bash(sed *)", "Bash(awk *)",
+      "Bash(grep *)", "Bash(rg *)", "Bash(ls *)", "Bash(find *)", "Bash(wc *)",
+      "Bash(diff *)", "Bash(mkdir *)", "Bash(cp *)", "Bash(mv *)", "Bash(touch *)",
+      "Bash(chmod *)", "Bash(echo *)", "Bash(which *)", "Bash(curl *)",
+      "Bash(rm -rf dist*)", "Bash(rm -rf node_modules*)", "Bash(rm -f *)"
     ],
     "deny": [
-      "Bash(git push --force*)",
-      "Bash(git push -f*)",
-      "Bash(rm -rf /*)"
+      "Bash(git push --force*)", "Bash(git push -f*)", "Bash(git push origin main*)",
+      "Bash(git reset --hard*)", "Bash(rm -rf /*)", "Bash(rm -rf ~*)",
+      "mcp__github__delete_repository", "mcp__github__merge_pull_request",
+      "mcp__Supabase__pause_project", "mcp__Supabase__delete_branch",
+      "mcp__Expo__build_submit"
     ]
   }
 }
