@@ -1,3 +1,4 @@
+import { packSize } from '@/domain/measure';
 import { purchaseToBaseUnits } from '@/data/repository';
 import { fromDecimal } from '@/domain/money';
 import { costPerProductUnit, costRecipe } from '@/domain/recipe';
@@ -447,8 +448,94 @@ const registerCount: Skill = {
   },
 };
 
+/**
+ * "cadastrar polpa de morango, balde 10 kg" - the first thing anybody has to do,
+ * and the thing that stops them.
+ *
+ * Nobody sets up sixty inputs on a form before seeing the app do anything, and
+ * the person this product is for is the least likely to try. The clause this
+ * project set for itself says a module is only finished when the assistant can
+ * both answer about it and fill it in; until now it could only answer.
+ *
+ * The package is read, not asked for: "balde 10 kg" is 10000 g, by the same
+ * function the cadastro screen uses. When it cannot be read with certainty the
+ * item is still created - a named input with no factor is useful and honest,
+ * and the screen it routes to is where the number gets finished.
+ */
+const registerInput: Skill = {
+  id: 'register_input',
+  example: 'cadastrar polpa de morango, balde 10 kg',
+  requires: 'manage_company',
+  /**
+   * Matched on the RAW question, unlike every other skill here, and the reason
+   * is that this one stores what it captures.
+   *
+   * `normalize` strips accents so that "acai" finds "açaí" - exactly right when
+   * the phrase MENTIONS something that already exists. Here the phrase names
+   * something new, and the normalised capture would put "polpa de acai" in the
+   * person's catalogue for good. The verbs carry no accents, so a raw
+   * case-insensitive match costs nothing.
+   */
+  match: (q) => q.match(/(?:cadastrar|cadastre|criar|crie|novo)\s+(?:insumo\s+)?(.+?)\s*,\s*(.+)$/i),
+  run: async (m, ctx) => {
+    const name = m[1].trim();
+    const pack = m[2].trim();
+    if (name.length < 2) return { text: 'Não entendi o nome do insumo.' };
+
+    // Exact match, deliberately - not `findByName`, which falls back to any
+    // shared significant word. That fallback is right when somebody MENTIONS an
+    // item and wrong when deciding a name is taken: "polpa de açaí" shares
+    // "polpa" with "polpa de morango", and a factory has several of them.
+    const items = await ctx.data.listItems();
+    const existing = items.find((i) => normalize(i.name) === normalize(name));
+    if (existing) {
+      return {
+        text: `"${existing.name}" já está cadastrado.`,
+        route: `/inputs/${existing.id}`,
+      };
+    }
+
+    const baseUnit = 'g';
+    const perPack = packSize(pack, baseUnit);
+
+    return {
+      text: perPack
+        ? 'Preparei o cadastro. Confira antes de eu gravar.'
+        : 'Preparei o cadastro. Não consegui ler o tamanho da embalagem — dá para completar depois na tela.',
+      detail: [
+        { label: 'Nome', value: name },
+        { label: 'Embalagem', value: pack },
+        {
+          label: 'Quanto vem dentro',
+          value: perPack ? `${formatQuantity(perPack, ctx.locale)} ${baseUnit}` : 'a completar',
+        },
+      ],
+      draft: {
+        kind: 'item',
+        summary:
+          `Cadastrar ${name}, comprado em ${pack}` +
+          (perPack ? `, com ${formatQuantity(perPack, ctx.locale)} ${baseUnit} dentro. ` : '. ') +
+          'O preço não entra aqui: ele vem da primeira nota de compra.',
+        apply: async () => {
+          await ctx.data.saveItem({
+            kind: 'input',
+            name,
+            purchaseUnit: pack,
+            purchaseToBase: perPack,
+            baseUnit,
+          });
+        },
+      },
+      route: '/inputs',
+    };
+  },
+};
+
 export const phase1Skills: Skill[] = [
   registerPurchase,
+  // Before the questions: "cadastrar X, Y" is somebody creating, and no
+  // question in this list starts with that verb.
+  registerInput,
   // Before `stockOfInput`, which also answers to "tem": a phrase carrying a
   // number is somebody counting, not somebody asking.
   registerCount,

@@ -47,6 +47,14 @@ export type AssistantData = {
   /** The movements behind one item's balance - what `[por quê?]` opens. */
   itemMovements(itemId: string, limit?: number): Promise<MovementRow[]>;
   recordCount(input: { itemId: string; countedBaseUnits: number }): Promise<unknown>;
+  /** Creates an input from a conversation. Same function the cadastro screen calls. */
+  saveItem(input: {
+    kind: 'input' | 'packaging' | 'store_supply';
+    name: string;
+    purchaseUnit: string | null;
+    purchaseToBase: number | null;
+    baseUnit: string;
+  }): Promise<string>;
   recordPurchase(input: {
     itemId: string;
     purchaseQuantity: number;
@@ -63,7 +71,7 @@ export type AssistantData = {
  * would say it out loud - with the numbers spelled out, never as field labels.
  */
 export type Draft = {
-  kind: 'purchase' | 'count';
+  kind: 'purchase' | 'count' | 'item';
   summary: string;
   apply: () => Promise<void>;
 };

@@ -165,6 +165,18 @@ const DEFECTS = [
     to: 'if (matches.length === 0) return null;',
     hurts: '"caixa 6 x 500 ml" é lido como 6 ml, e o custo do insumo sai cem vezes errado',
   },
+  {
+    file: 'src/assistant/skills.ts',
+    from: 'const existing = items.find((i) => normalize(i.name) === normalize(name));',
+    to: 'const existing = findByName(items, name);',
+    hurts: 'cadastrar polpa de açaí é recusado porque já existe polpa de morango, e a fábrica tem várias',
+  },
+  {
+    file: 'src/assistant/skills.ts',
+    from: "  match: (q) => q.match(/(?:cadastrar|cadastre|criar|crie|novo)\\s+(?:insumo\\s+)?(.+?)\\s*,\\s*(.+)$/i),",
+    to: "  match: (q) => normalize(q).match(/(?:cadastrar|cadastre|criar|crie|novo)\\s+(?:insumo\\s+)?(.+?)\\s*,\\s*(.+)$/),",
+    hurts: 'o insumo entra no catálogo sem acento - "polpa de acai" - e fica assim para sempre',
+  },
 ];
 
 function suitePasses() {

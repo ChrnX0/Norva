@@ -130,6 +130,10 @@ const data: AssistantData = {
     recorded.push(input);
     return undefined;
   },
+  saveItem: async (input) => {
+    recorded.push(input);
+    return 'new-item';
+  },
   recordCount: async (input) => {
     recorded.push(input);
     return undefined;
@@ -303,4 +307,59 @@ test('it reads a number however it was typed', () => {
   assert.equal(parseNumber('R$ 496'), 496);
   assert.equal(parseNumber('4'), 4);
   assert.equal(parseNumber('abc'), null);
+});
+
+/**
+ * Registering an input by talking, which is the clause this project set for
+ * itself: a module is finished when the assistant can answer about it AND fill
+ * it in. Until now it could only answer, and the cadastro is precisely where
+ * people give up - nobody types sixty inputs into a form before seeing the app
+ * do anything, least of all the person this product is for.
+ */
+
+test('an input can be created by talking, and the package is read not asked', async () => {
+  recorded = [];
+  const answer = await ask('cadastrar polpa de açaí, balde 10 kg', context('manage_company'));
+
+  assert.ok(answer.draft, 'the phrase should fill a form');
+  assert.equal(recorded.length, 0, 'nothing may be created before a human confirms');
+  assert.match(answer.draft.summary, /polpa de açaí/i);
+  // 10 kg is 10000 g, worked out from what the person wrote on the sack.
+  assert.match(answer.draft.summary, /10\.000 g/);
+
+  await answer.draft.apply();
+  assert.deepEqual(recorded[0], {
+    kind: 'input',
+    name: 'polpa de açaí',
+    purchaseUnit: 'balde 10 kg',
+    purchaseToBase: 10_000,
+    baseUnit: 'g',
+  });
+});
+
+test('a package with no size still creates the item, and says so', async () => {
+  recorded = [];
+  const answer = await ask('cadastrar essência de baunilha, frasco', context('manage_company'));
+
+  assert.ok(answer.draft);
+  // Honest rather than clever: a named input with no factor is useful, and
+  // guessing a number that sits under every cost of that item is not.
+  assert.match(answer.text, /não consegui ler o tamanho/i);
+  await answer.draft.apply();
+  assert.equal((recorded[0] as { purchaseToBase: number | null }).purchaseToBase, null);
+});
+
+test('creating something that already exists points at it instead', async () => {
+  recorded = [];
+  const answer = await ask('cadastrar polpa de morango, balde 10 kg', context('manage_company'));
+
+  assert.equal(answer.draft, undefined, 'no draft for something that is already there');
+  assert.match(answer.text, /já está cadastrado/);
+  assert.equal(recorded.length, 0);
+});
+
+test('creating an input is a manage_company act, not something an operator does', async () => {
+  const answer = await ask('cadastrar polpa de açaí, balde 10 kg', context('record_production'));
+  assert.equal(answer.draft, undefined);
+  assert.equal(recorded.length, 0);
 });

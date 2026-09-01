@@ -898,3 +898,34 @@ enquanto não houver veredito fresco e passante para o HEAD atual. Também bloqu
 hook de git seria contornável por quem está com pressa, e quem está com pressa
 aqui sou eu. Provado nos dois sentidos: veredito no HEAD libera, HEAD adiantado
 recusa com saída 2.
+
+## 1 de setembro — o assistente aprendeu a cadastrar, e o teste achou dois bugs meus
+
+**O que apareceu.** A cláusula de pronto do projeto diz que um módulo só está
+concluído quando o assistente sabe **responder** sobre ele *e* **preencher** os
+registros dele. Ele tinha sete habilidades que respondem e duas que preenchem
+(compra e contagem) — nenhuma que cadastra. E cadastrar é justamente onde as
+pessoas desistem: ninguém digita sessenta insumos num formulário antes de ver o
+aplicativo fazer alguma coisa, muito menos o usuário para quem este produto
+existe. A peça que faltava era ler a embalagem, e o `measure.ts` de hoje resolveu
+isso.
+
+**Os dois bugs, os dois achados pelo teste antes de qualquer pessoa ver:**
+
+1. **"Polpa de açaí" era recusada porque já existe "polpa de morango".** Eu usei
+   o `findByName`, que por último cai em "compartilha uma palavra significativa".
+   Isso está certo para **achar** o que a pessoa mencionou e errado para decidir
+   que um nome **já existe** — e uma fábrica tem polpa de morango, de açaí e de
+   maracujá. Agora a comparação é exata.
+2. **O nome entrava sem acento.** O `match` de todas as outras habilidades roda
+   sobre o texto normalizado, porque elas *procuram* algo que existe e "acai"
+   precisa achar "açaí". Esta **guarda** o que captura: normalizado, ela poria
+   "polpa de acai" no catálogo da pessoa para sempre. Casa no texto cru, e os
+   verbos não têm acento, então não custou nada.
+
+**O que mudou.** `register_input` no assistente, com `saveItem` atravessando o
+mesmo caminho que a tela usa — o assistente continua sem consulta própria.
+Embalagem ilegível não impede o cadastro: cria o insumo sem fator e diz isso, em
+vez de chutar um número que ficaria embaixo de todo custo daquele item. Quatro
+testes (cria, ilegível, duplicado, sem permissão) e duas mutações novas — 25 no
+total —, cada uma sendo exatamente um dos dois bugs acima.

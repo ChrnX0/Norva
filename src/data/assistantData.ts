@@ -9,6 +9,7 @@ import {
   recentCostChanges,
   recordCount,
   recordPurchase,
+  saveItem,
 } from './repository';
 
 /**
@@ -31,5 +32,7 @@ export function liveData(companyId: string): AssistantData {
     itemMovements: (itemId, limit) => itemMovements(companyId, itemId, limit),
     recordPurchase: (input) => recordPurchase(companyId, input),
     recordCount: (input) => recordCount(companyId, input),
+    saveItem: (input) =>
+      saveItem(companyId, { ...input, packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }] } }),
   };
 }
