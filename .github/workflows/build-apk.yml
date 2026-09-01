@@ -73,4 +73,28 @@ jobs:
           TAG: ${{ inputs.tag }}
         run: |
           gh release upload "$TAG" norva-arm64.apk --clobber
+
+          # A pagina tem de dizer o que carrega. Trocar o arquivo sem trocar o
+          # texto deixa o release parecendo a primeira versao para sempre, e
+          # quem abre no celular nao tem como saber que baixou o novo.
+          {
+            echo "Instalador de teste do NORVA para Android."
+            echo
+            echo "**Baixe \`norva-arm64.apk\`** - 47 MB, compilado neste repositorio."
+            echo "O \`norva.apk\` grande vem da Expo e carrega duas arquiteturas"
+            echo "que so existem em emulador."
+            echo
+            echo "**Como instalar:** baixe pelo proprio celular. O Android pede"
+            echo "permissao para instalar fora da Play Store - e normal em"
+            echo "aplicativo de teste, e e uma vez so."
+            echo
+            echo "**Se ja tiver a versao da Expo instalada:** desinstale antes."
+            echo "As duas sao assinadas com chaves diferentes e o Android recusa"
+            echo "instalar uma por cima da outra - e desinstalar apaga os dados."
+            echo
+            echo "---"
+            echo "Compilado de \`$(git rev-parse --short HEAD)\` - $(date -u +'%d/%m/%Y %H:%M UTC')"
+          } > notas.md
+
+          gh release edit "$TAG" --notes-file notas.md
           echo "no release: $(gh release view "$TAG" --json url -q .url)"
