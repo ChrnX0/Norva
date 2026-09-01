@@ -30,7 +30,8 @@ import {
   type RecipeLine,
 } from '@/domain/recipe';
 import { roundUpToFullContainer } from '@/domain/units';
-import { defaultLocale, formatMoney, formatQuantity } from '@/i18n';
+import { fill, formatMoney, formatQuantity } from '@/i18n';
+import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -79,7 +80,7 @@ function RecipeEditor() {
   const { color, type, space, accent } = useTheme();
   const confirm = useConfirm();
   const router = useRouter();
-  const locale = defaultLocale;
+  const { locale, t } = useLocale();
   const params = useLocalSearchParams<{ id?: string }>();
 
   const { data, loading } = useQuery<Loaded>(async () => {
@@ -158,10 +159,10 @@ function RecipeEditor() {
     const portion = num(perUnit);
 
     if (!Number.isFinite(yieldValue) || yieldValue <= 0) {
-      return { error: 'Informe quanto o tacho rende.' as string, cost: null };
+      return { error: t.app.recipe.needYield as string, cost: null };
     }
     if (!Number.isFinite(loss) || loss < 0 || loss >= 1) {
-      return { error: 'A perda tem de ficar entre 0% e 100%.' as string, cost: null };
+      return { error: t.app.recipe.lossRange as string, cost: null };
     }
 
     // The draft is costed inside the real graph, so a sub-recipe of the recipe
@@ -200,14 +201,19 @@ function RecipeEditor() {
       return { error: null, cost, before, unitCents, units, rounding, delta, boxTier };
     } catch (e) {
       if (e instanceof RecipeCycleError) {
-        return { error: `Essa receita contém a si mesma: ${e.path.join(' → ')}`, cost: null };
+        return {
+          error: fill(t.app.recipe.containsItself, { path: e.path.join(' → ') }),
+          cost: null,
+        };
       }
       if (e instanceof MissingRecipeError) {
-        return { error: `Sub-receita não encontrada: ${e.recipeId}`, cost: null };
+        return { error: fill(t.app.recipe.subRecipeMissing, { id: e.recipeId }), cost: null };
       }
       throw e;
     }
-  }, [data, stored, lines, lossPercent, yieldAmount, perUnit, recipeId]);
+    // `t` is the same frozen object every render, so listing it costs nothing
+    // and keeps the messages honest if the language ever changes at runtime.
+  }, [data, stored, lines, lossPercent, yieldAmount, perUnit, recipeId, t]);
 
   const changed = useMemo(() => {
     if (!stored || !lines) return false;
@@ -223,19 +229,22 @@ function RecipeEditor() {
 
     const summary = computed?.delta
       ? computed.delta.deltaCents === 0
-        ? 'O custo por unidade não muda.'
-        : `${computed.delta.cheaper ? 'Fica' : 'Sobe'} ${formatMoney(
-            Math.abs(computed.delta.deltaCents),
-            locale,
-          )} por unidade em relação à versão ${stored.version}.`
+        ? t.app.recipe.summarySame
+        : fill(
+            computed.delta.cheaper ? t.app.recipe.summaryCheaper : t.app.recipe.summaryDearer,
+            {
+              amount: formatMoney(Math.abs(computed.delta.deltaCents), locale),
+              version: stored.version,
+            },
+          )
       : '';
 
     // Law 5: the confirmation spells out what is about to happen, in words.
     const go = await confirm({
-      title: `Salvar versão ${stored.version + 1}?`,
-      message: `A versão ${stored.version} continua guardada — as produções antigas mantêm o custo delas. ${summary}`,
-      confirmLabel: 'Salvar',
-      cancelLabel: 'Continuar editando',
+      title: fill(t.app.recipe.saveTitle, { version: stored.version + 1 }),
+      message: fill(t.app.recipe.saveBody, { previous: stored.version, summary }),
+      confirmLabel: t.app.recipe.save,
+      cancelLabel: t.app.recipe.keepEditing,
     });
     if (!go) return;
 
@@ -252,10 +261,10 @@ function RecipeEditor() {
       router.back();
     } catch (e) {
       await confirm({
-        title: 'Não deu para salvar',
+        title: t.app.recipe.failedToSave,
         message: e instanceof Error ? e.message : String(e),
         acknowledge: true,
-        confirmLabel: 'Entendi',
+        confirmLabel: t.app.confirm.understood,
       });
     } finally {
       setSaving(false);
@@ -274,14 +283,15 @@ function RecipeEditor() {
   const addItem = (itemId: string) =>
     edit({ lines: [...(lines ?? []), { kind: 'item', itemId, quantity: 1_000 }] });
 
-  const title = recipeId && data ? (data.labels[recipeId] ?? 'Receita') : 'Receita';
+  const title =
+    recipeId && data ? (data.labels[recipeId] ?? t.app.recipe.fallbackTitle) : t.app.recipe.fallbackTitle;
 
   if (loading || !data || !stored || !lines) {
     return (
-      <CollapsingHeader title="Receita" overline="ficha técnica">
+      <CollapsingHeader title={t.app.recipe.fallbackTitle} overline={t.app.recipe.overline}>
         <Card>
           <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {loading ? 'Abrindo a ficha…' : 'Nenhuma receita cadastrada ainda.'}
+            {loading ? t.app.recipe.opening : t.app.recipe.none}
           </Text>
         </Card>
       </CollapsingHeader>
@@ -292,10 +302,13 @@ function RecipeEditor() {
   const available = data.items.filter((i) => !inRecipe.has(i.id));
 
   return (
-    <CollapsingHeader title={title} overline={`ficha técnica · versão ${stored.version}`}>
+    <CollapsingHeader
+      title={title}
+      overline={fill(t.app.recipe.overlineVersion, { version: stored.version })}
+    >
       {computed?.error ? (
         <Card tone="danger">
-          <Text style={[type.cardTitle, { color: color.danger }]}>Falta um dado</Text>
+          <Text style={[type.cardTitle, { color: color.danger }]}>{t.app.recipe.missingData}</Text>
           <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
             {computed.error}
           </Text>
@@ -304,18 +317,18 @@ function RecipeEditor() {
 
       {computed?.cost ? (
         <Card tone="area">
-          <Text style={[type.overline, { color: color.inkFaint }]}>CUSTO POR UNIDADE</Text>
+          <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.recipe.unitCost}</Text>
           <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
             {computed.unitCents === null ? '—' : formatMoney(computed.unitCents, locale)}
           </Text>
 
           <Text style={[type.secondary, { color: color.inkMuted }]}>
             {computed.unitCents === null
-              ? 'Informe quantos ml vão em cada unidade.'
-              : `${formatQuantity(computed.units, locale)} unidades por tacho · lote de ${formatMoney(
-                  computed.cost.batchCents,
-                  locale,
-                )}`}
+              ? t.app.recipe.needPortion
+              : fill(t.app.recipe.unitsPerBatch, {
+                  units: formatQuantity(computed.units, locale),
+                  batch: formatMoney(computed.cost.batchCents, locale),
+                })}
           </Text>
 
           {computed.delta && changed && computed.delta.deltaCents !== 0 ? (
@@ -330,16 +343,24 @@ function RecipeEditor() {
               ]}
             >
               {computed.delta.cheaper ? '▼' : '▲'}{' '}
-              {formatMoney(Math.abs(computed.delta.deltaCents), locale)} por unidade contra a versão{' '}
-              {stored.version} ({(Math.abs(computed.delta.percent) * 100).toFixed(1)}%)
+              {fill(t.app.recipe.cheaperThan, {
+                amount: formatMoney(Math.abs(computed.delta.deltaCents), locale),
+                version: stored.version,
+                percent: `${(Math.abs(computed.delta.percent) * 100).toFixed(1)}%`,
+              })}
             </Text>
           ) : null}
 
           {computed.rounding && computed.rounding.addedUnits > 0 ? (
             <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
-              Produza {formatQuantity(computed.rounding.rounded, locale)} para fechar caixa cheia —
-              sobram {formatQuantity(computed.units % (computed.boxTier?.perBaseUnit ?? 1), locale)}{' '}
-              soltas em {formatQuantity(computed.units, locale)}.
+              {fill(t.app.recipe.roundUp, {
+                rounded: formatQuantity(computed.rounding.rounded, locale),
+                loose: formatQuantity(
+                  computed.units % (computed.boxTier?.perBaseUnit ?? 1),
+                  locale,
+                ),
+                units: formatQuantity(computed.units, locale),
+              })}
             </Text>
           ) : null}
 
@@ -348,14 +369,14 @@ function RecipeEditor() {
             accessibilityRole="button"
             style={[styles.why, { borderColor: color.lineStrong, marginTop: space.md }]}
           >
-            <Text style={[type.caption, { color: accent, letterSpacing: 0.6 }]}>POR QUÊ?</Text>
+            <Text style={[type.caption, { color: accent, letterSpacing: 0.6 }]}>{t.app.recipe.why}</Text>
           </Pressable>
         </Card>
       ) : null}
 
       <Card tone="area">
         <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.md }]}>
-          O que entra no tacho
+          {t.app.recipe.whatGoesIn}
         </Text>
 
         {lines.map((line, index) => {
@@ -369,7 +390,7 @@ function RecipeEditor() {
               <View style={styles.lineRow}>
                 <Text style={[type.body, { color: color.ink, flex: 1 }]} numberOfLines={1}>
                   {label}
-                  {line.kind === 'recipe' ? ' ·  sub-receita' : ''}
+                  {line.kind === 'recipe' ? ` ·  ${t.app.recipe.subRecipe}` : ''}
                 </Text>
                 <Text style={[type.body, styles.number, { color: color.ink }]}>
                   {formatMoney(lineCost, locale)}
@@ -389,11 +410,20 @@ function RecipeEditor() {
 
               <View style={[styles.lineRow, { marginTop: space.sm, gap: space.sm }]}>
                 <Text style={[type.caption, { color: color.inkFaint, flex: 1 }]}>
-                  {formatQuantity(line.quantity, locale)} · {Math.round(share * 100)}% do lote
+                  {fill(t.app.recipe.shareOfBatch, {
+                    quantity: formatQuantity(line.quantity, locale),
+                    percent: `${Math.round(share * 100)}%`,
+                  })}
                 </Text>
-                <Nudge label="−10%" onPress={() => setQuantity(index, line.quantity * 0.9)} />
-                <Nudge label="+10%" onPress={() => setQuantity(index, line.quantity * 1.1)} />
-                <Nudge label="tirar" onPress={() => removeLine(index)} />
+                <Nudge
+                  label={t.app.recipe.lessTen}
+                  onPress={() => setQuantity(index, line.quantity * 0.9)}
+                />
+                <Nudge
+                  label={t.app.recipe.moreTen}
+                  onPress={() => setQuantity(index, line.quantity * 1.1)}
+                />
+                <Nudge label={t.app.recipe.remove} onPress={() => removeLine(index)} />
               </View>
             </View>
           );
@@ -402,7 +432,7 @@ function RecipeEditor() {
         {available.length > 0 ? (
           <>
             <Text style={[type.caption, { color: color.inkFaint, marginBottom: space.sm }]}>
-              ACRESCENTAR
+              {t.app.recipe.add}
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', gap: space.sm }}>
@@ -418,36 +448,38 @@ function RecipeEditor() {
       <Card tone="area">
         <View style={{ gap: space.lg }}>
           <Field
-            label="Rendimento do tacho"
+            label={t.app.recipe.batchYield}
             value={yieldAmount}
             onChangeText={(value) => edit({ yieldAmount: value })}
             suffix="ml"
             keyboardType="numeric"
           />
           <Field
-            label="Perda esperada"
+            label={t.app.recipe.expectedLoss}
             value={lossPercent}
             onChangeText={(value) => edit({ lossPercent: value })}
             suffix="%"
             keyboardType="numeric"
             hint={
               computed?.cost
-                ? `Sobram ${formatQuantity(computed.cost.netYield, locale)} ml de ${formatQuantity(
-                    num(yieldAmount),
-                    locale,
-                  )}. O lote é pago inteiro, então a perda encarece o que sobra.`
+                ? fill(t.app.recipe.lossHint, {
+                    net: formatQuantity(computed.cost.netYield, locale),
+                    gross: formatQuantity(num(yieldAmount), locale),
+                  })
                 : undefined
             }
           />
           <Field
-            label="Vai em cada unidade"
+            label={t.app.recipe.perUnit}
             value={perUnit}
             onChangeText={(value) => edit({ perUnit: value })}
             suffix="ml"
             keyboardType="numeric"
             hint={
               data.unitPackagingCents > 0
-                ? `Mais ${formatMoney(data.unitPackagingCents, locale)} de palito e embalagem por unidade.`
+                ? fill(t.app.recipe.packagingHint, {
+                    amount: formatMoney(data.unitPackagingCents, locale),
+                  })
                 : undefined
             }
           />
@@ -455,7 +487,11 @@ function RecipeEditor() {
       </Card>
 
       <Button
-        label={saving ? 'Salvando…' : `Salvar como versão ${stored.version + 1}`}
+        label={
+          saving
+            ? t.app.recipe.saving
+            : fill(t.app.recipe.saveAs, { version: stored.version + 1 })
+        }
         onPress={() => void onSave()}
         disabled={!changed || saving || Boolean(computed?.error)}
         weighty

@@ -13,7 +13,8 @@ import {
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { costPerProductUnit, costRecipe, RecipeCycleError } from '@/domain/recipe';
-import { defaultLocale, formatMoney } from '@/i18n';
+import { fill, formatMoney } from '@/i18n';
+import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -48,7 +49,7 @@ type Row = {
 function RecipesList() {
   const { color, space, type } = useTheme();
   const router = useRouter();
-  const locale = defaultLocale;
+  const { locale, t } = useLocale();
 
   const { data, loading } = useQuery<Row[]>(async () => {
     const [recipes, graph, costs, names, products] = await Promise.all([
@@ -75,8 +76,11 @@ function RecipesList() {
             : formatMoney(Math.round(cost.perYieldUnit * 1_000), locale);
 
         const detail = product?.yieldPerUnit
-          ? `por unidade de ${product.name} · lote de ${formatMoney(cost.batchCents, locale)}`
-          : `por litro de massa · usada dentro de outras receitas`;
+          ? fill(t.app.recipes.perUnitOf, {
+              product: product.name,
+              batch: formatMoney(cost.batchCents, locale),
+            })
+          : t.app.recipes.perLitre;
 
         return { id: recipe.id, name: recipe.name, figure, detail, batchCents: cost.batchCents };
       } catch (e) {
@@ -86,9 +90,7 @@ function RecipesList() {
           name: recipe.name,
           figure: '—',
           detail:
-            e instanceof RecipeCycleError
-              ? 'Esta receita contém a si mesma — abra para corrigir.'
-              : 'Falta preço em algum insumo.',
+            e instanceof RecipeCycleError ? t.app.recipes.cycle : t.app.recipes.missingPrice,
           batchCents: 0,
         };
       }
@@ -98,13 +100,13 @@ function RecipesList() {
   const rows = [...(data ?? [])].sort((a, b) => b.batchCents - a.batchCents);
 
   return (
-    <CollapsingHeader title="Receitas" overline="o que entra no tacho">
+    <CollapsingHeader title={t.app.recipes.title} overline={t.app.recipes.overline}>
       <Card>
         {loading ? (
-          <Text style={[type.secondary, { color: color.inkMuted }]}>Calculando os custos…</Text>
+          <Text style={[type.secondary, { color: color.inkMuted }]}>{t.app.recipes.costing}</Text>
         ) : rows.length === 0 ? (
           <Text style={[type.secondary, { color: color.inkMuted }]}>
-            Nenhuma ficha técnica ainda. Cadastre os insumos primeiro, depois a receita que os usa.
+            {t.app.recipes.empty}
           </Text>
         ) : (
           rows.map((row) => (
@@ -126,7 +128,7 @@ function RecipesList() {
             { color: color.inkFaint, textAlign: 'center', paddingHorizontal: space.lg },
           ]}
         >
-          Em ordem de quanto custa o lote — a mais cara primeiro, que é onde mexer rende mais.
+          {t.app.recipes.orderedByBatch}
         </Text>
       ) : null}
     </CollapsingHeader>

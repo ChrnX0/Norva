@@ -14,7 +14,7 @@ import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { costPerProductUnit, costRecipe, unitsPerBatch } from '@/domain/recipe';
 import { breakdown } from '@/domain/units';
-import { formatMoney, formatQuantity, joinList } from '@/i18n';
+import { fill, formatMoney, formatQuantity, joinList } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -62,7 +62,7 @@ function ProductsList() {
           name: product.name,
           recipeId: null,
           unitCents: null,
-          detail: 'Revenda — o custo vem da nota de compra.',
+          detail: t.app.products.resale,
         };
       }
 
@@ -85,7 +85,10 @@ function ProductsList() {
         name: product.name,
         recipeId: product.recipeId,
         unitCents: costPerProductUnit(cost, product.yieldPerUnit, product.unitPackagingCents),
-        detail: `Um tacho rende ${formatQuantity(units, locale)} — ${packed}`,
+        detail: fill(t.app.products.batchYields, {
+          units: formatQuantity(units, locale),
+          packed,
+        }),
       };
     });
   });
@@ -93,14 +96,13 @@ function ProductsList() {
   const rows = data ?? [];
 
   return (
-    <CollapsingHeader title="Produtos" overline="o que sai para vender">
+    <CollapsingHeader title={t.app.products.title} overline={t.app.products.overline}>
       <Card>
         {loading ? (
-          <Text style={[type.secondary, { color: color.inkMuted }]}>Abrindo…</Text>
+          <Text style={[type.secondary, { color: color.inkMuted }]}>{t.app.products.opening}</Text>
         ) : rows.length === 0 ? (
           <Text style={[type.secondary, { color: color.inkMuted }]}>
-            Nenhum produto ainda. Um produto fabricado precisa de uma receita e de quanto vai em
-            cada unidade.
+            {t.app.products.empty}
           </Text>
         ) : (
           rows.map((row) => (
@@ -118,7 +120,7 @@ function ProductsList() {
         )}
       </Card>
 
-      <Button label="Cadastrar novo" onPress={() => router.push('/products/new')} weighty />
+      <Button label={t.app.products.addNew} onPress={() => router.push('/products/new')} weighty />
     </CollapsingHeader>
   );
 }

@@ -20,7 +20,7 @@ import { useQuery } from '@/data/useQuery';
 import { fromDecimal } from '@/domain/money';
 import { costPerProductUnit, costRecipe, unitsPerBatch, type ItemCosts, type Recipe } from '@/domain/recipe';
 import { type PackagingHierarchy } from '@/domain/units';
-import { formatMoney, formatQuantity } from '@/i18n';
+import { fill, formatMoney, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -100,7 +100,7 @@ function ProductForm() {
    */
   const packagingEcho = useMemo(() => {
     const top = hierarchy.tiers[hierarchy.tiers.length - 1];
-    if (top.perBaseUnit <= 1) return 'Só unidade solta, sem caixa nem engradado.';
+    if (top.perBaseUnit <= 1) return t.app.productForm.looseOnly;
 
     // One of the largest tier, expressed at every level below it.
     return [...hierarchy.tiers]
@@ -134,18 +134,21 @@ function ProductForm() {
   const onSave = async () => {
     if (!canSave) return;
 
-    const words =
-      kind === 'product'
-        ? `${name.trim()}, feito da receita ${
-            data?.recipes.find((r) => r.id === chosenRecipe)?.name ?? ''
-          }, ${formatQuantity(num(perUnit), locale)} ml por unidade. ${packagingEcho}`
-        : `${name.trim()}, produto de revenda. ${packagingEcho}`;
+    const words = fill(
+      kind === 'product' ? t.app.productForm.confirmMade : t.app.productForm.confirmResale,
+      {
+        name: name.trim(),
+        recipe: data?.recipes.find((r) => r.id === chosenRecipe)?.name ?? '',
+        perUnit: formatQuantity(num(perUnit), locale),
+        packaging: packagingEcho,
+      },
+    );
 
     const go = await confirm({
-      title: 'Cadastrar este produto?',
+      title: t.app.productForm.confirmTitle,
       message: words,
-      confirmLabel: 'Cadastrar',
-      cancelLabel: 'Ajustar',
+      confirmLabel: t.app.productForm.confirmAction,
+      cancelLabel: t.app.confirm.adjust,
     });
     if (!go) return;
 
@@ -162,10 +165,10 @@ function ProductForm() {
       router.back();
     } catch (e) {
       await confirm({
-        title: 'Não deu para cadastrar',
+        title: t.app.productForm.failed,
         message: e instanceof Error ? e.message : String(e),
         acknowledge: true,
-        confirmLabel: 'Entendi',
+        confirmLabel: t.app.confirm.understood,
       });
     } finally {
       setSaving(false);
@@ -173,30 +176,33 @@ function ProductForm() {
   };
 
   return (
-    <CollapsingHeader title="Novo produto" overline="cadastro">
+    <CollapsingHeader title={t.app.productForm.title} overline={t.app.productForm.overline}>
       <Card tone="area">
-        <Field label="Nome" value={name} onChangeText={setName} placeholder="Picolé de morango" />
+        <Field
+          label={t.app.productForm.name}
+          value={name}
+          onChangeText={setName}
+          placeholder={t.app.productForm.namePlaceholder}
+        />
 
         <View style={{ marginTop: space.lg }}>
           <Text style={[type.overline, { color: color.inkFaint, marginBottom: space.sm }]}>
-            DE ONDE ELE VEM
+            {t.app.productForm.whereFrom}
           </Text>
           <View style={{ flexDirection: 'row', gap: space.sm }}>
             <Segment
-              label="Fabricado"
+              label={t.app.productForm.made}
               active={kind === 'product'}
               onPress={() => setKind('product')}
             />
             <Segment
-              label="Revenda"
+              label={t.app.productForm.resale}
               active={kind === 'resale'}
               onPress={() => setKind('resale')}
             />
           </View>
           <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
-            {kind === 'product'
-              ? 'O custo vem da receita e se atualiza sozinho quando um insumo muda de preço.'
-              : 'O custo vem da nota de compra, pelo custo médio dos fornecedores.'}
+            {kind === 'product' ? t.app.productForm.madeHint : t.app.productForm.resaleHint}
           </Text>
         </View>
       </Card>
@@ -204,11 +210,11 @@ function ProductForm() {
       {kind === 'product' ? (
         <Card tone="area">
           <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.sm }]}>
-            Feito com qual receita
+            {t.app.productForm.whichRecipe}
           </Text>
 
           {loading ? (
-            <Text style={[type.secondary, { color: color.inkMuted }]}>Carregando…</Text>
+            <Text style={[type.secondary, { color: color.inkMuted }]}>{t.app.productForm.loading}</Text>
           ) : data && data.recipes.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', gap: space.sm }}>
@@ -224,30 +230,32 @@ function ProductForm() {
             </ScrollView>
           ) : (
             <Text style={[type.secondary, { color: color.inkMuted }]}>
-              Nenhuma receita cadastrada ainda — cadastre a ficha técnica antes.
+              {t.app.productForm.noRecipes}
             </Text>
           )}
 
           <View style={{ gap: space.lg, marginTop: space.lg }}>
             <Field
-              label="Quanto vai em cada unidade"
+              label={t.app.productForm.perUnit}
               value={perUnit}
               onChangeText={setPerUnit}
               suffix="ml"
               keyboardType="numeric"
               hint={
                 costing
-                  ? `Um tacho rende ${formatQuantity(costing.units, locale)} unidades.`
+                  ? fill(t.app.productForm.perUnitHint, {
+                      units: formatQuantity(costing.units, locale),
+                    })
                   : undefined
               }
             />
             <Field
-              label="Palito, embalagem e rótulo"
+              label={t.app.productForm.packagingCost}
               value={packagingCost}
               onChangeText={setPackagingCost}
               suffix="R$ / un"
               keyboardType="numeric"
-              hint="Embalagem custa por unidade, não por tacho — diluir no lote esconde a margem."
+              hint={t.app.productForm.packagingHint}
             />
           </View>
         </Card>
@@ -255,21 +263,21 @@ function ProductForm() {
 
       <Card tone="area">
         <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.xs }]}>
-          Como ele é empacotado
+          {t.app.productForm.howPacked}
         </Text>
         <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.md }]}>
-          O estoque conta sempre em unidade; as telas falam na sua embalagem.
+          {t.app.productForm.howPackedHint}
         </Text>
 
         <View style={{ gap: space.lg }}>
           <Field
-            label="Unidades por caixa"
+            label={t.app.productForm.perBox}
             value={perBox}
             onChangeText={setPerBox}
             keyboardType="numeric"
           />
           <Field
-            label="Caixas por engradado"
+            label={t.app.productForm.perCrate}
             value={perCrate}
             onChangeText={setPerCrate}
             keyboardType="numeric"
@@ -280,28 +288,32 @@ function ProductForm() {
 
       {costing ? (
         <Card tone="area">
-          <Text style={[type.overline, { color: color.inkFaint }]}>CUSTO POR UNIDADE</Text>
+          <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.productForm.unitCost}</Text>
           <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
             {formatMoney(costing.unit, locale)}
           </Text>
           <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {formatMoney(costing.mixOnly, locale)} de massa +{' '}
-            {formatMoney(costing.packagingCents, locale)} de embalagem
+            {fill(t.app.productForm.mixPlusPackaging, {
+              mix: formatMoney(costing.mixOnly, locale),
+              packaging: formatMoney(costing.packagingCents, locale),
+            })}
           </Text>
           <View style={{ marginTop: space.md }}>
             <Chip
               signal="neutral"
-              label={`Caixa fechada: ${formatMoney(
-                costing.unit * (hierarchy.tiers.find((t2) => t2.id === 'box')?.perBaseUnit ?? 1),
-                locale,
-              )}`}
+              label={fill(t.app.productForm.fullBox, {
+                amount: formatMoney(
+                  costing.unit * (hierarchy.tiers.find((t2) => t2.id === 'box')?.perBaseUnit ?? 1),
+                  locale,
+                ),
+              })}
             />
           </View>
         </Card>
       ) : null}
 
       <Button
-        label={saving ? 'Cadastrando…' : 'Cadastrar produto'}
+        label={saving ? t.app.productForm.saving : t.app.productForm.save}
         onPress={() => void onSave()}
         disabled={!canSave || saving}
         weighty

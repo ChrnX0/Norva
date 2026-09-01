@@ -8,7 +8,8 @@ import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { ask, knownSkills, type Answer, type Capability } from '@/assistant';
 import { liveData } from '@/data/assistantData';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
-import { defaultLocale } from '@/i18n';
+import { defaultLocale, fill } from '@/i18n';
+import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -49,6 +50,7 @@ function Conversation() {
   // Named apart from the assistant's own `ask`, which answers questions rather
   // than asking them.
   const askConfirm = useConfirm();
+  const { t } = useLocale();
   const router = useRouter();
 
   const [question, setQuestion] = useState('');
@@ -81,7 +83,11 @@ function Conversation() {
         setTurns((prev) => [
           {
             question: asked,
-            answer: { text: `Deu problema aqui: ${e instanceof Error ? e.message : String(e)}` },
+            answer: {
+              text: fill(t.app.assistant.trouble, {
+                error: e instanceof Error ? e.message : String(e),
+              }),
+            },
             open: false,
             applied: false,
           },
@@ -101,9 +107,9 @@ function Conversation() {
     // The floor no autonomy level crosses: a price, an adjustment or a
     // financial entry is confirmed by a person, in words, every time.
     const go = await askConfirm({
-      title: 'Confirma?',
+      title: t.app.assistant.confirmTitle,
       message: turn.answer.draft.summary,
-      cancelLabel: 'Não',
+      cancelLabel: t.app.assistant.no,
     });
     if (!go) return;
 
@@ -112,25 +118,25 @@ function Conversation() {
       setTurns((prev) => prev.map((t, i) => (i === index ? { ...t, applied: true } : t)));
     } catch (e) {
       await askConfirm({
-        title: 'Não deu para gravar',
+        title: t.app.assistant.failed,
         message: e instanceof Error ? e.message : String(e),
         acknowledge: true,
-        confirmLabel: 'Entendi',
+        confirmLabel: t.app.confirm.understood,
       });
     }
   };
 
   return (
-    <CollapsingHeader title="Pergunte" overline="modo conversa">
+    <CollapsingHeader title={t.app.assistant.title} overline={t.app.assistant.overline}>
       <Card tone="area">
         <TextInput
           value={question}
           onChangeText={setQuestion}
           onSubmitEditing={() => send(question)}
-          placeholder="quanto custa o picolé de morango"
+          placeholder={t.app.assistant.placeholder}
           placeholderTextColor={color.inkFaint}
           returnKeyType="send"
-          accessibilityLabel="Sua pergunta"
+          accessibilityLabel={t.app.assistant.inputLabel}
           selectionColor={accent}
           multiline
           style={[
@@ -148,7 +154,7 @@ function Conversation() {
         />
 
         <Button
-          label={thinking ? 'Vendo…' : 'Perguntar'}
+          label={thinking ? t.app.assistant.thinking : t.app.assistant.ask}
           onPress={() => send(question)}
           disabled={thinking || question.trim().length === 0}
           style={{ marginTop: space.md }}
@@ -158,7 +164,7 @@ function Conversation() {
       {turns.length === 0 ? (
         <Card>
           <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.sm }]}>
-            Eu sei responder, por exemplo
+            {t.app.assistant.examplesTitle}
           </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={{ flexDirection: 'row', gap: space.sm }}>
@@ -213,7 +219,7 @@ function Conversation() {
                 style={[styles.pill, { borderColor: color.lineStrong }]}
               >
                 <Text style={[type.caption, { color: accent, letterSpacing: 0.6 }]}>
-                  {turn.open ? 'FECHAR' : 'POR QUÊ?'}
+                  {turn.open ? t.app.assistant.close : t.app.assistant.why}
                 </Text>
               </Pressable>
             ) : null}
@@ -225,7 +231,7 @@ function Conversation() {
                 style={[styles.pill, { borderColor: color.lineStrong }]}
               >
                 <Text style={[type.caption, { color: color.inkMuted, letterSpacing: 0.6 }]}>
-                  ABRIR A TELA
+                  {t.app.assistant.openScreen}
                 </Text>
               </Pressable>
             ) : null}
@@ -234,11 +240,11 @@ function Conversation() {
           {turn.answer.draft ? (
             <View style={{ marginTop: space.md }}>
               <Text style={[type.secondary, { color: color.inkMuted }]}>
-                {turn.applied ? 'Lançado.' : turn.answer.draft.summary}
+                {turn.applied ? t.app.assistant.recorded : turn.answer.draft.summary}
               </Text>
               {!turn.applied ? (
                 <Button
-                  label="Confirmar e lançar"
+                  label={t.app.assistant.confirmAndRecord}
                   onPress={() => void confirmDraft(index)}
                   weighty
                   style={{ marginTop: space.md }}
