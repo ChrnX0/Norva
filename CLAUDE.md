@@ -92,6 +92,15 @@ apareceram quando o app foi aberto: uma confirmação que não existe na web,
 rotas que abriam num banco vazio, e uma tela falando dois idiomas. **Nada disso
 é visível de dentro de um módulo.**
 
+Duas regras de operação, ambas cicatriz:
+
+- **Nunca mate processo por padrão.** Um `pkill` largo nesta sessão matou a
+  verificação que tinha acabado de ser disparada — inclusive a nova, junto com a
+  velha. Se precisar parar algo, pare pelo PID que você mesmo anotou.
+- **A proofgate lê `base..HEAD`, não a árvore de trabalho.** Marcador de
+  justificativa em arquivo sem commit não existe para ela. Commit primeiro,
+  depois confira.
+
 O `proofgate` é o portão de entrega. **Qualquer ❌ significa que não está
 pronto**, e todo ⚠️ pede justificativa escrita — nunca dispensa em silêncio.
 Depois dele vem o portão de julgamento: diga em que nível a afirmação central
