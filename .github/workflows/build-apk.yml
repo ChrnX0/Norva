@@ -18,9 +18,14 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Uma hora é folga generosa para uma compilação fria de NDK num runner de
-    # dois núcleos, e é o bastante para um travamento de verdade falhar em vez
-    # de queimar as seis horas padrão do GitHub.
+    # Uma hora é folga generosa para uma compilação fria de NDK, e evita queimar
+    # as seis horas padrão do GitHub quando algo trava.
+    #
+    # Mas o relógio não diagnostica nada: as duas primeiras execuções morreram
+    # aqui, e a causa era falta de Metaspace, não lentidão. Um job cancelado por
+    # tempo diz "cancelled" e some com o motivo. Por isso o passo de memória
+    # abaixo e o caché que grava mesmo assim - o limite continua sendo teto, não
+    # explicação.
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -42,14 +47,18 @@ jobs:
       # do Gradle e os objetos nativos já compilados - e a segunda execução
       # passa a levar minutos. A chave inclui o lockfile porque uma dependência
       # nova invalida o que estava compilado.
-      - uses: actions/cache@v4
+      #
+      # Restaurar e gravar são passos separados de propósito: ver o passo
+      # "Guardar o caché" no fim do arquivo.
+      - uses: actions/cache/restore@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
             android/.cxx
-          key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.run_id }}
           restore-keys: |
+            gradle-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
             gradle-${{ runner.os }}-
 
       - name: Instalar as dependências
@@ -57,6 +66,25 @@ jobs:
 
       - name: Gerar o projeto nativo
         run: npx expo prebuild --platform android --no-install
+
+      # O template do React Native pede 512 MB de Metaspace para o Gradle, e a
+      # arquitetura nova não cabe nisso. Na execução de 21h a compilação encheu
+      # o Metaspace aos 26 minutos, repetiu `OutOfMemoryError: Metaspace` por
+      # treze minutos e depois passou vinte sem escrever uma linha - morreu no
+      # relógio, não no erro, que é o disfarce mais caro que uma falha de
+      # memória pode usar. O runner tem 16 GB: o teto era do arquivo gerado,
+      # não da máquina.
+      #
+      # O `grep` no fim não é enfeite. O arquivo é gerado pelo prebuild a cada
+      # execução; se o nome da chave mudar numa versão futura do Expo, o `sed`
+      # não casa, e sem esta linha a compilação voltaria a morrer daqui a meses
+      # com o mesmo sintoma e nenhuma pista.
+      - name: Dar memória ao Gradle
+        run: |
+          cd android
+          sed -i 's/^org\.gradle\.jvmargs=.*/org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=2g/' gradle.properties
+          grep -q '^org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=2g$' gradle.properties
+          grep '^org.gradle.jvmargs=' gradle.properties
 
       - name: Compilar, só arm64
         run: |
@@ -121,3 +149,24 @@ jobs:
 
           gh release edit "$TAG" --notes-file notas.md
           echo "no release: $(gh release view "$TAG" --json url -q .url)"
+
+      # Guardar mesmo quando a compilação morre no relógio.
+      #
+      # O `actions/cache` inteiro só grava no fim de um job que terminou, e um
+      # job morto por timeout nunca grava. Então a execução seguinte também
+      # começava fria, e também morria no relógio: o caché que faria a
+      # compilação caber na hora só existiria se ela já tivesse cabido. Era um
+      # nó, e ele já custou duas horas de runner. Gravando sempre, cada
+      # tentativa deixa para a próxima o que já compilou.
+      #
+      # A chave leva o `run_id` porque entrada de caché não se sobrescreve -
+      # sem isso a primeira gravação parcial seria a única, para sempre.
+      - name: Guardar o caché, tenha dado certo ou não
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.cxx
+          key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.run_id }}

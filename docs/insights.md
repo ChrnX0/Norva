@@ -1316,3 +1316,46 @@ barra inteira fica inacessível até o commit acontecer**. A ordem correta ficou
 registrada: rodar `typecheck`, `lint` e `test` na árvore suja, commitar, e só
 então `mutate`, `e2e`, `db:verify` e a proofgate — que leem `base..HEAD`, não o
 que está aberto no editor.
+
+## 1 de setembro — o caché que só existiria se a compilação já tivesse cabido
+
+**O que apareceu.** Duas execuções do APK morreram, e as duas disseram
+`cancelled` — a palavra que o GitHub usa quando o `timeout-minutes` mata o job,
+e que não distingue "travou" de "demorou". Lendo o log até o fim: aos 26 minutos
+começa `java.lang.OutOfMemoryError: Metaspace`, repetido por treze minutos, e
+depois **vinte minutos sem uma linha nova** até o relógio matar. Não era
+lentidão. Era o Gradle sem memória, batendo a cabeça em silêncio.
+
+O teto vinha do `android/gradle.properties` que o `expo prebuild` gera:
+`-Xmx2048m -XX:MaxMetaspaceSize=512m`. O runner tem 16 GB. **O limite era do
+arquivo gerado, não da máquina** — e como `android/` é ignorado pelo git, ele
+não aparece em nenhum diff: se regenera do zero a cada execução, sempre igual,
+sempre pequeno.
+
+**E embaixo disso, um nó.** O passo de caché era o `actions/cache@v4` inteiro,
+que só grava no *post* de um job que terminou. Job morto por timeout não grava.
+Então a execução seguinte também começava fria, também não cabia na hora, também
+era morta — **o caché que faria a compilação caber só existiria se ela já
+tivesse cabido**. O comentário no arquivo prometia "a segunda execução passa a
+levar minutos", e não havia segunda execução possível. Duas horas de runner
+queimadas provando isso.
+
+**Por que importa além do APK.** É a Fundação da capa aplicada a CI: o número
+que o dono ia usar ("não dá para gerar o instalador") estava errado, e a causa
+não estava no lugar onde a mensagem apontava. Um limite de tempo é teto, nunca
+explicação — e falha de memória usando o relógio como disfarce é a mais cara que
+existe, porque cada tentativa custa uma hora antes de dizer nada.
+
+**O que mudou.** Três coisas no `build-apk.yml`: memória de verdade para o
+Gradle (`-Xmx6g -XX:MaxMetaspaceSize=2g`), com `grep` conferindo que o `sed`
+casou — se o Expo renomear a chave numa versão futura, o passo falha na hora em
+vez de a compilação morrer igual daqui a meses; `cache/restore` e `cache/save`
+separados, com o save em `if: always()` e a chave carregando o `run_id`, para
+que **cada tentativa deixe para a próxima o que já compilou**; e o comentário do
+`timeout-minutes` dizendo o que ele é, para o próximo que ler não repetir a
+leitura errada.
+
+**O que ficou para a proofgate.** "Job com `timeout-minutes` usando
+`actions/cache@` inteiro" é padrão que um script pega: o caché nunca grava
+quando o relógio mata, e o sintoma é o mesmo sempre. Vai como guard, com teste
+positivo e negativo, no repositório dela.
