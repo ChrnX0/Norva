@@ -169,19 +169,21 @@ insert into items (id, company_id, kind, name, base_unit)
   values ('00000000-0000-4000-8000-0000000000b3', '00000000-0000-4000-8000-0000000000c2',
           'input', 'Their secret input', 'g');
 insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id,
-                       quantity_base_units, location_id, unit_cost_cents)
+                       quantity_base_units, location_id, unit_cost_rate)
   values ('00000000-0000-4000-8000-0000000000d2', '00000000-0000-4000-8000-0000000000c2',
           'production', now(), '00000000-0000-4000-8000-000000000001',
           '00000000-0000-4000-8000-0000000000b3', 1000,
-          '00000000-0000-4000-8000-0000000000a2', 999);
+          '00000000-0000-4000-8000-0000000000a2', 9.99);
 
 -- Give the first company's movement a cost, so there is something to hide.
 insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id,
-                       quantity_base_units, location_id, unit_cost_cents)
+                       quantity_base_units, location_id, unit_cost_rate)
   values ('00000000-0000-4000-8000-0000000000d3', '00000000-0000-4000-8000-0000000000c1',
           'production', now(), '00000000-0000-4000-8000-000000000001',
           '00000000-0000-4000-8000-0000000000b1', 100,
-          '00000000-0000-4000-8000-0000000000a1', 118);
+          -- Sub-cent on purpose: a gram of sugar out of a R$ 118 sack of 25 kg.
+          -- Stored as bigint cents, as it was until 0008, this is zero.
+          '00000000-0000-4000-8000-0000000000a1', 0.472);
 
 -- An owner of company 1, and an operator of company 1 with no view_cost.
 insert into memberships (company_id, user_id, display_name, capabilities)
@@ -227,15 +229,70 @@ stranger=$(as_user "00000000-0000-4000-8000-000000000001" "select count(*) from 
 
 # Cost is filtered by the policy, not by hiding a button: same row, same view,
 # and the operator gets a null where the owner gets a number.
-owner_cost=$(as_user "$OWNER" "select unit_cost_cents from movements_visible where id = '00000000-0000-4000-8000-0000000000d3';")
-[ "$owner_cost" = "118" ] || fail "the owner should see the cost, got '$owner_cost'"
+owner_cost=$(as_user "$OWNER" "select unit_cost_rate from movements_visible where id = '00000000-0000-4000-8000-0000000000d3';")
+[ "$owner_cost" = "0.472" ] || fail "the frozen cost lost its precision, got '$owner_cost'"
 
-operator_cost=$(as_user "$OPERATOR" "select coalesce(unit_cost_cents::text, 'null') from movements_visible where id = '00000000-0000-4000-8000-0000000000d3';")
+operator_cost=$(as_user "$OPERATOR" "select coalesce(unit_cost_rate::text, 'null') from movements_visible where id = '00000000-0000-4000-8000-0000000000d3';")
 [ "$operator_cost" = "null" ] || fail "an operator without view_cost saw the cost: '$operator_cost'"
 
 operator_rows=$(as_user "$OPERATOR" "select count(*) from movements_visible;")
 [ "$operator_rows" = "2" ] || fail "the operator should still see their movements, got $operator_rows"
 
 echo "    tenants isolated, and the operator sees the movement without the money"
+
+echo "==> check 5: the ledger accepts what phase 1 actually records"
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<'SQL'
+-- Somebody at the door: they may check in what arrived and count a shelf, and
+-- they may not see a cost. That is the whole point of capabilities.
+insert into auth.users (id) values ('00000000-0000-4000-8000-000000000004');
+insert into memberships (company_id, user_id, display_name, capabilities)
+  values ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-000000000004',
+          'Conferente', array['check_receipt','adjust_stock']::capability[]);
+
+grant insert on movements to app_user;
+SQL
+
+CHECKER=00000000-0000-4000-8000-000000000004
+M=00000000-0000-4000-8000-0000000000
+rows() { psql -d "$DB" -Atqc "$1"; }
+
+# Some of the inserts below are meant to be refused, so a non-zero exit is a
+# result rather than a crash. What is asserted is what ended up in the table.
+
+
+# The first movement any real factory records: sugar arriving against an
+# invoice. Until 0007 the enum had no word for it.
+as_user "$CHECKER" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
+  item_id, quantity_base_units, location_id, unit_cost_rate) values
+  ('${M}d4','${M}c1','purchase',now(),'$CHECKER','${M}b1',25000,'${M}a1',0.472);" >/dev/null 2>&1 || true
+posted=$(rows "select count(*) from movements where kind = 'purchase';")
+[ "$posted" = "1" ] || fail "a purchase could not be recorded"
+
+# A count that found the books correct. Worth storing precisely because
+# nothing moved: it is the difference between a checked shelf and a forgotten one.
+as_user "$CHECKER" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
+  item_id, quantity_base_units, location_id) values
+  ('${M}d5','${M}c1','adjustment',now(),'$CHECKER','${M}b1',0,'${M}a1');" >/dev/null 2>&1 || true
+counted=$(rows "select count(*) from movements where kind = 'adjustment' and quantity_base_units = 0;")
+[ "$counted" = "1" ] || fail "a count that found nothing wrong was refused"
+
+# And the relaxation stayed narrow. A production that produced nothing is
+# still nonsense and is still refused.
+as_user "$OWNER" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
+  item_id, quantity_base_units, location_id) values
+  ('${M}d6','${M}c1','production',now(),'$OWNER','${M}b1',0,'${M}a1');" >/dev/null 2>&1 || true
+empty=$(rows "select count(*) from movements where kind = 'production' and quantity_base_units = 0;")
+[ "$empty" = "0" ] || fail "a production that made nothing was accepted"
+
+# The new kind answers to a capability like every other one. An operator who
+# may record production may not sign for a delivery.
+as_user "$OPERATOR" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
+  item_id, quantity_base_units, location_id) values
+  ('${M}d7','${M}c1','purchase',now(),'$OPERATOR','${M}b1',1000,'${M}a1');" >/dev/null 2>&1 || true
+sneaked=$(rows "select count(*) from movements where id = '${M}d7';")
+[ "$sneaked" = "0" ] || fail "someone without check_receipt signed for a delivery"
+
+echo "    purchases post, an empty count is kept, an empty production is not"
 echo
-echo "OK - migrations apply and all four guarantees hold."
+echo "OK - migrations apply and all five guarantees hold."
+

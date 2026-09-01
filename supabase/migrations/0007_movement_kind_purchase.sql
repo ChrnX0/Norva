@@ -1,0 +1,16 @@
+-- The ledger had no word for the one movement phase 1 actually makes.
+--
+-- `movement_kind` was written from the factory outwards: production, transfer,
+-- sale, loss. Every one of them is stock the company already owns, moving.
+-- Nothing in the list describes stock arriving from a supplier against an
+-- invoice - which is the first movement any real installation will record,
+-- because a factory buys sugar before it makes anything.
+--
+-- The gap was invisible while the ledger lived only on the server. It surfaced
+-- the moment the device grew one and had to name what a purchase does to a
+-- balance.
+--
+-- This is its own migration on purpose. Postgres will add a value to an enum
+-- inside a transaction, but refuses to let the same transaction *use* it, and
+-- the policy in the next step has to name it.
+alter type movement_kind add value if not exists 'purchase';
