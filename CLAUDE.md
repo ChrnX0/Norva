@@ -279,6 +279,28 @@ com esse número na mão. Os parciais são "funciona para o exemplo semeado" e
 que auditoria. O único ausente era a produção gravar a versão de receita usada,
 que é trabalho da Fase 2 de qualquer jeito.
 
+**Alvo: um mês, e o corte que o torna verdade — decisão do dono, 1 de setembro.**
+O plano inteiro dava 4 a 8 meses, e o que dominava esse número não era código: o
+Espelho da Loja precisa de meses de movimento real, e o fiscal é um microserviço
+.NET com certificado A1 e homologação na SEFAZ. Trabalhar mais rápido não encurta
+nenhum dos dois.
+
+O que cabe em um mês é **F2 + F3**: produção com lote e validade, etiqueta e QR,
+câmara fria com saldo, lojas e clientes com ficha de acordo, pedido com reserva,
+separação, os quatro postos de controle, app do entregador, devolução. No fim
+disso a fábrica para de usar papel para romaneio, conferência e etiqueta.
+
+Fica fora, e cada corte tem razão escrita: **o relatório** do Espelho (a captura
+entra — contagem cega e perdas com motivo; o relatório mente com duas semanas de
+dado), **o fiscal** (projeto à parte, e o plano já diz que nada depende dele),
+**as compras inteligentes** (precisam do prazo observado, que só existe depois) e
+**os trunfos** (PAC/POD, clima, roteirização — diferencial de mercado, não a dor
+de hoje).
+
+O risco nomeado: a F3 tem ergonomia que não se verifica sem aparelho — tela
+capacitiva a -18°C, luva, QR a um braço de distância. Isso pede rodadas depois de
+alguém usar, e elas cabem no mês só se o teste acontecer junto, não no fim.
+
 **O portão que sobrou é por item, não por fase.** Três perguntas, nesta ordem, e
 a primeira que reprovar decide:
 
