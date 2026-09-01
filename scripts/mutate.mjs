@@ -206,8 +206,8 @@ const DEFECTS = [
   },
   {
     file: 'src/data/repository.ts',
-    from: '      HAVING SUM(m.quantity_base_units) <> 0',
-    to: '      HAVING SUM(m.quantity_base_units) <> -1',
+    from: '     HAVING SUM(m.quantity_base_units) <> 0',
+    to: '     HAVING SUM(m.quantity_base_units) <> -1',
     hurts:
       'lugar esvaziado volta a aparecer como "0 g", e a tela manda alguém conferir uma prateleira onde não tem nada',
   },

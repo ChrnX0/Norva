@@ -6,6 +6,7 @@ import { costRecipe } from '@/domain/recipe';
 import { __setDb, migrate, migrationSteps, type Db, type SqlParam } from './db';
 import {
   balanceByLocation,
+  lastSentBaseUnits,
   recordProduction,
   savePlace,
   stockByPlace,
@@ -941,4 +942,40 @@ test('a place that was emptied is absent, not zero', async () => {
     [store.id, store.id],
   );
   assert.equal(ledger?.n, 4, 'the history of the round trip is all still there');
+});
+
+test('the guess for the next load reads what arrived, not what left', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [sugar] = (await listItems(LOCAL_COMPANY_ID)).filter((i) => i.name.includes('Açúcar'));
+  const factory = defaultLocationId(LOCAL_COMPANY_ID);
+  const store = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+
+  // Nothing has ever gone there, and the honest answer is that there is no
+  // guess. A field pre-filled with zero would be a lie dressed as helpfulness.
+  assert.equal(await lastSentBaseUnits(LOCAL_COMPANY_ID, sugar.id, store.id), null);
+
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: sugar.id,
+    fromLocationId: factory,
+    toLocationId: store.id,
+    baseUnits: 6000,
+    occurredAt: '2026-08-01T10:00:00Z',
+  });
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: sugar.id,
+    fromLocationId: factory,
+    toLocationId: store.id,
+    baseUnits: 4000,
+    occurredAt: '2026-08-20T10:00:00Z',
+  });
+
+  // The most recent one, and positive: a transfer writes two legs with the same
+  // absolute value and opposite signs, so reading the leaving leg instead would
+  // hand the screen a negative number that the button then refuses in silence.
+  const guess = await lastSentBaseUnits(LOCAL_COMPANY_ID, sugar.id, store.id);
+  assert.equal(guess, 4000);
+
+  // And it is per place: another store has its own history, or none.
+  const other = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Norte', kind: 'own_store' });
+  assert.equal(await lastSentBaseUnits(LOCAL_COMPANY_ID, sugar.id, other.id), null);
 });
