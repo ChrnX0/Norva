@@ -5,6 +5,23 @@ export * from './types';
 export { phase1Skills } from './skills';
 
 /**
+ * The assistant speaks Portuguese only, and that is a boundary rather than an
+ * oversight.
+ *
+ * The screens read every word from the dictionary and run in three languages.
+ * The assistant cannot follow yet, because what it matches on is Portuguese
+ * phrasing: "quanto custa", "comprei 4 sacos de". Translating the answers would
+ * be half a job - the questions would still only arrive in one language, and an
+ * assistant that answers in Spanish but only understands Portuguese is worse
+ * than one that is honestly monolingual.
+ *
+ * The design already says how this ends: when a language model does the
+ * matching, it maps any phrasing to a skill and its slots, and the language of
+ * the question stops being the matcher's problem. The answers move to the
+ * dictionary then, in the same change.
+ */
+
+/**
  * The one door every question goes through.
  *
  * Modules register what they can answer and what they can fill, so turning a

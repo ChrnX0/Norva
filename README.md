@@ -177,6 +177,26 @@ Proprietário. Todos os direitos reservados.
 
 ---
 
+## Idiomas
+
+As telas leem cada palavra de `src/i18n/locales/`, em **pt-BR, espanhol e
+inglês**. O tipo `Widen<T>` faz a estrutura ser verificada e a redação ser
+livre: acrescentar uma chave em português quebra a compilação das outras duas
+até serem escritas. Não existe caminho em que uma tela chegue ao aparelho com
+tradução faltando.
+
+O idioma é propriedade da **empresa**, não do aparelho — uma fábrica brasileira
+cujo dono lê em inglês continua rodando em português no chão de fábrica. Quem
+decide isso é `src/i18n/useLocale.ts`, num lugar só.
+
+**O assistente ainda é só português**, e isso é fronteira, não descuido: o que
+ele reconhece são frases em português. Traduzir as respostas seria meio
+trabalho — as perguntas continuariam chegando num idioma só. Quando o modelo de
+linguagem fizer o reconhecimento, o idioma da pergunta deixa de ser problema do
+casador, e as respostas vão para o dicionário na mesma mudança.
+
+---
+
 ## Rodando na web
 
 O mesmo código roda no navegador, o que é útil para ver o aplicativo sem
