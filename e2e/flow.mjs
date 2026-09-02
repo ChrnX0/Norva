@@ -22,6 +22,22 @@ import { chromium } from 'playwright-core';
  */
 
 const PORT = Number(process.env.E2E_PORT ?? 4178);
+
+/**
+ * `--only <pedaço do nome>` roda um subconjunto das verificações.
+ *
+ * Existe porque consertar UMA verificação custava a suíte inteira: quatro
+ * minutos de exportação e vinte e três navegações para ver uma linha mudar. O
+ * ciclo longo é o que faz alguém "consertar" pelo raciocínio em vez de rodar.
+ *
+ * Com filtro, a linha final DIZ que foi filtrada, e um filtro que não casa com
+ * nada falha em vez de imprimir "0/0 passaram" - que é a forma de todo defeito
+ * silencioso deste arquivo: um mecanismo relatando sucesso sem ter trabalhado.
+ */
+const ONLY = (() => {
+  const at = process.argv.indexOf('--only');
+  return at >= 0 ? (process.argv[at + 1] ?? '').toLowerCase() : '';
+})();
 const ROOT = join(process.cwd(), 'dist');
 /**
  * Left undefined by default so Playwright finds its own Chromium, which is what
@@ -254,14 +270,14 @@ check('the weather screen answers with or without internet', async (page) => {
 
   await page.getByRole('textbox', { name: 'Procurar cidade' }).fill('Recife');
   await page.getByText('Procurar cidade', { exact: true }).last().click();
-  await page.waitForTimeout(3000);
 
-  const depois = await screen(page);
-  assert.match(
-    depois,
-    /Recife|Nenhuma cidade com esse nome/,
-    'com rede a cidade aparece, sem rede o motivo aparece - as duas são resposta',
-  );
+  // A espera é do tamanho do prazo da chamada, não de um palpite: a busca
+  // desiste sozinha em oito segundos, e uma verificação que espera três
+  // reprovaria a tela por ela estar fazendo exatamente o que prometeu.
+  await page
+    .getByText(/Recife|Nenhuma cidade com esse nome/)
+    .first()
+    .waitFor({ timeout: 20000 });
 
   // E a porta que não depende de rede continua no lugar: sem previsão guardada
   // não há cartão na capa, então trocar a cidade tem que caber no menu.
@@ -900,8 +916,9 @@ try {
     args: ['--no-sandbox'],
   });
   let failures = 0;
+  const selected = ONLY ? checks.filter((c) => c.name.toLowerCase().includes(ONLY)) : checks;
 
-  for (const { name, fn } of checks) {
+  for (const { name, fn } of selected) {
     // A fresh context per check: separate storage, so each starts on a first
     // install exactly like a person opening the app for the first time.
     const context = await browser.newContext({ viewport: { width: 412, height: 915 } });
@@ -924,7 +941,10 @@ try {
   }
 
   await browser.close();
-  console.log(`\n${checks.length - failures}/${checks.length} passaram`);
+  console.log(
+    `\n${selected.length - failures}/${selected.length} passaram` +
+      (ONLY ? ` (filtrado por "${ONLY}" - não é a suíte inteira)` : ''),
+  );
 
   // A suite that registered nothing prints "0/0 passaram" and exits happy,
   // which is the same shape as every silent defect found today: a mechanism
@@ -933,7 +953,10 @@ try {
   if (checks.length === 0) {
     console.log('NENHUMA checagem registrada - a suíte não exercitou nada.');
   }
-  if (failures > 0 || checks.length === 0) process.exitCode = 1;
+  if (ONLY && selected.length === 0) {
+    console.log(`NENHUMA checagem casa com "${ONLY}" - o filtro não exercitou nada.`);
+  }
+  if (failures > 0 || checks.length === 0 || selected.length === 0) process.exitCode = 1;
 } finally {
   server.close();
 }
