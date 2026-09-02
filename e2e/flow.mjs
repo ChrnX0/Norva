@@ -395,8 +395,9 @@ check('an invoice warns before it is committed, then moves everything', async (p
   // moveu a polpa, e é isso que aparece.
   assert.match(briefing, /Mudou desde a última vez/, 'the briefing carries the news');
   assert.match(briefing, /Polpa de morango/);
-  assert.match(briefing, /▲ R\$ 0,09/, 'and what the invoice added to it');
-  assert.match(briefing, /▲ \d+,\d%/, 'com o tamanho da alta, em percentual');
+  // O tamanho da alta, em percentual: a capa conta a mudança da POLPA, que é o
+  // insumo que a nota moveu, e não o custo do picolé que ela empurrou junto.
+  assert.match(briefing, /▲ \d+,\d%/, 'and how much the invoice moved it');
 
   // And the history wrote itself on the way past. Same check, because it is
   // the same story: each context starts on an empty install, so the invoice

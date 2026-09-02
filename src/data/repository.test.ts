@@ -1088,6 +1088,60 @@ test('the day a run belongs to is when it happened, not when the phone told the 
   assert.equal(terca.find((r) => r.itemId === product.itemId)?.baseUnits, 500);
 });
 
+test('a kettle is refused when the sugar is in the store, not in the factory', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+
+  // Uma segunda sala, e a fábrica manda TUDO para lá. É um caminho que a tela
+  // de transferência já oferece hoje.
+  const { id: loja } = await savePlace(LOCAL_COMPANY_ID, {
+    name: 'Loja Centro',
+    kind: 'own_store',
+  });
+  const insumos = (await listItems(LOCAL_COMPANY_ID)).filter((i) => i.onHandBaseUnits > 0);
+  assert.ok(insumos.length > 0, 'o exemplo semeado tem insumo com saldo');
+
+  for (const insumo of insumos) {
+    await recordTransfer(LOCAL_COMPANY_ID, {
+      itemId: insumo.id,
+      baseUnits: insumo.onHandBaseUnits,
+      fromLocationId: fabrica,
+      toLocationId: loja,
+    });
+  }
+
+  // A empresa continua com o mesmo açúcar - ele só está em outra sala. Uma
+  // guarda que soma a empresa inteira não vê diferença nenhuma aqui, e é
+  // exatamente por isso que ela autorizava o tacho.
+  const total = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.id === insumos[0].id);
+  assert.equal(total?.onHandBaseUnits, insumos[0].onHandBaseUnits);
+
+  await assert.rejects(
+    () =>
+      recordProduction(LOCAL_COMPANY_ID, {
+        productId: product.id,
+        locationId: fabrica,
+        batches: 1,
+        unitsProduced: 400,
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof NotEnoughStockError);
+      // E diz o nome do insumo, não o uuid: com zero naquela sala, ele não tem
+      // uma linha sequer na consulta de saldo dali.
+      assert.ok(
+        error.missing.every((m) => !/^[0-9a-f-]{36}$/.test(m.name)),
+        `a falta é dita por nome: ${error.missing.map((m) => m.name).join(', ')}`,
+      );
+      return true;
+    },
+  );
+
+  // E o livro-razão não ficou com meia corrida: nada foi escrito.
+  const depois = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.id === product.itemId);
+  assert.equal(depois?.onHandBaseUnits ?? 0, 0);
+});
+
 test('the week the home screen draws carries the runs, and only the runs', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
   const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);

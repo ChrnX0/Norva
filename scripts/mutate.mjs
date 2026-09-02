@@ -29,6 +29,21 @@ import { spawnSync } from 'node:child_process';
 const DEFECTS = [
   {
     file: 'src/data/repository.ts',
+    from: '      WHERE m.company_id = ? AND m.location_id = ?\n      GROUP BY m.item_id, i.name`,',
+    to: '      WHERE m.company_id = ?\n      GROUP BY m.item_id, i.name`,',
+    hurts:
+      'o tacho passa a ser autorizado pelo açúcar que está na loja, a dez quilômetros dali, e o consumo entra na fábrica deixando a sala negativa',
+  },
+  {
+    file: 'src/domain/day.ts',
+    from: '    const day = localDate(event.occurredAt, timeZone);',
+    to: '    const day = event.occurredAt.slice(0, 10);',
+    hurts:
+      'a régua da semana passa a cortar o dia em UTC, e o tacho fechado às 22h aparece na coluna do dia seguinte',
+  },
+
+  {
+    file: 'src/data/repository.ts',
     from: "        AND o.status IN ('pending', 'open')",
     to: "        AND o.status IN ('pending', 'open', 'delivered')",
     hurts: 'pedido entregue continua contando como demanda, e a fabrica produz de novo o que ja saiu pela porta',
@@ -368,6 +383,23 @@ for (const defect of DEFECTS) {
 
   if (!original.includes(defect.from)) {
     console.log(`?  ${defect.file}: o trecho mudou — atualize esta mutação`);
+    console.log(`   ${defect.hurts}\n`);
+    survivors += 1;
+    continue;
+  }
+
+  // Duas ocorrências do mesmo trecho é uma mutação que mente.
+  //
+  // `String.replace` com texto troca a PRIMEIRA e cala sobre o resto. Quando o
+  // mesmo SQL aparece em duas funções — foi o caso do piso por local, que a
+  // contagem e a perda escrevem igual — o relatório diz "ok" tendo exercitado
+  // metade da regra, e a outra metade fica sem rede achando que tem. É a mesma
+  // família do `proofgate-allow` em comentário e da fila rodando como
+  // superusuário: o mecanismo relata sucesso sem ter feito o trabalho.
+  const hits = original.split(defect.from).length - 1;
+  if (hits > 1) {
+    console.log(`?  ${defect.file}: o trecho aparece ${hits} vezes`);
+    console.log(`   a troca pega só a primeira — dê contexto ao \`from\` até ele ser único`);
     console.log(`   ${defect.hurts}\n`);
     survivors += 1;
     continue;

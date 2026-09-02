@@ -1109,13 +1109,28 @@ export async function recordProduction(
   //
   // É a mesma forma da fundação de permissão deste projeto: a checagem roda
   // ANTES da escrita, então não existe linha errada para alguém corrigir depois.
+  //
+  // E o piso é o da SALA em que o tacho está, não o da empresa.
+  //
+  // A guarda somava o saldo de todos os lugares e escrevia o consumo em
+  // `input.locationId` - duas perguntas diferentes respondidas pela mesma
+  // consulta. Basta a fábrica mandar um saco de açúcar para a loja, que o
+  // aplicativo já faz pela tela de transferência, para a conta autorizar um
+  // tacho com o açúcar que está a dez quilômetros dali: a produção passa, o
+  // consumo entra na fábrica, e a fábrica fica negativa - o exato estado que
+  // esta guarda existe para impedir.
+  //
+  // É a mesma correção que a contagem já tinha ("contar a prateleira compara
+  // com aquela prateleira, não com a empresa inteira") e que a perda herdou.
+  // Enquanto houver um lugar só as duas contas dão igual, e é por isso que isto
+  // atravessou até aqui sem quebrar nada.
   const held = await conn.getAllAsync<{ item_id: string; name: string; on_hand: number }>(
     `SELECT m.item_id, i.name, COALESCE(SUM(m.quantity_base_units), 0) AS on_hand
        FROM movements m
        JOIN items i ON i.id = m.item_id
-      WHERE m.company_id = ?
+      WHERE m.company_id = ? AND m.location_id = ?
       GROUP BY m.item_id, i.name`,
-    [companyId],
+    [companyId, input.locationId],
   );
   const onHand = new Map(held.map((h) => [h.item_id, h.on_hand]));
 
@@ -1128,7 +1143,16 @@ export async function recordProduction(
     }))
     .filter((line) => line.held < line.needed);
 
-  if (missing.length > 0) throw new NotEnoughStockError(missing);
+  if (missing.length > 0) {
+    // O nome vem do catálogo, e a consulta extra só acontece no caminho que já
+    // vai falhar. Com o piso agora sendo o da sala, o insumo que falta pode ter
+    // ZERO linha em `movements` ali - some da consulta de saldo, e a tela diria
+    // ao operador o uuid do item em vez de "Polpa de morango".
+    const catalog = await labels(companyId);
+    throw new NotEnoughStockError(
+      missing.map((line) => ({ ...line, name: catalog[line.itemId] ?? line.name })),
+    );
+  }
 
   // A embalagem entra aqui, e não entrar era um defeito silencioso.
   //
