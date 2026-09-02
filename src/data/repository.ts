@@ -1416,6 +1416,75 @@ export async function productionOn(
   return rows.map((r) => ({ itemId: r.item_id, name: r.name, baseUnits: r.total }));
 }
 
+/** One destination's share of a day: who received it, and what. */
+export type Shipment = {
+  locationId: string;
+  locationName: string;
+  /** Mesmo tipo que `Place.kind`: texto, como o resto do repositório o trata. */
+  kind: string;
+  items: { itemId: string; name: string; baseUnits: number }[];
+};
+
+/**
+ * What left the factory between two instants, grouped by where it landed.
+ *
+ * A transfer writes two legs - one negative where it left, one positive where
+ * it arrived - so "where did it go" reads the POSITIVE legs and groups by
+ * `location_id`, which on that leg is the destination. `counterpart_location_id`
+ * says where it came from; the V6 migration added it and, until this function,
+ * no query in this repository had ever read it back.
+ *
+ * The result stays in base units on purpose. Turning grams and popsicles into
+ * "caixas" is a sentence, not a fact, and it cannot be done here: `breakdown()`
+ * works per item, and an item with no box layer - sugar, pulp - has no box to
+ * be counted in. A repository that returned "18 cx" would have invented a unit
+ * for half the rows.
+ */
+export async function shipmentsOn(
+  companyId: string,
+  fromIso: string,
+  toIso: string,
+): Promise<Shipment[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    location_id: string;
+    location_name: string;
+    kind: string;
+    item_id: string;
+    item_name: string;
+    total: number;
+  }>(
+    `SELECT m.location_id, l.name AS location_name, l.kind,
+            m.item_id, i.name AS item_name, SUM(m.quantity_base_units) AS total
+       FROM movements m
+       JOIN locations l ON l.id = m.location_id
+       JOIN items i ON i.id = m.item_id
+      WHERE m.company_id = ?
+        AND m.kind = 'transfer'
+        AND m.quantity_base_units > 0
+        AND m.occurred_at >= ?
+        AND m.occurred_at < ?
+      GROUP BY m.location_id, l.name, l.kind, m.item_id, i.name
+      HAVING total > 0
+      ORDER BY l.name, total DESC`,
+    [companyId, fromIso, toIso],
+  );
+
+  const byPlace = new Map<string, Shipment>();
+  for (const r of rows) {
+    const place = byPlace.get(r.location_id) ?? {
+      locationId: r.location_id,
+      locationName: r.location_name,
+      kind: r.kind,
+      items: [],
+    };
+    place.items.push({ itemId: r.item_id, name: r.item_name, baseUnits: r.total });
+    byPlace.set(r.location_id, place);
+  }
+
+  return [...byPlace.values()];
+}
+
 // --- erasing -----------------------------------------------------------------
 
 /**

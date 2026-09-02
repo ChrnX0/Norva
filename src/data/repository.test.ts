@@ -9,6 +9,7 @@ import {
   lastSentBaseUnits,
   recordProduction,
   productionOn,
+  shipmentsOn,
   savePlace,
   stockByPlace,
   recordTransfer,
@@ -715,6 +716,108 @@ test('the balance splits by place, and the company total does not move', async (
     after?.onHandBaseUnits,
     'the places add up to the company - that is what makes both queries one arithmetic',
   );
+});
+
+test('what went out is grouped by where it landed, in the units each item has', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const centro = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+  const norte = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Norte', kind: 'own_store' });
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+
+  const items = await listItems(LOCAL_COMPANY_ID);
+  const acucar = items.find((i) => i.name.includes('Açúcar'));
+  const polpa = items.find((i) => i.name.includes('Polpa'));
+  assert.ok(acucar && polpa, 'o exemplo semeado tem os dois insumos');
+
+  const quando = '2026-09-01T14:00:00.000Z';
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: acucar.id,
+    fromLocationId: fabrica,
+    toLocationId: centro.id,
+    baseUnits: 6000,
+    occurredAt: quando,
+  });
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: polpa.id,
+    fromLocationId: fabrica,
+    toLocationId: centro.id,
+    baseUnits: 4000,
+    occurredAt: quando,
+  });
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: acucar.id,
+    fromLocationId: fabrica,
+    toLocationId: norte.id,
+    baseUnits: 2000,
+    occurredAt: quando,
+  });
+
+  const dia = await shipmentsOn(
+    LOCAL_COMPANY_ID,
+    '2026-09-01T00:00:00.000Z',
+    '2026-09-02T00:00:00.000Z',
+  );
+
+  // Dois destinos, e a fábrica NÃO é um deles: ela é a origem, e a perna dela é
+  // negativa. Se a consulta lesse as duas pernas, a fábrica apareceria como
+  // destino de si mesma e o total do dia dobraria.
+  assert.equal(dia.length, 2);
+  assert.ok(!dia.some((d) => d.locationId === fabrica), 'a origem não é destino');
+
+  const paraCentro = dia.find((d) => d.locationName === 'Loja Centro');
+  assert.equal(paraCentro?.items.length, 2, 'dois itens diferentes no mesmo destino');
+  assert.equal(paraCentro?.kind, 'own_store');
+  assert.equal(paraCentro?.items.find((i) => i.itemId === acucar.id)?.baseUnits, 6000);
+
+  // E o que volta é unidade-base, nunca "caixa": açúcar não tem camada de caixa,
+  // e uma consulta que devolvesse "cx" teria inventado uma unidade para metade
+  // das linhas.
+  const total = dia.flatMap((d) => d.items).reduce((n, i) => n + i.baseUnits, 0);
+  assert.equal(total, 12000);
+});
+
+test('a return on the same day does not quietly shrink what the store received', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const centro = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const acucar = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.name.includes('Açúcar'));
+  assert.ok(acucar);
+
+  const manha = '2026-09-01T11:00:00.000Z';
+  const tarde = '2026-09-01T17:00:00.000Z';
+
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: acucar.id,
+    fromLocationId: fabrica,
+    toLocationId: centro.id,
+    baseUnits: 6000,
+    occurredAt: manha,
+  });
+  // A loja devolve parte à tarde - acontece, e é a razão de a devolução estar
+  // no plano do mês.
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: acucar.id,
+    fromLocationId: centro.id,
+    toLocationId: fabrica,
+    baseUnits: 1000,
+    occurredAt: tarde,
+  });
+
+  const dia = await shipmentsOn(
+    LOCAL_COMPANY_ID,
+    '2026-09-01T00:00:00.000Z',
+    '2026-09-02T00:00:00.000Z',
+  );
+
+  // A loja RECEBEU 6.000 hoje. Somar as duas pernas dela daria 5.000 - e a tela
+  // diria que saiu menos do que saiu, escondendo tanto a remessa quanto a
+  // devolução. São dois fatos, não um saldo.
+  const paraCentro = dia.find((d) => d.locationName === 'Loja Centro');
+  assert.equal(paraCentro?.items[0]?.baseUnits, 6000, 'a devolução não pode abater a remessa');
+
+  // E a devolução aparece como o que é: mil gramas que chegaram na fábrica.
+  const paraFabrica = dia.find((d) => d.locationId === fabrica);
+  assert.equal(paraFabrica?.items[0]?.baseUnits, 1000);
 });
 
 test('the day a run belongs to is when it happened, not when the phone told the server', async () => {
