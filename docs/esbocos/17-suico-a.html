@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>NORVA — Suíço com pictograma</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:412px;min-height:915px;overflow-x:hidden;background:#f4f3ee;color:#111;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+ -webkit-font-smoothing:antialiased}
+.wrap{padding:14px 20px 108px}
+
+/* cabeçalho — régua grossa */
+.hd{border-top:7px solid #111;border-bottom:1px solid #111;
+ display:flex;justify-content:space-between;align-items:baseline;padding:8px 0 9px}
+.brand{font-size:17px;font-weight:800;letter-spacing:.3em}
+.dt{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
+
+/* número do dia */
+.big{font-size:84px;font-weight:800;letter-spacing:-.065em;line-height:.84;margin:14px 0 0}
+.unit{font-size:12px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;margin-top:6px}
+.chips{display:flex;gap:6px;margin-top:9px}
+.chip{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
+ padding:6px 9px;border:2px solid #111;line-height:1}
+.chip.acc{background:#e2340a;border-color:#e2340a;color:#fff}
+
+/* régua de sete dias */
+.wk{margin-top:13px;border-top:6px solid #111;padding-top:12px}
+.bars{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;height:68px;align-items:end}
+.bars i{display:block;background:#111}
+.bars i.on{background:#e2340a}
+.dl{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:6px;
+ font-size:10px;font-weight:800;letter-spacing:.06em;text-align:center;border-top:2px solid #111;padding-top:5px}
+.dl b.on{color:#e2340a}
+
+/* clima — pictograma grande + temperatura enorme */
+.wx{margin-top:13px;border:3px solid #111;display:grid;grid-template-columns:118px 1fr}
+.wxL{background:#cfe3fb;border-right:3px solid #111;display:flex;align-items:center;justify-content:center}
+.wxR{padding:10px 14px 8px}
+.kick{font-size:10px;font-weight:800;letter-spacing:.2em;text-transform:uppercase}
+.wxT{font-size:52px;font-weight:800;letter-spacing:-.055em;line-height:.9;margin:2px 0 6px}
+.wxrow{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;
+ letter-spacing:.08em;text-transform:uppercase;padding:4px 0;border-top:1px solid #111}
+.wxrow em{font-style:normal;margin-left:auto}
+.dot{width:10px;height:10px;flex:0 0 10px}
+
+/* tabela com pictograma */
+.rows{margin-top:13px;border-top:6px solid #111}
+.row{display:grid;grid-template-columns:46px 1fr auto;gap:13px;align-items:center;
+ padding:8px 0;border-bottom:1px solid #111}
+.rt{font-size:14px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;line-height:1.1}
+.rs{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#77776e;margin-top:4px}
+.rv{font-size:21px;font-weight:800;letter-spacing:-.02em;text-align:right;line-height:1}
+.rv small{display:block;font-size:9px;font-weight:800;letter-spacing:.12em;color:#77776e;margin-top:4px}
+.up{color:#e2340a}.down{color:#0a8f45}
+</style></head>
+<body>
+<div class="wrap">
+
+  <div class="hd"><div class="brand">NORVA</div><div class="dt">Quarta · 02 set</div></div>
+
+  <div class="big">500</div>
+  <div class="unit">Unidades produzidas hoje</div>
+  <div class="chips">
+    <div class="chip">Ontem 478</div>
+    <div class="chip acc">▲ +19 vs. quarta passada</div>
+  </div>
+
+  <div class="wk">
+    <div class="bars">
+      <i style="height:38%"></i><i style="height:44%"></i><i style="height:41%"></i>
+      <i style="height:6%"></i><i style="height:82%"></i><i style="height:46%"></i>
+      <i class="on" style="height:64%"></i>
+    </div>
+    <div class="dl"><b>QUI</b><b>SEX</b><b>SÁB</b><b>DOM</b><b>SEG</b><b>TER</b><b class="on">QUA</b></div>
+  </div>
+
+  <div class="wx">
+    <div class="wxL">
+      <svg width="102" height="97" viewBox="0 0 118 112" fill="none" aria-hidden="true">
+        <g stroke="#111" stroke-width="4" stroke-linecap="round">
+          <path d="M40 6v11"/><path d="M13 21l8 8"/><path d="M4 50h11"/><path d="M13 79l8-8"/><path d="M67 21l-8 8"/>
+        </g>
+        <circle cx="40" cy="50" r="19" fill="#f5b301" stroke="#111" stroke-width="4"/>
+        <path d="M45 92h44a13 13 0 0 0 0-26 18 18 0 0 0-34-7 20 20 0 0 0-10 33z"
+              fill="#fff" stroke="#111" stroke-width="4" stroke-linejoin="round"/>
+        <g fill="#1148c9">
+          <path d="M54 97c4 6 4 8 0 9-4-1-4-3 0-9z"/>
+          <path d="M70 99c4 6 4 8 0 9-4-1-4-3 0-9z"/>
+          <path d="M86 97c4 6 4 8 0 9-4-1-4-3 0-9z"/>
+        </g>
+      </svg>
+    </div>
+    <div class="wxR">
+      <div class="kick">São Paulo</div>
+      <div class="wxT">21°</div>
+      <div class="wxrow"><span class="dot" style="background:#1148c9"></span>Mínima <em>13°</em></div>
+      <div class="wxrow"><span class="dot" style="background:#4f8ff0"></span>Chuva <em>47%</em></div>
+      <div class="wxrow"><span class="dot" style="background:#e2340a"></span>Amanhã <em class="up">+4°</em></div>
+    </div>
+  </div>
+
+  <div class="rows">
+
+    <div class="row">
+      <svg width="46" height="46" viewBox="0 0 52 52"><circle cx="26" cy="26" r="24" fill="#e2340a"/></svg>
+      <div><div class="rt">Polpa de morango</div><div class="rs">Insumo acabando</div></div>
+      <div class="rv up">1 dia<small>até acabar</small></div>
+    </div>
+
+    <div class="row">
+      <svg width="46" height="46" viewBox="0 0 52 52"><polygon points="26,2 50,48 2,48" fill="#1148c9"/></svg>
+      <div><div class="rt">Saiu para as lojas</div><div class="rs">Expedição de hoje</div></div>
+      <div class="rv">1<small>caixa</small></div>
+    </div>
+
+    <div class="row">
+      <svg width="46" height="46" viewBox="0 0 52 52"><rect x="3" y="3" width="46" height="46" fill="#f5b301"/></svg>
+      <div><div class="rt">Açúcar cristal</div><div class="rs">Preço · 30 dias</div></div>
+      <div class="rv down">▼ 2,2%<small>mais barato</small></div>
+    </div>
+
+    <div class="row">
+      <svg width="46" height="46" viewBox="0 0 52 52"><polygon points="26,2 48,14 48,38 26,50 4,38 4,14" fill="#0a8f45"/></svg>
+      <div><div class="rt">Glucose 38DE</div><div class="rs">Preço · 30 dias</div></div>
+      <div class="rv up">▲ 0,9%<small>mais cara</small></div>
+    </div>
+
+    <div class="row">
+      <svg width="46" height="46" viewBox="0 0 52 52"><polygon points="26,2 50,26 26,50 2,26" fill="#7b3fe4"/></svg>
+      <div><div class="rt">Polpa de morango</div><div class="rs">Preço · 30 dias</div></div>
+      <div class="rv down">▼ 0,6%<small>mais barata</small></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Barra de abas com os ícones do app. Troque apenas as cores nas variáveis. -->
+<style>
+.tabbar{position:fixed;bottom:0;left:0;right:0;height:78px;display:flex;align-items:center;
+ justify-content:space-around;padding-bottom:14px;font-size:11px;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+.tabbar a{display:flex;flex-direction:column;align-items:center;gap:5px;text-decoration:none}
+.tabbar svg{display:block}
+</style>
+<div class="tabbar" style="background:var(--tabbg,#fff);border-top:1px solid var(--tabline,#111);color:var(--tabink,#77776e)">
+  <a style="color:var(--tabon,#e2340a)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>
+    <span style="color:var(--tabon,#e2340a);font-weight:600">Início</span></a>
+  <a style="color:var(--c2,#1148c9)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="6" y="2.5" width="12" height="14" rx="6"/><path d="M12 16.5v5"/></svg>
+    <span style="color:var(--tabink,#77776e)">Produção</span></a>
+  <a style="color:var(--c3,#0a8f45)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5h11v9H2z"/><path d="M13 11h4l3.5 3.5v2H13z"/><circle cx="6.5" cy="18.5" r="1.9"/><circle cx="16.5" cy="18.5" r="1.9"/></svg>
+    <span style="color:var(--tabink,#77776e)">Transporte</span></a>
+  <a style="color:var(--c4,#c98a00)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 20h16"/><path d="M6.5 20v-6"/><path d="M12 20V5"/><path d="M17.5 20v-9"/></svg>
+    <span style="color:var(--tabink,#77776e)">Relatórios</span></a>
+  <a style="color:var(--c5,#7b3fe4)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg>
+    <span style="color:var(--tabink,#77776e)">Mais</span></a>
+</div>
+</body></html>

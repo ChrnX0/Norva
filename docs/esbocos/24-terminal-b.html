@@ -1,0 +1,247 @@
+<!doctype html><meta charset="utf-8"><title>NORVA</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:412px;min-height:915px;overflow-x:hidden;-webkit-font-smoothing:antialiased;
+ font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+ background:#08090c;color:#e6e9f0;
+ --tabbg:#0b0c10;--tabline:#1e212a;--tabink:#5d6270;--tabon:#38e08b;
+ --c2:#ffb02e;--c3:#9d7bff;--c4:#4fd1ff;--c5:#8f95a3}
+.wrap{padding:13px 14px 93px}
+
+.top{display:flex;align-items:center;justify-content:space-between;
+ border:1px solid #1e2230;border-radius:9px;padding:8px 11px;background:#101219}
+.brand{font-size:17px;font-weight:700;letter-spacing:.32em;color:#f1f4fa}
+.led{display:inline-block;width:7px;height:7px;border-radius:50%;background:#38e08b;
+ box-shadow:0 0 8px #38e08b;margin-right:9px;vertical-align:2px}
+.date{font-size:9.5px;letter-spacing:.13em;color:#798094;text-align:right;line-height:1.55}
+
+.panel{border:1px solid #1e2230;border-radius:11px;background:#0f1117;margin-top:10px;padding:9px 11px 10px}
+.cap{display:flex;align-items:center;gap:7px;font-size:9.5px;letter-spacing:.19em;
+ text-transform:uppercase;font-weight:600}
+.cap svg{display:block;flex:none}
+.cap span{color:#8b93a6}
+.cap b{margin-left:auto;font-size:9.5px;letter-spacing:.12em;color:#5d6473;font-weight:600}
+
+.read{display:flex;align-items:flex-end;gap:9px;margin-top:6px}
+.read .n{font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:.92;color:#f4f7ff;font-variant-numeric:tabular-nums}
+.read .u{font-size:11px;letter-spacing:.16em;color:#798094;padding-bottom:5px}
+.read .d{margin-left:auto;font-size:11.5px;font-weight:700;color:#38e08b;padding-bottom:5px}
+
+.pbrow{display:grid;grid-template-columns:70px 1fr;align-items:center;gap:9px;margin-top:5px}
+.pbk{font-size:9.5px;letter-spacing:.12em;color:#798094;text-transform:uppercase}
+.pb{position:relative;height:22px;border-radius:4px;background:#151924;border:1px solid #1e2432;overflow:hidden}
+.pb i{position:absolute;left:0;top:0;bottom:0;border-radius:3px}
+.pb u{position:absolute;right:7px;top:0;bottom:0;display:flex;align-items:center;
+ font-size:11px;font-weight:700;text-decoration:none;font-variant-numeric:tabular-nums;color:#dbe3f0}
+.pb u.out{color:#9aa3b5}
+.ruler{margin-top:6px;margin-left:79px;position:relative;height:16px;border-top:1px solid #1e2432}
+.ruler i{position:absolute;top:0;width:1px;height:4px;background:#2a3142}
+.ruler s{position:absolute;top:6px;font-size:8.5px;color:#5d6473;text-decoration:none;transform:translateX(-50%);letter-spacing:.05em}
+
+.wk{display:flex;align-items:flex-end;gap:5px;height:32px;margin-top:9px;border-bottom:1px solid #1e2432}
+.wk i{flex:1;background:#1d2a3a;border-radius:2px 2px 0 0}
+.wk i.on{background:#38e08b;box-shadow:0 0 10px rgba(56,224,139,.45)}
+.wkl{display:flex;gap:5px;margin-top:5px;font-size:8.5px;color:#5d6473;letter-spacing:.05em}
+.wkl span{flex:1;text-align:center}
+.wkl span.on{color:#38e08b;font-weight:700}
+
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.duo .panel{margin-top:0}
+.face{background:#0b0d12;border:1px solid #1b202c;border-radius:9px;margin-top:8px;padding:6px 4px 4px;
+ display:flex;justify-content:center}
+.dig{font-size:27px;font-weight:700;letter-spacing:-.02em;color:#f4f7ff;font-variant-numeric:tabular-nums}
+.dig em{font-size:10px;font-style:normal;letter-spacing:.13em;color:#798094;margin-left:5px}
+.note{font-size:10.5px;color:#8b93a6;margin-top:7px;line-height:1.45}
+.note b{color:#dbe1ee;font-weight:600}
+
+.gauges{display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:center;margin-top:2px}
+.legend{display:flex;gap:11px;flex-wrap:wrap;font-size:9.5px;color:#798094;margin-top:6px;letter-spacing:.04em}
+.legend b{color:#dbe1ee;font-weight:700}
+.key{display:inline-block;width:9px;height:3px;border-radius:2px;vertical-align:3px;margin-right:4px}
+
+.mrow{display:grid;grid-template-columns:1fr 150px 58px;align-items:center;gap:8px;
+ padding:6px 0;border-top:1px solid #171c27;font-size:11px;color:#a5adbe;letter-spacing:.03em}
+.mrow:first-of-type{border-top:0}
+.meter{position:relative;height:15px;background:#12161f;border:1px solid #1c2230;border-radius:3px}
+.meter .z{position:absolute;left:50%;top:-1px;bottom:-1px;width:1px;background:#3a4256}
+.meter i{position:absolute;top:2px;bottom:2px}
+.meter u{position:absolute;top:-3px;bottom:-3px;width:2px;border-radius:1px;text-decoration:none}
+.mv{text-align:right;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.dn{color:#38e08b}.up{color:#ffb02e}
+
+.tabbar{position:fixed;bottom:0;left:0;right:0;height:78px;display:flex;align-items:center;
+ justify-content:space-around;padding-bottom:14px;font-size:11px;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+.tabbar a{display:flex;flex-direction:column;align-items:center;gap:5px;text-decoration:none}
+.tabbar svg{display:block}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><span class="led"></span>NORVA</div>
+    <div class="date">QUA · 02.09<br>quarta-feira, 2 de setembro</div>
+  </div>
+
+  <!-- PRODUÇÃO: barra de progresso grossa -->
+  <div class="panel">
+    <div class="cap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38e08b" stroke-width="1.9" stroke-linecap="round"><rect x="6" y="2.5" width="12" height="14" rx="6"/><path d="M12 16.5v5"/></svg>
+      <span>produção · hoje</span><b>UN</b>
+    </div>
+    <div class="read">
+      <div class="n">500</div><div class="u">UNIDADES</div>
+      <div class="d">+19 vs. qua passada</div>
+    </div>
+
+    <div class="pbrow"><div class="pbk">hoje</div>
+      <div class="pb"><i style="width:75%;background:repeating-linear-gradient(90deg,#38e08b 0 9px,#26b56d 9px 11px)"></i><u>500</u></div></div>
+    <div class="pbrow"><div class="pbk">ontem</div>
+      <div class="pb"><i style="width:47.5%;background:repeating-linear-gradient(90deg,#2c4a5f 0 9px,#25404f 9px 11px)"></i><u class="out">478</u></div></div>
+    <div class="pbrow"><div class="pbk">qua passada</div>
+      <div class="pb"><i style="width:51.25%;background:repeating-linear-gradient(90deg,#3a3f52 0 9px,#31364a 9px 11px)"></i><u class="out">19 abaixo</u></div></div>
+    <div class="ruler">
+      <i style="left:0"></i><i style="left:25%"></i><i style="left:50%"></i><i style="left:75%"></i><i style="right:0"></i>
+      <s style="left:0;transform:none">440</s><s style="left:25%">460</s><s style="left:50%">480</s><s style="left:75%">500</s><s style="left:100%;transform:translateX(-100%)">520</s>
+    </div>
+
+    <div class="wk">
+      <i style="height:38%"></i><i style="height:44%"></i><i style="height:41%"></i><i style="height:6%"></i><i style="height:82%"></i><i style="height:46%"></i><i class="on" style="height:64%"></i>
+    </div>
+    <div class="wkl"><span>qui</span><span>sex</span><span>sáb</span><span>dom</span><span>seg</span><span>ter</span><span class="on">qua</span></div>
+  </div>
+
+  <!-- CLIMA: mostrador de ponteiro -->
+  <div class="panel">
+    <div class="cap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4fd1ff" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.2 5.2l1.9 1.9M16.9 16.9l1.9 1.9M18.8 5.2l-1.9 1.9M7.1 16.9l-1.9 1.9"/></svg>
+      <span>são paulo · agora</span><b>°C</b>
+    </div>
+    <div class="gauges">
+      <svg width="158" height="98" viewBox="0 0 180 112">
+        <path d="M28 86 A62 62 0 0 1 66.27 28.72" fill="none" stroke="#2b5f8a" stroke-width="9"/>
+        <path d="M66.27 28.72 A62 62 0 0 1 126.44 35.84" fill="none" stroke="#2e7f66" stroke-width="9"/>
+        <path d="M126.44 35.84 A62 62 0 0 1 152 86" fill="none" stroke="#8a6a24" stroke-width="9"/>
+        <g stroke="#4a5568" stroke-width="1.4">
+          <path d="M28 86h7M32.72 62.27l6.47-2.68M46.16 42.16l4.95 4.95M66.27 28.72l2.68 5.3M90 24v7M113.73 28.72l-2.68 5.3M133.84 42.16l-4.95 4.95M147.28 62.27l-6.47-2.68M152 86h-7"/>
+        </g>
+        <g font-family="ui-monospace,Menlo,monospace" font-size="9" fill="#5d6473" text-anchor="middle">
+          <text x="16" y="89">0</text><text x="36" y="35">10</text><text x="90" y="14">20</text><text x="144" y="35">30</text><text x="164" y="89">40</text>
+        </g>
+        <path d="M57.6 33.1 L61.8 40.0" stroke="#4fd1ff" stroke-width="3" stroke-linecap="round"/>
+        <path d="M113.73 28.72 L111.05 34.02" stroke="#ffb02e" stroke-width="3" stroke-linecap="round"/>
+        <path d="M90 86 L94.08 34.16" stroke="#ff6b4a" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="90" cy="86" r="7" fill="#0f1117" stroke="#ff6b4a" stroke-width="2.4"/>
+        <text x="90" y="106" font-family="ui-monospace,Menlo,monospace" font-size="19" font-weight="700" fill="#f4f7ff" text-anchor="middle">21,0°</text>
+      </svg>
+      <div style="text-align:center">
+        <svg width="88" height="88" viewBox="0 0 92 92">
+          <circle cx="46" cy="46" r="32" fill="none" stroke="#182231" stroke-width="10"/>
+          <circle cx="46" cy="46" r="32" fill="none" stroke="#4fd1ff" stroke-width="10" stroke-linecap="round"
+                  stroke-dasharray="94.5 201.1" transform="rotate(-90 46 46)"/>
+          <g stroke="#4fd1ff" stroke-width="2" stroke-linecap="round" opacity=".9">
+            <path d="M40 32l-2 5M46 30l-2 5M52 32l-2 5"/></g>
+          <text x="46" y="53" font-family="ui-monospace,Menlo,monospace" font-size="18" font-weight="700" fill="#f4f7ff" text-anchor="middle">47%</text>
+          <text x="46" y="66" font-family="ui-monospace,Menlo,monospace" font-size="9" fill="#798094" text-anchor="middle">CHUVA</text>
+        </svg>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="key" style="background:#ff6b4a"></i>agora <b>21°</b></span>
+      <span><i class="key" style="background:#4fd1ff"></i>mínima <b>13°</b></span>
+      <span><i class="key" style="background:#ffb02e"></i>amanhã <b>+4°</b></span>
+    </div>
+  </div>
+
+  <!-- INSUMO (nível) + EXPEDIÇÃO (contador) -->
+  <div class="duo">
+    <div class="panel">
+      <div class="cap">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ffb02e" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3.2c3.6 4.2 5.6 7 5.6 9.4A5.6 5.6 0 0 1 12 18.2a5.6 5.6 0 0 1-5.6-5.6c0-2.4 2-5.2 5.6-9.4z"/></svg>
+        <span>nível</span>
+      </div>
+      <div class="face" style="padding:7px 2px 3px">
+        <svg width="152" height="106" viewBox="0 0 152 106">
+          <defs>
+            <pattern id="hz" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <line x1="0" y1="0" x2="0" y2="7" stroke="#ff5a4a" stroke-width="2.4" stroke-opacity=".38"/>
+            </pattern>
+          </defs>
+          <rect x="38" y="6" width="42" height="90" rx="9" fill="#0a0d13" stroke="#2a3242" stroke-width="1.6"/>
+          <rect x="38" y="72" width="42" height="24" fill="url(#hz)"/>
+          <rect x="40.5" y="82" width="37" height="12" rx="5" fill="#ff8a3d"/>
+          <g stroke="#39414f" stroke-width="1.4">
+            <path d="M32 12h6M32 30h6M32 48h6M32 66h6M32 84h6M32 94h6"/>
+          </g>
+          <g font-family="ui-monospace,Menlo,monospace" font-size="8" fill="#5d6473" text-anchor="end">
+            <text x="29" y="15">cheio</text><text x="29" y="97">0</text>
+          </g>
+          <path d="M36 72h48" stroke="#ff5a4a" stroke-width="1.2" stroke-dasharray="3 3" opacity=".8"/>
+          <text x="88" y="70" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="#ff5a4a">crítico</text>
+          <path d="M84 88h10" stroke="#ff8a3d" stroke-width="1.6" stroke-dasharray="3 3"/>
+          <text x="98" y="93" font-family="ui-monospace,Menlo,monospace" font-size="16" font-weight="700" fill="#ff8a3d">1</text>
+          <text x="110" y="93" font-family="ui-monospace,Menlo,monospace" font-size="9" fill="#a5adbe">dia</text>
+        </svg>
+      </div>
+      <div class="note"><b>Polpa de morango</b><br>acaba em 1 dia · menor cobertura</div>
+    </div>
+
+    <div class="panel">
+      <div class="cap">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9d7bff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5h11v9H2z"/><path d="M13 11h4l3.5 3.5v2H13z"/><circle cx="6.5" cy="18.5" r="1.9"/><circle cx="16.5" cy="18.5" r="1.9"/></svg>
+        <span>expedição</span>
+      </div>
+      <div class="face" style="padding:10px 6px 8px">
+        <div class="dig"><span style="color:#232a38">00</span>1<em>CX</em></div>
+      </div>
+      <div class="face" style="padding:8px 6px 6px">
+        <svg width="126" height="52" viewBox="0 0 126 52">
+          <rect x="4" y="16" width="54" height="26" rx="3" fill="none" stroke="#6a5cb0" stroke-width="1.6"/>
+          <path d="M58 24h18l14 12v6H58z" fill="none" stroke="#6a5cb0" stroke-width="1.6" stroke-linejoin="round"/>
+          <circle cx="22" cy="44" r="3.4" fill="#0b0d12" stroke="#9d7bff" stroke-width="1.6"/>
+          <circle cx="80" cy="44" r="3.4" fill="#0b0d12" stroke="#9d7bff" stroke-width="1.6"/>
+          <rect x="14" y="7" width="17" height="12" rx="2" fill="#9d7bff" fill-opacity=".85"/>
+          <g stroke="#9d7bff" stroke-width="1.6" stroke-linecap="round" opacity=".55">
+            <path d="M100 22h18M104 30h14M108 38h10"/></g>
+        </svg>
+      </div>
+      <div class="note">caixa saiu <b>hoje</b><br>de <b>500 un</b> produzidas</div>
+    </div>
+  </div>
+
+  <!-- CUSTO: medidores de desvio -->
+  <div class="panel">
+    <div class="cap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4fd1ff" stroke-width="1.9" stroke-linecap="round"><path d="M4 20h16"/><path d="M6.5 20v-6"/><path d="M12 20V5"/><path d="M17.5 20v-9"/></svg>
+      <span>custo de insumo</span><b>±3%</b>
+    </div>
+    <div style="margin-top:4px">
+      <div class="mrow"><span>POLPA DE MORANGO</span>
+        <span class="meter"><span class="z"></span><i style="left:40%;width:10%;background:#38e08b;opacity:.55"></i><u style="left:40%;background:#38e08b"></u></span>
+        <span class="mv dn">▼0,6%</span></div>
+      <div class="mrow"><span>AÇÚCAR CRISTAL</span>
+        <span class="meter"><span class="z"></span><i style="left:13.3%;width:36.7%;background:#38e08b;opacity:.55"></i><u style="left:13.3%;background:#38e08b"></u></span>
+        <span class="mv dn">▼2,2%</span></div>
+      <div class="mrow"><span>GLUCOSE 38DE</span>
+        <span class="meter"><span class="z"></span><i style="left:50%;width:15%;background:#ffb02e;opacity:.55"></i><u style="left:65%;background:#ffb02e"></u></span>
+        <span class="mv up">▲0,9%</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="tabbar" style="background:var(--tabbg,#101014);border-top:1px solid var(--tabline,#23232b);color:var(--tabink,#6d6d78)">
+  <a style="color:var(--tabon,#8fb6d8)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>
+    <span style="color:var(--tabon,#8fb6d8);font-weight:600">Início</span></a>
+  <a style="color:var(--c2,#e2a283)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="6" y="2.5" width="12" height="14" rx="6"/><path d="M12 16.5v5"/></svg>
+    <span style="color:var(--tabink,#6d6d78)">Produção</span></a>
+  <a style="color:var(--c3,#ab9bdd)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5h11v9H2z"/><path d="M13 11h4l3.5 3.5v2H13z"/><circle cx="6.5" cy="18.5" r="1.9"/><circle cx="16.5" cy="18.5" r="1.9"/></svg>
+    <span style="color:var(--tabink,#6d6d78)">Transporte</span></a>
+  <a style="color:var(--c4,#d9b76a)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 20h16"/><path d="M6.5 20v-6"/><path d="M12 20V5"/><path d="M17.5 20v-9"/></svg>
+    <span style="color:var(--tabink,#6d6d78)">Relatórios</span></a>
+  <a style="color:var(--c5,#a8a39b)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg>
+    <span style="color:var(--tabink,#6d6d78)">Mais</span></a>
+</div>

@@ -1,0 +1,229 @@
+<!doctype html><meta charset="utf-8"><title>NORVA — vidro em mosaico</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:412px;min-height:915px;overflow-x:hidden;background:#0c0f1c;color:#f4f5fb;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+ -webkit-font-smoothing:antialiased}
+
+.bg{position:fixed;inset:0;background:
+ radial-gradient(420px 300px at 88% 4%,#f0709966,transparent 62%),
+ radial-gradient(460px 340px at 6% 22%,#5b7cfa66,transparent 62%),
+ radial-gradient(380px 300px at 96% 52%,#ffb03a55,transparent 62%),
+ radial-gradient(500px 380px at 20% 86%,#1fb98f5c,transparent 62%),
+ radial-gradient(360px 260px at 78% 96%,#8b5cf655,transparent 62%),#0c0f1c}
+
+.wrap{position:relative;padding:22px 16px 118px}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.brand{display:flex;align-items:center;gap:8px}
+.brand b{font-size:17px;letter-spacing:.16em}
+.date{font-size:11px;color:#aab1cf;letter-spacing:.06em;display:flex;align-items:center;gap:6px}
+
+.mosaic{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.t{position:relative;overflow:hidden;background:linear-gradient(155deg,#ffffff21,#ffffff0e);
+ border:1px solid #ffffff29;border-radius:24px;backdrop-filter:blur(22px);
+ -webkit-backdrop-filter:blur(22px);padding:19px 18px 18px;
+ box-shadow:0 16px 34px -16px #000000a0,0 1px 0 0 #ffffff24 inset}
+.w2{grid-column:span 2}
+
+.k{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#a7aecd;
+ display:flex;align-items:center;gap:6px;font-weight:600}
+.big{font-size:78px;font-weight:800;letter-spacing:-.055em;line-height:.9;margin-top:6px}
+.mid{font-size:46px;font-weight:800;letter-spacing:-.04em;line-height:1;margin-top:8px}
+.u{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#a7aecd;margin-top:7px}
+.cap{font-size:12.5px;color:#ccd2ea;margin-top:6px;line-height:1.35}
+
+/* tile produção: número à esquerda, semana à direita */
+.prod{display:flex;gap:14px;align-items:flex-end}
+.bars{display:flex;gap:6px;align-items:flex-end;height:108px;flex:1}
+.bars i{flex:1;border-radius:5px 5px 2px 2px;background:linear-gradient(#ffffff33,#ffffff14)}
+.bars i.on{background:linear-gradient(#ffffff,#c9d3ff);box-shadow:0 0 16px #b9c4ff59}
+.days{display:flex;gap:6px;font-size:9px;letter-spacing:.1em;color:#9aa1c1;margin-top:6px;text-transform:uppercase}
+.days span{flex:1;text-align:center}.days span.on{color:#fff;font-weight:800}
+.tags{display:flex;gap:6px;margin-top:10px}
+.tag{font-size:11px;padding:4px 9px;border-radius:999px;background:#ffffff17;
+ border:1px solid #ffffff24;color:#dde2f7;display:flex;align-items:center;gap:4px}
+.tag.g{background:#37d9a326;border-color:#37d9a344;color:#7ff0c2}
+
+/* tile clima */
+.sky{background:linear-gradient(120deg,#ff9d5c2e,#ffd06b1a 46%,#5b7cfa26);border-color:#ffc98a3d}
+.skyrow{display:flex;align-items:center;gap:12px}
+.temp{font-size:64px;font-weight:800;letter-spacing:-.05em;line-height:.9}
+.wmini{display:flex;gap:7px;margin-top:12px}
+.wc{flex:1;display:flex;align-items:center;gap:7px;background:#ffffff14;
+ border:1px solid #ffffff1f;border-radius:14px;padding:8px 9px}
+.wc b{font-size:15px;font-weight:800;line-height:1.1;display:block}
+.wc em{font-style:normal;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#a7aecd}
+
+/* tiles de preço */
+.prices{grid-column:span 2;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.p{position:relative;overflow:hidden;background:linear-gradient(155deg,#ffffff1e,#ffffff0b);
+ border:1px solid #ffffff26;border-radius:20px;backdrop-filter:blur(20px);
+ -webkit-backdrop-filter:blur(20px);padding:16px 12px 15px;text-align:left;
+ box-shadow:0 12px 26px -16px #000000a0}
+.p .d{font-size:17px;font-weight:800;letter-spacing:-.02em;margin-top:8px}
+.p .nm{font-size:10px;color:#b9c0dc;line-height:1.25;margin-top:3px}
+.dn{color:#6ef0b4}.up{color:#ffd166}
+.ghost{position:absolute;opacity:.12;color:#fff;pointer-events:none}
+</style>
+
+<div class="bg"></div>
+
+<div class="wrap">
+  <div class="head">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <rect x="6.4" y="2.2" width="11.2" height="15" rx="5.6" fill="#fff" opacity=".92"/>
+        <path d="M12 17.2v4.6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".55"/>
+      </svg><b>NORVA</b>
+    </div>
+    <div class="date">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#aab1cf" stroke-width="1.9" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="16" rx="3"/><path d="M8 2.5v4M16 2.5v4M3.5 10h17"/></svg>
+      QUA · 2 SET
+    </div>
+  </div>
+
+  <div class="mosaic">
+
+    <!-- 2x1: produção -->
+    <div class="t w2">
+      <svg class="ghost" style="right:-20px;top:-24px" width="130" height="130" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><rect x="6" y="2.5" width="12" height="14" rx="6"/><path d="M12 16.5v5"/></svg>
+      <div class="k">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="6" y="2.5" width="12" height="14" rx="6"/><path d="M12 16.5v5"/></svg>
+        produção de hoje
+      </div>
+      <div class="prod">
+        <div>
+          <div class="big">500</div>
+          <div class="u">unidades</div>
+        </div>
+        <div style="flex:1">
+          <div class="bars">
+            <i style="height:38%"></i><i style="height:44%"></i><i style="height:41%"></i>
+            <i style="height:6%"></i><i style="height:82%"></i><i style="height:46%"></i>
+            <i class="on" style="height:64%"></i>
+          </div>
+          <div class="days"><span>q</span><span>s</span><span>s</span><span>d</span><span>s</span><span>t</span><span class="on">q</span></div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          ontem 478</span>
+        <span class="tag g">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16l6-6 4 4 6-7"/><path d="M15 7h5v5"/></svg>
+          +19 vs. quarta passada</span>
+      </div>
+    </div>
+
+    <!-- pequeno 1 -->
+    <div class="t">
+      <svg class="ghost" style="right:-14px;bottom:-16px" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2s6.4 7 6.4 11a6.4 6.4 0 0 1-12.8 0c0-4 6.4-11 6.4-11z"/></svg>
+      <div class="k">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ff9db2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2s6.4 7 6.4 11a6.4 6.4 0 0 1-12.8 0c0-4 6.4-11 6.4-11z"/></svg>
+        acaba em
+      </div>
+      <div class="mid">1 dia</div>
+      <div class="cap">polpa de morango<br>compre hoje</div>
+    </div>
+
+    <!-- pequeno 2 -->
+    <div class="t">
+      <svg class="ghost" style="right:-16px;bottom:-14px" width="104" height="104" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5h11v9H2z"/><path d="M13 11h4l3.5 3.5v2H13z"/><circle cx="6.5" cy="18.5" r="1.9"/><circle cx="16.5" cy="18.5" r="1.9"/></svg>
+      <div class="k">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#b3a4f0" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5h11v9H2z"/><path d="M13 11h4l3.5 3.5v2H13z"/><circle cx="6.5" cy="18.5" r="1.9"/><circle cx="16.5" cy="18.5" r="1.9"/></svg>
+        expedição
+      </div>
+      <div class="mid">1</div>
+      <div class="cap">caixa saiu<br>da fábrica hoje</div>
+    </div>
+
+    <!-- largo: clima com o sol desenhado dentro -->
+    <div class="t w2 sky">
+      <div class="k">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffc07a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.6"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.4 5.4l2.1 2.1M16.5 16.5l2.1 2.1M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1"/></svg>
+        são paulo · agora
+      </div>
+      <div class="skyrow">
+        <div style="flex:1">
+          <div class="temp">21°</div>
+        </div>
+        <svg width="126" height="106" viewBox="0 0 120 100" style="flex:none;margin:-6px -4px -10px 0">
+          <defs>
+            <radialGradient id="s1" cx="42%" cy="36%">
+              <stop offset="0" stop-color="#fff6cf"/><stop offset="1" stop-color="#ffab3d"/>
+            </radialGradient>
+          </defs>
+          <circle cx="62" cy="42" r="34" fill="#ffcf6b" opacity=".22"/>
+          <g stroke="#ffc457" stroke-width="3.4" stroke-linecap="round" opacity=".95">
+            <path d="M62 2v10M62 72v10M22 42h10M92 42h10M34 14l7 7M83 63l7 7M90 14l-7 7M41 63l-7 7"/>
+          </g>
+          <circle cx="62" cy="42" r="21" fill="url(#s1)"/>
+          <path d="M18 78c0-9 7-16 16-16 3-8 11-13 19-13 11 0 20 8 21 19 8 0 15 5 15 12 0 6-5 10-12 10H31c-8 0-13-5-13-12z" fill="#e9eefc" opacity=".92"/>
+          <g stroke="#8fd6ff" stroke-width="3.4" stroke-linecap="round" opacity=".95">
+            <path d="M36 92l-3 7M54 92l-3 7M72 92l-3 7"/>
+          </g>
+        </svg>
+      </div>
+      <div class="wmini">
+        <div class="wc">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8fd6ff" stroke-width="2" stroke-linecap="round"><path d="M14 14.8V4a2 2 0 1 0-4 0v10.8a4 4 0 1 0 4 0z"/></svg>
+          <div><b>13°</b><em>mínima</em></div>
+        </div>
+        <div class="wc">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8fd6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5s6 6.6 6 10.3a6 6 0 0 1-12 0C6 10.1 12 3.5 12 3.5z"/></svg>
+          <div><b>47%</b><em>chuva</em></div>
+        </div>
+        <div class="wc">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ffc07a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5"/><path d="M6 11l6-6 6 6"/></svg>
+          <div><b>+4°</b><em>amanhã</em></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- três telinhas de preço -->
+    <div class="prices">
+      <div class="p">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff9db2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5s6 6.6 6 10.3a6 6 0 0 1-12 0C6 10.1 12 3.5 12 3.5z"/></svg>
+        <div class="d dn">▼ 0,6%</div>
+        <div class="nm">Polpa de<br>morango</div>
+      </div>
+      <div class="p">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cfd6ff" stroke-width="2" stroke-linejoin="round"><path d="M4 8l8-4.5L20 8v8l-8 4.5L4 16z"/><path d="M4 8l8 4.5L20 8M12 12.5v8"/></svg>
+        <div class="d dn">▼ 2,2%</div>
+        <div class="nm">Açúcar<br>cristal</div>
+      </div>
+      <div class="p">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffd166" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h11v4l-4 4.5 4 4.5v4h-11v-4l4-4.5-4-4.5z"/></svg>
+        <div class="d up">▲ 0,9%</div>
+        <div class="nm">Glucose<br>38DE</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Barra de abas com os ícones do app. Troque apenas as cores nas variáveis. -->
+<style>
+.tabbar{position:fixed;bottom:0;left:0;right:0;height:78px;display:flex;align-items:center;
+ justify-content:space-around;padding-bottom:14px;font-size:11px;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+.tabbar a{display:flex;flex-direction:column;align-items:center;gap:5px;text-decoration:none}
+.tabbar svg{display:block}
+</style>
+<div class="tabbar" style="background:#0c0f1cb8;border-top:1px solid #ffffff22;color:#8d94b3;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)">
+  <a style="color:#cfd8ff">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>
+    <span style="color:#fff;font-weight:600">Início</span></a>
+  <a style="color:#f0a184">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="6" y="2.5" width="12" height="14" rx="6"/><path d="M12 16.5v5"/></svg>
+    <span style="color:#8d94b3">Produção</span></a>
+  <a style="color:#b3a4f0">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5h11v9H2z"/><path d="M13 11h4l3.5 3.5v2H13z"/><circle cx="6.5" cy="18.5" r="1.9"/><circle cx="16.5" cy="18.5" r="1.9"/></svg>
+    <span style="color:#8d94b3">Transporte</span></a>
+  <a style="color:#e6c477">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 20h16"/><path d="M6.5 20v-6"/><path d="M12 20V5"/><path d="M17.5 20v-9"/></svg>
+    <span style="color:#8d94b3">Relatórios</span></a>
+  <a style="color:#7fe0c0">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg>
+    <span style="color:#8d94b3">Mais</span></a>
+</div>

@@ -1,0 +1,160 @@
+<!doctype html><meta charset="utf-8"><title>NORVA — papel com cor</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --laranja:#BE551E;--musgo:#6C7A3B;--petroleo:#1B5460;--ocre:#C08C2A;
+  --creme:#F7F0E2;--papel:#FAF7F2;--tinta:#221F1B;
+  --tabbg:#faf7f2;--tabline:#e2dbd0;--tabink:#8c8375;--tabon:#BE551E;
+  --c2:#6C7A3B;--c3:#1B5460;--c4:#C08C2A;--c5:#8c8375;
+}
+body{width:412px;min-height:915px;overflow-x:hidden;background:var(--papel);color:var(--tinta);
+ font-family:Georgia,"Times New Roman",serif;-webkit-font-smoothing:antialiased}
+.sf{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+.wrap{padding:24px 22px 112px}
+.kicker{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#a2988a}
+h1{font-size:29px;line-height:1.08;margin-top:9px;font-weight:400;letter-spacing:-.01em}
+h1 b{font-weight:700;color:var(--laranja)}
+.rule{height:1px;background:#ded6c9;margin:14px 0 12px}
+
+.block{border-radius:3px;padding:17px 18px;margin-bottom:10px;position:relative;overflow:hidden;color:var(--creme)}
+.block .lab{font-size:10px;letter-spacing:.24em;text-transform:uppercase;opacity:.72}
+.orange{background:var(--laranja)}
+.petrol{background:var(--petroleo)}
+.moss{background:var(--musgo)}
+.ochre{background:var(--ocre)}
+
+/* bloco produção */
+.bars{display:flex;gap:7px;align-items:flex-end;height:54px;margin:13px 0 5px}
+.bars i{flex:1;background:rgba(247,240,226,.42);border-radius:2px}
+.bars i.on{background:var(--creme)}
+.days{display:flex;gap:7px;font-size:10px;opacity:.75}.days span{flex:1;text-align:center}
+.days span.on{opacity:1;font-weight:700}
+.stats{display:flex;gap:0;margin-top:13px;border-top:1px solid rgba(247,240,226,.3);padding-top:11px}
+.stat{flex:1}
+.stat+.stat{border-left:1px solid rgba(247,240,226,.3);padding-left:14px}
+.stat .n{font-size:24px;line-height:1;letter-spacing:-.02em}
+.stat .c{font-size:11px;opacity:.78;margin-top:4px;line-height:1.35}
+
+/* bloco clima */
+.sunwrap{position:absolute;right:-24px;top:4px}
+.wt{font-size:54px;line-height:1;letter-spacing:-.045em;margin-top:6px}
+.wmin{font-size:14px;opacity:.8;letter-spacing:0}
+.gauge{height:5px;background:rgba(247,240,226,.28);border-radius:3px;margin:13px 0 7px;max-width:220px}
+.gauge span{display:block;height:5px;background:var(--creme);border-radius:3px}
+.wrow{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;max-width:220px}
+.wtom{margin-top:12px;border-top:1px solid rgba(247,240,226,.3);padding-top:10px;font-size:12.5px}
+.wtom b{font-size:17px}
+
+/* dois blocos lado a lado */
+.duo{display:flex;gap:12px}
+.duo .block{flex:1;margin-bottom:12px;min-width:0}
+.duo .n{font-size:28px;line-height:1;margin-top:10px;letter-spacing:-.02em}
+.duo .t{font-size:14.5px;line-height:1.25;margin-top:7px}
+.duo .s{font-size:11px;opacity:.8;margin-top:4px;line-height:1.35}
+.duo .art{position:absolute;right:10px;top:12px;opacity:.85}
+
+/* preços */
+.prices{border:1px solid #e2dbd0;border-radius:3px;padding:13px 16px 4px;background:#fff}
+.prices .lab{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#a2988a}
+.prices .p{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #efe9df}
+.prices .p:last-child{border-bottom:none}
+.dot{width:10px;height:10px;border-radius:2px;flex:0 0 10px}
+.prices .name{flex:1;font-size:15px}
+.prices .v{font-size:14px;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+.dn{color:#4d7a3f}.up{color:#a8442a}
+</style>
+
+<div class="wrap">
+  <div class="kicker sf">NORVA &middot; quarta, 2 de setembro</div>
+  <h1>Hoje a fábrica<br><b>fez 500 unidades</b></h1>
+  <div class="rule"></div>
+
+  <div class="block orange">
+    <div class="lab sf">A semana, dia a dia</div>
+    <div class="bars">
+      <i style="height:38%"></i><i style="height:44%"></i><i style="height:41%"></i>
+      <i style="height:6%"></i><i style="height:82%"></i><i style="height:46%"></i>
+      <i class="on" style="height:64%"></i>
+    </div>
+    <div class="days sf"><span>qui</span><span>sex</span><span>sáb</span><span>dom</span><span>seg</span><span>ter</span><span class="on">qua</span></div>
+    <div class="stats">
+      <div class="stat"><div class="n">478</div><div class="c sf">ontem — hoje são 22 a mais</div></div>
+      <div class="stat"><div class="n">+19</div><div class="c sf">contra a quarta passada</div></div>
+    </div>
+  </div>
+
+  <div class="block petrol">
+    <div class="sunwrap">
+      <svg width="140" height="140" viewBox="0 0 150 150">
+        <g transform="translate(75,75)">
+          <g fill="none" stroke="#E8B441" stroke-width="5" stroke-linecap="round" opacity=".95">
+            <path d="M0-70v18M0 52v18M-70 0h18M52 0h18M-49.5-49.5l12.7 12.7M36.8 36.8l12.7 12.7M49.5-49.5L36.8-36.8M-36.8 36.8l-12.7 12.7"/>
+          </g>
+          <circle r="30" fill="#E8B441"/>
+          <circle r="30" fill="none" stroke="#F7F0E2" stroke-width="1.5" opacity=".55"/>
+          <path d="M-30 0a30 30 0 0 0 30 30 30 30 0 0 0 30-30z" fill="#D98B2B"/>
+        </g>
+      </svg>
+    </div>
+    <div class="lab sf">O tempo &middot; São Paulo</div>
+    <div class="wt">21° <span class="wmin sf">mín 13°</span></div>
+    <div class="gauge"><span style="width:47%"></span></div>
+    <div class="wrow sf"><span>Chance de chuva</span><span><b>47%</b></span></div>
+    <div class="wtom sf">Amanhã esquenta <b>+4°</b> em relação a hoje</div>
+  </div>
+
+  <div class="duo">
+    <div class="block moss">
+      <svg class="art" width="40" height="40" viewBox="0 0 26 26" fill="none" stroke="#F7F0E2" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13 23c-7-4.5-9-11-4.5-13.5 2-1.2 3.5-.4 4.5.7 1-1.1 2.5-1.9 4.5-.7C22 12 20 18.5 13 23z"/>
+        <path d="M13 10.2L8.6 7M13 10.2L17.4 7M13 10.2V5.5"/>
+      </svg>
+      <div class="lab sf">Insumo</div>
+      <div class="n">1 dia</div>
+      <div class="t">Polpa de morango</div>
+      <div class="s sf">é o que sobra, pelo consumo da semana</div>
+    </div>
+    <div class="block ochre">
+      <svg class="art" width="40" height="40" viewBox="0 0 26 26" fill="none" stroke="#F7F0E2" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3.5 8.5h19v13h-19z"/><path d="M3.5 12.5h19M13 8.5v13"/><path d="M6.5 8.5L9 4.5h8l2.5 4"/>
+      </svg>
+      <div class="lab sf">Expedição</div>
+      <div class="n">1</div>
+      <div class="t">Caixa saiu hoje</div>
+      <div class="s sf">de manhã, para as lojas</div>
+    </div>
+  </div>
+
+  <div class="prices">
+    <div class="lab sf">Preços que mexeram</div>
+    <div class="p"><span class="dot" style="background:var(--laranja)"></span><span class="name">Polpa de morango</span><span class="v dn">▼ 0,6%</span></div>
+    <div class="p"><span class="dot" style="background:var(--musgo)"></span><span class="name">Açúcar cristal</span><span class="v dn">▼ 2,2%</span></div>
+    <div class="p"><span class="dot" style="background:var(--petroleo)"></span><span class="name">Glucose 38DE</span><span class="v up">▲ 0,9%</span></div>
+  </div>
+</div>
+
+<!-- Barra de abas com os ícones do app. Troque apenas as cores nas variáveis. -->
+<style>
+.tabbar{position:fixed;bottom:0;left:0;right:0;height:78px;display:flex;align-items:center;
+ justify-content:space-around;padding-bottom:14px;font-size:11px;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+.tabbar a{display:flex;flex-direction:column;align-items:center;gap:5px;text-decoration:none}
+.tabbar svg{display:block}
+</style>
+<div class="tabbar" style="background:var(--tabbg,#101014);border-top:1px solid var(--tabline,#23232b);color:var(--tabink,#6d6d78)">
+  <a style="color:var(--tabon,#8fb6d8)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>
+    <span style="color:var(--tabon,#8fb6d8);font-weight:600">Início</span></a>
+  <a style="color:var(--c2,#e2a283)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="6" y="2.5" width="12" height="14" rx="6"/><path d="M12 16.5v5"/></svg>
+    <span style="color:var(--tabink,#6d6d78)">Produção</span></a>
+  <a style="color:var(--c3,#ab9bdd)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5h11v9H2z"/><path d="M13 11h4l3.5 3.5v2H13z"/><circle cx="6.5" cy="18.5" r="1.9"/><circle cx="16.5" cy="18.5" r="1.9"/></svg>
+    <span style="color:var(--tabink,#6d6d78)">Transporte</span></a>
+  <a style="color:var(--c4,#d9b76a)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 20h16"/><path d="M6.5 20v-6"/><path d="M12 20V5"/><path d="M17.5 20v-9"/></svg>
+    <span style="color:var(--tabink,#6d6d78)">Relatórios</span></a>
+  <a style="color:var(--c5,#a8a39b)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg>
+    <span style="color:var(--tabink,#6d6d78)">Mais</span></a>
+</div>

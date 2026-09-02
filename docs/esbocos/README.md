@@ -37,3 +37,41 @@ biblioteca nova.
 cartão que entra escalonado, o número que afunda quando o dedo encosta, e a
 transição em que tocar o número do dia *vira* a tela de produção com o mesmo
 número no lugar. Isso é código, e é a primeira coisa depois da escolha.
+
+
+## Segunda rodada — 15 variantes, 2 de setembro à noite
+
+O dono eliminou metade e ficou com **2 (Papel), 5 (Vidro), 6 (Suíço), 8
+(Orgânico) e 9 (Terminal)**, com três observações que valem para todas as
+variantes: *"seria bom se tivesse mais ícones/imagens na tela"*, *"sem ser tão
+monocromático"* (sobre o 6 e o 9) e *"o 8, se trabalhar mais, fica bom"*.
+
+E uma pergunta que era um defeito meu: **"por que você removeu os ícones?"** Não
+removi do aplicativo — a barra de abas está intacta. O que estava sem ícone era o
+**esboço**: naquela primeira rodada a barra era só texto. Os quinze desta rodada
+carregam os ícones de verdade, extraídos de `src/components/icons.tsx` e
+guardados em `_tabbar.html`, que é o pedaço compartilhado pelos quinze.
+
+Três por família, e a regra era mudar a **estrutura**, não só a cor:
+
+| # | família | o que muda |
+|---|---|---|
+| 11 | Papel | ilustração de fábrica em traço fino, ícone em cada linha |
+| 12 | Papel | duas colunas de jornal, capitular, fio vertical |
+| 13 | Papel | blocos de cor chapada, cara de revista dos anos 70 |
+| 14 | Vidro | o fundo vira sol e onda desfocados; ícone marca-d'água por painel |
+| 15 | Vidro | mosaico de peças de tamanhos diferentes |
+| 16 | Vidro | a mesma identidade em modo dia |
+| 17 | Suíço | pictograma geométrico em cinco cores |
+| 18 | Suíço | cartaz de faixas chapadas |
+| 19 | Suíço | infográfico com a conta aberta e termômetro desenhado |
+| 20 | Orgânico | cena com sol, chuva e a fábrica ao longe |
+| 21 | Orgânico | paleta de fruta; a semana vira bolhas |
+| 22 | Orgânico | a identidade à noite |
+| 23 | Terminal | uma cor por tipo de dado, gráfico de área |
+| 24 | Terminal | instrumentos desenhados: ponteiro, tanque de nível, odômetro |
+| 25 | Terminal | papel milimetrado claro, cor só nos desvios |
+
+`_briefing.md` é o que os cinco desenhistas receberam: o dado exato, o tamanho, e
+as regras que não se quebram — inclusive a que saiu desta rodada, **nada de
+botão "Lançar produção" na capa**, porque a aba Produção já é essa porta.
