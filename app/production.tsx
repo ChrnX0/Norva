@@ -268,10 +268,17 @@ function Production() {
         </Card>
       ) : null}
 
+      {/* Law 5: an error stops the thing, it does not complain about it.
+          This screen computed the shortfall, printed it in orange, and left the
+          button live - so a run of ten kettles against four kilos of pulp went
+          in, and the storeroom went to MINUS 140.000 g with a headline reading
+          "PARADO NO ESTOQUE -R$ 1.447,44". A negative physical balance is not a
+          number anyone can act on; it means the count is wrong, and the way out
+          is to count or to enter the invoice, which the message now says. */}
       <Button
         label={saving ? t.app.production.recording : t.app.production.record}
         onPress={onRecord}
-        disabled={!draft || saving}
+        disabled={!draft || saving || draft.short.length > 0}
       />
     </CollapsingHeader>
   );

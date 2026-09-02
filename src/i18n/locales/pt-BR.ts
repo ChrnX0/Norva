@@ -354,7 +354,8 @@ export const ptBR = {
         'Você produziu {{units}} de {{product}}, em {{batches}}. Isso baixa {{lines}} do estoque e congela o custo em {{cost}} por unidade.',
       recorded: 'Produção registrada.',
       failed: 'Não deu para registrar',
-      missingStock: 'Falta insumo para esta corrida: {{items}}.',
+      missingStock:
+        'Falta insumo para esta corrida: {{items}}. Confira o estoque deles, ou lance a compra que chegou.',
     },
     purchase: {
       title: 'Nova compra',

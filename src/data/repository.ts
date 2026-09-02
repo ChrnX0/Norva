@@ -1048,8 +1048,23 @@ export async function recordProduction(
   const consumed: { itemId: string; baseUnits: number; rate: Rate }[] = [];
   for (const [itemId, baseUnits] of needed) {
     const rate = (rates[itemId] ?? 0) as Rate;
-    consumedValue += rate * baseUnits;
-    consumed.push({ itemId, baseUnits, rate });
+
+    // A quantidade arredonda aqui, uma vez, e a taxa não arredonda nunca.
+    //
+    // `quantity_base_units` é inteiro nos dois lados - `INTEGER` no aparelho e
+    // `bigint` no servidor - e uma sub-receita divide: meio tacho de base de
+    // creme pede 7530,612244897959 g de açúcar. A afinidade de tipo do SQLite
+    // aceita esse REAL sem dizer nada e o Postgres arredondaria, então o
+    // aparelho e o servidor passariam a discordar de quanto açúcar saiu do
+    // almoxarifado. A tela de insumos mostrava `34.938,776 g` enquanto a de
+    // lugares mostrava `34.939 g`: dois números para o mesmo saco.
+    //
+    // E arredonda antes do valor, não depois: o custo congelado é a aritmética
+    // do que o livro-razão guarda, não de um consumo que ninguém gravou.
+    const quantity = Math.round(baseUnits);
+
+    consumedValue += rate * quantity;
+    consumed.push({ itemId, baseUnits: quantity, rate });
   }
 
   // A embalagem entra aqui, e não entrar era um defeito silencioso.

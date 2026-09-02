@@ -340,7 +340,8 @@ export const es: Dictionary = {
         'Produjiste {{units}} de {{product}}, en {{batches}}. Esto descuenta {{lines}} del stock y congela el costo en {{cost}} por unidad.',
       recorded: 'Producción registrada.',
       failed: 'No se pudo registrar',
-      missingStock: 'Falta insumo para esta corrida: {{items}}.',
+      missingStock:
+        'Falta insumo para esta corrida: {{items}}. Revisa su existencia, o registra la compra que llegó.',
     },
     purchase: {
       title: 'Nueva compra',

@@ -716,6 +716,40 @@ test('the balance splits by place, and the company total does not move', async (
   );
 });
 
+test('what the ledger stores is whole base units, because the column is an integer', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+
+  const run = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    batches: 1,
+    unitsProduced: 500,
+  });
+
+  const rows = await live.getAllAsync<{ q: number }>(
+    'SELECT quantity_base_units AS q FROM movements WHERE movement_group_id = ?',
+    [run.groupId],
+  );
+
+  // A sub-recipe divides: one kettle of this product asks for half a batch of
+  // cream base, and half a batch is 7530.612244897959 g of sugar. SQLite's type
+  // affinity takes that REAL into an INTEGER column without a word, Postgres
+  // would round it, and the two sides of the same movement stop agreeing about
+  // how much sugar left the storeroom. The screens showed it too: 34.938,776 g
+  // on one and 34.939 g on the next, for one sack.
+  assert.ok(rows.length >= 3, 'a run writes the product and its ingredients');
+  for (const row of rows) {
+    assert.ok(
+      Number.isInteger(row.q),
+      `the ledger stored ${row.q}, which is not a whole base unit`,
+    );
+  }
+
+  // And the frozen rate is still the arithmetic of exactly those rows.
+  assert.ok(Number.isFinite(run.unitCostRate) && run.unitCostRate > 0);
+});
+
 test('a production run writes one line per item, and freezes what each cost', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
   const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);

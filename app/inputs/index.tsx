@@ -137,7 +137,7 @@ function InputsList() {
             <ListRow
               key={item.id}
               label={item.name}
-              detail={describe(item, t.app.inputs.inStock)}
+              detail={describe(item, t.app.inputs.inStock, locale.formatting)}
               trailing={
                 item.averageRate > 0
                   ? formatMoney(Math.round(item.averageRate * 1_000), locale)
@@ -162,18 +162,18 @@ function InputsList() {
 }
 
 /** What the row says under the name: how it is bought, and what is on hand. */
-function describe(item: ItemWithCost, inStock: string): string {
+function describe(item: ItemWithCost, inStock: string, formatting: string): string {
   const parts: string[] = [];
 
   if (item.purchaseUnit && item.purchaseToBase) {
     parts.push(
-      `${item.purchaseUnit} · ${item.purchaseToBase.toLocaleString('pt-BR')} ${item.baseUnit}`,
+      `${item.purchaseUnit} · ${item.purchaseToBase.toLocaleString(formatting)} ${item.baseUnit}`,
     );
   }
   if (item.onHandBaseUnits > 0) {
     parts.push(
       fill(inStock, {
-        amount: `${item.onHandBaseUnits.toLocaleString('pt-BR')} ${item.baseUnit}`,
+        amount: `${item.onHandBaseUnits.toLocaleString(formatting)} ${item.baseUnit}`,
       }),
     );
   }
