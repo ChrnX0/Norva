@@ -129,5 +129,142 @@
     "keybindings-help": "off",
     "fewer-permission-prompts": "off",
     "session-start-hook": "off"
-  }
+  },
+  "deniedMcpServers": [
+    {
+      "serverName": "AccuWeather"
+    },
+    {
+      "serverName": "AccuWeather®"
+    },
+    {
+      "serverName": "AgentMail"
+    },
+    {
+      "serverName": "Asaas"
+    },
+    {
+      "serverName": "Booking.com"
+    },
+    {
+      "serverName": "Booking_com"
+    },
+    {
+      "serverName": "Box"
+    },
+    {
+      "serverName": "Canva"
+    },
+    {
+      "serverName": "Docusign"
+    },
+    {
+      "serverName": "Dropbox"
+    },
+    {
+      "serverName": "ElevenLabs"
+    },
+    {
+      "serverName": "GitHub"
+    },
+    {
+      "serverName": "Gmail"
+    },
+    {
+      "serverName": "GoDaddy"
+    },
+    {
+      "serverName": "Google Calendar"
+    },
+    {
+      "serverName": "Google_Calendar"
+    },
+    {
+      "serverName": "Google Drive"
+    },
+    {
+      "serverName": "Google_Drive"
+    },
+    {
+      "serverName": "Hugging Face"
+    },
+    {
+      "serverName": "Hugging_Face"
+    },
+    {
+      "serverName": "IFTTT"
+    },
+    {
+      "serverName": "Macaly"
+    },
+    {
+      "serverName": "Mem0"
+    },
+    {
+      "serverName": "Mermaid Chart"
+    },
+    {
+      "serverName": "Mermaid_Chart"
+    },
+    {
+      "serverName": "Microsoft 365"
+    },
+    {
+      "serverName": "Mobbin"
+    },
+    {
+      "serverName": "n8n"
+    },
+    {
+      "serverName": "Notion"
+    },
+    {
+      "serverName": "PayPal"
+    },
+    {
+      "serverName": "PDF Viewer"
+    },
+    {
+      "serverName": "PDF_Viewer"
+    },
+    {
+      "serverName": "Play Sheet Music"
+    },
+    {
+      "serverName": "Play_Sheet_Music"
+    },
+    {
+      "serverName": "Replit"
+    },
+    {
+      "serverName": "Sentry"
+    },
+    {
+      "serverName": "Slack"
+    },
+    {
+      "serverName": "Stripe"
+    },
+    {
+      "serverName": "Todoist"
+    },
+    {
+      "serverName": "Uber"
+    },
+    {
+      "serverName": "Website Generator by B12"
+    },
+    {
+      "serverName": "Website_Generator_by_B12"
+    },
+    {
+      "serverName": "WordPress.com"
+    },
+    {
+      "serverName": "WordPress_com"
+    },
+    {
+      "serverName": "Zapier"
+    }
+  ]
 }
