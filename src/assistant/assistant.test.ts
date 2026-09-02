@@ -12,7 +12,7 @@ import { fromDecimal, rate, type Cents, type Rate } from '@/domain/money';
 import type { ItemCosts, Recipe } from '@/domain/recipe';
 import { defaultLocale } from '@/i18n';
 import { ask } from './index';
-import { findByName, parseNumber } from './text';
+import { findByName, namesakes, parseNumber } from './text';
 import type { AssistantData, Capability, SkillContext } from './types';
 
 /**
@@ -419,6 +419,43 @@ test('it finds the item by the word people actually type', () => {
   assert.equal(findByName(ITEMS, 'parafuso'), null);
 });
 
+/**
+ * A palavra que alcança a grade inteira não elege ninguém.
+ *
+ * Antes da linha × tipo × sabor, "morango" batia num produto só e devolver o
+ * nome mais curto passava por esperto. Com a grade, "morango" alcança doze, e
+ * o mais curto é sorteio: "Pote 1 litro de morango" ganha de "Picolé
+ * Tradicional de morango" por ter menos letras, e a produção seria gravada
+ * contra a receita errada sem uma palavra a ninguém.
+ *
+ * Este teste existe porque a suíte não o tinha: trocar o `null` de volta pelo
+ * mais curto passou por noventa e dois testes verdes. O empate é a única saída
+ * do assistente que decide calada, e agora ela tem quem a segure.
+ */
+test('a word that reaches the whole grid elects nobody', () => {
+  const grade = [
+    { id: 'pote', name: 'Pote 1 litro de morango' },
+    { id: 'picole', name: 'Picolé Tradicional de morango' },
+  ];
+
+  assert.equal(
+    findByName(grade, 'morango'),
+    null,
+    'o mais curto é sorteio, e sorteio grava contra a receita errada',
+  );
+
+  // Lei 5: o erro impede E diz o caminho. Empate devolve os nomes para a tela
+  // perguntar qual, em vez de dizer que não existe uma coisa que existe duas.
+  assert.deepEqual(
+    namesakes(grade, 'morango').map((c) => c.id),
+    ['pote', 'picole'],
+  );
+
+  // E o que casa exato continua ganhando do empate: quem digitou o nome
+  // inteiro já respondeu a pergunta.
+  assert.equal(findByName(grade, 'Pote 1 litro de morango')?.id, 'pote');
+});
+
 test('the assistant answers what the briefing shows, and says when there is nothing', async () => {
   // A capa passou a dizer o que saiu do tacho hoje, e o assistente respondia
   // "ainda não sei". Duas verdades no mesmo app, e quem perde é o assistente:
@@ -573,6 +610,24 @@ test('producing by talking counts the inputs by what came out, and says so', asy
   assert.match(guessed.text, /pelo que saiu/, 'an assumption has to be visible before it is written');
   assert.ok(!/Entendi um tacho/.test(guessed.text));
   assert.match(guessed.draft.summary, /480 unidades de Picolé de morango/);
+
+  /**
+   * E o que ele GRAVA é o que ele disse.
+   *
+   * A frase "pelo que saiu" já estava sob teste; o número que ela promete não
+   * estava, e trocar o consumo proporcional por um tacho fixo passou pela
+   * suíte inteira sem uma falha. Um tacho desta ficha põe 506 unidades para
+   * fora - 40.000 ml menos 5% de perda, divididos por 75 ml a picolé - então
+   * 480 é menos de um tacho, e debitar um inteiro é polpa que some do papel
+   * sem sair da prateleira.
+   */
+  await guessed.draft.apply();
+  assert.equal(recorded.length, 1);
+  const escrito = recorded[0] as { batches: number; unitsProduced: number };
+  assert.equal(escrito.unitsProduced, 480);
+  assert.ok(escrito.batches < 1, 'saiu menos que um tacho, baixa menos que um tacho');
+  assert.equal(Number(escrito.batches.toFixed(6)), Number((480 / 506).toFixed(6)));
+  recorded = [];
 
   // Said explicitly, it is obeyed to the letter and stops guessing.
   const told = await ask('produzi 900 picolés de morango em 2 tachos', context('record_production'));
