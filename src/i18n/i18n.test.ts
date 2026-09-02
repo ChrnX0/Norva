@@ -66,6 +66,13 @@ test('a number handed to a sentence with nowhere to put it still gets said', () 
   assert.equal(plural(300, { one: 'unidade', other: 'unidades' }, '300'), '300 unidades');
   assert.equal(plural(1, { one: 'unidade', other: 'unidades' }, '1'), '1 unidade');
 
+  // E o singular que escreve o número por extenso de propósito continua dono da
+  // própria frase: prefixar ali dá "em 1 um tacho", que foi o que o e2e pegou
+  // quando esta regra olhava a forma escolhida em vez da entrada inteira.
+  const tachos = { one: 'um tacho', other: '{{n}} tachos' };
+  assert.equal(plural(1, tachos, '1'), 'um tacho');
+  assert.equal(plural(2, tachos, '2'), '2 tachos');
+
   // Sem número para mostrar, nada muda.
   assert.equal(plural(2, { one: 'unidade', other: 'unidades' }), 'unidades');
 });

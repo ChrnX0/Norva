@@ -65,19 +65,26 @@ export function plural(
   const text = fill(n === 1 ? variants.one : variants.other, { n: display ?? n });
 
   /**
-   * O número dito NUNCA some.
+   * O número dito não some — mas "não tem onde caber" e "esta forma não o quer"
+   * são coisas diferentes, e a primeira versão disto confundiu as duas.
    *
-   * Nem toda entrada do dicionário carrega `{{n}}`: `units.unit` é só a palavra
-   * "unidades", porque metade das telas a usa ao lado de um número que elas
-   * mesmas escrevem. Chamada com um número para mostrar, essa entrada devolvia
-   * a palavra sozinha - e o cartão da capa apareceu dizendo "Picolé de morango
-   * … unidades", sem a quantidade, num aviso cujo assunto INTEIRO é a
-   * quantidade. Compilou, passou na suíte, e só o navegador viu.
+   * `units.unit` é só a palavra: `{one: 'unidade', other: 'unidades'}`, sem
+   * `{{n}}` em lugar nenhum, porque metade das telas a usa ao lado de um número
+   * que elas mesmas escrevem. Chamada com um número para mostrar, ela devolvia
+   * a palavra sozinha, e o cartão da capa saiu anunciando uma falta sem dizer
+   * de quanto — "Picolé de morango · unidades". Compilou, passou na suíte, e só
+   * o navegador viu.
    *
-   * Quem passou um número quis mostrá-lo. Se a frase não tem onde recebê-lo,
-   * ele vai na frente, que é como as três línguas deste app o dizem.
+   * `batchCount` é o contrário: `{one: 'um tacho', other: '{{n}} tachos'}`. O
+   * singular escreve o número por extenso DE PROPÓSITO, e prefixar ali produziu
+   * "em 1 um tacho" na confirmação de produção — o e2e pegou na mesma rodada.
+   *
+   * Então a regra olha a ENTRADA inteira, não a forma escolhida: quando nenhuma
+   * das duas tem onde receber o número, ele vai na frente; quando alguma tem, a
+   * língua já decidiu e ninguém corrige por cima dela.
    */
-  if (display !== undefined && !text.includes(display)) return `${display} ${text}`;
+  const nowhereToPutIt = !variants.one.includes('{{n}}') && !variants.other.includes('{{n}}');
+  if (display !== undefined && nowhereToPutIt) return `${display} ${text}`;
   return text;
 }
 
