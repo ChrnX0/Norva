@@ -24,12 +24,18 @@ import { create } from 'qrcode/lib/core/qrcode.js';
  * quadrado, quem está lá digita os onze caracteres e segue. Com o uuid, não
  * segue.
  *
- * O nível de correção é o **M**: recupera 15% do código danificado. É o que
- * sobrevive a gelo, dedo sujo e uma dobra - sem crescer a grade como o Q e o H
- * fariam.
+ * O nível de correção é o **H**, o mais alto: recupera 30% do código
+ * danificado. E ele é de graça aqui, o que só se soube medindo: com onze
+ * caracteres, os quatro níveis - L, M, Q e H - cabem na mesma grade de 21 por
+ * 21. A primeira versão deste arquivo escolhia M "para não crescer a grade", e
+ * essa frase estava errada; a mutação que trocava M por H sobreviveu à suíte
+ * inteira justamente porque não era defeito nenhum, era melhoria.
+ *
+ * Num código que vai congelar, descascar e levar caixa empilhada em cima, o
+ * dobro de tolerância a dano pelo mesmo tamanho não se recusa.
  */
 export function qrModules(text: string): boolean[][] {
-  const code = create(text, { errorCorrectionLevel: 'M' });
+  const code = create(text, { errorCorrectionLevel: 'H' });
   const { size, data } = code.modules;
 
   const rows: boolean[][] = [];
@@ -39,4 +45,32 @@ export function qrModules(text: string): boolean[][] {
     rows.push(row);
   }
   return rows;
+}
+
+/** Quantos módulos de branco cercam o código. O padrão exige quatro. */
+export const QUIET_ZONE = 4;
+
+/**
+ * O código como um caminho SVG só, com a zona de silêncio em volta.
+ *
+ * Mora aqui, e não no componente, porque é **regra** e não desenho: a margem
+ * branca de quatro módulos é exigida pelo padrão, e sem ela o papelão da caixa
+ * encosta no código e o leitor desiste. É a parte que todo mundo corta para
+ * caber, é a que faz falta, e no componente ela não tinha como ser testada.
+ *
+ * Um caminho só, e não um retângulo por módulo: a grade tem 441 módulos, e 441
+ * nós de SVG custam a cada quadro num celular barato - que é o que a fábrica
+ * compra.
+ */
+export function qrPath(text: string): { path: string; span: number } {
+  const modules = qrModules(text);
+  const span = modules.length + QUIET_ZONE * 2;
+
+  let path = '';
+  for (let y = 0; y < modules.length; y++) {
+    for (let x = 0; x < modules.length; x++) {
+      if (modules[y][x]) path += `M${x + QUIET_ZONE} ${y + QUIET_ZONE}h1v1h-1z`;
+    }
+  }
+  return { path, span };
 }

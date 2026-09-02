@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { qrModules } from './qr';
+import { QUIET_ZONE, qrModules, qrPath } from './qr';
 
 test('the lot code fits the smallest grid there is, and that is the whole point', () => {
   const grade = qrModules('20260902-01');
@@ -48,4 +48,41 @@ test('the same code always draws the same square', () => {
 
   // E códigos diferentes desenham quadrados diferentes.
   assert.notDeepEqual(qrModules('20260902-01'), qrModules('20260902-02'));
+});
+
+test('the white margin is part of the code, not part of the styling', () => {
+  const { span, path } = qrPath('20260902-01');
+
+  // Quatro módulos de branco de cada lado: 21 + 4 + 4 = 29. É o que o padrão
+  // exige, e é a primeira coisa que some quando alguém aperta a etiqueta para
+  // caber - com o papelão da caixa encostando no código, o leitor desiste.
+  assert.equal(span, 21 + QUIET_ZONE * 2);
+
+  // E nenhum módulo preto invade a margem: todo comando do caminho começa em
+  // quatro ou mais, e termina antes do fim da zona do outro lado.
+  const pontos = [...path.matchAll(/M(\d+) (\d+)h/g)].map(([, x, y]) => [Number(x), Number(y)]);
+  assert.ok(pontos.length > 0, 'o código desenhou alguma coisa');
+  for (const [x, y] of pontos) {
+    assert.ok(x >= QUIET_ZONE && y >= QUIET_ZONE, `módulo dentro da margem: ${x},${y}`);
+    assert.ok(
+      x < span - QUIET_ZONE && y < span - QUIET_ZONE,
+      `módulo passando da margem oposta: ${x},${y}`,
+    );
+  }
+});
+
+test('the correction level is the highest one, because here it costs nothing', () => {
+  // Os quatro níveis cabem na mesma grade de 21 com onze caracteres - isso foi
+  // MEDIDO, não suposto, e derrubou a justificativa que este arquivo tinha
+  // escrito ("M para não crescer a grade"). Com o tamanho igual, escolher menos
+  // correção é escolher menos tolerância a gelo e arranhão de graça.
+  //
+  // O teste trava a decisão pelo que é observável: o mapa de módulos do nível H
+  // é o que este projeto desenha. Trocar o nível muda o desenho, e este teste
+  // cai junto.
+  const grade = qrModules('20260902-01');
+  const pretos = grade.flat().filter(Boolean).length;
+
+  assert.equal(grade.length, 21, 'a grade continua sendo a menor que existe');
+  assert.equal(pretos, 224, 'o desenho é o do nível H — outro nível pinta outra quantidade');
 });

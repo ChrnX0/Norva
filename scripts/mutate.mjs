@@ -29,15 +29,15 @@ import { spawnSync } from 'node:child_process';
 const DEFECTS = [
   {
     file: 'src/domain/qr.ts',
-    from: "  const code = create(text, { errorCorrectionLevel: 'M' });",
-    to: "  const code = create(text, { errorCorrectionLevel: 'H' });",
+    from: "  const code = create(text, { errorCorrectionLevel: 'H' });",
+    to: "  const code = create(text, { errorCorrectionLevel: 'L' });",
     hurts:
-      'o QR cresce de grade sem ninguem pedir, o modulo encolhe na etiqueta e a leitura a um braco de distancia para de funcionar no frio',
+      'a etiqueta perde metade da tolerancia a dano de graca: com onze caracteres os quatro niveis cabem na mesma grade, e o codigo arranhado no frio deixa de ser lido',
   },
   {
-    file: 'src/components/QrCode.tsx',
-    from: '    const quiet = 4;',
-    to: '    const quiet = 0;',
+    file: 'src/domain/qr.ts',
+    from: 'export const QUIET_ZONE = 4;',
+    to: 'export const QUIET_ZONE = 0;',
     hurts:
       'a zona de silencio do QR some, o papelao da caixa encosta no codigo e o leitor desiste de ler',
   },
