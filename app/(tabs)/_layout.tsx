@@ -91,7 +91,7 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="transfer"
+        name="transport"
         options={{
           tabBarIcon: icon(IconTransport, 'lilac'),
           tabBarLabel: ({ focused }) => label(t.app.tabs.transport, focused),

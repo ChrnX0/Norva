@@ -352,6 +352,15 @@ export const ptBR = {
         vehicle: 'Veículo',
       },
     },
+    transport: {
+      title: 'Para onde foi',
+      today: 'Hoje · {{summary}}',
+      empty: 'Nada saiu hoje ainda.',
+      emptyHint: 'O que sair para uma loja ou cliente aparece aqui, por destino.',
+      destinations: { one: '1 destino', other: '{{n}} destinos' },
+      send: 'Registrar uma saída',
+      returned: 'devolvido para cá',
+    },
     transfer: {
       title: 'Transferir',
       overline: 'o que sai da fábrica',

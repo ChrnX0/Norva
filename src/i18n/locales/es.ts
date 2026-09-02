@@ -338,6 +338,15 @@ export const es: Dictionary = {
         vehicle: 'Vehículo',
       },
     },
+    transport: {
+      title: 'A dónde fue',
+      today: 'Hoy · {{summary}}',
+      empty: 'Hoy no salió nada todavía.',
+      emptyHint: 'Lo que salga a una tienda o a un cliente aparece aquí, por destino.',
+      destinations: { one: '1 destino', other: '{{n}} destinos' },
+      send: 'Registrar una salida',
+      returned: 'devuelto aquí',
+    },
     transfer: {
       title: 'Transferir',
       overline: 'lo que sale de la fábrica',

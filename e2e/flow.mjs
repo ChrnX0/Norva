@@ -182,7 +182,11 @@ check('the five tabs are there, and the old addresses still answer', async (page
   // O título de cada tela, não um botão: numa instalação virgem a transferência
   // não tem destino cadastrado, então o botão nem chega a existir - e isso é a
   // tela funcionando, não a rota sumindo.
-  for (const [route, expected] of [['/production', /Quantas unidades/i], ['/transfer', /Transferir/]]) {
+  for (const [route, expected] of [
+    ['/production', /Quantas unidades/i],
+    ['/transfer', /Transferir/],
+    ['/transport', /Para onde foi/],
+  ]) {
     await page.goto(`http://localhost:${PORT}${route}`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(2000);
     assert.match(await screen(page), expected, `${route} stopped answering`);
@@ -510,6 +514,44 @@ check('counting is blind, and it is the only way stock goes down', async (page) 
   const after = await screen(page);
   assert.match(after, /46\.000 g/, 'the shelf and the ledger should now agree');
   assert.match(after, /conferido em/);
+});
+
+check('what went out today lands on the transport tab, by destination', async (page) => {
+  // Sem saída nenhuma, a tela diz isso em vez de desenhar um zero.
+  await page.goto(`http://localhost:${PORT}/transport`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  assert.match(await screen(page), /Nada saiu hoje ainda/);
+
+  // Cria a loja e manda açúcar para lá, pelos mesmos passos que a verificação
+  // da transferência já usa - rótulos de verdade, não adivinhados.
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Como se chama').fill('Loja Centro');
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel('Açúcar cristal').first().click();
+  await page.waitForTimeout(400);
+  await page.getByLabel('Quanto vai').fill('6000');
+  await page.waitForTimeout(500);
+  await page.getByText('Registrar a transferência', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Mandar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.goto(`http://localhost:${PORT}/transport`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const tela = await screen(page);
+  assert.match(tela, /Loja Centro/);
+  assert.match(tela, /6\.000/, 'na unidade do item, não em caixas que ele não tem');
+  assert.match(tela, /1 destino/i);
+  // O aviso de conferência não pode aparecer: não há onde gravar esse fato.
+  assert.doesNotMatch(tela, /não conferiu/);
 });
 
 check('a store is created, loaded, and the company still has the same sugar', async (page) => {
