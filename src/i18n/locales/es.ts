@@ -504,7 +504,7 @@ export const es: Dictionary = {
     broken: 'Se rompió',
     expired: 'Venció',
     courtesy: 'Cortesía',
-    internalUse: 'Consumo interno',
+    internal_use: 'Consumo interno',
     reasonRequired: 'Diga qué pasó — eso protege el reporte de todos.',
   },
 

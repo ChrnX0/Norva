@@ -32,7 +32,18 @@ export type MovementKind =
  * Why a loss happened. Required - an easy, blame-free button for this is what
  * keeps legitimate losses from silently becoming "unexplained shrinkage".
  */
-export type LossReason = 'melted' | 'broken' | 'expired' | 'courtesy' | 'internalUse';
+/**
+ * Why something was thrown away.
+ *
+ * The values are the server's enum, spelled exactly as `loss_reason` in
+ * `supabase/migrations/0001_foundation.sql` - `internal_use`, not
+ * `internalUse`. The device wrote camelCase here for months; SQLite would have
+ * taken it (the column is TEXT), the outbox would have queued it, and Postgres
+ * would have refused the row with nobody watching. It cost nothing to fix
+ * because no loss has ever been recorded - which is the only window where a
+ * ledger's vocabulary is free to change.
+ */
+export type LossReason = 'melted' | 'broken' | 'expired' | 'courtesy' | 'internal_use';
 
 /**
  * Where a movement was recorded in the chain of custody. Comparing two posts

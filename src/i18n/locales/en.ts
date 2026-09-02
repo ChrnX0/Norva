@@ -497,7 +497,7 @@ export const en: Dictionary = {
     broken: 'Broken',
     expired: 'Expired',
     courtesy: 'Courtesy',
-    internalUse: 'Internal use',
+    internal_use: 'Internal use',
     reasonRequired: "Say what happened - it protects everyone's numbers.",
   },
 

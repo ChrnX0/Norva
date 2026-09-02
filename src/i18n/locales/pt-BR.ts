@@ -518,7 +518,7 @@ export const ptBR = {
     broken: 'Quebrou',
     expired: 'Venceu',
     courtesy: 'Cortesia',
-    internalUse: 'Consumo interno',
+    internal_use: 'Consumo interno',
     reasonRequired: 'Diga o que aconteceu — isso protege o relatório de todo mundo.',
   },
 

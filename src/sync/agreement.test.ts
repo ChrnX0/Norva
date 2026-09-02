@@ -164,6 +164,32 @@ test('every movement kind the device writes is a kind the server knows', () => {
   }
 });
 
+test('the words the device has for a loss are words the server accepts', () => {
+  const sql = serverSql();
+  const server = enumValues(sql, 'loss_reason');
+
+  // Read from the type rather than listed here: a reason added tomorrow is
+  // checked without anybody remembering this file exists.
+  const ledger = readFileSync(join(process.cwd(), 'src', 'domain', 'ledger.ts'), 'utf8');
+  const declared = ledger.match(/export type LossReason =([^;]+);/);
+  assert.ok(declared, 'the LossReason union is not where this test looks for it');
+  const device = [...declared[1].matchAll(/'([a-z_]+)'/gi)].map((m) => m[1]);
+
+  assert.ok(device.length >= 4, 'no loss reasons found - the parse is looking in the wrong shape');
+
+  // This is the mismatch this file was written for, and it slipped through
+  // anyway because nobody checked THIS enum: the device said `internalUse` and
+  // the server enum says `internal_use`. No loss has ever been written, so it
+  // was free to fix - the first one would have been accepted by SQLite, queued,
+  // and refused by Postgres with nobody watching.
+  for (const reason of device) {
+    assert.ok(
+      server.has(reason),
+      `the device can record a loss as "${reason}" and the server enum has no such value`,
+    );
+  }
+});
+
 test('the location this device creates is a kind the server knows', () => {
   const sql = serverSql();
   const kinds = enumValues(sql, 'location_kind');
