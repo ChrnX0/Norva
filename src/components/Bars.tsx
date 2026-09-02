@@ -7,6 +7,7 @@ import Animated, {
   withSpring,
   type SharedValue,
 } from 'react-native-reanimated';
+import { tint } from '@/components/Card';
 import { useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -29,12 +30,15 @@ import { useTheme } from '@/theme/ThemeProvider';
 export function Bars({
   series,
   labels,
+  hue,
   height = 56,
 }: {
   /** Sete dias, do mais antigo para hoje. */
   series: readonly { date: string; total: number }[];
   /** A inicial de cada dia da semana, já no idioma da tela. */
   labels: readonly string[];
+  /** A cor do dia de hoje. Sem ela, a da área. */
+  hue?: string;
   height?: number;
 }) {
   const { color, accent, space, type } = useTheme();
@@ -65,7 +69,7 @@ export function Bars({
                 share={share}
                 grown={grown}
                 height={height}
-                color={today ? accent : color.lineStrong}
+                color={today ? (hue ?? accent) : tint(hue ?? accent, 0.28)}
               />
             </View>
             <Text

@@ -42,12 +42,22 @@ export function tint(hex: string, alpha: number): string {
 export function Card({
   children,
   tone = 'plain',
+  hue,
   icon,
   title,
   style,
 }: {
   children: ReactNode;
   tone?: Tone;
+  /**
+   * A cor deste cartão, quando ela não é a da área nem a de um alerta.
+   *
+   * A capa põe assuntos diferentes um embaixo do outro - o que saiu do tacho, o
+   * que foi para a loja, o que mudou de preço - e com um tom só eles viram a
+   * mesma coisa repetida. Cada assunto carrega o tom da SUA área, que é o mesmo
+   * da aba correspondente: quem vê laranja sabe que é produção antes de ler.
+   */
+  hue?: string;
   /** O desenho do assunto, num crachá redondo. Recebe a cor já resolvida. */
   icon?: (color: string) => ReactNode;
   /** O título, que fica ao lado do crachá. Sem ícone ele não aparece. */
@@ -57,13 +67,14 @@ export function Card({
   const { color, scheme, radius, space, type, accent } = useTheme();
 
   const toneColor =
-    tone === 'area'
+    hue ??
+    (tone === 'area'
       ? accent
       : tone === 'danger'
         ? color.danger
         : tone === 'warning'
           ? color.warning
-          : null;
+          : null);
 
   // O escuro aguenta mais cor que o claro: sobre papel quase branco, doze por
   // cento de âmbar já vira um cartão amarelo.
