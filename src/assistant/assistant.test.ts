@@ -168,12 +168,27 @@ const PLACE_STOCK: PlaceStock[] = [
 /** Records what the assistant tried to do, so a silent write cannot hide. */
 let recorded: unknown[] = [];
 
-/** O que o tacho pôs para fora, por dia, no dublê. */
-const PRODUZIDO = new Map<string, { itemId: string; name: string; baseUnits: number }[]>();
+/**
+ * O que o tacho pôs para fora, no dublê.
+ *
+ * Sem chave por data, de propósito. A primeira versão indexava por "hoje em
+ * UTC" e a habilidade pergunta pela janela do fuso da FÁBRICA — para São Paulo
+ * o dia começa às 03:00Z do dia anterior, então as duas datas só coincidem em
+ * parte do dia. O teste passava pelo horário em que rodava, que é o defeito que
+ * o guarda do relógio existe para pegar. Aqui o dublê responde a mesma coisa
+ * para qualquer janela: quem está sendo testado é a habilidade, não o
+ * calendário.
+ */
+let PRODUZIDO: { itemId: string; name: string; baseUnits: number }[][] = [];
+let PEDIDOS = 0;
 
 const data: AssistantData = {
   listItems: async () => ITEMS,
-  productionOn: async (from) => PRODUZIDO.get(from.slice(0, 10)) ?? [],
+  // A habilidade pede DUAS janelas, hoje e a mesma segunda da semana passada,
+  // nessa ordem. O dublê responde pela ordem em vez de pela data justamente
+  // para não depender do relógio - e assim o teste consegue exigir a
+  // comparação, que é a metade que importa.
+  productionOn: async () => PRODUZIDO[PEDIDOS++] ?? [],
   listProducts: async () => PRODUCTS,
   loadRecipeGraph: async () => RECIPES,
   itemCosts: async () => COSTS,
@@ -384,18 +399,25 @@ test('the assistant answers what the briefing shows, and says when there is noth
   // A capa passou a dizer o que saiu do tacho hoje, e o assistente respondia
   // "ainda não sei". Duas verdades no mesmo app, e quem perde é o assistente:
   // a pessoa pergunta uma vez, ouve que ele não sabe, e não pergunta de novo.
-  PRODUZIDO.clear();
+  PRODUZIDO = [];
+  PEDIDOS = 0;
   const vazio = await ask('quanto saiu hoje', context());
   assert.match(vazio.text, /Nada saiu do tacho hoje/);
 
   // Com produção, ele diz o número E a comparação - a mesma Lei 3 que a tela
   // obedece. Um número sozinho não ensina nada.
-  const hoje = new Date().toISOString().slice(0, 10);
-  PRODUZIDO.set(hoje, [{ itemId: 'pop', name: 'Picolé de morango', baseUnits: 480 }]);
+  PEDIDOS = 0;
+  PRODUZIDO = [
+    [{ itemId: 'pop', name: 'Picolé de morango', baseUnits: 480 }],
+    [{ itemId: 'pop', name: 'Picolé de morango', baseUnits: 300 }],
+  ];
 
   const cheio = await ask('quanto saiu hoje', context());
   assert.match(cheio.text, /480/);
-  assert.match(cheio.text, /semana passada/, 'o número nunca vem sozinho');
+  // E a comparação com números de verdade: 480 hoje contra 300 na semana
+  // passada são 180 a mais. Um dublê que devolvesse a mesma coisa para as duas
+  // janelas deixaria essa frase passar sem ser exercitada.
+  assert.match(cheio.text, /180 a mais que no mesmo dia da semana passada/);
 });
 
 test('it reads a number however it was typed', () => {
