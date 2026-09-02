@@ -75,3 +75,47 @@ Três por família, e a regra era mudar a **estrutura**, não só a cor:
 `_briefing.md` é o que os cinco desenhistas receberam: o dado exato, o tamanho, e
 as regras que não se quebram — inclusive a que saiu desta rodada, **nada de
 botão "Lançar produção" na capa**, porque a aba Produção já é essa porta.
+
+
+## Terceira rodada — as três finalistas, quatro variações cada
+
+O dono olhou os quinze e disse: *"quase soltei um palavrão de tão impressionado.
+Dessa vez você acertou na mão — acertou tanto que a gente vai ter que refinar
+mais, porque fiquei indeciso por ter gostado de vários."* Depois escolheu três:
+**11 (Papel ilustrado)**, **20 (Orgânico dia)** e **22 (Orgânico noite)**, com
+uma regra: quatro variações de cada, **duas claras e duas escuras**.
+
+| # | família | tema | o que muda |
+|---|---|---|---|
+| 29 | Papel | claro | a cena da fábrica cresce e vira o assunto |
+| 30 | Papel | claro | a cena vira vinheta ao lado do título; mais texto |
+| 31 | Papel | escuro | tinta clara sobre preto quente — a revista em papel preto |
+| 32 | Papel | escuro | o escuro com a vinheta |
+| 33 | Orgânico | claro | a paisagem maior, com a fábrica entre as colinas |
+| 34 | Orgânico | claro | a semana vira linha ondulada com pontos |
+| 35 | Orgânico | escuro | a mesma paisagem ao entardecer |
+| 36 | Orgânico | escuro | verde-musgo profundo, cena reduzida a silhueta |
+| 37 | Noite | escuro | a noite ilustrada, luz acesa no galpão |
+| 38 | Noite | escuro | a noite com a semana em linha |
+| 39 | Noite | claro | a MESMA identidade ao amanhecer |
+| 40 | Noite | claro | dia limpo |
+
+**O que a rodada ensinou, e não estava na pergunta.** As três famílias não são
+três aplicativos, são **dois**: o Papel é um, e o Orgânico dia e noite são a
+mesma identidade em dois momentos do mesmo dia. O 39 e o 40 provam isso — a
+identidade noturna vira dia trocando só o céu. Ou seja, dia e noite não são uma
+escolha: são os dois temas que o app já tem, com a paisagem acompanhando.
+
+**Uma escolha que eu recomendaria contra, apesar de ser a mais bonita.** A
+semana em linha ondulada (34, 38, 40) sugere continuidade entre os dias que não
+existe: domingo não desce suavemente até segunda, ele é outro dia. Barra tem base
+zero, curva não tem.
+
+### `gerador/`
+
+Os doze saíram de um gerador em Python, e não de doze arquivos escritos à mão. A
+razão é a mesma que faz o `_briefing.md` existir: doze telas comparáveis precisam
+do mesmo dado, da mesma barra de abas e do mesmo espaçamento — o que muda entre
+elas tem que ser a **decisão de desenho**, não um descuido de quem copiou. O
+gerador também é o que permite trocar a paleta de uma família inteira numa linha
+quando o dono apontar a escolhida.
