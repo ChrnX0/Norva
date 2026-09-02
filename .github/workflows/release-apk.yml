@@ -11,14 +11,22 @@ name: Publicar o APK
 # anexo de release ele cabe (o limite lá é 2 GB), e quem baixa é o runner, não
 # o repositório - o binário nunca entra no histórico.
 #
-# O gatilho é o próprio pedido: mexer em `.github/apk-release.txt`, que contém a
-# URL do build a publicar. Uma tag seria mais natural, e não está disponível
-# para quem escreve isto aqui - o push de tag volta 403.
+# O gatilho é manual, e isso é cicatriz.
+#
+# Ele era `pull_request` com `paths: .github/apk-release.txt`, na crença de que
+# só rodaria quando esse arquivo mudasse. **Filtro de `paths` em evento de
+# `pull_request` casa contra o diff inteiro do PR, não contra o push.** Como o
+# arquivo entrou no PR uma vez, todo push seguinte republicou: a execução 40
+# rodou às 01:45 num commit que só mexia em documentação, baixou de novo o
+# artefato da Expo do commit `5703790` - 26 commits atrás - e o anexou por cima
+# do release `apk-0.2.0`, ao lado do APK novo.
+#
+# O resultado é o pior tipo de defeito de entrega: dois arquivos com a mesma
+# versão e códigos diferentes, e quem baixa o maior instala um app sem as telas
+# de produção, estoque e transferência. Um `paths-ignore` não conserta isso; o
+# evento é que está errado.
 
 on:
-  pull_request:
-    paths:
-      - '.github/apk-release.txt'
   workflow_dispatch:
 
 permissions:
@@ -39,7 +47,24 @@ jobs:
           # envelhece calada e o release passa a mentir sobre o que carrega.
           TAG="apk-$(node -p "require('./app.json').expo.version")"
           [ -n "$URL" ] || { echo "sem URL em .github/apk-release.txt"; exit 1; }
+
+          # De qual commit este artefato saiu - e ele NÃO é o HEAD do
+          # repositório. O release dizia "compilado de <HEAD>" enquanto
+          # carregava um build da Expo de 26 commits antes: a nota mentia sobre
+          # o binário que estava logo abaixo dela. Então o commit vem escrito no
+          # pedido, e sem ele não se publica.
+          # O `|| true` não é desleixo: com `set -e`, um `grep` sem casar mata o
+          # passo antes da mensagem, e o log diria só "Process completed with
+          # exit code 1". A checagem explícita abaixo é que deve falar.
+          COMMIT="$(grep -oE '^#[[:space:]]*commit:[[:space:]]*[0-9a-f]{7,40}' .github/apk-release.txt | head -1 | grep -oE '[0-9a-f]{7,40}$' || true)"
+          [ -n "$COMMIT" ] || {
+            echo "falta a linha '# commit: <sha>' em .github/apk-release.txt"
+            echo "sem ela o release não sabe dizer que código está publicando"
+            exit 1
+          }
+
           echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG:-apk-${{ github.run_number }}}" >> "$GITHUB_OUTPUT"
 
       - name: Baixar o APK da Expo
@@ -65,18 +90,20 @@ jobs:
           Android vai pedir permissão para instalar de fora da Play Store — é
           normal em aplicativo de teste, e é uma vez só.
 
-          Build interno, com todas as arquiteturas no mesmo arquivo — por isso é
-          grande. A versão de loja sai bem menor.
+          Build interno da Expo, com todas as arquiteturas no mesmo arquivo —
+          por isso é grande. A versão de loja sai bem menor.
           NOTES
           )
 
-          # De qual código este arquivo saiu. Sem isto, dois releases com a
-          # mesma tag são indistinguíveis, e a pergunta "eu já estou com o
-          # novo?" não tem resposta.
+          # De qual código este arquivo saiu - o commit do artefato, nunca o
+          # HEAD de quem disparou. Sem isto, dois arquivos com a mesma tag são
+          # indistinguíveis, e a pergunta "eu já estou com o novo?" não tem
+          # resposta - foi exatamente assim que um APK de 26 commits atrás
+          # passou a semana anunciado como a versão de hoje.
           NOTES="$NOTES
 
           ---
-          Compilado de \`$(git rev-parse --short HEAD)\` · publicado em $(date -u +'%d/%m/%Y %H:%M UTC')"
+          Compilado de \`${{ steps.request.outputs.commit }}\` · publicado em $(date -u +'%d/%m/%Y %H:%M UTC')"
 
 
           gh release create "$TAG" norva.apk \

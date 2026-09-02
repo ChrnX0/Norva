@@ -1,12 +1,17 @@
-# O APK a publicar como release. Mexer neste arquivo é o que dispara a
-# publicação (.github/workflows/release-apk.yml) — a URL abaixo é o artefato
-# que o runner baixa e anexa.
+# O APK a publicar como release: a URL abaixo é o artefato que o runner baixa e
+# anexa. Mexer neste arquivo NÃO publica nada — quem publica é disparar
+# "Publicar o APK" à mão (.github/workflows/release-apk.yml). Era automático
+# por push e republicava build velho em cima do novo; está no comentário lá.
 #
 # O link direto da Expo termina numa URL assinada que devolve 110 MiB como
 # download bruto, e navegador de celular desiste disso em silêncio. Por isso o
 # release: endereço estável, que o Android trata como download normal.
 #
-# apk-0.2.0 · build f2f18c23-3d9f-4cce-a395-603b8358969c · commit 5703790
+# apk-0.2.0 · build f2f18c23-3d9f-4cce-a395-603b8358969c
+#
+# A linha abaixo é lida pelo workflow, não é enfeite: é o que o release
+# escreve como "compilado de". Sem ela a publicação falha, de propósito.
+# commit: 5703790
 # 65 commits à frente do APK anterior. runtimeVersion mudou (7e964c8 contra
 # 2b936c01), então quem tem o antigo instalado precisa instalar por cima — não
 # chega por atualização automática.

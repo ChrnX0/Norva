@@ -189,10 +189,15 @@ jobs:
           {
             echo "Instalador de teste do NORVA para Android."
             echo
-            echo "**Baixe \`norva-arm64.apk\`** - 47 MB, compilado neste repositorio."
-            echo "O \`norva.apk\` grande vem da Expo e carrega duas arquiteturas"
-            echo "que so existem em emulador."
+            echo "**Baixe \`norva-arm64.apk\`** - $(du -h norva-arm64.apk | cut -f1), compilado"
+            echo "neste repositorio para arm64, que e o que qualquer celular dos"
+            echo "ultimos dez anos usa."
             echo
+            # O texto anterior citava um \`norva.apk\` da Expo como se a diferenca
+            # fosse so de arquitetura. Nao era: aquele arquivo vinha de outro
+            # commit, e ficou 26 commits atras deste enquanto o release dizia a
+            # mesma versao para os dois. Um release carrega um instalador; se
+            # houver outro, ele nao e "o mesmo app menor", e outro app.
             echo "**Como instalar:** baixe pelo proprio celular. O Android pede"
             echo "permissao para instalar fora da Play Store - e normal em"
             echo "aplicativo de teste, e e uma vez so."
