@@ -315,6 +315,9 @@ check('the briefing is up to date when you tap Back into it', async (page) => {
 
   const before = await screen(page);
   assert.match(before, /R\$ 0,64/);
+  // Instalação virgem: o exemplo nasce com um preço, nunca com uma mudança de
+  // preço. A tela diz isso em vez de inventar uma data de estabilidade.
+  assert.match(before, /nenhuma mudança de preço registrada/);
 
   // Tapped, not typed: this is the route a person actually takes - e agora ela
   // passa pela barra de abas, porque a lista de nove linhas saiu da home. O
@@ -345,6 +348,9 @@ check('the briefing is up to date when you tap Back into it', async (page) => {
   const after = await screen(page);
   assert.match(after, /R\$ 0,73/, 'the briefing re-read the ledger on the way back');
   assert.match(after, /▲ R\$ 0,09/);
+  // Com a comparação na tela, o tempo de estabilidade seria ruído - e seria
+  // falso, porque o custo acabou de mexer.
+  assert.doesNotMatch(after, /estável há|nenhuma mudança de preço/);
   assert.doesNotMatch(after, /Nada mudou de preço/, 'it must not still say nothing moved');
 });
 

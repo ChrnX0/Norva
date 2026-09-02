@@ -1485,6 +1485,41 @@ export async function shipmentsOn(
   return [...byPlace.values()];
 }
 
+/**
+ * When one of these items last actually changed price.
+ *
+ * "Estável há doze dias" is a conclusion, and this is the fact under it. Only a
+ * row where the rate MOVED counts: `item_cost_history` also records the first
+ * price an item ever had, and treating that as a change would say the cost
+ * moved on the day the item was registered - which is the day nothing was known
+ * yet, not the day something happened.
+ *
+ * Returns null when no item in the list has ever moved. The screen says that in
+ * words; a repository does not invent a date to fill a sentence.
+ */
+export async function lastCostMove(
+  companyId: string,
+  itemIds: readonly string[],
+): Promise<string | null> {
+  if (itemIds.length === 0) return null;
+
+  const conn = await db();
+  const marks = itemIds.map(() => '?').join(', ');
+  const row = await conn.getFirstAsync<{ observed_at: string }>(
+    `SELECT observed_at
+       FROM item_cost_history
+      WHERE company_id = ?
+        AND item_id IN (${marks})
+        AND previous_rate IS NOT NULL
+        AND previous_rate <> new_rate
+      ORDER BY observed_at DESC
+      LIMIT 1`,
+    [companyId, ...itemIds],
+  );
+
+  return row?.observed_at ?? null;
+}
+
 // --- erasing -----------------------------------------------------------------
 
 /**

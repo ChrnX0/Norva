@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { dayWindow } from './day';
+import { dayWindow, daysBetween } from './day';
 
 /** São Paulo has been at UTC-3 with no daylight saving since 2019. */
 const SP = 'America/Sao_Paulo';
@@ -46,4 +46,15 @@ test('a zone that changes its clock still gets whole days', () => {
   const virada = dayWindow('2026-03-29T12:00:00.000Z', 'Europe/Lisbon');
   assert.equal(virada.from, '2026-03-29T00:00:00.000Z');
   assert.equal(virada.to, '2026-03-29T23:00:00.000Z');
+});
+
+test('days are counted between local midnights, not by dividing milliseconds', () => {
+  // Doze dias, e o meio deles atravessa a virada de horário de Lisboa - a
+  // divisão crua daria 11,96 e arredondaria para 12 por sorte; num intervalo
+  // com duas viradas ela erraria.
+  assert.equal(daysBetween('2026-08-20T10:00:00.000Z', '2026-09-01T10:00:00.000Z', SP), 12);
+  assert.equal(daysBetween('2026-03-25T23:00:00.000Z', '2026-04-02T01:00:00.000Z', 'Europe/Lisbon'), 8);
+
+  // Mesmo dia, horas diferentes: zero dias, não "quase um".
+  assert.equal(daysBetween('2026-09-01T03:30:00.000Z', '2026-09-02T02:00:00.000Z', SP), 0);
 });

@@ -9,6 +9,7 @@ import { IconCost, IconProduction } from '@/components/icons';
 import {
   itemCosts,
   labels as loadLabels,
+  lastCostMove,
   listProducts,
   loadRecipeGraph,
   productionOn,
@@ -20,8 +21,8 @@ import { brand } from '@/config/brand';
 import { useQuery } from '@/data/useQuery';
 import { nowIso } from '@/data/db';
 import { ratesBefore } from '@/domain/cost';
-import { dayWindow } from '@/domain/day';
-import { costPerProductUnit, costRecipe } from '@/domain/recipe';
+import { dayWindow, daysBetween } from '@/domain/day';
+import { costPerProductUnit, costRecipe, explodeRequirements } from '@/domain/recipe';
 import { fill, formatMoney, formatQuantity, formatWeekday, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { palettes } from '@/theme/tokens';
@@ -69,6 +70,8 @@ type ProductCost = {
   unitCents: number;
   /** The same unit, priced before the recent invoices. Null when nothing moved. */
   unitCentsBefore: number | null;
+  /** Quando o custo deste produto mexeu pela última vez. Null: nunca mexeu. */
+  costMovedAt: string | null;
 };
 
 type Summary = {
@@ -124,13 +127,23 @@ function Briefing() {
       madeToday: sum(madeToday),
       madeThen: sum(madeThen),
       everMade: madeToday.length > 0 || madeThen.length > 0,
-      products: products.map((product) => ({
-        id: product.id,
-        name: product.name,
-        recipeId: product.recipeId,
-        unitCents: priced(product, costs),
-        unitCentsBefore: changes.length > 0 ? priced(product, before) : null,
-      })),
+      products: await Promise.all(
+        products.map(async (product) => ({
+          id: product.id,
+          name: product.name,
+          recipeId: product.recipeId,
+          unitCents: priced(product, costs),
+          unitCentsBefore: changes.length > 0 ? priced(product, before) : null,
+          // Os insumos que ESTE produto usa, não todos os da empresa: uma alta
+          // na polpa não move o custo do picolé de coco, e dizer que moveu
+          // seria alarme inventado.
+          costMovedAt: product.recipeId
+            ? await lastCostMove(LOCAL_COMPANY_ID, [
+                ...explodeRequirements(product.recipeId, 1, graph).keys(),
+              ])
+            : null,
+        })),
+      ),
     };
   });
 
@@ -218,11 +231,31 @@ function Briefing() {
                 </View>
               ) : null}
 
-              {/* Law 6: every conclusion opens its account. The sheet that
-                  explains this cost lives one tap away, on the recipe. */}
-              <Text style={[type.caption, { color: palette.sky, marginTop: space.sm }]}>
-                {t.app.home.why}
-              </Text>
+              {/* Quanto tempo esse número está parado.
+                  A prancha põe isso ao lado do `por quê?`, e é o que separa
+                  "custa 64 centavos" de "custa 64 centavos e ninguém mexeu
+                  nisso há doze dias" - a segunda é uma informação sobre o
+                  negócio, a primeira é só um preço. Só aparece quando NÃO
+                  houve mudança recente: com a comparação na tela, o tempo de
+                  estabilidade seria ruído. */}
+              <View style={[styles.row, { gap: space.sm, marginTop: space.sm }]}>
+                {!costMoved ? (
+                  <Text style={[type.caption, { color: color.inkFaint }]}>
+                    {product.costMovedAt
+                      ? fill(t.app.home.stableFor, {
+                          days: plural(
+                            daysBetween(product.costMovedAt, nowIso(), locale.timeZone),
+                            t.app.home.dayCount,
+                          ),
+                        })
+                      : t.app.home.stableAlways}
+                  </Text>
+                ) : null}
+
+                {/* Law 6: every conclusion opens its account. The sheet that
+                    explains this cost lives one tap away, on the recipe. */}
+                <Text style={[type.caption, { color: palette.sky }]}>{t.app.home.why}</Text>
+              </View>
             </Card>
           </Pressable>
         );

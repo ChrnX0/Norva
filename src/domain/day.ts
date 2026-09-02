@@ -81,3 +81,17 @@ function offsetMinutes(at: Date, timeZone: string): number {
   );
   return (at.getTime() - there.getTime()) / 60_000;
 }
+
+/**
+ * Whole days between two instants, counted as the factory counts them.
+ *
+ * Not `(a - b) / 86_400_000`: on the day a zone moves its clock that division
+ * gives 0.96 of a day and rounds to the wrong number. Both ends are reduced to
+ * their local midnight first, so "yesterday" is one day away whether yesterday
+ * had 23 hours, 24, or 25.
+ */
+export function daysBetween(fromIso: string, toIso: string, timeZone: string): number {
+  const from = new Date(dayWindow(fromIso, timeZone).from).getTime();
+  const to = new Date(dayWindow(toIso, timeZone).from).getTime();
+  return Math.round((to - from) / 86_400_000);
+}
