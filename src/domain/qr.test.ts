@@ -53,21 +53,23 @@ test('the same code always draws the same square', () => {
 test('the white margin is part of the code, not part of the styling', () => {
   const { span, path } = qrPath('20260902-01');
 
-  // Quatro módulos de branco de cada lado: 21 + 4 + 4 = 29. É o que o padrão
-  // exige, e é a primeira coisa que some quando alguém aperta a etiqueta para
-  // caber - com o papelão da caixa encostando no código, o leitor desiste.
-  assert.equal(span, 21 + QUIET_ZONE * 2);
+  // Os números aqui são LITERAIS, e isso é o ponto.
+  //
+  // A primeira versão deste teste escrevia `21 + QUIET_ZONE * 2` e importava a
+  // constante - com isso os dois lados da igualdade mudavam juntos, e o teste
+  // não tinha como falhar. A mutação que zerava a margem passou por ele sem
+  // encostar. Teste que usa a própria constante para conferir a constante
+  // afirma apenas que a aritmética do JavaScript funciona.
+  assert.equal(QUIET_ZONE, 4, 'o padrão do QR exige quatro módulos de silêncio');
+  assert.equal(span, 29, '21 módulos de código mais quatro de branco de cada lado');
 
-  // E nenhum módulo preto invade a margem: todo comando do caminho começa em
-  // quatro ou mais, e termina antes do fim da zona do outro lado.
+  // E nenhum módulo preto invade a margem: sem ela o papelão da caixa encosta
+  // no código e o leitor desiste.
   const pontos = [...path.matchAll(/M(\d+) (\d+)h/g)].map(([, x, y]) => [Number(x), Number(y)]);
   assert.ok(pontos.length > 0, 'o código desenhou alguma coisa');
   for (const [x, y] of pontos) {
-    assert.ok(x >= QUIET_ZONE && y >= QUIET_ZONE, `módulo dentro da margem: ${x},${y}`);
-    assert.ok(
-      x < span - QUIET_ZONE && y < span - QUIET_ZONE,
-      `módulo passando da margem oposta: ${x},${y}`,
-    );
+    assert.ok(x >= 4 && y >= 4, `módulo dentro da margem: ${x},${y}`);
+    assert.ok(x <= 24 && y <= 24, `módulo passando da margem oposta: ${x},${y}`);
   }
 });
 
