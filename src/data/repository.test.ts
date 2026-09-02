@@ -11,6 +11,12 @@ import {
   productionOn,
   shipmentsOn,
   recordCheck,
+  openProductionRun,
+  openProductionRuns,
+  cancelProductionRun,
+  closeProductionRun,
+  RunGoneError,
+  NotEnoughStockError,
   unchecked,
   savePlace,
   stockByPlace,
@@ -776,6 +782,84 @@ test('what went out is grouped by where it landed, in the units each item has', 
   // das linhas.
   const total = dia.flatMap((d) => d.items).reduce((n, i) => n + i.baseUnits, 0);
   assert.equal(total, 12000);
+});
+
+test('an open run is state: the ledger does not know it until it closes', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+
+  const antes = await live.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM movements');
+
+  const corrida = await openProductionRun(LOCAL_COMPANY_ID, { productId: product.id, batches: 1 });
+  assert.equal((await openProductionRuns(LOCAL_COMPANY_ID)).length, 1);
+
+  // Abrir não move nada: nenhuma linha nova no razão, nenhum insumo baixado.
+  const depoisDeAbrir = await live.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM movements');
+  assert.equal(depoisDeAbrir?.n, antes?.n);
+
+  const fechada = await closeProductionRun(LOCAL_COMPANY_ID, {
+    runId: corrida.id,
+    unitsProduced: 480,
+  });
+
+  // Agora sim, e o id da corrida é o grupo das linhas: a corrida sai da tabela
+  // e o nome dela fica no livro-razão.
+  assert.equal((await openProductionRuns(LOCAL_COMPANY_ID)).length, 0);
+  const linhas = await live.getAllAsync<{ n: number }>(
+    'SELECT id FROM movements WHERE movement_group_id = ?',
+    [fechada.groupId],
+  );
+  assert.ok(linhas.length >= 3, 'produção mais consumo, no mesmo grupo');
+});
+
+test('a cancelled run leaves nothing to reverse', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const antes = await live.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM movements');
+
+  const corrida = await openProductionRun(LOCAL_COMPANY_ID, { productId: product.id, batches: 1 });
+  await cancelProductionRun(LOCAL_COMPANY_ID, corrida.id);
+
+  // É a razão inteira de a corrida ser estado e não movimento: cancelar não
+  // precisa de estorno porque nunca houve lançamento.
+  assert.equal((await openProductionRuns(LOCAL_COMPANY_ID)).length, 0);
+  const depois = await live.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM movements');
+  assert.equal(depois?.n, antes?.n);
+
+  // E cancelar de novo não é erro: o pedido já estava cumprido.
+  await cancelProductionRun(LOCAL_COMPANY_ID, corrida.id);
+});
+
+test('two taps on close do not produce twice', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const corrida = await openProductionRun(LOCAL_COMPANY_ID, { productId: product.id, batches: 1 });
+
+  await closeProductionRun(LOCAL_COMPANY_ID, { runId: corrida.id, unitsProduced: 480 });
+
+  // Dedo tremido na doca, ou a tela que não atualizou: a segunda tentativa não
+  // acha a corrida e para ANTES de escrever, em vez de baixar o insumo duas
+  // vezes.
+  await assert.rejects(
+    closeProductionRun(LOCAL_COMPANY_ID, { runId: corrida.id, unitsProduced: 480 }),
+    (e) => e instanceof RunGoneError,
+  );
+});
+
+test('a run that cannot close stays open, instead of being lost', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+
+  // Vinte tachos contra o estoque de um exemplo: o razão recusa.
+  const corrida = await openProductionRun(LOCAL_COMPANY_ID, { productId: product.id, batches: 20 });
+  await assert.rejects(
+    closeProductionRun(LOCAL_COMPANY_ID, { runId: corrida.id, unitsProduced: 9000 }),
+    (e) => e instanceof NotEnoughStockError,
+  );
+
+  // E a corrida continua aberta: a pessoa lança a compra que chegou e fecha
+  // depois. Perder o registro do tacho que rodou seria o pior dos dois mundos.
+  assert.equal((await openProductionRuns(LOCAL_COMPANY_ID)).length, 1);
 });
 
 test('a store that checked and a store that did not are different facts', async () => {

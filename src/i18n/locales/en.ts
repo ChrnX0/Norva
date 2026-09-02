@@ -62,6 +62,8 @@ export const en: Dictionary = {
       producedMore: '{{amount}} more than {{day}}',
       producedLess: '{{amount}} less than {{day}}',
       boxesSent: 'went out today',
+      running: 'kettle running',
+      runningSince: 'open since {{time}}',
       boxCount: { one: '1 box', other: '{{n}} boxes' },
       alsoSent: 'plus {{items}}',
       alsoSentItem: '{{amount}} of {{name}}',
@@ -398,6 +400,13 @@ export const en: Dictionary = {
       confirmBody:
         'You made {{units}} of {{product}}, in {{batches}}. This takes {{lines}} out of stock and freezes the cost at {{cost}} per unit.',
       recorded: 'Production recorded.',
+      open: 'Start the kettle',
+      openHint: 'Mark it now and close it when it comes out, or record it all at once.',
+      close: 'Close the kettle',
+      running: 'Kettle open since {{time}}',
+      cancel: 'Cancel the kettle',
+      cancelTitle: 'Cancel this kettle?',
+      cancelBody: 'Nothing has been recorded yet, so there is nothing to reverse.',
       missingTitle: 'Not enough for this run',
       failed: 'Could not record',
       missingStock:

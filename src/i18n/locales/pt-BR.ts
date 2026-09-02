@@ -81,6 +81,8 @@ export const ptBR = {
       producedMore: '{{amount}} a mais que {{day}}',
       producedLess: '{{amount}} a menos que {{day}}',
       boxesSent: 'saíram hoje',
+      running: 'tacho rodando',
+      runningSince: 'aberto desde {{time}}',
       boxCount: { one: '1 caixa', other: '{{n}} caixas' },
       alsoSent: 'e mais {{items}}',
       alsoSentItem: '{{amount}} de {{name}}',
@@ -418,6 +420,13 @@ export const ptBR = {
       confirmBody:
         'Você produziu {{units}} de {{product}}, em {{batches}}. Isso baixa {{lines}} do estoque e congela o custo em {{cost}} por unidade.',
       recorded: 'Produção registrada.',
+      open: 'Abrir o tacho',
+      openHint: 'Marque agora e feche quando sair, ou registre tudo de uma vez.',
+      close: 'Fechar o tacho',
+      running: 'Tacho aberto desde {{time}}',
+      cancel: 'Cancelar o tacho',
+      cancelTitle: 'Cancelar este tacho?',
+      cancelBody: 'Nada foi lançado ainda, então não há o que estornar.',
       missingTitle: 'Falta insumo para esta corrida',
       failed: 'Não deu para registrar',
       missingStock:

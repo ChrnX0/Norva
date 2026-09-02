@@ -67,6 +67,8 @@ export const es: Dictionary = {
       producedMore: '{{amount}} más que {{day}}',
       producedLess: '{{amount}} menos que {{day}}',
       boxesSent: 'salieron hoy',
+      running: 'olla en marcha',
+      runningSince: 'abierta desde {{time}}',
       boxCount: { one: '1 caja', other: '{{n}} cajas' },
       alsoSent: 'y además {{items}}',
       alsoSentItem: '{{amount}} de {{name}}',
@@ -404,6 +406,13 @@ export const es: Dictionary = {
       confirmBody:
         'Produjiste {{units}} de {{product}}, en {{batches}}. Esto descuenta {{lines}} del stock y congela el costo en {{cost}} por unidad.',
       recorded: 'Producción registrada.',
+      open: 'Abrir la olla',
+      openHint: 'Márcala ahora y ciérrala cuando salga, o registra todo de una vez.',
+      close: 'Cerrar la olla',
+      running: 'Olla abierta desde {{time}}',
+      cancel: 'Cancelar la olla',
+      cancelTitle: '¿Cancelar esta olla?',
+      cancelBody: 'Todavía no se registró nada, así que no hay qué revertir.',
       missingTitle: 'Falta insumo para esta corrida',
       failed: 'No se pudo registrar',
       missingStock:

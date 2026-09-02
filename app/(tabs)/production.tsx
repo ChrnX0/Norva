@@ -9,6 +9,11 @@ import { Field } from '@/components/Field';
 import { IconProduction } from '@/components/icons';
 import {
   NotEnoughStockError,
+  openProductionRun,
+  openProductionRuns,
+  cancelProductionRun,
+  closeProductionRun,
+  type OpenRun,
   defaultLocationId,
   labels as loadLabels,
   listItems,
@@ -22,7 +27,7 @@ import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { explodeRequirements, type Recipe } from '@/domain/recipe';
 import { parseTyped } from '@/domain/number';
-import { fill, formatMoney, formatPacked, formatQuantity, joinList, plural } from '@/i18n';
+import { fill, formatMoney, formatPacked, formatQuantity, formatTime, joinList, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { palettes } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -52,6 +57,7 @@ type Loaded = {
   graph: Record<string, Recipe>;
   items: ItemWithCost[];
   names: Record<string, string>;
+  runs: OpenRun[];
 };
 
 /** Quantas unidades um tacho promete, pela ficha. */
@@ -69,13 +75,14 @@ function Production() {
   const askConfirm = useConfirm();
 
   const { data, loading, refresh } = useQuery<Loaded>(async () => {
-    const [products, graph, items, names] = await Promise.all([
+    const [products, graph, items, names, runs] = await Promise.all([
       listProducts(LOCAL_COMPANY_ID),
       loadRecipeGraph(LOCAL_COMPANY_ID),
       listItems(LOCAL_COMPANY_ID),
       loadLabels(LOCAL_COMPANY_ID),
+      openProductionRuns(LOCAL_COMPANY_ID),
     ]);
-    return { products: products.filter((p) => p.recipeId), graph, items, names };
+    return { products: products.filter((p) => p.recipeId), graph, items, names, runs };
   });
 
   const [productId, setProductId] = useState<string | null>(null);
@@ -117,6 +124,27 @@ function Production() {
     return { lines, unitCostRate: value / units + packaging, short };
   }, [selected, recipe, data, batches, units]);
 
+  // A corrida aberta deste produto, se houver.
+  const aberta = (data?.runs ?? []).find((r) => r.productId === selected?.id);
+
+  const onOpen = async () => {
+    if (!selected) return;
+    await openProductionRun(LOCAL_COMPANY_ID, { productId: selected.id, batches });
+    refresh();
+  };
+
+  const onCancel = async () => {
+    if (!aberta) return;
+    const yes = await askConfirm({
+      title: t.app.production.cancelTitle,
+      message: t.app.production.cancelBody,
+      confirmLabel: t.app.production.cancel,
+    });
+    if (!yes) return;
+    await cancelProductionRun(LOCAL_COMPANY_ID, aberta.id);
+    refresh();
+  };
+
   const onRecord = async () => {
     if (!selected || !draft || saving) return;
 
@@ -138,12 +166,20 @@ function Production() {
 
     setSaving(true);
     try {
-      await recordProduction(LOCAL_COMPANY_ID, {
-        productId: selected.id,
-        locationId: defaultLocationId(LOCAL_COMPANY_ID),
-        batches,
-        unitsProduced: units,
-      });
+      // Com tacho aberto, fechar é o caminho: as linhas nascem com o id da
+      // corrida como grupo e com a hora em que ela COMEÇOU, não a de agora.
+      // Sem tacho aberto, é o lançamento direto de sempre - quem trabalha
+      // assim nunca toca no outro botão.
+      if (aberta) {
+        await closeProductionRun(LOCAL_COMPANY_ID, { runId: aberta.id, unitsProduced: units });
+      } else {
+        await recordProduction(LOCAL_COMPANY_ID, {
+          productId: selected.id,
+          locationId: defaultLocationId(LOCAL_COMPANY_ID),
+          batches,
+          unitsProduced: units,
+        });
+      }
       setUnitsTyped(false);
       setUnitsText('');
       refresh();
@@ -246,6 +282,12 @@ function Production() {
                 : t.app.production.unitsHint
             }
           />
+          {aberta ? (
+            <Text style={[type.secondary, { color: palette.apricot }]}>
+              {fill(t.app.production.running, { time: formatTime(aberta.openedAt, locale) })}
+            </Text>
+          ) : null}
+
           {/* O que aquele número vira na prateleira.
               A prancha escreve "dá 5 caixas de 50" embaixo da quantidade, e é
               aritmética que o operador não deveria ter de fazer de cabeça: ele
@@ -319,10 +361,31 @@ function Production() {
           number anyone can act on; it means the count is wrong, and the way out
           is to count or to enter the invoice, which the message now says. */}
       <Button
-        label={saving ? t.app.production.recording : t.app.production.record}
+        label={
+          saving
+            ? t.app.production.recording
+            : aberta
+              ? t.app.production.close
+              : t.app.production.record
+        }
         onPress={onRecord}
         disabled={!draft || saving || draft.short.length > 0}
       />
+
+      {/* Marcar o tacho agora e fechar quando sair, ou lançar tudo de uma vez.
+          Os dois caminhos existem porque a fábrica escolhe: quem trabalha em
+          corrida aberta marca na hora de carregar; quem lança no fim do turno
+          nunca toca neste botão, e a tela é a mesma. */}
+      {!aberta ? (
+        <Button
+          label={t.app.production.open}
+          variant="ghost"
+          onPress={onOpen}
+          disabled={!selected || saving}
+        />
+      ) : (
+        <Button label={t.app.production.cancel} variant="ghost" onPress={onCancel} />
+      )}
     </CollapsingHeader>
   );
 }

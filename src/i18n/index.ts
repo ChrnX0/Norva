@@ -136,6 +136,15 @@ export function formatPacked(
   return and ? joinList(parts, and) : parts.join(' · ');
 }
 
+/** A hora do relógio da fábrica: "05:20", nunca "5:20 AM" num turno de -18°C. */
+export function formatTime(iso: string, locale: LocaleSettings): string {
+  return new Intl.DateTimeFormat(locale.formatting, {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: locale.timeZone,
+  }).format(new Date(iso));
+}
+
 export function formatWeekday(iso: string, locale: LocaleSettings): string {
   return new Intl.DateTimeFormat(locale.formatting, {
     weekday: 'long',

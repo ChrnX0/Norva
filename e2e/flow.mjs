@@ -382,6 +382,45 @@ check('what came out today reaches the briefing, with what it was to compare', a
   assert.match(briefing, /primeira produção registrada/);
 });
 
+check('a kettle marked as running pulses on the briefing, and closing it writes the ledger', async (page) => {
+  // Fábrica parada não desenha nada: o pulso só existe quando há tacho, porque
+  // pulso ao lado de número congelado é mentira visual.
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  assert.doesNotMatch(await screen(page), /tacho rodando/);
+
+  await page.getByRole('tab', { name: 'Produção' }).click();
+  await page.waitForTimeout(2500);
+  await page.getByText('Abrir o tacho', { exact: true }).first().click();
+  await page.waitForTimeout(2000);
+
+  // A tela diz desde quando, e o botão principal muda de significado.
+  const aberto = await screen(page);
+  assert.match(aberto, /Tacho aberto desde \d{2}:\d{2}/);
+  assert.match(aberto, /Fechar o tacho/);
+
+  // E a home passa a mostrar o que está acontecendo AGORA.
+  await page.getByRole('tab', { name: 'Início' }).click();
+  await page.waitForTimeout(2500);
+  assert.match(await screen(page), /tacho rodando/);
+
+  // Fechar escreve o razão, e o pulso some porque não há mais tacho.
+  await page.getByRole('tab', { name: 'Produção' }).click();
+  await page.waitForTimeout(2000);
+  await page.getByLabel(/Quantas unidades/).fill('480');
+  await page.waitForTimeout(600);
+  await page.getByText('Fechar o tacho', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.getByRole('tab', { name: 'Início' }).click();
+  await page.waitForTimeout(2500);
+  const depois = await screen(page);
+  assert.doesNotMatch(depois, /tacho rodando/, 'o tacho fechou');
+  assert.match(depois, /480/, 'e o que saiu dele está na capa');
+});
+
 check('production pre-fills what the sheet promises, and records what happened', async (page) => {
   await page.goto(`http://localhost:${PORT}/production`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

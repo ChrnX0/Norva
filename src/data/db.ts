@@ -370,7 +370,39 @@ CREATE INDEX IF NOT EXISTS movements_group_idx
   WHERE movement_group_id IS NOT NULL;
 `;
 
-const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7];
+/**
+ * O tacho que está rodando agora — e que o livro-razão não conhece.
+ *
+ * Esta é a primeira tabela do aparelho que NÃO espelha o servidor, e a razão
+ * precisa ficar escrita porque a promessa deste arquivo é a contrária: uma
+ * corrida aberta não é fato do negócio, é a INTENÇÃO de um ato em curso. O
+ * servidor recebe o ato quando ele acontece — as N+1 linhas que o fechamento
+ * escreve, com o id da corrida como `movement_group_id`. Se um dia o dono
+ * quiser ver o tacho de casa, isso vira uma entrada em `CROSSINGS`; hoje seria
+ * sincronizar rascunho.
+ *
+ * E é por ser estado que ela pode existir: nenhum `movement_kind` novo, nenhuma
+ * coluna em `movements`, nenhuma linha de razão antes do fechamento. Se a forma
+ * estiver errada — e ela só se prova com a fábrica usando —, apagar esta tabela
+ * custa um `DROP TABLE` e zero estorno.
+ *
+ * Ela guarda apenas o que está ABERTO. Fechar e cancelar apagam a linha:
+ * corrida fechada guardada aqui seria uma cópia de um fato que o razão já tem,
+ * e "quanto saiu" precisa de uma resposta só.
+ */
+const V8 = `
+CREATE TABLE IF NOT EXISTS production_runs (
+  id                TEXT PRIMARY KEY,
+  company_id        TEXT NOT NULL,
+  product_id        TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  recipe_version_id TEXT NOT NULL,
+  batches           REAL NOT NULL,
+  location_id       TEXT NOT NULL REFERENCES locations(id) ON DELETE RESTRICT,
+  opened_at         TEXT NOT NULL
+);
+`;
+
+const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8];
 
 export type SqlParam = string | number | null;
 

@@ -1426,6 +1426,162 @@ export async function recentCostChanges(companyId: string, limit = 5): Promise<C
   }));
 }
 
+/** Um tacho que está rodando agora. */
+export type OpenRun = {
+  id: string;
+  productId: string;
+  productName: string;
+  recipeId: string;
+  /** A ficha que estava valendo quando o tacho foi carregado. */
+  recipeVersionId: string;
+  batches: number;
+  locationId: string;
+  openedAt: string;
+};
+
+/** Uma corrida que o razão não conhece: some sem estorno. */
+export class RunGoneError extends Error {
+  constructor(public readonly runId: string) {
+    super(`corrida ${runId} não está aberta`);
+    this.name = 'RunGoneError';
+  }
+}
+
+/**
+ * O tacho começou a rodar.
+ *
+ * Não valida saldo, e isso é decisão e não esquecimento: na abertura a falta é
+ * uma PREVISÃO, e recusar a abertura não impede o tacho de estar rodando - só
+ * deixa a corrida sem registro. A tela avisa aqui; o razão impede no
+ * fechamento, que é onde a escrita acontece.
+ */
+export async function openProductionRun(
+  companyId: string,
+  input: { productId: string; batches: number },
+): Promise<OpenRun> {
+  if (!(input.batches > 0) || !Number.isFinite(input.batches)) {
+    throw new Error('um tacho tem de ser mais que zero');
+  }
+
+  const product = (await listProducts(companyId)).find((p) => p.id === input.productId);
+  if (!product) throw new Error(`produto ${input.productId} não existe`);
+  if (!product.recipeId) throw new Error(`${product.name} é revenda: não se produz`);
+
+  const graph = await loadRecipeGraph(companyId);
+  const recipe = graph[product.recipeId];
+  if (!recipe) throw new Error(`a receita de ${product.name} não está no aparelho`);
+
+  const conn = await db();
+  const at = nowIso();
+  const id = newId();
+  const locationId = await ensureLocation(conn, companyId);
+
+  await conn.runAsync(
+    `INSERT INTO production_runs
+       (id, company_id, product_id, recipe_version_id, batches, location_id, opened_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [id, companyId, product.id, product.recipeId, input.batches, locationId, at],
+  );
+
+  return {
+    id,
+    productId: product.id,
+    productName: product.name,
+    recipeId: product.recipeId,
+    recipeVersionId: product.recipeId,
+    batches: input.batches,
+    locationId,
+    openedAt: at,
+  };
+}
+
+/** Os tachos rodando agora. Vazio é o estado normal de uma fábrica parada. */
+export async function openProductionRuns(companyId: string): Promise<OpenRun[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    id: string;
+    product_id: string;
+    name: string;
+    recipe_id: string;
+    recipe_version_id: string;
+    batches: number;
+    location_id: string;
+    opened_at: string;
+  }>(
+    `SELECT r.id, r.product_id, i.name, p.recipe_id, r.recipe_version_id,
+            r.batches, r.location_id, r.opened_at
+       FROM production_runs r
+       JOIN products p ON p.id = r.product_id
+       JOIN items i ON i.id = p.item_id
+      WHERE r.company_id = ?
+      ORDER BY r.opened_at`,
+    [companyId],
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    productId: r.product_id,
+    productName: r.name,
+    recipeId: r.recipe_id,
+    recipeVersionId: r.recipe_version_id,
+    batches: r.batches,
+    locationId: r.location_id,
+    openedAt: r.opened_at,
+  }));
+}
+
+/**
+ * O tacho não virou produção.
+ *
+ * Apaga a linha e não escreve nada no razão - é aqui que "estado, não
+ * movimento" se paga: não existe estorno porque não existe lançamento. E não
+ * pergunta motivo: o app não fiscaliza.
+ */
+export async function cancelProductionRun(companyId: string, runId: string): Promise<void> {
+  const conn = await db();
+  await conn.runAsync(`DELETE FROM production_runs WHERE id = ? AND company_id = ?`, [
+    runId,
+    companyId,
+  ]);
+}
+
+/**
+ * O tacho virou produção: a corrida sai do estado e entra no razão.
+ *
+ * O id da corrida vira o `movement_group_id` das linhas - a linha some da
+ * tabela, mas o nome dela fica no livro-razão, e é por ele que se volta.
+ * Fechar duas vezes por toque repetido é impossível: a segunda não acha a
+ * corrida e levanta `RunGoneError` antes de escrever qualquer coisa.
+ */
+export async function closeProductionRun(
+  companyId: string,
+  input: { runId: string; unitsProduced: number; note?: string; assistantPhrase?: string },
+): Promise<ProductionResult> {
+  const run = (await openProductionRuns(companyId)).find((r) => r.id === input.runId);
+  if (!run) throw new RunGoneError(input.runId);
+
+  const result = await recordProduction(companyId, {
+    productId: run.productId,
+    locationId: run.locationId,
+    batches: run.batches,
+    unitsProduced: input.unitsProduced,
+    occurredAt: run.openedAt,
+    note: input.note,
+    assistantPhrase: input.assistantPhrase,
+  });
+
+  // Só depois de o razão aceitar. Se a produção falhar por falta de insumo, a
+  // corrida continua aberta e a pessoa pode lançar a compra e fechar de novo -
+  // em vez de perder o registro do tacho que rodou.
+  const conn = await db();
+  await conn.runAsync(`DELETE FROM production_runs WHERE id = ? AND company_id = ?`, [
+    input.runId,
+    companyId,
+  ]);
+
+  return result;
+}
+
 /** O que a loja disse ao abrir a caixa. */
 export type CheckResult = {
   /** O grupo da transferência conferida. */

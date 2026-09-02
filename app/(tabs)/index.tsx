@@ -5,11 +5,13 @@ import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { CountUp } from '@/components/CountUp';
+import { PulseDot } from '@/components/PulseDot';
 import { IconCost, IconProduction } from '@/components/icons';
 import {
   itemCosts,
   labels as loadLabels,
   lastCostMove,
+  openProductionRuns,
   listProducts,
   loadRecipeGraph,
   productionOn,
@@ -25,7 +27,16 @@ import { ratesBefore } from '@/domain/cost';
 import { dayWindow, daysBetween } from '@/domain/day';
 import { boxesOf } from '@/domain/units';
 import { costPerProductUnit, costRecipe, explodeRequirements } from '@/domain/recipe';
-import { fill, formatMoney, formatPacked, formatQuantity, formatWeekday, joinList, plural } from '@/i18n';
+import {
+  fill,
+  formatMoney,
+  formatPacked,
+  formatQuantity,
+  formatTime,
+  formatWeekday,
+  joinList,
+  plural,
+} from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { palettes } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -86,6 +97,8 @@ type Summary = {
   /** Volumes que saíram hoje, e o que saiu sem caber em volume nenhum. */
   boxes: number;
   loose: { name: string; said: string }[];
+  /** Tachos rodando agora. Vazio é o estado normal de uma fábrica parada. */
+  running: { id: string; productName: string; openedAt: string }[];
 };
 
 function Briefing() {
@@ -101,7 +114,8 @@ function Briefing() {
     const today = dayWindow(nowIso(), locale.timeZone);
     const then = dayWindow(nowIso(), locale.timeZone, -7);
 
-    const [products, graph, costs, names, changes, madeToday, madeThen, sent] = await Promise.all([
+    const [products, graph, costs, names, changes, madeToday, madeThen, sent, running] =
+      await Promise.all([
       listProducts(LOCAL_COMPANY_ID),
       loadRecipeGraph(LOCAL_COMPANY_ID),
       itemCosts(LOCAL_COMPANY_ID),
@@ -110,6 +124,7 @@ function Briefing() {
       productionOn(LOCAL_COMPANY_ID, today.from, today.to),
       productionOn(LOCAL_COMPANY_ID, then.from, then.to),
       shipmentsOn(LOCAL_COMPANY_ID, today.from, today.to),
+      openProductionRuns(LOCAL_COMPANY_ID),
     ]);
 
     const sum = (rows: { baseUnits: number }[]) => rows.reduce((n, r) => n + r.baseUnits, 0);
@@ -150,6 +165,11 @@ function Briefing() {
       everMade: madeToday.length > 0 || madeThen.length > 0,
       boxes,
       loose,
+      running: running.map((r) => ({
+        id: r.id,
+        productName: r.productName,
+        openedAt: r.openedAt,
+      })),
       products: await Promise.all(
         products.map(async (product) => ({
           id: product.id,
@@ -207,6 +227,35 @@ function Briefing() {
           </Text>
         </Card>
       ) : null}
+
+      {/* O tacho que está rodando agora.
+          O pulso é a única coisa nesta tela que se move sozinha, e por isso ele
+          só pode existir quando há um tacho de verdade: `PulseDot` exige `live`
+          justamente para que ninguém pulse ao lado de número congelado. Fábrica
+          parada não desenha nada aqui - "está tudo bem" é estado válido. */}
+      {data?.running.map((run) => (
+        <Pressable
+          key={run.id}
+          onPress={() => router.push('/production')}
+          accessibilityRole="button"
+          accessibilityLabel={`${t.app.home.running}: ${run.productName}`}
+        >
+          <Card tone="area">
+            <View style={[styles.row, { gap: space.sm }]}>
+              <PulseDot live />
+              <Text style={[type.cardTitle, { color: color.ink, flex: 1 }]} numberOfLines={1}>
+                {run.productName}
+              </Text>
+            </View>
+            <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
+              {t.app.home.running}
+            </Text>
+            <Text style={[type.caption, { color: color.inkFaint }]}>
+              {fill(t.app.home.runningSince, { time: formatTime(run.openedAt, locale) })}
+            </Text>
+          </Card>
+        </Pressable>
+      ))}
 
       {/* O que saiu para as lojas hoje, em volume.
           O cartão só existe quando há caixa de verdade: se tudo que saiu foi
