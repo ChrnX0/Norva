@@ -5,6 +5,7 @@ import type {
   Place,
   PlaceStock,
   Product,
+  ProducedInWindow,
 } from '@/data/repository';
 import type { Capability } from '@/domain/access';
 import type { Cents } from '@/domain/money';
@@ -53,6 +54,15 @@ export type AssistantData = {
   recentCostChanges(limit: number): Promise<CostChange[]>;
   /** The movements behind one item's balance - what `[por quê?]` opens. */
   itemMovements(itemId: string, limit?: number): Promise<MovementRow[]>;
+  /**
+   * O que saiu do tacho numa janela de tempo.
+   *
+   * A capa passou a dizer isso e o assistente não sabia responder - a pergunta
+   * "quanto saiu hoje" caía no "ainda não sei". Um app em que a tela sabe uma
+   * coisa e o assistente não sabe a mesma coisa tem duas verdades, e é o
+   * assistente que perde.
+   */
+  productionOn(fromIso: string, toIso: string): Promise<ProducedInWindow[]>;
   /** Os lugares cadastrados, para o assistente saber para onde a carga pode ir. */
   listPlaces(): Promise<Place[]>;
   /** O saldo de cada lugar - a mesma consulta que a tela de estoque faz. */

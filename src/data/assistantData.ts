@@ -7,6 +7,7 @@ import {
   listProducts,
   loadRecipeGraph,
   recentCostChanges,
+  productionOn,
   recordCount,
   listPlaces,
   recordProduction,
@@ -35,6 +36,7 @@ export function liveData(companyId: string): AssistantData {
     labels: () => labels(companyId),
     recentCostChanges: (limit) => recentCostChanges(companyId, limit),
     itemMovements: (itemId, limit) => itemMovements(companyId, itemId, limit),
+    productionOn: (from, to) => productionOn(companyId, from, to),
     recordPurchase: (input) => recordPurchase(companyId, input),
     // O assistente conta a prateleira do lugar padrão. Quando existir mais de
     // um, a habilidade passa a perguntar qual - e é por isso que o local é

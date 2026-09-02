@@ -168,8 +168,12 @@ const PLACE_STOCK: PlaceStock[] = [
 /** Records what the assistant tried to do, so a silent write cannot hide. */
 let recorded: unknown[] = [];
 
+/** O que o tacho pôs para fora, por dia, no dublê. */
+const PRODUZIDO = new Map<string, { itemId: string; name: string; baseUnits: number }[]>();
+
 const data: AssistantData = {
   listItems: async () => ITEMS,
+  productionOn: async (from) => PRODUZIDO.get(from.slice(0, 10)) ?? [],
   listProducts: async () => PRODUCTS,
   loadRecipeGraph: async () => RECIPES,
   itemCosts: async () => COSTS,
@@ -374,6 +378,24 @@ test('it finds the item by the word people actually type', () => {
   assert.equal(findByName(ITEMS, 'acucar')?.id, 'sugar', 'accents must not matter');
   assert.equal(findByName(ITEMS, 'AÇÚCAR CRISTAL')?.id, 'sugar');
   assert.equal(findByName(ITEMS, 'parafuso'), null);
+});
+
+test('the assistant answers what the briefing shows, and says when there is nothing', async () => {
+  // A capa passou a dizer o que saiu do tacho hoje, e o assistente respondia
+  // "ainda não sei". Duas verdades no mesmo app, e quem perde é o assistente:
+  // a pessoa pergunta uma vez, ouve que ele não sabe, e não pergunta de novo.
+  PRODUZIDO.clear();
+  const vazio = await ask('quanto saiu hoje', context());
+  assert.match(vazio.text, /Nada saiu do tacho hoje/);
+
+  // Com produção, ele diz o número E a comparação - a mesma Lei 3 que a tela
+  // obedece. Um número sozinho não ensina nada.
+  const hoje = new Date().toISOString().slice(0, 10);
+  PRODUZIDO.set(hoje, [{ itemId: 'pop', name: 'Picolé de morango', baseUnits: 480 }]);
+
+  const cheio = await ask('quanto saiu hoje', context());
+  assert.match(cheio.text, /480/);
+  assert.match(cheio.text, /semana passada/, 'o número nunca vem sozinho');
 });
 
 test('it reads a number however it was typed', () => {

@@ -50,6 +50,25 @@ export type Simulation = {
   invoices: number;
 };
 
+/**
+ * Um ano de fábrica, para ver o que só quebra com tempo.
+ *
+ * A quinzena prova que as telas têm o que dizer. O que ela NÃO prova é o que
+ * este app promete no prazo longo: custo médio que anda, cobertura que encolhe,
+ * histórico que cresce, consulta que fica lenta quando o livro-razão passa de
+ * dez mil linhas. Nada disso aparece num banco de catorze dias, e esperar um
+ * ano de uso real para descobrir é exatamente o que não vai acontecer.
+ *
+ * É a mesma função com outro horizonte: o mesmo caminho de escrita, as mesmas
+ * validações, o mesmo determinismo.
+ */
+export async function simulateHistory(
+  companyId = LOCAL_COMPANY_ID,
+  options: { days?: number; seed?: number; timeZone?: string; at?: string } = {},
+): Promise<Simulation> {
+  return simulateFortnight(companyId, options);
+}
+
 export async function simulateFortnight(
   companyId = LOCAL_COMPANY_ID,
   options: { days?: number; seed?: number; timeZone?: string; at?: string } = {},
@@ -78,6 +97,9 @@ export async function simulateFortnight(
 
   const tally: Simulation = { days, runs: 0, deliveries: 0, invoices: 0 };
 
+  /** O preço de referência de cada insumo, fixado na primeira compra dele. */
+  const patamar = new Map<string, number>();
+
   // Oldest first, so every cost the ledger freezes is the cost that was true on
   // that day - writing backwards would freeze today's price onto last week.
   for (let back = days - 1; back >= 0; back -= 1) {
@@ -104,10 +126,22 @@ export async function simulateFortnight(
 
       const packs = 4 + Math.floor(next() * 3);
       const baseUnits = packs * pack;
-      // O preço anda de -8% a +12% entre compras: é isso que dá à home o que
-      // dizer, e é o que uma fábrica vive.
-      const drift = 0.92 + next() * 0.2;
-      const totalCents = Math.round(baseUnits * (item.averageRate || 1) * drift);
+
+      // O preço oscila em volta de um PATAMAR, não em volta de si mesmo.
+      //
+      // A primeira versão multiplicava a média atual por um fator entre 0,92 e
+      // 1,12 — que compõe: um ano de compras levou a polpa de 1,24 a 6,75
+      // centavos por grama, e o picolé de R$ 0,64 a R$ 2,64. Isso não é uma
+      // fábrica, é juros compostos. O patamar é o preço que o item tinha
+      // quando a simulação começou, guardado uma vez, com uma tendência anual
+      // suave por cima: é o que faz a home ter o que dizer sem inventar
+      // hiperinflação.
+      const base = patamar.get(item.id) ?? (item.averageRate || 1);
+      patamar.set(item.id, base);
+
+      const tendencia = 1 + (0.12 * (days - 1 - back)) / Math.max(days, 1);
+      const drift = 0.93 + next() * 0.14;
+      const totalCents = Math.round(baseUnits * base * tendencia * drift);
       if (totalCents <= 0) continue;
 
       await recordPurchase(companyId, {

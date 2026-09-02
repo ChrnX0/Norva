@@ -1,3 +1,5 @@
+import { nowIso } from '@/data/db';
+import { dayWindow } from '@/domain/day';
 import { packSize } from '@/domain/measure';
 import { purchaseToBaseUnits } from '@/data/repository';
 import { fromDecimal } from '@/domain/money';
@@ -150,6 +152,50 @@ const whatMoved: Skill = {
 };
 
 /** "o que mais pesa no picolé de morango" - where the money actually goes. */
+/** "quanto saiu hoje" - o que o tacho pôs para fora, e contra o que se compara. */
+const producedToday: Skill = {
+  id: 'produced_today',
+  example: 'quanto saiu hoje',
+  match: (q) =>
+    normalize(q).match(
+      /(?:quanto|quantos|o que).*(?:saiu|sa[ií]ram|produz(?:i|iu|imos)).*(?:hoje)?|produ[cç][aã]o de hoje/,
+    ),
+  run: async (_m, ctx) => {
+    const hoje = dayWindow(nowIso(), ctx.locale.timeZone);
+    const antes = dayWindow(nowIso(), ctx.locale.timeZone, -7);
+
+    const [feito, comparado] = await Promise.all([
+      ctx.data.productionOn(hoje.from, hoje.to),
+      ctx.data.productionOn(antes.from, antes.to),
+    ]);
+
+    const total = feito.reduce((n, r) => n + r.baseUnits, 0);
+    const entao = comparado.reduce((n, r) => n + r.baseUnits, 0);
+
+    if (total === 0) {
+      // Nada saiu ainda é resposta, e não falha. A tela da capa diz o mesmo.
+      return { text: 'Nada saiu do tacho hoje ainda.', route: '/production' };
+    }
+
+    const diferenca = total - entao;
+    const comparacao =
+      entao === 0
+        ? 'Não há semana passada para comparar.'
+        : diferenca === 0
+          ? 'O mesmo que no mesmo dia da semana passada.'
+          : `${formatQuantity(Math.abs(diferenca), ctx.locale)} ${diferenca > 0 ? 'a mais' : 'a menos'} que no mesmo dia da semana passada.`;
+
+    return {
+      text: `Saíram ${formatQuantity(total, ctx.locale)} unidades hoje. ${comparacao}`,
+      detail: feito.map((r) => ({
+        label: r.name,
+        value: `${formatQuantity(r.baseUnits, ctx.locale)} unidades`,
+      })),
+      route: '/production',
+    };
+  },
+};
+
 const whatDominates: Skill = {
   id: 'what_dominates',
   example: 'o que mais pesa no picolé de morango',
@@ -811,6 +857,7 @@ export const phase1Skills: Skill[] = [
   stockOfInput,
   eraseHelp,
   listInputs,
+  producedToday,
   whatDominates,
   whatMoved,
   costOfProduct,
