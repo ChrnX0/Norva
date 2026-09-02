@@ -28,6 +28,24 @@ import { spawnSync } from 'node:child_process';
 /** @type {{file: string, from: string, to: string, hurts: string}[]} */
 const DEFECTS = [
   {
+    file: 'src/assistant/skills.ts',
+    from: '    const batches = declarados ?? (porTacho > 0 ? units / porTacho : 0);',
+    to: '    const batches = declarados ?? 1;',
+    hurts: 'o assistente volta a debitar um tacho inteiro por qualquer quantidade dita, e a polpa some do papel sem sair da prateleira',
+  },
+  {
+    file: 'src/assistant/text.ts',
+    from: '    return null;\n  }\n\n  // Last resort',
+    to: '    return [...contains].sort((a, b) => a.name.length - b.name.length)[0];\n  }\n\n  // Last resort',
+    hurts: 'com a grade de linha x tipo x sabor, "morango" alcanca doze produtos e o assistente grava calado contra o de nome mais curto',
+  },
+  {
+    file: 'src/assistant/skills.ts',
+    from: "    for (const p of perdas) porMotivo.set(p.reason, (porMotivo.get(p.reason) ?? 0) + p.valueCents);",
+    to: "    for (const p of perdas) porMotivo.set(p.reason, Math.max(porMotivo.get(p.reason) ?? 0, p.valueCents));",
+    hurts: 'o assistente aponta a maior perda isolada como causa, e manda olhar o freezer quando quem come o mes e a validade',
+  },
+  {
     file: 'src/domain/money.ts',
     from: 'return Math.round(unitRate * quantity) as Cents;',
     to: 'return Math.floor(unitRate * quantity) as Cents;',
@@ -246,10 +264,10 @@ const DEFECTS = [
   },
   {
     file: 'src/assistant/skills.ts',
-    from: "      : ' Entendi um tacho; se foram mais, diga \"em 2 tachos\" que eu refaço.';",
+    from: "      : ' Contei os insumos pelo que saiu; se rodou tacho cheio, diga \"em 2 tachos\" que eu refaço.';",
     to: "      : '';",
     hurts:
-      'o assistente supõe um tacho e não diz, e o rendimento por tacho sai errado sem ninguém saber que houve suposição',
+      'o assistente conta os insumos pelo que saiu e nao diz, e quem rodou tacho cheio nao sabe que precisa corrigir',
   },
   {
     file: 'src/assistant/skills.ts',

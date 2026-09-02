@@ -64,6 +64,9 @@ export type ServerTable =
   | 'recipes'
   | 'recipe_versions'
   | 'recipe_lines'
+  | 'product_lines'
+  | 'product_types'
+  | 'flavors'
   | 'products'
   | 'purchases'
   | 'purchase_lines'
@@ -170,8 +173,36 @@ const CROSSINGS: Record<
     ],
   },
 
+  // A grade tem que atravessar junto, e a ordem em que ela é enfileirada é a
+  // ordem em que ela chega: linha antes do tipo, tipo antes do produto. A fila
+  // é enviada da mais velha para a mais nova exatamente por isso.
+  product_lines: {
+    take: ['id', 'company_id', 'name', 'sort'],
+    build: (row) => ({ active: flag(row.active) }),
+  },
+
+  product_types: {
+    take: ['id', 'company_id', 'line_id', 'name', 'sort'],
+    build: (row) => ({ active: flag(row.active) }),
+  },
+
+  flavors: {
+    take: ['id', 'company_id', 'name', 'sort'],
+    build: (row) => ({ active: flag(row.active) }),
+  },
+
   products: {
-    take: ['id', 'company_id', 'item_id', 'recipe_id', 'yield_per_unit', 'unit_packaging_cents'],
+    take: [
+      'id',
+      'company_id',
+      'item_id',
+      'recipe_id',
+      'yield_per_unit',
+      'unit_packaging_cents',
+      'line_id',
+      'type_id',
+      'flavor_id',
+    ],
     build: (row) => ({ active: flag(row.active) }),
   },
 

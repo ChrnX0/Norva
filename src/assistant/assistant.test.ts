@@ -60,6 +60,9 @@ const PRODUCTS: Product[] = [
     yieldPerUnit: 75,
     unitPackagingCents: fromDecimal(0.05),
     packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }] },
+    lineId: null,
+    typeId: null,
+    flavorId: null,
   },
 ];
 
@@ -557,20 +560,24 @@ test('where a thing is reads the same sum from the other side', async () => {
   ]);
 });
 
-test('producing by talking says out loud that it assumed one kettle', async () => {
+test('producing by talking counts the inputs by what came out, and says so', async () => {
   recorded = [];
 
+  // Sem tacho dito, o consumo vem do que saiu. Assumir um tacho calado debitava
+  // polpa que ninguém declarou: três tachos rodados e um baixado deixa dois
+  // tachos de polpa na prateleira que já foram embora. A suposição continua
+  // dita em voz alta - o que mudou foi qual é a suposição honesta.
   const guessed = await ask('produzi 480 picolés de morango', context('record_production'));
   assert.ok(guessed.draft, 'the phrase should fill a form');
   assert.equal(recorded.length, 0);
-  assert.match(guessed.text, /Entendi um tacho/, 'an assumption has to be visible before it is written');
+  assert.match(guessed.text, /pelo que saiu/, 'an assumption has to be visible before it is written');
+  assert.ok(!/Entendi um tacho/.test(guessed.text));
   assert.match(guessed.draft.summary, /480 unidades de Picolé de morango/);
-  assert.match(guessed.draft.summary, /em um tacho/);
 
   // Said explicitly, it is obeyed to the letter and stops guessing.
   const told = await ask('produzi 900 picolés de morango em 2 tachos', context('record_production'));
   assert.ok(told.draft);
-  assert.ok(!/Entendi um tacho/.test(told.text));
+  assert.ok(!/pelo que saiu/.test(told.text));
   assert.match(told.draft.summary, /em 2 tachos/);
 
   await told.draft.apply();

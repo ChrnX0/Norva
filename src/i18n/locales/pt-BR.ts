@@ -74,6 +74,10 @@ export const ptBR = {
     },
 
     home: {
+      yesterdayWas: 'Ontem foram {{amount}}.',
+      noYesterday: 'Ontem não houve produção.',
+      runningOut: 'Compre esta semana',
+      runningOutWhy: 'Pela saída dos últimos sete dias. Toque para ver o almoxarifado.',
       overline: 'hoje na fábrica',
       each: 'cada um',
       producedToday: 'saíram hoje',
@@ -425,6 +429,16 @@ export const ptBR = {
       failed: 'Não deu para transferir',
     },
     production: {
+      byBatch: 'Lancei por tacho',
+      todayTotal: 'Produzido hoje',
+      vsYesterday: 'Ontem foram {{units}}.',
+      noYesterday: 'Ontem não houve produção.',
+      aboveYesterday: '{{percent}}% acima de ontem',
+      belowYesterday: '{{percent}}% abaixo de ontem',
+      add: 'Adicionar produção',
+      openRuns: 'Tachos abertos',
+      whatCameOut: 'O que saiu hoje',
+      nothingYet: 'Nada lançado hoje ainda. Toque em adicionar quando a primeira caixa fechar.',
       confirmAction: 'Registrar',
       batchCount: { one: 'um tacho', other: '{{n}} tachos' },
       unitCount: { one: 'uma unidade', other: '{{n}} unidades' },
@@ -447,6 +461,8 @@ export const ptBR = {
       confirmTitle: 'Confirmar a produção',
       confirmBody:
         'Você produziu {{units}} de {{product}}, em {{batches}}. Isso baixa {{lines}} do estoque e congela o custo em {{cost}} por unidade.',
+      confirmBodyNoBatch:
+        'Você produziu {{units}} de {{product}}. Isso baixa {{lines}} do estoque e congela o custo em {{cost}} por unidade.',
       recorded: 'Produção registrada.',
       open: 'Abrir o tacho',
       openHint: 'Marque agora e feche quando sair, ou registre tudo de uma vez.',
@@ -552,6 +568,34 @@ export const ptBR = {
       resale: 'Revenda — o custo vem da nota de compra.',
       batchYields: 'Um tacho rende {{units}} — {{packed}}',
       addNew: 'Cadastrar novo',
+    },
+
+    catalog: {
+      duplicate: 'Esse nome já está cadastrado. Caixa e espaço não contam como diferença.',
+      title: 'Linhas, tipos e sabores',
+      overline: 'a grade do que você fabrica',
+      intro:
+        'Cadastre uma vez e combine à vontade. Picolé tradicional de morango é uma linha, um tipo e um sabor — não um nome digitado inteiro.',
+      lines: 'Linhas',
+      linesHint: 'o que você fabrica: Picolé, Pote de sorvete',
+      types: 'Tipos de {{line}}',
+      typesHint: 'o que divide a linha: Tradicional, Skimó, Top — ou 240 ml, 500 ml, 1 litro',
+      flavors: 'Sabores',
+      flavorsHint: 'valem para todas as linhas: morango, chocolate, coco branco',
+      addLine: 'Nova linha',
+      addType: 'Novo tipo',
+      addFlavor: 'Novo sabor',
+      namePlaceholder: 'Nome',
+      pickLineFirst: 'Escolha uma linha para ver os tipos dela.',
+      noLines: 'Nenhuma linha ainda. Comece pela mais óbvia: o que você fabrica todo dia?',
+      noTypes: 'Nenhum tipo nesta linha. Sem tipo também funciona — o produto fica só linha e sabor.',
+      noFlavors: 'Nenhum sabor ainda.',
+      /** Como o nome do produto se monta a partir da grade. */
+      composed: '{{line}} {{type}} de {{flavor}}',
+      composedNoType: '{{line}} de {{flavor}}',
+      composedNoFlavor: '{{line}} {{type}}',
+      saved: '{{name}} cadastrado.',
+      typeFromAnotherLine: 'Esse tipo é de outra linha. Escolha a linha dele ou um tipo desta.',
     },
 
     productForm: {

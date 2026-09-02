@@ -184,7 +184,8 @@ check('the five tabs are there, and the old addresses still answer', async (page
   // não tem destino cadastrado, então o botão nem chega a existir - e isso é a
   // tela funcionando, não a rota sumindo.
   for (const [route, expected] of [
-    ['/production', /Quantas unidades/i],
+    ['/production', /Adicionar produção/i],
+    ['/production/new', /Quantas unidades/i],
     ['/transfer', /Transferir/],
     ['/transport', /Para onde foi/],
   ]) {
@@ -366,6 +367,10 @@ check('what came out today reaches the briefing, with what it was to compare', a
   // Produz, e volta pela aba - o caminho de verdade.
   await page.getByRole('tab', { name: 'Produção' }).click();
   await page.waitForTimeout(2500);
+  // A aba responde o dia; lançar é o botão. Esta é a mudança que o dono pediu
+  // com todas as letras, e o caminho de verdade passa por ele.
+  await page.getByText('Adicionar produção', { exact: true }).first().click();
+  await page.waitForTimeout(2000);
   await page.getByLabel(/Quantas unidades/).fill('480');
   await page.waitForTimeout(600);
   await page.getByText('Registrar produção', { exact: true }).first().click();
@@ -392,13 +397,18 @@ check('a kettle marked as running pulses on the briefing, and closing it writes 
 
   await page.getByRole('tab', { name: 'Produção' }).click();
   await page.waitForTimeout(2500);
-  await page.getByText('Abrir o tacho', { exact: true }).first().click();
+  await page.getByText('Adicionar produção', { exact: true }).first().click();
   await page.waitForTimeout(2000);
+  await page.getByText('Abrir o tacho', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
 
   // A tela diz desde quando, e o botão principal muda de significado.
   const aberto = await screen(page);
-  assert.match(aberto, /Tacho aberto desde \d{2}:\d{2}/);
-  assert.match(aberto, /Fechar o tacho/);
+  // Abrir devolve para a aba do dia, e é lá que o tacho aberto tem cartão -
+  // quem marca o tacho sai andando, e ficar no formulário seria ficar parado
+  // numa tela sem nada a dizer até a corrida acabar.
+  assert.match(aberto, /Tachos abertos/);
+  assert.match(aberto, /Picolé de morango/);
 
   // E a home passa a mostrar o que está acontecendo AGORA.
   await page.getByRole('tab', { name: 'Início' }).click();
@@ -407,6 +417,8 @@ check('a kettle marked as running pulses on the briefing, and closing it writes 
 
   // Fechar escreve o razão, e o pulso some porque não há mais tacho.
   await page.getByRole('tab', { name: 'Produção' }).click();
+  await page.waitForTimeout(2000);
+  await page.getByText('Adicionar produção', { exact: true }).first().click();
   await page.waitForTimeout(2000);
   await page.getByLabel(/Quantas unidades/).fill('480');
   await page.waitForTimeout(600);
@@ -423,7 +435,7 @@ check('a kettle marked as running pulses on the briefing, and closing it writes 
 });
 
 check('production pre-fills what the sheet promises, and records what happened', async (page) => {
-  await page.goto(`http://localhost:${PORT}/production`, { waitUntil: 'networkidle' });
+  await page.goto(`http://localhost:${PORT}/production/new`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
 
   // Law 2: no field is born empty. The sheet says 40 L, 5% loss, 75 ml a stick,
@@ -437,6 +449,12 @@ check('production pre-fills what the sheet promises, and records what happened',
   // The kettle rendered less than the sheet promised. That correction is the
   // most valuable thing this screen collects, so it has to be visible before
   // anything is written.
+  // A quebra é a diferença contra um tacho DECLARADO. Sem tacho declarado o
+  // previsto é só o preenchimento sugerido, e o consumo acompanha o que saiu -
+  // não há promessa a quebrar. Então o teste declara o tacho, que é a fábrica
+  // que trabalha em corrida, e é dela que o rendimento real é a informação.
+  await page.getByText('Lancei por tacho', { exact: true }).first().click();
+  await page.waitForTimeout(700);
   await page.getByLabel(/Quantas unidades/).fill('480');
   await page.waitForTimeout(700);
 

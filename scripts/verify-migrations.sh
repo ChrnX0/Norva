@@ -447,7 +447,8 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
   -- o livro-razão não se corrige, se estorna. Faltando o UPDATE, o Postgres
   -- responde apenas 'permission denied', sem dizer qual dos dois falta.
   grant insert, update on items, locations, products, purchases, purchase_lines,
-        recipes, recipe_versions, recipe_lines to app_user;
+        recipes, recipe_versions, recipe_lines,
+        product_lines, product_types, flavors to app_user;
   grant insert on movements to app_user;" >/dev/null ||
   fail "não deu para preparar a conta da empresa"
 
@@ -523,6 +524,71 @@ srv_average=$(psql -d "$DB" -Atqc "select round(new_rate, 4) from item_cost_hist
 
 echo "    saldo $srv_balance e média $srv_average, iguais nos dois lados"
 
+echo "==> check 7: a grade do produto recusa o cadastro impossível"
+
+# Esta checagem nasceu de um ataque adversarial que derrubou a primeira versão
+# da 0018 inteira, e três dos achados eram invisíveis de fora: a migração nem
+# aplicava (chamava as funções sem o schema `private`), a chave composta era
+# MATCH SIMPLE — que DESLIGA a checagem quando qualquer coluna do par é nula, e
+# nulo é o estado normal deste desenho —, e a unique de nome era texto cru, que
+# deixa "Morango" e "morango" entrarem como sabores diferentes.
+#
+# Nenhuma das três aparece num teste de unidade: são garantias do Postgres, e
+# só um Postgres de verdade responde por elas.
+G=00000000-0000-4ddd-8000-0000000000
+psql -d "$DB" -q -c "insert into companies (id, name) values ('${G}01','Grade');" >/dev/null
+
+psql -d "$DB" -q -c "insert into product_lines (id, company_id, name) values
+  ('${G}11','${G}01','Picolé'), ('${G}12','${G}01','Pote de sorvete');" >/dev/null  # proofgate-allow
+psql -d "$DB" -q -c "insert into product_types (id, company_id, line_id, name) values
+  ('${G}21','${G}01','${G}11','Tradicional'), ('${G}22','${G}01','${G}12','500 ml');" >/dev/null  # proofgate-allow
+psql -d "$DB" -q -c "insert into flavors (id, company_id, name) values
+  ('${G}31','${G}01','Morango');" >/dev/null  # proofgate-allow
+
+# Caixa e espaço não são identidade: sem isto o relatório soma seis morangos.
+if psql -d "$DB" -q -c "insert into flavors (id, company_id, name)
+  values ('${G}32','${G}01','  morango ');" >/dev/null 2>&1; then  # proofgate-allow
+  fail "'morango' entrou como sabor diferente de 'Morango'"
+fi
+
+psql -d "$DB" -q -c "insert into items (id, company_id, kind, name) values
+  ('${G}41','${G}01','product','Picolé tradicional de morango'),
+  ('${G}42','${G}01','product','Outro'), ('${G}43','${G}01','product','Terceiro');" >/dev/null  # proofgate-allow
+
+# Tipo de outra linha: "Picolé 500 ml" não existe.
+if psql -d "$DB" -q -c "insert into products (id, company_id, item_id, line_id, type_id)
+  values ('${G}51','${G}01','${G}41','${G}11','${G}22');" >/dev/null 2>&1; then  # proofgate-allow
+  fail "um Picolé de 500 ml entrou: a linha e o tipo não batem"
+fi
+
+# E o buraco que o MATCH SIMPLE abria: tipo que não existe em lugar nenhum,
+# passando escondido atrás de uma linha nula.
+if psql -d "$DB" -q -c "insert into products (id, company_id, item_id, line_id, type_id)
+  values ('${G}52','${G}01','${G}41',null,'${G}22');" >/dev/null 2>&1; then  # proofgate-allow
+  fail "tipo sem linha entrou: a chave composta está em MATCH SIMPLE"
+fi
+
+# O cadastro certo entra.
+psql -d "$DB" -q -c "insert into products (id, company_id, item_id, line_id, type_id, flavor_id)
+  values ('${G}53','${G}01','${G}41','${G}11','${G}21','${G}31');" >/dev/null  # proofgate-allow
+
+# E não entra duas vezes.
+if psql -d "$DB" -q -c "insert into products (id, company_id, item_id, line_id, type_id, flavor_id)
+  values ('${G}54','${G}01','${G}42','${G}11','${G}21','${G}31');" >/dev/null 2>&1; then  # proofgate-allow
+  fail "o mesmo picolé tradicional de morango entrou duas vezes"
+fi
+
+# Nem a fábrica de um doce só, que não preenche nível nenhum: dois nulos
+# colidem aqui, ao contrário do padrão do Postgres.
+psql -d "$DB" -q -c "insert into products (id, company_id, item_id)
+  values ('${G}55','${G}01','${G}42');" >/dev/null  # proofgate-allow
+if psql -d "$DB" -q -c "insert into products (id, company_id, item_id)
+  values ('${G}56','${G}01','${G}43');" >/dev/null 2>&1; then  # proofgate-allow
+  fail "dois produtos sem classificação nenhuma entraram: falta nulls not distinct"
+fi
+
+echo "    tipo de outra linha, tipo órfão, sabor repetido e produto duplicado, todos recusados"
+
 echo
-echo "OK - migrations apply and all six guarantees hold."
+echo "OK - migrations apply and all seven guarantees hold."
 

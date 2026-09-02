@@ -15,6 +15,8 @@ import {
   listProducts,
   loadRecipeGraph,
   productionOn,
+  runningOut,
+  type Running,
   recentCostChanges,
   shipmentsOn,
   type CostChange,
@@ -93,7 +95,11 @@ type Summary = {
   /** Units out of the kettle today, and on the same weekday a week back. */
   madeToday: number;
   madeThen: number;
+  /** O dia anterior, que é a comparação que quem produz todo dia faz de cabeça. */
+  madeYesterday: number;
   everMade: boolean;
+  /** O que acaba dentro de uma semana, pelo consumo que o livro-razão viu. */
+  shortly: Running[];
   /** Volumes que saíram hoje, e o que saiu sem caber em volume nenhum. */
   boxes: number;
   loose: { name: string; said: string }[];
@@ -113,9 +119,25 @@ function Briefing() {
     // different businesses and comparing them teaches nothing.
     const today = dayWindow(nowIso(), locale.timeZone);
     const then = dayWindow(nowIso(), locale.timeZone, -7);
+    // Ontem entra ao lado, não no lugar: o dono pediu o dia anterior, e a
+    // segunda contra segunda continua sendo a comparação que ensina alguma
+    // coisa. São duas perguntas, e as duas cabem.
+    const yesterday = dayWindow(nowIso(), locale.timeZone, -1);
+    const lastWeek = dayWindow(nowIso(), locale.timeZone, -7);
 
-    const [products, graph, costs, names, changes, madeToday, madeThen, sent, running] =
-      await Promise.all([
+    const [
+      products,
+      graph,
+      costs,
+      names,
+      changes,
+      madeToday,
+      madeThen,
+      madeYesterday,
+      sent,
+      running,
+      shortly,
+    ] = await Promise.all([
       listProducts(LOCAL_COMPANY_ID),
       loadRecipeGraph(LOCAL_COMPANY_ID),
       itemCosts(LOCAL_COMPANY_ID),
@@ -123,8 +145,10 @@ function Briefing() {
       recentCostChanges(LOCAL_COMPANY_ID, 4),
       productionOn(LOCAL_COMPANY_ID, today.from, today.to),
       productionOn(LOCAL_COMPANY_ID, then.from, then.to),
+      productionOn(LOCAL_COMPANY_ID, yesterday.from, yesterday.to),
       shipmentsOn(LOCAL_COMPANY_ID, today.from, today.to),
       openProductionRuns(LOCAL_COMPANY_ID),
+      runningOut(LOCAL_COMPANY_ID, lastWeek.from, today.to, 7),
     ]);
 
     const sum = (rows: { baseUnits: number }[]) => rows.reduce((n, r) => n + r.baseUnits, 0);
@@ -162,6 +186,8 @@ function Briefing() {
       changes,
       madeToday: sum(madeToday),
       madeThen: sum(madeThen),
+      madeYesterday: sum(madeYesterday),
+      shortly,
       everMade: madeToday.length > 0 || madeThen.length > 0,
       boxes,
       loose,
@@ -225,7 +251,55 @@ function Briefing() {
           <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
             {comparison(data.madeToday, data.madeThen)}
           </Text>
+          {/* E ontem, que é a comparação que quem produz todo dia faz de
+              cabeça. A da semana passada responde "este dia da semana é
+              normal?"; esta responde "o ritmo mudou?". São duas perguntas. */}
+          <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
+            {data.madeYesterday === 0
+              ? t.app.home.noYesterday
+              : fill(t.app.home.yesterdayWas, {
+                  amount: `${formatQuantity(data.madeYesterday, locale)} ${plural(
+                    data.madeYesterday,
+                    t.units.unit,
+                  )}`,
+                })}
+          </Text>
         </Card>
+      ) : null}
+
+      {/* O que vai acabar, avisado na data da DECISÃO e não na do problema.
+          Lei 4: quando a polpa acabar já é tarde — a compra tem prazo. Este
+          cartão só existe quando o livro-razão viu saída de verdade; insumo
+          parado não gera data, e alerta inventado ensina a ignorar alerta. */}
+      {data && data.shortly.length > 0 ? (
+        <Pressable
+          onPress={() => router.push('/inputs')}
+          accessibilityRole="button"
+          accessibilityLabel={t.app.home.runningOut}
+        >
+          <Card tone="warning">
+            <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.home.runningOut}</Text>
+            <View style={{ marginTop: space.md, gap: space.xs }}>
+              {data.shortly.slice(0, 4).map((r) => (
+                <View key={r.itemId} style={styles.row}>
+                  <Text style={[type.body, { color: color.ink, flex: 1 }]} numberOfLines={1}>
+                    {r.name}
+                  </Text>
+                  <Text style={[type.body, { color: color.ink }]}>
+                    {plural(
+                      Math.floor(r.daysLeft),
+                      t.app.home.dayCount,
+                      formatQuantity(Math.floor(r.daysLeft), locale),
+                    )}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
+              {t.app.home.runningOutWhy}
+            </Text>
+          </Card>
+        </Pressable>
       ) : null}
 
       {/* O tacho que está rodando agora.

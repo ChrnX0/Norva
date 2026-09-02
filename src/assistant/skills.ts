@@ -5,7 +5,7 @@ import { purchaseToBaseUnits } from '@/data/repository';
 import { fromDecimal } from '@/domain/money';
 import { costPerProductUnit, costRecipe } from '@/domain/recipe';
 import { formatDayMonth, formatMoney, formatQuantity } from '@/i18n';
-import { findByName, movePhrase, normalize, parseNumber } from './text';
+import { findByName, movePhrase, namesakes, normalize, parseNumber } from './text';
 import type { Answer, Skill, SkillContext } from './types';
 
 /**
@@ -19,6 +19,20 @@ import type { Answer, Skill, SkillContext } from './types';
  * Every skill here is deterministic: the phrase selects the skill, the engine
  * computes, and the sentence is assembled around what the engine returned.
  */
+
+/**
+ * A resposta quando o termo alcança mais de um cadastro.
+ *
+ * Não é erro e não é "não existe": é a pergunta de volta, com os nomes que o
+ * termo alcançou. Com a grade de linha × tipo × sabor, "morango" passa a
+ * alcançar doze produtos, e escolher um deles calado grava a receita errada.
+ */
+function whichOne<T extends { name: string }>(matches: readonly T[], term: string): Answer {
+  return {
+    text: `"${term.trim()}" alcança ${matches.length} cadastros. Qual deles?`,
+    detail: matches.slice(0, 8).map((m) => ({ label: '·', value: m.name })),
+  };
+}
 
 /** "quanto custa o picolé de morango" - the question the owner opens with. */
 const costOfProduct: Skill = {
@@ -64,6 +78,9 @@ const costOfProduct: Skill = {
     const items = await ctx.data.listItems();
     const item = findByName(items, term);
     if (item) return rateAnswer(item, ctx);
+
+    const ambiguos = [...namesakes(products, term), ...namesakes(items, term)];
+    if (ambiguos.length > 0) return whichOne(ambiguos, term);
 
     return { text: `Não encontrei nada chamado "${term.trim()}" no cadastro.` };
   },
@@ -267,6 +284,10 @@ const whatDominates: Skill = {
     ]);
 
     const product = findByName(products, m[1]);
+    if (!product) {
+      const ambiguos = namesakes(products, m[1]);
+      if (ambiguos.length > 0) return whichOne(ambiguos, m[1]);
+    }
     if (!product?.recipeId) return { text: `Não encontrei a receita de "${m[1].trim()}".` };
 
     const cost = costRecipe(product.recipeId, graph, costs, names);
@@ -763,25 +784,47 @@ const registerProduction: Skill = {
     const units = parseNumber(m[1]);
     const products = (await ctx.data.listProducts()).filter((p) => p.recipeId);
     const product = findByName(products, m[2]);
-    const batches = m[3] ? parseNumber(m[3]) : 1;
 
-    if (!product) return { text: `Não encontrei um produto chamado "${m[2].trim()}" com ficha técnica.` };
+    if (!product) {
+      const ambiguos = namesakes(products, m[2]);
+      if (ambiguos.length > 0) return whichOne(ambiguos, m[2]);
+      return { text: `Não encontrei um produto chamado "${m[2].trim()}" com ficha técnica.` };
+    }
     if (units === null || units <= 0) {
       return { text: 'Não entendi quantas unidades saíram. Pode repetir com o número?' };
     }
-    if (batches === null || batches <= 0) return { text: 'Não entendi quantos tachos foram.' };
+
+    const declarados = m[3] ? parseNumber(m[3]) : null;
+    if (m[3] && (declarados === null || declarados <= 0)) {
+      return { text: 'Não entendi quantos tachos foram.' };
+    }
 
     const graph = await ctx.data.loadRecipeGraph();
     const recipe = product.recipeId ? graph[product.recipeId] : undefined;
     if (!recipe) return { text: `A receita de ${product.name} não está neste aparelho.` };
 
     const perUnit = product.yieldPerUnit ?? 0;
-    const planned =
-      perUnit > 0 ? Math.floor(((recipe.yieldAmount * (1 - recipe.lossFraction)) / perUnit) * batches) : 0;
+    const porTacho =
+      perUnit > 0 ? Math.floor((recipe.yieldAmount * (1 - recipe.lossFraction)) / perUnit) : 0;
+
+    /**
+     * Sem tacho dito, o consumo vem do que saiu — não de um tacho suposto.
+     *
+     * Isto assumia `1` calado, e um tacho suposto é polpa debitada que ninguém
+     * declarou: três tachos rodados e um tacho baixado deixa dois tachos de
+     * polpa na prateleira que não existem mais. É a mesma inversão que o dono
+     * apontou na tela, e ela estava aqui também.
+     */
+    const batches = declarados ?? (porTacho > 0 ? units / porTacho : 0);
+    if (batches <= 0) {
+      return { text: `A ficha de ${product.name} não diz quanto rende um tacho.` };
+    }
+
+    const planned = Math.floor(porTacho * batches);
 
     const detail = [
       { label: 'Produto', value: product.name },
-      { label: 'Tachos', value: m[3] ? String(batches) : '1 (entendi assim)' },
+      { label: 'Tachos', value: m[3] ? String(batches) : `${batches.toFixed(2)} (pelo que saiu)` },
       { label: 'Saíram', value: `${formatQuantity(units, ctx.locale)} un` },
     ];
     if (planned > 0) {
@@ -793,7 +836,7 @@ const registerProduction: Skill = {
 
     const assumed = m[3]
       ? ''
-      : ' Entendi um tacho; se foram mais, diga "em 2 tachos" que eu refaço.';
+      : ' Contei os insumos pelo que saiu; se rodou tacho cheio, diga "em 2 tachos" que eu refaço.';
 
     return {
       text: 'Preparei a produção. Confira antes de eu gravar.' + assumed,
@@ -802,7 +845,7 @@ const registerProduction: Skill = {
         kind: 'production',
         summary:
           `Registrar ${formatQuantity(units, ctx.locale)} unidades de ${product.name}, ` +
-          `em ${batches === 1 ? 'um tacho' : `${batches} tachos`}. ` +
+          `em ${batches === 1 ? 'um tacho' : `${Number(batches.toFixed(2))} tachos`}. ` +
           'Os insumos saem do almoxarifado e o custo por unidade fica congelado nesta corrida.',
         apply: async () => {
           await ctx.data.recordProduction({

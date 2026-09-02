@@ -60,6 +60,10 @@ export const es: Dictionary = {
     },
 
     home: {
+      yesterdayWas: 'Ayer fueron {{amount}}.',
+      noYesterday: 'Ayer no hubo producción.',
+      runningOut: 'Compra esta semana',
+      runningOutWhy: 'Por la salida de los últimos siete días. Toca para ver el almacén.',
       overline: 'hoy en la fábrica',
       each: 'cada uno',
       producedToday: 'salieron hoy',
@@ -411,6 +415,16 @@ export const es: Dictionary = {
       failed: 'No se pudo transferir',
     },
     production: {
+      byBatch: 'Trabajo por paila',
+      todayTotal: 'Producido hoy',
+      vsYesterday: 'Ayer fueron {{units}}.',
+      noYesterday: 'Ayer no hubo producción.',
+      aboveYesterday: '{{percent}}% por encima de ayer',
+      belowYesterday: '{{percent}}% por debajo de ayer',
+      add: 'Agregar producción',
+      openRuns: 'Pailas abiertas',
+      whatCameOut: 'Lo que salió hoy',
+      nothingYet: 'Nada registrado hoy todavía. Toca agregar cuando cierre la primera caja.',
       confirmAction: 'Registrar',
       batchCount: { one: 'una olla', other: '{{n}} ollas' },
       unitCount: { one: 'una unidad', other: '{{n}} unidades' },
@@ -433,6 +447,8 @@ export const es: Dictionary = {
       confirmTitle: 'Confirmar la producción',
       confirmBody:
         'Produjiste {{units}} de {{product}}, en {{batches}}. Esto descuenta {{lines}} del stock y congela el costo en {{cost}} por unidad.',
+      confirmBodyNoBatch:
+        'Produjiste {{units}} de {{product}}. Eso descuenta {{lines}} del stock y congela el costo en {{cost}} por unidad.',
       recorded: 'Producción registrada.',
       open: 'Abrir la olla',
       openHint: 'Márcala ahora y ciérrala cuando salga, o registra todo de una vez.',
@@ -538,6 +554,33 @@ export const es: Dictionary = {
       resale: 'Reventa — el costo viene de la factura de compra.',
       batchYields: 'Una olla rinde {{units}} — {{packed}}',
       addNew: 'Cargar nuevo',
+    },
+
+    catalog: {
+      duplicate: 'Ese nombre ya está registrado. Mayúsculas y espacios no cuentan como diferencia.',
+      title: 'Líneas, tipos y sabores',
+      overline: 'la grilla de lo que fabricas',
+      intro:
+        'Registra una vez y combina a voluntad. Paleta tradicional de frutilla es una línea, un tipo y un sabor — no un nombre escrito entero.',
+      lines: 'Líneas',
+      linesHint: 'lo que fabricas: Paleta, Pote de helado',
+      types: 'Tipos de {{line}}',
+      typesHint: 'lo que divide la línea: Tradicional, Bañada, Top — o 240 ml, 500 ml, 1 litro',
+      flavors: 'Sabores',
+      flavorsHint: 'valen para todas las líneas: frutilla, chocolate, coco',
+      addLine: 'Nueva línea',
+      addType: 'Nuevo tipo',
+      addFlavor: 'Nuevo sabor',
+      namePlaceholder: 'Nombre',
+      pickLineFirst: 'Elige una línea para ver sus tipos.',
+      noLines: 'Ninguna línea todavía. Empieza por la más obvia: ¿qué fabricas todos los días?',
+      noTypes: 'Ningún tipo en esta línea. Sin tipo también funciona — el producto queda línea y sabor.',
+      noFlavors: 'Ningún sabor todavía.',
+      composed: '{{line}} {{type}} de {{flavor}}',
+      composedNoType: '{{line}} de {{flavor}}',
+      composedNoFlavor: '{{line}} {{type}}',
+      saved: '{{name}} registrado.',
+      typeFromAnotherLine: 'Ese tipo es de otra línea. Elige su línea o un tipo de esta.',
     },
 
     productForm: {

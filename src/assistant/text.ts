@@ -47,9 +47,19 @@ export function findByName<T extends { name: string }>(
   const contains = candidates.filter((c) => normalize(c.name).includes(wanted));
   if (contains.length === 1) return contains[0];
   if (contains.length > 1) {
-    // Several match: prefer the shortest name, which is the least specific
-    // registration and usually what a short word meant.
-    return [...contains].sort((a, b) => a.name.length - b.name.length)[0];
+    // Vários batem: nenhum é a resposta.
+    //
+    // Isto devolvia o nome mais curto, com o argumento de que ele é o cadastro
+    // menos específico. O argumento valia enquanto a fábrica tinha um produto
+    // com "morango" no nome. Com a grade — linha × tipo × sabor — "morango"
+    // casa com doze, e o mais curto é sorteio: "Pote 1 litro de morango" ganha
+    // de "Picolé Tradicional de morango" por ter menos letras, e o assistente
+    // gravaria a produção contra a receita errada sem dizer nada a ninguém.
+    //
+    // Devolver nulo aqui é o que faz a tela perguntar em vez de adivinhar. O
+    // sistema sugere e nunca decide calado, e esta era a única linha do
+    // assistente que decidia calada.
+    return null;
   }
 
   // Last resort: any candidate sharing a significant word with the question.
@@ -64,4 +74,23 @@ export function movePhrase(change: number): string {
   const percent = Math.abs(change * 100);
   if (percent < 0.05) return 'não mudou';
   return `${change > 0 ? 'subiu' : 'caiu'} ${percent.toFixed(1).replace('.', ',')}%`;
+}
+
+/**
+ * Os candidatos que um termo alcança, quando ele alcança mais de um.
+ *
+ * `findByName` devolve nulo no empate de propósito - decidir calado entre doze
+ * picolés de morango é escolher a receita errada em silêncio. Mas dizer só "não
+ * existe" para uma coisa que existe doze vezes é a Lei 5 ao contrário: o erro
+ * tem que impedir E dizer o caminho. Esta função é o caminho.
+ */
+export function namesakes<T extends { name: string }>(
+  candidates: readonly T[],
+  term: string,
+): T[] {
+  const wanted = normalize(term);
+  if (!wanted) return [];
+  if (candidates.some((c) => normalize(c.name) === wanted)) return [];
+  const contains = candidates.filter((c) => normalize(c.name).includes(wanted));
+  return contains.length > 1 ? contains : [];
 }

@@ -55,6 +55,10 @@ export const en: Dictionary = {
     },
 
     home: {
+      yesterdayWas: 'Yesterday it was {{amount}}.',
+      noYesterday: 'Nothing was made yesterday.',
+      runningOut: 'Buy this week',
+      runningOutWhy: 'From the last seven days of usage. Tap to see the storeroom.',
       overline: 'at the factory today',
       each: 'each',
       producedToday: 'came out today',
@@ -405,6 +409,16 @@ export const en: Dictionary = {
       failed: 'Could not transfer',
     },
     production: {
+      byBatch: 'I work by the kettle',
+      todayTotal: 'Made today',
+      vsYesterday: 'Yesterday it was {{units}}.',
+      noYesterday: 'Nothing was made yesterday.',
+      aboveYesterday: '{{percent}}% above yesterday',
+      belowYesterday: '{{percent}}% below yesterday',
+      add: 'Add production',
+      openRuns: 'Open kettles',
+      whatCameOut: 'What came out today',
+      nothingYet: 'Nothing recorded today yet. Tap add when the first box is closed.',
       confirmAction: 'Record',
       batchCount: { one: 'one batch', other: '{{n}} batches' },
       unitCount: { one: 'one unit', other: '{{n}} units' },
@@ -427,6 +441,8 @@ export const en: Dictionary = {
       confirmTitle: 'Confirm the production',
       confirmBody:
         'You made {{units}} of {{product}}, in {{batches}}. This takes {{lines}} out of stock and freezes the cost at {{cost}} per unit.',
+      confirmBodyNoBatch:
+        'You made {{units}} of {{product}}. That takes {{lines}} out of stock and freezes the cost at {{cost}} per unit.',
       recorded: 'Production recorded.',
       open: 'Start the kettle',
       openHint: 'Mark it now and close it when it comes out, or record it all at once.',
@@ -531,6 +547,33 @@ export const en: Dictionary = {
       resale: 'Resale — the cost comes from the purchase invoice.',
       batchYields: 'A batch makes {{units}} — {{packed}}',
       addNew: 'Register a new one',
+    },
+
+    catalog: {
+      duplicate: 'That name is already registered. Case and spacing do not make it different.',
+      title: 'Lines, types and flavours',
+      overline: 'the grid of what you make',
+      intro:
+        'Register once, combine freely. A traditional strawberry popsicle is a line, a type and a flavour — not a name typed out in full.',
+      lines: 'Lines',
+      linesHint: 'what you make: Popsicle, Ice cream tub',
+      types: '{{line}} types',
+      typesHint: 'what splits the line: Traditional, Coated, Premium — or 240 ml, 500 ml, 1 litre',
+      flavors: 'Flavours',
+      flavorsHint: 'they apply to every line: strawberry, chocolate, coconut',
+      addLine: 'New line',
+      addType: 'New type',
+      addFlavor: 'New flavour',
+      namePlaceholder: 'Name',
+      pickLineFirst: 'Pick a line to see its types.',
+      noLines: 'No lines yet. Start with the obvious one: what do you make every day?',
+      noTypes: 'No types in this line. No type works too — the product is just line and flavour.',
+      noFlavors: 'No flavours yet.',
+      composed: '{{flavor}} {{line}} {{type}}',
+      composedNoType: '{{flavor}} {{line}}',
+      composedNoFlavor: '{{line}} {{type}}',
+      saved: '{{name}} registered.',
+      typeFromAnotherLine: 'That type belongs to another line. Pick its line, or a type from this one.',
     },
 
     productForm: {

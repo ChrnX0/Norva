@@ -8,6 +8,7 @@ import {
   balanceByLocation,
   lastSentBaseUnits,
   recordProduction,
+  runningOut,
   productionOn,
   shipmentsOn,
   recordCheck,
@@ -1407,4 +1408,97 @@ test('the guess for the next load reads what arrived, not what left', async () =
   // And it is per place: another store has its own history, or none.
   const other = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Norte', kind: 'own_store' });
   assert.equal(await lastSentBaseUnits(LOCAL_COMPANY_ID, sugar.id, other.id), null);
+});
+
+test('half a kettle takes half the ingredients, so recording only what came out still moves the storeroom', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+
+  const antes = await listItems(LOCAL_COMPANY_ID);
+  const cheio = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    batches: 1,
+    unitsProduced: 100,
+  });
+
+  const meio = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    batches: 0.5,
+    unitsProduced: 50,
+  });
+
+  // A tela sem tacho declarado manda a fração: 50 unidades de um tacho que
+  // rende 100 é meio tacho, e meio tacho gasta metade da polpa. Antes disso o
+  // rascunho nem existia sem tacho, e o estoque não se mexia - que é
+  // exatamente a coisa que o dono viu quebrada.
+  const gastoCheio = cheio.consumed.reduce((n, c) => n + c.baseUnits, 0);
+  const gastoMeio = meio.consumed.reduce((n, c) => n + c.baseUnits, 0);
+  assert.ok(gastoMeio > 0, 'meio tacho tem que consumir alguma coisa');
+  assert.ok(
+    Math.abs(gastoMeio * 2 - gastoCheio) <= meio.consumed.length,
+    `meio tacho devia gastar metade: ${gastoMeio} contra ${gastoCheio}`,
+  );
+
+  // E o almoxarifado sentiu os dois.
+  const depois = await listItems(LOCAL_COMPANY_ID);
+  const insumo = cheio.consumed[0].itemId;
+  const saldoAntes = antes.find((i) => i.id === insumo)?.onHandBaseUnits ?? 0;
+  const saldoDepois = depois.find((i) => i.id === insumo)?.onHandBaseUnits ?? 0;
+  assert.ok(saldoDepois < saldoAntes, 'o insumo tem que ter baixado');
+});
+
+test('what is running out comes from what actually left, and a still input never alarms', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+
+  const de = '2026-03-01T00:00:00.000Z';
+  const ate = '2026-03-08T00:00:00.000Z';
+
+  // Nada saiu na janela: ninguém está acabando, e o cartão fica vazio. Um
+  // alerta inventado aqui ensina a fábrica a ignorar o alerta de verdade.
+  assert.deepEqual(await runningOut(LOCAL_COMPANY_ID, de, ate, 7), []);
+
+  // Insumo suficiente para a semana - a trava de estoque é de verdade e
+  // recusaria a terceira corrida, o que é o comportamento certo dela.
+  for (const item of await listItems(LOCAL_COMPANY_ID)) {
+    if (item.kind !== 'input' && item.kind !== 'packaging') continue;
+    await recordPurchase(LOCAL_COMPANY_ID, {
+      itemId: item.id,
+      purchaseQuantity: 1,
+      baseUnits: 500_000,
+      totalCents: fromDecimal(1000),
+      occurredAt: '2026-02-28T08:00:00.000Z',
+    });
+  }
+
+  // Sete dias de consumo de verdade, e aí a conta existe.
+  for (let d = 1; d <= 7; d += 1) {
+    await recordProduction(LOCAL_COMPANY_ID, {
+      productId: product.id,
+      locationId: defaultLocationId(LOCAL_COMPANY_ID),
+      batches: 1,
+      unitsProduced: 100,
+      occurredAt: `2026-03-0${d}T10:00:00.000Z`,
+    });
+  }
+
+  const apertados = await runningOut(LOCAL_COMPANY_ID, de, ate, 7, 3650);
+  assert.ok(apertados.length > 0, 'sete dias de produção têm que consumir alguma coisa');
+
+  // O horizonte corta, e corta pelo mais apertado primeiro.
+  for (let i = 1; i < apertados.length; i += 1) {
+    assert.ok(
+      apertados[i - 1].daysLeft <= apertados[i].daysLeft,
+      'o que acaba primeiro vem primeiro',
+    );
+  }
+
+  // E a conta fecha: o que tem dividido pelo que sai por dia.
+  const um = apertados[0];
+  assert.ok(
+    Math.abs(um.daysLeft - um.onHandBaseUnits / um.dailyOutflow) < 1e-9,
+    'os dias são o saldo sobre a saída diária, e a tela pode abrir essa conta',
+  );
 });

@@ -1,5 +1,6 @@
 import { applyCostEvent, type StockCostState } from '@/domain/cost';
 import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
+import { daysOfCover } from '@/domain/ledger';
 import type { LossReason } from '@/domain/ledger';
 import { explodeRequirements } from '@/domain/recipe';
 import type { ItemCosts, Recipe, RecipeLine } from '@/domain/recipe';
@@ -1290,6 +1291,14 @@ export type Product = {
   /** Stick, wrapper, label - packaging is a cost per unit, not per batch. */
   unitPackagingCents: Cents;
   packaging: PackagingHierarchy;
+  /**
+   * A grade que compôs o nome, quando ele veio de uma. Nulo é caso legítimo, e
+   * não migração pendente: um produto de revenda comprado pronto não tem linha
+   * nem sabor, e uma fábrica de um doce só nunca cadastrou nenhum dos três.
+   */
+  lineId: string | null;
+  typeId: string | null;
+  flavorId: string | null;
 };
 
 export async function listProducts(companyId: string): Promise<Product[]> {
@@ -1302,9 +1311,13 @@ export async function listProducts(companyId: string): Promise<Product[]> {
     yield_per_unit: number | null;
     unit_packaging_cents: number;
     packaging: string;
+    line_id: string | null;
+    type_id: string | null;
+    flavor_id: string | null;
   }>(
     `SELECT p.id, p.item_id, i.name, p.recipe_id, p.yield_per_unit,
-            p.unit_packaging_cents, i.packaging
+            p.unit_packaging_cents, i.packaging,
+            p.line_id, p.type_id, p.flavor_id
        FROM products p
        JOIN items i ON i.id = p.item_id
       WHERE p.company_id = ? AND p.active = 1
@@ -1320,6 +1333,9 @@ export async function listProducts(companyId: string): Promise<Product[]> {
     yieldPerUnit: r.yield_per_unit,
     unitPackagingCents: r.unit_packaging_cents as Cents,
     packaging: parsePackaging(r.packaging),
+    lineId: r.line_id,
+    typeId: r.type_id,
+    flavorId: r.flavor_id,
   }));
 }
 
@@ -1341,8 +1357,14 @@ export async function saveProduct(
     yieldPerUnit: number | null;
     unitPackagingCents: Cents;
     packaging: PackagingHierarchy;
+    lineId?: string | null;
+    typeId?: string | null;
+    flavorId?: string | null;
   },
 ): Promise<{ productId: string; itemId: string }> {
+  // Antes de abrir a transação, porque recusar depois de gravar o item deixaria
+  // um item órfão para trás - e a checagem lê, não escreve.
+  await assertTypeBelongsToLine(companyId, input.lineId ?? null, input.typeId ?? null);
   const conn = await db();
   let itemId = '';
   let productId = '';
@@ -1361,12 +1383,16 @@ export async function saveProduct(
     productId = input.id ?? newId();
     await conn.runAsync(
       `INSERT INTO products (id, company_id, item_id, recipe_id, yield_per_unit,
-                             unit_packaging_cents, active)
-       VALUES (?, ?, ?, ?, ?, ?, 1)
+                             unit_packaging_cents, active,
+                             line_id, type_id, flavor_id)
+       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          recipe_id = excluded.recipe_id,
          yield_per_unit = excluded.yield_per_unit,
-         unit_packaging_cents = excluded.unit_packaging_cents`,
+         unit_packaging_cents = excluded.unit_packaging_cents,
+         line_id = excluded.line_id,
+         type_id = excluded.type_id,
+         flavor_id = excluded.flavor_id`,
       [
         productId,
         companyId,
@@ -1374,6 +1400,9 @@ export async function saveProduct(
         input.recipeId,
         input.yieldPerUnit,
         input.unitPackagingCents,
+        input.lineId ?? null,
+        input.typeId ?? null,
+        input.flavorId ?? null,
       ],
     );
 
@@ -2252,3 +2281,212 @@ export async function setItemActive(
   });
 }
 
+
+/**
+ * A grade de cadastro de produto: linha, tipo e sabor.
+ *
+ * Os três níveis são opcionais de propósito. Uma fábrica que faz um doce só não
+ * deve ser obrigada a inventar uma linha e um tipo para cadastrá-lo - é a mesma
+ * regra do "depende vira dado": quem tem um nível só preenche um nível só, e a
+ * tela some com as perguntas que não se aplicam.
+ *
+ * O sabor é da empresa e não do tipo. Morango é o mesmo morango no picolé e no
+ * pote; amarrá-lo ao tipo faria o dono cadastrar morango uma vez por tipo, e na
+ * primeira correção de nome ele teria seis morangos diferentes no relatório.
+ */
+export type ProductLine = { id: string; name: string; sort: number };
+export type ProductType = { id: string; lineId: string; name: string; sort: number };
+export type Flavor = { id: string; name: string; sort: number };
+
+export async function listLines(companyId: string): Promise<ProductLine[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{ id: string; name: string; sort: number }>(
+    `SELECT id, name, sort FROM product_lines
+      WHERE company_id = ? AND active = 1
+      ORDER BY sort, name COLLATE NOCASE`,
+    [companyId],
+  );
+  return rows.map((r) => ({ id: r.id, name: r.name, sort: r.sort }));
+}
+
+export async function listTypes(companyId: string, lineId?: string): Promise<ProductType[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    id: string;
+    line_id: string;
+    name: string;
+    sort: number;
+  }>(
+    `SELECT id, line_id, name, sort FROM product_types
+      WHERE company_id = ? AND active = 1${lineId ? ' AND line_id = ?' : ''}
+      ORDER BY sort, name COLLATE NOCASE`,
+    lineId ? [companyId, lineId] : [companyId],
+  );
+  return rows.map((r) => ({ id: r.id, lineId: r.line_id, name: r.name, sort: r.sort }));
+}
+
+export async function listFlavors(companyId: string): Promise<Flavor[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{ id: string; name: string; sort: number }>(
+    `SELECT id, name, sort FROM flavors
+      WHERE company_id = ? AND active = 1
+      ORDER BY sort, name COLLATE NOCASE`,
+    [companyId],
+  );
+  return rows.map((r) => ({ id: r.id, name: r.name, sort: r.sort }));
+}
+
+/** Uma linha nova, ou o nome de uma existente corrigido. */
+export async function saveLine(
+  companyId: string,
+  input: { id?: string; name: string; sort?: number },
+): Promise<string> {
+  const conn = await db();
+  const id = input.id ?? newId();
+  await conn.withTransactionAsync(async () => {
+    await conn.runAsync(
+      `INSERT INTO product_lines (id, company_id, name, sort, active)
+       VALUES (?, ?, ?, ?, 1)
+       ON CONFLICT(id) DO UPDATE SET name = excluded.name, sort = excluded.sort`,
+      [id, companyId, input.name.trim(), input.sort ?? 0],
+    );
+    await enqueue(conn, [{ table: 'product_lines', rowId: id }]);
+  });
+  return id;
+}
+
+export async function saveType(
+  companyId: string,
+  input: { id?: string; lineId: string; name: string; sort?: number },
+): Promise<string> {
+  const conn = await db();
+  const id = input.id ?? newId();
+  await conn.withTransactionAsync(async () => {
+    await conn.runAsync(
+      `INSERT INTO product_types (id, company_id, line_id, name, sort, active)
+       VALUES (?, ?, ?, ?, ?, 1)
+       ON CONFLICT(id) DO UPDATE SET name = excluded.name, sort = excluded.sort`,
+      [id, companyId, input.lineId, input.name.trim(), input.sort ?? 0],
+    );
+    await enqueue(conn, [{ table: 'product_types', rowId: id }]);
+  });
+  return id;
+}
+
+export async function saveFlavor(
+  companyId: string,
+  input: { id?: string; name: string; sort?: number },
+): Promise<string> {
+  const conn = await db();
+  const id = input.id ?? newId();
+  await conn.withTransactionAsync(async () => {
+    await conn.runAsync(
+      `INSERT INTO flavors (id, company_id, name, sort, active)
+       VALUES (?, ?, ?, ?, 1)
+       ON CONFLICT(id) DO UPDATE SET name = excluded.name, sort = excluded.sort`,
+      [id, companyId, input.name.trim(), input.sort ?? 0],
+    );
+    await enqueue(conn, [{ table: 'flavors', rowId: id }]);
+  });
+  return id;
+}
+
+/**
+ * Erro de cadastro: o tipo escolhido é de outra linha.
+ *
+ * No servidor isto é chave estrangeira composta - o Postgres recusa sozinho.
+ * O SQLite do aparelho não aceita chave composta em `ALTER TABLE ADD COLUMN`,
+ * então aqui a mesma garantia é imposta na escrita, e é por isso que ela mora
+ * no repositório e não na tela: a tela é decoração, e o assistente grava pelo
+ * mesmo caminho sem passar por ela.
+ */
+export class TypeIsFromAnotherLineError extends Error {
+  constructor(readonly typeId: string) {
+    super(`type ${typeId} belongs to another line`);
+    this.name = 'TypeIsFromAnotherLineError';
+  }
+}
+
+/** Recusa antes de gravar se o tipo não for da linha. */
+export async function assertTypeBelongsToLine(
+  companyId: string,
+  lineId: string | null,
+  typeId: string | null,
+): Promise<void> {
+  if (!typeId) return;
+  const conn = await db();
+  const row = await conn.getFirstAsync<{ line_id: string }>(
+    'SELECT line_id FROM product_types WHERE id = ? AND company_id = ?',
+    [typeId, companyId],
+  );
+  if (!row || row.line_id !== lineId) throw new TypeIsFromAnotherLineError(typeId);
+}
+
+/** Um insumo perto do fim, com o dado que faz a frase: quanto tem e quanto sai por dia. */
+export type Running = {
+  itemId: string;
+  name: string;
+  baseUnit: string;
+  onHandBaseUnits: number;
+  dailyOutflow: number;
+  daysLeft: number;
+};
+
+/**
+ * O que vai acabar antes de você comprar de novo.
+ *
+ * O consumo diário sai do próprio livro-razão — a média do que saiu nos últimos
+ * `days` dias —, não de uma estimativa cadastrada. É a diferença entre um alerta
+ * que a fábrica reconhece e um que ela aprende a ignorar: o número vem do que
+ * ela fez, e por isso o `[por quê?]` é possível.
+ *
+ * Insumo parado não aparece. Sem saída não há data de acabar, e inventar uma
+ * seria exatamente o alerta inventado que o briefing proíbe.
+ *
+ * Embalagem entra junto com insumo: palito e saquinho acabam no meio da corrida
+ * exatamente como a polpa, e uma fábrica parada por falta de palito está tão
+ * parada quanto uma sem morango.
+ */
+export async function runningOut(
+  companyId: string,
+  fromIso: string,
+  toIso: string,
+  days: number,
+  horizon = 7,
+): Promise<Running[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    item_id: string;
+    name: string;
+    base_unit: string;
+    on_hand: number;
+    out_units: number;
+  }>(
+    `SELECT i.id AS item_id, i.name, i.base_unit,
+            COALESCE((SELECT SUM(m.quantity_base_units) FROM movements m
+                       WHERE m.company_id = i.company_id AND m.item_id = i.id), 0) AS on_hand,
+            COALESCE((SELECT -SUM(m.quantity_base_units) FROM movements m
+                       WHERE m.company_id = i.company_id AND m.item_id = i.id
+                         AND m.quantity_base_units < 0
+                         AND m.occurred_at >= ? AND m.occurred_at < ?), 0) AS out_units
+       FROM items i
+      WHERE i.company_id = ? AND i.active = 1 AND i.kind IN ('input', 'packaging')`,
+    [fromIso, toIso, companyId],
+  );
+
+  const out: Running[] = [];
+  for (const r of rows) {
+    const dailyOutflow = r.out_units / days;
+    const daysLeft = daysOfCover(r.on_hand, dailyOutflow);
+    if (daysLeft === null || daysLeft > horizon) continue;
+    out.push({
+      itemId: r.item_id,
+      name: r.name,
+      baseUnit: r.base_unit,
+      onHandBaseUnits: r.on_hand,
+      dailyOutflow,
+      daysLeft,
+    });
+  }
+  return out.sort((a, b) => a.daysLeft - b.daysLeft);
+}

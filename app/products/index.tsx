@@ -113,6 +113,15 @@ function ProductsList() {
       </Card>
 
       <Button label={t.app.products.addNew} onPress={() => router.push('/products/new')} weighty />
+
+      {/* A grade vem antes do produto na ordem de quem cadastra do zero: linha,
+          tipo e sabor primeiro, e aí o produto é a combinação. Fica embaixo
+          porque quem já cadastrou volta aqui para ver produto, não grade. */}
+      <Button
+        label={t.app.catalog.title}
+        variant="ghost"
+        onPress={() => router.push('/catalog')}
+      />
     </CollapsingHeader>
   );
 }

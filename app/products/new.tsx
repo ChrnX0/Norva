@@ -12,6 +12,12 @@ import {
   labels as loadLabels,
   listRecipes,
   loadRecipeGraph,
+  listLines,
+  listTypes,
+  listFlavors,
+  type Flavor,
+  type ProductLine,
+  type ProductType,
   saveProduct,
   type RecipeSummary,
 } from '@/data/repository';
@@ -53,6 +59,9 @@ type Loaded = {
   graph: Record<string, Recipe>;
   costs: ItemCosts;
   labels: Record<string, string>;
+  lines: ProductLine[];
+  types: ProductType[];
+  flavors: Flavor[];
 };
 
 function ProductForm() {
@@ -62,17 +71,24 @@ function ProductForm() {
   const { locale, t } = useLocale();
 
   const { data, loading } = useQuery<Loaded>(async () => {
-    const [recipes, graph, costs, labels] = await Promise.all([
+    const [recipes, graph, costs, labels, lines, types, flavors] = await Promise.all([
       listRecipes(LOCAL_COMPANY_ID),
       loadRecipeGraph(LOCAL_COMPANY_ID),
       itemCosts(LOCAL_COMPANY_ID),
       loadLabels(LOCAL_COMPANY_ID),
+      listLines(LOCAL_COMPANY_ID),
+      listTypes(LOCAL_COMPANY_ID),
+      listFlavors(LOCAL_COMPANY_ID),
     ]);
-    return { recipes, graph, costs, labels };
+    return { recipes, graph, costs, labels, lines, types, flavors };
   });
 
   const [kind, setKind] = useState<Kind>('product');
   const [name, setName] = useState('');
+  const [nameTyped, setNameTyped] = useState(false);
+  const [lineId, setLineId] = useState<string | null>(null);
+  const [typeId, setTypeId] = useState<string | null>(null);
+  const [flavorId, setFlavorId] = useState<string | null>(null);
   const [recipeId, setRecipeId] = useState<string | null>(null);
   const [perUnit, setPerUnit] = useState('75');
   const [packagingCost, setPackagingCost] = useState('0,05');
@@ -156,7 +172,10 @@ function ProductForm() {
     setSaving(true);
     try {
       await saveProduct(LOCAL_COMPANY_ID, {
-        name: name.trim(),
+        name: composed.trim(),
+        lineId,
+        typeId,
+        flavorId,
         kind,
         recipeId: kind === 'product' ? chosenRecipe : null,
         yieldPerUnit: kind === 'product' ? num(perUnit) : null,
@@ -176,13 +195,107 @@ function ProductForm() {
     }
   };
 
+  const linha = data?.lines.find((l) => l.id === lineId) ?? null;
+  const tipo = data?.types.find((x) => x.id === typeId) ?? null;
+  const sabor = data?.flavors.find((f) => f.id === flavorId) ?? null;
+  const tiposDaLinha = (data?.types ?? []).filter((x) => x.lineId === lineId);
+
+  /**
+   * O nome que a grade escreve, e quem manda quando os dois existem.
+   *
+   * Lei 1: o que o sistema pode deduzir não se pergunta. Escolhida a grade, o
+   * nome sai dela — "Picolé Tradicional de morango" é a linha, o tipo e o sabor
+   * grudados pela frase do dicionário, que é a única parte disto que muda de
+   * idioma. Quem digitou um nome à mão continua com o nome que digitou: a
+   * dedução sugere, não sobrescreve.
+   */
+  const composed = (() => {
+    if (nameTyped && name.trim()) return name;
+    if (!linha) return name;
+    const chave =
+      tipo && sabor
+        ? t.app.catalog.composed
+        : sabor
+          ? t.app.catalog.composedNoType
+          : tipo
+            ? t.app.catalog.composedNoFlavor
+            : '';
+    if (!chave) return linha.name;
+    return fill(chave, { line: linha.name, type: tipo?.name ?? '', flavor: sabor?.name ?? '' });
+  })();
+
+  const chip = (label: string, active: boolean, onPress: () => void, key: string) => (
+    <Pressable
+      key={key}
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={label}
+      style={{
+        borderColor: active ? color.ink : color.line,
+        borderWidth: active ? 2 : 1,
+        borderRadius: 12,
+        paddingVertical: space.sm,
+        paddingHorizontal: space.md,
+        backgroundColor: color.surface,
+      }}
+    >
+      <Text style={[type.body, { color: active ? color.ink : color.inkMuted }]}>{label}</Text>
+    </Pressable>
+  );
+
   return (
     <CollapsingHeader title={t.app.productForm.title} overline={t.app.productForm.overline}>
+      {(data?.lines ?? []).length > 0 ? (
+        <Card>
+          <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.catalog.lines}</Text>
+          <View style={[styles.wrap, { gap: space.sm, marginTop: space.sm }]}>
+            {(data?.lines ?? []).map((l) =>
+              chip(l.name, l.id === lineId, () => {
+                setLineId(l.id === lineId ? null : l.id);
+                setTypeId(null);
+              }, l.id),
+            )}
+          </View>
+
+          {/* Nível com uma resposta só não é pergunta: se a linha tem um tipo
+              apenas, mostrá-lo como escolha é pedir o que já se sabe. */}
+          {tiposDaLinha.length > 1 ? (
+            <>
+              <Text style={[type.overline, { color: color.inkFaint, marginTop: space.lg }]}>
+                {fill(t.app.catalog.types, { line: linha?.name ?? '' })}
+              </Text>
+              <View style={[styles.wrap, { gap: space.sm, marginTop: space.sm }]}>
+                {tiposDaLinha.map((x) =>
+                  chip(x.name, x.id === typeId, () => setTypeId(x.id === typeId ? null : x.id), x.id),
+                )}
+              </View>
+            </>
+          ) : null}
+
+          {(data?.flavors ?? []).length > 0 ? (
+            <>
+              <Text style={[type.overline, { color: color.inkFaint, marginTop: space.lg }]}>
+                {t.app.catalog.flavors}
+              </Text>
+              <View style={[styles.wrap, { gap: space.sm, marginTop: space.sm }]}>
+                {(data?.flavors ?? []).map((f) =>
+                  chip(f.name, f.id === flavorId, () => setFlavorId(f.id === flavorId ? null : f.id), f.id),
+                )}
+              </View>
+            </>
+          ) : null}
+        </Card>
+      ) : null}
+
       <Card tone="area">
         <Field
           label={t.app.productForm.name}
-          value={name}
-          onChangeText={setName}
+          value={composed}
+          onChangeText={(next) => {
+            setNameTyped(true);
+            setName(next);
+          }}
           placeholder={t.app.productForm.namePlaceholder}
         />
 
@@ -358,3 +471,7 @@ function Segment({
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  wrap: { flexDirection: 'row', flexWrap: 'wrap' },
+});

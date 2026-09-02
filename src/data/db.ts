@@ -402,7 +402,50 @@ CREATE TABLE IF NOT EXISTS production_runs (
 );
 `;
 
-const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8];
+const V9 = `
+CREATE TABLE IF NOT EXISTS product_lines (
+  id         TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  name       TEXT NOT NULL,
+  sort       INTEGER NOT NULL DEFAULT 0,
+  active     INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS product_types (
+  id         TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  line_id    TEXT NOT NULL REFERENCES product_lines(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  sort       INTEGER NOT NULL DEFAULT 0,
+  active     INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS flavors (
+  id         TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  name       TEXT NOT NULL,
+  sort       INTEGER NOT NULL DEFAULT 0,
+  active     INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS product_lines_name_idx
+  ON product_lines (company_id, lower(trim(name)));
+CREATE UNIQUE INDEX IF NOT EXISTS product_types_name_idx
+  ON product_types (company_id, line_id, lower(trim(name)));
+CREATE UNIQUE INDEX IF NOT EXISTS flavors_name_idx
+  ON flavors (company_id, lower(trim(name)));
+
+ALTER TABLE products ADD COLUMN line_id TEXT REFERENCES product_lines(id) ON DELETE RESTRICT;
+ALTER TABLE products ADD COLUMN type_id TEXT REFERENCES product_types(id) ON DELETE RESTRICT;
+ALTER TABLE products ADD COLUMN flavor_id TEXT REFERENCES flavors(id) ON DELETE RESTRICT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS products_grid_idx
+  ON products (company_id, coalesce(line_id, ''), coalesce(type_id, ''), coalesce(flavor_id, ''))
+  WHERE active = 1;
+CREATE INDEX IF NOT EXISTS products_flavor_idx ON products (company_id, flavor_id);
+`;
+
+const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9];
 
 export type SqlParam = string | number | null;
 

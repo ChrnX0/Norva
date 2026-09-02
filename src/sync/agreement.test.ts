@@ -395,3 +395,42 @@ test('what the device does not keep is a list somebody wrote, not a surprise', (
   const stale = known.filter((f) => columns.has(f));
   assert.deepEqual(stale, [], `the device has these now - take them off the list: ${stale.join(', ')}`);
 });
+
+test('every table the device queues is a table something knows how to send', () => {
+  // O guarda de acordo já olhava um lado: para cada tabela que o serializador
+  // sabe mandar, o servidor tem as colunas. Faltava o inverso, e o inverso é o
+  // que machuca — uma tabela que o repositório enfileira e ninguém sabe enviar
+  // não é erro de compilação nem teste vermelho: é `UnknownTableError` no meio
+  // da fila, e a fila é enviada em ordem. A linha recusada nunca sai da frente,
+  // e TUDO que foi escrito depois dela fica preso atrás — inclusive movimento.
+  //
+  // Aconteceu de novo com `product_lines`, `product_types` e `flavors`: três
+  // tabelas novas, três `enqueue`, nenhuma travessia. O achado de que "o guarda
+  // só olhava para um lado" está em docs/insights.md desde antes; padrão que
+  // aparece duas vezes é dívida, não coincidência.
+  const repo = readFileSync(join(import.meta.dirname, '../data/repository.ts'), 'utf8');
+  const enfileiradas = new Set(
+    [...repo.matchAll(/\btable:\s*'([a-z_]+)'/g)].map((m) => m[1]),
+  );
+
+  assert.ok(enfileiradas.size > 5, 'a varredura não achou os enqueue do repositório');
+
+  // `erase` não é tabela: é comando, e `serialize` o resolve antes de olhar a
+  // travessia. A exceção está escrita aqui e não numa lista de nomes porque é
+  // exatamente isso que o serializador faz — se um dia ele parar de tratar
+  // comando, este teste tem que voltar a acusar.
+  const comandos = new Set(
+    [...readFileSync(join(import.meta.dirname, 'serialize.ts'), 'utf8').matchAll(
+      /entry\.table === '([a-z_]+)'/g,
+    )].map((m) => m[1]),
+  );
+
+  const orfas = [...enfileiradas].filter(
+    (t) => !(sendableTables as readonly string[]).includes(t) && !comandos.has(t),
+  );
+  assert.deepEqual(
+    orfas,
+    [],
+    `o repositório enfileira ${orfas.join(', ')} e nada sabe enviar — a fila trava na primeira`,
+  );
+});
