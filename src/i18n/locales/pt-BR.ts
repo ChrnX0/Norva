@@ -77,6 +77,11 @@ export const ptBR = {
       yesterdayWas: 'Ontem foram {{amount}}.',
       noYesterday: 'Ontem não houve produção.',
       runningOut: 'Compre esta semana',
+      ordersShort: 'Produza para os pedidos',
+      ordersCovered: 'Os pedidos estão cobertos',
+      ordersCoveredDetail: 'O que foi pedido até {{date}} cabe no que já tem na fábrica.',
+      ordersWhy: 'Pelo que foi pedido até {{date}}, contra o que tem na fábrica. Toque para ver os pedidos.',
+      orderCount: { one: '1 pedido', other: '{{n}} pedidos' },
       runningOutWhy: 'Pela saída dos últimos sete dias. Toque para ver o almoxarifado.',
       overline: 'hoje na fábrica',
       each: 'cada um',
@@ -145,6 +150,52 @@ export const ptBR = {
       worst: 'O que mais pesou: {{reason}}, {{money}}.',
     },
     /**
+     * Pedido é demanda, e a tela inteira segue disso: nada aqui mexe em estoque.
+     * A palavra "anotar" no lugar de "lançar" é deliberada - lançar é o que se
+     * faz com o que aconteceu, e um pedido é o que ainda vai acontecer.
+     */
+    orders: {
+      title: 'Pedidos',
+      overline: 'o que os clientes pediram',
+      add: 'Anotar pedido',
+      empty: 'Nenhum pedido aberto',
+      emptyHint: 'Anote o que o cliente pedir. A capa passa a dizer o que falta produzir até o dia combinado.',
+      forDate: 'para {{date}}',
+      noDate: 'sem dia combinado',
+      pending: 'Espera aprovação',
+      approve: 'Aprovar',
+      deliver: 'Marcar entregue',
+      cancel: 'Cancelar',
+      cancelTitle: 'Cancelar este pedido?',
+      cancelBody: 'O pedido de {{place}} sai da lista. Nada muda no estoque: pedido não move caixa.',
+    },
+
+    newOrder: {
+      title: 'Anotar pedido',
+      overline: 'para quem, para quando, o quê',
+      customer: 'Cliente',
+      noCustomers: 'Nenhum cliente cadastrado ainda. Toque para cadastrar.',
+      noProducts: 'Nenhum produto cadastrado ainda. Toque para cadastrar.',
+      when: 'Para quando',
+      today: 'hoje',
+      tomorrow: 'amanhã',
+      dayAfter: 'depois de amanhã',
+      product: 'Produto',
+      quantity: 'Quantidade',
+      addLine: 'Adicionar ao pedido',
+      listed: 'No pedido',
+      remove: 'tirar',
+      save: 'Anotar pedido',
+      back: 'Voltar',
+      needsCustomer: 'Escolha para quem é o pedido.',
+      needsLine: 'Adicione pelo menos um produto ao pedido.',
+      confirmTitle: 'Confirma o pedido?',
+      confirmAction: 'Anotar',
+      confirmBody: 'Você vai anotar {{items}} para {{place}}, {{when}}. Nada sai do estoque agora.',
+      confirmItem: '{{amount}} de {{name}}',
+    },
+
+    /**
      * O clima, dito como fato e nunca como conselho.
      *
      * A tela não diz "produza mais amanhã": a relação entre calor e venda desta
@@ -193,6 +244,7 @@ export const ptBR = {
         products: 'Produtos',
         places: 'Lojas e clientes',
         purchases: 'Compras',
+        orders: 'Pedidos',
         weather: 'Clima',
         settings: 'Ajustes',
       },
@@ -275,6 +327,12 @@ export const ptBR = {
         purchases: { one: '1 compra', other: '{{n}} compras' },
       },
       back: 'Voltar',
+      approval: {
+        label: 'Pedido precisa de aprovação',
+        hint: 'Ligado, todo pedido novo aparece como "espera aprovação" até alguém aprovar. Ele já entra na conta do que falta produzir: quem espera a aprovação para começar descobre tarde.',
+        on: 'Ligado',
+        off: 'Desligado',
+      },
     },
 
     inputs: {

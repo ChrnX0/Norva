@@ -20,6 +20,32 @@ export type DayWindow = { from: string; to: string };
  * is the comparison a factory actually makes: Monday against Monday, because a
  * Monday and a Saturday are different businesses.
  */
+/**
+ * A data de calendário local, `YYYY-MM-DD`.
+ *
+ * Existe porque o dia que um cliente combina NÃO é um instante. O livro-razão
+ * grava instantes - "às 14h32 saíram 40 caixas" - e a janela do dia converte
+ * isso para o fuso da fábrica. Um pedido "para quinta" não tem hora nenhuma:
+ * é uma data de calendário, e tratá-la como instante desloca o dia inteiro em
+ * metade dos fusos do mundo.
+ *
+ * O atalho tentador é `dayWindow(...).from.slice(0, 10)`, e ele está errado
+ * onde o fuso é positivo: a meia-noite local de 3 de setembro em Madri é
+ * 2 de setembro às 22h em UTC, e o corte devolve o dia anterior. Aqui a conta
+ * é feita sobre a data local, nunca sobre o instante.
+ */
+export function localDate(atIso: string, timeZone: string, days = 0): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(atIso));
+
+  const [y, m, d] = parts.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
 export function dayWindow(atIso: string, timeZone: string, days = 0): DayWindow {
   const at = new Date(atIso);
 

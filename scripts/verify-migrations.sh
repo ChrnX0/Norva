@@ -11,6 +11,8 @@
 #   4. One company cannot read another's rows, and someone without view_cost
 #      gets a null where the money is - enforced by the policy, in the query,
 #      not by hiding a control in the interface.
+#   5. Um pedido nasce no estado que a EMPRESA configurou, e sair do pendente é
+#      de quem tem approve_order - nem da tela, nem de quem só despacha.
 #
 # Needs a local postgres (any recent version) and psql. Nothing is left running.
 
@@ -448,7 +450,8 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
   -- responde apenas 'permission denied', sem dizer qual dos dois falta.
   grant insert, update on items, locations, products, purchases, purchase_lines,
         recipes, recipe_versions, recipe_lines,
-        product_lines, product_types, flavors to app_user;
+        product_lines, product_types, flavors,
+        orders, order_lines to app_user;
   grant insert on movements to app_user;" >/dev/null ||
   fail "não deu para preparar a conta da empresa"
 
@@ -536,7 +539,7 @@ echo "==> check 7: a grade do produto recusa o cadastro impossível"
 # Nenhuma das três aparece num teste de unidade: são garantias do Postgres, e
 # só um Postgres de verdade responde por elas.
 G=00000000-0000-4ddd-8000-0000000000
-psql -d "$DB" -q -c "insert into companies (id, name) values ('${G}01','Grade');" >/dev/null
+psql -d "$DB" -q -c "insert into companies (id, name) values ('${G}01','Grade');" >/dev/null  # proofgate-allow
 
 psql -d "$DB" -q -c "insert into product_lines (id, company_id, name) values
   ('${G}11','${G}01','Picolé'), ('${G}12','${G}01','Pote de sorvete');" >/dev/null  # proofgate-allow
@@ -589,6 +592,56 @@ fi
 
 echo "    tipo de outra linha, tipo órfão, sabor repetido e produto duplicado, todos recusados"
 
+echo "==> check 8: o pedido nasce onde a empresa mandou, e sair do pendente é de quem aprova"
+
+# A aprovação de pedido é configuração da empresa, e a regra não pode morar na
+# tela: um cliente que manda o pedido pelo próprio aparelho escolheria nascer
+# aprovado, porque "status" é um campo como outro qualquer no JSON.
+P=00000000-0000-4eee-8000-0000000000
+psql -d "$DB" -q -c "insert into auth.users (id) values ('${P}91'), ('${P}92');" >/dev/null
+psql -d "$DB" -q -c "insert into companies (id, name, orders_need_approval)
+  values ('${P}01','Fábrica que aprova', true);" >/dev/null  # proofgate-allow
+psql -d "$DB" -q -c "insert into memberships (company_id, user_id, display_name, capabilities)
+  values ('${P}01','${P}91','Vendedora', array['place_order','dispatch']::capability[]),
+         ('${P}01','${P}92','Dona', array['place_order','approve_order']::capability[]);" >/dev/null  # proofgate-allow
+psql -d "$DB" -q -c "insert into locations (id, company_id, kind, name)
+  values ('${P}11','${P}01','customer','Cliente do centro');" >/dev/null  # proofgate-allow
+psql -d "$DB" -q -c "insert into items (id, company_id, kind, name)
+  values ('${P}21','${P}01','product','Picolé de morango');" >/dev/null  # proofgate-allow
+
+psql -d "$DB" -q -c "grant insert, update on orders, order_lines to app_user;" >/dev/null
+
+# A vendedora anota o pedido dizendo 'open'. O banco põe em 'pending' assim
+# mesmo, porque a empresa pediu aprovação.
+as_user "${P}91" "insert into orders (id, company_id, place_id, status, recorded_by)
+  values ('${P}31','${P}01','${P}11','open','${P}91');" >/dev/null ||
+  fail "quem tem place_order não conseguiu anotar um pedido"
+
+nasceu=$(psql -d "$DB" -Atqc "select status from orders where id = '${P}31';")
+[ "$nasceu" = "pending" ] ||
+  fail "o pedido nasceu '$nasceu': a tela escolheu o estado que era do banco"
+
+# E a mesma vendedora, que despacha mas não aprova, não tira do pendente.
+if as_user "${P}91" "update orders set status = 'open' where id = '${P}31';" >/dev/null 2>&1; then
+  fail "quem despacha aprovou um pedido sem ter approve_order"
+fi
+
+# Quem aprova, aprova.
+as_user "${P}92" "update orders set status = 'open' where id = '${P}31';" >/dev/null ||
+  fail "quem tem approve_order não conseguiu aprovar"
+
+# Linha de pedido de outra empresa não entra, e quantidade zero não é pedido.
+if psql -d "$DB" -q -c "insert into order_lines (id, company_id, order_id, item_id, base_units)
+  values ('${P}41','${P}01','${P}31','00000000-0000-4000-8000-0000000000a1',10);" >/dev/null 2>&1; then  # proofgate-allow
+  fail "uma linha apontou para o item de outra empresa"
+fi
+if psql -d "$DB" -q -c "insert into order_lines (id, company_id, order_id, item_id, base_units)
+  values ('${P}42','${P}01','${P}31','${P}21',0);" >/dev/null 2>&1; then  # proofgate-allow
+  fail "um pedido de zero unidade entrou"
+fi
+
+echo "    o estado inicial é do banco, aprovar é de quem aprova, e a linha não cruza empresa"
+
 echo
-echo "OK - migrations apply and all seven guarantees hold."
+echo "OK - migrations apply and all eight guarantees hold."
 

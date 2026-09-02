@@ -24,6 +24,8 @@ import {
   listItems,
   recordCount,
   recordPurchase,
+  savePlace,
+  saveOrder,
   saveFlavor,
   saveLine,
   saveProduct,
@@ -146,6 +148,18 @@ async function main() {
       { kind: 'item', itemId: pulp.id, quantity: 3_000 },
       { kind: 'item', itemId: sugar.id, quantity: 1_500 },
     ],
+  });
+
+  // E um cliente que liga pedindo, que é a única escrita deste app que não
+  // toca no livro-razão. Ela atravessa aqui pelo mesmo motivo que a grade:
+  // uma tabela que `serialize` diz saber mandar e que nenhuma sessão exercita
+  // é uma promessa que ninguém cobrou - o servidor recusaria na primeira vez,
+  // em produção, com a fila inteira parada atrás dela.
+  const loja = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+  await saveOrder(LOCAL_COMPANY_ID, {
+    placeId: loja.id,
+    requestedFor: '2026-09-10',
+    lines: [{ itemId: pulp.id, baseUnits: 300 }],
   });
 
   // --- and now, exactly what the server would receive -----------------------

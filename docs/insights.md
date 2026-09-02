@@ -1563,3 +1563,62 @@ previsão guardada com a data conferida contra hoje, porque desenhar a máxima d
 anteontem é a doença do saldo congelado com outra roupa; e a cidade deduzida do
 fuso do aparelho em vez de perguntada, com o nome visível no cartão para que o
 palpite errado seja corrigível num toque.
+
+## 2 de setembro — o número sumiu da frase, e o compilador achou ótimo
+
+O cartão novo da capa saiu do navegador dizendo **"Picolé de morango · unidades"**
+— sem a quantidade, num aviso cujo assunto inteiro é a quantidade.
+
+A causa é de uma linha: `plural(n, t.units.unit, formatQuantity(n))`. Metade das
+entradas do dicionário carrega `{{n}}` (`'{{n}} caixas'`), e metade é só a
+palavra (`units.unit` é `'unidades'`, porque as telas escrevem o número ao lado).
+Chamada com um número para mostrar, a segunda metade **jogava o número fora**:
+`fill` não acha onde pôr, devolve a palavra, e ninguém reclama. Compilou, passou
+nos 218 testes, e só o e2e viu.
+
+Duas mudanças saíram daí, e a segunda é a que vale.
+
+**`plural` não perde mais o número:** quem passou um número quis mostrá-lo, e se
+a frase não tem onde recebê-lo, ele vai na frente. Perder dado em silêncio é
+sempre pior que uma frase um pouco torta.
+
+**E o `Widen<T>` obriga a chave, não o buraco.** Essa é a descoberta maior: a
+fundação de i18n deste projeto garante que uma chave nova em português quebra a
+compilação das outras duas línguas até serem escritas — e não olha para dentro da
+frase. `'Ontem foram {{amount}}.'` traduzido como `'Yesterday.'` compila limpo, e
+a Lei 3 fica desligada em silêncio no idioma que ninguém desta sala lê para
+conferir. Agora existe `src/i18n/i18n.test.ts`: os três dicionários, folha por
+folha, com os mesmos buracos nas mesmas frases.
+
+## 2 de setembro — o dia combinado não é um instante
+
+Um pedido "para quinta" não tem hora. O livro-razão inteiro deste app é feito de
+instantes — "às 14h32 saíram 40 caixas" — e a tentação era reaproveitar o que já
+existe: `dayWindow(...).from.slice(0, 10)`.
+
+Está errado, e o erro é invisível de dentro do Brasil. A meia-noite local de 3 de
+setembro em Madri é **2 de setembro às 22h em UTC**: o corte devolve o dia
+anterior, e um pedido combinado para quinta aparece como quarta para metade dos
+fusos do mundo. Do lado negativo o atalho acerta por acaso, que é exatamente como
+esse tipo de defeito atravessa uma revisão.
+
+Então `localDate()` faz a conta sobre a data local, e `formatCalendarDate()` a
+mostra sem passar por fuso nenhum. O par tem teste com Madri, com São Paulo,
+antes e depois da meia-noite, e virando o mês.
+
+## 2 de setembro — pedido não é movimento, e a fundação decide isso sozinha
+
+A demanda cabia em `movements`: item, quantidade, lugar e data já existem lá. Mas
+duas fundações respondem antes de qualquer conveniência.
+
+Saldo é a soma dos movimentos: um pedido não move nada, as caixas continuam no
+freezer, e quem conferir a prateleira acha tudo o que o sistema diz que tem.
+Gravar demanda como movimento faz o saldo **mentir no dia da ligação**.
+
+E o livro-razão é append-only, enquanto um pedido muda o tempo todo — o cliente
+corrige a quantidade, adia, cancela. Corrigir isso por estorno seria escrever no
+livro que trezentos picolés saíram e voltaram, quando nenhum saiu.
+
+O que isso ensina para a Fase 3 inteira: **compromisso e fato são tabelas
+diferentes**, e o elo entre eles é um evento só — a carga que sai, que já é a
+transferência de 0001. Reserva, separação e devolução vão cair no mesmo desenho.

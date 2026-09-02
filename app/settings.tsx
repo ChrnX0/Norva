@@ -7,7 +7,7 @@ import { Chip } from '@/components/Chip';
 import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { brand } from '@/config/brand';
-import { countForErase, eraseArea } from '@/data/repository';
+import { countForErase, eraseArea, ordersNeedApproval, setOrdersNeedApproval } from '@/data/repository';
 import {
   blockerFor,
   EraseBlockedError,
@@ -109,6 +109,16 @@ function Settings() {
   const confirm = useConfirm();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+
+  /**
+   * A aprovação de pedido, que é preferência da empresa e não escolha nossa.
+   *
+   * Uma fábrica quer que o dono veja cada pedido antes de a produção começar;
+   * outra tem três clientes e a aprovação só atrasa a entrega. Os dois caminhos
+   * existem e a empresa liga o seu - é a mesma regra que decidiu a entrada no
+   * chão de fábrica, e ela vale aqui pelo mesmo motivo.
+   */
+  const { data: approval, refresh: refreshApproval } = useQuery<boolean>(() => ordersNeedApproval());
 
   const { data, loading, refresh } = useQuery(
     async () => ({
@@ -273,6 +283,33 @@ function Settings() {
           </View>
         ) : null}
       </Card>
+
+      <Pressable
+        onPress={async () => {
+          await setOrdersNeedApproval(!approval);
+          refreshApproval();
+        }}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: Boolean(approval) }}
+        accessibilityLabel={t.app.settings.approval.label}
+      >
+        <Card>
+          <View style={[styles.row, { gap: space.md }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[type.cardTitle, { color: color.ink }]}>
+                {t.app.settings.approval.label}
+              </Text>
+              <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
+                {t.app.settings.approval.hint}
+              </Text>
+            </View>
+            <Chip
+              signal={approval ? 'ok' : 'neutral'}
+              label={approval ? t.app.settings.approval.on : t.app.settings.approval.off}
+            />
+          </View>
+        </Card>
+      </Pressable>
 
       <Card tone="area">
         <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.xs }]}>

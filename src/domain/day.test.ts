@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { dayWindow, daysBetween } from './day';
+import { dayWindow, daysBetween, localDate } from './day';
 
 /** São Paulo has been at UTC-3 with no daylight saving since 2019. */
 const SP = 'America/Sao_Paulo';
@@ -57,4 +57,24 @@ test('days are counted between local midnights, not by dividing milliseconds', (
 
   // Mesmo dia, horas diferentes: zero dias, não "quase um".
   assert.equal(daysBetween('2026-09-01T03:30:00.000Z', '2026-09-02T02:00:00.000Z', SP), 0);
+});
+
+test('a calendar date is not an instant, and the difference is a whole day', () => {
+  // Madri é UTC+2 no verão: a meia-noite local de 3 de setembro é 2 de setembro
+  // às 22h em UTC. O atalho `dayWindow(...).from.slice(0, 10)` devolve o dia
+  // ANTERIOR ali - e um pedido combinado para quinta apareceria como quarta
+  // para metade do mundo.
+  const madrugada = '2026-09-03T05:00:00Z';
+  assert.equal(dayWindow(madrugada, 'Europe/Madrid').from.slice(0, 10), '2026-09-02');
+  assert.equal(localDate(madrugada, 'Europe/Madrid'), '2026-09-03');
+
+  // E do lado negativo, onde o atalho acerta por acaso, o resultado é o mesmo.
+  assert.equal(localDate('2026-09-03T05:00:00Z', 'America/Sao_Paulo'), '2026-09-03');
+
+  // Antes da meia-noite local, o dia ainda é o de ontem lá.
+  assert.equal(localDate('2026-09-03T02:00:00Z', 'America/Sao_Paulo'), '2026-09-02');
+
+  // Deslocamento vira mês novo sem aritmética manual.
+  assert.equal(localDate('2026-09-28T15:00:00Z', 'America/Sao_Paulo', 7), '2026-10-05');
+  assert.equal(localDate('2026-01-01T15:00:00Z', 'America/Sao_Paulo', -1), '2025-12-31');
 });

@@ -14,6 +14,8 @@ import {
   openProductionRuns,
   listProducts,
   loadRecipeGraph,
+  orderedDemand,
+  type Demand,
   productionOn,
   runningOut,
   type Running,
@@ -28,11 +30,12 @@ import { brand } from '@/config/brand';
 import { useQuery } from '@/data/useQuery';
 import { nowIso } from '@/data/db';
 import { ratesBefore } from '@/domain/cost';
-import { dayWindow, daysBetween } from '@/domain/day';
+import { dayWindow, daysBetween, localDate } from '@/domain/day';
 import { boxesOf } from '@/domain/units';
 import { costPerProductUnit, costRecipe, explodeRequirements } from '@/domain/recipe';
 import {
   fill,
+  formatCalendarDate,
   formatMoney,
   formatPacked,
   formatQuantity,
@@ -107,6 +110,10 @@ type Summary = {
   loose: { name: string; said: string }[];
   /** Tachos rodando agora. Vazio é o estado normal de uma fábrica parada. */
   running: { id: string; productName: string; openedAt: string }[];
+  /** O que os clientes pediram para os próximos dias, contra o que a fábrica tem. */
+  demand: Demand[];
+  /** Até que dia a pergunta dos pedidos foi feita. */
+  demandThrough: string;
 };
 
 function Briefing() {
@@ -126,6 +133,10 @@ function Briefing() {
     // coisa. São duas perguntas, e as duas cabem.
     const yesterday = dayWindow(nowIso(), locale.timeZone, -1);
     const lastWeek = dayWindow(nowIso(), locale.timeZone, -7);
+    // Uma semana à frente, porque a pergunta do pedido é "dá tempo?", e ela só
+    // tem resposta enquanto ainda dá: um pedido para sexta cobrado na sexta é
+    // uma notícia, não uma decisão (Lei 4).
+    const through = localDate(nowIso(), locale.timeZone, 7);
 
     const [
       products,
@@ -139,6 +150,7 @@ function Briefing() {
       sent,
       running,
       shortly,
+      demand,
     ] = await Promise.all([
       listProducts(LOCAL_COMPANY_ID),
       loadRecipeGraph(LOCAL_COMPANY_ID),
@@ -151,6 +163,7 @@ function Briefing() {
       shipmentsOn(LOCAL_COMPANY_ID, today.from, today.to),
       openProductionRuns(LOCAL_COMPANY_ID),
       runningOut(LOCAL_COMPANY_ID, lastWeek.from, today.to, 7),
+      orderedDemand(LOCAL_COMPANY_ID, through),
     ]);
 
     const sum = (rows: { baseUnits: number }[]) => rows.reduce((n, r) => n + r.baseUnits, 0);
@@ -186,6 +199,8 @@ function Briefing() {
 
     return {
       changes,
+      demand,
+      demandThrough: through,
       madeToday: sum(madeToday),
       madeThen: sum(madeThen),
       madeYesterday: sum(madeYesterday),
@@ -242,6 +257,20 @@ function Briefing() {
     )}`;
     return fill(today > then ? t.app.home.producedMore : t.app.home.producedLess, { amount, day });
   };
+
+  /**
+   * O que foi pedido e ainda não existe na fábrica.
+   *
+   * A subtração é aqui e não na consulta porque a camada de dados devolve fato
+   * - pedido e saldo - e a frase "falta produzir 300" é português, que é desta
+   * camada. E ela só aparece quando falta de verdade: pedido coberto vira um
+   * cartão calmo, porque "está tudo bem" é estado válido e alerta inventado
+   * ensina a ignorar alerta.
+   */
+  const shortForOrders = (data?.demand ?? [])
+    .map((d) => ({ ...d, missing: d.requested - d.onHand }))
+    .filter((d) => d.missing > 0)
+    .sort((a, b) => b.missing - a.missing);
 
   const moved = (data?.changes ?? []).filter(
     (c) => c.previousRate !== null && c.previousRate !== c.newRate,
@@ -312,6 +341,51 @@ function Briefing() {
             </View>
             <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
               {t.app.home.runningOutWhy}
+            </Text>
+          </Card>
+        </Pressable>
+      ) : null}
+
+      {/* O que os clientes pediram, e o que falta para dar conta.
+          A capa não lista pedido por pedido - isso é a tela de Pedidos. Aqui
+          fica a única pergunta que se decide de manhã: o que ainda tem que sair
+          do tacho para os compromissos da semana caberem. */}
+      {data && data.demand.length > 0 ? (
+        <Pressable
+          onPress={() => router.push('/orders')}
+          accessibilityRole="button"
+          accessibilityLabel={
+            shortForOrders.length > 0 ? t.app.home.ordersShort : t.app.home.ordersCovered
+          }
+        >
+          <Card tone={shortForOrders.length > 0 ? 'warning' : 'plain'}>
+            <Text style={[type.cardTitle, { color: color.ink }]}>
+              {shortForOrders.length > 0 ? t.app.home.ordersShort : t.app.home.ordersCovered}
+            </Text>
+
+            {shortForOrders.length > 0 ? (
+              <View style={{ marginTop: space.md, gap: space.xs }}>
+                {shortForOrders.slice(0, 4).map((d) => (
+                  <View key={d.itemId} style={styles.row}>
+                    <Text style={[type.body, { color: color.ink, flex: 1 }]} numberOfLines={1}>
+                      {d.name}
+                    </Text>
+                    <Text style={[type.body, styles.number, { color: color.ink }]}>
+                      {plural(d.missing, t.units.unit, formatQuantity(d.missing, locale))}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
+                {fill(t.app.home.ordersCoveredDetail, {
+                  date: formatCalendarDate(data.demandThrough, locale),
+                })}
+              </Text>
+            )}
+
+            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
+              {fill(t.app.home.ordersWhy, { date: formatCalendarDate(data.demandThrough, locale) })}
             </Text>
           </Card>
         </Pressable>

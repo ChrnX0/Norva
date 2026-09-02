@@ -445,7 +445,42 @@ CREATE UNIQUE INDEX IF NOT EXISTS products_grid_idx
 CREATE INDEX IF NOT EXISTS products_flavor_idx ON products (company_id, flavor_id);
 `;
 
-const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9];
+/**
+ * Pedido é demanda, e demanda não é livro-razão.
+ *
+ * Nada se move quando um cliente liga: as caixas continuam no freezer, e quem
+ * conferir a prateleira acha tudo o que o sistema diz que tem. Gravar pedido
+ * como movimento faria o saldo mentir no dia da ligação - e como o livro-razão
+ * é append-only, corrigir um pedido que mudou pediria estornar uma saída que
+ * nunca houve. O elo com o livro-razão é a carga que sai, mais tarde.
+ */
+const V10 = `
+CREATE TABLE IF NOT EXISTS orders (
+  id            TEXT PRIMARY KEY,
+  company_id    TEXT NOT NULL,
+  place_id      TEXT NOT NULL REFERENCES locations(id) ON DELETE RESTRICT,
+  status        TEXT NOT NULL DEFAULT 'open'
+                CHECK (status IN ('pending', 'open', 'delivered', 'cancelled')),
+  requested_for TEXT,
+  note          TEXT,
+  created_at    TEXT NOT NULL,
+  decided_at    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS order_lines (
+  id         TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  order_id   TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  item_id    TEXT NOT NULL REFERENCES items(id) ON DELETE RESTRICT,
+  base_units INTEGER NOT NULL CHECK (base_units > 0)
+);
+
+CREATE INDEX IF NOT EXISTS orders_open_idx ON orders (company_id, status, requested_for);
+CREATE UNIQUE INDEX IF NOT EXISTS order_lines_once_idx ON order_lines (order_id, item_id);
+CREATE INDEX IF NOT EXISTS order_lines_item_idx ON order_lines (company_id, item_id);
+`;
+
+const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10];
 
 export type SqlParam = string | number | null;
 

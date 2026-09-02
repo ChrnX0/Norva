@@ -62,7 +62,23 @@ export function plural(
    */
   display?: string,
 ): string {
-  return fill(n === 1 ? variants.one : variants.other, { n: display ?? n });
+  const text = fill(n === 1 ? variants.one : variants.other, { n: display ?? n });
+
+  /**
+   * O número dito NUNCA some.
+   *
+   * Nem toda entrada do dicionário carrega `{{n}}`: `units.unit` é só a palavra
+   * "unidades", porque metade das telas a usa ao lado de um número que elas
+   * mesmas escrevem. Chamada com um número para mostrar, essa entrada devolvia
+   * a palavra sozinha - e o cartão da capa apareceu dizendo "Picolé de morango
+   * … unidades", sem a quantidade, num aviso cujo assunto INTEIRO é a
+   * quantidade. Compilou, passou na suíte, e só o navegador viu.
+   *
+   * Quem passou um número quis mostrá-lo. Se a frase não tem onde recebê-lo,
+   * ele vai na frente, que é como as três línguas deste app o dizem.
+   */
+  if (display !== undefined && !text.includes(display)) return `${display} ${text}`;
+  return text;
 }
 
 /**
@@ -152,6 +168,22 @@ export function formatWeekday(iso: string, locale: LocaleSettings): string {
     month: 'short',
     timeZone: locale.timeZone,
   }).format(new Date(iso));
+}
+
+/**
+ * Uma data de calendário (`YYYY-MM-DD`) dita sem passar por fuso nenhum.
+ *
+ * `formatDate` e `formatDayMonth` recebem um INSTANTE e o traduz para o fuso da fábrica, que é
+ * certo para o que aconteceu às 14h32. Uma data combinada não tem hora: passada
+ * pelo mesmo caminho, "2026-09-03" vira meia-noite em UTC e aparece como 02/09
+ * para quem está em São Paulo. O dia do compromisso é o que foi escrito.
+ */
+export function formatCalendarDate(date: string, locale: LocaleSettings): string {
+  return new Intl.DateTimeFormat(locale.formatting, {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: 'UTC',
+  }).format(new Date(`${date}T00:00:00Z`));
 }
 
 export function formatDayMonth(iso: string, locale: LocaleSettings): string {

@@ -70,6 +70,8 @@ export type ServerTable =
   | 'products'
   | 'purchases'
   | 'purchase_lines'
+  | 'orders'
+  | 'order_lines'
   | 'movements';
 
 export class UnknownTableError extends Error {
@@ -223,6 +225,28 @@ const CROSSINGS: Record<
       'base_units',
       'total_cents',
     ],
+  },
+
+  // Pedido atravessa antes das linhas dele, e a fila é enviada da mais velha
+  // para a mais nova - que é o que garante essa ordem sem ninguém ordenar nada.
+  orders: {
+    take: [
+      'id',
+      'company_id',
+      'place_id',
+      'status',
+      'requested_for',
+      'note',
+      'created_at',
+      'decided_at',
+    ],
+    // Qual CONTA anotou o pedido. Como em `purchases`, o aparelho não sabe quem
+    // é enquanto está offline: o ator é carimbado na saída.
+    build: (_row, actor) => ({ recorded_by: actor.userId }),
+  },
+
+  order_lines: {
+    take: ['id', 'company_id', 'order_id', 'item_id', 'base_units'],
   },
 
   movements: {

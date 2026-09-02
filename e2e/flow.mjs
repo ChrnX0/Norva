@@ -286,6 +286,48 @@ check('the weather screen answers with or without internet', async (page) => {
   assert.match(await screen(page), /Clima/);
 });
 
+check('an order is written, and the briefing turns it into what to make', async (page) => {
+  // O caminho inteiro pelas mãos de uma pessoa: cadastra o cliente, anota o
+  // pedido, e volta para a capa. Nada aqui é chamada de função - é a única
+  // forma de ver que o cartão de "produza para os pedidos" aparece de verdade,
+  // com o número certo, na tela que o dono abre de manhã.
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Como se chama').fill('Loja Centro');
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  await page.goto(`http://localhost:${PORT}/orders/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel('Quantidade').fill('300');
+  await page.waitForTimeout(300);
+  await page.getByText('Adicionar ao pedido', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+
+  const noPedido = await screen(page);
+  assert.match(noPedido, /No pedido/, 'o que foi somado tem que aparecer antes de gravar');
+  assert.match(noPedido, /300/);
+
+  await page.getByText('Anotar pedido', { exact: true }).last().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Anotar', { exact: true }).last().click();
+  await page.waitForTimeout(2000);
+
+  const lista = await screen(page);
+  assert.match(lista, /Loja Centro/);
+
+  // E a capa passa a dizer o que fazer com isso. A fábrica semeada nunca
+  // produziu, então os 300 pedidos são 300 que faltam - e o cartão diz isso
+  // sem que ninguém tenha somado nada na mão.
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(3000);
+  const capa = await screen(page);
+  assert.match(capa, /Produza para os pedidos/);
+  assert.match(capa, /300/);
+});
+
 check('the assistant answers with the number the engine computed', async (page) => {
   await page.goto(`http://localhost:${PORT}/assistant`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

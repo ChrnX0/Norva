@@ -40,6 +40,12 @@ import {
   saveRecipeVersion,
   purchaseToBaseUnits,
   defaultLocationId,
+  saveOrder,
+  listOrders,
+  setOrderStatus,
+  orderedDemand,
+  ordersNeedApproval,
+  setOrdersNeedApproval,
 } from './repository';
 import { EraseBlockedError } from './erase';
 import { markSent, pendingCount, pendingEntries, forgetSentBefore } from './outbox';
@@ -1501,4 +1507,130 @@ test('what is running out comes from what actually left, and a still input never
     Math.abs(um.daysLeft - um.onHandBaseUnits / um.dailyOutflow) < 1e-9,
     'os dias são o saldo sobre a saída diária, e a tela pode abrir essa conta',
   );
+});
+
+/**
+ * Pedidos: a regra que este bloco existe para segurar é uma só, e ela é a
+ * fundação inteira em uma frase - pedido não é movimento. Se um dia alguém
+ * "otimizar" isso gravando a demanda no livro-razão, o saldo passa a mentir no
+ * instante em que um cliente liga, e nenhum outro teste deste arquivo acusa.
+ */
+test('an order is demand, and demand moves nothing', async () => {
+  const centro = await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' });
+  const { itemId } = await saveProduct(CO, {
+    name: 'Picolé de morango',
+    kind: 'product',
+    recipeId: null,
+    yieldPerUnit: null,
+    unitPackagingCents: fromDecimal(0),
+    packaging: loose,
+  });
+
+  const before = await live.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM movements`);
+  const order = await saveOrder(CO, {
+    placeId: centro.id,
+    requestedFor: '2026-09-05',
+    lines: [{ itemId, baseUnits: 300 }],
+  });
+
+  assert.equal(order.status, 'open', 'sem aprovação ligada, o pedido já nasce valendo');
+  assert.equal(order.placeName, 'Loja Centro');
+  assert.deepEqual(
+    order.lines.map((l) => [l.name, l.baseUnits]),
+    [['Picolé de morango', 300]],
+  );
+
+  const after = await live.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM movements`);
+  assert.equal(
+    after?.n,
+    before?.n,
+    'nada saiu do freezer porque alguém ligou, e o saldo tem que continuar dizendo isso',
+  );
+
+  const queued = (await pendingEntries()).map((e) => e.table);
+  assert.ok(queued.includes('orders'), 'o pedido vai para a fila');
+  assert.ok(queued.includes('order_lines'), 'e as linhas dele também');
+});
+
+test('what was ordered is measured against the factory shelf, not the company total', async () => {
+  const centro = await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' });
+  const { itemId } = await saveProduct(CO, {
+    name: 'Picolé de morango',
+    kind: 'product',
+    recipeId: null,
+    yieldPerUnit: null,
+    unitPackagingCents: fromDecimal(0),
+    packaging: loose,
+  });
+
+  // Duzentos na fábrica, cento e cinquenta mandados para a loja: a empresa tem
+  // duzentos, e a fábrica tem cinquenta. Quem responde ao cliente é a fábrica.
+  await recordCount(CO, { locationId: defaultLocationId(CO), itemId, countedBaseUnits: 200 });
+  await recordTransfer(CO, {
+    itemId,
+    fromLocationId: defaultLocationId(CO),
+    toLocationId: centro.id,
+    baseUnits: 150,
+  });
+
+  await saveOrder(CO, {
+    placeId: centro.id,
+    requestedFor: '2026-09-05',
+    lines: [{ itemId, baseUnits: 300 }],
+  });
+
+  const [demand] = await orderedDemand(CO, '2026-09-10');
+  assert.equal(demand.requested, 300);
+  assert.equal(
+    demand.onHand,
+    50,
+    'o que já está numa loja não atende o cliente que pediu na fábrica',
+  );
+
+  // E o que está marcado para depois da janela não entra: um pedido de outubro
+  // não é decisão de hoje.
+  await saveOrder(CO, {
+    placeId: centro.id,
+    requestedFor: '2026-10-20',
+    lines: [{ itemId, baseUnits: 999 }],
+  });
+  const [ainda] = await orderedDemand(CO, '2026-09-10');
+  assert.equal(ainda.requested, 300, 'a janela é a da decisão, não a da lista inteira');
+
+  // Entregue sai da conta: o compromisso acabou.
+  const [aberto] = await listOrders(CO);
+  await setOrderStatus(CO, aberto.id, 'delivered');
+  const depois = await orderedDemand(CO, '2026-09-10');
+  assert.equal(depois.length, 0, 'pedido entregue não é mais demanda');
+});
+
+test('approval is the company’s choice, and it decides where an order is born', async () => {
+  const centro = await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' });
+  const { itemId } = await saveProduct(CO, {
+    name: 'Picolé de morango',
+    kind: 'product',
+    recipeId: null,
+    yieldPerUnit: null,
+    unitPackagingCents: fromDecimal(0),
+    packaging: loose,
+  });
+
+  assert.equal(await ordersNeedApproval(), false, 'a fábrica de seis pessoas entrega antes');
+
+  await setOrdersNeedApproval(true);
+  const pedido = await saveOrder(CO, {
+    placeId: centro.id,
+    requestedFor: null,
+    lines: [{ itemId, baseUnits: 40 }],
+  });
+  assert.equal(pedido.status, 'pending');
+
+  // E pendente já conta como compromisso: quem espera aprovação para começar a
+  // produzir descobre na sexta que devia ter começado na quarta.
+  const [demand] = await orderedDemand(CO, '2026-09-10');
+  assert.equal(demand.requested, 40);
+
+  await setOrderStatus(CO, pedido.id, 'open');
+  const [aprovado] = await listOrders(CO, ['open']);
+  assert.equal(aprovado.id, pedido.id);
 });

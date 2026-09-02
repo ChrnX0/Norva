@@ -6,6 +6,7 @@ import { explodeRequirements } from '@/domain/recipe';
 import type { ItemCosts, Recipe, RecipeLine } from '@/domain/recipe';
 import type { PackagingHierarchy } from '@/domain/units';
 import { db, newId, nowIso, type Db } from './db';
+import { readMeta, writeMeta } from './meta';
 import { enqueue } from './outbox';
 import {
   blockerFor,
@@ -2489,4 +2490,231 @@ export async function runningOut(
     });
   }
   return out.sort((a, b) => a.daysLeft - b.daysLeft);
+}
+
+/* ---------------------------------------------------------------------------
+ * Pedidos: o que os clientes pediram, e o que falta para atender.
+ *
+ * Pedido não é movimento, e essa é a decisão que segura o resto. Quando um
+ * cliente liga, nada sai do freezer: as caixas continuam lá, e quem conferir a
+ * prateleira encontra tudo o que o sistema disse que tem. Gravar demanda como
+ * movimento faria o saldo mentir no dia da ligação — e como o livro-razão é
+ * append-only, corrigir um pedido que mudou exigiria estornar uma saída que
+ * nunca aconteceu.
+ *
+ * A ligação com o livro-razão acontece uma vez só, e mais tarde: quando a carga
+ * sai de verdade, pela transferência, que existe desde a primeira migração.
+ * ------------------------------------------------------------------------- */
+
+export type OrderStatus = 'pending' | 'open' | 'delivered' | 'cancelled';
+
+export type OrderLine = { itemId: string; name: string; baseUnits: number };
+
+export type Order = {
+  id: string;
+  placeId: string;
+  /** Vazio quando é o lugar padrão: a palavra dele é da tela, não do banco. */
+  placeName: string;
+  status: OrderStatus;
+  /** `YYYY-MM-DD`, ou nulo quando o cliente não marcou dia. */
+  requestedFor: string | null;
+  note: string | null;
+  createdAt: string;
+  lines: OrderLine[];
+};
+
+const APPROVAL_KEY = 'orders.needApproval';
+
+/**
+ * Se todo pedido nasce esperando aprovação.
+ *
+ * "Depende de quem usa" vira dado: uma fábrica quer que o dono veja cada pedido
+ * antes de a produção começar, outra tem três clientes e a aprovação só atrasa a
+ * entrega. Os dois caminhos existem, e o padrão é sem aprovação — a fábrica de
+ * seis pessoas é o caso que este produto tem na mão.
+ */
+export async function ordersNeedApproval(): Promise<boolean> {
+  return (await readMeta(APPROVAL_KEY)) === '1';
+}
+
+export async function setOrdersNeedApproval(needed: boolean): Promise<void> {
+  await writeMeta(APPROVAL_KEY, needed ? '1' : '0');
+}
+
+export async function saveOrder(
+  companyId: string,
+  input: {
+    placeId: string;
+    requestedFor?: string | null;
+    note?: string | null;
+    lines: readonly { itemId: string; baseUnits: number }[];
+  },
+): Promise<Order> {
+  const lines = input.lines.filter((l) => l.baseUnits > 0);
+  if (lines.length === 0) throw new Error('um pedido sem item não é pedido');
+
+  const conn = await db();
+  const id = newId();
+  const status: OrderStatus = (await ordersNeedApproval()) ? 'pending' : 'open';
+  const createdAt = nowIso();
+
+  await conn.withTransactionAsync(async () => {
+    await conn.runAsync(
+      `INSERT INTO orders (id, company_id, place_id, status, requested_for, note, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, companyId, input.placeId, status, input.requestedFor ?? null, input.note ?? null, createdAt],
+    );
+
+    const writes = [{ table: 'orders', rowId: id }];
+    for (const line of lines) {
+      const lineId = newId();
+      await conn.runAsync(
+        `INSERT INTO order_lines (id, company_id, order_id, item_id, base_units)
+         VALUES (?, ?, ?, ?, ?)`,
+        [lineId, companyId, id, line.itemId, Math.round(line.baseUnits)],
+      );
+      writes.push({ table: 'order_lines', rowId: lineId });
+    }
+    await enqueue(conn, writes);
+  });
+
+  const [saved] = await listOrders(companyId, [status], id);
+  return saved;
+}
+
+/**
+ * Os pedidos, com as linhas dentro.
+ *
+ * Duas consultas e não uma por pedido: uma fábrica com quarenta pedidos abertos
+ * faria quarenta e uma idas ao banco na abertura da tela, e a lista é o primeiro
+ * lugar em que alguém toca de manhã.
+ */
+export async function listOrders(
+  companyId: string,
+  statuses: readonly OrderStatus[] = ['pending', 'open'],
+  onlyId?: string,
+): Promise<Order[]> {
+  const conn = await db();
+  const marks = statuses.map(() => '?').join(', ');
+  const rows = await conn.getAllAsync<{
+    id: string;
+    place_id: string;
+    place_name: string;
+    status: OrderStatus;
+    requested_for: string | null;
+    note: string | null;
+    created_at: string;
+  }>(
+    `SELECT o.id, o.place_id, l.name AS place_name, o.status, o.requested_for, o.note, o.created_at
+       FROM orders o
+       JOIN locations l ON l.id = o.place_id
+      WHERE o.company_id = ? AND o.status IN (${marks}) AND (? IS NULL OR o.id = ?)
+      ORDER BY o.requested_for IS NULL, o.requested_for, o.created_at`,
+    [companyId, ...statuses, onlyId ?? null, onlyId ?? null],
+  );
+  if (rows.length === 0) return [];
+
+  const lines = await conn.getAllAsync<{
+    order_id: string;
+    item_id: string;
+    name: string;
+    base_units: number;
+  }>(
+    `SELECT ol.order_id, ol.item_id, i.name, ol.base_units
+       FROM order_lines ol
+       JOIN items i ON i.id = ol.item_id
+      WHERE ol.company_id = ? AND ol.order_id IN (${rows.map(() => '?').join(', ')})
+      ORDER BY i.name COLLATE NOCASE`,
+    [companyId, ...rows.map((r) => r.id)],
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    placeId: r.place_id,
+    placeName: r.place_name,
+    status: r.status,
+    requestedFor: r.requested_for,
+    note: r.note,
+    createdAt: r.created_at,
+    lines: lines
+      .filter((l) => l.order_id === r.id)
+      .map((l) => ({ itemId: l.item_id, name: l.name, baseUnits: l.base_units })),
+  }));
+}
+
+/**
+ * Aprovar, entregar ou cancelar — a mesma escrita, três palavras diferentes.
+ *
+ * Não é o livro-razão: pedido muda de estado, e mudar de estado aqui não move
+ * um grama de nada. O que move estoque é a carga que sai, e ela é transferência.
+ */
+export async function setOrderStatus(
+  companyId: string,
+  orderId: string,
+  status: OrderStatus,
+): Promise<void> {
+  const conn = await db();
+  await conn.withTransactionAsync(async () => {
+    await conn.runAsync(
+      `UPDATE orders SET status = ?, decided_at = ? WHERE id = ? AND company_id = ?`,
+      [status, nowIso(), orderId, companyId],
+    );
+    await enqueue(conn, [{ table: 'orders', rowId: orderId }]);
+  });
+}
+
+export type Demand = {
+  itemId: string;
+  name: string;
+  /** Quanto foi pedido e ainda não foi entregue, na unidade base do item. */
+  requested: number;
+  /** Quanto existe na fábrica agora. O que já está numa loja não conta. */
+  onHand: number;
+};
+
+/**
+ * O que foi pedido contra o que tem na fábrica.
+ *
+ * O saldo lido é o do LUGAR de onde a carga sai, não o da empresa: mil picolés
+ * espalhados em quatro lojas não atendem o cliente que pediu mil na fábrica, e
+ * somar tudo diria que está coberto quando não está.
+ *
+ * Devolve fato — pedido e saldo, item por item. Quem faz a subtração e escreve
+ * "falta produzir 300" é a tela, porque a frase é português e esta camada não
+ * fala português.
+ */
+export async function orderedDemand(
+  companyId: string,
+  throughDate: string,
+): Promise<Demand[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    item_id: string;
+    name: string;
+    requested: number;
+    on_hand: number;
+  }>(
+    `SELECT ol.item_id, i.name,
+            SUM(ol.base_units) AS requested,
+            (SELECT COALESCE(SUM(m.quantity_base_units), 0) FROM movements m
+              WHERE m.company_id = o.company_id
+                AND m.item_id = ol.item_id
+                AND m.location_id = ?) AS on_hand
+       FROM order_lines ol
+       JOIN orders o ON o.id = ol.order_id
+       JOIN items i ON i.id = ol.item_id
+      WHERE o.company_id = ?
+        AND o.status IN ('pending', 'open')
+        AND (o.requested_for IS NULL OR o.requested_for <= ?)
+      GROUP BY ol.item_id, i.name
+      ORDER BY i.name COLLATE NOCASE`,
+    [defaultLocationId(companyId), companyId, throughDate],
+  );
+
+  return rows.map((r) => ({
+    itemId: r.item_id,
+    name: r.name,
+    requested: r.requested,
+    onHand: r.on_hand,
+  }));
 }

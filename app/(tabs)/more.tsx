@@ -42,6 +42,7 @@ const REGISTERS: Row[] = [
   { key: 'recipes', area: 'apricot', route: '/recipes' },
   { key: 'products', area: 'mist', route: '/products' },
   { key: 'places', area: 'mint', route: '/places' },
+  { key: 'orders', area: 'mint', route: '/orders' },
   { key: 'purchases', area: 'sage', route: '/purchase' },
 ];
 
