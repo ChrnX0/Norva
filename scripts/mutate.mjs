@@ -329,8 +329,8 @@ const DEFECTS = [
   },
   {
     file: 'src/data/repository.ts',
-    from: "      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate);",
-    to: "      await write(newId(), 'consumption', line.itemId, line.baseUnits, line.rate);",
+    from: "      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate, null);",
+    to: "      await write(newId(), 'consumption', line.itemId, line.baseUnits, line.rate, null);",
     hurts: 'produzir passa a AUMENTAR o estoque de insumo, e o almoxarifado enche sozinho a cada tacho',
   },
   {
