@@ -149,6 +149,34 @@ jobs:
 
           grep -E '^(org.gradle.jvmargs|kotlin.daemon.jvmargs)=' gradle.properties
 
+      # O número pelo qual o Android decide se há atualização.
+      #
+      # O `expo prebuild` regenera o `build.gradle` com `versionCode 1` toda vez,
+      # porque o app.json não declara um. Resultado: todo APK que já saiu deste
+      # repositório se anuncia como a MESMA build para o sistema - instalar por
+      # cima não é atualizar, é substituir, e o aparelho não sabe qual é mais
+      # novo.
+      #
+      # Sai da versão, não de um contador: 0.3.0 vira 30000, 1.2.4 vira 100204.
+      # Mesma versão dá sempre o mesmo número (build reproduzível), e subir a
+      # versão sobe o código - que é a única regra que a Play Store impõe.
+      - name: Dar ao Android um número de build que cresce
+        run: |
+          VERSION="$(node -p "require('./app.json').expo.version")"
+          CODE="$(node -p "
+            const [a,b,c] = require('./app.json').expo.version.split('.').map(Number);
+            a * 100000 + b * 10000 + c
+          ")"
+          echo "versão $VERSION → versionCode $CODE"
+
+          cd android/app
+          sed -i "s/^\( *\)versionCode .*/\1versionCode $CODE/" build.gradle
+
+          # Se o Expo mudar a forma dessa linha, o sed não casa e o APK sairia
+          # de novo como build 1, calado. Aqui ele para.
+          grep -qE "^ *versionCode $CODE$" build.gradle
+          grep -E "^ *version(Code|Name)" build.gradle
+
       - name: Compilar, só arm64
         run: |
           cd android
