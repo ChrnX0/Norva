@@ -171,7 +171,18 @@ jobs:
           # Uma arquitetura só, senão o ganho de tamanho se perdeu no caminho.
           test "$(unzip -l "$APK" | grep -oE 'lib/[a-z0-9_-]+/' | sort -u | wc -l)" -eq 1
 
-          cp "$APK" norva-arm64.apk
+          # O nome carrega a versão, e isso não é enfeite.
+          #
+          # Todo build saía como `norva-arm64.apk`. Na pasta de downloads do
+          # celular o segundo vira "norva-arm64 (1).apk", e a pergunta "eu estou
+          # com o novo?" passa a não ter resposta olhando o arquivo. Pior: o
+          # `versionCode` do Android é 1 em todos eles, então nem o sistema
+          # distingue. O nome é a única pista que sobra para quem baixa.
+          VERSION="$(node -p "require('./app.json').expo.version")"
+          NAME="norva-$VERSION-arm64.apk"
+          cp "$APK" "$NAME"
+          echo "APK_NAME=$NAME" >> "$GITHUB_ENV"
+          ls -lh "$NAME"
 
       # Um release, um instalador.
       #
@@ -214,7 +225,7 @@ jobs:
           # primeira versão. Quem baixa não lê o diff; lê o título.
           VERSION="$(node -p "require('./app.json').expo.version")"
           TAG="apk-$VERSION"
-          echo "publicando $TAG"
+          echo "publicando $TAG com $APK_NAME"
 
           # Cria o release se ele ainda não existir, em vez de só anexar.
           #
@@ -223,12 +234,12 @@ jobs:
           # de vinte minutos de compilação, e o APK fica só no runner. O caminho
           # normal daqui em diante é justamente esse - subir a versão no
           # `app.json` e compilar.
-          gh release create "$TAG" norva-arm64.apk \
+          gh release create "$TAG" "$APK_NAME" \
             --target "$(git rev-parse HEAD)" \
             --title "NORVA $TAG" \
             --prerelease \
             --notes "Publicando..." \
-          || gh release upload "$TAG" norva-arm64.apk --clobber
+          || gh release upload "$TAG" "$APK_NAME" --clobber
 
           # A pagina tem de dizer o que carrega. Trocar o arquivo sem trocar o
           # texto deixa o release parecendo a primeira versao para sempre, e
@@ -236,7 +247,7 @@ jobs:
           {
             echo "Instalador de teste do NORVA para Android."
             echo
-            echo "**Baixe \`norva-arm64.apk\`** - $(du -h norva-arm64.apk | cut -f1), compilado"
+            echo "**Baixe \`$APK_NAME\`** - $(du -h "$APK_NAME" | cut -f1), compilado"
             echo "neste repositorio para arm64, que e o que qualquer celular dos"
             echo "ultimos dez anos usa."
             echo
