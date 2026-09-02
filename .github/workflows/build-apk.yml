@@ -11,6 +11,11 @@ name: Compilar o APK
 
 on:
   workflow_dispatch:
+    inputs:
+      limpar_tags:
+        description: 'Tags de release das quais remover APKs antigos (ex: apk-0.1.0,apk-0.2.0)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -168,6 +173,36 @@ jobs:
 
           cp "$APK" norva-arm64.apk
 
+      # Um release, um instalador.
+      #
+      # O release `apk-0.2.0` chegou a carregar dois APKs de códigos diferentes:
+      # o compilado aqui e um build antigo da Expo que outro workflow reanexava
+      # a cada push. Quem baixasse o errado instalava um app sem metade das
+      # telas, e nada na página dizia isso. Daqui em diante o release fica com o
+      # arquivo que este job acabou de compilar, e só.
+      #
+      # A faxina das tags velhas é manual de propósito: apagar arquivo publicado
+      # é ato do dono, não efeito colateral de uma compilação.
+      - name: Limpar APKs antigos das tags pedidas
+        if: inputs.limpar_tags != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          IFS=',' read -ra TAGS <<< "${{ inputs.limpar_tags }}"
+          for TAG in "${TAGS[@]}"; do
+            TAG="$(echo "$TAG" | tr -d ' ')"
+            [ -n "$TAG" ] || continue
+            echo "== $TAG"
+            gh release view "$TAG" --json assets -q '.assets[].name' | while read -r NAME; do
+              case "$NAME" in
+                *.apk)
+                  echo "   removendo $NAME"
+                  gh release delete-asset "$TAG" "$NAME" -y
+                  ;;
+              esac
+            done
+          done
+
       - name: Anexar ao release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -181,7 +216,19 @@ jobs:
           TAG="apk-$VERSION"
           echo "publicando $TAG"
 
-          gh release upload "$TAG" norva-arm64.apk --clobber
+          # Cria o release se ele ainda não existir, em vez de só anexar.
+          #
+          # O passo era `upload` puro, então **uma versão nova quebrava a
+          # publicação**: sem release com aquela tag, o `gh` sai com erro depois
+          # de vinte minutos de compilação, e o APK fica só no runner. O caminho
+          # normal daqui em diante é justamente esse - subir a versão no
+          # `app.json` e compilar.
+          gh release create "$TAG" norva-arm64.apk \
+            --target "$(git rev-parse HEAD)" \
+            --title "NORVA $TAG" \
+            --prerelease \
+            --notes "Publicando..." \
+          || gh release upload "$TAG" norva-arm64.apk --clobber
 
           # A pagina tem de dizer o que carrega. Trocar o arquivo sem trocar o
           # texto deixa o release parecendo a primeira versao para sempre, e
