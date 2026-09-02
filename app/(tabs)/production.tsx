@@ -8,6 +8,7 @@ import { useConfirm } from '@/components/Confirm';
 import { Field } from '@/components/Field';
 import { IconProduction } from '@/components/icons';
 import {
+  NotEnoughStockError,
   defaultLocationId,
   labels as loadLabels,
   listItems,
@@ -148,7 +149,10 @@ function Production() {
       refresh();
     } catch (e) {
       await askConfirm({
-        title: t.app.production.failed,
+        title:
+          e instanceof NotEnoughStockError
+            ? t.app.production.missingTitle
+            : t.app.production.failed,
         message: e instanceof Error ? e.message : String(e),
         acknowledge: true,
       });

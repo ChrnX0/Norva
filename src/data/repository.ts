@@ -194,6 +194,18 @@ export async function recordPurchase(
     totalCents: Cents;
     orderedAt?: string;
     /**
+     * Quando a nota entrou de verdade, se não foi agora.
+     *
+     * Nota de compra chega atrasada: o caminhão descarrega às sete e alguém
+     * digita ao meio-dia, ou no dia seguinte. O livro-razão guarda os dois
+     * fatos separados desde a V3 - `occurred_at` é quando aconteceu,
+     * `recorded_at` é quando o aparelho soube -, e até agora esta função
+     * escrevia o mesmo instante nos dois, o que fazia toda compra parecer ter
+     * acontecido na hora da digitação. O histórico de custo herda a mesma data,
+     * senão a alta apareceria no dia errado da home.
+     */
+    occurredAt?: string;
+    /**
      * The phrase somebody said, when this came from the assistant.
      *
      * The plan's own condition for letting an assistant write at all: every
@@ -207,6 +219,7 @@ export async function recordPurchase(
 ): Promise<{ previousRate: Rate | null; newRate: Rate }> {
   const conn = await db();
   const at = nowIso();
+  const occurred = input.occurredAt ?? at;
 
   const current = await conn.getFirstAsync<{ average_rate: number }>(
     `SELECT average_rate FROM item_costs WHERE item_id = ?`,
@@ -282,7 +295,7 @@ export async function recordPurchase(
       [
         lineId,
         companyId,
-        at,
+        occurred,
         at,
         input.itemId,
         input.baseUnits,
@@ -305,7 +318,7 @@ export async function recordPurchase(
     await conn.runAsync(
       `INSERT INTO item_cost_history (id, company_id, item_id, previous_rate, new_rate, observed_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [newId(), companyId, input.itemId, before.averageRate || null, after.averageRate, at],
+      [newId(), companyId, input.itemId, before.averageRate || null, after.averageRate, occurred],
     );
 
     // The line matters as much as its header, and for a reason beyond
@@ -1002,6 +1015,22 @@ export type ProductionResult = {
  * responde sozinha: consumo à taxa média não move a média (`applyCostEvent`),
  * então valor do razão dividido por quantidade do razão continua sendo ela.
  */
+/**
+ * O que faltava quando alguém tentou produzir mais do que dá.
+ *
+ * Nomeado e com os itens dentro, porque a tela precisa dizer QUAIS faltaram -
+ * "faltou insumo" manda a pessoa procurar, e a Lei 5 quer que o erro impeça e
+ * mostre a saída no mesmo gesto.
+ */
+export class NotEnoughStockError extends Error {
+  constructor(
+    public readonly missing: { itemId: string; name: string; needed: number; held: number }[],
+  ) {
+    super(`Not enough stock: ${missing.map((m) => m.name).join(', ')}`);
+    this.name = 'NotEnoughStockError';
+  }
+}
+
 export async function recordProduction(
   companyId: string,
   input: {
@@ -1066,6 +1095,37 @@ export async function recordProduction(
     consumedValue += rate * quantity;
     consumed.push({ itemId, baseUnits: quantity, rate });
   }
+
+  // A regra mora aqui, e não no botão.
+  //
+  // A tela de produção já impedia isso - mas o bloqueio numa tela protege quem
+  // passa por aquela tela, e o livro-razão recebe escrita de mais de um lugar:
+  // o assistente, a simulação, e amanhã uma API. Foi a simulação que encontrou:
+  // catorze dias de fábrica levaram a polpa a MENOS 192.000 g sem uma
+  // reclamação, porque nada no caminho de escrita conferia.
+  //
+  // É a mesma forma da fundação de permissão deste projeto: a checagem roda
+  // ANTES da escrita, então não existe linha errada para alguém corrigir depois.
+  const held = await conn.getAllAsync<{ item_id: string; name: string; on_hand: number }>(
+    `SELECT m.item_id, i.name, COALESCE(SUM(m.quantity_base_units), 0) AS on_hand
+       FROM movements m
+       JOIN items i ON i.id = m.item_id
+      WHERE m.company_id = ?
+      GROUP BY m.item_id, i.name`,
+    [companyId],
+  );
+  const onHand = new Map(held.map((h) => [h.item_id, h.on_hand]));
+
+  const missing = consumed
+    .map((line) => ({
+      itemId: line.itemId,
+      name: held.find((h) => h.item_id === line.itemId)?.name ?? line.itemId,
+      needed: line.baseUnits,
+      held: onHand.get(line.itemId) ?? 0,
+    }))
+    .filter((line) => line.held < line.needed);
+
+  if (missing.length > 0) throw new NotEnoughStockError(missing);
 
   // A embalagem entra aqui, e não entrar era um defeito silencioso.
   //

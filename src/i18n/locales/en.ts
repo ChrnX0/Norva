@@ -393,6 +393,7 @@ export const en: Dictionary = {
       confirmBody:
         'You made {{units}} of {{product}}, in {{batches}}. This takes {{lines}} out of stock and freezes the cost at {{cost}} per unit.',
       recorded: 'Production recorded.',
+      missingTitle: 'Not enough for this run',
       failed: 'Could not record',
       missingStock:
         'Not enough of these for this run: {{items}}. Count them, or enter the delivery that arrived.',
