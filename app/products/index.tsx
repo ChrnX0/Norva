@@ -13,8 +13,7 @@ import {
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { costPerProductUnit, costRecipe, unitsPerBatch } from '@/domain/recipe';
-import { breakdown } from '@/domain/units';
-import { fill, formatMoney, formatQuantity, joinList } from '@/i18n';
+import { fill, formatMoney, formatPacked, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -71,14 +70,7 @@ function ProductsList() {
 
       // Said in the operator's packaging, not in a bare number: "7 caixas e 6
       // soltas" is what somebody stacking a cold room can actually act on.
-      const packed = joinList(
-        breakdown(units, product.packaging).map((part) => {
-          const entry = t.units[part.tier.id as keyof typeof t.units];
-          const word = entry ? (part.quantity === 1 ? entry.one : entry.other) : part.tier.id;
-          return `${formatQuantity(part.quantity, locale)} ${word}`;
-        }),
-        t.common.and,
-      );
+      const packed = formatPacked(units, product.packaging, t.units, locale, t.common.and);
 
       return {
         id: product.id,

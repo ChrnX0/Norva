@@ -364,6 +364,7 @@ export const en: Dictionary = {
       batches: 'How many batches',
       batchesHint: 'This is what decides how much leaves the storeroom.',
       units: 'How many units came out',
+      packedAs: 'that is {{packed}}',
       unitsHint: 'What actually came out. If it yielded less than planned, the loss shows up here.',
       expected: 'The recipe expects {{units}}',
       willConsume: 'Will come out of stock',

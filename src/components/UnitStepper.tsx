@@ -26,6 +26,7 @@ export function UnitStepper({
   value,
   onChange,
   labels,
+  initialTierId,
 }: {
   hierarchy: PackagingHierarchy;
   locale: LocaleSettings;
@@ -35,10 +36,23 @@ export function UnitStepper({
   value: number;
   onChange: (baseUnits: number) => void;
   labels: { decrease: string; increase: string };
+  /**
+   * Which layer the stepper starts on. Defaults to the largest, because that is
+   * how a cold room thinks - twelve crates, not three thousand six hundred
+   * popsicles.
+   *
+   * Production is the exception, and the design canvas draws it: the kettle put
+   * out 250 units, and the crates are the CONSEQUENCE, echoed underneath. So
+   * that screen starts on the base unit and the echo does the packing.
+   */
+  initialTierId?: string;
 }) {
   const { color, radius, space, type, accent } = useTheme();
   const [tier, setTier] = useState<PackagingTier>(
-    () => [...hierarchy.tiers].reverse()[0] ?? hierarchy.tiers[0],
+    () =>
+      (initialTierId ? hierarchy.tiers.find((t) => t.id === initialTierId) : undefined) ??
+      [...hierarchy.tiers].reverse()[0] ??
+      hierarchy.tiers[0],
   );
 
   const countInTier = Math.round(value / tier.perBaseUnit);
@@ -60,6 +74,7 @@ export function UnitStepper({
 
   return (
     <View style={{ gap: space.md }}>
+      {hierarchy.tiers.length > 1 ? (
       <View
         style={[
           styles.segment,
@@ -97,11 +112,12 @@ export function UnitStepper({
           );
         })}
       </View>
+      ) : null}
 
       <View style={[styles.row, { gap: space.md }]}>
         <StepButton label={labels.decrease} symbol="−" onPress={() => step(-1)} />
         <Text
-          style={[type.display, styles.value, { color: color.ink }]}
+          style={[type.hero, styles.value, { color: color.ink }]}
           accessibilityLiveRegion="polite"
         >
           {formatQuantity(countInTier, locale)}
@@ -127,7 +143,7 @@ function StepButton({
   symbol: string;
   onPress: () => void;
 }) {
-  const { color, space, motion } = useTheme();
+  const { color, motion } = useTheme();
   const [pressed, setPressed] = useState(false);
 
   const animated = useAnimatedStyle(() => ({
@@ -143,12 +159,14 @@ function StepButton({
       onPress={onPress}
       style={[
         styles.stepButton,
-        { backgroundColor: color.sunken, borderColor: color.lineStrong },
+        // Só contorno, como o canvas desenha: um alvo de 68 pontos que não
+        // compete com o número no meio. Fundo cheio aqui faria dois botões
+        // gritarem ao lado do único número que a tela é sobre.
+        { backgroundColor: 'transparent', borderColor: color.lineStrong },
         animated,
       ]}
     >
-      <Text style={{ fontSize: 26, lineHeight: 30, color: color.ink }}>{symbol}</Text>
-      <View style={{ width: space.xs }} />
+      <Text style={{ fontSize: 30, lineHeight: 34, color: color.ink }}>{symbol}</Text>
     </AnimatedPressable>
   );
 }
@@ -161,12 +179,12 @@ const styles = StyleSheet.create({
   echo: { textAlign: 'center', fontVariant: ['tabular-nums'] },
   /** 48dp minimum: this is pressed with gloves on, in the cold. */
   stepButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth * 2,
   },
   underline: { height: 2, borderRadius: 2, alignSelf: 'center', width: 32, opacity: 0.4 },
 });

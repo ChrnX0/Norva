@@ -370,6 +370,7 @@ export const es: Dictionary = {
       batches: 'Cuántas pailas',
       batchesHint: 'Esto es lo que decide cuánto insumo sale del almacén.',
       units: 'Cuántas unidades salieron',
+      packedAs: 'da {{packed}}',
       unitsHint: 'Lo que salió de verdad. Si rindió menos de lo previsto, la merma aparece acá.',
       expected: 'La ficha prevé {{units}}',
       willConsume: 'Va a descontar del stock',

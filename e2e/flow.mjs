@@ -393,6 +393,10 @@ check('production pre-fills what the sheet promises, and records what happened',
   const short = await screen(page);
   assert.match(short, /26 unidades a menos que o previsto/);
 
+  // O que aquele número vira na prateleira - a linha que a prancha desenha
+  // embaixo da quantidade. Quem produz conta unidades; quem recebe conta caixas.
+  assert.match(short, /dá .*caixas?/i, 'a conversão para embalagem não apareceu');
+
   await page.getByText('Registrar produção', { exact: true }).first().click();
   await page.waitForTimeout(900);
 

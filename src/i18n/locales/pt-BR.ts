@@ -384,6 +384,7 @@ export const ptBR = {
       batches: 'Quantos tachos',
       batchesHint: 'É isto que decide quanto de insumo sai do almoxarifado.',
       units: 'Quantas unidades saíram',
+      packedAs: 'dá {{packed}}',
       unitsHint: 'O que saiu de verdade. Se rendeu menos que o previsto, é aqui que a perda aparece.',
       expected: 'A ficha prevê {{units}}',
       willConsume: 'Vai baixar do estoque',

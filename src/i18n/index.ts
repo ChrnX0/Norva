@@ -1,6 +1,7 @@
 import { en } from './locales/en';
 import { es } from './locales/es';
 import { ptBR, type Dictionary } from './locales/pt-BR';
+import { breakdown, type PackagingHierarchy } from '@/domain/units';
 
 export type { Dictionary };
 
@@ -106,6 +107,35 @@ export function formatDate(iso: string, locale: LocaleSettings): string {
  * an instruction, "produza até dia 7" is arithmetic. Short month, because the
  * line sits under the brand and must not wrap on a 390pt screen.
  */
+/**
+ * A quantity said in the packaging the person actually handles.
+ *
+ * "250" is a number; "5 caixas de 50" is something you can carry. The screens
+ * that show a quantity in base units and the screens that show what it becomes
+ * on a shelf were building this sentence separately - two copies today, a third
+ * about to be written for the transport screen - and a phrase duplicated three
+ * times is a phrase that will disagree with itself on the fourth.
+ *
+ * The largest layers come first and the remainder stays in units: 263 is "5
+ * caixas · 13 unidades", never just "5 caixas", because thirteen popsicles that
+ * exist would have vanished from the sentence.
+ */
+export function formatPacked(
+  baseUnits: number,
+  hierarchy: PackagingHierarchy,
+  words: Record<string, { one: string; other: string } | undefined>,
+  locale: LocaleSettings,
+  and?: string,
+): string {
+  const parts = breakdown(baseUnits, hierarchy).map((part) => {
+    const entry = words[part.tier.id];
+    const word = entry ? (part.quantity === 1 ? entry.one : entry.other) : part.tier.id;
+    return `${formatQuantity(part.quantity, locale)} ${word}`;
+  });
+
+  return and ? joinList(parts, and) : parts.join(' · ');
+}
+
 export function formatWeekday(iso: string, locale: LocaleSettings): string {
   return new Intl.DateTimeFormat(locale.formatting, {
     weekday: 'long',

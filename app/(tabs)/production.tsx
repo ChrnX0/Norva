@@ -6,6 +6,7 @@ import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
 import { Field } from '@/components/Field';
+import { IconProduction } from '@/components/icons';
 import {
   defaultLocationId,
   labels as loadLabels,
@@ -20,8 +21,9 @@ import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { explodeRequirements, type Recipe } from '@/domain/recipe';
 import { parseTyped } from '@/domain/number';
-import { fill, formatMoney, formatQuantity, joinList, plural } from '@/i18n';
+import { fill, formatMoney, formatPacked, formatQuantity, joinList, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
+import { palettes } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -60,7 +62,8 @@ function plannedUnits(recipe: Recipe, product: Product, batches: number): number
 }
 
 function Production() {
-  const { color, type, space } = useTheme();
+  const { color, scheme, type, space, radius } = useTheme();
+  const palette = palettes[scheme];
   const { locale, t } = useLocale();
   const askConfirm = useConfirm();
 
@@ -154,6 +157,14 @@ function Production() {
     }
   };
 
+  // As camadas maiores primeiro, com o resto na unidade: 250 é "5 caixas de
+  // 50", e 263 é "5 caixas de 50 e 13 unidades" - dizer só as caixas esconderia
+  // treze picolés que existem.
+  const packed = useMemo(
+    () => (selected && units > 0 ? formatPacked(units, selected.packaging, t.units, locale) : ''),
+    [selected, units, locale, t.units],
+  );
+
   if (!loading && (!data || data.products.length === 0)) {
     return (
       <CollapsingHeader title={t.app.production.title} overline={t.app.production.overline}>
@@ -166,30 +177,47 @@ function Production() {
 
   const missed = planned > 0 && units > 0 && units !== planned;
 
+
   return (
     <CollapsingHeader title={t.app.production.title} overline={t.app.production.overline}>
-      <Card tone="area">
-        <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.md }]}>
-          {t.app.production.pick}
-        </Text>
+      {/* Os sabores como cartões, não como lista de rádio.
+          A prancha os desenha numa grade de dois: quem está de luva escolhe por
+          alvo grande e por posição, não lendo uma bolinha. O selecionado ganha
+          um anel na cor da área - nunca um fundo cheio, que é a regra de cor
+          deste desenho. */}
+      <View style={[styles.grid, { gap: space.md }]}>
         {(data?.products ?? []).map((p) => {
           const active = p.id === selected?.id;
           return (
             <Pressable
               key={p.id}
               onPress={() => setProductId(p.id)}
-              accessibilityRole="button"
+              accessibilityRole="radio"
+              accessibilityState={{ selected: active }}
               accessibilityLabel={p.name}
-              style={[styles.row, { paddingVertical: space.sm }]}
+              style={[
+                styles.tile,
+                {
+                  borderColor: active ? palette.apricot : color.line,
+                  borderWidth: active ? 2 : 1,
+                  borderRadius: radius.lg,
+                  backgroundColor: color.surface,
+                  padding: space.md,
+                  gap: space.sm,
+                },
+              ]}
             >
-              <Text style={[type.body, { color: active ? color.ink : color.inkMuted, flex: 1 }]}>
-                {active ? '● ' : '○ '}
+              <IconProduction size={26} color={active ? palette.apricot : color.inkFaint} />
+              <Text
+                style={[type.body, { color: active ? color.ink : color.inkMuted }]}
+                numberOfLines={2}
+              >
                 {p.name}
               </Text>
             </Pressable>
           );
         })}
-      </Card>
+      </View>
 
       <Card>
         <View style={{ gap: space.lg }}>
@@ -214,6 +242,17 @@ function Production() {
                 : t.app.production.unitsHint
             }
           />
+          {/* O que aquele número vira na prateleira.
+              A prancha escreve "dá 5 caixas de 50" embaixo da quantidade, e é
+              aritmética que o operador não deveria ter de fazer de cabeça: ele
+              conta unidades, a loja recebe caixas. `breakdown()` já existia e
+              nunca tinha sido chamado aqui. */}
+          {selected && units > 0 && packed ? (
+            <Text style={[type.secondary, { color: color.inkMuted }]}>
+              {fill(t.app.production.packedAs, { packed })}
+            </Text>
+          ) : null}
+
           {missed ? (
             <Chip
               signal={units < planned ? 'warning' : 'ok'}
@@ -285,6 +324,8 @@ function Production() {
 }
 
 const styles = StyleSheet.create({
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  tile: { flexGrow: 1, flexBasis: '46%' },
   row: { flexDirection: 'row', alignItems: 'center' },
   number: { fontVariant: ['tabular-nums'] },
 });
