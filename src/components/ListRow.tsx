@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -13,6 +14,8 @@ import { useTheme } from '@/theme/ThemeProvider';
  * `trailing` is for the one figure that dominates, kept right-aligned and in
  * tabular figures so a column of them can be compared by eye.
  */
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export function ListRow({
   label,
   detail,
@@ -26,7 +29,7 @@ export function ListRow({
   trailingTone?: 'ink' | 'muted' | 'ok' | 'warning';
   onPress?: () => void;
 }) {
-  const { color, space, type } = useTheme();
+  const { color, space, type, motion } = useTheme();
 
   const tone =
     trailingTone === 'ok'
@@ -37,13 +40,29 @@ export function ListRow({
           ? color.inkMuted
           : color.ink;
 
+  // A linha afunda quando o dedo encosta - e só quando ela leva a algum lugar.
+  //
+  // Linha sem destino que afunda promete uma navegação que não existe, e num
+  // celular de fábrica, de luva, o afundar é também a única confirmação de que
+  // o toque pegou.
+  const held = useSharedValue(0);
+  const squeeze = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - held.value * (1 - motion.pressScale) }],
+  }));
+
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
+      onPressIn={() => {
+        if (onPress) held.value = withSpring(1, motion.press);
+      }}
+      onPressOut={() => {
+        held.value = withSpring(0, motion.press);
+      }}
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : 'text'}
       accessibilityLabel={detail ? `${label}. ${detail}` : label}
-      style={[styles.row, { paddingVertical: space.md, gap: space.md }]}
+      style={[styles.row, { paddingVertical: space.md, gap: space.md }, squeeze]}
     >
       <View style={{ flex: 1 }}>
         <Text style={[type.body, { color: color.ink }]} numberOfLines={1}>
@@ -61,7 +80,7 @@ export function ListRow({
       ) : null}
 
       {onPress ? <Text style={[type.body, { color: color.inkFaint }]}>›</Text> : null}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 

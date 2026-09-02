@@ -1,5 +1,5 @@
 import { BottomTabBarHeightContext } from 'expo-router/js-tabs';
-import { useContext, type ReactNode } from 'react';
+import { Children, useContext, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -9,6 +9,7 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Reveal } from '@/components/Reveal';
 import { Mark } from './Mark';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -112,7 +113,25 @@ export function CollapsingHeader({
           gap: space.md,
         }}
       >
-        {children}
+        {/* A entrada escalonada, dada a TODA tela de uma vez.
+            O dono viu o movimento na capa e pediu em todas: "isso é lindo e
+            preenche os olhos, claro que não é para tirar a atenção". Fazer isso
+            tela por tela seria trinta arquivos e trinta chances de esquecer uma;
+            aqui, é o casco por onde todas passam.
+
+            `Children.toArray` é o que dá o índice do escalonamento e descarta os
+            nulos que as telas devolvem quando um cartão não se aplica - sem
+            isso, um cartão ausente contaria como posição e abriria um buraco de
+            quarenta milissegundos no meio da sequência. */}
+        {Children.toArray(children).map((filho, i) => (
+          <Reveal key={i} index={i}>
+            {filho}
+          </Reveal>
+        ))}
+        {/* A capa é a exceção conhecida: os cartões dela moram DENTRO de um
+            componente de layout, então o casco vê um filho só e o escalonamento
+            de verdade continua lá dentro. Envolver de novo aqui não atrapalha -
+            a mola de fora abre o bloco enquanto as de dentro abrem os cartões. */}
       </Animated.ScrollView>
     </View>
   );
