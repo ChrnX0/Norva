@@ -1622,3 +1622,39 @@ livro que trezentos picolés saíram e voltaram, quando nenhum saiu.
 O que isso ensina para a Fase 3 inteira: **compromisso e fato são tabelas
 diferentes**, e o elo entre eles é um evento só — a carga que sai, que já é a
 transferência de 0001. Reserva, separação e devolução vão cair no mesmo desenho.
+
+## 2 de setembro — o `/insights` ficou cego justamente onde o trabalho acontece
+
+O dono rodou `/insights` e o relatório veio vazio: **"0 messages across 0
+sessions (1 total)"**, com todas as seções dizendo "No data". A pergunta dele foi
+a certa — *isso sempre volta assim?* Não: em 1 de setembro às 15h48 o relatório
+contou 27 mensagens e 14 commits, e o de 2 de setembro à 1h35 contou 16
+mensagens. O de hoje é o primeiro zerado.
+
+E o dado existe. `usage-data/session-meta/` tem o arquivo desta sessão, gravado
+no mesmo minuto do relatório: **68 minutos, 275 mensagens do assistente, 164
+chamadas de Bash, 2 commits**. A coleta funcionou; o que não aconteceu foi a
+análise — `usage-data/facets/` tem **um** arquivo, de 1 de setembro às 12h53, e
+todo número do topo do relatório é somado sobre as sessões analisadas.
+
+A causa provável está no jeito como este projeto trabalha: **é uma sessão só,
+longa, retomada** — o id `3cd30dd5…` é o mesmo desde 1 de setembro e o transcrito
+já tem 37 MB. O relatório chaveia por id de sessão, e uma sessão que ele já
+analisou (ou grande demais para reanalisar) é pulada. Some com ela e não sobra
+sessão nenhuma para somar.
+
+Duas consequências, e as duas são práticas:
+
+**Enquanto o trabalho continuar dentro desta sessão, `/insights` vai devolver
+nada** — não é uma sessão sem atrito, é uma sessão invisível. Para ter leitura de
+fora, o comando precisa ser rodado a partir de uma sessão nova.
+
+**E mesmo funcionando, ele nunca mediu código**: os relatórios de 1 e 2 de
+setembro, os com dado, dizem `+0/-0 Lines, 0 Files` — a parte que contaria o que
+mudou no repositório está zerada em todos. O que ele mede aqui é conversa, atrito
+e ferramenta, não trabalho entregue.
+
+Isso vale como aviso escrito no `CLAUDE.md`, porque a diretriz manda agir sobre o
+que o relatório mostra — e um relatório que não vê o trabalho não é "está tudo
+bem", é instrumento quebrado. A regra do alerta inventado vale para as
+ferramentas também: número que não mede nada ensina a ignorar o painel.

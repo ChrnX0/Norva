@@ -172,6 +172,15 @@ A diretriz, então, é de mão dupla e vale para os dois lados:
   recusado e por quê, e **o que o relatório errou**. Relatório é leitura de
   fora, não autoridade: já aconteceu de ele dizer que um PR fechou sem os checks
   verdes quando tinha fechado cinco de cinco.
+- **Antes de tudo: confira se ele viu alguma coisa.** Em 2 de setembro o
+  relatório veio com "0 messages across 0 sessions (1 total)" e todas as seções
+  vazias — enquanto o `session-meta` da mesma sessão registrava 68 minutos, 275
+  mensagens e 2 commits. O trabalho aqui acontece numa sessão só, longa e
+  retomada, e o relatório pula a sessão que já analisou. **Zerado não é "está
+  tudo bem": é instrumento cego**, e a resposta certa é dizer isso em vez de
+  fingir leitura. Para ter relatório de verdade, rode o comando a partir de uma
+  sessão nova. E note que a contagem de código (`+0/-0 Lines, 0 Files`) está
+  zerada em todos os relatórios, inclusive nos que têm dado.
 - **E o relatório vem junto, em texto, não como link.** O comando devolve um
   `file:///root/...` que só abre na máquina onde a sessão roda — o dono lê no
   celular, e lá o link não abre nada. Então a mensagem seguinte **transcreve o
