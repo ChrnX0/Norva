@@ -91,6 +91,12 @@ export function CollapsingHeader({
       <Animated.ScrollView
         onScroll={onScroll}
         scrollEventThrottle={16}
+        // With the soft keyboard up, React Native's default (`never`) spends
+        // the first tap dismissing it, so the confirm button only answers on
+        // the second. On a factory floor that reads as "the app did not save"
+        // - and the person taps again, or gives up. Invisible on the web and
+        // to the e2e suite: a browser has no keyboard that rises.
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           paddingHorizontal: space.lg,
           paddingBottom: insets.bottom + space.xxl,

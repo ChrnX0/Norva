@@ -32,15 +32,58 @@ export default function RootLayout() {
   // asks it anything. It used to happen on the home screen, which meant every
   // other entry point - a deep link, a shared address - opened onto an empty
   // app and said there was nothing registered.
-  const [ready, setReady] = useState(false);
+  //
+  // What happens when that fails is half of this component's job. The `catch`
+  // that used to be here swallowed the failure and let the app draw anyway:
+  // with no database every screen answers "nothing registered yet" and the
+  // briefing writes "everything steady" - the app lying calmly, which is the
+  // worst possible state for somebody still deciding whether to trust it with
+  // their money. The law says the opposite: an error stops the thing, it does
+  // not complain about it, and "all is well" only counts when it is true.
+  const [state, setState] = useState<{ ready: boolean; error: Error | null }>({
+    ready: false,
+    error: null,
+  });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    ensureStarterData()
-      .catch(() => undefined)
-      .finally(() => setReady(true));
-  }, []);
+    let alive = true;
+    ensureStarterData().then(
+      () => {
+        if (alive) setState({ ready: true, error: null });
+      },
+      (e: unknown) => {
+        if (alive) {
+          setState({ ready: true, error: e instanceof Error ? e : new Error(String(e)) });
+        }
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [attempt]);
 
-  if (!ready) return <View style={{ flex: 1 }} />;
+  // Retrying means opening the database again, not redrawing the screen: the
+  // disk may have room now, the file may have been released.
+  const retry = () => {
+    setState({ ready: false, error: null });
+    setAttempt((a) => a + 1);
+  };
+
+  // The same screen the ErrorBoundary uses, because to the person holding the
+  // phone it is the same event: it stopped, nothing was lost, it can be tried
+  // again.
+  if (state.error) {
+    return (
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <Crash error={state.error} retry={retry} />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    );
+  }
+
+  if (!state.ready) return <View style={{ flex: 1 }} />;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

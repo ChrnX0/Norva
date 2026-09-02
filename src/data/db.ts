@@ -367,16 +367,59 @@ export type Db = {
 
 let handle: Db | null = null;
 
+/**
+ * Opening the file. A seam, because this is the one line of this module that
+ * cannot run outside a phone - and the tests need to arrive at everything
+ * behind it.
+ *
+ * Imported inside the function rather than at the top of the file: `expo-sqlite`
+ * reaches into React Native, which only exists on a device. Loading it lazily
+ * is what lets the tests point `__setDb` at Node's own SQLite and run the real
+ * queries, instead of mocking them and proving nothing.
+ */
+type NativeDb = {
+  getAllAsync<T>(sql: string, params: SqlParam[]): Promise<T[]>;
+  getFirstAsync<T>(sql: string, params: SqlParam[]): Promise<T | null>;
+  runAsync(sql: string, params: SqlParam[]): Promise<unknown>;
+  execAsync(sql: string): Promise<void>;
+  withTransactionAsync(task: () => Promise<void>): Promise<void>;
+};
+
+type Opener = () => Promise<NativeDb>;
+
+let openNative: Opener = async () => {
+  const SQLite = await import('expo-sqlite');
+  return SQLite.openDatabaseAsync('norva.db');
+};
+
+/**
+ * The opening in flight, so two callers arriving together share one.
+ *
+ * `handle` was only assigned after `migrate` resolved, and the home screen asks
+ * five questions in a single `Promise.all`. Each one that arrived before the
+ * first finished opened **another** connection to `norva.db` and started
+ * **another** migration on it - and V2, V4, V5 and V6 are `ALTER TABLE ... ADD
+ * COLUMN`, which throws `duplicate column name` when it runs twice. It stayed
+ * invisible only because the seed in `_layout` happened to finish first, and
+ * that await was wrapped in a `catch` that said nothing.
+ */
+let opening: Promise<Db> | null = null;
+
 export async function db(): Promise<Db> {
   if (handle) return handle;
 
-  // Imported here rather than at the top of the file: `expo-sqlite` reaches
-  // into React Native, which only exists on a device. Loading it lazily is what
-  // lets the tests point `__setDb` at Node's own SQLite and run the real
-  // queries, instead of mocking them and proving nothing.
-  const SQLite = await import('expo-sqlite');
+  // Cleared when it settles: on success `handle` answers from here on, and on
+  // failure the next caller is allowed to try again instead of being handed
+  // the same rejection forever.
+  opening ??= openAndMigrate().finally(() => {
+    opening = null;
+  });
 
-  const native = await SQLite.openDatabaseAsync('norva.db');
+  return opening;
+}
+
+async function openAndMigrate(): Promise<Db> {
+  const native = await openNative();
   await native.execAsync(PRAGMAS);
   await migrate({
     getAllAsync: <T,>(sql: string, params: SqlParam[] = []) => native.getAllAsync<T>(sql, params),
@@ -452,6 +495,18 @@ export const schemaVersion = MIGRATIONS.length;
 /** Test seam: lets a test point at a fresh in-memory database. */
 export function __setDb(next: Db | null) {
   handle = next;
+  opening = null;
+}
+
+/**
+ * Points the opening at something a test can run. Only the tests call this -
+ * and the reason it exists is that the path behind it, the one every phone
+ * takes on first launch, had no way of being exercised at all.
+ */
+export function __setOpener(next: Opener) {
+  openNative = next;
+  handle = null;
+  opening = null;
 }
 
 export function newId(): string {
