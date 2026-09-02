@@ -1359,3 +1359,41 @@ leitura errada.
 `actions/cache@` inteiro" é padrão que um script pega: o caché nunca grava
 quando o relógio mata, e o sintoma é o mesmo sempre. Vai como guard, com teste
 positivo e negativo, no repositório dela.
+
+## 2 de setembro — corrigi a fome do APK e matei a máquina de indigestão
+
+Continuação direta do achado acima, e ele custou uma execução inteira.
+
+**A dose veio de um comentário, não de uma medição.** O diagnóstico do Metaspace
+estava certo — a compilação foi de 26 minutos para 35 e passou por bundle,
+Kotlin, dex, tudo o que nunca tinha alcançado, sem um único `OutOfMemoryError`.
+Mas eu escrevi `-Xmx6g` porque li "o runner tem 16 GB", e **eu nunca conferi
+isso**: era leitura minha de um comentário. Às 00:05 o log diz outra coisa —
+`The runner has received a shutdown signal`, depois de nove minutos sem uma
+linha. Não é o Gradle morrendo: é a máquina inteira. O Gradle não é a única JVM
+ali; o compilador do Kotlin, o R8 e o aapt2 sobem as suas, e o que precisa caber
+é a soma.
+
+Trocar uma adivinhação por outra maior não é conserto. Agora o passo **lê a
+RAM** (`free -m`), tira metade com piso e teto, imprime `nproc` e `free -h` no
+log, e limita também a JVM do Kotlin. O número deixou de ser opinião.
+
+**E o `if: always()` tem borda, que eu não conhecia.** Escrevi o passo de gravar
+caché acreditando que `always()` cobria tudo. Cobre passo que falha e job
+cancelado — **não cobre a máquina sumir**. Nesta execução o passo apareceu como
+`skipped`, junto com todos os post-steps: nada roda num runner que morreu. O
+caché continua certo para timeout e falha comum; contra máquina morta o que vale
+é não estourar a memória dela.
+
+**O terceiro erro foi pego antes de subir, e só porque o passo foi rodado de
+verdade.** Eu ia acrescentar `kotlin.daemon.jvmargs` com `echo >>`, e o
+`gradle.properties` que o prebuild gera **termina sem quebra de linha**: o
+resultado seria `expo.inlineModules.watchedDirectories=[]kotlin.daemon.jvmargs=-Xmx1g`,
+uma linha que estraga as duas propriedades e não reclama de nada. Rodar o passo
+contra o arquivo real, com `bash -eo pipefail` como o GitHub roda, mostrou isso
+em dois segundos. Ler o YAML não teria mostrado nunca.
+
+**A regra que sai daqui, e vale além de CI:** quando a correção é um número que
+descreve a máquina — memória, paralelismo, timeout — o certo é a máquina
+responder, não eu. E quando o passo é shell, ele se roda antes de subir: três
+defeitos nesta sessão vieram de texto que parecia certo lido.

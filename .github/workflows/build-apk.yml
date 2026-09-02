@@ -67,24 +67,54 @@ jobs:
       - name: Gerar o projeto nativo
         run: npx expo prebuild --platform android --no-install
 
-      # O template do React Native pede 512 MB de Metaspace para o Gradle, e a
-      # arquitetura nova não cabe nisso. Na execução de 21h a compilação encheu
-      # o Metaspace aos 26 minutos, repetiu `OutOfMemoryError: Metaspace` por
-      # treze minutos e depois passou vinte sem escrever uma linha - morreu no
-      # relógio, não no erro, que é o disfarce mais caro que uma falha de
-      # memória pode usar. O runner tem 16 GB: o teto era do arquivo gerado,
-      # não da máquina.
+      # Memória para o Gradle, medida da máquina em vez de adivinhada.
       #
-      # O `grep` no fim não é enfeite. O arquivo é gerado pelo prebuild a cada
-      # execução; se o nome da chave mudar numa versão futura do Expo, o `sed`
-      # não casa, e sem esta linha a compilação voltaria a morrer daqui a meses
-      # com o mesmo sintoma e nenhuma pista.
-      - name: Dar memória ao Gradle
+      # O template do React Native pede 512 MB de Metaspace, e a arquitetura
+      # nova não cabe nisso: a execução de 21h encheu o Metaspace aos 26
+      # minutos, ficou vinte minutos sem escrever uma linha e morreu no relógio.
+      # Falha de memória usando o cronômetro como disfarce.
+      #
+      # A primeira correção acertou o diagnóstico e errou a dose: dei 6 GB de
+      # heap lendo "16 GB" de um comentário que eu não conferi. A compilação
+      # então foi longe - bundle, Kotlin, dex, tudo - e às 00:05 o **runner
+      # inteiro** recebeu sinal de desligamento, que é o que acontece quando as
+      # JVMs somadas passam do que a máquina tem. O Gradle não é a única: o
+      # compilador do Kotlin, o R8 e o aapt2 sobem cada um a sua.
+      #
+      # Então aqui não se escolhe número: lê-se a RAM e tira-se metade, e o
+      # `free -h` fica no log para o próximo não precisar adivinhar também.
+      - name: Dar memória ao Gradle, na medida da máquina
         run: |
+          nproc
+          free -h
+
+          TOTAL_MB=$(free -m | awk '/^Mem:/ {print $2}')
+          HEAP_MB=$(( TOTAL_MB / 2 ))
+          if [ "$HEAP_MB" -gt 4096 ]; then HEAP_MB=4096; fi
+          if [ "$HEAP_MB" -lt 2048 ]; then HEAP_MB=2048; fi
+          echo "máquina com ${TOTAL_MB} MB de RAM; heap do Gradle: ${HEAP_MB} MB"
+
           cd android
-          sed -i 's/^org\.gradle\.jvmargs=.*/org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=2g/' gradle.properties
-          grep -q '^org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=2g$' gradle.properties
-          grep '^org.gradle.jvmargs=' gradle.properties
+          JVMARGS="-Xmx${HEAP_MB}m -XX:MaxMetaspaceSize=1g"
+          sed -i "s/^org\.gradle\.jvmargs=.*/org.gradle.jvmargs=$JVMARGS/" gradle.properties
+
+          # O prebuild gera este arquivo a cada execução. Se o Expo renomear a
+          # chave, o sed não casa - e sem esta conferência a compilação voltaria
+          # a morrer igual daqui a meses, sem pista nenhuma.
+          grep -q "^org.gradle.jvmargs=$JVMARGS$" gradle.properties
+
+          # A JVM do Kotlin é a segunda maior da soma, e o padrão dela é generoso.
+          #
+          # O `printf` começa com uma quebra de linha porque o arquivo gerado
+          # **termina sem uma**: um `echo >>` cola o texto no fim da última
+          # linha e produz `...watchedDirectories=[]kotlin.daemon.jvmargs=-Xmx1g`,
+          # que estraga as duas propriedades e não reclama. Foi assim na
+          # primeira tentativa, e só apareceu porque este passo foi rodado
+          # contra o `gradle.properties` de verdade antes de subir.
+          printf '\n%s\n' "kotlin.daemon.jvmargs=-Xmx1g" >> gradle.properties
+          grep -q '^kotlin.daemon.jvmargs=-Xmx1g$' gradle.properties
+
+          grep -E '^(org.gradle.jvmargs|kotlin.daemon.jvmargs)=' gradle.properties
 
       - name: Compilar, só arm64
         run: |
@@ -150,14 +180,19 @@ jobs:
           gh release edit "$TAG" --notes-file notas.md
           echo "no release: $(gh release view "$TAG" --json url -q .url)"
 
-      # Guardar mesmo quando a compilação morre no relógio.
+      # Guardar mesmo quando a compilação não terminou.
       #
       # O `actions/cache` inteiro só grava no fim de um job que terminou, e um
       # job morto por timeout nunca grava. Então a execução seguinte também
       # começava fria, e também morria no relógio: o caché que faria a
       # compilação caber na hora só existiria se ela já tivesse cabido. Era um
-      # nó, e ele já custou duas horas de runner. Gravando sempre, cada
-      # tentativa deixa para a próxima o que já compilou.
+      # nó, e ele já custou duas horas de runner.
+      #
+      # O alcance disto tem borda, e ela já foi vista: `always()` cobre passo
+      # que falha e job cancelado, mas não cobre a máquina sumir. Quando o
+      # runner recebeu sinal de desligamento, este passo também foi pulado -
+      # nada roda numa máquina que morreu. Contra isso o que vale é não estourar
+      # a memória dela, que é o passo acima.
       #
       # A chave leva o `run_id` porque entrada de caché não se sobrescreve -
       # sem isso a primeira gravação parcial seria a única, para sempre.
