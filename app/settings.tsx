@@ -8,6 +8,7 @@ import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { brand } from '@/config/brand';
 import { countForErase, eraseArea, ordersNeedApproval, setOrdersNeedApproval } from '@/data/repository';
+import { useAppearance } from '@/theme/Appearance';
 import {
   blockerFor,
   EraseBlockedError,
@@ -104,7 +105,8 @@ function sayTally(area: EraseArea, tally: EraseTally, t: Dictionary): string {
 }
 
 function Settings() {
-  const { color, type, space } = useTheme();
+  const { color, type, space, radius, accent } = useTheme();
+  const { skin, setSkin } = useAppearance();
   const { locale, t } = useLocale();
   const confirm = useConfirm();
   const router = useRouter();
@@ -282,6 +284,49 @@ function Settings() {
             />
           </View>
         ) : null}
+      </Card>
+
+      {/* A cara do aplicativo.
+          Claro e escuro continuam seguindo o aparelho, como o sistema manda -
+          o que se escolhe aqui é a IDENTIDADE, que é outra pergunta. O dono viu
+          quarenta esboços e ficou com duas; nenhuma das duas é a certa para
+          todo mundo, e por isso as duas existem em vez de eu escolher por ele. */}
+      <Card>
+        <Text style={[type.cardTitle, { color: color.ink }]}>
+          {t.app.settings.appearance.label}
+        </Text>
+        <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
+          {t.app.settings.appearance.hint}
+        </Text>
+        <View style={{ flexDirection: 'row', gap: space.md, marginTop: space.md }}>
+          {(
+            [
+              ['organico', t.app.settings.appearance.organico, t.app.settings.appearance.organicoHint],
+              ['papel', t.app.settings.appearance.papel, t.app.settings.appearance.papelHint],
+            ] as const
+          ).map(([qual, nome, dica]) => (
+            <Pressable
+              key={qual}
+              onPress={() => setSkin(qual)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: skin === qual }}
+              accessibilityLabel={`${nome}: ${dica}`}
+              style={{
+                flex: 1,
+                padding: space.md,
+                borderRadius: radius.lg,
+                borderWidth: skin === qual ? 2 : StyleSheet.hairlineWidth,
+                borderColor: skin === qual ? accent : color.line,
+                backgroundColor: skin === qual ? `${accent}14` : 'transparent',
+              }}
+            >
+              <Text style={[type.body, { color: color.ink }]}>{nome}</Text>
+              <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
+                {dica}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </Card>
 
       <Pressable

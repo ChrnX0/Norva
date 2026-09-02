@@ -17,7 +17,6 @@ import {
   plural,
 } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
-import { palettes } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
 import type { BriefingView } from './types';
 
@@ -30,9 +29,8 @@ import type { BriefingView } from './types';
  * retângulos iguais que o dono recusou.
  */
 export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, go }: BriefingView) {
-  const { color, scheme, type, space } = useTheme();
+  const { color, type, space, palette } = useTheme();
   const { locale, t } = useLocale();
-  const palette = palettes[scheme];
 
   return (
     <>

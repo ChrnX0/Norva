@@ -9,7 +9,7 @@ import {
 } from '@/components/icons';
 import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
-import { palettes, type Ambient } from '@/theme/tokens';
+import { type Ambient } from '@/theme/tokens';
 
 /**
  * The five places the app has.
@@ -31,9 +31,8 @@ import { palettes, type Ambient } from '@/theme/tokens';
  * draws: no artboard shows a tab bar on a screen you had to walk into.
  */
 export default function TabsLayout() {
-  const { color, scheme, type, space } = useTheme();
+  const { color, type, space, palette } = useTheme();
   const { t } = useLocale();
-  const palette = palettes[scheme];
 
   const label = (title: string, focused: boolean) => (
     <Text

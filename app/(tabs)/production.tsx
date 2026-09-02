@@ -21,7 +21,6 @@ import { dayWindow } from '@/domain/day';
 import { fill,
   formatCalendarDate, formatQuantity, formatTime, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
-import { palettes } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -54,8 +53,7 @@ type Loaded = {
 };
 
 function ProductionDay() {
-  const { color, scheme, type, space } = useTheme();
-  const palette = palettes[scheme];
+  const { color, type, space, palette } = useTheme();
   const { locale, t } = useLocale();
 
   const { data, loading } = useQuery<Loaded>(async () => {

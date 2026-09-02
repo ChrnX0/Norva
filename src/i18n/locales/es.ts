@@ -314,6 +314,14 @@ export const es: Dictionary = {
         purchases: { one: '1 compra', other: '{{n}} compras' },
       },
       back: 'Volver',
+      appearance: {
+        label: 'La cara de la aplicación',
+        hint: 'El claro y el oscuro siguen al teléfono. Aquí eliges entre las dos identidades.',
+        papel: 'Papel',
+        papelHint: 'serifa, trazo fino, esquinas rectas',
+        organico: 'Orgánico',
+        organicoHint: 'paisaje, curva, esquinas suaves',
+      },
       approval: {
         label: 'El pedido necesita aprobación',
         hint: 'Activado, cada pedido nuevo aparece como "espera aprobación" hasta que alguien lo apruebe. Ya cuenta en lo que falta producir: esperar la aprobación para empezar es enterarse tarde.',

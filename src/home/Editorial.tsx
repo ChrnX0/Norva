@@ -17,7 +17,6 @@ import {
   plural,
 } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
-import { palettes } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
 import type { BriefingView } from './types';
 
@@ -34,9 +33,8 @@ import type { BriefingView } from './types';
  * força. Por isso o insumo acabando é a única linha que continua com fundo.
  */
 export function Editorial({ data, sky, weather, shortForOrders, moved, comparison, go }: BriefingView) {
-  const { color, scheme, type, space, radius } = useTheme();
+  const { color, scheme, type, space, radius, palette } = useTheme();
   const { locale, t } = useLocale();
-  const palette = palettes[scheme];
 
   return (
     <>

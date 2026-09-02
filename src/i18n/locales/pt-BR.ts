@@ -345,6 +345,14 @@ export const ptBR = {
         purchases: { one: '1 compra', other: '{{n}} compras' },
       },
       back: 'Voltar',
+      appearance: {
+        label: 'A cara do aplicativo',
+        hint: 'O claro e o escuro seguem o aparelho. Aqui você escolhe entre as duas identidades.',
+        papel: 'Papel',
+        papelHint: 'serifa, traço fino, cantos retos',
+        organico: 'Orgânico',
+        organicoHint: 'paisagem, curva, cantos macios',
+      },
       approval: {
         label: 'Pedido precisa de aprovação',
         hint: 'Ligado, todo pedido novo aparece como "espera aprovação" até alguém aprovar. Ele já entra na conta do que falta produzir: quem espera a aprovação para começar descobre tarde.',

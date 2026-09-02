@@ -5,7 +5,7 @@ import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { IconChevron } from '@/components/icons';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
-import { palettes, type Ambient } from '@/theme/tokens';
+import { type Ambient } from '@/theme/tokens';
 import type { Dictionary } from '@/i18n';
 
 /**
@@ -56,10 +56,9 @@ const SETTINGS: Row[] = [
 ];
 
 function Drawers() {
-  const { color, scheme, type, space } = useTheme();
+  const { color, type, space, palette } = useTheme();
   const { t } = useLocale();
   const router = useRouter();
-  const palette = palettes[scheme];
 
   const group = (title: string, rows: Row[]) => (
     <Card>

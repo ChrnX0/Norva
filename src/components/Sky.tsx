@@ -8,7 +8,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
-import { palettes } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -48,8 +47,7 @@ export function SkyScene({
   width?: number;
   height?: number;
 }) {
-  const { scheme } = useTheme();
-  const palette = palettes[scheme];
+  const { palette } = useTheme();
   const band = temperatureBand(maxC);
   const raining = rainChance !== null && rainChance >= 30;
 
@@ -175,8 +173,7 @@ export function SkyScene({
  * pedaço quente de uma barra que vai de 13° a 21° diz o dia inteiro num relance.
  */
 export function TemperatureRange({ minC, maxC }: { minC: number; maxC: number }) {
-  const { color, space, scheme } = useTheme();
-  const palette = palettes[scheme];
+  const { color, space, palette } = useTheme();
   const grown = useSharedValue(0);
 
   useEffect(() => {

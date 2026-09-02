@@ -18,7 +18,6 @@ import {
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { useLocale } from '@/i18n/useLocale';
-import { palettes } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -44,8 +43,7 @@ export default function CatalogScreen() {
 type Loaded = { lines: ProductLine[]; types: ProductType[]; flavors: Flavor[] };
 
 function Catalog() {
-  const { color, scheme, type, space, radius } = useTheme();
-  const palette = palettes[scheme];
+  const { color, type, space, radius, palette } = useTheme();
   const { t } = useLocale();
 
   const [lineId, setLineId] = useState<string | null>(null);

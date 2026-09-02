@@ -309,6 +309,14 @@ export const en: Dictionary = {
         purchases: { one: '1 purchase', other: '{{n}} purchases' },
       },
       back: 'Back',
+      appearance: {
+        label: 'How the app looks',
+        hint: 'Light and dark follow the phone. Here you pick between the two identities.',
+        papel: 'Paper',
+        papelHint: 'serif, thin line, sharp corners',
+        organico: 'Organic',
+        organicoHint: 'landscape, curve, soft corners',
+      },
       approval: {
         label: 'Orders need approval',
         hint: 'On, every new order shows as "waiting for approval" until someone approves it. It already counts towards what is left to make: waiting for the approval to start is finding out late.',

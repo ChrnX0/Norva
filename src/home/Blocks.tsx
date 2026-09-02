@@ -8,7 +8,6 @@ import { SkyScene } from '@/components/Sky';
 import { Touchable } from '@/components/Touchable';
 import { fill, formatPercent, formatQuantity, formatTime, formatWeekdayInitial, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
-import { palettes } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
 import type { BriefingView } from './types';
 
@@ -24,9 +23,8 @@ import type { BriefingView } from './types';
  * diz UMA coisa - um número e o nome dele - e o detalhe fica na tela de dentro.
  */
 export function Blocks({ data, sky, weather, shortForOrders, moved, comparison, go }: BriefingView) {
-  const { color, scheme, type, space } = useTheme();
+  const { color, scheme, type, space, palette } = useTheme();
   const { locale, t } = useLocale();
-  const palette = palettes[scheme];
 
   return (
     <>

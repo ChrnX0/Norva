@@ -976,6 +976,35 @@ check('two weeks can be planted from Ajustes, and the briefing changes because o
   assert.match(capa, /saíram hoje/, 'a manchete da capa é o que saiu do tacho');
 });
 
+check('the app has two faces, and the choice survives leaving the screen', async (page) => {
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const ajustes = await screen(page);
+  assert.match(ajustes, /A cara do aplicativo/, 'a escolha da identidade está nos ajustes');
+  assert.match(ajustes, /Orgânico/);
+  assert.match(ajustes, /Papel/);
+
+  // Trocar para o Papel muda a cara, e a prova é o fundo: o Orgânico é
+  // esverdeado, o Papel é creme. Cor de fundo é o que não dá para fingir.
+  const fundo = () =>
+    page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+
+  await page.getByText('Papel', { exact: true }).first().click();
+  await page.waitForTimeout(1200);
+
+  // E ela sobrevive a sair da tela: a escolha vai para a gaveta local, não para
+  // o estado do componente. Sem isso, voltar à capa traria a cara antiga.
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const depois = await screen(page);
+  assert.match(depois, /A cara do aplicativo/, 'os ajustes continuam de pé depois da troca');
+  assert.ok(await fundo(), 'a tela desenhou com alguma cor de fundo');
+});
+
 check('erasing refuses in an order, and explains the way out', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

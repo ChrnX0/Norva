@@ -40,7 +40,6 @@ import {
   plural,
 } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
-import { palettes } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -86,8 +85,7 @@ function plannedUnits(recipe: Recipe, product: Product, batches: number): number
 }
 
 function Production() {
-  const { color, scheme, type, space, radius } = useTheme();
-  const palette = palettes[scheme];
+  const { color, type, space, radius, palette } = useTheme();
   const { locale, t } = useLocale();
   const askConfirm = useConfirm();
 

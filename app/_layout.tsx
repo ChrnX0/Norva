@@ -8,6 +8,7 @@ import { ConfirmProvider } from '@/components/Confirm';
 import { Crash } from '@/components/Crash';
 import { WhatsNew } from '@/components/WhatsNew';
 import { ensureStarterData } from '@/data/seed';
+import { AppearanceProvider } from '@/theme/Appearance';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 
 /**
@@ -20,9 +21,11 @@ import { ThemeProvider } from '@/theme/ThemeProvider';
 export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
   return (
     <SafeAreaProvider>
-      <ThemeProvider>
-        <Crash error={error} retry={() => void retry()} />
-      </ThemeProvider>
+      <AppearanceProvider>
+        <ThemeProvider>
+          <Crash error={error} retry={() => void retry()} />
+        </ThemeProvider>
+      </AppearanceProvider>
     </SafeAreaProvider>
   );
 }
@@ -76,9 +79,11 @@ export default function RootLayout() {
   if (state.error) {
     return (
       <SafeAreaProvider>
-        <ThemeProvider>
-          <Crash error={state.error} retry={retry} />
-        </ThemeProvider>
+        <AppearanceProvider>
+          <ThemeProvider>
+            <Crash error={state.error} retry={retry} />
+          </ThemeProvider>
+        </AppearanceProvider>
       </SafeAreaProvider>
     );
   }
@@ -88,14 +93,18 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ThemeProvider>
-          <ConfirmProvider>
-            <StatusBar style="auto" />
-            <Stack screenOptions={{ headerShown: false }} />
-            {/* Sits above every screen: the update may land on any of them. */}
-            <WhatsNew />
-          </ConfirmProvider>
-        </ThemeProvider>
+        {/* A cara escolhida envolve tudo: ela decide a paleta, a tipografia e o
+            raio dos cantos que o resto do aplicativo lê do tema. */}
+        <AppearanceProvider>
+          <ThemeProvider>
+            <ConfirmProvider>
+              <StatusBar style="auto" />
+              <Stack screenOptions={{ headerShown: false }} />
+              {/* Sits above every screen: the update may land on any of them. */}
+              <WhatsNew />
+            </ConfirmProvider>
+          </ThemeProvider>
+        </AppearanceProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

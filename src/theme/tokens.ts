@@ -158,3 +158,150 @@ export const motion = {
 
 /** The rail that carries an area's color on a card. */
 export const RAIL_WIDTH = 3;
+
+/**
+ * As duas caras do produto.
+ *
+ * O dono viu quarenta esboços e escolheu duas identidades — **Papel** e
+ * **Orgânico** — e decidiu que as duas ficam, com claro e escuro, trocáveis nos
+ * ajustes. Não é indecisão: são dois negócios diferentes olhando a mesma tela.
+ * A fábrica que mostra o app para o contador quer a página impressa; a que abre
+ * o celular na doca às seis da manhã quer a paisagem.
+ *
+ * O que muda entre elas é o que muda numa identidade de verdade: a **paleta**,
+ * a **família tipográfica**, o **raio dos cantos** e o **cabeçalho** (a linha de
+ * traço fino contra a colina desenhada). O que NÃO muda é a escala de tamanhos:
+ * corpo 17, herói 56 e figura 28 continuam iguais nas duas, porque essa escala
+ * não é estilo — é o tamanho que se lê numa câmara fria, de luva, com a tela
+ * suja, e trocar isso por gosto seria trocar legibilidade por decoração.
+ */
+export type Skin = 'papel' | 'organico';
+
+const papelClaro: Palette = {
+  paper: '#FAF7F2',
+  surface: '#FFFFFF',
+  sunken: '#F1EDE5',
+  ink: '#221F1B',
+  inkMuted: '#6F6558',
+  inkFaint: '#A2988A',
+  line: '#E2DBD0',
+  lineStrong: '#D5CABB',
+  onAccent: '#FFFFFF',
+
+  sky: '#6F8188',
+  apricot: '#B4552D',
+  mint: '#3D7A53',
+  lilac: '#6D5F86',
+  rose: '#A3505C',
+  sage: '#5A7B49',
+  sand: '#B28E42',
+  mist: '#9A9083',
+
+  ok: '#3D7A53',
+  warning: '#B4552D',
+  danger: '#A8442A',
+  neutral: '#6F6558',
+};
+
+const papelEscuro: Palette = {
+  paper: '#15110D',
+  surface: '#1E1915',
+  sunken: '#262019',
+  ink: '#F4ECE0',
+  inkMuted: '#B6A894',
+  inkFaint: '#7E7161',
+  line: '#2F271F',
+  lineStrong: '#42392E',
+  onAccent: '#15110D',
+
+  sky: '#8FA8B0',
+  apricot: '#E08A5A',
+  mint: '#6FBF8F',
+  lilac: '#B0A0CC',
+  rose: '#DE97A2',
+  sage: '#A2BE8C',
+  sand: '#D9B76A',
+  mist: '#A8A39B',
+
+  ok: '#6FBF8F',
+  warning: '#E08A5A',
+  danger: '#E8785F',
+  neutral: '#B6A894',
+};
+
+const organicoClaro: Palette = {
+  paper: '#F3F7F3',
+  surface: '#FFFFFF',
+  sunken: '#E7EFE8',
+  ink: '#16281D',
+  inkMuted: '#4D6055',
+  inkFaint: '#8BA192',
+  line: '#DDE9DF',
+  lineStrong: '#C6D8CA',
+  onAccent: '#FFFFFF',
+
+  sky: '#5B8EC9',
+  apricot: '#E29B52',
+  mint: '#2F7D5C',
+  lilac: '#6B7FD0',
+  rose: '#C4677A',
+  sage: '#5A7B49',
+  sand: '#B28E42',
+  mist: '#8BA192',
+
+  ok: '#2F7D5C',
+  warning: '#C2751F',
+  danger: '#C0453C',
+  neutral: '#4D6055',
+};
+
+const organicoEscuro: Palette = {
+  paper: '#0C1512',
+  surface: '#13201B',
+  sunken: '#1A2B24',
+  ink: '#EAF5EE',
+  inkMuted: '#9DB8A9',
+  inkFaint: '#6B8377',
+  line: '#1C2F27',
+  lineStrong: '#2A443A',
+  onAccent: '#0C1512',
+
+  sky: '#7FB6E8',
+  apricot: '#F0A868',
+  mint: '#5EF2A8',
+  lilac: '#A79BEA',
+  rose: '#E58FA0',
+  sage: '#A2BE8C',
+  sand: '#E5C377',
+  mist: '#7F9A8C',
+
+  ok: '#5EF2A8',
+  warning: '#F5A35E',
+  danger: '#F5715E',
+  neutral: '#9DB8A9',
+};
+
+/**
+ * A família tipográfica de cada identidade.
+ *
+ * `serif` no Papel e nulo no Orgânico — nulo quer dizer "a fonte do sistema",
+ * que é a certa para a identidade macia e é também a que existe em qualquer
+ * aparelho. `serif` é o nome genérico que Android e iOS resolvem sozinhos, sem
+ * embarcar arquivo de fonte: um aplicativo que abre offline numa câmara fria não
+ * paga megabytes por uma família de texto.
+ */
+export const skins = {
+  papel: {
+    light: papelClaro,
+    dark: papelEscuro,
+    /** Serifa nos títulos; o resto continua na fonte do sistema. */
+    titleFamily: 'serif' as const,
+    radius: { sm: 4, md: 6, lg: 8, xl: 10, pill: 999 },
+  },
+  organico: {
+    light: organicoClaro,
+    dark: organicoEscuro,
+    titleFamily: undefined,
+    radius: { sm: 12, md: 18, lg: 22, xl: 28, pill: 999 },
+  },
+} as const;

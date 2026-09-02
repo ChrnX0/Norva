@@ -13,7 +13,6 @@ import { useQuery } from '@/data/useQuery';
 import { dayWindow } from '@/domain/day';
 import { fill, formatQuantity, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
-import { palettes } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -43,10 +42,9 @@ export default function Transport() {
 }
 
 function WhereItWent() {
-  const { color, scheme, type, space } = useTheme();
+  const { color, type, space, palette } = useTheme();
   const { locale, t } = useLocale();
   const router = useRouter();
-  const palette = palettes[scheme];
 
   const confirm = useConfirm();
 
