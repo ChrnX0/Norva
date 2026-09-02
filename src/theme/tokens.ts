@@ -177,6 +177,19 @@ export const RAIL_WIDTH = 3;
  */
 export type Skin = 'papel' | 'organico';
 
+/**
+ * O Papel, com a cor que o dono cobrou.
+ *
+ * A primeira versão era terrosa e discreta — e discrição, na tela dele, virou
+ * apagamento: *"está muito apagado, quero mais contraste entre os elementos
+ * coloridos"*. O que mudou foi só a **saturação dos tons de área**; o creme, a
+ * tinta e a serifa continuam iguais, porque o que ele gostou foi exatamente
+ * isso.
+ *
+ * E a cor entra em traço, nunca em massa: quando o ícone virou selo cheio ele
+ * recusou na hora. O motivo é o desenho do topo — a ilustração é monoline, e um
+ * ícone maciço ao lado dela parece de outro aplicativo.
+ */
 const papelClaro: Palette = {
   paper: '#FAF7F2',
   surface: '#FFFFFF',
@@ -184,22 +197,22 @@ const papelClaro: Palette = {
   ink: '#221F1B',
   inkMuted: '#6F6558',
   inkFaint: '#A2988A',
-  line: '#E2DBD0',
-  lineStrong: '#D5CABB',
+  line: '#DCD3C6',
+  lineStrong: '#CBBEAC',
   onAccent: '#FFFFFF',
 
-  sky: '#6F8188',
-  apricot: '#B4552D',
-  mint: '#3D7A53',
-  lilac: '#6D5F86',
-  rose: '#A3505C',
-  sage: '#5A7B49',
-  sand: '#B28E42',
-  mist: '#9A9083',
+  sky: '#1D5B8C',
+  apricot: '#A8371A',
+  mint: '#15803D',
+  lilac: '#5B4BA8',
+  rose: '#A32B45',
+  sage: '#4A7A2E',
+  sand: '#9A6A05',
+  mist: '#6F6558',
 
-  ok: '#3D7A53',
-  warning: '#B4552D',
-  danger: '#A8442A',
+  ok: '#15803D',
+  warning: '#9A6A05',
+  danger: '#B91C1C',
   neutral: '#6F6558',
 };
 
@@ -290,6 +303,29 @@ const organicoEscuro: Palette = {
  * embarcar arquivo de fonte: um aplicativo que abre offline numa câmara fria não
  * paga megabytes por uma família de texto.
  */
+/**
+ * As paletas do Orgânico.
+ *
+ * *"A paleta é bem verde; seria legal poder escolher"* — e a escolha não é um
+ * botão de cor: ela move a **paisagem inteira**, porque no Orgânico o céu e a
+ * colina são a identidade, não decoração de fundo. Trocar para âmbar é o fim de
+ * tarde; para azul, a manhã fria.
+ *
+ * O que a escolha NÃO move são os sinais. Verde de "preço caiu" e vermelho de
+ * "preço subiu" são leitura, não estilo: numa fábrica que escolhesse a paleta
+ * terracota, uma alta de custo passaria a aparecer na cor do tema e deixaria de
+ * gritar. Por isso `ok`, `warning` e `danger` ficam fora daqui.
+ */
+export type Hue = 'verde' | 'azul' | 'ambar' | 'terracota' | 'lavanda';
+
+export const hues: Record<Hue, { brand: string; skyTop: string; skyBottom: string; hillFar: string; hillNear: string }> = {
+  verde: { brand: '#2F7D5C', skyTop: '#DFF0E6', skyBottom: '#BFE3CF', hillFar: '#A9DCC0', hillNear: '#7CC9A6' },
+  azul: { brand: '#2E6DA4', skyTop: '#DCEAFC', skyBottom: '#BCD8F7', hillFar: '#A9C8E8', hillNear: '#7BA9D6' },
+  ambar: { brand: '#C2751F', skyTop: '#FDEEDA', skyBottom: '#FBDCB4', hillFar: '#F0CF9A', hillNear: '#E0B273' },
+  terracota: { brand: '#B4552D', skyTop: '#FBE6DF', skyBottom: '#F6CDC0', hillFar: '#EEB9A6', hillNear: '#DD9781' },
+  lavanda: { brand: '#6B5FA8', skyTop: '#E9E4F8', skyBottom: '#D4CBF0', hillFar: '#C3B9E6', hillNear: '#A396D4' },
+};
+
 export const skins = {
   papel: {
     light: papelClaro,

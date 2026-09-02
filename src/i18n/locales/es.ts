@@ -321,6 +321,15 @@ export const es: Dictionary = {
         papelHint: 'serifa, trazo fino, esquinas rectas',
         organico: 'Orgánico',
         organicoHint: 'paisaje, curva, esquinas suaves',
+        palette: 'El color del paisaje',
+        paletteHint: 'Cambia el cielo y la colina. Las señales de subida y bajada no cambian — son lectura, no adorno.',
+        hues: {
+          verde: 'Verde',
+          azul: 'Azul',
+          ambar: 'Ámbar',
+          terracota: 'Terracota',
+          lavanda: 'Lavanda',
+        },
       },
       approval: {
         label: 'El pedido necesita aprobación',

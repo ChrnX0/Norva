@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import { useAppearance } from './Appearance';
 import {
+  hues,
   motion,
   skins,
   space,
@@ -26,6 +27,14 @@ type Theme = {
   palette: Palette;
   /** Qual das duas caras está no ar. */
   skin: Skin;
+  /**
+   * A cor da identidade: a paisagem no Orgânico, a tinta de acento no Papel.
+   *
+   * Diferente de `accent`, que é o tom da ÁREA em que a pessoa está (produção é
+   * laranja, transporte é roxo, e isso não muda com o gosto de ninguém). A marca
+   * é a escolha; a área é o significado.
+   */
+  brand: string;
   /** The ambient hue of the area the user is currently in. */
   accent: string;
   type: typeof typeBase;
@@ -45,7 +54,7 @@ export function ThemeProvider({
   area?: Ambient;
 }) {
   const scheme: ColorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const { skin } = useAppearance();
+  const { skin, hue } = useAppearance();
 
   const value = useMemo<Theme>(() => {
     const chosen = skins[skin];
@@ -73,13 +82,16 @@ export function ThemeProvider({
       color,
       palette: color,
       skin,
+      // No Papel a marca é o próprio acento terroso; no Orgânico é a paleta
+      // escolhida, que move a paisagem inteira.
+      brand: skin === 'organico' ? hues[hue].brand : color.apricot,
       accent: color[area],
       type,
       space,
       radius: chosen.radius,
       motion,
     };
-  }, [scheme, area, skin]);
+  }, [scheme, area, skin, hue]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

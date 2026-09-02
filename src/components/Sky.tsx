@@ -47,20 +47,24 @@ export function SkyScene({
   width?: number;
   height?: number;
 }) {
-  const { palette } = useTheme();
+  const { palette, brand, skin } = useTheme();
   const band = temperatureBand(maxC);
   const raining = rainChance !== null && rainChance >= 30;
 
   // A atmosfera: duas paradas de cor tiradas da paleta do tema, nunca um
   // hexadecimal solto. Frio puxa para o azul da casa, calor para o âmbar.
+  // A cor do céu sai da máxima do dia, como sempre — mas no Orgânico ela passa
+  // primeiro pela paleta escolhida: quem trocou o verde por âmbar não quer um
+  // céu verde no dia frio. No Papel a cena é de traço e a marca não entra aqui.
+  const quente = skin === 'organico' ? brand : palette.apricot;
   const [top, bottom] =
     band === 'cold'
       ? [palette.sky, palette.mist]
       : band === 'mild'
-        ? [palette.sky, palette.mint]
+        ? [skin === 'organico' ? brand : palette.sky, palette.mint]
         : band === 'warm'
-          ? [palette.sand, palette.apricot]
-          : [palette.apricot, palette.rose];
+          ? [palette.sand, quente]
+          : [quente, palette.rose];
 
   const spin = useSharedValue(0);
   const drift = useSharedValue(0);

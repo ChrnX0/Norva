@@ -9,6 +9,7 @@ import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { brand } from '@/config/brand';
 import { countForErase, eraseArea, ordersNeedApproval, setOrdersNeedApproval } from '@/data/repository';
 import { useAppearance } from '@/theme/Appearance';
+import { hues } from '@/theme/tokens';
 import {
   blockerFor,
   EraseBlockedError,
@@ -106,7 +107,7 @@ function sayTally(area: EraseArea, tally: EraseTally, t: Dictionary): string {
 
 function Settings() {
   const { color, type, space, radius, accent } = useTheme();
-  const { skin, setSkin } = useAppearance();
+  const { skin, setSkin, hue, setHue } = useAppearance();
   const { locale, t } = useLocale();
   const confirm = useConfirm();
   const router = useRouter();
@@ -327,6 +328,46 @@ function Settings() {
             </Pressable>
           ))}
         </View>
+
+        {/* A paleta da paisagem, e só o Orgânico a tem.
+            O Papel tem uma cara só, que é a graça dele: revista impressa não
+            vem em cinco cores de capa. */}
+        {skin === 'organico' ? (
+          <View style={{ marginTop: space.lg }}>
+            <Text style={[type.body, { color: color.ink }]}>
+              {t.app.settings.appearance.palette}
+            </Text>
+            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
+              {t.app.settings.appearance.paletteHint}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md }}>
+              {(['verde', 'azul', 'ambar', 'terracota', 'lavanda'] as const).map((qual) => (
+                <Pressable
+                  key={qual}
+                  onPress={() => setHue(qual)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: hue === qual }}
+                  accessibilityLabel={t.app.settings.appearance.hues[qual]}
+                  style={{ alignItems: 'center', gap: space.xs, flex: 1 }}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: hues[qual].brand,
+                      borderWidth: hue === qual ? 3 : 0,
+                      borderColor: color.ink,
+                    }}
+                  />
+                  <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={1}>
+                    {t.app.settings.appearance.hues[qual]}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ) : null}
       </Card>
 
       <Pressable

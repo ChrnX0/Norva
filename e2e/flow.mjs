@@ -1003,6 +1003,18 @@ check('the app has two faces, and the choice survives leaving the screen', async
   const depois = await screen(page);
   assert.match(depois, /A cara do aplicativo/, 'os ajustes continuam de pé depois da troca');
   assert.ok(await fundo(), 'a tela desenhou com alguma cor de fundo');
+
+  // A paleta da paisagem só existe no Orgânico: o Papel tem uma cara só, e
+  // oferecer cinco cores de capa para uma revista impressa seria oferecer o que
+  // a identidade não tem.
+  assert.doesNotMatch(depois, /A cor da paisagem/, 'o Papel não tem paleta para escolher');
+
+  await page.getByText('Orgânico', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  const comPaleta = await screen(page);
+  assert.match(comPaleta, /A cor da paisagem/, 'o Orgânico tem');
+  assert.match(comPaleta, /Terracota/, 'com as cinco paletas por nome');
 });
 
 check('erasing refuses in an order, and explains the way out', async (page) => {

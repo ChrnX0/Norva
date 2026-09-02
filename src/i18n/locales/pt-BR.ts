@@ -352,6 +352,15 @@ export const ptBR = {
         papelHint: 'serifa, traço fino, cantos retos',
         organico: 'Orgânico',
         organicoHint: 'paisagem, curva, cantos macios',
+        palette: 'A cor da paisagem',
+        paletteHint: 'Muda o céu e a colina. Os sinais de alta e de queda não mudam — eles são leitura, não enfeite.',
+        hues: {
+          verde: 'Verde',
+          azul: 'Azul',
+          ambar: 'Âmbar',
+          terracota: 'Terracota',
+          lavanda: 'Lavanda',
+        },
       },
       approval: {
         label: 'Pedido precisa de aprovação',

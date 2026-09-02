@@ -316,6 +316,15 @@ export const en: Dictionary = {
         papelHint: 'serif, thin line, sharp corners',
         organico: 'Organic',
         organicoHint: 'landscape, curve, soft corners',
+        palette: 'The colour of the landscape',
+        paletteHint: 'Changes the sky and the hill. The up and down signals stay put — they are reading, not decoration.',
+        hues: {
+          verde: 'Green',
+          azul: 'Blue',
+          ambar: 'Amber',
+          terracota: 'Terracotta',
+          lavanda: 'Lavender',
+        },
       },
       approval: {
         label: 'Orders need approval',

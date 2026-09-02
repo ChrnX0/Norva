@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { readMeta, writeMeta } from '@/data/meta';
-import type { Skin } from './tokens';
+import type { Hue, Skin } from './tokens';
 
 const KEY = 'appearance.skin';
+const HUE_KEY = 'appearance.hue';
 
 /**
  * Qual das duas caras o aplicativo está usando.
@@ -24,22 +25,32 @@ const KEY = 'appearance.skin';
 type Appearance = {
   skin: Skin;
   setSkin: (skin: Skin) => void;
+  /**
+   * A paleta da paisagem. Só o Orgânico a usa — o Papel tem uma cara só, que é
+   * a graça dele: revista impressa não vem em cinco cores de capa.
+   */
+  hue: Hue;
+  setHue: (hue: Hue) => void;
   /** Falso enquanto a gaveta ainda não respondeu. */
   ready: boolean;
 };
+
+const HUES: Hue[] = ['verde', 'azul', 'ambar', 'terracota', 'lavanda'];
 
 const AppearanceContext = createContext<Appearance | null>(null);
 
 export function AppearanceProvider({ children }: { children: ReactNode }) {
   const [skin, setState] = useState<Skin>('organico');
+  const [hue, setHueState] = useState<Hue>('verde');
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    void readMeta(KEY)
-      .then((saved) => {
+    void Promise.all([readMeta(KEY), readMeta(HUE_KEY)])
+      .then(([savedSkin, savedHue]) => {
         if (cancelled) return;
-        if (saved === 'papel' || saved === 'organico') setState(saved);
+        if (savedSkin === 'papel' || savedSkin === 'organico') setState(savedSkin);
+        if (savedHue && (HUES as string[]).includes(savedHue)) setHueState(savedHue as Hue);
       })
       // A cara é enfeite; falhar a leitura não pode impedir o aplicativo de
       // abrir. Sem resposta da gaveta, vale o padrão.
@@ -59,7 +70,15 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     void writeMeta(KEY, next).catch(() => undefined);
   }, []);
 
-  const value = useMemo(() => ({ skin, setSkin, ready }), [skin, setSkin, ready]);
+  const setHue = useCallback((next: Hue) => {
+    setHueState(next);
+    void writeMeta(HUE_KEY, next).catch(() => undefined);
+  }, []);
+
+  const value = useMemo(
+    () => ({ skin, setSkin, hue, setHue, ready }),
+    [skin, setSkin, hue, setHue, ready],
+  );
   return <AppearanceContext.Provider value={value}>{children}</AppearanceContext.Provider>;
 }
 
@@ -75,6 +94,8 @@ export function useAppearance(): Appearance {
     useContext(AppearanceContext) ?? {
       skin: 'organico',
       setSkin: () => undefined,
+      hue: 'verde',
+      setHue: () => undefined,
       ready: true,
     }
   );
