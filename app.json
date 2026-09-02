@@ -3,7 +3,7 @@
     "name": "NORVA",
     "slug": "norva",
     "scheme": "norva",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
