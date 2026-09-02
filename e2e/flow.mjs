@@ -727,6 +727,44 @@ check('an item can leave circulation without leaving history', async (page) => {
   assert.doesNotMatch(await screen(page), /Glucose/, 'gone from the picker');
 });
 
+check('two weeks can be planted from Ajustes, and the briefing changes because of it', async (page) => {
+  // A capa de uma instalação virgem não tem com o que comparar, e diz isso.
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  assert.match(await screen(page), /nenhuma mudança de preço registrada/);
+
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const ajustes = await screen(page);
+  assert.match(ajustes, /Plantar duas semanas de movimento/);
+  // A confirmação diz o que vai escrever antes de escrever.
+  assert.match(ajustes, /o livro-razão fica com esses lançamentos/);
+
+  await page.getByText('Plantar', { exact: true }).first().click();
+  await page.waitForTimeout(800);
+  await page.getByText('Plantar', { exact: true }).last().click();
+  await page.waitForTimeout(9000);
+
+  // E o resultado é dito em números, não em "pronto".
+  const feito = await screen(page);
+  assert.match(feito, /corridas/, 'o resumo conta o que foi escrito');
+
+  await page.getByText('Entendi', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  // Agora a capa tem passado: o custo mexeu em algum momento das duas semanas,
+  // então a linha de estabilidade some ou passa a contar dias.
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(3000);
+  const capa = await screen(page);
+  assert.doesNotMatch(
+    capa,
+    /nenhuma mudança de preço registrada/,
+    'catorze dias de notas moveram o custo pelo menos uma vez',
+  );
+});
+
 check('erasing refuses in an order, and explains the way out', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

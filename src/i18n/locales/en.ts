@@ -161,6 +161,13 @@ export const en: Dictionary = {
       exampleEmpty:
         'It is empty. If you want to see the app working before entering your own, you can bring the example back.',
       restore: 'Restore the example data',
+      simulate: 'Plant two weeks of movement',
+      simulateTitle: 'Fill the app with two weeks?',
+      simulateBody:
+        'Writes fourteen days of factory on top of what is already there: production most days, deliveries to the store, and invoices with the price moving. It is for seeing the screens with movement — the ledger keeps these entries, and erasing everything is still in Settings.',
+      simulateConfirm: 'Plant',
+      simulateDone: 'Done: {{runs}} runs, {{deliveries}} deliveries and {{invoices}} invoices.',
+      failedToSimulate: 'Could not plant the movement',
       restoreTitle: 'Bring the example back?',
       restoreBody:
         'Puts back the demonstration inputs, recipe and product, with the purchases that give them their cost. Only works if it is empty.',

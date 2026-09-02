@@ -19,6 +19,7 @@ import {
   type EraseTally,
 } from '@/data/erase';
 import { hasSeeded, LOCAL_COMPANY_ID, restoreStarterData } from '@/data/seed';
+import { simulateFortnight } from '@/data/simulate';
 import { useQuery } from '@/data/useQuery';
 import { fill, joinList, plural } from '@/i18n';
 import type { Dictionary } from '@/i18n';
@@ -104,7 +105,7 @@ function sayTally(area: EraseArea, tally: EraseTally, t: Dictionary): string {
 
 function Settings() {
   const { color, type, space } = useTheme();
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const confirm = useConfirm();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -183,6 +184,54 @@ function Settings() {
     } catch (e) {
       await confirm({
         title: t.app.settings.failedToRestore,
+        message: e instanceof Error ? e.message : String(e),
+        acknowledge: true,
+        confirmLabel: t.app.confirm.understood,
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * Encher o app com movimento, para poder olhar as telas.
+   *
+   * O exemplo que vem de fábrica tem um dia de idade e nunca se moveu: prova
+   * que a tela desenha, não que ela diz alguma coisa. Metade do briefing só
+   * tem o que dizer quando existe passado - "saíram 480 hoje, 200 a mais que na
+   * segunda passada" precisa de uma segunda passada.
+   *
+   * A confirmação diz o que vai ser escrito, como toda escrita deste app, e diz
+   * também que o livro-razão fica com esses lançamentos: é dado de verdade num
+   * banco de verdade, não um modo de demonstração que some ao fechar.
+   */
+  const onSimulate = async () => {
+    if (busy) return;
+
+    const go = await confirm({
+      title: t.app.settings.simulateTitle,
+      message: t.app.settings.simulateBody,
+      confirmLabel: t.app.settings.simulateConfirm,
+    });
+    if (!go) return;
+
+    setBusy(true);
+    try {
+      const feito = await simulateFortnight(LOCAL_COMPANY_ID, { timeZone: locale.timeZone });
+      refresh();
+      await confirm({
+        title: t.app.settings.simulateConfirm,
+        message: fill(t.app.settings.simulateDone, {
+          runs: String(feito.runs),
+          deliveries: String(feito.deliveries),
+          invoices: String(feito.invoices),
+        }),
+        acknowledge: true,
+        confirmLabel: t.app.confirm.understood,
+      });
+    } catch (e) {
+      await confirm({
+        title: t.app.settings.failedToSimulate,
         message: e instanceof Error ? e.message : String(e),
         acknowledge: true,
         confirmLabel: t.app.confirm.understood,
@@ -310,6 +359,31 @@ function Settings() {
           >
             <Text style={[type.body, { color: color.inkMuted, fontWeight: '600' }]}>
               {t.app.settings.restore}
+            </Text>
+          </Pressable>
+        </Card>
+      ) : null}
+
+      {/* Ver o app com movimento, em vez do exemplo de um dia.
+          Fica embaixo do que apaga e do que restaura, porque é da mesma
+          família: mexe no que está guardado, e diz antes o que vai fazer. */}
+      {total > 0 && !loading ? (
+        <Card>
+          <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.settings.simulate}</Text>
+          <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
+            {t.app.settings.simulateBody}
+          </Text>
+          <Pressable
+            onPress={() => void onSimulate()}
+            disabled={busy}
+            accessibilityRole="button"
+            style={[
+              styles.destructive,
+              { borderColor: color.lineStrong, marginTop: space.md, paddingVertical: space.md },
+            ]}
+          >
+            <Text style={[type.body, { color: color.inkMuted, fontWeight: '600' }]}>
+              {t.app.settings.simulateConfirm}
             </Text>
           </Pressable>
         </Card>

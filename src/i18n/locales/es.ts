@@ -166,6 +166,13 @@ export const es: Dictionary = {
       exampleEmpty:
         'Está vacío. Si quieres ver la aplicación funcionando antes de cargar lo tuyo, puedes traer el ejemplo de vuelta.',
       restore: 'Restaurar datos de ejemplo',
+      simulate: 'Sembrar dos semanas de movimiento',
+      simulateTitle: '¿Llenar la app con dos semanas?',
+      simulateBody:
+        'Escribe catorce días de fábrica sobre lo que ya existe: producción casi todos los días, entregas a la tienda y facturas con el precio variando. Sirve para ver las pantallas con movimiento — el libro mayor se queda con esos asientos, y borrar todo sigue estando en Ajustes.',
+      simulateConfirm: 'Sembrar',
+      simulateDone: 'Listo: {{runs}} corridas, {{deliveries}} entregas y {{invoices}} facturas.',
+      failedToSimulate: 'No se pudo sembrar el movimiento',
       restoreTitle: '¿Traer el ejemplo de vuelta?',
       restoreBody:
         'Repone los insumos, la receta y el producto de demostración, con las compras que les dan su costo. Solo funciona si está vacío.',

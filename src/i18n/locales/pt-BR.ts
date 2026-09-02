@@ -180,6 +180,13 @@ export const ptBR = {
       exampleEmpty:
         'Está vazio. Se quiser ver o aplicativo funcionando antes de cadastrar o seu, dá para trazer o exemplo de volta.',
       restore: 'Restaurar dados de exemplo',
+      simulate: 'Plantar duas semanas de movimento',
+      simulateTitle: 'Encher o app com duas semanas?',
+      simulateBody:
+        'Escreve catorze dias de fábrica em cima do que já existe: produção quase todo dia, entregas para a loja, e notas de compra com o preço variando. Serve para ver as telas com movimento — o livro-razão fica com esses lançamentos, e apagar tudo continua sendo em Ajustes.',
+      simulateConfirm: 'Plantar',
+      simulateDone: 'Pronto: {{runs}} corridas, {{deliveries}} entregas e {{invoices}} notas.',
+      failedToSimulate: 'Não deu para plantar o movimento',
       restoreTitle: 'Trazer o exemplo de volta?',
       restoreBody:
         'Recoloca os insumos, a receita e o produto de demonstração, com as compras que dão o custo a eles. Só funciona se estiver vazio.',
