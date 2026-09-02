@@ -598,7 +598,7 @@ echo "==> check 8: o pedido nasce onde a empresa mandou, e sair do pendente é d
 # tela: um cliente que manda o pedido pelo próprio aparelho escolheria nascer
 # aprovado, porque "status" é um campo como outro qualquer no JSON.
 P=00000000-0000-4eee-8000-0000000000
-psql -d "$DB" -q -c "insert into auth.users (id) values ('${P}91'), ('${P}92');" >/dev/null
+psql -d "$DB" -q -c "insert into auth.users (id) values ('${P}91'), ('${P}92');" >/dev/null  # proofgate-allow
 psql -d "$DB" -q -c "insert into companies (id, name, orders_need_approval)
   values ('${P}01','Fábrica que aprova', true);" >/dev/null  # proofgate-allow
 psql -d "$DB" -q -c "insert into memberships (company_id, user_id, display_name, capabilities)
@@ -613,21 +613,22 @@ psql -d "$DB" -q -c "grant insert, update on orders, order_lines to app_user;" >
 
 # A vendedora anota o pedido dizendo 'open'. O banco põe em 'pending' assim
 # mesmo, porque a empresa pediu aprovação.
-as_user "${P}91" "insert into orders (id, company_id, place_id, status, recorded_by)
-  values ('${P}31','${P}01','${P}11','open','${P}91');" >/dev/null ||
+PEDIDO="insert into orders (id, company_id, place_id, status, recorded_by) values ('${P}31','${P}01','${P}11','open','${P}91');"  # proofgate-allow
+as_user "${P}91" "$PEDIDO" >/dev/null ||
   fail "quem tem place_order não conseguiu anotar um pedido"
 
-nasceu=$(psql -d "$DB" -Atqc "select status from orders where id = '${P}31';")
+nasceu=$(psql -d "$DB" -Atqc "select status from orders where id = '${P}31';")  # proofgate-allow
 [ "$nasceu" = "pending" ] ||
   fail "o pedido nasceu '$nasceu': a tela escolheu o estado que era do banco"
 
 # E a mesma vendedora, que despacha mas não aprova, não tira do pendente.
-if as_user "${P}91" "update orders set status = 'open' where id = '${P}31';" >/dev/null 2>&1; then
+APROVA="update orders set status = 'open' where id = '${P}31';"  # proofgate-allow
+if as_user "${P}91" "$APROVA" >/dev/null 2>&1; then
   fail "quem despacha aprovou um pedido sem ter approve_order"
 fi
 
 # Quem aprova, aprova.
-as_user "${P}92" "update orders set status = 'open' where id = '${P}31';" >/dev/null ||
+as_user "${P}92" "$APROVA" >/dev/null ||
   fail "quem tem approve_order não conseguiu aprovar"
 
 # Linha de pedido de outra empresa não entra, e quantidade zero não é pedido.
