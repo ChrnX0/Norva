@@ -28,6 +28,31 @@ import { spawnSync } from 'node:child_process';
 /** @type {{file: string, from: string, to: string, hurts: string}[]} */
 const DEFECTS = [
   {
+    file: 'src/data/repository.ts',
+    from: "        AND o.status IN ('pending', 'open')",
+    to: "        AND o.status IN ('pending', 'open', 'delivered')",
+    hurts: 'pedido entregue continua contando como demanda, e a fabrica produz de novo o que ja saiu pela porta',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: "  const status: OrderStatus = (await ordersNeedApproval()) ? 'pending' : 'open';",
+    to: "  const status: OrderStatus = 'open';",
+    hurts: 'a fabrica que exige aprovacao passa a gravar pedido ja valendo, e a aprovacao que ela ligou vira decoracao',
+  },
+  {
+    file: 'src/domain/day.ts',
+    from: '  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);',
+    to: '  return dayWindow(atIso, timeZone, days).from.slice(0, 10);',
+    hurts: 'a data combinada volta a sair do instante, e o pedido de quinta aparece como quarta em todo fuso positivo',
+  },
+  {
+    file: 'src/i18n/index.ts',
+    from: "  const nowhereToPutIt = !variants.one.includes('{{n}}') && !variants.other.includes('{{n}}');",
+    to: '  const nowhereToPutIt = false;',
+    hurts: 'o numero some da frase que nao tem onde recebe-lo, e o cartao anuncia uma falta sem dizer de quanto',
+  },
+
+  {
     file: 'src/assistant/skills.ts',
     from: '    const batches = declarados ?? (porTacho > 0 ? units / porTacho : 0);',
     to: '    const batches = declarados ?? 1;',
