@@ -130,6 +130,16 @@ export const es: Dictionary = {
       },
     },
 
+    lotLabel: {
+      title: 'Etiqueta del lote',
+      overline: 'para pegar en la caja',
+      madeOn: 'producido el {{date}}',
+      validUntil: 'válido hasta {{date}}',
+      noExpiry: 'no caduca',
+      gone: 'Ese lote ya no está aquí.',
+      why: 'El código aparece dos veces a propósito: cuando la etiqueta se congela o se despega, alguien escribe los once caracteres y la verificación sigue.',
+    },
+
     losses: {
       title: 'Pérdidas',
       window: 'Últimos 30 días',

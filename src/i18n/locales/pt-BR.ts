@@ -148,6 +148,16 @@ export const ptBR = {
       },
     },
 
+    lotLabel: {
+      title: 'Etiqueta do lote',
+      overline: 'para colar na caixa',
+      madeOn: 'produzido em {{date}}',
+      validUntil: 'válido até {{date}}',
+      noExpiry: 'não vence',
+      gone: 'Esse lote não está mais aqui.',
+      why: 'O código aparece duas vezes de propósito: quando a etiqueta congela ou descasca, alguém digita os onze caracteres e a conferência segue.',
+    },
+
     losses: {
       title: 'Perdas',
       window: 'Últimos 30 dias',

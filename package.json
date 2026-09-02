@@ -27,6 +27,7 @@
     "expo-sqlite": "~57.0.2",
     "expo-status-bar": "~57.0.1",
     "expo-updates": "~57.0.19",
+    "qrcode": "^1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.4.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "^57.0.9",
     "eslint": "^9.0.0",

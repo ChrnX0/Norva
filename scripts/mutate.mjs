@@ -28,6 +28,21 @@ import { spawnSync } from 'node:child_process';
 /** @type {{file: string, from: string, to: string, hurts: string}[]} */
 const DEFECTS = [
   {
+    file: 'src/domain/qr.ts',
+    from: "  const code = create(text, { errorCorrectionLevel: 'M' });",
+    to: "  const code = create(text, { errorCorrectionLevel: 'H' });",
+    hurts:
+      'o QR cresce de grade sem ninguem pedir, o modulo encolhe na etiqueta e a leitura a um braco de distancia para de funcionar no frio',
+  },
+  {
+    file: 'src/components/QrCode.tsx',
+    from: '    const quiet = 4;',
+    to: '    const quiet = 0;',
+    hurts:
+      'a zona de silencio do QR some, o papelao da caixa encosta no codigo e o leitor desiste de ler',
+  },
+
+  {
     file: 'src/data/repository.ts',
     from: "    await write(productionId, 'production', product.itemId, input.unitsProduced, unitCostRate, lotId);",
     to: "    await write(productionId, 'production', product.itemId, input.unitsProduced, unitCostRate, null);",

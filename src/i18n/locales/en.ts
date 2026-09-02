@@ -125,6 +125,16 @@ export const en: Dictionary = {
       },
     },
 
+    lotLabel: {
+      title: 'Lot label',
+      overline: 'to stick on the box',
+      madeOn: 'made on {{date}}',
+      validUntil: 'good until {{date}}',
+      noExpiry: 'does not expire',
+      gone: 'That lot is not here any more.',
+      why: 'The code appears twice on purpose: when the label freezes or peels, somebody types the eleven characters and the check goes on.',
+    },
+
     losses: {
       title: 'Losses',
       window: 'Last 30 days',

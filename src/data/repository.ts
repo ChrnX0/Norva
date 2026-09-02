@@ -2106,6 +2106,8 @@ export type LotOfDay = {
   name: string;
   baseUnits: number;
   expiresOn: string | null;
+  /** O dia em que a corrida aconteceu. Nulo só em lote vindo de importação. */
+  producedOn?: string | null;
 };
 
 /**
@@ -2154,6 +2156,44 @@ export async function lotsOn(
     baseUnits: r.total,
     expiresOn: r.expires_on,
   }));
+}
+
+/**
+ * Um lote, com tudo o que a etiqueta dele precisa dizer.
+ *
+ * Devolve nulo quando o lote não existe - e não lança. Etiqueta se abre por
+ * link, e link envelhece: alguém guarda o endereço, o dado é apagado, e a tela
+ * tem que saber dizer "esse lote não está mais aqui" em vez de quebrar.
+ */
+export async function findLot(companyId: string, lotId: string): Promise<LotOfDay | null> {
+  const conn = await db();
+  const row = await conn.getFirstAsync<{
+    id: string;
+    code: string;
+    name: string;
+    total: number;
+    expires_on: string | null;
+    produced_on: string | null;
+  }>(
+    `SELECT l.id, l.code, i.name, l.expires_on, l.produced_on,
+            COALESCE(SUM(m.quantity_base_units), 0) AS total
+       FROM lots l
+       JOIN items i ON i.id = l.item_id
+       LEFT JOIN movements m ON m.lot_id = l.id AND m.kind = 'production'
+      WHERE l.company_id = ? AND l.id = ?
+      GROUP BY l.id, l.code, i.name, l.expires_on, l.produced_on`,
+    [companyId, lotId],
+  );
+
+  if (!row) return null;
+  return {
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    baseUnits: row.total,
+    expiresOn: row.expires_on,
+    producedOn: row.produced_on,
+  };
 }
 
 /** One destination's share of a day: who received it, and what. */

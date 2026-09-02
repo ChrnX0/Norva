@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { Touchable } from '@/components/Touchable';
 import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import {
@@ -135,24 +136,39 @@ function ProductionDay() {
           <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.production.lotsToday}</Text>
           <View style={{ marginTop: space.md, gap: space.sm }}>
             {(data?.lots ?? []).map((lot) => (
-              <View key={lot.id} style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[type.body, styles.number, { color: color.ink }]} numberOfLines={1}>
-                    {lot.code}
-                  </Text>
-                  <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={1}>
-                    {lot.name} ·{' '}
-                    {lot.expiresOn
-                      ? fill(t.app.production.lotValid, {
-                          date: formatCalendarDate(lot.expiresOn, locale),
-                        })
-                      : t.app.production.lotNoExpiry}
+              // Toca o lote e a etiqueta abre. É o caminho de quem está com a
+              // caixa na mão e precisa do quadrado para colar nela.
+              <Touchable
+                key={lot.id}
+                onPress={() => router.push(`/lots/${lot.id}`)}
+                accessibilityLabel={`${t.app.lotLabel.title}: ${lot.code}`}
+              >
+                <View style={styles.row}>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={[type.body, styles.number, { color: color.ink }]}
+                      numberOfLines={1}
+                    >
+                      {lot.code}
+                    </Text>
+                    <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={1}>
+                      {lot.name} ·{' '}
+                      {lot.expiresOn
+                        ? fill(t.app.production.lotValid, {
+                            date: formatCalendarDate(lot.expiresOn, locale),
+                          })
+                        : t.app.production.lotNoExpiry}
+                    </Text>
+                  </View>
+                  <Text style={[type.body, styles.number, { color: color.ink }]}>
+                    {plural(
+                      lot.baseUnits,
+                      t.app.production.unitCount,
+                      formatQuantity(lot.baseUnits, locale),
+                    )}
                   </Text>
                 </View>
-                <Text style={[type.body, styles.number, { color: color.ink }]}>
-                  {plural(lot.baseUnits, t.app.production.unitCount, formatQuantity(lot.baseUnits, locale))}
-                </Text>
-              </View>
+              </Touchable>
             ))}
           </View>
         </Card>

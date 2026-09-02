@@ -505,7 +505,25 @@ check('what came out today reaches the briefing, with what it was to compare', a
   // derrubou - ela não conseguia mais alcançar a barra de abas.
   const aba = await screen(page);
   assert.match(aba, /Lotes de hoje/, 'a aba do dia mostra os lotes que nasceram');
-  assert.match(aba, /\d{8}-\d\d/, 'com o código no formato AAAAMMDD-NN');
+  const codigo = aba.match(/\d{8}-\d\d/);
+  assert.ok(codigo, 'com o código no formato AAAAMMDD-NN');
+
+  // E o lote abre a etiqueta, que é a razão de ele existir: o quadrado que vai
+  // colado na caixa. Esta checagem também é a única que prova que o codificador
+  // de QR sobrevive ao empacotamento - ele é o primeiro pedaço de biblioteca de
+  // terceiros que este app desenha na tela.
+  await page.getByText(codigo[0], { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  const etiqueta = await screen(page);
+  assert.match(etiqueta, /Etiqueta do lote/, 'a etiqueta abre pelo toque no lote');
+  assert.match(etiqueta, new RegExp(codigo[0]), 'e carrega o código por extenso');
+  assert.match(etiqueta, /produzido em/, 'com o dia da corrida');
+  const quadrados = await page.locator('svg path').count();
+  assert.ok(quadrados > 0, 'e o QR está desenhado, não é um espaço vazio');
+
+  await page.goBack();
+  await page.waitForTimeout(1800);
 
   await page.getByRole('tab', { name: 'Início' }).click();
   await page.waitForTimeout(2500);

@@ -7,6 +7,7 @@ import { costRecipe } from '@/domain/recipe';
 import { __setDb, migrate, migrationSteps, nowIso, type Db, type SqlParam } from './db';
 import {
   balanceByLocation,
+  findLot,
   lastSentBaseUnits,
   recordProduction,
   runningOut,
@@ -1219,6 +1220,32 @@ test("the day's lots are listed by code, with what each one yielded", async () =
     occurredAt: '2026-09-03T13:00:00.000Z',
   });
   assert.equal((await lotsOn(LOCAL_COMPANY_ID, dia.from, dia.to)).length, 1);
+});
+
+test('a lot opens by its own id, and a lot that is gone says so', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+
+  const corrida = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    batches: 1,
+    unitsProduced: 480,
+    producedOn: '2026-09-02',
+  });
+
+  const lote = await findLot(LOCAL_COMPANY_ID, corrida.lot.id);
+  assert.equal(lote?.code, corrida.lot.code);
+  assert.equal(lote?.name, product.name);
+  assert.equal(lote?.baseUnits, 480);
+  assert.equal(lote?.producedOn, '2026-09-02');
+
+  // Etiqueta se abre por link, e link envelhece: alguém guarda o endereço, o
+  // dado é apagado, e a tela precisa saber dizer isso em vez de quebrar.
+  assert.equal(await findLot(LOCAL_COMPANY_ID, 'lote-que-nao-existe'), null);
+
+  // E o lote de outra empresa não vaza por id adivinhado.
+  assert.equal(await findLot('outra-empresa', corrida.lot.id), null);
 });
 
 test('a product with no shelf life still gets a lot, without a date', async () => {
