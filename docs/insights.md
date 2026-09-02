@@ -1397,3 +1397,36 @@ em dois segundos. Ler o YAML não teria mostrado nunca.
 descreve a máquina — memória, paralelismo, timeout — o certo é a máquina
 responder, não eu. E quando o passo é shell, ele se roda antes de subir: três
 defeitos nesta sessão vieram de texto que parecia certo lido.
+
+## 2 de setembro — 7938 MB, e o passo que sai verde falhando
+
+O APK saiu: `norva-arm64.apk`, 46,5 MiB, no release `apk-0.2.0`, compilado de
+`4634c48` em 27 minutos. Três coisas que o log dessa execução ensinou.
+
+**O número era 7938 MB, não 16 GB.** O passo que mede imprimiu `nproc` = 2 e
+`Mem: 7.8Gi`. Ou seja: o `-Xmx6g` que eu tinha escrito pedia **76% da RAM da
+máquina inteira** para uma JVM só, com o Kotlin, o R8 e o aapt2 ainda por vir. O
+comentário que eu li dizia 16 GB e estava errado desde antes de mim — runner de
+repositório privado é 2 núcleos e 7,75 GB. Medir custou uma linha de shell;
+acreditar custou uma execução de 35 minutos e um runner morto.
+
+**E o caché continuou não gravando — por outro motivo, com outro disfarce.**
+Desta vez o passo rodou, e o log diz `zstd: error 70 : Write error : cannot
+write block : No space left on device`. O `actions/cache/save` **não falha
+quando não consegue gravar**: ele emite `##[warning]` e sai verde. O job inteiro
+aparece bem-sucedido, o passo do caché aparece bem-sucedido, e o caché não
+existe. Se eu tivesse olhado só a bolinha verde teria dito ao dono que a próxima
+compilação seria rápida — pela terceira vez a mesma promessa, e pela terceira
+vez falsa.
+
+É a Lei da Inteligência do lado de dentro: **erro se impede, não se reclama** —
+e um passo que "reclama e passa" é pior que um que falha, porque ensina a
+confiar na cor. O conserto é abrir espaço antes (o runner traz .NET, Swift, GHC
+e CodeQL que não compilam APK nenhum), mas a lição que fica é de leitura: em CI,
+verde é convite para ler o log, não substituto.
+
+**O padrão que aparece nas três execuções.** Toda vez a causa real estava a uma
+linha de distância no log, e toda vez o resumo do GitHub dizia outra coisa:
+`cancelled` para falta de Metaspace, `failure` para a máquina morrendo,
+`success` para um caché que não gravou. O que o painel mostra é o desfecho, e
+desfecho não é causa.
