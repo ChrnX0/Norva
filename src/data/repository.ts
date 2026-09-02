@@ -557,7 +557,7 @@ export async function stockByPlace(companyId: string): Promise<PlaceStock[]> {
        JOIN items i ON i.id = m.item_id
        LEFT JOIN item_costs c ON c.item_id = m.item_id
       WHERE m.company_id = ?
-      GROUP BY m.location_id, l.name, l.kind, m.item_id, i.name, i.base_unit, c.average_rate
+      GROUP BY m.location_id, l.name, l.kind, m.item_id, i.name, i.packaging, i.base_unit, c.average_rate
      HAVING SUM(m.quantity_base_units) <> 0
       ORDER BY l.kind, l.name, i.name`,
     [companyId],
@@ -1422,7 +1422,13 @@ export type Shipment = {
   locationName: string;
   /** Mesmo tipo que `Place.kind`: texto, como o resto do repositório o trata. */
   kind: string;
-  items: { itemId: string; name: string; baseUnits: number }[];
+  /**
+   * A embalagem vem junto porque toda tela que mostra isto precisa dizer a
+   * quantidade na unidade que a pessoa manuseia - e porque é a única forma
+   * honesta de saber quais itens TÊM caixa. Fato, não frase: a conversão em
+   * palavras continua sendo da tela.
+   */
+  items: { itemId: string; name: string; baseUnits: number; packaging: PackagingHierarchy }[];
 };
 
 /**
@@ -1452,10 +1458,12 @@ export async function shipmentsOn(
     kind: string;
     item_id: string;
     item_name: string;
+    packaging: string;
     total: number;
   }>(
     `SELECT m.location_id, l.name AS location_name, l.kind,
-            m.item_id, i.name AS item_name, SUM(m.quantity_base_units) AS total
+            m.item_id, i.name AS item_name, i.packaging,
+            SUM(m.quantity_base_units) AS total
        FROM movements m
        JOIN locations l ON l.id = m.location_id
        JOIN items i ON i.id = m.item_id
@@ -1464,7 +1472,7 @@ export async function shipmentsOn(
         AND m.quantity_base_units > 0
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
-      GROUP BY m.location_id, l.name, l.kind, m.item_id, i.name
+      GROUP BY m.location_id, l.name, l.kind, m.item_id, i.name, i.packaging
       HAVING total > 0
       ORDER BY l.name, total DESC`,
     [companyId, fromIso, toIso],
@@ -1478,7 +1486,12 @@ export async function shipmentsOn(
       kind: r.kind,
       items: [],
     };
-    place.items.push({ itemId: r.item_id, name: r.item_name, baseUnits: r.total });
+    place.items.push({
+      itemId: r.item_id,
+      name: r.item_name,
+      baseUnits: r.total,
+      packaging: parsePackaging(r.packaging),
+    });
     byPlace.set(r.location_id, place);
   }
 

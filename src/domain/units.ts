@@ -83,3 +83,27 @@ export function roundUpToFullContainer(
   const addedUnits = tier.perBaseUnit - remainder;
   return { rounded: baseUnits + addedUnits, addedUnits, tier };
 }
+
+/**
+ * How many physical boxes a quantity makes, and what will not fit in one.
+ *
+ * A box is an object: eighteen boxes are eighteen things somebody stacks on a
+ * truck, whether they hold fifty popsicles or twenty-four. Summing them across
+ * items of different box sizes is therefore honest - what is NOT honest is
+ * pretending a sack of sugar is a box because the total needed a single unit.
+ *
+ * So the count only includes items that HAVE a layer above the base one, and
+ * everything else comes back untouched, in its own units, for the caller to say
+ * out loud. Hiding it in the total is the invented number this project spends
+ * its whole verification bar trying to prevent.
+ */
+export function boxesOf(
+  baseUnits: number,
+  h: PackagingHierarchy,
+): { boxes: number; loose: number } | null {
+  const above = [...h.tiers].reverse().find((t) => t.perBaseUnit > 1);
+  if (!above) return null;
+
+  const boxes = Math.floor(Math.max(0, baseUnits) / above.perBaseUnit);
+  return { boxes, loose: Math.max(0, baseUnits) - boxes * above.perBaseUnit };
+}

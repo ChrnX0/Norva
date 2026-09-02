@@ -552,6 +552,15 @@ check('what went out today lands on the transport tab, by destination', async (p
   await page.goto(`http://localhost:${PORT}/transport`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
 
+  // E a capa NÃO ganha manchete de caixa: açúcar não tem caixa, e "0 caixas"
+  // seria número falso. A aba Transporte conta a história inteira.
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  assert.doesNotMatch(await screen(page), /caixas? saíram hoje/);
+
+  await page.goto(`http://localhost:${PORT}/transport`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
   const tela = await screen(page);
   assert.match(tela, /Loja Centro/);
   assert.match(tela, /6\.000/, 'na unidade do item, não em caixas que ele não tem');

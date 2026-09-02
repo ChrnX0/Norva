@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { isValidHierarchy, type PackagingHierarchy } from './units';
+import { isValidHierarchy, type PackagingHierarchy, boxesOf } from './units';
 
 /**
  * The packaging invariant, which was written down and never run.
@@ -63,4 +63,25 @@ test('an empty hierarchy is refused rather than treated as "just units"', () => 
   // Defaulting to units here would let an item with no packaging answer
   // questions about boxes with a number that means nothing.
   assert.equal(isValidHierarchy({ tiers: [] }), false);
+});
+
+test('a box is an object, and something with no box is never counted as one', () => {
+  const comCaixa: PackagingHierarchy = {
+    tiers: [
+      { id: 'unit', perBaseUnit: 1 },
+      { id: 'box', perBaseUnit: 50 },
+      { id: 'crate', perBaseUnit: 600 },
+    ],
+  };
+  const semCaixa: PackagingHierarchy = { tiers: [{ id: 'g', perBaseUnit: 1 }] };
+
+  // A camada MAIOR é a que conta como volume: um engradado é um objeto só.
+  assert.deepEqual(boxesOf(1300, comCaixa), { boxes: 2, loose: 100 });
+
+  // E o que não tem camada acima da base não vira caixa nenhuma - devolve null
+  // para a tela dizer em grama, em vez de somar um volume que não existe.
+  assert.equal(boxesOf(6000, semCaixa), null);
+
+  // Menos que um volume: zero caixas e tudo solto, nunca "1 caixa" arredondada.
+  assert.deepEqual(boxesOf(430, comCaixa), { boxes: 0, loose: 430 });
 });

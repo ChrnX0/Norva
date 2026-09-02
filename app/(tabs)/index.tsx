@@ -14,6 +14,7 @@ import {
   loadRecipeGraph,
   productionOn,
   recentCostChanges,
+  shipmentsOn,
   type CostChange,
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
@@ -22,8 +23,9 @@ import { useQuery } from '@/data/useQuery';
 import { nowIso } from '@/data/db';
 import { ratesBefore } from '@/domain/cost';
 import { dayWindow, daysBetween } from '@/domain/day';
+import { boxesOf } from '@/domain/units';
 import { costPerProductUnit, costRecipe, explodeRequirements } from '@/domain/recipe';
-import { fill, formatMoney, formatQuantity, formatWeekday, plural } from '@/i18n';
+import { fill, formatMoney, formatPacked, formatQuantity, formatWeekday, joinList, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { palettes } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -81,6 +83,9 @@ type Summary = {
   madeToday: number;
   madeThen: number;
   everMade: boolean;
+  /** Volumes que saíram hoje, e o que saiu sem caber em volume nenhum. */
+  boxes: number;
+  loose: { name: string; said: string }[];
 };
 
 function Briefing() {
@@ -96,7 +101,7 @@ function Briefing() {
     const today = dayWindow(nowIso(), locale.timeZone);
     const then = dayWindow(nowIso(), locale.timeZone, -7);
 
-    const [products, graph, costs, names, changes, madeToday, madeThen] = await Promise.all([
+    const [products, graph, costs, names, changes, madeToday, madeThen, sent] = await Promise.all([
       listProducts(LOCAL_COMPANY_ID),
       loadRecipeGraph(LOCAL_COMPANY_ID),
       itemCosts(LOCAL_COMPANY_ID),
@@ -104,9 +109,25 @@ function Briefing() {
       recentCostChanges(LOCAL_COMPANY_ID, 4),
       productionOn(LOCAL_COMPANY_ID, today.from, today.to),
       productionOn(LOCAL_COMPANY_ID, then.from, then.to),
+      shipmentsOn(LOCAL_COMPANY_ID, today.from, today.to),
     ]);
 
     const sum = (rows: { baseUnits: number }[]) => rows.reduce((n, r) => n + r.baseUnits, 0);
+
+    // Caixa é objeto: dezoito caixas são dezoito coisas que alguém empilha no
+    // caminhão, tenham elas cinquenta picolés ou vinte e quatro. Somar isso
+    // entre itens é honesto. O que NÃO é honesto é fingir que um saco de
+    // açúcar é caixa porque o total ficava mais redondo - então o que não tem
+    // camada acima da base sai da conta e é dito por nome.
+    let boxes = 0;
+    const loose: { name: string; said: string }[] = [];
+    for (const place of sent) {
+      for (const item of place.items) {
+        const volume = boxesOf(item.baseUnits, item.packaging);
+        if (volume) boxes += volume.boxes;
+        else loose.push({ name: item.name, said: formatPacked(item.baseUnits, item.packaging, t.units, locale) });
+      }
+    }
 
     // The same products, priced twice: with today's costs and with the costs
     // as they stood before the recent invoices. The second pass is what lets a
@@ -127,6 +148,8 @@ function Briefing() {
       madeToday: sum(madeToday),
       madeThen: sum(madeThen),
       everMade: madeToday.length > 0 || madeThen.length > 0,
+      boxes,
+      loose,
       products: await Promise.all(
         products.map(async (product) => ({
           id: product.id,
@@ -182,6 +205,39 @@ function Briefing() {
           <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
             {comparison(data.madeToday, data.madeThen)}
           </Text>
+        </Card>
+      ) : null}
+
+      {/* O que saiu para as lojas hoje, em volume.
+          O cartão só existe quando há caixa de verdade: se tudo que saiu foi
+          granel, um "0 caixas" seria manchete falsa, e a aba Transporte conta a
+          história inteira de qualquer jeito. E o que não tem caixa nunca some
+          na soma - aparece pelo nome, embaixo. */}
+      {data && data.boxes > 0 ? (
+        <Card>
+          <CountUp
+            value={data.boxes}
+            format={(v) => formatQuantity(Math.round(v), locale)}
+            style={{ ...type.figure, color: color.ink }}
+          />
+          <Text style={[type.secondary, { color: color.inkMuted }]}>
+            {plural(data.boxes, t.app.home.boxCount)} {t.app.home.boxesSent}
+          </Text>
+          {data.loose.length > 0 ? (
+            <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
+              {fill(t.app.home.alsoSent, {
+                items: joinList(
+                  data.loose.map((l) =>
+                    fill(t.app.home.alsoSentItem, {
+                      amount: l.said,
+                      name: l.name.toLocaleLowerCase(locale.formatting),
+                    }),
+                  ),
+                  t.common.and,
+                ),
+              })}
+            </Text>
+          ) : null}
         </Card>
       ) : null}
 
