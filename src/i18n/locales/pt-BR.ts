@@ -76,6 +76,12 @@ export const ptBR = {
     home: {
       overline: 'hoje na fábrica',
       each: 'cada um',
+      producedToday: 'saíram hoje',
+      producedSame: 'mesmo que {{day}}',
+      producedMore: '{{amount}} a mais que {{day}}',
+      producedLess: '{{amount}} a menos que {{day}}',
+      producedFirst: 'primeira produção registrada',
+      lastWeekday: 'na semana passada',
       why: 'por quê?',
       record: 'Lançar produção',
       unitCost: 'custo por unidade · calculado da receita e das notas de compra',

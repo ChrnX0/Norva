@@ -344,6 +344,34 @@ check('the briefing is up to date when you tap Back into it', async (page) => {
   assert.doesNotMatch(after, /Nada mudou de preço/, 'it must not still say nothing moved');
 });
 
+check('what came out today reaches the briefing, with what it was to compare', async (page) => {
+  // A primeira consulta com recorte de data deste repositório, vista da tela.
+  // Numa instalação virgem nada foi produzido, e a Lei 7 diz que isso é estado
+  // válido: o cartão nem aparece, em vez de mostrar um zero decorativo.
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  assert.doesNotMatch(await screen(page), /saíram hoje/, 'nada produzido, nada a dizer');
+
+  // Produz, e volta pela aba - o caminho de verdade.
+  await page.getByRole('tab', { name: 'Produção' }).click();
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Quantas unidades/).fill('480');
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar produção', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.getByRole('tab', { name: 'Início' }).click();
+  await page.waitForTimeout(2500);
+
+  const briefing = await screen(page);
+  assert.match(briefing, /480/, 'o que saiu do tacho aparece na capa');
+  assert.match(briefing, /unidades saíram hoje/);
+  // E nunca sozinho: sem semana passada com que comparar, a tela diz isso.
+  assert.match(briefing, /primeira produção registrada/);
+});
+
 check('production pre-fills what the sheet promises, and records what happened', async (page) => {
   await page.goto(`http://localhost:${PORT}/production`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

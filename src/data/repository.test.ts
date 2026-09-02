@@ -8,6 +8,7 @@ import {
   balanceByLocation,
   lastSentBaseUnits,
   recordProduction,
+  productionOn,
   savePlace,
   stockByPlace,
   recordTransfer,
@@ -714,6 +715,81 @@ test('the balance splits by place, and the company total does not move', async (
     after?.onHandBaseUnits,
     'the places add up to the company - that is what makes both queries one arithmetic',
   );
+});
+
+test('the day a run belongs to is when it happened, not when the phone told the server', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const where = defaultLocationId(LOCAL_COMPANY_ID);
+
+  // Uma corrida às 23h50 de segunda, sincronizada só na terça de manhã. É o
+  // caso normal de uma fábrica: a câmara fria é uma caixa de metal, o sinal
+  // volta quando alguém sai de lá.
+  const segundaTarde = '2026-08-31T23:50:00.000Z';
+  const tercaCedo = '2026-09-01T08:00:00.000Z';
+
+  await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: where,
+    batches: 1,
+    unitsProduced: 400,
+    occurredAt: segundaTarde,
+  });
+  await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: where,
+    batches: 1,
+    unitsProduced: 500,
+    occurredAt: tercaCedo,
+  });
+
+  const segunda = await productionOn(
+    LOCAL_COMPANY_ID,
+    '2026-08-31T00:00:00.000Z',
+    '2026-09-01T00:00:00.000Z',
+  );
+  const terca = await productionOn(
+    LOCAL_COMPANY_ID,
+    '2026-09-01T00:00:00.000Z',
+    '2026-09-02T00:00:00.000Z',
+  );
+
+  // Se a consulta filtrasse por `recorded_at` - que é agora, para as duas -
+  // segunda teria zero e terça teria 900. O dado da capa da home diria que a
+  // fábrica não produziu nada na segunda.
+  assert.equal(segunda.find((r) => r.itemId === product.itemId)?.baseUnits, 400);
+  assert.equal(terca.find((r) => r.itemId === product.itemId)?.baseUnits, 500);
+});
+
+test('a run exactly at midnight is counted once, not twice', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+
+  const meiaNoite = '2026-09-01T00:00:00.000Z';
+  await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    batches: 1,
+    unitsProduced: 300,
+    occurredAt: meiaNoite,
+  });
+
+  const ontem = await productionOn(
+    LOCAL_COMPANY_ID,
+    '2026-08-31T00:00:00.000Z',
+    '2026-09-01T00:00:00.000Z',
+  );
+  const hoje = await productionOn(
+    LOCAL_COMPANY_ID,
+    '2026-09-01T00:00:00.000Z',
+    '2026-09-02T00:00:00.000Z',
+  );
+
+  // A janela é meio-aberta: começa incluindo, termina excluindo. Com as duas
+  // pontas fechadas, este movimento apareceria nos dois dias, e quem comparasse
+  // hoje com ontem veria um número que ninguém produziu.
+  assert.equal(ontem.find((r) => r.itemId === product.itemId), undefined);
+  assert.equal(hoje.find((r) => r.itemId === product.itemId)?.baseUnits, 300);
 });
 
 test('what the ledger stores is whole base units, because the column is an integer', async () => {

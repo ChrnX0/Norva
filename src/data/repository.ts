@@ -1366,6 +1366,56 @@ export async function recentCostChanges(companyId: string, limit = 5): Promise<C
   }));
 }
 
+/** What a product put out inside a window, in base units. */
+export type ProducedInWindow = {
+  itemId: string;
+  name: string;
+  baseUnits: number;
+};
+
+/**
+ * What came out of the kettle between two instants.
+ *
+ * The first query in this repository with a date window, and the reason it
+ * arrives so late is worth writing down: `occurred_at` appears nine times in
+ * this file and, until now, never once in a WHERE. The briefing could say what
+ * a unit costs but not what today made.
+ *
+ * The window is filtered on `occurred_at` and NEVER on `recorded_at`, and the
+ * two are different facts on purpose. A run entered offline at 23h50 and
+ * synced at 01h belongs to the day it happened, not to the day the phone found
+ * signal. Sorting the ledger by when the server heard about it is how a factory
+ * ends up with a Monday that produced nothing and a Tuesday that produced
+ * double.
+ *
+ * Half-open on purpose: `from` is included, `to` is not. Two consecutive days
+ * asked back to back then cover every movement exactly once - with both ends
+ * closed, a run at exactly midnight would be counted twice, and the person
+ * comparing today against yesterday would see a number nobody produced.
+ */
+export async function productionOn(
+  companyId: string,
+  fromIso: string,
+  toIso: string,
+): Promise<ProducedInWindow[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{ item_id: string; name: string; total: number }>(
+    `SELECT m.item_id, i.name, SUM(m.quantity_base_units) AS total
+       FROM movements m
+       JOIN items i ON i.id = m.item_id
+      WHERE m.company_id = ?
+        AND m.kind = 'production'
+        AND m.occurred_at >= ?
+        AND m.occurred_at < ?
+      GROUP BY m.item_id, i.name
+      HAVING total > 0
+      ORDER BY total DESC`,
+    [companyId, fromIso, toIso],
+  );
+
+  return rows.map((r) => ({ itemId: r.item_id, name: r.name, baseUnits: r.total }));
+}
+
 // --- erasing -----------------------------------------------------------------
 
 /**

@@ -11,6 +11,7 @@ import {
   labels as loadLabels,
   listProducts,
   loadRecipeGraph,
+  productionOn,
   recentCostChanges,
   type CostChange,
 } from '@/data/repository';
@@ -19,8 +20,9 @@ import { brand } from '@/config/brand';
 import { useQuery } from '@/data/useQuery';
 import { nowIso } from '@/data/db';
 import { ratesBefore } from '@/domain/cost';
+import { dayWindow } from '@/domain/day';
 import { costPerProductUnit, costRecipe } from '@/domain/recipe';
-import { fill, formatMoney, formatWeekday } from '@/i18n';
+import { fill, formatMoney, formatQuantity, formatWeekday, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { palettes } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -69,7 +71,14 @@ type ProductCost = {
   unitCentsBefore: number | null;
 };
 
-type Summary = { products: ProductCost[]; changes: CostChange[] };
+type Summary = {
+  products: ProductCost[];
+  changes: CostChange[];
+  /** Units out of the kettle today, and on the same weekday a week back. */
+  madeToday: number;
+  madeThen: number;
+  everMade: boolean;
+};
 
 function Briefing() {
   const { color, scheme, type, space, radius } = useTheme();
@@ -78,13 +87,23 @@ function Briefing() {
   const palette = palettes[scheme];
 
   const { data, loading } = useQuery<Summary | null>(async () => {
-    const [products, graph, costs, names, changes] = await Promise.all([
+    // The factory's day, not the phone's last 24 hours - and the comparison is
+    // the same weekday a week back, because a Monday and a Saturday are
+    // different businesses and comparing them teaches nothing.
+    const today = dayWindow(nowIso(), locale.timeZone);
+    const then = dayWindow(nowIso(), locale.timeZone, -7);
+
+    const [products, graph, costs, names, changes, madeToday, madeThen] = await Promise.all([
       listProducts(LOCAL_COMPANY_ID),
       loadRecipeGraph(LOCAL_COMPANY_ID),
       itemCosts(LOCAL_COMPANY_ID),
       loadLabels(LOCAL_COMPANY_ID),
       recentCostChanges(LOCAL_COMPANY_ID, 4),
+      productionOn(LOCAL_COMPANY_ID, today.from, today.to),
+      productionOn(LOCAL_COMPANY_ID, then.from, then.to),
     ]);
+
+    const sum = (rows: { baseUnits: number }[]) => rows.reduce((n, r) => n + r.baseUnits, 0);
 
     // The same products, priced twice: with today's costs and with the costs
     // as they stood before the recent invoices. The second pass is what lets a
@@ -102,6 +121,9 @@ function Briefing() {
 
     return {
       changes,
+      madeToday: sum(madeToday),
+      madeThen: sum(madeThen),
+      everMade: madeToday.length > 0 || madeThen.length > 0,
       products: products.map((product) => ({
         id: product.id,
         name: product.name,
@@ -112,12 +134,44 @@ function Briefing() {
     };
   });
 
+  /** The line under the count: what it was, said as a difference. */
+  const comparison = (today: number, then: number) => {
+    const day = t.app.home.lastWeekday;
+    if (then === 0) return t.app.home.producedFirst;
+    if (today === then) return fill(t.app.home.producedSame, { day });
+    const amount = `${formatQuantity(Math.abs(today - then), locale)} ${plural(
+      Math.abs(today - then),
+      t.units.unit,
+    )}`;
+    return fill(today > then ? t.app.home.producedMore : t.app.home.producedLess, { amount, day });
+  };
+
   const moved = (data?.changes ?? []).filter(
     (c) => c.previousRate !== null && c.previousRate !== c.newRate,
   );
 
   return (
     <CollapsingHeader title={brand.name} overline={formatWeekday(nowIso(), locale)}>
+      {/* O que saiu hoje, e ele nunca aparece sozinho.
+          A Lei 3 não abre exceção para a capa: 1.200 não é bom nem ruim até
+          estar ao lado do que foi na segunda passada. Quando não há com o que
+          comparar, a tela diz isso em vez de fingir uma variação. */}
+      {data && data.everMade ? (
+        <Card>
+          <CountUp
+            value={data.madeToday}
+            format={(v) => formatQuantity(Math.round(v), locale)}
+            style={{ ...type.figure, color: color.ink }}
+          />
+          <Text style={[type.secondary, { color: color.inkMuted }]}>
+            {plural(data.madeToday, t.units.unit)} {t.app.home.producedToday}
+          </Text>
+          <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
+            {comparison(data.madeToday, data.madeThen)}
+          </Text>
+        </Card>
+      ) : null}
+
       {data?.products.map((product) => {
         const before = product.unitCentsBefore;
         const costMoved = before !== null && before !== product.unitCents;
