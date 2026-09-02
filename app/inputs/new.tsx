@@ -12,6 +12,7 @@ import { findItem, recordPurchase, saveItem, type ItemKind } from '@/data/reposi
 import { useQuery } from '@/data/useQuery';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { fromDecimal, rate } from '@/domain/money';
+import { parseTyped, formatTyped } from '@/domain/number';
 import { fill, formatMoney } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -95,11 +96,23 @@ function InputForm() {
             : 'input') as Draft['kind'],
           name: existing.name,
           purchaseUnit: existing.purchaseUnit ?? '',
-          purchaseToBase: existing.purchaseToBase ? String(existing.purchaseToBase) : '',
+          purchaseToBase: existing.purchaseToBase
+            ? formatTyped(existing.purchaseToBase, locale.formatting)
+            : '',
           baseUnit: existing.baseUnit,
           // The price is not re-asked when correcting: it belongs to the
           // invoices, and re-entering it here would move the average by accident.
-          price: existing.averageRate > 0 ? String(existing.averageRate * (existing.purchaseToBase ?? 1) / 100) : '',
+          //
+          // And it is written with the locale's separator, because a price per
+          // package is rarely round: `String(12.4)` is "12.4", which the reader
+          // on this screen used to turn into 124.
+          price:
+            existing.averageRate > 0
+              ? formatTyped(
+                  (existing.averageRate * (existing.purchaseToBase ?? 1)) / 100,
+                  locale.formatting,
+                )
+              : '',
         }
       : {}),
     ...draft,
@@ -142,7 +155,7 @@ function InputForm() {
   // what stop the React compiler from optimising the component at all.
   const parsed = (() => {
     // Accept both "4,72" and "4.72" - a Brazilian keyboard offers the comma.
-    const num = (s: string) => Number(s.replace(/\./g, '').replace(',', '.'));
+    const num = (s: string) => parseTyped(s) ?? NaN;
     const factor = num(purchaseToBase);
     const paid = num(price);
     const valid = Number.isFinite(factor) && factor > 0 && Number.isFinite(paid) && paid > 0;

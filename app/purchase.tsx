@@ -22,6 +22,7 @@ import { useQuery } from '@/data/useQuery';
 import { fromDecimal, rate, type Rate } from '@/domain/money';
 import { applyCostEvent, judgePriceChange } from '@/domain/cost';
 import { costPerProductUnit, costRecipe } from '@/domain/recipe';
+import { parseTyped } from '@/domain/number';
 import { fill, formatMoney, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -72,7 +73,7 @@ function PurchaseForm() {
   const selected: ItemWithCost | null =
     items.find((i) => i.id === selectedId) ?? items[0] ?? null;
 
-  const num = (s: string) => Number(s.replace(/\./g, '').replace(',', '.'));
+  const num = (s: string) => parseTyped(s) ?? NaN;
 
   const draft = useMemo(() => {
     if (!selected) return null;

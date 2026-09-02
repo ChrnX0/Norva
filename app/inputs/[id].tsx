@@ -22,6 +22,7 @@ import {
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { judgePriceChange } from '@/domain/cost';
+import { parseTyped } from '@/domain/number';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatDayMonth, formatMoney, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -121,7 +122,7 @@ function InputDetail() {
    * into a ledger that never forgets.
    */
   const submitCount = async () => {
-    const counted = Number(typed.replace(',', '.'));
+    const counted = (parseTyped(typed) ?? NaN);
     if (!Number.isFinite(counted) || counted < 0) return;
 
     const expected = item.onHandBaseUnits;

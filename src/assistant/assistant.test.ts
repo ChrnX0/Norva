@@ -382,6 +382,15 @@ test('it reads a number however it was typed', () => {
   assert.equal(parseNumber('R$ 496'), 496);
   assert.equal(parseNumber('4'), 4);
   assert.equal(parseNumber('abc'), null);
+
+  // These four are the branch that used to answer differently here than on the
+  // screens, and nothing in this suite touched it: the assistant read "1.500
+  // picolés" as one and a half, and "mandei 6.000 gramas" as six grams. The
+  // whole app reads them one way now, and that way is the Portuguese one.
+  assert.equal(parseNumber('1.500'), 1500, 'mil e quinhentos picolés');
+  assert.equal(parseNumber('6.000'), 6000, 'seis mil gramas');
+  assert.equal(parseNumber('46.000'), 46000);
+  assert.equal(parseNumber('0.500'), 0.5, 'meio litro digitado com ponto');
 });
 
 /**

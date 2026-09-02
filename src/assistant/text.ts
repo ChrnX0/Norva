@@ -18,29 +18,14 @@ export function normalize(text: string): string {
 }
 
 /**
- * Reads a number the way it was typed in Portuguese: "1.250,40" and "1250.40"
- * and "1250,4" all mean the same thing, and people use all three.
+ * Reads a number the way it was typed.
+ *
+ * One reader for the whole app, in `@/domain/number`: the screens that take
+ * money used to have three different ones, and the assistant a fourth. Its old
+ * rule read "1.500 picolés" as one and a half - the same ambiguity, answered
+ * differently in the same app.
  */
-export function parseNumber(raw: string): number | null {
-  const cleaned = raw.replace(/[^\d.,-]/g, '');
-  if (!cleaned) return null;
-
-  const lastComma = cleaned.lastIndexOf(',');
-  const lastDot = cleaned.lastIndexOf('.');
-
-  // Whichever separator comes last is the decimal one; the other groups digits.
-  const decimal = lastComma > lastDot ? ',' : lastDot > lastComma ? '.' : null;
-  const normalized =
-    decimal === null
-      ? cleaned.replace(/[.,]/g, '')
-      : cleaned
-          .split(decimal)
-          .map((part, i, all) => (i === all.length - 1 ? part : part.replace(/[.,]/g, '')))
-          .join('.');
-
-  const value = Number(normalized);
-  return Number.isFinite(value) ? value : null;
-}
+export { parseTyped as parseNumber } from '@/domain/number';
 
 /**
  * Finds the thing someone meant by name, tolerating how they actually type.

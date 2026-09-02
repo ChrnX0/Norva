@@ -20,6 +20,7 @@ import { useQuery } from '@/data/useQuery';
 import { fromDecimal } from '@/domain/money';
 import { costPerProductUnit, costRecipe, unitsPerBatch, type ItemCosts, type Recipe } from '@/domain/recipe';
 import { type PackagingHierarchy } from '@/domain/units';
+import { parseTyped } from '@/domain/number';
 import { fill, formatMoney, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -79,7 +80,7 @@ function ProductForm() {
   const [perCrate, setPerCrate] = useState('6');
   const [saving, setSaving] = useState(false);
 
-  const num = (s: string) => Number(s.replace(/\./g, '').replace(',', '.'));
+  const num = (s: string) => parseTyped(s) ?? NaN;
 
   const chosenRecipe = recipeId ?? data?.recipes[0]?.id ?? null;
 

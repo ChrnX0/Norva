@@ -296,6 +296,62 @@ check('production pre-fills what the sheet promises, and records what happened',
   assert.match(stock, /22\.000 g/, 'the pulp came down by exactly one kettle');
 });
 
+check('a decimal typed with a dot is the same money as one typed with a comma', async (page) => {
+  // Every number this suite ever typed was a whole one - `4`, `700`, `480`,
+  // `46000` - so the separator was virgin territory while four screens deleted
+  // the dot and four others choked on it. On Android it is not the person who
+  // chooses: React Native replaces the platform's key listener with one that
+  // "permits all keyboard input through", so whichever separator the keyboard
+  // offers is the one that arrives.
+  await page.goto(`http://localhost:${PORT}/purchase`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  await page.getByText('Polpa de morango', { exact: true }).first().click();
+  await page.getByLabel(/Quantas/).fill('2');
+  await page.getByLabel('Total da nota').fill('120.50');
+  await page.waitForTimeout(800);
+
+  await page.getByText('Lançar compra').first().click();
+  await page.waitForTimeout(900);
+
+  // R$ 120,50 for two buckets. Read the old way it was R$ 12.050,00 - a hundred
+  // times the money, spelled out in a sentence the person is about to confirm.
+  const asking = await screen(page);
+  assert.match(asking, /por R\$ 120,50/, 'the dot was read as a decimal point');
+  assert.doesNotMatch(asking, /R\$ 12\.050,00/);
+});
+
+check('opening a sheet and touching nothing does not change it', async (page) => {
+  // The corruption that needed no phone and no keyboard: the screen wrote the
+  // loss back into its own field with `String(2.5)`, read it with a parser that
+  // deleted the dot, and 2,5% came back as 25% - with the save button lit and
+  // nobody having typed anything.
+  await page.goto(`http://localhost:${PORT}/recipes`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Picolé de morango').first().click();
+  await page.waitForTimeout(2500);
+
+  await page.getByLabel('Perda esperada').fill('2,5');
+  await page.waitForTimeout(600);
+  await page.getByText(/Salvar como versão/).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Salvar', { exact: true }).last().click();
+  await page.waitForTimeout(2500);
+
+  // Reopened from scratch, which is what happens when somebody taps in again.
+  await page.goto(`http://localhost:${PORT}/recipes`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2000);
+  await page.getByText('Picolé de morango').first().click();
+  await page.waitForTimeout(2500);
+
+  const reopened = await page.getByLabel('Perda esperada').inputValue();
+  assert.equal(reopened, '2,5', 'the sheet came back saying what was saved');
+
+  // And the screen did not decide, by itself, that there is something to save.
+  const text = await screen(page);
+  assert.doesNotMatch(text, /25,0%|25%/, 'the loss must not have been multiplied by ten');
+});
+
 check('counting is blind, and it is the only way stock goes down', async (page) => {
   await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

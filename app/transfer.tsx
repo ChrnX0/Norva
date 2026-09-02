@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { parseTyped } from '@/domain/number';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
@@ -91,7 +92,7 @@ function Transfer() {
     };
   }, [line, to]);
 
-  const amount = typed ? Math.max(0, Number(amountText.replace(',', '.')) || 0) : (lastSent ?? 0);
+  const amount = typed ? Math.max(0, (parseTyped(amountText) ?? 0) || 0) : (lastSent ?? 0);
   const over = line != null && amount > line.baseUnits;
 
   const ready = line != null && to != null && amount > 0 && !over && !sending;

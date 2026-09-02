@@ -19,6 +19,7 @@ import {
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { explodeRequirements, type Recipe } from '@/domain/recipe';
+import { parseTyped } from '@/domain/number';
 import { fill, formatMoney, formatQuantity, joinList, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -81,12 +82,12 @@ function Production() {
 
   const selected = data?.products.find((p) => p.id === productId) ?? data?.products[0] ?? null;
   const recipe = selected?.recipeId ? data?.graph[selected.recipeId] : undefined;
-  const batches = Math.max(0, Number(batchText.replace(',', '.')) || 0);
+  const batches = Math.max(0, (parseTyped(batchText) ?? 0) || 0);
 
   const planned = recipe && selected ? plannedUnits(recipe, selected, batches) : 0;
 
   // Lei 1: o que a ficha prevê não se pergunta. Só o que fugiu dela.
-  const units = unitsTyped ? Math.max(0, Number(unitsText.replace(',', '.')) || 0) : planned;
+  const units = unitsTyped ? Math.max(0, (parseTyped(unitsText) ?? 0) || 0) : planned;
 
   const draft = useMemo(() => {
     if (!selected?.recipeId || !data || !recipe || batches <= 0 || units <= 0) return null;

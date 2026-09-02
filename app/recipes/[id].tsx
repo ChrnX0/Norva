@@ -30,6 +30,7 @@ import {
   type RecipeLine,
 } from '@/domain/recipe';
 import { roundUpToFullContainer } from '@/domain/units';
+import { parseTyped, formatTyped } from '@/domain/number';
 import { fill, formatMoney, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -133,9 +134,15 @@ function RecipeEditor() {
             recipeId,
             lines: stored.lines,
             // A percentage for a text field, not money. proofgate-allow
-            lossPercent: String(Number((stored.lossFraction * 100).toFixed(2))),
-            yieldAmount: String(stored.yieldAmount),
-            perUnit: data?.yieldPerUnit ? String(data.yieldPerUnit) : '',
+            //
+            // Written with the same separator the field is read with, which is
+            // not a detail: `String(2.5)` is always "2.5", the reader here used
+            // to delete the dot, and a 2,5% loss came back as 25% - with the
+            // save button lit and nobody having touched a key. The screen was
+            // corrupting the sheet by opening it.
+            lossPercent: formatTyped(Number((stored.lossFraction * 100).toFixed(2)), locale.formatting),
+            yieldAmount: formatTyped(stored.yieldAmount, locale.formatting),
+            perUnit: data?.yieldPerUnit ? formatTyped(data.yieldPerUnit, locale.formatting) : '',
           }
         : null;
 
@@ -149,7 +156,7 @@ function RecipeEditor() {
   const perUnit = form?.perUnit ?? '';
   const lines = form?.lines ?? null;
 
-  const num = (s: string) => Number(s.replace(/\./g, '').replace(',', '.'));
+  const num = (s: string) => parseTyped(s) ?? NaN;
 
   const computed = useMemo(() => {
     if (!data || !stored || !lines) return null;
