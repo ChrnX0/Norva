@@ -196,6 +196,62 @@ const producedToday: Skill = {
   },
 };
 
+/**
+ * As cinco palavras da perda, em português.
+ *
+ * Cravadas aqui de propósito, e a decisão está no topo de `index.ts`: este
+ * assistente é honestamente monolíngue, porque casar frase por expressão
+ * regular só funciona numa língua. Traduzir as respostas e deixar as perguntas
+ * em português seria meio trabalho disfarçado de internacionalização - as telas
+ * é que falam três idiomas.
+ */
+const MOTIVO: Record<string, string> = {
+  expired: 'coisa vencida',
+  melted: 'coisa derretida',
+  broken: 'coisa quebrada',
+  courtesy: 'cortesia',
+  internal_use: 'consumo interno',
+};
+
+/** "o que a gente perdeu" - onde o dinheiro que some está indo. */
+const whatWasLost: Skill = {
+  id: 'what_was_lost',
+  example: 'o que a gente perdeu esse mês',
+  requires: 'view_cost',
+  match: (q) =>
+    normalize(q).match(/(?:o que|quanto).*(?:perde|perdi|perdeu|perdemos)|perdas?( do| deste| desse)? (?:mes|mês|periodo)/),
+  run: async (_m, ctx) => {
+    const hoje = dayWindow(nowIso(), ctx.locale.timeZone);
+    const inicio = dayWindow(nowIso(), ctx.locale.timeZone, -29);
+    const perdas = await ctx.data.lossesOn(inicio.from, hoje.to);
+
+    if (perdas.length === 0) {
+      // Nada perdido é resposta, e boa. Inventar um alerta aqui ensinaria a
+      // ignorar o alerta de quando houver.
+      return { text: 'Nenhuma perda registrada nos últimos 30 dias.', route: '/losses' };
+    }
+
+    const total = perdas.reduce((n, p) => n + p.valueCents, 0);
+
+    // Por motivo, porque é o motivo que muda a decisão: derreteu manda olhar o
+    // freezer, venceu manda olhar a compra.
+    const porMotivo = new Map<string, number>();
+    for (const p of perdas) porMotivo.set(p.reason, (porMotivo.get(p.reason) ?? 0) + p.valueCents);
+    const pior = [...porMotivo.entries()].sort((a, b) => b[1] - a[1])[0];
+
+    return {
+      text:
+        `Você perdeu ${formatMoney(total, ctx.locale)} em 30 dias. ` +
+        `O que mais pesou foi ${MOTIVO[pior[0]] ?? pior[0]}, com ${formatMoney(pior[1], ctx.locale)}.`,
+      detail: perdas.slice(0, 5).map((p) => ({
+        label: p.name,
+        value: `${formatMoney(p.valueCents, ctx.locale)} · ${MOTIVO[p.reason] ?? p.reason}`,
+      })),
+      route: '/losses',
+    };
+  },
+};
+
 const whatDominates: Skill = {
   id: 'what_dominates',
   example: 'o que mais pesa no picolé de morango',
@@ -858,6 +914,7 @@ export const phase1Skills: Skill[] = [
   eraseHelp,
   listInputs,
   producedToday,
+  whatWasLost,
   whatDominates,
   whatMoved,
   costOfProduct,

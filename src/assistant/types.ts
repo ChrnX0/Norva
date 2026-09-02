@@ -6,6 +6,7 @@ import type {
   PlaceStock,
   Product,
   ProducedInWindow,
+  LossRow,
 } from '@/data/repository';
 import type { Capability } from '@/domain/access';
 import type { Cents } from '@/domain/money';
@@ -63,6 +64,8 @@ export type AssistantData = {
    * assistente que perde.
    */
   productionOn(fromIso: string, toIso: string): Promise<ProducedInWindow[]>;
+  /** O que se perdeu numa janela, com o motivo - a mesma consulta do relatório. */
+  lossesOn(fromIso: string, toIso: string): Promise<LossRow[]>;
   /** Os lugares cadastrados, para o assistente saber para onde a carga pode ir. */
   listPlaces(): Promise<Place[]>;
   /** O saldo de cada lugar - a mesma consulta que a tela de estoque faz. */

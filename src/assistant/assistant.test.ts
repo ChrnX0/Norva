@@ -181,6 +181,26 @@ let recorded: unknown[] = [];
  */
 let PRODUZIDO: { itemId: string; name: string; baseUnits: number }[][] = [];
 let PEDIDOS = 0;
+let PERDAS: Awaited<ReturnType<AssistantData['lossesOn']>> = [];
+
+/** Uma linha de perda para o dublê - só o que a habilidade lê. */
+function perda(
+  itemId: string,
+  name: string,
+  reason: 'expired' | 'melted' | 'broken' | 'courtesy' | 'internal_use',
+  valueCents: number,
+): Awaited<ReturnType<AssistantData['lossesOn']>>[number] {
+  return {
+    itemId,
+    name,
+    baseUnits: 1,
+    baseUnit: 'un',
+    reason,
+    locationName: 'Fábrica',
+    valueCents: valueCents as Cents,
+    occurredAt: '2025-09-01T12:00:00.000Z',
+  };
+}
 
 const data: AssistantData = {
   listItems: async () => ITEMS,
@@ -189,6 +209,7 @@ const data: AssistantData = {
   // para não depender do relógio - e assim o teste consegue exigir a
   // comparação, que é a metade que importa.
   productionOn: async () => PRODUZIDO[PEDIDOS++] ?? [],
+  lossesOn: async () => PERDAS,
   listProducts: async () => PRODUCTS,
   loadRecipeGraph: async () => RECIPES,
   itemCosts: async () => COSTS,
@@ -599,4 +620,36 @@ test('producing and dispatching are each their own permission', async () => {
   assert.ok(!(await ask('produzi 480 picolés de morango', context('dispatch'))).draft);
   assert.ok(!(await ask('mandei 6000 de açúcar para a loja centro', context('record_production'))).draft);
   assert.equal(recorded.length, 0);
+});
+
+test('what was lost names the reason that dominates, not the biggest single loss', async () => {
+  // Uma caixa derretida de 40 reais contra três vencimentos de 20: o maior
+  // prejuízo isolado é o freezer, mas o que come o mês é a validade. A
+  // pergunta que o dono faz é onde o dinheiro está indo, então a resposta
+  // soma por motivo antes de eleger o pior.
+  PERDAS = [
+    perda('caixa', 'Picolé de morango', 'melted', 4000),
+    perda('polpa', 'Polpa de manga', 'expired', 2000),
+    perda('polpa', 'Polpa de manga', 'expired', 2000),
+    perda('polpa', 'Polpa de manga', 'expired', 2000),
+  ];
+
+  const r = await ask('quanto a gente perdeu esse mês', context('view_cost'));
+  assert.match(r.text, /R\$\s?100,00/);
+  assert.match(r.text, /vencida/);
+  assert.ok(!/derretida/.test(r.text), 'a maior perda isolada não é o motivo que dominou');
+  assert.equal(r.route, '/losses');
+});
+
+test('nothing lost is an answer, and it does not invent an alert', async () => {
+  PERDAS = [];
+  const r = await ask('o que a gente perdeu', context('view_cost'));
+  assert.match(r.text, /Nenhuma perda/);
+  assert.ok(!/R\$/.test(r.text));
+});
+
+test('who cannot see cost cannot ask what was lost', async () => {
+  PERDAS = [perda('caixa', 'Picolé de morango', 'melted', 4000)];
+  const r = await ask('quanto a gente perdeu esse mês', context('record_production'));
+  assert.ok(!/R\$/.test(r.text), 'o valor não pode sair para quem não vê custo');
 });
