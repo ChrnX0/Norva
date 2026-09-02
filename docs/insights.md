@@ -1719,3 +1719,45 @@ existir nos três dicionários, e não obriga a tela a usá-los.
 lugares — a capa, a receita e esta folha. É o ponto decimal do JavaScript num
 aplicativo que fala português e espanhol: a alta da polpa saía como "9.0%".
 Virou `formatPercent`, no único lugar que sabe o idioma.
+
+## 2 de setembro, noite — o lote estava pronto no servidor e sem escritor, e a política dele tinha o mesmo buraco de sempre
+
+**O que apareceu.** A Fase 2 pede lote e validade. A tabela `lots` existe no
+servidor **desde a primeira migração** — código, data de produção, validade,
+`unique (company_id, code)` — e `movements.lot_id` tem índice parcial dedicado.
+Nada nunca escreveu nela. O aparelho tinha o `lot_id` e nem a tabela: o próprio
+`docs/insights.md` já havia nomeado a dívida e previsto onde ela quebraria — *"a
+fila não trava hoje porque nulo passa na chave estrangeira; trava no dia em que a
+Fase 2 gravar o primeiro lote"*.
+
+**E a política repetiu o defeito de julho.** `lots_write` cobre `insert` e não
+existe política de `update` — enquanto a fila do aparelho sobe com
+`on conflict (id) do update`, porque reenviar é o caso normal de um celular que
+perde sinal. É **exatamente** o que a migração `0015` consertou para `purchases`
+e `purchase_lines`, esperando aqui desde o dia em que a tabela nasceu. Peça sem
+escritor não é peça pronta: é peça não exercitada, e o que não é exercitado não é
+protegido por nada.
+
+**O que a barra pegou sozinha, sem eu procurar:**
+
+- **O guard da sessão do aparelho parou o script**: *"a sessão não exercita
+  `lots` — a checagem 6 cobriria menos do que promete"*. Uma tabela nova que
+  `serialize` diz saber mandar e que nenhuma sessão exercita é promessa que
+  ninguém cobrou.
+- **O guard de ambiguidade do `mutate`, escrito hoje de manhã, cobrou a primeira
+  fatura**: mudar a assinatura de `write` deixou obsoleta a mutação que inverte o
+  sinal do consumo — a que garante que produzir não *enche* o almoxarifado. Sem o
+  guard ela teria sumido em silêncio, com a lista inteira reportando verde.
+- **O e2e derrubou um diálogo que eu tinha acabado de inventar.** Eu fiz o código
+  do lote aparecer num alerta depois de gravar; a checagem não conseguiu mais
+  alcançar a barra de abas. Traduzido: um toque a mais na ação mais frequente do
+  dia, todo dia, para informar o que a tela seguinte mostra sozinha. O lote virou
+  cartão na aba de produção — e ficou melhor, porque quem procura de que lote é
+  uma caixa procura **horas depois**, não no segundo seguinte.
+
+**A decisão que o código carrega, para não virar pergunta de novo:** um lote por
+**corrida**, não por dia nem por produto — se o tacho da manhã derreteu e o da
+tarde não, o recall é do tacho da manhã. E a validade é do **produto**,
+perguntada uma vez no cadastro: quem está de luva não sabe de cabeça que picolé
+dura seis meses. Produto sem prazo gera lote **sem validade**, e isso é resposta,
+não falha: data inventada descarta mercadoria boa ou vende mercadoria vencida.
