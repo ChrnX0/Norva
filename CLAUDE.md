@@ -211,6 +211,43 @@ guarda, com razão. Então o mecanismo é este arquivo, que é lido em toda sess
 
 ---
 
+## Nunca ocioso — regra imutável
+
+**Enquanto houver serviço a ser realizado, não se fica parado.** Decisão do dono,
+2 de setembro, e ela não é conselho de produtividade: é o que separa uma sessão
+que trabalha de uma que fica olhando o próprio painel.
+
+Ficar ocioso aqui tem uma forma específica e ela engana, porque parece
+diligência: o PR está verde, então re-checo o PR; nada mudou, então re-agendo o
+check-in; e a rodada inteira passa confirmando que nada mudou. Vigiar o que já
+está pronto **não é serviço** — é o intervalo entre serviços, e o intervalo se
+preenche com a próxima coisa que precisa existir.
+
+Então, quando um trabalho fecha, a pergunta não é *"tem mais alguma coisa?"* —
+é **qual é a próxima**, e ela já está escrita: o que a Fase 2 e a Fase 3 pedem
+neste arquivo, o que o `docs/insights.md` deixou como dívida, o que o portão de
+item (P1/P2/P3) libera. Se nada disso está de pé, o que sobra ainda é serviço:
+procurar o insight que a diretriz de baixo exige.
+
+Três coisas que **não** contam como ficar ocupado, para a regra não virar
+desculpa para barulho:
+
+- **Esperar não é trabalho, e trabalhar não é interromper.** Enquanto a barra
+  roda ou o dono não respondeu, o certo é tocar o que não depende daquilo — não
+  ficar consultando o estado do que está rodando.
+- **Inventar tarefa é pior que parar.** Vale a mesma regra do alerta inventado: a
+  próxima coisa vem da lista escrita, não de um item criado para parecer
+  ocupado.
+- **E o dono continua sabendo o que está acontecendo.** Não ficar ocioso não
+  autoriza sumir por uma hora: o que foi feito e por quê se diz, curto, ao fim
+  de cada rodada.
+
+O único parar legítimo é o que já está escrito na borda das perguntas: decisão
+irreversível, decisão de dono, ou resposta que muda o que é construído. Fora
+disso: pega a próxima e faz.
+
+---
+
 ## Insight constante — diretriz obrigatória
 
 **Toda rodada de trabalho termina com uma pergunta: o que apareceu aqui que
