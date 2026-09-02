@@ -1,0 +1,62 @@
+<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+body{background:#000;color:#fff}
+.wrap{padding:24px 20px 120px}
+.top{display:flex;justify-content:space-between;align-items:center}
+.top .d{font-size:13px;color:#8a8a8e}
+.top .n{font-size:22px;font-weight:700;letter-spacing:-.01em}
+.ringwrap{display:flex;align-items:center;gap:22px;margin-top:26px}
+.stat b{display:block;font-size:34px;font-weight:700;letter-spacing:-.02em}
+.stat span{font-size:12px;color:#8a8a8e;letter-spacing:.02em}
+.stat{margin-bottom:14px}
+.pill{background:#1c1c1e;border-radius:18px;padding:16px 18px;margin-top:12px}
+.pill .h{font-size:12px;color:#8a8a8e;letter-spacing:.04em;text-transform:uppercase}
+.pill .v{font-size:26px;font-weight:700;margin-top:6px;letter-spacing:-.02em}
+.pill .s{font-size:13px;color:#8a8a8e;margin-top:2px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.w{background:linear-gradient(150deg,#0a3d62,#1e6091 55%,#f6b26b);border-radius:22px;padding:18px;margin-top:12px;position:relative;overflow:hidden}
+.w .t{font-size:46px;font-weight:700;letter-spacing:-.03em}
+.w .c{font-size:12px;color:#e8f1ff;opacity:.85;letter-spacing:.1em;text-transform:uppercase}
+.w .m{font-size:13px;color:#eaf2ff;opacity:.9;margin-top:4px}
+.cta{position:fixed;bottom:96px;left:20px;right:20px;height:54px;border-radius:16px;background:#fff;color:#000;font-weight:650;display:flex;align-items:center;justify-content:center}
+.tab{background:#0a0a0acc;border-top:1px solid #1c1c1e;color:#6a6a6e;backdrop-filter:blur(10px)}.tab b{color:#fff}
+</style>
+<div class="wrap sf">
+  <div class="top"><div class="n">Hoje</div><div class="d">qua, 2 set</div></div>
+  <div class="ringwrap">
+    <svg width="150" height="150" viewBox="0 0 150 150">
+      <circle cx="75" cy="75" r="62" fill="none" stroke="#2a1f18" stroke-width="16"/>
+      <circle cx="75" cy="75" r="62" fill="none" stroke="url(#g1)" stroke-width="16" stroke-linecap="round"
+        stroke-dasharray="389" stroke-dashoffset="82" transform="rotate(-90 75 75)"/>
+      <circle cx="75" cy="75" r="42" fill="none" stroke="#0f2a22" stroke-width="16"/>
+      <circle cx="75" cy="75" r="42" fill="none" stroke="url(#g2)" stroke-width="16" stroke-linecap="round"
+        stroke-dasharray="264" stroke-dashoffset="106" transform="rotate(-90 75 75)"/>
+      <defs>
+        <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9f0a"/><stop offset="1" stop-color="#ff375f"/></linearGradient>
+        <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#30d158"/><stop offset="1" stop-color="#00c7be"/></linearGradient>
+      </defs>
+    </svg>
+    <div>
+      <div class="stat"><b>500</b><span>unidades hoje</span></div>
+      <div class="stat"><b>478</b><span>ontem</span></div>
+      <div class="stat"><b>+19</b><span>vs. quarta passada</span></div>
+    </div>
+  </div>
+  <div class="w">
+    <div class="c">são paulo</div><div class="t">21°</div>
+    <div class="m">mín 13° · 47% chuva · amanhã +4°</div>
+    <svg style="position:absolute;right:-10px;top:-10px;opacity:.35" width="120" height="120" viewBox="0 0 120 120">
+      <circle cx="60" cy="60" r="34" fill="#ffd98a"/></svg>
+  </div>
+  <div class="two">
+    <div class="pill"><div class="h">compre</div><div class="v">1 dia</div><div class="s">polpa de morango</div></div>
+    <div class="pill"><div class="h">saiu</div><div class="v">1</div><div class="s">caixa hoje</div></div>
+  </div>
+  <div class="pill"><div class="h">preços</div>
+    <div class="s" style="display:flex;justify-content:space-between;margin-top:8px"><span>Polpa de morango</span><span style="color:#30d158">▼ 0,6%</span></div>
+    <div class="s" style="display:flex;justify-content:space-between"><span>Açúcar cristal</span><span style="color:#30d158">▼ 2,2%</span></div>
+    <div class="s" style="display:flex;justify-content:space-between"><span>Glucose 38DE</span><span style="color:#ff9f0a">▲ 0,9%</span></div>
+  </div>
+</div>
+<div class="cta sf">Lançar produção</div>
+<div class="tab sf"><b>Início</b><span>Produção</span><span>Transporte</span><span>Relatórios</span><span>Mais</span></div>

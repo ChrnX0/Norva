@@ -1,0 +1,56 @@
+<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+body{background:#f6f4ef;color:#25302a}
+.top{position:relative;height:330px;overflow:hidden}
+.top svg{position:absolute;inset:0}
+.tt{position:absolute;left:26px;top:56px;color:#0f2419}
+.tt .k{font-size:12px;letter-spacing:.18em;text-transform:uppercase;opacity:.7}
+.tt .n{font-size:78px;font-weight:300;letter-spacing:-.04em;line-height:1;margin-top:8px}
+.tt .s{font-size:14px;opacity:.8;margin-top:2px}
+.wrap{padding:0 22px 120px;margin-top:-46px;position:relative}
+.blob{border-radius:38px 38px 30px 30px;background:#fff;box-shadow:0 10px 40px #0000000d;padding:22px}
+.row{display:flex;align-items:center;gap:14px;padding:14px 0}
+.row+.row{border-top:1px solid #eceae4}
+.dot{width:44px;height:44px;border-radius:50% 50% 46% 54%/50% 46% 54% 50%;display:flex;align-items:center;justify-content:center;flex:none}
+.row .h{font-size:16px}.row .s{font-size:12.5px;color:#7b857f;margin-top:2px}
+.row .v{margin-left:auto;font-size:17px;font-weight:600}
+.w{margin-top:16px;border-radius:34px;padding:22px;background:linear-gradient(150deg,#cfe8ff,#eaf6ff);display:flex;align-items:center;gap:16px;position:relative;overflow:hidden}
+.w .t{font-size:50px;font-weight:300;letter-spacing:-.03em;color:#14364f}
+.w .s{font-size:13px;color:#3d5f76}
+.bars{display:flex;gap:7px;align-items:flex-end;height:52px;margin-top:18px}
+.bars i{flex:1;border-radius:8px 8px 5px 5px;background:#dfe7e0}.bars i.on{background:#3f7d5c}
+.days{display:flex;gap:7px;font-size:10.5px;color:#9aa39d;margin-top:6px}.days span{flex:1;text-align:center}
+.cta{position:fixed;bottom:96px;left:22px;right:22px;height:58px;border-radius:30px;background:#3f7d5c;color:#fff;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 26px #3f7d5c44}
+.tab{background:#f6f4efee;border-top:1px solid #e6e3db;color:#9aa39d;backdrop-filter:blur(10px)}.tab b{color:#3f7d5c}
+</style>
+<div class="top">
+  <svg viewBox="0 0 412 330" preserveAspectRatio="none">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a8e0c0"/><stop offset="1" stop-color="#7bc9a6"/></linearGradient></defs>
+    <path d="M0 0h412v226c-70 34-120-14-206 8S64 300 0 262z" fill="url(#g)"/>
+    <path d="M0 0h412v150c-90 46-150-6-232 22S52 214 0 178z" fill="#ffffff30"/>
+    <circle cx="336" cy="74" r="34" fill="#fff3c4"/>
+  </svg>
+  <div class="tt sf"><div class="k">quarta, 2 de setembro</div><div class="n">500</div><div class="s">unidades saíram hoje · ontem 478</div></div>
+</div>
+<div class="wrap sf">
+  <div class="blob">
+    <div class="bars"><i style="height:38%"></i><i style="height:44%"></i><i style="height:41%"></i><i style="height:8%"></i><i style="height:82%"></i><i style="height:46%"></i><i class="on" style="height:64%"></i></div>
+    <div class="days"><span>qui</span><span>sex</span><span>sáb</span><span>dom</span><span>seg</span><span>ter</span><span>qua</span></div>
+  </div>
+  <div class="w">
+    <svg width="72" height="72" viewBox="0 0 72 72"><circle cx="36" cy="34" r="16" fill="#ffe9a8"/>
+      <path d="M18 48a12 12 0 0 1 12-12 15 15 0 0 1 28 4 10 10 0 0 1-2 20H24a10 10 0 0 1-6-12z" fill="#ffffffd0"/></svg>
+    <div><div class="s" style="letter-spacing:.14em;text-transform:uppercase">são paulo</div>
+      <div class="t">21°</div><div class="s">mín 13° · 47% chuva · amanhã +4°</div></div>
+  </div>
+  <div class="blob" style="margin-top:16px">
+    <div class="row"><div class="dot" style="background:#fdead0"><svg width="24" height="24" viewBox="0 0 32 32"><path d="M8 12h16l-1.6 15H9.6z" fill="#d98324" opacity=".35"/><path d="M8 12h16l-1.6 15H9.6zM11.5 12V8a4.5 4.5 0 0 1 9 0v4" fill="none" stroke="#d98324" stroke-width="2.2" stroke-linejoin="round"/></svg></div>
+      <div><div class="h">Polpa de morango</div><div class="s">acaba em um dia</div></div><div class="v" style="color:#d98324">1 d</div></div>
+    <div class="row"><div class="dot" style="background:#e3e8fb"><svg width="24" height="24" viewBox="0 0 32 32"><path d="M16 4l11 6v12l-11 6-11-6V10z" fill="#5b6ec9" opacity=".3"/><path d="M16 4l11 6v12l-11 6-11-6V10zM5 10l11 6 11-6M16 16v12" fill="none" stroke="#5b6ec9" stroke-width="2.2" stroke-linejoin="round"/></svg></div>
+      <div><div class="h">Saiu para as lojas</div><div class="s">uma caixa hoje</div></div><div class="v">1</div></div>
+    <div class="row"><div class="dot" style="background:#e2f3e8"><svg width="24" height="24" viewBox="0 0 32 32"><path d="M4 16.5V6a2 2 0 0 1 2-2h10.5L28 15.5 17 27z" fill="#3f7d5c" opacity=".3"/><path d="M4 16.5V6a2 2 0 0 1 2-2h10.5L28 15.5 17 27z" fill="none" stroke="#3f7d5c" stroke-width="2.2" stroke-linejoin="round"/></svg></div>
+      <div><div class="h">Açúcar cristal</div><div class="s">e mais dois preços mexeram</div></div><div class="v" style="color:#3f7d5c">▼2,2%</div></div>
+  </div>
+</div>
+<div class="cta sf">Lançar produção</div>
+<div class="tab sf"><b>Início</b><span>Produção</span><span>Transporte</span><span>Relatórios</span><span>Mais</span></div>

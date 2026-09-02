@@ -1,0 +1,64 @@
+<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+body{background:#08090c;color:#e9e9ee}
+.glow{position:absolute;filter:blur(70px);opacity:.55;border-radius:50%}
+.wrap{position:relative;padding:26px 20px 110px}
+h1{font-size:15px;letter-spacing:.16em;color:#8e93a6;font-weight:600}
+.date{font-size:12px;color:#5d6376;margin-top:4px}
+.hero{margin-top:26px}
+.n{font-size:86px;line-height:.9;font-weight:700;letter-spacing:-.045em;
+   background:linear-gradient(160deg,#fff 20%,#8ea2ff 90%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{font-size:14px;color:#8e93a6;margin-top:10px}
+.spark{display:flex;gap:6px;align-items:flex-end;height:64px;margin-top:22px}
+.spark i{flex:1;border-radius:4px 4px 2px 2px;background:linear-gradient(180deg,#3b4260,#22263a)}
+.spark i.on{background:linear-gradient(180deg,#9db1ff,#5b6bd6);box-shadow:0 0 18px #5b6bd6aa}
+.days{display:flex;gap:6px;margin-top:8px;font-size:10px;color:#5d6376}
+.days span{flex:1;text-align:center}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:26px}
+.card{border:1px solid #ffffff12;border-radius:20px;padding:16px;background:linear-gradient(180deg,#ffffff0a,#ffffff03);backdrop-filter:blur(8px)}
+.card.wide{grid-column:1/-1}
+.k{font-size:10px;letter-spacing:.14em;color:#7d melhores}
+.lbl{font-size:10px;letter-spacing:.15em;color:#767c91;text-transform:uppercase}
+.v{font-size:30px;font-weight:650;margin-top:8px;letter-spacing:-.02em}
+.small{font-size:12px;color:#8e93a6;margin-top:6px}
+.weather{display:flex;align-items:center;gap:16px}
+.temp{font-size:52px;font-weight:650;letter-spacing:-.03em}
+.chip{display:inline-block;font-size:11px;padding:5px 10px;border-radius:999px;background:#ffffff10;color:#b9bed3;margin-right:6px;margin-top:10px}
+.cta{position:fixed;bottom:96px;left:20px;right:20px;height:56px;border-radius:999px;display:flex;align-items:center;justify-content:center;
+ background:linear-gradient(120deg,#6d7cf0,#a06ef0);color:#fff;font-weight:650;font-size:16px;box-shadow:0 12px 40px #6d7cf055}
+.tab{background:#0b0c11cc;border-top:1px solid #ffffff10;color:#5d6376;backdrop-filter:blur(12px)}
+.tab b{color:#9db1ff;font-weight:600}
+</style>
+<div class="glow" style="width:320px;height:320px;background:#4b5bd6;left:-80px;top:-60px"></div>
+<div class="glow" style="width:260px;height:260px;background:#a259c9;right:-70px;top:180px"></div>
+<div class="wrap sf">
+  <h1>NORVA</h1><div class="date">quarta-feira, 2 de setembro</div>
+  <div class="hero">
+    <div class="n">500</div>
+    <div class="sub">unidades saíram hoje &nbsp;·&nbsp; ontem 478</div>
+    <div class="spark"><i style="height:38%"></i><i style="height:44%"></i><i style="height:41%"></i><i style="height:8%"></i><i style="height:82%"></i><i style="height:46%"></i><i class="on" style="height:64%"></i></div>
+    <div class="days"><span>Q</span><span>S</span><span>S</span><span>D</span><span>S</span><span>T</span><span>Q</span></div>
+  </div>
+  <div class="grid">
+    <div class="card wide weather">
+      <svg width="76" height="76" viewBox="0 0 76 76"><defs><radialGradient id="s"><stop offset="0" stop-color="#ffd98a"/><stop offset="1" stop-color="#ff9f5a"/></radialGradient></defs>
+        <circle cx="38" cy="38" r="17" fill="url(#s)"/>
+        <g stroke="#ffc06a" stroke-width="2.4" stroke-linecap="round" opacity=".85">
+        <path d="M38 8v8M38 60v8M8 38h8M60 38h8M17 17l6 6M53 53l6 6M59 17l-6 6M23 53l-6 6"/></g></svg>
+      <div style="flex:1">
+        <div class="lbl">são paulo agora</div>
+        <div class="temp">21°</div>
+        <div><span class="chip">mín 13°</span><span class="chip">chuva 47%</span><span class="chip">amanhã +4°</span></div>
+      </div>
+    </div>
+    <div class="card"><div class="lbl">compre esta semana</div><div class="v">1 dia</div><div class="small">polpa de morango</div></div>
+    <div class="card"><div class="lbl">saiu para lojas</div><div class="v">1</div><div class="small">caixa hoje</div></div>
+    <div class="card wide"><div class="lbl">mudou de preço</div>
+      <div class="small" style="margin-top:12px;display:flex;justify-content:space-between"><span>Polpa de morango</span><span style="color:#7ee0a8">▼ 0,6%</span></div>
+      <div class="small" style="display:flex;justify-content:space-between"><span>Açúcar cristal</span><span style="color:#7ee0a8">▼ 2,2%</span></div>
+      <div class="small" style="display:flex;justify-content:space-between"><span>Glucose 38DE</span><span style="color:#ffc06a">▲ 0,9%</span></div>
+    </div>
+  </div>
+</div>
+<div class="cta sf">Lançar produção</div>
+<div class="tab sf"><b>Início</b><span>Produção</span><span>Transporte</span><span>Relatórios</span><span>Mais</span></div>
