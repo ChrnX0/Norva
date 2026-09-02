@@ -111,14 +111,28 @@ const DEFECTS = [
   },
   {
     file: 'src/domain/recipe.ts',
-    from: 'if (stack.includes(recipeId)) throw new RecipeCycleError([...stack, recipeId]);',
-    to: 'if (false) throw new RecipeCycleError([...stack, recipeId]);',
+    from: `if (cached) return cached;
+
+  if (stack.includes(recipeId)) throw new RecipeCycleError([...stack, recipeId]);`,
+    to: `if (cached) return cached;
+
+  if (false) throw new RecipeCycleError([...stack, recipeId]);`,
     hurts: 'receita que se referencia trava o aplicativo em vez de recusar',
   },
   {
     file: 'src/domain/recipe.ts',
-    from: 'if (!recipe) throw new MissingRecipeError(recipeId);',
-    to: 'if (!recipe) return { recipeId, version: 0, batchCents: cents(0), netYield: 0, perYieldUnit: 0 as Rate, lines: [], lossFraction: 0 };',
+    from: `if (cached) return cached;
+
+  if (stack.includes(recipeId)) throw new RecipeCycleError([...stack, recipeId]);
+
+  const recipe = recipes[recipeId];
+  if (!recipe) throw new MissingRecipeError(recipeId);`,
+    to: `if (cached) return cached;
+
+  if (stack.includes(recipeId)) throw new RecipeCycleError([...stack, recipeId]);
+
+  const recipe = recipes[recipeId];
+  if (!recipe) return { recipeId, version: 0, batchCents: cents(0), netYield: 0, perYieldUnit: 0 as Rate, lines: [], lossFraction: 0 };`,
     hurts: 'semi-acabado que sumiu deixa todos os sabores dele mais baratos, calado',
   },
   {
@@ -135,8 +149,10 @@ const DEFECTS = [
   },
   {
     file: 'src/data/repository.ts',
-    from: 'COALESCE(SUM(m.quantity_base_units), 0)',
-    to: 'COALESCE(COUNT(m.quantity_base_units), 0)',
+    from: `(SELECT COALESCE(SUM(m.quantity_base_units), 0) FROM movements m
+              WHERE m.company_id = i.company_id AND m.item_id = i.id)`,
+    to: `(SELECT COALESCE(COUNT(m.quantity_base_units), 0) FROM movements m
+              WHERE m.company_id = i.company_id AND m.item_id = i.id)`,
     hurts: 'o estoque passa a contar movimentos em vez de somar quantidade',
   },
   {
@@ -237,8 +253,14 @@ const DEFECTS = [
   },
   {
     file: 'src/assistant/skills.ts',
-    from: '            assistantPhrase: ctx.question,',
-    to: '            assistantPhrase: undefined,',
+    from: `            purchaseQuantity: packs,
+            baseUnits,
+            totalCents,
+            assistantPhrase: ctx.question,`,
+    to: `            purchaseQuantity: packs,
+            baseUnits,
+            totalCents,
+            assistantPhrase: undefined,`,
     hurts: 'o que o assistente lançou fica indistinguível do que a pessoa digitou, e "o que ele lançou este mês?" deixa de ter resposta',
   },
   {

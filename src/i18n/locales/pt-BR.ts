@@ -87,11 +87,17 @@ export const ptBR = {
       inputsFineDetail: 'Pelo consumo das últimas semanas, nada acaba nos próximos sete dias.',
       overline: 'hoje na fábrica',
       each: 'cada um',
-      producedToday: 'saíram hoje',
+      producedToday: { one: 'saiu hoje', other: 'saíram hoje' },
+      today: 'Hoje na fábrica',
       producedSame: 'mesmo que {{day}}',
       producedMore: '{{amount}} a mais que {{day}}',
       producedLess: '{{amount}} a menos que {{day}}',
-      boxesSent: 'saíram hoje',
+      // O verbo concorda com a contagem: "1 caixa saíram hoje" foi o que
+      // apareceu na tela do dono. O substantivo já era plural e o verbo era
+      // string fixa - meia concordância é pior que nenhuma, porque só quebra
+      // no dia de movimento pequeno.
+      boxesSent: { one: 'saiu hoje', other: 'saíram hoje' },
+      boxesTitle: 'Saiu para as lojas',
       running: 'tacho rodando',
       runningSince: 'aberto desde {{time}}',
       boxCount: { one: '1 caixa', other: '{{n}} caixas' },

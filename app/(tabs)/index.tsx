@@ -9,7 +9,7 @@ import { PulseDot } from '@/components/PulseDot';
 import { Reveal } from '@/components/Reveal';
 import { SkyScene, TemperatureRange } from '@/components/Sky';
 import { Touchable } from '@/components/Touchable';
-import { IconProduction } from '@/components/icons';
+import { IconCost, IconProduction, IconStock, IconTransport } from '@/components/icons';
 import {
   openProductionRuns,
   orderedDemand,
@@ -140,7 +140,7 @@ function Briefing() {
       demand,
       week,
     ] = await Promise.all([
-      recentCostChanges(LOCAL_COMPANY_ID, 4),
+      recentCostChanges(LOCAL_COMPANY_ID, 12),
       productionOn(LOCAL_COMPANY_ID, today.from, today.to),
       productionOn(LOCAL_COMPANY_ID, then.from, then.to),
       productionOn(LOCAL_COMPANY_ID, yesterday.from, yesterday.to),
@@ -229,9 +229,20 @@ function Briefing() {
     .filter((d) => d.missing > 0)
     .sort((a, b) => b.missing - a.missing);
 
-  const moved = (data?.changes ?? []).filter(
-    (c) => c.previousRate !== null && c.previousRate !== c.newRate,
-  );
+  /**
+   * O que mexeu de preço, UM por insumo.
+   *
+   * A capa listava as últimas quatro mudanças, e com duas semanas de notas isso
+   * virou "Polpa de morango" quatro vezes seguidas, com quatro percentuais
+   * diferentes - a tela do dono virou um extrato. A pergunta da capa não é
+   * "quais foram as últimas notas", é "o que está diferente agora", e para isso
+   * cada insumo tem uma resposta só: a mais recente. O histórico inteiro
+   * continua na ficha do insumo, que é onde alguém vai conferir.
+   */
+  const moved = (data?.changes ?? [])
+    .filter((c) => c.previousRate !== null && c.previousRate !== c.newRate)
+    .filter((c, i, all) => all.findIndex((other) => other.itemId === c.itemId) === i)
+    .slice(0, 4);
 
   return (
     <CollapsingHeader title={brand.name} overline={formatWeekday(nowIso(), locale)}>
@@ -249,14 +260,15 @@ function Briefing() {
           trabalho. Zero é um fato sobre hoje: dito ao lado de ontem e da
           semana, ele vira a pergunta certa em vez de um buraco. */}
       <Reveal index={0}>
-        <Card tone="area">
+        <Card tone="area" icon={(c) => <IconProduction size={22} color={c} />} title={t.app.home.today}>
           <CountUp
             value={data?.madeToday ?? 0}
             format={(v) => formatQuantity(Math.round(v), locale)}
             style={{ ...type.figure, color: color.ink }}
           />
           <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {plural(data?.madeToday ?? 0, t.units.unit)} {t.app.home.producedToday}
+            {plural(data?.madeToday ?? 0, t.units.unit)}{' '}
+            {plural(data?.madeToday ?? 0, t.app.home.producedToday)}
           </Text>
 
           {/* A régua de sete dias: a única coisa nesta tela que responde "isto
@@ -293,9 +305,12 @@ function Briefing() {
       {data && data.shortly.length > 0 ? (
         <Reveal index={1}>
           <Touchable onPress={() => router.push('/inputs')} accessibilityLabel={t.app.home.runningOut}>
-            <Card tone="warning">
-              <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.home.runningOut}</Text>
-              <View style={{ marginTop: space.md, gap: space.xs }}>
+            <Card
+              tone="warning"
+              icon={(c) => <IconStock size={22} color={c} />}
+              title={t.app.home.runningOut}
+            >
+              <View style={{ marginTop: space.xs, gap: space.xs }}>
                 {data.shortly.slice(0, 4).map((r) => (
                   <View key={r.itemId} style={styles.row}>
                     <Text style={[type.body, { color: color.ink, flex: 1 }]} numberOfLines={1}>
@@ -328,9 +343,8 @@ function Briefing() {
       {data && data.everMade && data.shortly.length === 0 ? (
         <Reveal index={1}>
           <Touchable onPress={() => router.push('/inputs')} accessibilityLabel={t.app.home.inputsFine}>
-            <Card>
-              <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.home.inputsFine}</Text>
-              <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
+            <Card icon={(c) => <IconStock size={22} color={c} />} title={t.app.home.inputsFine}>
+              <Text style={[type.secondary, { color: color.inkMuted }]}>
                 {t.app.home.inputsFineDetail}
               </Text>
             </Card>
@@ -488,14 +502,15 @@ function Briefing() {
           verdade: um "0 caixas" seria manchete falsa. */}
       {data && data.boxes > 0 ? (
         <Reveal index={5}>
-          <Card>
+          <Card icon={(c) => <IconTransport size={22} color={c} />} title={t.app.home.boxesTitle}>
             <CountUp
               value={data.boxes}
               format={(v) => formatQuantity(Math.round(v), locale)}
               style={{ ...type.figure, color: color.ink }}
             />
             <Text style={[type.secondary, { color: color.inkMuted }]}>
-              {plural(data.boxes, t.app.home.boxCount)} {t.app.home.boxesSent}
+              {plural(data.boxes, t.app.home.boxCount)}{' '}
+              {plural(data.boxes, t.app.home.boxesSent)}
             </Text>
             {data.loose.length > 0 ? (
               <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
@@ -525,9 +540,12 @@ function Briefing() {
       {moved.length > 0 ? (
         <Reveal index={6}>
           <Touchable onPress={() => router.push('/inputs')} accessibilityLabel={t.app.home.changed}>
-            <Card tone="warning">
-              <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.home.changed}</Text>
-              <View style={{ marginTop: space.md, gap: space.sm }}>
+            <Card
+              tone="warning"
+              icon={(c) => <IconCost size={22} color={c} />}
+              title={t.app.home.changed}
+            >
+              <View style={{ marginTop: space.xs, gap: space.sm }}>
                 {moved.map((change) => {
                   const previous = change.previousRate ?? change.newRate;
                   const delta = previous > 0 ? (change.newRate - previous) / previous : 0;
