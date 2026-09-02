@@ -133,3 +133,14 @@ export function IconChevron({ size = 24, color }: IconProps) {
     </Svg>
   );
 }
+
+/** A triangle with a bang: what was lost, and why the report exists. */
+export function IconLoss({ size = 24, color }: IconProps) {
+  return (
+    <Svg {...frame(size)} accessibilityRole="image">
+      <Path d="M12 3.5l9 16H3z" {...stroke(color)} />
+      <Path d="M12 9.5v5" {...stroke(color)} />
+      <Path d="M12 17.2v.1" {...stroke(color)} />
+    </Svg>
+  );
+}

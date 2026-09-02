@@ -11,6 +11,7 @@ import {
   productionOn,
   shipmentsOn,
   recordCheck,
+  recordLoss,
   openProductionRun,
   openProductionRuns,
   cancelProductionRun,
@@ -782,6 +783,60 @@ test('what went out is grouped by where it landed, in the units each item has', 
   // das linhas.
   const total = dia.flatMap((d) => d.items).reduce((n, i) => n + i.baseUnits, 0);
   assert.equal(total, 12000);
+});
+
+test('a loss leaves the ledger, carrying the reason that makes it useful', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const acucar = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.name.includes('Açúcar'));
+  assert.ok(acucar);
+  const antes = acucar.onHandBaseUnits;
+
+  const perdido = await recordLoss(LOCAL_COMPANY_ID, {
+    itemId: acucar.id,
+    baseUnits: 4000,
+    reason: 'expired',
+    occurredAt: '2026-09-01T10:00:00.000Z',
+  });
+
+  assert.equal(perdido.baseUnits, 4000);
+
+  // Saiu do saldo, e a linha guarda o motivo - que é o que separa "sumiram
+  // quatro quilos" de "quatro quilos venceram", e só a segunda muda uma
+  // decisão.
+  const depois = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.id === acucar.id);
+  assert.equal(depois?.onHandBaseUnits, antes - 4000);
+
+  const linha = await live.getFirstAsync<{ kind: string; q: number; reason: string }>(
+    `SELECT kind, quantity_base_units AS q, loss_reason AS reason
+       FROM movements WHERE kind = 'loss' AND item_id = ?`,
+    [acucar.id],
+  );
+  assert.equal(linha?.kind, 'loss');
+  assert.equal(linha?.q, -4000, 'o sinal é da função, não de quem chama');
+  assert.equal(linha?.reason, 'expired');
+});
+
+test('nobody loses what they do not have', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const acucar = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.name.includes('Açúcar'));
+  assert.ok(acucar);
+
+  // Mesmo piso da produção, no mesmo lugar: antes da escrita. Uma perda maior
+  // que o saldo seria um saldo negativo que ninguém conseguiria explicar - e
+  // corrigir isso num livro-razão append-only custa estorno.
+  await assert.rejects(
+    recordLoss(LOCAL_COMPANY_ID, {
+      itemId: acucar.id,
+      baseUnits: acucar.onHandBaseUnits + 1,
+      reason: 'melted',
+    }),
+    (e) => e instanceof NotEnoughStockError,
+  );
+
+  // E uma perda de nada não é uma perda.
+  await assert.rejects(
+    recordLoss(LOCAL_COMPANY_ID, { itemId: acucar.id, baseUnits: 0, reason: 'broken' }),
+  );
 });
 
 test('an open run is state: the ledger does not know it until it closes', async () => {

@@ -1,5 +1,6 @@
 import { applyCostEvent, type StockCostState } from '@/domain/cost';
 import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
+import type { LossReason } from '@/domain/ledger';
 import { explodeRequirements } from '@/domain/recipe';
 import type { ItemCosts, Recipe, RecipeLine } from '@/domain/recipe';
 import type { PackagingHierarchy } from '@/domain/units';
@@ -1423,6 +1424,152 @@ export async function recentCostChanges(companyId: string, limit = 5): Promise<C
     previousRate: r.previous_rate === null ? null : (r.previous_rate as Rate),
     newRate: r.new_rate as Rate,
     observedAt: r.observed_at,
+  }));
+}
+
+/**
+ * Alguma coisa se perdeu, e o motivo é obrigatório.
+ *
+ * Escreve um movimento negativo com `loss_reason` preenchido - o servidor tem
+ * `check (kind <> 'loss' or loss_reason is not null)` desde a primeira migração,
+ * então uma perda sem motivo é recusada lá mesmo que o aparelho a aceitasse. E
+ * o motivo não é burocracia: "sumiram 200 picolés" não muda decisão nenhuma,
+ * "derreteram 200 picolés na câmara" muda a manutenção do freezer.
+ *
+ * As palavras estão nos três idiomas desde antes desta função existir, sem tela
+ * que as usasse - uma das dívidas que o próprio CLAUDE.md nomeia. Este é o
+ * primeiro escritor.
+ *
+ * O piso é o mesmo da produção: não se perde o que não se tem. A checagem roda
+ * antes da escrita, e por isso não existe linha errada para alguém estornar.
+ */
+export async function recordLoss(
+  companyId: string,
+  input: {
+    itemId: string;
+    /** Quanto se perdeu, em unidade-base. Sempre positivo: o sinal é daqui. */
+    baseUnits: number;
+    reason: LossReason;
+    locationId?: string;
+    occurredAt?: string;
+    note?: string;
+    assistantPhrase?: string;
+  },
+): Promise<{ baseUnits: number; rate: Rate }> {
+  if (!(input.baseUnits > 0)) throw new Error('uma perda de nada não é uma perda');
+
+  const conn = await db();
+  const at = nowIso();
+  const occurred = input.occurredAt ?? at;
+  const locationId = input.locationId ?? (await ensureLocation(conn, companyId));
+
+  const held = await conn.getFirstAsync<{ on_hand: number }>(
+    `SELECT COALESCE(SUM(quantity_base_units), 0) AS on_hand
+       FROM movements
+      WHERE company_id = ? AND item_id = ? AND location_id = ?`,
+    [companyId, input.itemId, locationId],
+  );
+
+  const onHand = held?.on_hand ?? 0;
+  if (onHand < input.baseUnits) {
+    const name = (await labels(companyId))[input.itemId] ?? input.itemId;
+    throw new NotEnoughStockError([
+      { itemId: input.itemId, name, needed: input.baseUnits, held: onHand },
+    ]);
+  }
+
+  // A taxa é a que o item vale hoje: o que se perdeu foi mercadoria comprada,
+  // e o relatório de perdas conta dinheiro, não só quantidade.
+  const rates = await itemCosts(companyId);
+  const rate = (rates[input.itemId] ?? 0) as Rate;
+
+  const id = newId();
+  await conn.withTransactionAsync(async () => {
+    await conn.runAsync(
+      `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
+                              quantity_base_units, location_id, unit_cost_rate, loss_reason,
+                              note, assistant_phrase)
+       VALUES (?, ?, 'loss', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        companyId,
+        occurred,
+        at,
+        input.itemId,
+        -Math.round(input.baseUnits),
+        locationId,
+        rate || null,
+        input.reason,
+        input.note ?? null,
+        input.assistantPhrase ?? null,
+      ],
+    );
+    await enqueue(conn, [{ table: 'movements', rowId: id }]);
+  });
+
+  return { baseUnits: Math.round(input.baseUnits), rate };
+}
+
+/** Uma perda, como o relatório precisa dela: quanto, onde, por quê e quanto vale. */
+export type LossRow = {
+  itemId: string;
+  name: string;
+  baseUnits: number;
+  baseUnit: string;
+  reason: LossReason;
+  locationName: string;
+  valueCents: Cents;
+  occurredAt: string;
+};
+
+/**
+ * O que se perdeu numa janela, do mais caro para o mais barato.
+ *
+ * Ordenado por dinheiro e não por data porque a pergunta que o relatório
+ * responde não é "o que aconteceu ontem", é "onde está indo o dinheiro que
+ * some". Uma caixa que derreteu vale mais que trinta picolés de cortesia, e é
+ * ela que muda a manutenção do freezer.
+ */
+export async function lossesOn(
+  companyId: string,
+  fromIso: string,
+  toIso: string,
+): Promise<LossRow[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    item_id: string;
+    name: string;
+    base_unit: string;
+    quantity: number;
+    reason: LossReason;
+    location_name: string;
+    rate: number | null;
+    occurred_at: string;
+  }>(
+    `SELECT m.item_id, i.name, i.base_unit, m.quantity_base_units AS quantity,
+            m.loss_reason AS reason, l.name AS location_name,
+            m.unit_cost_rate AS rate, m.occurred_at
+       FROM movements m
+       JOIN items i ON i.id = m.item_id
+       JOIN locations l ON l.id = m.location_id
+      WHERE m.company_id = ?
+        AND m.kind = 'loss'
+        AND m.occurred_at >= ?
+        AND m.occurred_at < ?
+      ORDER BY ABS(m.quantity_base_units * COALESCE(m.unit_cost_rate, 0)) DESC`,
+    [companyId, fromIso, toIso],
+  );
+
+  return rows.map((r) => ({
+    itemId: r.item_id,
+    name: r.name,
+    baseUnits: Math.abs(r.quantity),
+    baseUnit: r.base_unit,
+    reason: r.reason,
+    locationName: r.location_name,
+    // Taxa fracionária vezes quantidade, arredondada aqui e só aqui.
+    valueCents: cents(Math.abs(r.quantity) * (r.rate ?? 0)),
+    occurredAt: r.occurred_at,
   }));
 }
 

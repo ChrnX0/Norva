@@ -112,10 +112,20 @@ export const es: Dictionary = {
       subtitle: 'Cada uno abre un resumen de una pantalla',
       rows: {
         stock: { label: 'Existencias', detail: 'qué hay y dónde' },
+        losses: { label: 'Pérdidas', detail: 'cuánto, dónde y por qué' },
         cost: { label: 'Costo', detail: 'lo que cuesta cada unidad' },
       },
     },
 
+    losses: {
+      title: 'Pérdidas',
+      window: 'Últimos 30 días',
+      empty: 'Ninguna pérdida registrada en los últimos 30 días.',
+      emptyHint: 'Cuando algo venza, se derrita o se rompa, regístralo en el insumo — el motivo es lo que hace útil esta pantalla.',
+      total: '{{money}} en {{count}}',
+      lossCount: { one: '1 pérdida', other: '{{n}} pérdidas' },
+      worst: 'Lo que más pesó: {{reason}}, {{money}}.',
+    },
     more: {
       title: 'Más',
       ask: { label: 'Pregunte', hint: 'escriba lo que quiere saber' },
@@ -296,6 +306,17 @@ export const es: Dictionary = {
       pricePer: 'Precio por {{pack}}',
       inStock: 'En existencia',
       heldHere: '{{amount}} parados aquí',
+      lossTitle: '¿Se perdió algo?',
+      lossHint: 'Regístralo con el motivo. El motivo es lo que hace que el informe sirva para decidir.',
+      lossStart: 'Registrar pérdida',
+      lossAmount: 'Cuánto se perdió',
+      lossWhy: 'Qué pasó',
+      lossConfirm: 'Registrar la pérdida',
+      lossCancel: 'Déjalo',
+      lossAsk: '¿Registrar esta pérdida?',
+      lossBody: 'Esto baja {{amount}} de {{item}}: {{reason}}. Vale {{money}}, y queda en el historial.',
+      lossDone: 'Pérdida registrada.',
+      lossFailed: 'No se pudo registrar la pérdida',
       countTitle: 'Verificar el stock',
       countHint:
         'Cuente lo que hay en el estante y escríbalo aquí. El número que el sistema espera queda oculto hasta que termine: con él en la pantalla, verificar se vuelve copiar.',

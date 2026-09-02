@@ -168,7 +168,8 @@ check('the five tabs are there, and the old addresses still answer', async (page
   assert.match(reports, /Estoque/);
   assert.match(reports, /o que cada unidade custa/);
   // What the design draws but nothing answers yet must not be advertised.
-  assert.doesNotMatch(reports, /margem|Espelho da loja|Perdas/i, 'a row promising a screen that does not exist');
+  assert.match(reports, /Perdas/, 'a linha existe porque agora há quem escreva perda');
+  assert.doesNotMatch(reports, /margem|Espelho da loja/i, 'a row promising a screen that does not exist');
 
   await page.goto(`http://localhost:${PORT}/more`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2000);
@@ -725,6 +726,45 @@ check('an item can leave circulation without leaving history', async (page) => {
   await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2000);
   assert.doesNotMatch(await screen(page), /Glucose/, 'gone from the picker');
+});
+
+check('a loss is recorded with its reason, and the report says where the money went', async (page) => {
+  // O índice tem a linha, e ela abre uma tela honesta mesmo sem perda nenhuma.
+  await page.goto(`http://localhost:${PORT}/losses`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  assert.match(await screen(page), /Nenhuma perda registrada/);
+
+  // Registra uma perda no insumo, com motivo.
+  await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Açúcar cristal').first().click();
+  await page.waitForTimeout(2000);
+
+  await page.getByText('Registrar perda', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+  await page.getByLabel('Quanto se perdeu').fill('4000');
+  await page.getByText('Venceu', { exact: true }).first().click();
+  await page.waitForTimeout(400);
+  await page.getByText('Registrar a perda', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+
+  // A confirmação diz o que vai sair, por que, e quanto vale - antes de gravar.
+  const perguntando = await screen(page);
+  assert.match(perguntando, /Você vai baixar 4\.000 g de Açúcar cristal: venceu/);
+  assert.match(perguntando, /Vale R\$/, 'a perda é dita em dinheiro, não só em quantidade');
+
+  await page.getByText('Registrar a perda', { exact: true }).last().click();
+  await page.waitForTimeout(2500);
+
+  // O saldo caiu, e o relatório sabe dizer o que pesou.
+  assert.match(await screen(page), /46\.000 g/, 'saiu do saldo do item');
+
+  await page.goto(`http://localhost:${PORT}/losses`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  const relatorio = await screen(page);
+  assert.match(relatorio, /Açúcar cristal/);
+  assert.match(relatorio, /4\.000 g · venceu/);
+  assert.match(relatorio, /O que mais pesou: venceu/);
 });
 
 check('two weeks can be planted from Ajustes, and the briefing changes because of it', async (page) => {

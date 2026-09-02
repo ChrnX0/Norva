@@ -107,10 +107,20 @@ export const en: Dictionary = {
       subtitle: 'Each one opens a one-screen summary',
       rows: {
         stock: { label: 'Stock', detail: 'what you have and where' },
+        losses: { label: 'Losses', detail: 'how much, where and why' },
         cost: { label: 'Cost', detail: 'what each unit costs' },
       },
     },
 
+    losses: {
+      title: 'Losses',
+      window: 'Last 30 days',
+      empty: 'No losses recorded in the last 30 days.',
+      emptyHint: 'When something expires, melts or breaks, record it on the item — the reason is what makes this screen useful.',
+      total: '{{money}} across {{count}}',
+      lossCount: { one: '1 loss', other: '{{n}} losses' },
+      worst: 'The heaviest: {{reason}}, {{money}}.',
+    },
     more: {
       title: 'More',
       ask: { label: 'Ask', hint: 'type what you want to know' },
@@ -290,6 +300,17 @@ export const en: Dictionary = {
       pricePer: 'Price per {{pack}}',
       inStock: 'In stock',
       heldHere: '{{amount}} sitting here',
+      lossTitle: 'Did something get lost?',
+      lossHint: 'Record it with the reason. The reason is what makes the report worth reading.',
+      lossStart: 'Record a loss',
+      lossAmount: 'How much was lost',
+      lossWhy: 'What happened',
+      lossConfirm: 'Record the loss',
+      lossCancel: 'Never mind',
+      lossAsk: 'Record this loss?',
+      lossBody: 'This takes {{amount}} of {{item}} off the shelf: {{reason}}. It is worth {{money}}, and it stays on the record.',
+      lossDone: 'Loss recorded.',
+      lossFailed: 'Could not record the loss',
       countTitle: 'Check the stock',
       countHint:
         'Count what is on the shelf and write it here. The number the system expects stays hidden until you are done - with it on screen, checking turns into copying.',

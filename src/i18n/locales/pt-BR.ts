@@ -126,10 +126,20 @@ export const ptBR = {
       subtitle: 'Cada um abre num resumo de uma tela',
       rows: {
         stock: { label: 'Estoque', detail: 'o que tem e onde' },
+        losses: { label: 'Perdas', detail: 'quanto, onde e por quê' },
         cost: { label: 'Custo', detail: 'o que cada unidade custa' },
       },
     },
 
+    losses: {
+      title: 'Perdas',
+      window: 'Últimos 30 dias',
+      empty: 'Nenhuma perda registrada nos últimos 30 dias.',
+      emptyHint: 'Quando alguma coisa vencer, derreter ou quebrar, registre no item — é o motivo que faz esta tela servir.',
+      total: '{{money}} em {{count}}',
+      lossCount: { one: '1 perda', other: '{{n}} perdas' },
+      worst: 'O que mais pesou: {{reason}}, {{money}}.',
+    },
     more: {
       title: 'Mais',
       ask: { label: 'Pergunte', hint: 'escreva o que quer saber' },
@@ -310,6 +320,17 @@ export const ptBR = {
       pricePer: 'Preço por {{pack}}',
       inStock: 'Em estoque',
       heldHere: '{{amount}} parados aqui',
+      lossTitle: 'Perdeu alguma coisa?',
+      lossHint: 'Registre com o motivo. É o motivo que faz o relatório servir para decidir.',
+      lossStart: 'Registrar perda',
+      lossAmount: 'Quanto se perdeu',
+      lossWhy: 'O que aconteceu',
+      lossConfirm: 'Registrar a perda',
+      lossCancel: 'Deixa para lá',
+      lossAsk: 'Registrar esta perda?',
+      lossBody: 'Você vai baixar {{amount}} de {{item}}: {{reason}}. Vale {{money}}, e fica no histórico.',
+      lossDone: 'Perda registrada.',
+      lossFailed: 'Não deu para registrar a perda',
       countTitle: 'Conferir o estoque',
       countHint:
         'Conte o que está na prateleira e escreva aqui. O número que o sistema espera fica escondido até você terminar — se ele estiver na tela, a conferência vira cópia.',

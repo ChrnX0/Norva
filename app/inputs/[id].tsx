@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip, priceSignal } from '@/components/Chip';
@@ -9,6 +9,7 @@ import { Field } from '@/components/Field';
 import { ListRow } from '@/components/ListRow';
 import { useConfirm } from '@/components/Confirm';
 import {
+  recordLoss,
   defaultLocationId,
   findItem,
   itemHistory,
@@ -22,6 +23,7 @@ import {
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { judgePriceChange } from '@/domain/cost';
+import type { LossReason } from '@/domain/ledger';
 import { parseTyped } from '@/domain/number';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatDayMonth, formatMoney, formatQuantity } from '@/i18n';
@@ -57,7 +59,7 @@ type Loaded = {
 };
 
 function InputDetail() {
-  const { color, space, type } = useTheme();
+  const { color, space, type, radius } = useTheme();
   const confirm = useConfirm();
   const router = useRouter();
   const { locale, t } = useLocale();
@@ -69,6 +71,10 @@ function InputDetail() {
   // check becomes theatre that nobody can tell apart from a real one.
   const [counting, setCounting] = useState(false);
   const [typed, setTyped] = useState('');
+
+  const [losing, setLosing] = useState(false);
+  const [lostText, setLostText] = useState('');
+  const [reason, setReason] = useState<LossReason>('expired');
 
   const { data, loading, refresh } = useQuery<Loaded>(async () => {
     if (!id) return { item: null, history: [], recipes: [], movements: [] };
@@ -121,6 +127,50 @@ function InputDetail() {
    * the moment a tired person is one keystroke from writing a wrong number
    * into a ledger that never forgets.
    */
+  /**
+   * A perda, dita por extenso antes de virar linha.
+   *
+   * O motivo é obrigatório no servidor desde a primeira migração, e a razão é
+   * de negócio, não de esquema: "sumiram quatro quilos" não muda decisão
+   * nenhuma; "quatro quilos venceram" muda a compra, e "derreteram" muda a
+   * manutenção do freezer.
+   */
+  const submitLoss = async () => {
+    const lost = parseTyped(lostText) ?? NaN;
+    if (!Number.isFinite(lost) || lost <= 0) return;
+
+    const worth = Math.round(item.averageRate * lost);
+    const go = await confirm({
+      title: t.app.inputDetail.lossAsk,
+      message: fill(t.app.inputDetail.lossBody, {
+        amount: `${formatQuantity(Math.round(lost), locale)} ${item.baseUnit}`,
+        item: item.name,
+        reason: t.loss[reason].toLocaleLowerCase(locale.formatting),
+        money: formatMoney(worth, locale),
+      }),
+      confirmLabel: t.app.inputDetail.lossConfirm,
+    });
+    if (!go) return;
+
+    try {
+      await recordLoss(LOCAL_COMPANY_ID, {
+        itemId: item.id,
+        baseUnits: Math.round(lost),
+        reason,
+      });
+      setLosing(false);
+      setLostText('');
+      refresh();
+    } catch (e) {
+      await confirm({
+        title: t.app.inputDetail.lossFailed,
+        message: e instanceof Error ? e.message : String(e),
+        acknowledge: true,
+        confirmLabel: t.app.confirm.understood,
+      });
+    }
+  };
+
   const submitCount = async () => {
     const counted = (parseTyped(typed) ?? NaN);
     if (!Number.isFinite(counted) || counted < 0) return;
@@ -240,6 +290,76 @@ function InputDetail() {
         />
       </Card>
 
+      {/* A perda, ao lado da contagem, porque são a mesma família: as duas
+          dizem que a prateleira discorda do sistema. A diferença é que a
+          contagem não sabe por quê e a perda sabe - e é o porquê que faz o
+          relatório servir para decidir. */}
+      <Card>
+        <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.inputDetail.lossTitle}</Text>
+        <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
+          {t.app.inputDetail.lossHint}
+        </Text>
+
+        {losing ? (
+          <View style={{ marginTop: space.md, gap: space.md }}>
+            <Field
+              label={t.app.inputDetail.lossAmount}
+              value={lostText}
+              onChangeText={setLostText}
+              keyboardType="numeric"
+              suffix={item.baseUnit}
+              autoFocus
+            />
+
+            <Text style={[type.caption, { color: color.inkFaint }]}>
+              {t.app.inputDetail.lossWhy}
+            </Text>
+            <View style={[styles.reasons, { gap: space.sm }]}>
+              {REASONS.map((r) => (
+                <Pressable
+                  key={r}
+                  onPress={() => setReason(r)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: reason === r }}
+                  accessibilityLabel={t.loss[r]}
+                  style={[
+                    styles.reason,
+                    {
+                      borderColor: reason === r ? color.ink : color.line,
+                      borderRadius: radius.pill,
+                      paddingVertical: space.sm,
+                      paddingHorizontal: space.md,
+                    },
+                  ]}
+                >
+                  <Text style={[type.secondary, { color: reason === r ? color.ink : color.inkMuted }]}>
+                    {t.loss[r]}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Button label={t.app.inputDetail.lossConfirm} onPress={submitLoss} weighty />
+            <Button
+              label={t.app.inputDetail.lossCancel}
+              variant="ghost"
+              onPress={() => {
+                setLosing(false);
+                setLostText('');
+              }}
+            />
+          </View>
+        ) : (
+          <View style={{ marginTop: space.md }}>
+            <Button
+              label={t.app.inputDetail.lossStart}
+              variant="ghost"
+              onPress={() => setLosing(true)}
+            />
+          </View>
+        )}
+      </Card>
+
       <Card tone="area">
         <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.inputDetail.countTitle}</Text>
         <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
@@ -350,3 +470,11 @@ function InputDetail() {
     </CollapsingHeader>
   );
 }
+
+/** As cinco palavras que o servidor aceita, na ordem em que a fábrica as usa. */
+const REASONS: LossReason[] = ['expired', 'melted', 'broken', 'courtesy', 'internal_use'];
+
+const styles = StyleSheet.create({
+  reasons: { flexDirection: 'row', flexWrap: 'wrap' },
+  reason: { borderWidth: 1 },
+});

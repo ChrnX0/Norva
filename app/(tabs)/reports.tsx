@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
-import { IconChevron, IconCost, IconStock } from '@/components/icons';
+import { IconChevron, IconCost, IconLoss, IconStock } from '@/components/icons';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 import { palettes, type Ambient } from '@/theme/tokens';
@@ -25,7 +25,10 @@ import type { Dictionary } from '@/i18n';
  *  - "Espelho da loja" is not here by the owner's own decision of 1 September:
  *    the capture ships, the report does not, because it lies with two weeks of
  *    data.
- *  - "Perdas" is not here because nothing writes a loss yet.
+ *  - "Perdas" IS here now: the item screen records one with its reason, and
+ *    the report reads it. It was the last of the three to arrive, and it only
+ *    arrived when something wrote losses - the row and its writer in the same
+ *    week, never the row first.
  *
  * They come back as their screens do, and the index grows honestly.
  */
@@ -45,6 +48,7 @@ const ROWS: {
 }[] = [
   { key: 'stock', area: 'mint', route: '/places', Icon: IconStock },
   { key: 'cost', area: 'sky', route: '/recipes', Icon: IconCost },
+  { key: 'losses', area: 'apricot', route: '/losses', Icon: IconLoss },
 ];
 
 function ReportIndex() {
