@@ -52,11 +52,19 @@ export type Simulation = {
 
 export async function simulateFortnight(
   companyId = LOCAL_COMPANY_ID,
-  options: { days?: number; seed?: number; timeZone?: string } = {},
+  options: { days?: number; seed?: number; timeZone?: string; at?: string } = {},
 ): Promise<Simulation> {
   const days = options.days ?? 14;
   const next = rolls(options.seed ?? 20260901);
   const timeZone = options.timeZone ?? 'America/Sao_Paulo';
+
+  // O instante que a quinzena chama de "hoje".
+  //
+  // Parametrizado para que um teste possa fixá-lo: sem isso a simulação
+  // depende da hora em que a suíte roda, e a mesma semente daria fábricas
+  // diferentes entre uma execução às 23h59 e outra às 00h01 - o oposto do
+  // determinismo que esta função promete.
+  const today = options.at ?? nowIso();
 
   const products = (await listProducts(companyId)).filter((p) => p.recipeId);
   if (products.length === 0) throw new Error('não há produto com receita para simular');
@@ -73,7 +81,7 @@ export async function simulateFortnight(
   // Oldest first, so every cost the ledger freezes is the cost that was true on
   // that day - writing backwards would freeze today's price onto last week.
   for (let back = days - 1; back >= 0; back -= 1) {
-    const day = dayWindow(nowIso(), timeZone, -back);
+    const day = dayWindow(today, timeZone, -back);
     const at = (hour: number) =>
       new Date(new Date(day.from).getTime() + hour * 3_600_000).toISOString();
 

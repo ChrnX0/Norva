@@ -19,6 +19,15 @@ import { simulateFortnight } from './simulate';
 
 const SP = 'America/Sao_Paulo';
 
+/**
+ * Um instante fixo, e não o relógio da máquina.
+ *
+ * A proofgate pegou isto e tinha razão: teste que lê a hora de verdade roda
+ * diferente às 23h59 e à 00h01, e a promessa de determinismo desta simulação
+ * não valia enquanto "hoje" fosse o dia em que a suíte por acaso rodou.
+ */
+const AGORA = '2026-09-01T15:00:00.000Z';
+
 async function bancoLimpo(): Promise<Db> {
   const conn = memoria();
   await migrate(conn);
@@ -55,7 +64,7 @@ test('a fortnight of operation lands in the ledger, spread over its days', async
   await bancoLimpo();
   await ensureStarterData(LOCAL_COMPANY_ID);
 
-  const feito = await simulateFortnight(LOCAL_COMPANY_ID, { timeZone: SP });
+  const feito = await simulateFortnight(LOCAL_COMPANY_ID, { timeZone: SP, at: AGORA });
 
   assert.ok(feito.runs >= 8, `poucas corridas para catorze dias: ${feito.runs}`);
   assert.ok(feito.deliveries >= 5, `poucas entregas: ${feito.deliveries}`);
@@ -63,8 +72,8 @@ test('a fortnight of operation lands in the ledger, spread over its days', async
 
   // E o passado é passado: hoje e a semana passada têm produção, que é o par
   // exato de que a home precisa para dizer algo em vez de "primeira produção".
-  const hoje = dayWindow(new Date().toISOString(), SP);
-  const semanaPassada = dayWindow(new Date().toISOString(), SP, -7);
+  const hoje = dayWindow(AGORA, SP);
+  const semanaPassada = dayWindow(AGORA, SP, -7);
 
   const deHoje = await productionOn(LOCAL_COMPANY_ID, hoje.from, hoje.to);
   const deEntao = await productionOn(LOCAL_COMPANY_ID, semanaPassada.from, semanaPassada.to);
@@ -77,7 +86,7 @@ test('the same seed writes the same fortnight, twice', async () => {
   const rodar = async () => {
     await bancoLimpo();
     await ensureStarterData(LOCAL_COMPANY_ID);
-    return simulateFortnight(LOCAL_COMPANY_ID, { seed: 7, timeZone: SP });
+    return simulateFortnight(LOCAL_COMPANY_ID, { seed: 7, timeZone: SP, at: AGORA });
   };
 
   // Determinismo não é preciosismo: um teste que falha tem de falhar de novo
@@ -89,7 +98,7 @@ test('the same seed writes the same fortnight, twice', async () => {
 test('the simulation writes through the front door, so the balance survives it', async () => {
   await bancoLimpo();
   await ensureStarterData(LOCAL_COMPANY_ID);
-  await simulateFortnight(LOCAL_COMPANY_ID, { timeZone: SP });
+  await simulateFortnight(LOCAL_COMPANY_ID, { timeZone: SP, at: AGORA });
 
   // Nada de saldo negativo: a simulação chama `recordProduction`, que hoje
   // recusa consumir o que não tem. Se ela escrevesse SQL próprio, isto passaria
@@ -103,8 +112,8 @@ test('the simulation writes through the front door, so the balance survives it',
   }
 
   // E o que saiu chegou em algum lugar.
-  const hoje = dayWindow(new Date().toISOString(), SP);
-  const ontem = dayWindow(new Date().toISOString(), SP, -1);
+  const hoje = dayWindow(AGORA, SP);
+  const ontem = dayWindow(AGORA, SP, -1);
   const remessas = [
     ...(await shipmentsOn(LOCAL_COMPANY_ID, ontem.from, ontem.to)),
     ...(await shipmentsOn(LOCAL_COMPANY_ID, hoje.from, hoje.to)),
