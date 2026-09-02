@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { beforeEach, test } from 'node:test';
 import { fromDecimal, rate } from '@/domain/money';
+import { localDate } from '@/domain/day';
 import { costRecipe } from '@/domain/recipe';
-import { __setDb, migrate, migrationSteps, type Db, type SqlParam } from './db';
+import { __setDb, migrate, migrationSteps, nowIso, type Db, type SqlParam } from './db';
 import {
   balanceByLocation,
   lastSentBaseUnits,
@@ -863,6 +864,7 @@ test('an open run is state: the ledger does not know it until it closes', async 
   const fechada = await closeProductionRun(LOCAL_COMPANY_ID, {
     runId: corrida.id,
     unitsProduced: 480,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
   });
 
   // Agora sim, e o id da corrida é o grupo das linhas: a corrida sai da tabela
@@ -898,13 +900,13 @@ test('two taps on close do not produce twice', async () => {
   const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   const corrida = await openProductionRun(LOCAL_COMPANY_ID, { productId: product.id, batches: 1 });
 
-  await closeProductionRun(LOCAL_COMPANY_ID, { runId: corrida.id, unitsProduced: 480 });
+  await closeProductionRun(LOCAL_COMPANY_ID, { runId: corrida.id, unitsProduced: 480, producedOn: localDate(nowIso(), 'America/Sao_Paulo') });
 
   // Dedo tremido na doca, ou a tela que não atualizou: a segunda tentativa não
   // acha a corrida e para ANTES de escrever, em vez de baixar o insumo duas
   // vezes.
   await assert.rejects(
-    closeProductionRun(LOCAL_COMPANY_ID, { runId: corrida.id, unitsProduced: 480 }),
+    closeProductionRun(LOCAL_COMPANY_ID, { runId: corrida.id, unitsProduced: 480, producedOn: localDate(nowIso(), 'America/Sao_Paulo') }),
     (e) => e instanceof RunGoneError,
   );
 });
@@ -916,7 +918,7 @@ test('a run that cannot close stays open, instead of being lost', async () => {
   // Vinte tachos contra o estoque de um exemplo: o razão recusa.
   const corrida = await openProductionRun(LOCAL_COMPANY_ID, { productId: product.id, batches: 20 });
   await assert.rejects(
-    closeProductionRun(LOCAL_COMPANY_ID, { runId: corrida.id, unitsProduced: 9000 }),
+    closeProductionRun(LOCAL_COMPANY_ID, { runId: corrida.id, unitsProduced: 9000, producedOn: localDate(nowIso(), 'America/Sao_Paulo') }),
     (e) => e instanceof NotEnoughStockError,
   );
 
@@ -1061,6 +1063,7 @@ test('the day a run belongs to is when it happened, not when the phone told the 
     batches: 1,
     unitsProduced: 400,
     occurredAt: segundaTarde,
+    producedOn: localDate(segundaTarde, 'America/Sao_Paulo'),
   });
   await recordProduction(LOCAL_COMPANY_ID, {
     productId: product.id,
@@ -1068,6 +1071,7 @@ test('the day a run belongs to is when it happened, not when the phone told the 
     batches: 1,
     unitsProduced: 500,
     occurredAt: tercaCedo,
+    producedOn: localDate(tercaCedo, 'America/Sao_Paulo'),
   });
 
   const segunda = await productionOn(
@@ -1086,6 +1090,124 @@ test('the day a run belongs to is when it happened, not when the phone told the 
   // fábrica não produziu nada na segunda.
   assert.equal(segunda.find((r) => r.itemId === product.itemId)?.baseUnits, 400);
   assert.equal(terca.find((r) => r.itemId === product.itemId)?.baseUnits, 500);
+});
+
+test('a run becomes a lot, and the lot carries the day it dies', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+
+  // Três corridas pedem mais insumo do que o exemplo semeado tem: a fábrica
+  // compra antes, como compraria de verdade.
+  for (const insumo of (await listItems(LOCAL_COMPANY_ID)).filter((i) => i.kind === 'input')) {
+    await recordPurchase(LOCAL_COMPANY_ID, {
+      itemId: insumo.id,
+      purchaseQuantity: 1,
+      baseUnits: 60_000,
+      totalCents: fromDecimal(300),
+    });
+  }
+
+  // O prazo é do produto, respondido uma vez no cadastro.
+  await saveProduct(LOCAL_COMPANY_ID, {
+    id: product.id,
+    itemId: product.itemId,
+    name: product.name,
+    kind: 'product',
+    recipeId: product.recipeId,
+    yieldPerUnit: product.yieldPerUnit,
+    unitPackagingCents: product.unitPackagingCents,
+    packaging: product.packaging,
+    shelfLifeDays: 180,
+  });
+
+  const primeira = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    batches: 1,
+    unitsProduced: 400,
+    producedOn: '2026-09-02',
+  });
+
+  assert.equal(primeira.lot.code, '20260902-01');
+  assert.equal(primeira.lot.expiresOn, '2027-03-01');
+
+  // A segunda corrida do MESMO dia é a segunda, e a de outro dia recomeça.
+  const segunda = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    batches: 1,
+    unitsProduced: 380,
+    producedOn: '2026-09-02',
+  });
+  assert.equal(segunda.lot.code, '20260902-02');
+
+  const outroDia = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    batches: 1,
+    unitsProduced: 200,
+    producedOn: '2026-09-03',
+  });
+  assert.equal(outroDia.lot.code, '20260903-01');
+
+  // A linha de PRODUÇÃO aponta para o lote; as de consumo, não. Carimbar o lote
+  // do picolé na saída da polpa faria o recall recolher o saco de açúcar.
+  const linhas = await live.getAllAsync<{ id: string; kind: string; lot_id: string | null }>(
+    `SELECT id, kind, lot_id FROM movements WHERE movement_group_id = ?`,
+    [primeira.groupId],
+  );
+  const producao = linhas.filter((l) => l.kind === 'production');
+  const consumo = linhas.filter((l) => l.kind === 'consumption');
+  assert.equal(producao.length, 1);
+  assert.equal(producao[0].lot_id, primeira.lot.id);
+  assert.ok(consumo.length > 0, 'a corrida consumiu insumo');
+  assert.ok(
+    consumo.every((l) => l.lot_id === null),
+    'consumo não carrega o lote do que foi produzido',
+  );
+
+  // E o lote sobe ANTES do movimento que o cita. O servidor tem a chave
+  // estrangeira que o SQLite daqui não tem: invertido, o aparelho aceitaria e o
+  // servidor recusaria - defeito que só apareceria no primeiro celular offline.
+  const fila = await live.getAllAsync<{ table_name: string; row_id: string }>(
+    `SELECT table_name, row_id FROM outbox ORDER BY queued_at, rowid`,
+  );
+  const posicaoDoLote = fila.findIndex((f) => f.table_name === 'lots' && f.row_id === primeira.lot.id);
+  const posicaoDaLinha = fila.findIndex(
+    (f) => f.table_name === 'movements' && f.row_id === producao[0].id,
+  );
+  assert.ok(posicaoDoLote >= 0, 'o lote entrou na fila');
+  assert.ok(posicaoDaLinha >= 0, 'a linha de produção entrou na fila');
+  assert.ok(posicaoDoLote < posicaoDaLinha, 'o lote sobe antes do movimento que o cita');
+});
+
+test('a product with no shelf life still gets a lot, without a date', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+
+  // Nada de prazo cadastrado: o exemplo semeado nasce assim.
+  assert.equal(product.shelfLifeDays, null);
+
+  const corrida = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    batches: 1,
+    unitsProduced: 300,
+    producedOn: '2026-09-02',
+  });
+
+  // O lote existe e rastreia; o que ele não carrega é uma data inventada, que
+  // seria pior que nenhuma nos dois sentidos - descartar o que está bom, ou
+  // vender o que já passou.
+  assert.equal(corrida.lot.code, '20260902-01');
+  assert.equal(corrida.lot.expiresOn, null);
+
+  const gravado = await live.getFirstAsync<{ expires_on: string | null; produced_on: string }>(
+    `SELECT expires_on, produced_on FROM lots WHERE id = ?`,
+    [corrida.lot.id],
+  );
+  assert.equal(gravado?.expires_on, null);
+  assert.equal(gravado?.produced_on, '2026-09-02');
 });
 
 test('a kettle is refused when the sugar is in the store, not in the factory', async () => {
@@ -1124,7 +1246,8 @@ test('a kettle is refused when the sugar is in the store, not in the factory', a
         locationId: fabrica,
         batches: 1,
         unitsProduced: 400,
-      }),
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  }),
     (error: unknown) => {
       assert.ok(error instanceof NotEnoughStockError);
       // E diz o nome do insumo, não o uuid: com zero naquela sala, ele não tem
@@ -1153,6 +1276,7 @@ test('the week the home screen draws carries the runs, and only the runs', async
     batches: 1,
     unitsProduced: 400,
     occurredAt: '2026-08-31T13:00:00.000Z',
+    producedOn: localDate('2026-08-31T13:00:00.000Z', 'America/Sao_Paulo'),
   });
   await recordProduction(LOCAL_COMPANY_ID, {
     productId: product.id,
@@ -1160,6 +1284,7 @@ test('the week the home screen draws carries the runs, and only the runs', async
     batches: 1,
     unitsProduced: 500,
     occurredAt: '2026-09-02T14:00:00.000Z',
+    producedOn: localDate('2026-09-02T14:00:00.000Z', 'America/Sao_Paulo'),
   });
 
   const semana = await productionBetween(
@@ -1206,6 +1331,7 @@ test('a run exactly at midnight is counted once, not twice', async () => {
     batches: 1,
     unitsProduced: 300,
     occurredAt: meiaNoite,
+    producedOn: localDate(meiaNoite, 'America/Sao_Paulo'),
   });
 
   const ontem = await productionOn(
@@ -1235,6 +1361,7 @@ test('what the ledger stores is whole base units, because the column is an integ
     locationId: defaultLocationId(LOCAL_COMPANY_ID),
     batches: 1,
     unitsProduced: 500,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
   });
 
   const rows = await live.getAllAsync<{ q: number }>(
@@ -1271,6 +1398,7 @@ test('a production run writes one line per item, and freezes what each cost', as
     locationId: where,
     batches: 1,
     unitsProduced: 500,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
   });
 
   const lines = await live.getAllAsync<{ kind: string; item_id: string; q: number; r: number }>(
@@ -1318,9 +1446,11 @@ test('a run that yielded less freezes the higher cost, because that is what happ
 
   const full = await recordProduction(LOCAL_COMPANY_ID, {
     productId: product.id, locationId: where, batches: 1, unitsProduced: 500,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
   });
   const short = await recordProduction(LOCAL_COMPANY_ID, {
     productId: product.id, locationId: where, batches: 1, unitsProduced: 400,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
   });
 
   // The same tub of mix over fewer popsicles is a dearer popsicle, and the
@@ -1534,6 +1664,7 @@ test('half a kettle takes half the ingredients, so recording only what came out 
     locationId: defaultLocationId(LOCAL_COMPANY_ID),
     batches: 1,
     unitsProduced: 100,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
   });
 
   const meio = await recordProduction(LOCAL_COMPANY_ID, {
@@ -1541,6 +1672,7 @@ test('half a kettle takes half the ingredients, so recording only what came out 
     locationId: defaultLocationId(LOCAL_COMPANY_ID),
     batches: 0.5,
     unitsProduced: 50,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
   });
 
   // A tela sem tacho declarado manda a fração: 50 unidades de um tacho que
@@ -1595,7 +1727,8 @@ test('what is running out comes from what actually left, and a still input never
       batches: 1,
       unitsProduced: 100,
       occurredAt: `2026-03-0${d}T10:00:00.000Z`,
-    });
+    producedOn: localDate(`2026-03-0${d}T10:00:00.000Z`, 'America/Sao_Paulo'),
+  });
   }
 
   const apertados = await runningOut(LOCAL_COMPANY_ID, de, ate, 7, 3650);

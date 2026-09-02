@@ -15,6 +15,7 @@ import {
   cancelProductionRun,
   closeProductionRun,
   type OpenRun,
+  type ProductionResult,
   defaultLocationId,
   labels as loadLabels,
   listItems,
@@ -24,11 +25,22 @@ import {
   type ItemWithCost,
   type Product,
 } from '@/data/repository';
+import { nowIso } from '@/data/db';
+import { localDate } from '@/domain/day';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { explodeRequirements, type Recipe } from '@/domain/recipe';
 import { parseTyped } from '@/domain/number';
-import { fill, formatMoney, formatPacked, formatQuantity, formatTime, joinList, plural } from '@/i18n';
+import {
+  fill,
+  formatCalendarDate,
+  formatMoney,
+  formatPacked,
+  formatQuantity,
+  formatTime,
+  joinList,
+  plural,
+} from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { palettes } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -224,16 +236,45 @@ function Production() {
       // corrida como grupo e com a hora em que ela COMEÇOU, não a de agora.
       // Sem tacho aberto, é o lançamento direto de sempre - quem trabalha
       // assim nunca toca no outro botão.
+      let gravado: ProductionResult;
       if (aberta) {
-        await closeProductionRun(LOCAL_COMPANY_ID, { runId: aberta.id, unitsProduced: units });
+        gravado = await closeProductionRun(LOCAL_COMPANY_ID, {
+          runId: aberta.id,
+          unitsProduced: units,
+          // O dia em que o tacho foi ABERTO, no fuso da fábrica: uma corrida
+          // que começou às 23h de segunda e fechou à 1h de terça é produção de
+          // segunda, e é essa data que vai na etiqueta.
+          producedOn: localDate(aberta.openedAt, locale.timeZone),
+        });
       } else {
-        await recordProduction(LOCAL_COMPANY_ID, {
+        gravado = await recordProduction(LOCAL_COMPANY_ID, {
           productId: selected.id,
           locationId: defaultLocationId(LOCAL_COMPANY_ID),
           batches: consumedBatches,
           unitsProduced: units,
+          // O dia da FÁBRICA, não o do relógio universal: um tacho fechado às
+          // 22h em Manaus pertence ao dia que a equipe viveu, e é essa data que
+          // vai impressa na etiqueta do lote.
+          producedOn: localDate(nowIso(), locale.timeZone),
         });
       }
+      // O lote, dito depois de gravado - e é a única coisa que esta tela
+      // devolve para a pessoa em vez de só guardar.
+      //
+      // Não é confirmação: é o número que alguém vai escrever de caneta na
+      // caixa antes de ela entrar na câmara fria, e sem ele o lote existe
+      // apenas dentro do aplicativo. A validade vem junto quando o produto tem
+      // prazo; quando não tem, a tela diz isso em vez de calar.
+      await askConfirm({
+        title: fill(t.app.productForm.lotIs, { code: gravado.lot.code }),
+        message: gravado.lot.expiresOn
+          ? fill(t.app.productForm.lotExpires, {
+              date: formatCalendarDate(gravado.lot.expiresOn, locale),
+            })
+          : t.app.productForm.lotForever,
+        acknowledge: true,
+      });
+
       // Volta para a aba do dia. Antes esta tela era a própria aba e ficar
       // nela fazia sentido; agora ela é um formulário, e ficar num formulário
       // já gravado deixa a pessoa sem barra de abas e sem ver o total do dia

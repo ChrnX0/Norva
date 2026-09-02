@@ -1,6 +1,7 @@
 import { applyCostEvent, type StockCostState } from '@/domain/cost';
 import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
 import { daysOfCover } from '@/domain/ledger';
+import { expiresOn, lotCode } from '@/domain/lot';
 import type { LossReason } from '@/domain/ledger';
 import { explodeRequirements } from '@/domain/recipe';
 import type { ItemCosts, Recipe, RecipeLine } from '@/domain/recipe';
@@ -989,6 +990,8 @@ export { cents };
 // --- products ---------------------------------------------------------------
 
 export type ProductionResult = {
+  /** O lote que esta corrida criou: o código que vai na etiqueta e a validade. */
+  lot: { id: string; code: string; expiresOn: string | null };
   /** O que amarra as linhas deste ato. */
   groupId: string;
   unitsProduced: number;
@@ -1050,6 +1053,22 @@ export async function recordProduction(
      * dois É o rendimento real, que é metade do valor de registrar produção.
      */
     unitsProduced: number;
+    /**
+     * O dia da fábrica em que a corrida aconteceu, como data de calendário.
+     *
+     * Obrigatório, e sem valor padrão de propósito. O livro-razão guarda um
+     * INSTANTE (`occurred_at`); a data do lote é outra coisa - é o dia local, e
+     * transformar um no outro precisa do fuso da fábrica, que esta camada não
+     * conhece. Derivar aqui seria repetir o defeito que já custou uma rodada:
+     * meia-noite de 3 de setembro em Madri é 2 de setembro em UTC, e o lote
+     * nasceria com a data de ontem em metade do mundo.
+     *
+     * Como o `live` do `PulseDot`: exigido em toda chamada para que o fato seja
+     * dito por quem o conhece, em vez de adivinhado aqui.
+     */
+    producedOn: string;
+    /** O código do lote, quando a fábrica tem padrão próprio. Sem ele, o nosso. */
+    lotCode?: string;
     occurredAt?: string;
     note?: string;
     assistantPhrase?: string;
@@ -1171,8 +1190,37 @@ export async function recordProduction(
   const unitCostRate = (consumedValue / input.unitsProduced + product.unitPackagingCents) as Rate;
   const productionId = newId();
 
+  const lotId = newId();
+  const expires = expiresOn(input.producedOn, product.shelfLifeDays);
+  let lotCodeWritten = '';
+
   await conn.withTransactionAsync(async () => {
     await ensureLocation(conn, companyId);
+
+    // O lote nasce ANTES das linhas que o citam, e a ordem não é estética.
+    //
+    // A fila do aparelho sobe na ordem em que foi escrita, e o servidor tem
+    // chave estrangeira de `movements.lot_id` para `lots` - que o SQLite daqui
+    // não tem, porque não se acrescenta FK a coluna existente. Invertida, a
+    // fila seria aceita aqui e recusada lá, e o defeito só apareceria no
+    // primeiro celular sem sinal.
+    //
+    // A sequência conta os lotes DO DIA, não do banco inteiro: o código diz
+    // "segunda corrida de 2 de setembro", que é o que alguém lê em voz alta no
+    // telefone durante um recall.
+    const runsToday = await conn.getFirstAsync<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM lots WHERE company_id = ? AND produced_on = ?`,
+      [companyId, input.producedOn],
+    );
+    const code = input.lotCode ?? lotCode(input.producedOn, (runsToday?.n ?? 0) + 1);
+
+    await conn.runAsync(
+      `INSERT INTO lots (id, company_id, item_id, code, produced_on, expires_on, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [lotId, companyId, product.itemId, code, input.producedOn, expires, at],
+    );
+    await enqueue(conn, [{ table: 'lots', rowId: lotId }]);
+    lotCodeWritten = code;
 
     const write = async (
       id: string,
@@ -1180,12 +1228,13 @@ export async function recordProduction(
       itemId: string,
       quantity: number,
       rate: number,
+      lot: string | null,
     ) => {
       await conn.runAsync(
         `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                                 quantity_base_units, location_id, unit_cost_rate,
-                                movement_group_id, note, assistant_phrase)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                movement_group_id, lot_id, note, assistant_phrase)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           companyId,
@@ -1197,6 +1246,7 @@ export async function recordProduction(
           input.locationId,
           rate || null,
           groupId,
+          lot,
           input.note ?? null,
           input.assistantPhrase ?? null,
         ],
@@ -1204,13 +1254,25 @@ export async function recordProduction(
       await enqueue(conn, [{ table: 'movements', rowId: id }]);
     };
 
-    await write(productionId, 'production', product.itemId, input.unitsProduced, unitCostRate);
+    // Só a linha de PRODUÇÃO aponta para o lote novo.
+    //
+    // O consumo tira insumo do estoque, e o lote do insumo é outro - é o da
+    // nota em que ele entrou. Carimbar o lote do picolé na saída da polpa diria
+    // que a polpa pertence ao picolé, e o recall passaria a recolher o saco de
+    // açúcar. Consumo por lote é PEPS de insumo, que é trabalho da Fase 3.
+    await write(productionId, 'production', product.itemId, input.unitsProduced, unitCostRate, lotId);
     for (const line of consumed) {
-      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate);
+      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate, null);
     }
   });
 
-  return { groupId, unitsProduced: input.unitsProduced, unitCostRate, consumed };
+  return {
+    groupId,
+    unitsProduced: input.unitsProduced,
+    unitCostRate,
+    consumed,
+    lot: { id: lotId, code: lotCodeWritten, expiresOn: expires },
+  };
 }
 
 export type TransferResult = {
@@ -1315,6 +1377,14 @@ export type Product = {
   yieldPerUnit: number | null;
   /** Stick, wrapper, label - packaging is a cost per unit, not per batch. */
   unitPackagingCents: Cents;
+  /**
+   * Quantos dias o produto dura depois de feito. Nulo: não vence.
+   *
+   * Mora no produto e não na corrida porque quem está de luva no tacho não sabe
+   * de cabeça que o picolé dura seis meses e o pote três - o cadastro sabe,
+   * respondeu uma vez, e toda corrida nasce com a data pronta.
+   */
+  shelfLifeDays: number | null;
   packaging: PackagingHierarchy;
   /**
    * A grade que compôs o nome, quando ele veio de uma. Nulo é caso legítimo, e
@@ -1335,13 +1405,14 @@ export async function listProducts(companyId: string): Promise<Product[]> {
     recipe_id: string | null;
     yield_per_unit: number | null;
     unit_packaging_cents: number;
+    shelf_life_days: number | null;
     packaging: string;
     line_id: string | null;
     type_id: string | null;
     flavor_id: string | null;
   }>(
     `SELECT p.id, p.item_id, i.name, p.recipe_id, p.yield_per_unit,
-            p.unit_packaging_cents, i.packaging,
+            p.unit_packaging_cents, p.shelf_life_days, i.packaging,
             p.line_id, p.type_id, p.flavor_id
        FROM products p
        JOIN items i ON i.id = p.item_id
@@ -1357,6 +1428,7 @@ export async function listProducts(companyId: string): Promise<Product[]> {
     recipeId: r.recipe_id,
     yieldPerUnit: r.yield_per_unit,
     unitPackagingCents: r.unit_packaging_cents as Cents,
+    shelfLifeDays: r.shelf_life_days,
     packaging: parsePackaging(r.packaging),
     lineId: r.line_id,
     typeId: r.type_id,
@@ -1382,6 +1454,14 @@ export async function saveProduct(
     yieldPerUnit: number | null;
     unitPackagingCents: Cents;
     packaging: PackagingHierarchy;
+    /**
+     * Quantos dias este produto dura depois de feito. Nulo: não vence.
+     *
+     * Perguntado uma vez aqui, no cadastro, para nunca mais ser perguntado no
+     * tacho: cada corrida nasce com a validade calculada. É a Lei 1 na forma
+     * mais direta - o sistema já sabe, então não pergunta de novo.
+     */
+    shelfLifeDays?: number | null;
     lineId?: string | null;
     typeId?: string | null;
     flavorId?: string | null;
@@ -1408,13 +1488,14 @@ export async function saveProduct(
     productId = input.id ?? newId();
     await conn.runAsync(
       `INSERT INTO products (id, company_id, item_id, recipe_id, yield_per_unit,
-                             unit_packaging_cents, active,
+                             unit_packaging_cents, shelf_life_days, active,
                              line_id, type_id, flavor_id)
-       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          recipe_id = excluded.recipe_id,
          yield_per_unit = excluded.yield_per_unit,
          unit_packaging_cents = excluded.unit_packaging_cents,
+         shelf_life_days = excluded.shelf_life_days,
          line_id = excluded.line_id,
          type_id = excluded.type_id,
          flavor_id = excluded.flavor_id`,
@@ -1425,6 +1506,7 @@ export async function saveProduct(
         input.recipeId,
         input.yieldPerUnit,
         input.unitPackagingCents,
+        input.shelfLifeDays ?? null,
         input.lineId ?? null,
         input.typeId ?? null,
         input.flavorId ?? null,
@@ -1756,7 +1838,21 @@ export async function cancelProductionRun(companyId: string, runId: string): Pro
  */
 export async function closeProductionRun(
   companyId: string,
-  input: { runId: string; unitsProduced: number; note?: string; assistantPhrase?: string },
+  input: {
+    runId: string;
+    unitsProduced: number;
+    /**
+     * O dia da fábrica em que o TACHO FOI ABERTO, não o de agora.
+     *
+     * Uma corrida aberta às 23h de segunda e fechada à 1h de terça é produção
+     * de segunda: foi o trabalho daquele turno, e é a data que a etiqueta do
+     * lote precisa carregar. Quem sabe traduzir `openedAt` em dia local é a
+     * tela, que tem o fuso.
+     */
+    producedOn: string;
+    note?: string;
+    assistantPhrase?: string;
+  },
 ): Promise<ProductionResult> {
   const run = (await openProductionRuns(companyId)).find((r) => r.id === input.runId);
   if (!run) throw new RunGoneError(input.runId);
@@ -1767,6 +1863,7 @@ export async function closeProductionRun(
     batches: run.batches,
     unitsProduced: input.unitsProduced,
     occurredAt: run.openedAt,
+    producedOn: input.producedOn,
     note: input.note,
     assistantPhrase: input.assistantPhrase,
   });

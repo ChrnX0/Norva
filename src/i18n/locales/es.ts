@@ -689,6 +689,12 @@ export const es: Dictionary = {
       howPacked: 'Cómo se empaca',
       howPackedHint: 'El inventario cuenta siempre en unidad; las pantallas hablan en tu empaque.',
       perBox: 'Unidades por caja',
+      shelfLife: 'Caducidad, en días',
+      shelfLifeHint:
+        'Cuántos días dura el producto después de hecho. Déjalo vacío si no caduca — el lote sigue existiendo.',
+      lotIs: 'Lote {{code}}',
+      lotExpires: 'caduca el {{date}}',
+      lotForever: 'sin caducidad',
       perCrate: 'Cajas por cajón',
       looseOnly: 'Solo unidad suelta, sin caja ni cajón.',
       unitCost: 'COSTO POR UNIDAD',

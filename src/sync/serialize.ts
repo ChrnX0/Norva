@@ -68,6 +68,7 @@ export type ServerTable =
   | 'product_types'
   | 'flavors'
   | 'products'
+  | 'lots'
   | 'purchases'
   | 'purchase_lines'
   | 'orders'
@@ -201,11 +202,21 @@ const CROSSINGS: Record<
       'recipe_id',
       'yield_per_unit',
       'unit_packaging_cents',
+      'shelf_life_days',
       'line_id',
       'type_id',
       'flavor_id',
     ],
     build: (row) => ({ active: flag(row.active) }),
+  },
+
+  // O lote atravessa antes do movimento que o cita, e a fila cuida disso
+  // sozinha: ela é enviada da escrita mais velha para a mais nova, e
+  // `recordProduction` grava o lote antes das linhas. Fosse ao contrário, o
+  // servidor recusaria o movimento por chave estrangeira - o aparelho não tem
+  // essa FK, então é aqui que a ordem tem que estar certa.
+  lots: {
+    take: ['id', 'company_id', 'item_id', 'code', 'produced_on', 'expires_on', 'created_at'],
   },
 
   purchases: {

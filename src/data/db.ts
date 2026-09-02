@@ -480,7 +480,42 @@ CREATE UNIQUE INDEX IF NOT EXISTS order_lines_once_idx ON order_lines (order_id,
 CREATE INDEX IF NOT EXISTS order_lines_item_idx ON order_lines (company_id, item_id);
 `;
 
-const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10];
+/**
+ * O lote chega ao aparelho, e com ele a validade.
+ *
+ * `movements.lot_id` existe aqui desde a V3, e a tabela para onde ele aponta
+ * NÃO existia — o `docs/insights.md` já tinha nomeado essa dívida: "hoje é
+ * sempre nulo e nulo passa na chave estrangeira, então a fila não trava; trava
+ * no dia em que a Fase 2 gravar o primeiro lote". É este o dia.
+ *
+ * O código é único dentro da empresa, como no servidor, e o índice de validade
+ * é parcial pelo mesmo motivo de lá: produto que não vence não ocupa índice.
+ *
+ * `movements.lot_id` continua sem chave estrangeira aqui, e não por descuido —
+ * o SQLite não acrescenta FK a coluna que já existe. Quem recusa lote fantasma
+ * é o servidor, e a `db:verify` reproduz a fila contra ele justamente para que
+ * essa diferença não passe despercebida.
+ */
+const V11 = `
+CREATE TABLE IF NOT EXISTS lots (
+  id          TEXT PRIMARY KEY,
+  company_id  TEXT NOT NULL,
+  item_id     TEXT NOT NULL REFERENCES items(id) ON DELETE RESTRICT,
+  code        TEXT NOT NULL,
+  produced_on TEXT,
+  expires_on  TEXT,
+  created_at  TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS lots_code_idx ON lots (company_id, code);
+CREATE INDEX IF NOT EXISTS lots_expiry_idx ON lots (company_id, expires_on)
+  WHERE expires_on IS NOT NULL;
+CREATE INDEX IF NOT EXISTS lots_item_idx ON lots (company_id, item_id);
+
+ALTER TABLE products ADD COLUMN shelf_life_days INTEGER;
+`;
+
+const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11];
 
 export type SqlParam = string | number | null;
 

@@ -52,7 +52,7 @@ function Conversation() {
   // Named apart from the assistant's own `ask`, which answers questions rather
   // than asking them.
   const askConfirm = useConfirm();
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const router = useRouter();
 
   const [question, setQuestion] = useState('');
@@ -61,11 +61,11 @@ function Conversation() {
 
   const context = useMemo(
     () => ({
-      data: liveData(LOCAL_COMPANY_ID),
+      data: liveData(LOCAL_COMPANY_ID, locale.timeZone),
       capabilities: CAPABILITIES,
       locale: defaultLocale,
     }),
-    [],
+    [locale.timeZone],
   );
 
   const examples = useMemo(() => knownSkills(CAPABILITIES).map((s) => s.example), []);

@@ -9,7 +9,7 @@ import {
   savePlace,
 } from './repository';
 import { LOCAL_COMPANY_ID } from './seed';
-import { dayWindow } from '@/domain/day';
+import { dayWindow, localDate } from '@/domain/day';
 import { cents } from '@/domain/money';
 
 /**
@@ -168,7 +168,8 @@ export async function simulateFortnight(
           batches: 1,
           unitsProduced: made,
           occurredAt: at(9 + k * 3),
-        });
+    producedOn: localDate(at(9 + k * 3), 'America/Sao_Paulo'),
+  });
         tally.runs += 1;
       } catch {
         // Faltou insumo naquele dia: acontece numa fábrica, e a corrida

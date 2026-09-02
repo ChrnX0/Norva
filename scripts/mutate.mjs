@@ -29,6 +29,35 @@ import { spawnSync } from 'node:child_process';
 const DEFECTS = [
   {
     file: 'src/data/repository.ts',
+    from: "    await write(productionId, 'production', product.itemId, input.unitsProduced, unitCostRate, lotId);",
+    to: "    await write(productionId, 'production', product.itemId, input.unitsProduced, unitCostRate, null);",
+    hurts:
+      'a corrida cria o lote e nao o carimba em linha nenhuma: o recall procura o picole e nao acha de onde ele saiu',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: "      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate, null);",
+    to: "      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate, lotId);",
+    hurts:
+      'o lote do picole passa a carimbar a saida da polpa, e um recall de picole manda recolher o saco de acucar',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: "    const code = input.lotCode ?? lotCode(input.producedOn, (runsToday?.n ?? 0) + 1);",
+    to: "    const code = input.lotCode ?? lotCode(input.producedOn, 1);",
+    hurts:
+      'as duas corridas do mesmo dia recebem o mesmo codigo, e recolher uma passa a significar recolher as duas',
+  },
+  {
+    file: 'src/domain/lot.ts',
+    from: "  if (shelfLifeDays === null || !Number.isFinite(shelfLifeDays) || shelfLifeDays <= 0) return null;",
+    to: "  if (!Number.isFinite(shelfLifeDays)) return null;",
+    hurts:
+      'produto sem prazo cadastrado passa a vencer no dia em que foi feito, e a camara fria descarta mercadoria boa',
+  },
+
+  {
+    file: 'src/data/repository.ts',
     from: '      WHERE m.company_id = ? AND m.location_id = ?\n      GROUP BY m.item_id, i.name`,',
     to: '      WHERE m.company_id = ?\n      GROUP BY m.item_id, i.name`,',
     hurts:

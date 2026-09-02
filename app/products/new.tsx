@@ -94,6 +94,7 @@ function ProductForm() {
   const [packagingCost, setPackagingCost] = useState('0,05');
   const [perBox, setPerBox] = useState('50');
   const [perCrate, setPerCrate] = useState('6');
+  const [shelfLife, setShelfLife] = useState('');
   const [saving, setSaving] = useState(false);
 
   const num = (s: string) => parseTyped(s) ?? NaN;
@@ -180,6 +181,7 @@ function ProductForm() {
         recipeId: kind === 'product' ? chosenRecipe : null,
         yieldPerUnit: kind === 'product' ? num(perUnit) : null,
         unitPackagingCents: fromDecimal(num(packagingCost) || 0),
+        shelfLifeDays: num(shelfLife) || null,
         packaging: hierarchy,
       });
       router.back();
@@ -396,6 +398,17 @@ function ProductForm() {
             onChangeText={setPerCrate}
             keyboardType="numeric"
             hint={packagingEcho}
+          />
+          {/* A validade é perguntada UMA vez, aqui, para nunca mais ser
+              perguntada no tacho: cada corrida nasce com a data calculada. Vazio
+              é resposta legítima e quer dizer "não vence" - o lote continua
+              existindo e continua rastreando. */}
+          <Field
+            label={t.app.productForm.shelfLife}
+            value={shelfLife}
+            onChangeText={setShelfLife}
+            keyboardType="numeric"
+            hint={t.app.productForm.shelfLifeHint}
           />
         </View>
       </Card>

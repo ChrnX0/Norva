@@ -721,6 +721,12 @@ export const ptBR = {
       howPacked: 'Como ele é empacotado',
       howPackedHint: 'O estoque conta sempre em unidade; as telas falam na sua embalagem.',
       perBox: 'Unidades por caixa',
+      shelfLife: 'Validade, em dias',
+      shelfLifeHint:
+        'Quantos dias o produto dura depois de feito. Deixe vazio se não vence — o lote continua existindo.',
+      lotIs: 'Lote {{code}}',
+      lotExpires: 'vence em {{date}}',
+      lotForever: 'sem validade',
       perCrate: 'Caixas por engradado',
       looseOnly: 'Só unidade solta, sem caixa nem engradado.',
       unitCost: 'CUSTO POR UNIDADE',

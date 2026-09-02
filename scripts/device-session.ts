@@ -22,7 +22,9 @@ import { pendingEntries } from '@/data/outbox';
 import {
   defaultLocationId,
   listItems,
+  listProducts,
   recordCount,
+  recordProduction,
   recordPurchase,
   savePlace,
   saveOrder,
@@ -160,6 +162,23 @@ async function main() {
     placeId: loja.id,
     requestedFor: '2026-09-10',
     lines: [{ itemId: pulp.id, baseUnits: 300 }],
+  });
+
+  // E uma corrida de verdade, que é o que faz nascer um LOTE.
+  //
+  // O lote atravessa a fila antes do movimento que o cita, e o servidor tem a
+  // chave estrangeira que o SQLite do aparelho não tem - `movements.lot_id`
+  // aponta para `lots` lá, e aqui é só um TEXT. Se a ordem estivesse errada, o
+  // aparelho aceitaria e o servidor recusaria: o defeito só apareceria no
+  // primeiro celular sem sinal, com a fila inteira parada atrás dele.
+  const produto = (await listProducts(LOCAL_COMPANY_ID)).find((p) => p.recipeId);
+  if (!produto) throw new Error('a sessão precisa de um produto com receita');
+  await recordProduction(LOCAL_COMPANY_ID, {
+    productId: produto.id,
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    batches: 1,
+    unitsProduced: 480,
+    producedOn: '2026-09-02',
   });
 
   // --- and now, exactly what the server would receive -----------------------

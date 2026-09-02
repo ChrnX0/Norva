@@ -1,4 +1,6 @@
 import type { AssistantData } from '@/assistant/types';
+import { nowIso } from '@/data/db';
+import { localDate } from '@/domain/day';
 import {
   itemCosts,
   itemMovements,
@@ -28,7 +30,7 @@ import {
  * is what keeps the two from ever reporting different numbers for the same
  * thing.
  */
-export function liveData(companyId: string): AssistantData {
+export function liveData(companyId: string, timeZone: string): AssistantData {
   return {
     listItems: () => listItems(companyId),
     listProducts: () => listProducts(companyId),
@@ -51,8 +53,17 @@ export function liveData(companyId: string): AssistantData {
     defaultPlaceId: () => defaultLocationId(companyId),
     // A produção sai no lugar padrão, pelo mesmo motivo da contagem: enquanto
     // há uma fábrica só, perguntar qual é pedir o que o sistema já sabe.
+    //
+    // O DIA, porém, não se adivinha: o lote nasce com a data de calendário da
+    // fábrica, e transformar o instante em dia precisa do fuso. Ele entra por
+    // aqui, vindo da tela, pelo mesmo motivo que o local: quem sabe o fato é
+    // quem tem a pergunta na mão.
     recordProduction: (input) =>
-      recordProduction(companyId, { ...input, locationId: defaultLocationId(companyId) }),
+      recordProduction(companyId, {
+        ...input,
+        locationId: defaultLocationId(companyId),
+        producedOn: localDate(nowIso(), timeZone),
+      }),
     recordTransfer: (input) =>
       recordTransfer(companyId, { ...input, fromLocationId: defaultLocationId(companyId) }),
     saveItem: (input) =>

@@ -129,9 +129,14 @@ test('a derived number does not travel, and says so instead of being dropped', (
 });
 
 test('a table nobody taught this file about is a refusal, never a skip', () => {
+  // O exemplo mudou de tabela porque o exemplo VIROU verdade: `lots` era a
+  // tabela desconhecida deste teste até a Fase 2 ensinar o serializador a
+  // mandá-la. `production_runs` ocupa o lugar e é um exemplo melhor, porque ela
+  // nunca vai ser conhecida: corrida aberta é ESTADO do aparelho, não
+  // lançamento - o servidor não tem onde guardá-la e não deve ter.
   assert.throws(
-    () => serialize(queued('lots'), { id: 'x' }, ACTOR),
-    (e: unknown) => e instanceof UnknownTableError && e.table === 'lots',
+    () => serialize(queued('production_runs'), { id: 'x' }, ACTOR),
+    (e: unknown) => e instanceof UnknownTableError && e.table === 'production_runs',
   );
 });
 

@@ -448,7 +448,7 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
   -- de alcançar o servidor. A exceção é movements, que sobe com DO NOTHING -
   -- o livro-razão não se corrige, se estorna. Faltando o UPDATE, o Postgres
   -- responde apenas 'permission denied', sem dizer qual dos dois falta.
-  grant insert, update on items, locations, products, purchases, purchase_lines,
+  grant insert, update on items, locations, products, lots, purchases, purchase_lines,
         recipes, recipe_versions, recipe_lines,
         product_lines, product_types, flavors,
         orders, order_lines to app_user;

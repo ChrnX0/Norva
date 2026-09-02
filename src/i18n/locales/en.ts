@@ -682,6 +682,12 @@ export const en: Dictionary = {
       howPacked: 'How it is packed',
       howPackedHint: 'Stock always counts in units; the screens speak in your packaging.',
       perBox: 'Units per box',
+      shelfLife: 'Shelf life, in days',
+      shelfLifeHint:
+        'How many days the product lasts once made. Leave empty if it does not expire — the lot still exists.',
+      lotIs: 'Lot {{code}}',
+      lotExpires: 'expires on {{date}}',
+      lotForever: 'no expiry',
       perCrate: 'Boxes per crate',
       looseOnly: 'Loose units only, no box and no crate.',
       unitCost: 'COST PER UNIT',
