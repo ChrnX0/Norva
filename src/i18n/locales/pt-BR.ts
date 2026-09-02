@@ -83,6 +83,8 @@ export const ptBR = {
       ordersWhy: 'Pelo que foi pedido até {{date}}, contra o que tem na fábrica. Toque para ver os pedidos.',
       orderCount: { one: '1 pedido', other: '{{n}} pedidos' },
       runningOutWhy: 'Pela saída dos últimos sete dias. Toque para ver o almoxarifado.',
+      inputsFine: 'Insumos em dia',
+      inputsFineDetail: 'Pelo consumo das últimas semanas, nada acaba nos próximos sete dias.',
       overline: 'hoje na fábrica',
       each: 'cada um',
       producedToday: 'saíram hoje',
@@ -753,6 +755,28 @@ export const ptBR = {
     expiringIn: 'Vence em {{days}} dias',
     missing: 'Faltaram {{count}} caixas',
     awaitingRoute: 'Aguardando rota',
+  },
+
+  /**
+   * A folha do `[por quê?]`, que falava um idioma só.
+   *
+   * Ela é a Lei 6 em pessoa - a conta aberta de toda conclusão - e estava com o
+   * texto cravado em português enquanto o resto do aplicativo já falava três.
+   * Quem rodasse em espanhol via a interface traduzida e, no instante em que
+   * pedia a prova do número, recebia português. O `Widen` não pega isto: ele
+   * obriga a chave a existir nos três dicionários, nunca a tela a usá-la.
+   */
+  whySheet: {
+    close: 'Fechar',
+    where: 'De onde sai esse número',
+    shareOfBatch: '{{percent}} do lote',
+    batchCost: 'Custo do lote',
+    expectedLoss: 'Perda prevista ({{percent}})',
+    remains: 'sobram {{amount}}',
+    perMassUnit: 'Custo por unidade de massa',
+    perAmount: '{{money}} / {{amount}}',
+    lossNote:
+      'A perda encarece o que sobra: o lote é pago inteiro, mas só parte dele chega ao cliente.',
   },
 
   loss: {

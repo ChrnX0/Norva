@@ -1,7 +1,8 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { LocaleSettings } from '@/i18n';
-import { formatMoney } from '@/i18n';
+import { fill, formatMoney, formatPercent, formatQuantity } from '@/i18n';
+import { useLocale } from '@/i18n/useLocale';
 import type { RecipeCost } from '@/domain/recipe';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -31,13 +32,14 @@ export function WhySheet({
   title: string;
 }) {
   const { color, radius, space, type, accent } = useTheme();
+  const { t } = useLocale();
   const insets = useSafeAreaInsets();
 
   const sorted = [...cost.lines].sort((a, b) => b.share - a.share);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Fechar" />
+      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel={t.whySheet.close} />
 
       <View
         style={{
@@ -54,7 +56,7 @@ export function WhySheet({
 
         <Text style={[type.section, { color: color.ink, marginBottom: space.xs }]}>{title}</Text>
         <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.lg }]}>
-          De onde sai esse número
+          {t.whySheet.where}
         </Text>
 
         <ScrollView>
@@ -84,26 +86,34 @@ export function WhySheet({
                 />
               </View>
               <Text style={[type.caption, { color: color.inkFaint, marginTop: 3 }]}>
-                {Math.round(line.share * 100)}% do lote
+                {fill(t.whySheet.shareOfBatch, { percent: formatPercent(line.share, locale, 0) })}
               </Text>
             </View>
           ))}
 
           <View style={[styles.divider, { backgroundColor: color.line }]} />
 
-          <Summary label="Custo do lote" value={formatMoney(cost.batchCents, locale)} />
+          <Summary label={t.whySheet.batchCost} value={formatMoney(cost.batchCents, locale)} />
           <Summary
-            label={`Perda prevista (${(cost.lossFraction * 100).toFixed(1)}%)`}
-            value={`sobram ${cost.netYield.toLocaleString(locale.formatting)}`}
+            label={fill(t.whySheet.expectedLoss, {
+              percent: formatPercent(cost.lossFraction, locale),
+            })}
+            value={fill(t.whySheet.remains, { amount: formatQuantity(cost.netYield, locale) })}
           />
           <Summary
-            label="Custo por unidade de massa"
-            value={formatMoney(Math.round(cost.perYieldUnit * 1000), locale) + ' / 1.000'}
+            label={t.whySheet.perMassUnit}
+            // Mil unidades-base, escritas pelo formatador e não à mão: "1.000"
+            // cravado na string é o ponto de milhar do português dentro de uma
+            // tela que também abre em inglês, onde o mesmo mil é "1,000".
+            value={fill(t.whySheet.perAmount, {
+              money: formatMoney(Math.round(cost.perYieldUnit * 1000), locale),
+              amount: formatQuantity(1000, locale),
+            })}
             strong
           />
 
           <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
-            A perda encarece o que sobra: o lote é pago inteiro, mas só parte dele chega ao cliente.
+            {t.whySheet.lossNote}
           </Text>
         </ScrollView>
       </View>

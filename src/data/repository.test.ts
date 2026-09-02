@@ -9,6 +9,7 @@ import {
   lastSentBaseUnits,
   recordProduction,
   runningOut,
+  productionBetween,
   productionOn,
   shipmentsOn,
   recordCheck,
@@ -1085,6 +1086,59 @@ test('the day a run belongs to is when it happened, not when the phone told the 
   // fábrica não produziu nada na segunda.
   assert.equal(segunda.find((r) => r.itemId === product.itemId)?.baseUnits, 400);
   assert.equal(terca.find((r) => r.itemId === product.itemId)?.baseUnits, 500);
+});
+
+test('the week the home screen draws carries the runs, and only the runs', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const where = defaultLocationId(LOCAL_COMPANY_ID);
+
+  await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: where,
+    batches: 1,
+    unitsProduced: 400,
+    occurredAt: '2026-08-31T13:00:00.000Z',
+  });
+  await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: where,
+    batches: 1,
+    unitsProduced: 500,
+    occurredAt: '2026-09-02T14:00:00.000Z',
+  });
+
+  const semana = await productionBetween(
+    LOCAL_COMPANY_ID,
+    '2026-08-27T00:00:00.000Z',
+    '2026-09-03T00:00:00.000Z',
+  );
+
+  // Duas corridas, dois fatos - e NADA além disso. Cada `recordProduction`
+  // grava também as linhas de consumo, negativas, no mesmo grupo. Se a régua
+  // de sete dias somasse o movimento inteiro em vez de filtrar por
+  // `kind = 'production'`, a coluna do dia mostraria a produção menos os
+  // insumos que ela comeu: um número que não é nem uma coisa nem outra, e que
+  // fica NEGATIVO em qualquer receita que pese mais que rende.
+  assert.equal(semana.length, 2);
+  assert.deepEqual(
+    semana.map((r) => r.baseUnits),
+    [400, 500],
+  );
+
+  // Ordenada pelo que aconteceu, porque quem desenha a semana desenha da
+  // esquerda para a direita.
+  assert.ok(semana[0].occurredAt < semana[1].occurredAt);
+
+  // E a janela é a mesma meio-aberta do resto: a corrida da ponta esquerda
+  // entra, a do fim não.
+  const cortada = await productionBetween(
+    LOCAL_COMPANY_ID,
+    '2026-08-31T13:00:00.000Z',
+    '2026-09-02T14:00:00.000Z',
+  );
+  assert.equal(cortada.length, 1);
+  assert.equal(cortada[0].baseUnits, 400);
 });
 
 test('a run exactly at midnight is counted once, not twice', async () => {

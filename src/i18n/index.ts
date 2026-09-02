@@ -193,6 +193,42 @@ export function formatCalendarDate(date: string, locale: LocaleSettings): string
   }).format(new Date(`${date}T00:00:00Z`));
 }
 
+/**
+ * A inicial do dia da semana, para a régua de sete colunas da capa.
+ *
+ * Recebe data de calendário e não instante, pela mesma razão que
+ * `formatCalendarDate`: a série de dias já foi calculada no fuso da fábrica, e
+ * passá-la por um segundo fuso deslocaria a semana inteira em um dia.
+ *
+ * `narrow` e não `short` porque a coluna tem a largura de um sétimo da tela: em
+ * português "seg." não cabe, e cortar no meio é pior que a inicial. Que dois
+ * dias dividam a mesma letra (S de sábado e de segunda) não atrapalha aqui — a
+ * régua é lida como forma, e a posição do dia de hoje é a âncora.
+ */
+/**
+ * Uma fração dita em por cento, com a vírgula do idioma.
+ *
+ * Existia em três lugares como `(x * 100).toFixed(1)`, que é o ponto decimal
+ * do JavaScript e não o separador de quem lê: a capa anunciava uma alta de
+ * "9.0%" para uma fábrica brasileira, e a mesma tela em espanhol também. O erro
+ * é pequeno na aparência e da mesma família do que já custou caro aqui - número
+ * formatado à mão, fora do único lugar que sabe o idioma.
+ */
+export function formatPercent(fraction: number, locale: LocaleSettings, digits = 1): string {
+  return new Intl.NumberFormat(locale.formatting, {
+    style: 'percent',
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(fraction);
+}
+
+export function formatWeekdayInitial(date: string, locale: LocaleSettings): string {
+  return new Intl.DateTimeFormat(locale.formatting, {
+    weekday: 'narrow',
+    timeZone: 'UTC',
+  }).format(new Date(`${date}T00:00:00Z`));
+}
+
 export function formatDayMonth(iso: string, locale: LocaleSettings): string {
   return new Intl.DateTimeFormat(locale.formatting, {
     day: '2-digit',

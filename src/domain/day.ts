@@ -121,3 +121,40 @@ export function daysBetween(fromIso: string, toIso: string, timeZone: string): n
   const to = new Date(dayWindow(toIso, timeZone).from).getTime();
   return Math.round((to - from) / 86_400_000);
 }
+
+/**
+ * Uma sequência de dias com o que caiu em cada um.
+ *
+ * A capa precisa responder "o que é normal aqui" e não só "quanto foi hoje" — a
+ * primeira lei da tela, que até agora nenhuma respondia. Sete colunas dizem
+ * isso sem uma frase: quem produz de segunda a sexta vê duas falhas no fim de
+ * semana e entende o próprio ritmo num relance.
+ *
+ * O agrupamento é por dia LOCAL e por isso mora aqui, não no SQL. O SQLite do
+ * aparelho não sabe fuso: `substr(occurred_at, 1, 10)` corta o dia em UTC, e um
+ * tacho fechado às 22h de Manaus entraria no dia seguinte — a mesma família de
+ * erro que já custou uma rodada quando a data combinada saía de um instante.
+ *
+ * Dias sem nada entram com zero em vez de sumirem. Uma série que pula o dia
+ * parado desenha uma fábrica que trabalha todo dia, que é justamente a mentira
+ * que a coluna vazia desmente.
+ */
+export function dailySeries(
+  events: readonly { occurredAt: string; baseUnits: number }[],
+  timeZone: string,
+  atIso: string,
+  days: number,
+): { date: string; total: number }[] {
+  const totals = new Map<string, number>();
+  for (const event of events) {
+    const day = localDate(event.occurredAt, timeZone);
+    totals.set(day, (totals.get(day) ?? 0) + event.baseUnits);
+  }
+
+  const series: { date: string; total: number }[] = [];
+  for (let back = days - 1; back >= 0; back--) {
+    const date = localDate(atIso, timeZone, -back);
+    series.push({ date, total: totals.get(date) ?? 0 });
+  }
+  return series;
+}

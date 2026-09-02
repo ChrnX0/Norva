@@ -69,6 +69,8 @@ export const es: Dictionary = {
       ordersWhy: 'Por lo pedido hasta el {{date}}, contra lo que hay en la fábrica. Toca para ver los pedidos.',
       orderCount: { one: '1 pedido', other: '{{n}} pedidos' },
       runningOutWhy: 'Por la salida de los últimos siete días. Toca para ver el almacén.',
+      inputsFine: 'Insumos al día',
+      inputsFineDetail: 'Por el consumo de las últimas semanas, nada se acaba en los próximos siete días.',
       overline: 'hoy en la fábrica',
       each: 'cada uno',
       producedToday: 'salieron hoy',
@@ -725,6 +727,19 @@ export const es: Dictionary = {
     expiringIn: 'Vence en {{days}} días',
     missing: 'Faltaron {{count}} cajas',
     awaitingRoute: 'Esperando ruta',
+  },
+
+  whySheet: {
+    close: 'Cerrar',
+    where: 'De dónde sale este número',
+    shareOfBatch: '{{percent}} del lote',
+    batchCost: 'Costo del lote',
+    expectedLoss: 'Pérdida prevista ({{percent}})',
+    remains: 'quedan {{amount}}',
+    perMassUnit: 'Costo por unidad de masa',
+    perAmount: '{{money}} / {{amount}}',
+    lossNote:
+      'La pérdida encarece lo que queda: el lote se paga entero, pero sólo una parte llega al cliente.',
   },
 
   loss: {

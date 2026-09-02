@@ -115,14 +115,28 @@ function check(name, fn) {
 const screen = async (page) =>
   (await page.locator('body').innerText()).replace(/\u00a0/g, ' ').replace(/\n+/g, ' | ');
 
-check('opens on the briefing, with a cost the engine worked out', async (page) => {
+check('opens on the day, not on the price of a popsicle', async (page) => {
+  // Esta checagem media o custo por unidade na capa até o dono abrir o
+  // aplicativo publicado e dizer que aquele número não interessava ali. O que
+  // ela mede agora é a capa que ele pediu - e o custo calculado pelo motor
+  // continua exercitado onde ele mora: na receita, e na resposta do assistente
+  // ("Picolé de morango custa R$ 0,64 por unidade", mais abaixo neste arquivo).
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(3000);
 
   const text = await screen(page);
   assert.match(text, /NORVA/);
-  assert.match(text, /Picolé de morango/);
-  assert.match(text, /R\$ 0,64/, 'the seeded popsicle costs 64 cents a unit');
+  assert.match(text, /saíram hoje/, 'a manchete é o que saiu do tacho');
+
+  // A régua de sete dias: as iniciais dos dias da semana, uma por coluna. É a
+  // única coisa da tela que responde "isto aqui é normal?".
+  assert.match(text, /(?:[A-Z] \| ){6}[A-Z]/, 'a semana está desenhada em sete colunas');
+
+  // E o preço saiu de vez, dito como asserção para que ele não volte sozinho
+  // numa refatoração futura.
+  assert.doesNotMatch(text, /R\$ 0,64/, 'o custo por unidade não mora mais na capa');
+  assert.doesNotMatch(text, /cada um/);
+
   // A first install has not updated anything, so it must not say it has.
   assert.doesNotMatch(text, /se atualizou sozinho/);
 });
@@ -377,9 +391,12 @@ check('an invoice warns before it is committed, then moves everything', async (p
   await page.waitForTimeout(2000);
 
   const briefing = await screen(page);
-  assert.match(briefing, /R\$ 0,73/, 'the new unit cost');
+  // A capa não repete o custo por unidade - ela conta o que mudou. A nota
+  // moveu a polpa, e é isso que aparece.
+  assert.match(briefing, /Mudou desde a última vez/, 'the briefing carries the news');
+  assert.match(briefing, /Polpa de morango/);
   assert.match(briefing, /▲ R\$ 0,09/, 'and what the invoice added to it');
-  assert.match(briefing, /custava R\$ 0,64 antes das últimas compras/);
+  assert.match(briefing, /▲ \d+,\d%/, 'com o tamanho da alta, em percentual');
 
   // And the history wrote itself on the way past. Same check, because it is
   // the same story: each context starts on an empty install, so the invoice
@@ -406,10 +423,10 @@ check('the briefing is up to date when you tap Back into it', async (page) => {
   await page.waitForTimeout(2500);
 
   const before = await screen(page);
-  assert.match(before, /R\$ 0,64/);
   // Instalação virgem: o exemplo nasce com um preço, nunca com uma mudança de
-  // preço. A tela diz isso em vez de inventar uma data de estabilidade.
-  assert.match(before, /nenhuma mudança de preço registrada/);
+  // preço. A capa fica calada sobre isso em vez de ocupar a tela para dizer que
+  // não há notícia.
+  assert.doesNotMatch(before, /Mudou desde a última vez/);
 
   // Tapped, not typed: this is the route a person actually takes - e agora ela
   // passa pela barra de abas, porque a lista de nove linhas saiu da home. O
@@ -438,21 +455,34 @@ check('the briefing is up to date when you tap Back into it', async (page) => {
   await page.waitForTimeout(2500);
 
   const after = await screen(page);
-  assert.match(after, /R\$ 0,73/, 'the briefing re-read the ledger on the way back');
-  assert.match(after, /▲ R\$ 0,09/);
-  // Com a comparação na tela, o tempo de estabilidade seria ruído - e seria
-  // falso, porque o custo acabou de mexer.
+  // A prova de que a capa releu o livro-razão mudou de lugar junto com o
+  // desenho: o custo por unidade saiu da capa a pedido do dono, e o que sobrou
+  // é a NOTÍCIA - o insumo que mexeu, com quanto mexeu. A nota de R$ 15,50 num
+  // saco que estava R$ 12,40 é uma alta de 25%, e ela só pode aparecer aqui se
+  // a tela tiver lido o banco de novo ao voltar.
+  assert.match(after, /Mudou desde a última vez/, 'the briefing re-read the ledger on the way back');
+  assert.match(after, /▲ \d+,\d%/, 'a alta aparece em percentual, com a vírgula do idioma');
+  // E o cartão de "nada aconteceu" não existe mais: ele ocupava a capa todo dia
+  // para dizer que não havia notícia, que é o alerta que ensina a ignorar
+  // alerta. Some junto a linha de estabilidade.
   assert.doesNotMatch(after, /estável há|nenhuma mudança de preço/);
   assert.doesNotMatch(after, /Nada mudou de preço/, 'it must not still say nothing moved');
 });
 
 check('what came out today reaches the briefing, with what it was to compare', async (page) => {
   // A primeira consulta com recorte de data deste repositório, vista da tela.
-  // Numa instalação virgem nada foi produzido, e a Lei 7 diz que isso é estado
-  // válido: o cartão nem aparece, em vez de mostrar um zero decorativo.
+  //
+  // A versão anterior desta checagem afirmava o contrário: numa instalação
+  // virgem o cartão do dia NÃO aparecia. Era a Lei 7 lida errado - "está tudo
+  // bem é estado válido" fala de não inventar alerta, não de esconder o
+  // assunto da tela. Escondendo, a capa de uma fábrica nova ficava com clima e
+  // preço e nada de trabalho, que foi exatamente o que o dono viu e recusou.
+  // Zero dito ao lado de ontem é uma pergunta; cartão ausente é um buraco.
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
-  assert.doesNotMatch(await screen(page), /saíram hoje/, 'nada produzido, nada a dizer');
+  const virgem = await screen(page);
+  assert.match(virgem, /0 \| unidades saíram hoje|0\s*\|\s*unidades/, 'o dia zerado é dito, não escondido');
+  assert.match(virgem, /Ontem não houve produção/, 'e nunca sozinho: ontem vem junto');
 
   // Produz, e volta pela aba - o caminho de verdade.
   await page.getByRole('tab', { name: 'Produção' }).click();
@@ -879,7 +909,7 @@ check('two weeks can be planted from Ajustes, and the briefing changes because o
   // A capa de uma instalação virgem não tem com o que comparar, e diz isso.
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
-  assert.match(await screen(page), /nenhuma mudança de preço registrada/);
+  assert.doesNotMatch(await screen(page), /Mudou desde a última vez/);
 
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
@@ -906,11 +936,17 @@ check('two weeks can be planted from Ajustes, and the briefing changes because o
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(3000);
   const capa = await screen(page);
-  assert.doesNotMatch(
-    capa,
-    /nenhuma mudança de preço registrada/,
-    'catorze dias de notas moveram o custo pelo menos uma vez',
-  );
+  // Catorze dias de notas moveram o custo pelo menos uma vez, e a capa DIZ
+  // isso. A asserção era negativa - "não fala mais em estabilidade" - e virou
+  // tautologia no dia em que aquela linha saiu da tela: com o cartão removido,
+  // ela passaria mesmo se a capa tivesse ficado muda. A positiva é a mesma
+  // pergunta feita de um jeito que só o dado responde.
+  assert.match(capa, /Mudou desde a última vez/, 'a capa conta a alta que as notas causaram');
+  assert.match(capa, /▲ \d+,\d%|▼ \d+,\d%/, 'com o tamanho da mudança, em percentual');
+
+  // E a régua da semana está lá: sete colunas de produção, que é o que o dono
+  // pediu quando disse que o custo do morango não interessava.
+  assert.match(capa, /saíram hoje/, 'a manchete da capa é o que saiu do tacho');
 });
 
 check('erasing refuses in an order, and explains the way out', async (page) => {

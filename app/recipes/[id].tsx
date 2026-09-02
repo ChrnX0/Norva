@@ -31,7 +31,7 @@ import {
 } from '@/domain/recipe';
 import { roundUpToFullContainer } from '@/domain/units';
 import { parseTyped, formatTyped } from '@/domain/number';
-import { fill, formatMoney, formatQuantity } from '@/i18n';
+import { fill, formatMoney, formatPercent, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -358,7 +358,7 @@ function RecipeEditor() {
               {fill(t.app.recipe.cheaperThan, {
                 amount: formatMoney(Math.abs(computed.delta.deltaCents), locale),
                 version: stored.version,
-                percent: `${(Math.abs(computed.delta.percent) * 100).toFixed(1)}%`,
+                percent: formatPercent(Math.abs(computed.delta.percent), locale),
               })}
             </Text>
           ) : null}

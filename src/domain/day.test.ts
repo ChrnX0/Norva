@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { dayWindow, daysBetween, localDate } from './day';
+import { dailySeries, dayWindow, daysBetween, localDate } from './day';
 
 /** São Paulo has been at UTC-3 with no daylight saving since 2019. */
 const SP = 'America/Sao_Paulo';
@@ -77,4 +77,35 @@ test('a calendar date is not an instant, and the difference is a whole day', () 
   // Deslocamento vira mês novo sem aritmética manual.
   assert.equal(localDate('2026-09-28T15:00:00Z', 'America/Sao_Paulo', 7), '2026-10-05');
   assert.equal(localDate('2026-01-01T15:00:00Z', 'America/Sao_Paulo', -1), '2025-12-31');
+});
+
+test('a week of days keeps the quiet days and counts by the factory clock', () => {
+  // Uma segunda-feira em São Paulo (UTC-3), com três produções: uma de manhã,
+  // uma no fim da tarde e uma às 22h - esta última já é o dia seguinte em UTC,
+  // e é ela que separa "somar por dia local" de "cortar a string em dez".
+  const eventos = [
+    { occurredAt: '2026-08-31T13:00:00.000Z', baseUnits: 300 }, // seg, 10h em SP
+    { occurredAt: '2026-08-31T20:00:00.000Z', baseUnits: 200 }, // seg, 17h em SP
+    { occurredAt: '2026-09-01T01:00:00.000Z', baseUnits: 100 }, // seg, 22h em SP
+    { occurredAt: '2026-09-02T14:00:00.000Z', baseUnits: 480 }, // qua
+  ];
+
+  const semana = dailySeries(eventos, 'America/Sao_Paulo', '2026-09-02T18:00:00.000Z', 7);
+
+  // Sete colunas, a última sendo hoje, na ordem em que o olho lê.
+  assert.equal(semana.length, 7);
+  assert.equal(semana[6].date, '2026-09-02');
+  assert.equal(semana[0].date, '2026-08-27');
+
+  // As três de segunda somam 600 - inclusive a das 22h, que em UTC é terça.
+  const segunda = semana.find((d) => d.date === '2026-08-31');
+  assert.equal(segunda?.total, 600);
+
+  // E terça não herda nada: se o corte fosse por UTC, ela teria 100.
+  assert.equal(semana.find((d) => d.date === '2026-09-01')?.total, 0);
+  assert.equal(semana[6].total, 480);
+
+  // O dia parado entra como zero e não some: a semana tem sete colunas porque
+  // a fábrica tem sete dias, e o domingo vazio é um fato sobre ela.
+  assert.equal(semana.filter((d) => d.total === 0).length, 5);
 });

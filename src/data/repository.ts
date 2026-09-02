@@ -1946,6 +1946,38 @@ export async function productionOn(
   return rows.map((r) => ({ itemId: r.item_id, name: r.name, baseUnits: r.total }));
 }
 
+/**
+ * Cada corrida de produção do intervalo, com a hora em que aconteceu.
+ *
+ * Irmã de `productionOn`, e a diferença é de propósito: aquela devolve o total
+ * já somado da janela, esta devolve os fatos soltos para quem precisa
+ * distribuí-los por dia. Sete chamadas de `productionOn` responderiam a mesma
+ * pergunta com sete varreduras do livro-razão.
+ *
+ * E ela devolve o instante, não o dia. O dia é uma conta que depende do fuso da
+ * fábrica, e esta camada devolve fato — quem fala em segunda-feira é a tela,
+ * com `dailySeries` no meio.
+ */
+export async function productionBetween(
+  companyId: string,
+  fromIso: string,
+  toIso: string,
+): Promise<{ occurredAt: string; baseUnits: number }[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{ occurred_at: string; quantity_base_units: number }>(
+    `SELECT occurred_at, quantity_base_units
+       FROM movements
+      WHERE company_id = ?
+        AND kind = 'production'
+        AND occurred_at >= ?
+        AND occurred_at < ?
+      ORDER BY occurred_at`,
+    [companyId, fromIso, toIso],
+  );
+
+  return rows.map((r) => ({ occurredAt: r.occurred_at, baseUnits: r.quantity_base_units }));
+}
+
 /** One destination's share of a day: who received it, and what. */
 export type Shipment = {
   /**

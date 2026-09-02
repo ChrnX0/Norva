@@ -64,6 +64,8 @@ export const en: Dictionary = {
       ordersWhy: 'From what was ordered through {{date}}, against what the factory holds. Tap to see the orders.',
       orderCount: { one: '1 order', other: '{{n}} orders' },
       runningOutWhy: 'From the last seven days of usage. Tap to see the storeroom.',
+      inputsFine: 'Inputs are fine',
+      inputsFineDetail: 'At the last few weeks of usage, nothing runs out in the next seven days.',
       overline: 'at the factory today',
       each: 'each',
       producedToday: 'came out today',
@@ -718,6 +720,19 @@ export const en: Dictionary = {
     expiringIn: 'Expires in {{days}} days',
     missing: '{{count}} boxes missing',
     awaitingRoute: 'Awaiting route',
+  },
+
+  whySheet: {
+    close: 'Close',
+    where: 'Where this number comes from',
+    shareOfBatch: '{{percent}} of the batch',
+    batchCost: 'Batch cost',
+    expectedLoss: 'Expected loss ({{percent}})',
+    remains: '{{amount}} left',
+    perMassUnit: 'Cost per unit of mass',
+    perAmount: '{{money}} / {{amount}}',
+    lossNote:
+      'Loss makes the rest dearer: the batch is paid for whole, but only part of it reaches the customer.',
   },
 
   loss: {

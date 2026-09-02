@@ -1,21 +1,20 @@
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Bars } from '@/components/Bars';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { CountUp } from '@/components/CountUp';
 import { PulseDot } from '@/components/PulseDot';
-import { IconCost, IconProduction } from '@/components/icons';
+import { Reveal } from '@/components/Reveal';
+import { SkyScene, TemperatureRange } from '@/components/Sky';
+import { Touchable } from '@/components/Touchable';
+import { IconProduction } from '@/components/icons';
 import {
-  itemCosts,
-  labels as loadLabels,
-  lastCostMove,
   openProductionRuns,
-  listProducts,
-  loadRecipeGraph,
   orderedDemand,
   type Demand,
+  productionBetween,
   productionOn,
   runningOut,
   type Running,
@@ -29,18 +28,17 @@ import { forecastForScreen } from '@/weather/live';
 import { brand } from '@/config/brand';
 import { useQuery } from '@/data/useQuery';
 import { nowIso } from '@/data/db';
-import { ratesBefore } from '@/domain/cost';
-import { dayWindow, daysBetween, localDate } from '@/domain/day';
+import { dailySeries, dayWindow, localDate } from '@/domain/day';
 import { boxesOf } from '@/domain/units';
-import { costPerProductUnit, costRecipe, explodeRequirements } from '@/domain/recipe';
 import {
   fill,
   formatCalendarDate,
-  formatMoney,
   formatPacked,
+  formatPercent,
   formatQuantity,
   formatTime,
   formatWeekday,
+  formatWeekdayInitial,
   joinList,
   plural,
 } from '@/i18n';
@@ -83,25 +81,15 @@ export default function Home() {
   );
 }
 
-type ProductCost = {
-  id: string;
-  name: string;
-  recipeId: string | null;
-  unitCents: number;
-  /** The same unit, priced before the recent invoices. Null when nothing moved. */
-  unitCentsBefore: number | null;
-  /** Quando o custo deste produto mexeu pela última vez. Null: nunca mexeu. */
-  costMovedAt: string | null;
-};
-
 type Summary = {
-  products: ProductCost[];
   changes: CostChange[];
   /** Units out of the kettle today, and on the same weekday a week back. */
   madeToday: number;
   madeThen: number;
   /** O dia anterior, que é a comparação que quem produz todo dia faz de cabeça. */
   madeYesterday: number;
+  /** Os sete últimos dias, para a capa dizer o que é NORMAL e não só o que foi hoje. */
+  series: { date: string; total: number }[];
   everMade: boolean;
   /** O que acaba dentro de uma semana, pelo consumo que o livro-razão viu. */
   shortly: Running[];
@@ -122,7 +110,7 @@ function Briefing() {
   const { locale, t } = useLocale();
   const palette = palettes[scheme];
 
-  const { data, loading } = useQuery<Summary | null>(async () => {
+  const { data } = useQuery<Summary | null>(async () => {
     // The factory's day, not the phone's last 24 hours - and the comparison is
     // the same weekday a week back, because a Monday and a Saturday are
     // different businesses and comparing them teaches nothing.
@@ -133,16 +121,15 @@ function Briefing() {
     // coisa. São duas perguntas, e as duas cabem.
     const yesterday = dayWindow(nowIso(), locale.timeZone, -1);
     const lastWeek = dayWindow(nowIso(), locale.timeZone, -7);
+    // Seis dias atrás mais hoje: sete colunas. A janela começa na meia-noite
+    // local do primeiro dia para que a primeira coluna não nasça cortada.
+    const weekAgo = dayWindow(nowIso(), locale.timeZone, -6);
     // Uma semana à frente, porque a pergunta do pedido é "dá tempo?", e ela só
     // tem resposta enquanto ainda dá: um pedido para sexta cobrado na sexta é
     // uma notícia, não uma decisão (Lei 4).
     const through = localDate(nowIso(), locale.timeZone, 7);
 
     const [
-      products,
-      graph,
-      costs,
-      names,
       changes,
       madeToday,
       madeThen,
@@ -151,11 +138,8 @@ function Briefing() {
       running,
       shortly,
       demand,
+      week,
     ] = await Promise.all([
-      listProducts(LOCAL_COMPANY_ID),
-      loadRecipeGraph(LOCAL_COMPANY_ID),
-      itemCosts(LOCAL_COMPANY_ID),
-      loadLabels(LOCAL_COMPANY_ID),
       recentCostChanges(LOCAL_COMPANY_ID, 4),
       productionOn(LOCAL_COMPANY_ID, today.from, today.to),
       productionOn(LOCAL_COMPANY_ID, then.from, then.to),
@@ -164,6 +148,7 @@ function Briefing() {
       openProductionRuns(LOCAL_COMPANY_ID),
       runningOut(LOCAL_COMPANY_ID, lastWeek.from, today.to, 7),
       orderedDemand(LOCAL_COMPANY_ID, through),
+      productionBetween(LOCAL_COMPANY_ID, weekAgo.from, today.to),
     ]);
 
     const sum = (rows: { baseUnits: number }[]) => rows.reduce((n, r) => n + r.baseUnits, 0);
@@ -183,19 +168,7 @@ function Briefing() {
       }
     }
 
-    // The same products, priced twice: with today's costs and with the costs
-    // as they stood before the recent invoices. The second pass is what lets a
-    // figure arrive with its comparison instead of asking to be trusted.
-    const before = ratesBefore(costs, changes);
 
-    const priced = (product: (typeof products)[number], rates: typeof costs) =>
-      product.recipeId && product.yieldPerUnit
-        ? costPerProductUnit(
-            costRecipe(product.recipeId, graph, rates, names),
-            product.yieldPerUnit,
-            product.unitPackagingCents,
-          )
-        : 0;
 
     return {
       changes,
@@ -204,6 +177,7 @@ function Briefing() {
       madeToday: sum(madeToday),
       madeThen: sum(madeThen),
       madeYesterday: sum(madeYesterday),
+      series: dailySeries(week, locale.timeZone, nowIso(), 7),
       shortly,
       everMade: madeToday.length > 0 || madeThen.length > 0,
       boxes,
@@ -213,23 +187,6 @@ function Briefing() {
         productName: r.productName,
         openedAt: r.openedAt,
       })),
-      products: await Promise.all(
-        products.map(async (product) => ({
-          id: product.id,
-          name: product.name,
-          recipeId: product.recipeId,
-          unitCents: priced(product, costs),
-          unitCentsBefore: changes.length > 0 ? priced(product, before) : null,
-          // Os insumos que ESTE produto usa, não todos os da empresa: uma alta
-          // na polpa não move o custo do picolé de coco, e dizer que moveu
-          // seria alarme inventado.
-          costMovedAt: product.recipeId
-            ? await lastCostMove(LOCAL_COMPANY_ID, [
-                ...explodeRequirements(product.recipeId, 1, graph).keys(),
-              ])
-            : null,
-        })),
-      ),
     };
   });
 
@@ -278,363 +235,334 @@ function Briefing() {
 
   return (
     <CollapsingHeader title={brand.name} overline={formatWeekday(nowIso(), locale)}>
-      {/* O que saiu hoje, e ele nunca aparece sozinho.
-          A Lei 3 não abre exceção para a capa: 1.200 não é bom nem ruim até
-          estar ao lado do que foi na segunda passada. Quando não há com o que
-          comparar, a tela diz isso em vez de fingir uma variação. */}
-      {data && data.everMade ? (
-        <Card>
+      {/* O DIA, que é a manchete que o dono pediu ao ver a capa publicada.
+          "Esse valor do morango aí não interessa. O que interessa é produção do
+          dia, do dia anterior."
+
+          O custo por unidade saiu daqui e continua inteiro na receita, a um
+          toque. Ele respondia uma pergunta boa - quanto custa fazer - na hora
+          errada: de manhã, de pé, o que se decide é o que produzir hoje.
+
+          E este cartão não some mais quando o dia está zerado. A versão de
+          antes só aparecia se a fábrica já tivesse produzido alguma vez, o que
+          deixava a capa de uma fábrica nova com clima e preço e nada de
+          trabalho. Zero é um fato sobre hoje: dito ao lado de ontem e da
+          semana, ele vira a pergunta certa em vez de um buraco. */}
+      <Reveal index={0}>
+        <Card tone="area">
           <CountUp
-            value={data.madeToday}
+            value={data?.madeToday ?? 0}
             format={(v) => formatQuantity(Math.round(v), locale)}
             style={{ ...type.figure, color: color.ink }}
           />
           <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {plural(data.madeToday, t.units.unit)} {t.app.home.producedToday}
+            {plural(data?.madeToday ?? 0, t.units.unit)} {t.app.home.producedToday}
           </Text>
-          <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
-            {comparison(data.madeToday, data.madeThen)}
-          </Text>
-          {/* E ontem, que é a comparação que quem produz todo dia faz de
-              cabeça. A da semana passada responde "este dia da semana é
-              normal?"; esta responde "o ritmo mudou?". São duas perguntas. */}
-          <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
-            {data.madeYesterday === 0
-              ? t.app.home.noYesterday
-              : fill(t.app.home.yesterdayWas, {
-                  amount: `${formatQuantity(data.madeYesterday, locale)} ${plural(
-                    data.madeYesterday,
-                    t.units.unit,
-                  )}`,
-                })}
-          </Text>
+
+          {/* A régua de sete dias: a única coisa nesta tela que responde "isto
+              aqui é normal?" sem pedir para ninguém somar de cabeça. */}
+          {data && data.series.length > 0 ? (
+            <Bars
+              series={data.series}
+              labels={data.series.map((d) => formatWeekdayInitial(d.date, locale))}
+            />
+          ) : null}
+
+          {data ? (
+            <>
+              <Text style={[type.caption, { color: color.inkFaint, marginTop: space.md }]}>
+                {data.madeYesterday === 0
+                  ? t.app.home.noYesterday
+                  : fill(t.app.home.yesterdayWas, {
+                      amount: `${formatQuantity(data.madeYesterday, locale)} ${plural(
+                        data.madeYesterday,
+                        t.units.unit,
+                      )}`,
+                    })}
+              </Text>
+              <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
+                {comparison(data.madeToday, data.madeThen)}
+              </Text>
+            </>
+          ) : null}
         </Card>
-      ) : null}
+      </Reveal>
 
       {/* O que vai acabar, avisado na data da DECISÃO e não na do problema.
-          Lei 4: quando a polpa acabar já é tarde — a compra tem prazo. Este
-          cartão só existe quando o livro-razão viu saída de verdade; insumo
-          parado não gera data, e alerta inventado ensina a ignorar alerta. */}
+          Lei 4: quando a polpa acabar já é tarde — a compra tem prazo. */}
       {data && data.shortly.length > 0 ? (
-        <Pressable
-          onPress={() => router.push('/inputs')}
-          accessibilityRole="button"
-          accessibilityLabel={t.app.home.runningOut}
-        >
-          <Card tone="warning">
-            <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.home.runningOut}</Text>
-            <View style={{ marginTop: space.md, gap: space.xs }}>
-              {data.shortly.slice(0, 4).map((r) => (
-                <View key={r.itemId} style={styles.row}>
-                  <Text style={[type.body, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-                    {r.name}
-                  </Text>
-                  <Text style={[type.body, { color: color.ink }]}>
-                    {plural(
-                      Math.floor(r.daysLeft),
-                      t.app.home.dayCount,
-                      formatQuantity(Math.floor(r.daysLeft), locale),
-                    )}
-                  </Text>
-                </View>
-              ))}
-            </View>
-            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
-              {t.app.home.runningOutWhy}
-            </Text>
-          </Card>
-        </Pressable>
-      ) : null}
-
-      {/* O que os clientes pediram, e o que falta para dar conta.
-          A capa não lista pedido por pedido - isso é a tela de Pedidos. Aqui
-          fica a única pergunta que se decide de manhã: o que ainda tem que sair
-          do tacho para os compromissos da semana caberem. */}
-      {data && data.demand.length > 0 ? (
-        <Pressable
-          onPress={() => router.push('/orders')}
-          accessibilityRole="button"
-          accessibilityLabel={
-            shortForOrders.length > 0 ? t.app.home.ordersShort : t.app.home.ordersCovered
-          }
-        >
-          <Card tone={shortForOrders.length > 0 ? 'warning' : 'plain'}>
-            <Text style={[type.cardTitle, { color: color.ink }]}>
-              {shortForOrders.length > 0 ? t.app.home.ordersShort : t.app.home.ordersCovered}
-            </Text>
-
-            {shortForOrders.length > 0 ? (
+        <Reveal index={1}>
+          <Touchable onPress={() => router.push('/inputs')} accessibilityLabel={t.app.home.runningOut}>
+            <Card tone="warning">
+              <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.home.runningOut}</Text>
               <View style={{ marginTop: space.md, gap: space.xs }}>
-                {shortForOrders.slice(0, 4).map((d) => (
-                  <View key={d.itemId} style={styles.row}>
+                {data.shortly.slice(0, 4).map((r) => (
+                  <View key={r.itemId} style={styles.row}>
                     <Text style={[type.body, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-                      {d.name}
+                      {r.name}
                     </Text>
-                    <Text style={[type.body, styles.number, { color: color.ink }]}>
-                      {plural(d.missing, t.units.unit, formatQuantity(d.missing, locale))}
+                    <Text style={[type.body, { color: color.ink }]}>
+                      {plural(
+                        Math.floor(r.daysLeft),
+                        t.app.home.dayCount,
+                        formatQuantity(Math.floor(r.daysLeft), locale),
+                      )}
                     </Text>
                   </View>
                 ))}
               </View>
-            ) : (
+              <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
+                {t.app.home.runningOutWhy}
+              </Text>
+            </Card>
+          </Touchable>
+        </Reveal>
+      ) : null}
+
+      {/* E o contrário dele, que é a metade que faltava.
+          "Está tudo bem" é estado válido e bonito - mas só pode ser dito quando
+          houve consumo de verdade para olhar. Numa fábrica que nunca produziu,
+          "nada acaba nos próximos sete dias" seria verdade por acidente:
+          nenhum insumo sai porque nenhum tacho roda, e a frase viraria a mesma
+          coisa que um alerta inventado, só que ao contrário. */}
+      {data && data.everMade && data.shortly.length === 0 ? (
+        <Reveal index={1}>
+          <Touchable onPress={() => router.push('/inputs')} accessibilityLabel={t.app.home.inputsFine}>
+            <Card>
+              <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.home.inputsFine}</Text>
               <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-                {fill(t.app.home.ordersCoveredDetail, {
-                  date: formatCalendarDate(data.demandThrough, locale),
-                })}
+                {t.app.home.inputsFineDetail}
               </Text>
-            )}
-
-            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
-              {fill(t.app.home.ordersWhy, { date: formatCalendarDate(data.demandThrough, locale) })}
-            </Text>
-          </Card>
-        </Pressable>
+            </Card>
+          </Touchable>
+        </Reveal>
       ) : null}
 
-      {/* O clima, que numa sorveteria é informação de negócio: o calor é o que
-          move a venda, e ele é a única variável grande deste negócio que não
-          está no livro-razão.
-
-          O cartão diz FATO e para por aí. Não escreve "produza mais amanhã",
-          porque a relação entre grau e caixa vendida desta fábrica precisa de
-          meses de saída observada - é a mesma razão pela qual o Espelho da Loja
-          ficou fora do mês. Conselho antes do dado é o alerta inventado da Lei
-          7 com um número em cima.
-
-          O que ele obedece é a Lei 3: 31° não é quente nem frio até estar ao
-          lado de amanhã. E a Lei 6, no rodapé - a hora em que foi medido e a
-          cidade de onde veio, que é a conta aberta de um número que veio de
-          fora do aparelho. */}
-      {sky ? (
-        <Pressable
-          onPress={() => router.push('/weather')}
-          accessibilityRole="button"
-          accessibilityLabel={fill(t.app.weather.overline, { city: weather?.place.name ?? '' })}
-        >
-          <Card>
-            <Text style={[type.overline, { color: color.inkFaint }]}>
-              {fill(t.app.weather.overline, { city: weather?.place.name ?? '' }).toUpperCase()}
-            </Text>
-            <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
-              {`${Math.round(sky.today.maxC)}°`}
-            </Text>
-            <Text style={[type.secondary, { color: color.inkMuted }]}>
-              {t.app.weather.today}
-              {' · '}
-              {fill(t.app.weather.low, {
-                degrees: plural(Math.round(sky.today.minC), t.app.weather.degrees),
-              })}
-            </Text>
-
-            {/* Chuva só aparece quando é chance de verdade. Dez por cento é
-                ruído, e ruído todo dia ensina a não ler o cartão. */}
-            {sky.today.rainChance !== null && sky.today.rainChance >= 30 ? (
-              <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
-                {fill(t.app.weather.rain, { percent: String(sky.today.rainChance) })}
-              </Text>
-            ) : null}
-
-            {sky.warmerBy !== null ? (
-              <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
-                {sky.warmerBy === 0
-                  ? t.app.weather.same
-                  : fill(sky.warmerBy > 0 ? t.app.weather.warmer : t.app.weather.cooler, {
-                      degrees: plural(Math.abs(sky.warmerBy), t.app.weather.degrees),
-                    })}
-              </Text>
-            ) : null}
-
-            <Text style={[type.caption, { color: palette.sky, marginTop: space.sm }]}>
-              {weather
-                ? `${fill(t.app.weather.measured, {
-                    time: formatTime(weather.fetchedAt, locale),
-                  })} · ${t.app.weather.change}`
-                : ''}
-            </Text>
-          </Card>
-        </Pressable>
-      ) : null}
-
-      {/* O tacho que está rodando agora.
-          O pulso é a única coisa nesta tela que se move sozinha, e por isso ele
-          só pode existir quando há um tacho de verdade: `PulseDot` exige `live`
-          justamente para que ninguém pulse ao lado de número congelado. Fábrica
-          parada não desenha nada aqui - "está tudo bem" é estado válido. */}
-      {data?.running.map((run) => (
-        <Pressable
-          key={run.id}
-          onPress={() => router.push('/production')}
-          accessibilityRole="button"
-          accessibilityLabel={`${t.app.home.running}: ${run.productName}`}
-        >
-          <Card tone="area">
-            <View style={[styles.row, { gap: space.sm }]}>
-              <PulseDot live />
-              <Text style={[type.cardTitle, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-                {run.productName}
-              </Text>
-            </View>
-            <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-              {t.app.home.running}
-            </Text>
-            <Text style={[type.caption, { color: color.inkFaint }]}>
-              {fill(t.app.home.runningSince, { time: formatTime(run.openedAt, locale) })}
-            </Text>
-          </Card>
-        </Pressable>
-      ))}
-
-      {/* O que saiu para as lojas hoje, em volume.
-          O cartão só existe quando há caixa de verdade: se tudo que saiu foi
-          granel, um "0 caixas" seria manchete falsa, e a aba Transporte conta a
-          história inteira de qualquer jeito. E o que não tem caixa nunca some
-          na soma - aparece pelo nome, embaixo. */}
-      {data && data.boxes > 0 ? (
-        <Card>
-          <CountUp
-            value={data.boxes}
-            format={(v) => formatQuantity(Math.round(v), locale)}
-            style={{ ...type.figure, color: color.ink }}
-          />
-          <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {plural(data.boxes, t.app.home.boxCount)} {t.app.home.boxesSent}
-          </Text>
-          {data.loose.length > 0 ? (
-            <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
-              {fill(t.app.home.alsoSent, {
-                items: joinList(
-                  data.loose.map((l) =>
-                    fill(t.app.home.alsoSentItem, {
-                      amount: l.said,
-                      name: l.name.toLocaleLowerCase(locale.formatting),
-                    }),
-                  ),
-                  t.common.and,
-                ),
-              })}
-            </Text>
-          ) : null}
-        </Card>
-      ) : null}
-
-      {data?.products.map((product) => {
-        const before = product.unitCentsBefore;
-        const costMoved = before !== null && before !== product.unitCents;
-        return (
-          <Pressable
-            key={product.id}
-            onPress={() =>
-              router.push(product.recipeId ? `/recipes/${product.recipeId}` : '/products')
+      {/* O que os clientes pediram, e o que falta para dar conta. */}
+      {data && data.demand.length > 0 ? (
+        <Reveal index={2}>
+          <Touchable
+            onPress={() => router.push('/orders')}
+            accessibilityLabel={
+              shortForOrders.length > 0 ? t.app.home.ordersShort : t.app.home.ordersCovered
             }
-            accessibilityRole="button"
-            accessibilityLabel={`${product.name}: ${formatMoney(product.unitCents, locale)}`}
           >
-            <Card tone="area">
-              <View style={[styles.row, { gap: space.md }]}>
-                <IconCost size={32} color={palette.sky} />
-                <Text style={[type.cardTitle, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-                  {product.name}
-                </Text>
-              </View>
+            <Card tone={shortForOrders.length > 0 ? 'warning' : 'plain'}>
+              <Text style={[type.cardTitle, { color: color.ink }]}>
+                {shortForOrders.length > 0 ? t.app.home.ordersShort : t.app.home.ordersCovered}
+              </Text>
 
-              {/* The one number this screen is about. */}
-              <CountUp
-                value={product.unitCents}
-                format={(v) => formatMoney(Math.round(v), locale)}
-                style={{ ...type.hero, color: color.ink, marginTop: space.sm }}
-              />
-              <Text style={[type.body, { color: color.inkMuted }]}>{t.app.home.each}</Text>
-
-              {/* Law 3: no number appears alone. 64 cents is neither good nor
-                  bad until it sits beside what it was - and the history that
-                  answers that was already being written by every invoice. */}
-              {costMoved ? (
+              {shortForOrders.length > 0 ? (
                 <View style={{ marginTop: space.md, gap: space.xs }}>
-                  <Chip
-                    signal={product.unitCents > before ? 'warning' : 'ok'}
-                    label={`${product.unitCents > before ? '▲' : '▼'} ${formatMoney(
-                      Math.abs(product.unitCents - before),
-                      locale,
-                    )}`}
-                  />
-                  <Text style={[type.caption, { color: color.inkFaint }]}>
-                    {fill(t.app.home.costWas, { before: formatMoney(before, locale) })}
-                  </Text>
+                  {shortForOrders.slice(0, 4).map((d) => (
+                    <View key={d.itemId} style={styles.row}>
+                      <Text style={[type.body, { color: color.ink, flex: 1 }]} numberOfLines={1}>
+                        {d.name}
+                      </Text>
+                      <Text style={[type.body, styles.number, { color: color.ink }]}>
+                        {plural(d.missing, t.units.unit, formatQuantity(d.missing, locale))}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
-              ) : null}
+              ) : (
+                <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
+                  {fill(t.app.home.ordersCoveredDetail, {
+                    date: formatCalendarDate(data.demandThrough, locale),
+                  })}
+                </Text>
+              )}
 
-              {/* Quanto tempo esse número está parado.
-                  A prancha põe isso ao lado do `por quê?`, e é o que separa
-                  "custa 64 centavos" de "custa 64 centavos e ninguém mexeu
-                  nisso há doze dias" - a segunda é uma informação sobre o
-                  negócio, a primeira é só um preço. Só aparece quando NÃO
-                  houve mudança recente: com a comparação na tela, o tempo de
-                  estabilidade seria ruído. */}
-              <View style={[styles.row, { gap: space.sm, marginTop: space.sm }]}>
-                {!costMoved ? (
-                  <Text style={[type.caption, { color: color.inkFaint }]}>
-                    {product.costMovedAt
-                      ? fill(t.app.home.stableFor, {
-                          days: plural(
-                            daysBetween(product.costMovedAt, nowIso(), locale.timeZone),
-                            t.app.home.dayCount,
-                          ),
-                        })
-                      : t.app.home.stableAlways}
+              <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
+                {fill(t.app.home.ordersWhy, { date: formatCalendarDate(data.demandThrough, locale) })}
+              </Text>
+            </Card>
+          </Touchable>
+        </Reveal>
+      ) : null}
+
+      {/* O clima, desenhado.
+          Continua dizendo FATO e nada além: máxima, mínima, chuva e a diferença
+          para amanhã. Não escreve "produza mais amanhã", porque a relação entre
+          grau e caixa vendida desta fábrica precisa de meses de saída
+          observada.
+
+          O que mudou foi a forma. O cartão anterior era um número grande e
+          quatro linhas cinza, com a mesma cara do custo e do saldo - e numa
+          sorveteria o calor não é uma linha de planilha, é o negócio. A cena
+          sai do próprio dado: a cor vem da máxima, o sol vira nuvem quando
+          chove, e a régua mostra o dia inteiro entre a mínima e a máxima. */}
+      {sky ? (
+        <Reveal index={3}>
+          <Touchable
+            onPress={() => router.push('/weather')}
+            accessibilityLabel={fill(t.app.weather.overline, { city: weather?.place.name ?? '' })}
+          >
+            <Card style={{ padding: 0, overflow: 'hidden' }}>
+              <SkyScene maxC={sky.today.maxC} rainChance={sky.today.rainChance} height={128} />
+
+              <View style={{ padding: space.lg }}>
+                <Text style={[type.overline, { color: color.inkFaint }]}>
+                  {fill(t.app.weather.overline, { city: weather?.place.name ?? '' }).toUpperCase()}
+                </Text>
+
+                <View style={[styles.row, { gap: space.md, marginTop: space.xs }]}>
+                  <Text style={[type.figure, { color: color.ink }]}>
+                    {`${Math.round(sky.today.maxC)}°`}
+                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[type.secondary, { color: color.inkMuted }]}>
+                      {t.app.weather.today}
+                    </Text>
+                    <Text style={[type.caption, { color: color.inkFaint }]}>
+                      {fill(t.app.weather.low, {
+                        degrees: plural(Math.round(sky.today.minC), t.app.weather.degrees),
+                      })}
+                    </Text>
+                  </View>
+                </View>
+
+                <TemperatureRange minC={sky.today.minC} maxC={sky.today.maxC} />
+
+                {/* Chuva só aparece quando é chance de verdade. Dez por cento é
+                    ruído, e ruído todo dia ensina a não ler o cartão. */}
+                {sky.today.rainChance !== null && sky.today.rainChance >= 30 ? (
+                  <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
+                    {fill(t.app.weather.rain, { percent: String(sky.today.rainChance) })}
                   </Text>
                 ) : null}
 
-                {/* Law 6: every conclusion opens its account. The sheet that
-                    explains this cost lives one tap away, on the recipe. */}
-                <Text style={[type.caption, { color: palette.sky }]}>{t.app.home.why}</Text>
+                {sky.warmerBy !== null ? (
+                  <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
+                    {sky.warmerBy === 0
+                      ? t.app.weather.same
+                      : fill(sky.warmerBy > 0 ? t.app.weather.warmer : t.app.weather.cooler, {
+                          degrees: plural(Math.abs(sky.warmerBy), t.app.weather.degrees),
+                        })}
+                  </Text>
+                ) : null}
+
+                <Text style={[type.caption, { color: palette.sky, marginTop: space.sm }]}>
+                  {weather
+                    ? `${fill(t.app.weather.measured, {
+                        time: formatTime(weather.fetchedAt, locale),
+                      })} · ${t.app.weather.change}`
+                    : ''}
+                </Text>
               </View>
             </Card>
-          </Pressable>
-        );
-      })}
+          </Touchable>
+        </Reveal>
+      ) : null}
 
-      <Card tone={moved.length > 0 ? 'warning' : 'plain'}>
-        <Text style={[type.cardTitle, { color: color.ink }]}>
-          {moved.length > 0 ? t.app.home.changed : t.app.home.steady}
-        </Text>
+      {/* O tacho que está rodando agora.
+          O pulso é a única coisa desta tela que se move por causa do DADO, e
+          por isso ele só pode existir quando há um tacho de verdade: `PulseDot`
+          exige `live` justamente para que ninguém pulse ao lado de número
+          congelado. Fábrica parada não desenha nada aqui. */}
+      {data?.running.map((run, i) => (
+        <Reveal key={run.id} index={4 + i}>
+          <Touchable
+            onPress={() => router.push('/production')}
+            accessibilityLabel={`${t.app.home.running}: ${run.productName}`}
+          >
+            <Card tone="area">
+              <View style={[styles.row, { gap: space.sm }]}>
+                <PulseDot live />
+                <Text style={[type.cardTitle, { color: color.ink, flex: 1 }]} numberOfLines={1}>
+                  {run.productName}
+                </Text>
+              </View>
+              <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
+                {t.app.home.running}
+              </Text>
+              <Text style={[type.caption, { color: color.inkFaint }]}>
+                {fill(t.app.home.runningSince, { time: formatTime(run.openedAt, locale) })}
+              </Text>
+            </Card>
+          </Touchable>
+        </Reveal>
+      ))}
 
-        {moved.length === 0 ? (
-          <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-            {loading ? t.app.home.checking : t.app.home.steadyDetail}
-          </Text>
-        ) : (
-          <View style={{ marginTop: space.md, gap: space.sm }}>
-            {moved.map((change) => {
-              const previous = change.previousRate ?? change.newRate;
-              const delta = previous > 0 ? (change.newRate - previous) / previous : 0;
-              return (
-                <View key={`${change.itemId}-${change.observedAt}`} style={styles.row}>
-                  <Text style={[type.secondary, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-                    {change.name}
-                  </Text>
-                  <Text
-                    style={[
-                      type.secondary,
-                      styles.number,
-                      { color: delta > 0 ? color.warning : color.ok },
-                    ]}
-                  >
-                    {delta > 0 ? '▲' : '▼'} {(Math.abs(delta) * 100).toFixed(1)}%
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        )}
-      </Card>
+      {/* O que saiu para as lojas hoje, em volume. Só existe quando há caixa de
+          verdade: um "0 caixas" seria manchete falsa. */}
+      {data && data.boxes > 0 ? (
+        <Reveal index={5}>
+          <Card>
+            <CountUp
+              value={data.boxes}
+              format={(v) => formatQuantity(Math.round(v), locale)}
+              style={{ ...type.figure, color: color.ink }}
+            />
+            <Text style={[type.secondary, { color: color.inkMuted }]}>
+              {plural(data.boxes, t.app.home.boxCount)} {t.app.home.boxesSent}
+            </Text>
+            {data.loose.length > 0 ? (
+              <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
+                {fill(t.app.home.alsoSent, {
+                  items: joinList(
+                    data.loose.map((l) =>
+                      fill(t.app.home.alsoSentItem, {
+                        amount: l.said,
+                        name: l.name.toLocaleLowerCase(locale.formatting),
+                      }),
+                    ),
+                    t.common.and,
+                  ),
+                })}
+              </Text>
+            ) : null}
+          </Card>
+        </Reveal>
+      ) : null}
+
+      {/* O preço que mexeu - e SÓ quando mexeu.
+          O cartão "Nada mudou de preço" saiu da capa junto com o custo por
+          unidade. Ele era honesto e era inútil: ocupava a tela todo dia para
+          dizer que não havia notícia, que é a definição do alerta que ensina a
+          ignorar alerta. Alta de nove por cento na polpa continua aparecendo
+          aqui no dia em que acontece, porque isso muda a decisão de comprar. */}
+      {moved.length > 0 ? (
+        <Reveal index={6}>
+          <Touchable onPress={() => router.push('/inputs')} accessibilityLabel={t.app.home.changed}>
+            <Card tone="warning">
+              <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.home.changed}</Text>
+              <View style={{ marginTop: space.md, gap: space.sm }}>
+                {moved.map((change) => {
+                  const previous = change.previousRate ?? change.newRate;
+                  const delta = previous > 0 ? (change.newRate - previous) / previous : 0;
+                  return (
+                    <View key={`${change.itemId}-${change.observedAt}`} style={styles.row}>
+                      <Text style={[type.secondary, { color: color.ink, flex: 1 }]} numberOfLines={1}>
+                        {change.name}
+                      </Text>
+                      <Text
+                        style={[
+                          type.secondary,
+                          styles.number,
+                          { color: delta > 0 ? color.warning : color.ok },
+                        ]}
+                      >
+                        {delta > 0 ? '▲' : '▼'} {formatPercent(Math.abs(delta), locale)}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </Card>
+          </Touchable>
+        </Reveal>
+      ) : null}
 
       {/* The day's single action, within thumb reach and carrying its own mark. */}
-      <Button
-        label={t.app.home.record}
-        onPress={() => router.push('/production')}
-        icon={(c) => <IconProduction size={24} color={c} />}
-        style={{ borderRadius: radius.pill }}
-      />
+      <Reveal index={7}>
+        <Button
+          label={t.app.home.record}
+          onPress={() => router.push('/production')}
+          icon={(c) => <IconProduction size={24} color={c} />}
+          style={{ borderRadius: radius.pill }}
+        />
+      </Reveal>
     </CollapsingHeader>
   );
 }

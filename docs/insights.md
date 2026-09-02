@@ -1658,3 +1658,64 @@ Isso vale como aviso escrito no `CLAUDE.md`, porque a diretriz manda agir sobre 
 que o relatório mostra — e um relatório que não vê o trabalho não é "está tudo
 bem", é instrumento quebrado. A regra do alerta inventado vale para as
 ferramentas também: número que não mede nada ensina a ignorar o painel.
+
+## 2 de setembro — o dono abriu o aplicativo e a capa estava respondendo a pergunta errada
+
+**O que apareceu.** Ele mandou a foto da tela publicada: clima, um cartão grande
+com **R$ 0,64 cada um** para o picolé de morango, "Nada mudou de preço", e o
+botão. E disse o que faltava — *"esse valor do morango aí não interessa; o que
+interessa é produção do dia, do dia anterior, alerta de ingredientes"*.
+
+**A parte que dói: os números que ele pediu já estavam calculados.** A consulta
+da capa devolve `madeToday`, `madeYesterday`, `madeThen`, `shortly` (o que acaba
+em sete dias), `demand`, `boxes` e `running` — tudo isso já existia, com teste. O
+que decidia se apareciam era uma guarda: `data.everMade`. Numa fábrica que ainda
+não produziu, **o cartão de produção não existe** — e some junto com ele o único
+assunto da tela. Sobrou o custo, que era o cartão sem guarda nenhuma.
+
+Ou seja: não era falta de dado nem falta de query. Era **hierarquia** — a tela
+respondia "quanto custa fazer" (pergunta boa, hora errada: de manhã, de pé, o
+que se decide é o que produzir hoje) e escondia "o que aconteceu hoje" justamente
+quando a resposta era zero.
+
+**A segunda coisa, que ele viu e o repositório não.** *"Eu quero VIDA; o app todo
+estático, sem animação e nem graça nenhuma."* O `tokens.ts` tem `motion.settle`,
+`motion.press`, `motion.pressScale` e `motion.staggerMs` desde o começo, com
+cinco regras escritas em cima — e **nada os usava** fora do `PulseDot`. O sistema
+de movimento existia inteiro no papel e não tinha um chamador. É a mesma doença
+do `assistant_phrase` com índice dedicado e nenhuma escrita, e o portão P1 não
+pega este caso porque o que falta não é o chamador de uma função: é o uso de um
+*token*.
+
+**O que mudou.** A produção do dia virou a manchete e não some mais no zero;
+ganhou uma régua de sete dias (`dailySeries` + `Bars`) que responde a pergunta que
+nenhuma tela respondia — *o que é normal aqui*. O alerta de insumo ganhou o lado
+calmo que faltava. O clima virou cena desenhada, com a cor saindo da máxima e o
+sol virando nuvem quando chove. O custo por unidade saiu da capa e continua
+inteiro na receita; o cartão "Nada mudou de preço" saiu de vez, porque ocupar a
+tela todo dia para dizer que não há notícia é o alerta que ensina a ignorar
+alerta. E `Reveal`/`Touchable` deram ao sistema de movimento os primeiros
+chamadores.
+
+**O que a limpeza revelou.** Tirar o cartão de custo deixou órfã a metade da
+consulta da capa: `listProducts`, `loadRecipeGraph`, `itemCosts`, `labels`,
+`ratesBefore`, `costPerProductUnit`, `costRecipe` e um `lastCostMove` **por
+produto** rodavam a cada abertura do aplicativo para alimentar um cartão que o
+dono não olhava. Saíram todos.
+
+## 2 de setembro — o `[por quê?]` fala um idioma só
+
+**O que apareceu.** Procurando onde o percentual era formatado à mão, achei
+`src/components/WhySheet.tsx` com o texto cravado em português: "Custo do lote",
+"Perda prevista", "% do lote", "sobram", "Custo por unidade de massa", "Fechar".
+
+**Por que importa mais que uma tela qualquer.** Esta é a folha que abre a conta
+de toda conclusão do aplicativo — a Lei 6 em pessoa. Uma fábrica que rodar o app
+em espanhol vê a interface inteira traduzida e, no momento em que pede a prova do
+número, recebe português. O `Widen<T>` não pega isto: ele obriga a chave a
+existir nos três dicionários, e não obriga a tela a usá-los.
+
+**E o vizinho, da mesma família.** `(x * 100).toFixed(1)` aparecia em três
+lugares — a capa, a receita e esta folha. É o ponto decimal do JavaScript num
+aplicativo que fala português e espanhol: a alta da polpa saía como "9.0%".
+Virou `formatPercent`, no único lugar que sabe o idioma.
