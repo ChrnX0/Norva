@@ -62,11 +62,19 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
-      # A primeira execução compila o NDK inteiro do React Native e leva perto
-      # de uma hora. O caché guarda o que não muda entre commits - dependências
-      # do Gradle e os objetos nativos já compilados - e a segunda execução
-      # passa a levar minutos. A chave inclui o lockfile porque uma dependência
-      # nova invalida o que estava compilado.
+      # O caché guarda o que não muda entre commits: as dependências do Gradle
+      # já baixadas e transformadas. A chave inclui o lockfile porque uma
+      # dependência nova invalida o que estava guardado.
+      #
+      # O número, medido e não prometido (execução 5 fria contra a 6 quente,
+      # mesmo commit `1b4b749`): a compilação caiu de **24m13s para 16m53s**.
+      # Sete minutos, não a "questão de minutos" que este comentário afirmou
+      # por três execuções seguidas. As duas execuções imprimiram
+      # `871 actionable tasks: 871 executed` e nenhum `FROM-CACHE` - o que se
+      # reaproveita aqui é download e transformação de artefato, nunca saída de
+      # tarefa. Caché de dependência não é caché de compilação; para o segundo
+      # seria preciso `org.gradle.caching=true` e guardar `build-cache-1`, e
+      # isso ainda não foi medido.
       #
       # Restaurar e gravar são passos separados de propósito: ver o passo
       # "Guardar o caché" no fim do arquivo.

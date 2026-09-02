@@ -1430,3 +1430,40 @@ linha de distância no log, e toda vez o resumo do GitHub dizia outra coisa:
 `cancelled` para falta de Metaspace, `failure` para a máquina morrendo,
 `success` para um caché que não gravou. O que o painel mostra é o desfecho, e
 desfecho não é causa.
+
+## 2 de setembro — o caché quente, medido: sete minutos, não "minutos"
+
+A promessa aparecia no comentário do workflow desde a primeira execução — "a
+segunda execução passa a levar minutos" — e foi repetida três vezes sem que
+nenhuma segunda execução existisse. A execução 6 é a primeira que podia
+restaurar o que a 5 gravou, e no mesmo commit (`1b4b749`), então o número
+finalmente é comparável.
+
+**O que o log diz, e o painel do GitHub não.** `Cache restored from key:
+gradle-Linux-27906c7d…-33576896419` — 1 767 734 217 B, os 1,65 GiB que a
+execução 5 escreveu, achados pelo `restore-keys` e não pela chave exata. O passo
+"Abrir espaço em disco" repetiu o de sempre: 13 GB livres antes, 25 GB depois.
+
+**O número prometido, enfim medido.** O passo "Compilar, só arm64" levou
+**16 min 53 s** contra **24 min 13 s** da execução fria. São 440 segundos, 30% —
+e o job inteiro caiu de 25m52s para 18m59s. Isso é o ganho real, e é menor do
+que "minutos" dá a entender. Onde ele apareceu: a configuração do Gradle caiu de
+79 s para 21 s, e o trecho até a primeira tarefa de CMake caiu de 254 s para
+109 s; o resto veio diluído no miolo.
+
+**E a linha que desmente a leitura fácil:** as duas execuções terminaram com
+`871 actionable tasks: 871 executed`, zero `FROM-CACHE` e as mesmas 39
+`UP-TO-DATE`. Ou seja: **nenhuma tarefa foi reaproveitada**. O que
+`~/.gradle/caches` guarda é artefato baixado e transformado, não saída de
+tarefa — caché de dependência não é caché de compilação. Reaproveitar
+compilação exigiria `org.gradle.caching=true` e guardar `build-cache-1`, o que
+**não foi feito nem medido**; escrever aqui que "daria" seria a quarta promessa
+da série.
+
+**A regra que sai daqui.** Um caché que restaura 1,65 GiB e um job 27% mais
+rápido parecem, juntos, a prova de que o caché funcionou — e escondem que ele
+não tocou na parte cara. A prova não é o tempo total nem a cor do job: é a linha
+de contagem de tarefas. Vale o mesmo que a lição da execução 4, com o sinal
+trocado: lá um passo verde escondia um caché vazio; aqui um caché cheio esconde
+uma compilação inteira refeita. Nos dois casos o desfecho parecia responder pela
+causa, e não respondia.
