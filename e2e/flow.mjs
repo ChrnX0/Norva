@@ -152,9 +152,10 @@ check('the five tabs are there, and the old addresses still answer', async (page
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
 
-  const bar = await screen(page);
+  // Pelo papel, não pelo texto: uma barra de abas que o leitor de tela não
+  // enxerga é uma barra que não existe para quem usa luva e voz.
   for (const tab of ['Início', 'Produção', 'Transporte', 'Relatórios', 'Mais']) {
-    assert.match(bar, new RegExp(tab), `the tab "${tab}" is missing from the bar`);
+    await page.getByRole('tab', { name: tab }).waitFor({ timeout: 5000 });
   }
 
   // The two new addresses.
@@ -311,7 +312,11 @@ check('the briefing is up to date when you tap Back into it', async (page) => {
   const before = await screen(page);
   assert.match(before, /R\$ 0,64/);
 
-  // Tapped, not typed: this is the route a person actually takes.
+  // Tapped, not typed: this is the route a person actually takes - e agora ela
+  // passa pela barra de abas, porque a lista de nove linhas saiu da home. O
+  // caminho é mais longo e é o verdadeiro: aba Mais, cartão Compras.
+  await page.getByRole('tab', { name: 'Mais' }).click();
+  await page.waitForTimeout(2000);
   await page.getByText('Compras', { exact: true }).first().click();
   await page.waitForTimeout(2500);
 
@@ -324,7 +329,13 @@ check('the briefing is up to date when you tap Back into it', async (page) => {
   await page.getByText('Lançar', { exact: true }).first().click();
   await page.waitForTimeout(2500);
 
+  // Compras é tela empilhada: ela cobre a barra, que é o que o desenho manda
+  // para tela em que se entrou. Então o caminho de volta é o de verdade -
+  // voltar para Mais, onde a barra existe, e daí tocar Início. Se `useQuery`
+  // não relesse no foco, a home mostraria o custo de quando o app abriu.
   await page.goBack();
+  await page.waitForTimeout(1500);
+  await page.getByRole('tab', { name: 'Início' }).click();
   await page.waitForTimeout(2500);
 
   const after = await screen(page);

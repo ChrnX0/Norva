@@ -56,6 +56,9 @@ export const en: Dictionary = {
 
     home: {
       overline: 'at the factory today',
+      each: 'each',
+      why: 'why?',
+      record: 'Record production',
       unitCost: 'cost per unit · worked out from the recipe and the invoices',
       costWas: 'it was {{before}} before the recent invoices',
       changed: 'Changed since last time',

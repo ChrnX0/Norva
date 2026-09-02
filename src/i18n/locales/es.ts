@@ -61,6 +61,9 @@ export const es: Dictionary = {
 
     home: {
       overline: 'hoy en la fábrica',
+      each: 'cada uno',
+      why: '¿por qué?',
+      record: 'Registrar producción',
       unitCost: 'costo por unidad · calculado de la receta y de las facturas de compra',
       costWas: 'costaba {{before}} antes de las últimas compras',
       changed: 'Cambió desde la última vez',

@@ -99,6 +99,22 @@ export function formatDate(iso: string, locale: LocaleSettings): string {
   }).format(new Date(iso));
 }
 
+/**
+ * The day, as the header of the briefing says it: "segunda, 1 de set".
+ *
+ * The weekday is there because a factory plans by it - "produza até segunda" is
+ * an instruction, "produza até dia 7" is arithmetic. Short month, because the
+ * line sits under the brand and must not wrap on a 390pt screen.
+ */
+export function formatWeekday(iso: string, locale: LocaleSettings): string {
+  return new Intl.DateTimeFormat(locale.formatting, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+    timeZone: locale.timeZone,
+  }).format(new Date(iso));
+}
+
 export function formatDayMonth(iso: string, locale: LocaleSettings): string {
   return new Intl.DateTimeFormat(locale.formatting, {
     day: '2-digit',

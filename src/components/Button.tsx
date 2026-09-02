@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -19,11 +19,21 @@ export function Button({
   variant = 'primary',
   weighty = false,
   disabled = false,
+  icon,
   style,
 }: {
   label: string;
   onPress?: () => void;
   variant?: 'primary' | 'ghost';
+  /**
+   * Drawn to the left of the label, in the label's own colour.
+   *
+   * The design puts the area's mark inside its action - a popsicle on "Lançar
+   * produção" - so the button says what it is about before it is read. It
+   * receives the colour so the icon can never disagree with the text it sits
+   * beside.
+   */
+  icon?: (color: string) => ReactNode;
   /** Weighty actions (committing stock, dispatching a load) also vibrate. */
   weighty?: boolean;
   disabled?: boolean;
@@ -67,6 +77,7 @@ export function Button({
         style,
       ]}
     >
+      {icon?.(isPrimary ? color.onAccent : color.inkMuted)}
       <Text
         style={[
           type.body,
@@ -81,6 +92,8 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
+    flexDirection: 'row',
+    gap: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth * 2,

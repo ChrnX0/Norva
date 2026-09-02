@@ -118,6 +118,14 @@ export const type = {
   secondary: { fontSize: 15, lineHeight: 21, fontWeight: '400' as const },
   /** Numbers always use tabular figures so columns stop dancing on update. */
   figure: { fontSize: 28, lineHeight: 32, fontWeight: '600' as const, letterSpacing: -0.7 },
+  /**
+   * The one number a screen is about, read at arm's length.
+   *
+   * Fifty-six points is not decoration: the briefing exists to be answered from
+   * the doorway, and a cost read at 28 has to be walked up to. One per screen -
+   * a second hero is two heroes, which is none.
+   */
+  hero: { fontSize: 56, lineHeight: 58, fontWeight: '600' as const, letterSpacing: -1.5 },
   /** Codes (lot, label) use a monospaced face: 0/O and 1/l must not blur. */
   code: { fontSize: 13, lineHeight: 18, fontWeight: '500' as const, letterSpacing: 0.4 },
   caption: { fontSize: 13, lineHeight: 18, fontWeight: '400' as const },

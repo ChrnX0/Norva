@@ -75,6 +75,9 @@ export const ptBR = {
 
     home: {
       overline: 'hoje na fábrica',
+      each: 'cada um',
+      why: 'por quê?',
+      record: 'Lançar produção',
       unitCost: 'custo por unidade · calculado da receita e das notas de compra',
       costWas: 'custava {{before}} antes das últimas compras',
       changed: 'Mudou desde a última vez',

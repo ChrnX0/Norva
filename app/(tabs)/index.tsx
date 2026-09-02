@@ -1,11 +1,11 @@
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { CountUp } from '@/components/CountUp';
-import { PulseDot } from '@/components/PulseDot';
-import { brand } from '@/config/brand';
+import { IconCost, IconProduction } from '@/components/icons';
 import {
   itemCosts,
   labels as loadLabels,
@@ -15,27 +15,42 @@ import {
   type CostChange,
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { brand } from '@/config/brand';
 import { useQuery } from '@/data/useQuery';
+import { nowIso } from '@/data/db';
 import { ratesBefore } from '@/domain/cost';
 import { costPerProductUnit, costRecipe } from '@/domain/recipe';
-import { fill, formatMoney } from '@/i18n';
+import { fill, formatMoney, formatWeekday } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
-import { palettes, type Ambient } from '@/theme/tokens';
-import type { Dictionary } from '@/i18n';
+import { palettes } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
- * The home screen.
+ * The briefing, as the design canvas draws it.
  *
  * A dashboard shows totals; a briefing says what moved and what to do about it.
  * The owner already knows roughly how much stock is in the cold room - what
  * they cannot know without this app is that pulp went up 9% on Tuesday and took
  * three cents a unit with it.
  *
- * So nothing here is a bare number: every figure carries the consequence next
- * to it, and every line leads to the screen that resolves it. "Everything is
- * steady" is a valid, well-drawn state - invented alerts teach people to ignore
- * alerts.
+ * The canvas puts one number at fifty-six points and everything else around it:
+ * what a unit costs, whether that moved, and the single action of the day. The
+ * nine-row menu that used to live at the bottom of this screen is gone - the
+ * tab bar and the "Mais" drawers reach every one of those routes, and a list
+ * you must read before acting is the opposite of a briefing.
+ *
+ * TWO THINGS THE CANVAS DRAWS AND THIS SCREEN DOES NOT SHOW, deliberately:
+ *
+ *  - "1.200 picolés hoje" and "18 caixas enviadas". Both need a query with a
+ *    date window, and this repository has never had one: `occurred_at` appears
+ *    nine times in `repository.ts` and not once as a filter. They arrive with
+ *    `productionOn()` and `shipmentsOn()`, each with the comparison Law 3
+ *    demands - a bare count teaches nothing.
+ *  - "estável há 12 dias". `item_cost_history` holds what it needs, and the
+ *    query that reads it does not exist yet.
+ *
+ * Inventing any of the three would have been a number nobody could check on a
+ * screen used to decide where money goes.
  */
 export default function Home() {
   return (
@@ -56,23 +71,11 @@ type ProductCost = {
 
 type Summary = { products: ProductCost[]; changes: CostChange[] };
 
-/** The wording lives in the dictionary; only the colour and route are here. */
-const AREAS: { area: Ambient; key: keyof Dictionary['app']['home']['nav']; route: string }[] = [
-  { area: 'sky', key: 'ask', route: '/assistant' },
-  { area: 'mist', key: 'inputs', route: '/inputs' },
-  { area: 'apricot', key: 'recipes', route: '/recipes' },
-  { area: 'mist', key: 'products', route: '/products' },
-  { area: 'apricot', key: 'production', route: '/production' },
-  { area: 'mint', key: 'places', route: '/places' },
-  { area: 'lilac', key: 'transfer', route: '/transfer' },
-  { area: 'sage', key: 'purchases', route: '/purchase' },
-  { area: 'mist', key: 'settings', route: '/settings' },
-];
-
 function Briefing() {
-  const { color, scheme, type, space } = useTheme();
+  const { color, scheme, type, space, radius } = useTheme();
   const router = useRouter();
   const { locale, t } = useLocale();
+  const palette = palettes[scheme];
 
   const { data, loading } = useQuery<Summary | null>(async () => {
     const [products, graph, costs, names, changes] = await Promise.all([
@@ -109,83 +112,77 @@ function Briefing() {
     };
   });
 
-  const palette = palettes[scheme];
   const moved = (data?.changes ?? []).filter(
     (c) => c.previousRate !== null && c.previousRate !== c.newRate,
   );
 
   return (
-    <CollapsingHeader title={brand.name} overline={t.app.home.overline}>
+    <CollapsingHeader title={brand.name} overline={formatWeekday(nowIso(), locale)}>
       {data?.products.map((product) => {
-        // Law 3's comparison decides the pulse too: this product's cost moved
-        // with the recent invoices, so the number beside the dot is genuinely
-        // news. The ones that did not move show the same dot, still.
         const before = product.unitCentsBefore;
-        const moved = before !== null && before !== product.unitCents;
+        const costMoved = before !== null && before !== product.unitCents;
         return (
-        <Pressable
-          key={product.id}
-          onPress={() =>
-            router.push(
-              product.recipeId ? `/recipes/${product.recipeId}` : '/products',
-            )
-          }
-          accessibilityRole="button"
-        >
-          <Card tone="area">
-            <View style={[styles.row, { gap: space.sm }]}>
-              <PulseDot live={moved} />
-              <Text style={[type.cardTitle, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-                {product.name}
-              </Text>
-            </View>
-            <CountUp
-              value={product.unitCents}
-              format={(v) => formatMoney(Math.round(v), locale)}
-              style={{ ...type.figure, color: color.ink, marginTop: space.xs }}
-            />
-            <Text style={[type.secondary, { color: color.inkMuted }]}>
-              {t.app.home.unitCost}
-            </Text>
-
-            {/* Law 3: no number appears alone. 55 cents is neither good nor bad
-                until it sits beside what it was, and the history that answers
-                that was already being written by every invoice. */}
-            {moved ? (
-              <View style={{ marginTop: space.md, gap: space.xs }}>
-                <Chip
-                  signal={product.unitCents > before ? 'warning' : 'ok'}
-                  label={`${product.unitCents > before ? '▲' : '▼'} ${formatMoney(
-                    Math.abs(product.unitCents - before),
-                    locale,
-                  )}`}
-                />
-                <Text style={[type.caption, { color: color.inkFaint }]}>
-                  {fill(t.app.home.costWas, { before: formatMoney(before, locale) })}
+          <Pressable
+            key={product.id}
+            onPress={() =>
+              router.push(product.recipeId ? `/recipes/${product.recipeId}` : '/products')
+            }
+            accessibilityRole="button"
+            accessibilityLabel={`${product.name}: ${formatMoney(product.unitCents, locale)}`}
+          >
+            <Card tone="area">
+              <View style={[styles.row, { gap: space.md }]}>
+                <IconCost size={32} color={palette.sky} />
+                <Text style={[type.cardTitle, { color: color.ink, flex: 1 }]} numberOfLines={1}>
+                  {product.name}
                 </Text>
               </View>
-            ) : null}
-          </Card>
-        </Pressable>
+
+              {/* The one number this screen is about. */}
+              <CountUp
+                value={product.unitCents}
+                format={(v) => formatMoney(Math.round(v), locale)}
+                style={{ ...type.hero, color: color.ink, marginTop: space.sm }}
+              />
+              <Text style={[type.body, { color: color.inkMuted }]}>{t.app.home.each}</Text>
+
+              {/* Law 3: no number appears alone. 64 cents is neither good nor
+                  bad until it sits beside what it was - and the history that
+                  answers that was already being written by every invoice. */}
+              {costMoved ? (
+                <View style={{ marginTop: space.md, gap: space.xs }}>
+                  <Chip
+                    signal={product.unitCents > before ? 'warning' : 'ok'}
+                    label={`${product.unitCents > before ? '▲' : '▼'} ${formatMoney(
+                      Math.abs(product.unitCents - before),
+                      locale,
+                    )}`}
+                  />
+                  <Text style={[type.caption, { color: color.inkFaint }]}>
+                    {fill(t.app.home.costWas, { before: formatMoney(before, locale) })}
+                  </Text>
+                </View>
+              ) : null}
+
+              {/* Law 6: every conclusion opens its account. The sheet that
+                  explains this cost lives one tap away, on the recipe. */}
+              <Text style={[type.caption, { color: palette.sky, marginTop: space.sm }]}>
+                {t.app.home.why}
+              </Text>
+            </Card>
+          </Pressable>
         );
       })}
 
-      <Card tone={moved.length > 0 ? 'warning' : 'area'}>
+      <Card tone={moved.length > 0 ? 'warning' : 'plain'}>
         <Text style={[type.cardTitle, { color: color.ink }]}>
           {moved.length > 0 ? t.app.home.changed : t.app.home.steady}
         </Text>
 
         {moved.length === 0 ? (
-          <>
-            <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-              {loading ? t.app.home.checking : t.app.home.steadyDetail}
-            </Text>
-            {!loading ? (
-              <View style={{ marginTop: space.md }}>
-                <Chip signal="ok" label={t.app.home.allSteady} />
-              </View>
-            ) : null}
-          </>
+          <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
+            {loading ? t.app.home.checking : t.app.home.steadyDetail}
+          </Text>
         ) : (
           <View style={{ marginTop: space.md, gap: space.sm }}>
             {moved.map((change) => {
@@ -212,40 +209,18 @@ function Briefing() {
         )}
       </Card>
 
-      <Card>
-        <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.md }]}>
-          {t.app.home.whereTo}
-        </Text>
-
-        {AREAS.map((entry) => {
-          const words = t.app.home.nav[entry.key];
-          return (
-          <Pressable
-            key={entry.route}
-            onPress={() => router.push(entry.route as never)}
-            accessibilityRole="button"
-            accessibilityLabel={`${words.label}: ${words.hint}`}
-            style={[styles.navRow, { paddingVertical: space.md, gap: space.md }]}
-          >
-            {/* The area's colour arrives as a small mark, never as a surface -
-                enough to make the screen recognisable before it is read. */}
-            <View style={[styles.swatch, { backgroundColor: palette[entry.area] }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={[type.body, { color: color.ink }]}>{words.label}</Text>
-              <Text style={[type.caption, { color: color.inkFaint }]}>{words.hint}</Text>
-            </View>
-            <Text style={[type.body, { color: color.inkFaint }]}>›</Text>
-          </Pressable>
-          );
-        })}
-      </Card>
+      {/* The day's single action, within thumb reach and carrying its own mark. */}
+      <Button
+        label={t.app.home.record}
+        onPress={() => router.push('/production')}
+        icon={(c) => <IconProduction size={24} color={c} />}
+        style={{ borderRadius: radius.pill }}
+      />
     </CollapsingHeader>
   );
 }
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
-  navRow: { flexDirection: 'row', alignItems: 'center' },
   number: { fontVariant: ['tabular-nums'], fontWeight: '600' },
-  swatch: { width: 10, height: 10, borderRadius: 5 },
 });
