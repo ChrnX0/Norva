@@ -81,6 +81,40 @@ export const es: Dictionary = {
         settings: { label: 'Ajustes', hint: 'limpiar datos y empezar de nuevo' },
       },
     },
+    tabs: {
+      home: 'Inicio',
+      production: 'Producción',
+      transport: 'Transporte',
+      reports: 'Informes',
+      more: 'Más',
+    },
+
+    reports: {
+      title: 'Informes',
+      subtitle: 'Cada uno abre un resumen de una pantalla',
+      rows: {
+        stock: { label: 'Existencias', detail: 'qué hay y dónde' },
+        cost: { label: 'Costo', detail: 'lo que cuesta cada unidad' },
+      },
+    },
+
+    more: {
+      title: 'Más',
+      ask: { label: 'Pregunte', hint: 'escriba lo que quiere saber' },
+      groups: {
+        registers: 'REGISTROS',
+        settings: 'AJUSTES',
+      },
+      rows: {
+        inputs: 'Insumos',
+        recipes: 'Recetas',
+        products: 'Productos',
+        places: 'Tiendas y clientes',
+        purchases: 'Compras',
+        settings: 'Ajustes',
+      },
+    },
+
     settings: {
       title: 'Ajustes',
       stored: 'Lo que está guardado',

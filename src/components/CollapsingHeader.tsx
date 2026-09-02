@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { BottomTabBarHeightContext } from 'expo-router/js-tabs';
+import { useContext, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -34,6 +35,14 @@ export function CollapsingHeader({
 }) {
   const { color, space, type, accent } = useTheme();
   const insets = useSafeAreaInsets();
+
+  // How much of the screen the tab bar covers, or nothing when there is no bar.
+  //
+  // Read from the context and NOT from `useBottomTabBarHeight()`: that hook
+  // throws outside a tab screen, and nine screens in this app - a recipe, an
+  // input, a purchase - are pushed on top of the bar rather than being tabs. A
+  // hook that throws would take all nine down to save one line here.
+  const tabBar = useContext(BottomTabBarHeightContext) ?? 0;
   const scrollY = useSharedValue(0);
 
   const onScroll = useAnimatedScrollHandler((event) => {
@@ -99,7 +108,7 @@ export function CollapsingHeader({
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           paddingHorizontal: space.lg,
-          paddingBottom: insets.bottom + space.xxl,
+          paddingBottom: insets.bottom + space.xxl + tabBar,
           gap: space.md,
         }}
       >

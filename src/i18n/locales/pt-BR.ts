@@ -95,6 +95,40 @@ export const ptBR = {
         settings: { label: 'Ajustes', hint: 'limpar dados e recomeçar' },
       },
     },
+    tabs: {
+      home: 'Início',
+      production: 'Produção',
+      transport: 'Transporte',
+      reports: 'Relatórios',
+      more: 'Mais',
+    },
+
+    reports: {
+      title: 'Relatórios',
+      subtitle: 'Cada um abre num resumo de uma tela',
+      rows: {
+        stock: { label: 'Estoque', detail: 'o que tem e onde' },
+        cost: { label: 'Custo', detail: 'o que cada unidade custa' },
+      },
+    },
+
+    more: {
+      title: 'Mais',
+      ask: { label: 'Pergunte', hint: 'escreva o que quer saber' },
+      groups: {
+        registers: 'CADASTROS',
+        settings: 'CONFIGURAÇÕES',
+      },
+      rows: {
+        inputs: 'Insumos',
+        recipes: 'Receitas',
+        products: 'Produtos',
+        places: 'Lojas e clientes',
+        purchases: 'Compras',
+        settings: 'Ajustes',
+      },
+    },
+
     settings: {
       title: 'Ajustes',
       stored: 'O que está guardado',

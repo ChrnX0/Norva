@@ -76,6 +76,40 @@ export const en: Dictionary = {
         settings: { label: 'Settings', hint: 'clear data and start over' },
       },
     },
+    tabs: {
+      home: 'Home',
+      production: 'Production',
+      transport: 'Transport',
+      reports: 'Reports',
+      more: 'More',
+    },
+
+    reports: {
+      title: 'Reports',
+      subtitle: 'Each one opens a one-screen summary',
+      rows: {
+        stock: { label: 'Stock', detail: 'what you have and where' },
+        cost: { label: 'Cost', detail: 'what each unit costs' },
+      },
+    },
+
+    more: {
+      title: 'More',
+      ask: { label: 'Ask', hint: 'type what you want to know' },
+      groups: {
+        registers: 'RECORDS',
+        settings: 'SETTINGS',
+      },
+      rows: {
+        inputs: 'Inputs',
+        recipes: 'Recipes',
+        products: 'Products',
+        places: 'Stores and customers',
+        purchases: 'Purchases',
+        settings: 'Settings',
+      },
+    },
+
     settings: {
       title: 'Settings',
       stored: 'What is stored',

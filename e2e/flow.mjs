@@ -144,6 +144,50 @@ check('the recipe list opens on a deep link and shows the seeded sheets', async 
   assert.doesNotMatch(text, /Nada cadastrado ainda/);
 });
 
+check('the five tabs are there, and the old addresses still answer', async (page) => {
+  // The screens moved into `app/(tabs)/`, a group whose name is in parentheses
+  // and therefore NOT in the URL. This check is what proves that: twenty-six
+  // `page.goto` calls in this file address `/`, `/production` and `/transfer`,
+  // and a rename would have broken every one of them at once.
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const bar = await screen(page);
+  for (const tab of ['Início', 'Produção', 'Transporte', 'Relatórios', 'Mais']) {
+    assert.match(bar, new RegExp(tab), `the tab "${tab}" is missing from the bar`);
+  }
+
+  // The two new addresses.
+  await page.goto(`http://localhost:${PORT}/reports`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2000);
+  const reports = await screen(page);
+  // Sem depender de caixa: o cabeçalho de hoje sobe a legenda para maiúsculas,
+  // e o desenho a quer em caixa normal - isso é o passo do cabeçalho, não deste.
+  assert.match(reports, /Cada um abre num resumo de uma tela/i);
+  assert.match(reports, /Estoque/);
+  assert.match(reports, /o que cada unidade custa/);
+  // What the design draws but nothing answers yet must not be advertised.
+  assert.doesNotMatch(reports, /margem|Espelho da loja|Perdas/i, 'a row promising a screen that does not exist');
+
+  await page.goto(`http://localhost:${PORT}/more`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2000);
+  const more = await screen(page);
+  assert.match(more, /CADASTROS/);
+  assert.match(more, /Lojas e clientes/);
+  assert.match(more, /Pergunte/, 'the assistant has a door');
+  assert.doesNotMatch(more, /Financeiro|Notas fiscais|Pessoas/, 'a drawer that opens onto nothing');
+
+  // And the addresses that existed before still answer, unchanged.
+  // O título de cada tela, não um botão: numa instalação virgem a transferência
+  // não tem destino cadastrado, então o botão nem chega a existir - e isso é a
+  // tela funcionando, não a rota sumindo.
+  for (const [route, expected] of [['/production', /Quantas unidades/i], ['/transfer', /Transferir/]]) {
+    await page.goto(`http://localhost:${PORT}${route}`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2000);
+    assert.match(await screen(page), expected, `${route} stopped answering`);
+  }
+});
+
 check('settings counts what erasing would take, in Portuguese', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
