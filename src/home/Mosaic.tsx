@@ -1,6 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Bars } from '@/components/Bars';
-import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CountUp } from '@/components/CountUp';
 import { GlyphBox, GlyphKettle, GlyphOrder, GlyphPrice, GlyphProduction, GlyphStock } from '@/components/Glyph';
@@ -8,7 +7,6 @@ import { PulseDot } from '@/components/PulseDot';
 import { Reveal } from '@/components/Reveal';
 import { SkyScene, TemperatureRange } from '@/components/Sky';
 import { Touchable } from '@/components/Touchable';
-import { IconProduction } from '@/components/icons';
 import {
   fill,
   formatCalendarDate,
@@ -32,7 +30,7 @@ import type { BriefingView } from './types';
  * retângulos iguais que o dono recusou.
  */
 export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, go }: BriefingView) {
-  const { color, scheme, type, space, radius } = useTheme();
+  const { color, scheme, type, space } = useTheme();
   const { locale, t } = useLocale();
   const palette = palettes[scheme];
 
@@ -228,14 +226,6 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
         </Reveal>
       ) : null}
 
-      <Reveal index={7}>
-        <Button
-          label={t.app.home.record}
-          onPress={() => go('/production')}
-          icon={(c) => <IconProduction size={24} color={c} />}
-          style={{ borderRadius: radius.pill }}
-        />
-      </Reveal>
     </>
   );
 }

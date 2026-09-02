@@ -1,13 +1,11 @@
 import { Text, View } from 'react-native';
 import { Bars } from '@/components/Bars';
-import { Button } from '@/components/Button';
 import { tint } from '@/components/Card';
 import { CountUp } from '@/components/CountUp';
 import { GlyphBox, GlyphKettle, GlyphOrder, GlyphPrice, GlyphProduction, GlyphStock } from '@/components/Glyph';
 import { Reveal } from '@/components/Reveal';
 import { SkyScene } from '@/components/Sky';
 import { Touchable } from '@/components/Touchable';
-import { IconProduction } from '@/components/icons';
 import { fill, formatPercent, formatQuantity, formatTime, formatWeekdayInitial, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { palettes } from '@/theme/tokens';
@@ -26,7 +24,7 @@ import type { BriefingView } from './types';
  * diz UMA coisa - um número e o nome dele - e o detalhe fica na tela de dentro.
  */
 export function Blocks({ data, sky, weather, shortForOrders, moved, comparison, go }: BriefingView) {
-  const { color, scheme, type, space, radius } = useTheme();
+  const { color, scheme, type, space } = useTheme();
   const { locale, t } = useLocale();
   const palette = palettes[scheme];
 
@@ -184,14 +182,6 @@ export function Blocks({ data, sky, weather, shortForOrders, moved, comparison, 
         </Reveal>
       ) : null}
 
-      <Reveal index={7}>
-        <Button
-          label={t.app.home.record}
-          onPress={() => go('/production')}
-          icon={(c) => <IconProduction size={24} color={c} />}
-          style={{ borderRadius: radius.pill }}
-        />
-      </Reveal>
     </>
   );
 }

@@ -1,13 +1,12 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Bars } from '@/components/Bars';
-import { Button } from '@/components/Button';
 import { CountUp } from '@/components/CountUp';
 import { GlyphBox, GlyphKettle, GlyphOrder, GlyphPrice, GlyphStock } from '@/components/Glyph';
 import { PulseDot } from '@/components/PulseDot';
 import { Reveal } from '@/components/Reveal';
 import { SkyScene } from '@/components/Sky';
 import { Touchable } from '@/components/Touchable';
-import { IconChevron, IconProduction } from '@/components/icons';
+import { IconChevron } from '@/components/icons';
 import { tint } from '@/components/Card';
 import {
   fill,
@@ -182,14 +181,6 @@ export function Editorial({ data, sky, weather, shortForOrders, moved, compariso
         </View>
       ) : null}
 
-      <Reveal index={3}>
-        <Button
-          label={t.app.home.record}
-          onPress={() => go('/production')}
-          icon={(c) => <IconProduction size={24} color={c} />}
-          style={{ borderRadius: radius.pill }}
-        />
-      </Reveal>
     </>
   );
 }
