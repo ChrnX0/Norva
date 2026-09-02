@@ -499,6 +499,14 @@ check('what came out today reaches the briefing, with what it was to compare', a
   await page.getByText('Registrar', { exact: true }).first().click();
   await page.waitForTimeout(2500);
 
+  // E o LOTE nasceu junto, com o código que alguém escreve na caixa. Ele
+  // aparece na própria aba de produção, sem pedir toque nenhum: a primeira
+  // versão disto era um diálogo depois de gravar, e esta checagem foi quem o
+  // derrubou - ela não conseguia mais alcançar a barra de abas.
+  const aba = await screen(page);
+  assert.match(aba, /Lotes de hoje/, 'a aba do dia mostra os lotes que nasceram');
+  assert.match(aba, /\d{8}-\d\d/, 'com o código no formato AAAAMMDD-NN');
+
   await page.getByRole('tab', { name: 'Início' }).click();
   await page.waitForTimeout(2500);
 

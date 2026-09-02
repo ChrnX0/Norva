@@ -30,6 +30,7 @@ import {
   itemCosts,
   labels,
   listItems,
+  lotsOn,
   listProducts,
   itemMovements,
   listRecipes,
@@ -1179,6 +1180,45 @@ test('a run becomes a lot, and the lot carries the day it dies', async () => {
   assert.ok(posicaoDoLote >= 0, 'o lote entrou na fila');
   assert.ok(posicaoDaLinha >= 0, 'a linha de produção entrou na fila');
   assert.ok(posicaoDoLote < posicaoDaLinha, 'o lote sobe antes do movimento que o cita');
+});
+
+test("the day's lots are listed by code, with what each one yielded", async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+
+  const dia = { from: '2026-09-02T03:00:00.000Z', to: '2026-09-03T03:00:00.000Z' };
+
+  // Nada produzido: lista vazia, não uma linha zerada.
+  assert.deepEqual(await lotsOn(LOCAL_COMPANY_ID, dia.from, dia.to), []);
+
+  const manha = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    batches: 1,
+    unitsProduced: 400,
+    producedOn: '2026-09-02',
+    occurredAt: '2026-09-02T13:00:00.000Z',
+  });
+
+  const lotes = await lotsOn(LOCAL_COMPANY_ID, dia.from, dia.to);
+  assert.equal(lotes.length, 1);
+  assert.equal(lotes[0].code, manha.lot.code);
+  assert.equal(lotes[0].name, product.name);
+
+  // A quantidade vem do MOVIMENTO, não do lote: o lote é a identidade, e quem
+  // sabe quanto saiu é o livro-razão.
+  assert.equal(lotes[0].baseUnits, 400);
+
+  // E o lote de outro dia não entra na janela de hoje, mesmo existindo.
+  await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    batches: 1,
+    unitsProduced: 300,
+    producedOn: '2026-09-03',
+    occurredAt: '2026-09-03T13:00:00.000Z',
+  });
+  assert.equal((await lotsOn(LOCAL_COMPANY_ID, dia.from, dia.to)).length, 1);
 });
 
 test('a product with no shelf life still gets a lot, without a date', async () => {

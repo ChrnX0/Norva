@@ -7,7 +7,9 @@ import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import {
   openProductionRuns,
+  lotsOn,
   productionOn,
+  type LotOfDay,
   type OpenRun,
   type ProducedInWindow,
 } from '@/data/repository';
@@ -15,7 +17,8 @@ import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { nowIso } from '@/data/db';
 import { useQuery } from '@/data/useQuery';
 import { dayWindow } from '@/domain/day';
-import { fill, formatQuantity, formatTime, plural } from '@/i18n';
+import { fill,
+  formatCalendarDate, formatQuantity, formatTime, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { palettes } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -45,6 +48,8 @@ type Loaded = {
   today: ProducedInWindow[];
   yesterday: ProducedInWindow[];
   runs: OpenRun[];
+  /** Os lotes que nasceram hoje, com o código que vai na caixa. */
+  lots: LotOfDay[];
 };
 
 function ProductionDay() {
@@ -55,12 +60,13 @@ function ProductionDay() {
   const { data, loading } = useQuery<Loaded>(async () => {
     const hoje = dayWindow(nowIso(), locale.timeZone);
     const ontem = dayWindow(nowIso(), locale.timeZone, -1);
-    const [today, yesterday, runs] = await Promise.all([
+    const [today, yesterday, runs, lots] = await Promise.all([
       productionOn(LOCAL_COMPANY_ID, hoje.from, hoje.to),
       productionOn(LOCAL_COMPANY_ID, ontem.from, ontem.to),
       openProductionRuns(LOCAL_COMPANY_ID),
+      lotsOn(LOCAL_COMPANY_ID, hoje.from, hoje.to),
     ]);
-    return { today, yesterday, runs };
+    return { today, yesterday, runs, lots };
   });
 
   const totals = useMemo(() => {
@@ -110,6 +116,41 @@ function ProductionDay() {
                 </Text>
                 <Text style={[type.secondary, { color: color.inkMuted }]}>
                   {formatTime(r.openedAt, locale)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </Card>
+      ) : null}
+
+      {/* Os lotes do dia, e o código é o ponto.
+          Ele é o número que alguém escreve de caneta na caixa antes de ela ir
+          para a câmara fria. A primeira versão disto era um diálogo depois de
+          gravar - um toque a mais na ação mais frequente do dia, todo dia, e o
+          e2e derrubou por travar a barra de abas. Aqui ele aparece sozinho, e
+          continua aqui depois: quem procura o lote de uma caixa procura HORAS
+          depois, não no segundo seguinte. */}
+      {(data?.lots ?? []).length > 0 ? (
+        <Card>
+          <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.production.lotsToday}</Text>
+          <View style={{ marginTop: space.md, gap: space.sm }}>
+            {(data?.lots ?? []).map((lot) => (
+              <View key={lot.id} style={styles.row}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[type.body, styles.number, { color: color.ink }]} numberOfLines={1}>
+                    {lot.code}
+                  </Text>
+                  <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={1}>
+                    {lot.name} ·{' '}
+                    {lot.expiresOn
+                      ? fill(t.app.production.lotValid, {
+                          date: formatCalendarDate(lot.expiresOn, locale),
+                        })
+                      : t.app.production.lotNoExpiry}
+                  </Text>
+                </View>
+                <Text style={[type.body, styles.number, { color: color.ink }]}>
+                  {plural(lot.baseUnits, t.app.production.unitCount, formatQuantity(lot.baseUnits, locale))}
                 </Text>
               </View>
             ))}

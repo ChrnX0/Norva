@@ -2099,6 +2099,63 @@ export async function productionBetween(
   return rows.map((r) => ({ occurredAt: r.occurred_at, baseUnits: r.quantity_base_units }));
 }
 
+/** Um lote do dia: o que ele é, quanto rendeu e até quando vale. */
+export type LotOfDay = {
+  id: string;
+  code: string;
+  name: string;
+  baseUnits: number;
+  expiresOn: string | null;
+};
+
+/**
+ * Os lotes que nasceram numa janela, com o que cada um rendeu.
+ *
+ * Existe porque o código do lote é o número que alguém escreve de caneta na
+ * caixa antes de ela ir para a câmara fria — e a primeira versão disto era um
+ * diálogo depois de gravar, que o e2e derrubou com razão: um toque a mais na
+ * ação mais frequente do dia, todo dia, para informar o que a tela seguinte
+ * podia mostrar sozinha. Aqui o lote aparece sem pedir nada, e continua
+ * disponível depois, que é quando alguém realmente procura.
+ *
+ * A quantidade vem do movimento e não do lote, porque é o livro-razão que sabe
+ * quanto saiu: o lote é a identidade, o movimento é o fato.
+ */
+export async function lotsOn(
+  companyId: string,
+  fromIso: string,
+  toIso: string,
+): Promise<LotOfDay[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    id: string;
+    code: string;
+    name: string;
+    total: number;
+    expires_on: string | null;
+  }>(
+    `SELECT l.id, l.code, i.name, l.expires_on,
+            COALESCE(SUM(m.quantity_base_units), 0) AS total
+       FROM lots l
+       JOIN items i ON i.id = l.item_id
+       JOIN movements m ON m.lot_id = l.id AND m.kind = 'production'
+      WHERE l.company_id = ?
+        AND m.occurred_at >= ?
+        AND m.occurred_at < ?
+      GROUP BY l.id, l.code, i.name, l.expires_on
+      ORDER BY l.code DESC`,
+    [companyId, fromIso, toIso],
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    code: r.code,
+    name: r.name,
+    baseUnits: r.total,
+    expiresOn: r.expires_on,
+  }));
+}
+
 /** One destination's share of a day: who received it, and what. */
 export type Shipment = {
   /**
