@@ -1467,3 +1467,48 @@ de contagem de tarefas. Vale o mesmo que a lição da execução 4, com o sinal
 trocado: lá um passo verde escondia um caché vazio; aqui um caché cheio esconde
 uma compilação inteira refeita. Nos dois casos o desfecho parecia responder pela
 causa, e não respondia.
+
+## 2 de setembro — o aplicativo se corrompia ao abrir uma tela, e a suíte estava verde por causa do dado semeado
+
+O dono instalou o APK, mandou um print da home e disse: identifique por que estão
+acontecendo esses erros. A home do print está certa — é o build novo, e o
+`R$ 0,64` é exatamente o que o e2e exige do exemplo. **O print não tinha o
+defeito; o defeito estava a um toque dali.** Quatro coisas saíram dessa caçada, e
+três delas nenhuma suíte podia ver.
+
+**A pior não precisa de celular nenhum.** A tela de receita pré-preenchia o campo
+de perda com `String(Number((loss*100).toFixed(2)))` — e `String(2.5)` em
+JavaScript é sempre `"2.5"`, com ponto. A linha logo abaixo relia esse campo com
+`Number(s.replace(/\./g,'').replace(',','.'))`, que apaga pontos. Uma perda de
+2,5% voltava **25%**. O `changed` usava o mesmo leitor quebrado, então o botão de
+salvar acendia sozinho, sem ninguém digitar: **abrir a ficha bastava para
+corrompê-la**, e o custo de todo produto que a usa ia junto. O guard existente só
+barra perda acima de 10%; a faixa real de uma fábrica, 0,5% a 9,9%, passava muda.
+
+**E a suíte estava verde por coincidência aritmética — de novo.** O `seed.ts`
+semeia perdas de 0.02, 0.04, 0.05 e 0.08: todos percentuais inteiros, todos com
+ida e volta limpa. As catorze verificações e2e nunca digitaram um separador em
+campo nenhum — só `4`, `700`, `480`, `46000`. É o mesmo padrão que o `mutate`
+documentou na capa deste projeto, agora do lado do dado: **o exemplo escolhido
+não exercitava a regra, e verde não queria dizer protegida.**
+
+**A regra que sai daqui: ida e volta é obrigação de quem escreve no próprio
+campo.** Se uma tela pré-preenche um campo que ela mesma vai reler, o escritor e
+o leitor têm de ser inversos comprovados — não duas funções que por acaso
+combinam nos números do exemplo. Virou teste de propriedade (`parseTyped` ∘
+`formatTyped` = identidade, nos três idiomas) e virou guarda no e2e: abrir a
+ficha, não tocar em nada, e exigir que ela continue dizendo o que foi salvo.
+
+**As outras três, todas invisíveis de dentro de um módulo:** tela alcançada pelo
+botão Voltar mostrando o dado de quando montou — ninguém escutava foco, e a home
+é a raiz da pilha, que num celular vive dias; produção gravando além do estoque e
+levando o livro-razão a `-140.000 g` enquanto a própria tela avisava da falta; e
+consumo gravando `7530,612244897959` g numa coluna `INTEGER`, que o SQLite aceita
+calado e o Postgres arredondaria — aparelho e servidor discordando do mesmo saco
+de açúcar.
+
+**O que isso diz sobre a barra:** ela media o que um módulo faz, e os quatro
+defeitos moram nas juntas — entre a tela e ela mesma, entre duas telas, entre o
+aparelho e o servidor. O e2e navegava com `page.goto`, que remonta tudo; pessoa
+não recarrega, pessoa toca em Voltar. Um `goBack()` no lugar de um `goto` era a
+diferença entre uma suíte verde e o defeito que o dono viu.
