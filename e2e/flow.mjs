@@ -254,6 +254,41 @@ check('an invoice warns before it is committed, then moves everything', async (p
   assert.match(history, /Picolé de morango/, 'and it says which recipe stands on it');
 });
 
+check('the briefing is up to date when you tap Back into it', async (page) => {
+  // Every other check in this file re-navigates with `page.goto`, which remounts
+  // the whole tree and hides the defect this one exists for: a person does not
+  // reload, a person taps Back. The briefing is the root of the stack - it
+  // mounts once per launch, and on a phone that is days - so it showed the cost
+  // it read on the first frame and said "nothing changed in price" beside it,
+  // with the invoice already in the ledger.
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const before = await screen(page);
+  assert.match(before, /R\$ 0,64/);
+
+  // Tapped, not typed: this is the route a person actually takes.
+  await page.getByText('Compras', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.getByText('Polpa de morango', { exact: true }).first().click();
+  await page.getByLabel(/Quantas/).fill('4');
+  await page.getByLabel('Total da nota').fill('700');
+  await page.waitForTimeout(800);
+  await page.getByText('Lançar compra').first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Lançar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.goBack();
+  await page.waitForTimeout(2500);
+
+  const after = await screen(page);
+  assert.match(after, /R\$ 0,73/, 'the briefing re-read the ledger on the way back');
+  assert.match(after, /▲ R\$ 0,09/);
+  assert.doesNotMatch(after, /Nada mudou de preço/, 'it must not still say nothing moved');
+});
+
 check('production pre-fills what the sheet promises, and records what happened', async (page) => {
   await page.goto(`http://localhost:${PORT}/production`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
