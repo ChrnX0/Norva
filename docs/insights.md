@@ -1761,3 +1761,44 @@ tarde não, o recall é do tacho da manhã. E a validade é do **produto**,
 perguntada uma vez no cadastro: quem está de luva não sabe de cabeça que picolé
 dura seis meses. Produto sem prazo gera lote **sem validade**, e isso é resposta,
 não falha: data inventada descarta mercadoria boa ou vende mercadoria vencida.
+
+## 2 de setembro, madrugada — o que destravou o design não foi gosto, foi método
+
+**O que apareceu.** O dono recusou a capa três vezes seguidas — *"está feio
+ainda"*, *"você não acerta a mão"* — e na quarta rodada disse o contrário:
+*"passei meses brigando com você por causa de design e finalmente me mostrou
+algo que preste"*. Entre a terceira e a quarta eu não melhorei de gosto. Mudei
+**quem decide** e **quanto custa cada tentativa**.
+
+**As três primeiras rodadas tinham a mesma forma:** eu escolhia uma direção,
+construía em React Native, mostrava, ele recusava. Cada tentativa custava horas
+e voltava uma frase — *"melhorou, mas sei lá"*. Isso não é iteração, é adivinha
+cara.
+
+**O que funcionou, e é o que fica escrito:**
+
+- **Esboço em HTML, não no aplicativo.** A pergunta era de linguagem visual —
+  raio, densidade, escala tipográfica, onde a cor entra. Ela se responde em
+  vinte minutos por lote em HTML contra horas por tentativa em React Native. Dez
+  esboços custaram menos que a segunda tentativa em código.
+- **Dez opções em vez de uma defesa.** Com uma, ele só podia aprovar ou recusar
+  a minha. Com dez, ele escolheu cinco, depois três, depois duas — e cada corte
+  dele me disse mais do que qualquer explicação minha teria dito.
+- **A correção dele vale mais que a minha leitura dela.** Quando disse *"quero
+  mais contraste, está apagado"*, eu li "cor em mais lugares" e entreguei três
+  degraus de mais cor. Errado: era **saturação**, não quantidade. Ele corrigiu
+  em uma linha e a rodada seguinte acertou.
+- **E parte do que ele recusou era acerto meu que não era acerto.** O selo de
+  ícone cheio parecia melhoria e brigava com a ilustração monoline do topo. Eu
+  não teria visto sozinho.
+
+**A regra que isso vira.** Quando a decisão é de gosto do dono — marca, cara,
+tom — o meu trabalho não é escolher bem: é **fazer a escolha dele ser barata**.
+Muitas opções, rápidas, comparáveis, com o mesmo dado. É o mesmo princípio do
+"depende vira dado" das fundações, aplicado à conversa em vez de ao código: se a
+resposta certa depende de quem usa, não se adivinha — se instrumenta a escolha.
+
+E o desdobramento veio dele: *"a gente poderia dar várias opções desses elementos
+para a pessoa configurar a tela inicial dela"*. A capa configurável é a mesma
+ideia descendo para o produto — cada fábrica olha uma coisa diferente de manhã, e
+escolher por elas é errar para duas em cada três.
