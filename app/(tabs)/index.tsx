@@ -22,6 +22,8 @@ import {
   type CostChange,
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { reading, type Forecast } from '@/weather';
+import { forecastForScreen } from '@/weather/live';
 import { brand } from '@/config/brand';
 import { useQuery } from '@/data/useQuery';
 import { nowIso } from '@/data/db';
@@ -216,6 +218,19 @@ function Briefing() {
     };
   });
 
+  /**
+   * O clima, numa consulta À PARTE — e essa separação é a coisa importante aqui.
+   *
+   * Todo o resto desta tela sai do SQLite do aparelho e responde em
+   * milissegundos. O tempo vem da internet, que numa fábrica é a coisa menos
+   * confiável do prédio. Pendurar a previsão no mesmo `Promise.all` do briefing
+   * faria a capa inteira esperar pela rede: oito segundos de tela vazia para
+   * mostrar o que o banco já tinha respondido. Então são duas perguntas, e a
+   * que depende de rede chega depois, sozinha, sem segurar nada.
+   */
+  const { data: weather } = useQuery<Forecast | null>(() => forecastForScreen(locale.timeZone));
+  const sky = weather ? reading(weather, dayWindow(nowIso(), locale.timeZone).from.slice(0, 10)) : null;
+
   /** The line under the count: what it was, said as a difference. */
   const comparison = (today: number, then: number) => {
     const day = t.app.home.lastWeekday;
@@ -297,6 +312,70 @@ function Briefing() {
             </View>
             <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
               {t.app.home.runningOutWhy}
+            </Text>
+          </Card>
+        </Pressable>
+      ) : null}
+
+      {/* O clima, que numa sorveteria é informação de negócio: o calor é o que
+          move a venda, e ele é a única variável grande deste negócio que não
+          está no livro-razão.
+
+          O cartão diz FATO e para por aí. Não escreve "produza mais amanhã",
+          porque a relação entre grau e caixa vendida desta fábrica precisa de
+          meses de saída observada - é a mesma razão pela qual o Espelho da Loja
+          ficou fora do mês. Conselho antes do dado é o alerta inventado da Lei
+          7 com um número em cima.
+
+          O que ele obedece é a Lei 3: 31° não é quente nem frio até estar ao
+          lado de amanhã. E a Lei 6, no rodapé - a hora em que foi medido e a
+          cidade de onde veio, que é a conta aberta de um número que veio de
+          fora do aparelho. */}
+      {sky ? (
+        <Pressable
+          onPress={() => router.push('/weather')}
+          accessibilityRole="button"
+          accessibilityLabel={fill(t.app.weather.overline, { city: weather?.place.name ?? '' })}
+        >
+          <Card>
+            <Text style={[type.overline, { color: color.inkFaint }]}>
+              {fill(t.app.weather.overline, { city: weather?.place.name ?? '' }).toUpperCase()}
+            </Text>
+            <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
+              {`${Math.round(sky.today.maxC)}°`}
+            </Text>
+            <Text style={[type.secondary, { color: color.inkMuted }]}>
+              {t.app.weather.today}
+              {' · '}
+              {fill(t.app.weather.low, {
+                degrees: plural(Math.round(sky.today.minC), t.app.weather.degrees),
+              })}
+            </Text>
+
+            {/* Chuva só aparece quando é chance de verdade. Dez por cento é
+                ruído, e ruído todo dia ensina a não ler o cartão. */}
+            {sky.today.rainChance !== null && sky.today.rainChance >= 30 ? (
+              <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
+                {fill(t.app.weather.rain, { percent: String(sky.today.rainChance) })}
+              </Text>
+            ) : null}
+
+            {sky.warmerBy !== null ? (
+              <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
+                {sky.warmerBy === 0
+                  ? t.app.weather.same
+                  : fill(sky.warmerBy > 0 ? t.app.weather.warmer : t.app.weather.cooler, {
+                      degrees: plural(Math.abs(sky.warmerBy), t.app.weather.degrees),
+                    })}
+              </Text>
+            ) : null}
+
+            <Text style={[type.caption, { color: palette.sky, marginTop: space.sm }]}>
+              {weather
+                ? `${fill(t.app.weather.measured, {
+                    time: formatTime(weather.fetchedAt, locale),
+                  })} · ${t.app.weather.change}`
+                : ''}
             </Text>
           </Card>
         </Pressable>

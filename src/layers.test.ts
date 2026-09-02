@@ -37,9 +37,24 @@ function sourcesUnder(dir: string): string[] {
   return out;
 }
 
+/**
+ * Toda pasta que não é a camada de dados — descoberta, não listada.
+ *
+ * A lista era escrita à mão, e uma lista escrita à mão significa que a pasta
+ * NOVA nasce fora da regra: `src/weather` foi criada e a checagem continuou
+ * verde sem nunca ter olhado para ela. Uma regra que só vale para o que já
+ * existia protege o código velho, que não é o que quebra.
+ */
+function layersOutsideData(): string[] {
+  const inSrc = readdirSync('src')
+    .filter((entry) => entry !== 'data' && statSync(join('src', entry)).isDirectory())
+    .map((entry) => join('src', entry));
+  return ['app', ...inSrc];
+}
+
 test('only the data layer speaks SQL', () => {
   const offenders: string[] = [];
-  for (const dir of ['app', 'src/domain', 'src/assistant', 'src/components', 'src/sync']) {
+  for (const dir of layersOutsideData()) {
     for (const file of sourcesUnder(dir)) {
       if (SQL.test(code(readFileSync(file, 'utf8')))) offenders.push(file);
     }

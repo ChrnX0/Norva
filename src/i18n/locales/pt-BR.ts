@@ -144,6 +144,42 @@ export const ptBR = {
       lossCount: { one: '1 perda', other: '{{n}} perdas' },
       worst: 'O que mais pesou: {{reason}}, {{money}}.',
     },
+    /**
+     * O clima, dito como fato e nunca como conselho.
+     *
+     * A tela não diz "produza mais amanhã": a relação entre calor e venda desta
+     * fábrica ainda não está no livro-razão, e uma frase dessas seria palpite
+     * com cara de conta. Ela diz a máxima, a de amanhã e a diferença — e quem
+     * conhece a própria fábrica decide sozinho o que fazer com isso.
+     */
+    weather: {
+      overline: 'clima em {{city}}',
+      today: 'máxima de hoje',
+      low: 'mínima de {{degrees}}',
+      rain: '{{percent}}% de chance de chuva',
+      warmer: 'Amanhã esquenta {{degrees}}.',
+      cooler: 'Amanhã esfria {{degrees}}.',
+      same: 'Amanhã, temperatura parecida.',
+      measured: 'medido às {{time}}',
+      change: 'trocar a cidade',
+      degrees: { one: '1°', other: '{{n}}°' },
+    },
+
+    weatherPlace: {
+      title: 'Clima',
+      overline: 'onde fica a fábrica',
+      why: 'Sorvete vende com calor, então o tempo entra na tela inicial. A cidade veio do fuso do aparelho — troque se a fábrica é em outra.',
+      current: 'Cidade de agora',
+      none: 'Nenhuma cidade escolhida ainda.',
+      search: 'Procurar cidade',
+      searchHint: 'Escreva o nome e escolha na lista.',
+      searching: 'Procurando…',
+      noResults: 'Nenhuma cidade com esse nome. Confira a escrita.',
+      offline: 'Sem internet agora. Procurar cidade precisa dela; o resto do aplicativo não.',
+      saved: 'Pronto. A tela inicial já mostra o tempo de {{city}}.',
+      back: 'Voltar',
+    },
+
     more: {
       title: 'Mais',
       ask: { label: 'Pergunte', hint: 'escreva o que quer saber' },
@@ -157,6 +193,7 @@ export const ptBR = {
         products: 'Produtos',
         places: 'Lojas e clientes',
         purchases: 'Compras',
+        weather: 'Clima',
         settings: 'Ajustes',
       },
     },

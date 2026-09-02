@@ -45,7 +45,14 @@ const REGISTERS: Row[] = [
   { key: 'purchases', area: 'sage', route: '/purchase' },
 ];
 
-const SETTINGS: Row[] = [{ key: 'settings', area: 'mist', route: '/settings' }];
+const SETTINGS: Row[] = [
+  // A porta que não depende de rede: o cartão do clima na capa só existe quando
+  // há previsão guardada, e quem abre o app pela primeira vez dentro da câmara
+  // fria não tem nenhuma. Sem esta linha, trocar a cidade dependeria de ter
+  // internet - que é a única coisa que essa tela existe para consertar.
+  { key: 'weather', area: 'sky', route: '/weather' },
+  { key: 'settings', area: 'mist', route: '/settings' },
+];
 
 function Drawers() {
   const { color, scheme, type, space } = useTheme();

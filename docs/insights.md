@@ -1512,3 +1512,54 @@ defeitos moram nas juntas — entre a tela e ela mesma, entre duas telas, entre 
 aparelho e o servidor. O e2e navegava com `page.goto`, que remonta tudo; pessoa
 não recarrega, pessoa toca em Voltar. Um `goBack()` no lugar de um `goto` era a
 diferença entre uma suíte verde e o defeito que o dono viu.
+
+## 2 de setembro — a suíte segurava a frase e deixava o número passar
+
+O `mutate` acusou dois sobreviventes, os dois do commit da véspera, e os dois no
+mesmo formato: **a regra nova tinha teste, e o teste checava a parte errada.**
+
+O primeiro é o consumo do assistente. "Produzi 480 picolés" passou a debitar
+insumo proporcional ao que saiu em vez de um tacho suposto, e o teste existia —
+ele exigia a frase "pelo que saiu" no texto. Trocar `units / porTacho` por `1`
+mantém a frase intacta: o texto continua dizendo que contou pelo que saiu,
+enquanto o rascunho debita um tacho inteiro. **Duzentos e três testes verdes, e o
+que eles seguravam era o aviso, não a conta.** O teste agora aplica o rascunho e
+confere o número gravado.
+
+O segundo é o empate de nomes. Com a grade linha × tipo × sabor, "morango"
+alcança doze produtos, e `findByName` passou a devolver nulo em vez do nome mais
+curto — que era sorteio disfarçado de esperteza. Nenhum teste tinha dois
+candidatos: os do arquivo têm um "morango" só, então o empate nunca acontecia e a
+volta ao comportamento antigo passou muda.
+
+**O padrão, que é o que interessa:** quando uma regra muda de comportamento, o
+teste que sobrevive à mudança costuma ser o que olha para o texto — porque texto
+é o que o autor acabou de escrever e tem fresco na cabeça. O número fica para
+depois, e depois não vem. Vale a pergunta na revisão: *este teste falharia se a
+conta estivesse errada e a frase certa?*
+
+## 2 de setembro — a lista escrita à mão protege só o que já existia
+
+`src/layers.test.ts` é o guarda que impede SQL fora da camada de dados, e ele
+varria `['app', 'src/domain', 'src/assistant', 'src/components', 'src/sync']` —
+uma lista digitada. Criei `src/weather/`, e a checagem continuou verde sem nunca
+ter aberto um arquivo dela. **Uma regra que enumera o que fiscaliza protege o
+código velho, que não é o que quebra.** Agora as pastas saem de `readdirSync`:
+tudo em `src` menos a camada de dados, mais `app`. Pasta nova nasce dentro da
+regra sem ninguém lembrar de escrevê-la.
+
+## 2 de setembro — a primeira dependência de rede não pode entrar pela porta do briefing
+
+O dono pediu clima na tela inicial, e a tentação era óbvia: somar
+`forecastForScreen()` ao `Promise.all` que a capa já faz. Seria a primeira vez
+que uma tela deste aplicativo espera pela internet — e o `Promise.all` é
+solidário, então o briefing inteiro (que sai do SQLite em milissegundos) passaria
+a demorar o que a rede da fábrica demorar. **Oito segundos de tela vazia para
+mostrar um número que o banco já tinha respondido.**
+
+São duas consultas, e a que depende de rede chega sozinha, depois. O mesmo
+raciocínio decidiu o resto do desenho: cache primeiro e rede só para melhorar;
+previsão guardada com a data conferida contra hoje, porque desenhar a máxima de
+anteontem é a doença do saldo congelado com outra roupa; e a cidade deduzida do
+fuso do aparelho em vez de perguntada, com o nome visível no cartão para que o
+palpite errado seja corrigível num toque.

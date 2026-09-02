@@ -238,6 +238,38 @@ check('typing the package fills in how much is inside it', async (page) => {
   );
 });
 
+check('the weather screen answers with or without internet', async (page) => {
+  // O clima é a primeira coisa deste aplicativo que depende de rede, e é
+  // exatamente por isso que ele precisa ser dirigido num navegador de verdade:
+  // "a busca falha" e "a tela trava esperando" são indistinguíveis de dentro de
+  // um módulo. Aqui a máquina de teste pode ter internet ou não, e as duas
+  // saídas são aceitas - o que NÃO é aceito é a tela ficar sem resposta ou o
+  // console sujar, que é o que este arquivo checa em toda página.
+  await page.goto(`http://localhost:${PORT}/weather`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const aberta = await screen(page);
+  assert.match(aberta, /onde fica a fábrica/i);
+  assert.match(aberta, /Sorvete vende com calor/);
+
+  await page.getByRole('textbox', { name: 'Procurar cidade' }).fill('Recife');
+  await page.getByText('Procurar cidade', { exact: true }).last().click();
+  await page.waitForTimeout(3000);
+
+  const depois = await screen(page);
+  assert.match(
+    depois,
+    /Recife|Nenhuma cidade com esse nome/,
+    'com rede a cidade aparece, sem rede o motivo aparece - as duas são resposta',
+  );
+
+  // E a porta que não depende de rede continua no lugar: sem previsão guardada
+  // não há cartão na capa, então trocar a cidade tem que caber no menu.
+  await page.goto(`http://localhost:${PORT}/more`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2000);
+  assert.match(await screen(page), /Clima/);
+});
+
 check('the assistant answers with the number the engine computed', async (page) => {
   await page.goto(`http://localhost:${PORT}/assistant`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
