@@ -345,7 +345,32 @@ ALTER TABLE movements ADD COLUMN movement_group_id TEXT;
 ALTER TABLE movements ADD COLUMN counterpart_location_id TEXT REFERENCES locations(id);
 `;
 
-const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5, V6];
+/**
+ * O posto de controle chega ao aparelho, com o primeiro ato que o escreve.
+ *
+ * `control_post` existe no servidor desde a primeira migração e o aparelho
+ * nunca teve a coluna. Ela entra agora porque a conferência de chegada é o
+ * primeiro dos quatro postos a ganhar tela - e não antes, porque coluna sem
+ * escritor é a doença que este repositório já documentou.
+ *
+ * Nula nas linhas antigas, e nulo é a resposta certa: compra, produção e
+ * contagem não acontecem em posto de controle nenhum. `ADD COLUMN` sem
+ * `NOT NULL` e sem `DEFAULT` não reescreve uma linha sequer.
+ *
+ * O índice de grupo vem junto e não é enfeite. O servidor o tem; o aparelho
+ * recebeu `movement_group_id` na V6 e ficou sem ele, e é por essa coluna que a
+ * conferência acha a remessa e que a tela pergunta "quais ainda não
+ * conferiram". Sem índice, as duas varrem a tabela inteira.
+ */
+const V7 = `
+ALTER TABLE movements ADD COLUMN post TEXT;
+
+CREATE INDEX IF NOT EXISTS movements_group_idx
+  ON movements (company_id, movement_group_id)
+  WHERE movement_group_id IS NOT NULL;
+`;
+
+const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7];
 
 export type SqlParam = string | number | null;
 

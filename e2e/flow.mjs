@@ -565,8 +565,22 @@ check('what went out today lands on the transport tab, by destination', async (p
   assert.match(tela, /Loja Centro/);
   assert.match(tela, /6\.000/, 'na unidade do item, não em caixas que ele não tem');
   assert.match(tela, /1 destino/i);
-  // O aviso de conferência não pode aparecer: não há onde gravar esse fato.
-  assert.doesNotMatch(tela, /não conferiu/);
+  // O aviso da prancha, agora com lastro: a caixa não foi aberta ainda.
+  assert.match(tela, /Loja Centro ainda não conferiu o que chegou/);
+
+  // E conferir é um toque, com a confirmação dizendo o que vai ser gravado.
+  await page.getByText(/ainda não conferiu/).first().click();
+  await page.waitForTimeout(900);
+  const perguntando = await screen(page);
+  assert.match(perguntando, /O que chegou em Loja Centro\?/);
+  assert.match(perguntando, /6\.000/, 'a confirmação diz o que chegou, por extenso');
+
+  await page.getByText('Conferir chegada', { exact: true }).last().click();
+  await page.waitForTimeout(2500);
+
+  const conferido = await screen(page);
+  assert.doesNotMatch(conferido, /ainda não conferiu/, 'o aviso sai quando a caixa é aberta');
+  assert.match(conferido, /Loja Centro/);
 });
 
 check('a store is created, loaded, and the company still has the same sugar', async (page) => {

@@ -367,6 +367,11 @@ export const ptBR = {
       destinations: { one: '1 destino', other: '{{n}} destinos' },
       send: 'Registrar uma saída',
       returned: 'devolvido para cá',
+      notChecked: '{{place}} ainda não conferiu o que chegou.',
+      check: 'Conferir chegada',
+      checkTitle: 'O que chegou em {{place}}?',
+      checkedOk: 'Conferido, bateu.',
+      checkedShort: 'Conferido: faltaram {{amount}}.',
     },
     transfer: {
       title: 'Transferir',

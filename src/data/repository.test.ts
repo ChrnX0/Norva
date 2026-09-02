@@ -10,6 +10,8 @@ import {
   recordProduction,
   productionOn,
   shipmentsOn,
+  recordCheck,
+  unchecked,
   savePlace,
   stockByPlace,
   recordTransfer,
@@ -774,6 +776,81 @@ test('what went out is grouped by where it landed, in the units each item has', 
   // das linhas.
   const total = dia.flatMap((d) => d.items).reduce((n, i) => n + i.baseUnits, 0);
   assert.equal(total, 12000);
+});
+
+test('a store that checked and a store that did not are different facts', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const centro = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+  const norte = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Norte', kind: 'own_store' });
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const acucar = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.name.includes('Açúcar'));
+  assert.ok(acucar);
+
+  const quando = '2026-09-01T14:00:00.000Z';
+  const janela = ['2026-09-01T00:00:00.000Z', '2026-09-02T00:00:00.000Z'] as const;
+
+  const paraCentro = await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: acucar.id, fromLocationId: fabrica, toLocationId: centro.id,
+    baseUnits: 6000, occurredAt: quando,
+  });
+  const paraNorte = await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: acucar.id, fromLocationId: fabrica, toLocationId: norte.id,
+    baseUnits: 2000, occurredAt: quando,
+  });
+
+  assert.equal((await unchecked(LOCAL_COMPANY_ID, ...janela)).length, 2, 'nada conferido ainda');
+
+  // A Loja Centro confere e bate. Diferença zero - a linha que o servidor
+  // recusava antes da 0017, e que é a prova de que alguém abriu a caixa.
+  // Sem lista: "chegou tudo", que é o caminho que a tela usa.
+  const bateu = await recordCheck(LOCAL_COMPANY_ID, {
+    groupId: paraCentro.groupId,
+    occurredAt: quando,
+  });
+  assert.deepEqual(bateu.differences, [{ itemId: acucar.id, baseUnits: 0 }]);
+
+  const faltando = await unchecked(LOCAL_COMPANY_ID, ...janela);
+  assert.deepEqual(faltando, [paraNorte.groupId], 'só a Loja Norte continua sem conferir');
+
+  // E o total da empresa não se moveu em nada disto: transferência tem duas
+  // pernas que se anulam, e conferência que bateu não é movimento de
+  // mercadoria. Os 50.000 g continuam existindo, agora em três lugares.
+  const depois = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.id === acucar.id);
+  assert.equal(depois?.onHandBaseUnits, 50000);
+  const porLugar = await balanceByLocation(LOCAL_COMPANY_ID, acucar.id);
+  assert.equal(porLugar.find((b) => b.locationId === centro.id)?.baseUnits, 6000);
+  assert.equal(porLugar.find((b) => b.locationId === norte.id)?.baseUnits, 2000);
+});
+
+test('what is missing at the door leaves the store balance short, by exactly what was missing', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const centro = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const acucar = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.name.includes('Açúcar'));
+  assert.ok(acucar);
+
+  const remessa = await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: acucar.id, fromLocationId: fabrica, toLocationId: centro.id,
+    baseUnits: 6000, occurredAt: '2026-09-01T14:00:00.000Z',
+  });
+
+  // Saíram 6.000 g e chegaram 5.500: faltaram 500 no caminho.
+  const conferido = await recordCheck(LOCAL_COMPANY_ID, {
+    groupId: remessa.groupId,
+    counted: [{ itemId: acucar.id, baseUnits: 5500 }],
+    occurredAt: '2026-09-01T18:00:00.000Z',
+  });
+  assert.deepEqual(conferido.differences, [{ itemId: acucar.id, baseUnits: -500 }]);
+
+  // A loja fica com o que ela realmente tem, e a empresa perde os 500 - que é o
+  // fato. Nada foi apagado: a remessa continua dizendo que 6.000 saíram.
+  const naLoja = (await balanceByLocation(LOCAL_COMPANY_ID, acucar.id)).find(
+    (b) => b.locationId === centro.id,
+  );
+  assert.equal(naLoja?.baseUnits, 5500);
+
+  const daEmpresa = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.id === acucar.id);
+  assert.equal(daEmpresa?.onHandBaseUnits, 49500, 'os 500 que sumiram no caminho sumiram do total');
 });
 
 test('a return on the same day does not quietly shrink what the store received', async () => {

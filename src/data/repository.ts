@@ -1426,6 +1426,143 @@ export async function recentCostChanges(companyId: string, limit = 5): Promise<C
   }));
 }
 
+/** O que a loja disse ao abrir a caixa. */
+export type CheckResult = {
+  /** O grupo da transferência conferida. */
+  groupId: string;
+  /** Diferença por item: negativa quando faltou, zero quando bateu. */
+  differences: { itemId: string; baseUnits: number }[];
+};
+
+/**
+ * A loja abriu o que chegou e contou.
+ *
+ * Escreve UMA LINHA NOVA por item, nunca um carimbo na remessa: o gatilho
+ * `movements_are_immutable` do servidor recusa qualquer UPDATE em `movements`,
+ * sem exceção e sem olhar coluna. Não é preferência de desenho - é o que o
+ * esquema permite.
+ *
+ * A linha que BATEU tem quantidade zero, e isso precisou de migração no
+ * servidor (0017): a restrição `movement_moved_something` recusava linha que
+ * não move nada, com uma exceção só para contagem de prateleira. Mas
+ * "conferi e bateu" é justamente a conferência que mais vale - é a prova de que
+ * alguém abriu a caixa -, e sem poder gravá-la o app não saberia distinguir
+ * "ainda não conferiu" de "conferiu e estava tudo certo".
+ *
+ * A taxa gravada é a da perna de ENTRADA da remessa, não a média de hoje: o que
+ * faltou foi a mercadoria que embarcou, ao custo com que embarcou. Ler o custo
+ * atual avaliaria a falta de setembro ao preço de outubro.
+ */
+export async function recordCheck(
+  companyId: string,
+  input: {
+    /** A remessa conferida, pelo grupo das duas pernas. */
+    groupId: string;
+    /**
+     * O que a loja contou de verdade, por item, em unidade-base.
+     *
+     * Omitido significa "chegou tudo": cada perna vira uma diferença de zero. É
+     * o caso comum e o único que alguém preenche na doca - e evita o erro de
+     * escrever uma contagem agregada contra cada remessa quando o mesmo destino
+     * recebeu duas cargas no mesmo dia, que contaria a mesma mercadoria duas
+     * vezes.
+     */
+    counted?: { itemId: string; baseUnits: number }[];
+    occurredAt?: string;
+    note?: string;
+    assistantPhrase?: string;
+  },
+): Promise<CheckResult> {
+  const conn = await db();
+  const at = nowIso();
+  const occurred = input.occurredAt ?? at;
+
+  // A remessa, lida pelas pernas de entrada: elas dizem o destino, a origem, o
+  // que foi mandado e a que custo.
+  const legs = await conn.getAllAsync<{
+    item_id: string;
+    quantity: number;
+    location_id: string;
+    counterpart: string | null;
+    rate: number | null;
+  }>(
+    `SELECT item_id, quantity_base_units AS quantity, location_id,
+            counterpart_location_id AS counterpart, unit_cost_rate AS rate
+       FROM movements
+      WHERE company_id = ? AND movement_group_id = ? AND quantity_base_units > 0`,
+    [companyId, input.groupId],
+  );
+
+  if (legs.length === 0) throw new Error(`remessa ${input.groupId} não existe`);
+
+  const differences: { itemId: string; baseUnits: number }[] = [];
+
+  await conn.withTransactionAsync(async () => {
+    for (const leg of legs) {
+      const said = input.counted?.find((c) => c.itemId === leg.item_id);
+      // Sem lista, tudo bateu. Com lista, item não mencionado é item que a
+      // pessoa não conferiu - e não item que chegou zerado. A ausência não vira
+      // acusação.
+      if (input.counted && !said) continue;
+
+      const difference = said ? Math.round(said.baseUnits) - leg.quantity : 0;
+      differences.push({ itemId: leg.item_id, baseUnits: difference });
+
+      const id = newId();
+      await conn.runAsync(
+        `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
+                                quantity_base_units, location_id, counterpart_location_id,
+                                unit_cost_rate, movement_group_id, post, note, assistant_phrase)
+         VALUES (?, ?, 'discrepancy', ?, ?, ?, ?, ?, ?, ?, ?, 'checked', ?, ?)`,
+        [
+          id,
+          companyId,
+          occurred,
+          at,
+          leg.item_id,
+          difference,
+          leg.location_id,
+          leg.counterpart,
+          leg.rate,
+          input.groupId,
+          input.note ?? null,
+          input.assistantPhrase ?? null,
+        ],
+      );
+      await enqueue(conn, [{ table: 'movements', rowId: id }]);
+    }
+  });
+
+  return { groupId: input.groupId, differences };
+}
+
+/** Remessas de um dia que ninguém conferiu ainda. */
+export async function unchecked(
+  companyId: string,
+  fromIso: string,
+  toIso: string,
+): Promise<string[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{ movement_group_id: string }>(
+    `SELECT DISTINCT m.movement_group_id
+       FROM movements m
+      WHERE m.company_id = ?
+        AND m.kind = 'transfer'
+        AND m.quantity_base_units > 0
+        AND m.occurred_at >= ?
+        AND m.occurred_at < ?
+        AND m.movement_group_id IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM movements c
+           WHERE c.company_id = m.company_id
+             AND c.movement_group_id = m.movement_group_id
+             AND c.post = 'checked'
+        )`,
+    [companyId, fromIso, toIso],
+  );
+  return rows.map((r) => r.movement_group_id);
+}
+
 /** What a product put out inside a window, in base units. */
 export type ProducedInWindow = {
   itemId: string;
@@ -1478,6 +1615,14 @@ export async function productionOn(
 
 /** One destination's share of a day: who received it, and what. */
 export type Shipment = {
+  /**
+   * Os grupos das remessas que caíram neste destino hoje.
+   *
+   * A tela fala por destino, como o desenho manda, mas a conferência é por
+   * REMESSA - uma loja pode receber duas cargas no mesmo dia, e quem abre a
+   * segunda caixa não está conferindo a primeira.
+   */
+  groupIds: string[];
   locationId: string;
   locationName: string;
   /** Mesmo tipo que `Place.kind`: texto, como o resto do repositório o trata. */
@@ -1489,6 +1634,8 @@ export type Shipment = {
    * palavras continua sendo da tela.
    */
   items: { itemId: string; name: string; baseUnits: number; packaging: PackagingHierarchy }[];
+  /** Se alguém já abriu a caixa e contou. */
+  checked: boolean;
 };
 
 /**
@@ -1516,14 +1663,22 @@ export async function shipmentsOn(
     location_id: string;
     location_name: string;
     kind: string;
+    group_id: string;
     item_id: string;
     item_name: string;
     packaging: string;
     total: number;
+    checked: number;
   }>(
-    `SELECT m.location_id, l.name AS location_name, l.kind,
+    `SELECT m.movement_group_id AS group_id, m.location_id, l.name AS location_name, l.kind,
             m.item_id, i.name AS item_name, i.packaging,
-            SUM(m.quantity_base_units) AS total
+            SUM(m.quantity_base_units) AS total,
+            EXISTS (
+              SELECT 1 FROM movements c
+               WHERE c.company_id = m.company_id
+                 AND c.movement_group_id = m.movement_group_id
+                 AND c.post = 'checked'
+            ) AS checked
        FROM movements m
        JOIN locations l ON l.id = m.location_id
        JOIN items i ON i.id = m.item_id
@@ -1532,7 +1687,7 @@ export async function shipmentsOn(
         AND m.quantity_base_units > 0
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
-      GROUP BY m.location_id, l.name, l.kind, m.item_id, i.name, i.packaging
+      GROUP BY m.movement_group_id, m.location_id, l.name, l.kind, m.item_id, i.name, i.packaging
       HAVING total > 0
       ORDER BY l.name, total DESC`,
     [companyId, fromIso, toIso],
@@ -1541,17 +1696,29 @@ export async function shipmentsOn(
   const byPlace = new Map<string, Shipment>();
   for (const r of rows) {
     const place = byPlace.get(r.location_id) ?? {
+      groupIds: [],
       locationId: r.location_id,
       locationName: r.location_name,
       kind: r.kind,
       items: [],
+      checked: true,
     };
-    place.items.push({
-      itemId: r.item_id,
-      name: r.item_name,
-      baseUnits: r.total,
-      packaging: parsePackaging(r.packaging),
-    });
+
+    // Conferido só quando TODAS as remessas do dia para lá foram conferidas: um
+    // "conferido" que ignora a carga da tarde é pior que nenhum.
+    if (!place.groupIds.includes(r.group_id)) {
+      place.groupIds.push(r.group_id);
+      if (r.checked !== 1) place.checked = false;
+    }
+    const existing = place.items.find((i) => i.itemId === r.item_id);
+    if (existing) existing.baseUnits += r.total;
+    else
+      place.items.push({
+        itemId: r.item_id,
+        name: r.item_name,
+        baseUnits: r.total,
+        packaging: parsePackaging(r.packaging),
+      });
     byPlace.set(r.location_id, place);
   }
 

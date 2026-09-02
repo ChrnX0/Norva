@@ -205,6 +205,11 @@ const CROSSINGS: Record<
       'quantity_base_units',
       'location_id',
       'lot_id',
+      // Em qual dos quatro postos de controle a linha foi escrita. Nulo em
+      // compra, produção e contagem: elas não acontecem num posto. Sem esta
+      // linha o fato existiria só no celular - a lista é fechada de propósito,
+      // e o que fica fora dela some em silêncio.
+      'post',
       'loss_reason',
       'unit_cost_rate',
       // Nulo até o aparelho saber qual aparelho ele é.

@@ -164,6 +164,32 @@ test('every movement kind the device writes is a kind the server knows', () => {
   }
 });
 
+test('a check that matched is a row the server would accept', () => {
+  const sql = serverSql();
+
+  // A regra que quase impediu a conferência de existir: o servidor recusa linha
+  // que não move nada. "Conferi e bateu" é diferença zero - e é a conferência
+  // que mais vale, porque é a prova de que alguém abriu a caixa.
+  const rule = sql.match(/constraint movement_moved_something\s+check \(([\s\S]*?)\);/g);
+  assert.ok(rule, 'a restrição não está onde este teste a procura');
+
+  // A ÚLTIMA definição é a que vale: a 0017 derruba e recria.
+  const current = rule[rule.length - 1];
+  assert.match(
+    current,
+    /kind = 'discrepancy' and post is not null/,
+    'o servidor recusaria a conferência que bateu',
+  );
+
+  // E o aparelho escreve exatamente esse par - `discrepancy` com posto.
+  const repository = readFileSync(join(DEVICE, 'repository.ts'), 'utf8');
+  assert.match(
+    repository,
+    /VALUES \(\?, \?, 'discrepancy'[^)]*'checked'/,
+    'a escrita da conferência não carimba o posto',
+  );
+});
+
 test('the words the device has for a loss are words the server accepts', () => {
   const sql = serverSql();
   const server = enumValues(sql, 'loss_reason');
@@ -358,8 +384,6 @@ test('what the device does not keep is a list somebody wrote, not a surprise', (
     // Stamped by `serialize` from the account doing the sync; the server
     // enforces `recorded_by = auth.uid()` and no device value could be right.
     'recorded_by',
-    // The four control posts are phase 3 - dispatch, delivery, receipt.
-    'post',
   ];
 
   const surprises = fields.filter((f) => !columns.has(f) && !known.includes(f));

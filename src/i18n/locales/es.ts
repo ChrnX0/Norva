@@ -353,6 +353,11 @@ export const es: Dictionary = {
       destinations: { one: '1 destino', other: '{{n}} destinos' },
       send: 'Registrar una salida',
       returned: 'devuelto aquí',
+      notChecked: '{{place}} todavía no revisó lo que llegó.',
+      check: 'Revisar la llegada',
+      checkTitle: '¿Qué llegó a {{place}}?',
+      checkedOk: 'Revisado, coincidió.',
+      checkedShort: 'Revisado: faltaron {{amount}}.'
     },
     transfer: {
       title: 'Transferir',

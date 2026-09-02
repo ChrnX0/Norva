@@ -1,11 +1,13 @@
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
+import { Chip } from '@/components/Chip';
+import { useConfirm } from '@/components/Confirm';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { IconChevron, IconTransport } from '@/components/icons';
 import { nowIso } from '@/data/db';
-import { shipmentsOn, type Shipment } from '@/data/repository';
+import { recordCheck, shipmentsOn, type Shipment } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { dayWindow } from '@/domain/day';
@@ -15,18 +17,22 @@ import { palettes } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
- * Where today's load went.
+ * Where today's load went, and whether anybody opened it.
  *
  * The canvas draws one line per destination, with what each received underneath
  * and the day's total on top. Everything on this screen is read from the
  * positive legs of today's transfers - nothing here is typed, and nothing is
  * summed across items that do not share a unit.
  *
- * WHAT THE CANVAS DRAWS AND THIS SCREEN DOES NOT: "A Loja Norte ainda não
- * conferiu o que chegou". That warning is the absence of a fact, and the fact
- * has nowhere to be written yet - the server has had a `control_post` column
- * since the first migration and the device schema has never had one. It arrives
- * with the check-in screen, not with a sentence the app cannot back up.
+ * The canvas's warning - "A Loja Norte ainda não conferiu o que chegou" - is on
+ * the screen now, and it is the absence of a fact rather than an accusation:
+ * nobody is late, nobody is blamed, the box simply has not been opened. Tapping
+ * it records what the store counted.
+ *
+ * A destination reads as checked only when EVERY shipment that landed there
+ * today was checked. A store that received the morning load and the afternoon
+ * one has opened one box; saying "conferido" would be telling the owner
+ * something nobody verified.
  */
 export default function Transport() {
   return (
@@ -42,7 +48,9 @@ function WhereItWent() {
   const router = useRouter();
   const palette = palettes[scheme];
 
-  const { data, loading } = useQuery<Shipment[]>(async () => {
+  const confirm = useConfirm();
+
+  const { data, loading, refresh } = useQuery<Shipment[]>(async () => {
     const today = dayWindow(nowIso(), locale.timeZone);
     return shipmentsOn(LOCAL_COMPANY_ID, today.from, today.to);
   });
@@ -55,6 +63,37 @@ function WhereItWent() {
   // este app não pode dizer: açúcar e polpa não têm camada de caixa, então
   // somar tudo numa unidade só inventaria um número que ninguém consegue contar
   // na doca. Destino é contável sempre, e é o que a linha diz.
+  /**
+   * Conferir é dizer que a caixa foi aberta e o que havia dentro.
+   *
+   * A confirmação spelling out what will be written, como toda escrita deste
+   * app: o padrão é "chegou tudo", porque é o que acontece na maioria das
+   * vezes e porque um formulário de contagem por item, no celular, na doca,
+   * ninguém preenche. Quem achou diferença corrige na tela do lugar, que já
+   * sabe registrar contagem cega.
+   */
+  const ask = async (place: Shipment) => {
+    const said = place.items
+      .map((i) => `${formatQuantity(i.baseUnits, locale)} ${i.name.toLocaleLowerCase(locale.formatting)}`)
+      .join(' · ');
+
+    const yes = await confirm({
+      title: fill(t.app.transport.checkTitle, { place: place.locationName }),
+      message: said,
+      confirmLabel: t.app.transport.check,
+    });
+    if (!yes) return;
+
+    // Sem lista de contagem: "chegou tudo" é a resposta, e cada remessa é
+    // conferida contra as próprias pernas. Mandar a soma do destino para cada
+    // remessa contaria a mesma mercadoria duas vezes quando a loja recebeu duas
+    // cargas no mesmo dia.
+    for (const groupId of place.groupIds) {
+      await recordCheck(LOCAL_COMPANY_ID, { groupId });
+    }
+    refresh();
+  };
+
   const summary = plural(places.length, t.app.transport.destinations, formatQuantity(places.length, locale));
 
   return (
@@ -65,7 +104,7 @@ function WhereItWent() {
       {places.map((place) => (
         <Pressable
           key={place.locationId}
-          onPress={() => router.push('/places')}
+          onPress={() => (place.checked ? router.push('/places') : void ask(place))}
           accessibilityRole="button"
           accessibilityLabel={place.locationName}
         >
@@ -79,6 +118,18 @@ function WhereItWent() {
               </View>
               <IconChevron size={18} color={color.inkFaint} />
             </View>
+
+            {/* O que o desenho pede, e o que ele significa: a caixa ainda não
+                foi aberta. Orienta, não fiscaliza - a frase fala do que chegou,
+                nunca de quem deveria ter conferido. */}
+            {!place.checked ? (
+              <View style={{ marginTop: space.sm }}>
+                <Chip
+                  signal="warning"
+                  label={fill(t.app.transport.notChecked, { place: place.locationName })}
+                />
+              </View>
+            ) : null}
 
             {/* Cada item na unidade que ele tem. Nada é convertido para caber
                 numa coluna só. */}
