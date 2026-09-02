@@ -416,8 +416,9 @@ for (const defect of DEFECTS) {
   // mesmo SQL aparece em duas funções — foi o caso do piso por local, que a
   // contagem e a perda escrevem igual — o relatório diz "ok" tendo exercitado
   // metade da regra, e a outra metade fica sem rede achando que tem. É a mesma
-  // família do `proofgate-allow` em comentário e da fila rodando como
-  // superusuário: o mecanismo relata sucesso sem ter feito o trabalho.
+  // família do marcador de dispensa escrito em comentário solto e da fila
+  // rodando como superusuário: o mecanismo relata sucesso sem ter feito o
+  // trabalho.
   const hits = original.split(defect.from).length - 1;
   if (hits > 1) {
     console.log(`?  ${defect.file}: o trecho aparece ${hits} vezes`);
