@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Bars } from '@/components/Bars';
 import { Card } from '@/components/Card';
+import { FactoryScene } from '@/components/FactoryScene';
 import { CountUp } from '@/components/CountUp';
 import { GlyphBox, GlyphKettle, GlyphOrder, GlyphPrice, GlyphProduction, GlyphStock } from '@/components/Glyph';
 import { PulseDot } from '@/components/PulseDot';
@@ -34,8 +35,26 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
 
   return (
     <>
+      {/* A cena viva abre a capa, e cada coisa que se mexe nela é um fato:
+          fumaça só com tacho aberto, picolé enchendo na proporção do dia contra
+          ontem, caixa entrando quando saiu carga. */}
       <Reveal index={0}>
-        <Card hue={palette.apricot} icon={(c) => <GlyphProduction size={26} color={c} />} title={t.app.home.today}>
+        <Card
+          hue={palette.apricot}
+          icon={(c) => <GlyphProduction size={26} color={c} />}
+          title={t.app.home.today}
+        >
+          <FactoryScene
+            running={(data?.running.length ?? 0) > 0}
+            shipped={(data?.boxes ?? 0) > 0}
+            dayShare={
+              data && data.madeYesterday > 0
+                ? Math.min(1, data.madeToday / data.madeYesterday)
+                : data && data.madeToday > 0
+                  ? 1
+                  : null
+            }
+          />
           <CountUp
             value={data?.madeToday ?? 0}
             format={(v) => formatQuantity(Math.round(v), locale)}

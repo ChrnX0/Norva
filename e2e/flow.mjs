@@ -503,6 +503,13 @@ check('what came out today reaches the briefing, with what it was to compare', a
   // aparece na própria aba de produção, sem pedir toque nenhum: a primeira
   // versão disto era um diálogo depois de gravar, e esta checagem foi quem o
   // derrubou - ela não conseguia mais alcançar a barra de abas.
+  // A cena da capa é viva porque a fábrica é: com corrida gravada, o desenho
+  // tem o picolé enchendo e a caixa entrando. O que esta checagem alcança é a
+  // existência do desenho - animação em si não se afirma num teste de texto,
+  // mas um SVG que sumiu, sim.
+  const capaViva = await page.locator('svg').count();
+  assert.ok(capaViva > 0, 'a cena continua desenhada depois da produção');
+
   const aba = await screen(page);
   assert.match(aba, /Lotes de hoje/, 'a aba do dia mostra os lotes que nasceram');
   const codigo = aba.match(/\d{8}-\d\d/);
