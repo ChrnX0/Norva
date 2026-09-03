@@ -48,12 +48,20 @@ function WhereItWent() {
 
   const confirm = useConfirm();
 
-  const { data, loading, refresh } = useQuery<Shipment[]>(async () => {
+  const { data, loading, refresh } = useQuery<{ hoje: Shipment[]; ontem: Shipment[] }>(async () => {
     const today = dayWindow(nowIso(), locale.timeZone);
-    return shipmentsOn(LOCAL_COMPANY_ID, today.from, today.to);
+    const yesterday = dayWindow(nowIso(), locale.timeZone, -1);
+    const [hoje, ontem] = await Promise.all([
+      shipmentsOn(LOCAL_COMPANY_ID, today.from, today.to),
+      // Ontem entra pela Lei 3: "3 destinos" não é muito nem pouco até estar ao
+      // lado do que foi ontem. Esta aba dizia o número sozinho.
+      shipmentsOn(LOCAL_COMPANY_ID, yesterday.from, yesterday.to),
+    ]);
+    return { hoje, ontem };
   });
 
-  const places = data ?? [];
+  const places = data?.hoje ?? [];
+  const ontem = new Set((data?.ontem ?? []).map((p) => p.locationId)).size;
 
   // O resumo do dia conta DESTINOS, não caixas.
   //
@@ -97,7 +105,17 @@ function WhereItWent() {
   return (
     <CollapsingHeader
       title={t.app.transport.title}
-      overline={places.length > 0 ? fill(t.app.transport.today, { summary }) : undefined}
+      overline={
+        places.length > 0
+          ? `${fill(t.app.transport.today, { summary })} · ${
+              ontem === 0
+                ? t.app.transport.firstDay
+                : fill(t.app.transport.vsYesterday, {
+                    count: plural(ontem, t.app.transport.destinations, formatQuantity(ontem, locale)),
+                  })
+            }`
+          : undefined
+      }
     >
       {places.map((place) => (
         <Pressable

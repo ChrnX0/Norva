@@ -516,6 +516,8 @@ export const es: Dictionary = {
       },
     },
     transport: {
+      vsYesterday: 'ayer fueron {{count}}',
+      firstDay: 'primera carga registrada',
       title: 'A dónde fue',
       today: 'Hoy · {{summary}}',
       empty: 'Hoy no salió nada todavía.',

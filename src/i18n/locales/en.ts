@@ -510,6 +510,8 @@ export const en: Dictionary = {
       },
     },
     transport: {
+      vsYesterday: 'yesterday it was {{count}}',
+      firstDay: 'first load on the books',
       title: 'Where it went',
       today: 'Today · {{summary}}',
       empty: 'Nothing has left today.',

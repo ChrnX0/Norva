@@ -851,6 +851,15 @@ check('what went out today lands on the transport tab, by destination', async (p
   const conferido = await screen(page);
   assert.doesNotMatch(conferido, /ainda não conferiu/, 'o aviso sai quando a caixa é aberta');
   assert.match(conferido, /Loja Centro/);
+
+  // Lei 3 na aba também: "1 destino" não é muito nem pouco até estar ao lado do
+  // que foi ontem. Esta aba dizia o número do dia sozinho, e num dia sem ontem
+  // ela diz isso em vez de inventar uma variação.
+  assert.match(
+    await screen(page),
+    /primeira carga registrada|ontem (foram|foi)/,
+    'o número do dia vem com a comparação',
+  );
 });
 
 check('a store is created, loaded, and the company still has the same sugar', async (page) => {

@@ -547,6 +547,8 @@ export const ptBR = {
       },
     },
     transport: {
+      vsYesterday: 'ontem foram {{count}}',
+      firstDay: 'primeira carga registrada',
       title: 'Para onde foi',
       today: 'Hoje · {{summary}}',
       empty: 'Nada saiu hoje ainda.',
