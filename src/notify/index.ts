@@ -1,18 +1,7 @@
 import { Platform } from 'react-native';
-import { alertsDue, alertsRunToday, nextAlertAt, type Alert, type AlertFacts } from '@/domain/alerts';
-import {
-  alertSettings,
-  defaultLocationId,
-  expiringSoon,
-  lastReadings,
-  listItems,
-  listPlaces,
-  orderedDemand,
-  runningOut,
-} from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
-import { nowIso } from '@/data/db';
-import { dayWindow, localDate } from '@/domain/day';
+import { alertsDue, alertsRunToday, nextAlertAt, type Alert } from '@/domain/alerts';
+import { alertSettings } from '@/data/repository';
+import { factsForAlerts } from './facts';
 
 /**
  * O aviso saindo do aplicativo para o sistema operacional.
@@ -52,70 +41,6 @@ async function biblioteca(): Promise<Notificacoes | null> {
   } catch {
     return null;
   }
-}
-
-/** Os fatos de hoje, lidos do livro-razão — a mesma aritmética que a capa mostra. */
-export async function factsForAlerts(timeZone: string): Promise<AlertFacts> {
-  const today = dayWindow(nowIso(), timeZone);
-  const lastWeek = dayWindow(nowIso(), timeZone, -7);
-  const through = localDate(nowIso(), timeZone, 7);
-  const trinta = localDate(nowIso(), timeZone, 30);
-  const agora = new Date(nowIso());
-
-  const [cover, demand, expiring, items, places, readings] = await Promise.all([
-    runningOut(LOCAL_COMPANY_ID, lastWeek.from, today.to, 7, Number.POSITIVE_INFINITY),
-    orderedDemand(LOCAL_COMPANY_ID, through),
-    expiringSoon(LOCAL_COMPANY_ID, trinta, 10, defaultLocationId(LOCAL_COMPANY_ID)),
-    listItems(LOCAL_COMPANY_ID),
-    listPlaces(LOCAL_COMPANY_ID),
-    lastReadings(LOCAL_COMPANY_ID),
-  ]);
-
-  const hoje = localDate(nowIso(), timeZone);
-
-  return {
-    cover: cover.map((c) => ({ itemId: c.itemId, name: c.name, daysLeft: c.daysLeft })),
-    orders: demand.map((d) => ({
-      itemId: d.itemId,
-      name: d.name,
-      missing: Math.max(0, d.requested - d.onHand),
-      // A demanda vem somada por item, sem data por linha: a janela da consulta é
-      // a antecedência, então tudo o que ela devolve já está dentro do prazo.
-      daysUntil: 0,
-      placeId: d.itemId,
-    })),
-    volumes: items
-      .filter((i) => i.kind === 'input' || i.kind === 'packaging')
-      .map((i) => ({
-        itemId: i.id,
-        name: i.name,
-        onHand: i.onHandBaseUnits,
-        fullLevel: i.fullLevel,
-      })),
-    expiring: expiring.map((l) => ({
-      lotId: l.lotId,
-      code: l.code,
-      daysLeft: Math.round(
-        (new Date(`${l.expiresOn}T00:00:00.000Z`).getTime() -
-          new Date(`${hoje}T00:00:00.000Z`).getTime()) /
-          86_400_000,
-      ),
-    })),
-    ambient: readings.map((r) => {
-      const lugar = places.find((p) => p.id === r.locationId);
-      const faixa = lugar?.sensorRanges[r.kind];
-      return {
-        locationId: r.locationId,
-        place: lugar?.name || '',
-        kind: r.kind,
-        value: r.value,
-        unit: r.unit,
-        min: faixa?.min ?? null,
-        max: faixa?.max ?? null,
-        hoursOld: Math.max(0, (agora.getTime() - new Date(r.takenAt).getTime()) / 3_600_000),
-      };
-    }),
-  };
 }
 
 /**

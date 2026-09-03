@@ -102,6 +102,14 @@ const DEFECTS = [
   },
 
   {
+    file: 'src/notify/facts.ts',
+    from: `        placeId: o.placeId,`,
+    to: `        placeId: d.itemId,`,
+    hurts:
+      'o aviso passa a contar SABOR como se fosse loja, e quatro sabores pedidos pela mesma loja viram "quatro lojas esperando"',
+  },
+
+  {
     file: 'src/domain/alerts.ts',
     from: `  if (settings.weekdays === 0) return true;`,
     to: `  if (settings.weekdays === 0) return false;`,

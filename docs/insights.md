@@ -2015,3 +2015,31 @@ que uma série histórica existe para mostrar.
 `-18,4` na tela. O achado maior é a categoria: **todo formatador carrega uma
 suposição sobre o que é precisão suficiente**, e ela é invisível até um dado novo
 passar por ele. Grandeza física é o primeiro dado deste app que não é contagem.
+
+## 3 de setembro — dois ids do mesmo tipo, e o compilador de acordo
+
+**O que se viu.** Relendo o código que eu tinha acabado de empurrar, achei
+`placeId: d.itemId` nos fatos do alarme. A demanda vem agrupada por **item** e o
+aviso conta **lojas** — com o id do item no lugar do id da loja, quatro sabores
+pedidos pela mesma loja viravam "quatro lojas esperando".
+
+**Por que importa.** O TypeScript não reclamou porque os dois são `string`, e
+nenhuma tela mostrava esse número: ele só existe dentro de uma notificação, que
+nenhuma suíte desta máquina consegue ler. O defeito estava no ponto exato onde as
+três redes deste projeto não alcançam — tipo, tela e teste.
+
+**O que mudou.** Os fatos passaram a ler os pedidos em aberto (que sabem de qual
+loja são) em vez de derivar loja da demanda. E o teste que prova isso é contra
+**banco de verdade**, não contra um objeto montado à mão: um dublê teria
+concordado com o defeito, porque eu mesmo o teria montado com o id errado.
+
+**E a separação que o teste forçou é o achado maior.** Os fatos moravam no mesmo
+arquivo do agendador, que importa `react-native` para saber a plataforma — e um
+teste de Node não transforma esse pacote. Ou seja: **a função não era testável, e
+era exatamente ali que o defeito estava.** Fato é trabalho da camada de dados;
+plataforma é o que fica no adaptador. A regra prática que sai daqui: quando um
+teste não consegue importar uma função, isso não é limitação da ferramenta — é
+sinal de que a função está na camada errada.
+
+A mutação que guarda o caso está na lista (68 agora), e ela reprova se alguém
+trocar a loja pelo item de novo.
