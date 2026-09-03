@@ -24,7 +24,10 @@ import {
   listItems,
   listProducts,
   recordCount,
+  recordLoss,
   recordProduction,
+  recordReturn,
+  recordTransfer,
   recordPurchase,
   savePlace,
   saveOrder,
@@ -181,11 +184,41 @@ async function main() {
     producedOn: '2026-09-02',
   });
 
+  // A carga que sai da fábrica para a loja.
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: pulp.id,
+    fromLocationId: defaultLocationId(LOCAL_COMPANY_ID),
+    toLocationId: loja.id,
+    baseUnits: 2000,
+  });
+
+  // E uma perda com motivo, que é o tipo com a capacidade mais restrita.
+  await recordLoss(LOCAL_COMPANY_ID, {
+    itemId: pulp.id,
+    baseUnits: 300,
+    reason: 'melted',
+  });
+
+  // E a loja devolve parte do que recebeu.
+  //
+  // Não é enfeite da sessão: no servidor, cada TIPO de movimento tem a sua
+  // própria capacidade — transferência pede `dispatch`, devolução pede
+  // `check_receipt`. Uma devolução que nunca foi replicada é uma política que
+  // nunca foi cobrada, e ela só falharia na primeira loja que devolvesse
+  // mercadoria, em produção, com a fila inteira parada atrás dela.
+  await recordReturn(LOCAL_COMPANY_ID, {
+    itemId: pulp.id,
+    fromLocationId: loja.id,
+    toLocationId: defaultLocationId(LOCAL_COMPANY_ID),
+    baseUnits: 500,
+  });
+
   // --- and now, exactly what the server would receive -----------------------
 
   const queue = await pendingEntries(500);
   const out: string[] = [];
   const exercised = new Set<string>();
+  const kindsNaFila = new Set<string>();
 
   out.push('-- Gerado por scripts/device-session.ts. Não editar à mão.');
   out.push(`-- ${queue.length} escritas na fila, na ordem em que o aparelho gravou.`);
@@ -242,6 +275,7 @@ async function main() {
     // point of running this. Every name here comes from `serialize`'s own closed
     // list, never from outside, and `ident` enforces that rather than asserting it.
     exercised.add(write.table);
+    if (write.table === 'movements' && typeof row?.kind === 'string') kindsNaFila.add(row.kind);
 
     const columns = keys.map(ident).join(', ');
     out.push(
@@ -261,6 +295,26 @@ async function main() {
   if (untouched.length > 0) {
     throw new Error(
       `a sessão não exercita ${untouched.join(', ')} — a checagem 6 cobriria menos do que promete`,
+    );
+  }
+
+  // E o guard cobra TIPO de movimento, não só tabela.
+  //
+  // No servidor, cada kind tem a sua própria capacidade: transferência pede
+  // `dispatch`, devolução pede `check_receipt`, produção pede
+  // `record_production`. Uma sessão que grava movimento de três tipos e replica
+  // só dois passa na checagem de tabelas com a política do terceiro nunca
+  // exercitada — que foi exatamente o buraco por onde a devolução entrou hoje.
+  //
+  // A lista é do que este aplicativo SABE escrever, não do enum inteiro do
+  // servidor: `sale` e `reversal` não têm escritor ainda, e cobrar por eles
+  // seria pedir que a sessão finja um caminho que o app não tem.
+  const kindsQueTemEscritor = ['purchase', 'production', 'consumption', 'transfer', 'return', 'adjustment', 'loss'];
+  const kindsDeFora = kindsQueTemEscritor.filter((kind) => !kindsNaFila.has(kind));
+  if (kindsDeFora.length > 0) {
+    throw new Error(
+      `a sessão não grava movimento de tipo ${kindsDeFora.join(', ')} — a política desses tipos ` +
+        `nunca é exercitada, e cada tipo tem a sua própria capacidade no servidor`,
     );
   }
 
