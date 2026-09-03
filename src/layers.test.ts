@@ -126,3 +126,102 @@ test('the prose exclusion is narrow, and the guard still bites next door', () =>
   assert.ok(SQL.test('await conn.runAsync(`UPDATE products\n SET name = ?`);'));
   assert.ok(!SQL.test('a frase diz que o app se atualiza sozinho e o campo fica set'));
 });
+
+/**
+ * Frase de tela não se escreve na tela — nem uma.
+ *
+ * A cicatriz: `WhySheet` — a folha que abre a conta de toda conclusão do
+ * aplicativo, a Lei 6 em pessoa — tinha "Custo do lote", "Perda prevista" e
+ * "Fechar" cravados em português. Uma fábrica em espanhol via a interface
+ * traduzida e, no instante em que pedia a prova do número, recebia português. O
+ * `Widen<T>` não pega isso: ele obriga a CHAVE a existir nos três dicionários e
+ * não obriga a tela a usá-la.
+ *
+ * A régua é a PALAVRA FUNCIONAL, não o acento — e essa correção tem história de
+ * cinco minutos: a primeira versão deste caso procurava acento e se dizia capaz de
+ * ter pegado o `WhySheet`. "Custo do lote" não tem acento nenhum. O guard passaria
+ * verde na própria cicatriz que ele cita, o que é pior que não existir: ele
+ * anunciaria uma proteção que não estava lá.
+ *
+ * Palavra funcional ("do", "da", "de", "para", "que"…) num literal de duas
+ * palavras ou mais é o que distingue frase de identificador, e é o que sobrou
+ * depois de tentar as duas alternativas mais óbvias: acento erra por falta, e
+ * "qualquer literal com espaço" erra por excesso — 'America/Sao_Paulo' e
+ * 'svg path' não são frases.
+ */
+const PALAVRAS = ['do', 'da', 'de', 'no', 'na', 'em', 'para', 'por', 'com', 'que'];
+
+/**
+ * Um literal é frase quando tem palavra funcional E espaço, e não é caminho.
+ *
+ * As três condições saíram de alarmes falsos, um por um, e cada uma custou uma
+ * rodada: `'as'` na lista acusava `as Draft['kind']`, porque `as` é palavra-chave
+ * do TypeScript; sem exigir espaço, `'input'` casava; e sem excluir caminho,
+ * `'@/domain/day'` casava com "do".
+ *
+ * A interpolação sai antes da conta: `${formatQuantity(...)}` é composição de
+ * pedaço já traduzido, não texto cravado.
+ */
+function pareceFrase(linha: string): boolean {
+  const literais = linha.match(/(['"`])[^'"`]{4,}\1/g) ?? [];
+  return literais.some((bruto) => {
+    const texto = bruto.slice(1, -1).replace(/\$\{[^}]*\}/g, ' ');
+    if (!texto.includes(' ')) return false;
+    if (texto.includes('/') || texto.includes('=')) return false;
+    return new RegExp(`\\b(${PALAVRAS.join('|')})\\b`, 'i').test(texto);
+  });
+}
+
+/** As pastas que desenham. `src/data` semeia exemplo, e exemplo é dado. */
+function screenLayers(): string[] {
+  const inSrc = readdirSync('src')
+    .filter((entry) => ['components', 'home', 'notify'].includes(entry))
+    .map((entry) => join('src', entry));
+  return ['app', ...inSrc];
+}
+
+test('no screen writes a sentence of its own', () => {
+  const offenders: string[] = [];
+
+  for (const dir of screenLayers()) {
+    for (const file of sourcesUnder(dir)) {
+      // Comentário fala português à vontade — é para humano, não para tela. O
+      // mesmo `code()` que a checagem de SQL usa, pelo mesmo motivo.
+      const source = code(readFileSync(file, 'utf8'));
+      for (const linha of source.split('\n')) {
+        // Caminho de importação e rota não são frase: `@/domain/day` e
+        // `/inputs/new` casariam com "do" e "in" sem ser texto de tela.
+        if (/^\s*import |from '@?[./]|router\.(push|replace)|getByLabel|goto\(/.test(linha)) continue;
+        if (pareceFrase(linha)) offenders.push(`${file}: ${linha.trim().slice(0, 70)}`);
+      }
+    }
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `estas linhas escrevem frase na tela em vez de no dicionário:\n${offenders.join('\n')}\n` +
+      'A interface inteira fica traduzida e a frase cravada aparece em português no meio dela — ' +
+      'foi o que aconteceu com a folha do [por quê?].',
+  );
+});
+
+test('the sentence guard bites the real scar, and leaves identifiers alone', () => {
+  // O caso que a primeira versão deste guard NÃO pegava, e que é a cicatriz
+  // inteira: nenhum acento, e frase mesmo assim.
+  assert.ok(pareceFrase("<Text>{'Custo do lote'}</Text>"), 'a cicatriz tem que reprovar');
+  assert.ok(pareceFrase('const titulo = "Perda prevista no lote";'));
+
+  // Comentário é para humano.
+  assert.ok(!pareceFrase(code('// isto é um comentário que fala do lote')));
+
+  // E os três alarmes falsos que a régua anterior deu, cada um por um motivo
+  // diferente: palavra-chave da linguagem, literal de uma palavra, e caminho.
+  assert.ok(!pareceFrase(": 'input') as Draft['kind'],"), 'as é palavra-chave, não frase');
+  assert.ok(!pareceFrase("const kind = 'temperature';"));
+  assert.ok(!pareceFrase("import { dayWindow } from '@/domain/day';"), 'caminho não é frase');
+  assert.ok(
+    !pareceFrase('`${formatQuantity(l.baseUnits, locale)} ${l.unit}`'),
+    'interpolação é composição de pedaço já traduzido',
+  );
+});

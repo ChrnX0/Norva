@@ -22,6 +22,23 @@ import { factsForAlerts } from './facts';
  * notificação.
  */
 
+/**
+ * Por que não agendou — CÓDIGO, não frase.
+ *
+ * A primeira versão devolvia português ("permissão negada"), e o guard de frase na
+ * tela pegou com razão, por um motivo melhor que idioma: isto é diagnóstico, e a
+ * camada de dados devolve fato, não frase. Se um dia isso precisar aparecer para
+ * alguém, quem escreve a frase é a tela — que é a mesma fundação que impede o
+ * repositório de falar português.
+ */
+export type NotScheduled =
+  | 'sem-suporte'
+  | 'sem-permissao'
+  | 'nada-a-avisar'
+  | 'sem-dia-alcancavel'
+  | 'fora-dos-dias'
+  | 'falhou';
+
 /** Um identificador estável, para reagendar sem duplicar. */
 const CANAL = 'norva-avisos';
 
@@ -55,27 +72,27 @@ export async function rescheduleAlerts(
   timeZone: string,
   /** A frase, escrita pela camada que fala português. */
   phrase: (alert: Alert) => { title: string; body: string },
-): Promise<{ scheduled: boolean; reason?: string }> {
+): Promise<{ scheduled: boolean; reason?: NotScheduled; detail?: string }> {
   const lib = await biblioteca();
-  if (!lib) return { scheduled: false, reason: 'sem suporte nesta plataforma' };
+  if (!lib) return { scheduled: false, reason: 'sem-suporte' };
 
   try {
     const permissao = await lib.getPermissionsAsync();
     const concedida =
       permissao.granted || (await lib.requestPermissionsAsync().then((p) => p.granted));
-    if (!concedida) return { scheduled: false, reason: 'permissão negada' };
+    if (!concedida) return { scheduled: false, reason: 'sem-permissao' };
 
     const settings = await alertSettings();
     const facts = await factsForAlerts(timeZone);
     const avisos = alertsDue(facts, settings);
 
     await lib.cancelAllScheduledNotificationsAsync();
-    if (avisos.length === 0) return { scheduled: false, reason: 'nada a avisar' };
+    if (avisos.length === 0) return { scheduled: false, reason: 'nada-a-avisar' };
 
     const quando = nextAlertAt(settings, new Date());
-    if (!quando) return { scheduled: false, reason: 'nenhum dia combinado alcançável' };
+    if (!quando) return { scheduled: false, reason: 'sem-dia-alcancavel' };
     if (!alertsRunToday(settings, quando.getDay())) {
-      return { scheduled: false, reason: 'hoje não é dia de avisar' };
+      return { scheduled: false, reason: 'fora-dos-dias' };
     }
 
     // Um aviso, não sete: a bandeja com sete linhas do mesmo aplicativo é a
@@ -90,6 +107,6 @@ export async function rescheduleAlerts(
     return { scheduled: true };
   } catch (e) {
     // Falhar aqui é perder um aviso; derrubar a tela é perder a fábrica.
-    return { scheduled: false, reason: e instanceof Error ? e.message : String(e) };
+    return { scheduled: false, reason: 'falhou', detail: e instanceof Error ? e.message : String(e) };
   }
 }

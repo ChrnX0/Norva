@@ -2073,3 +2073,33 @@ explicar.
 **A lista de colunas que o `build` acrescenta é obtida CHAMANDO o build**, não
 escrita ao lado dele. Uma lista à mão ao lado do código é a mesma lista à mão que
 já deixou `src/weather` fora da checagem de camadas por meses.
+
+## 3 de setembro — o guard que eu escrevi passaria verde na cicatriz que ele cita
+
+**O que se viu.** Escrevi um guard para "frase de tela cravada em vez de no
+dicionário", e o docblock dizia que ele teria pegado o `WhySheet` — a folha do
+`[por quê?]`, que tinha "Custo do lote" e "Perda prevista" em português. A régua
+era **acento**. *"Custo do lote" não tem acento nenhum.*
+
+**Por que importa mais que o bug.** Um guard que passa verde no próprio caso que
+cita é pior que guard ausente: ele **anuncia** uma proteção que não existe, e
+alguém para de procurar aquele defeito à mão. O caso de controle que eu escrevi em
+seguida — "a cicatriz tem que reprovar" — foi o que expôs isso em cinco minutos.
+A lição é a forma do caso, não o guard: **todo guard precisa de um teste que
+reprove com a cicatriz original**, não com um exemplo inventado depois.
+
+**O que mudou.** A régua passou a ser palavra funcional ("do", "da", "de", "para",
+"que"…) com espaço, e não caminho. Ela saiu de três alarmes falsos, cada um com
+motivo diferente e cada um agora fixado como caso: `as` é palavra-chave do
+TypeScript (acusava `as Draft['kind']`), literal de uma palavra não é frase
+(`'input'`), e caminho de importação casa com "do" (`@/domain/day`).
+
+**E na primeira execução de verdade ele achou um defeito.** A confirmação da
+produção montava `` `${quantidade} ${unidade} de ${nome}` `` — com o **"de"
+cravado**. Em inglês a frase sai "18.000 g **de** Polpa" no meio de uma interface
+traduzida. Foi para `common.amountOf`, que em inglês é "of".
+
+**Um detalhe de arrumação que também é regra:** a chave nasceu em `units` e não
+podia ficar lá — `units` é dicionário de PLURAIS, e `formatPacked` recebe o objeto
+inteiro esperando que toda entrada tenha `one`/`other`. O compilador pegou. Chave
+no lugar errado quebra quem consome o grupo, não quem a escreveu.

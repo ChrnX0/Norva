@@ -231,7 +231,15 @@ function Production() {
         product: selected.name,
         batches: plural(batches, t.app.production.batchCount, formatQuantity(batches, locale)),
         lines: joinList(
-          draft.lines.map((l) => `${formatQuantity(l.baseUnits, locale)} ${l.unit} de ${l.name}`),
+          // O "de" saiu do template e foi para o dicionário: em inglês a frase é
+          // "18.000 g OF pulp", e cravado aqui ela sairia em português no meio de
+          // uma interface traduzida. Foi o guard de frase que achou.
+          draft.lines.map((l) =>
+            fill(t.common.amountOf, {
+              amount: `${formatQuantity(l.baseUnits, locale)} ${l.unit}`,
+              name: l.name,
+            }),
+          ),
           t.common.and,
         ),
         cost: formatMoney(Math.round(draft.unitCostRate), locale),
