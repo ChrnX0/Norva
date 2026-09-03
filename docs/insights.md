@@ -1802,3 +1802,42 @@ E o desdobramento veio dele: *"a gente poderia dar várias opções desses eleme
 para a pessoa configurar a tela inicial dela"*. A capa configurável é a mesma
 ideia descendo para o produto — cada fábrica olha uma coisa diferente de manhã, e
 escolher por elas é errar para duas em cada três.
+
+## 3 de setembro — o `mutate` roda a suíte rápida, e isso decide onde a regra mora
+
+**O que apareceu.** Um mutante sobreviveu **três vezes** à barra inteira: o que
+inverte a ordem do palpite da separação (pedido ganha do hábito). As três
+tentativas de matá-lo ensinaram três coisas diferentes, e a terceira é a que
+muda o desenho do projeto.
+
+**Primeira tentativa — faltava teste.** Escrevi uma asserção de e2e: com pedido
+em aberto, a tela sugere o número do pedido. Não matou.
+
+**Segunda — o defeito era outro, e era real.** Investigando, achei que a sugestão
+estava calculada em **dois lugares**: o número mostrado no campo e o número usado
+para gravar. Inverter a ordem mudava um e deixava o outro — *"o app gravou
+diferente do que estava escrito"*, que é a pior coisa que este aplicativo pode
+fazer com quem ainda decide se confia nele. Unifiquei. Não matou.
+
+**Terceira — o motivo estrutural.** `scripts/mutate.mjs` roda `npm test`, a
+suíte rápida. **Regra que mora dentro de um componente de React nunca é
+alcançada por ele**, por mais e2e que se escreva. E o mesmo já tinha acontecido
+horas antes com a zona de silêncio do QR, que sobreviveu a dois mutantes até
+descer para `src/domain/qr.ts`.
+
+**A regra que sai daí, e ela é de arquitetura, não de teste:** *toda decisão que
+merece um mutante mora no domínio.* Se está numa tela, ou não merece o mutante,
+ou está no lugar errado. `pickSuggestion` e `qrPath` nasceram desse critério.
+
+**E um caso de negócio apareceu no caminho.** Escrevendo o teste da ordem de
+preferência, apareceu o que eu não tinha pensado: **pedido de zero é um pedido**,
+não a ausência de um. A loja que pediu e cancelou não pode receber de volta o
+envio da semana passada — `ordered ?? lastSent` acerta isso e
+`ordered || lastSent` erraria.
+
+**Uma quarta lição, de método.** O teste da primeira tentativa passava com a
+mutação aplicada porque, naquele fluxo, a loja **nunca tinha recebido carga**:
+com uma das duas fontes vazia, qualquer ordem dá o mesmo número. Teste de regra
+de precedência só prova alguma coisa com as duas fontes **discordando** — e essa
+é a mesma família do teste da margem do QR, que usava a própria constante nos
+dois lados da igualdade e não podia falhar.
