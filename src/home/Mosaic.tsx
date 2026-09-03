@@ -34,6 +34,9 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
   const { color, type, space, palette, skin } = useTheme();
   const { locale, t } = useLocale();
 
+  // A espessura do traço é da identidade: fino no Papel, cheio no Orgânico.
+  const traco = skin === 'papel' ? 1.7 : 2.2;
+
   return (
     <>
       {/* A cena viva abre a capa, e cada coisa que se mexe nela é um fato:
@@ -42,7 +45,7 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
       <Reveal index={0}>
         <Card
           hue={palette.apricot}
-          icon={(c) => <GlyphProduction size={26} color={c} />}
+          icon={(c) => <GlyphProduction size={26} color={c} weight={traco} />}
           title={t.app.home.today}
         >
           {/* Cada identidade tem a sua cena viva, e as duas obedecem a mesma
@@ -104,7 +107,7 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
         <View style={{ flexDirection: 'row', gap: space.md }}>
           {data && data.shortly.length > 0 ? (
             <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.runningOut} style={{ flex: 1 }}>
-              <Card tone="warning" icon={(c) => <GlyphStock size={26} color={c} />}>
+              <Card tone="warning" icon={(c) => <GlyphStock size={26} color={c} weight={traco} />}>
                 <Text style={[type.figure, { color: color.ink }]}>
                   {formatQuantity(Math.floor(data.shortly[0].daysLeft), locale)}
                 </Text>
@@ -116,7 +119,7 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
             </Touchable>
           ) : data?.everMade ? (
             <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.inputsFine} style={{ flex: 1 }}>
-              <Card hue={palette.mint} icon={(c) => <GlyphStock size={26} color={c} />}>
+              <Card hue={palette.mint} icon={(c) => <GlyphStock size={26} color={c} weight={traco} />}>
                 <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.home.inputsFine}</Text>
                 <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]} numberOfLines={2}>
                   {t.app.home.inputsFineDetail}
@@ -127,7 +130,7 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
 
           {data && data.boxes > 0 ? (
             <Touchable onPress={() => go('/transport')} accessibilityLabel={t.app.home.boxesTitle} style={{ flex: 1 }}>
-              <Card hue={palette.lilac} icon={(c) => <GlyphBox size={26} color={c} />}>
+              <Card hue={palette.lilac} icon={(c) => <GlyphBox size={26} color={c} weight={traco} />}>
                 <CountUp
                   value={data.boxes}
                   format={(v) => formatQuantity(Math.round(v), locale)}
@@ -150,7 +153,7 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
           >
             <Card
               hue={shortForOrders.length > 0 ? color.warning : palette.sage}
-              icon={(c) => <GlyphOrder size={26} color={c} />}
+              icon={(c) => <GlyphOrder size={26} color={c} weight={traco} />}
               title={shortForOrders.length > 0 ? t.app.home.ordersShort : t.app.home.ordersCovered}
             >
               {shortForOrders.length > 0 ? (
@@ -216,7 +219,7 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
       {data?.running.map((run, i) => (
         <Reveal key={run.id} index={4 + i}>
           <Touchable onPress={() => go('/production')} accessibilityLabel={`${t.app.home.running}: ${run.productName}`}>
-            <Card hue={palette.apricot} icon={(c) => <GlyphKettle size={26} color={c} />}>
+            <Card hue={palette.apricot} icon={(c) => <GlyphKettle size={26} color={c} weight={traco} />}>
               <View style={[styles.row, { gap: space.sm }]}>
                 <PulseDot live />
                 <Text style={[type.cardTitle, { color: color.ink, flex: 1 }]} numberOfLines={1}>
@@ -235,7 +238,7 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
       {moved.length > 0 ? (
         <Reveal index={6}>
           <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.changed}>
-            <Card hue={palette.sand} icon={(c) => <GlyphPrice size={26} color={c} />} title={t.app.home.changed}>
+            <Card hue={palette.sand} icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />} title={t.app.home.changed}>
               <View style={{ gap: space.sm }}>
                 {moved.map((change) => {
                   const previous = change.previousRate ?? change.newRate;
