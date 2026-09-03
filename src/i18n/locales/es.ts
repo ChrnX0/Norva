@@ -450,6 +450,7 @@ export const es: Dictionary = {
       opening: 'Abriendo…',
       perThousand: 'El valor a la derecha es el costo por cada 1.000 {{unit}}.',
       addNew: 'Cargar nuevo',
+      ofFull: '{{percent}} de lo lleno',
       inStock: '{{amount}} en existencia',
     },
 
@@ -473,6 +474,8 @@ export const es: Dictionary = {
       packPlaceholder: 'saco 25 kg',
       perPack: 'Cuánto viene dentro',
       useUnit: 'Medida de uso',
+      fullLevel: 'Cuánto es "lleno"',
+      fullLevelHint: 'Solo si quieres la lectura por color: rojo, amarillo, verde, azul. Vacío, el ítem no recibe color ni aviso de volumen.',
       useUnitHint: 'La menor medida con la que trabaja la receta: g, ml, un.',
       price: 'Precio pagado',
       priceNotAsked:

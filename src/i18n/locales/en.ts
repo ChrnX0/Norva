@@ -445,6 +445,7 @@ export const en: Dictionary = {
       opening: 'Opening…',
       perThousand: 'The figure on the right is the cost per 1,000 {{unit}}.',
       addNew: 'Register a new one',
+      ofFull: '{{percent}} of full',
       inStock: '{{amount}} in stock',
     },
 
@@ -468,6 +469,8 @@ export const en: Dictionary = {
       packPlaceholder: '25 kg sack',
       perPack: 'How much is inside',
       useUnit: 'Unit of use',
+      fullLevel: 'How much is "full"',
+      fullLevelHint: 'Only if you want the colour reading: red, yellow, green, blue. Left empty, the item gets no colour and no volume alert.',
       useUnitHint: 'The smallest measure a recipe works in: g, ml, un.',
       price: 'Price paid',
       priceNotAsked:

@@ -560,7 +560,26 @@ const V13 = `
 ALTER TABLE products ADD COLUMN packaging_items TEXT NOT NULL DEFAULT '[]';
 `;
 
-const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13];
+/**
+ * O nível cheio de um item — a régua que transforma saldo em juízo.
+ *
+ * As faixas de volume que o dono desenhou (vermelho, amarelo, verde, azul) são
+ * porcentagem DE ALGUMA COISA, e essa coisa não pode ser inventada: sem uma
+ * referência cadastrada, "20%" seria um número que ninguém pode conferir. Nulo é
+ * o caso normal e legítimo — o item simplesmente não entra na leitura por faixa,
+ * e nenhuma tela pinta cor nele.
+ *
+ * Em unidade-base, como todo o resto do estoque: um saco de 50 kg de açúcar é
+ * 50000, e a conta de porcentagem fica em número inteiro sem conversão nenhuma
+ * no caminho.
+ */
+const V14 = `
+ALTER TABLE items ADD COLUMN full_level REAL;
+`;
+
+const MIGRATIONS: readonly string[] = [
+  V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14,
+];
 
 export type SqlParam = string | number | null;
 

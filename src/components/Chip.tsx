@@ -1,3 +1,4 @@
+import type { VolumeBand } from '@/domain/alerts';
 import type { PriceVerdict } from '@/domain/cost';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -62,5 +63,27 @@ const styles = StyleSheet.create({
 export function priceSignal(verdict: PriceVerdict | null): Signal {
   if (verdict === 'wellAbove') return 'warning';
   if (verdict === 'cheaper') return 'ok';
+  return 'neutral';
+}
+
+/**
+ * A cor de uma faixa de volume.
+ *
+ * Fica ao lado do chip pelo mesmo motivo que `priceSignal`: nome de cor é fato
+ * sobre a interface, não sobre estoque. O domínio decide a FAIXA, que é juízo
+ * conferível; aqui só se escolhe com o que ela é desenhada.
+ *
+ * `zerado` e `vermelho` são a mesma cor de propósito — acabar e estar acabando
+ * são o mesmo grau de urgência para o olho, e é a FRASE que os separa ("acabou"
+ * contra "20% do cheio"). Inventar uma quinta cor para caber a diferença faria a
+ * escala deixar de ser lida de longe, que é a única coisa que ela precisa ser.
+ */
+export function bandSignal(band: VolumeBand | null): Signal {
+  if (band === 'zerado' || band === 'vermelho') return 'danger';
+  if (band === 'amarelo') return 'warning';
+  if (band === 'verde') return 'ok';
+  // Azul é "cheio demais": não é erro, é dinheiro parado e espaço no fim. O tom
+  // neutro é o que diz "olhe, não corra".
+  if (band === 'azul') return 'neutral';
   return 'neutral';
 }

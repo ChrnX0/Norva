@@ -481,6 +481,7 @@ export const ptBR = {
       opening: 'Abrindo…',
       perThousand: 'O valor à direita é o custo a cada 1.000 {{unit}}.',
       addNew: 'Cadastrar novo',
+      ofFull: '{{percent}} do cheio',
       inStock: '{{amount}} em estoque',
     },
 
@@ -504,6 +505,8 @@ export const ptBR = {
       packPlaceholder: 'saco 25 kg',
       perPack: 'Quanto vem dentro',
       useUnit: 'Medida de uso',
+      fullLevel: 'Quanto é "cheio"',
+      fullLevelHint: 'Só se você quiser a leitura por cor: vermelho, amarelo, verde, azul. Vazio, o item não ganha cor nem aviso de volume.',
       useUnitHint: 'A menor medida com que a receita trabalha: g, ml, un.',
       price: 'Preço pago',
       priceNotAsked:

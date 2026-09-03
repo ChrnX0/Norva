@@ -780,6 +780,36 @@ check('a second unclassified product is refused with a sentence, not with SQLite
   assert.doesNotMatch(tela, /finalizing statement/, 'sem jargão de driver na cara do dono');
 });
 
+check('the colour bands only exist for an item with a ruler', async (page) => {
+  // Desenho do dono: vermelho, amarelo, verde, azul, e zerado à parte. A régua é
+  // o "quanto é cheio" do item — sem ela o aplicativo não sabe o que é pouco, e
+  // não pinta nada. Esta checagem prova as duas metades: o item sem régua fica
+  // sem cor, e o item com régua ganha a faixa certa pelo saldo que tem.
+  await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  assert.doesNotMatch(await screen(page), /do cheio/, 'sem régua, nenhum item fala em porcentagem');
+
+  // Cadastra a régua no açúcar: 46.000 g de saldo contra 500.000 de cheio é 9%,
+  // que cai no vermelho.
+  await page.getByText('Açúcar cristal').first().click();
+  await page.waitForTimeout(2000);
+  await page.getByText('Corrigir o cadastro', { exact: true }).first().click();
+  await page.waitForTimeout(2000);
+  await page.getByLabel(/Quanto é "cheio"/).fill('500000');
+  await page.waitForTimeout(500);
+  await page.getByText('Salvar correção', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  // Corrigir cadastro pede confirmação: é o cadastro que todo custo usa.
+  await page.getByText('Confirmar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  // 50.000 g de saldo contra 500.000 de cheio é 10%, que cai no vermelho — e a
+  // linha DIZ o número, porque cor sozinha não é informação.
+  assert.match(await screen(page), /10% do cheio/);
+});
+
 check('a listed stick leaves the storeroom when the run is recorded', async (page) => {
   // O defeito que esta checagem prova consertado: o palito só subia. O custo já
   // somava a embalagem desde a correção da produção, mas nenhum movimento tirava

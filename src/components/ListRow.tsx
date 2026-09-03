@@ -21,12 +21,23 @@ export function ListRow({
   detail,
   trailing,
   trailingTone = 'ink',
+  signal,
   onPress,
 }: {
   label: string;
   detail?: string;
   trailing?: string;
   trailingTone?: 'ink' | 'muted' | 'ok' | 'warning';
+  /**
+   * A cor da faixa desta linha, quando ela tem uma.
+   *
+   * Desenhada como um traço vertical na borda e NÃO como texto colorido: cor
+   * sozinha não é informação para quem não distingue verde de vermelho, então a
+   * linha continua dizendo o número por extenso e o traço é o atalho para quem
+   * passa o olho. Ausente é o caso normal — item sem régua cadastrada não ganha
+   * cor, porque o aplicativo não sabe o que é pouco para ele.
+   */
+  signal?: 'ok' | 'warning' | 'danger' | 'neutral';
   onPress?: () => void;
 }) {
   const { color, space, type, motion } = useTheme();
@@ -64,6 +75,24 @@ export function ListRow({
       accessibilityLabel={detail ? `${label}. ${detail}` : label}
       style={[styles.row, { paddingVertical: space.md, gap: space.md }, squeeze]}
     >
+      {signal ? (
+        <View
+          style={{
+            width: 3,
+            alignSelf: 'stretch',
+            borderRadius: 2,
+            backgroundColor:
+              signal === 'danger'
+                ? color.danger
+                : signal === 'warning'
+                  ? color.warning
+                  : signal === 'ok'
+                    ? color.ok
+                    : color.line,
+          }}
+        />
+      ) : null}
+
       <View style={{ flex: 1 }}>
         <Text style={[type.body, { color: color.ink }]} numberOfLines={1}>
           {label}

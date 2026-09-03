@@ -41,6 +41,13 @@ export type Item = {
   purchaseToBase: number | null;
   baseUnit: string;
   packaging: PackagingHierarchy;
+  /**
+   * O que este item tem quando está cheio, em unidade-base. Nulo: não me pergunte.
+   *
+   * É a régua das faixas de volume. Sem ela o aplicativo não sabe o que é pouco,
+   * e não pinta cor nenhuma — o que é a resposta certa, e não uma limitação.
+   */
+  fullLevel: number | null;
 };
 
 export type ItemWithCost = Item & {
@@ -157,9 +164,10 @@ export async function listItems(
     average_rate: number | null;
     last_rate: number | null;
     on_hand_base_units: number | null;
+    full_level: number | null;
   }>(
     `SELECT i.id, i.kind, i.name, i.purchase_unit, i.purchase_to_base, i.base_unit, i.packaging,
-            i.active, c.average_rate, c.last_rate,
+            i.active, i.full_level, c.average_rate, c.last_rate,
             (SELECT COALESCE(SUM(m.quantity_base_units), 0) FROM movements m
               WHERE m.company_id = i.company_id AND m.item_id = i.id
                 AND (? IS NULL OR m.location_id = ?))
@@ -188,6 +196,7 @@ export async function listItems(
     purchaseToBase: r.purchase_to_base,
     baseUnit: r.base_unit,
     packaging: parsePackaging(r.packaging),
+    fullLevel: r.full_level,
     active: r.active === 1,
     averageRate: (r.average_rate ?? 0) as Rate,
     lastRate: r.last_rate === null || r.last_rate === undefined ? null : (r.last_rate as Rate),
@@ -197,7 +206,8 @@ export async function listItems(
 
 export async function saveItem(
   companyId: string,
-  item: Omit<Item, 'id'> & { id?: string },
+  /** `fullLevel` ausente é "não mexa no que já estava" — como a ficha de acordo. */
+  item: Omit<Item, 'id' | 'fullLevel'> & { id?: string; fullLevel?: number | null },
 ): Promise<string> {
   const conn = await db();
   let id = '';
@@ -217,21 +227,34 @@ export async function saveItem(
 async function writeItem(
   conn: Db,
   companyId: string,
-  item: Omit<Item, 'id'> & { id?: string },
+  item: Omit<Item, 'id' | 'fullLevel'> & { id?: string; fullLevel?: number | null },
 ): Promise<string> {
   const id = item.id ?? newId();
 
+  // O nível cheio ausente preserva o que estava lá. A tela de produto não manda
+  // nível nenhum, e um `excluded.full_level` nulo apagaria a régua de faixa de
+  // todos os itens dela em silêncio — a mesma armadilha da ficha de acordo.
+  const anterior =
+    item.id !== undefined && item.fullLevel === undefined
+      ? await conn.getFirstAsync<{ full_level: number | null }>(
+          `SELECT full_level FROM items WHERE id = ?`,
+          [item.id],
+        )
+      : null;
+  const fullLevel = item.fullLevel === undefined ? (anterior?.full_level ?? null) : item.fullLevel;
+
   await conn.runAsync(
     `INSERT INTO items (id, company_id, kind, name, purchase_unit, purchase_to_base,
-                        base_unit, packaging, active, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+                        base_unit, packaging, full_level, active, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
      ON CONFLICT(id) DO UPDATE SET
        kind = excluded.kind,
        name = excluded.name,
        purchase_unit = excluded.purchase_unit,
        purchase_to_base = excluded.purchase_to_base,
        base_unit = excluded.base_unit,
-       packaging = excluded.packaging`,
+       packaging = excluded.packaging,
+       full_level = excluded.full_level`,
     [
       id,
       companyId,
@@ -241,6 +264,7 @@ async function writeItem(
       item.purchaseToBase,
       item.baseUnit,
       JSON.stringify(item.packaging.tiers),
+      fullLevel,
       nowIso(),
     ],
   );

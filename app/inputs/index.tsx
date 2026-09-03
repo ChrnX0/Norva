@@ -3,9 +3,11 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { bandSignal } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { ListRow } from '@/components/ListRow';
 import {
+  alertSettings,
   listPlaces,
   listItems,
   runningOut,
@@ -14,6 +16,7 @@ import {
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
+import { volumeBand } from '@/domain/alerts';
 import { nowIso } from '@/data/db';
 import { dayWindow } from '@/domain/day';
 import { fill, formatMoney, formatQuantity, plural } from '@/i18n';
@@ -60,6 +63,8 @@ function InputsList() {
   const [place, setPlace] = useState<string | null>(null);
 
   const { data: places } = useQuery(() => listPlaces(LOCAL_COMPANY_ID));
+  /** As faixas que a casa combinou. Sem elas, nenhuma linha ganha cor. */
+  const { data: faixas } = useQuery(() => alertSettings());
   const { data, loading } = useQuery(
     () => listItems(LOCAL_COMPANY_ID, undefined, false, place ?? undefined),
     place ?? '',
@@ -241,7 +246,11 @@ function InputsList() {
             <ListRow
               key={item.id}
               label={item.name}
-              detail={describe(item, t.app.inputs.inStock, locale.formatting)}
+              // A faixa de cor, quando o item tem régua cadastrada. Sem nível
+              // cheio não há cor: pintar por conta própria seria inventar o que é
+              // pouco, e a lista ensinaria a ignorar a cor.
+              signal={faixas ? bandSignal(volumeBand(item.onHandBaseUnits, item.fullLevel, faixas.bands)) : undefined}
+              detail={describe(item, t.app.inputs.inStock, locale.formatting, t.app.inputs.ofFull)}
               trailing={
                 item.averageRate > 0
                   ? formatMoney(Math.round(item.averageRate * 1_000), locale)
@@ -266,7 +275,13 @@ function InputsList() {
 }
 
 /** What the row says under the name: how it is bought, and what is on hand. */
-function describe(item: ItemWithCost, inStock: string, formatting: string): string {
+function describe(
+  item: ItemWithCost,
+  inStock: string,
+  formatting: string,
+  /** A frase da porcentagem, quando o item tem régua. Cor sozinha não é informação. */
+  ofFull?: string,
+): string {
   const parts: string[] = [];
 
   if (item.purchaseUnit && item.purchaseToBase) {
@@ -278,6 +293,19 @@ function describe(item: ItemWithCost, inStock: string, formatting: string): stri
     parts.push(
       fill(inStock, {
         amount: `${item.onHandBaseUnits.toLocaleString(formatting)} ${item.baseUnit}`,
+      }),
+    );
+  }
+
+  // A porcentagem do cheio, que é o número que a cor representa.
+  //
+  // Sem ela o traço colorido seria a única informação — e cor sozinha não é
+  // informação para quem não distingue verde de vermelho. Aqui a linha diz "9%
+  // do cheio" e o traço é só o atalho de quem passa o olho.
+  if (ofFull && item.fullLevel !== null && item.fullLevel > 0) {
+    parts.push(
+      fill(ofFull, {
+        percent: `${Math.round((item.onHandBaseUnits / item.fullLevel) * 100)}%`,
       }),
     );
   }

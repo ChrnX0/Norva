@@ -102,6 +102,30 @@ const DEFECTS = [
   },
 
   {
+    file: 'src/domain/alerts.ts',
+    from: `  if (settings.weekdays === 0) return true;`,
+    to: `  if (settings.weekdays === 0) return false;`,
+    hurts:
+      'a configuracao vazia — que e a de todo mundo no primeiro dia — silencia TODOS os avisos, e o dono descobre no dia em que faltar polpa',
+  },
+
+  {
+    file: 'src/domain/alerts.ts',
+    from: `  if (share <= bands.red) return 'vermelho';`,
+    to: `  if (share < bands.red) return 'vermelho';`,
+    hurts:
+      'o limite da faixa passa a ser do amarelo, e o item exatamente no piso vermelho e desenhado como se estivesse melhor do que esta',
+  },
+
+  {
+    file: 'src/domain/alerts.ts',
+    from: `    if (dia.getTime() <= now.getTime()) continue;`,
+    to: `    if (dia.getTime() < now.getTime()) continue;`,
+    hurts:
+      'o aviso pode ser agendado para o instante presente, que e uma corrida com o sistema operacional — ele nao dispara e o aviso desaparece sem ninguem saber',
+  },
+
+  {
     file: 'src/domain/agreement.ts',
     from: `  for (let ahead = 0; ahead < 7; ahead += 1) {`,
     to: `  for (let ahead = 1; ahead < 7; ahead += 1) {`,

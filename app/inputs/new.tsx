@@ -45,6 +45,8 @@ type Draft = {
   purchaseToBase: string;
   baseUnit: string;
   price: string;
+  /** O nível cheio, que é a régua das faixas de cor. Vazio: o item não ganha faixa. */
+  fullLevel: string;
 };
 
 /** Order only; the words are in the dictionary, keyed the same way. */
@@ -87,6 +89,7 @@ function InputForm() {
     purchaseToBase: '',
     baseUnit: 'g',
     price: '',
+    fullLevel: '',
     ...(existing
       ? {
           kind: (existing.kind === 'input' ||
@@ -100,6 +103,10 @@ function InputForm() {
             ? formatTyped(existing.purchaseToBase, locale.formatting)
             : '',
           baseUnit: existing.baseUnit,
+          fullLevel:
+            existing.fullLevel !== null
+              ? formatTyped(existing.fullLevel, locale.formatting)
+              : '',
           // The price is not re-asked when correcting: it belongs to the
           // invoices, and re-entering it here would move the average by accident.
           //
@@ -118,7 +125,7 @@ function InputForm() {
     ...draft,
   };
 
-  const { kind, name, purchaseUnit, purchaseToBase, baseUnit, price } = form;
+  const { kind, name, purchaseUnit, purchaseToBase, baseUnit, price, fullLevel } = form;
   const edit = (change: Partial<Draft>) => setDraft({ ...draft, ...change });
 
   const setKind = (next: Draft['kind']) => edit({ kind: next });
@@ -148,6 +155,7 @@ function InputForm() {
   };
   const setBaseUnit = (next: string) => edit({ baseUnit: next });
   const setPrice = (next: string) => edit({ price: next });
+  const setFullLevel = (next: string) => edit({ fullLevel: next });
 
   const [saving, setSaving] = useState(false);
 
@@ -231,6 +239,7 @@ function InputForm() {
         purchaseToBase: parsed.factor,
         baseUnit: baseUnit.trim() || 'un',
         packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }] },
+        fullLevel: (parseTyped(fullLevel) ?? 0) > 0 ? (parseTyped(fullLevel) as number) : null,
       });
 
       // Only a new item carries a first invoice. Editing must never move the
@@ -314,6 +323,18 @@ function InputForm() {
             onChangeText={setBaseUnit}
             placeholder="g"
             hint={t.app.inputForm.useUnitHint}
+          />
+          {/* A régua das faixas de cor, e ela é opcional de propósito.
+              Vazia, o item não ganha cor nem aviso de volume — porque sem
+              referência "20%" seria um número que ninguém pode conferir. */}
+          <Field
+            label={t.app.inputForm.fullLevel}
+            value={fullLevel}
+            onChangeText={setFullLevel}
+            placeholder="50000"
+            suffix={baseUnit}
+            keyboardType="numeric"
+            hint={t.app.inputForm.fullLevelHint}
           />
           {editing ? (
             <Text style={[type.caption, { color: color.inkMuted }]}>
