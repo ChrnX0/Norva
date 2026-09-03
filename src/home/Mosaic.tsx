@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Bars } from '@/components/Bars';
 import { Card } from '@/components/Card';
 import { FactoryScene } from '@/components/FactoryScene';
+import { Landscape } from '@/components/Landscape';
 import { CountUp } from '@/components/CountUp';
 import { GlyphBox, GlyphKettle, GlyphOrder, GlyphPrice, GlyphProduction, GlyphStock } from '@/components/Glyph';
 import { PulseDot } from '@/components/PulseDot';
@@ -30,7 +31,7 @@ import type { BriefingView } from './types';
  * retângulos iguais que o dono recusou.
  */
 export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, go }: BriefingView) {
-  const { color, type, space, palette } = useTheme();
+  const { color, type, space, palette, skin } = useTheme();
   const { locale, t } = useLocale();
 
   return (
@@ -44,17 +45,30 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
           icon={(c) => <GlyphProduction size={26} color={c} />}
           title={t.app.home.today}
         >
-          <FactoryScene
-            running={(data?.running.length ?? 0) > 0}
-            shipped={(data?.boxes ?? 0) > 0}
-            dayShare={
-              data && data.madeYesterday > 0
-                ? Math.min(1, data.madeToday / data.madeYesterday)
-                : data && data.madeToday > 0
-                  ? 1
-                  : null
-            }
-          />
+          {/* Cada identidade tem a sua cena viva, e as duas obedecem a mesma
+              regra: nada se move por decoração. O Papel desenha a linha de
+              produção em traço; o Orgânico desenha a paisagem, que é a previsão
+              de verdade. */}
+          {skin === 'papel' ? (
+            <FactoryScene
+              running={(data?.running.length ?? 0) > 0}
+              shipped={(data?.boxes ?? 0) > 0}
+              dayShare={
+                data && data.madeYesterday > 0
+                  ? Math.min(1, data.madeToday / data.madeYesterday)
+                  : data && data.madeToday > 0
+                    ? 1
+                    : null
+              }
+            />
+          ) : (
+            <Landscape
+              maxC={sky ? sky.today.maxC : null}
+              rainChance={sky ? sky.today.rainChance : null}
+              running={(data?.running.length ?? 0) > 0}
+              height={150}
+            />
+          )}
           <CountUp
             value={data?.madeToday ?? 0}
             format={(v) => formatQuantity(Math.round(v), locale)}
