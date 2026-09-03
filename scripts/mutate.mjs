@@ -102,6 +102,14 @@ const DEFECTS = [
   },
 
   {
+    file: 'src/notify/phrase.ts',
+    from: `        ? // Grandeza física guarda a fração: meio grau de freezer é diferença`,
+    to: `        ? String(Math.round(alert.amount)) ||`,
+    hurts:
+      'a notificacao da camara arredonda o grau e -18,4 chega como -18: meia diferenca de freezer some justamente no aviso que deveria acusar a porta aberta',
+  },
+
+  {
     file: 'src/notify/facts.ts',
     from: `        placeId: o.placeId,`,
     to: `        placeId: d.itemId,`,
