@@ -1951,6 +1951,124 @@ test('what is running out comes from what actually left, and a still input never
   );
 });
 
+test('listed packaging leaves the storeroom, per unit, and lands in the frozen cost', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const items = await listItems(LOCAL_COMPANY_ID);
+  const palito = items.find((i) => i.name.includes('Palito'));
+  const saquinho = items.find((i) => i.name.includes('Embalagem'));
+  assert.ok(palito && saquinho, 'o exemplo semeado tem palito e saquinho');
+
+  // O produto passa a listar palito e saquinho: um de cada por unidade.
+  const [produto] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  await saveProduct(LOCAL_COMPANY_ID, {
+    id: produto.id,
+    itemId: produto.itemId,
+    name: produto.name,
+    kind: 'product',
+    recipeId: produto.recipeId,
+    yieldPerUnit: produto.yieldPerUnit,
+    unitPackagingCents: fromDecimal(0),
+    packagingItems: [
+      { itemId: palito.id, quantityPerUnit: 1 },
+      { itemId: saquinho.id, quantityPerUnit: 1 },
+    ],
+    packaging: produto.packaging,
+  });
+
+  const relido = (await listProducts(LOCAL_COMPANY_ID)).find((p) => p.id === produto.id);
+  assert.equal(relido?.packagingItems.length, 2);
+  assert.ok(
+    relido?.packagingItems.every((l) => l.name.length > 3),
+    'o nome vem do catálogo, não do JSON',
+  );
+
+  const antes = await listItems(LOCAL_COMPANY_ID);
+  const saldoPalito = antes.find((i) => i.id === palito.id)?.onHandBaseUnits ?? 0;
+  assert.ok(saldoPalito > 0, 'o exemplo semeado comprou palito');
+
+  const corrida = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: produto.id,
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    batches: 1,
+    unitsProduced: 100,
+    occurredAt: '2026-03-01T10:00:00.000Z',
+    producedOn: '2026-03-01',
+  });
+
+  // O que este teste existe para provar: o palito DESCEU. Até aqui ele só subia,
+  // corrida após corrida, e a fábrica descobria a diferença no inventário.
+  const depois = await listItems(LOCAL_COMPANY_ID);
+  assert.equal(
+    depois.find((i) => i.id === palito.id)?.onHandBaseUnits,
+    saldoPalito - 100,
+    'cem unidades gastam cem palitos',
+  );
+
+  // E gastam por UNIDADE, não por tacho: é isso que separa a lista de embalagem
+  // de uma linha de receita.
+  const consumoPalito = corrida.consumed.find((c) => c.itemId === palito.id);
+  assert.equal(consumoPalito?.baseUnits, 100);
+
+  // O custo congelado inclui o palito, e inclui pela taxa das notas de compra -
+  // não por um valor digitado à mão.
+  const taxaPalito = (await itemCosts(LOCAL_COMPANY_ID))[palito.id] ?? 0;
+  const taxaSaquinho = (await itemCosts(LOCAL_COMPANY_ID))[saquinho.id] ?? 0;
+  assert.ok(taxaPalito > 0 && taxaSaquinho > 0, 'as notas deram preço aos dois');
+
+  const linhaProduto = await live.getFirstAsync<{ unit_cost_rate: number }>(
+    `SELECT unit_cost_rate FROM movements
+      WHERE company_id = ? AND kind = 'production' AND item_id = ?
+      ORDER BY recorded_at DESC LIMIT 1`,
+    [LOCAL_COMPANY_ID, produto.itemId],
+  );
+  const semEmbalagem = corrida.consumed
+    .filter((c) => c.itemId !== palito.id && c.itemId !== saquinho.id)
+    .reduce((n, c) => n + c.rate * c.baseUnits, 0);
+  assert.ok(
+    Math.abs((linhaProduto?.unit_cost_rate ?? 0) - (semEmbalagem / 100 + taxaPalito + taxaSaquinho)) <
+      1e-9,
+    'a taxa congelada é a receita mais a embalagem que saiu do estoque',
+  );
+});
+
+test('a run without packaging in stock is refused before anything is written', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const items = await listItems(LOCAL_COMPANY_ID);
+  const palito = items.find((i) => i.name.includes('Palito'));
+  assert.ok(palito, 'o exemplo semeado tem palito');
+  const [produto] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+
+  // Um palito por unidade, e uma corrida maior do que o estoque de palito.
+  await saveProduct(LOCAL_COMPANY_ID, {
+    id: produto.id,
+    itemId: produto.itemId,
+    name: produto.name,
+    kind: 'product',
+    recipeId: produto.recipeId,
+    yieldPerUnit: produto.yieldPerUnit,
+    unitPackagingCents: fromDecimal(0),
+    packagingItems: [{ itemId: palito.id, quantityPerUnit: 1 }],
+    packaging: produto.packaging,
+  });
+
+  const saldo = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.id === palito.id);
+  const demais = saldo!.onHandBaseUnits + 1;
+
+  // A trava é a mesma dos insumos, e é por isso que a embalagem entra em
+  // `needed` em vez de num caminho paralelo: sem palito, a fábrica não roda.
+  await assert.rejects(
+    recordProduction(LOCAL_COMPANY_ID, {
+      productId: produto.id,
+      locationId: defaultLocationId(LOCAL_COMPANY_ID),
+      batches: Math.ceil(demais / 133),
+      unitsProduced: demais,
+      occurredAt: '2026-03-02T10:00:00.000Z',
+      producedOn: '2026-03-02',
+    }),
+    NotEnoughStockError,
+  );
+});
+
 test('the agreement sheet is kept, corrected and queued for the server', async () => {
   const loja = await savePlace(LOCAL_COMPANY_ID, {
     name: 'Loja Centro',

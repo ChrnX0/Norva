@@ -61,6 +61,62 @@ function parsePackaging(json: string): PackagingHierarchy {
   }
 }
 
+/**
+ * A embalagem por unidade, como estrutura e com nome de gente.
+ *
+ * Guarda só id e quantidade: o nome vem do catálogo a cada leitura, senão o JSON
+ * passa a ser um segundo lugar onde o item se chama alguma coisa - e o dia em
+ * que alguém corrigir "Palito de picolé" para "Palito", a tela de produção
+ * continuaria dizendo o nome antigo.
+ *
+ * Linha quebrada é ignorada em vez de derrubar a tela. Uma corrida que não
+ * consome o palito é um erro de inventário; uma tela de produção que não abre é
+ * a fábrica parada.
+ */
+/**
+ * A lista como ela é gravada: sem nome, sem repetição, sem zero.
+ *
+ * O mesmo item duas vezes é erro de digitação e não receita exótica - somar as
+ * duas linhas é o que a tela de receita já faz com o mesmo insumo repetido, pelo
+ * mesmo motivo: ninguém pediu dois palitos por picolé, alguém tocou duas vezes.
+ */
+export function normalizePackagingItems(
+  lines: readonly { itemId: string; quantityPerUnit: number }[],
+): { itemId: string; quantityPerUnit: number }[] {
+  const somado = new Map<string, number>();
+  for (const linha of lines) {
+    if (!linha.itemId) continue;
+    if (!Number.isFinite(linha.quantityPerUnit) || linha.quantityPerUnit <= 0) {
+      throw new Error('embalagem por unidade tem que ser mais que zero');
+    }
+    somado.set(linha.itemId, (somado.get(linha.itemId) ?? 0) + linha.quantityPerUnit);
+  }
+  return [...somado].map(([itemId, quantityPerUnit]) => ({ itemId, quantityPerUnit }));
+}
+
+function parsePackagingItems(
+  json: string,
+  catalog: Record<string, string>,
+): Product['packagingItems'] {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(json || '[]');
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(raw)) return [];
+
+  const out: Product['packagingItems'] = [];
+  for (const linha of raw) {
+    if (typeof linha !== 'object' || linha === null) continue;
+    const { itemId, quantityPerUnit } = linha as { itemId?: unknown; quantityPerUnit?: unknown };
+    if (typeof itemId !== 'string' || typeof quantityPerUnit !== 'number') continue;
+    if (!Number.isFinite(quantityPerUnit) || quantityPerUnit <= 0) continue;
+    out.push({ itemId, name: catalog[itemId] ?? itemId, quantityPerUnit });
+  }
+  return out;
+}
+
 // --- items -----------------------------------------------------------------
 
 /**
@@ -1176,6 +1232,26 @@ export async function recordProduction(
   const rates = await itemCosts(companyId);
   const needed = explodeRequirements(product.recipeId, input.batches, graph);
 
+  // A embalagem entra no consumo, e ela conta por UNIDADE, não por tacho.
+  //
+  // Esta é a linha que faz o saldo de palito descer. Antes dela, o custo saía
+  // certo (a embalagem sempre esteve na taxa congelada) e o estoque mentia: o
+  // palito só subia, corrida após corrida, e a fábrica descobria a diferença no
+  // inventário. Está escrito em `docs/insights.md` como "o que ficou aberto".
+  //
+  // Somada em `needed`, ela atravessa tudo o que já existe: a trava de estoque
+  // da sala recusa a corrida sem palito, o valor consumido entra na taxa
+  // congelada, e o movimento sai com a mesma taxa dos outros insumos. Um caminho
+  // paralelo aqui seria um segundo lugar de onde o consumo pode divergir.
+  //
+  // Rendimento entra na conta pela quantidade PRODUZIDA, e é por isso que a
+  // lista não é linha de receita: meio tacho gasta metade do açúcar, mas 400
+  // unidades gastam 400 palitos - o tacho que rendeu menos não devolve palito.
+  for (const linha of product.packagingItems) {
+    const gasto = linha.quantityPerUnit * input.unitsProduced;
+    needed.set(linha.itemId, (needed.get(linha.itemId) ?? 0) + gasto);
+  }
+
   const groupId = newId();
   const occurred = input.occurredAt ?? at;
 
@@ -1509,8 +1585,23 @@ export type Product = {
   recipeId: string | null;
   /** How much of the batch becomes one unit. 75 ml per popsicle. */
   yieldPerUnit: number | null;
-  /** Stick, wrapper, label - packaging is a cost per unit, not per batch. */
+  /**
+   * O que a embalagem custa por unidade e NÃO está listado em `packagingItems`.
+   *
+   * Continua existindo depois de a lista de itens entrar, e não é duplicidade:
+   * uma fábrica que não quer contar palito no estoque digita o valor e segue.
+   * Quem lista os itens vê o custo deles sair do próprio livro-razão, e usa este
+   * campo só para o que sobrou de fora — rótulo, fita, o que nunca virou item.
+   */
   unitPackagingCents: Cents;
+  /**
+   * A embalagem que sai do estoque, por unidade produzida.
+   *
+   * Vazia é o caso comum e legítimo. Cada linha vira consumo no livro-razão
+   * quando a corrida é gravada, e é isso que faz o saldo de palito descer — até
+   * aqui ele só subia.
+   */
+  packagingItems: { itemId: string; name: string; quantityPerUnit: number }[];
   /**
    * Quantos dias o produto dura depois de feito. Nulo: não vence.
    *
@@ -1541,19 +1632,25 @@ export async function listProducts(companyId: string): Promise<Product[]> {
     unit_packaging_cents: number;
     shelf_life_days: number | null;
     packaging: string;
+    packaging_items: string;
     line_id: string | null;
     type_id: string | null;
     flavor_id: string | null;
   }>(
     `SELECT p.id, p.item_id, i.name, p.recipe_id, p.yield_per_unit,
             p.unit_packaging_cents, p.shelf_life_days, i.packaging,
-            p.line_id, p.type_id, p.flavor_id
+            p.packaging_items, p.line_id, p.type_id, p.flavor_id
        FROM products p
        JOIN items i ON i.id = p.item_id
       WHERE p.company_id = ? AND p.active = 1
       ORDER BY i.name COLLATE NOCASE`,
     [companyId],
   );
+
+  // O nome de cada embalagem vem do catálogo, não da lista: a lista guarda id e
+  // quantidade, e quem fala português é a tela. Um nome copiado para dentro do
+  // JSON viraria um segundo nome do mesmo item, desatualizado no dia seguinte.
+  const catalogo = await labels(companyId);
 
   return rows.map((r) => ({
     id: r.id,
@@ -1567,6 +1664,7 @@ export async function listProducts(companyId: string): Promise<Product[]> {
     lineId: r.line_id,
     typeId: r.type_id,
     flavorId: r.flavor_id,
+    packagingItems: parsePackagingItems(r.packaging_items, catalogo),
   }));
 }
 
@@ -1577,6 +1675,28 @@ export async function listProducts(companyId: string): Promise<Product[]> {
  * living in a parallel table - which is what lets one ledger hold both the
  * sugar going in and the popsicle coming out.
  */
+/**
+ * A classificação já está ocupada por outro produto.
+ *
+ * O banco recusa isso por índice único, e a recusa dele chega como "Error
+ * finalizing statement" - jargão de driver, num diálogo que o dono lê e não
+ * entende. Pior: a saída não aparece em lugar nenhum, e a saída existe (dar
+ * linha, tipo ou sabor ao produto novo, ou ao antigo).
+ *
+ * Nomeado e com o nome do outro produto dentro, como o `NotEnoughStockError`:
+ * quem escreve a frase é a tela, e ela precisa do fato para escrever.
+ *
+ * A regra em si é decisão registrada na migração `0018` - "o mesmo produto não
+ * se cadastra duas vezes", com nulo valendo como valor. O defeito não era a
+ * regra, era ela falando SQLite.
+ */
+export class GridTakenError extends Error {
+  constructor(public readonly existing: string) {
+    super(`grid already taken by ${existing}`);
+    this.name = 'GridTakenError';
+  }
+}
+
 export async function saveProduct(
   companyId: string,
   input: {
@@ -1596,6 +1716,15 @@ export async function saveProduct(
      * mais direta - o sistema já sabe, então não pergunta de novo.
      */
     shelfLifeDays?: number | null;
+    /**
+     * A embalagem que sai do estoque, por unidade produzida.
+     *
+     * Ausente é "não mexa no que já estava listado"; lista vazia apaga. A
+     * diferença importa porque a tela de correção de nome não manda embalagem, e
+     * uma lista tratada como vazia ali desligaria em silêncio o consumo de
+     * palito de todas as corridas seguintes.
+     */
+    packagingItems?: readonly { itemId: string; quantityPerUnit: number }[];
     lineId?: string | null;
     typeId?: string | null;
     flavorId?: string | null;
@@ -1607,6 +1736,44 @@ export async function saveProduct(
   const conn = await db();
   let itemId = '';
   let productId = '';
+
+  // A lista de embalagem é resolvida ANTES da transação, e entra na mesma
+  // instrução que grava o produto.
+  //
+  // Ausente é "não mexa no que já estava listado", e é por isso que o valor
+  // anterior é lido aqui: a tela que corrige o nome não manda embalagem, e um
+  // `excluded.packaging_items` com lista vazia desligaria em silêncio o consumo
+  // de palito de todas as corridas seguintes.
+  const anterior = input.id
+    ? await conn.getFirstAsync<{ packaging_items: string }>(
+        `SELECT packaging_items FROM products WHERE id = ?`,
+        [input.id],
+      )
+    : null;
+  const packagingItems = input.packagingItems
+    ? JSON.stringify(normalizePackagingItems(input.packagingItems))
+    : (anterior?.packaging_items ?? '[]');
+
+  // A colisão de classificação é lida ANTES de escrever, pela mesma razão que a
+  // trava de estoque: recusar depois de gravar o item deixaria um item órfão, e
+  // recusar pelo índice devolve a mensagem do driver em vez de uma frase.
+  const ocupada = await conn.getFirstAsync<{ name: string }>(
+    `SELECT i.name FROM products p
+       JOIN items i ON i.id = p.item_id
+      WHERE p.company_id = ? AND p.active = 1 AND p.id <> ?
+        AND COALESCE(p.line_id, '') = COALESCE(?, '')
+        AND COALESCE(p.type_id, '') = COALESCE(?, '')
+        AND COALESCE(p.flavor_id, '') = COALESCE(?, '')
+      LIMIT 1`,
+    [
+      companyId,
+      input.id ?? '',
+      input.lineId ?? null,
+      input.typeId ?? null,
+      input.flavorId ?? null,
+    ],
+  );
+  if (ocupada) throw new GridTakenError(ocupada.name);
 
   await conn.withTransactionAsync(async () => {
     itemId = await writeItem(conn, companyId, {
@@ -1622,13 +1789,14 @@ export async function saveProduct(
     productId = input.id ?? newId();
     await conn.runAsync(
       `INSERT INTO products (id, company_id, item_id, recipe_id, yield_per_unit,
-                             unit_packaging_cents, shelf_life_days, active,
+                             unit_packaging_cents, packaging_items, shelf_life_days, active,
                              line_id, type_id, flavor_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          recipe_id = excluded.recipe_id,
          yield_per_unit = excluded.yield_per_unit,
          unit_packaging_cents = excluded.unit_packaging_cents,
+         packaging_items = excluded.packaging_items,
          shelf_life_days = excluded.shelf_life_days,
          line_id = excluded.line_id,
          type_id = excluded.type_id,
@@ -1640,6 +1808,7 @@ export async function saveProduct(
         input.recipeId,
         input.yieldPerUnit,
         input.unitPackagingCents,
+        packagingItems,
         input.shelfLifeDays ?? null,
         input.lineId ?? null,
         input.typeId ?? null,

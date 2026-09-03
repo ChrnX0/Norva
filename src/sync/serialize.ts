@@ -219,7 +219,11 @@ const CROSSINGS: Record<
       'type_id',
       'flavor_id',
     ],
-    build: (row) => ({ active: flag(row.active) }),
+    // A lista de embalagem é `jsonb` do outro lado e texto aqui, como a
+    // hierarquia de `items`: mandada crua, o Postgres guarda uma string entre
+    // aspas onde deveria haver lista, aceita sem reclamar, e o consumo do outro
+    // lado passa a somar nada.
+    build: (row) => ({ active: flag(row.active), packaging_items: structure(row.packaging_items) }),
   },
 
   // O lote atravessa antes do movimento que o cita, e a fila cuida disso

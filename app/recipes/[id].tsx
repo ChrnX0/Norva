@@ -23,6 +23,7 @@ import {
   costPerProductUnit,
   costRecipe,
   MissingRecipeError,
+  packagingRatePerUnit,
   RecipeCycleError,
   unitsPerBatch,
   type ItemCosts,
@@ -62,6 +63,8 @@ type Loaded = {
   /** How much of the batch becomes one sellable unit, if a product says so. */
   yieldPerUnit: number | null;
   unitPackagingCents: Cents;
+  /** A embalagem que sai do estoque, para o custo cotado bater com o congelado. */
+  packagingItems: { itemId: string; name: string; quantityPerUnit: number }[];
   packaging: { id: string; perBaseUnit: number }[];
 };
 
@@ -105,6 +108,7 @@ function RecipeEditor() {
         .map((i) => ({ id: i.id, name: i.name, baseUnit: i.baseUnit })),
       yieldPerUnit: product?.yieldPerUnit ?? null,
       unitPackagingCents: (product?.unitPackagingCents ?? 0) as Cents,
+      packagingItems: product?.packagingItems ?? [],
       packaging: product?.packaging.tiers ?? [{ id: 'unit', perBaseUnit: 1 }],
     };
   }, params.id ?? '');
@@ -197,7 +201,10 @@ function RecipeEditor() {
 
       const hasPortion = Number.isFinite(portion) && portion > 0;
       const unitCents = hasPortion
-        ? costPerProductUnit(cost, portion, data.unitPackagingCents)
+        ? costPerProductUnit(cost, portion, {
+            cents: data.unitPackagingCents,
+            itemsRate: packagingRatePerUnit(data.packagingItems, data.costs),
+          })
         : null;
       const units = hasPortion ? unitsPerBatch(cost, portion) : 0;
       const boxTier = data.packaging.find((t) => t.perBaseUnit > 1);

@@ -12,7 +12,7 @@ import {
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
-import { costPerProductUnit, costRecipe, unitsPerBatch } from '@/domain/recipe';
+import { costPerProductUnit, packagingRatePerUnit, costRecipe, unitsPerBatch } from '@/domain/recipe';
 import { fill, formatMoney, formatPacked, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -76,7 +76,10 @@ function ProductsList() {
         id: product.id,
         name: product.name,
         recipeId: product.recipeId,
-        unitCents: costPerProductUnit(cost, product.yieldPerUnit, product.unitPackagingCents),
+        unitCents: costPerProductUnit(cost, product.yieldPerUnit, {
+          cents: product.unitPackagingCents,
+          itemsRate: packagingRatePerUnit(product.packagingItems, costs),
+        }),
         detail: fill(t.app.products.batchYields, {
           units: formatQuantity(units, locale),
           packed,

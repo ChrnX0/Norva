@@ -529,7 +529,38 @@ ALTER TABLE locations ADD COLUMN delivery_days INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE locations ADD COLUMN agreement_note TEXT;
 `;
 
-const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12];
+/**
+ * O palito sai do estoque.
+ *
+ * Até aqui a embalagem era um valor DIGITADO no produto (`unit_packaging_cents`),
+ * e palito e saquinho eram itens comprados por nota: o custo saía certo e o
+ * saldo de palito só subia. A cura está escrita em `docs/insights.md` desde o
+ * dia em que o custo congelado foi corrigido — "ligar produto → itens de
+ * embalagem, com quantidade por unidade" —, e é isto.
+ *
+ * A quantidade é POR UNIDADE PRODUZIDA, e é essa a diferença que a torna uma
+ * coisa nova em vez de mais uma linha de receita: o tacho se espalha pelas
+ * unidades que saíram (meio tacho rende metade), mas um palito é um palito tenha
+ * a corrida rendido 400 ou 500. Como linha de receita, o consumo de palito
+ * encolheria junto com o rendimento — e um palito e meio não existe.
+ *
+ * Lista na própria linha, e não tabela à parte, pelo mesmo motivo que
+ * `items.packaging` já é: a lista é curta, é reescrita inteira, e não tem
+ * histórico próprio — o histórico é o consumo que cada corrida gravou, com a
+ * taxa congelada. Tabela à parte exigiria enfileirar exclusão, e o motor de
+ * sincronia deste app só sabe enviar linha (`upsert`); inventar o verbo para
+ * guardar cadastro seria pagar caro no caminho de escrita por uma vantagem que
+ * não existe.
+ *
+ * `unit_packaging_cents` continua e não é duplicidade: passa a ser o que NÃO
+ * está listado. Quem não quer contar palito no estoque digita o valor e segue;
+ * quem quer, lista os itens. Os dois caminhos existem.
+ */
+const V13 = `
+ALTER TABLE products ADD COLUMN packaging_items TEXT NOT NULL DEFAULT '[]';
+`;
+
+const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13];
 
 export type SqlParam = string | number | null;
 

@@ -153,6 +153,18 @@ function Production() {
     if (!selected?.recipeId || !data || !recipe || consumedBatches <= 0 || units <= 0) return null;
 
     const needed = explodeRequirements(selected.recipeId, consumedBatches, data.graph);
+
+    // A embalagem listada entra na prévia pela mesma conta que o livro-razão vai
+    // fazer: por unidade, não por tacho.
+    //
+    // Sem isto a tela mentiria duas vezes na mesma corrida - "vai baixar do
+    // estoque" esconderia o palito, e o custo previsto sairia menor que o
+    // congelado. Quem opera compara os dois números; quem confere, um mês depois,
+    // acha a diferença sem explicação.
+    for (const linha of selected.packagingItems) {
+      needed.set(linha.itemId, (needed.get(linha.itemId) ?? 0) + linha.quantityPerUnit * units);
+    }
+
     const lines = [...needed].map(([itemId, baseUnits]) => {
       const item = data.items.find((i) => i.id === itemId);
       return {
@@ -168,7 +180,8 @@ function Production() {
     const value = lines.reduce((sum, l) => sum + l.rate * l.baseUnits, 0);
     const short = lines.filter((l) => l.held < l.baseUnits);
 
-    // Mesmo número que o livro-razão vai congelar: receita mais embalagem.
+    // Mesmo número que o livro-razão vai congelar: o consumo (que agora inclui a
+    // embalagem que sai do estoque) mais o que foi digitado à mão.
     const packaging = selected.unitPackagingCents;
     return { lines, unitCostRate: value / units + packaging, short };
   }, [selected, recipe, data, consumedBatches, units]);

@@ -12,7 +12,7 @@ import {
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
-import { costPerProductUnit, costRecipe, RecipeCycleError } from '@/domain/recipe';
+import { costPerProductUnit, packagingRatePerUnit, costRecipe, RecipeCycleError } from '@/domain/recipe';
 import { fill, formatMoney } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -70,7 +70,10 @@ function RecipesList() {
         const figure =
           product?.yieldPerUnit
             ? formatMoney(
-                costPerProductUnit(cost, product.yieldPerUnit, product.unitPackagingCents),
+                costPerProductUnit(cost, product.yieldPerUnit, {
+                  cents: product.unitPackagingCents,
+                  itemsRate: packagingRatePerUnit(product.packagingItems, costs),
+                }),
                 locale,
               )
             : formatMoney(Math.round(cost.perYieldUnit * 1_000), locale);

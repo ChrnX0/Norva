@@ -3,7 +3,7 @@ import { dayWindow } from '@/domain/day';
 import { packSize } from '@/domain/measure';
 import { purchaseToBaseUnits } from '@/data/repository';
 import { fromDecimal } from '@/domain/money';
-import { costPerProductUnit, costRecipe } from '@/domain/recipe';
+import { costPerProductUnit, costRecipe, packagingRatePerUnit } from '@/domain/recipe';
 import { formatDayMonth, formatMoney, formatQuantity } from '@/i18n';
 import { findByName, movePhrase, namesakes, normalize, parseNumber } from './text';
 import type { Answer, Skill, SkillContext } from './types';
@@ -55,7 +55,10 @@ const costOfProduct: Skill = {
     const product = findByName(products, term);
     if (product?.recipeId && product.yieldPerUnit) {
       const cost = costRecipe(product.recipeId, graph, costs, names);
-      const unit = costPerProductUnit(cost, product.yieldPerUnit, product.unitPackagingCents);
+      const unit = costPerProductUnit(cost, product.yieldPerUnit, {
+        cents: product.unitPackagingCents,
+        itemsRate: packagingRatePerUnit(product.packagingItems, costs),
+      });
       const mix = costPerProductUnit(cost, product.yieldPerUnit);
 
       return {

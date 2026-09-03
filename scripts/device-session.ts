@@ -115,12 +115,21 @@ async function main() {
 
   // E um produto que a usa, porque uma grade que não chega presa a um produto
   // atravessa sem provar que as três colunas novas atravessam.
+  const palito = items.find((i) => i.name.includes('Palito'));
+  if (!palito) throw new Error('the starter data has no stick');
+
   await saveProduct(LOCAL_COMPANY_ID, {
     name: 'Picolé Tradicional de Morango',
     kind: 'product',
     recipeId: null,
     yieldPerUnit: null,
     unitPackagingCents: fromDecimal(0.05),
+    // A lista de embalagem atravessa como `jsonb` do outro lado. Mandada crua,
+    // o Postgres guardaria uma string entre aspas onde deveria haver lista - e o
+    // consumo do outro lado passaria a somar nada, sem uma reclamação. É o mesmo
+    // defeito que a hierarquia de `items` já teve, e a única forma de provar que
+    // não voltou é uma linha de verdade atravessando a fila.
+    packagingItems: [{ itemId: palito.id, quantityPerUnit: 1 }],
     packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }] },
     lineId: linha,
     typeId: tipo,

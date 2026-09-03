@@ -21,7 +21,7 @@ import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { fromDecimal, rate, type Rate } from '@/domain/money';
 import { applyCostEvent, judgePriceChange } from '@/domain/cost';
-import { costPerProductUnit, costRecipe } from '@/domain/recipe';
+import { costPerProductUnit, packagingRatePerUnit, costRecipe } from '@/domain/recipe';
 import { parseTyped } from '@/domain/number';
 import { fill, formatMoney, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -364,7 +364,10 @@ async function recordAndMeasure(
       const cost = costRecipe(product.recipeId, recipesBefore, costs, names);
       return {
         name: product.name,
-        value: costPerProductUnit(cost, product.yieldPerUnit, product.unitPackagingCents),
+        value: costPerProductUnit(cost, product.yieldPerUnit, {
+          cents: product.unitPackagingCents,
+          itemsRate: packagingRatePerUnit(product.packagingItems, costs),
+        }),
       };
     });
 

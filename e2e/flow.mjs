@@ -706,6 +706,129 @@ check('production pre-fills what the sheet promises, and records what happened',
   assert.match(stock, /22\.000 g/, 'the pulp came down by exactly one kettle');
 });
 
+check('a second unclassified product is refused with a sentence, not with SQLite', async (page) => {
+  // O exemplo semeado tem um produto sem linha, tipo nem sabor. O índice único
+  // da grade trata nulo como valor - decisão registrada na migração 0018, "o
+  // mesmo produto não se cadastra duas vezes" -, então o segundo produto sem
+  // classificação é recusado.
+  //
+  // Esta checagem existe porque a recusa chegava como "Error finalizing
+  // statement" num diálogo, depois de a pessoa digitar tudo. Nenhuma checagem
+  // cadastrava produto pela tela, então o caminho inteiro estava sem cobertura -
+  // exatamente o buraco que o CLAUDE.md descreve: passa na unidade, quebra no
+  // navegador.
+  await page.goto(`http://localhost:${PORT}/products/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel('Nome').first().fill('Picolé sem classificação');
+  await page.waitForTimeout(400);
+  await page.getByText('Picolé de morango', { exact: true }).first().click();
+  await page.waitForTimeout(700);
+
+  const tela = await screen(page);
+  assert.match(
+    tela,
+    /Já existe .* com essa classificação/,
+    'a tela diz o que está ocupado antes de a pessoa tentar salvar',
+  );
+  assert.match(tela, /catálogo fica em Ajustes/, 'e diz onde é a saída');
+  assert.doesNotMatch(tela, /finalizing statement/, 'sem jargão de driver na cara do dono');
+});
+
+check('a listed stick leaves the storeroom when the run is recorded', async (page) => {
+  // O defeito que esta checagem prova consertado: o palito só subia. O custo já
+  // somava a embalagem desde a correção da produção, mas nenhum movimento tirava
+  // palito do almoxarifado - e isso só se vê ligando o cadastro do produto à
+  // corrida, do navegador, como o dono faz.
+  const naFabrica = async () => {
+    await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2500);
+    const texto = await screen(page);
+    const achado = texto.match(/Palito de picolé[\s\S]{0,80}?([\d.]+)\s*un/);
+    assert.ok(achado, 'o palito tem que aparecer no estoque da fábrica');
+    return Number(achado[1].replace(/\./g, ''));
+  };
+
+  const antes = await naFabrica();
+  assert.ok(antes > 200, 'o exemplo semeado comprou palito');
+
+  // A grade primeiro, porque o produto novo precisa de classificação própria - e
+  // é o caminho que o dono percorre no primeiro dia.
+  await page.goto(`http://localhost:${PORT}/catalog`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel('Nova linha').first().fill('Picolé');
+  await page.waitForTimeout(300);
+  await page.getByText('Nova linha', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+  await page.getByLabel('Novo sabor').first().fill('Uva');
+  await page.waitForTimeout(300);
+  await page.getByText('Novo sabor', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  // Um produto que declara o palito: um por unidade, escolhido na lista.
+  await page.goto(`http://localhost:${PORT}/products/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Picolé', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByText('Uva', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByText('Picolé de morango', { exact: true }).first().click();
+  await page.waitForTimeout(700);
+
+  const cadastrando = await screen(page);
+  assert.match(cadastrando, /O que sai do estoque por unidade/);
+  assert.doesNotMatch(cadastrando, /Já existe .* com essa classificação/);
+
+  await page.getByLabel('Palito de picolé', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+  const listado = await screen(page);
+  assert.match(listado, /Quanto de Palito de picolé por unidade/i);
+  assert.match(
+    listado,
+    /a embalagem listada custa R\$ \d+,\d\d por unidade/,
+    'o custo da embalagem listada sai das notas de compra, não de um valor digitado',
+  );
+
+  // E a conta aberta FECHA. Com a embalagem listada somando por fora, a tela
+  // dizia "R$ 0,59 de massa + R$ 0,05 de embalagem" embaixo de R$ 0,66.
+  const conta = listado.match(
+    /R\$ ([\d,]+) \| R\$ ([\d,]+) de massa \+ R\$ ([\d,]+) de embalagem do estoque \+ R\$ ([\d,]+) digitado/,
+  );
+  assert.ok(conta, 'a conta do custo por unidade tem que estar aberta na tela');
+  const centavos = (texto) => Math.round(Number(texto.replace(',', '.')) * 100);
+  assert.equal(
+    centavos(conta[1]),
+    centavos(conta[2]) + centavos(conta[3]) + centavos(conta[4]),
+    'a soma das partes tem que dar o total que a tela anuncia',
+  );
+
+  await page.getByText('Cadastrar produto', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  const confirmando = await screen(page);
+  assert.match(confirmando, /Cadastrar este produto\?/);
+  await page.getByText('Cadastrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+  assert.doesNotMatch(await screen(page), /Não deu para cadastrar/);
+
+  // E a corrida gasta um palito por unidade.
+  await page.goto(`http://localhost:${PORT}/production/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Picolé de Uva', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+
+  const produzindo = await screen(page);
+  assert.match(produzindo, /Palito de picolé/, 'a tela avisa que a corrida vai pedir palito');
+
+  await page.getByLabel(/Quantas unidades/).fill('100');
+  await page.waitForTimeout(700);
+  await page.getByText('Registrar produção', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  const depois = await naFabrica();
+  assert.equal(depois, antes - 100, 'cem unidades gastam cem palitos');
+});
+
 check('a decimal typed with a dot is the same money as one typed with a comma', async (page) => {
   // Every number this suite ever typed was a whole one - `4`, `700`, `480`,
   // `46000` - so the separator was virgin territory while four screens deleted
@@ -1234,6 +1357,17 @@ try {
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
 
+    // O que o NAVEGADOR reclamou, guardado para o caso de a checagem falhar.
+    //
+    // Existe por causa de um erro real: o SQLite da web recusou uma gravação com
+    // "Error finalizing statement" - a mensagem que o driver mostra depois de
+    // perder a de verdade. A suíte de unidade usa outro SQLite e passava. Sem o
+    // console do navegador na mão, o único caminho era adivinhar.
+    const console_ = [];
+    page.on('console', (m) => {
+      if (m.type() === 'error' || m.type() === 'warning') console_.push(`${m.type()}: ${m.text()}`);
+    });
+
     try {
       await fn(page);
       assert.deepEqual(errors, [], 'the console must be clean');
@@ -1242,6 +1376,7 @@ try {
       failures += 1;
       console.log(`  FAIL ${name}`);
       console.log(`       ${error.message.split('\n').slice(0, 6).join('\n       ')}`);
+      for (const linha of console_.slice(-8)) console.log(`       browser ${linha}`);
     } finally {
       await context.close();
     }

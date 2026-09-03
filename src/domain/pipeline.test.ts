@@ -119,7 +119,7 @@ test('the buyer sees the move against the last invoice, not against the average'
 test('packaging is charged per unit, never smeared across the batch', () => {
   const cost = costRecipe('popsicle', recipes, costs);
   const bare = costPerProductUnit(cost, 75);
-  const wrapped = costPerProductUnit(cost, 75, fromDecimal(0.05) as Cents);
+  const wrapped = costPerProductUnit(cost, 75, { cents: fromDecimal(0.05) as Cents });
 
   assert.equal(wrapped - bare, 5);
 
@@ -236,11 +236,10 @@ test('the price moves land on the finished unit, in reais', () => {
     { itemId: 'sugar', previousRate: rate(4.72, 1_000), observedAt: '2026-08-28T10:00:00Z' },
   ];
 
-  const unitNow = costPerProductUnit(costRecipe('base', graph, now, names), 75, 0 as Cents);
+  const unitNow = costPerProductUnit(costRecipe('base', graph, now, names), 75);
   const unitBefore = costPerProductUnit(
     costRecipe('base', graph, ratesBefore(now, moves), names),
     75,
-    0 as Cents,
   );
 
   // Now:    3000 x 1.495 + 1500 x 0.590 = 4485 + 885 = 5370 cents per 10 L

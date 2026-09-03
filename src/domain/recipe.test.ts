@@ -226,7 +226,7 @@ test('a recipe that contains itself raises instead of hanging', () => {
 test('product cost adds per-unit packaging on top of the mix', () => {
   const cost = costRecipe('strawberry', recipes, itemCosts);
   const packaging = cents(itemCosts.stick + itemCosts.wrapper);
-  const perUnit = costPerProductUnit(cost, 75, packaging);
+  const perUnit = costPerProductUnit(cost, 75, { cents: packaging });
   const mixOnly = costPerProductUnit(cost, 75);
 
   assert.equal(perUnit - mixOnly, packaging);

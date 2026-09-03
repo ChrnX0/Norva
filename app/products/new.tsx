@@ -8,8 +8,11 @@ import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
 import {
+  GridTakenError,
   itemCosts,
+  listProducts,
   labels as loadLabels,
+  listItems,
   listRecipes,
   loadRecipeGraph,
   listLines,
@@ -18,13 +21,22 @@ import {
   type Flavor,
   type ProductLine,
   type ProductType,
+  type ItemWithCost,
+  type Product,
   saveProduct,
   type RecipeSummary,
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { fromDecimal } from '@/domain/money';
-import { costPerProductUnit, costRecipe, unitsPerBatch, type ItemCosts, type Recipe } from '@/domain/recipe';
+import {
+  costPerProductUnit,
+  costRecipe,
+  packagingRatePerUnit,
+  unitsPerBatch,
+  type ItemCosts,
+  type Recipe,
+} from '@/domain/recipe';
 import { type PackagingHierarchy } from '@/domain/units';
 import { parseTyped } from '@/domain/number';
 import { fill, formatMoney, formatQuantity } from '@/i18n';
@@ -59,6 +71,10 @@ type Loaded = {
   graph: Record<string, Recipe>;
   costs: ItemCosts;
   labels: Record<string, string>;
+  /** Palito, saquinho, caixa: o que pode sair do estoque por unidade. */
+  wrappings: ItemWithCost[];
+  /** O que já existe, para a tela impedir a classificação ocupada em vez de reclamar. */
+  products: Product[];
   lines: ProductLine[];
   types: ProductType[];
   flavors: Flavor[];
@@ -71,7 +87,8 @@ function ProductForm() {
   const { locale, t } = useLocale();
 
   const { data, loading } = useQuery<Loaded>(async () => {
-    const [recipes, graph, costs, labels, lines, types, flavors] = await Promise.all([
+    const [recipes, graph, costs, labels, lines, types, flavors, items, products] =
+      await Promise.all([
       listRecipes(LOCAL_COMPANY_ID),
       loadRecipeGraph(LOCAL_COMPANY_ID),
       itemCosts(LOCAL_COMPANY_ID),
@@ -79,8 +96,11 @@ function ProductForm() {
       listLines(LOCAL_COMPANY_ID),
       listTypes(LOCAL_COMPANY_ID),
       listFlavors(LOCAL_COMPANY_ID),
+      listItems(LOCAL_COMPANY_ID),
+      listProducts(LOCAL_COMPANY_ID),
     ]);
-    return { recipes, graph, costs, labels, lines, types, flavors };
+    const wrappings = items.filter((i) => i.kind === 'packaging');
+    return { recipes, graph, costs, labels, lines, types, flavors, wrappings, products };
   });
 
   const [kind, setKind] = useState<Kind>('product');
@@ -92,6 +112,14 @@ function ProductForm() {
   const [recipeId, setRecipeId] = useState<string | null>(null);
   const [perUnit, setPerUnit] = useState('75');
   const [packagingCost, setPackagingCost] = useState('0,05');
+  /**
+   * A embalagem que sai do estoque, por unidade.
+   *
+   * Vazia é o padrão e é legítima: quem não quer contar palito digita o valor
+   * acima e segue. Quem lista, vê o palito descer do almoxarifado a cada corrida
+   * — que é o defeito que esta lista existe para consertar.
+   */
+  const [wrappings, setWrappings] = useState<{ itemId: string; quantityPerUnit: string }[]>([]);
   const [perBox, setPerBox] = useState('50');
   const [perCrate, setPerCrate] = useState('6');
   const [shelfLife, setShelfLife] = useState('');
@@ -132,6 +160,22 @@ function ProductForm() {
       .join(' = ');
   }, [hierarchy, locale, t]);
 
+  /**
+   * A lista pronta para a conta e para gravar.
+   *
+   * Linha sem número ainda não é linha: quem acabou de tocar em "palito" e não
+   * digitou a quantidade não quer consumir zero palito, quer terminar de
+   * digitar. Deixar a linha fora até ela ter número é o que evita a corrida
+   * gravar consumo de nada.
+   */
+  const chosenWrappings = useMemo(
+    () =>
+      wrappings
+        .map((linha) => ({ itemId: linha.itemId, quantityPerUnit: num(linha.quantityPerUnit) }))
+        .filter((linha) => Number.isFinite(linha.quantityPerUnit) && linha.quantityPerUnit > 0),
+    [wrappings],
+  );
+
   const costing = useMemo(() => {
     if (kind === 'resale' || !data || !chosenRecipe) return null;
 
@@ -140,14 +184,67 @@ function ProductForm() {
 
     const packagingCents = fromDecimal(num(packagingCost) || 0);
     const cost = costRecipe(chosenRecipe, data.graph, data.costs, data.labels);
-    const unit = costPerProductUnit(cost, portion, packagingCents);
+
+    // O que a lista de embalagem custa, cotada pelas notas de compra. Some junto
+    // com o valor digitado porque as duas metades são reais: uma sai do estoque,
+    // a outra é o que ninguém quis transformar em item.
+    const itemsRate = packagingRatePerUnit(chosenWrappings, data.costs);
+    const unit = costPerProductUnit(cost, portion, { cents: packagingCents, itemsRate });
     const units = unitsPerBatch(cost, portion);
 
-    return { cost, unit, units, packagingCents, mixOnly: costPerProductUnit(cost, portion) };
-  }, [kind, data, chosenRecipe, perUnit, packagingCost]);
+    return {
+      cost,
+      unit,
+      units,
+      packagingCents,
+      itemsRate,
+      mixOnly: costPerProductUnit(cost, portion),
+    };
+  }, [kind, data, chosenRecipe, perUnit, packagingCost, chosenWrappings]);
 
+  const linha = data?.lines.find((l) => l.id === lineId) ?? null;
+  const tipo = data?.types.find((x) => x.id === typeId) ?? null;
+  const sabor = data?.flavors.find((f) => f.id === flavorId) ?? null;
+  const composed = (() => {
+    if (nameTyped && name.trim()) return name;
+    if (!linha) return name;
+    const chave =
+      tipo && sabor
+        ? t.app.catalog.composed
+        : sabor
+          ? t.app.catalog.composedNoType
+          : tipo
+            ? t.app.catalog.composedNoFlavor
+            : '';
+    if (!chave) return linha.name;
+    return fill(chave, { line: linha.name, type: tipo?.name ?? '', flavor: sabor?.name ?? '' });
+  })();
+
+  /**
+   * O produto que já ocupa esta classificação, se houver.
+   *
+   * Lei 5: o erro impede, não reclama. O banco recusa isto por índice único - e
+   * a recusa dele chega como jargão de driver depois de a pessoa ter digitado
+   * tudo. Saber aqui é o que transforma um diálogo de erro numa frase antes do
+   * gesto. A regra continua no caminho de escrita, porque tela é decoração.
+   */
+  const ocupada = (data?.products ?? []).find(
+    (p) =>
+      (p.lineId ?? '') === (lineId ?? '') &&
+      (p.typeId ?? '') === (typeId ?? '') &&
+      (p.flavorId ?? '') === (flavorId ?? ''),
+  );
+
+  // O nome que vale é o COMPOSTO, que é o que a tela mostra no campo.
+  //
+  // Olhando o nome digitado, um produto classificado só pela grade - linha,
+  // tipo, sabor, sem ninguém digitar nada - mostrava "Picolé de Uva" no campo e
+  // deixava o botão morto. Botão que não obedece é pior que botão ausente: a
+  // pessoa toca, nada acontece, e não há frase nenhuma para ler.
   const canSave =
-    name.trim().length > 0 && (kind === 'resale' || (chosenRecipe !== null && num(perUnit) > 0));
+    composed.trim().length > 0 &&
+    ocupada === undefined &&
+    (kind === 'resale' || (chosenRecipe !== null && num(perUnit) > 0));
 
   const onSave = async () => {
     if (!canSave) return;
@@ -181,6 +278,7 @@ function ProductForm() {
         recipeId: kind === 'product' ? chosenRecipe : null,
         yieldPerUnit: kind === 'product' ? num(perUnit) : null,
         unitPackagingCents: fromDecimal(num(packagingCost) || 0),
+        packagingItems: chosenWrappings,
         shelfLifeDays: num(shelfLife) || null,
         packaging: hierarchy,
       });
@@ -188,7 +286,14 @@ function ProductForm() {
     } catch (e) {
       await confirm({
         title: t.app.productForm.failed,
-        message: e instanceof Error ? e.message : String(e),
+        // A recusa por classificação ocupada tem frase própria, com a saída
+        // dentro. Sem isto o dono lê "Error finalizing statement" e desiste.
+        message:
+          e instanceof GridTakenError
+            ? fill(t.app.productForm.gridTaken, { name: e.existing })
+            : e instanceof Error
+              ? e.message
+              : String(e),
         acknowledge: true,
         confirmLabel: t.app.confirm.understood,
       });
@@ -197,9 +302,6 @@ function ProductForm() {
     }
   };
 
-  const linha = data?.lines.find((l) => l.id === lineId) ?? null;
-  const tipo = data?.types.find((x) => x.id === typeId) ?? null;
-  const sabor = data?.flavors.find((f) => f.id === flavorId) ?? null;
   const tiposDaLinha = (data?.types ?? []).filter((x) => x.lineId === lineId);
 
   /**
@@ -211,20 +313,6 @@ function ProductForm() {
    * idioma. Quem digitou um nome à mão continua com o nome que digitou: a
    * dedução sugere, não sobrescreve.
    */
-  const composed = (() => {
-    if (nameTyped && name.trim()) return name;
-    if (!linha) return name;
-    const chave =
-      tipo && sabor
-        ? t.app.catalog.composed
-        : sabor
-          ? t.app.catalog.composedNoType
-          : tipo
-            ? t.app.catalog.composedNoFlavor
-            : '';
-    if (!chave) return linha.name;
-    return fill(chave, { line: linha.name, type: tipo?.name ?? '', flavor: sabor?.name ?? '' });
-  })();
 
   const chip = (label: string, active: boolean, onPress: () => void, key: string) => (
     <Pressable
@@ -373,6 +461,65 @@ function ProductForm() {
               keyboardType="numeric"
               hint={t.app.productForm.packagingHint}
             />
+
+            {/* A embalagem que SAI DO ESTOQUE.
+                Só aparece quando existe embalagem cadastrada: oferecer a lista
+                numa fábrica que não cadastrou palito é pedir o que o sistema
+                sabe que não existe. */}
+            {(data?.wrappings ?? []).length > 0 ? (
+              <View style={{ gap: space.sm }}>
+                <Text style={[type.caption, { color: color.inkMuted }]}>
+                  {t.app.productForm.fromStock}
+                </Text>
+                {(data?.wrappings ?? []).map((item) => {
+                  const linha = wrappings.find((w) => w.itemId === item.id);
+                  const on = linha !== undefined;
+                  return (
+                    <View key={item.id} style={{ gap: space.xs }}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: on }}
+                        accessibilityLabel={item.name}
+                        onPress={() =>
+                          setWrappings((atual) =>
+                            on
+                              ? atual.filter((w) => w.itemId !== item.id)
+                              : [...atual, { itemId: item.id, quantityPerUnit: '1' }],
+                          )
+                        }
+                      >
+                        <Text style={[type.body, { color: on ? color.ink : color.inkMuted }]}>
+                          {on ? '● ' : '○ '}
+                          {item.name}
+                        </Text>
+                      </Pressable>
+                      {on ? (
+                        <Field
+                          label={fill(t.app.productForm.perUnitOf, { item: item.name })}
+                          value={linha.quantityPerUnit}
+                          onChangeText={(texto) =>
+                            setWrappings((atual) =>
+                              atual.map((w) =>
+                                w.itemId === item.id ? { ...w, quantityPerUnit: texto } : w,
+                              ),
+                            )
+                          }
+                          suffix={item.baseUnit}
+                          keyboardType="numeric"
+                        />
+                      ) : null}
+                    </View>
+                  );
+                })}
+                {costing && costing.itemsRate > 0 ? (
+                  <Text style={[type.caption, { color: color.inkFaint }]}>
+                    {fill(t.app.productForm.fromStockCost, {
+                      amount: formatMoney(Math.round(costing.itemsRate), locale),
+                    })}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
           </View>
         </Card>
       ) : null}
@@ -419,11 +566,22 @@ function ProductForm() {
           <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
             {formatMoney(costing.unit, locale)}
           </Text>
+          {/* Lei 6: toda conclusão abre a conta - e a conta tem que FECHAR.
+              Com a embalagem listada somando por fora, "massa + digitado" deixou
+              de dar o total: R$ 0,59 + R$ 0,05 contra R$ 0,66 na mesma tela. Foi
+              o e2e que pegou, porque só somando os três números da tela aberta
+              é que a diferença aparece. */}
           <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {fill(t.app.productForm.mixPlusPackaging, {
-              mix: formatMoney(costing.mixOnly, locale),
-              packaging: formatMoney(costing.packagingCents, locale),
-            })}
+            {fill(
+              costing.itemsRate > 0
+                ? t.app.productForm.mixPlusBoth
+                : t.app.productForm.mixPlusPackaging,
+              {
+                mix: formatMoney(costing.mixOnly, locale),
+                packaging: formatMoney(costing.packagingCents, locale),
+                stock: formatMoney(Math.round(costing.itemsRate), locale),
+              },
+            )}
           </Text>
           <View style={{ marginTop: space.md }}>
             <Chip
@@ -437,6 +595,15 @@ function ProductForm() {
             />
           </View>
         </Card>
+      ) : null}
+
+      {/* A frase vem ANTES do botão, e o botão fica travado: impedir e mostrar a
+          saída no mesmo gesto. Botão escondido sem explicação é a mesma coisa
+          que erro sem saída - a pessoa fica olhando um botão que não obedece. */}
+      {ocupada ? (
+        <Text style={[type.secondary, { color: color.warning }]}>
+          {fill(t.app.productForm.gridTaken, { name: ocupada.name })}
+        </Text>
       ) : null}
 
       <Button

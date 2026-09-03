@@ -84,6 +84,22 @@ const DEFECTS = [
   },
 
   {
+    file: 'src/data/repository.ts',
+    from: `    const gasto = linha.quantityPerUnit * input.unitsProduced;`,
+    to: `    const gasto = linha.quantityPerUnit * input.batches;`,
+    hurts:
+      'o palito passa a ser gasto por TACHO em vez de por unidade, e a corrida de 500 picoles baixa um palito do almoxarifado',
+  },
+
+  {
+    file: 'src/domain/recipe.ts',
+    from: `      (unitPackaging.itemsRate ?? 0) +`,
+    to: `      0 * (unitPackaging.itemsRate ?? 0) +`,
+    hurts:
+      'as telas cotam o custo sem a embalagem que sai do estoque, e a producao congela um numero maior que o que sete telas prometeram',
+  },
+
+  {
     file: 'src/domain/agreement.ts',
     from: `  for (let ahead = 0; ahead < 7; ahead += 1) {`,
     to: `  for (let ahead = 1; ahead < 7; ahead += 1) {`,

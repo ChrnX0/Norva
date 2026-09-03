@@ -190,18 +190,48 @@ export function costRecipe(
 }
 
 /**
+ * O que a embalagem listada custa por unidade produzida, em centavos fracionários.
+ *
+ * Nunca arredonda: um palito a R$ 0,012 arredondado para inteiro é um palito de
+ * graça ou um palito pela metade, e a corrida de quinhentas unidades erra por R$
+ * 6 — o mesmo defeito que a polpa a R$ 12,40/kg já custou aqui. Quem arredonda é
+ * `costPerProductUnit`, uma vez, no fim.
+ */
+export function packagingRatePerUnit(
+  items: readonly { itemId: string; quantityPerUnit: number }[],
+  rates: Readonly<Record<string, number>>,
+): number {
+  let total = 0;
+  for (const linha of items) total += (rates[linha.itemId] ?? 0) * linha.quantityPerUnit;
+  return total;
+}
+
+/**
  * Cost of one finished unit, given how much of the batch it takes.
  *
  * Packaging that belongs to the individual unit rather than to the batch (the
  * stick, the wrapper) is added here, per unit - which is exactly why it must be
  * possible to say so, instead of smearing it across the mix.
+ *
+ * Ela chega em duas metades, e as duas existem de propósito: `itemsRate` é a
+ * embalagem que SAI DO ESTOQUE, cotada pelas notas de compra, e `cents` é o que
+ * ninguém quis transformar em item — rótulo, fita, o valor que a fábrica digita
+ * e segue. Somar as duas é o número que a produção congela, e é por isso que
+ * este parâmetro é um objeto: um terceiro argumento solto seria esquecido numa
+ * das cinco telas que cotam custo, e a tela passaria a prometer menos do que o
+ * livro-razão guarda. Foi nesse buraco, na direção contrária, que a embalagem já
+ * ficou fora do custo congelado uma vez.
  */
 export function costPerProductUnit(
   recipeCost: RecipeCost,
   yieldPerUnit: number,
-  perUnitPackagingCents: Cents = cents(0),
+  unitPackaging: { cents?: Cents; itemsRate?: number } = {},
 ): Cents {
-  return cents(recipeCost.perYieldUnit * yieldPerUnit + perUnitPackagingCents);
+  return cents(
+    recipeCost.perYieldUnit * yieldPerUnit +
+      (unitPackaging.itemsRate ?? 0) +
+      (unitPackaging.cents ?? 0),
+  );
 }
 
 /** How many finished units one batch produces, before rounding to full boxes. */
