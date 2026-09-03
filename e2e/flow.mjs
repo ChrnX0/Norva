@@ -341,16 +341,63 @@ check('an order is written, and the briefing turns it into what to make', async 
   assert.match(capa, /Produza para os pedidos/);
   assert.match(capa, /300/);
 
-  // E a SEPARAÇÃO: com pedido em aberto para aquela loja, a transferência para
-  // de sugerir o envio da semana passada e passa a sugerir o que foi combinado.
-  // O campo nasce com 300 e a dica diz de onde o número veio - é isso que faz
-  // alguém confiar nele ou corrigi-lo.
+});
+
+check('the picking list beats the habit: the order wins over last time', async (page) => {
+  // Esta checagem existe porque o mutante que inverte a ordem do palpite
+  // sobreviveu duas vezes. Ele só morre com as duas fontes DISCORDANDO: um envio
+  // anterior de 40 e um pedido de 300. Sem essa montagem, inverter a preferência
+  // dá o mesmo número e o teste passa por acidente - que é a definição do teste
+  // que este projeto caça.
+  await page.goto(`http://localhost:${PORT}/production/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Quantas unidades/).fill('500');
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar produção', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Como se chama').fill('Loja Centro');
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  // Uma carga pequena primeiro: é ela que cria o palpite do hábito.
   await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
+  await page.getByLabel(/Picolé de morango/).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Quanto vai').fill('40');
+  await page.waitForTimeout(500);
+  await page.getByText('Registrar a transferência', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Mandar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  // E o pedido depois, com outro número.
+  await page.goto(`http://localhost:${PORT}/orders/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel('Quantidade').fill('300');
+  await page.waitForTimeout(400);
+  await page.getByText('Adicionar ao pedido', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+  await page.getByText('Anotar pedido', { exact: true }).last().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Anotar', { exact: true }).last().click();
+  await page.waitForTimeout(2500);
+
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Picolé de morango/).first().click();
+  await page.waitForTimeout(700);
 
   const separacao = await screen(page);
   assert.match(separacao, /pedido para/, 'a dica diz que o palpite veio do pedido');
-  assert.match(separacao, /300/, 'e o número é o que a loja pediu');
+  assert.match(separacao, /300/, 'e o número é o do pedido, não o dos 40 que foram antes');
 });
 
 check('the assistant answers with the number the engine computed', async (page) => {
