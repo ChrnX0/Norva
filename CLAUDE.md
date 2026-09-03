@@ -247,10 +247,13 @@ está pronto **não é serviço** — é o intervalo entre serviços, e o interv
 preenche com a próxima coisa que precisa existir.
 
 Então, quando um trabalho fecha, a pergunta não é *"tem mais alguma coisa?"* —
-é **qual é a próxima**, e ela já está escrita: o que a Fase 2 e a Fase 3 pedem
-neste arquivo, o que o `docs/insights.md` deixou como dívida, o que o portão de
-item (P1/P2/P3) libera. Se nada disso está de pé, o que sobra ainda é serviço:
-procurar o insight que a diretriz de baixo exige.
+é **qual é a próxima**, e ela está escrita em **`docs/roadmap.md`**. Esse arquivo
+existe porque a lista já esteve espalhada entre as fases deste arquivo, as dívidas
+do `docs/insights.md` e a cabeça de quem trabalhava — e no dia em que o escopo
+fechou, a sessão ficou sem lista tendo trabalho de sobra. Item fechado sai do
+roadmap no mesmo commit que o fecha; item novo entra com `arquivo:linha`. Se nada
+lá está de pé, o que sobra ainda é serviço: procurar o insight que a diretriz de
+baixo exige.
 
 Três coisas que **não** contam como ficar ocupado, para a regra não virar
 desculpa para barulho:
