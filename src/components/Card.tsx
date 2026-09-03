@@ -58,12 +58,24 @@ export function Card({
    * da aba correspondente: quem vê laranja sabe que é produção antes de ler.
    */
   hue?: string;
-  /** O desenho do assunto, num crachá redondo. Recebe a cor já resolvida. */
-  icon?: (color: string) => ReactNode;
-  /** O título, que fica ao lado do crachá. Sem ícone ele não aparece. */
-  title?: string;
   style?: ViewStyle;
-}) {
+} & (
+  | {
+      /** O desenho do assunto, num crachá redondo. Recebe a cor já resolvida. */
+      icon: (color: string) => ReactNode;
+      /** O título, ao lado do crachá. */
+      title?: string;
+    }
+  | {
+      // Cartão sem cabeça: o conteúdo fala por si. Título aqui seria escrito e
+      // não desenhado — o cabeçalho inteiro só existe quando há ícone, e um
+      // `title` sozinho sumia em silêncio. Dezoito telas estão sendo
+      // reescritas com este componente, e "sumiu e ninguém viu" é o defeito
+      // que mais se multiplica numa reescrita larga.
+      icon?: undefined;
+      title?: undefined;
+    }
+)) {
   const { color, scheme, radius, space, type, accent } = useTheme();
 
   const toneColor =

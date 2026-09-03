@@ -42,7 +42,14 @@ export function Peca({
   index?: number;
   hue?: string;
   tone?: 'plain' | 'area' | 'warning';
-  icon?: (color: string) => ReactNode;
+  /**
+   * O crachá do assunto. Obrigatório, ao contrário do `Card`.
+   *
+   * Peça é sempre um assunto da capa — "as perdas", "o dinheiro parado" — e um
+   * assunto sem desenho vira mais um parágrafo cinza, que é o que o dono
+   * recusou. O cartão cru continua podendo não ter ícone; a peça, não.
+   */
+  icon: (color: string) => ReactNode;
   title?: string;
   aberta: boolean;
   onToggle: () => void;

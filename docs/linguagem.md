@@ -1,0 +1,124 @@
+# A língua visual do NORVA
+
+**Por que este arquivo existe.** A capa foi redesenhada primeiro e sozinha. O
+dono navegou para a segunda tela e disse o que viu: *"os temas antigo e os novos
+estão se sobrepondo"*. Não era bug de tema — era **uma tela nova e vinte
+antigas**, e a costura entre elas é o que parece dois aplicativos.
+
+Este arquivo é o que impede que a correção disso produza vinte dialetos. O que
+está aqui é **descrição do que a capa já faz**, não invenção: cada regra abaixo
+aponta para o código que a executa hoje.
+
+A guarda que mede isto é `src/language.test.ts`, e ela tem a lista das telas que
+ainda faltam. A lista só encolhe.
+
+---
+
+## A ordem que vem antes de todas
+
+**Destrói-se o layout antigo para pôr o novo por cima.** Nunca se acrescenta um
+caminho novo ao lado do velho.
+
+Isto é decisão do dono, dita depois de o erro acontecer: a cena do céu ganhou um
+*ramo* para o Papel em vez de ser substituída, e o resultado foi um gradiente do
+Orgânico aparecendo dentro do Papel. Dois caminhos vivos para a mesma coisa
+sempre acabam com os dois na tela.
+
+Converter uma tela é **reescrever o corpo dela**, não embrulhar o que existia.
+
+---
+
+## A anatomia de uma tela
+
+Na ordem em que o olho encontra:
+
+1. **`CollapsingHeader`** com `title` e `overline`. O título é o assunto em duas
+   ou três palavras; a sobrelinha é o que a tela responde, em caixa alta e uma
+   linha só — ela é truncada, então nada que importe mora nela.
+2. **`AreaProvider area="…"`** envolvendo a tela inteira. É de onde sai o
+   `accent`, e é o que faz a aba, o cabeçalho e os cartões concordarem.
+3. **Cascata de `Reveal index={n}`**, um por bloco, começando em 0 e sem pular
+   número. É a entrada: sobe catorze pixels e aparece, quarenta milissegundos
+   entre um e o próximo. Movimento nunca atrasa informação — a leitura de tela
+   recebe tudo montado no primeiro quadro.
+4. **`Card` com `hue` + `icon` + `title`** para cada assunto. Fundo lavado de 8 a
+   13% do tom, borda inteira na mesma cor, trilho à esquerda mais forte. Um
+   `title` sem `icon` não compila: o cabeçalho do cartão só existe com o crachá.
+5. **A ação provável, embaixo.** Um `Button` primário só; o resto é fantasma.
+   Corrigir, apagar e estornar são sempre fantasma — botão grande e colorido
+   convida, e ninguém deve ser convidado a desfazer.
+
+## As duas famílias de desenho
+
+- **`Glyph*`** (`src/components/Glyph.tsx`) — duas camadas: massa preenchida em
+  opacidade baixa e traço por cima. É o crachá do cartão e o assunto de uma
+  linha grande. `size={26}`.
+- **`Icon*`** (`src/components/icons.tsx`) — traço fino de 1,6 numa grade de 24.
+  É a barra de abas, o chevron, o ícone de linha de lista. `size={18}` a `26`.
+
+Trocar as duas é o erro que o dono já apontou: glifo gordo na barra de abas vira
+fileira de manchas; ícone fino como crachá some dentro do círculo pastel.
+
+**A espessura é da identidade, não do ícone:**
+
+```tsx
+const { skin } = useTheme();
+const traco = skin === 'papel' ? 1.7 : 2.2;
+// …
+icon={(c) => <GlyphStock size={26} color={c} weight={traco} />}
+```
+
+Abaixo de 2 a massa some sozinha (`massIf`): o Papel é só linha, e é assim que
+ele foi escolhido.
+
+## A cor
+
+Toda cor sai de `useTheme()`. Nenhuma tela escreve hexadecimal — a única exceção
+registrada é a etiqueta do lote, que é papel branco com tinta preta em qualquer
+tema porque é o que sai da impressora.
+
+O `hue` de um cartão é o tom do **assunto**, e o assunto tem tom fixo em todo o
+aplicativo, que é o mesmo da aba correspondente:
+
+| assunto | tom |
+|---|---|
+| produção, tacho, lote | `palette.apricot` |
+| transporte, caixa, remessa | `palette.lilac` |
+| insumo, estoque, almoxarifado | `palette.mint` |
+| pedido, cliente, acordo | `palette.sage` |
+| dinheiro, custo, preço | `palette.sky` |
+| perda, vencimento | `color.danger` / `color.warning` |
+
+Quem vê laranja sabe que é produção antes de ler.
+
+## As cenas
+
+Cena é ilustração larga no topo de um cartão (`Landscape`, `FactoryScene`,
+`SkyScene`). **Elas se ganham, não se distribuem.** Uma tela tem cena quando o
+desenho *responde alguma coisa* — a paisagem da capa é a previsão de verdade, a
+linha de produção mostra o tacho rodando e a caixa enchendo.
+
+Cena que só enfeita é o mesmo defeito do alerta inventado: ensina a ignorar.
+
+## Números
+
+Toda figura grande responde com o que se compara ao lado — Lei 3, e
+`src/law.test.ts` conta uma declaração por número. Contagem regressiva compara
+com o próprio limite; estado ao vivo responde "o que está diferente agora"; e
+quando não há o que comparar, o motivo fica escrito.
+
+## Estado vazio
+
+Não é uma frase cinza no meio da tela. É **desenho + uma frase + a próxima
+ação** — "está tudo bem" é estado válido e bonito, e uma tela vazia é a primeira
+coisa que todo mundo vê no primeiro dia.
+
+## O que não fazer
+
+- Ícone em toda linha de lista: vira papel de parede e some.
+- Animação que não é entrada nem resposta a toque.
+- Cartão colorido chapado: o acordo é **fundo lavado**, porque tela colorida
+  cansa quem olha oito horas.
+- Chave de dicionário nova quando já existe uma que diz o mesmo. Quatro seções
+  inteiras deste dicionário existiram nos três idiomas sem uma tela lendo.
+- Frase escrita na tela. Tudo vem de `src/i18n/locales/`, nos três idiomas.
