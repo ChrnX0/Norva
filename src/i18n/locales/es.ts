@@ -81,6 +81,7 @@ export const es: Dictionary = {
       producedLess: '{{amount}} menos que {{day}}',
       boxesSent: { one: 'salió hoy', other: 'salieron hoy' },
       boxesTitle: 'Salió a las tiendas',
+      noBoxesYesterday: 'Ayer no salió carga.',
       running: 'produciendo ahora',
       runningSince: 'abierta desde {{time}}',
       boxCount: { one: '1 caja', other: '{{n}} cajas' },
@@ -622,8 +623,8 @@ export const es: Dictionary = {
       },
     },
     transport: {
-      vsYesterday: 'ayer fueron {{count}}',
-      firstDay: 'primera carga registrada',
+      vsYesterday: 'Ayer fueron {{count}}.',
+      firstDay: 'Primera carga registrada.',
       title: 'A dónde fue',
       today: 'Hoy · {{summary}}',
       empty: 'Hoy no salió nada todavía.',

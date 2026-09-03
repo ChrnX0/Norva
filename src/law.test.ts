@@ -22,6 +22,14 @@ import { test } from 'node:test';
  * O que este teste pega, e é o caso real: uma tela NOVA com número grande e sem
  * comparação nenhuma. Ela quebra a suíte até alguém responder a pergunta - e
  * responder pode ser "é um formulário", desde que seja escrito.
+ *
+ * **A régua era por arquivo, e a capa tem dez números.** Uma declaração só
+ * aprovava o arquivo inteiro: `Mosaic.tsx` passou verde por comparar a
+ * produção com ontem enquanto as caixas, as corridas abertas e as entregas do
+ * dia apareciam nuas ao lado. Nove figuras nunca foram conferidas por nada.
+ * Agora a contagem tem que bater: um número grande novo quebra a suíte até
+ * ganhar a SUA linha aqui, e "não há o que comparar" continua valendo desde
+ * que seja escrito por extenso.
  */
 
 /** O estilo do número que a tela existe para dizer. */
@@ -33,8 +41,30 @@ type Declaracao =
   /** Não compara, e o motivo fica escrito aqui - não em silêncio. */
   | { sozinho: string };
 
-const TELAS: Record<string, Declaracao> = {
-  'src/home/Mosaic.tsx': { compara: /noYesterday|madeYesterday/ },
+/** Uma declaração por número grande da tela. Uma só quando a tela tem um só. */
+const TELAS: Record<string, Declaracao | Declaracao[]> = {
+  // Dez números, dez respostas. Na ordem em que aparecem no arquivo.
+  'src/home/Mosaic.tsx': [
+    { compara: /noYesterday|madeYesterday/ },
+    {
+      sozinho:
+        'o número é uma contagem regressiva - "3 dias · Polpa" já é a distância até o fim. Contagem regressiva compara com o limite dela, e um "ontem" ao lado só atrapalharia.',
+    },
+    { compara: /noBoxesYesterday|boxesYesterday/ },
+    { compara: /warmerBy|weather\.same/ },
+    {
+      sozinho:
+        'o número é quantos tachos estão abertos AGORA. Estado ao vivo responde a segunda pergunta da lei (o que está diferente), e zero é o normal - o pulso ao lado diz se anda.',
+    },
+    { compara: /coverDays|coverTightest/ },
+    {
+      sozinho:
+        'o número é quantas entregas do dia ainda não saíram: uma lista de afazeres de hoje, que se compara com o próprio acordo de dia, e não com ontem.',
+    },
+    { compara: /lossVsBefore|lossFirst/ },
+    { compara: /Sparkline/ },
+    { compara: /heldDetail|coverDays/ },
+  ],
   'app/(tabs)/production.tsx': { compara: /vsYesterday|noYesterday/ },
   'app/inputs/index.tsx': { compara: /shortestCover|coverUnknown|coverComfortable/ },
   'app/inputs/[id].tsx': { compara: /wentUp|wentDown/ },
@@ -66,6 +96,11 @@ function codigo(fonte: string): string {
   return fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 }
 
+/** Quantos números grandes a tela mostra de verdade, sem contar comentário. */
+function quantidadeDeNumeros(fonte: string): number {
+  return codigo(fonte).split(NUMERO_GRANDE).length - 1;
+}
+
 function telasEm(dir: string): string[] {
   const out: string[] = [];
   for (const entrada of readdirSync(dir)) {
@@ -89,14 +124,22 @@ test('every headline number says what it is being compared against', () => {
         'A Lei da Inteligência (3) pede a comparação ao lado do número: declare qual é, ' +
         'ou escreva por que essa tela não tem o que comparar.',
     );
-    if ('compara' in declarada) {
-      assert.match(
-        readFileSync(caminho, 'utf8'),
-        declarada.compara,
-        `${caminho} declarou que compara, e a comparação sumiu do arquivo`,
-      );
-    } else {
-      assert.ok(declarada.sozinho.length > 40, `${caminho}: o motivo tem que ser um motivo`);
+    const lista = Array.isArray(declarada) ? declarada : [declarada];
+    const fonte = readFileSync(caminho, 'utf8');
+    const quantos = quantidadeDeNumeros(fonte);
+    assert.equal(
+      lista.length,
+      quantos,
+      `${caminho} mostra ${quantos} número(s) grande(s) e declara ${lista.length} aqui. ` +
+        'Cada número responde por si: acrescente a linha do que falta, dizendo com o que ele ' +
+        'se compara ou por que não há o que comparar.',
+    );
+    for (const item of lista) {
+      if ('compara' in item) {
+        assert.match(fonte, item.compara, `${caminho} declarou que compara, e a comparação sumiu do arquivo`);
+      } else {
+        assert.ok(item.sozinho.length > 40, `${caminho}: o motivo tem que ser um motivo`);
+      }
     }
   }
 });

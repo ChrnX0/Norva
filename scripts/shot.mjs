@@ -47,7 +47,14 @@ const arg = (nome, padrao) => {
 };
 const tem = (nome) => process.argv.includes(nome);
 
-const rota = arg('--rota', '/');
+/**
+ * Uma ou várias rotas, separadas por vírgula.
+ *
+ * A semeadura e a escolha de cidade levam dois minutos; repetir isso por tela
+ * transformava "olhar o aplicativo" em meia hora, e meia hora é o que faz
+ * ninguém olhar. Uma sessão, muitas fotos.
+ */
+const rotas = arg('--rota', '/').split(',').map((r) => r.trim()).filter(Boolean);
 const comDado = tem('--com-dado');
 /**
  * O tema escuro, que é onde o dono abriu o aplicativo.
@@ -179,13 +186,15 @@ try {
       await page.waitForTimeout(1500);
     }
 
-    await page.goto(`http://localhost:${PORT}${rota}`, { waitUntil: 'networkidle' });
-    // A capa tem animação de entrada; a foto tem de ser depois dela.
-    await page.waitForTimeout(3500);
+    for (const rota of rotas) {
+      await page.goto(`http://localhost:${PORT}${rota}`, { waitUntil: 'networkidle' });
+      // A capa tem animação de entrada; a foto tem de ser depois dela.
+      await page.waitForTimeout(3500);
 
-    const nome = `${rota.replace(/\W+/g, '') || 'capa'}-${cara}-${escuro ? 'escuro' : 'claro'}${comDado ? '-com-dado' : '-virgem'}.png`;
-    await page.screenshot({ path: join(SAIDA, nome), fullPage: true });
-    console.log(`  ${nome}`);
+      const nome = `${rota.replace(/\W+/g, '') || 'capa'}-${cara}-${escuro ? 'escuro' : 'claro'}${comDado ? '-com-dado' : '-virgem'}.png`;
+      await page.screenshot({ path: join(SAIDA, nome), fullPage: true });
+      console.log(`  ${nome}`);
+    }
     await context.close();
   }
 } finally {

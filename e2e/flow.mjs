@@ -1134,7 +1134,7 @@ check('what went out today lands on the transport tab, by destination', async (p
   // ela diz isso em vez de inventar uma variação.
   assert.match(
     await screen(page),
-    /primeira carga registrada|ontem (foram|foi)/,
+    /Primeira carga registrada|Ontem (foram|foi)/,
     'o número do dia vem com a comparação',
   );
 });

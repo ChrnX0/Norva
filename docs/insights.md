@@ -2130,3 +2130,36 @@ sem internet"). Então **nenhuma afirmação pode cobrar a AUSÊNCIA de algo que
 tempo possa acrescentar**. Ausência é a forma de afirmação mais frágil que existe
 num ambiente que varia, e a alternativa é sempre a mesma: afirmar a presença do que
 se espera, no lugar exato onde se espera.
+
+## 3 de setembro — a Lei 3 era medida por arquivo, e a capa tem dez números
+
+**O que se viu.** `src/law.test.ts` existe para impedir número grande sem
+comparação. Ele funcionava: cada tela com `type.figure` declarava com o que
+compara, ou por que não há o que comparar. Só que a chave do registro é o
+**caminho do arquivo**, e a capa não é uma tela — é dez. `src/home/Mosaic.tsx`
+tinha uma declaração (`/noYesterday|madeYesterday/`) e passava verde por causa da
+produção, enquanto as caixas enviadas, os tachos abertos e as entregas do dia
+apareciam nus ao lado.
+
+**Como apareceu.** Não foi lendo o teste. Foi um refutador tentando derrubar um
+item de roadmap que dizia "o cartão de caixas mostra o número sem o ontem": ele
+confirmou o item e, ao explicar por que a suíte não pegava, descreveu o buraco —
+*"o registro aprova o arquivo pela comparação da produção e não vê esta figura"*.
+
+**Por que importa mais que o cartão.** Uma guarda com granularidade errada é pior
+que guarda nenhuma, porque **compra silêncio**: a suíte verde afirmava que a Lei 3
+estava conferida na capa, e nove dos dez números nunca tinham sido olhados por
+ninguém. É o mesmo defeito do `mutate` na primeira execução — verde por
+coincidência, não por proteção.
+
+**O que mudou.** A régua passou a ser por número: a contagem de `type.figure` do
+arquivo tem que bater com a quantidade de declarações. Um número grande novo
+quebra a suíte até ganhar a sua linha. As dez declarações da capa foram escritas
+uma a uma, e três delas são "sozinho" com o motivo por extenso — contagem
+regressiva compara com o próprio limite, estado ao vivo responde a segunda
+pergunta da lei, lista de afazeres do dia se compara com o acordo, não com ontem.
+Provado quebrando: retirada uma declaração, o teste acusa `mostra 10 e declara 9`.
+
+**E o cartão foi consertado junto**, com o que já estava calculado e ninguém lia:
+`loose` (o que saiu sem caber em caixa) e as chaves `alsoSent`/`alsoSentItem`, que
+existiam nos três idiomas sem um único leitor.

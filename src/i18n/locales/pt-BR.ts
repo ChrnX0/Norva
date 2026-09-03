@@ -99,6 +99,7 @@ export const ptBR = {
       // no dia de movimento pequeno.
       boxesSent: { one: 'saiu hoje', other: 'saíram hoje' },
       boxesTitle: 'Saiu para as lojas',
+      noBoxesYesterday: 'Ontem não saiu carga.',
       running: 'produzindo agora',
       runningSince: 'aberto desde {{time}}',
       boxCount: { one: '1 caixa', other: '{{n}} caixas' },
@@ -653,8 +654,8 @@ export const ptBR = {
       },
     },
     transport: {
-      vsYesterday: 'ontem foram {{count}}',
-      firstDay: 'primeira carga registrada',
+      vsYesterday: 'Ontem foram {{count}}.',
+      firstDay: 'Primeira carga registrada.',
       title: 'Para onde foi',
       today: 'Hoje · {{summary}}',
       empty: 'Nada saiu hoje ainda.',

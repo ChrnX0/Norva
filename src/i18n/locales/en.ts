@@ -76,6 +76,7 @@ export const en: Dictionary = {
       producedLess: '{{amount}} less than {{day}}',
       boxesSent: { one: 'went out today', other: 'went out today' },
       boxesTitle: 'Out to the stores',
+      noBoxesYesterday: 'Nothing went out yesterday.',
       running: 'producing now',
       runningSince: 'open since {{time}}',
       boxCount: { one: '1 box', other: '{{n}} boxes' },
@@ -616,8 +617,8 @@ export const en: Dictionary = {
       },
     },
     transport: {
-      vsYesterday: 'yesterday it was {{count}}',
-      firstDay: 'first load on the books',
+      vsYesterday: 'Yesterday it was {{count}}.',
+      firstDay: 'First load on the books.',
       title: 'Where it went',
       today: 'Today · {{summary}}',
       empty: 'Nothing has left today.',

@@ -177,6 +177,27 @@ export function Mosaic({
                 <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={2}>
                   {plural(data.boxes, t.app.home.boxCount)} {plural(data.boxes, t.app.home.boxesSent)}
                 </Text>
+                {/*
+                  Dezoito caixas é dia bom numa fábrica e dia fraco noutra: sem
+                  ontem do lado, o número grande não decide nada (Lei 3). E o
+                  que saiu sem caber em caixa — um saco, um balde — sai por
+                  nome, porque somá-lo em "caixas" seria arredondar a verdade
+                  para o total ficar mais bonito.
+                */}
+                <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]} numberOfLines={2}>
+                  {data.boxesYesterday === 0
+                    ? t.app.home.noBoxesYesterday
+                    : fill(t.app.home.yesterdayWas, {
+                        amount: plural(data.boxesYesterday, t.app.home.boxCount),
+                      })}
+                  {data.loose.length > 0
+                    ? ` · ${fill(t.app.home.alsoSent, {
+                        items: data.loose
+                          .map((l) => fill(t.app.home.alsoSentItem, { amount: l.said, name: l.name }))
+                          .join(', '),
+                      })}`
+                    : ''}
+                </Text>
               </Card>
             </Touchable>
           ) : null}

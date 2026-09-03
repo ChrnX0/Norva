@@ -147,6 +147,7 @@ function Briefing() {
       madeThen,
       madeYesterday,
       sent,
+      sentYesterday,
       running,
       shortly,
       demand,
@@ -164,6 +165,7 @@ function Briefing() {
       productionOn(LOCAL_COMPANY_ID, then.from, then.to),
       productionOn(LOCAL_COMPANY_ID, yesterday.from, yesterday.to),
       shipmentsOn(LOCAL_COMPANY_ID, today.from, today.to),
+      shipmentsOn(LOCAL_COMPANY_ID, yesterday.from, yesterday.to),
       openProductionRuns(LOCAL_COMPANY_ID),
       runningOut(LOCAL_COMPANY_ID, lastWeek.from, today.to, 7),
       orderedDemand(LOCAL_COMPANY_ID, through),
@@ -187,15 +189,30 @@ function Briefing() {
     // entre itens é honesto. O que NÃO é honesto é fingir que um saco de
     // açúcar é caixa porque o total ficava mais redondo - então o que não tem
     // camada acima da base sai da conta e é dito por nome.
-    let boxes = 0;
-    const loose: { name: string; said: string }[] = [];
-    for (const place of sent) {
-      for (const item of place.items) {
-        const volume = boxesOf(item.baseUnits, item.packaging);
-        if (volume) boxes += volume.boxes;
-        else loose.push({ name: item.name, said: formatPacked(item.baseUnits, item.packaging, t.units, locale) });
+    const contarVolumes = (
+      lugares: typeof sent,
+      solto: { name: string; said: string }[] | null,
+    ) => {
+      let total = 0;
+      for (const place of lugares) {
+        for (const item of place.items) {
+          const volume = boxesOf(item.baseUnits, item.packaging);
+          if (volume) total += volume.boxes;
+          else
+            solto?.push({
+              name: item.name,
+              said: formatPacked(item.baseUnits, item.packaging, t.units, locale),
+            });
+        }
       }
-    }
+      return total;
+    };
+
+    const loose: { name: string; said: string }[] = [];
+    const boxes = contarVolumes(sent, loose);
+    // Ontem só entra como número: a Lei 3 pede a comparação, não a lista de
+    // ontem inteira. O que saiu solto ontem já foi notícia ontem.
+    const boxesYesterday = contarVolumes(sentYesterday, null);
 
 
 
@@ -210,6 +227,7 @@ function Briefing() {
       shortly,
       everMade: madeToday.length > 0 || madeThen.length > 0,
       boxes,
+      boxesYesterday,
       loose,
       running: running.map((r) => ({
         id: r.id,

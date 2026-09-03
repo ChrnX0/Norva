@@ -24,6 +24,8 @@ export type Summary = {
   shortly: Running[];
   /** Volumes que saíram hoje, e o que saiu sem caber em volume nenhum. */
   boxes: number;
+  /** As mesmas caixas de ontem. Dezoito é dia bom numa fábrica e fraco noutra. */
+  boxesYesterday: number;
   loose: { name: string; said: string }[];
   /** Tachos rodando agora. Vazio é o estado normal de uma fábrica parada. */
   running: { id: string; productName: string; openedAt: string }[];

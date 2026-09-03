@@ -48,19 +48,88 @@ que é P2 puro espera uso real em vez de virar código adivinhado.
 
 ## A lista
 
-**Ainda não está aqui — e a ausência é dita em vez de deixar o arquivo vazio**, porque
-roadmap sem itens se lê como "nada a fazer", que é a mentira mais fácil deste
-formato. Os itens estão sendo levantados lendo o repositório em sete eixos (escopo do
-mês, dívidas do `insights.md`, servidor sem escritor, aparelho sem chamador, Lei da
-Inteligência tela a tela, o que depende de aparelho ou servidor, e os cortes já
-decididos), e cada afirmação de "falta X" passa por refutação antes de entrar: um
-item errado manda a próxima sessão construir o que já existe.
+Como ela foi levantada, porque isso decide o quanto se pode confiar nela: sete
+leitores varreram o repositório em eixos diferentes (escopo do mês, dívidas do
+`insights.md`, servidor sem escritor, aparelho sem chamador, Lei da Inteligência
+tela a tela, o que depende de aparelho ou servidor, e os cortes já decididos) e
+levantaram 68 candidatos. Cada um foi para um refutador com a instrução de
+**derrubá-lo** — na dúvida, refute, porque item errado manda a próxima sessão
+construir o que já existe. **Cinquenta foram julgados e quarenta e cinco caíram.**
+Sobraram estes, e dois deles são o mesmo item achado por dois leitores
+independentes.
 
-Até eles chegarem, o que vale como lista é o que está logo abaixo — o que ficou
-**fora por decisão** — mais as duas coisas paradas por falta física, nomeadas no
-`CLAUDE.md`: os três postos de controle que dependem do app do entregador, e a
-ergonomia da F3 (tela capacitiva a −18 °C, luva, QR a um braço), que não se verifica
-sem aparelho na mão.
+O que isso significa para quem lê: a lista é curta **porque a refutação foi dura**,
+não porque falta trabalho. Os dezoito candidatos ainda não julgados quando a
+varredura parou não entram até passarem pela mesma peneira.
+
+### 1. O estorno não tem escritor — a primeira fundação só vale no papel
+
+**Estado:** parcial. Esquema, restrição, política de capacidade e o construtor
+existem; falta o escritor e a tela.
+
+- **Evidência:** `supabase/migrations/0001_foundation.sql:209` e `:223`
+  (`reverses_movement_id`, kind `reversal`) · `src/data/db.ts:246` ·
+  `src/sync/serialize.ts:340` · `src/domain/ledger.ts:176` (`buildReversal`),
+  chamado só por `src/domain/recipe.test.ts:76` · `src/domain/access.ts:125`, que
+  diz de si mesmo *"a reversal … the app cannot yet do at all"*.
+- **Por que importa:** a capa deste projeto diz que **se corrige por estorno e
+  nunca por exclusão**. Hoje uma corrida lançada com 500 onde eram 50 não tem
+  conserto nenhum no aplicativo. A contagem se autocorrige; produção, perda e
+  transferência não. E o custo não é o número errado — é o que ele ensina: um
+  operador que não consegue consertar aprende a **não registrar**.
+- **Portão:** P1 atendido no mesmo commit (a tela é o chamador). P3 **não** toca
+  esquema — ele já está lá, e é por isso que este item é barato e sobe.
+- **Cuidado registrado por um refutador:** o estado "ausente" está errado e é
+  errado de um jeito caro — manda escrever migração onde não precisa.
+
+### 2. A corrida grava o id da receita onde vai o id da **versão** — e o fechamento apaga a linha
+
+**Estado:** parcial.
+
+- **Evidência:** `src/data/repository.ts:2147` e `:2155` passam `product.recipeId`
+  para a coluna `recipe_version_id` · `src/data/db.ts:389` (fechar e cancelar
+  **apagam** a linha de `production_runs`).
+- **Por que importa:** foi o único item que a auditoria da Fase 1 marcou como
+  ausente, e voltou pela metade — o tipo ganhou `versionId`
+  (`src/data/repository.ts:1055`) e o escritor continua mandando o id da receita.
+  Nada durável (nem lote, nem movimento) diz **qual ficha rodou**, então custo
+  histórico e recall apontam para a fórmula de hoje. Uma receita corrigida em
+  março reescreve o que janeiro custou.
+- **Portão:** P3 — é semântica de dado permanente, e sai de graça agora.
+- **Escopo, para não virar peça-sem-chamador:** `recipeVersionId` hoje tem zero
+  consumidores fora de `src/data/repository.ts`. O commit que grava o id certo
+  precisa **trazer o leitor junto** — a ficha do lote é o candidato natural.
+
+### 3. Lista de compras por simulação: *"se eu fizer 3 tachos de cada, o que falta?"*
+
+**Estado:** parcial (o refutador encolheu o escopo — a parte de um produto só já
+roda em `app/production/new.tsx`).
+
+- **Evidência:** `src/domain/recipe.ts:278` (`explodeRequirements`) chamado só para
+  corrida única — `app/production/new.tsx:155` e `src/data/repository.ts:1282`.
+- **Por que importa:** hoje o app avisa o que acaba pela cobertura observada
+  (`runningOut`, `src/data/repository.ts:3543`) e **não responde o que comprar para
+  o plano da semana**. É simulação sobre o estoque de agora — não depende de
+  histórico nenhum — e é a pergunta que o dono faz antes de ligar para o
+  fornecedor.
+- **Os dois deltas que faltam:** (a) somar vários produtos num plano só; (b) virar
+  a conta do avesso — de "posso fazer?" para "quanto falta comprar?".
+- **Correção de uma evidência:** o leitor citou `grep "comprar"` vazio no
+  dicionário como prova de que não existe. Não é prova: o tom de voz do projeto
+  **proíbe o infinitivo** ("verbo na frente, segunda pessoa"), então o app diz
+  *"Compre"*. Fica registrado para o próximo leitor não repetir.
+
+### 4. ~~Capa: o número de caixas sem o ontem~~ — fechado em 3 de setembro
+
+Era o quarto sobrevivente: `src/home/Mosaic.tsx` mostrava a figura de caixas
+enviadas sem comparação nenhuma, contra a promessa escrita no docblock da própria
+tela. Fechado no mesmo dia — o cartão passou a dizer o ontem e a listar o que saiu
+**sem caber em caixa** (`loose`, que era calculado e nunca lido, com as chaves
+`alsoSent`/`alsoSentItem`, que existiam nos três idiomas sem leitor).
+
+O que o item deixou atrás de si é maior que ele: `src/law.test.ts` media a Lei 3
+**por arquivo**, e a capa tem dez números grandes. Uma declaração aprovava os dez.
+A régua agora é por número, e a contagem tem que bater.
 
 ---
 
