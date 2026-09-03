@@ -2103,3 +2103,30 @@ traduzida. Foi para `common.amountOf`, que em inglês é "of".
 podia ficar lá — `units` é dicionário de PLURAIS, e `formatPacked` recebe o objeto
 inteiro esperando que toda entrada tenha `one`/`other`. O compilador pegou. Chave
 no lugar errado quebra quem consome o grupo, não quem a escreveu.
+
+## 3 de setembro — o teste passou aqui e reprovou no CI, e a diferença era a internet
+
+**O que se viu.** Uma checagem minha afirmava que, numa instalação virgem,
+**nenhuma peça da capa convida** para abrir. Passou na máquina de
+desenvolvimento e reprovou no runner. A diferença não era o código: era a **rede**.
+Aqui a previsão do tempo não é alcançada, então o cartão do tempo não existe; no
+runner ela é alcançada, o cartão aparece — e ele **convida com razão**, porque tem
+a semana para mostrar.
+
+**Por que importa.** A afirmação estava larga: eu cobrei da CAPA INTEIRA uma
+propriedade que era da PEÇA. Uma afirmação larga é a que primeiro mente quando o
+ambiente muda, e ela mente para o lado pior — verde onde deveria reprovar, ou
+vermelho onde não há defeito. Neste caso as duas coisas ao mesmo tempo, em máquinas
+diferentes.
+
+**O que mudou.** A afirmação passou a olhar a sequência da própria peça:
+`Últimas corridas | Nenhuma corrida registrada ainda`. Isso prova exatamente o que
+eu queria — não há convite entre o título e a frase de vazio — e não depende de
+haver internet.
+
+**A regra que sai, e ela vale para toda a suíte:** neste projeto o tempo é a única
+coisa que vem da rede, e a suíte cobre de propósito os dois casos ("responde com ou
+sem internet"). Então **nenhuma afirmação pode cobrar a AUSÊNCIA de algo que o
+tempo possa acrescentar**. Ausência é a forma de afirmação mais frágil que existe
+num ambiente que varia, e a alternativa é sempre a mesma: afirmar a presença do que
+se espera, no lugar exato onde se espera.

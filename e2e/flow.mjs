@@ -1463,8 +1463,17 @@ check('the home is assembled from pieces the house chose', async (page) => {
   assert.match(capa, /Últimas corridas/);
   // Numa instalação virgem nada foi produzido, e a peça diz isso em vez de
   // convidar para abrir o vazio - "ligar não é forçar" vale para o toque também.
-  assert.match(capa, /Nenhuma corrida registrada ainda/);
-  assert.doesNotMatch(capa, /toque para ver mais/, 'sem dado, nenhuma peça convida');
+  //
+  // A afirmação é sobre ESTA peça, e não sobre a capa inteira: a primeira versão
+  // cobrava que nenhuma peça convidasse, passou aqui e reprovou no CI. O tempo
+  // convida com razão — ele tem a semana para mostrar —, e a diferença era só a
+  // rede: a máquina de desenvolvimento não alcança a previsão, o runner alcança.
+  // Teste que depende de haver internet é teste que mente num dos dois lugares.
+  assert.match(
+    capa,
+    /Últimas corridas \| Nenhuma corrida registrada ainda/,
+    'a peça sem dado diz que está vazia, sem convite entre o título e a frase',
+  );
 });
 
 check('erasing refuses in an order, and explains the way out', async (page) => {
