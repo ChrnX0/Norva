@@ -30,12 +30,14 @@ COMMENT='^[[:space:]]*(#|//|--|\*[[:space:]])'   # proofgate-allow
 # pattern as an option and silently matches nothing. The guard passed everything.
 n=0
 tab="$(printf '\t')"
+# O casamento do padrão vai num grep só para o guard inteiro; a exclusão de
+# comentário fica no laço, que agora só vê as linhas que casaram.
 while IFS="$tab" read -r file content; do
-  printf '%s' "$content" | grep -Eq -- "$SUPER"   || continue
   printf '%s' "$content" | grep -Eq -- "$COMMENT" && continue
   pg_ignored "$(pg_fingerprint superuser-verification "$file" "$content")" && continue
   n=$((n + 1))
-done < <(pg_added_with_file '*test*' '*spec*' '*verify*' '*e2e*' '*fixture*' '*harness*')
+done < <(pg_added_with_file '*test*' '*spec*' '*verify*' '*e2e*' '*fixture*' '*harness*' \
+  | pg_match "$SUPER")
 
 if [ "$n" -gt 0 ]; then
   echo "⚠️  superuser-verification: $n added line(s) let a test/verification path connect to Postgres as a superuser. Superusers bypass RLS, so policies are NOT exercised — the run proves shape, not acceptance. Have the part that imitates the client connect as the client's role."

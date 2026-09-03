@@ -12,12 +12,13 @@ set -uo pipefail
 PAT='new Date\([[:space:]]*\)|\bDate\.now[[:space:]]*\(|\bdatetime\.(now|today|utcnow)[[:space:]]*\(|\btime\.time[[:space:]]*\(|\bTime\.now\b|time\.Now\(\)'  # proofgate-allow
 # Only test files (the pattern is normal in product code, which legitimately reads the clock).
 tab="$(printf '\t')"; n=0
+# Um grep para o guard inteiro: por linha, custava setenta segundos num diff de
+# trinta mil linhas, tudo em partida de processo.
 while IFS="$tab" read -r file content; do
   case "$file" in *test*|*spec*) ;; *) continue ;; esac
-  printf '%s' "$content" | grep -Eq "$PAT" || continue
   pg_ignored "$(pg_fingerprint frozen-clock "$file" "$content")" && continue
   n=$((n + 1))
-done < <(pg_added_with_file ':(exclude)*.md')
+done < <(pg_added_with_file ':(exclude)*.md' | pg_match "$PAT")
 if [ "${n:-0}" -gt 0 ]; then
   echo "⚠️  frozen-clock: $n added line(s) read the real clock inside a test (new Date()/Date.now()/datetime.now()/time.time()). Freeze it (fake timers / fixed instant) or you're shipping a time bomb."
   exit 2

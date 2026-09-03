@@ -21,13 +21,12 @@ BASE="${PROOFGATE_BASE:?PROOFGATE_BASE unset}"
 COMMENT='^[[:space:]]*(//|#|--|\*[[:space:]]|/\*|<!--)'   # proofgate-allow
 
 n=0
-while IFS= read -r line; do
-  content="${line:1}"
-  printf '%s' "$content" | grep -Eq 'proofgate-allow' || continue
-  printf '%s' "$content" | grep -Eq "$COMMENT"        || continue
-  n=$((n + 1))
-done < <(git diff "$BASE"..HEAD -- . ':(exclude)*.md' "${PG_SELF_EXCLUDE[@]}" 2>/dev/null |
-           grep -E '^\+' | grep -v '^+++')
+# O marcador é raro no diff, então ele filtra primeiro e num grep só: o laço
+# passa a ver um punhado de linhas em vez de trinta mil.
+n="$(git diff "$BASE"..HEAD -- . ':(exclude)*.md' "${PG_SELF_EXCLUDE[@]}" 2>/dev/null |
+       grep -E '^\+' | grep -v '^+++' | grep -F 'proofgate-allow' |
+       sed 's/^+//' | grep -Ec "$COMMENT" || true)"
+n="${n:-0}"
 
 if [ "$n" -gt 0 ]; then
   echo "⚠️  dead-allow: $n added comment line(s) carry proofgate-allow, which only works on the offending line itself — those suppress nothing while reading as if they do. Move the marker onto the flagged line."

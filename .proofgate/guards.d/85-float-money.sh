@@ -13,11 +13,10 @@ TERMS="$(cfg '.moneyTerms')"; TERMS="${TERMS:-price|amount|total|balance|money|c
 FLOAT='parseFloat[[:space:]]*\(|\.toFixed[[:space:]]*\(|(^|[^[:alnum:]_])float[[:space:]]*\(|:[[:space:]]*float\b|\bf32\b|\bf64\b|(^|[^[:alnum:]_])double[[:space:]]+[[:alnum:]_]*(price|amount|total|balance|money|cost|fee)'  # proofgate-allow
 tab="$(printf '\t')"; n=0
 while IFS="$tab" read -r file content; do
-  printf '%s' "$content" | grep -Eiq "$TERMS" || continue        # a money word AND
-  printf '%s' "$content" | grep -Eq "$FLOAT"  || continue        # a float operation, same line
   pg_ignored "$(pg_fingerprint float-money "$file" "$content")" && continue
   n=$((n + 1))
-done < <(pg_added_with_file ':(exclude)*.md' ':(exclude)*test*' ':(exclude)*spec*')
+done < <(pg_added_with_file ':(exclude)*.md' ':(exclude)*test*' ':(exclude)*spec*' \
+  | pg_match "$TERMS" -i | pg_match "$FLOAT")
 if [ "$n" -gt 0 ]; then
   echo "⚠️  float-money: $n added line(s) put money through a float (parseFloat/.toFixed/float/double next to a money word). Store and compute money as integer cents — floats lose pennies. (Display formatting is fine; suppress with proofgate-allow if so.)"
   exit 2
