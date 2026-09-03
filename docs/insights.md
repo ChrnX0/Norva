@@ -1841,3 +1841,41 @@ com uma das duas fontes vazia, qualquer ordem dá o mesmo número. Teste de regr
 de precedência só prova alguma coisa com as duas fontes **discordando** — e essa
 é a mesma família do teste da margem do QR, que usava a própria constante nos
 dois lados da igualdade e não podia falhar.
+
+## 3 de setembro — o guard media tabela, e a política é por TIPO
+
+**O que apareceu.** A sessão do aparelho (`scripts/device-session.ts`) tem um
+guard que recusa rodar se alguma tabela que o `serialize` sabe mandar não for
+exercitada — *"a checagem 6 cobriria menos do que promete"*. Ele estava certo e
+media a coisa errada.
+
+No servidor, `movements_append` decide por **kind**, não por tabela:
+
+```sql
+case kind
+  when 'production'  then has_capability(company_id, 'record_production')
+  when 'transfer'    then has_capability(company_id, 'dispatch')
+  when 'loss'        then has_capability(company_id, 'record_loss')
+  when 'return'      then has_capability(company_id, 'check_receipt')
+  ...
+```
+
+Uma sessão que grava movimento de três tipos e replica só dois passa no guard de
+tabela com a política do terceiro **nunca exercitada**.
+
+**O tamanho do buraco.** Fui atrás porque a devolução que entrou hoje nunca tinha
+sido replicada. Com o guard passando a medir tipo, apareceu que **transferência e
+perda também não eram**: de sete tipos que este aplicativo sabe escrever, **três**
+nunca tinham encostado nas políticas do servidor. Não é hipótese — as três só
+falhariam na primeira loja que devolvesse mercadoria, ou na primeira perda
+registrada, em produção, com a fila inteira parada atrás.
+
+**A regra que sai daí.** Um guard de cobertura tem que medir a dimensão em que a
+REGRA varia, não a dimensão em que o dado é organizado. Aqui a regra varia por
+`kind`; a tabela é só onde ele mora. É a mesma forma do erro que o `mutate`
+cometia até hoje de manhã: contar mutações aplicadas em vez de conferir que cada
+uma casa num sítio só.
+
+**E a lista cobrada é a do que o app SABE escrever**, não o enum inteiro do
+servidor: `sale` e `reversal` não têm escritor, e cobrar por eles seria pedir que
+a sessão finja um caminho que não existe — que é a mesma mentira, do outro lado.
