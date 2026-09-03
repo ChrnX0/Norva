@@ -340,6 +340,17 @@ check('an order is written, and the briefing turns it into what to make', async 
   const capa = await screen(page);
   assert.match(capa, /Produza para os pedidos/);
   assert.match(capa, /300/);
+
+  // E a SEPARAÇÃO: com pedido em aberto para aquela loja, a transferência para
+  // de sugerir o envio da semana passada e passa a sugerir o que foi combinado.
+  // O campo nasce com 300 e a dica diz de onde o número veio - é isso que faz
+  // alguém confiar nele ou corrigi-lo.
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const separacao = await screen(page);
+  assert.match(separacao, /pedido para/, 'a dica diz que o palpite veio do pedido');
+  assert.match(separacao, /300/, 'e o número é o que a loja pediu');
 });
 
 check('the assistant answers with the number the engine computed', async (page) => {

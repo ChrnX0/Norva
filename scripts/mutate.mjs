@@ -113,8 +113,10 @@ const DEFECTS = [
 
   {
     file: 'src/data/repository.ts',
-    from: "        AND o.status IN ('pending', 'open')",
-    to: "        AND o.status IN ('pending', 'open', 'delivered')",
+    from: `      WHERE o.company_id = ?
+        AND o.status IN ('pending', 'open')`,
+    to: `      WHERE o.company_id = ?
+        AND o.status IN ('pending', 'open', 'delivered')`,
     hurts: 'pedido entregue continua contando como demanda, e a fabrica produz de novo o que ja saiu pela porta',
   },
   {
