@@ -37,14 +37,29 @@ function WhatWasLost() {
   const { color, type, space } = useTheme();
   const { locale, t } = useLocale();
 
-  const { data, loading } = useQuery<LossRow[]>(async () => {
+  /**
+   * Trinta dias, e os trinta de antes.
+   *
+   * R$ 148 em perdas não diz nada sozinho: numa fábrica é um mês ruim, noutra é
+   * terça-feira. A janela anterior é a única comparação honesta aqui — mesma
+   * duração, mesmos motivos, mesmo dinheiro — e é ela que transforma o número
+   * em decisão de trocar o freezer ou não.
+   */
+  const { data, loading } = useQuery<{ agora: LossRow[]; antes: LossRow[] }>(async () => {
     const hoje = dayWindow(nowIso(), locale.timeZone);
     const inicio = dayWindow(nowIso(), locale.timeZone, -29);
-    return lossesOn(LOCAL_COMPANY_ID, inicio.from, hoje.to);
+    const antesInicio = dayWindow(nowIso(), locale.timeZone, -59);
+    const antesFim = dayWindow(nowIso(), locale.timeZone, -30);
+    const [agora, antes] = await Promise.all([
+      lossesOn(LOCAL_COMPANY_ID, inicio.from, hoje.to),
+      lossesOn(LOCAL_COMPANY_ID, antesInicio.from, antesFim.to),
+    ]);
+    return { agora, antes };
   });
 
-  const rows = data ?? [];
+  const rows = data?.agora ?? [];
   const total = rows.reduce((n, r) => n + r.valueCents, 0);
+  const antes = (data?.antes ?? []).reduce((n, r) => n + r.valueCents, 0);
 
   // Por motivo, para a tela dizer o que mais pesou em vez de listar e calar.
   const byReason = new Map<string, number>();
@@ -70,6 +85,13 @@ function WhatWasLost() {
               })}
             </Text>
           ) : null}
+          {/* A janela anterior. Zero lá atrás não é "R$ 0,00" — é não ter com o
+              que comparar, e dizer isso é mais honesto que fingir queda total. */}
+          <Text style={[type.caption, { color: color.inkFaint }]}>
+            {antes > 0
+              ? fill(t.app.losses.vsPrevious, { money: formatMoney(antes, locale) })
+              : t.app.losses.firstWindow}
+          </Text>
         </Card>
       ) : null}
 

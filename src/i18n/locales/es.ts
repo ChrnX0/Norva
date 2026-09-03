@@ -147,6 +147,8 @@ export const es: Dictionary = {
       emptyHint: 'Cuando algo venza, se derrita o se rompa, regístralo en el insumo — el motivo es lo que hace útil esta pantalla.',
       total: '{{money}} en {{count}}',
       lossCount: { one: '1 pérdida', other: '{{n}} pérdidas' },
+      vsPrevious: 'en los 30 días anteriores fueron {{money}}',
+      firstWindow: 'primera ventana con pérdida registrada — no hay antes para comparar',
       worst: 'Lo que más pesó: {{reason}}, {{money}}.',
     },
     orders: {

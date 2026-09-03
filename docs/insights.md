@@ -1879,3 +1879,40 @@ uma casa num sítio só.
 **E a lista cobrada é a do que o app SABE escrever**, não o enum inteiro do
 servidor: `sale` e `reversal` não têm escritor, e cobrar por eles seria pedir que
 a sessão finja um caminho que não existe — que é a mesma mentira, do outro lado.
+
+## 3 de setembro — a lei mais citada do projeto não era conferida por nada
+
+**O que se viu.** A varredura tela a tela pela Lei da Inteligência achou o mesmo
+defeito três vezes seguidas, e nenhuma suíte tinha reclamado de nenhuma delas: o
+transporte dizia "3 destinos hoje", o almoxarifado dizia "R$ 1.552,50 parado" e o
+relatório de perdas dizia "R$ 148,00 em 4 perdas" — os três números sozinhos, sem
+nada ao lado que dissesse se aquilo é muito ou pouco. O item 3 da lei ("nenhum
+número aparece sozinho — sempre com a comparação") está escrito no `CLAUDE.md`
+desde o começo do projeto.
+
+**Por que importa.** Três não é coincidência, é a taxa. A capa foi auditada
+quando foi redesenhada, e por isso compara; toda tela que não passou por uma
+auditoria dessas nasceu com o número nu, porque a lei mora num arquivo de texto e
+texto não roda. O efeito no aparelho é pior que a ausência: R$ 1.552,50 parado no
+estoque é um mês tranquilo numa fábrica e dinheiro morto noutra, e quem abre a
+tela não tem como saber qual das duas é a dele — então o número grande vira
+decoração, e a tela ensina que os números daqui não servem para decidir.
+
+**O que mudou.** Os três ganharam a comparação que faltava, e cada uma teve que
+ser a comparação honesta daquela tela, não a mais fácil: o transporte compara com
+ontem; as perdas comparam com os trinta dias anteriores (mesma duração, mesmos
+motivos); e o almoxarifado **não** compara com o mês passado — valorizar o saldo
+de agosto ao preço de setembro seria inventar dinheiro —, compara com quanto
+tempo aquilo dura na saída que a própria fábrica registrou. Para essa frase falar
+do mesmo conjunto que o número, `runningOut` passou a recortar por sala e por
+tipo, com o mutante que prova o recorte.
+
+**E a lei virou teste, que é o ponto.** `src/law.test.ts` mantém um registro: toda
+tela com número grande declara qual é a comparação dela, ou escreve por que não
+há o que comparar. O registro existe em vez de uma heurística porque exigir
+comparação de todo número grande alarmaria errado — num formulário o número é o
+que a pessoa está digitando agora, e a comparação dele é o próprio formulário. O
+teste pega o caso real: uma tela nova com número nu quebra a suíte até alguém
+responder a pergunta, e "é um formulário" é resposta válida desde que escrita.
+Foi provado nos dois sentidos — uma tela falsa com `type.figure` reprova, e apagar
+a comparação de uma tela declarada reprova.

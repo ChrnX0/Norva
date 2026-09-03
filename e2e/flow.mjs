@@ -1012,6 +1012,14 @@ check('a loss is recorded with its reason, and the report says where the money w
   assert.match(relatorio, /Açúcar cristal/);
   assert.match(relatorio, /4\.000 g · venceu/);
   assert.match(relatorio, /O que mais pesou: venceu/);
+
+  // E o dinheiro vem com a janela anterior. Aqui não existe nenhuma, e a tela
+  // diz isso em vez de fingir que a fábrica melhorou cem por cento.
+  assert.match(
+    relatorio,
+    /primeira janela com perda registrada|nos 30 dias anteriores foram/,
+    'a perda do mês vem com o mês anterior',
+  );
 });
 
 check('two weeks can be planted from Ajustes, and the briefing changes because of it', async (page) => {

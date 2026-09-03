@@ -142,6 +142,8 @@ export const en: Dictionary = {
       emptyHint: 'When something expires, melts or breaks, record it on the item — the reason is what makes this screen useful.',
       total: '{{money}} across {{count}}',
       lossCount: { one: '1 loss', other: '{{n}} losses' },
+      vsPrevious: 'the previous 30 days lost {{money}}',
+      firstWindow: 'first window with any loss on the books — nothing before to compare',
       worst: 'The heaviest: {{reason}}, {{money}}.',
     },
     orders: {

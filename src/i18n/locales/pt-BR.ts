@@ -165,6 +165,8 @@ export const ptBR = {
       emptyHint: 'Quando alguma coisa vencer, derreter ou quebrar, registre no item — é o motivo que faz esta tela servir.',
       total: '{{money}} em {{count}}',
       lossCount: { one: '1 perda', other: '{{n}} perdas' },
+      vsPrevious: 'nos 30 dias anteriores foram {{money}}',
+      firstWindow: 'primeira janela com perda registrada — não há antes para comparar',
       worst: 'O que mais pesou: {{reason}}, {{money}}.',
     },
     /**
