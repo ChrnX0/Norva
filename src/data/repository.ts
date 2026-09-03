@@ -1,5 +1,6 @@
 import { applyCostEvent, type StockCostState } from '@/domain/cost';
 import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
+import { DEFAULT_ALERTS, type AlertSettings } from '@/domain/alerts';
 import { daysOfCover } from '@/domain/ledger';
 import { expiresOn, lotCode } from '@/domain/lot';
 import type { LossReason } from '@/domain/ledger';
@@ -3387,6 +3388,48 @@ export async function briefingHidden(): Promise<string[]> {
 
 export async function setBriefingHidden(hidden: readonly string[]): Promise<void> {
   await writeMeta(BRIEFING_HIDDEN_KEY, hidden.join(','));
+}
+
+const ALERTS_KEY = 'alerts.settings';
+
+/**
+ * O que a empresa combinou sobre os avisos.
+ *
+ * Guardado como JSON numa linha de meta, pelo mesmo motivo que a lista de
+ * embalagem mora na linha do produto: é curto, é reescrito inteiro e não tem
+ * histórico próprio. O histórico dos avisos é o livro-razão que os gerou.
+ *
+ * Leitura tolerante de propósito. Isto é texto vindo do disco, escrito por uma
+ * versão anterior do aplicativo: campo faltando cai no padrão, campo estranho é
+ * ignorado, e JSON quebrado devolve o padrão inteiro. Um aviso que deixa de sair
+ * porque a configuração não pôde ser lida é o pior desfecho possível — o dono
+ * descobre no dia em que faltar polpa.
+ */
+export async function alertSettings(): Promise<AlertSettings> {
+  const raw = await readMeta(ALERTS_KEY);
+  if (!raw) return DEFAULT_ALERTS;
+  try {
+    const lido = JSON.parse(raw) as Partial<AlertSettings>;
+    return {
+      on: { ...DEFAULT_ALERTS.on, ...(lido.on ?? {}) },
+      daysAhead: { ...DEFAULT_ALERTS.daysAhead, ...(lido.daysAhead ?? {}) },
+      bands: { ...DEFAULT_ALERTS.bands, ...(lido.bands ?? {}) },
+      hour:
+        typeof lido.hour === 'number' && lido.hour >= 0 && lido.hour <= 23
+          ? Math.trunc(lido.hour)
+          : DEFAULT_ALERTS.hour,
+      weekdays:
+        typeof lido.weekdays === 'number' && lido.weekdays >= 0 && lido.weekdays <= 127
+          ? Math.trunc(lido.weekdays)
+          : DEFAULT_ALERTS.weekdays,
+    };
+  } catch {
+    return DEFAULT_ALERTS;
+  }
+}
+
+export async function setAlertSettings(settings: AlertSettings): Promise<void> {
+  await writeMeta(ALERTS_KEY, JSON.stringify(settings));
 }
 
 const APPROVAL_KEY = 'orders.needApproval';

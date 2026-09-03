@@ -8,15 +8,19 @@ import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { brand } from '@/config/brand';
 import {
+  alertSettings,
   briefingHidden,
   briefingOrder,
   countForErase,
   eraseArea,
   ordersNeedApproval,
   setBriefingHidden,
+  setAlertSettings,
   setBriefingOrder,
   setOrdersNeedApproval,
 } from '@/data/repository';
+import { agreedOn, toggleDay } from '@/domain/agreement';
+import type { AlertKind, AlertSettings } from '@/domain/alerts';
 import { useAppearance } from '@/theme/Appearance';
 import {
   addWidget,
@@ -39,7 +43,7 @@ import {
 import { hasSeeded, LOCAL_COMPANY_ID, restoreStarterData } from '@/data/seed';
 import { simulateFortnight } from '@/data/simulate';
 import { useQuery } from '@/data/useQuery';
-import { fill, joinList, plural } from '@/i18n';
+import { fill, formatQuantity, formatWeekdayShort, joinList, plural } from '@/i18n';
 import type { Dictionary } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -188,6 +192,21 @@ function Settings() {
    * chão de fábrica, e ela vale aqui pelo mesmo motivo.
    */
   const { data: approval, refresh: refreshApproval } = useQuery<boolean>(() => ordersNeedApproval());
+
+  /**
+   * Os avisos, e o que a casa escolheu sobre cada um.
+   *
+   * A pergunta do dono foi "dá para configurar quando o alarme avisa?" — e a
+   * resposta é a F7: quando depende de quem usa, vira configuração. Uma fábrica
+   * que compra na feira das cinco e outra que compra pela internet no domingo
+   * têm a mesma necessidade e horas diferentes.
+   */
+  const { data: alerts, refresh: refreshAlerts } = useQuery<AlertSettings>(() => alertSettings());
+
+  const mexerAlerta = async (proximo: AlertSettings) => {
+    await setAlertSettings(proximo);
+    refreshAlerts();
+  };
 
   const { data, loading, refresh } = useQuery(
     async () => ({
@@ -449,6 +468,174 @@ function Settings() {
         ) : null}
       </Card>
 
+      {/* Os avisos.
+          Cada linha é um alarme com a antecedência dele, e embaixo a hora e os
+          dias. Nada aqui é obrigatório: alarme desligado é escolha legítima, e o
+          aplicativo continua inteiro sem nenhum — a capa faz as mesmas contas. */}
+      {alerts ? (
+        <Card>
+          <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.settings.alerts.label}</Text>
+          <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
+            {t.app.settings.alerts.hint}
+          </Text>
+
+          <View style={{ marginTop: space.md, gap: space.sm }}>
+            {(['insumo', 'pedido', 'validade', 'volume'] as AlertKind[]).map((kind) => {
+              const ligado = alerts.on[kind];
+              const dias = kind === 'volume' ? null : alerts.daysAhead[kind];
+              return (
+                <View key={kind} style={{ gap: space.xs }}>
+                  <View style={[styles.row, { gap: space.sm }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[type.body, { color: ligado ? color.ink : color.inkFaint }]}>
+                        {t.app.settings.alerts.kinds[kind]}
+                      </Text>
+                      <Text style={[type.caption, { color: color.inkFaint }]}>
+                        {kind === 'volume'
+                          ? t.app.settings.alerts.volumeHint
+                          : fill(t.app.settings.alerts.daysAhead, {
+                              days: plural(dias ?? 0, t.app.home.dayCount),
+                            })}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() =>
+                        void mexerAlerta({ ...alerts, on: { ...alerts.on, [kind]: !ligado } })
+                      }
+                      accessibilityRole="switch"
+                      accessibilityState={{ checked: ligado }}
+                      accessibilityLabel={`${t.app.settings.alerts.kinds[kind]}: ${
+                        ligado ? t.app.settings.alerts.off : t.app.settings.alerts.on
+                      }`}
+                    >
+                      <Chip
+                        signal={ligado ? 'ok' : 'neutral'}
+                        label={ligado ? t.app.settings.alerts.on : t.app.settings.alerts.off}
+                      />
+                    </Pressable>
+                  </View>
+
+                  {/* A antecedência só aparece para o alarme ligado que tem dia:
+                      oferecer o ajuste de um alarme desligado é pedir decisão
+                      sobre coisa que não vai acontecer. */}
+                  {ligado && dias !== null ? (
+                    <View style={[styles.row, { gap: space.xs }]}>
+                      {[1, 2, 3, 5, 7, 14].map((d) => (
+                        <Pressable
+                          key={d}
+                          onPress={() =>
+                            void mexerAlerta({
+                              ...alerts,
+                              daysAhead: { ...alerts.daysAhead, [kind]: d },
+                            })
+                          }
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: d === dias }}
+                          accessibilityLabel={`${t.app.settings.alerts.kinds[kind]}: ${d}`}
+                          style={{
+                            borderWidth: StyleSheet.hairlineWidth * 2,
+                            borderColor: d === dias ? accent : color.line,
+                            backgroundColor: d === dias ? `${accent}18` : 'transparent',
+                            borderRadius: 999,
+                            paddingHorizontal: space.md,
+                            paddingVertical: space.xs,
+                          }}
+                        >
+                          <Text
+                            style={[
+                              type.caption,
+                              { color: d === dias ? color.ink : color.inkMuted },
+                            ]}
+                          >
+                            {formatQuantity(d, locale)}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })}
+          </View>
+
+          {/* A hora, e os dias. Valem para todos os avisos: o dono não quer
+              regular sete horários, quer regular "de manhã". */}
+          <View style={{ marginTop: space.lg, gap: space.sm }}>
+            <Text style={[type.overline, { color: color.inkFaint }]}>
+              {t.app.settings.alerts.hour.toUpperCase()}
+            </Text>
+            <View style={[styles.wrap, { gap: space.xs }]}>
+              {[5, 6, 7, 8, 12, 18].map((h) => (
+                <Pressable
+                  key={h}
+                  onPress={() => void mexerAlerta({ ...alerts, hour: h })}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: h === alerts.hour }}
+                  accessibilityLabel={`${t.app.settings.alerts.hour}: ${h}h`}
+                  style={{
+                    borderWidth: StyleSheet.hairlineWidth * 2,
+                    borderColor: h === alerts.hour ? accent : color.line,
+                    backgroundColor: h === alerts.hour ? `${accent}18` : 'transparent',
+                    borderRadius: 999,
+                    paddingHorizontal: space.md,
+                    paddingVertical: space.sm,
+                  }}
+                >
+                  <Text
+                    style={[type.secondary, { color: h === alerts.hour ? color.ink : color.inkMuted }]}
+                  >
+                    {`${h}h`}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={[type.caption, { color: color.inkFaint }]}>
+              {t.app.settings.alerts.hourHint}
+            </Text>
+
+            <Text style={[type.overline, { color: color.inkFaint, marginTop: space.sm }]}>
+              {t.app.settings.alerts.weekdays.toUpperCase()}
+            </Text>
+            <View style={[styles.wrap, { gap: space.xs }]}>
+              {[0, 1, 2, 3, 4, 5, 6].map((dia) => {
+                // Zero é TODOS os dias, então nenhum chip aceso significa todos.
+                const escolhido = alerts.weekdays !== 0 && agreedOn(alerts.weekdays, dia);
+                return (
+                  <Pressable
+                    key={dia}
+                    onPress={() =>
+                      void mexerAlerta({ ...alerts, weekdays: toggleDay(alerts.weekdays, dia) })
+                    }
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: escolhido }}
+                    accessibilityLabel={`${t.app.settings.alerts.weekdays}: ${formatWeekdayShort(dia, locale)}`}
+                    style={{
+                      borderWidth: StyleSheet.hairlineWidth * 2,
+                      borderColor: escolhido ? accent : color.line,
+                      backgroundColor: escolhido ? `${accent}18` : 'transparent',
+                      borderRadius: 999,
+                      paddingHorizontal: space.md,
+                      paddingVertical: space.sm,
+                    }}
+                  >
+                    <Text
+                      style={[type.secondary, { color: escolhido ? color.ink : color.inkMuted }]}
+                    >
+                      {formatWeekdayShort(dia, locale)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {alerts.weekdays === 0 ? (
+              <Text style={[type.caption, { color: color.inkFaint }]}>
+                {t.app.settings.alerts.everyDay}
+              </Text>
+            ) : null}
+          </View>
+        </Card>
+      ) : null}
+
       {/* A cara do aplicativo.
           Claro e escuro continuam seguindo o aparelho, como o sistema manda -
           o que se escolhe aqui é a IDENTIDADE, que é outra pergunta. O dono viu
@@ -695,6 +882,7 @@ function Line({ label, value }: { label: string; value: number }) {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   number: { fontVariant: ['tabular-nums'], fontWeight: '600' },
   destructive: {
     alignItems: 'center',

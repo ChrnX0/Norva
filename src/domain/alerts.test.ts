@@ -1,0 +1,193 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import {
+  alertsDue,
+  alertsRunToday,
+  DEFAULT_ALERTS,
+  nextAlertAt,
+  volumeBand,
+  type AlertFacts,
+  type AlertSettings,
+} from './alerts';
+
+const nada: AlertFacts = { cover: [], orders: [], volumes: [], expiring: [] };
+
+test('the alert fires on the decision date, not on the problem date', () => {
+  // Lei 4. Polpa que acaba em dois dias, com três dias de antecedência
+  // configurados: avisa. Açúcar que dura dez dias: cala.
+  //
+  // É por isso que o piso é em DIAS e não em quantidade — quantidade não sabe
+  // quanto tempo leva para a compra chegar.
+  const avisos = alertsDue(
+    {
+      ...nada,
+      cover: [
+        { itemId: 'polpa', name: 'Polpa de morango', daysLeft: 2 },
+        { itemId: 'acucar', name: 'Açúcar', daysLeft: 10 },
+      ],
+    },
+    DEFAULT_ALERTS,
+  );
+
+  assert.deepEqual(
+    avisos.map((a) => a.subjectId),
+    ['polpa'],
+  );
+  assert.equal(avisos[0].amount, 2, 'o aviso carrega o número que o gerou');
+});
+
+test('an alert nobody can act on is not sent', () => {
+  // Lei 7, quatro vezes: pedido já coberto, item sem faixa cadastrada, alarme
+  // desligado, e nada acontecendo. Alerta inventado ensina a ignorar alerta.
+  const coberto = alertsDue(
+    { ...nada, orders: [{ itemId: 'p', name: 'Picolé', missing: 0, daysUntil: 1, placeId: 'centro' }] },
+    DEFAULT_ALERTS,
+  );
+  assert.deepEqual(coberto, []);
+
+  const semNivel = alertsDue(
+    { ...nada, volumes: [{ itemId: 'p', name: 'Picolé', onHand: 3, fullLevel: null }] },
+    { ...DEFAULT_ALERTS, on: { ...DEFAULT_ALERTS.on, volume: true } },
+  );
+  assert.deepEqual(semNivel, [], 'sem nível cheio, o app estaria inventando o que é pouco');
+
+  const desligado = alertsDue(
+    { ...nada, cover: [{ itemId: 'x', name: 'X', daysLeft: 0 }] },
+    { ...DEFAULT_ALERTS, on: { ...DEFAULT_ALERTS.on, insumo: false } },
+  );
+  assert.deepEqual(desligado, []);
+
+  assert.deepEqual(alertsDue(nada, DEFAULT_ALERTS), []);
+});
+
+test('the volume bands read the same in every item, and green is quiet', () => {
+  // Desenho do dono: vermelho até 25%, amarelo até 40%, verde no meio, azul
+  // acima de 80% — e zerado à parte. Porcentagem do nível cheio, porque 20% de
+  // polpa e 20% de palito significam a mesma coisa para quem passa o olho, e
+  // dois números absolutos não.
+  const faixas = DEFAULT_ALERTS.bands;
+
+  assert.equal(volumeBand(0, 100, faixas), 'zerado');
+  assert.equal(volumeBand(20, 100, faixas), 'vermelho');
+  assert.equal(volumeBand(25, 100, faixas), 'vermelho', 'o limite é do vermelho');
+  assert.equal(volumeBand(35, 100, faixas), 'amarelo');
+  assert.equal(volumeBand(60, 100, faixas), 'verde');
+  assert.equal(volumeBand(90, 100, faixas), 'azul');
+  assert.equal(volumeBand(120, 100, faixas), 'azul', 'mais que cheio continua azul');
+
+  // Sem nível cheio não existe faixa: é a diferença entre não saber e chutar.
+  assert.equal(volumeBand(50, null, faixas), null);
+  assert.equal(volumeBand(50, 0, faixas), null, 'nível zero não é referência');
+
+  const ligado: AlertSettings = {
+    ...DEFAULT_ALERTS,
+    on: { ...DEFAULT_ALERTS.on, volume: true, insumo: false, pedido: false, validade: false },
+  };
+
+  const avisos = alertsDue(
+    {
+      ...nada,
+      volumes: [
+        { itemId: 'vazio', name: 'Vazio', onHand: 0, fullLevel: 100 },
+        { itemId: 'pouco', name: 'Pouco', onHand: 10, fullLevel: 100 },
+        { itemId: 'meio', name: 'No meio', onHand: 60, fullLevel: 100 },
+        { itemId: 'cheio', name: 'Cheio', onHand: 95, fullLevel: 100 },
+      ],
+    },
+    ligado,
+  );
+
+  // O verde não notifica, e o azul sim: câmara cheia é produção que vai parar
+  // por falta de espaço, e ninguém descobre isso olhando o que falta.
+  assert.deepEqual(avisos.map((a) => a.subjectId).sort(), ['cheio', 'pouco', 'vazio']);
+
+  // E o número do aviso é a porcentagem, que é o que a frase vai dizer.
+  assert.equal(avisos.find((a) => a.subjectId === 'pouco')?.amount, 10);
+  assert.equal(avisos.find((a) => a.subjectId === 'cheio')?.band, 'azul');
+});
+
+test('the most urgent alert comes first, because a notification holds one sentence', () => {
+  const avisos = alertsDue(
+    {
+      ...nada,
+      cover: [
+        { itemId: 'folgado', name: 'Folgado', daysLeft: 3 },
+        { itemId: 'apertado', name: 'Apertado', daysLeft: 0 },
+      ],
+      expiring: [{ lotId: 'l1', code: '20260903-01', daysLeft: 1 }],
+    },
+    DEFAULT_ALERTS,
+  );
+
+  assert.deepEqual(
+    avisos.map((a) => a.subjectId),
+    ['apertado', 'folgado', 'l1'],
+    'insumo antes de validade, e dentro de cada um o mais apertado primeiro',
+  );
+});
+
+test('no chosen weekday means every day, never silence', () => {
+  // A configuração vazia é o estado inicial de todo mundo. Se ela silenciasse,
+  // o aplicativo emudeceria sem ninguém ter pedido - e o dono descobriria no
+  // dia em que faltasse polpa.
+  for (let dia = 0; dia < 7; dia += 1) {
+    assert.ok(alertsRunToday(DEFAULT_ALERTS, dia), `dia ${dia} tinha que avisar`);
+  }
+
+  const soTerca = { ...DEFAULT_ALERTS, weekdays: 1 << 2 };
+  assert.ok(alertsRunToday(soTerca, 2));
+  assert.ok(!alertsRunToday(soTerca, 3));
+  assert.ok(!alertsRunToday(soTerca, 9), 'dia que não existe não avisa');
+});
+
+test('the next alert is never in the past', () => {
+  // Notificação agendada para trás não dispara, e o aviso desaparece sem
+  // ninguém saber que existiu.
+  const seteDaManha = { ...DEFAULT_ALERTS, hour: 7 };
+
+  const antes = nextAlertAt(seteDaManha, new Date('2026-09-03T04:00:00'));
+  assert.ok(antes);
+  assert.equal(antes.getDate(), 3, 'ainda dá hoje');
+  assert.equal(antes.getHours(), 7);
+
+  const depois = nextAlertAt(seteDaManha, new Date('2026-09-03T09:00:00'));
+  assert.ok(depois);
+  assert.equal(depois.getDate(), 4, 'passou da hora: amanhã');
+
+  // Exatamente na hora conta como passada: agendar para o instante presente é
+  // uma corrida que o sistema operacional ganha.
+  const naHora = nextAlertAt(seteDaManha, new Date('2026-09-03T07:00:00'));
+  assert.ok(naHora);
+  assert.equal(naHora.getDate(), 4);
+
+  // E com um dia só combinado, ele acha o próximo dele em vez de desistir.
+  const soDomingo = { ...seteDaManha, weekdays: 1 << 0 };
+  const proximo = nextAlertAt(soDomingo, new Date('2026-09-03T09:00:00')); // quinta
+  assert.ok(proximo);
+  assert.equal(proximo.getDay(), 0);
+  assert.ok(proximo.getTime() > new Date('2026-09-03T09:00:00').getTime());
+});
+
+test('the order alert counts stores, because that is the decision it feeds', () => {
+  // Pedido do dono: "faltam 300 picolés" não diz se é uma loja para ligar ou
+  // quatro para reorganizar o dia. E a loja que espera três itens conta UMA vez.
+  const avisos = alertsDue(
+    {
+      ...nada,
+      orders: [
+        { itemId: 'morango', name: 'Morango', missing: 100, daysUntil: 1, placeId: 'centro' },
+        { itemId: 'coco', name: 'Coco', missing: 50, daysUntil: 1, placeId: 'centro' },
+        { itemId: 'uva', name: 'Uva', missing: 20, daysUntil: 0, placeId: 'norte' },
+        // Longe demais para hoje: não entra, e não conta loja.
+        { itemId: 'limao', name: 'Limão', missing: 90, daysUntil: 9, placeId: 'sul' },
+      ],
+    },
+    DEFAULT_ALERTS,
+  );
+
+  assert.equal(avisos.length, 3, 'três itens em falta dentro do prazo');
+  assert.ok(
+    avisos.every((a) => a.places === 2),
+    'duas lojas esperando, não três nem quatro',
+  );
+});
