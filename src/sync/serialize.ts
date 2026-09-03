@@ -60,6 +60,7 @@ export type ServerWrite =
 
 export type ServerTable =
   | 'locations'
+  | 'readings'
   | 'items'
   | 'recipes'
   | 'recipe_versions'
@@ -125,6 +126,24 @@ const CROSSINGS: Record<
     build?: (row: Record<string, unknown>, actor: SyncActor) => Record<string, unknown>;
   }
 > = {
+  readings: {
+    // `device_id` nulo é a leitura digitada, e atravessa como nulo mesmo: no
+    // servidor a coluna aceita nulo de propósito, porque pessoa não é aparelho.
+    take: [
+      'id',
+      'company_id',
+      'location_id',
+      'device_id',
+      'kind',
+      'value',
+      'unit',
+      'taken_at',
+      'recorded_at',
+      'source',
+    ],
+    build: (_row, actor) => ({ recorded_by: actor.userId }),
+  },
+
   locations: {
     // A ficha de acordo atravessa junto: um telefone que fica só no aparelho
     // some quando o aparelho some, e é o número que alguém liga para avisar
@@ -139,6 +158,10 @@ const CROSSINGS: Record<
       'delivery_days',
       'agreement_note',
     ],
+    // A faixa dos sensores é `jsonb` do outro lado e texto aqui, como a lista de
+    // embalagem: mandada crua, o Postgres guarda uma string entre aspas onde
+    // deveria haver objeto e a restrição do lugar recusa a fila inteira.
+    build: (row) => ({ sensor_ranges: structure(row.sensor_ranges) }),
   },
 
   items: {

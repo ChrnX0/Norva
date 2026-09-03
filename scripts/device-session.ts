@@ -27,6 +27,7 @@ import {
   recordLoss,
   recordProduction,
   recordReturn,
+  recordReading,
   recordTransfer,
   recordPurchase,
   savePlace,
@@ -176,6 +177,25 @@ async function main() {
     lines: [{ itemId: pulp.id, baseUnits: 300 }],
   });
 
+  // A câmara fria, com a faixa que julga a leitura — e uma leitura dentro dela.
+  //
+  // Atravessa por dois motivos, e os dois são cicatriz: a faixa é `jsonb` do
+  // outro lado e texto aqui, então mandada crua o Postgres guardaria uma string
+  // entre aspas onde deveria haver objeto (foi o que a lista de embalagem já
+  // fez); e `readings` exige `recorded_by` na política, que é a coluna que o
+  // aparelho não conhece e o serializador estampa.
+  const camara = await savePlace(LOCAL_COMPANY_ID, {
+    name: 'Câmara fria',
+    kind: 'cold_room',
+    sensorRanges: { temperature: { min: -22, max: -16, unit: 'C' } },
+  });
+  await recordReading(LOCAL_COMPANY_ID, {
+    locationId: camara.id,
+    kind: 'temperature',
+    value: -18.4,
+    unit: 'C',
+  });
+
   // E uma corrida de verdade, que é o que faz nascer um LOTE.
   //
   // O lote atravessa a fila antes do movimento que o cita, e o servidor tem a
@@ -268,10 +288,15 @@ async function main() {
     const conflict = ['id'];
     const settled = keys.filter((k) => !conflict.includes(k));
 
-    const onConflict =
-      write.table === 'movements'
-        ? 'do nothing'
-        : `do update set ${settled.map((k) => `${ident(k)} = excluded.${ident(k)}`).join(', ')}`;
+    // Leitura de sensor é da mesma família do livro-razão: a temperatura de ontem
+    // às três da manhã não se corrige, se mede de novo. Uma série que aceita
+    // UPDATE deixa de ser prova de nada — e o servidor recusa a coluna sem UPDATE
+    // dizendo apenas "permission denied", sem contar qual privilégio falta.
+    const appendOnly = write.table === 'movements' || write.table === 'readings';
+
+    const onConflict = appendOnly
+      ? 'do nothing'
+      : `do update set ${settled.map((k) => `${ident(k)} = excluded.${ident(k)}`).join(', ')}`;
 
     // The columns are named, and that is not cosmetic.
     //

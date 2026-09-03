@@ -6,6 +6,7 @@ import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
+import { Field } from '@/components/Field';
 import { brand } from '@/config/brand';
 import {
   alertSettings,
@@ -20,6 +21,7 @@ import {
   setOrdersNeedApproval,
 } from '@/data/repository';
 import { agreedOn, toggleDay } from '@/domain/agreement';
+import { parseTyped } from '@/domain/number';
 import type { AlertKind, AlertSettings } from '@/domain/alerts';
 import { useAppearance } from '@/theme/Appearance';
 import {
@@ -480,9 +482,13 @@ function Settings() {
           </Text>
 
           <View style={{ marginTop: space.md, gap: space.sm }}>
-            {(['insumo', 'pedido', 'validade', 'volume'] as AlertKind[]).map((kind) => {
+            {(['ambiente', 'insumo', 'pedido', 'validade', 'volume'] as AlertKind[]).map((kind) => {
               const ligado = alerts.on[kind];
-              const dias = kind === 'volume' ? null : alerts.daysAhead[kind];
+              // Volume e ambiente não têm antecedência: um compara com a faixa do
+              // item, o outro com a faixa do lugar. Antecedência é para o que se
+              // vê chegando; faixa é para o que já aconteceu.
+              const dias =
+                kind === 'volume' || kind === 'ambiente' ? null : alerts.daysAhead[kind];
               return (
                 <View key={kind} style={{ gap: space.xs }}>
                   <View style={[styles.row, { gap: space.sm }]}>
@@ -493,7 +499,9 @@ function Settings() {
                       <Text style={[type.caption, { color: color.inkFaint }]}>
                         {kind === 'volume'
                           ? t.app.settings.alerts.volumeHint
-                          : fill(t.app.settings.alerts.daysAhead, {
+                          : kind === 'ambiente'
+                            ? t.app.settings.alerts.ambienteHint
+                            : fill(t.app.settings.alerts.daysAhead, {
                               days: plural(dias ?? 0, t.app.home.dayCount),
                             })}
                       </Text>
@@ -558,36 +566,46 @@ function Settings() {
             })}
           </View>
 
-          {/* A hora, e os dias. Valem para todos os avisos: o dono não quer
-              regular sete horários, quer regular "de manhã". */}
+          {/* A hora e os dias, e valem para todos os avisos.
+              Era uma lista de seis horas que EU escolhi, e o dono cortou: "nem
+              toda fábrica funciona igual". Seis opções não são configuração, são
+              um menu disfarçado — e a fábrica que começa às 5h30 não estava em
+              nenhuma delas. Agora são dois campos e qualquer horário existe. */}
           <View style={{ marginTop: space.lg, gap: space.sm }}>
             <Text style={[type.overline, { color: color.inkFaint }]}>
               {t.app.settings.alerts.hour.toUpperCase()}
             </Text>
-            <View style={[styles.wrap, { gap: space.xs }]}>
-              {[5, 6, 7, 8, 12, 18].map((h) => (
-                <Pressable
-                  key={h}
-                  onPress={() => void mexerAlerta({ ...alerts, hour: h })}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: h === alerts.hour }}
-                  accessibilityLabel={`${t.app.settings.alerts.hour}: ${h}h`}
-                  style={{
-                    borderWidth: StyleSheet.hairlineWidth * 2,
-                    borderColor: h === alerts.hour ? accent : color.line,
-                    backgroundColor: h === alerts.hour ? `${accent}18` : 'transparent',
-                    borderRadius: 999,
-                    paddingHorizontal: space.md,
-                    paddingVertical: space.sm,
+            <View style={[styles.row, { gap: space.md }]}>
+              <View style={{ flex: 1 }}>
+                <Field
+                  label={t.app.settings.alerts.hourField}
+                  value={String(Math.floor(alerts.minuteOfDay / 60))}
+                  onChangeText={(texto) => {
+                    const h = parseTyped(texto);
+                    if (h === null || h < 0 || h > 23) return;
+                    void mexerAlerta({
+                      ...alerts,
+                      minuteOfDay: Math.trunc(h) * 60 + (alerts.minuteOfDay % 60),
+                    });
                   }}
-                >
-                  <Text
-                    style={[type.secondary, { color: h === alerts.hour ? color.ink : color.inkMuted }]}
-                  >
-                    {`${h}h`}
-                  </Text>
-                </Pressable>
-              ))}
+                  keyboardType="numeric"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Field
+                  label={t.app.settings.alerts.minuteField}
+                  value={String(alerts.minuteOfDay % 60).padStart(2, '0')}
+                  onChangeText={(texto) => {
+                    const m = parseTyped(texto);
+                    if (m === null || m < 0 || m > 59) return;
+                    void mexerAlerta({
+                      ...alerts,
+                      minuteOfDay: Math.floor(alerts.minuteOfDay / 60) * 60 + Math.trunc(m),
+                    });
+                  }}
+                  keyboardType="numeric"
+                />
+              </View>
             </View>
             <Text style={[type.caption, { color: color.inkFaint }]}>
               {t.app.settings.alerts.hourHint}

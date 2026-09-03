@@ -10,7 +10,7 @@ import {
   type AlertSettings,
 } from './alerts';
 
-const nada: AlertFacts = { cover: [], orders: [], volumes: [], expiring: [] };
+const nada: AlertFacts = { cover: [], orders: [], volumes: [], expiring: [], ambient: [] };
 
 test('the alert fires on the decision date, not on the problem date', () => {
   // Lei 4. Polpa que acaba em dois dias, com três dias de antecedência
@@ -143,12 +143,22 @@ test('no chosen weekday means every day, never silence', () => {
 test('the next alert is never in the past', () => {
   // Notificação agendada para trás não dispara, e o aviso desaparece sem
   // ninguém saber que existiu.
-  const seteDaManha = { ...DEFAULT_ALERTS, hour: 7 };
+  const seteDaManha = { ...DEFAULT_ALERTS, minuteOfDay: 7 * 60 };
 
   const antes = nextAlertAt(seteDaManha, new Date('2026-09-03T04:00:00'));
   assert.ok(antes);
   assert.equal(antes.getDate(), 3, 'ainda dá hoje');
   assert.equal(antes.getHours(), 7);
+  assert.equal(antes.getMinutes(), 0);
+
+  // E a fábrica que começa às cinco e meia: o minuto existe porque ela existe.
+  const cincoEMeia = nextAlertAt(
+    { ...DEFAULT_ALERTS, minuteOfDay: 5 * 60 + 30 },
+    new Date('2026-09-03T04:00:00'),
+  );
+  assert.ok(cincoEMeia);
+  assert.equal(cincoEMeia.getHours(), 5);
+  assert.equal(cincoEMeia.getMinutes(), 30);
 
   const depois = nextAlertAt(seteDaManha, new Date('2026-09-03T09:00:00'));
   assert.ok(depois);
@@ -190,4 +200,68 @@ test('the order alert counts stores, because that is the decision it feeds', () 
     avisos.every((a) => a.places === 2),
     'duas lojas esperando, não três nem quatro',
   );
+});
+
+test('the cold room comes first, and a room with no range stays quiet', () => {
+  // A ordem é o custo do erro: insumo que acaba custa uma compra atrasada;
+  // câmara fora de faixa custa o estoque inteiro numa noite.
+  const avisos = alertsDue(
+    {
+      ...nada,
+      cover: [{ itemId: 'polpa', name: 'Polpa', daysLeft: 0 }],
+      ambient: [
+        {
+          locationId: 'c1',
+          place: 'Câmara 1',
+          kind: 'temperature',
+          value: -8,
+          unit: 'C',
+          min: -22,
+          max: -16,
+          hoursOld: 1,
+        },
+        // Sem faixa: o aplicativo não sabe qual é a temperatura boa da câmara de
+        // outra pessoa, e -18 é o número comum de freezer, não uma verdade.
+        {
+          locationId: 'c2',
+          place: 'Câmara 2',
+          kind: 'temperature',
+          value: 40,
+          unit: 'C',
+          min: null,
+          max: null,
+          hoursOld: 1,
+        },
+        // Dentro da faixa: calado.
+        {
+          locationId: 'c3',
+          place: 'Câmara 3',
+          kind: 'temperature',
+          value: -19,
+          unit: 'C',
+          min: -22,
+          max: -16,
+          hoursOld: 1,
+        },
+      ],
+    },
+    DEFAULT_ALERTS,
+  );
+
+  assert.equal(avisos[0].kind, 'ambiente', 'a câmara vem antes do insumo');
+  assert.equal(avisos[0].subject, 'Câmara 1');
+  assert.equal(avisos[0].unit, 'C', 'o número vem com a unidade: 4 é bom em C e quebrado em F');
+  assert.equal(avisos[0].quantity, 'temperature');
+  assert.deepEqual(
+    avisos.filter((a) => a.kind === 'ambiente').map((a) => a.subjectId),
+    ['c1'],
+    'sem faixa e dentro da faixa não avisam',
+  );
+
+  // Desligado, nem a câmara aberta avisa: quem desligou escolheu.
+  const mudo = alertsDue(
+    { ...nada, ambient: [{ locationId: 'c1', place: 'C1', kind: 'temperature', value: 10, unit: 'C', min: -22, max: -16, hoursOld: 1 }] },
+    { ...DEFAULT_ALERTS, on: { ...DEFAULT_ALERTS.on, ambiente: false } },
+  );
+  assert.deepEqual(mudo, []);
 });

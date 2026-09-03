@@ -557,6 +557,14 @@ export type Place = {
   deliveryDays: number;
   /** O que ficou combinado em uma frase: onde descarregar, com quem falar. */
   agreementNote: string;
+  /**
+   * A faixa aceitável de cada grandeza medida aqui, por `kind`.
+   *
+   * Vazio é o caso normal: o lugar recebe leitura e não julga nada. O aplicativo
+   * não sabe qual é a temperatura boa da câmara de outra pessoa, e chutar -18
+   * porque é o número comum de freezer seria inventar o que ele não mediu.
+   */
+  sensorRanges: Record<string, SensorRange>;
 };
 
 /**
@@ -576,8 +584,9 @@ export async function listPlaces(companyId: string): Promise<Place[]> {
     contact_phone: string | null;
     delivery_days: number | null;
     agreement_note: string | null;
+    sensor_ranges: string;
   }>(
-    `SELECT id, name, kind, contact_phone, delivery_days, agreement_note
+    `SELECT id, name, kind, contact_phone, delivery_days, agreement_note, sensor_ranges
        FROM locations WHERE company_id = ? ORDER BY kind, name`,
     [companyId],
   );
@@ -589,6 +598,7 @@ export async function listPlaces(companyId: string): Promise<Place[]> {
     contactPhone: r.contact_phone ?? '',
     deliveryDays: r.delivery_days ?? 0,
     agreementNote: r.agreement_note ?? '',
+    sensorRanges: parseSensorRanges(r.sensor_ranges),
   }));
 }
 
@@ -610,6 +620,8 @@ export async function savePlace(
     contactPhone?: string;
     deliveryDays?: number;
     agreementNote?: string;
+    /** A faixa de cada grandeza. Ausente é "não mexa"; objeto vazio apaga. */
+    sensorRanges?: Record<string, SensorRange>;
   },
 ): Promise<Place> {
   const name = input.name.trim();
@@ -629,8 +641,10 @@ export async function savePlace(
         contact_phone: string | null;
         delivery_days: number | null;
         agreement_note: string | null;
+        sensor_ranges: string | null;
       }>(
-        `SELECT contact_phone, delivery_days, agreement_note FROM locations WHERE id = ?`,
+        `SELECT contact_phone, delivery_days, agreement_note, sensor_ranges
+           FROM locations WHERE id = ?`,
         [id],
       )
     : null;
@@ -638,19 +652,25 @@ export async function savePlace(
   const phone = input.contactPhone ?? anterior?.contact_phone ?? '';
   const deliveryDays = input.deliveryDays === undefined ? (anterior?.delivery_days ?? 0) : days;
   const note = input.agreementNote ?? anterior?.agreement_note ?? '';
+  const ranges =
+    input.sensorRanges === undefined
+      ? (anterior?.sensor_ranges ?? '{}')
+      : JSON.stringify(input.sensorRanges);
 
   await conn.withTransactionAsync(async () => {
     await conn.runAsync(
       `INSERT INTO locations
-         (id, company_id, name, kind, created_at, contact_phone, delivery_days, agreement_note)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         (id, company_id, name, kind, created_at, contact_phone, delivery_days, agreement_note,
+          sensor_ranges)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          name = excluded.name,
          kind = excluded.kind,
          contact_phone = excluded.contact_phone,
          delivery_days = excluded.delivery_days,
-         agreement_note = excluded.agreement_note`,
-      [id, companyId, name, input.kind, nowIso(), phone, deliveryDays, note],
+         agreement_note = excluded.agreement_note,
+         sensor_ranges = excluded.sensor_ranges`,
+      [id, companyId, name, input.kind, nowIso(), phone, deliveryDays, note, ranges],
     );
     await enqueue(conn, [{ table: 'locations', rowId: id }]);
   });
@@ -663,6 +683,7 @@ export async function savePlace(
     contactPhone: phone,
     deliveryDays,
     agreementNote: note,
+    sensorRanges: parseSensorRanges(ranges),
   };
 }
 
@@ -2508,6 +2529,182 @@ export async function lotsOn(
   }));
 }
 
+/**
+ * A faixa aceitável de uma grandeza num lugar.
+ *
+ * Sem faixa, a leitura é registrada e não julga nada — que é a resposta certa: o
+ * aplicativo não sabe qual é a temperatura boa da câmara de outra pessoa, e
+ * chutar -18 porque é o número comum de freezer seria inventar o que ele não
+ * mediu.
+ */
+export type SensorRange = { min: number | null; max: number | null; unit: string };
+
+/**
+ * As faixas como estrutura, tolerando o que o disco tiver.
+ *
+ * Texto escrito por uma versão anterior: chave estranha é ignorada, faixa quebrada
+ * é ignorada, e JSON inválido devolve vazio. Faixa que não pôde ser lida vira
+ * "não julgo" em vez de vira alarme aleatório — é a mesma escolha da leitura
+ * tolerante da configuração de avisos.
+ */
+function parseSensorRanges(json: string): Record<string, SensorRange> {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(json || '{}');
+  } catch {
+    return {};
+  }
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
+
+  const out: Record<string, SensorRange> = {};
+  for (const [kind, valor] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof valor !== 'object' || valor === null) continue;
+    const { min, max, unit } = valor as { min?: unknown; max?: unknown; unit?: unknown };
+    if (typeof unit !== 'string' || !unit.trim()) continue;
+    out[kind] = {
+      min: typeof min === 'number' && Number.isFinite(min) ? min : null,
+      max: typeof max === 'number' && Number.isFinite(max) ? max : null,
+      unit,
+    };
+  }
+  return out;
+}
+
+/** Uma leitura, como ela sai do banco. */
+export type Reading = {
+  id: string;
+  locationId: string;
+  kind: string;
+  value: number;
+  unit: string;
+  takenAt: string;
+  source: string;
+};
+
+/**
+ * Anota uma leitura — digitada agora, ou vinda de um sensor depois.
+ *
+ * `source` é o que diferencia, e é texto aberto de propósito: quando o ESP32 do
+ * dono existir, ele grava com `source: 'wifi'` e nada mais muda aqui. É a mesma
+ * forma da entrada no chão de fábrica, que a F7 resolveu: os dois caminhos
+ * existem, e quem escolhe é a fábrica.
+ */
+export async function recordReading(
+  companyId: string,
+  input: {
+    locationId: string;
+    kind: string;
+    value: number;
+    unit: string;
+    takenAt?: string;
+    deviceId?: string | null;
+    source?: string;
+  },
+): Promise<Reading> {
+  if (!Number.isFinite(input.value)) throw new Error('uma leitura que não é número não é leitura');
+  if (!input.unit.trim()) throw new Error('uma grandeza sem unidade é um número solto');
+
+  const conn = await db();
+  const at = nowIso();
+  const id = newId();
+  const takenAt = input.takenAt ?? at;
+
+  await conn.withTransactionAsync(async () => {
+    await ensureLocation(conn, companyId);
+    await conn.runAsync(
+      `INSERT INTO readings
+         (id, company_id, location_id, device_id, kind, value, unit, taken_at, recorded_at, source)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        companyId,
+        input.locationId,
+        input.deviceId ?? null,
+        input.kind,
+        input.value,
+        input.unit.trim(),
+        takenAt,
+        at,
+        input.source ?? 'typed',
+      ],
+    );
+    await enqueue(conn, [{ table: 'readings', rowId: id }]);
+  });
+
+  return {
+    id,
+    locationId: input.locationId,
+    kind: input.kind,
+    value: input.value,
+    unit: input.unit.trim(),
+    takenAt,
+    source: input.source ?? 'typed',
+  };
+}
+
+/**
+ * A última leitura de cada grandeza, por lugar.
+ *
+ * Uma consulta para todos os lugares em vez de uma por lugar: a tela mostra a
+ * lista inteira, e é a mesma razão pela qual a lista de embalagem vem junta.
+ */
+export async function lastReadings(companyId: string): Promise<Reading[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    id: string;
+    location_id: string;
+    kind: string;
+    value: number;
+    unit: string;
+    taken_at: string;
+    source: string;
+  }>(
+    `SELECT r.id, r.location_id, r.kind, r.value, r.unit, r.taken_at, r.source
+       FROM readings r
+       JOIN (
+         SELECT location_id, kind, MAX(taken_at) AS quando
+           FROM readings
+          WHERE company_id = ?
+          GROUP BY location_id, kind
+       ) ultima
+         ON ultima.location_id = r.location_id
+        AND ultima.kind = r.kind
+        AND ultima.quando = r.taken_at
+      WHERE r.company_id = ?
+      ORDER BY r.location_id, r.kind`,
+    [companyId, companyId],
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    locationId: r.location_id,
+    kind: r.kind,
+    value: r.value,
+    unit: r.unit,
+    takenAt: r.taken_at,
+    source: r.source,
+  }));
+}
+
+/** A série de uma grandeza num lugar, do mais antigo para o mais novo. */
+export async function readingsBetween(
+  companyId: string,
+  locationId: string,
+  kind: string,
+  fromIso: string,
+  toIso: string,
+): Promise<{ takenAt: string; value: number }[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{ taken_at: string; value: number }>(
+    `SELECT taken_at, value FROM readings
+      WHERE company_id = ? AND location_id = ? AND kind = ?
+        AND taken_at >= ? AND taken_at < ?
+      ORDER BY taken_at ASC`,
+    [companyId, locationId, kind, fromIso, toIso],
+  );
+  return rows.map((r) => ({ takenAt: r.taken_at, value: r.value }));
+}
+
 /** Uma corrida, do jeito que ela aparece num histórico curto. */
 export type Run = {
   lotId: string | null;
@@ -3438,10 +3635,12 @@ export async function alertSettings(): Promise<AlertSettings> {
       on: { ...DEFAULT_ALERTS.on, ...(lido.on ?? {}) },
       daysAhead: { ...DEFAULT_ALERTS.daysAhead, ...(lido.daysAhead ?? {}) },
       bands: { ...DEFAULT_ALERTS.bands, ...(lido.bands ?? {}) },
-      hour:
-        typeof lido.hour === 'number' && lido.hour >= 0 && lido.hour <= 23
-          ? Math.trunc(lido.hour)
-          : DEFAULT_ALERTS.hour,
+      minuteOfDay:
+        typeof lido.minuteOfDay === 'number' &&
+        lido.minuteOfDay >= 0 &&
+        lido.minuteOfDay <= 1439
+          ? Math.trunc(lido.minuteOfDay)
+          : DEFAULT_ALERTS.minuteOfDay,
       weekdays:
         typeof lido.weekdays === 'number' && lido.weekdays >= 0 && lido.weekdays <= 127
           ? Math.trunc(lido.weekdays)

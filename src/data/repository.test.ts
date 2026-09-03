@@ -28,6 +28,9 @@ import {
   listPlaces,
   recentRuns,
   expiringSoon,
+  recordReading,
+  lastReadings,
+  readingsBetween,
   stockByPlace,
   recordTransfer,
   recordReturn,
@@ -2182,6 +2185,102 @@ test('a run without packaging in stock is refused before anything is written', a
     }),
     NotEnoughStockError,
   );
+});
+
+test('a reading is a fact with a place, an hour and a unit — typed today, sensor tomorrow', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const camara = await savePlace(LOCAL_COMPANY_ID, { name: 'Câmara 1', kind: 'cold_room' });
+  const outra = await savePlace(LOCAL_COMPANY_ID, { name: 'Câmara 2', kind: 'cold_room' });
+
+  // Digitada na conferência: é o caminho que funciona hoje, e é fato tanto quanto
+  // leitura de sensor.
+  await recordReading(LOCAL_COMPANY_ID, {
+    locationId: camara.id,
+    kind: 'temperature',
+    value: -18.4,
+    unit: 'C',
+    takenAt: '2026-09-03T08:00:00.000Z',
+  });
+
+  // Mais tarde, mais frio - e a mesma câmara.
+  await recordReading(LOCAL_COMPANY_ID, {
+    locationId: camara.id,
+    kind: 'temperature',
+    value: -12.1,
+    unit: 'C',
+    takenAt: '2026-09-03T14:00:00.000Z',
+  });
+
+  // Outra câmara, e outra grandeza: as duas coisas que o dono levantou, e
+  // nenhuma delas precisou de tabela nova.
+  await recordReading(LOCAL_COMPANY_ID, {
+    locationId: outra.id,
+    kind: 'temperature',
+    value: -20,
+    unit: 'C',
+    takenAt: '2026-09-03T14:00:00.000Z',
+    source: 'wifi',
+  });
+  await recordReading(LOCAL_COMPANY_ID, {
+    locationId: camara.id,
+    kind: 'humidity',
+    value: 62,
+    unit: '%',
+    takenAt: '2026-09-03T14:00:00.000Z',
+    source: 'zigbee',
+  });
+
+  const ultimas = await lastReadings(LOCAL_COMPANY_ID);
+  assert.equal(ultimas.length, 3, 'uma última por lugar e por grandeza');
+
+  const ultimaCamara = ultimas.find((r) => r.locationId === camara.id && r.kind === 'temperature');
+  assert.equal(ultimaCamara?.value, -12.1, 'a última é a mais recente, não a primeira');
+
+  const umidade = ultimas.find((r) => r.kind === 'humidity');
+  assert.equal(umidade?.unit, '%');
+  assert.equal(umidade?.source, 'zigbee', 'a origem viaja com a leitura');
+
+  // A fração sobrevive: -18,4 arredondado para -18 é meio grau de freezer, e é
+  // exatamente o tipo de perda que o projeto proíbe em dinheiro e vale aqui.
+  const serie = await readingsBetween(
+    LOCAL_COMPANY_ID,
+    camara.id,
+    'temperature',
+    '2026-09-03T00:00:00.000Z',
+    '2026-09-04T00:00:00.000Z',
+  );
+  assert.deepEqual(
+    serie.map((r) => r.value),
+    [-18.4, -12.1],
+    'a série vem em ordem de quando foi medida, com a fração inteira',
+  );
+
+  // Leitura sem unidade é número solto: 4 é geladeira boa em Celsius e freezer
+  // quebrado em Fahrenheit.
+  await assert.rejects(
+    recordReading(LOCAL_COMPANY_ID, {
+      locationId: camara.id,
+      kind: 'temperature',
+      value: 4,
+      unit: '  ',
+    }),
+    /unidade/,
+  );
+
+  // E atravessa para o servidor com o autor que a política exige.
+  const fila = await pendingEntries();
+  const linha = fila.find((e) => e.table === 'readings');
+  assert.ok(linha, 'a leitura entra na fila do aparelho');
+  const bruta = await live.getFirstAsync<Record<string, unknown>>(
+    `SELECT * FROM readings WHERE id = ?`,
+    [linha.rowId],
+  );
+  const escrita = serialize(linha, bruta ?? null, { userId: 'quem-mediu' });
+  assert.equal(escrita.kind, 'upsert');
+  if (escrita.kind === 'upsert') {
+    assert.equal(escrita.row.recorded_by, 'quem-mediu', 'leitura sem autor não existe');
+    assert.equal(escrita.row.device_id, null, 'digitada não tem aparelho, e isso não é lacuna');
+  }
 });
 
 test('the agreement sheet is kept, corrected and queued for the server', async () => {

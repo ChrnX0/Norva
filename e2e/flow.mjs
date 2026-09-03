@@ -780,6 +780,49 @@ check('a second unclassified product is refused with a sentence, not with SQLite
   assert.doesNotMatch(tela, /finalizing statement/, 'sem jargão de driver na cara do dono');
 });
 
+check('a cold room reading becomes history today, sensor or no sensor', async (page) => {
+  // O dono pediu alarme de temperatura e disse que vai arrumar um ESP32. Esta
+  // checagem prova o caminho que funciona HOJE: a leitura digitada na conferência
+  // é fato, entra na série, e quando o módulo existir ele escreve no mesmo lugar.
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+  await page.getByLabel('Como se chama').fill('Câmara 1');
+  await page.waitForTimeout(300);
+  // O tipo é um Text com marcador ("○ Câmara fria"), então quem responde pelo
+  // clique é o rótulo de acessibilidade e não o texto inteiro.
+  await page.getByLabel('Câmara fria', { exact: true }).first().click();
+  await page.waitForTimeout(300);
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(2000);
+
+  // A câmara nasce sem leitura, e a tela diz isso em vez de mostrar zero grau.
+  const nova = await screen(page);
+  assert.match(nova, /Câmara 1/);
+  assert.match(nova, /nenhuma leitura anotada ainda/);
+  assert.match(nova, /Temperatura agora/i, 'e oferece anotar');
+
+  // Almoxarifado não pergunta temperatura: a peça só existe onde decide algo.
+  assert.doesNotMatch(nova, /nenhuma leitura anotada ainda[\s\S]*nenhuma leitura anotada ainda/);
+
+  await page.getByLabel('Temperatura agora').first().fill('-18,4');
+  await page.waitForTimeout(400);
+  await page.getByText('Anotar leitura', { exact: true }).first().click();
+  await page.waitForTimeout(2000);
+
+  const comLeitura = await screen(page);
+  assert.match(
+    comLeitura,
+    /última: -18,4 °C/,
+    'a fração sobrevive até a tela: meio grau de freezer importa',
+  );
+  // Sem faixa cadastrada, o app registra e NÃO julga — ele não sabe qual é a
+  // temperatura boa da câmara de outra pessoa.
+  assert.doesNotMatch(comLeitura, /fora da faixa|dentro da faixa/);
+});
+
 check('the colour bands only exist for an item with a ruler', async (page) => {
   // Desenho do dono: vermelho, amarelo, verde, azul, e zerado à parte. A régua é
   // o "quanto é cheio" do item — sem ela o aplicativo não sabe o que é pouco, e

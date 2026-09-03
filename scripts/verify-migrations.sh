@@ -452,7 +452,10 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
         recipes, recipe_versions, recipe_lines,
         product_lines, product_types, flavors,
         orders, order_lines to app_user;
-  grant insert on movements to app_user;" >/dev/null ||
+  -- Leitura de sensor entra só com INSERT, como o livro-razão: a temperatura de
+  -- ontem às três da manhã não se corrige, se mede de novo. Uma série que aceita
+  -- UPDATE deixa de ser prova de nada.
+  grant insert on movements, readings to app_user;" >/dev/null ||
   fail "não deu para preparar a conta da empresa"
 
 # E aqui está a diferença que faltava: a fila entra COMO A CONTA, não como

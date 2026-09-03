@@ -6,12 +6,30 @@ import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
 import { nowIso } from '@/data/db';
-import { listPlaces, savePlace, stockByPlace, type Place, type PlaceStock } from '@/data/repository';
+import {
+  lastReadings,
+  listPlaces,
+  recordReading,
+  savePlace,
+  stockByPlace,
+  type Place,
+  type PlaceStock,
+  type Reading,
+} from '@/data/repository';
 import { localDate } from '@/domain/day';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { agreedOn, daysUntilNextDelivery, toggleDay } from '@/domain/agreement';
-import { fill, formatMoney, formatQuantity, formatWeekdayShort, plural } from '@/i18n';
+import { Chip } from '@/components/Chip';
+import { formatTyped, parseTyped } from '@/domain/number';
+import {
+  fill,
+  formatMoney,
+  formatQuantity,
+  formatTime,
+  formatWeekdayShort,
+  plural,
+} from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -35,7 +53,7 @@ export default function PlacesScreen() {
   );
 }
 
-type Loaded = { places: Place[]; stock: PlaceStock[] };
+type Loaded = { places: Place[]; stock: PlaceStock[]; readings: Reading[] };
 
 function Places() {
   const { color, type, space } = useTheme();
@@ -44,11 +62,12 @@ function Places() {
   const words = t.app.places;
 
   const { data, refresh } = useQuery<Loaded>(async () => {
-    const [places, stock] = await Promise.all([
+    const [places, stock, readings] = await Promise.all([
       listPlaces(LOCAL_COMPANY_ID),
       stockByPlace(LOCAL_COMPANY_ID),
+      lastReadings(LOCAL_COMPANY_ID),
     ]);
-    return { places, stock };
+    return { places, stock, readings };
   });
 
   const [adding, setAdding] = useState(false);
@@ -135,6 +154,19 @@ function Places() {
                   </View>
                 ))}
               </View>
+            ) : null}
+
+            {/* A leitura de ambiente, e só onde ela decide alguma coisa.
+                Câmara fria é o caso que o dono levantou: a falha acontece às três
+                da manhã, e o histórico é o que diz se o freezer está piorando.
+                Digitada hoje; quando o módulo dele existir, ele escreve no mesmo
+                lugar com outra origem. */}
+            {place.kind === 'cold_room' ? (
+              <Ambiente
+                place={place}
+                last={data?.readings.find((r) => r.locationId === place.id && r.kind === TEMPERATURA)}
+                onSaved={refresh}
+              />
             ) : null}
 
             {/* A ficha de acordo, e só para quem recebe carga: combinar dia de
@@ -226,6 +258,115 @@ function Places() {
         <Button label={words.goTransfer} onPress={() => router.push('/transfer')} variant="ghost" />
       ) : null}
     </CollapsingHeader>
+  );
+}
+
+/**
+ * A grandeza que a câmara fria mede, e a única que existe hoje.
+ *
+ * Constante e não literal espalhada: quando umidade entrar, ela entra ao lado
+ * desta linha e não em sete lugares diferentes.
+ */
+const TEMPERATURA = 'temperature';
+
+/**
+ * A leitura de ambiente de um lugar: o que foi medido, e a faixa que julga.
+ *
+ * Digitada é o único caminho que funciona hoje, e é fato tanto quanto leitura de
+ * sensor — a fábrica passa a ter série histórica antes de existir hardware, que é
+ * o contrário de esperar o módulo e começar do zero em seis meses.
+ *
+ * A faixa é opcional e mora no lugar. Sem ela a tela registra e não julga: o
+ * aplicativo não sabe qual é a temperatura boa da câmara de outra pessoa, e -18
+ * é o número comum de freezer, não uma verdade.
+ */
+function Ambiente({
+  place,
+  last,
+  onSaved,
+}: {
+  place: Place;
+  last: Reading | undefined;
+  onSaved: () => void;
+}) {
+  const { color, type, space } = useTheme();
+  const { locale, t } = useLocale();
+  const words = t.app.places;
+
+  const [valor, setValor] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const faixa = place.sensorRanges[TEMPERATURA];
+
+  const anotar = async () => {
+    const lido = parseTyped(valor);
+    if (lido === null || !Number.isFinite(lido) || salvando) return;
+    setSalvando(true);
+    try {
+      await recordReading(LOCAL_COMPANY_ID, {
+        locationId: place.id,
+        kind: TEMPERATURA,
+        value: lido,
+        unit: faixa?.unit ?? 'C',
+      });
+      setValor('');
+      onSaved();
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const fora =
+    last && faixa
+      ? (faixa.min !== null && last.value < faixa.min) ||
+        (faixa.max !== null && last.value > faixa.max)
+      : false;
+
+  return (
+    <View style={{ marginTop: space.md, gap: space.sm }}>
+      <Text style={[type.caption, { color: color.inkFaint }]}>
+        {last
+          ? fill(words.lastReading, {
+              // `formatQuantity` arredonda, e aqui isso perde meio grau de
+              // freezer: -18,4 aparecia como -18 na tela enquanto o banco
+              // guardava a fração. Número dito diferente do número guardado é o
+              // mesmo defeito de arredondar dinheiro cedo.
+              value: `${formatTyped(last.value, locale.formatting, 1)} °${last.unit}`,
+              time: formatTime(last.takenAt, locale),
+            })
+          : words.noReading}
+      </Text>
+
+      {/* O juízo só existe com faixa, e ele diz a faixa junto: "fora da faixa"
+          sem dizer qual faixa manda a pessoa procurar o número em outra tela. */}
+      {last && faixa ? (
+        <Chip
+          signal={fora ? 'danger' : 'ok'}
+          label={
+            fora
+              ? fill(words.outOfRange, {
+                  min: faixa.min === null ? '—' : formatTyped(faixa.min, locale.formatting, 1),
+                  max: faixa.max === null ? '—' : formatTyped(faixa.max, locale.formatting, 1),
+                })
+              : words.inRange
+          }
+        />
+      ) : null}
+
+      <Field
+        label={words.reading}
+        value={valor}
+        onChangeText={setValor}
+        keyboardType="numeric"
+        suffix={`°${faixa?.unit ?? 'C'}`}
+        hint={words.readingHint}
+      />
+      <Button
+        label={words.readingSave}
+        variant="ghost"
+        disabled={parseTyped(valor) === null || salvando}
+        onPress={() => void anotar()}
+      />
+    </View>
   );
 }
 

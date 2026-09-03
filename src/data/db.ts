@@ -577,8 +577,50 @@ const V14 = `
 ALTER TABLE items ADD COLUMN full_level REAL;
 `;
 
+/**
+ * A leitura de uma grandeza num lugar — temperatura hoje, o que vier depois.
+ *
+ * O dono perguntou por alarme de temperatura da câmara fria e disse que vai
+ * arrumar um ESP32 para vender o módulo dele. Depois lembrou que existe mais de
+ * uma câmara, e que umidade, pressão e ruído também interessam. As três coisas
+ * juntas decidem a forma desta tabela, e nenhuma delas exige tabela nova depois:
+ *
+ * `kind` e `unit` são TEXTO ABERTO, não enum. Zigbee, LoRa, umidade, pressão,
+ * decibel — protocolo e grandeza novos não podem pedir migração. O que a
+ * integridade exige aqui é outra coisa: que a leitura saiba ONDE foi tomada e
+ * POR QUEM, e isso é chave estrangeira de verdade.
+ *
+ * `device_id` é nulo quando a pessoa digitou. Não é lacuna: leitura digitada na
+ * conferência é fato tanto quanto leitura de sensor, e é o único caminho que
+ * funciona hoje — a fábrica começa a ter histórico antes de existir hardware, o
+ * que é o contrário de esperar o módulo e ficar seis meses sem série nenhuma.
+ *
+ * Mais de uma câmara já estava resolvido antes de existir: cada câmara é um
+ * `location`, e N sensores em N câmaras são N `devices` apontando para lugares
+ * diferentes.
+ */
+const V15 = `
+CREATE TABLE IF NOT EXISTS readings (
+  id          TEXT PRIMARY KEY,
+  company_id  TEXT NOT NULL,
+  location_id TEXT NOT NULL REFERENCES locations(id) ON DELETE RESTRICT,
+  device_id   TEXT,
+  kind        TEXT NOT NULL,
+  value       REAL NOT NULL,
+  unit        TEXT NOT NULL,
+  taken_at    TEXT NOT NULL,
+  recorded_at TEXT NOT NULL,
+  source      TEXT NOT NULL DEFAULT 'typed'
+);
+
+CREATE INDEX IF NOT EXISTS readings_where_idx
+  ON readings (company_id, location_id, kind, taken_at);
+
+ALTER TABLE locations ADD COLUMN sensor_ranges TEXT NOT NULL DEFAULT '{}';
+`;
+
 const MIGRATIONS: readonly string[] = [
-  V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14,
+  V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15,
 ];
 
 export type SqlParam = string | number | null;

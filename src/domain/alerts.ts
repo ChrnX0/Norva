@@ -27,7 +27,7 @@
  * do aparelho, que é a única parte que só um celular na mão prova.
  */
 
-export type AlertKind = 'insumo' | 'pedido' | 'volume' | 'validade';
+export type AlertKind = 'insumo' | 'pedido' | 'volume' | 'validade' | 'ambiente';
 
 /** O que a empresa combinou sobre cada alarme. */
 export type AlertSettings = {
@@ -41,7 +41,7 @@ export type AlertSettings = {
    * `validade`: quantos dias antes de o lote vencer.
    * `volume` não usa dia: ele compara com as faixas abaixo.
    */
-  daysAhead: Record<Exclude<AlertKind, 'volume'>, number>;
+  daysAhead: Record<Exclude<AlertKind, 'volume' | 'ambiente'>, number>;
   /**
    * As faixas de volume, em porcentagem do nível cheio do item.
    *
@@ -59,14 +59,23 @@ export type AlertSettings = {
    */
   bands: { red: number; yellow: number; blue: number };
   /**
-   * A hora local do aviso, 0 a 23.
+   * O minuto do dia em que o aviso chega, 0 a 1439 — hora E minuto.
    *
-   * Sete da manhã como padrão porque o aviso serve para quem está começando o
-   * turno. Notificação às três da manhã não é informação, é despertador — e
-   * aparelho que acorda a pessoa de madrugada é aparelho que ela silencia para
-   * sempre, junto com o aviso que importava.
+   * Era uma lista de seis horas que eu escolhi (5, 6, 7, 8, 12, 18), e o dono
+   * cortou com razão: "nem toda fábrica funciona igual". Oferecer seis opções não
+   * é configurar, é um menu disfarçado de escolha — e a fábrica que começa às
+   * 5h30 não estava em nenhuma delas.
+   *
+   * Minuto do dia e não hora+minuto separados porque é UM fato: "às 5h30". Dois
+   * campos no tipo abrem a porta para um estado impossível (hora 5, minuto 90),
+   * e a tela que os coleta já os junta antes de gravar.
+   *
+   * O padrão continua sendo sete da manhã, e o padrão tem motivo: o aviso serve
+   * para quem está começando o turno, e notificação de madrugada é despertador —
+   * aparelho que acorda a pessoa é aparelho silenciado para sempre, junto com o
+   * aviso que importava. Mas padrão é ponto de partida, não regra.
    */
-  hour: number;
+  minuteOfDay: number;
   /**
    * Em que dias da semana avisar, bit 0 no domingo (`src/domain/agreement`).
    *
@@ -78,10 +87,15 @@ export type AlertSettings = {
 };
 
 export const DEFAULT_ALERTS: AlertSettings = {
-  on: { insumo: true, pedido: true, volume: false, validade: true },
+  // O ambiente nasce LIGADO, ao contrário do volume, e a diferença é o custo do
+  // erro: câmara fora de faixa estraga o estoque inteiro em uma noite, e o
+  // aviso não depende de nenhuma régua que alguém precise cadastrar antes — a
+  // faixa vem do lugar, e sem lugar medido não existe aviso nenhum de qualquer
+  // forma.
+  on: { insumo: true, pedido: true, volume: false, validade: true, ambiente: true },
   daysAhead: { insumo: 3, pedido: 2, validade: 7 },
   bands: { red: 25, yellow: 40, blue: 80 },
-  hour: 7,
+  minuteOfDay: 7 * 60,
   weekdays: 0,
 };
 
@@ -139,6 +153,10 @@ export type Alert = {
    * coisa em vez de informar um número solto.
    */
   places?: number;
+  /** A unidade do número, quando ele não é dia nem porcentagem: °C, %, dB. */
+  unit?: string;
+  /** Qual grandeza saiu da faixa: `temperature`, `humidity`, o que vier. */
+  quantity?: string;
 };
 
 /** Os fatos de onde os avisos saem. Nada aqui fala português. */
@@ -169,6 +187,24 @@ export type AlertFacts = {
   }[];
   /** Lotes com validade, e quantos dias faltam. */
   expiring: readonly { lotId: string; code: string; daysLeft: number }[];
+  /**
+   * A última leitura de cada grandeza medida, contra a faixa do lugar.
+   *
+   * Uma câmara sem faixa cadastrada não entra: o aplicativo não sabe qual é a
+   * temperatura boa da câmara de outra pessoa, e -18 é o número comum de freezer,
+   * não uma verdade.
+   */
+  ambient: readonly {
+    locationId: string;
+    place: string;
+    kind: string;
+    value: number;
+    unit: string;
+    min: number | null;
+    max: number | null;
+    /** Quantas horas desde a medição. É o que separa "está quente" de "parou de medir". */
+    hoursOld: number;
+  }[];
 };
 
 /**
@@ -230,7 +266,31 @@ export function alertsDue(facts: AlertFacts, settings: AlertSettings): Alert[] {
     }
   }
 
-  const urgencia: Record<AlertKind, number> = { insumo: 0, pedido: 1, validade: 2, volume: 3 };
+  if (settings.on.ambiente) {
+    for (const leitura of facts.ambient) {
+      const abaixo = leitura.min !== null && leitura.value < leitura.min;
+      const acima = leitura.max !== null && leitura.value > leitura.max;
+      if (!abaixo && !acima) continue;
+      out.push({
+        kind: 'ambiente',
+        subjectId: leitura.locationId,
+        subject: leitura.place,
+        amount: leitura.value,
+        unit: leitura.unit,
+        quantity: leitura.kind,
+      });
+    }
+  }
+
+  // O ambiente vem PRIMEIRO, e a ordem é o custo do erro: insumo que acaba custa
+  // uma compra atrasada; câmara fora de faixa custa o estoque inteiro numa noite.
+  const urgencia: Record<AlertKind, number> = {
+    ambiente: 0,
+    insumo: 1,
+    pedido: 2,
+    validade: 3,
+    volume: 4,
+  };
   return out.sort((a, b) => urgencia[a.kind] - urgencia[b.kind] || a.amount - b.amount);
 }
 
@@ -261,7 +321,7 @@ export function nextAlertAt(
   for (let ahead = 0; ahead < horizon; ahead += 1) {
     const dia = new Date(now);
     dia.setDate(dia.getDate() + ahead);
-    dia.setHours(settings.hour, 0, 0, 0);
+    dia.setHours(Math.floor(settings.minuteOfDay / 60), settings.minuteOfDay % 60, 0, 0);
     if (dia.getTime() <= now.getTime()) continue;
     if (!alertsRunToday(settings, dia.getDay())) continue;
     return dia;
