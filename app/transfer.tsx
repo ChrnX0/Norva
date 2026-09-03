@@ -18,12 +18,13 @@ import {
   recordReturn,
   recordTransfer,
   setOrderStatus,
+  shipmentsOn,
   stockByPlace,
   type Place,
   type PlaceStock,
 } from '@/data/repository';
 import { nowIso } from '@/data/db';
-import { localDate } from '@/domain/day';
+import { dayWindow, localDate } from '@/domain/day';
 import { ordersCoveredBy, pickSuggestion } from '@/domain/picking';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
@@ -201,7 +202,23 @@ function Transfer() {
       if (!devolucao && to) {
         const abertos = await listOrders(LOCAL_COMPANY_ID, ['pending', 'open']);
         const daLoja = abertos.filter((o) => o.placeId === to.id);
-        const cobertos = ordersCoveredBy(daLoja, new Map([[line.itemId, amount]]));
+
+        // A cobertura é do DIA, não desta carga.
+        //
+        // Comparar só com o que acabou de sair fazia um pedido de dois itens
+        // nunca fechar: cada transferência cobre um item e nenhuma cobre o
+        // pedido. Quem carrega o caminhão faz duas viagens até o freezer, não um
+        // ato só - e o pedido é do dia, não da viagem.
+        const hoje = dayWindow(nowIso(), locale.timeZone);
+        const remessas = await shipmentsOn(LOCAL_COMPANY_ID, hoje.from, hoje.to);
+        const enviadoHoje = new Map<string, number>();
+        for (const destino of remessas.filter((r) => r.locationId === to.id)) {
+          for (const item of destino.items) {
+            enviadoHoje.set(item.itemId, (enviadoHoje.get(item.itemId) ?? 0) + item.baseUnits);
+          }
+        }
+
+        const cobertos = ordersCoveredBy(daLoja, enviadoHoje);
 
         if (cobertos.length > 0) {
           const fechar = await askConfirm({

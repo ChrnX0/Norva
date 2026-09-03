@@ -45,3 +45,22 @@ test('only a load that covers the whole order can close it', () => {
   // E carga de item nenhum não fecha pedido nenhum.
   assert.deepEqual(ordersCoveredBy(pedidos, new Map()), []);
 });
+
+
+test('two loads on the same day cover an order that one alone would not', () => {
+  const pedido = [
+    { id: 'a', lines: [{ itemId: 'picole', baseUnits: 300 }, { itemId: 'pote', baseUnits: 20 }] },
+  ];
+
+  // Cada viagem sozinha cobre um item e nenhuma cobre o pedido. Comparar a
+  // cobertura só com a carga do instante fazia um pedido de dois itens NUNCA
+  // fechar - e quem carrega o caminhão faz duas viagens até o freezer.
+  assert.deepEqual(ordersCoveredBy(pedido, new Map([['picole', 300]])), []);
+  assert.deepEqual(ordersCoveredBy(pedido, new Map([['pote', 20]])), []);
+
+  // Somadas, fecham. O pedido é do dia, não da viagem.
+  assert.deepEqual(
+    ordersCoveredBy(pedido, new Map([['picole', 300], ['pote', 20]])),
+    ['a'],
+  );
+});
