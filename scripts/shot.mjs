@@ -187,7 +187,16 @@ try {
     }
 
     for (const rota of rotas) {
-      await page.goto(`http://localhost:${PORT}${rota}`, { waitUntil: 'networkidle' });
+      // Telas cujo endereço tem id gerado não se alcançam por URL: chega-se
+      // nelas como uma pessoa chega, tocando. `lote` é a etiqueta do primeiro
+      // lote do dia, aberta pela lista da produção.
+      if (rota === 'lote') {
+        await page.goto(`http://localhost:${PORT}/production`, { waitUntil: 'networkidle' });
+        await page.waitForTimeout(1200);
+        await page.getByText(/^\d{8}-\d{2}$/).first().click();
+      } else {
+        await page.goto(`http://localhost:${PORT}${rota}`, { waitUntil: 'networkidle' });
+      }
       // A capa tem animação de entrada; a foto tem de ser depois dela.
       await page.waitForTimeout(3500);
 

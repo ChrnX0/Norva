@@ -1374,6 +1374,86 @@ check('two weeks can be planted from Ajustes, and the briefing changes because o
   assert.match(capa, /saíram hoje/, 'a manchete da capa é o que saiu do tacho');
 });
 
+check('a run recorded wrong is corrected by reversal, not by deleting it', async (page) => {
+  // O primeiro escritor de estorno do aplicativo, dirigido como uma pessoa
+  // dirige: produção → o lote do dia → corrigir. A fundação da capa deste
+  // projeto diz que se corrige assim e nunca por exclusão, e até esta
+  // checagem existir a promessa nunca tinha sido executada num navegador.
+  // Uma corrida lançada de verdade, para ter o que corrigir. É o erro do
+  // enunciado da fundação: alguém digita 500 onde eram 50.
+  await page.goto(`http://localhost:${PORT}/production/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Quantas unidades/).fill('500');
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar produção', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.goto(`http://localhost:${PORT}/production`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const antes = await screen(page);
+  const feitoAntes = Number((antes.match(/Produzido hoje \| ([\d.]+)/) ?? [])[1]?.replace(/\./g, '') ?? '0');
+  assert.ok(feitoAntes >= 500, `a corrida entrou (produzido hoje: ${feitoAntes})`);
+
+  // O lote é o caminho: é o código que alguém lê em voz alta.
+  const codigo = (antes.match(/\d{8}-\d{2}/) ?? [])[0];
+  assert.ok(codigo, 'a corrida gerou um lote com código');
+  await page.getByText(/^\d{8}-\d{2}$/).first().click();
+  await page.waitForTimeout(2000);
+  // O endereço da etiqueta, guardado: depois da correção o lote sai da lista
+  // do dia, e a única maneira de voltar nela é pelo endereço - que é o que o
+  // QR da caixa faz.
+  const enderecoDaEtiqueta = page.url();
+
+  const etiqueta = await screen(page);
+  assert.match(etiqueta, /Etiqueta do lote/);
+  assert.match(etiqueta, /Corrigir esta corrida/, 'a etiqueta oferece o conserto');
+
+  await page.getByText('Corrigir esta corrida', { exact: true }).first().click();
+  await page.waitForTimeout(1200);
+
+  // A confirmação diz o que vai acontecer, com os números por extenso e os
+  // dois lados: o que sai do estoque e o que volta para o almoxarifado.
+  const pergunta = await screen(page);
+  assert.match(pergunta, /Sai do estoque/, 'a confirmação abre a conta antes de escrever');
+  assert.match(pergunta, /Volta para o almoxarifado/);
+  assert.match(pergunta, /nada é apagado/i, 'e diz que o registro original fica');
+
+  await page.getByText('Corrigir', { exact: true }).last().click();
+  await page.waitForTimeout(2500);
+
+  // O saldo do dia caiu pelo tamanho do lote. Não é o lote que sumiu: é um
+  // lançamento novo, contrário, que o livro-razão somou.
+  await page.goto(`http://localhost:${PORT}/production`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  const depois = await screen(page);
+  const feitoDepois = Number((depois.match(/Produzido hoje \| ([\d.]+)/) ?? [])[1]?.replace(/\./g, '') ?? '-1');
+  assert.ok(
+    feitoDepois < feitoAntes,
+    `o estorno tinha de baixar o produzido de hoje (era ${feitoAntes}, ficou ${feitoDepois})`,
+  );
+
+  // E o lote sai da lista do dia: "lotes de hoje" responde o que foi produzido
+  // hoje, e uma corrida corrigida não foi.
+  assert.doesNotMatch(depois, new RegExp(codigo), 'o lote corrigido sai da lista do dia');
+
+  // Mas ele NÃO foi apagado - a etiqueta pode já estar colada numa caixa, e
+  // quem lê o QR precisa achar alguma coisa. O que ele acha é a verdade:
+  // esta corrida já foi corrigida, e o botão de corrigir não está mais lá.
+  await page.goto(enderecoDaEtiqueta, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  const outraVez = await screen(page);
+  assert.match(outraVez, /Etiqueta do lote/, 'o lote não foi apagado');
+  assert.match(outraVez, /já foi corrigida/, 'e a etiqueta diz o que aconteceu com ela');
+  assert.doesNotMatch(
+    outraVez,
+    /Corrigir esta corrida/,
+    'estornar duas vezes dobraria a correção, então nem é oferecido',
+  );
+});
+
 check('the app has two faces, and the choice survives leaving the screen', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

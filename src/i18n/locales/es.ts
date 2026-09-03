@@ -179,6 +179,14 @@ export const es: Dictionary = {
       noExpiry: 'no caduca',
       gone: 'Ese lote ya no está aquí.',
       why: 'El código aparece dos veces a propósito: cuando la etiqueta se congela o se despega, alguien escribe los once caracteres y la verificación sigue.',
+      reverse: 'Corregir esta corrida',
+      reverseTitle: '¿Corregir la corrida {{code}}?',
+      reverseBody: 'Sale del stock {{out}}. Vuelve al almacén {{back}}. Los dos registros quedan en el historial — no se borra nada.',
+      reverseConfirm: 'Corregir',
+      reverseBlocked: 'No se puede corregir: {{items}} ya salió de aquí.',
+      reverseBlockedItem: '{{name}} — hay {{held}}, haría falta {{needed}}',
+      reverseBlockedHint: 'Traiga la carga de vuelta primero, y la corrección pasa a valer.',
+      reverseAlready: 'Esta corrida ya fue corregida.',
     },
 
     losses: {

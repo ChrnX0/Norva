@@ -34,6 +34,9 @@ import {
   stockByPlace,
   recordTransfer,
   recordReturn,
+  planReversal,
+  reverseGroup,
+  CannotReverseError,
   countForErase,
   eraseArea,
   itemCosts,
@@ -2553,4 +2556,144 @@ test('approval is the company’s choice, and it decides where an order is born'
   await setOrderStatus(CO, pedido.id, 'open');
   const [aprovado] = await listOrders(CO, ['open']);
   assert.equal(aprovado.id, pedido.id);
+});
+
+/**
+ * O estorno, que é a primeira fundação do projeto e não tinha escritor.
+ *
+ * Três coisas que ele precisa fazer, e cada uma corresponde a um jeito de
+ * corromper o livro-razão se estiver errada: desfazer o ATO inteiro e não uma
+ * linha, recusar o que deixaria saldo negativo, e não desfazer duas vezes.
+ */
+test('reversing a run puts back every leg of it, and leaves both records standing', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const where = defaultLocationId(LOCAL_COMPANY_ID);
+
+  const antes = await balanceByLocation(LOCAL_COMPANY_ID, product.itemId);
+  const polpa = (await listItems(LOCAL_COMPANY_ID)).find((i) => /polpa/i.test(i.name))!;
+  const polpaAntes = (await balanceByLocation(LOCAL_COMPANY_ID, polpa.id)).find(
+    (b) => b.locationId === where,
+  );
+
+  const corrida = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: where,
+    batches: 1,
+    unitsProduced: 500,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+
+  const plano = await planReversal(LOCAL_COMPANY_ID, corrida.groupId);
+  assert.equal(plano.blocked.length, 0, 'nada saiu ainda, então nada bloqueia');
+  assert.equal(plano.alreadyReversed, false);
+  // A perna do produto sai NEGATIVA: o estorno tira do estoque o que a corrida
+  // pôs. As dos insumos voltam positivas.
+  const doProduto = plano.legs.find((l) => l.itemId === product.itemId)!;
+  assert.equal(doProduto.baseUnits, -500);
+  assert.ok(plano.legs.some((l) => l.itemId === polpa.id && l.baseUnits > 0));
+
+  await reverseGroup(LOCAL_COMPANY_ID, { groupId: corrida.groupId });
+
+  const depois = (await balanceByLocation(LOCAL_COMPANY_ID, product.itemId)).find(
+    (b) => b.locationId === where,
+  );
+  const antesDoProduto = antes.find((b) => b.locationId === where)?.baseUnits ?? 0;
+  assert.equal(
+    depois?.baseUnits ?? 0,
+    antesDoProduto,
+    'o produto volta ao saldo que tinha antes da corrida',
+  );
+
+  const polpaDepois = (await balanceByLocation(LOCAL_COMPANY_ID, polpa.id)).find(
+    (b) => b.locationId === where,
+  );
+  assert.equal(
+    polpaDepois?.baseUnits,
+    polpaAntes?.baseUnits,
+    'o insumo consumido volta inteiro - estornar só a produção deixaria picolé que não consumiu nada',
+  );
+
+  // E o lote continua existindo. Ele é identidade, não quantidade: a etiqueta
+  // pode já estar colada numa caixa, e apagar a linha seria a exclusão que a
+  // fundação proíbe.
+  assert.ok(await findLot(LOCAL_COMPANY_ID, corrida.lot.id), 'o lote não some no estorno');
+});
+
+test('a run whose product already shipped cannot be reversed, and the refusal names what left', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const loja = (await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' })).id;
+
+  const corrida = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: fabrica,
+    batches: 1,
+    unitsProduced: 500,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+
+  // O saldo da fábrica pode ter picolé de antes; o que interessa é mandar
+  // embora mais do que sobraria depois do estorno.
+  const naFabrica =
+    (await balanceByLocation(LOCAL_COMPANY_ID, product.itemId)).find(
+      (b) => b.locationId === fabrica,
+    )?.baseUnits ?? 0;
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: product.itemId,
+    fromLocationId: fabrica,
+    toLocationId: loja,
+    baseUnits: naFabrica - 100,
+  });
+
+  const plano = await planReversal(LOCAL_COMPANY_ID, corrida.groupId);
+  assert.equal(plano.blocked.length, 1, 'o produto que já viajou bloqueia o estorno');
+  assert.equal(plano.blocked[0].name, product.name);
+  assert.equal(plano.blocked[0].held, 100);
+  assert.equal(plano.blocked[0].needed, 500);
+
+  await assert.rejects(
+    () => reverseGroup(LOCAL_COMPANY_ID, { groupId: corrida.groupId }),
+    (e: unknown) => e instanceof CannotReverseError && e.plan.blocked.length === 1,
+    'o erro carrega o plano, porque a tela precisa dizer QUAL item já saiu',
+  );
+
+  // E a recusa é recusa: nada foi escrito pela metade.
+  const naLoja = (await balanceByLocation(LOCAL_COMPANY_ID, product.itemId)).find(
+    (b) => b.locationId === loja,
+  );
+  assert.equal(naLoja?.baseUnits, naFabrica - 100, 'a loja continua com o que recebeu');
+});
+
+test('reversing twice would double the correction, so the second time is refused', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const where = defaultLocationId(LOCAL_COMPANY_ID);
+
+  const corrida = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: where,
+    batches: 1,
+    unitsProduced: 500,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+  await reverseGroup(LOCAL_COMPANY_ID, { groupId: corrida.groupId });
+
+  const depois = await planReversal(LOCAL_COMPANY_ID, corrida.groupId);
+  assert.equal(depois.alreadyReversed, true);
+
+  const saldoDepoisDoPrimeiro = (
+    await balanceByLocation(LOCAL_COMPANY_ID, product.itemId)
+  ).find((b) => b.locationId === where)?.baseUnits;
+
+  await assert.rejects(
+    () => reverseGroup(LOCAL_COMPANY_ID, { groupId: corrida.groupId }),
+    (e: unknown) => e instanceof CannotReverseError && e.plan.alreadyReversed,
+  );
+
+  const saldoFinal = (await balanceByLocation(LOCAL_COMPANY_ID, product.itemId)).find(
+    (b) => b.locationId === where,
+  )?.baseUnits;
+  assert.equal(saldoFinal, saldoDepoisDoPrimeiro, 'o segundo estorno não moveu nada');
 });

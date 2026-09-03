@@ -2163,3 +2163,39 @@ Provado quebrando: retirada uma declaração, o teste acusa `mostra 10 e declara
 **E o cartão foi consertado junto**, com o que já estava calculado e ninguém lia:
 `loose` (o que saiu sem caber em caixa) e as chaves `alsoSent`/`alsoSentItem`, que
 existiam nos três idiomas sem um único leitor.
+
+## 3 de setembro — o estorno acertava o saldo e deixava oito telas mentindo
+
+**O que se viu.** A fundação diz que se corrige por estorno, nunca por exclusão,
+e o estorno não tinha escritor — esquema, restrição, política e o construtor de
+`ledger.ts` existiam sem ninguém que gravasse. Escrito o escritor, os três testes
+unitários passaram de primeira: o ato inteiro volta pelo grupo, saldo negativo é
+recusado, e estornar duas vezes é recusado.
+
+**E o navegador reprovou.** O e2e dirigiu o caminho inteiro — produção, lote,
+corrigir, confirmar — e o saldo do almoxarifado voltou certinho enquanto
+*"Produzido hoje: 500"* continuava lá. A razão é estrutural e vale para qualquer
+livro-razão: **saldo é soma pura e não olha `kind`**, então ele se corrige
+sozinho; mas toda tela de "o que aconteceu" filtra por `kind`, e um movimento de
+`kind = 'reversal'` não é `'production'`. Oito consultas — produção do dia, série
+da semana, lotes do dia, últimas corridas, remessas, perdas, o palpite da
+separação e a fila de conferência — continuariam contando um ato que foi
+cancelado.
+
+**Por que importa além deste commit.** O defeito não estava no escritor: estava
+na suposição de que escrever a correção *é* corrigir. Num sistema append-only,
+todo leitor que pergunta "o que aconteceu" é um lugar onde a correção precisa
+chegar, e nenhum deles reclama — eles simplesmente respondem o número velho. Foi
+o que teria ido para a mão do dono: o almoxarifado certo e a produção mentindo,
+no mesmo aplicativo, na mesma hora.
+
+**O que mudou.** Um `naoEstornado(alias)` só, usado nas oito consultas, porque a
+mesma frase SQL escrita oito vezes é onde a nona esquece. E a checagem e2e ficou
+como registro do caminho completo: o lote sai da lista do dia (uma corrida
+corrigida não foi produzida hoje) mas continua existindo pelo endereço, dizendo
+"esta corrida já foi corrigida" — porque a etiqueta pode já estar colada numa
+caixa e quem lê o QR precisa achar a verdade.
+
+**A regra que sai:** teste unitário prova a escrita; só o aplicativo dirigido
+prova a LEITURA. As duas metades de uma correção moram em arquivos diferentes, e
+a suíte que só exercita a primeira passa verde numa correção pela metade.

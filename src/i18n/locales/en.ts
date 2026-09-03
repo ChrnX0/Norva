@@ -174,6 +174,14 @@ export const en: Dictionary = {
       noExpiry: 'does not expire',
       gone: 'That lot is not here any more.',
       why: 'The code appears twice on purpose: when the label freezes or peels, somebody types the eleven characters and the check goes on.',
+      reverse: 'Correct this run',
+      reverseTitle: 'Correct run {{code}}?',
+      reverseBody: '{{out}} leaves stock. {{back}} goes back to the storeroom. Both entries stay in the history — nothing is erased.',
+      reverseConfirm: 'Correct',
+      reverseBlocked: 'Cannot be corrected: {{items}} already left.',
+      reverseBlockedItem: '{{name}} — {{held}} here, would need {{needed}}',
+      reverseBlockedHint: 'Bring the load back first, then the correction goes through.',
+      reverseAlready: 'This run was already corrected.',
     },
 
     losses: {

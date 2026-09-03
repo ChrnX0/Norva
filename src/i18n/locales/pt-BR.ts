@@ -197,6 +197,16 @@ export const ptBR = {
       noExpiry: 'não vence',
       gone: 'Esse lote não está mais aqui.',
       why: 'O código aparece duas vezes de propósito: quando a etiqueta congela ou descasca, alguém digita os onze caracteres e a conferência segue.',
+      // O conserto do livro-razão, dito sem a palavra "estorno" - que é
+      // vocabulário de contador, e quem lança a corrida é quem estava no tacho.
+      reverse: 'Corrigir esta corrida',
+      reverseTitle: 'Corrigir a corrida {{code}}?',
+      reverseBody: 'Sai do estoque {{out}}. Volta para o almoxarifado {{back}}. Os dois lançamentos ficam no histórico — nada é apagado.',
+      reverseConfirm: 'Corrigir',
+      reverseBlocked: 'Não dá para corrigir: {{items}} já saiu daqui.',
+      reverseBlockedItem: '{{name}} — tem {{held}}, precisaria de {{needed}}',
+      reverseBlockedHint: 'Traga a carga de volta primeiro, aí a correção passa a valer.',
+      reverseAlready: 'Esta corrida já foi corrigida.',
     },
 
     losses: {

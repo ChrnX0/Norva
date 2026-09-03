@@ -705,13 +705,33 @@ export async function lastSentBaseUnits(
 ): Promise<number | null> {
   const conn = await db();
   const row = await conn.getFirstAsync<{ q: number }>(
-    `SELECT quantity_base_units AS q FROM movements
+    `SELECT quantity_base_units AS q FROM movements m
       WHERE company_id = ? AND item_id = ? AND location_id = ?
         AND kind = 'transfer' AND quantity_base_units > 0
+        AND ${naoEstornado('m')}
       ORDER BY occurred_at DESC, recorded_at DESC LIMIT 1`,
     [companyId, itemId, toLocationId],
   );
   return row?.q ?? null;
+}
+
+/**
+ * O que foi estornado não aconteceu — para quem pergunta o que aconteceu.
+ *
+ * As duas linhas continuam no livro-razão, e é isso que a fundação exige: nada
+ * é apagado, o histórico responde por si. Mas "quanto saiu do tacho hoje" é
+ * outra pergunta, e uma corrida corrigida responde zero a ela. Sem este
+ * pedaço, o estorno acerta o SALDO (que é soma pura e não olha `kind`) e deixa
+ * todas as telas de "o que aconteceu" dizendo o número velho: o almoxarifado
+ * certo e a produção mentindo, no mesmo aplicativo.
+ *
+ * Vem como texto, com o apelido de fora, porque é a mesma condição em oito
+ * consultas — e oito cópias de uma frase é onde a nona esquece.
+ */
+function naoEstornado(alias: string): string {
+  return `NOT EXISTS (SELECT 1 FROM movements rev
+                       WHERE rev.reverses_movement_id = ${alias}.id
+                         AND rev.company_id = ${alias}.company_id)`;
 }
 
 export type PlaceStock = {
@@ -2073,6 +2093,7 @@ export async function lossesOn(
         AND m.kind = 'loss'
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
+        AND ${naoEstornado('m')}
       ORDER BY ABS(m.quantity_base_units * COALESCE(m.unit_cost_rate, 0)) DESC`,
     [companyId, fromIso, toIso],
   );
@@ -2387,6 +2408,7 @@ export async function unchecked(
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
         AND m.movement_group_id IS NOT NULL
+        AND ${naoEstornado('m')}
         AND NOT EXISTS (
           SELECT 1 FROM movements c
            WHERE c.company_id = m.company_id
@@ -2439,6 +2461,7 @@ export async function productionOn(
         AND m.kind = 'production'
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
+        AND ${naoEstornado('m')}
       GROUP BY m.item_id, i.name
       HAVING total > 0
       ORDER BY total DESC`,
@@ -2468,11 +2491,12 @@ export async function productionBetween(
   const conn = await db();
   const rows = await conn.getAllAsync<{ occurred_at: string; quantity_base_units: number }>(
     `SELECT occurred_at, quantity_base_units
-       FROM movements
+       FROM movements m
       WHERE company_id = ?
         AND kind = 'production'
         AND occurred_at >= ?
         AND occurred_at < ?
+        AND ${naoEstornado('m')}
       ORDER BY occurred_at`,
     [companyId, fromIso, toIso],
   );
@@ -2489,6 +2513,13 @@ export type LotOfDay = {
   expiresOn: string | null;
   /** O dia em que a corrida aconteceu. Nulo só em lote vindo de importação. */
   producedOn?: string | null;
+  /**
+   * O ato que criou este lote, para quem precisa desfazê-lo.
+   *
+   * Nulo em lote sem corrida (importação) - e nulo é resposta: não há ato para
+   * estornar, então a tela não oferece o conserto.
+   */
+  runGroupId?: string | null;
 };
 
 /**
@@ -2525,6 +2556,7 @@ export async function lotsOn(
       WHERE l.company_id = ?
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
+        AND ${naoEstornado('m')}
       GROUP BY l.id, l.code, i.name, l.expires_on
       ORDER BY l.code DESC`,
     [companyId, fromIso, toIso],
@@ -2752,6 +2784,7 @@ export async function recentRuns(companyId: string, limit = 6): Promise<Run[]> {
        JOIN items i ON i.id = m.item_id
        LEFT JOIN lots l ON l.id = m.lot_id
       WHERE m.company_id = ? AND m.kind = 'production' AND m.quantity_base_units > 0
+        AND ${naoEstornado('m')}
       ORDER BY m.occurred_at DESC
       LIMIT ?`,
     [companyId, limit],
@@ -2892,9 +2925,11 @@ export async function findLot(companyId: string, lotId: string): Promise<LotOfDa
     total: number;
     expires_on: string | null;
     produced_on: string | null;
+    group_id: string | null;
   }>(
     `SELECT l.id, l.code, i.name, l.expires_on, l.produced_on,
-            COALESCE(SUM(m.quantity_base_units), 0) AS total
+            COALESCE(SUM(m.quantity_base_units), 0) AS total,
+            MAX(m.movement_group_id) AS group_id
        FROM lots l
        JOIN items i ON i.id = l.item_id
        LEFT JOIN movements m ON m.lot_id = l.id AND m.kind = 'production'
@@ -2911,6 +2946,7 @@ export async function findLot(companyId: string, lotId: string): Promise<LotOfDa
     baseUnits: row.total,
     expiresOn: row.expires_on,
     producedOn: row.produced_on,
+    runGroupId: row.group_id,
   };
 }
 
@@ -3059,6 +3095,7 @@ export async function shipmentsOn(
         AND m.quantity_base_units > 0
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
+        AND ${naoEstornado('m')}
       GROUP BY m.movement_group_id, m.location_id, l.name, l.kind, m.item_id, i.name, i.packaging
       HAVING total > 0
       ORDER BY l.name, total DESC`,
@@ -3859,4 +3896,221 @@ export async function orderedDemand(
     requested: r.requested,
     onHand: r.on_hand,
   }));
+}
+
+// --- estorno ------------------------------------------------------------------
+
+/** Uma perna do estorno, como a tela precisa dizê-la antes de gravar. */
+export type ReversalLeg = {
+  itemId: string;
+  name: string;
+  /** Assinada, na unidade-base: o CONTRÁRIO do que o movimento original fez. */
+  baseUnits: number;
+  baseUnit: string;
+  locationId: string;
+};
+
+/** O que o estorno vai escrever, e o que impede de escrever. */
+export type ReversalPlan = {
+  groupId: string;
+  legs: ReversalLeg[];
+  /**
+   * O que já saiu e por isso não pode voltar.
+   *
+   * Vazio é o caso normal. Cheio significa que o estorno deixaria saldo
+   * negativo em algum lugar, e saldo negativo é uma mentira que o livro-razão
+   * não desfaz depois.
+   */
+  blocked: { itemId: string; name: string; held: number; needed: number; baseUnit: string }[];
+  /** Já foi estornado antes. Estornar duas vezes dobraria a correção. */
+  alreadyReversed: boolean;
+};
+
+/**
+ * O erro de quem tenta estornar o que não dá para estornar.
+ *
+ * Carrega o plano inteiro porque a Lei 5 pede que o erro IMPEÇA e mostre a
+ * saída no mesmo gesto: a tela precisa dizer QUAL item já saiu e quanto, não
+ * "não foi possível".
+ */
+export class CannotReverseError extends Error {
+  constructor(public readonly plan: ReversalPlan) {
+    super(
+      plan.alreadyReversed
+        ? `grupo ${plan.groupId} já foi estornado`
+        : `estorno de ${plan.groupId} deixaria saldo negativo`,
+    );
+    this.name = 'CannotReverseError';
+  }
+}
+
+/**
+ * O que o estorno faria, sem fazer.
+ *
+ * Existe separado da escrita por uma razão de tom de voz, não de arquitetura: a
+ * confirmação deste aplicativo diz o que vai acontecer com os números por
+ * extenso, e para dizer isso a tela precisa da conta antes do ato. A checagem
+ * roda de novo dentro da transação de `reverseGroup` — esta aqui é para falar,
+ * aquela é para valer.
+ */
+export async function planReversal(companyId: string, groupId: string): Promise<ReversalPlan> {
+  const conn = await db();
+  const legs = await conn.getAllAsync<{
+    id: string;
+    item_id: string;
+    name: string;
+    base_unit: string;
+    quantity_base_units: number;
+    location_id: string;
+    reversed: number;
+  }>(
+    `SELECT m.id, m.item_id, i.name, i.base_unit, m.quantity_base_units, m.location_id,
+            EXISTS (SELECT 1 FROM movements r
+                     WHERE r.reverses_movement_id = m.id AND r.company_id = m.company_id) AS reversed
+       FROM movements m
+       JOIN items i ON i.id = m.item_id
+      WHERE m.company_id = ? AND m.movement_group_id = ? AND m.kind <> 'reversal'
+      ORDER BY m.quantity_base_units DESC`,
+    [companyId, groupId],
+  );
+
+  if (legs.length === 0) throw new Error(`grupo ${groupId} não existe`);
+
+  const plan: ReversalPlan = {
+    groupId,
+    legs: legs.map((l) => ({
+      itemId: l.item_id,
+      name: l.name,
+      baseUnits: -l.quantity_base_units,
+      baseUnit: l.base_unit,
+      locationId: l.location_id,
+    })),
+    blocked: [],
+    alreadyReversed: legs.some((l) => l.reversed === 1),
+  };
+
+  // O que o estorno TIRA precisa estar lá. Uma corrida cujos picolés já
+  // viajaram para a loja não volta atrás sozinha: o conserto passa a ser
+  // trazer a carga de volta primeiro, e é isso que a tela vai dizer.
+  //
+  // Uma consulta só para todas as pernas, e a soma é a mesma de
+  // `balanceByLocation` - duas aritméticas para "quanto tem aqui" seriam duas
+  // verdades.
+  const saldos = await conn.getAllAsync<{ item_id: string; location_id: string; held: number }>(
+    `SELECT item_id, location_id, SUM(quantity_base_units) AS held
+       FROM movements
+      WHERE company_id = ?
+        AND item_id IN (SELECT item_id FROM movements
+                         WHERE company_id = ? AND movement_group_id = ?)
+      GROUP BY item_id, location_id`,
+    [companyId, companyId, groupId],
+  );
+  const held = new Map(saldos.map((s) => [`${s.item_id}@${s.location_id}`, s.held]));
+
+  for (const leg of plan.legs) {
+    if (leg.baseUnits >= 0) continue;
+    const tem = held.get(`${leg.itemId}@${leg.locationId}`) ?? 0;
+    if (tem + leg.baseUnits < 0) {
+      plan.blocked.push({
+        itemId: leg.itemId,
+        name: leg.name,
+        held: tem,
+        needed: -leg.baseUnits,
+        baseUnit: leg.baseUnit,
+      });
+    }
+  }
+
+  return plan;
+}
+
+/**
+ * O contrário de um ato, lançado como fato novo.
+ *
+ * **É a primeira fundação deste projeto virando código.** O livro-razão é
+ * append-only por gatilho no banco, e a promessa que vem junto é que existe
+ * conserto: uma corrida lançada com 500 onde eram 50 se corrige por estorno,
+ * nunca por exclusão. Até aqui a promessa era só metade — esquema, restrição,
+ * política de capacidade e o construtor de `src/domain/ledger.ts` existiam sem
+ * um único escritor, e o operador que não consegue consertar aprende a não
+ * registrar.
+ *
+ * Estorna o ATO, pelo grupo, e não uma linha. Uma corrida são sete movimentos
+ * amarrados por `movement_group_id`; desfazer só a linha da produção deixaria
+ * picolés que não consumiram nada, que é pior que o erro original porque parece
+ * certo. As pernas do estorno compartilham um grupo NOVO entre si e cada uma
+ * aponta para a sua origem por `reverses_movement_id`.
+ *
+ * O lote continua existindo. Ele é identidade, não quantidade: o saldo dele vai
+ * a zero pelo movimento, e apagar a linha seria a exclusão que a fundação
+ * proíbe — além de quebrar o rastro de uma etiqueta que talvez já esteja colada
+ * numa caixa.
+ */
+export async function reverseGroup(
+  companyId: string,
+  input: { groupId: string; occurredAt?: string; note?: string },
+): Promise<{ groupId: string; legs: ReversalLeg[] }> {
+  const conn = await db();
+  const plan = await planReversal(companyId, input.groupId);
+  if (plan.alreadyReversed || plan.blocked.length > 0) throw new CannotReverseError(plan);
+
+  const at = nowIso();
+  const occurred = input.occurredAt ?? at;
+  const newGroup = newId();
+
+  await conn.withTransactionAsync(async () => {
+    // A checagem de novo, aqui dentro. Entre planejar e gravar cabe uma
+    // remessa de outro aparelho, e é exatamente o intervalo em que um saldo
+    // deixa de existir.
+    const dentro = await planReversal(companyId, input.groupId);
+    if (dentro.alreadyReversed || dentro.blocked.length > 0) throw new CannotReverseError(dentro);
+
+    const originais = await conn.getAllAsync<{
+      id: string;
+      item_id: string;
+      quantity_base_units: number;
+      location_id: string;
+      unit_cost_rate: number | null;
+      lot_id: string | null;
+      counterpart_location_id: string | null;
+    }>(
+      `SELECT id, item_id, quantity_base_units, location_id, unit_cost_rate, lot_id,
+              counterpart_location_id
+         FROM movements
+        WHERE company_id = ? AND movement_group_id = ? AND kind <> 'reversal'`,
+      [companyId, input.groupId],
+    );
+
+    for (const o of originais) {
+      const id = newId();
+      await conn.runAsync(
+        `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
+                                quantity_base_units, location_id, unit_cost_rate,
+                                movement_group_id, counterpart_location_id, lot_id,
+                                reverses_movement_id, note)
+         VALUES (?, ?, 'reversal', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          companyId,
+          occurred,
+          at,
+          o.item_id,
+          // A taxa é a do movimento original, congelada: o estorno desfaz o que
+          // aconteceu pelo valor com que aconteceu. Ler a média de hoje
+          // avaliaria o erro de setembro ao preço de outubro.
+          -o.quantity_base_units,
+          o.location_id,
+          o.unit_cost_rate,
+          newGroup,
+          o.counterpart_location_id,
+          o.lot_id,
+          o.id,
+          input.note ?? null,
+        ],
+      );
+      await enqueue(conn, [{ table: 'movements', rowId: id }]);
+    }
+  });
+
+  return { groupId: newGroup, legs: plan.legs };
 }
