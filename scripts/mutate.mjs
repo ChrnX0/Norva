@@ -93,10 +93,10 @@ const DEFECTS = [
 
   {
     file: 'src/domain/agreement.ts',
-    from: `  if (weekday < 0 || weekday > 6) return false;`,
-    to: `  if (weekday < 0) return false;`,
+    from: `  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {`,
+    to: `  if (!Number.isInteger(weekday) || weekday < 0) {`,
     hurts:
-      'um dia fora da semana le fora da tabela de bits e responde qualquer coisa, e o acordo passa a ter oitavo dia',
+      'um oitavo dia da semana recebe "nao combinado" em vez de parar, e o bug de quem chamou vira frase plausivel na tela',
   },
 
   {

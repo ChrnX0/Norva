@@ -16,16 +16,31 @@
 /** Domingo é o bit 0, como em `Date.getDay()`. */
 export const WEEK_BITS = [1, 2, 4, 8, 16, 32, 64] as const;
 
+/**
+ * Um dia que não existe é erro de quem chama, e ele para aqui.
+ *
+ * Devolver "não combinado" para um oitavo dia seria educado e errado: quem
+ * passou 7 achou que perguntou alguma coisa, e recebeu um "não" que parece
+ * resposta. Pior, sem impedir nada — indexar fora da tabela devolve `undefined`,
+ * que vira zero na conta de bits e responde "não" sozinho. Um guarda que não
+ * muda comportamento nenhum é decoração, e foi o `mutate` que mostrou isso:
+ * apagar a faixa não quebrava teste nenhum.
+ */
+function noWeek(weekday: number): number {
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+    throw new RangeError(`a semana tem sete dias, e ${weekday} não é um deles`);
+  }
+  return weekday;
+}
+
 /** Um dia da semana entra no acordo? */
 export function agreedOn(days: number, weekday: number): boolean {
-  if (weekday < 0 || weekday > 6) return false;
-  return (days & WEEK_BITS[weekday]) !== 0;
+  return (days & WEEK_BITS[noWeek(weekday)]) !== 0;
 }
 
 /** Liga ou desliga um dia, devolvendo o acordo novo. */
 export function toggleDay(days: number, weekday: number): number {
-  if (weekday < 0 || weekday > 6) return days;
-  return days ^ WEEK_BITS[weekday];
+  return days ^ WEEK_BITS[noWeek(weekday)];
 }
 
 /**

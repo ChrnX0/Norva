@@ -43,9 +43,16 @@ test('with two agreed days the nearest one wins', () => {
   assert.equal(daysUntilNextDelivery(tercaESexta, 6), 3, 'de sábado, a terça');
 });
 
-test('a weekday outside the week is refused instead of wrapping silently', () => {
+test('a weekday outside the week is refused instead of answering politely', () => {
   const todaSemana = 127;
-  assert.ok(!agreedOn(todaSemana, 7), 'não existe oitavo dia');
-  assert.ok(!agreedOn(todaSemana, -1));
-  assert.equal(toggleDay(todaSemana, 9), todaSemana, 'nada muda com um dia que não existe');
+
+  // Um "não" para o oitavo dia parece resposta e não é: quem passou 7 tem um
+  // bug, e devolver false esconde o bug atrás de uma frase plausível na tela.
+  assert.throws(() => agreedOn(todaSemana, 7), RangeError);
+  assert.throws(() => agreedOn(todaSemana, -1), RangeError);
+  assert.throws(() => toggleDay(todaSemana, 9), RangeError);
+  assert.throws(() => agreedOn(todaSemana, 1.5), RangeError);
+
+  // E a semana inteira continua respondendo, dia a dia.
+  for (let dia = 0; dia < 7; dia += 1) assert.ok(agreedOn(todaSemana, dia));
 });
