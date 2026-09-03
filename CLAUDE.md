@@ -109,11 +109,34 @@ npm run typecheck
 npm run lint
 npm test
 npm run mutate       # quebra o código de propósito: a suíte morde mesmo?
-npm run e2e          # o app dirigido num navegador de verdade
-npm run db:verify    # Postgres descartável, seis garantias — inclui a fila
+npm run e2e:fast     # o app dirigido num navegador de verdade, em quatro fatias
+npm run db:verify    # Postgres descartável, oito garantias — inclui a fila
                      # do aparelho reproduzida contra o servidor de verdade
 bash .proofgate/verify.sh
 ```
+
+**A espera era o gargalo, e virou medida — 3 de setembro.** A barra inteira levava
+perto de meia hora por commit, e quase tudo era partida de processo: `mutate` abria
+64 vezes a suíte em série, o `e2e` rodava 30 checagens uma atrás da outra, e cada
+guard da proofgate abria **um `grep` por linha adicionada** (com 31 mil linhas no
+diff, mais de um milhão de processos por execução).
+
+| | antes | depois |
+|---|---|---|
+| portão da proofgate | ~8 min | **22 s** |
+| `mutate` (64 mutações) | 12 min | 6 min |
+| `e2e` (30 checagens) | 7 min | 2 min 40 |
+
+Duas coisas que seguem disso, para não se perder:
+
+- **`e2e:fast` exporta uma vez e fatia as checagens.** O `npm run e2e` continua
+  existindo e serve para uma checagem só (`--only`), que é o laço de trabalho.
+  Reusar `dist` **porque ele existia** já fez a suíte passar verde para uma tela que
+  não tinha a mudança — no `e2e:fast` o pacote é sempre o da execução.
+- **O `mutate` nunca mais toca a árvore de trabalho.** Ele copia o código para
+  `.mutate/` e muta a cópia. As três redes que existiam contra "deixar uma mutação
+  no disco" — `finally`, ganchos de sinal, e a checagem de árvore suja que abortava
+  a execução seguinte — eram três redes para um abismo que não precisava existir.
 
 O `mutate` existe porque suíte verde não quer dizer regra protegida: quer dizer
 que os exemplos escolhidos não a exercitam. Na primeira execução ele trocou o
