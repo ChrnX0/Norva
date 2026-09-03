@@ -523,6 +523,34 @@ function Settings() {
                     </Pressable>
                   </View>
 
+                  {/* O azul pinta sempre e só interrompe se a casa pedir.
+                      Almoxarifado cheio depois de uma compra é estado desejado, e
+                      aviso diário sobre isso ensina a ignorar aviso — então o
+                      caminho existe, desligado. */}
+                  {kind === 'volume' && ligado ? (
+                    <Pressable
+                      onPress={() =>
+                        void mexerAlerta({
+                          ...alerts,
+                          bands: { ...alerts.bands, notifyFull: !alerts.bands.notifyFull },
+                        })
+                      }
+                      accessibilityRole="switch"
+                      accessibilityState={{ checked: alerts.bands.notifyFull }}
+                      accessibilityLabel={`${t.app.settings.alerts.notifyFull}: ${
+                        alerts.bands.notifyFull
+                          ? t.app.settings.alerts.on
+                          : t.app.settings.alerts.off
+                      }`}
+                      style={{ alignSelf: 'flex-start' }}
+                    >
+                      <Chip
+                        signal={alerts.bands.notifyFull ? 'ok' : 'neutral'}
+                        label={t.app.settings.alerts.notifyFull}
+                      />
+                    </Pressable>
+                  ) : null}
+
                   {/* A antecedência só aparece para o alarme ligado que tem dia:
                       oferecer o ajuste de um alarme desligado é pedir decisão
                       sobre coisa que não vai acontecer. */}

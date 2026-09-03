@@ -97,13 +97,21 @@ test('the volume bands read the same in every item, and green is quiet', () => {
     ligado,
   );
 
-  // O verde não notifica, e o azul sim: câmara cheia é produção que vai parar
-  // por falta de espaço, e ninguém descobre isso olhando o que falta.
-  assert.deepEqual(avisos.map((a) => a.subjectId).sort(), ['cheio', 'pouco', 'vazio']);
+  // O verde não notifica, e o AZUL também não por padrão: almoxarifado cheio
+  // depois de uma compra é estado desejado, e aviso diário sobre estado desejado
+  // é o alerta que ensina a ignorar alerta. A cor continua pintando a lista.
+  assert.deepEqual(avisos.map((a) => a.subjectId).sort(), ['pouco', 'vazio']);
 
   // E o número do aviso é a porcentagem, que é o que a frase vai dizer.
   assert.equal(avisos.find((a) => a.subjectId === 'pouco')?.amount, 10);
-  assert.equal(avisos.find((a) => a.subjectId === 'cheio')?.band, 'azul');
+
+  // Ligado, ele avisa — é o caso da câmara que enche até parar a produção, e
+  // ninguém descobre isso olhando o que falta.
+  const comCheio = alertsDue(
+    { ...nada, volumes: [{ itemId: 'cheio', name: 'Cheio', onHand: 95, fullLevel: 100 }] },
+    { ...ligado, bands: { ...ligado.bands, notifyFull: true } },
+  );
+  assert.equal(comCheio[0]?.band, 'azul');
 });
 
 test('the most urgent alert comes first, because a notification holds one sentence', () => {

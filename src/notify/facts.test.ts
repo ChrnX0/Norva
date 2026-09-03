@@ -177,9 +177,27 @@ test('the full cold room alarms too, not only the empty storeroom', async () => 
   });
 
   const cheia = await factsForAlerts('America/Sao_Paulo');
-  const avisos = alertsDue(cheia, {
+  const soVolume = {
     ...DEFAULT_ALERTS,
-    on: { ...DEFAULT_ALERTS.on, volume: true, insumo: false, pedido: false, validade: false, ambiente: false },
+    on: {
+      ...DEFAULT_ALERTS.on,
+      volume: true,
+      insumo: false,
+      pedido: false,
+      validade: false,
+      ambiente: false,
+    },
+  };
+
+  // Por padrão o azul só PINTA: almoxarifado cheio depois de uma compra é estado
+  // desejado, e aviso diário sobre estado desejado ensina a ignorar aviso.
+  assert.deepEqual(alertsDue(cheia, soVolume), []);
+
+  // Ligado, ele avisa — e é aqui que o caso do dono vive: a câmara que enche até
+  // parar a produção, que ninguém descobre olhando o que falta.
+  const avisos = alertsDue(cheia, {
+    ...soVolume,
+    bands: { ...soVolume.bands, notifyFull: true },
   });
   assert.ok(
     avisos.some((a) => a.subjectId === produto.itemId && a.band === 'azul'),

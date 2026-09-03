@@ -442,6 +442,7 @@ export const ptBR = {
         },
         daysAhead: '{{days}} de antecedência',
         ambienteHint: 'Compara com a faixa que você cadastrar na câmara. Sem faixa, ele não avisa — o app não sabe qual é a temperatura boa da sua câmara.',
+        notifyFull: 'Avisar quando encher',
         volumeHint: 'Compara com a faixa que você cadastrar no item. Sem faixa, ele não avisa.',
         hour: 'Hora do aviso',
         hourField: 'Hora',

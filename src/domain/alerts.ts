@@ -57,7 +57,26 @@ export type AlertSettings = {
    * Entre `yellow` e `blue` não existe faixa, e é de propósito: é o estado
    * normal, e estado normal é calado. "Está tudo bem" é resposta válida.
    */
-  bands: { red: number; yellow: number; blue: number };
+  bands: {
+    red: number;
+    yellow: number;
+    blue: number;
+    /**
+     * Se a faixa azul INTERROMPE, e não apenas pinta.
+     *
+     * Desligado por padrão, e essa é a única decisão deste módulo que contraria a
+     * leitura literal do que o dono pediu — então ela vem escrita. Ele desenhou
+     * quatro faixas, e faixa é cor; nada nisso dizia que todas as quatro devem
+     * acordar alguém.
+     *
+     * Almoxarifado cheio depois de uma compra é estado DESEJADO, e um aviso
+     * diário sobre estado desejado é exatamente o alerta que ensina a ignorar
+     * alerta — a Lei 7, aplicada ao caso em que o app está certo e chato ao mesmo
+     * tempo. A câmara que enche até parar a produção é o caso em que ele importa,
+     * e é por isso que o caminho existe em vez de eu escolher pelos dois.
+     */
+    notifyFull: boolean;
+  };
   /**
    * O minuto do dia em que o aviso chega, 0 a 1439 — hora E minuto.
    *
@@ -94,7 +113,7 @@ export const DEFAULT_ALERTS: AlertSettings = {
   // forma.
   on: { insumo: true, pedido: true, volume: false, validade: true, ambiente: true },
   daysAhead: { insumo: 3, pedido: 2, validade: 7 },
-  bands: { red: 25, yellow: 40, blue: 80 },
+  bands: { red: 25, yellow: 40, blue: 80, notifyFull: false },
   minuteOfDay: 7 * 60,
   weekdays: 0,
 };
@@ -127,7 +146,8 @@ export function volumeBand(
 }
 
 /**
- * As faixas que merecem NOTIFICAÇÃO. O verde pinta e não interrompe.
+ * As faixas que PODEM notificar. O verde pinta e nunca interrompe; o azul
+ * interrompe só quando a casa liga.
  *
  * Esta é a linha onde a Lei 7 vive neste módulo: um aviso de que está tudo bem
  * chega uma vez, e a partir da segunda ele ensina a ignorar o aviso de que não
@@ -247,6 +267,8 @@ export function alertsDue(facts: AlertFacts, settings: AlertSettings): Alert[] {
       // juízo, e sem ele o aplicativo estaria inventando o que é pouco.
       const faixa = volumeBand(v.onHand, v.fullLevel, settings.bands);
       if (faixa === null || !FAIXAS_QUE_AVISAM.has(faixa)) continue;
+      // O azul pinta sempre e só interrompe se a casa pediu.
+      if (faixa === 'azul' && !settings.bands.notifyFull) continue;
       out.push({
         kind: 'volume',
         subjectId: v.itemId,

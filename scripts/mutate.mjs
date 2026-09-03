@@ -102,6 +102,14 @@ const DEFECTS = [
   },
 
   {
+    file: 'src/domain/alerts.ts',
+    from: `      if (faixa === 'azul' && !settings.bands.notifyFull) continue;`,
+    to: `      if (faixa === 'azul' && settings.bands.notifyFull) continue;`,
+    hurts:
+      'o aviso de cheio inverte: quem PEDIU para ser avisado deixa de receber, e quem nao pediu recebe todo dia que o almoxarifado esta cheio',
+  },
+
+  {
     file: 'src/notify/phrase.ts',
     from: `        ? // Grandeza física guarda a fração: meio grau de freezer é diferença`,
     to: `        ? String(Math.round(alert.amount)) ||`,

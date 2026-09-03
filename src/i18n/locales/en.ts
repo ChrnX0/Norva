@@ -406,6 +406,7 @@ export const en: Dictionary = {
         },
         daysAhead: '{{days}} of notice',
         ambienteHint: 'Compares against the range you set on the room. With no range it stays quiet — the app does not know what temperature your room should hold.',
+        notifyFull: 'Warn when it fills up',
         volumeHint: 'Compares against the range you set on the item. With no range, it stays quiet.',
         hour: 'Time of the alert',
         hourField: 'Hour',
