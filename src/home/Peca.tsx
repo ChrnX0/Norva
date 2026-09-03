@@ -1,7 +1,12 @@
-import { type ReactNode } from 'react';
-import { Text, View } from 'react-native';
+import { useEffect, type ReactNode } from 'react';
+import { AccessibilityInfo, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { Card } from '@/components/Card';
-import { Reveal } from '@/components/Reveal';
 import { Touchable } from '@/components/Touchable';
 import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -49,30 +54,100 @@ export function Peca({
   const { color, type, space } = useTheme();
   const { t } = useLocale();
 
+  /**
+   * A abertura, como um gesto e não como um pulo.
+   *
+   * O detalhe sobe de baixo e assenta, e a seta gira junto — as duas coisas na
+   * mesma mola, para o olho entender que são o mesmo movimento. Sem isso o
+   * conteúdo aparece de uma vez e a tela dá um salto: funciona e parece defeito.
+   *
+   * `aberto` vale 0 fechado e 1 aberto; toda a animação sai dele, então não
+   * existe estado intermediário inventado em lugar nenhum.
+   */
+  const aberto = useSharedValue(aberta ? 1 : 0);
+
+  useEffect(() => {
+    let cancelled = false;
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
+      if (cancelled) return;
+      aberto.value = reduced
+        ? aberta
+          ? 1
+          : 0
+        : withSpring(aberta ? 1 : 0, { damping: 18, stiffness: 180 });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [aberta, aberto]);
+
+  const detalhe = useAnimatedStyle(() => ({
+    opacity: aberto.value,
+    transform: [{ translateY: (1 - aberto.value) * -10 }],
+  }));
+  const seta = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${aberto.value * 180}deg` }],
+  }));
+
   const corpo = (
     <Card hue={hue} tone={tone} icon={icon} title={title}>
       {children}
       {mais && aberta ? (
-        // A entrada escalonada é a mesma da capa: o detalhe aparece de baixo,
-        // então o olho acompanha em vez de a tela dar um pulo.
-        <Reveal index={0} style={{ marginTop: space.md }}>
-          <View style={{ gap: space.sm }}>{mais}</View>
-        </Reveal>
+        <Animated.View style={[{ marginTop: space.md, gap: space.sm }, detalhe]}>{mais}</Animated.View>
       ) : null}
       {mais ? (
-        <Text style={[type.caption, { color: color.inkFaint, marginTop: space.sm }]}>
-          {aberta ? t.app.home.less : t.app.home.more}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, marginTop: space.sm }}>
+          {/* A seta gira na mesma mola do detalhe: é o mesmo gesto, dito duas
+              vezes, e é o que faz a peça parecer uma coisa em vez de duas. */}
+          <Animated.Text style={[type.caption, { color: color.inkFaint }, seta]}>▾</Animated.Text>
+          <Text style={[type.caption, { color: color.inkFaint }]}>
+            {aberta ? t.app.home.less : t.app.home.more}
+          </Text>
+        </View>
       ) : null}
     </Card>
   );
 
-  if (!mais) return index === undefined ? corpo : <Reveal index={index}>{corpo}</Reveal>;
+  if (!mais) return <Entrada index={index}>{corpo}</Entrada>;
 
-  const tocavel = (
-    <Touchable onPress={onToggle} accessibilityLabel={title ?? ''}>
-      {corpo}
-    </Touchable>
+  return (
+    <Entrada index={index}>
+      <Touchable onPress={onToggle} accessibilityLabel={title ?? ''}>
+        {corpo}
+      </Touchable>
+    </Entrada>
   );
-  return index === undefined ? tocavel : <Reveal index={index}>{tocavel}</Reveal>;
+}
+
+/**
+ * A entrada escalonada da peça na capa.
+ *
+ * Começa VISÍVEL e sobe para o lugar, nunca em opacidade zero: se o caminho da
+ * animação falhar — plugin de worklets fora do babel, biblioteca não carregando
+ * no navegador —, o pior caso é a peça aparecer sem o gesto. Uma capa em branco
+ * com o banco cheio é o pior defeito possível numa fábrica, e já foi a razão de
+ * o `Reveal` nascer assim.
+ */
+function Entrada({ index = 0, children }: { index?: number; children: ReactNode }) {
+  const { motion } = useTheme();
+  const chegou = useSharedValue(1);
+
+  useEffect(() => {
+    let cancelled = false;
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
+      if (cancelled || reduced) return;
+      chegou.value = 0;
+      chegou.value = withTiming(1, { duration: 320 + index * motion.staggerMs });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [chegou, index, motion.staggerMs]);
+
+  const estilo = useAnimatedStyle(() => ({
+    opacity: 0.2 + chegou.value * 0.8,
+    transform: [{ translateY: (1 - chegou.value) * 14 }],
+  }));
+
+  return <Animated.View style={estilo}>{children}</Animated.View>;
 }

@@ -13,7 +13,8 @@
     "test": "tsx --test 'src/**/*.test.ts'",
     "db:verify": "bash scripts/verify-migrations.sh",
     "e2e": "node e2e/flow.mjs",
-    "mutate": "node scripts/mutate.mjs"
+    "mutate": "node scripts/mutate.mjs",
+    "e2e:fast": "node scripts/e2e-parallel.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.14",

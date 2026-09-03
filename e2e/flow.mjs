@@ -38,6 +38,30 @@ const ONLY = (() => {
   const at = process.argv.indexOf('--only');
   return at >= 0 ? (process.argv[at + 1] ?? '').toLowerCase() : '';
 })();
+
+/**
+ * Qual fatia das checagens este processo roda: `--shard 2/4`.
+ *
+ * Cada checagem já abre contexto novo do navegador — armazenamento separado,
+ * primeira instalação — então elas são independentes por construção, e fatiar não
+ * muda o que cada uma prova. O que muda é a espera: trinta checagens em série
+ * custavam cinco minutos por rodada, e essa espera se paga em toda rodada.
+ *
+ * A fatia é por RESTO da divisão e não por bloco contíguo: as checagens têm
+ * durações muito diferentes (a que cadastra produto e produz leva quinze vezes o
+ * tempo da que só abre uma tela), e blocos contíguos deixariam uma fatia
+ * terminando muito depois das outras.
+ */
+const SHARD = (() => {
+  const at = process.argv.indexOf('--shard');
+  if (at < 0) return null;
+  const [i, n] = `${process.argv[at + 1] ?? ''}`.split('/').map(Number);
+  if (!Number.isInteger(i) || !Number.isInteger(n) || n < 1 || i < 1 || i > n) {
+    console.error('--shard pede i/N, com 1 <= i <= N');
+    process.exit(2);
+  }
+  return { i: i - 1, n };
+})();
 const ROOT = join(process.cwd(), 'dist');
 /**
  * Left undefined by default so Playwright finds its own Chromium, which is what
@@ -1380,7 +1404,10 @@ try {
     args: ['--no-sandbox'],
   });
   let failures = 0;
-  const selected = ONLY ? checks.filter((c) => c.name.toLowerCase().includes(ONLY)) : checks;
+  const filtradas = ONLY ? checks.filter((c) => c.name.toLowerCase().includes(ONLY)) : checks;
+  const selected = SHARD
+    ? filtradas.filter((_, at) => at % SHARD.n === SHARD.i)
+    : filtradas;
 
   for (const { name, fn } of selected) {
     // A fresh context per check: separate storage, so each starts on a first
@@ -1419,7 +1446,8 @@ try {
   await browser.close();
   console.log(
     `\n${selected.length - failures}/${selected.length} passaram` +
-      (ONLY ? ` (filtrado por "${ONLY}" - não é a suíte inteira)` : ''),
+      (ONLY ? ` (filtrado por "${ONLY}" - não é a suíte inteira)` : '') +
+      (SHARD ? ` (fatia ${SHARD.i + 1} de ${SHARD.n} - não é a suíte inteira)` : ''),
   );
 
   // A suite that registered nothing prints "0/0 passaram" and exits happy,

@@ -22,7 +22,9 @@
  * possible proof that the test written alongside it actually bites.
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { cpus } from 'node:os';
 import { spawnSync } from 'node:child_process';
 
 /** @type {{file: string, from: string, to: string, hurts: string}[]} */
@@ -486,103 +488,130 @@ const DEFECTS = [
 ];
 
 /**
- * Duas defesas contra o pior resultado possível deste script: deixar uma
- * mutação no disco.
+ * A cicatriz que este desenho fecha, escrita para não se repetir.
  *
- * Aconteceu. Uma execução foi interrompida, o `finally` não rodou, e o guarda de
- * ciclo de receita ficou desativado na árvore de trabalho — enquanto um build
- * de APK começava a empacotar exatamente esse diretório. Um script cujo trabalho
- * é quebrar o código de propósito precisa ser o mais paranóico do repositório
- * sobre desfazer, porque a falha dele não é um teste vermelho: é código quebrado
- * viajando dentro de um aplicativo.
+ * A versão anterior mutava o arquivo DE VERDADE e desfazia depois. Uma execução
+ * foi interrompida, o `finally` não rodou, e o guarda de ciclo de receita ficou
+ * desativado na árvore de trabalho — enquanto um build de APK começava a
+ * empacotar exatamente esse diretório. A resposta na época foram três redes:
+ * `finally`, ganchos de SIGINT/SIGTERM/SIGHUP, e uma checagem de árvore suja na
+ * entrada que ABORTAVA a execução seguinte.
  *
- * `finally` cobre exceção. Não cobre SIGINT nem SIGTERM, que é como um processo
- * de fundo morre.
+ * Três redes para o mesmo abismo é sinal de que o abismo não devia existir.
+ * Mutando cópias, o pior caso de uma morte no meio é um diretório para apagar —
+ * e a checagem de árvore suja, que já custou uma rodada travada ("A árvore já
+ * está suja nos arquivos que este script muda"), deixou de fazer sentido.
+ *
  */
-let emVoo = null;
-
-function desfazer() {
-  if (!emVoo) return;
-  writeFileSync(emVoo.file, emVoo.original);
-  emVoo = null;
-}
-
-for (const sinal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
-  process.on(sinal, () => {
-    desfazer();
-    process.exit(130);
-  });
-}
-process.on('exit', desfazer);
-
 /**
- * E antes de começar: se a árvore já estiver suja num arquivo que este script
- * mexe, alguma execução anterior morreu no meio. Seguir em frente sobrescreveria
- * a evidência disso com a mutação seguinte.
+ * As mutações rodam em CÓPIAS, e a árvore de trabalho nunca é tocada.
+ *
+ * A versão anterior escrevia o defeito no arquivo de verdade e desfazia depois —
+ * com `finally`, com gancho de sinal e com uma checagem de árvore suja na
+ * entrada, porque a falha desse desenho não é um teste vermelho: é código
+ * quebrado viajando dentro de um aplicativo. Três redes para o mesmo abismo.
+ *
+ * Copiando, o abismo não existe: o pior caso de uma execução morta no meio é um
+ * diretório temporário para apagar. E aí a paralelização vem de graça, porque
+ * cada trabalhador tem a sua cópia — 64 mutações em série custavam doze minutos
+ * de espera por commit, e essa espera se paga em toda rodada, todo dia.
+ *
+ * `node_modules` é ligado por link simbólico, não copiado: são centenas de
+ * megabytes que os quatro trabalhadores leem sem escrever.
  */
-function arvoreLimpa() {
-  const alvos = [...new Set(DEFECTS.map((d) => d.file))];
-  const sujo = spawnSync('git', ['status', '--porcelain', '--', ...alvos], { encoding: 'utf8' });
-  const linhas = `${sujo.stdout}`.trim();
-  if (linhas) {
-    console.log('A árvore já está suja nos arquivos que este script muda:\n');
-    console.log(linhas);
-    console.log('\nUma execução anterior foi interrompida antes de restaurar. Confira o');
-    console.log('diff e reverta antes de rodar de novo — se for uma mutação esquecida,');
-    console.log('ela está agora dentro de qualquer coisa que você compilar.');
-    process.exit(1);
+const RAIZ = process.cwd();
+const OFICINA = join(RAIZ, '.mutate');
+const TRABALHADORES = Math.max(1, Math.min(cpus().length, 4));
+
+/** O que uma cópia precisa para rodar a suíte rápida. Nada mais. */
+const COPIAR = ['src', 'scripts', 'package.json', 'tsconfig.json'];
+
+function prepararOficina() {
+  rmSync(OFICINA, { recursive: true, force: true });
+  for (let n = 0; n < TRABALHADORES; n += 1) {
+    const dir = join(OFICINA, `w${n}`);
+    mkdirSync(dir, { recursive: true });
+    for (const alvo of COPIAR) {
+      cpSync(join(RAIZ, alvo), join(dir, alvo), { recursive: true });
+    }
+    symlinkSync(join(RAIZ, 'node_modules'), join(dir, 'node_modules'), 'dir');
   }
 }
 
-function suitePasses() {
-  const run = spawnSync('npm', ['test'], { encoding: 'utf8' });
+function suitePasses(dir) {
+  const run = spawnSync('npx', ['tsx', '--test', 'src/**/*.test.ts'], {
+    cwd: dir,
+    encoding: 'utf8',
+    env: { ...process.env, FORCE_COLOR: '0' },
+  });
   return `${run.stdout}`.includes('# fail 0');
 }
 
-arvoreLimpa();
-
-let survivors = 0;
-
-console.log(`Quebrando o código de propósito, ${DEFECTS.length} vezes.\n`);
-
-for (const defect of DEFECTS) {
-  const original = readFileSync(defect.file, 'utf8');
+/**
+ * Cada defeito, na cópia de um trabalhador.
+ *
+ * Devolve o veredito em vez de imprimir: a ordem de impressão é a da LISTA, não
+ * a de quem terminou primeiro. Relatório fora de ordem é relatório que ninguém
+ * consegue comparar com a execução de ontem.
+ */
+async function julgar(defect, dir) {
+  const original = readFileSync(join(RAIZ, defect.file), 'utf8');
 
   if (!original.includes(defect.from)) {
-    console.log(`?  ${defect.file}: o trecho mudou — atualize esta mutação`);
-    console.log(`   ${defect.hurts}\n`);
-    survivors += 1;
-    continue;
+    return { estado: 'obsoleta', defect };
   }
-
   // Duas ocorrências do mesmo trecho é uma mutação que mente.
   //
   // `String.replace` com texto troca a PRIMEIRA e cala sobre o resto. Quando o
   // mesmo SQL aparece em duas funções — foi o caso do piso por local, que a
   // contagem e a perda escrevem igual — o relatório diz "ok" tendo exercitado
-  // metade da regra, e a outra metade fica sem rede achando que tem. É a mesma
-  // família do marcador de dispensa escrito em comentário solto e da fila
-  // rodando como superusuário: o mecanismo relata sucesso sem ter feito o
-  // trabalho.
+  // metade da regra, e a outra metade fica sem rede achando que tem.
   const hits = original.split(defect.from).length - 1;
-  if (hits > 1) {
-    console.log(`?  ${defect.file}: o trecho aparece ${hits} vezes`);
+  if (hits > 1) return { estado: 'ambigua', defect, hits };
+
+  writeFileSync(join(dir, defect.file), original.replace(defect.from, defect.to));
+  const pego = !suitePasses(dir);
+  // Restaura a cópia para o próximo defeito deste trabalhador.
+  writeFileSync(join(dir, defect.file), original);
+  return { estado: pego ? 'pego' : 'sobreviveu', defect };
+}
+
+prepararOficina();
+process.on('exit', () => rmSync(OFICINA, { recursive: true, force: true }));
+
+console.log(
+  `Quebrando o código de propósito, ${DEFECTS.length} vezes, em ${TRABALHADORES} frentes.\n`,
+);
+
+const vereditos = new Array(DEFECTS.length);
+let proximo = 0;
+
+await Promise.all(
+  Array.from({ length: TRABALHADORES }, async (_, n) => {
+    const dir = join(OFICINA, `w${n}`);
+    for (;;) {
+      const meu = proximo;
+      proximo += 1;
+      if (meu >= DEFECTS.length) return;
+      vereditos[meu] = await julgar(DEFECTS[meu], dir);
+    }
+  }),
+);
+
+let survivors = 0;
+
+for (const veredito of vereditos) {
+  const { defect } = veredito;
+  if (veredito.estado === 'obsoleta') {
+    survivors += 1;
+    console.log(`?  ${defect.file}: o trecho mudou — atualize esta mutação`);
+    console.log(`   ${defect.hurts}\n`);
+  } else if (veredito.estado === 'ambigua') {
+    survivors += 1;
+    console.log(`?  ${defect.file}: o trecho aparece ${veredito.hits} vezes`);
     console.log(`   a troca pega só a primeira — dê contexto ao \`from\` até ele ser único`);
     console.log(`   ${defect.hurts}\n`);
-    survivors += 1;
-    continue;
-  }
-
-  emVoo = { file: defect.file, original };
-  writeFileSync(defect.file, original.replace(defect.from, defect.to));
-  let caught = false;
-  try {
-    caught = !suitePasses();
-  } finally {
-    desfazer();
-  }
-
-  if (caught) {
+  } else if (veredito.estado === 'pego') {
     console.log(`ok ${defect.hurts}`);
   } else {
     survivors += 1;

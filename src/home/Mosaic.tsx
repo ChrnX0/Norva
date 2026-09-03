@@ -1,6 +1,8 @@
 import { Fragment, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Bars } from '@/components/Bars';
+import { Drain } from '@/components/Drain';
+import { Sparkline } from '@/components/Sparkline';
 import { Card } from '@/components/Card';
 import { FactoryScene } from '@/components/FactoryScene';
 import { Landscape } from '@/components/Landscape';
@@ -22,7 +24,9 @@ import {
 } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
+import { nowIso } from '@/data/db';
 import type { BriefingWidget } from '@/domain/briefing';
+import { daysBetween } from '@/domain/day';
 import type { Cents } from '@/domain/money';
 import { Peca } from './Peca';
 import type { BriefingView } from './types';
@@ -432,6 +436,16 @@ export function Mosaic({
                 code: data!.runs[0].code ?? '—',
               })}
             </Text>
+            {/* A linha das corridas, do mais antigo para o mais novo.
+                Ela entra sendo traçada: o gesto é o que faz uma sequência de
+                números parecer o ritmo de uma semana em vez de uma tabela. */}
+            {data!.runs.length > 1 ? (
+              <Sparkline
+                values={[...data!.runs].reverse().map((r) => r.baseUnits)}
+                hue={palette.sand}
+                strokeWidth={traco}
+              />
+            ) : null}
             {/* Lei 3: a última corrida sozinha não diz nada. A média das
                 registradas é o normal contra o qual ela se lê. */}
             <Text style={[type.caption, { color: color.inkMuted }]}>
@@ -488,6 +502,12 @@ export function Mosaic({
               {' · '}
               {fill(t.app.home.coverTightest, { item: data!.cover[0].name })}
             </Text>
+            {/* O horizonte é um mês, que é a janela em que uma fábrica compra.
+                A barra vira alerta sozinha embaixo de uma semana - a cor conta o
+                que o número já disse, para quem passa o olho sem ler. */}
+            <View style={{ marginTop: space.sm }}>
+              <Drain share={Math.min(1, data!.cover[0].daysLeft / 30)} hue={palette.mint} />
+            </View>
           </>
         )}
       </Peca>
@@ -573,6 +593,22 @@ export function Mosaic({
                 date: formatCalendarDate(data!.expiring[0].expiresOn, locale),
               })}
             </Text>
+            {/* Quanto falta dos trinta dias que a peça olha. Sem o desenho, "12
+                de setembro" pede que a pessoa faça a conta de cabeça. */}
+            <View style={{ marginTop: space.sm }}>
+              <Drain
+                share={
+                  Math.max(
+                    0,
+                    daysBetween(
+                      nowIso(),
+                      `${data!.expiring[0].expiresOn}T00:00:00.000Z`,
+                      locale.timeZone,
+                    ),
+                  ) / 30
+                }
+              />
+            </View>
           </Peca>
         ) : null}
       </>
@@ -613,6 +649,28 @@ export function Mosaic({
                   })
                 : t.app.home.lossFirst}
             </Text>
+            {/* O mês contra o anterior, na mesma régua: a barra de baixo é o
+                mês passado, e a de cima só passa dela se a fábrica piorou.
+                Duas barras dizem em um relance o que dois números pedem para
+                comparar de cabeça. */}
+            {(data?.lossesBefore ?? 0) > 0 ? (
+              <View style={{ marginTop: space.sm, gap: space.xs }}>
+                <Drain
+                  share={
+                    (data?.lossesNow ?? 0) /
+                    Math.max(data?.lossesNow ?? 0, data?.lossesBefore ?? 1)
+                  }
+                  hue={color.warning}
+                />
+                <Drain
+                  share={
+                    (data?.lossesBefore ?? 0) /
+                    Math.max(data?.lossesNow ?? 0, data?.lossesBefore ?? 1)
+                  }
+                  hue={color.inkFaint}
+                />
+              </View>
+            ) : null}
           </Peca>
         ) : null}
       </>
@@ -650,6 +708,17 @@ export function Mosaic({
             <Text style={[type.figure, { color: color.ink }]}>
               {formatMoney(Math.round(comCusto[0]!.unitCostRate!) as Cents, locale)}
             </Text>
+            {/* O custo congelado corrida a corrida. É a única peça em que a
+                linha SUBINDO é notícia ruim, e por isso ela não muda de cor: a
+                cor diria o que só o dono sabe - polpa mais cara por safra é
+                normal, por desperdício não é. */}
+            {comCusto.length > 1 ? (
+              <Sparkline
+                values={[...comCusto].reverse().map((r) => r.unitCostRate ?? 0)}
+                hue={palette.sky}
+                strokeWidth={traco}
+              />
+            ) : null}
             <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={2}>
               {comCusto.length > 1
                 ? fill(t.app.home.costBefore, {

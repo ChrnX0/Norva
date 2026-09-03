@@ -45,3 +45,8 @@ yarn-error.*
 
 # ProofGate writes its verdict beside the git metadata, not in the tree.
 .proofgate/verdict.json
+
+# As cópias que o `mutate` usa para nunca tocar na árvore de trabalho.
+# Ele apaga sozinho ao sair; isto cobre a execução que morreu no meio, para o
+# portão não reprovar por "árvore suja" por causa de lixo de ferramenta.
+.mutate/
