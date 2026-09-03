@@ -9,6 +9,7 @@ import {
   costRecipe,
   explodeRequirements,
   MissingRecipeError,
+  packagingRatePerUnit,
   RecipeCycleError,
   unitsPerBatch,
   type ItemCosts,
@@ -221,6 +222,41 @@ test('a recipe that contains itself raises instead of hanging', () => {
   };
 
   assert.throws(() => costRecipe('a', looping, itemCosts), RecipeCycleError);
+});
+
+test('the packaging that leaves stock is inside the quoted unit cost', () => {
+  // O `mutate` zerou `itemsRate` e a suíte inteira continuou verde: a regra só
+  // era exercitada por tela, e o `mutate` roda a suíte rápida. Sem este teste, a
+  // embalagem que sai do estoque volta a ficar fora do custo cotado - e a
+  // produção congela um número maior que o que sete telas prometeram, que é
+  // exatamente a divergência que já custou uma rodada aqui.
+  const cost = costRecipe('strawberry', recipes, itemCosts);
+  const soMassa = costPerProductUnit(cost, 75);
+
+  // Dois centavos de palito são dois centavos no custo da unidade.
+  assert.equal(costPerProductUnit(cost, 75, { itemsRate: 2 }) - soMassa, 2);
+
+  // E as duas metades somam: o que sai do estoque mais o que foi digitado.
+  assert.equal(costPerProductUnit(cost, 75, { itemsRate: 2, cents: cents(3) }) - soMassa, 5);
+
+  // A fração não se perde no caminho, e é por isso que a taxa entra fracionária:
+  // meio centavo somado dez vezes é cinco centavos, não zero e não dez. Onde
+  // isso se prova é na própria taxa - o arredondamento do total depende da massa
+  // da receita, e um teste que dependesse dela estaria medindo outra coisa.
+  const meio = packagingRatePerUnit([{ itemId: 'stick', quantityPerUnit: 1 }], { stick: 0.5 });
+  assert.equal(meio, 0.5, 'meio centavo continua meio centavo');
+  assert.equal(meio * 10, 5);
+
+  assert.equal(
+    packagingRatePerUnit([{ itemId: 'stick', quantityPerUnit: 2 }], { stick: 1.25 }),
+    2.5,
+    'a taxa é quantidade x preço, sem arredondar no caminho',
+  );
+  assert.equal(
+    packagingRatePerUnit([{ itemId: 'fantasma', quantityPerUnit: 3 }], {}),
+    0,
+    'item sem preço vale zero em vez de derrubar a conta',
+  );
 });
 
 test('product cost adds per-unit packaging on top of the mix', () => {
