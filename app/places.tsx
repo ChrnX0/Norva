@@ -295,7 +295,45 @@ function Ambiente({
 
   const [valor, setValor] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [editandoFaixa, setEditandoFaixa] = useState(false);
   const faixa = place.sensorRanges[TEMPERATURA];
+
+  const [minimo, setMinimo] = useState(
+    faixa?.min === null || faixa?.min === undefined ? '' : formatTyped(faixa.min, locale.formatting, 1),
+  );
+  const [maximo, setMaximo] = useState(
+    faixa?.max === null || faixa?.max === undefined ? '' : formatTyped(faixa.max, locale.formatting, 1),
+  );
+
+  /**
+   * Grava a faixa no LUGAR, não na leitura.
+   *
+   * A faixa é da câmara e vale para toda leitura que vier dela — inclusive a do
+   * sensor que ainda não existe. Guardar na leitura faria cada medição carregar a
+   * sua própria régua, e duas medições da mesma câmara poderiam discordar sobre o
+   * que é frio.
+   */
+  const salvarFaixa = async () => {
+    if (salvando) return;
+    setSalvando(true);
+    try {
+      const min = parseTyped(minimo);
+      const max = parseTyped(maximo);
+      await savePlace(LOCAL_COMPANY_ID, {
+        id: place.id,
+        name: place.name,
+        kind: place.kind,
+        sensorRanges:
+          min === null && max === null
+            ? {}
+            : { ...place.sensorRanges, [TEMPERATURA]: { min, max, unit: faixa?.unit ?? 'C' } },
+      });
+      setEditandoFaixa(false);
+      onSaved();
+    } finally {
+      setSalvando(false);
+    }
+  };
 
   const anotar = async () => {
     const lido = parseTyped(valor);
@@ -366,6 +404,44 @@ function Ambiente({
         disabled={parseTyped(valor) === null || salvando}
         onPress={() => void anotar()}
       />
+
+      {/* A faixa, que é o que transforma leitura em juízo — e que sem escritor
+          seria regra que nunca dispara. Fechada por padrão: quem passa aqui todo
+          dia vem anotar, não vem reconfigurar. */}
+      {editandoFaixa ? (
+        <View style={{ gap: space.sm }}>
+          <Text style={[type.caption, { color: color.inkFaint }]}>{words.rangeHint}</Text>
+          <View style={[styles.row, { gap: space.md }]}>
+            <View style={{ flex: 1 }}>
+              <Field
+                label={words.rangeMin}
+                value={minimo}
+                onChangeText={setMinimo}
+                keyboardType="numeric"
+                suffix={`°${faixa?.unit ?? 'C'}`}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Field
+                label={words.rangeMax}
+                value={maximo}
+                onChangeText={setMaximo}
+                keyboardType="numeric"
+                suffix={`°${faixa?.unit ?? 'C'}`}
+              />
+            </View>
+          </View>
+          <Button label={words.save} variant="ghost" disabled={salvando} onPress={() => void salvarFaixa()} />
+        </View>
+      ) : (
+        <Text
+          accessibilityRole="button"
+          onPress={() => setEditandoFaixa(true)}
+          style={[type.caption, { color: color.inkMuted }]}
+        >
+          {words.rangeLabel}
+        </Text>
+      )}
     </View>
   );
 }

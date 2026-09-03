@@ -52,10 +52,28 @@ function layersOutsideData(): string[] {
   return ['app', ...inSrc];
 }
 
+/**
+ * O dicionário fica fora, e o motivo é um alarme falso que aconteceu.
+ *
+ * O padrão de `UPDATE ... SET` atravessa linhas de propósito — SQL de verdade
+ * neste repositório é escrito em várias —, e um arquivo de idioma é prosa em três
+ * línguas. A palavra "update" numa frase e "set" vinte linhas depois casaram, e a
+ * checagem acusou o dicionário de conter consulta.
+ *
+ * Estreitar o padrão para uma linha enfraqueceria a checagem justamente onde ela
+ * importa. Tirar a prosa não enfraquece nada: um dicionário com SQL dentro não
+ * seria uma violação de camada, seria uma frase sem sentido em três idiomas — e a
+ * fundação de i18n já garante que ali só existe texto de tela.
+ *
+ * Alarme falso num guard é pior que guard ausente: ensina a ignorar a saída dele.
+ */
+const PROSA = /^src\/i18n\/locales\//;
+
 test('only the data layer speaks SQL', () => {
   const offenders: string[] = [];
   for (const dir of layersOutsideData()) {
     for (const file of sourcesUnder(dir)) {
+      if (PROSA.test(file)) continue;
       if (SQL.test(code(readFileSync(file, 'utf8')))) offenders.push(file);
     }
   }
@@ -91,4 +109,20 @@ test('the suite runs every test file, whatever folder it lands in', () => {
     /'src\/\*\*\/\*\.test\.ts'|"src\/\*\*\/\*\.test\.ts"/,
     'the test glob must be quoted, or the shell flattens ** to one directory level',
   );
+});
+
+test('the prose exclusion is narrow, and the guard still bites next door', () => {
+  // A exceção precisa ser do tamanho exato do problema. Se ela crescer para
+  // `src/i18n` inteiro, uma consulta escrita no formatador passaria — e o
+  // formatador é código, não prosa.
+  assert.ok(PROSA.test('src/i18n/locales/pt-BR.ts'));
+  assert.ok(!PROSA.test('src/i18n/index.ts'), 'o código do i18n continua coberto');
+  assert.ok(!PROSA.test('src/home/Mosaic.tsx'));
+
+  // E o padrão continua achando SQL de verdade, que é o que ele existe para
+  // achar: sem isto, a exceção poderia ter quebrado a checagem inteira sem
+  // ninguém notar.
+  assert.ok(SQL.test('const q = `SELECT id\n FROM items`;'));
+  assert.ok(SQL.test('await conn.runAsync(`UPDATE products\n SET name = ?`);'));
+  assert.ok(!SQL.test('a frase diz que o app se atualiza sozinho e o campo fica set'));
 });

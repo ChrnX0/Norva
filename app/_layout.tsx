@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ConfirmProvider } from '@/components/Confirm';
 import { Crash } from '@/components/Crash';
 import { WhatsNew } from '@/components/WhatsNew';
+import { Alerts } from '@/notify/Alerts';
 import { ensureStarterData } from '@/data/seed';
 import { AppearanceProvider } from '@/theme/Appearance';
 import { ThemeProvider } from '@/theme/ThemeProvider';
@@ -102,6 +103,11 @@ export default function RootLayout() {
               <Stack screenOptions={{ headerShown: false }} />
               {/* Sits above every screen: the update may land on any of them. */}
               <WhatsNew />
+              {/* Reagenda os avisos a cada abertura. Não desenha nada; existe
+                  para a regra de alarme ter chamador — peça sem chamador é a
+                  doença que o P1 descreve, e este repositório já a teve quatro
+                  vezes. */}
+              <Alerts />
             </ConfirmProvider>
           </ThemeProvider>
         </AppearanceProvider>

@@ -124,6 +124,7 @@ export const es: Dictionary = {
       heldTitle: 'Dinero detenido',
       heldDetail: 'en insumos y empaque',
       openScreen: 'Abrir la pantalla',
+      placeCount: { one: 'una tienda', other: '{{n}} tiendas' },
       dayCount: { one: '1 día', other: '{{n}} días' },
       stableAlways: 'ningún cambio de precio registrado',
       record: 'Registrar producción',
@@ -922,6 +923,17 @@ export const es: Dictionary = {
     perAmount: '{{money}} / {{amount}}',
     lossNote:
       'La pérdida encarece lo que queda: el lote se paga entero, pero sólo una parte llega al cliente.',
+  },
+
+  alertText: {
+    insumo: { title: 'Compra {{subject}}', body: 'Se acaba en {{amount}} según el consumo de la semana.' },
+    pedido: { title: '{{places}} esperando carga', body: 'Faltan {{amount}} de {{subject}} para atender.' },
+    volume: { title: '{{subject}} en {{amount}}%', body: 'De lo lleno que cargaste.' },
+    validade: { title: 'Lote {{subject}} vence', body: 'En {{amount}} — manda ese primero.' },
+    ambiente: {
+      title: '{{subject}} fuera del rango',
+      body: '{{amount}} °{{unit}} ahora. Revisa la puerta y el motor.',
+    },
   },
 
   loss: {

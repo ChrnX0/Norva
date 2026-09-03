@@ -119,6 +119,7 @@ export const en: Dictionary = {
       heldTitle: 'Money sitting still',
       heldDetail: 'in inputs and packaging',
       openScreen: 'Open the screen',
+      placeCount: { one: 'one store', other: '{{n}} stores' },
       dayCount: { one: '1 day', other: '{{n}} days' },
       stableAlways: 'no price change on record',
       record: 'Record production',
@@ -915,6 +916,17 @@ export const en: Dictionary = {
     perAmount: '{{money}} / {{amount}}',
     lossNote:
       'Loss makes the rest dearer: the batch is paid for whole, but only part of it reaches the customer.',
+  },
+
+  alertText: {
+    insumo: { title: 'Buy {{subject}}', body: 'Runs out in {{amount}} at this week usage.' },
+    pedido: { title: '{{places}} waiting for a load', body: '{{amount}} of {{subject}} short.' },
+    volume: { title: '{{subject}} at {{amount}}%', body: 'Of the full level you set.' },
+    validade: { title: 'Lot {{subject}} expires', body: 'In {{amount}} — send that one first.' },
+    ambiente: {
+      title: '{{subject}} out of range',
+      body: '{{amount}} °{{unit}} right now. Check the door and the motor.',
+    },
   },
 
   loss: {

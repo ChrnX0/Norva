@@ -821,6 +821,27 @@ check('a cold room reading becomes history today, sensor or no sensor', async (p
   // Sem faixa cadastrada, o app registra e NÃO julga — ele não sabe qual é a
   // temperatura boa da câmara de outra pessoa.
   assert.doesNotMatch(comLeitura, /fora da faixa|dentro da faixa/);
+
+  // Com faixa, a mesma leitura ganha juízo. E a faixa é da CÂMARA: vale para toda
+  // leitura que vier dela, inclusive a do sensor que ainda não existe.
+  await page.getByText('Faixa aceitável', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+  await page.getByLabel('mínima').first().fill('-22');
+  await page.getByLabel('máxima').first().fill('-16');
+  await page.waitForTimeout(400);
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(2200);
+
+  const comFaixa = await screen(page);
+  assert.match(comFaixa, /dentro da faixa/, '-18,4 está entre -22 e -16');
+
+  // E uma leitura fora dela é dita como fora, com a faixa dentro da frase: "fora
+  // da faixa" sem dizer qual manda a pessoa procurar o número noutra tela.
+  await page.getByLabel('Temperatura agora').first().fill('-8');
+  await page.waitForTimeout(400);
+  await page.getByText('Anotar leitura', { exact: true }).first().click();
+  await page.waitForTimeout(2200);
+  assert.match(await screen(page), /fora da faixa de -22 a -16/);
 });
 
 check('the colour bands only exist for an item with a ruler', async (page) => {

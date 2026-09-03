@@ -1947,3 +1947,71 @@ sozinho — o guarda não mudava comportamento nenhum. Virou `RangeError`, porqu
 oitavo dia é bug de quem chamou e um "não" educado esconde o bug atrás de uma
 frase plausível na tela. Foi o segundo achado do dia em que a ferramenta mostrou
 que uma regra estava sustentada por coincidência da linguagem, não por decisão.
+
+## 3 de setembro — o vocabulário estava chumbado, e ninguém tinha visto
+
+**O que se viu.** O dono perguntou de onde saiu o "tacho" e por que ele tinha um
+cartão na capa. A resposta honesta é que saiu de mim: a receita declara quanto
+rende de cada vez, a produção precisa de um multiplicador para descontar insumo, e
+esse multiplicador ganhou o nome do recipiente de uma sorveteria. Vinte e uma
+ocorrências, nos três idiomas.
+
+**Por que importa.** A capa deste projeto diz "nada de regra chumbada de sorvete,
+nada de nome de empresa" — e eu chumbei o **vocabulário**, que é a versão mais
+difícil de enxergar. Uma fábrica de pão de queijo não tem tacho, e ia ler "Quantos
+tachos" no cadastro dela. Pior: o número já era dedutível (a tela deduz o
+multiplicador do que saiu), então a palavra existia sem precisar existir.
+
+**A causa de fundo era de TIPO, não de texto.** `Recipe` carregava `yieldAmount` e
+**não** `yieldUnit` — a unidade que o dono escolhe no cadastro morria no banco. Sem
+ela, nenhuma tela tinha como dizer "cada vez rende 40 L", e a palavra inventada
+preencheu o buraco. Toda vez que uma tela inventa vocabulário, vale procurar o
+campo que não chegou até ela.
+
+**O que mudou.** A unidade viaja com a receita; a tela fala "quantas vezes a
+receita rodou" com a dica na unidade do cadastro; o widget do tacho saiu do
+catálogo (era o mesmo assunto da produção ao vivo, e duas peças para um assunto é
+a capa competindo consigo mesma); o pulso mudou de casa em vez de morrer.
+
+**E uma regra geral saiu daqui, que vale mais que a correção:** *dado disponível
+não é motivo para existir palavra na tela.* O cartão do tacho existia porque
+`openProductionRun` existia. A capa é o que a casa olha de manhã, e cada peça a
+mais empurra o resto para baixo.
+
+## 3 de setembro — seis opções não são configuração
+
+**O que se viu.** Construí a hora do aviso como seis chips que eu escolhi: 5, 6,
+7, 8, 12, 18. O dono cortou em uma frase — "nem toda fábrica funciona igual" — e
+tinha razão de um jeito que eu não tinha visto: **eu chamei de configuração um
+menu**. A fábrica que começa às 5h30 não estava em nenhuma das seis.
+
+**Por que importa.** A F7 do projeto diz que "depende de quem usa" vira dado, não
+pergunta — e eu obedeci pela metade. Oferecer um conjunto fechado de valores é
+escolher pelo cliente com uma aparência de escolha, que é pior que escolher
+abertamente: o dono não percebe que a decisão foi tomada por ele.
+
+**O que mudou.** `hour` virou `minuteOfDay`, com hora e minuto livres. Um número
+só, e não dois campos no tipo, porque dois abrem a porta para um estado impossível
+(hora 5, minuto 90) — a tela junta antes de gravar.
+
+**A pergunta que ficou para as próximas telas:** onde mais eu ofereci um conjunto
+fechado achando que era configuração? Os chips de antecedência (1, 2, 3, 5, 7, 14)
+são o próximo suspeito, e a diferença é que ali o conjunto é uma sugestão sobre um
+número de dias — não uma restrição do que existe. Vale rever quando alguém pedir
+quatro dias.
+
+## 3 de setembro — a fração morreu na tela, não no banco
+
+**O que se viu.** A primeira leitura de temperatura gravou -18,4 e a tela mostrou
+-18. O banco estava certo; `formatQuantity` arredonda, porque foi escrito para
+quantidade — unidade, grama, caixa — onde inteiro é o certo.
+
+**Por que importa.** É o mesmo defeito de arredondar dinheiro cedo, do outro lado
+da parede: o número dito deixou de ser o número guardado. Meio grau de freezer é a
+diferença entre uma câmara boa e uma que está começando a falhar, e é justamente o
+que uma série histórica existe para mostrar.
+
+**O que mudou.** A leitura usa `formatTyped` com uma decimal, e o e2e cobra
+`-18,4` na tela. O achado maior é a categoria: **todo formatador carrega uma
+suposição sobre o que é precisão suficiente**, e ela é invisível até um dado novo
+passar por ele. Grandeza física é o primeiro dado deste app que não é contagem.

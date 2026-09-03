@@ -142,6 +142,7 @@ export const ptBR = {
       heldTitle: 'Dinheiro parado',
       heldDetail: 'em insumo e embalagem',
       openScreen: 'Abrir a tela',
+      placeCount: { one: 'uma loja', other: '{{n}} lojas' },
       dayCount: { one: '1 dia', other: '{{n}} dias' },
       stableAlways: 'nenhuma mudança de preço registrada',
       record: 'Lançar produção',
@@ -963,6 +964,27 @@ export const ptBR = {
     perAmount: '{{money}} / {{amount}}',
     lossNote:
       'A perda encarece o que sobra: o lote é pago inteiro, mas só parte dele chega ao cliente.',
+  },
+
+  /**
+   * A frase de cada aviso, e ela é curta de propósito.
+   *
+   * Notificação é lida de relance na tela de bloqueio, com o polegar no caminho.
+   * Título é o que decide; corpo é o número que sustenta. Nada de "confira o
+   * estoque" — o dono já sabe conferir, o que ele não sabe é o quê.
+   */
+  alertText: {
+    insumo: { title: 'Compre {{subject}}', body: 'Acaba em {{amount}} pelo consumo desta semana.' },
+    pedido: {
+      title: '{{places}} esperando carga',
+      body: 'Faltam {{amount}} de {{subject}} para atender.',
+    },
+    volume: { title: '{{subject}} em {{amount}}%', body: 'Do cheio que você cadastrou.' },
+    validade: { title: 'Lote {{subject}} vence', body: 'Em {{amount}} — mande esse primeiro.' },
+    ambiente: {
+      title: '{{subject}} fora da faixa',
+      body: '{{amount}} °{{unit}} agora. Confira a porta e o motor.',
+    },
   },
 
   loss: {
