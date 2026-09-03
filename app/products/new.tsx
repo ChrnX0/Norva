@@ -123,6 +123,8 @@ function ProductForm() {
   const [perBox, setPerBox] = useState('50');
   const [perCrate, setPerCrate] = useState('6');
   const [shelfLife, setShelfLife] = useState('');
+  /** Quanto é "cheio" deste produto, para a leitura por faixa de cor. */
+  const [fullLevel, setFullLevel] = useState('');
   const [saving, setSaving] = useState(false);
 
   const num = (s: string) => parseTyped(s) ?? NaN;
@@ -280,6 +282,7 @@ function ProductForm() {
         unitPackagingCents: fromDecimal(num(packagingCost) || 0),
         packagingItems: chosenWrappings,
         shelfLifeDays: num(shelfLife) || null,
+        fullLevel: num(fullLevel) > 0 ? num(fullLevel) : null,
         packaging: hierarchy,
       });
       router.back();
@@ -556,6 +559,21 @@ function ProductForm() {
             onChangeText={setShelfLife}
             keyboardType="numeric"
             hint={t.app.productForm.shelfLifeHint}
+          />
+
+          {/* A régua das faixas de cor, aqui também.
+              Ela existia só para insumo, e a faixa azul do dono — "80 a 100%" —
+              é justamente sobre a câmara cheia de produto acabado: quem enche a
+              câmara para de produzir por falta de espaço, e isso não aparece
+              olhando insumo. Vazio continua sendo resposta: sem régua, o produto
+              não ganha cor nem aviso. */}
+          <Field
+            label={t.app.inputForm.fullLevel}
+            value={fullLevel}
+            onChangeText={setFullLevel}
+            keyboardType="numeric"
+            suffix="un"
+            hint={t.app.inputForm.fullLevelHint}
           />
         </View>
       </Card>

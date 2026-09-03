@@ -74,8 +74,17 @@ export async function factsForAlerts(timeZone: string): Promise<AlertFacts> {
         placeId: o.placeId,
       }));
     }),
+    // TODO item, e não só insumo.
+    //
+    // A primeira versão filtrava insumo e embalagem, copiando o recorte do
+    // cartão de "dinheiro parado" — que é outra pergunta. A faixa azul do dono
+    // ("80 a 100%") é justamente sobre a CÂMARA CHEIA de produto acabado: quem
+    // enche a câmara para de produzir por falta de espaço, e isso não aparece
+    // olhando insumo.
+    //
+    // Item sem régua continua fora por si mesmo, sem filtro nenhum: `fullLevel`
+    // nulo não gera faixa.
     volumes: items
-      .filter((i) => i.kind === 'input' || i.kind === 'packaging')
       .map((i) => ({
         itemId: i.id,
         name: i.name,

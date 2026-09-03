@@ -131,3 +131,58 @@ test('a reading with no range is a fact without a judgement', async () => {
   assert.equal(julgada?.min, -22);
   assert.equal(julgada?.max, -16);
 });
+
+test('the full cold room alarms too, not only the empty storeroom', async () => {
+  const { LOCAL_COMPANY_ID } = await import('@/data/seed');
+  const { listProducts, saveProduct } = await import('@/data/repository');
+  const { factsForAlerts } = await import('./facts');
+  const { alertsDue, DEFAULT_ALERTS } = await import('@/domain/alerts');
+
+  // A faixa azul do dono — "80 a 100%" — é sobre a CÂMARA CHEIA de produto
+  // acabado: quem enche a câmara para de produzir por falta de espaço, e isso não
+  // aparece olhando insumo. A primeira versão dos fatos filtrava insumo e
+  // embalagem, copiando o recorte do cartão de dinheiro parado, que é outra
+  // pergunta.
+  const [produto] = await listProducts(LOCAL_COMPANY_ID);
+  await saveProduct(LOCAL_COMPANY_ID, {
+    id: produto.id,
+    itemId: produto.itemId,
+    name: produto.name,
+    kind: 'product',
+    recipeId: produto.recipeId,
+    yieldPerUnit: produto.yieldPerUnit,
+    unitPackagingCents: produto.unitPackagingCents,
+    packaging: produto.packaging,
+    fullLevel: 100,
+  });
+
+  const facts = await factsForAlerts('America/Sao_Paulo');
+  const doProduto = facts.volumes.find((v) => v.itemId === produto.itemId);
+  assert.ok(doProduto, 'o produto acabado entra na leitura por faixa');
+  assert.equal(doProduto.fullLevel, 100, 'com a régua que o cadastro dele deu');
+
+  // Sem nada produzido o produto está ZERADO, e zerado é faixa própria: acabou é
+  // outro fato, não "vermelho extremo".
+  assert.equal(doProduto.onHand, 0);
+
+  // Produz o suficiente para encher a câmara: 300 contra 100 de cheio é azul.
+  const { recordProduction, defaultLocationId } = await import('@/data/repository');
+  await recordProduction(LOCAL_COMPANY_ID, {
+    productId: produto.id,
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    batches: 1,
+    unitsProduced: 300,
+    occurredAt: '2026-09-03T10:00:00.000Z',
+    producedOn: '2026-09-03',
+  });
+
+  const cheia = await factsForAlerts('America/Sao_Paulo');
+  const avisos = alertsDue(cheia, {
+    ...DEFAULT_ALERTS,
+    on: { ...DEFAULT_ALERTS.on, volume: true, insumo: false, pedido: false, validade: false, ambiente: false },
+  });
+  assert.ok(
+    avisos.some((a) => a.subjectId === produto.itemId && a.band === 'azul'),
+    'câmara cheia avisa, e o aviso diz que é cheia e não vazia',
+  );
+});

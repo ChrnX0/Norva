@@ -1787,6 +1787,13 @@ export async function saveProduct(
      * palito de todas as corridas seguintes.
      */
     packagingItems?: readonly { itemId: string; quantityPerUnit: number }[];
+    /**
+     * Quanto é "cheio" deste produto, para a leitura por faixa de cor.
+     *
+     * Ausente é "não mexa": a tela que corrige a grade não manda régua, e
+     * apagá-la em silêncio tiraria a cor da câmara sem ninguém pedir.
+     */
+    fullLevel?: number | null;
     lineId?: string | null;
     typeId?: string | null;
     flavorId?: string | null;
@@ -1846,6 +1853,9 @@ export async function saveProduct(
       purchaseToBase: null,
       baseUnit: 'un',
       packaging: input.packaging,
+      // A régua mora no ITEM, e o produto tem um: é o mesmo campo que o insumo
+      // usa, então a faixa de cor lê os dois com a mesma conta.
+      fullLevel: input.fullLevel,
     });
 
     productId = input.id ?? newId();
