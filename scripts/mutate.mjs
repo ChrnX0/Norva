@@ -29,8 +29,8 @@ import { spawnSync } from 'node:child_process';
 const DEFECTS = [
   {
     file: 'app/transfer.tsx',
-    from: '    : (paraSeparar?.ordered ?? lastSent ?? 0);',
-    to: '    : (lastSent ?? paraSeparar?.ordered ?? 0);',
+    from: '  const suggestion = paraSeparar?.ordered ?? lastSent ?? null;',
+    to: '  const suggestion = lastSent ?? paraSeparar?.ordered ?? null;',
     hurts:
       'a separacao volta a sugerir o envio da semana passada em vez do que a loja pediu, e quem esta com a lista na mao repete o habito em vez de atender o combinado',
   },

@@ -111,9 +111,18 @@ function Transfer() {
   );
   const paraSeparar = pedido?.find((p) => p.itemId === line?.itemId) ?? null;
 
-  const amount = typed
-    ? Math.max(0, (parseTyped(amountText) ?? 0) || 0)
-    : (paraSeparar?.ordered ?? lastSent ?? 0);
+  /**
+   * O palpite, calculado UMA vez.
+   *
+   * Ele estava em dois lugares — o número mostrado no campo e o número usado
+   * para gravar — e as duas cópias podiam divergir sem ninguém notar: o mutante
+   * que invertia a ordem de preferência mudava o que era gravado e deixava a
+   * tela mostrando o outro número. Duas fontes para o mesmo fato é o começo de
+   * "o app gravou diferente do que estava escrito".
+   */
+  const suggestion = paraSeparar?.ordered ?? lastSent ?? null;
+
+  const amount = typed ? Math.max(0, (parseTyped(amountText) ?? 0) || 0) : (suggestion ?? 0);
   const over = line != null && amount > line.baseUnits;
 
   const ready = line != null && to != null && amount > 0 && !over && !sending;
@@ -230,15 +239,7 @@ function Transfer() {
           <View style={{ gap: space.lg }}>
             <Field
               label={words.howMuch}
-              value={
-                typed
-                  ? amountText
-                  : paraSeparar
-                    ? String(paraSeparar.ordered)
-                    : lastSent != null
-                      ? String(lastSent)
-                      : ''
-              }
+              value={typed ? amountText : suggestion != null ? String(suggestion) : ''}
               onChangeText={(next) => {
                 setTyped(true);
                 setAmountText(next);
