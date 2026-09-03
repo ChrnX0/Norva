@@ -842,6 +842,12 @@ check('a cold room reading becomes history today, sensor or no sensor', async (p
   await page.getByText('Anotar leitura', { exact: true }).first().click();
   await page.waitForTimeout(2200);
   assert.match(await screen(page), /fora da faixa de -22 a -16/);
+
+  // E a SEMANA aparece desenhada, que é o que uma leitura sozinha não responde:
+  // "-18,4 agora" não diz se o freezer está piorando; dois pontos já dizem.
+  // Animação não se afirma num teste de texto, mas um desenho que sumiu, sim.
+  const linhas = await page.locator('svg path').count();
+  assert.ok(linhas > 0, 'a série da câmara está desenhada, não é um espaço vazio');
 });
 
 check('the colour bands only exist for an item with a ruler', async (page) => {

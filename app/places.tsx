@@ -9,6 +9,7 @@ import { nowIso } from '@/data/db';
 import {
   lastReadings,
   listPlaces,
+  readingsBetween,
   recordReading,
   savePlace,
   stockByPlace,
@@ -16,11 +17,12 @@ import {
   type PlaceStock,
   type Reading,
 } from '@/data/repository';
-import { localDate } from '@/domain/day';
+import { dayWindow, localDate } from '@/domain/day';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { agreedOn, daysUntilNextDelivery, toggleDay } from '@/domain/agreement';
 import { Chip } from '@/components/Chip';
+import { Sparkline } from '@/components/Sparkline';
 import { formatTyped, parseTyped } from '@/domain/number';
 import {
   fill,
@@ -289,7 +291,7 @@ function Ambiente({
   last: Reading | undefined;
   onSaved: () => void;
 }) {
-  const { color, type, space } = useTheme();
+  const { color, type, space, palette } = useTheme();
   const { locale, t } = useLocale();
   const words = t.app.places;
 
@@ -297,6 +299,26 @@ function Ambiente({
   const [salvando, setSalvando] = useState(false);
   const [editandoFaixa, setEditandoFaixa] = useState(false);
   const faixa = place.sensorRanges[TEMPERATURA];
+
+  /**
+   * A semana da câmara, que é a pergunta que uma leitura sozinha não responde.
+   *
+   * "-18,4 agora" não diz se o freezer está piorando; sete dias de leitura dizem.
+   * É a Lei 3 na forma mais literal — nenhum número aparece sozinho — e é o único
+   * motivo de valer a pena anotar todo dia.
+   *
+   * A consulta existia e ninguém a lia: peça sem chamador é a doença que o P1
+   * descreve, e este repositório já a teve em quatro lugares. Aqui ela ganha o
+   * leitor que justifica ela existir.
+   */
+  const { data: serie } = useQuery(
+    async () => {
+      const hoje = dayWindow(nowIso(), locale.timeZone);
+      const semana = dayWindow(nowIso(), locale.timeZone, -6);
+      return readingsBetween(LOCAL_COMPANY_ID, place.id, TEMPERATURA, semana.from, hoje.to);
+    },
+    `${place.id}:${last?.id ?? ''}`,
+  );
 
   const [minimo, setMinimo] = useState(
     faixa?.min === null || faixa?.min === undefined ? '' : formatTyped(faixa.min, locale.formatting, 1),
@@ -335,6 +357,12 @@ function Ambiente({
     }
   };
 
+  const fora =
+    last && faixa
+      ? (faixa.min !== null && last.value < faixa.min) ||
+        (faixa.max !== null && last.value > faixa.max)
+      : false;
+
   const anotar = async () => {
     const lido = parseTyped(valor);
     if (lido === null || !Number.isFinite(lido) || salvando) return;
@@ -353,12 +381,6 @@ function Ambiente({
     }
   };
 
-  const fora =
-    last && faixa
-      ? (faixa.min !== null && last.value < faixa.min) ||
-        (faixa.max !== null && last.value > faixa.max)
-      : false;
-
   return (
     <View style={{ marginTop: space.md, gap: space.sm }}>
       <Text style={[type.caption, { color: color.inkFaint }]}>
@@ -373,6 +395,18 @@ function Ambiente({
             })
           : words.noReading}
       </Text>
+
+      {/* A semana desenhada, quando há mais de uma leitura para comparar.
+          Uma leitura só não tem linha: dois pontos é o mínimo para existir
+          tendência, e desenhar um ponto sozinho sugeriria uma que ninguém mediu. */}
+      {(serie ?? []).length > 1 ? (
+        <Sparkline
+          values={(serie ?? []).map((r) => r.value)}
+          hue={fora ? color.danger : palette.sky}
+          strokeWidth={1.7}
+          height={36}
+        />
+      ) : null}
 
       {/* O juízo só existe com faixa, e ele diz a faixa junto: "fora da faixa"
           sem dizer qual faixa manda a pessoa procurar o número em outra tela. */}
