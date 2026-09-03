@@ -105,18 +105,21 @@ function WhereItWent() {
   return (
     <CollapsingHeader
       title={t.app.transport.title}
-      overline={
-        places.length > 0
-          ? `${fill(t.app.transport.today, { summary })} · ${
-              ontem === 0
-                ? t.app.transport.firstDay
-                : fill(t.app.transport.vsYesterday, {
-                    count: plural(ontem, t.app.transport.destinations, formatQuantity(ontem, locale)),
-                  })
-            }`
-          : undefined
-      }
+      overline={places.length > 0 ? fill(t.app.transport.today, { summary }) : undefined}
     >
+      {/* Lei 3: "3 destinos" não é muito nem pouco até estar ao lado de ontem.
+          A comparação NÃO cabe no overline - ele é maiúsculo e truncado em uma
+          linha, então num celular estreito a metade que importa seria cortada. */}
+      {places.length > 0 ? (
+        <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.xs }]}>
+          {ontem === 0
+            ? t.app.transport.firstDay
+            : fill(t.app.transport.vsYesterday, {
+                count: plural(ontem, t.app.transport.destinations, formatQuantity(ontem, locale)),
+              })}
+        </Text>
+      ) : null}
+
       {places.map((place) => (
         <Pressable
           key={place.locationId}
