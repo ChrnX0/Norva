@@ -203,9 +203,11 @@ const DEFECTS = [
   {
     file: 'src/data/repository.ts',
     from: `(SELECT COALESCE(SUM(m.quantity_base_units), 0) FROM movements m
-              WHERE m.company_id = i.company_id AND m.item_id = i.id)`,
+              WHERE m.company_id = i.company_id AND m.item_id = i.id
+                AND (? IS NULL OR m.location_id = ?))`,
     to: `(SELECT COALESCE(COUNT(m.quantity_base_units), 0) FROM movements m
-              WHERE m.company_id = i.company_id AND m.item_id = i.id)`,
+              WHERE m.company_id = i.company_id AND m.item_id = i.id
+                AND (? IS NULL OR m.location_id = ?))`,
     hurts: 'o estoque passa a contar movimentos em vez de somar quantidade',
   },
   {
