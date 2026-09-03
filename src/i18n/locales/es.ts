@@ -530,6 +530,12 @@ export const es: Dictionary = {
       checkedShort: 'Revisado: faltaron {{amount}}.'
     },
     transfer: {
+      toStore: 'Mandar a la tienda',
+      returning: 'La tienda devolvió',
+      returnTitle: 'Registrar la devolución',
+      returnAsk: '¿Registrar esta devolución?',
+      returnBody: 'Vas a traer {{amount}} de {{item}} de vuelta de {{place}} a la fábrica.',
+      returnAction: 'Traer de vuelta',
       ordered: 'pedido para {{date}}: {{amount}}',
       orderedNone: 'ningún pedido abierto para esta tienda',
       title: 'Transferir',

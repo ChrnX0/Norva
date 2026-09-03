@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { beforeEach, test } from 'node:test';
 import { fromDecimal, rate } from '@/domain/money';
-import { localDate } from '@/domain/day';
+import { dayWindow, localDate } from '@/domain/day';
 import { costRecipe } from '@/domain/recipe';
 import { __setDb, migrate, migrationSteps, nowIso, type Db, type SqlParam } from './db';
 import {
@@ -27,6 +27,7 @@ import {
   savePlace,
   stockByPlace,
   recordTransfer,
+  recordReturn,
   countForErase,
   eraseArea,
   itemCosts,
@@ -1359,6 +1360,53 @@ test('the picking list says what the store ordered and what the room has', async
   // E o que ainda não chegou na janela também não: separar é para hoje, não
   // para o mês.
   assert.deepEqual(await pickingFor(LOCAL_COMPANY_ID, loja, fabrica, '2026-09-03'), []);
+});
+
+test('a return is a return, not a transfer running backwards', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const { id: loja } = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+  const [acucar] = (await listItems(LOCAL_COMPANY_ID)).filter((i) => i.onHandBaseUnits >= 6000);
+
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: acucar.id,
+    fromLocationId: fabrica,
+    toLocationId: loja,
+    baseUnits: 6000,
+  });
+  await recordReturn(LOCAL_COMPANY_ID, {
+    itemId: acucar.id,
+    fromLocationId: loja,
+    toLocationId: fabrica,
+    baseUnits: 1000,
+  });
+
+  // A aritmética é a mesma de sempre: a loja fica com 5.000 e a empresa não
+  // muda, porque nada foi criado nem destruído.
+  const naLoja = await balanceByLocation(LOCAL_COMPANY_ID, acucar.id);
+  assert.equal(naLoja.find((b) => b.locationId === loja)?.baseUnits, 5000);
+
+  // O que muda é o FATO. Sem tipo próprio, "mandei 6.000 e voltaram 1.000" e
+  // "mandei 5.000" ficariam idênticos no livro-razão - e a diferença entre os
+  // dois é a única coisa que interessa a quem quer saber se aquele sabor vende
+  // naquela loja.
+  const tipos = await live.getAllAsync<{ kind: string; n: number }>(
+    `SELECT kind, COUNT(*) AS n FROM movements WHERE item_id = ? GROUP BY kind`,
+    [acucar.id],
+  );
+  const devolucoes = tipos.find((t) => t.kind === 'return');
+  assert.equal(devolucoes?.n, 2, 'a devolução tem as duas pernas, e as duas são devolução');
+  assert.equal(tipos.find((t) => t.kind === 'transfer')?.n, 2, 'e a carga continua sendo carga');
+
+  // E a remessa do dia não encolhe por causa da devolução: são dois fatos, não
+  // um saldo. Quem recebeu 6.000 recebeu 6.000, mesmo tendo devolvido depois.
+  const dia = await shipmentsOn(
+    LOCAL_COMPANY_ID,
+    dayWindow(nowIso(), 'America/Sao_Paulo').from,
+    dayWindow(nowIso(), 'America/Sao_Paulo').to,
+  );
+  const paraLoja = dia.find((d) => d.locationId === loja);
+  assert.equal(paraLoja?.items[0]?.baseUnits, 6000);
 });
 
 test('a kettle is refused when the sugar is in the store, not in the factory', async () => {

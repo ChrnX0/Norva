@@ -28,6 +28,14 @@ import { spawnSync } from 'node:child_process';
 /** @type {{file: string, from: string, to: string, hurts: string}[]} */
 const DEFECTS = [
   {
+    file: 'src/data/repository.ts',
+    from: `  return moveBetween(companyId, input, 'return');`,
+    to: `  return moveBetween(companyId, input, 'transfer');`,
+    hurts:
+      'a devolucao volta a ser gravada como carga, e "mandei 6.000 e voltaram 1.000" fica identico a "mandei 5.000" no livro-razao',
+  },
+
+  {
     file: 'src/domain/briefing.ts',
     from: '  return [...ordenadas, ...novas].filter((w) => !escondidas.has(w));',
     to: '  return [...ordenadas, ...novas];',

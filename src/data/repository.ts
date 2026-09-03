@@ -1325,18 +1325,39 @@ export type TransferResult = {
  * Loja própria é transferência e não venda: não há faturamento nem margem
  * aqui, e o valor apenas muda de sala.
  */
-export async function recordTransfer(
+type MoveInput = {
+  itemId: string;
+  fromLocationId: string;
+  toLocationId: string;
+  /** Sempre na menor unidade. Positivo: quanto sai de lá e chega aqui. */
+  baseUnits: number;
+  occurredAt?: string;
+  note?: string;
+  assistantPhrase?: string;
+};
+
+/**
+ * Duas pernas, um ato — e o TIPO diz qual ato foi.
+ *
+ * A carga que sai e a devolução que volta têm a mesma aritmética: sai negativo
+ * de um lado, entra positivo do outro, com o mesmo grupo e cada perna apontando
+ * para a outra. Por isso a mecânica é uma só.
+ *
+ * O que não pode ser uma só é o **fato**. Uma loja devolvendo mil gramas é
+ * notícia sobre o produto ou sobre a loja — não vendeu, veio errado, chegou
+ * mole. Uma transferência é a fábrica movendo o que é dela. Gravar as duas como
+ * `transfer` deixava as duas iguais no livro-razão, e nenhum relatório
+ * conseguiria dizer *"a loja centro devolve 8% do que recebe"* — que é
+ * exatamente a pergunta que o Espelho da Loja existe para responder.
+ *
+ * O `movement_kind` tem `return` desde a primeira migração, e ninguém escrevia
+ * nele. É a mesma peça pronta e sem escritor que `lots` e `assistant_phrase`
+ * eram.
+ */
+async function moveBetween(
   companyId: string,
-  input: {
-    itemId: string;
-    fromLocationId: string;
-    toLocationId: string;
-    /** Sempre na menor unidade. Positivo: quanto sai de lá e chega aqui. */
-    baseUnits: number;
-    occurredAt?: string;
-    note?: string;
-    assistantPhrase?: string;
-  },
+  input: MoveInput,
+  kind: 'transfer' | 'return',
 ): Promise<TransferResult> {
   if (input.fromLocationId === input.toLocationId) {
     throw new Error('origem e destino são o mesmo lugar');
@@ -1367,10 +1388,11 @@ export async function recordTransfer(
         `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                                 quantity_base_units, location_id, counterpart_location_id,
                                 unit_cost_rate, movement_group_id, note, assistant_phrase)
-         VALUES (?, ?, 'transfer', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           companyId,
+          kind,
           occurred,
           at_,
           input.itemId,
@@ -1391,6 +1413,32 @@ export async function recordTransfer(
   });
 
   return { groupId, baseUnits: input.baseUnits, unitCostRate };
+}
+
+/** O que sai da fábrica e chega na loja. */
+export async function recordTransfer(
+  companyId: string,
+  input: MoveInput,
+): Promise<TransferResult> {
+  return moveBetween(companyId, input, 'transfer');
+}
+
+/**
+ * O que a loja mandou de volta.
+ *
+ * Mesma aritmética da carga, fato diferente — e é o fato que faz a devolução
+ * merecer o próprio tipo. Sem ele, "mandei 6.000 e voltaram 1.000" e "mandei
+ * 5.000" ficam idênticos no livro-razão, e a diferença entre os dois é a única
+ * coisa que interessa a quem quer saber se aquele sabor vende naquela loja.
+ *
+ * Os lugares vêm invertidos de propósito na chamada: `fromLocationId` é a LOJA,
+ * porque é de lá que a mercadoria está saindo. Quem escreve a frase é a tela.
+ */
+export async function recordReturn(
+  companyId: string,
+  input: MoveInput,
+): Promise<TransferResult> {
+  return moveBetween(companyId, input, 'return');
 }
 
 export type Product = {

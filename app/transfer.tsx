@@ -14,6 +14,7 @@ import {
   pickingFor,
   type PickLine,
   listPlaces,
+  recordReturn,
   recordTransfer,
   stockByPlace,
   type Place,
@@ -56,7 +57,7 @@ export default function TransferScreen() {
 type Loaded = { places: Place[]; stock: PlaceStock[] };
 
 function Transfer() {
-  const { color, type, space } = useTheme();
+  const { color, type, space, radius, accent } = useTheme();
   const { locale, t } = useLocale();
   const askConfirm = useConfirm();
   const router = useRouter();
@@ -70,7 +71,20 @@ function Transfer() {
     return { places, stock };
   });
 
-  const from = defaultLocationId(LOCAL_COMPANY_ID);
+  /**
+   * O sentido do movimento.
+   *
+   * A carga e a devolução têm a mesma mecânica — duas pernas, um grupo — e a
+   * mesma tela dá conta das duas: invertendo a origem, a lista de itens já vem
+   * do estoque de QUEM está mandando, que é a Lei 5 como desenho. Não dá para
+   * devolver o que não está na loja porque nunca aparece para escolher.
+   *
+   * O que muda de verdade é o tipo gravado no livro-razão, e ele muda porque o
+   * FATO é outro: uma loja devolvendo é notícia sobre o produto; a fábrica
+   * mandando é a fábrica movendo o que é dela.
+   */
+  const [devolucao, setDevolucao] = useState(false);
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
   const [toId, setToId] = useState<string | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
   const [amountText, setAmountText] = useState('');
@@ -83,8 +97,16 @@ function Transfer() {
     return place?.name.trim() || t.app.places.factory;
   };
 
-  const destinations = (data?.places ?? []).filter((p) => p.id !== from);
-  const to = destinations.find((p) => p.id === toId) ?? destinations[0] ?? null;
+  const destinations = (data?.places ?? []).filter((p) => p.id !== fabrica);
+  const outra = destinations.find((p) => p.id === toId) ?? destinations[0] ?? null;
+
+  // Quem manda e quem recebe trocam de lado na devolução.
+  const from = devolucao ? (outra?.id ?? fabrica) : fabrica;
+  // Só o id importa daqui para baixo, e ele é uma string: comparar string em
+  // dependência de efeito é estável, comparar objeto recriado a cada render não
+  // é. Foi o que o compilador reclamou quando isto era `{ id: fabrica }`.
+  const toId2 = devolucao ? fabrica : (outra?.id ?? null);
+  const to = toId2 ? { id: toId2 } : null;
 
   const here = data?.stock.find((p) => p.locationId === from);
   const lines = here?.lines ?? [];
@@ -93,14 +115,14 @@ function Transfer() {
   // Lei 1 e Lei 2 juntas: o palpite vem do que já aconteceu, não de um zero.
   useEffect(() => {
     let alive = true;
-    if (!line || !to) return;
-    void lastSentBaseUnits(LOCAL_COMPANY_ID, line.itemId, to.id).then((n) => {
+    if (!line || !toId2) return;
+    void lastSentBaseUnits(LOCAL_COMPANY_ID, line.itemId, toId2).then((n) => {
       if (alive) setLastSent(n);
     });
     return () => {
       alive = false;
     };
-  }, [line, to]);
+  }, [line, toId2]);
 
   // A separação: o que aquela loja pediu e ainda não recebeu.
   const { data: pedido } = useQuery<PickLine[]>(
@@ -135,20 +157,27 @@ function Transfer() {
     if (!ready || !line || !to) return;
 
     const go = await askConfirm({
-      title: words.confirmTitle,
-      confirmLabel: words.confirmAction,
-      message: fill(words.confirmBody, {
-        amount: `${formatQuantity(amount, locale)} ${line.baseUnit}`,
-        item: line.name,
-        from: nameOf(from),
-        to: nameOf(to.id),
-      }),
+      title: devolucao ? words.returnAsk : words.confirmTitle,
+      confirmLabel: devolucao ? words.returnAction : words.confirmAction,
+      message: devolucao
+        ? fill(words.returnBody, {
+            amount: `${formatQuantity(amount, locale)} ${line.baseUnit}`,
+            item: line.name,
+            place: nameOf(from),
+          })
+        : fill(words.confirmBody, {
+            amount: `${formatQuantity(amount, locale)} ${line.baseUnit}`,
+            item: line.name,
+            from: nameOf(from),
+            to: nameOf(to.id),
+          }),
     });
     if (!go) return;
 
     setSending(true);
     try {
-      await recordTransfer(LOCAL_COMPANY_ID, {
+      const registrar = devolucao ? recordReturn : recordTransfer;
+      await registrar(LOCAL_COMPANY_ID, {
         itemId: line.itemId,
         fromLocationId: from,
         toLocationId: to.id,
@@ -181,9 +210,56 @@ function Transfer() {
 
   return (
     <CollapsingHeader title={words.title} overline={words.overline}>
+      {/* O sentido, e ele vem antes de tudo porque muda o resto da tela: a
+          lista de itens passa a ser a do estoque da loja, e o que se grava
+          passa a ser devolução. */}
+      <Card>
+        <View style={{ flexDirection: 'row', gap: space.sm }}>
+          {(
+            [
+              [false, words.toStore],
+              [true, words.returning],
+            ] as const
+          ).map(([qual, rotulo]) => {
+            const ativo = devolucao === qual;
+            return (
+              <Pressable
+                key={String(qual)}
+                onPress={() => {
+                  setDevolucao(qual);
+                  setTyped(false);
+                  setAmountText('');
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: ativo }}
+                accessibilityLabel={rotulo}
+                style={{
+                  flex: 1,
+                  paddingVertical: space.sm,
+                  borderRadius: radius.pill,
+                  borderWidth: ativo ? 2 : StyleSheet.hairlineWidth,
+                  borderColor: ativo ? accent : color.line,
+                  backgroundColor: ativo ? `${accent}14` : 'transparent',
+                  alignItems: 'center',
+                }}
+              >
+                <Text
+                  style={[
+                    type.secondary,
+                    { color: ativo ? color.ink : color.inkMuted, fontWeight: ativo ? '600' : '400' },
+                  ]}
+                >
+                  {rotulo}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </Card>
+
       <Card tone="area">
         <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.md }]}>
-          {words.to}
+          {devolucao ? words.returnTitle : words.to}
         </Text>
         {destinations.map((place) => (
           <Pressable

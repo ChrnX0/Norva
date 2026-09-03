@@ -524,6 +524,12 @@ export const en: Dictionary = {
       checkedShort: 'Checked: {{amount}} missing.',
     },
     transfer: {
+      toStore: 'Send to the store',
+      returning: 'The store sent back',
+      returnTitle: 'Record the return',
+      returnAsk: 'Record this return?',
+      returnBody: 'You are bringing {{amount}} of {{item}} back from {{place}} to the factory.',
+      returnAction: 'Bring back',
       ordered: 'ordered for {{date}}: {{amount}}',
       orderedNone: 'no open order for this store',
       title: 'Transfer',

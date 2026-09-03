@@ -561,6 +561,12 @@ export const ptBR = {
       checkedShort: 'Conferido: faltaram {{amount}}.',
     },
     transfer: {
+      toStore: 'Mandar para a loja',
+      returning: 'A loja devolveu',
+      returnTitle: 'Registrar a devolução',
+      returnAsk: 'Registrar esta devolução?',
+      returnBody: 'Você vai trazer {{amount}} de {{item}} de volta de {{place}} para a fábrica.',
+      returnAction: 'Trazer de volta',
       ordered: 'pedido para {{date}}: {{amount}}',
       orderedNone: 'nenhum pedido em aberto para esta loja',
       title: 'Transferir',
