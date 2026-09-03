@@ -606,6 +606,24 @@ check('what came out today reaches the briefing, with what it was to compare', a
   assert.match(briefing, /unidades saíram hoje/);
   // E nunca sozinho: sem semana passada com que comparar, a tela diz isso.
   assert.match(briefing, /primeira produção registrada/);
+
+  // Com corrida gravada, o histórico curto tem o que dizer - e ele diz corrida
+  // por corrida, não o total do dia: 3x100 e 1x300 dão o mesmo total e são
+  // semanas diferentes.
+  assert.match(briefing, /Últimas corridas/);
+  assert.match(briefing, /média das últimas/, 'a corrida vem com o normal dela ao lado');
+
+  // E abre NO LUGAR, que é o que o dono pediu: o detalhe aparece sem sair da
+  // capa, e o segundo toque fecha.
+  await page.getByText('Últimas corridas', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  const aberta = await screen(page);
+  assert.match(aberta, /toque para fechar/, 'a peça aberta sabe se fechar');
+  assert.match(aberta, /\d{8}-\d\d/, 'e mostra o lote da corrida por dentro');
+
+  await page.getByText('Últimas corridas', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  assert.doesNotMatch(await screen(page), /toque para fechar/, 'o segundo toque fecha');
 });
 
 check('a kettle marked as running pulses on the briefing, and closing it writes the ledger', async (page) => {
@@ -1299,6 +1317,22 @@ check('the home is assembled from pieces the house chose', async (page) => {
   await page.getByLabel(/^Tempo: (Esconder|Mostrar)$/).first().click();
   await page.waitForTimeout(1200);
   assert.doesNotMatch(await screen(page), /Tempo · escondido aqui/);
+
+  // O que nasce FORA da capa aparece para ser ligado, senão "quem quiser liga" é
+  // uma frase sem botão. O tacho é o caso: o dono cortou ele da primeira tela.
+  const ajustesComFora = await screen(page);
+  assert.match(ajustesComFora, /FORA DA CAPA/);
+  assert.match(ajustesComFora, /Tacho rodando/);
+
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(3000);
+  const capa = await screen(page);
+  assert.match(capa, /Produção ao vivo/, 'a produção ao vivo entra na capa por padrão');
+  assert.match(capa, /Últimas corridas/);
+  // Numa instalação virgem nada foi produzido, e a peça diz isso em vez de
+  // convidar para abrir o vazio - "ligar não é forçar" vale para o toque também.
+  assert.match(capa, /Nenhuma corrida registrada ainda/);
+  assert.doesNotMatch(capa, /toque para ver mais/, 'sem dado, nenhuma peça convida');
 });
 
 check('erasing refuses in an order, and explains the way out', async (page) => {

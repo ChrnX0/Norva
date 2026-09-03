@@ -26,6 +26,8 @@ import {
   unchecked,
   savePlace,
   listPlaces,
+  recentRuns,
+  expiringSoon,
   stockByPlace,
   recordTransfer,
   recordReturn,
@@ -1948,6 +1950,119 @@ test('what is running out comes from what actually left, and a still input never
   assert.ok(
     Math.abs(um.daysLeft - um.onHandBaseUnits / um.dailyOutflow) < 1e-9,
     'os dias são o saldo sobre a saída diária, e a tela pode abrir essa conta',
+  );
+});
+
+test('the short history is runs, not days, and expiry only warns about what is still there', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [produto] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+
+  // Validade cadastrada, senão nenhum lote vence e a segunda metade deste teste
+  // mediria o vazio. O exemplo semeado não declara validade de propósito - é
+  // campo opcional, e "não vence" é resposta legítima.
+  await saveProduct(LOCAL_COMPANY_ID, {
+    id: produto.id,
+    itemId: produto.itemId,
+    name: produto.name,
+    kind: 'product',
+    recipeId: produto.recipeId,
+    yieldPerUnit: produto.yieldPerUnit,
+    unitPackagingCents: produto.unitPackagingCents,
+    shelfLifeDays: 180,
+    packaging: produto.packaging,
+  });
+
+  // Insumo para três tachos: o exemplo semeado tem um dia de polpa, e o que este
+  // teste mede é o histórico, não a trava de estoque.
+  for (const item of await listItems(LOCAL_COMPANY_ID)) {
+    if (item.kind !== 'input' && item.kind !== 'packaging') continue;
+    await recordPurchase(LOCAL_COMPANY_ID, {
+      itemId: item.id,
+      purchaseQuantity: 1,
+      baseUnits: 500_000,
+      totalCents: fromDecimal(1000),
+      occurredAt: '2026-02-28T08:00:00.000Z',
+    });
+  }
+
+  // Três corridas no mesmo dia. O total do dia não distingue isto de uma corrida
+  // só de 300 - e são semanas diferentes.
+  for (const [i, quanto] of [80, 100, 120].entries()) {
+    await recordProduction(LOCAL_COMPANY_ID, {
+      productId: produto.id,
+      locationId: defaultLocationId(LOCAL_COMPANY_ID),
+      batches: 1,
+      unitsProduced: quanto,
+      occurredAt: `2026-03-01T1${i}:00:00.000Z`,
+      producedOn: '2026-03-01',
+    });
+  }
+
+  const corridas = await recentRuns(LOCAL_COMPANY_ID, 6);
+  assert.equal(corridas.length, 3, 'uma linha por corrida, não por dia');
+  assert.deepEqual(
+    corridas.map((c) => c.baseUnits),
+    [120, 100, 80],
+    'mais recente primeiro',
+  );
+  assert.ok(corridas[0].code, 'cada corrida traz o código do lote dela');
+  assert.ok((corridas[0].unitCostRate ?? 0) > 0, 'e a taxa congelada daquela corrida');
+
+  // O limite corta pelo fim, não pelo começo.
+  assert.equal((await recentRuns(LOCAL_COMPANY_ID, 2)).length, 2);
+  assert.equal((await recentRuns(LOCAL_COMPANY_ID, 2))[0].baseUnits, 120);
+
+  // Validade: o produto semeado dura 180 dias, então nada vence esta semana.
+  const semana = await expiringSoon(LOCAL_COMPANY_ID, '2026-03-08');
+  assert.deepEqual(semana, [], 'nada vencendo é resposta, não lista vazia por erro');
+
+  const longe = await expiringSoon(LOCAL_COMPANY_ID, '2027-01-01');
+  assert.equal(longe.length, 3, 'os três lotes vencem dentro do ano');
+  assert.ok(
+    longe[0].expiresOn <= longe[1].expiresOn,
+    'o que vence primeiro vem primeiro',
+  );
+
+  // E o lote que já foi embora não avisa mais. Mandar o lote inteiro para uma
+  // loja tira ele da lista - avisar da validade de uma caixa que não está aqui é
+  // exatamente o alerta que ensina a ignorar alerta.
+  const centro = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+  const primeiro = longe[0];
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: produto.itemId,
+    fromLocationId: defaultLocationId(LOCAL_COMPANY_ID),
+    toLocationId: centro.id,
+    baseUnits: primeiro.baseUnits,
+    occurredAt: '2026-03-02T09:00:00.000Z',
+    lotId: primeiro.lotId,
+  });
+
+  // Na empresa o lote continua existindo, e está certo: as caixas não sumiram,
+  // mudaram de sala.
+  const naEmpresa = await expiringSoon(LOCAL_COMPANY_ID, '2027-01-01');
+  assert.ok(
+    naEmpresa.some((l) => l.lotId === primeiro.lotId),
+    'o lote que viajou continua existindo na empresa',
+  );
+
+  // Na FÁBRICA ele não está mais, e é essa a pergunta da capa: o que vence
+  // primeiro do que está aqui.
+  const naFabrica = await expiringSoon(
+    LOCAL_COMPANY_ID,
+    '2027-01-01',
+    5,
+    defaultLocationId(LOCAL_COMPANY_ID),
+  );
+  assert.ok(
+    !naFabrica.some((l) => l.lotId === primeiro.lotId),
+    'lote que saiu da fábrica não avisa mais na fábrica',
+  );
+
+  // E chegou na loja com o lote: sem isso o recall pararia na porta da fábrica.
+  const naLoja = await expiringSoon(LOCAL_COMPANY_ID, '2027-01-01', 5, centro.id);
+  assert.ok(
+    naLoja.some((l) => l.lotId === primeiro.lotId),
+    'o lote chegou na loja identificado',
   );
 });
 

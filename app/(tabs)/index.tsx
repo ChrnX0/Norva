@@ -1,21 +1,29 @@
 import { useRouter } from 'expo-router';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import {
+  defaultLocationId,
+  expiringSoon,
+  listItems,
+  listPlaces,
+  lossesOn,
   openProductionRuns,
   orderedDemand,
   productionBetween,
   productionOn,
+  recentRuns,
   runningOut,
   briefingHidden,
   briefingOrder,
   recentCostChanges,
   shipmentsOn,
+  type LossRow,
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { reading, type Forecast } from '@/weather';
 import { forecastForScreen } from '@/weather/live';
 import { brand } from '@/config/brand';
 import { useQuery } from '@/data/useQuery';
+import { daysUntilNextDelivery } from '@/domain/agreement';
 import { briefingLayout } from '@/domain/briefing';
 import { nowIso } from '@/data/db';
 import { dailySeries, dayWindow, localDate } from '@/domain/day';
@@ -29,8 +37,6 @@ import {
 } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider } from '@/theme/ThemeProvider';
-import { Blocks } from '@/home/Blocks';
-import { Editorial } from '@/home/Editorial';
 import { Mosaic } from '@/home/Mosaic';
 import type { BriefingView, Summary } from '@/home/types';
 
@@ -42,7 +48,16 @@ import type { BriefingView, Summary } from '@/home/types';
  * do repositório - layout sem chamador é a mesma dívida que este projeto já
  * pagou caro em outros lugares.
  */
-const LAYOUT: 'mosaico' | 'editorial' | 'blocos' = 'mosaico';
+/**
+ * A capa é o Mosaico, e as outras duas saíram.
+ *
+ * `Editorial` e `Blocks` existiam para o dono comparar três desenhos da mesma
+ * tela — e ele escolheu. A partir daí `LAYOUT` era uma constante que só tinha um
+ * valor, e as outras duas eram código que ninguém chamava: exatamente o P1 do
+ * CLAUDE.md, "quem chama isto no mesmo commit?". O custo delas não era o arquivo
+ * parado, era o próximo widget — cada peça nova teria que ser escrita três
+ * vezes, e duas delas ninguém veria.
+ */
 
 /**
  * The briefing, as the design canvas draws it.
@@ -79,6 +94,20 @@ export default function Home() {
   );
 }
 
+/**
+ * O motivo que mais pesou nas perdas do mês, em dinheiro.
+ *
+ * "Sumiram quatro quilos" não muda decisão nenhuma; "quatro quilos venceram"
+ * muda a compra, e "derreteram" muda a manutenção do freezer. Por isso a peça
+ * conta o motivo e não só o total.
+ */
+function worstReason(rows: LossRow[]): { reason: string; cents: number } | null {
+  const porMotivo = new Map<string, number>();
+  for (const r of rows) porMotivo.set(r.reason, (porMotivo.get(r.reason) ?? 0) + r.valueCents);
+  const pior = [...porMotivo].sort((a, b) => b[1] - a[1])[0];
+  return pior ? { reason: pior[0], cents: pior[1] } : null;
+}
+
 function Briefing() {
   const router = useRouter();
   const { locale, t } = useLocale();
@@ -101,6 +130,16 @@ function Briefing() {
     // tem resposta enquanto ainda dá: um pedido para sexta cobrado na sexta é
     // uma notícia, não uma decisão (Lei 4).
     const through = localDate(nowIso(), locale.timeZone, 7);
+    // O dia da semana no fuso da FÁBRICA: ler o dia do relógio do aparelho dá o
+    // dia errado para quem trabalha de madrugada num fuso e o servidor noutro.
+    const weekday = new Date(`${localDate(nowIso(), locale.timeZone)}T00:00:00Z`).getUTCDay();
+
+    // As janelas das peças novas. Trinta dias para perdas (é a janela em que uma
+    // fábrica decide) e trinta para validade (o que vence depois disso não é
+    // decisão de hoje - Lei 4, avise na data da decisão).
+    const mes = dayWindow(nowIso(), locale.timeZone, -29);
+    const mesAnterior = { de: dayWindow(nowIso(), locale.timeZone, -59), ate: dayWindow(nowIso(), locale.timeZone, -30) };
+    const trintaDias = localDate(nowIso(), locale.timeZone, 30);
 
     const [
       changes,
@@ -112,6 +151,13 @@ function Briefing() {
       shortly,
       demand,
       week,
+      runs,
+      cover,
+      expiring,
+      lossesNow,
+      lossesBefore,
+      places,
+      stockItems,
     ] = await Promise.all([
       recentCostChanges(LOCAL_COMPANY_ID, 12),
       productionOn(LOCAL_COMPANY_ID, today.from, today.to),
@@ -122,6 +168,16 @@ function Briefing() {
       runningOut(LOCAL_COMPANY_ID, lastWeek.from, today.to, 7),
       orderedDemand(LOCAL_COMPANY_ID, through),
       productionBetween(LOCAL_COMPANY_ID, weekAgo.from, today.to),
+      recentRuns(LOCAL_COMPANY_ID, 6),
+      // Sem horizonte: aqui a pergunta não é "o que acaba esta semana" (isso é o
+      // cartão de insumo) e sim "quanto tempo o estoque dura", que é o normal
+      // contra o qual a semana se compara.
+      runningOut(LOCAL_COMPANY_ID, lastWeek.from, today.to, 7, Number.POSITIVE_INFINITY),
+      expiringSoon(LOCAL_COMPANY_ID, trintaDias, 5, defaultLocationId(LOCAL_COMPANY_ID)),
+      lossesOn(LOCAL_COMPANY_ID, mes.from, today.to),
+      lossesOn(LOCAL_COMPANY_ID, mesAnterior.de.from, mesAnterior.ate.to),
+      listPlaces(LOCAL_COMPANY_ID),
+      listItems(LOCAL_COMPANY_ID),
     ]);
 
     const sum = (rows: { baseUnits: number }[]) => rows.reduce((n, r) => n + r.baseUnits, 0);
@@ -160,6 +216,25 @@ function Briefing() {
         productName: r.productName,
         openedAt: r.openedAt,
       })),
+      runs,
+      cover,
+      expiring,
+      lossesNow: lossesNow.reduce((n, l) => n + l.valueCents, 0),
+      lossesBefore: lossesBefore.reduce((n, l) => n + l.valueCents, 0),
+      lossesWorst: worstReason(lossesNow),
+      // Quem recebe hoje pelo acordo, e se a carga do dia já foi para lá.
+      dueToday: places
+        .filter((p) => daysUntilNextDelivery(p.deliveryDays, weekday) === 0)
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          sent: sent.some((s) => s.locationId === p.id),
+        })),
+      // Dinheiro parado: só insumo e embalagem, que é o que se compra. Produto
+      // acabado é outra conta, e somar os dois esconde as duas.
+      heldCents: stockItems
+        .filter((i) => i.kind === 'input' || i.kind === 'packaging')
+        .reduce((n, i) => n + Math.round(i.averageRate * i.onHandBaseUnits), 0),
     };
   });
 
@@ -236,13 +311,7 @@ function Briefing() {
 
   return (
     <CollapsingHeader title={brand.name} overline={formatWeekday(nowIso(), locale)}>
-      {LAYOUT === 'mosaico' ? (
-        <Mosaic {...view} />
-      ) : LAYOUT === 'editorial' ? (
-        <Editorial {...view} />
-      ) : (
-        <Blocks {...view} />
-      )}
+      <Mosaic {...view} />
     </CollapsingHeader>
   );
 }

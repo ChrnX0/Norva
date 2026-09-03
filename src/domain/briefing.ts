@@ -22,15 +22,38 @@
  */
 export const BRIEFING_WIDGETS = [
   'producao',
+  'aoVivo',
+  'historico',
   'insumos',
+  'cobertura',
   'pedidos',
-  'clima',
-  'tacho',
+  'entregaHoje',
   'expedicao',
+  'validade',
+  'perdas',
+  'custo',
   'precos',
+  'clima',
+  'parado',
+  'tacho',
 ] as const;
 
 export type BriefingWidget = (typeof BRIEFING_WIDGETS)[number];
+
+/**
+ * O que NÃO entra na capa de uma fábrica nova.
+ *
+ * Existe por uma correção do dono, e ela vale como regra geral: o "tacho
+ * rodando" ganhou lugar na capa porque o dado existia, não porque alguém abre o
+ * aplicativo de manhã para ver um tacho aberto. Dado disponível não é motivo
+ * para ocupar a primeira tela — a capa é o que a casa olha de manhã, e cada
+ * cartão a mais empurra o resto para baixo.
+ *
+ * Fora do padrão não é fora do produto: quem quiser liga em Ajustes, e aí ele
+ * entra na ordem da casa como qualquer outro. É a mesma forma da F7 — os dois
+ * caminhos existem, e o que se escolhe aqui é só o PADRÃO.
+ */
+const DEFAULT_OFF = new Set<BriefingWidget>(['tacho', 'custo', 'parado']);
 
 /**
  * A ordem que a casa combinou, filtrada pelo que este aparelho quer ver.
@@ -48,9 +71,34 @@ export function briefingLayout(
   const escondidas = new Set(hiddenOnDevice);
 
   const ordenadas = companyOrder.filter((w): w is BriefingWidget => known.has(w));
-  const novas = BRIEFING_WIDGETS.filter((w) => !ordenadas.includes(w));
+
+  // Peça nova entra sozinha no fim — menos as que nascem fora da capa, que
+  // esperam alguém pedir. Sem essa distinção, cada widget acrescentado numa
+  // versão futura aparece na tela de todo mundo sem ninguém ter escolhido.
+  const novas = BRIEFING_WIDGETS.filter(
+    (w) => !ordenadas.includes(w) && !DEFAULT_OFF.has(w),
+  );
 
   return [...ordenadas, ...novas].filter((w) => !escondidas.has(w));
+}
+
+/** O que existe e não está na capa: o que a tela de Ajustes oferece para ligar. */
+export function widgetsOffCover(layout: readonly BriefingWidget[]): BriefingWidget[] {
+  return BRIEFING_WIDGETS.filter((w) => !layout.includes(w));
+}
+
+/**
+ * Coloca uma peça na capa, no fim da ordem da casa.
+ *
+ * Vai para a ordem da EMPRESA e não para a preferência do aparelho, porque
+ * colocar um cartão na primeira tela é decisão de casa — é o que todo mundo vai
+ * ver de manhã. Esconder continua sendo do aparelho.
+ */
+export function addWidget(
+  order: readonly BriefingWidget[],
+  widget: BriefingWidget,
+): BriefingWidget[] {
+  return order.includes(widget) ? [...order] : [...order, widget];
 }
 
 /**

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { BRIEFING_WIDGETS, briefingLayout, moveWidget } from './briefing';
+import { addWidget, BRIEFING_WIDGETS, briefingLayout, moveWidget, widgetsOffCover } from './briefing';
 
 test('the house decides the order and the phone decides what to hide', () => {
   const daCasa = ['clima', 'producao', 'insumos'];
@@ -10,7 +10,16 @@ test('the house decides the order and the phone decides what to hide', () => {
   // sem que a fábrica inteira precise reconfigurar a capa.
   const capa = briefingLayout(daCasa, []);
   assert.deepEqual(capa.slice(0, 3), ['clima', 'producao', 'insumos']);
-  assert.equal(capa.length, BRIEFING_WIDGETS.length);
+
+  // Peça nova entra sozinha, MENOS a que nasce fora da capa. A capa de fábrica
+  // nova é menor que o catálogo de propósito: o "tacho rodando" tinha lugar na
+  // primeira tela porque o dado existia, e o dono cortou - dado disponível não é
+  // motivo para ocupar a tela que se olha de manhã.
+  assert.ok(capa.length < BRIEFING_WIDGETS.length, 'o catálogo é maior que o padrão');
+  assert.ok(!capa.includes('tacho'), 'o tacho não nasce na capa');
+
+  // Mas continua no produto: pedido pela casa, ele entra como qualquer outro.
+  assert.ok(briefingLayout([...daCasa, 'tacho'], []).includes('tacho'));
 
   // O aparelho esconde sem mexer no que a casa combinou: quem está na câmara
   // fria tira o preço do caminho, e a capa do escritório continua igual.
@@ -39,4 +48,24 @@ test('moving a widget stops at the ends instead of wrapping', () => {
   // topo da tela num toque que a pessoa deu esperando não acontecer nada.
   assert.deepEqual(moveWidget(ordem, 'producao', 'up'), ['producao', 'insumos', 'clima']);
   assert.deepEqual(moveWidget(ordem, 'clima', 'down'), ['producao', 'insumos', 'clima']);
+});
+
+test('what is off the cover is offered, and putting it on is the house deciding', () => {
+  const capa = briefingLayout([], []);
+  const fora = widgetsOffCover(capa);
+
+  // O que está fora é exatamente o que sobra do catálogo - a tela de Ajustes não
+  // pode inventar nem esquecer peça nenhuma.
+  assert.deepEqual(
+    [...capa, ...fora].sort(),
+    [...BRIEFING_WIDGETS].sort(),
+    'capa mais fora dá o catálogo inteiro, sem repetição',
+  );
+  assert.ok(fora.includes('tacho'));
+
+  // Colocar na capa mexe na ordem da CASA: é o que todo mundo vai ver de manhã.
+  const ligada = addWidget(['producao'], 'tacho');
+  assert.deepEqual(ligada, ['producao', 'tacho']);
+  assert.deepEqual(addWidget(ligada, 'tacho'), ligada, 'ligar duas vezes não duplica');
+  assert.ok(briefingLayout(ligada, []).includes('tacho'));
 });

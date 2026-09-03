@@ -1,5 +1,5 @@
 import type { BriefingWidget } from '@/domain/briefing';
-import type { CostChange, Demand, Running } from '@/data/repository';
+import type { CostChange, Demand, Expiring, Run, Running } from '@/data/repository';
 import type { Forecast, Reading } from '@/weather';
 
 /**
@@ -31,6 +31,20 @@ export type Summary = {
   demand: Demand[];
   /** Até que dia a pergunta dos pedidos foi feita. */
   demandThrough: string;
+  /** As últimas corridas, uma linha cada: total do dia não distingue 3x100 de 1x300. */
+  runs: Run[];
+  /** Quanto tempo o estoque dura, do mais apertado ao mais folgado. */
+  cover: Running[];
+  /** O que vence primeiro DO QUE ESTÁ NA FÁBRICA. */
+  expiring: Expiring[];
+  /** Perdas do mês e do mês anterior, em dinheiro, e o motivo que mais pesou. */
+  lossesNow: number;
+  lossesBefore: number;
+  lossesWorst: { reason: string; cents: number } | null;
+  /** Quem recebe hoje pelo acordo, e se a carga já foi. */
+  dueToday: { id: string; name: string; sent: boolean }[];
+  /** O dinheiro parado em insumo e embalagem. */
+  heldCents: number;
 };
 
 export type BriefingView = {

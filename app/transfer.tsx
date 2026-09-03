@@ -16,6 +16,7 @@ import {
   listPlaces,
   listOrders,
   recordReturn,
+  lotsInStock,
   recordTransfer,
   setOrderStatus,
   shipmentsOn,
@@ -58,6 +59,9 @@ export default function TransferScreen() {
 }
 
 type Loaded = { places: Place[]; stock: PlaceStock[] };
+
+/** O lote que sai primeiro: o mais velho que ainda existe na origem. */
+type Frente = { lotId: string; code: string; expiresOn: string | null; baseUnits: number } | null;
 
 function Transfer() {
   const { color, type, space, radius, accent } = useTheme();
@@ -128,6 +132,24 @@ function Transfer() {
   }, [line, toId2]);
 
   // A separação: o que aquela loja pediu e ainda não recebeu.
+  /**
+   * De qual lote a carga sai — deduzido, não perguntado.
+   *
+   * Quem despacha não escolhe lote: despacha o que está na frente, e o que está
+   * na frente é o que vence primeiro. Perguntar aqui seria pedir o que o sistema
+   * sabe (Lei 1), e não perguntar tinha um custo pior: até agora nenhuma carga
+   * levava lote, então o saldo de um lote só subia e um recall parava na porta
+   * da fábrica.
+   *
+   * Nulo é caso normal e frequente: açúcar e palito não têm lote.
+   */
+  const { data: frente } = useQuery<Frente>(async () => {
+    if (!itemId) return null;
+    const origem = devolucao ? (toId ?? fabrica) : fabrica;
+    const lotes = await lotsInStock(LOCAL_COMPANY_ID, itemId, origem);
+    return lotes[0] ?? null;
+  }, `${itemId ?? ''}:${devolucao ? 'v' : 'i'}:${toId ?? ''}`);
+
   const { data: pedido } = useQuery<PickLine[]>(
     () =>
       to
@@ -173,7 +195,10 @@ function Transfer() {
             item: line.name,
             from: nameOf(from),
             to: nameOf(to.id),
-          }),
+          }) +
+          // O lote vai dito na confirmação, e não escondido: quem carrega o
+          // caminhão é quem vai ler o código na caixa se alguém ligar depois.
+          (frente ? ` ${fill(words.fromLot, { code: frente.code })}` : ''),
     });
     if (!go) return;
 
@@ -185,6 +210,7 @@ function Transfer() {
         fromLocationId: from,
         toLocationId: to.id,
         baseUnits: amount,
+        lotId: frente?.lotId ?? null,
       });
       setTyped(false);
       setAmountText('');

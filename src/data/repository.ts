@@ -1467,6 +1467,15 @@ type MoveInput = {
   toLocationId: string;
   /** Sempre na menor unidade. Positivo: quanto sai de lá e chega aqui. */
   baseUnits: number;
+  /**
+   * De qual lote saiu. Ausente é legítimo: item sem lote (açúcar, palito).
+   *
+   * Sem isto o lote só existia na produção, e o saldo dele só subia. Uma
+   * etiqueta que promete responder um recall — "digite os onze caracteres e a
+   * conferência segue" — precisa saber PARA ONDE aquele lote foi, e a única
+   * linha que sabia era a de entrada.
+   */
+  lotId?: string | null;
   occurredAt?: string;
   note?: string;
   assistantPhrase?: string;
@@ -1523,8 +1532,8 @@ async function moveBetween(
       await conn.runAsync(
         `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                                 quantity_base_units, location_id, counterpart_location_id,
-                                unit_cost_rate, movement_group_id, note, assistant_phrase)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                unit_cost_rate, movement_group_id, lot_id, note, assistant_phrase)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           companyId,
@@ -1537,6 +1546,10 @@ async function moveBetween(
           there,
           unitCostRate || null,
           groupId,
+          // As DUAS pernas levam o lote. Só na de saída, o lote sumiria do
+          // destino: a loja receberia caixas sem lote e o recall pararia na
+          // porta da fábrica.
+          input.lotId ?? null,
           input.note ?? null,
           input.assistantPhrase ?? null,
         ],
@@ -1889,6 +1902,8 @@ export async function recordLoss(
     /** Quanto se perdeu, em unidade-base. Sempre positivo: o sinal é daqui. */
     baseUnits: number;
     reason: LossReason;
+    /** De qual lote se perdeu. Ausente é legítimo: insumo não tem lote. */
+    lotId?: string | null;
     locationId?: string;
     occurredAt?: string;
     note?: string;
@@ -1927,8 +1942,8 @@ export async function recordLoss(
     await conn.runAsync(
       `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                               quantity_base_units, location_id, unit_cost_rate, loss_reason,
-                              note, assistant_phrase)
-       VALUES (?, ?, 'loss', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              lot_id, note, assistant_phrase)
+       VALUES (?, ?, 'loss', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         companyId,
@@ -1939,6 +1954,10 @@ export async function recordLoss(
         locationId,
         rate || null,
         input.reason,
+        // "Quatro caixas venceram" só muda a compra se alguém souber QUAL lote
+        // venceu: sem o lote, a perda por validade não fecha a conta do lote que
+        // a etiqueta prometeu rastrear.
+        input.lotId ?? null,
         input.note ?? null,
         input.assistantPhrase ?? null,
       ],
@@ -2458,6 +2477,167 @@ export async function lotsOn(
     name: r.name,
     baseUnits: r.total,
     expiresOn: r.expires_on,
+  }));
+}
+
+/** Uma corrida, do jeito que ela aparece num histórico curto. */
+export type Run = {
+  lotId: string | null;
+  code: string | null;
+  name: string;
+  baseUnits: number;
+  occurredAt: string;
+  /** A taxa congelada daquela corrida, em centavos fracionários por unidade. */
+  unitCostRate: number | null;
+};
+
+/**
+ * As últimas corridas, mais recente primeiro.
+ *
+ * A capa mostrava só o total do dia, e total do dia não responde "como estamos
+ * indo": três corridas de 100 e uma de 300 dão o mesmo número e são semanas
+ * diferentes. O histórico curto é o que transforma um número em tendência sem
+ * abrir relatório.
+ *
+ * Uma linha por movimento de produção, e não por lote: o lote é a identidade, o
+ * movimento é o fato — e é o fato que tem hora e taxa congelada.
+ */
+export async function recentRuns(companyId: string, limit = 6): Promise<Run[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    lot_id: string | null;
+    code: string | null;
+    name: string;
+    quantity_base_units: number;
+    occurred_at: string;
+    unit_cost_rate: number | null;
+  }>(
+    `SELECT m.lot_id, l.code, i.name, m.quantity_base_units, m.occurred_at, m.unit_cost_rate
+       FROM movements m
+       JOIN items i ON i.id = m.item_id
+       LEFT JOIN lots l ON l.id = m.lot_id
+      WHERE m.company_id = ? AND m.kind = 'production' AND m.quantity_base_units > 0
+      ORDER BY m.occurred_at DESC
+      LIMIT ?`,
+    [companyId, limit],
+  );
+
+  return rows.map((r) => ({
+    lotId: r.lot_id,
+    code: r.code,
+    name: r.name,
+    baseUnits: r.quantity_base_units,
+    occurredAt: r.occurred_at,
+    unitCostRate: r.unit_cost_rate,
+  }));
+}
+
+/** Um lote perto do fim da validade, com o que ainda existe dele. */
+export type Expiring = {
+  lotId: string;
+  code: string;
+  name: string;
+  expiresOn: string;
+  baseUnits: number;
+};
+
+/**
+ * O que vence primeiro, do que ainda está em estoque.
+ *
+ * `lotsOn` responde "o que nasceu nesta janela", que é outra pergunta. Esta
+ * responde a que decide: o que sai primeiro do freezer, e quanto disso ainda
+ * existe. Lote já esgotado não aparece — avisar sobre a validade de uma caixa
+ * que já foi embora é o alerta inventado que a fábrica aprende a ignorar.
+ *
+ * A soma é POR LUGAR, e essa é a decisão que faz a peça servir.
+ *
+ * A carga leva o lote nas duas pernas — sai da fábrica, chega na loja —, então o
+ * saldo do lote na EMPRESA não muda quando ele viaja: as caixas continuam
+ * existindo. Somar a empresa faria a fábrica continuar sendo avisada de um lote
+ * que já foi embora, que é o alerta que ensina a ignorar alerta. Somando a sala,
+ * a pergunta passa a ser a que decide: o que vence primeiro DO QUE ESTÁ AQUI.
+ *
+ * Sem `locationId`, a soma é da empresa — que é a pergunta certa para quem quer
+ * saber o que a fábrica tem em algum lugar, e é o padrão histórico das outras
+ * consultas daqui.
+ */
+export async function expiringSoon(
+  companyId: string,
+  throughDate: string,
+  limit = 5,
+  locationId?: string,
+): Promise<Expiring[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    id: string;
+    code: string;
+    name: string;
+    expires_on: string;
+    total: number;
+  }>(
+    `SELECT l.id, l.code, i.name, l.expires_on,
+            COALESCE(SUM(m.quantity_base_units), 0) AS total
+       FROM lots l
+       JOIN items i ON i.id = l.item_id
+       JOIN movements m ON m.lot_id = l.id
+      WHERE l.company_id = ?
+        AND l.expires_on IS NOT NULL
+        AND l.expires_on <= ?
+        AND (? IS NULL OR m.location_id = ?)
+      GROUP BY l.id, l.code, i.name, l.expires_on
+     HAVING SUM(m.quantity_base_units) > 0
+      ORDER BY l.expires_on ASC
+      LIMIT ?`,
+    [companyId, throughDate, locationId ?? null, locationId ?? null, limit],
+  );
+
+  return rows.map((r) => ({
+    lotId: r.id,
+    code: r.code,
+    name: r.name,
+    expiresOn: r.expires_on,
+    baseUnits: r.total,
+  }));
+}
+
+/**
+ * Os lotes de um item que ainda existem numa sala, o mais velho primeiro.
+ *
+ * É o que permite a carga sair sem perguntar de qual lote: quem despacha não
+ * escolhe lote, despacha o que está na frente — e o que está na frente é o que
+ * vence primeiro. A Lei 1 na forma mais direta: o sistema sabe, então não
+ * pergunta.
+ *
+ * Lote sem validade vai para o fim, não para o começo: sem data não há pressa, e
+ * mandar primeiro o que não vence deixaria o que vence envelhecendo na câmara.
+ */
+export async function lotsInStock(
+  companyId: string,
+  itemId: string,
+  locationId: string,
+): Promise<{ lotId: string; code: string; expiresOn: string | null; baseUnits: number }[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    id: string;
+    code: string;
+    expires_on: string | null;
+    total: number;
+  }>(
+    `SELECT l.id, l.code, l.expires_on, COALESCE(SUM(m.quantity_base_units), 0) AS total
+       FROM lots l
+       JOIN movements m ON m.lot_id = l.id
+      WHERE l.company_id = ? AND l.item_id = ? AND m.location_id = ?
+      GROUP BY l.id, l.code, l.expires_on
+     HAVING SUM(m.quantity_base_units) > 0
+      ORDER BY l.expires_on IS NULL, l.expires_on ASC, l.code ASC`,
+    [companyId, itemId, locationId],
+  );
+
+  return rows.map((r) => ({
+    lotId: r.id,
+    code: r.code,
+    expiresOn: r.expires_on,
+    baseUnits: r.total,
   }));
 }
 

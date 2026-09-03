@@ -18,7 +18,13 @@ import {
   setOrdersNeedApproval,
 } from '@/data/repository';
 import { useAppearance } from '@/theme/Appearance';
-import { briefingLayout, moveWidget, type BriefingWidget } from '@/domain/briefing';
+import {
+  addWidget,
+  briefingLayout,
+  moveWidget,
+  widgetsOffCover,
+  type BriefingWidget,
+} from '@/domain/briefing';
 import { hues } from '@/theme/tokens';
 import {
   blockerFor,
@@ -128,6 +134,7 @@ function Settings() {
    */
   const [ordem, setOrdem] = useState<BriefingWidget[]>(() => briefingLayout([], []));
   const [escondidos, setEscondidos] = useState<string[]>([]);
+  const fora = widgetsOffCover(ordem);
 
   useEffect(() => {
     let vivo = true;
@@ -143,6 +150,19 @@ function Settings() {
 
   const mover = async (widget: BriefingWidget, direcao: 'up' | 'down') => {
     const nova = moveWidget(ordem, widget, direcao);
+    setOrdem(nova);
+    await setBriefingOrder(nova);
+  };
+
+  /**
+   * Colocar na capa uma peça que nasce fora dela.
+   *
+   * Vai para a ordem da EMPRESA, e não para a preferência do aparelho: a
+   * primeira tela é o que todo mundo olha de manhã, então acrescentar um cartão
+   * ali é decisão de casa. Esconder continua sendo do aparelho.
+   */
+  const ligar = async (widget: BriefingWidget) => {
+    const nova = addWidget(ordem, widget);
     setOrdem(nova);
     await setBriefingOrder(nova);
   };
@@ -401,6 +421,32 @@ function Settings() {
             );
           })}
         </View>
+
+        {/* O que existe e não está na capa.
+            Sem esta lista, um widget fora do padrão é um widget que não existe:
+            o dono não tem como saber que ele está lá, e "quem quiser liga" fica
+            sendo uma frase sem botão. */}
+        {fora.length > 0 ? (
+          <View style={{ marginTop: space.lg, gap: space.xs }}>
+            <Text style={[type.overline, { color: color.inkFaint }]}>
+              {t.app.settings.briefing.offCover}
+            </Text>
+            {fora.map((widget) => (
+              <View key={widget} style={[styles.row, { gap: space.sm, paddingVertical: space.xs }]}>
+                <Text style={[type.body, { color: color.inkMuted, flex: 1 }]} numberOfLines={1}>
+                  {t.app.settings.briefing.widgets[widget]}
+                </Text>
+                <Pressable
+                  onPress={() => void ligar(widget)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t.app.settings.briefing.putOnCover}: ${t.app.settings.briefing.widgets[widget]}`}
+                >
+                  <Chip signal="neutral" label={t.app.settings.briefing.putOnCover} />
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </Card>
 
       {/* A cara do aplicativo.
