@@ -49,7 +49,7 @@ export function Mosaic({
   layout,
   go,
 }: BriefingView) {
-  const { color, type, space, palette, skin } = useTheme();
+  const { color, type, space, palette, skin, accent } = useTheme();
   const { locale, t } = useLocale();
 
   // A espessura do traço é da identidade: fino no Papel, cheio no Orgânico.
@@ -235,7 +235,14 @@ export function Mosaic({
             accessibilityLabel={fill(t.app.weather.overline, { city: weather?.place.name ?? '' })}
           >
             <Card hue={palette.sky} style={{ padding: 0, overflow: 'hidden' }}>
-              <SkyScene maxC={sky.today.maxC} rainChance={sky.today.rainChance} height={140} />
+              {/* Mais baixa no Papel: lá a cena é um traço, e cento e quarenta
+                  pixels em volta de um sol viram bloco vazio — que é o mesmo
+                  defeito do bloco degradê, com outra cor. */}
+              <SkyScene
+                maxC={sky.today.maxC}
+                rainChance={sky.today.rainChance}
+                height={skin === 'papel' ? 92 : 140}
+              />
               <View style={{ padding: space.lg }}>
                 <Text style={[type.overline, { color: color.inkFaint }]}>
                   {fill(t.app.weather.overline, { city: weather?.place.name ?? '' }).toUpperCase()}
@@ -328,7 +335,20 @@ export function Mosaic({
       </>
     ),
 
-    aoVivo: (
+    // Produção ao vivo só existe quando há o que estar vivo.
+    //
+    // Ela nascia sempre, dizendo "0 · Nada saiu ainda hoje" — e ao lado de "Hoje
+    // na fábrica: 0" e "Últimas corridas: nenhuma", virava a terceira maneira de
+    // dizer o mesmo nada. Eu guardei a EXPANSÃO e esqueci a EXISTÊNCIA: "ligar
+    // não é forçar" vale para o cartão, não só para o convite dentro dele.
+    // Ao vivo é o que está ACONTECENDO, e só existe quando há.
+    //
+    // Ela mostrava o total do dia, que é o mesmo número da manchete: com 500
+    // unidades produzidas, a capa dizia "500" duas vezes em dois cartões
+    // seguidos. Duas peças para um número é a capa competindo consigo mesma — o
+    // mesmo defeito do widget do tacho, que eu já tinha removido por isso.
+    aoVivo:
+      (data?.running ?? []).length === 0 ? null : (
       <Peca
         index={1}
         hue={palette.apricot}
@@ -359,8 +379,10 @@ export function Mosaic({
           )
         }
       >
+        {/* O número é quantas corridas estão abertas, não quanto saiu hoje — esse
+            já é a manchete logo acima. */}
         <CountUp
-          value={data?.madeToday ?? 0}
+          value={(data?.running ?? []).length}
           format={(v) => formatQuantity(Math.round(v), locale)}
           style={{ ...type.figure, color: color.ink }}
         />
@@ -373,19 +395,17 @@ export function Mosaic({
               visual. */}
           {(data?.running ?? []).length > 0 ? <PulseDot live color={palette.apricot} /> : null}
           <Text style={[type.caption, { color: color.inkMuted, flex: 1 }]} numberOfLines={2}>
-            {(data?.running ?? []).length > 0
-              ? fill(t.app.home.liveRuns, {
-                  count: plural((data?.running ?? []).length, t.app.home.runCount),
-                })
-              : (data?.madeToday ?? 0) === 0
-                ? t.app.home.liveNothing
-                : comparison(data?.madeToday ?? 0, data?.madeThen ?? 0)}
+            {fill(t.app.home.liveRuns, {
+              count: plural((data?.running ?? []).length, t.app.home.runCount),
+            })}
           </Text>
         </View>
       </Peca>
     ),
 
-    historico: (
+    // Histórico só existe quando há história.
+    historico:
+      (data?.runs ?? []).length === 0 ? null : (
       <Peca
         index={2}
         hue={palette.sand}
@@ -450,7 +470,12 @@ export function Mosaic({
       </Peca>
     ),
 
-    cobertura: (
+    // Cobertura só existe quando o livro-razão viu saída.
+    //
+    // "sem saída registrada — ninguém sabe quanto dura" é uma frase honesta e
+    // uma peça inútil: ela ocupa a capa para dizer que não tem resposta.
+    cobertura:
+      (data?.cover ?? []).length === 0 ? null : (
       <Peca
         index={3}
         hue={palette.mint}
@@ -760,6 +785,61 @@ export function Mosaic({
       </>
     ),
   };
+
+  /**
+   * O primeiro dia tem UMA peça, e ela é um convite — não quatro vazios.
+   *
+   * O dono abriu o aplicativo instalado e viu isto: "0 unidades", "0 · nada saiu
+   * ainda", "nenhuma corrida registrada", "sem saída registrada". Quatro cartões
+   * dizendo que não há nada, e nenhuma próxima ação em lugar nenhum — quando a
+   * Lei da Inteligência exige justamente a próxima ação provável, e quando este
+   * arquivo já dizia, em comentário, que peça sem o que dizer não aparece.
+   *
+   * Estado vazio bonito é estado válido; quatro estados vazios empilhados são
+   * uma tela que ensina que a capa não serve para nada.
+   */
+  const nadaAconteceu =
+    (data?.madeToday ?? 0) === 0 &&
+    (data?.runs ?? []).length === 0 &&
+    (data?.cover ?? []).length === 0 &&
+    (data?.boxes ?? 0) === 0 &&
+    (data?.demand ?? []).length === 0;
+
+  if (nadaAconteceu) {
+    return (
+      <>
+        <Reveal index={0}>
+          <Touchable onPress={() => go('/production/new')} accessibilityLabel={t.app.home.firstDayAction}>
+            <Card
+              hue={palette.apricot}
+              icon={(c) => <GlyphProduction size={26} color={c} weight={traco} />}
+              title={t.app.home.firstDayTitle}
+            >
+              {skin === 'papel' ? (
+                <FactoryScene running={false} shipped={false} dayShare={null} />
+              ) : (
+                <Landscape
+                  maxC={sky ? sky.today.maxC : null}
+                  rainChance={sky ? sky.today.rainChance : null}
+                  running={false}
+                  height={150}
+                />
+              )}
+              <Text style={[type.secondary, { color: color.inkMuted }]}>
+                {t.app.home.firstDayBody}
+              </Text>
+              <Text style={[type.caption, { color: accent, marginTop: space.sm }]}>
+                {t.app.home.firstDayAction}
+              </Text>
+            </Card>
+          </Touchable>
+        </Reveal>
+        {/* O tempo continua, quando há: ele é a única peça que tem o que dizer
+            numa fábrica que ainda não produziu. */}
+        {sky ? <Fragment key="clima">{pecas.clima}</Fragment> : null}
+      </>
+    );
+  }
 
   return <>{layout.map((id) => <Fragment key={id}>{pecas[id]}</Fragment>)}</>;
 }

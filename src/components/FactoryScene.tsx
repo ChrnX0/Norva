@@ -37,6 +37,21 @@ const AnimatedRect = Animated.createAnimatedComponent(Rect);
  * Os ciclos são longos de propósito (seis a quarenta e oito segundos): é
  * movimento que se percebe se você olhar e não se percebe se você estiver
  * trabalhando. E `reduzir movimento` desliga tudo com a cena inteira de pé.
+ *
+ * **O que saiu da cena, e por quê — 3 de setembro.** O dono abriu o aplicativo
+ * instalado e a cena tinha oito grupos em trezentos pixels: fábrica, chaminé,
+ * câmara, três picolés, morango, nuvem e sol. Duas coisas quebravam a
+ * composição, e as duas eu só vi olhando a tela renderizada:
+ *
+ * - **o floco flutuava ACIMA da câmara**, e lia como um asterisco azul no céu —
+ *   um símbolo sem dono. Ele entrou para dentro do retângulo, que é o que ele
+ *   existe para nomear;
+ * - **o morango e a nuvem não pousavam em nada**. Objeto solto no ar, sem linha
+ *   de base e sem função, é o que transforma desenho em figurinha espalhada.
+ *
+ * Sobraram quatro grupos e o sol, todos na mesma linha de base, e cada um
+ * dizendo alguma coisa: a fábrica trabalha, a câmara guarda, os picolés medem o
+ * dia, a caixa sai.
  */
 export function FactoryScene({
   running,
@@ -92,11 +107,6 @@ export function FactoryScene({
       <Svg viewBox="0 0 364 150" width="100%" height="100%" accessibilityRole="image">
         <G fill="none" stroke={color.ink} strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round">
           <Path d="M0 133h364" stroke={color.line} />
-          <Path
-            d="M28 34c-5 0-8-3-8-7s4-7 8-6c1-6 8-8 12-3 5-2 10 2 9 8"
-            stroke={color.inkFaint}
-          />
-
           <Path d="M20 88l0-16 16 16 0-16 16 16 0-16 16 16 0-16 16 16" />
           <Path d="M20 88h64v45H20z" />
           <Path d="M28 98h9v9h-9zM42 98h9v9h-9zM56 98h9v9h-9zM28 113h9v9h-9z" />
@@ -106,22 +116,25 @@ export function FactoryScene({
 
           <Path d="M124 76h54v57h-54z" />
           <Path d="M124 96h54M168 84v8M168 102v12" />
+          {/* O floco fica DENTRO da câmara, e isso não é gosto: solto acima
+              dela ele lia como um asterisco azul no céu — um símbolo sem dono.
+              Dentro, ele diz o que aquele retângulo é. */}
           <G stroke={palette.sky}>
-            <Path d="M151 49v18M143 53.5l16 9M143 62.5l16-9" />
+            <Path d="M151 105v18M143 109.5l16 9M143 118.5l16-9" />
           </G>
 
-          <Rect x="192" y="82" width="20" height="34" rx="7" />
-          <Path d="M202 116v14" />
-          <Rect x="216" y="82" width="20" height="34" rx="7" stroke={palette.apricot} />
-          <Path d="M226 116v14" stroke={palette.apricot} />
+          {/* Picolé, e não arbusto.
+              Com 20 de largura e canto 7 num traço fino, os três liam como uma
+              moita — vinte pixels de altura de palito não bastam para o olho
+              decidir o que é. Mais estreitos, mais altos e com o palito de 17
+              eles viram o que são. */}
+          <Rect x="194" y="78" width="15" height="38" rx="5" />
+          <Path d="M201.5 116v17" />
+          <Rect x="218" y="78" width="15" height="38" rx="5" stroke={palette.apricot} />
+          <Path d="M225.5 116v17" stroke={palette.apricot} />
           <Fill progress={enche} color={palette.apricot} />
-          <Rect x="240" y="82" width="20" height="34" rx="7" />
-          <Path d="M250 116v14" />
-
-          <G stroke={palette.apricot}>
-            <Path d="M290 122c-14-9-18-22-9-27 4-2.5 7-1 9 1 2-2 5-3.5 9-1 9 5 5 18-9 27z" />
-            <Path d="M290 96l-9-6M290 96l9-6M290 96v-9" />
-          </G>
+          <Rect x="242" y="78" width="15" height="38" rx="5" />
+          <Path d="M249.5 116v17" />
 
         </G>
       </Svg>
@@ -178,11 +191,14 @@ function Smoke({ progress, color }: { progress: SharedValue<number>; color: stri
 
 /** O picolé enchendo: a altura do preenchimento é o dia contra ontem. */
 function Fill({ progress, color }: { progress: SharedValue<number>; color: string }) {
+  // As medidas seguem o picolé do meio; separadas, o preenchimento sai do lugar
+  // no dia em que alguém mexer no desenho — e ninguém percebe, porque a cena
+  // continua bonita com a barra fora do molde.
   const props = useAnimatedProps(() => ({
-    y: 116 - 34 * progress.value,
-    height: 34 * progress.value,
+    y: 116 - 38 * progress.value,
+    height: 38 * progress.value,
   }));
-  return <AnimatedRect animatedProps={props} x={216} width={20} fill={color} fillOpacity={0.22} stroke="none" />;
+  return <AnimatedRect animatedProps={props} x={218} width={15} fill={color} fillOpacity={0.22} stroke="none" />;
 }
 
 /** A caixa da expedição, entrando pela direita quando saiu carga. */

@@ -31,6 +31,26 @@ import { useTheme } from '@/theme/ThemeProvider';
  * fábrica e sol, e nenhuma nuvem. É a mesma decisão do cartão do clima, que
  * some em vez de mostrar um "--°" que ninguém pode conferir.
  */
+/**
+ * A mesma cor, à noite — e não um cinza no lugar dela.
+ *
+ * No escuro a paisagem pintava `sunken` sobre `surface` sobre `paper`: três
+ * cinzas separados por dezoito unidades de brilho. O desenho existia e não se
+ * via — o dono abriu o aplicativo e mandou a foto de uma caixa preta com um sol
+ * dentro, que é exatamente o que estava lá.
+ *
+ * A regra do tema ("escuro é cinza neutro, cor só de acento") vale para
+ * SUPERFÍCIE, não para cena: uma colina não é fundo de cartão, é a figura. Aqui
+ * a matiz escolhida continua, escurecida — que é o que uma colina faz à noite.
+ */
+function noturno(hex: string, fator: number): string {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = Math.round(((n >> 16) & 255) * fator);
+  const g = Math.round(((n >> 8) & 255) * fator);
+  const b = Math.round((n & 255) * fator);
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
+
 export function Landscape({
   maxC,
   rainChance,
@@ -96,13 +116,16 @@ export function Landscape({
         <Defs>
           <LinearGradient id="ceu" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={noite ? color.paper : paleta.skyTop} stopOpacity={quente ? 1 : 0.85} />
-            <Stop offset="1" stopColor={noite ? color.surface : paleta.skyBottom} />
+            <Stop offset="1" stopColor={noite ? noturno(paleta.skyBottom, 0.3) : paleta.skyBottom} />
           </LinearGradient>
         </Defs>
         <Rect width={412} height={210} fill="url(#ceu)" />
 
-        <Path d="M0 150c70-22 120 14 206 2s136-30 206-12v70H0z" fill={noite ? color.sunken : paleta.hillFar} />
-        <G fill={noite ? color.line : paleta.hillNear}>
+        <Path
+          d="M0 150c70-22 120 14 206 2s136-30 206-12v70H0z"
+          fill={noite ? noturno(paleta.hillFar, 0.42) : paleta.hillFar}
+        />
+        <G fill={noite ? noturno(paleta.hillNear, 0.72) : paleta.hillNear}>
           <Path d="M282 156h60v30h-60z" />
           <Path d="M282 156l10-15 10 15 10-15 10 15 10-15 10 15" />
           <Rect x={348} y={132} width={9} height={54} />
@@ -112,7 +135,10 @@ export function Landscape({
           <Rect x={304} y={166} width={8} height={8} />
           <Rect x={318} y={166} width={8} height={8} />
         </G>
-        <Path d="M0 182c80-16 130 12 206 4s130-22 206-6v34H0z" fill={noite ? color.line : paleta.hillNear} />
+        <Path
+          d="M0 182c80-16 130 12 206 4s130-22 206-6v34H0z"
+          fill={noite ? noturno(paleta.hillNear, 0.58) : paleta.hillNear}
+        />
       </Svg>
 
       {/* O sol, girando devagar. */}

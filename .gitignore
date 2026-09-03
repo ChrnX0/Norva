@@ -50,3 +50,4 @@ yarn-error.*
 # Ele apaga sozinho ao sair; isto cobre a execução que morreu no meio, para o
 # portão não reprovar por "árvore suja" por causa de lixo de ferramenta.
 .mutate/
+.shots/

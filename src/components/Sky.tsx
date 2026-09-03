@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { AccessibilityInfo, View } from 'react-native';
+import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -92,10 +92,38 @@ export function SkyScene({
     transform: [{ translateX: Math.sin(drift.value * Math.PI * 2) * 6 }],
   }));
 
-  const stroke = palette.onAccent;
+  /**
+   * O Papel não tem bloco de céu — ele tem traço.
+   *
+   * Esta cena era um retângulo com degradê e cantos de dezoito, em qualquer
+   * cara. Num tema cuja identidade é "serifa, traço fino, cantos retos", isso é
+   * um objeto de outro aplicativo dentro da tela: o dono abriu, viu a capa em
+   * traço com um bloco degradê no meio, e disse que os dois temas estavam se
+   * sobrepondo. Ele estava certo — e o comentário logo acima já afirmava "no
+   * Papel a cena é de traço", enquanto o código só trocava a COR. Comentário que
+   * descreve o que o código deveria fazer é a mentira mais fácil de escrever.
+   *
+   * No Papel: sem fundo, sem degradê, canto reto, e o sol e a nuvem no mesmo
+   * traço fino da cena da fábrica. A informação é a mesma; o que muda é a mão.
+   */
+  const papel = skin === 'papel';
+  const stroke = papel ? palette.apricot : palette.onAccent;
 
   return (
-    <View style={{ width, height, borderRadius: 18, overflow: 'hidden' }} pointerEvents="none">
+    <View
+      style={{
+        width,
+        height,
+        borderRadius: papel ? 0 : 18,
+        overflow: 'hidden',
+        // No Papel o fundo é o do cartão: bloco colorido ali seria a mesma
+        // sobreposição, só que mais discreta.
+        borderBottomWidth: papel ? StyleSheet.hairlineWidth * 2 : 0,
+        borderBottomColor: palette.line,
+      }}
+      pointerEvents="none"
+    >
+      {papel ? null : (
       <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
         <Defs>
           <LinearGradient id="atmosphere" x1="0" y1="0" x2="0" y2="1">
@@ -105,6 +133,7 @@ export function SkyScene({
         </Defs>
         <Rect x="0" y="0" width={width} height={height} fill="url(#atmosphere)" />
       </Svg>
+      )}
 
       {/* O sol, girando devagar atrás de tudo. Some quando chove de verdade -
           desenhar sol num dia de chuva é a mesma mentira do alerta inventado. */}
@@ -116,7 +145,7 @@ export function SkyScene({
           ]}
         >
           <Svg width={68} height={68} viewBox="0 0 68 68">
-            <Circle cx="34" cy="34" r="13" stroke={stroke} strokeWidth="2" fill="none" />
+            <Circle cx="34" cy="34" r="13" stroke={stroke} strokeWidth={papel ? 1.7 : 2} fill="none" />
             {Array.from({ length: 8 }, (_, i) => {
               const angle = (i * Math.PI) / 4;
               return (
@@ -127,7 +156,7 @@ export function SkyScene({
                   x2={34 + Math.cos(angle) * 27}
                   y2={34 + Math.sin(angle) * 27}
                   stroke={stroke}
-                  strokeWidth="2"
+                  strokeWidth={papel ? 1.7 : 2}
                   strokeLinecap="round"
                   opacity="0.9"
                 />
@@ -146,7 +175,7 @@ export function SkyScene({
             <Path
               d="M20 40 a14 14 0 0 1 14-14 a18 18 0 0 1 34 6 a12 12 0 0 1 -2 24 H26 a12 12 0 0 1 -6 -16 Z"
               stroke={stroke}
-              strokeWidth="2"
+              strokeWidth={papel ? 1.7 : 2}
               fill="none"
               strokeLinejoin="round"
             />
@@ -158,7 +187,7 @@ export function SkyScene({
                 x2={28 + i * 16}
                 y2={74}
                 stroke={stroke}
-                strokeWidth="2"
+                strokeWidth={papel ? 1.7 : 2}
                 strokeLinecap="round"
                 opacity={0.85 - i * 0.15}
               />

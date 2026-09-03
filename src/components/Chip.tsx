@@ -78,12 +78,17 @@ export function priceSignal(verdict: PriceVerdict | null): Signal {
  * contra "20% do cheio"). Inventar uma quinta cor para caber a diferença faria a
  * escala deixar de ser lida de longe, que é a única coisa que ela precisa ser.
  */
-export function bandSignal(band: VolumeBand | null): Signal {
+export function bandSignal(band: VolumeBand | null): Signal | undefined {
   if (band === 'zerado' || band === 'vermelho') return 'danger';
   if (band === 'amarelo') return 'warning';
   if (band === 'verde') return 'ok';
   // Azul é "cheio demais": não é erro, é dinheiro parado e espaço no fim. O tom
   // neutro é o que diz "olhe, não corra".
   if (band === 'azul') return 'neutral';
-  return 'neutral';
+
+  // Sem faixa não há cor — e isto devolvia 'neutral', que pintava uma barra
+  // cinza em TODA linha do almoxarifado. A régua não cadastrada virava enfeite
+  // em cada item, que é o oposto exato do que a faixa existe para fazer: sem
+  // referência, o aplicativo não sabe o que é pouco e não desenha nada.
+  return undefined;
 }
