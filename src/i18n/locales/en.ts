@@ -389,7 +389,6 @@ export const en: Dictionary = {
           insumos: 'Input running out',
           pedidos: 'Customer orders',
           clima: 'Weather',
-          tacho: 'Production under way',
           expedicao: 'Out to the stores',
           precos: 'Prices that moved',
         },

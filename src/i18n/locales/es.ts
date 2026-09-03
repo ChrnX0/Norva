@@ -394,7 +394,6 @@ export const es: Dictionary = {
           insumos: 'Insumo por acabarse',
           pedidos: 'Pedidos de clientes',
           clima: 'Tiempo',
-          tacho: 'Producción en curso',
           expedicao: 'Salió a las tiendas',
           precos: 'Precios que se movieron',
         },

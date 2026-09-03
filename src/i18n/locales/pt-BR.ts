@@ -425,7 +425,6 @@ export const ptBR = {
           insumos: 'Insumo acabando',
           pedidos: 'Pedidos dos clientes',
           clima: 'Tempo',
-          tacho: 'Produção em curso',
           expedicao: 'Saiu para as lojas',
           precos: 'Preços que mexeram',
         },
