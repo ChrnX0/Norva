@@ -84,6 +84,15 @@ const DEFECTS = [
   },
 
   {
+    file: 'src/data/repository.ts',
+    from: `                         AND m.quantity_base_units < 0
+                         AND (? IS NULL OR m.location_id = ?)`,
+    to: `                         AND m.quantity_base_units < 0`,
+    hurts:
+      'o que dorme parado numa loja passa a ter data de acabar por causa do consumo da fabrica, e a tela manda comprar o que ninguem esta usando',
+  },
+
+  {
     file: 'src/domain/qr.ts',
     from: "  const code = create(text, { errorCorrectionLevel: 'H' });",
     to: "  const code = create(text, { errorCorrectionLevel: 'L' });",
