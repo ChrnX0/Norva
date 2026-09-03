@@ -561,6 +561,11 @@ export const ptBR = {
       checkedShort: 'Conferido: faltaram {{amount}}.',
     },
     transfer: {
+      closeAsk: 'Fechar o pedido dessa loja?',
+      closeBody: 'A carga cobre {{count}} em aberto. Fechar tira da lista de separação e da conta do que falta produzir.',
+      closeAction: 'Fechar',
+      closeKeep: 'Deixar aberto',
+      closeCount: { one: '1 pedido', other: '{{n}} pedidos' },
       toStore: 'Mandar para a loja',
       returning: 'A loja devolveu',
       returnTitle: 'Registrar a devolução',

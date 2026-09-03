@@ -28,3 +28,31 @@ export function pickSuggestion(sources: {
 }): number | null {
   return sources.ordered ?? sources.lastSent ?? null;
 }
+
+
+/**
+ * Quais pedidos daquela loja a carga que acabou de sair cobre por inteiro.
+ *
+ * Existe porque o pedido só fecha se alguém lembrar de ir na tela de Pedidos —
+ * e quem acabou de carregar o caminhão está com as mãos ocupadas. Sem fechar, a
+ * separação continua sugerindo o pedido inteiro para sempre, e a capa continua
+ * pedindo para produzir o que já saiu pela porta.
+ *
+ * **Só entra o pedido COBERTO.** Carga parcial não fecha nada: dizer "entregue"
+ * quando faltaram quarenta caixas transforma uma falta que a loja vai cobrar num
+ * pedido que o sistema diz cumprido — e o livro-razão, que é o único que não
+ * mente, não tem como desmentir porque pedido não é livro-razão.
+ *
+ * E ela só SUGERE: quem fecha é a pessoa, no diálogo que diz o que vai
+ * acontecer. O aplicativo sugere, nunca decide calado.
+ */
+export function ordersCoveredBy(
+  orders: readonly { id: string; lines: readonly { itemId: string; baseUnits: number }[] }[],
+  sent: ReadonlyMap<string, number>,
+): string[] {
+  return orders
+    .filter((order) =>
+      order.lines.every((line) => (sent.get(line.itemId) ?? 0) >= line.baseUnits),
+    )
+    .map((order) => order.id);
+}

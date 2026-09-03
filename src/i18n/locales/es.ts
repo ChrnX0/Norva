@@ -530,6 +530,11 @@ export const es: Dictionary = {
       checkedShort: 'Revisado: faltaron {{amount}}.'
     },
     transfer: {
+      closeAsk: '¿Cerrar el pedido de esa tienda?',
+      closeBody: 'La carga cubre {{count}} abiertos. Cerrar lo quita de la lista de separación y de lo que falta producir.',
+      closeAction: 'Cerrar',
+      closeKeep: 'Dejar abierto',
+      closeCount: { one: '1 pedido', other: '{{n}} pedidos' },
       toStore: 'Mandar a la tienda',
       returning: 'La tienda devolvió',
       returnTitle: 'Registrar la devolución',

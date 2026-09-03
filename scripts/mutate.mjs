@@ -28,6 +28,14 @@ import { spawnSync } from 'node:child_process';
 /** @type {{file: string, from: string, to: string, hurts: string}[]} */
 const DEFECTS = [
   {
+    file: 'src/domain/picking.ts',
+    from: '      order.lines.every((line) => (sent.get(line.itemId) ?? 0) >= line.baseUnits),',
+    to: '      order.lines.some((line) => (sent.get(line.itemId) ?? 0) >= line.baseUnits),',
+    hurts:
+      'carga parcial passa a fechar o pedido inteiro: a loja fica sem quarenta caixas e o sistema diz que entregou',
+  },
+
+  {
     file: 'src/data/repository.ts',
     from: `  return moveBetween(companyId, input, 'return');`,
     to: `  return moveBetween(companyId, input, 'transfer');`,

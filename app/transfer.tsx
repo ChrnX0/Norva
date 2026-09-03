@@ -14,18 +14,20 @@ import {
   pickingFor,
   type PickLine,
   listPlaces,
+  listOrders,
   recordReturn,
   recordTransfer,
+  setOrderStatus,
   stockByPlace,
   type Place,
   type PlaceStock,
 } from '@/data/repository';
 import { nowIso } from '@/data/db';
 import { localDate } from '@/domain/day';
-import { pickSuggestion } from '@/domain/picking';
+import { ordersCoveredBy, pickSuggestion } from '@/domain/picking';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
-import { fill, formatCalendarDate, formatQuantity } from '@/i18n';
+import { fill, formatCalendarDate, formatQuantity, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -185,6 +187,39 @@ function Transfer() {
       });
       setTyped(false);
       setAmountText('');
+
+      // A carga saiu; o pedido pode fechar junto — se ela o cobrir inteiro.
+      //
+      // Sem isto, fechar o pedido depende de alguém lembrar de ir na tela de
+      // Pedidos, e quem acabou de carregar o caminhão está com as mãos ocupadas.
+      // O custo de esquecer não é pequeno: a separação continua sugerindo o
+      // pedido inteiro para sempre, e a capa continua pedindo para produzir o
+      // que já saiu pela porta.
+      //
+      // Só o pedido COBERTO entra, e quem fecha é a pessoa: o aplicativo sugere,
+      // nunca decide calado.
+      if (!devolucao && to) {
+        const abertos = await listOrders(LOCAL_COMPANY_ID, ['pending', 'open']);
+        const daLoja = abertos.filter((o) => o.placeId === to.id);
+        const cobertos = ordersCoveredBy(daLoja, new Map([[line.itemId, amount]]));
+
+        if (cobertos.length > 0) {
+          const fechar = await askConfirm({
+            title: words.closeAsk,
+            message: fill(words.closeBody, {
+              count: plural(cobertos.length, words.closeCount),
+            }),
+            confirmLabel: words.closeAction,
+            cancelLabel: words.closeKeep,
+          });
+          if (fechar) {
+            for (const id of cobertos) {
+              await setOrderStatus(LOCAL_COMPANY_ID, id, 'delivered');
+            }
+          }
+        }
+      }
+
       refresh();
     } catch (e) {
       await askConfirm({

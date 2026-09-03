@@ -524,6 +524,11 @@ export const en: Dictionary = {
       checkedShort: 'Checked: {{amount}} missing.',
     },
     transfer: {
+      closeAsk: 'Close this store\'s order?',
+      closeBody: 'The load covers {{count}} still open. Closing takes it off the picking list and off what is left to make.',
+      closeAction: 'Close',
+      closeKeep: 'Leave open',
+      closeCount: { one: '1 order', other: '{{n}} orders' },
       toStore: 'Send to the store',
       returning: 'The store sent back',
       returnTitle: 'Record the return',
