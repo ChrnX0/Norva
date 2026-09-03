@@ -28,6 +28,22 @@ import { spawnSync } from 'node:child_process';
 /** @type {{file: string, from: string, to: string, hurts: string}[]} */
 const DEFECTS = [
   {
+    file: 'app/transfer.tsx',
+    from: '    : (paraSeparar?.ordered ?? lastSent ?? 0);',
+    to: '    : (lastSent ?? paraSeparar?.ordered ?? 0);',
+    hurts:
+      'a separacao volta a sugerir o envio da semana passada em vez do que a loja pediu, e quem esta com a lista na mao repete o habito em vez de atender o combinado',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: `        AND o.place_id = ?
+        AND o.status IN ('pending', 'open')`,
+    to: `        AND o.status IN ('pending', 'open')`,
+    hurts:
+      'a lista de separacao passa a somar o pedido de TODAS as lojas, e a carga da loja centro sai com o que era da loja norte',
+  },
+
+  {
     file: 'src/data/repository.ts',
     from: `              WHERE m.company_id = i.company_id AND m.item_id = i.id
                 AND (? IS NULL OR m.location_id = ?))`,

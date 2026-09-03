@@ -11,15 +11,19 @@ import { Field } from '@/components/Field';
 import {
   defaultLocationId,
   lastSentBaseUnits,
+  pickingFor,
+  type PickLine,
   listPlaces,
   recordTransfer,
   stockByPlace,
   type Place,
   type PlaceStock,
 } from '@/data/repository';
+import { nowIso } from '@/data/db';
+import { localDate } from '@/domain/day';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
-import { fill, formatQuantity } from '@/i18n';
+import { fill, formatCalendarDate, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -31,9 +35,14 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * como validação — não dá para mandar o que não está lá porque nunca aparece
  * para escolher, em vez de aparecer e ser recusado depois de digitar.
  *
- * E a quantidade não nasce vazia da segunda vez em diante: `lastSentBaseUnits`
- * lê no livro-razão quanto foi para aquela loja da última vez. A primeira
- * remessa não tem palpite, e é honesto que não tenha.
+ * E a quantidade não nasce vazia: o palpite vem do que já aconteceu, nunca de um
+ * zero. **Mas ele tem ordem de preferência, e ela importa.**
+ *
+ * Quando existe pedido em aberto para aquela loja, o palpite é o PEDIDO — é a
+ * separação: quem está com a lista na mão quer atender o que foi combinado, não
+ * repetir a semana passada. Sem pedido, vale `lastSentBaseUnits`, que lê no
+ * livro-razão quanto foi da última vez e serve à fábrica que repõe por hábito.
+ * Sem nenhum dos dois, não há palpite, e é honesto que não haja.
  */
 export default function TransferScreen() {
   return (
@@ -92,7 +101,19 @@ function Transfer() {
     };
   }, [line, to]);
 
-  const amount = typed ? Math.max(0, (parseTyped(amountText) ?? 0) || 0) : (lastSent ?? 0);
+  // A separação: o que aquela loja pediu e ainda não recebeu.
+  const { data: pedido } = useQuery<PickLine[]>(
+    () =>
+      to
+        ? pickingFor(LOCAL_COMPANY_ID, to.id, from, localDate(nowIso(), locale.timeZone, 7))
+        : Promise.resolve([]),
+    to?.id ?? '',
+  );
+  const paraSeparar = pedido?.find((p) => p.itemId === line?.itemId) ?? null;
+
+  const amount = typed
+    ? Math.max(0, (parseTyped(amountText) ?? 0) || 0)
+    : (paraSeparar?.ordered ?? lastSent ?? 0);
   const over = line != null && amount > line.baseUnits;
 
   const ready = line != null && to != null && amount > 0 && !over && !sending;
@@ -209,22 +230,40 @@ function Transfer() {
           <View style={{ gap: space.lg }}>
             <Field
               label={words.howMuch}
-              value={typed ? amountText : lastSent != null ? String(lastSent) : ''}
+              value={
+                typed
+                  ? amountText
+                  : paraSeparar
+                    ? String(paraSeparar.ordered)
+                    : lastSent != null
+                      ? String(lastSent)
+                      : ''
+              }
               onChangeText={(next) => {
                 setTyped(true);
                 setAmountText(next);
               }}
               keyboardType="numeric"
               suffix={line.baseUnit}
+              // A dica segue a mesma ordem do palpite: pedido primeiro, último
+              // envio depois, saldo por último. Ela diz DE ONDE veio o número,
+              // que é o que faz alguém confiar nele ou corrigi-lo.
               hint={
-                lastSent != null
-                  ? fill(words.lastTime, {
-                      amount: `${formatQuantity(lastSent, locale)} ${line.baseUnit}`,
+                paraSeparar
+                  ? fill(words.ordered, {
+                      date: paraSeparar.dueOn
+                        ? formatCalendarDate(paraSeparar.dueOn, locale)
+                        : '—',
+                      amount: `${formatQuantity(paraSeparar.ordered, locale)} ${line.baseUnit}`,
                     })
-                  : fill(words.available, {
-                      amount: `${formatQuantity(line.baseUnits, locale)} ${line.baseUnit}`,
-                      place: nameOf(from),
-                    })
+                  : lastSent != null
+                    ? fill(words.lastTime, {
+                        amount: `${formatQuantity(lastSent, locale)} ${line.baseUnit}`,
+                      })
+                    : fill(words.available, {
+                        amount: `${formatQuantity(line.baseUnits, locale)} ${line.baseUnit}`,
+                        place: nameOf(from),
+                      })
               }
             />
             {over ? (

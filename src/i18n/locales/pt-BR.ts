@@ -543,6 +543,8 @@ export const ptBR = {
       checkedShort: 'Conferido: faltaram {{amount}}.',
     },
     transfer: {
+      ordered: 'pedido para {{date}}: {{amount}}',
+      orderedNone: 'nenhum pedido em aberto para esta loja',
       title: 'Transferir',
       overline: 'o que sai da fábrica',
       notASale: 'Loja própria é transferência, não venda: não há faturamento nem margem aqui. O valor só muda de sala.',

@@ -512,6 +512,8 @@ export const es: Dictionary = {
       checkedShort: 'Revisado: faltaron {{amount}}.'
     },
     transfer: {
+      ordered: 'pedido para {{date}}: {{amount}}',
+      orderedNone: 'ningún pedido abierto para esta tienda',
       title: 'Transferir',
       overline: 'lo que sale de la fábrica',
       notASale: 'Tienda propia es transferencia, no venta: aquí no hay facturación ni margen. El valor solo cambia de sala.',

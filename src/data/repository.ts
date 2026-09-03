@@ -2222,6 +2222,77 @@ export async function findLot(companyId: string, lotId: string): Promise<LotOfDa
   };
 }
 
+/** O que uma loja pediu e ainda não recebeu: a lista de separação. */
+export type PickLine = {
+  itemId: string;
+  name: string;
+  /** Quanto foi pedido, somando os pedidos em aberto daquela loja. */
+  ordered: number;
+  /** Quanto disso a fábrica tem hoje, no lugar de onde a carga sai. */
+  available: number;
+  /** Para quando é o mais urgente dos pedidos. */
+  dueOn: string | null;
+};
+
+/**
+ * A separação: o que tirar do freezer para uma loja.
+ *
+ * A tela de transferência já sabia sugerir uma quantidade — a do último envio
+ * para aquela loja. É um bom palpite quando a fábrica repõe por hábito, e é o
+ * palpite errado quando existe um pedido: quem separa não quer repetir a semana
+ * passada, quer atender o que foi combinado.
+ *
+ * A lista NÃO reserva nada e não escreve no livro-razão. Ela lê pedido, que é
+ * demanda, e devolve fato: pedido, disponível e para quando. A carga continua
+ * sendo o único evento que move estoque — e é ela, mais tarde, que fecha o
+ * pedido.
+ *
+ * `available` sai da sala de onde a carga vai sair, não do total da empresa: de
+ * nada adianta saber que a fábrica tem trezentos se eles estão na outra câmara.
+ */
+export async function pickingFor(
+  companyId: string,
+  placeId: string,
+  fromLocationId: string,
+  through: string,
+): Promise<PickLine[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    item_id: string;
+    name: string;
+    ordered: number;
+    available: number;
+    due_on: string | null;
+  }>(
+    `SELECT ol.item_id, i.name,
+            SUM(ol.base_units) AS ordered,
+            MIN(o.requested_for) AS due_on,
+            (SELECT COALESCE(SUM(m.quantity_base_units), 0) FROM movements m
+              WHERE m.company_id = o.company_id
+                AND m.item_id = ol.item_id
+                AND m.location_id = ?) AS available
+       FROM order_lines ol
+       JOIN orders o ON o.id = ol.order_id
+       JOIN items i ON i.id = ol.item_id
+      WHERE o.company_id = ?
+        AND o.place_id = ?
+        AND o.status IN ('pending', 'open')
+        AND (o.requested_for IS NULL OR o.requested_for <= ?)
+      GROUP BY ol.item_id, i.name
+      HAVING ordered > 0
+      ORDER BY due_on, i.name COLLATE NOCASE`,
+    [fromLocationId, companyId, placeId, through],
+  );
+
+  return rows.map((r) => ({
+    itemId: r.item_id,
+    name: r.name,
+    ordered: r.ordered,
+    available: r.available,
+    dueOn: r.due_on,
+  }));
+}
+
 /** One destination's share of a day: who received it, and what. */
 export type Shipment = {
   /**

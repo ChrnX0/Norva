@@ -8,6 +8,7 @@ import { __setDb, migrate, migrationSteps, nowIso, type Db, type SqlParam } from
 import {
   balanceByLocation,
   findLot,
+  pickingFor,
   lastSentBaseUnits,
   recordProduction,
   runningOut,
@@ -1316,6 +1317,48 @@ test('the storeroom answers for one room when asked, and for the company when no
   // E as duas salas somam a empresa: se não somassem, uma das três contas
   // estaria mentindo.
   assert.equal((naFabrica?.onHandBaseUnits ?? 0) + (naFria?.onHandBaseUnits ?? 0), total);
+});
+
+test('the picking list says what the store ordered and what the room has', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const { id: loja } = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+  const [produto] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+
+  await recordProduction(LOCAL_COMPANY_ID, {
+    productId: produto.id,
+    locationId: fabrica,
+    batches: 1,
+    unitsProduced: 400,
+    producedOn: '2026-09-02',
+  });
+
+  await saveOrder(LOCAL_COMPANY_ID, {
+    placeId: loja,
+    requestedFor: '2026-09-04',
+    lines: [{ itemId: produto.itemId, baseUnits: 300 }],
+  });
+  await saveOrder(LOCAL_COMPANY_ID, {
+    placeId: loja,
+    requestedFor: '2026-09-05',
+    lines: [{ itemId: produto.itemId, baseUnits: 120 }],
+  });
+
+  const lista = await pickingFor(LOCAL_COMPANY_ID, loja, fabrica, '2026-09-10');
+  assert.equal(lista.length, 1);
+  assert.equal(lista[0].ordered, 420, 'os dois pedidos da loja somam');
+  assert.equal(lista[0].available, 400, 'e o disponível é o da SALA de onde a carga sai');
+
+  // A data é a do pedido mais urgente: é ela que decide o que separar primeiro.
+  assert.equal(lista[0].dueOn, '2026-09-04');
+
+  // Pedido de outra loja não entra nesta lista - separar é por destino.
+  const outra = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Norte', kind: 'own_store' });
+  assert.deepEqual(await pickingFor(LOCAL_COMPANY_ID, outra.id, fabrica, '2026-09-10'), []);
+
+  // E o que ainda não chegou na janela também não: separar é para hoje, não
+  // para o mês.
+  assert.deepEqual(await pickingFor(LOCAL_COMPANY_ID, loja, fabrica, '2026-09-03'), []);
 });
 
 test('a kettle is refused when the sugar is in the store, not in the factory', async () => {

@@ -506,6 +506,8 @@ export const en: Dictionary = {
       checkedShort: 'Checked: {{amount}} missing.',
     },
     transfer: {
+      ordered: 'ordered for {{date}}: {{amount}}',
+      orderedNone: 'no open order for this store',
       title: 'Transfer',
       overline: 'what leaves the factory',
       notASale: 'An own store is a transfer, not a sale: there is no revenue and no margin here. The value just changes rooms.',
