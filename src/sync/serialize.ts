@@ -119,6 +119,8 @@ function structure(value: unknown): unknown {
  * table is a decision about what the server should receive, not something to
  * infer at runtime.
  */
+export const CROSSINGS_FOR_TESTS_ONLY = () => CROSSINGS;
+
 const CROSSINGS: Record<
   ServerTable,
   {
@@ -174,6 +176,7 @@ const CROSSINGS: Record<
       'purchase_to_base',
       'base_unit',
       'created_at',
+      'full_level',
     ],
     build: (row) => ({ active: flag(row.active), packaging: structure(row.packaging) }),
   },

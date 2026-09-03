@@ -2043,3 +2043,33 @@ sinal de que a função está na camada errada.
 
 A mutação que guarda o caso está na lista (68 agora), e ela reprova se alguém
 trocar a loja pelo item de novo.
+
+## 3 de setembro — a régua que o dono digitava não saía do aparelho
+
+**O que se viu.** Auditando o eixo que o `CLAUDE.md` nomeia — *o que o aparelho
+grava contra o que o servidor aceitaria* — achei `items.full_level` fora do
+serializador. A coluna existia no aparelho, a tela escrevia nela, o teste do
+repositório provava que ela persistia, e ela **nunca chegaria ao servidor**.
+
+**Por que importa.** É a forma mais silenciosa de perda de dado que este projeto
+tem: nada falha. Um celular novo da mesma fábrica abriria sem faixa de cor
+nenhuma, o dono cadastraria a régua de novo, e ninguém saberia por quê. E o guard
+que já existe — o da sessão do aparelho — cobra **tabela** sem escritor, um andar
+acima de onde o defeito estava.
+
+**O que mudou.** A coluna atravessa, e nasceu um guard de **coluna**:
+`src/sync/columns.test.ts` compara cada coluna das tabelas do aparelho com o que o
+serializador manda, e exige que a diferença esteja **escrita** — ou vai no `take`,
+ou tem uma linha dizendo por que fica aqui. Registro em vez de heurística, como no
+`law.test.ts`: existem colunas que legitimamente não sobem, e a diferença entre
+"não sobe porque é do aparelho" e "não sobe porque alguém esqueceu" não está no
+nome dela.
+
+**E ele achou uma segunda no primeiro uso:** `purchase_lines.created_at`. Essa é
+legítima — o servidor não tem a coluna, a linha de compra herda a hora da nota — e
+agora está declarada com o motivo, em vez de ser uma ausência que ninguém sabia
+explicar.
+
+**A lista de colunas que o `build` acrescenta é obtida CHAMANDO o build**, não
+escrita ao lado dele. Uma lista à mão ao lado do código é a mesma lista à mão que
+já deixou `src/weather` fora da checagem de camadas por meses.
