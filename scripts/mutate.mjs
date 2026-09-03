@@ -28,9 +28,9 @@ import { spawnSync } from 'node:child_process';
 /** @type {{file: string, from: string, to: string, hurts: string}[]} */
 const DEFECTS = [
   {
-    file: 'app/transfer.tsx',
-    from: '  const suggestion = paraSeparar?.ordered ?? lastSent ?? null;',
-    to: '  const suggestion = lastSent ?? paraSeparar?.ordered ?? null;',
+    file: 'src/domain/picking.ts',
+    from: '  return sources.ordered ?? sources.lastSent ?? null;',
+    to: '  return sources.lastSent ?? sources.ordered ?? null;',
     hurts:
       'a separacao volta a sugerir o envio da semana passada em vez do que a loja pediu, e quem esta com a lista na mao repete o habito em vez de atender o combinado',
   },

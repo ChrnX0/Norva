@@ -21,6 +21,7 @@ import {
 } from '@/data/repository';
 import { nowIso } from '@/data/db';
 import { localDate } from '@/domain/day';
+import { pickSuggestion } from '@/domain/picking';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatCalendarDate, formatQuantity } from '@/i18n';
@@ -112,15 +113,18 @@ function Transfer() {
   const paraSeparar = pedido?.find((p) => p.itemId === line?.itemId) ?? null;
 
   /**
-   * O palpite, calculado UMA vez.
+   * O palpite, calculado uma vez e decidido no domínio.
    *
-   * Ele estava em dois lugares — o número mostrado no campo e o número usado
-   * para gravar — e as duas cópias podiam divergir sem ninguém notar: o mutante
-   * que invertia a ordem de preferência mudava o que era gravado e deixava a
-   * tela mostrando o outro número. Duas fontes para o mesmo fato é o começo de
-   * "o app gravou diferente do que estava escrito".
+   * Ele já esteve em dois lugares na tela — o número mostrado e o número usado
+   * para gravar —, o que deixava as duas cópias divergirem sem ninguém notar. E
+   * depois de unificado ainda escapava do `mutate`, que roda só a suíte rápida:
+   * regra dentro de componente não tem como ser exercitada por ela. Agora a
+   * ordem de preferência é `pickSuggestion`, com teste próprio.
    */
-  const suggestion = paraSeparar?.ordered ?? lastSent ?? null;
+  const suggestion = pickSuggestion({
+    ordered: paraSeparar?.ordered ?? null,
+    lastSent,
+  });
 
   const amount = typed ? Math.max(0, (parseTyped(amountText) ?? 0) || 0) : (suggestion ?? 0);
   const over = line != null && amount > line.baseUnits;
