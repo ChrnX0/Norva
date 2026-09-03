@@ -1916,3 +1916,34 @@ teste pega o caso real: uma tela nova com número nu quebra a suíte até algué
 responder a pergunta, e "é um formulário" é resposta válida desde que escrita.
 Foi provado nos dois sentidos — uma tela falsa com `type.figure` reprova, e apagar
 a comparação de uma tela declarada reprova.
+
+## 3 de setembro — a loja que o sistema só via depois da primeira carga
+
+**O que se viu.** Construindo a ficha de acordo, a tela de lugares mostrou uma
+coisa que não tinha nada a ver com o acordo: ela lista `stockByPlace`, e essa
+consulta começa em `movements`. Um lugar sem movimento não existe para ela. Uma
+loja cadastrada hoje de manhã só aparece na lista depois que alguém manda a
+primeira carga para lá.
+
+**Por que importa.** A ordem real do trabalho é a inversa: cadastra a loja,
+combina o dia de entrega e o telefone, e **só então** manda a primeira carga.
+Durante toda essa janela a loja está invisível na única tela que a lista — e o
+menu chama essa tela de "Lojas e clientes". O efeito previsível não é o usuário
+reclamar: é ele cadastrar a mesma loja de novo, e a fábrica passar a ter duas
+"Loja Centro" com saldo dividido entre elas. Nenhum alerta acusaria isso, porque
+duas lojas com nomes parecidos são um cadastro perfeitamente válido.
+
+**O que mudou.** A tela passou a listar **lugares**, com o saldo encaixado
+quando existe: quem não tem nada mostra "nada aqui ainda" em vez de sumir. É a
+mesma distinção que o projeto já fez em outro canto — a consulta que responde
+"quanto tem" não é a que responde "quem existe", e usar uma no lugar da outra
+some com o que ainda não se moveu.
+
+**E o `mutate` pegou um guarda que era decoração.** `agreedOn(days, weekday)`
+tinha `if (weekday < 0 || weekday > 6) return false` e apagar essa linha não
+quebrava teste nenhum. O motivo não era teste fraco: indexar fora da tabela de
+bits devolve `undefined`, que vira zero na conta e responde "não combinado"
+sozinho — o guarda não mudava comportamento nenhum. Virou `RangeError`, porque um
+oitavo dia é bug de quem chamou e um "não" educado esconde o bug atrás de uma
+frase plausível na tela. Foi o segundo achado do dia em que a ferramenta mostrou
+que uma regra estava sustentada por coincidência da linguagem, não por decisão.
