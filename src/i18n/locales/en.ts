@@ -347,6 +347,8 @@ export const en: Dictionary = {
         packaging: 'Stick, wrapper, label — nothing yet.',
         storeSupply: 'Cup, spoon, napkin — nothing yet.',
       },
+      everywhere: 'Everywhere',
+      inRoom: 'in the chosen place',
       heldTitle: 'SITTING IN THE STOREROOM',
       heldDetail: '{{count}} · at each one average cost',
       withoutPrice:

@@ -5,7 +5,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { ListRow } from '@/components/ListRow';
-import { listItems, type ItemKind, type ItemWithCost } from '@/data/repository';
+import { listPlaces, listItems, type ItemKind, type ItemWithCost } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatMoney, formatQuantity } from '@/i18n';
@@ -43,8 +43,19 @@ function InputsList() {
   const router = useRouter();
   const { locale, t } = useLocale();
   const [kind, setKind] = useState<ItemKind>('input');
+  /**
+   * A sala escolhida. Nula é "todos os lugares", e é o padrão.
+   *
+   * A pergunta "qual sala?" só existe onde existe mais de uma: numa fábrica de
+   * um lugar só, oferecer o filtro é pedir o que o sistema já sabe.
+   */
+  const [place, setPlace] = useState<string | null>(null);
 
-  const { data, loading } = useQuery(() => listItems(LOCAL_COMPANY_ID));
+  const { data: places } = useQuery(() => listPlaces(LOCAL_COMPANY_ID));
+  const { data, loading } = useQuery(
+    () => listItems(LOCAL_COMPANY_ID, undefined, false, place ?? undefined),
+    place ?? '',
+  );
   const all = useMemo(() => data ?? [], [data]);
   const shown = all.filter((item) => item.kind === kind);
 
@@ -101,6 +112,51 @@ function InputsList() {
           </View>
         </ScrollView>
       </Card>
+
+      {/* O filtro de sala, e ele só aparece quando há sala para filtrar.
+          Com a polpa dividida entre a fábrica e a câmara fria, o total da
+          empresa continua certo e continua respondendo a pergunta errada para
+          quem está no tacho: o que importa ali é o que tem NAQUELA sala. */}
+      {(places ?? []).length > 1 ? (
+        <Card>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={{ flexDirection: 'row', gap: space.sm }}>
+              {[null, ...(places ?? []).map((p) => p.id)].map((id) => {
+                const active = place === id;
+                const lugar = (places ?? []).find((p) => p.id === id);
+                return (
+                  <Pressable
+                    key={id ?? 'todos'}
+                    onPress={() => setPlace(id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    style={{
+                      borderWidth: StyleSheet.hairlineWidth * 2,
+                      borderColor: active ? accent : color.line,
+                      backgroundColor: active ? `${accent}18` : 'transparent',
+                      borderRadius: 999,
+                      paddingHorizontal: space.md,
+                      paddingVertical: space.sm,
+                    }}
+                  >
+                    <Text
+                      style={[
+                        type.secondary,
+                        {
+                          color: active ? color.ink : color.inkMuted,
+                          fontWeight: active ? '600' : '400',
+                        },
+                      ]}
+                    >
+                      {id === null ? t.app.inputs.everywhere : (lugar?.name || t.app.places.factory)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </Card>
+      ) : null}
 
       {shown.length > 0 ? (
         <Card tone="area">

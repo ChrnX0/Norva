@@ -28,6 +28,15 @@ import { spawnSync } from 'node:child_process';
 /** @type {{file: string, from: string, to: string, hurts: string}[]} */
 const DEFECTS = [
   {
+    file: 'src/data/repository.ts',
+    from: `              WHERE m.company_id = i.company_id AND m.item_id = i.id
+                AND (? IS NULL OR m.location_id = ?))`,
+    to: `              WHERE m.company_id = i.company_id AND m.item_id = i.id)`,
+    hurts:
+      'o almoxarifado volta a somar a empresa inteira mesmo quando perguntam por uma sala, e quem esta no tacho ve 34 kg de polpa que estao na camara fria',
+  },
+
+  {
     file: 'src/domain/qr.ts',
     from: "  const code = create(text, { errorCorrectionLevel: 'H' });",
     to: "  const code = create(text, { errorCorrectionLevel: 'L' });",

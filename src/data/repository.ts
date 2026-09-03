@@ -63,11 +63,29 @@ function parsePackaging(json: string): PackagingHierarchy {
 
 // --- items -----------------------------------------------------------------
 
+/**
+ * O catálogo com o saldo de cada item — e a partir de agora, o saldo de ONDE.
+ *
+ * Sem `locationId`, a soma é da empresa inteira: é o que estava certo enquanto
+ * havia uma sala só, e continua certo para a fábrica que tem uma. Com ele, a
+ * soma é daquela sala.
+ *
+ * A generalização é a que o `CLAUDE.md` nomeia como o primeiro pedido da Fase 2,
+ * e o defeito que ela fecha é este: com a polpa dividida entre a fábrica e a
+ * câmara fria, o almoxarifado dizia "34 kg" enquanto quem estava no tacho tinha
+ * 20 na mão. O número não estava errado — estava respondendo outra pergunta.
+ *
+ * O padrão continua sendo a empresa toda, e não é preguiça: quem tem um lugar só
+ * nunca deve ver um filtro de lugar. A pergunta "qual sala?" só existe onde
+ * existe mais de uma.
+ */
 export async function listItems(
   companyId: string,
   kind?: ItemKind,
   /** Deactivated items are excluded unless a screen is explicitly showing them. */
   includeInactive = false,
+  /** A sala. Sem ela, a soma é da empresa inteira. */
+  locationId?: string,
 ): Promise<ItemWithCost[]> {
   const conn = await db();
   const rows = await conn.getAllAsync<{
@@ -86,7 +104,8 @@ export async function listItems(
     `SELECT i.id, i.kind, i.name, i.purchase_unit, i.purchase_to_base, i.base_unit, i.packaging,
             i.active, c.average_rate, c.last_rate,
             (SELECT COALESCE(SUM(m.quantity_base_units), 0) FROM movements m
-              WHERE m.company_id = i.company_id AND m.item_id = i.id)
+              WHERE m.company_id = i.company_id AND m.item_id = i.id
+                AND (? IS NULL OR m.location_id = ?))
               AS on_hand_base_units
        FROM items i
        LEFT JOIN item_costs c ON c.item_id = i.id
@@ -94,7 +113,14 @@ export async function listItems(
         AND (? = 1 OR i.active = 1)
         AND (? IS NULL OR i.kind = ?)
       ORDER BY i.name COLLATE NOCASE`,
-    [companyId, includeInactive ? 1 : 0, kind ?? null, kind ?? null],
+    [
+      locationId ?? null,
+      locationId ?? null,
+      companyId,
+      includeInactive ? 1 : 0,
+      kind ?? null,
+      kind ?? null,
+    ],
   );
 
   return rows.map((r) => ({

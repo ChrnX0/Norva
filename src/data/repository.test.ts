@@ -1277,6 +1277,47 @@ test('a product with no shelf life still gets a lot, without a date', async () =
   assert.equal(gravado?.produced_on, '2026-09-02');
 });
 
+test('the storeroom answers for one room when asked, and for the company when not', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const { id: fria } = await savePlace(LOCAL_COMPANY_ID, {
+    name: 'Câmara fria',
+    kind: 'cold_room',
+  });
+
+  const [insumo] = (await listItems(LOCAL_COMPANY_ID)).filter((i) => i.onHandBaseUnits > 0);
+  const total = insumo.onHandBaseUnits;
+  const metade = Math.floor(total / 2);
+
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: insumo.id,
+    baseUnits: metade,
+    fromLocationId: fabrica,
+    toLocationId: fria,
+  });
+
+  // Sem sala, a resposta é a empresa inteira - e ela não mudou, porque
+  // transferir não cria nem destrói nada.
+  const empresa = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.id === insumo.id);
+  assert.equal(empresa?.onHandBaseUnits, total);
+
+  // Com sala, a resposta é daquela sala. Era isto que faltava: com a polpa
+  // dividida, o almoxarifado dizia 34 kg enquanto quem estava no tacho tinha 20
+  // na mão. O número não estava errado - estava respondendo outra pergunta.
+  const naFabrica = (await listItems(LOCAL_COMPANY_ID, undefined, false, fabrica)).find(
+    (i) => i.id === insumo.id,
+  );
+  const naFria = (await listItems(LOCAL_COMPANY_ID, undefined, false, fria)).find(
+    (i) => i.id === insumo.id,
+  );
+  assert.equal(naFria?.onHandBaseUnits, metade);
+  assert.equal(naFabrica?.onHandBaseUnits, total - metade);
+
+  // E as duas salas somam a empresa: se não somassem, uma das três contas
+  // estaria mentindo.
+  assert.equal((naFabrica?.onHandBaseUnits ?? 0) + (naFria?.onHandBaseUnits ?? 0), total);
+});
+
 test('a kettle is refused when the sugar is in the store, not in the factory', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
   const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);

@@ -383,6 +383,8 @@ export const ptBR = {
         packaging: 'Palito, saquinho, rótulo — nada ainda.',
         storeSupply: 'Copo, colher, guardanapo — nada ainda.',
       },
+      everywhere: 'Todos os lugares',
+      inRoom: 'no lugar escolhido',
       heldTitle: 'PARADO NO ESTOQUE',
       heldDetail: '{{count}} · ao custo médio de cada um',
       withoutPrice:

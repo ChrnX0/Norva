@@ -352,6 +352,8 @@ export const es: Dictionary = {
         packaging: 'Palito, bolsita, etiqueta — nada todavía.',
         storeSupply: 'Vaso, cuchara, servilleta — nada todavía.',
       },
+      everywhere: 'Todos los lugares',
+      inRoom: 'en el lugar elegido',
       heldTitle: 'PARADO EN EL ALMACÉN',
       heldDetail: '{{count}} · al costo promedio de cada uno',
       withoutPrice:
