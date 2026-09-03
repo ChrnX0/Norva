@@ -1949,6 +1949,101 @@ test('what is running out comes from what actually left, and a still input never
   );
 });
 
+test('what is running out answers for the room you are looking at, and for the kind', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const centro = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+
+  for (const item of await listItems(LOCAL_COMPANY_ID)) {
+    if (item.kind !== 'input' && item.kind !== 'packaging') continue;
+    await recordPurchase(LOCAL_COMPANY_ID, {
+      itemId: item.id,
+      purchaseQuantity: 1,
+      baseUnits: 500_000,
+      totalCents: fromDecimal(1000),
+      occurredAt: '2026-02-28T08:00:00.000Z',
+    });
+  }
+  for (let d = 1; d <= 7; d += 1) {
+    await recordProduction(LOCAL_COMPANY_ID, {
+      productId: product.id,
+      locationId: fabrica,
+      batches: 1,
+      unitsProduced: 100,
+      occurredAt: `2026-03-0${d}T10:00:00.000Z`,
+      producedOn: localDate(`2026-03-0${d}T10:00:00.000Z`, 'America/Sao_Paulo'),
+    });
+  }
+  // Uma parte do açúcar dorme na loja. Ele tem saldo lá e nenhuma saída lá.
+  const acucar = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.name.includes('Açúcar'));
+  assert.ok(acucar, 'o exemplo semeado tem açúcar');
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: acucar.id,
+    fromLocationId: fabrica,
+    toLocationId: centro.id,
+    baseUnits: 10_000,
+    occurredAt: '2026-03-01T09:00:00.000Z',
+  });
+
+  const de = '2026-03-01T00:00:00.000Z';
+  const ate = '2026-03-08T00:00:00.000Z';
+  const empresa = await runningOut(LOCAL_COMPANY_ID, de, ate, 7, 3650);
+  assert.ok(
+    empresa.some((r) => r.itemId === acucar.id),
+    'na empresa inteira o açúcar sai, então ele tem data de acabar',
+  );
+
+  // Na loja o mesmo açúcar está parado: tem saldo, não tem saída. Uma data de
+  // acabar aqui seria inventada, e é exatamente a que a fábrica aprende a ignorar.
+  const naLoja = await runningOut(LOCAL_COMPANY_ID, de, ate, 7, 3650, centro.id);
+  assert.ok(
+    !naLoja.some((r) => r.itemId === acucar.id),
+    'o que não sai daquela sala não acaba naquela sala',
+  );
+
+  // E a fábrica, que é de onde ele saiu, continua respondendo.
+  const naFabrica = await runningOut(LOCAL_COMPANY_ID, de, ate, 7, 3650, fabrica);
+  const laFora = naFabrica.find((r) => r.itemId === acucar.id);
+  const total = empresa.find((r) => r.itemId === acucar.id);
+  assert.ok(laFora && total, 'o açúcar acaba nos dois recortes');
+  assert.ok(
+    laFora.onHandBaseUnits < total.onHandBaseUnits,
+    'o saldo da sala é menor que o da empresa — o que foi para a loja não está no tacho',
+  );
+
+  // O tipo também é recorte: uma tela que mostra só embalagem não pode receber
+  // a frase de um insumo debaixo do dinheiro dela.
+  //
+  // A produção não consome embalagem em movimento — ela cobra centavos por
+  // unidade, e o saldo de palito só sobe. É fronteira registrada
+  // (`docs/insights.md`, "o custo que sete telas prometiam"), não defeito, e o
+  // que faz palito sair hoje é ele ir para outro lugar. Sem essa saída, pedir
+  // 'packaging' voltaria vazio e o teste passaria sem tocar no filtro.
+  const palito = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.name.includes('Palito'));
+  assert.ok(palito, 'o exemplo semeado tem palito');
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: palito.id,
+    fromLocationId: fabrica,
+    toLocationId: centro.id,
+    baseUnits: 20_000,
+    occurredAt: '2026-03-02T09:00:00.000Z',
+  });
+
+  const soEmbalagem = await runningOut(LOCAL_COMPANY_ID, de, ate, 7, 3650, fabrica, ['packaging']);
+  assert.deepEqual(
+    soEmbalagem.map((r) => r.itemId),
+    [palito.id],
+    'pedindo embalagem, só volta embalagem',
+  );
+  const soInsumo = await runningOut(LOCAL_COMPANY_ID, de, ate, 7, 3650, fabrica, ['input']);
+  assert.ok(soInsumo.length > 0, 'sete dias de produção consomem insumo');
+  assert.ok(
+    !soInsumo.some((r) => r.itemId === palito.id),
+    'pedindo insumo, o palito não entra',
+  );
+});
+
 /**
  * Pedidos: a regra que este bloco existe para segurar é uma só, e ela é a
  * fundação inteira em uma frase - pedido não é movimento. Se um dia alguém

@@ -370,6 +370,9 @@ export const en: Dictionary = {
       },
       everywhere: 'Everywhere',
       inRoom: 'in the chosen place',
+      coverComfortable: 'nothing here runs out within a month',
+      shortestCover: 'the tightest is {{item}}, running out in {{days}}',
+      coverUnknown: 'no usage on the books yet — nobody knows how long this lasts',
       heldTitle: 'SITTING IN THE STOREROOM',
       heldDetail: '{{count}} · at each one average cost',
       withoutPrice:

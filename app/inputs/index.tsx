@@ -5,10 +5,18 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { ListRow } from '@/components/ListRow';
-import { listPlaces, listItems, type ItemKind, type ItemWithCost } from '@/data/repository';
+import {
+  listPlaces,
+  listItems,
+  runningOut,
+  type ItemKind,
+  type ItemWithCost,
+} from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
-import { fill, formatMoney, formatQuantity } from '@/i18n';
+import { nowIso } from '@/data/db';
+import { dayWindow } from '@/domain/day';
+import { fill, formatMoney, formatQuantity, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -56,6 +64,32 @@ function InputsList() {
     () => listItems(LOCAL_COMPANY_ID, undefined, false, place ?? undefined),
     place ?? '',
   );
+
+  /**
+   * Quanto tempo o dinheiro do topo dura.
+   *
+   * Dinheiro parado sozinho não responde nada: R$ 1.500 é muito para uma
+   * fábrica e pouco para outra. O que a Lei da Inteligência pede ao lado do
+   * número é a comparação, e a comparação honesta aqui não é o mês passado — é
+   * quanto tempo isso aguenta na saída que a própria fábrica registrou.
+   *
+   * O recorte é o mesmo do dinheiro: a aba escolhida e a sala escolhida. Uma
+   * frase que fale de insumo debaixo do total de embalagem é pior que frase
+   * nenhuma.
+   */
+  const { data: cover } = useQuery(() => {
+    const today = dayWindow(nowIso(), locale.timeZone);
+    const lastWeek = dayWindow(nowIso(), locale.timeZone, -7);
+    return runningOut(
+      LOCAL_COMPANY_ID,
+      lastWeek.from,
+      today.to,
+      7,
+      Number.POSITIVE_INFINITY,
+      place ?? undefined,
+      [kind],
+    );
+  }, `${kind}:${place ?? ''}`);
   const all = useMemo(() => data ?? [], [data]);
   const shown = all.filter((item) => item.kind === kind);
 
@@ -171,6 +205,20 @@ function InputsList() {
               }`,
             })}
           </Text>
+          {/* A comparação. Sem saída registrada não existe conta, e dizer isso é
+              mais honesto que inventar uma data de acabar. */}
+          {cover ? (
+            <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
+              {cover.length === 0
+                ? t.app.inputs.coverUnknown
+                : cover[0].daysLeft > 30
+                  ? t.app.inputs.coverComfortable
+                  : fill(t.app.inputs.shortestCover, {
+                      item: cover[0].name,
+                      days: plural(Math.floor(cover[0].daysLeft), t.app.home.dayCount),
+                    })}
+            </Text>
+          ) : null}
           {withoutPrice > 0 ? (
             <Text style={[type.caption, { color: color.warning, marginTop: space.sm }]}>
               {fill(t.app.inputs.withoutPrice, {

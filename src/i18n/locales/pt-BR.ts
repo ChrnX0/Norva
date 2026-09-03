@@ -406,6 +406,9 @@ export const ptBR = {
       },
       everywhere: 'Todos os lugares',
       inRoom: 'no lugar escolhido',
+      coverComfortable: 'nada aqui acaba antes de um mês',
+      shortestCover: 'o mais curto é {{item}}, que acaba em {{days}}',
+      coverUnknown: 'sem saída registrada ainda — ninguém sabe quanto tempo isso dura',
       heldTitle: 'PARADO NO ESTOQUE',
       heldDetail: '{{count}} · ao custo médio de cada um',
       withoutPrice:

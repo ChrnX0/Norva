@@ -375,6 +375,9 @@ export const es: Dictionary = {
       },
       everywhere: 'Todos los lugares',
       inRoom: 'en el lugar elegido',
+      coverComfortable: 'nada aquí se acaba antes de un mes',
+      shortestCover: 'el más corto es {{item}}, que se acaba en {{days}}',
+      coverUnknown: 'sin salida registrada aún — nadie sabe cuánto dura esto',
       heldTitle: 'PARADO EN EL ALMACÉN',
       heldDetail: '{{count}} · al costo promedio de cada uno',
       withoutPrice:

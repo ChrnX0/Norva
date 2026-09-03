@@ -149,6 +149,14 @@ check('the storeroom is seeded on a deep link, not only from home', async (page)
   assert.match(text, /R\$ 1\.552,50/, 'the four inputs are worth this much at average cost');
   assert.match(text, /Polpa de morango/);
   assert.doesNotMatch(text, /Nada cadastrado ainda/);
+
+  // Dinheiro parado sozinho não responde nada. No exemplo semeado nada saiu
+  // ainda, então a frase honesta é a de que ninguém sabe quanto isso dura.
+  assert.match(
+    text,
+    /sem saída registrada ainda|acaba em|antes de um mês/,
+    'o dinheiro parado vem com quanto tempo ele dura',
+  );
 });
 
 check('a product says how many units a batch makes, in one language', async (page) => {

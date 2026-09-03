@@ -2849,6 +2849,16 @@ export async function runningOut(
   toIso: string,
   days: number,
   horizon = 7,
+  /** A sala. Sem ela, a conta é da empresa inteira — como na capa. */
+  locationId?: string,
+  /**
+   * Que tipo de item entra na conta.
+   *
+   * O padrão é o que a capa pergunta: insumo e embalagem acabam no meio da
+   * corrida e param a fábrica. Uma tela que já está filtrando por tipo passa o
+   * dela, senão o número do topo fala de um conjunto e a frase debaixo de outro.
+   */
+  kinds: readonly ItemKind[] = ['input', 'packaging'],
 ): Promise<Running[]> {
   const conn = await db();
   const rows = await conn.getAllAsync<{
@@ -2860,14 +2870,27 @@ export async function runningOut(
   }>(
     `SELECT i.id AS item_id, i.name, i.base_unit,
             COALESCE((SELECT SUM(m.quantity_base_units) FROM movements m
-                       WHERE m.company_id = i.company_id AND m.item_id = i.id), 0) AS on_hand,
+                       WHERE m.company_id = i.company_id AND m.item_id = i.id
+                         AND (? IS NULL OR m.location_id = ?)), 0) AS on_hand,
             COALESCE((SELECT -SUM(m.quantity_base_units) FROM movements m
                        WHERE m.company_id = i.company_id AND m.item_id = i.id
                          AND m.quantity_base_units < 0
+                         AND (? IS NULL OR m.location_id = ?)
                          AND m.occurred_at >= ? AND m.occurred_at < ?), 0) AS out_units
        FROM items i
-      WHERE i.company_id = ? AND i.active = 1 AND i.kind IN ('input', 'packaging')`,
-    [fromIso, toIso, companyId],
+      WHERE i.company_id = ? AND i.active = 1
+        AND i.kind IN (${kinds.map(() => '?').join(', ')})`,
+    [
+      // Dois pares de sala: um para o saldo, outro para a saída.
+      locationId ?? null,
+      locationId ?? null,
+      locationId ?? null,
+      locationId ?? null,
+      fromIso,
+      toIso,
+      companyId,
+      ...kinds,
+    ],
   );
 
   const out: Running[] = [];
