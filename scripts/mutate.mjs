@@ -28,6 +28,21 @@ import { spawnSync } from 'node:child_process';
 /** @type {{file: string, from: string, to: string, hurts: string}[]} */
 const DEFECTS = [
   {
+    file: 'src/domain/briefing.ts',
+    from: '  return [...ordenadas, ...novas].filter((w) => !escondidas.has(w));',
+    to: '  return [...ordenadas, ...novas];',
+    hurts:
+      'o que o aparelho escondeu volta a aparecer na capa, e quem tirou o cartao de preco do caminho na camara fria o encontra la de novo',
+  },
+  {
+    file: 'src/domain/briefing.ts',
+    from: '  const ordenadas = companyOrder.filter((w): w is BriefingWidget => known.has(w));',
+    to: '  const ordenadas = companyOrder as BriefingWidget[];',
+    hurts:
+      'uma peca que saiu do catalogo continua na preferencia guardada e a capa quebra na atualizacao, no aparelho de quem ja usava',
+  },
+
+  {
     file: 'src/domain/picking.ts',
     from: '  return sources.ordered ?? sources.lastSent ?? null;',
     to: '  return sources.lastSent ?? sources.ordered ?? null;',

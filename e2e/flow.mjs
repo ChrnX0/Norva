@@ -1082,6 +1082,38 @@ check('the app has two faces, and the choice survives leaving the screen', async
   assert.match(comPaleta, /Terracota/, 'com as cinco paletas por nome');
 });
 
+check('the home is assembled from pieces the house chose', async (page) => {
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const ajustes = await screen(page);
+  assert.match(ajustes, /O que aparece na tela inicial/, 'a capa é configurável nos ajustes');
+  assert.match(ajustes, /Produção do dia/);
+  assert.match(ajustes, /Tempo/);
+
+  // Esconder o tempo neste aparelho tira o cartão da capa - e a ordem que a
+  // casa combinou continua a mesma para todo mundo.
+  const linhaDoTempo = page.getByLabel(/^Tempo: (Esconder|Mostrar)$/);
+  await linhaDoTempo.first().click();
+  await page.waitForTimeout(1200);
+  assert.match(await screen(page), /escondido aqui/, 'a peça escondida diz que está escondida');
+
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(3000);
+  assert.doesNotMatch(
+    await screen(page),
+    /medido às|trocar a cidade/,
+    'o cartão do tempo sai da capa deste aparelho',
+  );
+
+  // E volta quando alguém quer de volta: esconder não é apagar.
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/^Tempo: (Esconder|Mostrar)$/).first().click();
+  await page.waitForTimeout(1200);
+  assert.doesNotMatch(await screen(page), /Tempo · escondido aqui/);
+});
+
 check('erasing refuses in an order, and explains the way out', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

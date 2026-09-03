@@ -6,6 +6,8 @@ import {
   productionBetween,
   productionOn,
   runningOut,
+  briefingHidden,
+  briefingOrder,
   recentCostChanges,
   shipmentsOn,
 } from '@/data/repository';
@@ -14,6 +16,7 @@ import { reading, type Forecast } from '@/weather';
 import { forecastForScreen } from '@/weather/live';
 import { brand } from '@/config/brand';
 import { useQuery } from '@/data/useQuery';
+import { briefingLayout } from '@/domain/briefing';
 import { nowIso } from '@/data/db';
 import { dailySeries, dayWindow, localDate } from '@/domain/day';
 import { boxesOf } from '@/domain/units';
@@ -214,7 +217,14 @@ function Briefing() {
     .filter((c, i, all) => all.findIndex((other) => other.itemId === c.itemId) === i)
     .slice(0, 4);
 
+  // A ordem das peças: a da casa, sem o que este aparelho escondeu.
+  const { data: preferencia } = useQuery(async () => {
+    const [order, hidden] = await Promise.all([briefingOrder(), briefingHidden()]);
+    return briefingLayout(order, hidden);
+  });
+
   const view: BriefingView = {
+    layout: preferencia ?? briefingLayout([], []),
     data: data ?? null,
     sky,
     weather: weather ?? null,

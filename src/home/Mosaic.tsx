@@ -1,3 +1,4 @@
+import { Fragment, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Bars } from '@/components/Bars';
 import { Card } from '@/components/Card';
@@ -20,6 +21,7 @@ import {
 } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
+import type { BriefingWidget } from '@/domain/briefing';
 import type { BriefingView } from './types';
 
 /**
@@ -30,18 +32,32 @@ import type { BriefingView } from './types';
  * fazem o olho entender a hierarquia sem ler uma palavra - e quebram a pilha de
  * retângulos iguais que o dono recusou.
  */
-export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, go }: BriefingView) {
+export function Mosaic({
+  data,
+  sky,
+  weather,
+  shortForOrders,
+  moved,
+  comparison,
+  layout,
+  go,
+}: BriefingView) {
   const { color, type, space, palette, skin } = useTheme();
   const { locale, t } = useLocale();
 
   // A espessura do traço é da identidade: fino no Papel, cheio no Orgânico.
   const traco = skin === 'papel' ? 1.7 : 2.2;
 
-  return (
-    <>
-      {/* A cena viva abre a capa, e cada coisa que se mexe nela é um fato:
-          fumaça só com tacho aberto, picolé enchendo na proporção do dia contra
-          ontem, caixa entrando quando saiu carga. */}
+  /**
+   * As peças da capa, montadas na ordem que a casa combinou.
+   *
+   * Cada uma continua decidindo sozinha se tem o que dizer — ligar não é
+   * forçar. O que a preferência decide é a ORDEM e a presença; o que decide se
+   * a peça aparece é o dado dela.
+   */
+  const pecas: Record<BriefingWidget, ReactNode> = {
+    producao: (
+      <>
       <Reveal index={0}>
         <Card
           hue={palette.apricot}
@@ -101,7 +117,10 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
           ) : null}
         </Card>
       </Reveal>
-
+      </>
+    ),
+    insumos: (
+      <>
       {/* A fileira de peças: o que não é manchete divide a linha. */}
       <Reveal index={1}>
         <View style={{ flexDirection: 'row', gap: space.md }}>
@@ -144,7 +163,10 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
           ) : null}
         </View>
       </Reveal>
-
+      </>
+    ),
+    pedidos: (
+      <>
       {data && data.demand.length > 0 ? (
         <Reveal index={2}>
           <Touchable
@@ -178,7 +200,10 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
           </Touchable>
         </Reveal>
       ) : null}
-
+      </>
+    ),
+    clima: (
+      <>
       {sky ? (
         <Reveal index={3}>
           <Touchable onPress={() => go('/weather')} accessibilityLabel={fill(t.app.weather.overline, { city: weather?.place.name ?? '' })}>
@@ -215,7 +240,10 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
           </Touchable>
         </Reveal>
       ) : null}
-
+      </>
+    ),
+    tacho: (
+      <>
       {data?.running.map((run, i) => (
         <Reveal key={run.id} index={4 + i}>
           <Touchable onPress={() => go('/production')} accessibilityLabel={`${t.app.home.running}: ${run.productName}`}>
@@ -234,7 +262,11 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
           </Touchable>
         </Reveal>
       ))}
-
+      </>
+    ),
+    expedicao: null,
+    precos: (
+      <>
       {moved.length > 0 ? (
         <Reveal index={6}>
           <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.changed}>
@@ -259,9 +291,11 @@ export function Mosaic({ data, sky, weather, shortForOrders, moved, comparison, 
           </Touchable>
         </Reveal>
       ) : null}
+      </>
+    ),
+  };
 
-    </>
-  );
+  return <>{layout.map((id) => <Fragment key={id}>{pecas[id]}</Fragment>)}</>;
 }
 
 const styles = StyleSheet.create({

@@ -1,14 +1,24 @@
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { brand } from '@/config/brand';
-import { countForErase, eraseArea, ordersNeedApproval, setOrdersNeedApproval } from '@/data/repository';
+import {
+  briefingHidden,
+  briefingOrder,
+  countForErase,
+  eraseArea,
+  ordersNeedApproval,
+  setBriefingHidden,
+  setBriefingOrder,
+  setOrdersNeedApproval,
+} from '@/data/repository';
 import { useAppearance } from '@/theme/Appearance';
+import { briefingLayout, moveWidget, type BriefingWidget } from '@/domain/briefing';
 import { hues } from '@/theme/tokens';
 import {
   blockerFor,
@@ -108,6 +118,42 @@ function sayTally(area: EraseArea, tally: EraseTally, t: Dictionary): string {
 function Settings() {
   const { color, type, space, radius, accent } = useTheme();
   const { skin, setSkin, hue, setHue } = useAppearance();
+
+  /**
+   * A capa combinada e o que este aparelho esconde.
+   *
+   * Duas listas porque são dois donos: a ordem é da casa, o esconder é do
+   * celular. Guardar as duas juntas faria a preferência de um virar decisão do
+   * outro na primeira sincronização.
+   */
+  const [ordem, setOrdem] = useState<BriefingWidget[]>(() => briefingLayout([], []));
+  const [escondidos, setEscondidos] = useState<string[]>([]);
+
+  useEffect(() => {
+    let vivo = true;
+    void Promise.all([briefingOrder(), briefingHidden()]).then(([salva, ocultos]) => {
+      if (!vivo) return;
+      setOrdem(briefingLayout(salva, []));
+      setEscondidos(ocultos);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  const mover = async (widget: BriefingWidget, direcao: 'up' | 'down') => {
+    const nova = moveWidget(ordem, widget, direcao);
+    setOrdem(nova);
+    await setBriefingOrder(nova);
+  };
+
+  const trocarVisibilidade = async (widget: BriefingWidget) => {
+    const nova = escondidos.includes(widget)
+      ? escondidos.filter((w) => w !== widget)
+      : [...escondidos, widget];
+    setEscondidos(nova);
+    await setBriefingHidden(nova);
+  };
   const { locale, t } = useLocale();
   const confirm = useConfirm();
   const router = useRouter();
@@ -285,6 +331,76 @@ function Settings() {
             />
           </View>
         ) : null}
+      </Card>
+
+      {/* As peças da capa: o que aparece, em que ordem, e o que este aparelho
+          prefere não ver.
+
+          A ordem é da CASA porque a frase mais comum de uma fábrica é "olha lá
+          na tela inicial" — se cada um monta a sua, ela para de funcionar.
+          Esconder é do aparelho, porque quem está na câmara fria não quer o
+          cartão de preço no caminho e isso não muda o que a casa combinou.
+
+          Seta em vez de arrastar: arrastar pede pressão longa e precisão, que é
+          o que menos existe numa mão de luva a dezoito graus negativos. */}
+      <Card>
+        <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.settings.briefing.label}</Text>
+        <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
+          {t.app.settings.briefing.hint}
+        </Text>
+
+        <View style={{ marginTop: space.md, gap: space.xs }}>
+          {ordem.map((widget, i) => {
+            const escondido = escondidos.includes(widget);
+            return (
+              <View key={widget} style={[styles.row, { gap: space.sm, paddingVertical: space.xs }]}>
+                <Text
+                  style={[
+                    type.body,
+                    { color: escondido ? color.inkFaint : color.ink, flex: 1 },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {t.app.settings.briefing.widgets[widget]}
+                  {escondido ? ` · ${t.app.settings.briefing.hidden}` : ''}
+                </Text>
+
+                <Pressable
+                  onPress={() => void trocarVisibilidade(widget)}
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: !escondido }}
+                  accessibilityLabel={`${t.app.settings.briefing.widgets[widget]}: ${
+                    escondido ? t.app.settings.briefing.show : t.app.settings.briefing.hide
+                  }`}
+                >
+                  <Chip
+                    signal={escondido ? 'neutral' : 'ok'}
+                    label={escondido ? t.app.settings.briefing.show : t.app.settings.briefing.hide}
+                  />
+                </Pressable>
+
+                <Pressable
+                  onPress={() => void mover(widget, 'up')}
+                  disabled={i === 0}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t.app.settings.briefing.up}: ${t.app.settings.briefing.widgets[widget]}`}
+                  style={{ opacity: i === 0 ? 0.3 : 1, padding: space.xs }}
+                >
+                  <Text style={[type.body, { color: color.ink }]}>↑</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => void mover(widget, 'down')}
+                  disabled={i === ordem.length - 1}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t.app.settings.briefing.down}: ${t.app.settings.briefing.widgets[widget]}`}
+                  style={{ opacity: i === ordem.length - 1 ? 0.3 : 1, padding: space.xs }}
+                >
+                  <Text style={[type.body, { color: color.ink }]}>↓</Text>
+                </Pressable>
+              </View>
+            );
+          })}
+        </View>
       </Card>
 
       {/* A cara do aplicativo.

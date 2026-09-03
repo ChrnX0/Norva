@@ -2870,6 +2870,42 @@ export type Order = {
   lines: OrderLine[];
 };
 
+const BRIEFING_ORDER_KEY = 'briefing.order';
+const BRIEFING_HIDDEN_KEY = 'briefing.hidden';
+
+/**
+ * A ordem das peças da capa, combinada pela casa.
+ *
+ * Guardada como texto separado por vírgula, e não como JSON, por um motivo
+ * prático: é uma lista de palavras curtas que alguém pode precisar ler no banco
+ * durante um suporte, e `producao,clima,insumos` se lê. Vazio quer dizer "a
+ * ordem que veio de fábrica" — e não uma capa vazia.
+ */
+export async function briefingOrder(): Promise<string[]> {
+  const saved = await readMeta(BRIEFING_ORDER_KEY);
+  return saved ? saved.split(',').filter(Boolean) : [];
+}
+
+export async function setBriefingOrder(order: readonly string[]): Promise<void> {
+  await writeMeta(BRIEFING_ORDER_KEY, order.join(','));
+}
+
+/**
+ * O que ESTE aparelho não quer ver, sem mexer no que a casa combinou.
+ *
+ * Some da capa deste celular e continua na do escritório. É a mesma família da
+ * escolha de identidade: preferência de quem está segurando o aparelho, que
+ * não é fato do negócio e não sobe para o servidor.
+ */
+export async function briefingHidden(): Promise<string[]> {
+  const saved = await readMeta(BRIEFING_HIDDEN_KEY);
+  return saved ? saved.split(',').filter(Boolean) : [];
+}
+
+export async function setBriefingHidden(hidden: readonly string[]): Promise<void> {
+  await writeMeta(BRIEFING_HIDDEN_KEY, hidden.join(','));
+}
+
 const APPROVAL_KEY = 'orders.needApproval';
 
 /**
