@@ -84,6 +84,22 @@ const DEFECTS = [
   },
 
   {
+    file: 'src/domain/agreement.ts',
+    from: `  for (let ahead = 0; ahead < 7; ahead += 1) {`,
+    to: `  for (let ahead = 1; ahead < 7; ahead += 1) {`,
+    hurts:
+      'quem faz o pedido no proprio dia de entrega da loja e empurrado para a semana que vem, e a carga que sairia hoje fica para dia 7',
+  },
+
+  {
+    file: 'src/domain/agreement.ts',
+    from: `  if (weekday < 0 || weekday > 6) return false;`,
+    to: `  if (weekday < 0) return false;`,
+    hurts:
+      'um dia fora da semana le fora da tabela de bits e responde qualquer coisa, e o acordo passa a ter oitavo dia',
+  },
+
+  {
     file: 'src/data/repository.ts',
     from: `                         AND m.quantity_base_units < 0
                          AND (? IS NULL OR m.location_id = ?)`,

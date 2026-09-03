@@ -926,6 +926,45 @@ check('a store is created, loaded, and the company still has the same sugar', as
   assert.match(after, /Loja Centro/);
   assert.match(after, /6\.000 g/, 'what arrived at the store');
   assert.match(after, /44\.000 g/, 'and what stayed in the factory');
+
+  // A loja nasce sem acordo, e a tela diz isso em vez de inventar um dia.
+  assert.match(after, /sem acordo de dia/);
+
+  // E o acordo se combina aqui. O dia é escolhido a QUATRO dias de hoje de
+  // propósito: o pedido já oferece hoje, amanhã e depois, então só um dia fora
+  // desses três prova que o acordo virou opção nova em vez de coincidir com uma
+  // que já existia. Fixar "quinta" faria este teste passar ou falhar conforme o
+  // dia em que ele roda.
+  const diaAlvo = (new Date().getDay() + 4) % 7;
+  const nomeDoDia = new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(2026, 8, 6 + diaAlvo)));
+
+  await page.getByText('Combinar entrega', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+  await page.getByLabel(nomeDoDia, { exact: true }).first().click();
+  await page.waitForTimeout(300);
+  await page.getByLabel('Telefone de quem recebe').fill('11 98888-7777');
+  await page.waitForTimeout(300);
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(2000);
+
+  const combinado = await screen(page);
+  assert.ok(combinado.includes(`entrega ${nomeDoDia}`), 'o acordo aparece no cartão da loja');
+  assert.match(combinado, /11 98888-7777/);
+  assert.doesNotMatch(combinado, /sem acordo de dia/);
+
+  // E o pedido para de perguntar o que já foi combinado: a quinta está lá como
+  // opção, o que os três chips de hoje/amanhã/depois não davam.
+  await page.goto(`http://localhost:${PORT}/orders/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  const pedindo = await screen(page);
+  assert.match(pedindo, /Loja Centro/);
+  assert.ok(
+    pedindo.includes(nomeDoDia),
+    'o dia combinado vira opção no pedido — hoje, amanhã e depois não alcançam',
+  );
 });
 
 check('a name can be corrected without moving the money', async (page) => {

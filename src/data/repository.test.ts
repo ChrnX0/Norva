@@ -25,6 +25,7 @@ import {
   NotEnoughStockError,
   unchecked,
   savePlace,
+  listPlaces,
   stockByPlace,
   recordTransfer,
   recordReturn,
@@ -55,6 +56,7 @@ import {
 } from './repository';
 import { EraseBlockedError } from './erase';
 import { markSent, pendingCount, pendingEntries, forgetSentBefore } from './outbox';
+import { serialize } from '../sync/serialize';
 import { ensureStarterData, hasSeeded, LOCAL_COMPANY_ID } from './seed';
 
 /**
@@ -1947,6 +1949,57 @@ test('what is running out comes from what actually left, and a still input never
     Math.abs(um.daysLeft - um.onHandBaseUnits / um.dailyOutflow) < 1e-9,
     'os dias são o saldo sobre a saída diária, e a tela pode abrir essa conta',
   );
+});
+
+test('the agreement sheet is kept, corrected and queued for the server', async () => {
+  const loja = await savePlace(LOCAL_COMPANY_ID, {
+    name: 'Loja Centro',
+    kind: 'own_store',
+    contactPhone: '11 98888-7777',
+    deliveryDays: 4 | 32, // terça e sexta
+    agreementNote: 'descarregar pelos fundos',
+  });
+  assert.equal(loja.deliveryDays, 36);
+
+  const lida = (await listPlaces(LOCAL_COMPANY_ID)).find((p) => p.id === loja.id);
+  assert.equal(lida?.contactPhone, '11 98888-7777');
+  assert.equal(lida?.deliveryDays, 36);
+  assert.equal(lida?.agreementNote, 'descarregar pelos fundos');
+
+  // Renomear não apaga o acordo: quem corrige o nome não está desmarcando a
+  // sexta-feira, e uma tela que só manda o nome não pode zerar o resto.
+  await savePlace(LOCAL_COMPANY_ID, { id: loja.id, name: 'Loja da Praça', kind: 'own_store' });
+  const depois = (await listPlaces(LOCAL_COMPANY_ID)).find((p) => p.id === loja.id);
+  assert.equal(depois?.name, 'Loja da Praça');
+  assert.equal(depois?.deliveryDays, 36, 'o acordo sobreviveu ao apelido');
+  assert.equal(depois?.contactPhone, '11 98888-7777');
+
+  // Uma semana impossível para antes de virar linha na fila: o servidor recusa
+  // por restrição, e uma fila que morre lá é uma gravação que a pessoa achou
+  // que aconteceu.
+  await assert.rejects(
+    savePlace(LOCAL_COMPANY_ID, { id: loja.id, name: 'Loja da Praça', kind: 'own_store', deliveryDays: 200 }),
+    /semana/,
+  );
+
+  // E o acordo atravessa. A fila guarda só a tabela e o id - o conteúdo é lido
+  // do aparelho na hora de enviar -, então o que prova a travessia é o que o
+  // serializador leva. Sem essas colunas, o telefone morre junto com o aparelho.
+  const fila = await pendingEntries();
+  const daLoja = fila.find((linha) => linha.table === 'locations' && linha.rowId === loja.id);
+  assert.ok(daLoja, 'salvar um lugar enfileira o lugar');
+
+  const linha = await live.getFirstAsync<Record<string, unknown>>(
+    `SELECT * FROM locations WHERE id = ?`,
+    [loja.id],
+  );
+  const escrita = serialize(daLoja, linha ?? null, { userId: 'quem' });
+  assert.equal(escrita.kind, 'upsert');
+  if (escrita.kind === 'upsert') {
+    assert.equal(escrita.row.contact_phone, '11 98888-7777');
+    assert.equal(escrita.row.delivery_days, 36);
+    assert.equal(escrita.row.agreement_note, 'descarregar pelos fundos');
+  }
 });
 
 test('what is running out answers for the room you are looking at, and for the kind', async () => {

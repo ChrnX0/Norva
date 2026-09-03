@@ -16,11 +16,12 @@ import {
   type Product,
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { daysUntilNextDelivery } from '@/domain/agreement';
 import { nowIso } from '@/data/db';
 import { useQuery } from '@/data/useQuery';
 import { localDate } from '@/domain/day';
 import { parseTyped } from '@/domain/number';
-import { fill, formatQuantity, joinList, plural } from '@/i18n';
+import { fill, formatQuantity, formatWeekdayShort, joinList, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -75,7 +76,14 @@ function NewOrder() {
   });
 
   const [placeId, setPlaceId] = useState<string | null>(null);
-  const [whenDays, setWhenDays] = useState(1);
+  /**
+   * O dia escolhido a dedo, junto com a loja para a qual ele foi escolhido.
+   *
+   * Guardar a loja junto é o que faz a escolha valer só enquanto ela vale:
+   * trocar de cliente volta a sugerir o dia combinado com o novo, sem nenhum
+   * efeito corrigindo estado depois do fato.
+   */
+  const [escolhido, setEscolhido] = useState<{ placeId: string | null; days: number } | null>(null);
   const [productId, setProductId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState('');
   const [lines, setLines] = useState<Draft[]>([]);
@@ -103,7 +111,34 @@ function NewOrder() {
     return linha.onHand - linha.requested - noRascunho;
   }, [product, data, lines]);
 
-  /** O dia pedido, como data local: hoje, amanhã ou depois. */
+  /**
+   * O dia que já estava combinado com esta loja.
+   *
+   * Perguntar "para quando?" a quem já combinou terça e sexta é pedir o que o
+   * sistema sabe. Quando existe acordo, o dia dele vem escolhido; quando não
+   * existe, nada é sugerido - dia inventado sai como promessa, e a loja fecha
+   * quando o caminhão chega.
+   */
+  const hoje = new Date(`${localDate(nowIso(), locale.timeZone)}T00:00:00Z`).getUTCDay();
+  const combinado = place ? daysUntilNextDelivery(place.deliveryDays, hoje) : null;
+
+  /**
+   * Hoje, amanhã, depois - e o dia da loja, quando ele cai fora desses três.
+   *
+   * Sem esta quarta opção, uma loja que só recebe na quinta não tem como ser
+   * pedida para quinta: a tela oferecia três dias e o acordo ficava sem uso.
+   */
+  const opcoes = useMemo(() => {
+    const base = WHEN.map(({ days, key }) => ({ days, label: words[key] }));
+    if (combinado === null || base.some((o) => o.days === combinado)) return base;
+    return [...base, { days: combinado, label: formatWeekdayShort((hoje + combinado) % 7, locale) }];
+  }, [combinado, hoje, locale, words]);
+
+  /** O que a pessoa escolheu para ESTA loja; senão, o combinado; senão, amanhã. */
+  const whenDays =
+    escolhido && escolhido.placeId === (place?.id ?? null) ? escolhido.days : (combinado ?? 1);
+
+  /** O dia pedido, como data local. */
   const requestedFor = useMemo(
     () => localDate(nowIso(), locale.timeZone, whenDays),
     [whenDays, locale.timeZone],
@@ -144,7 +179,7 @@ function NewOrder() {
           t.common.and,
         ),
         place: place.name,
-        when: WHEN_KEYS[whenDays] ? words[WHEN_KEYS[whenDays]] : '',
+        when: opcoes.find((o) => o.days === whenDays)?.label ?? '',
       }),
     });
     if (!yes) return;
@@ -202,7 +237,14 @@ function NewOrder() {
           {words.when.toUpperCase()}
         </Text>
         <View style={[styles.wrap, { marginTop: space.sm, gap: space.sm }]}>
-          {WHEN.map(({ days, key }) => chip(words[key], days === whenDays, () => setWhenDays(days), key))}
+          {opcoes.map(({ days, label }) =>
+            chip(
+              label,
+              days === whenDays,
+              () => setEscolhido({ placeId: place?.id ?? null, days }),
+              `quando-${days}`,
+            ),
+          )}
         </View>
       </Card>
 
@@ -307,12 +349,6 @@ const WHEN = [
   { days: 1, key: 'tomorrow' as const },
   { days: 2, key: 'dayAfter' as const },
 ];
-
-const WHEN_KEYS: Record<number, 'today' | 'tomorrow' | 'dayAfter'> = {
-  0: 'today',
-  1: 'tomorrow',
-  2: 'dayAfter',
-};
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },

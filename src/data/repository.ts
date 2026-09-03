@@ -470,6 +470,12 @@ export type Place = {
   kind: string;
   /** Verdadeiro só para o lugar que nasceu junto com a empresa. */
   isDefault: boolean;
+  /** O telefone de quem recebe. Vazio quando ninguém combinou nada. */
+  contactPhone: string;
+  /** Bitmask de dias, bit 0 no domingo (`src/domain/agreement`). Zero é sem acordo. */
+  deliveryDays: number;
+  /** O que ficou combinado em uma frase: onde descarregar, com quem falar. */
+  agreementNote: string;
 };
 
 /**
@@ -482,8 +488,16 @@ export type Place = {
 export async function listPlaces(companyId: string): Promise<Place[]> {
   const conn = await db();
   await ensureLocation(conn, companyId);
-  const rows = await conn.getAllAsync<{ id: string; name: string; kind: string }>(
-    `SELECT id, name, kind FROM locations WHERE company_id = ? ORDER BY kind, name`,
+  const rows = await conn.getAllAsync<{
+    id: string;
+    name: string;
+    kind: string;
+    contact_phone: string | null;
+    delivery_days: number | null;
+    agreement_note: string | null;
+  }>(
+    `SELECT id, name, kind, contact_phone, delivery_days, agreement_note
+       FROM locations WHERE company_id = ? ORDER BY kind, name`,
     [companyId],
   );
   return rows.map((r) => ({
@@ -491,6 +505,9 @@ export async function listPlaces(companyId: string): Promise<Place[]> {
     name: r.name,
     kind: r.kind,
     isDefault: r.id === defaultLocationId(companyId),
+    contactPhone: r.contact_phone ?? '',
+    deliveryDays: r.delivery_days ?? 0,
+    agreementNote: r.agreement_note ?? '',
   }));
 }
 
@@ -504,7 +521,15 @@ export async function listPlaces(companyId: string): Promise<Place[]> {
  */
 export async function savePlace(
   companyId: string,
-  input: { id?: string; name: string; kind: string },
+  input: {
+    id?: string;
+    name: string;
+    kind: string;
+    /** A ficha de acordo. Ausente é "não mexa no que já estava combinado". */
+    contactPhone?: string;
+    deliveryDays?: number;
+    agreementNote?: string;
+  },
 ): Promise<Place> {
   const name = input.name.trim();
   if (!name) throw new Error('um lugar sem nome não se distingue de outro');
@@ -512,17 +537,52 @@ export async function savePlace(
   const conn = await db();
   const id = input.id ?? newId();
 
+  // Um acordo fora da semana é erro de digitação, e o servidor recusa por
+  // restrição. Recusar aqui também é o que impede a fila de sair para morrer
+  // do outro lado, com a pessoa achando que gravou.
+  const days = Math.trunc(input.deliveryDays ?? 0);
+  if (days < 0 || days > 127) throw new Error('a semana tem sete dias');
+
+  const anterior = input.id
+    ? await conn.getFirstAsync<{
+        contact_phone: string | null;
+        delivery_days: number | null;
+        agreement_note: string | null;
+      }>(
+        `SELECT contact_phone, delivery_days, agreement_note FROM locations WHERE id = ?`,
+        [id],
+      )
+    : null;
+
+  const phone = input.contactPhone ?? anterior?.contact_phone ?? '';
+  const deliveryDays = input.deliveryDays === undefined ? (anterior?.delivery_days ?? 0) : days;
+  const note = input.agreementNote ?? anterior?.agreement_note ?? '';
+
   await conn.withTransactionAsync(async () => {
     await conn.runAsync(
-      `INSERT INTO locations (id, company_id, name, kind, created_at)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET name = excluded.name, kind = excluded.kind`,
-      [id, companyId, name, input.kind, nowIso()],
+      `INSERT INTO locations
+         (id, company_id, name, kind, created_at, contact_phone, delivery_days, agreement_note)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name,
+         kind = excluded.kind,
+         contact_phone = excluded.contact_phone,
+         delivery_days = excluded.delivery_days,
+         agreement_note = excluded.agreement_note`,
+      [id, companyId, name, input.kind, nowIso(), phone, deliveryDays, note],
     );
     await enqueue(conn, [{ table: 'locations', rowId: id }]);
   });
 
-  return { id, name, kind: input.kind, isDefault: id === defaultLocationId(companyId) };
+  return {
+    id,
+    name,
+    kind: input.kind,
+    isDefault: id === defaultLocationId(companyId),
+    contactPhone: phone,
+    deliveryDays,
+    agreementNote: note,
+  };
 }
 
 /**

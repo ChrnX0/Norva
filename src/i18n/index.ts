@@ -229,6 +229,21 @@ export function formatWeekdayInitial(date: string, locale: LocaleSettings): stri
   }).format(new Date(`${date}T00:00:00Z`));
 }
 
+/**
+ * O nome curto de um dia da semana, a partir do número que `Date.getDay()` usa.
+ *
+ * Uma data de referência qualquer que caia num domingo serve: o que importa é
+ * o dia da semana, não o mês. 2026-09-06 é domingo, e somar o índice anda a
+ * semana inteira sem tocar em fuso — a data é usada só como calendário.
+ */
+export function formatWeekdayShort(weekday: number, locale: LocaleSettings): string {
+  const domingo = Date.UTC(2026, 8, 6);
+  return new Intl.DateTimeFormat(locale.formatting, {
+    weekday: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(domingo + weekday * 86_400_000));
+}
+
 export function formatDayMonth(iso: string, locale: LocaleSettings): string {
   return new Intl.DateTimeFormat(locale.formatting, {
     day: '2-digit',

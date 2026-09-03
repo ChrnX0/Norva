@@ -515,7 +515,21 @@ CREATE INDEX IF NOT EXISTS lots_item_idx ON lots (company_id, item_id);
 ALTER TABLE products ADD COLUMN shelf_life_days INTEGER;
 `;
 
-const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11];
+/**
+ * A ficha de acordo da loja.
+ *
+ * `delivery_days` é um bitmask com o bit 0 no domingo (`src/domain/agreement`),
+ * e não uma lista de texto: um inteiro atravessa a fila do aparelho e o Postgres
+ * sem nenhuma conversão que possa divergir entre os dois lados. Zero significa
+ * "não combinamos dia" — diferente de "nenhum dia".
+ */
+const V12 = `
+ALTER TABLE locations ADD COLUMN contact_phone TEXT;
+ALTER TABLE locations ADD COLUMN delivery_days INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE locations ADD COLUMN agreement_note TEXT;
+`;
+
+const MIGRATIONS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12];
 
 export type SqlParam = string | number | null;
 

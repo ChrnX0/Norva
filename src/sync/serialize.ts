@@ -126,7 +126,19 @@ const CROSSINGS: Record<
   }
 > = {
   locations: {
-    take: ['id', 'company_id', 'name', 'kind', 'created_at'],
+    // A ficha de acordo atravessa junto: um telefone que fica só no aparelho
+    // some quando o aparelho some, e é o número que alguém liga para avisar
+    // que a carga atrasou.
+    take: [
+      'id',
+      'company_id',
+      'name',
+      'kind',
+      'created_at',
+      'contact_phone',
+      'delivery_days',
+      'agreement_note',
+    ],
   },
 
   items: {

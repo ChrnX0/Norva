@@ -131,9 +131,11 @@ const MOVEMENTS: (MovementRow & { itemId: string })[] = [
  * Dois lugares, e o padrão gravado sem nome de propósito - é o caso que a
  * habilidade tem de saber nomear sozinha, porque o banco não nomeia.
  */
+const SEM_ACORDO = { contactPhone: '', deliveryDays: 0, agreementNote: '' };
+
 const PLACES: Place[] = [
-  { id: 'factory', name: '', kind: 'store_room', isDefault: true },
-  { id: 'centro', name: 'Loja Centro', kind: 'own_store', isDefault: false },
+  { id: 'factory', name: '', kind: 'store_room', isDefault: true, ...SEM_ACORDO },
+  { id: 'centro', name: 'Loja Centro', kind: 'own_store', isDefault: false, ...SEM_ACORDO },
 ];
 
 const PLACE_STOCK: PlaceStock[] = [

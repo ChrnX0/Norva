@@ -590,7 +590,19 @@ if psql -d "$DB" -q -c "insert into products (id, company_id, item_id)
   fail "dois produtos sem classificação nenhuma entraram: falta nulls not distinct"
 fi
 
+# A semana tem sete dias, e o acordo de entrega é um bitmask. Um número fora
+# dela é erro de digitação ou aparelho velho mandando outra coisa, e o banco é
+# o único lugar que responde por isso quando a fila vem de um app que não é
+# este. Sem a restrição, a loja "recebe no dia 300" e nada acusa.
+if psql -d "$DB" -q -c "insert into locations (id, company_id, kind, name, delivery_days)
+  values ('${G}61','${G}01','own_store','Loja Impossível',200);" >/dev/null 2>&1; then  # proofgate-allow
+  fail "um acordo de entrega fora da semana entrou"
+fi
+psql -d "$DB" -q -c "insert into locations (id, company_id, kind, name, delivery_days)
+  values ('${G}62','${G}01','own_store','Loja de terça e sexta',36);" >/dev/null  # proofgate-allow
+
 echo "    tipo de outra linha, tipo órfão, sabor repetido e produto duplicado, todos recusados"
+echo "    e a semana de entrega não tem trezentos dias"
 
 echo "==> check 8: o pedido nasce onde a empresa mandou, e sair do pendente é de quem aprova"
 

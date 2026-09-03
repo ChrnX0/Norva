@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { defaultLocale, fill, plural } from './index';
+import { defaultLocale, fill, formatWeekdayShort, plural } from './index';
 import { en } from './locales/en';
 import { es } from './locales/es';
 import { ptBR } from './locales/pt-BR';
@@ -82,4 +82,20 @@ test('a hole nobody filled stays visible instead of becoming a blank', () => {
   assert.equal(fill('Ontem foram {{amount}}.', {}), 'Ontem foram {{amount}}.');
   assert.equal(fill('Ontem foram {{amount}}.', { amount: '300' }), 'Ontem foram 300.');
   assert.equal(defaultLocale.language, 'pt-BR');
+});
+
+test('the weekday name matches the number the platform uses', () => {
+  // Se esta tabela andar um dia, a loja de terça passa a receber na quarta e
+  // nada mais no app acusa - o número vem de Date.getDay(), e a palavra tem
+  // que vir do mesmo lugar.
+  const domingo = new Date(Date.UTC(2026, 8, 6));
+  assert.equal(domingo.getUTCDay(), 0, 'a data de referência é um domingo');
+
+  for (let dia = 0; dia < 7; dia += 1) {
+    const esperado = new Intl.DateTimeFormat('pt-BR', {
+      weekday: 'short',
+      timeZone: 'UTC',
+    }).format(new Date(Date.UTC(2026, 8, 6 + dia)));
+    assert.equal(formatWeekdayShort(dia, defaultLocale), esperado);
+  }
 });
