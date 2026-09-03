@@ -76,9 +76,10 @@ export async function factsForAlerts(timeZone: string): Promise<AlertFacts> {
     }),
     // Qualquer item, e não só insumo.
     //
-    // (A primeira versão deste comentário começava com "TODO item" — português
-    // que o guard de pendências leu como marcador de tarefa, com razão: quem
-    // busca TODO no repositório ia achar trabalho que não existe.)
+    // (Este comentário começava com a palavra portuguesa para "qualquer" seguida
+    // de "item" — que o guard de pendências leu como marcador de tarefa, com
+    // razão: quem procura pendências no repositório acharia trabalho que não
+    // existe. Escrever a palavra aqui para explicar teria o mesmo efeito.)
     //
     // A primeira versão filtrava insumo e embalagem, copiando o recorte do
     // cartão de "dinheiro parado" — que é outra pergunta. A faixa azul do dono
