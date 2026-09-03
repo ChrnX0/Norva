@@ -7,7 +7,7 @@ import { Card } from '@/components/Card';
 import { FactoryScene } from '@/components/FactoryScene';
 import { Landscape } from '@/components/Landscape';
 import { CountUp } from '@/components/CountUp';
-import { GlyphBox, GlyphKettle, GlyphOrder, GlyphPrice, GlyphProduction, GlyphStock } from '@/components/Glyph';
+import { GlyphBox, GlyphOrder, GlyphPrice, GlyphProduction, GlyphStock } from '@/components/Glyph';
 import { PulseDot } from '@/components/PulseDot';
 import { Reveal } from '@/components/Reveal';
 import { SkyScene, TemperatureRange } from '@/components/Sky';
@@ -298,28 +298,6 @@ export function Mosaic({
       ) : null}
       </>
     ),
-    tacho: (
-      <>
-      {data?.running.map((run, i) => (
-        <Reveal key={run.id} index={4 + i}>
-          <Touchable onPress={() => go('/production')} accessibilityLabel={`${t.app.home.running}: ${run.productName}`}>
-            <Card hue={palette.apricot} icon={(c) => <GlyphKettle size={26} color={c} weight={traco} />}>
-              <View style={[styles.row, { gap: space.sm }]}>
-                <PulseDot live />
-                <Text style={[type.cardTitle, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-                  {run.productName}
-                </Text>
-              </View>
-              <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>{t.app.home.running}</Text>
-              <Text style={[type.caption, { color: color.inkFaint }]}>
-                {fill(t.app.home.runningSince, { time: formatTime(run.openedAt, locale) })}
-              </Text>
-            </Card>
-          </Touchable>
-        </Reveal>
-      ))}
-      </>
-    ),
     expedicao: null,
     precos: (
       <>
@@ -386,15 +364,24 @@ export function Mosaic({
           format={(v) => formatQuantity(Math.round(v), locale)}
           style={{ ...type.figure, color: color.ink }}
         />
-        <Text style={[type.caption, { color: color.inkMuted }]}>
-          {(data?.running ?? []).length > 0
-            ? fill(t.app.home.liveRuns, {
-                count: plural((data?.running ?? []).length, t.app.production.batchCount),
-              })
-            : (data?.madeToday ?? 0) === 0
-              ? t.app.home.liveNothing
-              : comparison(data?.madeToday ?? 0, data?.madeThen ?? 0)}
-        </Text>
+        <View style={[styles.row, { gap: space.sm }]}>
+          {/* O pulso vive AQUI e não num cartão próprio.
+              Ele era o widget "tacho", que dizia o mesmo assunto desta peça com
+              uma palavra de fábrica de sorvete — duas peças para um assunto é a
+              capa competindo consigo mesma. Pulsar só quando há produção em
+              curso continua valendo: pulso ao lado de número parado é mentira
+              visual. */}
+          {(data?.running ?? []).length > 0 ? <PulseDot live color={palette.apricot} /> : null}
+          <Text style={[type.caption, { color: color.inkMuted, flex: 1 }]} numberOfLines={2}>
+            {(data?.running ?? []).length > 0
+              ? fill(t.app.home.liveRuns, {
+                  count: plural((data?.running ?? []).length, t.app.home.runCount),
+                })
+              : (data?.madeToday ?? 0) === 0
+                ? t.app.home.liveNothing
+                : comparison(data?.madeToday ?? 0, data?.madeThen ?? 0)}
+          </Text>
+        </View>
       </Peca>
     ),
 

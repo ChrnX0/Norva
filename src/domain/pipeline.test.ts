@@ -40,6 +40,7 @@ const recipes: Record<string, Recipe> = {
     version: 1,
     effectiveFrom: '2026-01-01',
     yieldAmount: 20_000,
+    yieldUnit: 'ml',
     lossFraction: 0,
     lines: [{ kind: 'item', itemId: SUGAR, quantity: 3_000 }],
   },
@@ -49,6 +50,7 @@ const recipes: Record<string, Recipe> = {
     version: 3,
     effectiveFrom: '2026-06-01',
     yieldAmount: 40_000,
+    yieldUnit: 'ml',
     lossFraction: 0.05,
     lines: [
       { kind: 'item', itemId: PULP, quantity: 18_000 },
@@ -221,6 +223,7 @@ test('the price moves land on the finished unit, in reais', () => {
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 10_000,
+      yieldUnit: 'ml',
       lossFraction: 0,
       lines: [
         { kind: 'item', itemId: 'pulp', quantity: 3_000 },

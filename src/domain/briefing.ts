@@ -35,7 +35,6 @@ export const BRIEFING_WIDGETS = [
   'precos',
   'clima',
   'parado',
-  'tacho',
 ] as const;
 
 export type BriefingWidget = (typeof BRIEFING_WIDGETS)[number];
@@ -43,17 +42,20 @@ export type BriefingWidget = (typeof BRIEFING_WIDGETS)[number];
 /**
  * O que NÃO entra na capa de uma fábrica nova.
  *
- * Existe por uma correção do dono, e ela vale como regra geral: o "tacho
- * rodando" ganhou lugar na capa porque o dado existia, não porque alguém abre o
- * aplicativo de manhã para ver um tacho aberto. Dado disponível não é motivo
- * para ocupar a primeira tela — a capa é o que a casa olha de manhã, e cada
- * cartão a mais empurra o resto para baixo.
+ * Existe por uma correção do dono, e ela vale como regra geral: dado disponível
+ * não é motivo para ocupar a primeira tela. A capa é o que a casa olha de manhã,
+ * e cada cartão a mais empurra o resto para baixo.
+ *
+ * O primeiro caso foi o "tacho rodando", e ele acabou saindo do catálogo inteiro:
+ * era o MESMO assunto da produção ao vivo, dito com uma palavra de fábrica de
+ * sorvete num aplicativo que vai para qualquer fábrica. Duas peças para um
+ * assunto é a capa competindo consigo mesma.
  *
  * Fora do padrão não é fora do produto: quem quiser liga em Ajustes, e aí ele
  * entra na ordem da casa como qualquer outro. É a mesma forma da F7 — os dois
  * caminhos existem, e o que se escolhe aqui é só o PADRÃO.
  */
-const DEFAULT_OFF = new Set<BriefingWidget>(['tacho', 'custo', 'parado']);
+const DEFAULT_OFF = new Set<BriefingWidget>(['custo', 'parado']);
 
 /**
  * A ordem que a casa combinou, filtrada pelo que este aparelho quer ver.

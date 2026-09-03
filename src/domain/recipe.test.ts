@@ -132,6 +132,7 @@ const recipes: Record<string, Recipe> = {
     effectiveFrom: '2026-01-01',
     // 20,000 ml of base
     yieldAmount: 20_000,
+    yieldUnit: 'ml',
     lossFraction: 0,
     lines: [
       { kind: 'item', itemId: 'milkPowder', quantity: 2_000 },
@@ -143,7 +144,8 @@ const recipes: Record<string, Recipe> = {
     versionId: 'strawberry-v',
     version: 4,
     effectiveFrom: '2026-06-01',
-    yieldAmount: 40_000, // 40 L of mix
+    yieldAmount: 40_000,
+    yieldUnit: 'ml', // 40 L of mix
     lossFraction: 0.05, // 5% real loss
     lines: [
       { kind: 'item', itemId: 'strawberryPulp', quantity: 18_000 },
@@ -207,6 +209,7 @@ test('a recipe that contains itself raises instead of hanging', () => {
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 100,
+      yieldUnit: 'ml',
       lossFraction: 0,
       lines: [{ kind: 'recipe', recipeId: 'b', quantity: 10 }],
     },
@@ -216,6 +219,7 @@ test('a recipe that contains itself raises instead of hanging', () => {
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 100,
+      yieldUnit: 'ml',
       lossFraction: 0,
       lines: [{ kind: 'recipe', recipeId: 'a', quantity: 10 }],
     },
@@ -371,6 +375,7 @@ test('cheap lines add up instead of each rounding away to nothing', () => {
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 1_000,
+      yieldUnit: 'ml',
       lossFraction: 0,
       lines: Array.from({ length: 10 }, (_, i) => ({
         kind: 'item' as const,
@@ -401,6 +406,7 @@ test('the breakdown always sums to the figure, however the cents fall', () => {
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 1_000,
+      yieldUnit: 'ml',
       lossFraction: 0,
       lines: [
         { kind: 'item', itemId: 'a', quantity: 3 },
@@ -426,6 +432,7 @@ test('a share is the line\'s real weight, not its rounded one', () => {
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 1_000,
+      yieldUnit: 'ml',
       lossFraction: 0,
       lines: [
         { kind: 'item', itemId: 'big', quantity: 1_000 },
@@ -461,6 +468,7 @@ test('a sub-recipe that is not there stops the costing, and names itself', () =>
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 10_000,
+      yieldUnit: 'ml',
       lossFraction: 0,
       lines: [{ kind: 'recipe', recipeId: 'creamBase', quantity: 4_000 }],
     },
@@ -482,6 +490,7 @@ test('an item with no invoice yet is free, and that is not the same thing', () =
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 1_000,
+      yieldUnit: 'ml',
       lossFraction: 0,
       lines: [
         { kind: 'item', itemId: 'sugar', quantity: 500 },

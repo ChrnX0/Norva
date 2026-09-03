@@ -12,14 +12,13 @@ test('the house decides the order and the phone decides what to hide', () => {
   assert.deepEqual(capa.slice(0, 3), ['clima', 'producao', 'insumos']);
 
   // Peça nova entra sozinha, MENOS a que nasce fora da capa. A capa de fábrica
-  // nova é menor que o catálogo de propósito: o "tacho rodando" tinha lugar na
-  // primeira tela porque o dado existia, e o dono cortou - dado disponível não é
-  // motivo para ocupar a tela que se olha de manhã.
+  // nova é menor que o catálogo de propósito: dado disponível não é motivo para
+  // ocupar a tela que se olha de manhã.
   assert.ok(capa.length < BRIEFING_WIDGETS.length, 'o catálogo é maior que o padrão');
-  assert.ok(!capa.includes('tacho'), 'o tacho não nasce na capa');
+  assert.ok(!capa.includes('custo'), 'o custo por unidade não nasce na capa');
 
   // Mas continua no produto: pedido pela casa, ele entra como qualquer outro.
-  assert.ok(briefingLayout([...daCasa, 'tacho'], []).includes('tacho'));
+  assert.ok(briefingLayout([...daCasa, 'custo'], []).includes('custo'));
 
   // O aparelho esconde sem mexer no que a casa combinou: quem está na câmara
   // fria tira o preço do caminho, e a capa do escritório continua igual.
@@ -61,11 +60,11 @@ test('what is off the cover is offered, and putting it on is the house deciding'
     [...BRIEFING_WIDGETS].sort(),
     'capa mais fora dá o catálogo inteiro, sem repetição',
   );
-  assert.ok(fora.includes('tacho'));
+  assert.ok(fora.includes('custo'));
 
   // Colocar na capa mexe na ordem da CASA: é o que todo mundo vai ver de manhã.
-  const ligada = addWidget(['producao'], 'tacho');
-  assert.deepEqual(ligada, ['producao', 'tacho']);
-  assert.deepEqual(addWidget(ligada, 'tacho'), ligada, 'ligar duas vezes não duplica');
-  assert.ok(briefingLayout(ligada, []).includes('tacho'));
+  const ligada = addWidget(['producao'], 'custo');
+  assert.deepEqual(ligada, ['producao', 'custo']);
+  assert.deepEqual(addWidget(ligada, 'custo'), ligada, 'ligar duas vezes não duplica');
+  assert.ok(briefingLayout(ligada, []).includes('custo'));
 });

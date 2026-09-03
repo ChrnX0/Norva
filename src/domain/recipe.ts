@@ -44,8 +44,18 @@ export type Recipe = {
   version: number;
   effectiveFrom: string;
   lines: RecipeLine[];
-  /** What one batch yields, in the recipe's own measure (millilitres, grams). */
+  /** What one run yields, in the recipe's own measure (millilitres, grams). */
   yieldAmount: number;
+  /**
+   * A unidade que o dono escolheu ao cadastrar: ml, g, un.
+   *
+   * Estava no banco e não chegava até aqui, e a falta dela é a razão de o
+   * aplicativo ter inventado a palavra "tacho": sem saber a unidade, a tela não
+   * tinha como dizer "cada vez rende 40 L" e passou a contar um recipiente que
+   * nenhuma fábrica cadastrou. A unidade é decisão do dono, e agora ela viaja com
+   * a receita.
+   */
+  yieldUnit: string;
   /** Expected loss as a fraction of the yield. 0.05 means 5%. */
   lossFraction: number;
 };

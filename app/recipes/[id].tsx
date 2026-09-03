@@ -186,6 +186,7 @@ function RecipeEditor() {
         // identidade que uma produção pudesse gravar. O DRAFT diz isso em vez
         // de emprestar o id da versão anterior, que apontaria uma corrida para
         // uma fórmula que não é a que ela usou.
+        yieldUnit: stored.yieldUnit,
         versionId: DRAFT,
         version: stored.version + 1,
         effectiveFrom: stored.effectiveFrom,

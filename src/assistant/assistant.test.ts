@@ -75,6 +75,7 @@ const RECIPES: Record<string, Recipe> = {
     version: 3,
     effectiveFrom: '2026-06-01',
     yieldAmount: 40_000,
+    yieldUnit: 'ml',
     lossFraction: 0.05,
     lines: [
       { kind: 'item', itemId: 'pulp', quantity: 18_000 },

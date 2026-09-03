@@ -966,8 +966,10 @@ export async function loadRecipeGraph(companyId: string): Promise<Record<string,
     effective_from: string;
     loss_fraction: number;
     yield_amount: number;
+    yield_unit: string;
   }>(
-    `SELECT v.id, v.recipe_id, v.version, v.effective_from, v.loss_fraction, r.yield_amount
+    `SELECT v.id, v.recipe_id, v.version, v.effective_from, v.loss_fraction, r.yield_amount,
+            r.yield_unit
        FROM recipe_versions v
        JOIN recipes r ON r.id = v.recipe_id
       WHERE v.company_id = ?
@@ -1008,6 +1010,7 @@ export async function loadRecipeGraph(companyId: string): Promise<Record<string,
         version: v.version,
         effectiveFrom: v.effective_from,
         yieldAmount: v.yield_amount,
+        yieldUnit: v.yield_unit,
         lossFraction: v.loss_fraction,
         lines: byVersion.get(v.id) ?? [],
       } satisfies Recipe,

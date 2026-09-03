@@ -150,7 +150,7 @@ check('opens on the day, not on the price of a popsicle', async (page) => {
 
   const text = await screen(page);
   assert.match(text, /NORVA/);
-  assert.match(text, /saíram hoje/, 'a manchete é o que saiu do tacho');
+  assert.match(text, /saíram hoje/, 'a manchete é o que saiu hoje');
 
   // A régua de sete dias: as iniciais dos dias da semana, uma por coluna. É a
   // única coisa da tela que responde "isto aqui é normal?".
@@ -626,7 +626,7 @@ check('what came out today reaches the briefing, with what it was to compare', a
   await page.waitForTimeout(2500);
 
   const briefing = await screen(page);
-  assert.match(briefing, /480/, 'o que saiu do tacho aparece na capa');
+  assert.match(briefing, /480/, 'o que saiu aparece na capa');
   assert.match(briefing, /unidades saíram hoje/);
   // E nunca sozinho: sem semana passada com que comparar, a tela diz isso.
   assert.match(briefing, /primeira produção registrada/);
@@ -650,41 +650,45 @@ check('what came out today reaches the briefing, with what it was to compare', a
   assert.doesNotMatch(await screen(page), /toque para fechar/, 'o segundo toque fecha');
 });
 
-check('a kettle marked as running pulses on the briefing, and closing it writes the ledger', async (page) => {
-  // Fábrica parada não desenha nada: o pulso só existe quando há tacho, porque
-  // pulso ao lado de número congelado é mentira visual.
+check('a production marked as under way pulses on the briefing, and closing it writes the ledger', async (page) => {
+  // Fábrica parada não desenha nada: o pulso só existe quando há produção em
+  // curso, porque pulso ao lado de número congelado é mentira visual.
+  //
+  // O vocabulário desta checagem mudou junto com o do aplicativo: "tacho" é
+  // palavra de fábrica de sorvete, e o dono cobrou — a receita já declara o que
+  // rende e em que unidade, então a tela fala disso e não de um recipiente.
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
-  assert.doesNotMatch(await screen(page), /tacho rodando/);
+  assert.doesNotMatch(await screen(page), /produção em curso|produções em curso/i);
 
   await page.getByRole('tab', { name: 'Produção' }).click();
   await page.waitForTimeout(2500);
   await page.getByText('Adicionar produção', { exact: true }).first().click();
   await page.waitForTimeout(2000);
-  await page.getByText('Abrir o tacho', { exact: true }).first().click();
+  await page.getByText('Começar agora', { exact: true }).first().click();
   await page.waitForTimeout(2500);
 
   // A tela diz desde quando, e o botão principal muda de significado.
   const aberto = await screen(page);
-  // Abrir devolve para a aba do dia, e é lá que o tacho aberto tem cartão -
-  // quem marca o tacho sai andando, e ficar no formulário seria ficar parado
-  // numa tela sem nada a dizer até a corrida acabar.
-  assert.match(aberto, /Tachos abertos/);
+  // Começar devolve para a aba do dia, e é lá que a produção em curso tem
+  // cartão - quem marca sai andando, e ficar no formulário seria ficar parado
+  // numa tela sem nada a dizer até a produção acabar.
+  assert.match(aberto, /Produção em curso/);
   assert.match(aberto, /Picolé de morango/);
 
   // E a home passa a mostrar o que está acontecendo AGORA.
   await page.getByRole('tab', { name: 'Início' }).click();
   await page.waitForTimeout(2500);
-  assert.match(await screen(page), /tacho rodando/);
+  assert.match(await screen(page), /uma produção em curso/, 'a peça ao vivo mostra o que está rodando');
 
-  // Fechar escreve o razão, e o pulso some porque não há mais tacho.
+  // Fechar escreve o razão, e o pulso some porque não há mais produção em curso.
   await page.getByRole('tab', { name: 'Produção' }).click();
   await page.waitForTimeout(2000);
   await page.getByText('Adicionar produção', { exact: true }).first().click();
   await page.waitForTimeout(2000);
   await page.getByLabel(/Quantas unidades/).fill('480');
   await page.waitForTimeout(600);
-  await page.getByText('Fechar o tacho', { exact: true }).first().click();
+  await page.getByText('Fechar a produção', { exact: true }).first().click();
   await page.waitForTimeout(900);
   await page.getByText('Registrar', { exact: true }).first().click();
   await page.waitForTimeout(2500);
@@ -692,8 +696,8 @@ check('a kettle marked as running pulses on the briefing, and closing it writes 
   await page.getByRole('tab', { name: 'Início' }).click();
   await page.waitForTimeout(2500);
   const depois = await screen(page);
-  assert.doesNotMatch(depois, /tacho rodando/, 'o tacho fechou');
-  assert.match(depois, /480/, 'e o que saiu dele está na capa');
+  assert.doesNotMatch(depois, /produção em curso/i, 'a produção fechou');
+  assert.match(depois, /480/, 'e o que saiu dela está na capa');
 });
 
 check('production pre-fills what the sheet promises, and records what happened', async (page) => {
@@ -711,11 +715,11 @@ check('production pre-fills what the sheet promises, and records what happened',
   // The kettle rendered less than the sheet promised. That correction is the
   // most valuable thing this screen collects, so it has to be visible before
   // anything is written.
-  // A quebra é a diferença contra um tacho DECLARADO. Sem tacho declarado o
+  // A quebra é a diferença contra o que a receita PROMETEU para as vezes que ela
   // previsto é só o preenchimento sugerido, e o consumo acompanha o que saiu -
-  // não há promessa a quebrar. Então o teste declara o tacho, que é a fábrica
+  // não há promessa a quebrar. Então o teste declara as vezes, que é a fábrica
   // que trabalha em corrida, e é dela que o rendimento real é a informação.
-  await page.getByText('Lancei por tacho', { exact: true }).first().click();
+  await page.getByText('Informar pela receita', { exact: true }).first().click();
   await page.waitForTimeout(700);
   await page.getByLabel(/Quantas unidades/).fill('480');
   await page.waitForTimeout(700);
@@ -734,7 +738,7 @@ check('production pre-fills what the sheet promises, and records what happened',
   // frozen cost in it - the number every future margin will be measured against.
   const asking = await screen(page);
   assert.match(asking, /Confirmar a produção/, 'Alert would have shown nothing here');
-  assert.match(asking, /Você produziu 480 unidades de Picolé de morango, em um tacho/);
+  assert.match(asking, /Você produziu 480 unidades de Picolé de morango, rodando a receita uma vez/);
   assert.match(asking, /congela o custo em R\$ \d+,\d\d por unidade/);
 
   await page.getByText('Registrar', { exact: true }).first().click();
@@ -1346,7 +1350,11 @@ check('the home is assembled from pieces the house chose', async (page) => {
   // uma frase sem botão. O tacho é o caso: o dono cortou ele da primeira tela.
   const ajustesComFora = await screen(page);
   assert.match(ajustesComFora, /FORA DA CAPA/);
-  assert.match(ajustesComFora, /Tacho rodando/);
+  assert.match(
+    ajustesComFora,
+    /Custo por unidade|Dinheiro parado/,
+    'o que nasce fora da capa aparece para ser ligado',
+  );
 
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(3000);

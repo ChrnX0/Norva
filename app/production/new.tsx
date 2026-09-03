@@ -378,7 +378,16 @@ function Production() {
               value={batchText}
               onChangeText={setBatchText}
               keyboardType="numeric"
-              hint={t.app.production.batchesHint}
+              // A dica fala na unidade que o DONO escolheu na receita: "cada vez
+              // rende 40 L". Antes ela dizia "quantos tachos", que é palavra de
+              // fábrica de sorvete num aplicativo que vai para qualquer fábrica.
+              hint={
+                recipe
+                  ? fill(t.app.production.batchesHint, {
+                      yield: `${formatQuantity(recipe.yieldAmount, locale)} ${recipe.yieldUnit}`,
+                    })
+                  : undefined
+              }
             />
           ) : (
             <Pressable

@@ -483,7 +483,7 @@ const DEFECTS = [
     from: "  requires: 'record_production',",
     to: "  requires: 'dispatch',",
     hurts:
-      'quem só pode despachar passa a poder gravar produção, e o consumo de insumo entra pelas mãos de quem nunca esteve no tacho',
+      'quem só pode despachar passa a poder gravar produção, e o consumo de insumo entra pelas maos de quem nunca produziu',
   },
 ];
 
