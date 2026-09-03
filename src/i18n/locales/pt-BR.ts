@@ -189,6 +189,9 @@ export const ptBR = {
     },
 
     newOrder: {
+      free: 'livre hoje: {{amount}}',
+      freeHint: 'o que tem no freezer menos o que já foi prometido para esta data',
+      over: 'Isso promete {{amount}} a mais do que existe hoje. Dá para produzir até lá?',
       title: 'Anotar pedido',
       overline: 'para quem, para quando, o quê',
       customer: 'Cliente',

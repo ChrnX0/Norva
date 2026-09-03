@@ -166,6 +166,9 @@ export const es: Dictionary = {
     },
 
     newOrder: {
+      free: 'libre hoy: {{amount}}',
+      freeHint: 'lo que hay en el congelador menos lo ya prometido para esta fecha',
+      over: 'Eso promete {{amount}} más de lo que existe hoy. ¿Da tiempo de producirlo?',
       title: 'Anotar pedido',
       overline: 'para quién, para cuándo, qué',
       customer: 'Cliente',

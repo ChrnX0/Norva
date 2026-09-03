@@ -6,7 +6,15 @@ import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
 import { Field } from '@/components/Field';
-import { listPlaces, listProducts, saveOrder, type Place, type Product } from '@/data/repository';
+import {
+  listPlaces,
+  listProducts,
+  orderedDemand,
+  saveOrder,
+  type Demand,
+  type Place,
+  type Product,
+} from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { nowIso } from '@/data/db';
 import { useQuery } from '@/data/useQuery';
@@ -23,9 +31,19 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * o cliente falando. Cliente, dia e itens — e o dia nasce preenchido em amanhã,
  * que é o que a fábrica combina na maioria das ligações (Lei 2).
  *
- * O pedido NÃO mexe em estoque, e é por isso que ele não pergunta nada sobre
+ * O pedido NÃO mexe em estoque, e é por isso que ele não PERGUNTA nada sobre
  * saldo: nada saiu do freezer porque alguém ligou. Quem transforma pedido em
  * movimento é a carga que sai, mais tarde, na transferência.
+ *
+ * Mas ele passou a MOSTRAR o que está livre, e a diferença entre as duas coisas
+ * é a Lei 4. Perguntar o saldo seria pedir à pessoa um número que o sistema tem;
+ * mostrar quanto ainda pode ser prometido é avisar na data da decisão — com o
+ * cliente ainda no telefone — em vez de na data do problema, que é a manhã da
+ * entrega com a carga faltando.
+ *
+ * Livre é o saldo menos o que outros pedidos já prometeram para aquele dia. E o
+ * excesso **não bloqueia**: prometer mais do que existe é decisão legítima de
+ * quem sabe que vai produzir até lá. O app orienta, não fiscaliza.
  */
 export default function NewOrderScreen() {
   return (
@@ -35,7 +53,7 @@ export default function NewOrderScreen() {
   );
 }
 
-type Loaded = { places: Place[]; products: Product[] };
+type Loaded = { places: Place[]; products: Product[]; demand: Demand[] };
 type Draft = { itemId: string; name: string; baseUnits: number };
 
 function NewOrder() {
@@ -45,12 +63,15 @@ function NewOrder() {
   const words = t.app.newOrder;
 
   const { data } = useQuery<Loaded>(async () => {
-    const [places, products] = await Promise.all([
+    const [places, products, demand] = await Promise.all([
       listPlaces(LOCAL_COMPANY_ID),
       listProducts(LOCAL_COMPANY_ID),
+      // O que já foi prometido até o dia pedido - é o que transforma "saldo" em
+      // "livre". Sem isso, dois pedidos para sexta prometem as mesmas caixas.
+      orderedDemand(LOCAL_COMPANY_ID, localDate(nowIso(), locale.timeZone, 7)),
     ]);
     // A fábrica não pede para si mesma: o lugar padrão é de onde a carga sai.
-    return { places: places.filter((p) => !p.isDefault), products };
+    return { places: places.filter((p) => !p.isDefault), products, demand };
   });
 
   const [placeId, setPlaceId] = useState<string | null>(null);
@@ -64,6 +85,23 @@ function NewOrder() {
   const place = data?.places.find((p) => p.id === placeId) ?? data?.places[0] ?? null;
   const product = data?.products.find((p) => p.id === productId) ?? data?.products[0] ?? null;
   const units = Math.max(0, parseTyped(quantity) ?? 0);
+
+  /**
+   * O que ainda pode ser prometido deste produto.
+   *
+   * Saldo menos o que outros pedidos já reservaram, menos o que já foi
+   * digitado nesta tela - as linhas do rascunho contam, senão a segunda linha
+   * do mesmo pedido promete as caixas da primeira.
+   */
+  const livre = useMemo(() => {
+    if (!product) return null;
+    const linha = data?.demand.find((d) => d.itemId === product.itemId);
+    if (!linha) return null;
+    const noRascunho = lines
+      .filter((l) => l.itemId === product.itemId)
+      .reduce((n, l) => n + l.baseUnits, 0);
+    return linha.onHand - linha.requested - noRascunho;
+  }, [product, data, lines]);
 
   /** O dia pedido, como data local: hoje, amanhã ou depois. */
   const requestedFor = useMemo(
@@ -191,7 +229,30 @@ function NewOrder() {
             onChangeText={setQuantity}
             keyboardType="numeric"
             placeholder="0"
+            hint={
+              livre === null
+                ? undefined
+                : `${fill(words.free, {
+                    amount: `${formatQuantity(Math.max(0, livre), locale)} ${plural(
+                      Math.max(0, livre),
+                      t.units.unit,
+                    )}`,
+                  })} — ${words.freeHint}`
+            }
           />
+
+          {/* O excesso avisa e não impede: prometer mais do que existe é decisão
+              de quem sabe que vai produzir até lá. */}
+          {livre !== null && units > livre ? (
+            <Text style={[type.caption, { color: color.warning, marginTop: space.xs }]}>
+              {fill(words.over, {
+                amount: `${formatQuantity(units - Math.max(0, livre), locale)} ${plural(
+                  units - Math.max(0, livre),
+                  t.units.unit,
+                )}`,
+              })}
+            </Text>
+          ) : null}
         </View>
 
         <View style={{ marginTop: space.md }}>
