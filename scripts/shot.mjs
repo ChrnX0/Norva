@@ -20,6 +20,7 @@ import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join } from 'node:path';
 import { chromium } from 'playwright-core';
+import { marcarExportado, precisaLimpar } from './manifesto.mjs';
 
 const PORT = Number(process.env.SHOT_PORT ?? 4321);
 const ROOT = join(process.cwd(), 'dist');
@@ -118,7 +119,18 @@ function run(command, args) {
  * que não tinha a mudança — e numa ferramenta de OLHAR isso é pior ainda: eu
  * olharia a versão anterior e diria que está pronta.
  */
-await run('npx', ['expo', 'export', '--platform', 'web', '--output-dir', 'dist']);
+const limpar = precisaLimpar();
+if (limpar) console.log('› o app.json mudou: exportando com o cache limpo');
+await run('npx', [
+  'expo',
+  'export',
+  '--platform',
+  'web',
+  '--output-dir',
+  'dist',
+  ...(limpar ? ['--clear'] : []),
+]);
+marcarExportado();
 
 mkdirSync(SAIDA, { recursive: true });
 const server = serve();

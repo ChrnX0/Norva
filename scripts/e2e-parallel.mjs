@@ -22,16 +22,32 @@
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { cpus } from 'node:os';
+import { marcarExportado, precisaLimpar } from './manifesto.mjs';
 
 const FATIAS = Math.max(1, Math.min(cpus().length, 4));
 const PORTA_BASE = Number(process.env.E2E_PORT ?? 4300);
 
 console.log('› exportando a versão web, uma vez');
-const build = spawnSync('npx', ['expo', 'export', '--platform', 'web'], { stdio: 'inherit' });
+// `--clear` só quando o `app.json` mudou.
+//
+// O export daqui é o único que as quatro fatias enxergam — elas rodam com
+// `E2E_REUSE_BUILD`. Foi por essa porta que o manifesto velho entrou: a mesma
+// regra escrita no `e2e/flow.mjs` não valia aqui, que é o caminho que o portão
+// usa de verdade. Regra que vale num caminho e não no outro é regra que não vale.
+const limpar = precisaLimpar();
+if (limpar) console.log('› o app.json mudou: exportando com o cache limpo');
+const build = spawnSync(
+  'npx',
+  ['expo', 'export', '--platform', 'web', ...(limpar ? ['--clear'] : [])],
+  { stdio: 'inherit' },
+);
 if (build.status !== 0) {
   console.error('\nO export falhou. Sem pacote não há suíte.');
   process.exit(build.status ?? 1);
 }
+// A marca só depois do sucesso: um export que morreu no meio não provou nada
+// sobre o manifesto que está em `dist`.
+marcarExportado();
 
 console.log(`\n› rodando as checagens em ${FATIAS} fatias\n`);
 

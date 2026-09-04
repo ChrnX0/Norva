@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join } from 'node:path';
 import { chromium } from 'playwright-core';
+import { marcarExportado, precisaLimpar } from '../scripts/manifesto.mjs';
 
 /**
  * The app, driven the way a person drives it.
@@ -273,6 +274,16 @@ check('settings counts what erasing would take, in Portuguese', async (page) => 
   await page.waitForTimeout(2500);
 
   const text = await screen(page);
+
+  // A versão da tela é a do `app.json`, e esta linha é a guarda do pacote.
+  //
+  // Ela apareceu dizendo 0.2.0 com o `app.json` em 0.7.0: o manifesto inteiro é
+  // embutido na hora de transformar o `expo-constants`, e o cache do Metro não
+  // vê o `app.json` mudar. Toda foto e toda execução desta suíte liam esse
+  // manifesto — a versão é o único campo visível dele, então é por ela que se
+  // percebe. Sem esta asserção, o próximo campo a envelhecer envelhece calado.
+  const { version } = JSON.parse(readFileSync('app.json', 'utf8')).expo;
+  assert.match(text, new RegExp(version.replace(/\./g, '\\.')), 'o pacote traz o manifesto DESTA versão');
   // The confirmation has to say what disappears with the real count - "confirm
   // deletion?" is what a person clicks through without reading.
   assert.match(text, /O que está guardado/);
@@ -481,7 +492,7 @@ check('an invoice warns before it is committed, then moves everything', async (p
   await page.waitForTimeout(2500);
 
   await page.getByText('Polpa de morango', { exact: true }).first().click();
-  await page.getByLabel(/Quantas/).fill('4');
+  await page.getByLabel(/Quantidade, em/).fill('4');
   await page.getByLabel('Total da nota').fill('700');
   await page.waitForTimeout(800);
 
@@ -561,7 +572,7 @@ check('the briefing is up to date when you tap Back into it', async (page) => {
   await page.waitForTimeout(2500);
 
   await page.getByText('Polpa de morango', { exact: true }).first().click();
-  await page.getByLabel(/Quantas/).fill('4');
+  await page.getByLabel(/Quantidade, em/).fill('4');
   await page.getByLabel('Total da nota').fill('700');
   await page.waitForTimeout(800);
   await page.getByText('Lançar compra').first().click();
@@ -1026,7 +1037,7 @@ check('a decimal typed with a dot is the same money as one typed with a comma', 
   await page.waitForTimeout(2500);
 
   await page.getByText('Polpa de morango', { exact: true }).first().click();
-  await page.getByLabel(/Quantas/).fill('2');
+  await page.getByLabel(/Quantidade, em/).fill('2');
   await page.getByLabel('Total da nota').fill('120.50');
   await page.waitForTimeout(800);
 
@@ -1643,11 +1654,23 @@ try {
   // loud, for the case it was really for: iterating on the checks themselves.
   if (!existsSync(ROOT) || !process.env.E2E_REUSE_BUILD) {
     console.log('› exportando a versão web');
-    // No `--clear`: that empties the *bundler* cache, which buys nothing here.
-    // `expo export` rewrites `dist` on every run regardless, and the bug this
-    // guards against was skipping the export entirely, not reusing a warm
-    // cache. Clearing it cost two or three minutes of every run.
-    await run('npx', ['expo', 'export', '--platform', 'web']);
+    // `--clear` só quando o `app.json` mudou, e essa condição é cicatriz.
+    //
+    // O comentário aqui dizia que limpar o cache do bundler "não compra nada",
+    // porque `expo export` reescreve `dist` de qualquer jeito. Está errado, e o
+    // erro custou uma sessão inteira de fotos e execuções lendo um pacote com o
+    // MANIFESTO de cinco versões atrás: a tela de Ajustes dizia 0.2.0 com o
+    // `app.json` em 0.7.0. O manifesto é embutido no `expo-constants` na hora de
+    // transformar o módulo, e a chave do cache do Metro é o conteúdo desse
+    // módulo — que não muda quando o `app.json` muda.
+    //
+    // Limpar sempre devolveria os dois ou três minutos que o comentário
+    // defendia. Então a marca é o próprio `app.json`: mudou, limpa; não mudou,
+    // o cache está certo.
+    const limpar = precisaLimpar();
+    if (limpar) console.log('› o app.json mudou: exportando com o cache limpo');
+    await run('npx', ['expo', 'export', '--platform', 'web', ...(limpar ? ['--clear'] : [])]);
+    marcarExportado();
   }
 
   await new Promise((resolve) => server.listen(PORT, resolve));

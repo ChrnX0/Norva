@@ -2392,3 +2392,42 @@ grupo de linhas, o selo de dois estados sobre um fato de três, a frase de estad
 vazio decidida por uma contagem parcial, a chave de dicionário reusada de outra
 tela, o rótulo fixo sobre um cartão que muda de assunto, e a promessa dita fora do
 estado em que ela é verdade.
+
+## 4 de setembro — o pacote fresco com o manifesto velho
+
+**O que se viu.** A tela de Ajustes escreve a versão no cabeçalho. Numa revisão
+de rotina ela dizia **`0.2.0`** — cinco versões atrás do `app.json`, que diz
+`0.7.0`. `npx expo config` resolvia `0.7.0` corretamente: quem estava velho era o
+**pacote**, exportado dois minutos antes.
+
+O manifesto inteiro é embutido no `expo-constants` na hora de transformar o
+módulo, e a chave do cache do Metro é o conteúdo *daquele módulo* — que não muda
+quando o `app.json` muda. Então a exportação sai fresca, com o manifesto velho, e
+continua assim para sempre. `--clear` conserta na hora.
+
+**Por que isso é pior do que parece.** O campo visível é só a versão, mas o que
+está congelado é o manifesto inteiro: ícone, esquema, plugins, permissões. E as
+duas ferramentas de olhar deste repositório — `npm run shot` e o `e2e` — leem
+exatamente esse pacote. **Toda foto que mandei nesta sessão e toda execução da
+suíte leram um manifesto de cinco versões atrás.**
+
+**A crença que escondeu.** O comentário no `e2e` dizia, com todas as letras:
+*"No `--clear`: that empties the bundler cache, which buys nothing here"*. Foi
+escrito quando a espera do portão estava sendo medida e encolhida, e é verdade
+para o caso que ele tinha na mão — `expo export` reescreve `dist` de qualquer
+jeito. É falso para o manifesto, e o comentário fez a pergunta parar de ser feita.
+É a mesma família do `dist` reusado "porque ele existia", um nível abaixo e mais
+difícil de ver: aqui a exportação **é** da execução.
+
+**O que mudou.** `scripts/manifesto.mjs` guarda o hash do `app.json` ao lado da
+marca da última exportação, e `shot` e `e2e` passam `--clear` **só quando ele
+mudou** — os dois ou três minutos que o comentário defendia continuam
+economizados nas outras execuções. E o `e2e` passou a afirmar, na tela de
+Ajustes, que a versão exibida é a do `app.json`: a versão é o único campo visível
+do manifesto, então é por ela que se percebe. Sem essa asserção, o próximo campo
+a envelhecer envelhece calado.
+
+**A regra que sai:** cache invisível é cache que mente. Quando um dado nasce
+*fora* dos arquivos que o cache tem como chave — um manifesto, uma variável de
+ambiente, um relógio —, alguma coisa no produto final tem que dizer esse dado em
+voz alta, para uma asserção poder compará-lo com a fonte.
