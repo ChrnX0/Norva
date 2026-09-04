@@ -4,7 +4,7 @@ import { beforeEach, test } from 'node:test';
 import { fromDecimal, rate } from '@/domain/money';
 import { dayWindow, localDate } from '@/domain/day';
 import { costRecipe } from '@/domain/recipe';
-import { __setDb, migrate, migrationSteps, nowIso, type Db, type SqlParam } from './db';
+import { __setDb, db, migrate, migrationSteps, nowIso, type Db, type SqlParam } from './db';
 import {
   balanceByLocation,
   findLot,
@@ -138,6 +138,16 @@ async function anInput(name: string, perPack: number) {
     baseUnit: 'g',
     packaging: loose,
   });
+}
+
+/** O custo médio do item, lido do cache que a recomposição escreve. */
+async function custoDe(itemId: string): Promise<number> {
+  const conn = await db();
+  const row = await conn.getFirstAsync<{ average_rate: number }>(
+    `SELECT average_rate FROM item_costs WHERE item_id = ?`,
+    [itemId],
+  );
+  return row?.average_rate ?? 0;
 }
 
 test('a purchase writes the invoice and moves the average in one step', async () => {
@@ -2942,4 +2952,70 @@ test('a manufactured product is worth what it cost to make, everywhere it is', a
     'a loja vale o que a carga custou para fazer, não R$ 0,00',
   );
   assert.ok(esperado > 0, 'e o custo de fazer não é zero');
+});
+
+/**
+ * Estornar devolve o dinheiro, não só a quantidade.
+ *
+ * **A cicatriz.** O saldo voltava certinho — o teste acima prova isso desde 3 de
+ * setembro — e o custo médio ficava com o erro dentro para sempre. A confirmação
+ * que a pessoa lê diz *"os dois lançamentos ficam no histórico — nada é
+ * apagado"*, e ela entende que o erro foi desfeito. Metade dele era.
+ *
+ * Média móvel não se desfaz por aritmética inversa: ela depende do caminho. O
+ * que se faz é replicar o caminho, que é a mesma coisa que a fundação já diz do
+ * saldo — e é isso que `recomputeItemCost` faz.
+ */
+test('reversing a run gives the money back, not only the quantity', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const where = defaultLocationId(LOCAL_COMPANY_ID);
+
+  const primeira = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: where,
+    batches: 1,
+    unitsProduced: 500,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+  const depoisDaPrimeira = await custoDe(product.itemId);
+  assert.ok(depoisDaPrimeira > 0, 'a primeira corrida deu preço ao produto');
+
+  // A segunda com um DÉCIMO das unidades: a mesma receita dividida por menos
+  // picolés faz a taxa congelada subir, e a média sobe junto.
+  const errada = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: where,
+    batches: 1,
+    unitsProduced: 50,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+  const envenenada = await custoDe(product.itemId);
+  assert.ok(
+    envenenada > depoisDaPrimeira,
+    `a corrida errada tinha que puxar a média para cima (${depoisDaPrimeira} -> ${envenenada})`,
+  );
+
+  await reverseGroup(LOCAL_COMPANY_ID, { groupId: errada.groupId });
+
+  const consertada = await custoDe(product.itemId);
+  assert.ok(
+    Math.abs(consertada - depoisDaPrimeira) < 1e-9,
+    `depois do estorno a média volta ao que era antes da corrida errada: ` +
+      `esperado ${depoisDaPrimeira}, veio ${consertada}. Sem isso o dono corrige o estoque ` +
+      `e fica com o custo errado embaixo de todo número de dinheiro do aplicativo.`,
+  );
+
+  // E o histórico diz que mudou, porque mudança calada de custo reaparece
+  // semanas depois como margem errada, sem nada que a explique.
+  const conn = await db();
+  const historia = await conn.getAllAsync<{ new_rate: number }>(
+    `SELECT new_rate FROM item_cost_history WHERE company_id = ? AND item_id = ? ORDER BY observed_at`,
+    [LOCAL_COMPANY_ID, product.itemId],
+  );
+  assert.ok(historia.length >= 3, 'as duas corridas e o estorno deixam rastro no histórico de preço');
+
+  // A primeira corrida continua de pé: estornar a segunda não pode levar a
+  // primeira junto.
+  assert.ok(await findLot(LOCAL_COMPANY_ID, primeira.lot.id), 'o lote da corrida boa não some');
 });

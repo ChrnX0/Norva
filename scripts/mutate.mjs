@@ -29,6 +29,25 @@ import { spawnSync } from 'node:child_process';
 
 /** @type {{file: string, from: string, to: string, hurts: string}[]} */
 const DEFECTS = [
+  // --- o estorno que devolvia a quantidade e nao o dinheiro, 4 de setembro ---
+  //
+  // Achado da auditoria. O saldo voltava certinho e a media movel ficava com o
+  // erro dentro para sempre, embaixo de todo numero de dinheiro do aplicativo.
+  {
+    file: 'src/data/repository.ts',
+    from: '  for (const itemId of new Set(plan.legs.map((l) => l.itemId))) {',
+    to: '  for (const itemId of new Set([])) {',
+    hurts:
+      'estornar volta a devolver so a quantidade: quem digitou 50 onde sairam 500 conserta o estoque e fica com o custo dez vezes alto embaixo de "dinheiro parado", do valor de cada lugar e do valor da carga que chega na loja',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: "        AND m.kind <> 'reversal'\n        AND ${NAO_ESTORNADO}\n      ORDER BY m.occurred_at, m.recorded_at, m.id",
+    to: "      ORDER BY m.occurred_at, m.recorded_at, m.id",
+    hurts:
+      'a recomposicao do custo passa a contar a corrida errada E a perna do estorno, entao a media fica no valor envenenado com a quantidade certa - o estorno vira maquiagem',
+  },
+
   // --- o apagador que conhecia 12 das 21 tabelas, 4 de setembro -------------
   //
   // A guarda que devia pegar isto comparava uma lista escrita a mao consigo

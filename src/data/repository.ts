@@ -4236,6 +4236,110 @@ export async function planReversal(companyId: string, groupId: string): Promise<
 }
 
 /**
+ * O custo médio, recomposto a partir do livro-razão.
+ *
+ * **A cicatriz.** `reverseGroup` devolvia a quantidade e deixava o dinheiro. Quem
+ * digitasse 50 onde saíram 500 corrigia o estoque e ficava com o custo dez vezes
+ * alto embaixo de TODO número de dinheiro do aplicativo — "dinheiro parado" na
+ * capa, o valor de cada lugar, o valor da carga que chega na loja. A confirmação
+ * do estorno diz *"os dois lançamentos ficam no histórico — nada é apagado"*, e a
+ * pessoa entende, com razão, que o erro foi desfeito.
+ *
+ * **Não dá para "desmisturar" uma média móvel.** Ela é dependente do caminho: a
+ * ordem das entradas decide o resultado, e não existe operação inversa. O que dá,
+ * e é o que esta função faz, é **replicar o caminho inteiro do zero** — que é a
+ * mesma coisa que a primeira fundação deste projeto já diz do saldo. Saldo é a
+ * soma dos movimentos; média é a dobra deles. `item_costs` passa a ser cache de
+ * uma conta que sempre pode ser refeita, em vez de um número que só sabe andar
+ * para a frente.
+ *
+ * A regra da dobra é a dos dois escritores existentes, lida deles e não inventada:
+ * **entrada com taxa mistura; qualquer outra coisa só move a quantidade.** Uma
+ * saída não mexe na média (ela leva unidades ao preço médio do momento), e uma
+ * perna de estorno é uma saída — quantidade negativa —, então ela desfaz o efeito
+ * da entrada que corrigiu sem precisar de aritmética inversa.
+ *
+ * Escreve uma linha no histórico de preço quando o número muda, porque mudança
+ * calada de custo é a pior: ela reaparece semanas depois como margem errada, sem
+ * nada que a explique.
+ */
+export async function recomputeItemCost(companyId: string, itemId: string): Promise<Rate> {
+  const conn = await db();
+
+  const antes = await conn.getFirstAsync<{ average_rate: number }>(
+    `SELECT average_rate FROM item_costs WHERE item_id = ?`,
+    [itemId],
+  );
+
+  // O que foi estornado NÃO ACONTECEU — e a média é uma pergunta sobre o que
+  // aconteceu.
+  //
+  // Esta é a diferença entre consertar e maquiar, e eu errei nela primeiro.
+  // Tratar a perna de estorno como uma saída comum é o que um sistema contábil
+  // faz com uma devolução, e é consistente com média móvel — mas deixa o erro
+  // dentro para sempre: 500 picolés a 64,99 mais 50 a 614 dá 114,08, e tirar os
+  // 50 depois devolve a quantidade e mantém os 114,08. O dono corrigiu o estoque
+  // e continua com o custo errado, que é exatamente a queixa.
+  //
+  // A regra certa já estava escrita neste arquivo, em `NAO_ESTORNADO`, e é usada
+  // por oito consultas: as duas linhas ficam no razão porque a fundação exige,
+  // e quem pergunta "o que aconteceu" não vê nenhuma das duas. A dobra do custo
+  // é essa pergunta.
+  //
+  // A ordem desempata pelo instante em que o aparelho soube: duas entradas no
+  // mesmo momento têm que dobrar sempre igual, senão a média depende de qual
+  // linha o SQLite devolveu primeiro.
+  const linhas = await conn.getAllAsync<{ quantity_base_units: number; unit_cost_rate: number | null }>(
+    `SELECT m.quantity_base_units, m.unit_cost_rate
+       FROM movements m
+      WHERE m.company_id = ? AND m.item_id = ?
+        AND m.kind <> 'reversal'
+        AND ${NAO_ESTORNADO}
+      ORDER BY m.occurred_at, m.recorded_at, m.id`,
+    [companyId, itemId],
+  );
+
+  let estado: StockCostState = { baseUnits: 0, averageRate: 0 as Rate };
+  let ultima: Rate | null = null;
+  for (const l of linhas) {
+    if (l.quantity_base_units > 0 && l.unit_cost_rate !== null) {
+      estado = {
+        baseUnits: estado.baseUnits + l.quantity_base_units,
+        averageRate: blendRate(estado, {
+          baseUnits: l.quantity_base_units,
+          rate: l.unit_cost_rate as Rate,
+        }),
+      };
+      ultima = l.unit_cost_rate as Rate;
+    } else {
+      estado = { ...estado, baseUnits: estado.baseUnits + l.quantity_base_units };
+    }
+  }
+
+  const at = nowIso();
+  await conn.runAsync(
+    `INSERT INTO item_costs (item_id, company_id, average_rate, last_rate, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(item_id) DO UPDATE SET
+       average_rate = excluded.average_rate,
+       last_rate = excluded.last_rate,
+       updated_at = excluded.updated_at`,
+    [itemId, companyId, estado.averageRate, ultima, at],
+  );
+
+  const anterior = (antes?.average_rate ?? 0) as Rate;
+  if (Math.abs(anterior - estado.averageRate) > 1e-12) {
+    await conn.runAsync(
+      `INSERT INTO item_cost_history (id, company_id, item_id, previous_rate, new_rate, observed_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [newId(), companyId, itemId, anterior || null, estado.averageRate, at],
+    );
+  }
+
+  return estado.averageRate;
+}
+
+/**
  * O contrário de um ato, lançado como fato novo.
  *
  * **É a primeira fundação deste projeto virando código.** O livro-razão é
@@ -4322,6 +4426,22 @@ export async function reverseGroup(
       await enqueue(conn, [{ table: 'movements', rowId: id }]);
     }
   });
+
+  // E o dinheiro volta junto com a quantidade.
+  //
+  // Sem isto o estorno consertava metade: o saldo voltava certinho e o custo
+  // médio ficava com o erro dentro para sempre. Quem digitou 50 onde saíram 500
+  // corrigia o estoque e continuava com o custo dez vezes alto embaixo de todo
+  // número de dinheiro do aplicativo — e a confirmação que ele leu dizia que os
+  // dois lançamentos ficam no histórico, que nada é apagado.
+  //
+  // FORA da transação, de propósito. A recomposição lê o razão inteiro do item, e
+  // ela precisa enxergar as pernas do estorno que acabaram de ser escritas. Se
+  // falhar aqui, o razão já está certo — que é o que a fundação protege — e a
+  // média é cache: a próxima entrada daquele item a recompõe.
+  for (const itemId of new Set(plan.legs.map((l) => l.itemId))) {
+    await recomputeItemCost(companyId, itemId);
+  }
 
   return { groupId: newGroup, legs: plan.legs };
 }
