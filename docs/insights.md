@@ -2821,3 +2821,74 @@ e a premissa está presa no teste com contagens que bloqueariam qualquer outra �
 **A regra que fica:** *uma guarda que compara duas coisas escritas pela mesma mão não
 guarda nada.* A pergunta certa para toda guarda é: **de onde vem o outro lado da
 comparação?** Se a resposta é "do mesmo arquivo", o teste mede memória, não sistema.
+
+## 4 de setembro — eu tomei uma decisão do dono e escrevi ela como se fosse regra do sistema
+
+**O que se viu.** O dono abriu o aplicativo no celular e disse duas coisas: *"a
+logo do apk tb está diferente"* e *"nao consigo mudar o tema papel de dark para o
+light. o light tem q ser o padrão"*. As duas eram defeito, e as duas estavam na
+fundação, não no código.
+
+**O ícone era o andaime.** `assets/icon.png` nunca foi trocado desde 31 de agosto,
+o dia em que o projeto nasceu: a seta azul da Expo, com as linhas-guia de
+construção ainda desenhadas por cima. Todos os seis arquivos de `assets/` têm a
+mesma data.
+
+E o `src/config/brand.ts` promete, com todas as letras, que a marca é *"rendered
+from this path on a 100x100 viewBox so every surface — splash, icon, header, print
+— draws the exact same geometry"*. Era verdade em três superfícies e mentira na
+quarta — e a quarta é **o quadradinho pelo qual o aplicativo é aberto**. A promessa
+não estava errada por descuido de escrita: ela descrevia uma intenção que nunca
+teve mecanismo. Sem um script que desenhe, "todas as superfícies saem do mesmo
+caminho" é uma frase, não um fato.
+
+**O tema é o achado grave, e ele é sobre mim.** O `ThemeProvider` lia
+`useColorScheme()` e ponto: a luz da tela era do aparelho e de mais ninguém, sem
+controle em tela nenhuma. Isso sozinho seria uma lacuna. O que torna outra coisa é
+o que estava escrito ao lado, num comentário meu na tela de Ajustes:
+
+> *"Claro e escuro continuam seguindo o aparelho, **como o sistema manda** — o que
+> se escolhe aqui é a IDENTIDADE, que é outra pergunta."*
+
+Não era o sistema mandando. **Era eu escolhendo**, e vestindo a escolha de regra
+externa. O `CLAUDE.md` tem uma fundação inteira sobre isto: *"'Depende' vira dado,
+nunca código — e nunca uma pergunta"*, e a explicação diz literalmente que quando a
+resposta certa é "depende de quem usa", não se escolhe um dos lados. Claro contra
+escuro é o caso central disso — o dono no escritório e o operador na câmara fria
+podem querer coisas diferentes no mesmo dia, e nenhum dos dois está errado.
+
+**Por que isso é pior que um bug.** Um bug alguém encontra. Uma decisão minha
+escrita como regra do sistema **desencoraja a próxima pessoa de procurar**: quem
+lesse aquele comentário concluiria que a plataforma impõe, e não voltaria a olhar.
+O comentário não descrevia o código — ele defendia o código de ser questionado.
+
+E a regra do projeto que eu invoco o tempo todo, "antes de chamar algo de defeito,
+procure a decisão", tem um lado que eu não tinha visto: ela só funciona se as
+decisões registradas forem **do dono**. Uma decisão minha no meio delas envenena a
+busca inteira, porque tem exatamente a mesma cara.
+
+**O que mudou.** Três caminhos — claro, escuro, seguir o aparelho — com o claro de
+padrão, que é a única pergunta legítima e foi ele quem respondeu. A regra saiu do
+componente para `src/theme/scheme.ts`, e isso não é arrumação: dentro do provider
+só o navegador a alcançava, e o `mutate` roda a unidade — as duas mutações que a
+protegem **teriam sobrevivido**, com o e2e verde dizendo que estava tudo bem. E
+`scripts/icons.mjs` desenha as seis superfícies a partir do `markPath`, recusando o
+que não entende.
+
+**Duas coisas que quase entraram caladas no conserto**, e as duas são a mesma
+doença do dia:
+
+A medida de luminância do e2e **passava pelo motivo errado**. O React Native Web
+põe uma chapa cinza fixa do tamanho exato da janela, e o `>` da busca pelo maior
+elemento ficava com a primeira em ordem de documento — a fixa. A medida dava 0,95
+nos dois temas: a asserção de "abre claro" media uma coisa que nunca muda. Empate
+de área se resolve por quem pinta **por cima**.
+
+E a checagem antiga da identidade, que existe desde a reescrita visual, só afirma
+que o fundo *"existe"* — verdade de graça pelo mesmo motivo.
+
+**A regra que fica:** *decisão de dono escrita por mim é a pior linha de comentário
+que existe neste repositório.* Quando eu escolher um lado de um "depende", o
+comentário tem que dizer **quem escolheu e que a outra opção não foi construída** —
+nunca "como o sistema manda". Se a frase que eu ia escrever atribui a escolha a uma
+força externa, ela é o sinal de que eu decidi sozinho.
