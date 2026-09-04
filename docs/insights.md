@@ -2664,3 +2664,67 @@ morto, ele usa a forma que funciona.
 não de "qual é a próxima ação", o dado que falta quase sempre já está no
 livro-razão — e a pergunta certa costuma ter um **instante** dentro dela. "O que
 está lá" e "o que estava lá quando aconteceu" parecem a mesma consulta e não são.
+
+## 4 de setembro — o caminho de publicação que ninguém usa continua armado, e o conserto foi só do gatilho
+
+**O que se viu.** Fui conferir de que commit saiu o `apk-0.8.0` — nove commits
+atrás, `c32f96f`, e desde então entraram quatro coisas que aparecem na tela.
+Conferindo, dei com dois caminhos de publicação vivos ao mesmo tempo:
+
+- `build-apk.yml`, que compila **neste repositório** (`expo prebuild` + gradle,
+  arm64, 49 MB) e é quem publicou de `apk-0.2.0` a `apk-0.8.0`, sete vezes;
+- `release-apk.yml`, que **baixa um artefato pronto da Expo** e anexa ao release.
+  Última publicação legítima: `apk-0.1.0`, em 1 de setembro.
+
+O segundo não tem chamador desde então. Mas ele não é código morto — é código
+**armado**, e o docblock dele descreve com todas as letras a falha que ele
+próprio ainda produz.
+
+**O que aconteceria hoje, e conferi passo a passo.** `.github/apk-release.txt` não
+é tocado desde `f4ca1ce`: ele aponta para um artefato da Expo compilado de
+`5703790` — **177 commits atrás** — e traz `# commit: 5703790`. O workflow calcula
+a tag a partir do `app.json`, que nesta branch diz 0.9.0 mas dizia 0.8.0 até agora.
+Disparar "Publicar o APK" com esta branch escolhida fazia: `gh release create
+apk-0.8.0` falhar (a tag existe), cair no `|| gh release upload --clobber`, e
+**anexar um APK de 110 MiB de 177 commits atrás dentro do release `apk-0.8.0`** —
+ao lado do bom, sob uma nota que diz "Compilado de `c32f96f`".
+
+É exatamente o defeito que o docblock dele diz ter consertado: *"o pior tipo de
+defeito de entrega: dois arquivos sob a mesma tag, com códigos diferentes"*. O
+conserto de 1 de setembro trocou o gatilho de `pull_request` para
+`workflow_dispatch` e resolveu a **republicação automática**. Não resolveu o
+ponteiro velho: no dia em que alguém dispara à mão, o resultado é o mesmo. E é
+pior que dois arquivos — as duas assinaturas são chaves diferentes, então quem
+baixar o maior não consegue instalar por cima e perde os dados ao desinstalar.
+
+**Por que passou.** O `main` falha seguro por acidente, não por desenho: lá o
+pedido não tem a linha `# commit:`, e a checagem que exige essa linha mata o
+passo. Quem for conferir "isso é perigoso?" olhando o `main` vê um workflow que
+recusa rodar, e conclui que está protegido. A branch é que tem a linha.
+
+**A resposta certa era uma das três, e não foi teste.** O `CLAUDE.md` diz que
+quando nada chama uma peça há três respostas honestas — trazer o chamador, apagar
+a peça, ou registrar a fronteira com quem vai chamá-la. Aqui é apagar: o caminho
+da Expo foi superado pelo que compila no repositório, o artefato dele está
+velho, e ressuscitá-lo exigiria uma build nova da Expo, que exige o token — que é
+o que precisa ser revogado.
+
+**E isso fechou uma pendência que estava parada.** O `EXPO_TOKEN` vazado precisa
+ser revogado desde 3 de setembro, e a pergunta implícita era o que quebra quando
+ele morrer. A resposta, medida: **nada.** Depois desta remoção não sobra uma
+ocorrência de `EXPO_TOKEN`, `eas build` ou `expo.dev/artifacts` no repositório —
+o `build-apk.yml` não tem conta na Expo, só `npx expo prebuild` e gradle. Revogar
+o token passou a custar zero, e isso muda o recado ao dono: não é um chore, é uma
+ação de graça.
+
+**O que mudou.** `.github/workflows/release-apk.yml` e `.github/apk-release.txt`
+apagados; `app.json` em 0.9.0, e o instalador novo sai do HEAD com as quatro
+coisas de hoje que aparecem na tela — a ficha na etiqueta do lote, a dica de
+quanto dá para prometer no primeiro pedido, a lista de compras no assistente, e
+os lotes expostos na câmara fora da faixa.
+
+**A família, para nomear:** *consertar o gatilho e deixar o alvo.* O erro tinha
+duas metades — quando roda, e o que roda — e o conserto tratou a primeira como se
+fosse a coisa toda, com um docblock longo por cima afirmando o conserto. É a mesma
+forma dos rótulos de hoje: o texto ao lado descreve um estado que o código não
+tem mais.
