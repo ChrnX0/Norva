@@ -39,7 +39,7 @@ export function Button({
   disabled?: boolean;
   style?: ViewStyle;
 }) {
-  const { color, radius, type, space, accent, motion, skin } = useTheme();
+  const { color, radius, type, space, accent, brand, motion, skin } = useTheme();
 
   /**
    * A pílula é do Orgânico. No Papel, retângulo.
@@ -50,6 +50,22 @@ export function Button({
    * achável é ser a única massa de cor da tela, e isso continua.
    */
   const papel = skin === 'papel';
+
+  /**
+   * A cor da AÇÃO é do aplicativo, não da seção.
+   *
+   * O botão pintava com o acento da área, e numa folha de contato as quatro
+   * telas apareceram com quatro botões de cores diferentes — laranja na
+   * produção, rosa no transporte. Cor de seção mora na régua e no desenho, que
+   * é onde ela responde "que assunto é este"; no botão ela responde outra
+   * pergunta, e responde errado: "registrar uma saída" não é uma coisa
+   * diferente de "adicionar produção" só porque a aba é outra.
+   *
+   * Vale no Papel, onde a família é de tinta e um preenchimento claro vira
+   * mancha. No Orgânico o acento por área continua — lá a cor é o assunto, e
+   * foi assim que o dono escolheu.
+   */
+  const preenchimento = papel ? brand : accent;
   const [pressed, setPressed] = useState(false);
 
   // The spring is driven by state rather than by writing to a shared value in
@@ -76,7 +92,7 @@ export function Button({
       style={[
         styles.base,
         {
-          backgroundColor: isPrimary ? accent : 'transparent',
+          backgroundColor: isPrimary ? preenchimento : 'transparent',
           borderColor: isPrimary ? 'transparent' : color.lineStrong,
           borderRadius: papel ? radius.sm : radius.pill,
           paddingVertical: space.lg,
