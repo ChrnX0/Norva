@@ -83,12 +83,15 @@ type Loaded = { places: Place[]; stock: PlaceStock[]; readings: Reading[] };
  * loja é fachada, cliente é pessoa, veículo é carroceria, câmara é termômetro. O
  * resto da casa (fábrica, almoxarifado) é o prédio: são as salas de dentro.
  */
-function desenhoDoLugar(kind: string): (color: string, weight: number) => ReactNode {
-  if (kind === 'own_store') return (c, w) => <GlyphStore size={26} color={c} weight={w} />;
-  if (kind === 'customer') return (c, w) => <GlyphCustomer size={26} color={c} weight={w} />;
-  if (kind === 'vehicle') return (c, w) => <GlyphVehicle size={26} color={c} weight={w} />;
-  if (kind === 'cold_room') return (c, w) => <GlyphThermometer size={26} color={c} weight={w} />;
-  return (c, w) => <GlyphFactory size={26} color={c} weight={w} />;
+// Devolve o ELEMENTO, não uma função que devolve elemento: a segunda forma tem
+// cara de componente de ordem superior e o lint cobra nome de exibição de cada
+// uma das cinco. Aqui é só um desenho escolhido por tipo.
+function desenhoDoLugar(kind: string, color: string, weight: number): ReactNode {
+  if (kind === 'own_store') return <GlyphStore size={26} color={color} weight={weight} />;
+  if (kind === 'customer') return <GlyphCustomer size={26} color={color} weight={weight} />;
+  if (kind === 'vehicle') return <GlyphVehicle size={26} color={color} weight={weight} />;
+  if (kind === 'cold_room') return <GlyphThermometer size={26} color={color} weight={weight} />;
+  return <GlyphFactory size={26} color={color} weight={weight} />;
 }
 
 function Places() {
@@ -183,13 +186,12 @@ function Places() {
         const saldo = data?.stock.find((s) => s.locationId === place.id) ?? null;
         const recebe = place.kind === 'own_store' || place.kind === 'customer';
         const proxima = daysUntilNextDelivery(place.deliveryDays, hoje);
-        const desenho = desenhoDoLugar(place.kind);
 
         return (
           <Reveal key={place.id} index={primeiroLugar + posicao}>
             <Card
               hue={tomDoLugar(place.kind)}
-              icon={(c) => desenho(c, traco)}
+              icon={(c) => desenhoDoLugar(place.kind, c, traco)}
               title={nameOf(place)}
             >
               <Text style={[type.overline, { color: color.inkFaint }]}>

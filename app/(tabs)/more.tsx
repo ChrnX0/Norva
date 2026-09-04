@@ -1,31 +1,47 @@
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
+import { GlyphAssistant, GlyphCatalog, GlyphSettings } from '@/components/Glyph';
+import { ListRow } from '@/components/ListRow';
 import { IconChevron } from '@/components/icons';
+import { Reveal } from '@/components/Reveal';
+import { Touchable } from '@/components/Touchable';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
-import { type Ambient } from '@/theme/tokens';
 import type { Dictionary } from '@/i18n';
 
 /**
- * The drawers: what you open once a month, not once a shift.
+ * As gavetas: o que se abre uma vez por mês, não uma vez por turno.
  *
- * The canvas draws three groups - CADASTROS, DINHEIRO, CONFIGURAÇÕES. Only two
- * ship, and the missing one is deliberate: "Financeiro" and "Notas fiscais"
- * have nothing behind them. There is no sale price in this app, no account, no
- * fiscal service - that one is a separate .NET project with an A1 certificate
- * and a SEFAZ homologation, and the plan says nothing depends on it. A drawer
- * that opens onto nothing is worse than a drawer that is not drawn.
+ * Só três assuntos moram aqui — perguntar, cadastrar, ajustar — e cada um é um
+ * cartão com o desenho dele. O que estava aqui antes era outra coisa: um crachá
+ * de cor desenhado à mão em cada linha (dez pixels de `backgroundColor` com
+ * `borderRadius`), um título de grupo escrito em caixa alta como parágrafo, e
+ * `Pressable` cru no lugar do toque que afunda. Os pontinhos coloridos são o
+ * defeito que a língua da casa nomeia: ícone em toda linha de lista vira papel
+ * de parede e some — e sem legenda nenhuma, um ponto laranja não ensina que
+ * laranja é produção. O tom agora é do CARTÃO, que é o assunto, e a linha volta
+ * a ser o que ela é: um nome e o que se acha lá dentro.
  *
- * "Pessoas" is missing for the same reason: `operator_id` is a column with no
- * table of people behind it yet.
+ * **E cada linha passou a dizer o que a tela dela responde.** Uma lista onde
+ * toda linha é só um nome obriga a abrir uma por uma para descobrir qualquer
+ * coisa; a frase que cada tela já usa na própria sobrelinha ("o que você
+ * compra", "onde está o que você tem") serve exatamente para isso e já existe
+ * nos três idiomas.
  *
- * And one card here is NOT in the canvas: "Pergunte". The assistant exists,
- * answers fourteen questions offline, and the five artboards never drew it -
- * leaving it unreachable would have quietly deleted a finished feature, so it
- * sits at the top, full width. That placement is mine, and it is the one thing
- * on this screen the owner did not draw.
+ * O que continua FORA, e por motivo escrito: a tela desenhava três grupos, e o
+ * terceiro — "Financeiro" e "Notas fiscais" — não tem nada atrás. Não existe
+ * preço de venda neste aplicativo, nem conta, e o fiscal é um projeto .NET à
+ * parte com certificado A1 e homologação na SEFAZ, do qual o plano diz que nada
+ * depende. Gaveta que abre no vazio é pior que gaveta não desenhada. "Pessoas"
+ * falta pelo mesmo motivo: `operator_id` é coluna sem tabela de gente atrás.
+ *
+ * E um cartão aqui NÃO está na tela desenhada: "Pergunte". O assistente existe,
+ * responde catorze perguntas offline, e as cinco pranchas nunca o desenharam —
+ * deixá-lo inalcançável apagaria em silêncio uma coisa pronta, então ele fica em
+ * cima, inteiro. Essa colocação é minha, e é a única coisa desta tela que o dono
+ * não desenhou.
  */
 export default function More() {
   return (
@@ -35,77 +51,103 @@ export default function More() {
   );
 }
 
-type Row = { key: keyof Dictionary['app']['more']['rows']; area: Ambient; route: string };
-
-const REGISTERS: Row[] = [
-  { key: 'inputs', area: 'mist', route: '/inputs' },
-  { key: 'recipes', area: 'apricot', route: '/recipes' },
-  { key: 'products', area: 'mist', route: '/products' },
-  { key: 'places', area: 'mint', route: '/places' },
-  { key: 'orders', area: 'mint', route: '/orders' },
-  { key: 'purchases', area: 'sage', route: '/purchase' },
-];
-
-const SETTINGS: Row[] = [
-  // A porta que não depende de rede: o cartão do clima na capa só existe quando
-  // há previsão guardada, e quem abre o app pela primeira vez dentro da câmara
-  // fria não tem nenhuma. Sem esta linha, trocar a cidade dependeria de ter
-  // internet - que é a única coisa que essa tela existe para consertar.
-  { key: 'weather', area: 'sky', route: '/weather' },
-  { key: 'settings', area: 'mist', route: '/settings' },
-];
+/**
+ * Uma porta: o nome dela, o que se acha do outro lado, e para onde vai.
+ *
+ * O `detail` não é enfeite — é o que faz a pessoa não precisar abrir para saber
+ * se era ali. Ele vem da sobrelinha da própria tela de destino, que é a frase
+ * que aquela tela já usa para se apresentar.
+ */
+type Porta = {
+  key: keyof Dictionary['app']['more']['rows'];
+  detail: string;
+  route: string;
+};
 
 function Drawers() {
-  const { color, type, space, palette } = useTheme();
+  const { color, type, space, palette, skin } = useTheme();
   const { t } = useLocale();
   const router = useRouter();
+  const traco = skin === 'papel' ? 1.7 : 2.2;
 
-  const group = (title: string, rows: Row[]) => (
-    <Card>
-      <Text
-        style={[
-          type.caption,
-          { color: color.inkFaint, letterSpacing: 1, marginBottom: space.sm },
-        ]}
-      >
-        {title}
-      </Text>
-      {rows.map((row) => (
-        <Pressable
-          key={row.route}
-          onPress={() => router.push(row.route as never)}
-          accessibilityRole="button"
-          accessibilityLabel={t.app.more.rows[row.key]}
-          style={[styles.row, { paddingVertical: space.md, gap: space.md }]}
-        >
-          <View style={[styles.swatch, { backgroundColor: palette[row.area] }]} />
-          <Text style={[type.body, { color: color.ink, flex: 1 }]}>
-            {t.app.more.rows[row.key]}
-          </Text>
-          <IconChevron size={18} color={color.inkFaint} />
-        </Pressable>
-      ))}
-    </Card>
+  const cadastros: Porta[] = [
+    { key: 'inputs', detail: t.app.inputs.overline, route: '/inputs' },
+    { key: 'recipes', detail: t.app.recipes.overline, route: '/recipes' },
+    { key: 'products', detail: t.app.products.overline, route: '/products' },
+    { key: 'places', detail: t.app.places.overline, route: '/places' },
+    { key: 'orders', detail: t.app.orders.overline, route: '/orders' },
+    { key: 'purchases', detail: t.app.purchase.overline, route: '/purchase' },
+  ];
+
+  const ajustes: Porta[] = [
+    // A porta que não depende de rede: o cartão do clima na capa só existe
+    // quando há previsão guardada, e quem abre o app pela primeira vez dentro da
+    // câmara fria não tem nenhuma. Sem esta linha, trocar a cidade dependeria de
+    // ter internet — que é a única coisa que essa tela existe para consertar.
+    { key: 'weather', detail: t.app.weather.change, route: '/weather' },
+    { key: 'settings', detail: t.app.settings.stored, route: '/settings' },
+  ];
+
+  /** O convite de abrir, dito uma vez, no pé do cartão que leva a algum lugar. */
+  const abrir = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, marginTop: space.sm }}>
+      <Text style={[type.caption, { color: color.inkFaint, flex: 1 }]}>{t.app.home.openScreen}</Text>
+      <IconChevron size={16} color={color.inkFaint} />
+    </View>
+  );
+
+  const portas = (porta: Porta) => (
+    <ListRow
+      key={porta.route}
+      label={t.app.more.rows[porta.key]}
+      detail={porta.detail}
+      onPress={() => router.push(porta.route as never)}
+    />
   );
 
   return (
     <CollapsingHeader title={t.app.more.title}>
-      <Pressable onPress={() => router.push('/assistant')} accessibilityRole="button">
-        <Card tone="area">
-          <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.more.ask.label}</Text>
-          <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-            {t.app.more.ask.hint}
-          </Text>
-        </Card>
-      </Pressable>
+      {/* Perguntar vem antes de cadastrar: é a única coisa aqui que se usa sem
+          saber o nome da tela que responde. */}
+      <Reveal index={0}>
+        <Touchable
+          onPress={() => router.push('/assistant')}
+          accessibilityLabel={t.app.more.ask.label}
+        >
+          <Card
+            hue={palette.mist}
+            icon={(c) => <GlyphAssistant size={26} color={c} weight={traco} />}
+            title={t.app.more.ask.label}
+          >
+            <Text style={[type.secondary, { color: color.inkMuted }]}>{t.app.more.ask.hint}</Text>
+            {abrir}
+          </Card>
+        </Touchable>
+      </Reveal>
 
-      {group(t.app.more.groups.registers, REGISTERS)}
-      {group(t.app.more.groups.settings, SETTINGS)}
+      {/* O que a fábrica cadastra uma vez e usa todo dia. Nenhuma destas linhas
+          tem número para mostrar aqui — a tela não consulta nada, e cartão que
+          diz zero é alerta inventado. Então cada uma é linha, com a porta
+          inteira preservada. */}
+      <Reveal index={1}>
+        <Card
+          hue={palette.mist}
+          icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}
+          title={t.app.more.groups.registers}
+        >
+          {cadastros.map(portas)}
+        </Card>
+      </Reveal>
+
+      <Reveal index={2}>
+        <Card
+          hue={palette.mist}
+          icon={(c) => <GlyphSettings size={26} color={c} weight={traco} />}
+          title={t.app.more.groups.settings}
+        >
+          {ajustes.map(portas)}
+        </Card>
+      </Reveal>
     </CollapsingHeader>
   );
 }
-
-const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center' },
-  swatch: { width: 10, height: 10, borderRadius: 5 },
-});
