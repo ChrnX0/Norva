@@ -71,14 +71,40 @@ const mass = (color: string, opacity = 0.24) => ({ fill: color, opacity });
 const massIf = (weight: number, color: string, opacity = 0.24) =>
   weight >= 2 ? mass(color, opacity) : { fill: 'none' as const };
 
-/** Produção: o picolé, que é o que sai do tacho. */
+/**
+ * Produção: as unidades prontas, empilhadas — o que saiu, seja o que for.
+ *
+ * **Era um picolé**, e isso contradizia a primeira linha do projeto: *"nasce numa
+ * fábrica de picolés, mas será publicado nas lojas — nada de regra chumbada de
+ * sorvete"*. O sorvete não estava numa regra, estava no lugar mais visível que
+ * existe: a aba de baixo e o crachá do primeiro cartão da capa. Quem instala para
+ * fabricar queijo, tinta ou cosmético abre o aplicativo e vê o produto de outra
+ * pessoa.
+ *
+ * A unidade saindo pela esteira serve qualquer fábrica, e o desenho passou por três
+ * versões antes desta — cada uma reprovada por uma FOTO da barra de abas, que é o
+ * único lugar onde um ícone é julgado ao lado dos irmãos dele:
+ *
+ *   - **três unidades empilhadas** viraram irmãs do ícone de "Mais" (dois amontoados
+ *     de quadradinhos na mesma barra), o que é pior que o picolé: confunde navegação
+ *     em vez de só falar do produto errado;
+ *   - **unidade sobre esteira com três roletes** virou irmã do caminhão — caixa com
+ *     rodas, do lado de uma caixa com rodas.
+ *
+ * A seta resolve as duas: caminhão tem roda, isto tem SAÍDA.
+ *
+ * Esta silhueta não colide com nada do vocabulário: o saco e o balde são insumo, a
+ * caixa é transporte, o tacho é o processo aberto, a etiqueta é o lote, a grade é
+ * "Mais". Esta é a SAÍDA — a única coisa que toda fábrica deste produto tem em
+ * comum, seja picolé, queijo, tinta ou cosmético.
+ */
 export function GlyphProduction({ size = 26, color, weight = 2.2 }: GlyphProps) {
   return (
     <Svg {...frame(size)} accessibilityRole="image">
-      <Rect x="9" y="3" width="14" height="18" rx="7" {...massIf(weight, color)} />
-      <Rect x="9" y="3" width="14" height="18" rx="7" {...line(color, weight)} />
-      <Path d="M16 21v7" {...line(color, weight)} />
-      <Path d="M13 8.5c1.6 1.4 4.8 1.4 6.4 0" {...line(color, weight - 0.4)} />
+      <Rect x="7" y="5" width="13" height="12" rx="3" {...massIf(weight, color)} />
+      <Rect x="7" y="5" width="13" height="12" rx="3" {...line(color, weight)} />
+      <Path d="M5.5 22h17" {...line(color, weight)} />
+      <Path d="M22 18.5l3.5 3.5-3.5 3.5" {...line(color, weight)} />
     </Svg>
   );
 }

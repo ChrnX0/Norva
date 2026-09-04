@@ -10,7 +10,7 @@ import { CountUp } from '@/components/CountUp';
 import { GlyphBox, GlyphOrder, GlyphPrice, GlyphProduction, GlyphStock } from '@/components/Glyph';
 import { PulseDot } from '@/components/PulseDot';
 import { Reveal } from '@/components/Reveal';
-import { SkyScene, TemperatureRange } from '@/components/Sky';
+import { SkyMark, skyInk, TemperatureRange } from '@/components/Sky';
 import { Touchable } from '@/components/Touchable';
 import {
   fill,
@@ -49,11 +49,14 @@ export function Mosaic({
   layout,
   go,
 }: BriefingView) {
-  const { color, type, space, palette, skin, accent } = useTheme();
+  const { color, type, space, palette, skin, accent, brand } = useTheme();
   const { locale, t } = useLocale();
 
   // A espessura do traço é da identidade: fino no Papel, cheio no Orgânico.
   const traco = skin === 'papel' ? 1.7 : 2.2;
+
+  /** A cor do dia, uma só para o cartão do clima inteiro. */
+  const corDoDia = sky ? skyInk(sky.today.maxC, { palette, brand, skin }) : palette.sky;
 
   /**
    * Há pedido em aberto — e não "há linha na consulta", que são coisas
@@ -271,29 +274,32 @@ export function Mosaic({
             onPress={() => abrir('clima')}
             accessibilityLabel={fill(t.app.weather.overline, { city: weather?.place.name ?? '' })}
           >
-            <Card hue={palette.sky} style={{ padding: 0, overflow: 'hidden' }}>
-              {/* Mais baixa no Papel: lá a cena é um traço, e cento e quarenta
-                  pixels em volta de um sol viram bloco vazio — que é o mesmo
-                  defeito do bloco degradê, com outra cor. */}
-              <SkyScene
-                maxC={sky.today.maxC}
-                rainChance={sky.today.rainChance}
-                height={skin === 'papel' ? 92 : 140}
-              />
-              <View style={{ padding: space.lg }}>
-                <Text style={[type.overline, { color: color.inkFaint }]}>
-                  {fill(t.app.weather.overline, { city: weather?.place.name ?? '' }).toUpperCase()}
-                </Text>
-                <View style={[styles.row, { gap: space.md, marginTop: space.xs }]}>
-                  <Text style={[type.figure, { color: color.ink }]}>{`${Math.round(sky.today.maxC)}°`}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[type.secondary, { color: color.inkMuted }]}>{t.app.weather.today}</Text>
-                    <Text style={[type.caption, { color: color.inkFaint }]}>
-                      {fill(t.app.weather.low, { degrees: plural(Math.round(sky.today.minC), t.app.weather.degrees) })}
-                    </Text>
-                  </View>
+            {/* O cartão inteiro na cor do dia: filete, desenho e régua. Borda azul
+                com um sol quente dentro são duas peças no mesmo cartão. */}
+            <Card hue={corDoDia}>
+              <Text style={[type.overline, { color: color.inkFaint }]}>
+                {fill(t.app.weather.overline, { city: weather?.place.name ?? '' }).toUpperCase()}
+              </Text>
+              {/* O número e o desenho na MESMA linha, e é aqui que a faixa de céu
+                  deixou de existir.
+                  Ela era um retângulo de 140 px com degradê entre duas cores de
+                  acento — lama no claro, adesivo pastel no escuro, e um vazio de
+                  92 px no Papel. Cor de acento ampliada até virar fundo é o mesmo
+                  erro que `inkFaint` ampliado até virar corpo: ela não foi medida
+                  para essa área. O desenho do tamanho de um desenho, ao lado do
+                  número que ele explica, é o vocabulário do resto do aplicativo. */}
+              <View style={[styles.row, { gap: space.md, marginTop: space.xs }]}>
+                <Text style={[type.figure, { color: color.ink }]}>{`${Math.round(sky.today.maxC)}°`}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[type.secondary, { color: color.inkMuted }]}>{t.app.weather.today}</Text>
+                  <Text style={[type.caption, { color: color.inkFaint }]}>
+                    {fill(t.app.weather.low, { degrees: plural(Math.round(sky.today.minC), t.app.weather.degrees) })}
+                  </Text>
                 </View>
-                <TemperatureRange minC={sky.today.minC} maxC={sky.today.maxC} />
+                <SkyMark maxC={sky.today.maxC} rainChance={sky.today.rainChance} />
+              </View>
+              <View>
+                <TemperatureRange minC={sky.today.minC} maxC={sky.today.maxC} ink={corDoDia} />
                 {sky.warmerBy !== null ? (
                   <Text style={[type.caption, { color: color.inkFaint, marginTop: space.sm }]}>
                     {sky.warmerBy === 0

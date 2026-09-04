@@ -3469,3 +3469,65 @@ idioma (a decisão escrita é sobre as PALAVRAS dele serem portuguesas, não sob
 número ser formatado à mão); e uma guarda de fonte que recusa a multiplicação por cem
 com `toFixed` na mesma linha de um `%` — precisa a ponto de deixar passar os três
 inocentes: taxa de quatro casas, contagem de tachos, e a prosa que cita o padrão.
+
+## 4 de setembro — a ferramenta de olhar ficou cega de três jeitos no mesmo dia
+
+O dono mandou uma foto da capa dele e disse: *refaça até acertar*. Fui olhar, e antes
+de achar qualquer defeito de tela, achei que **eu não conseguia olhar**:
+
+1. **Idioma.** `npm run shot` morreu procurando o campo "Procurar cidade". O navegador
+   headless é `en-US`, e desde que o idioma virou escolha da empresa — com o aparelho
+   como palpite do primeiro dia — o aplicativo abre em inglês ali. A ferramenta parou
+   de funcionar por causa de um conserto meu, três horas antes.
+2. **Luz.** `--escuro` ajustava o `colorScheme` do navegador. O aplicativo passou a ter
+   escolha própria, com padrão claro (decisão do dono) — então a foto do escuro saía
+   **idêntica à do claro**, e eu teria olhado duas vezes a mesma tela dizendo que vi as
+   duas. Esta é a pior das três: a ferramenta não falhou, ela **mentiu**.
+3. **Largura.** Ela fotografava 412 px e só. O corte que o dono viu — "Transpo…",
+   "Relatóri…" — **não existe a 412**. A 360, que é o Android que uma fábrica de seis
+   pessoas compra, ele aparece na primeira foto.
+
+**A regra que fica: quando uma preferência deixa de ser do aparelho e passa a ser do
+aplicativo, toda ferramenta que dirige o aplicativo de fora fica cega no mesmo
+instante** — e a cegueira é silenciosa, porque a ferramenta continua produzindo uma
+imagem. Idioma, tema e fuso saíram do aparelho hoje; três ferramentas dependiam do
+aparelho para configurá-los; nenhuma reclamou.
+
+E a terceira tem regra própria, que é sobre medir: **instrumento que só olha um
+tamanho é cego para todo defeito que depende de tamanho**, que é metade dos defeitos
+de tela. O `--largura` agora existe, e a foto estreita ganha nome próprio para não
+sobrescrever a larga — comparação entre duas larguras é o motivo de a largura existir.
+
+## 4 de setembro — a checagem do navegador AFIRMAVA o defeito
+
+Consertados os quatro chamadores de porcentagem à mão, o `e2e` reprovou: ele exigia
+`41.1%` e a tela passou a escrever `41,1%`. A checagem estava certa em relação ao
+código e errada em relação ao mundo — foi escrita lendo o que a tela imprimia, e o que
+a tela imprimia era o ponto decimal do JavaScript numa fábrica brasileira.
+
+Duas asserções, as duas verdes por semanas, as duas travando o defeito no lugar. Uma
+suíte que roda num navegador de verdade não protege de nada quando a asserção nasce de
+uma cópia da saída.
+
+**A regra que fica: asserção se escreve da REGRA, não da saída.** "Português escreve
+porcentagem com vírgula" é uma regra e sobrevive a qualquer refatoração; `41.1%` é uma
+fotocópia, e fotocópia de tela errada é defeito com teste de guarda-costas.
+
+## 4 de setembro — cor de acento não é cor de fundo, e ícone só se julga ao lado dos irmãos
+
+A capa tinha uma faixa de céu de 140 px com degradê entre duas cores da paleta. As
+fotos das quatro combinações mostraram três formas do mesmo defeito: lama no claro
+(verde da marca interpolado com rosa passa por cinza-barro no meio), adesivo pastel
+aceso no escuro, e um vazio de 92 px no Papel, cuja identidade é traço.
+
+**O erro não era a cor escolhida: era a ÁREA.** As cores desta paleta são tinta e
+traço — medidas para desenhar sobre um fundo, não para preencher um terço da tela.
+Ampliar uma cor de acento até virar fundo é exatamente o mesmo erro que ampliar
+`inkFaint` até virar texto de corpo, e as duas coisas foram consertadas hoje, com seis
+horas de diferença, sem eu perceber que eram a mesma.
+
+E o ícone de "Produção" — o picolé num aplicativo que promete servir qualquer fábrica —
+levou **três desenhos** para ficar de pé, cada um reprovado por uma foto da barra de
+abas: três unidades empilhadas viraram irmãs do ícone de "Mais"; unidade sobre esteira
+com roletes virou irmã do caminhão. **Ícone não se julga sozinho: ele se julga na
+fileira em que vai viver.** O primeiro parecia ótimo isolado.

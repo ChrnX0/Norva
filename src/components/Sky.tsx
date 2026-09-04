@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { AccessibilityInfo, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -7,29 +7,50 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle, Defs, Line, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Line, Path, RadialGradient, Stop } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
+import type { Palette, Skin } from '@/theme/tokens';
 
 /**
- * O céu do dia, desenhado.
+ * O dia, desenhado — e por que ele deixou de ser um bloco.
  *
- * O dono olhou a capa publicada e disse que o clima podia ficar muito mais
- * bonito. Ele estava certo, e o cartão de antes explica por quê: era um número
- * grande e quatro linhas de texto cinza, com a mesma cara do custo, do saldo e
- * de tudo o mais. Numa fábrica de sorvete o calor É o negócio — o cartão que
- * fala dele não pode ter a cara de uma linha de planilha.
+ * O dono olhou a capa publicada e disse que o clima podia ficar muito mais bonito.
+ * A primeira resposta foi uma FAIXA de céu: um retângulo de 140 px com degradê
+ * entre duas cores da paleta, o sol por cima, e o texto embaixo. Ela nasceu do
+ * argumento certo — numa fábrica de sorvete o calor É o negócio, e o cartão que
+ * fala dele não pode ter a cara de uma linha de planilha — e resolveu o problema
+ * errado.
  *
- * O que esta cena desenha vem do dado e só dele: a cor do fundo sai da máxima
- * do dia, o sol ou a nuvem saem da chance de chuva, e as gotas só caem quando a
- * chance é de verdade. Nada aqui é enfeite escolhido a dedo — trocar 31° por
- * 12° troca a cena inteira sem tocar no código.
+ * **O que as fotos mostraram**, nas três combinações, no dia em que alguém
+ * finalmente olhou:
  *
- * O traço obedece a regra que o resto do desenho segue: a cor mora no traço, e
- * o único preenchimento é a atmosfera atrás — que é fundo, não ícone.
+ *   - **Orgânico claro, 33°:** o degradê ia do verde da marca ao rosa. Duas cores
+ *     de matiz distante interpoladas em sRGB passam por LAMA no meio: o cartão
+ *     ficou um hematoma de 140 px no alto da capa.
+ *   - **Orgânico escuro:** o mesmo bloco pastel, agora aceso numa tela preta, com
+ *     o sol desenhado em `onAccent` — que no escuro é quase preto. Um adesivo de
+ *     outro aplicativo colado na tela.
+ *   - **Papel:** sem degradê (a identidade dele é traço), sobrava um VAZIO de 92 px
+ *     com um sol no canto direito. O comentário de então já dizia que 140 px em
+ *     volta de um sol viram bloco vazio; a correção diminuiu o bloco em vez de
+ *     tirá-lo.
+ *
+ * O defeito comum não é a cor escolhida: é a **área**. As cores desta paleta são
+ * tinta e traço — feitas para desenhar sobre um fundo claro ou escuro, não para
+ * PREENCHER um terço da tela. Ampliar uma cor de acento até virar fundo é o mesmo
+ * erro que ampliar `inkFaint` até virar texto de corpo: ela não foi medida para
+ * isso.
+ *
+ * **O que ficou:** o desenho, do tamanho de um desenho, ao lado do número — como a
+ * ilustração da fábrica no cartão de primeiro dia, que é a única peça desta capa
+ * que ficou bonita nas três fotos. A temperatura continua mandando na cena, que era
+ * a promessa boa da versão anterior: ela decide a COR DO TRAÇO e o halo atrás dele.
+ * Trocar 31° por 12° troca o desenho inteiro sem tocar no código, e agora sem
+ * pintar um terço da capa.
  */
 
 /** A faixa em que o calor deste negócio muda de assunto. */
-function temperatureBand(maxC: number): 'cold' | 'mild' | 'warm' | 'hot' {
+export function temperatureBand(maxC: number): 'cold' | 'mild' | 'warm' | 'hot' {
   if (maxC < 18) return 'cold';
   if (maxC < 26) return 'mild';
   if (maxC < 32) return 'warm';
@@ -37,43 +58,51 @@ function temperatureBand(maxC: number): 'cold' | 'mild' | 'warm' | 'hot' {
 }
 
 /**
- * A cena ocupa a largura do cartão, e isso já foi um defeito visível.
+ * A cor do dia, uma por faixa.
  *
- * A primeira versão nascia com `width = 320` — um número escolhido quando esta
- * cena era desenhada sozinha. Dentro de um cartão de 380 num aparelho de 412,
- * ela deixava sessenta pixels de fundo do cartão aparecendo à direita, com o
- * canto arredondado do bloco no meio da borda reta do cartão. Ficou assim na
- * capa do dono até alguém tirar uma foto da tela.
+ * A rampa é fria → morna → quente, e ela para no terracota: `rose` era o topo e
+ * saiu ROSA na foto, que nesta paleta é a cor do Espelho da Loja e vizinha do
+ * vermelho de perigo. Trinta e três graus numa fábrica de sorvete não é perigo, é
+ * o melhor dia do mês — pintá-lo de alerta ensina a ler alerta como enfeite, que é
+ * o mesmo defeito do alerta inventado, pelo lado da cor.
  *
- * Cena não tem largura própria: ela tem a largura de onde está.
+ * Exportada porque o cartão inteiro usa: o filete da borda, o traço do desenho e a
+ * régua do dia são a mesma cor, e um cartão com a borda azul e um sol rosa dentro
+ * é duas coisas na mesma peça.
  */
-export function SkyScene({
+export function skyInk(
+  maxC: number,
+  { palette, brand, skin }: { palette: Palette; brand: string; skin: Skin },
+): string {
+  const band = temperatureBand(maxC);
+  if (band === 'cold') return palette.sky;
+  // No Orgânico o morno é a marca escolhida — quem trocou o verde por âmbar não
+  // quer um dia morno verde.
+  if (band === 'mild') return skin === 'organico' ? brand : palette.mint;
+  return band === 'warm' ? palette.sand : palette.apricot;
+}
+
+/**
+ * O selo do dia: sol ou nuvem, na cor do calor.
+ *
+ * Uma cor só por faixa, e ela é da paleta do tema — nunca um hexadecimal solto e
+ * nunca duas cores interpoladas. O halo atrás existe para o cartão respirar a
+ * temperatura sem virar bloco: ele é a MESMA cor do traço, some antes da borda, e
+ * não existe no Papel, cuja identidade é traço sobre papel.
+ */
+export function SkyMark({
   maxC,
   rainChance,
-  height = 120,
+  size = 76,
 }: {
   maxC: number;
   rainChance: number | null;
-  height?: number;
+  size?: number;
 }) {
   const { palette, brand, skin } = useTheme();
-  const band = temperatureBand(maxC);
   const raining = rainChance !== null && rainChance >= 30;
-
-  // A atmosfera: duas paradas de cor tiradas da paleta do tema, nunca um
-  // hexadecimal solto. Frio puxa para o azul da casa, calor para o âmbar.
-  // A cor do céu sai da máxima do dia, como sempre — mas no Orgânico ela passa
-  // primeiro pela paleta escolhida: quem trocou o verde por âmbar não quer um
-  // céu verde no dia frio. No Papel a cena é de traço e a marca não entra aqui.
-  const quente = skin === 'organico' ? brand : palette.apricot;
-  const [top, bottom] =
-    band === 'cold'
-      ? [palette.sky, palette.mist]
-      : band === 'mild'
-        ? [skin === 'organico' ? brand : palette.sky, palette.mint]
-        : band === 'warm'
-          ? [palette.sand, quente]
-          : [quente, palette.rose];
+  const papel = skin === 'papel';
+  const tinta = skyInk(maxC, { palette, brand, skin });
 
   const spin = useSharedValue(0);
   const drift = useSharedValue(0);
@@ -93,70 +122,37 @@ export function SkyScene({
     };
   }, [spin, drift]);
 
-  const sunTurn = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${spin.value * 360}deg` }],
-  }));
-
+  const sunTurn = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.value * 360}deg` }] }));
   const cloudDrift = useAnimatedStyle(() => ({
-    transform: [{ translateX: Math.sin(drift.value * Math.PI * 2) * 6 }],
+    transform: [{ translateX: Math.sin(drift.value * Math.PI * 2) * 4 }],
   }));
 
-  /**
-   * O Papel não tem bloco de céu — ele tem traço.
-   *
-   * Esta cena era um retângulo com degradê e cantos de dezoito, em qualquer
-   * cara. Num tema cuja identidade é "serifa, traço fino, cantos retos", isso é
-   * um objeto de outro aplicativo dentro da tela: o dono abriu, viu a capa em
-   * traço com um bloco degradê no meio, e disse que os dois temas estavam se
-   * sobrepondo. Ele estava certo — e o comentário logo acima já afirmava "no
-   * Papel a cena é de traço", enquanto o código só trocava a COR. Comentário que
-   * descreve o que o código deveria fazer é a mentira mais fácil de escrever.
-   *
-   * No Papel: sem fundo, sem degradê, canto reto, e o sol e a nuvem no mesmo
-   * traço fino da cena da fábrica. A informação é a mesma; o que muda é a mão.
-   */
-  const papel = skin === 'papel';
-  const stroke = papel ? palette.apricot : palette.onAccent;
+  const traco = papel ? 1.7 : 2.2;
 
   return (
-    <View
-      style={{
-        alignSelf: 'stretch',
-        height,
-        borderRadius: papel ? 0 : 18,
-        overflow: 'hidden',
-        // No Papel o fundo é o do cartão: bloco colorido ali seria a mesma
-        // sobreposição, só que mais discreta.
-        borderBottomWidth: papel ? StyleSheet.hairlineWidth * 2 : 0,
-        borderBottomColor: palette.line,
-      }}
-      pointerEvents="none"
-    >
-      {/* O degradê é vertical, então esticar na horizontal não deforma nada -
-          e é o que permite a cena não saber a própria largura. */}
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      {/* O halo: a temperatura sentida antes de lida, e some antes de virar bloco.
+          Raio inteiro, opacidade que cai a zero na borda — assim ele não tem
+          contorno, que é o que faria dele mais um retângulo colorido. */}
       {papel ? null : (
-      <Svg width="100%" height={height} viewBox={`0 0 100 ${height}`} preserveAspectRatio="none">
-        <Defs>
-          <LinearGradient id="atmosphere" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={top} stopOpacity="0.95" />
-            <Stop offset="1" stopColor={bottom} stopOpacity="0.75" />
-          </LinearGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100" height={height} fill="url(#atmosphere)" />
-      </Svg>
+        <Svg width={size} height={size} style={{ position: 'absolute' }}>
+          <Defs>
+            <RadialGradient id="halo" cx="50%" cy="50%" r="50%">
+              <Stop offset="0" stopColor={tinta} stopOpacity="0.30" />
+              <Stop offset="0.65" stopColor={tinta} stopOpacity="0.10" />
+              <Stop offset="1" stopColor={tinta} stopOpacity="0" />
+            </RadialGradient>
+          </Defs>
+          <Circle cx={size / 2} cy={size / 2} r={size / 2} fill="url(#halo)" />
+        </Svg>
       )}
 
-      {/* O sol, girando devagar atrás de tudo. Some quando chove de verdade -
-          desenhar sol num dia de chuva é a mesma mentira do alerta inventado. */}
+      {/* O sol, girando devagar. Some quando chove de verdade — desenhar sol num
+          dia de chuva é a mesma mentira do alerta inventado. */}
       {!raining ? (
-        <Animated.View
-          style={[
-            { position: 'absolute', right: 22, top: height / 2 - 34 },
-            sunTurn,
-          ]}
-        >
-          <Svg width={68} height={68} viewBox="0 0 68 68">
-            <Circle cx="34" cy="34" r="13" stroke={stroke} strokeWidth={papel ? 1.7 : 2} fill="none" />
+        <Animated.View style={sunTurn}>
+          <Svg width={size} height={size} viewBox="0 0 68 68">
+            <Circle cx="34" cy="34" r="13" stroke={tinta} strokeWidth={traco} fill="none" />
             {Array.from({ length: 8 }, (_, i) => {
               const angle = (i * Math.PI) / 4;
               return (
@@ -166,46 +162,44 @@ export function SkyScene({
                   y1={34 + Math.sin(angle) * 20}
                   x2={34 + Math.cos(angle) * 27}
                   y2={34 + Math.sin(angle) * 27}
-                  stroke={stroke}
-                  strokeWidth={papel ? 1.7 : 2}
+                  stroke={tinta}
+                  strokeWidth={traco}
                   strokeLinecap="round"
-                  opacity="0.9"
                 />
               );
             })}
           </Svg>
         </Animated.View>
-      ) : null}
-
-      {/* A nuvem e a chuva. A nuvem vagueia seis pixels para cada lado: é o
-          bastante para a cena estar viva e pouco o bastante para ninguém
-          reparar enquanto lança produção. */}
-      {raining ? (
-        <Animated.View style={[{ position: 'absolute', right: 18, top: 16 }, cloudDrift]}>
-          <Svg width={92} height={82} viewBox="0 0 92 82">
+      ) : (
+        /* A nuvem vagueia quatro pixels para cada lado: o bastante para a cena
+           estar viva, pouco o bastante para ninguém reparar enquanto lança
+           produção. A chuva é azul mesmo no dia quente — quem olha quer saber se
+           molha, e a temperatura já está dita no número ao lado. */
+        <Animated.View style={cloudDrift}>
+          <Svg width={size} height={size} viewBox="0 0 68 68">
             <Path
-              d="M20 40 a14 14 0 0 1 14-14 a18 18 0 0 1 34 6 a12 12 0 0 1 -2 24 H26 a12 12 0 0 1 -6 -16 Z"
-              stroke={stroke}
-              strokeWidth={papel ? 1.7 : 2}
+              d="M14 34 a11 11 0 0 1 11 -11 a14 14 0 0 1 27 5 a9 9 0 0 1 -2 19 H19 a9 9 0 0 1 -5 -13 Z"
+              stroke={tinta}
+              strokeWidth={traco}
               fill="none"
               strokeLinejoin="round"
             />
             {[0, 1, 2].map((i) => (
               <Line
                 key={i}
-                x1={32 + i * 16}
-                y1={62}
-                x2={28 + i * 16}
-                y2={74}
-                stroke={stroke}
-                strokeWidth={papel ? 1.7 : 2}
+                x1={24 + i * 12}
+                y1={52}
+                x2={21 + i * 12}
+                y2={62}
+                stroke={palette.sky}
+                strokeWidth={traco}
                 strokeLinecap="round"
-                opacity={0.85 - i * 0.15}
+                opacity={0.9 - i * 0.15}
               />
             ))}
           </Svg>
         </Animated.View>
-      ) : null}
+      )}
     </View>
   );
 }
@@ -216,7 +210,16 @@ export function SkyScene({
  * Lei 3 desenhada em vez de escrita — 21° sozinho não diz nada; 21° ocupando o
  * pedaço quente de uma barra que vai de 13° a 21° diz o dia inteiro num relance.
  */
-export function TemperatureRange({ minC, maxC }: { minC: number; maxC: number }) {
+export function TemperatureRange({
+  minC,
+  maxC,
+  ink,
+}: {
+  minC: number;
+  maxC: number;
+  /** A cor do dia. Sem ela, a régua é o âmbar da casa — que é o caso da semana. */
+  ink?: string;
+}) {
   const { color, space, palette } = useTheme();
   const grown = useSharedValue(0);
 
@@ -253,7 +256,7 @@ export function TemperatureRange({ minC, maxC }: { minC: number; maxC: number })
       }}
     >
       <Animated.View
-        style={[{ position: 'absolute', top: 0, bottom: 0, borderRadius: 3, backgroundColor: palette.apricot }, bar]}
+        style={[{ position: 'absolute', top: 0, bottom: 0, borderRadius: 3, backgroundColor: ink ?? palette.apricot }, bar]}
       />
     </View>
   );

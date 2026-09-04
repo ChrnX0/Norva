@@ -210,11 +210,11 @@ faz isso.
 
 De pé, nesta ordem e por este motivo:
 
-1. **Os médios que sobraram** — dez, agora que o `versionCode`, o `recorded_by`
-   cedível e o percentual com ponto caíram. Entre eles: a embalagem abaixo de meio
-   centavo virando de graça, a aprovação de pedido que nunca atravessa, o ícone de "Produção" ser um picolé num aplicativo que promete servir
-   qualquer fábrica, a tela de abertura ainda ser o andaime da Expo, e
-   `forgetSentBefore` sem chamador fora de teste.
+1. **Os médios que sobraram** — nove, agora que o `versionCode`, o `recorded_by`
+   cedível, o percentual com ponto e o ícone de picolé caíram. Entre eles: a embalagem
+   abaixo de meio centavo virando de graça, a aprovação de pedido que nunca atravessa,
+   a tela de abertura ainda ser o andaime da Expo, e `forgetSentBefore` sem chamador
+   fora de teste.
 
 ### A sala do tacho — a decisão que a F2 precisa, e ela é do dono
 

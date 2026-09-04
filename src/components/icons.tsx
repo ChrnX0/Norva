@@ -58,12 +58,13 @@ export function IconHome({ size = 24, color }: IconProps) {
   );
 }
 
-/** Produção — a popsicle on its stick. */
+/** Produção — a unidade saindo pela esteira: o que a fábrica pôs para fora. */
 export function IconProduction({ size = 24, color }: IconProps) {
   return (
     <Svg {...frame(size)} accessibilityRole="image">
-      <Rect x="6" y="2.5" width="12" height="14" rx="6" {...stroke(color)} />
-      <Path d="M12 16.5v5" {...stroke(color)} />
+      <Rect x="5" y="3.5" width="10" height="9" rx="2.2" {...stroke(color)} />
+      <Path d="M4 16.5h13.5" {...stroke(color)} />
+      <Path d="M17 13.8l2.7 2.7-2.7 2.7" {...stroke(color)} />
     </Svg>
   );
 }

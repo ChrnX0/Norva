@@ -83,6 +83,12 @@ foi fechado fica marcado aqui, com o que impede a volta.
   **O que ficou:** registrar o trajeto câmara → almoxarifado não existe, e isso é
   decisão de dono sobre a F2. Está escrita em `docs/roadmap.md` ("A sala do tacho"),
   com as duas formas e o motivo de nenhuma poder ser escolhida por mim.
+- **O ícone de "Produção" ser um picolé** (um dos médios), num aplicativo cuja primeira
+  linha diz *"nada de regra chumbada de sorvete"*. Ele estava nos dois lugares mais
+  visíveis que existem: a aba de baixo e o crachá do primeiro cartão da capa. Virou a
+  unidade saindo pela esteira — a única coisa que picolé, queijo, tinta e cosmético
+  têm em comum. Levou três desenhos, cada um reprovado por uma FOTO da barra de abas:
+  ícone não se julga sozinho, se julga na fileira em que vai viver.
 - **O percentual com ponto em vez de vírgula** (um dos médios), e ele era pior do que
   parecia: `formatPercent` já existia — com um docblock dizendo, no passado, *"existia
   em três lugares como `(x * 100).toFixed(1)`"* — e **três lugares continuavam

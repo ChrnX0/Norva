@@ -546,8 +546,14 @@ check('an invoice warns before it is committed, then moves everything', async (p
   await page.waitForTimeout(800);
 
   // Law 4: the warning arrives on the date of the decision.
+  //
+  // E a vírgula é a coisa afirmada, não um detalhe da escrita: esta linha exigia
+  // `41.1%` — o ponto decimal do JavaScript — e passou verde enquanto a tela mostrava
+  // um número escrito em nenhum idioma para uma fábrica brasileira. A checagem
+  // AFIRMAVA o defeito, que é a única maneira de um defeito de tela sobreviver a uma
+  // suíte que roda no navegador.
   const preview = await screen(page);
-  assert.match(preview, /41\.1%/);
+  assert.match(preview, /41,1%/, 'a porcentagem se escreve com vírgula em português');
   assert.match(preview, /Subiu bem acima do normal/);
   assert.match(preview, /passa de R\$ 12,40 para R\$ 14,95/);
 
@@ -592,7 +598,7 @@ check('an invoice warns before it is committed, then moves everything', async (p
 
   const history = await screen(page);
   assert.match(history, /R\$ 12,40 → R\$ 14,95/);
-  assert.match(history, /20\.6%/);
+  assert.match(history, /20,6%/, 'a vírgula também aqui: é a mesma tela, no mesmo idioma');
   assert.match(history, /Picolé de morango/, 'and it says which recipe stands on it');
 });
 

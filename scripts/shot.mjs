@@ -86,6 +86,19 @@ const comDado = tem('--com-dado') || tudo;
  * cegueira, com mais passos.
  */
 const escuro = tem('--escuro');
+/**
+ * A largura do aparelho, e ela não era escolha até hoje.
+ *
+ * Esta ferramenta fotografava 412 px e só. O dono mandou uma foto da capa DELE com
+ * "Transpo…" e "Relatóri…" na barra de abas — rótulo cortado, num aplicativo que se
+ * lê de luva —, e nenhuma das minhas fotos jamais mostrou isso: 412 é largo o
+ * bastante para caber a palavra inteira. Ferramenta que olha uma largura só é cega
+ * para todo defeito que depende de largura, que é metade dos defeitos de tela.
+ *
+ * 360 é o Android comum (Moto G, Galaxy A da linha de entrada) — o celular que uma
+ * fábrica de seis pessoas compra.
+ */
+const largura = Number(arg('--largura', '412'));
 /** Os esquemas desta execução. `--tudo` quer os dois; o resto, o que se pediu. */
 const esquemas = tudo ? ['light', 'dark'] : [escuro ? 'dark' : 'light'];
 
@@ -145,9 +158,17 @@ try {
   for (const esquema of esquemas) {
   for (const cara of ['organico', 'papel']) {
     const context = await browser.newContext({
-      viewport: { width: 412, height: 915 },
+      viewport: { width: largura, height: 915 },
       deviceScaleFactor: 2,
       colorScheme: esquema,
+      // O aparelho é BRASILEIRO, dito em vez de herdado.
+      //
+      // Desde que o idioma virou escolha da empresa — com o aparelho como palpite
+      // do primeiro dia —, o navegador headless (`en-US`) abria o aplicativo em
+      // inglês, e esta ferramenta parou de achar "Procurar cidade". A foto que o
+      // dono olha é de uma fábrica no Brasil; o contexto tem de dizer isso.
+      locale: 'pt-BR',
+      timezoneId: 'America/Sao_Paulo',
     });
     const page = await context.newPage();
 
@@ -214,11 +235,25 @@ try {
       await page.waitForTimeout(9000);
     }
 
-    if (cara === 'papel') {
+    // A cara e a LUZ, as duas escolhidas dentro do aplicativo.
+    //
+    // `colorScheme` no contexto do navegador parou de valer no dia em que claro e
+    // escuro viraram escolha da empresa com padrão claro (decisão do dono, 4 de
+    // setembro): a foto do escuro saía IGUAL à do claro, e eu teria olhado duas
+    // vezes a mesma tela dizendo que vi as duas. Ferramenta de olhar que mente
+    // sobre o que está olhando é pior que não ter — está escrito aqui em cima, e
+    // esta é a segunda vez que a mesma frase cobra a conta.
+    if (cara === 'papel' || esquema === 'dark') {
       await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
       await page.waitForTimeout(2000);
-      await page.getByText('Papel', { exact: true }).first().click();
-      await page.waitForTimeout(1500);
+      if (esquema === 'dark') {
+        await page.getByText('Escuro', { exact: true }).first().click();
+        await page.waitForTimeout(1200);
+      }
+      if (cara === 'papel') {
+        await page.getByText('Papel', { exact: true }).first().click();
+        await page.waitForTimeout(1500);
+      }
     }
 
     for (const rota of rotas) {
@@ -241,7 +276,10 @@ try {
       // A capa tem animação de entrada; a foto tem de ser depois dela.
       await page.waitForTimeout(3500);
 
-      const nome = `${rota.replace(/\W+/g, '') || 'capa'}-${cara}-${esquema === 'dark' ? 'escuro' : 'claro'}${comDado ? '-com-dado' : '-virgem'}.png`;
+      // A largura entra no nome quando não é a padrão: sem isso a foto estreita
+      // sobrescreve a larga, e a comparação entre as duas — que é o motivo de a
+      // largura existir — deixa de ser possível.
+      const nome = `${rota.replace(/\W+/g, '') || 'capa'}-${cara}-${esquema === 'dark' ? 'escuro' : 'claro'}${comDado ? '-com-dado' : '-virgem'}${largura === 412 ? '' : `-${largura}`}.png`;
       await page.screenshot({ path: join(SAIDA, nome), fullPage: true });
       console.log(`  ${nome}`);
     }
