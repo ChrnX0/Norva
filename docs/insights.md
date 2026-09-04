@@ -3124,3 +3124,36 @@ asserções mudaram junto — as duas para números mais certos: "o que tem na f
 agora diz 44.000, e o recusão de carga diz "tem só 44.000 na fábrica". Elas afirmavam
 o total da empresa achando que afirmavam o da sala. E um teste novo cobre o caso que
 não existia: item em duas salas não é contado por voz, é localizado.
+
+## 4 de setembro — a decisão estava certa e o número estava errado: era o plural
+
+A conta de quanto dá para prometer (`stockAgainstOrders`) tinha uma decisão escrita
+no docblock, e ela é boa: *"o saldo lido é o do LUGAR de onde a carga sai, não o da
+empresa — mil picolés espalhados em quatro lojas não atendem o cliente que pediu mil
+na fábrica"*. Achei a decisão antes de chamar aquilo de defeito, como a capa manda.
+A decisão está certa. **O defeito era o singular**: a consulta lia
+`defaultLocationId`, um lugar só.
+
+Numa fábrica de picolés o produto vai para a câmara fria no dia seguinte ao de
+produzir. Então a conta dizia "não há nada para prometer" **com o freezer cheio** — e
+a tela de anotar pedido, que usa essa conta para avisar excesso, ficava muda
+justamente quando a conta decide se um pedido pode ser aceito.
+
+**A regra que fica: procurar a decisão não é o fim da busca, é o começo.** Achar a
+decisão escrita responde *"isto é intencional?"* e não responde *"isto continua
+verdade?"*. Aquela frase foi escrita quando existia um lugar só, e naquele mundo
+"o lugar de onde a carga sai" e "o lugar padrão" eram sinônimos. A câmara fria
+desfez o sinônimo e a frase continuou lendo igual — decisão certa, implementação
+envelhecida, e nada no texto avisando.
+
+O que dá para procurar por isso, e é o que eu vou procurar de agora em diante:
+**decisão escrita no singular sobre coisa que passou a existir no plural.**
+`ensureLocation` cria um lugar cujo id é o `company_id` — todo lugar do código que
+usa esse id como se fosse "a fábrica" é candidato. Foram três hoje: o aviso de
+validade, a contagem, e esta.
+
+**O que mudou.** A consulta soma todas as salas nossas, e a régua de quais são
+nossas saiu de três grafias para uma: `INTERNAL_PLACE_KINDS` e `receivesCargo` em
+`src/domain/ledger.ts`, lidas pelas duas telas que separavam sala de destino à mão.
+O SQL não importa constante, então uma guarda em `src/layers.test.ts` lê os dois
+lados e compara — divergir ali é prometer mercadoria que está numa loja.

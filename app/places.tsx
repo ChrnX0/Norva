@@ -31,6 +31,7 @@ import {
   type Reading,
 } from '@/data/repository';
 import { dayWindow, localDate } from '@/domain/day';
+import { receivesCargo } from '@/domain/ledger';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { agreedOn, daysUntilNextDelivery, toggleDay } from '@/domain/agreement';
@@ -142,7 +143,7 @@ function Places() {
   const tomDoLugar = (lugar: string) =>
     lugar === 'vehicle'
       ? palette.lilac
-      : lugar === 'own_store' || lugar === 'customer'
+      : receivesCargo(lugar)
         ? palette.sage
         : palette.mint;
 
@@ -185,7 +186,7 @@ function Places() {
           cadastrada duas vezes. */}
       {lugares.map((place, posicao) => {
         const saldo = data?.stock.find((s) => s.locationId === place.id) ?? null;
-        const recebe = place.kind === 'own_store' || place.kind === 'customer';
+        const recebe = receivesCargo(place.kind);
         const proxima = daysUntilNextDelivery(place.deliveryDays, hoje);
 
         return (

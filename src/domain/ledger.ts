@@ -52,6 +52,26 @@ export type LossReason = 'melted' | 'broken' | 'expired' | 'courtesy' | 'interna
  */
 export type ControlPost = 'picked' | 'loaded' | 'delivered' | 'checked';
 
+/**
+ * As salas da própria fábrica — os lugares de onde a carga SAI.
+ *
+ * O predicado estava escrito três vezes: em `app/places.tsx` (o tom e o ícone da
+ * linha), em `app/orders/new.tsx` (quem pode ser destino de um pedido) e, a
+ * partir da conta de quanto dá para prometer, também em SQL. Três grafias de uma
+ * regra é a forma que produz divergência — e esta em particular decide se um
+ * pedido pode ser aceito, então divergir aqui é prometer o que não existe.
+ *
+ * `vehicle` não está em nenhum dos dois lados de propósito: caminhão é caminho,
+ * não é sala nem destino. Mercadoria em cima dele não está para carregar nem
+ * chegou a ninguém.
+ */
+export const INTERNAL_PLACE_KINDS = ['factory', 'cold_room', 'store_room'] as const;
+
+/** Quem RECEBE carga: loja própria e cliente. O resto é sala interna ou caminho. */
+export function receivesCargo(kind: string): boolean {
+  return kind === 'own_store' || kind === 'customer';
+}
+
 export type Movement = {
   /** Client-generated UUID: makes the append idempotent across retries. */
   id: string;

@@ -797,6 +797,18 @@ const DEFECTS = [
     hurts:
       'findItem volta a responder o total da empresa mesmo quando a pergunta e de uma sala: a tela da camara fria mostra o saldo da fabrica somado ao dela, e a diferenca da contagem sai desse numero',
   },
+  // --- o freezer cheio que a conta nao via, 4 de setembro --------------------
+  //
+  // Achado da auditoria (item 4, o terco que faltava). A conta de quanto da para
+  // prometer lia um lugar so - certo enquanto havia um so, e cego no dia seguinte
+  // ao de produzir, que e quando o picole esta na camara.
+  {
+    file: 'src/data/repository.ts',
+    from: "                AND l.kind IN ('factory', 'cold_room', 'store_room')) AS on_hand",
+    to: "                AND l.kind IN ('factory', 'store_room')) AS on_hand",
+    hurts:
+      'o que esta na camara fria para de contar como prometivel: a tela de anotar pedido nao avisa excesso nenhum com o freezer cheio, e a capa manda produzir o que ja existe',
+  },
   {
     file: 'app/inputs/[id].tsx',
     from: '      locationId: contarEm,',

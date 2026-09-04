@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { INTERNAL_PLACE_KINDS } from './domain/ledger';
 
 /**
  * Where SQL is allowed to live, pinned.
@@ -364,4 +365,35 @@ test('the counting guard bites the real scar, and leaves the fix alone', () => {
   // E uma chamada sem local nenhum não é assunto desta guarda — quem exige o
   // campo é o tipo, e ele já reprova na compilação.
   assert.deepEqual(contagemCega(`recordCount(companyId, { ...input });`), []);
+});
+
+/**
+ * A lista de salas nossas é uma só, e o SQL não tem como importá-la.
+ *
+ * `INTERNAL_PLACE_KINDS` é lida por duas telas (o tom da linha em `app/places.tsx`
+ * e o destino possível de um pedido em `app/orders/new.tsx`, pelo `receivesCargo`)
+ * e por uma consulta — a de quanto dá para prometer, que decide se um pedido pode
+ * ser aceito. Dentro de uma string de SQL a constante não entra: interpolar valor
+ * em SQL é o padrão que a proofgate marca, com razão.
+ *
+ * Então a régua é lida dos dois lados e comparada. Divergir aqui é prometer
+ * mercadoria que está numa loja, ou esconder a que está na câmara.
+ */
+test('the rooms SQL calls ours are the rooms the domain calls ours', () => {
+  const fonte = readFileSync('src/data/repository.ts', 'utf8');
+  const noSql = [...fonte.matchAll(/l\.kind IN \(([^)]*)\)/g)].map((m) =>
+    m[1]
+      .split(',')
+      .map((k) => k.trim().replace(/^'|'$/g, ''))
+      .sort(),
+  );
+  assert.ok(noSql.length > 0, 'nenhuma consulta filtra por tipo de lugar — a comparação seria de graça');
+
+  for (const lista of noSql) {
+    assert.deepEqual(
+      lista,
+      [...INTERNAL_PLACE_KINDS].sort(),
+      'o SQL e `INTERNAL_PLACE_KINDS` discordam sobre quais salas são nossas',
+    );
+  }
 });

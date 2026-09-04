@@ -4069,9 +4069,16 @@ export type Demand = {
 /**
  * O que tem na fábrica contra o que já foi prometido, produto por produto.
  *
- * O saldo lido é o do LUGAR de onde a carga sai, não o da empresa: mil picolés
+ * O saldo lido é o das SALAS de onde a carga sai, não o da empresa: mil picolés
  * espalhados em quatro lojas não atendem o cliente que pediu mil na fábrica, e
  * somar tudo diria que está coberto quando não está.
+ *
+ * "As salas", no plural, e isso custou um achado de auditoria. A conta lia o
+ * `defaultLocationId` — um lugar só, o que era certo enquanto havia um só. O dono
+ * cadastra a câmara fria, manda o picolé para lá (que é o que uma fábrica de
+ * picolés faz no dia seguinte ao de produzir), e a conta passa a dizer que não há
+ * nada para prometer com o freezer cheio. A régua de quais salas são nossas mora
+ * em `INTERNAL_PLACE_KINDS`, com as telas que separam sala de destino.
  *
  * **Parte do PRODUTO, e não da linha de pedido.** Ela se chamava `orderedDemand`
  * e montava as linhas a partir de `order_lines`, então respondia só sobre o que
@@ -4106,9 +4113,10 @@ export async function stockAgainstOrders(
     `SELECT p.item_id, i.name,
             COALESCE(SUM(ol.base_units), 0) AS requested,
             (SELECT COALESCE(SUM(m.quantity_base_units), 0) FROM movements m
+               JOIN locations l ON l.id = m.location_id
               WHERE m.company_id = p.company_id
                 AND m.item_id = p.item_id
-                AND m.location_id = ?) AS on_hand
+                AND l.kind IN ('factory', 'cold_room', 'store_room')) AS on_hand
        FROM products p
        JOIN items i ON i.id = p.item_id
        LEFT JOIN order_lines ol ON ol.item_id = p.item_id
@@ -4120,7 +4128,7 @@ export async function stockAgainstOrders(
       WHERE p.company_id = ?
       GROUP BY p.item_id, i.name
       ORDER BY i.name COLLATE NOCASE`,
-    [defaultLocationId(companyId), throughDate, companyId],
+    [throughDate, companyId],
   );
 
   return rows.map((r) => ({

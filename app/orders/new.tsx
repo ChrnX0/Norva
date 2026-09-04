@@ -23,6 +23,7 @@ import { daysUntilNextDelivery } from '@/domain/agreement';
 import { nowIso } from '@/data/db';
 import { useQuery } from '@/data/useQuery';
 import { localDate } from '@/domain/day';
+import { receivesCargo } from '@/domain/ledger';
 import { parseTyped } from '@/domain/number';
 import {
   fill,
@@ -119,9 +120,7 @@ function NewOrder() {
     // coluna de acordo dizendo "sem acordo de dia" — e conseguia gravar um
     // pedido para a própria câmara. O predicado é o mesmo que `app/places.tsx`
     // já usa para separar quem recebe de quem é sala interna.
-    const recebe = places.filter(
-      (p) => !p.isDefault && (p.kind === 'own_store' || p.kind === 'customer'),
-    );
+    const recebe = places.filter((p) => !p.isDefault && receivesCargo(p.kind));
     return { places: recebe, products };
   });
 

@@ -2722,6 +2722,53 @@ test('an order is demand, and demand moves nothing', async () => {
   assert.ok(queued.includes('order_lines'), 'e as linhas dele também');
 });
 
+/**
+ * O que dá para prometer conta a câmara fria, porque é lá que o picolé dorme.
+ *
+ * A decisão escrita continua valendo e não é o que estava errado: o saldo lido é
+ * o de onde a CARGA SAI, não o da empresa - mil picolés em quatro lojas não
+ * atendem quem pediu mil na fábrica. O defeito era o plural: a conta lia um lugar
+ * só, o `defaultLocationId`. Numa fábrica de picolés o produto vai para a câmara
+ * no dia seguinte ao de produzir, então a conta dizia "não há nada para prometer"
+ * com o freezer cheio - e a tela de anotar pedido não avisava excesso nenhum
+ * justamente quando a conta mais decide.
+ */
+test('what can be promised counts every room of ours, and no store', async () => {
+  const camara = await savePlace(CO, { name: 'Câmara fria', kind: 'cold_room' });
+  const centro = await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' });
+  const { itemId } = await saveProduct(CO, {
+    name: 'Picolé de limão',
+    kind: 'product',
+    recipeId: null,
+    yieldPerUnit: null,
+    unitPackagingCents: fromDecimal(0),
+    packaging: loose,
+  });
+
+  // Duzentos produzidos; cento e cinquenta vão para a câmara e trinta para a
+  // loja. Nossas salas ficam com 170, e a loja com 30.
+  await recordCount(CO, { locationId: defaultLocationId(CO), itemId, countedBaseUnits: 200 });
+  await recordTransfer(CO, {
+    itemId,
+    fromLocationId: defaultLocationId(CO),
+    toLocationId: camara.id,
+    baseUnits: 150,
+  });
+  await recordTransfer(CO, {
+    itemId,
+    fromLocationId: defaultLocationId(CO),
+    toLocationId: centro.id,
+    baseUnits: 30,
+  });
+
+  const linha = (await stockAgainstOrders(CO, '2026-09-10')).find((d) => d.itemId === itemId);
+  assert.equal(
+    linha?.onHand,
+    170,
+    'a câmara é nossa e conta; a loja já foi entregue e não conta',
+  );
+});
+
 test('what was ordered is measured against the factory shelf, not the company total', async () => {
   const centro = await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' });
   const { itemId } = await saveProduct(CO, {
