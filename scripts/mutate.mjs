@@ -60,6 +60,22 @@ const DEFECTS = [
       'seis quilos de acucar voltam a ser "6.000 unidades" na capa e na aba de transporte: a unidade existe no tipo e diz a coisa errada, que e pior que nao existir',
   },
 
+  // --- a lista de compras de um plano -------------------------------------
+  {
+    file: 'src/domain/recipe.ts',
+    from: '      return { itemId, needed: amount, held, missing: Math.max(0, amount - held) };',
+    to: '      return { itemId, needed: amount, held, missing: amount };',
+    hurts:
+      'a lista de compras volta a dizer o que a receita pede em vez do que falta: quem tem 40.000 g de polpa na prateleira e um plano de 54.000 le "compre 54.000"',
+  },
+  {
+    file: 'src/domain/recipe.ts',
+    from: '    const units = (recipe.yieldAmount * (1 - recipe.lossFraction) * line.batches) / perUnit;',
+    to: '    const units = line.batches;',
+    hurts:
+      'o palito e o saquinho entram na lista de compras por TACHO em vez de por unidade: um tacho de quinhentos picoles pede um palito',
+  },
+
   {
     file: 'src/data/repository.ts',
     from: '       LEFT JOIN order_lines ol ON ol.item_id = p.item_id',

@@ -3,7 +3,12 @@ import { dayWindow } from '@/domain/day';
 import { packSize } from '@/domain/measure';
 import { purchaseToBaseUnits } from '@/data/repository';
 import { fromDecimal } from '@/domain/money';
-import { costPerProductUnit, costRecipe, packagingRatePerUnit } from '@/domain/recipe';
+import {
+  costPerProductUnit,
+  costRecipe,
+  packagingRatePerUnit,
+  shoppingList,
+} from '@/domain/recipe';
 import { formatDayMonth, formatMoney, formatQuantity } from '@/i18n';
 import { findByName, movePhrase, namesakes, normalize, parseNumber } from './text';
 import type { Answer, Skill, SkillContext } from './types';
@@ -945,6 +950,107 @@ const registerTransfer: Skill = {
   },
 };
 
+/**
+ * "o que falta para 3 tachos de cada" — a pergunta de antes de ligar para o
+ * fornecedor.
+ *
+ * O aplicativo já avisava o que está acabando pela cobertura observada, que
+ * responde outra coisa: *quanto tempo dura no ritmo de sempre*. Esta responde
+ * pelo PLANO — vários produtos somados num pedido de compra só — e vira a conta
+ * do avesso: "precisa de 18.000 g de polpa" não decide nada para quem tem
+ * 40.000 na prateleira; "faltam 6.000" decide.
+ *
+ * Ela não escreve no livro-razão e não reserva nada: é simulação sobre o saldo
+ * de agora, e o saldo continua sendo o que os movimentos somam.
+ *
+ * "de cada" é o plano da fábrica inteira. Sem essa palavra, o nome do produto —
+ * porque quem pergunta por um sabor está planejando aquele sabor.
+ */
+const whatToBuy: Skill = {
+  id: 'what_to_buy',
+  example: 'o que falta para 3 tachos de cada',
+  requires: 'view_cost',
+  match: (q) =>
+    normalize(q).match(
+      /(?:o que|quanto|do que)\s+(?:eu\s+)?(?:falta|preciso|precisa|tenho que|tem que)\s*(?:comprar)?[^\d]*([\d.,]+)\s*tachos?\s*(?:de\s+(.+))?$/,
+    ),
+  run: async (m, ctx) => {
+    const batches = parseNumber(m[1]);
+    if (batches === null || batches <= 0) {
+      return { text: 'Não entendi quantos tachos. Pode repetir com o número?' };
+    }
+
+    const products = (await ctx.data.listProducts()).filter((p) => p.recipeId);
+    if (products.length === 0) {
+      return { text: 'Nenhum produto tem ficha técnica ainda.', route: '/products' };
+    }
+
+    const alvo = (m[2] ?? '').trim();
+    const todos = alvo === '' || /^(cada|todos|todas|tudo|cada um)$/.test(normalize(alvo));
+
+    let plano = products;
+    if (!todos) {
+      const um = findByName(products, alvo);
+      if (!um) {
+        const ambiguos = namesakes(products, alvo);
+        if (ambiguos.length > 0) return whichOne(ambiguos, alvo);
+        return { text: `Não encontrei um produto chamado "${alvo}" com ficha técnica.` };
+      }
+      plano = [um];
+    }
+
+    const [graph, items] = await Promise.all([ctx.data.loadRecipeGraph(), ctx.data.listItems()]);
+    const prateleira = new Map(items.map((i) => [i.id, i.onHandBaseUnits]));
+    const nome = new Map(items.map((i) => [i.id, i]));
+
+    const lista = shoppingList(
+      plano.map((p) => ({
+        recipeId: p.recipeId!,
+        batches,
+        yieldPerUnit: p.yieldPerUnit,
+        packaging: p.packagingItems,
+      })),
+      graph,
+      prateleira,
+    );
+
+    const faltando = lista.filter((l) => l.missing > 0);
+    const dizPlano = todos
+      ? `${formatQuantity(batches, ctx.locale)} tachos de cada um dos ${plano.length} produtos`
+      : `${formatQuantity(batches, ctx.locale)} tachos de ${plano[0].name}`;
+
+    // "Está tudo bem" é estado válido: uma lista de compras vazia é a melhor
+    // resposta possível, e ela é dita como resposta, não como silêncio.
+    if (faltando.length === 0) {
+      return {
+        text: `Para ${dizPlano}, não falta nada: dá para começar com o que está na prateleira.`,
+        detail: lista.map((line) => ({
+          label: nome.get(line.itemId)?.name ?? line.itemId,
+          value: `precisa ${formatQuantity(Math.round(line.needed), ctx.locale)} de ${formatQuantity(line.held, ctx.locale)} ${nome.get(line.itemId)?.baseUnit ?? ''}`,
+        })),
+        route: '/inputs',
+      };
+    }
+
+    return {
+      text:
+        `Para ${dizPlano}, faltam ${faltando.length} ` +
+        `${faltando.length === 1 ? 'insumo' : 'insumos'}.`,
+      detail: faltando.map((line) => {
+        const item = nome.get(line.itemId);
+        const unidade = item?.baseUnit ?? '';
+        return {
+          label: item?.name ?? line.itemId,
+          value:
+            `faltam ${formatQuantity(Math.round(line.missing), ctx.locale)} ${unidade} ` +
+            `(precisa ${formatQuantity(Math.round(line.needed), ctx.locale)}, tem ${formatQuantity(line.held, ctx.locale)})`,
+        };
+      }),
+      route: '/purchase',
+    };
+  },
+};
+
 export const phase1Skills: Skill[] = [
   registerPurchase,
   // Before the questions: "cadastrar X, Y" is somebody creating, and no
@@ -962,6 +1068,9 @@ export const phase1Skills: Skill[] = [
   whereIsItem,
   stockOfInput,
   eraseHelp,
+  // Antes de `listInputs`: as duas falam de insumo, e quem pergunta o que FALTA
+  // para um plano não está pedindo a lista do almoxarifado.
+  whatToBuy,
   listInputs,
   producedToday,
   whatWasLost,

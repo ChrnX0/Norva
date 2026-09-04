@@ -348,6 +348,34 @@ test('it lists what is in the storeroom, with the money that is sitting there', 
   assert.equal(answer.detail?.length, 2);
 });
 
+test('it turns a plan into a shopping list, said as what is missing', async () => {
+  // Um tacho: 18.000 g de polpa contra 40.000 na prateleira (sobra), e 6.000 g
+  // de açúcar contra 50.000 (sobra). Nada falta, e isso é resposta.
+  const um = await ask('o que falta para 1 tacho de picolé de morango', context('view_cost'));
+  assert.match(um.text, /não falta nada/i);
+
+  // Três tachos viram 54.000 g de polpa, e aí a prateleira de 40.000 não cobre:
+  // faltam 14.000. É a conta virada do avesso — "precisa de 54.000" não decide
+  // nada para quem não sabe quanto tem.
+  const tres = await ask('o que falta para 3 tachos de cada', context('view_cost'));
+  assert.match(tres.text, /faltam 1 insumo/);
+  assert.equal(tres.route, '/purchase');
+  assert.equal(tres.detail?.length, 1);
+  assert.match(tres.detail![0].label, /Polpa de morango/);
+  assert.match(tres.detail![0].value, /faltam 14\.000 g/);
+  // E a conta aberta diz de onde saiu o número (Lei 6).
+  assert.match(tres.detail![0].value, /precisa 54\.000, tem 40\.000/);
+});
+
+test('the shopping list is a decision about buying, not something the borrowed phone sees', async () => {
+  const operador = await ask('o que falta para 3 tachos de cada', context('record_production'));
+
+  // A recusa é dita, e é dita ANTES da consulta: não existe número na resposta
+  // para vazar, que é a fundação de permissão deste projeto em uma linha.
+  assert.match(operador.text, /não faz parte do seu acesso/i);
+  assert.equal(operador.detail, undefined, 'nenhuma quantidade sai junto com a recusa');
+});
+
 test('asking to erase gets directions, never an erasure', async () => {
   const answer = await ask('quero apagar tudo', context('manage_company'));
 

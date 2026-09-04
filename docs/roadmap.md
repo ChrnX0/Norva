@@ -62,6 +62,21 @@ O que isso significa para quem lê: a lista é curta **porque a refutação foi 
 não porque falta trabalho. Os dezoito candidatos ainda não julgados quando a
 varredura parou não entram até passarem pela mesma peneira.
 
+> **Estado em 4 de setembro: os cinco sobreviventes estão fechados.** Eles ficam
+> abaixo, riscados, porque o que cada um ensinou vale mais que ele — mas nenhum
+> deles é trabalho pendente, e a lista de trabalho está **vazia**.
+>
+> O que isso NÃO significa é que acabou o serviço. Significa que a próxima coisa
+> não está escrita ainda, e achá-la é a diretriz de insight constante: procurar o
+> que o código existente está contradizendo, em vez de esperar aparecer. Foi
+> assim que os três achados do dia nasceram — os trinta e um rótulos, o manifesto
+> velho no pacote, e a leitura de `length` que quebrou dentro do conserto de
+> outra coisa.
+>
+> **Item novo entra aqui antes de virar código**, com `arquivo:linha` e o portão
+> P1/P2/P3 respondido. Um item que não passa no P2 entra como *fronteira*, com o
+> que o destrava — e a única de hoje está logo abaixo.
+
 ### 1. ~~O estorno não tem escritor~~ — fechado em 3 de setembro
 
 A primeira fundação do projeto passou a existir em código: `reverseGroup` estorna
@@ -103,24 +118,29 @@ atravessou. Uma coluna esquecida no serializador entraria como nula e a fila
 passaria verde. Agora ela conta os lotes que chegaram **ligados à versão** do
 lado do servidor, que é a asserção de presença que faltava.
 
-### 3. Lista de compras por simulação: *"se eu fizer 3 tachos de cada, o que falta?"*
+### 3. ~~Lista de compras por simulação~~ — fechado em 4 de setembro
 
-**Estado:** parcial (o refutador encolheu o escopo — a parte de um produto só já
-roda em `app/production/new.tsx`).
+*"Se eu fizer 3 tachos de cada, o que falta?"* — a pergunta que o dono faz antes
+de ligar para o fornecedor, e a única que o aplicativo não respondia sobre o
+estoque de hoje.
 
-- **Evidência:** `src/domain/recipe.ts:278` (`explodeRequirements`) chamado só para
-  corrida única — `app/production/new.tsx:155` e `src/data/repository.ts:1282`.
-- **Por que importa:** hoje o app avisa o que acaba pela cobertura observada
-  (`runningOut`, `src/data/repository.ts:3543`) e **não responde o que comprar para
-  o plano da semana**. É simulação sobre o estoque de agora — não depende de
-  histórico nenhum — e é a pergunta que o dono faz antes de ligar para o
-  fornecedor.
-- **Os dois deltas que faltam:** (a) somar vários produtos num plano só; (b) virar
-  a conta do avesso — de "posso fazer?" para "quanto falta comprar?".
-- **Correção de uma evidência:** o leitor citou `grep "comprar"` vazio no
-  dicionário como prova de que não existe. Não é prova: o tom de voz do projeto
-  **proíbe o infinitivo** ("verbo na frente, segunda pessoa"), então o app diz
-  *"Compre"*. Fica registrado para o próximo leitor não repetir.
+Os dois deltas que o item nomeava eram exatamente os dois que entraram:
+`shoppingList` (`src/domain/recipe.ts`) soma **vários produtos num plano só** —
+`explodeRequirements` já acumulava no mapa que recebe, então somar era chamá-lo de
+novo — e vira a conta do avesso: devolve `needed`, `held` e `missing`, porque
+"precisa de 54.000 g de polpa" não decide nada para quem tem 40.000 na prateleira.
+
+**A embalagem entra por unidade prevista, e isso é o que quase ficou de fora.** A
+receita não conhece o palito: ele é consumo por unidade produzida. Uma lista de
+compras que só explode a receita esquece exatamente o item que a fábrica mais usa
+— o mesmo defeito que o custo congelado já teve. Aqui prever a unidade é legítimo,
+porque isto é simulação; o custo congelado é que não pode prever, porque grava o
+que aconteceu.
+
+**O chamador é o assistente**, e não uma tela nova: a pergunta chegou em forma de
+frase, e responder em frase é o caminho mais curto entre a dúvida e o número.
+Ela pede `view_cost` — decisão de compra não é do aparelho emprestado —, e a
+recusa é dita antes da consulta, então não existe número na resposta para vazar.
 
 ### 4. ~~Capa: o número de caixas sem o ontem~~ — fechado em 3 de setembro
 
@@ -158,6 +178,23 @@ fato (`demand.some(d => d.requested > 0)`) em vez do tamanho.
 Contar linha e nomear pedido é a mesma família que a varredura de rótulos do
 mesmo dia caçou trinta e uma vezes — e ela reapareceu **dentro do conserto de
 outra coisa**, o que diz o quanto ela é fácil de escrever.
+
+### Fronteira: a lista de compras não tem tela, só a frase
+
+**Estado:** trava no P2, de propósito, e o que a destrava é observar alguém.
+
+- **Onde está hoje:** `shoppingList` (`src/domain/recipe.ts`) responde a conta, e
+  o assistente é o único chamador (`src/assistant/skills.ts`, habilidade
+  `what_to_buy`). Quem digitar *"o que falta para 3 tachos de cada"* tem a
+  resposta com a conta aberta.
+- **O que faltaria:** uma tela onde se escolhe produto e tacho por toque, sem
+  precisar formular a frase.
+- **Por que não entra agora:** complete a frase do portão — *"eu mudaria isto se
+  eu visse **alguém não achar a pergunta**"*. É observação de uso, não de código:
+  se o dono usa a frase, a tela é enfeite; se ele não encontra a resposta, a tela
+  é o item. Construir as duas antes de saber é construir uma para jogar fora.
+- **E não é preferência de cliente**, então a F7 não se aplica: não são dois
+  caminhos que a empresa escolhe, é a mesma resposta com duas portas.
 
 ---
 

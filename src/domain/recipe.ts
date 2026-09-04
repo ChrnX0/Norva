@@ -305,3 +305,88 @@ export function explodeRequirements(
 
   return into;
 }
+
+
+/** Uma linha do plano: uma receita, quantos tachos, e o que a embalagem pede. */
+export type PlanLine = {
+  recipeId: string;
+  batches: number;
+  /**
+   * Quanto de embalagem cada UNIDADE leva, e o rendimento que converte tacho em
+   * unidade.
+   *
+   * Sem os dois, o palito e o saquinho somem da lista de compras — que é o mesmo
+   * defeito que a produção já teve no custo congelado: a conta saía certa para
+   * o que a receita pede e errada para o que a fábrica gasta. Aqui a unidade é
+   * PREVISTA (rendimento líquido do tacho dividido pelo que cada unidade leva),
+   * e prever é legítimo numa simulação — o custo congelado é que não pode
+   * prever, porque ele grava o que aconteceu.
+   */
+  packaging?: readonly { itemId: string; quantityPerUnit: number }[];
+  yieldPerUnit?: number | null;
+};
+
+/** O que um plano pede, contra o que já está na prateleira. */
+export type ShoppingLine = {
+  itemId: string;
+  /** Quanto o plano inteiro consome deste item. */
+  needed: number;
+  /** Quanto existe agora, no lugar de onde a produção sai. */
+  held: number;
+  /** O que falta comprar. Zero quando dá para fazer sem comprar nada. */
+  missing: number;
+};
+
+/**
+ * A lista de compras de um plano — a conta virada do avesso.
+ *
+ * `explodeRequirements` responde "posso fazer isto?" para UMA corrida. Esta
+ * responde a pergunta que o dono faz antes de ligar para o fornecedor: *"se eu
+ * fizer três tachos de cada, o que falta?"* — vários produtos num plano só, e o
+ * resultado dito como o que falta comprar em vez de o que a receita pede.
+ *
+ * Os dois deltas em relação ao que já existia são exatamente esses, e o segundo
+ * é o que muda a decisão: "precisa de 18.000 g de polpa" não decide nada para
+ * quem tem 40.000 na prateleira.
+ *
+ * Devolve fato, nunca frase: quantidade pedida, quantidade em casa e a
+ * diferença. Quem escreve "compre dois sacos de açúcar" é a tela, que sabe a
+ * embalagem de compra e fala português.
+ *
+ * Item que sobra continua na lista com `missing` zero — quem quer só o que falta
+ * filtra, e quem quer mostrar o plano inteiro tem tudo. Esconder aqui seria a
+ * camada de dados decidindo o que a tela pode dizer.
+ */
+export function shoppingList(
+  plan: readonly PlanLine[],
+  recipes: Readonly<Record<string, Recipe>>,
+  onHand: ReadonlyMap<string, number>,
+): ShoppingLine[] {
+  // Um mapa só para o plano inteiro: é isto que soma vários produtos sem
+  // inventar nada — `explodeRequirements` já acumula no mapa que recebe.
+  const needed = new Map<string, number>();
+
+  for (const line of plan) {
+    if (!(line.batches > 0)) continue;
+    explodeRequirements(line.recipeId, line.batches, recipes, needed);
+
+    const recipe = recipes[line.recipeId];
+    const perUnit = line.yieldPerUnit ?? 0;
+    if (!recipe || perUnit <= 0 || !line.packaging?.length) continue;
+
+    // A unidade prevista do tacho: rendimento líquido dividido pelo que cada
+    // unidade leva. Meio tacho gasta metade do açúcar, mas 400 unidades gastam
+    // 400 palitos — por isso a embalagem conta por unidade e não por tacho.
+    const units = (recipe.yieldAmount * (1 - recipe.lossFraction) * line.batches) / perUnit;
+    for (const wrap of line.packaging) {
+      needed.set(wrap.itemId, (needed.get(wrap.itemId) ?? 0) + wrap.quantityPerUnit * units);
+    }
+  }
+
+  return [...needed.entries()]
+    .map(([itemId, amount]) => {
+      const held = onHand.get(itemId) ?? 0;
+      return { itemId, needed: amount, held, missing: Math.max(0, amount - held) };
+    })
+    .sort((a, b) => b.missing - a.missing);
+}

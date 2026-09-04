@@ -8,6 +8,7 @@ import {
   costPerProductUnit,
   costRecipe,
   explodeRequirements,
+  shoppingList,
   MissingRecipeError,
   packagingRatePerUnit,
   RecipeCycleError,
@@ -299,6 +300,71 @@ test('exploding a plan reaches raw items through sub-recipes', () => {
     'sugar inside the cream base must be counted too',
   );
   assert.ok((needs.get('milkPowder') ?? 0) > 0);
+});
+
+test('the shopping list answers what is missing, not what the recipe asks for', () => {
+  // "Se eu fizer 3 tachos de morango, o que falta?" — a pergunta que o dono faz
+  // antes de ligar para o fornecedor. A prateleira tem polpa de sobra e açúcar
+  // pela metade.
+  const prateleira = new Map([
+    ['strawberryPulp', 60_000],
+    ['sugar', 10_000],
+    ['milkPowder', 0],
+    ['stick', 500],
+  ]);
+
+  const lista = shoppingList(
+    [{ recipeId: 'strawberry', batches: 3 }],
+    recipes,
+    prateleira,
+  );
+
+  const polpa = lista.find((l) => l.itemId === 'strawberryPulp');
+  assert.equal(polpa?.needed, 54_000, '18 kg por tacho, três tachos');
+  assert.equal(polpa?.missing, 0, 'o que sobra na prateleira não entra na compra');
+
+  // O açúcar chega por dois caminhos — direto e pela base de creme —, e é a soma
+  // que decide a compra: 18.000 direto mais o da base, contra 10.000 em casa.
+  const acucar = lista.find((l) => l.itemId === 'sugar');
+  assert.ok((acucar?.needed ?? 0) > 18_000, 'o açúcar da sub-receita conta');
+  assert.equal(acucar?.missing, (acucar?.needed ?? 0) - 10_000);
+
+  // E a ordem é a da decisão: o que mais falta vem primeiro.
+  assert.ok(lista[0].missing >= lista[lista.length - 1].missing);
+});
+
+test('a plan sums several products into one shopping list, with the packaging', () => {
+  // Dois produtos no mesmo plano, e a embalagem entra por UNIDADE prevista: o
+  // tacho que rende 38.000 ml a 75 ml por unidade faz uns 506 picolés, e cada
+  // um leva um palito. Sem esta parte, a lista de compras esquece o palito -
+  // que é o mesmo defeito que o custo congelado já teve.
+  const plano = [
+    {
+      recipeId: 'strawberry',
+      batches: 1,
+      yieldPerUnit: 75,
+      packaging: [{ itemId: 'stick', quantityPerUnit: 1 }],
+    },
+    { recipeId: 'creamBase', batches: 2 },
+  ];
+
+  const lista = shoppingList(plano, recipes, new Map([['stick', 100]]));
+
+  const palito = lista.find((l) => l.itemId === 'stick');
+  const unidades = (40_000 * 0.95) / 75;
+  assert.ok(palito, 'o palito entra pela embalagem, não pela receita');
+  assert.equal(Math.round(palito!.needed), Math.round(unidades));
+  assert.equal(Math.round(palito!.missing), Math.round(unidades) - 100);
+
+  // O leite em pó vem só da base — uma vez pela sub-receita do morango e outra
+  // pelos dois tachos pedidos direto. Um plano é uma soma, não uma lista de
+  // listas.
+  const leite = lista.find((l) => l.itemId === 'milkPowder');
+  assert.ok((leite?.needed ?? 0) > 2_000 * 2, 'os dois caminhos somam no mesmo item');
+});
+
+test('a plan of zero batches asks for nothing', () => {
+  assert.deepEqual(shoppingList([{ recipeId: 'strawberry', batches: 0 }], recipes, new Map()), []);
 });
 
 // --- moving average cost ---------------------------------------------------

@@ -2466,3 +2466,30 @@ continuam compilando e lendo a mesma propriedade. O que se procura são as
 leituras que perguntam `length`, `some` ou `[0]` sobre o resultado, porque são
 exatamente as que dependem do conjunto e não do formato. E o teste que pega isso
 é o que abre a tela.
+
+## 4 de setembro — a promessa estava no docblock, e o chamador não existia
+
+**O que se viu.** `explodeRequirements` carrega esta frase desde que foi escrita:
+*"This is the query behind the shopping list that writes itself"*. A lista de
+compras não existia. O que existia era a mesma função respondendo *"posso fazer
+esta corrida?"* para um produto — e o docblock prometia a pergunta invertida, para
+vários produtos, que ninguém tinha escrito.
+
+Somar vários produtos custou **zero linha nova de aritmética**: a função já
+acumula no mapa que recebe, então um plano é chamá-la de novo com o mesmo mapa. O
+delta real era o outro: devolver `missing` em vez de `needed`. *"Precisa de
+54.000 g de polpa"* não decide nada para quem tem 40.000 na prateleira; *"faltam
+14.000"* decide.
+
+**O que quase ficou de fora, e é o mais instrutivo.** A receita não conhece o
+palito — ele é consumo por unidade produzida, não por tacho. Uma lista de compras
+que só explode a receita esquece exatamente o item que a fábrica mais gasta, e é o
+mesmo defeito que o custo congelado já teve neste repositório. A diferença é que
+aqui prever a unidade é **legítimo**: isto é simulação, e simulação pode prever. O
+custo congelado é que não pode, porque ele grava o que aconteceu. Duas contas
+parecidas com permissões opostas sobre o mesmo verbo.
+
+**A regra que sai:** docblock que promete um chamador é dívida com juros — ele
+descreve o que a função *poderia* responder, e quem lê acredita que alguém já
+pergunta. Procurar promessa sem chamador é a busca mais barata deste repositório:
+`grep` no docblock, e a pergunta "quem chama isto?".
