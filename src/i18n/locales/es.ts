@@ -20,17 +20,6 @@ export const es: Dictionary = {
     allClear: 'Hoy está todo en orden.',
   },
 
-  areas: {
-    home: 'Inicio',
-    production: 'Producción',
-    inventory: 'Inventario',
-    distribution: 'Distribución',
-    storeMirror: 'Espejo de Tienda',
-    purchasing: 'Compras',
-    finance: 'Finanzas',
-    settings: 'Ajustes',
-  },
-
   units: {
     unit: { one: 'unidad', other: 'unidades' },
     box: { one: 'caja', other: 'cajas' },
@@ -1000,31 +989,10 @@ export const es: Dictionary = {
     increase: 'Aumentar',
   },
 
-  production: {
-    suggestedToday: 'Sugerido para hoy',
-    yields: 'Rinde {{units}}',
-    roundedUp: 'redondeado desde {{from}}, que completa {{boxes}} cajas llenas',
-    willDraw: 'Se descontará del almacén',
-    costOfRun: 'Costo de esta producción',
-    frozenAtRecord: 'por unidad · congelado al registrar',
-    register: 'Registrar producción',
-  },
-
   scan: {
     typeCode: 'Escribir el código',
     progress: '{{done}} de {{total}}',
     duplicate: 'Esa jaba ya fue escaneada.',
   },
 
-  confirmation: {
-    shipment: 'Va a enviar {{quantity}} de {{product}} a {{destination}}. ¿Confirma?',
-    checkForMe: 'Revíselo conmigo',
-  },
-
-  assistant: {
-    title: 'Modo Conversación',
-    understood: 'Entendí: {{intent}}',
-    offline: 'Necesito internet para eso. Mientras tanto, abro la pantalla.',
-    noAccess: 'Los valores no forman parte de su acceso.',
-  },
 };

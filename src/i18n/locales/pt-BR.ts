@@ -24,17 +24,6 @@ export const ptBR = {
     allClear: 'Hoje está tudo em ordem.',
   },
 
-  areas: {
-    home: 'Início',
-    production: 'Produção',
-    inventory: 'Estoque',
-    distribution: 'Distribuição',
-    storeMirror: 'Espelho da Loja',
-    purchasing: 'Compras',
-    finance: 'Financeiro',
-    settings: 'Ajustes',
-  },
-
   units: {
     unit: { one: 'unidade', other: 'unidades' },
     box: { one: 'caixa', other: 'caixas' },
@@ -1088,35 +1077,12 @@ export const ptBR = {
     increase: 'Aumentar',
   },
 
-  production: {
-    suggestedToday: 'Sugerido para hoje',
-    yields: 'Rende {{units}}',
-    roundedUp: 'arredondado de {{from}}, que fecha {{boxes}} caixas cheias',
-    willDraw: 'Vai baixar do almoxarifado',
-    costOfRun: 'Custo desta produção',
-    frozenAtRecord: 'por unidade · congelado no registro',
-    register: 'Registrar produção',
-  },
-
   scan: {
     typeCode: 'Digitar o código',
     progress: '{{done}} de {{total}}',
     duplicate: 'Esse engradado já foi bipado.',
   },
 
-  confirmation: {
-    /** Spelled out in full so a mistake is visible before it is committed. */
-    shipment:
-      'Você vai enviar {{quantity}} de {{product}} para {{destination}}. Confirma?',
-    checkForMe: 'Confere pra mim',
-  },
-
-  assistant: {
-    title: 'Modo Conversa',
-    understood: 'Entendi: {{intent}}',
-    offline: 'Preciso de internet pra isso. Enquanto isso, abro a tela.',
-    noAccess: 'Valores não fazem parte do seu acesso.',
-  },
 } as const;
 
 /**

@@ -2543,3 +2543,43 @@ afirma ausência sobre um sujeito que o mesmo diff defaultou para vazio e nada
 naquele arquivo afirma um comprimento. Estreito de propósito — só arquivo de
 teste, WARN, e medido contra um diff real de 31 mil linhas com zero disparos.
 Conselho eu esqueço na próxima sessão; guard roda sozinho.
+
+## 4 de setembro — sete seções de dicionário sem leitor, e o número está escrito no CLAUDE.md
+
+**O que se viu.** O `CLAUDE.md` cita, ao explicar por que o portão virou por item e
+não por fase: *"quatro seções de dicionário nos três idiomas sem uma tela"*. Varri
+o dicionário para conferir e eram **sete** — 870 chaves no total, e sete blocos de
+topo que nada lê.
+
+**Antes de chamar de defeito, a decisão.** Três têm escopo escrito e não são
+esquecimento: `posts` são os quatro postos de controle da F3, `stepper` é o
+`UnitStepper` (decisão registrada, e apontá-lo como defeito já custou uma rodada
+antes), `scan` é a leitura do QR na doca — o QR já é impresso, quem lê ainda não
+existe. Essas ficam.
+
+As outras quatro eram **rascunho anterior, já substituído pela tela viva**:
+
+- `areas` nomeava um menu de oito áreas que não existe, com duas delas cortadas
+  por decisão escrita (Espelho da Loja e Financeiro);
+- `production` dizia "Rende {{units}}", "Vai baixar do almoxarifado", "Custo desta
+  produção" — e `app.production` já diz as mesmas três coisas com outras palavras;
+- `confirmation.shipment` foi superado por `app.transfer.confirmBody`;
+- `assistant.title: 'Modo Conversa'` foi superado por `app.assistant`, onde
+  "modo conversa" virou a sobrelinha e o título virou "Pergunte".
+
+**Por que isso é defeito e não sobra inofensiva.** Seção morta **parece viva**.
+Quem for renomear "Custo desta produção" acha primeiro a cópia que ninguém lê,
+muda ali, e a tela continua dizendo o que dizia — com o commit verde, o teste
+verde, e o dono apontando o texto velho na semana seguinte. É a mesma família do
+rótulo que discorda: o código está certo, e o que está errado é a coisa parecer
+o que não é.
+
+**O que mudou.** As quatro saíram dos três idiomas (98 linhas), e
+`src/dictionary.test.ts` passou a exigir que toda seção tenha leitor **ou** uma
+linha na lista de fronteiras dizendo QUEM vai lê-la. Um segundo teste recusa
+fronteira que já ganhou leitor, para a lista não virar cemitério. A mutação nova
+prova que morde.
+
+**A regra que sai:** o portão P1 diz o que *entra* sem chamador. Faltava a outra
+metade — o que **fica** sem chamador depois que o chamador some. Peça sem chamador
+não é um evento de entrada, é um estado, e estado se mede continuamente.

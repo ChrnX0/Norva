@@ -60,6 +60,18 @@ const DEFECTS = [
       'seis quilos de acucar voltam a ser "6.000 unidades" na capa e na aba de transporte: a unidade existe no tipo e diz a coisa errada, que e pior que nao existir',
   },
 
+  // --- a seção de dicionário que ninguém lê ---------------------------------
+  //
+  // O CLAUDE.md cita "quatro seções de dicionário nos três idiomas sem uma tela"
+  // ao explicar por que o portão virou por item. Quando eu varri, eram sete.
+  {
+    file: 'src/i18n/locales/pt-BR.ts',
+    from: `  posts: {`,
+    to: `  postsSemLeitor: {`,
+    hurts:
+      'uma secao de dicionario passa a nao ter leitor nem motivo escrito, e volta a parecer viva para quem for renomear o texto',
+  },
+
   // --- o seletor do e2e contra o dicionário --------------------------------
   //
   // O defeito que esta guarda pega custou um CI vermelho de vinte minutos: um

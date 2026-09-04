@@ -15,17 +15,6 @@ export const en: Dictionary = {
     allClear: 'Everything is in order today.',
   },
 
-  areas: {
-    home: 'Home',
-    production: 'Production',
-    inventory: 'Inventory',
-    distribution: 'Distribution',
-    storeMirror: 'Store Mirror',
-    purchasing: 'Purchasing',
-    finance: 'Finance',
-    settings: 'Settings',
-  },
-
   units: {
     unit: { one: 'unit', other: 'units' },
     box: { one: 'box', other: 'boxes' },
@@ -994,31 +983,10 @@ export const en: Dictionary = {
     increase: 'Increase',
   },
 
-  production: {
-    suggestedToday: 'Suggested for today',
-    yields: 'Yields {{units}}',
-    roundedUp: 'rounded up from {{from}}, which fills {{boxes}} whole boxes',
-    willDraw: 'Will draw from the store room',
-    costOfRun: 'Cost of this run',
-    frozenAtRecord: 'per unit · frozen at record time',
-    register: 'Record production',
-  },
-
   scan: {
     typeCode: 'Type the code',
     progress: '{{done}} of {{total}}',
     duplicate: 'That crate was already scanned.',
   },
 
-  confirmation: {
-    shipment: 'You are sending {{quantity}} of {{product}} to {{destination}}. Confirm?',
-    checkForMe: 'Check this for me',
-  },
-
-  assistant: {
-    title: 'Conversation Mode',
-    understood: 'Got it: {{intent}}',
-    offline: 'I need internet for that. Opening the screen instead.',
-    noAccess: 'Values are not part of your access.',
-  },
 };
