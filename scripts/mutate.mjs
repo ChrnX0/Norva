@@ -60,6 +60,19 @@ const DEFECTS = [
       'seis quilos de acucar voltam a ser "6.000 unidades" na capa e na aba de transporte: a unidade existe no tipo e diz a coisa errada, que e pior que nao existir',
   },
 
+  // --- o seletor do e2e contra o dicionário --------------------------------
+  //
+  // O defeito que esta guarda pega custou um CI vermelho de vinte minutos: um
+  // rótulo renomeado numa linha de tradução, e três checagens do navegador
+  // esperando trinta segundos cada por um campo que não existe mais.
+  {
+    file: 'src/i18n/locales/pt-BR.ts',
+    from: "      howMany: 'Quantidade, em {{pack}}',",
+    to: "      howMany: 'Quantas {{pack}}',",
+    hurts:
+      'um rotulo renomeado deixa tres seletores do e2e procurando um campo que nao existe, e a suite so descobre no navegador vinte minutos depois',
+  },
+
   // --- a lista de compras de um plano -------------------------------------
   {
     file: 'src/domain/recipe.ts',

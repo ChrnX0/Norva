@@ -2493,3 +2493,43 @@ parecidas com permissões opostas sobre o mesmo verbo.
 descreve o que a função *poderia* responder, e quem lê acredita que alguém já
 pergunta. Procurar promessa sem chamador é a busca mais barata deste repositório:
 `grep` no docblock, e a pergunta "quem chama isto?".
+
+## 4 de setembro — o CI vermelho por uma palavra trocada num arquivo de tradução
+
+**O que aconteceu.** Renomeei um rótulo — `howMany` deixou de ser "Quantas
+{{pack}}", que saía na tela como **"QUANTAS SACO 25 KG"**, e virou "Quantidade,
+em {{pack}}". Três checagens do e2e continuaram procurando `getByLabel(/Quantas/)`.
+Empurrei; o CI ficou vermelho vinte minutos depois, no navegador.
+
+**Por que a barra não pegou.** Ela pegou — só tarde. A ordem foi: rodei a barra
+inteira, depois olhei as fotos, fiz quatro correções do que só se vê olhando (e uma
+delas era o rótulo), e empurrei sem rodar o e2e de novo. O `push-guard` exige
+veredito fresco para o HEAD e **o veredito não inclui o e2e**: o portão mecânico
+roda tipo, lint e unidade. Então o portão estava verde e a suíte do navegador,
+não.
+
+**O que dói não é o erro, é a distância.** Renomear um rótulo é uma linha num
+arquivo de tradução. Descobrir por que o navegador não achou o campo é uma
+execução inteira da suíte, três esperas de trinta segundos, e um log que diz
+`locator.fill: Timeout` sem dizer que a culpa está no dicionário.
+
+**O que mudou.** `src/selectors.test.ts` lê os seletores do `e2e/flow.mjs` e exige
+que cada um ainda case com alguma frase do dicionário pt-BR — em milissegundos, no
+`npm test`. Ele não prova que a tela mostra aquele texto: prova que o texto que o
+e2e procura **existe no aplicativo**, que é exatamente o que deixa de ser verdade
+quando alguém renomeia uma chave. O que a tela compõe (nome semeado, código de
+lote, rótulo de acessibilidade montado) entra numa lista de renúncias com motivo
+escrito, e um terceiro teste recusa renúncia que ninguém usa mais.
+
+**E ela quase nasceu com o defeito que caça.** O import começou como `default`, o
+dicionário chegou indefinido, a lista de frases ficou vazia — e aí *toda*
+comparação é falsa, então o primeiro seletor da lista levava a culpa por um erro
+que não era dele. Uma guarda que reprova pelo motivo errado é pior que guarda
+nenhuma: manda consertar o lugar errado. A contagem antes da comparação virou a
+primeira linha do arquivo. É a terceira vez no mesmo dia que a asserção de
+presença faltou ao lado da de ausência.
+
+**A regra que sai:** um teste que dirige o aplicativo por texto tem uma dependência
+que o compilador não vê — o dicionário. Onde existe essa costura invisível, cabe
+uma guarda barata que a torne visível **na velocidade da unidade**, em vez de
+deixá-la reprovar na velocidade do navegador.
