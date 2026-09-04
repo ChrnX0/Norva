@@ -797,6 +797,19 @@ const DEFECTS = [
     hurts:
       'findItem volta a responder o total da empresa mesmo quando a pergunta e de uma sala: a tela da camara fria mostra o saldo da fabrica somado ao dela, e a diferenca da contagem sai desse numero',
   },
+  // --- a porcentagem montada a mao, 4 de setembro ----------------------------
+  //
+  // Achado da auditoria (um dos medios). `formatPercent` existia e tres chamadores
+  // continuavam com `(x * 100).toFixed(1)` — conserto pela metade, que e a forma
+  // mais barata de produzir e a mais dificil de notar.
+  {
+    file: 'app/purchase.tsx',
+    from: "                  {draft.change >= 0 ? '▲' : '▼'} {formatPercent(Math.abs(draft.change), locale)}",
+    to: "                  {draft.change >= 0 ? '▲' : '▼'} {(Math.abs(draft.change) * 100).toFixed(1)}%",
+    hurts:
+      'a tela da compra volta a escrever "9.4%" para uma fabrica brasileira: ponto decimal do JavaScript no lugar da virgula de quem le, na tela onde o dono decide se a nota subiu demais',
+  },
+
   // --- os dois idiomas sem caminho, 4 de setembro ----------------------------
   //
   // Achado da auditoria. O dicionario tinha os tres completos e `useLocale`

@@ -83,6 +83,13 @@ foi fechado fica marcado aqui, com o que impede a volta.
   **O que ficou:** registrar o trajeto câmara → almoxarifado não existe, e isso é
   decisão de dono sobre a F2. Está escrita em `docs/roadmap.md` ("A sala do tacho"),
   com as duas formas e o motivo de nenhuma poder ser escolhida por mim.
+- **O percentual com ponto em vez de vírgula** (um dos médios), e ele era pior do que
+  parecia: `formatPercent` já existia — com um docblock dizendo, no passado, *"existia
+  em três lugares como `(x * 100).toFixed(1)`"* — e **três lugares continuavam
+  assim**. Conserto pela metade é a forma de defeito mais barata de produzir e a mais
+  difícil de notar: o repositório parece consertado porque a função certa existe e tem
+  chamadores, só não todos. Agora é guarda de fonte, e ela recusa a multiplicação por
+  cem com `toFixed` na mesma linha de um `%`.
 - **`recorded_by` cedível no pedido** (um dos médios): a porta de quem aprova só
   perguntava pela capacidade, então o mesmo `update` que aprovava podia trocar QUEM
   anotou o pedido. Congelado por gatilho para todos, como a imutabilidade de

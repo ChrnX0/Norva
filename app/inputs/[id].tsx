@@ -43,7 +43,7 @@ import { judgePriceChange } from '@/domain/cost';
 import type { LossReason } from '@/domain/ledger';
 import { parseTyped } from '@/domain/number';
 import { useQuery } from '@/data/useQuery';
-import { fill, formatDayMonth, formatMoney, formatQuantity } from '@/i18n';
+import { fill, formatDayMonth, formatMoney, formatPercent, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -469,7 +469,7 @@ function InputDetail() {
                 signal={priceSignal(judgePriceChange(latestChange))}
                 label={fill(
                   latestChange > 0 ? t.app.inputDetail.wentUp : t.app.inputDetail.wentDown,
-                  { percent: `${(Math.abs(latestChange) * 100).toFixed(1)}%` },
+                  { percent: formatPercent(Math.abs(latestChange), locale) },
                 )}
               />
             </View>
@@ -718,7 +718,7 @@ function InputDetail() {
                       Math.round(move.newRate * 1_000),
                       locale,
                     )}`}
-                    trailing={`${change > 0 ? '▲' : '▼'} ${(Math.abs(change) * 100).toFixed(1)}%`}
+                    trailing={`${change > 0 ? '▲' : '▼'} ${formatPercent(Math.abs(change), locale)}`}
                     trailingTone={change > 0 ? 'warning' : 'ok'}
                   />
                 );

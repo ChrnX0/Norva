@@ -466,3 +466,77 @@ test('the production floor guard bites the real scar, and leaves the fix alone',
   // inteira de propósito, e está certa.
   assert.deepEqual(pisoDeOutraSala('listItems(LOCAL_COMPANY_ID),'), []);
 });
+
+/**
+ * Nenhum por cento montado à mão.
+ *
+ * **A cicatriz, e ela é de conserto pela metade.** `formatPercent` existe desde o dia
+ * em que alguém notou que a capa anunciava "9.0%" para uma fábrica brasileira — o
+ * ponto decimal do JavaScript no lugar da vírgula de quem lê. O docblock dela diz
+ * *"existia em três lugares como `(x * 100).toFixed(1)`"*, no passado. E três lugares
+ * continuavam assim: a tela do insumo (duas vezes), a tela da compra, e o assistente
+ * — este último com `.replace('.', ',')`, que acerta em português e erra no espanhol
+ * do México, onde o separador decimal É o ponto.
+ *
+ * O ajudante foi escrito e os chamadores não foram trocados. É a forma de defeito
+ * mais barata de produzir e a mais difícil de notar: o repositório PARECE consertado,
+ * porque a função certa existe e tem chamadores — só não todos.
+ *
+ * A régua é a multiplicação por cem seguida de `toFixed`, que é a assinatura de
+ * "porcentagem à mão". `toFixed` sozinho é legítimo: valor inicial de campo, taxa de
+ * quatro casas, contagem de tachos.
+ */
+export function porCentoNaMao(texto: string): string[] {
+  // Linha por linha, e a linha tem de trazer o `%` junto.
+  //
+  // Sem isso a régua acusa dois inocentes: o próprio docblock de `formatPercent`,
+  // que CITA o padrão em prosa, e a tela da receita, que arredonda para duas casas
+  // e entrega o número ao `formatTyped` — que sabe o idioma. O que faz do trecho um
+  // defeito não é a multiplicação: é a porcentagem SAINDO como texto ali mesmo.
+  return texto
+    .split('\n')
+    .filter((linha) => /\*\s*100\s*\)?\s*\.toFixed\(/.test(linha) && linha.includes('%'))
+    .map((linha) => linha.trim().slice(0, 80));
+}
+
+test('no screen builds a percentage by hand', () => {
+  const fontes = [...sourcesUnder('app'), ...sourcesUnder('src')];
+  assert.ok(fontes.length > 20, 'a varredura de fontes veio vazia — a comparação seria de graça');
+
+  const naMao: string[] = [];
+  for (const f of fontes) {
+    for (const achado of porCentoNaMao(readFileSync(f, 'utf8'))) naMao.push(`${f}: ${achado}`);
+  }
+
+  assert.deepEqual(
+    naMao,
+    [],
+    `estes lugares montam porcentagem à mão:\n  ${naMao.join('\n  ')}\n` +
+      '`formatPercent` existe e sabe o idioma. Ponto decimal do JavaScript numa tela ' +
+      'brasileira é "9.0%" onde se lê "9,0%", e trocar por vírgula à mão erra no ' +
+      'espanhol do México, onde o separador é o ponto.',
+  );
+});
+
+test('the percentage guard bites the real scar, and leaves honest toFixed alone', () => {
+  assert.equal(porCentoNaMao('`${(Math.abs(change) * 100).toFixed(1)}%`').length, 1);
+  assert.equal(
+    porCentoNaMao("`${(cost.lossFraction * 100).toFixed(1).replace('.', ',')}%`").length,
+    1,
+    'a cicatriz do assistente também',
+  );
+
+  // E os três inocentes, cada um por um motivo diferente.
+  assert.deepEqual(porCentoNaMao('rate: parsed.unitRate.toFixed(4),'), [], 'taxa não é porcentagem');
+  assert.deepEqual(porCentoNaMao('`${batches.toFixed(2)} (pelo que saiu)`'), [], 'tacho não é porcentagem');
+  assert.deepEqual(
+    porCentoNaMao('lossPercent: formatTyped(Number((stored.lossFraction * 100).toFixed(2)), locale.formatting),'),
+    [],
+    'valor de campo entregue a um formatador que sabe o idioma',
+  );
+  assert.deepEqual(
+    porCentoNaMao(' * Existia em três lugares como `(x * 100).toFixed(1)`, que é o ponto decimal'),
+    [],
+    'prosa que cita o padrão não é o padrão',
+  );
+});

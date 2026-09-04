@@ -42,8 +42,8 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **336** testes |
-| `npm run mutate` | **105** defeitos plantados, 103 pegos e 2 equivalentes |
+| `npm test` | **338** testes |
+| `npm run mutate` | **106** defeitos plantados, 104 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **36** checagens num navegador de verdade |
 | `npm run db:verify` | **13** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
@@ -210,10 +210,9 @@ faz isso.
 
 De pé, nesta ordem e por este motivo:
 
-1. **Os médios que sobraram** — onze, agora que o `versionCode` e o `recorded_by`
-   cedível caíram. Entre eles: a embalagem abaixo de meio centavo virando de
-   graça, a aprovação de pedido que nunca atravessa, o percentual com ponto em vez de
-   vírgula, o ícone de "Produção" ser um picolé num aplicativo que promete servir
+1. **Os médios que sobraram** — dez, agora que o `versionCode`, o `recorded_by`
+   cedível e o percentual com ponto caíram. Entre eles: a embalagem abaixo de meio
+   centavo virando de graça, a aprovação de pedido que nunca atravessa, o ícone de "Produção" ser um picolé num aplicativo que promete servir
    qualquer fábrica, a tela de abertura ainda ser o andaime da Expo, e
    `forgetSentBefore` sem chamador fora de teste.
 

@@ -26,7 +26,7 @@ import { fromDecimal, rate, type Rate } from '@/domain/money';
 import { applyCostEvent, judgePriceChange } from '@/domain/cost';
 import { costPerProductUnit, packagingRatePerUnit, costRecipe } from '@/domain/recipe';
 import { parseTyped } from '@/domain/number';
-import { fill, formatMoney, formatQuantity } from '@/i18n';
+import { fill, formatMoney, formatPercent, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -369,7 +369,7 @@ function PurchaseForm() {
             ) : (
               <>
                 <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
-                  {draft.change >= 0 ? '▲' : '▼'} {(Math.abs(draft.change) * 100).toFixed(1)}%
+                  {draft.change >= 0 ? '▲' : '▼'} {formatPercent(Math.abs(draft.change), locale)}
                 </Text>
                 <Text style={[type.secondary, { color: color.inkMuted }]}>
                   {fill(t.app.purchase.nowVsBefore, {

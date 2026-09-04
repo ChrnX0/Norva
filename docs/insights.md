@@ -3441,3 +3441,31 @@ que foi visto; a 0032 congela `recorded_by` do pedido para todos, inclusive quem
 aprova. Duas checagens novas no `db:verify` (12 e 13), as duas escritas **antes** das
 migrações e vistas reprovando: a 12 com `new row violates row-level security policy`, a
 13 com o autor do pedido trocado por outro id.
+
+## 4 de setembro — o conserto pela metade, e por que ele é o mais difícil de notar
+
+`formatPercent` existe neste repositório com um docblock que descreve o defeito **no
+passado**: *"existia em três lugares como `(x * 100).toFixed(1)`, que é o ponto decimal
+do JavaScript e não o separador de quem lê"*. A função está certa, tem chamadores, e o
+comentário narra a cura.
+
+Três lugares continuavam com o padrão: a tela do insumo (duas vezes), a tela da compra,
+e o assistente — este último com `.replace('.', ',')`, que acerta em português e **erra
+no espanhol do México**, onde o separador decimal é o ponto. A tela da compra é onde o
+dono decide se a nota subiu demais, e ela dizia `9.4%`.
+
+**A regra que fica: o ajudante escrito não é o chamador trocado, e o docblock no
+passado esconde isso.** Um repositório com a função certa, chamadores legítimos e uma
+prosa dizendo "isto foi consertado" parece consertado — e é justamente por isso que
+ninguém volta a olhar. A varredura barata (`grep` pelo padrão antigo, não pelo nome da
+função nova) leva trinta segundos, e é ela que separa "consertei" de "consertei em
+todos os lugares".
+
+Onde procurar mais deles: todo docblock que diz "existia", "era assim antes" ou "isto
+substituiu" é um convite para uma varredura pelo que ele diz ter substituído.
+
+**O que mudou.** Os quatro chamadores; `movePhrase` do assistente passou a receber o
+idioma (a decisão escrita é sobre as PALAVRAS dele serem portuguesas, não sobre o
+número ser formatado à mão); e uma guarda de fonte que recusa a multiplicação por cem
+com `toFixed` na mesma linha de um `%` — precisa a ponto de deixar passar os três
+inocentes: taxa de quatro casas, contagem de tachos, e a prosa que cita o padrão.

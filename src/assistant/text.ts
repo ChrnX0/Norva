@@ -7,6 +7,8 @@
  * instantly, which the network version never will.
  */
 
+import { defaultLocale, formatPercent, type LocaleSettings } from '@/i18n';
+
 /** Lowercases and strips accents, so "açúcar" and "acucar" are one word. */
 export function normalize(text: string): string {
   return text
@@ -69,11 +71,20 @@ export function findByName<T extends { name: string }>(
   );
 }
 
-/** Signed percentage as a phrase: "subiu 9,4%" / "caiu 3,1%" / "não mudou". */
-export function movePhrase(change: number): string {
+/**
+ * Signed percentage as a phrase: "subiu 9,4%" / "caiu 3,1%" / "não mudou".
+ *
+ * O número sai do `formatPercent`, e não de `toFixed().replace('.', ',')`: trocar
+ * ponto por vírgula à mão acerta em português e erra em qualquer outro idioma —
+ * inclusive no espanhol do México, que usa ponto. O assistente fala português por
+ * decisão escrita (topo de `src/assistant/index.ts`), e a decisão é sobre as
+ * PALAVRAS dele; número formatado à mão é a família de defeito que este projeto já
+ * pagou caro, e não precisa de exceção nenhuma aqui.
+ */
+export function movePhrase(change: number, locale: LocaleSettings = defaultLocale): string {
   const percent = Math.abs(change * 100);
   if (percent < 0.05) return 'não mudou';
-  return `${change > 0 ? 'subiu' : 'caiu'} ${percent.toFixed(1).replace('.', ',')}%`;
+  return `${change > 0 ? 'subiu' : 'caiu'} ${formatPercent(Math.abs(change), locale)}`;
 }
 
 /**

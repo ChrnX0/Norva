@@ -9,7 +9,7 @@ import {
   packagingRatePerUnit,
   shoppingList,
 } from '@/domain/recipe';
-import { formatDayMonth, formatMoney, formatQuantity } from '@/i18n';
+import { formatDayMonth, formatMoney, formatPercent, formatQuantity } from '@/i18n';
 import { findByName, movePhrase, namesakes, normalize, parseNumber } from './text';
 import type { Answer, Skill, SkillContext } from './types';
 
@@ -75,7 +75,7 @@ const costOfProduct: Skill = {
           { label: 'Custo do lote', value: formatMoney(cost.batchCents, ctx.locale) },
           {
             label: 'Perda prevista',
-            value: `${(cost.lossFraction * 100).toFixed(1).replace('.', ',')}%`,
+            value: formatPercent(cost.lossFraction, ctx.locale),
           },
         ],
         route: `/recipes/${product.recipeId}`,
@@ -167,10 +167,10 @@ const whatMoved: Skill = {
     return {
       text:
         `${moved.length} ${moved.length === 1 ? 'item mudou' : 'itens mudaram'} de preço. ` +
-        `O maior foi ${worst.name}, que ${movePhrase(change)}.`,
+        `O maior foi ${worst.name}, que ${movePhrase(change, ctx.locale)}.`,
       detail: moved.map((c) => ({
         label: c.name,
-        value: movePhrase((c.newRate - (c.previousRate ?? 0)) / (c.previousRate || 1)),
+        value: movePhrase((c.newRate - (c.previousRate ?? 0)) / (c.previousRate || 1), ctx.locale),
       })),
       route: '/purchase',
     };
