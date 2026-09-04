@@ -19,14 +19,20 @@ coisa.
 
 ## Onde o produto está hoje — medido, não afirmado
 
-Os números abaixo saem de comando, não de memória. Cada um tem como conferir.
+Os números abaixo saem de comando, não de memória. Cada um tem como conferir — e
+`src/bar.test.ts` **roda essa coluna**: cada linha é derivada do sistema e comparada
+com o que está escrito aqui, então a tabela não envelhece em silêncio.
+
+*Ela já envelheceu, no dia em que foi escrita: quatro linhas ficaram para trás antes
+do fim da tarde. Comando escrito ao lado do número é convite, não garantia — ninguém
+roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 
 | | | como conferir |
 |---|---|---|
 | telas | **24** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **21** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **22** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **26** | `ls supabase/migrations \| wc -l` |
+| migrações do servidor | **27** | `ls supabase/migrations \| wc -l` |
 | migrações do aparelho | **V16** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **18** | `src/domain/access.ts` |
@@ -36,10 +42,10 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **303** testes |
-| `npm run mutate` | **88** defeitos plantados de propósito, 88 pegos |
+| `npm test` | **309** testes |
+| `npm run mutate` | **90** defeitos plantados de propósito, 90 pegos |
 | `npm run e2e:fast` | **34** checagens num navegador de verdade |
-| `npm run db:verify` | **8** garantias contra um Postgres descartável, sob RLS |
+| `npm run db:verify` | **9** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade,
