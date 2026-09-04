@@ -1,12 +1,15 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
+import { GlyphPlus, GlyphSack } from '@/components/Glyph';
+import { Reveal } from '@/components/Reveal';
+import { Touchable } from '@/components/Touchable';
 import { packSize } from '@/domain/measure';
 import { findItem, recordPurchase, saveItem, type ItemKind } from '@/data/repository';
 import { useQuery } from '@/data/useQuery';
@@ -29,6 +32,33 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * app does the division in front of them, in the hint, as they type. They
  * confirm a number instead of computing one (Law 1: never ask for what the
  * system can work out).
+ *
+ * **O corpo foi reescrito na língua da capa** (`docs/linguagem.md`), e o layout
+ * anterior saiu inteiro em vez de ganhar um caminho ao lado — era ele que fazia
+ * esta tela parecer de outro aplicativo no toque seguinte:
+ *
+ * - eram três `Card tone="area"` sem crachá e sem tom de assunto, ou seja três
+ *   retângulos iguais um embaixo do outro. Agora cada cartão diz do que trata
+ *   antes de ser lido: o cadastro em `mint` com o mais, a compra em `mint` com o
+ *   saco — que é o desenho mais literal do aplicativo inteiro, porque o que se
+ *   compra é um saco de 25 kg — e a conversão em `sky`, que é o tom do dinheiro
+ *   em toda tela;
+ * - o tipo do item eram três `Button`, um deles primário. Botão primário é a
+ *   ação da tela e só existe um: com quatro na página, "salvar" deixava de ser
+ *   o destino óbvio. Escolha se faz tocando a etiqueta, que é o mesmo gesto do
+ *   sabor em `app/production/new.tsx` e do tipo de lugar em `app/places.tsx`, e
+ *   as duas caras saem certas de graça;
+ * - o cabeçalho do cartão de compra era `type.cardTitle` escrito à mão dentro do
+ *   corpo, com o subtítulo abaixo. Título de cartão é do `Card`, junto do
+ *   crachá — escrito à mão ele fica sem desenho no Orgânico e sem régua no
+ *   Papel;
+ * - e o cartão do "preencha a embalagem e o preço" deixou de existir. Cartão que
+ *   não tem número não vira cartão: a frase virou a dica do campo de preço, que
+ *   é onde falta o dado que ela pede. É a mesma frase, na mesma condição — o
+ *   `conversionHint` só é indefinido quando a conta não fecha.
+ *
+ * Nada aqui decide diferente: consulta, conta, confirmação e gravação são as
+ * mesmas linhas de antes.
  */
 export default function InputsScreen() {
   return (
@@ -60,10 +90,12 @@ const KINDS: {
 ];
 
 function InputForm() {
-  const { color, type, space } = useTheme();
+  const { color, type, space, palette, skin } = useTheme();
   const confirm = useConfirm();
   const router = useRouter();
   const { locale, t } = useLocale();
+  const words = t.app.inputForm;
+  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   /**
    * The same screen registers and corrects.
@@ -178,7 +210,7 @@ function InputForm() {
   const conversionHint = (() => {
     if (!parsed.valid || parsed.unitRate === null) return undefined;
     const perThousand = formatMoney(Math.round(parsed.unitRate * 1000), locale);
-    return fill(t.app.inputForm.conversion, {
+    return fill(words.conversion, {
       paid: formatMoney(fromDecimal(parsed.paid), locale),
       factor: parsed.factor.toLocaleString(locale.formatting),
       perThousand,
@@ -198,8 +230,8 @@ function InputForm() {
     if (!canSave) return;
 
     const go = await confirm({
-      title: editing ? t.app.inputForm.saveEdit : t.app.inputForm.confirmTitle,
-      message: fill(editing ? t.app.inputForm.confirmEdit : t.app.inputForm.confirmNew, {
+      title: editing ? words.saveEdit : words.confirmTitle,
+      message: fill(editing ? words.confirmEdit : words.confirmNew, {
         name: name.trim(),
         pack: purchaseUnit || t.units.unit.one,
         factor: parsed.factor.toLocaleString(locale.formatting),
@@ -216,7 +248,7 @@ function InputForm() {
       router.back();
     } catch (e) {
       await confirm({
-        title: t.app.inputForm.failedToSave,
+        title: words.failedToSave,
         message: e instanceof Error ? e.message : String(e),
         acknowledge: true,
         confirmLabel: t.app.confirm.understood,
@@ -255,138 +287,179 @@ function InputForm() {
     }
   };
 
+  /** A palavra do tipo escolhido, que é o título do primeiro cartão. */
+  const kindKey = kind === 'input' ? 'input' : kind === 'packaging' ? 'packaging' : 'storeSupply';
+
+  /**
+   * A conversão só aparece quando existe.
+   *
+   * Corrigindo, ela não aparece nunca: o preço não é perguntado nesse caminho,
+   * então não há conta nova para mostrar — e um cartão de custo ao lado de "o
+   * preço não é perguntado aqui" seria a tela se contradizendo em duas frases.
+   */
+  const mostraCusto = parsed.valid && !editing;
+
+  /** A cascata não pula número: sem a conversão, a ação sobe uma posição. */
+  const indiceAcao = mostraCusto ? 3 : 2;
+
   return (
     <CollapsingHeader
-      title={editing ? name || t.app.inputForm.fallbackTitle : t.app.inputForm.newTitle}
-      overline={editing ? t.app.inputForm.editOverline : t.app.inputForm.newOverline}
+      title={editing ? name || words.fallbackTitle : words.newTitle}
+      overline={editing ? words.editOverline : words.newOverline}
     >
-      <Card tone="area">
-        <Field
-          label={t.app.inputForm.name}
-          value={name}
-          onChangeText={setName}
-          placeholder={t.app.inputForm.namePlaceholder}
-          autoFocus
-        />
-
-        <View style={{ marginTop: space.lg }}>
-          <Text style={[type.overline, { color: color.inkFaint, marginBottom: space.sm }]}>
-            {t.app.inputForm.whatFor}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
-            {KINDS.map((entry) => (
-              <Button
-                key={entry.kind}
-                label={t.app.inputForm.kinds[entry.key]}
-                variant={kind === entry.kind ? 'primary' : 'ghost'}
-                onPress={() => setKind(entry.kind)}
-                style={{ paddingVertical: space.sm, paddingHorizontal: space.md }}
-              />
-            ))}
-          </View>
-          <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
-            {kind === 'input'
-              ? t.app.inputForm.kindHint.input
-              : kind === 'packaging'
-                ? t.app.inputForm.kindHint.packaging
-                : t.app.inputForm.kindHint.storeSupply}
-          </Text>
-        </View>
-      </Card>
-
-      <Card tone="area">
-        <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.xs }]}>
-          {t.app.inputForm.howYouBuy}
-        </Text>
-        <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.md }]}>
-          {t.app.inputForm.howYouBuyHint}
-        </Text>
-
-        <View style={{ gap: space.lg }}>
-          <Field
-            label={t.app.inputForm.pack}
-            value={purchaseUnit}
-            onChangeText={setPurchaseUnit}
-            placeholder={t.app.inputForm.packPlaceholder}
-          />
-          <Field
-            label={t.app.inputForm.perPack}
-            value={purchaseToBase}
-            onChangeText={setPurchaseToBase}
-            placeholder="25000"
-            suffix={baseUnit}
-            keyboardType="numeric"
-          />
-          <Field
-            label={t.app.inputForm.useUnit}
-            value={baseUnit}
-            onChangeText={setBaseUnit}
-            placeholder="g"
-            hint={t.app.inputForm.useUnitHint}
-          />
-          {/* A régua das faixas de cor, e ela é opcional de propósito.
-              Vazia, o item não ganha cor nem aviso de volume — porque sem
-              referência "20%" seria um número que ninguém pode conferir. */}
-          <Field
-            label={t.app.inputForm.fullLevel}
-            value={fullLevel}
-            onChangeText={setFullLevel}
-            placeholder="50000"
-            suffix={baseUnit}
-            keyboardType="numeric"
-            hint={t.app.inputForm.fullLevelHint}
-          />
-          {editing ? (
-            <Text style={[type.caption, { color: color.inkMuted }]}>
-              {t.app.inputForm.priceNotAsked}
-            </Text>
-          ) : (
+      {/* O que é: o nome e para que serve. Um assunto só, porque é uma pergunta
+          só — e o título do cartão é a resposta que está dada agora, que muda no
+          toque da etiqueta. */}
+      <Reveal index={0}>
+        <Card
+          hue={palette.mint}
+          icon={(c) => <GlyphPlus size={26} color={c} weight={traco} />}
+          title={words.kinds[kindKey]}
+        >
+          <View style={{ gap: space.lg }}>
             <Field
-              label={t.app.inputForm.price}
-              value={price}
-              onChangeText={setPrice}
-              placeholder="118,00"
-              suffix="R$"
-              keyboardType="numeric"
-              hint={conversionHint}
+              label={words.name}
+              value={name}
+              onChangeText={setName}
+              placeholder={words.namePlaceholder}
+              autoFocus
             />
-          )}
-        </View>
-      </Card>
 
-      {parsed.valid && !editing ? (
-        <Card tone="area">
-          <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.inputForm.entersAs}</Text>
-          <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
-            {formatMoney(Math.round((parsed.unitRate ?? 0) * 1000), locale)}
-          </Text>
-          <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {fill(t.app.inputForm.perThousandOf, { unit: baseUnit })}
-          </Text>
-          <View style={{ marginTop: space.md }}>
-            <Chip signal="ok" label={t.app.inputForm.conversionOk} />
+            <View style={{ gap: space.sm }}>
+              <Text style={[type.overline, { color: color.inkFaint }]}>{words.whatFor}</Text>
+              {/* A etiqueta acesa é a escolhida, e nunca por cor sozinha: a
+                  palavra continua dita por extenso, que é o que serve de luva e
+                  sob luz ruim. A folga em volta é o alvo do dedo. */}
+              <View style={[styles.wrap, { gap: space.sm }]}>
+                {KINDS.map((entry) => (
+                  <Touchable
+                    key={entry.kind}
+                    accessibilityLabel={words.kinds[entry.key]}
+                    onPress={() => setKind(entry.kind)}
+                    style={{ paddingVertical: space.xs }}
+                  >
+                    <Chip
+                      signal={kind === entry.kind ? 'ok' : 'neutral'}
+                      label={words.kinds[entry.key]}
+                    />
+                  </Touchable>
+                ))}
+              </View>
+              <Text style={[type.caption, { color: color.inkMuted }]}>
+                {words.kindHint[kindKey]}
+              </Text>
+            </View>
           </View>
         </Card>
-      ) : (
-        <Card>
-          <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {t.app.inputForm.fillFirst}
-          </Text>
-        </Card>
-      )}
+      </Reveal>
 
-      <Button
-        label={
-          saving
-            ? t.app.inputForm.saving
-            : editing
-              ? t.app.inputForm.saveEdit
-              : t.app.inputForm.save
-        }
-        onPress={() => void onSave()}
-        disabled={!canSave || saving}
-        weighty
-      />
+      {/* Como você compra: o saco, porque é o saco que existe na nota. Este é o
+          cartão que a tela existe para ter — é aqui que o fator de conversão
+          entra, e é ele que fica embaixo de todo custo que o item tocar. */}
+      <Reveal index={1}>
+        <Card
+          hue={palette.mint}
+          icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}
+          title={words.howYouBuy}
+        >
+          <View style={{ gap: space.lg }}>
+            <Text style={[type.secondary, { color: color.inkMuted }]}>{words.howYouBuyHint}</Text>
+
+            <Field
+              label={words.pack}
+              value={purchaseUnit}
+              onChangeText={setPurchaseUnit}
+              placeholder={words.packPlaceholder}
+            />
+            <Field
+              label={words.perPack}
+              value={purchaseToBase}
+              onChangeText={setPurchaseToBase}
+              placeholder="25000"
+              suffix={baseUnit}
+              keyboardType="numeric"
+            />
+            <Field
+              label={words.useUnit}
+              value={baseUnit}
+              onChangeText={setBaseUnit}
+              placeholder="g"
+              hint={words.useUnitHint}
+            />
+            {/* A régua das faixas de cor, e ela é opcional de propósito.
+                Vazia, o item não ganha cor nem aviso de volume — porque sem
+                referência "20%" seria um número que ninguém pode conferir. */}
+            <Field
+              label={words.fullLevel}
+              value={fullLevel}
+              onChangeText={setFullLevel}
+              placeholder="50000"
+              suffix={baseUnit}
+              keyboardType="numeric"
+              hint={words.fullLevelHint}
+            />
+            {editing ? (
+              <Text style={[type.caption, { color: color.inkMuted }]}>{words.priceNotAsked}</Text>
+            ) : (
+              <Field
+                label={words.price}
+                value={price}
+                onChangeText={setPrice}
+                placeholder="118,00"
+                suffix="R$"
+                keyboardType="numeric"
+                // A conta enquanto se digita, e no lugar dela a frase que diz o
+                // que falta para a conta existir. Dica é onde a inteligência
+                // aparece: o campo explica em vez de um cartão cinza abaixo.
+                hint={conversionHint ?? words.fillFirst}
+              />
+            )}
+          </View>
+        </Card>
+      </Reveal>
+
+      {/* O que aquilo vira na receita, no tom do dinheiro. É a conclusão do
+          cartão de cima — a conta aberta é a dica do campo de preço (Lei 6), e
+          este número é o que ela soma por unidade de uso. */}
+      {mostraCusto ? (
+        <Reveal index={2}>
+          <Card hue={palette.sky}>
+            <Text style={[type.overline, { color: color.inkFaint }]}>{words.entersAs}</Text>
+            <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
+              {formatMoney(Math.round((parsed.unitRate ?? 0) * 1000), locale)}
+            </Text>
+            <Text style={[type.secondary, { color: color.inkMuted }]}>
+              {fill(words.perThousandOf, { unit: baseUnit })}
+            </Text>
+            <View style={{ marginTop: space.md }}>
+              <Chip signal="ok" label={words.conversionOk} />
+            </View>
+          </Card>
+        </Reveal>
+      ) : null}
+
+      {/* A ação, uma só, com o desenho do que ela faz dentro dela: o mais quando
+          se cadastra, o saco quando se corrige o que já existe. Desabilitada
+          enquanto a conta não fecha — Lei 5: o erro se impede, não se reclama. */}
+      <Reveal index={indiceAcao}>
+        <Button
+          label={saving ? words.saving : editing ? words.saveEdit : words.save}
+          icon={(c) =>
+            editing ? (
+              <GlyphSack size={22} color={c} weight={traco} />
+            ) : (
+              <GlyphPlus size={22} color={c} weight={traco} />
+            )
+          }
+          onPress={() => void onSave()}
+          disabled={!canSave || saving}
+          weighty
+        />
+      </Reveal>
     </CollapsingHeader>
   );
 }
+
+const styles = StyleSheet.create({
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
+});

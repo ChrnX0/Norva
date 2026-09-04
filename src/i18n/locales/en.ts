@@ -696,6 +696,8 @@ export const en: Dictionary = {
       unitCount: { one: 'one unit', other: '{{n}} units' },
       title: 'Production',
       overline: 'what came out of the batch',
+      formTitle: 'Record production',
+      formOverline: 'what just came out',
       pick: 'What you made',
       noRecipes: 'No product has a recipe yet. Add the recipe first.',
       batches: 'How many times the recipe ran',

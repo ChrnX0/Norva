@@ -735,6 +735,8 @@ export const ptBR = {
       unitCount: { one: 'uma unidade', other: '{{n}} unidades' },
       title: 'Produção',
       overline: 'o que saiu hoje',
+      formTitle: 'Lançar produção',
+      formOverline: 'o que saiu do tacho agora',
       pick: 'O que você produziu',
       noRecipes: 'Nenhum produto tem ficha técnica ainda. Cadastre a receita primeiro.',
       batches: 'Quantas vezes a receita rodou',

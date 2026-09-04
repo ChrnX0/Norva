@@ -1,12 +1,15 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip, priceSignal } from '@/components/Chip';
-import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
+import { useConfirm } from '@/components/Confirm';
 import { Field } from '@/components/Field';
+import { GlyphPrice, GlyphPurchase, GlyphSack } from '@/components/Glyph';
+import { ListRow } from '@/components/ListRow';
+import { Reveal } from '@/components/Reveal';
 import {
   itemCosts,
   labels as loadLabels,
@@ -38,6 +41,28 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * The comparison against the last invoice shows up *while the decision is still
  * open* - standing in front of the supplier - not in a report next month. Law
  * 4: warn on the date of the decision, not on the date of the problem.
+ *
+ * **O corpo desta tela foi reescrito na língua da capa** (`docs/linguagem.md`), e
+ * o layout anterior saiu inteiro em vez de ganhar um caminho ao lado. O que saiu,
+ * item por item, porque cada peça era vocabulário de outro aplicativo: uma fita
+ * de pastilhas desenhada à mão — `borderWidth`, `borderRadius: 999` e um
+ * `${accent}18` de fundo — que no Papel virava justamente a "caixa" que o dono
+ * circulou; quatro `Card tone="area"` sem crachá nenhum, então a tela inteira era
+ * parágrafo cinza sem um desenho para dizer de que assunto se falava; e a lista
+ * do impacto montada linha por linha com `StyleSheet` local, que é o `ListRow`
+ * reimplementado pior.
+ *
+ * O que existe agora são três leituras, na ordem em que a compra se decide:
+ * **o que chegou** (qual insumo, quantos e por quanto — o saco), **antes de
+ * fechar** (a nota contra a anterior, enquanto o fornecedor ainda está na porta)
+ * e **o que a nota mexeu** (o custo por unidade de cada produto, depois de
+ * gravar). Nenhuma caixa é desenhada aqui: `Card`, `Field`, `Chip`, `Button` e
+ * `ListRow` já viram régua no Papel e bloco no Orgânico.
+ *
+ * O tom é `palette.sky` porque o assunto é dinheiro — a nota move o custo, e é
+ * isso que a tela existe para fazer. A área continua `sage`, que é compras: o
+ * acento do cabeçalho responde "onde estou", o tom do cartão responde "do que se
+ * fala aqui", e as duas perguntas são diferentes.
  */
 export default function PurchaseScreen() {
   return (
@@ -51,9 +76,10 @@ export default function PurchaseScreen() {
 type Impact = { name: string; before: number; after: number };
 
 function PurchaseForm() {
-  const { color, type, space, accent } = useTheme();
+  const { color, type, space, palette, skin } = useTheme();
   const confirm = useConfirm();
   const { locale, t } = useLocale();
+  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data, loading, refresh } = useQuery(
     () => listItems(LOCAL_COMPANY_ID).then((all) => all.filter((i) => i.purchaseToBase !== null)),
@@ -160,179 +186,232 @@ function PurchaseForm() {
     }
   };
 
+  /**
+   * A cascata não pula número, e dois dos três blocos são condicionais.
+   *
+   * O juízo do preço só existe depois de a pessoa digitar quanto pagou, e o
+   * impacto só existe depois de gravar. Índice fixo deixaria um vão de quarenta
+   * milissegundos no meio da entrada — a tela montaria com um degrau que não
+   * corresponde a bloco nenhum.
+   */
+  const mostraJuizo = Boolean(draft && selected);
+  const mostraImpacto = Boolean(impact && impact.length > 0);
+  const indiceImpacto = mostraJuizo ? 2 : 1;
+  const indiceAcao = indiceImpacto + (mostraImpacto ? 1 : 0);
+
   if (loading) {
     return (
       <CollapsingHeader title={t.app.purchase.title} overline={t.app.purchase.overline}>
-        <Card>
-          <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {t.app.purchase.openingStoreroom}
-          </Text>
-        </Card>
+        <Reveal index={0}>
+          <Card hue={palette.sky} icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}>
+            <Text style={[type.secondary, { color: color.inkMuted }]}>
+              {t.app.purchase.openingStoreroom}
+            </Text>
+          </Card>
+        </Reveal>
       </CollapsingHeader>
     );
   }
 
   return (
     <CollapsingHeader title={t.app.purchase.title} overline={t.app.purchase.overline}>
-      <Card tone="area">
-        <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.sm }]}>
-          {t.app.purchase.whatYouBought}
-        </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={{ flexDirection: 'row', gap: space.sm }}>
-            {items.map((item) => {
-              const active = item.id === selected?.id;
-              return (
-                <Pressable
-                  key={item.id}
-                  onPress={() => setSelectedId(item.id)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  style={{
-                    borderWidth: StyleSheet.hairlineWidth * 2,
-                    borderColor: active ? accent : color.line,
-                    backgroundColor: active ? `${accent}18` : 'transparent',
-                    borderRadius: 999,
-                    paddingHorizontal: space.md,
-                    paddingVertical: space.sm,
-                  }}
-                >
-                  <Text
-                    style={[
-                      type.secondary,
-                      { color: active ? color.ink : color.inkMuted, fontWeight: active ? '600' : '400' },
-                    ]}
-                  >
-                    {item.name}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </ScrollView>
-      </Card>
-
-      {selected ? (
-        <Card tone="area">
-          <View style={{ gap: space.lg }}>
-            <Field
-              label={t.app.purchase.supplier}
-              value={supplier}
-              onChangeText={setSupplier}
-              placeholder={t.app.purchase.supplierPlaceholder}
-            />
-            <Field
-              label={fill(t.app.purchase.howMany, {
-                pack: selected.purchaseUnit ?? t.units.unit.other,
-              })}
-              value={quantity}
-              onChangeText={setQuantity}
-              keyboardType="numeric"
-              hint={
-                draft
-                  ? fill(t.app.purchase.conversion, {
-                      packs: formatQuantity(draft.packs, locale),
-                      factor: formatQuantity(draft.factor, locale),
-                      baseUnits: formatQuantity(draft.baseUnits, locale),
-                      unit: selected.baseUnit,
-                    })
-                  : undefined
-              }
-            />
-            <Field
-              label={t.app.purchase.total}
-              value={total}
-              onChangeText={setTotal}
-              placeholder="118,00"
-              suffix="R$"
-              keyboardType="numeric"
-              hint={
-                draft
-                  ? fill(t.app.purchase.perPack, {
-                      price: formatMoney(fromDecimal(perPackNow), locale),
-                      pack: selected.purchaseUnit ?? t.units.unit.one,
-                    })
-                  : undefined
-              }
-            />
-          </View>
-        </Card>
-      ) : null}
-
-      {draft && selected ? (
-        <Card tone={verdict === 'wellAbove' ? 'warning' : 'area'}>
-          <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.purchase.beforeClosing}</Text>
-
-          {draft.change === null || perPackBefore === null ? (
-            <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-              {t.app.purchase.firstPurchase}
-            </Text>
-          ) : (
-            <>
-              <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
-                {draft.change >= 0 ? '▲' : '▼'} {(Math.abs(draft.change) * 100).toFixed(1)}%
-              </Text>
-              <Text style={[type.secondary, { color: color.inkMuted }]}>
-                {fill(t.app.purchase.nowVsBefore, {
-                  now: formatMoney(fromDecimal(perPackNow), locale),
-                  before: formatMoney(fromDecimal(perPackBefore), locale),
+      {/* O QUE CHEGOU. Um assunto só, num cartão só: qual insumo, quantos e por
+          quanto são as três linhas da mesma linha da nota, e separá-las em dois
+          cartões fazia a pessoa olhar duas caixas para escrever uma frase.
+          A fita de escolha é palavra, não pastilha — o nome do insumo acende no
+          tom do assunto e engorda; o resto do desenho é espaço, que é como uma
+          página impressa separa. */}
+      <Reveal index={0}>
+        {selected ? (
+          <Card
+            hue={palette.sky}
+            icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}
+            title={t.app.purchase.whatYouBought}
+          >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={{ flexDirection: 'row', gap: space.lg }}>
+                {items.map((item) => {
+                  const active = item.id === selected.id;
+                  return (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => setSelectedId(item.id)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={item.name}
+                      style={{ paddingVertical: space.sm }}
+                    >
+                      <Text
+                        style={[
+                          type.secondary,
+                          {
+                            color: active ? palette.sky : color.inkMuted,
+                            fontWeight: active ? '600' : '400',
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {item.name}
+                      </Text>
+                    </Pressable>
+                  );
                 })}
+              </View>
+            </ScrollView>
+
+            {/* Os campos, na ordem em que a nota é lida: de quem, quanto veio,
+                quanto deu. Formulário continua formulário — cada `Field` explica
+                embaixo o que o sistema já deduziu do que foi digitado, que é onde
+                a inteligência aparece sem pedir nada a mais. */}
+            <View style={{ gap: space.lg, marginTop: space.md }}>
+              <Field
+                label={t.app.purchase.supplier}
+                value={supplier}
+                onChangeText={setSupplier}
+                placeholder={t.app.purchase.supplierPlaceholder}
+              />
+              <Field
+                label={fill(t.app.purchase.howMany, {
+                  pack: selected.purchaseUnit ?? t.units.unit.other,
+                })}
+                value={quantity}
+                onChangeText={setQuantity}
+                keyboardType="numeric"
+                hint={
+                  draft
+                    ? fill(t.app.purchase.conversion, {
+                        packs: formatQuantity(draft.packs, locale),
+                        factor: formatQuantity(draft.factor, locale),
+                        baseUnits: formatQuantity(draft.baseUnits, locale),
+                        unit: selected.baseUnit,
+                      })
+                    : undefined
+                }
+              />
+              <Field
+                label={t.app.purchase.total}
+                value={total}
+                onChangeText={setTotal}
+                placeholder="118,00"
+                suffix="R$"
+                keyboardType="numeric"
+                hint={
+                  draft
+                    ? fill(t.app.purchase.perPack, {
+                        price: formatMoney(fromDecimal(perPackNow), locale),
+                        pack: selected.purchaseUnit ?? t.units.unit.one,
+                      })
+                    : undefined
+                }
+              />
+            </View>
+          </Card>
+        ) : (
+          /* Nada para comprar ainda, e isso é estado válido: o desenho do
+             assunto e a frase, sem tom de alerta. Um cartão vermelho no primeiro
+             dia de uso é alerta inventado. */
+          <Card
+            hue={palette.sky}
+            icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}
+            title={t.app.purchase.whatYouBought}
+          >
+            <Text style={[type.body, { color: color.ink }]}>{t.app.inputs.empty.input}</Text>
+          </Card>
+        )}
+      </Reveal>
+
+      {/* ANTES DE FECHAR. O único número grande da tela, e ele nunca aparece
+          sozinho: a linha de baixo diz quanto é agora e quanto era na compra
+          anterior, e o crachá diz como ler isso em uma frase. O cartão vira
+          âmbar quando subiu bem acima do normal — a cor é o aviso na data da
+          decisão, com o fornecedor ainda na porta. */}
+      {draft && selected ? (
+        <Reveal index={1}>
+          <Card
+            hue={verdict === 'wellAbove' ? color.warning : palette.sky}
+            icon={(c) => <GlyphPurchase size={26} color={c} weight={traco} />}
+          >
+            <Text style={[type.overline, { color: color.inkFaint }]}>
+              {t.app.purchase.beforeClosing}
+            </Text>
+
+            {draft.change === null || perPackBefore === null ? (
+              <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
+                {t.app.purchase.firstPurchase}
               </Text>
-              <View style={{ marginTop: space.md }}>
-                {/* The verdict names the key; the dictionary writes the words.
-                    Three languages, one rule, and the rule is tested. */}
-                <Chip
-                  signal={priceSignal(verdict)}
-                  label={verdict ? t.app.purchase[verdict] : t.app.purchase.smallChange}
-                />
-              </View>
-            </>
-          )}
+            ) : (
+              <>
+                <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
+                  {draft.change >= 0 ? '▲' : '▼'} {(Math.abs(draft.change) * 100).toFixed(1)}%
+                </Text>
+                <Text style={[type.secondary, { color: color.inkMuted }]}>
+                  {fill(t.app.purchase.nowVsBefore, {
+                    now: formatMoney(fromDecimal(perPackNow), locale),
+                    before: formatMoney(fromDecimal(perPackBefore), locale),
+                  })}
+                </Text>
+                <View style={{ marginTop: space.md }}>
+                  {/* The verdict names the key; the dictionary writes the words.
+                      Three languages, one rule, and the rule is tested. */}
+                  <Chip
+                    signal={priceSignal(verdict)}
+                    label={verdict ? t.app.purchase[verdict] : t.app.purchase.smallChange}
+                  />
+                </View>
+              </>
+            )}
 
-          <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
-            {fill(t.app.purchase.averageMoves, {
-              name: selected.name,
-              from: formatMoney(Math.round(selected.averageRate * 1_000), locale),
-              to: formatMoney(Math.round(draft.after.averageRate * 1_000), locale),
-              unit: selected.baseUnit,
-            })}
-          </Text>
-        </Card>
+            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
+              {fill(t.app.purchase.averageMoves, {
+                name: selected.name,
+                from: formatMoney(Math.round(selected.averageRate * 1_000), locale),
+                to: formatMoney(Math.round(draft.after.averageRate * 1_000), locale),
+                unit: selected.baseUnit,
+              })}
+            </Text>
+          </Card>
+        </Reveal>
       ) : null}
 
+      {/* O QUE A NOTA MEXEU. A conta que abre a conclusão de cima (Lei 6): cada
+          produto com o que a unidade dele custava e o que passou a custar. É
+          `ListRow` e não linha montada à mão — a coluna da direita já vem em
+          algarismo tabular, que é o que permite comparar quatro produtos de
+          relance. Sem desenho por linha: ícone em toda linha vira papel de
+          parede e para de ser visto. */}
       {impact && impact.length > 0 ? (
-        <Card tone="area">
-          <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.purchase.whatItMoved}</Text>
-          <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-            {t.app.purchase.nobodyUpdated}
-          </Text>
-          <View style={{ marginTop: space.md, gap: space.sm }}>
+        <Reveal index={indiceImpacto}>
+          <Card
+            hue={palette.sky}
+            icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
+            title={t.app.purchase.whatItMoved}
+          >
+            <Text style={[type.caption, { color: color.inkMuted }]}>
+              {t.app.purchase.nobodyUpdated}
+            </Text>
             {impact.map((row) => (
-              <View key={row.name} style={styles.row}>
-                <Text style={[type.secondary, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-                  {row.name}
-                </Text>
-                <Text
-                  style={[
-                    type.secondary,
-                    styles.number,
-                    { color: row.after > row.before ? color.warning : color.ok },
-                  ]}
-                >
-                  {formatMoney(row.before, locale)} → {formatMoney(row.after, locale)}
-                </Text>
-              </View>
+              <ListRow
+                key={row.name}
+                label={row.name}
+                trailing={`${formatMoney(row.before, locale)} → ${formatMoney(row.after, locale)}`}
+                trailingTone={row.after > row.before ? 'warning' : 'ok'}
+              />
             ))}
-          </View>
-        </Card>
+          </Card>
+        </Reveal>
       ) : null}
 
-      <Button
-        label={saving ? t.app.purchase.recording : t.app.purchase.record}
-        onPress={() => void onSave()}
-        disabled={!draft || saving}
-        weighty
-      />
+      {/* A ação provável, embaixo e uma só, com a marca do assunto dentro dela:
+          o botão diz de que se trata antes de ser lido. */}
+      <Reveal index={indiceAcao}>
+        <Button
+          label={saving ? t.app.purchase.recording : t.app.purchase.record}
+          onPress={() => void onSave()}
+          disabled={!draft || saving}
+          icon={(c) => <GlyphPurchase size={22} color={c} weight={traco} />}
+          weighty
+        />
+      </Reveal>
     </CollapsingHeader>
   );
 }
@@ -387,8 +466,3 @@ async function recordAndMeasure(
     .map((row, index) => ({ name: row.name, before: row.value, after: after[index].value }))
     .filter((row) => row.before !== row.after);
 }
-
-const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
-  number: { fontVariant: ['tabular-nums'], fontWeight: '600' },
-});

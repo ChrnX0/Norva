@@ -702,6 +702,8 @@ export const es: Dictionary = {
       unitCount: { one: 'una unidad', other: '{{n}} unidades' },
       title: 'Producción',
       overline: 'lo que salió de la paila',
+      formTitle: 'Registrar producción',
+      formOverline: 'lo que acaba de salir',
       pick: 'Qué produjiste',
       noRecipes: 'Ningún producto tiene ficha técnica todavía. Cargá primero la receta.',
       batches: 'Cuántas pailas',

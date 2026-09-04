@@ -319,7 +319,12 @@ check('the weather screen answers with or without internet', async (page) => {
 
   const aberta = await screen(page);
   assert.match(aberta, /onde fica a fábrica/i);
-  assert.match(aberta, /Sorvete vende com calor/);
+  // A tela diz POR QUE o tempo está no aplicativo, e a frase não pode falar de
+  // sorvete: a capa do projeto proíbe regra chumbada de sorvete, porque isto
+  // vai para as lojas servir qualquer fábrica. O que ela afirma agora é
+  // verdade em qualquer uma — calor muda o que sai e o que estraga.
+  assert.match(aberta, /Calor muda o que sai e o que estraga/);
+  assert.doesNotMatch(aberta, /[Ss]orvete/, 'nenhuma regra de sorvete chumbada na tela');
 
   await page.getByRole('textbox', { name: 'Procurar cidade' }).fill('Recife');
   await page.getByText('Procurar cidade', { exact: true }).last().click();

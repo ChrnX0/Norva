@@ -1,11 +1,14 @@
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
 import { Field } from '@/components/Field';
+import { GlyphCalendar, GlyphCustomer, GlyphOrder, GlyphPlus } from '@/components/Glyph';
+import { ListRow } from '@/components/ListRow';
+import { Reveal } from '@/components/Reveal';
 import {
   listPlaces,
   listProducts,
@@ -21,7 +24,14 @@ import { nowIso } from '@/data/db';
 import { useQuery } from '@/data/useQuery';
 import { localDate } from '@/domain/day';
 import { parseTyped } from '@/domain/number';
-import { fill, formatQuantity, formatWeekdayShort, joinList, plural } from '@/i18n';
+import {
+  fill,
+  formatCalendarDate,
+  formatQuantity,
+  formatWeekdayShort,
+  joinList,
+  plural,
+} from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -45,10 +55,42 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * Livre é o saldo menos o que outros pedidos já prometeram para aquele dia. E o
  * excesso **não bloqueia**: prometer mais do que existe é decisão legítima de
  * quem sabe que vai produzir até lá. O app orienta, não fiscaliza.
+ *
+ * ---
+ *
+ * **O corpo desta tela foi reescrito na língua da capa** (`docs/linguagem.md`),
+ * e o layout anterior saiu inteiro em vez de ganhar um caminho ao lado. O que
+ * saiu, item por item, porque cada um era vocabulário do tema velho: três
+ * fileiras de pílulas feitas à mão com `Pressable` e `StyleSheet` — `borderWidth`,
+ * `borderRadius: radius.pill` e `backgroundColor: color.ink` escritos dentro da
+ * tela, que é a caixa do Orgânico aparecendo no meio do Papel; dois cartões sem
+ * crachá nem tom, com o nome da pergunta em `type.overline` cinza; as linhas do
+ * rascunho montadas com `View` e `Text` e um "tirar" do tamanho de uma unha ao
+ * lado; dois botões primários disputando a mesma tela; e o voltar como texto
+ * cinza centralizado. **Nada aqui desenha caixa**: `Card`, `ListRow`, `Field` e
+ * `Button` já sabem virar régua no Papel e bloco no Orgânico, e é isso que faz a
+ * mesma tela sair certa nas duas caras de graça.
+ *
+ * **Quatro perguntas, quatro crachás, e cada rótulo concorda com o desenho** —
+ * a pessoa (para quem), a folhinha (para quando), o mais (o quê, que é o que se
+ * acrescenta) e a prancheta (o pedido que está sendo escrito). Todos no tom do
+ * assunto, `palette.sage`, que é o tom de pedido, cliente e acordo em todo o
+ * aplicativo.
+ *
+ * **A área era `mint` e virou `sage`.** Insumo é mint; a lista de pedidos, que é
+ * a tela de onde se chega aqui, sempre foi sage. Duas telas do mesmo assunto com
+ * acentos diferentes é a costura que o dono apontou, em versão pequena.
+ *
+ * O que a escolha é agora: a faixa da linha (`signal`). A pílula preta e cheia
+ * dizia "esta" com massa de cor; a régua na lateral diz o mesmo com presença ou
+ * ausência de traço, que é o que continua legível para quem não distingue tom.
+ * E cada linha passou a carregar o número ou o fato que a pessoa vinha buscar:
+ * o acordo da loja, a data por extenso do dia, o quanto ainda está livre de cada
+ * produto. Antes era só o nome dentro da pílula, e o resto se descobria tocando.
  */
 export default function NewOrderScreen() {
   return (
-    <AreaProvider area="mint">
+    <AreaProvider area="sage">
       <NewOrder />
     </AreaProvider>
   );
@@ -58,10 +100,11 @@ type Loaded = { places: Place[]; products: Product[]; demand: Demand[] };
 type Draft = { itemId: string; name: string; baseUnits: number };
 
 function NewOrder() {
-  const { color, type, space, radius } = useTheme();
+  const { color, type, space, palette, skin } = useTheme();
   const { locale, t } = useLocale();
   const askConfirm = useConfirm();
   const words = t.app.newOrder;
+  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data } = useQuery<Loaded>(async () => {
     const [places, products, demand] = await Promise.all([
@@ -100,16 +143,27 @@ function NewOrder() {
    * Saldo menos o que outros pedidos já reservaram, menos o que já foi
    * digitado nesta tela - as linhas do rascunho contam, senão a segunda linha
    * do mesmo pedido promete as caixas da primeira.
+   *
+   * A conta é uma só e agora responde duas vezes: para o produto escolhido, na
+   * dica do campo, e para cada linha da lista, que é onde ela decide qual
+   * produto dá para prometer antes de a pessoa tocar em nada.
    */
-  const livre = useMemo(() => {
-    if (!product) return null;
-    const linha = data?.demand.find((d) => d.itemId === product.itemId);
-    if (!linha) return null;
-    const noRascunho = lines
-      .filter((l) => l.itemId === product.itemId)
-      .reduce((n, l) => n + l.baseUnits, 0);
-    return linha.onHand - linha.requested - noRascunho;
-  }, [product, data, lines]);
+  const livreDe = useCallback(
+    (itemId: string): number | null => {
+      const linha = data?.demand.find((d) => d.itemId === itemId);
+      if (!linha) return null;
+      const noRascunho = lines
+        .filter((l) => l.itemId === itemId)
+        .reduce((n, l) => n + l.baseUnits, 0);
+      return linha.onHand - linha.requested - noRascunho;
+    },
+    [data, lines],
+  );
+
+  const livre = useMemo(
+    () => (product ? livreDe(product.itemId) : null),
+    [product, livreDe],
+  );
 
   /**
    * O dia que já estava combinado com esta loja.
@@ -197,149 +251,219 @@ function NewOrder() {
     }
   };
 
-  const chip = (label: string, active: boolean, onPress: () => void, key: string) => (
-    <Pressable
-      key={key}
-      onPress={onPress}
-      accessibilityRole="radio"
-      accessibilityState={{ selected: active }}
-      style={[
-        styles.chip,
-        {
-          borderColor: active ? color.ink : color.line,
-          backgroundColor: active ? color.ink : 'transparent',
-          borderRadius: radius.pill,
-          paddingVertical: space.sm,
-          paddingHorizontal: space.md,
-        },
-      ]}
-    >
-      <Text style={[type.secondary, { color: active ? color.paper : color.ink }]}>{label}</Text>
-    </Pressable>
-  );
+  /**
+   * O acordo desta loja, na frase que a ficha dela já usa.
+   *
+   * É o que explica por que um dia veio escolhido sozinho: a linha do cliente
+   * diz "a próxima é sex." e o cartão de baixo abre em sexta. Sem isso a data
+   * pré-escolhida é mágica, e o que é mágico ninguém confere.
+   */
+  const acordo = (loja: Place): string => {
+    const dias = daysUntilNextDelivery(loja.deliveryDays, hoje);
+    if (dias === null) return t.app.places.noAgreement;
+    if (dias === 0) return t.app.places.deliversToday;
+    return fill(t.app.places.deliversIn, { day: formatWeekdayShort((hoje + dias) % 7, locale) });
+  };
+
+  /** "Amanhã" é bonito ao telefone e ambíguo no papel: a data vai embaixo. */
+  const dataDe = (days: number): string =>
+    formatCalendarDate(localDate(nowIso(), locale.timeZone, days), locale);
+
+  /** Quanto está livre, dito como a dica do campo diz. */
+  const sobraDe = (itemId: string): string | undefined => {
+    const sobra = livreDe(itemId);
+    if (sobra === null) return undefined;
+    const quanto = Math.max(0, sobra);
+    return plural(quanto, t.units.unit, formatQuantity(quanto, locale));
+  };
+
+  /**
+   * A cascata não pula número, e dois blocos daqui são condicionais.
+   *
+   * O rascunho só existe depois da primeira linha e o aviso só existe quando há
+   * o que impedir, então os índices se contam em vez de se escrever: cartão
+   * ausente que gastasse posição abriria um buraco de quarenta milissegundos no
+   * meio da entrada.
+   */
+  const iRascunho = 3;
+  const iErro = iRascunho + (lines.length > 0 ? 1 : 0);
+  const iAcao = iErro + (erro ? 1 : 0);
 
   return (
     <CollapsingHeader title={words.title} overline={words.overline}>
-      <Card>
-        <Text style={[type.overline, { color: color.inkFaint }]}>{words.customer.toUpperCase()}</Text>
-        <View style={[styles.wrap, { marginTop: space.sm, gap: space.sm }]}>
-          {(data?.places ?? []).map((p) => chip(p.name, p.id === place?.id, () => setPlaceId(p.id), p.id))}
-        </View>
-        {data && data.places.length === 0 ? (
-          <Pressable onPress={() => router.push('/places')} accessibilityRole="button">
-            <Text style={[type.body, { color: color.ink, marginTop: space.sm }]}>
-              {words.noCustomers}
-            </Text>
-          </Pressable>
-        ) : null}
+      {/* PARA QUEM. Uma linha por cliente, e cada uma já traz o acordo dele —
+          que é o que faz a data de baixo nascer preenchida. A escolhida leva a
+          faixa; as outras, nada, porque presença de traço se lê sem cor. */}
+      <Reveal index={0}>
+        <Card
+          hue={palette.sage}
+          icon={(c) => <GlyphCustomer size={26} color={c} weight={traco} />}
+          title={words.customer}
+        >
+          {(data?.places ?? []).map((p) => (
+            <ListRow
+              key={p.id}
+              label={p.name}
+              detail={acordo(p)}
+              signal={p.id === place?.id ? 'ok' : undefined}
+              onPress={() => setPlaceId(p.id)}
+            />
+          ))}
 
-        <Text style={[type.overline, { color: color.inkFaint, marginTop: space.lg }]}>
-          {words.when.toUpperCase()}
-        </Text>
-        <View style={[styles.wrap, { marginTop: space.sm, gap: space.sm }]}>
-          {opcoes.map(({ days, label }) =>
-            chip(
-              label,
-              days === whenDays,
-              () => setEscolhido({ placeId: place?.id ?? null, days }),
-              `quando-${days}`,
-            ),
-          )}
-        </View>
-      </Card>
-
-      <Card>
-        <Text style={[type.overline, { color: color.inkFaint }]}>{words.product.toUpperCase()}</Text>
-        <View style={[styles.wrap, { marginTop: space.sm, gap: space.sm }]}>
-          {(data?.products ?? []).map((p) =>
-            chip(p.name, p.id === product?.id, () => setProductId(p.id), p.id),
-          )}
-        </View>
-
-        {data && data.products.length === 0 ? (
-          <Pressable onPress={() => router.push('/products/new')} accessibilityRole="button">
-            <Text style={[type.body, { color: color.ink, marginTop: space.sm }]}>
-              {words.noProducts}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        <View style={{ marginTop: space.md }}>
-          <Field
-            label={words.quantity}
-            value={quantity}
-            onChangeText={setQuantity}
-            keyboardType="numeric"
-            placeholder="0"
-            hint={
-              livre === null
-                ? undefined
-                : `${fill(words.free, {
-                    amount: `${formatQuantity(Math.max(0, livre), locale)} ${plural(
-                      Math.max(0, livre),
-                      t.units.unit,
-                    )}`,
-                  })} — ${words.freeHint}`
-            }
-          />
-
-          {/* O excesso avisa e não impede: prometer mais do que existe é decisão
-              de quem sabe que vai produzir até lá. */}
-          {livre !== null && units > livre ? (
-            <Text style={[type.caption, { color: color.warning, marginTop: space.xs }]}>
-              {fill(words.over, {
-                amount: `${formatQuantity(units - Math.max(0, livre), locale)} ${plural(
-                  units - Math.max(0, livre),
-                  t.units.unit,
-                )}`,
-              })}
-            </Text>
+          {/* Sem cliente nenhum, a tela não some com a porta: desenho, a frase,
+              e a próxima ação. Esconder o caminho já deixou duas telas sem
+              entrada na primeira instalação. */}
+          {data && data.places.length === 0 ? (
+            <View style={{ gap: space.md }}>
+              <Text style={[type.body, { color: color.ink }]}>{words.noCustomers}</Text>
+              <Button
+                label={t.app.places.newPlace}
+                variant="ghost"
+                onPress={() => router.push('/places')}
+              />
+            </View>
           ) : null}
-        </View>
+        </Card>
+      </Reveal>
 
-        <View style={{ marginTop: space.md }}>
-          <Button label={words.addLine} onPress={addLine} style={{ borderRadius: radius.pill }} />
-        </View>
-      </Card>
+      {/* PARA QUANDO. A palavra é como se fala ao telefone; a data embaixo é o
+          que vira promessa. Quem só recebe na quinta ganha a quarta linha, e ela
+          vem escolhida sozinha. */}
+      <Reveal index={1}>
+        <Card
+          hue={palette.sage}
+          icon={(c) => <GlyphCalendar size={26} color={c} weight={traco} />}
+          title={words.when}
+        >
+          {opcoes.map(({ days, label }) => (
+            <ListRow
+              key={`quando-${days}`}
+              label={label}
+              detail={dataDe(days)}
+              signal={days === whenDays ? 'ok' : undefined}
+              onPress={() => setEscolhido({ placeId: place?.id ?? null, days })}
+            />
+          ))}
+        </Card>
+      </Reveal>
 
-      {lines.length > 0 ? (
-        <Card tone="area">
-          <Text style={[type.cardTitle, { color: color.ink }]}>{words.listed}</Text>
-          <View style={{ marginTop: space.md, gap: space.sm }}>
-            {lines.map((l) => (
-              <View key={l.itemId} style={styles.row}>
-                <Text style={[type.body, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-                  {l.name}
-                </Text>
-                <Text style={[type.body, styles.number, { color: color.ink }]}>
-                  {formatQuantity(l.baseUnits, locale)}
-                </Text>
-                <Pressable
-                  onPress={() => setLines((c) => c.filter((x) => x.itemId !== l.itemId))}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${words.remove}: ${l.name}`}
-                  style={{ paddingHorizontal: space.sm }}
-                >
-                  <Text style={[type.secondary, { color: color.inkFaint }]}>{words.remove}</Text>
-                </Pressable>
-              </View>
-            ))}
+      {/* O QUÊ. A coluna da direita é quanto ainda dá para prometer de cada um,
+          na mesma régua, para a escolha acontecer antes do toque; a dica do
+          campo é que diz o que essa coluna significa. */}
+      <Reveal index={2}>
+        <Card
+          hue={palette.sage}
+          icon={(c) => <GlyphPlus size={26} color={c} weight={traco} />}
+          title={words.product}
+        >
+          {(data?.products ?? []).map((p) => (
+            <ListRow
+              key={p.id}
+              label={p.name}
+              trailing={sobraDe(p.itemId)}
+              trailingTone="muted"
+              signal={p.id === product?.id ? 'ok' : undefined}
+              onPress={() => setProductId(p.id)}
+            />
+          ))}
+
+          {data && data.products.length === 0 ? (
+            <View style={{ gap: space.md }}>
+              <Text style={[type.body, { color: color.ink }]}>{words.noProducts}</Text>
+              <Button
+                label={t.app.products.addNew}
+                variant="ghost"
+                onPress={() => router.push('/products/new')}
+              />
+            </View>
+          ) : null}
+
+          <View style={{ marginTop: space.md, gap: space.xs }}>
+            <Field
+              label={words.quantity}
+              value={quantity}
+              onChangeText={setQuantity}
+              keyboardType="numeric"
+              placeholder="0"
+              hint={
+                livre === null
+                  ? undefined
+                  : `${fill(words.free, {
+                      amount: `${formatQuantity(Math.max(0, livre), locale)} ${plural(
+                        Math.max(0, livre),
+                        t.units.unit,
+                      )}`,
+                    })} — ${words.freeHint}`
+              }
+            />
+
+            {/* O excesso avisa e não impede: prometer mais do que existe é decisão
+                de quem sabe que vai produzir até lá. */}
+            {livre !== null && units > livre ? (
+              <Text style={[type.caption, { color: color.warning }]}>
+                {fill(words.over, {
+                  amount: `${formatQuantity(units - Math.max(0, livre), locale)} ${plural(
+                    units - Math.max(0, livre),
+                    t.units.unit,
+                  )}`,
+                })}
+              </Text>
+            ) : null}
           </View>
+
+          {/* Fantasma, e é regra: a tela tem uma ação primária só, e ela é
+              anotar o pedido. Dois botões cheios lado a lado fazem a pessoa
+              escolher entre duas coisas que não competem. */}
+          <Button
+            label={words.addLine}
+            variant="ghost"
+            onPress={addLine}
+            style={{ marginTop: space.md }}
+          />
         </Card>
+      </Reveal>
+
+      {/* O PEDIDO. O que vai ser gravado, com a quantidade na coluna e o "tirar"
+          embaixo do nome: a linha inteira é o alvo, que é o que se acerta de
+          luva. Nada aqui está gravado ainda — tirar e pôr de volta é digitar. */}
+      {lines.length > 0 ? (
+        <Reveal index={iRascunho}>
+          <Card
+            hue={palette.sage}
+            icon={(c) => <GlyphOrder size={26} color={c} weight={traco} />}
+            title={words.listed}
+          >
+            {lines.map((l) => (
+              <ListRow
+                key={l.itemId}
+                label={l.name}
+                detail={words.remove}
+                trailing={plural(l.baseUnits, t.units.unit, formatQuantity(l.baseUnits, locale))}
+                onPress={() => setLines((c) => c.filter((x) => x.itemId !== l.itemId))}
+              />
+            ))}
+          </Card>
+        </Reveal>
       ) : null}
 
+      {/* O que falta, dito onde a ação está e não no topo da tela. */}
       {erro ? (
-        <Card tone="warning">
-          <Text style={[type.body, { color: color.ink }]}>{erro}</Text>
-        </Card>
+        <Reveal index={iErro}>
+          <Card tone="warning">
+            <Text style={[type.body, { color: color.ink }]}>{erro}</Text>
+          </Card>
+        </Reveal>
       ) : null}
 
-      <Button label={words.save} onPress={save} style={{ borderRadius: radius.pill }} />
-      <Pressable onPress={() => router.back()} accessibilityRole="button">
-        <Text style={[type.secondary, { color: color.inkFaint, textAlign: 'center' }]}>
-          {words.back}
-        </Text>
-      </Pressable>
+      <Reveal index={iAcao}>
+        <Button label={words.save} onPress={save} />
+      </Reveal>
+
+      {/* Voltar é fantasma e é a última coisa da pilha: ninguém deve ser
+          convidado a sair antes de responder. */}
+      <Reveal index={iAcao + 1}>
+        <Button label={words.back} variant="ghost" onPress={() => router.back()} />
+      </Reveal>
     </CollapsingHeader>
   );
 }
@@ -349,10 +473,3 @@ const WHEN = [
   { days: 1, key: 'tomorrow' as const },
   { days: 2, key: 'dayAfter' as const },
 ];
-
-const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center' },
-  wrap: { flexDirection: 'row', flexWrap: 'wrap' },
-  chip: { borderWidth: 1 },
-  number: { fontVariant: ['tabular-nums'] },
-});

@@ -327,7 +327,7 @@ function Production() {
 
   if (!loading && (!data || data.products.length === 0)) {
     return (
-      <CollapsingHeader title={words.title} overline={words.overline}>
+      <CollapsingHeader title={words.formTitle} overline={words.formOverline}>
         {/* Estado vazio é desenho, uma frase e a saída — e a saída aqui é a
             receita, que se cadastra noutra tela e não se navega daqui: esta é
             uma tela empilhada, e o caminho de volta é o de sempre. */}
@@ -351,8 +351,12 @@ function Production() {
   /** A cascata não pula número: sem rascunho, a ação sobe uma posição. */
   const indiceAcao = draft ? 2 : 1;
 
+  // O cabeçalho é do FORMULÁRIO, não da aba. Ele dizia "Produção · o que saiu
+  // hoje" — o título do relato do dia — numa tela onde ninguém relatou nada
+  // ainda. Rótulo que discorda do que está embaixo dele foi o defeito mais
+  // repetido desta rodada.
   return (
-    <CollapsingHeader title={words.title} overline={words.overline}>
+    <CollapsingHeader title={words.formTitle} overline={words.formOverline}>
       {/* O que você produziu: o sabor, o número e — para quem trabalha assim —
           a receita que rodou. É um assunto só, porque é um ato só, e por isso é
           um cartão só: escolher o sabor sem dizer quanto saiu não lança nada.
@@ -487,17 +491,19 @@ function Production() {
             icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}
             title={words.willConsume}
           >
-            <View>
-              {draft.lines.map((l) => (
-                <ListRow
-                  key={l.itemId}
-                  label={l.name}
-                  trailing={`${formatQuantity(l.baseUnits, locale)} ${l.unit}`}
-                  trailingTone="muted"
-                  signal={l.held < l.baseUnits ? 'warning' : undefined}
-                />
-              ))}
-            </View>
+            {/* Uma linha por insumo, com o quanto à direita em figura tabular:
+                uma coluna de números que se compara de olho. A faixa marca a
+                linha que não tem o que sair — a falta é de um item, e dizer
+                qual poupa a busca no almoxarifado. */}
+            {draft.lines.map((l) => (
+              <ListRow
+                key={l.itemId}
+                label={l.name}
+                trailing={`${formatQuantity(l.baseUnits, locale)} ${l.unit}`}
+                trailingTone="muted"
+                signal={l.held < l.baseUnits ? 'warning' : undefined}
+              />
+            ))}
 
             {draft.short.length > 0 ? (
               <Text style={[type.caption, { color: color.warning, marginTop: space.sm }]}>
