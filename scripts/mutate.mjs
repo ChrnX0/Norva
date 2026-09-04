@@ -962,13 +962,69 @@ function oficinaConfere(dir) {
   process.exit(1);
 }
 
+/**
+ * Como se lê a saída de uma execução da suíte — e por que "não passou" não basta.
+ *
+ * **A cicatriz, e é a terceira aparição da mesma.** Isto era
+ * `return stdout.includes('# fail 0')`, e essa linha diz "pegou" para tudo o que
+ * não imprimiu o resumo: uma execução morta por falta de memória, um `npx` que não
+ * subiu, um teste que estourou o tempo com a máquina disputada. A primeira
+ * aparição foi a oficina que não copiava as pastas dos testes (a suíte morria lá
+ * com 19 falhas, e "falhou" queria dizer "pegou", por 66 commits). A segunda foi a
+ * própria oficina declarando "pego" sem consultar a suíte. Esta é a terceira, e a
+ * menor: com a máquina disputada, uma execução sem resumo virou "pego" — e como o
+ * defeito carregava marcador de equivalente, o relatório acusou MARCADOR ERRADO num
+ * marcador que estava certo. Alarme inventado no instrumento que existe para não
+ * inventar alarme.
+ *
+ * Três resultados, não dois. Terminou sem falha, terminou com falha, e **não
+ * terminou** — e o terceiro não é proteção nem buraco: é medida que não houve.
+ */
+function lerSuite(run) {
+  const saida = `${run.stdout}`;
+  if (saida.includes('# fail 0')) return 'passou';
+  if (/^# fail [1-9]/m.test(saida)) return 'falhou';
+  return 'inconclusivo';
+}
+
+/**
+ * A régua conferida antes de medir, com quatro casos sintéticos.
+ *
+ * Não tem custo (são duas expressões regulares) e fecha a única forma de o
+ * conserto acima voltar em silêncio: alguém mexe no formato e `inconclusivo`
+ * desaparece de novo dentro de `falhou`.
+ */
+function conferirRegua() {
+  const casos = [
+    ['# tests 300\n# pass 300\n# fail 0\n', 'passou'],
+    ['# tests 300\n# pass 299\n# fail 1\n', 'falhou'],
+    ['', 'inconclusivo'],
+    ['FATAL ERROR: Reached heap limit', 'inconclusivo'],
+  ];
+  for (const [saida, esperado] of casos) {
+    const lido = lerSuite({ stdout: saida });
+    if (lido !== esperado) {
+      throw new Error(
+        `a régua da suíte está quebrada: "${saida.slice(0, 30)}" foi lida como ${lido}, e é ${esperado}`,
+      );
+    }
+  }
+}
+
 function suitePasses(dir) {
-  const run = spawnSync('npx', ['tsx', '--test', 'src/**/*.test.ts'], {
-    cwd: dir,
-    encoding: 'utf8',
-    env: { ...process.env, FORCE_COLOR: '0' },
-  });
-  return `${run.stdout}`.includes('# fail 0');
+  const rodar = () =>
+    spawnSync('npx', ['tsx', '--test', 'src/**/*.test.ts'], {
+      cwd: dir,
+      encoding: 'utf8',
+      env: { ...process.env, FORCE_COLOR: '0' },
+    });
+
+  let lido = lerSuite(rodar());
+  // Uma segunda chance só para o que não terminou: execução disputada acontece, e
+  // repetir uma medida que não houve é barato. O que TERMINOU não se repete —
+  // repetir resultado até gostar dele é o oposto de medir.
+  if (lido === 'inconclusivo') lido = lerSuite(rodar());
+  return lido;
 }
 
 /**
@@ -994,9 +1050,14 @@ async function julgar(defect, dir) {
   if (hits > 1) return { estado: 'ambigua', defect, hits };
 
   writeFileSync(join(dir, defect.file), original.replace(defect.from, defect.to));
-  const pego = !suitePasses(dir);
+  const lido = suitePasses(dir);
   // Restaura a cópia para o próximo defeito deste trabalhador.
   writeFileSync(join(dir, defect.file), original);
+
+  // Medida que não houve não é veredito. Contar como "pego" é o que fez este
+  // relatório acusar um marcador certo de errado.
+  if (lido === 'inconclusivo') return { estado: 'inconclusivo', defect };
+  const pego = lido === 'falhou';
 
   // "Não pegou" e "não DÁ para pegar" são coisas diferentes, e sair iguais no
   // relatório apaga a diferença.
@@ -1018,6 +1079,7 @@ async function julgar(defect, dir) {
 
 prepararOficina();
 process.on('exit', () => rmSync(OFICINA, { recursive: true, force: true }));
+conferirRegua();
 oficinaConfere(join(OFICINA, 'w0'));
 
 console.log(
@@ -1055,6 +1117,13 @@ for (const veredito of vereditos) {
     console.log(`   ${defect.hurts}\n`);
   } else if (veredito.estado === 'equivalente') {
     equivalentes.push(defect);
+  } else if (veredito.estado === 'inconclusivo') {
+    survivors += 1;
+    console.log(`\nNÃO MEDIDO  ${defect.file}`);
+    console.log('   a suíte não chegou a imprimir resumo, duas vezes — máquina disputada,');
+    console.log('   memória, ou o `npx` que não subiu. Não é proteção e não é buraco: é');
+    console.log('   medida que não houve. Rode de novo com a máquina livre.');
+    console.log(`   ${defect.hurts}\n`);
   } else if (veredito.estado === 'marcador-errado') {
     survivors += 1;
     console.log(`\nMARCADOR ERRADO  ${defect.file}`);
