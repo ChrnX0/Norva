@@ -770,6 +770,45 @@ as_user "${P}94" "$CASA" >/dev/null ||
 
 echo "    item e local de fora são recusados, e o de casa entra"
 
+echo "==> check 11: o aparelho emprestado cria o lugar padrão, e nada além dele"
+
+# Quarta aparição da fila travada, com forma nova: não é ausência de política nem
+# capacidade errada no update — é a linha de ESCRITURAÇÃO DO PRÓPRIO SISTEMA
+# exigindo a capacidade de administrar a empresa.
+#
+# `ensureLocation` cria o lugar padrão no PRIMEIRO movimento de qualquer
+# aparelho e o enfileira, porque ele tem que chegar antes do movimento que se
+# apoia nele. A `locations_manage` exige `manage_company`, que só o dono tem.
+#
+# A operadora aqui tem exatamente o que a decisão do dono dá ao celular
+# emprestado: produção e nada de dinheiro.
+psql -d "$DB" -q -c "insert into auth.users (id) values ('${P}95');" >/dev/null  # proofgate-allow
+psql -d "$DB" -q -c "insert into companies (id, name) values ('${P}03','Fábrica do aparelho');" >/dev/null  # proofgate-allow
+psql -d "$DB" -q -c "insert into memberships (company_id, user_id, display_name, capabilities)
+  values ('${P}03','${P}95','Operadora do turno',
+          array['record_production','dispatch','check_receipt','record_loss','adjust_stock']::capability[]);" >/dev/null  # proofgate-allow
+
+psql -d "$DB" -q -c "grant insert, update on locations to app_user;" >/dev/null
+
+# O lugar padrão: id IGUAL ao da empresa, que é o único id que ele pode ter.
+PADRAO="insert into locations (id, company_id, name, kind) values ('${P}03','${P}03','','store_room');"  # proofgate-allow
+as_user "${P}95" "$PADRAO" >/dev/null ||
+  fail "o aparelho emprestado não conseguiu criar o lugar padrão: a fila trava na primeira produção do dia e nada mais sobe daquele celular"
+
+# E o reenvio, que é o caso normal de quem perdeu sinal no meio.
+REENVIO="insert into locations (id, company_id, name, kind) values ('${P}03','${P}03','','store_room') on conflict (id) do update set name = excluded.name, kind = excluded.kind;"  # proofgate-allow
+as_user "${P}95" "$REENVIO" >/dev/null ||
+  fail "o reenvio do lugar padrão foi recusado, e a fila trava atrás dele"
+
+# Mas cadastrar um lugar DE VERDADE continua sendo de quem administra. Se esta
+# linha passar, o conserto virou permissão nova em vez de escrituração.
+OUTRO="insert into locations (id, company_id, name, kind) values ('${P}14','${P}03','Câmara fria','cold_room');"  # proofgate-allow
+if as_user "${P}95" "$OUTRO" >/dev/null 2>&1; then
+  fail "quem só produz cadastrou um lugar novo — o conserto abriu permissão em vez de deixar passar a escrituração"
+fi
+
+echo "    o lugar padrão passa e é reenviável, e cadastrar lugar continua sendo de quem administra"
+
 echo
-echo "OK - migrations apply and all ten guarantees hold."
+echo "OK - migrations apply and all eleven guarantees hold."
 
