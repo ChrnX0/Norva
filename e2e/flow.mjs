@@ -137,6 +137,35 @@ function check(name, fn) {
  * in Portuguese, so an assertion typed with an ordinary space silently never
  * matches. Normalising here keeps that out of every regular expression below.
  */
+/**
+ * Espera a tela PARAR DE CRESCER, em vez de esperar um número de milissegundos.
+ *
+ * As checagens usavam `waitForTimeout(2500)`, e 2500 é um palpite sobre a
+ * máquina: com quatro navegadores disputando quatro núcleos, a mesma checagem
+ * reprovava numa fatia e passava três vezes seguidas quando rodada sozinha.
+ * Trocar por `waitFor` de um elemento também não bastou — o elemento aparece
+ * antes de o resto da tela montar, e a leitura vinha vazia.
+ *
+ * Isto mede o que interessa: o texto da tela deixou de mudar entre duas
+ * amostras. É condição, não relógio, então máquina lenta espera mais e máquina
+ * rápida segue adiante — e a checagem volta a reprovar só pelo motivo dela.
+ */
+const assentar = async (page, { limite = 20000, quieto = 400 } = {}) => {
+  const ate = Date.now() + limite;
+  let anterior = -1;
+  let desde = Date.now();
+  while (Date.now() < ate) {
+    const agora = await page.evaluate(() => document.body.innerText.length);
+    if (agora !== anterior) {
+      anterior = agora;
+      desde = Date.now();
+    } else if (agora > 0 && Date.now() - desde >= quieto) {
+      return;
+    }
+    await page.waitForTimeout(100);
+  }
+};
+
 const screen = async (page) =>
   (await page.locator('body').innerText()).replace(/\u00a0/g, ' ').replace(/\n+/g, ' | ');
 
@@ -271,7 +300,19 @@ check('the five tabs are there, and the old addresses still answer', async (page
 
 check('settings counts what erasing would take, in Portuguese', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(2500);
+
+  // Espera a SOBRELINHA aparecer, não um número de milissegundos.
+  //
+  // Era `waitForTimeout(2500)`, e 2500 é um palpite sobre a máquina: com quatro
+  // navegadores disputando quatro núcleos, esta checagem reprovou em uma fatia e
+  // passou três vezes seguidas quando rodada sozinha. Espera fixa reprova pelo
+  // motivo errado, e "é flake" não é causa — é o nome que se dá para parar de
+  // procurar.
+  //
+  // O que se espera é o CONTINENTE ("NORVA ·"), e o que se afirma é o CONTEÚDO
+  // (a versão). Assim a máquina lenta espera, e o manifesto velho reprova com a
+  // frase certa — em vez de as duas coisas darem o mesmo tempo esgotado.
+  await assentar(page);
 
   const text = await screen(page);
 
