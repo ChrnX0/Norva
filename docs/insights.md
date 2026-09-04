@@ -2300,3 +2300,38 @@ o mesmo erro não se multiplicar por vinte.
 **A regra que sai:** antes de esconder alguma coisa por não ter dado, pergunte se
 ela também é caminho. Esconder o que não informa é higiene; esconder o que
 navega é amputação.
+
+## 4 de setembro — o rótulo e o que está embaixo dele discordando, três vezes
+
+**O que se viu.** Em três telas diferentes, no mesmo dia, o mesmo defeito com
+três caras:
+
+- o almoxarifado dizia **"4 unidades"** contando quatro *itens*, ao lado de um
+  saco com 69.566 g dentro;
+- a estante de receitas dizia **"2 receitas"** encabeçando uma lista de *uma* — a
+  outra estava no cartão acima;
+- a ficha dizia **"18.000 · 77% do lote"**, sem unidade: dezoito mil gramas e
+  dezoito mil unidades são coisas diferentes na mesma página.
+
+Nenhum dos três é erro de cálculo. Os três números estão certos; o que está
+errado é **o que a palavra ao lado afirma sobre eles**. É a família de defeito
+mais fácil de escrever e a mais difícil de ver relendo código, porque o código
+está certo — `shown.length`, `rows.length`, `line.quantity` são exatamente o que
+o autor quis.
+
+**Por que os três apareceram hoje.** Não foi a reescrita que os criou — os três
+já estavam lá, e dois são anteriores a ela. O que mudou foi o instrumento:
+`npm run shot` põe a tela na frente do olho, e uma frase que discorda do que está
+abaixo dela **só se vê olhando**. Nenhum teste unitário reclama de "4 unidades",
+porque o número é quatro mesmo.
+
+**O que isso diz sobre guardas.** A tentação é escrever um script. Não há
+script: "o rótulo concorda com a lista embaixo dele?" não é uma propriedade do
+código, é uma propriedade do *significado*. A defesa que existe é a que já está
+funcionando — olhar cada tela antes de dizer que está pronta —, e o registro
+aqui serve para o próximo leitor saber **onde** olhar: todo lugar em que um
+número é contado numa variável e nomeado noutra.
+
+**Regra prática que sai:** ao ler uma tela pronta, leia o rótulo em voz alta como
+uma frase completa e pergunte se ela é verdade sobre o que está logo abaixo. "4
+unidades ao custo médio de cada um" era falso, e ficou seis meses no aplicativo.
