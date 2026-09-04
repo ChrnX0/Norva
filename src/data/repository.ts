@@ -9,7 +9,7 @@ import type { ItemCosts, Recipe, RecipeLine } from '@/domain/recipe';
 import type { PackagingHierarchy } from '@/domain/units';
 import { db, newId, nowIso, type Db } from './db';
 import { readMeta, writeMeta } from './meta';
-import { enqueue } from './outbox';
+import { enqueue, forgetOrphans } from './outbox';
 import {
   blockerFor,
   EraseBlockedError,
@@ -3446,6 +3446,15 @@ export async function eraseArea(companyId: string, area: EraseArea): Promise<voi
         await conn.runAsync(`DELETE FROM ${table} WHERE company_id = ?`, [companyId]); // proofgate-allow
       }
     }
+
+    // O que a fila ia mandar de uma linha que acabou de ser apagada é esquecido
+    // aqui, antes do comando de apagar.
+    //
+    // Sem isto, apagar as compras de exemplo — que é o caso normal — deixava a
+    // fila apontando para movimentos que não existem mais. Órfã não é recusa: o
+    // serializador levanta exceção, o motor para no primeiro buraco de propósito,
+    // e tudo o que a fábrica gravar depois fica preso atrás dela para sempre.
+    await forgetOrphans(conn);
 
     // Enqueued *after* the deletes, and that order is the whole point.
     //

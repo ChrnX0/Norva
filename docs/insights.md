@@ -3197,3 +3197,36 @@ diz onde o insumo está, mas trazer a polpa da câmara para o almoxarifado não 
 ser registrado — a tela de transferir sai sempre da fábrica, e o caminho de volta
 grava `return`, que é notícia sobre a loja. Isso é decisão de dono sobre a F2, com as
 duas formas escritas em `docs/roadmap.md`.
+
+## 4 de setembro — o serializador que ninguém chama, e a severidade que caiu com isso
+
+O achado 8 da auditoria dizia que apagar uma área menor **trava a fila para sempre**.
+Fui consertar e, antes de escrever a varredura, procurei quem levanta a exceção:
+`serialize` (`src/sync/serialize.ts:398`) é o único lugar que diz *"the row is gone
+from the device"*. **`serialize` não tem chamador de produção** — só testes. O motor
+recebe o transporte injetado (`engine.ts:76`) e nenhum transporte existe ainda.
+
+Então a frase "trava a fila para sempre" é futuro, não presente. O que existe hoje é
+a fila crescendo com entradas que nunca poderão subir, e a tela de Ajustes contando
+essas entradas como "esperando" — um número que não vai baixar nunca. A mina fica
+armada para o dia em que o transporte existir, e é aí que ela explode: no dia do
+primeiro cliente de verdade.
+
+**A regra que fica: severidade se confere no chamador, não no arquivo do defeito.**
+Eu ia escrever "crítica, trava a fila" no commit. A verificação levou um `grep` e
+mudou a frase — e mudar a frase é o trabalho: a auditoria é lida pelo dono, que decide
+o que entra em produção com base nessa palavra. Achado real com severidade inflada
+gasta a confiança dele do mesmo jeito que alerta inventado.
+
+**E é o quarto P1 do dia**: `balanceByLocation` sem chamador (agora tem), `serialize`
+sem chamador (segue sem), `item_costs`/`item_cost_history` com ramo dedicado no
+serializador e nenhum `enqueue` que os produza, e `forgetSentBefore` só chamada por
+teste — este último já estava listado nos médios da auditoria. O portão P1 do
+`CLAUDE.md` existe justamente para isso, e ele só vale para código NOVO: quatro casos
+antigos seguem de pé, e nenhum número de fase os pegou.
+
+**O que mudou.** `forgetOrphans` em `src/data/outbox.ts`, chamada dentro da transação
+de apagar, com a lista de tabelas da fila conferida contra todo `enqueue` do
+repositório **e** contra o esquema — as duas formas de errar que não aparecem em tempo
+de compilação. E a auditoria ganhou a correção, escrita nela: o que era "trava" é
+"vai travar".

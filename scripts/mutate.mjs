@@ -797,6 +797,18 @@ const DEFECTS = [
     hurts:
       'findItem volta a responder o total da empresa mesmo quando a pergunta e de uma sala: a tela da camara fria mostra o saldo da fabrica somado ao dela, e a diferenca da contagem sai desse numero',
   },
+  // --- a orfa que travava a fila, 4 de setembro ------------------------------
+  //
+  // Achado da auditoria. Apagar uma area menor deixava a fila apontando para
+  // linhas apagadas, e orfa nao e recusa: e excecao que repete.
+  {
+    file: 'src/data/repository.ts',
+    from: '    await forgetOrphans(conn);',
+    to: '',
+    hurts:
+      'apagar as compras de exemplo volta a deixar a fila apontando para movimentos que nao existem: o serializador levanta excecao, o motor para no primeiro buraco, e tudo o que a fabrica gravar depois fica preso atras dela',
+  },
+
   // --- a producao impossivel com insumo na camara, 4 de setembro ------------
   //
   // Achado da auditoria. O piso do livro-razao conta a SALA, com razao escrita, e

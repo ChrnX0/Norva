@@ -336,6 +336,55 @@ test('erasing an area is refused when another area stands on it', async () => {
   );
 });
 
+/**
+ * A fila não fica apontando para o que a pessoa acabou de apagar.
+ *
+ * Órfã na fila não é recusa do servidor: o serializador levanta *"Queued
+ * movements X but the row is gone from the device"*, e o motor para a fila no
+ * primeiro buraco de propósito — então tudo o que a fábrica gravar depois fica
+ * preso atrás dela. Apagar as compras de exemplo é o caso normal, descrito no
+ * próprio código, e era ele que plantava a órfã.
+ *
+ * As duas metades importam igual: a órfã vai embora, e o que NÃO foi apagado
+ * fica. Uma varredura que levasse a linha viva junto seria uma escrita que nunca
+ * chega, em silêncio, que é o pior resultado disponível.
+ */
+test('erasing an area forgets what the queue was going to send about it', async () => {
+  await ensureStarterData(CO);
+
+  const antes = await pendingEntries(500);
+  const doItem = antes.filter((e) => e.table === 'items').length;
+  assert.ok(doItem > 0, 'o exemplo enfileira itens');
+  assert.ok(
+    antes.some((e) => e.table === 'movements'),
+    'e enfileira os movimentos das compras dele',
+  );
+
+  await eraseArea(CO, 'purchases');
+
+  const depois = await pendingEntries(500);
+  for (const table of ['movements', 'purchases', 'purchase_lines']) {
+    assert.equal(
+      depois.filter((e) => e.table === table).length,
+      0,
+      `a fila continua apontando para ${table} que não existe mais`,
+    );
+  }
+
+  // O que a área não apagou continua na fila, inteiro. Os itens seguem lá.
+  assert.equal(
+    depois.filter((e) => e.table === 'items').length,
+    doItem,
+    'a varredura levou uma escrita viva junto',
+  );
+
+  // E o comando de apagar viaja, que é como o servidor fica sabendo.
+  assert.ok(
+    depois.some((e) => e.table === 'erase' && e.rowId === 'purchases'),
+    'o servidor precisa ouvir a decisão, não só o silêncio',
+  );
+});
+
 test('erasing one area leaves the others standing', async () => {
   await ensureStarterData(CO);
 

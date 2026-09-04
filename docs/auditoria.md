@@ -83,6 +83,17 @@ foi fechado fica marcado aqui, com o que impede a volta.
   **O que ficou:** registrar o trajeto câmara → almoxarifado não existe, e isso é
   decisão de dono sobre a F2. Está escrita em `docs/roadmap.md` ("A sala do tacho"),
   com as duas formas e o motivo de nenhuma poder ser escolhida por mim.
+- **8 — a órfã que travava a fila.** Apagar uma área menor deixava a fila apontando
+  para linhas que acabaram de ser apagadas. Agora a varredura esquece, dentro da mesma
+  transação, o que a fila ia mandar de uma linha que não existe mais — e só o que nunca
+  subiu (`sent_at` nulo); para o que subiu quem fala é o comando `erase`, que viaja
+  depois. Guardas: a lista de tabelas da fila é conferida contra todo `enqueue` do
+  repositório E contra o esquema, um teste contra banco de verdade prova as duas
+  metades (a órfã vai, a escrita viva fica), e uma mutação apaga a varredura.
+  **Uma correção à auditoria:** ela disse "trava a fila para sempre", e hoje isso é
+  futuro, não presente — `serialize` não tem chamador de produção, porque o transporte
+  é injetado e nenhum existe ainda. O que existe hoje é a fila crescendo com entradas
+  que nunca poderão subir, e a mina armada para o dia do transporte.
 - **6 — a contagem que prometia um número e gravava outro.** A sala viaja pela rota,
   `findItem` e `itemMovements` respondem pela sala, e a contagem grava onde leu. Com o
   item em mais de um lugar e nenhum escolhido a contagem não é oferecida: a tela lista

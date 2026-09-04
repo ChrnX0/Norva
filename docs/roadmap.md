@@ -42,8 +42,8 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **323** testes |
-| `npm run mutate` | **98** defeitos plantados, 96 pegos e 2 equivalentes |
+| `npm test` | **326** testes |
+| `npm run mutate` | **99** defeitos plantados, 97 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **34** checagens num navegador de verdade |
 | `npm run db:verify` | **11** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
@@ -186,7 +186,8 @@ Fechados, na ordem em que caíram: **1** (item e local de outra empresa, migraç
 número e gravava outro), **4** (o aviso de validade segue o lote, e a conta de
 prometer passou a somar todas as nossas salas) e **5** (a produção com insumo na
 câmara: a tela lê o piso da sala do tacho, impede em vez de reclamar, diz onde o
-insumo está, e o erro do livro-razão virou frase de tela nos três idiomas).
+insumo está, e o erro do livro-razão virou frase de tela nos três idiomas) e **8** (a
+órfã que a fila guardava depois de apagar uma área).
 
 **O 5 deixou uma pergunta, e ela é do dono** — está escrita em "A sala do tacho",
 adiante. A tela parou de mentir, mas **registrar o trajeto câmara → almoxarifado
@@ -196,18 +197,16 @@ faz isso.
 
 De pé, nesta ordem e por este motivo:
 
-1. **8** — apagar uma área menor deixa órfã na fila, e órfã não é recusa: é exceção
-   que repete para sempre.
-2. **2** — compra, perda e contagem sem `movement_group_id`, então não há estorno. Só
+1. **2** — compra, perda e contagem sem `movement_group_id`, então não há estorno. Só
    agora é seguro: sem o conserto do **3**, o estorno consertaria a quantidade e
    deixaria o dinheiro errado.
-3. **9** — `allowBackup` do Android tira o livro-razão do celular pela conta Google
+2. **9** — `allowBackup` do Android tira o livro-razão do celular pela conta Google
    de quem estiver logado, num aparelho que é compartilhado por decisão escrita.
-4. **10** — `inkFaint` dá 2,55:1 nas quatro combinações de tema, em 124 corridas de
+3. **10** — `inkFaint` dá 2,55:1 nas quatro combinações de tema, em 124 corridas de
    texto de 11 e 13 px. É o rótulo que diz **o que** o número é.
-5. **11** — nada leva ninguém aos outros dois idiomas nem a outra moeda. Não afeta o
+4. **11** — nada leva ninguém aos outros dois idiomas nem a outra moeda. Não afeta o
    Brasil de hoje; afeta o dia de publicar.
-6. **Os treze médios**, entre eles o `versionCode` que colide (`0.10.0` e `1.0.0`
+5. **Os treze médios**, entre eles o `versionCode` que colide (`0.10.0` e `1.0.0`
    dão 100000, e o primeiro já está publicado) e `forgetSentBefore` sem chamador
    fora de teste.
 

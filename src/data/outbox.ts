@@ -140,3 +140,77 @@ export async function forgetSentBefore(iso: string): Promise<void> {
   const conn = await db();
   await conn.runAsync(`DELETE FROM outbox WHERE sent_at IS NOT NULL AND sent_at < ?`, [iso]);
 }
+
+/**
+ * As tabelas que a fila envia, cada uma com `id` próprio.
+ *
+ * Escrita à mão aqui e conferida contra o código em `src/data/outbox.test.ts`: a
+ * guarda lê todo `enqueue` de `repository.ts` e reprova se alguém enfileirar uma
+ * tabela que não está nesta lista. Lista escrita à mão que se confere consigo
+ * mesma não guarda nada — foi a cicatriz do `erase.test.ts`, em 4 de setembro.
+ *
+ * `erase` não está aqui de propósito: é comando, não linha. Ele não tem linha
+ * nenhuma atrás dele, e é justamente o que a varredura abaixo não pode confundir
+ * com órfã.
+ */
+export const QUEUED_TABLES = [
+  'items',
+  'locations',
+  'movements',
+  'lots',
+  'products',
+  'purchases',
+  'purchase_lines',
+  'recipes',
+  'recipe_versions',
+  'recipe_lines',
+  'readings',
+  'orders',
+  'order_lines',
+  'product_lines',
+  'product_types',
+  'flavors',
+] as const;
+
+/**
+ * Esquece o que a fila ia mandar de uma linha que não existe mais.
+ *
+ * **A cicatriz.** Apagar uma área — as compras de exemplo, que é o caso normal e
+ * está descrito no próprio código — deixa na fila entradas apontando para linhas
+ * que acabaram de ser apagadas. Órfã não é recusa do servidor: o serializador
+ * levanta *"Queued movements X but the row is gone from the device"*, e o motor
+ * para a fila no primeiro buraco de propósito. Uma exceção que repete, e tudo o
+ * que a fábrica gravar depois fica preso atrás dela.
+ *
+ * Apagar é a resposta certa, e não é perda: a entrada nunca subiu (`sent_at` é
+ * nulo), então o servidor nunca soube da linha. O que subiu tem `sent_at` e não é
+ * tocado aqui — para aquele lado quem fala é o comando `erase`, que viaja depois
+ * dos deletes e diz ao servidor o que a pessoa decidiu.
+ *
+ * Roda dentro da transação de quem apagou, pelo mesmo motivo do `enqueue`: não
+ * pode existir instante em que a linha sumiu e a intenção de enviá-la continua.
+ */
+export async function forgetOrphans(conn: Db): Promise<number> {
+  let esquecidas = 0;
+
+  for (const table of QUEUED_TABLES) {
+    // O nome vem de `QUEUED_TABLES`, uma lista fechada deste arquivo, então esta
+    // interpolação não carrega nada que um chamador escolheu.
+    const órfãs = await conn.getAllAsync<{ id: string }>(
+      `SELECT o.id FROM outbox o
+        WHERE o.sent_at IS NULL AND o.table_name = ?
+          AND NOT EXISTS (SELECT 1 FROM ${table} t WHERE t.id = o.row_id)`, // proofgate-allow
+      [table],
+    );
+    if (órfãs.length === 0) continue;
+
+    // Uma por uma, com o id ligado: a lista pode ser grande e um `IN` montado
+    // seria a única interpolação de VALOR neste arquivo.
+    for (const linha of órfãs) {
+      await conn.runAsync(`DELETE FROM outbox WHERE id = ?`, [linha.id]);
+    }
+    esquecidas += órfãs.length;
+  }
+
+  return esquecidas;
+}
