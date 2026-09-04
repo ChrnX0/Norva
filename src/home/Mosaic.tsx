@@ -274,9 +274,15 @@ export function Mosaic({
             onPress={() => abrir('clima')}
             accessibilityLabel={fill(t.app.weather.overline, { city: weather?.place.name ?? '' })}
           >
-            {/* O cartão inteiro na cor do dia: filete, desenho e régua. Borda azul
-                com um sol quente dentro são duas peças no mesmo cartão. */}
-            <Card hue={corDoDia}>
+            {/* O filete fica no AZUL do clima, e a cor do dia mora no desenho.
+                Ele já foi pintado com a cor do dia por uma hora, e isso quebra a
+                regra da casa: a cor da ÁREA é significado — produção é laranja,
+                clima é azul —, e ela não muda com o gosto nem com a temperatura.
+                Variando, o filete deixava de dizer "clima" e passava a dizer
+                "calor", e a capa inteira ficava monocromática num dia quente: dois
+                cartões cor de creme, um embaixo do outro, sem nada separando um
+                assunto do outro. */}
+            <Card hue={palette.sky}>
               <Text style={[type.overline, { color: color.inkFaint }]}>
                 {fill(t.app.weather.overline, { city: weather?.place.name ?? '' }).toUpperCase()}
               </Text>

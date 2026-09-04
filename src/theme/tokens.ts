@@ -57,6 +57,19 @@ export const ambientArea: Record<Ambient, string> = {
  * contrast.test.ts` guarda as duas coisas — a régua e a hierarquia — lendo as cores
  * DESTE arquivo. Cor nova colada amanhã entra na medição sem ninguém acrescentar
  * nada.
+ *
+ * **E "maior que" não bastava.** Subir a tinta fraca até a régua da WCAG empurrou ela
+ * para cima da MÉDIA nos dois temas claros: no Papel elas ficaram em 5,07 e 5,34
+ * contra o papel — uma diferença de 5%, que existe na conta e não existe no olho.
+ * Três camadas de tinta viraram duas, e a tela que depende delas para separar o
+ * rótulo do corpo ficou plana. O dono viu antes de mim, olhando o aplicativo: *"cadê
+ * o tema papel light"*.
+ *
+ * A guarda pedia ordem (`média > fraca`) e 5,34 > 5,07 passa. Ordem não é
+ * hierarquia: agora ela pede **passo mínimo de 1,35×** entre camadas, que é o que
+ * separa três tons de três nomes para o mesmo cinza. Os temas escuros já tinham
+ * 1,5× — eles são a referência, e é por isso que o escuro parecia pronto e o claro
+ * não.
  */
 const lightPalette = {
   paper: '#F7F6F3',
@@ -210,7 +223,7 @@ const papelClaro: Palette = {
   surface: '#FFFFFF',
   sunken: '#F1EDE5',
   ink: '#221F1B',
-  inkMuted: '#6F6558',
+  inkMuted: '#554D43',
   inkFaint: '#706960',
   line: '#DCD3C6',
   lineStrong: '#CBBEAC',
@@ -291,7 +304,7 @@ const organicoClaro: Palette = {
   surface: '#FFFFFF',
   sunken: '#E7EFE8',
   ink: '#16281D',
-  inkMuted: '#4D6055',
+  inkMuted: '#425249',
   inkFaint: '#5F6D63',
   line: '#DDE9DF',
   lineStrong: '#C6D8CA',

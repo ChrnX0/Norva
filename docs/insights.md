@@ -3531,3 +3531,39 @@ levou **três desenhos** para ficar de pé, cada um reprovado por uma foto da ba
 abas: três unidades empilhadas viraram irmãs do ícone de "Mais"; unidade sobre esteira
 com roletes virou irmã do caminhão. **Ícone não se julga sozinho: ele se julga na
 fileira em que vai viver.** O primeiro parecia ótimo isolado.
+
+## 4 de setembro — "maior que" não é hierarquia, e o dono viu antes de mim
+
+Subi `inkFaint` até a régua de 4,5:1 da WCAG de manhã, com guarda escrita, teste
+passando e mutação plantada. À tarde o dono abriu o aplicativo e disse: *"cadê o tema
+papel light? você fez o dark, ficou ok. falta o light."*
+
+Ele estava certo, e a conta prova. No Papel claro, depois do meu conserto:
+
+| camada | contraste sobre o papel |
+|---|---|
+| `ink` | 15,35 |
+| `inkMuted` | **5,34** |
+| `inkFaint` | **5,07** |
+
+Cinco por cento de diferença entre a tinta do corpo e a da legenda. **Três camadas
+viraram duas**, e a tela que separa rótulo de dado por tom ficou plana. O Orgânico
+claro tinha o mesmo defeito (1,24× de passo); os dois ESCUROS estavam em 1,5× e por
+isso pareciam prontos — é a diferença que ele viu sem medir nada.
+
+**A guarda que eu mesmo escrevi passou**, porque ela pedia `média > fraca` e 5,34 é
+maior que 5,07. **Ordem não é hierarquia.** Uma régua que só ordena aceita três tons
+colados como se fossem três camadas, e o defeito que ela deixa passar é exatamente o
+que a régua existia para impedir: uma tela onde tudo tem o mesmo peso.
+
+**A regra que fica: guarda de grandeza contínua precisa de PASSO MÍNIMO, não de
+ordem.** Onde houver escala — tinta, tamanho de fonte, espaçamento, opacidade —, a
+pergunta certa nunca é "está na ordem?", é "a distância entre dois vizinhos é grande o
+bastante para alguém perceber?". O piso agora é 1,35×, e ele não é gosto: é o que os
+dois temas escuros, que estavam certos, já mediam.
+
+E a segunda metade, que é mais desconfortável: **eu consertei um número e quebrei um
+sistema.** A régua da WCAG olha uma cor contra um fundo, uma de cada vez; a hierarquia
+é uma propriedade do CONJUNTO. Otimizar cada peça isolada contra um limite externo é
+como escrever trinta e três telas que passam no teste e não parecem o mesmo
+aplicativo — o defeito não está em nenhuma delas.

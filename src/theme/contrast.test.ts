@@ -97,15 +97,36 @@ test('the ruler is a ruler: black on white passes, gray on gray does not', () =>
   assert.equal(contraste('#123456', '#FEDCBA'), contraste('#FEDCBA', '#123456'));
 });
 
+/**
+ * O passo mínimo entre as três tintas — e por que "maior que" não bastava.
+ *
+ * **A cicatriz é de horas atrás e é minha.** Subir `inkFaint` até a régua da WCAG
+ * empurrou ela para cima de `inkMuted` nos dois temas CLAROS: no Papel ficaram 5,07
+ * e 5,34 contra o papel — 5% de diferença, que existe na conta e não existe no olho.
+ * A guarda pedia ordem, e 5,34 > 5,07 passa. Três camadas viraram duas, a tela que
+ * separa rótulo de corpo por tom ficou plana, e quem viu foi o dono abrindo o
+ * aplicativo: *"cadê o tema papel light"*.
+ *
+ * 1,35× é o piso, e ele não é gosto: os dois temas ESCUROS, que estavam prontos,
+ * medem 1,5× entre camadas. Eles são a referência que o claro perdeu.
+ */
+const PASSO = 1.35;
+
 test('the three inks stay a hierarchy, not three names for one gray', () => {
-  // Legível não pode virar "tudo igual": a tela tem três camadas de tinta porque
-  // o rótulo, o corpo e o dado têm pesos diferentes. Se `inkFaint` subisse até
-  // encostar em `inkMuted`, a hierarquia sumiria e a tela ficaria plana.
+  const frouxas: string[] = [];
   for (const { nome, cores } of paletas()) {
     const forte = contraste(cores.ink, cores.paper);
     const medio = contraste(cores.inkMuted, cores.paper);
     const fraco = contraste(cores.inkFaint, cores.paper);
-    assert.ok(forte > medio, `${nome}: a tinta forte tem de ser mais forte que a média`);
-    assert.ok(medio > fraco, `${nome}: a média tem de ser mais forte que a fraca`);
+    if (forte / medio < PASSO) frouxas.push(`${nome}: forte/média = ${(forte / medio).toFixed(2)}`);
+    if (medio / fraco < PASSO) frouxas.push(`${nome}: média/fraca = ${(medio / fraco).toFixed(2)}`);
   }
+
+  assert.deepEqual(
+    frouxas,
+    [],
+    `estas camadas de tinta estão perto demais para o olho separar:\n  ${frouxas.join('\n  ')}\n` +
+      `O piso é ${PASSO}× de razão de contraste entre camadas. Ordem não é hierarquia: ` +
+      'duas tintas a 5% de distância passam em "maior que" e desenham a mesma tela plana.',
+  );
 });

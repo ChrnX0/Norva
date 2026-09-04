@@ -20,7 +20,7 @@ import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join } from 'node:path';
 import { chromium } from 'playwright-core';
-import { marcarExportado, precisaLimpar } from './manifesto.mjs';
+import { marcarExportado, marcarPacote, pacoteServe, precisaLimpar } from './manifesto.mjs';
 
 const PORT = Number(process.env.SHOT_PORT ?? 4321);
 const ROOT = join(process.cwd(), 'dist');
@@ -86,6 +86,8 @@ const comDado = tem('--com-dado') || tudo;
  * cegueira, com mais passos.
  */
 const escuro = tem('--escuro');
+/** Só o claro, para quando a pergunta é de uma luz só. */
+const claro = tem('--claro');
 /**
  * A largura do aparelho, e ela não era escolha até hoje.
  *
@@ -100,7 +102,14 @@ const escuro = tem('--escuro');
  */
 const largura = Number(arg('--largura', '412'));
 /** Os esquemas desta execução. `--tudo` quer os dois; o resto, o que se pediu. */
-const esquemas = tudo ? ['light', 'dark'] : [escuro ? 'dark' : 'light'];
+/**
+ * As duas luzes por padrão, e uma só quando alguém pede uma.
+ *
+ * Antes era o claro, e o escuro só com `--escuro`: ver as quatro combinações
+ * custava DUAS exportações, e por isso eu olhava duas e afirmava quatro. O
+ * aplicativo tem duas caras e duas luzes; olhar é olhar as quatro.
+ */
+const esquemas = escuro ? ['dark'] : claro ? ['light'] : ['light', 'dark'];
 
 function serve() {
   return createServer((request, response) => {
@@ -134,16 +143,29 @@ function run(command, args) {
  */
 const limpar = precisaLimpar();
 if (limpar) console.log('› o app.json mudou: exportando com o cache limpo');
-await run('npx', [
-  'expo',
-  'export',
-  '--platform',
-  'web',
-  '--output-dir',
-  'dist',
-  ...(limpar ? ['--clear'] : []),
-]);
-marcarExportado();
+
+// Exporta quando o CÓDIGO mudou — e "porque existia" continua não valendo.
+//
+// A exportação custa perto de um minuto e meio, e refazer um desenho pede dez
+// olhadas. Cobrar quinze minutos de espera por quinze segundos de conserto é o que
+// faz ninguém olhar — e é assim que uma capa vai para o ar com um degradê cor de
+// lama. A soma em `manifesto.mjs` cobre tudo o que entra no pacote: qualquer
+// arquivo diferente e ele é refeito.
+if (!limpar && pacoteServe()) {
+  console.log('› o código não mudou desde a última exportação: reusando o pacote');
+} else {
+  await run('npx', [
+    'expo',
+    'export',
+    '--platform',
+    'web',
+    '--output-dir',
+    'dist',
+    ...(limpar ? ['--clear'] : []),
+  ]);
+  marcarExportado();
+  marcarPacote();
+}
 
 mkdirSync(SAIDA, { recursive: true });
 const server = serve();

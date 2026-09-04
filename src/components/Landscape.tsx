@@ -65,7 +65,7 @@ export function Landscape({
   running: boolean;
   height?: number;
 }) {
-  const { color, scheme } = useTheme();
+  const { color, scheme, radius } = useTheme();
   const { hue } = useAppearance();
   const paleta = hues[hue];
 
@@ -111,7 +111,13 @@ export function Landscape({
   const quente = maxC !== null && maxC >= 26;
 
   return (
-    <View style={{ height, overflow: 'hidden' }} pointerEvents="none">
+    // O canto acompanha o cartão em que a cena vive.
+    //
+    // Ela era um retângulo de canto reto dentro de um cartão de canto arredondado:
+    // um bloco de outro vocabulário colado no meio do Orgânico, que é um tema de
+    // curvas. Aparece na foto como uma quina dura no meio de tudo o que é redondo —
+    // e o Orgânico é a cara que o dono escolheu como padrão.
+    <View style={{ height, overflow: 'hidden', borderRadius: radius.md }} pointerEvents="none">
       <Svg width="100%" height="100%" viewBox="0 0 412 210" preserveAspectRatio="none">
         <Defs>
           <LinearGradient id="ceu" x1="0" y1="0" x2="0" y2="1">

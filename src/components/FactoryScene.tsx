@@ -26,9 +26,11 @@ const AnimatedRect = Animated.createAnimatedComponent(Rect);
  * - A **fumaça** sobe quando há tacho aberto. Fábrica parada, chaminé parada —
  *   é a mesma regra do `PulseDot`, que exige `live` para não pulsar ao lado de
  *   número congelado.
- * - O **picolé do meio** enche na proporção do dia contra ontem. Cheio é dia
- *   igual ou melhor; pela metade, metade. Ninguém precisa ler o número para
- *   saber como está indo.
+ * - O **pote do meio** enche na proporção do dia contra ontem. Cheio é dia igual
+ *   ou melhor; pela metade, metade. Ninguém precisa ler o número para saber como
+ *   está indo. (Eram três picolés até 4 de setembro, e sorvete desenhado na capa
+ *   é a mesma regra chumbada que a primeira linha do projeto proíbe — o que a
+ *   troca não podia perder era o medidor.)
  * - A **caixa** entra pela direita quando saiu carga hoje, e some quando não
  *   saiu nada — a ausência é dado.
  * - O **sol** e o **floco** giram devagar, e esses dois são os únicos
@@ -50,7 +52,7 @@ const AnimatedRect = Animated.createAnimatedComponent(Rect);
  *   de base e sem função, é o que transforma desenho em figurinha espalhada.
  *
  * Sobraram quatro grupos e o sol, todos na mesma linha de base, e cada um
- * dizendo alguma coisa: a fábrica trabalha, a câmara guarda, os picolés medem o
+ * dizendo alguma coisa: a fábrica trabalha, a câmara guarda, os potes medem o
  * dia, a caixa sai.
  */
 export function FactoryScene({
@@ -123,18 +125,25 @@ export function FactoryScene({
             <Path d="M151 105v18M143 109.5l16 9M143 118.5l16-9" />
           </G>
 
-          {/* Picolé, e não arbusto.
-              Com 20 de largura e canto 7 num traço fino, os três liam como uma
-              moita — vinte pixels de altura de palito não bastam para o olho
-              decidir o que é. Mais estreitos, mais altos e com o palito de 17
-              eles viram o que são. */}
-          <Rect x="194" y="78" width="15" height="38" rx="5" />
-          <Path d="M201.5 116v17" />
-          <Rect x="218" y="78" width="15" height="38" rx="5" stroke={palette.apricot} />
-          <Path d="M225.5 116v17" stroke={palette.apricot} />
+          {/* Três potes na prateleira — e eles eram três PICOLÉS.
+              A primeira linha deste projeto diz "nada de regra chumbada de
+              sorvete", e o sorvete estava no maior desenho da capa, numa fábrica
+              que pode ser de queijo, tinta ou cosmético. O ícone da aba saiu
+              primeiro; este ficou, porque a cena parecia intocável.
+              O que ele NÃO podia perder é a função: o pote do meio é medidor —
+              enche na proporção do dia contra ontem —, então o desenho novo tinha
+              de continuar sendo recipiente que enche. Tampa em cima, corpo
+              embaixo, e o palito virou a linha da prateleira em que os três
+              pousam: a mesma linha de base que a fábrica e a câmara usam, que é o
+              que já segurava a composição de pé. */}
+          <Path d="M188 133h75" opacity={0.5} />
+          <Rect x="194" y="86" width="15" height="47" rx="2.5" />
+          <Path d="M192.5 92h18" />
+          <Rect x="218" y="86" width="15" height="47" rx="2.5" stroke={palette.apricot} />
+          <Path d="M216.5 92h18" stroke={palette.apricot} />
           <Fill progress={enche} color={palette.apricot} />
-          <Rect x="242" y="78" width="15" height="38" rx="5" />
-          <Path d="M249.5 116v17" />
+          <Rect x="242" y="86" width="15" height="47" rx="2.5" />
+          <Path d="M240.5 92h18" />
 
         </G>
       </Svg>
@@ -189,14 +198,15 @@ function Smoke({ progress, color }: { progress: SharedValue<number>; color: stri
   );
 }
 
-/** O picolé enchendo: a altura do preenchimento é o dia contra ontem. */
+/** O pote do meio enchendo: a altura do preenchimento é o dia contra ontem. */
 function Fill({ progress, color }: { progress: SharedValue<number>; color: string }) {
-  // As medidas seguem o picolé do meio; separadas, o preenchimento sai do lugar
+  // As medidas seguem o pote do meio; separadas, o preenchimento sai do lugar
   // no dia em que alguém mexer no desenho — e ninguém percebe, porque a cena
-  // continua bonita com a barra fora do molde.
+  // continua bonita com a barra fora do molde. Enche até embaixo da TAMPA, não
+  // até a borda: pote cheio até a tampa é pote transbordando.
   const props = useAnimatedProps(() => ({
-    y: 116 - 38 * progress.value,
-    height: 38 * progress.value,
+    y: 133 - 39 * progress.value,
+    height: 39 * progress.value,
   }));
   return <AnimatedRect animatedProps={props} x={218} width={15} fill={color} fillOpacity={0.22} stroke="none" />;
 }
