@@ -931,6 +931,22 @@ test('the lot says which sheet ran, and correcting the sheet later does not rewr
   assert.notEqual(corrida.recipeVersionId, product.recipeId, 'não é o id da receita');
   const agora = (await loadRecipeGraph(LOCAL_COMPANY_ID))[product.recipeId!];
   assert.equal(corrida.recipeVersionId, agora.versionId, 'é o id da versão que está valendo');
+
+  // E o que foi GRAVADO, lido de volta — não o que a função devolveu.
+  //
+  // **Esta é a diferença que deixou a mutação passar.** O teste acima confere o
+  // objeto de retorno, que é montado à parte; a mutação trocava o parâmetro do
+  // INSERT por \`product.recipeId\` e o retorno continuava certo. Um uuid legítimo
+  // na coluna errada, invisível até o dia em que alguém perguntasse qual ficha
+  // rodou — que é literalmente o defeito que esta linha existe para impedir.
+  const gravada = (await openProductionRuns(LOCAL_COMPANY_ID)).find((r) => r.id === corrida.id);
+  assert.ok(gravada, 'a corrida aberta tem que ser encontrável de volta');
+  assert.equal(
+    gravada.recipeVersionId,
+    agora.versionId,
+    'a coluna recipe_version_id guarda a VERSÃO; o id da receita ali é a fórmula de hoje respondendo pela de ontem',
+  );
+  assert.notEqual(gravada.recipeVersionId, product.recipeId);
 });
 
 test('an open run is state: the ledger does not know it until it closes', async () => {
@@ -2786,6 +2802,25 @@ test('reversing a run puts back every leg of it, and leaves both records standin
   // pode já estar colada numa caixa, e apagar a linha seria a exclusão que a
   // fundação proíbe.
   assert.ok(await findLot(LOCAL_COMPANY_ID, corrida.lot.id), 'o lote não some no estorno');
+
+  // E "produzido hoje" para de contar a corrida corrigida.
+  //
+  // **É a cicatriz que este teste existia sem cobrir.** O saldo é soma pura e se
+  // conserta sozinho — as asserções acima provam isso. Mas as consultas de "o que
+  // aconteceu" filtram por `kind`, e `reversal` não é `production`: sem o
+  // `NAO_ESTORNADO` na cláusula, o almoxarifado fica certo e a capa continua
+  // dizendo que a fábrica produziu 500 picolés que foram desfeitos.
+  //
+  // A mutação que tira esse filtro atravessou a suíte inteira, e só apareceu
+  // quando a oficina do `mutate` voltou a rodar de verdade.
+  const dia = localDate(nowIso(), 'America/Sao_Paulo');
+  const produzido = await productionOn(LOCAL_COMPANY_ID, `${dia}T00:00:00.000Z`, `${dia}T23:59:59.999Z`);
+  const doProdutoHoje = produzido.find((l) => l.itemId === product.itemId);
+  assert.equal(
+    doProdutoHoje?.baseUnits ?? 0,
+    0,
+    'a corrida estornada não conta mais como produzida — senão o almoxarifado fica certo e a capa mente',
+  );
 });
 
 test('a run whose product already shipped cannot be reversed, and the refusal names what left', async () => {

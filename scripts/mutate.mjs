@@ -22,7 +22,7 @@
  * possible proof that the test written alongside it actually bites.
  */
 
-import { cpSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { cpus } from 'node:os';
 import { spawnSync } from 'node:child_process';
@@ -200,6 +200,8 @@ const DEFECTS = [
   {
     file: 'src/data/repository.ts',
     from: '  if (plan.alreadyReversed || plan.blocked.length > 0) throw new CannotReverseError(plan);',
+    equivalente:
+      'o estorno tem DUAS checagens em camadas — a de fora evita abrir transacao, a de dentro fecha a corrida entre dois aparelhos. Tirar uma deixa a outra pegando, com o mesmo erro e o mesmo plano, entao nenhum teste de uma linha de execucao so pode distinguir. So concorrencia real separaria as duas, e a suite nao tem duas conexoes.',
     to: '  if (plan.alreadyReversed) throw new CannotReverseError(plan);',
     hurts:
       'estornar uma corrida cujos picoles ja viajaram deixa saldo negativo na fabrica, e saldo negativo o livro-razao nao desfaz depois',
@@ -208,6 +210,8 @@ const DEFECTS = [
     file: 'src/data/repository.ts',
     from: `    const dentro = await planReversal(companyId, input.groupId);
     if (dentro.alreadyReversed || dentro.blocked.length > 0) throw new CannotReverseError(dentro);`,
+    equivalente:
+      'o estorno tem DUAS checagens em camadas — a de fora evita abrir transacao, a de dentro fecha a corrida entre dois aparelhos. Tirar uma deixa a outra pegando, com o mesmo erro e o mesmo plano, entao nenhum teste de uma linha de execucao so pode distinguir. So concorrencia real separaria as duas, e a suite nao tem duas conexoes.',
     to: `    const dentro = await planReversal(companyId, input.groupId);
     if (dentro.alreadyReversed && false) throw new CannotReverseError(dentro);`,
     hurts:
@@ -786,19 +790,80 @@ const RAIZ = process.cwd();
 const OFICINA = join(RAIZ, '.mutate');
 const TRABALHADORES = Math.max(1, Math.min(cpus().length, 4));
 
-/** O que uma cópia precisa para rodar a suíte rápida. Nada mais. */
-const COPIAR = ['src', 'scripts', 'package.json', 'tsconfig.json'];
+/**
+ * O que NÃO vai para a cópia. Lista de exclusão, e isso é cicatriz.
+ *
+ * Era uma lista de INCLUSÃO — `['src', 'scripts', 'package.json',
+ * 'tsconfig.json']` — escrita em 3 de setembro, quando os testes só liam
+ * `src/`. Depois disso a suíte ganhou guardas que leem o repositório: o
+ * dicionário varre `app/`, os seletores leem `e2e/flow.mjs`, o acordo lê
+ * `supabase/migrations`, a tabela lê `CLAUDE.md` e `docs/roadmap.md`.
+ *
+ * Na oficina esses arquivos não existiam, então esses testes morriam no
+ * carregamento com ENOENT — e a suíte da oficina saía com **19 falhas antes de
+ * qualquer mutação**. Como `pego = !suitePasses(dir)` e `suitePasses` procura
+ * `# fail 0`, TODA mutação era declarada pega sem a suíte nunca ter sido
+ * consultada. Sessenta e seis commits com "os N defeitos foram pegos" que não
+ * queriam dizer nada, no CI e no portão de entrega.
+ *
+ * Lista de inclusão é uma segunda cópia do que os testes precisam, mantida à
+ * mão, longe deles — e o segundo autor sempre atrasa. Exclusão nomeia só o que
+ * é derivado ou pesado, e um teste novo que leia um arquivo novo continua
+ * funcionando sem ninguém lembrar de nada.
+ */
+const NAO_COPIAR = new Set([
+  'node_modules', // ligado por link simbólico logo abaixo
+  '.git',
+  '.mutate',
+  'dist',
+  '.expo',
+  '.shots',
+  'android',
+]);
 
 function prepararOficina() {
   rmSync(OFICINA, { recursive: true, force: true });
+  const alvos = readdirSync(RAIZ).filter((e) => !NAO_COPIAR.has(e));
   for (let n = 0; n < TRABALHADORES; n += 1) {
     const dir = join(OFICINA, `w${n}`);
     mkdirSync(dir, { recursive: true });
-    for (const alvo of COPIAR) {
+    for (const alvo of alvos) {
       cpSync(join(RAIZ, alvo), join(dir, alvo), { recursive: true });
     }
     symlinkSync(join(RAIZ, 'node_modules'), join(dir, 'node_modules'), 'dir');
   }
+}
+
+/**
+ * A oficina prova que serve ANTES de julgar qualquer coisa.
+ *
+ * Sem esta checagem, uma oficina quebrada é indistinguível de uma suíte
+ * perfeita: as duas fazem `suitePasses` devolver falso, e falso quer dizer
+ * "pego". O relatório mais bonito que este script já imprimiu — "os 90 defeitos
+ * foram pegos" — foi impresso por uma oficina que não rodava a suíte.
+ *
+ * É a asserção de presença ao lado da de ausência, que este projeto já
+ * conserta pela terceira vez: antes de afirmar que a mutação derrubou a suíte,
+ * prove que a suíte estava DE PÉ.
+ */
+function oficinaConfere(dir) {
+  const run = spawnSync('npx', ['tsx', '--test', 'src/**/*.test.ts'], {
+    cwd: dir,
+    encoding: 'utf8',
+    env: { ...process.env, FORCE_COLOR: '0' },
+  });
+  const saida = `${run.stdout}`;
+  if (saida.includes('# fail 0')) return;
+  const falhas = saida.match(/^# fail (\d+)/m)?.[1] ?? '?';
+  console.error(
+    `\nA oficina não roda a suíte: ${falhas} falha(s) SEM mutação nenhuma.\n\n` +
+      'Enquanto isso for verdade, todo defeito plantado é declarado "pego" sem a\n' +
+      'suíte ter sido consultada — que é o pior relatório possível: verde por\n' +
+      'construção. Provavelmente um teste passou a ler um arquivo que a cópia não\n' +
+      'leva; veja NAO_COPIAR.\n',
+  );
+  console.error(saida.split('\n').filter((l) => /^not ok|Error:/.test(l)).slice(0, 12).join('\n'));
+  process.exit(1);
 }
 
 function suitePasses(dir) {
@@ -836,11 +901,28 @@ async function julgar(defect, dir) {
   const pego = !suitePasses(dir);
   // Restaura a cópia para o próximo defeito deste trabalhador.
   writeFileSync(join(dir, defect.file), original);
+
+  // "Não pegou" e "não DÁ para pegar" são coisas diferentes, e sair iguais no
+  // relatório apaga a diferença.
+  //
+  // Uma mutação é EQUIVALENTE quando nenhum teste possível a distingue do
+  // original — o caso clássico é defesa em profundidade: duas checagens em
+  // camadas guardando a mesma coisa, onde tirar uma deixa a outra pegando e o
+  // comportamento observável não muda. Chamar isso de "sobreviveu" manda alguém
+  // caçar um buraco que não existe; chamar de "pego" é mentira.
+  //
+  // O marcador não é escapatória: ele exige motivo escrito, e se a mutação FOR
+  // pega o marcador vira erro — senão a lista apodrece guardando desculpas para
+  // buracos que já foram fechados.
+  if (defect.equivalente) {
+    return { estado: pego ? 'marcador-errado' : 'equivalente', defect };
+  }
   return { estado: pego ? 'pego' : 'sobreviveu', defect };
 }
 
 prepararOficina();
 process.on('exit', () => rmSync(OFICINA, { recursive: true, force: true }));
+oficinaConfere(join(OFICINA, 'w0'));
 
 console.log(
   `Quebrando o código de propósito, ${DEFECTS.length} vezes, em ${TRABALHADORES} frentes.\n`,
@@ -862,6 +944,7 @@ await Promise.all(
 );
 
 let survivors = 0;
+const equivalentes = [];
 
 for (const veredito of vereditos) {
   const { defect } = veredito;
@@ -874,6 +957,13 @@ for (const veredito of vereditos) {
     console.log(`?  ${defect.file}: o trecho aparece ${veredito.hits} vezes`);
     console.log(`   a troca pega só a primeira — dê contexto ao \`from\` até ele ser único`);
     console.log(`   ${defect.hurts}\n`);
+  } else if (veredito.estado === 'equivalente') {
+    equivalentes.push(defect);
+  } else if (veredito.estado === 'marcador-errado') {
+    survivors += 1;
+    console.log(`\nMARCADOR ERRADO  ${defect.file}`);
+    console.log(`   marcada como equivalente e a suíte PEGOU: ${defect.equivalente}`);
+    console.log('   tire o marcador — a regra ganhou teste desde que ele foi escrito\n');
   } else if (veredito.estado === 'pego') {
     console.log(`ok ${defect.hurts}`);
   } else {
@@ -891,4 +981,12 @@ if (survivors > 0) {
   console.log('Verde não quer dizer protegido — quer dizer que os exemplos não exercitam a regra.');
   process.exit(1);
 }
-console.log(`Os ${DEFECTS.length} defeitos foram pegos. A suíte morde onde promete morder.`);
+const pegos = DEFECTS.length - equivalentes.length;
+console.log(`Os ${pegos} defeitos foram pegos. A suíte morde onde promete morder.`);
+if (equivalentes.length > 0) {
+  console.log(
+    `\nE ${equivalentes.length} mutação(ões) são EQUIVALENTES — nenhum teste possível as distingue:`,
+  );
+  for (const d of equivalentes) console.log(`   ${d.file}: ${d.equivalente}`);
+  console.log('   Elas ficam na lista porque apagá-las esconderia a redundância que as torna assim.');
+}

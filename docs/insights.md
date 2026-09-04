@@ -2941,3 +2941,79 @@ que um documento afirma sobre o sistema é um segundo autor da mesma verdade, e 
 segundo autor sempre atrasa. Ou o número sai de uma derivação, ou ele tem uma guarda
 — a terceira opção, que é confiar em quem escreveu, é a que produziu as duas
 cicatrizes de hoje com o antídoto escrito ao lado.
+
+## 4 de setembro — o portão de mutação estava verde por construção, e ninguém tinha como notar
+
+**O que se viu.** Uma auditoria de dez frentes achou isto, e é o achado mais grave
+do dia: **`npm run mutate` declarava toda mutação "pega" sem nunca ter consultado a
+suíte.** Desde 3 de setembro. Sessenta e seis commits.
+
+O mecanismo é de uma linha. O `mutate` copia o projeto para uma oficina e roda a
+suíte lá; `suitePasses(dir)` devolve verdadeiro se a saída contém `# fail 0`, e
+`pego = !suitePasses(dir)`. A lista do que copiar era de **inclusão**:
+
+```js
+const COPIAR = ['src', 'scripts', 'package.json', 'tsconfig.json'];
+```
+
+Escrita em 3 de setembro, quando os testes só liam `src/`. Depois disso a suíte
+ganhou guardas que leem o repositório: o dicionário varre `app/`, os seletores leem
+`e2e/flow.mjs`, o acordo lê `supabase/migrations`, e hoje a tabela passou a ler
+`CLAUDE.md` e `docs/roadmap.md`. Na oficina esses arquivos não existiam, então esses
+testes morriam no carregamento com `ENOENT`.
+
+Medi: **a suíte da oficina saía com `# fail 19` sem mutação nenhuma.** Logo
+`suitePasses` era falso sempre, `pego` era verdadeiro sempre, e o relatório dizia
+"os 90 defeitos foram pegos" sem que um único deles tivesse sido julgado.
+
+**Por que era invisível.** Não é um teste vermelho que alguém ignorou — é um portão
+que só sabe dizer sim. O CI roda `npm run mutate`, o `push-guard` exige veredito
+fresco, e os dois concordavam. Cada vez que a suíte ganhava um guard novo que lia o
+repositório, o portão ficava um pouco mais cego, e a única evidência disso era um
+relatório cada vez mais bonito.
+
+E é o inverso exato do que o `mutate` existe para dizer. Ele nasceu porque *"suíte
+verde não quer dizer regra protegida"*. Ele virou a coisa que ele denuncia.
+
+**O que estava escondido.** Com a oficina consertada, **seis mutações sobreviveram**
+— quatro buracos reais e dois mutantes equivalentes:
+
+1. `blendRate` (`src/domain/cost.ts`) trocada por `return arriving.rate` passava: a
+   média móvel do produto fabricado não tinha um único teste com estoque em mãos. Os
+   que a citavam passavam pelo caso em que ela é a identidade. Na fábrica: o estoque
+   antigo passa a valer o preço da corrida de hoje.
+2. A contagem de movimentos na confirmação de apagar compras — **escrita por mim
+   hoje de manhã**, com a fixação do teste trazendo `movements: 0`. Zero faz a
+   asserção passar com ou sem o campo. Vazia, de novo.
+3. A corrida aberta gravando `product.recipeId` na coluna da versão. O teste existia
+   e conferia o **objeto devolvido**, não a linha gravada — e a mutação trocava só o
+   parâmetro do `INSERT`. Afirmar o que a função diz ter feito, não o que ela
+   escreveu.
+4. O `NAO_ESTORNADO` sumindo da consulta de "produzido no período": o almoxarifado
+   fica certo e a capa continua dizendo que a fábrica produziu o que foi desfeito. É
+   textualmente a cicatriz de 3 de setembro — *"teste unitário prova a escrita, só o
+   aplicativo dirigido prova a leitura"* — e ela reapareceu porque o portão que
+   deveria pegá-la estava cego.
+
+**O que mudou.** A lista virou de **exclusão** (`node_modules`, `.git`, `dist`,
+`.expo`, `.shots`, `android`, `.mutate`), então um teste novo que leia um arquivo
+novo continua funcionando sem ninguém lembrar de nada. E a oficina **prova que serve
+antes de julgar**: roda a suíte sem mutação e aborta com a lista de falhas se ela
+não passar. Sem isso, oficina quebrada e suíte perfeita são indistinguíveis — as
+duas fazem `suitePasses` devolver falso.
+
+Os quatro buracos ganharam teste. Os dois equivalentes ganharam marcador com motivo
+escrito: o estorno tem duas checagens em camadas, tirar uma deixa a outra pegando, e
+só concorrência real as separaria. O marcador não é escapatória — se a mutação
+**for** pega, ele vira erro, senão a lista apodrece guardando desculpa para buraco já
+fechado.
+
+**A regra que fica:** *toda ferramenta de verificação precisa de uma verificação de
+si mesma, e ela tem que rodar antes do veredito, não depois.* A pergunta é sempre a
+mesma: **como este instrumento se pareceria se estivesse quebrado?** Aqui a resposta
+era "exatamente como um instrumento perfeito" — e essa resposta é o próprio defeito.
+
+É também a terceira forma da mesma doença num dia: lista escrita à mão que envelhece
+longe de quem a usa. `erase.ts` conhecia 12 de 21 tabelas; a tabela do plano
+envelheceu no dia em que nasceu; e aqui uma lista de quatro pastas decidia, sem
+saber, se o portão inteiro perguntava alguma coisa.

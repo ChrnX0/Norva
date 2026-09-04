@@ -246,10 +246,17 @@ test('erasing everything is never blocked - that is the point of it', () => {
 });
 
 test('the confirmation is told exactly what disappears, so it can count it', () => {
+  // O movimento entra com número DIFERENTE de zero, e isso é cicatriz.
+  //
+  // Ele entrou nesta fixação como `movements: 0` quando o campo nasceu, e zero
+  // faz a asserção passar com ou sem o campo sendo carregado — a mutação que
+  // tirava `movements` de `tallyFor('purchases')` atravessou a suíte por causa
+  // desta linha. É a mesma família que a proofgate já guarda: afirmar sobre um
+  // sujeito vazio é verdade de graça, e é VERDE.
   const counts: EraseCounts = {
     ...emptyCounts,
     inputs: 6,
-    movements: 0,
+    movements: 412,
     recipes: 2,
     products: 1,
     purchases: 6,
@@ -258,7 +265,7 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
 
   assert.deepEqual(tallyFor('all', counts), {
     inputs: 6,
-    movements: 0,
+    movements: 412,
     recipes: 2,
     products: 1,
     purchases: 6,
@@ -268,9 +275,13 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
   // One area takes only its own with it. Places are the sharpest case: a store
   // is not an input, a recipe, a product or an invoice, so no smaller area is
   // allowed to carry it off - only "erase everything" is.
+  //
+  // O movimento é a exceção, e é a razão de ele estar contado: as três áreas que
+  // apagam `movements` levam o livro-razão inteiro da empresa junto, não só os
+  // movimentos daquela área. A confirmação tem que dizer o número.
   assert.deepEqual(tallyFor('purchases', counts), {
     inputs: 0,
-    movements: 0,
+    movements: 412,
     recipes: 0,
     products: 0,
     purchases: 6,
@@ -278,12 +289,18 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
   });
   assert.deepEqual(tallyFor('inputs', counts), {
     inputs: 6,
-    movements: 0,
+    movements: 412,
     recipes: 0,
     products: 0,
     purchases: 0,
     places: 0,
   });
+
+  // E as áreas que NÃO tocam o livro-razão não podem dizer que tocam: apagar
+  // receita ou produto não apaga movimento nenhum, e anunciar 412 movimentos ali
+  // seria assustar quem não precisa.
+  assert.equal(tallyFor('recipes', counts).movements, 0);
+  assert.equal(tallyFor('products', counts).movements, 0);
 
   assert.equal(isEmpty(tallyFor('all', emptyCounts)), true);
   assert.equal(isEmpty(tallyFor('all', counts)), false);
