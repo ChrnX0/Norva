@@ -797,6 +797,18 @@ const DEFECTS = [
     hurts:
       'findItem volta a responder o total da empresa mesmo quando a pergunta e de uma sala: a tela da camara fria mostra o saldo da fabrica somado ao dela, e a diferenca da contagem sai desse numero',
   },
+  // --- a tinta ilegivel no corredor da camara, 4 de setembro -----------------
+  //
+  // Achado da auditoria. `inkFaint` pinta o rotulo que diz O QUE o numero e, em 11
+  // e 13 px, e media 2,55:1 no tema que sai da caixa.
+  {
+    file: 'src/theme/tokens.ts',
+    from: "  inkFaint: '#6D6963',",
+    to: "  inkFaint: '#8A857D',",
+    hurts:
+      'a tinta do rotulo volta a 3,39:1 no tema que sai da caixa: "por mil", "valor parado" e "conferido em" ficam ilegiveis no corredor da camara, com luva e tela suja - e a Lei 3 diz que numero nao aparece sozinho',
+  },
+
   // --- os tres atos sem grupo, logo sem estorno, 4 de setembro ---------------
   //
   // Achado da auditoria. A primeira fundacao do projeto diz que se corrige por

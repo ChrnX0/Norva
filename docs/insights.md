@@ -3330,3 +3330,38 @@ cega foi construída, e cobrou a conta hoje, de uma mudança que nem existia ent
 **O que mudou.** O cartão de lançamentos desaparece enquanto a contagem está aberta,
 pela mesma razão que o saldo desaparece, e o comentário diz isso onde a próxima
 pessoa vai ler.
+
+## 4 de setembro — o número da auditoria era o do extremo, e a régua não existia
+
+O achado 10 dizia: *"o tom `inkFaint` dá 2,55:1 nas quatro combinações de tema"*.
+Fui medir antes de mexer, e as duas metades da frase estavam erradas de um jeito que
+importa: são **seis** paletas (duas do tema base, duas do Papel, duas do Orgânico), e
+2,55 é o **pior caso** — a faixa real era 2,35 a 4,43. O achado está certo (nenhuma
+das seis passa a régua da WCAG); o número era o do extremo apresentado como o de
+todas.
+
+**O que fez a diferença não foi olhar melhor: foi escrever a régua primeiro.** Eu
+escrevi `src/theme/contrast.test.ts` antes de trocar uma cor, deixei falhar, e a
+falha imprimiu as dezoito combinações com o valor de cada uma. Aí a correção deixou
+de ser gosto — para cada paleta, escureça (ou clareie) mantendo o matiz até o pior
+fundo passar de 4,6.
+
+**A regra que fica: número em achado é medida ou é lembrança, e as duas se parecem no
+texto.** Um relatório escrito por dez auditores em paralelo tem números que ninguém
+recontou, e o meu papel ao consertar é medir de novo — não porque o achado seja
+suspeito, mas porque **a régua que mede é a mesma coisa que a guarda que protege**.
+Escrever a medição como teste dá as duas de uma vez, e é mais barato que conferir à
+mão uma vez.
+
+Duas coisas que a régua pegou de graça, e que eu não tinha pensado:
+
+- **`const palettes = { light, dark }` entrou na varredura** como se fosse uma paleta,
+  e o corpo dela engoliu a paleta escrita abaixo — o teste media a mesma coisa duas
+  vezes com o nome errado. Bloco que contém outra declaração não fechou onde eu
+  pensei: passou a ser recusado.
+- **Legível pode virar "tudo igual".** Subir `inkFaint` até encostar em `inkMuted`
+  apagaria a hierarquia de três camadas de tinta, e a tela ficaria plana. A guarda
+  afirma as duas coisas: a régua e a ordem.
+
+**O que mudou.** As seis paletas em `src/theme/tokens.ts`, o docblock que diz por quê,
+a guarda que lê as cores do próprio arquivo, e uma mutação que devolve a tinta velha.

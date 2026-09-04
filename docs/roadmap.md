@@ -42,8 +42,8 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **330** testes |
-| `npm run mutate` | **102** defeitos plantados, 100 pegos e 2 equivalentes |
+| `npm test` | **333** testes |
+| `npm run mutate` | **103** defeitos plantados, 101 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **35** checagens num navegador de verdade |
 | `npm run db:verify` | **11** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
@@ -191,7 +191,8 @@ insumo está, e o erro do livro-razão virou frase de tela nos três idiomas) e 
 levava o livro-razão para a conta Google de quem estivesse no aparelho) — este último
 junto com o `versionCode` que colidia, que era um dos médios e o mais barato deles. E
 **2**: a compra, a contagem e a perda passam a ter grupo, logo estorno, logo a porta
-para desfazer na tela do insumo.
+para desfazer na tela do insumo. E **10**: as seis paletas passaram a respeitar a
+régua de contraste da WCAG, com guarda que lê as cores do arquivo de tokens.
 
 **O 5 deixou uma pergunta, e ela é do dono** — está escrita em "A sala do tacho",
 adiante. A tela parou de mentir, mas **registrar o trajeto câmara → almoxarifado
@@ -201,11 +202,9 @@ faz isso.
 
 De pé, nesta ordem e por este motivo:
 
-1. **10** — `inkFaint` dá 2,55:1 nas quatro combinações de tema, em 124 corridas de
-   texto de 11 e 13 px. É o rótulo que diz **o que** o número é.
-2. **11** — nada leva ninguém aos outros dois idiomas nem a outra moeda. Não afeta o
+1. **11** — nada leva ninguém aos outros dois idiomas nem a outra moeda. Não afeta o
    Brasil de hoje; afeta o dia de publicar.
-3. **Os médios que sobraram** — doze, agora que o `versionCode` caiu. Entre eles:
+2. **Os médios que sobraram** — doze, agora que o `versionCode` caiu. Entre eles:
    `recorded_by` cedível no pedido, a embalagem abaixo de meio centavo virando de
    graça, a aprovação de pedido que nunca atravessa, o percentual com ponto em vez de
    vírgula, o ícone de "Produção" ser um picolé num aplicativo que promete servir

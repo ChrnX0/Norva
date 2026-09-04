@@ -43,13 +43,28 @@ export const ambientArea: Record<Ambient, string> = {
   mist: 'settings',
 };
 
+/**
+ * As três camadas de tinta, e por que a mais fraca não é tão fraca quanto era.
+ *
+ * `inkFaint` pinta o rótulo que diz O QUE o número é — "por mil", "valor parado",
+ * "conferido em 3/9" —, em 11 e 13 px, e a auditoria mediu **2,55:1** no tema que
+ * sai da caixa. Isso é ilegível no corredor da câmara, com luva, tela suja e luz de
+ * galpão, que é exatamente onde este aplicativo é usado. As seis paletas subiram
+ * para 4,6:1 contra o fundo mais claro em que cada uma pinta, que é a régua da WCAG
+ * para texto normal com uma casa de folga.
+ *
+ * A hierarquia continua: forte > média > fraca em toda paleta, e `src/theme/
+ * contrast.test.ts` guarda as duas coisas — a régua e a hierarquia — lendo as cores
+ * DESTE arquivo. Cor nova colada amanhã entra na medição sem ninguém acrescentar
+ * nada.
+ */
 const lightPalette = {
   paper: '#F7F6F3',
   surface: '#FFFFFF',
   sunken: '#EFEDE8',
   ink: '#23211E',
   inkMuted: '#57534D',
-  inkFaint: '#8A857D',
+  inkFaint: '#6D6963',
   line: '#E7E4DE',
   lineStrong: '#D7D3CA',
   onAccent: '#FFFFFF',
@@ -80,7 +95,7 @@ const darkPalette: typeof lightPalette = {
   sunken: '#262626',
   ink: '#EDEBE7',
   inkMuted: '#ADA9A2',
-  inkFaint: '#7A756E',
+  inkFaint: '#928D88',
   line: '#333130',
   lineStrong: '#454240',
   onAccent: '#141414',
@@ -196,7 +211,7 @@ const papelClaro: Palette = {
   sunken: '#F1EDE5',
   ink: '#221F1B',
   inkMuted: '#6F6558',
-  inkFaint: '#A2988A',
+  inkFaint: '#706960',
   line: '#DCD3C6',
   lineStrong: '#CBBEAC',
   onAccent: '#FFFFFF',
@@ -248,7 +263,7 @@ const papelEscuro: Palette = {
   sunken: '#2C251C',
   ink: '#F4ECE0',
   inkMuted: '#BCAE9A',
-  inkFaint: '#8A7C6B',
+  inkFaint: '#998C7E',
   // A régua é o que estrutura esta cara. Fraca demais, a página se desmancha.
   line: '#4A3F33',
   lineStrong: '#5E5142',
@@ -277,7 +292,7 @@ const organicoClaro: Palette = {
   sunken: '#E7EFE8',
   ink: '#16281D',
   inkMuted: '#4D6055',
-  inkFaint: '#8BA192',
+  inkFaint: '#5F6D63',
   line: '#DDE9DF',
   lineStrong: '#C6D8CA',
   onAccent: '#FFFFFF',
@@ -303,7 +318,7 @@ const organicoEscuro: Palette = {
   sunken: '#1A2B24',
   ink: '#EAF5EE',
   inkMuted: '#9DB8A9',
-  inkFaint: '#6B8377',
+  inkFaint: '#80948A',
   line: '#1C2F27',
   lineStrong: '#2A443A',
   onAccent: '#0C1512',

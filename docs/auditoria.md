@@ -83,6 +83,16 @@ foi fechado fica marcado aqui, com o que impede a volta.
   **O que ficou:** registrar o trajeto câmara → almoxarifado não existe, e isso é
   decisão de dono sobre a F2. Está escrita em `docs/roadmap.md` ("A sala do tacho"),
   com as duas formas e o motivo de nenhuma poder ser escolhida por mim.
+- **10 — o texto pequeno reprovando contraste.** As seis paletas subiram de 2,55–4,43
+  para **4,6:1 ou mais** contra o fundo mais claro em que cada uma pinta, que é a
+  régua da WCAG para texto normal. Guarda em `src/theme/contrast.test.ts`, lendo as
+  cores do próprio arquivo de tokens: cor nova entra na medição sem ninguém
+  acrescentar nada, e a hierarquia das três tintas é conferida junto — legível não
+  pode virar "tudo igual".
+  **Uma correção à auditoria:** ela disse "2,55:1 nas quatro combinações". O 2,55 é o
+  pior caso (Orgânico claro sobre `paper`), não o número de todas; a faixa medida era
+  2,35 a 4,43, e são **seis** paletas, não quatro. O achado está certo; o número era
+  o do extremo.
 - **2 — compra, perda e contagem sem estorno.** Os três atos passam a gravar
   `movement_group_id` (a compra pela NOTA, não pela linha), e ganham a porta que
   faltava: o cartão "Últimos lançamentos" na tela do insumo desfaz no toque, com a
