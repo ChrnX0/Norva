@@ -132,10 +132,17 @@ export type Movement = {
  * servidor e o do aparelho, e a aritmética pura que não toca dado (`daysOfCover`).
  *
  * A pergunta do docblock lá em cima — "o que estava dentro da câmara às 03:12?" —
- * continua sendo verdade sobre o MODELO e continua sem tela. Ela está no
- * `docs/roadmap.md` com o que falta: uma consulta por lote com corte no tempo,
- * em SQL, e a tela do lugar dizendo o que estava exposto quando a leitura saiu
- * da faixa.
+ * **passou a ter resposta no commit seguinte a este**, e não pela dobra que morreu:
+ * `lotsInRoomAt` é SQL com `occurred_at <= ?`, ao lado das outras somas de saldo, e
+ * a tela do lugar lista os lotes que estavam lá no instante DAQUELA leitura quando
+ * ela sai da faixa.
+ *
+ * Este parágrafo dizia "continua sem tela" e mandava ler o `docs/roadmap.md` pelo
+ * que faltava — um commit depois de a coisa existir. Fica registrado em vez de
+ * apagado, porque é a família que dominou o dia: o texto ao lado do código
+ * descrevendo um estado que o código não tem mais. Comentário que aponta para o
+ * roadmap é o pior caso dela, porque manda a próxima pessoa construir de novo o
+ * que está pronto — que é exatamente o que a regra 1 daquele arquivo proíbe.
  */
 
 /**

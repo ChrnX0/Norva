@@ -62,17 +62,24 @@ O que isso significa para quem lê: a lista é curta **porque a refutação foi 
 não porque falta trabalho. Os dezoito candidatos ainda não julgados quando a
 varredura parou não entram até passarem pela mesma peneira.
 
-> **Estado em 4 de setembro: os cinco sobreviventes estão fechados, e a procura
-> já trouxe o item 6.** Os cinco ficam
+> **Estado em 4 de setembro: os seis estão fechados, e o sexto nasceu da
+> procura, não da lista.** Os seis ficam
 > abaixo, riscados, porque o que cada um ensinou vale mais que ele — mas nenhum
 > deles é trabalho pendente, e a lista de trabalho está **vazia**.
+>
+> *A frase acima já esteve errada: ela dizia "os cinco estão fechados, e a procura
+> já trouxe o item 6" depois de o item 6 ter sido fechado — o resumo descrevendo
+> um estado que o próprio arquivo, doze linhas abaixo, contradizia. É a família
+> que dominou o dia, aqui na cabeça do arquivo que existe para a próxima sessão
+> confiar.*
 >
 > O que isso NÃO significa é que acabou o serviço. Significa que a próxima coisa
 > não está escrita ainda, e achá-la é a diretriz de insight constante: procurar o
 > que o código existente está contradizendo, em vez de esperar aparecer. Foi
-> assim que os três achados do dia nasceram — os trinta e um rótulos, o manifesto
-> velho no pacote, e a leitura de `length` que quebrou dentro do conserto de
-> outra coisa.
+> assim que os quatro achados do dia nasceram — os trinta e um rótulos, o manifesto
+> velho no pacote, a leitura de `length` que quebrou dentro do conserto de
+> outra coisa, e o caminho de publicação sem chamador que continuava armado com um
+> artefato de 177 commits atrás.
 >
 > **Item novo entra aqui antes de virar código**, com `arquivo:linha` e o portão
 > P1/P2/P3 respondido. Um item que não passa no P2 entra como *fronteira*, com o
