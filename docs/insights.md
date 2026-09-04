@@ -2245,3 +2245,58 @@ para a corrida custou visivelmente: ele fala de nota, e nota tem centavo inteiro
 A primeira corrida de 500 unidades saía com média 64,996 contra um custo
 congelado de 64,99686 — dois números para o mesmo picolé no dia em que ele
 nasceu. Taxa não é valor final e não se arredonda: nasceu o `blendRate`.
+
+## 4 de setembro — a forma de um tema não pode morar na tela
+
+**O que se viu.** O dono abriu o Papel e circulou o que sobrava do outro tema:
+*"como é que essas caixas continuam aí?"*. Eram cinco de uma vez — o retângulo
+de canto arredondado, o fundo lavado de cor, o crachá preenchido atrás do ícone,
+a pílula do botão e a da etiqueta. Todas do Orgânico, que é um tema de blocos e
+curvas; o Papel é serifa, traço fino e canto reto.
+
+**Por que aconteceu, e é o achado.** A identidade do Papel estava escrita em
+`tokens.ts` — fonte, raio, paleta — e **a forma não.** Forma é caixa ou régua,
+massa ou traço, selo ou desenho na página, e isso vivia espalhado em cada
+componente com um valor só. `borderRadius: radius.xl` e `backgroundColor:
+tint(cor, 0.13)` não são neutros: eles *são* o Orgânico, escritos onde o tema
+não alcança. Trocar a fonte e a paleta produziu o Orgânico de fonte diferente,
+que foi exatamente o que ele viu.
+
+**O que mudou.** A forma desceu para o componente: `Card`, `Button` e `Chip`
+passam a perguntar `skin` e a desenhar duas coisas diferentes — bloco de cor com
+canto redondo no Orgânico, régua sem fundo e sem crachá com canto reto no Papel.
+A consequência prática é maior que as telas de hoje: **quem escrever uma tela
+nova acerta nas duas caras sem pensar**, e a incoerência não volta quando
+ninguém estiver olhando.
+
+**E as cores também não eram dele.** Eram as do Orgânico com outra saturação —
+verde `#15803D` e violeta `#5B4BA8` são cores de interface, frias, e brigam com
+creme quente do mesmo jeito que marcador fluorescente briga com papel de carta.
+A família virou tinta: verde-garrafa, azul-tinta, ameixa, ocre.
+
+**A pergunta seguinte dele fechou o raciocínio:** *"esse é o tema dark?"*. Ao
+tirar as caixas eu tirei junto a única coisa que separava a página do chão, e o
+Papel escuro virou um buraco preto com réguas invisíveis. Papel escuro é papel
+escuro — carvão quente, tinta creme, régua que se enxerga —, não tela apagada.
+
+## 4 de setembro — "peça sem dado não aparece" apagou a porta de duas telas
+
+**O que se viu.** O CI reprovou uma checagem que parecia frase: a aba de
+relatórios não dizia mais "o que cada unidade custa". Não era a frase. Ao virar
+briefing, a tela passou a mostrar cartão só para o assunto que TEM número — e
+com isso Receitas e Perdas ficaram **sem caminho nenhum** numa instalação nova.
+Perdas não aparece em nenhum outro lugar do aplicativo.
+
+**Por que importa.** A regra é boa e é do dono: cartão dizendo zero é alerta
+inventado. Mas eu apliquei larga demais, num lugar onde o cartão fazia dois
+trabalhos — dizer o número **e** ser a porta. Regra certa, fronteira errada, e o
+resultado é pior que o defeito que ela evita: um alerta inventado se ignora, uma
+tela inalcançável não existe.
+
+**O que mudou.** Cartão para o que tem o que dizer, `ListRow` para o resto. E a
+fronteira ficou escrita no briefing das telas que ainda vão ser reescritas, para
+o mesmo erro não se multiplicar por vinte.
+
+**A regra que sai:** antes de esconder alguma coisa por não ter dado, pergunte se
+ela também é caminho. Esconder o que não informa é higiene; esconder o que
+navega é amputação.
