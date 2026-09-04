@@ -106,88 +106,37 @@ export type Movement = {
   note?: string;
 };
 
-export type Balance = {
-  itemId: string;
-  locationId: string;
-  baseUnits: number;
-};
-
-const key = (itemId: string, locationId: string) => `${itemId} ${locationId}`;
-
 /**
- * Balance is a fold over movements. Reversals are applied as ordinary negations
- * so a reversed movement stays visible in the history while dropping out of the
- * total.
+ * Por que este módulo não soma saldo — e onde a soma mora de verdade.
+ *
+ * Ele exportava quatro dobras sobre `Movement[]`: `balanceOf`, `balanceAt`,
+ * `lotsPresentDuring` e `buildReversal`. Nenhuma tinha chamador, e a razão não é
+ * esquecimento: **o aplicativo nunca tem os movimentos em memória.** Ele tem
+ * SQLite, e cada uma dessas perguntas já é respondida em SQL, onde os dados
+ * estão — `stockByPlace`, `balanceByLocation` e `lotsInStock` somam
+ * `quantity_base_units`, e `reverseGroup` escreve o estorno negando a quantidade
+ * na própria instrução. Carregar anos de movimento num celular para dobrar em
+ * memória seria a forma errada mesmo se alguém quisesse.
+ *
+ * `buildReversal` era o caso mais caro: **dois autores para o que é um estorno**,
+ * um em TypeScript que ninguém roda e um em SQL que roda. É a mesma doença que a
+ * média derivada já teve aqui, e a mutação da suíte protege o que roda.
+ *
+ * A resposta anterior a esse mesmo achado foi escrever teste para elas. Os testes
+ * eram bons e não tornaram nada alcançável: tornaram a morte mais difícil de ver
+ * — e uma mutação curada chegou a prometer que quebrá-las faria "a excursão de
+ * temperatura acusar o lote errado", numa tela que não existe.
+ *
+ * O que fica aqui é o que trabalha: o **vocabulário**, que
+ * `src/sync/agreement.test.ts` confere nos dois sentidos contra o esquema do
+ * servidor e o do aparelho, e a aritmética pura que não toca dado (`daysOfCover`).
+ *
+ * A pergunta do docblock lá em cima — "o que estava dentro da câmara às 03:12?" —
+ * continua sendo verdade sobre o MODELO e continua sem tela. Ela está no
+ * `docs/roadmap.md` com o que falta: uma consulta por lote com corte no tempo,
+ * em SQL, e a tela do lugar dizendo o que estava exposto quando a leitura saiu
+ * da faixa.
  */
-export function balanceOf(movements: readonly Movement[]): Balance[] {
-  const totals = new Map<string, Balance>();
-
-  for (const m of movements) {
-    const k = key(m.itemId, m.locationId);
-    const current = totals.get(k) ?? {
-      itemId: m.itemId,
-      locationId: m.locationId,
-      baseUnits: 0,
-    };
-    current.baseUnits += m.quantityBaseUnits;
-    totals.set(k, current);
-  }
-
-  return [...totals.values()];
-}
-
-/**
- * Balance as it stood at a moment in time - the query behind cold-chain
- * forensics and any "as of" report.
- */
-export function balanceAt(movements: readonly Movement[], instant: Date): Balance[] {
-  const cutoff = instant.getTime();
-  return balanceOf(movements.filter((m) => new Date(m.occurredAt).getTime() <= cutoff));
-}
-
-/**
- * Which lots sat in a location during a window. Feeds the temperature
- * excursion screen: the ledger already knew, nobody had to write it down.
- */
-export function lotsPresentDuring(
-  movements: readonly Movement[],
-  locationId: string,
-  from: Date,
-  to: Date,
-): string[] {
-  const lots = new Set<string>();
-  const fromMs = from.getTime();
-  const toMs = to.getTime();
-
-  for (const m of movements) {
-    if (m.locationId !== locationId || !m.lotId) continue;
-    const at = new Date(m.occurredAt).getTime();
-    if (at <= toMs && m.quantityBaseUnits > 0) lots.add(m.lotId);
-    if (at < fromMs && m.quantityBaseUnits < 0) lots.delete(m.lotId);
-  }
-  return [...lots];
-}
-
-/**
- * Builds the movement that cancels another one. The original is never mutated
- * and never deleted - this is the everyday correction tool, and it has to be so
- * easy that nobody ever asks to restore a backup to fix a typo.
- */
-export function buildReversal(
-  original: Movement,
-  by: { id: string; movementId: string; at: string },
-): Movement {
-  return {
-    ...original,
-    id: by.movementId,
-    kind: 'reversal',
-    quantityBaseUnits: -original.quantityBaseUnits,
-    reversesMovementId: original.id,
-    recordedBy: by.id,
-    recordedAt: by.at,
-    occurredAt: by.at,
-  };
-}
 
 /**
  * Days of stock cover - the number that tells someone to produce, which is

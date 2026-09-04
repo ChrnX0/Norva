@@ -62,7 +62,8 @@ O que isso significa para quem lê: a lista é curta **porque a refutação foi 
 não porque falta trabalho. Os dezoito candidatos ainda não julgados quando a
 varredura parou não entram até passarem pela mesma peneira.
 
-> **Estado em 4 de setembro: os cinco sobreviventes estão fechados.** Eles ficam
+> **Estado em 4 de setembro: os cinco sobreviventes estão fechados, e a procura
+> já trouxe o item 6.** Os cinco ficam
 > abaixo, riscados, porque o que cada um ensinou vale mais que ele — mas nenhum
 > deles é trabalho pendente, e a lista de trabalho está **vazia**.
 >
@@ -178,6 +179,30 @@ fato (`demand.some(d => d.requested > 0)`) em vez do tamanho.
 Contar linha e nomear pedido é a mesma família que a varredura de rótulos do
 mesmo dia caçou trinta e uma vezes — e ela reapareceu **dentro do conserto de
 outra coisa**, o que diz o quanto ela é fácil de escrever.
+
+### 6. A câmara diz "fora da faixa" e não diz o que estava dentro
+
+**Estado:** aberto, achado em 4 de setembro varrendo peça sem chamador.
+
+- **Evidência:** `app/places.tsx:507` mostra o selo "fora da faixa (−20 a −16)" e
+  nada mais · o docblock da fundação promete a resposta desde a primeira linha
+  (`src/domain/ledger.ts:13`: *"the ability to answer 'what was inside the freezer
+  at 03:12?' — which is how a temperature excursion lists the exposed lots"*).
+- **Por que importa:** um alerta que não diz o que está em risco não decide nada
+  — é a Lei da Inteligência inteira num caso só (*o que está diferente agora* está
+  respondido; *qual é a próxima ação provável* não está). Quem lê "−12 °C às 07:20"
+  precisa saber quais lotes estavam lá para ir olhar.
+- **O que falta:** uma consulta por lote com corte no tempo — somar
+  `quantity_base_units` por `lot_id` naquele `location_id` com
+  `occurred_at <= <instante da leitura ruim>`, tendo saldo positivo. O instante é a
+  própria leitura fora da faixa, então não depende de sensor: funciona com a
+  leitura digitada que a tela já grava.
+- **Portão:** P1 satisfeito (a tela do lugar chama no mesmo commit). P3 não se
+  aplica — é leitura, não escrita.
+- **O que NÃO reaproveita, e é a lição do achado:** as dobras `balanceAt` e
+  `lotsPresentDuring` do domínio não servem, e foi por isso que morreram. Elas
+  dobram sobre `Movement[]` em memória, e o aplicativo tem SQLite. A consulta é
+  nova, em SQL, ao lado das outras somas de saldo.
 
 ### Fronteira: a lista de compras não tem tela, só a frase
 

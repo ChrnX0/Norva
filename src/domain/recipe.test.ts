@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { applyCostEvent, emptyStock, priceMove, reorderPoint } from './cost';
-import { balanceOf, buildReversal, lotsPresentDuring, type Movement } from './ledger';
 import { allocateCents, cents, fromDecimal, rate, type Rate } from './money';
 import {
   compareVersions,
@@ -55,63 +54,6 @@ test('rounding up fills the box instead of leaving loose units', () => {
   assert.equal(result.rounded, 1600);
   assert.equal(result.addedUnits, 1);
   assert.equal(1600 % 50, 0);
-});
-
-// --- ledger ----------------------------------------------------------------
-
-const movement = (over: Partial<Movement>): Movement => ({
-  id: 'm',
-  companyId: 'c',
-  kind: 'production',
-  occurredAt: '2026-08-28T10:00:00Z',
-  recordedAt: '2026-08-28T10:00:00Z',
-  recordedBy: 'u',
-  itemId: 'strawberry',
-  quantityBaseUnits: 100,
-  locationId: 'coldRoom',
-  ...over,
-});
-
-test('balance is the sum of movements, and a reversal cancels without deleting', () => {
-  const original = movement({ id: 'a', quantityBaseUnits: 400 });
-  const reversal = buildReversal(original, {
-    id: 'u',
-    movementId: 'b',
-    at: '2026-08-29T09:00:00Z',
-  });
-
-  assert.equal(balanceOf([original])[0].baseUnits, 400);
-  assert.equal(balanceOf([original, reversal])[0].baseUnits, 0);
-  // The original is still there - history stays honest.
-  assert.equal(reversal.reversesMovementId, 'a');
-});
-
-test('the ledger already knows which lots were in the room at 3am', () => {
-  const movements: Movement[] = [
-    movement({ id: 'a', lotId: 'L-2291', quantityBaseUnits: 300 }),
-    movement({
-      id: 'b',
-      lotId: 'L-2288',
-      quantityBaseUnits: 200,
-      occurredAt: '2026-08-27T10:00:00Z',
-    }),
-    movement({
-      id: 'c',
-      lotId: 'L-2288',
-      quantityBaseUnits: -200,
-      occurredAt: '2026-08-27T18:00:00Z',
-    }),
-  ];
-
-  const exposed = lotsPresentDuring(
-    movements,
-    'coldRoom',
-    new Date('2026-08-29T03:12:00Z'),
-    new Date('2026-08-29T05:40:00Z'),
-  );
-
-  // L-2288 left before the window; L-2291 was still inside.
-  assert.deepEqual(exposed, ['L-2291']);
 });
 
 // --- recipe cost -----------------------------------------------------------

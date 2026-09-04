@@ -2583,3 +2583,49 @@ prova que morde.
 **A regra que sai:** o portão P1 diz o que *entra* sem chamador. Faltava a outra
 metade — o que **fica** sem chamador depois que o chamador some. Peça sem chamador
 não é um evento de entrada, é um estado, e estado se mede continuamente.
+
+## 4 de setembro — a resposta anterior a "nada chama isto" foi escrever teste
+
+**O que se viu.** O `CLAUDE.md` nomeia, entre as peças sem chamador, "`balanceAt` e
+`daysOfCover` chamados só por teste". Fui conferir os três exemplos que ele lista.
+Dois se fecharam sozinhos com o uso — `assistant_phrase` ganhou escritor, e
+`Draft.kind` ganhou leitor **hoje**, no conserto do "Lançado." que não lançava
+nada. `balanceAt` continuava lá. E puxando o fio, não era uma: eram **quatro**
+funções exportadas em `src/domain/ledger.ts` sem nenhum chamador fora de teste —
+`balanceOf`, `balanceAt`, `lotsPresentDuring` e `buildReversal`.
+
+**Por que elas nunca teriam chamador.** Não é esquecimento, é *forma*: as quatro
+dobram sobre `Movement[]` em memória, e o aplicativo **nunca tem os movimentos em
+memória** — ele tem SQLite. Cada pergunta já é respondida em SQL, onde os dados
+estão: `stockByPlace`, `balanceByLocation` e `lotsInStock` somam
+`quantity_base_units`, e `reverseGroup` escreve o estorno negando a quantidade na
+própria instrução. Carregar anos de movimento num celular para dobrar em memória
+seria a forma errada mesmo se alguém quisesse.
+
+`buildReversal` era o caso caro: **dois autores para o que é um estorno**, um em
+TypeScript que ninguém roda e um em SQL que roda. Mudar a regra na cópia bonita
+não faria nada.
+
+**E o que a sessão anterior fez com o mesmo achado.** O docblock do teste diz, com
+todas as letras: *"The two ledger queries nothing was calling and nothing was
+checking… both were exported with a docblock and never run."* Alguém viu, e
+respondeu **escrevendo teste**. Os testes eram bons e corretos — e não tornaram
+nada alcançável: tornaram a morte mais difícil de ver. Depois disso, uma mutação
+curada foi acrescentada por cima, prometendo que quebrar o limite faria *"a
+excursão de temperatura acusar o lote errado"* — numa tela que não existe. O
+portão que diz "a suíte morde onde promete morder" estava mordendo uma regra sem
+efeito em produção.
+
+**O que mudou.** As quatro saíram, com o motivo escrito no lugar delas. O
+vocabulário fica, e fica ganho: `src/sync/agreement.test.ts` confere o tipo
+`Movement` nos dois sentidos contra o esquema do servidor e o do aparelho — esse é
+um teste que compara *duas fontes de verdade*, não um que exercita código parado.
+A pergunta que o docblock da fundação promete — "o que estava dentro da câmara às
+03:12?" — virou item 6 do roadmap, com a consulta que ela pede: SQL com corte no
+tempo, e não a dobra que morreu.
+
+**A regra que sai:** quando nada chama uma peça, há três respostas honestas —
+trazer o chamador, apagar a peça, ou registrar a fronteira com quem vai chamá-la.
+**Escrever teste não é uma delas.** Teste sobre peça inalcançável não prova
+capacidade: prova que a peça faz o que ela faz, e passa a proteger uma promessa
+que ninguém pode cobrar.

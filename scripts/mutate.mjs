@@ -564,12 +564,14 @@ const DEFECTS = [
     to: 'if (false) return null;',
     hurts: 'item que não sai nada vira cobertura infinita, e o briefing manda não produzir para sempre',
   },
-  {
-    file: 'src/domain/ledger.ts',
-    from: 'return balanceOf(movements.filter((m) => new Date(m.occurredAt).getTime() <= cutoff));',
-    to: 'return balanceOf(movements.filter((m) => new Date(m.occurredAt).getTime() < cutoff));',
-    hurts: 'o saldo "às 3h" perde o movimento das 3h em ponto, e a excursão de temperatura acusa o lote errado',
-  },
+  // A mutação do `balanceAt` saiu com a função.
+  //
+  // Ela prometia que quebrar o limite faria "a excursão de temperatura acusar o
+  // lote errado" — e não existe tela de excursão, nem chamador para aquela
+  // função. Era uma mordida numa regra sem efeito em produção: o portão dizendo
+  // "a suíte morde onde promete morder" sobre uma promessa que ninguém podia
+  // cobrar. Quando a tela existir, a mutação volta apontando para o SQL que ela
+  // vai usar.
   {
     file: 'src/domain/units.ts',
     from: 'if (h.tiers[0].perBaseUnit !== 1) return false;',
