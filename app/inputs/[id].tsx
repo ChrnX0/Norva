@@ -758,13 +758,19 @@ function InputDetail() {
       ) : null}
 
       {/* O que foi lançado, e o desfazer de cada um.
+          Some enquanto a contagem está aberta, pela mesma razão que o saldo some:
+          a cegueira é propriedade da TELA, não de um cartão. A linha "+50.000 g"
+          de uma compra recente é o número esperado escrito de outro jeito, e com
+          ele à vista a conferência vira cópia — que é indistinguível de uma
+          contagem de verdade no dia seguinte. O e2e pegou isto na primeira
+          execução depois do cartão novo; nenhum teste de unidade podia.
           A fundação diz que se corrige por estorno, nunca por exclusão — e até
           agora só a corrida de produção tinha por onde. A nota digitada com dez
           sacos onde era um, a perda de 40 onde era 4, o zero contado com o dedo
           torto: os três ficavam no razão para sempre.
           Linha sem grupo não oferece desfazer: movimento antigo, gravado antes de
           o ato carregar grupo. Melhor não oferecer do que oferecer e falhar. */}
-      {(data?.movements ?? []).length > 0 ? (
+      {!counting && (data?.movements ?? []).length > 0 ? (
         <Reveal index={7}>
           <Card
             hue={palette.mint}

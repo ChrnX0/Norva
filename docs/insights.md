@@ -3302,3 +3302,31 @@ desfazer no toque — com a conta aberta antes de escrever, o que volta e o que 
 e a recusa explicando o caminho quando não cabe. A compra passa a carregar a NOTA
 como grupo (não a linha: no dia em que uma nota tiver duas linhas, o grupo por
 linha desfaria metade dela), e a contagem e a perda carregam a própria linha.
+
+## 4 de setembro — a cegueira era do cartão, e tinha de ser da tela
+
+A contagem deste aplicativo é cega de propósito: enquanto ela está aberta, o saldo
+esperado sai da tela, porque quem vê o número confere a tela em vez da prateleira — e
+uma cópia não se distingue de uma contagem de verdade um mês depois. Isso estava
+implementado, testado, e escrito no comentário do cartão.
+
+Acrescentei o cartão "Últimos lançamentos" logo abaixo, e o `e2e` reprovou na
+primeira execução: *"the expected quantity was still visible while counting"*. A
+linha `Compra +50.000 g` de uma compra recente **é** o número esperado, escrito de
+outro jeito. Nenhum teste de unidade podia ver isso: cada cartão está correto
+sozinho, e a regra é sobre a soma dos dois.
+
+**A regra que fica: invariante de tela não se guarda dentro de um componente.** O
+cartão da contagem escondia o próprio número e não tinha como saber do vizinho que
+nasceu depois — e o vizinho não tinha como saber que existe uma regra a respeitar. O
+que protege é a checagem que olha a TELA INTEIRA, e é por isso que o `e2e` deste
+projeto lê `document.body.innerText` em vez de consultar componentes.
+
+E vale como aviso sobre o custo de crescer telas: **todo cartão novo numa tela com
+regra de visibilidade é uma chance de quebrá-la em silêncio**. Aqui não foi
+silencioso porque a checagem existia desde antes — ela foi escrita quando a contagem
+cega foi construída, e cobrou a conta hoje, de uma mudança que nem existia então.
+
+**O que mudou.** O cartão de lançamentos desaparece enquanto a contagem está aberta,
+pela mesma razão que o saldo desaparece, e o comentário diz isso onde a próxima
+pessoa vai ler.
