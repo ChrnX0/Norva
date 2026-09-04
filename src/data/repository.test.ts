@@ -2697,3 +2697,46 @@ test('reversing twice would double the correction, so the second time is refused
   )?.baseUnits;
   assert.equal(saldoFinal, saldoDepoisDoPrimeiro, 'o segundo estorno não moveu nada');
 });
+
+test('a manufactured product is worth what it cost to make, everywhere it is', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const loja = (await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' })).id;
+
+  const corrida = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: fabrica,
+    batches: 1,
+    unitsProduced: 500,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+
+  // O custo congelado da corrida é a verdade; a média do produto tem que ser
+  // ela, porque não havia picolé nenhum antes.
+  const custos = await itemCosts(LOCAL_COMPANY_ID);
+  assert.ok(
+    Math.abs(custos[product.itemId] - corrida.unitCostRate) < 1e-9,
+    `a média do produto é o custo da corrida (média ${custos[product.itemId]}, corrida ${corrida.unitCostRate})`,
+  );
+
+  // E o valor viaja com a mercadoria. Antes disto, mandar 500 picolés para a
+  // loja fazia o dinheiro evaporar: o insumo saía valorado do almoxarifado e o
+  // produto entrava valendo zero na loja.
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: product.itemId,
+    fromLocationId: fabrica,
+    toLocationId: loja,
+    baseUnits: 500,
+  });
+
+  const lugares = await stockByPlace(LOCAL_COMPANY_ID);
+  const naLoja = lugares.find((l) => l.locationId === loja);
+  const esperado = Math.round(corrida.unitCostRate * 500);
+  assert.equal(
+    naLoja?.valueCents,
+    esperado,
+    'a loja vale o que a carga custou para fazer, não R$ 0,00',
+  );
+  assert.ok(esperado > 0, 'e o custo de fazer não é zero');
+});

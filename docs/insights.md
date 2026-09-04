@@ -2199,3 +2199,49 @@ caixa e quem lê o QR precisa achar a verdade.
 **A regra que sai:** teste unitário prova a escrita; só o aplicativo dirigido
 prova a LEITURA. As duas metades de uma correção moram em arquivos diferentes, e
 a suíte que só exercita a primeira passa verde numa correção pela metade.
+
+## 3 de setembro — o dinheiro evaporava do balanço a cada corrida de produção
+
+**O que se viu.** A tela de lugares dizia, embaixo de "Loja Centro": *"um item ·
+vale R$ 0,00"* — com 1.466 picolés listados logo abaixo. Não era formatação.
+`item_costs` só tem um autor, `recordPurchase`, e picolé nunca é comprado: ele
+sai do tacho. Sem linha em `item_costs`, o produto acabado vale zero em toda
+consulta que valora estoque.
+
+**Por que é maior que uma tela.** O consumo tira o insumo do saldo **com o valor
+junto**, e a produção põe o produto de volta valendo nada. O balanço da empresa
+encolhe a cada corrida, em silêncio, exatamente pelo custo do que foi produzido.
+E o zero se espalhava por caminhos que ninguém ligaria a esse: `moveBetween` e
+`recordLoss` leem a taxa de `item_costs`, então uma transferência de produto
+gravava `unit_cost_rate` NULO nas duas pernas, e uma perda de produto acabado
+era avaliada em zero — perda que a tela de perdas soma em dinheiro.
+
+**A decisão que parecia cobrir isso, e não cobria.** Havia docblock escrito:
+*"Nada é escrito em `item_costs`. Valor derivado tem um autor só, e a média já
+responde sozinha."* A frase é verdadeira sobre o INSUMO consumido — consumo à
+taxa média não move a média dele. E é sobre outro `item_id`. Para o produto não
+havia autor nenhum, nem no aparelho nem no servidor. **"Um autor só" não estava
+sendo cumprido; estava sendo dispensado** — e esse é o formato mais perigoso de
+justificativa: verdadeira, escrita, e sobre outra coisa.
+
+**Como apareceu.** Olhando uma foto de tela. A varredura de defeitos leu
+`/places` e viu "vale R$ 0,00" ao lado de mil e quatrocentos picolés; três
+refutadores independentes tentaram derrubar a leitura e os três a confirmaram, um
+deles reproduzindo com teste descartável. O primeiro conserto proposto — trocar a
+fonte da consulta para `movements.unit_cost_rate` — foi medido e **estava
+errado**: a perna de transferência tinha taxa nula, então o valor não sumia, ele
+ficava preso na fábrica que já não tinha o produto.
+
+**O que mudou.** `recordProduction` passa a ser o autor da média do produto, e a
+migração 0025 põe o espelho no servidor pelo mesmo cálculo, com `item_costs`
+continuando fora da fila — cada lado conclui, ninguém manda o número pronto. A
+`db:verify` ganhou a garantia que faltava: as duas implementações, independentes,
+chegam a 68,4224 para o mesmo picolé. Provado quebrando: com o gatilho apontando
+para outro `kind`, a checagem falha com "o servidor não sabe quanto vale o que o
+tacho fez".
+
+**E um detalhe que a capa do projeto previa.** Reaproveitar o evento de compra
+para a corrida custou visivelmente: ele fala de nota, e nota tem centavo inteiro.
+A primeira corrida de 500 unidades saía com média 64,996 contra um custo
+congelado de 64,99686 — dois números para o mesmo picolé no dia em que ele
+nasceu. Taxa não é valor final e não se arredonda: nasceu o `blendRate`.

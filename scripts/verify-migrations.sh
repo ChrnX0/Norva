@@ -528,7 +528,21 @@ srv_average=$(psql -d "$DB" -Atqc "select round(new_rate, 4) from item_cost_hist
   where item_id = '$SUGAR' order by observed_at desc, ctid desc limit 1;")  # proofgate-allow
 [ "$srv_average" = "$DEV_AVERAGE" ] || fail "média divergente: aparelho $DEV_AVERAGE, servidor $srv_average"
 
+# E a média do PRODUTO, que é a metade que não existia. Nenhuma nota compra
+# picolé: o servidor só o conhece pelo movimento de produção, e até a 0025 não
+# olhava para ele — `item_costs` do produto vinha vazio e o estoque da loja
+# valia R$ 0,00 com mil e quatrocentos picolés dentro.
+PRODUCT=$(grep -oE 'DEVICE_PRODUCT_ID=[0-9a-f-]+' "$QUEUE" | cut -d= -f2)
+DEV_PRODUCT_AVERAGE=$(grep -oE 'DEVICE_PRODUCT_AVERAGE=[0-9.]+' "$QUEUE" | cut -d= -f2)
+
+srv_product_average=$(psql -d "$DB" -Atqc "select round(average_rate, 4) from item_costs
+  where item_id = '$PRODUCT';")  # proofgate-allow
+[ -n "$srv_product_average" ] || fail "o servidor não sabe quanto vale o que o tacho fez"
+[ "$srv_product_average" = "$DEV_PRODUCT_AVERAGE" ] ||
+  fail "média do produto divergente: aparelho $DEV_PRODUCT_AVERAGE, servidor $srv_product_average"
+
 echo "    saldo $srv_balance e média $srv_average, iguais nos dois lados"
+echo "    e o produto do tacho vale $srv_product_average nos dois, sem nota nenhuma"
 
 echo "==> check 7: a grade do produto recusa o cadastro impossível"
 

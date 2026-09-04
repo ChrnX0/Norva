@@ -1,4 +1,4 @@
-import { applyCostEvent, type StockCostState } from '@/domain/cost';
+import { applyCostEvent, blendRate, type StockCostState } from '@/domain/cost';
 import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
 import { DEFAULT_ALERTS, type AlertSettings } from '@/domain/alerts';
 import { daysOfCover } from '@/domain/ledger';
@@ -1228,9 +1228,26 @@ export type ProductionResult = {
  * congelar o teórico esconderia a perda que acabou de acontecer, e ela é
  * exatamente o número que o dono precisa ver.
  *
- * Nada é escrito em `item_costs`. Valor derivado tem um autor só, e a média já
- * responde sozinha: consumo à taxa média não move a média (`applyCostEvent`),
- * então valor do razão dividido por quantidade do razão continua sendo ela.
+ * **A média do PRODUTO é escrita aqui, e essa foi a metade que faltava.**
+ *
+ * O que este docblock dizia antes está certo no que afirma e errado no que
+ * concluía: consumo à taxa média não move a média DO INSUMO, então a corrida
+ * não precisa reescrever o custo da polpa. Só que o produto é outro `item_id`,
+ * e para ele não existia autor nenhum — nem aqui nem no servidor, cujo gatilho
+ * só derivava de `purchase_lines`. Picolé nunca foi comprado, então nunca teve
+ * linha em `item_costs`, então valia zero.
+ *
+ * Zero não ficava numa tela só. `stockByPlace` valorava a loja com 1.466
+ * picolés em "R$ 0,00"; a mesma junção valorava o estoque na tela de itens; e
+ * `moveBetween` e `recordLoss` congelavam `unit_cost_rate` NULO nas pernas de
+ * transferência e nas perdas de produto acabado. O efeito somado é o pior de
+ * todos: o insumo SAI do saldo valorado e o produto entra valendo nada, então
+ * o dinheiro evaporava do balanço a cada corrida.
+ *
+ * "Valor derivado tem um autor só" não estava sendo cumprido — estava sendo
+ * dispensado. O autor é este, e o servidor tem o espelho dele na migração
+ * 0025, pela mesma média móvel: os dois lados concluem, nada de `item_costs`
+ * atravessa a fila.
  */
 /**
  * O que faltava quando alguém tentou produzir mais do que dá.
@@ -1484,6 +1501,50 @@ export async function recordProduction(
       );
       await enqueue(conn, [{ table: 'movements', rowId: id }]);
     };
+
+    // A média do produto, calculada com o saldo de ANTES desta corrida.
+    //
+    // Mesma ordem de `recordPurchase`: o que havia em mãos é lido antes de a
+    // entrada existir, senão a corrida entraria na média de si mesma. E o
+    // valor é o consumo desta corrida, arredondado uma vez — a taxa que sai
+    // daqui continua fracionária.
+    const custoAtual = await conn.getFirstAsync<{ average_rate: number }>(
+      `SELECT average_rate FROM item_costs WHERE item_id = ?`,
+      [product.itemId],
+    );
+    const emMaos = await conn.getFirstAsync<{ base_units: number }>(
+      `SELECT COALESCE(SUM(quantity_base_units), 0) AS base_units
+         FROM movements WHERE company_id = ? AND item_id = ?`,
+      [companyId, product.itemId],
+    );
+    const antes: StockCostState = {
+      baseUnits: emMaos?.base_units ?? 0,
+      averageRate: (custoAtual?.average_rate ?? 0) as Rate,
+    };
+    // A taxa CONGELADA entra na média, não a soma dos consumos: ela já carrega
+    // a embalagem por unidade (`unitPackagingCents`), que é dinheiro do produto
+    // e não sai de movimento nenhum. E entra como taxa, sem virar centavo
+    // inteiro no caminho — `blendRate` existe por causa desses oito décimos de
+    // milésimo.
+    const mediaNova = blendRate(antes, {
+      baseUnits: input.unitsProduced,
+      rate: unitCostRate,
+    });
+
+    await conn.runAsync(
+      `INSERT INTO item_costs (item_id, company_id, average_rate, last_rate, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(item_id) DO UPDATE SET
+         average_rate = excluded.average_rate,
+         last_rate = excluded.last_rate,
+         updated_at = excluded.updated_at`,
+      [product.itemId, companyId, mediaNova, unitCostRate, at],
+    );
+    await conn.runAsync(
+      `INSERT INTO item_cost_history (id, company_id, item_id, previous_rate, new_rate, observed_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [newId(), companyId, product.itemId, antes.averageRate || null, mediaNova, occurred],
+    );
 
     // Só a linha de PRODUÇÃO aponta para o lote novo.
     //

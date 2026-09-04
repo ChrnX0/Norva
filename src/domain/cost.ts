@@ -73,6 +73,34 @@ export function applyCostEvent(state: StockCostState, event: CostEvent): StockCo
   return { baseUnits: state.baseUnits - event.baseUnits, averageRate: state.averageRate };
 }
 
+/**
+ * A média móvel entre duas TAXAS, sem passar por dinheiro.
+ *
+ * `applyCostEvent` fala de nota: o que entrou custou tantos centavos inteiros,
+ * porque foi isso que alguém pagou. Uma corrida de produção não tem nota — o
+ * que ela tem é a taxa congelada (consumo mais embalagem, por unidade), e o
+ * valor do lote é taxa vezes quantidade, que é fracionário por natureza.
+ *
+ * Forçar esse valor a centavos inteiros para reaproveitar o evento de compra
+ * custou visivelmente: a primeira corrida de 500 unidades saía com média
+ * 64,996 contra um custo congelado de 64,99686 — dois números para o mesmo
+ * picolé, no dia em que ele nasceu. É a mesma perda que a capa deste projeto
+ * proíbe, e a regra que resolve já estava escrita: **só o valor final
+ * arredonda, uma vez, e taxa não é valor final.**
+ *
+ * Estoque negativo conta como zero, igual ao evento de compra e ao gatilho do
+ * servidor: recusar empurraria alguém a digitar mentira.
+ */
+export function blendRate(
+  held: { baseUnits: number; averageRate: Rate },
+  arriving: { baseUnits: number; rate: Rate },
+): Rate {
+  const heldUnits = Math.max(0, held.baseUnits);
+  const total = heldUnits + arriving.baseUnits;
+  if (total <= 0) return arriving.rate;
+  return ((held.averageRate * heldUnits + arriving.rate * arriving.baseUnits) / total) as Rate;
+}
+
 export function foldCostEvents(
   events: readonly CostEvent[],
   from: StockCostState = emptyStock,

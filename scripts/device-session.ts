@@ -363,6 +363,15 @@ async function main() {
   // A Rate, not money: fractional by foundation, and printed here only so the
   // server's own average can be compared against it.
   out.push(`-- DEVICE_SUGAR_AVERAGE=${(costs[sugar.id] ?? 0).toFixed(4)}`); // proofgate-allow
+  // E o PRODUTO, que é a média que o servidor derivava de nada.
+  //
+  // O açúcar prova a média da compra: os dois lados a calculam a partir das
+  // linhas de nota. O picolé prova a outra metade, que não existia — nenhuma
+  // nota compra picolé, então até a migração 0025 o servidor só sabia dele
+  // pelo movimento de produção, e não olhava. As duas implementações
+  // independentes da mesma regra, agora nos dois caminhos.
+  out.push(`-- DEVICE_PRODUCT_ID=${produto.itemId}`);
+  out.push(`-- DEVICE_PRODUCT_AVERAGE=${(costs[produto.itemId] ?? 0).toFixed(4)}`); // proofgate-allow
   out.push(`-- DEVICE_QUEUE_LENGTH=${queue.length}`);
 
   process.stdout.write(out.join('\n') + '\n');
