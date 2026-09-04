@@ -2533,3 +2533,13 @@ presença faltou ao lado da de ausência.
 que o compilador não vê — o dicionário. Onde existe essa costura invisível, cabe
 uma guarda barata que a torne visível **na velocidade da unidade**, em vez de
 deixá-la reprovar na velocidade do navegador.
+
+**E a terceira repetição virou guard, como a diretriz manda.** "Afirmar ausência
+sobre um sujeito que pode estar vazio" apareceu três vezes num dia — no teste do
+assistente, na asserção do e2e e na guarda nova — e é padrão que um script pega.
+Virou `56-vacuous-negative` na proofgate
+([PR #16](https://github.com/ChrnX0/proofgate/pull/16)): dispara quando uma linha
+afirma ausência sobre um sujeito que o mesmo diff defaultou para vazio e nada
+naquele arquivo afirma um comprimento. Estreito de propósito — só arquivo de
+teste, WARN, e medido contra um diff real de 31 mil linhas com zero disparos.
+Conselho eu esqueço na próxima sessão; guard roda sozinho.
