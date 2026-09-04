@@ -565,6 +565,9 @@ export const es: Dictionary = {
       countConfirm: 'Registrar el conteo',
       countConfirmAction: 'Registrar',
       countHidden: 'oculto mientras usted cuenta',
+      countRoom: 'Este es el saldo de {{room}}. El recuento es de esa sala.',
+      countSpread:
+        'Este artículo está en {{count}} lugares. Se cuenta un lugar por vez — toque el lugar para contar allí.',
       countConfirmTitle: '¿Registrar el conteo?',
       countConfirmShort:
         'Usted contó {{counted}}. El sistema esperaba {{expected}}. Faltan {{diff}}, que valen {{money}}. La diferencia queda registrada y nada se borra.',

@@ -278,3 +278,90 @@ test('no screen scopes the expiry warning to a single room', () => {
       'o LOTE, onde quer que ele esteja.',
   );
 });
+
+/**
+ * A sala que a contagem grava é a sala que a tela mostrou.
+ *
+ * **A cicatriz.** `app/inputs/[id].tsx` mostrava `item.onHandBaseUnits` — o
+ * total da EMPRESA, porque `findItem` era chamada sem sala — e gravava a
+ * diferença com `locationId: defaultLocationId(...)`, o almoxarifado. Com a
+ * polpa dividida entre a fábrica e a câmara fria, contar a prateleira da fábrica
+ * "encontrava" uma falta do tamanho exato do que estava na câmara, e gravava essa
+ * falta contra a fábrica. O saldo da fábrica caía, o da câmara não subia: estoque
+ * teleportado, com o operador tendo feito tudo certo e o livro-razão guardando a
+ * mentira para sempre — contagem não se apaga, se estorna.
+ *
+ * **Por que guarda de fonte.** O defeito não está em função nenhuma:
+ * `recordCount` faz exatamente o que lhe pedem, e `findItem` aceita a sala desde
+ * que alguém a passe. Está na combinação de duas linhas a duzentas linhas de
+ * distância dentro de uma tela — e tela não tem teste de unidade aqui. Um teste
+ * de `recordCount` passa nos dois mundos.
+ *
+ * **A régua.** Numa tela, o local de uma contagem tem de ser um valor que a tela
+ * calculou (a sala da rota, ou o único lugar em que o item está). Chamada de
+ * função no lugar do local é o padrão do defeito: `defaultLocationId(...)` e a
+ * constante da empresa são as duas formas de dizer "o almoxarifado, sempre",
+ * escritas ao lado de um número que pode não ser dele.
+ *
+ * O que ele NÃO prova: que a tela escolheu a sala CERTA. Prova que ela escolheu.
+ */
+export function contagemCega(texto: string): string[] {
+  const achados: string[] = [];
+  // Até o `);` que fecha a chamada. O preguiçoso não para dentro de
+  // `defaultLocationId(...)` porque ali o `)` é seguido de vírgula, não de `;`.
+  for (const m of texto.matchAll(/recordCount\(([\s\S]{0,400}?)\)\s*;/g)) {
+    const local = m[1].match(/locationId:\s*([^,\n]+)/);
+    if (!local) continue;
+    const valor = local[1].trim();
+    if (/\w\(|LOCAL_COMPANY_ID|companyId/.test(valor)) achados.push(valor);
+  }
+  return achados;
+}
+
+test('no screen counts a room it did not show', () => {
+  const telas = sourcesUnder('app');
+  assert.ok(telas.length > 10, 'a varredura de telas veio vazia — a comparação seria de graça');
+
+  const cegas: string[] = [];
+  for (const f of telas) {
+    for (const valor of contagemCega(readFileSync(f, 'utf8'))) cegas.push(`${f}: ${valor}`);
+  }
+
+  assert.deepEqual(
+    cegas,
+    [],
+    `estas telas gravam a contagem num lugar fixo:\n  ${cegas.join('\n  ')}\n` +
+      'A diferença de uma contagem só é verdade contra o saldo que estava na tela. ' +
+      'Lugar fixo ao lado de um saldo que pode ser de outra sala teleporta estoque, ' +
+      'e contagem não se apaga — se estorna.',
+  );
+});
+
+test('the counting guard bites the real scar, and leaves the fix alone', () => {
+  // A linha exata que existia em `app/inputs/[id].tsx`, numa linha só.
+  assert.deepEqual(
+    contagemCega(
+      `await recordCount(LOCAL_COMPANY_ID, { locationId: defaultLocationId(LOCAL_COMPANY_ID), itemId: item.id, countedBaseUnits: 1 });`,
+    ),
+    ['defaultLocationId(LOCAL_COMPANY_ID)'],
+    'a cicatriz tem que reprovar',
+  );
+
+  // E a outra forma de dizer a mesma coisa.
+  assert.deepEqual(
+    contagemCega(`recordCount(LOCAL_COMPANY_ID, {\n  locationId: LOCAL_COMPANY_ID,\n});`),
+    ['LOCAL_COMPANY_ID'],
+  );
+
+  // O conserto passa: o local é um valor que a tela calculou.
+  assert.deepEqual(
+    contagemCega(
+      `await recordCount(LOCAL_COMPANY_ID, {\n      locationId: contarEm,\n      itemId: item.id,\n      countedBaseUnits: Math.round(counted),\n    });`,
+    ),
+    [],
+  );
+
+  // E uma chamada sem local nenhum não é assunto desta guarda — quem exige o
+  // campo é o tipo, e ele já reprova na compilação.
+  assert.deepEqual(contagemCega(`recordCount(companyId, { ...input });`), []);
+});

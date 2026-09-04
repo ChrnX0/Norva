@@ -965,6 +965,14 @@ export async function itemMovements(
   companyId: string,
   itemId: string,
   limit = 20,
+  /**
+   * A sala, quando a pergunta é de uma sala.
+   *
+   * Sem ela a lista é da empresa — e uma tela que mostra o saldo de uma sala
+   * dizendo "conferido em 3/9" com a conferência de OUTRA sala está afirmando
+   * que a prateleira daqui foi olhada quando ninguém a olhou.
+   */
+  locationId?: string,
 ): Promise<MovementRow[]> {
   const conn = await db();
   const rows = await conn.getAllAsync<{
@@ -978,9 +986,10 @@ export async function itemMovements(
     `SELECT id, kind, quantity_base_units, unit_cost_rate, note, occurred_at
        FROM movements
       WHERE company_id = ? AND item_id = ?
+        AND (? IS NULL OR location_id = ?)
       ORDER BY occurred_at DESC, rowid DESC
       LIMIT ?`,
-    [companyId, itemId, limit],
+    [companyId, itemId, locationId ?? null, locationId ?? null, limit],
   );
 
   return rows.map((r) => ({
@@ -3517,10 +3526,23 @@ export async function recipesUsingItem(
   );
 }
 
-export async function findItem(companyId: string, itemId: string): Promise<ItemWithCost | null> {
+export async function findItem(
+  companyId: string,
+  itemId: string,
+  /**
+   * A sala, quando a pergunta é de uma sala.
+   *
+   * Sem ela o saldo é o da empresa — e era esse o defeito: a tela de detalhe
+   * mostrava o total da empresa e a contagem escrevia a diferença contra o
+   * almoxarifado. Com a polpa dividida entre a fábrica e a câmara fria, contar a
+   * prateleira TELEPORTAVA estoque: a diferença saía de um número maior e era
+   * gravada num lugar menor, com o operador tendo feito tudo certo.
+   */
+  locationId?: string,
+): Promise<ItemWithCost | null> {
   // Includes the inactive: the screen that offers to reactivate an item has to
   // be able to open it.
-  const all = await listItems(companyId, undefined, true);
+  const all = await listItems(companyId, undefined, true, locationId);
   return all.find((item) => item.id === itemId) ?? null;
 }
 

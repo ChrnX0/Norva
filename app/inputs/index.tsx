@@ -344,7 +344,13 @@ function InputsList() {
                     : '—'
                 }
                 trailingTone={item.averageRate > 0 ? 'ink' : 'muted'}
-                onPress={() => router.push(`/inputs/${item.id}`)}
+                onPress={() =>
+                  // A sala vai junto, e ela não é enfeite: sem ela a tela de
+                  // detalhe abre no total da empresa e a contagem grava a
+                  // diferença contra o almoxarifado. Com a polpa dividida entre
+                  // a fábrica e a câmara fria, isso TELEPORTA estoque.
+                  router.push(`/inputs/${item.id}${place ? `?sala=${place}` : ''}`)
+                }
               />
             ))}
             {/* A régua da coluna da direita, colada na coluna que ela explica. */}

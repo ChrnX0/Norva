@@ -560,6 +560,9 @@ export const en: Dictionary = {
       countConfirm: 'Record the count',
       countConfirmAction: 'Record',
       countHidden: 'hidden while you count',
+      countRoom: 'This is the {{room}} balance. The count is for that room.',
+      countSpread:
+        'This item sits in {{count}} places. A count covers one place — tap a place to count there.',
       countConfirmTitle: 'Record the count?',
       countConfirmShort:
         'You counted {{counted}}. The system expected {{expected}}. That is {{diff}} missing, worth {{money}}. The difference is recorded and nothing is erased.',

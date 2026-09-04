@@ -544,6 +544,25 @@ const registerCount: Skill = {
       return { text: 'Não entendi a quantidade. Pode repetir com o número?' };
     }
 
+    // Em que lugares este item está de verdade.
+    //
+    // A decisão registrada em `src/data/assistantData.ts` dizia que o
+    // assistente conta o lugar padrão "enquanto houver um só, e quando existir
+    // mais de um a habilidade passa a perguntar qual". A condição chegou: as
+    // telas de almoxarifado já filtram por sala. Sem esta checagem o assistente
+    // compara com o total da empresa e grava a diferença no almoxarifado - a
+    // mesma teleportação que a tela de detalhe tinha.
+    const holding = (await ctx.data.stockByPlace()).filter((place) =>
+      place.lines.some((line) => line.itemId === item.id),
+    );
+    if (holding.length > 1) {
+      const nomes = holding.map((place) => place.locationName.trim() || 'Fábrica').join(', ');
+      return {
+        text: `${item.name} está em ${holding.length} lugares: ${nomes}. Conte um lugar por vez - abra o item e escolha o lugar.`,
+        route: `/inputs/${item.id}`,
+      };
+    }
+
     const factor = item.purchaseToBase ?? 1;
     const countedBaseUnits = Math.round(packs * factor);
     const expected = item.onHandBaseUnits;

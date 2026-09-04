@@ -57,6 +57,32 @@ meses de uma fábrica de seis lojas): **9,9 segundos numa consulta que leva 4 ms
 índice**. Oito consultas usam a cláusula e a capa dispara cinco de uma vez. Índice
 criado nos dois lados, com guarda que lê o plano de execução.
 
+### Consertado depois que isto foi escrito
+
+Os números dos achados **não mudam** — este documento é lido por quem o recebeu, e
+renumerar uma lista que alguém já leu é trocar o assunto de baixo do dedo dele. O que
+foi fechado fica marcado aqui, com o que impede a volta.
+
+- **1 — item e local de outra empresa.** Três chaves compostas em `movements`
+  (`0029`), pelo mesmo padrão que `orders` já usava. Guarda: checagem 10 do
+  `db:verify`, que tenta a escrita cruzada contra um Postgres de verdade e espera a
+  recusa.
+- **3 — o custo médio depois do estorno.** `recomputeItemCost` refaz a média dobrando
+  o livro-razão sem a corrida errada e sem a perna do estorno. Guarda: duas mutações
+  curadas, uma delas na cláusula do estorno.
+- **4 — a câmara fria meio invisível.** Duas das três leituras consertadas (o cartão
+  de validade da capa e o alarme do celular), com guarda de fonte que reprova qualquer
+  tela que prenda o aviso a uma sala. **A terceira segue aberta**: a conta de quanto
+  dá para prometer (`src/data/repository.ts`) soma só o almoxarifado, então produto
+  acabado na câmara não conta como prometível.
+- **6 — a contagem que prometia um número e gravava outro.** A sala viaja pela rota,
+  `findItem` e `itemMovements` respondem pela sala, e a contagem grava onde leu. Com o
+  item em mais de um lugar e nenhum escolhido a contagem não é oferecida: a tela lista
+  os lugares e cada linha leva à contagem daquele. O assistente segue a mesma regra —
+  item espalhado ele localiza, não conta. Guardas: uma de fonte contra local fixo numa
+  tela, três mutações curadas, e um teste que prende o número da tela ao número que o
+  `recordCount` daquela sala espera.
+
 ### Aberto, e é o que decide se um cliente entra
 
 **1. O livro-razão aceita item e local de outra empresa.** *(alta — uma migração)*

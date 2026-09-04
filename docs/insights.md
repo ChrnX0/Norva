@@ -3064,3 +3064,63 @@ simplesmente ia.
 E a segunda metade: **o que roda em segundo plano tem que ficar numa árvore que eu
 consiga olhar.** `&` num comando de sessão entrega o processo ao init, e a partir daí
 ele não aparece em nenhum lugar que eu vá procurar por hábito.
+
+## 4 de setembro — o docblock descrevia o defeito, e a tela o cometeu de qualquer jeito
+
+`recordCount` exige `locationId` sem padrão, e a razão está escrita na assinatura
+dela desde que ela nasceu:
+
+> *"With a default, counting the cold room without saying so would compare against
+> the company's whole balance and write the difference into the cold room — stock
+> teleported between rooms by an operator who did everything right."*
+
+`app/inputs/[id].tsx` mostrava `findItem(LOCAL_COMPANY_ID, id)` — sem sala, portanto
+o total da empresa — e gravava `locationId: defaultLocationId(LOCAL_COMPANY_ID)`. As
+duas linhas ficavam a 130 linhas de distância uma da outra, cada uma correta sozinha.
+Juntas eram exatamente o parágrafo acima, com o sinal trocado: com 44.000 g na
+fábrica e 6.000 na câmara, quem abrisse o item pelo filtro da câmara, contasse a
+prateleira e digitasse 6.000 gravava **−38.000 contra a fábrica**. Trinta e oito
+quilos apagados de uma prateleira que ninguém tinha olhado — e contagem não se
+apaga, se estorna.
+
+**A regra que fica: docblock não é guarda.** A prevenção morava na prosa ao lado do
+parâmetro, e o parâmetro aceitava `defaultLocationId(...)` com um sorriso. É a mesma
+lição da capa deste projeto — *conselho eu esqueço na próxima sessão; guard roda
+sozinho* — aplicada a um lugar onde eu tinha achado que a exigência do tipo bastava.
+Exigir o campo garante que alguém responda *onde*; não garante que a resposta seja o
+lugar cujo número está na tela.
+
+**O que mudou.** A tela passa a sala pela rota (`app/inputs/index.tsx`), `findItem` e
+`itemMovements` aceitam a sala, e a contagem grava onde ela leu. Com o item em mais de
+um lugar e nenhum escolhido, a contagem **não é oferecida**: a tela lista os lugares
+com o saldo de cada um e cada linha leva à contagem daquele lugar — erro que impede,
+com a saída à vista. A guarda nova em `src/layers.test.ts` reprova qualquer tela que
+ponha chamada de função no local de uma contagem, porque o defeito não está em função
+nenhuma: está na combinação de duas linhas distantes dentro de uma tela, que é
+justamente o que teste de unidade não vê.
+
+## 4 de setembro — o mundo do dublê não fechava, e era isso que deixava a mentira passar
+
+Ao consertar a contagem falada, o teste do assistente ficou vermelho — e por um
+motivo melhor que o meu conserto. O dublê dizia que a empresa tem **50.000 g** de
+açúcar (`ITEMS`) e, ao mesmo tempo, que ele está **50.000 na fábrica mais 6.000 na
+loja** (`PLACE_STOCK`). Os dois números saem da mesma soma no sistema de verdade:
+`listItems` sem local é `stockByPlace` somado. O dublê descrevia um mundo impossível.
+
+E não era detalhe de arrumação. **Num mundo em que a soma dos lugares não é o total, a
+diferença entre "o total da empresa" e "a prateleira desta sala" não tem como ser
+observada** — é ruído do fixture, não sintoma. Foi por isso que a contagem falada
+comparava o total com uma prateleira e trinta e quatro testes ficaram verdes: o teste
+não tinha como notar a diferença entre as duas coisas porque no mundo dele elas já
+eram inconsistentes por construção.
+
+**A regra que fica: o dublê tem que satisfazer as invariantes que o sistema impõe.**
+Não é purismo — é o que decide se o teste pode enxergar a violação. Um fixture que
+quebra uma invariante é um lugar onde essa invariante não pode ser testada, e um
+teste verde ali afirma menos do que parece.
+
+**O que mudou.** `PLACE_STOCK` passou a fechar (44.000 + 6.000 = 50.000), e duas
+asserções mudaram junto — as duas para números mais certos: "o que tem na fábrica"
+agora diz 44.000, e o recusão de carga diz "tem só 44.000 na fábrica". Elas afirmavam
+o total da empresa achando que afirmavam o da sala. E um teste novo cobre o caso que
+não existia: item em duas salas não é contado por voz, é localizado.

@@ -45,6 +45,7 @@ import {
   listItems,
   lotsOn,
   listProducts,
+  findItem,
   itemMovements,
   listRecipes,
   loadRecipeGraph,
@@ -1080,6 +1081,72 @@ test('a store that checked and a store that did not are different facts', async 
   const porLugar = await balanceByLocation(LOCAL_COMPANY_ID, acucar.id);
   assert.equal(porLugar.find((b) => b.locationId === centro.id)?.baseUnits, 6000);
   assert.equal(porLugar.find((b) => b.locationId === norte.id)?.baseUnits, 2000);
+});
+
+/**
+ * O número que a tela mostra e o número contra o qual a contagem é comparada.
+ *
+ * `recordCount` sempre foi certa e o docblock dela já dizia por quê: ela exige o
+ * local sem padrão porque comparar a prateleira de uma sala com o saldo da
+ * empresa teleporta estoque. Quem violava isso era a TELA, que mostrava
+ * `findItem` sem sala (o total da empresa) e gravava no almoxarifado. Com 44.000
+ * na fábrica e 6.000 na câmara, alguém que contasse a câmara e digitasse 6.000
+ * gravava −38.000 CONTRA A FÁBRICA: 38 quilos apagados de uma prateleira que
+ * ninguém tinha olhado.
+ *
+ * Este teste prende as duas pontas: `findItem` com sala responde pela sala, e é
+ * exatamente o número que `recordCount` daquela sala espera. A guarda de fonte em
+ * `src/layers.test.ts` cobre a outra metade — que a tela passe a sala.
+ */
+test('the shelf a screen shows is the shelf a count is compared against', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const camara = await savePlace(LOCAL_COMPANY_ID, { name: 'Câmara fria', kind: 'cold_room' });
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const acucar = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.name.includes('Açúcar'));
+  assert.ok(acucar);
+
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: acucar.id,
+    fromLocationId: fabrica,
+    toLocationId: camara.id,
+    baseUnits: 6000,
+    occurredAt: '2026-09-02T10:00:00.000Z',
+  });
+
+  // Três perguntas diferentes, três respostas diferentes - e é a diferença entre
+  // elas que a tela precisava saber que existe.
+  assert.equal((await findItem(LOCAL_COMPANY_ID, acucar.id))?.onHandBaseUnits, 50000);
+  assert.equal((await findItem(LOCAL_COMPANY_ID, acucar.id, fabrica))?.onHandBaseUnits, 44000);
+  const naCamara = await findItem(LOCAL_COMPANY_ID, acucar.id, camara.id);
+  assert.equal(naCamara?.onHandBaseUnits, 6000);
+
+  // Contando exatamente o que a tela da câmara mostrou, a diferença é zero.
+  // Sob o defeito a tela mostrava 50.000 e a pessoa que contasse a câmara
+  // digitaria 6.000 - e o sistema chamaria isso de falta de 44.000.
+  const bateu = await recordCount(LOCAL_COMPANY_ID, {
+    locationId: camara.id,
+    itemId: acucar.id,
+    countedBaseUnits: naCamara?.onHandBaseUnits ?? 0,
+  });
+  assert.equal(bateu.expectedBaseUnits, 6000, 'o esperado é o da sala, não o da empresa');
+  assert.equal(bateu.deltaBaseUnits, 0);
+  assert.equal((await findItem(LOCAL_COMPANY_ID, acucar.id, fabrica))?.onHandBaseUnits, 44000);
+
+  // E a câmara conferida não faz a fábrica parecer conferida. "Conferido em 2/9"
+  // ao lado do saldo da fábrica seria dizer que alguém olhou uma prateleira que
+  // ninguém olhou.
+  const daCamara = await itemMovements(LOCAL_COMPANY_ID, acucar.id, 20, camara.id);
+  assert.ok(
+    daCamara.some((m) => m.kind === 'adjustment'),
+    'a conferência da câmara aparece na câmara',
+  );
+  const daFabrica = await itemMovements(LOCAL_COMPANY_ID, acucar.id, 20, fabrica);
+  assert.ok(
+    !daFabrica.some((m) => m.kind === 'adjustment'),
+    'e não aparece na fábrica, que ninguém conferiu',
+  );
+  // Sem sala continua sendo a lista da empresa, que é o que as outras telas leem.
+  assert.ok((await itemMovements(LOCAL_COMPANY_ID, acucar.id)).some((m) => m.kind === 'adjustment'));
 });
 
 test('what is missing at the door leaves the store balance short, by exactly what was missing', async () => {

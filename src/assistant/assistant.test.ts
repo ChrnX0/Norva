@@ -134,6 +134,12 @@ const MOVEMENTS: (MovementRow & { itemId: string })[] = [
 /**
  * Dois lugares, e o padrão gravado sem nome de propósito - é o caso que a
  * habilidade tem de saber nomear sozinha, porque o banco não nomeia.
+ *
+ * As duas somas TÊM de fechar: 44.000 no almoxarifado mais 6.000 na loja são os
+ * 50.000 que `ITEMS` diz que a empresa tem. Antes eram 50.000 + 6.000 contra um
+ * total de 50.000 - um mundo impossível, e foi ele que deixou a contagem falada
+ * comparar o total da empresa com a prateleira de uma sala sem nenhum teste
+ * reclamar.
  */
 const SEM_ACORDO = { contactPhone: '', deliveryDays: 0, agreementNote: '', sensorRanges: {} };
 
@@ -147,14 +153,14 @@ const PLACE_STOCK: PlaceStock[] = [
     locationId: 'factory',
     locationName: '',
     kind: 'store_room',
-    valueCents: 23_600 as Cents,
+    valueCents: 20_768 as Cents,
     lines: [
       {
         itemId: 'sugar',
         name: 'Açúcar cristal',
-        baseUnits: 50_000,
+        baseUnits: 44_000,
         baseUnit: 'g',
-        valueCents: 23_600 as Cents,
+        valueCents: 20_768 as Cents,
       },
     ],
   },
@@ -419,31 +425,49 @@ test('how much is there is not a secret; what it is worth is', async () => {
 test('counting by talking fills a form and stops, whatever the difference', async () => {
   recorded = [];
 
-  // Two sacks of 25 kg is exactly what the ledger holds.
-  const agrees = await ask('contei 2 sacos de açúcar', context('adjust_stock'));
+  // A polpa está num lugar só, e é por isso que ela pode ser contada falando:
+  // quatro baldes de 10 kg são exatamente o que o livro-razão tem.
+  const agrees = await ask('contei 4 baldes de polpa de morango', context('adjust_stock'));
   assert.ok(agrees.draft, 'the phrase should fill a form');
   assert.equal(recorded.length, 0, 'a stock adjustment may never be written unconfirmed');
-  assert.match(agrees.draft.summary, /50\.000 g de Açúcar cristal/);
+  assert.match(agrees.draft.summary, /40\.000 g de Polpa de morango/);
   assert.match(agrees.draft.summary, /Bate com o que o sistema esperava/);
 
-  // One sack is 25 kg short, and the summary has to say so in words.
-  const short = await ask('contei 1 saco de açúcar', context('adjust_stock'));
+  // Três baldes são 10 kg a menos, e o resumo tem de dizer isso por extenso.
+  const short = await ask('contei 3 baldes de polpa de morango', context('adjust_stock'));
   assert.ok(short.draft);
-  assert.match(short.draft.summary, /Estão faltando 25\.000 g/);
+  assert.match(short.draft.summary, /Estão faltando 10\.000 g/);
   assert.match(short.draft.summary, /nada é apagado/);
   assert.equal(recorded.length, 0);
 
   await short.draft.apply();
   assert.deepEqual(recorded, [
     {
-      itemId: 'sugar',
-      countedBaseUnits: 25_000,
+      itemId: 'pulp',
+      countedBaseUnits: 30_000,
       // A count corrected by talking carries the words that corrected it. The
       // difference the ledger keeps is only defensible if somebody can see
       // where it came from months later.
-      assistantPhrase: 'contei 1 saco de açúcar',
+      assistantPhrase: 'contei 3 baldes de polpa de morango',
     },
   ]);
+});
+
+test('an item split between two rooms is not counted by talking, it is located', async () => {
+  // O açúcar está em dois lugares. O assistente compara com o total da empresa
+  // e grava no almoxarifado - com 44.000 na fábrica e 6.000 na loja, contar a
+  // prateleira da fábrica "encontrava" uma falta de 6.000 g que não existe, e
+  // gravava essa falta contra a fábrica. Estoque teleportado, com quem contou
+  // tendo feito tudo certo.
+  recorded = [];
+  const answer = await ask('contei 2 sacos de açúcar', context('adjust_stock'));
+
+  assert.equal(answer.draft, undefined, 'nada de formulário para uma contagem cega');
+  assert.equal(recorded.length, 0);
+  assert.match(answer.text, /2 lugares/);
+  assert.match(answer.text, /Fábrica/, 'o lugar sem nome no banco é nomeado aqui');
+  assert.match(answer.text, /Loja Centro/);
+  assert.equal(answer.route, '/inputs/sugar', 'e a saída é a tela que sabe perguntar qual sala');
 });
 
 test('counting is refused to a role that may not adjust stock', async () => {
@@ -605,7 +629,9 @@ test('a place is asked about by name, and the unnamed default answers to "fábri
   // database calls it anything, so the skill has to - the same word the screen
   // uses, from the same reasoning.
   const factory = await ask('o que tem na fábrica', context('view_cost'));
-  assert.match(factory.text, /50\.000 g/);
+  // 44.000, e não os 50.000 da empresa: a pergunta é de um lugar, e o que está
+  // na loja não está aqui.
+  assert.match(factory.text, /44\.000 g/);
 
   // "quanto tem na loja centro" também casa com `stockOfInput`, que leria "na
   // loja centro" como nome de insumo e responderia que não existe. Quem
@@ -634,7 +660,7 @@ test('where a thing is reads the same sum from the other side', async () => {
 
   assert.match(answer.text, /2 lugares/);
   assert.deepEqual(answer.detail, [
-    { label: 'Fábrica', value: '50.000 g' },
+    { label: 'Fábrica', value: '44.000 g' },
     { label: 'Loja Centro', value: '6.000 g' },
   ]);
 });
@@ -695,7 +721,7 @@ test('a load is refused before it is prepared, never after it is trusted', async
   // fails at write time is worse than none - the person already believed it.
   const tooMuch = await ask('mandei 90000 de açúcar para a loja centro', context('dispatch'));
   assert.ok(!tooMuch.draft);
-  assert.match(tooMuch.text, /Tem só 50\.000 g/);
+  assert.match(tooMuch.text, /Tem só 44\.000 g/);
 
   // A place that does not exist points at where places are made.
   const nowhere = await ask('mandei 100 de açúcar para a loja norte', context('dispatch'));

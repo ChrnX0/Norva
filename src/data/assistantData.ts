@@ -42,10 +42,11 @@ export function liveData(companyId: string, timeZone: string): AssistantData {
     productionOn: (from, to) => productionOn(companyId, from, to),
     lossesOn: (from, to) => lossesOn(companyId, from, to),
     recordPurchase: (input) => recordPurchase(companyId, input),
-    // O assistente conta a prateleira do lugar padrão. Quando existir mais de
-    // um, a habilidade passa a perguntar qual - e é por isso que o local é
-    // exigido aqui em vez de ter padrão lá dentro: a pergunta aparece na tela
-    // que sabe fazê-la, não escondida numa função de dados.
+    // O assistente conta a prateleira do lugar padrão, e a habilidade só chega
+    // aqui depois de conferir que o item está num lugar só - com o item em duas
+    // salas ela para e diz quais (`src/assistant/skills.ts`, registerCount).
+    // O local é exigido aqui, e não com padrão lá dentro, por isso mesmo: a
+    // decisão de onde gravar mora em quem sabe fazer a pergunta.
     recordCount: (input) =>
       recordCount(companyId, { ...input, locationId: defaultLocationId(companyId) }),
     listPlaces: () => listPlaces(companyId),

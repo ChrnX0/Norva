@@ -614,6 +614,11 @@ export const ptBR = {
       countConfirm: 'Registrar a contagem',
       countConfirmAction: 'Registrar',
       countHidden: 'escondido enquanto você conta',
+      /** Qual sala este saldo é. Sem isso o número da sala parece o da empresa. */
+      countRoom: 'Este é o saldo da {{room}}. A contagem é dessa sala.',
+      /** Mais de um lugar e nenhum escolhido: contar aqui gravaria em lugar errado. */
+      countSpread:
+        'Este item está em {{count}} lugares. Conta-se um lugar por vez — toque no lugar para conferir ali.',
       countConfirmTitle: 'Registrar a contagem?',
       countConfirmShort:
         'Você contou {{counted}}. O sistema esperava {{expected}}. Estão faltando {{diff}}, que valem {{money}}. A diferença fica registrada e nada é apagado.',

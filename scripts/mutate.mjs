@@ -784,6 +784,33 @@ const DEFECTS = [
     hurts:
       'quem só pode despachar passa a poder gravar produção, e o consumo de insumo entra pelas maos de quem nunca produziu',
   },
+
+  // --- a contagem comparada com o saldo de outra sala, 4 de setembro ---------
+  //
+  // Achado da auditoria. A tela mostrava o total da empresa e gravava no
+  // almoxarifado: quem contasse a camara fria e digitasse o que viu apagava da
+  // FABRICA a diferenca entre as duas salas. Contagem nao se apaga, se estorna.
+  {
+    file: 'src/data/repository.ts',
+    from: '  const all = await listItems(companyId, undefined, true, locationId);',
+    to: '  const all = await listItems(companyId, undefined, true);',
+    hurts:
+      'findItem volta a responder o total da empresa mesmo quando a pergunta e de uma sala: a tela da camara fria mostra o saldo da fabrica somado ao dela, e a diferenca da contagem sai desse numero',
+  },
+  {
+    file: 'app/inputs/[id].tsx',
+    from: '      locationId: contarEm,',
+    to: '      locationId: defaultLocationId(LOCAL_COMPANY_ID),',
+    hurts:
+      'a tela volta a gravar a contagem no almoxarifado qualquer que seja a sala aberta: contar a camara fria apaga da fabrica a diferenca entre as duas',
+  },
+  {
+    file: 'src/assistant/skills.ts',
+    from: '    if (holding.length > 1) {',
+    to: '    if (holding.length > 99) {',
+    hurts:
+      'o assistente volta a preparar contagem de item que esta em duas salas comparando com o total da empresa, e a gravar a diferenca no almoxarifado - a mesma teleportacao que a tela tinha, agora por voz',
+  },
 ];
 
 /**

@@ -42,8 +42,8 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **315** testes |
-| `npm run mutate` | **93** defeitos plantados, 91 pegos e 2 equivalentes |
+| `npm test` | **319** testes |
+| `npm run mutate` | **96** defeitos plantados, 94 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **34** checagens num navegador de verdade |
 | `npm run db:verify` | **11** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
@@ -173,10 +173,40 @@ E ela achou mais na primeira execução — **um deles alarme inventado**, cobra
 rede, e a premissa está presa no teste com contagens que bloqueariam qualquer outra
 área.
 
-> **A auditoria profissional está rodando** em dez frentes — segurança, livro-razão,
-> dinheiro, sincronização, correção funcional, qualidade da suíte, ergonomia de
-> fábrica, idioma, desempenho e prontidão de loja —, cada achado passando por duas
-> lentes adversariais. O que ela confirmar entra aqui, com severidade e cenário.
+## O que a auditoria abriu — a fila de agora
+
+**A auditoria está entregue**: dez frentes, trinta achados, em `docs/auditoria.md`
+com severidade, cenário e o que ela **não** conseguiu olhar. Ali está o texto para o
+dono; aqui está a ordem de trabalho, que é o que a próxima sessão precisa. A regra da
+casa vale igual: *item fechado sai daqui no mesmo commit que o fecha*, e o número do
+achado nunca muda — quem já leu o documento leu aquela lista.
+
+Fechados, na ordem em que caíram: **1** (item e local de outra empresa, migração
+`0029`), **3** (custo médio depois do estorno), **6** (a contagem que prometia um
+número e gravava outro), e **dois terços do 4** (o aviso de validade segue o lote).
+
+De pé, nesta ordem e por este motivo:
+
+1. **4, o terço que falta** — a conta de quanto dá para prometer soma só o
+   almoxarifado (`stockAgainstOrders`, `src/data/repository.ts`). Produto
+   acabado na câmara fria não conta como prometível, e câmara fria é onde o picolé
+   está no dia seguinte ao de produzi-lo.
+2. **5** — com insumo na câmara a produção fica impossível, e o erro sai **em inglês**
+   e sem saída na tela. É o único achado que soma três defeitos numa tela.
+3. **8** — apagar uma área menor deixa órfã na fila, e órfã não é recusa: é exceção
+   que repete para sempre.
+4. **2** — compra, perda e contagem sem `movement_group_id`, então não há estorno. Só
+   agora é seguro: sem o conserto do **3**, o estorno consertaria a quantidade e
+   deixaria o dinheiro errado.
+5. **9** — `allowBackup` do Android tira o livro-razão do celular pela conta Google
+   de quem estiver logado, num aparelho que é compartilhado por decisão escrita.
+6. **10** — `inkFaint` dá 2,55:1 nas quatro combinações de tema, em 124 corridas de
+   texto de 11 e 13 px. É o rótulo que diz **o que** o número é.
+7. **11** — nada leva ninguém aos outros dois idiomas nem a outra moeda. Não afeta o
+   Brasil de hoje; afeta o dia de publicar.
+8. **Os treze médios**, entre eles o `versionCode` que colide (`0.10.0` e `1.0.0`
+   dão 100000, e o primeiro já está publicado) e `forgetSentBefore` sem chamador
+   fora de teste.
 
 ## F3 — o mês que tira o papel do chão de fábrica
 

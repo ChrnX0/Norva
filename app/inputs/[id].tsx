@@ -21,15 +21,19 @@ import { Sparkline } from '@/components/Sparkline';
 import { useConfirm } from '@/components/Confirm';
 import {
   recordLoss,
+  balanceByLocation,
   defaultLocationId,
   findItem,
+  listPlaces,
   itemHistory,
   itemMovements,
   recipesUsingItem,
   recordCount,
   setItemActive,
   type ItemWithCost,
+  type LocationBalance,
   type MovementRow,
+  type Place,
   type PriceMoveRow,
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
@@ -85,6 +89,9 @@ type Loaded = {
   history: PriceMoveRow[];
   recipes: { id: string; name: string; quantity: number }[];
   movements: MovementRow[];
+  /** Onde este item está, sala por sala. Vazio é "não está em lugar nenhum". */
+  spread: LocationBalance[];
+  places: Place[];
 };
 
 function InputDetail() {
@@ -92,7 +99,15 @@ function InputDetail() {
   const confirm = useConfirm();
   const router = useRouter();
   const { locale, t } = useLocale();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  /**
+   * O item, e a sala de onde a lista veio.
+   *
+   * A sala não é filtro de vitrine: ela decide contra QUE saldo a contagem é
+   * comparada e em que lugar a diferença é gravada. Sem ela esta tela mostrava
+   * o total da empresa e escrevia no almoxarifado — com a polpa dividida entre
+   * a fábrica e a câmara fria, a conferência teleportava estoque.
+   */
+  const { id, sala } = useLocalSearchParams<{ id: string; sala?: string }>();
   const traco = skin === 'papel' ? 1.7 : 2.2;
 
   // While a count is open the stock figure is deliberately hidden. This app's
@@ -107,15 +122,27 @@ function InputDetail() {
   const [reason, setReason] = useState<LossReason>('expired');
 
   const { data, loading, refresh } = useQuery<Loaded>(async () => {
-    if (!id) return { item: null, history: [], recipes: [], movements: [] };
-    const [item, history, recipes, movements] = await Promise.all([
-      findItem(LOCAL_COMPANY_ID, id),
+    if (!id) return { item: null, history: [], recipes: [], movements: [], spread: [], places: [] };
+
+    // Os lugares vêm primeiro porque a sala da rota tem de ser conferida contra
+    // eles. Um id que não existe mais - o lugar foi apagado, ou o endereço veio
+    // digitado na web - gravaria um movimento apontando para nada, e o servidor
+    // recusaria a linha: fila travada atrás dela, que é a família de defeito que
+    // já apareceu quatro vezes neste repositório.
+    const places = await listPlaces(LOCAL_COMPANY_ID);
+    const room = sala && places.some((place) => place.id === sala) ? sala : undefined;
+
+    // O saldo e os movimentos vão pela sala; o preço e as receitas não têm sala
+    // — custo médio é da empresa, e uma ficha não muda de sala em sala.
+    const [item, history, recipes, movements, spread] = await Promise.all([
+      findItem(LOCAL_COMPANY_ID, id, room),
       itemHistory(LOCAL_COMPANY_ID, id),
       recipesUsingItem(LOCAL_COMPANY_ID, id),
-      itemMovements(LOCAL_COMPANY_ID, id),
+      itemMovements(LOCAL_COMPANY_ID, id, 20, room),
+      balanceByLocation(LOCAL_COMPANY_ID, id),
     ]);
-    return { item, history, recipes, movements };
-  }, id ?? '');
+    return { item, history, recipes, movements, spread, places };
+  }, `${id ?? ''}|${sala ?? ''}`);
 
   const item = data?.item ?? null;
 
@@ -143,6 +170,42 @@ function InputDetail() {
     latest && latest.previousRate
       ? (latest.newRate - latest.previousRate) / latest.previousRate
       : null;
+
+  /**
+   * Onde o item está de verdade.
+   *
+   * `balanceByLocation` agrupa por local sem descartar soma zero, então um lugar
+   * por onde o item passou e de onde saiu inteiro volta aqui com 0. Ele não tem
+   * saldo, tem histórico - e listá-lo como "0 g" enche a tela de coisa que não
+   * está lá, além de recusar uma contagem que era simples.
+   */
+  const spread = (data?.spread ?? []).filter((lugar) => lugar.baseUnits !== 0);
+  /** A sala da rota, se ela existe. A conferência é a mesma que a consulta fez. */
+  const salaAberta =
+    sala && (data?.places ?? []).some((place) => place.id === sala) ? sala : undefined;
+  /** O nome que a equipe usa. O lugar que nasceu com a empresa não tem nome gravado. */
+  const nomeSala = (lugar: string) =>
+    (data?.places ?? []).find((p) => p.id === lugar)?.name.trim() || t.app.places.factory;
+
+  /**
+   * A sala em que a contagem vai ser gravada — ou nada, e então ela não é
+   * oferecida.
+   *
+   * A regra é uma frase: só se conta o número que está na tela. Com a sala
+   * escolhida, o número é dela e a diferença é dela. Sem sala escolhida, o
+   * número é o da empresa, e escrever a diferença dele contra UM lugar só é
+   * mentira aritmética — então quando o item está em mais de um lugar a
+   * contagem não acontece: a tela mostra onde ele está e leva num toque.
+   *
+   * Com um lugar só, a soma de um é igual à soma de todos e não há pergunta a
+   * fazer: conta-se onde ele está (ou no lugar que nasceu com a empresa, quando
+   * ele ainda não está em parte nenhuma).
+   */
+  const contarEm =
+    salaAberta ??
+    (spread.length > 1
+      ? null
+      : (spread[0]?.locationId ?? defaultLocationId(LOCAL_COMPANY_ID)));
 
   const lastCount = (data?.movements ?? []).find((m) => m.kind === 'adjustment');
   const lastCounted = lastCount
@@ -206,6 +269,9 @@ function InputDetail() {
   const submitCount = async () => {
     const counted = (parseTyped(typed) ?? NaN);
     if (!Number.isFinite(counted) || counted < 0) return;
+    // Sem sala não se grava: o botão nem aparece nesse estado, e o retorno aqui
+    // é o que garante que ele não pode voltar por outro caminho.
+    if (!contarEm) return;
 
     const expected = item.onHandBaseUnits;
     const delta = Math.round(counted) - expected;
@@ -232,7 +298,11 @@ function InputDetail() {
     });
     if (!go) return;
 
-    await recordCount(LOCAL_COMPANY_ID, { locationId: defaultLocationId(LOCAL_COMPANY_ID), itemId: item.id, countedBaseUnits: Math.round(counted) });
+    await recordCount(LOCAL_COMPANY_ID, {
+      locationId: contarEm,
+      itemId: item.id,
+      countedBaseUnits: Math.round(counted),
+    });
     setCounting(false);
     setTyped('');
     await refresh();
@@ -363,6 +433,13 @@ function InputDetail() {
               counting ? '—' : `${formatQuantity(item.onHandBaseUnits, locale)} ${item.baseUnit}`
             }
           />
+          {/* Que sala este número é, escrito. Um saldo de sala apresentado sem
+              dizer de que sala é um número que parece o total da empresa. */}
+          {salaAberta ? (
+            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
+              {fill(t.app.inputDetail.countRoom, { room: nomeSala(salaAberta) })}
+            </Text>
+          ) : null}
           {/* A frase mora DENTRO da contagem aberta, que é o único estado em que
               ela é verdade.
               Fora do ternário, ela dizia duas coisas falsas sobre o que estava
@@ -394,6 +471,25 @@ function InputDetail() {
                   setTyped('');
                 }}
               />
+            </View>
+          ) : contarEm === null ? (
+            /* Mais de um lugar, e nenhum escolhido: a contagem não é oferecida.
+               Erro se impede, não se reclama — e impedir sem mostrar a saída é
+               beco, então cada lugar é uma linha que leva à contagem dele. */
+            <View style={{ marginTop: space.md, gap: space.xs }}>
+              <Text style={[type.caption, { color: color.inkMuted }]}>
+                {fill(t.app.inputDetail.countSpread, {
+                  count: formatQuantity(spread.length, locale),
+                })}
+              </Text>
+              {spread.map((lugar) => (
+                <ListRow
+                  key={lugar.locationId}
+                  label={nomeSala(lugar.locationId)}
+                  trailing={`${formatQuantity(lugar.baseUnits, locale)} ${item.baseUnit}`}
+                  onPress={() => router.push(`/inputs/${item.id}?sala=${lugar.locationId}`)}
+                />
+              ))}
             </View>
           ) : (
             <View style={{ marginTop: space.md }}>
