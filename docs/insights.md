@@ -3230,3 +3230,42 @@ de apagar, com a lista de tabelas da fila conferida contra todo `enqueue` do
 repositório **e** contra o esquema — as duas formas de errar que não aparecem em tempo
 de compilação. E a auditoria ganhou a correção, escrita nela: o que era "trava" é
 "vai travar".
+
+## 4 de setembro — a terceira vez que "não terminou" virou "pegou", e o que isso diz do instrumento
+
+**O que se viu.** A bateria de mutação acusou `MARCADOR ERRADO` num marcador de
+equivalência que está certo. Antes de tirar o marcador — que é o que a mensagem
+manda fazer — apliquei as duas mutações marcadas à mão e rodei a suíte inteira: as
+328 passam nas duas. O marcador estava certo; o relatório estava errado.
+
+A causa, uma linha: `suitePasses` era `return stdout.includes('# fail 0')`. Toda
+execução que **não imprime resumo** cai no lado do "falhou", e "falhou" quer dizer
+"pegou". Eu estava rodando `npm test` em paralelo com a bateria numa máquina de
+quatro núcleos com quatro frentes de mutação; uma execução não terminou; virou
+proteção.
+
+**É a terceira aparição da mesma forma neste mesmo arquivo.** A primeira: a oficina
+não copiava as pastas que os testes leem, a suíte morria lá com 19 falhas antes de
+qualquer mutação, e o portão ficou verde por construção durante 66 commits. A
+segunda: a oficina declarando "pego" sem consultar a suíte. Esta é a terceira, e a
+mais estreita — mas a forma é idêntica, e a forma é o achado:
+
+**A regra que fica: instrumento que só distingue dois estados chama ausência de
+medida de resultado favorável.** "Passou" e "não passou" parecem exaustivos e não
+são: falta "não mediu". E o default silencioso cai sempre para o lado que agrada —
+num portão de mutação, "pegou"; num de permissão, "autorizado"; numa checagem de
+saldo, "tem". Onde há três estados e o código lê dois, o terceiro vira o que quem
+escreveu esperava ver.
+
+**A segunda metade, que é minha.** Eu criei a contenção que produziu o falso alarme
+rodando a suíte enquanto a bateria rodava — e a regra do `CLAUDE.md` sobre não ficar
+ocioso diz para tocar o que **não depende** do que está rodando. Rodar a suíte
+enquanto a bateria roda a suíte 98 vezes não é trabalhar em paralelo: é disputar a
+própria medida. O que dá para fazer enquanto a barra roda é documento e leitura, e
+nada que peça CPU.
+
+**O que mudou.** Três resultados em vez de dois (`lerSuite`), segunda chance só para
+o que não terminou — medida que não houve é barata de repetir, resultado que houve
+não se repete até gostar dele —, reprovação como `NÃO MEDIDO` se persistir, e a
+régua conferida com quatro casos sintéticos antes de qualquer medida, para não se
+perder de novo em silêncio.
