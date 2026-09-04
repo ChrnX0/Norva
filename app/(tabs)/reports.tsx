@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { GlyphLoss, GlyphPrice, GlyphStock } from '@/components/Glyph';
+import { ListRow } from '@/components/ListRow';
 import { IconChevron } from '@/components/icons';
 import { Reveal } from '@/components/Reveal';
 import { Sparkline } from '@/components/Sparkline';
@@ -22,7 +23,7 @@ import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { dayWindow } from '@/domain/day';
 import type { Cents } from '@/domain/money';
-import { fill, formatMoney, formatQuantity, plural } from '@/i18n';
+import { fill, formatMoney, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -88,6 +89,15 @@ function ReportIndex() {
   const comCusto = (data?.corridas ?? []).filter((r) => r.unitCostRate !== null);
   const perdido = (data?.mes ?? []).reduce((n, l) => n + l.valueCents, 0) as Cents;
   const perdidoAntes = (data?.mesAnterior ?? []).reduce((n, l) => n + l.valueCents, 0) as Cents;
+
+  /** O que ainda não tem número, para continuar tendo porta. */
+  const faltando = (
+    [
+      { chave: 'stock' as const, rota: '/places', temDado: parado > 0, desenho: (c: string) => <GlyphStock size={22} color={c} weight={traco} /> },
+      { chave: 'cost' as const, rota: '/recipes', temDado: comCusto.length > 0, desenho: (c: string) => <GlyphPrice size={22} color={c} weight={traco} /> },
+      { chave: 'losses' as const, rota: '/losses', temDado: perdido > 0, desenho: (c: string) => <GlyphLoss size={22} color={c} weight={traco} /> },
+    ] as const
+  ).filter((r) => !r.temDado);
 
   /** O rodapé de todo cartão: o convite de abrir, dito uma vez só. */
   const abrir = (
@@ -181,24 +191,23 @@ function ReportIndex() {
         </Reveal>
       ) : null}
 
-      {/* Nada aconteceu ainda: um convite, não três cartões zerados. A tela diz
-          de onde vêm os números em vez de mostrar o esqueleto deles. */}
-      {parado === 0 && comCusto.length === 0 && perdido === 0 ? (
-        <Reveal index={0}>
-          <Touchable onPress={() => router.push('/purchase')} accessibilityLabel={t.app.reports.rows.stock.detail}>
-            <Card
-              hue={palette.sand}
-              icon={(c) => <GlyphStock size={26} color={c} weight={traco} />}
-              title={t.app.reports.title}
-            >
-              <Text style={[type.secondary, { color: color.inkMuted }]}>
-                {t.app.reports.subtitle}
-              </Text>
-              <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
-                {formatQuantity(0, locale)} · {t.app.reports.rows.stock.detail}
-              </Text>
-            </Card>
-          </Touchable>
+      {/* E o que ainda não tem número continua alcançável.
+          Peça sem dado não vira cartão — mas sumir não é a resposta: este
+          índice também é o CAMINHO para o custo e para as perdas, e esconder a
+          linha deixou as duas telas sem porta na primeira instalação. Cartão
+          para o que tem o que dizer, linha para o resto. */}
+      {faltando.length > 0 ? (
+        <Reveal index={3}>
+          <Card>
+            {faltando.map(({ chave, rota }) => (
+              <ListRow
+                key={rota}
+                label={t.app.reports.rows[chave].label}
+                detail={t.app.reports.rows[chave].detail}
+                onPress={() => router.push(rota as never)}
+              />
+            ))}
+          </Card>
         </Reveal>
       ) : null}
     </CollapsingHeader>
