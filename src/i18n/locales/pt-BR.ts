@@ -661,6 +661,8 @@ export const ptBR = {
       rangeHint: 'Sem faixa o app registra e não julga — ele não sabe qual é a temperatura boa da sua câmara.',
       rangeMin: 'mínima',
       rangeMax: 'máxima',
+      /** O que estava dentro quando a leitura saiu da faixa — a ação que o selo vermelho pede. */
+      exposedTitle: 'ESTAVA NA CÂMARA ÀS {{time}}',
       outOfRange: 'fora da faixa de {{min}} a {{max}}',
       inRange: 'dentro da faixa',
       editAgreement: 'Combinar entrega',

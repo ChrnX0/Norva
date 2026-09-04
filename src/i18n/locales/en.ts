@@ -607,6 +607,7 @@ export const en: Dictionary = {
       rangeHint: 'With no range the app records and does not judge — it does not know what temperature your room should hold.',
       rangeMin: 'min',
       rangeMax: 'max',
+      exposedTitle: 'IN THE ROOM AT {{time}}',
       outOfRange: 'outside the {{min}} to {{max}} range',
       inRange: 'within range',
       editAgreement: 'Agree on delivery',

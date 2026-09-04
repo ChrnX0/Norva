@@ -2996,6 +2996,72 @@ export async function lotsInStock(
   }));
 }
 
+/** Um lote que estava numa sala num instante, com o que havia dele. */
+export type LotInRoom = {
+  lotId: string;
+  code: string;
+  /** O nome do produto, porque "20260902-01" sozinho não manda ninguém a lugar nenhum. */
+  name: string;
+  baseUnits: number;
+  expiresOn: string | null;
+};
+
+/**
+ * O que estava dentro de uma sala num instante — a pergunta que a fundação
+ * promete desde a primeira linha e que nenhuma tela sabia fazer.
+ *
+ * O docblock do livro-razão diz, entre o que o modelo append-only compra de
+ * graça: *"a habilidade de responder 'o que estava dentro do freezer às 03:12?'
+ * — que é como uma excursão de temperatura lista os lotes expostos sem ninguém
+ * ter anotado nada"*. O domínio chegou a ter a dobra em memória para isso, e ela
+ * morreu por forma: o aplicativo não tem os movimentos em memória, tem SQLite. A
+ * consulta é esta, e o corte no tempo é o que a torna a resposta certa.
+ *
+ * **Por que o instante importa, e não serve olhar o saldo de agora.** A leitura
+ * ruim foi às 07:20 e alguém abre a tela às 15:00; entre as duas horas uma carga
+ * pode ter saído. O que ficou exposto é o que estava lá NAQUELA hora, e é isso
+ * que um recall precisa. `occurred_at <= ?` é a diferença inteira entre as duas
+ * perguntas.
+ *
+ * Devolve fato: lote, produto, quantidade e validade. Quem escreve "três lotes
+ * estavam na câmara" é a tela.
+ */
+export async function lotsInRoomAt(
+  companyId: string,
+  locationId: string,
+  instantIso: string,
+): Promise<LotInRoom[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    id: string;
+    code: string;
+    name: string;
+    expires_on: string | null;
+    total: number;
+  }>(
+    `SELECT l.id, l.code, i.name, l.expires_on,
+            COALESCE(SUM(m.quantity_base_units), 0) AS total
+       FROM lots l
+       JOIN items i ON i.id = l.item_id
+       JOIN movements m ON m.lot_id = l.id
+      WHERE l.company_id = ?
+        AND m.location_id = ?
+        AND m.occurred_at <= ?
+      GROUP BY l.id, l.code, i.name, l.expires_on
+     HAVING SUM(m.quantity_base_units) > 0
+      ORDER BY total DESC, l.code ASC`,
+    [companyId, locationId, instantIso],
+  );
+
+  return rows.map((r) => ({
+    lotId: r.id,
+    code: r.code,
+    name: r.name,
+    baseUnits: r.total,
+    expiresOn: r.expires_on,
+  }));
+}
+
 /**
  * Um lote, com tudo o que a etiqueta dele precisa dizer.
  *

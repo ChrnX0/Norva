@@ -2629,3 +2629,38 @@ trazer o chamador, apagar a peça, ou registrar a fronteira com quem vai chamá-
 **Escrever teste não é uma delas.** Teste sobre peça inalcançável não prova
 capacidade: prova que a peça faz o que ela faz, e passa a proteger uma promessa
 que ninguém pode cobrar.
+
+## 4 de setembro — o alerta que dizia o que mudou e não dizia o que fazer
+
+**O que se viu.** A câmara fria mostrava o selo *"fora da faixa de −22 a −16"* e
+parava aí. Das três perguntas que a Lei da Inteligência exige de toda tela, ela
+respondia duas — o que é normal (a faixa) e o que está diferente agora (a leitura)
+— e deixava a terceira em branco: **qual é a próxima ação provável**. Quem lê
+−8 °C precisa saber *quais lotes estavam lá* para ir olhar, e o livro-razão já
+sabia.
+
+**A parte que quase saiu errada.** A resposta óbvia é listar o que está na câmara
+**agora**, e ela é sutilmente falsa. A medição foi às 07:20 e a pessoa abre a tela
+às 15:00; no meio pode ter saído carga. O que ficou exposto é o que estava lá
+*naquela hora* — e é justamente o lote que já viajou que um recall mais precisa
+achar. `occurred_at <= ?` é a diferença inteira entre as duas perguntas, e o teste
+que prova isso é o que separa uma feature de uma decoração: dois lotes na câmara
+às 07:20, um sai ao meio-dia, e a resposta das 07:20 continua sendo dois.
+
+**E ela não precisou de sensor.** O docblock da fundação promete isso desde a
+primeira linha — *"a habilidade de responder 'o que estava dentro do freezer às
+03:12?'"* — e eu tinha lido essa promessa como dependente do ESP32 que não existe.
+Não é: a leitura digitada na conferência já carrega a hora. A pergunta esperava um
+sensor por hábito de leitura, não por necessidade.
+
+**A ligação com o achado anterior.** Este item nasceu na mesma varredura que matou
+`balanceAt` e `lotsPresentDuring` — as duas dobras do domínio que prometiam esta
+resposta e não podiam entregá-la, porque dobram sobre `Movement[]` em memória e o
+aplicativo tem SQLite. Matar a peça e construir a resposta foram o mesmo trabalho,
+e é essa a forma correta do "trazer o chamador": o chamador não usa o que estava
+morto, ele usa a forma que funciona.
+
+**A regra que sai:** quando um alerta dá conta de "o que está diferente agora" mas
+não de "qual é a próxima ação", o dado que falta quase sempre já está no
+livro-razão — e a pergunta certa costuma ter um **instante** dentro dela. "O que
+está lá" e "o que estava lá quando aconteceu" parecem a mesma consulta e não são.

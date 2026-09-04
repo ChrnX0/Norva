@@ -180,29 +180,28 @@ Contar linha e nomear pedido é a mesma família que a varredura de rótulos do
 mesmo dia caçou trinta e uma vezes — e ela reapareceu **dentro do conserto de
 outra coisa**, o que diz o quanto ela é fácil de escrever.
 
-### 6. A câmara diz "fora da faixa" e não diz o que estava dentro
+### 6. ~~A câmara diz "fora da faixa" e não diz o que estava dentro~~ — fechado em 4 de setembro
 
-**Estado:** aberto, achado em 4 de setembro varrendo peça sem chamador.
+O selo vermelho respondia "o que está diferente agora" e deixava "qual é a próxima
+ação provável" no ar. Agora, com a leitura fora da faixa, a tela lista **os lotes
+que estavam na câmara na hora daquela medição**, com o código que está escrito na
+caixa e o toque que abre a etiqueta.
 
-- **Evidência:** `app/places.tsx:507` mostra o selo "fora da faixa (−20 a −16)" e
-  nada mais · o docblock da fundação promete a resposta desde a primeira linha
-  (`src/domain/ledger.ts:13`: *"the ability to answer 'what was inside the freezer
-  at 03:12?' — which is how a temperature excursion lists the exposed lots"*).
-- **Por que importa:** um alerta que não diz o que está em risco não decide nada
-  — é a Lei da Inteligência inteira num caso só (*o que está diferente agora* está
-  respondido; *qual é a próxima ação provável* não está). Quem lê "−12 °C às 07:20"
-  precisa saber quais lotes estavam lá para ir olhar.
-- **O que falta:** uma consulta por lote com corte no tempo — somar
-  `quantity_base_units` por `lot_id` naquele `location_id` com
-  `occurred_at <= <instante da leitura ruim>`, tendo saldo positivo. O instante é a
-  própria leitura fora da faixa, então não depende de sensor: funciona com a
-  leitura digitada que a tela já grava.
-- **Portão:** P1 satisfeito (a tela do lugar chama no mesmo commit). P3 não se
-  aplica — é leitura, não escrita.
-- **O que NÃO reaproveita, e é a lição do achado:** as dobras `balanceAt` e
-  `lotsPresentDuring` do domínio não servem, e foi por isso que morreram. Elas
-  dobram sobre `Movement[]` em memória, e o aplicativo tem SQLite. A consulta é
-  nova, em SQL, ao lado das outras somas de saldo.
+**O instante é o da leitura, não o de agora** — e essa é a regra inteira. A
+medição foi às 07:20 e alguém abre a tela às 15:00; no meio pode ter saído carga,
+e o que ficou exposto é o que estava lá naquela hora. O teste de unidade prova
+exatamente isso: dois lotes na câmara às 07:20, um sai ao meio-dia, e a resposta
+das 07:20 continua sendo dois. Sem o corte, o recall perderia justamente o lote
+que já viajou.
+
+**O que ele NÃO reaproveitou, que era a lição do achado:** as dobras `balanceAt` e
+`lotsPresentDuring` do domínio não serviam, e foi por isso que morreram — elas
+dobram sobre `Movement[]` em memória e o aplicativo tem SQLite. `lotsInRoomAt` é
+SQL, ao lado das outras somas de saldo, com `occurred_at <= ?`.
+
+E a promessa do docblock da fundação — *"a habilidade de responder 'o que estava
+dentro do freezer às 03:12?'"* — deixou de ser promessa. Sem sensor nenhum: a
+leitura digitada já carrega a hora.
 
 ### Fronteira: a lista de compras não tem tela, só a frase
 

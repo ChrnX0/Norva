@@ -8,6 +8,7 @@ import { __setDb, migrate, migrationSteps, nowIso, type Db, type SqlParam } from
 import {
   balanceByLocation,
   findLot,
+  lotsInRoomAt,
   pickingFor,
   lastSentBaseUnits,
   recordProduction,
@@ -1398,6 +1399,83 @@ test('the storeroom answers for one room when asked, and for the company when no
   // E as duas salas somam a empresa: se não somassem, uma das três contas
   // estaria mentindo.
   assert.equal((naFabrica?.onHandBaseUnits ?? 0) + (naFria?.onHandBaseUnits ?? 0), total);
+});
+
+test('the room says what was inside it AT THE READING, not what is inside now', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const { id: camara } = await savePlace(LOCAL_COMPANY_ID, {
+    name: 'Câmara fria',
+    kind: 'cold_room',
+  });
+  const [produto] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+
+  // Duas corridas na fábrica — é lá que estão os insumos, e o piso da produção é
+  // o da sala em que o tacho está — e os dois lotes vão para a câmara de manhã.
+  const manha = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: produto.id,
+    locationId: fabrica,
+    batches: 1,
+    unitsProduced: 400,
+    producedOn: '2026-09-02',
+    occurredAt: '2026-09-02T05:30:00.000Z',
+  });
+  const tambem = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: produto.id,
+    locationId: fabrica,
+    batches: 1,
+    unitsProduced: 200,
+    producedOn: '2026-09-02',
+    occurredAt: '2026-09-02T05:45:00.000Z',
+  });
+
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: produto.itemId,
+    fromLocationId: fabrica,
+    toLocationId: camara,
+    baseUnits: 400,
+    lotId: manha.lot.id,
+    occurredAt: '2026-09-02T06:00:00.000Z',
+  });
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: produto.itemId,
+    fromLocationId: fabrica,
+    toLocationId: camara,
+    baseUnits: 200,
+    lotId: tambem.lot.id,
+    occurredAt: '2026-09-02T06:30:00.000Z',
+  });
+
+  // A leitura ruim é das 07:20 — os dois lotes estavam lá.
+  const naLeitura = await lotsInRoomAt(LOCAL_COMPANY_ID, camara, '2026-09-02T07:20:00.000Z');
+  assert.equal(naLeitura.length, 2, 'os dois lotes estavam na câmara quando a leitura foi tomada');
+  assert.deepEqual(
+    naLeitura.map((l) => l.code).sort(),
+    [manha.lot.code, tambem.lot.code].sort(),
+  );
+  assert.equal(naLeitura[0].name, 'Picolé de morango', 'o código sozinho não manda ninguém a lugar nenhum');
+
+  // Ao meio-dia um deles sai para a loja.
+  const { id: loja } = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: produto.itemId,
+    fromLocationId: camara,
+    toLocationId: loja,
+    baseUnits: 400,
+    lotId: manha.lot.id,
+    occurredAt: '2026-09-02T12:00:00.000Z',
+  });
+
+  // E aqui está a diferença inteira entre a pergunta certa e o saldo de agora:
+  // quem abre a tela às 15:00 vê UM lote na câmara, e o que ficou exposto às
+  // 07:20 foram DOIS. Sem o corte no tempo, o recall perderia justamente o lote
+  // que já viajou — que é o que mais importa achar.
+  const agora = await lotsInRoomAt(LOCAL_COMPANY_ID, camara, '2026-09-02T15:00:00.000Z');
+  assert.equal(agora.length, 1, 'o que saiu ao meio-dia não está mais lá');
+  assert.equal(agora[0].code, tambem.lot.code);
+
+  const aindaNaLeitura = await lotsInRoomAt(LOCAL_COMPANY_ID, camara, '2026-09-02T07:20:00.000Z');
+  assert.equal(aindaNaLeitura.length, 2, 'e a resposta das 07:20 não muda por causa do que veio depois');
 });
 
 test('the picking list says what the store ordered and what the room has', async () => {

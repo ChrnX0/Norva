@@ -60,6 +60,19 @@ const DEFECTS = [
       'seis quilos de acucar voltam a ser "6.000 unidades" na capa e na aba de transporte: a unidade existe no tipo e diz a coisa errada, que e pior que nao existir',
   },
 
+  // --- o que estava dentro da câmara quando a leitura saiu da faixa ---------
+  //
+  // A dobra em memória que prometia isso morreu por forma; a consulta é SQL, e o
+  // corte no tempo é a regra inteira.
+  {
+    file: 'src/data/repository.ts',
+    from: `        AND m.occurred_at <= ?
+      GROUP BY l.id, l.code, i.name, l.expires_on`,
+    to: `      GROUP BY l.id, l.code, i.name, l.expires_on`,
+    hurts:
+      'a camara passa a listar o que esta la AGORA em vez do que estava na hora da leitura ruim, e o recall perde justamente o lote que ja viajou',
+  },
+
   // --- a seção de dicionário que ninguém lê ---------------------------------
   //
   // O CLAUDE.md cita "quatro seções de dicionário nos três idiomas sem uma tela"

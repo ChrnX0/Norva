@@ -21,6 +21,7 @@ import { nowIso } from '@/data/db';
 import {
   lastReadings,
   listPlaces,
+  lotsInRoomAt,
   readingsBetween,
   recordReading,
   savePlace,
@@ -391,6 +392,8 @@ function Ambiente({
   const words = t.app.places;
   const traco = skin === 'papel' ? 1.7 : 2.2;
 
+  const router = useRouter();
+
   const [valor, setValor] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [editandoFaixa, setEditandoFaixa] = useState(false);
@@ -459,6 +462,29 @@ function Ambiente({
         (faixa.max !== null && last.value > faixa.max)
       : false;
 
+  /**
+   * O que estava dentro quando a leitura saiu da faixa.
+   *
+   * O selo dizia "fora da faixa (−20 a −16)" e parava aí — respondia "o que está
+   * diferente agora" e deixava "qual é a próxima ação provável" sem resposta. Um
+   * alerta que não diz o que está em risco não decide nada: quem lê precisa saber
+   * quais lotes estavam lá para ir olhar.
+   *
+   * O instante é o da PRÓPRIA leitura ruim, não o de agora. A medição foi às
+   * 07:20 e alguém abre a tela às 15:00; no meio pode ter saído carga, e o que
+   * ficou exposto é o que estava lá naquela hora. É a pergunta que o docblock da
+   * fundação promete desde a primeira linha — "o que estava dentro do freezer às
+   * 03:12?" — e ela não precisa de sensor nenhum: a leitura digitada já carrega
+   * a hora.
+   *
+   * Só consulta quando está fora: dentro da faixa não há exposição, e listar
+   * lote em câmara saudável seria a lista pela lista.
+   */
+  const { data: expostos } = useQuery(
+    async () => (fora && last ? lotsInRoomAt(LOCAL_COMPANY_ID, place.id, last.takenAt) : []),
+    `${place.id}:${fora ? (last?.id ?? '') : ''}`,
+  );
+
   const anotar = async () => {
     const lido = parseTyped(valor);
     if (lido === null || !Number.isFinite(lido) || salvando) return;
@@ -518,6 +544,28 @@ function Ambiente({
               : words.inRange
           }
         />
+      ) : null}
+
+      {/* E o que estava lá dentro, que é a ação que o selo vermelho pede.
+          Sem esta lista o aviso manda a pessoa "ir ver a câmara"; com ela, manda
+          ir ver TRÊS LOTES, com o código que está na caixa. */}
+      {fora && (expostos ?? []).length > 0 ? (
+        <View style={{ gap: space.xs }}>
+          <Text style={[type.overline, { color: color.inkFaint }]}>
+            {fill(words.exposedTitle, {
+              time: last ? formatTime(last.takenAt, locale) : '',
+            })}
+          </Text>
+          {(expostos ?? []).map((lote) => (
+            <ListRow
+              key={lote.lotId}
+              label={lote.code}
+              detail={lote.name}
+              trailing={formatQuantity(lote.baseUnits, locale)}
+              onPress={() => router.push(`/lots/${lote.lotId}` as never)}
+            />
+          ))}
+        </View>
       ) : null}
 
       <Field

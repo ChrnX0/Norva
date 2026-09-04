@@ -908,6 +908,49 @@ check('a cold room reading becomes history today, sensor or no sensor', async (p
   await page.waitForTimeout(2200);
   assert.match(await screen(page), /fora da faixa de -22 a -16/);
 
+  // E o selo vermelho sozinho não decide nada.
+  //
+  // Ele responde "o que está diferente agora" e deixa "qual é a próxima ação
+  // provável" no ar: quem lê -8 °C precisa saber QUAIS LOTES estavam lá para ir
+  // olhar. Com a câmara vazia não há lista — alerta inventado ensina a ignorar.
+  assert.doesNotMatch(await screen(page), /ESTAVA NA CÂMARA/, 'câmara vazia não lista lote nenhum');
+
+  // Agora um lote entra nela, e a mesma leitura passa a dizer o que está em risco.
+  // Por endereço, e não pela aba: `/places` é tela de pilha e não tem barra de
+  // abas — o clique na aba esperaria trinta segundos por algo que não está lá.
+  await page.goto(`http://localhost:${PORT}/production/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Quantas unidades/).fill('480');
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar produção', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Picolé de morango/).first().click();
+  await page.waitForTimeout(600);
+  await page.getByLabel('Quanto vai').fill('300');
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar a transferência', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Mandar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  // A leitura ruim é NOVA, depois da carga: o instante da medição é o que decide
+  // quem estava lá, e é por isso que a lista não é o saldo de agora.
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel('Temperatura agora').first().fill('-7');
+  await page.waitForTimeout(400);
+  await page.getByText('Anotar leitura', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  const exposto = await screen(page);
+  assert.match(exposto, /ESTAVA NA CÂMARA ÀS \d\d:\d\d/, 'o alerta diz o que estava em risco');
+  assert.match(exposto, /\d{8}-\d\d/, 'com o código do lote, que é o que está escrito na caixa');
+
   // E a SEMANA aparece desenhada, que é o que uma leitura sozinha não responde:
   // "-18,4 agora" não diz se o freezer está piorando; dois pontos já dizem.
   // Animação não se afirma num teste de texto, mas um desenho que sumiu, sim.

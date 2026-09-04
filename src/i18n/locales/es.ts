@@ -612,6 +612,7 @@ export const es: Dictionary = {
       rangeHint: 'Sin rango la app registra y no juzga — no sabe cuál es la temperatura buena de tu cámara.',
       rangeMin: 'mínima',
       rangeMax: 'máxima',
+      exposedTitle: 'ESTABA EN LA CÁMARA A LAS {{time}}',
       outOfRange: 'fuera del rango de {{min}} a {{max}}',
       inRange: 'dentro del rango',
       editAgreement: 'Acordar entrega',
