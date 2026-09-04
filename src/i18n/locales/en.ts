@@ -361,6 +361,12 @@ export const en: Dictionary = {
         purchases: { one: '1 purchase', other: '{{n}} purchases' },
       },
       back: 'Back',
+      language: {
+        label: 'Language and currency',
+        hint: 'A company choice: it applies to everyone using this system, not just this phone. The time zone comes from the handset, which is at the factory.',
+        currency: 'Currency',
+        currencyHint: 'It decides the symbol AND how the number is written. The example beside each one is the same amount.',
+      },
       appearance: {
         label: 'How the app looks',
         hint: 'Two identities and three lights. This phone chooses — nothing changes for anyone else.',
@@ -1009,6 +1015,17 @@ export const en: Dictionary = {
     adjustment: 'Count',
     discrepancy: 'Difference at the door',
     reversal: 'Correction',
+  },
+
+  currency: {
+    BRL: 'Brazilian real',
+    USD: 'US dollar',
+    EUR: 'Euro',
+    MXN: 'Mexican peso',
+    ARS: 'Argentine peso',
+    CLP: 'Chilean peso',
+    COP: 'Colombian peso',
+    PYG: 'Guarani',
   },
 
   posts: {

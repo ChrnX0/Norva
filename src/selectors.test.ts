@@ -83,6 +83,8 @@ const NAO_E_DICIONARIO: Record<string, string> = {
   '^\\d{8}-\\d{2}$': 'o formato do código do lote, gerado pelo domínio e não traduzido',
   '^Tempo: (Esconder|Mostrar)$':
     'rótulo de acessibilidade montado pela capa com o nome da peça mais a ação',
+  English:
+    'nome de idioma escrito NA língua dele, de propósito: quem procura o próprio idioma numa lista o reconhece escrito como ele se escreve, e não precisa saber ler o idioma atual para achar o seu. Por isso não passa pelo dicionário — traduzir "English" para "Inglês" esconderia a palavra de quem só lê inglês',
 };
 
 /** Os seletores literais: o texto tem que existir igual. */

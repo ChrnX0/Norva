@@ -404,6 +404,18 @@ export const ptBR = {
         purchases: { one: '1 compra', other: '{{n}} compras' },
       },
       back: 'Voltar',
+      /**
+       * Idioma e moeda: escolha da EMPRESA, e a dica diz isso na primeira linha.
+       *
+       * Sem essa frase, quem troca acha que mexeu no próprio aparelho — e descobre
+       * que mexeu no de todo mundo quando alguém no chão de fábrica reclama.
+       */
+      language: {
+        label: 'Idioma e moeda',
+        hint: 'Escolha da empresa: vale para todo mundo que usa este sistema, não só para este aparelho. O fuso vem do celular, que está na fábrica.',
+        currency: 'Moeda',
+        currencyHint: 'Ela decide o símbolo E o jeito de escrever o número. O exemplo ao lado é a mesma quantia em cada uma.',
+      },
       appearance: {
         label: 'A cara do aplicativo',
         hint: 'Duas identidades e três luzes. É escolha deste aparelho — não muda nada para mais ninguém.',
@@ -1114,6 +1126,23 @@ export const ptBR = {
     adjustment: 'Contagem',
     discrepancy: 'Diferença na conferência',
     reversal: 'Correção',
+  },
+
+  /**
+   * O nome de cada moeda, para quem não decora código ISO.
+   *
+   * "BRL" sozinho não diz nada a quem está cadastrando o primeiro insumo; "BRL ·
+   * Real" diz, e o exemplo formatado ao lado prova.
+   */
+  currency: {
+    BRL: 'Real',
+    USD: 'Dólar',
+    EUR: 'Euro',
+    MXN: 'Peso mexicano',
+    ARS: 'Peso argentino',
+    CLP: 'Peso chileno',
+    COP: 'Peso colombiano',
+    PYG: 'Guarani',
   },
 
   posts: {

@@ -797,6 +797,26 @@ const DEFECTS = [
     hurts:
       'findItem volta a responder o total da empresa mesmo quando a pergunta e de uma sala: a tela da camara fria mostra o saldo da fabrica somado ao dela, e a diferenca da contagem sai desse numero',
   },
+  // --- os dois idiomas sem caminho, 4 de setembro ----------------------------
+  //
+  // Achado da auditoria. O dicionario tinha os tres completos e `useLocale`
+  // devolvia uma constante: dois tercos do que duas pessoas escreveram palavra por
+  // palavra eram alcancaveis so editando o codigo.
+  {
+    file: 'src/i18n/company.ts',
+    from: '  const currency = stored.currency && isCurrency(stored.currency) ? stored.currency : padrao.currency;',
+    to: '  const currency = padrao.currency;',
+    hurts:
+      'a moeda escolhida pela empresa deixa de ser lida da gaveta: o botao marca peso mexicano, o aplicativo continua cobrando em real, e a escolha que nao vale e pior que a escolha que nao existe',
+  },
+  {
+    file: 'src/i18n/company.ts',
+    from: '  return region ? `${language}-${region}` : language;',
+    to: '  return language;',
+    hurts:
+      'a moeda para de decidir a regiao: espanhol passa a escrever 1.234,56 no Mexico, onde se escreve 1,234.56 - numero de dinheiro lido ao contrario, que muda uma decisao de compra',
+  },
+
   // --- a tinta ilegivel no corredor da camara, 4 de setembro -----------------
   //
   // Achado da auditoria. `inkFaint` pinta o rotulo que diz O QUE o numero e, em 11

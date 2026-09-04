@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { defaultLocale, fill, formatWeekdayShort, plural } from './index';
+import { defaultLocale, fill, formatMoney, formatWeekdayShort, plural } from './index';
+import { CURRENCIES, formattingFor, isCurrency, localeFrom } from './company';
 import { en } from './locales/en';
 import { es } from './locales/es';
 import { ptBR } from './locales/pt-BR';
@@ -97,5 +98,94 @@ test('the weekday name matches the number the platform uses', () => {
       timeZone: 'UTC',
     }).format(new Date(Date.UTC(2026, 8, 6 + dia)));
     assert.equal(formatWeekdayShort(dia, defaultLocale), esperado);
+  }
+});
+
+
+/**
+ * A moeda decide o formato, e é por isso que ela é pergunta separada do idioma.
+ *
+ * Espanhol escreve `1.234,56` na Espanha e `1,234.56` no México — o mesmo idioma,
+ * o ponto e a vírgula trocados de lugar. Um número de dinheiro lido ao contrário é a
+ * pior classe de erro que este aplicativo pode cometer: mil e duzentos lidos como um
+ * e vinte e três muda uma decisão de compra.
+ */
+test('the currency decides the region, so the same amount reads right in each place', () => {
+  assert.equal(formattingFor('pt-BR', 'BRL'), 'pt-BR');
+  // Português não muda de formato com a moeda: a fábrica que cobra em dólar e lê em
+  // português continua escrevendo número como o Brasil escreve.
+  assert.equal(formattingFor('pt-BR', 'USD'), 'pt-BR');
+  assert.equal(formattingFor('es', 'MXN'), 'es-MX');
+  assert.equal(formattingFor('es', 'EUR'), 'es-ES');
+  assert.equal(formattingFor('en', 'USD'), 'en-US');
+  // Moeda fora da lista cai no idioma sozinho, que é sempre uma tag válida: pior
+  // formato, nunca erro.
+  assert.equal(formattingFor('es', 'JPY'), 'es');
+
+  // E a prova de que isso importa: a mesma quantia, duas escritas.
+  //
+  // Cinco dígitos de propósito: o espanhol da Espanha não agrupa milhar abaixo de
+  // dez mil, então `1234,56` sai sem separador nenhum e as duas escritas só se
+  // separam a partir de `12.345,67`. Uma asserção com quatro dígitos passaria a
+  // dizer que o formato não muda — que é o contrário do que este teste existe para
+  // provar.
+  const mexico = formatMoney(1234567, {
+    language: 'es',
+    currency: 'MXN',
+    formatting: 'es-MX',
+    timeZone: 'America/Mexico_City',
+  });
+  const espanha = formatMoney(1234567, {
+    language: 'es',
+    currency: 'EUR',
+    formatting: 'es-ES',
+    timeZone: 'Europe/Madrid',
+  });
+  assert.match(mexico, /12,345\.67/, 'no México a vírgula agrupa e o ponto separa o centavo');
+  assert.match(espanha, /12\.345,67/, 'na Espanha é o contrário');
+});
+
+test('what the drawer holds is never trusted, field by field', () => {
+  const padrao = defaultLocale;
+
+  // Vazia: vale o padrão inteiro.
+  assert.deepEqual(localeFrom({}, padrao), padrao);
+
+  // Idioma inválido não derruba a moeda, e vice-versa — a gaveta é local e pode
+  // vir de uma versão antiga do aplicativo.
+  const meio = localeFrom({ language: 'klingon', currency: 'MXN' }, padrao);
+  assert.equal(meio.language, 'pt-BR');
+  assert.equal(meio.currency, 'MXN');
+
+  const outro = localeFrom({ language: 'es', currency: 'XXX' }, padrao);
+  assert.equal(outro.language, 'es');
+  assert.equal(outro.currency, 'BRL', 'moeda desconhecida cai no padrão');
+  assert.equal(outro.formatting, 'es-BR', 'e o formato acompanha a moeda que valeu, não a pedida');
+
+  // Fuso sem barra não é fuso: "GMT-3" não serve para `Intl`, e um fuso inválido
+  // faria a data do lote estourar em vez de sair errada — pior, porque a tela quebra.
+  assert.equal(localeFrom({ timeZone: 'GMT-3' }, padrao).timeZone, padrao.timeZone);
+  assert.equal(localeFrom({ timeZone: 'America/Manaus' }, padrao).timeZone, 'America/Manaus');
+});
+
+test('every currency the app offers has a name in all three languages, and formats', () => {
+  assert.ok(CURRENCIES.length >= 4, 'a lista de moedas veio vazia');
+  for (const { code, region } of CURRENCIES) {
+    assert.ok(isCurrency(code));
+    assert.equal(region.length, 2, `${code} sem região de duas letras`);
+    for (const [idioma, dicionario] of [['pt-BR', ptBR], ['es', es], ['en', en]] as const) {
+      const nome = (dicionario.currency as Record<string, string>)[code];
+      assert.ok(nome && nome.length > 2, `${code} sem nome em ${idioma}`);
+    }
+    // E formata sem estourar em toda combinação oferecida.
+    for (const idioma of ['pt-BR', 'es', 'en'] as const) {
+      const escrito = formatMoney(123456, {
+        language: idioma,
+        currency: code,
+        formatting: formattingFor(idioma, code),
+        timeZone: 'UTC',
+      });
+      assert.ok(escrito.length > 3, `${code} em ${idioma} saiu como "${escrito}"`);
+    }
   }
 });

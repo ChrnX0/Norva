@@ -366,6 +366,12 @@ export const es: Dictionary = {
         purchases: { one: '1 compra', other: '{{n}} compras' },
       },
       back: 'Volver',
+      language: {
+        label: 'Idioma y moneda',
+        hint: 'Elección de la empresa: vale para todos los que usan este sistema, no solo para este teléfono. La zona horaria viene del celular, que está en la fábrica.',
+        currency: 'Moneda',
+        currencyHint: 'Decide el símbolo Y cómo se escribe el número. El ejemplo al lado es la misma cantidad en cada una.',
+      },
       appearance: {
         label: 'La cara de la aplicación',
         hint: 'Dos identidades y tres luces. Es la elección de este teléfono — no cambia nada para nadie más.',
@@ -1015,6 +1021,17 @@ export const es: Dictionary = {
     adjustment: 'Recuento',
     discrepancy: 'Diferencia en la revisión',
     reversal: 'Corrección',
+  },
+
+  currency: {
+    BRL: 'Real brasileño',
+    USD: 'Dólar',
+    EUR: 'Euro',
+    MXN: 'Peso mexicano',
+    ARS: 'Peso argentino',
+    CLP: 'Peso chileno',
+    COP: 'Peso colombiano',
+    PYG: 'Guaraní',
   },
 
   posts: {

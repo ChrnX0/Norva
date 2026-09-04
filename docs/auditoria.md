@@ -83,6 +83,18 @@ foi fechado fica marcado aqui, com o que impede a volta.
   **O que ficou:** registrar o trajeto câmara → almoxarifado não existe, e isso é
   decisão de dono sobre a F2. Está escrita em `docs/roadmap.md` ("A sala do tacho"),
   com as duas formas e o motivo de nenhuma poder ser escolhida por mim.
+- **11 — sem caminho para os outros dois idiomas nem para outra moeda.** O idioma e a
+  moeda passam a ser escolha da EMPRESA, guardada e obedecida pelas 33 telas: um
+  cartão nos Ajustes, com os três idiomas escritos cada um na própria língua e oito
+  moedas, cada uma mostrando a mesma quantia como ela escreve. O aparelho entra como
+  palpite do primeiro dia — idioma, moeda e fuso — e nada mais depois disso.
+  **E fechou um defeito que a auditoria não viu:** o fuso vinha chumbado em
+  `America/Sao_Paulo`, então uma fábrica em Manaus lançava o tacho das 22h no dia
+  seguinte — na data que vai impressa na etiqueta do lote. Agora vem do relógio do
+  aparelho, que está no galpão.
+  Provado no navegador: a suíte declara um aparelho brasileiro, o aplicativo abre em
+  português sem ninguém escolher nada, e trocar para inglês troca a tela inteira e
+  sobrevive a sair dela.
 - **10 — o texto pequeno reprovando contraste.** As seis paletas subiram de 2,55–4,43
   para **4,6:1 ou mais** contra o fundo mais claro em que cada uma pinta, que é a
   régua da WCAG para texto normal. Guarda em `src/theme/contrast.test.ts`, lendo as

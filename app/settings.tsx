@@ -18,6 +18,7 @@ import {
   GlyphThermometer,
 } from '@/components/Glyph';
 import { IconChevron } from '@/components/icons';
+import { ListRow } from '@/components/ListRow';
 import { Reveal } from '@/components/Reveal';
 import { Touchable } from '@/components/Touchable';
 import { brand } from '@/config/brand';
@@ -58,9 +59,10 @@ import {
 import { exampleStillHere, LOCAL_COMPANY_ID, restoreStarterData } from '@/data/seed';
 import { simulateFortnight } from '@/data/simulate';
 import { useQuery } from '@/data/useQuery';
-import { fill, formatQuantity, formatWeekdayShort, joinList, plural } from '@/i18n';
-import type { Dictionary } from '@/i18n';
-import { useLocale } from '@/i18n/useLocale';
+import { fill, formatMoney, formatQuantity, formatWeekdayShort, joinList, plural } from '@/i18n';
+import type { Dictionary, LanguageTag } from '@/i18n';
+import { CURRENCIES, formattingFor } from '@/i18n/company';
+import { useLocaleChoice } from '@/i18n/Locale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -99,6 +101,19 @@ export default function SettingsScreen() {
     </AreaProvider>
   );
 }
+
+/**
+ * Os três idiomas, na ordem em que o produto os oferece.
+ *
+ * O nome de cada um está NA língua dele — "Español", não "Espanhol": quem procura
+ * o próprio idioma numa lista o reconhece escrito como ele se escreve, e não
+ * precisa saber ler o idioma atual para achar o seu.
+ */
+const LANGUAGES: readonly (readonly [LanguageTag, string])[] = [
+  ['pt-BR', 'Português'],
+  ['es', 'Español'],
+  ['en', 'English'],
+];
 
 const AREAS: { area: Exclude<EraseArea, 'all'> }[] = [
   { area: 'purchases' },
@@ -212,7 +227,7 @@ function Settings() {
     setEscondidos(nova);
     await setBriefingHidden(nova);
   };
-  const { locale, t } = useLocale();
+  const { locale, t, setLanguage, setCurrency } = useLocaleChoice();
   const confirm = useConfirm();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -631,6 +646,77 @@ function Settings() {
         </Card>
       </Reveal>
 
+      {/* O idioma e a moeda — e estes são da EMPRESA, não do aparelho.
+          A diferença é a mesma que separa a cara da tela do que ela mostra: a
+          fábrica brasileira cujo dono lê inglês roda em português para todo mundo
+          no chão de fábrica, porque a conferência da câmara e o romaneio são lidos
+          pela equipe. Trocar aqui troca para todos.
+
+          Até agora não havia caminho nenhum: o dicionário tinha os três idiomas
+          completos — a compilação quebra se alguém escrever texto em um só — e
+          `useLocale` devolvia uma constante. Dois terços do que duas pessoas
+          escreveram palavra por palavra eram alcançáveis só editando o código.
+
+          O fuso não é pergunta: o celular está no galpão. Ele decide a que DIA
+          pertence um tacho fechado às 22h, e vinha chumbado em São Paulo — o que
+          fazia uma fábrica em Manaus imprimir a data errada na etiqueta.
+
+          A moeda também escolhe o FORMATO do número, e é por isso que ela é uma
+          pergunta separada do idioma: espanhol escreve 1.234,56 na Espanha e
+          1,234.56 no México. Número de dinheiro lido ao contrário é a pior classe
+          de erro que este aplicativo pode cometer. */}
+      <Reveal index={2}>
+        <Card
+          hue={palette.mist}
+          icon={(c) => <GlyphSettings size={26} color={c} weight={traco} />}
+          title={t.app.settings.language.label}
+        >
+          <Text style={[type.caption, { color: color.inkMuted }]}>
+            {t.app.settings.language.hint}
+          </Text>
+
+          <View style={[styles.top, { gap: space.sm, marginTop: space.md }]}>
+            {LANGUAGES.map(([qual, nome]) => (
+              <View key={qual} style={{ flex: 1 }}>
+                <Button
+                  label={nome}
+                  variant={locale.language === qual ? 'primary' : 'ghost'}
+                  onPress={() => setLanguage(qual)}
+                />
+              </View>
+            ))}
+          </View>
+
+          <View style={{ marginTop: space.lg, gap: space.xs }}>
+            <Text style={[type.body, { color: color.ink }]}>
+              {t.app.settings.language.currency}
+            </Text>
+            <Text style={[type.caption, { color: color.inkMuted }]}>
+              {t.app.settings.language.currencyHint}
+            </Text>
+          </View>
+
+          <View style={{ marginTop: space.sm }}>
+            {CURRENCIES.map(({ code }) => (
+              <ListRow
+                key={code}
+                label={`${code} · ${t.currency[code]}`}
+                // O exemplo é a prova: a mesma quantia escrita como aquela moeda
+                // escreve, com o separador e as casas dela.
+                detail={formatMoney(123456, {
+                  ...locale,
+                  currency: code,
+                  formatting: formattingFor(locale.language, code),
+                })}
+                trailing={locale.currency === code ? '✓' : undefined}
+                trailingTone={locale.currency === code ? 'ok' : 'muted'}
+                onPress={() => setCurrency(code)}
+              />
+            ))}
+          </View>
+        </Card>
+      </Reveal>
+
       {/* As peças da capa: o que aparece, em que ordem, e o que este aparelho
           prefere não ver.
 
@@ -643,7 +729,7 @@ function Settings() {
           o que menos existe numa mão de luva a dezoito graus negativos. E a seta
           agora é o chevron da família fina, girado — o "↑" digitado era um
           caractere de fonte no meio de uma tela de desenhos. */}
-      <Reveal index={2}>
+      <Reveal index={3}>
         <Card
           hue={palette.mist}
           icon={(c) => <GlyphCount size={26} color={c} weight={traco} />}
@@ -744,7 +830,7 @@ function Settings() {
           borda, raio e fundo próprios; agora são `Chip`, que é a mesma pílula do
           resto do aplicativo e vira carimbo reto no Papel sozinha. */}
       {alerts ? (
-        <Reveal index={3}>
+        <Reveal index={4}>
           <Card
             hue={palette.mist}
             icon={(c) => <GlyphThermometer size={26} color={c} weight={traco} />}
@@ -938,7 +1024,7 @@ function Settings() {
       {/* A aprovação de pedido.
           O tom é o do assunto e não o da tela: pedido é sage em todo o
           aplicativo, e quem vê a cor sabe do que a linha fala antes de ler. */}
-      <Reveal index={4}>
+      <Reveal index={5}>
         <Pressable
           onPress={async () => {
             await setOrdersNeedApproval(!approval);
@@ -971,7 +1057,7 @@ function Settings() {
           convidado a apagar tudo. E o cartão só existe quando há o que apagar —
           um botão desabilitado é a reclamação que a Lei 5 proíbe. */}
       {!loading && total > 0 ? (
-        <Reveal index={5}>
+        <Reveal index={6}>
           <Card
             hue={color.danger}
             icon={(c) => <GlyphLoss size={26} color={c} weight={traco} />}
@@ -995,7 +1081,7 @@ function Settings() {
           Estado vazio é desenho, uma frase e a próxima ação — não um parágrafo
           cinza no meio da tela. */}
       {total === 0 && !loading ? (
-        <Reveal index={6}>
+        <Reveal index={7}>
           <Card
             hue={palette.mist}
             icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}
@@ -1022,7 +1108,7 @@ function Settings() {
           Fica embaixo do que apaga e do que restaura, porque é da mesma
           família: mexe no que está guardado, e diz antes o que vai fazer. */}
       {total > 0 && !loading ? (
-        <Reveal index={7}>
+        <Reveal index={8}>
           <Card
             hue={palette.mist}
             icon={(c) => <GlyphCalendar size={26} color={c} weight={traco} />}
@@ -1042,7 +1128,7 @@ function Settings() {
         </Reveal>
       ) : null}
 
-      <Reveal index={8}>
+      <Reveal index={9}>
         <Button label={t.app.settings.back} variant="ghost" onPress={() => router.back()} />
       </Reveal>
     </CollapsingHeader>

@@ -1659,6 +1659,51 @@ check('an entry recorded wrong is undone from the item, and the balance comes ba
   assert.match(depois, /Correção/, 'e a correção aparece como lançamento novo');
 });
 
+check('the app speaks the three languages it was written in, and the money follows', async (page) => {
+  // O dicionário tem os três idiomas desde a primeira tela — a compilação quebra se
+  // alguém escrever texto em um só — e até 4 de setembro **nada levava ninguém até
+  // dois deles**: `useLocale` devolvia uma constante. Esta checagem dirige o caminho
+  // que passou a existir, e ela precisa do navegador por duas razões: trocar idioma é
+  // um provedor no topo da árvore relido por 33 telas, e o PADRÃO vem do aparelho —
+  // que nesta suíte é declarado como brasileiro, no contexto de cada checagem.
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await assentar(page);
+
+  // Primeiro dia, aparelho brasileiro: o aplicativo abre em português sem ninguém
+  // escolher nada. É a regra escrita no provedor — o celular é o melhor palpite no
+  // dia em que a empresa nasce, e nada mais depois disso.
+  const portugues = await screen(page);
+  assert.match(portugues, /Idioma e moeda/, 'a escolha existe na tela de Ajustes');
+  assert.match(portugues, /Escolha da empresa/, 'e ela diz que é da empresa, não do aparelho');
+  assert.match(portugues, /O que está guardado/, 'o aplicativo seguiu o idioma do aparelho');
+
+  // A moeda é outra pergunta, e a lista mostra a mesma quantia escrita como cada
+  // moeda escreve — que é a prova de que o formato acompanha a moeda.
+  assert.match(portugues, /BRL · Real/);
+  assert.match(portugues, /Peso mexicano/);
+
+  await page.getByText('English', { exact: true }).first().click();
+  await assentar(page);
+
+  const ingles = await screen(page);
+  assert.match(ingles, /Language and currency/, 'a seção trocou de idioma');
+  assert.match(ingles, /What is stored/, 'e a tela INTEIRA trocou, não só o cartão');
+  assert.doesNotMatch(ingles, /O que está guardado/, 'nada de duas línguas na mesma tela');
+  assert.match(ingles, /Mexican peso/, 'a lista de moedas fala o idioma escolhido');
+
+  // E a escolha sobrevive a sair da tela: ela está na gaveta da empresa, não no
+  // estado de um componente.
+  await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  const almoxarifado = await screen(page);
+  assert.match(almoxarifado, /Storeroom/, 'a lista abriu no idioma escolhido');
+  assert.doesNotMatch(almoxarifado, /Almoxarifado/, 'e não no do aparelho');
+
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  assert.match(await screen(page), /Language and currency/, 'e continua em inglês ao voltar');
+});
+
 check('the app has two faces, and the choice survives leaving the screen', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
@@ -1920,7 +1965,19 @@ try {
   for (const { name, fn } of selected) {
     // A fresh context per check: separate storage, so each starts on a first
     // install exactly like a person opening the app for the first time.
-    const context = await browser.newContext({ viewport: { width: 412, height: 915 } });
+    //
+    // E o aparelho é BRASILEIRO, dito em vez de herdado. O navegador headless roda
+    // em `en-US`, e desde que o idioma virou escolha da empresa — com o aparelho
+    // como palpite do primeiro dia — isso fazia o aplicativo abrir em inglês. As
+    // trinta e cinco checagens afirmam texto em português: elas passariam a reprovar
+    // todas, e por um motivo que não é defeito nenhum. Declarando o fuso e o idioma
+    // do aparelho, o mundo desta suíte é o que ela sempre descreveu: uma fábrica no
+    // Brasil.
+    const context = await browser.newContext({
+      viewport: { width: 412, height: 915 },
+      locale: 'pt-BR',
+      timezoneId: 'America/Sao_Paulo',
+    });
     const page = await context.newPage();
 
     const errors = [];

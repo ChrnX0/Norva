@@ -42,9 +42,9 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **333** testes |
-| `npm run mutate` | **103** defeitos plantados, 101 pegos e 2 equivalentes |
-| `npm run e2e:fast` | **35** checagens num navegador de verdade |
+| `npm test` | **336** testes |
+| `npm run mutate` | **105** defeitos plantados, 103 pegos e 2 equivalentes |
+| `npm run e2e:fast` | **36** checagens num navegador de verdade |
 | `npm run db:verify` | **11** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
@@ -192,7 +192,15 @@ levava o livro-razão para a conta Google de quem estivesse no aparelho) — est
 junto com o `versionCode` que colidia, que era um dos médios e o mais barato deles. E
 **2**: a compra, a contagem e a perda passam a ter grupo, logo estorno, logo a porta
 para desfazer na tela do insumo. E **10**: as seis paletas passaram a respeitar a
-régua de contraste da WCAG, com guarda que lê as cores do arquivo de tokens.
+régua de contraste da WCAG, com guarda que lê as cores do arquivo de tokens. E **11**:
+idioma e moeda viraram escolha da empresa, com o aparelho como palpite do primeiro dia
+— o que fechou de passagem o fuso chumbado em São Paulo, que fazia Manaus imprimir a
+data errada na etiqueta.
+
+**Com isso a lista de severidade ALTA da auditoria está vazia.** O que sobra são os
+médios, e o que ela declarou não ter conseguido olhar: a segunda lente adversarial, o
+teste de carga real, as duas vulnerabilidades que o `npm audit` não alcança deste
+ambiente, e **nada visto numa fábrica** — que é a lacuna que nenhum teste fecha.
 
 **O 5 deixou uma pergunta, e ela é do dono** — está escrita em "A sala do tacho",
 adiante. A tela parou de mentir, mas **registrar o trajeto câmara → almoxarifado
@@ -202,9 +210,7 @@ faz isso.
 
 De pé, nesta ordem e por este motivo:
 
-1. **11** — nada leva ninguém aos outros dois idiomas nem a outra moeda. Não afeta o
-   Brasil de hoje; afeta o dia de publicar.
-2. **Os médios que sobraram** — doze, agora que o `versionCode` caiu. Entre eles:
+1. **Os médios que sobraram** — doze, agora que o `versionCode` caiu. Entre eles:
    `recorded_by` cedível no pedido, a embalagem abaixo de meio centavo virando de
    graça, a aprovação de pedido que nunca atravessa, o percentual com ponto em vez de
    vírgula, o ícone de "Produção" ser um picolé num aplicativo que promete servir

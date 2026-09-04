@@ -9,6 +9,7 @@ import { Crash } from '@/components/Crash';
 import { WhatsNew } from '@/components/WhatsNew';
 import { Alerts } from '@/notify/Alerts';
 import { ensureStarterData } from '@/data/seed';
+import { LocaleProvider } from '@/i18n/Locale';
 import { AppearanceProvider } from '@/theme/Appearance';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 
@@ -22,11 +23,13 @@ import { ThemeProvider } from '@/theme/ThemeProvider';
 export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
   return (
     <SafeAreaProvider>
-      <AppearanceProvider>
-        <ThemeProvider>
-          <Crash error={error} retry={() => void retry()} />
-        </ThemeProvider>
-      </AppearanceProvider>
+      <LocaleProvider>
+        <AppearanceProvider>
+          <ThemeProvider>
+            <Crash error={error} retry={() => void retry()} />
+          </ThemeProvider>
+        </AppearanceProvider>
+      </LocaleProvider>
     </SafeAreaProvider>
   );
 }
@@ -80,11 +83,13 @@ export default function RootLayout() {
   if (state.error) {
     return (
       <SafeAreaProvider>
-        <AppearanceProvider>
-          <ThemeProvider>
-            <Crash error={state.error} retry={retry} />
-          </ThemeProvider>
-        </AppearanceProvider>
+        <LocaleProvider>
+          <AppearanceProvider>
+            <ThemeProvider>
+              <Crash error={state.error} retry={retry} />
+            </ThemeProvider>
+          </AppearanceProvider>
+        </LocaleProvider>
       </SafeAreaProvider>
     );
   }
@@ -94,23 +99,28 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        {/* A cara escolhida envolve tudo: ela decide a paleta, a tipografia e o
-            raio dos cantos que o resto do aplicativo lê do tema. */}
-        <AppearanceProvider>
-          <ThemeProvider>
-            <ConfirmProvider>
-              <StatusBar style="auto" />
-              <Stack screenOptions={{ headerShown: false }} />
-              {/* Sits above every screen: the update may land on any of them. */}
-              <WhatsNew />
-              {/* Reagenda os avisos a cada abertura. Não desenha nada; existe
-                  para a regra de alarme ter chamador — peça sem chamador é a
-                  doença que o P1 descreve, e este repositório já a teve quatro
-                  vezes. */}
-              <Alerts />
-            </ConfirmProvider>
-          </ThemeProvider>
-        </AppearanceProvider>
+        {/* O idioma e a moeda da empresa envolvem tudo, e ficam FORA da cara: a
+            escolha da empresa não muda porque alguém trocou a identidade da
+            tela. Trinta e três telas a leem pelo `useLocale`. */}
+        <LocaleProvider>
+          {/* A cara escolhida envolve tudo: ela decide a paleta, a tipografia e
+              o raio dos cantos que o resto do aplicativo lê do tema. */}
+          <AppearanceProvider>
+            <ThemeProvider>
+              <ConfirmProvider>
+                <StatusBar style="auto" />
+                <Stack screenOptions={{ headerShown: false }} />
+                {/* Sits above every screen: the update may land on any of them. */}
+                <WhatsNew />
+                {/* Reagenda os avisos a cada abertura. Não desenha nada; existe
+                    para a regra de alarme ter chamador — peça sem chamador é a
+                    doença que o P1 descreve, e este repositório já a teve quatro
+                    vezes. */}
+                <Alerts />
+              </ConfirmProvider>
+            </ThemeProvider>
+          </AppearanceProvider>
+        </LocaleProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

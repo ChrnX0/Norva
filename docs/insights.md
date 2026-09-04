@@ -3365,3 +3365,44 @@ Duas coisas que a régua pegou de graça, e que eu não tinha pensado:
 
 **O que mudou.** As seis paletas em `src/theme/tokens.ts`, o docblock que diz por quê,
 a guarda que lê as cores do próprio arquivo, e uma mutação que devolve a tinta velha.
+
+## 4 de setembro — o fuso chumbado que a auditoria não viu, achado por consertar outra coisa
+
+O achado 11 era sobre idioma: três dicionários completos e nenhum caminho até dois
+deles. Ao construir o caminho, `LocaleSettings` cobrou as outras duas peças que moram
+no mesmo objeto — moeda e **fuso**. E o fuso estava chumbado em `America/Sao_Paulo`.
+
+Isso não é enfeite: `localDate(nowIso(), locale.timeZone)` é o que decide a que **dia**
+pertence um tacho fechado às 22h, e essa data vai **impressa na etiqueta do lote**. Uma
+fábrica em Manaus (uma hora atrás de São Paulo) lançava o tacho das 23h como produção
+do dia seguinte, todos os dias, com o papel na caixa dizendo o dia errado. Dez
+auditores não viram, eu não vi ao ler o achado, e ele apareceu porque **o conserto de
+um pediu o objeto inteiro**.
+
+**A regra que fica: o tipo é uma lista de perguntas, e consertar um campo dele obriga a
+olhar os vizinhos.** `LocaleSettings` tem quatro campos; o achado falava de um; dois
+estavam errados. Um objeto de configuração com um campo chumbado costuma ter mais de
+um — quem chumbou o primeiro estava com pressa, e a pressa não escolhe um campo só.
+
+E a segunda metade, que é sobre a auditoria: **ela olhou o que o dicionário promete e
+não olhou o que o `defaultLocale` entrega.** As duas coisas estão a uma linha de
+distância no mesmo arquivo. Auditoria por eixo (idioma, dinheiro, sincronização) corta
+o código em fatias que não são as fatias do defeito.
+
+## 4 de setembro — o `pkill` matou meu próprio comando, de novo
+
+O `CLAUDE.md` diz: *nunca mate processo por padrão; se precisar parar algo, pare pelo
+PID que você mesmo anotou*. Eu escrevi `pkill -f "serve -s dist -l 4179"` para derrubar
+um servidor de teste — e o padrão casou com **o próprio comando do shell**, que continha
+aquela string. O shell morreu no meio, e o `node` que vinha depois (a reescrita de uma
+checagem do e2e) nunca rodou. Eu só descobri porque conferi o arquivo depois e ele
+estava intacto: o comando "terminou" com um código de saída estranho e nenhuma mensagem.
+
+Segunda aparição na história deste projeto, com a regra já escrita. A primeira matou uma
+verificação em vôo; esta matou a mão que a escrevia.
+
+**A regra que fica: `pkill -f` procura no que EU acabei de escrever.** A linha de comando
+do próprio shell é um processo com aquele texto dentro, então todo padrão amplo se
+inclui. Se for para parar por padrão, o padrão tem de excluir o próprio PID (`pgrep -f
+… | grep -v $$`) — e a saída barata continua sendo a da regra: anotar o PID quando
+inicio, e parar por ele.
