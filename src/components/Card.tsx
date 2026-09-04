@@ -76,7 +76,7 @@ export function Card({
       title?: undefined;
     }
 )) {
-  const { color, scheme, radius, space, type, accent } = useTheme();
+  const { color, scheme, radius, space, type, accent, skin } = useTheme();
 
   const toneColor =
     hue ??
@@ -93,23 +93,63 @@ export function Card({
   const wash = scheme === 'dark' ? 0.13 : 0.08;
   const edge = scheme === 'dark' ? 0.34 : 0.24;
 
+  /**
+   * O Papel não tem caixa. Esta é a segunda vez que isso é dito no código.
+   *
+   * O dono olhou a tela no Papel e circulou o que restava do outro tema:
+   * *"as cores e todo o resto não combinam. como é que essas 'caixas'
+   * continuam aí?"*. E ele estava apontando para três coisas de uma vez — o
+   * retângulo de canto arredondado, o fundo lavado de cor e o crachá
+   * preenchido atrás do ícone. As três são vocabulário do Orgânico, que é um
+   * tema de blocos e curvas; o Papel é serifa, traço fino e canto reto, e um
+   * bloco pastel dentro dele é objeto de outro aplicativo.
+   *
+   * A forma do Papel é editorial: **régua em cima, sem fundo, sem borda em
+   * volta, sem crachá.** A cor mora no traço do desenho e na régua, nunca em
+   * massa. O que separa um assunto do outro é o espaço e a linha, que é como
+   * uma página impressa separa — e foi exatamente isso que ele escolheu quando
+   * escolheu esta cara.
+   */
+  const papel = skin === 'papel';
+
   return (
     <View
       style={[
         styles.base,
-        {
-          backgroundColor: toneColor ? tint(toneColor, wash) : color.surface,
-          borderColor: toneColor ? tint(toneColor, edge) : color.line,
-          borderRadius: radius.xl,
-          padding: space.lg,
-          borderLeftWidth: toneColor ? RAIL_WIDTH : StyleSheet.hairlineWidth,
-          borderLeftColor: toneColor ?? color.line,
-        },
+        papel
+          ? {
+              backgroundColor: 'transparent',
+              borderRadius: 0,
+              // A caixa inteira sai: o `styles.base` desenha um contorno fino
+              // nos quatro lados, e sobra ele se só o esquerdo for zerado.
+              borderLeftWidth: 0,
+              borderRightWidth: 0,
+              borderBottomWidth: 0,
+              // A régua: fina no cinza do papel, mais forte e na cor do assunto
+              // quando há um. É a única linha do cartão.
+              borderTopWidth: toneColor ? 1.5 : StyleSheet.hairlineWidth,
+              borderTopColor: toneColor ?? color.line,
+              paddingTop: space.md,
+              paddingBottom: space.lg,
+              paddingHorizontal: 0,
+            }
+          : {
+              backgroundColor: toneColor ? tint(toneColor, wash) : color.surface,
+              borderColor: toneColor ? tint(toneColor, edge) : color.line,
+              borderRadius: radius.xl,
+              padding: space.lg,
+              borderLeftWidth: toneColor ? RAIL_WIDTH : StyleSheet.hairlineWidth,
+              borderLeftColor: toneColor ?? color.line,
+            },
         style,
       ]}
     >
       {icon ? (
         <View style={[styles.head, { gap: space.sm, marginBottom: space.sm }]}>
+          {papel ? (
+            // Sem crachá: o desenho fica na página, do tamanho do texto ao lado.
+            icon(toneColor ?? accent)
+          ) : (
           <View
             style={[
               styles.badge,
@@ -121,6 +161,7 @@ export function Card({
           >
             {icon(toneColor ?? accent)}
           </View>
+          )}
           {title ? (
             <Text style={[type.cardTitle, { color: color.ink, flex: 1 }]} numberOfLines={1}>
               {title}

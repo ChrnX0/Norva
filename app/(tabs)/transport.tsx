@@ -1,11 +1,14 @@
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
-import { Chip } from '@/components/Chip';
-import { useConfirm } from '@/components/Confirm';
 import { Card } from '@/components/Card';
+import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
-import { IconChevron, IconTransport } from '@/components/icons';
+import { useConfirm } from '@/components/Confirm';
+import { GlyphBox, GlyphStore, GlyphVehicle } from '@/components/Glyph';
+import { IconChevron } from '@/components/icons';
+import { Reveal } from '@/components/Reveal';
+import { Touchable } from '@/components/Touchable';
 import { nowIso } from '@/data/db';
 import { recordCheck, shipmentsOn, type Shipment } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
@@ -18,15 +21,20 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 /**
  * Where today's load went, and whether anybody opened it.
  *
- * The canvas draws one line per destination, with what each received underneath
- * and the day's total on top. Everything on this screen is read from the
- * positive legs of today's transfers - nothing here is typed, and nothing is
- * summed across items that do not share a unit.
+ * The screen is read from the positive legs of today's transfers - nothing here
+ * is typed, and nothing is summed across items that do not share a unit.
  *
- * The canvas's warning - "A Loja Norte ainda não conferiu o que chegou" - is on
- * the screen now, and it is the absence of a fact rather than an accusation:
- * nobody is late, nobody is blamed, the box simply has not been opened. Tapping
- * it records what the store counted.
+ * **O desenho anterior era uma lista de parágrafos**, e foi destruído em vez de
+ * embrulhado: retângulo cinza por destino, ícone fino de barra de abas usado
+ * como crachá, nenhuma cor de assunto, nenhuma entrada em cena e o número do dia
+ * dito numa linha solta acima dos cartões. Agora o dia é um cartão com o número
+ * grande e a comparação embaixo, e cada destino é um assunto com o tom dele.
+ *
+ * O tom é o que separa os dois estados sem precisar de leitura: destino
+ * conferido é lilás, o tom do transporte em todo o aplicativo; destino cuja
+ * caixa ninguém abriu ainda é âmbar. E a frase continua sendo a ausência de um
+ * fato, nunca uma acusação - ninguém está atrasado, ninguém errou, a caixa
+ * simplesmente não foi aberta. Tocar registra o que a loja contou.
  *
  * A destination reads as checked only when EVERY shipment that landed there
  * today was checked. A store that received the morning load and the afternoon
@@ -42,9 +50,10 @@ export default function Transport() {
 }
 
 function WhereItWent() {
-  const { color, type, space, palette } = useTheme();
+  const { color, type, space, palette, skin } = useTheme();
   const { locale, t } = useLocale();
   const router = useRouter();
+  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const confirm = useConfirm();
 
@@ -102,86 +111,126 @@ function WhereItWent() {
 
   const summary = plural(places.length, t.app.transport.destinations, formatQuantity(places.length, locale));
 
+  /** O convite de abrir, dito uma vez só - e só onde há o que abrir. */
+  const abrir = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, marginTop: space.sm }}>
+      <Text style={[type.caption, { color: color.inkFaint, flex: 1 }]}>{t.app.home.openScreen}</Text>
+      <IconChevron size={16} color={color.inkFaint} />
+    </View>
+  );
+
+  // A posição do botão na cascata, para a entrada nunca abrir buraco: um passo
+  // pelo cartão do dia mais um por destino, ou o único passo do convite quando
+  // nada saiu. Carregando, ele é o primeiro - não há cartão nenhum antes dele.
+  const passos = places.length > 0 ? places.length + 1 : loading ? 0 : 1;
+
   return (
     <CollapsingHeader
       title={t.app.transport.title}
       overline={places.length > 0 ? fill(t.app.transport.today, { summary }) : undefined}
     >
-      {/* Lei 3: "3 destinos" não é muito nem pouco até estar ao lado de ontem.
-          A comparação NÃO cabe no overline - ele é maiúsculo e truncado em uma
-          linha, então num celular estreito a metade que importa seria cortada. */}
+      {/* O dia, e a Lei 3 no mesmo cartão: o número grande com a contagem por
+          extenso embaixo e ontem embaixo dela. A comparação NÃO cabe no overline
+          - ele é maiúsculo e truncado em uma linha, então num celular estreito a
+          metade que importa seria cortada. */}
       {places.length > 0 ? (
-        <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.xs }]}>
-          {ontem === 0
-            ? t.app.transport.firstDay
-            : fill(t.app.transport.vsYesterday, {
-                count: plural(ontem, t.app.transport.destinations, formatQuantity(ontem, locale)),
-              })}
-        </Text>
+        <Reveal index={0}>
+          <Card
+            hue={palette.lilac}
+            icon={(c) => <GlyphVehicle size={26} color={c} weight={traco} />}
+            title={t.app.home.boxesTitle}
+          >
+            <Text style={[type.figure, { color: color.ink }]}>
+              {formatQuantity(places.length, locale)}
+            </Text>
+            <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={2}>
+              {summary}
+            </Text>
+            <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]} numberOfLines={2}>
+              {ontem === 0
+                ? t.app.transport.firstDay
+                : fill(t.app.transport.vsYesterday, {
+                    count: plural(ontem, t.app.transport.destinations, formatQuantity(ontem, locale)),
+                  })}
+            </Text>
+          </Card>
+        </Reveal>
       ) : null}
 
-      {places.map((place) => (
-        <Pressable
-          key={place.locationId}
-          onPress={() => (place.checked ? router.push('/places') : void ask(place))}
-          accessibilityRole="button"
-          accessibilityLabel={place.locationName}
-        >
-          <Card>
-            <View style={[styles.row, { gap: space.md }]}>
-              <IconTransport size={26} color={palette.lilac} />
-              <View style={{ flex: 1 }}>
-                <Text style={[type.cardTitle, { color: color.ink }]} numberOfLines={1}>
-                  {place.locationName}
-                </Text>
-              </View>
-              <IconChevron size={18} color={color.inkFaint} />
-            </View>
+      {/* Um destino é um assunto: crachá, tom e nome no cabeçalho do cartão. O
+          que ele recebeu são linhas, e linha não leva ícone - ícone em toda
+          linha vira papel de parede e some. */}
+      {places.map((place, i) => (
+        <Reveal key={place.locationId} index={i + 1}>
+          <Touchable
+            onPress={() => (place.checked ? router.push('/places') : void ask(place))}
+            accessibilityLabel={place.locationName}
+          >
+            <Card
+              hue={place.checked ? palette.lilac : color.warning}
+              icon={(c) => <GlyphStore size={26} color={c} weight={traco} />}
+              title={place.locationName}
+            >
+              {/* Orienta, não fiscaliza: a frase fala do que chegou, nunca de
+                  quem deveria ter conferido. E o cartão inteiro é o toque que
+                  registra a conferência. */}
+              <Chip
+                signal={place.checked ? 'ok' : 'warning'}
+                label={
+                  place.checked
+                    ? t.signals.checked
+                    : fill(t.app.transport.notChecked, { place: place.locationName })
+                }
+              />
 
-            {/* O que o desenho pede, e o que ele significa: a caixa ainda não
-                foi aberta. Orienta, não fiscaliza - a frase fala do que chegou,
-                nunca de quem deveria ter conferido. */}
-            {!place.checked ? (
-              <View style={{ marginTop: space.sm }}>
-                <Chip
-                  signal="warning"
-                  label={fill(t.app.transport.notChecked, { place: place.locationName })}
-                />
+              {/* Cada item na unidade que ele tem. Nada é convertido para caber
+                  numa coluna só. */}
+              <View style={{ marginTop: space.sm, gap: space.xs }}>
+                {place.items.map((item) => (
+                  <View key={item.itemId} style={styles.row}>
+                    <Text style={[type.secondary, { color: color.inkMuted, flex: 1 }]} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <Text style={[type.secondary, styles.number, { color: color.ink }]}>
+                      {formatQuantity(item.baseUnits, locale)}
+                    </Text>
+                  </View>
+                ))}
               </View>
-            ) : null}
 
-            {/* Cada item na unidade que ele tem. Nada é convertido para caber
-                numa coluna só. */}
-            <View style={{ marginTop: space.sm, gap: space.xs }}>
-              {place.items.map((item) => (
-                <View key={item.itemId} style={styles.row}>
-                  <Text style={[type.secondary, { color: color.inkMuted, flex: 1 }]} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Text style={[type.secondary, styles.number, { color: color.ink }]}>
-                    {formatQuantity(item.baseUnits, locale)}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </Card>
-        </Pressable>
+              {/* O rodapé só existe no destino conferido, porque só ali o toque
+                  abre uma tela. No outro, o toque é a conferência - e prometer
+                  duas coisas no mesmo cartão é prometer a errada. */}
+              {place.checked ? abrir : null}
+            </Card>
+          </Touchable>
+        </Reveal>
       ))}
 
+      {/* Nada saiu hoje: um convite, não um cartão dizendo zero. O desenho, a
+          frase e a próxima ação - que é o botão logo abaixo, e por isso este
+          cartão não é tocável: um mesmo caminho não se oferece duas vezes. */}
       {!loading && places.length === 0 ? (
-        <Card>
-          <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.transport.empty}</Text>
-          <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-            {t.app.transport.emptyHint}
-          </Text>
-        </Card>
+        <Reveal index={0}>
+          <Card
+            hue={palette.lilac}
+            icon={(c) => <GlyphBox size={26} color={c} weight={traco} />}
+            title={t.app.transport.empty}
+          >
+            <Text style={[type.secondary, { color: color.inkMuted }]}>
+              {t.app.transport.emptyHint}
+            </Text>
+          </Card>
+        </Reveal>
       ) : null}
 
-      <Button
-        label={t.app.transport.send}
-        onPress={() => router.push('/transfer')}
-        icon={(c) => <IconTransport size={24} color={c} />}
-      />
+      <Reveal index={passos}>
+        <Button
+          label={t.app.transport.send}
+          onPress={() => router.push('/transfer')}
+          icon={(c) => <GlyphVehicle size={22} color={c} weight={traco} />}
+        />
+      </Reveal>
     </CollapsingHeader>
   );
 }

@@ -201,44 +201,73 @@ const papelClaro: Palette = {
   lineStrong: '#CBBEAC',
   onAccent: '#FFFFFF',
 
-  sky: '#1D5B8C',
+  // Tinta e terra, não cor de tela.
+  //
+  // O dono olhou a tela no Papel e disse que "as cores e todo o resto não
+  // combinam". Ele estava certo por um motivo que dá para nomear: os tons eram
+  // os do Orgânico com outra saturação — verde #15803D e lilás #5B4BA8 são
+  // cores de interface, frias, e brigam com um creme quente do mesmo jeito que
+  // um marcador fluorescente briga com papel de carta.
+  //
+  // Estes são de impressão: verde-garrafa, azul-tinta, roxo-tinta, ocre. A
+  // família inteira puxa para o quente e nenhuma delas grita.
+  sky: '#2C5A7A',
   apricot: '#A8371A',
-  mint: '#15803D',
-  lilac: '#5B4BA8',
-  rose: '#A32B45',
-  sage: '#4A7A2E',
-  sand: '#9A6A05',
+  mint: '#3F6B4A',
+  // Ameixa, não violeta: o violeta era a última cor de interface que sobrava na
+  // família, e uma cor fria e saturada ao lado de creme quente é o que faz a
+  // paleta inteira parecer emprestada de outro aplicativo.
+  lilac: '#6A4A57',
+  rose: '#8E3346',
+  sage: '#5A7040',
+  sand: '#8A6414',
   mist: '#6F6558',
 
-  ok: '#15803D',
-  warning: '#9A6A05',
-  danger: '#B91C1C',
+  ok: '#3F6B4A',
+  warning: '#8A6414',
+  danger: '#9E2A2A',
   neutral: '#6F6558',
 };
 
+/**
+ * O Papel no escuro é papel escuro, não um vazio.
+ *
+ * A pergunta do dono, olhando esta cara: *"esse é o tema dark?"* — e a resposta
+ * honesta é que ele tinha virado um buraco preto. Enquanto os cartões tinham
+ * fundo lavado, a massa deles separava a página do chão; no dia em que a caixa
+ * saiu (que é o que este tema pede), sobrou tudo boiando num preto quase puro,
+ * com réguas de #2F271F que ninguém enxerga.
+ *
+ * O chão sobe para um carvão QUENTE e as linhas sobem junto: é a diferença
+ * entre uma página impressa em papel escuro e uma tela apagada. Tinta creme,
+ * papel carvão, régua visível — as três coisas juntas, ou nenhuma funciona.
+ */
 const papelEscuro: Palette = {
-  paper: '#15110D',
-  surface: '#1E1915',
-  sunken: '#262019',
+  paper: '#1B1610',
+  surface: '#241E17',
+  sunken: '#2C251C',
   ink: '#F4ECE0',
-  inkMuted: '#B6A894',
-  inkFaint: '#7E7161',
-  line: '#2F271F',
-  lineStrong: '#42392E',
-  onAccent: '#15110D',
+  inkMuted: '#BCAE9A',
+  inkFaint: '#8A7C6B',
+  // A régua é o que estrutura esta cara. Fraca demais, a página se desmancha.
+  line: '#4A3F33',
+  lineStrong: '#5E5142',
+  onAccent: '#1B1610',
 
-  sky: '#8FA8B0',
+  // A mesma família do claro, clareada para o papel escuro: continua sendo
+  // tinta sobre papel, e não cor de interface sobre preto.
+  sky: '#8FA3AE',
   apricot: '#E08A5A',
-  mint: '#6FBF8F',
-  lilac: '#B0A0CC',
-  rose: '#DE97A2',
-  sage: '#A2BE8C',
+  mint: '#9AB294',
+  lilac: '#BE9AA4',
+  rose: '#C99098',
+  sage: '#A8BC92',
   sand: '#D9B76A',
   mist: '#A8A39B',
 
-  ok: '#6FBF8F',
-  warning: '#E08A5A',
-  danger: '#E8785F',
+  ok: '#93B79A',
+  warning: '#D9B76A',
+  danger: '#D08268',
   neutral: '#B6A894',
 };
 

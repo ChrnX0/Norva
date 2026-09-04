@@ -3,9 +3,13 @@ import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { Touchable } from '@/components/Touchable';
 import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
+import { GlyphKettle, GlyphLabel, GlyphPlus, GlyphProduction } from '@/components/Glyph';
+import { IconChevron } from '@/components/icons';
+import { PulseDot } from '@/components/PulseDot';
+import { Reveal } from '@/components/Reveal';
+import { Touchable } from '@/components/Touchable';
 import {
   openProductionRuns,
   lotsOn,
@@ -18,8 +22,7 @@ import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { nowIso } from '@/data/db';
 import { useQuery } from '@/data/useQuery';
 import { dayWindow } from '@/domain/day';
-import { fill,
-  formatCalendarDate, formatQuantity, formatTime, plural } from '@/i18n';
+import { fill, formatCalendarDate, formatQuantity, formatTime, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -33,8 +36,26 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * da Lei da Inteligência. Ela não dizia o que é normal, nem o que mudou hoje.
  *
  * Agora responde: o total do dia contra o de ontem (Lei 3 — nenhum número
- * aparece sozinho), o que já entrou, os tachos ainda abertos, e a próxima ação
- * provável num botão só. O formulário mudou de endereço, não de dono.
+ * aparece sozinho), o que já entrou, as produções ainda abertas, e a próxima
+ * ação provável num botão só. O formulário mudou de endereço, não de dono.
+ *
+ * **O desenho foi refeito, não embrulhado** (docs/linguagem.md). O que havia
+ * aqui eram quatro retângulos cinzas: título escrito, parágrafo, lista. Três
+ * mudanças de fundo:
+ *
+ * - **Cada assunto é um cartão com crachá e tom.** Produção, panela e lote são
+ *   `palette.apricot` em todo o aplicativo — é o tom da aba, e quem vê laranja
+ *   sabe que é produção antes de ler. As produções em curso deixaram de ser
+ *   `tone="warning"`: panela rodando é o dia normal da fábrica, e pintar o
+ *   normal de amarelo é o alerta inventado que a Lei 7 proíbe.
+ * - **O total e a quebra dele moram no mesmo cartão.** Eram dois — "Produzido
+ *   hoje" com o número e "O que saiu hoje" com a lista — dizendo o mesmo fato em
+ *   duas caixas. A quebra é o `[por quê?]` do número, então ela fica debaixo
+ *   dele, atrás de um fio.
+ * - **Peça sem dado não aparece, e a tela vazia é um convite só.** O cartão de
+ *   lista vazia dizendo "nada lançado hoje" virou o estado vazio inteiro:
+ *   desenho, uma frase e a próxima ação. Cartão dizendo zero ensina a ignorar
+ *   cartão.
  */
 export default function ProductionScreen() {
   return (
@@ -53,8 +74,9 @@ type Loaded = {
 };
 
 function ProductionDay() {
-  const { color, type, space, palette } = useTheme();
+  const { color, type, space, palette, skin } = useTheme();
   const { locale, t } = useLocale();
+  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data, loading } = useQuery<Loaded>(async () => {
     const hoje = dayWindow(nowIso(), locale.timeZone);
@@ -75,51 +97,140 @@ function ProductionDay() {
     return { hoje, ontem, delta: hoje - ontem };
   }, [data]);
 
+  const linhas = data?.today ?? [];
+  const abertas = data?.runs ?? [];
+  const lotes = data?.lots ?? [];
+
+  /** O dia inteiro em branco: nada saiu, nada está rodando, nada nasceu. */
+  const vazio =
+    !loading && totals.hoje === 0 && totals.ontem === 0 && abertas.length === 0 && lotes.length === 0;
+
+  /** O fio que separa a manchete da conta dela. */
+  const fio = {
+    marginTop: space.md,
+    paddingTop: space.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: color.line,
+  } as const;
+
   return (
     <CollapsingHeader title={t.app.production.title} overline={t.app.production.overline}>
       {/* O que é normal ali, e o que está diferente agora. Ontem é a comparação
           honesta para uma fábrica que produz todo dia: a média da semana
           esconde o feriado, e o mês esconde a sazonalidade que o dono conhece
-          de cabeça. */}
-      <Card tone="area">
-        <Text style={[type.secondary, { color: color.inkMuted }]}>
-          {t.app.production.todayTotal}
-        </Text>
-        <Text style={[type.figure, { color: color.ink }]}>
-          {loading ? '—' : formatQuantity(totals.hoje, locale)}
-        </Text>
-        {!loading ? (
-          <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-            {totals.ontem === 0
-              ? t.app.production.noYesterday
-              : fill(t.app.production.vsYesterday, {
-                  units: formatQuantity(totals.ontem, locale),
-                })}
-          </Text>
-        ) : null}
-      </Card>
+          de cabeça.
+
+          Enquanto carrega, o cartão fica — sumir e voltar pisca a tela, e o
+          convite de fábrica nova apareceria por meio segundo em cima de uma
+          fábrica que produziu. */}
+      {loading || totals.hoje > 0 || totals.ontem > 0 ? (
+        <Reveal index={0}>
+          <Card
+            hue={palette.apricot}
+            icon={(c) => <GlyphProduction size={26} color={c} weight={traco} />}
+            title={t.app.production.todayTotal}
+          >
+            <Text style={[type.figure, styles.number, { color: color.ink }]}>
+              {loading ? '—' : formatQuantity(totals.hoje, locale)}
+            </Text>
+            {!loading ? (
+              <Text style={[type.caption, { color: color.inkMuted }]}>
+                {totals.ontem === 0
+                  ? t.app.production.noYesterday
+                  : fill(t.app.production.vsYesterday, {
+                      units: formatQuantity(totals.ontem, locale),
+                    })}
+              </Text>
+            ) : null}
+
+            {/* O veredito da comparação, em dose pequena. O número por extenso
+                fica na linha de cima: cor sozinha não é informação. */}
+            {!loading && totals.ontem > 0 && totals.hoje > 0 ? (
+              <View style={{ marginTop: space.sm }}>
+                <Chip
+                  signal={totals.delta >= 0 ? 'ok' : 'warning'}
+                  label={fill(
+                    totals.delta >= 0
+                      ? t.app.production.aboveYesterday
+                      : t.app.production.belowYesterday,
+                    {
+                      percent: String(Math.round((Math.abs(totals.delta) / totals.ontem) * 100)),
+                    },
+                  )}
+                />
+              </View>
+            ) : null}
+
+            {/* A conta do número, aberta. Sem ícone por linha: o crachá do
+                cartão já disse o assunto, e um desenho por linha vira papel de
+                parede. */}
+            {linhas.length > 0 ? (
+              <View style={fio}>
+                <Text style={[type.caption, { color: color.inkFaint }]}>
+                  {t.app.production.whatCameOut}
+                </Text>
+                <View style={{ marginTop: space.sm, gap: space.sm }}>
+                  {linhas.map((r) => (
+                    <View key={r.itemId} style={[styles.row, { gap: space.md }]}>
+                      <Text style={[type.body, { color: color.ink, flex: 1 }]} numberOfLines={1}>
+                        {r.name}
+                      </Text>
+                      <Text style={[type.body, styles.number, { color: color.ink }]}>
+                        {plural(
+                          r.baseUnits,
+                          t.app.production.unitCount,
+                          formatQuantity(r.baseUnits, locale),
+                        )}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+          </Card>
+        </Reveal>
+      ) : null}
 
       {/* A próxima ação provável, e o botão que o dono pediu com todas as
-          letras: adicionar o que foi produzido. Ele vem antes da lista porque
-          quem abre esta aba no meio do turno vem para lançar, não para ler. */}
-      <Button label={t.app.production.add} onPress={() => router.push('/production/new')} />
+          letras: adicionar o que foi produzido. Ele vem antes das listas porque
+          quem abre esta aba no meio do turno vem para lançar, não para ler.
+          Na fábrica vazia ele não está aqui — está dentro do convite, que é o
+          único bloco da tela. */}
+      {!vazio ? (
+        <Reveal index={1}>
+          <Button
+            label={t.app.production.add}
+            onPress={() => router.push('/production/new')}
+            icon={(c) => <GlyphPlus size={20} color={c} weight={traco} />}
+          />
+        </Reveal>
+      ) : null}
 
-      {data && data.runs.length > 0 ? (
-        <Card tone="warning">
-          <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.production.openRuns}</Text>
-          <View style={{ marginTop: space.md, gap: space.xs }}>
-            {data.runs.map((r) => (
-              <View key={r.id} style={styles.row}>
-                <Text style={[type.secondary, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-                  {r.productName}
-                </Text>
-                <Text style={[type.secondary, { color: color.inkMuted }]}>
-                  {formatTime(r.openedAt, locale)}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </Card>
+      {/* O que está rodando agora, com o pulso que só existe quando há o que
+          pulsar. O tom é o da produção, não o de alerta: panela aberta é o
+          estado normal de uma fábrica trabalhando. */}
+      {abertas.length > 0 ? (
+        <Reveal index={2}>
+          <Card
+            hue={palette.apricot}
+            icon={(c) => <GlyphKettle size={26} color={c} weight={traco} />}
+            title={t.app.production.openRuns}
+          >
+            <View style={{ gap: space.sm }}>
+              {abertas.map((r) => (
+                <View key={r.id} style={[styles.row, { gap: space.sm }]}>
+                  <PulseDot live color={palette.apricot} />
+                  <Text style={[type.body, { color: color.ink, flex: 1 }]} numberOfLines={1}>
+                    {r.productName}
+                  </Text>
+                  <Text style={[type.caption, { color: color.inkFaint }]}>
+                    {fill(t.app.home.liveOpened, { time: formatTime(r.openedAt, locale) })}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </Card>
+        </Reveal>
       ) : null}
 
       {/* Os lotes do dia, e o código é o ponto.
@@ -128,95 +239,92 @@ function ProductionDay() {
           gravar - um toque a mais na ação mais frequente do dia, todo dia, e o
           e2e derrubou por travar a barra de abas. Aqui ele aparece sozinho, e
           continua aqui depois: quem procura o lote de uma caixa procura HORAS
-          depois, não no segundo seguinte. */}
-      {(data?.lots ?? []).length > 0 ? (
-        <Card>
-          <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.production.lotsToday}</Text>
-          <View style={{ marginTop: space.md, gap: space.sm }}>
-            {(data?.lots ?? []).map((lot) => (
-              // Toca o lote e a etiqueta abre. É o caminho de quem está com a
-              // caixa na mão e precisa do quadrado para colar nela.
-              <Touchable
-                key={lot.id}
-                onPress={() => router.push(`/lots/${lot.id}`)}
-                accessibilityLabel={`${t.app.lotLabel.title}: ${lot.code}`}
-              >
-                <View style={styles.row}>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[type.body, styles.number, { color: color.ink }]}
-                      numberOfLines={1}
-                    >
-                      {lot.code}
+          depois, não no segundo seguinte.
+
+          O chevron é da linha, não do assunto: cada lote leva a um lugar, e o
+          traço fino é o que diz isso sem repetir o crachá do cartão. */}
+      {lotes.length > 0 ? (
+        <Reveal index={3}>
+          <Card
+            hue={palette.apricot}
+            icon={(c) => <GlyphLabel size={26} color={c} weight={traco} />}
+            title={t.app.production.lotsToday}
+          >
+            <View>
+              {lotes.map((lot, i) => (
+                // Toca o lote e a etiqueta abre. É o caminho de quem está com a
+                // caixa na mão e precisa do quadrado para colar nela.
+                <Touchable
+                  key={lot.id}
+                  onPress={() => router.push(`/lots/${lot.id}`)}
+                  accessibilityLabel={`${t.app.lotLabel.title}: ${lot.code}`}
+                  style={
+                    i === 0
+                      ? { paddingVertical: space.sm }
+                      : {
+                          paddingVertical: space.sm,
+                          borderTopWidth: StyleSheet.hairlineWidth,
+                          borderTopColor: color.line,
+                        }
+                  }
+                >
+                  <View style={[styles.row, { gap: space.md }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[type.body, styles.number, { color: color.ink }]}
+                        numberOfLines={1}
+                      >
+                        {lot.code}
+                      </Text>
+                      <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={1}>
+                        {lot.name} ·{' '}
+                        {lot.expiresOn
+                          ? fill(t.app.production.lotValid, {
+                              date: formatCalendarDate(lot.expiresOn, locale),
+                            })
+                          : t.app.production.lotNoExpiry}
+                      </Text>
+                    </View>
+                    <Text style={[type.body, styles.number, { color: color.ink }]}>
+                      {plural(
+                        lot.baseUnits,
+                        t.app.production.unitCount,
+                        formatQuantity(lot.baseUnits, locale),
+                      )}
                     </Text>
-                    <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={1}>
-                      {lot.name} ·{' '}
-                      {lot.expiresOn
-                        ? fill(t.app.production.lotValid, {
-                            date: formatCalendarDate(lot.expiresOn, locale),
-                          })
-                        : t.app.production.lotNoExpiry}
-                    </Text>
+                    <IconChevron size={16} color={color.inkFaint} />
                   </View>
-                  <Text style={[type.body, styles.number, { color: color.ink }]}>
-                    {plural(
-                      lot.baseUnits,
-                      t.app.production.unitCount,
-                      formatQuantity(lot.baseUnits, locale),
-                    )}
-                  </Text>
-                </View>
-              </Touchable>
-            ))}
-          </View>
-        </Card>
+                </Touchable>
+              ))}
+            </View>
+          </Card>
+        </Reveal>
       ) : null}
 
-      <Card>
-        <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.production.whatCameOut}</Text>
-        {loading ? (
-          <Text style={[type.body, { color: color.inkMuted, marginTop: space.md }]}>
-            {t.app.products.opening}
-          </Text>
-        ) : (data?.today ?? []).length === 0 ? (
-          // "Está tudo bem" é estado válido, e nada produzido ainda também é.
-          // Nem alerta, nem culpa: a frase diz o que fazer, não o que faltou.
-          <Text style={[type.body, { color: color.inkMuted, marginTop: space.md }]}>
-            {t.app.production.nothingYet}
-          </Text>
-        ) : (
-          <View style={{ marginTop: space.md, gap: space.sm }}>
-            {(data?.today ?? []).map((r) => (
-              <View key={r.itemId} style={styles.row}>
-                <Text style={[type.body, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-                  {r.name}
-                </Text>
-                <Text style={[type.body, styles.number, { color: color.ink }]}>
-                  {plural(
-                    r.baseUnits,
-                    t.app.production.unitCount,
-                    formatQuantity(r.baseUnits, locale),
-                  )}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
-      </Card>
-
-      {!loading && totals.ontem > 0 && totals.hoje > 0 ? (
-        <Chip
-          signal={totals.delta >= 0 ? 'ok' : 'warning'}
-          label={fill(
-            totals.delta >= 0 ? t.app.production.aboveYesterday : t.app.production.belowYesterday,
-            {
-              percent: String(Math.round((Math.abs(totals.delta) / totals.ontem) * 100)),
-            },
-          )}
-        />
+      {/* "Está tudo bem" é estado válido, e nada produzido ainda também é.
+          Um convite, não quatro cartões zerados: desenho, uma frase que diz o
+          que fazer, e a ação. Nem alerta, nem culpa — a frase não fala do que
+          faltou. */}
+      {vazio ? (
+        <Reveal index={0}>
+          <Card
+            hue={palette.apricot}
+            icon={(c) => <GlyphProduction size={26} color={c} weight={traco} />}
+            title={t.app.production.title}
+          >
+            <Text style={[type.secondary, { color: color.inkMuted }]}>
+              {t.app.production.nothingYet}
+            </Text>
+            <View style={{ marginTop: space.md }}>
+              <Button
+                label={t.app.production.add}
+                onPress={() => router.push('/production/new')}
+                icon={(c) => <GlyphPlus size={20} color={c} weight={traco} />}
+              />
+            </View>
+          </Card>
+        </Reveal>
       ) : null}
-      <View style={{ height: space.lg }} />
-      <Text style={[type.caption, { color: palette.apricot }]} />
     </CollapsingHeader>
   );
 }

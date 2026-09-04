@@ -29,6 +29,68 @@ import { spawnSync } from 'node:child_process';
 
 /** @type {{file: string, from: string, to: string, hurts: string}[]} */
 const DEFECTS = [
+  // --- o estorno e o custo do que sai do tacho, que entraram hoje -----------
+  //
+  // Regra nova sem mutação é regra protegida por coincidência: a suíte fica
+  // verde porque os exemplos escolhidos não a exercitam. Estas seis quebram de
+  // propósito o que o estorno e a média do produto prometem.
+  {
+    file: 'src/data/repository.ts',
+    from: `        AND m.kind = 'production'
+        AND m.occurred_at >= ?
+        AND m.occurred_at < ?
+        AND ${'${NAO_ESTORNADO}'}
+      GROUP BY m.item_id, i.name`,
+    to: `        AND m.kind = 'production'
+        AND m.occurred_at >= ?
+        AND m.occurred_at < ?
+      GROUP BY m.item_id, i.name`,
+    hurts:
+      'a corrida corrigida volta a contar como produzida: o almoxarifado fica certo e "produzido hoje" continua dizendo o numero errado',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: '  if (plan.alreadyReversed || plan.blocked.length > 0) throw new CannotReverseError(plan);',
+    to: '  if (plan.alreadyReversed) throw new CannotReverseError(plan);',
+    hurts:
+      'estornar uma corrida cujos picoles ja viajaram deixa saldo negativo na fabrica, e saldo negativo o livro-razao nao desfaz depois',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: `    const dentro = await planReversal(companyId, input.groupId);
+    if (dentro.alreadyReversed || dentro.blocked.length > 0) throw new CannotReverseError(dentro);`,
+    to: `    const dentro = await planReversal(companyId, input.groupId);
+    if (dentro.alreadyReversed && false) throw new CannotReverseError(dentro);`,
+    hurts:
+      'dois aparelhos estornam a mesma corrida no mesmo minuto e a correcao entra duas vezes, dobrada',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: `      WHERE m.company_id = ? AND m.movement_group_id = ? AND m.kind <> 'reversal'
+      ORDER BY m.quantity_base_units DESC`,
+    to: `      WHERE m.company_id = ? AND m.movement_group_id = ? AND m.kind = 'production'
+      ORDER BY m.quantity_base_units DESC`,
+    hurts:
+      'o estorno desfaz so a producao e deixa o consumo de pe: picole que nao consumiu nada, que parece certo e some com o insumo',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: `    const mediaNova = blendRate(antes, {
+      baseUnits: input.unitsProduced,
+      rate: unitCostRate,
+    });`,
+    to: `    const mediaNova = antes.averageRate;`,
+    hurts:
+      'o produto fabricado volta a valer o que valia antes da corrida - zero, na primeira - e o dinheiro evapora do balanco a cada tacho',
+  },
+  {
+    file: 'src/domain/cost.ts',
+    from: '  return ((held.averageRate * heldUnits + arriving.rate * arriving.baseUnits) / total) as Rate;',
+    to: '  return arriving.rate;',
+    hurts:
+      'a media do produto vira o custo da ULTIMA corrida em vez da media do que esta em maos, e o estoque antigo passa a valer o preco de hoje',
+  },
+
   {
     file: 'src/domain/picking.ts',
     from: '      order.lines.every((line) => (sent.get(line.itemId) ?? 0) >= line.baseUnits),',

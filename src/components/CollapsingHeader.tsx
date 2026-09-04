@@ -34,7 +34,7 @@ export function CollapsingHeader({
   overline?: string;
   children: ReactNode;
 }) {
-  const { color, space, type, accent } = useTheme();
+  const { color, space, type, accent, skin } = useTheme();
   const insets = useSafeAreaInsets();
 
   // How much of the screen the tab bar covers, or nothing when there is no bar.
@@ -70,14 +70,15 @@ export function CollapsingHeader({
         }}
       >
         <View style={[styles.titleRow, { gap: space.sm + 1 }]}>
-          <View
-            style={[
-              styles.icon,
-              { backgroundColor: `${accent}22`, borderRadius: 9 },
-            ]}
-          >
-            <Mark size={15} color={accent} />
-          </View>
+          {/* No Papel a marca fica na página, sem selo atrás — o dono circulou
+              justamente as "caixinhas" e esta era uma delas. */}
+          {skin === 'papel' ? (
+            <Mark size={18} color={accent} />
+          ) : (
+            <View style={[styles.icon, { backgroundColor: `${accent}22`, borderRadius: 9 }]}>
+              <Mark size={15} color={accent} />
+            </View>
+          )}
           <Animated.Text
             style={[
               { color: color.ink, fontWeight: '600', letterSpacing: -0.8 },

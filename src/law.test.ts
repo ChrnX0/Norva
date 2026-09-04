@@ -74,6 +74,9 @@ const TELAS: Record<string, Declaracao | Declaracao[]> = {
     { compara: /Sparkline/ },
     { compara: /lossVsBefore|lossFirst/ },
   ],
+  // O número é quantos destinos receberam hoje, e ontem vem logo abaixo — a
+  // mesma pergunta que a aba já respondia em texto, agora como figura.
+  'app/(tabs)/transport.tsx': { compara: /vsYesterday|firstDay/ },
   'app/inputs/index.tsx': { compara: /shortestCover|coverUnknown|coverComfortable/ },
   'app/inputs/[id].tsx': { compara: /wentUp|wentDown/ },
   'app/losses.tsx': { compara: /vsPrevious|firstWindow/ },

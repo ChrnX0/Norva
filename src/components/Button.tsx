@@ -39,7 +39,17 @@ export function Button({
   disabled?: boolean;
   style?: ViewStyle;
 }) {
-  const { color, radius, type, space, accent, motion } = useTheme();
+  const { color, radius, type, space, accent, motion, skin } = useTheme();
+
+  /**
+   * A pílula é do Orgânico. No Papel, retângulo.
+   *
+   * O dono circulou as "caixas" do outro tema e o botão era a última: um
+   * comprimido de canto totalmente arredondado no meio de uma página de réguas
+   * retas e serifa. Canto reto não deixa o botão menos achável — o que o torna
+   * achável é ser a única massa de cor da tela, e isso continua.
+   */
+  const papel = skin === 'papel';
   const [pressed, setPressed] = useState(false);
 
   // The spring is driven by state rather than by writing to a shared value in
@@ -68,7 +78,7 @@ export function Button({
         {
           backgroundColor: isPrimary ? accent : 'transparent',
           borderColor: isPrimary ? 'transparent' : color.lineStrong,
-          borderRadius: radius.pill,
+          borderRadius: papel ? radius.sm : radius.pill,
           paddingVertical: space.lg,
           paddingHorizontal: space.xl,
           opacity: disabled ? 0.45 : 1,
