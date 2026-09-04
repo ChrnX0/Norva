@@ -255,7 +255,7 @@ export const en: Dictionary = {
     weatherPlace: {
       title: 'Weather',
       overline: 'where the factory is',
-      why: 'Ice cream sells in the heat, so the weather sits on the home screen. The city came from the phone\u2019s time zone — change it if the factory is somewhere else.',
+      why: 'Heat changes what goes out and what spoils, so the weather sits on the home screen. The city came from the phone\u2019s time zone — change it if the factory is somewhere else.',
       current: 'Current city',
       none: 'No city chosen yet.',
       search: 'Search for a city',

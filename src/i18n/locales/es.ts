@@ -260,7 +260,7 @@ export const es: Dictionary = {
     weatherPlace: {
       title: 'Clima',
       overline: 'dónde está la fábrica',
-      why: 'El helado se vende con calor, así que el clima entra en la pantalla de inicio. La ciudad vino del huso horario del teléfono: cámbiala si la fábrica está en otra.',
+      why: 'El calor cambia lo que sale y lo que se echa a perder, así que el clima entra en la pantalla de inicio. La ciudad vino del huso horario del teléfono: cámbiala si la fábrica está en otra.',
       current: 'Ciudad actual',
       none: 'Todavía no hay ciudad elegida.',
       search: 'Buscar ciudad',

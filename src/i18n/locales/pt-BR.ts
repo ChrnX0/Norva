@@ -293,7 +293,7 @@ export const ptBR = {
     weatherPlace: {
       title: 'Clima',
       overline: 'onde fica a fábrica',
-      why: 'Sorvete vende com calor, então o tempo entra na tela inicial. A cidade veio do fuso do aparelho — troque se a fábrica é em outra.',
+      why: 'Calor muda o que sai e o que estraga, então o tempo entra na tela inicial. A cidade veio do fuso do aparelho — troque se a fábrica é em outra.',
       current: 'Cidade de agora',
       none: 'Nenhuma cidade escolhida ainda.',
       search: 'Procurar cidade',

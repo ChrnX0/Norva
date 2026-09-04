@@ -1,9 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
-import { Card } from '@/components/Card';
+import { Card, tint } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
+import { GlyphKettle, GlyphLabel } from '@/components/Glyph';
 import { QrCode } from '@/components/QrCode';
 import { Reveal } from '@/components/Reveal';
 import {
@@ -41,7 +42,32 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * para um ato de produção com um nome que alguém lê em voz alta, então quem
  * lançou 500 onde eram 50 chega aqui pelo código. A ação fica FORA do papel
  * branco - a etiqueta é o que sai da impressora, e botão nenhum sai impresso.
+ *
+ * **O corpo desta tela foi reescrito na língua da capa** (`docs/linguagem.md`),
+ * e o layout anterior saiu inteiro em vez de ganhar um caminho ao lado. O que
+ * havia era um retângulo branco solto no meio da tela — sem tom de área, sem
+ * desenho, sem crachá — e embaixo dele dois cartões cinzas anônimos: um para o
+ * estado da correção e outro só para a frase que explica o código duplicado.
+ * Três caixas, nenhuma dizendo de que assunto era.
+ *
+ * Agora há dois blocos, na ordem em que se decide: **a etiqueta** (o cartão de
+ * produção, com o crachá da etiqueta, carregando a folha branca — e a frase do
+ * código duplicado passou para dentro dele, porque ela explica o papel e só faz
+ * sentido colada nele) e **a corrida** (o tacho, que é o ato que se conserta,
+ * em âmbar quando o conserto não passa e em botão fantasma quando passa).
+ *
+ * A folha é a única caixa desenhada à mão em todo o aplicativo, e é exceção
+ * registrada em `src/language.test.ts`: papel branco com tinta preta em
+ * qualquer tema, porque é o que sai da impressora. O que ela pega do tema é só
+ * o **canto** — o menor de cada identidade, que no Papel é quase reto, como uma
+ * etiqueta de verdade, e no Orgânico acompanha as curvas do resto da tela.
  */
+
+/** O papel e as duas forças de tinta. Não é tema: é o que a impressora faz. */
+const PAPEL = '#FFFFFF';
+const TINTA = '#111111';
+const TINTA_FRACA = '#333333';
+
 export default function LotLabel() {
   return (
     <AreaProvider area="apricot">
@@ -54,10 +80,11 @@ type Loaded = { lot: LotOfDay | null; plan: ReversalPlan | null };
 
 function Label() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { color, type, space, radius } = useTheme();
+  const { color, type, space, radius, palette, skin } = useTheme();
   const { locale, t } = useLocale();
   const router = useRouter();
   const confirm = useConfirm();
+  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   // O plano vem JUNTO com o lote, e não no toque do botão.
   //
@@ -109,84 +136,120 @@ function Label() {
     router.back();
   };
 
+  /** O crachá da etiqueta, o assunto desta tela. */
+  const etiqueta = (c: string) => <GlyphLabel size={26} color={c} weight={traco} />;
+
+  /** O tacho: o ato que se conserta não é a etiqueta, é a corrida que a criou. */
+  const tacho = (c: string) => <GlyphKettle size={26} color={c} weight={traco} />;
+
+  /**
+   * O lote sumiu, e isto é estado válido: desenho, a frase e a saída.
+   *
+   * A pilha não tem cabeçalho com seta - `headerShown` é falso no aplicativo
+   * inteiro -, então uma tela que só diz "não está mais aqui" deixa a pessoa
+   * sem porta. A porta é de onde ela veio: a produção do dia, que é a única
+   * tela que abre um lote.
+   */
   if (!loading && !lote) {
     return (
       <CollapsingHeader title={t.app.lotLabel.title} overline={t.app.lotLabel.overline}>
-        <Card>
-          <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.lotLabel.gone}</Text>
-        </Card>
+        <Reveal index={0}>
+          <Card hue={palette.apricot} icon={etiqueta}>
+            <Text style={[type.body, { color: color.ink }]}>{t.app.lotLabel.gone}</Text>
+            <Button
+              label={t.app.tabs.production}
+              variant="ghost"
+              onPress={() => router.push('/production')}
+              style={{ marginTop: space.md }}
+            />
+          </Card>
+        </Reveal>
       </CollapsingHeader>
     );
   }
 
   return (
     <CollapsingHeader title={t.app.lotLabel.title} overline={t.app.lotLabel.overline}>
+      {/* A ETIQUETA. O cartão é de produção - quem vê âmbar sabe que o lote saiu
+          do tacho antes de ler o nome - e o crachá é a própria etiqueta. Sem
+          título: o cabeçalho já diz "Etiqueta do lote", e repetir a palavra num
+          crachá seria rótulo inventado. */}
       <Reveal index={0}>
-        {/* O papel: branco sempre, mesmo no tema escuro. Uma etiqueta é uma
-            etiqueta - o que se vê aqui é o que sai da impressora, e o tema da
-            tela não tem nada a ver com a tinta. */}
-        <View
-          style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: radius.md,
-            padding: space.xl,
-            alignItems: 'center',
-            gap: space.md,
-          }}
-        >
-          <Text style={[type.cardTitle, { color: '#111111', textAlign: 'center' }]}>
-            {lote?.name ?? ''}
-          </Text>
-
-          {lote ? <QrCode text={lote.code} size={200} /> : null}
-
-          {/* O código por extenso, no maior corpo da etiqueta: é ele que
-              salva a conferência quando o quadrado falha. */}
-          <Text
+        <Card hue={palette.apricot} icon={etiqueta}>
+          {/* A FOLHA, e a única caixa que este aplicativo desenha à mão.
+              Branca com tinta preta em qualquer tema, porque é o que sai da
+              impressora: o esquema da tela não muda a cor da tinta. O contorno
+              fraquíssimo existe para a folha continuar sendo folha no Papel,
+              onde o fundo da página também é claro. */}
+          <View
             style={[
-              type.figure,
-              { color: '#111111', letterSpacing: 1.5, fontVariant: ['tabular-nums'] },
+              styles.sheet,
+              {
+                backgroundColor: PAPEL,
+                borderColor: tint(TINTA, 0.12),
+                borderRadius: radius.sm,
+                padding: space.xl,
+                gap: space.md,
+              },
             ]}
           >
-            {lote?.code ?? ''}
-          </Text>
-
-          <View style={{ alignItems: 'center' }}>
-            {lote?.producedOn ? (
-
-              <Text style={[type.secondary, { color: '#333333' }]}>
-                {fill(t.app.lotLabel.madeOn, { date: formatCalendarDate(lote.producedOn, locale) })}
-              </Text>
-            ) : null}
-            <Text style={[type.secondary, { color: '#333333' }]}>
-              {lote?.expiresOn
-                ? fill(t.app.lotLabel.validUntil, {
-                    date: formatCalendarDate(lote.expiresOn, locale),
-                  })
-                : t.app.lotLabel.noExpiry}
+            <Text style={[type.cardTitle, styles.middle, { color: TINTA }]}>
+              {lote?.name ?? ''}
             </Text>
-            {lote ? (
-              <Text style={[type.secondary, { color: '#333333' }]}>
-                {plural(lote.baseUnits, t.units.unit, formatQuantity(lote.baseUnits, locale))}
+
+            {lote ? <QrCode text={lote.code} size={200} /> : null}
+
+            {/* O código por extenso, no maior corpo da etiqueta: é ele que
+                salva a conferência quando o quadrado falha. */}
+            <Text style={[type.figure, styles.code, { color: TINTA }]}>{lote?.code ?? ''}</Text>
+
+            {/* A régua separa o que a câmera lê do que a pessoa lê - é o que
+                toda etiqueta impressa tem, e o que faz esta parecer uma. */}
+            <View style={[styles.rule, { backgroundColor: tint(TINTA, 0.22) }]} />
+
+            <View style={[styles.facts, { gap: space.xs }]}>
+              {lote?.producedOn ? (
+                <Text style={[type.secondary, styles.middle, { color: TINTA_FRACA }]}>
+                  {fill(t.app.lotLabel.madeOn, {
+                    date: formatCalendarDate(lote.producedOn, locale),
+                  })}
+                </Text>
+              ) : null}
+              <Text style={[type.secondary, styles.middle, { color: TINTA_FRACA }]}>
+                {lote?.expiresOn
+                  ? fill(t.app.lotLabel.validUntil, {
+                      date: formatCalendarDate(lote.expiresOn, locale),
+                    })
+                  : t.app.lotLabel.noExpiry}
               </Text>
-            ) : null}
+              {lote ? (
+                <Text style={[type.secondary, styles.middle, { color: TINTA_FRACA }]}>
+                  {plural(lote.baseUnits, t.units.unit, formatQuantity(lote.baseUnits, locale))}
+                </Text>
+              ) : null}
+            </View>
           </View>
-        </View>
+
+          {/* Lei 6, e por isso esta frase mora aqui e não num cartão só dela:
+              ela abre a conta do que o olho acabou de ver duas vezes. */}
+          <Text style={[type.caption, { color: color.inkFaint, marginTop: space.md }]}>
+            {t.app.lotLabel.why}
+          </Text>
+        </Card>
       </Reveal>
 
-      {/* O conserto. Só aparece quando há corrida para desfazer, e quando não
-          dá ele diz por que em vez de ficar apagado esperando o toque. */}
+      {/* A CORRIDA. Só aparece quando há ato para desfazer, e quando não dá ela
+          diz por que em vez de ficar apagada esperando o toque. Âmbar porque o
+          que ela responde é um impedimento, não uma perda. */}
       {plano ? (
         <Reveal index={1}>
           {plano.alreadyReversed ? (
-            <Card tone="warning">
-              <Text style={[type.secondary, { color: color.ink }]}>
-                {t.app.lotLabel.reverseAlready}
-              </Text>
+            <Card hue={color.warning} icon={tacho}>
+              <Text style={[type.body, { color: color.ink }]}>{t.app.lotLabel.reverseAlready}</Text>
             </Card>
           ) : plano.blocked.length > 0 ? (
-            <Card tone="warning">
-              <Text style={[type.secondary, { color: color.ink }]}>
+            <Card hue={color.warning} icon={tacho}>
+              <Text style={[type.body, { color: color.ink }]}>
                 {fill(t.app.lotLabel.reverseBlocked, {
                   items: plano.blocked
                     .map((b) =>
@@ -204,18 +267,21 @@ function Label() {
               </Text>
             </Card>
           ) : (
-            // Fantasma, não primário: corrigir é o caminho raro. Botão grande
-            // e colorido convida, e ninguém deve ser convidado a estornar.
+            // Fantasma e sem cartão em volta: corrigir é o caminho raro. Botão
+            // grande e colorido convida, e ninguém deve ser convidado a
+            // estornar - e uma caixa em volta de um botão só é caixa vazia.
             <Button label={t.app.lotLabel.reverse} variant="ghost" onPress={corrigir} />
           )}
         </Reveal>
       ) : null}
-
-      <Reveal index={2}>
-        <Card>
-          <Text style={[type.secondary, { color: color.inkMuted }]}>{t.app.lotLabel.why}</Text>
-        </Card>
-      </Reveal>
     </CollapsingHeader>
   );
 }
+
+const styles = StyleSheet.create({
+  sheet: { alignItems: 'center', borderWidth: StyleSheet.hairlineWidth },
+  middle: { textAlign: 'center' },
+  code: { letterSpacing: 1.5, fontVariant: ['tabular-nums'] },
+  rule: { alignSelf: 'stretch', height: StyleSheet.hairlineWidth },
+  facts: { alignSelf: 'stretch' },
+});

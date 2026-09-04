@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { parseTyped } from '@/domain/number';
+import { Alive } from '@/components/Alive';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
 import { Field } from '@/components/Field';
+import { GlyphBox, GlyphStore, GlyphVehicle } from '@/components/Glyph';
+import { Reveal } from '@/components/Reveal';
 import {
   defaultLocationId,
   lastSentBaseUnits,
@@ -49,6 +52,19 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * repetir a semana passada. Sem pedido, vale `lastSentBaseUnits`, que lê no
  * livro-razão quanto foi da última vez e serve à fábrica que repõe por hábito.
  * Sem nenhum dos dois, não há palpite, e é honesto que não haja.
+ *
+ * **A cara desta tela foi reescrita, não remendada.** O corpo anterior era o
+ * vocabulário do Orgânico chumbado na mão: pílula de `borderRadius`,
+ * `borderWidth` e `backgroundColor` próprios para o sentido do movimento, e
+ * duas listas marcadas com `●`/`○` dentro de cartões cinzas sem desenho nenhum.
+ * Nada daquilo tinha como virar Papel — num tema de régua e serifa a pílula é
+ * objeto de outro aplicativo. Agora quem sabe das duas caras são o `Card`, o
+ * `Button` e o `Chip`, e aqui não se desenha caixa nenhuma: o que marca a
+ * escolha é a tinta e o peso da palavra, que é o mesmo idioma do filtro do
+ * almoxarifado.
+ *
+ * Três perguntas, três cartões, na ordem em que quem carrega o caminhão
+ * pergunta: para que lado, para qual loja, o que e quanto.
  */
 export default function TransferScreen() {
   return (
@@ -64,11 +80,12 @@ type Loaded = { places: Place[]; stock: PlaceStock[] };
 type Frente = { lotId: string; code: string; expiresOn: string | null; baseUnits: number } | null;
 
 function Transfer() {
-  const { color, type, space, radius, accent } = useTheme();
+  const { color, type, space, palette, skin } = useTheme();
   const { locale, t } = useLocale();
   const askConfirm = useConfirm();
   const router = useRouter();
   const words = t.app.transfer;
+  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data, refresh } = useQuery<Loaded>(async () => {
     const [places, stock] = await Promise.all([
@@ -275,180 +292,308 @@ function Transfer() {
     }
   };
 
+  /**
+   * O primeiro dia: não há para onde mandar.
+   *
+   * Vazio não é frase cinza no meio da tela — é desenho, uma frase e a próxima
+   * ação. A loja é o desenho porque é ela que falta, e o botão é o único caminho
+   * que esta tela tem.
+   */
   if (destinations.length === 0) {
     return (
       <CollapsingHeader title={words.title} overline={words.overline}>
-        <Card>
-          <Text style={[type.body, { color: color.ink }]}>{words.noPlaces}</Text>
-        </Card>
-        <Button label={words.createFirst} onPress={() => router.push('/places')} />
+        <Reveal index={0}>
+          <Card
+            hue={palette.lilac}
+            icon={(c) => <GlyphStore size={26} color={c} weight={traco} />}
+            title={words.to}
+          >
+            <Text style={[type.body, { color: color.inkMuted }]}>{words.noPlaces}</Text>
+          </Card>
+        </Reveal>
+        <Reveal index={1}>
+          <Button
+            label={words.createFirst}
+            onPress={() => router.push('/places')}
+            icon={(c) => <GlyphStore size={22} color={c} weight={traco} />}
+          />
+        </Reveal>
       </CollapsingHeader>
     );
   }
 
+  /**
+   * Os dois sentidos, cada um com o seu desenho.
+   *
+   * O caminhão é a fábrica mandando; a loja é a loja devolvendo. Numa fábrica
+   * onde nem todo mundo lê rápido, o desenho separa os dois antes da palavra —
+   * e é o mesmo par de perguntas, não uma tela diferente.
+   */
+  const sentidos = [
+    {
+      qual: false,
+      rotulo: words.toStore,
+      desenho: (c: string) => <GlyphVehicle size={26} color={c} weight={traco} />,
+    },
+    {
+      qual: true,
+      rotulo: words.returning,
+      desenho: (c: string) => <GlyphStore size={26} color={c} weight={traco} />,
+    },
+  ];
+
   return (
     <CollapsingHeader title={words.title} overline={words.overline}>
-      {/* O sentido, e ele vem antes de tudo porque muda o resto da tela: a
-          lista de itens passa a ser a do estoque da loja, e o que se grava
-          passa a ser devolução. */}
-      <Card>
-        <View style={{ flexDirection: 'row', gap: space.sm }}>
-          {(
-            [
-              [false, words.toStore],
-              [true, words.returning],
-            ] as const
-          ).map(([qual, rotulo]) => {
-            const ativo = devolucao === qual;
+      {/* Para que lado. Vem antes de tudo porque muda o resto da tela: a lista de
+          itens passa a ser a do estoque da loja, e o que se grava passa a ser
+          devolução. O título do cartão é a frase escolhida, então o estado do
+          sentido está dito por extenso e não só marcado. */}
+      <Reveal index={0}>
+        <Card
+          hue={palette.lilac}
+          icon={(c) => <GlyphVehicle size={26} color={c} weight={traco} />}
+          title={devolucao ? words.returning : words.toStore}
+        >
+          <View style={[styles.row, { gap: space.md }]}>
+            {sentidos.map(({ qual, rotulo, desenho }, i) => {
+              const ativo = devolucao === qual;
+              return (
+                <Pressable
+                  key={String(qual)}
+                  onPress={() => {
+                    setDevolucao(qual);
+                    setTyped(false);
+                    setAmountText('');
+                  }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: ativo }}
+                  accessibilityLabel={rotulo}
+                  style={[styles.option, { gap: space.xs, paddingVertical: space.sm }]}
+                >
+                  {/* Desenho solto numa tela recebe o `Alive` na mão — dentro do
+                      cartão é o `Card` que faz isso, aqui não. */}
+                  <Alive index={i}>{desenho(ativo ? palette.lilac : color.inkFaint)}</Alive>
+                  <Text
+                    style={[
+                      type.secondary,
+                      styles.centered,
+                      {
+                        color: ativo ? color.ink : color.inkMuted,
+                        fontWeight: ativo ? '600' : '400',
+                      },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {rotulo}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* O caminho, com os dois nomes de verdade. É a linha que evita o erro
+              que o sentido invertido causa: quem lê "Loja Centro → Fábrica" não
+              grava uma carga achando que devolveu. */}
+          {to ? (
+            <Text
+              style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}
+              numberOfLines={1}
+            >
+              {`${nameOf(from)} → ${nameOf(to.id)}`}
+            </Text>
+          ) : null}
+        </Card>
+      </Reveal>
+
+      {/* Qual loja. A pergunta é sempre sobre a LOJA — na devolução ela é a
+          origem, e é por isso que o título muda de lado junto com o sentido.
+          A marca da escolha é a tinta e o peso da palavra: caixa desenhada à mão
+          aqui era o que não tinha como virar Papel. */}
+      <Reveal index={1}>
+        <Card
+          hue={palette.lilac}
+          icon={(c) => <GlyphStore size={26} color={c} weight={traco} />}
+          title={devolucao ? words.from : words.to}
+        >
+          {destinations.map((place) => {
+            // A loja escolhida é `outra`, não o destino do movimento: na
+            // devolução o destino é a fábrica, e comparar com ele deixava a
+            // lista inteira apagada, sem nenhuma linha marcada.
+            const ativo = place.id === outra?.id;
             return (
               <Pressable
-                key={String(qual)}
-                onPress={() => {
-                  setDevolucao(qual);
-                  setTyped(false);
-                  setAmountText('');
-                }}
+                key={place.id}
+                onPress={() => setToId(place.id)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: ativo }}
-                accessibilityLabel={rotulo}
-                style={{
-                  flex: 1,
-                  paddingVertical: space.sm,
-                  borderRadius: radius.pill,
-                  borderWidth: ativo ? 2 : StyleSheet.hairlineWidth,
-                  borderColor: ativo ? accent : color.line,
-                  backgroundColor: ativo ? `${accent}14` : 'transparent',
-                  alignItems: 'center',
-                }}
+                accessibilityLabel={place.name}
+                style={[styles.row, { paddingVertical: space.md }]}
               >
                 <Text
                   style={[
-                    type.secondary,
+                    type.body,
+                    styles.grow,
                     { color: ativo ? color.ink : color.inkMuted, fontWeight: ativo ? '600' : '400' },
                   ]}
+                  numberOfLines={1}
                 >
-                  {rotulo}
+                  {place.name}
                 </Text>
               </Pressable>
             );
           })}
-        </View>
-      </Card>
 
-      <Card tone="area">
-        <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.md }]}>
-          {devolucao ? words.returnTitle : words.to}
-        </Text>
-        {destinations.map((place) => (
-          <Pressable
-            key={place.id}
-            onPress={() => setToId(place.id)}
-            accessibilityRole="button"
-            accessibilityLabel={place.name}
-            style={[styles.row, { paddingVertical: space.sm }]}
-          >
-            <Text
-              style={[type.body, { color: place.id === to?.id ? color.ink : color.inkMuted, flex: 1 }]}
-            >
-              {place.id === to?.id ? '● ' : '○ '}
-              {place.name}
+          {/* O que está diferente agora, para esta loja: sem pedido em aberto, a
+              carga é reposição por hábito, e o palpite abaixo vem da última vez.
+              Quando há pedido, quem diz é a dica do campo, com a data e o
+              combinado — dizer nos dois lugares seria a mesma frase duas vezes. */}
+          {!devolucao && pedido != null && pedido.length === 0 ? (
+            <Text style={[type.caption, { color: color.inkFaint, marginTop: space.sm }]}>
+              {words.orderedNone}
             </Text>
-          </Pressable>
-        ))}
-      </Card>
-
-      <Card>
-        <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.md }]}>
-          {words.pick}
-        </Text>
-        {lines.length === 0 ? (
-          <Text style={[type.body, { color: color.inkMuted }]}>
-            {fill(words.nothingHere, { place: nameOf(from) })}
-          </Text>
-        ) : (
-          lines.map((l) => (
-            <Pressable
-              key={l.itemId}
-              onPress={() => {
-                setItemId(l.itemId);
-                setTyped(false);
-                setAmountText('');
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={l.name}
-              style={[styles.row, { paddingVertical: space.sm }]}
-            >
-              <Text
-                style={[type.body, { color: l.itemId === line?.itemId ? color.ink : color.inkMuted, flex: 1 }]}
-              >
-                {l.itemId === line?.itemId ? '● ' : '○ '}
-                {l.name}
-              </Text>
-              <Text style={[type.secondary, styles.number, { color: color.inkMuted }]}>
-                {formatQuantity(l.baseUnits, locale)} {l.baseUnit}
-              </Text>
-            </Pressable>
-          ))
-        )}
-      </Card>
-
-      {line ? (
-        <Card tone={over ? 'warning' : 'plain'}>
-          <View style={{ gap: space.lg }}>
-            <Field
-              label={words.howMuch}
-              value={typed ? amountText : suggestion != null ? String(suggestion) : ''}
-              onChangeText={(next) => {
-                setTyped(true);
-                setAmountText(next);
-              }}
-              keyboardType="numeric"
-              suffix={line.baseUnit}
-              // A dica segue a mesma ordem do palpite: pedido primeiro, último
-              // envio depois, saldo por último. Ela diz DE ONDE veio o número,
-              // que é o que faz alguém confiar nele ou corrigi-lo.
-              hint={
-                paraSeparar
-                  ? fill(words.ordered, {
-                      date: paraSeparar.dueOn
-                        ? formatCalendarDate(paraSeparar.dueOn, locale)
-                        : '—',
-                      amount: `${formatQuantity(paraSeparar.ordered, locale)} ${line.baseUnit}`,
-                    })
-                  : lastSent != null
-                    ? fill(words.lastTime, {
-                        amount: `${formatQuantity(lastSent, locale)} ${line.baseUnit}`,
-                      })
-                    : fill(words.available, {
-                        amount: `${formatQuantity(line.baseUnits, locale)} ${line.baseUnit}`,
-                        place: nameOf(from),
-                      })
-              }
-            />
-            {over ? (
-              <Chip signal="warning" label={fill(words.overBalance, { place: nameOf(from) })} />
-            ) : null}
-          </View>
+          ) : null}
         </Card>
-      ) : null}
+      </Reveal>
 
-      {/* A distinção que o produto faz desde o começo, dita onde ela decide. */}
-      <Text
-        style={[type.caption, { color: color.inkMuted, paddingHorizontal: space.lg }]}
-      >
-        {words.notASale}
-      </Text>
+      {/* O que vai, e quanto vai — uma pergunta só, num cartão só. Eram dois
+          cartões cinzas, e a separação obrigava a olhar para cima para saber de
+          que item era aquele número. A caixa amarela é a carga que não cabe, não
+          só os dígitos: o cartão inteiro avisa. */}
+      <Reveal index={2}>
+        <Card
+          hue={over ? color.warning : palette.lilac}
+          icon={(c) => <GlyphBox size={26} color={c} weight={traco} />}
+          title={words.pick}
+        >
+          {lines.length === 0 ? (
+            <Text style={[type.body, { color: color.inkMuted }]}>
+              {fill(words.nothingHere, { place: nameOf(from) })}
+            </Text>
+          ) : (
+            lines.map((l) => {
+              const ativo = l.itemId === line?.itemId;
+              return (
+                <Pressable
+                  key={l.itemId}
+                  onPress={() => {
+                    setItemId(l.itemId);
+                    setTyped(false);
+                    setAmountText('');
+                  }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: ativo }}
+                  accessibilityLabel={l.name}
+                  style={[styles.row, { paddingVertical: space.md, gap: space.md }]}
+                >
+                  <Text
+                    style={[
+                      type.body,
+                      styles.grow,
+                      {
+                        color: ativo ? color.ink : color.inkMuted,
+                        fontWeight: ativo ? '600' : '400',
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {l.name}
+                  </Text>
+                  {/* O saldo da origem em cada linha: é o que faz a escolha
+                      acontecer sem ninguém digitar para descobrir que não tem. */}
+                  <Text
+                    style={[
+                      type.secondary,
+                      styles.number,
+                      { color: ativo ? color.ink : color.inkFaint },
+                    ]}
+                  >
+                    {formatQuantity(l.baseUnits, locale)} {l.baseUnit}
+                  </Text>
+                </Pressable>
+              );
+            })
+          )}
 
-      <Button
-        label={sending ? words.sending : words.send}
-        onPress={onSend}
-        disabled={!ready}
-      />
+          {line ? (
+            <View style={{ gap: space.md, marginTop: space.md }}>
+              <Field
+                label={words.howMuch}
+                value={typed ? amountText : suggestion != null ? String(suggestion) : ''}
+                onChangeText={(next) => {
+                  setTyped(true);
+                  setAmountText(next);
+                }}
+                keyboardType="numeric"
+                suffix={line.baseUnit}
+                // A dica segue a mesma ordem do palpite: pedido primeiro, último
+                // envio depois, saldo por último. Ela diz DE ONDE veio o número,
+                // que é o que faz alguém confiar nele ou corrigi-lo.
+                hint={
+                  paraSeparar
+                    ? fill(words.ordered, {
+                        date: paraSeparar.dueOn
+                          ? formatCalendarDate(paraSeparar.dueOn, locale)
+                          : '—',
+                        amount: `${formatQuantity(paraSeparar.ordered, locale)} ${line.baseUnit}`,
+                      })
+                    : lastSent != null
+                      ? fill(words.lastTime, {
+                          amount: `${formatQuantity(lastSent, locale)} ${line.baseUnit}`,
+                        })
+                      : fill(words.available, {
+                          amount: `${formatQuantity(line.baseUnits, locale)} ${line.baseUnit}`,
+                          place: nameOf(from),
+                        })
+                }
+              />
+
+              {over ? (
+                <Chip signal="warning" label={fill(words.overBalance, { place: nameOf(from) })} />
+              ) : null}
+
+              {/* De qual lote sai, dito na tela e não só na confirmação: quem
+                  carrega é quem vai ler o código na caixa se alguém ligar
+                  depois. Ausente é caso normal — açúcar e palito não têm lote. */}
+              {frente ? (
+                <Text style={[type.caption, { color: color.inkMuted }]}>
+                  {fill(words.fromLot, { code: frente.code })}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+
+          {/* A distinção que o produto faz desde o começo, dita onde ela decide:
+              colada no número que está sendo lançado, e não solta no meio da
+              tela. Só aparece quando há o que mandar — nota de rodapé sobre
+              faturamento embaixo de "não há nada aqui" é ruído. */}
+          {lines.length > 0 ? (
+            <Text style={[type.caption, { color: color.inkFaint, marginTop: space.md }]}>
+              {words.notASale}
+            </Text>
+          ) : null}
+        </Card>
+      </Reveal>
+
+      {/* A ação provável, embaixo e ao alcance do polegar. Uma só, primária, com
+          a marca do assunto dentro: `weighty` porque despachar carga mexe no
+          livro-razão, e o toque curto é a confirmação de que o dedo pegou. */}
+      <Reveal index={3}>
+        <Button
+          label={sending ? words.sending : words.send}
+          onPress={onSend}
+          disabled={!ready}
+          weighty
+          icon={(c) => <GlyphVehicle size={22} color={c} weight={traco} />}
+        />
+      </Reveal>
     </CollapsingHeader>
   );
 }
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
+  option: { flex: 1, alignItems: 'center' },
+  centered: { textAlign: 'center' },
+  grow: { flex: 1 },
   number: { fontVariant: ['tabular-nums'] },
 });

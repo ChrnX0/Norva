@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -7,7 +7,10 @@ import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
 import { Field } from '@/components/Field';
-import { IconProduction } from '@/components/icons';
+import { GlyphKettle, GlyphProduction, GlyphSack } from '@/components/Glyph';
+import { ListRow } from '@/components/ListRow';
+import { Reveal } from '@/components/Reveal';
+import { Touchable } from '@/components/Touchable';
 import {
   NotEnoughStockError,
   openProductionRun,
@@ -59,6 +62,28 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * O que se manteve: nenhum campo nasce vazio (Lei 2) e nenhum número aparece
  * sozinho (Lei 3) — quando o tacho está declarado e o que saiu difere do que a
  * ficha prevê, a tela diz de quanto foi a diferença antes de confirmar.
+ *
+ * **O corpo foi reescrito na língua da capa** (`docs/linguagem.md`), e o layout
+ * anterior saiu inteiro em vez de ganhar um caminho ao lado — era ele que
+ * fazia esta tela parecer de outro aplicativo no toque seguinte:
+ *
+ * - a grade de sabores era um retângulo desenhado à mão por produto, com
+ *   `borderWidth`, `borderRadius` e `backgroundColor` próprios. Isso é
+ *   vocabulário do Orgânico chumbado numa tela que também abre no Papel, onde
+ *   caixa nenhuma existe. Agora o sabor se escolhe tocando a etiqueta, que é o
+ *   mesmo gesto do tipo de lugar em `app/places.tsx`, e as duas caras saem
+ *   certas de graça;
+ * - o crachá era `IconProduction`, traço fino de barra de abas, que some dentro
+ *   do círculo pastel. Assunto é `Glyph*`, e o tom é o da produção em todo o
+ *   aplicativo: quem vê laranja sabe que é produção antes de ler. O que vai
+ *   baixar do almoxarifado é do assunto insumo, e vem em `mint` com o saco —
+ *   duas cores porque são duas perguntas, e a segunda vira âmbar quando falta;
+ * - "vai baixar do estoque" era uma tabela de linhas montada à mão, com o nome
+ *   à esquerda e o número à direita; agora é `ListRow`, que já alinha o número
+ *   em figura tabular e não repete desenho em cada linha.
+ *
+ * Nada aqui decide diferente: consulta, conta, confirmação e gravação são as
+ * mesmas linhas de antes.
  */
 export default function ProductionScreen() {
   return (
@@ -85,9 +110,11 @@ function plannedUnits(recipe: Recipe, product: Product, batches: number): number
 }
 
 function Production() {
-  const { color, type, space, radius, palette } = useTheme();
+  const { color, type, space, palette, skin } = useTheme();
   const { locale, t } = useLocale();
   const askConfirm = useConfirm();
+  const words = t.app.production;
+  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data, loading, refresh } = useQuery<Loaded>(async () => {
     const [products, graph, items, names, runs] = await Promise.all([
@@ -209,9 +236,9 @@ function Production() {
   const onCancel = async () => {
     if (!aberta) return;
     const yes = await askConfirm({
-      title: t.app.production.cancelTitle,
-      message: t.app.production.cancelBody,
-      confirmLabel: t.app.production.cancel,
+      title: words.cancelTitle,
+      message: words.cancelBody,
+      confirmLabel: words.cancel,
     });
     if (!yes) return;
     await cancelProductionRun(LOCAL_COMPANY_ID, aberta.id);
@@ -222,14 +249,14 @@ function Production() {
     if (!selected || !draft || saving) return;
 
     const go = await askConfirm({
-      title: t.app.production.confirmTitle,
-      confirmLabel: t.app.production.confirmAction,
+      title: words.confirmTitle,
+      confirmLabel: words.confirmAction,
       // Sem tacho declarado a frase não fala em tacho: dizer "em 0 tachos"
       // seria confirmar uma coisa que a pessoa não disse.
-      message: fill(batches > 0 ? t.app.production.confirmBody : t.app.production.confirmBodyNoBatch, {
-        units: plural(units, t.app.production.unitCount, formatQuantity(units, locale)),
+      message: fill(batches > 0 ? words.confirmBody : words.confirmBodyNoBatch, {
+        units: plural(units, words.unitCount, formatQuantity(units, locale)),
         product: selected.name,
-        batches: plural(batches, t.app.production.batchCount, formatQuantity(batches, locale)),
+        batches: plural(batches, words.batchCount, formatQuantity(batches, locale)),
         lines: joinList(
           // O "de" saiu do template e foi para o dicionário: em inglês a frase é
           // "18.000 g OF pulp", e cravado aqui ela sairia em português no meio de
@@ -281,10 +308,7 @@ function Production() {
       router.back();
     } catch (e) {
       await askConfirm({
-        title:
-          e instanceof NotEnoughStockError
-            ? t.app.production.missingTitle
-            : t.app.production.failed,
+        title: e instanceof NotEnoughStockError ? words.missingTitle : words.failed,
         message: e instanceof Error ? e.message : String(e),
         acknowledge: true,
       });
@@ -303,10 +327,18 @@ function Production() {
 
   if (!loading && (!data || data.products.length === 0)) {
     return (
-      <CollapsingHeader title={t.app.production.title} overline={t.app.production.overline}>
-        <Card>
-          <Text style={[type.body, { color: color.inkMuted }]}>{t.app.production.noRecipes}</Text>
-        </Card>
+      <CollapsingHeader title={words.title} overline={words.overline}>
+        {/* Estado vazio é desenho, uma frase e a saída — e a saída aqui é a
+            receita, que se cadastra noutra tela e não se navega daqui: esta é
+            uma tela empilhada, e o caminho de volta é o de sempre. */}
+        <Reveal index={0}>
+          <Card
+            hue={palette.apricot}
+            icon={(c) => <GlyphProduction size={26} color={c} weight={traco} />}
+          >
+            <Text style={[type.body, { color: color.inkMuted }]}>{words.noRecipes}</Text>
+          </Card>
+        </Reveal>
       </CollapsingHeader>
     );
   }
@@ -316,170 +348,176 @@ function Production() {
   // inventaria uma diferença que ninguém prometeu.
   const missed = batches > 0 && planned > 0 && units > 0 && units !== planned;
 
+  /** A cascata não pula número: sem rascunho, a ação sobe uma posição. */
+  const indiceAcao = draft ? 2 : 1;
 
   return (
-    <CollapsingHeader title={t.app.production.title} overline={t.app.production.overline}>
-      {/* Os sabores como cartões, não como lista de rádio.
-          A prancha os desenha numa grade de dois: quem está de luva escolhe por
-          alvo grande e por posição, não lendo uma bolinha. O selecionado ganha
-          um anel na cor da área - nunca um fundo cheio, que é a regra de cor
-          deste desenho. */}
-      <View style={[styles.grid, { gap: space.md }]}>
-        {(data?.products ?? []).map((p) => {
-          const active = p.id === selected?.id;
-          return (
-            <Pressable
-              key={p.id}
-              onPress={() => setProductId(p.id)}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: active }}
-              accessibilityLabel={p.name}
-              style={[
-                styles.tile,
-                {
-                  borderColor: active ? palette.apricot : color.line,
-                  borderWidth: active ? 2 : 1,
-                  borderRadius: radius.lg,
-                  backgroundColor: color.surface,
-                  padding: space.md,
-                  gap: space.sm,
-                },
-              ]}
-            >
-              <IconProduction size={26} color={active ? palette.apricot : color.inkFaint} />
-              <Text
-                style={[type.body, { color: active ? color.ink : color.inkMuted }]}
-                numberOfLines={2}
-              >
-                {p.name}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+    <CollapsingHeader title={words.title} overline={words.overline}>
+      {/* O que você produziu: o sabor, o número e — para quem trabalha assim —
+          a receita que rodou. É um assunto só, porque é um ato só, e por isso é
+          um cartão só: escolher o sabor sem dizer quanto saiu não lança nada.
 
-      <Card>
-        <View style={{ gap: space.lg }}>
-          {/* O fato primeiro. Este é o número que a pessoa acabou de contar, e
-              é o único campo obrigatório da tela. */}
-          <Field
-            label={t.app.production.units}
-            value={unitsTyped ? unitsText : planned > 0 ? String(planned) : ''}
-            onChangeText={(next) => {
-              setUnitsTyped(true);
-              setUnitsText(next);
-            }}
-            keyboardType="numeric"
-            hint={
-              planned > 0
-                ? fill(t.app.production.expected, { units: formatQuantity(planned, locale) })
-                : t.app.production.unitsHint
-            }
-          />
+          O sabor se escolhe tocando o nome, e a etiqueta acesa é a escolhida.
+          Nunca cor sozinha: a palavra continua dita por extenso, que é o que
+          serve de luva e sob luz ruim. */}
+      <Reveal index={0}>
+        <Card
+          hue={palette.apricot}
+          icon={(c) => <GlyphProduction size={26} color={c} weight={traco} />}
+          title={words.pick}
+        >
+          <View style={{ gap: space.lg }}>
+            <View style={[styles.wrap, { gap: space.sm }]}>
+              {(data?.products ?? []).map((p) => (
+                <Touchable
+                  key={p.id}
+                  accessibilityLabel={p.name}
+                  onPress={() => setProductId(p.id)}
+                  // O alvo cresce sem virar caixa: de luva, quatro pixels de
+                  // folga em volta da etiqueta são a diferença entre pegar o
+                  // sabor de primeira e pegar o de baixo.
+                  style={{ paddingVertical: space.xs }}
+                >
+                  <Chip signal={p.id === selected?.id ? 'ok' : 'neutral'} label={p.name} />
+                </Touchable>
+              ))}
+            </View>
 
-          {/* A conta do meio, atrás de um toque. Quem trabalha por tacho abre
-              uma vez e ganha o pré-preenchido da ficha; quem conta caixa nunca
-              abre, e a tela não pergunta. */}
-          {showBatches ? (
+            {/* O fato primeiro. Este é o número que a pessoa acabou de contar, e
+                é o único campo obrigatório da tela. */}
             <Field
-              label={t.app.production.batches}
-              value={batchText}
-              onChangeText={setBatchText}
+              label={words.units}
+              value={unitsTyped ? unitsText : planned > 0 ? String(planned) : ''}
+              onChangeText={(next) => {
+                setUnitsTyped(true);
+                setUnitsText(next);
+              }}
               keyboardType="numeric"
-              // A dica fala na unidade que o DONO escolheu na receita: "cada vez
-              // rende 40 L". Antes ela dizia "quantos tachos", que é palavra de
-              // fábrica de sorvete num aplicativo que vai para qualquer fábrica.
               hint={
-                recipe
-                  ? fill(t.app.production.batchesHint, {
-                      yield: `${formatQuantity(recipe.yieldAmount, locale)} ${recipe.yieldUnit}`,
-                    })
-                  : undefined
+                planned > 0
+                  ? fill(words.expected, { units: formatQuantity(planned, locale) })
+                  : words.unitsHint
               }
             />
-          ) : (
-            <Pressable
-              onPress={() => {
-                setShowBatches(true);
-                if (!batchText) setBatchText('1');
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={t.app.production.byBatch}
-            >
-              <Text style={[type.secondary, { color: palette.apricot }]}>
-                {t.app.production.byBatch}
+
+            {/* A conta do meio, atrás de um toque. Quem trabalha por tacho abre
+                uma vez e ganha o pré-preenchido da ficha; quem conta caixa nunca
+                abre, e a tela não pergunta. O tacho no botão é o que diz do que
+                se trata antes de a frase ser lida. */}
+            {showBatches ? (
+              <Field
+                label={words.batches}
+                value={batchText}
+                onChangeText={setBatchText}
+                keyboardType="numeric"
+                // A dica fala na unidade que o DONO escolheu na receita: "cada vez
+                // rende 40 L". Antes ela dizia "quantos tachos", que é palavra de
+                // fábrica de sorvete num aplicativo que vai para qualquer fábrica.
+                hint={
+                  recipe
+                    ? fill(words.batchesHint, {
+                        yield: `${formatQuantity(recipe.yieldAmount, locale)} ${recipe.yieldUnit}`,
+                      })
+                    : undefined
+                }
+              />
+            ) : (
+              <Button
+                label={words.byBatch}
+                variant="ghost"
+                icon={(c) => <GlyphKettle size={22} color={c} weight={traco} />}
+                onPress={() => {
+                  setShowBatches(true);
+                  if (!batchText) setBatchText('1');
+                }}
+                style={{
+                  alignSelf: 'flex-start',
+                  paddingVertical: space.sm,
+                  paddingHorizontal: space.lg,
+                }}
+              />
+            )}
+
+            {/* O tacho que já está rodando: fato, não alerta. Ele é o que
+                explica o botão dizer "fechar" em vez de "registrar". */}
+            {aberta ? (
+              <Chip
+                signal="neutral"
+                label={fill(words.running, { time: formatTime(aberta.openedAt, locale) })}
+              />
+            ) : null}
+
+            {/* O que aquele número vira na prateleira.
+                "Dá 5 caixas de 50" é aritmética que o operador não deveria ter de
+                fazer de cabeça: ele conta unidades, a loja recebe caixas. */}
+            {selected && units > 0 && packed ? (
+              <Text style={[type.secondary, { color: color.inkMuted }]}>
+                {fill(words.packedAs, { packed })}
               </Text>
-            </Pressable>
-          )}
-          {aberta ? (
-            <Text style={[type.secondary, { color: palette.apricot }]}>
-              {fill(t.app.production.running, { time: formatTime(aberta.openedAt, locale) })}
-            </Text>
-          ) : null}
+            ) : null}
 
-          {/* O que aquele número vira na prateleira.
-              A prancha escreve "dá 5 caixas de 50" embaixo da quantidade, e é
-              aritmética que o operador não deveria ter de fazer de cabeça: ele
-              conta unidades, a loja recebe caixas. `breakdown()` já existia e
-              nunca tinha sido chamado aqui. */}
-          {selected && units > 0 && packed ? (
-            <Text style={[type.secondary, { color: color.inkMuted }]}>
-              {fill(t.app.production.packedAs, { packed })}
-            </Text>
-          ) : null}
-
-          {missed ? (
-            <Chip
-              signal={units < planned ? 'warning' : 'ok'}
-              label={fill(
-                units < planned ? t.app.production.shortfall : t.app.production.over,
-                {
+            {missed ? (
+              <Chip
+                signal={units < planned ? 'warning' : 'ok'}
+                label={fill(units < planned ? words.shortfall : words.over, {
                   units: plural(
                     Math.abs(planned - units),
-                    t.app.production.unitCount,
+                    words.unitCount,
                     formatQuantity(Math.abs(planned - units), locale),
                   ),
                   percent: String(Math.round((Math.abs(planned - units) / planned) * 100)),
-                },
-              )}
-            />
-          ) : null}
-        </View>
-      </Card>
-
-      {draft ? (
-        <Card tone={draft.short.length > 0 ? 'warning' : 'area'}>
-          <Text style={[type.cardTitle, { color: color.ink }]}>
-            {t.app.production.willConsume}
-          </Text>
-          <View style={{ marginTop: space.md, gap: space.xs }}>
-            {draft.lines.map((l) => (
-              <View key={l.itemId} style={styles.row}>
-                <Text style={[type.secondary, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-                  {l.name}
-                </Text>
-                <Text style={[type.secondary, styles.number, { color: color.inkMuted }]}>
-                  {formatQuantity(l.baseUnits, locale)} {l.unit}
-                </Text>
-              </View>
-            ))}
+                })}
+              />
+            ) : null}
           </View>
-
-          {draft.short.length > 0 ? (
-            <Text style={[type.caption, { color: color.warning, marginTop: space.md }]}>
-              {fill(t.app.production.missingStock, {
-                items: draft.short.map((l) => l.name).join(', '),
-              })}
-            </Text>
-          ) : null}
-
-          <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.lg }]}>
-            {t.app.production.unitCost}
-          </Text>
-          <Text style={[type.figure, { color: color.ink }]}>
-            {formatMoney(Math.round(draft.unitCostRate), locale)}
-          </Text>
         </Card>
+      </Reveal>
+
+      {/* O que sai do almoxarifado, que é outra pergunta e por isso outro
+          cartão: assunto insumo, tom do insumo, o saco no crachá. Ele vira âmbar
+          quando falta alguma coisa — e aí o cartão inteiro muda de cor, porque a
+          falta não é detalhe de uma linha, é o motivo de a corrida não passar.
+
+          Peça sem dado não vira cartão: sem sabor, sem número ou sem ficha que
+          feche não existe rascunho, e um cartão dizendo zero baixaria nada. */}
+      {draft ? (
+        <Reveal index={1}>
+          <Card
+            hue={draft.short.length > 0 ? color.warning : palette.mint}
+            icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}
+            title={words.willConsume}
+          >
+            <View>
+              {draft.lines.map((l) => (
+                <ListRow
+                  key={l.itemId}
+                  label={l.name}
+                  trailing={`${formatQuantity(l.baseUnits, locale)} ${l.unit}`}
+                  trailingTone="muted"
+                  signal={l.held < l.baseUnits ? 'warning' : undefined}
+                />
+              ))}
+            </View>
+
+            {draft.short.length > 0 ? (
+              <Text style={[type.caption, { color: color.warning, marginTop: space.sm }]}>
+                {fill(words.missingStock, {
+                  items: draft.short.map((l) => l.name).join(', '),
+                })}
+              </Text>
+            ) : null}
+
+            {/* O número que a corrida vai congelar. Ele fecha o cartão porque é
+                a conclusão do que está acima: as linhas são a conta aberta
+                (Lei 6), e o custo é o que elas somam por unidade. */}
+            <Text style={[type.overline, { color: color.inkFaint, marginTop: space.lg }]}>
+              {words.unitCost.toUpperCase()}
+            </Text>
+            <Text style={[type.figure, { color: color.ink }]}>
+              {formatMoney(Math.round(draft.unitCostRate), locale)}
+            </Text>
+          </Card>
+        </Reveal>
       ) : null}
 
       {/* Law 5: an error stops the thing, it does not complain about it.
@@ -489,39 +527,44 @@ function Production() {
           "PARADO NO ESTOQUE -R$ 1.447,44". A negative physical balance is not a
           number anyone can act on; it means the count is wrong, and the way out
           is to count or to enter the invoice, which the message now says. */}
-      <Button
-        label={
-          saving
-            ? t.app.production.recording
-            : aberta
-              ? t.app.production.close
-              : t.app.production.record
-        }
-        onPress={onRecord}
-        disabled={!draft || saving || draft.short.length > 0}
-      />
+      <Reveal index={indiceAcao}>
+        <Button
+          label={saving ? words.recording : aberta ? words.close : words.record}
+          icon={(c) => <GlyphProduction size={22} color={c} weight={traco} />}
+          onPress={onRecord}
+          weighty
+          disabled={!draft || saving || draft.short.length > 0}
+        />
+      </Reveal>
 
       {/* Marcar o tacho agora e fechar quando sair, ou lançar tudo de uma vez.
           Os dois caminhos existem porque a fábrica escolhe: quem trabalha em
           corrida aberta marca na hora de carregar; quem lança no fim do turno
-          nunca toca neste botão, e a tela é a mesma. */}
-      {!aberta ? (
-        <Button
-          label={t.app.production.open}
-          variant="ghost"
-          onPress={onOpen}
-          disabled={!selected || saving}
-        />
-      ) : (
-        <Button label={t.app.production.cancel} variant="ghost" onPress={onCancel} />
-      )}
+          nunca toca neste botão, e a tela é a mesma. A frase que explica os dois
+          estava só no comentário e existia no dicionário nos três idiomas sem
+          uma tela lendo — agora ela é dita para quem decide. */}
+      <Reveal index={indiceAcao + 1}>
+        {!aberta ? (
+          <View style={{ gap: space.sm }}>
+            <Button
+              label={words.open}
+              variant="ghost"
+              onPress={onOpen}
+              disabled={!selected || saving}
+            />
+            <Text style={[type.caption, styles.hint, { color: color.inkFaint }]}>
+              {words.openHint}
+            </Text>
+          </View>
+        ) : (
+          <Button label={words.cancel} variant="ghost" onPress={onCancel} />
+        )}
+      </Reveal>
     </CollapsingHeader>
   );
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  tile: { flexGrow: 1, flexBasis: '46%' },
-  row: { flexDirection: 'row', alignItems: 'center' },
-  number: { fontVariant: ['tabular-nums'] },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
+  hint: { textAlign: 'center' },
 });
