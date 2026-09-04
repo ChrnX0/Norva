@@ -70,11 +70,19 @@ foi fechado fica marcado aqui, com o que impede a volta.
 - **3 — o custo médio depois do estorno.** `recomputeItemCost` refaz a média dobrando
   o livro-razão sem a corrida errada e sem a perna do estorno. Guarda: duas mutações
   curadas, uma delas na cláusula do estorno.
-- **4 — a câmara fria meio invisível.** Duas das três leituras consertadas (o cartão
-  de validade da capa e o alarme do celular), com guarda de fonte que reprova qualquer
-  tela que prenda o aviso a uma sala. **A terceira segue aberta**: a conta de quanto
-  dá para prometer (`src/data/repository.ts`) soma só o almoxarifado, então produto
-  acabado na câmara não conta como prometível.
+- **4 — a câmara fria meio invisível.** As três leituras consertadas. As duas
+  primeiras (o cartão de validade da capa e o alarme do celular) com guarda de fonte
+  que reprova qualquer tela que prenda o aviso a uma sala; a terceira, a conta de
+  quanto dá para prometer, passou a somar todas as salas nossas — e a régua de quais
+  são nossas saiu de três grafias para uma, com guarda que compara o SQL com ela.
+- **5 — a produção impossível com insumo na câmara.** Os três defeitos: a tela lê o
+  piso da sala em que o tacho roda (a mesma que a corrida grava), então impede em vez
+  de liberar um botão que a escrita vai recusar; o erro do livro-razão virou frase de
+  tela nos três idiomas, em vez de `Not enough stock:` cru; e a parede virou
+  instrução — a tela diz **onde** o insumo está, sala por sala.
+  **O que ficou:** registrar o trajeto câmara → almoxarifado não existe, e isso é
+  decisão de dono sobre a F2. Está escrita em `docs/roadmap.md` ("A sala do tacho"),
+  com as duas formas e o motivo de nenhuma poder ser escolhida por mim.
 - **6 — a contagem que prometia um número e gravava outro.** A sala viaja pela rota,
   `findItem` e `itemMovements` respondem pela sala, e a contagem grava onde leu. Com o
   item em mais de um lugar e nenhum escolhido a contagem não é oferecida: a tela lista

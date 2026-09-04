@@ -748,6 +748,8 @@ export const en: Dictionary = {
       failed: 'Could not record',
       missingStock:
         'Not enough of these for this run: {{items}}. Count them, or enter the delivery that arrived.',
+      missingElsewhere: 'There is {{item}}: {{where}}. Bring it to the storeroom before you run.',
+      missingIn: 'in',
     },
     purchase: {
       title: 'New purchase',

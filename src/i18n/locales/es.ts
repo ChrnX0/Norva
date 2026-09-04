@@ -753,6 +753,8 @@ export const es: Dictionary = {
       failed: 'No se pudo registrar',
       missingStock:
         'Falta insumo para esta corrida: {{items}}. Revisa su existencia, o registra la compra que llegó.',
+      missingElsewhere: 'Hay {{item}}: {{where}}. Tráelo al almacén antes de correr.',
+      missingIn: 'en',
     },
     purchase: {
       title: 'Nueva compra',

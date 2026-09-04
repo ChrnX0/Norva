@@ -24,13 +24,16 @@ import {
   listProducts,
   loadRecipeGraph,
   recordProduction,
+  stockByPlace,
   type ItemWithCost,
+  type PlaceStock,
   type Product,
 } from '@/data/repository';
 import { nowIso } from '@/data/db';
 import { localDate } from '@/domain/day';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
+import { INTERNAL_PLACE_KINDS } from '@/domain/ledger';
 import { explodeRequirements, type Recipe } from '@/domain/recipe';
 import { parseTyped } from '@/domain/number';
 import {
@@ -96,9 +99,12 @@ export default function ProductionScreen() {
 type Loaded = {
   products: Product[];
   graph: Record<string, Recipe>;
+  /** O saldo da SALA em que o tacho roda, que é o piso que o livro-razão confere. */
   items: ItemWithCost[];
   names: Record<string, string>;
   runs: OpenRun[];
+  /** O que tem em cada lugar, para dizer onde está o que falta aqui. */
+  stock: PlaceStock[];
 };
 
 /** Quantas unidades um tacho promete, pela ficha. */
@@ -117,14 +123,20 @@ function Production() {
   const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data, loading, refresh } = useQuery<Loaded>(async () => {
-    const [products, graph, items, names, runs] = await Promise.all([
+    // O saldo lido é o da SALA em que o tacho roda — a mesma que a corrida grava,
+    // logo abaixo. Ler o total da empresa aqui era a Lei 5 ao contrário: a tela
+    // dizia que havia polpa, liberava o botão, e o piso do livro-razão (que conta
+    // a sala, com razão escrita) recusava a corrida com um erro em inglês. Com a
+    // polpa na câmara fria, TODA corrida batia nessa parede.
+    const [products, graph, items, names, runs, stock] = await Promise.all([
       listProducts(LOCAL_COMPANY_ID),
       loadRecipeGraph(LOCAL_COMPANY_ID),
-      listItems(LOCAL_COMPANY_ID),
+      listItems(LOCAL_COMPANY_ID, undefined, false, defaultLocationId(LOCAL_COMPANY_ID)),
       loadLabels(LOCAL_COMPANY_ID),
       openProductionRuns(LOCAL_COMPANY_ID),
+      stockByPlace(LOCAL_COMPANY_ID),
     ]);
-    return { products: products.filter((p) => p.recipeId), graph, items, names, runs };
+    return { products: products.filter((p) => p.recipeId), graph, items, names, runs, stock };
   });
 
   const [productId, setProductId] = useState<string | null>(null);
@@ -192,6 +204,19 @@ function Production() {
       needed.set(linha.itemId, (needed.get(linha.itemId) ?? 0) + linha.quantityPerUnit * units);
     }
 
+    // Onde mais está o insumo que falta aqui.
+    //
+    // Sem isto a tela vira parede: "falta polpa" com dezoito quilos de polpa na
+    // câmara fria a três metros de distância. A frase que diz ONDE está é a
+    // diferença entre um erro e uma instrução — e é só a sala nossa que conta:
+    // o que já foi entregue numa loja não volta para o tacho.
+    const salaDoTacho = defaultLocationId(LOCAL_COMPANY_ID);
+    const nossasSalas = data.stock.filter(
+      (place) =>
+        place.locationId !== salaDoTacho &&
+        (INTERNAL_PLACE_KINDS as readonly string[]).includes(place.kind),
+    );
+
     const lines = [...needed].map(([itemId, baseUnits]) => {
       const item = data.items.find((i) => i.id === itemId);
       return {
@@ -201,6 +226,12 @@ function Production() {
         unit: item?.baseUnit ?? '',
         rate: item?.averageRate ?? 0,
         held: item?.onHandBaseUnits ?? 0,
+        elsewhere: nossasSalas
+          .map((place) => ({
+            room: place.locationName.trim() || t.app.places.factory,
+            baseUnits: place.lines.find((l) => l.itemId === itemId)?.baseUnits ?? 0,
+          }))
+          .filter((where) => where.baseUnits > 0),
       };
     });
 
@@ -211,7 +242,7 @@ function Production() {
     // embalagem que sai do estoque) mais o que foi digitado à mão.
     const packaging = selected.unitPackagingCents;
     return { lines, unitCostRate: value / units + packaging, short };
-  }, [selected, recipe, data, consumedBatches, units]);
+  }, [selected, recipe, data, consumedBatches, units, t.app.places.factory]);
 
   // A corrida aberta deste produto, se houver.
   const aberta = (data?.runs ?? []).find((r) => r.productId === selected?.id);
@@ -307,9 +338,21 @@ function Production() {
       // se mexer por causa do que ela acabou de lançar.
       router.back();
     } catch (e) {
+      // A frase é da tela, não do erro.
+      //
+      // `NotEnoughStockError.message` é inglês de programador ("Not enough stock:
+      // Polpa de morango") e chegava cru no diálogo, num aplicativo que não guarda
+      // uma palavra em tela nenhuma. O erro carrega FATO — o que falta, quanto
+      // precisa, quanto tem — e quem escreve português é aqui.
+      const dito =
+        e instanceof NotEnoughStockError
+          ? fill(words.missingStock, { items: e.missing.map((m) => m.name).join(', ') })
+          : e instanceof Error
+            ? e.message
+            : String(e);
       await askConfirm({
         title: e instanceof NotEnoughStockError ? words.missingTitle : words.failed,
-        message: e instanceof Error ? e.message : String(e),
+        message: dito,
         acknowledge: true,
       });
     } finally {
@@ -512,6 +555,28 @@ function Production() {
                 })}
               </Text>
             ) : null}
+
+            {/* E onde está o que falta, quando está numa sala nossa. Uma parede
+                que diz "falta polpa" com dezoito quilos de polpa na câmara a três
+                metros é a Lei 5 pela metade: impede, e não orienta. */}
+            {draft.short.map((l) =>
+              l.elsewhere.length > 0 ? (
+                <Text
+                  key={`onde-${l.itemId}`}
+                  style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}
+                >
+                  {fill(words.missingElsewhere, {
+                    item: l.name,
+                    where: l.elsewhere
+                      .map(
+                        (onde) =>
+                          `${formatQuantity(onde.baseUnits, locale)} ${l.unit} ${words.missingIn} ${onde.room}`,
+                      )
+                      .join(', '),
+                  })}
+                </Text>
+              ) : null,
+            )}
 
             {/* O número que a corrida vai congelar. Ele fecha o cartão porque é
                 a conclusão do que está acima: as linhas são a conta aberta

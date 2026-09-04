@@ -3157,3 +3157,43 @@ nossas saiu de três grafias para uma: `INTERNAL_PLACE_KINDS` e `receivesCargo` 
 `src/domain/ledger.ts`, lidas pelas duas telas que separavam sala de destino à mão.
 O SQL não importa constante, então uma guarda em `src/layers.test.ts` lê os dois
 lados e compara — divergir ali é prometer mercadoria que está numa loja.
+
+## 4 de setembro — três telas liam a empresa e escreviam numa sala, e o padrão tem nome
+
+Terceiro achado do dia com a mesma forma, e o terceiro foi encontrado **procurando
+pela forma**, não esbarrando nela. A frase que a busca usou está escrita no insight
+anterior: *decisão escrita no singular sobre coisa que passou a existir no plural*.
+
+As três, na ordem em que caíram:
+
+| tela | mostrava | escrevia | o que acontecia |
+|---|---|---|---|
+| contagem do insumo | total da empresa | almoxarifado | −38.000 g na fábrica por contar a câmara |
+| conta de prometer | — | — | "nada para prometer" com o freezer cheio |
+| produção | total da empresa | almoxarifado | toda corrida recusada, em inglês |
+
+**O que elas têm em comum não é o bug, é a origem.** `ensureLocation` cria um lugar
+cujo id É o `company_id` — decisão boa e documentada, porque foi assim que todo
+movimento já gravado foi carimbado. O efeito colateral é que, enquanto houve um lugar
+só, "o total da empresa" e "a sala padrão" foram **o mesmo número**, e nenhum teste
+podia distinguir uma leitura da outra. Os dois sentidos moram no mesmo id, então o
+código que confundiu os dois não tinha como se delatar.
+
+**A regra que fica: id que significa duas coisas é dívida com data de vencimento.** O
+vencimento chega no dia em que o segundo lugar é cadastrado — e ele chega em silêncio,
+porque o dia em que o dono cria a câmara fria não é um dia de commit. A busca por
+"quem usa `company_id` como se fosse o lugar" achou três em uma tarde e é para ser
+repetida a cada vez que uma coluna dessas ganhar um segundo valor possível.
+
+**O que mudou.** As três consertadas, cada uma com o guarda da sua forma: duas de
+fonte em `src/layers.test.ts` (a contagem, e o piso da produção) e uma comparação de
+listas (o SQL contra `INTERNAL_PLACE_KINDS`). Guarda de fonte porque nas três o
+defeito não estava em função nenhuma: estava em duas leituras diferentes da mesma
+pergunta dentro de uma tela, que é o único lugar onde teste de unidade é cego por
+construção.
+
+E uma coisa que **não** consertei, dita em vez de omitida: a produção agora impede e
+diz onde o insumo está, mas trazer a polpa da câmara para o almoxarifado não tem como
+ser registrado — a tela de transferir sai sempre da fábrica, e o caminho de volta
+grava `return`, que é notícia sobre a loja. Isso é decisão de dono sobre a F2, com as
+duas formas escritas em `docs/roadmap.md`.

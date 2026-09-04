@@ -42,8 +42,8 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **321** testes |
-| `npm run mutate` | **97** defeitos plantados, 95 pegos e 2 equivalentes |
+| `npm test` | **323** testes |
+| `npm run mutate` | **98** defeitos plantados, 96 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **34** checagens num navegador de verdade |
 | `npm run db:verify` | **11** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
@@ -183,30 +183,55 @@ achado nunca muda — quem já leu o documento leu aquela lista.
 
 Fechados, na ordem em que caíram: **1** (item e local de outra empresa, migração
 `0029`), **3** (custo médio depois do estorno), **6** (a contagem que prometia um
-número e gravava outro), e **dois terços do 4** (o aviso de validade segue o lote).
+número e gravava outro), **4** (o aviso de validade segue o lote, e a conta de
+prometer passou a somar todas as nossas salas) e **5** (a produção com insumo na
+câmara: a tela lê o piso da sala do tacho, impede em vez de reclamar, diz onde o
+insumo está, e o erro do livro-razão virou frase de tela nos três idiomas).
+
+**O 5 deixou uma pergunta, e ela é do dono** — está escrita em "A sala do tacho",
+adiante. A tela parou de mentir, mas **registrar o trajeto câmara → almoxarifado
+ainda não existe**: enquanto não existir, uma fábrica que guarda a polpa no freezer
+teria de lançar transferência antes de cada tacho, e nenhuma fábrica de seis pessoas
+faz isso.
 
 De pé, nesta ordem e por este motivo:
 
-1. **4, o terço que falta** — a conta de quanto dá para prometer soma só o
-   almoxarifado (`stockAgainstOrders`, `src/data/repository.ts`). Produto
-   acabado na câmara fria não conta como prometível, e câmara fria é onde o picolé
-   está no dia seguinte ao de produzi-lo.
-2. **5** — com insumo na câmara a produção fica impossível, e o erro sai **em inglês**
-   e sem saída na tela. É o único achado que soma três defeitos numa tela.
-3. **8** — apagar uma área menor deixa órfã na fila, e órfã não é recusa: é exceção
+1. **8** — apagar uma área menor deixa órfã na fila, e órfã não é recusa: é exceção
    que repete para sempre.
-4. **2** — compra, perda e contagem sem `movement_group_id`, então não há estorno. Só
+2. **2** — compra, perda e contagem sem `movement_group_id`, então não há estorno. Só
    agora é seguro: sem o conserto do **3**, o estorno consertaria a quantidade e
    deixaria o dinheiro errado.
-5. **9** — `allowBackup` do Android tira o livro-razão do celular pela conta Google
+3. **9** — `allowBackup` do Android tira o livro-razão do celular pela conta Google
    de quem estiver logado, num aparelho que é compartilhado por decisão escrita.
-6. **10** — `inkFaint` dá 2,55:1 nas quatro combinações de tema, em 124 corridas de
+4. **10** — `inkFaint` dá 2,55:1 nas quatro combinações de tema, em 124 corridas de
    texto de 11 e 13 px. É o rótulo que diz **o que** o número é.
-7. **11** — nada leva ninguém aos outros dois idiomas nem a outra moeda. Não afeta o
+5. **11** — nada leva ninguém aos outros dois idiomas nem a outra moeda. Não afeta o
    Brasil de hoje; afeta o dia de publicar.
-8. **Os treze médios**, entre eles o `versionCode` que colide (`0.10.0` e `1.0.0`
+6. **Os treze médios**, entre eles o `versionCode` que colide (`0.10.0` e `1.0.0`
    dão 100000, e o primeiro já está publicado) e `forgetSentBefore` sem chamador
    fora de teste.
+
+### A sala do tacho — a decisão que a F2 precisa, e ela é do dono
+
+O piso da produção conta a sala em que o tacho roda, e isso está certo: somar todos
+os lugares autorizaria um tacho com o açúcar que está a dez quilômetros, numa loja.
+Mas polpa mora no freezer. Então uma fábrica que guarda insumo na câmara fria vive um
+de dois mundos, e os dois são legítimos:
+
+- **Sala estrita** (hoje): o insumo entra no almoxarifado, e tirar da câmara é uma
+  transferência lançada. Saldo por sala sempre exato; um lançamento a mais por tacho.
+- **Salas nossas somadas**: o tacho consome de qualquer sala da fábrica, e o sistema
+  decide de qual debitar (a mais velha primeiro, como o lote já faz). Nada a lançar;
+  o saldo de uma sala isolada passa a ser deduzido, não declarado.
+
+Pela regra da casa isto **não é pergunta de qual, é pergunta de qual é o padrão** — os
+dois caminhos existem como configuração da empresa. O que trava é o portão P3: a
+segunda opção muda **onde o consumo é gravado**, que é o caminho de escrita de
+`movements`, e forma de livro-razão não se corrige com um commit. Fica aqui escrito,
+com as duas formas, para entrar junto com a câmara fria da F2 — e o que falta antes de
+qualquer uma é o trajeto interno: **transferência entre salas nossas**, que a tela de
+transferir não faz (ela sai sempre da fábrica, e o caminho de volta grava
+`return`, que é notícia sobre a loja, não sobre a nossa câmara).
 
 ## F3 — o mês que tira o papel do chão de fábrica
 

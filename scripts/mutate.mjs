@@ -797,6 +797,19 @@ const DEFECTS = [
     hurts:
       'findItem volta a responder o total da empresa mesmo quando a pergunta e de uma sala: a tela da camara fria mostra o saldo da fabrica somado ao dela, e a diferenca da contagem sai desse numero',
   },
+  // --- a producao impossivel com insumo na camara, 4 de setembro ------------
+  //
+  // Achado da auditoria. O piso do livro-razao conta a SALA, com razao escrita, e
+  // a tela lia o total da empresa: com a polpa na camara (que e onde polpa mora),
+  // a tela liberava o botao e TODA corrida batia num erro em ingles.
+  {
+    file: 'app/production/new.tsx',
+    from: '      listItems(LOCAL_COMPANY_ID, undefined, false, defaultLocationId(LOCAL_COMPANY_ID)),',
+    to: '      listItems(LOCAL_COMPANY_ID),',
+    hurts:
+      'a tela de producao volta a ler o saldo da empresa e a liberar o botao com o insumo noutra sala: cada toque devolve o erro de programador do piso, e nenhuma corrida entra',
+  },
+
   // --- o freezer cheio que a conta nao via, 4 de setembro --------------------
   //
   // Achado da auditoria (item 4, o terco que faltava). A conta de quanto da para

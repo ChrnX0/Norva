@@ -397,3 +397,72 @@ test('the rooms SQL calls ours are the rooms the domain calls ours', () => {
     );
   }
 });
+
+/**
+ * A tela que produz lê o piso da sala em que o tacho roda.
+ *
+ * **A cicatriz.** `recordProduction` confere o piso da SALA e tem a razão escrita
+ * ao lado: a guarda somava o saldo de todos os lugares e escrevia o consumo num,
+ * então bastava mandar um saco de açúcar para a loja para autorizar um tacho com o
+ * açúcar que está a dez quilômetros. A tela, porém, continuou lendo
+ * `listItems(LOCAL_COMPANY_ID)` — o total da empresa — para decidir se libera o
+ * botão. Com a polpa na câmara fria, que é onde polpa mora numa fábrica de picolés,
+ * a tela dizia que havia polpa, liberava o botão, e **toda** corrida batia no piso
+ * do livro-razão com um erro de programador em inglês.
+ *
+ * É a mesma forma do defeito da contagem, e por isso a mesma forma de guarda: o
+ * defeito não está em função nenhuma, está em duas leituras diferentes da mesma
+ * pergunta dentro de uma tela.
+ */
+export function pisoDeOutraSala(texto: string): string[] {
+  if (!/recordProduction\(/.test(texto)) return [];
+  const achados: string[] = [];
+  for (const m of texto.matchAll(/listItems\(([^)]*)\)/g)) {
+    const args = m[1]
+      .split(',')
+      .map((a) => a.trim())
+      .filter(Boolean);
+    // companyId, tipo, inativos, sala — sem o quarto, o saldo é o da empresa.
+    if (args.length < 4) achados.push(`listItems(${args.join(', ')})`);
+  }
+  return achados;
+}
+
+test('a screen that produces reads the floor of the room the kettle is in', () => {
+  const telas = sourcesUnder('app');
+  assert.ok(telas.length > 10, 'a varredura de telas veio vazia — a comparação seria de graça');
+
+  const cegas: string[] = [];
+  for (const f of telas) {
+    for (const chamada of pisoDeOutraSala(readFileSync(f, 'utf8'))) cegas.push(`${f}: ${chamada}`);
+  }
+
+  assert.deepEqual(
+    cegas,
+    [],
+    `estas telas de produção leem o saldo da empresa:\n  ${cegas.join('\n  ')}\n` +
+      'O piso que o livro-razão confere é o da sala em que o tacho roda, com razão escrita. ' +
+      'Ler o total aqui libera um botão que a escrita vai recusar — e a Lei 5 diz que o erro ' +
+      'impede, não reclama.',
+  );
+});
+
+test('the production floor guard bites the real scar, and leaves the fix alone', () => {
+  const comProducao = (corpo: string) => `await recordProduction(LOCAL_COMPANY_ID, {});\n${corpo}`;
+
+  assert.deepEqual(
+    pisoDeOutraSala(comProducao('listItems(LOCAL_COMPANY_ID),')),
+    ['listItems(LOCAL_COMPANY_ID)'],
+    'a cicatriz tem que reprovar',
+  );
+  assert.deepEqual(
+    pisoDeOutraSala(
+      comProducao('listItems(LOCAL_COMPANY_ID, undefined, false, defaultLocationId(LOCAL_COMPANY_ID)),'),
+    ),
+    [],
+    'o conserto passa',
+  );
+  // E a régua não fala com quem não produz: a lista do almoxarifado lê a empresa
+  // inteira de propósito, e está certa.
+  assert.deepEqual(pisoDeOutraSala('listItems(LOCAL_COMPANY_ID),'), []);
+});

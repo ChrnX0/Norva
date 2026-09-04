@@ -812,6 +812,9 @@ export const ptBR = {
       failed: 'Não deu para registrar',
       missingStock:
         'Falta insumo para esta corrida: {{items}}. Confira o estoque deles, ou lance a compra que chegou.',
+      /** Onde está o que falta aqui, quando está numa sala da própria fábrica. */
+      missingElsewhere: 'Tem {{item}}: {{where}}. Traga para o almoxarifado antes de rodar.',
+      missingIn: 'na',
     },
     purchase: {
       title: 'Nova compra',
