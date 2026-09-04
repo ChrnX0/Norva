@@ -83,6 +83,12 @@ foi fechado fica marcado aqui, com o que impede a volta.
   **O que ficou:** registrar o trajeto câmara → almoxarifado não existe, e isso é
   decisão de dono sobre a F2. Está escrita em `docs/roadmap.md` ("A sala do tacho"),
   com as duas formas e o motivo de nenhuma poder ser escolhida por mim.
+- **2 — compra, perda e contagem sem estorno.** Os três atos passam a gravar
+  `movement_group_id` (a compra pela NOTA, não pela linha), e ganham a porta que
+  faltava: o cartão "Últimos lançamentos" na tela do insumo desfaz no toque, com a
+  conta aberta antes de escrever e a recusa explicando o caminho quando não cabe.
+  Dar grupo sem porta não seria conserto — o portão P1 do projeto pede o chamador no
+  mesmo commit. Provado no navegador, não só na unidade.
 - **9 — o livro-razão saindo pelo backup do Android.** `allowBackup` desligado no
   `app.json`, com guarda em `src/release.test.ts` — a intenção conferida em todo commit e
   o manifesto **gerado** conferido no fluxo de build, que é o arquivo que instala.

@@ -189,7 +189,9 @@ câmara: a tela lê o piso da sala do tacho, impede em vez de reclamar, diz onde
 insumo está, e o erro do livro-razão virou frase de tela nos três idiomas) e **8** (a
 órfã que a fila guardava depois de apagar uma área) e **9** (o backup do Android, que
 levava o livro-razão para a conta Google de quem estivesse no aparelho) — este último
-junto com o `versionCode` que colidia, que era um dos médios e o mais barato deles.
+junto com o `versionCode` que colidia, que era um dos médios e o mais barato deles. E
+**2**: a compra, a contagem e a perda passam a ter grupo, logo estorno, logo a porta
+para desfazer na tela do insumo.
 
 **O 5 deixou uma pergunta, e ela é do dono** — está escrita em "A sala do tacho",
 adiante. A tela parou de mentir, mas **registrar o trajeto câmara → almoxarifado
@@ -199,14 +201,11 @@ faz isso.
 
 De pé, nesta ordem e por este motivo:
 
-1. **2** — compra, perda e contagem sem `movement_group_id`, então não há estorno. Só
-   agora é seguro: sem o conserto do **3**, o estorno consertaria a quantidade e
-   deixaria o dinheiro errado.
-2. **10** — `inkFaint` dá 2,55:1 nas quatro combinações de tema, em 124 corridas de
+1. **10** — `inkFaint` dá 2,55:1 nas quatro combinações de tema, em 124 corridas de
    texto de 11 e 13 px. É o rótulo que diz **o que** o número é.
-3. **11** — nada leva ninguém aos outros dois idiomas nem a outra moeda. Não afeta o
+2. **11** — nada leva ninguém aos outros dois idiomas nem a outra moeda. Não afeta o
    Brasil de hoje; afeta o dia de publicar.
-4. **Os médios que sobraram** — doze, agora que o `versionCode` caiu. Entre eles:
+3. **Os médios que sobraram** — doze, agora que o `versionCode` caiu. Entre eles:
    `recorded_by` cedível no pedido, a embalagem abaixo de meio centavo virando de
    graça, a aprovação de pedido que nunca atravessa, o percentual com ponto em vez de
    vírgula, o ícone de "Produção" ser um picolé num aplicativo que promete servir
