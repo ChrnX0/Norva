@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
-import { __setDb, __setOpener, db, type SqlParam } from './db';
+import { __setDb, __setOpener, db, migrationSteps, type SqlParam } from './db';
 
 /**
  * The one path every phone takes on first launch, and the one no test touched.
@@ -99,4 +99,59 @@ test('the migration behind it really ran', async () => {
   );
 
   __setDb(null);
+});
+
+/**
+ * O `NAO_ESTORNADO` não pode voltar a varrer o livro-razão inteiro por linha.
+ *
+ * **A cicatriz, medida.** A cláusula que faz "o que foi estornado não aconteceu"
+ * é uma subconsulta correlacionada: para CADA linha candidata ela pergunta se
+ * existe um movimento que a estorna. Sem índice em `reverses_movement_id`, o
+ * plano do SQLite diz `SCAN rev` — varredura completa de `movements` — e isso
+ * roda uma vez por linha.
+ *
+ * Contra 60 mil movimentos (cinco meses de uma fábrica de seis lojas), janela de
+ * sete dias, 2.779 candidatas: **9.906 ms**. Sem a cláusula, 3 ms. Com o índice
+ * parcial da V17, 4 ms. Oito consultas do aplicativo usam a cláusula e a capa
+ * dispara cinco de uma vez — numa conexão só, que serializa.
+ *
+ * Este teste não mede tempo: tempo varia com a máquina e viraria teste instável.
+ * Ele lê o **plano de execução**, que é a causa. `SCAN rev` no plano é o defeito,
+ * e nenhum outro sintoma precisa ser observado.
+ *
+ * Nada mais no projeto olha para plano de consulta, e é por isso que isto passou
+ * dois meses invisível: a barra inteira exercita 96 movimentos, e com 96 linhas
+ * uma varredura por linha é instantânea.
+ */
+test('the reversal check seeks an index instead of scanning the ledger per row', () => {
+  const sqlite = new DatabaseSync(':memory:');
+  for (const passo of migrationSteps) sqlite.exec(passo);
+
+  const consulta = `SELECT m.id
+     FROM movements m
+    WHERE m.company_id = 'c'
+      AND m.kind = 'production'
+      AND NOT EXISTS (SELECT 1 FROM movements rev
+                       WHERE rev.reverses_movement_id = m.id
+                         AND rev.company_id = m.company_id)`;
+
+  const plano = sqlite
+    .prepare(`EXPLAIN QUERY PLAN ${consulta}`)
+    .all()
+    .map((r) => String((r as { detail: string }).detail))
+    .join(' | ');
+
+  assert.ok(plano.length > 0, 'o plano veio vazio — a comparação abaixo seria de graça');
+  assert.doesNotMatch(
+    plano,
+    /SCAN rev/,
+    `a checagem de estorno voltou a varrer movements por linha candidata.\n  plano: ${plano}\n` +
+      '  Com 60 mil movimentos isso são 9,9 segundos numa consulta que leva 4 ms com o índice ' +
+      'parcial da V17 — e oito consultas do aplicativo usam esta cláusula.',
+  );
+  assert.match(
+    plano,
+    /movements_reversal_idx/,
+    `o índice parcial de estorno não está sendo usado.\n  plano: ${plano}`,
+  );
 });

@@ -642,8 +642,39 @@ const V16 = `
 ALTER TABLE lots ADD COLUMN recipe_version_id TEXT;
 `;
 
+/**
+ * O índice que faltava embaixo de "o que foi estornado não aconteceu".
+ *
+ * `NAO_ESTORNADO` (src/data/repository.ts) é uma subconsulta correlacionada:
+ * para CADA linha candidata ela pergunta se existe um movimento que a estorna.
+ * Sem índice em `reverses_movement_id`, essa pergunta é uma varredura completa
+ * de `movements` — o plano do SQLite diz `SCAN rev` — e ela roda uma vez por
+ * linha. Oito consultas do aplicativo usam essa cláusula, e a capa dispara cinco
+ * delas de uma vez.
+ *
+ * Medido, não estimado, contra um SQLite real de 60 mil movimentos (cinco meses
+ * de uma fábrica de seis lojas), janela de sete dias, 2.779 linhas candidatas:
+ *
+ *   com a cláusula, sem índice ....... 9.906 ms
+ *   sem a cláusula ....................... 3 ms
+ *   com a cláusula e este índice ......... 4 ms
+ *
+ * O índice é PARCIAL — só as linhas de estorno entram — porque estorno é raro
+ * por natureza: num banco sem nenhum ele ocupa praticamente nada, e continua
+ * ocupando pouco numa fábrica que corrige uma corrida por semana.
+ *
+ * E ele custa quase nada para criar num banco que já existe: a coluna já está
+ * lá desde a V3, e a construção é sobre as linhas de estorno, não sobre a
+ * tabela inteira.
+ */
+const V17 = `
+CREATE INDEX IF NOT EXISTS movements_reversal_idx
+  ON movements (reverses_movement_id, company_id)
+  WHERE reverses_movement_id IS NOT NULL;
+`;
+
 const MIGRATIONS: readonly string[] = [
-  V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16,
+  V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17,
 ];
 
 export type SqlParam = string | number | null;
