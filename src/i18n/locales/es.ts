@@ -464,6 +464,7 @@ export const es: Dictionary = {
       coverUnknown: 'sin salida registrada aún — nadie sabe cuánto dura esto',
       heldTitle: 'PARADO EN EL ALMACÉN',
       heldDetail: '{{count}} · al costo promedio de cada uno',
+      itemCount: { one: '1 artículo', other: '{{n}} artículos' },
       withoutPrice:
         '{{count}} sin precio — registra la factura y el costo aparece solo.',
       opening: 'Abriendo…',

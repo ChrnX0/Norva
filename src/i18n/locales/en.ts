@@ -459,6 +459,7 @@ export const en: Dictionary = {
       coverUnknown: 'no usage on the books yet — nobody knows how long this lasts',
       heldTitle: 'SITTING IN THE STOREROOM',
       heldDetail: '{{count}} · at each one average cost',
+      itemCount: { one: '1 item', other: '{{n}} items' },
       withoutPrice:
         '{{count}} with no price yet — record the invoice and the cost appears on its own.',
       opening: 'Opening…',

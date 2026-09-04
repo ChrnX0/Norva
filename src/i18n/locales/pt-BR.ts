@@ -497,6 +497,7 @@ export const ptBR = {
       coverUnknown: 'sem saída registrada ainda — ninguém sabe quanto tempo isso dura',
       heldTitle: 'PARADO NO ESTOQUE',
       heldDetail: '{{count}} · ao custo médio de cada um',
+      itemCount: { one: '1 item', other: '{{n}} itens' },
       withoutPrice:
         '{{count}} sem preço — lance a nota de compra e o custo aparece sozinho.',
       opening: 'Abrindo…',
