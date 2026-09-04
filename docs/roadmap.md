@@ -1,259 +1,356 @@
-# Roadmap
+# Plano de desenvolvimento — NORVA
 
-**Por que este arquivo existe.** Em 3 de setembro, uma sessão terminou o escopo
+Da fábrica que usa papel hoje até o aplicativo publicado nas lojas.
+
+**Por que este arquivo existe.** Em 3 de setembro uma sessão terminou o escopo
 escrito e ficou sem lista — não por falta de trabalho, mas porque a lista morava
-espalhada: as fases do `CLAUDE.md`, as dívidas do `docs/insights.md` e a cabeça de
-quem estava trabalhando. A regra de "nunca ocioso" diz que a próxima coisa vem da
-**lista escrita**; sem uma, ela vira convite a inventar tarefa, que é pior que
-parar.
+espalhada entre as fases do `CLAUDE.md`, as dívidas do `docs/insights.md` e a
+cabeça de quem estava trabalhando. A regra de "nunca ocioso" diz que a próxima
+coisa vem da **lista escrita**; sem uma, ela vira convite a inventar tarefa, que é
+pior que parar.
 
-Então: **este arquivo é a lista escrita.** Se algo não está aqui e não está numa
-das decisões do `CLAUDE.md`, não é a próxima coisa.
-
----
-
-## Como este arquivo se mantém vivo
-
-Três regras, e as três existem porque a alternativa apodrece:
-
-1. **Item fechado sai daqui no mesmo commit que o fecha.** Roadmap que lista o que
-   já existe manda alguém construir duas vezes — e o custo não é o tempo, é a
-   confiança: depois do segundo item errado, ninguém lê mais o arquivo.
-2. **Item novo entra com evidência de arquivo.** `arquivo:linha` que sustenta o
-   estado. Sem isso é palpite, e palpite em roadmap tem a mesma cara de fato.
-3. **Item parado carrega o que o destrava**, não uma promessa de data. "Precisa de
-   aparelho na mão" é informação; "semana que vem" é ficção.
-
-## Como a ordem é decidida
-
-Não por fase — o portão é **por item**, e é o do `CLAUDE.md`, nesta ordem:
-
-- **P1 — quem chama isto no mesmo commit?** Sem chamador, não entra. É a doença
-  provada deste repositório: coluna, função, chave de dicionário e tabela que
-  existiram sem escritor.
-- **P2 — complete: "eu mudaria isto se eu visse ___".** Se a frase sai, o item
-  depende de observar alguém usando. **Mas antes de travar:** se o que muda com a
-  observação é *preferência de quem usa*, não é espera nem pergunta — é
-  configuração, e os dois caminhos existem.
-- **P3 — entrando errado, conserta com um commit ou com migração e estorno?** O que
-  toca `supabase/migrations/`, o caminho de escrita de `movements` ou a semântica de
-  `movement_kind`/`location_kind` é caro e permanente. Forma de esquema se adivinha
-  de graça enquanto há zero linhas; conteúdo de livro-razão não se corrige, se
-  estorna.
-
-Consequência prática da ordem: **o que é P3 e está barato agora sobe na lista**, e o
-que é P2 puro espera uso real em vez de virar código adivinhado.
+E em 4 de setembro o dono leu a primeira versão dele e disse a coisa certa: *"nunca
+vi roadmap pela metade"*. Estava mesmo — era uma lista de seis itens fechados com
+um bilhete dizendo que a lista estava vazia. Lista vazia não é plano. Plano é o
+arco inteiro, com o que já existe, o que falta, em que ordem, e o que trava cada
+coisa.
 
 ---
 
-## A lista
+## Onde o produto está hoje — medido, não afirmado
 
-Como ela foi levantada, porque isso decide o quanto se pode confiar nela: sete
-leitores varreram o repositório em eixos diferentes (escopo do mês, dívidas do
-`insights.md`, servidor sem escritor, aparelho sem chamador, Lei da Inteligência
-tela a tela, o que depende de aparelho ou servidor, e os cortes já decididos) e
-levantaram 68 candidatos. Cada um foi para um refutador com a instrução de
-**derrubá-lo** — na dúvida, refute, porque item errado manda a próxima sessão
-construir o que já existe. **Cinquenta foram julgados e quarenta e cinco caíram.**
-Sobraram estes, e dois deles são o mesmo item achado por dois leitores
-independentes.
+Os números abaixo saem de comando, não de memória. Cada um tem como conferir.
 
-O que isso significa para quem lê: a lista é curta **porque a refutação foi dura**,
-não porque falta trabalho. Os dezoito candidatos ainda não julgados quando a
-varredura parou não entram até passarem pela mesma peneira.
+| | | como conferir |
+|---|---|---|
+| telas | **24** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
+| tabelas no aparelho (SQLite) | **21** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
+| tabelas no servidor (Postgres) | **22** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
+| migrações do servidor | **26** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V16** | último `const V` em `src/data/db.ts` |
+| papéis | **7** | `src/domain/access.ts` |
+| capacidades | **18** | `src/domain/access.ts` |
+| linhas de código | **~45.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
 
-> **Estado em 4 de setembro: os seis estão fechados, e o sexto nasceu da
-> procura, não da lista.** Os seis ficam
-> abaixo, riscados, porque o que cada um ensinou vale mais que ele — mas nenhum
-> deles é trabalho pendente, e a lista de trabalho está **vazia**.
->
-> *A frase acima já esteve errada: ela dizia "os cinco estão fechados, e a procura
-> já trouxe o item 6" depois de o item 6 ter sido fechado — o resumo descrevendo
-> um estado que o próprio arquivo, doze linhas abaixo, contradizia. É a família
-> que dominou o dia, aqui na cabeça do arquivo que existe para a próxima sessão
-> confiar.*
->
-> O que isso NÃO significa é que acabou o serviço. Significa que a próxima coisa
-> não está escrita ainda, e achá-la é a diretriz de insight constante: procurar o
-> que o código existente está contradizendo, em vez de esperar aparecer. Foi
-> assim que os quatro achados do dia nasceram — os trinta e um rótulos, o manifesto
-> velho no pacote, a leitura de `length` que quebrou dentro do conserto de
-> outra coisa, e o caminho de publicação sem chamador que continuava armado com um
-> artefato de 177 commits atrás.
->
-> **Item novo entra aqui antes de virar código**, com `arquivo:linha` e o portão
-> P1/P2/P3 respondido. Um item que não passa no P2 entra como *fronteira*, com o
-> que o destrava — e a única de hoje está logo abaixo.
+E a barra de verificação, que é o que separa "compila" de "funciona":
 
-### 1. ~~O estorno não tem escritor~~ — fechado em 3 de setembro
+| | |
+|---|---|
+| `npm test` | **303** testes |
+| `npm run mutate` | **88** defeitos plantados de propósito, 88 pegos |
+| `npm run e2e:fast` | **34** checagens num navegador de verdade |
+| `npm run db:verify` | **8** garantias contra um Postgres descartável, sob RLS |
+| `.proofgate/verify.sh` | **24** guardas de entrega |
 
-A primeira fundação do projeto passou a existir em código: `reverseGroup` estorna
-o **ato inteiro** pelo `movement_group_id`, recusa o que deixaria saldo negativo
-nomeando o item que já saiu, e recusa o segundo estorno. A tela é a etiqueta do
-lote, que é onde alguém chega com a caixa na mão.
+**Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade,
+com as telas fotografadas nos dois temas e nas duas identidades. **Nada visto numa
+fábrica.** Essa é a lacuna que nenhum teste fecha, e ela decide o que pode ser
+construído agora e o que precisa esperar (veja o portão P2, adiante).
 
-O que ele deixou atrás de si vale mais que o item: **escrever a correção não é
-corrigir.** Saldo é soma pura e não olha `kind`, então ele se conserta sozinho —
-mas as oito consultas de "o que aconteceu" filtram por `kind`, e `reversal` não é
-`production`. Os três testes unitários passaram de primeira e o navegador
-reprovou: o almoxarifado certo e a produção dizendo 500 depois de corrigida.
+### Os sete papéis, que são o desenho do produto e não detalhe
 
-**A regra que fica:** teste unitário prova a escrita, só o aplicativo dirigido
-prova a leitura.
+`owner` · `operator` · `storeManager` · `driver` · `buyer` · `customer` ·
+`salesperson`
 
-### 2. ~~A corrida grava o id da receita onde vai o id da **versão**~~ — fechado em 4 de setembro
+Um deles é a decisão do dono que mais restringe desenho futuro: **o aparelho
+emprestado entra como `operator`** — produz, despacha, confere, registra perda e
+conta a prateleira, e não vê preço, custo nem dinheiro em lugar nenhum.
 
-O único item que a auditoria da Fase 1 marcou como ausente. A correção não foi
-escrever o id certo na coluna da corrida — foi **mudar de lugar**: `production_runs`
-é apagada ao fechar ou cancelar, então guardar a ficha ali é guardá-la no que não
-sobrevive. O carimbo passou a ficar no **lote**, que não é apagado, é o que a
-etiqueta nomeia e é por onde um recall começa (`lots.recipe_version_id`, V16 e
-`0026`).
+---
 
-O leitor veio junto, como o portão P1 exige: a tela do lote diz *"Saiu da ficha
-Picolé de morango, versão 1"* — fora do papel branco, porque a etiqueta só leva o
-que serve para achar e recolher o produto.
+## O arco inteiro
 
-E a prova de que o carimbo vale é o teste que corrige a fórmula DEPOIS: nasce a
-versão 2, e o lote de ontem continua dizendo 1. Sem ele, uma receita corrigida em
-março reescreveria de que fórmula saiu o que janeiro produziu — a taxa congelada
-continuava certa, e a pergunta "de que ficha veio?" passava a responder a receita
-de hoje.
+Sete etapas, e a ordem não é gosto: cada uma destrava a seguinte por um motivo
+escrito na coluna da direita.
 
-**O que ele deixou atrás de si:** a checagem 6 do `db:verify` dizia "66 escritas
-replicadas, sem uma recusa" — e ausência de recusa não prova que a coluna
-atravessou. Uma coluna esquecida no serializador entraria como nula e a fila
-passaria verde. Agora ela conta os lotes que chegaram **ligados à versão** do
-lado do servidor, que é a asserção de presença que faltava.
+| | etapa | o que a fábrica ganha | o que ela precisa antes |
+|---|---|---|---|
+| **F1** | fundação — livro-razão, custo, estoque | o número de estoque para de ser chute | — |
+| **F2** | produção, lote, validade, câmara | a corrida do tacho vira registro | F1 |
+| **F3** | o papel sai do chão de fábrica | romaneio, conferência e etiqueta no celular | F2 |
+| **F4** | a fábrica se explica sozinha | o Espelho da Loja e a compra na hora certa | **meses de movimento real** |
+| **F5** | o fiscal | nota fiscal eletrônica | certificado A1 e homologação SEFAZ |
+| **F6** | publicar nas lojas | qualquer fábrica instala | F3 + privacidade + licenças |
+| **F7** | os trunfos | roteirização, clima aplicado, PAC/POD | F4 |
 
-### 3. ~~Lista de compras por simulação~~ — fechado em 4 de setembro
+**F1 e F2 estão feitas.** F1 por decisão do dono em 1 de setembro (a auditoria
+mediu 6 prontos, 9 parciais e 1 ausente, e ele decidiu com o número na mão). F2
+fechou com o lote dizendo de que ficha saiu, a câmara dizendo o que estava dentro
+na hora da leitura, e a lista de compras por simulação.
 
-*"Se eu fizer 3 tachos de cada, o que falta?"* — a pergunta que o dono faz antes
-de ligar para o fornecedor, e a única que o aplicativo não respondia sobre o
-estoque de hoje.
+**O que domina o calendário não é código.** A F4 precisa de meses de movimento
+real — nenhuma quantidade de trabalho encurta isso. A F5 é um microserviço .NET
+com certificado e homologação, que é ato administrativo. Por isso o alvo de um mês
+decidido pelo dono é **F2 + F3**, e o resto tem data de começo, não de entrega.
 
-Os dois deltas que o item nomeava eram exatamente os dois que entraram:
-`shoppingList` (`src/domain/recipe.ts`) soma **vários produtos num plano só** —
-`explodeRequirements` já acumulava no mapa que recebe, então somar era chamá-lo de
-novo — e vira a conta do avesso: devolve `needed`, `held` e `missing`, porque
-"precisa de 54.000 g de polpa" não decide nada para quem tem 40.000 na prateleira.
+---
 
-**A embalagem entra por unidade prevista, e isso é o que quase ficou de fora.** A
-receita não conhece o palito: ele é consumo por unidade produzida. Uma lista de
-compras que só explode a receita esquece exatamente o item que a fábrica mais usa
-— o mesmo defeito que o custo congelado já teve. Aqui prever a unidade é legítimo,
-porque isto é simulação; o custo congelado é que não pode prever, porque grava o
-que aconteceu.
+## Agora — o que está aberto
 
-**O chamador é o assistente**, e não uma tela nova: a pergunta chegou em forma de
-frase, e responder em frase é o caminho mais curto entre a dúvida e o número.
-Ela pede `view_cost` — decisão de compra não é do aparelho emprestado —, e a
-recusa é dita antes da consulta, então não existe número na resposta para vazar.
+Quatro achados confirmados hoje por varredura em sete eixos com refutação
+adversarial: **19 achados julgados, 4 de pé, 15 derrubados.** A refutação foi dura
+de propósito — item errado manda a próxima sessão construir o que já existe.
 
-### 4. ~~Capa: o número de caixas sem o ontem~~ — fechado em 3 de setembro
+### 1. A fila trava para sempre atrás de um pedido reenviado — **crítica**
 
-Era o quarto sobrevivente: `src/home/Mosaic.tsx` mostrava a figura de caixas
-enviadas sem comparação nenhuma, contra a promessa escrita no docblock da própria
-tela. Fechado no mesmo dia — o cartão passou a dizer o ontem e a listar o que saiu
-**sem caber em caixa** (`loose`, que era calculado e nunca lido, com as chaves
-`alsoSent`/`alsoSentItem`, que existiam nos três idiomas sem leitor).
+`supabase/migrations/0019_an_order_is_demand.sql:173`
 
-O que o item deixou atrás de si é maior que ele: `src/law.test.ts` media a Lei 3
-**por arquivo**, e a capa tem dez números grandes. Uma declaração aprovava os dez.
-A régua agora é por número, e a contagem tem que bater.
+O pedido entra com a capacidade `place_order`. Mas a política de **UPDATE** exige
+`approve_order`, `dispatch` ou `manage_company` — e a fila do aparelho sobe com
+`on conflict do update`. Três dos sete papéis (`storeManager`, `customer`,
+`salesperson`) têm `place_order` e **nenhuma** das três.
 
-### 5. ~~A dica de "livre" só existe para produto que já tem pedido~~ — fechado em 4 de setembro
+O que acontece na fábrica: a gerente da loja anota o pedido sem sinal. A primeira
+subida entra. A segunda — sinal que caiu, app fechado no meio, bateria acabando —
+é recusada pelo Postgres. E `src/sync/engine.ts:111` para a fila no primeiro
+buraco de propósito, então **tudo o que foi gravado depois daquele pedido fica
+preso atrás dele para sempre**, sem nada na tela dizendo o quê.
 
-`orderedDemand` montava as linhas a partir de `order_lines`, então respondia só
-sobre o que alguém já tinha pedido — e quem pergunta "quanto ainda dá para
-prometer" está quase sempre no caso oposto: o primeiro pedido do dia. O campo de
-quantidade ficava sem dica nenhuma, e o aviso de excesso não tinha como aparecer,
-exatamente quando a conta mais decide.
+É a **terceira** aparição desta família — `purchases`/`purchase_lines` em 1 de
+setembro, `lots` na 0020 — e a primeira com cara nova: não é ausência de política
+de UPDATE, é política de UPDATE com a capacidade errada. A frase que ficou escrita
+no `insights.md` ("todas as outras têm um `_manage FOR ALL`, que cobre update") não
+cobre este caso. E a tabela filha acertou na mesma migração: `order_lines_correct`
+usa `for all` com `place_order`.
 
-Passou a partir do **produto** e a se chamar `stockAgainstOrders`, que é o que ela
-devolve: saldo contra pedido, produto por produto, com `requested` zero quando não
-há pedido.
+**Por que a barra não pega:** a conta que sobe a fila no `db:verify` recebe
+`enum_range(null::capability)` — todas as capacidades. E a checagem 8 dá à
+"Vendedora" `place_order` **mais** `dispatch`, e é o `dispatch` que faz o UPDATE
+passar. Nenhuma conta com `place_order` sozinho jamais roda a segunda passagem.
 
-**E o cuidado escrito aqui pegou o defeito, mas não onde ele estava.** A previsão
-era "produza para os pedidos" passar a listar produto com demanda zero — e essa
-parte estava protegida de graça, porque as duas telas filtram por
-`requested - onHand > 0`. O que quebrou foram duas leituras que perguntavam pelo
-**tamanho da lista**: o cartão de pedidos da capa passou a dizer "Pedidos
-cobertos" numa fábrica que nunca vendeu nada, e o convite do primeiro dia sumiu.
-O e2e reprovou nas três checagens da capa, e as duas leituras passaram a medir o
-fato (`demand.some(d => d.requested > 0)`) em vez do tamanho.
+Conserto: uma migração com política de reenvio, mais uma nona garantia no
+`db:verify` que suba a fila com a capacidade mínima de cada papel.
 
-Contar linha e nomear pedido é a mesma família que a varredura de rótulos do
-mesmo dia caçou trinta e uma vezes — e ela reapareceu **dentro do conserto de
-outra coisa**, o que diz o quanto ela é fácil de escrever.
+### 2. "Apagar tudo" para de funcionar na primeira produção — **alta**
 
-### 6. ~~A câmara diz "fora da faixa" e não diz o que estava dentro~~ — fechado em 4 de setembro
+`src/data/erase.ts:32`
 
-O selo vermelho respondia "o que está diferente agora" e deixava "qual é a próxima
-ação provável" no ar. Agora, com a leitura fora da faixa, a tela lista **os lotes
-que estavam na câmara na hora daquela medição**, com o código que está escrito na
-caixa e o toque que abre a etiqueta.
+O apagador conhece **12** das **21** tabelas do aparelho. Ficaram de fora
+`production_runs`, `product_lines`, `product_types`, `flavors`, `orders`,
+`order_lines`, `lots`, `readings` (e `app_meta`, que é a gaveta do aparelho e fica
+de fora com razão).
 
-**O instante é o da leitura, não o de agora** — e essa é a regra inteira. A
-medição foi às 07:20 e alguém abre a tela às 15:00; no meio pode ter saído carga,
-e o que ficou exposto é o que estava lá naquela hora. O teste de unidade prova
-exatamente isso: dois lotes na câmara às 07:20, um sai ao meio-dia, e a resposta
-das 07:20 continua sendo dois. Sem o corte, o recall perderia justamente o lote
-que já viajou.
+Cinco dessas apontam para `items` ou `locations` com `ON DELETE RESTRICT` — e é
+justamente `items` e `locations` que o "apagar tudo" apaga. Toda corrida de
+produção grava um `lots`. Então **a partir da primeira corrida**, o SQLite levanta
+`FOREIGN KEY constraint failed`, a transação inteira volta atrás, nada é apagado, e
+a tela mostra o texto cru do SQLite em inglês — num aplicativo que promete três
+idiomas, e depois do toque em vez de o botão nascer desabilitado com o motivo.
 
-**O que ele NÃO reaproveitou, que era a lição do achado:** as dobras `balanceAt` e
-`lotsPresentDuring` do domínio não serviam, e foi por isso que morreram — elas
-dobram sobre `Movement[]` em memória e o aplicativo tem SQLite. `lotsInRoomAt` é
-SQL, ao lado das outras somas de saldo, com `occurred_at <= ?`.
+Medido, não deduzido: 21 tabelas, 9 nunca apagadas, 5 com `RESTRICT`.
 
-E a promessa do docblock da fundação — *"a habilidade de responder 'o que estava
-dentro do freezer às 03:12?'"* — deixou de ser promessa. Sem sensor nenhum: a
-leitura digitada já carrega a hora.
+### 3. Apagar "compras" apaga o livro-razão inteiro — **alta**
 
-### Fronteira: a lista de compras não tem tela, só a frase
+`src/data/erase.ts:94`
 
-**Estado:** trava no P2, de propósito, e o que a destrava é observar alguém.
+`tablesFor('purchases')` começa com `movements` e apaga **todo movimento da
+empresa** — produção, contagem, perda, transferência, saída —, não só os de
+compra. A confirmação diz: *"Isso apaga as compras, e zera o custo médio de todos
+os insumos"*. Não diz que um movimento vai.
 
-- **Onde está hoje:** `shoppingList` (`src/domain/recipe.ts`) responde a conta, e
-  o assistente é o único chamador (`src/assistant/skills.ts`, habilidade
-  `what_to_buy`). Quem digitar *"o que falta para 3 tachos de cada"* tem a
-  resposta com a conta aberta.
-- **O que faltaria:** uma tela onde se escolhe produto e tacho por toque, sem
-  precisar formular a frase.
-- **Por que não entra agora:** complete a frase do portão — *"eu mudaria isto se
-  eu visse **alguém não achar a pergunta**"*. É observação de uso, não de código:
-  se o dono usa a frase, a tela é enfeite; se ele não encontra a resposta, a tela
-  é o item. Construir as duas antes de saber é construir uma para jogar fora.
-- **E não é preferência de cliente**, então a F7 não se aplica: não são dois
-  caminhos que a empresa escolhe, é a mesma resposta com duas portas.
+O dono que apaga as compras de exemplo para começar a escrituração de verdade
+perde tudo o que já registrou. É irreversível pelo texto da própria confirmação
+("Isso não tem volta") e **não há cópia no servidor** — o comando de apagar não tem
+lado servidor.
+
+Conserto pequeno: contar movimentos na conta que a tela já mostra, e dizer o número
+por extenso na frase. A regra da casa é essa mesma: a confirmação diz o que vai
+acontecer, com os números por extenso.
+
+### 4. A guarda do apagador compara uma lista consigo mesma — **média**
+
+`src/data/erase.test.ts:60`
+
+O teste que garante que "apagar tudo alcança tudo" percorre `DEPENDS_ON`, um mapa
+escrito à mão logo acima, e confere se cada entrada dele está em `tablesFor('all')`
+— que é a mesma lista. Uma tabela fora do conjunto é **invisível para o teste, por
+construção**.
+
+É por isso que os itens 2 e 3 sobreviveram tanto tempo. O conserto é a guarda ler o
+**esquema** (`src/data/db.ts`) em vez da cópia, que é a mesma correção que o
+`db:verify` já fez quando parou de rodar como superusuário.
+
+> **A auditoria profissional está rodando** em dez frentes — segurança, livro-razão,
+> dinheiro, sincronização, correção funcional, qualidade da suíte, ergonomia de
+> fábrica, idioma, desempenho e prontidão de loja —, cada achado passando por duas
+> lentes adversariais. O que ela confirmar entra aqui, com severidade e cenário.
+
+---
+
+## F3 — o mês que tira o papel do chão de fábrica
+
+O alvo decidido pelo dono. No fim disto, a fábrica para de usar papel para
+romaneio, conferência e etiqueta.
+
+**1. Etiqueta e QR do lote.** O QR já é impresso; falta quem o leia. A seção `scan`
+do dicionário existe nos três idiomas esperando a tela — está registrada como
+fronteira em `src/dictionary.test.ts`, com o motivo.
+
+**2. Lojas e clientes com ficha de acordo.** O que foi combinado com cada loja:
+preço, prazo, dia de entrega. A migração `0021_what_was_agreed_with_the_store.sql`
+já criou a forma; falta a tela.
+
+**3. Pedido com reserva.** Hoje pedido é demanda e nada sai do freezer porque
+alguém ligou — decisão escrita, e ela fica. A reserva é a camada por cima: separar
+do saldo o que já tem dono.
+
+**4. Separação.** `pickingFor` já responde a conta. Falta a tela de quem anda com o
+carrinho.
+
+**5. Os quatro postos de controle.** Separado, carregado, entregue, conferido. A
+seção `posts` do dicionário existe nos três idiomas — fronteira registrada.
+
+**6. App do entregador.** O papel `driver` existe com `dispatch`, `check_receipt` e
+`record_loss`. Falta a tela dele.
+
+**7. Devolução.** O caminho de volta: o que a loja não recebeu, com motivo, virando
+movimento.
+
+**8. O `UnitStepper`.** Componente construído e sem chamador, decisão registrada no
+`CLAUDE.md` — é peça da F2/F3 e apontá-lo como defeito já custou uma rodada. Entra
+quando a tela de separação existir: é ali que se conta caixa com luva.
+
+**O risco nomeado, e ele não se resolve escrevendo código:** a F3 tem ergonomia que
+não se verifica sem aparelho na mão. Tela capacitiva a −18 °C, luva, QR a um braço
+de distância. Isso pede rodadas **depois** de alguém usar, e elas só cabem no mês se
+o teste acontecer junto, não no fim.
+
+---
+
+## F4 — a fábrica que se explica sozinha
+
+**Trava por dado, não por código.** Tudo aqui precisa de meses de movimento real, e
+trabalhar mais rápido não encurta um dia.
+
+**O Espelho da Loja — a captura entra, o relatório espera.** Contagem cega e perdas
+com motivo já existem e já gravam. O relatório fica fora por decisão escrita: ele
+**mente com duas semanas de dado**. Entra quando houver estação inteira.
+
+**Compras inteligentes.** Precisam do **prazo observado** de cada fornecedor — o
+tempo real entre pedir e chegar, que só existe depois de meses de nota. Sem ele, é
+adivinhação com cara de matemática.
+
+**A previsão aplicada.** O clima já entra na tela. Cruzar clima com venda observada
+para prever demanda é F4 pelo mesmo motivo.
+
+---
+
+## F5 — o fiscal
+
+Projeto à parte, e o plano inteiro é desenhado para que **nada dependa dele**.
+Microserviço .NET, certificado digital A1, homologação na SEFAZ. O que trava é
+administrativo: o layout quem decide é a SEFAZ, e a homologação tem fila.
+
+Começa quando o dono decidir começar. Não bloqueia F3, F4 nem F6.
+
+---
+
+## F6 — publicar nas lojas
+
+O que falta não é código de produto; é a papelada e as decisões que só o dono toma.
+
+- **A licença do clima.** O Open-Meteo é gratuito para uso **não comercial**. Para
+  publicar: ou troca de provedor, ou entra plano pago. **Decisão de gasto, é do
+  dono.**
+- **Política de privacidade e declaração de dados.** O que o app coleta e para onde
+  manda — Supabase, Open-Meteo, atualizações da Expo. Exigência das duas lojas.
+- **LGPD.** Dado pessoal identificável: o que é, onde mora, e como se apaga a
+  pedido.
+- **Permissões do Android.** Pedir só o que se usa. Permissão a mais é recusa na
+  revisão.
+- **O que fazer quando quebra.** Hoje o app tem tela de erro e nenhum relato. Sem
+  isso, uma falha na fábrica de um cliente é invisível daqui.
+- **Ícone, splash e nome.** Feito em 4 de setembro: as seis superfícies saem do
+  mesmo `markPath` do `brand.ts`, por `scripts/icons.mjs`.
+- **Busca de marca.** `NORVA` ainda não passou por busca de anterioridade no INPI
+  (classes 9 e 42). Precisa de login gov.br — não é automatizável. Nada mais no
+  código chumba o nome: trocar de marca é editar `src/config/brand.ts` e o
+  `app.json`.
+
+---
+
+## F7 — os trunfos
+
+Diferencial de mercado, não a dor de hoje. Roteirização de entrega, PAC/POD, clima
+aplicado à produção. Entram depois da F4 porque todos precisam do dado que ela
+acumula.
 
 ---
 
 ## Fora do escopo, por decisão escrita
 
-Não se re-litiga o que já foi decidido. Cada corte tem razão, e a razão é o que
-impede a decisão de voltar como "boa ideia" numa sessão futura:
+Não se re-litiga o que já foi decidido. A razão é o que impede a decisão de voltar
+como "boa ideia" numa sessão futura.
 
 | fora | razão escrita |
 |---|---|
-| **Relatório do Espelho da Loja** | a captura entra (contagem cega, perdas com motivo); o relatório **mente com duas semanas de dado** |
-| **Microserviço fiscal** | projeto à parte — certificado A1, homologação SEFAZ; e o plano já diz que nada depende dele |
-| **Compras inteligentes** | precisam do **prazo observado** do fornecedor, que só existe depois de meses de nota |
+| **Relatório do Espelho da Loja** | a captura entra; o relatório **mente com duas semanas de dado** |
+| **Microserviço fiscal** | projeto à parte — certificado A1, homologação SEFAZ; nada depende dele |
+| **Compras inteligentes** | precisam do **prazo observado**, que só existe depois de meses de nota |
 | **Trunfos** (PAC/POD, clima, roteirização) | diferencial de mercado, não a dor de hoje |
 
-E as decisões do dono que **restringem desenho futuro** — quem for construir por
-cima delas, leia antes de "consertar":
+E as decisões do dono que **restringem desenho futuro** — leia antes de "consertar"
+qualquer uma delas:
 
 - **Entrada no chão de fábrica é configuração da empresa**, não escolha nossa: PIN
-  numa grade de nomes (compartilhado) e conta pessoal existem os dois.
+  numa grade de nomes (compartilhado) e conta pessoal, os dois existem.
 - **Quem cria a empresa é o dono**, e daí ele cadastra pessoas **ou** aprova quem
   pediu associação por código. Os dois caminhos.
 - **O relatório fala de onde, não de quem.** O livro-razão sempre grava quem
   (`recorded_by`); nomear na tela é opt-in (`names_who_recorded`).
-- **`recorded_by` e `operator_id` são duas perguntas** — qual conta escreveu (imposto
-  pelo servidor, incedível) e quem estava com o aparelho. Uma coluna só para as duas
-  já custou uma rodada.
+- **`recorded_by` e `operator_id` são duas perguntas** — qual conta escreveu
+  (imposto pelo servidor, incedível) e quem estava com o aparelho. Uma coluna só
+  para as duas já custou uma rodada.
 - **Aparelho emprestado entra como produção e nada mais** — papel `operator`, sem
   custo, sem preço, sem dinheiro.
-- **O operador confere a prateleira.** O que protege o número é o piso (contagem
-  perguntada toda vez, gravada como diferença), não a permissão.
+- **O operador confere a prateleira.** O que protege o número é o piso — contagem
+  perguntada toda vez, gravada como diferença —, não a permissão.
+- **A luz da tela é do aparelho, e o padrão é o claro.** Decisão do dono, 4 de
+  setembro. Claro, escuro e seguir o aparelho: os três caminhos existem.
+
+---
+
+## Como a ordem é decidida
+
+Não por fase — o portão é **por item**, nesta ordem, e a primeira pergunta que
+reprovar decide.
+
+**P1 — quem chama isto no mesmo commit?** Sem chamador, não entra. É a doença
+provada deste repositório: coluna, função, chave de dicionário e tabela que
+existiram sem escritor. Quando nada chama uma peça há **três** respostas honestas —
+trazer o chamador, apagar a peça, ou registrar a fronteira com quem vai chamá-la.
+Escrever teste não é uma delas: já foi tentado, e só tornou a morte mais difícil de
+ver.
+
+**P2 — complete: "eu mudaria isto se eu visse ___".** Se a frase sai, o item
+depende de observar alguém usando. **Mas antes de travar:** se o que muda com a
+observação é *preferência de quem usa*, não é espera nem pergunta — é configuração,
+e os dois caminhos existem.
+
+**P3 — entrando errado, conserta com um commit ou com migração e estorno?** O que
+toca `supabase/migrations/`, o caminho de escrita de `movements` ou a semântica de
+`movement_kind`/`location_kind` é caro e permanente. Forma de esquema se adivinha de
+graça enquanto há zero linhas; conteúdo de livro-razão não se corrige, se estorna.
+
+Consequência prática: **o que é P3 e está barato agora sobe na lista**, e o que é P2
+puro espera uso real em vez de virar código adivinhado.
+
+---
+
+## Como este plano se mantém vivo
+
+Três regras, e as três existem porque a alternativa apodrece:
+
+1. **Item fechado sai daqui no mesmo commit que o fecha.** Plano que lista o que já
+   existe manda alguém construir duas vezes — e o custo não é o tempo, é a
+   confiança: depois do segundo item errado, ninguém lê mais o arquivo.
+2. **Item novo entra com evidência de arquivo.** `arquivo:linha` que sustenta o
+   estado. Sem isso é palpite, e palpite em plano tem a mesma cara de fato.
+3. **Item parado carrega o que o destrava**, não uma promessa de data. "Precisa de
+   aparelho na mão" é informação; "semana que vem" é ficção.
+
+E uma quarta, que nasceu de o próprio topo deste arquivo já ter mentido uma vez: **o
+resumo do estado é conferido contra o corpo antes de fechar a sessão.** Ele chegou a
+dizer "os cinco estão fechados e a procura trouxe o item 6" depois de o item 6 ter
+sido fechado — a cabeça do arquivo contradizendo o corpo dele doze linhas abaixo,
+no arquivo que existe justamente para a próxima sessão confiar.
