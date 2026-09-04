@@ -54,8 +54,28 @@ const tem = (nome) => process.argv.includes(nome);
  * transformava "olhar o aplicativo" em meia hora, e meia hora é o que faz
  * ninguém olhar. Uma sessão, muitas fotos.
  */
-const rotas = arg('--rota', '/').split(',').map((r) => r.trim()).filter(Boolean);
-const comDado = tem('--com-dado');
+/** Toda tela que o aplicativo tem, na ordem em que alguém as encontra. */
+const TODAS = [
+  '/', '/production', 'lote', '/production/new', '/transport', '/transfer',
+  '/reports', '/places', '/inputs', '/inputs/new', '/purchase',
+  '/products', '/products/new', '/recipes', '/catalog',
+  '/orders', '/orders/new', '/losses', '/weather', '/assistant', '/settings',
+];
+
+/**
+ * `--tudo` fotografa o aplicativo inteiro: toda tela, nas duas caras e nos dois
+ * esquemas, com dado.
+ *
+ * Existe porque a revisão de uma reescrita larga é diferente da de uma tela: o
+ * defeito que importa é a INCOERÊNCIA entre telas, e ela não aparece olhando
+ * uma de cada vez. Duas caras vezes dois esquemas vezes vinte e uma telas é o
+ * que o dono vai ver navegando.
+ */
+const tudo = tem('--tudo');
+const rotas = tudo
+  ? TODAS
+  : arg('--rota', '/').split(',').map((r) => r.trim()).filter(Boolean);
+const comDado = tem('--com-dado') || tudo;
 /**
  * O tema escuro, que é onde o dono abriu o aplicativo.
  *
@@ -65,6 +85,8 @@ const comDado = tem('--com-dado');
  * cegueira, com mais passos.
  */
 const escuro = tem('--escuro');
+/** Os esquemas desta execução. `--tudo` quer os dois; o resto, o que se pediu. */
+const esquemas = tudo ? ['light', 'dark'] : [escuro ? 'dark' : 'light'];
 
 function serve() {
   return createServer((request, response) => {
@@ -108,11 +130,12 @@ const browser = await chromium.launch({
 });
 
 try {
+  for (const esquema of esquemas) {
   for (const cara of ['organico', 'papel']) {
     const context = await browser.newContext({
       viewport: { width: 412, height: 915 },
       deviceScaleFactor: 2,
-      colorScheme: escuro ? 'dark' : 'light',
+      colorScheme: esquema,
     });
     const page = await context.newPage();
 
@@ -200,11 +223,12 @@ try {
       // A capa tem animação de entrada; a foto tem de ser depois dela.
       await page.waitForTimeout(3500);
 
-      const nome = `${rota.replace(/\W+/g, '') || 'capa'}-${cara}-${escuro ? 'escuro' : 'claro'}${comDado ? '-com-dado' : '-virgem'}.png`;
+      const nome = `${rota.replace(/\W+/g, '') || 'capa'}-${cara}-${esquema === 'dark' ? 'escuro' : 'claro'}${comDado ? '-com-dado' : '-virgem'}.png`;
       await page.screenshot({ path: join(SAIDA, nome), fullPage: true });
       console.log(`  ${nome}`);
     }
     await context.close();
+  }
   }
 } finally {
   await browser.close();

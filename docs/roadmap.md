@@ -62,25 +62,21 @@ O que isso significa para quem lê: a lista é curta **porque a refutação foi 
 não porque falta trabalho. Os dezoito candidatos ainda não julgados quando a
 varredura parou não entram até passarem pela mesma peneira.
 
-### 1. O estorno não tem escritor — a primeira fundação só vale no papel
+### 1. ~~O estorno não tem escritor~~ — fechado em 3 de setembro
 
-**Estado:** parcial. Esquema, restrição, política de capacidade e o construtor
-existem; falta o escritor e a tela.
+A primeira fundação do projeto passou a existir em código: `reverseGroup` estorna
+o **ato inteiro** pelo `movement_group_id`, recusa o que deixaria saldo negativo
+nomeando o item que já saiu, e recusa o segundo estorno. A tela é a etiqueta do
+lote, que é onde alguém chega com a caixa na mão.
 
-- **Evidência:** `supabase/migrations/0001_foundation.sql:209` e `:223`
-  (`reverses_movement_id`, kind `reversal`) · `src/data/db.ts:246` ·
-  `src/sync/serialize.ts:340` · `src/domain/ledger.ts:176` (`buildReversal`),
-  chamado só por `src/domain/recipe.test.ts:76` · `src/domain/access.ts:125`, que
-  diz de si mesmo *"a reversal … the app cannot yet do at all"*.
-- **Por que importa:** a capa deste projeto diz que **se corrige por estorno e
-  nunca por exclusão**. Hoje uma corrida lançada com 500 onde eram 50 não tem
-  conserto nenhum no aplicativo. A contagem se autocorrige; produção, perda e
-  transferência não. E o custo não é o número errado — é o que ele ensina: um
-  operador que não consegue consertar aprende a **não registrar**.
-- **Portão:** P1 atendido no mesmo commit (a tela é o chamador). P3 **não** toca
-  esquema — ele já está lá, e é por isso que este item é barato e sobe.
-- **Cuidado registrado por um refutador:** o estado "ausente" está errado e é
-  errado de um jeito caro — manda escrever migração onde não precisa.
+O que ele deixou atrás de si vale mais que o item: **escrever a correção não é
+corrigir.** Saldo é soma pura e não olha `kind`, então ele se conserta sozinho —
+mas as oito consultas de "o que aconteceu" filtram por `kind`, e `reversal` não é
+`production`. Os três testes unitários passaram de primeira e o navegador
+reprovou: o almoxarifado certo e a produção dizendo 500 depois de corrigida.
+
+**A regra que fica:** teste unitário prova a escrita, só o aplicativo dirigido
+prova a leitura.
 
 ### 2. A corrida grava o id da receita onde vai o id da **versão** — e o fechamento apaga a linha
 
