@@ -41,29 +41,18 @@ const DELEGAM: Record<string, string> = {
 };
 
 /**
- * O que ainda não foi convertido — e esta lista só encolhe.
+ * O que ainda não foi convertido — e a lista **está vazia desde 4 de setembro**.
  *
- * Ela existe para o trabalho ser visível e finito em vez de virar "um dia a
- * gente arruma": enquanto tiver uma linha, o aplicativo tem duas caras. Tirar
- * uma tela daqui sem convertê-la quebra o teste na linha seguinte, porque a
- * conversão é medida no arquivo, não declarada aqui.
+ * Ela existiu para o trabalho ser visível e finito em vez de virar "um dia a
+ * gente arruma": enquanto tivesse uma linha, o aplicativo tinha duas caras.
+ * Começou com vinte e três telas e chegou a zero.
+ *
+ * **Vazia ela vale mais que cheia**, e é por isso que fica: daqui em diante
+ * toda tela nova é medida pelas três regras acima desde a primeira linha, sem
+ * carência. Acrescentar um nome aqui é declarar que uma tela do aplicativo está
+ * fora da língua — o que precisa de motivo escrito, como tudo mais.
  */
-const FALTAM = new Set<string>([
-  'app/(tabs)/more.tsx',
-  'app/(tabs)/production.tsx',
-  'app/(tabs)/transport.tsx',
-  'app/assistant.tsx',
-  'app/catalog.tsx',
-  'app/inputs/[id].tsx',
-  'app/inputs/new.tsx',
-  'app/orders/index.tsx',
-  'app/orders/new.tsx',
-  'app/products/index.tsx',
-  'app/products/new.tsx',
-  'app/purchase.tsx',
-  'app/settings.tsx',
-  'app/transfer.tsx',
-]);
+const FALTAM = new Set<string>([]);
 
 /**
  * Cor crua na tela, que é o jeito mais rápido de rachar a identidade.

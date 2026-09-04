@@ -1,12 +1,22 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
+import {
+  GlyphBox,
+  GlyphCatalog,
+  GlyphPackaging,
+  GlyphPlus,
+  GlyphPrice,
+  GlyphProduction,
+} from '@/components/Glyph';
+import { Reveal } from '@/components/Reveal';
+import { Touchable } from '@/components/Touchable';
 import {
   GridTakenError,
   itemCosts,
@@ -55,10 +65,37 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  *   - the packaging hierarchy is the customer's, not ours. Unit -> box -> crate
  *     here; the next customer stacks unit -> pack -> bale. So it is typed, not
  *     hardcoded, and the app echoes the arithmetic back in words.
+ *
+ * **O corpo foi reescrito na língua da capa** (`docs/linguagem.md`), e o layout
+ * anterior saiu inteiro em vez de ganhar um caminho ao lado — era ele que fazia
+ * esta tela parecer de outro aplicativo no toque seguinte:
+ *
+ * - a grade tinha DOIS jeitos de escolher desenhados à mão, e nenhum dos dois
+ *   era do tema: um `chip()` local com `borderWidth`, `borderRadius` e
+ *   `backgroundColor` próprios para linha, tipo e sabor, e um `Segment` com
+ *   `borderRadius: 999` e transparência montada na mão para "de onde ele vem" e
+ *   para a receita. Isso é vocabulário do Orgânico chumbado numa tela que
+ *   também abre no Papel, onde caixa nenhuma existe. Agora a escolha é sempre a
+ *   mesma: toca-se a etiqueta, e a acesa é a escolhida — o mesmo gesto do sabor
+ *   em `app/production/new.tsx` e do tipo de item em `app/inputs/new.tsx`;
+ * - a lista da embalagem que sai do estoque marcava a escolha com `●` e `○`
+ *   escritos no código. Bolinha de texto não é desenho do sistema, não muda com
+ *   o tema e não tem tamanho de alvo de dedo com luva;
+ * - a tela não tinha desenho nenhum: seis blocos de parágrafo cinza, sem crachá,
+ *   sem tom por assunto e sem entrada. Cada assunto agora carrega o tom que ele
+ *   tem no aplicativo inteiro — a grade e a receita em âmbar de produção, o que
+ *   desce do almoxarifado em verde de insumo, a caixa em lilás de transporte, o
+ *   custo em azul de dinheiro — porque quem vê a cor sabe do que é antes de ler;
+ * - a área era `mist`, o cinza dos Ajustes, numa tela que se abre a partir da
+ *   lista de produtos, que é âmbar. Cabeçalho e botão discordavam do que estava
+ *   embaixo deles.
+ *
+ * Nada aqui decide diferente: consulta, conta, confirmação e gravação são as
+ * mesmas linhas de antes.
  */
 export default function ProductsScreen() {
   return (
-    <AreaProvider area="mist">
+    <AreaProvider area="apricot">
       <ProductForm />
     </AreaProvider>
   );
@@ -81,10 +118,11 @@ type Loaded = {
 };
 
 function ProductForm() {
-  const { color, type, space } = useTheme();
+  const { color, type, space, palette, skin } = useTheme();
   const confirm = useConfirm();
   const router = useRouter();
   const { locale, t } = useLocale();
+  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data, loading } = useQuery<Loaded>(async () => {
     const [recipes, graph, costs, labels, lines, types, flavors, items, products] =
@@ -204,6 +242,15 @@ function ProductForm() {
     };
   }, [kind, data, chosenRecipe, perUnit, packagingCost, chosenWrappings]);
 
+  /**
+   * O nome que a grade escreve, e quem manda quando os dois existem.
+   *
+   * Lei 1: o que o sistema pode deduzir não se pergunta. Escolhida a grade, o
+   * nome sai dela — "Picolé Tradicional de morango" é a linha, o tipo e o sabor
+   * grudados pela frase do dicionário, que é a única parte disto que muda de
+   * idioma. Quem digitou um nome à mão continua com o nome que digitou: a
+   * dedução sugere, não sobrescreve.
+   */
   const linha = data?.lines.find((l) => l.id === lineId) ?? null;
   const tipo = data?.types.find((x) => x.id === typeId) ?? null;
   const sabor = data?.flavors.find((f) => f.id === flavorId) ?? null;
@@ -307,369 +354,454 @@ function ProductForm() {
 
   const tiposDaLinha = (data?.types ?? []).filter((x) => x.lineId === lineId);
 
-  /**
-   * O nome que a grade escreve, e quem manda quando os dois existem.
-   *
-   * Lei 1: o que o sistema pode deduzir não se pergunta. Escolhida a grade, o
-   * nome sai dela — "Picolé Tradicional de morango" é a linha, o tipo e o sabor
-   * grudados pela frase do dicionário, que é a única parte disto que muda de
-   * idioma. Quem digitou um nome à mão continua com o nome que digitou: a
-   * dedução sugere, não sobrescreve.
-   */
-
-  const chip = (label: string, active: boolean, onPress: () => void, key: string) => (
-    <Pressable
-      key={key}
-      onPress={onPress}
-      accessibilityRole="radio"
-      accessibilityState={{ selected: active }}
-      accessibilityLabel={label}
-      style={{
-        borderColor: active ? color.ink : color.line,
-        borderWidth: active ? 2 : 1,
-        borderRadius: 12,
-        paddingVertical: space.sm,
-        paddingHorizontal: space.md,
-        backgroundColor: color.surface,
-      }}
-    >
-      <Text style={[type.body, { color: active ? color.ink : color.inkMuted }]}>{label}</Text>
-    </Pressable>
+  /** As embalagens escolhidas, na ordem do almoxarifado e não na de toque. */
+  const escolhidas = (data?.wrappings ?? []).filter((item) =>
+    wrappings.some((w) => w.itemId === item.id),
   );
+
+  const temGrade = (data?.lines ?? []).length > 0;
+  const feito = kind === 'product';
+
+  /**
+   * A cascata não pula número.
+   *
+   * Metade dos blocos daqui é condicional — sem linha cadastrada não há grade,
+   * na revenda não há receita nem embalagem, sem receita que feche não há custo
+   * — e índice fixo abriria um buraco de quarenta milissegundos no meio da fila
+   * a cada bloco que não se aplica.
+   */
+  let ordem = 0;
+  const iGrade = temGrade ? ordem++ : 0;
+  const iProduto = ordem++;
+  const iReceita = feito ? ordem++ : 0;
+  const iEmbalagem = feito ? ordem++ : 0;
+  const iEmpacotado = ordem++;
+  const iCusto = costing ? ordem++ : 0;
+  const iTravado = ocupada ? ordem++ : 0;
+  const iAcao = ordem++;
 
   return (
     <CollapsingHeader title={t.app.productForm.title} overline={t.app.productForm.overline}>
-      {(data?.lines ?? []).length > 0 ? (
-        <Card>
-          <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.catalog.lines}</Text>
-          <View style={[styles.wrap, { gap: space.sm, marginTop: space.sm }]}>
-            {(data?.lines ?? []).map((l) =>
-              chip(l.name, l.id === lineId, () => {
-                setLineId(l.id === lineId ? null : l.id);
-                setTypeId(null);
-              }, l.id),
-            )}
-          </View>
+      {/* A grade, que é o que escreve o nome.
+          Ela vem primeiro porque é a única parte da tela que o sistema usa para
+          preencher outra: tocada a linha, o tipo e o sabor, o campo de nome
+          nasce escrito (Lei 1 e Lei 2). O nível com uma resposta só continua
+          fora — mostrar um tipo único como escolha é pedir o que já se sabe.
 
-          {/* Nível com uma resposta só não é pergunta: se a linha tem um tipo
-              apenas, mostrá-lo como escolha é pedir o que já se sabe. */}
-          {tiposDaLinha.length > 1 ? (
-            <>
-              <Text style={[type.overline, { color: color.inkFaint, marginTop: space.lg }]}>
-                {fill(t.app.catalog.types, { line: linha?.name ?? '' })}
-              </Text>
-              <View style={[styles.wrap, { gap: space.sm, marginTop: space.sm }]}>
-                {tiposDaLinha.map((x) =>
-                  chip(x.name, x.id === typeId, () => setTypeId(x.id === typeId ? null : x.id), x.id),
-                )}
+          Sem linha cadastrada não há cartão: uma grade vazia não é escolha, e a
+          tela continua inteira pelo nome digitado à mão. */}
+      {temGrade ? (
+        <Reveal index={iGrade}>
+          <Card
+            hue={palette.apricot}
+            icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}
+            title={t.app.catalog.title}
+          >
+            <View style={{ gap: space.lg }}>
+              <View style={{ gap: space.sm }}>
+                <Text style={[type.overline, { color: color.inkFaint }]}>
+                  {t.app.catalog.lines.toUpperCase()}
+                </Text>
+                {/* A etiqueta acesa é a escolhida, e nunca por cor sozinha: a
+                    palavra continua dita por extenso, que é o que serve de luva
+                    e sob luz ruim. A folga em volta é o alvo do dedo. */}
+                <View style={[styles.wrap, { gap: space.sm }]}>
+                  {(data?.lines ?? []).map((l) => (
+                    <Touchable
+                      key={l.id}
+                      accessibilityLabel={l.name}
+                      onPress={() => {
+                        setLineId(l.id === lineId ? null : l.id);
+                        setTypeId(null);
+                      }}
+                      style={{ paddingVertical: space.xs }}
+                    >
+                      <Chip signal={l.id === lineId ? 'ok' : 'neutral'} label={l.name} />
+                    </Touchable>
+                  ))}
+                </View>
               </View>
-            </>
-          ) : null}
 
-          {(data?.flavors ?? []).length > 0 ? (
-            <>
-              <Text style={[type.overline, { color: color.inkFaint, marginTop: space.lg }]}>
-                {t.app.catalog.flavors}
-              </Text>
-              <View style={[styles.wrap, { gap: space.sm, marginTop: space.sm }]}>
-                {(data?.flavors ?? []).map((f) =>
-                  chip(f.name, f.id === flavorId, () => setFlavorId(f.id === flavorId ? null : f.id), f.id),
-                )}
-              </View>
-            </>
-          ) : null}
-        </Card>
+              {tiposDaLinha.length > 1 ? (
+                <View style={{ gap: space.sm }}>
+                  <Text style={[type.overline, { color: color.inkFaint }]}>
+                    {fill(t.app.catalog.types, { line: linha?.name ?? '' }).toUpperCase()}
+                  </Text>
+                  <View style={[styles.wrap, { gap: space.sm }]}>
+                    {tiposDaLinha.map((x) => (
+                      <Touchable
+                        key={x.id}
+                        accessibilityLabel={x.name}
+                        onPress={() => setTypeId(x.id === typeId ? null : x.id)}
+                        style={{ paddingVertical: space.xs }}
+                      >
+                        <Chip signal={x.id === typeId ? 'ok' : 'neutral'} label={x.name} />
+                      </Touchable>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+
+              {(data?.flavors ?? []).length > 0 ? (
+                <View style={{ gap: space.sm }}>
+                  <Text style={[type.overline, { color: color.inkFaint }]}>
+                    {t.app.catalog.flavors.toUpperCase()}
+                  </Text>
+                  <View style={[styles.wrap, { gap: space.sm }]}>
+                    {(data?.flavors ?? []).map((f) => (
+                      <Touchable
+                        key={f.id}
+                        accessibilityLabel={f.name}
+                        onPress={() => setFlavorId(f.id === flavorId ? null : f.id)}
+                        style={{ paddingVertical: space.xs }}
+                      >
+                        <Chip signal={f.id === flavorId ? 'ok' : 'neutral'} label={f.name} />
+                      </Touchable>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          </Card>
+        </Reveal>
       ) : null}
 
-      <Card tone="area">
-        <Field
-          label={t.app.productForm.name}
-          value={composed}
-          onChangeText={(next) => {
-            setNameTyped(true);
-            setName(next);
-          }}
-          placeholder={t.app.productForm.namePlaceholder}
-        />
-
-        <View style={{ marginTop: space.lg }}>
-          <Text style={[type.overline, { color: color.inkFaint, marginBottom: space.sm }]}>
-            {t.app.productForm.whereFrom}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: space.sm }}>
-            <Segment
-              label={t.app.productForm.made}
-              active={kind === 'product'}
-              onPress={() => setKind('product')}
+      {/* O que ele é: o nome e de onde ele vem. Uma pergunta só, e o título do
+          cartão é a resposta que está dada agora — ele muda no toque da
+          etiqueta, que é o mesmo gesto da grade de cima. */}
+      <Reveal index={iProduto}>
+        <Card
+          hue={palette.apricot}
+          icon={(c) => <GlyphPlus size={26} color={c} weight={traco} />}
+          title={feito ? t.app.productForm.made : t.app.productForm.resale}
+        >
+          <View style={{ gap: space.lg }}>
+            <Field
+              label={t.app.productForm.name}
+              value={composed}
+              onChangeText={(next) => {
+                setNameTyped(true);
+                setName(next);
+              }}
+              placeholder={t.app.productForm.namePlaceholder}
             />
-            <Segment
-              label={t.app.productForm.resale}
-              active={kind === 'resale'}
-              onPress={() => setKind('resale')}
-            />
-          </View>
-          <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
-            {kind === 'product' ? t.app.productForm.madeHint : t.app.productForm.resaleHint}
-          </Text>
-        </View>
-      </Card>
 
-      {kind === 'product' ? (
-        <Card tone="area">
-          <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.sm }]}>
-            {t.app.productForm.whichRecipe}
-          </Text>
-
-          {loading ? (
-            <Text style={[type.secondary, { color: color.inkMuted }]}>{t.app.productForm.loading}</Text>
-          ) : data && data.recipes.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={{ flexDirection: 'row', gap: space.sm }}>
-                {data.recipes.map((recipe) => (
-                  <Segment
-                    key={recipe.id}
-                    label={recipe.name}
-                    active={recipe.id === chosenRecipe}
-                    onPress={() => setRecipeId(recipe.id)}
-                  />
-                ))}
+            <View style={{ gap: space.sm }}>
+              <Text style={[type.overline, { color: color.inkFaint }]}>
+                {t.app.productForm.whereFrom}
+              </Text>
+              <View style={[styles.wrap, { gap: space.sm }]}>
+                <Touchable
+                  accessibilityLabel={t.app.productForm.made}
+                  onPress={() => setKind('product')}
+                  style={{ paddingVertical: space.xs }}
+                >
+                  <Chip signal={feito ? 'ok' : 'neutral'} label={t.app.productForm.made} />
+                </Touchable>
+                <Touchable
+                  accessibilityLabel={t.app.productForm.resale}
+                  onPress={() => setKind('resale')}
+                  style={{ paddingVertical: space.xs }}
+                >
+                  <Chip signal={feito ? 'neutral' : 'ok'} label={t.app.productForm.resale} />
+                </Touchable>
               </View>
-            </ScrollView>
-          ) : (
-            <Text style={[type.secondary, { color: color.inkMuted }]}>
-              {t.app.productForm.noRecipes}
-            </Text>
-          )}
+              <Text style={[type.caption, { color: color.inkMuted }]}>
+                {feito ? t.app.productForm.madeHint : t.app.productForm.resaleHint}
+              </Text>
+            </View>
+          </View>
+        </Card>
+      </Reveal>
 
-          <View style={{ gap: space.lg, marginTop: space.lg }}>
-            <Field
-              label={t.app.productForm.perUnit}
-              value={perUnit}
-              onChangeText={setPerUnit}
-              suffix="ml"
-              keyboardType="numeric"
-              hint={
-                costing
-                  ? fill(t.app.productForm.perUnitHint, {
-                      units: formatQuantity(costing.units, locale),
-                    })
-                  : undefined
-              }
-            />
-            <Field
-              label={t.app.productForm.packagingCost}
-              value={packagingCost}
-              onChangeText={setPackagingCost}
-              suffix="R$ / un"
-              keyboardType="numeric"
-              hint={t.app.productForm.packagingHint}
-            />
+      {/* A receita e o quanto vai em cada unidade — o par que separa o
+          rendimento do tacho do tamanho do produto, que é a razão desta tela
+          existir. Assunto de produção, no âmbar de produção.
 
-            {/* A embalagem que SAI DO ESTOQUE.
-                Só aparece quando existe embalagem cadastrada: oferecer a lista
-                numa fábrica que não cadastrou palito é pedir o que o sistema
-                sabe que não existe. */}
-            {(data?.wrappings ?? []).length > 0 ? (
-              <View style={{ gap: space.sm }}>
-                <Text style={[type.caption, { color: color.inkMuted }]}>
-                  {t.app.productForm.fromStock}
+          Na revenda o cartão não existe: o custo vem da nota, e perguntar
+          receita a quem revende é pedir o que não há. */}
+      {feito ? (
+        <Reveal index={iReceita}>
+          <Card
+            hue={palette.apricot}
+            icon={(c) => <GlyphProduction size={26} color={c} weight={traco} />}
+            title={t.app.productForm.whichRecipe}
+          >
+            <View style={{ gap: space.lg }}>
+              {loading ? (
+                <Text style={[type.secondary, { color: color.inkMuted }]}>
+                  {t.app.productForm.loading}
                 </Text>
-                {(data?.wrappings ?? []).map((item) => {
-                  const linha = wrappings.find((w) => w.itemId === item.id);
-                  const on = linha !== undefined;
-                  return (
-                    <View key={item.id} style={{ gap: space.xs }}>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: on }}
-                        accessibilityLabel={item.name}
-                        onPress={() =>
-                          setWrappings((atual) =>
-                            on
-                              ? atual.filter((w) => w.itemId !== item.id)
-                              : [...atual, { itemId: item.id, quantityPerUnit: '1' }],
-                          )
-                        }
-                      >
-                        <Text style={[type.body, { color: on ? color.ink : color.inkMuted }]}>
-                          {on ? '● ' : '○ '}
-                          {item.name}
-                        </Text>
-                      </Pressable>
-                      {on ? (
-                        <Field
-                          label={fill(t.app.productForm.perUnitOf, { item: item.name })}
-                          value={linha.quantityPerUnit}
-                          onChangeText={(texto) =>
+              ) : data && data.recipes.length > 0 ? (
+                <View style={[styles.wrap, { gap: space.sm }]}>
+                  {data.recipes.map((recipe) => (
+                    <Touchable
+                      key={recipe.id}
+                      accessibilityLabel={recipe.name}
+                      onPress={() => setRecipeId(recipe.id)}
+                      style={{ paddingVertical: space.xs }}
+                    >
+                      <Chip
+                        signal={recipe.id === chosenRecipe ? 'ok' : 'neutral'}
+                        label={recipe.name}
+                      />
+                    </Touchable>
+                  ))}
+                </View>
+              ) : (
+                /* Estado vazio com a saída dentro da frase: a ficha técnica se
+                   cadastra noutra tela, e esta é empilhada — o caminho de volta
+                   é o de sempre. */
+                <Text style={[type.secondary, { color: color.inkMuted }]}>
+                  {t.app.productForm.noRecipes}
+                </Text>
+              )}
+
+              <Field
+                label={t.app.productForm.perUnit}
+                value={perUnit}
+                onChangeText={setPerUnit}
+                suffix="ml"
+                keyboardType="numeric"
+                hint={
+                  costing
+                    ? fill(t.app.productForm.perUnitHint, {
+                        units: formatQuantity(costing.units, locale),
+                      })
+                    : undefined
+                }
+              />
+            </View>
+          </Card>
+        </Reveal>
+      ) : null}
+
+      {/* A embalagem por unidade, e ela tem DUAS metades reais: o que ninguém
+          quis transformar em item (o valor digitado) e o que sai do
+          almoxarifado a cada unidade produzida (o palito que desce do estoque).
+          Assunto de insumo, no verde do insumo — duas cores porque são duas
+          perguntas, e é a segunda que faz o palito aparecer na corrida. */}
+      {feito ? (
+        <Reveal index={iEmbalagem}>
+          <Card
+            hue={palette.mint}
+            icon={(c) => <GlyphPackaging size={26} color={c} weight={traco} />}
+            title={t.app.productForm.packagingCost}
+          >
+            <View style={{ gap: space.lg }}>
+              <Field
+                label={t.app.productForm.packagingCost}
+                value={packagingCost}
+                onChangeText={setPackagingCost}
+                suffix="R$ / un"
+                keyboardType="numeric"
+                hint={t.app.productForm.packagingHint}
+              />
+
+              {/* Só aparece quando existe embalagem cadastrada: oferecer a lista
+                  numa fábrica que não cadastrou palito é pedir o que o sistema
+                  sabe que não existe. */}
+              {(data?.wrappings ?? []).length > 0 ? (
+                <View style={{ gap: space.sm }}>
+                  {/* Frase, e por isso não vira caixa alta: as etiquetas curtas
+                      da grade são rótulo e sobem para overline, esta é uma
+                      pergunta inteira. Caixa alta numa linha de seis palavras
+                      lê-se mais devagar, e o e2e confere a frase como ela é. */}
+                  <Text style={[type.caption, { color: color.inkMuted }]}>
+                    {t.app.productForm.fromStock}
+                  </Text>
+                  <View style={[styles.wrap, { gap: space.sm }]}>
+                    {(data?.wrappings ?? []).map((item) => {
+                      const on = wrappings.some((w) => w.itemId === item.id);
+                      return (
+                        <Touchable
+                          key={item.id}
+                          accessibilityLabel={item.name}
+                          onPress={() =>
                             setWrappings((atual) =>
-                              atual.map((w) =>
-                                w.itemId === item.id ? { ...w, quantityPerUnit: texto } : w,
-                              ),
+                              on
+                                ? atual.filter((w) => w.itemId !== item.id)
+                                : [...atual, { itemId: item.id, quantityPerUnit: '1' }],
                             )
                           }
-                          suffix={item.baseUnit}
-                          keyboardType="numeric"
-                        />
-                      ) : null}
-                    </View>
-                  );
-                })}
-                {costing && costing.itemsRate > 0 ? (
-                  <Text style={[type.caption, { color: color.inkFaint }]}>
-                    {fill(t.app.productForm.fromStockCost, {
-                      amount: formatMoney(Math.round(costing.itemsRate), locale),
+                          style={{ paddingVertical: space.xs }}
+                        >
+                          <Chip signal={on ? 'ok' : 'neutral'} label={item.name} />
+                        </Touchable>
+                      );
                     })}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
-          </View>
-        </Card>
+                  </View>
+
+                  {/* Um campo por embalagem escolhida, e o rótulo diz de qual —
+                      quantidade sem nome do item é número órfão. */}
+                  {escolhidas.map((item) => (
+                    <Field
+                      key={item.id}
+                      label={fill(t.app.productForm.perUnitOf, { item: item.name })}
+                      value={
+                        wrappings.find((w) => w.itemId === item.id)?.quantityPerUnit ?? ''
+                      }
+                      onChangeText={(texto) =>
+                        setWrappings((atual) =>
+                          atual.map((w) =>
+                            w.itemId === item.id ? { ...w, quantityPerUnit: texto } : w,
+                          ),
+                        )
+                      }
+                      suffix={item.baseUnit}
+                      keyboardType="numeric"
+                    />
+                  ))}
+
+                  {costing && costing.itemsRate > 0 ? (
+                    <Text style={[type.caption, { color: color.inkMuted }]}>
+                      {fill(t.app.productForm.fromStockCost, {
+                        amount: formatMoney(Math.round(costing.itemsRate), locale),
+                      })}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
+          </Card>
+        </Reveal>
       ) : null}
 
-      <Card tone="area">
-        <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.xs }]}>
-          {t.app.productForm.howPacked}
-        </Text>
-        <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.md }]}>
-          {t.app.productForm.howPackedHint}
-        </Text>
+      {/* Como ele fica na prateleira: caixa, engradado, quanto tempo dura e
+          quanto é "cheio". Assunto de caixa, no lilás do transporte — é esta a
+          embalagem de que a loja fala quando pede.
 
-        <View style={{ gap: space.lg }}>
-          <Field
-            label={t.app.productForm.perBox}
-            value={perBox}
-            onChangeText={setPerBox}
-            keyboardType="numeric"
-          />
-          <Field
-            label={t.app.productForm.perCrate}
-            value={perCrate}
-            onChangeText={setPerCrate}
-            keyboardType="numeric"
-            hint={packagingEcho}
-          />
-          {/* A validade é perguntada UMA vez, aqui, para nunca mais ser
-              perguntada no tacho: cada corrida nasce com a data calculada. Vazio
-              é resposta legítima e quer dizer "não vence" - o lote continua
-              existindo e continua rastreando. */}
-          <Field
-            label={t.app.productForm.shelfLife}
-            value={shelfLife}
-            onChangeText={setShelfLife}
-            keyboardType="numeric"
-            hint={t.app.productForm.shelfLifeHint}
-          />
+          A validade é perguntada UMA vez, aqui, para nunca mais ser perguntada
+          no tacho: cada corrida nasce com a data calculada. Vazio é resposta
+          legítima e quer dizer "não vence" — o lote continua existindo e
+          continua rastreando. */}
+      <Reveal index={iEmpacotado}>
+        <Card
+          hue={palette.lilac}
+          icon={(c) => <GlyphBox size={26} color={c} weight={traco} />}
+          title={t.app.productForm.howPacked}
+        >
+          <View style={{ gap: space.lg }}>
+            <Text style={[type.secondary, { color: color.inkMuted }]}>
+              {t.app.productForm.howPackedHint}
+            </Text>
 
-          {/* A régua das faixas de cor, aqui também.
-              Ela existia só para insumo, e a faixa azul do dono — "80 a 100%" —
-              é justamente sobre a câmara cheia de produto acabado: quem enche a
-              câmara para de produzir por falta de espaço, e isso não aparece
-              olhando insumo. Vazio continua sendo resposta: sem régua, o produto
-              não ganha cor nem aviso. */}
-          <Field
-            label={t.app.inputForm.fullLevel}
-            value={fullLevel}
-            onChangeText={setFullLevel}
-            keyboardType="numeric"
-            suffix="un"
-            hint={t.app.inputForm.fullLevelHint}
-          />
-        </View>
-      </Card>
+            <Field
+              label={t.app.productForm.perBox}
+              value={perBox}
+              onChangeText={setPerBox}
+              keyboardType="numeric"
+            />
+            <Field
+              label={t.app.productForm.perCrate}
+              value={perCrate}
+              onChangeText={setPerCrate}
+              keyboardType="numeric"
+              hint={packagingEcho}
+            />
+            <Field
+              label={t.app.productForm.shelfLife}
+              value={shelfLife}
+              onChangeText={setShelfLife}
+              keyboardType="numeric"
+              hint={t.app.productForm.shelfLifeHint}
+            />
 
-      {costing ? (
-        <Card tone="area">
-          <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.productForm.unitCost}</Text>
-          <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
-            {formatMoney(costing.unit, locale)}
-          </Text>
-          {/* Lei 6: toda conclusão abre a conta - e a conta tem que FECHAR.
-              Com a embalagem listada somando por fora, "massa + digitado" deixou
-              de dar o total: R$ 0,59 + R$ 0,05 contra R$ 0,66 na mesma tela. Foi
-              o e2e que pegou, porque só somando os três números da tela aberta
-              é que a diferença aparece. */}
-          <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {fill(
-              costing.itemsRate > 0
-                ? t.app.productForm.mixPlusBoth
-                : t.app.productForm.mixPlusPackaging,
-              {
-                mix: formatMoney(costing.mixOnly, locale),
-                packaging: formatMoney(costing.packagingCents, locale),
-                stock: formatMoney(Math.round(costing.itemsRate), locale),
-              },
-            )}
-          </Text>
-          <View style={{ marginTop: space.md }}>
-            <Chip
-              signal="neutral"
-              label={fill(t.app.productForm.fullBox, {
-                amount: formatMoney(
-                  costing.unit * (hierarchy.tiers.find((t2) => t2.id === 'box')?.perBaseUnit ?? 1),
-                  locale,
-                ),
-              })}
+            {/* A régua das faixas de cor, aqui também.
+                Ela existia só para insumo, e a faixa azul do dono — "80 a 100%"
+                — é justamente sobre a câmara cheia de produto acabado: quem
+                enche a câmara para de produzir por falta de espaço, e isso não
+                aparece olhando insumo. Vazio continua sendo resposta: sem
+                régua, o produto não ganha cor nem aviso. */}
+            <Field
+              label={t.app.inputForm.fullLevel}
+              value={fullLevel}
+              onChangeText={setFullLevel}
+              keyboardType="numeric"
+              suffix="un"
+              hint={t.app.inputForm.fullLevelHint}
             />
           </View>
         </Card>
+      </Reveal>
+
+      {/* A conclusão de tudo o que está acima, no azul do dinheiro.
+          Lei 6: toda conclusão abre a conta - e a conta tem que FECHAR. Com a
+          embalagem listada somando por fora, "massa + digitado" deixou de dar o
+          total: R$ 0,59 + R$ 0,05 contra R$ 0,66 na mesma tela. Foi o e2e que
+          pegou, porque só somando os três números da tela aberta é que a
+          diferença aparece. */}
+      {costing ? (
+        <Reveal index={iCusto}>
+          <Card hue={palette.sky} icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}>
+            <Text style={[type.overline, { color: color.inkFaint }]}>
+              {t.app.productForm.unitCost}
+            </Text>
+            <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
+              {formatMoney(costing.unit, locale)}
+            </Text>
+            <Text style={[type.secondary, { color: color.inkMuted }]}>
+              {fill(
+                costing.itemsRate > 0
+                  ? t.app.productForm.mixPlusBoth
+                  : t.app.productForm.mixPlusPackaging,
+                {
+                  mix: formatMoney(costing.mixOnly, locale),
+                  packaging: formatMoney(costing.packagingCents, locale),
+                  stock: formatMoney(Math.round(costing.itemsRate), locale),
+                },
+              )}
+            </Text>
+            <View style={{ marginTop: space.md }}>
+              <Chip
+                signal="neutral"
+                label={fill(t.app.productForm.fullBox, {
+                  amount: formatMoney(
+                    costing.unit * (hierarchy.tiers.find((t2) => t2.id === 'box')?.perBaseUnit ?? 1),
+                    locale,
+                  ),
+                })}
+              />
+            </View>
+          </Card>
+        </Reveal>
       ) : null}
 
       {/* A frase vem ANTES do botão, e o botão fica travado: impedir e mostrar a
           saída no mesmo gesto. Botão escondido sem explicação é a mesma coisa
-          que erro sem saída - a pessoa fica olhando um botão que não obedece. */}
+          que erro sem saída - a pessoa fica olhando um botão que não obedece.
+
+          Em cartão âmbar de aviso, com o desenho da grade: o que está ocupado é
+          a classificação, e é na grade que se desocupa. */}
       {ocupada ? (
-        <Text style={[type.secondary, { color: color.warning }]}>
-          {fill(t.app.productForm.gridTaken, { name: ocupada.name })}
-        </Text>
+        <Reveal index={iTravado}>
+          <Card
+            tone="warning"
+            icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}
+          >
+            <Text style={[type.secondary, { color: color.ink }]}>
+              {fill(t.app.productForm.gridTaken, { name: ocupada.name })}
+            </Text>
+          </Card>
+        </Reveal>
       ) : null}
 
-      <Button
-        label={saving ? t.app.productForm.saving : t.app.productForm.save}
-        onPress={() => void onSave()}
-        disabled={!canSave || saving}
-        weighty
-      />
+      {/* A ação, uma só, com o desenho do que ela faz dentro dela. Desabilitada
+          enquanto a grade estiver ocupada ou a conta não fechar — Lei 5: o erro
+          se impede, não se reclama. */}
+      <Reveal index={iAcao}>
+        <Button
+          label={saving ? t.app.productForm.saving : t.app.productForm.save}
+          icon={(c) => <GlyphPlus size={22} color={c} weight={traco} />}
+          onPress={() => void onSave()}
+          disabled={!canSave || saving}
+          weighty
+        />
+      </Reveal>
     </CollapsingHeader>
   );
 }
 
-function Segment({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  const { color, type, space, accent } = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      style={{
-        borderWidth: StyleSheet.hairlineWidth * 2,
-        borderColor: active ? accent : color.line,
-        backgroundColor: active ? `${accent}18` : 'transparent',
-        borderRadius: 999,
-        paddingHorizontal: space.md,
-        paddingVertical: space.sm,
-      }}
-    >
-      <Text
-        style={[
-          type.secondary,
-          { color: active ? color.ink : color.inkMuted, fontWeight: active ? '600' : '400' },
-        ]}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  wrap: { flexDirection: 'row', flexWrap: 'wrap' },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
 });
