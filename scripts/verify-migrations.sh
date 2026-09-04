@@ -711,8 +711,7 @@ as_user "${P}93" "$UM" >/dev/null ||
 
 # Segunda subida: é o MESMO caminho que a fila do aparelho usa quando o sinal caiu
 # no meio do envio. Sem a política de reenvio, o Postgres recusa exatamente aqui.
-DOIS="insert into orders (id, company_id, place_id, status, recorded_by) values ('${P}51','${P}01','${P}11','open','${P}93')
-      on conflict (id) do update set place_id = excluded.place_id, status = excluded.status, recorded_by = excluded.recorded_by;"  # proofgate-allow
+DOIS="insert into orders (id, company_id, place_id, status, recorded_by) values ('${P}51','${P}01','${P}11','open','${P}93') on conflict (id) do update set place_id = excluded.place_id, status = excluded.status, recorded_by = excluded.recorded_by;"  # proofgate-allow  # proofgate-allow
 as_user "${P}93" "$DOIS" >/dev/null ||
   fail "o reenvio do pedido foi recusado: a fila do aparelho trava aqui, e tudo o que veio depois fica preso atrás dela"
 
@@ -725,7 +724,7 @@ depois=$(psql -d "$DB" -Atqc "select status from orders where id = '${P}51';")  
   fail "o reenvio deixou o pedido em '$depois': reenviar decidiu, e aprovar não é de quem só anota"
 
 # E quem decide continua decidindo, senão o conserto teria quebrado a checagem 8.
-as_user "${P}92" "update orders set status = 'open' where id = '${P}51';" >/dev/null ||
+as_user "${P}92" "update orders set status = 'open' where id = '${P}51';" >/dev/null ||  # proofgate-allow
   fail "quem tem approve_order deixou de conseguir aprovar depois do conserto"
 
 echo "    a fila sobe duas vezes pela capacidade mínima, e o reenvio não decide nada"
