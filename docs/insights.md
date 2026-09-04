@@ -3406,3 +3406,38 @@ do próprio shell é um processo com aquele texto dentro, então todo padrão am
 inclui. Se for para parar por padrão, o padrão tem de excluir o próprio PID (`pgrep -f
 … | grep -v $$`) — e a saída barata continua sendo a da regra: anotar o PID quando
 inicio, e parar por ele.
+
+## 4 de setembro — a quinta aparição, e a primeira achada procurando a família
+
+Quatro migrações deste repositório consertam o mesmo defeito: tabela que a fila do
+aparelho envia com `on conflict (id) do update` e que não tem política de update no
+servidor. A 0015 (compras), a 0020 (lotes), a 0027 (pedidos — política existia, com a
+capacidade errada), a 0030 (o lugar padrão). Cada uma foi encontrada por esbarrão: um
+CI vermelho, uma auditoria, uma queixa.
+
+Hoje, indo consertar o `recorded_by` do pedido, listei **todas** as tabelas com
+`recorded_by` e **todas** as políticas de update do esquema, em duas linhas de `grep`.
+`readings` apareceu com política de leitura, política de insert, e nada mais.
+
+**E é a pior das cinco.** A leitura da câmara é a escrita com maior chance de subir
+duas vezes em todo o aplicativo: ela é anotada dentro da câmara fria, a −18 °C, onde o
+sinal não chega — o app foi desenhado inteiro em volta disso. A escrita mais propensa a
+reenvio era a única sem direito a reenviar, e o motor para a fila no primeiro buraco de
+propósito: tudo o que a fábrica gravasse depois ficava preso atrás de uma leitura de
+temperatura.
+
+**Por que a barra não pegou:** a checagem 9 — a que sobe a fila duas vezes pela
+capacidade mínima de cada papel — replica **um `orders`, e só**. A checagem existia, a
+forma do defeito era conhecida, e a cobertura era de uma tabela.
+
+**A regra que fica: erro que apareceu quatro vezes não se conserta na quinta — se
+varre.** O custo de listar a família inteira foi de dois `grep`; o de esperar a quinta
+aparição foi quatro migrações e uma auditoria. Quando um defeito volta com cara nova,
+a pergunta deixa de ser "onde está este?" e passa a ser **"qual é a lista completa de
+lugares onde ele caberia, e o que prova que cada um está coberto?"**
+
+**O que mudou.** A 0031 dá a `readings` política de reenvio e um gatilho que congela o
+que foi visto; a 0032 congela `recorded_by` do pedido para todos, inclusive quem
+aprova. Duas checagens novas no `db:verify` (12 e 13), as duas escritas **antes** das
+migrações e vistas reprovando: a 12 com `new row violates row-level security policy`, a
+13 com o autor do pedido trocado por outro id.

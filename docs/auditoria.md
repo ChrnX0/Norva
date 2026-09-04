@@ -83,6 +83,18 @@ foi fechado fica marcado aqui, com o que impede a volta.
   **O que ficou:** registrar o trajeto câmara → almoxarifado não existe, e isso é
   decisão de dono sobre a F2. Está escrita em `docs/roadmap.md` ("A sala do tacho"),
   com as duas formas e o motivo de nenhuma poder ser escolhida por mim.
+- **`recorded_by` cedível no pedido** (um dos médios): a porta de quem aprova só
+  perguntava pela capacidade, então o mesmo `update` que aprovava podia trocar QUEM
+  anotou o pedido. Congelado por gatilho para todos, como a imutabilidade de
+  `movements` já é. Guarda: checagem 13 do `db:verify`, escrita ANTES da migração e
+  vista reprovando com o autor trocado.
+- **E um achado que a auditoria não fez, na mesma família:** `readings` nasceu sem
+  política de update, então **reenviar uma leitura da câmara travava a fila para
+  sempre** — e a leitura é a escrita com maior chance de subir duas vezes em todo o
+  aplicativo, porque é anotada a −18 °C, onde não há sinal. Quinta aparição da mesma
+  família (0015, 0020, 0027, 0030 e agora), e a primeira encontrada **procurando a
+  família** em vez de esbarrando nela. A checagem 9 replicava um `orders` e só; a 12
+  replica a leitura, e reprova sem a migração.
 - **11 — sem caminho para os outros dois idiomas nem para outra moeda.** O idioma e a
   moeda passam a ser escolha da EMPRESA, guardada e obedecida pelas 33 telas: um
   cartão nos Ajustes, com os três idiomas escritos cada um na própria língua e oito

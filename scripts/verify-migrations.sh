@@ -809,6 +809,78 @@ fi
 
 echo "    o lugar padrão passa e é reenviável, e cadastrar lugar continua sendo de quem administra"
 
+echo "==> check 12: a leitura da câmara sobe duas vezes, e a segunda não reescreve nada"
+
+# QUINTA aparição da fila travada, e a primeira achada procurando a família.
+#
+# `readings` nasceu na 0024 com política de leitura e de insert, e mais nada — sem
+# update, o `on conflict (id) do update` da fila é recusado mesmo com a linha
+# idêntica, e o motor para no primeiro buraco. E a leitura é a escrita com MAIOR
+# chance de subir duas vezes em todo o aplicativo: ela é anotada dentro da câmara,
+# a -18 °C, onde o sinal não chega.
+#
+# A checagem 9 replica um `orders` e só. Esta replica a leitura, que é o que
+# faltava para a família ficar coberta.
+psql -d "$DB" -q -c "grant insert, update on readings to app_user;" >/dev/null
+
+# A operadora do turno tem `adjust_stock`, que é a capacidade da contagem — a
+# mesma do gesto de ir até a câmara e anotar o que viu.
+LEITURA="insert into readings (id, company_id, location_id, kind, value, unit, taken_at, recorded_by) values ('${P}71','${P}03','${P}03','temperature',-18.4,'C', now(), '${P}95');"  # proofgate-allow
+as_user "${P}95" "$LEITURA" >/dev/null ||
+  fail "a operadora não conseguiu anotar a temperatura da câmara"
+
+RELEITURA="insert into readings (id, company_id, location_id, kind, value, unit, taken_at, recorded_by) values ('${P}71','${P}03','${P}03','temperature',-18.4,'C', now(), '${P}95') on conflict (id) do update set kind = excluded.kind, value = excluded.value, unit = excluded.unit, taken_at = excluded.taken_at, location_id = excluded.location_id, recorded_by = excluded.recorded_by;"  # proofgate-allow
+as_user "${P}95" "$RELEITURA" >/dev/null ||
+  fail "o reenvio da leitura foi recusado: a fila do aparelho trava aqui, e é a escrita que mais reenvia porque acontece onde não há sinal"
+
+# E o reenvio não reescreve o que foi visto. Uma leitura diferente é outra
+# leitura, e outra leitura é outra linha.
+OUTRO_VALOR="insert into readings (id, company_id, location_id, kind, value, unit, taken_at, recorded_by) values ('${P}71','${P}03','${P}03','temperature',-2.0,'C', now(), '${P}95') on conflict (id) do update set value = excluded.value;"  # proofgate-allow
+as_user "${P}95" "$OUTRO_VALOR" >/dev/null ||
+  fail "o reenvio com valor diferente foi recusado em vez de ser devolvido ao valor original"
+valor=$(psql -d "$DB" -Atqc "select value from readings where id = '${P}71';")  # proofgate-allow
+case "$valor" in
+  -18.4*) : ;;
+  *) fail "o reenvio reescreveu a leitura para '$valor': a câmara passou a dizer que estava a -2 °C quando estava a -18,4" ;;
+esac
+
+echo "    a leitura é reenviável, e o reenvio não muda o que foi visto"
+
+echo "==> check 13: quem aprova um pedido não reescreve quem o anotou"
+
+# A assinatura é incedível — e ela era, no insert e no reenvio, e NÃO era na
+# decisão.
+#
+# `orders_place` exige `recorded_by = auth.uid()`; `orders_resend` (0027) exige nos
+# dois lados. Mas `orders_decide` — a porta de quem aprova, despacha ou administra
+# — só pergunta pela capacidade. Quem aprova podia, no mesmo update, trocar QUEM
+# anotou o pedido: a gerente da loja some do registro e outra pessoa aparece no
+# lugar dela.
+#
+# Numa fábrica de seis pessoas isso não é invasão de fora: é o dono reescrevendo o
+# passado de dentro, no único campo que o livro de pedidos tem para dizer quem
+# pediu o quê. `movements` não tem esse buraco porque não tem política de update
+# nenhuma — a imutabilidade dele é gatilho.
+ANOTA="insert into orders (id, company_id, place_id, status, recorded_by) values ('${P}52','${P}01','${P}11','open','${P}93');"  # proofgate-allow
+as_user "${P}93" "$ANOTA" >/dev/null ||
+  fail "a gerente da loja não conseguiu anotar o segundo pedido"
+
+# Quem aprova aprova — e é a mesma linha que tenta trocar o autor.
+CEDE="update orders set status = 'open', recorded_by = '${P}92' where id = '${P}52';"  # proofgate-allow
+as_user "${P}92" "$CEDE" >/dev/null ||
+  fail "quem tem approve_order deixou de conseguir aprovar"
+
+autor=$(psql -d "$DB" -Atqc "select recorded_by from orders where id = '${P}52';")  # proofgate-allow
+[ "$autor" = "${P}93" ] ||
+  fail "o autor do pedido virou '$autor': quem aprova reescreveu quem anotou, e o registro deixou de dizer quem pediu"
+
+# E a aprovação em si funcionou, senão o conserto teria travado a decisão.
+estado=$(psql -d "$DB" -Atqc "select status from orders where id = '${P}52';")  # proofgate-allow
+[ "$estado" = "open" ] ||
+  fail "o pedido ficou em '$estado': o conserto do autor travou a aprovação"
+
+echo "    aprovar decide o pedido e não muda quem o anotou"
+
 echo
-echo "OK - migrations apply and all eleven guarantees hold."
+echo "OK - migrations apply and all thirteen guarantees hold."
 

@@ -32,7 +32,7 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | telas | **24** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **21** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **22** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **30** | `ls supabase/migrations \| wc -l` |
+| migrações do servidor | **32** | `ls supabase/migrations \| wc -l` |
 | migrações do aparelho | **V17** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **18** | `src/domain/access.ts` |
@@ -45,7 +45,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 | `npm test` | **336** testes |
 | `npm run mutate` | **105** defeitos plantados, 103 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **36** checagens num navegador de verdade |
-| `npm run db:verify` | **11** garantias contra um Postgres descartável, sob RLS |
+| `npm run db:verify` | **13** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade,
@@ -210,8 +210,8 @@ faz isso.
 
 De pé, nesta ordem e por este motivo:
 
-1. **Os médios que sobraram** — doze, agora que o `versionCode` caiu. Entre eles:
-   `recorded_by` cedível no pedido, a embalagem abaixo de meio centavo virando de
+1. **Os médios que sobraram** — onze, agora que o `versionCode` e o `recorded_by`
+   cedível caíram. Entre eles: a embalagem abaixo de meio centavo virando de
    graça, a aprovação de pedido que nunca atravessa, o percentual com ponto em vez de
    vírgula, o ícone de "Produção" ser um picolé num aplicativo que promete servir
    qualquer fábrica, a tela de abertura ainda ser o andaime da Expo, e
