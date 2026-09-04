@@ -60,7 +60,6 @@ const FALTAM = new Set<string>([
   'app/lots/[id].tsx',
   'app/orders/index.tsx',
   'app/orders/new.tsx',
-  'app/places.tsx',
   'app/production/new.tsx',
   'app/products/index.tsx',
   'app/products/new.tsx',

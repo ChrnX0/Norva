@@ -77,6 +77,10 @@ const TELAS: Record<string, Declaracao | Declaracao[]> = {
   // O número é quantos destinos receberam hoje, e ontem vem logo abaixo — a
   // mesma pergunta que a aba já respondia em texto, agora como figura.
   'app/(tabs)/transport.tsx': { compara: /vsYesterday|firstDay/ },
+  // O número é quanto vale o lugar, e a comparação é a conta aberta embaixo
+  // dele: cada item com o que vale, na mesma régua, e os outros lugares logo
+  // abaixo. É a Lei 6 respondendo a Lei 3 — a conclusão abre a conta.
+  'app/places.tsx': { compara: /worth/ },
   'app/inputs/index.tsx': { compara: /shortestCover|coverUnknown|coverComfortable/ },
   'app/inputs/[id].tsx': { compara: /wentUp|wentDown/ },
   'app/losses.tsx': { compara: /vsPrevious|firstWindow/ },

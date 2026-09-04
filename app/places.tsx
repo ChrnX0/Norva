@@ -1,10 +1,22 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
+import {
+  GlyphCustomer,
+  GlyphFactory,
+  GlyphStore,
+  GlyphThermometer,
+  GlyphVehicle,
+} from '@/components/Glyph';
+import { ListRow } from '@/components/ListRow';
+import { Reveal } from '@/components/Reveal';
+import { Sparkline } from '@/components/Sparkline';
+import { Touchable } from '@/components/Touchable';
 import { nowIso } from '@/data/db';
 import {
   lastReadings,
@@ -21,8 +33,6 @@ import { dayWindow, localDate } from '@/domain/day';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { agreedOn, daysUntilNextDelivery, toggleDay } from '@/domain/agreement';
-import { Chip } from '@/components/Chip';
-import { Sparkline } from '@/components/Sparkline';
 import { formatTyped, parseTyped } from '@/domain/number';
 import {
   fill,
@@ -46,6 +56,15 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * O lugar padrão é gravado sem nome de propósito (`repository.listPlaces`), e é
  * aqui que ele ganha um: a camada de dados devolve string vazia, quem fala
  * português é a tela.
+ *
+ * **O corpo desta tela foi reescrito na língua da capa** (`docs/linguagem.md`),
+ * e o layout anterior — parágrafo cinza dentro de retângulo cinza, pílula de dia
+ * desenhada à mão com borda e fundo próprios, rádio de tipo feito com `●`/`○` —
+ * saiu inteiro em vez de ganhar um caminho ao lado. Cada lugar passa a ser um
+ * assunto: crachá com o desenho do que ele é, o tom que diz de longe se é
+ * depósito, destino ou veículo, e o dinheiro que está lá com a conta de quantos
+ * itens somam esse dinheiro. Nenhuma caixa é desenhada aqui: `Card`, `Chip` e
+ * `Button` já sabem virar régua no Papel e bloco no Orgânico.
  */
 export default function PlacesScreen() {
   return (
@@ -57,11 +76,27 @@ export default function PlacesScreen() {
 
 type Loaded = { places: Place[]; stock: PlaceStock[]; readings: Reading[] };
 
+/**
+ * O desenho de cada tipo de lugar.
+ *
+ * O crachá é o que responde "que lugar é este" antes de a palavra ser lida —
+ * loja é fachada, cliente é pessoa, veículo é carroceria, câmara é termômetro. O
+ * resto da casa (fábrica, almoxarifado) é o prédio: são as salas de dentro.
+ */
+function desenhoDoLugar(kind: string): (color: string, weight: number) => ReactNode {
+  if (kind === 'own_store') return (c, w) => <GlyphStore size={26} color={c} weight={w} />;
+  if (kind === 'customer') return (c, w) => <GlyphCustomer size={26} color={c} weight={w} />;
+  if (kind === 'vehicle') return (c, w) => <GlyphVehicle size={26} color={c} weight={w} />;
+  if (kind === 'cold_room') return (c, w) => <GlyphThermometer size={26} color={c} weight={w} />;
+  return (c, w) => <GlyphFactory size={26} color={c} weight={w} />;
+}
+
 function Places() {
-  const { color, type, space } = useTheme();
+  const { color, type, space, palette, skin } = useTheme();
   const { locale, t } = useLocale();
   const router = useRouter();
   const words = t.app.places;
+  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data, refresh } = useQuery<Loaded>(async () => {
     const [places, stock, readings] = await Promise.all([
@@ -93,6 +128,20 @@ function Places() {
     return raw.trim() || words.factory;
   };
 
+  /**
+   * O tom de um lugar, e ele é o tom do ASSUNTO — não uma cor por linha.
+   *
+   * Quem recebe carga é acordo (`sage`, o mesmo tom de pedido e cliente em toda
+   * a casa); quem só guarda é estoque (`mint`); veículo é transporte (`lilac`).
+   * De longe a lista já separa depósito de destino sem ninguém ler o rótulo.
+   */
+  const tomDoLugar = (lugar: string) =>
+    lugar === 'vehicle'
+      ? palette.lilac
+      : lugar === 'own_store' || lugar === 'customer'
+        ? palette.sage
+        : palette.mint;
+
   const onSave = async () => {
     if (!name.trim() || saving) return;
     setSaving(true);
@@ -108,12 +157,21 @@ function Places() {
 
   const KINDS = ['own_store', 'cold_room', 'store_room'] as const;
 
+  /** Nada entrou em lugar nenhum ainda: desenho, uma frase, e a ação embaixo. */
+  const semNada = (data?.stock.length ?? 0) === 0;
+  const lugares = data?.places ?? [];
+  /** A cascata não pula número: o primeiro lugar entra depois do cartão vazio. */
+  const primeiroLugar = semNada ? 1 : 0;
+  const depoisDosLugares = primeiroLugar + lugares.length;
+
   return (
     <CollapsingHeader title={words.title} overline={words.overline}>
-      {(data?.stock.length ?? 0) === 0 ? (
-        <Card>
-          <Text style={[type.body, { color: color.inkMuted }]}>{words.empty}</Text>
-        </Card>
+      {semNada ? (
+        <Reveal index={0}>
+          <Card hue={palette.mint} icon={(c) => <GlyphFactory size={26} color={c} weight={traco} />}>
+            <Text style={[type.body, { color: color.inkMuted }]}>{words.empty}</Text>
+          </Card>
+        </Reveal>
       ) : null}
 
       {/* A lista é de LUGARES, não de saldos.
@@ -121,143 +179,178 @@ function Places() {
           aparecia até alguém mandar a primeira carga - e é exatamente antes
           dessa carga que se combina o dia de entrega. Uma loja invisível é
           cadastrada duas vezes. */}
-      {(data?.places ?? []).map((place) => {
+      {lugares.map((place, posicao) => {
         const saldo = data?.stock.find((s) => s.locationId === place.id) ?? null;
         const recebe = place.kind === 'own_store' || place.kind === 'customer';
         const proxima = daysUntilNextDelivery(place.deliveryDays, hoje);
+        const desenho = desenhoDoLugar(place.kind);
+
         return (
-          <Card key={place.id} tone="area">
-            <View style={styles.row}>
-              <Text style={[type.cardTitle, { color: color.ink, flex: 1 }]}>{nameOf(place)}</Text>
-              <Text style={[type.caption, { color: color.inkMuted }]}>
-                {words.kinds[place.kind as keyof typeof words.kinds] ?? place.kind}
+          <Reveal key={place.id} index={primeiroLugar + posicao}>
+            <Card
+              hue={tomDoLugar(place.kind)}
+              icon={(c) => desenho(c, traco)}
+              title={nameOf(place)}
+            >
+              <Text style={[type.overline, { color: color.inkFaint }]}>
+                {(words.kinds[place.kind as keyof typeof words.kinds] ?? place.kind).toUpperCase()}
               </Text>
-            </View>
 
-            {/* Lei 3: nenhum número sozinho. A quantidade vem com o que ela vale. */}
-            <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-              {saldo
-                ? `${plural(saldo.lines.length, words.itemCount)} · ${fill(words.worth, {
-                    amount: formatMoney(saldo.valueCents, locale),
-                  })}`
-                : words.emptyPlace}
-            </Text>
-
-            {saldo ? (
-              <View style={{ marginTop: space.md, gap: space.xs }}>
-                {saldo.lines.map((line) => (
-                  <View key={line.itemId} style={styles.row}>
-                    <Text style={[type.secondary, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-                      {line.name}
-                    </Text>
-                    <Text style={[type.secondary, styles.number, { color: color.inkMuted }]}>
-                      {formatQuantity(line.baseUnits, locale)} {line.baseUnit}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-
-            {/* A leitura de ambiente, e só onde ela decide alguma coisa.
-                Câmara fria é o caso que o dono levantou: a falha acontece às três
-                da manhã, e o histórico é o que diz se o freezer está piorando.
-                Digitada hoje; quando o módulo dele existir, ele escreve no mesmo
-                lugar com outra origem. */}
-            {place.kind === 'cold_room' ? (
-              <Ambiente
-                place={place}
-                last={data?.readings.find((r) => r.locationId === place.id && r.kind === TEMPERATURA)}
-                onSaved={refresh}
-              />
-            ) : null}
-
-            {/* A ficha de acordo, e só para quem recebe carga: combinar dia de
-                entrega com o próprio almoxarifado não quer dizer nada. */}
-            {recebe ? (
-              editing === place.id ? (
-                <Agreement
-                  place={place}
-                  onDone={() => {
-                    setEditing(null);
-                    refresh();
-                  }}
-                />
-              ) : (
-                <View style={{ marginTop: space.md, gap: space.xs }}>
-                  <Text style={[type.caption, { color: color.inkFaint }]}>
-                    {place.deliveryDays === 0
-                      ? words.noAgreement
-                      : fill(words.agreedDays, {
-                          days: diasDoAcordo(place.deliveryDays, locale),
-                        })}
-                    {place.contactPhone ? ` · ${place.contactPhone}` : ''}
+              {/* Lei 3: nenhum número sozinho. O dinheiro parado ali vem com a
+                  conta de quantos itens o somam — é o que transforma "R$ 1.240"
+                  em "R$ 1.240 espalhados em três coisas".
+                  Lugar sem saldo NÃO ganha número zero, e mesmo assim continua
+                  na tela: o cartão dele é o caminho do acordo de entrega, que se
+                  combina justamente antes da primeira carga. */}
+              {saldo ? (
+                <View style={[styles.row, { gap: space.md, marginTop: space.xs }]}>
+                  <Text style={[type.figure, { color: color.ink }]}>
+                    {formatMoney(saldo.valueCents, locale)}
                   </Text>
-                  {place.agreementNote ? (
-                    <Text style={[type.caption, { color: color.inkFaint }]}>
-                      {place.agreementNote}
-                    </Text>
-                  ) : null}
-                  {proxima !== null ? (
-                    <Text style={[type.caption, { color: color.inkFaint }]}>
-                      {proxima === 0
-                        ? words.deliversToday
-                        : fill(words.deliversIn, {
-                            day: formatWeekdayShort((hoje + proxima) % 7, locale),
-                          })}
-                    </Text>
-                  ) : null}
-                  <Text
-                    accessibilityRole="button"
-                    onPress={() => setEditing(place.id)}
-                    style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}
-                  >
-                    {words.editAgreement}
+                  <Text style={[type.secondary, { color: color.inkMuted, flex: 1 }]}>
+                    {plural(saldo.lines.length, words.itemCount)}
                   </Text>
                 </View>
-              )
-            ) : null}
-          </Card>
+              ) : (
+                <Text style={[type.body, { color: color.inkFaint, marginTop: space.xs }]}>
+                  {words.emptyPlace}
+                </Text>
+              )}
+
+              {/* Uma linha por item, com o que tem à direita e o que vale
+                  embaixo do nome. Sem ícone: desenho em toda linha vira papel de
+                  parede e para de ser visto. */}
+              {saldo ? (
+                <View style={{ marginTop: space.sm }}>
+                  {saldo.lines.map((line) => (
+                    <ListRow
+                      key={line.itemId}
+                      label={line.name}
+                      detail={fill(words.worth, { amount: formatMoney(line.valueCents, locale) })}
+                      trailing={`${formatQuantity(line.baseUnits, locale)} ${line.baseUnit}`}
+                      trailingTone="muted"
+                    />
+                  ))}
+                </View>
+              ) : null}
+
+              {/* A leitura de ambiente, e só onde ela decide alguma coisa.
+                  Câmara fria é o caso que o dono levantou: a falha acontece às três
+                  da manhã, e o histórico é o que diz se o freezer está piorando.
+                  Digitada hoje; quando o módulo dele existir, ele escreve no mesmo
+                  lugar com outra origem. */}
+              {place.kind === 'cold_room' ? (
+                <Ambiente
+                  place={place}
+                  last={data?.readings.find((r) => r.locationId === place.id && r.kind === TEMPERATURA)}
+                  onSaved={refresh}
+                />
+              ) : null}
+
+              {/* A ficha de acordo, e só para quem recebe carga: combinar dia de
+                  entrega com o próprio almoxarifado não quer dizer nada. */}
+              {recebe ? (
+                editing === place.id ? (
+                  <Agreement
+                    place={place}
+                    onDone={() => {
+                      setEditing(null);
+                      refresh();
+                    }}
+                  />
+                ) : (
+                  <View style={{ marginTop: space.md, gap: space.sm }}>
+                    <Text style={[type.overline, { color: color.inkFaint }]}>
+                      {words.agreement.toUpperCase()}
+                    </Text>
+                    <Text style={[type.secondary, { color: color.inkMuted }]}>
+                      {place.deliveryDays === 0
+                        ? words.noAgreement
+                        : fill(words.agreedDays, {
+                            days: diasDoAcordo(place.deliveryDays, locale),
+                          })}
+                      {place.contactPhone ? ` · ${place.contactPhone}` : ''}
+                    </Text>
+                    {place.agreementNote ? (
+                      <Text style={[type.caption, { color: color.inkFaint }]}>
+                        {place.agreementNote}
+                      </Text>
+                    ) : null}
+                    {/* Lei 4: o aviso é na data da decisão. "Hoje é dia de
+                        entrega" é uma coisa a fazer hoje, então ele fica âmbar;
+                        a próxima da semana é só um fato, e fica neutro. */}
+                    {proxima !== null ? (
+                      <Chip
+                        signal={proxima === 0 ? 'warning' : 'neutral'}
+                        label={
+                          proxima === 0
+                            ? words.deliversToday
+                            : fill(words.deliversIn, {
+                                day: formatWeekdayShort((hoje + proxima) % 7, locale),
+                              })
+                        }
+                      />
+                    ) : null}
+                    <Button
+                      label={words.editAgreement}
+                      variant="ghost"
+                      onPress={() => setEditing(place.id)}
+                      style={{
+                        alignSelf: 'flex-start',
+                        paddingVertical: space.sm,
+                        paddingHorizontal: space.lg,
+                      }}
+                    />
+                  </View>
+                )
+              ) : null}
+            </Card>
+          </Reveal>
         );
       })}
 
-      {adding ? (
-        <Card>
-          <View style={{ gap: space.lg }}>
-            <Field
-              label={words.placeName}
-              value={name}
-              onChangeText={setName}
-              hint={words.placeNameHint}
-            />
-            <View>
-              <Text style={[type.caption, { color: color.inkMuted, marginBottom: space.sm }]}>
-                {words.placeKind}
-              </Text>
-              <View style={{ gap: space.xs }}>
-                {KINDS.map((k) => (
-                  <Text
-                    key={k}
-                    accessibilityRole="button"
-                    accessibilityLabel={words.kinds[k]}
-                    onPress={() => setKind(k)}
-                    style={[type.body, { color: k === kind ? color.ink : color.inkMuted }]}
-                  >
-                    {k === kind ? '● ' : '○ '}
-                    {words.kinds[k]}
-                  </Text>
-                ))}
+      <Reveal index={depoisDosLugares}>
+        {adding ? (
+          <Card
+            hue={palette.mint}
+            icon={(c) => <GlyphFactory size={26} color={c} weight={traco} />}
+            title={words.newPlace}
+          >
+            <View style={{ gap: space.lg }}>
+              <Field
+                label={words.placeName}
+                value={name}
+                onChangeText={setName}
+                hint={words.placeNameHint}
+              />
+              {/* O tipo se escolhe tocando o que ele é, não marcando um círculo:
+                  a etiqueta acesa é a escolhida, e a palavra continua dita por
+                  extenso — cor sozinha não é informação de luva e má luz. */}
+              <View style={{ gap: space.sm }}>
+                <Text style={[type.overline, { color: color.inkFaint }]}>
+                  {words.placeKind.toUpperCase()}
+                </Text>
+                <View style={[styles.wrap, { gap: space.sm }]}>
+                  {KINDS.map((k) => (
+                    <Touchable key={k} accessibilityLabel={words.kinds[k]} onPress={() => setKind(k)}>
+                      <Chip signal={k === kind ? 'ok' : 'neutral'} label={words.kinds[k]} />
+                    </Touchable>
+                  ))}
+                </View>
               </View>
+              <Button label={words.save} onPress={onSave} disabled={!name.trim() || saving} />
             </View>
-            <Button label={words.save} onPress={onSave} disabled={!name.trim() || saving} />
-          </View>
-        </Card>
-      ) : (
-        <Button label={words.newPlace} onPress={() => setAdding(true)} variant="ghost" />
-      )}
+          </Card>
+        ) : (
+          <Button label={words.newPlace} onPress={() => setAdding(true)} variant="ghost" />
+        )}
+      </Reveal>
 
       {/* A próxima ação provável, que é o terceiro dever de toda tela. */}
-      {(data?.places.length ?? 0) > 1 ? (
-        <Button label={words.goTransfer} onPress={() => router.push('/transfer')} variant="ghost" />
+      {lugares.length > 1 ? (
+        <Reveal index={depoisDosLugares + 1}>
+          <Button label={words.goTransfer} onPress={() => router.push('/transfer')} variant="ghost" />
+        </Reveal>
       ) : null}
     </CollapsingHeader>
   );
@@ -291,9 +384,10 @@ function Ambiente({
   last: Reading | undefined;
   onSaved: () => void;
 }) {
-  const { color, type, space, palette } = useTheme();
+  const { color, type, space, palette, skin } = useTheme();
   const { locale, t } = useLocale();
   const words = t.app.places;
+  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const [valor, setValor] = useState('');
   const [salvando, setSalvando] = useState(false);
@@ -383,7 +477,7 @@ function Ambiente({
 
   return (
     <View style={{ marginTop: space.md, gap: space.sm }}>
-      <Text style={[type.caption, { color: color.inkFaint }]}>
+      <Text style={[type.body, { color: last ? color.ink : color.inkFaint }]}>
         {last
           ? fill(words.lastReading, {
               // `formatQuantity` arredonda, e aqui isso perde meio grau de
@@ -403,7 +497,7 @@ function Ambiente({
         <Sparkline
           values={(serie ?? []).map((r) => r.value)}
           hue={fora ? color.danger : palette.sky}
-          strokeWidth={1.7}
+          strokeWidth={traco}
           height={36}
         />
       ) : null}
@@ -468,13 +562,12 @@ function Ambiente({
           <Button label={words.save} variant="ghost" disabled={salvando} onPress={() => void salvarFaixa()} />
         </View>
       ) : (
-        <Text
-          accessibilityRole="button"
+        <Button
+          label={words.rangeLabel}
+          variant="ghost"
           onPress={() => setEditandoFaixa(true)}
-          style={[type.caption, { color: color.inkMuted }]}
-        >
-          {words.rangeLabel}
-        </Text>
+          style={{ alignSelf: 'flex-start', paddingVertical: space.sm, paddingHorizontal: space.lg }}
+        />
       )}
     </View>
   );
@@ -498,9 +591,8 @@ function diasDoAcordo(days: number, locale: Parameters<typeof formatWeekdayShort
  * pedido passaria a sugerir uma data que ninguém combinou.
  */
 function Agreement({ place, onDone }: { place: Place; onDone: () => void }) {
-  const { color, type, space, accent } = useTheme();
-  const { t } = useLocale();
-  const { locale } = useLocale();
+  const { color, type, space } = useTheme();
+  const { locale, t } = useLocale();
   const words = t.app.places;
 
   const [phone, setPhone] = useState(place.contactPhone);
@@ -528,43 +620,34 @@ function Agreement({ place, onDone }: { place: Place; onDone: () => void }) {
 
   return (
     <View style={{ marginTop: space.md, gap: space.lg }}>
+      <Text style={[type.overline, { color: color.inkFaint }]}>{words.agreement.toUpperCase()}</Text>
       <Text style={[type.caption, { color: color.inkFaint }]}>{words.agreementHint}</Text>
 
-      <View>
-        <Text style={[type.caption, { color: color.inkMuted, marginBottom: space.sm }]}>
-          {words.deliveryDays}
+      <View style={{ gap: space.sm }}>
+        <Text style={[type.overline, { color: color.inkFaint }]}>
+          {words.deliveryDays.toUpperCase()}
         </Text>
-        <View style={{ flexDirection: 'row', gap: space.xs, flexWrap: 'wrap' }}>
-          {[0, 1, 2, 3, 4, 5, 6].map((dia) => {
-            const on = agreedOn(days, dia);
-            return (
-              <Text
-                key={dia}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={formatWeekdayShort(dia, locale)}
-                onPress={() => setDays((atual) => toggleDay(atual, dia))}
-                style={[
-                  type.secondary,
-                  {
-                    color: on ? color.ink : color.inkMuted,
-                    borderWidth: StyleSheet.hairlineWidth * 2,
-                    borderColor: on ? accent : color.line,
-                    backgroundColor: on ? `${accent}18` : 'transparent',
-                    borderRadius: 999,
-                    paddingHorizontal: space.md,
-                    paddingVertical: space.sm,
-                  },
-                ]}
-              >
-                {formatWeekdayShort(dia, locale)}
-              </Text>
-            );
-          })}
+        {/* O dia se liga tocando o dia. A etiqueta acesa é a combinada, e a
+            linha de baixo repete por extenso o que ficou marcado: quem lê por
+            leitor de tela, ou de luva sob luz ruim, não recebe só a cor. */}
+        <View style={[styles.wrap, { gap: space.sm }]}>
+          {[0, 1, 2, 3, 4, 5, 6].map((dia) => (
+            <Touchable
+              key={dia}
+              accessibilityLabel={formatWeekdayShort(dia, locale)}
+              onPress={() => setDays((atual) => toggleDay(atual, dia))}
+            >
+              <Chip
+                signal={agreedOn(days, dia) ? 'ok' : 'neutral'}
+                label={formatWeekdayShort(dia, locale)}
+              />
+            </Touchable>
+          ))}
         </View>
-        <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
-          {words.deliveryDaysHint}
+        <Text style={[type.secondary, { color: color.inkMuted }]}>
+          {days === 0 ? words.noAgreement : fill(words.agreedDays, { days: diasDoAcordo(days, locale) })}
         </Text>
+        <Text style={[type.caption, { color: color.inkFaint }]}>{words.deliveryDaysHint}</Text>
       </View>
 
       <Field label={words.phone} value={phone} onChangeText={setPhone} hint={words.phoneHint} />
@@ -581,5 +664,5 @@ function Agreement({ place, onDone }: { place: Place; onDone: () => void }) {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
-  number: { fontVariant: ['tabular-nums'] },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
 });
