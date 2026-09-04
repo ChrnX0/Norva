@@ -670,6 +670,12 @@ check('what came out today reaches the briefing, with what it was to compare', a
   const quadrados = await page.locator('svg path').count();
   assert.ok(quadrados > 0, 'e o QR está desenhado, não é um espaço vazio');
 
+  // E a tela diz de QUE FICHA aquele lote saiu — a resposta que não existia em
+  // lugar nenhum, porque `production_runs` guardava a versão e é apagada ao
+  // fechar. Fora do papel branco: a etiqueta só leva o que serve para achar e
+  // recolher o produto.
+  assert.match(etiqueta, /Saiu da ficha .*, versão \d+\./, 'o lote diz qual ficha rodou');
+
   await page.goBack();
   await page.waitForTimeout(1800);
 

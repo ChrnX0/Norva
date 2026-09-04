@@ -143,6 +143,15 @@ function Label() {
   const tacho = (c: string) => <GlyphKettle size={26} color={c} weight={traco} />;
 
   /**
+   * A cascata não pula número.
+   *
+   * A ficha só existe em lote que saiu de uma corrida — importação não tem —,
+   * então a correção sobe uma posição quando ela não está lá. Índice fixo abriria
+   * um vão de quarenta milissegundos no meio da entrada.
+   */
+  const iCorrecao = lote?.recipeName ? 2 : 1;
+
+  /**
    * O lote sumiu, e isto é estado válido: desenho, a frase e a saída.
    *
    * A pilha não tem cabeçalho com seta - `headerShown` é falso no aplicativo
@@ -238,11 +247,36 @@ function Label() {
         </Card>
       </Reveal>
 
-      {/* A CORRIDA. Só aparece quando há ato para desfazer, e quando não dá ela
+      {/* A FICHA QUE RODOU. É o que o lote passou a carregar, e é a resposta que
+          não existia em lugar nenhum: `production_runs` guardava a versão e é
+          apagada ao fechar, e o movimento congela a TAXA, que é o resultado da
+          ficha e não a identidade dela.
+          Sem esta linha, corrigir a fórmula em março reescreve o que janeiro
+          custou — o número continua certo e a pergunta "de que ficha veio?"
+          passa a responder a receita de hoje.
+          Fica FORA do papel branco: a etiqueta só leva o que serve para achar e
+          recolher o produto, e a versão da ficha é conversa de dentro. */}
+      {lote?.recipeName && lote.recipeVersion !== null ? (
+        <Reveal index={1}>
+          <Card hue={palette.apricot} icon={tacho} title={t.app.lotLabel.runTitle}>
+            <Text style={[type.body, { color: color.ink }]}>
+              {fill(t.app.lotLabel.fromSheet, {
+                recipe: lote.recipeName,
+                version: String(lote.recipeVersion),
+              })}
+            </Text>
+            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
+              {t.app.lotLabel.fromSheetWhy}
+            </Text>
+          </Card>
+        </Reveal>
+      ) : null}
+
+      {/* A CORREÇÃO. Só aparece quando há ato para desfazer, e quando não dá ela
           diz por que em vez de ficar apagada esperando o toque. Âmbar porque o
           que ela responde é um impedimento, não uma perda. */}
       {plano ? (
-        <Reveal index={1}>
+        <Reveal index={iCorrecao}>
           {plano.alreadyReversed ? (
             <Card hue={color.warning} icon={tacho}>
               <Text style={[type.body, { color: color.ink }]}>{t.app.lotLabel.reverseAlready}</Text>

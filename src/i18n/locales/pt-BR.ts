@@ -192,6 +192,11 @@ export const ptBR = {
     lotLabel: {
       title: 'Etiqueta do lote',
       overline: 'para colar na caixa',
+      /** A ficha que rodou — dentro do app, nunca no papel que vai na caixa. */
+      runTitle: 'A corrida',
+      fromSheet: 'Saiu da ficha {{recipe}}, versão {{version}}.',
+      fromSheetWhy:
+        'Corrigir a ficha depois não muda este lote: ele guarda a versão que estava valendo no dia.',
       madeOn: 'produzido em {{date}}',
       validUntil: 'válido até {{date}}',
       noExpiry: 'não vence',

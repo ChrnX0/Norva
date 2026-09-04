@@ -60,6 +60,22 @@ const DEFECTS = [
       'seis quilos de acucar voltam a ser "6.000 unidades" na capa e na aba de transporte: a unidade existe no tipo e diz a coisa errada, que e pior que nao existir',
   },
 
+  // --- qual ficha rodou, que o lote passou a carimbar ----------------------
+  {
+    file: 'src/data/repository.ts',
+    from: '      [lotId, companyId, product.itemId, code, input.producedOn, expires, recipe.versionId, at],',
+    to: '      [lotId, companyId, product.itemId, code, input.producedOn, expires, product.recipeId, at],',
+    hurts:
+      'o lote volta a carimbar o id da RECEITA onde vai o da versao: corrigir a formula em marco reescreve de que ficha saiu o que janeiro produziu',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: '    [id, companyId, product.id, recipe.versionId, input.batches, locationId, at],',
+    to: '    [id, companyId, product.id, product.recipeId, input.batches, locationId, at],',
+    hurts:
+      'a corrida aberta grava o id da receita na coluna da versao - um uuid legitimo no lugar errado, que so aparece no dia em que alguem for perguntar qual ficha rodou',
+  },
+
   // --- o estorno e o custo do que sai do tacho, que entraram hoje -----------
   //
   // Regra nova sem mutação é regra protegida por coincidência: a suíte fica

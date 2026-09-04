@@ -1462,10 +1462,18 @@ export async function recordProduction(
     );
     const code = input.lotCode ?? lotCode(input.producedOn, (runsToday?.n ?? 0) + 1);
 
+    // A ficha que rodou vai no lote, e é o único lugar durável onde ela cabe.
+    //
+    // `production_runs` guardava isso e é apagada ao fechar ou cancelar; o
+    // movimento congela a TAXA, que é o resultado da ficha, não a identidade
+    // dela. Sem este carimbo, corrigir a fórmula em março reescreve o que
+    // janeiro custou — a taxa continua certa e a pergunta "de que ficha veio?"
+    // passa a responder a receita de hoje.
     await conn.runAsync(
-      `INSERT INTO lots (id, company_id, item_id, code, produced_on, expires_on, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [lotId, companyId, product.itemId, code, input.producedOn, expires, at],
+      `INSERT INTO lots
+         (id, company_id, item_id, code, produced_on, expires_on, recipe_version_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [lotId, companyId, product.itemId, code, input.producedOn, expires, recipe.versionId, at],
     );
     await enqueue(conn, [{ table: 'lots', rowId: lotId }]);
     lotCodeWritten = code;
@@ -2222,11 +2230,18 @@ export async function openProductionRun(
   const id = newId();
   const locationId = await ensureLocation(conn, companyId);
 
+  // O id da VERSÃO na coluna da versão.
+  //
+  // Aqui entrava `product.recipeId` — o id da receita —, e o nome da coluna
+  // dizia outra coisa. Não quebrava nada visível porque ninguém lia de volta, e
+  // é esse o tipo de erro que fica: a coluna existe, o valor é um uuid legítimo,
+  // e o dia em que alguém for perguntar "qual ficha rodou?" a resposta vai ser
+  // "a receita", que é a fórmula de hoje.
   await conn.runAsync(
     `INSERT INTO production_runs
        (id, company_id, product_id, recipe_version_id, batches, location_id, opened_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [id, companyId, product.id, product.recipeId, input.batches, locationId, at],
+    [id, companyId, product.id, recipe.versionId, input.batches, locationId, at],
   );
 
   return {
@@ -2234,7 +2249,7 @@ export async function openProductionRun(
     productId: product.id,
     productName: product.name,
     recipeId: product.recipeId,
-    recipeVersionId: product.recipeId,
+    recipeVersionId: recipe.versionId,
     batches: input.batches,
     locationId,
     openedAt: at,
@@ -2581,6 +2596,17 @@ export type LotOfDay = {
    * estornar, então a tela não oferece o conserto.
    */
   runGroupId?: string | null;
+  /**
+   * A ficha que rodou: o nome dela e o NÚMERO da versão que estava valendo.
+   *
+   * Fato, nunca frase - "Picolé de morango, versão 3" é a tela quem escreve. E
+   * é a versão daquele dia, não a de hoje: é isso que faz uma fórmula corrigida
+   * em março parar de reescrever o que janeiro custou.
+   *
+   * Nulo em lote de importação e em lote gravado antes desta coluna existir.
+   */
+  recipeName?: string | null;
+  recipeVersion?: number | null;
 };
 
 /**
@@ -2987,15 +3013,22 @@ export async function findLot(companyId: string, lotId: string): Promise<LotOfDa
     expires_on: string | null;
     produced_on: string | null;
     group_id: string | null;
+    recipe_name: string | null;
+    recipe_version: number | null;
   }>(
+    // As duas juntas à esquerda de propósito: lote de importação não tem ficha,
+    // e ele continua abrindo a tela inteira em vez de sumir da consulta.
     `SELECT l.id, l.code, i.name, l.expires_on, l.produced_on,
+            r.name AS recipe_name, v.version AS recipe_version,
             COALESCE(SUM(m.quantity_base_units), 0) AS total,
             MAX(m.movement_group_id) AS group_id
        FROM lots l
        JOIN items i ON i.id = l.item_id
+       LEFT JOIN recipe_versions v ON v.id = l.recipe_version_id
+       LEFT JOIN recipes r ON r.id = v.recipe_id
        LEFT JOIN movements m ON m.lot_id = l.id AND m.kind = 'production'
       WHERE l.company_id = ? AND l.id = ?
-      GROUP BY l.id, l.code, i.name, l.expires_on, l.produced_on`,
+      GROUP BY l.id, l.code, i.name, l.expires_on, l.produced_on, r.name, v.version`,
     [companyId, lotId],
   );
 
@@ -3008,6 +3041,8 @@ export async function findLot(companyId: string, lotId: string): Promise<LotOfDa
     expiresOn: row.expires_on,
     producedOn: row.produced_on,
     runGroupId: row.group_id,
+    recipeName: row.recipe_name,
+    recipeVersion: row.recipe_version,
   };
 }
 

@@ -884,6 +884,54 @@ test('nobody loses what they do not have', async () => {
   );
 });
 
+test('the lot says which sheet ran, and correcting the sheet later does not rewrite it', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+
+  // A versão que estava valendo no dia da corrida.
+  const antes = (await loadRecipeGraph(LOCAL_COMPANY_ID))[product.recipeId!];
+  assert.equal(antes.version, 1);
+
+  const feito = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    batches: 1,
+    unitsProduced: 400,
+    producedOn: '2026-09-02',
+  });
+
+  const lote = await findLot(LOCAL_COMPANY_ID, feito.lot.id);
+  assert.equal(lote?.recipeVersion, 1, 'o lote carimba a versão que rodou');
+  assert.equal(lote?.recipeName, 'Picolé de morango');
+
+  // Agora a fórmula é corrigida: nasce a versão 2, e ela passa a ser a que a
+  // fábrica usa daqui em diante.
+  const corrigida = await saveRecipeVersion(LOCAL_COMPANY_ID, {
+    recipeId: product.recipeId!,
+    name: 'Picolé de morango',
+    yieldAmount: antes.yieldAmount,
+    yieldUnit: antes.yieldUnit,
+    lossFraction: antes.lossFraction,
+    lines: antes.lines,
+    note: 'menos açúcar',
+  });
+  assert.equal(corrigida.version, 2);
+
+  // E o lote de ontem continua dizendo 1. É esta linha que separa um livro-razão
+  // de uma planilha: sem o carimbo, a correção de hoje reescreveria de que
+  // fórmula saiu o que foi produzido em setembro — e o custo histórico e o
+  // recall passariam a apontar para a receita de agora.
+  const depois = await findLot(LOCAL_COMPANY_ID, feito.lot.id);
+  assert.equal(depois?.recipeVersion, 1, 'a ficha de ontem não vira a de hoje');
+
+  // E a corrida aberta grava a VERSÃO na coluna da versão, que é o que ela diz
+  // guardar: aqui entrava o id da RECEITA, um uuid legítimo na coluna errada.
+  const corrida = await openProductionRun(LOCAL_COMPANY_ID, { productId: product.id, batches: 1 });
+  assert.notEqual(corrida.recipeVersionId, product.recipeId, 'não é o id da receita');
+  const agora = (await loadRecipeGraph(LOCAL_COMPANY_ID))[product.recipeId!];
+  assert.equal(corrida.recipeVersionId, agora.versionId, 'é o id da versão que está valendo');
+});
+
 test('an open run is state: the ledger does not know it until it closes', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
   const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);

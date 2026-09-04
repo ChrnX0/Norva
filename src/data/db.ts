@@ -619,8 +619,31 @@ CREATE INDEX IF NOT EXISTS readings_where_idx
 ALTER TABLE locations ADD COLUMN sensor_ranges TEXT NOT NULL DEFAULT '{}';
 `;
 
+/**
+ * O lote passa a dizer QUAL FICHA rodou, e não qual receita.
+ *
+ * A auditoria da Fase 1 marcou isto como o único item ausente, e ele voltou pela
+ * metade: `production_runs.recipe_version_id` recebia `product.recipeId` — o id
+ * da RECEITA na coluna da VERSÃO —, e a linha da corrida é apagada ao fechar ou
+ * cancelar. Ou seja, nada durável dizia qual ficha fez aquele picolé.
+ *
+ * O custo disso aparece quando alguém corrige a fórmula: sem o carimbo, o custo
+ * histórico e o recall passam a apontar para a receita de HOJE, e uma correção
+ * feita em março reescreve o que janeiro custou. O livro-razão é imutável
+ * justamente para isso não acontecer, e aqui a imutabilidade estava furada por
+ * fora — o número congelado continuava certo, mas a pergunta "de que ficha ele
+ * saiu?" não tinha resposta.
+ *
+ * A marca fica no LOTE porque o lote é o que sobrevive: ele não é apagado, é o
+ * que a etiqueta nomeia e é por onde um recall começa. Coluna anulável porque
+ * lote de importação não tem ficha nenhuma — e nulo aqui é resposta, não lacuna.
+ */
+const V16 = `
+ALTER TABLE lots ADD COLUMN recipe_version_id TEXT;
+`;
+
 const MIGRATIONS: readonly string[] = [
-  V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15,
+  V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16,
 ];
 
 export type SqlParam = string | number | null;

@@ -169,6 +169,10 @@ export const en: Dictionary = {
     lotLabel: {
       title: 'Lot label',
       overline: 'to stick on the box',
+      runTitle: 'The run',
+      fromSheet: 'Made from the {{recipe}} sheet, version {{version}}.',
+      fromSheetWhy:
+        'Correcting the sheet later does not change this lot: it keeps the version that was in force that day.',
       madeOn: 'made on {{date}}',
       validUntil: 'good until {{date}}',
       noExpiry: 'does not expire',

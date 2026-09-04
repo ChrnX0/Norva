@@ -78,23 +78,30 @@ reprovou: o almoxarifado certo e a produção dizendo 500 depois de corrigida.
 **A regra que fica:** teste unitário prova a escrita, só o aplicativo dirigido
 prova a leitura.
 
-### 2. A corrida grava o id da receita onde vai o id da **versão** — e o fechamento apaga a linha
+### 2. ~~A corrida grava o id da receita onde vai o id da **versão**~~ — fechado em 4 de setembro
 
-**Estado:** parcial.
+O único item que a auditoria da Fase 1 marcou como ausente. A correção não foi
+escrever o id certo na coluna da corrida — foi **mudar de lugar**: `production_runs`
+é apagada ao fechar ou cancelar, então guardar a ficha ali é guardá-la no que não
+sobrevive. O carimbo passou a ficar no **lote**, que não é apagado, é o que a
+etiqueta nomeia e é por onde um recall começa (`lots.recipe_version_id`, V16 e
+`0026`).
 
-- **Evidência:** `src/data/repository.ts:2147` e `:2155` passam `product.recipeId`
-  para a coluna `recipe_version_id` · `src/data/db.ts:389` (fechar e cancelar
-  **apagam** a linha de `production_runs`).
-- **Por que importa:** foi o único item que a auditoria da Fase 1 marcou como
-  ausente, e voltou pela metade — o tipo ganhou `versionId`
-  (`src/data/repository.ts:1055`) e o escritor continua mandando o id da receita.
-  Nada durável (nem lote, nem movimento) diz **qual ficha rodou**, então custo
-  histórico e recall apontam para a fórmula de hoje. Uma receita corrigida em
-  março reescreve o que janeiro custou.
-- **Portão:** P3 — é semântica de dado permanente, e sai de graça agora.
-- **Escopo, para não virar peça-sem-chamador:** `recipeVersionId` hoje tem zero
-  consumidores fora de `src/data/repository.ts`. O commit que grava o id certo
-  precisa **trazer o leitor junto** — a ficha do lote é o candidato natural.
+O leitor veio junto, como o portão P1 exige: a tela do lote diz *"Saiu da ficha
+Picolé de morango, versão 1"* — fora do papel branco, porque a etiqueta só leva o
+que serve para achar e recolher o produto.
+
+E a prova de que o carimbo vale é o teste que corrige a fórmula DEPOIS: nasce a
+versão 2, e o lote de ontem continua dizendo 1. Sem ele, uma receita corrigida em
+março reescreveria de que fórmula saiu o que janeiro produziu — a taxa congelada
+continuava certa, e a pergunta "de que ficha veio?" passava a responder a receita
+de hoje.
+
+**O que ele deixou atrás de si:** a checagem 6 do `db:verify` dizia "66 escritas
+replicadas, sem uma recusa" — e ausência de recusa não prova que a coluna
+atravessou. Uma coluna esquecida no serializador entraria como nula e a fila
+passaria verde. Agora ela conta os lotes que chegaram **ligados à versão** do
+lado do servidor, que é a asserção de presença que faltava.
 
 ### 3. Lista de compras por simulação: *"se eu fizer 3 tachos de cada, o que falta?"*
 

@@ -541,8 +541,21 @@ srv_product_average=$(psql -d "$DB" -Atqc "select round(average_rate, 4) from it
 [ "$srv_product_average" = "$DEV_PRODUCT_AVERAGE" ] ||
   fail "média do produto divergente: aparelho $DEV_PRODUCT_AVERAGE, servidor $srv_product_average"
 
+# E o LOTE chegou dizendo de que ficha ele saiu.
+#
+# "Sem uma recusa" não prova que a coluna atravessou: uma coluna que o
+# serializador esquecesse de mandar entraria como nula e a fila passaria verde -
+# é o mesmo defeito de uma asserção de ausência sem a de presença ao lado. Aqui
+# a chave estrangeira do servidor também é exercitada de verdade: o lote aponta
+# para uma `recipe_versions` que subiu antes dele, na mesma fila.
+srv_lot_sheet=$(psql -d "$DB" -Atqc "select count(*) from lots l
+  join recipe_versions v on v.id = l.recipe_version_id;")  # proofgate-allow
+[ "$srv_lot_sheet" -ge 1 ] ||
+  fail "o lote chegou sem dizer qual ficha rodou - a coluna não atravessou a fila"
+
 echo "    saldo $srv_balance e média $srv_average, iguais nos dois lados"
 echo "    e o produto do tacho vale $srv_product_average nos dois, sem nota nenhuma"
+echo "    e o lote diz de qual ficha saiu, com a versão do lado de lá"
 
 echo "==> check 7: a grade do produto recusa o cadastro impossível"
 

@@ -258,7 +258,19 @@ const CROSSINGS: Record<
   // servidor recusaria o movimento por chave estrangeira - o aparelho não tem
   // essa FK, então é aqui que a ordem tem que estar certa.
   lots: {
-    take: ['id', 'company_id', 'item_id', 'code', 'produced_on', 'expires_on', 'created_at'],
+    // `recipe_version_id` atravessa junto, e a dependência dele já está resolvida
+    // pela mesma ordem: a versão da receita é gravada quando a ficha é salva,
+    // muito antes da corrida que a usa.
+    take: [
+      'id',
+      'company_id',
+      'item_id',
+      'code',
+      'produced_on',
+      'expires_on',
+      'recipe_version_id',
+      'created_at',
+    ],
   },
 
   purchases: {

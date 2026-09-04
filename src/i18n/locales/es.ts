@@ -174,6 +174,10 @@ export const es: Dictionary = {
     lotLabel: {
       title: 'Etiqueta del lote',
       overline: 'para pegar en la caja',
+      runTitle: 'La corrida',
+      fromSheet: 'Salió de la ficha {{recipe}}, versión {{version}}.',
+      fromSheetWhy:
+        'Corregir la ficha después no cambia este lote: guarda la versión que estaba vigente ese día.',
       madeOn: 'producido el {{date}}',
       validUntil: 'válido hasta {{date}}',
       noExpiry: 'no caduca',
