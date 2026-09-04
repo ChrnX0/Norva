@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import {
-  defaultLocationId,
   expiringSoon,
   listItems,
   listPlaces,
@@ -174,7 +173,14 @@ function Briefing() {
       // cartão de insumo) e sim "quanto tempo o estoque dura", que é o normal
       // contra o qual a semana se compara.
       runningOut(LOCAL_COMPANY_ID, lastWeek.from, today.to, 7, Number.POSITIVE_INFINITY),
-      expiringSoon(LOCAL_COMPANY_ID, trintaDias, 5, defaultLocationId(LOCAL_COMPANY_ID)),
+      // SEM local: o aviso de validade é sobre o lote, onde quer que ele esteja.
+      //
+      // Ele filtrava pelo almoxarifado, e o filtro silenciava o aviso EXATAMENTE
+      // quando o lote saía — a soma por local de um lote que foi para a câmara
+      // fria ou para a loja dá zero no almoxarifado, e o `HAVING > 0` o descarta.
+      // Uma fábrica de picolés manda picolé para a câmara: dali em diante este
+      // cartão nunca mais avisava de nada, e o produto vencia dentro dela.
+      expiringSoon(LOCAL_COMPANY_ID, trintaDias, 5),
       lossesOn(LOCAL_COMPANY_ID, mes.from, today.to),
       lossesOn(LOCAL_COMPANY_ID, mesAnterior.de.from, mesAnterior.ate.to),
       listPlaces(LOCAL_COMPANY_ID),

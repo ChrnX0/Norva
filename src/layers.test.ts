@@ -225,3 +225,56 @@ test('the sentence guard bites the real scar, and leaves identifiers alone', () 
     'interpolação é composição de pedaço já traduzido',
   );
 });
+
+/**
+ * O aviso de validade nunca é preso a uma sala.
+ *
+ * **A cicatriz, e ela é sobre ONDE o defeito mora.** `expiringSoon` estava certa:
+ * ela aceita a sala como parâmetro opcional e, sem ele, responde pela empresa
+ * inteira. Quem errava eram os dois pontos de chamada — a capa e o alarme do
+ * celular — que passavam o almoxarifado.
+ *
+ * A soma por local de um lote que saiu do almoxarifado dá zero ali, e o
+ * `HAVING SUM(...) > 0` o descarta. Então o filtro silenciava o aviso EXATAMENTE
+ * no dia em que o picolé ia para a câmara fria — que, numa fábrica de picolés, é
+ * o dia seguinte ao de produzi-lo. O produto vencia dentro dela e o cartão nunca
+ * tocava.
+ *
+ * **Por que isto é guarda de fonte e não teste de unidade.** O defeito não está
+ * em nenhuma função: está no argumento que uma tela passa. Um teste de unidade
+ * chamando `expiringSoon` diretamente passa nos dois mundos — foi o que aconteceu:
+ * escrevi o teste da regra, ele passou, e a mutação que devolvia o filtro à capa
+ * ATRAVESSOU a suíte inteira. Só o navegador provaria de verdade, e o caminho
+ * completo (cadastrar prazo, produzir, criar câmara, transferir com lote, voltar
+ * à capa) é longo demais para o que se ganha. Isto fica no meio: barato, preciso,
+ * e cobre o chamador que alguém acrescentar amanhã.
+ *
+ * O que ele NÃO prova, dito em vez de omitido: que a capa DESENHA o aviso. Prova
+ * que ela não o restringe a uma sala.
+ */
+test('no screen scopes the expiry warning to a single room', () => {
+  const fontes = [...sourcesUnder('app'), ...sourcesUnder('src')];
+  assert.ok(fontes.length > 20, 'a varredura de fontes veio vazia — a comparação seria de graça');
+
+  const chamadas: string[] = [];
+  for (const f of fontes) {
+    const texto = readFileSync(f, 'utf8');
+    // `(?<!function )` tira a DECLARAÇÃO: a assinatura em `repository.ts` também
+    // casa com "expiringSoon(" e tem quatro parâmetros, então sem isto a guarda
+    // acusa a própria função que ela existe para proteger.
+    for (const m of texto.matchAll(/(?<!function )expiringSoon\(([^)]*)\)/g)) {
+      const args = m[1].split(',').map((a) => a.trim()).filter(Boolean);
+      // companyId, data limite, limite — o quarto é a sala.
+      if (args.length >= 4) chamadas.push(`${f}: expiringSoon(..., ${args[3]})`);
+    }
+  }
+
+  assert.deepEqual(
+    chamadas,
+    [],
+    `estas telas prendem o aviso de validade a uma sala:\n  ${chamadas.join('\n  ')}\n` +
+      'A soma por local de um lote que saiu daquela sala dá zero, e o aviso emudece — ' +
+      'justamente quando o produto está longe dos olhos, prestes a vencer. O aviso é sobre ' +
+      'o LOTE, onde quer que ele esteja.',
+  );
+});

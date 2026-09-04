@@ -3019,3 +3019,91 @@ test('reversing a run gives the money back, not only the quantity', async () => 
   // primeira junto.
   assert.ok(await findLot(LOCAL_COMPANY_ID, primeira.lot.id), 'o lote da corrida boa não some');
 });
+
+/**
+ * O aviso de validade segue o LOTE, não a prateleira.
+ *
+ * **A cicatriz.** A capa e o alarme do celular pediam `expiringSoon` com o
+ * almoxarifado como filtro. A soma por local de um lote que saiu do almoxarifado
+ * dá zero ali, e o `HAVING SUM(...) > 0` o descarta — então o filtro silenciava o
+ * aviso EXATAMENTE no dia em que o picolé ia para a câmara fria, que é o dia
+ * seguinte ao de produzi-lo. Uma fábrica de picolés manda picolé para a câmara:
+ * dali em diante o cartão de validade nunca mais avisava de nada, e o produto
+ * vencia dentro dela.
+ *
+ * A câmara fria como lugar é entrega da Fase 2. Este teste é a metade que faltou:
+ * a tela passou a existir e as leituras que dependiam dela continuaram fixadas no
+ * almoxarifado.
+ */
+test('a lot warns about expiry from wherever it is, not only from the storeroom', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const { id: fria } = await savePlace(LOCAL_COMPANY_ID, { name: 'Câmara fria', kind: 'cold_room' });
+
+  const [semPrazo] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  // A validade do lote vem do PRODUTO — perguntada uma vez no cadastro, nunca no
+  // chão de fábrica. O exemplo semeado nasce sem prazo, então o prazo entra aqui.
+  await saveProduct(LOCAL_COMPANY_ID, {
+    id: semPrazo.id,
+    itemId: semPrazo.itemId,
+    name: semPrazo.name,
+    kind: 'product',
+    recipeId: semPrazo.recipeId,
+    yieldPerUnit: semPrazo.yieldPerUnit,
+    unitPackagingCents: semPrazo.unitPackagingCents,
+    packaging: semPrazo.packaging,
+    shelfLifeDays: 18,
+  });
+  const product = (await listProducts(LOCAL_COMPANY_ID)).find((p) => p.id === semPrazo.id)!;
+
+  const corrida = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: fabrica,
+    batches: 1,
+    unitsProduced: 400,
+    producedOn: '2026-09-02',
+  });
+
+  const trintaDias = '2026-10-02';
+
+  // No almoxarifado, antes de sair: o aviso enxerga.
+  const antes = await expiringSoon(LOCAL_COMPANY_ID, trintaDias, 5);
+  assert.ok(
+    antes.some((l) => l.code === corrida.lot.code),
+    'antes de sair, o lote é avisado',
+  );
+
+  // Vai para a câmara, que é o que uma fábrica de picolés faz com picolé.
+  // Com o LOTE nomeado, que é o que a tela faz: `app/transfer.tsx` manda a
+  // frente da fila (o lote mais antigo). Sem ele as duas pernas saem com
+  // `lot_id` nulo e o lote nunca muda de sala — o que é outra pergunta, e não
+  // esta.
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: product.itemId,
+    baseUnits: 400,
+    fromLocationId: fabrica,
+    toLocationId: fria,
+    lotId: corrida.lot.id,
+  });
+
+  const depois = await expiringSoon(LOCAL_COMPANY_ID, trintaDias, 5);
+  assert.ok(
+    depois.some((l) => l.code === corrida.lot.code),
+    'depois de ir para a câmara o lote CONTINUA sendo avisado — era aqui que o aviso emudecia',
+  );
+
+  // E a pergunta por sala continua respondendo por sala, para o conserto não ter
+  // sido "tirar o filtro e esquecer que ele serve para alguma coisa".
+  const cc = await db();
+  const dump = await cc.getAllAsync<{ kind: string; location_id: string; quantity_base_units: number; lot_id: string | null }>(
+    `SELECT kind, location_id, quantity_base_units, lot_id FROM movements WHERE company_id = ? AND item_id = ? ORDER BY occurred_at, recorded_at`,
+    [LOCAL_COMPANY_ID, product.itemId],
+  );
+  console.log("    [dbg] lote:", corrida.lot.id);
+  for (const l of dump) console.log(`    [dbg] ${l.kind} loc=${l.location_id === fabrica ? "fabrica" : "outra"} q=${l.quantity_base_units} lot=${l.lot_id ?? "(nulo)"}`);
+  const soNoAlmoxarifado = await expiringSoon(LOCAL_COMPANY_ID, trintaDias, 5, fabrica);
+  assert.ok(
+    !soNoAlmoxarifado.some((l) => l.code === corrida.lot.code),
+    'perguntando pelo almoxarifado, o lote que saiu não está lá — o filtro continua servindo',
+  );
+});

@@ -1,5 +1,4 @@
 import {
-  defaultLocationId,
   expiringSoon,
   lastReadings,
   listItems,
@@ -42,7 +41,10 @@ export async function factsForAlerts(timeZone: string): Promise<AlertFacts> {
     // usando o id do item como id de loja — o aviso diria "quatro lojas
     // esperando" para quatro sabores pedidos pela mesma loja.
     listOrders(LOCAL_COMPANY_ID, ['pending', 'open']),
-    expiringSoon(LOCAL_COMPANY_ID, trinta, 10, defaultLocationId(LOCAL_COMPANY_ID)),
+    // Sem local, pela mesma razão da capa: o alarme é sobre o lote, não sobre a
+    // prateleira. Filtrar pelo almoxarifado emudecia o aviso no dia em que o
+    // picolé ia para a câmara fria — que é o dia seguinte ao de produzi-lo.
+    expiringSoon(LOCAL_COMPANY_ID, trinta, 10),
     listItems(LOCAL_COMPANY_ID),
     listPlaces(LOCAL_COMPANY_ID),
     lastReadings(LOCAL_COMPANY_ID),

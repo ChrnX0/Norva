@@ -29,6 +29,19 @@ import { spawnSync } from 'node:child_process';
 
 /** @type {{file: string, from: string, to: string, hurts: string}[]} */
 const DEFECTS = [
+  // --- a camara fria invisivel para o aviso de validade, 4 de setembro -------
+  //
+  // Achado da auditoria. O filtro por almoxarifado silenciava o aviso EXATAMENTE
+  // no dia em que o picolé ia para a câmara — que é o dia seguinte ao de
+  // produzi-lo, numa fábrica de picolés.
+  {
+    file: 'app/(tabs)/index.tsx',
+    from: '      expiringSoon(LOCAL_COMPANY_ID, trintaDias, 5),',
+    to: '      expiringSoon(LOCAL_COMPANY_ID, trintaDias, 5, LOCAL_COMPANY_ID),',
+    hurts:
+      'o cartao de validade da capa volta a olhar so o almoxarifado, e emudece no dia em que o lote vai para a camara fria ou para a loja - o produto vence longe dos olhos e o aviso nunca toca',
+  },
+
   // --- o estorno que devolvia a quantidade e nao o dinheiro, 4 de setembro ---
   //
   // Achado da auditoria. O saldo voltava certinho e a media movel ficava com o
