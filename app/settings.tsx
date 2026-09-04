@@ -158,7 +158,7 @@ function sayTally(area: EraseArea, tally: EraseTally, t: Dictionary): string {
 function Settings() {
   const { color, type, space, palette, skin } = useTheme();
   const traco = skin === 'papel' ? 1.7 : 2.2;
-  const { setSkin, hue, setHue } = useAppearance();
+  const { setSkin, hue, setHue, scheme, setScheme } = useAppearance();
 
   /**
    * A capa combinada e o que este aparelho esconde.
@@ -497,11 +497,17 @@ function Settings() {
         </Reveal>
       ) : null}
 
-      {/* A cara do aplicativo.
-          Claro e escuro continuam seguindo o aparelho, como o sistema manda —
-          o que se escolhe aqui é a IDENTIDADE, que é outra pergunta. O dono viu
-          quarenta esboços e ficou com duas; nenhuma das duas é a certa para
-          todo mundo, e por isso as duas existem em vez de eu escolher por ele.
+      {/* A cara do aplicativo: a identidade e a luz.
+          O dono viu quarenta esboços e ficou com duas identidades; nenhuma das
+          duas é a certa para todo mundo, e por isso as duas existem em vez de eu
+          escolher por ele.
+
+          Este comentário dizia "claro e escuro continuam seguindo o aparelho,
+          como o sistema manda" — e isso era uma escolha MINHA disfarçada de
+          regra do sistema. O dono abriu o Papel no celular escuro e não teve
+          como trocar. Luz é preferência de quem segura o aparelho, igual à
+          identidade, e por isso é dado com os três caminhos. O padrão é o claro,
+          decisão dele.
 
           A escolha é um par de botões e não dois retângulos desenhados à mão: o
           `Button` já sabe as duas caras — pílula preenchida no Orgânico, palavra
@@ -515,6 +521,32 @@ function Settings() {
           <Text style={[type.caption, { color: color.inkMuted }]}>
             {t.app.settings.appearance.hint}
           </Text>
+
+          <View style={{ marginTop: space.md, gap: space.xs }}>
+            <Text style={[type.body, { color: color.ink }]}>
+              {t.app.settings.appearance.lightLabel}
+            </Text>
+            <Text style={[type.caption, { color: color.inkMuted }]}>
+              {t.app.settings.appearance.lightHint}
+            </Text>
+            <View style={[styles.top, { gap: space.sm, marginTop: space.sm }]}>
+              {(
+                [
+                  ['claro', t.app.settings.appearance.light],
+                  ['escuro', t.app.settings.appearance.dark],
+                  ['sistema', t.app.settings.appearance.system],
+                ] as const
+              ).map(([qual, nome]) => (
+                <View key={qual} style={{ flex: 1 }}>
+                  <Button
+                    label={nome}
+                    variant={scheme === qual ? 'primary' : 'ghost'}
+                    onPress={() => setScheme(qual)}
+                  />
+                </View>
+              ))}
+            </View>
+          </View>
 
           <View style={[styles.top, { gap: space.md, marginTop: space.md }]}>
             {(

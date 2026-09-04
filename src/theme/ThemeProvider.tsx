@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import { useAppearance } from './Appearance';
+import { resolveScheme } from './scheme';
 import {
   hues,
   motion,
@@ -53,8 +54,14 @@ export function ThemeProvider({
   children: ReactNode;
   area?: Ambient;
 }) {
-  const scheme: ColorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const { skin, hue } = useAppearance();
+  const { skin, hue, scheme: escolha } = useAppearance();
+  const doAparelho = useColorScheme();
+
+  // A regra mora em `./scheme`, e não aqui: dentro do componente só o navegador
+  // a alcançava, e a suíte de mutação roda a unidade. O gancho do aparelho é
+  // chamado em toda renderização, sem condicional, porque gancho de React não
+  // pode entrar e sair conforme a escolha.
+  const scheme: ColorScheme = resolveScheme(escolha, doAparelho);
 
   const value = useMemo<Theme>(() => {
     const chosen = skins[skin];

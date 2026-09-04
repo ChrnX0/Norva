@@ -405,7 +405,12 @@ export const ptBR = {
       back: 'Voltar',
       appearance: {
         label: 'A cara do aplicativo',
-        hint: 'O claro e o escuro seguem o aparelho. Aqui você escolhe entre as duas identidades.',
+        hint: 'Duas identidades e três luzes. É escolha deste aparelho — não muda nada para mais ninguém.',
+        light: 'Claro',
+        dark: 'Escuro',
+        system: 'Seguir o aparelho',
+        lightLabel: 'A luz da tela',
+        lightHint: 'O padrão é o claro. Escolha o escuro para a câmara fria, ou deixe o aparelho decidir.',
         papel: 'Papel',
         papelHint: 'serifa, traço fino, cantos retos',
         organico: 'Orgânico',

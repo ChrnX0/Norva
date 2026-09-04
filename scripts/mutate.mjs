@@ -29,6 +29,27 @@ import { spawnSync } from 'node:child_process';
 
 /** @type {{file: string, from: string, to: string, hurts: string}[]} */
 const DEFECTS = [
+  // --- a luz da tela, 4 de setembro ----------------------------------------
+  //
+  // O dono abriu o Papel num celular em modo escuro e nao teve como trocar. O
+  // erro nao era de codigo: claro contra escuro e preferencia de quem segura o
+  // aparelho, entao tinha que ser dado com os dois caminhos, e a unica pergunta
+  // legitima era qual e o padrao. Duas mutacoes, uma por metade da regra.
+  {
+    file: 'src/theme/scheme.ts',
+    from: "  if (escolha === 'claro') return 'light';",
+    to: "  if (escolha === 'claro') return doAparelho === 'dark' ? 'dark' : 'light';",
+    hurts:
+      'escolher Claro volta a nao valer nada: quem esta com o celular no escuro fica preso no escuro com o botao Claro aceso na tela, que e o defeito relatado com um rotulo mentindo por cima',
+  },
+  {
+    file: 'src/theme/scheme.ts',
+    from: "export const SCHEME_PADRAO: SchemeChoice = 'claro';",
+    to: "export const SCHEME_PADRAO: SchemeChoice = 'sistema';",
+    hurts:
+      'o padrao deixa de ser o claro que o dono decidiu e volta a ser o do aparelho: quem instala num celular escuro abre no escuro sem ter pedido',
+  },
+
   // --- o rótulo que conta uma variável e nomeia outra, 4 de setembro --------
   //
   // Trinta e um defeitos da mesma família num dia, e nenhum deles é erro de

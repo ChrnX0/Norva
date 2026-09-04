@@ -362,7 +362,12 @@ export const en: Dictionary = {
       back: 'Back',
       appearance: {
         label: 'How the app looks',
-        hint: 'Light and dark follow the phone. Here you pick between the two identities.',
+        hint: 'Two identities and three lights. This phone chooses — nothing changes for anyone else.',
+        light: 'Light',
+        dark: 'Dark',
+        system: 'Follow the phone',
+        lightLabel: 'Screen light',
+        lightHint: 'Light is the default. Pick dark for the cold room, or let the phone decide.',
         papel: 'Paper',
         papelHint: 'serif, thin line, sharp corners',
         organico: 'Organic',

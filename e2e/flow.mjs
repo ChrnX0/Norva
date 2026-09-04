@@ -1611,6 +1611,92 @@ check('the app has two faces, and the choice survives leaving the screen', async
   assert.match(comPaleta, /Terracota/, 'com as cinco paletas por nome');
 });
 
+check('the app opens light even on a phone set to dark, and the light is switchable', async (page) => {
+  // O celular está no escuro. Este é o ponto inteiro da checagem: o defeito que
+  // o dono relatou era o aplicativo OBEDECER isto, sem controle nenhum na tela —
+  // "nao consigo mudar o tema papel de dark para o light".
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  // A luminância do fundo é o que não dá para fingir: um rótulo dizendo "Claro"
+  // aceso ao lado de uma tela preta é exatamente o tipo de mentira que a
+  // varredura de rótulos deste projeto passou o dia caçando.
+  // Quem PINTA, e não o `body`.
+  //
+  // A primeira versão desta medida lia `document.body`, e ele é transparente
+  // aqui: a luminância dava 0.00 nos dois temas, e a checagem teria reprovado
+  // sempre — ou, pior, passado sempre se eu tivesse escrito a comparação ao
+  // contrário. A checagem antiga da identidade só afirma que a cor de fundo
+  // "existe", que é verdade de graça pelo mesmo motivo.
+  //
+  // Então: o maior elemento da tela que tem cor de fundo opaca, que é a chapa
+  // sobre a qual tudo é desenhado.
+  const luz = () =>
+    page.evaluate(() => {
+      let melhor = null;
+      let area = 0;
+      for (const el of document.querySelectorAll('*')) {
+        const cor = getComputedStyle(el).backgroundColor;
+        const n = cor.match(/[\d.]+/g);
+        if (!n || n.length < 3) continue;
+        if (n.length > 3 && Number(n[3]) < 0.9) continue;
+        const r = el.getBoundingClientRect();
+        const a = r.width * r.height;
+        // `>=` e não `>`, e isto é a cicatriz desta checagem.
+        //
+        // O React Native Web põe uma chapa cinza fixa (rgb(242,242,242)) do
+        // tamanho exato da janela, e a chapa do aplicativo tem a MESMA área. Com
+        // `>` ficava a primeira em ordem de documento, que é a fixa — a medida
+        // dava 0.95 nos dois temas, e a asserção de "abre claro" passava pelo
+        // motivo errado, medindo uma coisa que nunca muda. Empate se resolve por
+        // quem está por cima, que é quem vem depois no documento.
+        if (a >= area) {
+          area = a;
+          melhor = n.slice(0, 3).map(Number);
+        }
+      }
+      if (!melhor) return null;
+      return (0.2126 * melhor[0] + 0.7152 * melhor[1] + 0.0722 * melhor[2]) / 255;
+    });
+
+  const inicial = await luz();
+  assert.ok(
+    inicial > 0.6,
+    `o aplicativo abre CLARO mesmo com o aparelho no escuro (luminância ${inicial.toFixed(2)})`,
+  );
+
+  const ajustes = await screen(page);
+  assert.match(ajustes, /A luz da tela/, 'a luz da tela se escolhe nos ajustes');
+  assert.match(ajustes, /Claro/);
+  assert.match(ajustes, /Escuro/);
+  assert.match(ajustes, /Seguir o aparelho/);
+
+  await page.getByText('Escuro', { exact: true }).first().click();
+  await page.waitForTimeout(1200);
+  const escuro = await luz();
+  assert.ok(escuro < 0.3, `escolher Escuro escurece a tela de verdade (luminância ${escuro.toFixed(2)})`);
+
+  // E a escolha sobrevive a sair da tela: vai para a gaveta local do aparelho,
+  // não para o estado do componente.
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  assert.ok((await luz()) < 0.3, 'e continua escura depois de sair e voltar');
+
+  // O terceiro caminho existe de verdade: com o aparelho no escuro, seguir o
+  // aparelho tem que dar escuro — senão "Seguir o aparelho" seria um rótulo que
+  // não segue nada.
+  await page.getByText('Claro', { exact: true }).first().click();
+  await page.waitForTimeout(1200);
+  assert.ok((await luz()) > 0.6, 'voltar para Claro clareia, com o aparelho ainda no escuro');
+
+  await page.getByText('Seguir o aparelho', { exact: true }).first().click();
+  await page.waitForTimeout(1200);
+  assert.ok((await luz()) < 0.3, 'e seguir o aparelho, que está no escuro, escurece');
+});
+
 check('the home is assembled from pieces the house chose', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

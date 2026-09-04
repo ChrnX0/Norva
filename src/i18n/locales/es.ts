@@ -367,7 +367,12 @@ export const es: Dictionary = {
       back: 'Volver',
       appearance: {
         label: 'La cara de la aplicación',
-        hint: 'El claro y el oscuro siguen al teléfono. Aquí eliges entre las dos identidades.',
+        hint: 'Dos identidades y tres luces. Es la elección de este teléfono — no cambia nada para nadie más.',
+        light: 'Claro',
+        dark: 'Oscuro',
+        system: 'Seguir el teléfono',
+        lightLabel: 'La luz de la pantalla',
+        lightHint: 'El claro es lo normal. Elige el oscuro para la cámara fría, o deja que el teléfono decida.',
         papel: 'Papel',
         papelHint: 'serifa, trazo fino, esquinas rectas',
         organico: 'Orgánico',

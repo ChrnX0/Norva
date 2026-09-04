@@ -1,9 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { readMeta, writeMeta } from '@/data/meta';
+import { SCHEME_PADRAO, SCHEMES, type SchemeChoice } from './scheme';
 import type { Hue, Skin } from './tokens';
+
+export type { SchemeChoice };
 
 const KEY = 'appearance.skin';
 const HUE_KEY = 'appearance.hue';
+const SCHEME_KEY = 'appearance.scheme';
 
 /**
  * Qual das duas caras o aplicativo está usando.
@@ -21,6 +25,22 @@ const HUE_KEY = 'appearance.hue';
  *
  * O padrão é o **Orgânico**, e a escolha do padrão é do dono: foi a identidade
  * que ele apontou primeiro entre as duas.
+ *
+ * **O claro e o escuro moram aqui também, e isso é cicatriz.** Eles seguiam o
+ * aparelho e só o aparelho: `useColorScheme()` decidia, sem controle nenhum na
+ * tela. O dono abriu o Papel no celular em modo escuro e não teve como trocar —
+ * *"nao consigo mudar o tema papel de dark para o light"*.
+ *
+ * O erro não foi de código, foi de fundação: claro contra escuro é **preferência
+ * de quem segura o celular** — o dono no escritório e o operador na câmara fria
+ * podem querer coisas diferentes no mesmo dia. O `CLAUDE.md` diz o que fazer com
+ * isso: vira dado, com os dois caminhos existindo, e a única pergunta legítima ao
+ * dono é qual é o PADRÃO. Eu tinha escolhido um lado e escrito a escolha num
+ * comentário da tela de Ajustes, que é o oposto.
+ *
+ * O padrão é o **claro**, decisão do dono em 4 de setembro. `sistema` continua
+ * existindo para quem quer que o aparelho mande — é o terceiro caminho, não o
+ * único.
  */
 type Appearance = {
   skin: Skin;
@@ -31,6 +51,9 @@ type Appearance = {
    */
   hue: Hue;
   setHue: (hue: Hue) => void;
+  /** Claro, escuro, ou seguir o aparelho. */
+  scheme: SchemeChoice;
+  setScheme: (scheme: SchemeChoice) => void;
   /** Falso enquanto a gaveta ainda não respondeu. */
   ready: boolean;
 };
@@ -42,15 +65,19 @@ const AppearanceContext = createContext<Appearance | null>(null);
 export function AppearanceProvider({ children }: { children: ReactNode }) {
   const [skin, setState] = useState<Skin>('organico');
   const [hue, setHueState] = useState<Hue>('verde');
+  const [scheme, setSchemeState] = useState<SchemeChoice>(SCHEME_PADRAO);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    void Promise.all([readMeta(KEY), readMeta(HUE_KEY)])
-      .then(([savedSkin, savedHue]) => {
+    void Promise.all([readMeta(KEY), readMeta(HUE_KEY), readMeta(SCHEME_KEY)])
+      .then(([savedSkin, savedHue, savedScheme]) => {
         if (cancelled) return;
         if (savedSkin === 'papel' || savedSkin === 'organico') setState(savedSkin);
         if (savedHue && (HUES as string[]).includes(savedHue)) setHueState(savedHue as Hue);
+        if (savedScheme && (SCHEMES as string[]).includes(savedScheme)) {
+          setSchemeState(savedScheme as SchemeChoice);
+        }
       })
       // A cara é enfeite; falhar a leitura não pode impedir o aplicativo de
       // abrir. Sem resposta da gaveta, vale o padrão.
@@ -75,9 +102,14 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     void writeMeta(HUE_KEY, next).catch(() => undefined);
   }, []);
 
+  const setScheme = useCallback((next: SchemeChoice) => {
+    setSchemeState(next);
+    void writeMeta(SCHEME_KEY, next).catch(() => undefined);
+  }, []);
+
   const value = useMemo(
-    () => ({ skin, setSkin, hue, setHue, ready }),
-    [skin, setSkin, hue, setHue, ready],
+    () => ({ skin, setSkin, hue, setHue, scheme, setScheme, ready }),
+    [skin, setSkin, hue, setHue, scheme, setScheme, ready],
   );
   return <AppearanceContext.Provider value={value}>{children}</AppearanceContext.Provider>;
 }
@@ -96,6 +128,8 @@ export function useAppearance(): Appearance {
       setSkin: () => undefined,
       hue: 'verde',
       setHue: () => undefined,
+      scheme: SCHEME_PADRAO,
+      setScheme: () => undefined,
       ready: true,
     }
   );
