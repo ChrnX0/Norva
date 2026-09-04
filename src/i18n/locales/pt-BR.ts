@@ -622,6 +622,7 @@ export const ptBR = {
       empty: 'Nada entrou em lugar nenhum ainda. Lance uma compra ou registre uma produção.',
       worth: 'vale {{amount}}',
       itemCount: { one: 'um item', other: '{{n}} itens' },
+      placeCount: { one: 'em 1 lugar', other: 'em {{n}} lugares' },
       agreement: 'O que ficou combinado',
       agreementHint: 'Nada aqui é obrigatório — sem acordo, a loja recebe quando dá.',
       phone: 'Telefone de quem recebe',

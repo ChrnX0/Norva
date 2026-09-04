@@ -583,6 +583,7 @@ export const en: Dictionary = {
       empty: 'Nothing has arrived anywhere yet. Enter an invoice or record a production run.',
       worth: 'worth {{amount}}',
       itemCount: { one: 'one item', other: '{{n}} items' },
+      placeCount: { one: 'in 1 place', other: 'in {{n}} places' },
       agreement: 'What was agreed',
       agreementHint: 'None of it is required — with no agreement, the store gets what it gets.',
       phone: 'Phone of whoever receives',

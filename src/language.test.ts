@@ -51,7 +51,6 @@ const DELEGAM: Record<string, string> = {
 const FALTAM = new Set<string>([
   'app/(tabs)/more.tsx',
   'app/(tabs)/production.tsx',
-  'app/(tabs)/reports.tsx',
   'app/(tabs)/transport.tsx',
   'app/assistant.tsx',
   'app/catalog.tsx',

@@ -589,6 +589,7 @@ export const es: Dictionary = {
       empty: 'Todavía no entró nada en ningún lugar. Registra una compra o una producción.',
       worth: 'vale {{amount}}',
       itemCount: { one: 'un artículo', other: '{{n}} artículos' },
+      placeCount: { one: 'en 1 lugar', other: 'en {{n}} lugares' },
       agreement: 'Lo que quedó acordado',
       agreementHint: 'Nada aquí es obligatorio — sin acuerdo, la tienda recibe cuando se puede.',
       phone: 'Teléfono de quien recibe',

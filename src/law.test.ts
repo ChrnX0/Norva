@@ -66,6 +66,14 @@ const TELAS: Record<string, Declaracao | Declaracao[]> = {
     { compara: /heldDetail|coverDays/ },
   ],
   'app/(tabs)/production.tsx': { compara: /vsYesterday|noYesterday/ },
+  // Três números, três respostas: o dinheiro parado dura tantos dias, o custo
+  // congelado tem a linha das corridas anteriores, e a perda do mês tem o mês
+  // anterior ao lado.
+  'app/(tabs)/reports.tsx': [
+    { compara: /coverDays|placeCount/ },
+    { compara: /Sparkline/ },
+    { compara: /lossVsBefore|lossFirst/ },
+  ],
   'app/inputs/index.tsx': { compara: /shortestCover|coverUnknown|coverComfortable/ },
   'app/inputs/[id].tsx': { compara: /wentUp|wentDown/ },
   'app/losses.tsx': { compara: /vsPrevious|firstWindow/ },
