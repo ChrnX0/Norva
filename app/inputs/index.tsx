@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
+import { Alive } from '@/components/Alive';
 import { Card } from '@/components/Card';
 import { bandSignal } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
@@ -154,7 +155,7 @@ function InputsList() {
         <Card>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={{ flexDirection: 'row', gap: space.xl }}>
-              {TABS.map((entry) => {
+              {TABS.map((entry, i) => {
                 const active = entry.kind === kind;
                 const count = all.filter((i) => i.kind === entry.kind).length;
                 return (
@@ -171,7 +172,12 @@ function InputsList() {
                       paddingVertical: space.sm,
                     }}
                   >
-                    {entry.desenho(active ? palette.mint : color.inkFaint, traco)}
+                    {/* O filtro respira como todo desenho do aplicativo: o
+                        crachá do cartão faz isso pelo `Card`, e aqui o glifo
+                        está solto, então o `Alive` entra na mão. */}
+                    <Alive index={i}>
+                      {entry.desenho(active ? palette.mint : color.inkFaint, traco)}
+                    </Alive>
                     <Text
                       style={[
                         type.secondary,

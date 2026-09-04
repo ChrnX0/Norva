@@ -91,6 +91,29 @@ aplicativo, que é o mesmo da aba correspondente:
 
 Quem vê laranja sabe que é produção antes de ler.
 
+## O desenho respira
+
+Todo crachá de cartão entra pelo `Alive` (`src/components/Alive.tsx`), e o
+`Card` faz isso sozinho — quem usa `icon` não precisa saber. Glifo solto dentro
+de uma tela recebe o `Alive` na mão.
+
+São dois movimentos, na mesma medida da cena da fábrica:
+
+- **a chegada**, que assenta na mola `settle` com o mesmo escalonamento de
+  quarenta milissegundos do `Reveal` — o crachá termina de se montar junto com
+  o cartão que o carrega;
+- **a respiração**, três centésimos e meio de escala para cada lado em
+  `motion.breatheMs`. Em vinte e seis pixels isso é menos de um pixel de
+  viagem.
+
+É a generalização das duas exceções admitidas na cena da fábrica (o sol e o
+floco giram porque um sol parado lê como imagem quebrada): um símbolo inerte no
+meio de uma página que se monta lê como carimbo colado. **A barra de abas fica
+de fora** — uma barra que respira é ruído, e ali o ícone é orientação, não
+assunto.
+
+`Reduzir movimento` apaga os dois e o desenho continua inteiro.
+
 ## As cenas
 
 Cena é ilustração larga no topo de um cartão (`Landscape`, `FactoryScene`,

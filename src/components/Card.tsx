@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { Alive } from './Alive';
 import { RAIL_WIDTH } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -146,9 +147,11 @@ export function Card({
     >
       {icon ? (
         <View style={[styles.head, { gap: space.sm, marginBottom: space.sm }]}>
+          {/* O desenho respira, nas duas caras: é o `Alive`, que generaliza o
+              sol e o floco da cena da fábrica para todo crachá do aplicativo. */}
           {papel ? (
             // Sem crachá: o desenho fica na página, do tamanho do texto ao lado.
-            icon(toneColor ?? accent)
+            <Alive>{icon(toneColor ?? accent)}</Alive>
           ) : (
           <View
             style={[
@@ -159,7 +162,7 @@ export function Card({
               },
             ]}
           >
-            {icon(toneColor ?? accent)}
+            <Alive>{icon(toneColor ?? accent)}</Alive>
           </View>
           )}
           {title ? (

@@ -2,11 +2,24 @@ import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
+import {
+  GlyphCalendar,
+  GlyphCatalog,
+  GlyphCount,
+  GlyphLoss,
+  GlyphOrder,
+  GlyphSettings,
+  GlyphThermometer,
+} from '@/components/Glyph';
+import { IconChevron } from '@/components/icons';
+import { Reveal } from '@/components/Reveal';
+import { Touchable } from '@/components/Touchable';
 import { brand } from '@/config/brand';
 import {
   alertSettings,
@@ -51,18 +64,33 @@ import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
- * Settings, which for now means one thing: getting your data back out.
+ * Ajustes: a cara do aplicativo, as peças da capa, os avisos, e o que apaga.
  *
- * The app ships with an example so it does not open onto nothing, and that is
- * only defensible if wiping it is easy and obvious. Otherwise the first real
- * use happens on top of invented numbers, and the cadastro is dirty from the
- * first day.
+ * O corpo antigo era sete retângulos de parágrafo cinza, cada um com os seus
+ * próprios `borderWidth`, `borderRadius` e `backgroundColor` — inclusive uma
+ * família de pílulas desenhadas à mão para os dias de antecedência e para os
+ * dias da semana. Nada disso sabia que o aplicativo tem duas caras: no Papel as
+ * caixas continuavam aparecendo, que é exatamente o que o dono circulou.
+ * Agora quem desenha caixa é o `Card`, quem desenha pílula é o `Chip`, e quem
+ * desenha ação é o `Button` — nas duas identidades, de graça.
  *
- * Two rules from the design system meet here:
- *   - destructive actions get a centred dialog, not a bottom sheet - the one
- *     deliberate exception to "everything rises from the bottom"
- *   - the confirmation says what disappears, counted, in words: "isso apaga 6
- *     insumos, 2 receitas e 1 produto", never "confirmar exclusão?"
+ * Uma coisa mudou de estrutura, e não de pintura: **a contagem e a exclusão
+ * viraram a mesma lista.** A tela antiga dizia "Insumos 6, Receitas 2, Produtos
+ * 1, Compras 4" num cartão e repetia as mesmas quatro áreas noutro cartão logo
+ * abaixo para apagar — duas listas com os mesmos quatro nomes, e o e2e precisou
+ * de um comentário explicando qual "Produtos" clicar. Uma linha só responde as
+ * duas coisas: quantos existem, e a saída para apagá-los.
+ *
+ * E o que não tem dado não vira cartão: com o cadastro vazio, a contagem de
+ * quatro zeros e o botão de apagar tudo desabilitado saem da tela, e sobra o
+ * convite de trazer o exemplo de volta. Lei 5 — erro que impede, não que
+ * reclama.
+ *
+ * Duas regras do desenho continuam mandando aqui:
+ *   - o que destrói pergunta num diálogo centralizado, a única exceção
+ *     deliberada ao "tudo sobe de baixo"
+ *   - a confirmação diz o que desaparece, contado, por extenso: "isso apaga 6
+ *     insumos, 2 receitas e 1 produto", nunca "confirmar exclusão?"
  */
 export default function SettingsScreen() {
   return (
@@ -128,8 +156,9 @@ function sayTally(area: EraseArea, tally: EraseTally, t: Dictionary): string {
 }
 
 function Settings() {
-  const { color, type, space, radius, accent } = useTheme();
-  const { skin, setSkin, hue, setHue } = useAppearance();
+  const { color, type, space, palette, skin } = useTheme();
+  const traco = skin === 'papel' ? 1.7 : 2.2;
+  const { setSkin, hue, setHue } = useAppearance();
 
   /**
    * A capa combinada e o que este aparelho esconde.
@@ -348,31 +377,187 @@ function Settings() {
     (counts?.purchases ?? 0);
 
   return (
-    <CollapsingHeader title={t.app.settings.title} overline={`${brand.name} · versão ${Constants.expoConfig?.version ?? '—'}`}>
-      <Card tone="area">
-        <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.settings.stored}</Text>
-        {loading || !counts ? (
-          <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-            {t.app.settings.checking}
-          </Text>
-        ) : (
-          <View style={{ marginTop: space.md, gap: space.sm }}>
-            <Line label={t.app.settings.inputs} value={counts.inputs} />
-            <Line label={t.app.settings.recipes} value={counts.recipes} />
-            <Line label={t.app.settings.products} value={counts.products} />
-            <Line label={t.app.settings.purchases} value={counts.purchases} />
-          </View>
-        )}
+    <CollapsingHeader
+      title={t.app.settings.title}
+      overline={`${brand.name} · ${Constants.expoConfig?.version ?? '—'}`}
+    >
+      {/* O que está guardado, e a saída de cada área na mesma linha.
+          A contagem à direita é o que torna a linha decidível: "Receitas 2" já
+          diz o tamanho do estrago antes do diálogo. Quando a área está travada,
+          o motivo substitui a dica e a linha continua tocável — o toque explica
+          a ordem certa em vez de não responder. */}
+      {loading || total > 0 ? (
+        <Reveal index={0}>
+          <Card
+            hue={palette.mist}
+            icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}
+            title={t.app.settings.stored}
+          >
+            {loading || !counts ? (
+              <Text style={[type.caption, { color: color.inkMuted }]}>
+                {t.app.settings.checking}
+              </Text>
+            ) : (
+              <View style={{ gap: space.xs }}>
+                {data?.seeded ? <Chip signal="neutral" label={t.app.settings.hasExample} /> : null}
 
-        {!loading && data?.seeded ? (
-          <View style={{ marginTop: space.md }}>
-            <Chip
-              signal="neutral"
-              label={total > 0 ? t.app.settings.hasExample : t.app.settings.emptyNoExample}
-            />
+                <Text style={[type.overline, { color: color.inkFaint, marginTop: space.sm }]}>
+                  {t.app.settings.clearByArea.toUpperCase()}
+                </Text>
+                <Text style={[type.caption, { color: color.inkMuted }]}>
+                  {t.app.settings.clearByAreaHint}
+                </Text>
+
+                {AREAS.map((entry) => {
+                  const nome =
+                    entry.area === 'purchases'
+                      ? t.app.settings.purchases
+                      : t.app.settings[entry.area];
+                  const blocker = blockerFor(entry.area, counts);
+                  const impedido = blocker ? sayBlocker(blocker, t) : null;
+                  return (
+                    <Touchable
+                      key={entry.area}
+                      // O título do diálogo entra na frase ("Apagar compras?"),
+                      // e por isso ele é o nome curto da área e não o rótulo da
+                      // linha, que fala do que está guardado.
+                      onPress={() =>
+                        void run(
+                          entry.area,
+                          entry.area === 'purchases' ? t.app.settings.purchasesRow : nome,
+                        )
+                      }
+                      accessibilityLabel={`${t.app.settings.erase} ${nome}`}
+                    >
+                      <View style={[styles.row, { paddingVertical: space.sm, gap: space.md }]}>
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[type.body, { color: impedido ? color.inkFaint : color.ink }]}
+                          >
+                            {nome}
+                          </Text>
+                          <Text style={[type.caption, { color: color.inkFaint }]}>
+                            {impedido ?? t.app.settings.areas[entry.area]}
+                          </Text>
+                        </View>
+                        <Text
+                          style={[
+                            type.body,
+                            styles.number,
+                            { color: impedido ? color.inkFaint : color.ink },
+                          ]}
+                        >
+                          {formatQuantity(counts[entry.area], locale)}
+                        </Text>
+                        <IconChevron size={18} color={color.inkFaint} />
+                      </View>
+                    </Touchable>
+                  );
+                })}
+              </View>
+            )}
+          </Card>
+        </Reveal>
+      ) : null}
+
+      {/* A cara do aplicativo.
+          Claro e escuro continuam seguindo o aparelho, como o sistema manda —
+          o que se escolhe aqui é a IDENTIDADE, que é outra pergunta. O dono viu
+          quarenta esboços e ficou com duas; nenhuma das duas é a certa para
+          todo mundo, e por isso as duas existem em vez de eu escolher por ele.
+
+          A escolha é um par de botões e não dois retângulos desenhados à mão: o
+          `Button` já sabe as duas caras — pílula preenchida no Orgânico, palavra
+          sublinhada no Papel — e o escolhido é o único cheio da dupla. */}
+      <Reveal index={1}>
+        <Card
+          hue={palette.mist}
+          icon={(c) => <GlyphSettings size={26} color={c} weight={traco} />}
+          title={t.app.settings.appearance.label}
+        >
+          <Text style={[type.caption, { color: color.inkMuted }]}>
+            {t.app.settings.appearance.hint}
+          </Text>
+
+          <View style={[styles.top, { gap: space.md, marginTop: space.md }]}>
+            {(
+              [
+                [
+                  'organico',
+                  t.app.settings.appearance.organico,
+                  t.app.settings.appearance.organicoHint,
+                ],
+                ['papel', t.app.settings.appearance.papel, t.app.settings.appearance.papelHint],
+              ] as const
+            ).map(([qual, nome, dica]) => (
+              <View key={qual} style={{ flex: 1, gap: space.xs }}>
+                <Button
+                  label={nome}
+                  variant={skin === qual ? 'primary' : 'ghost'}
+                  onPress={() => setSkin(qual)}
+                />
+                <Text
+                  style={[
+                    type.caption,
+                    { color: skin === qual ? color.inkMuted : color.inkFaint },
+                  ]}
+                >
+                  {dica}
+                </Text>
+              </View>
+            ))}
           </View>
-        ) : null}
-      </Card>
+
+          {/* A paleta da paisagem, e só o Orgânico a tem.
+              O Papel tem uma cara só, que é a graça dele: revista impressa não
+              vem em cinco cores de capa.
+
+              O disco é a única cor escrita fora do tema em toda a tela, e tem
+              que ser: ele não representa a paleta, ele É a amostra dela. O que
+              marca a escolhida é o tamanho e o nome em tinta cheia — anel
+              desenhado à mão seria mais uma caixa. */}
+          {skin === 'organico' ? (
+            <View style={{ marginTop: space.lg, gap: space.xs }}>
+              <Text style={[type.body, { color: color.ink }]}>
+                {t.app.settings.appearance.palette}
+              </Text>
+              <Text style={[type.caption, { color: color.inkMuted }]}>
+                {t.app.settings.appearance.paletteHint}
+              </Text>
+              <View style={[styles.bottom, { gap: space.sm, marginTop: space.sm }]}>
+                {(['verde', 'azul', 'ambar', 'terracota', 'lavanda'] as const).map((qual) => {
+                  const escolhida = hue === qual;
+                  return (
+                    <Pressable
+                      key={qual}
+                      onPress={() => setHue(qual)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: escolhida }}
+                      accessibilityLabel={t.app.settings.appearance.hues[qual]}
+                      style={{ flex: 1, alignItems: 'center', gap: space.xs }}
+                    >
+                      <View
+                        style={{
+                          width: escolhida ? 44 : 30,
+                          height: escolhida ? 44 : 30,
+                          borderRadius: 22,
+                          backgroundColor: hues[qual].brand,
+                        }}
+                      />
+                      <Text
+                        style={[type.caption, { color: escolhida ? color.ink : color.inkFaint }]}
+                        numberOfLines={1}
+                      >
+                        {t.app.settings.appearance.hues[qual]}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
+        </Card>
+      </Reveal>
 
       {/* As peças da capa: o que aparece, em que ordem, e o que este aparelho
           prefere não ver.
@@ -383,556 +568,423 @@ function Settings() {
           cartão de preço no caminho e isso não muda o que a casa combinou.
 
           Seta em vez de arrastar: arrastar pede pressão longa e precisão, que é
-          o que menos existe numa mão de luva a dezoito graus negativos. */}
-      <Card>
-        <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.settings.briefing.label}</Text>
-        <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
-          {t.app.settings.briefing.hint}
-        </Text>
-
-        <View style={{ marginTop: space.md, gap: space.xs }}>
-          {ordem.map((widget, i) => {
-            const escondido = escondidos.includes(widget);
-            return (
-              <View key={widget} style={[styles.row, { gap: space.sm, paddingVertical: space.xs }]}>
-                <Text
-                  style={[
-                    type.body,
-                    { color: escondido ? color.inkFaint : color.ink, flex: 1 },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {t.app.settings.briefing.widgets[widget]}
-                  {escondido ? ` · ${t.app.settings.briefing.hidden}` : ''}
-                </Text>
-
-                <Pressable
-                  onPress={() => void trocarVisibilidade(widget)}
-                  accessibilityRole="switch"
-                  accessibilityState={{ checked: !escondido }}
-                  accessibilityLabel={`${t.app.settings.briefing.widgets[widget]}: ${
-                    escondido ? t.app.settings.briefing.show : t.app.settings.briefing.hide
-                  }`}
-                >
-                  <Chip
-                    signal={escondido ? 'neutral' : 'ok'}
-                    label={escondido ? t.app.settings.briefing.show : t.app.settings.briefing.hide}
-                  />
-                </Pressable>
-
-                <Pressable
-                  onPress={() => void mover(widget, 'up')}
-                  disabled={i === 0}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t.app.settings.briefing.up}: ${t.app.settings.briefing.widgets[widget]}`}
-                  style={{ opacity: i === 0 ? 0.3 : 1, padding: space.xs }}
-                >
-                  <Text style={[type.body, { color: color.ink }]}>↑</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => void mover(widget, 'down')}
-                  disabled={i === ordem.length - 1}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t.app.settings.briefing.down}: ${t.app.settings.briefing.widgets[widget]}`}
-                  style={{ opacity: i === ordem.length - 1 ? 0.3 : 1, padding: space.xs }}
-                >
-                  <Text style={[type.body, { color: color.ink }]}>↓</Text>
-                </Pressable>
-              </View>
-            );
-          })}
-        </View>
-
-        {/* O que existe e não está na capa.
-            Sem esta lista, um widget fora do padrão é um widget que não existe:
-            o dono não tem como saber que ele está lá, e "quem quiser liga" fica
-            sendo uma frase sem botão. */}
-        {fora.length > 0 ? (
-          <View style={{ marginTop: space.lg, gap: space.xs }}>
-            <Text style={[type.overline, { color: color.inkFaint }]}>
-              {t.app.settings.briefing.offCover}
-            </Text>
-            {fora.map((widget) => (
-              <View key={widget} style={[styles.row, { gap: space.sm, paddingVertical: space.xs }]}>
-                <Text style={[type.body, { color: color.inkMuted, flex: 1 }]} numberOfLines={1}>
-                  {t.app.settings.briefing.widgets[widget]}
-                </Text>
-                <Pressable
-                  onPress={() => void ligar(widget)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t.app.settings.briefing.putOnCover}: ${t.app.settings.briefing.widgets[widget]}`}
-                >
-                  <Chip signal="neutral" label={t.app.settings.briefing.putOnCover} />
-                </Pressable>
-              </View>
-            ))}
-          </View>
-        ) : null}
-      </Card>
-
-      {/* Os avisos.
-          Cada linha é um alarme com a antecedência dele, e embaixo a hora e os
-          dias. Nada aqui é obrigatório: alarme desligado é escolha legítima, e o
-          aplicativo continua inteiro sem nenhum — a capa faz as mesmas contas. */}
-      {alerts ? (
-        <Card>
-          <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.settings.alerts.label}</Text>
-          <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
-            {t.app.settings.alerts.hint}
+          o que menos existe numa mão de luva a dezoito graus negativos. E a seta
+          agora é o chevron da família fina, girado — o "↑" digitado era um
+          caractere de fonte no meio de uma tela de desenhos. */}
+      <Reveal index={2}>
+        <Card
+          hue={palette.mist}
+          icon={(c) => <GlyphCount size={26} color={c} weight={traco} />}
+          title={t.app.settings.briefing.label}
+        >
+          <Text style={[type.caption, { color: color.inkMuted }]}>
+            {t.app.settings.briefing.hint}
           </Text>
 
-          <View style={{ marginTop: space.md, gap: space.sm }}>
-            {(['ambiente', 'insumo', 'pedido', 'validade', 'volume'] as AlertKind[]).map((kind) => {
-              const ligado = alerts.on[kind];
-              // Volume e ambiente não têm antecedência: um compara com a faixa do
-              // item, o outro com a faixa do lugar. Antecedência é para o que se
-              // vê chegando; faixa é para o que já aconteceu.
-              const dias =
-                kind === 'volume' || kind === 'ambiente' ? null : alerts.daysAhead[kind];
+          <View style={{ marginTop: space.md, gap: space.xs }}>
+            {ordem.map((widget, i) => {
+              const escondido = escondidos.includes(widget);
               return (
-                <View key={kind} style={{ gap: space.xs }}>
-                  <View style={[styles.row, { gap: space.sm }]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[type.body, { color: ligado ? color.ink : color.inkFaint }]}>
-                        {t.app.settings.alerts.kinds[kind]}
-                      </Text>
-                      <Text style={[type.caption, { color: color.inkFaint }]}>
-                        {kind === 'volume'
-                          ? t.app.settings.alerts.volumeHint
-                          : kind === 'ambiente'
-                            ? t.app.settings.alerts.ambienteHint
-                            : fill(t.app.settings.alerts.daysAhead, {
-                              days: plural(dias ?? 0, t.app.home.dayCount),
-                            })}
-                      </Text>
-                    </View>
-                    <Pressable
-                      onPress={() =>
-                        void mexerAlerta({ ...alerts, on: { ...alerts.on, [kind]: !ligado } })
-                      }
-                      accessibilityRole="switch"
-                      accessibilityState={{ checked: ligado }}
-                      accessibilityLabel={`${t.app.settings.alerts.kinds[kind]}: ${
-                        ligado ? t.app.settings.alerts.off : t.app.settings.alerts.on
-                      }`}
-                    >
-                      <Chip
-                        signal={ligado ? 'ok' : 'neutral'}
-                        label={ligado ? t.app.settings.alerts.on : t.app.settings.alerts.off}
-                      />
-                    </Pressable>
-                  </View>
+                <View key={widget} style={[styles.row, { gap: space.sm, paddingVertical: space.xs }]}>
+                  <Text
+                    style={[type.body, { color: escondido ? color.inkFaint : color.ink, flex: 1 }]}
+                    numberOfLines={1}
+                  >
+                    {t.app.settings.briefing.widgets[widget]}
+                    {escondido ? ` · ${t.app.settings.briefing.hidden}` : ''}
+                  </Text>
 
-                  {/* O azul pinta sempre e só interrompe se a casa pedir.
-                      Almoxarifado cheio depois de uma compra é estado desejado, e
-                      aviso diário sobre isso ensina a ignorar aviso — então o
-                      caminho existe, desligado. */}
-                  {kind === 'volume' && ligado ? (
-                    <Pressable
-                      onPress={() =>
-                        void mexerAlerta({
-                          ...alerts,
-                          bands: { ...alerts.bands, notifyFull: !alerts.bands.notifyFull },
-                        })
-                      }
-                      accessibilityRole="switch"
-                      accessibilityState={{ checked: alerts.bands.notifyFull }}
-                      accessibilityLabel={`${t.app.settings.alerts.notifyFull}: ${
-                        alerts.bands.notifyFull
-                          ? t.app.settings.alerts.on
-                          : t.app.settings.alerts.off
-                      }`}
-                      style={{ alignSelf: 'flex-start' }}
-                    >
-                      <Chip
-                        signal={alerts.bands.notifyFull ? 'ok' : 'neutral'}
-                        label={t.app.settings.alerts.notifyFull}
-                      />
-                    </Pressable>
-                  ) : null}
+                  <Pressable
+                    onPress={() => void trocarVisibilidade(widget)}
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: !escondido }}
+                    accessibilityLabel={`${t.app.settings.briefing.widgets[widget]}: ${
+                      escondido ? t.app.settings.briefing.show : t.app.settings.briefing.hide
+                    }`}
+                  >
+                    <Chip
+                      signal={escondido ? 'neutral' : 'ok'}
+                      label={escondido ? t.app.settings.briefing.show : t.app.settings.briefing.hide}
+                    />
+                  </Pressable>
 
-                  {/* A antecedência só aparece para o alarme ligado que tem dia:
-                      oferecer o ajuste de um alarme desligado é pedir decisão
-                      sobre coisa que não vai acontecer. */}
-                  {ligado && dias !== null ? (
-                    <View style={[styles.row, { gap: space.xs }]}>
-                      {[1, 2, 3, 5, 7, 14].map((d) => (
-                        <Pressable
-                          key={d}
-                          onPress={() =>
-                            void mexerAlerta({
-                              ...alerts,
-                              daysAhead: { ...alerts.daysAhead, [kind]: d },
-                            })
-                          }
-                          accessibilityRole="radio"
-                          accessibilityState={{ selected: d === dias }}
-                          accessibilityLabel={`${t.app.settings.alerts.kinds[kind]}: ${d}`}
-                          style={{
-                            borderWidth: StyleSheet.hairlineWidth * 2,
-                            borderColor: d === dias ? accent : color.line,
-                            backgroundColor: d === dias ? `${accent}18` : 'transparent',
-                            borderRadius: 999,
-                            paddingHorizontal: space.md,
-                            paddingVertical: space.xs,
-                          }}
-                        >
-                          <Text
-                            style={[
-                              type.caption,
-                              { color: d === dias ? color.ink : color.inkMuted },
-                            ]}
-                          >
-                            {formatQuantity(d, locale)}
-                          </Text>
-                        </Pressable>
-                      ))}
+                  <Pressable
+                    onPress={() => void mover(widget, 'up')}
+                    disabled={i === 0}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t.app.settings.briefing.up}: ${t.app.settings.briefing.widgets[widget]}`}
+                    style={{ opacity: i === 0 ? 0.3 : 1, padding: space.xs }}
+                  >
+                    <View style={styles.up}>
+                      <IconChevron size={20} color={color.ink} />
                     </View>
-                  ) : null}
+                  </Pressable>
+                  <Pressable
+                    onPress={() => void mover(widget, 'down')}
+                    disabled={i === ordem.length - 1}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t.app.settings.briefing.down}: ${t.app.settings.briefing.widgets[widget]}`}
+                    style={{ opacity: i === ordem.length - 1 ? 0.3 : 1, padding: space.xs }}
+                  >
+                    <View style={styles.down}>
+                      <IconChevron size={20} color={color.ink} />
+                    </View>
+                  </Pressable>
                 </View>
               );
             })}
           </View>
 
-          {/* A hora e os dias, e valem para todos os avisos.
-              Era uma lista de seis horas que EU escolhi, e o dono cortou: "nem
-              toda fábrica funciona igual". Seis opções não são configuração, são
-              um menu disfarçado — e a fábrica que começa às 5h30 não estava em
-              nenhuma delas. Agora são dois campos e qualquer horário existe. */}
-          <View style={{ marginTop: space.lg, gap: space.sm }}>
-            <Text style={[type.overline, { color: color.inkFaint }]}>
-              {t.app.settings.alerts.hour.toUpperCase()}
-            </Text>
-            <View style={[styles.row, { gap: space.md }]}>
-              <View style={{ flex: 1 }}>
-                <Field
-                  label={t.app.settings.alerts.hourField}
-                  value={String(Math.floor(alerts.minuteOfDay / 60))}
-                  onChangeText={(texto) => {
-                    const h = parseTyped(texto);
-                    if (h === null || h < 0 || h > 23) return;
-                    void mexerAlerta({
-                      ...alerts,
-                      minuteOfDay: Math.trunc(h) * 60 + (alerts.minuteOfDay % 60),
-                    });
-                  }}
-                  keyboardType="numeric"
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Field
-                  label={t.app.settings.alerts.minuteField}
-                  value={String(alerts.minuteOfDay % 60).padStart(2, '0')}
-                  onChangeText={(texto) => {
-                    const m = parseTyped(texto);
-                    if (m === null || m < 0 || m > 59) return;
-                    void mexerAlerta({
-                      ...alerts,
-                      minuteOfDay: Math.floor(alerts.minuteOfDay / 60) * 60 + Math.trunc(m),
-                    });
-                  }}
-                  keyboardType="numeric"
-                />
-              </View>
+          {/* O que existe e não está na capa.
+              Sem esta lista, um widget fora do padrão é um widget que não existe:
+              o dono não tem como saber que ele está lá, e "quem quiser liga" fica
+              sendo uma frase sem botão. */}
+          {fora.length > 0 ? (
+            <View style={{ marginTop: space.lg, gap: space.xs }}>
+              <Text style={[type.overline, { color: color.inkFaint }]}>
+                {t.app.settings.briefing.offCover}
+              </Text>
+              {fora.map((widget) => (
+                <View key={widget} style={[styles.row, { gap: space.sm, paddingVertical: space.xs }]}>
+                  <Text style={[type.body, { color: color.inkMuted, flex: 1 }]} numberOfLines={1}>
+                    {t.app.settings.briefing.widgets[widget]}
+                  </Text>
+                  <Pressable
+                    onPress={() => void ligar(widget)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t.app.settings.briefing.putOnCover}: ${t.app.settings.briefing.widgets[widget]}`}
+                  >
+                    <Chip signal="neutral" label={t.app.settings.briefing.putOnCover} />
+                  </Pressable>
+                </View>
+              ))}
             </View>
-            <Text style={[type.caption, { color: color.inkFaint }]}>
-              {t.app.settings.alerts.hourHint}
+          ) : null}
+        </Card>
+      </Reveal>
+
+      {/* Os avisos.
+          Cada linha é um alarme com a antecedência dele, e embaixo a hora e os
+          dias. Nada aqui é obrigatório: alarme desligado é escolha legítima, e o
+          aplicativo continua inteiro sem nenhum — a capa faz as mesmas contas.
+
+          A antecedência e os dias da semana eram pílulas desenhadas à mão, com
+          borda, raio e fundo próprios; agora são `Chip`, que é a mesma pílula do
+          resto do aplicativo e vira carimbo reto no Papel sozinha. */}
+      {alerts ? (
+        <Reveal index={3}>
+          <Card
+            hue={palette.mist}
+            icon={(c) => <GlyphThermometer size={26} color={c} weight={traco} />}
+            title={t.app.settings.alerts.label}
+          >
+            <Text style={[type.caption, { color: color.inkMuted }]}>
+              {t.app.settings.alerts.hint}
             </Text>
 
-            <Text style={[type.overline, { color: color.inkFaint, marginTop: space.sm }]}>
-              {t.app.settings.alerts.weekdays.toUpperCase()}
-            </Text>
-            <View style={[styles.wrap, { gap: space.xs }]}>
-              {[0, 1, 2, 3, 4, 5, 6].map((dia) => {
-                // Zero é TODOS os dias, então nenhum chip aceso significa todos.
-                const escolhido = alerts.weekdays !== 0 && agreedOn(alerts.weekdays, dia);
+            <View style={{ marginTop: space.md, gap: space.sm }}>
+              {(['ambiente', 'insumo', 'pedido', 'validade', 'volume'] as AlertKind[]).map((kind) => {
+                const ligado = alerts.on[kind];
+                // Volume e ambiente não têm antecedência: um compara com a faixa do
+                // item, o outro com a faixa do lugar. Antecedência é para o que se
+                // vê chegando; faixa é para o que já aconteceu.
+                const dias =
+                  kind === 'volume' || kind === 'ambiente' ? null : alerts.daysAhead[kind];
                 return (
-                  <Pressable
-                    key={dia}
-                    onPress={() =>
-                      void mexerAlerta({ ...alerts, weekdays: toggleDay(alerts.weekdays, dia) })
-                    }
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: escolhido }}
-                    accessibilityLabel={`${t.app.settings.alerts.weekdays}: ${formatWeekdayShort(dia, locale)}`}
-                    style={{
-                      borderWidth: StyleSheet.hairlineWidth * 2,
-                      borderColor: escolhido ? accent : color.line,
-                      backgroundColor: escolhido ? `${accent}18` : 'transparent',
-                      borderRadius: 999,
-                      paddingHorizontal: space.md,
-                      paddingVertical: space.sm,
-                    }}
-                  >
-                    <Text
-                      style={[type.secondary, { color: escolhido ? color.ink : color.inkMuted }]}
-                    >
-                      {formatWeekdayShort(dia, locale)}
-                    </Text>
-                  </Pressable>
+                  <View key={kind} style={{ gap: space.xs }}>
+                    <View style={[styles.row, { gap: space.sm }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[type.body, { color: ligado ? color.ink : color.inkFaint }]}>
+                          {t.app.settings.alerts.kinds[kind]}
+                        </Text>
+                        <Text style={[type.caption, { color: color.inkFaint }]}>
+                          {kind === 'volume'
+                            ? t.app.settings.alerts.volumeHint
+                            : kind === 'ambiente'
+                              ? t.app.settings.alerts.ambienteHint
+                              : fill(t.app.settings.alerts.daysAhead, {
+                                days: plural(dias ?? 0, t.app.home.dayCount),
+                              })}
+                        </Text>
+                      </View>
+                      <Pressable
+                        onPress={() =>
+                          void mexerAlerta({ ...alerts, on: { ...alerts.on, [kind]: !ligado } })
+                        }
+                        accessibilityRole="switch"
+                        accessibilityState={{ checked: ligado }}
+                        accessibilityLabel={`${t.app.settings.alerts.kinds[kind]}: ${
+                          ligado ? t.app.settings.alerts.off : t.app.settings.alerts.on
+                        }`}
+                      >
+                        <Chip
+                          signal={ligado ? 'ok' : 'neutral'}
+                          label={ligado ? t.app.settings.alerts.on : t.app.settings.alerts.off}
+                        />
+                      </Pressable>
+                    </View>
+
+                    {/* O azul pinta sempre e só interrompe se a casa pedir.
+                        Almoxarifado cheio depois de uma compra é estado desejado, e
+                        aviso diário sobre isso ensina a ignorar aviso — então o
+                        caminho existe, desligado. */}
+                    {kind === 'volume' && ligado ? (
+                      <Pressable
+                        onPress={() =>
+                          void mexerAlerta({
+                            ...alerts,
+                            bands: { ...alerts.bands, notifyFull: !alerts.bands.notifyFull },
+                          })
+                        }
+                        accessibilityRole="switch"
+                        accessibilityState={{ checked: alerts.bands.notifyFull }}
+                        accessibilityLabel={`${t.app.settings.alerts.notifyFull}: ${
+                          alerts.bands.notifyFull
+                            ? t.app.settings.alerts.on
+                            : t.app.settings.alerts.off
+                        }`}
+                        style={styles.left}
+                      >
+                        <Chip
+                          signal={alerts.bands.notifyFull ? 'ok' : 'neutral'}
+                          label={t.app.settings.alerts.notifyFull}
+                        />
+                      </Pressable>
+                    ) : null}
+
+                    {/* A antecedência só aparece para o alarme ligado que tem dia:
+                        oferecer o ajuste de um alarme desligado é pedir decisão
+                        sobre coisa que não vai acontecer. */}
+                    {ligado && dias !== null ? (
+                      <View style={[styles.wrap, { gap: space.xs }]}>
+                        {[1, 2, 3, 5, 7, 14].map((d) => (
+                          <Pressable
+                            key={d}
+                            onPress={() =>
+                              void mexerAlerta({
+                                ...alerts,
+                                daysAhead: { ...alerts.daysAhead, [kind]: d },
+                              })
+                            }
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: d === dias }}
+                            accessibilityLabel={`${t.app.settings.alerts.kinds[kind]}: ${d}`}
+                          >
+                            <Chip
+                              signal={d === dias ? 'ok' : 'neutral'}
+                              label={formatQuantity(d, locale)}
+                            />
+                          </Pressable>
+                        ))}
+                      </View>
+                    ) : null}
+                  </View>
                 );
               })}
             </View>
-            {alerts.weekdays === 0 ? (
-              <Text style={[type.caption, { color: color.inkFaint }]}>
-                {t.app.settings.alerts.everyDay}
+
+            {/* A hora e os dias, e valem para todos os avisos.
+                Era uma lista de seis horas que EU escolhi, e o dono cortou: "nem
+                toda fábrica funciona igual". Seis opções não são configuração, são
+                um menu disfarçado — e a fábrica que começa às 5h30 não estava em
+                nenhuma delas. Agora são dois campos e qualquer horário existe. */}
+            <View style={{ marginTop: space.lg, gap: space.sm }}>
+              <Text style={[type.overline, { color: color.inkFaint }]}>
+                {t.app.settings.alerts.hour.toUpperCase()}
               </Text>
-            ) : null}
-          </View>
-        </Card>
+              <View style={[styles.row, { gap: space.md }]}>
+                <View style={{ flex: 1 }}>
+                  <Field
+                    label={t.app.settings.alerts.hourField}
+                    value={String(Math.floor(alerts.minuteOfDay / 60))}
+                    onChangeText={(texto) => {
+                      const h = parseTyped(texto);
+                      if (h === null || h < 0 || h > 23) return;
+                      void mexerAlerta({
+                        ...alerts,
+                        minuteOfDay: Math.trunc(h) * 60 + (alerts.minuteOfDay % 60),
+                      });
+                    }}
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Field
+                    label={t.app.settings.alerts.minuteField}
+                    value={String(alerts.minuteOfDay % 60).padStart(2, '0')}
+                    onChangeText={(texto) => {
+                      const m = parseTyped(texto);
+                      if (m === null || m < 0 || m > 59) return;
+                      void mexerAlerta({
+                        ...alerts,
+                        minuteOfDay: Math.floor(alerts.minuteOfDay / 60) * 60 + Math.trunc(m),
+                      });
+                    }}
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+              <Text style={[type.caption, { color: color.inkFaint }]}>
+                {t.app.settings.alerts.hourHint}
+              </Text>
+
+              <Text style={[type.overline, { color: color.inkFaint, marginTop: space.sm }]}>
+                {t.app.settings.alerts.weekdays.toUpperCase()}
+              </Text>
+              <View style={[styles.wrap, { gap: space.xs }]}>
+                {[0, 1, 2, 3, 4, 5, 6].map((dia) => {
+                  // Zero é TODOS os dias, então nenhum chip aceso significa todos.
+                  const escolhido = alerts.weekdays !== 0 && agreedOn(alerts.weekdays, dia);
+                  return (
+                    <Pressable
+                      key={dia}
+                      onPress={() =>
+                        void mexerAlerta({ ...alerts, weekdays: toggleDay(alerts.weekdays, dia) })
+                      }
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: escolhido }}
+                      accessibilityLabel={`${t.app.settings.alerts.weekdays}: ${formatWeekdayShort(dia, locale)}`}
+                    >
+                      <Chip
+                        signal={escolhido ? 'ok' : 'neutral'}
+                        label={formatWeekdayShort(dia, locale)}
+                      />
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {alerts.weekdays === 0 ? (
+                <Text style={[type.caption, { color: color.inkFaint }]}>
+                  {t.app.settings.alerts.everyDay}
+                </Text>
+              ) : null}
+            </View>
+          </Card>
+        </Reveal>
       ) : null}
 
-      {/* A cara do aplicativo.
-          Claro e escuro continuam seguindo o aparelho, como o sistema manda -
-          o que se escolhe aqui é a IDENTIDADE, que é outra pergunta. O dono viu
-          quarenta esboços e ficou com duas; nenhuma das duas é a certa para
-          todo mundo, e por isso as duas existem em vez de eu escolher por ele. */}
-      <Card>
-        <Text style={[type.cardTitle, { color: color.ink }]}>
-          {t.app.settings.appearance.label}
-        </Text>
-        <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
-          {t.app.settings.appearance.hint}
-        </Text>
-        <View style={{ flexDirection: 'row', gap: space.md, marginTop: space.md }}>
-          {(
-            [
-              ['organico', t.app.settings.appearance.organico, t.app.settings.appearance.organicoHint],
-              ['papel', t.app.settings.appearance.papel, t.app.settings.appearance.papelHint],
-            ] as const
-          ).map(([qual, nome, dica]) => (
-            <Pressable
-              key={qual}
-              onPress={() => setSkin(qual)}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: skin === qual }}
-              accessibilityLabel={`${nome}: ${dica}`}
-              style={{
-                flex: 1,
-                padding: space.md,
-                borderRadius: radius.lg,
-                borderWidth: skin === qual ? 2 : StyleSheet.hairlineWidth,
-                borderColor: skin === qual ? accent : color.line,
-                backgroundColor: skin === qual ? `${accent}14` : 'transparent',
-              }}
-            >
-              <Text style={[type.body, { color: color.ink }]}>{nome}</Text>
-              <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
-                {dica}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {/* A paleta da paisagem, e só o Orgânico a tem.
-            O Papel tem uma cara só, que é a graça dele: revista impressa não
-            vem em cinco cores de capa. */}
-        {skin === 'organico' ? (
-          <View style={{ marginTop: space.lg }}>
-            <Text style={[type.body, { color: color.ink }]}>
-              {t.app.settings.appearance.palette}
-            </Text>
-            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
-              {t.app.settings.appearance.paletteHint}
-            </Text>
-            <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md }}>
-              {(['verde', 'azul', 'ambar', 'terracota', 'lavanda'] as const).map((qual) => (
-                <Pressable
-                  key={qual}
-                  onPress={() => setHue(qual)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: hue === qual }}
-                  accessibilityLabel={t.app.settings.appearance.hues[qual]}
-                  style={{ alignItems: 'center', gap: space.xs, flex: 1 }}
-                >
-                  <View
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 20,
-                      backgroundColor: hues[qual].brand,
-                      borderWidth: hue === qual ? 3 : 0,
-                      borderColor: color.ink,
-                    }}
-                  />
-                  <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={1}>
-                    {t.app.settings.appearance.hues[qual]}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        ) : null}
-      </Card>
-
-      <Pressable
-        onPress={async () => {
-          await setOrdersNeedApproval(!approval);
-          refreshApproval();
-        }}
-        accessibilityRole="switch"
-        accessibilityState={{ checked: Boolean(approval) }}
-        accessibilityLabel={t.app.settings.approval.label}
-      >
-        <Card>
-          <View style={[styles.row, { gap: space.md }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[type.cardTitle, { color: color.ink }]}>
-                {t.app.settings.approval.label}
-              </Text>
-              <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
+      {/* A aprovação de pedido.
+          O tom é o do assunto e não o da tela: pedido é sage em todo o
+          aplicativo, e quem vê a cor sabe do que a linha fala antes de ler. */}
+      <Reveal index={4}>
+        <Pressable
+          onPress={async () => {
+            await setOrdersNeedApproval(!approval);
+            refreshApproval();
+          }}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: Boolean(approval) }}
+          accessibilityLabel={t.app.settings.approval.label}
+        >
+          <Card
+            hue={palette.sage}
+            icon={(c) => <GlyphOrder size={26} color={c} weight={traco} />}
+            title={t.app.settings.approval.label}
+          >
+            <View style={[styles.row, { gap: space.md }]}>
+              <Text style={[type.caption, { color: color.inkMuted, flex: 1 }]}>
                 {t.app.settings.approval.hint}
               </Text>
+              <Chip
+                signal={approval ? 'ok' : 'neutral'}
+                label={approval ? t.app.settings.approval.on : t.app.settings.approval.off}
+              />
             </View>
-            <Chip
-              signal={approval ? 'ok' : 'neutral'}
-              label={approval ? t.app.settings.approval.on : t.app.settings.approval.off}
-            />
-          </View>
-        </Card>
-      </Pressable>
-
-      <Card tone="area">
-        <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.xs }]}>
-          {t.app.settings.clearByArea}
-        </Text>
-        <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.md }]}>
-          {t.app.settings.clearByAreaHint}
-        </Text>
-
-        {AREAS.map((entry) => {
-          const label =
-            entry.area === 'purchases' ? t.app.settings.purchasesRow : t.app.settings[entry.area];
-          const blocker = counts ? blockerFor(entry.area, counts) : null;
-          const blocked = counts ? (blocker ? sayBlocker(blocker, t) : null) : t.app.settings.checking;
-          return (
-            <Pressable
-              key={entry.area}
-              onPress={() => void run(entry.area, label)}
-              disabled={busy || !counts}
-              accessibilityRole="button"
-              accessibilityLabel={`${t.app.settings.erase} ${label}`}
-              accessibilityState={{ disabled: Boolean(blocked) }}
-              style={[styles.row, { paddingVertical: space.md, gap: space.md }]}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={[type.body, { color: blocked ? color.inkFaint : color.ink }]}>
-                  {label}
-                </Text>
-                <Text style={[type.caption, { color: color.inkFaint }]}>
-                  {/* The reason replaces the hint rather than sitting beside a
-                      dead button: the person needs the way out, not the label. */}
-                  {blocked ?? t.app.settings.areas[entry.area]}
-                </Text>
-              </View>
-              <Text style={[type.body, { color: blocked ? color.inkFaint : color.inkMuted }]}>
-                ›
-              </Text>
-            </Pressable>
-          );
-        })}
-      </Card>
-
-      <Card tone="danger">
-        <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.settings.startOver}</Text>
-        <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-          {t.app.settings.startOverHint}
-        </Text>
-
-        <Pressable
-          onPress={() => void run('all', t.app.settings.eraseAll)}
-          disabled={busy || !counts || total === 0}
-          accessibilityRole="button"
-          accessibilityLabel={t.app.settings.eraseAll}
-          style={[
-            styles.destructive,
-            {
-              borderColor: color.danger,
-              marginTop: space.md,
-              paddingVertical: space.md,
-              opacity: busy || total === 0 ? 0.45 : 1,
-            },
-          ]}
-        >
-          <Text style={[type.body, { color: color.danger, fontWeight: '600' }]}>
-            {busy ? t.app.settings.erasing : t.app.settings.eraseAll}
-          </Text>
+          </Card>
         </Pressable>
-      </Card>
+      </Reveal>
 
-      {total === 0 && !loading ? (
-        <Card>
-          <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.settings.exampleTitle}</Text>
-          <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-            {t.app.settings.exampleEmpty}
-          </Text>
-          <Pressable
-            onPress={() => void restore()}
-            disabled={busy}
-            accessibilityRole="button"
-            style={[
-              styles.destructive,
-              { borderColor: color.lineStrong, marginTop: space.md, paddingVertical: space.md },
-            ]}
+      {/* Começar do zero.
+          Fantasma, sempre: botão grande e colorido convida, e ninguém deve ser
+          convidado a apagar tudo. E o cartão só existe quando há o que apagar —
+          um botão desabilitado é a reclamação que a Lei 5 proíbe. */}
+      {!loading && total > 0 ? (
+        <Reveal index={5}>
+          <Card
+            hue={color.danger}
+            icon={(c) => <GlyphLoss size={26} color={c} weight={traco} />}
+            title={t.app.settings.startOver}
           >
-            <Text style={[type.body, { color: color.inkMuted, fontWeight: '600' }]}>
-              {t.app.settings.restore}
+            <Text style={[type.caption, { color: color.inkMuted }]}>
+              {t.app.settings.startOverHint}
             </Text>
-          </Pressable>
-        </Card>
+            <Button
+              label={busy ? t.app.settings.erasing : t.app.settings.eraseAll}
+              variant="ghost"
+              disabled={busy || !counts}
+              onPress={() => void run('all', t.app.settings.eraseAll)}
+              style={{ marginTop: space.md }}
+            />
+          </Card>
+        </Reveal>
+      ) : null}
+
+      {/* Vazio, e com a porta de volta para o exemplo.
+          Estado vazio é desenho, uma frase e a próxima ação — não um parágrafo
+          cinza no meio da tela. */}
+      {total === 0 && !loading ? (
+        <Reveal index={6}>
+          <Card
+            hue={palette.mist}
+            icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}
+            title={t.app.settings.exampleTitle}
+          >
+            {data?.seeded ? (
+              <Chip signal="neutral" label={t.app.settings.emptyNoExample} />
+            ) : null}
+            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
+              {t.app.settings.exampleEmpty}
+            </Text>
+            <Button
+              label={t.app.settings.restore}
+              variant="ghost"
+              disabled={busy}
+              onPress={() => void restore()}
+              style={{ marginTop: space.md }}
+            />
+          </Card>
+        </Reveal>
       ) : null}
 
       {/* Ver o app com movimento, em vez do exemplo de um dia.
           Fica embaixo do que apaga e do que restaura, porque é da mesma
           família: mexe no que está guardado, e diz antes o que vai fazer. */}
       {total > 0 && !loading ? (
-        <Card>
-          <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.settings.simulate}</Text>
-          <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-            {t.app.settings.simulateBody}
-          </Text>
-          <Pressable
-            onPress={() => void onSimulate()}
-            disabled={busy}
-            accessibilityRole="button"
-            style={[
-              styles.destructive,
-              { borderColor: color.lineStrong, marginTop: space.md, paddingVertical: space.md },
-            ]}
+        <Reveal index={7}>
+          <Card
+            hue={palette.mist}
+            icon={(c) => <GlyphCalendar size={26} color={c} weight={traco} />}
+            title={t.app.settings.simulate}
           >
-            <Text style={[type.body, { color: color.inkMuted, fontWeight: '600' }]}>
-              {t.app.settings.simulateConfirm}
+            <Text style={[type.caption, { color: color.inkMuted }]}>
+              {t.app.settings.simulateBody}
             </Text>
-          </Pressable>
-        </Card>
+            <Button
+              label={t.app.settings.simulateConfirm}
+              variant="ghost"
+              disabled={busy}
+              onPress={() => void onSimulate()}
+              style={{ marginTop: space.md }}
+            />
+          </Card>
+        </Reveal>
       ) : null}
 
-      <Pressable onPress={() => router.back()} accessibilityRole="button">
-        <Text style={[type.secondary, { color: color.inkFaint, textAlign: 'center' }]}>
-          {t.app.settings.back}
-        </Text>
-      </Pressable>
+      <Reveal index={8}>
+        <Button label={t.app.settings.back} variant="ghost" onPress={() => router.back()} />
+      </Reveal>
     </CollapsingHeader>
-  );
-}
-
-function Line({ label, value }: { label: string; value: number }) {
-  const { color, type } = useTheme();
-  return (
-    <View style={styles.row}>
-      <Text style={[type.secondary, { color: color.inkMuted, flex: 1 }]}>{label}</Text>
-      <Text style={[type.secondary, styles.number, { color: color.ink }]}>{value}</Text>
-    </View>
   );
 }
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
+  top: { flexDirection: 'row', alignItems: 'flex-start' },
+  bottom: { flexDirection: 'row', alignItems: 'flex-end' },
+  left: { alignSelf: 'flex-start' },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   number: { fontVariant: ['tabular-nums'], fontWeight: '600' },
-  destructive: {
-    alignItems: 'center',
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-  },
+  /** O chevron da família fina, virado: subir é ele apontando para cima. */
+  up: { transform: [{ rotate: '-90deg' }] },
+  down: { transform: [{ rotate: '90deg' }] },
 });
