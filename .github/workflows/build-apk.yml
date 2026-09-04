@@ -100,6 +100,20 @@ jobs:
       - name: Gerar o projeto nativo
         run: npx expo prebuild --platform android --no-install
 
+      # O manifesto que instala, conferido - não a intenção no app.json.
+      #
+      # `allowBackup` é `true` por padrão, e nesse estado o Android copia o banco
+      # do aplicativo para a conta Google do aparelho. O celular da fábrica é
+      # compartilhado por decisão escrita e costuma estar logado na conta de
+      # alguém: o livro-razão inteiro sairia dali para a nuvem pessoal de um
+      # operador. `src/release.test.ts` guarda o app.json em todo commit; isto
+      # confere o arquivo que o Expo gerou, que é o que decide de verdade.
+      - name: Conferir que o backup do Android está desligado
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          grep -o 'android:allowBackup="[^"]*"' "$MANIFEST"
+          grep -q 'android:allowBackup="false"' "$MANIFEST"
+
       # Memória para o Gradle, medida da máquina em vez de adivinhada.
       #
       # O template do React Native pede 512 MB de Metaspace, e a arquitetura
@@ -157,15 +171,27 @@ jobs:
       # cima não é atualizar, é substituir, e o aparelho não sabe qual é mais
       # novo.
       #
-      # Sai da versão, não de um contador: 0.3.0 vira 30000, 1.2.4 vira 100204.
-      # Mesma versão dá sempre o mesmo número (build reproduzível), e subir a
-      # versão sobe o código - que é a única regra que a Play Store impõe.
+      # Sai da versão, não de um contador: mesma versão dá sempre o mesmo número
+      # (build reproduzível), e subir a versão sobe o código - que é a única regra
+      # que a Play Store impõe.
+      #
+      # A fórmula anterior era `a * 100000 + b * 10000 + c`, e ela COLIDIA dentro
+      # do alcance de hoje: 0.10.0 e 1.0.0 davam 100000 os dois, e o 0.10.0 já está
+      # publicado. Instalar a 1.0.0 por cima não seria atualizar - para o Android é
+      # a mesma build, e o aparelho não sabe qual é a nova.
+      #
+      # Agora cada parte tem faixa própria: `a * 1.000.000 + b * 10.000 + c * 100`.
+      # 0.10.0 continua valendo 100000 (a fórmula nova concorda com a antiga em toda
+      # versão 0.x.0, então nada do que já saiu muda de número), 0.11.0 vira 110000
+      # e 1.0.0 vira 1.000.000. O limite é menor e correção abaixo de 100, e quem
+      # guarda isso é `src/release.test.ts`, que roda em todo commit.
       - name: Dar ao Android um número de build que cresce
         run: |
           VERSION="$(node -p "require('./app.json').expo.version")"
           CODE="$(node -p "
             const [a,b,c] = require('./app.json').expo.version.split('.').map(Number);
-            a * 100000 + b * 10000 + c
+            if (b > 99 || c > 99) throw new Error('menor ou correção acima de 99: a faixa colide');
+            a * 1000000 + b * 10000 + c * 100
           ")"
           echo "versão $VERSION → versionCode $CODE"
 

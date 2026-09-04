@@ -14,6 +14,7 @@
     },
     "android": {
       "package": "app.norva.mobile",
+      "allowBackup": false,
       "adaptiveIcon": {
         "backgroundColor": "#FAF7F2",
         "foregroundImage": "./assets/android-icon-foreground.png",
