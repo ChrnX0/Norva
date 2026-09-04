@@ -5,7 +5,7 @@ import {
   listItems,
   listOrders,
   listPlaces,
-  orderedDemand,
+  stockAgainstOrders,
   runningOut,
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
@@ -36,7 +36,7 @@ export async function factsForAlerts(timeZone: string): Promise<AlertFacts> {
 
   const [cover, demand, orders, expiring, items, places, readings] = await Promise.all([
     runningOut(LOCAL_COMPANY_ID, lastWeek.from, today.to, 7, Number.POSITIVE_INFINITY),
-    orderedDemand(LOCAL_COMPANY_ID, through),
+    stockAgainstOrders(LOCAL_COMPANY_ID, through),
     // Os pedidos em aberto vêm além da demanda somada, e não é redundância: a
     // demanda agrupa por ITEM e o aviso conta LOJAS. Sem esta consulta eu estava
     // usando o id do item como id de loja — o aviso diria "quatro lojas

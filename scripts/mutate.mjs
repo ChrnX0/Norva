@@ -60,6 +60,14 @@ const DEFECTS = [
       'seis quilos de acucar voltam a ser "6.000 unidades" na capa e na aba de transporte: a unidade existe no tipo e diz a coisa errada, que e pior que nao existir',
   },
 
+  {
+    file: 'src/data/repository.ts',
+    from: '       LEFT JOIN order_lines ol ON ol.item_id = p.item_id',
+    to: '       JOIN order_lines ol ON ol.item_id = p.item_id',
+    hurts:
+      'a consulta volta a partir da linha de pedido: produto sem pedido some, e a tela de anotar pedido fica sem dica nenhuma no primeiro pedido do dia',
+  },
+
   // --- qual ficha rodou, que o lote passou a carimbar ----------------------
   {
     file: 'src/data/repository.ts',
@@ -344,10 +352,12 @@ const DEFECTS = [
 
   {
     file: 'src/data/repository.ts',
-    from: `      WHERE o.company_id = ?
-        AND o.status IN ('pending', 'open')`,
-    to: `      WHERE o.company_id = ?
-        AND o.status IN ('pending', 'open', 'delivered')`,
+    // O trecho mudou de forma quando a consulta passou a partir do PRODUTO: o
+    // filtro do pedido saiu do WHERE e foi para o EXISTS do LEFT JOIN, porque no
+    // WHERE ele eliminaria a linha sem pedido que ela existe para trazer. A
+    // regra é a mesma; o texto da mutação acompanhou.
+    from: `                       AND o.status IN ('pending', 'open')`,
+    to: `                       AND o.status IN ('pending', 'open', 'delivered')`,
     hurts: 'pedido entregue continua contando como demanda, e a fabrica produz de novo o que ja saiu pela porta',
   },
   {

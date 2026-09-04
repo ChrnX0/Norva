@@ -7,7 +7,7 @@ import {
   listPlaces,
   lossesOn,
   openProductionRuns,
-  orderedDemand,
+  stockAgainstOrders,
   productionBetween,
   productionOn,
   recentRuns,
@@ -167,7 +167,7 @@ function Briefing() {
       shipmentsOn(LOCAL_COMPANY_ID, yesterday.from, yesterday.to),
       openProductionRuns(LOCAL_COMPANY_ID),
       runningOut(LOCAL_COMPANY_ID, lastWeek.from, today.to, 7),
-      orderedDemand(LOCAL_COMPANY_ID, through),
+      stockAgainstOrders(LOCAL_COMPANY_ID, through),
       productionBetween(LOCAL_COMPANY_ID, weekAgo.from, today.to),
       recentRuns(LOCAL_COMPANY_ID, 6),
       // Sem horizonte: aqui a pergunta não é "o que acaba esta semana" (isso é o

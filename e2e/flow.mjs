@@ -382,7 +382,15 @@ check('an order is written, and the briefing turns it into what to make', async 
   // O cartão de quem recebe não diz "Cliente" com o ícone de pessoa sobre uma
   // lista que aceitava câmara fria e almoxarifado — e loja própria, que recebe
   // pedido, também não é cliente.
-  assert.match(await screen(page), /Loja ou cliente/);
+  const pedindo = await screen(page);
+  assert.match(pedindo, /Loja ou cliente/);
+
+  // E a dica do quanto aparece no PRIMEIRO pedido, que é quando ela decide.
+  //
+  // Ela vinha de uma consulta que partia da linha de pedido, então só existia
+  // para produto que já tinha pedido — ou seja, nunca no primeiro. Aqui não há
+  // nenhum pedido gravado ainda, e o campo tem que dizer quanto está livre.
+  assert.match(pedindo, /livre para esta data/, 'a conta aparece antes do primeiro pedido');
   await page.getByLabel('Quantidade').fill('300');
   await page.waitForTimeout(300);
   await page.getByText('Adicionar ao pedido', { exact: true }).first().click();

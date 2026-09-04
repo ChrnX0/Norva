@@ -12,7 +12,7 @@ import { Reveal } from '@/components/Reveal';
 import {
   listPlaces,
   listProducts,
-  orderedDemand,
+  stockAgainstOrders,
   saveOrder,
   type Demand,
   type Place,
@@ -191,7 +191,7 @@ function NewOrder() {
    * devolve. As duas são SQLite local, e a segunda repete quando a data muda.
    */
   const { data: demanda } = useQuery<Demand[]>(
-    () => orderedDemand(LOCAL_COMPANY_ID, requestedFor),
+    () => stockAgainstOrders(LOCAL_COMPANY_ID, requestedFor),
     requestedFor,
   );
 

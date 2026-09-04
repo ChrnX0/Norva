@@ -3978,17 +3978,29 @@ export type Demand = {
 };
 
 /**
- * O que foi pedido contra o que tem na fábrica.
+ * O que tem na fábrica contra o que já foi prometido, produto por produto.
  *
  * O saldo lido é o do LUGAR de onde a carga sai, não o da empresa: mil picolés
  * espalhados em quatro lojas não atendem o cliente que pediu mil na fábrica, e
  * somar tudo diria que está coberto quando não está.
  *
- * Devolve fato — pedido e saldo, item por item. Quem faz a subtração e escreve
- * "falta produzir 300" é a tela, porque a frase é português e esta camada não
- * fala português.
+ * **Parte do PRODUTO, e não da linha de pedido.** Ela se chamava `orderedDemand`
+ * e montava as linhas a partir de `order_lines`, então respondia só sobre o que
+ * alguém já tinha pedido — e quem pergunta "quanto ainda dá para prometer" está
+ * quase sempre no caso oposto: o primeiro pedido do dia, de um produto que
+ * ninguém pediu ainda. A tela de anotar pedido ficava sem dica nenhuma no campo
+ * de quantidade, e o aviso de excesso não tinha como aparecer, exatamente
+ * quando a conta mais decide.
+ *
+ * Produto sem pedido volta com `requested` zero, que é fato e não lacuna. As
+ * duas telas que leem isto para achar FALTA continuam certas de graça: as duas
+ * filtram por `requested - onHand > 0`, e a linha nova nunca satisfaz isso.
+ *
+ * Devolve fato — saldo e pedido, produto por produto. Quem faz a subtração e
+ * escreve "falta produzir 300" é a tela, porque a frase é português e esta
+ * camada não fala português.
  */
-export async function orderedDemand(
+export async function stockAgainstOrders(
   companyId: string,
   throughDate: string,
 ): Promise<Demand[]> {
@@ -3999,21 +4011,27 @@ export async function orderedDemand(
     requested: number;
     on_hand: number;
   }>(
-    `SELECT ol.item_id, i.name,
-            SUM(ol.base_units) AS requested,
+    // O filtro do pedido vive no ON, e não no WHERE, senão o LEFT JOIN vira
+    // INNER: a condição eliminaria justamente a linha sem pedido que esta
+    // consulta passou a existir para trazer.
+    `SELECT p.item_id, i.name,
+            COALESCE(SUM(ol.base_units), 0) AS requested,
             (SELECT COALESCE(SUM(m.quantity_base_units), 0) FROM movements m
-              WHERE m.company_id = o.company_id
-                AND m.item_id = ol.item_id
+              WHERE m.company_id = p.company_id
+                AND m.item_id = p.item_id
                 AND m.location_id = ?) AS on_hand
-       FROM order_lines ol
-       JOIN orders o ON o.id = ol.order_id
-       JOIN items i ON i.id = ol.item_id
-      WHERE o.company_id = ?
-        AND o.status IN ('pending', 'open')
-        AND (o.requested_for IS NULL OR o.requested_for <= ?)
-      GROUP BY ol.item_id, i.name
+       FROM products p
+       JOIN items i ON i.id = p.item_id
+       LEFT JOIN order_lines ol ON ol.item_id = p.item_id
+        AND ol.company_id = p.company_id
+        AND EXISTS (SELECT 1 FROM orders o
+                     WHERE o.id = ol.order_id
+                       AND o.status IN ('pending', 'open')
+                       AND (o.requested_for IS NULL OR o.requested_for <= ?))
+      WHERE p.company_id = ?
+      GROUP BY p.item_id, i.name
       ORDER BY i.name COLLATE NOCASE`,
-    [defaultLocationId(companyId), companyId, throughDate],
+    [defaultLocationId(companyId), throughDate, companyId],
   );
 
   return rows.map((r) => ({

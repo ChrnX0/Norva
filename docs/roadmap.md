@@ -134,24 +134,30 @@ O que o item deixou atrás de si é maior que ele: `src/law.test.ts` media a Lei
 **por arquivo**, e a capa tem dez números grandes. Uma declaração aprovava os dez.
 A régua agora é por número, e a contagem tem que bater.
 
-### 5. A dica de "livre" só existe para produto que já tem pedido
+### 5. ~~A dica de "livre" só existe para produto que já tem pedido~~ — fechado em 4 de setembro
 
-**Estado:** achado em 4 de setembro, ao consertar a frase que ela usa.
+`orderedDemand` montava as linhas a partir de `order_lines`, então respondia só
+sobre o que alguém já tinha pedido — e quem pergunta "quanto ainda dá para
+prometer" está quase sempre no caso oposto: o primeiro pedido do dia. O campo de
+quantidade ficava sem dica nenhuma, e o aviso de excesso não tinha como aparecer,
+exatamente quando a conta mais decide.
 
-- **Evidência:** `orderedDemand` monta as linhas a partir de `order_lines`
-  (`src/data/repository.ts:3943`), então `livreDe` devolve `null` para todo produto
-  sem pedido pendente (`app/orders/new.tsx:209`) — e `onHand` vem justamente
-  daquela consulta, então a tela não tem de onde tirar o saldo sozinha.
-- **O que isso faz:** no primeiro pedido do dia de um produto que ninguém pediu
-  ainda — o caso mais comum — o campo de quantidade fica **sem dica nenhuma**, e o
-  aviso de excesso não pode aparecer. A conta existe e não é oferecida quando ela
-  mais decide.
-- **Portão:** P1 está satisfeito (a tela chama no mesmo commit); P3 não se aplica —
-  é forma de consulta, não de esquema. O que ela pede é `orderedDemand` partindo de
-  **produto** e não de linha de pedido, com `requested` zero quando não há pedido.
-- **O cuidado:** a capa lê a mesma função (`app/(tabs)/index.tsx`), então o commit
-  que mudar o conjunto de linhas tem de conferir que "produza para os pedidos" não
-  passa a listar produto com demanda zero.
+Passou a partir do **produto** e a se chamar `stockAgainstOrders`, que é o que ela
+devolve: saldo contra pedido, produto por produto, com `requested` zero quando não
+há pedido.
+
+**E o cuidado escrito aqui pegou o defeito, mas não onde ele estava.** A previsão
+era "produza para os pedidos" passar a listar produto com demanda zero — e essa
+parte estava protegida de graça, porque as duas telas filtram por
+`requested - onHand > 0`. O que quebrou foram duas leituras que perguntavam pelo
+**tamanho da lista**: o cartão de pedidos da capa passou a dizer "Pedidos
+cobertos" numa fábrica que nunca vendeu nada, e o convite do primeiro dia sumiu.
+O e2e reprovou nas três checagens da capa, e as duas leituras passaram a medir o
+fato (`demand.some(d => d.requested > 0)`) em vez do tamanho.
+
+Contar linha e nomear pedido é a mesma família que a varredura de rótulos do
+mesmo dia caçou trinta e uma vezes — e ela reapareceu **dentro do conserto de
+outra coisa**, o que diz o quanto ela é fácil de escrever.
 
 ---
 

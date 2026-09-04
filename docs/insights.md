@@ -2431,3 +2431,38 @@ a envelhecer envelhece calado.
 *fora* dos arquivos que o cache tem como chave — um manifesto, uma variável de
 ambiente, um relógio —, alguma coisa no produto final tem que dizer esse dado em
 voz alta, para uma asserção poder compará-lo com a fonte.
+
+## 4 de setembro — o mesmo defeito reapareceu dentro do conserto de outro
+
+**O que se viu.** `orderedDemand` passou a partir do produto em vez da linha de
+pedido, para a tela de anotar pedido poder dizer quanto está livre **antes** do
+primeiro pedido existir. O roadmap trazia o cuidado escrito: *"a capa lê a mesma
+função, então o commit que mudar o conjunto de linhas tem de conferir que 'produza
+para os pedidos' não passa a listar produto com demanda zero."*
+
+O cuidado estava certo e olhava para o lugar errado. Aquela leitura já filtrava
+por `requested - onHand > 0` e ficou protegida de graça. Quebraram **duas outras**,
+e as duas pela mesma razão: perguntavam pelo **tamanho da lista**.
+
+- o cartão de pedidos da capa aparecia com `demand.length > 0` — e passou a dizer
+  *"Pedidos cobertos"* numa fábrica que nunca vendeu nada;
+- o convite do primeiro dia exigia `demand.length === 0` — e sumiu.
+
+**Por que isto merece registro.** É a mesma família da varredura do mesmo dia —
+contar uma variável e nomear outra — e ela reapareceu **dentro do conserto de
+outra coisa**, escrita por quem tinha acabado de caçá-la trinta e uma vezes.
+Não foi desatenção: `demand.length > 0` era uma leitura *correta* enquanto a
+consulta partia da linha de pedido. O defeito nasceu no momento em que o
+significado da lista mudou, e nada no tipo mudou junto — `Demand[]` continua
+`Demand[]`.
+
+**O que pegou:** o e2e, em três checagens da capa, na primeira execução depois da
+mudança. Nenhum teste unitário reclamou, porque nenhum deles pergunta o que a
+capa mostra.
+
+**A regra que sai:** quando uma consulta muda o **conjunto** que devolve — e não
+o formato —, o compilador não ajuda e a revisão do diff também não: os chamadores
+continuam compilando e lendo a mesma propriedade. O que se procura são as
+leituras que perguntam `length`, `some` ou `[0]` sobre o resultado, porque são
+exatamente as que dependem do conjunto e não do formato. E o teste que pega isso
+é o que abre a tela.

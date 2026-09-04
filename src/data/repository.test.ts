@@ -58,7 +58,7 @@ import {
   saveOrder,
   listOrders,
   setOrderStatus,
-  orderedDemand,
+  stockAgainstOrders,
   ordersNeedApproval,
   setOrdersNeedApproval,
 } from './repository';
@@ -2578,7 +2578,7 @@ test('what was ordered is measured against the factory shelf, not the company to
     lines: [{ itemId, baseUnits: 300 }],
   });
 
-  const [demand] = await orderedDemand(CO, '2026-09-10');
+  const [demand] = await stockAgainstOrders(CO, '2026-09-10');
   assert.equal(demand.requested, 300);
   assert.equal(
     demand.onHand,
@@ -2593,14 +2593,28 @@ test('what was ordered is measured against the factory shelf, not the company to
     requestedFor: '2026-10-20',
     lines: [{ itemId, baseUnits: 999 }],
   });
-  const [ainda] = await orderedDemand(CO, '2026-09-10');
+  const [ainda] = await stockAgainstOrders(CO, '2026-09-10');
   assert.equal(ainda.requested, 300, 'a janela é a da decisão, não a da lista inteira');
 
   // Entregue sai da conta: o compromisso acabou.
+  //
+  // E a LINHA continua — é a diferença que fez esta consulta partir do produto
+  // em vez da linha de pedido. Zero prometido é fato sobre um produto que
+  // existe e tem saldo; ausência de linha era a tela de anotar pedido ficando
+  // sem dica nenhuma no campo de quantidade, justamente no primeiro pedido do
+  // dia, que é quando a conta mais decide.
   const [aberto] = await listOrders(CO);
   await setOrderStatus(CO, aberto.id, 'delivered');
-  const depois = await orderedDemand(CO, '2026-09-10');
-  assert.equal(depois.length, 0, 'pedido entregue não é mais demanda');
+  const [depois] = await stockAgainstOrders(CO, '2026-09-10');
+  assert.equal(depois.requested, 0, 'pedido entregue não é mais demanda');
+  assert.equal(depois.onHand, 50, 'e o saldo continua sendo o da fábrica');
+
+  // Quem lê isto para achar FALTA continua certo de graça: as duas telas
+  // filtram por `requested - onHand > 0`, e a linha de zero nunca satisfaz.
+  const faltando = (await stockAgainstOrders(CO, '2026-09-10')).filter(
+    (d) => d.requested - d.onHand > 0,
+  );
+  assert.equal(faltando.length, 0, 'produto sem pedido não vira "produza para os pedidos"');
 });
 
 test('approval is the company’s choice, and it decides where an order is born', async () => {
@@ -2626,7 +2640,7 @@ test('approval is the company’s choice, and it decides where an order is born'
 
   // E pendente já conta como compromisso: quem espera aprovação para começar a
   // produzir descobre na sexta que devia ter começado na quarta.
-  const [demand] = await orderedDemand(CO, '2026-09-10');
+  const [demand] = await stockAgainstOrders(CO, '2026-09-10');
   assert.equal(demand.requested, 40);
 
   await setOrderStatus(CO, pedido.id, 'open');

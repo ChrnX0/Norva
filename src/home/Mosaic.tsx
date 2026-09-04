@@ -56,6 +56,20 @@ export function Mosaic({
   const traco = skin === 'papel' ? 1.7 : 2.2;
 
   /**
+   * Há pedido em aberto — e não "há linha na consulta", que são coisas
+   * diferentes desde que ela passou a partir do PRODUTO.
+   *
+   * `stockAgainstOrders` devolve uma linha por produto para a tela de anotar
+   * pedido poder dizer quanto está livre antes do primeiro pedido existir.
+   * Medindo o tamanho da lista, a capa de uma fábrica que nunca vendeu nada
+   * passava a mostrar "Pedidos cobertos" — um cartão afirmando que está tudo
+   * atendido quando não há nada para atender — e o convite do primeiro dia
+   * sumia. Contar linha e nomear pedido é a mesma família de defeito que a
+   * varredura de hoje caçou.
+   */
+  const temPedido = (data?.demand ?? []).some((d) => d.requested > 0);
+
+  /**
    * Qual peça está aberta. Uma por vez, e o segundo toque fecha.
    *
    * Duas abertas empurram o resto para fora da tela e a capa deixa de ser capa —
@@ -207,7 +221,7 @@ export function Mosaic({
     ),
     pedidos: (
       <>
-      {data && data.demand.length > 0 ? (
+      {temPedido ? (
         <Reveal index={2}>
           <Touchable
             onPress={() => go('/orders')}
@@ -233,7 +247,9 @@ export function Mosaic({
                 </View>
               ) : (
                 <Text style={[type.secondary, { color: color.inkMuted }]}>
-                  {fill(t.app.home.ordersCoveredDetail, { date: formatCalendarDate(data.demandThrough, locale) })}
+                  {fill(t.app.home.ordersCoveredDetail, {
+                    date: data ? formatCalendarDate(data.demandThrough, locale) : '',
+                  })}
                 </Text>
               )}
             </Card>
@@ -843,7 +859,7 @@ export function Mosaic({
     (data?.runs ?? []).length === 0 &&
     (data?.cover ?? []).length === 0 &&
     (data?.boxes ?? 0) === 0 &&
-    (data?.demand ?? []).length === 0 &&
+    !temPedido &&
     (data?.running ?? []).length === 0 &&
     (data?.expiring ?? []).length === 0 &&
     (data?.dueToday ?? []).length === 0 &&
