@@ -2892,3 +2892,52 @@ que existe neste repositório.* Quando eu escolher um lado de um "depende", o
 comentário tem que dizer **quem escolheu e que a outra opção não foi construída** —
 nunca "como o sistema manda". Se a frase que eu ia escrever atribui a escolha a uma
 força externa, ela é o sinal de que eu decidi sozinho.
+
+## 4 de setembro — a tabela chamada "medido, não afirmado" envelheceu no dia em que foi escrita
+
+**O que se viu.** O dono pediu um plano completo, e o `docs/roadmap.md` passou a
+abrir com uma tabela sob o título *"onde o produto está hoje — **medido, não
+afirmado**"*, com uma coluna **como conferir** trazendo o comando ao lado de cada
+número. Escrita de manhã.
+
+Antes do fim da tarde estava errada em quatro linhas: 26 migrações contra 27, 303
+testes contra 309, 88 mutações contra 90, 8 garantias contra 9.
+
+E a mesma coisa, pior, no `CLAUDE.md`: o bloco de comandos dizia *"Postgres
+descartável, **oito** garantias"* depois de o `db:verify` ter passado a ter nove. Não
+é seção histórica com data — é referência, no arquivo que **toda sessão lê
+primeiro**. Quem começasse a próxima sessão acharia que a nona está sobrando.
+
+**Por que passou, e é o ponto.** As duas tinham o antídoto escrito ao lado e ele não
+funcionou. A tabela traz o comando de conferência linha a linha; o plano tem uma
+regra dizendo que *"item novo entra com evidência de arquivo — sem isso é palpite, e
+palpite em plano tem a mesma cara de fato"*. Nada disso impede o envelhecimento,
+porque **comando escrito é convite, não garantia**: ninguém roda quinze comandos
+antes de acreditar numa tabela. E o segundo lado da mesma frase é o que dói —
+**tabela velha tem exatamente a mesma cara de tabela certa.**
+
+O número do `db:verify` mora em três lugares e só **um** é fato: quantos blocos
+`==> check N:` o script tem. A frase que ele imprime no fim e o comentário do
+`CLAUDE.md` são alguém lembrando — e foi por lembrança que um ficou certo e o outro
+não. Eu atualizei os dois no mesmo dia e errei um.
+
+**O que mudou.** `src/bar.test.ts` passa a **ser aquela coluna, executada**: dez
+linhas derivadas do sistema e comparadas com o que os documentos afirmam, com o
+sistema mandando sempre. Inclusive a contagem de testes, que se deriva estaticamente
+(toda chamada é `test(` no topo do arquivo) e bate exata com a runtime.
+
+Provei que morde antes de acreditar nela — que é a regra que a própria suíte de
+mutação existe para impor: com o número velho no `CLAUDE.md` ela reprova nomeando o
+certo e o escrito; com uma décima checagem acrescentada ao script ela reprova em
+**duas** asserções ao mesmo tempo, a frase final e o `CLAUDE.md`.
+
+**A fronteira, escrita no arquivo:** ela confere o que foi **registrado**, não
+descobre o que não foi. Uma linha nova na tabela sem entrada na guarda não quebra
+nada. O que ela impede é o número registrado envelhecer — que é o que aconteceu duas
+vezes num dia.
+
+**A regra que fica:** *documentar a forma de conferir não é conferir.* Todo número
+que um documento afirma sobre o sistema é um segundo autor da mesma verdade, e o
+segundo autor sempre atrasa. Ou o número sai de uma derivação, ou ele tem uma guarda
+— a terceira opção, que é confiar em quem escreveu, é a que produziu as duas
+cicatrizes de hoje com o antídoto escrito ao lado.
