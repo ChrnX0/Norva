@@ -119,6 +119,8 @@ const MOVEMENTS: (MovementRow & { itemId: string })[] = [
     unitCostRate: 0.472 as Rate,
     note: null,
     occurredAt: '2026-08-20T09:00:00Z',
+    groupId: 'm1',
+    reversed: false,
   },
   {
     itemId: 'sugar',
@@ -128,6 +130,8 @@ const MOVEMENTS: (MovementRow & { itemId: string })[] = [
     unitCostRate: 0.472 as Rate,
     note: null,
     occurredAt: '2026-08-01T09:00:00Z',
+    groupId: 'nota-1',
+    reversed: false,
   },
 ];
 

@@ -3269,3 +3269,36 @@ o que não terminou — medida que não houve é barata de repetir, resultado qu
 não se repete até gostar dele —, reprovação como `NÃO MEDIDO` se persistir, e a
 régua conferida com quatro casos sintéticos antes de qualquer medida, para não se
 perder de novo em silêncio.
+
+## 4 de setembro — a tela lia vinte lançamentos para usar a data de um
+
+Ao dar grupo à compra, à contagem e à perda, precisei da lista de lançamentos na
+tela do insumo — e ela **já estava lá**. `app/inputs/[id].tsx` chamava
+`itemMovements(...)` (vinte linhas, com tipo, quantidade, custo congelado e data) e
+usava exatamente uma coisa: a data do último ajuste, para escrever "conferido em
+3/9". As outras dezenove linhas eram lidas do banco, montadas em objeto, guardadas
+no estado, e descartadas na renderização.
+
+**É o P1 pelo avesso.** O portão deste projeto pergunta *"quem chama isto no mesmo
+commit?"* e pega o export sem chamador — `balanceAt`, `daysOfCover`,
+`assistant_phrase` com índice e nenhuma escrita. Este é o outro lado da mesma
+doença: **o chamador sem uso**. Ninguém o pega, porque o código *parece*
+justificado — tem chamador, roda, e o dado até aparece na tela (uma data). O que
+não existe é a razão de ler vinte.
+
+E o custo não é a consulta: é que a informação estava a um `map` de distância da
+tela e ninguém a via. A fundação mais forte do projeto — corrige-se por estorno,
+nunca por exclusão — estava sem porta para três dos sete caminhos de escrita
+justamente na tela que já tinha a lista dos três na mão.
+
+**A regra que fica: dado lido e não mostrado é pergunta, não sobra.** Ou a tela
+devia mostrar (e é uma dívida de interface), ou não devia ler (e é uma consulta a
+menos). As duas saídas são baratas; ficar no meio é o único jeito de pagar as duas.
+Onde procurar mais deles: `useQuery` que devolve lista e `.find(...)` uma vez só.
+
+**O que mudou.** O cartão "Últimos lançamentos" mostra os oito últimos, cada um
+com o que é em uma palavra (`t.movement`, dicionário novo nos três idiomas), e
+desfazer no toque — com a conta aberta antes de escrever, o que volta e o que sai,
+e a recusa explicando o caminho quando não cabe. A compra passa a carregar a NOTA
+como grupo (não a linha: no dia em que uma nota tiver duas linhas, o grupo por
+linha desfaria metade dela), e a contagem e a perda carregam a própria linha.

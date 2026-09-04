@@ -560,6 +560,22 @@ export const en: Dictionary = {
       countConfirm: 'Record the count',
       countConfirmAction: 'Record',
       countHidden: 'hidden while you count',
+      entries: 'Latest entries',
+      entriesHint: 'Tap an entry to undo it. Nothing is deleted: the correction is a new line, and both stay.',
+      undone: 'already corrected',
+      undoTitle: 'Undo this {{what}}?',
+      undoBody:
+        'Back into stock: {{back}}. Out of stock: {{out}}. The correction is recorded, and nothing is deleted.',
+      undoNothingBack: 'nothing',
+      undoNothingOut: 'nothing',
+      undoConfirm: 'Undo',
+      undoDone: 'This entry has already been corrected',
+      undoDoneBody: 'Its correction is already on record. It is not corrected twice.',
+      undoBlocked: 'Not enough to give back',
+      undoBlockedBody:
+        'Undoing this would take out more than there is: {{items}}. Bring the goods back first, or record a count of what is there.',
+      undoBlockedLine: '{{name}} needs {{needed}} and has {{held}}',
+      undoFailed: 'Could not undo',
       countRoom: 'This is the {{room}} balance. The count is for that room.',
       countSpread:
         'This item sits in {{count}} places. A count covers one place — tap a place to count there.',
@@ -980,6 +996,19 @@ export const en: Dictionary = {
     courtesy: 'Courtesy',
     internal_use: 'Internal use',
     reasonRequired: "Say what happened - it protects everyone's numbers.",
+  },
+
+  movement: {
+    purchase: 'Purchase',
+    production: 'Production',
+    consumption: 'Consumption',
+    transfer: 'Transfer',
+    sale: 'Sale',
+    loss: 'Loss',
+    return: 'Return',
+    adjustment: 'Count',
+    discrepancy: 'Difference at the door',
+    reversal: 'Correction',
   },
 
   posts: {

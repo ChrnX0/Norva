@@ -1611,6 +1611,54 @@ check('a run recorded wrong is corrected by reversal, not by deleting it', async
   );
 });
 
+check('an entry recorded wrong is undone from the item, and the balance comes back', async (page) => {
+  // A fundação diz que se corrige por estorno, nunca por exclusão — e até agora
+  // só a corrida de produção tinha por onde. A nota digitada com dez sacos onde
+  // era um, a perda de 40 onde era 4 e o zero contado com o dedo torto ficavam no
+  // razão para sempre. Esta checagem dirige o caminho novo como uma pessoa
+  // dirige: almoxarifado → o item → o lançamento → desfazer.
+  await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
+  await assentar(page);
+
+  await page.getByText('Açúcar cristal', { exact: true }).first().click();
+  await assentar(page);
+
+  const antes = await screen(page);
+  assert.match(antes, /Últimos lançamentos/, 'a tela do insumo mostra o que foi lançado');
+  assert.match(antes, /Compra/, 'e a compra semeada está entre eles');
+  const saldoAntes = Number(
+    (antes.match(/Em estoque[\s\S]{0,80}?([\d.]+) g/) ?? [])[1]?.replace(/\./g, '') ?? '-1',
+  );
+  assert.ok(saldoAntes > 0, `o insumo tem saldo para conferir (leu ${saldoAntes})`);
+
+  await page.getByText('Compra', { exact: true }).first().click();
+  await assentar(page);
+
+  // A confirmação abre a conta antes de escrever, com os dois lados e a promessa
+  // de que o registro original fica.
+  const pergunta = await screen(page);
+  assert.match(pergunta, /Desfazer esta Compra\?/, 'a pergunta nomeia o ato');
+  assert.match(pergunta, /Sai do estoque/, 'e diz o que sai');
+  assert.match(pergunta, /nada é apagado/i, 'e que nada some do registro');
+
+  await page.getByText('Desfazer', { exact: true }).last().click();
+  await assentar(page);
+
+  const depois = await screen(page);
+  const saldoDepois = Number(
+    (depois.match(/Em estoque[\s\S]{0,80}?([\d.]+) g/) ?? [])[1]?.replace(/\./g, '') ?? '-1',
+  );
+  assert.ok(
+    saldoDepois < saldoAntes,
+    `desfazer a compra tinha de baixar o saldo (era ${saldoAntes}, ficou ${saldoDepois})`,
+  );
+
+  // E o lançamento continua lá, dizendo o que aconteceu com ele: corrige-se por
+  // estorno, e o estorno não apaga a linha que corrigiu.
+  assert.match(depois, /já corrigido/, 'a linha original fica, marcada');
+  assert.match(depois, /Correção/, 'e a correção aparece como lançamento novo');
+});
+
 check('the app has two faces, and the choice survives leaving the screen', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

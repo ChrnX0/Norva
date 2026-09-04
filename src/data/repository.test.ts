@@ -36,6 +36,7 @@ import {
   recordTransfer,
   recordReturn,
   planReversal,
+  lossesOn,
   reverseGroup,
   CannotReverseError,
   countForErase,
@@ -150,6 +151,121 @@ async function custoDe(itemId: string): Promise<number> {
   );
   return row?.average_rate ?? 0;
 }
+
+/**
+ * A nota digitada errada, desfeita — quantidade E dinheiro.
+ *
+ * A primeira fundação do projeto diz que se corrige por estorno, nunca por
+ * exclusão, e três dos sete caminhos de escrita não gravavam grupo nenhum: a
+ * compra, a contagem e a perda. Sem grupo, `planReversal` não acha o ato, e o
+ * que não é achado não é desfeito — **a nota com dez sacos onde era um ficava no
+ * razão para sempre**, com a média envenenada embaixo de todo número de dinheiro
+ * do aplicativo.
+ */
+test('an invoice typed wrong can be undone, and takes the average back with it', async () => {
+  const acucar = await anInput('Açúcar cristal', 25_000);
+
+  // A nota certa: quatro sacos de 25 kg por R$ 472.
+  await recordPurchase(CO, {
+    itemId: acucar,
+    purchaseQuantity: 4,
+    baseUnits: 100_000,
+    totalCents: fromDecimal(472),
+  });
+  const custoCerto = await custoDe(acucar);
+  // Centavo por grama: R$ 472 são 47.200 centavos em 100.000 g.
+  assert.ok(Math.abs(custoCerto - 0.472) < 1e-9, 'R$ 4,72 o quilo');
+
+  // E a errada, digitada por cima: dez sacos pelo preço de dez, quando chegou um.
+  const errada = await recordPurchase(CO, {
+    itemId: acucar,
+    purchaseQuantity: 10,
+    baseUnits: 250_000,
+    totalCents: fromDecimal(2360),
+  });
+  assert.ok(errada.newRate > 0);
+
+  const lancamentos = await itemMovements(CO, acucar);
+  const nota = lancamentos.find((m) => m.kind === 'purchase');
+  assert.ok(nota?.groupId, 'a compra tem de carregar o ato de que faz parte');
+  assert.equal(nota.reversed, false);
+
+  // O grupo é a NOTA, não a linha: os dois ids diferem, e é isso que faz uma nota
+  // de duas linhas voltar inteira.
+  assert.notEqual(nota.groupId, nota.id, 'o grupo da compra é a nota, não a linha');
+
+  const daNota = nota.groupId;
+  await reverseGroup(CO, { groupId: daNota });
+
+  const depois = (await listItems(CO)).find((i) => i.id === acucar);
+  assert.equal(depois?.onHandBaseUnits, 100_000, 'a quantidade da nota errada voltou');
+  assert.ok(
+    Math.abs((await custoDe(acucar)) - custoCerto) < 1e-9,
+    'e o custo médio voltou ao que era antes dela — quantidade sem dinheiro é maquiagem',
+  );
+
+  // E não se desfaz duas vezes.
+  const denovo = (await itemMovements(CO, acucar)).find((m) => m.id === nota.id);
+  assert.equal(denovo?.reversed, true, 'a linha passa a dizer que já foi corrigida');
+  await assert.rejects(
+    () => reverseGroup(CO, { groupId: daNota }),
+    (e: unknown) => e instanceof CannotReverseError,
+  );
+});
+
+/**
+ * A contagem e a perda, desfeitas pelo mesmo caminho.
+ *
+ * As duas são atos de uma perna só, e o grupo delas é a própria linha. Sem ele o
+ * zero digitado com o dedo torto e a perda de 40 onde era 4 ficavam no razão para
+ * sempre — a segunda descontando trinta e seis quilos de dinheiro que não sumiram.
+ */
+test('a count and a loss can each be undone, and the balance comes back', async () => {
+  const polpa = await anInput('Polpa de morango', 10_000);
+  await recordPurchase(CO, {
+    itemId: polpa,
+    purchaseQuantity: 4,
+    baseUnits: 40_000,
+    totalCents: fromDecimal(496),
+  });
+
+  // A contagem errada: alguém digitou 4.000 onde eram 40.000.
+  await recordCount(CO, {
+    locationId: defaultLocationId(CO),
+    itemId: polpa,
+    countedBaseUnits: 4_000,
+  });
+  assert.equal((await listItems(CO)).find((i) => i.id === polpa)?.onHandBaseUnits, 4_000);
+
+  const contagem = (await itemMovements(CO, polpa)).find((m) => m.kind === 'adjustment');
+  assert.ok(contagem?.groupId, 'a contagem tem de ter por onde ser desfeita');
+  assert.equal(contagem.groupId, contagem.id, 'ato de uma perna: o grupo é a própria linha');
+
+  await reverseGroup(CO, { groupId: contagem.groupId });
+  assert.equal(
+    (await listItems(CO)).find((i) => i.id === polpa)?.onHandBaseUnits,
+    40_000,
+    'o saldo voltou ao que era antes da contagem errada',
+  );
+
+  // A perda errada: 40.000 g onde eram 4.000.
+  await recordLoss(CO, { itemId: polpa, baseUnits: 40_000, reason: 'expired' });
+  assert.equal((await listItems(CO)).find((i) => i.id === polpa)?.onHandBaseUnits, 0);
+
+  const perda = (await itemMovements(CO, polpa)).find((m) => m.kind === 'loss');
+  assert.ok(perda?.groupId);
+  await reverseGroup(CO, { groupId: perda.groupId });
+  assert.equal(
+    (await listItems(CO)).find((i) => i.id === polpa)?.onHandBaseUnits,
+    40_000,
+    'a perda desfeita devolve o que ela tirou',
+  );
+
+  // E o relatório de perdas para de contar a perda desfeita, porque o que foi
+  // estornado não aconteceu.
+  const perdas = await lossesOn(CO, '2000-01-01T00:00:00.000Z', '2100-01-01T00:00:00.000Z');
+  assert.deepEqual(perdas, [], 'perda desfeita não aparece no relatório');
+});
 
 test('a purchase writes the invoice and moves the average in one step', async () => {
   const sugar = await anInput('Açúcar cristal', 25_000);

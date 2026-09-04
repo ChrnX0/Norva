@@ -797,6 +797,42 @@ const DEFECTS = [
     hurts:
       'findItem volta a responder o total da empresa mesmo quando a pergunta e de uma sala: a tela da camara fria mostra o saldo da fabrica somado ao dela, e a diferenca da contagem sai desse numero',
   },
+  // --- os tres atos sem grupo, logo sem estorno, 4 de setembro ---------------
+  //
+  // Achado da auditoria. A primeira fundacao do projeto diz que se corrige por
+  // estorno, e tres dos sete caminhos de escrita nao gravavam grupo: a compra, a
+  // contagem e a perda. O que nao tem grupo nao e achado, e o que nao e achado
+  // nao e desfeito.
+  {
+    file: 'src/data/repository.ts',
+    from: `        // que a nota tiver duas, o grupo por linha desfaria metade de uma nota,
+        // que é a coisa que o estorno por ato existe para não deixar acontecer.
+        purchaseId,`,
+    to: `        // que a nota tiver duas, o grupo por linha desfaria metade de uma nota,
+        // que é a coisa que o estorno por ato existe para não deixar acontecer.
+        lineId,`,
+    hurts:
+      'o grupo da compra passa a ser a LINHA em vez da nota: no dia em que uma nota tiver duas linhas, desfazer volta meia nota e deixa a outra metade de pe',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: `        // outra, e um zero digitado com o dedo torto ficava no razão para sempre.
+        id,`,
+    to: `        // outra, e um zero digitado com o dedo torto ficava no razão para sempre.
+        null,`,
+    hurts:
+      'a contagem volta a nascer sem grupo, e um zero digitado com o dedo torto fica no razao para sempre - sem estorno e sem exclusao, que e a fundacao quebrada nas duas pontas',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: `        // não sumiram.
+        id,`,
+    to: `        // não sumiram.
+        null,`,
+    hurts:
+      'a perda volta a nascer sem grupo: "digitei 40 onde era 4" desconta trinta e seis quilos de dinheiro que nao sumiram, para sempre',
+  },
+
   // --- a orfa que travava a fila, 4 de setembro ------------------------------
   //
   // Achado da auditoria. Apagar uma area menor deixava a fila apontando para

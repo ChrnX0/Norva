@@ -401,8 +401,9 @@ export async function recordPurchase(
     // sugar price change in March must not rewrite what January cost.
     await conn.runAsync(
       `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
-                              quantity_base_units, location_id, unit_cost_rate, assistant_phrase)
-       VALUES (?, ?, 'purchase', ?, ?, ?, ?, ?, ?, ?)`,
+                              quantity_base_units, location_id, unit_cost_rate,
+                              movement_group_id, assistant_phrase)
+       VALUES (?, ?, 'purchase', ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         lineId,
         companyId,
@@ -412,6 +413,11 @@ export async function recordPurchase(
         input.baseUnits,
         locationId,
         lineRate,
+        // O grupo é a NOTA, não a linha: desfazer uma nota desfaz as linhas dela.
+        // Hoje entra uma linha por chamada e os dois dariam no mesmo; no dia em
+        // que a nota tiver duas, o grupo por linha desfaria metade de uma nota,
+        // que é a coisa que o estorno por ato existe para não deixar acontecer.
+        purchaseId,
         input.assistantPhrase ?? null,
       ],
     );
@@ -480,6 +486,17 @@ export type MovementRow = {
   unitCostRate: Rate | null;
   note: string | null;
   occurredAt: string;
+  /**
+   * O ATO de que esta linha faz parte, que é por onde se desfaz.
+   *
+   * Nulo em movimento antigo, gravado antes de a compra, a contagem e a perda
+   * carregarem grupo. Nulo aqui quer dizer exatamente uma coisa na tela: esta
+   * linha não tem como ser desfeita, e é melhor não oferecer do que oferecer e
+   * falhar.
+   */
+  groupId: string | null;
+  /** Verdadeiro quando alguém já desfez este ato. Estorno não se faz duas vezes. */
+  reversed: boolean;
 };
 
 /**
@@ -927,9 +944,9 @@ export async function recordCount(
 
     await conn.runAsync(
       `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
-                              quantity_base_units, location_id, unit_cost_rate, note,
-                              assistant_phrase)
-       VALUES (?, ?, 'adjustment', ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              quantity_base_units, location_id, unit_cost_rate,
+                              movement_group_id, note, assistant_phrase)
+       VALUES (?, ?, 'adjustment', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         companyId,
@@ -939,6 +956,12 @@ export async function recordCount(
         delta,
         locationId,
         averageRate || null,
+        // O grupo é a própria linha. Uma contagem é um ato de uma perna, e sem
+        // grupo ela não tem como ser DESFEITA: `planReversal` procura pelo grupo,
+        // e o que não tem grupo não existe para ele. A fundação diz que se corrige
+        // por estorno, nunca por exclusão — sem isto não havia nem uma coisa nem
+        // outra, e um zero digitado com o dedo torto ficava no razão para sempre.
+        id,
         input.note ?? null,
         input.assistantPhrase ?? null,
       ],
@@ -982,12 +1005,21 @@ export async function itemMovements(
     unit_cost_rate: number | null;
     note: string | null;
     occurred_at: string;
+    movement_group_id: string | null;
+    reversed: number;
   }>(
-    `SELECT id, kind, quantity_base_units, unit_cost_rate, note, occurred_at
-       FROM movements
-      WHERE company_id = ? AND item_id = ?
-        AND (? IS NULL OR location_id = ?)
-      ORDER BY occurred_at DESC, rowid DESC
+    // O `EXISTS` usa o índice parcial `movements_reversal_idx`, criado justo para
+    // ele: sem índice, perguntar "isto foi estornado?" por linha é uma varredura
+    // do razão inteiro por linha, e a capa abria em dez segundos com dois anos de
+    // fábrica.
+    `SELECT m.id, m.kind, m.quantity_base_units, m.unit_cost_rate, m.note, m.occurred_at,
+            m.movement_group_id,
+            EXISTS (SELECT 1 FROM movements r
+                     WHERE r.reverses_movement_id = m.id AND r.company_id = m.company_id) AS reversed
+       FROM movements m
+      WHERE m.company_id = ? AND m.item_id = ?
+        AND (? IS NULL OR m.location_id = ?)
+      ORDER BY m.occurred_at DESC, m.rowid DESC
       LIMIT ?`,
     [companyId, itemId, locationId ?? null, locationId ?? null, limit],
   );
@@ -999,6 +1031,8 @@ export async function itemMovements(
     unitCostRate: r.unit_cost_rate === null ? null : (r.unit_cost_rate as Rate),
     note: r.note,
     occurredAt: r.occurred_at,
+    groupId: r.movement_group_id,
+    reversed: r.reversed === 1,
   }));
 }
 
@@ -2099,8 +2133,8 @@ export async function recordLoss(
     await conn.runAsync(
       `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                               quantity_base_units, location_id, unit_cost_rate, loss_reason,
-                              lot_id, note, assistant_phrase)
-       VALUES (?, ?, 'loss', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              movement_group_id, lot_id, note, assistant_phrase)
+       VALUES (?, ?, 'loss', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         companyId,
@@ -2111,6 +2145,11 @@ export async function recordLoss(
         locationId,
         rate || null,
         input.reason,
+        // O grupo é a própria linha, pelo mesmo motivo da contagem: sem ele a
+        // perda não tem como ser desfeita, e "digitei 40 onde era 4" fica no
+        // razão para sempre — descontando trinta e seis quilos de dinheiro que
+        // não sumiram.
+        id,
         // "Quatro caixas venceram" só muda a compra se alguém souber QUAL lote
         // venceu: sem o lote, a perda por validade não fecha a conta do lote que
         // a etiqueta prometeu rastrear.

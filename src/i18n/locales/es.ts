@@ -565,6 +565,22 @@ export const es: Dictionary = {
       countConfirm: 'Registrar el conteo',
       countConfirmAction: 'Registrar',
       countHidden: 'oculto mientras usted cuenta',
+      entries: 'Últimos registros',
+      entriesHint: 'Toque un registro para deshacerlo. Nada se borra: la corrección entra como línea nueva, y las dos quedan.',
+      undone: 'ya corregido',
+      undoTitle: '¿Deshacer esta {{what}}?',
+      undoBody:
+        'Vuelve al inventario: {{back}}. Sale del inventario: {{out}}. Queda registrado que hubo corrección, y nada se borra.',
+      undoNothingBack: 'nada',
+      undoNothingOut: 'nada',
+      undoConfirm: 'Deshacer',
+      undoDone: 'Este registro ya fue corregido',
+      undoDoneBody: 'Su corrección ya está registrada. No se corrige dos veces.',
+      undoBlocked: 'Falta qué devolver',
+      undoBlockedBody:
+        'Deshacer esto sacaría del inventario más de lo que hay: {{items}}. Traiga la mercancía de vuelta primero, o registre el recuento de lo que existe.',
+      undoBlockedLine: '{{name}} necesita {{needed}} y tiene {{held}}',
+      undoFailed: 'No se pudo deshacer',
       countRoom: 'Este es el saldo de {{room}}. El recuento es de esa sala.',
       countSpread:
         'Este artículo está en {{count}} lugares. Se cuenta un lugar por vez — toque el lugar para contar allí.',
@@ -986,6 +1002,19 @@ export const es: Dictionary = {
     courtesy: 'Cortesía',
     internal_use: 'Consumo interno',
     reasonRequired: 'Diga qué pasó — eso protege el reporte de todos.',
+  },
+
+  movement: {
+    purchase: 'Compra',
+    production: 'Producción',
+    consumption: 'Consumo',
+    transfer: 'Transferencia',
+    sale: 'Venta',
+    loss: 'Pérdida',
+    return: 'Devolución',
+    adjustment: 'Recuento',
+    discrepancy: 'Diferencia en la revisión',
+    reversal: 'Corrección',
   },
 
   posts: {

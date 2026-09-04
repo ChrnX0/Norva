@@ -614,6 +614,23 @@ export const ptBR = {
       countConfirm: 'Registrar a contagem',
       countConfirmAction: 'Registrar',
       countHidden: 'escondido enquanto você conta',
+      /** O histórico de lançamentos, e o desfazer de cada um. */
+      entries: 'Últimos lançamentos',
+      entriesHint: 'Toque num lançamento para desfazer. Nada é apagado: a correção entra como linha nova, e as duas ficam.',
+      undone: 'já corrigido',
+      undoTitle: 'Desfazer esta {{what}}?',
+      undoBody:
+        'Volta para o estoque: {{back}}. Sai do estoque: {{out}}. Fica registrado que houve correção, e nada é apagado.',
+      undoNothingBack: 'nada',
+      undoNothingOut: 'nada',
+      undoConfirm: 'Desfazer',
+      undoDone: 'Este lançamento já foi corrigido',
+      undoDoneBody: 'A correção dele já está no registro. Não se corrige duas vezes.',
+      undoBlocked: 'Falta o que devolver',
+      undoBlockedBody:
+        'Desfazer isto tiraria do estoque mais do que tem: {{items}}. Traga a mercadoria de volta primeiro, ou registre a contagem do que existe.',
+      undoBlockedLine: '{{name}} precisa de {{needed}} e tem {{held}}',
+      undoFailed: 'Não deu para desfazer',
       /** Qual sala este saldo é. Sem isso o número da sala parece o da empresa. */
       countRoom: 'Este é o saldo da {{room}}. A contagem é dessa sala.',
       /** Mais de um lugar e nenhum escolhido: contar aqui gravaria em lugar errado. */
@@ -1077,6 +1094,26 @@ export const ptBR = {
     courtesy: 'Cortesia',
     internal_use: 'Consumo interno',
     reasonRequired: 'Diga o que aconteceu — isso protege o relatório de todo mundo.',
+  },
+
+  /**
+   * O que cada linha do razão é, em uma palavra.
+   *
+   * A camada de dados devolve `kind`, que é vocabulário de esquema; a tela que
+   * mostra o histórico de um insumo precisa da palavra que a equipe usa. Estão
+   * aqui, e não dentro de uma tela, porque três telas vão querer as mesmas.
+   */
+  movement: {
+    purchase: 'Compra',
+    production: 'Produção',
+    consumption: 'Consumo',
+    transfer: 'Transferência',
+    sale: 'Venda',
+    loss: 'Perda',
+    return: 'Devolução',
+    adjustment: 'Contagem',
+    discrepancy: 'Diferença na conferência',
+    reversal: 'Correção',
   },
 
   posts: {

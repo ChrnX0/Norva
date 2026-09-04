@@ -27,7 +27,9 @@ import {
   listPlaces,
   itemHistory,
   itemMovements,
+  planReversal,
   recipesUsingItem,
+  reverseGroup,
   recordCount,
   setItemActive,
   type ItemWithCost,
@@ -116,6 +118,9 @@ function InputDetail() {
   // check becomes theatre that nobody can tell apart from a real one.
   const [counting, setCounting] = useState(false);
   const [typed, setTyped] = useState('');
+
+  /** Verdadeiro enquanto um estorno está sendo gravado, para não gravar dois. */
+  const [desfazendo, setDesfazendo] = useState(false);
 
   const [losing, setLosing] = useState(false);
   const [lostText, setLostText] = useState('');
@@ -306,6 +311,97 @@ function InputDetail() {
     setCounting(false);
     setTyped('');
     await refresh();
+  };
+
+  /**
+   * Desfazer um lançamento — a fundação, com os números por extenso antes.
+   *
+   * O plano vem do razão, não da tela: `planReversal` diz quanto volta, de onde,
+   * e recusa o que deixaria saldo negativo. A tela só fala português em cima do
+   * que ele respondeu, que é a divisão de trabalho deste projeto.
+   *
+   * Nada é apagado: o estorno é uma linha nova que nega a anterior, e as duas
+   * ficam. É por isso que a confirmação diz "fica registrado" em vez de "apaga".
+   */
+  const desfazer = async (move: MovementRow) => {
+    if (!move.groupId || desfazendo) return;
+
+    let plano;
+    try {
+      plano = await planReversal(LOCAL_COMPANY_ID, move.groupId);
+    } catch {
+      // Grupo que não existe é linha antiga, gravada antes de o ato carregar
+      // grupo. Não é erro da pessoa e não vale diálogo de falha.
+      return;
+    }
+
+    const diga = (l: { baseUnits: number; baseUnit: string; name: string }) =>
+      fill(t.common.amountOf, {
+        amount: `${formatQuantity(Math.abs(l.baseUnits), locale)} ${l.baseUnit}`,
+        name: l.name,
+      });
+
+    if (plano.alreadyReversed) {
+      await confirm({
+        title: t.app.inputDetail.undoDone,
+        message: t.app.inputDetail.undoDoneBody,
+        acknowledge: true,
+        confirmLabel: t.app.confirm.understood,
+      });
+      return;
+    }
+
+    // O que falta para o estorno CABER, dito antes de tentar: a Lei 5 diz que o
+    // erro impede, e impedir sem dizer o caminho é beco.
+    if (plano.blocked.length > 0) {
+      await confirm({
+        title: t.app.inputDetail.undoBlocked,
+        message: fill(t.app.inputDetail.undoBlockedBody, {
+          items: plano.blocked
+            .map((b) =>
+              fill(t.app.inputDetail.undoBlockedLine, {
+                name: b.name,
+                needed: `${formatQuantity(b.needed, locale)} ${b.baseUnit}`,
+                held: `${formatQuantity(b.held, locale)} ${b.baseUnit}`,
+              }),
+            )
+            .join(' · '),
+        }),
+        acknowledge: true,
+        confirmLabel: t.app.confirm.understood,
+      });
+      return;
+    }
+
+    const volta = plano.legs.filter((l) => l.baseUnits > 0);
+    const sai = plano.legs.filter((l) => l.baseUnits < 0);
+    const go = await confirm({
+      title: fill(t.app.inputDetail.undoTitle, {
+        what: t.movement[move.kind as keyof typeof t.movement] ?? move.kind,
+      }),
+      message: fill(t.app.inputDetail.undoBody, {
+        back: volta.length > 0 ? volta.map(diga).join(' · ') : t.app.inputDetail.undoNothingBack,
+        out: sai.length > 0 ? sai.map(diga).join(' · ') : t.app.inputDetail.undoNothingOut,
+      }),
+      confirmLabel: t.app.inputDetail.undoConfirm,
+      destructive: true,
+    });
+    if (!go) return;
+
+    setDesfazendo(true);
+    try {
+      await reverseGroup(LOCAL_COMPANY_ID, { groupId: move.groupId });
+      await refresh();
+    } catch (e) {
+      await confirm({
+        title: t.app.inputDetail.undoFailed,
+        message: e instanceof Error ? e.message : String(e),
+        acknowledge: true,
+        confirmLabel: t.app.confirm.understood,
+      });
+    } finally {
+      setDesfazendo(false);
+    }
   };
 
   const toggleActive = async () => {
@@ -661,11 +757,55 @@ function InputDetail() {
         </Reveal>
       ) : null}
 
+      {/* O que foi lançado, e o desfazer de cada um.
+          A fundação diz que se corrige por estorno, nunca por exclusão — e até
+          agora só a corrida de produção tinha por onde. A nota digitada com dez
+          sacos onde era um, a perda de 40 onde era 4, o zero contado com o dedo
+          torto: os três ficavam no razão para sempre.
+          Linha sem grupo não oferece desfazer: movimento antigo, gravado antes de
+          o ato carregar grupo. Melhor não oferecer do que oferecer e falhar. */}
+      {(data?.movements ?? []).length > 0 ? (
+        <Reveal index={7}>
+          <Card
+            hue={palette.mint}
+            icon={(c) => <GlyphCount size={26} color={c} weight={traco} />}
+            title={t.app.inputDetail.entries}
+          >
+            <Text style={[type.secondary, { color: color.inkMuted }]}>
+              {t.app.inputDetail.entriesHint}
+            </Text>
+            <View style={{ marginTop: space.sm }}>
+              {(data?.movements ?? []).slice(0, 8).map((move) => {
+                const podeDesfazer = move.groupId !== null && !move.reversed && !desfazendo;
+                const quanto = `${move.baseUnits > 0 ? '+' : '−'}${formatQuantity(
+                  Math.abs(move.baseUnits),
+                  locale,
+                )} ${item.baseUnit}`;
+                return (
+                  <ListRow
+                    key={move.id}
+                    label={t.movement[move.kind as keyof typeof t.movement] ?? move.kind}
+                    detail={
+                      move.reversed
+                        ? `${formatDayMonth(move.occurredAt, locale)} · ${t.app.inputDetail.undone}`
+                        : formatDayMonth(move.occurredAt, locale)
+                    }
+                    trailing={quanto}
+                    trailingTone={move.reversed ? 'muted' : move.baseUnits > 0 ? 'ok' : 'ink'}
+                    onPress={podeDesfazer ? () => void desfazer(move) : undefined}
+                  />
+                );
+              })}
+            </View>
+          </Card>
+        </Reveal>
+      ) : null}
+
       {/* A próxima ação provável, ao alcance do polegar: lançar a compra é o
           que quase sempre traz alguém a esta tela. Corrigir e tirar de
           circulação ficam fantasma — botão grande e colorido convida, e
           ninguém deve ser convidado a desfazer. */}
-      <Reveal index={7}>
+      <Reveal index={8}>
         <View style={{ gap: space.sm }}>
           <Button
             label={t.app.inputDetail.recordPurchase}
