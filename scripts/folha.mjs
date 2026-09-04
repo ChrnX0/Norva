@@ -41,10 +41,13 @@ const html = `<!doctype html><meta charset="utf-8">
   body { background:#1A1A1A; margin:0; padding:16px; font:11px system-ui; color:#DDD; }
   .grade { display:grid; grid-template-columns:repeat(6, 1fr); gap:12px; }
   figure { margin:0; }
-  img { width:100%; display:block; border:1px solid #333; background:#000;
-        /* O topo é o que identifica a tela; o rodapé é a barra de abas, igual
-           em todas. Cortar embaixo cabe mais tela na mesma altura. */
-        object-fit:cover; object-position:top; height:420px; }
+  /* Inteira, não cortada.
+     A primeira versão cortava em 420px "porque o topo identifica a tela" — e
+     numa folha cujo trabalho é caçar defeito, cortar embaixo é escolher onde
+     não olhar. A grade fica desalinhada e tudo bem: desalinhada e completa é
+     melhor que arrumada e cega. */
+  img { width:100%; display:block; border:1px solid #333; background:#000; height:auto; }
+  .grade { align-items:start; }
   figcaption { margin-top:4px; color:#9A9A9A; word-break:break-all; }
 </style>
 <div class="grade">
