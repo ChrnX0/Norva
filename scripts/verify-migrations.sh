@@ -685,6 +685,51 @@ fi
 
 echo "    o estado inicial é do banco, aprovar é de quem aprova, e a linha não cruza empresa"
 
+echo "==> check 9: o reenvio da fila passa pela capacidade MÍNIMA de quem escreveu"
+
+# A garantia que faltava, e a ausência dela deixou passar um defeito crítico.
+#
+# A checagem 6 sobe a fila com uma conta que tem `enum_range(null::capability)` —
+# TODAS as capacidades. A checagem 8 dá à vendedora `place_order` MAIS `dispatch`.
+# Nenhuma conta com a capacidade mínima de um papel real jamais rodou a SEGUNDA
+# passagem, e é na segunda que o defeito mora: a fila sobe com `on conflict do
+# update`, e uma política de update que peça mais do que a de insert recusa o
+# reenvio e trava a fila para sempre atrás daquela linha.
+#
+# Aqui a gerente de loja tem exatamente o que o produto dá a ela em
+# `src/domain/access.ts`: place_order, view_sale_price, check_receipt,
+# record_loss. Nada de approve_order, nada de dispatch, nada de manage_company.
+psql -d "$DB" -q -c "insert into auth.users (id) values ('${P}93');" >/dev/null  # proofgate-allow
+psql -d "$DB" -q -c "insert into memberships (company_id, user_id, display_name, capabilities)
+  values ('${P}01','${P}93','Gerente da loja',
+          array['place_order','view_sale_price','check_receipt','record_loss']::capability[]);" >/dev/null  # proofgate-allow
+
+# Primeira subida: entra.
+UM="insert into orders (id, company_id, place_id, status, recorded_by) values ('${P}51','${P}01','${P}11','open','${P}93');"  # proofgate-allow
+as_user "${P}93" "$UM" >/dev/null ||
+  fail "a gerente da loja não conseguiu anotar o pedido dela"
+
+# Segunda subida: é o MESMO caminho que a fila do aparelho usa quando o sinal caiu
+# no meio do envio. Sem a política de reenvio, o Postgres recusa exatamente aqui.
+DOIS="insert into orders (id, company_id, place_id, status, recorded_by) values ('${P}51','${P}01','${P}11','open','${P}93')
+      on conflict (id) do update set place_id = excluded.place_id, status = excluded.status, recorded_by = excluded.recorded_by;"  # proofgate-allow
+as_user "${P}93" "$DOIS" >/dev/null ||
+  fail "o reenvio do pedido foi recusado: a fila do aparelho trava aqui, e tudo o que veio depois fica preso atrás dela"
+
+# E o reenvio não decidiu nada. A empresa exige aprovação, então o pedido dela
+# nasceu pendente e TEM que continuar pendente depois de duas subidas dizendo
+# 'open'. Se virou 'open', o reenvio aprovou um pedido — o oposto do que a
+# checagem 8 protege.
+depois=$(psql -d "$DB" -Atqc "select status from orders where id = '${P}51';")  # proofgate-allow
+[ "$depois" = "pending" ] ||
+  fail "o reenvio deixou o pedido em '$depois': reenviar decidiu, e aprovar não é de quem só anota"
+
+# E quem decide continua decidindo, senão o conserto teria quebrado a checagem 8.
+as_user "${P}92" "update orders set status = 'open' where id = '${P}51';" >/dev/null ||
+  fail "quem tem approve_order deixou de conseguir aprovar depois do conserto"
+
+echo "    a fila sobe duas vezes pela capacidade mínima, e o reenvio não decide nada"
+
 echo
-echo "OK - migrations apply and all eight guarantees hold."
+echo "OK - migrations apply and all nine guarantees hold."
 

@@ -29,6 +29,25 @@ import { spawnSync } from 'node:child_process';
 
 /** @type {{file: string, from: string, to: string, hurts: string}[]} */
 const DEFECTS = [
+  // --- o apagador que conhecia 12 das 21 tabelas, 4 de setembro -------------
+  //
+  // A guarda que devia pegar isto comparava uma lista escrita a mao consigo
+  // mesma. Agora ela LE o esquema, e estas duas mutacoes provam que ela le.
+  {
+    file: 'src/data/erase.ts',
+    from: "        'lots',\n",
+    to: '',
+    hurts:
+      'lots volta a ficar de pe quando "apagar tudo" some com items, e o DELETE levanta FOREIGN KEY: a transacao inteira volta atras, nada e apagado, e a tela mostra erro cru de SQLite em ingles depois do toque',
+  },
+  {
+    file: 'src/data/erase.ts',
+    from: "      return { ...nothing, purchases: counts.purchases, movements: counts.movements };",
+    to: '      return { ...nothing, purchases: counts.purchases };',
+    hurts:
+      'apagar "compras" volta a levar TODO movimento da fabrica sem dizer: a confirmacao fala so de custo medio, e producao, contagem, perda e transferencia somem sem aviso e sem volta',
+  },
+
   // --- a luz da tela, 4 de setembro ----------------------------------------
   //
   // O dono abriu o Papel num celular em modo escuro e nao teve como trocar. O

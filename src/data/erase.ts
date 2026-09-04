@@ -31,9 +31,17 @@ export type EraseArea = 'purchases' | 'recipes' | 'products' | 'inputs' | 'all';
  */
 export type ErasableTable =
   | 'movements'
+  | 'readings'
+  | 'production_runs'
+  | 'order_lines'
+  | 'orders'
+  | 'lots'
   | 'purchase_lines'
   | 'purchases'
   | 'products'
+  | 'product_types'
+  | 'product_lines'
+  | 'flavors'
   | 'recipe_lines'
   | 'recipe_versions'
   | 'recipes'
@@ -46,6 +54,24 @@ export type ErasableTable =
 /** What the screen counts up so the confirmation can speak in real numbers. */
 export type EraseCounts = {
   inputs: number;
+  /**
+   * Movimentos do livro-razão que a área leva junto.
+   *
+   * **A cicatriz.** `tablesFor('purchases')` começa com `movements`, e o
+   * `DELETE` é por empresa — então apagar "compras" apagava TODO movimento da
+   * fábrica: produção, contagem, perda, transferência, saída. A confirmação
+   * dizia *"isso apaga as compras, e zera o custo médio"*. Não dizia que um
+   * movimento ia.
+   *
+   * O dono que apaga as compras de exemplo para começar a escrituração de
+   * verdade perdia tudo o que já tinha registrado, com a tela lhe dizendo outra
+   * coisa. É irreversível pelo texto da própria confirmação, e não há cópia no
+   * servidor: o comando de apagar não tem lado servidor.
+   *
+   * A regra da casa é essa mesma — a confirmação diz o que vai acontecer, com os
+   * números por extenso. Faltava o número.
+   */
+  movements: number;
   /** Lugares que a pessoa cadastrou. O padrão, que nasce sem nome, não conta. */
   places: number;
   recipes: number;
@@ -63,6 +89,7 @@ export type EraseCounts = {
 
 export const emptyCounts: EraseCounts = {
   inputs: 0,
+  movements: 0,
   places: 0,
   recipes: 0,
   products: 0,
@@ -95,15 +122,39 @@ export function tablesFor(area: EraseArea): readonly ErasableTable[] {
     case 'recipes':
       return ['recipe_lines', 'recipe_versions', 'recipes'];
     case 'products':
-      return ['products'];
+      // As três que travam: `lots.item_id` e `order_lines.item_id` apontam para
+      // `items` com RESTRICT, e esta área apaga os itens de tipo produto logo
+      // depois de `products`. `production_runs` sai por CASCADE do produto, e
+      // está aqui escrita para a ordem ser legível em vez de implícita.
+      return ['production_runs', 'order_lines', 'lots', 'products'];
     case 'inputs':
       return ['movements', 'item_cost_history', 'item_costs', 'items'];
     case 'all':
+      // Filho antes de pai, e a ordem é a do esquema — não a de quem lembrou.
+      //
+      // Oito destas entraram em 4 de setembro, e a ausência delas não era
+      // cosmética: cinco apontam para `items` ou `locations` com ON DELETE
+      // RESTRICT, e é justamente `items` e `locations` que esta lista apaga.
+      // Toda corrida de produção grava um `lots`, então A PARTIR DA PRIMEIRA
+      // CORRIDA o SQLite levantava "FOREIGN KEY constraint failed", a transação
+      // inteira voltava atrás, nada era apagado, e a tela mostrava o texto cru
+      // do SQLite em inglês — num aplicativo que promete três idiomas, e depois
+      // do toque em vez de o botão nascer desabilitado com o motivo.
       return [
         'movements',
+        'readings',
+        'production_runs',
+        'order_lines',
+        'orders',
+        'lots',
         'purchase_lines',
         'purchases',
         'products',
+        // A grade vem DEPOIS do produto: `products.line_id`, `type_id` e
+        // `flavor_id` apontam para cá com RESTRICT.
+        'product_types',
+        'product_lines',
+        'flavors',
         'recipe_lines',
         'recipe_versions',
         'recipes',
@@ -183,6 +234,8 @@ export class EraseBlockedError extends Error {
  */
 export type EraseTally = {
   inputs: number;
+  /** Movimentos do livro-razão. Ver `EraseCounts.movements`. */
+  movements: number;
   recipes: number;
   products: number;
   purchases: number;
@@ -191,20 +244,21 @@ export type EraseTally = {
 };
 
 export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
-  const nothing: EraseTally = { inputs: 0, recipes: 0, products: 0, purchases: 0, places: 0 };
+  const nothing: EraseTally = { inputs: 0, movements: 0, recipes: 0, products: 0, purchases: 0, places: 0 };
 
   switch (area) {
     case 'purchases':
-      return { ...nothing, purchases: counts.purchases };
+      return { ...nothing, purchases: counts.purchases, movements: counts.movements };
     case 'recipes':
       return { ...nothing, recipes: counts.recipes };
     case 'products':
       return { ...nothing, products: counts.products };
     case 'inputs':
-      return { ...nothing, inputs: counts.inputs };
+      return { ...nothing, inputs: counts.inputs, movements: counts.movements };
     case 'all':
       return {
         inputs: counts.inputs,
+        movements: counts.movements,
         recipes: counts.recipes,
         products: counts.products,
         purchases: counts.purchases,
@@ -215,6 +269,9 @@ export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
 
 /** Whether there is anything at all to erase in this area. */
 export function isEmpty(tally: EraseTally): boolean {
-  return tally.inputs + tally.recipes + tally.products + tally.purchases + tally.places === 0;
+  return (
+    tally.inputs + tally.movements + tally.recipes + tally.products + tally.purchases + tally.places ===
+    0
+  );
 }
 

@@ -135,6 +135,9 @@ function sayTally(area: EraseArea, tally: EraseTally, t: Dictionary): string {
     if (n > 0) parts.push(plural(n, words.counted[key]));
   };
   add(tally.inputs, 'inputs');
+  // Antes dos cadastros, porque é o que dói: apagar "compras" leva TODO
+  // movimento da fábrica, e a frase dizia só que zerava o custo médio.
+  add(tally.movements, 'movements');
   add(tally.recipes, 'recipes');
   add(tally.products, 'products');
   add(tally.places, 'places');
