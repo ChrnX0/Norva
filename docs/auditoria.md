@@ -83,6 +83,13 @@ foi fechado fica marcado aqui, com o que impede a volta.
   **O que ficou:** registrar o trajeto câmara → almoxarifado não existe, e isso é
   decisão de dono sobre a F2. Está escrita em `docs/roadmap.md` ("A sala do tacho"),
   com as duas formas e o motivo de nenhuma poder ser escolhida por mim.
+- **9 — o livro-razão saindo pelo backup do Android.** `allowBackup` desligado no
+  `app.json`, com guarda em `src/release.test.ts` — a intenção conferida em todo commit e
+  o manifesto **gerado** conferido no fluxo de build, que é o arquivo que instala.
+- **O `versionCode` que colidia** (um dos treze médios, e o mais barato deles): 0.10.0
+  e 1.0.0 davam 100000 os dois, com o 0.10.0 já publicado. A fórmula nova dá faixa
+  própria a cada parte e concorda com a antiga em toda versão 0.x.0, então nada do que
+  já saiu muda de número.
 - **8 — a órfã que travava a fila.** Apagar uma área menor deixava a fila apontando
   para linhas que acabaram de ser apagadas. Agora a varredura esquece, dentro da mesma
   transação, o que a fila ia mandar de uma linha que não existe mais — e só o que nunca
