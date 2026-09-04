@@ -2728,3 +2728,96 @@ duas metades — quando roda, e o que roda — e o conserto tratou a primeira co
 fosse a coisa toda, com um docblock longo por cima afirmando o conserto. É a mesma
 forma dos rótulos de hoje: o texto ao lado descreve um estado que o código não
 tem mais.
+
+## 4 de setembro — a política de update existia, e era isso que escondia o defeito
+
+**O que se viu.** Uma varredura de sete eixos com refutação adversarial (19 achados
+julgados, 4 de pé, 15 derrubados) encontrou a **terceira** aparição da mesma
+família: a fila do aparelho sobe com `on conflict do update`, e a tabela não deixa
+reenviar.
+
+A 0015 consertou isso para `purchases` e `purchase_lines`. A 0020 consertou para
+`lots`. Nas duas, o defeito tinha a mesma forma — política de insert e **nenhuma**
+de update. E foi essa forma que virou a frase escrita aqui no dia 1º: *"todas as
+outras tabelas que ela escreve têm um `_manage FOR ALL`, que cobre update"*.
+
+`orders` **tem** política de update. Ela pede `approve_order`, `dispatch` ou
+`manage_company`, e a de insert pede `place_order` — e três dos sete papéis do
+produto (`storeManager`, `customer`, `salesperson`) têm o segundo e nenhum dos
+primeiros. A busca por "tabela sem política de update" nunca a encontraria.
+
+**Por que passou pela barra.** Duas coisas, e as duas são a mesma: a verificação
+usava contas mais poderosas do que as reais. A checagem 6 sobe a fila inteira com
+`enum_range(null::capability)` — todas as capacidades que existem. A checagem 8, que
+é a do pedido, dá à "Vendedora" `place_order` **mais** `dispatch`, e é o `dispatch`
+que faz o update passar. **Nenhuma conta com a capacidade mínima de um papel real
+jamais rodou a segunda passagem da fila.**
+
+É a mesma doença que o `db:verify` já teve e já consertou uma vez, quando rodava
+como superusuário: a verificação com mais poder do que a realidade prova o que não
+está em questão.
+
+**O que mudou.** Migração `0027`, e ela é de duas peças porque RLS não consegue
+dizer "contanto que não mude" — a expressão não enxerga o antes e o depois ao mesmo
+tempo. A política deixa o **autor** reenviar o próprio pedido; um gatilho devolve
+`status` e `decided_at` quando quem escreve não decide. É exatamente o que a 0019 já
+faz no insert, com a razão escrita lá: o payload vem de fora.
+
+E o nome do gatilho é estrutural: o Postgres roda os `before` em ordem alfabética, e
+`orders_decision_fields_stay_put` precisa vir antes de
+`orders_leave_pending_only_by_approval`. Renomear qualquer um sem saber devolve o
+defeito **sem nada ficar vermelho**.
+
+A **checagem 9** do `db:verify` sobe a fila duas vezes pela capacidade mínima de um
+papel real. Provei que ela morde tirando a migração: reprova com `new row violates
+row-level security policy (USING expression) for table "orders"`.
+
+**A regra que fica:** *quando uma família reaparece, procure a forma nova, não a
+forma velha.* A frase que registra um conserto vira o gabarito da próxima busca — e
+um gabarito é tão bom quanto o caso que o gerou. Aqui ele descrevia "ausência de
+política" e o caso novo era "política com a capacidade errada".
+
+## 4 de setembro — a guarda comparava a lista com ela mesma, e nove tabelas ficavam
+
+**O que se viu.** `src/data/erase.test.ts` tinha um teste chamado *"erasing
+everything reaches every table that holds business data"*. Ele percorria um `Record`
+escrito à mão logo acima e conferia se cada chave estava em `tablesFor('all')`. O
+`Record` tinha exatamente as doze entradas do union `ErasableTable`, e
+`tablesFor('all')` devolvia essas mesmas doze.
+
+A asserção era **"todo membro do conjunto fechado está na lista do conjunto
+fechado"**. Uma tabela que não estivesse no union era invisível para o teste **por
+construção** — não por esquecimento, por forma. O autor do mapa e o autor da lista
+eram a mesma pessoa lembrando das mesmas doze tabelas, e o teste perguntava se ela
+lembrava do que tinha acabado de escrever.
+
+**O que isso escondia.** O aparelho tem 21 tabelas. Nove nunca eram apagadas, e
+cinco delas apontam para `items` ou `locations` com `ON DELETE RESTRICT` — que são
+justamente as duas que o "apagar tudo" apaga. Toda corrida de produção grava um
+`lots`. Então **a partir da primeira corrida**, "Apagar tudo" levantava `FOREIGN KEY
+constraint failed`, a transação voltava atrás, **nada** era apagado, e a tela
+mostrava o texto cru do SQLite em inglês — num aplicativo que promete três idiomas,
+e depois do toque em vez de o botão nascer desabilitado com o motivo.
+
+E o vizinho: `tablesFor('purchases')` começa com `movements`, e o `DELETE` é por
+empresa. Apagar "compras" apagava **todo movimento da fábrica** — produção,
+contagem, perda, transferência — com a confirmação dizendo que zerava o custo médio.
+Irreversível pelo texto da própria tela, e sem cópia no servidor.
+
+**O que mudou.** A guarda passou a **ler** `src/data/db.ts`: as tabelas criadas e as
+arestas de `RESTRICT`, inclusive as que entram por `ALTER` em migrações posteriores
+(a grade do produto). É o mesmo conserto que o `db:verify` fez quando parou de rodar
+como superusuário — perguntar ao sistema em vez de perguntar à lembrança de quem
+escreveu o teste. E a lista de renúncias (`app_meta`, a gaveta do aparelho) pede
+motivo escrito, com um segundo teste recusando renúncia de tabela que não existe
+mais.
+
+**E ela achou um alarme inventado logo na primeira execução**, o que vale registrar
+porque é o outro lado da mesma moeda: cobrou de "apagar produtos" a regra do "apagar
+tudo". Não vale — `blockerFor` recusa as áreas menores **antes** do toque, com o
+número junto, que é a Lei 5. Só o `all` não tem rede (`erase.ts:176` devolve `null`),
+e a premissa está presa no teste com contagens que bloqueariam qualquer outra área.
+
+**A regra que fica:** *uma guarda que compara duas coisas escritas pela mesma mão não
+guarda nada.* A pergunta certa para toda guarda é: **de onde vem o outro lado da
+comparação?** Se a resposta é "do mesmo arquivo", o teste mede memória, não sistema.

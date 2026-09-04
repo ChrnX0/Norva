@@ -87,95 +87,90 @@ decidido pelo dono é **F2 + F3**, e o resto tem data de começo, não de entreg
 
 ## Agora — o que está aberto
 
-Quatro achados confirmados hoje por varredura em sete eixos com refutação
-adversarial: **19 achados julgados, 4 de pé, 15 derrubados.** A refutação foi dura
-de propósito — item errado manda a próxima sessão construir o que já existe.
+**Nada dos quatro. Os quatro foram fechados em `1fcbadc`**, e a lista de trabalho
+está aberta esperando a auditoria.
 
-### 1. A fila trava para sempre atrás de um pedido reenviado — **crítica**
+> **E este arquivo quebrou a própria regra 1 por um commit.** Ela diz: *item
+> fechado sai daqui no mesmo commit que o fecha*. Os quatro foram consertados num
+> commit e riscados no seguinte. Fica registrado em vez de apagado — a regra existe
+> porque plano que lista o que já existe manda alguém construir duas vezes, e a
+> primeira pessoa a esbarrar nisso fui eu, uma hora depois de escrever a regra.
 
-`supabase/migrations/0019_an_order_is_demand.sql:173`
+Vieram de uma varredura de sete eixos com refutação adversarial: **19 achados
+julgados, 4 de pé, 15 derrubados.** A refutação foi dura de propósito — item errado
+manda a próxima sessão construir o que já existe.
 
-O pedido entra com a capacidade `place_order`. Mas a política de **UPDATE** exige
-`approve_order`, `dispatch` ou `manage_company` — e a fila do aparelho sobe com
-`on conflict do update`. Três dos sete papéis (`storeManager`, `customer`,
-`salesperson`) têm `place_order` e **nenhuma** das três.
+### 1. ~~A fila travava para sempre atrás de um pedido reenviado~~ — crítica, fechada
 
-O que acontece na fábrica: a gerente da loja anota o pedido sem sinal. A primeira
-subida entra. A segunda — sinal que caiu, app fechado no meio, bateria acabando —
-é recusada pelo Postgres. E `src/sync/engine.ts:111` para a fila no primeiro
-buraco de propósito, então **tudo o que foi gravado depois daquele pedido fica
-preso atrás dele para sempre**, sem nada na tela dizendo o quê.
+`supabase/migrations/0027_a_resend_is_not_a_decision.sql`
 
-É a **terceira** aparição desta família — `purchases`/`purchase_lines` em 1 de
-setembro, `lots` na 0020 — e a primeira com cara nova: não é ausência de política
-de UPDATE, é política de UPDATE com a capacidade errada. A frase que ficou escrita
-no `insights.md` ("todas as outras têm um `_manage FOR ALL`, que cobre update") não
-cobre este caso. E a tabela filha acertou na mesma migração: `order_lines_correct`
-usa `for all` com `place_order`.
+Terceira aparição da mesma família, e a primeira com cara nova. A 0015 consertou
+`purchases`/`purchase_lines`, a 0020 consertou `lots`, e nas duas o defeito era
+tabela com política de insert e **nenhuma** de update. Aqui `orders` **tem**
+política de update — com a capacidade errada. Entra com `place_order`; só mexe quem
+tem `approve_order`, `dispatch` ou `manage_company`. Três dos sete papéis
+(`storeManager`, `customer`, `salesperson`) têm o primeiro e nenhum dos três.
 
-**Por que a barra não pega:** a conta que sobe a fila no `db:verify` recebe
-`enum_range(null::capability)` — todas as capacidades. E a checagem 8 dá à
-"Vendedora" `place_order` **mais** `dispatch`, e é o `dispatch` que faz o UPDATE
-passar. Nenhuma conta com `place_order` sozinho jamais roda a segunda passagem.
+Na fábrica: a gerente da loja anota o pedido sem sinal. A primeira subida entra. A
+segunda é recusada, e o engine para a fila no primeiro buraco de propósito — então
+produção, contagem e leitura de câmara gravadas **depois** ficam presas atrás
+daquele pedido para sempre, sem nada na tela dizendo o quê.
 
-Conserto: uma migração com política de reenvio, mais uma nona garantia no
-`db:verify` que suba a fila com a capacidade mínima de cada papel.
+**O que ele deixou atrás de si vale mais que ele.** A frase escrita no `insights.md`
+depois da 0015 — *"todas as outras têm um `_manage FOR ALL`, que cobre update"* — é
+o que fez a busca falhar: procurava-se tabela **sem** política de update, e esta
+tinha uma. E a barra não pegava porque a checagem 6 sobe a fila com **todas** as
+capacidades e a checagem 8 dá `dispatch` junto com `place_order`. A **checagem 9**
+sobe a fila duas vezes pela capacidade **mínima** de um papel real, e ela morde:
+sem a migração, reprova com `new row violates row-level security policy`.
 
-### 2. "Apagar tudo" para de funcionar na primeira produção — **alta**
+### 2. ~~"Apagar tudo" não apagava nada depois da primeira produção~~ — alta, fechada
 
-`src/data/erase.ts:32`
+`src/data/erase.ts`
 
-O apagador conhece **12** das **21** tabelas do aparelho. Ficaram de fora
-`production_runs`, `product_lines`, `product_types`, `flavors`, `orders`,
-`order_lines`, `lots`, `readings` (e `app_meta`, que é a gaveta do aparelho e fica
-de fora com razão).
+O conjunto fechado conhecia **12** das **21** tabelas do aparelho. Cinco das nove que
+faltavam apontam para `items` ou `locations` com `ON DELETE RESTRICT` — e é
+justamente `items` e `locations` que o apagar-tudo apaga. Toda corrida de produção
+grava um `lots`, então a partir da **primeira corrida** o SQLite levantava `FOREIGN
+KEY constraint failed`, a transação voltava atrás, nada era apagado, e a tela
+mostrava texto cru de SQLite em inglês — depois do toque.
 
-Cinco dessas apontam para `items` ou `locations` com `ON DELETE RESTRICT` — e é
-justamente `items` e `locations` que o "apagar tudo" apaga. Toda corrida de
-produção grava um `lots`. Então **a partir da primeira corrida**, o SQLite levanta
-`FOREIGN KEY constraint failed`, a transação inteira volta atrás, nada é apagado, e
-a tela mostra o texto cru do SQLite em inglês — num aplicativo que promete três
-idiomas, e depois do toque em vez de o botão nascer desabilitado com o motivo.
+### 3. ~~Apagar "compras" apagava o livro-razão inteiro~~ — alta, fechada
 
-Medido, não deduzido: 21 tabelas, 9 nunca apagadas, 5 com `RESTRICT`.
+`src/data/erase.ts`
 
-### 3. Apagar "compras" apaga o livro-razão inteiro — **alta**
+`tablesFor('purchases')` começa com `movements`, e o `DELETE` é por empresa: levava
+produção, contagem, perda, transferência e saída. A confirmação dizia *"isso apaga
+as compras, e zera o custo médio"*. Não dizia que um movimento ia. Irreversível pelo
+texto da própria tela, e sem cópia no servidor.
 
-`src/data/erase.ts:94`
+A regra da casa já era essa — a confirmação diz o que vai acontecer, com os números
+por extenso. **Faltava o número.**
 
-`tablesFor('purchases')` começa com `movements` e apaga **todo movimento da
-empresa** — produção, contagem, perda, transferência, saída —, não só os de
-compra. A confirmação diz: *"Isso apaga as compras, e zera o custo médio de todos
-os insumos"*. Não diz que um movimento vai.
+### 4. ~~A guarda comparava uma lista escrita à mão consigo mesma~~ — média, fechada
 
-O dono que apaga as compras de exemplo para começar a escrituração de verdade
-perde tudo o que já registrou. É irreversível pelo texto da própria confirmação
-("Isso não tem volta") e **não há cópia no servidor** — o comando de apagar não tem
-lado servidor.
+`src/data/erase.test.ts`
 
-Conserto pequeno: contar movimentos na conta que a tela já mostra, e dizer o número
-por extenso na frase. A regra da casa é essa mesma: a confirmação diz o que vai
-acontecer, com os números por extenso.
+Ela percorria um `Record` com as mesmas doze entradas do union e perguntava se cada
+uma estava na lista — *"todo membro do conjunto fechado está na lista do conjunto
+fechado"*. Uma tabela fora do union era invisível **por construção**: o autor do
+mapa e o autor da lista eram a mesma pessoa lembrando das mesmas doze tabelas.
 
-### 4. A guarda do apagador compara uma lista consigo mesma — **média**
+Agora ela **lê** `db.ts` — as tabelas e as arestas de RESTRICT, inclusive as que
+entram por `ALTER` em migrações posteriores. É o mesmo conserto que o `db:verify`
+fez quando parou de rodar como superusuário: perguntar ao sistema em vez de à
+lembrança.
 
-`src/data/erase.test.ts:60`
-
-O teste que garante que "apagar tudo alcança tudo" percorre `DEPENDS_ON`, um mapa
-escrito à mão logo acima, e confere se cada entrada dele está em `tablesFor('all')`
-— que é a mesma lista. Uma tabela fora do conjunto é **invisível para o teste, por
-construção**.
-
-É por isso que os itens 2 e 3 sobreviveram tanto tempo. O conserto é a guarda ler o
-**esquema** (`src/data/db.ts`) em vez da cópia, que é a mesma correção que o
-`db:verify` já fez quando parou de rodar como superusuário.
+E ela achou mais na primeira execução — **um deles alarme inventado**, cobrando de
+"apagar produtos" a regra do "apagar tudo". Não vale: `blockerFor` recusa aquelas
+áreas **antes** do toque, com o número junto, que é a Lei 5. Só o `all` não tem
+rede, e a premissa está presa no teste com contagens que bloqueariam qualquer outra
+área.
 
 > **A auditoria profissional está rodando** em dez frentes — segurança, livro-razão,
 > dinheiro, sincronização, correção funcional, qualidade da suíte, ergonomia de
 > fábrica, idioma, desempenho e prontidão de loja —, cada achado passando por duas
 > lentes adversariais. O que ela confirmar entra aqui, com severidade e cenário.
-
----
 
 ## F3 — o mês que tira o papel do chão de fábrica
 
