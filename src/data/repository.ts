@@ -708,7 +708,7 @@ export async function lastSentBaseUnits(
     `SELECT quantity_base_units AS q FROM movements m
       WHERE company_id = ? AND item_id = ? AND location_id = ?
         AND kind = 'transfer' AND quantity_base_units > 0
-        AND ${naoEstornado('m')}
+        AND ${NAO_ESTORNADO}
       ORDER BY occurred_at DESC, recorded_at DESC LIMIT 1`,
     [companyId, itemId, toLocationId],
   );
@@ -725,14 +725,14 @@ export async function lastSentBaseUnits(
  * todas as telas de "o que aconteceu" dizendo o número velho: o almoxarifado
  * certo e a produção mentindo, no mesmo aplicativo.
  *
- * Vem como texto, com o apelido de fora, porque é a mesma condição em oito
- * consultas — e oito cópias de uma frase é onde a nona esquece.
+ * Constante e não função de apelido: as oito consultas chamam a tabela de `m`,
+ * e montar SQL por interpolação — mesmo com um apelido que nunca veio de fora —
+ * é o padrão que a proofgate marca, com razão. Consulta que precisar de outro
+ * apelido escreve a sua, à vista.
  */
-function naoEstornado(alias: string): string {
-  return `NOT EXISTS (SELECT 1 FROM movements rev
-                       WHERE rev.reverses_movement_id = ${alias}.id
-                         AND rev.company_id = ${alias}.company_id)`;
-}
+const NAO_ESTORNADO = `NOT EXISTS (SELECT 1 FROM movements rev
+                                    WHERE rev.reverses_movement_id = m.id
+                                      AND rev.company_id = m.company_id)`;
 
 export type PlaceStock = {
   locationId: string;
@@ -2093,7 +2093,7 @@ export async function lossesOn(
         AND m.kind = 'loss'
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
-        AND ${naoEstornado('m')}
+        AND ${NAO_ESTORNADO}
       ORDER BY ABS(m.quantity_base_units * COALESCE(m.unit_cost_rate, 0)) DESC`,
     [companyId, fromIso, toIso],
   );
@@ -2408,7 +2408,7 @@ export async function unchecked(
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
         AND m.movement_group_id IS NOT NULL
-        AND ${naoEstornado('m')}
+        AND ${NAO_ESTORNADO}
         AND NOT EXISTS (
           SELECT 1 FROM movements c
            WHERE c.company_id = m.company_id
@@ -2461,7 +2461,7 @@ export async function productionOn(
         AND m.kind = 'production'
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
-        AND ${naoEstornado('m')}
+        AND ${NAO_ESTORNADO}
       GROUP BY m.item_id, i.name
       HAVING total > 0
       ORDER BY total DESC`,
@@ -2496,7 +2496,7 @@ export async function productionBetween(
         AND kind = 'production'
         AND occurred_at >= ?
         AND occurred_at < ?
-        AND ${naoEstornado('m')}
+        AND ${NAO_ESTORNADO}
       ORDER BY occurred_at`,
     [companyId, fromIso, toIso],
   );
@@ -2556,7 +2556,7 @@ export async function lotsOn(
       WHERE l.company_id = ?
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
-        AND ${naoEstornado('m')}
+        AND ${NAO_ESTORNADO}
       GROUP BY l.id, l.code, i.name, l.expires_on
       ORDER BY l.code DESC`,
     [companyId, fromIso, toIso],
@@ -2784,7 +2784,7 @@ export async function recentRuns(companyId: string, limit = 6): Promise<Run[]> {
        JOIN items i ON i.id = m.item_id
        LEFT JOIN lots l ON l.id = m.lot_id
       WHERE m.company_id = ? AND m.kind = 'production' AND m.quantity_base_units > 0
-        AND ${naoEstornado('m')}
+        AND ${NAO_ESTORNADO}
       ORDER BY m.occurred_at DESC
       LIMIT ?`,
     [companyId, limit],
@@ -3095,7 +3095,7 @@ export async function shipmentsOn(
         AND m.quantity_base_units > 0
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
-        AND ${naoEstornado('m')}
+        AND ${NAO_ESTORNADO}
       GROUP BY m.movement_group_id, m.location_id, l.name, l.kind, m.item_id, i.name, i.packaging
       HAVING total > 0
       ORDER BY l.name, total DESC`,
