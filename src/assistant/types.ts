@@ -124,6 +124,21 @@ export type Answer = {
   text: string;
   /** What `[por quê?]` opens: the arithmetic behind the sentence. */
   detail?: { label: string; value: string }[];
+  /**
+   * As linhas que NÃO são conta: o que o aplicativo sabe fazer, as opções da
+   * pergunta de volta, os campos do rascunho.
+   *
+   * Existe porque `detail` carregava as quatro coisas e a tela só tinha um
+   * rótulo para todas: "POR QUÊ?". Perguntando o que ele não entende, a
+   * resposta terminava em dois-pontos prometendo a lista e embaixo aparecia um
+   * botão afirmando que ali estava a conta de um número que não existia. Lei 6
+   * é sobre abrir a conta de uma conclusão — o que não é conta não pode se
+   * esconder atrás dela.
+   *
+   * Fica aberto na tela, porque nada disso é detalhe: é o que a frase acabou de
+   * prometer.
+   */
+  list?: { label: string; value?: string }[];
   /** The screen that resolves this, when there is one. */
   route?: string;
   draft?: Draft;

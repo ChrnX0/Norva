@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
@@ -79,10 +79,24 @@ function PurchaseForm() {
   const { color, type, space, palette, skin } = useTheme();
   const confirm = useConfirm();
   const { locale, t } = useLocale();
+  const router = useRouter();
   const traco = skin === 'papel' ? 1.7 : 2.2;
 
-  const { data, loading, refresh } = useQuery(
-    () => listItems(LOCAL_COMPANY_ID).then((all) => all.filter((i) => i.purchaseToBase !== null)),
+  /**
+   * O que dá para comprar, e quantos itens existem — que são duas perguntas.
+   *
+   * A consulta devolvia só a lista filtrada, e o estado vazio dizia "Nada
+   * cadastrado ainda." Com um insumo cadastrado sem `purchaseToBase`, a frase
+   * era falsa: existe o insumo, ele só não tem como entrar numa nota ainda. E o
+   * caminho é o que o próprio aplicativo oferece — o assistente cria o item
+   * quando não consegue ler o tamanho da embalagem e diz "dá para completar
+   * depois na tela".
+   */
+  const { data, loading, refresh } = useQuery(() =>
+    listItems(LOCAL_COMPANY_ID).then((all) => ({
+      compraveis: all.filter((i) => i.purchaseToBase !== null),
+      cadastrados: all.length,
+    })),
   );
 
   // Arriving from an item opens on that item, so the buyer does not hunt for
@@ -95,7 +109,7 @@ function PurchaseForm() {
   const [saving, setSaving] = useState(false);
   const [impact, setImpact] = useState<Impact[] | null>(null);
 
-  const items = data ?? [];
+  const items = data?.compraveis ?? [];
   const selected: ItemWithCost | null =
     items.find((i) => i.id === selectedId) ?? items[0] ?? null;
 
@@ -315,7 +329,20 @@ function PurchaseForm() {
             icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}
             title={t.app.purchase.whatYouBought}
           >
-            <Text style={[type.body, { color: color.ink }]}>{t.app.inputs.empty.input}</Text>
+            <Text style={[type.body, { color: color.ink }]}>
+              {(data?.cadastrados ?? 0) > 0
+                ? t.app.purchase.noneBuyable
+                : t.app.inputs.empty.input}
+            </Text>
+            {/* E a próxima ação, porque estado vazio é desenho, frase e saída —
+                nos dois casos o caminho é o mesmo cadastro. */}
+            <View style={{ marginTop: space.md }}>
+              <Button
+                label={t.app.inputs.addNew}
+                variant="ghost"
+                onPress={() => router.push('/inputs')}
+              />
+            </View>
           </Card>
         )}
       </Reveal>

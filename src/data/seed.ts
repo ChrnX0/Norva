@@ -45,6 +45,46 @@ export async function restoreStarterData(companyId = LOCAL_COMPANY_ID): Promise<
   await writeStarterData(companyId);
 }
 
+/**
+ * Se o exemplo AINDA está aqui — que é outra pergunta que `hasSeeded`.
+ *
+ * A tela de Ajustes acendia "Inclui os dados de exemplo" pela marca `seeded`, e
+ * a marca nunca é apagada: `app_meta` não é tabela apagável. Então o selo era
+ * verdadeiro em todo aparelho para sempre — apagava-se tudo, cadastrava-se o
+ * primeiro insumo próprio, e a tela continuava dizendo que a lista incluía o
+ * exemplo. Contava uma variável ("o exemplo já foi escrito alguma vez") e
+ * nomeava outra ("o que está abaixo contém o exemplo").
+ *
+ * A presença se sabe porque a semeadura anota os ids que criou. Sem a anotação
+ * — instalação que já tinha dado quando a marca foi posta — a resposta é não,
+ * que é o certo: ali o exemplo de fato não foi escrito.
+ */
+export async function exampleStillHere(companyId = LOCAL_COMPANY_ID): Promise<boolean> {
+  const conn = await db();
+  const row = await conn.getFirstAsync<{ value: string }>(
+    `SELECT value FROM app_meta WHERE key = 'seeded_items'`,
+  );
+  if (!row?.value) return false;
+
+  let ids: unknown;
+  try {
+    ids = JSON.parse(row.value);
+  } catch {
+    return false;
+  }
+  if (!Array.isArray(ids) || ids.length === 0) return false;
+
+  const marcas = ids.filter((id): id is string => typeof id === 'string');
+  if (marcas.length === 0) return false;
+
+  const found = await conn.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM items
+      WHERE company_id = ? AND id IN (${marcas.map(() => '?').join(', ')})`,
+    [companyId, ...marcas],
+  );
+  return (found?.n ?? 0) > 0;
+}
+
 export async function hasSeeded(): Promise<boolean> {
   const conn = await db();
   const row = await conn.getFirstAsync<{ value: string }>(
@@ -154,7 +194,19 @@ async function writeStarterData(companyId: string): Promise<void> {
     packaging: STACKED,
   });
 
+  // Os ids que esta semeadura criou, para a tela poder dizer se o exemplo AINDA
+  // está aqui em vez de afirmar para sempre que está.
+  await markSeededItems([pulp, sugar, milkPowder, glucose, stick, wrapper]);
   await markSeeded();
+}
+
+async function markSeededItems(ids: string[]): Promise<void> {
+  const conn = await db();
+  await conn.runAsync(
+    `INSERT INTO app_meta (key, value) VALUES ('seeded_items', ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [JSON.stringify(ids)],
+  );
 }
 
 async function markSeeded(): Promise<void> {

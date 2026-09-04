@@ -96,7 +96,7 @@ export default function NewOrderScreen() {
   );
 }
 
-type Loaded = { places: Place[]; products: Product[]; demand: Demand[] };
+type Loaded = { places: Place[]; products: Product[] };
 type Draft = { itemId: string; name: string; baseUnits: number };
 
 function NewOrder() {
@@ -107,15 +107,22 @@ function NewOrder() {
   const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data } = useQuery<Loaded>(async () => {
-    const [places, products, demand] = await Promise.all([
+    const [places, products] = await Promise.all([
       listPlaces(LOCAL_COMPANY_ID),
       listProducts(LOCAL_COMPANY_ID),
-      // O que já foi prometido até o dia pedido - é o que transforma "saldo" em
-      // "livre". Sem isso, dois pedidos para sexta prometem as mesmas caixas.
-      orderedDemand(LOCAL_COMPANY_ID, localDate(nowIso(), locale.timeZone, 7)),
     ]);
     // A fábrica não pede para si mesma: o lugar padrão é de onde a carga sai.
-    return { places: places.filter((p) => !p.isDefault), products, demand };
+    //
+    // E pedido só vai para quem RECEBE carga. A lista era de todo lugar não
+    // padrão, então uma fábrica que cadastrou a câmara fria lia "Câmara fria" e
+    // "Almoxarifado" debaixo do rótulo "Cliente", com o ícone de pessoa e a
+    // coluna de acordo dizendo "sem acordo de dia" — e conseguia gravar um
+    // pedido para a própria câmara. O predicado é o mesmo que `app/places.tsx`
+    // já usa para separar quem recebe de quem é sala interna.
+    const recebe = places.filter(
+      (p) => !p.isDefault && (p.kind === 'own_store' || p.kind === 'customer'),
+    );
+    return { places: recebe, products };
   });
 
   const [placeId, setPlaceId] = useState<string | null>(null);
@@ -136,34 +143,6 @@ function NewOrder() {
   const place = data?.places.find((p) => p.id === placeId) ?? data?.places[0] ?? null;
   const product = data?.products.find((p) => p.id === productId) ?? data?.products[0] ?? null;
   const units = Math.max(0, parseTyped(quantity) ?? 0);
-
-  /**
-   * O que ainda pode ser prometido deste produto.
-   *
-   * Saldo menos o que outros pedidos já reservaram, menos o que já foi
-   * digitado nesta tela - as linhas do rascunho contam, senão a segunda linha
-   * do mesmo pedido promete as caixas da primeira.
-   *
-   * A conta é uma só e agora responde duas vezes: para o produto escolhido, na
-   * dica do campo, e para cada linha da lista, que é onde ela decide qual
-   * produto dá para prometer antes de a pessoa tocar em nada.
-   */
-  const livreDe = useCallback(
-    (itemId: string): number | null => {
-      const linha = data?.demand.find((d) => d.itemId === itemId);
-      if (!linha) return null;
-      const noRascunho = lines
-        .filter((l) => l.itemId === itemId)
-        .reduce((n, l) => n + l.baseUnits, 0);
-      return linha.onHand - linha.requested - noRascunho;
-    },
-    [data, lines],
-  );
-
-  const livre = useMemo(
-    () => (product ? livreDe(product.itemId) : null),
-    [product, livreDe],
-  );
 
   /**
    * O dia que já estava combinado com esta loja.
@@ -196,6 +175,52 @@ function NewOrder() {
   const requestedFor = useMemo(
     () => localDate(nowIso(), locale.timeZone, whenDays),
     [whenDays, locale.timeZone],
+  );
+
+  /**
+   * O que já foi prometido até o dia pedido — e "até o dia pedido" é literal.
+   *
+   * O horizonte era fixo em sete dias e a consulta não tinha chave, então
+   * trocar de "hoje" para o dia do acordo não movia o número em nada: a dica
+   * dizia "menos o que já foi prometido para esta data" e media outra coisa.
+   * Erra nos dois sentidos — escolhendo hoje, subtrai promessa da semana que
+   * vem; escolhendo um dia daqui a dez, ignora o que foi prometido para ele.
+   *
+   * Fica numa consulta própria porque o dia depende da loja escolhida, que vem
+   * da primeira: uma consulta só não pode ter como chave o que ela mesma
+   * devolve. As duas são SQLite local, e a segunda repete quando a data muda.
+   */
+  const { data: demanda } = useQuery<Demand[]>(
+    () => orderedDemand(LOCAL_COMPANY_ID, requestedFor),
+    requestedFor,
+  );
+
+  /**
+   * O que ainda pode ser prometido deste produto.
+   *
+   * Saldo menos o que outros pedidos já reservaram, menos o que já foi
+   * digitado nesta tela - as linhas do rascunho contam, senão a segunda linha
+   * do mesmo pedido promete as caixas da primeira.
+   *
+   * A conta é uma só e agora responde duas vezes: para o produto escolhido, na
+   * dica do campo, e para cada linha da lista, que é onde ela decide qual
+   * produto dá para prometer antes de a pessoa tocar em nada.
+   */
+  const livreDe = useCallback(
+    (itemId: string): number | null => {
+      const linha = (demanda ?? []).find((d) => d.itemId === itemId);
+      if (!linha) return null;
+      const noRascunho = lines
+        .filter((l) => l.itemId === itemId)
+        .reduce((n, l) => n + l.baseUnits, 0);
+      return linha.onHand - linha.requested - noRascunho;
+    },
+    [demanda, lines],
+  );
+
+  const livre = useMemo(
+    () => (product ? livreDe(product.itemId) : null),
+    [product, livreDe],
   );
 
   const addLine = () => {
@@ -298,7 +323,7 @@ function NewOrder() {
         <Card
           hue={palette.sage}
           icon={(c) => <GlyphCustomer size={26} color={c} weight={traco} />}
-          title={words.customer}
+          title={words.recipient}
         >
           {(data?.places ?? []).map((p) => (
             <ListRow

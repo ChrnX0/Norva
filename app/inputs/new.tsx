@@ -16,7 +16,7 @@ import { useQuery } from '@/data/useQuery';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { fromDecimal, rate } from '@/domain/money';
 import { parseTyped, formatTyped } from '@/domain/number';
-import { fill, formatMoney } from '@/i18n';
+import { fill, formatMoney, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -219,6 +219,52 @@ function InputForm() {
     });
   })();
 
+  /**
+   * A conferência, que antes era só uma palavra.
+   *
+   * "Conversão confere" acendia sempre que os dois números eram positivos, sem
+   * comparar nada — dava para ver na tela, ao mesmo tempo, EMBALAGEM "saco 25 kg",
+   * QUANTO VEM DENTRO "250 g" e a etiqueta verde afirmando que a conversão
+   * confere. Errado por cem vezes, que é exatamente o erro que esta tela existe
+   * para impedir.
+   *
+   * E o aplicativo já sabia checar: `packSize` é a mesma função que preenche o
+   * campo quando ninguém o digitou. Então agora ou a etiqueta afirma só o que
+   * foi feito (a conta fecha), ou ela compara de verdade — e discordando, mostra
+   * os dois números em vez de travar, porque o nome da embalagem pode estar
+   * abreviado e quem está com o saco na mão é quem sabe.
+   */
+  const conferencia = (() => {
+    const lido = packSize(purchaseUnit, baseUnit);
+    if (lido === null) return { signal: 'ok' as const, label: words.mathCloses };
+    if (Math.abs(lido - parsed.factor) < 0.5) {
+      return { signal: 'ok' as const, label: words.conversionOk };
+    }
+    return {
+      signal: 'warning' as const,
+      label: fill(words.conversionDiffers, {
+        pack: formatQuantity(lido, locale),
+        typed: formatQuantity(parsed.factor, locale),
+        unit: baseUnit,
+      }),
+    };
+  })();
+
+  /**
+   * Qual campo falta, e não os dois nomes de sempre.
+   *
+   * A frase mandava preencher "a embalagem e o preço", e a conta não depende da
+   * embalagem: com EMBALAGEM "balde" e PREÇO "118,00" os dois campos que ela
+   * pedia estavam preenchidos e a frase continuava na tela. O que estava vazio
+   * era QUANTO VEM DENTRO, que ela não mencionava — e a tela sabe qual é.
+   */
+  const oQueFalta = (() => {
+    const temFator = Number.isFinite(parsed.factor) && parsed.factor > 0;
+    const temPreco = Number.isFinite(parsed.paid) && parsed.paid > 0;
+    if (!temFator && !temPreco) return words.fillFirst;
+    return temFator ? words.fillPrice : words.fillInside;
+  })();
+
   // Correcting a name does not require re-entering a price: the price lives in
   // the invoices, and asking for it again here would move the average by accident.
   const canSave = name.trim().length > 0 && (editing ? parsed.factor > 0 : parsed.valid);
@@ -411,7 +457,7 @@ function InputForm() {
                 // A conta enquanto se digita, e no lugar dela a frase que diz o
                 // que falta para a conta existir. Dica é onde a inteligência
                 // aparece: o campo explica em vez de um cartão cinza abaixo.
-                hint={conversionHint ?? words.fillFirst}
+                hint={conversionHint ?? oQueFalta}
               />
             )}
           </View>
@@ -424,7 +470,14 @@ function InputForm() {
       {mostraCusto ? (
         <Reveal index={2}>
           <Card hue={palette.sky}>
-            <Text style={[type.overline, { color: color.inkFaint }]}>{words.entersAs}</Text>
+            {/* O rótulo é do TIPO, não fixo.
+                Com "Material de loja" aceso, a legenda do cartão de cima diz
+                que ele não entra em receita — e o seletor de ingrediente só
+                lista insumo e embalagem, então nunca poderia. A tela afirmava
+                as duas coisas a dois cartões de distância. */}
+            <Text style={[type.overline, { color: color.inkFaint }]}>
+              {kind === 'store_supply' ? words.costsInStore : words.entersAs}
+            </Text>
             <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
               {formatMoney(Math.round((parsed.unitRate ?? 0) * 1000), locale)}
             </Text>
@@ -432,7 +485,7 @@ function InputForm() {
               {fill(words.perThousandOf, { unit: baseUnit })}
             </Text>
             <View style={{ marginTop: space.md }}>
-              <Chip signal="ok" label={words.conversionOk} />
+              <Chip signal={conferencia.signal} label={conferencia.label} />
             </View>
           </Card>
         </Reveal>

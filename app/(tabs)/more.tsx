@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
-import { GlyphAssistant, GlyphCatalog, GlyphSettings } from '@/components/Glyph';
+import { GlyphAssistant, GlyphCatalog, GlyphPurchase, GlyphSettings } from '@/components/Glyph';
 import { ListRow } from '@/components/ListRow';
 import { IconChevron } from '@/components/icons';
 import { Reveal } from '@/components/Reveal';
@@ -75,6 +75,21 @@ function Drawers() {
     { key: 'recipes', detail: t.app.recipes.overline, route: '/recipes' },
     { key: 'products', detail: t.app.products.overline, route: '/products' },
     { key: 'places', detail: t.app.places.overline, route: '/places' },
+  ];
+
+  /**
+   * O que acontece, e não o que se cadastra.
+   *
+   * As duas linhas estavam sob "CADASTROS", e o cabeçalho era falso justamente
+   * sobre a porta mais consequente das seis: compra escreve no livro-razão
+   * append-only — o próprio detalhe da linha diz "a nota move o custo", que é
+   * movimento — e pedido é o livro de pedidos, com aprovar, entregar e cancelar.
+   *
+   * A palavra não é neutra para quem lê: cadastro se corrige editando, escrita
+   * no livro-razão só se corrige por estorno. Prometer a classe de risco errada
+   * é o mesmo defeito de um rótulo que discorda do número embaixo dele.
+   */
+  const lancamentos: Porta[] = [
     { key: 'orders', detail: t.app.orders.overline, route: '/orders' },
     { key: 'purchases', detail: t.app.purchase.overline, route: '/purchase' },
   ];
@@ -139,7 +154,18 @@ function Drawers() {
         </Card>
       </Reveal>
 
+      {/* O que se lança: o fato que já aconteceu e vai para o livro-razão. */}
       <Reveal index={2}>
+        <Card
+          hue={palette.mist}
+          icon={(c) => <GlyphPurchase size={26} color={c} weight={traco} />}
+          title={t.app.more.groups.entries}
+        >
+          {lancamentos.map(portas)}
+        </Card>
+      </Reveal>
+
+      <Reveal index={3}>
         <Card
           hue={palette.mist}
           icon={(c) => <GlyphSettings size={26} color={c} weight={traco} />}

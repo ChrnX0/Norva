@@ -215,7 +215,9 @@ function Transfer() {
           }) +
           // O lote vai dito na confirmação, e não escondido: quem carrega o
           // caminhão é quem vai ler o código na caixa se alguém ligar depois.
-          (frente ? ` ${fill(words.fromLot, { code: frente.code })}` : ''),
+          (frente
+            ? ` ${fill(frente.expiresOn ? words.fromLot : words.fromLotNoDate, { code: frente.code })}`
+            : ''),
     });
     if (!go) return;
 
@@ -343,7 +345,16 @@ function Transfer() {
   ];
 
   return (
-    <CollapsingHeader title={words.title} overline={words.overline}>
+    <CollapsingHeader
+      title={words.title}
+      // A sobrelinha acompanha o sentido, como o título do cartão já fazia.
+      //
+      // Fixa em "o que sai da fábrica", ela ficava desenhada logo acima de "A
+      // loja devolveu" e de "Loja Centro → Fábrica": nada sai da fábrica, a
+      // mercadoria entra nela, e o livro-razão grava `return`. (No estado vazio
+      // acima ela está certa: lá não existe o seletor de sentido.)
+      overline={devolucao ? words.returnOverline : words.overline}
+    >
       {/* Para que lado. Vem antes de tudo porque muda o resto da tela: a lista de
           itens passa a ser a do estoque da loja, e o que se grava passa a ser
           devolução. O título do cartão é a frase escolhida, então o estado do
@@ -530,7 +541,8 @@ function Transfer() {
                 // que é o que faz alguém confiar nele ou corrigi-lo.
                 hint={
                   paraSeparar
-                    ? fill(words.ordered, {
+                    ? fill(paraSeparar.orders > 1 ? words.orderedMany : words.ordered, {
+                        count: plural(paraSeparar.orders, words.closeCount),
                         date: paraSeparar.dueOn
                           ? formatCalendarDate(paraSeparar.dueOn, locale)
                           : '—',
@@ -554,9 +566,16 @@ function Transfer() {
               {/* De qual lote sai, dito na tela e não só na confirmação: quem
                   carrega é quem vai ler o código na caixa se alguém ligar
                   depois. Ausente é caso normal — açúcar e palito não têm lote. */}
+              {/* "que vence primeiro" só quando existe vencimento.
+                  Lote sem validade é caso normal e decidido — produto sem prazo
+                  cadastrado gera lote sem validade —, e nesse caso `lotsInStock`
+                  ordena por código, não por data: a frase afirmava uma ordem que
+                  não foi usada para escolher e uma data que não existe. */}
               {frente ? (
                 <Text style={[type.caption, { color: color.inkMuted }]}>
-                  {fill(words.fromLot, { code: frente.code })}
+                  {fill(frente.expiresOn ? words.fromLot : words.fromLotNoDate, {
+                    code: frente.code,
+                  })}
                 </Text>
               ) : null}
             </View>
@@ -579,7 +598,11 @@ function Transfer() {
           livro-razão, e o toque curto é a confirmação de que o dedo pegou. */}
       <Reveal index={3}>
         <Button
-          label={sending ? words.sending : words.send}
+          // Em devolução, o que se grava é `return` — outro fato, e o commit que
+          // os separou existe por isso. A confirmação que este botão abre já
+          // falava certo ("Registrar esta devolução?"), e a chave do rótulo
+          // estava escrita nos três idiomas sem ninguém chamando.
+          label={sending ? words.sending : devolucao ? words.returnTitle : words.send}
           onPress={onSend}
           disabled={!ready}
           weighty

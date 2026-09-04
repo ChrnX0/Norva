@@ -363,12 +363,20 @@ function InputDetail() {
               counting ? '—' : `${formatQuantity(item.onHandBaseUnits, locale)} ${item.baseUnit}`
             }
           />
-          <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
-            {t.app.inputDetail.countHint}
-          </Text>
-
+          {/* A frase mora DENTRO da contagem aberta, que é o único estado em que
+              ela é verdade.
+              Fora do ternário, ela dizia duas coisas falsas sobre o que estava
+              ao lado dela: "escreva aqui" sem campo nenhum na tela, e "o número
+              que o sistema espera fica escondido" com o número uma linha acima,
+              em negrito. Pior que discordar — a segunda metade da frase enuncia
+              a regra ("se ele estiver na tela, a conferência vira cópia") que o
+              estado exibido estava quebrando. O convite do estado fechado é o
+              botão, que já existe embaixo. */}
           {counting ? (
             <View style={{ marginTop: space.md, gap: space.md }}>
+              <Text style={[type.caption, { color: color.inkMuted }]}>
+                {t.app.inputDetail.countHint}
+              </Text>
               <Field
                 label={t.app.inputDetail.countLabel}
                 value={typed}

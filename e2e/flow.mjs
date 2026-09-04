@@ -245,6 +245,10 @@ check('the five tabs are there, and the old addresses still answer', async (page
   const more = await screen(page);
   assert.match(more, /CADASTROS/);
   assert.match(more, /Lojas e clientes/);
+  // Compra escreve no livro-razão e pedido é livro de pedidos: nenhuma das duas
+  // é cadastro, e a palavra promete a classe de risco errada — cadastro se
+  // corrige editando, escrita no livro-razão só se corrige por estorno.
+  assert.match(more, /LANÇAMENTOS/, 'o que se lança não fica sob CADASTROS');
   assert.match(more, /Pergunte/, 'the assistant has a door');
   assert.doesNotMatch(more, /Financeiro|Notas fiscais|Pessoas/, 'a drawer that opens onto nothing');
 
@@ -273,10 +277,14 @@ check('settings counts what erasing would take, in Portuguese', async (page) => 
   // deletion?" is what a person clicks through without reading.
   assert.match(text, /O que está guardado/);
   assert.match(text, /Insumos/);
-  // The seed marker is read, not guessed: this line only appears when the flag
-  // written by the seeder is still in app_meta, which is what stops the example
-  // from creeping back after somebody wipes everything.
+  // A PRESENÇA do exemplo, não o histórico dele: a marca `seeded` nunca é
+  // apagada, então esta linha era verdadeira em todo aparelho para sempre —
+  // inclusive depois de apagar tudo e cadastrar o primeiro insumo próprio.
+  // Agora ela lê os ids que a semeadura anotou.
   assert.match(text, /Inclui os dados de exemplo/);
+  // E os lugares entram na contagem que decide "está vazio", como já entravam na
+  // confirmação de apagar tudo.
+  assert.match(text, /Lojas e clientes/);
   assert.doesNotMatch(text, /\bDelete\b|\bSettings\b|\bErase\b/, 'no English leaking through');
 });
 
@@ -359,6 +367,11 @@ check('an order is written, and the briefing turns it into what to make', async 
 
   await page.goto(`http://localhost:${PORT}/orders/new`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
+
+  // O cartão de quem recebe não diz "Cliente" com o ícone de pessoa sobre uma
+  // lista que aceitava câmara fria e almoxarifado — e loja própria, que recebe
+  // pedido, também não é cliente.
+  assert.match(await screen(page), /Loja ou cliente/);
   await page.getByLabel('Quantidade').fill('300');
   await page.waitForTimeout(300);
   await page.getByText('Adicionar ao pedido', { exact: true }).first().click();
@@ -385,6 +398,14 @@ check('an order is written, and the briefing turns it into what to make', async 
   assert.match(capa, /Produza para os pedidos/);
   assert.match(capa, /300/);
 
+  // E com pedido em pé, a dica do campo aparece — dizendo a data que ela mede.
+  // O horizonte era fixo em sete dias e a consulta não tinha chave, então
+  // trocar o dia não movia o número e a frase dizia "para esta data" de
+  // qualquer jeito. (O que esta linha prova é a frase; o horizonte é medido na
+  // unidade, onde dá para escolher a data.)
+  await page.goto(`http://localhost:${PORT}/orders/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  assert.match(await screen(page), /livre para esta data/);
 });
 
 check('the picking list beats the habit: the order wins over last time', async (page) => {
@@ -1129,7 +1150,10 @@ check('what went out today lands on the transport tab, by destination', async (p
 
   const tela = await screen(page);
   assert.match(tela, /Loja Centro/);
-  assert.match(tela, /6\.000/, 'na unidade do item, não em caixas que ele não tem');
+  // Na unidade do item, e a UNIDADE dita: "6.000" sozinho lia-se como seis mil
+  // açúcares numa lista que mistura grandezas de propósito. A asserção antiga
+  // casava só o número, então passava sem a unidade existir.
+  assert.match(tela, /6\.000 g/, 'a quantidade sai na unidade que a pessoa manuseia');
   assert.match(tela, /1 destino/i);
   // O aviso da prancha, agora com lastro: a caixa não foi aberta ainda.
   assert.match(tela, /Loja Centro ainda não conferiu o que chegou/);
@@ -1139,7 +1163,7 @@ check('what went out today lands on the transport tab, by destination', async (p
   await page.waitForTimeout(900);
   const perguntando = await screen(page);
   assert.match(perguntando, /O que chegou em Loja Centro\?/);
-  assert.match(perguntando, /6\.000/, 'a confirmação diz o que chegou, por extenso');
+  assert.match(perguntando, /6\.000 g/, 'a confirmação diz o que chegou, com a unidade');
 
   await page.getByText('Conferir chegada', { exact: true }).last().click();
   await page.waitForTimeout(2500);
@@ -1153,9 +1177,14 @@ check('what went out today lands on the transport tab, by destination', async (p
   // ela diz isso em vez de inventar uma variação.
   assert.match(
     await screen(page),
-    /Primeira carga registrada|Ontem (foram|foi)/,
+    /Ontem não saiu carga|Ontem (foram|foi)/,
     'o número do dia vem com a comparação',
   );
+
+  // E a frase é o fato medido. "Primeira carga registrada" olhava só a janela de
+  // ONTEM e nomeava o histórico inteiro: uma fábrica que entrega há dois anos e
+  // não entregou no domingo lia isso na segunda-feira.
+  assert.doesNotMatch(await screen(page), /[Pp]rimeira carga/);
 });
 
 check('a store is created, loaded, and the company still has the same sugar', async (page) => {

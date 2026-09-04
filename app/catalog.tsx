@@ -244,15 +244,30 @@ function Catalog() {
         <Card
           hue={palette.sand}
           icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}
+          // O título nomeia o assunto, nunca a ação que não está aí.
+          //
+          // No estado sem linha o corpo do cartão não tem formulário — o campo e
+          // o botão de cadastrar tipo ficam dentro do ramo de baixo — e o
+          // cabeçalho anunciava "Novo tipo" sobre um cartão onde não havia como
+          // cadastrar tipo nenhum. A decisão de manter o cartão de pé sem
+          // formulário está registrada acima e não é o defeito; o defeito era o
+          // rótulo prometer o que ela retirou.
           title={
             linhaAtiva
               ? fill(t.app.catalog.types, { line: linhaAtiva.name })
-              : t.app.catalog.addType
+              : t.app.catalog.typesTitle
           }
         >
-          <Text style={[type.caption, { color: color.inkMuted }]}>
-            {linhaAtiva ? t.app.catalog.typesHint : t.app.catalog.pickLineFirst}
-          </Text>
+          {/* E a frase é a do estado real.
+              `pickLineFirst` mandava escolher uma linha de um conjunto vazio:
+              `linhaAtiva` só é nula quando NÃO existe linha nenhuma, porque a
+              tela seleciona a primeira sozinha. O cartão de cima acabava de
+              dizer "nenhuma linha ainda" e este mandava escolher uma. */}
+          {loading ? null : (
+            <Text style={[type.caption, { color: color.inkMuted }]}>
+              {linhaAtiva ? t.app.catalog.typesHint : t.app.catalog.noLineYet}
+            </Text>
+          )}
 
           {linhaAtiva ? (
             <>

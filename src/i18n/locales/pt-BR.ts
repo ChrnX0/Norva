@@ -237,18 +237,22 @@ export const ptBR = {
       approve: 'Aprovar',
       deliver: 'Marcar entregue',
       cancel: 'Cancelar',
+      /** O botão de desistir, para o diálogo de cancelar não sair com "Cancelar" duas vezes. */
+      keep: 'Manter o pedido',
       cancelTitle: 'Cancelar este pedido?',
       cancelBody: 'O pedido de {{place}} sai da lista. Nada muda no estoque: pedido não move caixa.',
     },
 
     newOrder: {
-      free: 'livre hoje: {{amount}}',
-      freeHint: 'o que tem no freezer menos o que já foi prometido para esta data',
-      over: 'Isso promete {{amount}} a mais do que existe hoje. Dá para produzir até lá?',
+      free: 'livre para esta data: {{amount}}',
+      freeHint: 'o que tem no freezer menos o que já foi prometido até esse dia',
+      /** O número é o excesso sobre o LIVRE, não sobre o saldo: livre já desconta as outras promessas. */
+      over: 'Isso promete {{amount}} a mais do que está livre. Dá para produzir até lá?',
       title: 'Anotar pedido',
       overline: 'para quem, para quando, o quê',
-      customer: 'Cliente',
-      noCustomers: 'Nenhum cliente cadastrado ainda. Toque para cadastrar.',
+      /** Loja própria também recebe pedido, e câmara fria não recebe nenhum. */
+      recipient: 'Loja ou cliente',
+      noCustomers: 'Nenhuma loja ou cliente cadastrado ainda. Toque para cadastrar.',
       noProducts: 'Nenhum produto cadastrado ainda. Toque para cadastrar.',
       when: 'Para quando',
       today: 'hoje',
@@ -310,6 +314,8 @@ export const ptBR = {
       ask: { label: 'Pergunte', hint: 'escreva o que quer saber' },
       groups: {
         registers: 'CADASTROS',
+        /** Pedido e compra não são cadastro: um é livro de pedidos, o outro escreve no livro-razão. */
+        entries: 'LANÇAMENTOS',
         settings: 'CONFIGURAÇÕES',
       },
       rows: {
@@ -333,6 +339,8 @@ export const ptBR = {
       products: 'Produtos',
       purchases: 'Compras lançadas',
       hasExample: 'Inclui os dados de exemplo',
+      placesRow: 'Lojas e clientes',
+      placesHint: 'saem só com "começar do zero"',
       emptyNoExample: 'Vazio, sem exemplo',
       clearByArea: 'Limpar por área',
       clearByAreaHint: 'Uma área de cada vez, quando você quiser refazer só uma parte.',
@@ -447,7 +455,14 @@ export const ptBR = {
       },
       alerts: {
         label: 'Avisos no celular',
-        hint: 'Cada aviso liga sozinho e você escolhe a antecedência. O aplicativo avisa na data em que ainda dá para decidir, não na do problema.',
+        /**
+         * Descrevia três das cinco linhas e afirmava as cinco.
+         *
+         * "Cada aviso liga sozinho" é falso para o volume, que nasce desligado;
+         * "você escolhe a antecedência" é falso para as duas linhas de faixa, que
+         * não têm antecedência nenhuma — e uma delas é a primeira da lista.
+         */
+        hint: 'Cada aviso liga e desliga aqui. Os que se veem chegando avisam com dias de antecedência; os de faixa comparam com a régua que você cadastrar. O aplicativo avisa na data em que ainda dá para decidir, não na do problema.',
         kinds: {
           insumo: 'Insumo acabando',
           pedido: 'Pedido sem estoque',
@@ -508,7 +523,8 @@ export const ptBR = {
     },
 
     inputForm: {
-      newTitle: 'Novo insumo',
+      /** Neutro entre os três tipos: a etiqueta acesa pode dizer embalagem ou material de loja. */
+      newTitle: 'Novo cadastro',
       newOverline: 'cadastro',
       editOverline: 'corrigindo o cadastro',
       fallbackTitle: 'Insumo',
@@ -536,11 +552,19 @@ export const ptBR = {
       conversion:
         '{{paid}} ÷ {{factor}} = {{perThousand}} a cada 1.000 {{unit}} · {{rate}} centavos por {{unit}}',
       entersAs: 'ENTRA NA RECEITA COMO',
+      /** Material de loja não entra em receita nenhuma — o seletor de ingrediente não o lista. */
+      costsInStore: 'CUSTA NA LOJA',
       perThousandOf: 'a cada 1.000 {{unit}}',
       conversionOk: 'Conversão confere',
+      /** Sem tamanho legível no nome da embalagem, não houve conferência: só a conta. */
+      mathCloses: 'A conta fecha',
+      conversionDiffers: 'A embalagem diz {{pack}} {{unit}}, o campo diz {{typed}}. Confira.',
       fillFirst:
-        'Preencha a embalagem e o preço para o app calcular o custo por unidade de uso.',
-      save: 'Salvar insumo',
+        'Preencha quanto vem dentro e o preço para o app calcular o custo por unidade de uso.',
+      /** Qual dos dois falta, porque a tela sabe — e a embalagem não entra na conta. */
+      fillInside: 'Falta quanto vem dentro da embalagem: é por ele que o preço se divide.',
+      fillPrice: 'Falta o preço pago. Com ele o app calcula o custo por unidade de uso.',
+      save: 'Salvar cadastro',
       saveEdit: 'Salvar correção',
       saving: 'Salvando…',
       confirmTitle: 'Confirma?',
@@ -666,8 +690,11 @@ export const ptBR = {
       },
     },
     transport: {
+      /** O cartão conta DESTINOS; o título era o das caixas da capa. */
+      dayTitle: 'Saiu hoje',
       vsYesterday: 'Ontem foram {{count}}.',
-      firstDay: 'Primeira carga registrada.',
+      /** O fato medido é ontem, e só ontem: "primeira carga" olhava o histórico que a consulta não lê. */
+      noYesterday: 'Ontem não saiu carga.',
       title: 'Para onde foi',
       today: 'Hoje · {{summary}}',
       empty: 'Nada saiu hoje ainda.',
@@ -683,8 +710,11 @@ export const ptBR = {
     },
     transfer: {
       fromLot: 'Sai do lote {{code}}, que vence primeiro.',
+      /** Lote sem validade é caso normal, e aí a escolha foi por código: a frase não promete data. */
+      fromLotNoDate: 'Sai do lote {{code}}.',
       closeAsk: 'Fechar o pedido dessa loja?',
-      closeBody: 'A carga cobre {{count}} em aberto. Fechar tira da lista de separação e da conta do que falta produzir.',
+      /** A cobertura é do DIA, não desta viagem — quem carrega faz duas idas ao freezer. */
+      closeBody: 'O que saiu hoje para essa loja cobre {{count}} em aberto. Fechar tira da lista de separação e da conta do que falta produzir.',
       closeAction: 'Fechar',
       closeKeep: 'Deixar aberto',
       closeCount: { one: '1 pedido', other: '{{n}} pedidos' },
@@ -695,9 +725,12 @@ export const ptBR = {
       returnBody: 'Você vai trazer {{amount}} de {{item}} de volta de {{place}} para a fábrica.',
       returnAction: 'Trazer de volta',
       ordered: 'pedido para {{date}}: {{amount}}',
+      /** A quantidade soma todos os pedidos em aberto da loja; a data é a do primeiro. */
+      orderedMany: '{{count}}, o primeiro para {{date}}: {{amount}}',
       orderedNone: 'nenhum pedido em aberto para esta loja',
       title: 'Transferir',
       overline: 'o que sai da fábrica',
+      returnOverline: 'o que volta para a fábrica',
       notASale: 'Loja própria é transferência, não venda: não há faturamento nem margem aqui. O valor só muda de sala.',
       noPlaces: 'Você ainda não cadastrou para onde mandar.',
       createFirst: 'Cadastrar a primeira loja',
@@ -723,6 +756,10 @@ export const ptBR = {
       noYesterday: 'Ontem não houve produção.',
       aboveYesterday: '{{percent}}% acima de ontem',
       belowYesterday: '{{percent}}% abaixo de ontem',
+      /** O empate, que caía em "0% acima de ontem" com os dois números iguais na tela. */
+      sameAsYesterday: 'Mesmo que ontem',
+      /** E a quase-igualdade, que também imprimia 0%: 4.802 contra 4.800. */
+      nearYesterday: 'Praticamente o mesmo de ontem',
       add: 'Adicionar produção',
       openRuns: 'Produção em curso',
       whatCameOut: 'O que saiu hoje',
@@ -771,12 +808,22 @@ export const ptBR = {
     },
     purchase: {
       title: 'Nova compra',
-      overline: 'compras · a nota move o custo',
+      /** Sem repetir a palavra do título nem do grupo que leva até aqui. */
+      overline: 'a nota move o custo',
       openingStoreroom: 'Abrindo o almoxarifado…',
       whatYouBought: 'O que você comprou',
+      /** Existe insumo, mas nenhum com embalagem e quanto vem dentro — sem isso a nota não converte. */
+      noneBuyable:
+        'Nenhum insumo tem embalagem e quanto vem dentro ainda. Complete o cadastro para a nota virar estoque.',
       supplier: 'Fornecedor',
       supplierPlaceholder: 'quem vendeu',
-      howMany: 'Quantas {{pack}}',
+      /**
+       * Sem tentar concordar com um nome que a pessoa digitou.
+       *
+       * "Quantas {{pack}}" saía como "QUANTAS SACO 25 KG": a embalagem é texto
+       * livre, então gênero e número não se calculam daqui. A vírgula resolve.
+       */
+      howMany: 'Quantidade, em {{pack}}',
       conversion: '{{packs}} × {{factor}} = {{baseUnits}} {{unit}} entrando no estoque.',
       total: 'Total da nota',
       perPack: '{{price}} por {{pack}}',
@@ -872,6 +919,8 @@ export const ptBR = {
       lines: 'Linhas',
       linesHint: 'o que você fabrica: Picolé, Pote de sorvete',
       types: 'Tipos de {{line}}',
+      /** Sem linha, o cartão não tem formulário: o título nomeia o assunto, não a ação ausente. */
+      typesTitle: 'Tipos',
       typesHint: 'o que divide a linha: Tradicional, Skimó, Top — ou 240 ml, 500 ml, 1 litro',
       flavors: 'Sabores',
       flavorsHint: 'valem para todas as linhas: morango, chocolate, coco branco',
@@ -879,7 +928,8 @@ export const ptBR = {
       addType: 'Novo tipo',
       addFlavor: 'Novo sabor',
       namePlaceholder: 'Nome',
-      pickLineFirst: 'Escolha uma linha para ver os tipos dela.',
+      /** O estado é "não existe linha", e não "existe e nenhuma foi escolhida": a tela escolhe a primeira sozinha. */
+      noLineYet: 'Cadastre uma linha primeiro — o tipo é dela.',
       noLines: 'Nenhuma linha ainda. Comece pela mais óbvia: o que você fabrica todo dia?',
       noTypes: 'Nenhum tipo nesta linha. Sem tipo também funciona — o produto fica só linha e sabor.',
       noFlavors: 'Nenhum sabor ainda.',
@@ -949,6 +999,9 @@ export const ptBR = {
       openScreen: 'ABRIR A TELA',
       recorded: 'Lançado.',
       confirmAndRecord: 'Confirmar e lançar',
+      /** Cadastrar não é lançar: `saveItem` escreve a linha do item e nenhum movimento. */
+      registered: 'Cadastrado.',
+      confirmAndRegister: 'Confirmar e cadastrar',
       confirmTitle: 'Confirma?',
       no: 'Não',
       failed: 'Não deu para gravar',

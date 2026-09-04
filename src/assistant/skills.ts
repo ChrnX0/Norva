@@ -30,7 +30,8 @@ import type { Answer, Skill, SkillContext } from './types';
 function whichOne<T extends { name: string }>(matches: readonly T[], term: string): Answer {
   return {
     text: `"${term.trim()}" alcança ${matches.length} cadastros. Qual deles?`,
-    detail: matches.slice(0, 8).map((m) => ({ label: '·', value: m.name })),
+    // As opções da própria pergunta, e não a conta de nada.
+    list: matches.slice(0, 8).map((m) => ({ label: m.name })),
   };
 }
 
@@ -436,7 +437,8 @@ const eraseHelp: Skill = {
     text:
       'Isso fica em Ajustes. Dá para limpar uma área de cada vez ou tudo de uma vez, e antes de ' +
       'apagar o aplicativo conta exatamente quantos insumos, receitas e produtos vão embora.',
-    detail: [
+    // Instrução, não aritmética: fica na tela em vez de esperar um toque.
+    list: [
       { label: 'Uma área', value: 'compras, receitas, produtos ou insumos' },
       { label: 'Tudo', value: 'e o exemplo não volta sozinho depois' },
       { label: 'Voltar atrás', value: 'não tem — por isso a confirmação é por extenso' },
@@ -633,7 +635,9 @@ const registerInput: Skill = {
       text: perPack
         ? 'Preparei o cadastro. Confira antes de eu gravar.'
         : 'Preparei o cadastro. Não consegui ler o tamanho da embalagem — dá para completar depois na tela.',
-      detail: [
+      // Os campos do rascunho ficam com o rascunho, abertos: são o que vai ser
+      // gravado, não a conta de uma conclusão.
+      list: [
         { label: 'Nome', value: name },
         { label: 'Embalagem', value: pack },
         {

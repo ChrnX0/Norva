@@ -78,6 +78,8 @@ export async function ask(question: string, context: SkillContext): Promise<Answ
       available.length > 0
         ? 'Ainda não sei responder isso. Por enquanto eu sei, por exemplo:'
         : 'Ainda não sei responder isso.',
-    detail: available.map((skill) => ({ label: '·', value: skill.example })),
+    // Lista, não conta: é o que a frase acima acabou de prometer com o
+    // dois-pontos. Estas linhas ficavam atrás de um botão escrito "POR QUÊ?".
+    list: available.map((skill) => ({ label: skill.example })),
   };
 }

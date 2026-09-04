@@ -55,7 +55,7 @@ import {
   type EraseCounts,
   type EraseTally,
 } from '@/data/erase';
-import { hasSeeded, LOCAL_COMPANY_ID, restoreStarterData } from '@/data/seed';
+import { exampleStillHere, LOCAL_COMPANY_ID, restoreStarterData } from '@/data/seed';
 import { simulateFortnight } from '@/data/simulate';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatQuantity, formatWeekdayShort, joinList, plural } from '@/i18n';
@@ -242,7 +242,11 @@ function Settings() {
   const { data, loading, refresh } = useQuery(
     async () => ({
       counts: await countForErase(LOCAL_COMPANY_ID),
-      seeded: await hasSeeded(),
+      // A PRESENÇA do exemplo, não o histórico dele: a marca `seeded` nunca é
+      // apagada, então ela dizia "inclui o exemplo" para sempre, em todo
+      // aparelho, inclusive depois de apagar tudo e cadastrar o primeiro insumo
+      // próprio.
+      example: await exampleStillHere(LOCAL_COMPANY_ID),
     }),
   );
 
@@ -370,11 +374,21 @@ function Settings() {
     }
   };
 
+  /**
+   * Vazio nos mesmos termos que a confirmação de apagar usa.
+   *
+   * `places` ficava fora, e a contagem existe: com três lojas cadastradas e
+   * nenhum item, a tela afirmava "Está vazio" e escondia o cartão do que está
+   * guardado — enquanto "apagar tudo" contava os três lugares na confirmação.
+   * Duas verdades sobre a mesma pergunta, e a que a pessoa lê primeiro era a
+   * falsa.
+   */
   const total =
     (counts?.inputs ?? 0) +
     (counts?.recipes ?? 0) +
     (counts?.products ?? 0) +
-    (counts?.purchases ?? 0);
+    (counts?.purchases ?? 0) +
+    (counts?.places ?? 0);
 
   return (
     <CollapsingHeader
@@ -399,7 +413,7 @@ function Settings() {
               </Text>
             ) : (
               <View style={{ gap: space.xs }}>
-                {data?.seeded ? <Chip signal="neutral" label={t.app.settings.hasExample} /> : null}
+                {data?.example ? <Chip signal="neutral" label={t.app.settings.hasExample} /> : null}
 
                 <Text style={[type.overline, { color: color.inkFaint, marginTop: space.sm }]}>
                   {t.app.settings.clearByArea.toUpperCase()}
@@ -454,6 +468,29 @@ function Settings() {
                     </Touchable>
                   );
                 })}
+
+                {/* Os lugares entram na contagem, então aparecem.
+                    Linha sem toque e sem chevron de propósito: nenhuma área
+                    menor é dona deles — loja e câmara saem só com "apagar
+                    tudo" —, e um chevron aqui prometeria uma porta que não
+                    existe. */}
+                <View style={[styles.row, { paddingVertical: space.sm, gap: space.md }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[type.body, { color: color.ink }]}>
+                      {t.app.settings.placesRow}
+                    </Text>
+                    <Text style={[type.caption, { color: color.inkFaint }]}>
+                      {t.app.settings.placesHint}
+                    </Text>
+                  </View>
+                  <Text style={[type.body, styles.number, { color: color.ink }]}>
+                    {formatQuantity(counts.places, locale)}
+                  </Text>
+                  {/* O espaço do chevron que esta linha não tem, para a coluna
+                      de números ficar alinhada com as de cima. Algarismo
+                      tabular numa coluna torta não serve para comparar nada. */}
+                  <View style={{ width: 18 }} />
+                </View>
               </View>
             )}
           </Card>
@@ -929,7 +966,7 @@ function Settings() {
             icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}
             title={t.app.settings.exampleTitle}
           >
-            {data?.seeded ? (
+            {!data?.example ? (
               <Chip signal="neutral" label={t.app.settings.emptyNoExample} />
             ) : null}
             <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>

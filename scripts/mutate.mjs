@@ -29,6 +29,37 @@ import { spawnSync } from 'node:child_process';
 
 /** @type {{file: string, from: string, to: string, hurts: string}[]} */
 const DEFECTS = [
+  // --- o rótulo que conta uma variável e nomeia outra, 4 de setembro --------
+  //
+  // Trinta e um defeitos da mesma família num dia, e nenhum deles é erro de
+  // conta: o número está certo e a palavra ao lado afirma outra coisa sobre
+  // ele. As três regras que ganharam código nesse dia ganham mutação aqui,
+  // porque regra nova sem mutação é regra protegida por coincidência — e duas
+  // das asserções que existiam passavam vacuamente, o que é pior que faltar.
+  {
+    file: 'src/data/seed.ts',
+    from: '  return (found?.n ?? 0) > 0;',
+    to: '  return true;',
+    hurts:
+      'o selo "inclui os dados de exemplo" volta a ser permanente: acende em todo aparelho para sempre, inclusive depois de apagar tudo e cadastrar o primeiro insumo proprio',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: '            COUNT(DISTINCT o.id) AS orders,',
+    to: '            1 AS orders,',
+    hurts:
+      'a dica da separacao volta ao singular somando varios pedidos: "pedido para 04/09: 420 un" com dois pedidos em aberto e a data so do primeiro',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: `        baseUnits: r.total,
+        baseUnit: r.base_unit,`,
+    to: `        baseUnits: r.total,
+        baseUnit: 'un',`,
+    hurts:
+      'seis quilos de acucar voltam a ser "6.000 unidades" na capa e na aba de transporte: a unidade existe no tipo e diz a coisa errada, que e pior que nao existir',
+  },
+
   // --- o estorno e o custo do que sai do tacho, que entraram hoje -----------
   //
   // Regra nova sem mutação é regra protegida por coincidência: a suíte fica

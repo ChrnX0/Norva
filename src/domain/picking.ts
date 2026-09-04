@@ -31,7 +31,13 @@ export function pickSuggestion(sources: {
 
 
 /**
- * Quais pedidos daquela loja a carga que acabou de sair cobre por inteiro.
+ * Quais pedidos daquela loja o que SAIU HOJE cobre por inteiro.
+ *
+ * O nome do parâmetro é `sent` e o docblock dizia "a carga que acabou de sair" —
+ * texto de antes de a cobertura passar a ser do dia. Quem carrega o caminhão faz
+ * duas viagens até o freezer, e o pedido é do dia, não da viagem: comparar só
+ * com a última carga fazia um pedido de dois itens nunca fechar. A frase da tela
+ * ficou com a semântica antiga junto com esta, e as duas foram corrigidas.
  *
  * Existe porque o pedido só fecha se alguém lembrar de ir na tela de Pedidos —
  * e quem acabou de carregar o caminhão está com as mãos ocupadas. Sem fechar, a

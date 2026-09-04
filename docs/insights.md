@@ -2335,3 +2335,60 @@ número é contado numa variável e nomeado noutra.
 **Regra prática que sai:** ao ler uma tela pronta, leia o rótulo em voz alta como
 uma frase completa e pergunte se ela é verdade sobre o que está logo abaixo. "4
 unidades ao custo médio de cada um" era falso, e ficou seis meses no aplicativo.
+
+## 4 de setembro — a mesma família, trinta e uma vezes: o rótulo que conta uma variável e nomeia outra
+
+**O que se viu.** O registro de cima disse que "não há script" para este defeito e
+que a defesa é olhar. Metade estava certa. Uma varredura dirigida — uma leitura por
+tela, com uma pergunta só (*o rótulo é verdade sobre o que está imediatamente
+abaixo dele?*) e a exigência de provar cada achado no código antes de chamá-lo de
+defeito — devolveu **trinta achados em treze telas**. Conferi os trinta um por um
+contra o código: **os trinta se sustentaram**, e procurando o mesmo defeito onde a
+varredura não olhou apareceu **o trigésimo primeiro, na capa**, que é a tela mais
+vista do aplicativo:
+
+- `formatPacked` era chamado justamente para o item **sem** camada de caixa, e para
+  esse item a única faixa é `unit` — então seis quilos de açúcar saíam na capa como
+  **"6.000 unidades de Açúcar cristal"**. A embalagem já vinha na consulta; o que
+  faltava era a unidade de uso, uma coluna ao lado.
+
+Os que mais ensinam, porque nenhum é erro de conta:
+
+- **"0% acima de ontem"** com 480 e 480 na tela: o selo tinha dois estados e o
+  empate caía em "acima". A capa já reconhecia o terceiro estado; a aba não. E o
+  arredondamento ampliava — 4.802 contra 4.800 também imprimia 0%.
+- **"Primeira carga registrada."** decidida por `ontem === 0`: numa fábrica que
+  entrega há dois anos e não entregou no domingo, o cartão de segunda dizia isso.
+- **"Cancelar"** em cima de **"Cancelar"**, com efeitos opostos, num diálogo cujo
+  assunto é cancelar — e o pedido cancelado sai da lista, sem volta pela tela.
+- **"Conversão confere"** acendendo sempre que os dois números eram positivos, sem
+  comparar nada: dava para ver "saco 25 kg", "250 g" e o selo verde juntos —
+  errado por cem vezes, que é o erro que aquela tela existe para impedir.
+- **"Inclui os dados de exemplo"** aceso pela marca `seeded`, que nunca é apagada:
+  verdadeiro em todo aparelho para sempre.
+- **"livre hoje: … menos o que já foi prometido para esta data"** com horizonte fixo
+  de sete dias e consulta sem chave: trocar a data não movia o número.
+- **"POR QUÊ?"** como único rótulo de um campo que carregava quatro conteúdos
+  diferentes — a conta de um número, as opções de uma pergunta, uma instrução e os
+  campos de um rascunho. Só o primeiro é a conta que a Lei 6 manda abrir.
+
+**A correção do registro de ontem.** "Não há script" era verdade sobre *scripts*,
+e falso sobre *método*. O que pega este defeito é uma leitura com a pergunta certa
+e a obrigação de provar — e isso escala: uma tela por leitor, em paralelo, com
+verificação adversarial minha depois. O que **não** escala é reler o próprio
+código esperando notar; foi assim que os trinta e um ficaram lá.
+
+**E dois deles quebraram teste que passava pelo motivo errado.** Ao mover os
+exemplos do assistente de `detail` para `list`, uma asserção continuou verde
+porque `(answer.detail ?? []).map(...)` virou string vazia e `doesNotMatch` passa
+vacuamente. O e2e tinha o mesmo buraco: `assert.match(tela, /6\.000/)` com a
+mensagem "na unidade do item" passava **sem a unidade existir**. As duas foram
+consertadas com a contagem primeiro — asserção de ausência sem asserção de
+presença ao lado é asserção que não morde.
+
+**A regra que sai:** número contado numa variável e nomeado noutra é uma família
+inteira, não um deslize. Ela mora em seis lugares previsíveis — o cabeçalho de um
+grupo de linhas, o selo de dois estados sobre um fato de três, a frase de estado
+vazio decidida por uma contagem parcial, a chave de dicionário reusada de outra
+tela, o rótulo fixo sobre um cartão que muda de assunto, e a promessa dita fora do
+estado em que ela é verdade.

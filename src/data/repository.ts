@@ -3017,6 +3017,15 @@ export type PickLine = {
   name: string;
   /** Quanto foi pedido, somando os pedidos em aberto daquela loja. */
   ordered: number;
+  /**
+   * Quantos pedidos entraram nessa soma.
+   *
+   * A tela dizia "pedido para 05/09: 800 un" — singular, com a data do primeiro
+   * e a quantidade de todos. Uma loja com 500 para sexta e 300 para segunda lia
+   * uma frase que afirmava um pedido só. Somar e rotular no singular é a única
+   * combinação que mente, e a contagem é fato: a soma já estava aqui.
+   */
+  orders: number;
   /** Quanto disso a fábrica tem hoje, no lugar de onde a carga sai. */
   available: number;
   /** Para quando é o mais urgente dos pedidos. */
@@ -3050,11 +3059,13 @@ export async function pickingFor(
     item_id: string;
     name: string;
     ordered: number;
+    orders: number;
     available: number;
     due_on: string | null;
   }>(
     `SELECT ol.item_id, i.name,
             SUM(ol.base_units) AS ordered,
+            COUNT(DISTINCT o.id) AS orders,
             MIN(o.requested_for) AS due_on,
             (SELECT COALESCE(SUM(m.quantity_base_units), 0) FROM movements m
               WHERE m.company_id = o.company_id
@@ -3077,6 +3088,7 @@ export async function pickingFor(
     itemId: r.item_id,
     name: r.name,
     ordered: r.ordered,
+    orders: r.orders,
     available: r.available,
     dueOn: r.due_on,
   }));
@@ -3102,7 +3114,22 @@ export type Shipment = {
    * honesta de saber quais itens TÊM caixa. Fato, não frase: a conversão em
    * palavras continua sendo da tela.
    */
-  items: { itemId: string; name: string; baseUnits: number; packaging: PackagingHierarchy }[];
+  items: {
+    itemId: string;
+    name: string;
+    baseUnits: number;
+    /**
+     * A unidade de uso, que é o que falta para o número ser dizível.
+     *
+     * A embalagem já vinha, e sozinha ela não resolve: item sem camada de caixa
+     * — açúcar, polpa, palito — tem só a faixa `unit`, e mandá-la para
+     * `formatPacked` faz o aplicativo chamar grama de "unidade". Foi o que
+     * acontecia: a capa dizia "6.000 unidades de Açúcar cristal" para seis
+     * quilos, e a aba de transporte imprimia "6.000" sem unidade nenhuma.
+     */
+    baseUnit: string;
+    packaging: PackagingHierarchy;
+  }[];
   /** Se alguém já abriu a caixa e contou. */
   checked: boolean;
 };
@@ -3135,12 +3162,13 @@ export async function shipmentsOn(
     group_id: string;
     item_id: string;
     item_name: string;
+    base_unit: string;
     packaging: string;
     total: number;
     checked: number;
   }>(
     `SELECT m.movement_group_id AS group_id, m.location_id, l.name AS location_name, l.kind,
-            m.item_id, i.name AS item_name, i.packaging,
+            m.item_id, i.name AS item_name, i.base_unit, i.packaging,
             SUM(m.quantity_base_units) AS total,
             EXISTS (
               SELECT 1 FROM movements c
@@ -3157,7 +3185,8 @@ export async function shipmentsOn(
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
         AND ${NAO_ESTORNADO}
-      GROUP BY m.movement_group_id, m.location_id, l.name, l.kind, m.item_id, i.name, i.packaging
+      GROUP BY m.movement_group_id, m.location_id, l.name, l.kind, m.item_id, i.name, i.base_unit,
+               i.packaging
       HAVING total > 0
       ORDER BY l.name, total DESC`,
     [companyId, fromIso, toIso],
@@ -3187,6 +3216,7 @@ export async function shipmentsOn(
         itemId: r.item_id,
         name: r.item_name,
         baseUnits: r.total,
+        baseUnit: r.base_unit,
         packaging: parsePackaging(r.packaging),
       });
     byPlace.set(r.location_id, place);

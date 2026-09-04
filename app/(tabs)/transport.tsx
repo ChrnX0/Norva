@@ -14,7 +14,8 @@ import { recordCheck, shipmentsOn, type Shipment } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { dayWindow } from '@/domain/day';
-import { fill, formatQuantity, plural } from '@/i18n';
+import { boxesOf } from '@/domain/units';
+import { fill, formatPacked, formatQuantity, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -79,6 +80,25 @@ function WhereItWent() {
   // somar tudo numa unidade só inventaria um número que ninguém consegue contar
   // na doca. Destino é contável sempre, e é o que a linha diz.
   /**
+   * A quantidade dita na unidade que a pessoa manuseia.
+   *
+   * O número aparecia cru — "6.000 açúcar cristal" na confirmação e "6.000" na
+   * linha do destino — numa lista que mistura grandezas de propósito: seis
+   * quilos de açúcar e seis mil picolés escreviam o mesmo "6.000". O comentário
+   * já dizia "cada item na unidade que ele tem", e a unidade não era impressa
+   * em lugar nenhum.
+   *
+   * A escolha é pela camada de embalagem, não pelo tipo do item: quem tem caixa
+   * fala em caixas, quem não tem fala na unidade de uso. `formatPacked` sozinho
+   * chamaria grama de "unidade", porque a faixa `unit` é a única que o item
+   * solto tem — é o mesmo defeito que a capa cometia.
+   */
+  const naUnidade = (item: Shipment['items'][number]) =>
+    boxesOf(item.baseUnits, item.packaging)
+      ? formatPacked(item.baseUnits, item.packaging, t.units, locale)
+      : `${formatQuantity(item.baseUnits, locale)} ${item.baseUnit}`;
+
+  /**
    * Conferir é dizer que a caixa foi aberta e o que havia dentro.
    *
    * A confirmação spelling out what will be written, como toda escrita deste
@@ -89,7 +109,7 @@ function WhereItWent() {
    */
   const ask = async (place: Shipment) => {
     const said = place.items
-      .map((i) => `${formatQuantity(i.baseUnits, locale)} ${i.name.toLocaleLowerCase(locale.formatting)}`)
+      .map((i) => `${naUnidade(i)} ${i.name.toLocaleLowerCase(locale.formatting)}`)
       .join(' · ');
 
     const yes = await confirm({
@@ -138,7 +158,7 @@ function WhereItWent() {
           <Card
             hue={palette.lilac}
             icon={(c) => <GlyphVehicle size={26} color={c} weight={traco} />}
-            title={t.app.home.boxesTitle}
+            title={t.app.transport.dayTitle}
           >
             <Text style={[type.figure, { color: color.ink }]}>
               {formatQuantity(places.length, locale)}
@@ -148,7 +168,7 @@ function WhereItWent() {
             </Text>
             <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]} numberOfLines={2}>
               {ontem === 0
-                ? t.app.transport.firstDay
+                ? t.app.transport.noYesterday
                 : fill(t.app.transport.vsYesterday, {
                     count: plural(ontem, t.app.transport.destinations, formatQuantity(ontem, locale)),
                   })}
@@ -187,12 +207,16 @@ function WhereItWent() {
                   numa coluna só. */}
               <View style={{ marginTop: space.sm, gap: space.xs }}>
                 {place.items.map((item) => (
-                  <View key={item.itemId} style={styles.row}>
+                  // Com a unidade dita, a coluna da direita ficou longa — "1
+                  // engradado · 1 caixa · 14 unidades" — e o nome, que é
+                  // `flex: 1`, encostava nela. Espaço entre os dois, como toda
+                  // linha de duas colunas deste aplicativo.
+                  <View key={item.itemId} style={[styles.row, { gap: space.md }]}>
                     <Text style={[type.secondary, { color: color.inkMuted, flex: 1 }]} numberOfLines={1}>
                       {item.name}
                     </Text>
                     <Text style={[type.secondary, styles.number, { color: color.ink }]}>
-                      {formatQuantity(item.baseUnits, locale)}
+                      {naUnidade(item)}
                     </Text>
                   </View>
                 ))}

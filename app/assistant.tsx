@@ -220,6 +220,24 @@ function Conversation() {
               {turn.answer.text}
             </Text>
 
+            {/* A lista, aberta: o que o aplicativo sabe fazer, as opções da
+                pergunta de volta, os campos do rascunho. Nada disso é conta, e
+                tudo isso estava atrás de um botão escrito "POR QUÊ?" — a frase
+                terminava em dois-pontos prometendo a lista e o rótulo do botão
+                afirmava que ali estava a aritmética de um número inexistente. */}
+            {turn.answer.list ? (
+              <View style={{ marginTop: space.sm }}>
+                {turn.answer.list.map((line, i) => (
+                  <ListRow
+                    key={`${line.label}-${i}`}
+                    label={line.label}
+                    trailing={line.value}
+                    trailingTone="muted"
+                  />
+                ))}
+              </View>
+            ) : null}
+
             {/* A conta aberta (Lei 6): cada parcela com o que ela vale, na régua
                 da linha de lista em vez de numa grade escrita à mão. */}
             {turn.open && turn.answer.detail ? (
@@ -268,14 +286,31 @@ function Conversation() {
             {turn.answer.draft ? (
               <View style={{ marginTop: space.md, gap: space.md }}>
                 {turn.applied ? (
-                  <Chip signal="ok" label={t.app.assistant.recorded} />
+                  <Chip
+                    signal="ok"
+                    label={
+                      turn.answer.draft.kind === 'item'
+                        ? t.app.assistant.registered
+                        : t.app.assistant.recorded
+                    }
+                  />
                 ) : (
                   <>
                     <Text style={[type.body, { color: color.ink }]}>
                       {turn.answer.draft.summary}
                     </Text>
+                    {/* Lançar é o que se faz com o que aconteceu, e o cadastro
+                        de um insumo não aconteceu em lugar nenhum: `saveItem`
+                        escreve a linha do item e nenhum movimento. O resumo duas
+                        linhas acima já dizia "Cadastrar", e o botão embaixo dele
+                        dizia "lançar" — o dicionário deste aplicativo separa as
+                        duas palavras de propósito. */}
                     <Button
-                      label={t.app.assistant.confirmAndRecord}
+                      label={
+                        turn.answer.draft.kind === 'item'
+                          ? t.app.assistant.confirmAndRegister
+                          : t.app.assistant.confirmAndRecord
+                      }
                       onPress={() => void confirmDraft(index)}
                       weighty
                     />

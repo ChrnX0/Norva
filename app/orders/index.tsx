@@ -69,10 +69,19 @@ function Orders() {
 
   const decide = async (order: Order, status: 'open' | 'delivered' | 'cancelled') => {
     if (status === 'cancelled') {
+      // Os dois botões diziam a mesma palavra com efeitos opostos.
+      //
+      // Sem `cancelLabel`, o diálogo cai no padrão "Cancelar" — e o assunto DELE
+      // é cancelar um pedido, então saíam dois botões empilhados escritos
+      // "Cancelar": o de cima cancelava o pedido, o de baixo desistia. E o
+      // pedido cancelado sai da lista, então não havia como desfazer por aqui.
+      // Cinco outras telas deste repositório já resolvem isso passando um
+      // rótulo próprio para o botão de desistir.
       const yes = await askConfirm({
         title: words.cancelTitle,
         message: fill(words.cancelBody, { place: order.placeName }),
         confirmLabel: words.cancel,
+        cancelLabel: words.keep,
       });
       if (!yes) return;
     }

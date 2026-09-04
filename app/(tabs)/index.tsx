@@ -30,7 +30,6 @@ import { dailySeries, dayWindow, localDate } from '@/domain/day';
 import { boxesOf } from '@/domain/units';
 import {
   fill,
-  formatPacked,
   formatQuantity,
   formatWeekday,
   plural,
@@ -201,7 +200,15 @@ function Briefing() {
           else
             solto?.push({
               name: item.name,
-              said: formatPacked(item.baseUnits, item.packaging, t.units, locale),
+              // Na unidade de uso, e não pelo `formatPacked`.
+              //
+              // Aqui só cai o que NÃO tem camada de caixa, e para esse item a
+              // única faixa é `unit` — então `formatPacked` traduzia a palavra
+              // "unidade" para seis quilos de açúcar: a capa dizia "6.000
+              // unidades de Açúcar cristal". É o mesmo defeito que a aba de
+              // transporte cometia, e a unidade estava a uma coluna de
+              // distância na consulta.
+              said: `${formatQuantity(item.baseUnits, locale)} ${item.baseUnit}`,
             });
         }
       }

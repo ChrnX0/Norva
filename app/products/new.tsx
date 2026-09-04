@@ -254,6 +254,9 @@ function ProductForm() {
   const linha = data?.lines.find((l) => l.id === lineId) ?? null;
   const tipo = data?.types.find((x) => x.id === typeId) ?? null;
   const sabor = data?.flavors.find((f) => f.id === flavorId) ?? null;
+  /** A faixa da caixa, quando ela existe — é ela que dá sentido ao selo. */
+  const caixa = hierarchy.tiers.find((t2) => t2.id === 'box') ?? null;
+
   const composed = (() => {
     if (nameTyped && name.trim()) return name;
     if (!linha) return name;
@@ -301,7 +304,14 @@ function ProductForm() {
     const words = fill(
       kind === 'product' ? t.app.productForm.confirmMade : t.app.productForm.confirmResale,
       {
-        name: name.trim(),
+        // O nome é o COMPOSTO, que é o que o campo mostra e o que a gravação usa.
+        //
+        // Com `name.trim()` a frase omitia justamente o nome: quem classifica só
+        // pela grade — toca "Picolé", "Uva" e não digita nada — via o campo
+        // escrito "Picolé de Uva" e a confirmação começando em vírgula. É o
+        // caminho que o e2e percorre, e a frase existe para dizer o que vai
+        // acontecer por extenso.
+        name: composed.trim(),
         recipe: data?.recipes.find((r) => r.id === chosenRecipe)?.name ?? '',
         perUnit: formatQuantity(num(perUnit), locale),
         packaging: packagingEcho,
@@ -752,17 +762,22 @@ function ProductForm() {
                 },
               )}
             </Text>
-            <View style={{ marginTop: space.md }}>
-              <Chip
-                signal="neutral"
-                label={fill(t.app.productForm.fullBox, {
-                  amount: formatMoney(
-                    costing.unit * (hierarchy.tiers.find((t2) => t2.id === 'box')?.perBaseUnit ?? 1),
-                    locale,
-                  ),
-                })}
-              />
-            </View>
+            {/* Sem caixa cadastrada, o selo não existe.
+                O `?? 1` fazia o multiplicador ser um, então o selo mostrava o
+                custo de UMA unidade — o mesmo número da figura logo acima —
+                batizado de "Caixa fechada". E na mesma rolagem o campo de
+                engradado já dizia "só unidade solta, sem caixa nem engradado":
+                a tela se contradizia duas vezes com a mesma entrada. */}
+            {caixa ? (
+              <View style={{ marginTop: space.md }}>
+                <Chip
+                  signal="neutral"
+                  label={fill(t.app.productForm.fullBox, {
+                    amount: formatMoney(costing.unit * caixa.perBaseUnit, locale),
+                  })}
+                />
+              </View>
+            ) : null}
           </Card>
         </Reveal>
       ) : null}

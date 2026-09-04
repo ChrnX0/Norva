@@ -65,7 +65,7 @@ import {
 import { EraseBlockedError } from './erase';
 import { markSent, pendingCount, pendingEntries, forgetSentBefore } from './outbox';
 import { serialize } from '../sync/serialize';
-import { ensureStarterData, hasSeeded, LOCAL_COMPANY_ID } from './seed';
+import { ensureStarterData, exampleStillHere, hasSeeded, LOCAL_COMPANY_ID } from './seed';
 
 /**
  * The data layer against a real database.
@@ -273,12 +273,23 @@ test('the starter data lands, and does not come back after it is wiped', async (
   assert.equal(products[0].name, 'Picolé de morango');
   assert.ok(products[0].recipeId, 'the product knows its recipe');
 
+  // Enquanto o exemplo está aqui, as duas perguntas respondem a mesma coisa.
+  assert.equal(await exampleStillHere(CO), true);
+
   await eraseArea(CO, 'all');
   assert.deepEqual(await listItems(CO), []);
 
   // The mark is what stops the demo reappearing tomorrow morning.
   await ensureStarterData(CO);
   assert.deepEqual(await listItems(CO), [], 'the example must stay gone');
+
+  // E aqui as duas se separam, que é o ponto: a marca é PERMANENTE — `app_meta`
+  // não é tabela apagável — e a presença não. A tela de Ajustes acendia "inclui
+  // os dados de exemplo" pela marca, então dizia isso para sempre, em todo
+  // aparelho, inclusive depois de apagar tudo e cadastrar o primeiro insumo
+  // próprio: contava uma variável e nomeava outra.
+  assert.equal(await hasSeeded(), true, 'a marca é o que impede o exemplo de voltar');
+  assert.equal(await exampleStillHere(CO), false, 'e ela não é a presença do exemplo');
 });
 
 test('erasing an area is refused when another area stands on it', async () => {
@@ -798,6 +809,17 @@ test('what went out is grouped by where it landed, in the units each item has', 
 
   const paraCentro = dia.find((d) => d.locationName === 'Loja Centro');
   assert.equal(paraCentro?.items.length, 2, 'dois itens diferentes no mesmo destino');
+
+  // A unidade de uso vem junto, e é ela que faltava — o título deste teste já
+  // dizia "in the units each item has" e nada aqui conferia a unidade.
+  //
+  // A embalagem sozinha não resolve: item sem camada de caixa tem só a faixa
+  // `unit`, e mandá-la para `formatPacked` fazia a capa chamar seis quilos de
+  // açúcar de "6.000 unidades", enquanto a aba de transporte imprimia "6.000"
+  // sem unidade nenhuma. Fato, não frase: a palavra continua sendo da tela.
+  const acucarNoCentro = paraCentro?.items.find((i) => i.itemId === acucar.id);
+  assert.equal(acucarNoCentro?.baseUnits, 6000);
+  assert.equal(acucarNoCentro?.baseUnit, 'g', 'seis mil GRAMAS, e não seis mil açúcares');
   assert.equal(paraCentro?.kind, 'own_store');
   assert.equal(paraCentro?.items.find((i) => i.itemId === acucar.id)?.baseUnits, 6000);
 
@@ -1362,6 +1384,12 @@ test('the picking list says what the store ordered and what the room has', async
 
   // A data é a do pedido mais urgente: é ela que decide o que separar primeiro.
   assert.equal(lista[0].dueOn, '2026-09-04');
+
+  // E QUANTOS pedidos entraram na soma, que é o que a frase da tela precisa para
+  // não mentir. Ela dizia "pedido para 04/09: 420 un" — singular, com a data do
+  // primeiro e a quantidade dos dois. Somar e rotular no singular é a única
+  // combinação que mente, e a contagem é fato.
+  assert.equal(lista[0].orders, 2, 'a soma diz de quantos pedidos ela é');
 
   // Pedido de outra loja não entra nesta lista - separar é por destino.
   const outra = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Norte', kind: 'own_store' });

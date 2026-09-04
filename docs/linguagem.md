@@ -144,4 +144,22 @@ coisa que todo mundo vê no primeiro dia.
   cansa quem olha oito horas.
 - Chave de dicionário nova quando já existe uma que diz o mesmo. Quatro seções
   inteiras deste dicionário existiram nos três idiomas sem uma tela lendo.
+- **E o inverso: chave de outra tela quando ela nomeia outra grandeza.** A aba de
+  transporte encabeçava a contagem de DESTINOS com `home.boxesTitle` — "Saiu para
+  as lojas" —, que na capa rotula uma contagem de CAIXAS, enquanto o comentário da
+  própria aba dizia "conta destinos, não caixas". Frase compartilhada de verdade
+  (o convite de abrir, a palavra de plural) se empresta; rótulo que nomeia um
+  número, não.
+- **Rótulo fixo em cima de cartão que muda de assunto.** "ENTRA NA RECEITA COMO"
+  sobre material de loja, que não entra em receita nenhuma; "Novo insumo" no
+  cabeçalho com "Embalagem" aceso a um dedo de distância; "Registrar a
+  transferência" no botão que grava uma devolução. Se o cartão muda de assunto no
+  toque, o rótulo muda com ele.
+- **Selo de dois estados sobre um fato de três.** `delta >= 0` fazia o empate
+  imprimir "0% acima de ontem" com 480 e 480 na mesma tela. Empate é estado, e
+  "está tudo bem" é estado válido e bonito (Lei 7).
+- **Promessa dita fora do estado em que ela é verdade.** "Conte e escreva aqui — o
+  número que o sistema espera fica escondido" ficava na tela **fechada**, com o
+  número uma linha acima e nenhum campo para escrever: a tela lia a lei e mostrava
+  a infração no mesmo cartão.
 - Frase escrita na tela. Tudo vem de `src/i18n/locales/`, nos três idiomas.

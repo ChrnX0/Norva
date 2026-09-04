@@ -320,14 +320,21 @@ test('a question it cannot answer offers what it does know', async () => {
   const answer = await ask('qual a previsão do tempo', context('view_cost'));
 
   assert.match(answer.text, /ainda não sei/i);
-  assert.ok((answer.detail?.length ?? 0) > 0);
+  // Lista, e não `detail`: a frase termina em dois-pontos prometendo os
+  // exemplos, e a tela mostra `detail` atrás de um botão escrito "POR QUÊ?".
+  // Nenhuma dessas linhas é a conta de número nenhum.
+  assert.ok((answer.list?.length ?? 0) > 0);
+  assert.equal(answer.detail, undefined, 'a list of examples is not arithmetic');
 });
 
 test('the examples offered never include skills the role cannot use', async () => {
   const answer = await ask('me ajuda', context('record_production'));
-  const offered = (answer.detail ?? []).map((d) => d.value).join(' ');
+  const linhas = answer.list ?? [];
 
-  assert.doesNotMatch(offered, /custa|preço/);
+  // A contagem primeiro, senão a asserção de baixo passa com a lista vazia -
+  // que é exatamente o que aconteceu quando os exemplos mudaram de campo.
+  assert.ok(linhas.length > 0, 'there is something to offer');
+  assert.doesNotMatch(linhas.map((l) => l.label).join(' '), /custa|preço/);
 });
 
 test('it lists what is in the storeroom, with the money that is sitting there', async () => {

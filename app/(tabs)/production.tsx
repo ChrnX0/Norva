@@ -101,6 +101,44 @@ function ProductionDay() {
   const abertas = data?.runs ?? [];
   const lotes = data?.lots ?? [];
 
+  /**
+   * O veredito da comparação, e ele tem três estados, não dois.
+   *
+   * `delta >= 0` fazia o empate cair em "acima": uma fábrica que roda a mesma
+   * carga todo dia — 480 e 480, o caso normal — lia o número 480, a legenda
+   * "Ontem foram 480." e, embaixo das duas, um selo verde afirmando estar ACIMA
+   * de ontem. A palavra contradizia os dois números em cima dela.
+   *
+   * Quem decide é o percentual JÁ arredondado, senão 4.802 contra 4.800 volta a
+   * imprimir "0% acima de ontem" — o mesmo defeito com uma casa decimal de
+   * disfarce. E as duas frases do empate são separadas de propósito: dizer
+   * "mesmo que ontem" para 4.802 seria trocar uma mentira por outra.
+   *
+   * A capa já reconhecia o terceiro estado (`producedSame`); a aba não. E a
+   * frase é dela, não da capa: lá a comparação é com o último dia útil, aqui é
+   * com ontem, e a mesma chave diria o dia errado.
+   */
+  const veredito = useMemo(() => {
+    if (totals.ontem <= 0 || totals.hoje <= 0) return null;
+    const pct = Math.round((Math.abs(totals.delta) / totals.ontem) * 100);
+    if (pct === 0) {
+      return {
+        signal: 'neutral' as const,
+        label:
+          totals.delta === 0
+            ? t.app.production.sameAsYesterday
+            : t.app.production.nearYesterday,
+      };
+    }
+    return {
+      signal: totals.delta > 0 ? ('ok' as const) : ('warning' as const),
+      label: fill(
+        totals.delta > 0 ? t.app.production.aboveYesterday : t.app.production.belowYesterday,
+        { percent: String(pct) },
+      ),
+    };
+  }, [totals, t]);
+
   /** O dia inteiro em branco: nada saiu, nada está rodando, nada nasceu. */
   const vazio =
     !loading && totals.hoje === 0 && totals.ontem === 0 && abertas.length === 0 && lotes.length === 0;
@@ -145,19 +183,9 @@ function ProductionDay() {
 
             {/* O veredito da comparação, em dose pequena. O número por extenso
                 fica na linha de cima: cor sozinha não é informação. */}
-            {!loading && totals.ontem > 0 && totals.hoje > 0 ? (
+            {!loading && veredito ? (
               <View style={{ marginTop: space.sm }}>
-                <Chip
-                  signal={totals.delta >= 0 ? 'ok' : 'warning'}
-                  label={fill(
-                    totals.delta >= 0
-                      ? t.app.production.aboveYesterday
-                      : t.app.production.belowYesterday,
-                    {
-                      percent: String(Math.round((Math.abs(totals.delta) / totals.ontem) * 100)),
-                    },
-                  )}
-                />
+                <Chip signal={veredito.signal} label={veredito.label} />
               </View>
             ) : null}
 
