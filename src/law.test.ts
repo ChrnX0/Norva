@@ -81,6 +81,10 @@ const TELAS: Record<string, Declaracao | Declaracao[]> = {
   // dele: cada item com o que vale, na mesma régua, e os outros lugares logo
   // abaixo. É a Lei 6 respondendo a Lei 3 — a conclusão abre a conta.
   'app/places.tsx': { compara: /worth/ },
+  // O número é o custo da receita mais cara, e a comparação é a régua da
+  // ordem: "as outras vêm abaixo, do lote mais caro para o mais barato" diz o
+  // que estar em primeiro significa.
+  'app/recipes/index.tsx': { compara: /orderedByBatch/ },
   'app/inputs/index.tsx': { compara: /shortestCover|coverUnknown|coverComfortable/ },
   'app/inputs/[id].tsx': { compara: /wentUp|wentDown/ },
   'app/losses.tsx': { compara: /vsPrevious|firstWindow/ },
