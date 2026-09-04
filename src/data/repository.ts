@@ -3316,9 +3316,9 @@ export async function eraseArea(companyId: string, area: EraseArea): Promise<voi
       // delete has to say which kinds it owns.
       if (table === 'items' && kinds) {
         // `marks` is only ever question marks; the kinds themselves are bound.
-        const marks = kinds.map(() => '?').join(', ');  // proofgate-allow
+        const marks = kinds.map(() => '?').join(', ');
         await conn.runAsync(
-          `DELETE FROM items WHERE company_id = ? AND kind IN (${marks})`,
+          `DELETE FROM items WHERE company_id = ? AND kind IN (${marks})`, // proofgate-allow
           [companyId, ...kinds],
         );
       } else if (table === 'products' && area === 'products') {
@@ -3331,8 +3331,8 @@ export async function eraseArea(companyId: string, area: EraseArea): Promise<voi
         await conn.runAsync(`DELETE FROM outbox`);
       } else {
         // The table name comes from `ErasableTable`, a closed union, so this
-        // interpolation cannot carry anything a caller chose. proofgate-allow
-        await conn.runAsync(`DELETE FROM ${table} WHERE company_id = ?`, [companyId]);
+        // interpolation cannot carry anything a caller chose.
+        await conn.runAsync(`DELETE FROM ${table} WHERE company_id = ?`, [companyId]); // proofgate-allow
       }
     }
 
