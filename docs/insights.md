@@ -3017,3 +3017,50 @@ era "exatamente como um instrumento perfeito" — e essa resposta é o próprio 
 longe de quem a usa. `erase.ts` conhecia 12 de 21 tabelas; a tabela do plano
 envelheceu no dia em que nasceu; e aqui uma lista de quatro pastas decidia, sem
 saber, se o portão inteiro perguntava alguma coisa.
+
+## 4 de setembro — `import()` não é checagem de sintaxe, e o que eu deixei rodando por oito horas
+
+**O que se viu.** Investigando por que a auditoria estava tão lenta, listei os
+processos da máquina e achei restos meus com **oito e nove horas de idade**: um
+`node -e "import('./scripts/mutate.mjs')"` órfão (`ppid 1`), o trabalhador de
+mutação que ele tinha aberto, o trabalhador de uma execução anterior, e um laço
+`until grep` de espera.
+
+Eu tinha escrito aquele `node -e import(...)` como **checagem de sintaxe**, depois de
+editar o `mutate.mjs` com um script. `import()` de um módulo com efeito de topo
+**executa o módulo** — então a checagem de sintaxe disparou a suíte de mutação
+inteira. E o `&` no fim do comando a órfãou: `ppid 1`, fora de qualquer árvore de
+processo que eu fosse olhar depois.
+
+**O custo, medido.** Quatro núcleos nesta máquina. O limite de concorrência de um
+workflow é `min(16, núcleos − 2)` = **2**, e esses restos disputavam os mesmos
+núcleos. A auditoria de dez frentes levou duas horas para a primeira fase; o `e2e`
+saiu `17/17 com 2 fatias vermelhas` numa execução, que eu diagnostiquei como disputa
+com o `mutate` que eu mesmo tinha acabado de rodar — verdade parcial, e não a causa.
+A causa estava rodando desde a manhã.
+
+**Provado nos dois sentidos**, porque a diferença é a coisa toda:
+
+```
+$ node -e "import('./efeito.mjs')"
+EU RODEI — e isto devia ser só uma checagem de sintaxe
+
+$ node --check efeito.mjs
+(silêncio — sintaxe boa, e nada rodou)
+```
+
+**O que mudou.** Regra nova na seção de operação do `CLAUDE.md`, ao lado da que
+proíbe matar processo por padrão — que é a irmã dela, e foi a que me deu o caminho
+seguro para limpar: parar **pelo PID que eu mesmo anotei**, conferindo antes a
+paternidade de cada um para não derrubar a execução em vôo.
+
+**A regra que fica:** *a maneira de verificar uma coisa não pode ser fazer a coisa.*
+`import()` para checar sintaxe é a mesma forma do erro que dominou o dia — a oficina
+do `mutate` que declarava "pego" sem consultar a suíte, a tabela que se conferia
+contra a própria memória, a guarda que comparava uma lista com ela mesma. Aqui a
+verificação **era** a execução, então ela não podia falhar em dizer "está bom": ela
+simplesmente ia.
+
+E a segunda metade: **o que roda em segundo plano tem que ficar numa árvore que eu
+consiga olhar.** `&` num comando de sessão entrega o processo ao init, e a partir daí
+ele não aparece em nenhum lugar que eu vá procurar por hábito.

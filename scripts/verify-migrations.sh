@@ -729,6 +729,47 @@ as_user "${P}92" "update orders set status = 'open' where id = '${P}51';" >/dev/
 
 echo "    a fila sobe duas vezes pela capacidade mínima, e o reenvio não decide nada"
 
+echo "==> check 10: o razão recusa item e local de outra empresa"
+
+# A garantia que faltava embaixo da fundação multi-empresa.
+#
+# A checagem 4 prova o ISOLAMENTO DE LEITURA: uma empresa não vê a outra. A
+# escrita tinha um buraco de outra forma — a política pergunta se a pessoa pode
+# gravar naquela empresa, e ninguém perguntava se o ITEM é daquela empresa. As
+# chaves de `movements` eram simples.
+#
+# O id não precisa ser adivinhado: `ensureLocation` cria o lugar padrão com
+# `id = company_id`, então o almoxarifado de B tem o id de B.
+psql -d "$DB" -q -c "insert into auth.users (id) values ('${P}94');" >/dev/null  # proofgate-allow
+psql -d "$DB" -q -c "insert into companies (id, name) values ('${P}02','Fábrica vizinha');" >/dev/null  # proofgate-allow
+psql -d "$DB" -q -c "insert into memberships (company_id, user_id, display_name, capabilities)
+  values ('${P}01','${P}94','Operadora', array['record_production']::capability[]);" >/dev/null  # proofgate-allow
+psql -d "$DB" -q -c "insert into locations (id, company_id, kind, name)
+  values ('${P}12','${P}01','store_room','Almoxarifado de casa'),
+         ('${P}13','${P}02','store_room','Almoxarifado da vizinha');" >/dev/null  # proofgate-allow
+psql -d "$DB" -q -c "insert into items (id, company_id, kind, name)
+  values ('${P}22','${P}02','input','Polpa da vizinha');" >/dev/null  # proofgate-allow
+
+# O item da vizinha, no razão de casa: recusado.
+FORA="insert into movements (id, company_id, kind, occurred_at, recorded_at, item_id, quantity_base_units, location_id, recorded_by) values ('${P}61','${P}01','production', now(), now(), '${P}22', 100, '${P}12', '${P}94');"  # proofgate-allow
+if as_user "${P}94" "$FORA" >/dev/null 2>&1; then
+  fail "o razão aceitou um item de OUTRA empresa — o saldo de casa passa a falar de coisa que não é de casa, e append-only quer dizer que a linha não sai nunca"
+fi
+
+# O local da vizinha, no razão de casa: recusado também.
+LUGAR="insert into movements (id, company_id, kind, occurred_at, recorded_at, item_id, quantity_base_units, location_id, recorded_by) values ('${P}62','${P}01','production', now(), now(), '${P}21', 100, '${P}13', '${P}94');"  # proofgate-allow
+if as_user "${P}94" "$LUGAR" >/dev/null 2>&1; then
+  fail "o razão aceitou um LOCAL de outra empresa"
+fi
+
+# E o movimento de casa, com item e local de casa, continua entrando — senão o
+# conserto teria trancado a porta com a fábrica do lado de fora.
+CASA="insert into movements (id, company_id, kind, occurred_at, recorded_at, item_id, quantity_base_units, location_id, recorded_by) values ('${P}63','${P}01','production', now(), now(), '${P}21', 100, '${P}12', '${P}94');"  # proofgate-allow
+as_user "${P}94" "$CASA" >/dev/null ||
+  fail "o movimento legítimo da própria empresa passou a ser recusado"
+
+echo "    item e local de fora são recusados, e o de casa entra"
+
 echo
-echo "OK - migrations apply and all nine guarantees hold."
+echo "OK - migrations apply and all ten guarantees hold."
 

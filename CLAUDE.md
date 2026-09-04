@@ -110,7 +110,7 @@ npm run lint
 npm test
 npm run mutate       # quebra o código de propósito: a suíte morde mesmo?
 npm run e2e:fast     # o app dirigido num navegador de verdade, em quatro fatias
-npm run db:verify    # Postgres descartável, nove garantias — inclui a fila
+npm run db:verify    # Postgres descartável, dez garantias — inclui a fila
                      # do aparelho reproduzida contra o servidor de verdade
 bash .proofgate/verify.sh
 ```
@@ -154,6 +154,14 @@ Duas regras de operação, ambas cicatriz:
 - **Nunca mate processo por padrão.** Um `pkill` largo nesta sessão matou a
   verificação que tinha acabado de ser disparada — inclusive a nova, junto com a
   velha. Se precisar parar algo, pare pelo PID que você mesmo anotou.
+- **`import()` não é checagem de sintaxe: ele RODA o arquivo.** Usei
+  `node -e "import('./scripts/mutate.mjs')"` duas vezes para ver se a edição tinha
+  quebrado a sintaxe, e as duas vezes o script inteiro começou a rodar. Com `&` no
+  fim do comando, ele ainda ficou **órfão** (`ppid 1`), fora de qualquer árvore que
+  eu fosse olhar depois. Um deles rodou a suíte de mutação por **oito horas** numa
+  máquina de quatro núcleos, roubando CPU da auditoria e produzindo fatias vermelhas
+  no `e2e` que eu diagnostiquei como disputa — o que era verdade, e não era a causa.
+  Sintaxe se confere com `node --check arquivo.mjs`, que valida e não executa.
 - **A proofgate lê `base..HEAD`, não a árvore de trabalho.** Marcador de
   justificativa em arquivo sem commit não existe para ela. Commit primeiro,
   depois confira.
