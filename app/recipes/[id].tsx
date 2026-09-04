@@ -1,11 +1,14 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
 import { Field } from '@/components/Field';
+import { GlyphPrice, GlyphRecipe, GlyphSack } from '@/components/Glyph';
+import { ListRow } from '@/components/ListRow';
+import { Reveal } from '@/components/Reveal';
 import { WhySheet } from '@/components/WhySheet';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import {
@@ -45,6 +48,35 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  *
  * Every number here is deterministic arithmetic over `src/domain/recipe.ts`,
  * which is what lets `[por quê?]` open the calculation instead of asserting it.
+ *
+ * **O corpo desta tela foi reescrito na língua da capa** (`docs/linguagem.md`),
+ * e o layout anterior saiu inteiro em vez de ganhar um caminho ao lado. O que
+ * havia: três retângulos no tom da área, sem crachá e sem tom de assunto; a
+ * barra de proporção de cada ingrediente desenhada à mão (`backgroundColor`,
+ * `borderRadius`) e por isso um bloco do Orgânico dentro do Papel; o `[por quê?]`
+ * como pílula de borda própria; e as pílulas `−10% / +10% / tirar` de um
+ * componente local (`Nudge`) que era caixa à mão em vinte e uma linhas. Nada
+ * entrava em cena — a tela aparecia de uma vez, ao lado de uma capa que entra em
+ * cascata.
+ *
+ * O que existe agora são três leituras da ficha, na ordem em que se decide:
+ * **quanto custa** (a figura com a conta ao lado, a diferença contra a versão
+ * salva e a conta que abre no `[por quê?]`), **o que entra** (cada linha com a
+ * quantidade, o quanto ela pesa no lote e o dinheiro na mesma régua da direita) e
+ * **a ficha em si** (rendimento, perda e porção). Nenhuma caixa é desenhada aqui:
+ * `Card`, `ListRow` e `Button` já sabem virar régua no Papel e bloco no Orgânico.
+ *
+ * Dois tons, e cada um é do assunto do cartão, não da tela: custo é
+ * `palette.sky`, que é o tom de dinheiro em todo o aplicativo, e o que entra é
+ * `palette.mint`, que é o tom de insumo — quem vê verde sabe que aquilo sai do
+ * almoxarifado antes de ler o nome. A área continua `apricot` pelo motivo já
+ * registrado em `app/recipes/index.tsx`: o cabeçalho não troca de cor no caminho
+ * da produção até a ficha.
+ *
+ * A barra de proporção não voltou porque não existe componente de proporção na
+ * língua — `Bars` é série de dias e `Sparkline` é série no tempo. A porcentagem
+ * continua dita por extenso na linha, e a coluna de dinheiro à direita, em
+ * figuras tabulares, é o que se compara de olho.
  */
 export default function RecipeScreen() {
   return (
@@ -81,11 +113,12 @@ type Draft = {
 };
 
 function RecipeEditor() {
-  const { color, type, space, accent } = useTheme();
+  const { color, type, space, palette, skin } = useTheme();
   const confirm = useConfirm();
   const router = useRouter();
   const { locale, t } = useLocale();
   const params = useLocalSearchParams<{ id?: string }>();
+  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data, loading } = useQuery<Loaded>(async () => {
     const [recipes, costs, labels, items, products] = await Promise.all([
@@ -306,14 +339,24 @@ function RecipeEditor() {
   const title =
     recipeId && data ? (data.labels[recipeId] ?? t.app.recipe.fallbackTitle) : t.app.recipe.fallbackTitle;
 
+  /**
+   * Abrindo, ou nenhuma ficha cadastrada.
+   *
+   * Também entra em cena e também tem desenho: "está tudo bem" é estado válido e
+   * bonito, e uma frase cinza sozinha no meio da tela é a versão que ensina a
+   * ignorar. A próxima ação não está aqui porque cadastrar receita ainda não tem
+   * tela para onde mandar - o mesmo registro que `app/recipes/index.tsx` já faz.
+   */
   if (loading || !data || !stored || !lines) {
     return (
       <CollapsingHeader title={t.app.recipe.fallbackTitle} overline={t.app.recipe.overline}>
-        <Card>
-          <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {loading ? t.app.recipe.opening : t.app.recipe.none}
-          </Text>
-        </Card>
+        <Reveal index={0}>
+          <Card hue={palette.sky} icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}>
+            <Text style={[type.body, { color: color.inkMuted }]}>
+              {loading ? t.app.recipe.opening : t.app.recipe.none}
+            </Text>
+          </Card>
+        </Reveal>
       </CollapsingHeader>
     );
   }
@@ -321,201 +364,262 @@ function RecipeEditor() {
   const inRecipe = new Set(lines.map((l) => (l.kind === 'item' ? l.itemId : l.recipeId)));
   const available = data.items.filter((i) => !inRecipe.has(i.id));
 
+  /**
+   * A cascata não pula número.
+   *
+   * O topo é um cartão só - ou o custo, ou o dado que falta para ele existir -
+   * porque os dois são a mesma pergunta respondida de dois jeitos. Quando nem um
+   * nem outro aparece, o que entra assume o índice 0 em vez de deixar um buraco
+   * na entrada.
+   */
+  const cabeca = computed?.error || computed?.cost ? 1 : 0;
+
   return (
     <CollapsingHeader
       title={title}
       overline={fill(t.app.recipe.overlineVersion, { version: stored.version })}
     >
+      {/* Falta um dado, e o erro IMPEDE em vez de reclamar: sem rendimento não
+          há custo, então o cartão do custo não aparece dizendo zero - este toma
+          o lugar dele e diz o que preencher. */}
       {computed?.error ? (
-        <Card tone="danger">
-          <Text style={[type.cardTitle, { color: color.danger }]}>{t.app.recipe.missingData}</Text>
-          <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-            {computed.error}
-          </Text>
-        </Card>
-      ) : null}
-
-      {computed?.cost ? (
-        <Card tone="area">
-          <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.recipe.unitCost}</Text>
-          <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
-            {computed.unitCents === null ? '—' : formatMoney(computed.unitCents, locale)}
-          </Text>
-
-          <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {computed.unitCents === null
-              ? t.app.recipe.needPortion
-              : fill(t.app.recipe.unitsPerBatch, {
-                  units: formatQuantity(computed.units, locale),
-                  batch: formatMoney(computed.cost.batchCents, locale),
-                })}
-          </Text>
-
-          {computed.delta && changed && computed.delta.deltaCents !== 0 ? (
-            <Text
-              style={[
-                type.secondary,
-                {
-                  color: computed.delta.cheaper ? color.ok : color.warning,
-                  marginTop: space.sm,
-                  fontWeight: '600',
-                },
-              ]}
-            >
-              {computed.delta.cheaper ? '▼' : '▲'}{' '}
-              {fill(t.app.recipe.cheaperThan, {
-                amount: formatMoney(Math.abs(computed.delta.deltaCents), locale),
-                version: stored.version,
-                percent: formatPercent(Math.abs(computed.delta.percent), locale),
-              })}
-            </Text>
-          ) : null}
-
-          {computed.rounding && computed.rounding.addedUnits > 0 ? (
-            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
-              {fill(t.app.recipe.roundUp, {
-                rounded: formatQuantity(computed.rounding.rounded, locale),
-                loose: formatQuantity(
-                  computed.units % (computed.boxTier?.perBaseUnit ?? 1),
-                  locale,
-                ),
-                units: formatQuantity(computed.units, locale),
-              })}
-            </Text>
-          ) : null}
-
-          <Pressable
-            onPress={() => setWhyOpen(true)}
-            accessibilityRole="button"
-            style={[styles.why, { borderColor: color.lineStrong, marginTop: space.md }]}
+        <Reveal index={0}>
+          <Card
+            hue={color.danger}
+            icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}
+            title={t.app.recipe.missingData}
           >
-            <Text style={[type.caption, { color: accent, letterSpacing: 0.6 }]}>{t.app.recipe.why}</Text>
-          </Pressable>
-        </Card>
+            <Text style={[type.body, { color: color.ink }]}>{computed.error}</Text>
+          </Card>
+        </Reveal>
       ) : null}
 
-      <Card tone="area">
-        <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.md }]}>
-          {t.app.recipe.whatGoesIn}
-        </Text>
-
-        {lines.map((line, index) => {
-          const id = line.kind === 'item' ? line.itemId : line.recipeId;
-          const label = data.labels[id] ?? id;
-          const share = computed?.cost?.lines[index]?.share ?? 0;
-          const lineCost = computed?.cost?.lines[index]?.totalCents ?? 0;
-
-          return (
-            <View key={`${id}-${index}`} style={{ marginBottom: space.lg }}>
-              <View style={styles.lineRow}>
-                <Text style={[type.body, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-                  {label}
-                  {line.kind === 'recipe' ? ` ·  ${t.app.recipe.subRecipe}` : ''}
-                </Text>
-                <Text style={[type.body, styles.number, { color: color.ink }]}>
-                  {formatMoney(lineCost, locale)}
-                </Text>
-              </View>
-
-              <View style={[styles.track, { backgroundColor: color.sunken }]}>
-                <View
-                  style={{
-                    width: `${Math.max(1, Math.round(share * 100))}%`,
-                    height: '100%',
-                    backgroundColor: accent,
-                    borderRadius: 99,
-                  }}
-                />
-              </View>
-
-              <View style={[styles.lineRow, { marginTop: space.sm, gap: space.sm }]}>
-                <Text style={[type.caption, { color: color.inkFaint, flex: 1 }]}>
-                  {fill(t.app.recipe.shareOfBatch, {
-                    quantity: formatQuantity(line.quantity, locale),
-                    percent: `${Math.round(share * 100)}%`,
-                  })}
-                </Text>
-                <Nudge
-                  label={t.app.recipe.lessTen}
-                  onPress={() => setQuantity(index, line.quantity * 0.9)}
-                />
-                <Nudge
-                  label={t.app.recipe.moreTen}
-                  onPress={() => setQuantity(index, line.quantity * 1.1)}
-                />
-                <Nudge label={t.app.recipe.remove} onPress={() => removeLine(index)} />
-              </View>
+      {/* QUANTO CUSTA. A única figura da tela, e ela nunca aparece sozinha: ao
+          lado vem quantas unidades saem de cada vez e quanto custa o lote
+          inteiro, embaixo a diferença contra a versão salva - a resposta de "meu
+          ajuste ajudou", feita enquanto o ajuste está aberto - e no fim a conta,
+          que abre por inteiro no `[por quê?]`. */}
+      {computed?.cost ? (
+        <Reveal index={0}>
+          <Card
+            hue={palette.sky}
+            icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
+            title={t.app.recipe.unitCost}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.md }}>
+              <Text style={[type.figure, { color: color.ink }]}>
+                {computed.unitCents === null ? '—' : formatMoney(computed.unitCents, locale)}
+              </Text>
+              <Text style={[type.secondary, { color: color.inkMuted, flex: 1 }]}>
+                {computed.unitCents === null
+                  ? t.app.recipe.needPortion
+                  : fill(t.app.recipe.unitsPerBatch, {
+                      units: formatQuantity(computed.units, locale),
+                      batch: formatMoney(computed.cost.batchCents, locale),
+                    })}
+              </Text>
             </View>
-          );
-        })}
 
-        {available.length > 0 ? (
-          <>
-            <Text style={[type.caption, { color: color.inkFaint, marginBottom: space.sm }]}>
-              {t.app.recipe.add}
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={{ flexDirection: 'row', gap: space.sm }}>
-                {available.map((item) => (
-                  <Nudge key={item.id} label={`+ ${item.name}`} onPress={() => addItem(item.id)} />
-                ))}
+            {/* A seta carrega a direção porque a frase não carrega: cor sozinha
+                não é informação para quem não distingue verde de âmbar. */}
+            {computed.delta && changed && computed.delta.deltaCents !== 0 ? (
+              <Text
+                style={[
+                  type.secondary,
+                  {
+                    color: computed.delta.cheaper ? color.ok : color.warning,
+                    marginTop: space.sm,
+                    fontWeight: '600',
+                  },
+                ]}
+              >
+                {computed.delta.cheaper ? '▼' : '▲'}{' '}
+                {fill(t.app.recipe.cheaperThan, {
+                  amount: formatMoney(Math.abs(computed.delta.deltaCents), locale),
+                  version: stored.version,
+                  percent: formatPercent(Math.abs(computed.delta.percent), locale),
+                })}
+              </Text>
+            ) : null}
+
+            {computed.rounding && computed.rounding.addedUnits > 0 ? (
+              <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
+                {fill(t.app.recipe.roundUp, {
+                  rounded: formatQuantity(computed.rounding.rounded, locale),
+                  loose: formatQuantity(
+                    computed.units % (computed.boxTier?.perBaseUnit ?? 1),
+                    locale,
+                  ),
+                  units: formatQuantity(computed.units, locale),
+                })}
+              </Text>
+            ) : null}
+
+            {/* Lei 6: toda conclusão abre a conta. Fantasma, porque a ação desta
+                tela é salvar - abrir a conta não compete com ela. */}
+            <Button
+              label={t.app.recipe.why}
+              variant="ghost"
+              onPress={() => setWhyOpen(true)}
+              style={{ marginTop: space.md }}
+            />
+          </Card>
+        </Reveal>
+      ) : null}
+
+      {/* O QUE ENTRA. Cada linha diz quanto vai, o quanto ela pesa no lote e o
+          que ela custa, na régua da direita - é a conta do cartão de cima, item
+          por item. Sem desenho nas linhas: ícone em toda linha vira papel de
+          parede e para de ser visto; o crachá é do assunto, uma vez. Os três
+          ajustes são fantasma, porque corrigir nunca se convida. */}
+      <Reveal index={cabeca}>
+        <Card
+          hue={palette.mint}
+          icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}
+          title={t.app.recipe.whatGoesIn}
+        >
+          {lines.map((line, index) => {
+            const id = line.kind === 'item' ? line.itemId : line.recipeId;
+            const label = data.labels[id] ?? id;
+            const share = computed?.cost?.lines[index]?.share ?? 0;
+            const lineCost = computed?.cost?.lines[index]?.totalCents ?? 0;
+            // "18.000" de quê? A unidade estava faltando desde antes desta
+            // reescrita, e sem ela o número não decide nada — dezoito mil
+            // gramas e dezoito mil unidades são coisas diferentes na mesma
+            // ficha. Item usa a unidade-base dele; sub-receita, a do rendimento.
+            const unidade =
+              line.kind === 'item'
+                ? (data.items.find((i) => i.id === line.itemId)?.baseUnit ?? '')
+                : (stored?.yieldUnit ?? "");
+
+            return (
+              <View key={`${id}-${index}`} style={{ marginBottom: space.sm }}>
+                <ListRow
+                  label={line.kind === 'recipe' ? `${label} · ${t.app.recipe.subRecipe}` : label}
+                  detail={fill(t.app.recipe.shareOfBatch, {
+                    quantity: `${formatQuantity(line.quantity, locale)} ${unidade}`.trim(),
+                    percent: formatPercent(share, locale, 0),
+                  })}
+                  trailing={formatMoney(lineCost, locale)}
+                />
+                <View style={{ flexDirection: 'row', gap: space.sm }}>
+                  <Button
+                    label={t.app.recipe.lessTen}
+                    variant="ghost"
+                    onPress={() => setQuantity(index, line.quantity * 0.9)}
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    label={t.app.recipe.moreTen}
+                    variant="ghost"
+                    onPress={() => setQuantity(index, line.quantity * 1.1)}
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    label={t.app.recipe.remove}
+                    variant="ghost"
+                    onPress={() => removeLine(index)}
+                    style={{ flex: 1 }}
+                  />
+                </View>
               </View>
-            </ScrollView>
-          </>
-        ) : null}
-      </Card>
+            );
+          })}
 
-      <Card tone="area">
-        <View style={{ gap: space.lg }}>
-          <Field
-            label={t.app.recipe.batchYield}
-            value={yieldAmount}
-            onChangeText={(value) => edit({ yieldAmount: value })}
-            suffix="ml"
-            keyboardType="numeric"
-          />
-          <Field
-            label={t.app.recipe.expectedLoss}
-            value={lossPercent}
-            onChangeText={(value) => edit({ lossPercent: value })}
-            suffix="%"
-            keyboardType="numeric"
-            hint={
-              computed?.cost
-                ? fill(t.app.recipe.lossHint, {
-                    net: formatQuantity(computed.cost.netYield, locale),
-                    gross: formatQuantity(num(yieldAmount), locale),
-                  })
-                : undefined
-            }
-          />
-          <Field
-            label={t.app.recipe.perUnit}
-            value={perUnit}
-            onChangeText={(value) => edit({ perUnit: value })}
-            suffix="ml"
-            keyboardType="numeric"
-            hint={
-              data.unitPackagingCents > 0
-                ? fill(t.app.recipe.packagingHint, {
-                    amount: formatMoney(data.unitPackagingCents, locale),
-                  })
-                : undefined
-            }
-          />
-        </View>
-      </Card>
+          {/* O que ainda não está na ficha, em texto e sem caixa - a mesma forma
+              que o almoxarifado usa para escolher, e a que sobrevive nas duas
+              caras porque não desenha nada. */}
+          {available.length > 0 ? (
+            <>
+              <Text style={[type.overline, { color: color.inkFaint, marginTop: space.md }]}>
+                {t.app.recipe.add}
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={{ flexDirection: 'row', gap: space.lg }}>
+                  {available.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => addItem(item.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t.app.recipe.add} ${item.name}`}
+                      style={{ paddingVertical: space.sm }}
+                    >
+                      <Text
+                        style={[type.secondary, { color: palette.mint, fontWeight: '600' }]}
+                        numberOfLines={1}
+                      >
+                        {item.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+            </>
+          ) : null}
+        </Card>
+      </Reveal>
 
-      <Button
-        label={
-          saving
-            ? t.app.recipe.saving
-            : fill(t.app.recipe.saveAs, { version: stored.version + 1 })
-        }
-        onPress={() => void onSave()}
-        disabled={!changed || saving || Boolean(computed?.error)}
-        weighty
-      />
+      {/* A FICHA EM SI: o que ela rende, o que se perde no caminho e quanto vai
+          em cada unidade. Formulário continua formulário - `Field` nos campos,
+          com a dica que devolve a conta a cada tecla. Sem título: o cabeçalho já
+          diz "ficha técnica · versão N", e repetir a palavra num crachá seria
+          rótulo inventado. */}
+      <Reveal index={cabeca + 1}>
+        <Card hue={palette.sky} icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}>
+          <View style={{ gap: space.lg }}>
+            <Field
+              label={t.app.recipe.batchYield}
+              value={yieldAmount}
+              onChangeText={(value) => edit({ yieldAmount: value })}
+              suffix="ml"
+              keyboardType="numeric"
+            />
+            <Field
+              label={t.app.recipe.expectedLoss}
+              value={lossPercent}
+              onChangeText={(value) => edit({ lossPercent: value })}
+              suffix="%"
+              keyboardType="numeric"
+              hint={
+                computed?.cost
+                  ? fill(t.app.recipe.lossHint, {
+                      net: formatQuantity(computed.cost.netYield, locale),
+                      gross: formatQuantity(num(yieldAmount), locale),
+                    })
+                  : undefined
+              }
+            />
+            <Field
+              label={t.app.recipe.perUnit}
+              value={perUnit}
+              onChangeText={(value) => edit({ perUnit: value })}
+              suffix="ml"
+              keyboardType="numeric"
+              hint={
+                data.unitPackagingCents > 0
+                  ? fill(t.app.recipe.packagingHint, {
+                      amount: formatMoney(data.unitPackagingCents, locale),
+                    })
+                  : undefined
+              }
+            />
+          </View>
+        </Card>
+      </Reveal>
+
+      {/* A ação provável, uma só e embaixo, ao alcance do dedo. */}
+      <Reveal index={cabeca + 2}>
+        <Button
+          label={
+            saving
+              ? t.app.recipe.saving
+              : fill(t.app.recipe.saveAs, { version: stored.version + 1 })
+          }
+          onPress={() => void onSave()}
+          disabled={!changed || saving || Boolean(computed?.error)}
+          weighty
+        />
+      </Reveal>
 
       {computed?.cost ? (
         <WhySheet
@@ -529,36 +633,3 @@ function RecipeEditor() {
     </CollapsingHeader>
   );
 }
-
-function Nudge({ label, onPress }: { label: string; onPress: () => void }) {
-  const { color, type, space } = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={{
-        borderWidth: StyleSheet.hairlineWidth * 2,
-        borderColor: color.lineStrong,
-        borderRadius: 999,
-        paddingHorizontal: space.md,
-        paddingVertical: space.sm - 2,
-      }}
-    >
-      <Text style={[type.caption, { color: color.inkMuted }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
-  lineRow: { flexDirection: 'row', alignItems: 'center' },
-  number: { fontVariant: ['tabular-nums'], fontWeight: '600' },
-  track: { height: 6, borderRadius: 99, overflow: 'hidden', marginTop: 6 },
-  why: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-});

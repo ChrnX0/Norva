@@ -93,12 +93,28 @@ export function Button({
         styles.base,
         {
           backgroundColor: isPrimary ? preenchimento : 'transparent',
-          borderColor: isPrimary ? 'transparent' : color.lineStrong,
           borderRadius: papel ? radius.sm : radius.pill,
           paddingVertical: space.lg,
           paddingHorizontal: space.xl,
           opacity: disabled ? 0.45 : 1,
         },
+        // A ação secundária no Papel é palavra sublinhada, não bloco.
+        //
+        // A moldura em volta é o vocabulário do Orgânico, e ela se multiplica:
+        // a ficha de uma receita com quatro linhas tem doze ações secundárias,
+        // e doze molduras empilhadas são doze caixas — exatamente o que o dono
+        // circulou. Sublinhado dá a mesma pista de "isto se toca" ocupando uma
+        // linha em vez de um retângulo.
+        papel && !isPrimary
+          ? {
+              borderWidth: 0,
+              borderBottomWidth: StyleSheet.hairlineWidth * 2,
+              borderBottomColor: color.lineStrong,
+              borderRadius: 0,
+              paddingVertical: space.md,
+              paddingHorizontal: space.sm,
+            }
+          : { borderColor: isPrimary ? 'transparent' : color.lineStrong },
         animated,
         style,
       ]}

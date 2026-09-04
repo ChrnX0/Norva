@@ -213,7 +213,13 @@ try {
       // Telas cujo endereço tem id gerado não se alcançam por URL: chega-se
       // nelas como uma pessoa chega, tocando. `lote` é a etiqueta do primeiro
       // lote do dia, aberta pela lista da produção.
-      if (rota === 'lote') {
+      // `receita` é a primeira ficha da estante, aberta pela lista — outro
+      // endereço com id gerado, que só se alcança tocando.
+      if (rota === 'receita') {
+        await page.goto(`http://localhost:${PORT}/recipes`, { waitUntil: 'networkidle' });
+        await page.waitForTimeout(1500);
+        await page.getByText('Abrir a tela', { exact: true }).first().click();
+      } else if (rota === 'lote') {
         await page.goto(`http://localhost:${PORT}/production`, { waitUntil: 'networkidle' });
         await page.waitForTimeout(1200);
         await page.getByText(/^\d{8}-\d{2}$/).first().click();
