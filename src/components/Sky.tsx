@@ -36,15 +36,24 @@ function temperatureBand(maxC: number): 'cold' | 'mild' | 'warm' | 'hot' {
   return 'hot';
 }
 
+/**
+ * A cena ocupa a largura do cartão, e isso já foi um defeito visível.
+ *
+ * A primeira versão nascia com `width = 320` — um número escolhido quando esta
+ * cena era desenhada sozinha. Dentro de um cartão de 380 num aparelho de 412,
+ * ela deixava sessenta pixels de fundo do cartão aparecendo à direita, com o
+ * canto arredondado do bloco no meio da borda reta do cartão. Ficou assim na
+ * capa do dono até alguém tirar uma foto da tela.
+ *
+ * Cena não tem largura própria: ela tem a largura de onde está.
+ */
 export function SkyScene({
   maxC,
   rainChance,
-  width = 320,
   height = 120,
 }: {
   maxC: number;
   rainChance: number | null;
-  width?: number;
   height?: number;
 }) {
   const { palette, brand, skin } = useTheme();
@@ -112,7 +121,7 @@ export function SkyScene({
   return (
     <View
       style={{
-        width,
+        alignSelf: 'stretch',
         height,
         borderRadius: papel ? 0 : 18,
         overflow: 'hidden',
@@ -123,15 +132,17 @@ export function SkyScene({
       }}
       pointerEvents="none"
     >
+      {/* O degradê é vertical, então esticar na horizontal não deforma nada -
+          e é o que permite a cena não saber a própria largura. */}
       {papel ? null : (
-      <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      <Svg width="100%" height={height} viewBox={`0 0 100 ${height}`} preserveAspectRatio="none">
         <Defs>
           <LinearGradient id="atmosphere" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={top} stopOpacity="0.95" />
             <Stop offset="1" stopColor={bottom} stopOpacity="0.75" />
           </LinearGradient>
         </Defs>
-        <Rect x="0" y="0" width={width} height={height} fill="url(#atmosphere)" />
+        <Rect x="0" y="0" width="100" height={height} fill="url(#atmosphere)" />
       </Svg>
       )}
 

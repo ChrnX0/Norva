@@ -150,11 +150,18 @@ check('opens on the day, not on the price of a popsicle', async (page) => {
 
   const text = await screen(page);
   assert.match(text, /NORVA/);
-  assert.match(text, /saíram hoje/, 'a manchete é o que saiu hoje');
-
-  // A régua de sete dias: as iniciais dos dias da semana, uma por coluna. É a
-  // única coisa da tela que responde "isto aqui é normal?".
-  assert.match(text, /(?:[A-Z] \| ){6}[A-Z]/, 'a semana está desenhada em sete colunas');
+  // Numa instalação virgem a manchete é o CONVITE, e não "0 unidades saíram
+  // hoje". O dono abriu o aplicativo instalado e viu quatro cartões dizendo que
+  // não havia nada — "0 unidades", "0 · nada saiu ainda", "nenhuma corrida
+  // registrada", "sem saída registrada" — e nenhuma próxima ação em lugar
+  // nenhum. Um convite responde por todos eles.
+  assert.match(text, /Primeiro dia/, 'a capa de uma fábrica nova convida em vez de contar zeros');
+  assert.match(text, /Lançar a primeira produção/, 'com a próxima ação, que é a Lei da Inteligência');
+  assert.doesNotMatch(
+    text,
+    /Nenhuma corrida registrada ainda/,
+    'e as peças vazias não empilham quatro nadas embaixo do convite',
+  );
 
   // E o preço saiu de vez, dito como asserção para que ele não volte sozinho
   // numa refatoração futura.
@@ -563,17 +570,24 @@ check('the briefing is up to date when you tap Back into it', async (page) => {
 check('what came out today reaches the briefing, with what it was to compare', async (page) => {
   // A primeira consulta com recorte de data deste repositório, vista da tela.
   //
-  // A versão anterior desta checagem afirmava o contrário: numa instalação
-  // virgem o cartão do dia NÃO aparecia. Era a Lei 7 lida errado - "está tudo
-  // bem é estado válido" fala de não inventar alerta, não de esconder o
-  // assunto da tela. Escondendo, a capa de uma fábrica nova ficava com clima e
-  // preço e nada de trabalho, que foi exatamente o que o dono viu e recusou.
-  // Zero dito ao lado de ontem é uma pergunta; cartão ausente é um buraco.
+  // O assunto da tela nunca some — o que mudou foi a FORMA dele numa fábrica
+  // que ainda não trabalhou.
+  //
+  // Duas versões desta checagem já erraram, cada uma para um lado. A primeira
+  // afirmava que o cartão do dia não aparecia numa instalação virgem: era a Lei
+  // 7 lida errado, e a capa ficava com clima e preço e nada de trabalho. A
+  // segunda cobrava "0 unidades saíram hoje" ao lado de ontem — e o dono abriu
+  // o aplicativo instalado e viu QUATRO cartões dizendo que não havia nada.
+  //
+  // Zero dito é uma pergunta quando a fábrica já trabalhou. Antes disso ele é
+  // só um zero, e o que responde à Lei da Inteligência é o convite com a
+  // próxima ação. Cartão ausente continua sendo um buraco: por isso a asserção
+  // é positiva, sobre o que a capa DIZ.
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
   const virgem = await screen(page);
-  assert.match(virgem, /0 \| unidades saíram hoje|0\s*\|\s*unidades/, 'o dia zerado é dito, não escondido');
-  assert.match(virgem, /Ontem não houve produção/, 'e nunca sozinho: ontem vem junto');
+  assert.match(virgem, /Primeiro dia/, 'a capa fala de trabalho antes de haver trabalho');
+  assert.match(virgem, /Lançar a primeira produção/, 'e diz qual é a próxima ação');
 
   // Produz, e volta pela aba - o caminho de verdade.
   await page.getByRole('tab', { name: 'Produção' }).click();
@@ -1503,6 +1517,11 @@ check('the home is assembled from pieces the house chose', async (page) => {
   assert.match(ajustes, /O que aparece na tela inicial/, 'a capa é configurável nos ajustes');
   assert.match(ajustes, /Produção do dia/);
   assert.match(ajustes, /Tempo/);
+  // A produção ao vivo nasce LIGADA, e é aqui que isso se prova: numa
+  // instalação virgem a capa mostra o convite do primeiro dia no lugar das
+  // peças vazias, então cobrar o nome dela na capa provaria o contrário do que
+  // se quer — que a peça aparece sem ter o que dizer.
+  assert.match(ajustes, /Produção ao vivo/, 'a produção ao vivo entra na capa por padrão');
 
   // Esconder o tempo neste aparelho tira o cartão da capa - e a ordem que a
   // casa combinou continua a mesma para todo mundo.
@@ -1539,8 +1558,7 @@ check('the home is assembled from pieces the house chose', async (page) => {
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(3000);
   const capa = await screen(page);
-  assert.match(capa, /Produção ao vivo/, 'a produção ao vivo entra na capa por padrão');
-  assert.match(capa, /Últimas corridas/);
+  assert.match(capa, /Primeiro dia/, 'a capa virgem convida');
   // Numa instalação virgem nada foi produzido, e a peça diz isso em vez de
   // convidar para abrir o vazio - "ligar não é forçar" vale para o toque também.
   //
@@ -1549,10 +1567,14 @@ check('the home is assembled from pieces the house chose', async (page) => {
   // convida com razão — ele tem a semana para mostrar —, e a diferença era só a
   // rede: a máquina de desenvolvimento não alcança a previsão, o runner alcança.
   // Teste que depende de haver internet é teste que mente num dos dois lugares.
-  assert.match(
+  // A afirmação anterior era que a peça sem dado DIZIA estar vazia. O dono viu
+  // o resultado disso empilhado quatro vezes e recusou; agora a peça sem dado
+  // não aparece, e o convite responde por ela. A asserção é a mesma pergunta —
+  // "a capa não engana quem não tem dado" — com a resposta que o dono escolheu.
+  assert.doesNotMatch(
     capa,
-    /Últimas corridas \| Nenhuma corrida registrada ainda/,
-    'a peça sem dado diz que está vazia, sem convite entre o título e a frase',
+    /Nenhuma corrida registrada ainda|nada saiu ainda|sem saída registrada/,
+    'peça sem dado não aparece: o convite responde por todas elas',
   );
 });
 

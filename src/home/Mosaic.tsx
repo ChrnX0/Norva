@@ -819,15 +819,40 @@ export function Mosaic({
    * Estado vazio bonito é estado válido; quatro estados vazios empilhados são
    * uma tela que ensina que a capa não serve para nada.
    */
-  const nadaAconteceu =
+  /**
+   * "Ainda não trabalhou" — que não é a mesma coisa que "não existe nada".
+   *
+   * A primeira versão deste cartão substituía a capa INTEIRA, e o CI derrubou
+   * por três caminhos no mesmo dia: nota de compra lançada, produção marcada em
+   * curso, preço que mudou. Nos três a fábrica tinha notícia e a capa respondia
+   * "primeiro dia". Esconder o que existe é pior que mostrar vazio — vazio é
+   * uma tela que não serve, esconder é uma tela que MENTE.
+   *
+   * E a correção óbvia estava errada também: exigir que NADA exista nunca
+   * fecharia o portão, porque a semeadura já compra insumo — a capa voltaria
+   * aos quatro cartões vazios que o dono recusou.
+   *
+   * A pergunta certa é a do trabalho: saiu alguma coisa do tacho, foi para
+   * alguma loja, alguém pediu, tem tacho aberto, venceu ou perdeu? Comprar
+   * insumo não é trabalho da fábrica, é o estoque de partida. Então o cartão
+   * entra no lugar das peças de trabalho vazias, e o preço, o dinheiro parado e
+   * o tempo continuam dizendo o que sabem.
+   */
+  const aindaNaoTrabalhou =
     (data?.madeToday ?? 0) === 0 &&
     (data?.runs ?? []).length === 0 &&
     (data?.cover ?? []).length === 0 &&
     (data?.boxes ?? 0) === 0 &&
-    (data?.demand ?? []).length === 0;
+    (data?.demand ?? []).length === 0 &&
+    (data?.running ?? []).length === 0 &&
+    (data?.expiring ?? []).length === 0 &&
+    (data?.dueToday ?? []).length === 0 &&
+    (data?.lossesNow ?? 0) === 0;
 
-  if (nadaAconteceu) {
-    return (
+  if (aindaNaoTrabalhou) {
+    // No lugar da peça do dia, não no lugar da capa: o que as outras peças
+    // souberem dizer continua dito, na ordem que a empresa escolheu.
+    pecas.producao = (
       <>
         <Reveal index={0}>
           <Touchable onPress={() => go('/production/new')} accessibilityLabel={t.app.home.firstDayAction}>
@@ -855,11 +880,10 @@ export function Mosaic({
             </Card>
           </Touchable>
         </Reveal>
-        {/* O tempo continua, quando há: ele é a única peça que tem o que dizer
-            numa fábrica que ainda não produziu. */}
-        {sky ? <Fragment key="clima">{pecas.clima}</Fragment> : null}
       </>
     );
+    // As peças de trabalho vazias somem em vez de empilhar quatro zeros: cada
+    // uma já devolve nulo sem dado, e o convite acima responde por todas.
   }
 
   return <>{layout.map((id) => <Fragment key={id}>{pecas[id]}</Fragment>)}</>;
