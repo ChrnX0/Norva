@@ -100,6 +100,30 @@ export function formatMoney(cents: number, locale: LocaleSettings): string {
   }).format(cents / 100);
 }
 
+/**
+ * Só o símbolo da moeda — para o campo em que a pessoa digita o valor.
+ *
+ * `formatMoney` resolve o número já escrito; ele não serve para o sufixo de um
+ * campo vazio, e por isso dois formulários escreveram `suffix="R$"` na mão: o
+ * cadastro de insumo e a nota de compra. **Trinta linhas acima está escrito que
+ * traduzir as palavras e continuar mostrando "R$" para um cliente mexicano não é
+ * internacionalização** — e era exatamente o que estes dois campos faziam, desde
+ * que a moeda virou escolha da empresa e passaram a existir oito.
+ *
+ * O símbolo sai do `Intl`, da mesma moeda que formata o resto: pedir a peça
+ * `currency` de um valor formatado é o que garante que o campo e o número que
+ * ele vira digam a mesma coisa. Sem a peça (moeda que o ambiente não conhece),
+ * volta o código ISO, que é feio e verdadeiro — melhor que o símbolo de outro
+ * país.
+ */
+export function currencySymbol(locale: LocaleSettings): string {
+  const partes = new Intl.NumberFormat(locale.formatting, {
+    style: 'currency',
+    currency: locale.currency,
+  }).formatToParts(0);
+  return partes.find((p) => p.type === 'currency')?.value ?? locale.currency;
+}
+
 export function formatQuantity(value: number, locale: LocaleSettings): string {
   return new Intl.NumberFormat(locale.formatting, {
     maximumFractionDigits: 0,

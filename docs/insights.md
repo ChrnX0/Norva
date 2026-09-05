@@ -3671,3 +3671,52 @@ aprovados, papel e organico nas variações light e dark para nunca mais errar n
 escolha, nunca recebê-la pronta — e tem de ter um jeito de provar que as saídas que ela
 chama de diferentes são diferentes. Padrão não é escolha: é o que sobra quando ninguém
 escolheu, e ele muda sem avisar quem dependia dele.
+
+## 2026-09-05 — o relógio de nove segundos que me fez procurar defeito no lugar certo errado
+
+**O que apareceu.** Fotografei o aplicativo inteiro e a capa disse *"Hoje a fábrica
+ainda não produziu"*, com a última corrida em **8 de julho** — dois meses antes de
+hoje —, a semana inteira sem barra e a aba de produção no estado vazio. A leitura
+óbvia era que a simulação de noventa dias **parava de produzir no dia 59**, e eu fui
+procurar o defeito lá: consumo que zera o insumo, compra que não dispara, receita sem
+ingrediente.
+
+Rodei a simulação fora do navegador para achar o dia em que ela morre. Ela não morre:
+**98 corridas em 90 dias**, entregas e notas na proporção certa. O defeito não estava
+na simulação — estava na ferramenta que a acionava.
+
+**A causa.** O `shot.mjs` clicava em "Plantar" e esperava **nove segundos fixos**. Nove
+segundos bastavam para a quinzena, que era o que a semeadura fazia quando essa linha
+foi escrita. No mesmo dia 5 a semeadura virou noventa dias — pedido do dono — e o
+SQLite em WebAssembly parou de terminar dentro da janela. A ferramenta seguia em
+frente com o banco pela metade e fotografava uma fábrica que produziu até o meio do
+caminho e parou.
+
+**Por que importa.** Não é o tempo perdido: é que eu quase consertei uma coisa que
+estava certa. Um relógio fixo é uma **afirmação sobre a máquina de quem roda**, e ela
+envelhece sozinha — o mesmo feitio da armadilha da entrada de cima, em que a
+ferramenta herdava o padrão em vez de escolher. As duas dizem a mesma coisa: *o que a
+ferramenta não estabelece, ela está adivinhando; e o palpite dela vira o meu
+diagnóstico.*
+
+E a segunda ordem disso é pior que a primeira. Um relógio curto não falha — ele
+**produz uma observação plausível**, e observação plausível é o que dirige a próxima
+hora de trabalho. Se a simulação tivesse mesmo um defeito no dia 59, eu teria
+"confirmado" a hipótese olhando a mesma foto de novo.
+
+**O que mudou.** Três coisas em `scripts/shot.mjs`:
+
+1. A espera passou a ser pelo **aviso de pronto** que a tela já dava ("Pronto: N
+   corridas, M entregas e K notas"), com folga de quatro minutos. Fato, não relógio.
+2. **Bandeira desconhecida reprova.** Eu tinha escrito `--todas` em vez de `--tudo`, e
+   a ferramenta caiu no padrão e fotografou a capa quatro vezes dizendo que estava
+   tudo certo. Mesma família: seguir em frente com um padrão quando a intenção era
+   outra.
+3. **Uma tela que não abre não leva as outras oitenta junto.** A falha é anotada e
+   reprovada no fim, junto com as fotos idênticas — em vez de derrubar a execução na
+   terceira de oitenta e quatro.
+
+**A regra que fica.** Ferramenta de observação não espera tempo: espera **sinal**. E
+quando um número parecer contar uma história boa demais para ser conferida na hora,
+reproduza-o **fora da ferramenta que o produziu** antes de sair consertando código —
+foi o que salvou esta rodada.

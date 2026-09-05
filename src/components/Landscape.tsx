@@ -1,14 +1,7 @@
-import { useEffect } from 'react';
-import { AccessibilityInfo, View } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
+import { View } from 'react-native';
 import Svg, { Circle, Defs, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { hues } from '@/theme/tokens';
+import { Vivo } from './Vivo';
 import { useAppearance } from '@/theme/Appearance';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -69,42 +62,8 @@ export function Landscape({
   const { hue } = useAppearance();
   const paleta = hues[hue];
 
-  const giro = useSharedValue(0);
-  const deriva = useSharedValue(0);
-  const gota = useSharedValue(0);
-  const fumaca = useSharedValue(0);
-
   const chovendo = rainChance !== null && rainChance >= 30;
   const noite = scheme === 'dark';
-
-  useEffect(() => {
-    let cancelado = false;
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduzido) => {
-      if (cancelado || reduzido) return;
-      giro.value = withRepeat(withTiming(1, { duration: 34000, easing: Easing.linear }), -1, false);
-      deriva.value = withRepeat(withTiming(1, { duration: 9000, easing: Easing.inOut(Easing.quad) }), -1, true);
-      if (chovendo) {
-        gota.value = withRepeat(withTiming(1, { duration: 2200, easing: Easing.linear }), -1, false);
-      }
-      if (running) {
-        fumaca.value = withRepeat(withTiming(1, { duration: 7000, easing: Easing.linear }), -1, false);
-      }
-    });
-    return () => {
-      cancelado = true;
-    };
-  }, [chovendo, running, giro, deriva, gota, fumaca]);
-
-  const sol = useAnimatedStyle(() => ({ transform: [{ rotate: `${giro.value * 360}deg` }] }));
-  const nuvem = useAnimatedStyle(() => ({ transform: [{ translateX: (deriva.value - 0.5) * 12 }] }));
-  const chuva = useAnimatedStyle(() => ({
-    opacity: Math.sin(gota.value * Math.PI) * 0.9,
-    transform: [{ translateY: gota.value * 22 }],
-  }));
-  const fumo = useAnimatedStyle(() => ({
-    opacity: fumaca.value === 0 ? 0 : Math.sin(fumaca.value * Math.PI) * 0.55,
-    transform: [{ translateY: -fumaca.value * 20 }, { scale: 0.9 + fumaca.value * 0.3 }],
-  }));
 
   // O calor muda a saturação do céu, não a paleta: quem escolheu âmbar continua
   // no âmbar num dia frio, só que mais lavado.
@@ -118,6 +77,7 @@ export function Landscape({
     // curvas. Aparece na foto como uma quina dura no meio de tudo o que é redondo —
     // e o Orgânico é a cara que o dono escolheu como padrão.
     <View style={{ height, overflow: 'hidden', borderRadius: radius.md }} pointerEvents="none">
+      {/* O HORIZONTE estica, e só ele. */}
       <Svg width="100%" height="100%" viewBox="0 0 412 210" preserveAspectRatio="none">
         <Defs>
           <LinearGradient id="ceu" x1="0" y1="0" x2="0" y2="1">
@@ -131,6 +91,22 @@ export function Landscape({
           d="M0 150c70-22 120 14 206 2s136-30 206-12v70H0z"
           fill={noite ? noturno(paleta.hillFar, 0.42) : paleta.hillFar}
         />
+        <Path
+          d="M0 182c80-16 130 12 206 4s130-22 206-6v34H0z"
+          fill={noite ? noturno(paleta.hillNear, 0.58) : paleta.hillNear}
+        />
+      </Svg>
+
+      {/* As COISAS mantêm a forma, e é por isso que elas moram noutra camada.
+          Aqui `meet` escala tudo junto e `xMaxYMax` prende no canto de baixo à
+          direita, que é onde a fábrica encosta na colina. */}
+      <Svg
+        style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}
+        width="100%"
+        height="100%"
+        viewBox="0 0 412 210"
+        preserveAspectRatio="xMaxYMax meet"
+      >
         <G fill={noite ? noturno(paleta.hillNear, 0.72) : paleta.hillNear}>
           <Path d="M282 156h60v30h-60z" />
           <Path d="M282 156l10-15 10 15 10-15 10 15 10-15 10 15" />
@@ -141,54 +117,52 @@ export function Landscape({
           <Rect x={304} y={166} width={8} height={8} />
           <Rect x={318} y={166} width={8} height={8} />
         </G>
-        <Path
-          d="M0 182c80-16 130 12 206 4s130-22 206-6v34H0z"
-          fill={noite ? noturno(paleta.hillNear, 0.58) : paleta.hillNear}
-        />
-      </Svg>
 
-      {/* O sol, girando devagar. */}
-      <Animated.View style={[{ position: 'absolute', right: 30, top: 18, width: 78, height: 78 }, sol]}>
-        <Svg viewBox="0 0 78 78" width="100%" height="100%">
-          <Circle cx="39" cy="39" r="18" fill={noite ? '#F7E6B5' : '#FFD76A'} />
-          <G stroke={noite ? '#F7E6B5' : '#FFD76A'} strokeWidth={4} strokeLinecap="round">
-            <Path d="M39 6v8M39 64v8M6 39h8M64 39h8M15 15l6 6M57 57l6 6M63 15l-6 6M21 57l-6 6" />
+        {/* O sol gira, com o mesmo `gira` do sol da cena do Papel: as duas caras
+            têm cabeçalhos diferentes e o MESMO vocabulário de movimento. */}
+        <Vivo vida={{ como: 'gira', cicloMs: 34000, centro: [343, 57] }}>
+          <G x={304} y={18}>
+            <Circle cx={39} cy={39} r={18} fill={noite ? '#F7E6B5' : '#FFD76A'} />
+            <G stroke={noite ? '#F7E6B5' : '#FFD76A'} strokeWidth={4} strokeLinecap="round">
+              <Path d="M39 6v8M39 64v8M6 39h8M64 39h8M15 15l6 6M57 57l6 6M63 15l-6 6M21 57l-6 6" />
+            </G>
           </G>
-        </Svg>
-      </Animated.View>
+        </Vivo>
 
-      {/* A nuvem e a chuva, só quando a chance é de verdade. */}
-      {chovendo ? (
-        <>
-          <Animated.View style={[{ position: 'absolute', right: 60, top: 48, width: 96, height: 46 }, nuvem]}>
-            <Svg viewBox="0 0 96 46" width="100%" height="100%">
-              <Path
-                d="M8 34a14 14 0 0 1 14-13 18 18 0 0 1 34 5 12 12 0 0 1-3 24H22a12 12 0 0 1-14-16z"
-                fill={noite ? color.sunken : '#FFFFFF'}
-              />
-            </Svg>
-          </Animated.View>
-          <Animated.View style={[{ position: 'absolute', right: 76, top: 92, width: 64, height: 22 }, chuva]}>
-            <Svg viewBox="0 0 64 22" width="100%" height="100%">
-              <G fill="#8EC5FC">
-                <Circle cx="10" cy="6" r="3.4" />
-                <Circle cx="32" cy="10" r="3.4" />
-                <Circle cx="54" cy="6" r="3.4" />
+        {/* A nuvem e a chuva, só quando a chance é de verdade. */}
+        {chovendo ? (
+          <>
+            <Vivo vida={{ como: 'anda', cicloMs: 18000, passo: 6 }}>
+              <G x={256} y={48}>
+                <Path
+                  d="M8 34a14 14 0 0 1 14-13 18 18 0 0 1 34 5 12 12 0 0 1-3 24H22a12 12 0 0 1-14-16z"
+                  fill={noite ? color.sunken : '#FFFFFF'}
+                />
               </G>
-            </Svg>
-          </Animated.View>
-        </>
-      ) : null}
+            </Vivo>
+            {/* Chuva é a fumaça ao contrário: mesma subida-e-some, altura negativa.
+                Um movimento novo para "cai" seria o mesmo mecanismo com outro nome,
+                e a lista fechada só cresce quando o mecanismo muda. */}
+            <Vivo vida={{ como: 'sobe', cicloMs: 2200, altura: -22 }}>
+              <G x={272} y={92} fill="#8EC5FC">
+                <Circle cx={10} cy={6} r={3.4} />
+                <Circle cx={32} cy={10} r={3.4} />
+                <Circle cx={54} cy={6} r={3.4} />
+              </G>
+            </Vivo>
+          </>
+        ) : null}
 
-      {/* A fumaça da fábrica: só com tacho aberto. */}
-      <Animated.View style={[{ position: 'absolute', right: 44, top: 108, width: 22, height: 26 }, fumo]}>
-        <Svg viewBox="0 0 22 26" width="100%" height="100%">
-          <G fill={noite ? color.inkFaint : '#FFFFFF'}>
-            <Circle cx="9" cy="18" r="5" />
-            <Circle cx="14" cy="10" r="4" />
-          </G>
-        </Svg>
-      </Animated.View>
+        {/* A fumaça da fábrica: só com tacho aberto. */}
+        {running ? (
+          <Vivo vida={{ como: 'sobe', cicloMs: 7000, altura: 20 }}>
+            <G x={346} y={108} fill={noite ? color.inkFaint : '#FFFFFF'}>
+              <Circle cx={9} cy={18} r={5} />
+              <Circle cx={14} cy={10} r={4} />
+            </G>
+          </Vivo>
+        ) : null}
+      </Svg>
     </View>
   );
 }

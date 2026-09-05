@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from 'node:test';
-import { defaultLocale, fill, formatMoney, formatWeekdayShort, plural } from './index';
+import { currencySymbol, defaultLocale, fill, formatMoney, formatWeekdayShort, plural } from './index';
 import { CURRENCIES, formattingFor, isCurrency, localeFrom } from './company';
 import { en } from './locales/en';
 import { es } from './locales/es';
@@ -188,4 +190,57 @@ test('every currency the app offers has a name in all three languages, and forma
       assert.ok(escrito.length > 3, `${code} em ${idioma} saiu como "${escrito}"`);
     }
   }
+});
+
+test('the currency symbol comes from the company, never from the screen', () => {
+  // Duas telas escreviam `suffix="R$"` na mão — o cadastro de insumo e a nota de
+  // compra —, e as duas continuaram escrevendo depois que a moeda virou escolha
+  // da empresa e passaram a existir oito. Uma fábrica no México digitava o preço
+  // pago num campo marcado em reais.
+  //
+  // O que engana aqui é que não há erro: o campo aceita o número, a conta fecha,
+  // o `formatMoney` do resto da tela sai em pesos. Só o rótulo mente — e rótulo
+  // que mente sobre dinheiro é a categoria de defeito que este projeto trata como
+  // fundação, não como enfeite.
+  const SIMBOLOS = /(?:R\$|US\$|€|£|¥|₡|S\/\.)/;
+  const erros: string[] = [];
+
+  const varrer = (dir: string): string[] => {
+    const out: string[] = [];
+    for (const entrada of readdirSync(dir)) {
+      if (entrada === 'node_modules' || entrada.startsWith('.')) continue;
+      const caminho = join(dir, entrada);
+      if (statSync(caminho).isDirectory()) out.push(...varrer(caminho));
+      else if (/\.tsx$/.test(entrada)) out.push(caminho);
+    }
+    return out;
+  };
+
+  for (const arquivo of ['app', 'src'].flatMap(varrer)) {
+    const fonte = readFileSync(arquivo, 'utf8')
+      // Comentário fala de "R$" à vontade: este arquivo mesmo faz isso. Só o que
+      // roda conta, e o bloco vira as mesmas quebras de linha que tinha para a
+      // contagem não escorregar.
+      .replace(/\/\*[\s\S]*?\*\//g, (b) => b.replace(/[^\n]/g, ' '))
+      .replace(/^([ \t]*)\/\/.*$/gm, '$1');
+    fonte.split('\n').forEach((linha, i) => {
+      if (SIMBOLOS.test(linha)) {
+        erros.push(
+          `${arquivo}:${i + 1}: símbolo de moeda escrito na tela. ` +
+            'Ele vem de `currencySymbol(locale)` — a moeda é escolha da empresa.',
+        );
+      }
+    });
+  }
+
+  assert.deepEqual(erros, [], `\n${erros.join('\n')}\n`);
+});
+
+test('the symbol follows the company currency, not the language', () => {
+  const peso = { language: 'pt-BR', currency: 'MXN', formatting: 'es-MX', timeZone: 'UTC' } as const;
+  const real = { language: 'en', currency: 'BRL', formatting: 'pt-BR', timeZone: 'UTC' } as const;
+  assert.notEqual(currencySymbol(peso), 'R$');
+  assert.equal(currencySymbol(real), 'R$');
+  // Moeda que o ambiente não conhece devolve o código, que é feio e verdadeiro.
+  assert.ok(currencySymbol({ ...real, currency: 'XTS' }).length >= 3);
 });

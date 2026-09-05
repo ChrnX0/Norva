@@ -16,7 +16,7 @@ import { useQuery } from '@/data/useQuery';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { fromDecimal, rate } from '@/domain/money';
 import { parseTyped, formatTyped } from '@/domain/number';
-import { fill, formatMoney, formatQuantity } from '@/i18n';
+import { currencySymbol, fill, formatMoney, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -455,7 +455,7 @@ function InputForm() {
                 value={price}
                 onChangeText={setPrice}
                 placeholder="118,00"
-                suffix="R$"
+                suffix={currencySymbol(locale)}
                 keyboardType="numeric"
                 // A conta enquanto se digita, e no lugar dela a frase que diz o
                 // que falta para a conta existir. Dica é onde a inteligência

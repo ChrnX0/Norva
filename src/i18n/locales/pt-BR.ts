@@ -1011,6 +1011,8 @@ export const ptBR = {
       perUnit: 'Quanto vai em cada unidade',
       perUnitHint: 'Cada vez rende {{units}} unidades.',
       packagingCost: 'Palito, embalagem e rótulo',
+      /** O sufixo do campo. Curto porque mora dentro da caixa, ao lado do número. */
+      perUnitShort: '/ un',
       packagingHint: 'Embalagem custa por unidade, não por receita — diluir no lote esconde a margem.',
       fromStock: 'O que sai do estoque por unidade',
       fromStockCost: 'a embalagem listada custa {{amount}} por unidade, pelas notas de compra',

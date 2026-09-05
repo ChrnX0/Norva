@@ -927,6 +927,7 @@ export const en: Dictionary = {
       perUnit: 'How much goes into each unit',
       perUnitHint: 'A batch makes {{units}} units.',
       packagingCost: 'Stick, wrapper and label',
+      perUnitShort: '/ unit',
       packagingHint: 'Packaging costs per unit, not per batch — smearing it across the batch hides the margin.',
       fromStock: 'What leaves stock per unit',
       fromStockCost: 'the listed packaging costs {{amount}} per unit, from the purchase invoices',

@@ -933,6 +933,7 @@ export const es: Dictionary = {
       perUnit: 'Cuánto va en cada unidad',
       perUnitHint: 'Cada vez rinde {{units}} unidades.',
       packagingCost: 'Palito, empaque y etiqueta',
+      perUnitShort: '/ un',
       packagingHint: 'El empaque cuesta por unidad, no por receta — diluirlo en el lote esconde el margen.',
       fromStock: 'Lo que sale del inventario por unidad',
       fromStockCost: 'el empaque listado cuesta {{amount}} por unidad, según las notas de compra',

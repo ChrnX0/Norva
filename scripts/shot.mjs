@@ -73,6 +73,31 @@ const TODAS = [
  * uma de cada vez. Duas caras vezes dois esquemas vezes vinte e uma telas é o
  * que o dono vai ver navegando.
  */
+/**
+ * Bandeira que não existe reprova, em vez de virar a foto da capa.
+ *
+ * Escrevi `--todas` em vez de `--tudo` e a ferramenta rodou feliz: caiu no padrão
+ * do `--rota`, fotografou a capa quatro vezes e disse "fotos em .shots/". Levei
+ * dois minutos e uma leitura de log para entender que as vinte telas que eu tinha
+ * pedido não existiam em lugar nenhum.
+ *
+ * É a mesma família do defeito de cima — a ferramenta seguindo em frente com um
+ * padrão quando a intenção era outra. Padrão silencioso é confortável exatamente
+ * até ser errado.
+ */
+const CONHECIDAS = new Set([
+  '--tudo', '--com-dado', '--escuro', '--claro', '--rota', '--largura',
+]);
+const desconhecidas = process.argv
+  .slice(2)
+  .filter((a) => a.startsWith('--') && !CONHECIDAS.has(a));
+if (desconhecidas.length > 0) {
+  console.error(
+    `✗ não conheço ${desconhecidas.join(', ')}.\n  Bandeiras: ${[...CONHECIDAS].join(' ')}`,
+  );
+  process.exit(1);
+}
+
 const tudo = tem('--tudo');
 const rotas = tudo
   ? TODAS
@@ -181,6 +206,9 @@ await new Promise((ok) => server.listen(PORT, ok));
  */
 const tiradas = [];
 
+/** As telas que não abriram, para reprovar no fim em vez de derrubar no meio. */
+const faltaram = [];
+
 const browser = await chromium.launch({
   executablePath: existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined,
   args: ['--no-sandbox'],
@@ -264,7 +292,25 @@ try {
       await page.getByText('Plantar', { exact: true }).first().click();
       await page.waitForTimeout(900);
       await page.getByText('Plantar', { exact: true }).last().click();
-      await page.waitForTimeout(9000);
+
+      /**
+       * Espera o AVISO de pronto, não um relógio.
+       *
+       * Eram nove segundos fixos, e nove segundos bastavam para a quinzena. No
+       * dia 5 a semeadura virou noventa dias (pedido do dono) e nove segundos
+       * passaram a cortá-la no meio: o SQLite em WebAssembly não termina, a
+       * ferramenta segue em frente, e a foto sai de uma fábrica que produziu até
+       * 8 de julho e parou. Eu li isso na capa como "a simulação para de produzir
+       * no dia 59" e fui procurar o defeito na simulação, que estava certa — 98
+       * corridas em 90 dias, conferido fora do navegador.
+       *
+       * A tela já diz quando acabou ("Pronto: N corridas, M entregas e K notas"),
+       * e é isso que se espera. Relógio é palpite sobre a máquina de quem roda;
+       * o aviso é o fato.
+       */
+      await page.getByText(/^Pronto: \d+ corridas/).waitFor({ timeout: 240000 });
+      await page.getByText('Entendi', { exact: true }).last().click();
+      await page.waitForTimeout(1500);
     }
 
     // A cara e a LUZ, as duas escolhidas dentro do aplicativo — SEMPRE as duas,
@@ -294,6 +340,20 @@ try {
     await page.waitForTimeout(1500);
 
     for (const rota of rotas) {
+      /**
+       * Uma tela que não abre não leva as outras oitenta junto.
+       *
+       * O laço estourava na primeira rota inalcançável e a execução inteira
+       * morria: pedi vinte e uma telas nas quatro caras, o `lote` não abriu na
+       * terceira, e eu fiquei com duas fotos e um rastro de pilha. Isso é o
+       * contrário do que a ferramenta serve — olhar o aplicativo TODO é
+       * justamente o caso em que uma peça quebrada não pode esconder o resto.
+       *
+       * A falha não some: ela é anotada e reprovada no fim, junto com as fotos
+       * iguais. Continuar em silêncio seria o defeito que este arquivo já teve
+       * três vezes.
+       */
+      try {
       // Telas cujo endereço tem id gerado não se alcançam por URL: chega-se
       // nelas como uma pessoa chega, tocando. `lote` é a etiqueta do primeiro
       // lote do dia, aberta pela lista da produção.
@@ -320,6 +380,11 @@ try {
       const imagem = await page.screenshot({ path: join(SAIDA, nome), fullPage: true });
       tiradas.push({ nome, rota, cara, esquema, soma: createHash('sha1').update(imagem).digest('hex') });
       console.log(`  ${nome}`);
+      } catch (erro) {
+        const motivo = erro instanceof Error ? erro.message.split('\n')[0] : String(erro);
+        console.error(`  ✗ ${rota} (${cara}/${esquema}): ${motivo}`);
+        faltaram.push(`${rota} · ${cara} · ${esquema}: ${motivo}`);
+      }
     }
     await context.close();
   }
@@ -340,6 +405,12 @@ try {
  *
  * Sai por código 1 de propósito. Uma ferramenta de olhar que erra tem de doer.
  */
+if (faltaram.length > 0) {
+  console.error(`\n✗ ${faltaram.length} tela(s) não abriram:`);
+  for (const f of faltaram) console.error(`  ${f}`);
+  process.exitCode = 1;
+}
+
 const porSoma = new Map();
 for (const t of tiradas) {
   const par = porSoma.get(t.soma);

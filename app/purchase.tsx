@@ -26,7 +26,7 @@ import { fromDecimal, rate, type Rate } from '@/domain/money';
 import { applyCostEvent, judgePriceChange } from '@/domain/cost';
 import { costPerProductUnit, packagingRatePerUnit, costRecipe } from '@/domain/recipe';
 import { parseTyped } from '@/domain/number';
-import { fill, formatMoney, formatPercent, formatQuantity } from '@/i18n';
+import { currencySymbol, fill, formatMoney, formatPercent, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -306,7 +306,7 @@ function PurchaseForm() {
                 value={total}
                 onChangeText={setTotal}
                 placeholder="118,00"
-                suffix="R$"
+                suffix={currencySymbol(locale)}
                 keyboardType="numeric"
                 hint={
                   draft

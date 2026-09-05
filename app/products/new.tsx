@@ -49,7 +49,7 @@ import {
 } from '@/domain/recipe';
 import { type PackagingHierarchy } from '@/domain/units';
 import { parseTyped } from '@/domain/number';
-import { fill, formatMoney, formatQuantity } from '@/i18n';
+import { currencySymbol, fill, formatMoney, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -602,7 +602,7 @@ function ProductForm() {
                 label={t.app.productForm.packagingCost}
                 value={packagingCost}
                 onChangeText={setPackagingCost}
-                suffix="R$ / un"
+                suffix={`${currencySymbol(locale)} ${t.app.productForm.perUnitShort}`}
                 keyboardType="numeric"
                 hint={t.app.productForm.packagingHint}
               />
