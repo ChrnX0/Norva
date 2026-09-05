@@ -49,7 +49,13 @@ except Exception:
 cfg() {
   local path="$1" f; f="$(_pg_cfg_file)"
   [ -f "$f" ] || return 0
-  if command -v jq >/dev/null 2>&1; then jq -c -r "$path // empty" "$f" 2>/dev/null; return; fi
+  # `$path // empty` engolia o booleano FALSE: em jq o operador `//` trata `false`
+  # como ausente, então `"pushGuard": false` — a saída de emergência que o próprio
+  # push-guard documenta — nunca era lida, e o guard bloqueava para sempre. Aqui a
+  # ausência é testada contra `null`, que é o que "ausente" quer dizer de verdade.
+  if command -v jq >/dev/null 2>&1; then
+    jq -c -r "($path) as \$v | if \$v == null then empty else \$v end" "$f" 2>/dev/null; return
+  fi
   if command -v node >/dev/null 2>&1; then node -e "$_PG_NODE_WALK" "$f" "$path" 2>/dev/null; return; fi
   command -v python3 >/dev/null 2>&1 && python3 -c "$_PG_PY_WALK" "$f" "$path" 2>/dev/null
 }
