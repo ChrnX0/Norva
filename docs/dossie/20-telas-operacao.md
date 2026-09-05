@@ -1417,12 +1417,34 @@ closeCount: { one: '1 pedido', other: '{{n}} pedidos' }
 porque *uma loja pode receber duas cargas no mesmo dia, e quem abre a segunda caixa
 não está conferindo a primeira* (`:3248-3255`).
 
-#### 20.6.11 Estado vazio
+#### 20.6.11 Os dois estados vazios
 
-`:304-325`. `destinations.length === 0` desenha um cartão com `Você ainda não
-cadastrou para onde mandar.` e um botão primário `Cadastrar a primeira loja` →
-`/places`. Nesse estado a sobrelinha fixa `o que sai da fábrica` está correta,
-porque **ali não existe o seletor de sentido** (nota em `:354-355`).
+**O da tela** (`:304-325`): `destinations.length === 0` desenha um cartão com `Você
+ainda não cadastrou para onde mandar.` e um botão primário `Cadastrar a primeira
+loja` → `/places`. Nesse estado a sobrelinha fixa `o que sai da fábrica` está
+correta, porque **ali não existe o seletor de sentido** (nota em `:354-355`).
+
+**O do cartão** (`app/transfer.tsx:479-482`), que é outro e chega por outro caminho:
+com destino já escolhido e `lines.length === 0` — a origem sem nenhum item com
+saldo —, o cartão `O que vai` troca a lista inteira por uma frase única em
+`color.inkMuted`:
+
+| idioma | texto |
+|---|---|
+| pt-BR | `Não há nada em {{place}} para mandar.` (`src/i18n/locales/pt-BR.ts:776`) |
+| en | `There is nothing in {{place}} to send.` (`src/i18n/locales/en.ts:707`) |
+| es | `No hay nada en {{place}} para mandar.` (`src/i18n/locales/es.ts:712`) |
+
+O `{{place}}` recebe `nameOf(from)`, e **nomear o lugar é a diferença que importa**:
+em devolução a origem é a loja, não a fábrica, e um "não há nada" sem nome mandaria
+o operador conferir a prateleira errada.
+
+Os dois convivem e não se substituem. O primeiro é "você ainda não montou o
+cadastro" e tem porta (`/places`). O segundo é "o cadastro está de pé e a sala está
+vazia" e **não tem porta**: a saída é lançar produção ou compra, e nenhuma das duas
+se navega daqui. É uma das poucas telas do aplicativo em que o estado vazio não
+oferece a próxima ação — vale registrar como lacuna contra a Lei da Inteligência,
+que exige as três respostas, não duas.
 
 ---
 
