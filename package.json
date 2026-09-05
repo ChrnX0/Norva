@@ -16,7 +16,8 @@
     "mutate": "node scripts/mutate.mjs",
     "e2e:fast": "node scripts/e2e-parallel.mjs",
     "shot": "node scripts/shot.mjs",
-    "folha": "node scripts/folha.mjs"
+    "folha": "node scripts/folha.mjs",
+    "dossie": "node scripts/dossie.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.14",

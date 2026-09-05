@@ -51,3 +51,6 @@ yarn-error.*
 # portão não reprovar por "árvore suja" por causa de lixo de ferramenta.
 .mutate/
 .shots/
+
+# Derivado das seções de docs/dossie/ — monta-se com `node scripts/dossie.mjs`.
+docs/DOSSIE.md
