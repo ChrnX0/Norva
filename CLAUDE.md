@@ -99,10 +99,23 @@ sabota o dado.
 
 ---
 
-## A barra de verificação
+## A barra de verificação — proporcional, não obrigatória
 
-Antes de dizer que algo está pronto, **rode**. Não é opcional e não é por
-amostragem:
+**Decisão do dono, 5 de setembro: a bateria inteira estava atrapalhando mais que
+ajudando.** Ela existia por um motivo certo e virou atrito — `mutate` são seis
+minutos, o `e2e` mais três, e o portão reclama de coisa que não tem relação com o
+que mudou. Rodadas inteiras foram gastas servindo a barra em vez de servir o app.
+
+Nada foi apagado. O que mudou é **quando** cada coisa roda:
+
+| O que mudou | O que roda antes de dizer que está pronto |
+|---|---|
+| Ambiente, script, documentação, design | **nada** — o que prova é a coisa funcionar |
+| Tela ou componente | compila + **a foto no emulador** |
+| Domínio, dados, migração — onde mora dinheiro e saldo | `typecheck` + `npm test` |
+| Fechar uma etapa, abrir PR para `main` | a barra inteira, uma vez |
+
+A barra inteira, quando for a vez dela:
 
 ```bash
 npm run typecheck
@@ -114,6 +127,15 @@ npm run db:verify    # Postgres descartável, treze garantias — inclui a fila
                      # do aparelho reproduzida contra o servidor de verdade
 bash .proofgate/verify.sh
 ```
+
+**E a regra que vale mais que todas elas juntas: verde não prova tela.** O tema
+claro ilegível que chegou ao dono passou por 338 testes verdes e 36 checagens de
+navegador. O que prova tela é a **foto do emulador**, olhada. Isso agora existe:
+`bash scripts/ambiente.sh` prepara a máquina e `node scripts/aparelho.mjs` sobe,
+instala e fotografa.
+
+A CI segue a mesma divisão: rápido (tipos, lint, teste, pacote) em todo push;
+pesado (mutação, navegador, banco, portão) só indo para `main` ou pelo botão.
 
 **A espera era o gargalo, e virou medida — 3 de setembro.** A barra inteira levava
 perto de meia hora por commit, e quase tudo era partida de processo: `mutate` abria

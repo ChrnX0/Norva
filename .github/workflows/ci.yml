@@ -1,122 +1,126 @@
 name: CI
 
-# The bar every push has to clear. It is deliberately the same one a person
-# runs locally - a check that only exists in CI drifts from what contributors
-# actually do, and then nobody trusts either of them.
-# Pushes to main and every pull request. Not both for the same commit: a
-# branch with an open PR would otherwise run the whole bar twice, which costs
-# minutes and makes a red check ambiguous about which run it belongs to.
+# A barra, proporcional ao que mudou — decisão do dono, 5 de setembro.
+#
+# Antes, todo push rodava tudo: quatro jobs, um deles com `mutate` (seis minutos)
+# e outro subindo Chromium. Isso nasceu certo e virou atrito: commit de documento
+# esperava dez minutos para provar nada, e push novo não cancelava o anterior.
+#
+# Agora são duas camadas. **Rápida** roda sempre e responde em ~2 min: tipos,
+# lint, testes e o pacote. **Pesada** — mutação, navegador, banco e portão — roda
+# quando a coisa vai para `main`, ou quando alguém pede pelo botão. Nada foi
+# apagado: só saiu do caminho de quem está trabalhando.
 on:
   push:
     branches: [main]
+    paths-ignore: ['docs/**', '**/*.md', '.shots/**']
   pull_request:
+    paths-ignore: ['docs/**', '**/*.md', '.shots/**']
+  workflow_dispatch:
+
+# Push novo mata a corrida velha do mesmo ramo. Antes, três pushes seguidos
+# mantinham três baterias inteiras vivas ao mesmo tempo.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  app:
-    name: types, tests, bundle
+  rapido:
+    name: tipos, testes e pacote
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-
       - run: npm ci
 
-      - name: Types
+      - name: Tipos
         run: npm run typecheck
 
       - name: Lint
         run: npm run lint
 
-      - name: The cost engine
+      - name: O motor de custo
         run: npm test
 
-      # A green suite says the chosen examples passed, not that the rules are
-      # protected. This breaks the code on purpose, one defect at a time, and
-      # fails on any the tests do not notice. Its first run found the project's
-      # own headline rule about rounding held up by nothing.
-      - name: Does the suite bite?
-        run: npm run mutate
-
-      # Typechecking proves the code is consistent; only bundling proves it can
-      # actually reach a phone.
-      - name: Android bundle
+      # Compilar prova consistência; empacotar prova que chega num telefone.
+      - name: Pacote Android
         run: npx expo export --platform android
         env:
           EXPO_NO_TELEMETRY: '1'
 
-  gate:
-    name: proofgate
+  # ---------------------------------------------------------------------------
+  # Daqui para baixo: só para `main` ou sob demanda.
+  # ---------------------------------------------------------------------------
+
+  mutacao:
+    name: a suíte morde?
+    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      # The gate reads the diff against the base, so it needs the history.
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-
       - run: npm ci
 
-      # Nineteen guards over the diff itself: credential-shaped lines, money
-      # through a float, SQL built by concatenation, a constraint added without
-      # a migration, a focused test that silently switches the suite off.
-      - name: Delivery gate
-        run: bash .proofgate/verify.sh
+      # Suíte verde diz que os exemplos passaram, não que a regra está
+      # protegida. Isto quebra o código de propósito, um defeito por vez.
+      - name: Mutação
+        run: npm run mutate
 
-  browser:
-    name: the app, driven the way a person drives it
+  navegador:
+    name: o app dirigido como uma pessoa dirige
+    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-
       - run: npm ci
-
       - name: Chromium
         run: npx playwright install --with-deps chromium
-
-      # The checks that found what unit tests structurally cannot: a platform
-      # dialog that does nothing, a route that opens onto an empty database, a
-      # screen speaking two languages. All only visible from outside the app.
-      - name: End to end
+      - name: Ponta a ponta
         run: npm run e2e
         env:
           EXPO_NO_TELEMETRY: '1'
 
-  schema:
-    name: the database keeps its promises
+  esquema:
+    name: o banco cumpre o que promete
+    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      # This job used to need nothing but psql. Check 6 changed that: it runs a
-      # real device session in TypeScript to produce the queue it replays, so
-      # the job now needs the project's dependencies like any other. Without
-      # them `npx` fetched a standalone tsx that could not resolve a single
-      # project import - green locally, red here, which is the whole reason the
-      # bar runs in both places.
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-
       - run: npm ci
-
-      # The script stands up a throwaway Postgres of its own, so it needs the
-      # binaries rather than a running service.
-      - name: Locate the Postgres binaries
+      # O script sobe um Postgres descartável próprio, então precisa dos
+      # binários e não de um serviço rodando.
+      - name: Achar os binários do Postgres
         run: echo "PGBIN=$(ls -d /usr/lib/postgresql/*/bin | tail -1)" >> "$GITHUB_ENV"
-
-      - name: Six guarantees, including the device's queue replayed here
+      - name: As treze garantias
         run: npm run db:verify
+
+  portao:
+    name: proofgate
+    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      # O portão lê o diff contra a base, então precisa do histórico.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Portão de entrega
+        run: bash .proofgate/verify.sh

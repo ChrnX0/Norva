@@ -3,22 +3,40 @@ name: Publicar atualização
 # Como o app do chão de fábrica recebe correção sem passar por loja nenhuma.
 #
 # O binário instalado no celular escuta o canal `preview` (declarado no
-# eas.json). Um push no main que mexa em código ou imagem publica um update
-# nesse canal, e o aparelho o pega na próxima abertura.
+# eas.json). Um push que mexa em código ou imagem publica um update nesse canal,
+# e o aparelho o pega na próxima abertura.
 #
 # Só o que muda em JavaScript e asset viaja por aqui. Mudança nativa exige
-# binário novo - por isso o app.json usa `runtimeVersion: fingerprint`, que
+# binário novo — por isso o app.json usa `runtimeVersion: fingerprint`, que
 # reconhece isso sozinho e impede que um update caia num binário incompatível.
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - app/**
-      - src/**
-      - assets/**
-      - package.json
-      - app.json
+#
+# ---------------------------------------------------------------------------
+# SUSPENSO — decisão do dono, 5 de setembro.
+#
+# O gatilho automático (`on: push` em `main`, filtrando app/, src/, assets/)
+# está comentado de propósito, não apagado. Dois motivos concretos:
+#
+#   1. **O layout inteiro vai ser refeito** a partir dos designs aprovados em
+#      `docs/design/aprovados/`. Publicar OTA agora é mandar rascunho para um
+#      canal — e cada push de tela viraria uma publicação.
+#   2. **Nenhum aparelho está escutando** esse canal hoje. Não existe binário
+#      instalado em campo, então a publicação não chega em ninguém.
+#
+# Para religar quando houver binário instalado de verdade: descomentar o bloco
+# `on:` abaixo. Enquanto isso, publicar à mão com `eas workflow:run` quando for
+# preciso — o que também é o jeito de testar que este arquivo ainda funciona.
+# ---------------------------------------------------------------------------
+
+# on:
+#   push:
+#     branches:
+#       - main
+#     paths:
+#       - app/**
+#       - src/**
+#       - assets/**
+#       - package.json
+#       - app.json
 
 jobs:
   publish_update:
