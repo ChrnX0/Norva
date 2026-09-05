@@ -57,11 +57,10 @@ export default function Losses() {
 }
 
 function WhatWasLost() {
-  const { color, type, space, skin } = useTheme();
+  const { color, type, space , traco } = useTheme();
   const router = useRouter();
   const { locale, t } = useLocale();
   const words = t.app.losses;
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   /**
    * Trinta dias, e os trinta de antes.

@@ -390,11 +390,24 @@ export const skins = {
     /** Serifa nos títulos; o resto continua na fonte do sistema. */
     titleFamily: 'serif' as const,
     radius: { sm: 4, md: 6, lg: 8, xl: 10, pill: 999 },
+    /**
+     * A espessura do traço dos desenhos — fina, como bico de pena.
+     *
+     * Ela morava em vinte e seis lugares como `skin === 'papel' ? 1.7 : 2.2`,
+     * repetida em vinte e cinco arquivos. Isso não é redundância inofensiva: é a
+     * definição de uma decisão que ninguém consegue mudar. No dia em que o dono
+     * pedir um traço mais fino no Papel, vinte e seis edições e uma esquecida — e
+     * a tela esquecida fica com a espessura da OUTRA cara, que é a divergência
+     * que o guarda da assinatura existe para impedir noutra dimensão.
+     */
+    traco: 1.7,
   },
   organico: {
     light: organicoClaro,
     dark: organicoEscuro,
     titleFamily: undefined,
     radius: { sm: 12, md: 18, lg: 22, xl: 28, pill: 999 },
+    /** Mais cheio: o Orgânico é um tema de massa, não de linha. */
+    traco: 2.2,
   },
 } as const;

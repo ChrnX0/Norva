@@ -76,10 +76,9 @@ type Row = {
 };
 
 function RecipesList() {
-  const { color, space, type, palette, skin } = useTheme();
+  const { color, space, type, palette , traco } = useTheme();
   const router = useRouter();
   const { locale, t } = useLocale();
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data, loading } = useQuery<Row[]>(async () => {
     const [recipes, graph, costs, names, products] = await Promise.all([

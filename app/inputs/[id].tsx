@@ -97,7 +97,7 @@ type Loaded = {
 };
 
 function InputDetail() {
-  const { color, space, type, palette, skin } = useTheme();
+  const { color, space, type, palette , traco } = useTheme();
   const confirm = useConfirm();
   const router = useRouter();
   const { locale, t } = useLocale();
@@ -110,7 +110,6 @@ function InputDetail() {
    * a fábrica e a câmara fria, a conferência teleportava estoque.
    */
   const { id, sala } = useLocalSearchParams<{ id: string; sala?: string }>();
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   // While a count is open the stock figure is deliberately hidden. This app's
   // own rule for counting says the expected number must not be on screen: a

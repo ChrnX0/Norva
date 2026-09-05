@@ -79,7 +79,10 @@ export function Sparkline({
     };
   }, [drawn, settled, desenho, line]);
 
-  const traco = useAnimatedProps(() => ({
+  // `risco`, não `traco`: desde que a espessura virou `useTheme().traco`, a
+  // palavra tem dono no projeto inteiro, e duas coisas com o mesmo nome no mesmo
+  // vocabulário é como a divergência começa. Aqui é a linha sendo DESENHADA.
+  const risco = useAnimatedProps(() => ({
     strokeDashoffset: length * (1 - drawn.value),
   }));
   const pingo = useAnimatedProps(() => ({
@@ -111,7 +114,7 @@ export function Sparkline({
           strokeLinejoin="round"
           fill="none"
           strokeDasharray={length}
-          animatedProps={traco}
+          animatedProps={risco}
         />
 
         {last ? (

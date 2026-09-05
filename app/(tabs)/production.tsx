@@ -74,9 +74,8 @@ type Loaded = {
 };
 
 function ProductionDay() {
-  const { color, type, space, palette, skin } = useTheme();
+  const { color, type, space, palette , traco } = useTheme();
   const { locale, t } = useLocale();
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data, loading } = useQuery<Loaded>(async () => {
     const hoje = dayWindow(nowIso(), locale.timeZone);

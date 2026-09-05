@@ -80,11 +80,10 @@ type Loaded = { lot: LotOfDay | null; plan: ReversalPlan | null };
 
 function Label() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { color, type, space, radius, palette, skin } = useTheme();
+  const { color, type, space, radius, palette , traco } = useTheme();
   const { locale, t } = useLocale();
   const router = useRouter();
   const confirm = useConfirm();
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   // O plano vem JUNTO com o lote, e não no toque do botão.
   //

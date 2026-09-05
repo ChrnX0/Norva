@@ -99,7 +99,7 @@ export function SkyMark({
   rainChance: number | null;
   size?: number;
 }) {
-  const { palette, brand, skin } = useTheme();
+  const { palette, brand, skin , traco } = useTheme();
   const raining = rainChance !== null && rainChance >= 30;
   const papel = skin === 'papel';
   const tinta = skyInk(maxC, { palette, brand, skin });
@@ -127,7 +127,6 @@ export function SkyMark({
     transform: [{ translateX: Math.sin(drift.value * Math.PI * 2) * 4 }],
   }));
 
-  const traco = papel ? 1.7 : 2.2;
 
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>

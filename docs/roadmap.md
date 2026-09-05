@@ -42,14 +42,18 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **344** testes |
+| `npm test` | **345** testes |
 | `npm run mutate` | **106** defeitos plantados, 104 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **36** checagens num navegador de verdade |
 | `npm run db:verify` | **13** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade,
-com as telas fotografadas nos dois temas e nas duas identidades. **Nada visto numa
+com as telas fotografadas nos dois temas. **A segunda identidade ainda não foi vista**:
+até 5 de setembro toda foto chamada `organico` era Papel, porque a ferramenta herdava a
+cara em vez de escolhê-la (`docs/insights.md`, "padrão não é escolha"). O `shot.mjs`
+passou a escolher sempre e a recusar duas fotos idênticas com nomes diferentes; **olhar o
+Orgânico das 24 telas é trabalho que ainda não foi feito**. E **nada visto numa
 fábrica.** Essa é a lacuna que nenhum teste fecha, e ela decide o que pode ser
 construído agora e o que precisa esperar (veja o portão P2, adiante).
 

@@ -81,10 +81,9 @@ const TABS: {
 ];
 
 function InputsList() {
-  const { color, space, type, palette, skin } = useTheme();
+  const { color, space, type, palette , traco } = useTheme();
   const router = useRouter();
   const { locale, t } = useLocale();
-  const traco = skin === 'papel' ? 1.7 : 2.2;
   const [kind, setKind] = useState<ItemKind>('input');
   /**
    * A sala escolhida. Nula é "todos os lugares", e é o padrão.

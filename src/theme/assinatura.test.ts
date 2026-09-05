@@ -260,3 +260,32 @@ test('the same subject comes out in the same colour, in every screen', () => {
 
   assert.deepEqual(erros, [], `\n${erros.join('\n')}\n`);
 });
+
+/**
+ * A espessura do traço mora no tema, e em nenhum outro lugar.
+ *
+ * Ela morava em VINTE E SEIS: `skin === 'papel' ? 1.7 : 2.2`, copiada em vinte e
+ * cinco arquivos. Nenhuma cópia estava errada, e é isso que engana — a conta só
+ * aparece no dia em que a decisão muda, porque aí são vinte e seis edições e uma
+ * esquecida, e a tela esquecida fica desenhando na espessura da OUTRA cara.
+ *
+ * É a mesma doença que o guarda de cor acima cobra, na dimensão da forma: escolha
+ * repetida caso a caso diverge, sempre. `useTheme().traco` responde a pergunta uma
+ * vez.
+ */
+test('the stroke weight is decided once, in the theme', () => {
+  const erros: string[] = [];
+  for (const arquivo of RAIZES.flatMap((r) => telas(r))) {
+    const fonte = codigo(readFileSync(arquivo, 'utf8'));
+    const linhas = fonte.split('\n');
+    linhas.forEach((linha, i) => {
+      if (/1\.7\s*:\s*2\.2/.test(linha) || /\bconst\s+traco\s*=/.test(linha)) {
+        erros.push(
+          `${arquivo}:${i + 1}: a espessura do traço é decidida aqui. ` +
+            'Ela vem de `useTheme().traco` — o tema é quem sabe qual cara está no ar.',
+        );
+      }
+    });
+  }
+  assert.deepEqual(erros, [], `\n${erros.join('\n')}\n`);
+});

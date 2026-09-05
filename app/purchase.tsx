@@ -76,11 +76,10 @@ export default function PurchaseScreen() {
 type Impact = { name: string; before: number; after: number };
 
 function PurchaseForm() {
-  const { color, type, space, palette, skin } = useTheme();
+  const { color, type, space, palette , traco } = useTheme();
   const confirm = useConfirm();
   const { locale, t } = useLocale();
   const router = useRouter();
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   /**
    * O que dá para comprar, e quantos itens existem — que são duas perguntas.

@@ -51,10 +51,9 @@ export default function Transport() {
 }
 
 function WhereItWent() {
-  const { color, type, space, palette, skin } = useTheme();
+  const { color, type, space, palette , traco } = useTheme();
   const { locale, t } = useLocale();
   const router = useRouter();
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const confirm = useConfirm();
 

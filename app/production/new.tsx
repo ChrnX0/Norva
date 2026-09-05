@@ -116,11 +116,10 @@ function plannedUnits(recipe: Recipe, product: Product, batches: number): number
 }
 
 function Production() {
-  const { color, type, space, palette, skin } = useTheme();
+  const { color, type, space, palette , traco } = useTheme();
   const { locale, t } = useLocale();
   const askConfirm = useConfirm();
   const words = t.app.production;
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data, loading, refresh } = useQuery<Loaded>(async () => {
     // O saldo lido é o da SALA em que o tacho roda — a mesma que a corrida grava,

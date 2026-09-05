@@ -17,6 +17,7 @@
  */
 import { spawn } from 'node:child_process';
 import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { extname, join } from 'node:path';
 import { chromium } from 'playwright-core';
@@ -171,6 +172,15 @@ mkdirSync(SAIDA, { recursive: true });
 const server = serve();
 await new Promise((ok) => server.listen(PORT, ok));
 
+/**
+ * O que foi fotografado, para a ferramenta poder se desmentir no fim.
+ *
+ * Cada entrada guarda a soma da imagem. Duas caras diferentes com a MESMA soma
+ * não são duas caras — são a mesma foto com dois nomes, e é exatamente isso que
+ * aconteceu por um dia inteiro sem ninguém notar.
+ */
+const tiradas = [];
+
 const browser = await chromium.launch({
   executablePath: existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined,
   args: ['--no-sandbox'],
@@ -257,26 +267,31 @@ try {
       await page.waitForTimeout(9000);
     }
 
-    // A cara e a LUZ, as duas escolhidas dentro do aplicativo.
+    // A cara e a LUZ, as duas escolhidas dentro do aplicativo — SEMPRE as duas,
+    // nunca uma delas por omissão.
     //
     // `colorScheme` no contexto do navegador parou de valer no dia em que claro e
     // escuro viraram escolha da empresa com padrão claro (decisão do dono, 4 de
     // setembro): a foto do escuro saía IGUAL à do claro, e eu teria olhado duas
-    // vezes a mesma tela dizendo que vi as duas. Ferramenta de olhar que mente
-    // sobre o que está olhando é pior que não ter — está escrito aqui em cima, e
-    // esta é a segunda vez que a mesma frase cobra a conta.
-    if (cara === 'papel' || esquema === 'dark') {
-      await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
-      await page.waitForTimeout(2000);
-      if (esquema === 'dark') {
-        await page.getByText('Escuro', { exact: true }).first().click();
-        await page.waitForTimeout(1200);
-      }
-      if (cara === 'papel') {
-        await page.getByText('Papel', { exact: true }).first().click();
-        await page.waitForTimeout(1500);
-      }
-    }
+    // vezes a mesma tela dizendo que vi as duas.
+    //
+    // E a MESMA armadilha me pegou de novo, um dia depois, na outra dimensão. O
+    // laço só clicava quando a cara era Papel; o Orgânico vinha "de graça", por
+    // ser o padrão de um contexto novo. No dia 5 o padrão virou Papel (decisão do
+    // dono, escrita em `src/theme/Appearance.tsx`) e o clique nunca foi escrito —
+    // então **toda foto chamada `-organico-` era Papel**. Conferido por pixel:
+    // `more-papel-claro` e `more-organico-claro` eram o MESMO arquivo, zero
+    // pixels de diferença, e eu tinha mostrado as duas ao dono como duas caras.
+    //
+    // A lição não é "lembrar do padrão": é que **padrão não é escolha**. A
+    // ferramenta que fotografa uma escolha tem de fazer a escolha, sempre e toda
+    // vez, mesmo quando ela coincide com o que já está lá. Herdar é o que mente.
+    await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2000);
+    await page.getByText(esquema === 'dark' ? 'Escuro' : 'Claro', { exact: true }).first().click();
+    await page.waitForTimeout(1200);
+    await page.getByText(cara === 'papel' ? 'Papel' : 'Orgânico', { exact: true }).first().click();
+    await page.waitForTimeout(1500);
 
     for (const rota of rotas) {
       // Telas cujo endereço tem id gerado não se alcançam por URL: chega-se
@@ -302,7 +317,8 @@ try {
       // sobrescreve a larga, e a comparação entre as duas — que é o motivo de a
       // largura existir — deixa de ser possível.
       const nome = `${rota.replace(/\W+/g, '') || 'capa'}-${cara}-${esquema === 'dark' ? 'escuro' : 'claro'}${comDado ? '-com-dado' : '-virgem'}${largura === 412 ? '' : `-${largura}`}.png`;
-      await page.screenshot({ path: join(SAIDA, nome), fullPage: true });
+      const imagem = await page.screenshot({ path: join(SAIDA, nome), fullPage: true });
+      tiradas.push({ nome, rota, cara, esquema, soma: createHash('sha1').update(imagem).digest('hex') });
       console.log(`  ${nome}`);
     }
     await context.close();
@@ -311,6 +327,32 @@ try {
 } finally {
   await browser.close();
   server.close();
+}
+
+/**
+ * O desmentido: duas fotos iguais com nomes diferentes reprovam a execução.
+ *
+ * "Clicar sempre" conserta o defeito de hoje e não impede o de amanhã — um
+ * seletor que deixa de casar, um botão renomeado, e a ferramenta volta a
+ * fotografar a mesma tela duas vezes calada. O que impede é ela CONFERIR: se
+ * duas fotos da mesma rota saem byte a byte idênticas, ou a escolha não pegou ou
+ * as duas caras são a mesma coisa, e os dois casos são notícia.
+ *
+ * Sai por código 1 de propósito. Uma ferramenta de olhar que erra tem de doer.
+ */
+const porSoma = new Map();
+for (const t of tiradas) {
+  const par = porSoma.get(t.soma);
+  if (par) {
+    console.error(
+      `\n✗ ${t.nome} e ${par.nome} são a MESMA imagem, byte a byte.\n` +
+        '  Ou a escolha da cara/luz não pegou nos Ajustes, ou esta tela não distingue as duas.\n' +
+        '  Nos dois casos a foto não prova o que o nome diz.',
+    );
+    process.exitCode = 1;
+  } else {
+    porSoma.set(t.soma, t);
+  }
 }
 
 console.log(`\nfotos em .shots/ — olhe antes de dizer que está pronto`);

@@ -50,11 +50,10 @@ export function Mosaic({
   layout,
   go,
 }: BriefingView) {
-  const { color, type, space, palette, skin, accent } = useTheme();
+  const { color, type, space, palette, skin, accent , traco } = useTheme();
   const { locale, t } = useLocale();
 
   // A espessura do traço é da identidade: fino no Papel, cheio no Orgânico.
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
 
   /**

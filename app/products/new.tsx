@@ -118,11 +118,10 @@ type Loaded = {
 };
 
 function ProductForm() {
-  const { color, type, space, palette, skin } = useTheme();
+  const { color, type, space, palette , traco } = useTheme();
   const confirm = useConfirm();
   const router = useRouter();
   const { locale, t } = useLocale();
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data, loading } = useQuery<Loaded>(async () => {
     const [recipes, graph, costs, labels, lines, types, flavors, items, products] =

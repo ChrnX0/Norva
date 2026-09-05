@@ -81,10 +81,9 @@ type Porta = {
 };
 
 function Drawers() {
-  const { color, type, space, palette, skin } = useTheme();
+  const { color, type, space, palette , traco } = useTheme();
   const { t } = useLocale();
   const router = useRouter();
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const glifo =
     (G: (p: { size?: number; color: string; weight?: number }) => ReactNode) => (c: string) =>

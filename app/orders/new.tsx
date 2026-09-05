@@ -101,11 +101,10 @@ type Loaded = { places: Place[]; products: Product[] };
 type Draft = { itemId: string; name: string; baseUnits: number };
 
 function NewOrder() {
-  const { color, type, space, palette, skin } = useTheme();
+  const { color, type, space, palette , traco } = useTheme();
   const { locale, t } = useLocale();
   const askConfirm = useConfirm();
   const words = t.app.newOrder;
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data } = useQuery<Loaded>(async () => {
     const [places, products] = await Promise.all([

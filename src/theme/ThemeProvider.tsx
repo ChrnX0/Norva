@@ -52,6 +52,15 @@ type Theme = {
    * — e no dia em que o Papel trocasse de fonte, a capa continuaria na antiga.
    */
   titleFamily: string | undefined;
+  /**
+   * A espessura do traço de um desenho nesta cara.
+   *
+   * Todo `Glyph` recebe `weight`, e o valor certo depende da identidade: fino no
+   * Papel, cheio no Orgânico. Ele vem daqui em vez de ser recalculado na tela
+   * porque já foi recalculado em vinte e seis lugares, e vinte e seis cópias de
+   * uma decisão são vinte e seis chances de uma delas ficar para trás.
+   */
+  traco: number;
   motion: typeof motion;
 };
 
@@ -117,6 +126,7 @@ export function ThemeProvider({
       space,
       radius: chosen.radius,
       titleFamily: familia,
+      traco: chosen.traco,
       motion,
     };
   }, [scheme, area, skin, hue]);

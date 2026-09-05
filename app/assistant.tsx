@@ -81,13 +81,12 @@ const CAPABILITIES: ReadonlySet<Capability> = capabilitiesFor('owner');
 type Turn = { question: string; answer: Answer; open: boolean; applied: boolean };
 
 function Conversation() {
-  const { color, space, type, palette, skin } = useTheme();
+  const { color, space, type, palette , traco } = useTheme();
   // Named apart from the assistant's own `ask`, which answers questions rather
   // than asking them.
   const askConfirm = useConfirm();
   const { locale, t } = useLocale();
   const router = useRouter();
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const [question, setQuestion] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);

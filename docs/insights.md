@@ -3628,3 +3628,46 @@ local passa pelo motivo errado em algum horário do dia — e a suíte inteira f
 **O que mudou.** `src/data/repository.test.ts` passou a usar `dayWindow` (commit
 `be9ac0a`), e o mutante morre. As outras três não viraram conserto de código porque o
 repositório vai ser apagado: viraram as seções 24, 33 e 34 do dossiê, e esta entrada.
+
+## 2026-09-05 — padrão não é escolha: um dia inteiro fotografando a mesma cara duas vezes
+
+**O que apareceu.** O `npm run shot` tira quatro fotos de cada tela — Papel e Orgânico,
+claro e escuro — e é com elas que eu digo ao dono que as quatro caras estão certas.
+Comparei duas delas byte a byte, por desconfiança de que estavam parecidas demais:
+
+    more-papel-claro-com-dado.png  vs  more-organico-claro-com-dado.png  →  0 px diferentes
+
+Zero. De 1.507.920. **Eram o mesmo arquivo com dois nomes.** O mesmo vale para o par
+escuro, e para `capa-*-escuro` de duas horas antes. Só o claro/escuro era real.
+
+**A causa.** O laço clicava a cara nos Ajustes **só quando ela era Papel**. O Orgânico
+vinha "de graça", por ser o padrão de um contexto de navegador novo — e era, até o dia 5
+de setembro, quando o dono escolheu o Papel como padrão e a decisão foi escrita em
+`src/theme/Appearance.tsx:75`. A partir daquele commit, toda foto com `organico` no nome
+era Papel. Ninguém tocou no `shot.mjs`; ele simplesmente parou de valer.
+
+**Por que importa, e por que dói.** Este é o **terceiro** registro da mesma frase neste
+projeto, e o próprio arquivo já a carrega duas vezes escritas por mim: *"ferramenta de
+olhar que mente sobre o que está olhando é pior que não ter"*. A primeira foi o `dist`
+reusado por existir; a segunda foi o `colorScheme` do navegador deixando de valer quando
+a luz virou escolha da empresa. Esta é idêntica em forma: **a ferramenta herdava um
+estado em vez de estabelecê-lo**, e herdar dá certo exatamente até alguém mudar o que se
+herda — sem aviso, porque nada quebra.
+
+E o custo real não é a foto errada: é que eu **mostrei as quatro ao dono** dizendo que
+eram quatro, depois de ele ter pedido, com todas as letras, *"faz geral dos temas
+aprovados, papel e organico nas variações light e dark para nunca mais errar nisso"*.
+
+**O que mudou.** Duas coisas, e a segunda é a que vale.
+
+1. `scripts/shot.mjs` passou a **escolher sempre as duas** — luz e cara —, mesmo quando a
+   escolha coincide com o que já está lá.
+2. A ferramenta passou a **se desmentir**: guarda a soma SHA-1 de cada imagem e sai com
+   código 1 se duas fotos de nomes diferentes saírem idênticas. "Clicar sempre" conserta o
+   defeito de hoje; um seletor que deixa de casar amanhã traz o mesmo defeito de volta
+   calado. O que impede é a conferência, não a lembrança.
+
+**A regra que fica.** Toda ferramenta que fotografa uma escolha tem de **fazer** a
+escolha, nunca recebê-la pronta — e tem de ter um jeito de provar que as saídas que ela
+chama de diferentes são diferentes. Padrão não é escolha: é o que sobra quando ninguém
+escolheu, e ele muda sem avisar quem dependia dele.

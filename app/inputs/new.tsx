@@ -94,12 +94,11 @@ const KINDS: {
 ];
 
 function InputForm() {
-  const { color, type, space, palette, skin } = useTheme();
+  const { color, type, space, palette , traco } = useTheme();
   const confirm = useConfirm();
   const router = useRouter();
   const { locale, t } = useLocale();
   const words = t.app.inputForm;
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   /**
    * The same screen registers and corrects.

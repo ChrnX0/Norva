@@ -80,12 +80,11 @@ type Loaded = { places: Place[]; stock: PlaceStock[] };
 type Frente = { lotId: string; code: string; expiresOn: string | null; baseUnits: number } | null;
 
 function Transfer() {
-  const { color, type, space, palette, skin } = useTheme();
+  const { color, type, space, palette , traco } = useTheme();
   const { locale, t } = useLocale();
   const askConfirm = useConfirm();
   const router = useRouter();
   const words = t.app.transfer;
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data, refresh } = useQuery<Loaded>(async () => {
     const [places, stock] = await Promise.all([

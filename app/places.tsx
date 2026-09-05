@@ -97,11 +97,10 @@ function desenhoDoLugar(kind: string, color: string, weight: number): ReactNode 
 }
 
 function Places() {
-  const { color, type, space, palette, skin } = useTheme();
+  const { color, type, space, palette , traco } = useTheme();
   const { locale, t } = useLocale();
   const router = useRouter();
   const words = t.app.places;
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data, refresh } = useQuery<Loaded>(async () => {
     const [places, stock, readings] = await Promise.all([
@@ -388,10 +387,9 @@ function Ambiente({
   last: Reading | undefined;
   onSaved: () => void;
 }) {
-  const { color, type, space, palette, skin } = useTheme();
+  const { color, type, space, palette , traco } = useTheme();
   const { locale, t } = useLocale();
   const words = t.app.places;
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const router = useRouter();
 

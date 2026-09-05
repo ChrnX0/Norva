@@ -59,11 +59,10 @@ export default function OrdersScreen() {
 }
 
 function Orders() {
-  const { color, type, space, palette, skin } = useTheme();
+  const { color, type, space, palette , traco } = useTheme();
   const { locale, t } = useLocale();
   const askConfirm = useConfirm();
   const words = t.app.orders;
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data, loading, refresh } = useQuery<Order[]>(() => listOrders(LOCAL_COMPANY_ID));
 

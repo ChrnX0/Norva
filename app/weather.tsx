@@ -55,11 +55,10 @@ export default function WeatherPlaceScreen() {
 }
 
 function PickCity() {
-  const { color, type, space, palette, skin } = useTheme();
+  const { color, type, space, palette , traco } = useTheme();
   const { t } = useLocale();
   const router = useRouter();
   const words = t.app.weatherPlace;
-  const traco = skin === 'papel' ? 1.7 : 2.2;
 
   const { data: current, refresh } = useQuery<WeatherPlace | null>(() => readPlace());
 
