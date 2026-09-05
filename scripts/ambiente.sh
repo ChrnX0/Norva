@@ -59,6 +59,22 @@ if [ -f "$INI" ]; then
   grep -q '^hw.keyboard=' "$INI" || echo 'hw.keyboard=yes' >> "$INI"
 fi
 
+dizer "afinação do Gradle"
+# `android/` é gerado pelo `expo prebuild` e ignorado pelo git (.gitignore:41), então
+# qualquer ajuste feito lá some no próximo prebuild. Por isso ele é reaplicado aqui em
+# vez de commitado: este script é o lugar onde a afinação sobrevive.
+GP=/home/user/SZG-app/android/gradle.properties
+if [ -f "$GP" ]; then
+  # `org.gradle.jvmargs` estava declarado duas vezes (-Xmx2048m e depois -Xmx3g). A
+  # segunda vencia e a primeira era ruído que confundia quem lesse.
+  sed -i '/^org\.gradle\.jvmargs=-Xmx2048m/d' "$GP"
+  grep -q '^org.gradle.caching=' "$GP" || echo 'org.gradle.caching=true' >> "$GP"
+  grep -q '^org.gradle.configureondemand=' "$GP" || echo 'org.gradle.configureondemand=true' >> "$GP"
+  echo "  jvmargs sem duplicata, cache de tarefa ligado"
+else
+  echo "  (sem android/ ainda — rode 'npx expo prebuild' e chame este script de novo)"
+fi
+
 dizer "pronto"
 echo "  emulador:  $(command -v emulator)"
 echo "  adb:       $(command -v adb)"
