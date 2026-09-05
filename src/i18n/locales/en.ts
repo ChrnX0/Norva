@@ -686,6 +686,7 @@ export const en: Dictionary = {
       noYesterday: 'Nothing left yesterday.',
       title: 'Where it went',
       today: 'Today · {{summary}}',
+      subtitle: "the day's load, by destination",
       empty: 'Nothing has left today.',
       emptyHint: 'Whatever goes to a store or a customer shows up here, by destination.',
       destinations: { one: '1 destination', other: '{{n}} destinations' },

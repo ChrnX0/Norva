@@ -752,6 +752,7 @@ export const ptBR = {
       noYesterday: 'Ontem não saiu carga.',
       title: 'Para onde foi',
       today: 'Hoje · {{summary}}',
+      subtitle: 'a carga do dia, por destino',
       empty: 'Nada saiu hoje ainda.',
       emptyHint: 'O que sair para uma loja ou cliente aparece aqui, por destino.',
       destinations: { one: '1 destino', other: '{{n}} destinos' },

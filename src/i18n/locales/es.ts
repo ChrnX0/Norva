@@ -691,6 +691,7 @@ export const es: Dictionary = {
       noYesterday: 'Ayer no salió carga.',
       title: 'A dónde fue',
       today: 'Hoy · {{summary}}',
+      subtitle: 'la carga del día, por destino',
       empty: 'Hoy no salió nada todavía.',
       emptyHint: 'Lo que salga a una tienda o a un cliente aparece aquí, por destino.',
       destinations: { one: '1 destino', other: '{{n}} destinos' },

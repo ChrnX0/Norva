@@ -147,7 +147,11 @@ function WhereItWent() {
   return (
     <CollapsingHeader
       title={t.app.transport.title}
-      overline={places.length > 0 ? fill(t.app.transport.today, { summary }) : undefined}
+      // Sem resumo ainda, a linha de olho diz o que a tela é — nunca some.
+      // Cabeçalho que aparece e desaparece conforme o dado faz a página pular, e
+      // a Lei diz que nenhum campo nasce vazio: um vazio aqui é um campo vazio
+      // do tamanho de uma linha.
+      overline={places.length > 0 ? fill(t.app.transport.today, { summary }) : t.app.transport.subtitle}
     >
       {/* O dia, e a Lei 3 no mesmo cartão: o número grande com a contagem por
           extenso embaixo e ontem embaixo dela. A comparação NÃO cabe no overline
