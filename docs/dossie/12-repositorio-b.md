@@ -110,10 +110,14 @@ Legenda de estado: **T** = implementado e chamado por tela; **A** = chamado pelo
 | `eraseArea` | 3456 | apaga em massa | — | — | 1× `{table:'erase', op:'delete'}` | T (`app/settings.tsx`) |
 | `setBriefingOrder` / `setBriefingHidden` / `setAlertSettings` / `setOrdersNeedApproval` | 3904 / 3920 / 3964 / 3982 | 0 (`app_meta`) | — | — | **nada** | T |
 
-¹ `'purchase'` **não está** no enum `movement_kind` do servidor
-(`supabase/migrations/0001_foundation.sql:172-175`), mas é escrito pelo aparelho
-(`src/data/repository.ts:415`) e pelo backfill da migração V3 (`src/data/db.ts:266-270`).
-Ver §12.17.
+¹ `'purchase'` **não nasceu** no enum `movement_kind`
+(`supabase/migrations/0001_foundation.sql:172-175`, que lista `production`, `consumption`,
+`transfer`, `sale`, `loss`, `return`, `adjustment`, `discrepancy` e `reversal`): ele foi
+acrescentado depois, por `alter type movement_kind add value if not exists 'purchase'`
+(`supabase/migrations/0007_movement_kind_purchase.sql:16`), no momento em que o aparelho
+passou a ter compra e precisou nomear o que ela faz ao saldo. É escrito pelo aparelho
+(`src/data/repository.ts:415`) e pelo backfill da migração V3 (`src/data/db.ts:266-270`), e o
+servidor aceita. Ver §12.17.
 
 Duas tabelas **nunca** entram na fila, e as duas omissões são decisão escrita:
 `item_costs` e `item_cost_history` (valor derivado tem um autor só — `src/sync/serialize.ts:44-59`;
@@ -1100,12 +1104,17 @@ tela a chama** (grep em `app/`).
 
 Marcadas para quem vai reconstruir, e nenhuma delas é conjectura.
 
-1. **`kind = 'purchase'` não existe no enum do servidor.** O aparelho escreve
+1. ~~**`kind = 'purchase'` não existe no enum do servidor.**~~ **Achado retirado —
+   era leitura incompleta.** A afirmação valia para `0001_foundation.sql:172-175`, que de fato
+   não tem `'purchase'`, mas o valor foi acrescentado em
+   `supabase/migrations/0007_movement_kind_purchase.sql:16`
+   (`alter type movement_kind add value if not exists 'purchase'`). O aparelho escreve
    `'purchase'` (`src/data/repository.ts:415`), o backfill da V3 também
    (`src/data/db.ts:266-270`), o serializador leva `kind` como está
-   (`src/sync/serialize.ts:321`) e `movement_kind` do Postgres não tem esse valor
-   (`supabase/migrations/0001_foundation.sql:172-175`). Se alguma migração posterior o
-   acrescentou, não está em `0001`; NÃO ESTÁ NO CÓDIGO que eu li nas migrações citadas.
+   (`src/sync/serialize.ts:321`) e o servidor aceita. **Fica registrado em vez de apagado**
+   porque o erro é instrutivo: uma migração append-only faz o estado do esquema ser a soma dos
+   32 arquivos, e ler só o primeiro produz uma contradição convincente. Quem reconstruir deve
+   gerar o esquema consolidado (é o Apêndice A deste dossiê) antes de afirmar que algo falta.
 2. **`closeProductionRun` não usa o `runId` como `movement_group_id`**, ao contrário do que dois
    docblocks afirmam (§12.6).
 3. **`movements.operator_id` não tem escritor.** A coluna existe no aparelho
