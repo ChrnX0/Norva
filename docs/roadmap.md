@@ -222,13 +222,22 @@ por pixel na borda enquanto o céu esticava; o degradê sob a `Sparkline` punha 
 no Papel; a palavra do botão saía ilegível sobre a cor do Papel escuro; e a linha do
 transporte cortava o nome do produto para caber o número.
 
-**De pé, e é o próximo passo do layout:**
+**De pé, e o primeiro item está TRAVADO pelo portão P2 — o que eu escrevi antes
+aqui estava errado:**
 
-1. **Refluir em colunas a 840 dp.** A página ganhou medida — a coluna para de crescer
-   e se centraliza a partir de 600 dp (`MEDIDA_DA_PAGINA`, `src/theme/tokens.ts`) —,
-   mas a regra da casa diz que num tablet o certo é *refluir*, não centralizar uma
-   coluna. Qual cartão emparelha com qual é pergunta de cada tela, e a resposta pede
-   a comparação em cinco larguras que o `shot -- --largura` já sabe tirar.
+1. **Refluir em colunas a 840 dp — trava por observação, não por trabalho.** Eu tinha
+   escrito isto como "o próximo passo do layout". Passando o portão P2 ("eu mudaria
+   isto se eu visse ___"), a frase sai inteira: *eu mudaria isto se eu visse alguém
+   usando um tablet*. Ninguém neste produto usa: as decisões do dono falam de celular
+   de fábrica, luva e câmara fria, e o único tablet que existe até hoje é uma largura
+   no meu script de foto.
+   O que a regra de layout exige — que a página **se adapte** — está feito e
+   conferido: a coluna para de crescer e se centraliza a partir de 600 dp
+   (`MEDIDA_DA_PAGINA`, `src/theme/tokens.ts`), e a 840 as linhas ficam legíveis em
+   vez de esticadas. Emparelhar cartão com cartão é desenho para um leitor que ainda
+   não existe, e a F7 não resolve: não é preferência de empresa, é fato sobre quem
+   usa. **Entra quando houver um tablet numa fábrica**, e o `shot -- --largura` já
+   sabe tirar as cinco larguras para julgar.
 2. **O cartão com desenho e sem título** deixa o glifo sozinho numa linha, em três
    telas (etiqueta do lote, clima, catálogo). No Papel lê como dingbat de seção e
    funciona; no Orgânico é um crachá flutuando. Decisão de desenho, não defeito.
@@ -236,10 +245,38 @@ transporte cortava o nome do produto para caber o número.
 De pé, nesta ordem e por este motivo:
 
 1. **Os médios que sobraram** — nove, agora que o `versionCode`, o `recorded_by`
-   cedível, o percentual com ponto e o ícone de picolé caíram. Entre eles: a embalagem
-   abaixo de meio centavo virando de graça, a aprovação de pedido que nunca atravessa,
-   a tela de abertura ainda ser o andaime da Expo, e `forgetSentBefore` sem chamador
-   fora de teste.
+   cedível, o percentual com ponto e o ícone de picolé caíram. Entre eles: a
+   aprovação de pedido que nunca atravessa, a tela de abertura ainda ser o andaime da
+   Expo, e `forgetSentBefore` sem chamador fora de teste.
+
+2. **A embalagem digitada é um `Rate`, e está guardada como `Cents`.** *(P3 — a forma
+   está decidida abaixo; falta executar, e não no fim de uma rodada longa.)*
+
+   `products.unit_packaging_cents` é o valor que a fábrica digita para o que **não**
+   lista no estoque — rótulo, fita, o que ninguém quer contar (migração V13, decisão
+   escrita). A tela faz `fromDecimal(0,004)`, que é `Math.round(0,4)` = **zero**:
+   rótulo abaixo de meio centavo entra de graça, e entra no `unit_cost_rate`
+   **congelado** de toda corrida daquele produto — que não se corrige, se estorna.
+
+   É a fundação da capa deste projeto, na letra: *"`Cents` é inteiro, `Rate` é
+   fracionário. Valor que alguém paga e preço por unidade não são o mesmo tipo de
+   número."* Preço por unidade produzida é `Rate`. É o mesmo defeito da polpa a
+   R$ 12,40/kg, num lugar onde ninguém olhou.
+
+   A forma, para a próxima rodada não a adivinhar:
+
+   - migração nova dos dois lados (aparelho `V18`, servidor `0033`), **append-only**:
+     coluna `unit_packaging_rate` (`REAL` / `numeric`), preenchida a partir da antiga;
+   - `unit_packaging_cents` **fica e para de ser lida** — migração não se edita, e a
+     coluna dormente com o motivo escrito é mais barata que uma divergência viva;
+   - a tela deixa de chamar `fromDecimal` nesse campo e passa o valor fracionário
+     direto ao `costPerProductUnit`, que já recebe `itemsRate` fracionário e já
+     arredonda **uma vez**, no fim — o caminho certo já existe ao lado.
+
+   **Por que agora e não depois:** o `LossReason` deixou a regra escrita — *"custou
+   nada consertar porque nenhuma perda jamais foi registrada, que é a única janela em
+   que o vocabulário de um razão é livre para mudar"*. O servidor não está no ar por
+   decisão do dono, então a janela está aberta. Ela fecha no dia do primeiro cliente.
 
 ### A sala do tacho — a decisão que a F2 precisa, e ela é do dono
 
