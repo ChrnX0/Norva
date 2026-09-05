@@ -42,19 +42,19 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **350** testes |
+| `npm test` | **352** testes |
 | `npm run mutate` | **106** defeitos plantados, 104 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **36** checagens num navegador de verdade |
 | `npm run db:verify` | **13** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
-**Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade,
-com as telas fotografadas nos dois temas. **A segunda identidade ainda não foi vista**:
-até 5 de setembro toda foto chamada `organico` era Papel, porque a ferramenta herdava a
-cara em vez de escolhê-la (`docs/insights.md`, "padrão não é escolha"). O `shot.mjs`
-passou a escolher sempre e a recusar duas fotos idênticas com nomes diferentes; **olhar o
-Orgânico das 24 telas é trabalho que ainda não foi feito**. E **nada visto numa
-fábrica.** Essa é a lacuna que nenhum teste fecha, e ela decide o que pode ser
+**Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade, com
+as 21 telas fotografadas nas **quatro caras de verdade** (Papel e Orgânico × claro e
+escuro, 84 fotos, `npm run shot -- --tudo`). Até 5 de setembro toda foto chamada
+`organico` era Papel, porque a ferramenta herdava a cara em vez de escolhê-la
+(`docs/insights.md`, "padrão não é escolha"); ela passou a escolher sempre e a
+**recusar duas fotos idênticas com nomes diferentes**, então a afirmação acima é
+conferível. E **nada visto numa fábrica.** Essa é a lacuna que nenhum teste fecha, e ela decide o que pode ser
 construído agora e o que precisa esperar (veja o portão P2, adiante).
 
 ### Os sete papéis, que são o desenho do produto e não detalhe
@@ -212,6 +212,27 @@ ainda não existe**: enquanto não existir, uma fábrica que guarda a polpa no f
 teria de lançar transferência antes de cada tacho, e nenhuma fábrica de seis pessoas
 faz isso.
 
+### O que a revisão das quatro caras fechou — e o que ela deixou de pé
+
+Fechados em 5 de setembro, com a foto ao lado de cada um: o `Field` desenhava a caixa
+do Orgânico nas duas caras (39 campos); a espessura do traço estava copiada em 26
+lugares em vez de morar no tema; o símbolo da moeda estava escrito na tela em três
+campos, com oito moedas existindo; a `Landscape` prendia sol, nuvem, chuva e fumaça
+por pixel na borda enquanto o céu esticava; o degradê sob a `Sparkline` punha massa
+no Papel; a palavra do botão saía ilegível sobre a cor do Papel escuro; e a linha do
+transporte cortava o nome do produto para caber o número.
+
+**De pé, e é o próximo passo do layout:**
+
+1. **Refluir em colunas a 840 dp.** A página ganhou medida — a coluna para de crescer
+   e se centraliza a partir de 600 dp (`MEDIDA_DA_PAGINA`, `src/theme/tokens.ts`) —,
+   mas a regra da casa diz que num tablet o certo é *refluir*, não centralizar uma
+   coluna. Qual cartão emparelha com qual é pergunta de cada tela, e a resposta pede
+   a comparação em cinco larguras que o `shot -- --largura` já sabe tirar.
+2. **O cartão com desenho e sem título** deixa o glifo sozinho numa linha, em três
+   telas (etiqueta do lote, clima, catálogo). No Papel lê como dingbat de seção e
+   funciona; no Orgânico é um crachá flutuando. Decisão de desenho, não defeito.
+
 De pé, nesta ordem e por este motivo:
 
 1. **Os médios que sobraram** — nove, agora que o `versionCode`, o `recorded_by`
@@ -290,6 +311,15 @@ trabalhar mais rápido não encurta um dia.
 **O Espelho da Loja — a captura entra, o relatório espera.** Contagem cega e perdas
 com motivo já existem e já gravam. O relatório fica fora por decisão escrita: ele
 **mente com duas semanas de dado**. Entra quando houver estação inteira.
+
+*Anotado em 5 de setembro, para não virar acusação depois:* `sale` está em
+`MovementKind` (`src/domain/ledger.ts:24`) e **não tem caminho de escrita** — é o
+único tipo do razão nessa situação. Pelo portão P1 isso seria dívida; aqui é o
+contrário, e por uma razão escrita no próprio arquivo: o vocabulário de um razão só
+é livre para mudar enquanto não há linha nenhuma gravada com ele, então ele nasce
+inteiro e os escritores chegam por fase. A semeadura de três meses **não** inventou
+um `recordSale` por causa disso: ela usa a contagem cega, que é o que a fábrica de
+verdade sabe hoje sobre a prateleira do cliente.
 
 **Compras inteligentes.** Precisam do **prazo observado** de cada fornecedor — o
 tempo real entre pedir e chegar, que só existe depois de meses de nota. Sem ele, é

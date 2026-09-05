@@ -151,3 +151,61 @@ test('the exceptions list only holds exceptions that are still used', () => {
     );
   }
 });
+
+/**
+ * Espera longa de relógio, nos arquivos que dirigem o navegador.
+ *
+ * Duas vezes no mesmo dia a mesma linha me custou uma rodada: `waitForTimeout(9000)`
+ * depois de clicar em "Plantar". Nove segundos bastavam quando a semeadura era uma
+ * quinzena, e deixaram de bastar quando ela virou três meses — no `shot.mjs` isso
+ * produziu a foto de uma fábrica pela metade que eu diagnostiquei como defeito da
+ * simulação, e no `flow.mjs` a checagem estourou esperando um botão que ia aparecer
+ * dez segundos depois.
+ *
+ * A régua é de cinco segundos porque ela separa duas coisas diferentes. Abaixo
+ * disso é espera de QUADRO: a tela precisa de um instante para desenhar, e o número
+ * é uma folga sobre uma animação cuja duração o próprio aplicativo escolhe. Acima,
+ * é espera de TRABALHO — e a duração do trabalho depende da máquina de quem roda,
+ * do tamanho do dado e do dia. Aí a espera tem de ser por um FATO na tela.
+ *
+ * Não vale para as ~250 esperas curtas: convertê-las todas seria uma reescrita de
+ * risco alto para um defeito que nunca apareceu.
+ */
+test('the clock guard goes red with the defect in front of it', () => {
+  // A régua conferida contra o defeito real, com a linha que ela existe para pegar.
+  // Guarda que nunca ficou vermelha com o defeito na frente foi acreditada, não
+  // verificada — é a lição da entrada de 5 de setembro do docs/insights.md.
+  const achar = (texto: string) =>
+    texto
+      .split('\n')
+      .filter((l) => {
+        const m = /waitForTimeout\(\s*([\d_]+)/.exec(l);
+        return m !== null && Number(m[1].replace(/_/g, '')) >= 5000;
+      });
+  assert.equal(achar('  await page.waitForTimeout(9000);').length, 1, 'o defeito real');
+  assert.equal(achar('  await page.waitForTimeout(240_000);').length, 1, 'com sublinhado também');
+  assert.equal(achar('  await page.waitForTimeout(3500);').length, 0, 'espera de quadro passa');
+});
+
+test('nothing waits on the clock for work whose length depends on the machine', () => {
+  const arquivos = ['e2e/flow.mjs', 'scripts/shot.mjs'];
+  const longas: string[] = [];
+  for (const arquivo of arquivos) {
+    readFileSync(arquivo, 'utf8')
+      .split('\n')
+      .forEach((linha, i) => {
+        const m = /waitForTimeout\(\s*([\d_]+)/.exec(linha);
+        if (m && Number(m[1].replace(/_/g, '')) >= 5000) {
+          longas.push(`${arquivo}:${i + 1}: espera ${m[1]} ms de relógio`);
+        }
+      });
+  }
+  assert.deepEqual(
+    longas,
+    [],
+    `estas esperas são de TRABALHO, não de quadro:\n  ${longas.join('\n  ')}\n` +
+      'Espere o fato que a tela mostra quando termina (`getByText(...).waitFor({ timeout })`), ' +
+      'não um número de segundos: o número é uma afirmação sobre a máquina de quem roda, e ' +
+      'ela envelhece sozinha.',
+  );
+});

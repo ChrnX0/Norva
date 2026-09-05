@@ -410,13 +410,22 @@ export async function simulateFortnight(
      * Uma vez por semana por destino, e o dia é sorteado por destino para as
      * três lojas não conferirem todas na segunda-feira.
      */
+    //
+    // O saldo por lugar é consultado UMA VEZ por produto e reusado no dia. Ele é
+    // um `GROUP BY` sobre o razão inteiro daquele item, e o razão cresce: pedir
+    // um por destino por produto por dia de contagem levou a semeadura a passar
+    // dos nove segundos que a checagem do navegador esperava, e ela estourou
+    // lendo a tela no meio da escrita.
+    const daVez = new Map<string, Awaited<ReturnType<typeof balanceByLocation>>>();
     for (const [i, destino] of destinos.entries()) {
       if ((days - 1 - back + i * 2) % 7 !== 0) continue;
       for (const product of products) {
-        const naPrateleira =
-          (await balanceByLocation(companyId, product.itemId)).find(
-            (b) => b.locationId === destino.id,
-          )?.baseUnits ?? 0;
+        let saldos = daVez.get(product.itemId);
+        if (!saldos) {
+          saldos = await balanceByLocation(companyId, product.itemId);
+          daVez.set(product.itemId, saldos);
+        }
+        const naPrateleira = saldos.find((b) => b.locationId === destino.id)?.baseUnits ?? 0;
         if (naPrateleira <= 0) continue;
         // Sobra de um quinto a dois quintos: o resto da semana foi vendido.
         const sobrou = Math.round(naPrateleira * (0.2 + next() * 0.2));
@@ -427,6 +436,10 @@ export async function simulateFortnight(
           locationId: destino.id,
           occurredAt: at(18),
         });
+        // O saldo daquele lugar mudou agora; o cache do dia é corrigido em vez
+        // de descartado, para o próximo destino não pagar outra agregação.
+        const linha = saldos.find((b) => b.locationId === destino.id);
+        if (linha) linha.baseUnits = sobrou;
         tally.counts += 1;
       }
     }

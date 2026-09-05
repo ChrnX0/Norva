@@ -1515,7 +1515,18 @@ check('three months can be planted from Ajustes, and the briefing changes becaus
   await page.getByText('Plantar', { exact: true }).first().click();
   await page.waitForTimeout(800);
   await page.getByText('Plantar', { exact: true }).last().click();
-  await page.waitForTimeout(9000);
+
+  /**
+   * Espera o AVISO de pronto, não um relógio — a mesma lição do `shot.mjs`.
+   *
+   * Eram nove segundos fixos, e bastavam. No dia em que a semeadura passou a
+   * conferir a prateleira das lojas (mais de cem contagens além das corridas),
+   * deixaram de bastar: a checagem lia a tela no meio da escrita e o `Entendi`
+   * ainda não existia, então ela estourava esperando um botão que ia aparecer
+   * dez segundos depois. Relógio fixo é uma afirmação sobre a máquina de quem
+   * roda, e ela envelhece sozinha.
+   */
+  await page.getByText(/Pronto:.*corridas/).waitFor({ timeout: 240_000 });
 
   // E o resultado é dito em números, não em "pronto".
   const feito = await screen(page);

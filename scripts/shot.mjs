@@ -308,7 +308,7 @@ try {
        * e é isso que se espera. Relógio é palpite sobre a máquina de quem roda;
        * o aviso é o fato.
        */
-      await page.getByText(/^Pronto: \d+ corridas/).waitFor({ timeout: 240000 });
+      await page.getByText(/Pronto:.*corridas/).waitFor({ timeout: 240000 });
       await page.getByText('Entendi', { exact: true }).last().click();
       await page.waitForTimeout(1500);
     }

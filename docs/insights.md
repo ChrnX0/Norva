@@ -3776,3 +3776,131 @@ de lenta, olhar `ps -eo etime,args --sort=-etime` e ver o que está lá desde a 
 uma afirmação de que se sabe reconhecer o fim de outra coisa. Quando essa afirmação
 erra, ela não falha: ela ocupa a máquina e o relógio, e o erro chega como uma
 pergunta do dono. **E regra que já falhou uma vez não se reescreve: vira script.**
+
+## 2026-09-05 — a loja só recebia, e o número disso estava numa tela como verdade
+
+**O que apareceu.** Com o Orgânico finalmente fotografado de verdade, "Estoque por
+lugar" mostrou o Mercado do Zé com **8.974 picolés na prateleira** e o freezer da
+fábrica com **vinte e sete mil**. Nenhuma loja de bairro guarda isso, e nenhum
+freezer de fábrica de seis pessoas também.
+
+Não é um número feio numa tela de teste: é o **oposto** do que o dono pediu ao mandar
+plantar três meses — *"alimenta o banco de dados para as informações apresentarem
+dados verdadeiros"*. Dado plantado que mente é pior que banco vazio, porque tela
+vazia se reconhece e número absurdo se lê.
+
+**Três causas, e a primeira é defeito, não realismo.**
+
+1. **O despacho lia o saldo da EMPRESA onde precisava do saldo da SALA.** `listItems`
+   soma tudo, inclusive o que já está na prateleira das lojas. A fábrica despachava o
+   que estava a dez quilômetros dela, e o saldo da sala podia ir a **negativo em
+   silêncio** — o mesmo erro que o piso da produção existe para impedir, cometido
+   pela porta de trás, porque o caminho da semeadura não passa pela tela que impede.
+2. **Produzia mais do que despachava**, quinhentas a mil por dia contra 100–400 por
+   destino com 45% de chance. Trezentas sobrando por dia, noventa dias.
+3. **O destino só recebia.** Nunca saía nada de lá.
+
+**Por que a terceira não se conserta com um `recordSale`.** O tipo `sale` existe em
+`MovementKind` e **não tem caminho de escrita**: ele é da F4, junto com o Espelho da
+Loja. Escrever um agora seria mexer no caminho de escrita de `movements` — o portão
+P3, o mais caro que este projeto tem — para servir uma semeadura.
+
+O que já existe e já grava é a **contagem cega**, e o `docs/roadmap.md` a põe dentro
+do escopo com todas as letras: *"a captura entra, o relatório espera"*. E ela é
+exatamente o que uma fábrica sabe hoje sobre a prateleira de um cliente: **não
+quanto vendeu, mas quanto sobrou.** A diferença entra como `adjustment`, que é
+bookkeeping neutro — não vai para o relatório de perdas, e é isso mesmo: o que saiu
+dali não foi perdido, foi comprado por alguém.
+
+**O que mudou.** `src/data/simulate.ts`: o despacho consulta `balanceByLocation` da
+sala da fábrica e mantém só o giro do dia seguinte; cada destino confere a prateleira
+uma vez por semana, com o dia escalonado para as três lojas não conferirem todas na
+segunda. Depois: fábrica com 3.268, lojas com 500 a 1.400, 157 entregas, 96 corridas,
+26 notas e 110 conferências em noventa dias. O aviso de plantio passou a contar as
+conferências, nos três idiomas.
+
+**A regra que fica, e ela vale além da semeadura:** **um caminho que escreve no razão
+sem passar pela tela não herda as travas da tela.** A produção impede consumir de
+outra sala; a semeadura, que chama o repositório direto, não impedia nada — e o
+resultado ficou guardado como fato. Toda vez que um script escreve pela porta dos
+fundos, as garantias que moram na porta da frente têm de ser repetidas ali, ou
+verificadas depois.
+
+## 2026-09-05 — quase "consertei" a contagem, pela quarta vez na mesma armadilha
+
+**O que apareceu.** Procurando outros lugares com o mesmo defeito que a semeadura
+tinha (saldo da empresa onde se precisa do saldo da sala), achei em
+`app/inputs/[id].tsx` a linha
+
+    const expected = item.onHandBaseUnits;
+
+seguida, vinte linhas abaixo, de um `recordCount` que grava contra o saldo da SALA.
+Promessa e escrita divergindo — o achado 6 da auditoria de volta noutra porta. Eu
+escrevi o conserto, ele compilou e o lint passou.
+
+**Estava errado.** `item` não vem do saldo da empresa: vem de
+`findItem(LOCAL_COMPANY_ID, id, room)`, com a sala da rota. Quando há sala escolhida,
+aquele número **é** o da sala; quando não há, a contagem só é oferecida se o item
+estiver num lugar só, e aí a soma de um é igual à soma de todos. Estava certo nos
+dois caminhos, com o motivo escrito em dois docblocks e um teste
+(`repository.test.ts`, "the shelf a screen shows is the shelf a count is compared
+against").
+
+**Por que importa.** É a **quarta** vez nesta sessão que eu aponto defeito no que era
+decisão registrada, e as três anteriores estão no `CLAUDE.md` como aviso que eu já
+tinha lido. O padrão é sempre o mesmo e agora dá para nomear: **eu li a linha e não
+segui a origem do valor.** `item.onHandBaseUnits` parece do escopo da empresa porque
+o nome não carrega a sala — a sala entrou como argumento na chamada, trinta linhas
+acima.
+
+E o custo do "conserto" não teria sido zero: minha versão lia o mesmo número de uma
+segunda fonte (`spread`), e duas fontes para um número é exatamente a divergência que
+o guarda da assinatura e o `traco` no tema existem para impedir. Eu teria criado a
+doença enquanto acreditava estar curando-a.
+
+**O que mudou.** A linha voltou ao que era. E a regra que fica é mais estreita e mais
+útil que "procure a decisão": **antes de chamar um valor de errado, siga a origem
+dele até a chamada que o produziu.** Nome de campo não diz escopo — quem diz é o
+argumento que alguém passou.
+
+## 2026-09-05 — o mesmo relógio estava em dois arquivos, e eu consertei um
+
+**O que apareceu.** Depois de trocar o `waitForTimeout(9000)` do `shot.mjs` por uma
+espera pelo aviso de pronto, a semeadura de três meses ficou mais pesada (as
+conferências de prateleira entraram) e a **checagem do navegador estourou** —
+esperando trinta segundos por um botão "Entendi" que ia aparecer dez segundos
+depois.
+
+A causa era a linha gêmea: `e2e/flow.mjs` tinha o **mesmo** `waitForTimeout(9000)`
+depois do mesmo clique em "Plantar". Eu tinha consertado o defeito num arquivo e
+deixado a cópia dele no outro, no mesmo dia, sabendo exatamente o que ele era.
+
+**Por que importa.** Não é distração: é que **consertar uma ocorrência dá a sensação
+de ter consertado o defeito**. A rodada seguinte cobrou a diferença, e cobrou no
+lugar mais caro — uma fatia vermelha no navegador, que é onde um erro custa três
+minutos de espera antes de aparecer.
+
+**O que mudou.** As duas esperas viraram espera por fato. E, porque duas ocorrências
+já são um padrão, virou guarda: `src/selectors.test.ts` recusa qualquer
+`waitForTimeout` de **cinco segundos ou mais** em `e2e/flow.mjs` e `scripts/shot.mjs`.
+
+A régua de cinco segundos separa duas coisas que só parecem iguais. Abaixo dela é
+espera de **quadro** — a tela precisa de um instante para desenhar, e o número é
+folga sobre uma animação cuja duração o próprio aplicativo escolhe; há umas duzentas
+e cinquenta dessas e nenhuma jamais falhou. Acima, é espera de **trabalho**, e a
+duração do trabalho depende da máquina, do tamanho do dado e do dia.
+
+E a guarda tem prova negativa: um teste irmão mostra que ela fica vermelha com
+`waitForTimeout(9000)` na frente e verde com `waitForTimeout(3500)` — porque guarda
+que nunca ficou vermelha com o defeito na frente foi acreditada, não verificada.
+
+**De passagem, uma guarda que eu não sabia que existia me pegou.** Escrevi o seletor
+novo como `/^Pronto: \d+ corridas/` e o `selectors.test.ts` reprovou: ele confere que
+toda expressão do e2e casa com alguma frase do dicionário, com os marcadores
+`{{...}}` apagados — e `\d+` não casa com o buraco vazio. Sem ela eu teria descoberto
+isso trinta segundos depois, dentro do navegador, longe da linha que quebrou. É o
+argumento inteiro a favor de guarda de fonte, escrito por ela mesma.
+
+**A regra que fica:** quando um defeito vira conserto, **procure os irmãos dele antes
+de fechar** — `grep` pelo formato, não pelo arquivo. E se houver dois, o conserto não
+é a edição: é a guarda.
