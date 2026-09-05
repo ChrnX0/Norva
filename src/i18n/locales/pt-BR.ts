@@ -73,6 +73,9 @@ export const ptBR = {
       ordersWhy: 'Pelo que foi pedido até {{date}}, contra o que tem na fábrica. Toque para ver os pedidos.',
       orderCount: { one: '1 pedido', other: '{{n}} pedidos' },
       runningOutWhy: 'Pela saída dos últimos sete dias. Toque para ver o almoxarifado.',
+      levelFull: 'cheio',
+      levelLasts: 'dura {{days}} pelo consumo da semana',
+      levelEndsIn: 'acaba em {{days}}',
       inputsFine: 'Insumos em dia',
       inputsFineDetail: 'Pelo consumo das últimas semanas, nada acaba nos próximos sete dias.',
       each: 'cada um',
@@ -369,10 +372,10 @@ export const ptBR = {
       exampleEmpty:
         'Está vazio. Se quiser ver o aplicativo funcionando antes de cadastrar o seu, dá para trazer o exemplo de volta.',
       restore: 'Restaurar dados de exemplo',
-      simulate: 'Plantar duas semanas de movimento',
-      simulateTitle: 'Encher o app com duas semanas?',
+      simulate: 'Plantar três meses de movimento',
+      simulateTitle: 'Encher o app com três meses?',
       simulateBody:
-        'Escreve catorze dias de fábrica em cima do que já existe: produção quase todo dia, entregas para a loja, e notas de compra com o preço variando. Serve para ver as telas com movimento — o livro-razão fica com esses lançamentos, e apagar tudo continua sendo em Ajustes.',
+        'Escreve noventa dias de fábrica em cima do que já existe: produção quase todo dia, entregas para a loja, e notas de compra com o preço variando. Um trimestre é o menor horizonte em que dá para ver o custo médio andar e a cobertura encolher — coisas que catorze dias não mostram. O livro-razão fica com esses lançamentos, e apagar tudo continua sendo em Ajustes.',
       simulateConfirm: 'Plantar',
       simulateDone: 'Pronto: {{runs}} corridas, {{deliveries}} entregas e {{invoices}} notas.',
       failedToSimulate: 'Não deu para plantar o movimento',

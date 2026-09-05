@@ -29,7 +29,7 @@ import { nowIso } from '@/data/db';
 import { coverState, type BriefingWidget } from '@/domain/briefing';
 import { daysBetween, localDate } from '@/domain/day';
 import type { Cents } from '@/domain/money';
-import { CartaoClima, Comparativo, Legenda, Manchete, Regua, Versalete } from './Capa';
+import { CartaoClima, Comparativo, Legenda, Manchete, Nivel, Regua, Versalete } from './Capa';
 import { Peca } from './Peca';
 import type { BriefingView, Summary } from './types';
 
@@ -225,45 +225,66 @@ export function Mosaic({
         </View>
       </Reveal>
     ),
+    /**
+     * O insumo que está acabando, desenhado como o pote que ele é.
+     *
+     * Era um cartão de meia largura com o número de dias em corpo 28 e o nome
+     * abreviado embaixo. O desenho aprovado mostra outra coisa e a diferença não
+     * é de estilo: um recipiente com nível é lido sem legenda, e este aplicativo
+     * é lido de luva, na câmara fria, por quem não vai parar para interpretar
+     * número. O nome do insumo passa a ser o assunto, em serifa, como manda a
+     * página.
+     *
+     * A régua é a mesma que a capa usa para tudo que fala de tempo — trinta
+     * dias —, e ela é dita aqui em vez de morar dentro do desenho: peça que
+     * inventa régua é peça que mente com o gráfico bonito.
+     */
     insumos: (
-      <>
-      {/* A fileira de peças: o que não é manchete divide a linha. */}
       <Reveal index={1}>
-        <View style={{ flexDirection: 'row', gap: space.md }}>
+        <View style={{ gap: space.lg }}>
           {data && data.shortly.length > 0 ? (
-            <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.runningOut} style={{ flex: 1 }}>
-              <Card tone="warning" icon={(c) => <GlyphStock size={26} color={c} weight={traco} />}>
-                <Text style={[type.figure, { color: color.ink }]}>
-                  {formatQuantity(Math.floor(data.shortly[0].daysLeft), locale)}
-                </Text>
-                <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={2}>
-                  {plural(Math.floor(data.shortly[0].daysLeft), t.app.home.dayCount)} ·{' '}
-                  {data.shortly[0].name}
-                </Text>
-              </Card>
+            <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.runningOut}>
+              <Nivel
+                parcela={Math.min(1, data.shortly[0].daysLeft / 30)}
+                nome={data.shortly[0].name}
+                topo={t.app.home.levelFull}
+                urgente
+                prazo={fill(t.app.home.levelEndsIn, {
+                  days: plural(Math.floor(data.shortly[0].daysLeft), t.app.home.dayCount),
+                })}
+              />
             </Touchable>
-          ) : data?.everMade ? (
-            <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.inputsFine} style={{ flex: 1 }}>
-              <Card hue={palette.mint} icon={(c) => <GlyphStock size={26} color={c} weight={traco} />}>
-                <Text style={[type.cardTitle, { color: color.ink }]}>{t.app.home.inputsFine}</Text>
-                <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]} numberOfLines={2}>
-                  {t.app.home.inputsFineDetail}
-                </Text>
-              </Card>
+          ) : data?.everMade && data.cover.length > 0 ? (
+            // Está tudo bem é estado válido — e aqui ele é MOSTRADO, não
+            // afirmado: o pote do insumo mais curto aparece cheio, com quanto
+            // ele dura. Uma frase dizendo "insumos em dia" pede confiança; o
+            // desenho do nível entrega a prova junto.
+            <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.inputsFine}>
+              <Nivel
+                parcela={Math.min(1, data.cover[0].daysLeft / 30)}
+                nome={data.cover[0].name}
+                topo={t.app.home.levelFull}
+                prazo={fill(t.app.home.levelLasts, {
+                  days: plural(Math.floor(data.cover[0].daysLeft), t.app.home.dayCount),
+                })}
+              />
             </Touchable>
           ) : null}
 
           {data && data.boxes > 0 ? (
-            <Touchable onPress={() => go('/transport')} accessibilityLabel={t.app.home.boxesTitle} style={{ flex: 1 }}>
-              <Card hue={palette.lilac} icon={(c) => <GlyphBox size={26} color={c} weight={traco} />}>
-                <CountUp
-                  value={data.boxes}
-                  format={(v) => formatQuantity(Math.round(v), locale)}
-                  style={{ ...type.figure, color: color.ink }}
-                />
-                <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={2}>
-                  {plural(data.boxes, t.app.home.boxCount)} {plural(data.boxes, t.app.home.boxesSent)}
-                </Text>
+            <Touchable onPress={() => go('/transport')} accessibilityLabel={t.app.home.boxesTitle}>
+              <View>
+                <Versalete>{t.app.home.boxesTitle}</Versalete>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.sm }}>
+                  <CountUp
+                    value={data.boxes}
+                    format={(v) => formatQuantity(Math.round(v), locale)}
+                    style={{ ...type.figure, color: color.ink }}
+                  />
+                  <Text style={[type.secondary, { color: color.inkMuted }]}>
+                    {plural(data.boxes, t.app.home.boxCount)} {plural(data.boxes, t.app.home.boxesSent)}
+                  </Text>
+                </View>
                 {/*
                   Dezoito caixas é dia bom numa fábrica e dia fraco noutra: sem
                   ontem do lado, o número grande não decide nada (Lei 3). E o
@@ -271,7 +292,7 @@ export function Mosaic({
                   nome, porque somá-lo em "caixas" seria arredondar a verdade
                   para o total ficar mais bonito.
                 */}
-                <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]} numberOfLines={2}>
+                <Legenda>
                   {data.boxesYesterday === 0
                     ? t.app.home.noBoxesYesterday
                     : fill(t.app.home.yesterdayWas, {
@@ -284,13 +305,12 @@ export function Mosaic({
                           .join(', '),
                       })}`
                     : ''}
-                </Text>
-              </Card>
+                </Legenda>
+              </View>
             </Touchable>
           ) : null}
         </View>
       </Reveal>
-      </>
     ),
     pedidos: (
       <>

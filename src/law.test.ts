@@ -53,10 +53,10 @@ const TELAS: Record<string, Declaracao | Declaracao[]> = {
     { compara: /amanha|tomorrowDelta/ },
   ],
   'src/home/Mosaic.tsx': [
-    {
-      sozinho:
-        'o número é uma contagem regressiva - "3 dias · Polpa" já é a distância até o fim. Contagem regressiva compara com o limite dela, e um "ontem" ao lado só atrapalharia.',
-    },
+    // A contagem regressiva do insumo saiu da lista de números grandes: ela virou
+    // DESENHO. O `Nivel` do `Capa.tsx` mostra o quanto resta no próprio pote, e a
+    // frase ao lado diz em quantos dias acaba. Quem responde à Lei 3 ali é a
+    // altura do líquido contra o pote inteiro, que é a comparação desenhada.
     { compara: /noBoxesYesterday|boxesYesterday/ },
     // O número do clima saiu daqui junto com o cartão: ele agora é desenhado
     // pelo `CartaoClima` do `Capa.tsx`, e a comparação foi com ele.

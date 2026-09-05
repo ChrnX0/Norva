@@ -11,9 +11,9 @@ import { recordPurchase, saveItem, saveProduct, saveRecipeVersion } from './repo
  */
 export const LOCAL_COMPANY_ID = '00000000-0000-4000-8000-000000000001';
 
-const LOOSE: PackagingHierarchy = { tiers: [{ id: 'unit', perBaseUnit: 1 }] };
+export const LOOSE: PackagingHierarchy = { tiers: [{ id: 'unit', perBaseUnit: 1 }] };
 
-const STACKED: PackagingHierarchy = {
+export const STACKED: PackagingHierarchy = {
   tiers: [
     { id: 'unit', perBaseUnit: 1 },
     { id: 'box', perBaseUnit: 50 },

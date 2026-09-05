@@ -195,6 +195,14 @@ rotas que abriam num banco vazio, e uma tela falando dois idiomas. **Nada disso
 
 Duas regras de operação, ambas cicatriz:
 
+- **E nunca ESPERE por padrão, pelo mesmo motivo.** `until ! pgrep -f "mutate.mjs"`
+  parece o contrário do `pkill` largo, e é o mesmo defeito virado do avesso: o
+  laço que procura o padrão **casa consigo mesmo**, porque a linha de comando
+  dele contém o padrão. Duas esperas assim ficaram vivas por horas depois de o
+  trabalho ter acabado, e apareceram no painel do dono como "3 tarefas em
+  execução" enquanto nada executava. Espere pelo PID que você anotou, ou pelo
+  arquivo de saída ficar pronto.
+
 - **Nunca mate processo por padrão.** Um `pkill` largo nesta sessão matou a
   verificação que tinha acabado de ser disparada — inclusive a nova, junto com a
   velha. Se precisar parar algo, pare pelo PID que você mesmo anotou.

@@ -59,6 +59,9 @@ export const es: Dictionary = {
       ordersWhy: 'Por lo pedido hasta el {{date}}, contra lo que hay en la fábrica. Toca para ver los pedidos.',
       orderCount: { one: '1 pedido', other: '{{n}} pedidos' },
       runningOutWhy: 'Por la salida de los últimos siete días. Toca para ver el almacén.',
+      levelFull: 'lleno',
+      levelLasts: 'dura {{days}} al ritmo de la semana',
+      levelEndsIn: 'se acaba en {{days}}',
       inputsFine: 'Insumos al día',
       inputsFineDetail: 'Por el consumo de las últimas semanas, nada se acaba en los próximos siete días.',
       each: 'cada uno',
@@ -331,10 +334,10 @@ export const es: Dictionary = {
       exampleEmpty:
         'Está vacío. Si quieres ver la aplicación funcionando antes de cargar lo tuyo, puedes traer el ejemplo de vuelta.',
       restore: 'Restaurar datos de ejemplo',
-      simulate: 'Sembrar dos semanas de movimiento',
-      simulateTitle: '¿Llenar la app con dos semanas?',
+      simulate: 'Sembrar tres meses de movimiento',
+      simulateTitle: '¿Llenar la app con tres meses?',
       simulateBody:
-        'Escribe catorce días de fábrica sobre lo que ya existe: producción casi todos los días, entregas a la tienda y facturas con el precio variando. Sirve para ver las pantallas con movimiento — el libro mayor se queda con esos asientos, y borrar todo sigue estando en Ajustes.',
+        'Escribe noventa días de fábrica sobre lo que ya existe: producción casi todos los días, entregas a la tienda y facturas con el precio variando. Un trimestre es el horizonte más corto en el que el costo promedio se mueve de verdad y la cobertura se encoge — cosas que catorce días no muestran. El libro mayor se queda con esos asientos, y borrar todo sigue estando en Ajustes.',
       simulateConfirm: 'Sembrar',
       simulateDone: 'Listo: {{runs}} corridas, {{deliveries}} entregas y {{invoices}} facturas.',
       failedToSimulate: 'No se pudo sembrar el movimiento',

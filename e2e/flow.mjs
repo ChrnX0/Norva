@@ -1498,7 +1498,7 @@ check('a loss is recorded with its reason, and the report says where the money w
   );
 });
 
-check('two weeks can be planted from Ajustes, and the briefing changes because of it', async (page) => {
+check('three months can be planted from Ajustes, and the briefing changes because of it', async (page) => {
   // A capa de uma instalação virgem não tem com o que comparar, e diz isso.
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
@@ -1508,7 +1508,7 @@ check('two weeks can be planted from Ajustes, and the briefing changes because o
   await page.waitForTimeout(2500);
 
   const ajustes = await screen(page);
-  assert.match(ajustes, /Plantar duas semanas de movimento/);
+  assert.match(ajustes, /Plantar três meses de movimento/);
   // A confirmação diz o que vai escrever antes de escrever.
   assert.match(ajustes, /o livro-razão fica com esses lançamentos/);
 

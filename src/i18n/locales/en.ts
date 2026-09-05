@@ -54,6 +54,9 @@ export const en: Dictionary = {
       ordersWhy: 'From what was ordered through {{date}}, against what the factory holds. Tap to see the orders.',
       orderCount: { one: '1 order', other: '{{n}} orders' },
       runningOutWhy: 'From the last seven days of usage. Tap to see the storeroom.',
+      levelFull: 'full',
+      levelLasts: 'lasts {{days}} at this week\u2019s pace',
+      levelEndsIn: 'runs out in {{days}}',
       inputsFine: 'Inputs are fine',
       inputsFineDetail: 'At the last few weeks of usage, nothing runs out in the next seven days.',
       each: 'each',
@@ -326,10 +329,10 @@ export const en: Dictionary = {
       exampleEmpty:
         'It is empty. If you want to see the app working before entering your own, you can bring the example back.',
       restore: 'Restore the example data',
-      simulate: 'Plant two weeks of movement',
-      simulateTitle: 'Fill the app with two weeks?',
+      simulate: 'Plant three months of movement',
+      simulateTitle: 'Fill the app with three months?',
       simulateBody:
-        'Writes fourteen days of factory on top of what is already there: production most days, deliveries to the store, and invoices with the price moving. It is for seeing the screens with movement — the ledger keeps these entries, and erasing everything is still in Settings.',
+        'Writes ninety days of factory on top of what is already there: production most days, deliveries to the store, and invoices with the price moving. A quarter is the shortest horizon where average cost actually moves and cover actually shrinks — things fourteen days never show. The ledger keeps these entries, and erasing everything is still in Settings.',
       simulateConfirm: 'Plant',
       simulateDone: 'Done: {{runs}} runs, {{deliveries}} deliveries and {{invoices}} invoices.',
       failedToSimulate: 'Could not plant the movement',

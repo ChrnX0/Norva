@@ -437,3 +437,81 @@ export function CartaoClima({
   );
 }
 
+/**
+ * O nível de um insumo, desenhado como o recipiente que ele é.
+ *
+ * É a última peça visível do desenho aprovado: um pote alto em traço, com a
+ * marca do cheio em cima, e o nome do insumo em serifa ao lado.
+ *
+ * Por que um pote e não a barrinha que já existia: a barra horizontal responde
+ * "que fração", e a pergunta desta peça é outra — **quanto ainda tem ali**. Um
+ * recipiente com líquido dentro é a única forma que uma pessoa lê sem legenda, e
+ * este aplicativo é lido de luva, na câmara, por quem não vai parar para
+ * interpretar gráfico.
+ *
+ * A régua é dita por quem chama e nunca inventada aqui. Fábrica nenhuma tem meta
+ * de estoque cadastrada; o horizonte é o que a capa já usa para tudo que fala de
+ * tempo, e a peça só desenha a fração que recebeu.
+ */
+export function Nivel({
+  /** Quanto resta, de zero a um. Fora da faixa fica presa na faixa. */
+  parcela,
+  /** O nome do insumo, em serifa: é o assunto. */
+  nome,
+  /** A frase que diz quanto tempo aquilo dura. */
+  prazo,
+  /** A palavra que marca o topo — "cheio". */
+  topo,
+  /** Verdadeiro quando a peça deve gritar: aí a tinta vira a de alerta. */
+  urgente = false,
+}: {
+  parcela: number;
+  nome: string;
+  prazo: string;
+  topo: string;
+  urgente?: boolean;
+}) {
+  const { color, type, space, titleFamily, palette } = useTheme();
+  const presa = Math.max(0, Math.min(1, Number.isFinite(parcela) ? parcela : 0));
+  const tinta = urgente ? color.warning : palette.apricot;
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
+      <View style={{ alignItems: 'center' }}>
+        <Text style={[type.caption, { color: color.inkFaint, marginBottom: 2 }]}>{topo}</Text>
+        {/* O pote: contorno inteiro, e o conteúdo subindo de baixo. `overflow`
+            recortado para o líquido respeitar o canto arredondado — sem isso ele
+            escapa pelos cantos e o desenho deixa de ser um recipiente. */}
+        <View
+          style={{
+            width: 54,
+            height: 92,
+            borderWidth: 1.5,
+            borderColor: color.ink,
+            borderRadius: 10,
+            overflow: 'hidden',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <View style={{ height: `${presa * 100}%`, backgroundColor: tinta, opacity: 0.22 }} />
+        </View>
+      </View>
+
+      <View style={{ flex: 1 }}>
+        <Text
+          style={{
+            fontFamily: titleFamily,
+            fontSize: 26,
+            lineHeight: 32,
+            color: color.ink,
+          }}
+        >
+          {nome}
+        </Text>
+        <Text style={[type.secondary, { color: urgente ? color.warning : color.inkMuted, marginTop: 2 }]}>
+          {prazo}
+        </Text>
+      </View>
+    </View>
+  );
+}

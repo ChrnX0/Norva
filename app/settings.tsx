@@ -57,7 +57,7 @@ import {
   type EraseTally,
 } from '@/data/erase';
 import { exampleStillHere, LOCAL_COMPANY_ID, restoreStarterData } from '@/data/seed';
-import { simulateFortnight } from '@/data/simulate';
+import { HORIZONTE_DE_TESTE, simulateHistory } from '@/data/simulate';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatMoney, formatQuantity, formatWeekdayShort, joinList, plural } from '@/i18n';
 import type { Dictionary, LanguageTag } from '@/i18n';
@@ -368,7 +368,15 @@ function Settings() {
 
     setBusy(true);
     try {
-      const feito = await simulateFortnight(LOCAL_COMPANY_ID, { timeZone: locale.timeZone });
+      // Três meses, e não a quinzena — pedido do dono, 5 de setembro: *"cria dado
+      // de uns 3 meses para deixar de testes futuros"*. `simulateHistory` existia
+      // exatamente para isto e nunca tinha sido chamado por ninguém: o docblock
+      // dele já dizia que catorze dias não provam custo médio que anda, cobertura
+      // que encolhe nem consulta lenta com o livro-razão crescido.
+      const feito = await simulateHistory(LOCAL_COMPANY_ID, {
+        days: HORIZONTE_DE_TESTE,
+        timeZone: locale.timeZone,
+      });
       refresh();
       await confirm({
         title: t.app.settings.simulateConfirm,
@@ -627,7 +635,7 @@ function Settings() {
                         style={{
                           width: escolhida ? 44 : 30,
                           height: escolhida ? 44 : 30,
-                          borderRadius: 22,
+                          borderRadius: (escolhida ? 44 : 30) / 2,
                           backgroundColor: hues[qual].brand,
                         }}
                       />

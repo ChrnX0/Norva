@@ -122,6 +122,15 @@ function Drawers() {
 
   return (
     <CollapsingHeader title={t.app.more.title}>
+      {/* Cada seção carrega a cor da ÁREA que ela abre, e não um cinza só.
+          O dono apontou a tela: *"esses ícones devem seguir o padrão de todo o
+          tema. falta um pouco de cor aí"*. As quatro seções estavam pintadas com
+          `mist` — o tom dos Ajustes —, então a página inteira lia como uma lista
+          de configuração: perguntar, cadastrar e lançar tinham a mesma cor de
+          "mexer nas opções". A regra da casa já existia e estava sendo quebrada
+          aqui: cor de área é SIGNIFICADO, e quem vê verde sabe que é estoque
+          antes de ler. Só a última seção fica no cinza, porque ela É os ajustes. */}
+
       {/* Perguntar vem antes de cadastrar: é a única coisa aqui que se usa sem
           saber o nome da tela que responde. */}
       <Reveal index={0}>
@@ -130,7 +139,7 @@ function Drawers() {
           accessibilityLabel={t.app.more.ask.label}
         >
           <Card
-            hue={palette.mist}
+            hue={palette.sky}
             icon={(c) => <GlyphAssistant size={26} color={c} weight={traco} />}
             title={t.app.more.ask.label}
           >
@@ -146,7 +155,7 @@ function Drawers() {
           inteira preservada. */}
       <Reveal index={1}>
         <Card
-          hue={palette.mist}
+          hue={palette.mint}
           icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}
           title={t.app.more.groups.registers}
         >
@@ -157,7 +166,7 @@ function Drawers() {
       {/* O que se lança: o fato que já aconteceu e vai para o livro-razão. */}
       <Reveal index={2}>
         <Card
-          hue={palette.mist}
+          hue={palette.sage}
           icon={(c) => <GlyphPurchase size={26} color={c} weight={traco} />}
           title={t.app.more.groups.entries}
         >
