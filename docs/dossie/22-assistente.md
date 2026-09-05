@@ -1158,9 +1158,11 @@ A condição que o plano impôs para deixar o assistente escrever.
 - **Aparelho:** `assistant_phrase TEXT` (`src/data/db.ts:247`).
 - **Vocabulário do domínio:** `assistantPhrase?: string` em `src/domain/ledger.ts:124`.
 - **Escritores no repositório** (o `INSERT` cita a coluna e passa
-  `input.assistantPhrase ?? null`): compra (`src/data/repository.ts:405`, `421`), contagem
-  (`948`, `966`), produção (`1535`, `1550`), transferência (`1716`, `1735`), perda (`2136`,
-  `2158`), e mais um caminho em `2495`/`2509`.
+  `input.assistantPhrase ?? null`): `recordPurchase` (`src/data/repository.ts:296`, com o
+  `INSERT` em `405` e o parâmetro em `421`), `recordCount` (`886`, `948`, `966`),
+  `recordProduction` (`1311`, `1535`, `1550`), `moveBetween` — que serve
+  `recordTransfer` (`1749`) e a devolução — (`1683`, `1716`, `1735`), `recordLoss` (`2089`,
+  `2136`, `2158`) e `recordCheck` (`2436`, `2495`, `2509`).
 - **Caminho completo:** `ask` injeta `question: trimmed` no contexto
   (`src/assistant/index.ts:72`) → a habilidade põe `assistantPhrase: ctx.question` no `apply`
   → `liveData` repassa → o repositório grava.
