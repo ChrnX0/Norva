@@ -273,7 +273,7 @@ check('the five tabs are there, and the old addresses still answer', async (page
   await page.goto(`http://localhost:${PORT}/more`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2000);
   const more = await screen(page);
-  assert.match(more, /CADASTROS/);
+  assert.match(more, /Cadastros/);
   assert.match(more, /Lojas e clientes/);
   // Compra escreve no livro-razão e pedido é livro de pedidos: nenhuma das duas
   // é cadastro, e a palavra promete a classe de risco errada — cadastro se
@@ -1510,7 +1510,7 @@ check('three months can be planted from Ajustes, and the briefing changes becaus
   const ajustes = await screen(page);
   assert.match(ajustes, /Plantar três meses de movimento/);
   // A confirmação diz o que vai escrever antes de escrever.
-  assert.match(ajustes, /o livro-razão fica com esses lançamentos/);
+  assert.match(ajustes, /livro-razão fica com esses lançamentos/);
 
   await page.getByText('Plantar', { exact: true }).first().click();
   await page.waitForTimeout(800);

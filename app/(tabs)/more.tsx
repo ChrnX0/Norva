@@ -1,8 +1,20 @@
+import type { ReactNode } from 'react';
 import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
-import { GlyphAssistant, GlyphCatalog, GlyphPurchase, GlyphSettings } from '@/components/Glyph';
+import {
+  GlyphAssistant,
+  GlyphCatalog,
+  GlyphOrder,
+  GlyphProduction,
+  GlyphPurchase,
+  GlyphRecipe,
+  GlyphSettings,
+  GlyphStock,
+  GlyphStore,
+  GlyphThermometer,
+} from '@/components/Glyph';
 import { ListRow } from '@/components/ListRow';
 import { IconChevron } from '@/components/icons';
 import { Reveal } from '@/components/Reveal';
@@ -62,6 +74,10 @@ type Porta = {
   key: keyof Dictionary['app']['more']['rows'];
   detail: string;
   route: string;
+  /** O desenho do destino — o mesmo que a tela de lá usa no cabeçalho dela. */
+  desenho: (c: string) => ReactNode;
+  /** O tom do destino, do mapa de áreas. */
+  tom: string;
 };
 
 function Drawers() {
@@ -70,11 +86,15 @@ function Drawers() {
   const router = useRouter();
   const traco = skin === 'papel' ? 1.7 : 2.2;
 
+  const glifo =
+    (G: (p: { size?: number; color: string; weight?: number }) => ReactNode) => (c: string) =>
+      G({ size: 22, color: c, weight: traco });
+
   const cadastros: Porta[] = [
-    { key: 'inputs', detail: t.app.inputs.overline, route: '/inputs' },
-    { key: 'recipes', detail: t.app.recipes.overline, route: '/recipes' },
-    { key: 'products', detail: t.app.products.overline, route: '/products' },
-    { key: 'places', detail: t.app.places.overline, route: '/places' },
+    { key: 'inputs', detail: t.app.inputs.overline, route: '/inputs', desenho: glifo(GlyphStock), tom: palette.mint },
+    { key: 'recipes', detail: t.app.recipes.overline, route: '/recipes', desenho: glifo(GlyphRecipe), tom: palette.apricot },
+    { key: 'products', detail: t.app.products.overline, route: '/products', desenho: glifo(GlyphProduction), tom: palette.apricot },
+    { key: 'places', detail: t.app.places.overline, route: '/places', desenho: glifo(GlyphStore), tom: palette.mint },
   ];
 
   /**
@@ -90,8 +110,8 @@ function Drawers() {
    * é o mesmo defeito de um rótulo que discorda do número embaixo dele.
    */
   const lancamentos: Porta[] = [
-    { key: 'orders', detail: t.app.orders.overline, route: '/orders' },
-    { key: 'purchases', detail: t.app.purchase.overline, route: '/purchase' },
+    { key: 'orders', detail: t.app.orders.overline, route: '/orders', desenho: glifo(GlyphOrder), tom: palette.sage },
+    { key: 'purchases', detail: t.app.purchase.overline, route: '/purchase', desenho: glifo(GlyphPurchase), tom: palette.sage },
   ];
 
   const ajustes: Porta[] = [
@@ -99,8 +119,8 @@ function Drawers() {
     // quando há previsão guardada, e quem abre o app pela primeira vez dentro da
     // câmara fria não tem nenhuma. Sem esta linha, trocar a cidade dependeria de
     // ter internet — que é a única coisa que essa tela existe para consertar.
-    { key: 'weather', detail: t.app.weather.change, route: '/weather' },
-    { key: 'settings', detail: t.app.settings.stored, route: '/settings' },
+    { key: 'weather', detail: t.app.weather.change, route: '/weather', desenho: glifo(GlyphThermometer), tom: palette.sky },
+    { key: 'settings', detail: t.app.settings.stored, route: '/settings', desenho: glifo(GlyphSettings), tom: palette.mist },
   ];
 
   /** O convite de abrir, dito uma vez, no pé do cartão que leva a algum lugar. */
@@ -116,6 +136,8 @@ function Drawers() {
       key={porta.route}
       label={t.app.more.rows[porta.key]}
       detail={porta.detail}
+      icon={porta.desenho}
+      hue={porta.tom}
       onPress={() => router.push(porta.route as never)}
     />
   );

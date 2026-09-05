@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -22,12 +23,31 @@ export function ListRow({
   trailing,
   trailingTone = 'ink',
   signal,
+  icon,
+  hue,
   onPress,
 }: {
   label: string;
   detail?: string;
   trailing?: string;
   trailingTone?: 'ink' | 'muted' | 'ok' | 'warning';
+  /**
+   * O desenho do que esta linha abre, na cor de lá.
+   *
+   * Existe por uma frase do dono olhando a gaveta do "Mais": *"tem cor... mas
+   * poderia ter mais cores, né. tudo igual"*. E ele estava certo por um motivo
+   * que a regra sozinha não pegava: as seções vizinhas eram estoque e compra —
+   * dois verdes da mesma família — então a página inteira lia como uma cor só,
+   * mesmo com a regra cumprida.
+   *
+   * A saída não é inventar cor: é a cor descer um nível. A seção diz o grupo, e
+   * cada LINHA carrega o tom de onde ela leva — insumo em verde, receita em
+   * laranja, pedido em oliva, clima em azul. Aí a cor volta a ser informação:
+   * quem já usou o aplicativo acha a porta pelo tom antes de ler a palavra.
+   */
+  icon?: (color: string) => ReactNode;
+  /** O tom do destino. Sem ele, o desenho sai no acento da área. */
+  hue?: string;
   /**
    * A cor da faixa desta linha, quando ela tem uma.
    *
@@ -40,7 +60,7 @@ export function ListRow({
   signal?: 'ok' | 'warning' | 'danger' | 'neutral';
   onPress?: () => void;
 }) {
-  const { color, space, type, motion } = useTheme();
+  const { color, space, type, motion, accent } = useTheme();
 
   const tone =
     trailingTone === 'ok'
@@ -92,6 +112,8 @@ export function ListRow({
           }}
         />
       ) : null}
+
+      {icon ? icon(hue ?? accent) : null}
 
       <View style={{ flex: 1 }}>
         <Text style={[type.body, { color: color.ink }]} numberOfLines={1}>
