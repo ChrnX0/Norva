@@ -3720,3 +3720,59 @@ hora de trabalho. Se a simulação tivesse mesmo um defeito no dia 59, eu teria
 quando um número parecer contar uma história boa demais para ser conferida na hora,
 reproduza-o **fora da ferramenta que o produziu** antes de sair consertando código —
 foi o que salvou esta rodada.
+
+## 2026-09-05 — a regra escrita não impediu a segunda vez, e o dono viu antes de mim
+
+**O que apareceu.** O dono mandou uma foto do painel dele: uma tarefa em **1h03min**
+com o rótulo *"Wait for the running suite then start a fresh one"*. Perguntou por que
+demorava tanto. Era um laço meu:
+
+    until ! pgrep -f "e2e/flow.mjs"; do sleep 10; done; npm run e2e
+
+O `pgrep -f` casa com a **linha de comando do próprio shell**, que contém o texto
+`e2e/flow.mjs`. O laço esperava a si mesmo. Uma hora de relógio, zero trabalho — e
+ele nem chegou a disparar a suíte que existia para disparar.
+
+Ao lado dele, um `expo start` de **6h38**, esquecido de manhã, com o Metro observando
+o disco numa máquina de quatro núcleos enquanto eu exportava pacote e abria quatro
+navegadores. Foi essa CPU roubada que produziu a fatia vermelha que eu diagnostiquei
+como disputa — a mesma frase do dia 3, e desta vez a causa tinha nome e PID.
+
+**Por que importa.** Isto **já estava escrito** no `CLAUDE.md`, na seção de
+operação, com o mesmo laço citado. A regra existia, eu a li nesta sessão, e escrevi o
+laço mesmo assim. Conselho não sobrevive à conveniência do momento; foi essa a lição
+que criou a proofgate, e ela vale para o operador tanto quanto para o código.
+
+E o custo real é de novo o de segunda ordem: o tempo perdido é o menor pedaço. O
+grande é que a lentidão virou **fato observado sobre o projeto** — "a barra é lenta",
+"o navegador disputa" — quando a causa era um processo parado e outro esquecido. Duas
+vezes eu ajustei paralelismo por causa disso.
+
+**O que mudou — e a primeira versão desta linha estava errada.** Eu ia escrever
+"o `CLAUDE.md` passou a dizer não escreva laço de espera". Mas ele **já dizia**, com
+este laço citado, e eu escrevi o laço mesmo assim. O dono foi direto ao ponto: *"não
+é a primeira vez que você fica esperando essas tarefas bugadas. **se torne imune a
+isso**"* — e imune não é lembrar melhor.
+
+Então virou guarda: `.claude/hooks/sem-espera.sh`, um `PreToolUse` do Bash ao lado do
+`push-guard` da proofgate, que **recusa o comando antes de ele rodar**. Quatro
+padrões, cada um com uma cicatriz atrás:
+
+| recusa | de onde veio |
+|---|---|
+| `until`/`while` com `sleep` dentro | esta, 1h03 esperando a si mesma |
+| `pgrep -f` cujo padrão está na própria linha | a causa exata do laço acima |
+| `sleep` de 30 s ou mais em primeiro plano | espera não é trabalho |
+| `nohup ... &` | a mutação órfã de oito horas, 3 de setembro |
+
+Conferido com prova positiva e negativa: os quatro comandos ruins são recusados, e
+`npm test`, `npm run shot -- --tudo`, `pkill` por PID e um `git commit` cuja mensagem
+contém a palavra "sleep" passam.
+
+E o `CLAUDE.md` ganhou a linha que faltava sobre o vizinho: antes de culpar a máquina
+de lenta, olhar `ps -eo etime,args --sort=-etime` e ver o que está lá desde a manhã.
+
+**A regra que fica.** Espera não é trabalho — e laço de espera não é nem espera: é
+uma afirmação de que se sabe reconhecer o fim de outra coisa. Quando essa afirmação
+erra, ela não falha: ela ocupa a máquina e o relógio, e o erro chega como uma
+pergunta do dono. **E regra que já falhou uma vez não se reescreve: vira script.**

@@ -2,6 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { TINTA_CLARA, TINTA_ESCURA, tintaSobre } from '@/theme/contraste';
 import { useTheme } from '@/theme/ThemeProvider';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -66,6 +67,22 @@ export function Button({
    * foi assim que o dono escolheu.
    */
   const preenchimento = papel ? brand : accent;
+
+  /**
+   * A tinta do rótulo é MEDIDA contra o preenchimento, não declarada.
+   *
+   * `color.onAccent` é a tinta escolhida para o ACENTO DA ÁREA. No Papel o botão
+   * é pintado com a MARCA, que é outra cor — e a foto do Papel escuro mostrou o
+   * resultado: "Procurar cidade" em tinta escura sobre marrom médio, que ninguém
+   * lê de luva no corredor da câmara.
+   *
+   * Uma tinta declarada erra sempre que o fundo muda sem ela; medir não erra, e
+   * continua certo no dia em que alguém acrescentar uma paleta. O par de
+   * candidatas é o branco e o quase-preto — os dois extremos —, porque num tema
+   * escuro a tinta da paleta é CLARA, e medir entre duas claras é escolher a menos
+   * ruim de duas derrotas.
+   */
+  const tintaDaAcao = tintaSobre(preenchimento, TINTA_CLARA, TINTA_ESCURA);
   const [pressed, setPressed] = useState(false);
 
   // The spring is driven by state rather than by writing to a shared value in
@@ -119,11 +136,11 @@ export function Button({
         style,
       ]}
     >
-      {icon?.(isPrimary ? color.onAccent : color.inkMuted)}
+      {icon?.(isPrimary ? tintaDaAcao : color.inkMuted)}
       <Text
         style={[
           type.body,
-          { fontWeight: '600', color: isPrimary ? color.onAccent : color.inkMuted },
+          { fontWeight: '600', color: isPrimary ? tintaDaAcao : color.inkMuted },
         ]}
       >
         {label}

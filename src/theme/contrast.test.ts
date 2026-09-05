@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { TINTA_CLARA, TINTA_ESCURA, contraste, tintaSobre } from './contraste';
 import { test } from 'node:test';
 
 /**
@@ -31,17 +32,8 @@ const FUNDOS = ['paper', 'surface', 'sunken'] as const;
 /** WCAG AA para texto normal. */
 const MINIMO = 4.5;
 
-const luminancia = (hex: string): number => {
-  const canais = [1, 3, 5]
-    .map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
-    .map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
-  return 0.2126 * canais[0] + 0.7152 * canais[1] + 0.0722 * canais[2];
-};
-
-export const contraste = (a: string, b: string): number => {
-  const [claro, escuro] = [luminancia(a), luminancia(b)].sort((x, y) => y - x);
-  return (claro + 0.05) / (escuro + 0.05);
-};
+// A régua mora em `contraste.ts` agora, porque o aplicativo também precisa dela
+// em tempo de execução: o botão escolhe a tinta dele medindo, não declarando.
 
 /** Cada paleta escrita no arquivo, com as cores que alguém digitou nela. */
 function paletas(): { nome: string; cores: Record<string, string> }[] {
@@ -128,5 +120,50 @@ test('the three inks stay a hierarchy, not three names for one gray', () => {
     `estas camadas de tinta estão perto demais para o olho separar:\n  ${frouxas.join('\n  ')}\n` +
       `O piso é ${PASSO}× de razão de contraste entre camadas. Ordem não é hierarquia: ` +
       'duas tintas a 5% de distância passam em "maior que" e desenham a mesma tela plana.',
+  );
+});
+
+/**
+ * A palavra do botão, sobre a cor com que ele é de fato pintado.
+ *
+ * A guarda de cima mede as tintas de TEXTO sobre os fundos de PÁGINA, e passou
+ * verde durante todo o tempo em que o botão primário do Papel escuro escrevia em
+ * tinta escura sobre marrom médio. Ela não estava errada: estava medindo outra
+ * coisa — o vizinho da propriedade, de novo, que é a família de defeito que este
+ * repositório já registrou quatro vezes.
+ *
+ * O botão é a **única massa de cor forte** de uma tela e carrega a ação; se há um
+ * texto neste aplicativo que não pode ficar ilegível, é esse. Aqui se mede o par
+ * de verdade: cada cor com que um botão pode ser preenchido — os oito acentos de
+ * área de cada paleta e a marca de cada paisagem — contra a tinta que o
+ * `tintaSobre` escolheria para ela.
+ */
+test('the word on a button is legible on every colour a button is painted with', () => {
+  const AREAS = ['apricot', 'mint', 'lilac', 'sage', 'sky', 'mist', 'danger', 'warning'] as const;
+  const fracas: string[] = [];
+
+  for (const { nome, cores } of paletas()) {
+    const fundos = new Set<string>();
+    for (const area of AREAS) if (cores[area]) fundos.add(cores[area]);
+    for (const fundo of fundos) {
+      const tinta = tintaSobre(fundo, TINTA_CLARA, TINTA_ESCURA);
+      const razao = contraste(tinta, fundo);
+      if (razao < MINIMO) fracas.push(`${nome}: ${tinta} sobre ${fundo} dá ${razao.toFixed(2)}:1`);
+    }
+  }
+
+  // E as cinco paisagens do Orgânico, que pintam o botão pela `brand`.
+  for (const m of FONTE.matchAll(/(\w+): \{ brand: '(#[0-9A-Fa-f]{6})'/g)) {
+    const fundo = m[2];
+    const tinta = tintaSobre(fundo, TINTA_CLARA, TINTA_ESCURA);
+    const razao = contraste(tinta, fundo);
+    if (razao < MINIMO) fracas.push(`paisagem ${m[1]}: ${tinta} sobre ${fundo} dá ${razao.toFixed(2)}:1`);
+  }
+
+  assert.deepEqual(
+    fracas,
+    [],
+    `a palavra do botão reprova a régua de ${MINIMO}:1 nestas cores:\n  ${fracas.join('\n  ')}\n` +
+      'Botão é a ação da tela: ilegível ali não é um detalhe de estilo.',
   );
 });

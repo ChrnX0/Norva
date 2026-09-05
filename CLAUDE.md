@@ -206,6 +206,22 @@ Duas regras de operação, ambas cicatriz:
 - **Nunca mate processo por padrão.** Um `pkill` largo nesta sessão matou a
   verificação que tinha acabado de ser disparada — inclusive a nova, junto com a
   velha. Se precisar parar algo, pare pelo PID que você mesmo anotou.
+- **Não se escreve laço de espera. Nenhum.** `until ! pgrep -f "e2e/flow.mjs"; do
+  sleep 10; done` casa com o **próprio shell**, cuja linha de comando contém esse
+  texto — então ele espera a si mesmo, para sempre. Isso já aconteceu duas vezes, e
+  a segunda foi depois de a primeira estar escrita aqui: em 5 de setembro o dono
+  mandou uma foto de uma tarefa parada há **1h03** e era exatamente esse laço, de
+  novo. Regra escrita não impediu; o que impede é não haver laço.
+  **O jeito certo já existe e é mais curto:** dispare com `run_in_background` e
+  siga trabalhando — a notificação de término chega sozinha. Se precisar mesmo
+  esperar uma condição, ela nunca pode ser um `pgrep` cujo padrão está na linha de
+  comando que o executa.
+- **Servidor de desenvolvimento é processo, e processo esquecido cobra.** Um
+  `expo start` ficou **6h38** no ar sem ninguém usar, com o Metro observando o
+  disco numa máquina de quatro núcleos, roubando CPU de toda exportação e de toda
+  fatia do navegador — que foi o que produziu a "disputa" que eu diagnostiquei
+  duas vezes. Antes de culpar a máquina de lenta, olhe `ps -eo etime,args
+  --sort=-etime` e veja o que está lá desde a manhã.
 - **`import()` não é checagem de sintaxe: ele RODA o arquivo.** Usei
   `node -e "import('./scripts/mutate.mjs')"` duas vezes para ver se a edição tinha
   quebrado a sintaxe, e as duas vezes o script inteiro começou a rodar. Com `&` no
