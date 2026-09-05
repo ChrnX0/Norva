@@ -1037,7 +1037,14 @@ function contaDoDia(
       ? t.app.home.mathNoBase
       : vao === 0
         ? fill(t.app.home.mathSame, { when: quando })
-        : fill(vao > 0 ? t.app.home.mathAbove : t.app.home.mathBelow, {
+        : // O SUJEITO da frase é o dia passado, não hoje: "sáb, há uma semana
+          // ficou 455 abaixo" quer dizer que aquele sábado ficou abaixo de hoje.
+          // As chaves se chamavam `mathAbove`/`mathBelow` pelo sinal do `vao`, e
+          // eu li a tela contra a seta verde de "+455" e quase inverti as três
+          // traduções para consertar uma frase que estava certa. Nome que
+          // descreve a CONTA ao lado de um texto que descreve o DIA é uma
+          // armadilha, e ela já pegou uma vez.
+          fill(vao > 0 ? t.app.home.weekWasBelow : t.app.home.weekWasAbove, {
             when: quando,
             gap: q(Math.abs(vao)),
           });
