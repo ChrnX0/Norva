@@ -3904,3 +3904,34 @@ argumento inteiro a favor de guarda de fonte, escrito por ela mesma.
 **A regra que fica:** quando um defeito vira conserto, **procure os irmãos dele antes
 de fechar** — `grep` pelo formato, não pelo arquivo. E se houver dois, o conserto não
 é a edição: é a guarda.
+
+## 2026-09-05 — a configuração que parecia restringir e não restringia nada
+
+**O que apareceu.** O painel do dono recebeu, só nesta sessão, uma dúzia de avisos de
+deploy da Vercel — um por push, cada um construindo uma web que ninguém vai olhar
+antes de o aplicativo estar pronto. O `vercel.json` do repositório dizia:
+
+    "git": { "deploymentEnabled": { "main": true } }
+
+que **lê** como "só a `main` publica". A documentação diz o contrário, com todas as
+letras: *"Unspecified branches default to true."* O objeto é uma lista de **exceções**,
+não uma lista de permissões — então aquela linha não desligava nada, e toda branch
+continuava publicando.
+
+**Por que importa.** O dono deu uma instrução permanente sobre isso — *"cuidado para
+não queimar todos os créditos"* — e o plano desta sessão nomeou o item ("desligar o
+deploy automático nesta branch"). Ele ficou por fazer porque, ao abrir o arquivo, a
+configuração **parecia** já feita. Configuração que lê como restrição e não restringe
+é pior que ausência de configuração: ausência se nota.
+
+É a mesma família de tudo o que apareceu hoje — o padrão herdado que virou escolha, a
+guarda que media o vizinho, o nome de chave que descrevia a conta em vez do texto. Em
+todos, **a coisa parecia dizer o que não dizia**, e ninguém foi conferir na fonte.
+
+**O que mudou.** `"*": false` ao lado do `"main": true`. A regra de sobreposição está
+documentada e é a que se quer: um ramo que casa com duas regras publica se **alguma**
+delas for `true`, então `main` continua publicando e nenhum outro publica.
+
+**A regra que fica:** antes de acreditar que uma configuração restringe, **leia a
+documentação do valor-padrão dela**. O que não está escrito não é "nada" — é o
+padrão, e o padrão costuma ser permissivo.
