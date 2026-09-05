@@ -42,6 +42,16 @@ type Theme = {
   space: typeof space;
   /** Os cantos são da identidade: retos no Papel, generosos no Orgânico. */
   radius: { sm: number; md: number; lg: number; xl: number; pill: number };
+  /**
+   * A família dos títulos — serifa no Papel, a do sistema no Orgânico.
+   *
+   * Ela já entrava sozinha nos estilos de `type`, e isso bastava enquanto todo
+   * título saía de lá. A capa aprovada tem duas tipografias que `type` não
+   * cobre: a manchete de 29 e o número de 48, ambos serifados e ambos com peso
+   * próprio. Sem expor a família, a capa teria que repetir a palavra `'serif'`
+   * — e no dia em que o Papel trocasse de fonte, a capa continuaria na antiga.
+   */
+  titleFamily: string | undefined;
   motion: typeof motion;
 };
 
@@ -96,6 +106,7 @@ export function ThemeProvider({
       type,
       space,
       radius: chosen.radius,
+      titleFamily: familia,
       motion,
     };
   }, [scheme, area, skin, hue]);

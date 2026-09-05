@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router/js-tabs';
 import { Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   IconHome,
   IconMore,
@@ -32,6 +33,7 @@ import { type Ambient } from '@/theme/tokens';
  */
 export default function TabsLayout() {
   const { color, type, space, palette } = useTheme();
+  const insets = useSafeAreaInsets();
   const { t } = useLocale();
 
   /**
@@ -96,12 +98,20 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        // A altura soma a faixa do sistema, e isso não é detalhe de acabamento.
+        //
+        // A foto do emulador mostrou a barra CORTADA: os cinco rótulos comidos
+        // pela barra de três botões do Android, que mora por cima. A altura era
+        // 74 fixos, e 74 é a altura da barra — não a altura da barra mais o que
+        // o aparelho reserva embaixo dela. Num celular com gesto o `bottom` é
+        // pequeno; num com três botões são 48 dp, e some uma linha inteira.
         tabBarStyle: {
           backgroundColor: color.paper,
           borderTopColor: color.line,
           borderTopWidth: 1,
-          height: 58 + space.lg,
+          height: 58 + space.lg + insets.bottom,
           paddingTop: space.sm,
+          paddingBottom: insets.bottom,
         },
         // The label is drawn by hand so the active state is a colour change and
         // nothing else - no bold, no pill, no tint on the icon.

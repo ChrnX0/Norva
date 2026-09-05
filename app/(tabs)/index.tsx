@@ -1,5 +1,4 @@
 import { useRouter } from 'expo-router';
-import { CollapsingHeader } from '@/components/CollapsingHeader';
 import {
   expiringSoon,
   listItems,
@@ -27,14 +26,10 @@ import { briefingLayout } from '@/domain/briefing';
 import { nowIso } from '@/data/db';
 import { dailySeries, dayWindow, localDate } from '@/domain/day';
 import { boxesOf } from '@/domain/units';
-import {
-  fill,
-  formatQuantity,
-  formatWeekday,
-  plural,
-} from '@/i18n';
+import { fill, formatCoverDate, formatQuantity, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider } from '@/theme/ThemeProvider';
+import { Folha } from '@/home/Capa';
 import { Mosaic } from '@/home/Mosaic';
 import type { BriefingView, Summary } from '@/home/types';
 
@@ -341,9 +336,9 @@ function Briefing() {
   };
 
   return (
-    <CollapsingHeader title={brand.name} overline={formatWeekday(nowIso(), locale)}>
+    <Folha olho={`${brand.name} \u00b7 ${formatCoverDate(nowIso(), locale)}`}>
       <Mosaic {...view} />
-    </CollapsingHeader>
+    </Folha>
   );
 }
 

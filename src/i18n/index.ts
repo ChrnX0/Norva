@@ -236,6 +236,46 @@ export function formatWeekdayInitial(date: string, locale: LocaleSettings): stri
  * o dia da semana, não o mês. 2026-09-06 é domingo, e somar o índice anda a
  * semana inteira sem tocar em fuso — a data é usada só como calendário.
  */
+/**
+ * O nome curto do dia a partir de uma data de calendário: "qui", "sex", "sáb".
+ *
+ * A régua da semana usava a INICIAL (`narrow`), e em português isso dá q·s·s·d·s·t·q
+ * — quatro esses e dois quês para sete colunas. O desenho aprovado escreve o dia,
+ * e ele tem razão: a inicial só funciona em inglês, onde as sete primeiras letras
+ * quase não se repetem.
+ */
+/**
+ * A data da linha de olho: "quarta, 2 de setembro".
+ *
+ * Diferente de `formatWeekday`, que abrevia o mês ("2 de set.") — no topo da
+ * capa a data é a única coisa escrita ao lado da marca, e ela tem espaço para
+ * ser dita por inteiro.
+ *
+ * O `-feira` sai porque em português ele é ruído: ninguém fala "quarta-feira, 2
+ * de setembro" ao dizer que dia é hoje. É recorte de idioma, e por isso mora
+ * aqui, na camada que fala português — não na tela, que não deveria saber que
+ * português tem feira.
+ */
+export function formatCoverDate(iso: string, locale: LocaleSettings): string {
+  return new Intl.DateTimeFormat(locale.formatting, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: locale.timeZone,
+  })
+    .format(new Date(iso))
+    .replace('-feira', '');
+}
+
+export function formatWeekdayAbbrev(date: string, locale: LocaleSettings): string {
+  return new Intl.DateTimeFormat(locale.formatting, {
+    weekday: 'short',
+    timeZone: 'UTC',
+  })
+    .format(new Date(`${date}T00:00:00Z`))
+    .replace(/\.$/, '');
+}
+
 export function formatWeekdayShort(weekday: number, locale: LocaleSettings): string {
   const domingo = Date.UTC(2026, 8, 6);
   return new Intl.DateTimeFormat(locale.formatting, {

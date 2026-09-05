@@ -44,8 +44,12 @@ type Declaracao =
 /** Uma declaração por número grande da tela. Uma só quando a tela tem um só. */
 const TELAS: Record<string, Declaracao | Declaracao[]> = {
   // Dez números, dez respostas. Na ordem em que aparecem no arquivo.
+  // A manchete da produção saiu daqui: ela virou o diagrama do `Capa.tsx`, logo
+  // abaixo. O número não sumiu — mudou de arquivo, e com ele a comparação.
+  'src/home/Capa.tsx': {
+    compara: /referencias|delta/,
+  },
   'src/home/Mosaic.tsx': [
-    { compara: /noYesterday|madeYesterday/ },
     {
       sozinho:
         'o número é uma contagem regressiva - "3 dias · Polpa" já é a distância até o fim. Contagem regressiva compara com o limite dela, e um "ontem" ao lado só atrapalharia.',

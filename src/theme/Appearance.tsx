@@ -63,7 +63,16 @@ const HUES: Hue[] = ['verde', 'azul', 'ambar', 'terracota', 'lavanda'];
 const AppearanceContext = createContext<Appearance | null>(null);
 
 export function AppearanceProvider({ children }: { children: ReactNode }) {
-  const [skin, setState] = useState<Skin>('organico');
+  /**
+   * O Papel é o padrão — decisão do dono, 5 de setembro.
+   *
+   * Ele mandou as quatro caras nomeadas e a frase foi literal: *"este é tema
+   * claro principal **Papel Light**"*. O Orgânico continua inteiro e trocável
+   * nos Ajustes; o que muda aqui é qual das duas o aplicativo abre sem ninguém
+   * escolher nada. Estava no Orgânico por inércia — foi a primeira que existiu —,
+   * e inércia não é decisão.
+   */
+  const [skin, setState] = useState<Skin>('papel');
   const [hue, setHueState] = useState<Hue>('verde');
   const [scheme, setSchemeState] = useState<SchemeChoice>(SCHEME_PADRAO);
   const [ready, setReady] = useState(false);
@@ -124,7 +133,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
 export function useAppearance(): Appearance {
   return (
     useContext(AppearanceContext) ?? {
-      skin: 'organico',
+      skin: 'papel',
       setSkin: () => undefined,
       hue: 'verde',
       setHue: () => undefined,

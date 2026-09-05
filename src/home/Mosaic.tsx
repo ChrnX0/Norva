@@ -19,17 +19,20 @@ import {
   formatPercent,
   formatQuantity,
   formatTime,
+  formatWeekdayAbbrev,
   formatWeekdayInitial,
   plural,
 } from '@/i18n';
+import type { Dictionary, LocaleSettings } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
 import { nowIso } from '@/data/db';
 import type { BriefingWidget } from '@/domain/briefing';
-import { daysBetween } from '@/domain/day';
+import { daysBetween, localDate } from '@/domain/day';
 import type { Cents } from '@/domain/money';
+import { Comparativo, Legenda, Manchete, Regua, Versalete } from './Capa';
 import { Peca } from './Peca';
-import type { BriefingView } from './types';
+import type { BriefingView, Summary } from './types';
 
 /**
  * Mosaico: uma manchete grande e peças pequenas embaixo.
@@ -92,68 +95,114 @@ export function Mosaic({
    * a peça aparece é o dado dela.
    */
   const pecas: Record<BriefingWidget, ReactNode> = {
+    /**
+     * A manchete do dia — a capa aprovada, ao pé da letra.
+     *
+     * Ela não é um cartão. Era: título com ícone, borda arredondada e o número
+     * em corpo 28 lá dentro. O dono mandou a foto do que chegava e a foto do que
+     * tinha que ser, lado a lado, e a diferença não era de ajuste — era de
+     * gênero. Página impressa: linha de olho, manchete em serifa, o desenho em
+     * traço, régua grossa, o diagrama da conta e a régua da semana.
+     *
+     * A ordem das partes é a ordem da leitura: o que aconteceu (manchete), como
+     * (a linha desenhada), contra o quê (o diagrama), e o que é normal aqui (a
+     * semana). São as três perguntas da Lei da Inteligência numa tela só.
+     */
     producao: (
-      <>
       <Reveal index={0}>
-        <Card
-          hue={palette.apricot}
-          icon={(c) => <GlyphProduction size={26} color={c} weight={traco} />}
-          title={t.app.home.today}
-        >
-          {/* Cada identidade tem a sua cena viva, e as duas obedecem a mesma
-              regra: nada se move por decoração. O Papel desenha a linha de
-              produção em traço; o Orgânico desenha a paisagem, que é a previsão
-              de verdade. */}
-          {skin === 'papel' ? (
-            <FactoryScene
-              running={(data?.running.length ?? 0) > 0}
-              shipped={(data?.boxes ?? 0) > 0}
-              dayShare={
-                data && data.madeYesterday > 0
-                  ? Math.min(1, data.madeToday / data.madeYesterday)
-                  : data && data.madeToday > 0
-                    ? 1
-                    : null
-              }
-            />
-          ) : (
-            <Landscape
-              maxC={sky ? sky.today.maxC : null}
-              rainChance={sky ? sky.today.rainChance : null}
-              running={(data?.running.length ?? 0) > 0}
-              height={150}
-            />
-          )}
-          <CountUp
-            value={data?.madeToday ?? 0}
-            format={(v) => formatQuantity(Math.round(v), locale)}
-            style={{ ...type.figure, color: color.ink }}
+        <View>
+          <Manchete
+            leve={t.app.home.capaLead}
+            forte={
+              (data?.madeToday ?? 0) > 0
+                ? fill(t.app.home.capaMade, {
+                    amount: `${formatQuantity(data?.madeToday ?? 0, locale)} ${plural(data?.madeToday ?? 0, t.units.unit)}`,
+                  })
+                : t.app.home.capaQuiet
+            }
           />
-          <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {plural(data?.madeToday ?? 0, t.units.unit)}{' '}
-            {plural(data?.madeToday ?? 0, t.app.home.producedToday)}
-          </Text>
+
+          {/* A cena é do Papel; no Orgânico a identidade é a paisagem, e trocar
+              uma pela outra é a única coisa que a pele muda aqui. */}
+          <View style={{ marginTop: space.md }}>
+            {skin === 'papel' ? (
+              <FactoryScene
+                running={(data?.running.length ?? 0) > 0}
+                shipped={(data?.boxes ?? 0) > 0}
+                dayShare={
+                  data && data.madeYesterday > 0
+                    ? Math.min(1, data.madeToday / data.madeYesterday)
+                    : data && data.madeToday > 0
+                      ? 1
+                      : null
+                }
+              />
+            ) : (
+              <Landscape
+                maxC={sky ? sky.today.maxC : null}
+                rainChance={sky ? sky.today.rainChance : null}
+                running={(data?.running.length ?? 0) > 0}
+                height={150}
+              />
+            )}
+          </View>
+
+          <Legenda>{t.app.home.capaLegend}</Legenda>
+
+          {data && data.everMade ? (
+            <>
+              <Regua forte />
+              <Comparativo
+                referencias={[
+                  {
+                    rotulo: t.app.home.boxYesterday,
+                    valor: formatQuantity(data.madeYesterday, locale),
+                    delta: sinal(data.madeToday - data.madeYesterday, locale),
+                    acima: data.madeToday >= data.madeYesterday,
+                  },
+                  {
+                    // O dia de SETE atrás, não o da primeira coluna da semana.
+                    //
+                    // Estava lendo `series[0]`, que é seis dias atrás — a régua
+                    // da semana tem sete colunas contando hoje. O rótulo dizia
+                    // "DOM" ao lado do número de sábado passado: um número certo
+                    // com um nome errado em cima, que é pior que número ausente.
+                    // `madeThen` é `dayWindow(..., -7)`, então o dia é sempre o
+                    // MESMO de hoje — e é por isso que o desenho aprovado diz
+                    // "quarta passada" numa quarta.
+                    rotulo: fill(t.app.home.boxLastWeek, {
+                      weekday: formatWeekdayAbbrev(localDate(nowIso(), locale.timeZone, -7), locale),
+                    }),
+                    valor: formatQuantity(data.madeThen, locale),
+                    delta: sinal(data.madeToday - data.madeThen, locale),
+                    acima: data.madeToday >= data.madeThen,
+                  },
+                ]}
+                total={formatQuantity(data.madeToday, locale)}
+                unidade={fill(t.app.home.todayUnits, { unit: plural(data.madeToday, t.units.unit) })}
+              />
+              {/* A conta escrita por extenso: a Lei 6 pede que toda conclusão
+                  abra a conta, e aqui ela cabe numa linha — então não precisa de
+                  toque nenhum para abrir. */}
+              <View style={{ marginTop: space.lg }}>
+                <Legenda>{contaDoDia(data, locale, t)}</Legenda>
+              </View>
+            </>
+          ) : null}
+
           {data && data.series.length > 0 ? (
-            <Bars
-              series={data.series}
-              hue={palette.apricot}
-              labels={data.series.map((d) => formatWeekdayInitial(d.date, locale))}
-            />
+            <>
+              <Regua />
+              <Versalete>{t.app.home.weekTitle}</Versalete>
+              <Bars
+                series={data.series}
+                hue={palette.apricot}
+                labels={data.series.map((d) => formatWeekdayAbbrev(d.date, locale))}
+              />
+            </>
           ) : null}
-          {data ? (
-            <Text style={[type.caption, { color: color.inkFaint, marginTop: space.md }]}>
-              {data.madeYesterday === 0
-                ? t.app.home.noYesterday
-                : fill(t.app.home.yesterdayWas, {
-                    amount: `${formatQuantity(data.madeYesterday, locale)} ${plural(data.madeYesterday, t.units.unit)}`,
-                  })}
-              {' · '}
-              {comparison(data.madeToday, data.madeThen)}
-            </Text>
-          ) : null}
-        </Card>
+        </View>
       </Reveal>
-      </>
     ),
     insumos: (
       <>
@@ -881,43 +930,104 @@ export function Mosaic({
     // No lugar da peça do dia, não no lugar da capa: o que as outras peças
     // souberem dizer continua dito, na ordem que a empresa escolheu.
     pecas.producao = (
-      <>
-        <Reveal index={0}>
-          <Touchable onPress={() => go('/production/new')} accessibilityLabel={t.app.home.firstDayAction}>
-            <Card
-              hue={palette.apricot}
-              icon={(c) => <GlyphProduction size={26} color={c} weight={traco} />}
-              title={t.app.home.firstDayTitle}
-            >
-              {skin === 'papel' ? (
-                <FactoryScene running={false} shipped={false} dayShare={null} />
-              ) : (
-                <Landscape
-                  maxC={sky ? sky.today.maxC : null}
-                  rainChance={sky ? sky.today.rainChance : null}
-                  running={false}
-                  height={150}
-                />
-              )}
-              <Text style={[type.secondary, { color: color.inkMuted }]}>
-                {t.app.home.firstDayBody}
-              </Text>
-              <Text style={[type.caption, { color: accent, marginTop: space.sm }]}>
-                {t.app.home.firstDayAction}
-              </Text>
-            </Card>
+      <Reveal index={0}>
+        <View>
+          {/* O primeiro dia na mesma tipografia dos outros — e isso importa mais
+              do que parece. O que o dono fotografou como "o que você está me
+              entregando" era EXATAMENTE este estado: um cartão arredondado com
+              um degradê dentro. Estado vazio não é uma tela à parte; é a mesma
+              página com menos números. */}
+          <Manchete leve={t.app.home.capaLead} forte={t.app.home.capaQuiet} />
+          <View style={{ marginTop: space.md }}>
+            {skin === 'papel' ? (
+              <FactoryScene running={false} shipped={false} dayShare={null} />
+            ) : (
+              <Landscape
+                maxC={sky ? sky.today.maxC : null}
+                rainChance={sky ? sky.today.rainChance : null}
+                running={false}
+                height={150}
+              />
+            )}
+          </View>
+          <Legenda>{t.app.home.capaLegend}</Legenda>
+          <Regua />
+          <Text style={[type.body, { color: color.inkMuted }]}>{t.app.home.firstDayBody}</Text>
+          <Touchable
+            onPress={() => go('/production/new')}
+            accessibilityLabel={t.app.home.firstDayAction}
+          >
+            <Text style={[type.body, { color: accent, marginTop: space.md, fontWeight: '600' }]}>
+              {t.app.home.firstDayAction} →
+            </Text>
           </Touchable>
-        </Reveal>
-      </>
+        </View>
+      </Reveal>
     );
     // As peças de trabalho vazias somem em vez de empilhar quatro zeros: cada
     // uma já devolve nulo sem dado, e o convite acima responde por todas.
   }
 
-  return <>{layout.map((id) => <Fragment key={id}>{pecas[id]}</Fragment>)}</>;
+  // O espaço entre as peças é do casco, não de cada peça: a folha antiga dava
+  // `gap` no ScrollView, e a capa agora é uma página com margem própria.
+  return (
+    <View style={{ gap: space.xl }}>
+      {layout.map((id) => (
+        <Fragment key={id}>{pecas[id]}</Fragment>
+      ))}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
   number: { fontVariant: ['tabular-nums'], fontWeight: '600' },
 });
+
+/**
+ * A diferença dita com o sinal na frente: "+22", "−19", ou nada quando é zero.
+ *
+ * O menos é o SINAL de menos (U+2212), não o hífen: num número em figura
+ * tabular o hífen fica curto e alto, e a coluna passa a parecer desalinhada.
+ * Zero não vira "+0" — dia igual é dia igual, e um sinal ali sugere movimento
+ * que não houve.
+ */
+function sinal(diferenca: number, locale: LocaleSettings): string | null {
+  if (diferenca === 0) return null;
+  const corpo = formatQuantity(Math.abs(diferenca), locale);
+  return diferenca > 0 ? `+${corpo}` : `\u2212${corpo}`;
+}
+
+/**
+ * A conta do dia por extenso, que é o `[por quê?]` da manchete servido de graça.
+ *
+ * "500 − 478 = +22 · quinta, há uma semana ficou 19 abaixo." Quem duvidar do
+ * número grande tem a subtração na linha de baixo, com os dois operandos — e não
+ * precisa tocar em nada para isso.
+ */
+function contaDoDia(
+  data: Summary,
+  locale: LocaleSettings,
+  t: Dictionary,
+): string {
+  const q = (n: number) => formatQuantity(n, locale);
+  const contra = fill(t.app.home.mathAgainst, {
+    today: q(data.madeToday),
+    base: q(data.madeYesterday),
+    delta: sinal(data.madeToday - data.madeYesterday, locale) ?? q(0),
+  });
+  const quando = fill(t.app.home.boxLastWeek, {
+    weekday: formatWeekdayAbbrev(localDate(nowIso(), locale.timeZone, -7), locale),
+  });
+  const vao = data.madeToday - data.madeThen;
+  const semana =
+    data.madeThen === 0
+      ? t.app.home.mathNoBase
+      : vao === 0
+        ? fill(t.app.home.mathSame, { when: quando })
+        : fill(vao > 0 ? t.app.home.mathAbove : t.app.home.mathBelow, {
+            when: quando,
+            gap: q(Math.abs(vao)),
+          });
+  return `${contra} · ${semana}`;
+}
