@@ -3567,3 +3567,64 @@ sistema.** A régua da WCAG olha uma cor contra um fundo, uma de cada vez; a hie
 é uma propriedade do CONJUNTO. Otimizar cada peça isolada contra um limite externo é
 como escrever trinta e três telas que passam no teste e não parecem o mesmo
 aplicativo — o defeito não está em nenhuma delas.
+
+---
+
+## 2026-09-05 — a guarda verde que mede um vizinho do que devia medir
+
+**O que se viu.** Ao escrever o dossiê do projeto, quatro leitores independentes
+compararam o que os documentos afirmam com o que o código faz. Apareceu o mesmo defeito
+**três vezes num dia**, em três guardas diferentes que estavam todas verdes:
+
+1. **A régua do contraste media ORDEM, não PASSO.** Já está registrada na entrada de
+   ontem: `média > fraca` aceitava 1,05× como se fosse hierarquia. O dono viu na foto o
+   que a guarda não via.
+
+2. **A régua dos números do plano conta o VIZINHO.** `docs/roadmap.md:38` registra
+   "capacidades: **18**". Existem **12** (`src/domain/access.ts:26-39`). A guarda que
+   deveria impedir esse número de envelhecer (`src/bar.test.ts:127`) deriva a contagem
+   assim: `new Set([...ACESSO.matchAll(/'([a-z_]+)'/g)])` — todo literal minúsculo do
+   arquivo. Isso pega as 12 capacidades **mais 6 dos 7 nomes de papel**; `storeManager`
+   escapa por ter maiúscula. 12 + 6 = 18, a guarda fica verde, e o número escrito está
+   errado desde que foi escrito. Derivado e conferido nesta sessão.
+
+3. **O teste da mutação montava a própria janela de tempo com concatenação.** O CI pegou
+   um defeito atravessando a suíte: tirar o `NAO_ESTORNADO` de `productionOn` faz a
+   corrida estornada continuar contando como produzida. **A asserção que cobre isso já
+   existia** (`src/data/repository.test.ts`), e a janela era
+   `localDate(nowIso(),'America/Sao_Paulo') + 'T00:00:00.000Z'` — a data local de São
+   Paulo carimbada com o fuso de Greenwich. `occurred_at` é UTC. **Entre 00h e 03h UTC os
+   dois discordam de um dia**, a janela não contém o movimento, a consulta volta vazia, e
+   `?? 0 === 0` passa com o filtro e sem ele. O CI rodou à 1h04. Às três da tarde aquele
+   teste mata o mutante; à uma da manhã ele é cego.
+
+E uma quarta, que é minha e do mesmo feitio: a capa do dossiê afirmava **17 telas** onde
+há **24**, porque eu contei com `git ls-files 'app/**/*.tsx'` — glob que exige pelo menos
+um diretório e não casa `app/catalog.tsx`. A ferramenta de medida tinha um ponto cego e o
+número saiu confiante.
+
+**Por que importa.** As quatro medem coisas diferentes e erram do mesmo jeito: **a guarda
+não mede a propriedade, mede um vizinho dela que costuma coincidir.** Ordem coincide com
+hierarquia até dois tons se colarem. Literais minúsculos coincidem com capacidades até
+alguém escrever um papel em minúsculas. Data local coincide com data UTC até passar da
+meia-noite em Greenwich. Um glob de subdiretório coincide com "todos os arquivos" até
+alguém pôr um arquivo na raiz.
+
+E o verde é pior que o vermelho aqui, porque **guarda verde compra a decisão de não
+olhar**. As três primeiras foram escritas justamente para poder parar de conferir à mão.
+
+**A regra que fica, e ela é operacional:** antes de escrever a guarda, escreva o defeito
+que ela deve pegar e **veja a guarda falhar**. Se ela nunca ficou vermelha com o defeito
+na frente, ela não foi verificada — foi acreditada. Fizemos isso com a correção do
+mutante desta sessão: a mutação foi aplicada à mão, o teste falhou com a mensagem certa,
+a mutação foi retirada, 74/74. É a diferença entre E0 e E3, e custa dois minutos.
+
+**Corolário para grandeza contínua e para tempo.** Nunca monte janela de tempo por
+concatenação de string: `dayWindow` existe para perguntar ao `Intl` que dia local é um
+instante e devolver as bordas como instantes UTC. Um teste que carimba `Z` numa data
+local passa pelo motivo errado em algum horário do dia — e a suíte inteira fica honesta
+às três da tarde e mentirosa à uma da manhã.
+
+**O que mudou.** `src/data/repository.test.ts` passou a usar `dayWindow` (commit
+`be9ac0a`), e o mutante morre. As outras três não viraram conserto de código porque o
+repositório vai ser apagado: viraram as seções 24, 33 e 34 do dossiê, e esta entrada.
