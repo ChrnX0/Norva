@@ -3102,8 +3102,20 @@ test('reversing a run puts back every leg of it, and leaves both records standin
   //
   // A mutação que tira esse filtro atravessou a suíte inteira, e só apareceu
   // quando a oficina do `mutate` voltou a rodar de verdade.
-  const dia = localDate(nowIso(), 'America/Sao_Paulo');
-  const produzido = await productionOn(LOCAL_COMPANY_ID, `${dia}T00:00:00.000Z`, `${dia}T23:59:59.999Z`);
+  //
+  // **E atravessou uma segunda vez, com esta asserção já escrita.** A janela era
+  // montada à mão: `localDate(...,'America/Sao_Paulo')` seguido de `T00:00:00.000Z`
+  // — a data local de São Paulo carimbada com o fuso de Greenwich. `occurred_at`
+  // da corrida é `nowIso()`, em UTC. Entre 00h e 03h UTC os dois discordam de um
+  // dia, a janela não contém o movimento, `productionOn` volta vazia, e a
+  // asserção `?? 0 === 0` passa com o filtro e sem ele. O teste só matava o
+  // mutante depois das 3h UTC, e o CI rodou à 1h.
+  //
+  // `dayWindow` é a função que existe justamente para isso: ela pergunta ao
+  // `Intl` que dia local é aquele instante e devolve as duas bordas como
+  // instantes UTC, meia-noite a meia-noite, meio-aberto como a consulta espera.
+  const janela = dayWindow(nowIso(), 'America/Sao_Paulo');
+  const produzido = await productionOn(LOCAL_COMPANY_ID, janela.from, janela.to);
   const doProdutoHoje = produzido.find((l) => l.itemId === product.itemId);
   assert.equal(
     doProdutoHoje?.baseUnits ?? 0,
