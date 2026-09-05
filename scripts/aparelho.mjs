@@ -20,7 +20,9 @@
  * Uso:
  *   node scripts/aparelho.mjs subir [--avd norva-cheio]
  *   node scripts/aparelho.mjs instalar [caminho.apk]
- *   node scripts/aparelho.mjs foto <nome>
+ *   node scripts/aparelho.mjs foto <nome>     — uma foto na tela atual
+ *   node scripts/aparelho.mjs fotos <nome>    — a mesma tela em cinco larguras
+ *   node scripts/aparelho.mjs tela <medida>   — troca a tela sem reiniciar
  *   node scripts/aparelho.mjs derrubar
  */
 import { execFileSync, spawn } from 'node:child_process';
@@ -32,6 +34,33 @@ const ADB = join(SDK, 'platform-tools/adb');
 const EMU = join(SDK, 'emulator/emulator');
 const SAIDA = '.shots';
 const AVD = arg('--avd') ?? 'norva-cheio';
+
+/**
+ * As telas em que o app tem de caber — e por que são medidas em dp, não em pixel.
+ *
+ * O dono cortou isto na raiz: fixar a resolução do emulador e ajustar o layout até
+ * ficar bonito nela é repetir, noutra dimensão, o erro que gerou o retrabalho.
+ * O que o layout enxerga não é pixel, é **densidade independente**: largura em
+ * pixels dividida por (densidade/160). O mesmo "1080 de largura" é 393 dp num
+ * telefone de 440 dpi e 720 dp num tablet de 240 dpi.
+ *
+ * Do telefone ao tablet a largura DOBRA. Uma coluna que serve a 393 dp vira uma
+ * tira esticada a 800 dp — lá o certo é refluir em colunas, não escalar. Por isso
+ * a foto não é uma: é a mesma tela em cinco larguras, e o defeito aparece na
+ * comparação, não na imagem isolada.
+ *
+ * Trocar tela por `wm size`/`wm density` custa segundos; subir outro emulador custa
+ * minutos. Um aparelho só, cinco medidas.
+ */
+const TELAS = {
+  'telefone-pequeno': { px: '720x1440',  dpi: 320 },   // 360 dp — o piso do Android
+  telefone:           { px: '1080x2340', dpi: 440 },   // 393 dp — o mais comum hoje
+  'telefone-grande':  { px: '1440x3120', dpi: 560 },   // 411 dp
+  'tablet-7':         { px: '1200x1920', dpi: 240 },   // 800 dp — aqui tem de refluir
+  'tablet-deitado':   { px: '2560x1600', dpi: 240 },   // 1706 dp
+};
+
+const dp = (t) => Math.round(Number(t.px.split('x')[0]) / (t.dpi / 160));
 
 function arg(nome) {
   const i = process.argv.indexOf(nome);
@@ -154,6 +183,36 @@ function foto(nome) {
   }
 }
 
+/** Troca a tela do aparelho em execução. Volta ao natural com `tela original`. */
+function tela(nome) {
+  if (nome === 'original') {
+    adb('shell', 'wm', 'size', 'reset');
+    adb('shell', 'wm', 'density', 'reset');
+    dizer('tela de volta ao natural');
+    return;
+  }
+  const t = TELAS[nome];
+  if (!t) throw new Error(`tela desconhecida: ${nome}. Há: ${Object.keys(TELAS).join(', ')}`);
+  adb('shell', 'wm', 'size', t.px);
+  adb('shell', 'wm', 'density', String(t.dpi));
+  dizer(`${nome}: ${t.px} a ${t.dpi} dpi = ${dp(t)} dp de largura`);
+}
+
+/**
+ * A mesma tela do app em todas as larguras, uma foto cada.
+ *
+ * É este comando que responde "o layout se adapta?", e nenhuma foto sozinha responde.
+ */
+async function fotos(nome) {
+  if (!nome) throw new Error('uso: node scripts/aparelho.mjs fotos <nome-da-rota>');
+  for (const chave of Object.keys(TELAS)) {
+    tela(chave);
+    await dormir(6000); // o app precisa de um instante para refazer o layout
+    foto(`${nome}--${chave}`);
+  }
+  tela('original');
+}
+
 function derrubar() {
   try {
     adb('emu', 'kill');
@@ -168,11 +227,16 @@ const acoes = {
   subir,
   instalar: () => instalar(process.argv[3]?.startsWith('--') ? null : process.argv[3]),
   foto: () => foto(process.argv[3]),
+  fotos: () => fotos(process.argv[3]),
+  tela: () => tela(process.argv[3]),
   derrubar,
 };
 
 if (!acoes[verbo]) {
-  console.error('verbos: subir | instalar [apk] | foto <nome> | derrubar');
+  console.error(
+    'verbos: subir | instalar [apk] | foto <nome> | fotos <nome> | tela <medida> | derrubar\n' +
+    `medidas: ${Object.keys(TELAS).join(' | ')} | original`,
+  );
   process.exit(1);
 }
 await acoes[verbo]();

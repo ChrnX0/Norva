@@ -128,6 +128,28 @@ npm run db:verify    # Postgres descartável, treze garantias — inclui a fila
 bash .proofgate/verify.sh
 ```
 
+### O layout se adapta — não existe "o aparelho"
+
+**Decisão do dono, 5 de setembro.** Fixar uma resolução e ajustar o layout até ficar
+bonito nela é o mesmo erro que gerou o retrabalho, noutra dimensão. A resolução do
+emulador é microscópio, não especificação.
+
+O que o layout enxerga não é pixel: é **dp** — pixels divididos por (densidade/160).
+O mesmo "1080 de largura" é 393 dp num telefone de 440 dpi e 720 dp num tablet de
+240 dpi. **Do telefone ao tablet a largura dobra**, e uma coluna que serve a 393 dp
+vira tira esticada a 800 dp: lá o certo é refluir em colunas, não escalar.
+
+Daí três regras de construção:
+
+1. **Nenhuma medida de tela em pixel fixo.** Largura vem de `flex`, porcentagem ou
+   `useWindowDimensions()`. Número mágico de largura é defeito.
+2. **A quebra é por dp, não por aparelho.** Os pontos que importam: 360 (piso do
+   Android), ~400 (telefone comum), 600 (tablet pequeno), 840 (tablet).
+3. **A prova é a comparação, não a foto.** `node scripts/aparelho.mjs fotos <rota>`
+   tira a mesma tela em cinco larguras — telefone pequeno, telefone, telefone grande,
+   tablet e tablet deitado — trocando `wm size`/`wm density` sem reiniciar. Uma foto
+   isolada não responde "adapta?"; cinco lado a lado respondem.
+
 **E a regra que vale mais que todas elas juntas: verde não prova tela.** O tema
 claro ilegível que chegou ao dono passou por 338 testes verdes e 36 checagens de
 navegador. O que prova tela é a **foto do emulador**, olhada. Isso agora existe:
