@@ -121,7 +121,10 @@ function Drawers() {
   );
 
   return (
-    <CollapsingHeader title={t.app.more.title}>
+    // A única tela do aplicativo que não tinha linha de olho. Cabeçalho de vinte e
+    // três telas tem os dois; esta tinha um, e a diferença aparece na folha de
+    // contato: o título dela nasce numa altura diferente de todas as outras.
+    <CollapsingHeader title={t.app.more.title} overline={t.app.more.overline}>
       {/* Cada seção carrega a cor da ÁREA que ela abre, e não um cinza só.
           O dono apontou a tela: *"esses ícones devem seguir o padrão de todo o
           tema. falta um pouco de cor aí"*. As quatro seções estavam pintadas com
@@ -154,6 +157,7 @@ function Drawers() {
           diz zero é alerta inventado. Então cada uma é linha, com a porta
           inteira preservada. */}
       <Reveal index={1}>
+        {/* porta: mint — a gaveta abre insumos e lugares, e lugar é estoque */}
         <Card
           hue={palette.mint}
           icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}

@@ -32,49 +32,30 @@ import { ambient } from './tokens';
 const RAIZES = ['app', 'src'];
 
 /**
- * Onde a cor NÃO é área, e sim sinal — e por que, em cada caso.
+ * As duas exceções, e por que elas moram no CÓDIGO e não numa lista aqui.
  *
- * Vermelho e âmbar não dizem "de que assunto isto é": dizem "isto está
- * acontecendo agora". Um cartão de compra que fica âmbar porque o preço veio bem
- * acima do histórico continua sendo um cartão de compra; o âmbar ali é a decisão
- * de hoje, e some quando o preço volta. Por isso eles passam — mas passam
- * NOMEADOS, um por um, com o motivo ao lado.
+ * A primeira versão guardava exceção por `arquivo:linha`. Ela durou uma edição:
+ * acrescentei três linhas no cabeçalho do "Mais" e a exceção da linha 157 passou
+ * a apontar para o nada, com o guarda reprovando o que ele mesmo tinha aprovado.
+ * Endereço por número de linha apodrece — e uma lista longe do código é uma lista
+ * que ninguém lê no dia em que mexe no código.
+ *
+ * Agora a exceção é um comentário logo acima do cartão, e ela anda junto com ele.
+ * Escreve-se assim, em JSX:
+ *
+ *     porta: mint — a gaveta abre insumos e lugares, que são estoque
+ *     sinal — o cartão só existe enquanto o insumo está acabando
+ *
+ * **porta**: o cartão não fala de si, fala de para onde leva — a gaveta do
+ * "Mais", a seção da capa nos Ajustes. Carrega a cor do DESTINO, escrita no
+ * marcador, e o guarda confere esse valor em vez de só desviar dele.
+ *
+ * **sinal**: vermelho e âmbar não dizem "de que assunto isto é", dizem "isto está
+ * acontecendo agora". O ternário não precisa de marcador — o guarda lê os dois
+ * ramos e cobra o calmo. O marcador é para o cartão que NASCE em sinal e não
+ * volta, aquele cuja razão de existir é o alerta.
  */
-const SINAIS: Record<string, string> = {
-  'app/inputs/[id].tsx:432':
-    'o cartão só existe quando o insumo está acabando — sem alerta ele não é desenhado',
-  'app/losses.tsx:151':
-    'a abertura da conta do cartão de perdas: ela só aparece quando houve perda no mês',
-  'app/recipes/[id].tsx:387':
-    'falta o rendimento, então o custo não existe: o cartão É o impedimento (Lei 5)',
-  'app/catalog.tsx:170':
-    'ali a etiqueta é ETIQUETA e não preço, com a razão escrita no próprio arquivo: ' +
-    '"a etiqueta é o desenho certo — o nome composto é o que vai no produto"',
-};
-
-/**
- * As PORTAS: um cartão que não fala de si, fala de para onde leva.
- *
- * A gaveta do "Mais" e a seção da capa nos Ajustes são menus. O assunto delas não
- * é a tela em que estão — é o DESTINO. Foi exatamente isso que o dono cobrou
- * olhando o "Mais": *"esses ícones devem seguir o padrão de todo o tema, falta um
- * pouco de cor aí"*. As quatro seções estavam no cinza da tela, então perguntar,
- * cadastrar e lançar liam todos como "mexer nas opções".
- *
- * O destino fica escrito aqui junto com o motivo, e não como um "ignore esta
- * linha": o guarda continua conferindo o valor. Porta sem destino declarado é
- * como a divergência voltaria.
- */
-const PORTAS: Record<string, { destino: string; motivo: string }> = {
-  'app/(tabs)/more.tsx:157': {
-    destino: 'mint',
-    motivo: 'gaveta de cadastros: abre insumos e lugares, que são estoque',
-  },
-  'app/settings.tsx:741': {
-    destino: 'sky',
-    motivo: 'a seção governa as peças da CAPA, e capa é a casa',
-  },
-};
+const MARCADOR = /\{\/\*\s*(porta|sinal)\b([^*]*)\*\//;
 
 function telas(dir: string): string[] {
   const out: string[] = [];
@@ -106,7 +87,15 @@ function codigo(fonte: string): string {
     .replace(/^([ \t]*)\/\/.*$/gm, '$1');
 }
 
-type Uso = { arquivo: string; linha: number; glifo: string; tom: string; areaDaTela: string | null };
+type Uso = {
+  arquivo: string;
+  linha: number;
+  glifo: string;
+  tom: string;
+  areaDaTela: string | null;
+  /** O marcador de exceção achado logo acima do cartão, se houver. */
+  marca: { tipo: string; resto: string } | null;
+};
 
 /** A área declarada pela tela — o `AreaProvider` que envolve tudo nela. */
 function areaDaTela(fonte: string): string | null {
@@ -121,7 +110,9 @@ function areaDaTela(fonte: string): string | null {
  * entra: sem desenho não há assunto declarado, e sem cor não há o que conferir.
  */
 function usos(arquivo: string): Uso[] {
-  const fonte = codigo(readFileSync(arquivo, 'utf8'));
+  const bruto = readFileSync(arquivo, 'utf8');
+  const original = bruto.split('\n');
+  const fonte = codigo(bruto);
   const area = areaDaTela(fonte);
   const achados: Uso[] = [];
 
@@ -154,12 +145,20 @@ function usos(arquivo: string): Uso[] {
     const glifo = /icon=\{[\s\S]*?<(Glyph\w+)/.exec(corpo);
     if (!glifo) continue;
 
+    // O marcador vive nas seis linhas acima do cartão — perto o bastante para
+    // quem lê o cartão ler o motivo junto. Ele sai do texto ORIGINAL, porque
+    // `codigo()` apagou os comentários daquele que a busca usa.
+    const linha = fonte.slice(0, abre.index).split('\n').length;
+    const vizinhanca = original.slice(Math.max(0, linha - 7), linha - 1).join('\n');
+    const m = MARCADOR.exec(vizinhanca);
+
     achados.push({
       arquivo,
-      linha: fonte.slice(0, abre.index).split('\n').length,
+      linha,
       glifo: glifo[1],
       tom,
       areaDaTela: area,
+      marca: m ? { tipo: m[1], resto: m[2].trim() } : null,
     });
   }
   return achados;
@@ -206,14 +205,15 @@ test('the same subject comes out in the same colour, in every screen', () => {
     // não é nem o dele nem o da casa em que está.
     const esperado = declarado === 'anfitriao' ? uso.areaDaTela : declarado;
     if (esperado === null) continue;
-    if (chave in SINAIS) continue;
 
-    const porta = PORTAS[chave];
-    if (porta) {
-      if (!uso.tom.includes(`palette.${porta.destino}`)) {
-        erros.push(
-          `${chave}: é porta para "${porta.destino}" (${porta.motivo}) e sai em "${uso.tom}"`,
-        );
+    if (uso.marca?.tipo === 'sinal') continue;
+
+    if (uso.marca?.tipo === 'porta') {
+      const destino = /^:?\s*(\w+)/.exec(uso.marca.resto)?.[1];
+      if (!destino) {
+        erros.push(`${chave}: marcador "porta" sem destino — escreva "porta: mint — motivo"`);
+      } else if (!uso.tom.includes(`palette.${destino}`)) {
+        erros.push(`${chave}: é porta para "${destino}" e sai em "${uso.tom}"`);
       }
       continue;
     }
@@ -243,7 +243,7 @@ test('the same subject comes out in the same colour, in every screen', () => {
     if (/color\.(danger|warning)/.test(calmo)) {
       erros.push(
         `${chave}: ${uso.glifo} nasce em sinal ("${uso.tom}") e nunca volta ao tom do assunto. ` +
-          'Se o cartão só existe enquanto há alerta, escreva o motivo em SINAIS.',
+          "Se o cartão só existe enquanto há alerta, ponha o marcador 'sinal' acima dele.",
       );
       continue;
     }

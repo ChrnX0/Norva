@@ -429,6 +429,7 @@ function InputDetail() {
           só parado. */}
       {item.active ? null : (
         <Reveal index={0}>
+          {/* sinal — este cartão só existe enquanto o insumo está fora de circulação */}
           <Card
             hue={color.warning}
             icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}

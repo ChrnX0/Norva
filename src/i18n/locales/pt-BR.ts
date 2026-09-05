@@ -318,12 +318,13 @@ export const ptBR = {
 
     more: {
       title: 'Mais',
+      overline: 'o que se abre uma vez por mês',
       ask: { label: 'Pergunte', hint: 'escreva o que quer saber' },
       groups: {
-        registers: 'CADASTROS',
+        registers: 'Cadastros',
         /** Pedido e compra não são cadastro: um é livro de pedidos, o outro escreve no livro-razão. */
-        entries: 'LANÇAMENTOS',
-        settings: 'CONFIGURAÇÕES',
+        entries: 'Lançamentos',
+        settings: 'Ajustes',
       },
       rows: {
         inputs: 'Insumos',

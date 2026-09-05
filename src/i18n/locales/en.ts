@@ -276,11 +276,12 @@ export const en: Dictionary = {
 
     more: {
       title: 'More',
+      overline: 'what you open once a month',
       ask: { label: 'Ask', hint: 'type what you want to know' },
       groups: {
-        registers: 'RECORDS',
-        entries: 'ENTRIES',
-        settings: 'SETTINGS',
+        registers: 'Records',
+        entries: 'Entries',
+        settings: 'Settings',
       },
       rows: {
         inputs: 'Inputs',

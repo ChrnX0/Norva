@@ -384,6 +384,7 @@ function RecipeEditor() {
           o lugar dele e diz o que preencher. */}
       {computed?.error ? (
         <Reveal index={0}>
+          {/* sinal — falta o rendimento e o custo não existe: o cartão É o impedimento (Lei 5) */}
           <Card
             hue={color.danger}
             icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}

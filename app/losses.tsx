@@ -148,6 +148,7 @@ function WhatWasLost() {
           toda linha vira papel de parede e para de ser visto. */}
       {mostraMotivos ? (
         <Reveal index={1}>
+          {/* sinal — a abertura da conta do cartão de perdas: só aparece quando houve perda */}
           <Card hue={color.warning} icon={(c) => <GlyphChart size={26} color={c} weight={traco} />}>
             {porMotivo.map(([motivo, soma]) => (
               <ListRow

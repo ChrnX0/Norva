@@ -58,7 +58,12 @@ export const AREA_DO_GLIFO: Record<string, AreaDoGlifo> = {
   GlyphProduction: 'apricot',
   GlyphKettle: 'apricot',
   GlyphRecipe: 'apricot',
-  GlyphLabel: 'apricot',
+  // A etiqueta é CARREGADORA, não assunto: ela nomeia o que estiver dentro dela.
+  // No lote ela é produção; no catálogo ela é o nome composto do produto. Foi o
+  // guarda que mostrou isso, ao reprovar o catálogo por usar a etiqueta de PREÇO
+  // para dizer "o nome que vai no produto" — o comentário de lá já dizia que a
+  // etiqueta era o desenho certo; errado era qual etiqueta.
+  GlyphLabel: 'anfitriao',
   // A grade serve a dois: é o produto no catálogo e é o que está guardado nos
   // Ajustes. Toma o tom de quem hospeda.
   GlyphCatalog: 'anfitriao',

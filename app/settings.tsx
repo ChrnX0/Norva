@@ -738,6 +738,7 @@ function Settings() {
           agora é o chevron da família fina, girado — o "↑" digitado era um
           caractere de fonte no meio de uma tela de desenhos. */}
       <Reveal index={3}>
+        {/* porta: sky — a seção governa as peças da CAPA, e capa é a casa */}
         <Card
           hue={palette.sky}
           icon={(c) => <GlyphCount size={26} color={c} weight={traco} />}

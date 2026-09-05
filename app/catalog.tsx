@@ -5,7 +5,7 @@ import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
-import { GlyphCatalog, GlyphPrice } from '@/components/Glyph';
+import { GlyphCatalog, GlyphLabel } from '@/components/Glyph';
 import { Reveal } from '@/components/Reveal';
 import {
   listFlavors,
@@ -167,7 +167,7 @@ function Catalog() {
           o que vai no produto, e é a resposta de "para que servem três
           níveis". */}
       <Reveal index={1}>
-        <Card hue={palette.sand} icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}>
+        <Card hue={palette.sand} icon={(c) => <GlyphLabel size={26} color={c} weight={traco} />}>
           {exemplo ? <Text style={[type.section, { color: color.ink }]}>{exemplo}</Text> : null}
           <Text
             style={[
