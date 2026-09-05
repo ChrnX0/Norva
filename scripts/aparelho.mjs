@@ -53,11 +53,11 @@ const AVD = arg('--avd') ?? 'norva-cheio';
  * minutos. Um aparelho só, cinco medidas.
  */
 const TELAS = {
-  'telefone-pequeno': { px: '720x1440',  dpi: 320 },   // 360 dp — o piso do Android
-  telefone:           { px: '1080x2340', dpi: 440 },   // 393 dp — o mais comum hoje
-  'telefone-grande':  { px: '1440x3120', dpi: 560 },   // 411 dp
-  'tablet-7':         { px: '1200x1920', dpi: 240 },   // 800 dp — aqui tem de refluir
-  'tablet-deitado':   { px: '2560x1600', dpi: 240 },   // 1706 dp
+  'telefone-pequeno': { px: '720x1440',  dpi: 320 },                  // 360 dp — o piso
+  telefone:           { px: '1080x2340', dpi: 440 },                  // 393 dp — o comum
+  'telefone-grande':  { px: '1440x3120', dpi: 560 },                  // 411 dp
+  'tablet-7':         { px: '1200x1920', dpi: 240 },                  // 800 dp — reflui aqui
+  'tablet-deitado':   { px: '1600x2560', dpi: 240, deitado: true },   // 1066 dp de altura
 };
 
 const dp = (t) => Math.round(Number(t.px.split('x')[0]) / (t.dpi / 160));
@@ -203,7 +203,47 @@ function tela(nome) {
   if (!t) throw new Error(`tela desconhecida: ${nome}. Há: ${Object.keys(TELAS).join(', ')}`);
   adb('shell', 'wm', 'size', t.px);
   adb('shell', 'wm', 'density', String(t.dpi));
-  dizer(`${nome}: ${t.px} a ${t.dpi} dpi = ${dp(t)} dp de largura`);
+  // Deitar não é trocar largura por altura: o framebuffer continua em retrato e a
+  // captura sai com tarja preta. Quem deita a tela é a rotação.
+  adb('shell', 'settings', 'put', 'system', 'accelerometer_rotation', '0');
+  adb('shell', 'settings', 'put', 'system', 'user_rotation', t.deitado ? '1' : '0');
+  dizer(`${nome}: ${t.px} a ${t.dpi} dpi = ${dp(t)} dp${t.deitado ? ', deitado' : ''}`);
+}
+
+/**
+ * Espera o app DESENHAR de novo — não um tempo fixo.
+ *
+ * Trocar o tamanho da tela é mudança de configuração: o Android recria a Activity e o
+ * app refaz a partida inteira, que aqui custa minutos porque a emulação é por software.
+ * A primeira versão disto dormia seis segundos e fotografava a tela em branco — o mesmo
+ * defeito de sempre, esperar um relógio em vez de esperar o fato.
+ *
+ * O fato observável é o contador de quadros do próprio app: se ele subiu depois do
+ * relayout, a tela foi redesenhada.
+ */
+async function esperarDesenho(pacote = 'app.norva.mobile', minutos = 8) {
+  const quadros = () => {
+    try {
+      const saida = adb('shell', 'dumpsys', 'gfxinfo', pacote);
+      const m = saida.match(/Total frames rendered:\s*(\d+)/);
+      return m ? Number(m[1]) : 0;
+    } catch {
+      return 0;
+    }
+  };
+  const antes = quadros();
+  const limite = Date.now() + minutos * 60_000;
+  while (Date.now() < limite) {
+    await dormir(10_000);
+    const agora = quadros();
+    if (agora > antes + 20) {
+      dizer(`redesenhou (${antes} → ${agora} quadros)`);
+      await dormir(4000); // deixa a animação de entrada terminar
+      return true;
+    }
+  }
+  dizer(`ATENÇÃO: não redesenhou em ${minutos} min — a foto abaixo não vale`);
+  return false;
 }
 
 /**
@@ -213,12 +253,26 @@ function tela(nome) {
  */
 async function fotos(nome) {
   if (!nome) throw new Error('uso: node scripts/aparelho.mjs fotos <nome-da-rota>');
+  const ruins = [];
   for (const chave of Object.keys(TELAS)) {
     tela(chave);
-    await dormir(6000); // o app precisa de um instante para refazer o layout
-    foto(`${nome}--${chave}`);
+    const desenhou = await esperarDesenho();
+    try {
+      foto(`${nome}--${chave}`);
+      if (!desenhou) ruins.push(chave);
+    } catch (e) {
+      ruins.push(chave);
+      console.error(`  ${chave}: ${e.message.split('\n')[0]}`);
+    }
   }
   tela('original');
+  if (ruins.length) {
+    throw new Error(
+      `estas larguras não produziram foto confiável: ${ruins.join(', ')}.\n` +
+      'Não use as imagens delas para julgar layout — elas não provam nada.',
+    );
+  }
+  dizer(`${Object.keys(TELAS).length} larguras fotografadas em .shots/${nome}--*.png`);
 }
 
 function derrubar() {
