@@ -57,8 +57,6 @@ export type BriefingView = {
   shortForOrders: (Demand & { missing: number })[];
   /** O que mexeu de preço, um por insumo. */
   moved: CostChange[];
-  /** A frase da comparação com a semana passada. É português, então vem pronta. */
-  comparison: (today: number, then: number) => string;
   /**
    * As peças da capa, na ordem que a casa combinou e já sem o que este aparelho
    * escondeu. Quem resolve isso é o domínio; a tela só desenha o que recebe.

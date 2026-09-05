@@ -185,7 +185,7 @@ check('opens on the day, not on the price of a popsicle', async (page) => {
   // não havia nada — "0 unidades", "0 · nada saiu ainda", "nenhuma corrida
   // registrada", "sem saída registrada" — e nenhuma próxima ação em lugar
   // nenhum. Um convite responde por todos eles.
-  assert.match(text, /Primeiro dia/, 'a capa de uma fábrica nova convida em vez de contar zeros');
+  assert.match(text, /ainda não produziu/, 'a capa de uma fábrica nova convida em vez de contar zeros');
   assert.match(text, /Lançar a primeira produção/, 'com a próxima ação, que é a Lei da Inteligência');
   assert.doesNotMatch(
     text,
@@ -678,7 +678,11 @@ check('what came out today reaches the briefing, with what it was to compare', a
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
   const virgem = await screen(page);
-  assert.match(virgem, /Primeiro dia/, 'a capa fala de trabalho antes de haver trabalho');
+  // A pergunta é a mesma; as palavras mudaram com o desenho aprovado. O convite
+  // era um cartão intitulado "Primeiro dia"; agora é a própria manchete da
+  // página dizendo o que houve — "Hoje a fábrica / ainda não produziu" — com a
+  // próxima ação embaixo. Asserção positiva de novo: sobre o que a capa DIZ.
+  assert.match(virgem, /ainda não produziu/, 'a capa fala de trabalho antes de haver trabalho');
   assert.match(virgem, /Lançar a primeira produção/, 'e diz qual é a próxima ação');
 
   // Produz, e volta pela aba - o caminho de verdade.
@@ -739,9 +743,10 @@ check('what came out today reaches the briefing, with what it was to compare', a
 
   const briefing = await screen(page);
   assert.match(briefing, /480/, 'o que saiu aparece na capa');
-  assert.match(briefing, /unidades saíram hoje/);
-  // E nunca sozinho: sem semana passada com que comparar, a tela diz isso.
-  assert.match(briefing, /primeira produção registrada/);
+  assert.match(briefing, /fez [\d.]+ unidades/);
+  // E nunca sozinho: sem semana passada com que comparar, a tela diz isso — na
+  // legenda em itálico que abre a subtração, que é onde a conta mora agora.
+  assert.match(briefing, /primeiro dia com produção registrada/);
 
   // Com corrida gravada, o histórico curto tem o que dizer - e ele diz corrida
   // por corrida, não o total do dia: 3x100 e 1x300 dão o mesmo total e são
@@ -1534,7 +1539,11 @@ check('two weeks can be planted from Ajustes, and the briefing changes because o
 
   // E a régua da semana está lá: sete colunas de produção, que é o que o dono
   // pediu quando disse que o custo do morango não interessava.
-  assert.match(capa, /saíram hoje/, 'a manchete da capa é o que saiu do tacho');
+  assert.match(capa, /fez [\d.]+ unidades/, 'a manchete da capa é o que saiu do tacho');
+  // E o diagrama da conta desenhou: a subtração por extenso só existe quando as
+  // duas referências e o número de hoje chegaram juntos. Sem esta linha, a
+  // checagem passaria com a manchete sozinha — que é metade da Lei 3.
+  assert.match(capa, /\d[\d.]* − \d[\d.]* = /, 'com a conta aberta embaixo dela');
 });
 
 check('a run recorded wrong is corrected by reversal, not by deleting it', async (page) => {
@@ -1886,7 +1895,7 @@ check('the home is assembled from pieces the house chose', async (page) => {
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(3000);
   const capa = await screen(page);
-  assert.match(capa, /Primeiro dia/, 'a capa virgem convida');
+  assert.match(capa, /ainda não produziu/, 'a capa virgem convida');
   // Numa instalação virgem nada foi produzido, e a peça diz isso em vez de
   // convidar para abrir o vazio - "ligar não é forçar" vale para o toque também.
   //

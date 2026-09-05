@@ -75,13 +75,7 @@ export const ptBR = {
       runningOutWhy: 'Pela saída dos últimos sete dias. Toque para ver o almoxarifado.',
       inputsFine: 'Insumos em dia',
       inputsFineDetail: 'Pelo consumo das últimas semanas, nada acaba nos próximos sete dias.',
-      overline: 'hoje na fábrica',
       each: 'cada um',
-      producedToday: { one: 'saiu hoje', other: 'saíram hoje' },
-      today: 'Hoje na fábrica',
-      producedSame: 'mesmo que {{day}}',
-      producedMore: '{{amount}} a mais que {{day}}',
-      producedLess: '{{amount}} a menos que {{day}}',
       // O verbo concorda com a contagem: "1 caixa saíram hoje" foi o que
       // apareceu na tela do dono. O substantivo já era plural e o verbo era
       // string fixa - meia concordância é pior que nenhuma, porque só quebra
@@ -94,8 +88,6 @@ export const ptBR = {
       boxCount: { one: '1 caixa', other: '{{n}} caixas' },
       alsoSent: 'e mais {{items}}',
       alsoSentItem: '{{amount}} de {{name}}',
-      producedFirst: 'primeira produção registrada',
-      lastWeekday: 'na semana passada',
       why: 'por quê?',
       stableFor: 'estável há {{days}}',
       more: 'toque para ver mais',
@@ -114,7 +106,6 @@ export const ptBR = {
       mathBelow: '{{when}} ficou {{gap}} acima',
       mathSame: '{{when}} deu o mesmo',
       mathNoBase: 'primeiro dia com produção registrada',
-      firstDayTitle: 'Primeiro dia',
       firstDayBody: 'A capa se enche sozinha conforme a fábrica trabalha: o que saiu hoje, o que está acabando, o que os clientes pediram.',
       firstDayAction: 'Lançar a primeira produção',
       liveTitle: 'Produção ao vivo',

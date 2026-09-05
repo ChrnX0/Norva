@@ -47,7 +47,6 @@ export function Mosaic({
   weather,
   shortForOrders,
   moved,
-  comparison,
   layout,
   go,
 }: BriefingView) {

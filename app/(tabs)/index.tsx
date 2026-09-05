@@ -26,7 +26,7 @@ import { briefingLayout } from '@/domain/briefing';
 import { nowIso } from '@/data/db';
 import { dailySeries, dayWindow, localDate } from '@/domain/day';
 import { boxesOf } from '@/domain/units';
-import { fill, formatCoverDate, formatQuantity, plural } from '@/i18n';
+import { formatCoverDate, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider } from '@/theme/ThemeProvider';
 import { Folha } from '@/home/Capa';
@@ -103,7 +103,7 @@ function worstReason(rows: LossRow[]): { reason: string; cents: number } | null 
 
 function Briefing() {
   const router = useRouter();
-  const { locale, t } = useLocale();
+  const { locale } = useLocale();
 
   const { data } = useQuery<Summary | null>(async () => {
     // The factory's day, not the phone's last 24 hours - and the comparison is
@@ -277,18 +277,6 @@ function Briefing() {
   const { data: weather } = useQuery<Forecast | null>(() => forecastForScreen(locale.timeZone));
   const sky = weather ? reading(weather, dayWindow(nowIso(), locale.timeZone).from.slice(0, 10)) : null;
 
-  /** The line under the count: what it was, said as a difference. */
-  const comparison = (today: number, then: number) => {
-    const day = t.app.home.lastWeekday;
-    if (then === 0) return t.app.home.producedFirst;
-    if (today === then) return fill(t.app.home.producedSame, { day });
-    const amount = `${formatQuantity(Math.abs(today - then), locale)} ${plural(
-      Math.abs(today - then),
-      t.units.unit,
-    )}`;
-    return fill(today > then ? t.app.home.producedMore : t.app.home.producedLess, { amount, day });
-  };
-
   /**
    * O que foi pedido e ainda não existe na fábrica.
    *
@@ -331,7 +319,6 @@ function Briefing() {
     weather: weather ?? null,
     shortForOrders,
     moved,
-    comparison,
     go: (route) => router.push(route as Parameters<typeof router.push>[0]),
   };
 
