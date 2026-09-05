@@ -77,7 +77,7 @@ são **conferidos por teste** contra o que os documentos afirmam — ver §33.5
 **Uma divergência real, e ela é do tipo que a §33.5 existe para pegar:** o
 `docs/roadmap.md:48` afirma *"`.proofgate/verify.sh` | **24** guardas de entrega"* e
 existem **25** arquivos em `.proofgate/guards.d/*.sh`. Essa linha **não está** na
-lista `TABELA` de `src/bar.test.ts:126-137`, então nada a conferia. O comentário do
+lista `TABELA` de `src/bar.test.ts:121-137`, então nada a conferia. O comentário do
 CI é ainda mais velho: diz *"Nineteen guards over the diff itself"*
 (`.github/workflows/ci.yml:67`). É a mesma doença descrita em
 `docs/insights.md:2896-2944`, com o antídoto escrito ao lado e não aplicado àquela
@@ -114,10 +114,10 @@ Mecânica, com todas as cicatrizes embutidas:
 | `TRABALHADORES` | `max(1, min(cpus, 4))` | 64 mutações em série custavam 12 min (`scripts/mutate.mjs:960-968`) |
 | `node_modules` | **link simbólico**, não cópia | centenas de MB lidos e não escritos (`scripts/mutate.mjs:963-964`) |
 | `NAO_COPIAR` | lista de **exclusão**: `node_modules`, `.git`, `.mutate`, `dist`, `.expo`, `.shots`, `android` | ver abaixo (`scripts/mutate.mjs:991-999`) |
-| `oficinaConfere()` | roda a suíte **sem mutação** e aborta se ela não passar | oficina quebrada e suíte perfeita são indistinguíveis (`scripts/mutate.mjs:1013-1042`) |
+| `oficinaConfere()` | roda a suíte **sem mutação** e aborta se ela não passar | oficina quebrada e suíte perfeita são indistinguíveis (`scripts/mutate.mjs:1014-1042`) |
 | `conferirRegua()` | quatro casos sintéticos validam o leitor de saída antes de qualquer medida | `scripts/mutate.mjs:1071-1092` |
 | `lerSuite()` | **três** estados: `passou` / `falhou` / `inconclusivo` | `scripts/mutate.mjs:1064-1069` |
-| `suitePasses()` | segunda chance **só** para `inconclusivo` | medida que não houve é barata de repetir; resultado que houve não se repete (`scripts/mutate.mjs:1094-1108`) |
+| `suitePasses()` | segunda chance **só** para `inconclusivo` | medida que não houve é barata de repetir; resultado que houve não se repete (`scripts/mutate.mjs:1095-1108`) |
 | `julgar()` | recusa mutação cujo `from` aparece **mais de uma vez** (`estado: 'ambigua'`) | `String.replace` troca a primeira e cala sobre o resto (`scripts/mutate.mjs:1121-1129`) |
 | marcador `equivalente` | mutação que nenhum teste possível distingue; **se for pega, vira erro** (`MARCADOR ERRADO`) | senão a lista apodrece guardando desculpa (`scripts/mutate.mjs:1140-1157`) |
 
@@ -393,7 +393,7 @@ ou `PROOFGATE_HOOK_OFF=1` (`CLAUDE.md:174-175`,
 **NÃO ESTÁ NO CÓDIGO:** não existe `proofgate.json` na raiz deste repositório
 (`find . -name proofgate.json` fora de `node_modules` e `.mutate` não retorna nada).
 O opt-in acontece pela existência do diretório `.proofgate/`, e toda configuração cai
-nos padrões — `timeoutSeconds` 900 (`.proofgate/verify.sh:56`), `sourceGlobs`
+nos padrões — `timeoutSeconds` 900 (`.proofgate/verify.sh:55`), `sourceGlobs`
 `src/|lib/|app/` (`.proofgate/guards.d/30-untested-changes.sh:11`).
 
 ---
@@ -456,7 +456,7 @@ confere:
 | `the database checks are numbered without a gap` | os `==> check N:` são 1..N sem pular nem repetir (`src/bar.test.ts:76-86`) |
 | `the script says how many guarantees it actually has` | a frase `all <n> guarantees hold` bate com a contagem real (`:88-98`) |
 | `CLAUDE.md states the number of guarantees the script really has` | `Postgres descartável, <n> garantias` bate (`:100-114`) |
-| `every number the plan states about the system is the number the system has` | as 10 linhas de `TABELA` (`:126-137`) derivadas do sistema contra `docs/roadmap.md` (`:158-179`) |
+| `every number the plan states about the system is the number the system has` | as 10 linhas de `TABELA` (`:121-137`) derivadas do sistema contra `docs/roadmap.md` (`:158-179`) |
 
 Os números por extenso são escritos em português (`POR_EXTENSO`, `src/bar.test.ts:59-63`)
 e inglês (`IN_WORDS`, `:64-69`), porque o `CLAUDE.md` escreve em português e o script
@@ -464,7 +464,7 @@ imprime em inglês.
 
 **A fronteira, escrita no arquivo:** *"ela confere o que foi **registrado**, não descobre
 o que não foi. Uma linha nova na tabela sem entrada na guarda não quebra nada."*
-(`src/bar.test.ts:117-123`, `docs/insights.md:2932-2935`). É exatamente por essa fronteira
+(`src/bar.test.ts:112-120`, `docs/insights.md:2932-2935`). É exatamente por essa fronteira
 que a linha das 24 guardas da proofgate envelheceu (§33.1.1).
 
 **O que ele explicitamente não faz:** não roda o `db:verify` nem o `mutate` — *"isso custa
@@ -1045,7 +1045,7 @@ $ node --check efeito.mjs
 
 **Estado observado:** `.mutate/w0`, `w1`, `w2` e `w3` estão no disco sem nenhum processo
 `node` rodando — evidência de uma execução que morreu sem o `process.on('exit')` limpar
-(`scripts/mutate.mjs:1174`). Como `.mutate/` está no `.gitignore`, isso **não** suja a árvore
+(`scripts/mutate.mjs:1162`). Como `.mutate/` está no `.gitignore`, isso **não** suja a árvore
 nem reprova o portão — e essa isenção está escrita no próprio `.gitignore`: *"Ele apaga
 sozinho ao sair; isto cobre a execução que morreu no meio, para o portão não reprovar por
 'árvore suja' por causa de lixo de ferramenta."*
