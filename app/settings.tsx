@@ -739,7 +739,7 @@ function Settings() {
           caractere de fonte no meio de uma tela de desenhos. */}
       <Reveal index={3}>
         <Card
-          hue={palette.mist}
+          hue={palette.sky}
           icon={(c) => <GlyphCount size={26} color={c} weight={traco} />}
           title={t.app.settings.briefing.label}
         >

@@ -61,8 +61,12 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * mesmas linhas de antes.
  */
 export default function InputsScreen() {
+  // Cadastrar insumo é ESTOQUE, não ajuste. Estava declarado na área dos
+  // Ajustes, e o accent pinta a marca do cabeçalho, o campo em foco e o botão
+  // cheio — então a porta de entrada do almoxarifado abria cinza, com o botão
+  // cinza, no meio de um aplicativo em que verde quer dizer estoque.
   return (
-    <AreaProvider area="mist">
+    <AreaProvider area="mint">
       <InputForm />
     </AreaProvider>
   );

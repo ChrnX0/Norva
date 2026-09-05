@@ -1,4 +1,5 @@
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import { Coluna, Vivo } from './Vivo';
 
 /**
  * Os desenhos gordos — os que aguentam ser o assunto do cartão.
@@ -28,6 +29,7 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
  * antes de entrar. Dois voltaram para a prancheta na primeira olhada: a
  * embalagem tinha virado ampulheta e o palito perdia a haste do meio.
  */
+
 
 type GlyphProps = {
   size?: number;
@@ -384,12 +386,23 @@ export function GlyphChart({ size = 26, color, weight = 2.2 }: GlyphProps) {
   );
 }
 
-/** Temperatura: o termômetro de bulbo — a grandeza que a câmara fria responde, com sensor ou sem. */
+/**
+ * Temperatura: o termômetro de bulbo — a grandeza que a câmara fria responde,
+ * com sensor ou sem.
+ *
+ * **O que se mexe é a coluna, e só ela.** O tubo fica parado, o bulbo fica
+ * parado, e o mercúrio sobe e desce devagar entre dois terços e quase o topo —
+ * que é o que um termômetro faz numa câmara fria: a leitura anda dentro de uma
+ * faixa o dia inteiro. Doze segundos de ciclo. Girar ou pulsar o desenho
+ * inteiro seria movimento colado por cima; isto é o desenho fazendo o que ele
+ * desenha.
+ */
 export function GlyphThermometer({ size = 26, color, weight = 2.2 }: GlyphProps) {
   const haste = 'M13 18.5 V7 a3 3 0 0 1 6 0 v11.5 a5.5 5.5 0 1 1 -6 0 Z';
   return (
     <Svg {...frame(size)} accessibilityRole="image">
       <Path d={haste} {...massIf(weight, color)} />
+      <Coluna x={14.4} largura={3.2} base={24} vaoDe={9} vaoAte={15.5} cor={color} cicloMs={12000} />
       <Path d={haste} {...line(color, weight)} />
       <Circle cx="16" cy="23" r="2.2" {...line(color, weight - 0.4)} />
       <Path d="M21.5 10h3M21.5 14h3" {...line(color, weight - 0.4)} />
@@ -397,15 +410,27 @@ export function GlyphThermometer({ size = 26, color, weight = 2.2 }: GlyphProps)
   );
 }
 
-/** Ajustes: os controles deslizantes — o que se regula, e não a engrenagem, que é vocabulário de programador. */
+/**
+ * Ajustes: os controles deslizantes — o que se regula, e não a engrenagem, que
+ * é vocabulário de programador.
+ *
+ * **Os botões deslizam nos trilhos**, cada um no seu tempo e em sentidos
+ * opostos: é a única coisa que um controle deslizante faz. Nove e onze segundos
+ * — números diferentes de propósito, para os dois nunca ficarem em sincronia,
+ * que é o que faria os dois lerem como uma coisa só piscando.
+ */
 export function GlyphSettings({ size = 26, color, weight = 2.2 }: GlyphProps) {
   return (
     <Svg {...frame(size)} accessibilityRole="image">
       <Path d="M5 10h22M5 22h22" {...line(color, weight)} />
-      <Circle cx="12" cy="10" r="3.4" {...massIf(weight, color)} />
-      <Circle cx="12" cy="10" r="3.4" {...line(color, weight)} />
-      <Circle cx="21" cy="22" r="3.4" {...massIf(weight, color)} />
-      <Circle cx="21" cy="22" r="3.4" {...line(color, weight)} />
+      <Vivo vida={{ como: 'anda', cicloMs: 9000, passo: 3 }}>
+        <Circle cx="12" cy="10" r="3.4" {...massIf(weight, color)} />
+        <Circle cx="12" cy="10" r="3.4" {...line(color, weight)} />
+      </Vivo>
+      <Vivo vida={{ como: 'anda', cicloMs: 11000, passo: -3 }}>
+        <Circle cx="21" cy="22" r="3.4" {...massIf(weight, color)} />
+        <Circle cx="21" cy="22" r="3.4" {...line(color, weight)} />
+      </Vivo>
     </Svg>
   );
 }

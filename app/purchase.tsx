@@ -217,7 +217,7 @@ function PurchaseForm() {
     return (
       <CollapsingHeader title={t.app.purchase.title} overline={t.app.purchase.overline}>
         <Reveal index={0}>
-          <Card hue={palette.sky} icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}>
+          <Card hue={palette.mint} icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}>
             <Text style={[type.secondary, { color: color.inkMuted }]}>
               {t.app.purchase.openingStoreroom}
             </Text>
@@ -238,7 +238,7 @@ function PurchaseForm() {
       <Reveal index={0}>
         {selected ? (
           <Card
-            hue={palette.sky}
+            hue={palette.mint}
             icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}
             title={t.app.purchase.whatYouBought}
           >
@@ -325,7 +325,7 @@ function PurchaseForm() {
              assunto e a frase, sem tom de alerta. Um cartão vermelho no primeiro
              dia de uso é alerta inventado. */
           <Card
-            hue={palette.sky}
+            hue={palette.mint}
             icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}
             title={t.app.purchase.whatYouBought}
           >
@@ -355,7 +355,7 @@ function PurchaseForm() {
       {draft && selected ? (
         <Reveal index={1}>
           <Card
-            hue={verdict === 'wellAbove' ? color.warning : palette.sky}
+            hue={verdict === 'wellAbove' ? color.warning : palette.sage}
             icon={(c) => <GlyphPurchase size={26} color={c} weight={traco} />}
           >
             <Text style={[type.overline, { color: color.inkFaint }]}>
@@ -409,7 +409,7 @@ function PurchaseForm() {
       {impact && impact.length > 0 ? (
         <Reveal index={indiceImpacto}>
           <Card
-            hue={palette.sky}
+            hue={palette.sand}
             icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
             title={t.app.purchase.whatItMoved}
           >

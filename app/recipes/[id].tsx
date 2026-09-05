@@ -351,7 +351,7 @@ function RecipeEditor() {
     return (
       <CollapsingHeader title={t.app.recipe.fallbackTitle} overline={t.app.recipe.overline}>
         <Reveal index={0}>
-          <Card hue={palette.sky} icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}>
+          <Card hue={palette.apricot} icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}>
             <Text style={[type.body, { color: color.inkMuted }]}>
               {loading ? t.app.recipe.opening : t.app.recipe.none}
             </Text>
@@ -402,7 +402,7 @@ function RecipeEditor() {
       {computed?.cost ? (
         <Reveal index={0}>
           <Card
-            hue={palette.sky}
+            hue={palette.sand}
             icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
             title={t.app.recipe.unitCost}
           >
@@ -565,7 +565,7 @@ function RecipeEditor() {
           diz "ficha técnica · versão N", e repetir a palavra num crachá seria
           rótulo inventado. */}
       <Reveal index={cabeca + 1}>
-        <Card hue={palette.sky} icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}>
+        <Card hue={palette.apricot} icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}>
           <View style={{ gap: space.lg }}>
             <Field
               label={t.app.recipe.batchYield}

@@ -174,7 +174,7 @@ function RecipesList() {
       {!loading && rows.length === 0 ? (
         <Reveal index={0}>
           <Card
-            hue={palette.sky}
+            hue={palette.apricot}
             icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}
             title={t.app.recipes.title}
           >
@@ -195,7 +195,7 @@ function RecipesList() {
             accessibilityLabel={primeira.name}
           >
             <Card
-              hue={palette.sky}
+              hue={palette.apricot}
               icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}
               title={primeira.name}
             >

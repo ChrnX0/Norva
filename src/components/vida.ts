@@ -1,0 +1,152 @@
+import { useEffect, useState } from 'react';
+import { AccessibilityInfo } from 'react-native';
+import {
+  Easing,
+  cancelAnimation,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+  type SharedValue,
+} from 'react-native-reanimated';
+
+/**
+ * O relógio compartilhado dos desenhos vivos.
+ *
+ * O dono olhou os ícones do aplicativo e pediu movimento em todos, apontando a
+ * cena da capa como o exemplo: *"sutil, mas vivo"*. O que existia era um respiro
+ * genérico — a mesma oscilação de escala para os vinte e seis desenhos —, e é
+ * exatamente isso que ele recusou: um termômetro que respira igual a um caminhão
+ * não está vivo, está tremendo.
+ *
+ * A cena aprovada faz o contrário e é ela que manda: **cada coisa se mexe como
+ * ela mesma**. O sol gira porque é sol, a fumaça sobe porque é fumaça, o floco
+ * gira mais devagar porque é floco. Este módulo é o mecanismo dessa regra: um
+ * ciclo, e cada desenho escolhe o que fazer com ele.
+ *
+ * Três coisas que estão aqui e não em cada glifo, de propósito:
+ *
+ * 1. **A leitura de "reduzir movimento" acontece UMA vez.** Vinte e seis glifos
+ *    perguntando ao sistema, cada um na sua montagem, é vinte e seis idas ao
+ *    módulo nativo para responder a mesma coisa — e numa tela com oito ícones o
+ *    atraso aparece como uma cascata de desenhos aparecendo fora de hora.
+ * 2. **O ciclo é sempre linear e longo.** A regra da casa é ciclo de três a
+ *    quarenta e oito segundos: percebe-se se você olhar, não se percebe se você
+ *    estiver trabalhando. Nada aqui é capaz de piscar, e isso é intencional.
+ * 3. **Parar é parte do contrato.** `cancelAnimation` na saída, senão um laço
+ *    infinito continua rodando na thread de UI depois de a tela sumir — trinta
+ *    telas de navegação e o celular da fábrica fica quente sem nada na tela.
+ */
+
+/**
+ * O aparelho pediu para reduzir movimento?
+ *
+ * Cacheado no módulo: a resposta não muda no meio da sessão, e a primeira
+ * leitura é assíncrona. Enquanto ela não volta, `null` — e quem usa trata isso
+ * como "ainda não sei" em vez de "pode mexer", para o desenho não dar um pulo
+ * quando a resposta chegar.
+ */
+let reduzidoCache: boolean | null = null;
+let perguntando: Promise<boolean> | null = null;
+
+function perguntar(): Promise<boolean> {
+  if (reduzidoCache !== null) return Promise.resolve(reduzidoCache);
+  perguntando ??= AccessibilityInfo.isReduceMotionEnabled()
+    .then((r) => {
+      reduzidoCache = r;
+      return r;
+    })
+    .catch(() => {
+      // Plataforma que não responde: o movimento fica ligado, que é o padrão do
+      // produto. Falhar para o lado do silêncio esconderia a identidade inteira
+      // por causa de um módulo nativo ausente.
+      reduzidoCache = false;
+      return false;
+    });
+  return perguntando;
+}
+
+export function useReduzirMovimento(): boolean | null {
+  const [reduzido, setReduzido] = useState<boolean | null>(reduzidoCache);
+  useEffect(() => {
+    if (reduzidoCache !== null) return;
+    let vivo = true;
+    void perguntar().then((r) => {
+      if (vivo) setReduzido(r);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+  return reduzido;
+}
+
+/** Como o ciclo anda dentro de uma volta. */
+export type Feitio =
+  /** Zero a um, e recomeça do zero. Para o que dá a volta: girar, subir e sumir. */
+  | 'volta'
+  /** Zero a um e de volta a zero, suave nas pontas. Para o que vai e vem. */
+  | 'vaivem';
+
+/**
+ * Um ciclo de zero a um, no compasso da casa.
+ *
+ * @param duracaoMs uma volta inteira. Três segundos é o piso; abaixo disso o
+ *   movimento deixa de ser ambiente e passa a chamar atenção.
+ * @param feitio 'volta' recomeça do zero (giro, fumaça); 'vaivem' volta pelo
+ *   mesmo caminho (respiração, balanço).
+ * @param atrasoMs para escalonar irmãos — as três baforadas da chaminé são o
+ *   mesmo ciclo defasado de dois segundos.
+ * @param repete falso faz o movimento acontecer UMA vez, na chegada, e parar. É
+ *   o que a caixa da expedição faz: ela chega, e chegou.
+ */
+export function useCiclo(
+  duracaoMs: number,
+  {
+    feitio = 'volta',
+    atrasoMs = 0,
+    repete = true,
+  }: { feitio?: Feitio; atrasoMs?: number; repete?: boolean } = {},
+): SharedValue<number> {
+  const ciclo = useSharedValue(0);
+  const reduzido = useReduzirMovimento();
+
+  useEffect(() => {
+    // Ainda não sei se posso mexer: fico parado no fim do movimento, que é o
+    // estado COMPLETO. Um desenho que aparece pela metade e depois se completa
+    // pisca; um que aparece pronto e começa a andar, não.
+    if (reduzido === null) return;
+    if (reduzido) {
+      ciclo.value = repete ? 0 : 1;
+      return;
+    }
+
+    if (!repete) {
+      ciclo.value = withDelay(
+        atrasoMs,
+        withTiming(1, { duration: duracaoMs, easing: Easing.bezier(0.22, 1, 0.36, 1) }),
+      );
+      return;
+    }
+
+    const volta =
+      feitio === 'volta'
+        ? withTiming(1, { duration: duracaoMs, easing: Easing.linear })
+        : withSequence(
+            withTiming(1, { duration: duracaoMs / 2, easing: Easing.inOut(Easing.quad) }),
+            withTiming(0, { duration: duracaoMs / 2, easing: Easing.inOut(Easing.quad) }),
+          );
+
+    ciclo.value = withDelay(atrasoMs, withRepeat(volta, -1, false));
+
+    return () => {
+      // Laço infinito que ninguém para continua na thread de UI depois de a tela
+      // sair. Com trinta telas de navegação isso vira calor no bolso de quem
+      // trabalha, sem nada na tela para justificar.
+      cancelAnimation(ciclo);
+    };
+  }, [ciclo, duracaoMs, feitio, atrasoMs, repete, reduzido]);
+
+  return ciclo;
+}
