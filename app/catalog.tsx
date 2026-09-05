@@ -62,7 +62,7 @@ export default function CatalogScreen() {
 type Loaded = { lines: ProductLine[]; types: ProductType[]; flavors: Flavor[] };
 
 function Catalog() {
-  const { color, type, space, palette , traco } = useTheme();
+  const { color, type, space, palette, traco } = useTheme();
   const { t } = useLocale();
 
   const [lineId, setLineId] = useState<string | null>(null);

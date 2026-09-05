@@ -81,7 +81,7 @@ const TABS: {
 ];
 
 function InputsList() {
-  const { color, space, type, palette , traco } = useTheme();
+  const { color, space, type, palette, traco } = useTheme();
   const router = useRouter();
   const { locale, t } = useLocale();
   const [kind, setKind] = useState<ItemKind>('input');

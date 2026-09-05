@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarHeightContext } from 'expo-router/js-tabs';
 import { useContext } from 'react';
 import { SkyMark } from '@/components/Sky';
+import { MEDIDA_DA_PAGINA } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -296,16 +297,23 @@ export function Folha({ olho, children }: { olho: string; children: ReactNode })
   const { color, type, space } = useTheme();
   const insets = useSafeAreaInsets();
   const tabBar = useContext(BottomTabBarHeightContext) ?? 0;
+  // A mesma medida do casco das outras telas: a capa não pode ser a única página
+  // que vira tira esticada num tablet. Em dp, nunca em pixel.
+  const { width: larguraDaTela } = useWindowDimensions();
+  const largo = larguraDaTela >= MEDIDA_DA_PAGINA;
 
   return (
     <View style={{ flex: 1, backgroundColor: color.paper }}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          paddingTop: insets.top + space.xl,
-          paddingHorizontal: space.xl + 2,
-          paddingBottom: insets.bottom + space.xxl + tabBar,
-        }}
+        contentContainerStyle={[
+          {
+            paddingTop: insets.top + space.xl,
+            paddingHorizontal: space.xl + 2,
+            paddingBottom: insets.bottom + space.xxl + tabBar,
+          },
+          largo ? { width: '100%', maxWidth: MEDIDA_DA_PAGINA, alignSelf: 'center' } : null,
+        ]}
       >
         <Text
           style={[type.overline, { color: color.inkFaint, letterSpacing: 2.4 }]}

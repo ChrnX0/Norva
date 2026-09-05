@@ -80,7 +80,7 @@ type Loaded = { places: Place[]; stock: PlaceStock[] };
 type Frente = { lotId: string; code: string; expiresOn: string | null; baseUnits: number } | null;
 
 function Transfer() {
-  const { color, type, space, palette , traco } = useTheme();
+  const { color, type, space, palette, traco } = useTheme();
   const { locale, t } = useLocale();
   const askConfirm = useConfirm();
   const router = useRouter();

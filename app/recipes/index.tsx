@@ -76,7 +76,7 @@ type Row = {
 };
 
 function RecipesList() {
-  const { color, space, type, palette , traco } = useTheme();
+  const { color, space, type, palette, traco } = useTheme();
   const router = useRouter();
   const { locale, t } = useLocale();
 

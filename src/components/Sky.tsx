@@ -99,7 +99,7 @@ export function SkyMark({
   rainChance: number | null;
   size?: number;
 }) {
-  const { palette, brand, skin , traco } = useTheme();
+  const { palette, brand, skin, traco } = useTheme();
   const raining = rainChance !== null && rainChance >= 30;
   const papel = skin === 'papel';
   const tinta = skyInk(maxC, { palette, brand, skin });

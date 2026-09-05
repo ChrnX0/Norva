@@ -101,7 +101,7 @@ type Loaded = { places: Place[]; products: Product[] };
 type Draft = { itemId: string; name: string; baseUnits: number };
 
 function NewOrder() {
-  const { color, type, space, palette , traco } = useTheme();
+  const { color, type, space, palette, traco } = useTheme();
   const { locale, t } = useLocale();
   const askConfirm = useConfirm();
   const words = t.app.newOrder;

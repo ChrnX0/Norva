@@ -57,7 +57,7 @@ export default function Losses() {
 }
 
 function WhatWasLost() {
-  const { color, type, space , traco } = useTheme();
+  const { color, type, space, traco } = useTheme();
   const router = useRouter();
   const { locale, t } = useLocale();
   const words = t.app.losses;

@@ -51,7 +51,7 @@ export default function Transport() {
 }
 
 function WhereItWent() {
-  const { color, type, space, palette , traco } = useTheme();
+  const { color, type, space, palette, traco } = useTheme();
   const { locale, t } = useLocale();
   const router = useRouter();
 
@@ -214,11 +214,21 @@ function WhereItWent() {
                   // engradado · 1 caixa · 14 unidades" — e o nome, que é
                   // `flex: 1`, encostava nela. Espaço entre os dois, como toda
                   // linha de duas colunas deste aplicativo.
-                  <View key={item.itemId} style={[styles.row, { gap: space.md }]}>
-                    <Text style={[type.secondary, { color: color.inkMuted, flex: 1 }]} numberOfLines={1}>
+                  <View key={item.itemId} style={[styles.row, styles.quebra, { gap: space.md }]}>
+                    {/* O nome NÃO encolhe até sumir — ele desce a coluna do número.
+                        Na foto de 412 dp isto saía "Picolé de choc…" ao lado de "1
+                        engradado · 1 caixa · 48 unidades": o nome, que é `flex: 1`,
+                        cedia tudo, e quem lê ficava com três letras do produto e a
+                        conta inteira. É a mesma cegueira do "UNIDADES · HOJ" da capa.
+                        Aqui a linha reflui em vez de escalar, que é a regra da casa:
+                        cabendo, uma linha; não cabendo, o número desce inteiro. */}
+                    <Text
+                      style={[type.secondary, { color: color.inkMuted, flexGrow: 1, flexShrink: 1, minWidth: 150 }]}
+                      numberOfLines={1}
+                    >
                       {item.name}
                     </Text>
-                    <Text style={[type.secondary, styles.number, { color: color.ink }]}>
+                    <Text style={[type.secondary, styles.number, styles.direita, { color: color.ink }]}>
                       {naUnidade(item)}
                     </Text>
                   </View>
@@ -264,5 +274,8 @@ function WhereItWent() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
+  quebra: { flexWrap: 'wrap' },
+  /** Descendo de linha, o número continua à direita, onde a coluna dele mora. */
+  direita: { marginLeft: 'auto' },
   number: { fontVariant: ['tabular-nums'], fontWeight: '600' },
 });

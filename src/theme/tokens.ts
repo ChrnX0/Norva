@@ -383,6 +383,27 @@ export const hues: Record<Hue, { brand: string; skyTop: string; skyBottom: strin
   lavanda: { brand: '#6B5FA8', skyTop: '#E9E4F8', skyBottom: '#D4CBF0', hillFar: '#C3B9E6', hillNear: '#A396D4' },
 };
 
+/**
+ * A MEDIDA da página: até onde a coluna de conteúdo cresce, em dp.
+ *
+ * O aplicativo inteiro não tinha nenhuma — zero `useWindowDimensions`, um único
+ * `maxWidth` numa caixa de diálogo — e isso não aparece num telefone, porque num
+ * telefone a largura é sempre a mesma. Aparece num tablet: **do telefone ao
+ * tablet a largura dobra**, e a coluna que serve a 393 dp vira uma tira esticada
+ * a 800, com linhas de texto que o olho perde no meio.
+ *
+ * Seiscentos é o ponto de quebra que o `CLAUDE.md` nomeia como tablet pequeno, e
+ * a escolha é de propósito: **abaixo dele nada muda**, então nenhum telefone
+ * corre risco por causa desta linha. Acima, a coluna para de crescer e se
+ * centraliza.
+ *
+ * Não é a resposta inteira, e o arquivo diz qual é: a 840 o certo é *refluir em
+ * colunas*, não centralizar uma. Mas qual cartão emparelha com qual é pergunta
+ * de cada tela, e uma tira legível é melhor que uma tira esticada enquanto essa
+ * pergunta não for respondida vinte vezes.
+ */
+export const MEDIDA_DA_PAGINA = 600;
+
 export const skins = {
   papel: {
     light: papelClaro,

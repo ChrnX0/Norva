@@ -113,7 +113,7 @@ type Draft = {
 };
 
 function RecipeEditor() {
-  const { color, type, space, palette , traco } = useTheme();
+  const { color, type, space, palette, traco } = useTheme();
   const confirm = useConfirm();
   const router = useRouter();
   const { locale, t } = useLocale();

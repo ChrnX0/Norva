@@ -35,23 +35,35 @@ export function Sparkline({
   hue,
   width = 220,
   height = 44,
-  strokeWidth = 2,
 }: {
   values: readonly number[];
   hue?: string;
   width?: number;
   height?: number;
-  strokeWidth?: number;
 }) {
-  const { accent, motion } = useTheme();
+  const { accent, motion, skin, traco } = useTheme();
   // O gesto tem a duração de um traço de mão: rápido o bastante para não atrasar
   // a leitura, lento o bastante para o olho ver a linha nascer.
   const desenho = motion.countMs;
   const cor = hue ?? accent;
 
-  const points = sparkPoints(values, width, height, strokeWidth + 1);
+  const points = sparkPoints(values, width, height, traco + 1);
   const line = sparkPath(points);
-  const area = sparkArea(points, height);
+  /**
+   * O Papel não tem massa — nem aqui.
+   *
+   * O degradê sob a curva é vocabulário do Orgânico, e ele sobreviveu à
+   * conversão da tela de Relatórios porque a `Sparkline` era um dos componentes
+   * que não sabiam que o aplicativo tem duas caras. Na foto do Papel ele aparece
+   * como uma mancha azul clara debaixo de uma linha fina, no meio de uma página
+   * de serifa e régua: exatamente o "bloco pastel dentro do Papel" que o dono
+   * circulou nos cartões.
+   *
+   * A regra do `Coluna` diz onde massa é legítima no Papel — quando ela é o
+   * conteúdo MEDIDO dentro de uma forma fechada, como o líquido do termômetro.
+   * A área sob uma curva não mede nada que a curva já não diga: é sombra.
+   */
+  const area = skin === 'papel' ? null : sparkArea(points, height);
   const last = points[points.length - 1];
 
   // O comprimento do traço não precisa ser exato: qualquer valor maior que a
@@ -109,7 +121,7 @@ export function Sparkline({
         <APath
           d={line}
           stroke={cor}
-          strokeWidth={strokeWidth}
+          strokeWidth={traco}
           strokeLinecap="round"
           strokeLinejoin="round"
           fill="none"

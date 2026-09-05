@@ -61,7 +61,7 @@ type Loaded = {
 };
 
 function ReportIndex() {
-  const { color, type, space, palette , traco } = useTheme();
+  const { color, type, space, palette, traco } = useTheme();
   const { locale, t } = useLocale();
   const router = useRouter();
 
@@ -158,7 +158,6 @@ function ReportIndex() {
                 <Sparkline
                   values={[...comCusto].reverse().map((r) => r.unitCostRate ?? 0)}
                   hue={palette.sky}
-                  strokeWidth={traco}
                 />
               ) : null}
               {abrir}

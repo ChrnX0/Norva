@@ -1,6 +1,6 @@
 import { BottomTabBarHeightContext } from 'expo-router/js-tabs';
 import { Children, useContext, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -11,11 +11,13 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Reveal } from '@/components/Reveal';
 import { Mark } from './Mark';
+import { MEDIDA_DA_PAGINA } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
 
 const EXPANDED = 34;
 const COLLAPSED = 22;
 const RANGE = 72;
+
 
 /**
  * The large title that shrinks as you scroll - the most recognizable part of
@@ -36,6 +38,10 @@ export function CollapsingHeader({
 }) {
   const { color, space, type, accent, skin, titleFamily } = useTheme();
   const insets = useSafeAreaInsets();
+  // Em dp, que é o que o layout enxerga — nunca pixel.
+  const { width: larguraDaTela } = useWindowDimensions();
+  const coluna = { width: '100%' as const, maxWidth: MEDIDA_DA_PAGINA, alignSelf: 'center' as const };
+  const largo = larguraDaTela >= MEDIDA_DA_PAGINA;
 
   // How much of the screen the tab bar covers, or nothing when there is no bar.
   //
@@ -62,12 +68,18 @@ export function CollapsingHeader({
   return (
     <View style={{ flex: 1, backgroundColor: color.paper }}>
       <View
-        style={{
-          paddingTop: insets.top + space.sm,
-          paddingHorizontal: space.lg,
-          paddingBottom: space.md,
-          backgroundColor: color.paper,
-        }}
+        style={[
+          {
+            paddingTop: insets.top + space.sm,
+            paddingHorizontal: space.lg,
+            paddingBottom: space.md,
+            backgroundColor: color.paper,
+          },
+          // O título anda junto com os cartões: cabeçalho colado na borda
+          // esquerda de um tablet, com a coluna centralizada embaixo, lê como
+          // duas telas empilhadas.
+          largo ? coluna : null,
+        ]}
       >
         {/* A linha de olho vem ANTES do título, e o título é serifado.
             É a mesma hierarquia da capa aprovada — "NORVA · sábado, 5 de
@@ -121,11 +133,14 @@ export function CollapsingHeader({
         // - and the person taps again, or gives up. Invisible on the web and
         // to the e2e suite: a browser has no keyboard that rises.
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          paddingHorizontal: space.lg,
-          paddingBottom: insets.bottom + space.xxl + tabBar,
-          gap: space.md,
-        }}
+        contentContainerStyle={[
+          {
+            paddingHorizontal: space.lg,
+            paddingBottom: insets.bottom + space.xxl + tabBar,
+            gap: space.md,
+          },
+          largo ? coluna : null,
+        ]}
       >
         {/* A entrada escalonada, dada a TODA tela de uma vez.
             O dono viu o movimento na capa e pediu em todas: "isso é lindo e

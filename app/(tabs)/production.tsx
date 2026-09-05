@@ -74,7 +74,7 @@ type Loaded = {
 };
 
 function ProductionDay() {
-  const { color, type, space, palette , traco } = useTheme();
+  const { color, type, space, palette, traco } = useTheme();
   const { locale, t } = useLocale();
 
   const { data, loading } = useQuery<Loaded>(async () => {

@@ -97,7 +97,7 @@ type Loaded = {
 };
 
 function InputDetail() {
-  const { color, space, type, palette , traco } = useTheme();
+  const { color, space, type, palette, traco } = useTheme();
   const confirm = useConfirm();
   const router = useRouter();
   const { locale, t } = useLocale();
@@ -701,7 +701,6 @@ function InputDetail() {
                 <Sparkline
                   values={[...(data?.history ?? [])].reverse().map((h) => h.newRate)}
                   hue={palette.sky}
-                  strokeWidth={traco}
                 />
               </View>
             ) : null}

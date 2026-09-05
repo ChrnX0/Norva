@@ -97,7 +97,7 @@ function desenhoDoLugar(kind: string, color: string, weight: number): ReactNode 
 }
 
 function Places() {
-  const { color, type, space, palette , traco } = useTheme();
+  const { color, type, space, palette, traco } = useTheme();
   const { locale, t } = useLocale();
   const router = useRouter();
   const words = t.app.places;
@@ -387,7 +387,7 @@ function Ambiente({
   last: Reading | undefined;
   onSaved: () => void;
 }) {
-  const { color, type, space, palette , traco } = useTheme();
+  const { color, type, space, palette } = useTheme();
   const { locale, t } = useLocale();
   const words = t.app.places;
 
@@ -524,7 +524,6 @@ function Ambiente({
         <Sparkline
           values={(serie ?? []).map((r) => r.value)}
           hue={fora ? color.danger : palette.sky}
-          strokeWidth={traco}
           height={36}
         />
       ) : null}

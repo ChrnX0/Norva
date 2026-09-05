@@ -116,7 +116,7 @@ function plannedUnits(recipe: Recipe, product: Product, batches: number): number
 }
 
 function Production() {
-  const { color, type, space, palette , traco } = useTheme();
+  const { color, type, space, palette, traco } = useTheme();
   const { locale, t } = useLocale();
   const askConfirm = useConfirm();
   const words = t.app.production;

@@ -80,7 +80,7 @@ type Loaded = { lot: LotOfDay | null; plan: ReversalPlan | null };
 
 function Label() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { color, type, space, radius, palette , traco } = useTheme();
+  const { color, type, space, radius, palette, traco } = useTheme();
   const { locale, t } = useLocale();
   const router = useRouter();
   const confirm = useConfirm();

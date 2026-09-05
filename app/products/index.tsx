@@ -66,7 +66,7 @@ type Row = {
 };
 
 function ProductsList() {
-  const { color, type, space, palette , traco } = useTheme();
+  const { color, type, space, palette, traco } = useTheme();
   const router = useRouter();
   const { locale, t } = useLocale();
 

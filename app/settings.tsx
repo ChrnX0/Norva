@@ -174,7 +174,7 @@ function sayTally(area: EraseArea, tally: EraseTally, t: Dictionary): string {
 }
 
 function Settings() {
-  const { color, type, space, palette, skin , traco } = useTheme();
+  const { color, type, space, palette, skin, traco } = useTheme();
   const { setSkin, hue, setHue, scheme, setScheme } = useAppearance();
 
   /**

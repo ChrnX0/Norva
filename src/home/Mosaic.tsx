@@ -50,7 +50,7 @@ export function Mosaic({
   layout,
   go,
 }: BriefingView) {
-  const { color, type, space, palette, skin, accent , traco } = useTheme();
+  const { color, type, space, palette, skin, accent, traco } = useTheme();
   const { locale, t } = useLocale();
 
   // A espessura do traço é da identidade: fino no Papel, cheio no Orgânico.
@@ -573,7 +573,6 @@ export function Mosaic({
               <Sparkline
                 values={[...data!.runs].reverse().map((r) => r.baseUnits)}
                 hue={palette.sand}
-                strokeWidth={traco}
               />
             ) : null}
             {/* Lei 3: a última corrida sozinha não diz nada. A média das
@@ -851,7 +850,6 @@ export function Mosaic({
               <Sparkline
                 values={[...comCusto].reverse().map((r) => r.unitCostRate ?? 0)}
                 hue={palette.sky}
-                strokeWidth={traco}
               />
             ) : null}
             <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={2}>

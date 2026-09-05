@@ -80,7 +80,7 @@ type Porta = {
 };
 
 function Drawers() {
-  const { color, type, space, palette , traco } = useTheme();
+  const { color, type, space, palette, traco } = useTheme();
   const { t } = useLocale();
   const router = useRouter();
 
