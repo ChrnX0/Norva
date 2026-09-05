@@ -67,13 +67,24 @@ export function Card({
       title?: string;
     }
   | {
-      // Cartão sem cabeça: o conteúdo fala por si. Título aqui seria escrito e
-      // não desenhado — o cabeçalho inteiro só existe quando há ícone, e um
-      // `title` sozinho sumia em silêncio. Dezoito telas estão sendo
-      // reescritas com este componente, e "sumiu e ninguém viu" é o defeito
-      // que mais se multiplica numa reescrita larga.
+      /**
+       * Cartão com título e SEM crachá — e isto passou a ser permitido por uma
+       * repetição que o dono viu antes de mim.
+       *
+       * A regra era que `title` sem `icon` não compilava, porque o cabeçalho só
+       * era desenhado quando havia crachá e um título sozinho sumia em silêncio.
+       * Ela protegia de verdade — até a gaveta do "Mais" dar desenho a cada
+       * LINHA. Aí o cabeçalho "Lançamentos" e a linha "Compras" apareceram com o
+       * mesmo desenho, um debaixo do outro: *"melhorou, mas alguns lugares ainda
+       * ficaram repetidos"*.
+       *
+       * O grupo não precisa de desenho quando cada porta dele tem o seu. O que
+       * ele precisa é da régua colorida em cima e do nome — que é exatamente a
+       * forma editorial do Papel. Então o título sozinho passa a ser desenhado,
+       * em vez de recusado.
+       */
       icon?: undefined;
-      title?: undefined;
+      title?: string;
     }
 )) {
   const { color, scheme, radius, space, type, accent, skin } = useTheme();
@@ -144,7 +155,7 @@ export function Card({
         style,
       ]}
     >
-      {icon ? (
+      {icon || title ? (
         <View style={[styles.head, { gap: space.sm, marginBottom: space.sm }]}>
           {/* O desenho NÃO respira mais aqui — e essa é uma reversão consciente.
 
@@ -160,7 +171,7 @@ export function Card({
               A chegada continua: o `Reveal` do casco assenta cada cartão. O que
               saiu foi o laço perpétuo genérico — a vida agora mora DENTRO de cada
               desenho, no `Vivo`, e só onde ela tem o que dizer. */}
-          {papel ? (
+          {!icon ? null : papel ? (
             // Sem crachá: o desenho fica na página, do tamanho do texto ao lado.
             icon(toneColor ?? accent)
           ) : (

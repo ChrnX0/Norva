@@ -5,7 +5,6 @@ import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import {
   GlyphAssistant,
-  GlyphCatalog,
   GlyphOrder,
   GlyphProduction,
   GlyphPurchase,
@@ -181,7 +180,6 @@ function Drawers() {
         {/* porta: mint — a gaveta abre insumos e lugares, e lugar é estoque */}
         <Card
           hue={palette.mint}
-          icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}
           title={t.app.more.groups.registers}
         >
           {cadastros.map(portas)}
@@ -192,7 +190,6 @@ function Drawers() {
       <Reveal index={2}>
         <Card
           hue={palette.sage}
-          icon={(c) => <GlyphPurchase size={26} color={c} weight={traco} />}
           title={t.app.more.groups.entries}
         >
           {lancamentos.map(portas)}
@@ -202,7 +199,6 @@ function Drawers() {
       <Reveal index={3}>
         <Card
           hue={palette.mist}
-          icon={(c) => <GlyphSettings size={26} color={c} weight={traco} />}
           title={t.app.more.groups.settings}
         >
           {ajustes.map(portas)}

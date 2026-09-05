@@ -1,4 +1,5 @@
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import { Vivo } from './Vivo';
 
 /**
  * The icons the design draws, and nothing else.
@@ -53,7 +54,14 @@ const stroke = (color: string) => ({
 export function IconHome({ size = 24, color }: IconProps) {
   return (
     <Svg {...frame(size)} accessibilityRole="image">
-      <Path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" {...stroke(color)} />
+      {/* Casa é alvenaria e não se mexe — este é AMBIENTE assumido, como o sol e
+          o floco da cena aprovada, que giram sem nenhum fato por trás. Quarenta
+          segundos e oito décimos de grau: no tamanho de uma aba isso é menos de
+          um décimo de pixel de viagem. Está aqui porque o dono pediu a barra
+          inteira viva, e o honesto é dizer qual movimento significa e qual não. */}
+      <Vivo vida={{ como: 'balanca', cicloMs: 40000, graus: 0.8, centro: [12, 20] }}>
+        <Path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" {...stroke(color)} />
+      </Vivo>
     </Svg>
   );
 }
@@ -62,7 +70,11 @@ export function IconHome({ size = 24, color }: IconProps) {
 export function IconProduction({ size = 24, color }: IconProps) {
   return (
     <Svg {...frame(size)} accessibilityRole="image">
-      <Rect x="5" y="3.5" width="10" height="9" rx="2.2" {...stroke(color)} />
+      {/* A unidade anda na esteira, como no glifo grande do mesmo assunto: os
+          dois desenhos são a mesma coisa em duas famílias, e a vida também. */}
+      <Vivo vida={{ como: 'anda', cicloMs: 24000, passo: 1.2 }}>
+        <Rect x="5" y="3.5" width="10" height="9" rx="2.2" {...stroke(color)} />
+      </Vivo>
       <Path d="M4 16.5h13.5" {...stroke(color)} />
       <Path d="M17 13.8l2.7 2.7-2.7 2.7" {...stroke(color)} />
     </Svg>
@@ -73,10 +85,14 @@ export function IconProduction({ size = 24, color }: IconProps) {
 export function IconTransport({ size = 24, color }: IconProps) {
   return (
     <Svg {...frame(size)} accessibilityRole="image">
-      <Path d="M2 7.5h11v9H2z" {...stroke(color)} />
-      <Path d="M13 11h4l3.5 3.5v2H13z" {...stroke(color)} />
-      <Circle cx="6.5" cy="18.5" r="1.9" {...stroke(color)} />
-      <Circle cx="16.5" cy="18.5" r="1.9" {...stroke(color)} />
+      {/* O caminhão anda, rodas junto. Vinte e seis segundos: mais devagar que o
+          sol da cena, porque aqui ele fica na tela o dia inteiro. */}
+      <Vivo vida={{ como: 'anda', cicloMs: 26000, passo: 1 }}>
+        <Path d="M2 7.5h11v9H2z" {...stroke(color)} />
+        <Path d="M13 11h4l3.5 3.5v2H13z" {...stroke(color)} />
+        <Circle cx="6.5" cy="18.5" r="1.9" {...stroke(color)} />
+        <Circle cx="16.5" cy="18.5" r="1.9" {...stroke(color)} />
+      </Vivo>
     </Svg>
   );
 }
@@ -87,7 +103,12 @@ export function IconReports({ size = 24, color }: IconProps) {
     <Svg {...frame(size)} accessibilityRole="image">
       <Path d="M4 20h16" {...stroke(color)} />
       <Path d="M6.5 20v-6" {...stroke(color)} />
-      <Path d="M12 20V5" {...stroke(color)} />
+      {/* A barra do meio anda no eixo Y: um número que continua se mexendo é o
+          que um relatório é. A linha de base e as vizinhas ficam — sem elas
+          paradas, não haveria com o que comparar o movimento. */}
+      <Vivo vida={{ como: 'anda', cicloMs: 22000, passo: 0.9, eixo: 'y' }}>
+        <Path d="M12 20V5" {...stroke(color)} />
+      </Vivo>
       <Path d="M17.5 20v-9" {...stroke(color)} />
     </Svg>
   );
@@ -97,10 +118,15 @@ export function IconReports({ size = 24, color }: IconProps) {
 export function IconMore({ size = 24, color }: IconProps) {
   return (
     <Svg {...frame(size)} accessibilityRole="image">
-      <Rect x="3.5" y="3.5" width="7" height="7" rx="2" {...stroke(color)} />
-      <Rect x="13.5" y="3.5" width="7" height="7" rx="2" {...stroke(color)} />
-      <Rect x="3.5" y="13.5" width="7" height="7" rx="2" {...stroke(color)} />
-      <Rect x="13.5" y="13.5" width="7" height="7" rx="2" {...stroke(color)} />
+      {/* As quatro gavetas respiram em torno do centro da grade — ambiente, como
+          a casa. Trinta e seis segundos, o mais lento dos cinco: é a aba que se
+          abre uma vez por mês, e o movimento acompanha a frequência. */}
+      <Vivo vida={{ como: 'balanca', cicloMs: 36000, graus: 1, centro: [12, 12] }}>
+        <Rect x="3.5" y="3.5" width="7" height="7" rx="2" {...stroke(color)} />
+        <Rect x="13.5" y="3.5" width="7" height="7" rx="2" {...stroke(color)} />
+        <Rect x="3.5" y="13.5" width="7" height="7" rx="2" {...stroke(color)} />
+        <Rect x="13.5" y="13.5" width="7" height="7" rx="2" {...stroke(color)} />
+      </Vivo>
     </Svg>
   );
 }

@@ -23,7 +23,7 @@ const BarraViva = Animated.createAnimatedComponent(Rect);
  * | `gira`   | volta inteira em torno de um ponto | o sol (30s), o floco (48s) |
  * | `sobe`   | sobe e some, e recomeça embaixo    | a fumaça da chaminé (6s)   |
  * | `balanca`| inclina para um lado e volta       | — (novo, mesma família)    |
- * | `anda`   | desliza no eixo e volta ao lugar   | a caixa da expedição       |
+ * | `anda`   | desliza num eixo e volta ao lugar  | a caixa da expedição       |
  *
  * **Não existe "respira" aqui, de propósito.** Crescer e encolher um pouquinho é
  * exatamente o respiro genérico do `Alive` — o mesmo movimento para as vinte e
@@ -52,7 +52,7 @@ export type Vida =
   | { como: 'gira'; cicloMs: number; centro: readonly [number, number] }
   | { como: 'sobe'; cicloMs: number; altura: number; atrasoMs?: number }
   | { como: 'balanca'; cicloMs: number; graus: number; centro: readonly [number, number] }
-  | { como: 'anda'; cicloMs: number; passo: number }
+  | { como: 'anda'; cicloMs: number; passo: number; eixo?: 'x' | 'y' }
   | { como: 'nenhum' };
 
 /**
@@ -118,8 +118,13 @@ function desenhar(vida: Vida, t: number): Record<string, number> {
         originX: vida.centro[0],
         originY: vida.centro[1],
       };
-    case 'anda':
-      return { translateX: Math.sin(t * 2 * Math.PI) * vida.passo };
+    case 'anda': {
+      // O eixo é do objeto: caminhão anda de lado, barra de gráfico anda para
+      // cima. Um só parâmetro em vez de um movimento novo — a lista fechada só
+      // cresce quando o mecanismo é outro, não quando a direção é outra.
+      const d = Math.sin(t * 2 * Math.PI) * vida.passo;
+      return vida.eixo === 'y' ? { translateY: d } : { translateX: d };
+    }
     default:
       return {};
   }

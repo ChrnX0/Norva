@@ -42,8 +42,14 @@ Na ordem em que o olho encontra:
    entre um e o próximo. Movimento nunca atrasa informação — a leitura de tela
    recebe tudo montado no primeiro quadro.
 4. **`Card` com `hue` + `icon` + `title`** para cada assunto. Fundo lavado de 8 a
-   13% do tom, borda inteira na mesma cor, trilho à esquerda mais forte. Um
-   `title` sem `icon` não compila: o cabeçalho do cartão só existe com o crachá.
+   13% do tom, borda inteira na mesma cor, trilho à esquerda mais forte.
+
+   `title` sem `icon` era proibido — o cabeçalho só existia com crachá, e um
+   título sozinho sumia em silêncio. **Deixou de ser**, no dia em que cada LINHA
+   da gaveta do "Mais" ganhou o desenho do destino: o cabeçalho "Lançamentos" e a
+   linha "Compras" apareceram com o mesmo desenho, um debaixo do outro, e o dono
+   viu antes de mim. Grupo cujas portas já têm desenho não precisa de um: precisa
+   da régua colorida e do nome, que é a forma editorial do Papel.
 5. **A ação provável, embaixo.** Um `Button` primário só; o resto é fantasma.
    Corrigir, apagar e estornar são sempre fantasma — botão grande e colorido
    convida, e ninguém deve ser convidado a desfazer.
@@ -153,8 +159,20 @@ Três regras que vêm com ele:
    cobrar atenção que a tela não pediu.
 
 O `Alive` continua, reduzido ao que ele sempre fez de certo: **a chegada**, na
-mola `settle`, com o escalonamento de quarenta milissegundos do `Reveal`. **A
-barra de abas fica de fora** — ali o ícone é orientação, não assunto.
+mola `settle`, com o escalonamento de quarenta milissegundos do `Reveal`.
+
+**E a barra de abas NÃO fica mais de fora** — decisão do dono, 5 de setembro,
+contra o que este arquivo dizia antes ("uma barra que respira é ruído"). Ele
+mandou os cinco: *"um detalhe nestes ícones... quero TODOS animadas"*. Três deles
+têm movimento próprio (a unidade anda na esteira, o caminhão anda, a barra do
+meio do gráfico se mexe no eixo dela) e **dois são ambiente assumido** — a casa e
+a grade não têm o que mexer, e balançam oito décimos de grau em quarenta
+segundos, que é o mesmo estatuto do sol e do floco da cena aprovada: giram sem
+nenhum fato por trás, e a cena é melhor com eles.
+
+Está escrito aqui em vez de escondido no código porque a diferença importa: o
+movimento que SIGNIFICA e o movimento que só existe para a tela não parecer morta
+não são a mesma coisa, e quem mexer nisto depois precisa saber qual é qual.
 
 `Reduzir movimento` para tudo, e **no repouso**: quem desliga vê o desenho
 inteiro e no lugar. A primeira versão parava a etiqueta torta e a fumaça

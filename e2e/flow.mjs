@@ -278,7 +278,7 @@ check('the five tabs are there, and the old addresses still answer', async (page
   // Compra escreve no livro-razão e pedido é livro de pedidos: nenhuma das duas
   // é cadastro, e a palavra promete a classe de risco errada — cadastro se
   // corrige editando, escrita no livro-razão só se corrige por estorno.
-  assert.match(more, /LANÇAMENTOS/, 'o que se lança não fica sob CADASTROS');
+  assert.match(more, /Lançamentos/, 'o que se lança não fica sob Cadastros');
   assert.match(more, /Pergunte/, 'the assistant has a door');
   assert.doesNotMatch(more, /Financeiro|Notas fiscais|Pessoas/, 'a drawer that opens onto nothing');
 
