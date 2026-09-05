@@ -1,7 +1,7 @@
 ## 28. Roadmap: o que está feito, o que falta, e em que ordem
 
 O plano deste produto mora em dois arquivos que se referenciam: `docs/roadmap.md`
-(o arco inteiro, 418 linhas) e a seção **Faseamento** do `CLAUDE.md`
+(o arco inteiro, 417 linhas) e a seção **Faseamento** do `CLAUDE.md`
 (`CLAUDE.md:378-438`, que registra as decisões do dono sobre fase e o portão por
 item). Um terceiro arquivo, `docs/auditoria.md` (4 de setembro de 2026, dez
 frentes e trinta achados), é a medição de onde o produto estava — e é dele que a

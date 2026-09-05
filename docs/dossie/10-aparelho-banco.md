@@ -26,7 +26,8 @@ Os PRAGMAS são executados em `openAndMigrate`, antes de `migrate` (`src/data/db
 
 ### 10.2 A lista `MIGRATIONS` — V1 a V17, transcrita
 
-`MIGRATIONS` é a lista literal, na ordem, e é a única forma de as tabelas mudarem; o próprio `PRAGMA user_version` do SQLite registra até onde um determinado celular chegou (`src/data/db.ts:160-172`).
+`MIGRATIONS` é a lista literal, na ordem, e é a única forma de as tabelas mudarem; o próprio `PRAGMA user_version` do SQLite registra até onde um determinado celular chegou (`src/data/db.ts:676-678`, com a razão
+escrita em `:160-172`).
 
 ```ts
 const MIGRATIONS: readonly string[] = [

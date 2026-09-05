@@ -1167,9 +1167,14 @@ A condição que o plano impôs para deixar o assistente escrever.
   (`src/assistant/index.ts:72`) → a habilidade põe `assistantPhrase: ctx.question` no `apply`
   → `liveData` repassa → o repositório grava.
 
-Quatro das dezessete habilidades escrevem, e as quatro carimbam a frase:
-`register_purchase` (`skills.ts:377`), `register_count` (`skills.ts:599`),
-`register_production` (`skills.ts:886`), `register_transfer` (`skills.ts:963`).
+**Cinco** das dezessete habilidades escrevem no livro-razão: `register_purchase`
+(`skills.ts:372`), `register_count` (`:596`), `register_input` (`:679`, que chama
+`saveItem`), `register_production` (`:882`) e `register_transfer` (`:959`).
+
+**Quatro** delas carimbam a frase dita em `assistant_phrase`: `register_purchase`
+(`skills.ts:377`), `register_count` (`:599`), `register_production` (`:886`) e
+`register_transfer` (`:963`). `register_input` é a exceção factual — ela cadastra um
+insumo, e cadastro não é movimento.
 
 **Exceção factual:** `register_input` chama `saveItem`, que escreve a linha do item e
 **nenhum movimento** — não há `assistantPhrase` ali (`skills.ts:678-686`), e não há coluna

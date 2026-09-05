@@ -643,7 +643,7 @@ relatando um número diferente do da tela, e o aplicativo perderia a credibilida
 num único dia"* (`0001:249-252`).
 
 No aparelho, o saldo não é view: é a mesma soma escrita em SQL em cada consulta
-que precisa dela. As oito somas:
+que precisa dela. As dez somas:
 
 | função | eixo | SQL | linha |
 |---|---|---|---|
@@ -724,7 +724,7 @@ olha `kind`) e deixa todas as telas de "o que aconteceu" dizendo o número velho
 o almoxarifado certo e a produção mentindo, no mesmo aplicativo**
 (`src/data/repository.ts:735-743`).
 
-É **constante e não função de apelido** porque as oito consultas chamam a tabela
+É **constante e não função de apelido** porque as nove consultas chamam a tabela
 de `m`, e montar SQL por interpolação — mesmo com um apelido que nunca veio de
 fora — é o padrão que a proofgate marca, com razão; consulta que precisar de outro
 apelido escreve a sua, à vista (`src/data/repository.ts:745-748`).

@@ -86,8 +86,10 @@ lugares distintos, cada um com a cicatriz que a motivou.
 > string vazia e `isDefault` — e quem fala português é quem desenha."*
 
 O banco reforça: o `INSERT` do lugar padrão grava `''` literalmente
-(`src/data/db.ts:855-857`), e o comentário na migração diz *"An unnamed location means
-'the one place', and the interface is what names it"* (`src/data/db.ts:257-264`).
+(`src/data/db.ts:262-264`), e o comentário na migração diz *"An unnamed location means
+'the one place', and the interface is what names it"* (`src/data/db.ts:252-261`). Em
+tempo de execução o mesmo `INSERT` é feito por `ensureLocation`
+(`src/data/repository.ts:863-866`).
 
 **2. Remessa volta em unidade-base, nunca em "caixas".** `shipmentsOn` recusa
 converter (`src/data/repository.ts:3295-3299`):

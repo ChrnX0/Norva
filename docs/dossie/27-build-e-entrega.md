@@ -114,6 +114,7 @@ instalado no lockfile.
 | `e2e:fast` | `node scripts/e2e-parallel.mjs` (`package.json:17`) | Um export só, checagens fatiadas em até 4 processos |
 | `shot` | `node scripts/shot.mjs` (`package.json:18`) | Tira foto de tela em `.shots/` |
 | `folha` | `node scripts/folha.mjs` (`package.json:19`) | Junta as fotos numa folha de contato |
+| `dossie` | `node scripts/dossie.mjs` (`package.json:20`) | Monta `docs/DOSSIE.md` a partir de `docs/dossie/*.md`: capa `00-` primeiro, sumário com âncora no formato do GitHub, seções `01-` a `35-`, apêndices de `90-` para cima. Recusa seção sem título de nível 2 e seção com número ímpar de cercas ``` — *"cerca desbalanceada engole o resto do documento inteiro, e já engoliu"*. O arquivo montado passa de 3 MB e **não** entra no git (`.gitignore:55-56`), porque o GitHub não renderiza markdown desse tamanho |
 
 #### 27.3.1 `npm test` — cobertura e borda
 

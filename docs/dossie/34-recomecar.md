@@ -142,7 +142,7 @@ commit?" pega todas.
 
 **9. Um fluxo inteiro antes de qualquer largura.** Compra → estoque → produção → saldo, no
 telefone do dono, com ele usando. Depois lote e etiqueta. Depois pedido e separação. O
-repositório tinha 17 telas e nenhuma tinha sido usada por uma pessoa de verdade numa fábrica.
+repositório tinha 24 telas e nenhuma tinha sido usada por uma pessoa de verdade numa fábrica.
 
 **10. Splash e ícone de verdade antes do primeiro APK que alguém instala.** Ficou o splash do
 scaffold do Expo. É pequeno e é a primeira coisa que o dono vê.

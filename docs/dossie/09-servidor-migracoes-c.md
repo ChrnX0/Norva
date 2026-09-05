@@ -1447,7 +1447,8 @@ grant execute on function auth.uid() to app_user;
 (`:240-251`) — "On Supabase this is `authenticated`; the grants below mirror what it
 holds." (`:238-239`)
 
-**As sete asserções, com os números exatos:**
+**As seis asserções, com os números exatos** (as três de associação pendente estão na
+tabela seguinte, "A segunda metade"):
 
 | Consulta (via `as_user`) | Quem | Esperado | Mensagem de falha |
 |---|---|---|---|

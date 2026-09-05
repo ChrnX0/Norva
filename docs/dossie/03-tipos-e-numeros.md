@@ -1345,7 +1345,7 @@ exato:
 
 1. Duas sacas de 25 kg entraram a R$ 118 cada → saldo 50.000 g, `average_rate` 0,472.
 2. A pessoa conta 46.000 g. `parseTyped('46000')` = `46000` (`app/inputs/[id].tsx:275`).
-3. `countStock` calcula `delta = counted - expected` = `-4000` e
+3. `recordCount` calcula `delta = counted - expected` = `-4000` e
    `deltaCents: amountOf(0.472, -4000)` = `-1888` (`src/data/repository.ts:976`).
 4. A confirmação diz, em português, com os números por extenso:
    `Você contou 46.000 g`, `esperava 50.000 g`,

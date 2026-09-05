@@ -1251,6 +1251,25 @@ todo dia é igual ensina a capa a comparar ruído com ruído (`:110-113`).
 Chamador de produção: `app/settings.tsx` chama `simulateFortnight`. `simulateHistory` não tem
 chamador.
 
+#### `simulateHistory` — o mesmo caminho com outro horizonte
+
+`src/data/simulate.ts:53-70`. O corpo é uma linha: `return simulateFortnight(companyId,
+options)`. **Sem chamador** — mas a diferença entre "função morta, apagar pelo P1" e
+"instrumento à espera de um chamador" está escrita, e é o que se perderia:
+
+> *"Um ano de fábrica, para ver o que só quebra com tempo. A quinzena prova que as
+> telas têm o que dizer. O que ela NÃO prova é o que este app promete no prazo longo:
+> custo médio que anda, cobertura que encolhe, histórico que cresce, consulta que fica
+> lenta quando o livro-razão passa de dez mil linhas. Nada disso aparece num banco de
+> catorze dias, e esperar um ano de uso real para descobrir é exatamente o que não vai
+> acontecer. É a mesma função com outro horizonte: o mesmo caminho de escrita, as
+> mesmas validações, o mesmo determinismo."*
+
+É a ferramenta que fecharia a dívida registrada na §29 ("não houve teste de carga
+real"): o que falta é passar `days` grande e ter um chamador, não escrever código
+novo. E o determinismo é o que a torna útil — a mesma semente devolve a mesma fábrica,
+então uma consulta que ficou lenta é comparável entre execuções.
+
 ---
 
 ### 12.17 `src/data/erase.ts` — apagar como regra, não como SQL

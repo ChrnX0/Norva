@@ -349,6 +349,19 @@ que mexeu e o que fazer a respeito*. O dono já sabe quanto estoque tem na câma
 — o que ele não pode saber sem o aplicativo é que a polpa subiu 9% na terça e
 levou três centavos por unidade com ela (`app/(tabs)/index.tsx:60-66`).
 
+**Por que o dado da capa mora fora do desenho** — e esta é a metade da história que
+explica a arquitetura que sobrou (`src/home/types.ts:5-12`, e o docblock anterior de
+`app/(tabs)/index.tsx:41-48`): *"O dono pediu para ver as opções em vez de escolher no
+escuro ('faz tudo, eu quero exemplos'), e três desenhos da mesma tela só são
+comparáveis se os três receberem exatamente o mesmo dado. A consulta fica em
+`index.tsx`, uma só; cada layout é uma função pura daqui para baixo."*
+
+A escolha do Mosaico apagou os outros dois layouts, mas **não** apagou a separação:
+`Summary` continua sendo o contrato entre o que a capa sabe e como ela desenha. Sem
+essa razão escrita, a divisão `types.ts` / `Mosaic.tsx` parece cerimônia, e a próxima
+pessoa embute a consulta dentro do desenho — o que faria qualquer comparação futura
+medir consultas diferentes em vez de desenhos diferentes.
+
 Duas versões alternativas da capa (`Editorial` e `Blocks`) **foram removidas**
 quando o dono escolheu o Mosaico, e o motivo está escrito: a partir da escolha,
 `LAYOUT` era uma constante com um valor só, e as outras duas eram código sem

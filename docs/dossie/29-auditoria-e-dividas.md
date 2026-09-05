@@ -994,6 +994,6 @@ são as dívidas desta seção vistas de outro ângulo:
    id era o próprio `company_id`, e as três consultas de saldo somavam por empresa e item, sem
    filtrar local.
 8. **Nenhuma peça sem chamador no mesmo commit** (§29.8).
-9. **Um fluxo inteiro antes de qualquer largura.** *"O repositório tinha 17 telas e nenhuma
+9. **Um fluxo inteiro antes de qualquer largura.** *"O repositório tinha 24 telas e nenhuma
    tinha sido usada por uma pessoa de verdade numa fábrica."*
 10. **Splash e ícone de verdade antes do primeiro APK que alguém instala** (§29.7.1).

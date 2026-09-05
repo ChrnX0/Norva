@@ -455,6 +455,15 @@ factor.toLocaleString(formatting), perThousand: formatMoney(Math.round(unitRate 
 | tem fator, falta preço | `fillPrice = 'Falta o preço pago. Com ele o app calcula o custo por unidade de uso.'` (`:578`) |
 | tem preço, falta fator | `fillInside = 'Falta quanto vem dentro da embalagem: é por ele que o preço se divide.'` (`:577`) |
 
+**O caso que produziu essa regra** (`app/inputs/new.tsx:255-259`): *"A frase mandava
+preencher 'a embalagem e o preço', e a conta não depende da embalagem: com EMBALAGEM
+'balde' e PREÇO '118,00' os dois campos que ela pedia estavam preenchidos e a frase
+continuava na tela. O que estava vazio era QUANTO VEM DENTRO, que ela não mencionava —
+e a tela sabe qual é."* Por isso os dois testes são `temFator` e `temPreco`, calculados
+de `parsed` — o que a divisão precisa —, e nunca da presença de texto no campo de
+embalagem. A regra não é de redação, é aritmética: a frase nomeia o campo que falta
+para a **conta**, não os dois nomes que a pessoa esperaria ouvir.
+
 #### 19.3.5 O cartão do custo e a conferência da conversão
 
 Só aparece quando `mostraCusto = parsed.valid && !editing`
@@ -468,6 +477,18 @@ palette.sky` (`:472`). Conteúdo:
 - Legenda `fill(perThousandOf, { unit: baseUnit })` = `'a cada 1.000 {{unit}}'`
   (`:569`, uso `:484-486`).
 - `Chip` da conferência (`app/inputs/new.tsx:237-251`, desenhado em `:488`):
+
+**A cicatriz que essa tabela fecha**, e sem ela os três estados parecem dois estados
+com um sobrando (`app/inputs/new.tsx:222-236`): *"'Conversão confere' acendia sempre
+que os dois números eram positivos, sem comparar nada — dava para ver na tela, ao
+mesmo tempo, EMBALAGEM 'saco 25 kg', QUANTO VEM DENTRO '250 g' e a etiqueta verde
+afirmando que a conversão confere. Errado por cem vezes, que é exatamente o erro que
+esta tela existe para impedir. E o aplicativo já sabia checar: `packSize` é a mesma
+função que preenche o campo quando ninguém o digitou."* Daí a regra que ficou: **ou a
+etiqueta afirma só o que foi feito, ou ela compara de verdade** — nunca afirma o que
+não checou. É por isso que `mathCloses` existe como estado próprio: quando não há
+tamanho legível para comparar, "a conta fecha" é a única afirmação honesta, e
+"conversão confere" seria mentira.
 
 | Situação | `signal` | Texto |
 |---|---|---|
@@ -1509,6 +1530,13 @@ precedência do cadastro de produto (`:113-133`):
 | só tipo | `composedNoFlavor = '{{line}} {{type}}'` |
 | nenhum | `linhaAtiva.name` |
 | sem linha | `null` — só a frase de ensino |
+
+A precedência é a **mesma** do cadastro de produto, e é dela de propósito
+(`app/catalog.tsx:107-111`): *"se a tela que ensina compusesse o nome por uma regra
+diferente da tela que grava, o ensino estaria mentindo. Sem linha nenhuma não há
+exemplo — e aí a frase de ensino fica sozinha, que é o certo no primeiro dia."* É o
+motivo de a composição ser compartilhada em vez de reescrita aqui, e o motivo de o
+estado "sem linha" mostrar `null` em vez de um exemplo inventado.
 
 Abaixo, sempre, `intro = 'Cadastre uma vez e combine à vontade. Picolé
 tradicional de morango é uma linha, um tipo e um sabor — não um nome digitado

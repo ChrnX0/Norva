@@ -269,10 +269,24 @@ recordPurchase(companyId: string, input: {
   baseUnits: number;          // já convertido
   totalCents: Cents;
   orderedAt?: string;
-  occurredAt?: string;        // quando a nota entrou de verdade
+  occurredAt?: string;        // quando a nota entrou de verdade — ver a nota abaixo
   assistantPhrase?: string;
 }): Promise<{ previousRate: Rate | null; newRate: Rate }>
 ```
+
+**`occurredAt` existe por uma cicatriz, e ela amarra dois passos desta lista**
+(`src/data/repository.ts:307-317`): *"Nota de compra chega atrasada: o caminhão
+descarrega às sete e alguém digita ao meio-dia, ou no dia seguinte. O livro-razão
+guarda os dois fatos separados desde a V3 — `occurred_at` é quando aconteceu,
+`recorded_at` é quando o aparelho soube —, e até agora esta função escrevia o mesmo
+instante nos dois, o que fazia toda compra parecer ter acontecido na hora da
+digitação. O histórico de custo herda a mesma data, senão a alta apareceria no dia
+errado da home."*
+
+As duas datas são um par. É por isso que o passo 7 grava `observed_at = occurred` e
+não `nowIso()`: separar o movimento sem separar o histórico devolve o defeito pela
+metade — o saldo passa a cair no dia certo e a capa continua anunciando a alta no dia
+da digitação.
 
 Ordem exata dos passos (`src/data/repository.ts:330-462`):
 

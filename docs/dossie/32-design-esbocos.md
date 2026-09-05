@@ -43,7 +43,8 @@ desses elementos para a pessoa configurar a tela inicial dela"*
 
 O contrato de descarte estava escrito desde o começo: *"O que for escolhido vira
 código de verdade; **os outros nove são apagados**, junto com esta pasta"*
-(`docs/esbocos/README.md:9-10`). A pasta **não foi apagada** — os 40 arquivos
+(`docs/esbocos/README.md:9-10`). A pasta **não foi apagada** — os 42 arquivos (38 HTML, dos quais 37 são esboços
+numerados: a numeração salta 26, 27 e 28, que nunca existiram)
 seguem no repositório na data deste dossiê.
 
 Por que os esboços entraram no repositório em vez de ficar num diretório
@@ -299,7 +300,7 @@ Fundo `#fff6e9`. Quatro cartões de cor **chapada** — `.c1 #ffb02e`,
 `.c2 #7bd389`, `.c3 #7cc6fe`, `.c4 #ff8fa3` — com `border-radius:28px` e
 **sombra dura** `box-shadow:0 6px 0 rgba(0,0,0,.12)` (`07-brinquedo.html:9-10`).
 Números em **60px, peso 900**, brancos, com `text-shadow:0 3px 0
-rgba(0,0,0,.12)`. **É o único dos quarenta esboços que usa emoji**: 🍦 no avatar,
+rgba(0,0,0,.12)`. **É o único dos trinta e sete esboços que usa emoji**: 🍦 no avatar,
 🏭 🏭 ⛅ 🍓 📦 nos cartões e 🍧 no CTA (`07-brinquedo.html:24,26,33,39,40,43`).
 Saudação personalizada: *"Bom dia, chefe!"*.
 

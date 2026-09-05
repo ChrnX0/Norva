@@ -1081,7 +1081,7 @@ Itens que o mandato deste dossiê pergunta e que **não existem na tela**:
 
 #### 21.1.14 O que o e2e afirma sobre esta tela
 
-Seis checagens em `e2e/flow.mjs` dirigem `/settings` num navegador de verdade:
+Sete checagens em `e2e/flow.mjs` dirigem `/settings` num navegador de verdade:
 
 | linha | checagem | o que afirma |
 |---|---|---|

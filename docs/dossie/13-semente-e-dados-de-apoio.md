@@ -69,7 +69,7 @@ O docblock diz o motivo: “uma empresa local até o login chegar; toda linha j�
 está carimbada com ela, então multi-empresa deixa de ser uma migração depois e
 passa a ser um login” (`src/data/seed.ts:6-11`).
 
-Ele é importado direto por **24 telas e três módulos**, sempre como constante e
+Ele é importado direto por **22 telas e três módulos**, sempre como constante e
 nunca por parâmetro de rota (lista completa, obtida por `grep`):
 
 `app/(tabs)/index.tsx:20` · `app/(tabs)/production.tsx:21` ·
@@ -725,7 +725,7 @@ Nota factual: o `data` recebe `locale.timeZone` (o fuso escolhido pela empresa),
 mas o campo `locale` do contexto recebe `defaultLocale`, não `locale`
 (`app/assistant.tsx:98-100`). São duas fontes diferentes no mesmo objeto.
 
-#### 13.11.1 Os dezesseis membros, um por um
+#### 13.11.1 Os dezessete membros, um por um
 
 `liveData` devolve um objeto literal. Coluna “injeta” = o que `liveData` preenche
 que o chamador não passa.

@@ -2,9 +2,17 @@
 
 ### 25.1 O inventário
 
-Sete arquivos formam as ferramentas de verificação e de olhar deste repositório.
-Seis têm comando declarado em `package.json`; um (`icons.mjs`) se roda à mão; um
+Oito arquivos formam as ferramentas de verificação e de olhar deste repositório.
+Sete têm comando declarado em `package.json`; um (`icons.mjs`) se roda à mão; um
 (`manifesto.mjs`) é biblioteca, sem comando próprio.
+
+> **Nota de honestidade sobre esta seção.** Ela foi escrita quando as ferramentas
+> eram sete. O oitavo arquivo — `scripts/dossie.mjs`, que monta este documento —
+> nasceu depois, e por algumas horas esta seção afirmou "sete" e transcreveu o bloco
+> `scripts` do `package.json` sem a linha `dossie`. Um crítico varreu o repositório
+> contra o dossiê e achou que **o único arquivo do projeto não citado em lugar nenhum
+> era justamente o que explica o dossiê**. Fica registrado porque é a doença que a
+> §33.5 descreve: número escrito envelhece, e nenhuma guarda cobria esta linha.
 
 | arquivo | linhas | comando | estado |
 |---|---|---|---|
@@ -48,7 +56,9 @@ navegador importa sempre `playwright-core` — `import { chromium } from
 dentro da oficina de mutação.
 
 Duas pastas que estas ferramentas escrevem e o git ignora: `.mutate/` e `.shots/`
-(`.gitignore`, últimas duas linhas), com o motivo escrito ali mesmo — *"As cópias que
+(`.gitignore:52-53` — eram as duas últimas linhas do arquivo até `docs/DOSSIE.md` entrar
+depois delas, e localizar por posição em vez de por linha é o que fez o ponteiro envelhecer),
+com o motivo escrito ali mesmo — *"As cópias que
 o `mutate` usa para nunca tocar na árvore de trabalho. Ele apaga sozinho ao sair;
 isto cobre a execução que morreu no meio, para o portão não reprovar por 'árvore
 suja' por causa de lixo de ferramenta."*
@@ -2403,6 +2413,40 @@ E a terceira, que é sobre não disputar a própria medida (`docs/insights.md:32
 rodava… Rodar a suíte enquanto a bateria roda a suíte 98 vezes não é trabalhar em
 paralelo: é disputar a própria medida. O que dá para fazer enquanto a barra roda é
 documento e leitura, e nada que peça CPU."*
+
+---
+
+### 25.13 `npm run dossie` — o dossiê montado por script
+
+`scripts/dossie.mjs`, 60 linhas. **Implementado e chamado**, por `npm run dossie`
+(`package.json:20`). Docblock transcrito (`scripts/dossie.mjs:1-17`):
+
+> *"Monta `docs/DOSSIE.md` a partir das seções de `docs/dossie/`. O dossiê existe
+> porque este repositório ia ser apagado e o que se perde num apagamento não é o
+> código — é a razão de cada decisão, que aqui morava em docblock, em nome de
+> migração e em `docs/insights.md`. As seções são a fonte e ficam versionadas uma
+> por arquivo; o arquivo único é derivado e NÃO entra no git, por dois motivos
+> concretos: ele passa de 3 MB, e o GitHub não renderiza markdown desse tamanho —
+> mostra o texto cru ou trunca. As seções soltas, de 50 a 200 KB cada, abrem no
+> navegador normalmente. Quem quer o arquivo único quer para dar `grep` ou para
+> entregar a outra ferramenta, e para isso ele se monta em meio segundo com este
+> script. Ordem: `00-` é a capa e vem antes do sumário; `01-` a `35-` são as
+> seções; `90-` para cima são os apêndices verbatim."*
+
+Consequências operacionais, para quem reconstruir:
+
+- **O número no nome do arquivo é o contrato de ordenação.** O filtro é
+  `/^\d\d-.+\.md$/` e a ordem é `sort()` de string — por isso os apêndices começam
+  em `90`, e não em `36`: deixa espaço para seções novas sem renomear nada.
+- **A capa `00-*` é obrigatória.** Sem ela o script lança
+  `docs/dossie não tem a capa 00-*.md` em vez de montar um documento sem começo.
+- **Ele recusa duas coisas em vez de produzir documento quebrado:** seção sem título
+  de nível 2, e cerca de código em número ímpar. A segunda é cicatriz: um apêndice de
+  markdown foi envolvido em ``` tendo ``` dentro, e a cerca interna fechou a externa —
+  metade do apêndice virou texto e a outra metade sumiu dentro de um bloco de código.
+- **A âncora do sumário imita a do GitHub:** minúsculas, sem acento (`NFD` + remoção
+  de diacríticos), só letras, dígitos, espaço e hífen, espaços viram hífens.
+- `docs/DOSSIE.md` está no `.gitignore` com o motivo escrito na linha acima dele.
 
 ---
 

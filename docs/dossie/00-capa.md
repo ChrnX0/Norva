@@ -37,7 +37,7 @@ Medido no commit `77b4f30`, o último antes deste dossiê.
 |---|---|
 | Commits | 296, entre 31 de agosto e 4 de setembro de 2026 |
 | Linhas de código e documentação | ~57.000 (fora `package-lock.json`, `android/`, `ios/`) |
-| Telas (rotas do Expo Router) | 17 |
+| Telas (rotas do Expo Router) | 24 |
 | Componentes de interface | 26 |
 | Módulos de domínio | 16 |
 | Arquivos de teste | 42 (338 testes verdes no último commit) |
@@ -51,7 +51,7 @@ Distribuição por área, em linhas:
 
 | Área | Linhas | O que é |
 |---|---|---|
-| `app/` | 11.092 | as 17 telas |
+| `app/` | 11.092 | as 24 telas |
 | `src/data/` | 10.691 | banco do aparelho, repositório, semente, fila de saída |
 | `docs/` | 10.359 | insights, roadmap, auditoria, linguagem, esboços |
 | `src/domain/` | 4.466 | as regras puras: dinheiro, medida, razão, custo, receita, lote, acesso |
@@ -105,5 +105,6 @@ menos uma dependência que envelhece, e a saída é legível sem aprender uma fe
 | `npm run mutate` | `node scripts/mutate.mjs` — quebra o código de propósito |
 | `npm run shot` | `node scripts/shot.mjs` — capturas de tela nos dois esquemas |
 | `npm run folha` | `node scripts/folha.mjs` — a folha de referência visual |
+| `npm run dossie` | `node scripts/dossie.mjs` — monta `docs/DOSSIE.md` a partir das seções de `docs/dossie/` |
 
 ---

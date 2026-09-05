@@ -794,10 +794,10 @@ liga `companies.names_who_recorded`
 
 Entrar no chão de fábrica também é dado e não código: `create type floor_sign_in
 as enum ('personal', 'shared')`, padrão `personal`
-(`supabase/migrations/0011_joining_a_company.sql:68-73`). E associar-se tem dois
+(`supabase/migrations/0011_joining_a_company.sql:65-68`). E associar-se tem dois
 caminhos: `membership_state` = `pending` | `active` | `revoked`
 (`supabase/migrations/0011_joining_a_company.sql:11-15`) mais
-`companies.join_code` único (`supabase/migrations/0011_joining_a_company.sql:53`).
+`companies.join_code` único (`supabase/migrations/0011_joining_a_company.sql:55`).
 **Nada disso tem tela.** **[PLANEJADO]**
 
 Outras colunas de `memberships` que definem o produto e não têm leitor no

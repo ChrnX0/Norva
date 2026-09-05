@@ -140,6 +140,16 @@ sai do tacho.
 - `batches = Math.max(0, (parseTyped(batchText) ?? 0) || 0)` (`:151`).
 - `planned = plannedUnits(recipe, selected, batches > 0 ? batches : 1)` (`:165`)
   — **um** tacho enquanto ninguém declarou outro, para o campo não nascer vazio.
+
+  **E esta previsão NÃO é a suposição que o dono derrubou** — a distinção está
+  escrita no arquivo e é a mais fácil de perder (`app/production/new.tsx:160-163`):
+  *"Isto não é a suposição que o dono derrubou. Aquela decidia o CONSUMO por um tacho
+  suposto; esta preenche o campo do FATO com o valor mais provável, e o consumo segue
+  o número que ficar ali — inclusive se a pessoa apagar e escrever 480."* As duas
+  coisas moram em linhas diferentes: `planned` (`:165`) preenche o campo,
+  `consumedBatches` (`:189`) decide o débito. O achado registrado na §30 é sobre a
+  segunda; quem ler só aquele achado e retirar este pré-preenchido reabre a violação
+  da Lei 2 que ele existe para fechar.
 - `units = unitsTyped ? Math.max(0, (parseTyped(unitsText) ?? 0) || 0) : planned`
   (`:168`).
 - `perBatch = plannedUnits(recipe, selected, 1)` (`:171`) — o que um tacho cheio
