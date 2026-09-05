@@ -1,8 +1,10 @@
 import { nowIso } from './db';
 import {
+  balanceByLocation,
   listItems,
   listPlaces,
   listProducts,
+  recordCount,
   recordLoss,
   recordProduction,
   recordPurchase,
@@ -56,6 +58,8 @@ export type Simulation = {
   runs: number;
   deliveries: number;
   invoices: number;
+  /** As conferências de prateleira — é por elas que o que saiu da loja sai. */
+  counts: number;
 };
 
 /**
@@ -267,7 +271,7 @@ export async function simulateFortnight(
 
   const { fabrica: factory, destinos, produtos: products } = await garantirElenco(companyId);
 
-  const tally: Simulation = { days, runs: 0, deliveries: 0, invoices: 0 };
+  const tally: Simulation = { days, runs: 0, deliveries: 0, invoices: 0, counts: 0 };
 
   /** O preço de referência de cada insumo, fixado na primeira compra dele. */
   const patamar = new Map<string, number>();
@@ -352,12 +356,29 @@ export async function simulateFortnight(
     // À tarde, parte disso sai — e sai para DESTINOS diferentes, um por vez.
     // Sempre para a mesma loja, o transporte mostraria uma linha só e a tela de
     // "para onde foi" não teria para onde.
+    //
+    // **O saldo consultado é o da SALA, não o da empresa.** Estava `listItems`,
+    // que soma a empresa inteira — inclusive o que já está na prateleira das
+    // lojas. A fábrica "despachava" o que estava a dez quilômetros dela, e o
+    // saldo da sala dela ia a negativo em silêncio. É o mesmo erro que o piso da
+    // produção existe para impedir, cometido pela porta de trás.
+    //
+    // E ela despacha o que FEZ. Saíam de 100 a 400 por destino com 45% de
+    // chance, contra 500 a 1.000 produzidos por dia: a fábrica acumulava
+    // trezentas unidades por dia e terminava os noventa dias com um freezer de
+    // vinte e sete mil picolés. A saída tem de superar a produção — três
+    // destinos, quatro em cada cinco dias, 150 a 500 por viagem — e aí o que
+    // segura o volume passa a ser o piso da sala, não o sorteio: fica o giro do
+    // dia seguinte e o resto vai para a prateleira.
     for (const destino of destinos) {
-      if (next() > 0.55) continue;
+      if (next() > 0.8) continue;
       const product = products[Math.floor(next() * products.length)];
-      const held = (await listItems(companyId)).find((i) => i.id === product.itemId);
-      const available = held?.onHandBaseUnits ?? 0;
-      const sent = Math.min(available, 100 + Math.floor(next() * 300));
+      const naSala =
+        (await balanceByLocation(companyId, product.itemId)).find((b) => b.locationId === factory.id)
+          ?.baseUnits ?? 0;
+      // O giro que fica: uma fábrica não esvazia a câmara, ela mantém o de amanhã.
+      const guardado = 120 + Math.floor(next() * 160);
+      const sent = Math.min(Math.max(0, naSala - guardado), 150 + Math.floor(next() * 350));
       if (sent > 0) {
         await recordTransfer(companyId, {
           itemId: product.itemId,
@@ -367,6 +388,46 @@ export async function simulateFortnight(
           occurredAt: at(16),
         });
         tally.deliveries += 1;
+      }
+    }
+
+    /**
+     * A loja confere a prateleira, e acha menos — porque vendeu.
+     *
+     * Sem isto o destino só RECEBE. Depois de noventa dias o Mercado do Zé
+     * aparecia com quase nove mil picolés na prateleira, e "Estoque por lugar"
+     * mostrava esse número como verdade. Nenhuma loja de bairro guarda isso.
+     *
+     * A venda não é lançada, e isso é decisão escrita, não esquecimento: o tipo
+     * `sale` existe no domínio e **não tem caminho de escrita** — ele é da F4,
+     * junto com o Espelho da Loja. O que já existe e já grava é a **contagem
+     * cega** (`docs/roadmap.md`, "a captura entra, o relatório espera"), e ela é
+     * exatamente o que uma fábrica sabe hoje sobre a prateleira de um cliente:
+     * não quanto vendeu, mas quanto sobrou. A diferença entra como `adjustment`,
+     * que é bookkeeping neutro — não vai para o relatório de perdas, e é isso
+     * mesmo: o que saiu dali não foi perdido, foi comprado por alguém.
+     *
+     * Uma vez por semana por destino, e o dia é sorteado por destino para as
+     * três lojas não conferirem todas na segunda-feira.
+     */
+    for (const [i, destino] of destinos.entries()) {
+      if ((days - 1 - back + i * 2) % 7 !== 0) continue;
+      for (const product of products) {
+        const naPrateleira =
+          (await balanceByLocation(companyId, product.itemId)).find(
+            (b) => b.locationId === destino.id,
+          )?.baseUnits ?? 0;
+        if (naPrateleira <= 0) continue;
+        // Sobra de um quinto a dois quintos: o resto da semana foi vendido.
+        const sobrou = Math.round(naPrateleira * (0.2 + next() * 0.2));
+        if (sobrou === naPrateleira) continue;
+        await recordCount(companyId, {
+          itemId: product.itemId,
+          countedBaseUnits: sobrou,
+          locationId: destino.id,
+          occurredAt: at(18),
+        });
+        tally.counts += 1;
       }
     }
 

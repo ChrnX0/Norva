@@ -335,7 +335,8 @@ export const en: Dictionary = {
       simulateBody:
         'Writes ninety days of factory on top of what is already there: production most days, deliveries to the store, and invoices with the price moving. A quarter is the shortest horizon where average cost actually moves and cover actually shrinks — things fourteen days never show. The ledger keeps these entries, and erasing everything is still in Settings.',
       simulateConfirm: 'Plant',
-      simulateDone: 'Done: {{runs}} runs, {{deliveries}} deliveries and {{invoices}} invoices.',
+      simulateDone:
+        'Done: {{runs}} runs, {{deliveries}} deliveries, {{invoices}} invoices and {{counts}} shelf counts.',
       failedToSimulate: 'Could not plant the movement',
       restoreTitle: 'Bring the example back?',
       restoreBody:

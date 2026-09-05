@@ -340,7 +340,8 @@ export const es: Dictionary = {
       simulateBody:
         'Escribe noventa días de fábrica sobre lo que ya existe: producción casi todos los días, entregas a la tienda y facturas con el precio variando. Un trimestre es el horizonte más corto en el que el costo promedio se mueve de verdad y la cobertura se encoge — cosas que catorce días no muestran. El libro mayor se queda con esos asientos, y borrar todo sigue estando en Ajustes.',
       simulateConfirm: 'Sembrar',
-      simulateDone: 'Listo: {{runs}} corridas, {{deliveries}} entregas y {{invoices}} facturas.',
+      simulateDone:
+        'Listo: {{runs}} corridas, {{deliveries}} entregas, {{invoices}} facturas y {{counts}} conteos de estante.',
       failedToSimulate: 'No se pudo sembrar el movimiento',
       restoreTitle: '¿Traer el ejemplo de vuelta?',
       restoreBody:

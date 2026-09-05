@@ -378,7 +378,8 @@ export const ptBR = {
       simulateBody:
         'Escreve noventa dias de fábrica em cima do que já existe: produção quase todo dia, entregas para a loja, e notas de compra com o preço variando. Um trimestre é o menor horizonte em que dá para ver o custo médio andar e a cobertura encolher — coisas que catorze dias não mostram. O livro-razão fica com esses lançamentos, e apagar tudo continua sendo em Ajustes.',
       simulateConfirm: 'Plantar',
-      simulateDone: 'Pronto: {{runs}} corridas, {{deliveries}} entregas e {{invoices}} notas.',
+      simulateDone:
+        'Pronto: {{runs}} corridas, {{deliveries}} entregas, {{invoices}} notas e {{counts}} conferências de prateleira.',
       failedToSimulate: 'Não deu para plantar o movimento',
       restoreTitle: 'Trazer o exemplo de volta?',
       restoreBody:

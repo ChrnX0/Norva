@@ -383,6 +383,7 @@ function Settings() {
           runs: String(feito.runs),
           deliveries: String(feito.deliveries),
           invoices: String(feito.invoices),
+          counts: String(feito.counts),
         }),
         acknowledge: true,
         confirmLabel: t.app.confirm.understood,
