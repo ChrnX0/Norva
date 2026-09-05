@@ -89,10 +89,18 @@ async function subir() {
   }
 
   dizer(`subindo ${AVD} — sem KVM, então é emulação por software`);
+  // Sem `-no-snapshot`: a primeira subida é cara (oito minutos a frio), e o
+  // instantâneo salvo na saída faz as seguintes custarem segundos. Três núcleos e não
+  // quatro: o quarto fica para o Metro e o resto, senão o System UI leva ANR.
   const filho = spawn(
     EMU,
     ['-avd', AVD, '-no-window', '-no-audio', '-no-boot-anim',
-     '-accel', 'off', '-gpu', 'swiftshader_indirect', '-memory', '3072', '-cores', '4'],
+     '-accel', 'off', '-gpu', 'swiftshader_indirect', '-memory', '3072', '-cores', '3',
+     // O idioma do aparelho decide o idioma do app. Sem isto, a foto sai em inglês e
+     // mente sobre o produto — foi exatamente o erro cometido antes com o navegador,
+     // que fotografou o app em inglês e passou por conferência.
+     '-prop', 'persist.sys.locale=pt-BR',
+     '-timezone', 'America/Sao_Paulo'],
     { detached: true, stdio: 'ignore' },
   );
   filho.unref();

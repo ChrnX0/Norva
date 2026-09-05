@@ -380,6 +380,13 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   e incedível; `operator_id` = quem estava com o aparelho), e uma coluna só
   respondendo as duas é erro — já custou uma rodada inteira.
 
+- **Supabase: nada no ar antes de a sincronia existir.** Não há cliente Supabase no
+  projeto — nem em `package.json`, nem em `node_modules`; toda menção ao nome é
+  comentário ou leitura da pasta de migrações. As 32 migrações são arquivos
+  versionados, e quem as prova é o `npm run db:verify`, que sobe um Postgres
+  descartável e não depende de nuvem nenhuma. Provisionar (e pagar) projeto antes de
+  existir o caminho de escrita é gastar por nada.
+
 - **Aparelho emprestado entra como produção e nada mais.** Celular da empresa
   passa de mão; quem está com ele usa o papel `operator` — sem custo, sem preço,
   sem dinheiro. O aparelho continua respondendo.
