@@ -24,7 +24,16 @@ const BarraViva = Animated.createAnimatedComponent(Rect);
  * | `sobe`   | sobe e some, e recomeça embaixo    | a fumaça da chaminé (6s)   |
  * | `balanca`| inclina para um lado e volta       | — (novo, mesma família)    |
  * | `anda`   | desliza no eixo e volta ao lugar   | a caixa da expedição       |
- * | `respira`| cresce e encolhe quase nada        | — (para o que não tem parte que se mexa) |
+ *
+ * **Não existe "respira" aqui, de propósito.** Crescer e encolher um pouquinho é
+ * exatamente o respiro genérico do `Alive` — o mesmo movimento para as vinte e
+ * seis coisas —, e é ele que o dono recusou ao pedir que cada uma se mexesse como
+ * ela mesma. Deixá-lo na lista seria oferecer a saída fácil para o próximo glifo
+ * difícil, e a lista voltaria a ter um movimento só.
+ *
+ * **Nem "chega".** Entrada é trabalho do casco (`Reveal` e `Alive` já assentam o
+ * cartão inteiro); um glifo que também "chega" briga com quem o carrega. O que
+ * mora aqui é o que a coisa faz DEPOIS de estar na tela.
  *
  * **Por que um `<G>` animado e não uma `<View>` por cima.** A cena da fábrica
  * põe o sol e a caixa FORA do `<Svg>`, numa camada própria, e o comentário lá
@@ -44,7 +53,6 @@ export type Vida =
   | { como: 'sobe'; cicloMs: number; altura: number; atrasoMs?: number }
   | { como: 'balanca'; cicloMs: number; graus: number; centro: readonly [number, number] }
   | { como: 'anda'; cicloMs: number; passo: number }
-  | { como: 'respira'; cicloMs: number; centro: readonly [number, number] }
   | { como: 'nenhum' };
 
 /**
@@ -61,7 +69,10 @@ export function Vivo({ vida, children }: { vida: Vida; children: ReactNode }) {
   const ciclo = useCiclo(vida.como === 'nenhum' ? 1000 : vida.cicloMs, {
     feitio: feitioDe(vida),
     atrasoMs: vida.como === 'sobe' ? (vida.atrasoMs ?? 0) : 0,
-    repete: vida.como !== 'nenhum',
+    // A fumaça em zero é invisível (a opacidade dela é um seno que começa em
+    // zero); parada no meio da subida ela está opaca e no lugar. Os outros
+    // repousam em zero, que já é o desenho direito.
+    repouso: vida.como === 'sobe' ? 0.5 : 0,
   });
 
   const props = useAnimatedProps(() => desenhar(vida, ciclo.value));
@@ -70,9 +81,14 @@ export function Vivo({ vida, children }: { vida: Vida; children: ReactNode }) {
   return <GrupoVivo animatedProps={props}>{children}</GrupoVivo>;
 }
 
-/** Volta inteira ou vai-e-vem: quem dá a volta não pode voltar pelo caminho. */
-function feitioDe(vida: Vida): Feitio {
-  return vida.como === 'gira' || vida.como === 'sobe' ? 'volta' : 'vaivem';
+/**
+ * Todo movimento daqui percorre a volta inteira de zero a um, sem voltar pelo
+ * caminho — o vai-e-vem de `balanca` e `anda` vem do SENO aplicado a essa volta,
+ * não de o ciclo andar para trás. Assim `t=0` é sempre o repouso, e é isso que
+ * faz "reduzir movimento" parar o desenho no lugar em vez de parar torto.
+ */
+function feitioDe(_vida: Vida): Feitio {
+  return 'volta';
 }
 
 /**
@@ -91,22 +107,19 @@ function desenhar(vida: Vida, t: number): Record<string, number> {
       // Sobe e some: opaca no meio do caminho, transparente nas duas pontas. É
       // a fumaça da chaminé, e é o que faz um ciclo que recomeça não dar solavanco.
       return { translateY: -t * vida.altura, opacity: Math.sin(t * Math.PI) };
+    // Seno, e não uma rampa de -1 a +1. A diferença não é de estilo: com a rampa,
+    // t=0 é o EXTREMO — a etiqueta nascia torta e, com "reduzir movimento"
+    // ligado, ficava torta para sempre, porque o ciclo estaciona em zero. Com o
+    // seno, zero é o repouso: o desenho nasce direito, oscila para os dois lados,
+    // e quem desligou movimento vê o desenho no lugar dele.
     case 'balanca':
       return {
-        rotation: (t * 2 - 1) * vida.graus,
+        rotation: Math.sin(t * 2 * Math.PI) * vida.graus,
         originX: vida.centro[0],
         originY: vida.centro[1],
       };
     case 'anda':
-      return { translateX: (t * 2 - 1) * vida.passo };
-    case 'respira':
-      // Três centésimos de escala. Em vinte e seis pixels isso é menos de um
-      // pixel de viagem — é a medida que a casa já usava, e ela está certa.
-      return {
-        scale: 1 + t * 0.03,
-        originX: vida.centro[0],
-        originY: vida.centro[1],
-      };
+      return { translateX: Math.sin(t * 2 * Math.PI) * vida.passo };
     default:
       return {};
   }
@@ -132,7 +145,7 @@ export function Coluna({
   vaoAte,
   cor,
   cicloMs,
-  opacidade = 1,
+  opacidade = 0.22,
 }: {
   /** Canto esquerdo, na prancheta do desenho. */
   x: number;
@@ -144,9 +157,22 @@ export function Coluna({
   vaoAte: number;
   cor: string;
   cicloMs: number;
+  /**
+   * Vinte e dois por cento, como o picolé da cena aprovada — e é o único lugar
+   * em que massa entra no tema Papel.
+   *
+   * A regra do `massIf` (Glyph.tsx) tira o preenchimento quando o traço é fino,
+   * porque "a mancha pastel sob a linha delicada vira borrão". Ela vale para
+   * massa DECORATIVA, que só engorda o símbolo. Aqui a massa é o conteúdo
+   * medido dentro de uma forma fechada: é o que o desenho está dizendo, e sem
+   * ela não há o que dizer. O desenho aprovado faz exatamente isto, no Papel,
+   * com esta opacidade.
+   */
   opacidade?: number;
 }) {
-  const ciclo = useCiclo(cicloMs, { feitio: 'vaivem' });
+  // Meia altura no repouso: uma coluna parada no fundo lê como termômetro
+  // quebrado, e quem desligou movimento merece a leitura, não o defeito.
+  const ciclo = useCiclo(cicloMs, { feitio: 'vaivem', repouso: 0.5 });
   const props = useAnimatedProps(() => {
     'worklet';
     const altura = vaoDe + (vaoAte - vaoDe) * ciclo.value;

@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import { Alive } from './Alive';
 import { RAIL_WIDTH } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -147,23 +146,35 @@ export function Card({
     >
       {icon ? (
         <View style={[styles.head, { gap: space.sm, marginBottom: space.sm }]}>
-          {/* O desenho respira, nas duas caras: é o `Alive`, que generaliza o
-              sol e o floco da cena da fábrica para todo crachá do aplicativo. */}
+          {/* O desenho NÃO respira mais aqui — e essa é uma reversão consciente.
+
+              O `Alive` embrulhava todo crachá numa oscilação de escala de três
+              centésimos, igual para os vinte e seis desenhos. Ele nasceu de um
+              pedido do dono ("quero todos eles com aquela animação bem suave do
+              desenho de fábrica"), e o pedido estava certo — a leitura dele é que
+              estava errada. Na cena da fábrica o sol GIRA e a fumaça SOBE: cada
+              coisa faz o que ela faz. Um respiro só, aplicado a tudo, é o
+              contrário disso, e foi o que o dono recusou ao voltar ao assunto:
+              *"sutil, mas vivo"*, apontando a mesma cena de novo.
+
+              A chegada continua: o `Reveal` do casco assenta cada cartão. O que
+              saiu foi o laço perpétuo genérico — a vida agora mora DENTRO de cada
+              desenho, no `Vivo`, e só onde ela tem o que dizer. */}
           {papel ? (
             // Sem crachá: o desenho fica na página, do tamanho do texto ao lado.
-            <Alive>{icon(toneColor ?? accent)}</Alive>
+            icon(toneColor ?? accent)
           ) : (
-          <View
-            style={[
-              styles.badge,
-              {
-                backgroundColor: tint(toneColor ?? accent, scheme === 'dark' ? 0.22 : 0.14),
-                borderRadius: radius.lg,
-              },
-            ]}
-          >
-            <Alive>{icon(toneColor ?? accent)}</Alive>
-          </View>
+            <View
+              style={[
+                styles.badge,
+                {
+                  backgroundColor: tint(toneColor ?? accent, scheme === 'dark' ? 0.22 : 0.14),
+                  borderRadius: radius.lg,
+                },
+              ]}
+            >
+              {icon(toneColor ?? accent)}
+            </View>
           )}
           {title ? (
             <Text style={[type.cardTitle, { color: color.ink, flex: 1 }]} numberOfLines={1}>

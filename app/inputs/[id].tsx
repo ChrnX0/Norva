@@ -447,7 +447,7 @@ function InputDetail() {
           comparação fica escrito em vez de o número ficar nu. */}
       <Reveal index={1}>
         <Card
-          hue={palette.sand}
+          hue={palette.sky}
           icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
           title={t.app.reports.rows.cost.label}
         >

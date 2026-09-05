@@ -409,7 +409,7 @@ function PurchaseForm() {
       {impact && impact.length > 0 ? (
         <Reveal index={indiceImpacto}>
           <Card
-            hue={palette.sand}
+            hue={palette.sky}
             icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
             title={t.app.purchase.whatItMoved}
           >

@@ -98,35 +98,28 @@ export type Feitio =
  *   mesmo caminho (respiração, balanço).
  * @param atrasoMs para escalonar irmãos — as três baforadas da chaminé são o
  *   mesmo ciclo defasado de dois segundos.
- * @param repete falso faz o movimento acontecer UMA vez, na chegada, e parar. É
- *   o que a caixa da expedição faz: ela chega, e chegou.
+ * @param repouso onde o ciclo ESTACIONA quando o aparelho pede para reduzir
+ *   movimento. Zero não serve para todo mundo: a fumaça em zero está invisível e
+ *   a coluna em zero está no fundo. Quem desliga movimento tem de ver o desenho
+ *   INTEIRO, no lugar dele — foi por não ter este parâmetro que a primeira versão
+ *   deixava a etiqueta permanentemente torta.
  */
 export function useCiclo(
   duracaoMs: number,
   {
     feitio = 'volta',
     atrasoMs = 0,
-    repete = true,
-  }: { feitio?: Feitio; atrasoMs?: number; repete?: boolean } = {},
+    repouso = 0,
+  }: { feitio?: Feitio; atrasoMs?: number; repouso?: number } = {},
 ): SharedValue<number> {
   const ciclo = useSharedValue(0);
   const reduzido = useReduzirMovimento();
 
   useEffect(() => {
-    // Ainda não sei se posso mexer: fico parado no fim do movimento, que é o
-    // estado COMPLETO. Um desenho que aparece pela metade e depois se completa
-    // pisca; um que aparece pronto e começa a andar, não.
-    if (reduzido === null) return;
-    if (reduzido) {
-      ciclo.value = repete ? 0 : 1;
-      return;
-    }
-
-    if (!repete) {
-      ciclo.value = withDelay(
-        atrasoMs,
-        withTiming(1, { duration: duracaoMs, easing: Easing.bezier(0.22, 1, 0.36, 1) }),
-      );
+    // Ainda não sei se posso mexer: fico no repouso, que é o desenho inteiro e no
+    // lugar. Um desenho que aparece pela metade e depois se completa pisca.
+    if (reduzido === null || reduzido) {
+      ciclo.value = repouso;
       return;
     }
 
@@ -146,7 +139,7 @@ export function useCiclo(
       // trabalha, sem nada na tela para justificar.
       cancelAnimation(ciclo);
     };
-  }, [ciclo, duracaoMs, feitio, atrasoMs, repete, reduzido]);
+  }, [ciclo, duracaoMs, feitio, atrasoMs, repouso, reduzido]);
 
   return ciclo;
 }

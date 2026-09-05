@@ -103,8 +103,13 @@ const massIf = (weight: number, color: string, opacity = 0.24) =>
 export function GlyphProduction({ size = 26, color, weight = 2.2 }: GlyphProps) {
   return (
     <Svg {...frame(size)} accessibilityRole="image">
-      <Rect x="7" y="5" width="13" height="12" rx="3" {...massIf(weight, color)} />
-      <Rect x="7" y="5" width="13" height="12" rx="3" {...line(color, weight)} />
+      {/* A unidade anda na esteira, em direção à seta. Dezesseis segundos para
+          uma unidade e meia de percurso: é a esteira andando, não o ícone
+          pulsando — a esteira e a seta ficam paradas, porque elas são o caminho. */}
+      <Vivo vida={{ como: 'anda', cicloMs: 16000, passo: 1.6 }}>
+        <Rect x="7" y="5" width="13" height="12" rx="3" {...massIf(weight, color)} />
+        <Rect x="7" y="5" width="13" height="12" rx="3" {...line(color, weight)} />
+      </Vivo>
       <Path d="M5.5 22h17" {...line(color, weight)} />
       <Path d="M22 18.5l3.5 3.5-3.5 3.5" {...line(color, weight)} />
     </Svg>
@@ -137,9 +142,16 @@ export function GlyphBox({ size = 26, color, weight = 2.2 }: GlyphProps) {
 export function GlyphPrice({ size = 26, color, weight = 2.2 }: GlyphProps) {
   return (
     <Svg {...frame(size)} accessibilityRole="image">
-      <Path d="M4 16.5V6a2 2 0 0 1 2-2h10.5L28 15.5 17 27z" {...massIf(weight, color)} />
-      <Path d="M4 16.5V6a2 2 0 0 1 2-2h10.5L28 15.5 17 27z" {...line(color, weight)} />
-      <Circle cx="10" cy="10" r="2.2" {...line(color, weight - 0.4)} />
+      {/* A etiqueta balança em torno do FURO, que é por onde ela está pendurada
+          — o furo não sai do lugar porque ele é o eixo. Um grau e meio em vinte
+          e oito segundos: mais devagar que o sol da cena aprovada, que é o que a
+          casa chama de ambiente. Uma etiqueta pendurada não está em repouso; o
+          que estaria em repouso é uma etiqueta no chão. */}
+      <Vivo vida={{ como: 'balanca', cicloMs: 28000, graus: 1.5, centro: [10, 10] }}>
+        <Path d="M4 16.5V6a2 2 0 0 1 2-2h10.5L28 15.5 17 27z" {...massIf(weight, color)} />
+        <Path d="M4 16.5V6a2 2 0 0 1 2-2h10.5L28 15.5 17 27z" {...line(color, weight)} />
+        <Circle cx="10" cy="10" r="2.2" {...line(color, weight - 0.4)} />
+      </Vivo>
     </Svg>
   );
 }
@@ -162,7 +174,19 @@ export function GlyphKettle({ size = 26, color, weight = 2.2 }: GlyphProps) {
     <Svg {...frame(size)} accessibilityRole="image">
       <Path d="M5 13h22v7a7 7 0 0 1-7 7h-8a7 7 0 0 1-7-7z" {...massIf(weight, color)} />
       <Path d="M5 13h22v7a7 7 0 0 1-7 7h-8a7 7 0 0 1-7-7z" {...line(color, weight)} />
-      <Path d="M12 8.5c0-2 2-2 2-4M18 8.5c0-2 2-2 2-4" {...line(color, weight - 0.4)} />
+      {/* O vapor sobe, e são TRÊS baforadas defasadas — como a chaminé da cena
+          aprovada, cujo comentário diz por quê: "uma coluna contínua, e não três
+          nuvens piscando juntas". Com duas sobraria um buraco de dois segundos
+          sem vapor nenhum, e o tacho leria como desligado a cada volta.
+
+          As volutas eram um `<Path>` só (`M12…M18…`): partidas em dois porque
+          uma parte que se mexe precisa ser um elemento, não um pedaço de `d`. */}
+      {[0, 2000, 4000].map((atraso) => (
+        <Vivo key={atraso} vida={{ como: 'sobe', cicloMs: 6000, altura: 4, atrasoMs: atraso }}>
+          <Path d="M12 8.5c0-2 2-2 2-4" {...line(color, weight - 0.4)} />
+          <Path d="M18 8.5c0-2 2-2 2-4" {...line(color, weight - 0.4)} />
+        </Vivo>
+      ))}
     </Svg>
   );
 }
@@ -200,10 +224,15 @@ export function GlyphFactory({ size = 26, color, weight = 2.2 }: GlyphProps) {
 export function GlyphVehicle({ size = 26, color, weight = 2.2 }: GlyphProps) {
   return (
     <Svg {...frame(size)} accessibilityRole="image">
-      <Path d="M3 21V7h15v5h6l3 4v5z" {...massIf(weight, color)} />
-      <Path d="M3 21V7h15v5h6l3 4v5z" {...line(color, weight)} />
-      <Circle cx="8.5" cy="23" r="2.6" {...line(color, weight)} />
-      <Circle cx="22" cy="23" r="2.6" {...line(color, weight)} />
+      {/* O caminhão anda — o desenho inteiro, rodas junto, porque é assim que um
+          caminhão se mexe. Vinte segundos para uma unidade e meia: no tamanho de
+          um crachá isso é menos de um pixel por segundo. */}
+      <Vivo vida={{ como: 'anda', cicloMs: 20000, passo: 1.4 }}>
+        <Path d="M3 21V7h15v5h6l3 4v5z" {...massIf(weight, color)} />
+        <Path d="M3 21V7h15v5h6l3 4v5z" {...line(color, weight)} />
+        <Circle cx="8.5" cy="23" r="2.6" {...line(color, weight)} />
+        <Circle cx="22" cy="23" r="2.6" {...line(color, weight)} />
+      </Vivo>
     </Svg>
   );
 }
@@ -323,10 +352,15 @@ export function GlyphLabel({ size = 26, color, weight = 2.2 }: GlyphProps) {
   const tag = 'M4.5 13.5 L14.5 3.5 H27 v12.5 L17 26 Z';
   return (
     <Svg {...frame(size)} accessibilityRole="image">
-      <Path d={tag} {...massIf(weight, color)} />
-      <Path d={tag} {...line(color, weight)} />
-      <Circle cx="22.4" cy="8.6" r="1.9" {...line(color, weight - 0.4)} />
-      <Path d="M10.5 14.5 l4.5 4.5" {...line(color, weight - 0.4)} />
+      {/* Mesma família da etiqueta de preço, mesmo eixo: o furo por onde ela está
+          amarrada na caixa. Trinta e quatro segundos — a etiqueta do lote fica
+          numa tela que se lê de perto, e ali menos é mais. */}
+      <Vivo vida={{ como: 'balanca', cicloMs: 34000, graus: 1.2, centro: [22.4, 8.6] }}>
+        <Path d={tag} {...massIf(weight, color)} />
+        <Path d={tag} {...line(color, weight)} />
+        <Circle cx="22.4" cy="8.6" r="1.9" {...line(color, weight - 0.4)} />
+        <Path d="M10.5 14.5 l4.5 4.5" {...line(color, weight - 0.4)} />
+      </Vivo>
     </Svg>
   );
 }
@@ -415,19 +449,22 @@ export function GlyphThermometer({ size = 26, color, weight = 2.2 }: GlyphProps)
  * é vocabulário de programador.
  *
  * **Os botões deslizam nos trilhos**, cada um no seu tempo e em sentidos
- * opostos: é a única coisa que um controle deslizante faz. Nove e onze segundos
- * — números diferentes de propósito, para os dois nunca ficarem em sincronia,
- * que é o que faria os dois lerem como uma coisa só piscando.
+ * opostos: é a única coisa que um controle deslizante faz. Dezoito e vinte e
+ * três segundos — primos entre si de propósito, para os dois nunca entrarem em
+ * sincronia, que é o que faria a dupla ler como uma coisa só piscando. E lentos
+ * na faixa da cena aprovada, cujos laços perpétuos são de trinta e de quarenta
+ * e oito segundos: abaixo disso o movimento deixa de ser ambiente e cobra
+ * atenção que a tela não pediu.
  */
 export function GlyphSettings({ size = 26, color, weight = 2.2 }: GlyphProps) {
   return (
     <Svg {...frame(size)} accessibilityRole="image">
       <Path d="M5 10h22M5 22h22" {...line(color, weight)} />
-      <Vivo vida={{ como: 'anda', cicloMs: 9000, passo: 3 }}>
+      <Vivo vida={{ como: 'anda', cicloMs: 18000, passo: 2.6 }}>
         <Circle cx="12" cy="10" r="3.4" {...massIf(weight, color)} />
         <Circle cx="12" cy="10" r="3.4" {...line(color, weight)} />
       </Vivo>
-      <Vivo vida={{ como: 'anda', cicloMs: 11000, passo: -3 }}>
+      <Vivo vida={{ como: 'anda', cicloMs: 23000, passo: -2.6 }}>
         <Circle cx="21" cy="22" r="3.4" {...massIf(weight, color)} />
         <Circle cx="21" cy="22" r="3.4" {...line(color, weight)} />
       </Vivo>

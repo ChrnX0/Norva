@@ -145,7 +145,7 @@ function ReportIndex() {
         <Reveal index={1}>
           <Touchable onPress={() => router.push('/recipes')} accessibilityLabel={t.app.reports.rows.cost.label}>
             <Card
-              hue={palette.sand}
+              hue={palette.sky}
               icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
               title={t.app.reports.rows.cost.label}
             >

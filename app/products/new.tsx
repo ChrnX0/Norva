@@ -743,7 +743,7 @@ function ProductForm() {
           diferença aparece. */}
       {costing ? (
         <Reveal index={iCusto}>
-          <Card hue={palette.sand} icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}>
+          <Card hue={palette.sky} icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}>
             <Text style={[type.overline, { color: color.inkFaint }]}>
               {t.app.productForm.unitCost}
             </Text>

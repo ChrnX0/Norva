@@ -435,7 +435,7 @@ export function Mosaic({
       {moved.length > 0 ? (
         <Reveal index={6}>
           <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.changed}>
-            <Card hue={palette.sand} icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />} title={t.app.home.changed}>
+            <Card hue={palette.sky} icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />} title={t.app.home.changed}>
               <View style={{ gap: space.sm }}>
                 {moved.map((change) => {
                   const previous = change.previousRate ?? change.newRate;

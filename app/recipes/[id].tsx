@@ -402,7 +402,7 @@ function RecipeEditor() {
       {computed?.cost ? (
         <Reveal index={0}>
           <Card
-            hue={palette.sand}
+            hue={palette.sky}
             icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
             title={t.app.recipe.unitCost}
           >

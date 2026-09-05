@@ -47,6 +47,9 @@ const SINAIS: Record<string, string> = {
     'a abertura da conta do cartão de perdas: ela só aparece quando houve perda no mês',
   'app/recipes/[id].tsx:387':
     'falta o rendimento, então o custo não existe: o cartão É o impedimento (Lei 5)',
+  'app/catalog.tsx:170':
+    'ali a etiqueta é ETIQUETA e não preço, com a razão escrita no próprio arquivo: ' +
+    '"a etiqueta é o desenho certo — o nome composto é o que vai no produto"',
 };
 
 /**

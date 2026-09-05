@@ -91,28 +91,75 @@ aplicativo, que é o mesmo da aba correspondente:
 
 Quem vê laranja sabe que é produção antes de ler.
 
+**E agora isto tem guarda: `src/theme/assinatura.test.ts`.** Ele lê cada `<Card>`
+do aplicativo, olha o desenho que está no `icon`, e cobra o tom que a tabela
+acima manda. A tabela do desenho mora em `src/components/glifos.ts` — quem
+acrescenta um glifo declara ali de que assunto ele fala, antes de desenhar um
+traço.
+
+Ele nasceu de uma varredura que achou trinta e sete divergências e **de um erro
+meu que ele mesmo teria evitado**: eu decidi que dinheiro era areia sem abrir
+este arquivo, mudei cinco telas para combinar, e só o crítico adversarial pegou.
+Dinheiro é `sky` porque está escrito aqui, e o aplicativo já cumpria.
+
+Duas espécies que a varredura revelou e que a tabela sozinha não expressava:
+
+- **medida** (`anfitriao`): um desenho que serve honestamente a mais de um
+  assunto — o termômetro é câmara fria nos Ajustes e clima na tela do tempo, o
+  calendário é a data de um pedido e o dia da semeadura. Toma o tom da tela, e
+  continua cobrado contra ela.
+- **porta**: um cartão que não fala de si, fala de para onde leva — a gaveta do
+  "Mais", a seção da capa nos Ajustes. Carrega a cor do destino, declarado no
+  guarda com o motivo ao lado.
+
 ## O desenho respira
 
-Todo crachá de cartão entra pelo `Alive` (`src/components/Alive.tsx`), e o
-`Card` faz isso sozinho — quem usa `icon` não precisa saber. Glifo solto dentro
-de uma tela recebe o `Alive` na mão.
+**Cada desenho se mexe como ELE MESMO. Não existe mais um respiro só.**
 
-São dois movimentos, na mesma medida da cena da fábrica:
+Isto mudou por uma correção do dono, 5 de setembro. A regra anterior era a
+generalização das duas exceções da cena da fábrica: todo crachá entrava pelo
+`Alive`, que somava à chegada uma **respiração** de três centésimos de escala —
+o mesmo movimento, para os vinte e seis desenhos. Ele voltou ao assunto
+apontando a mesma cena e disse o que faltava: *"sutil, mas vivo"*, e *"todos
+esses iconezinhos eu exijo animação como no exemplo que enviei"*.
 
-- **a chegada**, que assenta na mola `settle` com o mesmo escalonamento de
-  quarenta milissegundos do `Reveal` — o crachá termina de se montar junto com
-  o cartão que o carrega;
-- **a respiração**, três centésimos e meio de escala para cada lado em
-  `motion.breatheMs`. Em vinte e seis pixels isso é menos de um pixel de
-  viagem.
+O exemplo é a resposta. Na cena aprovada o sol **gira** porque é sol, a fumaça
+**sobe** porque é fumaça, o picolé **enche** porque é o dia entrando. Nenhum
+deles respira. Um respiro único aplicado a tudo é o oposto de "cada um como ele
+mesmo" — é um movimento com vinte e seis nomes.
 
-É a generalização das duas exceções admitidas na cena da fábrica (o sol e o
-floco giram porque um sol parado lê como imagem quebrada): um símbolo inerte no
-meio de uma página que se monta lê como carimbo colado. **A barra de abas fica
-de fora** — uma barra que respira é ruído, e ali o ícone é orientação, não
-assunto.
+Então a vida foi para dentro do desenho, e o vocabulário é fechado
+(`src/components/Vivo.tsx`), tirado da própria cena:
 
-`Reduzir movimento` apaga os dois e o desenho continua inteiro.
+| movimento | o que faz | quem faz isso na cena |
+|---|---|---|
+| `gira` | volta inteira em torno de um ponto | o sol (30 s), o floco (48 s) |
+| `sobe` | sobe e some, e recomeça embaixo | a fumaça da chaminé (6 s) |
+| `balanca` | inclina para um lado e volta | — |
+| `anda` | desliza no eixo e volta ao lugar | a caixa da expedição |
+| `Coluna` | um nível que sobe dentro de uma forma fechada | o picolé que enche |
+
+Três regras que vêm com ele:
+
+1. **Só se mexe o que se mexeria no mundo, e só a PARTE que se mexe.** O
+   termômetro não gira: sobe a coluna. O caminhão não pulsa: anda. A etiqueta
+   balança em torno do furo, que é por onde ela está pendurada.
+2. **E nem tudo se mexe.** Na cena aprovada, sete dos doze elementos estão
+   parados — o galpão, a câmara, o morango, dois dos três picolés. Alvenaria não
+   respira. Inventar movimento para um objeto em repouso é o mesmo defeito do
+   alerta inventado, com outro nome.
+3. **Ciclo longo.** Os laços perpétuos da cena são de trinta e de quarenta e
+   oito segundos. Abaixo disso o movimento deixa de ser ambiente e passa a
+   cobrar atenção que a tela não pediu.
+
+O `Alive` continua, reduzido ao que ele sempre fez de certo: **a chegada**, na
+mola `settle`, com o escalonamento de quarenta milissegundos do `Reveal`. **A
+barra de abas fica de fora** — ali o ícone é orientação, não assunto.
+
+`Reduzir movimento` para tudo, e **no repouso**: quem desliga vê o desenho
+inteiro e no lugar. A primeira versão parava a etiqueta torta e a fumaça
+invisível, porque estacionava o ciclo em zero em vez de estacionar no repouso —
+por isso cada movimento declara onde ele descansa.
 
 ## As cenas
 

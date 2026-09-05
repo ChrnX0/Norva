@@ -83,8 +83,18 @@ export const AREA_DO_GLIFO: Record<string, AreaDoGlifo> = {
   GlyphOrder: 'sage',
   GlyphPurchase: 'sage',
 
-  // Dinheiro.
-  GlyphPrice: 'sand',
+  // Dinheiro — e é AZUL, não areia.
+  //
+  // Eu tinha escrito areia aqui, e mudei cinco telas para combinar. Estava
+  // errado: `docs/linguagem.md:89` decide `dinheiro, custo, preço = palette.sky`,
+  // e o aplicativo já cumpria isso em quase todo lugar. Eu não abri o documento —
+  // procurei no CLAUDE.md e no insights.md e parei ali —, então li conformidade
+  // como defeito e "consertei" a decisão de alguém. É o erro que o CLAUDE.md
+  // nomeia com todas as letras: **procure a decisão antes de chamar de defeito**.
+  //
+  // O que era deriva de verdade era o contrário: a peça de preços da capa saía em
+  // areia contra o documento, e essa sim foi corrigida.
+  GlyphPrice: 'sky',
   // Série é medida: preço no insumo, perda no mês, produção no relatório.
   GlyphChart: 'anfitriao',
 
