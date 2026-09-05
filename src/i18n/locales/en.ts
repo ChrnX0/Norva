@@ -255,6 +255,11 @@ export const en: Dictionary = {
       warmer: 'Tomorrow warms up {{degrees}}.',
       cooler: 'Tomorrow cools down {{degrees}}.',
       same: 'Tomorrow, much the same.',
+      // The approved cover's weather card speaks short: the city, the number,
+      // and what changes tomorrow. The long sentences stay for the open piece.
+      nowAt: '{{city}} · now',
+      lowShort: 'low {{degrees}}',
+      tomorrowDelta: 'tomorrow {{delta}}',
       measured: 'measured at {{time}}',
       change: 'change the city',
       degrees: { one: '1°', other: '{{n}}°' },

@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import { BarraDoSistema } from '@/components/BarraDoSistema';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -108,7 +108,7 @@ export default function RootLayout() {
           <AppearanceProvider>
             <ThemeProvider>
               <ConfirmProvider>
-                <StatusBar style="auto" />
+                <BarraDoSistema />
                 <Stack screenOptions={{ headerShown: false }} />
                 {/* Sits above every screen: the update may land on any of them. */}
                 <WhatsNew />

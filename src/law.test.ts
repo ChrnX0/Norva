@@ -46,16 +46,20 @@ const TELAS: Record<string, Declaracao | Declaracao[]> = {
   // Dez números, dez respostas. Na ordem em que aparecem no arquivo.
   // A manchete da produção saiu daqui: ela virou o diagrama do `Capa.tsx`, logo
   // abaixo. O número não sumiu — mudou de arquivo, e com ele a comparação.
-  'src/home/Capa.tsx': {
-    compara: /referencias|delta/,
-  },
+  'src/home/Capa.tsx': [
+    { compara: /referencias|delta/ },
+    // A temperatura de hoje tem a de amanhã ao lado, que é a comparação que
+    // muda decisão: 21° não diz nada; 21° com "amanhã +4°" diz para produzir mais.
+    { compara: /amanha|tomorrowDelta/ },
+  ],
   'src/home/Mosaic.tsx': [
     {
       sozinho:
         'o número é uma contagem regressiva - "3 dias · Polpa" já é a distância até o fim. Contagem regressiva compara com o limite dela, e um "ontem" ao lado só atrapalharia.',
     },
     { compara: /noBoxesYesterday|boxesYesterday/ },
-    { compara: /warmerBy|weather\.same/ },
+    // O número do clima saiu daqui junto com o cartão: ele agora é desenhado
+    // pelo `CartaoClima` do `Capa.tsx`, e a comparação foi com ele.
     {
       sozinho:
         'o número é quantos tachos estão abertos AGORA. Estado ao vivo responde a segunda pergunta da lei (o que está diferente), e zero é o normal - o pulso ao lado diz se anda.',

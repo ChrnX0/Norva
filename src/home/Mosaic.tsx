@@ -10,7 +10,7 @@ import { CountUp } from '@/components/CountUp';
 import { GlyphBox, GlyphOrder, GlyphPrice, GlyphProduction, GlyphStock } from '@/components/Glyph';
 import { PulseDot } from '@/components/PulseDot';
 import { Reveal } from '@/components/Reveal';
-import { SkyMark, skyInk, TemperatureRange } from '@/components/Sky';
+import { TemperatureRange } from '@/components/Sky';
 import { Touchable } from '@/components/Touchable';
 import {
   fill,
@@ -20,17 +20,16 @@ import {
   formatQuantity,
   formatTime,
   formatWeekdayAbbrev,
-  formatWeekdayInitial,
   plural,
 } from '@/i18n';
 import type { Dictionary, LocaleSettings } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
 import { nowIso } from '@/data/db';
-import type { BriefingWidget } from '@/domain/briefing';
+import { coverState, type BriefingWidget } from '@/domain/briefing';
 import { daysBetween, localDate } from '@/domain/day';
 import type { Cents } from '@/domain/money';
-import { Comparativo, Legenda, Manchete, Regua, Versalete } from './Capa';
+import { CartaoClima, Comparativo, Legenda, Manchete, Regua, Versalete } from './Capa';
 import { Peca } from './Peca';
 import type { BriefingView, Summary } from './types';
 
@@ -52,14 +51,12 @@ export function Mosaic({
   layout,
   go,
 }: BriefingView) {
-  const { color, type, space, palette, skin, accent, brand } = useTheme();
+  const { color, type, space, palette, skin, accent } = useTheme();
   const { locale, t } = useLocale();
 
   // A espessura do traço é da identidade: fino no Papel, cheio no Orgânico.
   const traco = skin === 'papel' ? 1.7 : 2.2;
 
-  /** A cor do dia, uma só para o cartão do clima inteiro. */
-  const corDoDia = sky ? skyInk(sky.today.maxC, { palette, brand, skin }) : palette.sky;
 
   /**
    * Há pedido em aberto — e não "há linha na consulta", que são coisas
@@ -74,6 +71,25 @@ export function Mosaic({
    * varredura de hoje caçou.
    */
   const temPedido = (data?.demand ?? []).some((d) => d.requested > 0);
+
+  // A pergunta mora no domínio e tem teste — porque a resposta errada dela é a
+  // frase mais cara desta tela. Ver `coverState`.
+  const estado = coverState(
+    data
+      ? {
+          madeToday: data.madeToday,
+          runs: data.runs,
+          cover: data.cover,
+          boxes: data.boxes,
+          orders: temPedido ? 1 : 0,
+          running: data.running,
+          expiring: data.expiring,
+          dueToday: data.dueToday,
+          lossesNow: data.lossesNow,
+        }
+      : null,
+  );
+
 
   /**
    * Qual peça está aberta. Uma por vez, e o segundo toque fecha.
@@ -111,14 +127,20 @@ export function Mosaic({
     producao: (
       <Reveal index={0}>
         <View>
+          {/* Nada de manchete enquanto a resposta não chegou: `forte` nulo
+              deixa a linha de baixo em branco em vez de afirmar. É meio segundo
+              num aparelho lento — e é exatamente o meio segundo em que a tela
+              diria "ainda não produziu" para quem produziu. */}
           <Manchete
             leve={t.app.home.capaLead}
             forte={
-              (data?.madeToday ?? 0) > 0
-                ? fill(t.app.home.capaMade, {
-                    amount: `${formatQuantity(data?.madeToday ?? 0, locale)} ${plural(data?.madeToday ?? 0, t.units.unit)}`,
-                  })
-                : t.app.home.capaQuiet
+              estado === 'loading'
+                ? null
+                : (data?.madeToday ?? 0) > 0
+                  ? fill(t.app.home.capaMade, {
+                      amount: `${formatQuantity(data?.madeToday ?? 0, locale)} ${plural(data?.madeToday ?? 0, t.units.unit)}`,
+                    })
+                  : t.app.home.capaQuiet
             }
           />
 
@@ -321,83 +343,68 @@ export function Mosaic({
               de dentro da peça aberta. */}
           <Touchable
             onPress={() => abrir('clima')}
-            accessibilityLabel={fill(t.app.weather.overline, { city: weather?.place.name ?? '' })}
+            accessibilityLabel={fill(t.app.weather.nowAt, { city: weather?.place.name ?? '' })}
           >
-            {/* O filete fica no AZUL do clima, e a cor do dia mora no desenho.
-                Ele já foi pintado com a cor do dia por uma hora, e isso quebra a
-                regra da casa: a cor da ÁREA é significado — produção é laranja,
-                clima é azul —, e ela não muda com o gosto nem com a temperatura.
-                Variando, o filete deixava de dizer "clima" e passava a dizer
-                "calor", e a capa inteira ficava monocromática num dia quente: dois
-                cartões cor de creme, um embaixo do outro, sem nada separando um
-                assunto do outro. */}
-            <Card hue={palette.sky}>
-              <Text style={[type.overline, { color: color.inkFaint }]}>
-                {fill(t.app.weather.overline, { city: weather?.place.name ?? '' }).toUpperCase()}
-              </Text>
-              {/* O número e o desenho na MESMA linha, e é aqui que a faixa de céu
-                  deixou de existir.
-                  Ela era um retângulo de 140 px com degradê entre duas cores de
-                  acento — lama no claro, adesivo pastel no escuro, e um vazio de
-                  92 px no Papel. Cor de acento ampliada até virar fundo é o mesmo
-                  erro que `inkFaint` ampliado até virar corpo: ela não foi medida
-                  para essa área. O desenho do tamanho de um desenho, ao lado do
-                  número que ele explica, é o vocabulário do resto do aplicativo. */}
-              <View style={[styles.row, { gap: space.md, marginTop: space.xs }]}>
-                <Text style={[type.figure, { color: color.ink }]}>{`${Math.round(sky.today.maxC)}°`}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={[type.secondary, { color: color.inkMuted }]}>{t.app.weather.today}</Text>
-                  <Text style={[type.caption, { color: color.inkFaint }]}>
-                    {fill(t.app.weather.low, { degrees: plural(Math.round(sky.today.minC), t.app.weather.degrees) })}
-                  </Text>
-                </View>
-                <SkyMark maxC={sky.today.maxC} rainChance={sky.today.rainChance} />
-              </View>
-              <View>
-                <TemperatureRange minC={sky.today.minC} maxC={sky.today.maxC} ink={corDoDia} />
-                {sky.warmerBy !== null ? (
-                  <Text style={[type.caption, { color: color.inkFaint, marginTop: space.sm }]}>
-                    {sky.warmerBy === 0
-                      ? t.app.weather.same
-                      : fill(sky.warmerBy > 0 ? t.app.weather.warmer : t.app.weather.cooler, {
-                          degrees: plural(Math.abs(sky.warmerBy), t.app.weather.degrees),
-                        })}
-                  </Text>
-                ) : null}
-                {/* A semana, que é o que o toque abre. Uma linha por dia, com a
-                    faixa de temperatura desenhada: sete números soltos não se
-                    comparam de olho, sete barras se comparam. */}
-                {aberta === 'clima' && weather ? (
-                  <Reveal index={0} style={{ marginTop: space.md }}>
-                    <View style={{ gap: space.sm }}>
-                      {weather.days.slice(0, 7).map((dia) => (
-                        <View key={dia.date} style={[styles.row, { gap: space.sm }]}>
-                          <Text style={[type.caption, { color: color.inkFaint, width: 28 }]}>
-                            {formatWeekdayInitial(dia.date, locale)}
-                          </Text>
-                          <View style={{ flex: 1 }}>
-                            <TemperatureRange minC={dia.minC} maxC={dia.maxC} />
-                          </View>
-                          <Text style={[type.caption, styles.number, { color: color.ink }]}>
-                            {`${Math.round(dia.maxC)}°`}
-                          </Text>
-                          {dia.rainChance !== null && dia.rainChance >= 30 ? (
-                            <Text style={[type.caption, { color: palette.sky }]}>
-                              {`${Math.round(dia.rainChance)}%`}
-                            </Text>
-                          ) : null}
+            <CartaoClima
+              cidade={fill(t.app.weather.nowAt, { city: weather?.place.name ?? '' })}
+              maxC={sky.today.maxC}
+              minima={fill(t.app.weather.lowShort, {
+                degrees: plural(Math.round(sky.today.minC), t.app.weather.degrees),
+              })}
+              chuva={
+                sky.today.rainChance !== null
+                  ? {
+                      texto: fill(t.app.weather.rain, { percent: Math.round(sky.today.rainChance) }),
+                      parcela: sky.today.rainChance / 100,
+                    }
+                  : null
+              }
+              amanha={
+                sky.warmerBy === null
+                  ? null
+                  : sky.warmerBy === 0
+                    ? t.app.weather.same
+                    : fill(t.app.weather.tomorrowDelta, {
+                        // O sinal por extenso, e o menos é o de verdade (U+2212):
+                        // ao lado de "+4°" um hífen fica curto e alto, e a dupla
+                        // deixa de ler como par.
+                        delta: `${sky.warmerBy > 0 ? '+' : '\u2212'}${plural(Math.abs(sky.warmerBy), t.app.weather.degrees)}`,
+                      })
+              }
+              rodape={
+                weather
+                  ? `${fill(t.app.weather.measured, { time: formatTime(weather.fetchedAt, locale) })} · ${aberta === 'clima' ? t.app.home.less : t.app.home.more}`
+                  : ''
+              }
+            >
+              {/* A semana, que é o que o toque abre. Uma linha por dia, com a
+                  faixa de temperatura desenhada: sete números soltos não se
+                  comparam de olho, sete barras se comparam. */}
+              {aberta === 'clima' && weather ? (
+                <Reveal index={0} style={{ marginTop: space.md }}>
+                  <View style={{ gap: space.sm }}>
+                    {weather.days.slice(0, 7).map((dia) => (
+                      <View key={dia.date} style={[styles.row, { gap: space.sm }]}>
+                        <Text style={[type.caption, { color: color.inkFaint, width: 34 }]}>
+                          {formatWeekdayAbbrev(dia.date, locale)}
+                        </Text>
+                        <View style={{ flex: 1 }}>
+                          <TemperatureRange minC={dia.minC} maxC={dia.maxC} />
                         </View>
-                      ))}
-                    </View>
-                  </Reveal>
-                ) : null}
-                <Text style={[type.caption, { color: palette.sky, marginTop: space.sm }]}>
-                  {weather
-                    ? `${fill(t.app.weather.measured, { time: formatTime(weather.fetchedAt, locale) })} · ${aberta === 'clima' ? t.app.home.less : t.app.home.more}`
-                    : ''}
-                </Text>
-              </View>
-            </Card>
+                        <Text style={[type.caption, styles.number, { color: color.ink }]}>
+                          {`${Math.round(dia.maxC)}°`}
+                        </Text>
+                        {dia.rainChance !== null && dia.rainChance >= 30 ? (
+                          <Text style={[type.caption, { color: palette.sky }]}>
+                            {`${Math.round(dia.rainChance)}%`}
+                          </Text>
+                        ) : null}
+                      </View>
+                    ))}
+                  </View>
+                </Reveal>
+              ) : null}
+            </CartaoClima>
           </Touchable>
         </Reveal>
       ) : null}
@@ -915,18 +922,7 @@ export function Mosaic({
    * entra no lugar das peças de trabalho vazias, e o preço, o dinheiro parado e
    * o tempo continuam dizendo o que sabem.
    */
-  const aindaNaoTrabalhou =
-    (data?.madeToday ?? 0) === 0 &&
-    (data?.runs ?? []).length === 0 &&
-    (data?.cover ?? []).length === 0 &&
-    (data?.boxes ?? 0) === 0 &&
-    !temPedido &&
-    (data?.running ?? []).length === 0 &&
-    (data?.expiring ?? []).length === 0 &&
-    (data?.dueToday ?? []).length === 0 &&
-    (data?.lossesNow ?? 0) === 0;
-
-  if (aindaNaoTrabalhou) {
+  if (estado === 'firstDay') {
     // No lugar da peça do dia, não no lugar da capa: o que as outras peças
     // souberem dizer continua dito, na ordem que a empresa escolheu.
     pecas.producao = (

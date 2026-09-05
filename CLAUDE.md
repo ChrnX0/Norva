@@ -391,6 +391,40 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   passa de mão; quem está com ele usa o papel `operator` — sem custo, sem preço,
   sem dinheiro. O aparelho continua respondendo.
 
+- **O layout vem antes do login — e nada fica pela metade.** *"Como vc já começou
+  a trabalhar no layout então termina. Nada de deixar etapas inacabadas. Isso mais
+  atrapalha do que tudo."* Decisão do dono, 5 de setembro. Depois do layout, o
+  login/conta é o próximo, e ele pede estudo antes de código: é a base de perfil,
+  pedido de loja e notificação.
+
+- **O servidor sobe o mais tarde possível.** A conta do Supabase é paga e tem
+  folga, e mesmo assim: *"usar com sabedoria"*. Enquanto o caminho de escrita não
+  existir de verdade, o app continua inteiro no aparelho — as 32 migrações são
+  arquivos, e quem as prova é o `db:verify` local.
+
+- **Sem dados fiscais no começo.** CPF e CNPJ ficam para depois: pedi-los puxaria
+  o cadastro fiscal de graça, mas prende o produto ao Brasil, e o app vai para as
+  duas lojas. Fica a pergunta em aberto, para estudo: como se faz o equivalente
+  disso noutros países.
+
+- **Foto do cadastro mora no celular.** *"Começa simples, pelo celular. Mais para
+  frente quando o app estiver gerando receita a gente faz um upgrade nisso."*
+  Nuvem custa todo mês e não paga nada até o produto pagar.
+
+- **Perfil é dado, com os de hoje como sugestão.** O dono cria perfis e marca
+  permissão por permissão; `owner`, `operator`, `driver`, `buyer`, `customer` e
+  `salesperson` continuam existindo como **modelos prontos**, não como a lista
+  fechada. É mudança de esquema, e por isso entra com cuidado (P3).
+
+- **O assistente pode ganhar um LLM pequeno rodando no aparelho.** Pergunta do
+  dono, e ela é boa: modelo local resolve o custo por pergunta e o offline da
+  câmara fria de uma vez. Fica a exigência junto: **um jeito de impedir
+  alucinação** — a resposta continua tendo de abrir a conta, como a de hoje abre.
+
+- **Sensor: aberto a todos os protocolos, sem escolher aparelho.** O dono quer
+  até construir o dele com ESP32. Então a `readings` fica genérica (tipo, valor,
+  unidade, quem mediu, quando mediu no mundo) e nenhum protocolo entra chumbado.
+
 - **O operador confere a prateleira.** Numa fábrica de seis pessoas quem anda
   até a prateleira é quem trabalha lá, não o dono. Negar a permissão não deixa o
   número mais seguro — deixa a contagem sem acontecer, e saldo que ninguém

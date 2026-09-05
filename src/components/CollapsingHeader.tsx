@@ -34,7 +34,7 @@ export function CollapsingHeader({
   overline?: string;
   children: ReactNode;
 }) {
-  const { color, space, type, accent, skin } = useTheme();
+  const { color, space, type, accent, skin, titleFamily } = useTheme();
   const insets = useSafeAreaInsets();
 
   // How much of the screen the tab bar covers, or nothing when there is no bar.
@@ -69,19 +69,40 @@ export function CollapsingHeader({
           backgroundColor: color.paper,
         }}
       >
+        {/* A linha de olho vem ANTES do título, e o título é serifado.
+            É a mesma hierarquia da capa aprovada — "NORVA · sábado, 5 de
+            setembro" e a manchete embaixo —, e ela vale para as vinte telas
+            porque o dono disse "TODO o aplicativo tem q seguir esse padrão".
+            Antes era o contrário: título grande em cima, olho embaixo, e um selo
+            da marca ao lado repetindo em toda tela o nome de quem já abriu o
+            aplicativo. */}
+        {overline ? (
+          <Animated.View style={overlineStyle}>
+            <Text
+              style={[type.overline, { color: color.inkFaint, letterSpacing: 2.4 }]}
+              numberOfLines={1}
+            >
+              {overline.toUpperCase()}
+            </Text>
+          </Animated.View>
+        ) : null}
+
         <View style={[styles.titleRow, { gap: space.sm + 1 }]}>
-          {/* No Papel a marca fica na página, sem selo atrás — o dono circulou
-              justamente as "caixinhas" e esta era uma delas. */}
-          {skin === 'papel' ? (
-            <Mark size={18} color={accent} />
-          ) : (
+          {/* O selo só sobra no Orgânico, que é a identidade de curva e cor. No
+              Papel a marca não entra na página: a página é tinta e régua. */}
+          {skin === 'papel' ? null : (
             <View style={[styles.icon, { backgroundColor: `${accent}22`, borderRadius: 9 }]}>
               <Mark size={15} color={accent} />
             </View>
           )}
           <Animated.Text
             style={[
-              { color: color.ink, fontWeight: '600', letterSpacing: -0.8 },
+              {
+                color: color.ink,
+                fontFamily: titleFamily,
+                fontWeight: skin === 'papel' ? '700' : '600',
+                letterSpacing: skin === 'papel' ? -0.2 : -0.8,
+              },
               titleStyle,
             ]}
             accessibilityRole="header"
@@ -89,14 +110,6 @@ export function CollapsingHeader({
             {title}
           </Animated.Text>
         </View>
-
-        {overline ? (
-          <Animated.View style={overlineStyle}>
-            <Text style={[type.overline, { color: color.inkFaint }]} numberOfLines={1}>
-              {overline.toUpperCase()}
-            </Text>
-          </Animated.View>
-        ) : null}
       </View>
 
       <Animated.ScrollView

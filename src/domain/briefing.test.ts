@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { addWidget, BRIEFING_WIDGETS, briefingLayout, moveWidget, widgetsOffCover } from './briefing';
+import { addWidget, BRIEFING_WIDGETS, briefingLayout, coverState, moveWidget, widgetsOffCover } from './briefing';
 
 test('the house decides the order and the phone decides what to hide', () => {
   const daCasa = ['clima', 'producao', 'insumos'];
@@ -67,4 +67,52 @@ test('what is off the cover is offered, and putting it on is the house deciding'
   assert.deepEqual(ligada, ['producao', 'custo']);
   assert.deepEqual(addWidget(ligada, 'custo'), ligada, 'ligar duas vezes não duplica');
   assert.ok(briefingLayout(ligada, []).includes('custo'));
+});
+
+/**
+ * A capa não pode afirmar enquanto não sabe.
+ *
+ * O caso que fez este teste existir: a foto do emulador mostrou "Hoje a fábrica
+ * ainda não produziu" com 506 unidades gravadas no livro-razão — a consulta
+ * ainda não tinha voltado, e nulo estava sendo lido como zero.
+ */
+test('the cover says nothing while the answer has not arrived', () => {
+  assert.equal(coverState(null), 'loading');
+});
+
+const vazio = {
+  madeToday: 0,
+  runs: [],
+  cover: [],
+  boxes: 0,
+  orders: 0,
+  running: [],
+  expiring: [],
+  dueToday: [],
+  lossesNow: 0,
+};
+
+test('an answered query with nothing in it is the first day, not loading', () => {
+  assert.equal(coverState(vazio), 'firstDay');
+});
+
+test('any sign of work makes it a day, one at a time', () => {
+  const sinais = [
+    { madeToday: 1 },
+    { runs: [1] },
+    { cover: [1] },
+    { boxes: 1 },
+    { orders: 1 },
+    { running: [1] },
+    { expiring: [1] },
+    { dueToday: [1] },
+    { lossesNow: 1 },
+  ];
+  for (const sinal of sinais) {
+    assert.equal(
+      coverState({ ...vazio, ...sinal }),
+      'day',
+      `${Object.keys(sinal)[0]} sozinho já é trabalho e a capa tem de mostrar o dia`,
+    );
+  }
 });

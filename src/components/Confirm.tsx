@@ -90,7 +90,8 @@ function ConfirmSurface({
   request: ConfirmRequest;
   onAnswer: (ok: boolean) => void;
 }) {
-  const { color, radius, space, type, accent } = useTheme();
+  const { color, radius, space, type, accent, skin } = useTheme();
+  const papel = skin === 'papel';
   const { t } = useLocale();
   const insets = useSafeAreaInsets();
 
@@ -115,7 +116,11 @@ function ConfirmSurface({
             styles.action,
             {
               backgroundColor: confirmColor,
-              borderRadius: radius.pill,
+              // Pílula é do Orgânico. No Papel os cantos são retos, e um botão
+              // arredondado no meio de uma página de tinta e régua lê como um
+              // pedaço de outro aplicativo — o `Button` já respeitava isto e a
+              // folha de confirmação não, então a mesma ação tinha duas formas.
+              borderRadius: papel ? radius.sm : radius.pill,
               paddingVertical: space.lg,
             },
           ]}
@@ -134,7 +139,11 @@ function ConfirmSurface({
               {
                 borderColor: color.lineStrong,
                 borderWidth: StyleSheet.hairlineWidth * 2,
-                borderRadius: radius.pill,
+                // Pílula é do Orgânico. No Papel os cantos são retos, e um botão
+              // arredondado no meio de uma página de tinta e régua lê como um
+              // pedaço de outro aplicativo — o `Button` já respeitava isto e a
+              // folha de confirmação não, então a mesma ação tinha duas formas.
+              borderRadius: papel ? radius.sm : radius.pill,
                 paddingVertical: space.lg,
               },
             ]}

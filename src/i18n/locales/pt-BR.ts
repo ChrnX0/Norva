@@ -297,6 +297,11 @@ export const ptBR = {
       warmer: 'Amanhã esquenta {{degrees}}.',
       cooler: 'Amanhã esfria {{degrees}}.',
       same: 'Amanhã, temperatura parecida.',
+      // O cartão do clima da capa aprovada fala curto: a cidade, o número, e o
+      // que muda amanhã. As frases longas continuam existindo para a peça aberta.
+      nowAt: '{{city}} · agora',
+      lowShort: 'mín {{degrees}}',
+      tomorrowDelta: 'amanhã {{delta}}',
       measured: 'medido às {{time}}',
       change: 'trocar a cidade',
       degrees: { one: '1°', other: '{{n}}°' },

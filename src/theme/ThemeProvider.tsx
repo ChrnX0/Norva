@@ -77,12 +77,20 @@ export function ThemeProvider({
     const chosen = skins[skin];
     const color = chosen[scheme];
 
-    // A serifa entra só nos títulos, e nunca no corpo nem no número.
+    // A serifa entra nos títulos E NOS NÚMEROS. No corpo, nunca.
     //
-    // Título em serifa é o que dá a cara de página impressa ao Papel. Corpo em
-    // serifa, num celular de fábrica com a tela suja, é o que faz alguém parar
-    // de ler - e o número em serifa perde a figura tabular, que é o que impede
-    // a coluna de dançar a cada atualização.
+    // O "nunca no número" durou até a foto: o desenho aprovado escreve 500, 478
+    // e 481 em serifa, e é isso que faz a página parecer impressa em vez de
+    // parecer um painel. Com a manchete serifada e o número ao lado em sans, a
+    // tela ficava com duas tipografias brigando na mesma linha de leitura.
+    //
+    // A objeção antiga era a figura tabular — coluna que dança a cada
+    // atualização. Ela continua de pé e continua atendida: `fontVariant:
+    // ['tabular-nums']` está em cada número que se empilha, e a serifa do
+    // sistema no Android traz `tnum`. O que muda é a família, não a métrica.
+    //
+    // O corpo fica fora de propósito: parágrafo em serifa, num celular de
+    // fábrica com a tela suja e luz de galpão, é o que faz alguém parar de ler.
     const familia = chosen.titleFamily;
     const type = familia
       ? {
@@ -91,6 +99,8 @@ export function ThemeProvider({
           displaySmall: { ...typeBase.displaySmall, fontFamily: familia },
           section: { ...typeBase.section, fontFamily: familia },
           cardTitle: { ...typeBase.cardTitle, fontFamily: familia },
+          figure: { ...typeBase.figure, fontFamily: familia },
+          hero: { ...typeBase.hero, fontFamily: familia },
         }
       : typeBase;
 

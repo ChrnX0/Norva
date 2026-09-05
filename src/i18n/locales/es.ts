@@ -260,6 +260,11 @@ export const es: Dictionary = {
       warmer: 'Mañana sube {{degrees}}.',
       cooler: 'Mañana baja {{degrees}}.',
       same: 'Mañana, temperatura parecida.',
+      // La tarjeta del clima de la portada aprobada habla corto: la ciudad, el
+      // número y lo que cambia mañana. Las frases largas quedan para la pieza abierta.
+      nowAt: '{{city}} · ahora',
+      lowShort: 'mín {{degrees}}',
+      tomorrowDelta: 'mañana {{delta}}',
       measured: 'medido a las {{time}}',
       change: 'cambiar la ciudad',
       degrees: { one: '1°', other: '{{n}}°' },

@@ -4,6 +4,7 @@ import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarHeightContext } from 'expo-router/js-tabs';
 import { useContext } from 'react';
+import { SkyMark } from '@/components/Sky';
 import { useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -71,7 +72,7 @@ export function Legenda({ children }: { children: ReactNode }) {
  * `<b>` dentro: aninhar peso dentro de texto serifado no Android reposiciona a
  * linha de base, e a manchete sai desalinhada num aparelho e certa no outro.
  */
-export function Manchete({ leve, forte }: { leve: string; forte: string }) {
+export function Manchete({ leve, forte }: { leve: string; forte: string | null }) {
   const { color, titleFamily, space } = useTheme();
   const base = {
     fontFamily: titleFamily,
@@ -85,8 +86,14 @@ export function Manchete({ leve, forte }: { leve: string; forte: string }) {
       <Text style={[base, { fontWeight: '400' as const }]} allowFontScaling maxFontSizeMultiplier={1.4}>
         {leve}
       </Text>
-      <Text style={[base, { fontWeight: '700' as const }]} allowFontScaling maxFontSizeMultiplier={1.4}>
-        {forte}
+      {/* Linha reservada mesmo vazia: sem a altura, a ilustração pula para cima
+          quando a resposta chega, e a página inteira dá um solavanco. */}
+      <Text
+        style={[base, { fontWeight: '700' as const, opacity: forte ? 1 : 0 }]}
+        allowFontScaling
+        maxFontSizeMultiplier={1.4}
+      >
+        {forte ?? '\u00a0'}
       </Text>
     </View>
   );
@@ -313,3 +320,120 @@ export function Folha({ olho, children }: { olho: string; children: ReactNode })
     </View>
   );
 }
+
+/**
+ * O cartão do clima — o único bloco da capa que o desenho aprovado CONTORNA.
+ *
+ * Isso não é acaso de composição: tudo o mais na página é a fábrica falando dos
+ * próprios números, e o tempo é a única coisa ali que vem de fora. O contorno é
+ * o que diz "isto não é seu" sem escrever a frase.
+ *
+ * E ele fica na capa porque calor muda o que sai e o que estraga — não é enfeite
+ * de aplicativo de celular. Por isso o número grande vem com o de amanhã ao lado
+ * (Lei 3), e a barra é a chance de chuva, que é o que muda a rota da entrega.
+ */
+export function CartaoClima({
+  cidade,
+  maxC,
+  minima,
+  chuva,
+  amanha,
+  rodape,
+  children,
+}: {
+  /** "São Paulo · agora", já montado pela tela. */
+  cidade: string;
+  maxC: number;
+  /** "mín 13°", já montado. */
+  minima: string;
+  /** O texto da chuva e a parcela de 0 a 1 que a barra preenche. */
+  chuva: { texto: string; parcela: number } | null;
+  /** "amanhã +4°", ou a frase de temperatura parecida. Nulo quando não se sabe. */
+  amanha: string | null;
+  /** A linha de rodapé: quando foi medido, e o convite de abrir. */
+  rodape: string;
+  /** A semana, quando aberta. */
+  children?: ReactNode;
+}) {
+  const { color, type, space, radius, titleFamily, palette } = useTheme();
+
+  return (
+    <View
+      style={{
+        borderWidth: 1,
+        borderColor: color.line,
+        borderRadius: radius.md,
+        backgroundColor: color.surface,
+        padding: space.lg,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
+        {/* O desenho que MUDA com o tempo, e não um sol pintado à mão.
+            O desenho aprovado mostra sol porque a maquete é de um dia de sol —
+            copiar o sol seria desenhar um sol fixo, e o cartão mostraria sol num
+            dia de 80% de chuva. `SkyMark` já responde à temperatura e à chuva, e
+            já gira devagar. Copiar a forma sem copiar o comportamento é a
+            armadilha desta rodada inteira, invertida. */}
+        <SkyMark maxC={maxC} rainChance={chuva ? chuva.parcela * 100 : null} size={56} />
+        <View style={{ flex: 1 }}>
+          <Versalete>{cidade}</Versalete>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.sm }}>
+            <Text
+              style={[
+                type.figure,
+                { fontFamily: titleFamily, fontSize: 34, lineHeight: 42, color: color.ink },
+              ]}
+            >
+              {`${Math.round(maxC)}°`}
+            </Text>
+            <Text style={[type.secondary, { color: color.inkMuted }]}>{minima}</Text>
+          </View>
+        </View>
+      </View>
+
+      {chuva ? (
+        <View
+          style={{
+            height: 3,
+            borderRadius: 2,
+            backgroundColor: color.sunken,
+            marginTop: space.md,
+            overflow: 'hidden',
+          }}
+        >
+          <View
+            style={{
+              width: `${Math.max(0, Math.min(1, chuva.parcela)) * 100}%`,
+              height: 3,
+              backgroundColor: palette.sky,
+            }}
+          />
+        </View>
+      ) : null}
+
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          gap: space.sm,
+          marginTop: space.sm,
+        }}
+      >
+        <Text style={[type.caption, { color: color.inkMuted, flexShrink: 1 }]}>
+          {chuva ? chuva.texto : ''}
+        </Text>
+        {amanha ? (
+          <Text style={[type.caption, { color: palette.apricot, flexShrink: 1, textAlign: 'right' }]}>
+            {amanha}
+          </Text>
+        ) : null}
+      </View>
+
+      {children}
+
+      <Text style={[type.caption, { color: color.inkFaint, marginTop: space.sm }]}>{rodape}</Text>
+    </View>
+  );
+}
+
