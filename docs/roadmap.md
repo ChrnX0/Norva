@@ -246,6 +246,19 @@ aqui estava errado:**
 2. **O cartão com desenho e sem título** deixa o glifo sozinho numa linha, em três
    telas (etiqueta do lote, clima, catálogo). No Papel lê como dingbat de seção e
    funciona; no Orgânico é um crachá flutuando. Decisão de desenho, não defeito.
+3. **A pele virou ponto de extensão — 6 de setembro.** O dono olhou a foto do
+   Orgânico e disse *"o q estava NEM ORGANICO ERA"*, e depois foi explícito sobre o
+   porquê de isso importar: *"qq tema futuro ou o q vc chama de skin tem q poder ser
+   aplicado sem problemas… futuramente a gente vai criar mais skins"*.
+   O defeito era estrutural: o Orgânico era o Papel com a cena trocada, e mais oito
+   componentes decidiam sozinhos com `skin === 'papel' ?`. Agora a pele **declara os
+   traços** (`genero`, `tintaCheia`, `marcaVemDoTom`, `titulo`, `radius.controle`) e
+   **veste a capa** (`src/home/capas/`: casco de página, casco de peça, e as peças
+   que ela desenha à sua maneira). Uma pele nova escreve isso e ganha as quinze
+   peças funcionando; `registro.test.ts` recusa quem voltar a decidir pelo nome.
+   **O que fica de pé:** a foto no emulador desta sessão. A máquina não tem
+   virtualização e o app leva minutos para assentar; a prova final continua sendo o
+   APK no aparelho do dono.
 
 ## A ORDEM — revista em 6 de setembro, com as decisões do dono
 
