@@ -463,40 +463,37 @@ O posto `picked` só vira movimento quando a carga sai, junto com a transferênc
 já existe. Isso não é decisão minha: é P3 quando toca `movements`, e é do dono quando
 decide o que a fábrica promete.
 
-**5. Os quatro postos de controle — dois existem, e a pergunta é outra.** Conferido em
-6 de setembro, lendo o que grava cada um.
+**5.** ~~**Os quatro postos de controle.**~~ **RESOLVIDO POR DECISÃO, 6 de setembro.**
+A carga é **um evento só** — decisão do dono. Carregar e entregar continuam sendo o mesmo
+toque na fábrica, e `conferido` continua sendo o único posto que grava, como já grava hoje
+(`recordCheck`, com tela, linha no razão e migração 0017). Não há quatro postos a
+construir: há um que existe e três que são rótulo até haver viagem com linha do tempo.
+A seção `posts` do dicionário segue registrada como fronteira, agora com prazo indefinido
+e motivo novo.
 
-| posto | existe? | onde |
-|---|---|---|
-| **separado** | não | ninguém grava. É a pergunta do item 4. |
-| **carregado** | sim, colado no seguinte | a transferência escreve as duas pernas no mesmo instante |
-| **entregue** | idem | mesmo evento que o de cima — não há um segundo momento |
-| **conferido** | **sim, inteiro** | `recordCheck` (`src/data/repository.ts:2474`), com tela na aba de transporte, linha própria no razão e migração dedicada (0017, para poder gravar "conferi e bateu" como zero) |
+**6. O app do entregador — e ele NÃO é sobre entrega.** *"Depois já desenvolve o app
+(seria o login e perfil) do entregador pq isso é necessário para algum outro usuário q vai
+comprar o aplicativo."* Decisão do dono, 6 de setembro. Com a carga atômica, o entregador
+não tem o que gravar que a fábrica já não grave — então o que este item pede é a **camada
+de gente e permissão**, não a tela de entrega:
 
-Então "construir os quatro postos" descreve mal o que falta. O que falta é **uma
-decisão**: a carga é um evento só ou é uma viagem com linha do tempo? Hoje carregar e
-entregar acontecem no mesmo toque, na fábrica — quem separa carregado de entregue está
-dizendo que existe um segundo momento, noutro lugar e noutra hora, e que alguém o
-registra de lá.
+1. **Gente e perfil no aparelho.** Não existe tabela de gente: `movements.operator_id` é
+   coluna sem escritor, e `app/(tabs)/more.tsx:49` já registrava isso como o motivo de a
+   porta "Pessoas" não estar na tela — ela **estava na prancha do dono** e ficou de fora
+   por não ter nada atrás.
+2. **Perfil é dado.** Os sete papéis de `src/domain/access.ts` viram modelos prontos, e o
+   dono marca permissão por permissão. Decisão já registrada no `CLAUDE.md`.
+3. **A entrada.** Grade de nomes com PIN no aparelho compartilhado; pessoal entra uma vez e
+   fica. Os dois caminhos, escolha da empresa — decisão de 1 de setembro.
+4. **O operador no movimento.** `operator_id` passa a ter escritor, e a tela só pergunta
+   quando a empresa liga `names_who_recorded`.
 
-**E o vocabulário já existe** — conferido no esquema, não suposto:
-`create type control_post as enum ('picked','loaded','delivered','checked')` está em
-`supabase/migrations/0001_foundation.sql:179` desde a primeira migração, e o aparelho tem
-a coluna `post` desde a `V7` (`src/data/db.ts:366`), que entrou junto com a conferência —
-"coluna sem escritor é a doença que este repositório já documentou".
-
-Então a decisão é **mais barata do que parecia**: não é inventar tipo de razão nem migrar
-nada. Carregado e entregue já têm nome; o que não existe é um SEGUNDO MOMENTO em que
-alguém escreva o segundo. A parte cara continua sendo essa — dividir a carga em dois atos
-mexe no caminho de escrita de `movements`, que é P3 — mas o custo é de desenho, não de
-esquema.
-
-**6. App do entregador — existe se, e só se, "entregue" for separado de "carregado".**
-O papel `driver` já tem `dispatch`, `check_receipt` e `record_loss`, e as três já têm
-por onde escrever: a transferência, a conferência da aba de transporte, e a perda com
-motivo. Se a carga continuar sendo um evento só, o entregador não tem o que gravar que
-a fábrica já não grave — a tela dele seria a mesma lista, noutro telefone. A decisão do
-item 5 é que decide se este item existe.
+**O nó de esquema, e ele se desfaz de graça hoje:** a `0014` aponta `operator_id` para
+`memberships(id)`, e `memberships.user_id` é `not null references auth.users` — cada pessoa
+nomeável precisaria de uma CONTA. Isso contraria a decisão escrita de que *"o login
+autentica o sistema, não a pessoa"*. Como **nada escreve a coluna** e não há um movimento
+gravado em servidor nenhum, a correção custa uma migração nova: gente vira tabela própria,
+sem conta, e `membership` volta a ser só o que sempre foi.
 
 **7.** ~~**Devolução.**~~ **FEITA em 6 de setembro.** O movimento já tinha tipo próprio
 e tela; o que faltava era o **motivo**, e ele entrou inteiro: `ReturnReason` no domínio

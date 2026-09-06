@@ -458,6 +458,31 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   `src/home/capas/registro.test.ts` recusa arquivo de `src/home` ou `src/components` que
   volte a decidir pelo NOME da pele.
 
+- **A carga é UM evento — e o app do entregador vem depois, por outro motivo.**
+  Decisão do dono, 6 de setembro. Carregar e entregar continuam sendo o mesmo
+  toque na fábrica; a viagem com linha do tempo (o entregador marcando a chegada
+  do celular dele) fica como configuração para quando existir entregador que não
+  é quem carregou. Isso fecha os itens 4, 5 e 6 do F3 com escopo pequeno.
+
+  **Mas o "app do entregador" continua na fila, e não é sobre a viagem: é login e
+  perfil** — *"pq isso é necessário para algum outro usuário q vai comprar o
+  aplicativo"*. Ou seja, a próxima construção é a camada de gente e permissão, não
+  a tela de entrega.
+
+- **Operador é PESSOA, não conta — e o esquema dizia o contrário.** Achado ao ir
+  construir, 6 de setembro. A `0014` criou `movements.operator_id` referenciando
+  `memberships(id)`, e `memberships.user_id` é `not null references auth.users` —
+  ou seja, cada pessoa nomeável precisaria de uma conta de autenticação. Isso
+  contradiz a decisão de que *"o login autentica o sistema, não a pessoa"*: quem
+  entra pela grade de nomes com PIN não tem conta nenhuma.
+
+  A janela para consertar é agora e é de graça: **nada escreve `operator_id`**
+  (`app/(tabs)/more.tsx:49` já registrava a lacuna — *"coluna sem tabela de gente
+  atrás"*) e não há um único movimento gravado em servidor nenhum. Então entra uma
+  tabela de **gente** (sem conta), `operator_id` passa a apontar para ela, e
+  `membership` continua sendo o que sempre foi: uma CONTA, que pode apontar para
+  uma pessoa. Migração nova, nunca edição das que já existem.
+
 - **Perfil é dado, com os de hoje como sugestão.** O dono cria perfis e marca
   permissão por permissão; `owner`, `operator`, `driver`, `buyer`, `customer` e
   `salesperson` continuam existindo como **modelos prontos**, não como a lista
