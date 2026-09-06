@@ -7,7 +7,12 @@
 set -uo pipefail
 # shellcheck source=/dev/null
 . "${PROOFGATE_LIB:-$(dirname "$0")/../lib.sh}" 2>/dev/null || true
-PAT='/home/[a-z_][a-z0-9_-]*/|/Users/[^/[:space:]"'"'"']+/|[A-Z]:\\Users\\'  # proofgate-allow
+# O caminho tem que COMEÇAR no /: sem isso, `src/home/capas/...` é acusado de ser
+# o diretório pessoal de alguém — uma pasta chamada `home` dentro do projeto casa
+# com `/home/<nome>/` e o guarda fica amarelo para sempre por causa do nome de uma
+# pasta. Antes do `/` só pode vir começo de linha, aspas, espaço ou pontuação —
+# nunca outro pedaço de caminho.
+PAT='(^|[^A-Za-z0-9_.-])(/home/[a-z_][a-z0-9_-]*/|/Users/[^/[:space:]"'"'"']+/)|[A-Z]:\\Users\\'  # proofgate-allow
 KEEP='/home/(node|app|runner|deploy|user|ubuntu|vscode|www-data)/'          # proofgate-allow
 tab="$(printf '\t')"; n=0
 while IFS="$tab" read -r file content; do

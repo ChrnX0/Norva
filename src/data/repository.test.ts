@@ -3442,13 +3442,6 @@ test('a lot warns about expiry from wherever it is, not only from the storeroom'
 
   // E a pergunta por sala continua respondendo por sala, para o conserto não ter
   // sido "tirar o filtro e esquecer que ele serve para alguma coisa".
-  const cc = await db();
-  const dump = await cc.getAllAsync<{ kind: string; location_id: string; quantity_base_units: number; lot_id: string | null }>(
-    `SELECT kind, location_id, quantity_base_units, lot_id FROM movements WHERE company_id = ? AND item_id = ? ORDER BY occurred_at, recorded_at`,
-    [LOCAL_COMPANY_ID, product.itemId],
-  );
-  console.log("    [dbg] lote:", corrida.lot.id);
-  for (const l of dump) console.log(`    [dbg] ${l.kind} loc=${l.location_id === fabrica ? "fabrica" : "outra"} q=${l.quantity_base_units} lot=${l.lot_id ?? "(nulo)"}`);
   const soNoAlmoxarifado = await expiringSoon(LOCAL_COMPANY_ID, trintaDias, 5, fabrica);
   assert.ok(
     !soNoAlmoxarifado.some((l) => l.code === corrida.lot.code),

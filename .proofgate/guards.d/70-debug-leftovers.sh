@@ -18,7 +18,13 @@ if [ "${FOCUS:-0}" -gt 0 ]; then
 fi
 
 DEBUGS=$(echo "$ADDED" | grep -Ec '\bdebugger\b|console\.log\(|binding\.pry|breakpoint\(\)' || true)
-TODOS=$(echo "$ADDED" | grep -Ec '\b(TODO|FIXME|HACK)\b' || true)
+# O marcador tem que PARECER um marcador: primeiro token de um comentário, ou
+# seguido de `:` / `(`. Sem isso, `\b(TODO|FIXME|HACK)\b` acusa a palavra comum
+# num repositório que não escreve em inglês — em português, "TODO o aplicativo",
+# "apagar compras leva TODO movimento" e "embaixo de TODO número de dinheiro" são
+# frases, e o guarda ficava amarelo para sempre num código sem nenhuma pendência.
+# Um aviso que nunca some é um aviso que ninguém lê.
+TODOS=$(echo "$ADDED" | grep -Ec '(//|\*|#)[[:space:]]*(TODO|FIXME|HACK)\b|\b(TODO|FIXME|HACK)[[:space:]]*[:(]' || true)
 if [ "$((${DEBUGS:-0} + ${TODOS:-0}))" -gt 0 ]; then
   echo "⚠️  debug-leftovers: ${DEBUGS:-0} debug statement(s) + ${TODOS:-0} fresh TODO/FIXME in the diff — shipping them? justify in your status"
   exit 2
