@@ -535,6 +535,14 @@ export const en: Dictionary = {
           lavanda: 'Lavender',
         },
       },
+      safety: {
+        label: 'How much slack before buying',
+        hint:
+          'The app adds this slack to how long your supplier actually takes, and warns on that day. '
+          + 'Zero works for whoever buys around the corner.',
+        none: 'No slack',
+        days: { one: '1 day', other: '{{n}} days' },
+      },
       briefing: {
         label: 'What shows on the home screen',
         hint: 'The order belongs to the house: everyone sees the same home. Hiding is only on this phone.',
@@ -705,6 +713,12 @@ export const en: Dictionary = {
       leadTime: 'The supplier takes',
       leadTimeFrom: 'average of {{count}}',
       noteCount: { one: '1 invoice', other: '{{n}} invoices' },
+      buyNow: 'Buy today',
+      buyBy: 'Buy by {{weekday}}',
+      buyWhy:
+        '{{cover}} of stock left and the supplier takes {{lead}}, with the {{slack}} of slack you chose.',
+      buyCalm: 'No need to buy yet',
+      buyCalmWhy: '{{cover}} of stock left, and the sum already counts the supplier lead time.',
       leadTimeUnknown:
         'Note when you ordered on the next invoice, and the app starts knowing how long your supplier takes.',
       howYouBuy: 'How you buy it',

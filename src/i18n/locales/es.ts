@@ -540,6 +540,14 @@ export const es: Dictionary = {
           lavanda: 'Lavanda',
         },
       },
+      safety: {
+        label: 'Cuánta holgura antes de comprar',
+        hint:
+          'La app suma esta holgura al plazo que su proveedor tarda de verdad, y avisa ese día. '
+          + 'Cero sirve para quien compra a la vuelta.',
+        none: 'Sin holgura',
+        days: { one: '1 día', other: '{{n}} días' },
+      },
       briefing: {
         label: 'Qué aparece en la pantalla de inicio',
         hint: 'El orden es de la casa: todos ven la misma portada. Ocultar es sólo en este teléfono.',
@@ -710,6 +718,12 @@ export const es: Dictionary = {
       leadTime: 'El proveedor tarda',
       leadTimeFrom: 'promedio de {{count}}',
       noteCount: { one: '1 factura', other: '{{n}} facturas' },
+      buyNow: 'Compre hoy',
+      buyBy: 'Compre hasta {{weekday}}',
+      buyWhy:
+        'Quedan {{cover}} de existencia y el proveedor tarda {{lead}}, con {{slack}} de holgura que usted eligió.',
+      buyCalm: 'Todavía no hace falta comprar',
+      buyCalmWhy: 'Quedan {{cover}} de existencia, y la cuenta ya considera el plazo del proveedor.',
       leadTimeUnknown:
         'Anotá cuándo lo pediste en la próxima factura, y la app empieza a saber cuánto tarda tu proveedor.',
       howYouBuy: 'Cómo lo compras',

@@ -40,9 +40,11 @@ import {
   floorSignIn,
   namesWhoRecorded,
   ordersNeedApproval,
+  purchaseSafetyDays,
   setFloorSignIn,
   setNamesWhoRecorded,
   setOrdersNeedApproval,
+  setPurchaseSafetyDays,
   type FloorSignIn,
 } from './repository';
 
@@ -51,19 +53,22 @@ export type ConfiguracaoDaEmpresa = {
   names_who_recorded: boolean;
   floor_sign_in: FloorSignIn;
   orders_need_approval: boolean;
+  purchase_safety_days: number;
 };
 
 /** O que este aparelho tem guardado. */
 export async function daqui(): Promise<ConfiguracaoDaEmpresa> {
-  const [nomes, entrada, aprovacao] = await Promise.all([
+  const [nomes, entrada, aprovacao, folga] = await Promise.all([
     namesWhoRecorded(),
     floorSignIn(),
     ordersNeedApproval(),
+    purchaseSafetyDays(),
   ]);
   return {
     names_who_recorded: nomes,
     floor_sign_in: entrada,
     orders_need_approval: aprovacao,
+    purchase_safety_days: folga,
   };
 }
 
@@ -80,6 +85,12 @@ export async function guardarAqui(vinda: Partial<ConfiguracaoDaEmpresa>): Promis
     setNamesWhoRecorded(vinda.names_who_recorded === true),
     setFloorSignIn(vinda.floor_sign_in === 'shared' ? 'shared' : 'personal'),
     setOrdersNeedApproval(vinda.orders_need_approval === true),
+    // Zero é resposta válida, então o padrão só entra quando NÃO É NÚMERO. Um
+    // `|| 2` aqui trocaria "a fábrica não quer folga" por "dois dias" em silêncio,
+    // que é a classe de defeito mais cara deste projeto: o número plausível.
+    setPurchaseSafetyDays(
+      typeof vinda.purchase_safety_days === 'number' ? vinda.purchase_safety_days : 2,
+    ),
   ]);
 }
 
@@ -108,7 +119,7 @@ export async function puxar(): Promise<boolean> {
   if (!supabase) return false;
   const { data, error } = await supabase
     .from('companies')
-    .select('names_who_recorded, floor_sign_in, orders_need_approval')
+    .select('names_who_recorded, floor_sign_in, orders_need_approval, purchase_safety_days')
     .limit(1);
   if (error || !data?.[0]) return false;
   await guardarAqui(data[0] as Partial<ConfiguracaoDaEmpresa>);

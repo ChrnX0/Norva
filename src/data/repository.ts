@@ -4514,6 +4514,40 @@ export type Running = {
  * exatamente como a polpa, e uma fábrica parada por falta de palito está tão
  * parada quanto uma sem morango.
  */
+/**
+ * Quanto deste insumo sai por dia — a média da janela pedida.
+ *
+ * Existe ao lado de `runningOut` e não dentro dela porque as duas respondem
+ * perguntas diferentes: aquela lista **quem está acabando** e por isso descarta
+ * quem tem folga; esta responde **quanto sai**, e a resposta vale igual para o
+ * insumo que dura seis meses. Usar a primeira aqui daria `null` justamente para
+ * os itens tranquilos, e o ponto de recompra deles é o que decide se hoje é o
+ * dia — que é a Lei 4: avisar na data da DECISÃO, não na do problema.
+ *
+ * Zero é resposta legítima e não "não sei": insumo que ninguém consumiu na
+ * janela sai zero por dia, e é isso que faz a cobertura dele ser infinita em vez
+ * de desconhecida.
+ */
+export async function dailyOutflowOf(
+  companyId: string,
+  itemId: string,
+  fromIso: string,
+  toIso: string,
+  days: number,
+): Promise<number> {
+  const conn = await db();
+  const linha = await conn.getFirstAsync<{ out_units: number }>(
+    `SELECT COALESCE(-SUM(quantity_base_units), 0) AS out_units
+       FROM movements
+      WHERE company_id = ? AND item_id = ?
+        AND quantity_base_units < 0
+        AND occurred_at >= ? AND occurred_at < ?`,
+    [companyId, itemId, fromIso, toIso],
+  );
+  const saiu = linha?.out_units ?? 0;
+  return days > 0 ? saiu / days : 0;
+}
+
 export async function runningOut(
   companyId: string,
   fromIso: string,
@@ -4976,6 +5010,31 @@ export async function floorSignIn(): Promise<FloorSignIn> {
 
 export async function setFloorSignIn(how: FloorSignIn): Promise<void> {
   await writeMeta(SIGN_IN_KEY, how);
+}
+
+const SAFETY_KEY = 'purchase.safetyDays';
+
+/**
+ * Quantos dias de folga a empresa quer antes de o aplicativo dizer "compre".
+ *
+ * O padrão é dois porque é o que o domínio já escrevia (`safetyDays = 2` em
+ * `reorderPoint`) — não um número novo inventado numa tela. E ele É
+ * configuração e não constante pela doutrina F7: a fábrica que compra polpa na
+ * mesma cidade quer dois dias, a que importa essência de outro estado quer duas
+ * semanas. Não existe o corte certo, existe o corte dela.
+ *
+ * Zero é resposta válida e não "não respondeu": quem compra na esquina não quer
+ * folga nenhuma. Por isso a leitura distingue vazio de zero.
+ */
+export async function purchaseSafetyDays(): Promise<number> {
+  const lido = await readMeta(SAFETY_KEY);
+  if (lido === null || lido === '') return 2;
+  const n = Number(lido);
+  return Number.isFinite(n) && n >= 0 && n <= 60 ? Math.round(n) : 2;
+}
+
+export async function setPurchaseSafetyDays(dias: number): Promise<void> {
+  await writeMeta(SAFETY_KEY, String(Math.max(0, Math.min(60, Math.round(dias)))));
 }
 
 const APPROVAL_KEY = 'orders.needApproval';

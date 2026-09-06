@@ -685,6 +685,15 @@ export const ptBR = {
           lavanda: 'Lavanda',
         },
       },
+      /* A folga de compra — configuração da empresa, pela F7. */
+      safety: {
+        label: 'Quanta folga antes de comprar',
+        hint:
+          'O app soma esta folga ao prazo que o seu fornecedor leva de verdade, e avisa nesse dia. '
+          + 'Zero serve para quem compra na esquina.',
+        none: 'Sem folga',
+        days: { one: '1 dia', other: '{{n}} dias' },
+      },
       briefing: {
         label: 'O que aparece na tela inicial',
         hint: 'A ordem é da casa: todo mundo vê a mesma capa. Esconder é só neste aparelho.',
@@ -887,6 +896,13 @@ export const ptBR = {
       leadTime: 'O fornecedor leva',
       leadTimeFrom: 'média de {{count}}',
       noteCount: { one: '1 nota', other: '{{n}} notas' },
+      /* O ponto de recompra, dito na data da DECISÃO. */
+      buyNow: 'Compre hoje',
+      buyBy: 'Compre até {{weekday}}',
+      buyWhy:
+        'Sobram {{cover}} de estoque e o fornecedor leva {{lead}}, com {{slack}} de folga que você escolheu.',
+      buyCalm: 'Não precisa comprar ainda',
+      buyCalmWhy: 'Sobram {{cover}} de estoque, e a conta já conta o prazo do fornecedor.',
       leadTimeUnknown:
         'Anote quando você pediu, na próxima nota, e o app passa a saber quanto seu fornecedor demora.',
       howYouBuy: 'Como você compra',

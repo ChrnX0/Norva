@@ -15,6 +15,7 @@ import {
   GlyphCustomer,
   GlyphLoss,
   GlyphOrder,
+  GlyphPurchase,
   GlyphSettings,
   GlyphThermometer,
 } from '@/components/Glyph';
@@ -33,6 +34,7 @@ import {
   floorSignIn,
   namesWhoRecorded,
   ordersNeedApproval,
+  purchaseSafetyDays,
   setBriefingHalf,
   setBriefingHidden,
   setAlertSettings,
@@ -40,6 +42,7 @@ import {
   setFloorSignIn,
   setNamesWhoRecorded,
   setOrdersNeedApproval,
+  setPurchaseSafetyDays,
 } from '@/data/repository';
 import { agreedOn, toggleDay } from '@/domain/agreement';
 import { parseTyped } from '@/domain/number';
@@ -273,6 +276,7 @@ function Settings() {
    * chão de fábrica, e ela vale aqui pelo mesmo motivo.
    */
   const { data: approval, refresh: refreshApproval } = useQuery<boolean>(() => ordersNeedApproval());
+  const { data: folga, refresh: refreshFolga } = useQuery<number>(() => purchaseSafetyDays());
   const { data: nomeia, refresh: refreshNomeia } = useQuery<boolean>(() => namesWhoRecorded());
   const { data: entrada, refresh: refreshEntrada } = useQuery(() => floorSignIn());
 
@@ -1121,6 +1125,55 @@ function Settings() {
             </View>
           </Card>
         </Pressable>
+      </Reveal>
+
+      {/* A folga de compra — o corte que decide "é hora de comprar".
+          Ele é configuração e não constante pela F7: a fábrica que compra polpa
+          na mesma cidade quer dois dias, a que importa essência de outro estado
+          quer duas semanas. Não existe o corte certo, existe o corte dela — e o
+          padrão de dois é o que o domínio já escrevia, não um número novo.
+
+          Sete escolhas e não um campo livre: quem está de luva não digita, e a
+          diferença entre 4 e 5 dias de folga não decide nada que 3 ou 7 já não
+          decidam. */}
+      <Reveal index={6}>
+        <Card
+          hue={palette.sage}
+          icon={(c) => <GlyphPurchase size={26} color={c} weight={traco} />}
+          title={t.app.settings.safety.label}
+        >
+          <Text style={[type.caption, { color: color.inkMuted, marginBottom: space.md }]}>
+            {t.app.settings.safety.hint}
+          </Text>
+          <View style={[styles.row, { gap: space.sm, flexWrap: 'wrap' }]}>
+            {[0, 1, 2, 3, 5, 7, 14].map((dias) => (
+              <Pressable
+                key={dias}
+                onPress={async () => {
+                  await setPurchaseSafetyDays(dias);
+                  void empurrar();
+                  refreshFolga();
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: folga === dias }}
+                accessibilityLabel={
+                  dias === 0
+                    ? t.app.settings.safety.none
+                    : plural(dias, t.app.settings.safety.days)
+                }
+              >
+                <Chip
+                  signal={folga === dias ? 'ok' : 'neutral'}
+                  label={
+                    dias === 0
+                      ? t.app.settings.safety.none
+                      : plural(dias, t.app.settings.safety.days)
+                  }
+                />
+              </Pressable>
+            ))}
+          </View>
+        </Card>
       </Reveal>
 
       {/* Nomear quem gravou.

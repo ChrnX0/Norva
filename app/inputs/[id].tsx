@@ -23,6 +23,8 @@ import {
   recordLoss,
   balanceByLocation,
   canSeeMoney,
+  dailyOutflowOf,
+  purchaseSafetyDays,
   defaultLocationId,
   deliveriesOf,
   findItem,
@@ -42,11 +44,22 @@ import {
   type Delivery,
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
-import { judgePriceChange, observedLeadTimeDays } from '@/domain/cost';
+import { judgePriceChange, observedLeadTimeDays, reorderPoint } from '@/domain/cost';
 import type { LossReason } from '@/domain/ledger';
 import { parseTyped } from '@/domain/number';
 import { useQuery } from '@/data/useQuery';
-import { fill, formatDayMonth, formatMoney, formatPercent, formatQuantity, plural } from '@/i18n';
+import {
+  fill,
+  formatDayMonth,
+  formatMoney,
+  formatPercent,
+  formatQuantity,
+  formatWeekdayShort,
+  plural,
+} from '@/i18n';
+import { nowIso } from '@/data/db';
+import { dayWindow } from '@/domain/day';
+
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -101,6 +114,17 @@ type Loaded = {
   entregas: Delivery[];
   /** Se quem está com o aparelho vê dinheiro. Vem junto para não piscar cifra. */
   dinheiro: boolean;
+  /** Quanto deste insumo sai por dia, na mesma janela de sete dias da lista. */
+  saiPorDia: number;
+  /**
+   * O instante em que esta tela perguntou.
+   *
+   * Vem da consulta e não do render, e a regra `react-hooks/purity` está certa em
+   * cobrar: `Date.now()` no desenho dá uma resposta diferente a cada redesenho, e
+   * "compre até quinta" viraria "até sexta" no meio de uma rolagem. O relógio é
+   * lido uma vez, com o resto do dado.
+   */
+  agora: string;
 };
 
 function InputDetail() {
@@ -136,7 +160,7 @@ function InputDetail() {
     if (!id)
       return {
         item: null, history: [], recipes: [], movements: [], spread: [], places: [],
-        entregas: [], dinheiro: false,
+        entregas: [], dinheiro: false, saiPorDia: 0, agora: '',
       };
 
     // Os lugares vêm primeiro porque a sala da rota tem de ser conferida contra
@@ -149,7 +173,12 @@ function InputDetail() {
 
     // O saldo e os movimentos vão pela sala; o preço e as receitas não têm sala
     // — custo médio é da empresa, e uma ficha não muda de sala em sala.
-    const [item, history, recipes, movements, spread, entregas, dinheiro] = await Promise.all([
+    // A janela do consumo é a mesma da lista — sete dias —, e ela ser a mesma é
+    // o que impede duas telas responderem "quanto sai por dia" com números
+    // diferentes para o mesmo insumo.
+    const hoje = dayWindow(nowIso(), locale.timeZone);
+    const semanaAtras = dayWindow(nowIso(), locale.timeZone, -7);
+    const [item, history, recipes, movements, spread, entregas, dinheiro, saiPorDia] = await Promise.all([
       findItem(LOCAL_COMPANY_ID, id, room),
       itemHistory(LOCAL_COMPANY_ID, id),
       recipesUsingItem(LOCAL_COMPANY_ID, id),
@@ -161,9 +190,20 @@ function InputDetail() {
       // Na mesma consulta do resto: sem isso existe um instante em que a tela
       // tem os números e ainda não sabe se pode mostrá-los.
       canSeeMoney(LOCAL_COMPANY_ID),
+      dailyOutflowOf(LOCAL_COMPANY_ID, id, semanaAtras.from, hoje.to, 7),
     ]);
-    return { item, history, recipes, movements, spread, places, entregas, dinheiro };
+    return {
+      item, history, recipes, movements, spread, places, entregas, dinheiro, saiPorDia,
+      agora: hoje.from,
+    };
   }, `${id ?? ''}|${sala ?? ''}`);
+
+  /**
+   * A folga que a EMPRESA escolheu. Padrão dois, que é o que o domínio já
+   * escrevia — e o gancho mora AQUI, acima da saída antecipada de carregamento,
+   * porque gancho depois de `return` muda a ordem entre um render e o seguinte.
+   */
+  const { data: folga } = useQuery<number>(() => purchaseSafetyDays());
 
   const item = data?.item ?? null;
 
@@ -190,6 +230,7 @@ function InputDetail() {
    * respondia as duas com a primeira, que é a única errada das duas.
    */
   const dinheiro = data?.dinheiro === true;
+  const folgaDaCompra = folga ?? 2;
 
   /**
    * O prazo do fornecedor, em dias — e o cálculo é do DOMÍNIO, não daqui.
@@ -200,6 +241,34 @@ function InputDetail() {
    * tela de compra escreve. Este é o primeiro leitor dela em produção.
    */
   const prazo = observedLeadTimeDays(data?.entregas ?? []);
+
+  /**
+   * O ponto de recompra — a Lei 4 saindo do papel.
+   *
+   * *"Avise na data da DECISÃO, não na data do problema."* O dia do problema é
+   * quando o insumo acaba; o dia da decisão é `acaba − prazo do fornecedor −
+   * a folga que a empresa escolheu`, e é esse que a tela diz.
+   *
+   * `reorderPoint` estava no domínio sem chamador, com uma razão registrada hoje
+   * de manhã: *"falta a RÉGUA, e ela se afere contra uma fábrica"*. A razão está
+   * certa sobre o NÚMERO e errada sobre a espera — a doutrina F7 desta casa diz
+   * que "depende de quem usa" vira **configuração**, não pergunta nem fila. A
+   * folga é da empresa (Ajustes), o padrão é dois porque é o que o domínio já
+   * escrevia, e o que continua esperando uma fábrica é aferir esse padrão.
+   *
+   * Silêncio quando não se sabe o prazo, e isso não é timidez: sem `ordered_at`
+   * anotado numa nota, qualquer data aqui seria inventada — e alerta inventado
+   * ensina a ignorar alerta.
+   */
+  const saiPorDia = data?.saiPorDia ?? 0;
+  const gatilho =
+    prazo !== null && saiPorDia > 0
+      ? reorderPoint(saiPorDia, prazo, folgaDaCompra)
+      : null;
+  const diasAteComprar =
+    gatilho !== null && saiPorDia > 0
+      ? Math.floor((item.onHandBaseUnits - gatilho) / saiPorDia)
+      : null;
   const temCusto = item.averageRate !== null && item.averageRate > 0;
   const perThousand = temCusto ? Math.round((item.averageRate ?? 0) * 1_000) : 0;
   const held = Math.round((item.averageRate ?? 0) * item.onHandBaseUnits);
@@ -564,6 +633,47 @@ function InputDetail() {
               afere contra uma fábrica e não contra um banco semeado. O que existe é
               o fato, e o fato só aparece quando alguém anotou a data do pedido; sem
               isso a tela diz o que destrava, em vez de mostrar um traço. */}
+          {/* E a régua, que passou a existir porque a folga virou configuração
+              da empresa: agora não há um corte escolhido por nós — há o corte
+              dela, e a conta aparece por extenso ao lado da conclusão. */}
+          {diasAteComprar !== null ? (
+            <ListRow
+              label={
+                diasAteComprar <= 0
+                  ? t.app.inputDetail.buyNow
+                  : diasAteComprar > 10
+                    ? t.app.inputDetail.buyCalm
+                    : fill(t.app.inputDetail.buyBy, {
+                        // O dia da semana e não a data: "compre até quinta" é como
+                        // alguém fala, e "compre até 11/09" é como um sistema fala.
+                        weekday: formatWeekdayShort(
+                          new Date(
+                            new Date(data?.agora ?? '').getTime() + diasAteComprar * 86_400_000,
+                          ).getDay(),
+                          locale,
+                        ),
+                      })
+              }
+              detail={
+                diasAteComprar > 10
+                  ? fill(t.app.inputDetail.buyCalmWhy, {
+                      cover: plural(
+                        Math.floor(item.onHandBaseUnits / saiPorDia),
+                        t.app.home.dayCount,
+                      ),
+                    })
+                  : fill(t.app.inputDetail.buyWhy, {
+                      cover: plural(
+                        Math.floor(item.onHandBaseUnits / saiPorDia),
+                        t.app.home.dayCount,
+                      ),
+                      lead: plural(Math.round(prazo ?? 0), t.app.home.dayCount),
+                      slack: plural(folgaDaCompra, t.app.home.dayCount),
+                    })
+              }
+            />
+          ) : null}
+
           {prazo === null ? (
             <Text style={[type.caption, { color: color.inkFaint, marginTop: space.sm }]}>
               {t.app.inputDetail.leadTimeUnknown}

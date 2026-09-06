@@ -616,8 +616,6 @@ test('every line the ledger gets says who was holding the phone', () => {
 const SEM_CHAMADOR: Record<string, string> = {
   needsHumanYes:
     'o piso de atos que sempre pedem um humano é promessa feita ANTES das funcionalidades existirem — o docblock diz isso por extenso, e quem construir preço ou lançamento financeiro herda a regra em vez de decidir de novo',
-  reorderPoint:
-    'o ponto de recompra usa o prazo observado, que passou a existir em 6 de setembro — a tela de compra pergunta quando o pedido foi feito e a ficha do insumo mostra a média. O que falta agora é a RÉGUA ("é hora de comprar"), e ela se afere contra uma fábrica: qualquer corte escolhido hoje seria calibrado contra um banco semeado',
   ratesBefore:
     'o custo de hoje contra o de ANTES de uma sequência de movimentos. O SQL (`recentCostChanges`) mostra a última mudança por item, que é outra pergunta — e a regra daqui é a que impede uma alta de 9% em dois passos aparecer como 2%',
   daysUntilExpiry:
