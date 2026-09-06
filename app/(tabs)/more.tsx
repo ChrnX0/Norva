@@ -12,6 +12,7 @@ import {
   GlyphSettings,
   GlyphStock,
   GlyphArchive,
+  GlyphChart,
   GlyphCustomer,
   GlyphStore,
   GlyphThermometer,
@@ -155,6 +156,11 @@ function Drawers() {
     // e a conta existe para o que SAI daqui. Uma tela de senha entre a pessoa e a
     // caixa que ela está segurando seria o defeito mais caro deste produto.
     { key: 'account', detail: t.app.account.overline, route: '/account', desenho: glifo(GlyphCustomer), tom: palette.sky },
+    // O extrato entra aqui e não em Relatórios, e a razão é o VERBO: relatório se
+    // lê, extrato se USA — é dele que sai o desfazer, e desfazer é ação. Ficar
+    // atrás de "Relatórios" poria o único caminho de volta do aplicativo dois
+    // toques abaixo de um substantivo.
+    { key: 'extract', detail: t.app.extract.overline, route: '/extrato', desenho: glifo(GlyphChart), tom: palette.sky },
     // A cópia fica no mesmo grupo dos ajustes e não na frente do aplicativo, pelo
     // mesmo motivo da conta — mas ela é a única porta daqui cujo assunto é o que
     // acontece se o aparelho não existir mais, e por isso vem ANTES delas.

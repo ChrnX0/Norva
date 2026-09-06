@@ -5,7 +5,7 @@ import { DEFAULT_ALERTS, type AlertSettings } from '@/domain/alerts';
 import { daysOfCover } from '@/domain/ledger';
 import { ROLES, capabilitiesFor, type Capability, type Role } from '@/domain/access';
 import { expiresOn, lotCode } from '@/domain/lot';
-import type { LossReason, ReturnReason } from '@/domain/ledger';
+import type { LossReason, MovementKind, ReturnReason } from '@/domain/ledger';
 import { explodeRequirements } from '@/domain/recipe';
 import type { ItemCosts, Recipe, RecipeLine } from '@/domain/recipe';
 import type { PackagingHierarchy } from '@/domain/units';
@@ -5002,6 +5002,192 @@ async function canSeePrice(companyId: string): Promise<boolean> {
  * dívida em `docs/roadmap.md`: configuração da empresa é a única coisa que dois
  * celulares da MESMA empresa não conseguem combinar entre si.
  */
+/** Um ATO do livro-razão: o que uma pessoa fez, com todas as pernas que ele moveu. */
+export type ExtractAct = {
+  /** O grupo — ou a própria linha, quando ela não tem grupo. É por ele que se estorna. */
+  groupId: string;
+  kind: MovementKind;
+  occurredAt: string;
+  /** Quantas linhas do razão este ato escreveu. */
+  lines: number;
+  /**
+   * A soma das linhas pela TAXA CONGELADA, e `null` sem o portão do dinheiro.
+   *
+   * Somada em JavaScript por `amountOf`, e não em SQL — de propósito. Um
+   * `ROUND(rate * qty)` dentro da consulta seria um segundo autor do
+   * arredondamento do sistema, que é exatamente o defeito consertado hoje em
+   * `stockByPlace`. O SQL devolve as linhas; quem converte taxa em dinheiro é o
+   * único lugar que faz isso.
+   */
+  valueCents: Cents | null;
+  /** Já foi desfeito. */
+  reversed: boolean;
+  /** ELE é o desfazimento de outro. */
+  isReversal: boolean;
+  /** Os nomes que ele mexeu, para a linha falar sem a tela adivinhar. */
+  items: string[];
+  placeName: string | null;
+  note: string | null;
+};
+
+/**
+ * O extrato: o livro-razão por ATO, e não por linha.
+ *
+ * **Existe porque o caminho de volta estava inalcançável.** Nove funções escrevem
+ * no razão a partir de tela — compra, contagem, produção, transferência,
+ * devolução, perda, conferência, leitura, e o próprio estorno — e o botão de
+ * desfazer existia em DUAS (`app/lots/[id].tsx`, `app/inputs/[id].tsx`). A
+ * fundação promete *"corrige-se por estorno, nunca por exclusão"* e ela estava
+ * honrada no banco e fora do alcance de quem erra. O que uma pessoa faz numa
+ * fábrica quando não dá para consertar é parar de registrar: perde-se o dado, não
+ * o conserto.
+ *
+ * **Por ATO porque é assim que se desfaz.** `reverseGroup` recebe um grupo, e uma
+ * corrida de produção são sete linhas amarradas: desfazer só a linha da produção
+ * deixaria picolés que não consumiram nada — pior que o erro original, porque
+ * parece certo. Movimento sem grupo é ato de si mesmo (`COALESCE`), e não uma
+ * linha somada com as outras órfãs num ato que nunca existiu.
+ *
+ * **A régua do dinheiro aqui é a TAXA CONGELADA, e ela não fecha com
+ * `stockByPlace` de propósito.** Aquela tela valoriza o saldo com o custo médio de
+ * HOJE (`item_costs.average_rate`, sobrescrito no lugar a cada compra); esta soma
+ * o que cada linha valia quando aconteceu. Compre polpa a 1,24 ¢/g em março e a
+ * 1,60 em outubro: o saldo de março re-lido hoje vale 1,60, e a linha de março
+ * continua valendo 1,24. **As duas estão certas e respondem perguntas
+ * diferentes** — e documento é o razão, porque a média muda e não pode assinar
+ * nada. Esconder essa diferença com um arredondamento conveniente produziria o
+ * documento bonito, verde e falso que este repositório mais teme.
+ *
+ * **O portão roda ANTES da consulta**, como manda a fundação: sem permissão o
+ * `unit_cost_rate` não é selecionado, então não existe número para vazar.
+ */
+export async function ledgerExtract(
+  companyId: string,
+  opts: {
+    /** Do começo deste instante, inclusive. */
+    from?: string;
+    /** Até este instante, exclusive — é o corte de fechamento de período. */
+    to?: string;
+    /** Quantos ATOS, não quantas linhas. */
+    limit?: number;
+    /** O `occurredAt` do último ato da página anterior, para continuar dali. */
+    before?: string;
+  } = {},
+): Promise<ExtractAct[]> {
+  const conn = await db();
+  const dinheiro = (await canSeeMoney(companyId)) ? 1 : 0;
+  const limite = opts.limit ?? 30;
+
+  // Primeiro os ATOS da janela, e só depois as linhas deles. Paginar por linha
+  // cortaria um ato ao meio — e um ato cortado ao meio na tela é um estorno que
+  // devolve metade.
+  const atos = await conn.getAllAsync<{ g: string; quando: string }>(
+    `SELECT COALESCE(m.movement_group_id, m.id) AS g, MAX(m.occurred_at) AS quando
+       FROM movements m
+      WHERE m.company_id = ?
+        AND (? IS NULL OR m.occurred_at >= ?)
+        AND (? IS NULL OR m.occurred_at < ?)
+      GROUP BY g
+     HAVING (? IS NULL OR quando < ?)
+      ORDER BY quando DESC, g DESC
+      LIMIT ?`,
+    [
+      companyId,
+      opts.from ?? null, opts.from ?? null,
+      opts.to ?? null, opts.to ?? null,
+      opts.before ?? null, opts.before ?? null,
+      limite,
+    ],
+  );
+  if (atos.length === 0) return [];
+
+  const marcas = atos.map(() => '?').join(', ');
+  const linhas = await conn.getAllAsync<{
+    g: string;
+    id: string;
+    kind: string;
+    quantity_base_units: number;
+    unit_cost_rate: number | null;
+    occurred_at: string;
+    note: string | null;
+    item_name: string | null;
+    place_name: string | null;
+    reverses: string | null;
+    reversed: number;
+  }>(
+    `SELECT COALESCE(m.movement_group_id, m.id) AS g, m.id, m.kind,
+            m.quantity_base_units,
+            CASE WHEN ? = 1 THEN m.unit_cost_rate END AS unit_cost_rate,
+            m.occurred_at, m.note,
+            i.name AS item_name, l.name AS place_name,
+            m.reverses_movement_id AS reverses,
+            EXISTS (SELECT 1 FROM movements r
+                     WHERE r.reverses_movement_id = m.id AND r.company_id = m.company_id) AS reversed
+       FROM movements m
+       LEFT JOIN items i ON i.id = m.item_id
+       LEFT JOIN locations l ON l.id = m.location_id
+      WHERE m.company_id = ? AND COALESCE(m.movement_group_id, m.id) IN (${marcas})
+      ORDER BY m.rowid ASC`,
+    [dinheiro, companyId, ...atos.map((a) => a.g)],
+  );
+
+  /**
+   * A PRIMEIRA linha escrita dá o nome ao ato, e isto é invariante e não sorte.
+   *
+   * A primeira versão ordenava por `occurred_at DESC, rowid DESC` e uma corrida de
+   * produção aparecia no extrato como **"consumo"** — porque as pernas de consumo
+   * são escritas depois e vinham primeiro na leitura. A pessoa leria o nome errado
+   * do próprio ato dela.
+   *
+   * `rowid ASC` conserta porque todo `record*` deste arquivo escreve a perna que dá
+   * NOME ao ato antes das que derivam dela: `recordProduction` grava `production` e
+   * só então os `consumption` da receita. Não é ordem casual — é a ordem em que os
+   * fatos existem, porque o consumo é consequência da produção.
+   *
+   * A invariante fica presa pelo teste *"the extract lists ACTS, not lines"*, que
+   * exige `kind === 'production'`: quem escrever uma função nova com as pernas na
+   * ordem trocada reprova ali, em vez de descobrir pelo nome errado numa tela.
+   */
+  const porAto = new Map<string, ExtractAct>();
+  for (const l of linhas) {
+    const ja = porAto.get(l.g);
+    // Dinheiro do ATO é a soma das PERNAS QUE ENTRAM, em módulo: uma corrida move
+    // sete linhas e somar as sete com sinal daria quase zero, que é verdade
+    // contábil e mentira na tela — o que a pessoa quer saber é o tamanho do ato.
+    const valor =
+      dinheiro === 1 && l.unit_cost_rate !== null
+        ? amountOf(l.unit_cost_rate as Rate, Math.abs(l.quantity_base_units))
+        : null;
+    if (!ja) {
+      porAto.set(l.g, {
+        groupId: l.g,
+        kind: l.kind as MovementKind,
+        occurredAt: l.occurred_at,
+        lines: 1,
+        valueCents: valor,
+        reversed: l.reversed === 1,
+        isReversal: l.reverses !== null,
+        items: l.item_name ? [l.item_name] : [],
+        placeName: l.place_name,
+        note: l.note,
+      });
+      continue;
+    }
+    ja.lines += 1;
+    if (valor !== null) ja.valueCents = ((ja.valueCents ?? 0) + valor) as Cents;
+    // Basta UMA perna estornada: o estorno vem sempre inteiro, e meia é defeito.
+    if (l.reversed === 1) ja.reversed = true;
+    if (l.reverses !== null) ja.isReversal = true;
+    if (l.item_name && !ja.items.includes(l.item_name)) ja.items.push(l.item_name);
+    if (!ja.placeName) ja.placeName = l.place_name;
+    if (!ja.note) ja.note = l.note;
+  }
+
+  // A ordem da consulta dos atos manda: o `Map` guarda inserção, e a inserção
+  // veio da segunda consulta, que ordena por linha e não por ato.
+  return atos.map((a) => porAto.get(a.g)).filter((x): x is ExtractAct => x !== undefined);
+}
+
 /**
  * Quantos movimentos o aparelho tem — o número que a tela de cópia compara.
  *

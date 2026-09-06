@@ -17,6 +17,7 @@ import {
   namesWhoRecorded,
   setFloorSignIn,
   floorSignIn,
+  ledgerExtract,
   setCurrentOperator,
   currentOperatorId,
   currentCapabilities,
@@ -4637,4 +4638,143 @@ test('a reversal is dated today, so a closed month stays closed', async () => {
     DITADO,
     'quem passa a data explícita continua sendo obedecido — é o caminho da sincronia',
   );
+});
+
+/**
+ * O extrato existe porque o caminho de volta estava inalcançável.
+ *
+ * Nove funções escrevem no razão a partir de tela e o botão de desfazer existia em
+ * DUAS. A fundação promete conserto por estorno e nunca por exclusão, e ela estava
+ * honrada no banco e fora do alcance de quem erra — e o que uma pessoa faz numa
+ * fábrica quando não dá para consertar é parar de registrar.
+ *
+ * O que este teste prende são as três coisas que fazem o extrato servir para
+ * desfazer, e cada uma delas errada produz um defeito diferente:
+ *
+ * 1. **Um ato é uma linha da tela, não sete.** Uma corrida de produção move sete
+ *    movimentos amarrados pelo grupo. Sete linhas na tela seriam sete botões de
+ *    estornar para um ato só, e seis deles fariam a coisa errada.
+ * 2. **O dinheiro do ato é a soma em MÓDULO.** Somar as sete pernas com sinal daria
+ *    quase zero — verdade contábil e mentira na tela, porque o que a pessoa quer
+ *    saber é o tamanho do que ela fez.
+ * 3. **O estorno aparece, dos dois lados.** O ato desfeito diz que foi, e o
+ *    desfazimento aparece como ato próprio — senão o extrato esconde metade da
+ *    história, que é a metade que explica a outra.
+ */
+test('the extract lists ACTS, not lines, and says which ones were undone', async () => {
+  await ensureStarterData(CO);
+  const [product] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
+  const where = defaultLocationId(CO);
+
+  const corrida = await recordProduction(CO, {
+    productId: product.id,
+    locationId: where,
+    batches: 1,
+    unitsProduced: 500,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+
+  const extrato = await ledgerExtract(CO);
+  const ato = extrato.find((a) => a.groupId === corrida.groupId);
+  assert.ok(ato, 'a corrida aparece no extrato como UM ato');
+  assert.ok(
+    ato.lines > 1,
+    `a corrida amarrou ${ato.lines} linha(s) — se for uma, o grupo não está sendo lido`,
+  );
+  assert.equal(ato.kind, 'production');
+  assert.equal(ato.reversed, false, 'ainda não foi desfeita');
+  assert.equal(ato.isReversal, false, 'ela não desfaz ninguém');
+  assert.ok(
+    (ato.valueCents ?? 0) > 0,
+    'o dinheiro do ato é a soma em MÓDULO — com sinal, uma corrida daria quase zero',
+  );
+
+  // E ela aparece UMA vez, não uma por perna.
+  assert.equal(
+    extrato.filter((a) => a.groupId === corrida.groupId).length,
+    1,
+    'sete linhas viram um ato; sete atos seriam sete botões de estornar para um ato só',
+  );
+
+  await reverseGroup(CO, { groupId: corrida.groupId });
+
+  const depois = await ledgerExtract(CO);
+  const desfeita = depois.find((a) => a.groupId === corrida.groupId);
+  assert.equal(desfeita?.reversed, true, 'o ato desfeito diz que foi');
+  assert.ok(
+    depois.some((a) => a.isReversal),
+    'e o desfazimento aparece como ato próprio — sem ele o extrato esconde a metade que explica a outra',
+  );
+});
+
+/**
+ * O corte por data é o fechamento de período, e ele tem de valer nas duas pontas.
+ *
+ * `to` é EXCLUSIVO de propósito: um período fecha em "antes de 1º de abril", não em
+ * "até 31 de março às 23:59:59,999" — a segunda forma perde o que aconteceu no
+ * último milésimo do mês, e ninguém descobre.
+ */
+test('the extract cuts by date on both ends, and the end is exclusive', async () => {
+  await ensureStarterData(CO);
+  const acucar = (await listItems(CO)).find((i) => i.kind === 'input')!.id;
+
+  await recordPurchase(CO, {
+    itemId: acucar, purchaseQuantity: 1, baseUnits: 1000,
+    totalCents: fromDecimal(10), occurredAt: '2026-03-10T12:00:00.000Z',
+  });
+  await recordPurchase(CO, {
+    itemId: acucar, purchaseQuantity: 1, baseUnits: 2000,
+    totalCents: fromDecimal(20), occurredAt: '2026-04-01T00:00:00.000Z',
+  });
+
+  const marco = await ledgerExtract(CO, {
+    from: '2026-03-01T00:00:00.000Z',
+    to: '2026-04-01T00:00:00.000Z',
+  });
+  const datas = marco.map((a) => a.occurredAt);
+  assert.ok(
+    datas.some((d) => d.startsWith('2026-03-10')),
+    'o que aconteceu dentro do período está lá',
+  );
+  assert.ok(
+    !datas.some((d) => d.startsWith('2026-04-01')),
+    'e o que aconteceu no instante do corte NÃO está: o fim é exclusivo, senão um ' +
+      'período fecha em 23:59:59,999 e perde o último milésimo sem ninguém descobrir',
+  );
+});
+
+/**
+ * O dinheiro não existe sem o portão — e não existe mesmo, não vem zerado.
+ *
+ * A fundação é *"permissão mora na consulta, nunca numa instrução"*: a checagem roda
+ * ANTES do SELECT, então a taxa nem é selecionada. Zero seria pior que nulo, porque
+ * zero é um número e alguém somaria.
+ */
+test('without the money gate the extract has no money at all, not zero', async () => {
+  await ensureStarterData(CO);
+  const [product] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
+  await recordProduction(CO, {
+    productId: product.id,
+    locationId: defaultLocationId(CO),
+    batches: 1,
+    unitsProduced: 100,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+
+  // Vestir o operador é escolher uma PESSOA com o perfil dele — o portão lê quem
+  // está com o aparelho, não um papel global. É o mesmo caminho que a tela usa.
+  const perfis = await listProfiles(CO);
+  const operador = perfis.find((p) => p.templateRole === 'operator');
+  assert.ok(operador, 'operator é um dos modelos prontos');
+  const quem = await savePerson(CO, { name: 'Quem opera', profileId: operador.id });
+  await setCurrentOperator(quem.id);
+
+  const semDinheiro = await ledgerExtract(CO);
+  assert.ok(semDinheiro.length > 0, 'o operador vê os atos');
+  assert.ok(
+    semDinheiro.every((a) => a.valueCents === null),
+    'e não vê valor nenhum — nulo, não zero: zero é um número, e número alguém soma',
+  );
+
+  await setCurrentOperator(null);
 });
