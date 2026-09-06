@@ -42,7 +42,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **354** testes |
+| `npm test` | **356** testes |
 | `npm run mutate` | **106** defeitos plantados, 104 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **36** checagens num navegador de verdade |
 | `npm run db:verify` | **13** garantias contra um Postgres descartável, sob RLS |
@@ -244,10 +244,21 @@ aqui estava errado:**
 
 De pé, nesta ordem e por este motivo:
 
-1. **Os médios que sobraram** — oito, agora que o `versionCode`, o `recorded_by`
-   cedível, o percentual com ponto, o ícone de picolé e **a tela de abertura**
-   caíram. Entre os que ficam: a aprovação de pedido que nunca atravessa e
-   `forgetSentBefore` sem chamador fora de teste.
+1. **Os médios que sobraram** — sete, agora que o `versionCode`, o `recorded_by`
+   cedível, o percentual com ponto, o ícone de picolé, **a tela de abertura** e
+   **a fila que nunca era varrida** caíram. Entre os que ficam: a aprovação de
+   pedido que nunca atravessa.
+
+   *E `forgetSentBefore` fechou junto, em 6 de setembro.* A auditoria dizia "sem
+   chamador fora de teste" e estava certa — mas o conserto não era apagar: o motor
+   de sincronia mandava e **nunca varria**, então no dia em que a sincronia existir
+   o celular de uma fábrica movimentada carregaria um ano de linhas já entregues,
+   que é exatamente o que o docblock da função diz que não pode acontecer. Agora o
+   `drain` faz a faxina no fim, com janela de sete dias — e o `now` do `SyncOptions`,
+   que também estava declarado e sem uso, ganhou o primeiro chamador nela.
+   O teste ficou VERMELHO com a faxina comentada antes de virar verde: a primeira
+   versão dele media `pendingCount()`, que conta o marcar e não o varrer, e passava
+   com o defeito na frente.
 
    *A abertura fechou em 6 de setembro, e o achado não era o que parecia:* a marca
    dela **já era gerada** pelo `scripts/icons.mjs` e o `app.json` nunca a citou —

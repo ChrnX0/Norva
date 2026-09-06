@@ -43,10 +43,14 @@ function inMemoryDb(): Db {
 
 const CO = LOCAL_COMPANY_ID;
 
+/** Guardada para um teste poder perguntar ao ESQUEMA, e não só ao dado. */
+let live: Db;
+
 beforeEach(async () => {
   const conn = inMemoryDb();
   await migrate(conn);
   __setDb(conn);
+  live = conn;
 });
 
 /** Accepts everything, and remembers what it was handed. */
@@ -238,4 +242,79 @@ test('backoff grows and then stops growing', () => {
   assert.equal(backoffMs(3), 4_000);
   // A phone that spent the night in a freezer should retry hourly, not weekly.
   assert.equal(backoffMs(99), 60_000);
+});
+
+/**
+ * A fila para de crescer quando a sincronia existir — e só o que subiu sai.
+ *
+ * `forgetSentBefore` estava na auditoria como "sem chamador fora de teste", e
+ * estava certo: o motor mandava e nunca varria. O conserto não é apagar a função,
+ * é a faxina acontecer, senão o celular de uma fábrica movimentada carrega um ano
+ * de linhas já entregues — que é exatamente o que o docblock dela diz que não pode
+ * acontecer.
+ *
+ * O que este teste protege é a metade perigosa: **o que ainda não subiu nunca sai.**
+ * Uma linha apagada antes de chegar é uma escrita que a pessoa viu acontecer e a
+ * fábrica nunca vai ver.
+ */
+test('the drain sweeps what the server took long ago, and never what is still waiting', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+
+  const fila = await pendingEntries();
+  assert.ok(fila.length > 2, 'a semente deixa fila com que trabalhar');
+
+  // O servidor aceita metade; a outra metade continua esperando.
+  const primeiros = fila.slice(0, 2).map((e) => e.id);
+  const transporte: Transport = {
+    push: async (entries): Promise<PushResult> => ({
+      acceptedIds: entries.filter((e) => primeiros.includes(e.id)).map((e) => e.id),
+    }),
+  };
+
+  const aindaEsperando = fila.length - primeiros.length;
+
+  // Agora + trinta dias: o que acabou de subir já passou da janela de sete.
+  const trintaDiasAdiante = Date.now() + 30 * 86_400_000;
+  await drain(transporte, {
+    sleep: async () => undefined,
+    maxAttempts: 1,
+    now: () => trintaDiasAdiante,
+  });
+
+  // Contando LINHAS da tabela, não pendências.
+  //
+  // A primeira versão deste teste media `pendingCount()`, que conta
+  // `sent_at IS NULL` — ou seja, media o MARCAR, não o varrer, e passava verde com
+  // a faxina comentada. Descobri comentando a linha, que é a única prova que vale:
+  // guarda que nunca ficou vermelha com o defeito na frente foi acreditada.
+  const linhas = await live.getAllAsync<{ id: string }>('SELECT id FROM outbox');
+  assert.equal(linhas.length, aindaEsperando, 'só sobram as que ainda não subiram');
+  assert.ok(
+    primeiros.every((id) => !linhas.some((l) => l.id === id)),
+    'e nenhuma das entregues sobrou na tabela',
+  );
+  assert.equal(await pendingCount(), aindaEsperando, 'e nenhuma pendente foi varrida junto');
+});
+
+test('the sweep spares what went up inside the window', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const fila = await pendingEntries();
+  const ids = fila.map((e) => e.id);
+  await markSent(ids);
+
+  // Sem avançar o relógio: subiu agora, e sete dias ainda não passaram.
+  await drain({ push: async () => ({ acceptedIds: [] }) }, { sleep: async () => undefined, maxAttempts: 1 });
+
+  const sobrando = await live.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM outbox');
+  assert.equal(sobrando?.n, ids.length, 'quem subiu hoje continua guardado, para poder ser dito');
+
+  // E a mesma fila, com o relógio trinta dias à frente, é varrida — o que prova
+  // que a janela é o que separa os dois casos, e não o acaso.
+  await drain({ push: async () => ({ acceptedIds: [] }) }, {
+    sleep: async () => undefined,
+    maxAttempts: 1,
+    now: () => Date.now() + 30 * 86_400_000,
+  });
+  const depois = await live.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM outbox');
+  assert.equal(depois?.n, 0, 'passada a janela, o que subiu sai');
 });

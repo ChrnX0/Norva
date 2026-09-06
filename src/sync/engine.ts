@@ -1,4 +1,4 @@
-import { markSent, pendingCount, pendingEntries, type OutboxEntry } from '@/data/outbox';
+import { forgetSentBefore, markSent, pendingCount, pendingEntries, type OutboxEntry } from '@/data/outbox';
 
 /**
  * Sending what the phone wrote while it was alone.
@@ -51,7 +51,21 @@ export type SyncOptions = {
   maxAttempts?: number;
   /** Injected so tests do not actually wait. */
   sleep?: (ms: number) => Promise<void>;
+  /** Injected so a test pode envelhecer a fila sem esperar uma semana. */
   now?: () => number;
+  /**
+   * Por quantos dias a fila guarda o que já subiu. Sete.
+   *
+   * O docblock do `forgetSentBefore` dizia as duas metades desde que foi escrito:
+   * vale guardar "por alguns dias, para poder dizer a alguém o que subiu e o que
+   * não subiu", e vale largar depois disso "para o celular de uma fábrica movimentada
+   * não carregar um ano deles". A auditoria listou a função como sem chamador fora de
+   * teste, e ela estava certa — mas o conserto não é apagar: é a limpeza acontecer,
+   * porque sem ela a fila só cresce no dia em que a sincronia existir.
+   *
+   * Sete porque é a janela em que alguém ainda pergunta "aquilo de terça subiu?".
+   */
+  keepDays?: number;
 };
 
 /**
@@ -119,6 +133,22 @@ export async function drain(
     error = undefined;
     if (batch.length < batchSize) break;
   }
+
+  /**
+   * A faxina, e ela roda mesmo quando a corrida terminou torta.
+   *
+   * Só apaga linha que o SERVIDOR confirmou e que já passou da janela — as duas
+   * condições no `WHERE`, não aqui. Então não há caso em que segurá-la proteja
+   * alguém: o que está pendente fica, tenha a corrida ido bem ou mal, e é isso
+   * que o teste do outbox cobra ("only what went up").
+   *
+   * A hora vem de uma subtração de INSTANTES, nunca de recortar texto de data: a
+   * cicatriz do `dayWindow` é de um teste que carimbou `Z` numa data local e ficou
+   * cego entre meia-noite e três da manhã.
+   */
+  const agora = options.now?.() ?? Date.now();
+  const corte = new Date(agora - (options.keepDays ?? 7) * 86_400_000).toISOString();
+  await forgetSentBefore(corte);
 
   return { sent, remaining: await pendingCount(), batches, attempts, error };
 }

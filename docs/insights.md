@@ -4002,3 +4002,37 @@ de afirmado.
 que uma ferramenta gera precisa de alguém que a cite, e quando o citador é um JSON de
 configuração, a ponte tem de ser conferida por um teste — porque nenhum compilador vai
 conferir por você, e a falta se disfarça de padrão.
+
+## 2026-09-06 — a função "sem chamador" não queria ser apagada, queria ser chamada
+
+**O que apareceu.** A auditoria listava `forgetSentBefore` entre os médios: *sem
+chamador fora de teste*. Pelo portão P1 desta casa — *"quem chama isto no mesmo
+commit? Sem chamador, não entra"* — a resposta reflexa é apagar.
+
+Ler o que ela faz muda a resposta. Ela apaga da fila o que o servidor **já
+confirmou**, e o docblock dela dizia as duas metades desde que foi escrito: vale
+guardar por alguns dias, para poder dizer a alguém o que subiu e o que não subiu, e
+vale largar depois, para o celular de uma fábrica movimentada não carregar um ano
+deles. O motor de sincronia (`src/sync/engine.ts`) manda, marca o que foi aceito — e
+**nunca varre**. Apagar a função teria transformado um defeito conhecido num defeito
+esquecido: no dia em que a sincronia existir, a fila só cresce.
+
+**O P1 tem duas saídas, e eu só via uma.** "Sem chamador" pergunta se a peça deve
+existir; não responde qual das duas pontas está faltando. Aqui a peça estava certa e
+faltava a chamada — e a diferença entre as duas leituras é toda a diferença entre
+consertar e enterrar.
+
+De quebra, `now?: () => number` estava declarado no `SyncOptions` e não era usado por
+ninguém: o relógio injetável existia esperando exatamente este chamador. Duas órfãs
+que eram uma coisa só, separadas.
+
+**E o teste passou verde com o defeito na frente.** Escrevi a prova medindo
+`pendingCount()`. Comentei a linha da faxina para conferir e ele **continuou
+passando**: `pendingCount()` conta `sent_at IS NULL`, ou seja mede o *marcar*, não o
+*varrer* — o vizinho da propriedade, quinta vez nesta sessão. Reescrito contando
+linhas da tabela, ele fica vermelho sem a faxina e verde com ela, nos dois casos (o
+que passou da janela sai; o que subiu hoje fica).
+
+**A regra que fica:** antes de apagar uma peça sem chamador, **leia o que ela faz**.
+Se o que falta é a chamada, apagar não remove dívida — remove a evidência dela. E o
+P1 continua valendo: o commit que decide isso tem de trazer o chamador, ou a remoção.
