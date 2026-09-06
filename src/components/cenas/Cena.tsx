@@ -444,30 +444,46 @@ function Separacao({ tinta, acento, frio }: Pincel) {
   );
 }
 
-/** AS PERDAS — a gota que cai, que é o que perda faz. */
+/**
+ * AS PERDAS — a gota que cai, que é o que perda faz.
+ *
+ * A primeira versão tinha um vão de sessenta unidades entre os picolés e as
+ * barras, e a gota nascia em y 56 com o picolé terminando em 64: ela caía já
+ * dentro do palito e o olho não pegava nada. A foto mostrou os dois.
+ */
 function Perdas({ tinta, acento, frio }: Pincel) {
   return (
     <>
-      <G stroke={tinta}>
-        <Rect x="18" y="24" width="22" height="30" rx="8" stroke={acento} />
-        <Path d="M29 54v10" stroke={acento} />
+      {/* Dois picolés derretendo, pendurados. */}
+      <G stroke={acento}>
+        <Rect x="16" y="18" width="22" height="28" rx="8" />
+        <Path d="M27 46v6" />
       </G>
-      <Gota x={29} atrasoMs={0} cor={acento} />
-      <Gota x={92} atrasoMs={1700} cor={acento} />
+      <Gota x={27} atrasoMs={0} cor={acento} />
       <G stroke={tinta}>
-        <Rect x="81" y="24" width="22" height="30" rx="8" />
-        <Path d="M92 54v10" />
+        <Rect x="70" y="18" width="22" height="28" rx="8" />
+        <Path d="M81 46v6" />
       </G>
-      {/* A barra do mês contra a do mês passado — perda é comparação. */}
+      <Gota x={81} atrasoMs={2100} cor={frio} />
+
+      {/* O balde que apara: é para onde as gotas vão, e por isso está debaixo
+          delas e não do outro lado da folha. */}
       <G stroke={tinta}>
-        <Path d="M170 64V34h20v30z" stroke={frio} />
-        <Path d="M204 64V44h20v20z" stroke={acento} />
-        <Path d="M160 64h74" />
+        <Path d="M12 64h84" />
       </G>
-      {/* O balde onde o que caiu é anotado. */}
+
+      {/* O mês contra o mês passado — perda é comparação, nunca um número só. */}
       <G stroke={tinta}>
-        <Path d="M292 34h52l-6 30h-40z" />
-        <Path d="M298 46h40" stroke={frio} />
+        <Rect x="150" y="30" width="34" height="34" stroke={frio} />
+        <Rect x="200" y="42" width="34" height="22" stroke={acento} />
+        <Path d="M140 64h104" />
+      </G>
+
+      {/* O balde do mês, com o nível do que se juntou. */}
+      <G stroke={tinta}>
+        <Path d="M282 30h64l-8 34h-48z" />
+        <Path d="M288 50h52" stroke={frio} />
+        <Path d="M292 58h44" stroke={frio} opacity={0.5} />
       </G>
     </>
   );
@@ -475,11 +491,20 @@ function Perdas({ tinta, acento, frio }: Pincel) {
 
 function Gota({ x, atrasoMs, cor }: { x: number; atrasoMs: number; cor: string }) {
   const ciclo = useCiclo(4200, { atrasoMs, repouso: 0 });
+  // Some ao TOCAR o chão, e não no meio do ar: a gota desaparecendo a meio
+  // caminho lê como falha de desenho. Ela nasce na ponta do palito (y 52) e
+  // percorre os doze até a linha do balde.
   const props = useAnimatedProps(() => ({
-    opacity: ciclo.value < 0.08 ? 0 : 1 - ciclo.value,
-    transform: [{ translateY: ciclo.value * 22 }],
+    opacity: ciclo.value < 0.06 ? 0 : Math.min(1, (1 - ciclo.value) * 3),
+    transform: [{ translateY: ciclo.value * 12 }],
   }));
-  return <AnimatedPath animatedProps={props} d={`M${x} 56c-3 4-4 6-4 8a4 4 0 0 0 8 0c0-2-1-4-4-8z`} stroke={cor} />;
+  return (
+    <AnimatedPath
+      animatedProps={props}
+      d={`M${x} 52c-3 4-4 6-4 8a4 4 0 0 0 8 0c0-2-1-4-4-8z`}
+      stroke={cor}
+    />
+  );
 }
 
 /** OS LOTES — as caixas etiquetadas, e a etiqueta que balança. */
