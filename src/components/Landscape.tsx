@@ -196,7 +196,7 @@ export function Landscape({
         {/* A nuvem e a chuva, só quando a chance é de verdade. */}
         {chovendo ? (
           <>
-            <Vivo vida={{ como: 'anda', cicloMs: 18000, passo: 6 }}>
+            <Vivo vida={{ como: 'anda', cicloMs: 4400, passo: 13.2 }}>
               <G x={256} y={48}>
                 <Path
                   d="M8 34a14 14 0 0 1 14-13 18 18 0 0 1 34 5 12 12 0 0 1-3 24H22a12 12 0 0 1-14-16z"
@@ -207,7 +207,7 @@ export function Landscape({
             {/* Chuva é a fumaça ao contrário: mesma subida-e-some, altura negativa.
                 Um movimento novo para "cai" seria o mesmo mecanismo com outro nome,
                 e a lista fechada só cresce quando o mecanismo muda. */}
-            <Vivo vida={{ como: 'sobe', cicloMs: 2200, altura: -22 }}>
+            <Vivo vida={{ como: 'sobe', cicloMs: 2200, altura: -35.2 }}>
               <G x={272} y={92} fill="#8EC5FC">
                 <Circle cx={10} cy={6} r={3.4} />
                 <Circle cx={32} cy={10} r={3.4} />
@@ -219,7 +219,7 @@ export function Landscape({
 
         {/* A fumaça da fábrica: só com tacho aberto. */}
         {running ? (
-          <Vivo vida={{ como: 'sobe', cicloMs: 7000, altura: 20 }}>
+          <Vivo vida={{ como: 'sobe', cicloMs: 7000, altura: 32.0 }}>
             <G x={346} y={108} fill={noite ? color.inkFaint : '#FFFFFF'}>
               <Circle cx={9} cy={18} r={5} />
               <Circle cx={14} cy={10} r={4} />

@@ -106,7 +106,7 @@ export function GlyphProduction({ size = 26, color, weight = 2.2 }: GlyphProps) 
       {/* A unidade anda na esteira, em direção à seta. Dezesseis segundos para
           uma unidade e meia de percurso: é a esteira andando, não o ícone
           pulsando — a esteira e a seta ficam paradas, porque elas são o caminho. */}
-      <Vivo vida={{ como: 'anda', cicloMs: 16000, passo: 1.6 }}>
+      <Vivo vida={{ como: 'anda', cicloMs: 4000, passo: 3.5 }}>
         <Rect x="7" y="5" width="13" height="12" rx="3" {...massIf(weight, color)} />
         <Rect x="7" y="5" width="13" height="12" rx="3" {...line(color, weight)} />
       </Vivo>
@@ -158,7 +158,7 @@ export function GlyphPrice({ size = 26, color, weight = 2.2 }: GlyphProps) {
           e oito segundos: mais devagar que o sol da cena aprovada, que é o que a
           casa chama de ambiente. Uma etiqueta pendurada não está em repouso; o
           que estaria em repouso é uma etiqueta no chão. */}
-      <Vivo vida={{ como: 'balanca', cicloMs: 28000, graus: 1.5, centro: [10, 10] }}>
+      <Vivo vida={{ como: 'balanca', cicloMs: 6500, graus: 7.5, centro: [10, 10] }}>
         <Path d="M4 16.5V6a2 2 0 0 1 2-2h10.5L28 15.5 17 27z" {...massIf(weight, color)} />
         <Path d="M4 16.5V6a2 2 0 0 1 2-2h10.5L28 15.5 17 27z" {...line(color, weight)} />
         <Circle cx="10" cy="10" r="2.2" {...line(color, weight - 0.4)} />
@@ -193,7 +193,7 @@ export function GlyphKettle({ size = 26, color, weight = 2.2 }: GlyphProps) {
           As volutas eram um `<Path>` só (`M12…M18…`): partidas em dois porque
           uma parte que se mexe precisa ser um elemento, não um pedaço de `d`. */}
       {[0, 2000, 4000].map((atraso) => (
-        <Vivo key={atraso} vida={{ como: 'sobe', cicloMs: 6000, altura: 4, atrasoMs: atraso }}>
+        <Vivo key={atraso} vida={{ como: 'sobe', cicloMs: 6000, altura: 6.4, atrasoMs: atraso }}>
           <Path d="M12 8.5c0-2 2-2 2-4" {...line(color, weight - 0.4)} />
           <Path d="M18 8.5c0-2 2-2 2-4" {...line(color, weight - 0.4)} />
         </Vivo>
@@ -210,7 +210,7 @@ export function GlyphStore({ size = 26, color, weight = 2.2 }: GlyphProps) {
           armação, e pano na calçada se mexe — a parede atrás dele não. Meio grau
           em trinta segundos: quem olha não vê o movimento acontecer, vê que a
           loja está viva. */}
-      <Vivo vida={{ como: 'balanca', cicloMs: 30000, graus: 0.6, centro: [16, 6] }}>
+      <Vivo vida={{ como: 'balanca', cicloMs: 6900, graus: 3.0, centro: [16, 6] }}>
         <Path
           d="M8 6h16l4 6a4 3 0 0 1-8 0a4 3 0 0 1-8 0a4 3 0 0 1-8 0z"
           {...massIf(weight, color)}
@@ -244,7 +244,7 @@ export function GlyphVehicle({ size = 26, color, weight = 2.2 }: GlyphProps) {
       {/* O caminhão anda — o desenho inteiro, rodas junto, porque é assim que um
           caminhão se mexe. Vinte segundos para uma unidade e meia: no tamanho de
           um crachá isso é menos de um pixel por segundo. */}
-      <Vivo vida={{ como: 'anda', cicloMs: 20000, passo: 1.4 }}>
+      <Vivo vida={{ como: 'anda', cicloMs: 4800, passo: 3.1 }}>
         <Path d="M3 21V7h15v5h6l3 4v5z" {...massIf(weight, color)} />
         <Path d="M3 21V7h15v5h6l3 4v5z" {...line(color, weight)} />
         <Circle cx="8.5" cy="23" r="2.6" {...line(color, weight)} />
@@ -266,7 +266,7 @@ export function GlyphCustomer({ size = 26, color, weight = 2.2 }: GlyphProps) {
           parada porque pessoa parada é pessoa; o que se mexe é a coisa que pende
           dela — que é o que a cena da fábrica ensinou: cada desenho faz o que ele
           faz, e não um respiro igual para todos. */}
-      <Vivo vida={{ como: 'balanca', cicloMs: 26000, graus: 1.5, centro: [24, 17.5] }}>
+      <Vivo vida={{ como: 'balanca', cicloMs: 6100, graus: 7.5, centro: [24, 17.5] }}>
         <Rect x="20" y="18" width="8" height="9" rx="1" {...massIf(weight, color)} />
         <Rect x="20" y="18" width="8" height="9" rx="1" {...line(color, weight)} />
         <Path d="M21.5 18v-1a2.5 2.5 0 0 1 5 0v1" {...line(color, weight)} />
@@ -378,7 +378,7 @@ export function GlyphLabel({ size = 26, color, weight = 2.2 }: GlyphProps) {
       {/* Mesma família da etiqueta de preço, mesmo eixo: o furo por onde ela está
           amarrada na caixa. Trinta e quatro segundos — a etiqueta do lote fica
           numa tela que se lê de perto, e ali menos é mais. */}
-      <Vivo vida={{ como: 'balanca', cicloMs: 34000, graus: 1.2, centro: [22.4, 8.6] }}>
+      <Vivo vida={{ como: 'balanca', cicloMs: 7800, graus: 6.0, centro: [22.4, 8.6] }}>
         <Path d={tag} {...massIf(weight, color)} />
         <Path d={tag} {...line(color, weight)} />
         <Circle cx="22.4" cy="8.6" r="1.9" {...line(color, weight - 0.4)} />
@@ -483,11 +483,11 @@ export function GlyphSettings({ size = 26, color, weight = 2.2 }: GlyphProps) {
   return (
     <Svg {...frame(size)} accessibilityRole="image">
       <Path d="M5 10h22M5 22h22" {...line(color, weight)} />
-      <Vivo vida={{ como: 'anda', cicloMs: 18000, passo: 2.6 }}>
+      <Vivo vida={{ como: 'anda', cicloMs: 4400, passo: 5.7 }}>
         <Circle cx="12" cy="10" r="3.4" {...massIf(weight, color)} />
         <Circle cx="12" cy="10" r="3.4" {...line(color, weight)} />
       </Vivo>
-      <Vivo vida={{ como: 'anda', cicloMs: 23000, passo: -2.6 }}>
+      <Vivo vida={{ como: 'anda', cicloMs: 5500, passo: -5.7 }}>
         <Circle cx="21" cy="22" r="3.4" {...massIf(weight, color)} />
         <Circle cx="21" cy="22" r="3.4" {...line(color, weight)} />
       </Vivo>
