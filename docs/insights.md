@@ -4272,3 +4272,35 @@ dois dias por semana desde que o selo existe).
 **A regra que fica:** antes de subir o emulador, pergunte se a dúvida é de **cor ou de
 largura**. Se for de largura, o navegador responde em dois minutos e responde igual. O
 emulador é para o que só ele sabe — e continua sendo obrigatório para isso.
+
+## 2026-09-06 — o roadmap dizia que faltava a tela, e a tela estava pronta
+
+**O que apareceu.** Fui pegar o próximo item da lista — F3.2, *"Lojas e clientes com
+ficha de acordo. A migração já criou a forma; falta a tela"* — e antes de escrever a
+tela fui ver o que existia. Existia tudo: `app/places.tsx:641` edita e **grava** os três
+campos, e o acordo já é usado em três lugares (o pedido nasce na data combinada, a lista
+mostra a próxima entrega, a capa monta "quem recebe hoje"). A fila também o carrega.
+
+Conferindo os outros seis da mesma seção, mais dois estavam adiantados em relação ao que
+a lista dizia: `pickingFor` **já tem chamador** (`app/transfer.tsx:172`), e a devolução
+tem movimento com tipo próprio **e tela** — o que falta ali é só o motivo.
+
+**Por que importa.** O `CLAUDE.md` diz que quando um trabalho fecha a pergunta não é
+"tem mais alguma coisa?", é **qual é a próxima, e ela está escrita no roadmap**. Então o
+roadmap não é documentação: é a entrada da próxima rodada. Uma linha que diz "falta X"
+quando X existe não é imprecisão — é **trabalho duplicado agendado**. Eu ia escrever uma
+tela que já estava lá, e teria escrito, porque a lista é justamente a coisa em que se
+confia para não ter que reconferir.
+
+E a causa é conhecida e tem nome nesta casa: **rótulo que discorda do que está embaixo
+dele**. A varredura de 4 de setembro caçou trinta e uma dessas dentro do código. Esta é
+a mesma espécie fora dele — e mais cara, porque o código tem compilador e a lista não.
+
+**O que mudou.** Os três itens corrigidos no `docs/roadmap.md`, cada um com
+`arquivo:linha` do que existe e uma frase do que realmente falta (preço combinado na
+ficha; a tela de conferir item a item; o motivo da devolução).
+
+**A regra que fica:** antes de construir o próximo item da lista, **meça o item**. A
+regra de fechamento já existe — *"item fechado sai do roadmap no mesmo commit que o
+fecha"* — e ela só funciona se alguém a cumprir toda vez; a leitura é a rede que pega o
+que escapou. Custa dois minutos de `grep` e paga uma tela inteira.

@@ -351,16 +351,23 @@ romaneio, conferência e etiqueta.
 do dicionário existe nos três idiomas esperando a tela — está registrada como
 fronteira em `src/dictionary.test.ts`, com o motivo.
 
-**2. Lojas e clientes com ficha de acordo.** O que foi combinado com cada loja:
-preço, prazo, dia de entrega. A migração `0021_what_was_agreed_with_the_store.sql`
-já criou a forma; falta a tela.
+**2.** ~~**Lojas e clientes com ficha de acordo.**~~ **JÁ EXISTE — conferido em 6 de
+setembro, e o roadmap estava errado.** A linha dizia "falta a tela" e a tela está
+inteira: `app/places.tsx:641` edita e **grava** telefone, dias combinados (a grade dos
+sete, com o rótulo por extenso embaixo para quem lê de luva) e a observação do acordo.
+E o acordo já é USADO em três lugares — `app/orders/new.tsx:154` nasce o pedido na data
+combinada, `app/places.tsx:189` mostra a próxima entrega, e `app/(tabs)/index.tsx:272`
+monta "quem recebe hoje" na capa. A fila também o carrega (`src/sync/serialize.ts:159`).
+O que falta desta ficha é **preço combinado**, que a migração não criou.
 
 **3. Pedido com reserva.** Hoje pedido é demanda e nada sai do freezer porque
 alguém ligou — decisão escrita, e ela fica. A reserva é a camada por cima: separar
 do saldo o que já tem dono.
 
-**4. Separação.** `pickingFor` já responde a conta. Falta a tela de quem anda com o
-carrinho.
+**4. Separação.** `pickingFor` já responde a conta **e já tem chamador** —
+`app/transfer.tsx:172` a usa para ordenar o que vai na carga. O que falta é a tela de
+quem **anda com o carrinho**: a lista de conferir item a item, que é onde o
+`UnitStepper` do item 8 entra.
 
 **5. Os quatro postos de controle.** Separado, carregado, entregue, conferido. A
 seção `posts` do dicionário existe nos três idiomas — fronteira registrada.
@@ -368,8 +375,12 @@ seção `posts` do dicionário existe nos três idiomas — fronteira registrada
 **6. App do entregador.** O papel `driver` existe com `dispatch`, `check_receipt` e
 `record_loss`. Falta a tela dele.
 
-**7. Devolução.** O caminho de volta: o que a loja não recebeu, com motivo, virando
-movimento.
+**7. Devolução — meio caminho feito, conferido em 6 de setembro.** O movimento
+existe e tem tela: `recordReturn` (`src/data/repository.ts:1767`) grava o fato com tipo
+próprio — *"sem ele, 'mandei 6.000 e voltaram 1.000' e 'mandei 5.000' ficam idênticos no
+livro-razão"* — e `app/transfer.tsx:109` o dirige com um alternador. **Falta o motivo:**
+`MoveInput` não tem campo de razão, e é o motivo que separa "a loja não vendeu" de "a
+carga chegou derretida". Sem ele a devolução é aritmética sem notícia.
 
 **8. O `UnitStepper`.** Componente construído e sem chamador, decisão registrada no
 `CLAUDE.md` — é peça da F2/F3 e apontá-lo como defeito já custou uma rodada. Entra
