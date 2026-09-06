@@ -343,6 +343,36 @@ qualquer uma é o trajeto interno: **transferência entre salas nossas**, que a 
 transferir não faz (ela sai sempre da fábrica, e o caminho de volta grava
 `return`, que é notícia sobre a loja, não sobre a nossa câmara).
 
+## Dívida medida em 6 de setembro — dez funções do domínio sem chamador
+
+O portão P1 deste projeto pergunta *quem chama isto no mesmo commit*, e a doença que
+ele existe para pegar já foi documentada duas vezes (`balanceAt`, `daysOfCover`). A
+medição, agora feita com a régua certa — referências fora de arquivo de teste,
+contando quem chama de dentro do próprio arquivo:
+
+| função | arquivo |
+|---|---|
+| `needsHumanYes` | `src/domain/access.ts` |
+| `foldCostEvents` · `priceMove` · `ratesBefore` · `observedLeadTimeDays` · `reorderPoint` | `src/domain/cost.ts` |
+| `daysUntilExpiry` | `src/domain/lot.ts` |
+| `toDecimal` · `multiplyCents` | `src/domain/money.ts` |
+| `isValidHierarchy` | `src/domain/units.ts` |
+
+**Nenhuma delas é acusação ainda**, e é por isso que isto é um item e não um commit.
+Pelo menos duas têm decisão escrita no próprio docblock — `needsHumanYes` diz que o
+piso *"é uma promessa feita antes de as funcionalidades existirem"* — e outras duas
+(`observedLeadTimeDays`, `reorderPoint`) são as compras inteligentes da F4, cortadas do
+mês por decisão do dono. As outras seis não têm razão escrita em lugar nenhum.
+
+**O que fazer, e é uma coisa só:** o dicionário já tem o guarda que falta aqui —
+`src/dictionary.test.ts` recusa seção sem leitor, a menos que a fronteira esteja
+registrada com o motivo e a tela que vai lê-la, e recusa também registro que ganhou
+leitor e ficou na lista. O domínio não tem o equivalente, embora o P1 seja sobre
+exatamente isso. Escrever esse guarda **é** o trabalho: ele obriga a dar veredito nas
+dez, uma a uma, e faz a décima primeira nascer com razão escrita ou não nascer.
+
+---
+
 ## F3 — o mês que tira o papel do chão de fábrica
 
 O alvo decidido pelo dono. No fim disto, a fábrica para de usar papel para
