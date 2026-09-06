@@ -11,6 +11,7 @@ import { ListRow } from '@/components/ListRow';
 import { Reveal } from '@/components/Reveal';
 import {
   alertSettings,
+  canSeeMoney,
   listPlaces,
   listItems,
   runningOut,
@@ -96,10 +97,22 @@ function InputsList() {
   const { data: places } = useQuery(() => listPlaces(LOCAL_COMPANY_ID));
   /** As faixas que a casa combinou. Sem elas, nenhuma linha ganha cor. */
   const { data: faixas } = useQuery(() => alertSettings());
-  const { data, loading } = useQuery(
-    () => listItems(LOCAL_COMPANY_ID, undefined, false, place ?? undefined),
+  /**
+   * Os itens e o portão do dinheiro na MESMA consulta, de propósito.
+   *
+   * Duas consultas separadas dariam dois estados de carregamento, e entre eles
+   * existe um instante em que a tela já tem os números e ainda não sabe se pode
+   * mostrá-los. Piscar a cifra e apagar depois é vazar devagar.
+   */
+  const { data: carregado, loading } = useQuery(
+    async () => ({
+      itens: await listItems(LOCAL_COMPANY_ID, undefined, false, place ?? undefined),
+      dinheiro: await canSeeMoney(LOCAL_COMPANY_ID),
+    }),
     place ?? '',
   );
+  const data = carregado?.itens;
+  const dinheiro = carregado?.dinheiro === true;
 
   /**
    * Quanto tempo o dinheiro do topo dura.
@@ -133,12 +146,19 @@ function InputsList() {
    * What is sitting in the storeroom, in money. Every rate is fractional cents
    * per base unit, so this is the one place they turn back into an amount.
    */
-  const heldCents = shown.reduce(
-    (total, item) => total + Math.round(item.averageRate * item.onHandBaseUnits),
-    0,
-  );
+  const heldCents = dinheiro
+    ? shown.reduce((total, item) => total + Math.round((item.averageRate ?? 0) * item.onHandBaseUnits), 0)
+    : null;
 
-  const withoutPrice = shown.filter((item) => item.averageRate <= 0).length;
+  /**
+   * Quantos ainda não têm preço — e `null <= 0` é TRUE em JavaScript.
+   *
+   * Sem o `!== null` a contagem passaria a ser a de TODOS os itens no dia em que
+   * o portão fecha, e a tela escreveria em âmbar *"12 itens sem preço — lance a
+   * nota de compra"* para um almoxarifado inteiramente precificado. Ação
+   * inventada é pior que número ausente: manda alguém lançar nota que já existe.
+   */
+  const withoutPrice = shown.filter((item) => item.averageRate !== null && item.averageRate <= 0).length;
   const tab = TABS.find((entry) => entry.kind === kind);
   const empty = tab ? t.app.inputs.empty[tab.key] : '';
   const assunto = tab ? t.app.inputs.tabs[tab.key] : t.app.inputs.title;
@@ -254,12 +274,22 @@ function InputsList() {
             icon={(c) => <GlyphStock size={26} color={c} weight={traco} />}
             title={assunto}
           >
-            <Text style={[type.overline, { color: color.inkFaint }]}>
-              {t.app.inputs.heldTitle}
-            </Text>
-            <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
-              {formatMoney(heldCents, locale)}
-            </Text>
+            {heldCents === null ? null : (
+              <Text style={[type.overline, { color: color.inkFaint }]}>
+                {t.app.inputs.heldTitle}
+              </Text>
+            )}
+            {heldCents === null ? (
+              /* O lugar da figura, dizendo onde o número mora em vez de deixar
+                 um travessão sem explicação. Uma vez por tela, no cartão de
+                 cima — a coluna da direita continua muda, porque vinte linhas
+                 repetindo a mesma frase é castigo, não informação. */
+              <Text style={[type.body, { color: color.inkMuted }]}>{t.common.moneyHidden}</Text>
+            ) : (
+              <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
+                {formatMoney(heldCents, locale)}
+              </Text>
+            )}
             <Text style={[type.caption, { color: color.inkMuted }]}>
               {/* "4 itens", não "4 unidades".
                   Contava a LISTA e rotulava com a unidade-base de um produto
@@ -267,9 +297,14 @@ function InputsList() {
                   lado de um saco com 69.566 g dentro. Número que mente é pior
                   que número ausente: este dizia que a fábrica tem quatro de
                   alguma coisa. */}
-              {fill(t.app.inputs.heldDetail, {
-                count: plural(shown.length, t.app.inputs.itemCount, formatQuantity(shown.length, locale)),
-              })}
+              {/* "ao custo médio de cada um" é frase sobre dinheiro: sem o
+                  custo ela afirmaria o que a tela não mostrou. Sobra a contagem,
+                  que é fato e continua servindo. */}
+              {dinheiro
+                ? fill(t.app.inputs.heldDetail, {
+                    count: plural(shown.length, t.app.inputs.itemCount, formatQuantity(shown.length, locale)),
+                  })
+                : plural(shown.length, t.app.inputs.itemCount, formatQuantity(shown.length, locale))}
               {place ? ` · ${t.app.inputs.inRoom}` : ''}
             </Text>
             {/* A comparação. Sem saída registrada não existe conta, e dizer isso é
@@ -338,11 +373,13 @@ function InputsList() {
                   t.app.inputs.ofFull,
                 )}
                 trailing={
-                  item.averageRate > 0
+                  item.averageRate !== null && item.averageRate > 0
                     ? formatMoney(Math.round(item.averageRate * 1_000), locale)
                     : '—'
                 }
-                trailingTone={item.averageRate > 0 ? 'ink' : 'muted'}
+                trailingTone={
+                  item.averageRate !== null && item.averageRate > 0 ? 'ink' : 'muted'
+                }
                 onPress={() =>
                   // A sala vai junto, e ela não é enfeite: sem ela a tela de
                   // detalhe abre no total da empresa e a contagem grava a
@@ -352,10 +389,14 @@ function InputsList() {
                 }
               />
             ))}
-            {/* A régua da coluna da direita, colada na coluna que ela explica. */}
-            <Text style={[type.caption, { color: color.inkFaint, marginTop: space.sm }]}>
-              {fill(t.app.inputs.perThousand, { unit: shown[0].baseUnit })}
-            </Text>
+            {/* A régua da coluna da direita, colada na coluna que ela explica —
+                e ela só existe se houver coluna: sem custo, a régua explicaria
+                uma coluna inteira de travessões. */}
+            {dinheiro ? (
+              <Text style={[type.caption, { color: color.inkFaint, marginTop: space.sm }]}>
+                {fill(t.app.inputs.perThousand, { unit: shown[0].baseUnit })}
+              </Text>
+            ) : null}
           </Card>
         )}
       </Reveal>

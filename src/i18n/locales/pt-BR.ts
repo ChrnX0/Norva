@@ -22,6 +22,21 @@ export const ptBR = {
     seeScreens: 'Ver telas',
     ask: 'Pergunte alguma coisa…',
     allClear: 'Hoje está tudo em ordem.',
+    /**
+     * Quando o dinheiro não é desta pessoa para ver.
+     *
+     * Diz onde o número MORA em vez de dizer o que a pessoa não pode — é a
+     * mesma escolha de tom do resto do app: orienta, não fiscaliza, e não culpa
+     * ninguém. "Você não tem permissão" transforma o app em porteiro; isto
+     * responde a pergunta que a pessoa de fato tem ao ver um travessão no lugar
+     * de um valor, que é *por que não tem número aqui*.
+     *
+     * Aparece UMA vez por tela, no cartão de cima, e não em cada linha da lista:
+     * vinte linhas repetindo a mesma frase é castigo, não informação.
+     */
+    moneyHidden: 'O custo fica com quem cuida do dinheiro.',
+    /** O caminho de volta, para quem é o dono e emprestou o aparelho. */
+    moneyHiddenWay: 'Se este aparelho é seu, troque o nome em Quem está com o aparelho.',
   },
 
   units: {
@@ -311,9 +326,29 @@ export const ptBR = {
       emptyHint: 'Quando alguma coisa vencer, derreter ou quebrar, registre no item — é o motivo que faz esta tela servir.',
       total: '{{money}} em {{count}}',
       lossCount: { one: '1 perda', other: '{{n}} perdas' },
+      /**
+       * A palavra sozinha, sem o número — para quando a FIGURA já é a contagem.
+       *
+       * Sem ela a linha saía "12   12 perdas": o mesmo defeito que este projeto já
+       * nomeou na capa ("500 duas vezes"), agora dentro de uma linha só. E a
+       * alternativa que eu ia escrever era pior — recortar o `{{n}}` do plural
+       * dentro da tela, que é a tela voltando a escrever português.
+       */
+      lossWord: { one: 'perda', other: 'perdas' },
       vsPrevious: 'nos 30 dias anteriores foram {{money}}',
       firstWindow: 'primeira janela com perda registrada — não há antes para comparar',
       worst: 'O que mais pesou: {{reason}}, {{money}}.',
+      /**
+       * A mesma tela sem o dinheiro — e ela continua servindo.
+       *
+       * Perder três caixas é fato de chão de fábrica; quanto custou é outra
+       * pergunta. Sem o custo a figura passa a ser a CONTAGEM e o ranking passa a
+       * ser por vezes em vez de por valor: "derreteu, 8 vezes" muda a mesma
+       * decisão que "derreteu, R$ 240" — olhar o freezer.
+       */
+      worstByCount: 'O que mais pesou: {{reason}}, {{count}}.',
+      totalByCount: '{{count}} na janela',
+      vsPreviousByCount: 'nos 30 dias anteriores foram {{count}}',
     },
     /**
      * Pedido é demanda, e a tela inteira segue disso: nada aqui mexe em estoque.
@@ -624,14 +659,22 @@ export const ptBR = {
       },
       naming: {
         label: 'Nomear quem gravou',
-        /** A frase diz o que MUDA, não o que a chave se chama: quem lê decide com isso. */
-        hint: 'Desligado, o relatório fala de onde — "faltaram 3 caixas na conferência". Ligado, o aparelho pergunta quem está com ele e cada linha guarda o nome.',
+        /**
+         * A frase diz o que MUDA, não o que a chave se chama: quem lê decide com isso.
+         *
+         * E ela cresceu porque a chave passou a fazer DUAS coisas. Junto com
+         * "compartilhado", nomear quem gravou é o que liga o portão do dinheiro:
+         * cada perfil passa a ver o que o perfil permite. A regra da casa é que a
+         * confirmação diz o que vai acontecer — chave que faz o que a frase não
+         * anuncia é a mesma falta de um botão que mente.
+         */
+        hint: 'Desligado, o relatório fala de onde — "faltaram 3 caixas na conferência". Ligado, o aparelho pergunta quem está com ele e cada linha guarda o nome. Num aparelho compartilhado, ligar isto também faz cada pessoa ver só o que o perfil dela permite: quem trabalha na produção não vê custo nem preço.',
         on: 'Ligado',
         off: 'Desligado',
       },
       signIn: {
         label: 'Como se entra no chão de fábrica',
-        hint: 'Um celular por pessoa escolhe uma vez e fica. Aparelho que passa de mão pergunta toda vez que o app abre — porque quem pegou agora não é quem largou.',
+        hint: 'Um celular por pessoa escolhe uma vez e fica. Aparelho que passa de mão pergunta toda vez que o app abre — porque quem pegou agora não é quem largou. Com "Nomear quem gravou" ligado, é aqui que o custo deixa de aparecer para quem não cuida do dinheiro.',
         personal: 'Um por pessoa',
         shared: 'Compartilhado',
       },
@@ -748,6 +791,17 @@ export const ptBR = {
       lossCancel: 'Deixa para lá',
       lossAsk: 'Registrar esta perda?',
       lossBody: 'Você vai baixar {{amount}} de {{item}}: {{reason}}. Vale {{money}}, e fica no histórico.',
+      /**
+       * A mesma confirmação, sem a cláusula do dinheiro.
+       *
+       * Existe porque `record_loss` e `adjust_stock` SÃO capacidades do operador
+       * (`src/domain/access.ts`) — quem não vê custo é exatamente quem mais
+       * encontra estes dois diálogos. Com a frase de cima e o custo escondido, a
+       * confirmação passava a dizer *"vale R$ 0,00"* no momento em que o
+       * `CLAUDE.md` exige os números por extenso. Tirar a cláusula é honesto;
+       * zerá-la é mentir na tela que grava.
+       */
+      lossBodyNoMoney: 'Você vai baixar {{amount}} de {{item}}: {{reason}}. Fica no histórico.',
       lossDone: 'Perda registrada.',
       lossFailed: 'Não deu para registrar a perda',
       countTitle: 'Conferir o estoque',
@@ -788,6 +842,10 @@ export const ptBR = {
         'Você contou {{counted}}. O sistema esperava {{expected}}. Estão sobrando {{diff}}, que valem {{money}}. A diferença fica registrada e nada é apagado.',
       countConfirmExact:
         'Você contou {{counted}}, exatamente o que o sistema esperava. Fica registrado que você conferiu.',
+      countConfirmShortNoMoney:
+        'Você contou {{counted}}. O sistema esperava {{expected}}. Estão faltando {{diff}}. A diferença fica registrada e nada é apagado.',
+      countConfirmOverNoMoney:
+        'Você contou {{counted}}. O sistema esperava {{expected}}. Estão sobrando {{diff}}. A diferença fica registrada e nada é apagado.',
       lastCounted: 'conferido em {{date}}',
       history: 'Histórico de preço',
       historyHint: 'Ninguém escreveu isto. Cada linha nasceu de uma nota lançada.',
@@ -928,6 +986,7 @@ export const ptBR = {
       save: 'Salvar pessoa',
       saved: 'Pessoa salva',
       away: 'Não trabalha mais aqui',
+      readOnly: 'Só quem administra a empresa muda quem trabalha nela.',
       awayHint: 'Ela sai da lista e o histórico continua apontando para ela — nada é apagado.',
       profilesTitle: 'Perfis',
       profilesOverline: 'o que cada um pode fazer',
@@ -1055,6 +1114,18 @@ export const ptBR = {
         'Você produziu {{units}} de {{product}}, rodando a receita {{batches}}. Isso baixa {{lines}} do estoque e congela o custo em {{cost}} por unidade.',
       confirmBodyNoBatch:
         'Você produziu {{units}} de {{product}}. Isso baixa {{lines}} do estoque e congela o custo em {{cost}} por unidade.',
+      /**
+       * As mesmas duas, sem a cláusula do custo.
+       *
+       * O custo CONTINUA sendo congelado — e certo, com a embalagem inteira, lido
+       * pelo caminho do livro-razão. O que sai é a frase que o anuncia, porque
+       * `record_production` é capacidade do operador e é ele quem mais vê este
+       * diálogo. Prometer um número que a tela não mostra é pior que não prometer.
+       */
+      confirmBodyNoCost:
+        'Você produziu {{units}} de {{product}}, rodando a receita {{batches}}. Isso baixa {{lines}} do estoque.',
+      confirmBodyNoBatchNoCost:
+        'Você produziu {{units}} de {{product}}. Isso baixa {{lines}} do estoque.',
       recorded: 'Produção registrada.',
       open: 'Começar agora',
       openHint: 'Marque que começou e feche quando sair, ou registre tudo de uma vez.',
@@ -1115,6 +1186,7 @@ export const ptBR = {
       costing: 'Calculando os custos…',
       empty: 'Nenhuma ficha técnica ainda. Cadastre os insumos primeiro, depois a receita que os usa.',
       perUnitOf: 'por unidade de {{product}} · lote de {{batch}}',
+      perUnitOfNoCost: 'por unidade de {{product}}',
       perLitre: 'por litro de massa · usada dentro de outras receitas',
       cycle: 'Esta receita contém a si mesma — abra para corrigir.',
       missingPrice: 'Falta preço em algum insumo.',

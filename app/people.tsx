@@ -8,7 +8,14 @@ import { Field } from '@/components/Field';
 import { GlyphCustomer, GlyphSettings } from '@/components/Glyph';
 import { ListRow } from '@/components/ListRow';
 import { Reveal } from '@/components/Reveal';
-import { listPeople, listProfiles, savePerson, type Person, type Profile } from '@/data/repository';
+import {
+  currentCapabilities,
+  listPeople,
+  listProfiles,
+  savePerson,
+  type Person,
+  type Profile,
+} from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import type { Dictionary } from '@/i18n';
@@ -47,7 +54,19 @@ export default function People() {
   );
 }
 
-type Loaded = { people: Person[]; profiles: Profile[] };
+type Loaded = {
+  people: Person[];
+  profiles: Profile[];
+  /**
+   * Se quem está com o aparelho administra a empresa.
+   *
+   * Esta tela decide quem vê o dinheiro — trocar o próprio crachá para "Dono" é
+   * a porta larga do portão do custo. Quem não administra LÊ a lista (saber com
+   * quem se confere é trabalho de todos) e não a muda. Quem recusa de verdade é
+   * `savePerson`; a tela esconde para o erro impedir em vez de reclamar.
+   */
+  administra: boolean;
+};
 
 function WhoWorksHere() {
   const { color, type, space, palette, traco } = useTheme();
@@ -55,15 +74,17 @@ function WhoWorksHere() {
   const words = t.app.people;
 
   const { data, refresh } = useQuery<Loaded>(async () => {
-    const [people, profiles] = await Promise.all([
+    const [people, profiles, capacidades] = await Promise.all([
       listPeople(LOCAL_COMPANY_ID),
       listProfiles(LOCAL_COMPANY_ID),
+      currentCapabilities(LOCAL_COMPANY_ID),
     ]);
-    return { people, profiles };
+    return { people, profiles, administra: capacidades.has('manage_company') };
   });
 
   const gente = data?.people ?? [];
   const perfis = data?.profiles ?? [];
+  const administra = data?.administra === true;
 
   /** Nulo é a lista; `'novo'` é o cadastro; uma pessoa é a correção dela. */
   const [editando, setEditando] = useState<Person | 'novo' | null>(null);
@@ -120,7 +141,7 @@ function WhoWorksHere() {
                 label={quem.name}
                 detail={nomeDoPerfil(perfis.find((p) => p.id === quem.profileId), t)}
                 trailing={quem.active ? undefined : words.away}
-                onPress={() => abrir(quem)}
+                onPress={administra ? () => abrir(quem) : undefined}
               />
             ))
           )}
@@ -134,7 +155,7 @@ function WhoWorksHere() {
             </Text>
           ) : null}
 
-          {editando === null ? (
+          {editando === null && administra ? (
             <Button
               label={words.add}
               variant="ghost"
@@ -142,6 +163,14 @@ function WhoWorksHere() {
               style={{ marginTop: space.md }}
             />
           ) : null}
+
+          {/* Diz por que a lista não abre, em vez de deixar toques sem resposta —
+              toque que não faz nada lê como aplicativo travado. */}
+          {administra ? null : (
+            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
+              {words.readOnly}
+            </Text>
+          )}
         </Card>
       </Reveal>
 

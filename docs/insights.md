@@ -4932,3 +4932,81 @@ a frase certa.
 **A regra que fica:** vocabulário novo do livro-razão entra em **quatro** lugares no mesmo
 commit — domínio, aparelho, servidor e o guarda de acordo. Os três primeiros a tela cobra
 na hora; o quarto só cobra na fábrica de alguém.
+
+---
+
+## O portão que eu escrevi envenenava o livro-razão — e só a refutação viu
+
+**6 de setembro.** Fui construir a decisão escrita do dono — *"aparelho emprestado entra
+como produção e nada mais… sem custo, sem preço, sem dinheiro"* —, e a primeira coisa que
+achei foi que a fronteira que a impedia tinha caducado. `app/assistant.tsx` dizia
+*"until sign-in lands, whoever holds this phone is the owner"*, e estava certo quando foi
+escrito. Ontem a grade de nomes entrou: `people.profile_id` aponta para um perfil e o
+perfil carrega as capacidades. **A fronteira esperava a CONTA, e o que faltava era a
+PESSOA.** Fronteira registrada também envelhece, e envelhece calada — é a quarta vez que
+essa forma aparece nesta semana.
+
+Então gatei as oito leituras de dinheiro, mudei treze telas, e a barra ficou verde:
+typecheck limpo, lint limpo, 378 testes passando. **E a mudança estava com um defeito
+irreversível dentro.**
+
+`recordProduction` e `recordLoss` leem as taxas por `itemCosts` — a mesma função que eu
+tinha acabado de gatear. Duas refutações adversariais independentes mediram, rodando o
+código: com o portão fechado, a corrida congelava `unit_cost_rate` **nulo** em cada
+consumo e **5 onde o dono congelava 304,98**, sobrando só a embalagem. Uma delas foi
+adiante e achou o que é pior: a contaminação não fica nas duas funções. `item_costs` é
+reescrito a partir do que elas gravam, então transferência e contagem — que leem
+`item_costs` cru e estão **certas** — passam a congelar fielmente o número errado. E o
+servidor recalcula pela mesma coluna (`0025`), concorda com o aparelho, e a checagem de
+divergência do `db:verify` **passa**. Os dois lados de acordo sobre o número errado.
+
+**Por que importa mais que o defeito.** `record_production` e `record_loss` são as
+capacidades nº 1 e nº 4 do `operator`: quem está de luva na câmara é exatamente quem
+dispara isso. E conteúdo de livro-razão não se corrige — se estorna. Cada corrida e cada
+perda lançada com o portão fechado exigiria estorno manual, e nada na tela diria que houve
+problema.
+
+**A ironia que mede o tamanho do erro.** O compilador me deu metade da resposta: quando
+`listProducts` passou a devolver `unitPackagingRate` nulo, `tsc` acusou a linha do
+congelamento, eu criei `listProductsForLedger` e escrevi um docblock parabenizando-me por
+ter salvado o palito e o saquinho. **A metade dominante — o custo da receita — estava
+quebrada duas linhas acima, e eu não olhei, porque o compilador não podia me cobrar ali:
+`Record<string, Rate>` vazio tem o mesmo tipo de um cheio.** Onde o tipo cobra, eu acerto;
+onde ele não cobra, eu escrevo um comentário satisfeito.
+
+**O que mudou por causa disso:**
+
+1. **`itemCosts` devolve `null`, não `{}`.** Devolver mapa vazio era o buraco: o motor de
+   receita faz `?? 0` por contrato, então `costRecipe({})` dá zero, e **cinco telas
+   imprimiam R$ 0,00 por unidade em todo produto**. Nulo devolve a cobrança ao compilador
+   — e ele imediatamente apontou as cinco.
+2. **A convenção `ForLedger`,** com guarda em `src/layers.test.ts` recusando qualquer
+   arquivo fora de `src/data/` e `scripts/` que a mencione. Os docblocks afirmavam esse
+   guarda **antes de ele existir** — e docblock que promete uma rede que não está lá é
+   pior que docblock nenhum.
+3. **O teste GÊMEO, e a ordem entre os dois é o achado.** Eu ia escrever só o de mão única:
+   *"veste o perfil operator, prova que nenhuma leitura devolve número"*. Ele passa com o
+   razão apodrecido — foi exatamente o que faltou. O gêmeo grava as cinco escritas duas
+   vezes, dono e operador, e afirma que a taxa de cada linha é **IGUAL, número por
+   número**. Não "não é nulo": `unitCostRate = 5` não é nulo, passa por todos os filtros
+   `!== null` que as telas já têm, e chega à capa do dono como figura plausível.
+
+**A regra que fica, e ela é maior que este commit:** quando um portão de LEITURA entra num
+lugar que uma ESCRITA também lê, o portão deixa de ser regra de tela e passa a ser
+corrupção de dado. A pergunta antes de gatear qualquer leitura é *quem mais chama isto, e
+algum deles grava?* — e a prova não é o portão fechar, é o razão sair igual.
+
+## E `git checkout` num arquivo não é desfazer um experimento
+
+Na mesma sessão, para provar que um teste novo mordia, plantei o defeito de volta numa
+linha e desfiz com `git checkout src/data/repository.ts`. **Aquele arquivo tinha quinze
+edições não commitadas — o coração da mudança — e todas foram embora**, incluindo o
+conserto do defeito acima. Reconstruí de cabeça, e deu certo porque as quinze estavam
+frescas; meia hora depois não estariam.
+
+`git checkout <arquivo>` não desfaz a última edição: ele **descarta o arquivo inteiro**
+contra o índice. Para provar que um guarda morde, o caminho é o mesmo que eu já usava nas
+outras cinco provas desta sessão — inverter exatamente a linha que plantei, com o mesmo
+`replace` ao contrário — ou commitar antes de experimentar. O que fica escrito, porque
+comando destrutivo não se lembra na pressa: **nesta árvore, `git checkout` de arquivo com
+mudança não commitada é perda de trabalho, não é `undo`.**

@@ -18,6 +18,7 @@ import {
   floorSignIn,
   setCurrentOperator,
   currentOperatorId,
+  currentCapabilities,
   matchPin,
   listProfiles,
   savePerson,
@@ -51,11 +52,14 @@ import {
   CannotReverseError,
   countForErase,
   eraseArea,
+  averageRatesForLedger,
   itemCosts,
+  itemHistory,
+  listProducts,
   labels,
   listItems,
   lotsOn,
-  listProducts,
+  listProductsForLedger,
   findItem,
   itemMovements,
   listRecipes,
@@ -302,7 +306,7 @@ test('a purchase writes the invoice and moves the average in one step', async ()
   assert.ok(Math.abs(second.newRate - 0.531) < 1e-9, `got ${second.newRate}`);
 
   const [item] = await listItems(CO);
-  assert.ok(Math.abs(item.averageRate - 0.531) < 1e-9);
+  assert.ok(Math.abs((item.averageRate ?? 0) - 0.531) < 1e-9);
   assert.ok(Math.abs((item.lastRate ?? 0) - 0.59) < 1e-9, 'the last price stays visible');
   assert.equal(item.onHandBaseUnits, 200_000);
 
@@ -321,7 +325,7 @@ test('the rate survives storage at full precision, not rounded to a cent', async
     totalCents: fromDecimal(124),
   });
 
-  const costs = await itemCosts(CO);
+  const costs = await averageRatesForLedger(CO);
   // 1.24 cents per gram. Stored as an integer this is the bug that once cost
   // the engine 19% of the pulp and all of the mix.
   assert.ok(Math.abs(costs[pulp] - rate(12.4, 1_000)) < 1e-9, `got ${costs[pulp]}`);
@@ -388,7 +392,7 @@ test('a sub-recipe survives the round trip through the database', async () => {
   const cost = costRecipe(
     flavour.recipeId,
     await loadRecipeGraph(CO),
-    await itemCosts(CO),
+    await averageRatesForLedger(CO),
     await labels(CO),
   );
 
@@ -407,7 +411,7 @@ test('the starter data lands, and does not come back after it is wiped', async (
   assert.equal(counts.products, 1);
   assert.equal(counts.purchases, 6);
 
-  const products = await listProducts(CO);
+  const products = await listProductsForLedger(CO);
   assert.equal(products[0].name, 'Picolé de morango');
   assert.ok(products[0].recipeId, 'the product knows its recipe');
 
@@ -516,7 +520,7 @@ test('erasing one area leaves the others standing', async () => {
 
   await eraseArea(CO, 'products');
 
-  assert.deepEqual(await listProducts(CO), []);
+  assert.deepEqual(await listProductsForLedger(CO), []);
   assert.equal((await listRecipes(CO)).length, 2, 'the recipes are still there');
   assert.equal((await listItems(CO)).length, 6, 'so are the inputs');
 });
@@ -524,7 +528,7 @@ test('erasing one area leaves the others standing', async () => {
 test('erasing invoices drops the average with them', async () => {
   await ensureStarterData(CO);
 
-  const before = await itemCosts(CO);
+  const before = await averageRatesForLedger(CO);
   assert.ok(Object.values(before).some((r) => r > 0), 'the example arrives with costs');
 
   const held = await listItems(CO);
@@ -532,7 +536,7 @@ test('erasing invoices drops the average with them', async () => {
 
   await eraseArea(CO, 'purchases');
 
-  assert.deepEqual(await itemCosts(CO), {}, 'no invoice, no average');
+  assert.deepEqual(await averageRatesForLedger(CO), {}, 'no invoice, no average');
 
   // The stock goes with them, and the reason is worth pinning down because the
   // rule looks too broad at a glance. A count is stored as a difference from a
@@ -568,7 +572,7 @@ test('a product is an item too, and saving one creates both', async () => {
 
   assert.ok(productId && itemId);
 
-  const [product] = await listProducts(CO);
+  const [product] = await listProductsForLedger(CO);
   assert.equal(product.name, 'Picolé de teste');
   assert.equal(product.unitPackagingRate, 5);
   assert.equal(product.packaging.tiers.length, 2, 'the hierarchy round-trips as JSON');
@@ -1073,7 +1077,7 @@ test('nobody loses what they do not have', async () => {
 
 test('the lot says which sheet ran, and correcting the sheet later does not rewrite it', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
 
   // A versão que estava valendo no dia da corrida.
   const antes = (await loadRecipeGraph(LOCAL_COMPANY_ID))[product.recipeId!];
@@ -1137,7 +1141,7 @@ test('the lot says which sheet ran, and correcting the sheet later does not rewr
 
 test('an open run is state: the ledger does not know it until it closes', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
 
   const antes = await live.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM movements');
 
@@ -1166,7 +1170,7 @@ test('an open run is state: the ledger does not know it until it closes', async 
 
 test('a cancelled run leaves nothing to reverse', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   const antes = await live.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM movements');
 
   const corrida = await openProductionRun(LOCAL_COMPANY_ID, { productId: product.id, batches: 1 });
@@ -1184,7 +1188,7 @@ test('a cancelled run leaves nothing to reverse', async () => {
 
 test('two taps on close do not produce twice', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   const corrida = await openProductionRun(LOCAL_COMPANY_ID, { productId: product.id, batches: 1 });
 
   await closeProductionRun(LOCAL_COMPANY_ID, { runId: corrida.id, unitsProduced: 480, producedOn: localDate(nowIso(), 'America/Sao_Paulo') });
@@ -1200,7 +1204,7 @@ test('two taps on close do not produce twice', async () => {
 
 test('a run that cannot close stays open, instead of being lost', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
 
   // Vinte tachos contra o estoque de um exemplo: o razão recusa.
   const corrida = await openProductionRun(LOCAL_COMPANY_ID, { productId: product.id, batches: 20 });
@@ -1401,7 +1405,7 @@ test('a return on the same day does not quietly shrink what the store received',
 
 test('the day a run belongs to is when it happened, not when the phone told the server', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   const where = defaultLocationId(LOCAL_COMPANY_ID);
 
   // Uma corrida às 23h50 de segunda, sincronizada só na terça de manhã. É o
@@ -1447,7 +1451,7 @@ test('the day a run belongs to is when it happened, not when the phone told the 
 
 test('a run becomes a lot, and the lot carries the day it dies', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
 
   // Três corridas pedem mais insumo do que o exemplo semeado tem: a fábrica
   // compra antes, como compraria de verdade.
@@ -1536,7 +1540,7 @@ test('a run becomes a lot, and the lot carries the day it dies', async () => {
 
 test("the day's lots are listed by code, with what each one yielded", async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
 
   const dia = { from: '2026-09-02T03:00:00.000Z', to: '2026-09-03T03:00:00.000Z' };
 
@@ -1575,7 +1579,7 @@ test("the day's lots are listed by code, with what each one yielded", async () =
 
 test('a lot opens by its own id, and a lot that is gone says so', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
 
   const corrida = await recordProduction(LOCAL_COMPANY_ID, {
     productId: product.id,
@@ -1615,7 +1619,7 @@ test('a lot opens by its own id, and a lot that is gone says so', async () => {
 
 test('a product with no shelf life still gets a lot, without a date', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
 
   // Nada de prazo cadastrado: o exemplo semeado nasce assim.
   assert.equal(product.shelfLifeDays, null);
@@ -1690,7 +1694,7 @@ test('the room says what was inside it AT THE READING, not what is inside now', 
     name: 'Câmara fria',
     kind: 'cold_room',
   });
-  const [produto] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [produto] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
 
   // Duas corridas na fábrica — é lá que estão os insumos, e o piso da produção é
   // o da sala em que o tacho está — e os dois lotes vão para a câmara de manhã.
@@ -1764,7 +1768,7 @@ test('the picking list says what the store ordered and what the room has', async
   await ensureStarterData(LOCAL_COMPANY_ID);
   const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
   const { id: loja } = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
-  const [produto] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [produto] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
 
   await recordProduction(LOCAL_COMPANY_ID, {
     productId: produto.id,
@@ -1938,7 +1942,7 @@ test('a return is a return, not a transfer running backwards', async () => {
 
 test('a kettle is refused when the sugar is in the store, not in the factory', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
 
   // Uma segunda sala, e a fábrica manda TUDO para lá. É um caminho que a tela
@@ -1993,7 +1997,7 @@ test('a kettle is refused when the sugar is in the store, not in the factory', a
 
 test('the week the home screen draws carries the runs, and only the runs', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   const where = defaultLocationId(LOCAL_COMPANY_ID);
 
   await recordProduction(LOCAL_COMPANY_ID, {
@@ -2048,7 +2052,7 @@ test('the week the home screen draws carries the runs, and only the runs', async
 
 test('a run exactly at midnight is counted once, not twice', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
 
   const meiaNoite = '2026-09-01T00:00:00.000Z';
   await recordProduction(LOCAL_COMPANY_ID, {
@@ -2080,7 +2084,7 @@ test('a run exactly at midnight is counted once, not twice', async () => {
 
 test('what the ledger stores is whole base units, because the column is an integer', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
 
   const run = await recordProduction(LOCAL_COMPANY_ID, {
     productId: product.id,
@@ -2131,7 +2135,7 @@ test('what the ledger stores is whole base units, because the column is an integ
  */
 test('packaging under half a cent reaches the frozen rate, and stays there', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   const where = defaultLocationId(LOCAL_COMPANY_ID);
 
   // O que a tela grava quando alguém digita 0,004 no campo de embalagem.
@@ -2149,7 +2153,7 @@ test('packaging under half a cent reaches the frozen rate, and stays there', asy
     fullLevel: null,
   });
 
-  const salvo = (await listProducts(LOCAL_COMPANY_ID)).find((p) => p.id === product.id);
+  const salvo = (await listProductsForLedger(LOCAL_COMPANY_ID)).find((p) => p.id === product.id);
   assert.equal(salvo?.unitPackagingRate, 0.4, 'a fração sobrevive à ida e volta do banco');
 
   const run = await recordProduction(LOCAL_COMPANY_ID, {
@@ -2172,7 +2176,7 @@ test('packaging under half a cent reaches the frozen rate, and stays there', asy
 
 test('a production run writes one line per item, and freezes what each cost', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   const where = defaultLocationId(LOCAL_COMPANY_ID);
 
   const before = await listItems(LOCAL_COMPANY_ID);
@@ -2224,7 +2228,7 @@ test('a production run writes one line per item, and freezes what each cost', as
 
 test('a run that yielded less freezes the higher cost, because that is what happened', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   const where = defaultLocationId(LOCAL_COMPANY_ID);
 
   const full = await recordProduction(LOCAL_COMPANY_ID, {
@@ -2439,7 +2443,7 @@ test('the guess for the next load reads what arrived, not what left', async () =
 
 test('half a kettle takes half the ingredients, so recording only what came out still moves the storeroom', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
 
   const antes = await listItems(LOCAL_COMPANY_ID);
   const cheio = await recordProduction(LOCAL_COMPANY_ID, {
@@ -2480,7 +2484,7 @@ test('half a kettle takes half the ingredients, so recording only what came out 
 
 test('what is running out comes from what actually left, and a still input never alarms', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
 
   const de = '2026-03-01T00:00:00.000Z';
   const ate = '2026-03-08T00:00:00.000Z';
@@ -2535,7 +2539,7 @@ test('what is running out comes from what actually left, and a still input never
 
 test('the short history is runs, not days, and expiry only warns about what is still there', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [produto] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [produto] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
 
   // Validade cadastrada, senão nenhum lote vence e a segunda metade deste teste
   // mediria o vazio. O exemplo semeado não declara validade de propósito - é
@@ -2654,7 +2658,7 @@ test('listed packaging leaves the storeroom, per unit, and lands in the frozen c
   assert.ok(palito && saquinho, 'o exemplo semeado tem palito e saquinho');
 
   // O produto passa a listar palito e saquinho: um de cada por unidade.
-  const [produto] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [produto] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   await saveProduct(LOCAL_COMPANY_ID, {
     id: produto.id,
     itemId: produto.itemId,
@@ -2670,7 +2674,7 @@ test('listed packaging leaves the storeroom, per unit, and lands in the frozen c
     packaging: produto.packaging,
   });
 
-  const relido = (await listProducts(LOCAL_COMPANY_ID)).find((p) => p.id === produto.id);
+  const relido = (await listProductsForLedger(LOCAL_COMPANY_ID)).find((p) => p.id === produto.id);
   assert.equal(relido?.packagingItems.length, 2);
   assert.ok(
     relido?.packagingItems.every((l) => l.name.length > 3),
@@ -2706,8 +2710,8 @@ test('listed packaging leaves the storeroom, per unit, and lands in the frozen c
 
   // O custo congelado inclui o palito, e inclui pela taxa das notas de compra -
   // não por um valor digitado à mão.
-  const taxaPalito = (await itemCosts(LOCAL_COMPANY_ID))[palito.id] ?? 0;
-  const taxaSaquinho = (await itemCosts(LOCAL_COMPANY_ID))[saquinho.id] ?? 0;
+  const taxaPalito = (await averageRatesForLedger(LOCAL_COMPANY_ID))[palito.id] ?? 0;
+  const taxaSaquinho = (await averageRatesForLedger(LOCAL_COMPANY_ID))[saquinho.id] ?? 0;
   assert.ok(taxaPalito > 0 && taxaSaquinho > 0, 'as notas deram preço aos dois');
 
   const linhaProduto = await live.getFirstAsync<{ unit_cost_rate: number }>(
@@ -2731,7 +2735,7 @@ test('a run without packaging in stock is refused before anything is written', a
   const items = await listItems(LOCAL_COMPANY_ID);
   const palito = items.find((i) => i.name.includes('Palito'));
   assert.ok(palito, 'o exemplo semeado tem palito');
-  const [produto] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [produto] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
 
   // Um palito por unidade, e uma corrida maior do que o estoque de palito.
   await saveProduct(LOCAL_COMPANY_ID, {
@@ -2913,7 +2917,7 @@ test('the agreement sheet is kept, corrected and queued for the server', async (
 
 test('what is running out answers for the room you are looking at, and for the kind', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
   const centro = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
 
@@ -3202,7 +3206,7 @@ test('approval is the company’s choice, and it decides where an order is born'
  */
 test('reversing a run puts back every leg of it, and leaves both records standing', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   const where = defaultLocationId(LOCAL_COMPANY_ID);
 
   const antes = await balanceByLocation(LOCAL_COMPANY_ID, product.itemId);
@@ -3288,7 +3292,7 @@ test('reversing a run puts back every leg of it, and leaves both records standin
 
 test('a run whose product already shipped cannot be reversed, and the refusal names what left', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
   const loja = (await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' })).id;
 
@@ -3334,7 +3338,7 @@ test('a run whose product already shipped cannot be reversed, and the refusal na
 
 test('reversing twice would double the correction, so the second time is refused', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   const where = defaultLocationId(LOCAL_COMPANY_ID);
 
   const corrida = await recordProduction(LOCAL_COMPANY_ID, {
@@ -3366,7 +3370,7 @@ test('reversing twice would double the correction, so the second time is refused
 
 test('a manufactured product is worth what it cost to make, everywhere it is', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
   const loja = (await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' })).id;
 
@@ -3380,7 +3384,7 @@ test('a manufactured product is worth what it cost to make, everywhere it is', a
 
   // O custo congelado da corrida é a verdade; a média do produto tem que ser
   // ela, porque não havia picolé nenhum antes.
-  const custos = await itemCosts(LOCAL_COMPANY_ID);
+  const custos = await averageRatesForLedger(LOCAL_COMPANY_ID);
   assert.ok(
     Math.abs(custos[product.itemId] - corrida.unitCostRate) < 1e-9,
     `a média do produto é o custo da corrida (média ${custos[product.itemId]}, corrida ${corrida.unitCostRate})`,
@@ -3421,7 +3425,7 @@ test('a manufactured product is worth what it cost to make, everywhere it is', a
  */
 test('reversing a run gives the money back, not only the quantity', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [product] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   const where = defaultLocationId(LOCAL_COMPANY_ID);
 
   const primeira = await recordProduction(LOCAL_COMPANY_ID, {
@@ -3493,7 +3497,7 @@ test('a lot warns about expiry from wherever it is, not only from the storeroom'
   const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
   const { id: fria } = await savePlace(LOCAL_COMPANY_ID, { name: 'Câmara fria', kind: 'cold_room' });
 
-  const [semPrazo] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [semPrazo] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
   // A validade do lote vem do PRODUTO — perguntada uma vez no cadastro, nunca no
   // chão de fábrica. O exemplo semeado nasce sem prazo, então o prazo entra aqui.
   await saveProduct(LOCAL_COMPANY_ID, {
@@ -3507,7 +3511,7 @@ test('a lot warns about expiry from wherever it is, not only from the storeroom'
     packaging: semPrazo.packaging,
     shelfLifeDays: 18,
   });
-  const product = (await listProducts(LOCAL_COMPANY_ID)).find((p) => p.id === semPrazo.id)!;
+  const product = (await listProductsForLedger(LOCAL_COMPANY_ID)).find((p) => p.id === semPrazo.id)!;
 
   const corrida = await recordProduction(LOCAL_COMPANY_ID, {
     productId: product.id,
@@ -3748,7 +3752,7 @@ test('a movement written on a shared phone says who was holding it, all the way 
   await ensureStarterData(LOCAL_COMPANY_ID);
   const [perfil] = await listProfiles(LOCAL_COMPANY_ID);
   const ana = await savePerson(LOCAL_COMPANY_ID, { name: 'Ana', profileId: perfil.id });
-  const [produto] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const [produto] = (await listProductsForLedger(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
 
   const [acucar] = (await listItems(LOCAL_COMPANY_ID)).filter((i) => /ú?car/i.test(i.name));
 
@@ -3815,4 +3819,232 @@ test('a movement written on a shared phone says who was holding it, all the way 
     `SELECT COUNT(*) AS n FROM movements WHERE operator_id IS NOT NULL`,
   );
   assert.equal(depois[0].n, daAna.length, 'nada novo ganhou o nome da Ana');
+});
+
+/**
+ * O livro-razão congela o MESMO número, esteja quem estiver com o aparelho.
+ *
+ * Este é o teste que teria pegado o defeito que o portão do dinheiro quase
+ * entregou. Quando `itemCosts` ganhou portão, `recordProduction` e `recordLoss`
+ * continuaram lendo por ela: com o portão fechado o mapa vinha vazio, o `?? 0` de
+ * cada linha dava zero, e a corrida congelava `unit_cost_rate` NULO em cada
+ * consumo e 5 no produto onde o dono congelava 304,98 — sobrando só a embalagem.
+ *
+ * Duas refutações independentes mediram isso rodando o código, e a segunda achou o
+ * que é pior: a contaminação não fica nas duas funções. `item_costs` é reescrito a
+ * partir do que elas gravam, então transferência e contagem — que leem
+ * `item_costs` cru e estão CERTAS — passam a congelar fielmente o número errado. E
+ * o servidor recalcula pela mesma coluna (`0025`), concorda, e a checagem de
+ * divergência do `db:verify` passa. Os dois lados de acordo sobre o número errado.
+ *
+ * **Por que a asserção é igualdade e não "não é nulo".** A primeira versão que eu
+ * ia escrever afirmava que a taxa existe. `unitCostRate = 5` existe: passa por
+ * qualquer checagem de nulo, passa pelos filtros `!== null` que as telas já têm, e
+ * chega à capa do dono como figura plausível. O que morde é comparar número por
+ * número com o que o dono grava na mesma entrada.
+ */
+test('the ledger freezes the same rate whoever is holding the phone', async () => {
+  const congelar = async (comOperador: boolean) => {
+    // Um banco limpo por rodada: as duas passagens têm de partir do mesmo estado,
+    // senão a segunda herda a média que a primeira moveu.
+    const conn = inMemoryDb();
+    await migrate(conn);
+    __setDb(conn);
+    live = conn;
+    await ensureStarterData(CO);
+
+    if (comOperador) {
+      // A pessoa é criada ANTES de ser escolhida: `savePerson` exige
+      // `manage_company`, e sem ninguém escolhido num aparelho pessoal quem está
+      // com ele é o dono — que é o caminho de uma fábrica de verdade também.
+      const perfis = await listProfiles(CO);
+      const operador = perfis.find((p) => p.templateRole === 'operator');
+      assert.ok(operador, 'os sete modelos são semeados, e um deles é o operador');
+      const ana = await savePerson(CO, { name: 'Ana', profileId: operador.id });
+      await setCurrentOperator(ana.id);
+      // A premissa deste teste, presa aqui: se um dia `operator` ganhar
+      // `view_cost`, o teste passa a comparar o dono com o dono e prova nada.
+      assert.ok(
+        !(await currentCapabilities(CO)).has('view_cost'),
+        'o operador não vê custo, ou este teste não exercita portão nenhum',
+      );
+    }
+
+    const onde = defaultLocationId(CO);
+    const [produto] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
+    const insumos = (await listItems(CO)).filter((i) => i.kind === 'input');
+    const acucar = insumos[0];
+
+    // Os cinco caminhos que congelam taxa. Produção e perda eram os quebrados;
+    // compra, contagem e transferência entram porque foi por elas que a
+    // contaminação se espalhou.
+    await recordPurchase(CO, {
+      itemId: acucar.id,
+      purchaseQuantity: 2,
+      baseUnits: (acucar.purchaseToBase ?? 1) * 2,
+      totalCents: fromDecimal(240),
+    });
+    await recordProduction(CO, {
+      productId: produto.id,
+      locationId: onde,
+      batches: 1,
+      unitsProduced: 500,
+      producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+    });
+    await recordLoss(CO, { itemId: acucar.id, baseUnits: 500, reason: 'broken' });
+    await recordCount(CO, {
+      locationId: onde,
+      itemId: acucar.id,
+      countedBaseUnits: 1_000,
+    });
+    const loja = (await savePlace(CO, { name: 'Loja Centro', kind: 'store' })).id;
+    await recordTransfer(CO, {
+      itemId: produto.itemId,
+      baseUnits: 100,
+      fromLocationId: onde,
+      toLocationId: loja,
+    });
+
+    // A ordem é determinística porque é a mesma sequência de escritas nas duas
+    // passagens: `rowid` é a ordem em que o razão foi escrito.
+    return conn.getAllAsync<{ kind: string; r: number | null }>(
+      `SELECT kind, unit_cost_rate AS r FROM movements WHERE company_id = ? ORDER BY rowid`,
+      [CO],
+    );
+  };
+
+  const dono = await congelar(false);
+  const ana = await congelar(true);
+
+  assert.equal(ana.length, dono.length, 'as duas passagens escrevem as mesmas linhas');
+  assert.deepEqual(
+    ana,
+    dono,
+    'quem grava não muda o que o livro-razão congela — só muda o que a tela mostra',
+  );
+  // E a premissa do teste: alguma dessas linhas tem taxa, senão ele compara nada
+  // com nada e passaria com o razão inteiro nulo.
+  assert.ok(
+    dono.some((l) => l.r !== null && l.r > 0),
+    'o razão do dono tem taxa congelada, ou a comparação acima é vazia',
+  );
+});
+
+/**
+ * E a outra direção: quem não vê dinheiro não recebe dinheiro de nenhuma leitura.
+ *
+ * O teste de cima prova que o razão não muda; este prova que a TELA muda. Os dois
+ * juntos são o desenho inteiro — sem o de cima, este passaria com o razão
+ * apodrecido, que foi exatamente o que aconteceu.
+ *
+ * A varredura pergunta a cada leitura de dinheiro que existe, e não a uma lista
+ * escolhida: leitura nova que esqueça o portão entra aqui só se alguém a
+ * acrescentar, e é por isso que a lista está escrita com o nome de cada função e o
+ * campo que ela devolve — quem ler o vermelho sabe qual das oito falhou.
+ */
+test('whoever cannot see money gets no money out of any read', async () => {
+  await ensureStarterData(CO);
+  const onde = defaultLocationId(CO);
+  const [produto] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
+  const acucar = (await listItems(CO)).filter((i) => i.kind === 'input')[0];
+
+  // Um razão com dinheiro dentro, gravado pelo dono, para haver o que esconder.
+  await recordProduction(CO, {
+    productId: produto.id,
+    locationId: onde,
+    batches: 1,
+    unitsProduced: 500,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+  await recordLoss(CO, { itemId: acucar.id, baseUnits: 500, reason: 'broken' });
+  const janela = dayWindow(nowIso(), 'America/Sao_Paulo');
+
+  // A premissa, presa aqui: com o dono, TODAS estas leituras têm número. Sem esta
+  // metade, o teste abaixo passaria numa fábrica vazia.
+  assert.ok((await listItems(CO)).some((i) => (i.averageRate ?? 0) > 0), 'o dono vê custo médio');
+  assert.ok(Object.keys((await itemCosts(CO)) ?? {}).length > 0, 'o dono vê o mapa de custo');
+  assert.ok((await stockByPlace(CO)).some((p) => (p.valueCents ?? 0) > 0), 'o dono vê valor por sala');
+  assert.ok(
+    (await lossesOn(CO, janela.from, janela.to)).some((l) => (l.valueCents ?? 0) > 0),
+    'o dono vê quanto a perda custou',
+  );
+  assert.ok((await recentRuns(CO)).some((r) => r.unitCostRate !== null), 'o dono vê a taxa da corrida');
+  assert.ok(
+    (await listProducts(CO)).some((p) => p.unitPackagingRate !== null),
+    'o dono vê a embalagem digitada',
+  );
+  assert.ok(
+    (await itemMovements(CO, acucar.id)).some((m) => m.unitCostRate !== null),
+    'o dono vê a taxa congelada de cada linha',
+  );
+
+  // Agora a Ana, com o perfil de produção.
+  const perfis = await listProfiles(CO);
+  const operador = perfis.find((p) => p.templateRole === 'operator');
+  assert.ok(operador, 'os sete modelos são semeados');
+  const ana = await savePerson(CO, { name: 'Ana', profileId: operador.id });
+  await setCurrentOperator(ana.id);
+
+  assert.ok(
+    (await listItems(CO)).every((i) => i.averageRate === null && i.lastRate === null),
+    'nem o custo médio nem o preço da última nota chegam',
+  );
+  assert.equal(await itemCosts(CO), null, 'o mapa de custo não é mapa vazio: é nulo');
+  assert.ok(
+    (await stockByPlace(CO)).every(
+      (p) => p.valueCents === null && p.lines.every((l) => l.valueCents === null),
+    ),
+    'nem o total da sala nem a linha de cada item carregam valor',
+  );
+  assert.ok(
+    (await lossesOn(CO, janela.from, janela.to)).every((l) => l.valueCents === null),
+    'a perda continua sendo listada, e sem o quanto custou',
+  );
+  assert.ok(
+    (await lossesOn(CO, janela.from, janela.to)).length > 0,
+    'e a lista NÃO fica vazia: perder é fato de chão de fábrica',
+  );
+  assert.ok((await recentRuns(CO)).every((r) => r.unitCostRate === null), 'a corrida vem sem taxa');
+  assert.ok(
+    (await listProducts(CO)).every((p) => p.unitPackagingRate === null),
+    'a embalagem digitada é dinheiro como qualquer outro',
+  );
+  assert.ok(
+    (await itemMovements(CO, acucar.id)).every((m) => m.unitCostRate === null),
+    'e a taxa congelada não atravessa a borda só porque nenhuma tela a desenha hoje',
+  );
+  assert.deepEqual(await recentCostChanges(CO), [], 'histórico de preço é dinheiro do começo ao fim');
+  assert.deepEqual(await itemHistory(CO, acucar.id), [], 'e o histórico de um item também');
+});
+
+/**
+ * O piso do aparelho compartilhado — as duas bandeiras, e por que são duas.
+ *
+ * Sem isto, "largar o aparelho" na grade de nomes era o caminho mais curto para
+ * ver a margem: um toque, sem PIN, devolvendo o conjunto do dono. E com uma
+ * bandeira só, a fábrica que marca compartilhado e não nomeia ninguém prenderia o
+ * próprio dono no piso, sem caminho de volta.
+ */
+test('a shared phone with nobody named is the floor, and a phone that never asks is not', async () => {
+  await ensureStarterData(CO);
+
+  // Padrão: pessoal, ninguém nomeado. É a conta que entrou, e ela é do dono.
+  assert.ok((await currentCapabilities(CO)).has('view_cost'), 'o padrão de hoje não muda');
+
+  // Compartilhado E nomeando: ninguém escolhido é "ainda não disse quem é".
+  await setFloorSignIn('shared');
+  await setNamesWhoRecorded(true);
+  await setCurrentOperator(null);
+  assert.ok(
+    !(await currentCapabilities(CO)).has('view_cost'),
+    'largar o aparelho compartilhado devolve o piso, não as chaves do dono',
+  );
+
+  // Compartilhado e NÃO nomeando: o aparelho nunca pergunta, então não existe
+  // estado "ainda não respondeu" — e prender o dono no piso não teria saída.
+  await setNamesWhoRecorded(false);
+  assert.ok(
+    (await currentCapabilities(CO)).has('view_cost'),
+    'aparelho que não pergunta não tem como alguém se identificar',
+  );
 });

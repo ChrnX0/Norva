@@ -13,6 +13,8 @@ export const en: Dictionary = {
     seeScreens: 'See screens',
     ask: 'Ask something…',
     allClear: 'Everything is in order today.',
+    moneyHidden: 'Cost stays with whoever handles the money.',
+    moneyHiddenWay: 'If this phone is yours, switch the name under Who has this phone.',
   },
 
   units: {
@@ -250,9 +252,13 @@ export const en: Dictionary = {
       emptyHint: 'When something expires, melts or breaks, record it on the item — the reason is what makes this screen useful.',
       total: '{{money}} across {{count}}',
       lossCount: { one: '1 loss', other: '{{n}} losses' },
+      lossWord: { one: 'loss', other: 'losses' },
       vsPrevious: 'the previous 30 days lost {{money}}',
       firstWindow: 'first window with any loss on the books — nothing before to compare',
       worst: 'The heaviest: {{reason}}, {{money}}.',
+      worstByCount: 'The heaviest: {{reason}}, {{count}}.',
+      totalByCount: '{{count}} in this window',
+      vsPreviousByCount: 'the previous 30 days had {{count}}',
     },
     orders: {
       title: 'Orders',
@@ -524,13 +530,13 @@ export const en: Dictionary = {
       },
       naming: {
         label: 'Name who recorded it',
-        hint: 'Off, the report speaks of where — "3 boxes missing at check-in". On, the phone asks who is holding it and every line keeps the name.',
+        hint: 'Off, the report speaks of where — "3 boxes missing at check-in". On, the phone asks who is holding it and every line keeps the name. On a shared phone, turning this on also means each person sees only what their profile allows: whoever works in production sees no cost and no price.',
         on: 'On',
         off: 'Off',
       },
       signIn: {
         label: 'How the floor signs in',
-        hint: 'One phone per person picks once and stays. A phone that passes from hand to hand asks every time the app opens — whoever picked it up is not whoever put it down.',
+        hint: 'One phone per person picks once and stays. A phone that passes from hand to hand asks every time the app opens — whoever picked it up is not whoever put it down. With "Name who recorded it" on, this is where cost stops showing for whoever does not handle the money.',
         personal: 'One per person',
         shared: 'Shared',
       },
@@ -643,6 +649,7 @@ export const en: Dictionary = {
       lossCancel: 'Never mind',
       lossAsk: 'Record this loss?',
       lossBody: 'This takes {{amount}} of {{item}} off the shelf: {{reason}}. It is worth {{money}}, and it stays on the record.',
+      lossBodyNoMoney: 'This takes {{amount}} of {{item}} off the shelf: {{reason}}. It stays on the record.',
       lossDone: 'Loss recorded.',
       lossFailed: 'Could not record the loss',
       countTitle: 'Check the stock',
@@ -680,6 +687,10 @@ export const en: Dictionary = {
         'You counted {{counted}}. The system expected {{expected}}. That is {{diff}} extra, worth {{money}}. The difference is recorded and nothing is erased.',
       countConfirmExact:
         'You counted {{counted}}, exactly what the system expected. It is recorded that you checked.',
+      countConfirmShortNoMoney:
+        'You counted {{counted}}. The system expected {{expected}}. That leaves {{diff}} missing. The difference is recorded and nothing is erased.',
+      countConfirmOverNoMoney:
+        'You counted {{counted}}. The system expected {{expected}}. That is {{diff}} over. The difference is recorded and nothing is erased.',
       lastCounted: 'checked on {{date}}',
       history: 'Price history',
       historyHint: 'Nobody wrote this. Every line came from an invoice.',
@@ -803,6 +814,7 @@ export const en: Dictionary = {
       save: 'Save person',
       saved: 'Person saved',
       away: 'No longer works here',
+      readOnly: 'Only whoever runs the company changes who works in it.',
       awayHint: 'They leave the list and the history still points at them — nothing is deleted.',
       profilesTitle: 'Profiles',
       profilesOverline: 'what each one may do',
@@ -905,6 +917,9 @@ export const en: Dictionary = {
         'You made {{units}} of {{product}}, in {{batches}}. This takes {{lines}} out of stock and freezes the cost at {{cost}} per unit.',
       confirmBodyNoBatch:
         'You made {{units}} of {{product}}. That takes {{lines}} out of stock and freezes the cost at {{cost}} per unit.',
+      confirmBodyNoCost:
+        'You made {{units}} of {{product}}, in {{batches}}. This takes {{lines}} out of stock.',
+      confirmBodyNoBatchNoCost: 'You made {{units}} of {{product}}. That takes {{lines}} out of stock.',
       recorded: 'Production recorded.',
       open: 'Start now',
       openHint: 'Mark it now and close it when it comes out, or record it all at once.',
@@ -956,6 +971,7 @@ export const en: Dictionary = {
       costing: 'Working out the costs…',
       empty: 'No recipe yet. Register the inputs first, then the recipe that uses them.',
       perUnitOf: 'per unit of {{product}} · batch of {{batch}}',
+      perUnitOfNoCost: 'per unit of {{product}}',
       perLitre: 'per litre of mix · used inside other recipes',
       cycle: 'This recipe contains itself — open it to fix that.',
       missingPrice: 'Some input has no price yet.',

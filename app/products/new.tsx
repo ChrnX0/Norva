@@ -107,6 +107,8 @@ type Loaded = {
   recipes: RecipeSummary[];
   graph: Record<string, Recipe>;
   costs: ItemCosts;
+  /** Se o custo é desta pessoa para ver — nulo em `itemCosts` é o portão. */
+  dinheiro: boolean;
   labels: Record<string, string>;
   /** Palito, saquinho, caixa: o que pode sair do estoque por unidade. */
   wrappings: ItemWithCost[];
@@ -137,7 +139,18 @@ function ProductForm() {
       listProducts(LOCAL_COMPANY_ID),
     ]);
     const wrappings = items.filter((i) => i.kind === 'packaging');
-    return { recipes, graph, costs, labels, lines, types, flavors, wrappings, products };
+    return {
+      recipes,
+      graph,
+      dinheiro: costs !== null,
+      costs: costs ?? {},
+      labels,
+      lines,
+      types,
+      flavors,
+      wrappings,
+      products,
+    };
   });
 
   const [kind, setKind] = useState<Kind>('product');
@@ -221,6 +234,17 @@ function ProductForm() {
 
   const costing = useMemo(() => {
     if (kind === 'resale' || !data || !chosenRecipe) return null;
+    /**
+     * Sem o custo dos insumos, este cartão inteiro sai de cena — e sair é o
+     * certo, não calar pela metade.
+     *
+     * Metade dele é o valor que a pessoa DIGITA (a embalagem) e metade vem das
+     * notas de compra. Com a segunda metade em zero, a figura não desaparece:
+     * **encolhe**, e passa a anunciar como custo por unidade o preço do palito.
+     * A conta que não fecha não vira número, e a Lei 6 fica de pé — cartão que
+     * abre a conta não pode abrir uma conta errada.
+     */
+    if (!data.dinheiro) return null;
 
     const portion = num(perUnit);
     if (!Number.isFinite(portion) || portion <= 0) return null;

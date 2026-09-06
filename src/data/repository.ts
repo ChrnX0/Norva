@@ -3,7 +3,7 @@ import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
 import { isValidHierarchy } from '@/domain/units';
 import { DEFAULT_ALERTS, type AlertSettings } from '@/domain/alerts';
 import { daysOfCover } from '@/domain/ledger';
-import { ROLES, type Capability, type Role } from '@/domain/access';
+import { ROLES, capabilitiesFor, type Capability, type Role } from '@/domain/access';
 import { expiresOn, lotCode } from '@/domain/lot';
 import type { LossReason, ReturnReason } from '@/domain/ledger';
 import { explodeRequirements } from '@/domain/recipe';
@@ -54,7 +54,23 @@ export type Item = {
 };
 
 export type ItemWithCost = Item & {
-  averageRate: Rate;
+  /**
+   * O custo médio, e `null` é resposta — duas respostas, na verdade.
+   *
+   * Era `Rate` com zero fazendo as vezes de ausência, e zero é a única coisa que
+   * este campo não pode significar: "nunca foi comprado" e "não é seu para ver"
+   * são fatos diferentes, e a tela tem frase própria para cada um (`canSeeMoney`
+   * responde qual). Como zero, os dois viravam a MESMA frase — *"3 sem preço,
+   * lance a nota de compra"* — que para quem não pode ver custo é orientação
+   * falsa: não há nota nenhuma a lançar. E pior, `null <= 0` é TRUE em
+   * JavaScript, então a contagem de "sem preço" passaria a contar o almoxarifado
+   * inteiro.
+   *
+   * Quem só quer aritmética escreve `?? 0` e acerta: dentro de uma habilidade do
+   * assistente que declara `requires: 'view_cost'`, nulo só pode ser "sem custo",
+   * que é exatamente o que zero significava antes.
+   */
+  averageRate: Rate | null;
   lastRate: Rate | null;
   onHandBaseUnits: number;
   /** False once it is out of circulation: kept for history, hidden from pickers. */
@@ -155,6 +171,16 @@ export async function listItems(
   locationId?: string,
 ): Promise<ItemWithCost[]> {
   const conn = await db();
+  /**
+   * A checagem roda ANTES da consulta, e é essa ordem que é a fundação.
+   *
+   * O portão fechado não apaga o número depois de lê-lo: ele **não junta a tabela
+   * de custo**, então o valor não chega a existir na resposta. É a mesma forma que
+   * o servidor usa na sua própria view (`0008`, `case when has_capability(...) then
+   * m.unit_cost_rate end`), e é o que o `CLAUDE.md` quer dizer com *"não existe
+   * número para vazar"*.
+   */
+  const dinheiro = (await canSeeMoney(companyId)) ? 1 : 0;
   const rows = await conn.getAllAsync<{
     id: string;
     kind: ItemKind;
@@ -176,7 +202,7 @@ export async function listItems(
                 AND (? IS NULL OR m.location_id = ?))
               AS on_hand_base_units
        FROM items i
-       LEFT JOIN item_costs c ON c.item_id = i.id
+       LEFT JOIN item_costs c ON c.item_id = i.id AND ? = 1
       WHERE i.company_id = ?
         AND (? = 1 OR i.active = 1)
         AND (? IS NULL OR i.kind = ?)
@@ -184,6 +210,7 @@ export async function listItems(
     [
       locationId ?? null,
       locationId ?? null,
+      dinheiro,
       companyId,
       includeInactive ? 1 : 0,
       kind ?? null,
@@ -201,7 +228,7 @@ export async function listItems(
     packaging: parsePackaging(r.packaging),
     fullLevel: r.full_level,
     active: r.active === 1,
-    averageRate: (r.average_rate ?? 0) as Rate,
+    averageRate: r.average_rate === null || r.average_rate === undefined ? null : (r.average_rate as Rate),
     lastRate: r.last_rate === null || r.last_rate === undefined ? null : (r.last_rate as Rate),
     onHandBaseUnits: r.on_hand_base_units ?? 0,
   }));
@@ -285,7 +312,37 @@ async function writeItem(
 }
 
 /** Cost of every item, in the shape the recipe engine expects. */
-export async function itemCosts(companyId: string): Promise<ItemCosts> {
+/**
+ * O custo de cada item para a TELA — e `null` é o portão, não um mapa vazio.
+ *
+ * Devolvia `{}` quando fechado, e isso furava o desenho inteiro num lugar onde o
+ * compilador não podia cobrar nada: `ItemCosts` é `Record<string, Rate>`, e mapa
+ * vazio tem o mesmo tipo que mapa cheio. O motor de receita faz `?? 0` por
+ * contrato (`src/domain/recipe.ts`), então `costRecipe({})` devolvia `batchCents:
+ * 0` — um número, nunca nulo — e **cinco telas imprimiam R$ 0,00 por unidade em
+ * todo produto com receita**, que é exatamente a mentira que este portão existe
+ * para impedir. Nulo devolve a cobrança ao compilador.
+ */
+export async function itemCosts(companyId: string): Promise<ItemCosts | null> {
+  if (!(await canSeeMoney(companyId))) return null;
+  return averageRatesForLedger(companyId);
+}
+
+/**
+ * O custo médio SEM portão — para quem GRAVA, nunca para quem mostra.
+ *
+ * Existe porque congelar custo e ver custo são perguntas diferentes: uma corrida
+ * lançada por quem não vê dinheiro tem que congelar o número CERTO, senão o
+ * livro-razão fica errado para todo mundo, e conteúdo de livro-razão não se
+ * corrige — se estorna.
+ *
+ * O nome é longo de propósito: quem escrever isto numa tela vai ler "for ledger"
+ * antes de digitar o parêntese. E não é só o nome que impede —
+ * `src/layers.test.ts` recusa qualquer arquivo fora de `src/data/` e `scripts/`
+ * que a mencione, porque conselho eu esqueço na próxima sessão e guarda roda
+ * sozinho.
+ */
+export async function averageRatesForLedger(companyId: string): Promise<ItemCosts> {
   const conn = await db();
   const rows = await conn.getAllAsync<{ item_id: string; average_rate: number }>(
     `SELECT item_id, average_rate FROM item_costs WHERE company_id = ?`,
@@ -777,14 +834,22 @@ export type PlaceStock = {
   locationId: string;
   locationName: string;
   kind: string;
-  /** Quanto vale tudo o que está ali, somado uma vez só, no fim. */
-  valueCents: Cents;
+  /**
+   * Quanto vale tudo o que está ali, somado uma vez só, no fim — e `null` quando
+   * quem está com o aparelho não vê dinheiro.
+   *
+   * Nulo e não zero porque a tela da loja decidia pela PRESENÇA do objeto, não
+   * pelo número: com zero ela escrevia "vale R$ 0,00" embaixo de cada item de uma
+   * loja cheia. O tipo é o que impede — quem quiser somar tem que dizer o que faz
+   * com o nulo.
+   */
+  valueCents: Cents | null;
   lines: {
     itemId: string;
     name: string;
     baseUnits: number;
     baseUnit: string;
-    valueCents: Cents;
+    valueCents: Cents | null;
   }[];
 };
 
@@ -802,6 +867,9 @@ export type PlaceStock = {
  */
 export async function stockByPlace(companyId: string): Promise<PlaceStock[]> {
   const conn = await db();
+  // A checagem antes da consulta: sem `view_cost` a tabela de custo não é
+  // juntada, e a sala volta com quantidade e sem valor.
+  const dinheiro = (await canSeeMoney(companyId)) ? 1 : 0;
   const rows = await conn.getAllAsync<{
     location_id: string;
     location_name: string;
@@ -819,12 +887,12 @@ export async function stockByPlace(companyId: string): Promise<PlaceStock[]> {
        FROM movements m
        JOIN locations l ON l.id = m.location_id
        JOIN items i ON i.id = m.item_id
-       LEFT JOIN item_costs c ON c.item_id = m.item_id
+       LEFT JOIN item_costs c ON c.item_id = m.item_id AND ? = 1
       WHERE m.company_id = ?
       GROUP BY m.location_id, l.name, l.kind, m.item_id, i.name, i.packaging, i.base_unit, c.average_rate
      HAVING SUM(m.quantity_base_units) <> 0
       ORDER BY l.kind, l.name, i.name`,
-    [companyId],
+    [dinheiro, companyId],
   );
 
   const byPlace = new Map<string, PlaceStock>();
@@ -835,13 +903,14 @@ export async function stockByPlace(companyId: string): Promise<PlaceStock[]> {
         locationId: r.location_id,
         locationName: r.location_name,
         kind: r.kind,
-        valueCents: cents(0),
+        valueCents: dinheiro === 1 ? cents(0) : null,
         lines: [],
       };
       byPlace.set(r.location_id, place);
     }
-    // Taxa fracionária vezes quantidade, arredondada aqui e só aqui.
-    const value = cents((r.rate ?? 0) * r.base_units);
+    // Taxa fracionária vezes quantidade, arredondada aqui e só aqui. Sem portão
+    // a taxa não veio, e o valor não existe — em vez de existir valendo zero.
+    const value = dinheiro === 1 ? cents((r.rate ?? 0) * r.base_units) : null;
     place.lines.push({
       itemId: r.item_id,
       name: r.item_name,
@@ -849,7 +918,9 @@ export async function stockByPlace(companyId: string): Promise<PlaceStock[]> {
       baseUnit: r.base_unit,
       valueCents: value,
     });
-    place.valueCents = cents(place.valueCents + value);
+    if (place.valueCents !== null && value !== null) {
+      place.valueCents = cents(place.valueCents + value);
+    }
   }
 
   return [...byPlace.values()];
@@ -1022,6 +1093,16 @@ export async function itemMovements(
   locationId?: string,
 ): Promise<MovementRow[]> {
   const conn = await db();
+  /**
+   * A taxa congelada de cada linha do razão — e nenhuma tela a desenha hoje.
+   *
+   * O portão entra aqui de qualquer jeito, e é a fundação que manda: *"esconder
+   * botão é decoração"*. O número CHEGAVA ao componente (`app/inputs/[id].tsx`
+   * carrega estas linhas no estado) e o que impedia o vazamento era ninguém ter
+   * escrito o `<Text>`. No dia em que alguém desenhar o `[por quê?]` do saldo — que é
+   * literalmente o que este campo é — o vazamento nasceria pronto.
+   */
+  const dinheiro = (await canSeeMoney(companyId)) ? 1 : 0;
   const rows = await conn.getAllAsync<{
     id: string;
     kind: string;
@@ -1036,7 +1117,9 @@ export async function itemMovements(
     // ele: sem índice, perguntar "isto foi estornado?" por linha é uma varredura
     // do razão inteiro por linha, e a capa abria em dez segundos com dois anos de
     // fábrica.
-    `SELECT m.id, m.kind, m.quantity_base_units, m.unit_cost_rate, m.note, m.occurred_at,
+    `SELECT m.id, m.kind, m.quantity_base_units,
+            CASE WHEN ? = 1 THEN m.unit_cost_rate END AS unit_cost_rate,
+            m.note, m.occurred_at,
             m.movement_group_id,
             EXISTS (SELECT 1 FROM movements r
                      WHERE r.reverses_movement_id = m.id AND r.company_id = m.company_id) AS reversed
@@ -1045,7 +1128,7 @@ export async function itemMovements(
         AND (? IS NULL OR m.location_id = ?)
       ORDER BY m.occurred_at DESC, m.rowid DESC
       LIMIT ?`,
-    [companyId, itemId, locationId ?? null, locationId ?? null, limit],
+    [dinheiro, companyId, itemId, locationId ?? null, locationId ?? null, limit],
   );
 
   return rows.map((r) => ({
@@ -1372,7 +1455,7 @@ export async function recordProduction(
   const conn = await db();
   const at = nowIso();
 
-  const product = (await listProducts(companyId)).find((p) => p.id === input.productId);
+  const product = (await listProductsForLedger(companyId)).find((p) => p.id === input.productId);
   if (!product) throw new Error(`produto ${input.productId} não existe`);
   if (!product.recipeId) throw new Error(`${product.name} é revenda: não se produz`);
   if (input.batches <= 0) throw new Error('uma corrida tem pelo menos um tacho');
@@ -1382,7 +1465,22 @@ export async function recordProduction(
   const recipe = graph[product.recipeId];
   if (!recipe) throw new Error(`a receita de ${product.name} não está no aparelho`);
 
-  const rates = await itemCosts(companyId);
+  /**
+   * As taxas vêm SEM portão, e este é o defeito que quase entrou.
+   *
+   * Duas refutações independentes mediram a mesma coisa rodando o código: com o
+   * portão do dinheiro fechado, `itemCosts` devolvia mapa vazio, o `?? 0` de cada
+   * linha dava zero, e a corrida congelava `unit_cost_rate` **nulo** em cada consumo
+   * e 5 no produto onde o dono congelava 304,98 — sobrando só a embalagem. E não
+   * fica nas duas funções: `item_costs` é reescrito a partir disso, então
+   * transferência e contagem, que leem `item_costs` cru e estão certas, passam a
+   * congelar fielmente o número errado. O servidor recalcula pela mesma coluna
+   * (`0025`), concorda, e a checagem de divergência do `db:verify` PASSA.
+   *
+   * Conteúdo de livro-razão não se corrige: se estorna. Congelar custo e VER custo
+   * são perguntas diferentes, e só a segunda tem portão.
+   */
+  const rates = await averageRatesForLedger(companyId);
   const needed = explodeRequirements(product.recipeId, input.batches, graph);
 
   // A embalagem entra no consumo, e ela conta por UNIDADE, não por tacho.
@@ -1852,7 +1950,7 @@ export type Product = {
    * A coluna antiga (`unit_packaging_cents`) continua no banco, dormente, porque
    * migração é append-only — quem lê é a nova (migração V18 / servidor 0033).
    */
-  unitPackagingRate: Rate;
+  unitPackagingRate: Rate | null;
   /**
    * A embalagem que sai do estoque, por unidade produzida.
    *
@@ -1881,6 +1979,36 @@ export type Product = {
 };
 
 export async function listProducts(companyId: string): Promise<Product[]> {
+  const fichas = await listProductsForLedger(companyId);
+  /**
+   * A embalagem digitada é dinheiro, e é o pior dos três estados quando mente.
+   *
+   * Sem guarda, a tela de produção somava esta parcela ao custo congelado: o número
+   * não sai de cena, **encolhe** — não é travessão, não é zero, é um custo plausível
+   * e errado, que é a única coisa pior que nenhum número. Nulo obriga a tela a
+   * decidir, e é isso que o tipo está fazendo.
+   */
+  if (await canSeeMoney(companyId)) return fichas;
+  return fichas.map((f) => ({ ...f, unitPackagingRate: null }));
+}
+
+/**
+ * As fichas SEM portão — para quem grava, nunca para quem mostra.
+ *
+ * Mesma convenção do `averageRatesForLedger`, e ela nasceu de um defeito de verdade
+ * nesta mudança, achado pelo compilador: `recordProduction` lia a ficha por
+ * `listProducts`, e no dia em que `unitPackagingRate` virou nulo para quem não vê
+ * custo, a corrida lançada por quem está de luva na câmara congelaria o custo **sem
+ * o palito e sem o saquinho**. Menor, plausível, e errado para sempre, porque
+ * conteúdo de livro-razão não se corrige: se estorna.
+ *
+ * Congelar custo e VER custo são perguntas diferentes. Só a segunda tem portão, e o
+ * sufixo `ForLedger` é o que diz de qual das duas se trata — com
+ * `src/layers.test.ts` recusando qualquer tela que a mencione.
+ */
+export async function listProductsForLedger(
+  companyId: string,
+): Promise<(Product & { unitPackagingRate: Rate })[]> {
   const conn = await db();
   const rows = await conn.getAllAsync<{
     id: string;
@@ -2110,6 +2238,17 @@ export type CostChange = {
  * What they do not know is what moved since they last looked.
  */
 export async function recentCostChanges(companyId: string, limit = 5): Promise<CostChange[]> {
+  /**
+   * Aqui a lista INTEIRA é dinheiro — "o preço era X e virou Y" não sobra nada
+   * depois de tirar os dois números. Então o portão devolve lista vazia, que é a
+   * resposta que a capa já trata: sem mudança de preço, a peça não é montada.
+   *
+   * Antes disto ela desaparecia por acidente feliz: com zero nos dois campos, o
+   * filtro `previousRate !== newRate` da capa derrubava a linha. Acidente feliz não
+   * é desenho — o dia em que alguém trocasse aquele filtro, a capa passaria a
+   * anunciar "o preço mexeu de R$ 0,00 para R$ 0,00".
+   */
+  if (!(await canSeeMoney(companyId))) return [];
   const conn = await db();
   const rows = await conn.getAllAsync<{
     item_id: string;
@@ -2191,7 +2330,22 @@ export async function recordLoss(
 
   // A taxa é a que o item vale hoje: o que se perdeu foi mercadoria comprada,
   // e o relatório de perdas conta dinheiro, não só quantidade.
-  const rates = await itemCosts(companyId);
+  /**
+   * As taxas vêm SEM portão, e este é o defeito que quase entrou.
+   *
+   * Duas refutações independentes mediram a mesma coisa rodando o código: com o
+   * portão do dinheiro fechado, `itemCosts` devolvia mapa vazio, o `?? 0` de cada
+   * linha dava zero, e a corrida congelava `unit_cost_rate` **nulo** em cada consumo
+   * e 5 no produto onde o dono congelava 304,98 — sobrando só a embalagem. E não
+   * fica nas duas funções: `item_costs` é reescrito a partir disso, então
+   * transferência e contagem, que leem `item_costs` cru e estão certas, passam a
+   * congelar fielmente o número errado. O servidor recalcula pela mesma coluna
+   * (`0025`), concorda, e a checagem de divergência do `db:verify` PASSA.
+   *
+   * Conteúdo de livro-razão não se corrige: se estorna. Congelar custo e VER custo
+   * são perguntas diferentes, e só a segunda tem portão.
+   */
+  const rates = await averageRatesForLedger(companyId);
   const rate = (rates[input.itemId] ?? 0) as Rate;
 
   const id = newId();
@@ -2240,7 +2394,16 @@ export type LossRow = {
   baseUnit: string;
   reason: LossReason;
   locationName: string;
-  valueCents: Cents;
+  /**
+   * Quanto custou, pela taxa CONGELADA no movimento — e `null` sem `view_cost`.
+   *
+   * A tela de perdas decidia por contagem de linha, não por dinheiro: com zero ela
+   * abria inteira dizendo "R$ 0,00" na figura, em cada linha e na comparação — uma
+   * tela afirmando que a fábrica não perdeu nada. A quantidade perdida continua
+   * aparecendo, porque perder três caixas é fato de chão de fábrica; quanto custou
+   * é outra pergunta.
+   */
+  valueCents: Cents | null;
   occurredAt: string;
 };
 
@@ -2258,6 +2421,15 @@ export async function lossesOn(
   toIso: string,
 ): Promise<LossRow[]> {
   const conn = await db();
+  /**
+   * A ORDEM continua saindo do dinheiro, e isso é de propósito.
+   *
+   * "Da perda mais cara para a mais barata" é a ordem que serve para decidir, e ela
+   * não revela cifra nenhuma: quem não vê custo recebe a lista na ordem certa e sem
+   * os números. Apagar a ordem junto com os valores seria trocar uma lista útil por
+   * uma lista alfabética para não vazar o que já não vaza.
+   */
+  const dinheiro = await canSeeMoney(companyId);
   const rows = await conn.getAllAsync<{
     item_id: string;
     name: string;
@@ -2291,7 +2463,7 @@ export async function lossesOn(
     reason: r.reason,
     locationName: r.location_name,
     // Taxa fracionária vezes quantidade, arredondada aqui e só aqui.
-    valueCents: cents(Math.abs(r.quantity) * (r.rate ?? 0)),
+    valueCents: dinheiro ? cents(Math.abs(r.quantity) * (r.rate ?? 0)) : null,
     occurredAt: r.occurred_at,
   }));
 }
@@ -2333,7 +2505,7 @@ export async function openProductionRun(
     throw new Error('um tacho tem de ser mais que zero');
   }
 
-  const product = (await listProducts(companyId)).find((p) => p.id === input.productId);
+  const product = (await listProductsForLedger(companyId)).find((p) => p.id === input.productId);
   if (!product) throw new Error(`produto ${input.productId} não existe`);
   if (!product.recipeId) throw new Error(`${product.name} é revenda: não se produz`);
 
@@ -2976,6 +3148,14 @@ export type Run = {
  */
 export async function recentRuns(companyId: string, limit = 6): Promise<Run[]> {
   const conn = await db();
+  /**
+   * O único campo de dinheiro do app que já nascia podendo ser nulo — e as duas
+   * telas que o leem já filtram por `!== null` antes de desenhar
+   * (`app/(tabs)/reports.tsx`, `src/home/Mosaic.tsx`). Então o portão fechado aqui
+   * não pede uma linha de tela: a peça do custo simplesmente não existe, que é o
+   * mesmo que o servidor faz na sua view desde a `0008`.
+   */
+  const dinheiro = await canSeeMoney(companyId);
   const rows = await conn.getAllAsync<{
     lot_id: string | null;
     code: string | null;
@@ -3001,7 +3181,7 @@ export async function recentRuns(companyId: string, limit = 6): Promise<Run[]> {
     name: r.name,
     baseUnits: r.quantity_base_units,
     occurredAt: r.occurred_at,
-    unitCostRate: r.unit_cost_rate,
+    unitCostRate: dinheiro ? r.unit_cost_rate : null,
   }));
 }
 
@@ -3650,6 +3830,11 @@ export async function itemHistory(
   itemId: string,
   limit = 24,
 ): Promise<PriceMoveRow[]> {
+  // Mesmo caso do `recentCostChanges`: histórico de preço é dinheiro do começo ao
+  // fim, e o que sobra depois de tirar os números é uma lista de datas. Era a
+  // SEGUNDA porta para o mesmo dinheiro — a ficha do insumo dizia "ainda sem nota
+  // lançada" em cima e listava quatro notas embaixo, na mesma rolagem.
+  if (!(await canSeeMoney(companyId))) return [];
   const conn = await db();
   const rows = await conn.getAllAsync<{
     previous_rate: number | null;
@@ -4145,6 +4330,132 @@ export async function currentOperatorId(): Promise<string | null> {
 
 export async function setCurrentOperator(personId: string | null): Promise<void> {
   await writeMeta(OPERATOR_KEY, personId ?? '');
+}
+
+/**
+ * O operador escolhido, conferido contra a EMPRESA que está sendo perguntada.
+ *
+ * A chave do operador é do aparelho e não tem empresa dentro dela — o que é certo,
+ * porque a pergunta "quem está com este celular" é do celular. Mas a capacidade é da
+ * empresa, e a fundação é multi-empresa desde a primeira linha: com a Ana da empresa
+ * A escolhida, perguntar pela empresa B não acha linha nenhuma. Sem esta distinção,
+ * o dono abriria a empresa B e o dinheiro desapareceria de tudo em silêncio, pela
+ * regra que existe para "pessoa apagada".
+ *
+ * Não é alcançável hoje (`LOCAL_COMPANY_ID` é a única empresa do app), e é de graça
+ * agora: `'outra'` diz "existe alguém escolhido, e não é desta empresa", que é uma
+ * terceira resposta e não a segunda.
+ */
+async function operadorDaEmpresa(
+  conn: Db,
+  companyId: string,
+  personId: string,
+): Promise<
+  { estado: 'aqui'; capacidades: Capability[] } | { estado: 'sumiu' } | { estado: 'outra' }
+> {
+  const linha = await conn.getFirstAsync<{ capabilities: string; company_id: string }>(
+    `SELECT p.capabilities, g.company_id
+       FROM people g
+       JOIN profiles p ON p.id = g.profile_id AND p.company_id = g.company_id
+      WHERE g.id = ? AND g.active = 1`,
+    [personId],
+  );
+  if (!linha) return { estado: 'sumiu' };
+  if (linha.company_id !== companyId) return { estado: 'outra' };
+  // O mesmo filtro do `listProfiles`: `''.split(',')` devolve `['']`, e uma
+  // capacidade chamada "" passaria adiante como se existisse.
+  return {
+    estado: 'aqui',
+    capacidades: linha.capabilities.split(',').filter(Boolean) as Capability[],
+  };
+}
+
+/**
+ * O que o aparelho vale quando ninguém se identificou — e são DUAS bandeiras.
+ *
+ * A primeira versão devolvia o dono aqui, e a refutação mostrou o buraco: no celular
+ * pendurado na câmara, "largar o aparelho" (`app/who.tsx`) é um botão de um toque que
+ * chama `setCurrentOperator(null)` — recusar-se a dizer quem você é passava a ser o
+ * jeito mais curto de ver a margem. Isso contraria a decisão escrita do dono
+ * exatamente na configuração que ela descreve: *"celular da empresa passa de mão;
+ * quem está com ele usa o papel operator — sem custo, sem preço, sem dinheiro"*.
+ *
+ * A segunda versão olhava só `floorSignIn`, e a refutação achou a outra armadilha:
+ * uma fábrica que marca `shared` e NÃO liga a nomeação nunca pergunta nada, então
+ * ninguém pode se identificar — o piso viraria permanente, inclusive para o dono, sem
+ * caminho de volta. Aparelho que não pergunta não tem estado "ainda não respondeu".
+ *
+ * Então nulo tem duas leituras, e as duas bandeiras que já existem decidem qual:
+ * *"não perguntamos"* — e portanto o dono, que é a conta que entrou — quando a
+ * empresa não pergunta; *"ninguém se identificou ainda"* quando ela pergunta e o
+ * aparelho esqueceu de propósito (`app/_layout.tsx` limpa o operador a cada abertura
+ * no compartilhado). O caminho de volta do dono é tocar no PRÓPRIO nome na grade, e
+ * não largar o aparelho.
+ *
+ * A F7 em uma linha: os dois caminhos existem, o padrão é `personal`, e nada aqui
+ * escolheu por nenhuma fábrica.
+ */
+async function pisoDoAparelho(): Promise<ReadonlySet<Capability>> {
+  const [entrada, nomeia] = await Promise.all([floorSignIn(), namesWhoRecorded()]);
+  return entrada === 'shared' && nomeia ? capabilitiesFor('operator') : capabilitiesFor('owner');
+}
+
+/**
+ * O que quem está com o aparelho pode ver — e é isto que os números obedecem.
+ *
+ * Existe uma decisão escrita do dono por trás desta função: *"aparelho emprestado
+ * entra como produção e nada mais. Celular da empresa passa de mão; quem está com ele
+ * usa o papel `operator` — sem custo, sem preço, sem dinheiro."* Até hoje o aparelho
+ * não tinha como obedecer: `app/assistant.tsx` fixava `capabilitiesFor('owner')` com
+ * o motivo escrito ao lado — *"until sign-in lands, whoever holds this phone is the
+ * owner"*. A fronteira era verdadeira quando foi escrita e deixou de ser: a grade de
+ * nomes existe, `people.profile_id` aponta para um perfil, e o perfil carrega as
+ * capacidades. Quem está com o aparelho é uma pergunta que o aparelho já responde.
+ *
+ * **O que isto NÃO é.** Não é autenticação, e a promessa não pode ser maior que a
+ * entrega: a grade de nomes é atribuição, o PIN tem quatro dígitos e é opcional, e
+ * qualquer um pode tocar no nome do dono (`docs/estudo-entrada.md`). O que este
+ * portão compra é exatamente o que o `access.ts` diz que se quer comprar — *"the
+ * number is irrelevant to the job and its presence invites conversations about margin
+ * on the factory floor"*. Tirar a margem da vista de quem está embalando é o
+ * objetivo; deter um adversário é outro problema, e ele é do servidor, que já impõe o
+ * mesmo portão de verdade (`0008`, `case when has_capability(...)`).
+ *
+ * **A terceira resposta é vazia, e é de propósito.** Alguém escolhido que não se
+ * resolve mais — pessoa desativada depois de escolhida, perfil apagado — devolve
+ * conjunto vazio, porque entregar as chaves do dono a quem saiu da lista é o pior
+ * resultado disponível, e um app que responde menos é recuperável com um toque na
+ * grade.
+ */
+export async function currentCapabilities(companyId: string): Promise<ReadonlySet<Capability>> {
+  const quem = await currentOperatorId();
+  if (!quem) return await pisoDoAparelho();
+
+  const conn = await db();
+  const achado = await operadorDaEmpresa(conn, companyId, quem);
+  // Escolhido noutra empresa é o mesmo caso de ninguém escolhido NESTA: quem está
+  // com o aparelho não disse quem é, aqui.
+  if (achado.estado === 'outra') return await pisoDoAparelho();
+  if (achado.estado === 'sumiu') return new Set();
+  return new Set(achado.capacidades);
+}
+
+/**
+ * O portão do dinheiro, numa pergunta só.
+ *
+ * Toda leitura que devolve dinheiro para uma tela chama isto **antes** de consultar, e
+ * é essa ordem que é a fundação: quem não pode ver o número não recebe o número, então
+ * não existe número para vazar. O que o portão fechado faz na consulta é não juntar a
+ * tabela de custo — o valor não chega a existir na resposta, em vez de existir e ser
+ * apagado depois.
+ *
+ * **Congelar custo não passa por aqui, de propósito.** Uma produção gravada por quem
+ * não vê custo tem que congelar o custo CERTO: o livro-razão não se corrige, se
+ * estorna. As escritas leem `item_costs` direto ou por `averageRatesForLedger`, e
+ * devem continuar lendo.
+ */
+export async function canSeeMoney(companyId: string): Promise<boolean> {
+  return (await currentCapabilities(companyId)).has('view_cost');
 }
 
 /**
@@ -4981,6 +5292,23 @@ export async function savePerson(
     pin?: string | null;
   },
 ): Promise<Person> {
+  /**
+   * Quem decide quem vê o dinheiro é a mesma pergunta que o portão do dinheiro.
+   *
+   * Esta é a porta larga que a refutação achou: a tela de gente listava todos os
+   * perfis, o do dono incluído, e não conferia nada. Quem estivesse com o aparelho
+   * tocava no próprio nome, trocava o crachá para "Dono" e voltava para a grade com as
+   * doze capacidades — de forma durável, sem PIN, porque editar pessoa não repergunta
+   * PIN. O portão do custo ficava intacto e irrelevante.
+   *
+   * A checagem mora AQUI e não na tela, pelo mesmo motivo de sempre: esconder botão é
+   * decoração. A tela também esconde, porque erro que impede é melhor que erro que
+   * reclama — mas o que recusa é isto.
+   */
+  if (!(await currentCapabilities(companyId)).has('manage_company')) {
+    throw new Error('gente: quem não administra a empresa não mexe em quem trabalha nela');
+  }
+
   const conn = await db();
   const id = input.id ?? newId();
   const active = input.active === false ? 0 : 1;

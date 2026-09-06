@@ -60,10 +60,14 @@ const costOfProduct: Skill = {
 
     const product = findByName(products, term);
     if (product?.recipeId && product.yieldPerUnit) {
-      const cost = costRecipe(product.recipeId, graph, costs, names);
+      const cost = costRecipe(product.recipeId, graph, costs ?? {}, names);
       const unit = costPerProductUnit(cost, product.yieldPerUnit, {
-        typedRate: product.unitPackagingRate,
-        itemsRate: packagingRatePerUnit(product.packagingItems, costs),
+        // `?? 0` é honesto aqui, e só aqui: esta habilidade declara
+        // `requires: 'view_cost'`, então o portão do repositório está aberto
+        // quando ela roda — nulo só pode querer dizer "não tem embalagem
+        // digitada", que é o que zero já queria dizer antes.
+        typedRate: product.unitPackagingRate ?? undefined,
+        itemsRate: packagingRatePerUnit(product.packagingItems, costs ?? {}),
       });
       const mix = costPerProductUnit(cost, product.yieldPerUnit);
 
@@ -73,7 +77,7 @@ const costOfProduct: Skill = {
           { label: 'Massa', value: formatMoney(mix, ctx.locale) },
           // O assistente fala português por decisão escrita (src/assistant/index.ts),
           // então a escala vem escrita aqui como o resto das frases dele.
-          { label: 'Embalagem', value: formatUnitRate(product.unitPackagingRate, ctx.locale, 'a cada 1.000 unidades') },
+          { label: 'Embalagem', value: formatUnitRate(product.unitPackagingRate ?? 0, ctx.locale, 'a cada 1.000 unidades') },
           { label: 'Custo do lote', value: formatMoney(cost.batchCents, ctx.locale) },
           {
             label: 'Perda prevista',
@@ -118,7 +122,7 @@ function rateAnswer(
   item: Awaited<ReturnType<SkillContext['data']['listItems']>>[number],
   ctx: SkillContext,
 ): Answer {
-  const perThousand = formatMoney(Math.round(item.averageRate * 1_000), ctx.locale);
+  const perThousand = formatMoney(Math.round((item.averageRate ?? 0) * 1_000), ctx.locale);
   const detail = [
     { label: 'Custo médio', value: `${perThousand} a cada 1.000 ${item.baseUnit}` },
   ];
@@ -132,7 +136,7 @@ function rateAnswer(
   if (item.purchaseUnit && item.purchaseToBase) {
     detail.push({
       label: item.purchaseUnit,
-      value: formatMoney(Math.round(item.averageRate * item.purchaseToBase), ctx.locale),
+      value: formatMoney(Math.round((item.averageRate ?? 0) * item.purchaseToBase), ctx.locale),
     });
   }
 
@@ -259,12 +263,12 @@ const whatWasLost: Skill = {
       return { text: 'Nenhuma perda registrada nos últimos 30 dias.', route: '/losses' };
     }
 
-    const total = perdas.reduce((n, p) => n + p.valueCents, 0);
+    const total = perdas.reduce((n, p) => n + (p.valueCents ?? 0), 0);
 
     // Por motivo, porque é o motivo que muda a decisão: derreteu manda olhar o
     // freezer, venceu manda olhar a compra.
     const porMotivo = new Map<string, number>();
-    for (const p of perdas) porMotivo.set(p.reason, (porMotivo.get(p.reason) ?? 0) + p.valueCents);
+    for (const p of perdas) porMotivo.set(p.reason, (porMotivo.get(p.reason) ?? 0) + (p.valueCents ?? 0));
     const pior = [...porMotivo.entries()].sort((a, b) => b[1] - a[1])[0];
 
     return {
@@ -273,7 +277,7 @@ const whatWasLost: Skill = {
         `O que mais pesou foi ${MOTIVO[pior[0]] ?? pior[0]}, com ${formatMoney(pior[1], ctx.locale)}.`,
       detail: perdas.slice(0, 5).map((p) => ({
         label: p.name,
-        value: `${formatMoney(p.valueCents, ctx.locale)} · ${MOTIVO[p.reason] ?? p.reason}`,
+        value: `${formatMoney(p.valueCents ?? 0, ctx.locale)} · ${MOTIVO[p.reason] ?? p.reason}`,
       })),
       route: '/losses',
     };
@@ -301,7 +305,9 @@ const whatDominates: Skill = {
     }
     if (!product?.recipeId) return { text: `Não encontrei a receita de "${m[1].trim()}".` };
 
-    const cost = costRecipe(product.recipeId, graph, costs, names);
+    // `?? {}` porque esta habilidade declara `requires: 'view_cost'`: o portão do
+    // repositório está aberto quando ela roda, e nulo é inalcançável aqui.
+    const cost = costRecipe(product.recipeId, graph, costs ?? {}, names);
     const sorted = [...cost.lines].sort((a, b) => b.share - a.share);
     if (sorted.length === 0) return { text: `${product.name} ainda não tem ingredientes.` };
 
@@ -385,11 +391,22 @@ const registerPurchase: Skill = {
   },
 };
 
-/** "quais insumos eu tenho" - the second question anybody asks. */
+/**
+ * "quais insumos eu tenho" - the second question anybody asks.
+ *
+ * **Ela NÃO exige `view_cost`, e exigia.** A declaração nunca tinha mordido porque
+ * o assistente perguntava a um conjunto chumbado (`capabilitiesFor('owner')`); no
+ * dia em que ele passou a perguntar quem está com o aparelho, a segunda pergunta
+ * que qualquer pessoa faz passou a ser recusada para quem embala — e "quais insumos
+ * eu tenho" é pergunta de quantidade, não de dinheiro.
+ *
+ * O jeito certo já existia duas habilidades acima: ramificar por capacidade DENTRO
+ * da resposta. Quem vê dinheiro recebe o valor parado e o aviso de item sem preço;
+ * quem não vê recebe a lista e o saldo, que é o que a pergunta pediu.
+ */
 const listInputs: Skill = {
   id: 'list_inputs',
   example: 'quais insumos eu tenho',
-  requires: 'view_cost',
   match: (q) =>
     normalize(q).match(
       /(?:quais|quantos|liste?|lista de|meus|minhas)\s+(?:os |as )?(?:insumos|ingredientes|materiais|itens)/,
@@ -402,25 +419,32 @@ const listInputs: Skill = {
       return { text: 'Ainda não há nenhum insumo cadastrado.', route: '/inputs' };
     }
 
+    const dinheiro = ctx.capabilities.has('view_cost');
     const held = stock.reduce(
-      (total, item) => total + Math.round(item.averageRate * item.onHandBaseUnits),
+      (total, item) => total + Math.round((item.averageRate ?? 0) * item.onHandBaseUnits),
       0,
     );
-    const unpriced = stock.filter((i) => i.averageRate <= 0);
+    // `!== null` e não `<= 0`: nulo em JavaScript é MENOR que zero numa comparação
+    // relacional, então sem isto "ainda sem preço" contaria todo o almoxarifado
+    // para quem só não pode ver preço — orientação falsa, mandando lançar nota que
+    // já existe. É o mesmo defeito que a tela de insumos já corrigiu.
+    const unpriced = stock.filter((i) => i.averageRate !== null && i.averageRate <= 0);
 
     return {
-      text:
-        `Você tem ${stock.length} itens cadastrados, com ${formatMoney(held, ctx.locale)} ` +
-        `parado no almoxarifado.` +
-        (unpriced.length > 0
-          ? ` ${unpriced.length} ainda sem preço — lance a nota e o custo aparece sozinho.`
-          : ''),
+      text: dinheiro
+        ? `Você tem ${stock.length} itens cadastrados, com ${formatMoney(held, ctx.locale)} ` +
+          `parado no almoxarifado.` +
+          (unpriced.length > 0
+            ? ` ${unpriced.length} ainda sem preço — lance a nota e o custo aparece sozinho.`
+            : '')
+        : `Você tem ${stock.length} itens cadastrados.`,
       detail: stock.map((item) => ({
         label: item.name,
-        value:
-          item.averageRate > 0
+        value: dinheiro
+          ? item.averageRate !== null && item.averageRate > 0
             ? `${formatMoney(Math.round(item.averageRate * 1_000), ctx.locale)} / 1.000 ${item.baseUnit}`
-            : 'sem preço',
+            : 'sem preço'
+          : `${formatQuantity(item.onHandBaseUnits, ctx.locale)} ${item.baseUnit}`,
       })),
       route: '/inputs',
     };
@@ -496,7 +520,7 @@ const stockOfInput: Skill = {
     if (ctx.capabilities.has('view_cost')) {
       detail.push({
         label: 'Valor parado',
-        value: formatMoney(Math.round(item.averageRate * item.onHandBaseUnits), ctx.locale),
+        value: formatMoney(Math.round((item.averageRate ?? 0) * item.onHandBaseUnits), ctx.locale),
       });
     }
 
@@ -738,7 +762,7 @@ const stockAtPlace: Skill = {
     }));
 
     if (ctx.capabilities.has('view_cost')) {
-      detail.push({ label: 'Valor parado', value: formatMoney(place.valueCents, ctx.locale) });
+      detail.push({ label: 'Valor parado', value: formatMoney(place.valueCents ?? 0, ctx.locale) });
     }
 
     const first = place.lines[0];
@@ -990,6 +1014,22 @@ const registerTransfer: Skill = {
 const whatToBuy: Skill = {
   id: 'what_to_buy',
   example: 'o que falta para 3 tachos de cada',
+  /**
+   * `view_cost` aqui NÃO é sobre os números da resposta — é sobre o ato.
+   *
+   * Eu tirei esta linha e um teste me parou, com a decisão no próprio nome:
+   * *"the shopping list is a decision about buying, not something the borrowed
+   * phone sees"*. Estava certo e eu, errado: a resposta não tem uma cifra dentro,
+   * mas a rota dela é `/purchase`, e comprar é ato de quem cuida do dinheiro —
+   * não existe capacidade própria de compra no vocabulário, e `view_cost` é quem
+   * a representa.
+   *
+   * Fica registrado o atrito, porque ele é real e não é meu para resolver: *"o
+   * que falta para 3 tachos"* também é pergunta de quem produz, e no aparelho
+   * compartilhado ela passa a ser recusada. Se o certo é a mesma conta sem a
+   * lista de compras — "falta polpa para o que você planejou" sem rota de
+   * compra — é decisão de faseamento, e está escrita em `docs/roadmap.md`.
+   */
   requires: 'view_cost',
   match: (q) =>
     normalize(q).match(

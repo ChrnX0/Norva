@@ -50,7 +50,12 @@ export type AssistantData = {
   listItems(): Promise<ItemWithCost[]>;
   listProducts(): Promise<Product[]>;
   loadRecipeGraph(): Promise<Record<string, Recipe>>;
-  itemCosts(): Promise<ItemCosts>;
+  /**
+   * Nulo é o portão do aparelho, e as habilidades que o leem já declaram
+   * `requires: 'view_cost'` — para elas nulo é inalcançável, e `?? {}` no ponto
+   * de uso é honesto pelo mesmo motivo que zero era antes.
+   */
+  itemCosts(): Promise<ItemCosts | null>;
   labels(): Promise<Record<string, string>>;
   recentCostChanges(limit: number): Promise<CostChange[]>;
   /** The movements behind one item's balance - what `[por quê?]` opens. */

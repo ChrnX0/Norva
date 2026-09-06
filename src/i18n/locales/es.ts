@@ -18,6 +18,8 @@ export const es: Dictionary = {
     seeScreens: 'Ver pantallas',
     ask: 'Pregunte algo…',
     allClear: 'Hoy está todo en orden.',
+    moneyHidden: 'El costo queda con quien cuida del dinero.',
+    moneyHiddenWay: 'Si este teléfono es tuyo, cambiá el nombre en Quién tiene el teléfono.',
   },
 
   units: {
@@ -255,9 +257,13 @@ export const es: Dictionary = {
       emptyHint: 'Cuando algo venza, se derrita o se rompa, regístralo en el insumo — el motivo es lo que hace útil esta pantalla.',
       total: '{{money}} en {{count}}',
       lossCount: { one: '1 pérdida', other: '{{n}} pérdidas' },
+      lossWord: { one: 'pérdida', other: 'pérdidas' },
       vsPrevious: 'en los 30 días anteriores fueron {{money}}',
       firstWindow: 'primera ventana con pérdida registrada — no hay antes para comparar',
       worst: 'Lo que más pesó: {{reason}}, {{money}}.',
+      worstByCount: 'Lo que más pesó: {{reason}}, {{count}}.',
+      totalByCount: '{{count}} en la ventana',
+      vsPreviousByCount: 'los 30 días anteriores fueron {{count}}',
     },
     orders: {
       title: 'Pedidos',
@@ -529,13 +535,13 @@ export const es: Dictionary = {
       },
       naming: {
         label: 'Nombrar quién registró',
-        hint: 'Apagado, el informe habla de dónde — "faltaron 3 cajas en la verificación". Encendido, el aparato pregunta quién lo tiene y cada línea guarda el nombre.',
+        hint: 'Apagado, el informe habla de dónde — "faltaron 3 cajas en la verificación". Encendido, el aparato pregunta quién lo tiene y cada línea guarda el nombre. En un aparato compartido, encender esto también hace que cada persona vea solo lo que su perfil permite: quien trabaja en producción no ve costo ni precio.',
         on: 'Encendido',
         off: 'Apagado',
       },
       signIn: {
         label: 'Cómo se entra en la planta',
-        hint: 'Un celular por persona elige una vez y queda. Un aparato que pasa de mano pregunta cada vez que se abre la app — quien lo tomó ahora no es quien lo dejó.',
+        hint: 'Un celular por persona elige una vez y queda. Un aparato que pasa de mano pregunta cada vez que se abre la app — quien lo tomó ahora no es quien lo dejó. Con "Nombrar quién registró" encendido, es aquí donde el costo deja de aparecer para quien no cuida del dinero.',
         personal: 'Uno por persona',
         shared: 'Compartido',
       },
@@ -648,6 +654,7 @@ export const es: Dictionary = {
       lossCancel: 'Déjalo',
       lossAsk: '¿Registrar esta pérdida?',
       lossBody: 'Esto baja {{amount}} de {{item}}: {{reason}}. Vale {{money}}, y queda en el historial.',
+      lossBodyNoMoney: 'Esto baja {{amount}} de {{item}}: {{reason}}. Queda en el historial.',
       lossDone: 'Pérdida registrada.',
       lossFailed: 'No se pudo registrar la pérdida',
       countTitle: 'Verificar el stock',
@@ -685,6 +692,10 @@ export const es: Dictionary = {
         'Usted contó {{counted}}. El sistema esperaba {{expected}}. Sobran {{diff}}, que valen {{money}}. La diferencia queda registrada y nada se borra.',
       countConfirmExact:
         'Usted contó {{counted}}, exactamente lo que el sistema esperaba. Queda registrado que usted verificó.',
+      countConfirmShortNoMoney:
+        'Usted contó {{counted}}. El sistema esperaba {{expected}}. Faltan {{diff}}. La diferencia queda registrada y nada se borra.',
+      countConfirmOverNoMoney:
+        'Usted contó {{counted}}. El sistema esperaba {{expected}}. Sobran {{diff}}. La diferencia queda registrada y nada se borra.',
       lastCounted: 'verificado el {{date}}',
       history: 'Historial de precio',
       historyHint: 'Nadie escribió esto. Cada línea nació de una factura registrada.',
@@ -808,6 +819,7 @@ export const es: Dictionary = {
       save: 'Guardar persona',
       saved: 'Persona guardada',
       away: 'Ya no trabaja aquí',
+      readOnly: 'Solo quien administra la empresa cambia quién trabaja en ella.',
       awayHint: 'Sale de la lista y el historial sigue apuntando a ella — nada se borra.',
       profilesTitle: 'Perfiles',
       profilesOverline: 'qué puede hacer cada uno',
@@ -910,6 +922,9 @@ export const es: Dictionary = {
         'Produjiste {{units}} de {{product}}, en {{batches}}. Esto descuenta {{lines}} del stock y congela el costo en {{cost}} por unidad.',
       confirmBodyNoBatch:
         'Produjiste {{units}} de {{product}}. Eso descuenta {{lines}} del stock y congela el costo en {{cost}} por unidad.',
+      confirmBodyNoCost:
+        'Produjiste {{units}} de {{product}}, en {{batches}}. Esto descuenta {{lines}} del stock.',
+      confirmBodyNoBatchNoCost: 'Produjiste {{units}} de {{product}}. Eso descuenta {{lines}} del stock.',
       recorded: 'Producción registrada.',
       open: 'Empezar ahora',
       openHint: 'Márcala ahora y ciérrala cuando salga, o registra todo de una vez.',
@@ -961,6 +976,7 @@ export const es: Dictionary = {
       costing: 'Calculando los costos…',
       empty: 'Ninguna ficha técnica todavía. Carga los insumos primero, después la receta que los usa.',
       perUnitOf: 'por unidad de {{product}} · lote de {{batch}}',
+      perUnitOfNoCost: 'por unidad de {{product}}',
       perLitre: 'por litro de mezcla · usada dentro de otras recetas',
       cycle: 'Esta receta se contiene a sí misma — ábrela para corregirla.',
       missingPrice: 'Falta el precio de algún insumo.',

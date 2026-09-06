@@ -654,3 +654,74 @@ test('every domain function has a caller in production, or a written reason', ()
       'Tire a linha: registro que virou mentira é pior que registro nenhum.',
   );
 });
+
+/**
+ * As leituras SEM portão são do livro-razão, e tela nenhuma as chama.
+ *
+ * Existem duas — `averageRatesForLedger` e `listProductsForLedger` — e elas são
+ * públicas porque a semeadura e um script de verificação moram noutros arquivos.
+ * O sufixo diz para que servem, mas nome não impede nada: os docblocks das duas
+ * afirmavam, com estas palavras, que este guarda já existia, e ele não existia.
+ * Docblock que promete uma rede que não está lá é pior que docblock nenhum — foi a
+ * refutação desta mudança que apontou, e é o padrão que o `CLAUDE.md` nomeia:
+ * regra escrita como feita não impede coisa alguma.
+ *
+ * Por que a rede é load-bearing: o portão do dinheiro vale por um passo só, e a
+ * porta dos fundos dele é uma tela digitar o nome comprido. Congelar custo e VER
+ * custo são perguntas diferentes; só a segunda tem portão, e só a camada de dados
+ * (mais os scripts, que não são aplicativo) faz a primeira.
+ */
+const SEM_PORTAO = /\b(averageRatesForLedger|listProductsForLedger)\b/;
+
+/** Onde o razão é escrito. Fora daqui, dinheiro se lê pelo caminho com portão. */
+function podeLerSemPortao(path: string): boolean {
+  return path.startsWith('src/data/') || path.startsWith('scripts/');
+}
+
+test('only the ledger reads money without the gate', () => {
+  const culpados: string[] = [];
+  for (const layer of ['app', ...readdirSync('src')
+    .filter((entry) => statSync(join('src', entry)).isDirectory())
+    .map((entry) => join('src', entry))]) {
+    for (const file of sourcesUnder(layer)) {
+      if (podeLerSemPortao(file)) continue;
+      const linhas = code(readFileSync(file, 'utf8')).split('\n');
+      linhas.forEach((linha, i) => {
+        if (SEM_PORTAO.test(linha)) culpados.push(`${file}:${i + 1}`);
+      });
+    }
+  }
+
+  assert.deepEqual(
+    culpados,
+    [],
+    `estes arquivos leem dinheiro pelo caminho SEM portão:\n  ${culpados.join('\n  ')}\n` +
+      'Fora de src/data/ e scripts/, custo se lê por `itemCosts`, `listItems` ou ' +
+      '`listProducts` — que perguntam antes de consultar. O caminho sem portão existe ' +
+      'para CONGELAR taxa no livro-razão, e livro-razão não se corrige: se estorna.',
+  );
+});
+
+test('the ledger-read guard bites a screen, and leaves the data layer alone', () => {
+  // Positivo: a chamada de verdade, dentro da camada de dados, passa.
+  assert.ok(
+    podeLerSemPortao('src/data/simulate.ts'),
+    'a semeadura escreve razão e tem de poder ler sem portão',
+  );
+  assert.ok(
+    podeLerSemPortao('scripts/device-session.ts'),
+    'o script que compara o aparelho com o Postgres compara verdade de razão',
+  );
+  // Negativo: a mesma linha numa tela é recusada.
+  assert.ok(!podeLerSemPortao('app/inputs/index.tsx'), 'tela nenhuma lê sem portão');
+  assert.ok(!podeLerSemPortao('src/home/Mosaic.tsx'), 'a capa é tela');
+  assert.ok(!podeLerSemPortao('src/assistant/skills.ts'), 'o assistente responde por tela');
+  assert.ok(
+    SEM_PORTAO.test('const c = await averageRatesForLedger(companyId);'),
+    'o padrão pega a chamada que importa',
+  );
+  assert.ok(
+    !SEM_PORTAO.test('const c = await itemCosts(companyId);'),
+    'e deixa em paz o caminho com portão',
+  );
+});

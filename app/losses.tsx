@@ -7,7 +7,7 @@ import { GlyphChart, GlyphLoss } from '@/components/Glyph';
 import { ListRow } from '@/components/ListRow';
 import { Reveal } from '@/components/Reveal';
 import { nowIso } from '@/data/db';
-import { lossesOn, type LossRow } from '@/data/repository';
+import { canSeeMoney, lossesOn, type LossRow } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { dayWindow } from '@/domain/day';
@@ -70,7 +70,7 @@ function WhatWasLost() {
    * duração, mesmos motivos, mesmo dinheiro — e é ela que transforma o número
    * em decisão de trocar o freezer ou não.
    */
-  const { data, loading } = useQuery<{ agora: LossRow[]; antes: LossRow[] }>(async () => {
+  const { data, loading } = useQuery<{ agora: LossRow[]; antes: LossRow[]; dinheiro: boolean }>(async () => {
     const hoje = dayWindow(nowIso(), locale.timeZone);
     const inicio = dayWindow(nowIso(), locale.timeZone, -29);
     const antesInicio = dayWindow(nowIso(), locale.timeZone, -59);
@@ -79,12 +79,22 @@ function WhatWasLost() {
       lossesOn(LOCAL_COMPANY_ID, inicio.from, hoje.to),
       lossesOn(LOCAL_COMPANY_ID, antesInicio.from, antesFim.to),
     ]);
-    return { agora, antes };
+    return { agora, antes, dinheiro: await canSeeMoney(LOCAL_COMPANY_ID) };
   });
 
   const rows = data?.agora ?? [];
-  const total = rows.reduce((n, r) => n + r.valueCents, 0);
-  const antes = (data?.antes ?? []).reduce((n, r) => n + r.valueCents, 0);
+  /**
+   * Sem custo esta tela continua servindo — o que muda é o eixo.
+   *
+   * A pergunta dela é "o que mais pesou", e ela tem duas respostas honestas: por
+   * valor e por vezes. "Derreteu, R$ 240" e "derreteu, 8 vezes" mandam fazer a
+   * mesma coisa — olhar o freezer. Então quem não vê dinheiro vê a contagem, e a
+   * tela não perde o serviço nem finge que a fábrica não perdeu nada.
+   */
+  const dinheiro = data?.dinheiro === true;
+  const total = rows.reduce((n, r) => n + (r.valueCents ?? 0), 0);
+  const antes = (data?.antes ?? []).reduce((n, r) => n + (r.valueCents ?? 0), 0);
+  const antesCount = (data?.antes ?? []).length;
 
   // Por motivo, para a tela dizer o que mais pesou em vez de listar e calar. A
   // contagem vem junto porque uma caixa de R$ 80 e oito caixinhas de R$ 10 são
@@ -92,9 +102,13 @@ function WhatWasLost() {
   const byReason = new Map<LossRow['reason'], { money: number; count: number }>();
   for (const r of rows) {
     const atual = byReason.get(r.reason) ?? { money: 0, count: 0 };
-    byReason.set(r.reason, { money: atual.money + r.valueCents, count: atual.count + 1 });
+    byReason.set(r.reason, { money: atual.money + (r.valueCents ?? 0), count: atual.count + 1 });
   }
-  const porMotivo = [...byReason.entries()].sort((a, b) => b[1].money - a[1].money);
+  // A ordem também troca de eixo: ordenar por um valor que a tela não mostra
+  // devolveria uma lista em ordem arbitrária, com cara de ranking.
+  const porMotivo = [...byReason.entries()].sort((a, b) =>
+    dinheiro ? b[1].money - a[1].money : b[1].count - a[1].count,
+  );
   const worst = porMotivo[0];
 
   /**
@@ -116,27 +130,51 @@ function WhatWasLost() {
         <Reveal index={0}>
           <Card hue={color.danger} icon={(c) => <GlyphLoss size={26} color={c} weight={traco} />}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.md }}>
-              <Text style={[type.figure, { color: color.ink }]}>{formatMoney(total, locale)}</Text>
+              {/* Uma figura só, com duas leituras: o dinheiro quando ele é
+                  desta pessoa, e a contagem quando não é — que é o fato que
+                  sobra, e ele é fato. Dois elementos de figura no mesmo cartão
+                  fariam a guarda da Lei 3 cobrar duas comparações para um
+                  número, e ela está certa: a comparação embaixo é uma. */}
+              <Text style={[type.figure, { color: color.ink }]}>
+                {dinheiro ? formatMoney(total, locale) : formatQuantity(rows.length, locale)}
+              </Text>
+              {/* A companhia da figura é a PALAVRA quando a figura já é a
+                  contagem. Sem isto a linha saía "12   12 perdas" — o mesmo
+                  defeito que este projeto já nomeou na capa ("500 duas vezes"),
+                  agora dentro de uma linha. */}
               <Text style={[type.secondary, { color: color.inkMuted, flex: 1 }]}>
-                {plural(rows.length, words.lossCount)}
+                {dinheiro
+                  ? plural(rows.length, words.lossCount)
+                  : `${rows.length === 1 ? words.lossWord.one : words.lossWord.other} · ${words.window.toLocaleLowerCase(locale.formatting)}`}
               </Text>
             </View>
 
             {worst ? (
               <Text style={[type.caption, { color: color.inkFaint, marginTop: space.sm }]}>
-                {fill(words.worst, {
-                  reason: t.loss[worst[0]].toLocaleLowerCase(locale.formatting),
-                  money: formatMoney(worst[1].money, locale),
-                })}
+                {dinheiro
+                  ? fill(words.worst, {
+                      reason: t.loss[worst[0]].toLocaleLowerCase(locale.formatting),
+                      money: formatMoney(worst[1].money, locale),
+                    })
+                  : fill(words.worstByCount, {
+                      reason: t.loss[worst[0]].toLocaleLowerCase(locale.formatting),
+                      count: plural(worst[1].count, words.lossCount),
+                    })}
               </Text>
             ) : null}
 
             {/* A janela anterior. Zero lá atrás não é "R$ 0,00" — é não ter com o
                 que comparar, e dizer isso é mais honesto que fingir queda total. */}
             <Text style={[type.caption, { color: color.inkFaint }]}>
-              {antes > 0
-                ? fill(words.vsPrevious, { money: formatMoney(antes, locale) })
-                : words.firstWindow}
+              {dinheiro
+                ? antes > 0
+                  ? fill(words.vsPrevious, { money: formatMoney(antes, locale) })
+                  : words.firstWindow
+                : antesCount > 0
+                  ? fill(words.vsPreviousByCount, {
+                      count: plural(antesCount, words.lossCount),
+                    })
+                  : words.firstWindow}
             </Text>
           </Card>
         </Reveal>
@@ -154,7 +192,7 @@ function WhatWasLost() {
                 key={motivo}
                 label={t.loss[motivo]}
                 detail={plural(soma.count, words.lossCount)}
-                trailing={formatMoney(soma.money, locale)}
+                trailing={dinheiro ? formatMoney(soma.money, locale) : undefined}
                 trailingTone="muted"
               />
             ))}
@@ -169,10 +207,13 @@ function WhatWasLost() {
         <Reveal index={indiceLista}>
           <Card>
             <Text style={[type.overline, { color: color.inkFaint, marginBottom: space.xs }]}>
-              {fill(words.total, {
-                money: formatMoney(total, locale),
-                count: plural(rows.length, words.lossCount),
-              }).toLocaleUpperCase(locale.formatting)}
+              {(dinheiro
+                ? fill(words.total, {
+                    money: formatMoney(total, locale),
+                    count: plural(rows.length, words.lossCount),
+                  })
+                : fill(words.totalByCount, { count: plural(rows.length, words.lossCount) })
+              ).toLocaleUpperCase(locale.formatting)}
             </Text>
             {rows.map((row) => {
               const quanto = `${formatQuantity(row.baseUnits, locale)} ${row.baseUnit}`;
@@ -183,7 +224,7 @@ function WhatWasLost() {
                   key={`${row.itemId}-${row.occurredAt}`}
                   label={row.name}
                   detail={`${quanto} · ${motivo} · ${row.locationName} · ${dia}`}
-                  trailing={formatMoney(row.valueCents, locale)}
+                  trailing={dinheiro ? formatMoney(row.valueCents ?? 0, locale) : undefined}
                 />
               );
             })}

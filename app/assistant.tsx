@@ -12,8 +12,9 @@ import { ListRow } from '@/components/ListRow';
 import { Reveal } from '@/components/Reveal';
 import { ask, knownSkills, type Answer, type Capability } from '@/assistant';
 import { liveData } from '@/data/assistantData';
+import { currentCapabilities } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
-import { capabilitiesFor } from '@/domain/access';
+import { useQuery } from '@/data/useQuery';
 import { defaultLocale, fill } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -69,14 +70,25 @@ export default function AssistantScreen() {
 }
 
 /**
- * Until sign-in lands, whoever holds this phone is the owner.
+ * O que o assistente pode responder é o que quem está com o aparelho pode ver.
  *
- * The set comes from the role table rather than being typed out here, and that
- * is the point: the day this reads a real membership, only this line changes.
- * A hand-written list beside a role table is two answers to one question, and
- * the one written by hand was already missing three capabilities the owner has.
+ * **A linha anterior era `capabilitiesFor('owner')`**, com o motivo escrito ao
+ * lado: *"until sign-in lands, whoever holds this phone is the owner"*. Era
+ * verdade quando foi escrita e deixou de ser — a grade de nomes existe, a pessoa
+ * aponta para um perfil, e o perfil carrega as capacidades. A fronteira esperava
+ * a CONTA, e o que faltava era a PESSOA, que já chegou.
+ *
+ * Enquanto a resposta não chega, o conjunto é o vazio: as habilidades que exigem
+ * capacidade não entram na lista de exemplos e não respondem. Fechado por
+ * omissão, e não aberto — se este `useQuery` falhar, o assistente responde menos
+ * em vez de responder o que não devia.
  */
-const CAPABILITIES: ReadonlySet<Capability> = capabilitiesFor('owner');
+function useCapacidades(): ReadonlySet<Capability> {
+  const { data } = useQuery(() => currentCapabilities(LOCAL_COMPANY_ID));
+  return data ?? VAZIO;
+}
+
+const VAZIO: ReadonlySet<Capability> = new Set();
 
 type Turn = { question: string; answer: Answer; open: boolean; applied: boolean };
 
@@ -92,16 +104,18 @@ function Conversation() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [thinking, setThinking] = useState(false);
 
+  const capacidades = useCapacidades();
+
   const context = useMemo(
     () => ({
       data: liveData(LOCAL_COMPANY_ID, locale.timeZone),
-      capabilities: CAPABILITIES,
+      capabilities: capacidades,
       locale: defaultLocale,
     }),
-    [locale.timeZone],
+    [locale.timeZone, capacidades],
   );
 
-  const examples = useMemo(() => knownSkills(CAPABILITIES).map((s) => s.example), []);
+  const examples = useMemo(() => knownSkills(capacidades).map((s) => s.example), [capacidades]);
 
   const send = (text: string) => {
     const asked = text.trim();

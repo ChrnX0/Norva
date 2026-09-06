@@ -39,7 +39,7 @@ import {
   saveProduct,
   saveType,
   saveRecipeVersion,
-  itemCosts,
+  averageRatesForLedger,
 } from '@/data/repository';
 import { ensureStarterData, LOCAL_COMPANY_ID } from '@/data/seed';
 import { fromDecimal, rate} from '@/domain/money';
@@ -370,7 +370,9 @@ async function main() {
   // What the device believes, for the shell to check the server against.
   const after = await listItems(LOCAL_COMPANY_ID);
   const heldSugar = after.find((i) => i.id === sugar.id);
-  const costs = await itemCosts(LOCAL_COMPANY_ID);
+  // A média pelo caminho do LIVRO-RAZÃO: esta saída é comparada número por
+  // número com a que o Postgres calcula, e é verdade de razão, não figura de tela.
+  const costs = await averageRatesForLedger(LOCAL_COMPANY_ID);
 
   out.push('');
   out.push(`-- DEVICE_SUGAR_ID=${sugar.id}`);

@@ -1,9 +1,10 @@
 import { nowIso } from './db';
 import {
   balanceByLocation,
+  averageRatesForLedger,
   listItems,
   listPlaces,
-  listProducts,
+  listProductsForLedger,
   recordCount,
   recordLoss,
   recordProduction,
@@ -134,7 +135,7 @@ async function garantirElenco(companyId: string) {
     destinos.push(await savePlace(companyId, alvo));
   }
 
-  let produtos = (await listProducts(companyId)).filter((p) => p.recipeId);
+  let produtos = (await listProductsForLedger(companyId)).filter((p) => p.recipeId);
   if (produtos.length === 0) throw new Error('não há produto com receita para simular');
 
   if (produtos.length < 3) {
@@ -246,7 +247,7 @@ async function garantirElenco(companyId: string) {
         });
       }
 
-      produtos = (await listProducts(companyId)).filter((p) => p.recipeId);
+      produtos = (await listProductsForLedger(companyId)).filter((p) => p.recipeId);
     }
   }
 
@@ -296,6 +297,16 @@ export async function simulateFortnight(
     const inputs = (await listItems(companyId)).filter(
       (i) => i.kind === 'input' && (i.purchaseToBase ?? 0) > 0,
     );
+    /**
+     * O patamar de preço vem do LIVRO-RAZÃO, não da tela.
+     *
+     * A semeadura escreve noventa dias de notas de compra, e o preço de cada
+     * nota parte do que o item já custava. `listItems` passou a esconder o custo
+     * de quem não vê dinheiro — o que está certo para uma tela e é veneno aqui:
+     * a fábrica de exemplo nasceria com toda polpa a um centavo por grama,
+     * silenciosamente, dependendo de quem tocou no botão.
+     */
+    const patamarDoRazao = await averageRatesForLedger(companyId);
     for (const item of inputs) {
       const pack = item.purchaseToBase ?? 1;
       if (item.onHandBaseUnits >= pack * 3) continue;
@@ -312,7 +323,7 @@ export async function simulateFortnight(
       // quando a simulação começou, guardado uma vez, com uma tendência anual
       // suave por cima: é o que faz a home ter o que dizer sem inventar
       // hiperinflação.
-      const base = patamar.get(item.id) ?? (item.averageRate || 1);
+      const base = patamar.get(item.id) ?? (patamarDoRazao[item.id] || 1);
       patamar.set(item.id, base);
 
       const tendencia = 1 + (0.12 * (days - 1 - back)) / Math.max(days, 1);

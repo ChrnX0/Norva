@@ -237,10 +237,24 @@ function Production() {
     const value = lines.reduce((sum, l) => sum + l.rate * l.baseUnits, 0);
     const short = lines.filter((l) => l.held < l.baseUnits);
 
-    // Mesmo número que o livro-razão vai congelar: o consumo (que agora inclui a
-    // embalagem que sai do estoque) mais o que foi digitado à mão.
+    /**
+     * Mesmo número que o livro-razão vai congelar — ou `null`, e nunca menor.
+     *
+     * O consumo (que já inclui a embalagem que sai do estoque) mais o que foi
+     * digitado à mão. Quando o portão do dinheiro está fechado, a parcela digitada
+     * vem nula, e somar zero no lugar dela seria o pior dos três estados: o
+     * número não sai de cena, **encolhe** — não é travessão, não é zero, é um
+     * custo plausível e errado. Então a conta inteira vira nula e a tela cala.
+     *
+     * O livro-razão continua congelando o custo CERTO, com a embalagem inteira:
+     * ele lê a ficha por `listProductsForLedger`, que não tem portão.
+     */
     const packaging = selected.unitPackagingRate;
-    return { lines, unitCostRate: value / units + packaging, short };
+    return {
+      lines,
+      unitCostRate: packaging === null ? null : value / units + packaging,
+      short,
+    };
   }, [selected, recipe, data, consumedBatches, units, t.app.places.factory]);
 
   // A corrida aberta deste produto, se houver.
@@ -283,7 +297,15 @@ function Production() {
       confirmLabel: words.confirmAction,
       // Sem tacho declarado a frase não fala em tacho: dizer "em 0 tachos"
       // seria confirmar uma coisa que a pessoa não disse.
-      message: fill(batches > 0 ? words.confirmBody : words.confirmBodyNoBatch, {
+      message: fill(
+        draft.unitCostRate === null
+          ? batches > 0
+            ? words.confirmBodyNoCost
+            : words.confirmBodyNoBatchNoCost
+          : batches > 0
+            ? words.confirmBody
+            : words.confirmBodyNoBatch,
+        {
         units: plural(units, words.unitCount, formatQuantity(units, locale)),
         product: selected.name,
         batches: plural(batches, words.batchCount, formatQuantity(batches, locale)),
@@ -299,8 +321,9 @@ function Production() {
           ),
           t.common.and,
         ),
-        cost: formatMoney(Math.round(draft.unitCostRate), locale),
-      }),
+          cost: formatMoney(Math.round(draft.unitCostRate ?? 0), locale),
+        },
+      ),
     });
     if (!go) return;
 
@@ -580,12 +603,23 @@ function Production() {
             {/* O número que a corrida vai congelar. Ele fecha o cartão porque é
                 a conclusão do que está acima: as linhas são a conta aberta
                 (Lei 6), e o custo é o que elas somam por unidade. */}
-            <Text style={[type.overline, { color: color.inkFaint, marginTop: space.lg }]}>
-              {words.unitCost.toUpperCase()}
-            </Text>
-            <Text style={[type.figure, { color: color.ink }]}>
-              {formatMoney(Math.round(draft.unitCostRate), locale)}
-            </Text>
+            {draft.unitCostRate === null ? (
+              /* A conta aberta continua em cima (Lei 6: as linhas do consumo).
+                 O que falta é a conclusão em dinheiro, e a frase diz onde ela
+                 mora em vez de deixar o cartão terminar no meio. */
+              <Text style={[type.caption, { color: color.inkMuted, marginTop: space.lg }]}>
+                {t.common.moneyHidden}
+              </Text>
+            ) : (
+              <>
+                <Text style={[type.overline, { color: color.inkFaint, marginTop: space.lg }]}>
+                  {words.unitCost.toUpperCase()}
+                </Text>
+                <Text style={[type.figure, { color: color.ink }]}>
+                  {formatMoney(Math.round(draft.unitCostRate), locale)}
+                </Text>
+              </>
+            )}
           </Card>
         </Reveal>
       ) : null}

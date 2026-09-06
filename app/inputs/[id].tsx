@@ -22,6 +22,7 @@ import { useConfirm } from '@/components/Confirm';
 import {
   recordLoss,
   balanceByLocation,
+  canSeeMoney,
   defaultLocationId,
   findItem,
   listPlaces,
@@ -94,6 +95,8 @@ type Loaded = {
   /** Onde este item está, sala por sala. Vazio é "não está em lugar nenhum". */
   spread: LocationBalance[];
   places: Place[];
+  /** Se quem está com o aparelho vê dinheiro. Vem junto para não piscar cifra. */
+  dinheiro: boolean;
 };
 
 function InputDetail() {
@@ -126,7 +129,8 @@ function InputDetail() {
   const [reason, setReason] = useState<LossReason>('expired');
 
   const { data, loading, refresh } = useQuery<Loaded>(async () => {
-    if (!id) return { item: null, history: [], recipes: [], movements: [], spread: [], places: [] };
+    if (!id)
+      return { item: null, history: [], recipes: [], movements: [], spread: [], places: [], dinheiro: false };
 
     // Os lugares vêm primeiro porque a sala da rota tem de ser conferida contra
     // eles. Um id que não existe mais - o lugar foi apagado, ou o endereço veio
@@ -138,14 +142,17 @@ function InputDetail() {
 
     // O saldo e os movimentos vão pela sala; o preço e as receitas não têm sala
     // — custo médio é da empresa, e uma ficha não muda de sala em sala.
-    const [item, history, recipes, movements, spread] = await Promise.all([
+    const [item, history, recipes, movements, spread, dinheiro] = await Promise.all([
       findItem(LOCAL_COMPANY_ID, id, room),
       itemHistory(LOCAL_COMPANY_ID, id),
       recipesUsingItem(LOCAL_COMPANY_ID, id),
       itemMovements(LOCAL_COMPANY_ID, id, 20, room),
       balanceByLocation(LOCAL_COMPANY_ID, id),
+      // Na mesma consulta do resto: sem isso existe um instante em que a tela
+      // tem os números e ainda não sabe se pode mostrá-los.
+      canSeeMoney(LOCAL_COMPANY_ID),
     ]);
-    return { item, history, recipes, movements, spread, places };
+    return { item, history, recipes, movements, spread, places, dinheiro };
   }, `${id ?? ''}|${sala ?? ''}`);
 
   const item = data?.item ?? null;
@@ -164,8 +171,18 @@ function InputDetail() {
     );
   }
 
-  const perThousand = Math.round(item.averageRate * 1_000);
-  const held = Math.round(item.averageRate * item.onHandBaseUnits);
+  /**
+   * O custo desta ficha — e `null` é a resposta quando não é seu para ver.
+   *
+   * Vem nulo por dois motivos que a tela trata separado: insumo nunca comprado
+   * (a frase é *"ainda sem nota lançada"*, e a próxima ação é lançar a nota) e
+   * portão fechado (a frase diz onde o número mora, e não há ação a tomar). Zero
+   * respondia as duas com a primeira, que é a única errada das duas.
+   */
+  const dinheiro = data?.dinheiro === true;
+  const temCusto = item.averageRate !== null && item.averageRate > 0;
+  const perThousand = temCusto ? Math.round((item.averageRate ?? 0) * 1_000) : 0;
+  const held = Math.round((item.averageRate ?? 0) * item.onHandBaseUnits);
   const moves = (data?.history ?? []).filter((h) => h.previousRate !== null);
 
   // The last real move, which is the only one anybody asks about.
@@ -238,10 +255,13 @@ function InputDetail() {
     const lost = parseTyped(lostText) ?? NaN;
     if (!Number.isFinite(lost) || lost <= 0) return;
 
-    const worth = Math.round(item.averageRate * lost);
+    const worth = Math.round((item.averageRate ?? 0) * lost);
     const go = await confirm({
       title: t.app.inputDetail.lossAsk,
-      message: fill(t.app.inputDetail.lossBody, {
+      // Sem custo, a cláusula do dinheiro SAI da frase em vez de virar
+      // "vale R$ 0,00": é a tela que grava, e é aqui que os números por extenso
+      // valem mais.
+      message: fill(dinheiro ? t.app.inputDetail.lossBody : t.app.inputDetail.lossBodyNoMoney, {
         amount: `${formatQuantity(Math.round(lost), locale)} ${item.baseUnit}`,
         item: item.name,
         reason: t.loss[reason].toLocaleLowerCase(locale.formatting),
@@ -279,7 +299,7 @@ function InputDetail() {
 
     const expected = item.onHandBaseUnits;
     const delta = Math.round(counted) - expected;
-    const worth = Math.abs(Math.round(item.averageRate * delta));
+    const worth = Math.abs(Math.round((item.averageRate ?? 0) * delta));
 
     const shown = {
       counted: `${formatQuantity(Math.round(counted), locale)} ${item.baseUnit}`,
@@ -294,8 +314,12 @@ function InputDetail() {
         delta === 0
           ? t.app.inputDetail.countConfirmExact
           : delta < 0
-            ? t.app.inputDetail.countConfirmShort
-            : t.app.inputDetail.countConfirmOver,
+            ? dinheiro
+              ? t.app.inputDetail.countConfirmShort
+              : t.app.inputDetail.countConfirmShortNoMoney
+            : dinheiro
+              ? t.app.inputDetail.countConfirmOver
+              : t.app.inputDetail.countConfirmOverNoMoney,
         shown,
       ),
       confirmLabel: t.app.inputDetail.countConfirmAction,
@@ -454,13 +478,17 @@ function InputDetail() {
           <Text style={[type.overline, { color: color.inkFaint }]}>
             {t.app.inputDetail.currentCost}
           </Text>
-          <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
-            {item.averageRate > 0 ? formatMoney(perThousand, locale) : '—'}
-          </Text>
+          {dinheiro ? (
+            <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
+              {temCusto ? formatMoney(perThousand, locale) : '—'}
+            </Text>
+          ) : null}
           <Text style={[type.caption, { color: color.inkMuted }]}>
-            {item.averageRate > 0
-              ? fill(t.app.inputDetail.averageOf, { unit: item.baseUnit })
-              : t.app.inputDetail.noInvoiceYet}
+            {!dinheiro
+              ? t.common.moneyHidden
+              : temCusto
+                ? fill(t.app.inputDetail.averageOf, { unit: item.baseUnit })
+                : t.app.inputDetail.noInvoiceYet}
           </Text>
 
           {latestChange !== null && Math.abs(latestChange) >= 0.001 ? (
@@ -473,7 +501,7 @@ function InputDetail() {
                 )}
               />
             </View>
-          ) : moves.length === 0 && item.averageRate > 0 ? (
+          ) : moves.length === 0 && temCusto ? (
             <Text style={[type.caption, { color: color.inkFaint, marginTop: space.sm }]}>
               {t.app.inputDetail.historyEmpty}
             </Text>
@@ -504,8 +532,8 @@ function InputDetail() {
               pack: item.purchaseUnit ?? t.app.inputDetail.pack.toLowerCase(),
             })}
             trailing={
-              item.purchaseToBase && item.averageRate > 0
-                ? formatMoney(Math.round(item.averageRate * item.purchaseToBase), locale)
+              item.purchaseToBase && temCusto
+                ? formatMoney(Math.round((item.averageRate ?? 0) * item.purchaseToBase), locale)
                 : '—'
             }
           />

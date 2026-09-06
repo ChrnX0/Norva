@@ -78,7 +78,11 @@ function QuemEstaComOAparelho() {
       const [nomeia, entrada] = await Promise.all([namesWhoRecorded(), floorSignIn()]);
       if (!vivo || !nomeia || entrada !== 'shared') return;
       await setCurrentOperator(null);
-      if (vivo) router.push('/who' as never);
+      // `replace`, não `push`: com `push` o gesto de voltar deixa a pessoa no
+      // estado de ninguém identificado sem ter tocado em nada — e num aparelho
+      // compartilhado esse estado é o PISO (`currentCapabilities`), então voltar
+      // seria um jeito de operar sem dizer quem é. A grade não tem "atrás".
+      if (vivo) router.replace('/who' as never);
     })();
     return () => {
       vivo = false;

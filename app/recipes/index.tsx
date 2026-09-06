@@ -81,7 +81,7 @@ function RecipesList() {
   const { locale, t } = useLocale();
 
   const { data, loading } = useQuery<Row[]>(async () => {
-    const [recipes, graph, costs, names, products] = await Promise.all([
+    const [recipes, graph, custos, names, products] = await Promise.all([
       listRecipes(LOCAL_COMPANY_ID),
       loadRecipeGraph(LOCAL_COMPANY_ID),
       itemCosts(LOCAL_COMPANY_ID),
@@ -89,7 +89,31 @@ function RecipesList() {
       listProducts(LOCAL_COMPANY_ID),
     ]);
 
+    // O portão é o próprio `itemCosts`: nulo é "não é seu para ver". O mapa vazio
+    // continua servindo para a quantidade, que sai do grafo e não do custo.
+    const dinheiro = custos !== null;
+    const costs = custos ?? {};
+
     return recipes.map((recipe) => {
+      /**
+       * Sem custo a estante continua servindo: ela lista as receitas e diz o que
+       * cada uma rende. O que falta é a coluna do dinheiro, e ela sai pelo mesmo
+       * caminho que a tela já tem para "não dá para custear esta" — travessão com
+       * o motivo ao lado. Aqui o motivo é outro, e é isso que a frase muda.
+       */
+      if (!dinheiro) {
+        const product = products.find((p) => p.recipeId === recipe.id);
+        return {
+          id: recipe.id,
+          name: recipe.name,
+          figure: '—',
+          detail: product?.yieldPerUnit
+            ? fill(t.app.recipes.perUnitOfNoCost, { product: product.name })
+            : t.common.moneyHidden,
+          batchCents: 0,
+          problema: false,
+        };
+      }
       try {
         const cost = costRecipe(recipe.id, graph, costs, names);
         const product = products.find((p) => p.recipeId === recipe.id);
@@ -100,7 +124,7 @@ function RecipesList() {
           product?.yieldPerUnit
             ? formatMoney(
                 costPerProductUnit(cost, product.yieldPerUnit, {
-                  typedRate: product.unitPackagingRate,
+                  typedRate: product.unitPackagingRate ?? undefined,
                   itemsRate: packagingRatePerUnit(product.packagingItems, costs),
                 }),
                 locale,

@@ -42,7 +42,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **378** testes |
+| `npm test` | **383** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **44** checagens num navegador de verdade |
 | `npm run db:verify` | **16** garantias contra um Postgres descartável, sob RLS |
@@ -272,7 +272,7 @@ abaixo respeita duas decisões escritas dele — *"termina o layout, nada pela m
 | **1** | **Refluir em colunas no tablet** | fecha o layout, que é a prioridade declarada, e agora tem quem teste: o dono tem tablet e vai rodar o APK. É a única coisa entre "o layout está pronto" e "o layout está pronto e visto". |
 | **2** | **TRAVADO — decisão de faseamento, e ela é do dono.** A camada 1 do login **não** é independente do servidor | Medido em 6 de setembro antes da primeira linha de código, e **contra o que o próprio estudo tinha dito de manhã**: `movements.operator_id` referencia `memberships(id)` (`supabase/migrations/0014_who_was_holding_it.sql:21`), e `memberships.user_id` é `not null references auth.users` (`0001_foundation.sql:60`). O aparelho não pode criar `auth.users`, logo não pode inventar o id de um operador — e o id inventado **viaja** (`src/sync/serialize.ts:351`) e trava a fila por chave estrangeira no dia em que a sincronia subir, que é o defeito crítico que esta branch já consertou uma vez. As três saídas estão no fim de `docs/estudo-conta.md`; eu faria a (c) e depois a (a). |
 | **2b** | **A conta da empresa — a camada 2** | cliente Supabase, sessão, cadastro do dono, convite por código. Ela deixou de ser "depois": sem lista de gente não há quem operou, e é esse o motivo novo que a decisão de *"o servidor sobe o mais tarde possível"* não tinha quando foi tomada. |
-| **2c** | **O que não esbarra nisso** | ~~o motivo da devolução~~ **FEITO em 6 de setembro** (`return_reason`, aparelho `V19` e servidor `0034`, com a catorzena garantia do `db:verify` cobrando as duas metades da regra). Sobram a **tela de conferir item a item** na separação e o **preço combinado** na ficha da loja, que a migração `0021` não criou. |
+| **2c** | **O que não esbarra nisso** | ~~o motivo da devolução~~ **FEITO em 6 de setembro** (`return_reason`, aparelho `V19` e servidor `0034`, com a catorzena garantia do `db:verify` cobrando as duas metades da regra). ~~A **tela de conferir item a item**~~ fechou com a separação (`app/picking.tsx`, engradado a engradado, com a lista guardada por loja). Sobra o **preço combinado** na ficha da loja, que a migração `0021` não criou. |
 | **3** | **Espelho da Loja — construir** | destravado hoje: constrói e exercita agora, calibra depois. A captura (contagem cega, perda com motivo) já grava. |
 | **4** | **Os sete médios** | pequenos e independentes; cabem entre as coisas grandes. O maior é a aprovação de pedido, que é F7 — vira configuração da empresa, não escolha nossa. |
 | **5** | **A sala do tacho** | pergunta de PADRÃO para o dono, não de qual; e trava no P3 porque muda onde o consumo é gravado. Fica para a câmara fria da F2. |
@@ -365,6 +365,76 @@ ele conclui, curto:
 **A ordem que saiu do estudo:** grade com PIN → `operator_id` ganha escritor → servidor
 confere aparelho → conta por perfil e código de convite (quando o servidor subir) → chave
 e assinatura (só se alguém pedir).
+
+### O portão do dinheiro no aparelho — FEITO em 6 de setembro
+
+Havia uma decisão escrita do dono sem código atrás dela: *"aparelho emprestado entra
+como produção e nada mais. Celular da empresa passa de mão; quem está com ele usa o
+papel `operator` — sem custo, sem preço, sem dinheiro."* O aparelho não tinha como
+obedecer, e `app/assistant.tsx` dizia por escrito por quê: *"until sign-in lands,
+whoever holds this phone is the owner"*. **A fronteira era verdadeira quando foi
+escrita e deixou de ser** — a grade de nomes existe desde ontem, `people.profile_id`
+aponta para um perfil, e o perfil carrega as capacidades. Ela esperava a CONTA, e o
+que faltava era a PESSOA.
+
+Agora `currentCapabilities` responde, e **oito leituras de dinheiro perguntam antes
+de consultar**: `listItems`, `itemCosts`, `stockByPlace`, `lossesOn`, `recentRuns`,
+`recentCostChanges`, `itemHistory`, `itemMovements` e a embalagem digitada de
+`listProducts`. O portão fechado não apaga o número depois de lê-lo — ele não junta a
+tabela de custo, que é a mesma forma da view do servidor (`0008`).
+
+**Treze telas distinguem três estados** onde antes havia dois: tem número · ainda não
+tem custo (lance a nota) · não é seu para ver. Zero respondia os dois últimos com o
+primeiro, e a tela de insumos escrevia em âmbar *"12 itens sem preço — lance a nota"*
+para um almoxarifado inteiramente precificado (`null <= 0` é TRUE em JavaScript).
+
+**O que a verificação adversarial achou, e ela salvou a mudança.** Duas refutações
+independentes mediram, rodando o código, que o portão que eu tinha acabado de
+escrever ENVENENAVA O LIVRO-RAZÃO: `recordProduction` e `recordLoss` leem as taxas
+por `itemCosts`, e com o portão fechado a corrida congelava `unit_cost_rate` nulo em
+cada consumo e **5 onde o dono congelava 304,98** — sobrando só a embalagem. Pior, a
+contaminação não ficava nas duas: `item_costs` é reescrito a partir do que elas
+gravam, então transferência e contagem, que estão certas, passavam a congelar
+fielmente o número errado; e o servidor recalcula pela mesma coluna (`0025`),
+concorda, e a checagem de divergência do `db:verify` PASSA. Conteúdo de livro-razão
+não se corrige: se estorna.
+
+O conserto é a convenção `ForLedger` — `averageRatesForLedger` e
+`listProductsForLedger`, sem portão, para quem GRAVA. Congelar custo e ver custo são
+perguntas diferentes, e só a segunda tem portão. `src/layers.test.ts` recusa qualquer
+arquivo fora de `src/data/` e `scripts/` que as mencione, porque os docblocks já
+afirmavam esse guarda antes de ele existir — e docblock que promete uma rede que não
+está lá é pior que docblock nenhum.
+
+**Três testes novos, e a ordem entre eles é o achado:** o *gêmeo* grava produção,
+compra, perda, contagem e transferência duas vezes — dono e operador — e afirma que
+`unit_cost_rate` de cada linha é IGUAL, número por número; o *de mão única* prova que
+nenhuma das oito leituras devolve dinheiro para quem não pode ver; e o do *piso*
+prova as duas bandeiras do aparelho compartilhado. O de mão única sozinho passaria
+com o razão apodrecido — foi exatamente o que faltou.
+
+**O que fica de pé, dito por extenso:**
+
+- **O portão está DORMENTE no padrão.** Ele só acorda quando a empresa marca
+  `shared` **e** liga "Nomear quem gravou": sem isso ninguém é escolhido e o
+  aparelho é do dono, como sempre foi. A fábrica que mais precisa dele é a que o
+  liga.
+- **Não é autenticação, e nada aqui finge que é.** A grade não pede senha, o PIN tem
+  quatro dígitos e é opcional, e qualquer um pode tocar no nome do dono. O que o
+  portão compra é o que o `access.ts` diz querer comprar: tirar a margem da vista de
+  quem está embalando. Quem impõe de verdade é o servidor, e ele já impõe.
+- **A aba Relatórios fica com um cartão só** para quem não vê dinheiro — os três
+  cartões dela são dinheiro. As portas continuam lá (`/losses` só é alcançável por
+  ali), mas responder as três perguntas da Lei da Inteligência em FATO — perdas por
+  contagem, conferências da semana, corridas por unidade — é superfície nova e é
+  decisão de faseamento do dono.
+- **"O que falta para 3 tachos" continua recusado ao operador**, e é decisão
+  escrita: a lista de compras tem rota `/purchase`, e comprar é ato de quem cuida do
+  dinheiro. O atrito é real — também é pergunta de quem produz — e a saída, se o
+  dono quiser, é a mesma conta sem a lista de compras.
+- **A tela de gente ganhou portão de verdade** (`manage_company` conferido em
+  `savePerson`, antes da escrita): sem ele, trocar o próprio crachá para "Dono" era
+  a porta dos fundos de todo o resto.
 
 ### A configuração da empresa não atravessa — dívida estrutural
 

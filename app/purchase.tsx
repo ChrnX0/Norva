@@ -132,8 +132,19 @@ function PurchaseForm() {
     // What this invoice alone costs per base unit, and where it lands the
     // average once it blends with what is already on hand.
     const thisRate = rate(paid, baseUnits);
+    /**
+     * A média de partida — e `?? 0` aqui é a mesma coisa que "insumo sem nota".
+     *
+     * Esta tela é a única em que o dinheiro é DIGITADO pela pessoa: a nota é dela
+     * e não há o que esconder do que ela mesma escreveu. O que vem do banco é a
+     * média anterior, e é só ela que o portão esconde — a frase que a anuncia sai
+     * mais abaixo. Não existe capacidade própria de "lançar compra" no vocabulário
+     * (`src/domain/access.ts` tem doze valores e nenhum deles é isso), então quem
+     * compra é quem vê custo, por construção; se um dia houver, o enum do servidor
+     * muda junto e o `agreement.test.ts` cobra as duas metades.
+     */
     const after = applyCostEvent(
-      { baseUnits: selected.onHandBaseUnits, averageRate: selected.averageRate },
+      { baseUnits: selected.onHandBaseUnits, averageRate: selected.averageRate ?? rate(0, 1) },
       { kind: 'purchase', baseUnits, totalCents, at: new Date().toISOString() },
     );
 
@@ -387,14 +398,19 @@ function PurchaseForm() {
               </>
             )}
 
-            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
-              {fill(t.app.purchase.averageMoves, {
-                name: selected.name,
-                from: formatMoney(Math.round(selected.averageRate * 1_000), locale),
-                to: formatMoney(Math.round(draft.after.averageRate * 1_000), locale),
-                unit: selected.baseUnit,
-              })}
-            </Text>
+            {/* Para onde a média anda — e ela vem do banco, não do teclado.
+                Sem custo a frase sai inteira: dizer "de R$ 0,00 para R$ 0,00"
+                seria anunciar que a nota não move nada. */}
+            {selected.averageRate === null ? null : (
+              <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
+                {fill(t.app.purchase.averageMoves, {
+                  name: selected.name,
+                  from: formatMoney(Math.round(selected.averageRate * 1_000), locale),
+                  to: formatMoney(Math.round(draft.after.averageRate * 1_000), locale),
+                  unit: selected.baseUnit,
+                })}
+              </Text>
+            )}
           </Card>
         </Reveal>
       ) : null}
@@ -470,13 +486,20 @@ async function recordAndMeasure(
       return {
         name: product.name,
         value: costPerProductUnit(cost, product.yieldPerUnit, {
-          typedRate: product.unitPackagingRate,
+          typedRate: product.unitPackagingRate ?? undefined,
           itemsRate: packagingRatePerUnit(product.packagingItems, costs),
         }),
       };
     });
 
-  const before = unitCost(costsBefore);
+  /**
+   * O impacto é dinheiro do começo ao fim — "o picolé passou de X para Y".
+   *
+   * Sem o portão aberto não sobra nada dele, então a lista volta vazia e a tela
+   * segue sem a seção. A NOTA continua sendo lançada e a média continua andando
+   * certo: o que fica de fora é só a medição, que é o que a pessoa não pode ver.
+   */
+  const before = costsBefore === null ? [] : unitCost(costsBefore);
 
   await recordPurchase(LOCAL_COMPANY_ID, {
     itemId: item.id,
@@ -486,7 +509,8 @@ async function recordAndMeasure(
     totalCents,
   });
 
-  const after = unitCost(await itemCosts(LOCAL_COMPANY_ID));
+  if (costsBefore === null) return [];
+  const after = unitCost((await itemCosts(LOCAL_COMPANY_ID)) ?? {});
 
   return before
     .map((row, index) => ({ name: row.name, before: row.value, after: after[index].value }))

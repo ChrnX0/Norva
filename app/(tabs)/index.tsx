@@ -94,7 +94,10 @@ export default function Home() {
  */
 function worstReason(rows: LossRow[]): { reason: string; cents: number } | null {
   const porMotivo = new Map<string, number>();
-  for (const r of rows) porMotivo.set(r.reason, (porMotivo.get(r.reason) ?? 0) + r.valueCents);
+  // `?? 0` porque a peça da capa inteira só é montada quando há dinheiro: com o
+  // portão fechado `lossesNow` dá zero e a peça não existe, então esta soma nunca
+  // é lida. Ver a peça `perdas` em `src/home/Mosaic.tsx`.
+  for (const r of rows) porMotivo.set(r.reason, (porMotivo.get(r.reason) ?? 0) + (r.valueCents ?? 0));
   const pior = [...porMotivo].sort((a, b) => b[1] - a[1])[0];
   return pior ? { reason: pior[0], cents: pior[1] } : null;
 }
@@ -264,8 +267,8 @@ function Briefing() {
       runs,
       cover,
       expiring,
-      lossesNow: lossesNow.reduce((n, l) => n + l.valueCents, 0),
-      lossesBefore: lossesBefore.reduce((n, l) => n + l.valueCents, 0),
+      lossesNow: lossesNow.reduce((n, l) => n + (l.valueCents ?? 0), 0),
+      lossesBefore: lossesBefore.reduce((n, l) => n + (l.valueCents ?? 0), 0),
       lossesWorst: worstReason(lossesNow),
       // Quem recebe hoje pelo acordo, e se a carga do dia já foi para lá.
       dueToday: places
@@ -275,11 +278,23 @@ function Briefing() {
           name: p.name,
           sent: sent.some((s) => s.locationId === p.id),
         })),
-      // Dinheiro parado: só insumo e embalagem, que é o que se compra. Produto
-      // acabado é outra conta, e somar os dois esconde as duas.
+      /**
+       * Dinheiro parado: só insumo e embalagem, que é o que se compra. Produto
+       * acabado é outra conta, e somar os dois esconde as duas.
+       *
+       * **E a capa é o único lugar em que sumir é a resposta certa.** As peças
+       * dela são um destaque curado, não um relatório: uma peça diária dizendo
+       * "você não vê este número" é exatamente o alerta inventado que a Lei 7
+       * proíbe — ensina a ignorar peça. Quem quer o número tem a aba de
+       * relatórios, e lá a frase está dita.
+       *
+       * `?? 0` é seguro aqui porque `Mosaic` monta a peça só quando o total é
+       * maior que zero: com o portão fechado toda taxa é nula, o total é zero, e
+       * a peça não existe.
+       */
       heldCents: stockItems
         .filter((i) => i.kind === 'input' || i.kind === 'packaging')
-        .reduce((n, i) => n + Math.round(i.averageRate * i.onHandBaseUnits), 0),
+        .reduce((n, i) => n + Math.round((i.averageRate ?? 0) * i.onHandBaseUnits), 0),
     };
   });
 

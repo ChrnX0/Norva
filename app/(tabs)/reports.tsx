@@ -10,6 +10,7 @@ import { Sparkline } from '@/components/Sparkline';
 import { Touchable } from '@/components/Touchable';
 import { nowIso } from '@/data/db';
 import {
+  canSeeMoney,
   lossesOn,
   recentRuns,
   runningOut,
@@ -58,6 +59,8 @@ type Loaded = {
   corridas: Run[];
   mes: LossRow[];
   mesAnterior: LossRow[];
+  /** Se quem está com o aparelho vê dinheiro. Junto, para não piscar cifra. */
+  dinheiro: boolean;
 };
 
 function ReportIndex() {
@@ -74,20 +77,34 @@ function ReportIndex() {
     };
     const semanaAtras = dayWindow(nowIso(), locale.timeZone, -6);
 
-    const [lugares, cobertura, corridas, mes, mesAnterior] = await Promise.all([
+    const [lugares, cobertura, corridas, mes, mesAnterior, dinheiro] = await Promise.all([
       stockByPlace(LOCAL_COMPANY_ID),
       runningOut(LOCAL_COMPANY_ID, semanaAtras.from, hoje.to, 7, Number.POSITIVE_INFINITY),
       recentRuns(LOCAL_COMPANY_ID, 8),
       lossesOn(LOCAL_COMPANY_ID, trintaDias.from, hoje.to),
       lossesOn(LOCAL_COMPANY_ID, anterior.de.from, anterior.ate.to),
+      canSeeMoney(LOCAL_COMPANY_ID),
     ]);
-    return { lugares, cobertura, corridas, mes, mesAnterior };
+    return { lugares, cobertura, corridas, mes, mesAnterior, dinheiro };
   });
 
-  const parado = (data?.lugares ?? []).reduce((n, l) => n + l.valueCents, 0) as Cents;
+  /**
+   * Os três cartões desta tela são dinheiro, e sem ele a tela fica sem assunto.
+   *
+   * Os três já desaparecem sozinhos quando não há número — é a decisão escrita de
+   * que "ainda sem número" continua tendo porta. O que o portão acrescenta é a
+   * frase: sem ela, a mesma tela vazia diria "esta fábrica não tem estoque, não
+   * custeia nada e não perdeu nada", que é notícia falsa sobre a fábrica em vez de
+   * um fato sobre quem está olhando.
+   */
+  const dinheiro = data?.dinheiro === true;
+  const parado = (data?.lugares ?? []).reduce((n, l) => n + (l.valueCents ?? 0), 0) as Cents;
   const comCusto = (data?.corridas ?? []).filter((r) => r.unitCostRate !== null);
-  const perdido = (data?.mes ?? []).reduce((n, l) => n + l.valueCents, 0) as Cents;
-  const perdidoAntes = (data?.mesAnterior ?? []).reduce((n, l) => n + l.valueCents, 0) as Cents;
+  const perdido = (data?.mes ?? []).reduce((n, l) => n + (l.valueCents ?? 0), 0) as Cents;
+  const perdidoAntes = (data?.mesAnterior ?? []).reduce(
+    (n, l) => n + (l.valueCents ?? 0),
+    0,
+  ) as Cents;
 
   /** O que ainda não tem número, para continuar tendo porta. */
   const faltando = (
@@ -96,6 +113,20 @@ function ReportIndex() {
       { chave: 'cost' as const, rota: '/recipes', temDado: comCusto.length > 0, desenho: (c: string) => <GlyphPrice size={22} color={c} weight={traco} /> },
       { chave: 'losses' as const, rota: '/losses', temDado: perdido > 0, desenho: (c: string) => <GlyphLoss size={22} color={c} weight={traco} /> },
     ] as const
+    /**
+     * **Porta não é número, e filtrar por dinheiro aqui apagava a única porta.**
+     *
+     * Eu tinha escrito `&& dinheiro` com um argumento que parecia certo — sem
+     * custo os três não estão "sem número", estão fora de vista. A refutação
+     * mediu o que isso custava: `/losses` só é alcançável por aqui (`grep -rn
+     * "/losses"` devolve duas linhas, as duas neste arquivo; a peça da capa não
+     * navega). Então quem registra a perda — e `record_loss` é capacidade do
+     * operador — deixava de conseguir olhar as perdas que registrou, na mesma
+     * mudança em que a tela de perdas aprendeu a falar em contagem para ela.
+     *
+     * O motivo de a lista existir está escrito duas linhas abaixo, e vale igual:
+     * esconder a linha deixa as telas sem porta.
+     */
   ).filter((r) => !r.temDado);
 
   /** O rodapé de todo cartão: o convite de abrir, dito uma vez só. */
@@ -210,6 +241,26 @@ function ReportIndex() {
           </Card>
         </Reveal>
       ) : null}
+
+      {/* Os três cartões desta tela são dinheiro. Sem ele a tela ficaria em
+          branco, e tela em branco é a pior das respostas: parece defeito. Um
+          cartão dizendo onde o número mora responde a pergunta que a pessoa
+          traz ao abrir aqui, e o caminho de volta fica dito por extenso para
+          quem é o dono e emprestou o aparelho. */}
+      {dinheiro ? null : (
+        <Reveal index={4}>
+          <Card
+            hue={palette.sky}
+            icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
+            title={t.app.reports.rows.cost.label}
+          >
+            <Text style={[type.body, { color: color.inkMuted }]}>{t.common.moneyHidden}</Text>
+            <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
+              {t.common.moneyHiddenWay}
+            </Text>
+          </Card>
+        </Reveal>
+      )}
     </CollapsingHeader>
   );
 }

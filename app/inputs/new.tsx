@@ -148,8 +148,14 @@ function InputForm() {
           // And it is written with the locale's separator, because a price per
           // package is rarely round: `String(12.4)` is "12.4", which the reader
           // on this screen used to turn into 124.
+          //
+          // Nulo cai no mesmo galho do "ainda não tem preço", e é o certo: quem
+          // não vê custo abre a correção com o campo vazio, exatamente como quem
+          // corrige um insumo que nunca foi comprado. E o campo nem aparece na
+          // correção (`priceNotAsked` abaixo), então não há como gravar por
+          // acidente o vazio em cima da média.
           price:
-            existing.averageRate > 0
+            existing.averageRate !== null && existing.averageRate > 0
               ? formatTyped(
                   (existing.averageRate * (existing.purchaseToBase ?? 1)) / 100,
                   locale.formatting,

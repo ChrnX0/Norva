@@ -90,6 +90,12 @@ export default function RecipeScreen() {
 type Loaded = {
   recipes: Record<string, Recipe>;
   costs: ItemCosts;
+  /**
+   * Se o custo é desta pessoa para ver. Nulo em `itemCosts` é o portão, e a ficha
+   * guarda a resposta separada do mapa porque o mapa vazio ainda serve para a
+   * QUANTIDADE — quanto a receita rende sai do grafo, não do custo.
+   */
+  dinheiro: boolean;
   labels: Record<string, string>;
   items: { id: string; name: string; baseUnit: string }[];
   /** How much of the batch becomes one sellable unit, if a product says so. */
@@ -133,7 +139,8 @@ function RecipeEditor() {
 
     return {
       recipes,
-      costs,
+      dinheiro: costs !== null,
+      costs: costs ?? {},
       labels,
       items: items
         .filter((i) => i.kind === 'input' || i.kind === 'packaging')
@@ -232,13 +239,17 @@ function RecipeEditor() {
       const cost = costRecipe(DRAFT, graph, data.costs, data.labels);
       const before = costRecipe(recipeId!, data.recipes, data.costs, data.labels);
 
+      // Nulo já era o estado "falta dizer a porção" desta figura, e a tela já o
+      // desenha como travessão com o motivo ao lado — então o portão fechado entra
+      // pelo caminho que a tela conhece, em vez de somar zero e imprimir R$ 0,00.
       const hasPortion = Number.isFinite(portion) && portion > 0;
-      const unitCents = hasPortion
-        ? costPerProductUnit(cost, portion, {
-            typedRate: data.unitPackagingRate,
-            itemsRate: packagingRatePerUnit(data.packagingItems, data.costs),
-          })
-        : null;
+      const unitCents =
+        hasPortion && data.dinheiro
+          ? costPerProductUnit(cost, portion, {
+              typedRate: data.unitPackagingRate,
+              itemsRate: packagingRatePerUnit(data.packagingItems, data.costs),
+            })
+          : null;
       const units = hasPortion ? unitsPerBatch(cost, portion) : 0;
       const boxTier = data.packaging.find((t) => t.perBaseUnit > 1);
       const rounding =
@@ -412,7 +423,9 @@ function RecipeEditor() {
               </Text>
               <Text style={[type.secondary, { color: color.inkMuted, flex: 1 }]}>
                 {computed.unitCents === null
-                  ? t.app.recipe.needPortion
+                  ? data.dinheiro
+                    ? t.app.recipe.needPortion
+                    : t.common.moneyHidden
                   : fill(t.app.recipe.unitsPerBatch, {
                       units: formatQuantity(computed.units, locale),
                       batch: formatMoney(computed.cost.batchCents, locale),

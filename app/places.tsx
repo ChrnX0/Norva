@@ -207,9 +207,19 @@ function Places() {
                   combina justamente antes da primeira carga. */}
               {saldo ? (
                 <View style={[styles.row, { gap: space.md, marginTop: space.xs }]}>
-                  <Text style={[type.figure, { color: color.ink }]}>
-                    {formatMoney(saldo.valueCents, locale)}
-                  </Text>
+                  {/* **Sem custo, o cartão perde a MANCHETE, não a informação.**
+                      Ele decidia pela PRESENÇA do saldo e não pelo número, então
+                      com zero escrevia "R$ 0,00" como figura de uma loja cheia. E
+                      promover a contagem a figura seria pior de duas maneiras:
+                      saía "4   4 itens" na mesma linha, e contagem de linhas não
+                      tem com o que se comparar — a Lei 3 deixaria de ser
+                      respondida por um número que não decide nada. O que a loja
+                      tem continua logo abaixo, item por item. */}
+                  {saldo.valueCents === null ? null : (
+                    <Text style={[type.figure, { color: color.ink }]}>
+                      {formatMoney(saldo.valueCents, locale)}
+                    </Text>
+                  )}
                   <Text style={[type.secondary, { color: color.inkMuted, flex: 1 }]}>
                     {plural(saldo.lines.length, words.itemCount)}
                   </Text>
@@ -229,7 +239,11 @@ function Places() {
                     <ListRow
                       key={line.itemId}
                       label={line.name}
-                      detail={fill(words.worth, { amount: formatMoney(line.valueCents, locale) })}
+                      detail={
+                        line.valueCents === null
+                          ? undefined
+                          : fill(words.worth, { amount: formatMoney(line.valueCents, locale) })
+                      }
                       trailing={`${formatQuantity(line.baseUnits, locale)} ${line.baseUnit}`}
                       trailingTone="muted"
                     />

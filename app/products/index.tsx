@@ -70,15 +70,26 @@ function ProductsList() {
   const router = useRouter();
   const { locale, t } = useLocale();
 
-  const { data, loading } = useQuery<Row[]>(async () => {
-    const [products, graph, costs, names] = await Promise.all([
+  const { data, loading } = useQuery<{ rows: Row[]; dinheiro: boolean }>(async () => {
+    const [products, graph, custos, names] = await Promise.all([
       listProducts(LOCAL_COMPANY_ID),
       loadRecipeGraph(LOCAL_COMPANY_ID),
       itemCosts(LOCAL_COMPANY_ID),
       loadLabels(LOCAL_COMPANY_ID),
     ]);
 
-    return products.map((product) => {
+    /**
+     * O portão é o próprio `itemCosts`: nulo quer dizer "não é seu para ver".
+     *
+     * Uma pergunta a menos e uma fonte de verdade só — perguntar `canSeeMoney`
+     * ao lado seria abrir espaço para as duas respostas discordarem. O mapa vazio
+     * continua servindo para a ARITMÉTICA de quantidade: quanto a receita rende
+     * sai do grafo, não do custo, então "rende 7 caixas" continua verdade.
+     */
+    const dinheiro = custos !== null;
+    const costs = custos ?? {};
+
+    const rows = products.map((product) => {
       if (!product.recipeId || !product.yieldPerUnit) {
         return {
           id: product.id,
@@ -100,19 +111,32 @@ function ProductsList() {
         id: product.id,
         name: product.name,
         recipeId: product.recipeId,
-        unitCents: costPerProductUnit(cost, product.yieldPerUnit, {
-          typedRate: product.unitPackagingRate,
-          itemsRate: packagingRatePerUnit(product.packagingItems, costs),
-        }),
+        /**
+         * Nulo já era o estado "não dá para custear" desta linha, e a tela já o
+         * desenha como travessão — então o portão fechado entra pelo caminho que
+         * a tela conhece, em vez de somar zero e imprimir R$ 0,00 em todo
+         * produto. Sem a parcela digitada a conta não fecha, e uma conta que não
+         * fecha não vira número.
+         */
+        unitCents:
+          dinheiro && product.unitPackagingRate !== null
+            ? costPerProductUnit(cost, product.yieldPerUnit, {
+                typedRate: product.unitPackagingRate,
+                itemsRate: packagingRatePerUnit(product.packagingItems, costs),
+              })
+            : null,
         detail: fill(t.app.products.batchYields, {
           units: formatQuantity(units, locale),
           packed,
         }),
       };
     });
+
+    return { rows, dinheiro };
   });
 
-  const rows = data ?? [];
+  const rows = data?.rows ?? [];
+  const dinheiro = data?.dinheiro === true;
 
   /** O convite de abrir, no lugar em que o dedo já está. */
   const abrir = (
@@ -173,6 +197,13 @@ function ProductsList() {
                 }
               />
             ))}
+            {/* Uma vez, embaixo da coluna que ela explica: sem isto a coluna de
+                travessões lê como "nenhum produto tem custo calculado". */}
+            {dinheiro ? null : (
+              <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
+                {t.common.moneyHidden}
+              </Text>
+            )}
           </Card>
         </Reveal>
       ) : null}

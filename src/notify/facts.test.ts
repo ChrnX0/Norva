@@ -56,11 +56,11 @@ before(async () => {
 
 test('the order alert counts stores, not flavours', async () => {
   const { ensureStarterData, LOCAL_COMPANY_ID } = await import('@/data/seed');
-  const { savePlace, saveOrder, listProducts } = await import('@/data/repository');
+  const { savePlace, saveOrder, listProductsForLedger } = await import('@/data/repository');
   const { factsForAlerts } = await import('./facts');
 
   await ensureStarterData(LOCAL_COMPANY_ID);
-  const [produto] = await listProducts(LOCAL_COMPANY_ID);
+  const [produto] = await listProductsForLedger(LOCAL_COMPANY_ID);
   const centro = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
   const norte = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Norte', kind: 'own_store' });
 
@@ -134,7 +134,7 @@ test('a reading with no range is a fact without a judgement', async () => {
 
 test('the full cold room alarms too, not only the empty storeroom', async () => {
   const { LOCAL_COMPANY_ID } = await import('@/data/seed');
-  const { listProducts, saveProduct } = await import('@/data/repository');
+  const { listProductsForLedger, saveProduct } = await import('@/data/repository');
   const { factsForAlerts } = await import('./facts');
   const { alertsDue, DEFAULT_ALERTS } = await import('@/domain/alerts');
 
@@ -143,7 +143,7 @@ test('the full cold room alarms too, not only the empty storeroom', async () => 
   // aparece olhando insumo. A primeira versão dos fatos filtrava insumo e
   // embalagem, copiando o recorte do cartão de dinheiro parado, que é outra
   // pergunta.
-  const [produto] = await listProducts(LOCAL_COMPANY_ID);
+  const [produto] = await listProductsForLedger(LOCAL_COMPANY_ID);
   await saveProduct(LOCAL_COMPANY_ID, {
     id: produto.id,
     itemId: produto.itemId,
