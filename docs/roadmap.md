@@ -332,9 +332,11 @@ De pé, nesta ordem e por este motivo:
    grava `pending`, e o servidor reescreve para `open` na inserção. A aprovação vira
    decoração — e o gatilho está certo, porque a regra não pode morar no aplicativo
    quando o pedido vem de fora.
-   **Ela é do item 2b, não deste item:** o que falta é a linha de `companies` existir
-   e ser escrita, e isso é a camada da conta. Enquanto 2b não andar, mexer aqui é
-   construir a metade que não fecha.
+   ~~**Ela é do item 2b**~~ **— DESTRAVOU e FECHOU em 6 de setembro.** O 2b subiu, a
+   linha de `companies` passou a existir, e `src/data/configuracao.ts` faz as três
+   configurações da empresa atravessarem: quem muda empurra, quem entra puxa. Não é a
+   fila de propósito — a fila carrega fato e é append-only; configuração é preferência,
+   e a última palavra vale.
 
    *E `forgetSentBefore` fechou junto, em 6 de setembro.* A auditoria dizia "sem
    chamador fora de teste" e estava certa — mas o conserto não era apagar: o motor

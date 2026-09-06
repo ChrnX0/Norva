@@ -5844,3 +5844,47 @@ educada de um erro se reproduzir.
 **E é por isso que o dono "perdeu as contas de quantas vezes" pediu animação.** Ele
 não estava pedindo de novo a mesma coisa: ele estava vendo, corretamente, que o que
 tinha sido construído não aparecia. Três pedidos negados por uma frase.
+
+---
+
+## Uma coluna que ninguém escreve é pior que uma que não existe — 6 de setembro
+
+Três achados do mesmo formato, no mesmo dia, e o terceiro é o que ensina.
+
+**Primeiro:** a `0040`, que eu escrevi de manhã, criava a empresa sem gerar
+`companies.join_code`. A coluna existe desde a `0011` com o propósito escrito ao
+lado — é o código que o dono dita para alguém pedir associação —, e empresa
+nascida naquele dia tinha a coluna nula. O caminho documentado não existia.
+
+**Segundo:** o caminho de QUEM PEDE nunca foi construído. O estado `pending`
+existia desde a `0011`, e não havia como chegar nele: quem ainda não é membro não
+enxerga a empresa (a política filtra por associação ativa) e não pode escrever em
+`memberships` (exige já ser membro ativo). Duas portas trancadas por dentro, e
+desta vez do lado de fora.
+
+**Terceiro, e é o pior:** `companies.orders_need_approval` é lida por um gatilho do
+servidor que decide se um pedido nasce `pending` ou `open` — e ninguém nunca a
+escreveu. A aprovação de pedido existe inteira no aparelho: a bandeira no `meta`,
+`saveOrder` nascendo pendente por causa dela, a decisão indo para a fila. **No dia
+em que a sincronia subisse, o servidor reescreveria para `open` na inserção** e a
+aprovação viraria decoração — sem erro, sem log, sem teste vermelho. A empresa
+teria ligado um interruptor que não liga nada.
+
+**O padrão.** O portão P1 deste projeto persegue a função exportada sem chamador,
+e a doença tem uma versão um nível abaixo que ninguém estava olhando: **a coluna
+sem escritor**. Ela é pior por dois motivos. No código, o compilador acaba
+reclamando de algo sem uso; num esquema, ninguém reclama nunca. E uma coluna com
+`default` nasce com um valor plausível — `false`, `'personal'`, `null` — então o
+sistema não parece quebrado: parece configurado.
+
+**O que mudou por causa disso:** a `0041` e a `0042` fecharam as duas primeiras,
+`src/data/configuracao.ts` fechou a terceira, e as garantias **18 e 19** do
+`db:verify` passaram a cobrar as duas metades — que a empresa nasça com o código,
+e que pedir para entrar não seja entrar. A 18 reprovou na primeira execução e o
+conserto que ela forçou é a doutrina da casa: quem garante virou **gatilho**, não
+função, porque função é um caminho e gatilho é a porta por onde todos passam.
+
+**E a pergunta que fica como método**, para a varredura de amanhã: existe uma
+guarda que liste toda coluna do servidor lida por política ou por gatilho e
+confira que alguma escrita a alcança? Hoje não. As três acima foram achadas indo
+construir em cima delas — que é o jeito caro.
