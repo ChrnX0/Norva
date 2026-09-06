@@ -236,6 +236,40 @@ export const ptBR = {
         stock: { label: 'Estoque', detail: 'o que tem e onde' },
         losses: { label: 'Perdas', detail: 'quanto, onde e por quê' },
         cost: { label: 'Custo', detail: 'o que cada unidade custa' },
+        mirror: { label: 'Espelho da Loja', detail: 'quanto volta de cada uma' },
+      },
+      /**
+       * O Espelho da Loja — o que cada loja faz com o que recebe.
+       *
+       * A frase central é uma FRAÇÃO e não um total, e é isso que ela existe para
+       * dizer: mil de volta é ótimo em vinte mil e péssimo em três mil. O total vem
+       * logo abaixo porque toda conclusão abre a conta (Lei 6), e a janela anterior
+       * vem ao lado porque número sozinho não decide (Lei 3).
+       *
+       * Nenhuma frase aqui julga a loja. "Devolve demais" é uma régua, e régua se
+       * afere contra uma fábrica de verdade — o que a tela faz é mostrar o número e
+       * a direção, e deixar quem conhece a loja concluir.
+       */
+      mirror: {
+        title: 'Espelho da Loja',
+        overline: 'o que volta de cada uma',
+        window: 'nos últimos {{days}} dias',
+        share: '{{percent}} do que chegou voltou',
+        account: '{{returned}} de {{received}} que chegaram',
+        before: 'antes eram {{percent}}',
+        first: 'primeira janela desta loja',
+        /**
+         * O silêncio, dito uma vez e no plural.
+         *
+         * A foto mostrou seis blocos idênticos de "Nada voltou" com seis selos
+         * de "antes eram 0,0%" — que é o alerta inventado na forma calma: uma
+         * parede de nada que ensina a rolar sem ler. Produto que não voltou não
+         * tem notícia, e notícia nenhuma cabe numa linha.
+         */
+        nothingFrom: 'Nada voltou de {{products}}.',
+        productCount: { one: '1 produto', other: '{{n}} produtos' },
+        empty: 'Nenhuma loja recebeu carga ainda.',
+        emptyHint: 'Assim que a primeira carga sair, esta tela começa a comparar.',
       },
     },
 

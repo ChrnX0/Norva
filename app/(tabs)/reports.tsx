@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
-import { GlyphLoss, GlyphPrice, GlyphStock } from '@/components/Glyph';
+import { GlyphLoss, GlyphPrice, GlyphStock, GlyphStore } from '@/components/Glyph';
 import { ListRow } from '@/components/ListRow';
 import { IconChevron } from '@/components/icons';
 import { Reveal } from '@/components/Reveal';
@@ -112,6 +112,15 @@ function ReportIndex() {
       { chave: 'stock' as const, rota: '/places', temDado: parado > 0, desenho: (c: string) => <GlyphStock size={22} color={c} weight={traco} /> },
       { chave: 'cost' as const, rota: '/recipes', temDado: comCusto.length > 0, desenho: (c: string) => <GlyphPrice size={22} color={c} weight={traco} /> },
       { chave: 'losses' as const, rota: '/losses', temDado: perdido > 0, desenho: (c: string) => <GlyphLoss size={22} color={c} weight={traco} /> },
+      /**
+       * O Espelho entra como PORTA e nunca como cartão de resumo.
+       *
+       * `temDado: false` é literal aqui e não um descuido: o resumo do Espelho é uma
+       * fração por item por loja, e escolher UMA para o índice seria a tela decidindo
+       * qual loja importa — a mesma decisão que a lista inteira existe para não tomar.
+       * Então ele não vira cartão em nenhum estado, e a linha leva a todas.
+       */
+      { chave: 'mirror' as const, rota: '/mirror', temDado: false, desenho: (c: string) => <GlyphStore size={22} color={c} weight={traco} /> },
     ] as const
     /**
      * **Porta não é número, e filtrar por dinheiro aqui apagava a única porta.**

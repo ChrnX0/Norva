@@ -69,6 +69,15 @@ test('a fortnight of operation lands in the ledger, spread over its days', async
   assert.ok(feito.runs >= 8, `poucas corridas para catorze dias: ${feito.runs}`);
   assert.ok(feito.deliveries >= 5, `poucas entregas: ${feito.deliveries}`);
   assert.ok(feito.invoices >= 1, 'nenhuma nota de compra entrou');
+  /**
+   * E ALGUMA COISA voltou.
+   *
+   * Sem esta linha a semeadura escrevia catorze dias de fábrica sem uma única
+   * devolução, e o Espelho da Loja — a tela que existe para responder quanto volta
+   * de cada loja — nascia com nada a dizer em toda instalação semeada. Semeadura
+   * que não exercita uma tela responde "está tudo bem" sobre o que ela não simulou.
+   */
+  assert.ok(feito.returns >= 1, `nenhuma devolução em catorze dias: ${feito.returns}`);
 
   // E o passado é passado: hoje e a semana passada têm produção, que é o par
   // exato de que a home precisa para dizer algo em vez de "primeira produção".

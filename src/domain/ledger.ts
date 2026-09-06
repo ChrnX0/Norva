@@ -99,9 +99,20 @@ export type ControlPost = 'picked' | 'loaded' | 'delivered' | 'checked';
  */
 export const INTERNAL_PLACE_KINDS = ['factory', 'cold_room', 'store_room'] as const;
 
+/**
+ * Quem RECEBE carga: loja própria e cliente. O resto é sala interna ou caminho.
+ *
+ * Lista antes de predicado porque o SQL não importa função: o Espelho da Loja
+ * pergunta *"quanto esta loja devolve do que recebe"*, e para isso precisa
+ * FILTRAR por essas espécies dentro de uma consulta. Com a régua só no `if`, o
+ * SQL escreveria a quarta grafia da mesma regra — que é exatamente o defeito que
+ * `INTERNAL_PLACE_KINDS` existe para não repetir, do outro lado.
+ */
+export const CARGO_PLACE_KINDS = ['own_store', 'customer'] as const;
+
 /** Quem RECEBE carga: loja própria e cliente. O resto é sala interna ou caminho. */
 export function receivesCargo(kind: string): boolean {
-  return kind === 'own_store' || kind === 'customer';
+  return (CARGO_PLACE_KINDS as readonly string[]).includes(kind);
 }
 
 export type Movement = {

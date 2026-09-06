@@ -108,6 +108,11 @@ const TELAS: Record<string, Declaracao | Declaracao[]> = {
   'app/losses.tsx': { compara: /vsPrevious|firstWindow/ },
   'app/recipes/[id].tsx': { compara: /summaryCheaper|summaryDearer|delta/ },
 
+  // O Espelho da Loja: o número grande é a FRAÇÃO devolvida, e a comparação é a
+  // mesma janela imediatamente anterior — vem no chip ao lado, com a direção. É por
+  // isso que `storeMirror` devolve `before` junto: sem ele a tela precisaria de uma
+  // segunda consulta, que é como duas verdades nascem.
+  'app/mirror.tsx': { compara: /words\.before|words\.first/ },
   'app/lots/[id].tsx': {
     sozinho:
       'o número grande é o CÓDIGO do lote, não uma medida. Código não tem mais nem menos, e comparar dois códigos não decide nada.',

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { INTERNAL_PLACE_KINDS } from './domain/ledger';
+import { CARGO_PLACE_KINDS, INTERNAL_PLACE_KINDS } from './domain/ledger';
 
 /**
  * Where SQL is allowed to live, pinned.
@@ -378,6 +378,12 @@ test('the counting guard bites the real scar, and leaves the fix alone', () => {
  *
  * Então a régua é lida dos dois lados e comparada. Divergir aqui é prometer
  * mercadoria que está numa loja, ou esconder a que está na câmara.
+ *
+ * **São DUAS réguas desde o Espelho da Loja, e a guarda passou a conhecer as duas.**
+ * `INTERNAL_PLACE_KINDS` é de onde a carga sai; `CARGO_PLACE_KINDS` é quem a recebe,
+ * e o Espelho filtra por ela para perguntar quanto uma loja devolve do que recebe. O
+ * que a guarda continua recusando é o que ela sempre recusou: uma lista escrita à mão
+ * no SQL que não é nenhuma das duas — a quarta grafia da regra.
  */
 test('the rooms SQL calls ours are the rooms the domain calls ours', () => {
   const fonte = readFileSync('src/data/repository.ts', 'utf8');
@@ -389,13 +395,28 @@ test('the rooms SQL calls ours are the rooms the domain calls ours', () => {
   );
   assert.ok(noSql.length > 0, 'nenhuma consulta filtra por tipo de lugar — a comparação seria de graça');
 
+  const REGUAS = [
+    { nome: 'INTERNAL_PLACE_KINDS', lista: [...INTERNAL_PLACE_KINDS].sort() },
+    { nome: 'CARGO_PLACE_KINDS', lista: [...CARGO_PLACE_KINDS].sort() },
+  ];
+
   for (const lista of noSql) {
-    assert.deepEqual(
-      lista,
-      [...INTERNAL_PLACE_KINDS].sort(),
-      'o SQL e `INTERNAL_PLACE_KINDS` discordam sobre quais salas são nossas',
+    assert.ok(
+      REGUAS.some((r) => r.lista.length === lista.length && r.lista.every((k, i) => k === lista[i])),
+      `o SQL escreve \`l.kind IN (${lista.join(', ')})\`, que não é nenhuma das duas réguas do domínio (${REGUAS.map((r) => r.nome).join(', ')})`,
     );
   }
+});
+
+test('the rooms guard still bites a list that is neither ruler', () => {
+  // A guarda ficou mais larga ao aprender a segunda régua, e larga demais não
+  // guarda nada. Isto fixa o que ela continua recusando: uma lista à mão.
+  const inventada = ['factory', 'own_store'].sort();
+  const REGUAS = [[...INTERNAL_PLACE_KINDS].sort(), [...CARGO_PLACE_KINDS].sort()];
+  assert.ok(
+    !REGUAS.some((r) => r.length === inventada.length && r.every((k, i) => k === inventada[i])),
+    'uma lista que mistura sala nossa com destino tem que continuar reprovando',
+  );
 });
 
 /**

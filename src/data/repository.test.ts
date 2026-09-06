@@ -4,6 +4,7 @@ import { beforeEach, test } from 'node:test';
 import { fromDecimal, rate, amountOf, type Rate} from '@/domain/money';
 import { dayWindow, localDate } from '@/domain/day';
 import { costRecipe } from '@/domain/recipe';
+import type { ReturnReason } from '@/domain/ledger';
 import { __setDb, db, migrate, migrationSteps, nowIso, type Db, type SqlParam } from './db';
 import {
   balanceByLocation,
@@ -48,6 +49,7 @@ import {
   stockByPlace,
   recordTransfer,
   recordReturn,
+  storeMirror,
   planReversal,
   lossesOn,
   reverseGroup,
@@ -4245,4 +4247,159 @@ test('the list price answers to view_sale_price, and cost answers to view_cost',
   // ver custo são perguntas diferentes.
   const paraGravar = (await listProductsForLedger(CO)).find((p) => p.id === produto.id);
   assert.ok(paraGravar && paraGravar.unitPackagingRate > 0, 'o razão continua vendo o número certo');
+});
+
+test('the mirror says how much of what a store received came back, against last month', async () => {
+  /**
+   * A pergunta do Espelho, exercitada por onde ela decide.
+   *
+   * Duas lojas com o MESMO número de devolução e recebimentos diferentes: sem a
+   * fração, as duas parecem iguais e a que devolve um terço passa despercebida ao
+   * lado da que devolve um vigésimo. É por isso que a camada devolve a fração e não
+   * só o par de totais.
+   */
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const centro = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+  const norte = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Norte', kind: 'own_store' });
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const acucar = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.name.includes('Açúcar'));
+  assert.ok(acucar);
+
+  const agora = '2026-09-30T12:00:00.000Z';
+  const dentro = '2026-09-20T12:00:00.000Z';
+  const anterior = '2026-08-20T12:00:00.000Z';
+
+  const carga = (para: string, quanto: number, quando: string) =>
+    recordTransfer(LOCAL_COMPANY_ID, {
+      itemId: acucar.id, fromLocationId: fabrica, toLocationId: para,
+      baseUnits: quanto, occurredAt: quando,
+    });
+  // Nos lugares INVERTIDOS de propósito: a loja é de onde a mercadoria sai.
+  const volta = (de: string, quanto: number, quando: string, reason: ReturnReason) =>
+    recordReturn(LOCAL_COMPANY_ID, {
+      itemId: acucar.id, fromLocationId: de, toLocationId: fabrica,
+      baseUnits: quanto, occurredAt: quando, returnReason: reason,
+    });
+
+  await carga(centro.id, 3000, dentro);
+  await volta(centro.id, 1000, dentro, 'unsold');
+  await carga(norte.id, 20000, dentro);
+  await volta(norte.id, 1000, dentro, 'melted');
+
+  // O mês anterior, que é o que faz o número de hoje querer dizer alguma coisa.
+  await carga(centro.id, 4000, anterior);
+  await volta(centro.id, 200, anterior, 'unsold');
+
+  const espelho = await storeMirror(LOCAL_COMPANY_ID, 30, agora);
+  assert.equal(espelho.length, 2, 'as duas lojas, e nenhuma sala nossa');
+
+  // A ordem serve para decidir: quem tem o item que mais devolve vem primeiro.
+  assert.equal(espelho[0].placeName, 'Loja Centro');
+  const centroAcucar = espelho[0].items[0];
+  assert.equal(centroAcucar.received, 3000);
+  assert.equal(centroAcucar.returned, 1000);
+  assert.equal(centroAcucar.baseUnit, 'g', 'a régua vem junto: fração sem régua não se compara');
+  assert.ok(Math.abs(centroAcucar.returnShare - 1 / 3) < 1e-9);
+  assert.deepEqual(centroAcucar.reasons, [{ reason: 'unsold', baseUnits: 1000 }]);
+  // A janela anterior: 200 de 4000, que é 5% — piorou seis vezes, e é ESSA a
+  // notícia. Sem a comparação, um terço é só um número grande.
+  assert.equal(centroAcucar.before.received, 4000);
+  assert.equal(centroAcucar.before.returned, 200);
+  assert.ok(Math.abs(centroAcucar.before.returnShare - 0.05) < 1e-9);
+
+  // Mesmo mil de volta, vinte vezes mais recebido: a fração é o que separa as duas.
+  assert.equal(espelho[1].placeName, 'Loja Norte');
+  const norteAcucar = espelho[1].items[0];
+  assert.equal(norteAcucar.returned, 1000);
+  assert.ok(Math.abs(norteAcucar.returnShare - 0.05) < 1e-9);
+  assert.deepEqual(norteAcucar.before, { received: 0, returned: 0, returnShare: 0 });
+});
+
+test('a store that received two rulers keeps two fractions, and never one sum', async () => {
+  /**
+   * A aritmética que a primeira versão fazia e não podia fazer.
+   *
+   * O razão conta em unidade-base, e unidade-base é grama para o açúcar e unidade
+   * para o picolé. Somar as duas dava um "recebido" que não é de nada — e, pior, o
+   * item pesado afogava o leve: mil gramas ao lado de dez picolés faziam a devolução
+   * de metade dos picolés aparecer como meio por cento da loja.
+   */
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const centro = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const itens = await listItems(LOCAL_COMPANY_ID);
+  const acucar = itens.find((i) => i.name.includes('Açúcar'));
+  const picole = itens.find((i) => i.name.includes('Picolé'));
+  assert.ok(acucar && picole);
+  const quando = '2026-09-20T12:00:00.000Z';
+
+  for (const [item, quanto] of [[acucar, 1000], [picole, 10]] as const) {
+    await recordTransfer(LOCAL_COMPANY_ID, {
+      itemId: item.id, fromLocationId: fabrica, toLocationId: centro.id,
+      baseUnits: quanto, occurredAt: quando,
+    });
+  }
+  // Metade dos picolés volta. Somada com o açúcar, essa metade viraria 0,5% da loja.
+  await recordReturn(LOCAL_COMPANY_ID, {
+    itemId: picole.id, fromLocationId: centro.id, toLocationId: fabrica,
+    baseUnits: 5, occurredAt: quando, returnReason: 'unsold',
+  });
+
+  const [loja] = await storeMirror(LOCAL_COMPANY_ID, 30, '2026-09-30T12:00:00.000Z');
+  assert.equal(loja.items.length, 2, 'duas réguas, duas linhas');
+  const doce = loja.items.find((x) => x.itemId === picole.id);
+  const cristal = loja.items.find((x) => x.itemId === acucar.id);
+  assert.ok(doce && cristal);
+  assert.ok(Math.abs(doce.returnShare - 0.5) < 1e-9, 'metade continua sendo metade');
+  assert.equal(cristal.returnShare, 0, 'e o açúcar não empresta peso a ela');
+  assert.equal(loja.items[0].itemId, picole.id, 'o que mais volta vem primeiro');
+});
+
+test('a load from one store to another does not count as received on both sides', async () => {
+  /**
+   * Onde o filtro por SINAL decide, e é o único lugar onde ele decide.
+   *
+   * Fui escrever que ele separa a perna da fábrica da perna da loja, e isso é falso:
+   * a perna da fábrica já sai pela espécie do lugar. O sinal só passa a valer quando
+   * as DUAS pernas caem em lugares que recebem carga — uma loja própria mandando para
+   * um cliente. Sem ele, a loja que despachou apareceria "recebendo" o que mandou
+   * embora, e o Espelho diria que ela recebeu duas vezes o que recebeu.
+   *
+   * Escrevi a justificativa errada primeiro e só descobri ao perguntar o que uma
+   * mutação quebraria. É a regra do dia, de novo: propriedade afirmada é asserção sem
+   * teste até o teste existir.
+   */
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const centro = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
+  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const acucar = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.name.includes('Açúcar'));
+  assert.ok(acucar);
+  const quando = '2026-09-20T12:00:00.000Z';
+
+  const cliente = await savePlace(LOCAL_COMPANY_ID, { name: 'Padaria da Praça', kind: 'customer' });
+
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: acucar.id, fromLocationId: fabrica, toLocationId: centro.id,
+    baseUnits: 5000, occurredAt: quando,
+  });
+  // A loja repassa parte para um cliente: as duas pernas caem em lugares que
+  // recebem carga, e é aqui que o sinal é a única coisa que separa quem mandou de
+  // quem recebeu.
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: acucar.id, fromLocationId: centro.id, toLocationId: cliente.id,
+    baseUnits: 2000, occurredAt: quando,
+  });
+  await recordReturn(LOCAL_COMPANY_ID, {
+    itemId: acucar.id, fromLocationId: centro.id, toLocationId: fabrica,
+    baseUnits: 500, occurredAt: quando, returnReason: 'expired',
+  });
+
+  const espelho = await storeMirror(LOCAL_COMPANY_ID, 30, '2026-09-30T12:00:00.000Z');
+  const loja = espelho.find((l) => l.placeId === centro.id);
+  const padaria = espelho.find((l) => l.placeId === cliente.id);
+  assert.ok(loja && padaria);
+  assert.equal(loja.items[0].received, 5000, 'o que ela despachou não é o que ela recebeu');
+  assert.equal(loja.items[0].returned, 500);
+  assert.equal(padaria.items[0].received, 2000);
+  assert.equal(padaria.items[0].returned, 0);
 });

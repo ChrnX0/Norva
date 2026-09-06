@@ -312,7 +312,10 @@ check('the five tabs are there, and the old addresses still answer', async (page
   assert.match(reports, /o que cada unidade custa/);
   // What the design draws but nothing answers yet must not be advertised.
   assert.match(reports, /Perdas/, 'a linha existe porque agora há quem escreva perda');
-  assert.doesNotMatch(reports, /margem|Espelho da loja/i, 'a row promising a screen that does not exist');
+  // O Espelho deixou de ser promessa em 6 de setembro: a linha existe porque a tela
+  // existe. `margem` continua fora pelo motivo original — anunciar o que não abre.
+  assert.match(reports, /Espelho da Loja/, 'a porta do Espelho existe porque a tela existe');
+  assert.doesNotMatch(reports, /margem/i, 'a row promising a screen that does not exist');
 
   await page.goto(`http://localhost:${PORT}/more`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2000);
@@ -2669,6 +2672,75 @@ check('an agreed price is typed on the store card and comes back', async (page) 
     '2,50',
     'o preço combinado volta do banco, com a vírgula que foi digitada',
   );
+});
+
+check('the mirror says how much each store returns of what it received', async (page) => {
+  /**
+   * O Espelho da Loja, dirigido de ponta a ponta.
+   *
+   * A checagem existe porque a pergunta desta tela é uma FRAÇÃO, e fração é o tipo de
+   * número que passa verde estando errado: somar as pernas erradas dá um total
+   * plausível. Aqui a carga e a devolução são feitas pela tela, e o número lido de
+   * volta é conferido contra a conta que a própria tela abre.
+   */
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Como se chama').fill('Loja Centro');
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  // Sem carga nenhuma a tela diz o que falta acontecer, e não fica em branco — que
+  // é a resposta que parece defeito.
+  await page.goto(`http://localhost:${PORT}/reports`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2000);
+  await page.getByText('Espelho da Loja', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+  assert.match(await screen(page), /Nenhuma loja recebeu carga ainda/);
+
+  // Mil gramas para a loja.
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel('Açúcar cristal').first().click();
+  await page.waitForTimeout(400);
+  await page.getByLabel('Quanto vai').fill('1000');
+  await page.waitForTimeout(500);
+  await page.getByText('Registrar a transferência', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Mandar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  // E duzentos de volta: um quinto, que é 20,0% — um número que não sai de somar
+  // errado por acaso.
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel('A loja devolveu').first().click();
+  await page.waitForTimeout(900);
+  await page.getByLabel('Loja Centro').first().click();
+  await page.waitForTimeout(900);
+  await page.getByLabel(/Açúcar cristal/).first().click();
+  await page.waitForTimeout(600);
+  await page.getByLabel('Quanto vai').fill('200');
+  await page.waitForTimeout(600);
+  await page.getByLabel('Não vendeu').first().click();
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar a devolução', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Trazer de volta', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.goto(`http://localhost:${PORT}/mirror`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  const espelho = await screen(page);
+  assert.match(espelho, /Loja Centro/);
+  assert.match(espelho, /20,0% do que chegou voltou/, 'a manchete é a fração, não o total');
+  // Lei 6: a conta que produziu a fração fica aberta na linha de baixo.
+  assert.match(espelho, /200 g de 1\.000 g que chegaram/, 'a conta abre embaixo da conclusão');
+  // Lei 3: e a comparação diz que não há com o que comparar ainda, em vez de
+  // inventar uma direção na primeira leitura.
+  assert.match(espelho, /primeira janela desta loja/);
+  assert.match(espelho, /Não vendeu/, 'e o motivo, que é o que muda o que fazer');
 });
 
 check('at tablet width the two columns end level, not ragged', async (page) => {

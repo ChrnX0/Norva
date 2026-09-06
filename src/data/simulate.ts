@@ -10,6 +10,7 @@ import {
   recordProduction,
   recordPurchase,
   recordTransfer,
+  recordReturn,
   saveItem,
   saveOrder,
   savePlace,
@@ -20,6 +21,7 @@ import {
   saveType,
 } from './repository';
 import { LOCAL_COMPANY_ID, LOOSE, STACKED } from './seed';
+import { RETURN_REASONS } from '@/domain/ledger';
 import { dayWindow, localDate } from '@/domain/day';
 import { cents, fromDecimal, rate} from '@/domain/money';
 
@@ -61,6 +63,16 @@ export type Simulation = {
   invoices: number;
   /** As conferências de prateleira — é por elas que o que saiu da loja sai. */
   counts: number;
+  /**
+   * O que a loja mandou de volta.
+   *
+   * Entrou junto com o Espelho da Loja, e por causa dele: a foto da tela recém-
+   * construída, contra três meses semeados, dizia *"Nada voltou de 3 produtos"* nas
+   * três lojas — a tela inteira sem nada a dizer, porque a simulação despachava e
+   * nunca devolvia. Semeadura que não exercita uma tela é semeadura que responde
+   * "está tudo bem" sobre o que ela não simulou.
+   */
+  returns: number;
 };
 
 /**
@@ -272,7 +284,7 @@ export async function simulateFortnight(
 
   const { fabrica: factory, destinos, produtos: products } = await garantirElenco(companyId);
 
-  const tally: Simulation = { days, runs: 0, deliveries: 0, invoices: 0, counts: 0 };
+  const tally: Simulation = { days, runs: 0, deliveries: 0, invoices: 0, counts: 0, returns: 0 };
 
   /** O preço de referência de cada insumo, fixado na primeira compra dele. */
   const patamar = new Map<string, number>();
@@ -381,6 +393,10 @@ export async function simulateFortnight(
     // destinos, quatro em cada cinco dias, 150 a 500 por viagem — e aí o que
     // segura o volume passa a ser o piso da sala, não o sorteio: fica o giro do
     // dia seguinte e o resto vai para a prateleira.
+
+    /** O que saiu hoje, para a devolução ser um pedaço de uma carga e não da prateleira. */
+    const cargasDoDia: { destino: string; itemId: string; enviado: number }[] = [];
+
     for (const destino of destinos) {
       if (next() > 0.8) continue;
       const product = products[Math.floor(next() * products.length)];
@@ -399,6 +415,40 @@ export async function simulateFortnight(
           occurredAt: at(16),
         });
         tally.deliveries += 1;
+        cargasDoDia.push({ destino: destino.id, itemId: product.itemId, enviado: sent });
+      }
+    }
+
+    /**
+     * E de vez em quando uma loja manda parte de volta, com o motivo dito.
+     *
+     * Um dia em cada seis, e um pedaço pequeno de UMA carga daquele dia: a devolução
+     * é exceção na vida de uma fábrica, e semeá-la como rotina faria o Espelho da
+     * Loja nascer com o número errado no lugar de nascer sem número.
+     *
+     * O motivo é sorteado entre os quatro porque eles mandam fazer coisas
+     * diferentes — "não vendeu" manda produzir menos para aquela loja, "derreteu"
+     * manda olhar o caminhão. Semear um só ensinaria a tela a mostrar sempre a
+     * mesma conclusão.
+     */
+    if (cargasDoDia.length > 0 && next() > 0.83) {
+      const carga = cargasDoDia[Math.floor(next() * cargasDoDia.length)];
+      // Um pedaço da CARGA, e não da prateleira — e essa diferença apareceu na foto.
+      // Fatiando o saldo, a prateleira acumulada de um mês virava a devolução de um
+      // dia: o Espelho anunciou "88,8% do que chegou voltou", que nenhuma fábrica
+      // vive. Devolução é parte do que acabou de chegar.
+      const devolvido = Math.floor(carga.enviado * (0.05 + next() * 0.15));
+      if (devolvido > 0) {
+        await recordReturn(companyId, {
+          itemId: carga.itemId,
+          // Invertidos de propósito: a loja é de onde a mercadoria sai.
+          fromLocationId: carga.destino,
+          toLocationId: factory.id,
+          baseUnits: devolvido,
+          occurredAt: at(17),
+          returnReason: RETURN_REASONS[Math.floor(next() * RETURN_REASONS.length)],
+        });
+        tally.returns += 1;
       }
     }
 

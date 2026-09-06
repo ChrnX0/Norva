@@ -5369,3 +5369,68 @@ antes da linha de `companies` é construir a metade que não fecha.
 pressupõe, antes de escrever a primeira linha. É o mesmo gesto de trinta segundos que já
 tinha desmentido a dívida escrita errada, a fronteira caduca do assistente e o índice único
 que eu ia chamar de ausente. Item de lista é hipótese até alguém conferir.
+
+---
+
+## O Espelho somava grama com unidade, e quem pegou foi a asserção que pedia a régua
+
+*6 de setembro.* O Espelho da Loja responde *"quanto desta loja voltou do que chegou"*, e a
+primeira versão respondia por LOJA: um `received` e um `returned` por lugar, com a fração
+entre os dois. Testes verdes, três casos cobertos, incluindo o de duas lojas com o mesmo
+total de volta e recebimentos diferentes — que é justamente o caso que a fração existe para
+separar.
+
+**Estava errado, e nenhum daqueles testes podia pegar.** O razão conta em unidade-base, e
+unidade-base é **grama** para o açúcar e **unidade** para o picolé. Somar as duas dá um
+"recebido" que não é de nada — e pior que o número sem sentido é o efeito: o item pesado
+afoga o leve. Mil gramas de açúcar ao lado de dez picolés fazem *metade dos picolés de
+volta* aparecer como **meio por cento** da loja. O item que interessa some dentro do item
+que só está passando.
+
+**Quem pegou foi o `e2e`, e por um caminho que não era o dele.** Escrevendo a asserção da
+conta aberta — *"200 de 1.000 que chegaram"* — a linha pedia a unidade ao lado do número, e
+eu fui procurar qual pôr. Não havia uma: havia duas. **Número sem unidade era o sintoma;
+somar grandezas diferentes era a doença.** Meus testes de unidade usaram açúcar nos três
+casos, então nunca houve duas réguas na mesma loja para a soma revelar o absurdo.
+
+**O que mudou.** `storeMirror` devolve `items` por loja, cada um com a própria régua
+(`baseUnit`), a própria fração e a própria janela anterior; a tela escreve a unidade ao lado
+de cada número; e entrou o teste que faltava — uma loja que recebeu duas réguas, com a
+asserção de que metade continua sendo metade e o açúcar não empresta peso a ela.
+
+**E a foto pegou o segundo defeito, que nenhum teste veria.** Com a semeadura de três
+meses, o Espelho saiu com **seis blocos idênticos de "Nada voltou"**, cada um com um selo
+"antes eram 0,0%" — três produtos por loja, duas lojas, nenhuma devolução. Tudo verdadeiro,
+tudo inútil: é o alerta inventado na forma calma, uma parede de nada que ensina a rolar sem
+ler. Produto que não voltou não tem notícia, e notícia nenhuma cabe numa linha: agora a loja
+mostra só o que voltou, e fecha com *"Nada voltou de 3 produtos."* — sem somar unidades, que
+é o defeito de cima de volta pela porta dos fundos.
+
+**E a semeadura tinha o mesmo buraco que os testes.** Com a devolução consertada, a foto
+continuava dizendo *"Nada voltou de 3 produtos"* nas três lojas — porque a simulação de
+noventa dias **despachava e nunca devolvia**. Uma tela recém-construída nascia sem nada a
+dizer em toda instalação semeada, e não havia como olhar o estado que ela existe para
+mostrar. Agora a simulação devolve, uma em cada seis viagens, com o motivo sorteado entre os
+quatro — porque eles mandam fazer coisas diferentes, e semear um só ensinaria a tela a
+mostrar sempre a mesma conclusão. O teste da semeadura cobra `returns >= 1`.
+**Semeadura que não exercita uma tela responde "está tudo bem" sobre o que ela não simulou**
+— é o mesmo defeito do conjunto homogêneo de exemplos, uma camada acima.
+
+**E a primeira semeadura de devolução mentia de outro jeito.** Ela fatiava a
+PRATELEIRA — e prateleira acumula. O Espelho saiu anunciando *"88,8% do que chegou
+voltou"*, que nenhuma fábrica vive: o acumulado de um mês virava a devolução de um dia.
+Devolução é parte do que **acabou de chegar**, então ela passou a ser um pedaço de uma carga
+do dia. Número semeado implausível não é detalhe de simulação: é a tela ensinando quem olha
+que ela exagera, e quem aprende isso para de acreditar no número quando ele for verdadeiro.
+
+*(E eu li a foto errada antes de descobrir isso: duas execuções de foto se sobrepuseram, a
+segunda morreu na porta, e eu li a saída da primeira como se fosse da segunda. O `CLAUDE.md`
+já avisa exatamente isso, e eu repeti. O que impede é olhar se ainda há processo antes de
+disparar o próximo — não a lembrança.)*
+
+**A lição é sobre a forma do exemplo, não sobre atenção.** Os três testes que escrevi eram
+bons e eram todos o mesmo caso: um item. Um conjunto de exemplos homogêneo prova o que é
+verdade dentro da homogeneidade e cala sobre o resto — e cala com cara de cobertura, porque
+o número de testes cresce. Onde uma função soma coisas, o exemplo que decide é sempre o que
+mistura: **duas moedas, duas réguas, dois fusos, duas empresas.** Se todos os casos usam a
+mesma, a suíte não está testando a soma.

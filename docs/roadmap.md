@@ -29,7 +29,7 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 
 | | | como conferir |
 |---|---|---|
-| telas | **27** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
+| telas | **28** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **25** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **26** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
 | migrações do servidor | **37** | `ls supabase/migrations \| wc -l` |
@@ -42,9 +42,9 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **396** testes |
+| `npm test` | **400** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
-| `npm run e2e:fast` | **48** checagens num navegador de verdade |
+| `npm run e2e:fast` | **49** checagens num navegador de verdade |
 | `npm run db:verify` | **17** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
@@ -284,7 +284,7 @@ abaixo respeita duas decisões escritas dele — *"termina o layout, nada pela m
 | **2** | **TRAVADO — decisão de faseamento, e ela é do dono.** A camada 1 do login **não** é independente do servidor | Medido em 6 de setembro antes da primeira linha de código, e **contra o que o próprio estudo tinha dito de manhã**: `movements.operator_id` referencia `memberships(id)` (`supabase/migrations/0014_who_was_holding_it.sql:21`), e `memberships.user_id` é `not null references auth.users` (`0001_foundation.sql:60`). O aparelho não pode criar `auth.users`, logo não pode inventar o id de um operador — e o id inventado **viaja** (`src/sync/serialize.ts:351`) e trava a fila por chave estrangeira no dia em que a sincronia subir, que é o defeito crítico que esta branch já consertou uma vez. As três saídas estão no fim de `docs/estudo-conta.md`; eu faria a (c) e depois a (a). |
 | **2b** | **A conta da empresa — a camada 2** | cliente Supabase, sessão, cadastro do dono, convite por código. Ela deixou de ser "depois": sem lista de gente não há quem operou, e é esse o motivo novo que a decisão de *"o servidor sobe o mais tarde possível"* não tinha quando foi tomada. |
 | **2c** | **O que não esbarra nisso** | ~~o motivo da devolução~~ **FEITO em 6 de setembro** (`return_reason`, aparelho `V19` e servidor `0034`, com a catorzena garantia do `db:verify` cobrando as duas metades da regra). ~~A **tela de conferir item a item**~~ fechou com a separação (`app/picking.tsx`, engradado a engradado, com a lista guardada por loja). ~~E o **preço combinado**~~ entrou em 6 de setembro (`0037` / `V22`), com histórico append-only ao lado — e o que ele destravou não é um campo: é a descoberta de que o aplicativo não tinha a quem vender. **O 2c está vazio.** |
-| **3** | **Espelho da Loja — construir** | destravado hoje: constrói e exercita agora, calibra depois. A captura (contagem cega, perda com motivo) já grava. |
+| **3** | ~~**Espelho da Loja — construir**~~ **— FEITO em 6 de setembro** | `storeMirror` (`src/data/repository.ts`) e `app/mirror.tsx`, com a porta em Relatórios. A fração é por ITEM e não por loja, e isso é conserto de uma aritmética inválida que a primeira versão tinha: o razão conta em grama para o açúcar e em unidade para o picolé, e somar as duas afogava o item leve. Falta a calibração, que é o que precisa de fábrica — não há régua de "devolve demais" em lugar nenhum do código. |
 | **4** | **Os sete médios** | pequenos e independentes; cabem entre as coisas grandes. O maior é a aprovação de pedido, que é F7 — vira configuração da empresa, não escolha nossa. |
 | **5** | **A sala do tacho** | pergunta de PADRÃO para o dono, não de qual; e trava no P3 porque muda onde o consumo é gravado. Fica para a câmara fria da F2. |
 | **6** | **Compras inteligentes** | mesma classe do 3 — construir agora, calibrar contra prazo real depois. |
@@ -850,9 +850,15 @@ E semear mais **compra coisa real**: consulta exercitada com o razão crescido,
 desempenho medido em vez de estimado, telas com o que dizer. Hoje são noventa dias
 (`HORIZONTE_DE_TESTE`); um ano é trocar uma constante.
 
-**O Espelho da Loja — a captura entra, o relatório espera.** Contagem cega e perdas
-com motivo já existem e já gravam. O relatório fica fora por decisão escrita: ele
-**mente com duas semanas de dado**. Entra quando houver estação inteira.
+**O Espelho da Loja — a captura já grava, e o relatório passou a ser dos de agora.**
+Contagem cega e perdas com motivo já existem. O parágrafo que estava aqui dizia que o
+relatório *"fica fora por decisão escrita: ele mente com duas semanas de dado"* — e ele
+contradizia a tabela logo acima, revista em 6 de setembro depois de o dono cobrar a
+frase. A correção separou duas coisas que eu tinha misturado: **não dá para calibrar**
+não é **não dá para construir**. Então o relatório entra, com a régua marcada no código
+como suposição até alguém usá-la contra uma fábrica.
+*(O `CLAUDE.md` ainda traz o corte de 1 de setembro com a razão antiga. Fica anotado
+aqui em vez de eu reescrever sozinho a lista de cortes do dono.)*
 
 *Anotado em 5 de setembro, para não virar acusação depois:* `sale` está em
 `MovementKind` (`src/domain/ledger.ts:24`) e **não tem caminho de escrita** — é o
@@ -921,7 +927,7 @@ como "boa ideia" numa sessão futura.
 
 | fora | razão escrita |
 |---|---|
-| **Relatório do Espelho da Loja** | a captura entra; o relatório **mente com duas semanas de dado** |
+| ~~**Relatório do Espelho da Loja**~~ **— voltou, e a razão escrita estava confusa** | o corte dizia *"mente com duas semanas de dado"*, e isso misturava **não dá para calibrar** com **não dá para construir**. O dono cobrou a frase (*"vc nao pode alimentar mais dados no banco de dados??????"*) e a tabela da F4 foi corrigida em 6 de setembro; o relatório entrou junto, **sem régua de "devolve demais" em lugar nenhum** — essa parte continua precisando de fábrica. |
 | **Microserviço fiscal** | projeto à parte — certificado A1, homologação SEFAZ; nada depende dele |
 | **Compras inteligentes** | precisam do **prazo observado**, que só existe depois de meses de nota |
 | **Trunfos** (PAC/POD, clima, roteirização) | diferencial de mercado, não a dor de hoje |

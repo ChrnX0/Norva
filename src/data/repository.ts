@@ -2633,6 +2633,189 @@ export type LossRow = {
  * some". Uma caixa que derreteu vale mais que trinta picolés de cortesia, e é
  * ela que muda a manutenção do freezer.
  */
+
+/** Quanto uma espécie de devolução pesou na janela. */
+export type MirrorReason = { reason: ReturnReason; baseUnits: number };
+
+/**
+ * O que voltou de um ITEM naquela loja — e a fração só existe aqui, por dimensão.
+ *
+ * **A primeira versão somava a loja inteira, e isso era aritmética inválida.** O
+ * razão conta em unidade-base, e unidade-base é grama para a polpa e unidade para o
+ * picolé: mil gramas de açúcar mais trezentos picolés davam 1.300 de "recebido", um
+ * número que não é de nada. Pior, o açúcar afogava o picolé — o item que interessa
+ * some dentro do item pesado. Uma fração só se compara dentro da mesma régua, e a
+ * régua é o item.
+ *
+ * Foi o `e2e` que obrigou a olhar: ao escrever a asserção da conta aberta, a linha
+ * pedia a unidade ao lado do número, e não havia unidade para pôr — porque não havia
+ * uma só. Número sem unidade é o sintoma; somar grandezas diferentes é a doença.
+ */
+export type MirrorItem = {
+  itemId: string;
+  name: string;
+  /** A régua deste número. É o que impede a soma que não pode ser somada. */
+  baseUnit: string;
+  /** Unidades que CHEGARAM: a perna positiva de uma carga, no lugar do destino. */
+  received: number;
+  /** Unidades que VOLTARAM: a perna negativa de uma devolução, no mesmo lugar. */
+  returned: number;
+  /** Fração de 0 a 1, não porcentagem — quem multiplica por cem é a tela. */
+  returnShare: number;
+  /** Por que voltou, da espécie mais pesada para a mais leve. */
+  reasons: MirrorReason[];
+  /** A mesma janela, imediatamente antes. Zero em tudo é fato: não houve carga. */
+  before: { received: number; returned: number; returnShare: number };
+};
+
+/**
+ * O que uma loja fez com o que recebeu, numa janela — e na janela anterior.
+ *
+ * É a pergunta que o Espelho da Loja existe para responder: *"a loja centro devolve
+ * 8% do que recebe"*. Ela só é possível porque a devolução tem TIPO próprio no razão
+ * — gravadas como `transfer`, ida e volta ficariam idênticas e a diferença, que é a
+ * única coisa que interessa, sumiria.
+ *
+ * **Fato, nunca frase, e nunca veredito.** A camada devolve unidade e fração; quem
+ * escreve *"devolve mais que as outras"* é a tela, e quem decide se 8% é muito é uma
+ * fábrica de verdade. A régua não está aqui de propósito: qualquer corte que eu
+ * escolhesse agora seria calibrado contra um banco semeado, e padrão de banco semeado
+ * é padrão que a semeadura plantou.
+ *
+ * **A janela anterior vem junto porque número sozinho não decide (Lei 3).** Oito por
+ * cento é ótimo depois de doze e péssimo depois de três, e a tela não teria como
+ * saber qual dos dois sem uma segunda consulta — que é como duas verdades nascem.
+ */
+export type MirrorRow = {
+  placeId: string;
+  placeName: string;
+  /** Do que mais volta para o que menos volta: é a ordem que serve para decidir. */
+  items: MirrorItem[];
+};
+
+/**
+ * O Espelho da Loja, em números.
+ *
+ * Uma consulta só para as duas janelas, e não duas: a segunda leitura é o caminho
+ * mais curto para as duas discordarem — basta o relógio virar entre elas.
+ *
+ * Sem portão de dinheiro, e isso é escolha: aqui não há cifra nenhuma. Unidade que
+ * chegou e unidade que voltou é o que quem confere a doca já vê com os olhos, e
+ * esconder isso do operador não deixa número nenhum mais seguro — deixa a conferência
+ * sem acontecer, que é a mesma razão escrita da contagem de prateleira.
+ */
+export async function storeMirror(
+  companyId: string,
+  days = 30,
+  now: string = nowIso(),
+): Promise<MirrorRow[]> {
+  const conn = await db();
+  const fim = new Date(now);
+  const inicio = new Date(fim.getTime() - days * 86400000).toISOString();
+  const antes = new Date(fim.getTime() - 2 * days * 86400000).toISOString();
+
+  const rows = await conn.getAllAsync<{
+    location_id: string;
+    place_name: string;
+    item_id: string;
+    item_name: string;
+    base_unit: string;
+    kind: string;
+    return_reason: string | null;
+    units: number;
+    agora: number;
+  }>(
+    // As duas pernas de uma carga têm o mesmo grupo e sinais opostos; a que
+    // interessa aqui é a do LADO DA LOJA — positiva na chegada, negativa na
+    // devolução. O sinal só passa a decidir quando as DUAS pernas caem em lugares
+    // que recebem carga (uma loja repassando para um cliente): sem ele, quem
+    // despachou apareceria recebendo o que mandou embora.
+    `SELECT m.location_id, l.name AS place_name,
+            m.item_id, i.name AS item_name, i.base_unit,
+            m.kind AS kind, m.return_reason,
+            SUM(ABS(m.quantity_base_units)) AS units,
+            CASE WHEN m.occurred_at >= ? THEN 1 ELSE 0 END AS agora
+       FROM movements m
+       JOIN locations l ON l.id = m.location_id
+       JOIN items i ON i.id = m.item_id
+      WHERE m.company_id = ?
+        AND l.kind IN ('own_store', 'customer')
+        AND m.occurred_at >= ?
+        AND ((m.kind = 'transfer' AND m.quantity_base_units > 0)
+          OR (m.kind = 'return'   AND m.quantity_base_units < 0))
+      GROUP BY m.location_id, l.name, m.item_id, i.name, i.base_unit, m.kind,
+               m.return_reason, agora`,
+    [inicio, companyId, antes],
+  );
+
+  const lugares = new Map<string, { placeId: string; placeName: string; itens: Map<string, MirrorItem> }>();
+
+  for (const r of rows) {
+    const lugar =
+      lugares.get(r.location_id) ??
+      { placeId: r.location_id, placeName: r.place_name, itens: new Map<string, MirrorItem>() };
+    lugares.set(r.location_id, lugar);
+
+    const item =
+      lugar.itens.get(r.item_id) ??
+      {
+        itemId: r.item_id,
+        name: r.item_name,
+        baseUnit: r.base_unit,
+        received: 0,
+        returned: 0,
+        returnShare: 0,
+        reasons: [] as MirrorReason[],
+        before: { received: 0, returned: 0, returnShare: 0 },
+      };
+    lugar.itens.set(r.item_id, item);
+
+    const janela = r.agora === 1 ? item : item.before;
+    if (r.kind === 'transfer') janela.received += r.units;
+    else {
+      janela.returned += r.units;
+      // O motivo só é contado na janela de agora: a lista existe para dizer o que
+      // está acontecendo, e uma lista que mistura dois meses não diz nem um.
+      if (r.agora === 1 && r.return_reason) {
+        const especie = r.return_reason as ReturnReason;
+        const achado = item.reasons.find((x) => x.reason === especie);
+        if (achado) achado.baseUnits += r.units;
+        else item.reasons.push({ reason: especie, baseUnits: r.units });
+      }
+    }
+  }
+
+  // A fração é calculada no fim, sobre os totais do ITEM — e nunca somando frações,
+  // que é como uma média de médias mente.
+  const fracao = (recebido: number, devolvido: number) =>
+    recebido > 0 ? devolvido / recebido : 0;
+
+  return [...lugares.values()]
+    .map((lugar) => ({
+      placeId: lugar.placeId,
+      placeName: lugar.placeName,
+      items: [...lugar.itens.values()]
+        .map((item) => ({
+          ...item,
+          returnShare: fracao(item.received, item.returned),
+          reasons: [...item.reasons].sort((a, b) => b.baseUnits - a.baseUnits),
+          before: {
+            ...item.before,
+            returnShare: fracao(item.before.received, item.before.returned),
+          },
+        }))
+        // Empate desempata pelo nome, para a lista não trocar de ordem sozinha
+        // entre duas leituras.
+        .sort((a, b) => b.returnShare - a.returnShare || a.name.localeCompare(b.name)),
+    }))
+    // A loja com o item que mais volta vem primeiro: é o que se olha antes.
+    .sort(
+      (a, b) =>
+        (b.items[0]?.returnShare ?? 0) - (a.items[0]?.returnShare ?? 0) ||
+        a.placeName.localeCompare(b.placeName),
+    );
+}
+
 export async function lossesOn(
   companyId: string,
   fromIso: string,
