@@ -791,11 +791,17 @@ function Ajustes({ tinta, acento, frio }: Pincel) {
 function Copia({ tinta, acento, frio }: Pincel) {
   return (
     <>
-      {/* PAPEL DE PAREDE — a estante, que existe antes da primeira folha. */}
-      <G stroke={frio} opacity={0.32}>
-        <Path d={`M232 18v${CHAO - 18}`} />
-        <Path d={`M344 18v${CHAO - 18}`} />
-        <Path d="M232 18h112M232 34h112M232 50h112" />
+      {/* PAPEL DE PAREDE — as prateleiras, e elas são TÁBUAS, não uma caixa.
+          A primeira versão desenhava a estante como um retângulo com dois lados,
+          e a foto no emulador respondeu na hora: leu como janela vazia ocupando
+          um terço da prancha. É o mesmo defeito que o dono chamou de "feio" numa
+          fileira de lojas idênticas, virado do avesso — lá era repetição regular,
+          aqui é uma moldura grande com nada dentro.
+          Três tábuas de comprimentos DIFERENTES, em vãos desiguais. */}
+      <G stroke={frio} opacity={0.4}>
+        <Path d="M238 22h108" />
+        <Path d="M246 40h100" />
+        <Path d="M238 58h114" />
       </G>
 
       {/* A fábrica, curta: é a origem e não o assunto. */}
@@ -805,13 +811,20 @@ function Copia({ tinta, acento, frio }: Pincel) {
         <Path d={`M44 ${CHAO}v-16h14v16`} />
       </G>
 
-      {/* A pilha que já está guardada: baixa, e é o que a folha vem somar. */}
-      <G stroke={tinta} opacity={0.55}>
-        <Path d="M240 46h26M240 43h26M240 40h20" />
+      {/* O que já está guardado: pilhas de alturas diferentes, e UMA com cor.
+          Cor alternando em todo elemento é cor que não quer dizer nada. */}
+      <G stroke={tinta}>
+        <Path d="M244 20h22M244 17h22M244 14h16" />
+        <Path d="M300 56h30M300 53h30" />
+      </G>
+      <G stroke={acento}>
+        <Path d="M262 38h26M262 35h26M262 32h26M262 29h18" />
       </G>
 
-      <Folha cor={acento} atrasoMs={0} />
-      <Folha cor={tinta} atrasoMs={4200} />
+      {/* E o vão da prateleira do meio, à direita da pilha com cor, é onde a
+          folha que viaja vai parar — o lugar vazio é o que faz o voo ter destino. */}
+      <Folha cor={tinta} atrasoMs={0} />
+      <Folha cor={acento} atrasoMs={4200} />
     </>
   );
 }
@@ -823,11 +836,12 @@ function Copia({ tinta, acento, frio }: Pincel) {
 function Folha({ cor, atrasoMs }: { cor: string; atrasoMs: number }) {
   const ciclo = useCiclo(8400, { atrasoMs, repouso: 1 });
   const voo = useAnimatedProps(() => ({
-    // Sai da porta da fábrica e para na prateleira. O arco é raso: folha guardada
-    // por mão firme, não papel jogado.
+    // Sai da porta da fábrica e para no vão da prateleira do meio — o destino é um
+    // lugar do desenho, não um ponto no ar. O arco é raso: folha guardada por mão
+    // firme, não papel jogado.
     transform: [
-      { translateX: 92 + ciclo.value * 148 },
-      { translateY: -10 * Math.sin(Math.PI * ciclo.value) },
+      { translateX: 92 + ciclo.value * 204 },
+      { translateY: -14 * ciclo.value - 8 * Math.sin(Math.PI * ciclo.value) },
     ],
     opacity: ciclo.value < 0.08 ? ciclo.value / 0.08 : 1,
   }));

@@ -75,7 +75,22 @@ export async function guardarCopia(agora: string): Promise<{
  */
 export async function partilharCopia(uri: string): Promise<boolean> {
   if (!(await Sharing.isAvailableAsync())) return false;
-  await Sharing.shareAsync(uri, { mimeType: 'application/vnd.sqlite3', UTI: 'public.database' });
+  // `octet-stream` e não `application/vnd.sqlite3`, e isto é achado do emulador.
+  //
+  // A folha de partilha abriu dizendo **"Nenhum app pode realizar esta ação"**. No
+  // emulador nu não há mesmo nada instalado, mas o tipo declarado piora o caso em
+  // aparelho de verdade: `vnd.sqlite3` é um mimetype que quase nenhum aplicativo
+  // diz aceitar, e a folha só oferece quem declarou. WhatsApp, Drive e e-mail
+  // aceitam `octet-stream` — que é o que um arquivo para guardar é.
+  //
+  // Nenhum teste pegaria isto: a chamada é a mesma, a promessa resolve igual, e o
+  // que muda é a lista que o Android monta do outro lado. É o motivo de a foto
+  // existir.
+  await Sharing.shareAsync(uri, {
+    mimeType: 'application/octet-stream',
+    UTI: 'public.data',
+    dialogTitle: 'NORVA',
+  });
   return true;
 }
 

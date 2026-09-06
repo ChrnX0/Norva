@@ -4,7 +4,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
-import { GlyphArchive, GlyphCount, GlyphStock } from '@/components/Glyph';
+import { GlyphArchive, GlyphPrice } from '@/components/Glyph';
 import { Reveal } from '@/components/Reveal';
 import { nowIso } from '@/data/db';
 import { readJson, writeJson } from '@/data/meta';
@@ -232,7 +232,13 @@ export default function BackupScreen() {
 
       {/* O QUE VAI DENTRO — antes do primeiro toque, não depois. */}
       <Reveal index={1}>
-        <Card icon={(c) => <GlyphStock size={26} color={c} weight={traco} />}>
+        {/* A etiqueta de preço, e não o balde de estoque que estava aqui.
+            O que este cartão avisa é que a cópia leva DINHEIRO dentro — custo e
+            fornecedor — e o balde dizia "estoque", que é o assunto errado. A
+            guarda da assinatura passou nos dois porque ela cobra que o tom case
+            com o assunto declarado, não que o desenho signifique a coisa certa.
+            Guarda passando não é desenho certo. */}
+        <Card icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}>
           <Text style={[type.secondary, { color: color.ink }]}>{words.inside}</Text>
           <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
             {words.insideBody}
@@ -254,7 +260,11 @@ export default function BackupScreen() {
       {/* A VOLTA. Fica embaixo porque é o caso raro, e a ordem da página é a
           ordem da probabilidade. */}
       <Reveal index={2}>
-        <Card icon={(c) => <GlyphCount size={26} color={c} weight={traco} />}>
+        {/* A MESMA gaveta do cartão de cima, de propósito: guardar e trazer de
+            volta são o mesmo assunto visto dos dois lados, e repetir o desenho é
+            o que faz o par ser lido como par. A lista de conferência que estava
+            aqui dizia "checagem", que não é o que acontece nesta tela. */}
+        <Card icon={(c) => <GlyphArchive size={26} color={c} weight={traco} />}>
           <Text style={[type.secondary, { color: color.ink }]}>{words.restoreTitle}</Text>
           <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
             {words.restoreLead}
