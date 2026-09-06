@@ -418,6 +418,7 @@ function Transfer() {
 
   return (
     <CollapsingHeader
+      cena="separacao"
       title={words.title}
       // A sobrelinha acompanha o sentido, como o título do cartão já fazia.
       //

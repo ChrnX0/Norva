@@ -313,7 +313,7 @@ function NewOrder() {
   const iAcao = iErro + (erro ? 1 : 0);
 
   return (
-    <CollapsingHeader title={words.title} overline={words.overline}>
+    <CollapsingHeader cena="pedidos" title={words.title} overline={words.overline}>
       {/* PARA QUEM. Uma linha por cliente, e cada uma já traz o acordo dele —
           que é o que faz a data de baixo nascer preenchida. A escolhida leva a
           faixa; as outras, nada, porque presença de traço se lê sem cor. */}

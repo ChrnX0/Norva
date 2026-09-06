@@ -365,6 +365,7 @@ function InputForm() {
 
   return (
     <CollapsingHeader
+      cena="insumos"
       title={editing ? name || words.fallbackTitle : words.newTitle}
       overline={editing ? words.editOverline : words.newOverline}
     >

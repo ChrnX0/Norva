@@ -464,6 +464,7 @@ function InputDetail() {
 
   return (
     <CollapsingHeader
+      cena="insumos"
       title={item.name}
       overline={item.active ? t.app.inputDetail.overline : t.app.inputDetail.retiredOverline}
     >

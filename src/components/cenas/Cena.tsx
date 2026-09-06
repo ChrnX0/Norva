@@ -235,22 +235,433 @@ function Barra({
   return <AnimatedRect animatedProps={props} x={x} width={16} fill="none" stroke={cor} />;
 }
 
+
+/** OS INSUMOS — a prateleira e a balança, que pende com o que se pesa. */
+function Insumos({ tinta, acento, frio }: Pincel) {
+  const ciclo = useCiclo(6400, { feitio: 'vaivem', repouso: 0.5 });
+  const prato = useAnimatedProps(() => ({ transform: [{ rotate: `${-3 + ciclo.value * 6}deg` }] }));
+  return (
+    <>
+      {/* Três sacos de insumo, encostados. */}
+      <G stroke={tinta}>
+        <Path d="M16 64V36c0-4 4-6 4-10h18c0 4 4 6 4 10v28z" />
+        <Path d="M20 46h18" stroke={frio} />
+        <Path d="M52 64V40c0-4 4-5 4-9h16c0 4 4 5 4 9v24z" />
+        <Path d="M56 50h16" stroke={frio} />
+        <Path d="M86 64V44c0-3 3-4 3-7h14c0 3 3 4 3 7v20z" />
+      </G>
+      {/* A balança de dois pratos: o braço pende devagar, que é o que ela faz. */}
+      <G stroke={tinta}>
+        <Path d="M188 64V28" />
+        <Path d="M176 64h24" />
+        <AnimatedG animatedProps={prato} origin="188, 28">
+          <Path d="M148 28h80" />
+          <Path d="M148 28v8M228 28v8" />
+          <Path d="M136 36h24l-6 10h-12z" stroke={acento} />
+          <Path d="M216 36h24l-6 10h-12z" stroke={acento} />
+        </AnimatedG>
+      </G>
+      {/* O pote de medida, no fim. */}
+      <G stroke={tinta}>
+        <Path d="M300 32h44l-6 32h-32z" />
+        <Path d="M306 46h32" stroke={frio} />
+      </G>
+    </>
+  );
+}
+
+/** AS RECEITAS — o caderno aberto, com a página que respira. */
+function Receitas({ tinta, acento, frio }: Pincel) {
+  const ciclo = useCiclo(7600, { feitio: 'vaivem', repouso: 0 });
+  const folha = useAnimatedProps(() => ({ transform: [{ translateX: ciclo.value * 7 }] }));
+  return (
+    <>
+      <G stroke={tinta}>
+        <Path d="M20 64V22c22-6 44-6 62 4v38c-18-10-40-10-62 0z" />
+        <AnimatedG animatedProps={folha} origin="82, 26">
+          <Path d="M82 26c18-10 40-10 62-4v42c-22-6-44-6-62 4z" />
+          <Path d="M96 38h34M96 48h34M96 58h20" stroke={frio} />
+        </AnimatedG>
+        <Path d="M82 26v38" />
+      </G>
+      {/* As colheres de medida, penduradas. */}
+      <G stroke={tinta}>
+        <Path d="M186 22v22" />
+        <Path d="M178 44h16l-3 14h-10z" stroke={acento} />
+        <Path d="M222 22v18" />
+        <Path d="M214 40h16l-3 18h-10z" />
+      </G>
+      {/* O produto que sai da receita. */}
+      <G stroke={acento}>
+        <Rect x="288" y="26" width="20" height="30" rx="8" />
+        <Path d="M298 56v8" />
+      </G>
+      <G stroke={tinta}>
+        <Rect x="322" y="26" width="20" height="30" rx="8" />
+        <Path d="M332 56v8" />
+      </G>
+    </>
+  );
+}
+
+/** OS PRODUTOS — a prateleira cheia, e um deles enchendo. */
+function Produtos({ tinta, acento }: Pincel) {
+  return (
+    <>
+      <G stroke={tinta}>
+        <Path d="M14 40h336" />
+      </G>
+      {[24, 68, 112, 156, 200, 244, 288].map((x, i) => (
+        <Picole key={x} x={x} cor={i === 3 ? acento : tinta} atrasoMs={i * 420} />
+      ))}
+      <G stroke={tinta}>
+        <Path d="M326 44h22v20h-22z" />
+        <Path d="M326 52h22" />
+      </G>
+    </>
+  );
+}
+
+function Picole({ x, cor, atrasoMs }: { x: number; cor: string; atrasoMs: number }) {
+  const ciclo = useCiclo(6800, { feitio: 'vaivem', atrasoMs, repouso: 0.5 });
+  // O picolé balança um grau no palito, como coisa pendurada em prateleira.
+  const props = useAnimatedProps(() => ({ transform: [{ rotate: `${-1 + ciclo.value * 2}deg` }] }));
+  return (
+    <AnimatedG animatedProps={props} origin={`${x + 9}, 40`} stroke={cor}>
+      <Rect x={x} y="44" width="18" height="26" rx="7" />
+      <Path d={`M${x + 9} 40v4`} />
+    </AnimatedG>
+  );
+}
+
+/** AS LOJAS — a rua, com os toldos balançando. */
+function Lojas({ tinta, acento, frio }: Pincel) {
+  return (
+    <>
+      <Loja x={14} cor={tinta} toldo={acento} atrasoMs={0} />
+      <Loja x={102} cor={tinta} toldo={frio} atrasoMs={900} />
+      <Loja x={190} cor={tinta} toldo={acento} atrasoMs={1800} />
+      <Loja x={278} cor={tinta} toldo={frio} atrasoMs={2700} />
+    </>
+  );
+}
+
+function Loja({
+  x,
+  cor,
+  toldo,
+  atrasoMs,
+}: {
+  x: number;
+  cor: string;
+  toldo: string;
+  atrasoMs: number;
+}) {
+  const ciclo = useCiclo(5800, { feitio: 'vaivem', atrasoMs, repouso: 0.5 });
+  const pano = useAnimatedProps(() => ({ transform: [{ scaleY: 0.94 + ciclo.value * 0.12 }] }));
+  return (
+    <G stroke={cor}>
+      <Path d={`M${x} 64V34h72v30`} />
+      <Path d={`M${x + 12} 64V48h20v16`} />
+      <Path d={`M${x + 44} 48h18v10h-18z`} />
+      <AnimatedG animatedProps={pano} origin={`${x + 36}, 30`}>
+        <Path d={`M${x - 4} 30h80l-8 10h-64z`} stroke={toldo} />
+      </AnimatedG>
+    </G>
+  );
+}
+
+/** OS PEDIDOS — a prancheta, e o risco que se marca. */
+function Pedidos({ tinta, acento, frio }: Pincel) {
+  const ciclo = useCiclo(5000, { repouso: 1 });
+  const risco = useAnimatedProps(() => ({ opacity: Math.min(1, ciclo.value * 2.4) }));
+  return (
+    <>
+      <G stroke={tinta}>
+        <Path d="M20 20h72v44H20z" />
+        <Path d="M44 14h24v10H44z" />
+        <Path d="M32 36h30M32 46h30M32 56h18" stroke={frio} />
+      </G>
+      <AnimatedG animatedProps={risco} stroke={acento}>
+        <Path d="M70 34l5 5 9-11" />
+      </AnimatedG>
+      {/* As caixas do pedido, empilhadas à espera. */}
+      <G stroke={tinta}>
+        <Path d="M126 40h52v24h-52z" />
+        <Path d="M126 48h52M152 40v24" />
+        <Path d="M134 40l5-8h26l5 8" />
+        <Path d="M196 46h44v18h-44z" />
+        <Path d="M196 52h44M218 46v18" />
+      </G>
+      {/* A loja que pediu. */}
+      <G stroke={tinta}>
+        <Path d="M280 64V40h56v24M276 40l8-10h48l8 10" />
+        <Path d="M296 64V50h14v14" />
+      </G>
+    </>
+  );
+}
+
+/** A SEPARAÇÃO — o engradado que entra na pilha. */
+function Separacao({ tinta, acento, frio }: Pincel) {
+  const ciclo = useCiclo(5600, { repouso: 1 });
+  const entra = useAnimatedProps(() => ({
+    opacity: Math.min(1, ciclo.value * 3),
+    transform: [{ translateX: (1 - Math.min(1, ciclo.value * 1.6)) * 34 }],
+  }));
+  return (
+    <>
+      <G stroke={tinta}>
+        <Path d="M16 44h48v20H16zM16 52h48M40 44v20" />
+        <Path d="M16 24h48v20H16zM16 32h48M40 24v20" />
+        <Path d="M78 44h48v20H78zM78 52h48M102 44v20" />
+      </G>
+      <AnimatedG animatedProps={entra} stroke={acento}>
+        <Path d="M142 44h48v20h-48zM142 52h48M166 44v20" />
+      </AnimatedG>
+      {/* A lista de conferência, ao lado. */}
+      <G stroke={tinta}>
+        <Path d="M232 18h56v46h-56z" />
+        <Path d="M244 32h32M244 42h32M244 52h20" stroke={frio} />
+      </G>
+      <G stroke={tinta}>
+        <Path d="M308 64V40h40v24M304 40l8-9h32l8 9" />
+      </G>
+    </>
+  );
+}
+
+/** AS PERDAS — a gota que cai, que é o que perda faz. */
+function Perdas({ tinta, acento, frio }: Pincel) {
+  return (
+    <>
+      <G stroke={tinta}>
+        <Rect x="18" y="24" width="22" height="30" rx="8" stroke={acento} />
+        <Path d="M29 54v10" stroke={acento} />
+      </G>
+      <Gota x={29} atrasoMs={0} cor={acento} />
+      <Gota x={92} atrasoMs={1700} cor={acento} />
+      <G stroke={tinta}>
+        <Rect x="81" y="24" width="22" height="30" rx="8" />
+        <Path d="M92 54v10" />
+      </G>
+      {/* A barra do mês contra a do mês passado — perda é comparação. */}
+      <G stroke={tinta}>
+        <Path d="M170 64V34h20v30z" stroke={frio} />
+        <Path d="M204 64V44h20v20z" stroke={acento} />
+        <Path d="M160 64h74" />
+      </G>
+      {/* O balde onde o que caiu é anotado. */}
+      <G stroke={tinta}>
+        <Path d="M292 34h52l-6 30h-40z" />
+        <Path d="M298 46h40" stroke={frio} />
+      </G>
+    </>
+  );
+}
+
+function Gota({ x, atrasoMs, cor }: { x: number; atrasoMs: number; cor: string }) {
+  const ciclo = useCiclo(4200, { atrasoMs, repouso: 0 });
+  const props = useAnimatedProps(() => ({
+    opacity: ciclo.value < 0.08 ? 0 : 1 - ciclo.value,
+    transform: [{ translateY: ciclo.value * 22 }],
+  }));
+  return <AnimatedPath animatedProps={props} d={`M${x} 56c-3 4-4 6-4 8a4 4 0 0 0 8 0c0-2-1-4-4-8z`} stroke={cor} />;
+}
+
+/** OS LOTES — as caixas etiquetadas, e a etiqueta que balança. */
+function Lotes({ tinta, acento, frio }: Pincel) {
+  return (
+    <>
+      <G stroke={tinta}>
+        <Path d="M16 38h64v26H16zM16 48h64M48 38v26" />
+        <Path d="M26 38l6-9h32l6 9" />
+      </G>
+      <Etiqueta x={96} atrasoMs={0} cor={acento} />
+      <G stroke={tinta}>
+        <Path d="M132 38h64v26h-64zM132 48h64M164 38v26" />
+        <Path d="M142 38l6-9h32l6 9" />
+      </G>
+      <Etiqueta x={212} atrasoMs={1400} cor={frio} />
+      {/* O código, que é o que a etiqueta carrega. */}
+      <G stroke={tinta}>
+        <Path d="M262 28h4v28h-4zM272 28h2v28h-2zM280 28h5v28h-5zM291 28h2v28h-2zM299 28h4v28h-4zM309 28h2v28h-2zM317 28h5v28h-5zM328 28h2v28h-2zM336 28h4v28h-4z" />
+        <Path d="M262 64h78" stroke={frio} />
+      </G>
+    </>
+  );
+}
+
+function Etiqueta({ x, atrasoMs, cor }: { x: number; atrasoMs: number; cor: string }) {
+  const ciclo = useCiclo(6600, { feitio: 'vaivem', atrasoMs, repouso: 0.5 });
+  const props = useAnimatedProps(() => ({ transform: [{ rotate: `${-6 + ciclo.value * 12}deg` }] }));
+  return (
+    <AnimatedG animatedProps={props} origin={`${x}, 30`} stroke={cor}>
+      <Path d={`M${x} 30v8`} />
+      <Path d={`M${x - 10} 38h20l-4 16h-12z`} />
+      <Circle cx={x} cy="44" r="2" />
+    </AnimatedG>
+  );
+}
+
+/** AS COMPRAS — a nota, e o preço que anda. */
+function Compras({ tinta, acento, frio }: Pincel) {
+  const ciclo = useCiclo(5400, { feitio: 'vaivem', repouso: 0.5 });
+  const seta = useAnimatedProps(() => ({ transform: [{ translateY: -ciclo.value * 6 }] }));
+  return (
+    <>
+      {/* A nota, com o rasgo embaixo. */}
+      <G stroke={tinta}>
+        <Path d="M18 18h68v40l-8 6-9-6-9 6-9-6-9 6-9-6-8 6h-7z" />
+        <Path d="M30 30h44M30 40h44M30 50h26" stroke={frio} />
+      </G>
+      {/* O preço subindo. */}
+      <AnimatedG animatedProps={seta} stroke={acento}>
+        <Path d="M118 54V26M110 34l8-8 8 8" />
+      </AnimatedG>
+      <G stroke={tinta}>
+        <Path d="M104 64h30" />
+      </G>
+      {/* O que a nota comprou. */}
+      <G stroke={tinta}>
+        <Path d="M166 64V38c0-4 4-6 4-10h20c0 4 4 6 4 10v26z" />
+        <Path d="M170 46h20" stroke={frio} />
+        <Path d="M212 64V42c0-3 3-5 3-8h18c0 3 3 5 3 8v22z" />
+      </G>
+      {/* As moedas que pagaram. */}
+      <G stroke={acento}>
+        <Circle cx="290" cy="52" r="12" />
+        <Circle cx="318" cy="52" r="12" />
+        <Circle cx="304" cy="30" r="12" />
+      </G>
+    </>
+  );
+}
+
+/** A GENTE — quem trabalha aqui, e o aceno de quem chega. */
+function Gente({ tinta, acento, frio }: Pincel) {
+  return (
+    <>
+      <Pessoa x={30} cor={tinta} atrasoMs={0} />
+      <Pessoa x={100} cor={acento} atrasoMs={1500} />
+      <Pessoa x={170} cor={tinta} atrasoMs={3000} />
+      <Pessoa x={240} cor={frio} atrasoMs={4500} />
+      {/* O crachá que os identifica no aparelho. */}
+      <G stroke={tinta}>
+        <Path d="M298 26h50v34h-50z" />
+        <Circle cx="312" cy="38" r="5" />
+        <Path d="M324 36h16M324 44h16M306 52h34" stroke={frio} />
+      </G>
+    </>
+  );
+}
+
+function Pessoa({ x, cor, atrasoMs }: { x: number; cor: string; atrasoMs: number }) {
+  const ciclo = useCiclo(5200, { feitio: 'vaivem', atrasoMs, repouso: 0.5 });
+  // A cabeça balança meio grau: gente parada não fica de pedra.
+  const props = useAnimatedProps(() => ({ transform: [{ rotate: `${-1.5 + ciclo.value * 3}deg` }] }));
+  return (
+    <AnimatedG animatedProps={props} origin={`${x}, 64`} stroke={cor}>
+      <Circle cx={x} cy="26" r="9" />
+      <Path d={`M${x - 16} 64c0-14 7-21 16-21s16 7 16 21`} />
+    </AnimatedG>
+  );
+}
+
+/** OS AJUSTES — os cursores, e o que se move quando alguém escolhe. */
+function Ajustes({ tinta, acento, frio }: Pincel) {
+  return (
+    <>
+      <Cursor y={24} cor={acento} atrasoMs={0} />
+      <Cursor y={44} cor={tinta} atrasoMs={1900} />
+      <Cursor y={62} cor={frio} atrasoMs={3800} />
+    </>
+  );
+}
+
+function Cursor({ y, cor, atrasoMs }: { y: number; cor: string; atrasoMs: number }) {
+  const ciclo = useCiclo(7200, { feitio: 'vaivem', atrasoMs, repouso: 0.5 });
+  const botao = useAnimatedProps(() => ({ transform: [{ translateX: ciclo.value * 190 }] }));
+  return (
+    <>
+      <Path d={`M20 ${y}h300`} stroke={cor} opacity={0.45} />
+      <AnimatedG animatedProps={botao} stroke={cor}>
+        <Circle cx="80" cy={y} r="7" />
+      </AnimatedG>
+    </>
+  );
+}
+
+/** O ASSISTENTE — a pergunta, e a resposta que se acende. */
+function Assistente({ tinta, acento, frio }: Pincel) {
+  const ciclo = useCiclo(4800, { feitio: 'vaivem', repouso: 0.5 });
+  const brilho = useAnimatedProps(() => ({ opacity: 0.35 + ciclo.value * 0.65 }));
+  return (
+    <>
+      <G stroke={tinta}>
+        <Path d="M18 20h108v30H18l-6 10v-10z" />
+        <Path d="M32 30h72M32 40h50" stroke={frio} />
+      </G>
+      <AnimatedG animatedProps={brilho} stroke={acento}>
+        <Path d="M172 22v20M162 32h20M168 26l8 12M176 26l-8 12" />
+      </AnimatedG>
+      <G stroke={tinta}>
+        <Path d="M214 34h122v30H220l-6 10z" />
+        <Path d="M230 44h92M230 54h64" stroke={frio} />
+      </G>
+    </>
+  );
+}
+
+/** O ESPELHO DA LOJA — o que foi, e a caixa que volta. */
+function Espelho({ tinta, acento, frio }: Pincel) {
+  const ciclo = useCiclo(6000, { repouso: 0 });
+  const volta = useAnimatedProps(() => ({
+    opacity: Math.sin(Math.min(1, ciclo.value) * Math.PI),
+    transform: [{ translateX: -ciclo.value * 76 }],
+  }));
+  return (
+    <>
+      {/* A fábrica, à esquerda. */}
+      <G stroke={tinta}>
+        <Path d="M14 64V32l12 10V32l12 10V32l12 10v22" />
+        <Path d="M14 64h36M22 64v-9h9v9" />
+      </G>
+      {/* A prateleira da loja, à direita, com o que ficou. */}
+      <G stroke={tinta}>
+        <Path d="M256 30h94M256 64h94" />
+        <Rect x="266" y="34" width="16" height="24" rx="6" stroke={acento} />
+        <Rect x="292" y="34" width="16" height="24" rx="6" />
+        <Rect x="318" y="34" width="16" height="24" rx="6" stroke={acento} />
+      </G>
+      {/* A caixa que volta, andando da loja para a fábrica. */}
+      <AnimatedG animatedProps={volta} stroke={frio}>
+        <Path d="M182 42h44v22h-44zM182 50h44M204 42v22" />
+        <Path d="M190 42l5-7h26l5 7" />
+      </AnimatedG>
+      <G stroke={tinta} opacity={0.4}>
+        <Path d="M96 64h140" />
+      </G>
+    </>
+  );
+}
+
 const DESENHOS: Record<Cena, (p: Pincel) => React.ReactElement> = {
   producao: Producao,
   transporte: Transporte,
   relatorios: Relatorios,
-  mais: Relatorios,
-  insumos: Producao,
-  receitas: Producao,
-  produtos: Producao,
-  lojas: Transporte,
-  pedidos: Transporte,
-  separacao: Transporte,
-  perdas: Relatorios,
-  lotes: Producao,
-  compras: Relatorios,
-  gente: Relatorios,
-  ajustes: Relatorios,
-  assistente: Relatorios,
-  espelho: Transporte,
+  mais: Ajustes,
+  insumos: Insumos,
+  receitas: Receitas,
+  produtos: Produtos,
+  lojas: Lojas,
+  pedidos: Pedidos,
+  separacao: Separacao,
+  perdas: Perdas,
+  lotes: Lotes,
+  compras: Compras,
+  gente: Gente,
+  ajustes: Ajustes,
+  assistente: Assistente,
+  espelho: Espelho,
 };

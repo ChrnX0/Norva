@@ -125,7 +125,7 @@ function Grade() {
   };
 
   return (
-    <CollapsingHeader title={words.title} overline={words.overline}>
+    <CollapsingHeader cena="gente" title={words.title} overline={words.overline}>
       {/* Para que o nome serve, dito uma vez e no começo. O tom de voz aqui é o
           do projeto inteiro: orienta, não fiscaliza — e diz o que a coisa NÃO é,
           porque "seu nome fica gravado" sem essa frase soa a vigilância. */}

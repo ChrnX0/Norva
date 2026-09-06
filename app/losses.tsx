@@ -122,7 +122,7 @@ function WhatWasLost() {
   const indiceLista = mostraMotivos ? 2 : 1;
 
   return (
-    <CollapsingHeader title={words.title} overline={words.window}>
+    <CollapsingHeader cena="perdas" title={words.title} overline={words.window}>
       {/* QUANTO. A figura e, ao lado dela, quantas perdas somam esse dinheiro;
           embaixo, a conclusão do que pesou mais e a janela anterior — que é a
           única comparação honesta de uma perda com ela mesma. */}

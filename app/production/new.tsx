@@ -392,7 +392,7 @@ function Production() {
 
   if (!loading && (!data || data.products.length === 0)) {
     return (
-      <CollapsingHeader title={words.formTitle} overline={words.formOverline}>
+      <CollapsingHeader cena="producao" title={words.formTitle} overline={words.formOverline}>
         {/* Estado vazio é desenho, uma frase e a saída — e a saída aqui é a
             receita, que se cadastra noutra tela e não se navega daqui: esta é
             uma tela empilhada, e o caminho de volta é o de sempre. */}

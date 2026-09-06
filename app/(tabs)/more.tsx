@@ -178,7 +178,7 @@ function Drawers() {
     // contato: o título dela nasce numa altura diferente de todas as outras.
     // A gaveta é uma grade de grupos: cada um é uma caixa fechada com as portas
     // dele dentro, e dois grupos lado a lado continuam sendo dois grupos.
-    <CollapsingHeader title={t.app.more.title} overline={t.app.more.overline} pares>
+    <CollapsingHeader cena="mais" title={t.app.more.title} overline={t.app.more.overline} pares>
       {/* Cada seção carrega a cor da ÁREA que ela abre, e não um cinza só.
           O dono apontou a tela: *"esses ícones devem seguir o padrão de todo o
           tema. falta um pouco de cor aí"*. As quatro seções estavam pintadas com

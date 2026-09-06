@@ -452,6 +452,7 @@ function Settings() {
 
   return (
     <CollapsingHeader
+      cena="ajustes"
       title={t.app.settings.title}
       overline={`${brand.name} · ${Constants.expoConfig?.version ?? '—'}`}
     >

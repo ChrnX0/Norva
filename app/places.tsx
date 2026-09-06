@@ -194,7 +194,7 @@ function Places() {
   const depoisDosLugares = primeiroLugar + lugares.length;
 
   return (
-    <CollapsingHeader title={words.title} overline={words.overline}>
+    <CollapsingHeader cena="lojas" title={words.title} overline={words.overline}>
       {semNada ? (
         <Reveal index={0}>
           <Card hue={palette.mint} icon={(c) => <GlyphFactory size={26} color={c} weight={traco} />}>

@@ -386,6 +386,7 @@ function RecipeEditor() {
 
   return (
     <CollapsingHeader
+      cena="receitas"
       title={title}
       overline={fill(t.app.recipe.overlineVersion, { version: stored.version })}
     >

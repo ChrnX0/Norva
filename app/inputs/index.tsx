@@ -165,7 +165,7 @@ function InputsList() {
   const salas = places ?? [];
 
   return (
-    <CollapsingHeader title={t.app.inputs.title} overline={t.app.inputs.overline}>
+    <CollapsingHeader cena="insumos" title={t.app.inputs.title} overline={t.app.inputs.overline}>
       {/* O recorte, e ele vem antes de tudo porque é ele que muda todo número
           abaixo: que tipo de coisa, e de que sala. As duas perguntas moram no
           mesmo bloco porque são a mesma pergunta — qual pedaço do almoxarifado

@@ -68,7 +68,7 @@ function Espelho() {
   const linhas = data ?? [];
 
   return (
-    <CollapsingHeader title={words.title} overline={words.overline}>
+    <CollapsingHeader cena="espelho" title={words.title} overline={words.overline}>
       <Reveal index={0}>
         <Text style={[type.caption, { color: color.inkFaint }]}>
           {fill(words.window, { days: String(DIAS) })}

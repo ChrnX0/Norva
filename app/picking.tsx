@@ -175,7 +175,7 @@ function Carrinho() {
   };
 
   return (
-    <CollapsingHeader title={words.title} overline={words.overline}>
+    <CollapsingHeader cena="separacao" title={words.title} overline={words.overline}>
       {/* Para qual loja. Mesma lista da transferência, e a escolha marca com a
           tinta e o peso da palavra — caixa desenhada à mão aqui era o que não
           tinha como virar Papel. */}

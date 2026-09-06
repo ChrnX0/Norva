@@ -96,7 +96,7 @@ function Orders() {
   const antesDaLista = loading || pedidos.length === 0 ? 1 : 0;
 
   return (
-    <CollapsingHeader title={words.title} overline={words.overline}>
+    <CollapsingHeader cena="pedidos" title={words.title} overline={words.overline}>
       {loading ? (
         <Reveal index={0}>
           <Card>

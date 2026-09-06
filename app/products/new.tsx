@@ -473,7 +473,7 @@ function ProductForm() {
   const iAcao = ordem++;
 
   return (
-    <CollapsingHeader title={t.app.productForm.title} overline={t.app.productForm.overline}>
+    <CollapsingHeader cena="produtos" title={t.app.productForm.title} overline={t.app.productForm.overline}>
       {/* A grade, que é o que escreve o nome.
           Ela vem primeiro porque é a única parte da tela que o sistema usa para
           preencher outra: tocada a linha, o tipo e o sabor, o campo de nome

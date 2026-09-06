@@ -160,7 +160,7 @@ function Label() {
    */
   if (!loading && !lote) {
     return (
-      <CollapsingHeader title={t.app.lotLabel.title} overline={t.app.lotLabel.overline}>
+      <CollapsingHeader cena="lotes" title={t.app.lotLabel.title} overline={t.app.lotLabel.overline}>
         <Reveal index={0}>
           <Card hue={palette.apricot} icon={etiqueta}>
             <Text style={[type.body, { color: color.ink }]}>{t.app.lotLabel.gone}</Text>

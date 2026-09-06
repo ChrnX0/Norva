@@ -182,7 +182,7 @@ function RecipesList() {
   );
 
   return (
-    <CollapsingHeader title={t.app.recipes.title} overline={t.app.recipes.overline}>
+    <CollapsingHeader cena="receitas" title={t.app.recipes.title} overline={t.app.recipes.overline}>
       {loading ? (
         <Reveal index={0}>
           <Card>

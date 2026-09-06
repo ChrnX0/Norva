@@ -149,7 +149,7 @@ function Catalog() {
   );
 
   return (
-    <CollapsingHeader title={t.app.catalog.title} overline={t.app.catalog.overline}>
+    <CollapsingHeader cena="produtos" title={t.app.catalog.title} overline={t.app.catalog.overline}>
       {/* O aviso vem antes de tudo, e o índice dele é fixo.
           Índice corrido renumeraria os cartões de baixo no instante em que um
           nome repetido aparece, e a tela inteira reentraria — o erro tem que

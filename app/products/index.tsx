@@ -164,7 +164,7 @@ function ProductsList() {
   );
 
   return (
-    <CollapsingHeader title={t.app.products.title} overline={t.app.products.overline}>
+    <CollapsingHeader cena="produtos" title={t.app.products.title} overline={t.app.products.overline}>
       {loading ? (
         <Reveal index={0}>
           <Card>

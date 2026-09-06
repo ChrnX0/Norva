@@ -93,7 +93,7 @@ function PickCity() {
   const curta = (place: WeatherPlace) => `${place.latitude},${place.longitude}`;
 
   return (
-    <CollapsingHeader title={words.title} overline={words.overline}>
+    <CollapsingHeader cena="relatorios" title={words.title} overline={words.overline}>
       {/* A cidade que está valendo, dita como título e não como parágrafo.
           É o que a tela responde, então é a primeira coisa grande do olho: o
           crachá diz que o assunto é o clima, o nome diz de onde, e a frase
