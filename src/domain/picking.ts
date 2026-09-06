@@ -21,12 +21,24 @@
  * saiu de lugar nenhum.
  */
 export function pickSuggestion(sources: {
-  /** Quanto a loja pediu e ainda não recebeu. Nulo quando não há pedido. */
+  /** Quanto a loja pediu. Nulo quando não há pedido. */
   ordered: number | null;
+  /**
+   * Quanto já chegou lá HOJE, deste item. Zero é o caso comum: a primeira
+   * viagem do dia.
+   *
+   * Existe porque quem carrega o caminhão faz duas idas ao freezer, e a segunda
+   * recebia o pedido inteiro de novo — 300 mandados de um pedido de 500 e o
+   * campo oferecendo 500. Quem confia no palpite manda 800 contra 500.
+   */
+  alreadySent: number;
   /** Quanto foi para aquela loja da última vez. Nulo na primeira remessa. */
   lastSent: number | null;
 }): number | null {
-  return sources.ordered ?? sources.lastSent ?? null;
+  // Nunca negativo: mandaram a mais, e "mande menos vinte" não é palpite. Zero é
+  // resposta - não falta nada daquele pedido hoje.
+  if (sources.ordered != null) return Math.max(0, sources.ordered - sources.alreadySent);
+  return sources.lastSent ?? null;
 }
 
 

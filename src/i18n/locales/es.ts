@@ -732,6 +732,7 @@ export const es: Dictionary = {
       ordered: 'pedido para {{date}}: {{amount}}',
       orderedMany: '{{count}}, el primero para {{date}}: {{amount}}',
       orderedNone: 'ningún pedido abierto para esta tienda',
+      orderedPartly: 'pedido para {{date}}: {{amount}} — ya fueron {{sent}} hoy',
       title: 'Transferir',
       overline: 'lo que sale de la fábrica',
       returnReason: 'Por qué volvió',

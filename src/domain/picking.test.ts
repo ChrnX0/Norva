@@ -6,18 +6,35 @@ test('the order beats the habit, and the habit beats nothing', () => {
   // As duas fontes DISCORDANDO é o único caso que prova a ordem: com uma delas
   // vazia, qualquer ordem dá o mesmo número - e um teste assim passa por
   // acidente. Foi exatamente assim que este mutante sobreviveu duas vezes.
-  assert.equal(pickSuggestion({ ordered: 300, lastSent: 40 }), 300);
+  assert.equal(pickSuggestion({ ordered: 300, alreadySent: 0, lastSent: 40 }), 300);
 
   // Sem pedido, vale o hábito: é o palpite certo para quem repõe por rotina.
-  assert.equal(pickSuggestion({ ordered: null, lastSent: 40 }), 40);
+  assert.equal(pickSuggestion({ ordered: null, alreadySent: 0, lastSent: 40 }), 40);
 
   // Sem pedido e sem histórico, não há palpite. Inventar um número seria pedir
   // para alguém conferir uma sugestão que não saiu de lugar nenhum.
-  assert.equal(pickSuggestion({ ordered: null, lastSent: null }), null);
+  assert.equal(pickSuggestion({ ordered: null, alreadySent: 0, lastSent: null }), null);
 
   // E zero pedido é um pedido de zero, não a ausência de pedido: a loja que
   // pediu e cancelou não deve receber o envio da semana passada de volta.
-  assert.equal(pickSuggestion({ ordered: 0, lastSent: 40 }), 0);
+  assert.equal(pickSuggestion({ ordered: 0, alreadySent: 0, lastSent: 40 }), 0);
+
+  // A segunda viagem ao freezer sugere o que FALTA. Sem isto, quem confia no
+  // campo manda 800 contra um pedido de 500 - e o `ordersCoveredBy` já contava
+  // pelo dia justamente porque as duas viagens existem.
+  assert.equal(pickSuggestion({ ordered: 500, alreadySent: 300, lastSent: 40 }), 200);
+
+  // Coberto é zero, não "sem palpite": não falta nada daquele pedido hoje, e
+  // cair no hábito aqui ofereceria mandar de novo o que já foi.
+  assert.equal(pickSuggestion({ ordered: 500, alreadySent: 500, lastSent: 40 }), 0);
+
+  // E mandaram a mais: o palpite é zero, nunca negativo. "Mande menos cem" não
+  // é frase que uma tela saiba dizer.
+  assert.equal(pickSuggestion({ ordered: 500, alreadySent: 600, lastSent: 40 }), 0);
+
+  // O desconto é do PEDIDO, não do hábito: sem pedido, o que já foi hoje não
+  // muda quanto a fábrica costuma repor.
+  assert.equal(pickSuggestion({ ordered: null, alreadySent: 300, lastSent: 40 }), 40);
 });
 
 

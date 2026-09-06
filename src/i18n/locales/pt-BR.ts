@@ -828,6 +828,8 @@ export const ptBR = {
       /** A quantidade soma todos os pedidos em aberto da loja; a data é a do primeiro. */
       orderedMany: '{{count}}, o primeiro para {{date}}: {{amount}}',
       orderedNone: 'nenhum pedido em aberto para esta loja',
+      /** Segunda viagem ao freezer: o palpite é o que falta, e a dica diz por quê. */
+      orderedPartly: 'pedido para {{date}}: {{amount}} — já foram {{sent}} hoje',
       title: 'Transferir',
       overline: 'o que sai da fábrica',
       /**

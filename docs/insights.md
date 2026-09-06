@@ -4600,3 +4600,36 @@ elas concordam. "Agora as duas leem pedido" é meia verificação — a outra me
 pedidos, em que janela, com qual regra para o que não tem data. A concordância que só vale
 no verbo é a que passa despercebida, porque a frase que descreve o conserto continua
 verdadeira.
+
+---
+
+## 2026-09-06 — o tipo dizia "e ainda não recebeu", e a conta não descontava nada
+
+**O que se viu.** `PickLine` abre com uma frase que é um contrato:
+*"O que uma loja pediu e ainda não recebeu: a lista de separação."* O campo `ordered`
+somava os pedidos em aberto e **não descontava nada** do que já tinha chegado lá. Depois
+de mandar 300 de um pedido de 500, a tela oferecia 500 de novo — e quem confia no campo
+manda 800 contra um pedido de 500.
+
+**O que torna isso grave é que o sistema já sabia.** O `ordersCoveredBy` fecha pedido pelo
+DIA e não pela carga, com o motivo escrito no docblock: *"quem carrega o caminhão faz duas
+viagens até o freezer"*. Uma função conhecia a segunda viagem e a vizinha, na mesma tela,
+não. O fato estava no repositório; faltava alguém usar.
+
+**Por que importa.** Nenhum teste podia pegar isso: a suíte exercitava a primeira viagem,
+onde as duas contas dão o mesmo número — o formato exato do teste que passa por acidente
+que este projeto caça. E o defeito é do tipo que só aparece com uso real, porque exige
+duas ações seguidas no mesmo dia.
+
+**O que mudou.** O SQL passou a devolver `sentToday` **ao lado** de `ordered`, não
+descontado dele: a subtração é regra e foi para `pickSuggestion`, onde o `mutate` alcança,
+e a tela ganhou os dois números para poder dizer *"pedido 500 — já foram 300 hoje"* em vez
+de mostrar 200 sem explicar de onde saiu (Lei 3: nenhum número aparece sozinho). O
+`sentToday` soma transferência e devolução no mesmo saco, porque 300 que chegaram e 40 que
+voltaram são 260 recebidos — e a prova disso roda contra SQLite de verdade, não contra uma
+maquete.
+
+**A regra que fica:** a frase do docblock de um tipo é uma **afirmação testável**, não
+decoração. Quando ela diz "e ainda não recebeu", vá ver se alguma linha subtrai alguma
+coisa. Foi a segunda vez em uma hora que perguntar *"o que mais esta tela conta?"* achou
+um defeito — a primeira foi o horizonte. A pergunta é barata e não tem fundo.

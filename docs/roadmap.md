@@ -44,7 +44,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 |---|---|
 | `npm test` | **369** testes |
 | `npm run mutate` | **106** defeitos plantados, 104 pegos e 2 equivalentes |
-| `npm run e2e:fast` | **38** checagens num navegador de verdade |
+| `npm run e2e:fast` | **39** checagens num navegador de verdade |
 | `npm run db:verify` | **14** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
@@ -433,10 +433,17 @@ entregar acontecem no mesmo toque, na fábrica — quem separa carregado de entr
 dizendo que existe um segundo momento, noutro lugar e noutra hora, e que alguém o
 registra de lá.
 
-É P3, e com prazo: dividir mexe no caminho de escrita de `movements` e provavelmente
-acrescenta tipo ao razão — e o próprio `src/domain/ledger.ts` avisa que *"a única janela
-em que o vocabulário de um razão é livre para mudar"* é enquanto não há linha gravada
-com ele. A janela está aberta agora.
+**E o vocabulário já existe** — conferido no esquema, não suposto:
+`create type control_post as enum ('picked','loaded','delivered','checked')` está em
+`supabase/migrations/0001_foundation.sql:179` desde a primeira migração, e o aparelho tem
+a coluna `post` desde a `V7` (`src/data/db.ts:366`), que entrou junto com a conferência —
+"coluna sem escritor é a doença que este repositório já documentou".
+
+Então a decisão é **mais barata do que parecia**: não é inventar tipo de razão nem migrar
+nada. Carregado e entregue já têm nome; o que não existe é um SEGUNDO MOMENTO em que
+alguém escreva o segundo. A parte cara continua sendo essa — dividir a carga em dois atos
+mexe no caminho de escrita de `movements`, que é P3 — mas o custo é de desenho, não de
+esquema.
 
 **6. App do entregador — existe se, e só se, "entregue" for separado de "carregado".**
 O papel `driver` já tem `dispatch`, `check_receipt` e `record_loss`, e as três já têm

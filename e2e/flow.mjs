@@ -2158,6 +2158,72 @@ check('the load says who else is waiting, and still lets the truck leave', async
   );
 });
 
+check('a second trip to the freezer suggests what is LEFT of the order', async (page) => {
+  // Quem carrega o caminhão faz duas viagens até o freezer - o `ordersCoveredBy`
+  // já sabia disso e por isso fecha pedido pelo DIA, não pela carga. O palpite
+  // não sabia: depois de mandar 300 de um pedido de 500, ele oferecia 500 de
+  // novo, e quem confia no campo manda 800 contra um pedido de 500.
+  await page.goto(`http://localhost:${PORT}/production/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Quantas unidades/).fill('800');
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar produção', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Como se chama').fill('Loja Centro');
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  await page.goto(`http://localhost:${PORT}/orders/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel('Quantidade').fill('500');
+  await page.waitForTimeout(400);
+  await page.getByText('Adicionar ao pedido', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+  await page.getByText('Anotar pedido', { exact: true }).last().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Anotar', { exact: true }).last().click();
+  await page.waitForTimeout(2500);
+
+  // A primeira viagem: 300 dos 500. Carga parcial não fecha pedido, então ele
+  // continua aberto - e é aí que a segunda viagem começa.
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Picolé de morango/).first().click();
+  await page.waitForTimeout(700);
+  assert.equal(
+    await page.getByLabel('Quanto vai').inputValue(),
+    '500',
+    'na primeira viagem o palpite é o pedido inteiro',
+  );
+  await page.getByLabel('Quanto vai').fill('300');
+  await page.waitForTimeout(500);
+  await page.getByText('Registrar a transferência', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Mandar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Picolé de morango/).first().click();
+  await page.waitForTimeout(900);
+
+  // O que falta são 200. O tipo `PickLine` sempre disse "o que uma loja pediu e
+  // ainda NÃO RECEBEU" - a conta é que não descontava o recebido.
+  assert.equal(
+    await page.getByLabel('Quanto vai').inputValue(),
+    '200',
+    'a segunda viagem sugere o que falta, não o pedido inteiro de novo',
+  );
+  assert.match(await screen(page), /pedido para/, 'e o palpite continua vindo do pedido');
+});
+
 check('erasing refuses in an order, and explains the way out', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

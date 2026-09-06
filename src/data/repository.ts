@@ -747,9 +747,11 @@ export async function lastSentBaseUnits(
  * é o padrão que a proofgate marca, com razão. Consulta que precisar de outro
  * apelido escreve a sua, à vista.
  */
-const NAO_ESTORNADO = `NOT EXISTS (SELECT 1 FROM movements rev
-                                    WHERE rev.reverses_movement_id = m.id
-                                      AND rev.company_id = m.company_id)`;
+const naoEstornado = (alias: string) => `NOT EXISTS (SELECT 1 FROM movements rev
+                                    WHERE rev.reverses_movement_id = ${alias}.id
+                                      AND rev.company_id = ${alias}.company_id)`;
+
+const NAO_ESTORNADO = naoEstornado('m');
 
 export type PlaceStock = {
   locationId: string;
@@ -3215,6 +3217,19 @@ export type PickLine = {
   orders: number;
   /** Quanto disso a fábrica tem hoje, no lugar de onde a carga sai. */
   available: number;
+  /**
+   * Quanto já chegou nessa loja HOJE, deste item — líquido do que voltou.
+   *
+   * Fica ao lado de `ordered` em vez de descontado dele: a subtração é regra e
+   * mora no domínio, e a tela precisa dos dois números para poder dizer "pedido
+   * 500, já foram 300" em vez de mostrar 200 sem explicar de onde saiu.
+   *
+   * Conta transferência e devolução no mesmo saco porque as duas mexem no que a
+   * loja tem em mãos: 300 que chegaram e 100 que voltaram são 200 recebidos. O
+   * que NÃO entra é perda e contagem na loja — elas mudam o estoque de lá, não o
+   * que a fábrica entregou.
+   */
+  sentToday: number;
   /** Para quando é o mais urgente dos pedidos. */
   dueOn: string | null;
 };
@@ -3234,12 +3249,28 @@ export type PickLine = {
  *
  * `available` sai da sala de onde a carga vai sair, não do total da empresa: de
  * nada adianta saber que a fábrica tem trezentos se eles estão na outra câmara.
+ *
+ * **E ela conta o que já foi hoje.** Quem carrega o caminhão faz duas viagens até
+ * o freezer — o `ordersCoveredBy` já sabia disso e por isso fecha pedido pelo DIA
+ * e não pela carga. A lista não sabia: depois de mandar 300 de um pedido de 500
+ * ela devolvia 500 de novo, e o campo da tela oferecia mandar 800 contra um
+ * pedido de 500. O tipo `PickLine` sempre disse "o que uma loja pediu e ainda NÃO
+ * RECEBEU"; era a conta que não descontava o recebido.
+ *
+ * O recorte é o dia, o mesmo do fechamento, e a aproximação é a mesma que ele já
+ * aceita: carga de hoje conta contra pedido aberto de hoje. Um pedido novo
+ * anotado depois de a carga sair começa descontado — e isso se corrige sozinho
+ * amanhã, que é mais barato do que a alternativa de mandar duas vezes.
  */
 export async function pickingFor(
   companyId: string,
   placeId: string,
   fromLocationId: string,
   through: string,
+  /** Começo do dia de quem carrega, no fuso dele (`dayWindow`). */
+  sinceIso: string,
+  /** Fim desse dia. */
+  untilIso: string,
 ): Promise<PickLine[]> {
   const conn = await db();
   const rows = await conn.getAllAsync<{
@@ -3248,6 +3279,7 @@ export async function pickingFor(
     ordered: number;
     orders: number;
     available: number;
+    sent_today: number;
     due_on: string | null;
   }>(
     `SELECT ol.item_id, i.name,
@@ -3257,7 +3289,17 @@ export async function pickingFor(
             (SELECT COALESCE(SUM(m.quantity_base_units), 0) FROM movements m
               WHERE m.company_id = o.company_id
                 AND m.item_id = ol.item_id
-                AND m.location_id = ?) AS available
+                AND m.location_id = ?) AS available,
+            -- O que caiu na loja hoje, líquido: a transferência entra positiva
+            -- lá e a devolução sai negativa, então somar as duas dá o recebido.
+            (SELECT COALESCE(SUM(m2.quantity_base_units), 0) FROM movements m2
+              WHERE m2.company_id = o.company_id
+                AND m2.item_id = ol.item_id
+                AND m2.location_id = o.place_id
+                AND m2.kind IN ('transfer', 'return')
+                AND m2.occurred_at >= ?
+                AND m2.occurred_at < ?
+                AND ${naoEstornado('m2')}) AS sent_today
        FROM order_lines ol
        JOIN orders o ON o.id = ol.order_id
        JOIN items i ON i.id = ol.item_id
@@ -3268,7 +3310,7 @@ export async function pickingFor(
       GROUP BY ol.item_id, i.name
       HAVING ordered > 0
       ORDER BY due_on, i.name COLLATE NOCASE`,
-    [fromLocationId, companyId, placeId, through],
+    [fromLocationId, sinceIso, untilIso, companyId, placeId, through],
   );
 
   return rows.map((r) => ({
@@ -3277,6 +3319,7 @@ export async function pickingFor(
     ordered: r.ordered,
     orders: r.orders,
     available: r.available,
+    sentToday: r.sent_today,
     dueOn: r.due_on,
   }));
 }

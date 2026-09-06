@@ -193,8 +193,15 @@ function Transfer() {
   // pedidos e avisava contando outro.
   const ateQuando = localDate(nowIso(), locale.timeZone, 7);
 
+  // O dia de quem carrega, no fuso dele: é a janela que diz o que já foi hoje.
+  // A mesma que o fechamento de pedido usa quando a carga sai.
+  const hoje = dayWindow(nowIso(), locale.timeZone);
+
   const { data: pedido } = useQuery<PickLine[]>(
-    () => (to ? pickingFor(LOCAL_COMPANY_ID, to.id, from, ateQuando) : Promise.resolve([])),
+    () =>
+      to
+        ? pickingFor(LOCAL_COMPANY_ID, to.id, from, ateQuando, hoje.from, hoje.to)
+        : Promise.resolve([]),
     to?.id ?? '',
   );
   const paraSeparar = pedido?.find((p) => p.itemId === line?.itemId) ?? null;
@@ -210,6 +217,7 @@ function Transfer() {
    */
   const suggestion = pickSuggestion({
     ordered: paraSeparar?.ordered ?? null,
+    alreadySent: paraSeparar?.sentToday ?? 0,
     lastSent,
   });
 
@@ -659,13 +667,24 @@ function Transfer() {
                 // que é o que faz alguém confiar nele ou corrigi-lo.
                 hint={
                   paraSeparar
-                    ? fill(paraSeparar.orders > 1 ? words.orderedMany : words.ordered, {
-                        count: plural(paraSeparar.orders, words.closeCount),
-                        date: paraSeparar.dueOn
-                          ? formatCalendarDate(paraSeparar.dueOn, locale)
-                          : '—',
-                        amount: `${formatQuantity(paraSeparar.ordered, locale)} ${line.baseUnit}`,
-                      })
+                    ? fill(
+                        // Na segunda viagem o campo mostra o que FALTA, e a dica
+                        // precisa dizer de onde saiu esse número: sem a linha do
+                        // que já foi, o palpite encolhe sozinho e parece defeito.
+                        paraSeparar.sentToday > 0
+                          ? words.orderedPartly
+                          : paraSeparar.orders > 1
+                            ? words.orderedMany
+                            : words.ordered,
+                        {
+                          count: plural(paraSeparar.orders, words.closeCount),
+                          date: paraSeparar.dueOn
+                            ? formatCalendarDate(paraSeparar.dueOn, locale)
+                            : '—',
+                          amount: `${formatQuantity(paraSeparar.ordered, locale)} ${line.baseUnit}`,
+                          sent: `${formatQuantity(paraSeparar.sentToday, locale)} ${line.baseUnit}`,
+                        },
+                      )
                     : lastSent != null
                       ? fill(words.lastTime, {
                           amount: `${formatQuantity(lastSent, locale)} ${line.baseUnit}`,

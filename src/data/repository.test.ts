@@ -1761,10 +1761,15 @@ test('the picking list says what the store ordered and what the room has', async
     lines: [{ itemId: produto.itemId, baseUnits: 120 }],
   });
 
-  const lista = await pickingFor(LOCAL_COMPANY_ID, loja, fabrica, '2026-09-10');
+  // A janela do dia de quem carrega. Larga aqui de propósito: o que ela recorta
+  // é medido logo abaixo, com uma janela que não alcança a carga.
+  const DIA = ['2026-09-02T00:00:00.000Z', '2026-09-03T00:00:00.000Z'] as const;
+
+  const lista = await pickingFor(LOCAL_COMPANY_ID, loja, fabrica, '2026-09-10', ...DIA);
   assert.equal(lista.length, 1);
   assert.equal(lista[0].ordered, 420, 'os dois pedidos da loja somam');
   assert.equal(lista[0].available, 400, 'e o disponível é o da SALA de onde a carga sai');
+  assert.equal(lista[0].sentToday, 0, 'antes da primeira viagem nada foi hoje');
 
   // A data é a do pedido mais urgente: é ela que decide o que separar primeiro.
   assert.equal(lista[0].dueOn, '2026-09-04');
@@ -1775,13 +1780,53 @@ test('the picking list says what the store ordered and what the room has', async
   // combinação que mente, e a contagem é fato.
   assert.equal(lista[0].orders, 2, 'a soma diz de quantos pedidos ela é');
 
+  // A primeira viagem sai, e é PARCIAL: 100 de 420. O pedido continua aberto.
+  await recordTransfer(LOCAL_COMPANY_ID, {
+    itemId: produto.itemId,
+    fromLocationId: fabrica,
+    toLocationId: loja,
+    baseUnits: 100,
+    occurredAt: '2026-09-02T14:00:00.000Z',
+  });
+
+  const segunda = await pickingFor(LOCAL_COMPANY_ID, loja, fabrica, '2026-09-10', ...DIA);
+  assert.equal(segunda[0].ordered, 420, 'o pedido não encolhe: ele continua sendo de 420');
+  assert.equal(segunda[0].sentToday, 100, 'e o que já chegou lá hoje é fato ao lado dele');
+
+  // A devolução volta a abrir espaço: 100 que foram e 40 que voltaram são 60
+  // recebidos. Contar só a transferência diria que a loja tem o que ela devolveu.
+  await recordReturn(LOCAL_COMPANY_ID, {
+    itemId: produto.itemId,
+    fromLocationId: loja,
+    toLocationId: fabrica,
+    baseUnits: 40,
+    occurredAt: '2026-09-02T16:00:00.000Z',
+    returnReason: 'unsold',
+  });
+  const depoisDaVolta = await pickingFor(LOCAL_COMPANY_ID, loja, fabrica, '2026-09-10', ...DIA);
+  assert.equal(depoisDaVolta[0].sentToday, 60, 'o que voltou desconta do que chegou');
+
+  // E a janela recorta mesmo: no dia anterior, nada tinha ido.
+  const ontem = await pickingFor(
+    LOCAL_COMPANY_ID,
+    loja,
+    fabrica,
+    '2026-09-10',
+    '2026-09-01T00:00:00.000Z',
+    '2026-09-02T00:00:00.000Z',
+  );
+  assert.equal(ontem[0].sentToday, 0, 'a carga de hoje não conta contra o pedido de ontem');
+
   // Pedido de outra loja não entra nesta lista - separar é por destino.
   const outra = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Norte', kind: 'own_store' });
-  assert.deepEqual(await pickingFor(LOCAL_COMPANY_ID, outra.id, fabrica, '2026-09-10'), []);
+  assert.deepEqual(
+    await pickingFor(LOCAL_COMPANY_ID, outra.id, fabrica, '2026-09-10', ...DIA),
+    [],
+  );
 
   // E o que ainda não chegou na janela também não: separar é para hoje, não
   // para o mês.
-  assert.deepEqual(await pickingFor(LOCAL_COMPANY_ID, loja, fabrica, '2026-09-03'), []);
+  assert.deepEqual(await pickingFor(LOCAL_COMPANY_ID, loja, fabrica, '2026-09-03', ...DIA), []);
 });
 
 test('a return is a return, not a transfer running backwards', async () => {
