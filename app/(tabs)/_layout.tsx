@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router/js-tabs';
-import { Text, View } from 'react-native';
+import { Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   IconHome,
@@ -10,7 +10,7 @@ import {
 } from '@/components/icons';
 import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
-import { type Ambient } from '@/theme/tokens';
+import { MEDIDA_EM_PARES, PARES_A_PARTIR_DE, type Ambient } from '@/theme/tokens';
 
 /**
  * The five places the app has.
@@ -34,6 +34,20 @@ import { type Ambient } from '@/theme/tokens';
 export default function TabsLayout() {
   const { color, type, space, palette } = useTheme();
   const insets = useSafeAreaInsets();
+
+  /**
+   * No tablet, as cinco abas se juntam no meio em vez de se espalharem.
+   *
+   * A barra é da largura da tela, e está certo — é o rodapé da página. O que
+   * não está certo é cada aba ocupar um quinto de 900 dp: cinco ícones de 24 dp
+   * com 150 dp de nada entre eles, que foi a primeira coisa a saltar na foto do
+   * tablet. A barra continua inteira (fundo e régua de borda a borda), e o que
+   * se ajusta é o recheio: as abas ficam dentro da MESMA medida que o conteúdo
+   * usa em duas colunas, alinhadas com ele. Abaixo de 840 dp nada muda.
+   */
+  const { width: larguraDaTela } = useWindowDimensions();
+  const margemDasAbas =
+    larguraDaTela >= PARES_A_PARTIR_DE ? Math.max(0, (larguraDaTela - MEDIDA_EM_PARES) / 2) : 0;
   const { t } = useLocale();
 
   /**
@@ -112,6 +126,7 @@ export default function TabsLayout() {
           height: 58 + space.lg + insets.bottom,
           paddingTop: space.sm,
           paddingBottom: insets.bottom,
+          paddingHorizontal: margemDasAbas,
         },
         // The label is drawn by hand so the active state is a colour change and
         // nothing else - no bold, no pill, no tint on the icon.

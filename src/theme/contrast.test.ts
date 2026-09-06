@@ -167,3 +167,36 @@ test('the word on a button is legible on every colour a button is painted with',
       'Botão é a ação da tela: ilegível ali não é um detalhe de estilo.',
   );
 });
+
+/**
+ * Os pontos de quebra são coerentes entre si, ou o telefone paga.
+ *
+ * Três números decidem a largura da página, e eles têm uma ordem obrigatória:
+ * a medida de uma coluna (600), o ponto em que a página vira duas (840) e a
+ * medida das duas juntas (900). Um dedo errado em qualquer um faz a grade de duas
+ * colunas descer para o telefone — 393 dp partidos ao meio são duas tiras de 190,
+ * que é menos que a largura de um botão.
+ *
+ * Isto é barato de conferir e caro de descobrir na tela de alguém.
+ */
+test('the width breakpoints keep the phone out of the two-column grid', async () => {
+  const { MEDIDA_DA_PAGINA, MEDIDA_EM_PARES, PARES_A_PARTIR_DE } = await import('./tokens');
+
+  // O piso do Android é 360 e o telefone comum é ~400 (CLAUDE.md). Nenhum dos
+  // dois pode alcançar o ponto de parear.
+  assert.ok(PARES_A_PARTIR_DE > 412, `${PARES_A_PARTIR_DE} deixaria um telefone parear`);
+
+  // Parear só faz sentido depois que uma coluna já parou de crescer.
+  assert.ok(
+    PARES_A_PARTIR_DE > MEDIDA_DA_PAGINA,
+    'a página vira duas colunas antes de a primeira parar de crescer',
+  );
+
+  // E as duas colunas precisam caber, com folga para o vão: cada uma tem de sair
+  // mais larga que o telefone em que os cartões foram desenhados.
+  assert.ok(
+    MEDIDA_EM_PARES / 2 > 412,
+    `cada coluna sairia com ${MEDIDA_EM_PARES / 2} dp, mais estreita que um telefone`,
+  );
+  assert.ok(MEDIDA_EM_PARES >= PARES_A_PARTIR_DE, 'a medida em pares não pode ser menor que o ponto de quebra');
+});

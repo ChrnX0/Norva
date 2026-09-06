@@ -35,7 +35,7 @@ import {
 } from '@/domain/recipe';
 import { roundUpToFullContainer } from '@/domain/units';
 import { parseTyped, formatTyped } from '@/domain/number';
-import { fill, formatMoney, formatPercent, formatQuantity } from '@/i18n';
+import { fill, formatMoney, formatUnitRate, formatPercent, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -598,7 +598,7 @@ function RecipeEditor() {
               hint={
                 data.unitPackagingRate > 0
                   ? fill(t.app.recipe.packagingHint, {
-                      amount: formatMoney(data.unitPackagingRate, locale),
+                      amount: formatUnitRate(data.unitPackagingRate, locale, fill(t.app.inputForm.perThousandOf, { unit: t.units.unit.other })),
                     })
                   : undefined
               }

@@ -42,7 +42,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **358** testes |
+| `npm test` | **360** testes |
 | `npm run mutate` | **106** defeitos plantados, 104 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **36** checagens num navegador de verdade |
 | `npm run db:verify` | **13** garantias contra um Postgres descartável, sob RLS |
@@ -231,13 +231,18 @@ aqui estava errado:**
    tem um.** *"eu tenho um tablet, depois a gente compila o apk e eu testo, bora pro
    seguinte."* O P2 não é uma regra sobre o mundo, é uma pergunta — e quando existe
    quem observe, ele deixa de travar.
-   A metade que a regra de layout exige já está feita: a coluna para de crescer e se
-   centraliza a partir de 600 dp (`MEDIDA_DA_PAGINA`, `src/theme/tokens.ts`), e a 840
-   as linhas ficam legíveis em vez de esticadas. Falta a outra: **emparelhar cartão
-   com cartão**, que é por tela — os relatórios e o "Mais" são grades de pares; a
-   capa é uma página editorial e fica em coluna única; formulário em duas colunas num
-   toque é pior. `shot -- --largura` tira as cinco larguras para julgar, e o APK no
-   tablet dele é a prova final.
+   **Primeiro corte feito em 6 de setembro**, e o dono viu o primeiro corte antes de
+   mim: *"só pode ser brincadeira que você ainda tem esse layout fora de padrão"*.
+   Dois defeitos na foto, os dois consertados no mesmo dia: a grade deixava um buraco
+   de três portas debaixo de "Pergunte" (cada linha tinha a altura do cartão mais
+   alto), e as cinco abas se espalhavam em 900 dp com 150 dp de nada entre elas.
+   Agora: quem pareia é escolha da tela (`pares` no casco), as peças **empacotam** em
+   duas pilhas em vez de uma grade com linhas, um filho marcado `Inteiro` sai na
+   largura toda, e as abas se juntam na mesma medida do conteúdo. Abaixo de 840 dp
+   nada muda, com guarda.
+   **O que fica de pé, dito por extenso:** o pé das duas colunas é desigual, porque
+   empacotar sem medir altura só é justo por cima. E a prova final é o APK no tablet
+   dele — o que é "padrão" de tablet se decide com o aparelho na mão.
 2. **O cartão com desenho e sem título** deixa o glifo sozinho numa linha, em três
    telas (etiqueta do lote, clima, catálogo). No Papel lê como dingbat de seção e
    funciona; no Orgânico é um crachá flutuando. Decisão de desenho, não defeito.

@@ -404,6 +404,30 @@ export const hues: Record<Hue, { brand: string; skyTop: string; skyBottom: strin
  */
 export const MEDIDA_DA_PAGINA = 600;
 
+/**
+ * A partir de onde a página deixa de ser uma coluna e vira duas.
+ *
+ * A regra de layout da casa é explícita sobre isto: *"do telefone ao tablet a
+ * largura dobra, e uma coluna que serve a 393 dp vira tira esticada a 800 dp: lá
+ * o certo é **refluir em colunas**, não escalar"*. Centralizar a coluna a 600
+ * conserta a legibilidade e deixa metade do tablet vazia — resolve a linha longa
+ * demais e não resolve a página.
+ *
+ * Oitocentos e quarenta é o ponto que o `CLAUDE.md` nomeia como tablet, e é onde
+ * duas colunas de ~420 dp cabem: cada uma um pouco mais larga que um telefone
+ * comum, que é a largura em que estes cartões foram desenhados.
+ *
+ * **Não vale para toda tela, e é por isso que é escolha de quem chama.** A capa é
+ * uma página editorial — manchete, cena, diagrama, régua da semana — e lê de cima
+ * para baixo; parti-la em duas destrói a ordem que o dono aprovou. Formulário em
+ * duas colunas num aparelho de toque é pior que em uma. Quem pareia é tela feita
+ * de cartões IRMÃOS: relatórios, a gaveta do "Mais", o transporte por destino.
+ */
+export const PARES_A_PARTIR_DE = 840;
+
+/** Duas colunas de ~420 e o vão entre elas. Acima disso a página para de crescer. */
+export const MEDIDA_EM_PARES = 900;
+
 export const skins = {
   papel: {
     light: papelClaro,

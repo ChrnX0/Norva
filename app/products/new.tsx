@@ -215,6 +215,10 @@ function ProductForm() {
     [wrappings],
   );
 
+  // "a cada 1.000 unidades": a escala em que um preço abaixo de um centavo vira
+  // número de gente, e é a mesma que a tela do insumo já usa para a polpa.
+  const porMil = fill(t.app.inputForm.perThousandOf, { unit: t.units.unit.other });
+
   const costing = useMemo(() => {
     if (kind === 'resale' || !data || !chosenRecipe) return null;
 
@@ -771,8 +775,8 @@ function ProductForm() {
                   // antes), qualquer embalagem abaixo de meio centavo aparecia
                   // como R$ 0,00 — a tela dizendo de graça o que o razão já tinha
                   // parado de dar de graça.
-                  packaging: formatUnitRate(costing.packagingRate, locale),
-                  stock: formatUnitRate(costing.itemsRate, locale),
+                  packaging: formatUnitRate(costing.packagingRate, locale, porMil),
+                  stock: formatUnitRate(costing.itemsRate, locale, porMil),
                 },
               )}
             </Text>

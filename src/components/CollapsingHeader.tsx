@@ -1,5 +1,5 @@
 import { BottomTabBarHeightContext } from 'expo-router/js-tabs';
-import { Children, useContext, type ReactNode } from 'react';
+import { Children, isValidElement, useContext, type ReactNode } from 'react';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -11,13 +11,27 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Reveal } from '@/components/Reveal';
 import { Mark } from './Mark';
-import { MEDIDA_DA_PAGINA } from '@/theme/tokens';
+import { MEDIDA_DA_PAGINA, MEDIDA_EM_PARES, PARES_A_PARTIR_DE } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
 
 const EXPANDED = 34;
 const COLLAPSED = 22;
 const RANGE = 72;
 
+
+/**
+ * Marca um filho que ocupa a largura INTEIRA mesmo quando a tela pareia.
+ *
+ * A gaveta do "Mais" tem quatro peças, e uma delas não é grupo: "Pergunte" é
+ * uma chamada só, curta. Emparelhada com "Cadastros" — quatro portas de altura —
+ * ela deixava um buraco do tamanho de três portas embaixo de si, e foi
+ * exatamente esse buraco que o dono apontou: *"só pode ser brincadeira que você
+ * ainda tem esse layout fora de padrão"*. Grade é para irmãos; o que não é irmão
+ * fica inteiro, em cima, e a grade começa depois dele.
+ */
+export function Inteiro({ children }: { children: ReactNode }) {
+  return <>{children}</>;
+}
 
 /**
  * The large title that shrinks as you scroll - the most recognizable part of
@@ -30,17 +44,33 @@ const RANGE = 72;
 export function CollapsingHeader({
   title,
   overline,
+  pares = false,
   children,
 }: {
   title: string;
   overline?: string;
+  /**
+   * Esta tela é feita de cartões IRMÃOS, e pode virar duas colunas no tablet.
+   *
+   * Escolha de quem chama, e não do casco, porque a resposta é de cada tela. A
+   * capa é uma página editorial que lê de cima para baixo — parti-la em duas
+   * destrói a ordem que o dono aprovou. Formulário em duas colunas num aparelho
+   * de toque é pior que em uma: o dedo volta para cima. Quem pareia é a tela cujo
+   * conteúdo é uma lista de peças do mesmo tamanho e da mesma importância.
+   *
+   * Abaixo de 840 dp não muda nada, então nenhum telefone corre risco por causa
+   * disto.
+   */
+  pares?: boolean;
   children: ReactNode;
 }) {
   const { color, space, type, accent, skin, titleFamily } = useTheme();
   const insets = useSafeAreaInsets();
   // Em dp, que é o que o layout enxerga — nunca pixel.
   const { width: larguraDaTela } = useWindowDimensions();
-  const coluna = { width: '100%' as const, maxWidth: MEDIDA_DA_PAGINA, alignSelf: 'center' as const };
+  const emPares = pares && larguraDaTela >= PARES_A_PARTIR_DE;
+  const medida = emPares ? MEDIDA_EM_PARES : MEDIDA_DA_PAGINA;
+  const coluna = { width: '100%' as const, maxWidth: medida, alignSelf: 'center' as const };
   const largo = larguraDaTela >= MEDIDA_DA_PAGINA;
 
   // How much of the screen the tab bar covers, or nothing when there is no bar.
@@ -152,11 +182,13 @@ export function CollapsingHeader({
             nulos que as telas devolvem quando um cartão não se aplica - sem
             isso, um cartão ausente contaria como posição e abriria um buraco de
             quarenta milissegundos no meio da sequência. */}
-        {Children.toArray(children).map((filho, i) => (
-          <Reveal key={i} index={i}>
-            {filho}
-          </Reveal>
-        ))}
+        {emPares
+          ? emColunas(Children.toArray(children), space.md)
+          : Children.toArray(children).map((filho, i) => (
+              <Reveal key={i} index={i}>
+                {filho}
+              </Reveal>
+            ))}
         {/* A capa é a exceção conhecida: os cartões dela moram DENTRO de um
             componente de layout, então o casco vê um filho só e o escalonamento
             de verdade continua lá dentro. Envolver de novo aqui não atrapalha -
@@ -164,6 +196,66 @@ export function CollapsingHeader({
       </Animated.ScrollView>
     </View>
   );
+}
+
+/**
+ * Duas colunas que EMPACOTAM, em vez de uma grade que deixa buraco.
+ *
+ * A primeira versão era `flexWrap`: cada linha da grade tinha a altura do
+ * cartão mais alto dela, e um cartão curto ao lado de um alto deixava um vazio
+ * do tamanho da diferença. Na gaveta do "Mais" isso era um buraco de três portas
+ * debaixo de "Pergunte", e o dono viu antes de mim.
+ *
+ * Aqui os filhos são distribuídos em duas pilhas, alternando — o primeiro vai
+ * para a esquerda, o segundo para a direita, o terceiro para a esquerda —, e
+ * cada pilha empacota os seus sem olhar para a outra. O único desnível que
+ * sobra é o do pé das duas colunas, que é como uma página de revista termina.
+ *
+ * Um filho marcado com `Inteiro` interrompe as pilhas: ele sai na largura toda,
+ * e a grade recomeça depois dele. O índice do `Reveal` continua sendo a ordem
+ * em que a pessoa lê, para o escalonamento da entrada não pular.
+ */
+function emColunas(filhos: ReactNode[], vao: number): ReactNode[] {
+  const saida: ReactNode[] = [];
+  let esquerda: ReactNode[] = [];
+  let direita: ReactNode[] = [];
+  let lado = 0;
+
+  const fechar = (chave: string) => {
+    if (esquerda.length === 0 && direita.length === 0) return;
+    saida.push(
+      <View key={chave} style={{ flexDirection: 'row', gap: vao, alignItems: 'flex-start' }}>
+        <View style={{ flex: 1, gap: vao }}>{esquerda}</View>
+        <View style={{ flex: 1, gap: vao }}>{direita}</View>
+      </View>,
+    );
+    esquerda = [];
+    direita = [];
+    lado = 0;
+  };
+
+  filhos.forEach((filho, i) => {
+    const inteiro = isValidElement(filho) && filho.type === Inteiro;
+    if (inteiro) {
+      fechar(`pares-${i}`);
+      saida.push(
+        <Reveal key={i} index={i}>
+          {filho}
+        </Reveal>,
+      );
+      return;
+    }
+    const peca = (
+      <Reveal key={i} index={i}>
+        {filho}
+      </Reveal>
+    );
+    if (lado === 0) esquerda.push(peca);
+    else direita.push(peca);
+    lado = 1 - lado;
+  });
+  fechar('pares-fim');
+  return saida;
 }
 
 const styles = StyleSheet.create({

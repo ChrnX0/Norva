@@ -9,7 +9,7 @@ import {
   packagingRatePerUnit,
   shoppingList,
 } from '@/domain/recipe';
-import { formatDayMonth, formatMoney, formatPercent, formatQuantity } from '@/i18n';
+import { formatDayMonth, formatMoney, formatUnitRate, formatPercent, formatQuantity } from '@/i18n';
 import { findByName, movePhrase, namesakes, normalize, parseNumber } from './text';
 import type { Answer, Skill, SkillContext } from './types';
 
@@ -71,7 +71,9 @@ const costOfProduct: Skill = {
         text: `${product.name} custa ${formatMoney(unit, ctx.locale)} por unidade.`,
         detail: [
           { label: 'Massa', value: formatMoney(mix, ctx.locale) },
-          { label: 'Embalagem', value: formatMoney(product.unitPackagingRate, ctx.locale) },
+          // O assistente fala português por decisão escrita (src/assistant/index.ts),
+          // então a escala vem escrita aqui como o resto das frases dele.
+          { label: 'Embalagem', value: formatUnitRate(product.unitPackagingRate, ctx.locale, 'a cada 1.000 unidades') },
           { label: 'Custo do lote', value: formatMoney(cost.batchCents, ctx.locale) },
           {
             label: 'Perda prevista',

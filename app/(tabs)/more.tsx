@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 import { Card } from '@/components/Card';
-import { CollapsingHeader } from '@/components/CollapsingHeader';
+import { CollapsingHeader, Inteiro } from '@/components/CollapsingHeader';
 import {
   GlyphAssistant,
   GlyphOrder,
@@ -144,7 +144,9 @@ function Drawers() {
     // A única tela do aplicativo que não tinha linha de olho. Cabeçalho de vinte e
     // três telas tem os dois; esta tinha um, e a diferença aparece na folha de
     // contato: o título dela nasce numa altura diferente de todas as outras.
-    <CollapsingHeader title={t.app.more.title} overline={t.app.more.overline}>
+    // A gaveta é uma grade de grupos: cada um é uma caixa fechada com as portas
+    // dele dentro, e dois grupos lado a lado continuam sendo dois grupos.
+    <CollapsingHeader title={t.app.more.title} overline={t.app.more.overline} pares>
       {/* Cada seção carrega a cor da ÁREA que ela abre, e não um cinza só.
           O dono apontou a tela: *"esses ícones devem seguir o padrão de todo o
           tema. falta um pouco de cor aí"*. As quatro seções estavam pintadas com
@@ -156,6 +158,7 @@ function Drawers() {
 
       {/* Perguntar vem antes de cadastrar: é a única coisa aqui que se usa sem
           saber o nome da tela que responde. */}
+      <Inteiro>
       <Reveal index={0}>
         <Touchable
           onPress={() => router.push('/assistant')}
@@ -171,6 +174,7 @@ function Drawers() {
           </Card>
         </Touchable>
       </Reveal>
+      </Inteiro>
 
       {/* O que a fábrica cadastra uma vez e usa todo dia. Nenhuma destas linhas
           tem número para mostrar aqui — a tela não consulta nada, e cartão que

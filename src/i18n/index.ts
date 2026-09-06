@@ -117,30 +117,33 @@ export function formatMoney(cents: number, locale: LocaleSettings): string {
  * país.
  */
 /**
- * Um PREÇO POR UNIDADE, escrito sem esconder o que é menor que um centavo.
+ * Um PREÇO POR UNIDADE, dito num número que uma pessoa lê.
  *
- * `formatMoney` recebe centavos inteiros e imprime duas casas, que é o certo para
- * uma quantia que alguém paga. Uma taxa não é isso: rótulo a R$ 0,004 por unidade,
- * polpa a 1,24 centavo por grama. Passar uma taxa para `formatMoney` imprime
- * **R$ 0,00** — e foi assim que a embalagem "de graça" ia aparecer na tela depois
- * de a mesma embalagem deixar de ser de graça no razão.
+ * `formatMoney` recebe centavos inteiros e imprime duas casas — certo para uma
+ * quantia que alguém paga. Uma taxa abaixo de um centavo não cabe ali: rótulo a
+ * R$ 0,004 por unidade imprime **R$ 0,00**, que é a tela dizendo "de graça" para
+ * uma coisa que o razão já parou de dar de graça.
  *
- * A regra é mostrar o que a pessoa digitou: quem escreveu 0,004 no campo lê
- * R$ 0,004 de volta, que é a coisa menos surpreendente possível. Acima de um
- * centavo nada muda — duas casas, como no resto do aplicativo.
+ * A primeira versão desta função mostrava R$ 0,004. O dono recusou na hora, e
+ * com razão: *"0,004 não existe... mostrar esse valor para o usuário não faz
+ * sentido"*. Preço com três casas é número de planilha, não de fábrica.
  *
- * Isto NÃO substitui o "a cada mil unidades" da tela de insumo: lá a pergunta é
- * quanto vale um saco, e mil gramas é a escala em que a resposta se compara. Aqui
- * a pergunta é quanto entra em cada picolé, e a escala é a unidade.
+ * A resposta certa **já era do aplicativo**, e eu não a tinha usado: a tela do
+ * insumo mostra polpa a R$ 12,40 **a cada 1.000 gramas**, nunca 1,24 centavo por
+ * grama. Então abaixo de um centavo a taxa sobe de escala — "R$ 4,00 a cada
+ * 1.000 unidades" — e de um centavo para cima nada muda: duas casas, como no
+ * resto. Quem monta a frase é quem chama, porque "a cada 1.000 unidades" é do
+ * dicionário e este módulo não fala português.
  */
-export function formatUnitRate(rateInCents: number, locale: LocaleSettings): string {
+export function formatUnitRate(
+  rateInCents: number,
+  locale: LocaleSettings,
+  /** "a cada 1.000 unidades", já preenchido pela tela. */
+  perThousandOf: string,
+): string {
   const subCentavo = rateInCents !== 0 && Math.abs(rateInCents) < 1;
-  return new Intl.NumberFormat(locale.formatting, {
-    style: 'currency',
-    currency: locale.currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: subCentavo ? 4 : 2,
-  }).format(rateInCents / 100);
+  if (!subCentavo) return formatMoney(Math.round(rateInCents), locale);
+  return `${formatMoney(Math.round(rateInCents * 1000), locale)} ${perThousandOf}`;
 }
 
 export function currencySymbol(locale: LocaleSettings): string {
