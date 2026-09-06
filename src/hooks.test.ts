@@ -32,6 +32,12 @@ test('the waiting loop that idled for an hour cannot run again', () => {
     ['espera longa em primeiro plano', 'sleep 45; tail -5 log'],
     // A mutação órfã de 3 de setembro: oito horas em ppid 1, fora de toda árvore.
     ['nohup em segundo plano', 'nohup npm run e2e > log 2>&1 &'],
+    // 6 de setembro: o portão imprimiu "❌ GATE FAILED" e o push saiu do mesmo
+    // jeito, porque quem governava o `&&` era o código de saída do `grep`. Uma
+    // suíte vermelha subiu e o CI ficou vermelho atrás dela.
+    ['o portão encadeado com o push',
+      'bash .proofgate/verify.sh | grep -E "GATE" && git push -u origin minha-branch'],
+    ['a suíte encadeada com o push', 'npm test && git push'],
   ];
   for (const [porque, comando] of recusados) {
     assert.equal(guarda(comando), 2, `devia recusar (${porque}): ${comando}`);
@@ -48,6 +54,10 @@ test('the guard lets the work through, including talking about what it forbids',
     ['uma prova que passa o laço como argumento entre aspas',
       'testar \'until ! pgrep -f "x"; do sleep 10; done\' laco'],
     ['uma mensagem que por acaso tem a palavra sleep', 'git commit -m "sleep on it"'],
+    ['o push sozinho, que é o jeito certo', 'git push -u origin minha-branch'],
+    ['a verificação sozinha, que é o outro jeito certo', 'bash .proofgate/verify.sh'],
+    ['commitar e empurrar, que não tem verificação para ignorar',
+      'git add -A && git commit -q -m "conserto" && git push -u origin minha-branch'],
   ];
   for (const [porque, comando] of passam) {
     assert.equal(guarda(comando), 0, `devia passar (${porque}): ${comando}`);

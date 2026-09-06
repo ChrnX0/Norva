@@ -4342,3 +4342,35 @@ assinatura — e a assinatura não a torna verdadeira. **Uma coluna existir não
 coisa que ela poder ser preenchida**: siga a referência até o fim (`REFERENCES` de quê,
 com que `NOT NULL` do outro lado) antes de tratar o campo como pronto. E a hora de fazer
 isso é antes da primeira linha de código, que foi a única coisa que deu certo aqui.
+
+## 2026-09-06 — o portão disse ❌ e o push saiu no mesmo comando
+
+**O que apareceu.** Rodei `bash .proofgate/verify.sh | grep -E "..." && git push`. O
+portão imprimiu **"❌ GATE FAILED: 1 item(s). The delivery is NOT done."** e o push saiu
+do mesmo jeito, com uma suíte vermelha. O CI ficou vermelho atrás.
+
+O `&&` não estava lendo o veredito: quem governava era o **código de saída do `grep`**,
+que achou a linha que procurava e por isso teve sucesso. O portão falhou, o cano teve
+êxito, e o `&&` obedeceu ao cano.
+
+**Por que importa.** O defeito não foi não ter olhado — **eu olhei**, e a saída estava na
+tela ao lado do push que já tinha acontecido. Encadear é que estava errado: a leitura tem
+que caber ENTRE a verificação e a ação, e num `&&` não cabe. É a mesma família da
+cicatriz do `pkill` e do laço que esperava a si mesmo — comandos em que a forma escrita
+promete uma coisa e a máquina faz outra, e a diferença só aparece quando dá errado.
+
+E tem um agravante que vale nomear: **o `pushGuard` da proofgate cobria exatamente
+isto**, e está desligado por decisão do dono de 5 de setembro, com motivo escrito no
+`proofgate.json` — com a barra proporcional, ele bloqueava commit de ambiente e de
+documento. A decisão continua certa. O que faltava era a rede mais estreita.
+
+**O que mudou.** Regra 5 do `sem-espera.sh`: comando que tem verificação (`verify.sh`,
+`npm test`, `typecheck`, `lint`, `e2e`, `db:verify`, `mutate`) **e** `git push` na mesma
+linha é recusado, com a instrução de rodar, ler e empurrar em três atos. Prova positiva e
+negativa em `src/hooks.test.ts`: três encadeamentos recusados e cinco comandos legítimos
+passando, incluindo `git add && git commit && git push`, que não tem veredito para
+ignorar.
+
+**A regra que fica:** `&&` encadeia códigos de saída, não conclusões — e assim que entra
+um `|` no meio, o código de saída deixa de ser o de quem você acha que é. Verificação e
+ação irreversível não cabem no mesmo comando; o que cabe entre elas é você lendo.

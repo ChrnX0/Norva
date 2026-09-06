@@ -106,4 +106,28 @@ if printf '%s' "$sem_aspas" | grep -Eq '\bnohup\b.*&[[:space:]]*($|[;|])'; then
   recusa "✗ nohup em segundo plano deixa processo órfão, fora de toda árvore."
 fi
 
+# 5. Verificação e AÇÃO na mesma linha: o veredito não porta nenhuma delas.
+#
+# Em 6 de setembro rodei `bash .proofgate/verify.sh | grep ... && git push`. O
+# portão imprimiu "❌ GATE FAILED" e o push saiu do mesmo jeito — porque quem
+# governava o `&&` era o código de saída do `grep`, que achou a linha e por isso
+# teve sucesso. Empurrei uma suíte vermelha e o CI ficou vermelho atrás.
+#
+# O defeito não é ter esquecido de olhar: eu OLHEI, e a saída estava na tela ao
+# lado do push que já tinha acontecido. Encadear é que estava errado — a leitura
+# tem que caber entre uma coisa e outra, e num `&&` não cabe.
+#
+# (O `pushGuard` da proofgate cobria isto e está desligado por decisão do dono de
+# 5 de setembro, com motivo escrito no `proofgate.json`: com a barra
+# proporcional, ele bloqueava commit de ambiente e de documento. Isto aqui é mais
+# estreito de propósito — não exige veredito nenhum, só recusa a mistura.)
+if printf '%s' "$sem_aspas" | grep -Eq 'verify\.sh|npm (run )?(test|typecheck|lint|e2e|db:verify|mutate)' &&
+   printf '%s' "$sem_aspas" | grep -Eq '\bgit[[:space:]]+push\b'; then
+  printf '%s\n' "✗ verificação e \`git push\` no mesmo comando: quem decide o \`&&\` é o último cano," >&2
+  printf '%s\n' "  não o veredito. Um portão vermelho já passou por aqui e o push saiu junto." >&2
+  printf '%s\n' "  → Rode a verificação, LEIA a saída, e empurre depois, num comando separado." >&2
+  printf '%s\n' "     (NORVA_ESPERA_OFF=1 desliga.)" >&2
+  exit 2
+fi
+
 exit 0
