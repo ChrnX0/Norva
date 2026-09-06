@@ -62,3 +62,106 @@ export function ordersCoveredBy(
     )
     .map((order) => order.id);
 }
+
+
+/** Uma promessa em pé: quem espera este item, quanto e para quando. */
+export type Waiting = {
+  orderId: string;
+  placeId: string;
+  /** Na unidade base do item. */
+  baseUnits: number;
+  /** `YYYY-MM-DD`, ou nulo quando o cliente não marcou dia. */
+  requestedFor: string | null;
+};
+
+/** O que a carga digitada faz com o que já tinha dono. */
+export type FreeToShip = {
+  /** Soma do que as OUTRAS salas esperam deste item e ainda não receberam. */
+  promised: number;
+  /**
+   * Saldo menos o que tem dono. **Pode ser negativo**, e negativo é notícia:
+   * a fábrica já prometeu mais do que tem, antes desta carga existir.
+   */
+  free: number;
+  /** Quem espera, o mais cedo primeiro. Vazio é o caso normal. */
+  queue: Waiting[];
+  /** Quanto faltaria para quem espera DEPOIS desta carga. Zero quando não falta. */
+  short: number;
+};
+
+/**
+ * Quanto dá para mandar sem quebrar uma promessa — e de quem é a promessa.
+ *
+ * **Existe porque a reserva tinha uma metade só.** A tela de anotar pedido já
+ * subtraía o que outros pedidos reservaram (`livreDe`, em `app/orders/new.tsx`),
+ * então prometer era seguro. Despachar não era: a transferência limitava pelo
+ * saldo FÍSICO, e saldo físico não sabe de promessa. A Loja A pede 500 para
+ * sexta, o freezer tem 600, e a carga de hoje para a Loja B podia levar as 600 —
+ * o sistema disse "reservado" na hora de prometer e ficou calado na hora de
+ * carregar o caminhão. Uma reserva que só uma tela honra não é reserva: é frase.
+ *
+ * **O pedido do DESTINO não é concorrente.** Mandar para a Loja A é exatamente o
+ * que a promessa da Loja A pede: contá-la aqui faria a tela avisar contra a
+ * própria separação, em toda carga legítima, e alerta que aparece sempre ensina
+ * a ignorar alerta. Quem entra na fila é quem espera em OUTRO lugar.
+ *
+ * **E ela não impede.** Devolve fato — quanto tem dono, quem é o dono, quanto
+ * faltaria depois desta carga — e a tela escreve a frase. Às vezes a loja está na
+ * porta e a carga sai mesmo assim: quem decide é quem está lá, e o aplicativo
+ * sugere, nunca decide calado. Bloquear aqui seria o sistema respondendo no lugar
+ * de quem está com o caminhão aberto.
+ *
+ * A fila vem ordenada por data, sem dia marcado no fim — a mesma ordem do
+ * `listOrders`, refeita aqui porque uma função pura que promete ordem não pode
+ * depender de quem a chamou ter ordenado.
+ */
+export function freeToShip(input: {
+  itemId: string;
+  /** Para onde esta carga vai. */
+  toPlaceId: string;
+  /** Saldo físico na sala de onde a carga sai. */
+  onHand: number;
+  /** Quanto a pessoa digitou, na unidade base. */
+  amount: number;
+  /**
+   * Os pedidos em aberto da empresa. Os mesmos estados que a tela de pedido usa
+   * para reservar (`pending` e `open`) — se as duas contarem pedidos diferentes,
+   * volta a haver duas verdades, que é o defeito que isto conserta.
+   */
+  orders: readonly {
+    id: string;
+    placeId: string;
+    requestedFor: string | null;
+    lines: readonly { itemId: string; baseUnits: number }[];
+  }[];
+}): FreeToShip {
+  const queue: Waiting[] = [];
+  for (const order of input.orders) {
+    if (order.placeId === input.toPlaceId) continue;
+    const baseUnits = order.lines
+      .filter((l) => l.itemId === input.itemId)
+      .reduce((n, l) => n + l.baseUnits, 0);
+    if (baseUnits <= 0) continue;
+    queue.push({
+      orderId: order.id,
+      placeId: order.placeId,
+      baseUnits,
+      requestedFor: order.requestedFor,
+    });
+  }
+
+  queue.sort((a, b) => {
+    if (a.requestedFor === b.requestedFor) return 0;
+    if (a.requestedFor === null) return 1;
+    if (b.requestedFor === null) return -1;
+    return a.requestedFor < b.requestedFor ? -1 : 1;
+  });
+
+  const promised = queue.reduce((n, w) => n + w.baseUnits, 0);
+  return {
+    promised,
+    free: input.onHand - promised,
+    queue,
+    short: Math.max(0, promised - (input.onHand - input.amount)),
+  };
+}

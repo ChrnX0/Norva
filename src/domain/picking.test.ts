@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ordersCoveredBy, pickSuggestion } from './picking';
+import { freeToShip, ordersCoveredBy, pickSuggestion } from './picking';
 
 test('the order beats the habit, and the habit beats nothing', () => {
   // As duas fontes DISCORDANDO é o único caso que prova a ordem: com uma delas
@@ -63,4 +63,120 @@ test('two loads on the same day cover an order that one alone would not', () => 
     ordersCoveredBy(pedido, new Map([['picole', 300], ['pote', 20]])),
     ['a'],
   );
+});
+
+
+test('the promise of the place you are shipping TO is not a competitor', () => {
+  const pedidos = [
+    {
+      id: 'a',
+      placeId: 'centro',
+      requestedFor: '2026-09-11',
+      lines: [{ itemId: 'picole', baseUnits: 500 }],
+    },
+  ];
+  const base = { itemId: 'picole', onHand: 600, amount: 600, orders: pedidos };
+
+  // Mandando para a Loja Centro: as 500 dela são o MOTIVO da carga, não uma
+  // promessa que a carga rouba. Contá-las aqui faria a tela avisar contra a
+  // própria separação, em toda carga legítima - e alerta que aparece sempre
+  // ensina a ignorar alerta.
+  const paraCentro = freeToShip({ ...base, toPlaceId: 'centro' });
+  assert.equal(paraCentro.promised, 0);
+  assert.equal(paraCentro.free, 600);
+  assert.deepEqual(paraCentro.queue, []);
+  assert.equal(paraCentro.short, 0);
+
+  // Os MESMOS dados, mandando para outra loja: agora as 500 têm dono, e as 600
+  // que iam sair deixam 500 faltando para quem esperava sexta. Este é o defeito
+  // que a tela de transferencia tinha: ela limitava pelo saldo fisico, e saldo
+  // fisico nao sabe de promessa.
+  const paraBairro = freeToShip({ ...base, toPlaceId: 'bairro' });
+  assert.equal(paraBairro.promised, 500);
+  assert.equal(paraBairro.free, 100);
+  assert.equal(paraBairro.short, 500);
+  assert.deepEqual(paraBairro.queue.map((w) => w.placeId), ['centro']);
+});
+
+
+test('what is short is what is missing AFTER the load, and it never goes below zero', () => {
+  const pedidos = [
+    {
+      id: 'a',
+      placeId: 'centro',
+      requestedFor: '2026-09-11',
+      lines: [{ itemId: 'picole', baseUnits: 500 }],
+    },
+  ];
+  const base = { itemId: 'picole', toPlaceId: 'bairro', onHand: 600, orders: pedidos };
+
+  // Cabendo na folga, nada falta - e a tela não avisa. Estado bom é estado
+  // válido: alerta inventado ensina a ignorar alerta.
+  assert.equal(freeToShip({ ...base, amount: 100 }).short, 0);
+
+  // Um a mais que a folga já tira de quem esperava, e é exatamente um.
+  assert.equal(freeToShip({ ...base, amount: 101 }).short, 1);
+
+  // Sobrando de mais, o resultado é zero e não um número negativo: "faltam -400"
+  // é frase que nenhuma tela sabe dizer.
+  assert.equal(freeToShip({ ...base, amount: 0 }).short, 0);
+});
+
+
+test('a factory that promised more than it has says so before the load exists', () => {
+  const pedidos = [
+    { id: 'a', placeId: 'centro', requestedFor: '2026-09-11', lines: [{ itemId: 'picole', baseUnits: 500 }] },
+    { id: 'b', placeId: 'praia', requestedFor: '2026-09-09', lines: [{ itemId: 'picole', baseUnits: 400 }] },
+  ];
+  const conta = freeToShip({
+    itemId: 'picole',
+    toPlaceId: 'bairro',
+    onHand: 600,
+    amount: 0,
+    orders: pedidos,
+  });
+
+  // Prometeu 900 e tem 600: a folga é NEGATIVA, e isso é notícia - não um zero
+  // arredondado. Zerar aqui esconderia que a fábrica já está devendo 300 antes
+  // de o caminhão abrir.
+  assert.equal(conta.promised, 900);
+  assert.equal(conta.free, -300);
+
+  // A fila vem pela data, a mais cedo primeiro: quem carrega decide olhando
+  // quem espera antes, não quem foi digitado antes.
+  assert.deepEqual(conta.queue.map((w) => w.placeId), ['praia', 'centro']);
+});
+
+
+test('only the asked item counts, and a place waiting twice counts twice', () => {
+  const pedidos = [
+    {
+      id: 'a',
+      placeId: 'centro',
+      requestedFor: '2026-09-11',
+      lines: [{ itemId: 'picole', baseUnits: 300 }, { itemId: 'pote', baseUnits: 900 }],
+    },
+    {
+      id: 'b',
+      placeId: 'centro',
+      requestedFor: null,
+      lines: [{ itemId: 'picole', baseUnits: 200 }],
+    },
+  ];
+  const conta = freeToShip({
+    itemId: 'picole',
+    toPlaceId: 'bairro',
+    onHand: 600,
+    amount: 600,
+    orders: pedidos,
+  });
+
+  // As 900 de pote não reservam picolé nenhum: a promessa é por produto.
+  assert.equal(conta.promised, 500);
+
+  // Dois pedidos da mesma loja são duas promessas, e a soma é o que tem dono.
+  // Sem dia marcado vai para o fim da fila - é o único que ninguém está
+  // esperando numa data.
+  assert.deepEqual(conta.queue.map((w) => w.baseUnits), [300, 200]);
+  assert.equal(conta.queue[1].requestedFor, null);
 });

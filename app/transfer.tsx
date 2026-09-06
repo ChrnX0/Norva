@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { RETURN_REASONS, type ReturnReason } from '@/domain/ledger';
+import { INTERNAL_PLACE_KINDS, RETURN_REASONS, type ReturnReason } from '@/domain/ledger';
 import type { Dictionary } from '@/i18n';
 import { parseTyped } from '@/domain/number';
 import { Alive } from '@/components/Alive';
@@ -20,6 +20,7 @@ import {
   type PickLine,
   listPlaces,
   listOrders,
+  type Order,
   recordReturn,
   lotsInStock,
   recordTransfer,
@@ -31,7 +32,7 @@ import {
 } from '@/data/repository';
 import { nowIso } from '@/data/db';
 import { dayWindow, localDate } from '@/domain/day';
-import { ordersCoveredBy, pickSuggestion } from '@/domain/picking';
+import { freeToShip, ordersCoveredBy, pickSuggestion } from '@/domain/picking';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatCalendarDate, formatQuantity, plural } from '@/i18n';
@@ -55,6 +56,14 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * livro-razão quanto foi da última vez e serve à fábrica que repõe por hábito.
  * Sem nenhum dos dois, não há palpite, e é honesto que não haja.
  *
+ * **E a tela diz quem mais está esperando aquilo.** Ela limitava pelo saldo
+ * físico e mais nada, então a reserva que a tela de pedido calculava valia até a
+ * hora de carregar o caminhão e não um minuto depois: a Loja A pede 500 para
+ * sexta, o freezer tem 600, e a carga de hoje para a Loja B levava as 600. Agora
+ * a conta aparece colada no número que está sendo digitado — quanto tem dono, de
+ * quem e para quando —, e ela avisa sem impedir, porque às vezes a loja está na
+ * porta. A regra mora em `freeToShip`, com teste, e não aqui.
+ *
  * **A cara desta tela foi reescrita, não remendada.** O corpo anterior era o
  * vocabulário do Orgânico chumbado na mão: pílula de `borderRadius`,
  * `borderWidth` e `backgroundColor` próprios para o sentido do movimento, e
@@ -76,7 +85,7 @@ export default function TransferScreen() {
   );
 }
 
-type Loaded = { places: Place[]; stock: PlaceStock[] };
+type Loaded = { places: Place[]; stock: PlaceStock[]; orders: Order[] };
 
 /** O lote que sai primeiro: o mais velho que ainda existe na origem. */
 type Frente = { lotId: string; code: string; expiresOn: string | null; baseUnits: number } | null;
@@ -89,11 +98,15 @@ function Transfer() {
   const words = t.app.transfer;
 
   const { data, refresh } = useQuery<Loaded>(async () => {
-    const [places, stock] = await Promise.all([
+    // Os pedidos em aberto entram na abertura da tela, e não no envio, porque é
+    // ANTES de digitar que eles decidem: quem carrega precisa saber que aquelas
+    // caixas têm dono enquanto ainda dá para mandar menos.
+    const [places, stock, orders] = await Promise.all([
       listPlaces(LOCAL_COMPANY_ID),
       stockByPlace(LOCAL_COMPANY_ID),
+      listOrders(LOCAL_COMPANY_ID, ['pending', 'open']),
     ]);
-    return { places, stock };
+    return { places, stock, orders };
   });
 
   /**
@@ -200,6 +213,41 @@ function Transfer() {
 
   const amount = typed ? Math.max(0, (parseTyped(amountText) ?? 0) || 0) : (suggestion ?? 0);
   const over = line != null && amount > line.baseUnits;
+
+  /**
+   * O que desta carga já tem dono — a metade da reserva que faltava.
+   *
+   * `over` compara com o saldo da SALA, que é o que dá para carregar no
+   * caminhão. Esta conta compara com outra coisa: o que a empresa tem nas salas
+   * dela contra o que ela já prometeu. São dois limites diferentes e os dois
+   * importam — um é físico, o outro é combinado.
+   *
+   * O saldo aqui é o de TODAS as nossas salas, e não o da origem, pelo mesmo
+   * motivo que a conta do pedido usa esse total: 500 reservadas que estão na
+   * câmara fria continuam existindo quando a carga sai do freezer da frente.
+   * Comparar com uma sala só avisaria contra uma carga que não quebra promessa
+   * nenhuma, e alerta que aparece sem motivo ensina a ignorar alerta.
+   *
+   * A régua de quais salas são nossas é a mesma do SQL (`INTERNAL_PLACE_KINDS`),
+   * e `src/layers.test.ts` recusa as duas discordando.
+   */
+  const nossas = (data?.stock ?? []).filter((p) =>
+    (INTERNAL_PLACE_KINDS as readonly string[]).includes(p.kind),
+  );
+  const compromisso =
+    !devolucao && line && to
+      ? freeToShip({
+          itemId: line.itemId,
+          toPlaceId: to.id,
+          onHand: nossas.reduce(
+            (n, p) => n + (p.lines.find((l) => l.itemId === line.itemId)?.baseUnits ?? 0),
+            0,
+          ),
+          amount,
+          orders: data?.orders ?? [],
+        })
+      : null;
+  const primeiro = compromisso?.queue[0] ?? null;
 
   // A devolução só fica pronta com o motivo escolhido. O erro IMPEDE em vez de
   // reclamar (Lei 5): o botão não obedece enquanto a pergunta não foi respondida,
@@ -620,6 +668,38 @@ function Transfer() {
 
               {over ? (
                 <Chip signal="warning" label={fill(words.overBalance, { place: nameOf(from) })} />
+              ) : null}
+
+              {/* Quem espera, dito antes de o caminhão fechar.
+                  A frase de cima é fato e aparece sempre que alguém espera: diz
+                  quanto tem dono, de quem e para quando — a conta aberta, sem
+                  ninguém precisar tocar em nada. A de baixo só aparece quando
+                  ESTA carga passa da folga, e é a única que muda de cor.
+                  E nenhuma das duas desliga o botão. A loja pode estar na porta,
+                  e quem está com o caminhão aberto decide melhor que a regra:
+                  o aplicativo sugere, nunca decide calado. */}
+              {compromisso && primeiro ? (
+                <Text style={[type.caption, { color: color.inkMuted }]}>
+                  {fill(compromisso.queue.length > 1 ? words.promisedMany : words.promised, {
+                    amount: `${formatQuantity(compromisso.promised, locale)} ${line.baseUnit}`,
+                    place: nameOf(primeiro.placeId),
+                    when: primeiro.requestedFor
+                      ? fill(words.promisedWhen, {
+                          date: formatCalendarDate(primeiro.requestedFor, locale),
+                        })
+                      : words.promisedWhenever,
+                    rest: plural(compromisso.queue.length - 1, words.promisedRest),
+                  })}
+                </Text>
+              ) : null}
+
+              {compromisso && compromisso.short > 0 ? (
+                <Chip
+                  signal="warning"
+                  label={fill(words.short, {
+                    amount: `${formatQuantity(compromisso.short, locale)} ${line.baseUnit}`,
+                  })}
+                />
               ) : null}
 
               {/* De qual lote sai, dito na tela e não só na confirmação: quem

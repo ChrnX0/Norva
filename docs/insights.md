@@ -4487,3 +4487,44 @@ conferência sobrevive à tela apagando.
 **A regra que fica:** antes de desenhar uma tela, pergunte **o que ela grava**. Se a
 resposta for "nada", ela é leitura — e leitura não pede conferência. Se a resposta for
 "não sei", o que falta não é desenho.
+
+---
+
+## 2026-09-06 — a variável que já estava ali era a errada, e tinha o nome certo
+
+**O que se viu.** Ao construir o aviso de reserva na tela de transferência, o número
+para comparar estava a duas linhas de distância: `line.baseUnits`, o saldo da sala de
+onde a carga sai. É o que a linha de cima já usa (`over = amount > line.baseUnits`), tem
+o nome certo — é *o saldo* — e teria compilado, passado no lint e dado verde na suíte.
+
+E teria mentido em toda carga de uma fábrica de picolés. Porque a promessa é da EMPRESA
+e o saldo dela está espalhado: produz-se no chão de fábrica e manda-se para a câmara fria
+no dia seguinte, que é o que uma fábrica de picolés faz. Com 500 reservadas na câmara e
+600 no freezer da frente, comparar com a sala de origem diria "estas 600 têm dono" e o
+aviso apareceria contra uma carga que não quebra promessa nenhuma.
+
+**Por que importa.** É o mesmo defeito que já tinha custado um achado de auditoria no
+`stockAgainstOrders` — ele lia o `defaultLocationId`, uma sala só, e passava a dizer que
+não havia nada para prometer com o freezer cheio. O defeito não voltou por descuido:
+voltou porque o código novo nasceu **ao lado** de uma variável que responde à outra
+pergunta com a mesma palavra. Existem dois limites nesta tela, os dois se chamam "saldo",
+e um é físico (o que cabe no caminhão) e o outro é combinado (o que tem dono). Trocá-los
+não quebra nada visível — produz um alerta que aparece sem motivo, e alerta assim ensina
+a ignorar alerta, que é a Lei 7 sendo desfeita por dentro.
+
+**O que salvou foi régua compartilhada com teste, não atenção.** `INTERNAL_PLACE_KINDS`
+já existia em `src/domain/ledger.ts`, e `src/layers.test.ts:395` já recusava o SQL e a
+constante discordarem sobre quais salas são nossas. Usar a mesma régua deixou a tela
+nova certa **de graça**, e no mesmo instante ligou as duas metades da reserva à mesma
+aritmética — que era o defeito de origem: prometer e despachar contavam coisas
+diferentes.
+
+**O que mudou.** `freeToShip` (`src/domain/picking.ts`) compara com a soma das salas
+internas, com o motivo escrito no docblock, e o item 3 do roadmap fechou. Os testes
+cobrem o caso que decide o desenho — os MESMOS dados dando resultado diferente conforme
+o destino —, porque o pedido do destino não é concorrente: mandar para a Loja A é o que a
+promessa da Loja A pede.
+
+**A regra que fica:** quando o número que você precisa já está em escopo, desconfie
+exatamente por isso. Pergunte de que pergunta aquele número é a resposta — e se a sua
+pergunta é outra, ele é a armadilha mais bem colocada do arquivo.

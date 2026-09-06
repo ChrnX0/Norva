@@ -856,6 +856,21 @@ export const ptBR = {
       available: 'Tem {{amount}} em {{place}}',
       lastTime: 'Da última vez você mandou {{amount}}',
       overBalance: 'Isso é mais do que tem em {{place}}.',
+      /**
+       * A reserva na hora que ela pode ser perdida.
+       *
+       * A tela de anotar pedido já descontava o que outros pedidos reservaram, e
+       * esta limitava pelo saldo FÍSICO — que não sabe de promessa. As frases são
+       * duas porque os dois fatos são diferentes: o de cima diz quem espera, e só
+       * aparece quando alguém espera; o de baixo só aparece quando esta carga
+       * passa da folga. Nenhuma das duas impede: às vezes a loja está na porta.
+       */
+      promised: '{{amount}} disso já tem dono: {{place}} espera {{when}}',
+      promisedMany: '{{amount}} disso já tem dono: {{place}} espera {{when}}, e mais {{rest}}',
+      promisedWhen: 'para {{date}}',
+      promisedWhenever: 'sem dia marcado',
+      promisedRest: { one: '1 pedido', other: '{{n}} pedidos' },
+      short: 'Mandando isso, faltam {{amount}} para quem espera',
       send: 'Registrar a transferência',
       sending: 'Registrando…',
       confirmTitle: 'Confirmar a transferência',

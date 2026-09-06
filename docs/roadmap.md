@@ -42,7 +42,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **364** testes |
+| `npm test` | **368** testes |
 | `npm run mutate` | **106** defeitos plantados, 104 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **37** checagens num navegador de verdade |
 | `npm run db:verify` | **14** garantias contra um Postgres descartável, sob RLS |
@@ -361,27 +361,29 @@ combinada, `app/places.tsx:189` mostra a próxima entrega, e `app/(tabs)/index.t
 monta "quem recebe hoje" na capa. A fila também o carrega (`src/sync/serialize.ts:159`).
 O que falta desta ficha é **preço combinado**, que a migração não criou.
 
-**3. Pedido com reserva — METADE existe, e é a metade que NÃO protege.** Conferido
-em 6 de setembro, e a linha antiga ("a reserva é a camada por cima") dizia que nada
-existia.
+**3.** ~~**Pedido com reserva.**~~ **FEITA em 6 de setembro.** A metade que existia era
+a que não protege: `livreDe` (`app/orders/new.tsx:207`) já recusava PROMETER além de
+`onHand − requested`, e `app/transfer.tsx` limitava a CARGA pelo saldo físico da sala —
+que não sabe de promessa. A Loja A pedia 500 para sexta, o freezer tinha 600, e a carga
+de hoje para a Loja B levava as 600.
 
-Existe: `stockAgainstOrders` (`src/data/repository.ts:4185`) soma o que os pedidos em
-aberto pediram contra o que há em mãos, e `app/orders/new.tsx:206` (`livreDe`) recusa
-prometer mais do que `onHand − requested`, contando até as linhas do rascunho da tela.
+A regra entrou como `freeToShip` (`src/domain/picking.ts`), no domínio e com teste, pelo
+motivo que este projeto já pagou duas vezes: o `mutate` roda a suíte rápida, e regra
+dentro de componente de React não é alcançada por ela. Ela devolve fato — quanto tem
+dono, quem espera (o mais cedo primeiro), e quanto faltaria depois desta carga — e a
+tela escreve a frase.
 
-**Não existe no momento em que a mercadoria sai.** `app/transfer.tsx` não menciona
-`stockAgainstOrders`: o único limite é `over = amount > line.baseUnits`, o saldo
-FÍSICO da sala. Então a Loja A pede 500 para sexta, o estoque tem 600, e a carga de
-hoje para a Loja B pode levar as 600 — o sistema disse "reservado" na hora de
-prometer e não disse nada na hora de carregar o caminhão.
+Três decisões dentro dela, cada uma um jeito de errar que foi evitado:
 
-Uma reserva que só uma tela honra não é reserva; é uma frase. E a que falta é
-justamente a do instante em que a promessa se perde de verdade.
-
-**O conserto não é bloquear.** A casa sugere e nunca decide calada — às vezes a loja
-está na porta e a carga tem que sair mesmo assim. O que falta é a tela de transferir
-dizer, na hora, quanto daquilo tem dono e de quem: `livre = onHand − requested`, com
-o aviso nomeando quem espera quando a quantidade digitada passa disso.
+- **O pedido do DESTINO não conta.** Mandar para a Loja A é o que a promessa da Loja A
+  pede; contá-la faria a tela avisar contra a própria separação, em toda carga legítima.
+- **O saldo comparado é o de TODAS as nossas salas**, não o da sala de origem — a mesma
+  base do `stockAgainstOrders`, pela régua compartilhada `INTERNAL_PLACE_KINDS`. Uma sala
+  só avisaria contra carga que não quebra promessa nenhuma: 500 reservadas que estão na
+  câmara fria continuam existindo quando o caminhão carrega no freezer da frente.
+- **Não bloqueia.** Às vezes a loja está na porta. A frase de fato aparece sempre que
+  alguém espera; o aviso, só quando esta carga passa da folga; o botão obedece nos dois
+  casos.
 
 **4. Separação — o que falta NÃO é a tela, é uma pergunta sem resposta.** Conferido
 em 6 de setembro, ao ir construí-la.
