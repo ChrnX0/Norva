@@ -183,6 +183,21 @@ export const es: Dictionary = {
       },
     },
 
+    who: {
+      title: 'Quién tiene el aparato',
+      overline: 'toca tu nombre',
+      hint: 'El nombre queda junto a lo que registres. Sirve para que la verificación sepa a quién preguntar, nunca para culpar.',
+      pinAsk: 'Escribe el PIN de {{name}}',
+      pinWrong: 'El PIN no coincide.',
+      pinLabel: 'PIN',
+      confirm: 'Entrar',
+      none: 'Nadie todavía',
+      leave: 'Dejar el aparato',
+      empty: 'Nadie dado de alta todavía.',
+      emptyHint: 'Da de alta a quien trabaja aquí y la cuadrícula aparece.',
+      current: 'Ahora es {{name}}',
+    },
+
     lotLabel: {
       title: 'Etiqueta del lote',
       overline: 'para pegar en la caja',
@@ -308,6 +323,7 @@ export const es: Dictionary = {
         settings: 'Ajustes',
       },
       rows: {
+        who: 'Cambiar de persona',
         inputs: 'Insumos',
         recipes: 'Recetas',
         products: 'Productos',
@@ -486,6 +502,18 @@ export const es: Dictionary = {
         hint: 'Activado, cada pedido nuevo aparece como "espera aprobación" hasta que alguien lo apruebe. Ya cuenta en lo que falta producir: esperar la aprobación para empezar es enterarse tarde.',
         on: 'Activado',
         off: 'Desactivado',
+      },
+      naming: {
+        label: 'Nombrar quién registró',
+        hint: 'Apagado, el informe habla de dónde — "faltaron 3 cajas en la verificación". Encendido, el aparato pregunta quién lo tiene y cada línea guarda el nombre.',
+        on: 'Encendido',
+        off: 'Apagado',
+      },
+      signIn: {
+        label: 'Cómo se entra en la planta',
+        hint: 'Un celular por persona elige una vez y queda. Un aparato que pasa de mano pregunta cada vez que se abre la app — quien lo tomó ahora no es quien lo dejó.',
+        personal: 'Uno por persona',
+        shared: 'Compartido',
       },
     },
 

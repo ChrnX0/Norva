@@ -2306,6 +2306,76 @@ check('a person is registered with a profile, and the profile says what she may 
   assert.match(depois, /1 pessoa/, 'e o perfil passa a dizer quantos o vestem');
 });
 
+check('the shared phone asks who is holding it, and only when the company names people', async (page) => {
+  // A porta não pode existir antes de a empresa nomear: sem isso, "quem está com
+  // o aparelho" é pergunta sem consequência — o movimento nasce sem operador de
+  // qualquer jeito. Gaveta que abre no vazio é pior que gaveta não desenhada.
+  await page.goto(`http://localhost:${PORT}/more`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  assert.doesNotMatch(
+    await screen(page),
+    /Trocar de pessoa/,
+    'sem nomear ninguém, a grade não tem por que existir',
+  );
+
+  await page.goto(`http://localhost:${PORT}/people`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Cadastrar uma pessoa', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+  await page.getByLabel('Como se chama').fill('Ana');
+  await page.waitForTimeout(300);
+  await page.getByLabel('Operador').first().click();
+  await page.waitForTimeout(400);
+  await page.getByText('Salvar pessoa', { exact: true }).first().click();
+  await page.waitForTimeout(2000);
+
+  // A empresa liga o nomear. O padrão é desligado por decisão do dono: o
+  // relatório fala de onde, não de quem.
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  const ajustes = await screen(page);
+  assert.match(ajustes, /Nomear quem gravou/, 'a escolha é da empresa e mora nos ajustes');
+  assert.doesNotMatch(
+    ajustes,
+    /Como se entra no chão de fábrica/,
+    'e escolher entre dois nadas não aparece antes de haver o que nomear',
+  );
+
+  await page.getByLabel('Nomear quem gravou').click();
+  await page.waitForTimeout(1200);
+  assert.match(
+    await screen(page),
+    /Como se entra no chão de fábrica/,
+    'ligado, a segunda escolha passa a ter sentido e aparece',
+  );
+
+  // E agora a porta existe.
+  await page.goto(`http://localhost:${PORT}/more`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  assert.match(await screen(page), /Trocar de pessoa/, 'ligado, a grade ganha porta');
+
+  await page.goto(`http://localhost:${PORT}/who`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  const grade = await screen(page);
+  assert.match(grade, /Ninguém ainda/, 'ninguém se identificou, e isso é dito');
+  assert.match(grade, /Ana/, 'e o nome está na grade');
+  assert.match(grade, /nunca para cobrar/, 'a tela diz para que o nome serve, e para que não');
+
+  // Sem PIN, um toque só — que é o que uma fábrica de seis pessoas quer.
+  await page.getByLabel('Ana').first().click();
+  await page.waitForTimeout(2000);
+
+  await page.goto(`http://localhost:${PORT}/who`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  assert.match(await screen(page), /Agora é Ana/, 'a grade passa a dizer quem está com ele');
+
+  // E dá para largar: sem isso o nome de quem saiu do turno carimba as caixas de
+  // quem entrou, que é pior que não nomear ninguém.
+  await page.getByText('Largar o aparelho', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+  assert.match(await screen(page), /Ninguém ainda/, 'largar o aparelho volta ao anônimo');
+});
+
 check('erasing refuses in an order, and explains the way out', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

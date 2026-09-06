@@ -178,6 +178,21 @@ export const en: Dictionary = {
       },
     },
 
+    who: {
+      title: 'Who is holding the phone',
+      overline: 'tap your name',
+      hint: 'The name stays with whatever you record. It is there so the check-in knows who to ask, never to blame.',
+      pinAsk: 'Type {{name}}\u2019s PIN',
+      pinWrong: 'That PIN does not match.',
+      pinLabel: 'PIN',
+      confirm: 'Enter',
+      none: 'Nobody yet',
+      leave: 'Put the phone down',
+      empty: 'Nobody registered yet.',
+      emptyHint: 'Register who works here and the grid appears.',
+      current: '{{name}} is holding it',
+    },
+
     lotLabel: {
       title: 'Lot label',
       overline: 'to stick on the box',
@@ -303,6 +318,7 @@ export const en: Dictionary = {
         settings: 'Settings',
       },
       rows: {
+        who: 'Switch person',
         inputs: 'Inputs',
         recipes: 'Recipes',
         products: 'Products',
@@ -481,6 +497,18 @@ export const en: Dictionary = {
         hint: 'On, every new order shows as "waiting for approval" until someone approves it. It already counts towards what is left to make: waiting for the approval to start is finding out late.',
         on: 'On',
         off: 'Off',
+      },
+      naming: {
+        label: 'Name who recorded it',
+        hint: 'Off, the report speaks of where — "3 boxes missing at check-in". On, the phone asks who is holding it and every line keeps the name.',
+        on: 'On',
+        off: 'Off',
+      },
+      signIn: {
+        label: 'How the floor signs in',
+        hint: 'One phone per person picks once and stays. A phone that passes from hand to hand asks every time the app opens — whoever picked it up is not whoever put it down.',
+        personal: 'One per person',
+        shared: 'Shared',
       },
     },
 

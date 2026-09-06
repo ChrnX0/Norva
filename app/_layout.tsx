@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { BarraDoSistema } from '@/components/BarraDoSistema';
 import { useEffect, useState } from 'react';
@@ -9,6 +9,7 @@ import { Crash } from '@/components/Crash';
 import { WhatsNew } from '@/components/WhatsNew';
 import { Alerts } from '@/notify/Alerts';
 import { ensureStarterData } from '@/data/seed';
+import { floorSignIn, namesWhoRecorded, setCurrentOperator } from '@/data/repository';
 import { LocaleProvider } from '@/i18n/Locale';
 import { AppearanceProvider, useAppearance } from '@/theme/Appearance';
 import { ThemeProvider } from '@/theme/ThemeProvider';
@@ -50,6 +51,39 @@ function AberturaSai() {
   useEffect(() => {
     if (ready) SplashScreen.hide();
   }, [ready]);
+  return null;
+}
+
+/**
+ * O aparelho compartilhado pergunta quem está com ele, a cada abertura.
+ *
+ * Não desenha nada, e existe pelo mesmo motivo que o `Alerts` ao lado: regra sem
+ * chamador é peça morta, e esta regra é a diferença entre nomear e mentir.
+ *
+ * **Por que ESQUECER e não lembrar.** Num celular que passa de mão, o nome
+ * guardado é do turno anterior. Manter o último faria a carga da tarde sair
+ * assinada por quem foi embora ao meio-dia — e isso é pior que não nomear
+ * ninguém, porque tem cara de informação. Abrir o app é a evidência mais forte
+ * que existe de que o aparelho trocou de mão, então é ali que o nome cai.
+ *
+ * **E só quando as duas coisas valem.** A empresa que não nomeia ninguém nunca
+ * vê esta tela; a que dá um celular por pessoa escolhe uma vez e fica. Os dois
+ * caminhos existem e o padrão é não perguntar nada.
+ */
+function QuemEstaComOAparelho() {
+  const router = useRouter();
+  useEffect(() => {
+    let vivo = true;
+    void (async () => {
+      const [nomeia, entrada] = await Promise.all([namesWhoRecorded(), floorSignIn()]);
+      if (!vivo || !nomeia || entrada !== 'shared') return;
+      await setCurrentOperator(null);
+      if (vivo) router.push('/who' as never);
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [router]);
   return null;
 }
 
@@ -156,6 +190,7 @@ export default function RootLayout() {
               <ConfirmProvider>
                 <BarraDoSistema />
                 <Stack screenOptions={{ headerShown: false }} />
+                <QuemEstaComOAparelho />
                 {/* Sits above every screen: the update may land on any of them. */}
                 <WhatsNew />
                 {/* Reagenda os avisos a cada abertura. Não desenha nada; existe

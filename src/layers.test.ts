@@ -540,3 +540,32 @@ test('the percentage guard bites the real scar, and leaves honest toFixed alone'
     'prosa que cita o padrão não é o padrão',
   );
 });
+
+
+test('every line the ledger gets says who was holding the phone', () => {
+  // A coluna existiu por semanas sem escritor — `movements.operator_id` entrou na
+  // 0014, atravessava a sincronia, e nenhum dos SETE `INSERT INTO movements` a
+  // preenchia. `app/(tabs)/more.tsx` registrava a lacuna com todas as letras.
+  //
+  // Agora todos preenchem, e este guarda existe porque o oitavo é o problema:
+  // quem acrescentar um tipo de movimento amanhã copia um `INSERT` vizinho, e o
+  // que ele copiar decide se a linha nasce sem operador para sempre. Livro-razão
+  // não se corrige por UPDATE — se nascer sem, nasceu sem.
+  const fonte = readFileSync(join(process.cwd(), 'src/data/repository.ts'), 'utf8');
+
+  const inserts = fonte.split('INSERT INTO movements').slice(1);
+  assert.ok(inserts.length >= 7, `o arquivo tem ${inserts.length} inserts de movimento`);
+
+  const semOperador = inserts
+    .map((trecho, i) => ({ i, colunas: trecho.slice(0, trecho.indexOf('VALUES')) }))
+    .filter(({ colunas }) => !colunas.includes('operator_id'))
+    .map(({ i }) => `o ${i + 1}º INSERT INTO movements`);
+
+  assert.deepEqual(
+    semOperador,
+    [],
+    `${semOperador.join(' · ')} não grava \`operator_id\`. A linha nasce anônima e o ` +
+      'razão é append-only: não há UPDATE que conserte depois. Acrescente a coluna e ' +
+      '`await currentOperatorId()` no fim dos parâmetros, como os vizinhos.',
+  );
+});

@@ -224,6 +224,22 @@ export const ptBR = {
       },
     },
 
+    who: {
+      title: 'Quem está com o aparelho',
+      overline: 'toque no seu nome',
+      /** Sem acusar ninguém: a frase explica para que serve, não cobra. */
+      hint: 'O nome fica junto do que você registrar. Serve para a conferência saber a quem perguntar, nunca para cobrar.',
+      pinAsk: 'Digite o PIN de {{name}}',
+      pinWrong: 'PIN não confere.',
+      pinLabel: 'PIN',
+      confirm: 'Entrar',
+      none: 'Ninguém ainda',
+      leave: 'Largar o aparelho',
+      empty: 'Ninguém cadastrado ainda.',
+      emptyHint: 'Cadastre quem trabalha aqui e a grade aparece.',
+      current: 'Agora é {{name}}',
+    },
+
     lotLabel: {
       title: 'Etiqueta do lote',
       overline: 'para colar na caixa',
@@ -377,6 +393,7 @@ export const ptBR = {
         settings: 'Ajustes',
       },
       rows: {
+        who: 'Trocar de pessoa',
         inputs: 'Insumos',
         recipes: 'Receitas',
         products: 'Produtos',
@@ -577,6 +594,19 @@ export const ptBR = {
         hint: 'Ligado, todo pedido novo aparece como "espera aprovação" até alguém aprovar. Ele já entra na conta do que falta produzir: quem espera a aprovação para começar descobre tarde.',
         on: 'Ligado',
         off: 'Desligado',
+      },
+      naming: {
+        label: 'Nomear quem gravou',
+        /** A frase diz o que MUDA, não o que a chave se chama: quem lê decide com isso. */
+        hint: 'Desligado, o relatório fala de onde — "faltaram 3 caixas na conferência". Ligado, o aparelho pergunta quem está com ele e cada linha guarda o nome.',
+        on: 'Ligado',
+        off: 'Desligado',
+      },
+      signIn: {
+        label: 'Como se entra no chão de fábrica',
+        hint: 'Um celular por pessoa escolhe uma vez e fica. Aparelho que passa de mão pergunta toda vez que o app abre — porque quem pegou agora não é quem largou.',
+        personal: 'Um por pessoa',
+        shared: 'Compartilhado',
       },
     },
 

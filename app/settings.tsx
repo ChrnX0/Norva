@@ -12,6 +12,7 @@ import {
   GlyphCalendar,
   GlyphCatalog,
   GlyphCount,
+  GlyphCustomer,
   GlyphLoss,
   GlyphOrder,
   GlyphSettings,
@@ -28,10 +29,14 @@ import {
   briefingOrder,
   countForErase,
   eraseArea,
+  floorSignIn,
+  namesWhoRecorded,
   ordersNeedApproval,
   setBriefingHidden,
   setAlertSettings,
   setBriefingOrder,
+  setFloorSignIn,
+  setNamesWhoRecorded,
   setOrdersNeedApproval,
 } from '@/data/repository';
 import { agreedOn, toggleDay } from '@/domain/agreement';
@@ -240,6 +245,8 @@ function Settings() {
    * chão de fábrica, e ela vale aqui pelo mesmo motivo.
    */
   const { data: approval, refresh: refreshApproval } = useQuery<boolean>(() => ordersNeedApproval());
+  const { data: nomeia, refresh: refreshNomeia } = useQuery<boolean>(() => namesWhoRecorded());
+  const { data: entrada, refresh: refreshEntrada } = useQuery(() => floorSignIn());
 
   /**
    * Os avisos, e o que a casa escolheu sobre cada um.
@@ -1057,6 +1064,77 @@ function Settings() {
           </Card>
         </Pressable>
       </Reveal>
+
+      {/* Nomear quem gravou.
+          O padrão é DESLIGADO por decisão do dono — "o relatório fala de onde,
+          não de quem" —, e a frase diz o que muda em vez de nomear a chave. É a
+          diferença entre o app orientar e o app fiscalizar, e essa escolha é da
+          empresa, nunca nossa. */}
+      <Reveal index={6}>
+        <Pressable
+          onPress={async () => {
+            await setNamesWhoRecorded(!nomeia);
+            refreshNomeia();
+          }}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: Boolean(nomeia) }}
+          accessibilityLabel={t.app.settings.naming.label}
+        >
+          <Card
+            hue={palette.mist}
+            icon={(c) => <GlyphCustomer size={26} color={c} weight={traco} />}
+            title={t.app.settings.naming.label}
+          >
+            <View style={[styles.row, { gap: space.md }]}>
+              <Text style={[type.caption, { color: color.inkMuted, flex: 1 }]}>
+                {t.app.settings.naming.hint}
+              </Text>
+              <Chip
+                signal={nomeia ? 'ok' : 'neutral'}
+                label={nomeia ? t.app.settings.naming.on : t.app.settings.naming.off}
+              />
+            </View>
+          </Card>
+        </Pressable>
+      </Reveal>
+
+      {/* Como se entra no chão de fábrica.
+          Só aparece quando a empresa nomeia: sem nomear ninguém, escolher entre
+          "um por pessoa" e "compartilhado" é escolher entre dois nadas. Gaveta
+          que abre no vazio é pior que gaveta não desenhada. */}
+      {nomeia ? (
+        <Reveal index={7}>
+          <Pressable
+            onPress={async () => {
+              await setFloorSignIn(entrada === 'shared' ? 'personal' : 'shared');
+              refreshEntrada();
+            }}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: entrada === 'shared' }}
+            accessibilityLabel={t.app.settings.signIn.label}
+          >
+            <Card
+              hue={palette.mist}
+              icon={(c) => <GlyphCustomer size={26} color={c} weight={traco} />}
+              title={t.app.settings.signIn.label}
+            >
+              <View style={[styles.row, { gap: space.md }]}>
+                <Text style={[type.caption, { color: color.inkMuted, flex: 1 }]}>
+                  {t.app.settings.signIn.hint}
+                </Text>
+                <Chip
+                  signal={entrada === 'shared' ? 'ok' : 'neutral'}
+                  label={
+                    entrada === 'shared'
+                      ? t.app.settings.signIn.shared
+                      : t.app.settings.signIn.personal
+                  }
+                />
+              </View>
+            </Card>
+          </Pressable>
+        </Reveal>
+      ) : null}
 
       {/* Começar do zero.
           Fantasma, sempre: botão grande e colorido convida, e ninguém deve ser

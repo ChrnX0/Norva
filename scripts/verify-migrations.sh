@@ -976,6 +976,36 @@ fi
 
 echo "    pessoa existe sem conta, o operador só aceita gente, e cadastrar gente pede manage_company"
 
+echo "==> check 16: o PIN é atribuição, e o banco recusa o que não é PIN"
+
+# O PIN da grade de nomes é ATRIBUIÇÃO, não autenticação — o raciocínio inteiro
+# está na 0036 e em `docs/estudo-entrada.md`. O que o banco garante não é
+# segredo: é FORMA. Quatro a oito dígitos, ou nada.
+#
+# A restrição existe para o erro impedir em vez de reclamar, e para impedir dos
+# dois lados: o aparelho valida antes de gravar, e se algum dia ele esquecer, a
+# linha é recusada aqui em vez de virar um PIN com letra que ninguém consegue
+# digitar num teclado numérico.
+psql -d "$DB" -q -c "update people set pin = '1234' where id = '${P}81';" >/dev/null ||  # proofgate-allow
+  fail "um PIN de quatro dígitos foi recusado"
+
+psql -d "$DB" -q -c "update people set pin = '12345678' where id = '${P}81';" >/dev/null ||  # proofgate-allow
+  fail "um PIN de oito dígitos foi recusado"
+
+# Nulo é o caso NORMAL: a fábrica que não quis PIN escolhe com um toque só.
+psql -d "$DB" -q -c "update people set pin = null where id = '${P}81';" >/dev/null ||  # proofgate-allow
+  fail "tirar o PIN foi recusado, e pessoa sem PIN é o caso comum"
+
+if psql -d "$DB" -q -c "update people set pin = '123' where id = '${P}81';" >/dev/null 2>&1; then  # proofgate-allow
+  fail "o banco aceitou um PIN de três dígitos"
+fi
+
+if psql -d "$DB" -q -c "update people set pin = 'abcd' where id = '${P}81';" >/dev/null 2>&1; then  # proofgate-allow
+  fail "o banco aceitou letra no PIN: ninguém digita isso num teclado numérico de luva"
+fi
+
+echo "    quatro a oito dígitos ou nada, e nada é o caso comum"
+
 echo
-echo "OK - migrations apply and all fifteen guarantees hold."
+echo "OK - migrations apply and all sixteen guarantees hold."
 

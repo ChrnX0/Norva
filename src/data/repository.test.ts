@@ -3742,3 +3742,77 @@ test('the company chooses how the floor signs in, and the default is one phone p
   await setNamesWhoRecorded(false);
   assert.equal(await namesWhoRecorded(), false);
 });
+
+
+test('a movement written on a shared phone says who was holding it, all the way to the server', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [perfil] = await listProfiles(LOCAL_COMPANY_ID);
+  const ana = await savePerson(LOCAL_COMPANY_ID, { name: 'Ana', profileId: perfil.id });
+  const [produto] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+
+  const [acucar] = (await listItems(LOCAL_COMPANY_ID)).filter((i) => /ú?car/i.test(i.name));
+
+  // Ninguém se identificou: a linha nasce sem operador, e isso é resposta e não
+  // lacuna — quer dizer "esta empresa não nomeia ninguém".
+  await recordPurchase(LOCAL_COMPANY_ID, {
+    itemId: acucar.id,
+    purchaseQuantity: 1,
+    baseUnits: 25_000,
+    totalCents: fromDecimal(118),
+  });
+  const anonima = await live.getFirstAsync<{ operator_id: string | null }>(
+    `SELECT operator_id FROM movements WHERE kind = 'purchase' ORDER BY recorded_at DESC LIMIT 1`,
+  );
+  assert.equal(anonima?.operator_id, null);
+
+  // A Ana pega o aparelho.
+  await setCurrentOperator(ana.id);
+  await recordProduction(LOCAL_COMPANY_ID, {
+    productId: produto.id,
+    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    batches: 1,
+    unitsProduced: 100,
+    producedOn: '2026-09-02',
+  });
+
+  // As DUAS pernas da corrida — o que saiu do almoxarifado e o que entrou no
+  // estoque — carregam o operador. Um insert que esquecesse deixaria metade do
+  // ato anônima, e o razão não tem UPDATE que conserte depois.
+  const daAna = await live.getAllAsync<{ kind: string; operator_id: string | null }>(
+    `SELECT kind, operator_id FROM movements WHERE operator_id IS NOT NULL`,
+  );
+  assert.ok(daAna.length >= 2, 'produção escreve consumo e produção, e as duas são da Ana');
+  assert.deepEqual([...new Set(daAna.map((m) => m.operator_id))], [ana.id]);
+
+  // E atravessa para o servidor, onde `operator_id` aponta para uma PESSOA sem
+  // conta desde a 0035 — que é o nó inteiro deste assunto, desfeito.
+  const fila = await pendingEntries();
+  const linha = fila.filter((e) => e.table === 'movements').at(-1);
+  assert.ok(linha, 'o movimento entra na fila');
+  const bruta = await live.getFirstAsync<Record<string, unknown>>(
+    `SELECT * FROM movements WHERE id = ?`,
+    [linha.rowId],
+  );
+  const escrita = serialize(linha, bruta ?? null, { userId: 'a-conta-da-empresa' });
+  assert.equal(escrita.kind, 'upsert');
+  if (escrita.kind === 'upsert') {
+    // A conta que escreveu e a pessoa que operava são duas perguntas, e é por
+    // isso que existem duas colunas. Confundi-las já custou uma rodada inteira.
+    assert.equal(escrita.row.recorded_by, 'a-conta-da-empresa');
+    assert.equal(escrita.row.operator_id, ana.id);
+  }
+
+  // Largar o aparelho volta ao anônimo: quem pegar depois não herda o nome de
+  // quem largou.
+  await setCurrentOperator(null);
+  await recordPurchase(LOCAL_COMPANY_ID, {
+    itemId: acucar.id,
+    purchaseQuantity: 1,
+    baseUnits: 25_000,
+    totalCents: fromDecimal(118),
+  });
+  const depois = await live.getAllAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM movements WHERE operator_id IS NOT NULL`,
+  );
+  assert.equal(depois[0].n, daAna.length, 'nada novo ganhou o nome da Ana');
+});

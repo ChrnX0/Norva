@@ -403,8 +403,9 @@ export async function recordPurchase(
     await conn.runAsync(
       `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                               quantity_base_units, location_id, unit_cost_rate,
-                              movement_group_id, assistant_phrase)
-       VALUES (?, ?, 'purchase', ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              movement_group_id, assistant_phrase,
+                              operator_id)
+       VALUES (?, ?, 'purchase', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         lineId,
         companyId,
@@ -420,6 +421,7 @@ export async function recordPurchase(
         // que é a coisa que o estorno por ato existe para não deixar acontecer.
         purchaseId,
         input.assistantPhrase ?? null,
+        await currentOperatorId(),
       ],
     );
 
@@ -956,8 +958,9 @@ export async function recordCount(
     await conn.runAsync(
       `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                               quantity_base_units, location_id, unit_cost_rate,
-                              movement_group_id, note, assistant_phrase)
-       VALUES (?, ?, 'adjustment', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              movement_group_id, note, assistant_phrase,
+                              operator_id)
+       VALUES (?, ?, 'adjustment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         companyId,
@@ -975,6 +978,7 @@ export async function recordCount(
         id,
         input.note ?? null,
         input.assistantPhrase ?? null,
+        await currentOperatorId(),
       ],
     );
     await enqueue(conn, [{ table: 'movements', rowId: id }]);
@@ -1543,8 +1547,9 @@ export async function recordProduction(
       await conn.runAsync(
         `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                                 quantity_base_units, location_id, unit_cost_rate,
-                                movement_group_id, lot_id, note, assistant_phrase)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                movement_group_id, lot_id, note, assistant_phrase,
+                                operator_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           companyId,
@@ -1559,6 +1564,7 @@ export async function recordProduction(
           lot,
           input.note ?? null,
           input.assistantPhrase ?? null,
+          await currentOperatorId(),
         ],
       );
       await enqueue(conn, [{ table: 'movements', rowId: id }]);
@@ -1743,8 +1749,9 @@ async function moveBetween(
         `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                                 quantity_base_units, location_id, counterpart_location_id,
                                 unit_cost_rate, movement_group_id, lot_id, note, assistant_phrase,
-                                return_reason)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                return_reason,
+                                operator_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           companyId,
@@ -1767,6 +1774,7 @@ async function moveBetween(
           // que entra na fábrica é a que um relatório de devolução vai ler, e
           // sem o motivo nela a metade que interessa fica muda.
           input.returnReason ?? null,
+          await currentOperatorId(),
         ],
       );
       await enqueue(conn, [{ table: 'movements', rowId: id }]);
@@ -2182,8 +2190,9 @@ export async function recordLoss(
     await conn.runAsync(
       `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                               quantity_base_units, location_id, unit_cost_rate, loss_reason,
-                              movement_group_id, lot_id, note, assistant_phrase)
-       VALUES (?, ?, 'loss', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              movement_group_id, lot_id, note, assistant_phrase,
+                              operator_id)
+       VALUES (?, ?, 'loss', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         companyId,
@@ -2205,6 +2214,7 @@ export async function recordLoss(
         input.lotId ?? null,
         input.note ?? null,
         input.assistantPhrase ?? null,
+        await currentOperatorId(),
       ],
     );
     await enqueue(conn, [{ table: 'movements', rowId: id }]);
@@ -2541,8 +2551,9 @@ export async function recordCheck(
       await conn.runAsync(
         `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                                 quantity_base_units, location_id, counterpart_location_id,
-                                unit_cost_rate, movement_group_id, post, note, assistant_phrase)
-         VALUES (?, ?, 'discrepancy', ?, ?, ?, ?, ?, ?, ?, ?, 'checked', ?, ?)`,
+                                unit_cost_rate, movement_group_id, post, note, assistant_phrase,
+                                operator_id)
+         VALUES (?, ?, 'discrepancy', ?, ?, ?, ?, ?, ?, ?, ?, 'checked', ?, ?, ?)`,
         [
           id,
           companyId,
@@ -2556,6 +2567,7 @@ export async function recordCheck(
           input.groupId,
           input.note ?? null,
           input.assistantPhrase ?? null,
+          await currentOperatorId(),
         ],
       );
       await enqueue(conn, [{ table: 'movements', rowId: id }]);
@@ -4647,8 +4659,9 @@ export async function reverseGroup(
         `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                                 quantity_base_units, location_id, unit_cost_rate,
                                 movement_group_id, counterpart_location_id, lot_id,
-                                reverses_movement_id, note)
-         VALUES (?, ?, 'reversal', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                reverses_movement_id, note,
+                                operator_id)
+         VALUES (?, ?, 'reversal', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           companyId,
@@ -4666,6 +4679,7 @@ export async function reverseGroup(
           o.lot_id,
           o.id,
           input.note ?? null,
+          await currentOperatorId(),
         ],
       );
       await enqueue(conn, [{ table: 'movements', rowId: id }]);

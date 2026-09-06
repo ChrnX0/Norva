@@ -4741,3 +4741,37 @@ faz outra tem que dizer isso onde alguém a lê.
 **A regra que fica:** economia de CI se afirma **medida**, nunca lida. O que prova que um
 filtro filtra é um commit que ele deveria excluir não aparecendo na lista de execuções — e
 esse teste custa um push.
+
+---
+
+## 2026-09-06 — a checagem de navegador passou verde nas duas vezes em que a tela estava errada
+
+**O que se viu.** A grade de nomes entrou com `flexBasis: '44%'` e `flexGrow: 1`. Tipos
+limpos, lint limpo, e a checagem de navegador **passou** — ela afirma o texto certo: o
+nome está lá, o perfil está lá, "Ninguém ainda" está lá. A foto mostrou que, com uma
+pessoa cadastrada, a célula esticava para a largura inteira: a grade era uma faixa.
+
+Consertei fatiando as linhas por `dp` (dois nomes no telefone, três no tablet pequeno,
+quatro no tablet) com vãos para a última linha não esticar. Rodei de novo, e a foto mostrou
+o **segundo** defeito: o vão herdava o estilo do nome, borda inclusive, e desenhava uma
+caixa vazia ao lado da Ana. O e2e passou verde nessa também.
+
+**Por que importa.** Já está escrito aqui que "verde não prova tela", e a lição foi
+aprendida com 338 testes e 36 checagens de navegador. O que esta rodada acrescenta é mais
+específico e mais incômodo:
+
+> **A suíte de navegador prova a CORRENTE, nunca a FORMA.** Ela lê texto do DOM: sabe que a
+> tela mudou de estado, que a porta apareceu, que o nome entrou. Não sabe se o nome ocupa
+> metade da tela ou a tela inteira, e nunca vai saber — não é limitação de esforço, é o que
+> ela mede.
+
+E a segunda metade: **o conserto do primeiro defeito criou o segundo.** Olhar uma vez não
+basta quando se mexe em layout; a foto vale por edição, não por tela.
+
+**O que mudou.** A grade fatia por `dp` com o motivo escrito, o vão não se desenha, e as
+duas correções carregam a frase "a foto mostrou" no comentário — para o próximo que mexer
+ali saber que aquele detalhe não é enfeite, é cicatriz.
+
+**A regra que fica:** depois de mexer em layout, fotografe **de novo**, mesmo que a
+verificação continue verde — principalmente se continuar. Verde depois de um conserto de
+forma não é confirmação: é a mesma medida de antes, feita outra vez.

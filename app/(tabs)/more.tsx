@@ -20,6 +20,8 @@ import { IconChevron } from '@/components/icons';
 import { Reveal } from '@/components/Reveal';
 import { Touchable } from '@/components/Touchable';
 import { useLocale } from '@/i18n/useLocale';
+import { namesWhoRecorded } from '@/data/repository';
+import { useQuery } from '@/data/useQuery';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 import type { Dictionary } from '@/i18n';
 
@@ -89,6 +91,16 @@ function Drawers() {
   const { t } = useLocale();
   const router = useRouter();
 
+  /**
+   * A porta da grade de nomes só existe quando a empresa nomeia.
+   *
+   * Sem nomear ninguém, "quem está com o aparelho" é uma pergunta sem
+   * consequência: o movimento nasce sem operador de qualquer jeito. Gaveta que
+   * abre no vazio é pior que gaveta não desenhada — foi por isso que "Pessoas"
+   * ficou fora desta tela até ter tabela atrás.
+   */
+  const { data: nomeia } = useQuery<boolean>(() => namesWhoRecorded());
+
   const glifo =
     (G: (p: { size?: number; color: string; weight?: number }) => ReactNode) => (c: string) =>
       G({ size: 22, color: c, weight: traco });
@@ -115,6 +127,18 @@ function Drawers() {
    * no livro-razão só se corrige por estorno. Prometer a classe de risco errada
    * é o mesmo defeito de um rótulo que discorda do número embaixo dele.
    */
+  const chao: Porta[] = nomeia
+    ? [
+        {
+          key: 'who',
+          detail: t.app.who.overline,
+          route: '/who',
+          desenho: glifo(GlyphCustomer),
+          tom: palette.mist,
+        },
+      ]
+    : [];
+
   const lancamentos: Porta[] = [
     { key: 'orders', detail: t.app.orders.overline, route: '/orders', desenho: glifo(GlyphOrder), tom: palette.sage },
     { key: 'purchases', detail: t.app.purchase.overline, route: '/purchase', desenho: glifo(GlyphPurchase), tom: palette.sage },
@@ -183,6 +207,17 @@ function Drawers() {
         </Touchable>
       </Reveal>
       </Inteiro>
+
+      {/* Quem está com o aparelho, quando a empresa nomeia.
+          Em cima porque é a primeira coisa que muda o que vai ser gravado, e o
+          resto desta tela é o que se abre uma vez por mês. */}
+      {chao.length > 0 ? (
+        <Reveal index={1}>
+          <Card hue={palette.mist} title={t.app.who.title}>
+            {chao.map(portas)}
+          </Card>
+        </Reveal>
+      ) : null}
 
       {/* O que a fábrica cadastra uma vez e usa todo dia. Nenhuma destas linhas
           tem número para mostrar aqui — a tela não consulta nada, e cartão que
