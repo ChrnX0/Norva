@@ -202,9 +202,12 @@ export default function ExtratoScreen() {
 
       {atos.map((ato, i) => (
         <Reveal key={ato.groupId} index={i + 2}>
+          {/* O estorno usa o desenho do que ele DESFAZ, e não o próprio: assim ele
+              se lê como par do ato que corrige, e o que os distingue é o tom calmo
+              mais a legenda — não um desenho que ninguém saberia ler sozinho. */}
           <Card
             hue={ato.isReversal ? palette.mist : undefined}
-            icon={(c) => DESENHO[ato.kind](c, traco)}
+            icon={(c) => DESENHO[ato.reversesKind ?? ato.kind](c, traco)}
           >
             {/* A manchete é O QUE mexeu, não a espécie — porque a espécie está no
                 desenho ao lado, e seis "Compra" empilhados eram a mesma repetição
@@ -221,7 +224,7 @@ export default function ExtratoScreen() {
 
             <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
               {ato.isReversal
-                ? fill(words.undoOf, { what: t.movement[ato.kind] })
+                ? fill(words.undoOf, { what: t.movement[ato.reversesKind ?? 'adjustment'] })
                 : t.movement[ato.kind]}
               {ato.placeName ? ` — ${ato.placeName}` : ''}
             </Text>

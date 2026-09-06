@@ -4719,9 +4719,28 @@ test('the extract lists ACTS, not lines, and says which ones were undone', async
   const depois = await ledgerExtract(CO);
   const desfeita = depois.find((a) => a.groupId === corrida.groupId);
   assert.equal(desfeita?.reversed, true, 'o ato desfeito diz que foi');
+  const correcao = depois.find((a) => a.isReversal);
   assert.ok(
-    depois.some((a) => a.isReversal),
+    correcao,
     'e o desfazimento aparece como ato próprio — sem ele o extrato esconde a metade que explica a outra',
+  );
+
+  /**
+   * O estorno diz correção DE QUÊ, e este é o defeito que a tela mostrou.
+   *
+   * A perna de estorno carrega a espécie dela própria — `reversal` — e a tela
+   * escrevia "Correção de Correção": verdadeiro e inútil, dizendo duas vezes que
+   * era uma correção e nunca dizendo de quê, que é a única coisa que alguém quer
+   * saber ao ver uma no extrato.
+   *
+   * O teste prende porque a asserção óbvia (`isReversal === true`) já passava com
+   * o defeito na tela: o dado estava certo e a leitura dele é que faltava.
+   */
+  assert.equal(
+    correcao.reversesKind,
+    'production',
+    'o estorno de uma corrida sabe que corrige uma PRODUÇÃO — sem isso a tela ' +
+      'escreve "Correção de Correção", que é verdade e não informa nada',
   );
 });
 

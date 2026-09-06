@@ -5036,6 +5036,16 @@ export type ExtractAct = {
   reversed: boolean;
   /** ELE é o desfazimento de outro. */
   isReversal: boolean;
+  /**
+   * A espécie do ato que este DESFAZ — e ela existe por uma foto.
+   *
+   * A tela mostrava **"Correção de Correção"**, porque a perna de estorno carrega a
+   * espécie dela própria (`reversal`) e não a do ato original. O rótulo era
+   * verdadeiro e inútil: dizia duas vezes que era uma correção e nunca dizia
+   * correção do quê — que é a única coisa que alguém quer saber ao ver uma no
+   * extrato.
+   */
+  reversesKind: MovementKind | null;
   /** Os nomes que ele mexeu, para a linha falar sem a tela adivinhar. */
   items: string[];
   placeName: string | null;
@@ -5136,6 +5146,7 @@ export async function ledgerExtract(
     item_name: string | null;
     place_name: string | null;
     reverses: string | null;
+    reverses_kind: string | null;
     reversed: number;
   }>(
     `SELECT COALESCE(m.movement_group_id, m.id) AS g, m.id, m.kind,
@@ -5144,11 +5155,14 @@ export async function ledgerExtract(
             m.occurred_at, m.note,
             i.name AS item_name, l.name AS place_name,
             m.reverses_movement_id AS reverses,
+            o.kind AS reverses_kind,
             EXISTS (SELECT 1 FROM movements r
                      WHERE r.reverses_movement_id = m.id AND r.company_id = m.company_id) AS reversed
        FROM movements m
        LEFT JOIN items i ON i.id = m.item_id
        LEFT JOIN locations l ON l.id = m.location_id
+       -- A perna de origem, para o estorno poder dizer correção DE QUÊ.
+       LEFT JOIN movements o ON o.id = m.reverses_movement_id
       WHERE m.company_id = ? AND COALESCE(m.movement_group_id, m.id) IN (${marcas})
       ORDER BY m.rowid ASC`,
     [dinheiro, companyId, ...atos.map((a) => a.g)],
@@ -5196,6 +5210,7 @@ export async function ledgerExtract(
         valueCents: null,
         reversed: l.reversed === 1,
         isReversal: l.reverses !== null,
+        reversesKind: (l.reverses_kind as MovementKind | null) ?? null,
         items: l.item_name ? [l.item_name] : [],
         placeName: l.place_name,
         note: l.note,
@@ -5206,6 +5221,7 @@ export async function ledgerExtract(
     // Basta UMA perna estornada: o estorno vem sempre inteiro, e meia é defeito.
     if (l.reversed === 1) ja.reversed = true;
     if (l.reverses !== null) ja.isReversal = true;
+    if (!ja.reversesKind && l.reverses_kind) ja.reversesKind = l.reverses_kind as MovementKind;
     if (l.item_name && !ja.items.includes(l.item_name)) ja.items.push(l.item_name);
     if (!ja.placeName) ja.placeName = l.place_name;
     if (!ja.note) ja.note = l.note;
