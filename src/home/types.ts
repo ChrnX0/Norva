@@ -12,6 +12,16 @@ import type { Forecast, Reading } from '@/weather';
  */
 export type Summary = {
   changes: CostChange[];
+  /**
+   * Quando um insumo mudou de preço pela última vez, ou nulo se nenhum nunca mudou.
+   *
+   * É o fato debaixo de "estável há doze dias" — a resposta calma da mesma pergunta
+   * que `changes` responde quando algo mexeu. Ele existia no dado e em três
+   * dicionários desde sempre, e nenhuma tela o escrevia: a capa mostrava o cartão de
+   * preço só quando havia mudança, então a fábrica com o custo firme há dois meses
+   * via um silêncio que parecia falta de dado.
+   */
+  steadySince: string | null;
   /** Units out of the kettle today, and on the same weekday a week back. */
   madeToday: number;
   madeThen: number;

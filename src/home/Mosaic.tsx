@@ -465,7 +465,41 @@ export function Mosaic(vista: BriefingView) {
     ),
     expedicao: null,
     precos: (
-      moved.length > 0 ? (
+      /**
+       * O custo firme é notícia, e era o silêncio da capa.
+       *
+       * Quando nada mexeu, este cartão simplesmente não existia — e o dono de uma
+       * fábrica com o custo estável há dois meses via a mesma capa de quem acabou de
+       * instalar o aplicativo. "Está tudo bem" é estado válido e tem de ser dito:
+       * `estável há 47 dias` não é um cartão vazio, é a resposta da primeira pergunta
+       * da lei (o que é normal ali), e é ela que faz a próxima alta significar algo.
+       *
+       * A duração é o que separa isto de um cartão que diz nada: sem ela sobraria
+       * "Nada mudou de preço", que é a terceira maneira de dizer o mesmo silêncio —
+       * o defeito que a peça de produção ao vivo já pagou nesta mesma capa.
+       */
+      moved.length === 0 ? (
+        <Reveal index={6}>
+          <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.allSteady}>
+            <Card
+              hue={palette.sky}
+              icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
+              title={t.app.home.allSteady}
+            >
+              <Text style={[type.secondary, { color: color.inkMuted }]}>
+                {data?.steadySince
+                  ? fill(t.app.home.stableFor, {
+                      days: plural(
+                        daysBetween(data.steadySince, nowIso(), locale.timeZone),
+                        t.app.home.dayCount,
+                      ),
+                    })
+                  : t.app.home.stableAlways}
+              </Text>
+            </Card>
+          </Touchable>
+        </Reveal>
+      ) : (
         <Reveal index={6}>
           <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.changed}>
             <Card hue={palette.sky} icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />} title={t.app.home.changed}>
@@ -488,7 +522,7 @@ export function Mosaic(vista: BriefingView) {
             </Card>
           </Touchable>
         </Reveal>
-      ) : null
+      )
     ),
 
     // Produção ao vivo só existe quando há o que estar vivo.

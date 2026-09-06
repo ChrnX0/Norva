@@ -5434,3 +5434,60 @@ verdade dentro da homogeneidade e cala sobre o resto — e cala com cara de cobe
 o número de testes cresce. Onde uma função soma coisas, o exemplo que decide é sempre o que
 mistura: **duas moedas, duas réguas, dois fusos, duas empresas.** Se todos os casos usam a
 mesma, a suíte não está testando a soma.
+
+---
+
+## Uma varredura de P1 na camada de dados: 95 exportações, duas mortas — e uma delas tinha as palavras prontas em três idiomas
+
+*6 de setembro.* Fechado o Espelho, fui procurar o próximo item e a lista escrita não
+ajudava: o roadmap manda nos *"sete médios"* e só **um** deles está nomeado — os outros seis
+nunca foram escritos em lugar nenhum que se possa abrir. Lista que aponta para itens sem
+nome não é lista.
+
+Então medi em vez de procurar prosa: um script que lê as exportações de
+`src/data/repository.ts` e pergunta quem as chama fora de teste. **95 exportações, 5 sem
+chamador de produção**, e três delas são helpers internos legítimos. Sobraram duas — e as
+duas já estavam no `docs/DOSSIE.md`, na tabela 11.5, marcadas `X` e `Z` desde a auditoria.
+**Os "médios" sem nome estão ali**, numa tabela de chamadores que ninguém tinha ligado ao
+roadmap.
+
+**`unchecked` é duplicata, e some.** Ela responde *"quais remessas ninguém conferiu"* — e
+`shipmentsOn` já responde a mesma coisa, com o **mesmo** `NAO_ESTORNADO` e o mesmo `EXISTS
+post = 'checked'`, e é essa que a aba de Transporte usa. Duas grafias de uma regra é como
+duas verdades nascem; aqui a segunda nunca chegou a divergir porque nunca foi chamada.
+
+**`lastCostMove` não era código morto: era uma TELA que faltava.** Ela responde *"quando um
+insumo mudou de preço pela última vez"*, e o dicionário já tinha as palavras dela nos três
+idiomas — `stableFor` (*"estável há {{days}}"*), `stableAlways`, `allSteady` (*"Tudo
+estável"*) —, todas sem escritor. A capa mostrava o cartão de preço **só quando algo mexeu**:
+a fábrica com o custo firme há dois meses via exatamente a mesma capa de quem instalou o
+aplicativo ontem.
+
+Isso contradiz duas coisas da casa ao mesmo tempo: *"'Está tudo bem' é estado válido e
+bonito"*, e a primeira pergunta da Lei da Inteligência — **o que é normal ali**. Um custo
+estável há 47 dias é a resposta dessa pergunta, e é ela que faz a próxima alta significar
+alguma coisa. O cartão entrou nas duas peles, e a **duração** é o que o separa de um cartão
+vazio: sem ela sobraria *"Nada mudou de preço"*, que é a terceira maneira de dizer o mesmo
+silêncio — o defeito que a peça de produção ao vivo já pagou nesta mesma capa.
+
+**E o teste dela quase virou um achado falso.** Escrevendo a cobertura de
+`lastCostMove` passei `receivedAt` — campo que não existe em `recordPurchase`. O `tsx` do
+`node --test` ignora propriedade desconhecida em silêncio, então a compra usou o relógio de
+agora, a data voltou diferente da nota, **e eu escrevi um comentário inteiro explicando que
+`observed_at` marca "quando se soube" e não a data da nota** — com a consequência de produto
+tirada dali. Era consequência do meu erro de digitação. Quem desmentiu foi o `npm run
+typecheck`, que o `node --test` não roda.
+
+Duas coisas ficam. **A suíte de teste não é o compilador**, e um objeto literal a mais passa
+por ela sem ruído — onde o teste monta entrada, tipo errado é silêncio, não vermelho. E a
+regra da casa cobrou pela quarta vez hoje: *contradição achada é suspeita de leitura errada
+até virar prova.* Nas quatro, o que a desfez foi rodar alguma coisa — a foto, o sorteio, o
+`grep` refeito, o `typecheck`.
+
+**O que fica de método.** Quando a lista escrita não nomeia o próximo item, a saída não é
+escolher por gosto nem inventar: é **medir o repositório**. Trinta linhas de script
+reproduziram o achado de uma auditoria inteira e ainda apontaram onde ele estava documentado.
+E o resultado mudou de natureza no meio do caminho: comecei procurando o que apagar e
+terminei achando uma tela que faltava — **função sem chamador é uma pergunta, não um
+veredito**, e a resposta certa foi a mesma do `forgetSentBefore` de manhã: o conserto não era
+apagar.

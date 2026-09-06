@@ -3159,34 +3159,6 @@ export async function recordCheck(
   return { groupId: input.groupId, differences };
 }
 
-/** Remessas de um dia que ninguém conferiu ainda. */
-export async function unchecked(
-  companyId: string,
-  fromIso: string,
-  toIso: string,
-): Promise<string[]> {
-  const conn = await db();
-  const rows = await conn.getAllAsync<{ movement_group_id: string }>(
-    `SELECT DISTINCT m.movement_group_id
-       FROM movements m
-      WHERE m.company_id = ?
-        AND m.kind = 'transfer'
-        AND m.quantity_base_units > 0
-        AND m.occurred_at >= ?
-        AND m.occurred_at < ?
-        AND m.movement_group_id IS NOT NULL
-        AND ${NAO_ESTORNADO}
-        AND NOT EXISTS (
-          SELECT 1 FROM movements c
-           WHERE c.company_id = m.company_id
-             AND c.movement_group_id = m.movement_group_id
-             AND c.post = 'checked'
-        )`,
-    [companyId, fromIso, toIso],
-  );
-  return rows.map((r) => r.movement_group_id);
-}
-
 /** What a product put out inside a window, in base units. */
 export type ProducedInWindow = {
   itemId: string;

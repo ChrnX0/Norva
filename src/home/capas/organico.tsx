@@ -23,7 +23,7 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { nowIso } from '@/data/db';
 import { todayRank } from '@/domain/briefing';
 import { MEDIDA_DA_PAGINA } from '@/theme/tokens';
-import { localDate } from '@/domain/day';
+import { daysBetween, localDate } from '@/domain/day';
 import { Folha } from '../Capa';
 import type { PecaDaCapa, Vestimenta } from './vestimenta';
 
@@ -554,10 +554,39 @@ function InsumosOrganico({ data, go, Casca }: PecaDaCapa) {
  * pergunta ("o que mudou?") respondida numa olhada. O que sobra fica na ficha
  * do insumo, que é onde alguém confere.
  */
-function PrecosOrganico({ moved, go, Casca }: PecaDaCapa) {
+function PrecosOrganico({ moved, data, go, Casca }: PecaDaCapa) {
   const { color, type, space, palette, radius, traco } = useTheme();
   const { locale, t } = useLocale();
-  if (moved.length === 0) return null;
+
+  /**
+   * Nada mexeu é resposta, e antes era silêncio.
+   *
+   * A peça devolvia `null` sem mudança, então a capa de uma fábrica com o custo
+   * firme há dois meses era igual à de quem instalou o aplicativo ontem. A duração
+   * é o que faz disto notícia em vez de cartão vazio — e é a primeira pergunta da
+   * lei, o que é normal ali, respondida com um número.
+   */
+  if (moved.length === 0) {
+    return (
+      <Casca>
+        <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.allSteady}>
+          <View style={{ gap: space.sm }}>
+            <Text style={[type.section, { color: color.ink }]}>{t.app.home.allSteady}</Text>
+            <Text style={[type.secondary, { color: color.inkFaint }]}>
+              {data?.steadySince
+                ? fill(t.app.home.stableFor, {
+                    days: plural(
+                      daysBetween(data.steadySince, nowIso(), locale.timeZone),
+                      t.app.home.dayCount,
+                    ),
+                  })
+                : t.app.home.stableAlways}
+            </Text>
+          </View>
+        </Touchable>
+      </Casca>
+    );
+  }
 
   const tres = moved.slice(0, 3);
 

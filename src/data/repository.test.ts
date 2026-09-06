@@ -38,7 +38,6 @@ import {
   closeProductionRun,
   RunGoneError,
   NotEnoughStockError,
-  unchecked,
   savePlace,
   listPlaces,
   recentRuns,
@@ -70,6 +69,7 @@ import {
   loadRecipeGraph,
   recentCostChanges,
   recordCount,
+  lastCostMove,
   recordPurchase,
   saveItem,
   saveProduct,
@@ -1237,12 +1237,24 @@ test('a store that checked and a store that did not are different facts', async 
     itemId: acucar.id, fromLocationId: fabrica, toLocationId: centro.id,
     baseUnits: 6000, occurredAt: quando,
   });
-  const paraNorte = await recordTransfer(LOCAL_COMPANY_ID, {
+  await recordTransfer(LOCAL_COMPANY_ID, {
     itemId: acucar.id, fromLocationId: fabrica, toLocationId: norte.id,
     baseUnits: 2000, occurredAt: quando,
   });
 
-  assert.equal((await unchecked(LOCAL_COMPANY_ID, ...janela)).length, 2, 'nada conferido ainda');
+  /**
+   * A pergunta "quem ainda não conferiu" é lida por `shipmentsOn`, que é o que a
+   * aba de Transporte usa.
+   *
+   * Ela era lida aqui por `unchecked`, uma segunda consulta com a MESMA regra —
+   * mesmo `NAO_ESTORNADO`, mesmo `EXISTS post = 'checked'` — e sem nenhuma tela.
+   * Duas grafias de uma regra é como duas verdades nascem, e esta nunca chegou a
+   * divergir só porque ninguém a chamava. O teste passou a exercitar o caminho que
+   * a fábrica percorre.
+   */
+  const semConferir = async () =>
+    (await shipmentsOn(LOCAL_COMPANY_ID, ...janela)).filter((p) => !p.checked);
+  assert.equal((await semConferir()).length, 2, 'nada conferido ainda');
 
   // A Loja Centro confere e bate. Diferença zero - a linha que o servidor
   // recusava antes da 0017, e que é a prova de que alguém abriu a caixa.
@@ -1253,8 +1265,12 @@ test('a store that checked and a store that did not are different facts', async 
   });
   assert.deepEqual(bateu.differences, [{ itemId: acucar.id, baseUnits: 0 }]);
 
-  const faltando = await unchecked(LOCAL_COMPANY_ID, ...janela);
-  assert.deepEqual(faltando, [paraNorte.groupId], 'só a Loja Norte continua sem conferir');
+  const faltando = await semConferir();
+  assert.deepEqual(
+    faltando.map((p) => p.locationName),
+    ['Loja Norte'],
+    'só a Loja Norte continua sem conferir',
+  );
 
   // E o total da empresa não se moveu em nada disto: transferência tem duas
   // pernas que se anulam, e conferência que bateu não é movimento de
@@ -4402,4 +4418,61 @@ test('a load from one store to another does not count as received on both sides'
   assert.equal(loja.items[0].returned, 500);
   assert.equal(padaria.items[0].received, 2000);
   assert.equal(padaria.items[0].returned, 0);
+});
+
+test('the first price of an item is not a change, and the second one is', async () => {
+  /**
+   * A regra que fazia esta função existir, e que nunca tinha sido exercitada.
+   *
+   * `item_cost_history` grava também o PRIMEIRO preço que um insumo teve. Contar
+   * isso como mudança faria a capa dizer que o custo mexeu no dia em que o item foi
+   * cadastrado — o dia em que ainda não se sabia nada, não o dia em que algo
+   * aconteceu. O docblock dizia isso desde sempre; nenhum teste cobrava.
+   *
+   * A função estava marcada `Z` na auditoria — *"nenhuma chamadora, nem teste"* —, e
+   * é ela que responde "estável há doze dias" na capa. Sem esta linha, a frase mais
+   * calma do aplicativo se apoiava em código que ninguém nunca tinha rodado.
+   */
+  const acucar = await anInput('Açúcar cristal', 25_000);
+  assert.equal(
+    await lastCostMove(CO, [acucar]),
+    null,
+    'item recém-cadastrado não teve mudança nenhuma',
+  );
+
+  await recordPurchase(CO, {
+    itemId: acucar,
+    purchaseQuantity: 4,
+    baseUnits: 100_000,
+    totalCents: fromDecimal(472),
+    occurredAt: '2026-08-01T12:00:00.000Z',
+  });
+  assert.equal(
+    await lastCostMove(CO, [acucar]),
+    null,
+    'a PRIMEIRA nota estabelece o preço; ela não o move',
+  );
+
+  await recordPurchase(CO, {
+    itemId: acucar,
+    purchaseQuantity: 4,
+    baseUnits: 100_000,
+    totalCents: fromDecimal(600),
+    occurredAt: '2026-08-20T12:00:00.000Z',
+  });
+  const mexeu = await lastCostMove(CO, [acucar]);
+  assert.ok(mexeu, 'a segunda nota com outro preço é uma mudança');
+
+  // E a data é a da NOTA, não a da digitação — `observed_at` segue o `occurredAt`.
+  //
+  // Escrevi o contrário aqui primeiro, com um comentário inteiro explicando que o
+  // relógio era o de "quando se soube". Era falso, e nasceu de um erro meu: eu tinha
+  // passado `receivedAt`, campo que não existe. O `tsx` ignora propriedade
+  // desconhecida em silêncio, o teste passou, e eu quase registrei como achado uma
+  // consequência do meu próprio erro de digitação. Quem desmentiu foi o `typecheck`.
+  assert.match(mexeu, /^2026-08-20/, 'a mudança tem a data da nota que a causou');
+
+  // Lista vazia não é "nunca mudou": é pergunta sem sujeito, e a resposta é a mesma
+  // sem ir ao banco.
+  assert.equal(await lastCostMove(CO, []), null);
 });

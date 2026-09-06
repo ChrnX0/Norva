@@ -1965,11 +1965,19 @@ check('the home is assembled from pieces the house chose', async (page) => {
 
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(3000);
+  const semTempo = await screen(page);
   assert.doesNotMatch(
-    await screen(page),
+    semTempo,
     /medido às|trocar a cidade/,
     'o cartão do tempo sai da capa deste aparelho',
   );
+  // E o custo firme DIZ que está firme.
+  //
+  // A peça de preço só existia quando algo mexia, então a capa de quem tem o custo
+  // estável era igual à de quem instalou ontem — e "está tudo bem" é estado válido.
+  // A frase é o chamador de produção de `lastCostMove`, que a auditoria tinha
+  // marcado como implementada e sem chamador nenhum, nem de teste.
+  assert.match(semTempo, /Tudo estável/, 'a capa diz que o custo está firme em vez de calar');
 
   // E volta quando alguém quer de volta: esconder não é apagar.
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });

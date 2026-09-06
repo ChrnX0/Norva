@@ -42,7 +42,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **400** testes |
+| `npm test` | **401** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **49** checagens num navegador de verdade |
 | `npm run db:verify` | **17** garantias contra um Postgres descartável, sob RLS |
@@ -292,10 +292,21 @@ abaixo respeita duas decisões escritas dele — *"termina o layout, nada pela m
 
 De pé, nesta ordem e por este motivo:
 
-1. **Os médios que sobraram** — sete, agora que o `versionCode`, o `recorded_by`
-   cedível, o percentual com ponto, o ícone de picolé, **a tela de abertura** e
-   **a fila que nunca era varrida** caíram. Entre os que ficam: a aprovação de
-   pedido que nunca atravessa.
+1. **Os médios que sobraram** — e onde eles estão escritos, que era a parte que
+   faltava. O roadmap mandava nos *"sete médios"* e só um estava nomeado; os outros
+   moram na **tabela 11.5 do `docs/DOSSIE.md`** ("Mapa completo das leituras"), com
+   `X` = sem chamador de tela e `Z` = sem chamador nenhum. Uma varredura de 6 de
+   setembro sobre as 95 exportações de `src/data/repository.ts` reproduziu a tabela e
+   fechou as duas que restavam ali:
+   ~~`unchecked`~~ **removida** — duplicata exata de `shipmentsOn`, que já responde a
+   mesma pergunta com a mesma regra e tem tela; e ~~`lastCostMove`~~ **ganhou tela**,
+   que era o conserto certo: ela responde *"estável há N dias"*, o dicionário já tinha
+   `stableFor`/`stableAlways`/`allSteady` nos três idiomas sem escritor, e a capa
+   mostrava o cartão de preço só quando algo mexia — a fábrica com o custo firme via a
+   mesma capa de quem instalou ontem.
+   Caíram antes: o `versionCode`, o `recorded_by` cedível, o percentual com ponto, o
+   ícone de picolé, **a tela de abertura** e **a fila que nunca era varrida**.
+   Fica de pé: a aprovação de pedido, que **não é trabalho, é bloqueio** — ver abaixo.
 
    *E ela está MEDIDA, em 6 de setembro — não é "falta escrever", é bloqueada.*
    A aprovação existe inteira no aparelho: `setOrdersNeedApproval`

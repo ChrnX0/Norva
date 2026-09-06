@@ -12,6 +12,7 @@ import {
   runningOut,
   briefingHidden,
   briefingOrder,
+  lastCostMove,
   recentCostChanges,
   shipmentsOn,
   type LossRow,
@@ -183,6 +184,18 @@ function Briefing() {
       listItems(LOCAL_COMPANY_ID),
     ]);
 
+    /**
+     * Há quanto tempo NADA muda de preço — o outro lado de `changes`.
+     *
+     * Depende dos itens, então roda depois do `Promise.all` em vez de dentro dele.
+     * Uma segunda ida ao banco custa milissegundos e é o preço de não inventar uma
+     * lista de itens antes de saber quais existem.
+     */
+    const steadySince = await lastCostMove(
+      LOCAL_COMPANY_ID,
+      stockItems.filter((i) => i.kind === 'input' || i.kind === 'packaging').map((i) => i.id),
+    );
+
     const sum = (rows: { baseUnits: number }[]) => rows.reduce((n, r) => n + r.baseUnits, 0);
 
     // Caixa é objeto: dezoito caixas são dezoito coisas que alguém empilha no
@@ -232,6 +245,7 @@ function Briefing() {
 
     return {
       changes,
+      steadySince,
       demand,
       demandThrough: through,
       madeToday: sum(madeToday),
