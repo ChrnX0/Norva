@@ -166,19 +166,55 @@ export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 22, xxl: 32 } as const;
 export const radius = { sm: 9, md: 14, lg: 19, xl: 24, pill: 999 } as const;
 
 /**
- * Spring physics, never linear easing. This is where "breathing" comes from.
- * Five motion rules govern usage:
- *   1. Nothing blinks. Pulses run 2.6-3.2s.
- *   2. At most two pulsing elements per screen.
- *   3. Only what is actually live may pulse.
- *   4. Motion never delays information.
- *   5. Reduced-motion turns it all off, and the screen stays complete.
+ * Mola, nunca aceleração linear — é daqui que sai a respiração do aplicativo.
+ *
+ * **Os números subiram em 6 de setembro, e a regra que os segurava caiu.** O que
+ * estava escrito aqui eram cinco regras cujo efeito somado era movimento
+ * imperceptível de propósito: *"percebe-se se você olhar, não se percebe se você
+ * estiver trabalhando"*, e no máximo dois elementos vivos por tela. O dono abriu
+ * o aplicativo compilado e disse o contrário, pela enésima vez segundo ele
+ * mesmo: *"o app tem q ser uma obra de arte… quero as animações em todas as
+ * telas… todo o sistema funciona como um organismo vivo e vc já viu organismo
+ * vivo MORTO?"*
+ *
+ * O que estava medido quando ele disse isso, e explica por que ele estava certo:
+ * a entrada subia catorze pixels em cascata de quarenta milissegundos, o toque
+ * encolhia três por cento, e a mola tinha razão de amortecimento 0,76 — que dá
+ * dois e meio por cento de ultrapassagem, ou seja, nenhuma. Três efeitos
+ * ajustados para não serem vistos.
+ *
+ * O que continua valendo, porque não é timidez e sim o que separa vida de ruído:
+ *   1. **Nada pisca.** Ciclo curto é nervosismo; o piso continua sendo 2,6 s.
+ *   2. **Movimento nunca atrasa informação.** O texto está montado no primeiro
+ *      quadro; quem anima é a caixa.
+ *   3. **Reduzir movimento apaga tudo, e a tela continua inteira.**
+ *   4. **Só pulsa o que está vivo de verdade.** Vida ambiente (entrada, toque,
+ *      céu) é livre; alegar atividade que não existe é alerta inventado.
+ *
+ * O que caiu: o teto de dois elementos por tela, e a instrução de calibrar a
+ * amplitude para o limiar da percepção.
  */
 export const motion = {
-  settle: { damping: 18, stiffness: 140, mass: 1 },
+  /**
+   * A mola de chegada. Razão de amortecimento 0,61 — cerca de nove por cento de
+   * ultrapassagem, que é o quanto uma coisa precisa passar do lugar e voltar
+   * para o olho registrar que ela CHEGOU em vez de já estar lá.
+   */
+  settle: { damping: 15, stiffness: 150, mass: 1 },
   press: { damping: 20, stiffness: 400, mass: 0.6 },
-  pressScale: 0.97,
-  staggerMs: 40,
+  /** O aperto do toque. Três por cento não se sente na mão; cinco se sente. */
+  pressScale: 0.95,
+  /**
+   * O intervalo entre um cartão e o próximo. Setenta milissegundos ainda está
+   * abaixo do que se percebe como espera, e agora acima do que se percebe como
+   * simultâneo — com quarenta, oito cartões entravam em 280 ms, que o olho lê
+   * como um piscar só.
+   */
+  staggerMs: 70,
+  /** Quanto o cartão sobe ao entrar, em dp. */
+  riseDp: 26,
+  /** De quanto ele cresce ao entrar. Junto com a subida, dá corpo à chegada. */
+  enterScale: 0.965,
   pulseMs: 2600,
   breatheMs: 3200,
   countMs: 1250,
@@ -225,8 +261,8 @@ const papelClaro: Palette = {
   ink: '#221F1B',
   inkMuted: '#554D43',
   inkFaint: '#706960',
-  line: '#DCD3C6',
-  lineStrong: '#CBBEAC',
+  line: '#CFC3B0',
+  lineStrong: '#B9A992',
   onAccent: '#FFFFFF',
 
   // Tinta e terra, não cor de tela.
@@ -239,22 +275,22 @@ const papelClaro: Palette = {
   //
   // Estes são de impressão: verde-garrafa, azul-tinta, roxo-tinta, ocre. A
   // família inteira puxa para o quente e nenhuma delas grita.
-  sky: '#2C5A7A',
-  apricot: '#A8371A',
-  mint: '#3F6B4A',
+  sky: '#205C86',
+  apricot: '#AD3415',
+  mint: '#2E7C41',
   // Ameixa, não violeta: o violeta era a última cor de interface que sobrava na
   // família, e uma cor fria e saturada ao lado de creme quente é o que faz a
   // paleta inteira parecer emprestada de outro aplicativo.
-  lilac: '#6A4A57',
-  rose: '#8E3346',
-  sage: '#5A7040',
-  sand: '#8A6414',
-  mist: '#6F6558',
+  lilac: '#7A3A54',
+  rose: '#982940',
+  sage: '#577C2C',
+  sand: '#90660E',
+  mist: '#716556',
 
-  ok: '#3F6B4A',
-  warning: '#8A6414',
-  danger: '#9E2A2A',
-  neutral: '#6F6558',
+  ok: '#2E7C41',
+  warning: '#90660E',
+  danger: '#AC1C1C',
+  neutral: '#716556',
 };
 
 /**
@@ -278,25 +314,25 @@ const papelEscuro: Palette = {
   inkMuted: '#BCAE9A',
   inkFaint: '#998C7E',
   // A régua é o que estrutura esta cara. Fraca demais, a página se desmancha.
-  line: '#4A3F33',
-  lineStrong: '#5E5142',
+  line: '#564A3B',
+  lineStrong: '#6E5D49',
   onAccent: '#1B1610',
 
   // A mesma família do claro, clareada para o papel escuro: continua sendo
   // tinta sobre papel, e não cor de interface sobre preto.
-  sky: '#8FA3AE',
-  apricot: '#E08A5A',
-  mint: '#9AB294',
-  lilac: '#BE9AA4',
-  rose: '#C99098',
-  sage: '#A8BC92',
-  sand: '#D9B76A',
-  mist: '#A8A39B',
+  sky: '#78AAC5',
+  apricot: '#E48956',
+  mint: '#8EC680',
+  lilac: '#CD8B9D',
+  rose: '#D48590',
+  sage: '#A9CA84',
+  sand: '#DBB868',
+  mist: '#AFA594',
 
-  ok: '#93B79A',
-  warning: '#D9B76A',
-  danger: '#D08268',
-  neutral: '#B6A894',
+  ok: '#85C591',
+  warning: '#DBB868',
+  danger: '#D97D5F',
+  neutral: '#B5A895',
 };
 
 const organicoClaro: Palette = {

@@ -360,15 +360,24 @@ export function Folha({
 }
 
 /**
- * O cartão do clima — o único bloco da capa que o desenho aprovado CONTORNA.
+ * O bloco do clima — a única coisa na capa que vem de FORA da fábrica.
  *
- * Isso não é acaso de composição: tudo o mais na página é a fábrica falando dos
- * próprios números, e o tempo é a única coisa ali que vem de fora. O contorno é
- * o que diz "isto não é seu" sem escrever a frase.
+ * Ele fica aqui porque calor muda o que sai e o que estraga, não por enfeite: o
+ * número grande vem com o de amanhã ao lado (Lei 3) e a barra é a chance de
+ * chuva, que é o que muda a rota da entrega.
  *
- * E ele fica na capa porque calor muda o que sai e o que estraga — não é enfeite
- * de aplicativo de celular. Por isso o número grande vem com o de amanhã ao lado
- * (Lei 3), e a barra é a chance de chuva, que é o que muda a rota da entrega.
+ * **Ele era uma caixa nas duas peles, e o dono recusou** — *"dá uma melhorada no
+ * widget do tempo… quero ele mais entrosado com o tema"*. O motivo é nomeável e
+ * era meu: para dizer "isto não é seu" eu desenhei um contorno, e contorno é a
+ * linguagem do Orgânico. Numa página impressa, que é o que o Papel é, não existe
+ * caixa nenhuma — então o único bloco emoldurado da folha lia como um cartão de
+ * outro aplicativo colado ali.
+ *
+ * Agora ele pergunta ao traço `genero`, como os outros oito componentes já
+ * faziam, e diz a MESMA coisa no idioma de cada pele: no Orgânico, a superfície
+ * com canto e fundo; no Papel, o que uma página usa para marcar matéria
+ * emprestada — régua vertical de tinta na lateral, sem moldura e sem fundo. Não
+ * é a mesma peça mais fraca: é a mesma frase noutra língua.
  */
 export function CartaoClima({
   cidade,
@@ -393,17 +402,31 @@ export function CartaoClima({
   /** A semana, quando aberta. */
   children?: ReactNode;
 }) {
-  const { color, type, space, radius, titleFamily, palette } = useTheme();
+  const { color, type, space, radius, titleFamily, palette, tracos } = useTheme();
+  const papel = tracos.genero === 'pagina';
 
   return (
     <View
-      style={{
-        borderWidth: 1,
-        borderColor: color.line,
-        borderRadius: radius.md,
-        backgroundColor: color.surface,
-        padding: space.lg,
-      }}
+      style={
+        papel
+          ? {
+              // A régua vertical é o que uma página impressa usa para dizer que o
+              // trecho veio de fora — citação, boxe, matéria de agência. Fica na
+              // tinta azul porque é a cor do céu nesta família, e não porque
+              // azul quer dizer alguma coisa.
+              borderLeftWidth: 2,
+              borderLeftColor: palette.sky,
+              paddingLeft: space.lg,
+              paddingVertical: space.xs,
+            }
+          : {
+              borderWidth: 1,
+              borderColor: color.line,
+              borderRadius: radius.md,
+              backgroundColor: color.surface,
+              padding: space.lg,
+            }
+      }
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
         {/* O desenho que MUDA com o tempo, e não um sol pintado à mão.
@@ -433,8 +456,10 @@ export function CartaoClima({
         <View
           style={{
             height: 3,
-            borderRadius: 2,
-            backgroundColor: color.sunken,
+            borderRadius: papel ? 0 : 2,
+            // Na página o trilho é a régua da folha, não uma calha rebaixada:
+            // `sunken` é um fundo, e a folha não tem fundo por baixo do fundo.
+            backgroundColor: papel ? color.line : color.sunken,
             marginTop: space.md,
             overflow: 'hidden',
           }}
@@ -443,6 +468,7 @@ export function CartaoClima({
             style={{
               width: `${Math.max(0, Math.min(1, chuva.parcela)) * 100}%`,
               height: 3,
+              borderRadius: papel ? 0 : 2,
               backgroundColor: palette.sky,
             }}
           />

@@ -119,18 +119,27 @@ export function CollapsingHeader({
             Antes era o contrário: título grande em cima, olho embaixo, e um selo
             da marca ao lado repetindo em toda tela o nome de quem já abriu o
             aplicativo. */}
+        {/* O cabeçalho CHEGA, e não estava lá.
+            Ele já respondia à rolagem — o título encolhe, a linha de olho some —
+            e isso é reação, não chegada: aberta a tela, o topo aparecia pronto e
+            imóvel enquanto os cartões debaixo entravam em cascata. A linha de
+            olho e a manchete entram em dois tempos, na ordem em que se lê, e
+            como isto está em vinte e sete das vinte e oito telas, é a mudança de
+            um arquivo só que faz o aplicativo inteiro começar vivo. */}
         {overline ? (
-          <Animated.View style={overlineStyle}>
-            <Text
-              style={[type.overline, { color: color.inkFaint, letterSpacing: 2.4 }]}
-              numberOfLines={1}
-            >
-              {overline.toUpperCase()}
-            </Text>
-          </Animated.View>
+          <Reveal index={0}>
+            <Animated.View style={overlineStyle}>
+              <Text
+                style={[type.overline, { color: color.inkFaint, letterSpacing: 2.4 }]}
+                numberOfLines={1}
+              >
+                {overline.toUpperCase()}
+              </Text>
+            </Animated.View>
+          </Reveal>
         ) : null}
 
-        <View style={[styles.titleRow, { gap: space.sm + 1 }]}>
+        <Reveal index={1} style={[styles.titleRow, { gap: space.sm + 1 }]}>
           {/* O selo só sobra no Orgânico, que é a identidade de curva e cor. No
               Papel a marca não entra na página: a página é tinta e régua. */}
           {tracos.genero === 'pagina' ? null : (
@@ -152,7 +161,7 @@ export function CollapsingHeader({
           >
             {title}
           </Animated.Text>
-        </View>
+        </Reveal>
       </View>
 
       <Animated.ScrollView

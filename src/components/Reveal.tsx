@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect } from 'react';
-import { AccessibilityInfo, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -41,7 +41,7 @@ export function Reveal({
   /** A posição na pilha. É o que escalona a entrada. */
   index?: number;
   children: ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }) {
   const { motion } = useTheme();
 
@@ -68,9 +68,16 @@ export function Reveal({
     };
   }, [index, motion.settle, motion.staggerMs, shown]);
 
+  // Sobe, cresce e aparece. As três juntas porque uma só não é chegada: subir sem
+  // crescer lê como rolagem, crescer sem subir lê como estouro, e a opacidade
+  // sozinha é o cartão nascendo já no lugar — que é exatamente o "aparece pronto
+  // e imóvel" que o dono recusou.
   const entrance = useAnimatedStyle(() => ({
     opacity: shown.value,
-    transform: [{ translateY: (1 - shown.value) * 14 }],
+    transform: [
+      { translateY: (1 - shown.value) * motion.riseDp },
+      { scale: motion.enterScale + (1 - motion.enterScale) * shown.value },
+    ],
   }));
 
   return <Animated.View style={[style, entrance]}>{children}</Animated.View>;
