@@ -5,7 +5,6 @@ import { Drain } from '@/components/Drain';
 import { Sparkline } from '@/components/Sparkline';
 import { Card } from '@/components/Card';
 import { FactoryScene } from '@/components/FactoryScene';
-import { Landscape } from '@/components/Landscape';
 import { CountUp } from '@/components/CountUp';
 import { GlyphBox, GlyphOrder, GlyphPrice, GlyphProduction, GlyphStock } from '@/components/Glyph';
 import { PulseDot } from '@/components/PulseDot';
@@ -15,6 +14,7 @@ import { Touchable } from '@/components/Touchable';
 import {
   fill,
   formatCalendarDate,
+  formatCoverDate,
   formatMoney,
   formatPercent,
   formatQuantity,
@@ -29,8 +29,10 @@ import { nowIso } from '@/data/db';
 import { coverState, type BriefingWidget } from '@/domain/briefing';
 import { daysBetween, localDate } from '@/domain/day';
 import type { Cents } from '@/domain/money';
+import { brand } from '@/config/brand';
 import { CartaoClima, Comparativo, Legenda, Manchete, Nivel, Regua, Versalete } from './Capa';
 import { Peca } from './Peca';
+import { useVestimenta, type PecaDaCapa } from './capas/vestimenta';
 import type { BriefingView, Summary } from './types';
 
 /**
@@ -41,17 +43,11 @@ import type { BriefingView, Summary } from './types';
  * fazem o olho entender a hierarquia sem ler uma palavra - e quebram a pilha de
  * retângulos iguais que o dono recusou.
  */
-export function Mosaic({
-  data,
-  sky,
-  weather,
-  shortForOrders,
-  moved,
-  layout,
-  go,
-}: BriefingView) {
-  const { color, type, space, palette, skin, accent, traco } = useTheme();
+export function Mosaic(vista: BriefingView) {
+  const { data, sky, weather, shortForOrders, moved, layout, go } = vista;
+  const { color, type, space, palette, accent, traco } = useTheme();
   const { locale, t } = useLocale();
+  const vestimenta = useVestimenta();
 
   // A espessura do traço é da identidade: fino no Papel, cheio no Orgânico.
 
@@ -69,6 +65,11 @@ export function Mosaic({
    * varredura de hoje caçou.
    */
   const temPedido = (data?.demand ?? []).some((d) => d.requested > 0);
+
+  /** Há um pote para desenhar: o insumo curto, ou o mais curto de todos. */
+  const temNivel = !!data && (data.shortly.length > 0 || (data.everMade && data.cover.length > 0));
+  /** Saiu carga hoje. */
+  const temCaixas = !!data && data.boxes > 0;
 
   // A pergunta mora no domínio e tem teste — porque a resposta errada dela é a
   // frase mais cara desta tela. Ver `coverState`.
@@ -142,29 +143,23 @@ export function Mosaic({
             }
           />
 
-          {/* A cena é do Papel; no Orgânico a identidade é a paisagem, e trocar
-              uma pela outra é a única coisa que a pele muda aqui. */}
+          {/* A cena desta peça é a da fábrica em traço. Ela deixou de ser um
+              ternário sobre a pele: quem tem outra identidade troca a PEÇA
+              inteira em `capas/`, não a figura do meio dela. Enquanto era um
+              ternário, o Orgânico era o Papel com outro desenho — e o dono
+              recusou exatamente isso. */}
           <View style={{ marginTop: space.md }}>
-            {skin === 'papel' ? (
-              <FactoryScene
-                running={(data?.running.length ?? 0) > 0}
-                shipped={(data?.boxes ?? 0) > 0}
-                dayShare={
-                  data && data.madeYesterday > 0
-                    ? Math.min(1, data.madeToday / data.madeYesterday)
-                    : data && data.madeToday > 0
-                      ? 1
-                      : null
-                }
-              />
-            ) : (
-              <Landscape
-                maxC={sky ? sky.today.maxC : null}
-                rainChance={sky ? sky.today.rainChance : null}
-                running={(data?.running.length ?? 0) > 0}
-                height={150}
-              />
-            )}
+            <FactoryScene
+              running={(data?.running.length ?? 0) > 0}
+              shipped={(data?.boxes ?? 0) > 0}
+              dayShare={
+                data && data.madeYesterday > 0
+                  ? Math.min(1, data.madeToday / data.madeYesterday)
+                  : data && data.madeToday > 0
+                    ? 1
+                    : null
+              }
+            />
           </View>
 
           <Legenda>{t.app.home.capaLegend}</Legenda>
@@ -210,20 +205,32 @@ export function Mosaic({
             </>
           ) : null}
 
-          {data && data.series.length > 0 ? (
-            <>
-              <Regua />
-              <Versalete>{t.app.home.weekTitle}</Versalete>
-              <Bars
-                series={data.series}
-                hue={palette.apricot}
-                labels={data.series.map((d) => formatWeekdayAbbrev(d.date, locale))}
-              />
-            </>
-          ) : null}
         </View>
       </Reveal>
     ),
+
+    /**
+     * A semana: sete colunas, e é a resposta de "o que é normal aqui".
+     *
+     * Saiu de dentro da produção do dia porque são dois assuntos, e enquanto
+     * estavam juntos nenhuma das duas peles conseguia desenhar o que o dono
+     * aprovou: o Papel quer régua entre os dois, o Orgânico quer dois cartões.
+     * Peça é assunto — quem manda no que aparece junto é a ordem da casa, não a
+     * indentação de um arquivo.
+     */
+    semana:
+      data && data.series.length > 0 ? (
+        <Reveal index={1}>
+          <View>
+            <Versalete>{t.app.home.weekTitle}</Versalete>
+            <Bars
+              series={data.series}
+              hue={palette.apricot}
+              labels={data.series.map((d) => formatWeekdayAbbrev(d.date, locale))}
+            />
+          </View>
+        </Reveal>
+      ) : null,
     /**
      * O insumo que está acabando, desenhado como o pote que ele é.
      *
@@ -238,7 +245,15 @@ export function Mosaic({
      * dias —, e ela é dita aqui em vez de morar dentro do desenho: peça que
      * inventa régua é peça que mente com o gráfico bonito.
      */
-    insumos: (
+    /**
+     * O insumo mais curto e o que saiu hoje — dois assuntos, um bloco.
+     *
+     * A condição é dita AQUI e não só dentro do bloco: a pele decide o casco de
+     * cada peça, e o Orgânico veste cada uma num cartão. Uma peça que devolve
+     * um invólucro vazio vira, nessa pele, um cartão branco sem nada dentro —
+     * defeito que não existia enquanto o casco era o nada do Papel.
+     */
+    insumos: temNivel || temCaixas ? (
       <Reveal index={1}>
         <View style={{ gap: space.lg }}>
           {data && data.shortly.length > 0 ? (
@@ -310,10 +325,9 @@ export function Mosaic({
           ) : null}
         </View>
       </Reveal>
-    ),
+    ) : null,
     pedidos: (
-      <>
-      {temPedido ? (
+      temPedido ? (
         <Reveal index={2}>
           <Touchable
             onPress={() => go('/orders')}
@@ -347,12 +361,10 @@ export function Mosaic({
             </Card>
           </Touchable>
         </Reveal>
-      ) : null}
-      </>
+      ) : null
     ),
     clima: (
-      <>
-      {sky ? (
+      sky ? (
         <Reveal index={3}>
           {/* O toque abre a SEMANA aqui, e não leva para outra tela.
               Pedido do dono com todas as letras, e ele tem razão sobre o motivo:
@@ -425,13 +437,11 @@ export function Mosaic({
             </CartaoClima>
           </Touchable>
         </Reveal>
-      ) : null}
-      </>
+      ) : null
     ),
     expedicao: null,
     precos: (
-      <>
-      {moved.length > 0 ? (
+      moved.length > 0 ? (
         <Reveal index={6}>
           <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.changed}>
             <Card hue={palette.sky} icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />} title={t.app.home.changed}>
@@ -454,8 +464,7 @@ export function Mosaic({
             </Card>
           </Touchable>
         </Reveal>
-      ) : null}
-      </>
+      ) : null
     ),
 
     // Produção ao vivo só existe quando há o que estar vivo.
@@ -648,8 +657,7 @@ export function Mosaic({
     ),
 
     entregaHoje: (
-      <>
-        {(data?.dueToday ?? []).length > 0 ? (
+        (data?.dueToday ?? []).length > 0 ? (
           <Peca
             index={4}
             hue={palette.lilac}
@@ -686,13 +694,11 @@ export function Mosaic({
               })}
             </Text>
           </Peca>
-        ) : null}
-      </>
+        ) : null
     ),
 
     validade: (
-      <>
-        {(data?.expiring ?? []).length > 0 ? (
+        (data?.expiring ?? []).length > 0 ? (
           <Peca
             index={5}
             tone="warning"
@@ -744,13 +750,11 @@ export function Mosaic({
               />
             </View>
           </Peca>
-        ) : null}
-      </>
+        ) : null
     ),
 
     perdas: (
-      <>
-        {(data?.lossesNow ?? 0) > 0 || (data?.lossesBefore ?? 0) > 0 ? (
+        (data?.lossesNow ?? 0) > 0 || (data?.lossesBefore ?? 0) > 0 ? (
           <Peca
             index={6}
             hue={palette.apricot}
@@ -806,13 +810,11 @@ export function Mosaic({
               </View>
             ) : null}
           </Peca>
-        ) : null}
-      </>
+        ) : null
     ),
 
     custo: (
-      <>
-        {(data?.runs ?? []).some((r) => r.unitCostRate !== null) ? (
+        (data?.runs ?? []).some((r) => r.unitCostRate !== null) ? (
           <Peca
             index={7}
             hue={palette.sky}
@@ -860,13 +862,11 @@ export function Mosaic({
                 : t.app.home.costOnlyOne}
             </Text>
           </Peca>
-        ) : null}
-      </>
+        ) : null
     ),
 
     parado: (
-      <>
-        {(data?.heldCents ?? 0) > 0 ? (
+        (data?.heldCents ?? 0) > 0 ? (
           <Peca
             index={8}
             hue={palette.mint}
@@ -902,8 +902,7 @@ export function Mosaic({
                 : ''}
             </Text>
           </Peca>
-        ) : null}
-      </>
+        ) : null
     ),
   };
 
@@ -951,16 +950,7 @@ export function Mosaic({
               página com menos números. */}
           <Manchete leve={t.app.home.capaLead} forte={t.app.home.capaQuiet} />
           <View style={{ marginTop: space.md }}>
-            {skin === 'papel' ? (
-              <FactoryScene running={false} shipped={false} dayShare={null} />
-            ) : (
-              <Landscape
-                maxC={sky ? sky.today.maxC : null}
-                rainChance={sky ? sky.today.rainChance : null}
-                running={false}
-                height={150}
-              />
-            )}
+            <FactoryScene running={false} shipped={false} dayShare={null} />
           </View>
           <Legenda>{t.app.home.capaLegend}</Legenda>
           <Regua />
@@ -980,14 +970,48 @@ export function Mosaic({
     // uma já devolve nulo sem dado, e o convite acima responde por todas.
   }
 
+  /**
+   * O que a pele desenha à sua maneira entra por cima do padrão, no fim.
+   *
+   * No fim de propósito: o `firstDay` acima troca a peça da produção, e a pele
+   * precisa poder responder pelo primeiro dia também — o herói do Orgânico
+   * mostra "ainda não produziu hoje" sobre a paisagem, que é o mesmo assunto
+   * dito na cara dele. Se a substituição da pele viesse antes, o `firstDay` a
+   * apagaria e o Orgânico voltaria a exibir a manchete do Papel.
+   */
+  const daPele: PecaDaCapa = { ...vista, estado, aberta, abrir };
+  for (const [id, Desenho] of Object.entries(vestimenta.pecas ?? {})) {
+    pecas[id as BriefingWidget] = <Desenho key={id} {...daPele} />;
+  }
+
+  /**
+   * O herói: a peça que sangra no topo, quando a pele tem uma e a casa a mostra.
+   *
+   * Esconder a produção do dia nos ajustes tira o herói junto — e a `Folha`
+   * volta a desenhar a própria linha de olho. Uma capa sem a peça de cima não
+   * pode ficar sem topo.
+   */
+  const heroi = vestimenta.sangra && layout.includes(vestimenta.sangra)
+    ? pecas[vestimenta.sangra]
+    : null;
+  const miolo = layout.filter((id) => id !== vestimenta.sangra && pecas[id] !== null);
+
   // O espaço entre as peças é do casco, não de cada peça: a folha antiga dava
   // `gap` no ScrollView, e a capa agora é uma página com margem própria.
   return (
-    <View style={{ gap: space.xl }}>
-      {layout.map((id) => (
-        <Fragment key={id}>{pecas[id]}</Fragment>
-      ))}
-    </View>
+    <vestimenta.Casco
+      marca={brand.name}
+      data={formatCoverDate(nowIso(), locale)}
+      heroi={heroi}
+    >
+      <View style={{ gap: space.xl }}>
+        {miolo.map((id, ordem) => (
+          <vestimenta.Bloco key={id} id={id} primeira={ordem === 0 && heroi !== null}>
+            {pecas[id]}
+          </vestimenta.Bloco>
+        ))}
+      </View>
+    </vestimenta.Casco>
   );
 }
 

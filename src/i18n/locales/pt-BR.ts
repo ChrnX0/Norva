@@ -95,6 +95,23 @@ export const ptBR = {
       stableFor: 'estável há {{days}}',
       more: 'toque para ver mais',
       less: 'toque para fechar',
+      // ---- A capa do Orgânico, como o dono aprovou (docs/design/aprovados/organico-*.jpg) ----
+      // O número é a manchete e mora em cima da paisagem; o resto é dito em selos.
+      organico: {
+        producedToday: '{{unit}} produzidas hoje',
+        quietToday: 'ainda não produziu hoje',
+        yesterdayPill: 'ontem',
+        vsWeekdayPill: 'que na {{weekday}} passada',
+        weekBest: 'hoje é o melhor dia',
+        weekRank: 'hoje é o {{rank}} melhor dia',
+        /** Os ordinais que a frase da semana usa, do segundo ao sétimo. */
+        ordinals: ['segundo', 'terceiro', 'quarto', 'quinto', 'sexto', 'sétimo'],
+        shortestInput: 'é o insumo mais curto da casa',
+        runsOutIn: 'até acabar',
+        shipmentToday: 'expedição de hoje',
+        movedSince: '{{count}}, desde ontem',
+        movedCount: { one: 'um', other: '{{n}}' },
+      },
       // ---- A capa editorial, como o dono aprovou (docs/design/aprovados) ----
       capaLead: 'Hoje a fábrica',
       capaMade: 'fez {{amount}}',
@@ -473,6 +490,7 @@ export const ptBR = {
           custo: 'Custo por unidade',
           parado: 'Dinheiro parado',
           producao: 'Produção do dia',
+          semana: 'A semana',
           insumos: 'Insumo acabando',
           pedidos: 'Pedidos dos clientes',
           clima: 'Tempo',

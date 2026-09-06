@@ -22,6 +22,21 @@
  */
 export const BRIEFING_WIDGETS = [
   'producao',
+  /**
+   * A semana — o que é NORMAL aqui, que é a primeira das três perguntas da Lei.
+   *
+   * Ela nasceu grudada na produção do dia, dentro da mesma peça, e isso era uma
+   * decisão escondida: quem quisesse a manchete sem as sete colunas não tinha
+   * como, e quem quisesse as colunas no alto da capa também não. São dois
+   * assuntos — o que aconteceu hoje e o que costuma acontecer — e o desenho
+   * aprovado das duas peles desenha os dois separados, com régua entre eles no
+   * Papel e em cartões diferentes no Orgânico.
+   *
+   * Entra depois da produção no catálogo porque é onde ela cai para quem nunca
+   * mexeu na ordem; para quem já mexeu, `briefingLayout` a acrescenta no fim,
+   * que é o combinado de toda peça nova.
+   */
+  'semana',
   'aoVivo',
   'historico',
   'insumos',
@@ -175,4 +190,23 @@ export function coverState(
     data.dueToday.length > 0 ||
     data.lossesNow !== 0;
   return trabalhou ? 'day' : 'firstDay';
+}
+
+/**
+ * Em que posição o dia de hoje está na semana: 1 é o melhor, 7 o pior.
+ *
+ * É a frase do cartão da semana no Orgânico — *"hoje é o segundo melhor dia"* —,
+ * e ela mora aqui porque é conta, não prosa: a tela recebe um número e escolhe
+ * a palavra. Empate conta a favor de hoje (dois dias de 500 fazem hoje "o
+ * melhor", não "o segundo"), porque a pergunta é "há dia melhor que este?" e a
+ * resposta honesta para empate é não.
+ *
+ * Nulo quando a semana inteira é zero: não há ranking de nada, e "hoje é o
+ * melhor dia" sobre sete zeros seria o alerta inventado ao contrário.
+ */
+export function todayRank(series: readonly { total: number }[]): number | null {
+  if (series.length === 0) return null;
+  const hoje = series[series.length - 1].total;
+  if (series.every((d) => d.total === 0)) return null;
+  return 1 + series.slice(0, -1).filter((d) => d.total > hoje).length;
 }

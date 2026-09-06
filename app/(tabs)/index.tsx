@@ -19,17 +19,15 @@ import {
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { reading, type Forecast } from '@/weather';
 import { forecastForScreen } from '@/weather/live';
-import { brand } from '@/config/brand';
 import { useQuery } from '@/data/useQuery';
 import { daysUntilNextDelivery } from '@/domain/agreement';
 import { briefingLayout } from '@/domain/briefing';
 import { nowIso } from '@/data/db';
 import { dailySeries, dayWindow, localDate } from '@/domain/day';
 import { boxesOf } from '@/domain/units';
-import { formatCoverDate, formatQuantity } from '@/i18n';
+import { formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider } from '@/theme/ThemeProvider';
-import { Folha } from '@/home/Capa';
 import { Mosaic } from '@/home/Mosaic';
 import type { BriefingView, Summary } from '@/home/types';
 
@@ -322,10 +320,9 @@ function Briefing() {
     go: (route) => router.push(route as Parameters<typeof router.push>[0]),
   };
 
-  return (
-    <Folha olho={`${brand.name} \u00b7 ${formatCoverDate(nowIso(), locale)}`}>
-      <Mosaic {...view} />
-    </Folha>
-  );
+  // O casco da página é da PELE, não da tela: o Papel é uma folha com margem, o
+  // Orgânico é uma paisagem que sangra até as bordas com cartões flutuando. A
+  // tela entrega o dado e para por aí — quem monta a página é `capas/`.
+  return <Mosaic {...view} />;
 }
 

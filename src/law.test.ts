@@ -73,6 +73,16 @@ const TELAS: Record<string, Declaracao | Declaracao[]> = {
     { compara: /Sparkline/ },
     { compara: /heldDetail|coverDays/ },
   ],
+  // A capa do Orgânico tem dois números grandes, e os dois trazem a comparação
+  // colada neles — não num cartão à parte, porque a cena ocupa metade da tela.
+  'src/home/capas/organico.tsx': [
+    // O do dia: dois selos por baixo, o de ontem e o da mesma quarta-feira da
+    // semana passada. É a mesma comparação do diagrama do Papel, dita em miúdo.
+    { compara: /yesterdayPill|vsWeekdayPill/ },
+    // O da temperatura: o de amanhã ao lado, que é o que muda decisão — 21° não
+    // decide nada, 21° com "amanhã +4°" manda produzir mais.
+    { compara: /tomorrowDelta|warmerBy/ },
+  ],
   'app/(tabs)/production.tsx': { compara: /vsYesterday|noYesterday/ },
   // Três números, três respostas: o dinheiro parado dura tantos dias, o custo
   // congelado tem a linha das corridas anteriores, e a perda do mês tem o mês

@@ -293,7 +293,23 @@ function Flechas({
  * o nome do produto em corpo 34 gasta o topo da tela dizendo o que a pessoa já
  * sabe.
  */
-export function Folha({ olho, children }: { olho: string; children: ReactNode }) {
+export function Folha({
+  olho,
+  topo,
+  children,
+}: {
+  olho: string;
+  /**
+   * O que SANGRA no topo, de borda a borda, antes do miolo com margem.
+   *
+   * É o corpo do Orgânico: a paisagem com o número em cima não cabe numa
+   * coluna com margem — o desenho aprovado a leva até as bordas da tela e põe
+   * a linha de olho dentro dela, sobre o céu. Com `topo`, a folha não desenha
+   * a própria linha de olho: quem desenha é a cena.
+   */
+  topo?: ReactNode;
+  children: ReactNode;
+}) {
   const { color, type, space } = useTheme();
   const insets = useSafeAreaInsets();
   const tabBar = useContext(BottomTabBarHeightContext) ?? 0;
@@ -307,23 +323,29 @@ export function Folha({ olho, children }: { olho: string; children: ReactNode })
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
-          {
-            paddingTop: insets.top + space.xl,
-            paddingHorizontal: space.xl + 2,
-            paddingBottom: insets.bottom + space.xxl + tabBar,
-          },
+          { paddingBottom: insets.bottom + space.xxl + tabBar },
           largo ? { width: '100%', maxWidth: MEDIDA_DA_PAGINA, alignSelf: 'center' } : null,
         ]}
       >
-        <Text
-          style={[type.overline, { color: color.inkFaint, letterSpacing: 2.4 }]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.8}
+        {topo}
+        <View
+          style={{
+            paddingTop: topo ? space.lg : insets.top + space.xl,
+            paddingHorizontal: space.xl + 2,
+          }}
         >
-          {olho.toUpperCase()}
-        </Text>
-        {children}
+          {topo ? null : (
+            <Text
+              style={[type.overline, { color: color.inkFaint, letterSpacing: 2.4 }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
+              {olho.toUpperCase()}
+            </Text>
+          )}
+          {children}
+        </View>
       </ScrollView>
     </View>
   );

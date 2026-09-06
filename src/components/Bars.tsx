@@ -41,8 +41,22 @@ export function Bars({
   hue?: string;
   height?: number;
 }) {
-  const { color, accent, space, type } = useTheme();
+  const { color, accent, space, type, tracos, scheme } = useTheme();
   const grown = useSharedValue(0);
+
+  /**
+   * As duas caras da mesma semana.
+   *
+   * Numa pele de página a coluna é um bloco de canto quase reto, como
+   * tipografia. Numa pele de superfície — o Orgânico aprovado
+   * (docs/design/aprovados/organico-*.jpg) — ela é um comprimido
+   * de canto largo sobre uma faixa de base, e a coluna de HOJE carrega um ponto
+   * em cima — o sol de dia, a lua à noite — que é o mesmo astro da paisagem
+   * acima dela. Não é enfeite: é o que faz o olho achar hoje sem ler o rótulo,
+   * e é a mesma marca nos dois lugares em que "hoje" aparece na capa.
+   */
+  const organico = tracos.genero === 'superficie';
+  const astro = scheme === 'dark' ? '#F7E6B5' : '#FFD76A';
 
   useEffect(() => {
     let cancelled = false;
@@ -64,12 +78,37 @@ export function Bars({
         const today = i === series.length - 1;
         return (
           <View key={day.date} style={{ flex: 1, alignItems: 'center', gap: space.xs }}>
-            <View style={{ height, justifyContent: 'flex-end', width: '100%' }}>
+            {/* O astro sobre a coluna de hoje. Espaço reservado nas outras, para
+                as sete colunas nascerem da mesma linha de base. */}
+            {organico ? (
+              <View
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: today ? astro : 'transparent',
+                }}
+              />
+            ) : null}
+            <View
+              style={[
+                { height, justifyContent: 'flex-end', width: '100%' },
+                // A faixa de base do Orgânico: a colina em que as colunas pisam.
+                organico
+                  ? {
+                      borderBottomWidth: 6,
+                      borderBottomColor: tint(hue ?? accent, scheme === 'dark' ? 0.16 : 0.22),
+                    }
+                  : null,
+              ]}
+            >
               <Column
                 share={share}
                 grown={grown}
-                height={height}
-                color={today ? (hue ?? accent) : tint(hue ?? accent, 0.28)}
+                height={organico ? height - 6 : height}
+                color={today ? (hue ?? accent) : tint(hue ?? accent, organico ? 0.22 : 0.28)}
+                raio={organico ? 10 : 4}
+                brilho={organico && today && scheme === 'dark' ? hue ?? accent : null}
               />
             </View>
             <Text
@@ -92,11 +131,21 @@ function Column({
   grown,
   height,
   color,
+  raio = 4,
+  brilho = null,
 }: {
   share: number;
   grown: SharedValue<number>;
   height: number;
   color: string;
+  /** O canto: reto no Papel, comprimido no Orgânico. */
+  raio?: number;
+  /**
+   * A auréola da coluna de hoje no escuro — o desenho aprovado a faz brilhar.
+   * Uma segunda caixa translúcida por trás, e não sombra: sombra no Android é
+   * `elevation`, que é cinza e cai para baixo, e o que se quer é luz em volta.
+   */
+  brilho?: string | null;
 }) {
   // O piso de três pixels é o que faz um dia parado continuar sendo um dia:
   // sem ele a coluna zerada desaparece e a semana ganha um buraco que ninguém
@@ -105,5 +154,33 @@ function Column({
     height: Math.max(3, share * height * grown.value),
   }));
 
-  return <Animated.View style={[{ width: '100%', borderRadius: 4, backgroundColor: color }, grow]} />;
+  // A auréola cresce junto com a coluna, e o gancho dela mora AQUI, incondicional.
+  // Estava dentro do `brilho ? ... : null` do desenho — um gancho que entra e sai
+  // conforme a cor, que é a ordem de ganchos mudando entre renderizações. No
+  // claro (sem auréola) para o escuro (com) o React perde o alinhamento da lista
+  // e o que quebra não é esta coluna: é o estado da tela inteira.
+  const auréola = useAnimatedStyle(() => ({
+    height: Math.max(3, share * height * grown.value) + 8,
+  }));
+
+  return (
+    <View style={{ width: '100%', justifyContent: 'flex-end' }}>
+      {brilho ? (
+        <Animated.View
+          style={[
+            {
+              position: 'absolute',
+              left: -4,
+              right: -4,
+              bottom: -4,
+              borderRadius: raio + 4,
+              backgroundColor: tint(brilho, 0.22),
+            },
+            auréola,
+          ]}
+        />
+      ) : null}
+      <Animated.View style={[{ width: '100%', borderRadius: raio, backgroundColor: color }, grow]} />
+    </View>
+  );
 }

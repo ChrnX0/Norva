@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { addWidget, BRIEFING_WIDGETS, briefingLayout, coverState, moveWidget, widgetsOffCover } from './briefing';
+import {
+  addWidget,
+  BRIEFING_WIDGETS,
+  briefingLayout,
+  coverState,
+  moveWidget,
+  todayRank,
+  widgetsOffCover,
+} from './briefing';
 
 test('the house decides the order and the phone decides what to hide', () => {
   const daCasa = ['clima', 'producao', 'insumos'];
@@ -115,4 +123,19 @@ test('any sign of work makes it a day, one at a time', () => {
       `${Object.keys(sinal)[0]} sozinho já é trabalho e a capa tem de mostrar o dia`,
     );
   }
+});
+
+test('today\'s place in the week is counted, and a tie goes to today', () => {
+  const dia = (total: number) => ({ date: '', total });
+  // 500 hoje contra 478, 481, 700, 300: só o 700 é maior → segundo melhor.
+  assert.equal(todayRank([dia(478), dia(481), dia(700), dia(300), dia(500)]), 2);
+  // O melhor da semana.
+  assert.equal(todayRank([dia(478), dia(481), dia(500)]), 1);
+  // Empate conta a favor de hoje: "há dia melhor que este?" — não.
+  assert.equal(todayRank([dia(500), dia(500)]), 1);
+  // O pior.
+  assert.equal(todayRank([dia(10), dia(20), dia(30), dia(5)]), 4);
+  // Semana inteira parada não tem ranking — e não tem "melhor dia".
+  assert.equal(todayRank([dia(0), dia(0), dia(0)]), null);
+  assert.equal(todayRank([]), null);
 });
