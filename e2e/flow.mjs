@@ -1956,6 +1956,114 @@ check('the home is assembled from pieces the house chose', async (page) => {
   );
 });
 
+check('a return says why it came back, and the button does not obey until it does', async (page) => {
+  /**
+   * A regra do motivo tem três guardas — o tipo, o domínio e o Postgres — e
+   * nenhum deles é a TELA. O que esta checagem prova é o único que os outros não
+   * alcançam: que o botão **não obedece** enquanto a pergunta não foi
+   * respondida (Lei 5, o erro impede em vez de reclamar), e que nenhuma opção
+   * nasce marcada — porque um padrão aqui seria o aplicativo respondendo no
+   * lugar de quem recebeu a carga de volta.
+   */
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Como se chama').fill('Loja Centro');
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  await page.goto(`http://localhost:${PORT}/production/new`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  await page.getByLabel(/Quantas unidades/).fill('600');
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar produção', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  // A carga sai primeiro, senão não há o que a loja devolva: em devolução a
+  // lista de itens é a do estoque DA LOJA, e não a da fábrica.
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  await page.getByLabel(/Picolé de morango/).first().click();
+  await page.waitForTimeout(600);
+  await page.getByLabel('Quanto vai').fill('400');
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar a transferência', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Mandar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  // Agora a devolução. O alternador troca o FATO, não só a direção.
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  await page.getByLabel('A loja devolveu').first().click();
+  await page.waitForTimeout(900);
+  await page.getByLabel('Loja Centro').first().click();
+  await page.waitForTimeout(900);
+  await page.getByLabel(/Picolé de morango/).first().click();
+  await page.waitForTimeout(600);
+  await page.getByLabel('Quanto vai').fill('100');
+  await page.waitForTimeout(900);
+
+  const perguntando = await screen(page);
+  assert.match(perguntando, /POR QUE VOLTOU/, 'a devolução pergunta por que voltou');
+  assert.match(perguntando, /Não vendeu/, 'com as respostas que mandam fazer coisas diferentes');
+  assert.match(perguntando, /Derreteu no caminho/, 'e a que acusa o transporte, não o freezer');
+
+  /**
+   * O botão não obedece: clicar sem motivo não abre confirmação nenhuma.
+   *
+   * `force: true` de propósito, e é ele que faz esta linha provar alguma coisa.
+   * Sem ele o Playwright ESPERA o elemento ficar clicável e estoura em trinta
+   * segundos — que é o comportamento certo dele e a prova errada: o teste
+   * morreria por timeout em vez de afirmar. Forçando o clique, a pergunta passa
+   * a ser a que interessa: **o toque chegou e nada aconteceu?**
+   */
+  await page.getByText('Registrar a devolução', { exact: true }).first().click({ force: true });
+  await page.waitForTimeout(900);
+  const semMotivo = await screen(page);
+  assert.doesNotMatch(
+    semMotivo,
+    /Registrar esta devolução\?/,
+    'sem motivo, o botão não abre a confirmação — o erro impede em vez de reclamar',
+  );
+
+  // Com o motivo, o mesmo botão obedece e a devolução entra.
+  await page.getByLabel('Não vendeu').first().click();
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar a devolução', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Trazer de volta', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  /**
+   * E o motivo NÃO fica pendurado para a próxima devolução.
+   *
+   * A pergunta continua na tela — quem devolveu uma vez costuma devolver de novo
+   * na mesma visita —, mas a resposta anterior não vale para a carga seguinte:
+   * herdar "não vendeu" numa devolução que derreteu é o aplicativo respondendo
+   * no lugar da pessoa, e o Espelho da Loja lendo um motivo que ninguém disse.
+   *
+   * A prova reusa o mecanismo já provado acima: com a quantidade preenchida de
+   * novo, a única coisa que falta é o motivo — e o botão continua não obedecendo.
+   */
+  const depois = await screen(page);
+  assert.match(depois, /POR QUE VOLTOU/, 'a pergunta continua ali para a próxima carga');
+
+  await page.getByLabel('Quanto vai').fill('50');
+  await page.waitForTimeout(900);
+  await page.getByText('Registrar a devolução', { exact: true }).first().click({ force: true });
+  await page.waitForTimeout(900);
+  const segunda = await screen(page);
+  assert.doesNotMatch(
+    segunda,
+    /Registrar esta devolução\?/,
+    'a segunda devolução pergunta de novo: o motivo da anterior não ficou pendurado',
+  );
+});
+
 check('erasing refuses in an order, and explains the way out', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
