@@ -94,6 +94,7 @@ export const en: Dictionary = {
       capaMade: 'made {{amount}}',
       capaQuiet: 'has not produced yet',
       capaLegend: 'The whole line — from the vat to the crate that left.',
+      capaLegendStill: 'Still right now: no vat open, nothing made and nothing shipped today.',
       boxYesterday: 'Yesterday',
       boxLastWeek: '{{weekday}}, a week ago',
       todayUnits: '{{unit}} · today',

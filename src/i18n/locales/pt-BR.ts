@@ -153,6 +153,12 @@ export const ptBR = {
       capaMade: 'fez {{amount}}',
       capaQuiet: 'ainda não produziu',
       capaLegend: 'A linha inteira — do tacho à caixa que saiu.',
+      // A cena tem três peças que só existem quando o dia as produz: a fumaça
+      // (tacho aberto), o picolé enchendo (o que se fez) e a caixa (o que saiu).
+      // Num dia parado some a metade do desenho, e o dono leu isso como app
+      // quebrado — *"faltam cores e principalmente animações"*. A ausência era
+      // dado, e dado que ninguém consegue ler não é dado. Então ela vira frase.
+      capaLegendStill: 'Parada agora: sem tacho aberto, nada feito e nada saiu hoje.',
       boxYesterday: 'Ontem',
       boxLastWeek: '{{weekday}}, há uma semana',
       todayUnits: '{{unit}} · hoje',

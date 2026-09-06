@@ -5724,3 +5724,46 @@ authenticated | service_role`. Meia hora antes, a mesma coisa me custou duas mig
 `authenticated` — que é exatamente o que ela precisa ser: **ela É a porta, e porta que
 ninguém abre não é porta.** Escrito na migração para a próxima leitura não "consertar" a
 única coisa que faz o cadastro existir.
+
+---
+
+## Ausência só é dado se alguém consegue lê-la — 6 de setembro
+
+O dono instalou o APK, comparou com o desenho que ele mesmo aprovou e disse: *"achei q
+faltam cores em alguns elementos e principalmente animações… só o sol e o floco de neve
+se mexem"*.
+
+**Ele estava vendo o sistema funcionar exatamente como escrito.** A cena tem cinco
+animações e três delas dependem de fato: a fumaça só sobe com tacho aberto
+(`running`), o picolé só enche na proporção do dia (`dayShare`), e a caixa só entra se
+saiu carga (`shipped`). Sem nada disso, sobram o sol e o floco — que são as duas únicas
+que existem por ambiente. A fiação está certa e medida (`src/home/Mosaic.tsx`), e o
+docblock da cena já dizia, com todas as letras, *"a ausência é dado"*.
+
+**A prova de que a explicação não bastava são duas fotos idênticas.**
+`.shots/capa-papel-claro-virgem.png` (empresa recém-instalada, zero movimento) e
+`.shots/capa-papel-claro-com-dado.png` (três meses semeados, 511 unidades ontem) têm a
+**mesma cena, pixel a pixel** — porque a foto com dado é de um domingo, e a fábrica
+simulada não trabalha domingo. Empresa nova, domingo parado e terça de manhã antes do
+primeiro tacho desenham a mesma coisa, e o desenho não diz qual das três é.
+
+O que falhou não foi a decisão, foi a metade que faltava dela. **Dado que ninguém
+consegue ler não é dado, é silêncio** — e a Lei da Inteligência já cobrava a diferença:
+*toda conclusão abre a conta*. A cena concluía "não há tacho, não houve produção, não
+saiu carga" e não abria conta nenhuma.
+
+**O que mudou:** `cenaParada` (`src/components/cena.ts`) responde se as três peças do dia
+estão fora, e a legenda debaixo do desenho passa a dizer *"Parada agora: sem tacho
+aberto, nada feito e nada saiu hoje."* nos três idiomas. A regra mora em módulo puro por
+dois motivos, e o segundo decidiu: `.tsx` arrasta o React Native e nenhum `node --test` a
+carrega — mas, principalmente, **a legenda e o desenho saem do mesmo objeto**. Enquanto
+eram contas separadas, nada impedia a frase de jurar que a fábrica está parada com a
+chaminé fumegando ao lado.
+
+**E a lição de método, que é maior que a tela.** Eu tinha o diagnóstico certo por leitura
+de código antes de olhar qualquer imagem — e a leitura de código não teria achado isto,
+porque o achado não é *"o código está errado"*, é *"o código está certo e ninguém
+entende"*. Quem mostrou foi a comparação das duas fotos. Já está escrito na capa deste
+projeto que verde não prova tela; falta a metade seguinte: **código certo não prova tela
+lida.** O único instrumento que responde isso é alguém olhando — e desta vez o alguém foi
+o dono, o que quer dizer que chegou tarde.

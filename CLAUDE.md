@@ -524,6 +524,31 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   até construir o dele com ESP32. Então a `readings` fica genérica (tipo, valor,
   unidade, quem mediu, quando mediu no mundo) e nenhum protocolo entra chumbado.
 
+- **O aplicativo é para encher os olhos — e isso é requisito, não enfeite.** Cobrado
+  pelo dono em 6 de setembro, depois de *"perdi as contas de quantas vezes eu te
+  pedi"*: *"o app tem q ser uma obra de arte, fantástico, algo que enche os olhos!
+  Extrapola, e coloca as animações q cansei de te pedir. quero em todas as telas. dá
+  mais cor para o tema papel q está bonito, mas um tanto apagado. estamos usando uma
+  paleta pastel, mas pode usar algo mais forte uma vez ou outra se nao quebrar a
+  harmonia geral. todo o sistema funciona como um organismo vivo e vc já viu organismo
+  vivo MORTO?"*
+
+  Três consequências, e nenhuma delas é opinião minha:
+
+  1. **Movimento em toda tela, não só na capa.** Entrada em cascata, resposta ao toque,
+     número que anda até o valor, transição entre telas. Tela que aparece pronta e
+     imóvel está errada, mesmo que todos os números estejam certos.
+  2. **O Papel ganha cor.** A paleta pastel fica, e o acento forte é permitido de vez em
+     quando — o limite é a harmonia, não a timidez.
+  3. **"A ausência é dado" não autoriza tela morta.** A cena da fábrica só mexia três
+     peças quando havia produção, carga ou tacho aberto, e num domingo o desenho ficava
+     idêntico ao de uma empresa recém-instalada. O fato continua mandando no que a
+     *cena conta*; o que não pode é o aplicativo **parecer desligado**. Vida é ambiente
+     — o que se mexe sem afirmar nada sobre o razão.
+
+  E a regra de leitura que sai daqui, porque ela já me pegou uma vez: quando a tela
+  parecer morta, a primeira hipótese **não** é "está certo, é dado" — é que falta vida.
+
 - **O operador confere a prateleira.** Numa fábrica de seis pessoas quem anda
   até a prateleira é quem trabalha lá, não o dono. Negar a permissão não deixa o
   número mais seguro — deixa a contagem sem acontecer, e saldo que ninguém

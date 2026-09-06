@@ -4,6 +4,7 @@ import { Bars } from '@/components/Bars';
 import { Drain } from '@/components/Drain';
 import { Sparkline } from '@/components/Sparkline';
 import { Card } from '@/components/Card';
+import { cenaParada, type CenaDaFabrica } from '@/components/cena';
 import { FactoryScene } from '@/components/FactoryScene';
 import { CountUp } from '@/components/CountUp';
 import { GlyphBox, GlyphOrder, GlyphPrice, GlyphProduction, GlyphStock } from '@/components/Glyph';
@@ -70,6 +71,23 @@ export function Mosaic(vista: BriefingView) {
   const temNivel = !!data && (data.shortly.length > 0 || (data.everMade && data.cover.length > 0));
   /** Saiu carga hoje. */
   const temCaixas = !!data && data.boxes > 0;
+
+  /**
+   * O que a cena da fábrica mostra do dia — um objeto, não três expressões.
+   *
+   * A legenda debaixo dela é derivada daqui também: enquanto eram cálculos
+   * separados, nada impedia o texto de dizer uma coisa e o desenho outra.
+   */
+  const cena: CenaDaFabrica = {
+    running: (data?.running.length ?? 0) > 0,
+    shipped: temCaixas,
+    dayShare:
+      data && data.madeYesterday > 0
+        ? Math.min(1, data.madeToday / data.madeYesterday)
+        : data && data.madeToday > 0
+          ? 1
+          : null,
+  };
 
   // A pergunta mora no domínio e tem teste — porque a resposta errada dela é a
   // frase mais cara desta tela. Ver `coverState`.
@@ -173,20 +191,15 @@ export function Mosaic(vista: BriefingView) {
               ternário, o Orgânico era o Papel com outro desenho — e o dono
               recusou exatamente isso. */}
           <View style={{ marginTop: space.md }}>
-            <FactoryScene
-              running={(data?.running.length ?? 0) > 0}
-              shipped={(data?.boxes ?? 0) > 0}
-              dayShare={
-                data && data.madeYesterday > 0
-                  ? Math.min(1, data.madeToday / data.madeYesterday)
-                  : data && data.madeToday > 0
-                    ? 1
-                    : null
-              }
-            />
+            <FactoryScene {...cena} />
           </View>
 
-          <Legenda>{t.app.home.capaLegend}</Legenda>
+          {/* A legenda sai do MESMO objeto que a cena, e isso não é elegância.
+              Recalculá-la aqui deixaria o texto e o desenho discordarem no dia em
+              que um dos dois mudasse — a família de defeito que já custou caro
+              neste repositório, e que aqui teria a forma mais cruel: a frase
+              jurando que a fábrica está parada com a chaminé fumegando ao lado. */}
+          <Legenda>{cenaParada(cena) ? t.app.home.capaLegendStill : t.app.home.capaLegend}</Legenda>
 
           {data && data.everMade ? (
             <>

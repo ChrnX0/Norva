@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle, ClipPath, Defs, G, Path, Rect } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
+import type { CenaDaFabrica } from './cena';
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
@@ -56,18 +57,7 @@ const PRANCHA = { largura: 364, altura: 150 };
  * chutar porcentagem. Assim o desenho e as camadas escalam juntos, do telefone
  * de 360 dp ao tablet — que é a regra de layout deste projeto.
  */
-export function FactoryScene({
-  running,
-  dayShare,
-  shipped,
-}: {
-  /** Há tacho aberto agora. */
-  running: boolean;
-  /** O dia contra ontem, de 0 a 1. Nulo quando não há com o que comparar. */
-  dayShare: number | null;
-  /** Saiu carga hoje. */
-  shipped: boolean;
-}) {
+export function FactoryScene({ running, dayShare, shipped }: CenaDaFabrica) {
   const { color, palette } = useTheme();
   const [largura, setLargura] = useState(0);
   const escala = largura / PRANCHA.largura;

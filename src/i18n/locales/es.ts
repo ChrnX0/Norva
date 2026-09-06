@@ -99,6 +99,7 @@ export const es: Dictionary = {
       capaMade: 'hizo {{amount}}',
       capaQuiet: 'todavía no produjo',
       capaLegend: 'La línea entera — de la paila a la caja que salió.',
+      capaLegendStill: 'Parada ahora: sin paila abierta, nada hecho y nada salió hoy.',
       boxYesterday: 'Ayer',
       boxLastWeek: '{{weekday}}, hace una semana',
       todayUnits: '{{unit}} · hoy',
