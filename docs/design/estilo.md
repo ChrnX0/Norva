@@ -76,3 +76,23 @@ meu.
   editorial, com quatro peças que eram cartão viradas em seção.
 - `src/home/capas/papel.tsx` — a roupa da pele.
 - `src/theme/tokens.ts` — `Tracos`, e as duas paletas.
+
+---
+
+## Como se julga um desenho aqui
+
+**Uma foto por vez não responde a pergunta que importa.** Ela responde *"essa cena
+está boa?"*; a que decide é *"elas parecem a mesma mão?"* — e essa só a folha
+inteira responde.
+
+    npm run shot -- --com-dado --rota /places,/catalog,/orders
+    python3 scripts/folha-de-cenas.py
+
+Na primeira vez que rodou, com sete cenas lado a lado, ela achou três defeitos que
+sete fotos separadas não tinham achado: sete cópias do mesmo picolé no catálogo,
+dois balões idênticos no assistente, e um pedaço de chão solto no espelho.
+
+E o defeito que ela pega melhor que qualquer outro instrumento é o que o dono
+nomeou em três letras — **feio** — e que tem sempre a mesma forma: repetição
+regular. O conserto também é sempre o mesmo: tamanhos diferentes, vãos desiguais,
+e uma só peça com cor.
