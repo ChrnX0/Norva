@@ -4815,3 +4815,42 @@ e ficou na lista também reprova.
 **A regra que fica:** todo portão que a casa cita numa decisão precisa de um teste que o
 cobre. Portão citado e não conferido não é regra — é intenção, e intenção não pega o quinto
 caso.
+
+---
+
+## 2026-09-06 — o guarda contra versão repetida tem a entrada escrita à mão, e ela envelheceu
+
+**O que se viu.** Compilei o APK aqui para o dono testar no tablet — a CI não pode, a cota
+do GitHub acabou. Antes de entregar, fui conferir a página de releases e achei
+`apk-0.11.0` **publicado hoje às 05:43**, antes de tudo o que entrou depois: a reserva no
+despacho, a segunda viagem ao freezer, o código impresso, gente e perfil, a grade de nomes,
+o movimento dos desenhos.
+
+E o `app.json` continuava em `0.11.0`. O guarda que existe exatamente para impedir isso —
+`src/release.test.ts` — passou verde, porque ele compara com `ULTIMO_PUBLICADO`, uma
+**constante escrita à mão**, e ela dizia `0.10.0`.
+
+**O que isso teria custado.** O APK que eu ia mandar tem `versionCode 110000`, igual ao que
+está no tablet dele. Android não instala: mesmo número, conteúdo diferente, e **o erro no
+aparelho não explica nada**. Ele tentaria, falharia e não teria como saber por quê — que é
+a cicatriz que este arquivo já tem escrita, de 3 de setembro: *"O release publicava dois
+apps com a mesma versão, e um deles era velho."*
+
+**A forma do defeito.** O guarda protege contra "um número que não pode repetir" e depende
+de alguém lembrar de atualizar um número à mão. É a mesma falha que ele existe para pegar,
+um nível acima — e o docblock dele até explica por que a constante é manual (*"é o número
+que está NO APARELHO de alguém, e o repositório não tem como descobri-lo sozinho"*), o que
+é verdade e não deixa de ser o buraco.
+
+O ⚠️ da proofgate (*"version bumped, no release in sight"*) roda em toda entrega e eu o
+justifiquei o dia inteiro como benigno. Ele olha a direção contrária — bump sem release —
+e por isso não pegou esta: release sem bump.
+
+**O que mudou.** `ULTIMO_PUBLICADO` passou a `0.11.0` (fato, está na página de releases) e
+o `app.json` foi para `0.12.0`, que é o que o guarda então exige. O APK foi recompilado com
+`versionCode 120000`, que o tablet aceita como atualização.
+
+**A regra que fica:** guarda cuja entrada é constante escrita à mão só vale enquanto alguém
+lembra — e o momento de esquecer é exatamente o momento em que ela importa, porque é o dia
+em que algo foi publicado. Antes de compilar pacote para alguém instalar, **olhe a página
+de releases**, não a constante.

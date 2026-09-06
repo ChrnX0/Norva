@@ -38,7 +38,7 @@ test('the ledger does not leave the phone through the Android backup', () => {
  * Ela sobe quando um release sai, não quando o `app.json` muda: é o número que
  * está NO APARELHO de alguém, e o repositório não tem como descobri-lo sozinho.
  */
-const ULTIMO_PUBLICADO = '0.10.0';
+const ULTIMO_PUBLICADO = '0.11.0';
 
 test('the version can always produce a build number that grows', () => {
   // O `versionCode` sai da versão (`build-apk.yml`), e a fórmula dá a cada parte
