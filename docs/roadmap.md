@@ -343,6 +343,42 @@ qualquer uma é o trajeto interno: **transferência entre salas nossas**, que a 
 transferir não faz (ela sai sempre da fábrica, e o caminho de volta grava
 `return`, que é notícia sobre a loja, não sobre a nossa câmara).
 
+## A entrada — estudada em 6 de setembro, com o desenho decidido
+
+O estudo está em **`docs/estudo-entrada.md`**, escrito depois de medir e não antes. O que
+ele conclui, curto:
+
+- **A fábrica já pode ser sempre offline** — a grade de nomes com PIN não depende de nada
+  que não exista. O PIN é **atribuição**, não senha, e a tela deve dizer isso.
+- **O servidor confere a CONTA, não o perfil da pessoa.** `movements_append` exige
+  `recorded_by = auth.uid()` e `has_capability` da conta
+  (`supabase/migrations/0008_ledger_speaks_phase_one.sql:26-41`). `profiles.capabilities`
+  é camada do aparelho. Logo o teto do entregador tem que estar numa **conta por perfil**
+  — que é o que a `0014` já dizia e eu tinha lido errado.
+- **"Sempre offline" de verdade exige chave no aparelho e assinatura**, e portanto
+  `expo-crypto`, `expo-secure-store` e uma biblioteca de assinatura — nenhuma existe. E
+  exige alguém que confira, que hoje não existe: a política olha `auth.uid()`. Não se
+  constrói antes do canal.
+- **Revogar não tem solução offline.** O que dá é diminuir o estrago e fazer
+  `devices.active` valer — hoje o servidor **não confere `device_id` em nada**.
+
+**A ordem que saiu do estudo:** grade com PIN → `operator_id` ganha escritor → servidor
+confere aparelho → conta por perfil e código de convite (quando o servidor subir) → chave
+e assinatura (só se alguém pedir).
+
+### Dois defeitos que a medição achou
+
+**`movements.device_id` atravessa a sincronia e não existe no aparelho.** Está na lista de
+colunas que viajam (`src/sync/serialize.ts:374`) e nenhum `ALTER TABLE` de `src/data/db.ts`
+a cria: é serializada como `null`, sempre. O guarda `src/sync/columns.test.ts` cobra a
+direção contrária e não esta.
+
+**Três configurações de empresa sem leitor:** `floor_sign_in` (pessoal ou compartilhado),
+`join_code` e `names_who_recorded`. A escolha entre os dois caminhos de entrada **já está
+modelada no servidor**; o app é que não pergunta.
+
+---
+
 ## Dívida medida em 6 de setembro — dez funções do domínio sem chamador
 
 O portão P1 deste projeto pergunta *quem chama isto no mesmo commit*, e a doença que
