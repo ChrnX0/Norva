@@ -242,13 +242,19 @@ function Insumos({ tinta, acento, frio }: Pincel) {
   const prato = useAnimatedProps(() => ({ transform: [{ rotate: `${-3 + ciclo.value * 6}deg` }] }));
   return (
     <>
-      {/* Três sacos de insumo, encostados. */}
+      {/* Três sacos de insumo, encostados — com a boca amarrada, que é o que
+          diz "saco" e não "envelope". A costura é tinta rebaixada e não a cor
+          fria: azul dentro de um saco de açúcar não significa nada, e cor que
+          não significa nada é ruído numa cena que cabe em setenta e dois. */}
       <G stroke={tinta}>
         <Path d="M16 64V36c0-4 4-6 4-10h18c0 4 4 6 4 10v28z" />
-        <Path d="M20 46h18" stroke={frio} />
+        <Path d="M22 26c2-4 12-4 14 0" />
+        <Path d="M20 46h18" opacity={0.35} />
         <Path d="M52 64V40c0-4 4-5 4-9h16c0 4 4 5 4 9v24z" />
-        <Path d="M56 50h16" stroke={frio} />
+        <Path d="M58 31c2-3 10-3 12 0" />
+        <Path d="M56 50h16" opacity={0.35} />
         <Path d="M86 64V44c0-3 3-4 3-7h14c0 3 3 4 3 7v20z" />
+        <Path d="M90 37c2-3 8-3 10 0" />
       </G>
       {/* A balança de dois pratos: o braço pende devagar, que é o que ela faz. */}
       <G stroke={tinta}>
@@ -261,10 +267,12 @@ function Insumos({ tinta, acento, frio }: Pincel) {
           <Path d="M216 36h24l-6 10h-12z" stroke={acento} />
         </AnimatedG>
       </G>
-      {/* O pote de medida, no fim. */}
+      {/* O pote de medida, no fim — com as marcas de graduação, que é o que
+          diferencia um copo medidor de um balde. */}
       <G stroke={tinta}>
         <Path d="M300 32h44l-6 32h-32z" />
-        <Path d="M306 46h32" stroke={frio} />
+        <Path d="M303 42h10M305 52h8" opacity={0.5} />
+        <Path d="M306 46h32" stroke={frio} opacity={0.7} />
       </G>
     </>
   );
@@ -338,21 +346,26 @@ function Picole({ x, cor, atrasoMs }: { x: number; cor: string; atrasoMs: number
 function Lojas({ tinta, acento, frio }: Pincel) {
   return (
     <>
-      <Loja x={14} cor={tinta} toldo={acento} atrasoMs={0} />
-      <Loja x={102} cor={tinta} toldo={frio} atrasoMs={900} />
-      <Loja x={190} cor={tinta} toldo={acento} atrasoMs={1800} />
-      <Loja x={278} cor={tinta} toldo={frio} atrasoMs={2700} />
+      {/* Alturas diferentes de propósito: quatro fachadas idênticas lado a lado
+          leem como padrão de papel de parede, não como rua. */}
+      <Loja x={14} topo={30} cor={tinta} toldo={acento} atrasoMs={0} />
+      <Loja x={102} topo={38} cor={tinta} toldo={frio} atrasoMs={900} />
+      <Loja x={190} topo={26} cor={tinta} toldo={acento} atrasoMs={1800} />
+      <Loja x={278} topo={36} cor={tinta} toldo={frio} atrasoMs={2700} />
     </>
   );
 }
 
 function Loja({
   x,
+  topo,
   cor,
   toldo,
   atrasoMs,
 }: {
   x: number;
+  /** Onde a fachada começa. É o que dá relevo à rua. */
+  topo: number;
   cor: string;
   toldo: string;
   atrasoMs: number;
@@ -361,11 +374,11 @@ function Loja({
   const pano = useAnimatedProps(() => ({ transform: [{ scaleY: 0.94 + ciclo.value * 0.12 }] }));
   return (
     <G stroke={cor}>
-      <Path d={`M${x} 64V34h72v30`} />
+      <Path d={`M${x} 64V${topo + 4}h72v${60 - topo}`} />
       <Path d={`M${x + 12} 64V48h20v16`} />
       <Path d={`M${x + 44} 48h18v10h-18z`} />
-      <AnimatedG animatedProps={pano} origin={`${x + 36}, 30`}>
-        <Path d={`M${x - 4} 30h80l-8 10h-64z`} stroke={toldo} />
+      <AnimatedG animatedProps={pano} origin={`${x + 36}, ${topo}`}>
+        <Path d={`M${x - 4} ${topo}h80l-8 10h-64z`} stroke={toldo} />
       </AnimatedG>
     </G>
   );
