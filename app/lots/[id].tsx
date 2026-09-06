@@ -177,7 +177,7 @@ function Label() {
   }
 
   return (
-    <CollapsingHeader title={t.app.lotLabel.title} overline={t.app.lotLabel.overline}>
+    <CollapsingHeader cena="lotes" title={t.app.lotLabel.title} overline={t.app.lotLabel.overline}>
       {/* A ETIQUETA. O cartão é de produção - quem vê âmbar sabe que o lote saiu
           do tacho antes de ler o nome - e o crachá é a própria etiqueta. Sem
           título: o cabeçalho já diz "Etiqueta do lote", e repetir a palavra num

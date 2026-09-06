@@ -375,7 +375,7 @@ function Transfer() {
    */
   if (destinations.length === 0) {
     return (
-      <CollapsingHeader title={words.title} overline={words.overline}>
+      <CollapsingHeader cena="separacao" title={words.title} overline={words.overline}>
         <Reveal index={0}>
           <Card
             hue={palette.lilac}

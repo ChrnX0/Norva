@@ -169,7 +169,7 @@ function InputDetail() {
 
   if (loading || !item) {
     return (
-      <CollapsingHeader title={t.app.inputForm.fallbackTitle} overline={t.app.inputDetail.overline}>
+      <CollapsingHeader cena="insumos" title={t.app.inputForm.fallbackTitle} overline={t.app.inputDetail.overline}>
         <Reveal index={0}>
           <Card hue={palette.mint} icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}>
             <Text style={[type.body, { color: color.inkMuted }]}>

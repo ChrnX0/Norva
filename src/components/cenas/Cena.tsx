@@ -342,44 +342,83 @@ function Picole({ x, cor, atrasoMs }: { x: number; cor: string; atrasoMs: number
   );
 }
 
-/** AS LOJAS — a rua, com os toldos balançando. */
+/**
+ * AS LOJAS — uma rua, e não uma fileira.
+ *
+ * A primeira versão eram quatro fachadas idênticas encostadas, com toldo
+ * chapado, alternando vermelho e azul. O dono olhou e disse uma palavra: *"feio"*
+ * — e estava certo por três motivos que dá para nomear. Repetição regular lê como
+ * padrão de papel de parede, não como rua. Toldo é pano: a barra dele tem bico,
+ * e um trapézio reto vira marquise de posto. E cor alternando em toda fachada é
+ * duas cores brigando; numa rua a cor é de UMA loja, as outras são tinta.
+ *
+ * Agora: larguras diferentes, vãos entre elas, um poste que quebra o ritmo, e uma
+ * só com toldo de cor — que é a que está sendo atendida.
+ */
 function Lojas({ tinta, acento, frio }: Pincel) {
   return (
     <>
-      {/* Alturas diferentes de propósito: quatro fachadas idênticas lado a lado
-          leem como padrão de papel de parede, não como rua. */}
-      <Loja x={14} topo={30} cor={tinta} toldo={acento} atrasoMs={0} />
-      <Loja x={102} topo={38} cor={tinta} toldo={frio} atrasoMs={900} />
-      <Loja x={190} topo={26} cor={tinta} toldo={acento} atrasoMs={1800} />
-      <Loja x={278} topo={36} cor={tinta} toldo={frio} atrasoMs={2700} />
+      <Loja x={14} largura={78} topo={30} cor={tinta} toldo={acento} atrasoMs={0} />
+
+      {/* O poste: é ele que faz duas fachadas virarem uma rua. */}
+      <G stroke={tinta}>
+        <Path d="M108 64V24" />
+        <Path d="M102 24h12l-3 8h-6z" stroke={frio} />
+      </G>
+
+      <Loja x={126} largura={62} topo={38} cor={tinta} toldo={tinta} atrasoMs={1300} />
+      <Loja x={200} largura={88} topo={26} cor={tinta} toldo={tinta} atrasoMs={2600} />
+
+      {/* Os engradados na calçada, esperando entrar. */}
+      <G stroke={tinta}>
+        <Path d="M300 48h30v16h-30zM300 54h30M315 48v16" />
+        <Path d="M336 54h22v10h-22zM336 58h22" />
+      </G>
     </>
   );
 }
 
 function Loja({
   x,
+  largura,
   topo,
   cor,
   toldo,
   atrasoMs,
 }: {
   x: number;
-  /** Onde a fachada começa. É o que dá relevo à rua. */
+  /** Fachadas de larguras diferentes: é o que separa rua de fileira. */
+  largura: number;
+  /** Onde a fachada começa. */
   topo: number;
   cor: string;
   toldo: string;
   atrasoMs: number;
 }) {
   const ciclo = useCiclo(5800, { feitio: 'vaivem', atrasoMs, repouso: 0.5 });
-  const pano = useAnimatedProps(() => ({ transform: [{ scaleY: 0.94 + ciclo.value * 0.12 }] }));
+  const pano = useAnimatedProps(() => ({ transform: [{ scaleY: 0.9 + ciclo.value * 0.2 }] }));
+  const meio = x + largura / 2;
+  const bico = topo + 13;
+
   return (
     <G stroke={cor}>
-      <Path d={`M${x} 64V${topo + 4}h72v${60 - topo}`} />
-      <Path d={`M${x + 12} 64V48h20v16`} />
-      <Path d={`M${x + 44} 48h18v10h-18z`} />
-      <AnimatedG animatedProps={pano} origin={`${x + 36}, ${topo}`}>
-        <Path d={`M${x - 4} ${topo}h80l-8 10h-64z`} stroke={toldo} />
+      <Path d={`M${x} 64V${topo + 6}h${largura}v${58 - topo}`} />
+      {/* A porta e a vitrine MEDEM DO CHÃO, não do topo.
+          Eram proporcionais à fachada, e a conta dava altura zero quando a loja
+          era mais baixa: a do meio ficou com uma porta de nenhum pixel, que na
+          foto lê como um risco solto na calçada. Porta tem a altura de uma
+          pessoa, não a de uma fração do prédio. */}
+      <Path d={`M${x + 9} 64V42h14v22`} />
+      <Path d={`M${x + largura - 30} 44h20v13h-20z`} />
+      {/* O toldo, com o bico do pano. */}
+      <AnimatedG animatedProps={pano} origin={`${meio}, ${topo}`}>
+        <Path
+          d={`M${x - 3} ${topo}h${largura + 6}l-5 9q-6 6-12 0q-6 6-12 0q-6 6-12 0q-6 6-12 0q-6 6-12 0l-5-9z`}
+          stroke={toldo}
+        />
+        <Path d={`M${x - 3} ${topo}h${largura + 6}`} stroke={toldo} />
       </AnimatedG>
+      <Path d={`M${meio} ${bico}v0`} />
     </G>
   );
 }
@@ -630,22 +669,34 @@ function Cursor({ y, cor, atrasoMs }: { y: number; cor: string; atrasoMs: number
   );
 }
 
-/** O ASSISTENTE — a pergunta, e a resposta que se acende. */
+/**
+ * O ASSISTENTE — a pergunta, e a resposta que se acende.
+ *
+ * Os dois balões POUSAM na linha do chão pelo bico, e isso não é detalhe: o
+ * balão da resposta descia até 74 numa prancheta de 72, ou seja, atravessava o
+ * chão e saía da folha. Numa cena onde tudo o mais pisa na mesma linha, o que a
+ * cruza lê como erro de recorte.
+ */
 function Assistente({ tinta, acento, frio }: Pincel) {
   const ciclo = useCiclo(4800, { feitio: 'vaivem', repouso: 0.5 });
-  const brilho = useAnimatedProps(() => ({ opacity: 0.35 + ciclo.value * 0.65 }));
+  const brilho = useAnimatedProps(() => ({ opacity: 0.3 + ciclo.value * 0.7 }));
+  const giro = useAnimatedProps(() => ({ transform: [{ rotate: `${ciclo.value * 90}deg` }] }));
   return (
     <>
       <G stroke={tinta}>
-        <Path d="M18 20h108v30H18l-6 10v-10z" />
-        <Path d="M32 30h72M32 40h50" stroke={frio} />
+        <Path d="M14 20h104v28H26l-8 16v-16h-4z" />
+        <Path d="M28 30h74M28 39h52" stroke={frio} />
       </G>
-      <AnimatedG animatedProps={brilho} stroke={acento}>
-        <Path d="M172 22v20M162 32h20M168 26l8 12M176 26l-8 12" />
+      {/* A fagulha gira um quarto de volta enquanto acende: é a única coisa da
+          folha que não é papel nem balão, e é ela que diz "pensou". */}
+      <AnimatedG animatedProps={brilho}>
+        <AnimatedG animatedProps={giro} origin="172, 34" stroke={acento}>
+          <Path d="M172 20v28M158 34h28M162 24l20 20M182 24l-20 20" />
+        </AnimatedG>
       </AnimatedG>
       <G stroke={tinta}>
-        <Path d="M214 34h122v30H220l-6 10z" />
-        <Path d="M230 44h92M230 54h64" stroke={frio} />
+        <Path d="M226 20h124v28h-108l-10 16v-16h-6z" />
+        <Path d="M240 30h96M240 39h68" stroke={frio} />
       </G>
     </>
   );

@@ -359,7 +359,7 @@ function RecipeEditor() {
    */
   if (loading || !data || !stored || !lines) {
     return (
-      <CollapsingHeader title={t.app.recipe.fallbackTitle} overline={t.app.recipe.overline}>
+      <CollapsingHeader cena="receitas" title={t.app.recipe.fallbackTitle} overline={t.app.recipe.overline}>
         <Reveal index={0}>
           <Card hue={palette.apricot} icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}>
             <Text style={[type.body, { color: color.inkMuted }]}>

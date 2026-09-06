@@ -270,7 +270,7 @@ function PurchaseForm() {
   }
 
   return (
-    <CollapsingHeader title={t.app.purchase.title} overline={t.app.purchase.overline}>
+    <CollapsingHeader cena="compras" title={t.app.purchase.title} overline={t.app.purchase.overline}>
       {/* O QUE CHEGOU. Um assunto só, num cartão só: qual insumo, quantos e por
           quanto são as três linhas da mesma linha da nota, e separá-las em dois
           cartões fazia a pessoa olhar duas caixas para escrever uma frase.

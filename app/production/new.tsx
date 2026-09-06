@@ -421,7 +421,7 @@ function Production() {
   // ainda. Rótulo que discorda do que está embaixo dele foi o defeito mais
   // repetido desta rodada.
   return (
-    <CollapsingHeader title={words.formTitle} overline={words.formOverline}>
+    <CollapsingHeader cena="producao" title={words.formTitle} overline={words.formOverline}>
       {/* O que você produziu: o sabor, o número e — para quem trabalha assim —
           a receita que rodou. É um assunto só, porque é um ato só, e por isso é
           um cartão só: escolher o sabor sem dizer quanto saiu não lança nada.
