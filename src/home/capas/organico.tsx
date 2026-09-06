@@ -463,10 +463,17 @@ function Linha({
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
         <Cracha cor={cor}>{icone}</Cracha>
         <View style={{ flex: 1 }}>
-          <Text style={[type.section, { color: color.ink }]} numberOfLines={1}>
+          {/* O NOME cabe em duas linhas, e a legenda em uma.
+              Estava ao contrário: "Polpa de morango" saía como "Polpa de mora…"
+              enquanto "é o insumo mais curto da casa" ocupava duas linhas
+              inteiras logo abaixo. O nome é o assunto da linha — é o que a
+              pessoa procura — e a legenda é a explicação, que é justamente o que
+              se pode cortar. Cortar o assunto para caber a explicação é a
+              hierarquia invertida. */}
+          <Text style={[type.section, { color: color.ink }]} numberOfLines={2}>
             {titulo}
           </Text>
-          <Text style={[type.secondary, { color: color.inkMuted }]} numberOfLines={2}>
+          <Text style={[type.secondary, { color: color.inkMuted }]} numberOfLines={1}>
             {legenda}
           </Text>
         </View>
