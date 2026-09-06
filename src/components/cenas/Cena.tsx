@@ -325,32 +325,68 @@ function Receitas({ tinta, acento, frio }: Pincel) {
   );
 }
 
-/** OS PRODUTOS — a prateleira cheia, e um deles enchendo. */
-function Produtos({ tinta, acento }: Pincel) {
+/**
+ * OS PRODUTOS — o que a fábrica vende, e são coisas DIFERENTES.
+ *
+ * A primeira versão pendurava sete picolés iguais igualmente espaçados num
+ * trilho: o padrão de papel de parede outra vez, e pior, dizendo a coisa errada
+ * — um catálogo de produtos com sete cópias do mesmo item. Agora são quatro
+ * formas distintas, que é o que "produtos" quer dizer, e uma só com cor.
+ */
+function Produtos({ tinta, acento, frio }: Pincel) {
   return (
     <>
+      {/* A prateleira, que é onde o catálogo mora. */}
       <G stroke={tinta}>
-        <Path d="M14 40h336" />
+        <Path d="M14 30h268" />
       </G>
-      {[24, 68, 112, 156, 200, 244, 288].map((x, i) => (
-        <Picole key={x} x={x} cor={i === 3 ? acento : tinta} atrasoMs={i * 420} />
-      ))}
-      <G stroke={tinta}>
-        <Path d="M326 44h22v20h-22z" />
-        <Path d="M326 52h22" />
+
+      <PecaDoCatalogo x={30} atrasoMs={0} cor={acento}>
+        <Rect x="30" y="34" width="20" height="30" rx="8" />
+        <Path d="M40 30v4" />
+      </PecaDoCatalogo>
+
+      <PecaDoCatalogo x={86} atrasoMs={900} cor={tinta}>
+        <Circle cx="96" cy="46" r="13" />
+        <Path d="M96 30v3M96 59v5" />
+      </PecaDoCatalogo>
+
+      <PecaDoCatalogo x={140} atrasoMs={1800} cor={tinta}>
+        <Path d="M144 36h30l-5 28h-20z" />
+        <Path d="M140 36h38" />
+      </PecaDoCatalogo>
+
+      <PecaDoCatalogo x={210} atrasoMs={2700} cor={tinta}>
+        <Path d="M208 40h44v24h-44z" />
+        <Path d="M208 48h44M230 40v24" />
+      </PecaDoCatalogo>
+
+      {/* A etiqueta de preço: é ela que faz disto um catálogo e não um estoque. */}
+      <G stroke={frio}>
+        <Path d="M296 30l32-6 20 22-32 6z" />
+        <Circle cx="312" cy="36" r="3" />
       </G>
     </>
   );
 }
 
-function Picole({ x, cor, atrasoMs }: { x: number; cor: string; atrasoMs: number }) {
+/** Cada peça balança no seu tempo, como coisa exposta numa prateleira. */
+function PecaDoCatalogo({
+  x,
+  atrasoMs,
+  cor,
+  children,
+}: {
+  x: number;
+  atrasoMs: number;
+  cor: string;
+  children: React.ReactNode;
+}) {
   const ciclo = useCiclo(6800, { feitio: 'vaivem', atrasoMs, repouso: 0.5 });
-  // O picolé balança um grau no palito, como coisa pendurada em prateleira.
-  const props = useAnimatedProps(() => ({ transform: [{ rotate: `${-1 + ciclo.value * 2}deg` }] }));
+  const props = useAnimatedProps(() => ({ transform: [{ rotate: `${-1.2 + ciclo.value * 2.4}deg` }] }));
   return (
-    <AnimatedG animatedProps={props} origin={`${x + 9}, 40`} stroke={cor}>
-      <Rect x={x} y="44" width="18" height="26" rx="7" />
-      <Path d={`M${x + 9} 40v4`} />
+    <AnimatedG animatedProps={props} origin={`${x + 10}, 30`} stroke={cor}>
+      {children}
     </AnimatedG>
   );
 }
@@ -736,12 +772,15 @@ function Cursor({ y, cor, atrasoMs }: { y: number; cor: string; atrasoMs: number
 }
 
 /**
- * O ASSISTENTE — a pergunta, e a resposta que se acende.
+ * O ASSISTENTE — a pergunta curta, e a resposta que abre a conta.
  *
- * Os dois balões POUSAM na linha do chão pelo bico, e isso não é detalhe: o
- * balão da resposta descia até 74 numa prancheta de 72, ou seja, atravessava o
- * chão e saía da folha. Numa cena onde tudo o mais pisa na mesma linha, o que a
- * cruza lê como erro de recorte.
+ * Os dois balões eram do mesmo tamanho e diziam a mesma coisa: duas caixas com
+ * riscos dentro. Pergunta é curta e resposta é longa — e a desta casa **abre a
+ * conta**, que é a Lei da Inteligência. Por isso a resposta traz o diagrama
+ * dentro dela em vez de mais uma linha de texto.
+ *
+ * Os balões pousam na linha do chão pelo bico. O da resposta descia até 74 numa
+ * prancheta de 72: atravessava o chão e saía da folha.
  */
 function Assistente({ tinta, acento, frio }: Pincel) {
   const ciclo = useCiclo(4800, { feitio: 'vaivem', repouso: 0.5 });
@@ -750,19 +789,22 @@ function Assistente({ tinta, acento, frio }: Pincel) {
   return (
     <>
       <G stroke={tinta}>
-        <Path d="M14 20h104v28H26l-8 16v-16h-4z" />
-        <Path d="M28 30h74M28 39h52" stroke={frio} />
+        <Path d="M14 24h74v22H26l-8 12v-12h-4z" />
+        <Path d="M26 32h50M26 39h32" stroke={frio} />
       </G>
+
       {/* A fagulha gira um quarto de volta enquanto acende: é a única coisa da
           folha que não é papel nem balão, e é ela que diz "pensou". */}
       <AnimatedG animatedProps={brilho}>
-        <AnimatedG animatedProps={giro} origin="172, 34" stroke={acento}>
-          <Path d="M172 20v28M158 34h28M162 24l20 20M182 24l-20 20" />
+        <AnimatedG animatedProps={giro} origin="118, 36" stroke={acento}>
+          <Path d="M118 24v24M106 36h24M109 27l18 18M127 27l-18 18" />
         </AnimatedG>
       </AnimatedG>
+
       <G stroke={tinta}>
-        <Path d="M226 20h124v28h-108l-10 16v-16h-6z" />
-        <Path d="M240 30h96M240 39h68" stroke={frio} />
+        <Path d="M154 16h196v34h-176l-10 14v-14h-10z" />
+        <Path d="M168 26h84M168 34h60M168 42h44" stroke={frio} />
+        <Path d="M268 44V30h8v14M282 44V22h8v22M296 44V34h8v10M262 44h50" stroke={acento} />
       </G>
     </>
   );
@@ -794,8 +836,13 @@ function Espelho({ tinta, acento, frio }: Pincel) {
         <Path d="M182 42h44v22h-44zM182 50h44M204 42v22" />
         <Path d="M190 42l5-7h26l5 7" />
       </AnimatedG>
-      <G stroke={tinta} opacity={0.4}>
-        <Path d="M96 64h140" />
+      {/* A estrada entre as duas: tracejada e contínua, e não um toco solto no
+          meio da folha. A primeira versão desenhava um segmento cheio de 96 a
+          236 que lia como a linha do chão QUEBRADA — e chão quebrado é a única
+          coisa que esta prancheta não pode ter, porque é a linha do chão que faz
+          sete objetos soltos lerem como uma cena. */}
+      <G stroke={tinta} opacity={0.35}>
+        <Path d="M56 68h198" strokeDasharray="7 7" />
       </G>
     </>
   );
