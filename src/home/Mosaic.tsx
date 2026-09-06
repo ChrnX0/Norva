@@ -32,7 +32,7 @@ import type { Cents } from '@/domain/money';
 import { brand } from '@/config/brand';
 import { CartaoClima, Comparativo, Legenda, Manchete, Nivel, Regua, Versalete } from './Capa';
 import { Peca } from './Peca';
-import { useVestimenta, type PecaDaCapa } from './capas/vestimenta';
+import { useVestimenta } from './capas/vestimenta';
 import type { BriefingView, Summary } from './types';
 
 /**
@@ -979,9 +979,27 @@ export function Mosaic(vista: BriefingView) {
    * dito na cara dele. Se a substituição da pele viesse antes, o `firstDay` a
    * apagaria e o Orgânico voltaria a exibir a manchete do Papel.
    */
-  const daPele: PecaDaCapa = { ...vista, estado, aberta, abrir };
+  const Bloco = vestimenta.Bloco;
   for (const [id, Desenho] of Object.entries(vestimenta.pecas ?? {})) {
-    pecas[id as BriefingWidget] = <Desenho key={id} {...daPele} />;
+    const qual = id as BriefingWidget;
+    // A peça da pele recebe o próprio casco e o veste POR DENTRO, porque só ela
+    // sabe se tem o que dizer. Vestindo por fora, a capa só enxerga um elemento
+    // React — um componente que devolve `null` na hora de desenhar continua
+    // sendo um elemento, e o casco saía desenhado em volta do nada: na foto do
+    // Orgânico, um cartão branco vazio no meio da capa.
+    const Casca = ({ children }: { children: ReactNode }) => (
+      <Bloco id={qual}>{children}</Bloco>
+    );
+    pecas[qual] = (
+      <Desenho
+        key={id}
+        {...vista}
+        estado={estado}
+        aberta={aberta}
+        abrir={abrir}
+        Casca={Casca}
+      />
+    );
   }
 
   /**
@@ -995,6 +1013,7 @@ export function Mosaic(vista: BriefingView) {
     ? pecas[vestimenta.sangra]
     : null;
   const miolo = layout.filter((id) => id !== vestimenta.sangra && pecas[id] !== null);
+  const vestidasPelaPele = new Set<string>(Object.keys(vestimenta.pecas ?? {}));
 
   // O espaço entre as peças é do casco, não de cada peça: a folha antiga dava
   // `gap` no ScrollView, e a capa agora é uma página com margem própria.
@@ -1005,11 +1024,18 @@ export function Mosaic(vista: BriefingView) {
       heroi={heroi}
     >
       <View style={{ gap: space.xl }}>
-        {miolo.map((id, ordem) => (
-          <vestimenta.Bloco key={id} id={id} primeira={ordem === 0 && heroi !== null}>
-            {pecas[id]}
-          </vestimenta.Bloco>
-        ))}
+        {miolo.map((id) =>
+          // A peça da pele já se vestiu por dentro; a do padrão a capa veste,
+          // porque dessa a capa SABE se é nula — ela é o elemento, e não um
+          // componente que ainda vai decidir.
+          vestidasPelaPele.has(id) ? (
+            <Fragment key={id}>{pecas[id]}</Fragment>
+          ) : (
+            <vestimenta.Bloco key={id} id={id}>
+              {pecas[id]}
+            </vestimenta.Bloco>
+          ),
+        )}
       </View>
     </vestimenta.Casco>
   );

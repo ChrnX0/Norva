@@ -27,6 +27,9 @@ import { useTheme } from '@/theme/ThemeProvider';
  * Coluna de dia parado é um risco, não um vazio: zero é um fato sobre a
  * fábrica, e some-lo do desenho contaria uma semana que não aconteceu.
  */
+/** A espessura da faixa de base do Orgânico — o chão das colunas. */
+const FAIXA = 6;
+
 export function Bars({
   series,
   labels,
@@ -72,7 +75,27 @@ export function Bars({
   const peak = Math.max(...series.map((d) => d.total), 1);
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.xs, marginTop: space.md }}>
+    <View style={{ marginTop: space.md }}>
+      {/* A faixa de base é UMA, atrás das sete colunas — a colina em que elas
+          pisam. Ela era um `borderBottom` por coluna, e o `gap` entre elas a
+          picava em sete pedaços: na foto sai uma linha tracejada onde o desenho
+          aprovado tem um chão. Coisa contínua não se desenha em pedaços que o
+          espaçamento separa. */}
+      {organico ? (
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            // No pé das COLUNAS: o rótulo do dia fica abaixo dela.
+            bottom: type.caption.lineHeight + space.xs,
+            height: FAIXA,
+            borderRadius: FAIXA / 2,
+            backgroundColor: tint(hue ?? accent, scheme === 'dark' ? 0.16 : 0.22),
+          }}
+        />
+      ) : null}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.xs }}>
       {series.map((day, i) => {
         const share = day.total / peak;
         const today = i === series.length - 1;
@@ -90,22 +113,11 @@ export function Bars({
                 }}
               />
             ) : null}
-            <View
-              style={[
-                { height, justifyContent: 'flex-end', width: '100%' },
-                // A faixa de base do Orgânico: a colina em que as colunas pisam.
-                organico
-                  ? {
-                      borderBottomWidth: 6,
-                      borderBottomColor: tint(hue ?? accent, scheme === 'dark' ? 0.16 : 0.22),
-                    }
-                  : null,
-              ]}
-            >
+            <View style={{ height, justifyContent: 'flex-end', width: '100%' }}>
               <Column
                 share={share}
                 grown={grown}
-                height={organico ? height - 6 : height}
+                height={organico ? height - FAIXA : height}
                 color={today ? (hue ?? accent) : tint(hue ?? accent, organico ? 0.22 : 0.28)}
                 raio={organico ? 10 : 4}
                 brilho={organico && today && scheme === 'dark' ? hue ?? accent : null}
@@ -122,6 +134,7 @@ export function Bars({
           </View>
         );
       })}
+      </View>
     </View>
   );
 }

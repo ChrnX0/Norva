@@ -18,6 +18,18 @@ export type PecaDaCapa = BriefingView & {
   estado: CoverState;
   aberta: BriefingWidget | null;
   abrir: (id: BriefingWidget) => void;
+  /**
+   * O casco desta peça, para a peça vestir a si mesma.
+   *
+   * **É por aqui que a peça da pele pode dizer que não tem nada a dizer.** A
+   * capa vestia as peças por fora, e por fora ela só enxerga um elemento React —
+   * um componente que devolve `null` na hora de desenhar continua sendo um
+   * elemento, então o casco saía desenhado em volta do nada. Na foto do
+   * Orgânico isso é um cartão branco vazio no meio da capa, e ele estava lá.
+   *
+   * Com o casco na mão, `return null` é de novo o que ele diz que é.
+   */
+  Casca: ComponentType<{ children: ReactNode }>;
 };
 
 /**
@@ -64,12 +76,12 @@ export type Vestimenta = {
   /**
    * Como uma peça se veste nesta pele.
    *
-   * `primeira` é verdadeira para a peça de cima do miolo, e existe para o
-   * Orgânico poder encostá-la na paisagem — é o cartão que sobe por cima da
-   * cena no desenho aprovado. Sem isso a sobreposição teria que ser de uma peça
-   * escolhida a dedo, e mudar a ordem na tela de ajustes a quebraria.
+   * Recebe o `id` porque uma pele pode querer tratar um assunto diferente dos
+   * outros — não porque ela precise saber a ORDEM. Quem encosta na paisagem é o
+   * miolo inteiro, subido pelo casco: amarrar a sobreposição à "primeira peça"
+   * quebrava no dia em que a primeira peça não tivesse o que dizer.
    */
-  Bloco: ComponentType<{ id: BriefingWidget; primeira: boolean; children: ReactNode }>;
+  Bloco: ComponentType<{ id: BriefingWidget; children: ReactNode }>;
   /**
    * A peça que SANGRA no topo, fora do miolo, e vira o herói da página.
    *

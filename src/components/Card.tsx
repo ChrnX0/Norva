@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { RAIL_WIDTH } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useSuperficie } from './Superficie';
 
 type Tone = 'plain' | 'area' | 'danger' | 'warning';
 
@@ -123,11 +124,16 @@ export function Card({
    */
   const papel = tracos.genero === 'pagina';
 
+  // Já sobre uma superfície, o cartão desenha o CONTEÚDO e não a moldura: o
+  // casco de peça do Orgânico é o cartão, e um segundo cartão dentro dele é a
+  // caixa dentro da caixa que o dono recusou. Ver `Superficie`.
+  const jaEmSuperficie = useSuperficie();
+
   return (
     <View
       style={[
         styles.base,
-        papel
+        papel && !jaEmSuperficie
           ? {
               backgroundColor: 'transparent',
               borderRadius: 0,
@@ -144,14 +150,28 @@ export function Card({
               paddingBottom: space.lg,
               paddingHorizontal: 0,
             }
-          : {
-              backgroundColor: toneColor ? tint(toneColor, wash) : color.surface,
-              borderColor: toneColor ? tint(toneColor, edge) : color.line,
-              borderRadius: radius.xl,
-              padding: space.lg,
-              borderLeftWidth: toneColor ? RAIL_WIDTH : StyleSheet.hairlineWidth,
-              borderLeftColor: toneColor ?? color.line,
-            },
+          : jaEmSuperficie
+            ? {
+                // Sobre uma superfície sobra a RÉGUA da cor do assunto, que é o
+                // que responde "de que isto fala" — e ela é a única coisa do
+                // casco que não é moldura.
+                backgroundColor: 'transparent',
+                borderRadius: 0,
+                borderTopWidth: 0,
+                borderRightWidth: 0,
+                borderBottomWidth: 0,
+                borderLeftWidth: toneColor ? RAIL_WIDTH : 0,
+                borderLeftColor: toneColor ?? 'transparent',
+                paddingLeft: toneColor ? space.lg : 0,
+              }
+            : {
+                backgroundColor: toneColor ? tint(toneColor, wash) : color.surface,
+                borderColor: toneColor ? tint(toneColor, edge) : color.line,
+                borderRadius: radius.xl,
+                padding: space.lg,
+                borderLeftWidth: toneColor ? RAIL_WIDTH : StyleSheet.hairlineWidth,
+                borderLeftColor: toneColor ?? color.line,
+              },
         style,
       ]}
     >

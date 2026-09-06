@@ -5,6 +5,7 @@ import { Bars } from '@/components/Bars';
 import { CountUp } from '@/components/CountUp';
 import { GlyphPrice, GlyphStock, GlyphVehicle } from '@/components/Glyph';
 import { Landscape } from '@/components/Landscape';
+import { Superficie } from '@/components/Superficie';
 import { Touchable } from '@/components/Touchable';
 import { brand } from '@/config/brand';
 import { SkyMark, TemperatureRange } from '@/components/Sky';
@@ -59,7 +60,13 @@ function CascoOrganico({
 }) {
   return (
     <Folha olho={`${marca} · ${data}`} topo={heroi ?? undefined}>
-      {children}
+      {/* O MIOLO INTEIRO sobe por cima da cena, e não o primeiro cartão.
+          Amarrar a sobreposição à primeira peça parece igual e não é: peça é
+          quem tem o que dizer, e a de cima pode não ter num dia qualquer — aí a
+          cena terminaria numa borda reta e o cartão seguinte flutuaria solto,
+          num dia sim e noutro não. Subindo o miolo, quem estiver em cima
+          encosta, seja quem for. */}
+      <View style={{ marginTop: heroi ? -SOBREPOSICAO : 0 }}>{children}</View>
     </Folha>
   );
 }
@@ -78,13 +85,7 @@ function CascoOrganico({
  * o que separa o cartão da página lá é a superfície ser mais clara que o fundo,
  * com um fio de contorno para o olho achar a borda.
  */
-function BlocoOrganico({
-  primeira,
-  children,
-}: {
-  primeira: boolean;
-  children: ReactNode;
-}) {
+function BlocoOrganico({ children }: { children: ReactNode }) {
   const { color, space, radius, scheme } = useTheme();
   const noite = scheme === 'dark';
 
@@ -97,11 +98,6 @@ function BlocoOrganico({
           paddingVertical: space.xl,
           paddingHorizontal: space.xl,
         },
-        // O primeiro cartão sobe por cima da cena. Ele é o primeiro do MIOLO,
-        // não uma peça escolhida a dedo: a ordem da capa é da casa, e uma
-        // sobreposição amarrada ao "clima" quebraria no dia em que alguém
-        // subisse outra peça para o topo nos ajustes.
-        primeira ? { marginTop: -SOBREPOSICAO } : null,
         noite
           ? { borderWidth: StyleSheet.hairlineWidth, borderColor: color.lineStrong }
           : {
@@ -113,7 +109,11 @@ function BlocoOrganico({
             },
       ]}
     >
-      {children}
+      {/* O cartão AVISA que É superfície: um `Card` aqui dentro desenha o
+          conteúdo e larga a moldura, senão a foto sai com caixa dentro de
+          caixa — que é o que o dono circulou quando recusou a pilha de
+          retângulos. Ver `components/Superficie`. */}
+      <Superficie>{children}</Superficie>
     </View>
   );
 }
@@ -171,7 +171,7 @@ function HeroiOrganico({ data, sky, estado, go }: PecaDaCapa) {
 
   const feito = data?.madeToday ?? 0;
   const carregando = estado === 'loading';
-  const contraOntem = data ? data.madeToday - data.madeThen : 0;
+  const contraSemana = data ? data.madeToday - data.madeThen : 0;
 
   return (
     <Touchable onPress={() => go('/production')} accessibilityLabel={t.app.home.capaLead}>
@@ -258,10 +258,10 @@ function HeroiOrganico({ data, sky, estado, go }: PecaDaCapa) {
                   style={[
                     type.secondary,
                     estilos.numero,
-                    { color: contraOntem >= 0 ? palette.mint : palette.rose },
+                    { color: contraSemana >= 0 ? palette.mint : palette.rose },
                   ]}
                 >
-                  {`${contraOntem >= 0 ? '↑' : '↓'} ${contraOntem >= 0 ? '+' : '−'}${formatQuantity(Math.abs(contraOntem), locale)}`}
+                  {`${contraSemana >= 0 ? '↑' : '↓'} ${contraSemana >= 0 ? '+' : '\u2212'}${formatQuantity(Math.abs(contraSemana), locale)}`}
                 </Text>
                 <Text style={[type.secondary, { color: color.inkMuted }]} numberOfLines={1}>
                   {fill(t.app.home.organico.vsWeekdayPill, {
@@ -285,7 +285,7 @@ function HeroiOrganico({ data, sky, estado, go }: PecaDaCapa) {
  * responde a pergunta. Sem ela o cartão exige que alguém compare sete alturas de
  * olho, que é justamente o trabalho que a capa existe para não pedir.
  */
-function SemanaOrganico({ data, go }: PecaDaCapa) {
+function SemanaOrganico({ data, go, Casca }: PecaDaCapa) {
   const { color, type, space, palette } = useTheme();
   const { locale, t } = useLocale();
   if (!data || data.series.length === 0) return null;
@@ -305,33 +305,35 @@ function SemanaOrganico({ data, go }: PecaDaCapa) {
           : null;
 
   return (
-    <Touchable onPress={() => go('/reports')} accessibilityLabel={t.app.home.weekTitle}>
-      <View>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'baseline',
-            justifyContent: 'space-between',
-            gap: space.md,
-          }}
-        >
-          <Text style={[type.section, { color: color.ink }]}>{t.app.home.weekTitle}</Text>
-          {frase ? (
-            <Text
-              style={[type.secondary, { color: color.inkFaint, flexShrink: 1, textAlign: 'right' }]}
-              numberOfLines={1}
-            >
-              {frase}
-            </Text>
-          ) : null}
+    <Casca>
+      <Touchable onPress={() => go('/reports')} accessibilityLabel={t.app.home.weekTitle}>
+        <View>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+              gap: space.md,
+            }}
+          >
+            <Text style={[type.section, { color: color.ink }]}>{t.app.home.weekTitle}</Text>
+            {frase ? (
+              <Text
+                style={[type.secondary, { color: color.inkFaint, flexShrink: 1, textAlign: 'right' }]}
+                numberOfLines={1}
+              >
+                {frase}
+              </Text>
+            ) : null}
+          </View>
+          <Bars
+            series={data.series}
+            hue={palette.mint}
+            labels={data.series.map((d) => formatWeekdayAbbrev(d.date, locale))}
+          />
         </View>
-        <Bars
-          series={data.series}
-          hue={palette.mint}
-          labels={data.series.map((d) => formatWeekdayAbbrev(d.date, locale))}
-        />
-      </View>
-    </Touchable>
+      </Touchable>
+    </Casca>
   );
 }
 
@@ -431,7 +433,7 @@ function Linha({
  * diferença não é gosto: no Orgânico o cartão já é a moldura, e um pote alto
  * dentro dele empilharia duas molduras no mesmo assunto.
  */
-function InsumosOrganico({ data, go }: PecaDaCapa) {
+function InsumosOrganico({ data, go, Casca }: PecaDaCapa) {
   const { color, space, palette, traco } = useTheme();
   const { locale, t } = useLocale();
   if (!data) return null;
@@ -443,39 +445,41 @@ function InsumosOrganico({ data, go }: PecaDaCapa) {
   if (!nivel && !temCaixas) return null;
 
   return (
-    <View style={{ gap: space.xl }}>
-      {nivel ? (
-        <Linha
-          cor={curto ? color.warning : palette.apricot}
-          icone={(tinta) => <GlyphStock size={24} color={tinta} weight={traco} />}
-          titulo={nivel.name}
-          legenda={t.app.home.organico.shortestInput}
-          valor={plural(Math.floor(nivel.daysLeft), t.app.home.dayCount)}
-          unidade={t.app.home.organico.runsOutIn}
-          tinta={curto ? color.warning : color.ink}
-          onPress={() => go('/inputs')}
-          rotulo={curto ? t.app.home.runningOut : t.app.home.inputsFine}
-        />
-      ) : null}
+    <Casca>
+      <View style={{ gap: space.xl }}>
+        {nivel ? (
+          <Linha
+            cor={curto ? color.warning : palette.apricot}
+            icone={(tinta) => <GlyphStock size={24} color={tinta} weight={traco} />}
+            titulo={nivel.name}
+            legenda={t.app.home.organico.shortestInput}
+            valor={plural(Math.floor(nivel.daysLeft), t.app.home.dayCount)}
+            unidade={t.app.home.organico.runsOutIn}
+            tinta={curto ? color.warning : color.ink}
+            onPress={() => go('/inputs')}
+            rotulo={curto ? t.app.home.runningOut : t.app.home.inputsFine}
+          />
+        ) : null}
 
-      {nivel && temCaixas ? (
-        <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: color.line }} />
-      ) : null}
+        {nivel && temCaixas ? (
+          <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: color.line }} />
+        ) : null}
 
-      {temCaixas ? (
-        <Linha
-          cor={palette.lilac}
-          icone={(tinta) => <GlyphVehicle size={24} color={tinta} weight={traco} />}
-          titulo={t.app.home.boxesTitle}
-          legenda={t.app.home.organico.shipmentToday}
-          valor={formatQuantity(data.boxes, locale)}
-          unidade={plural(data.boxes, t.app.home.boxCount)}
-          tinta={color.ink}
-          onPress={() => go('/transport')}
-          rotulo={t.app.home.boxesTitle}
-        />
-      ) : null}
-    </View>
+        {temCaixas ? (
+          <Linha
+            cor={palette.lilac}
+            icone={(tinta) => <GlyphVehicle size={24} color={tinta} weight={traco} />}
+            titulo={t.app.home.boxesTitle}
+            legenda={t.app.home.organico.shipmentToday}
+            valor={formatQuantity(data.boxes, locale)}
+            unidade={plural(data.boxes, t.app.home.boxCount)}
+            tinta={color.ink}
+            onPress={() => go('/transport')}
+            rotulo={t.app.home.boxesTitle}
+          />
+        ) : null}
+      </View>
+    </Casca>
   );
 }
 
@@ -487,7 +491,7 @@ function InsumosOrganico({ data, go }: PecaDaCapa) {
  * pergunta ("o que mudou?") respondida numa olhada. O que sobra fica na ficha
  * do insumo, que é onde alguém confere.
  */
-function PrecosOrganico({ moved, go }: PecaDaCapa) {
+function PrecosOrganico({ moved, go, Casca }: PecaDaCapa) {
   const { color, type, space, palette, radius, traco } = useTheme();
   const { locale, t } = useLocale();
   if (moved.length === 0) return null;
@@ -495,70 +499,72 @@ function PrecosOrganico({ moved, go }: PecaDaCapa) {
   const tres = moved.slice(0, 3);
 
   return (
-    <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.changed}>
-      <View style={{ gap: space.lg }}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'baseline',
-            justifyContent: 'space-between',
-            gap: space.md,
-          }}
-        >
-          <Text style={[type.section, { color: color.ink }]}>{t.app.home.changed}</Text>
-          <Text
-            style={[type.secondary, { color: color.inkFaint, flexShrink: 1, textAlign: 'right' }]}
-            numberOfLines={1}
+    <Casca>
+      <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.changed}>
+        <View style={{ gap: space.lg }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+              gap: space.md,
+            }}
           >
-            {fill(t.app.home.organico.movedSince, {
-              count: plural(tres.length, t.app.home.organico.movedCount, formatQuantity(tres.length, locale)),
-            })}
-          </Text>
-        </View>
+            <Text style={[type.section, { color: color.ink }]}>{t.app.home.changed}</Text>
+            <Text
+              style={[type.secondary, { color: color.inkFaint, flexShrink: 1, textAlign: 'right' }]}
+              numberOfLines={1}
+            >
+              {fill(t.app.home.organico.movedSince, {
+                count: plural(tres.length, t.app.home.organico.movedCount, formatQuantity(tres.length, locale)),
+              })}
+            </Text>
+          </View>
 
-        <View style={{ flexDirection: 'row', gap: space.sm }}>
-          {tres.map((mudanca) => {
-            const antes = mudanca.previousRate ?? mudanca.newRate;
-            const delta = antes > 0 ? (mudanca.newRate - antes) / antes : 0;
-            const subiu = delta > 0;
-            const tinta = subiu ? color.warning : color.ok;
-            return (
-              <View
-                key={`${mudanca.itemId}-${mudanca.observedAt}`}
-                style={{
-                  flex: 1,
-                  gap: space.sm,
-                  padding: space.md,
-                  borderRadius: radius.lg,
-                  backgroundColor: color.sunken,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-                  <View
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: 13,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: tingir(palette.sky, 0.18),
-                    }}
-                  >
-                    <GlyphPrice size={16} color={palette.sky} weight={traco} />
+          <View style={{ flexDirection: 'row', gap: space.sm }}>
+            {tres.map((mudanca) => {
+              const antes = mudanca.previousRate ?? mudanca.newRate;
+              const delta = antes > 0 ? (mudanca.newRate - antes) / antes : 0;
+              const subiu = delta > 0;
+              const tinta = subiu ? color.warning : color.ok;
+              return (
+                <View
+                  key={`${mudanca.itemId}-${mudanca.observedAt}`}
+                  style={{
+                    flex: 1,
+                    gap: space.sm,
+                    padding: space.md,
+                    borderRadius: radius.lg,
+                    backgroundColor: color.sunken,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                    <View
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: 13,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: tingir(palette.sky, 0.18),
+                      }}
+                    >
+                      <GlyphPrice size={16} color={palette.sky} weight={traco} />
+                    </View>
+                    <Text style={[type.secondary, estilos.numero, { color: tinta }]} numberOfLines={1}>
+                      {`${subiu ? '▲' : '▼'} ${formatPercent(Math.abs(delta), locale)}`}
+                    </Text>
                   </View>
-                  <Text style={[type.secondary, estilos.numero, { color: tinta }]} numberOfLines={1}>
-                    {`${subiu ? '▲' : '▼'} ${formatPercent(Math.abs(delta), locale)}`}
+                  <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={2}>
+                    {mudanca.name}
                   </Text>
                 </View>
-                <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={2}>
-                  {mudanca.name}
-                </Text>
-              </View>
-            );
-          })}
+              );
+            })}
+          </View>
         </View>
-      </View>
-    </Touchable>
+      </Touchable>
+    </Casca>
   );
 }
 
@@ -570,7 +576,7 @@ function PrecosOrganico({ moved, go }: PecaDaCapa) {
  * da cena, e a cena é o céu de que ele fala. A moldura seria repetir com linha o
  * que a composição já disse.
  */
-function ClimaOrganico({ sky, weather, abrir, aberta }: PecaDaCapa) {
+function ClimaOrganico({ sky, weather, abrir, aberta, Casca }: PecaDaCapa) {
   const { color, type, space, palette } = useTheme();
   const { locale, t } = useLocale();
   if (!sky) return null;
@@ -587,89 +593,91 @@ function ClimaOrganico({ sky, weather, abrir, aberta }: PecaDaCapa) {
           });
 
   return (
-    <Touchable onPress={() => abrir('clima')} accessibilityLabel={cidade}>
-      <View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
-          <SkyMark maxC={sky.today.maxC} rainChance={chuva} size={62} />
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text
-              style={[type.overline, { color: color.inkFaint, letterSpacing: 2.4 }]}
-              numberOfLines={1}
-            >
-              {cidade.toUpperCase()}
-            </Text>
-            <Text
-              style={[type.figure, estilos.numero, { color: color.ink, fontSize: 34, lineHeight: 40 }]}
-            >
-              {`${Math.round(sky.today.maxC)}°`}
-            </Text>
-            <Text style={[type.secondary, { color: color.inkMuted }]} numberOfLines={2}>
-              {fill(t.app.weather.lowShort, {
-                degrees: plural(Math.round(sky.today.minC), t.app.weather.degrees),
-              })}
-              {chuva === null
-                ? ''
-                : ` · ${fill(t.app.weather.rain, { percent: Math.round(chuva) })}`}
-            </Text>
-            {amanha === null ? null : (
-              // O de amanhã num selo, e não numa terceira linha de texto: é a
-              // única informação do cartão que fala do FUTURO, e a Lei 4 manda
-              // avisar na data da decisão. Quem produz hoje para vender amanhã
-              // decide por este número.
-              <View style={{ flexDirection: 'row', marginTop: space.xs }}>
-                <View
-                  style={{
-                    paddingHorizontal: space.md,
-                    paddingVertical: 5,
-                    borderRadius: 999,
-                    backgroundColor: tingir(palette.apricot, 0.16),
-                  }}
-                >
-                  <Text style={[type.caption, estilos.numero, { color: palette.apricot }]}>
-                    {`↑ ${amanha}`}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* A semana do tempo, que é o que o toque abre — pedido do dono, e o
-            motivo dele: "vou vender mais sexta?" se responde com sete dias de
-            uma vez. A pele muda o casco do cartão, nunca o que ele faz. */}
-        {aberta === 'clima' && weather ? (
-          <View style={{ gap: space.sm, marginTop: space.lg }}>
-            {weather.days.slice(0, 7).map((dia) => (
-              <View
-                key={dia.date}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}
+    <Casca>
+      <Touchable onPress={() => abrir('clima')} accessibilityLabel={cidade}>
+        <View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
+            <SkyMark maxC={sky.today.maxC} rainChance={chuva} size={62} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text
+                style={[type.overline, { color: color.inkFaint, letterSpacing: 2.4 }]}
+                numberOfLines={1}
               >
-                <Text style={[type.caption, { color: color.inkFaint, width: 34 }]}>
-                  {formatWeekdayAbbrev(dia.date, locale)}
-                </Text>
-                <View style={{ flex: 1 }}>
-                  <TemperatureRange minC={dia.minC} maxC={dia.maxC} />
+                {cidade.toUpperCase()}
+              </Text>
+              <Text
+                style={[type.figure, estilos.numero, { color: color.ink, fontSize: 34, lineHeight: 40 }]}
+              >
+                {`${Math.round(sky.today.maxC)}°`}
+              </Text>
+              <Text style={[type.secondary, { color: color.inkMuted }]} numberOfLines={2}>
+                {fill(t.app.weather.lowShort, {
+                  degrees: plural(Math.round(sky.today.minC), t.app.weather.degrees),
+                })}
+                {chuva === null
+                  ? ''
+                  : ` · ${fill(t.app.weather.rain, { percent: Math.round(chuva) })}`}
+              </Text>
+              {amanha === null ? null : (
+                // O de amanhã num selo, e não numa terceira linha de texto: é a
+                // única informação do cartão que fala do FUTURO, e a Lei 4 manda
+                // avisar na data da decisão. Quem produz hoje para vender amanhã
+                // decide por este número.
+                <View style={{ flexDirection: 'row', marginTop: space.xs }}>
+                  <View
+                    style={{
+                      paddingHorizontal: space.md,
+                      paddingVertical: 5,
+                      borderRadius: 999,
+                      backgroundColor: tingir(palette.apricot, 0.16),
+                    }}
+                  >
+                    <Text style={[type.caption, estilos.numero, { color: palette.apricot }]}>
+                      {`↑ ${amanha}`}
+                    </Text>
+                  </View>
                 </View>
-                <Text style={[type.caption, estilos.numero, { color: color.ink }]}>
-                  {`${Math.round(dia.maxC)}°`}
-                </Text>
-                {dia.rainChance !== null && dia.rainChance >= 30 ? (
-                  <Text style={[type.caption, { color: palette.sky }]}>
-                    {`${Math.round(dia.rainChance)}%`}
-                  </Text>
-                ) : null}
-              </View>
-            ))}
+              )}
+            </View>
           </View>
-        ) : null}
 
-        <Text style={[type.caption, { color: color.inkFaint, marginTop: space.md }]}>
-          {weather
-            ? `${fill(t.app.weather.measured, { time: formatTime(weather.fetchedAt, locale) })} · ${aberta === 'clima' ? t.app.home.less : t.app.home.more}`
-            : ''}
-        </Text>
-      </View>
-    </Touchable>
+          {/* A semana do tempo, que é o que o toque abre — pedido do dono, e o
+              motivo dele: "vou vender mais sexta?" se responde com sete dias de
+              uma vez. A pele muda o casco do cartão, nunca o que ele faz. */}
+          {aberta === 'clima' && weather ? (
+            <View style={{ gap: space.sm, marginTop: space.lg }}>
+              {weather.days.slice(0, 7).map((dia) => (
+                <View
+                  key={dia.date}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}
+                >
+                  <Text style={[type.caption, { color: color.inkFaint, width: 34 }]}>
+                    {formatWeekdayAbbrev(dia.date, locale)}
+                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <TemperatureRange minC={dia.minC} maxC={dia.maxC} />
+                  </View>
+                  <Text style={[type.caption, estilos.numero, { color: color.ink }]}>
+                    {`${Math.round(dia.maxC)}°`}
+                  </Text>
+                  {dia.rainChance !== null && dia.rainChance >= 30 ? (
+                    <Text style={[type.caption, { color: palette.sky }]}>
+                      {`${Math.round(dia.rainChance)}%`}
+                    </Text>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          <Text style={[type.caption, { color: color.inkFaint, marginTop: space.md }]}>
+            {weather
+              ? `${fill(t.app.weather.measured, { time: formatTime(weather.fetchedAt, locale) })} · ${aberta === 'clima' ? t.app.home.less : t.app.home.more}`
+              : ''}
+          </Text>
+        </View>
+      </Touchable>
+    </Casca>
   );
 }
 

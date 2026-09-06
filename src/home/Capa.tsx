@@ -330,7 +330,11 @@ export function Folha({
         {topo}
         <View
           style={{
-            paddingTop: topo ? space.lg : insets.top + space.xl,
+            // Com sangria, o miolo começa COLADO na cena — quem dá o respiro é
+            // o casco da peça, e é isso que faz a margem negativa do primeiro
+            // cartão valer o que ela diz valer. Com um `paddingTop` aqui, ela
+            // gastava metade do valor só para chegar de volta à borda da cena.
+            paddingTop: topo ? 0 : insets.top + space.xl,
             paddingHorizontal: space.xl + 2,
           }}
         >

@@ -138,4 +138,9 @@ test('today\'s place in the week is counted, and a tie goes to today', () => {
   // Semana inteira parada não tem ranking — e não tem "melhor dia".
   assert.equal(todayRank([dia(0), dia(0), dia(0)]), null);
   assert.equal(todayRank([]), null);
+
+  // O dia que ainda não aconteceu não é o pior dia: a manhã de domingo com a
+  // fábrica fechada dizia "hoje é o sétimo melhor dia" ao lado de "ainda não
+  // produziu hoje". Verdade e alerta inventado ao mesmo tempo.
+  assert.equal(todayRank([dia(400), dia(500), dia(300), dia(0)]), null);
 });

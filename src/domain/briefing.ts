@@ -207,6 +207,18 @@ export function coverState(
 export function todayRank(series: readonly { total: number }[]): number | null {
   if (series.length === 0) return null;
   const hoje = series[series.length - 1].total;
-  if (series.every((d) => d.total === 0)) return null;
+  /**
+   * Dia sem produção não recebe colocação, e isso não é delicadeza.
+   *
+   * A foto do Orgânico numa manhã de domingo dizia "hoje é o sétimo melhor dia"
+   * com a fábrica fechada e a manchete ao lado dizendo "ainda não produziu
+   * hoje". As duas frases eram verdade e juntas eram um alerta inventado: o dia
+   * não acabou, e classificar o que ainda não aconteceu em último lugar ensina
+   * a ignorar a frase — que é o que a Lei 7 proíbe.
+   *
+   * Zero em todo mundo também não tem colocação: numa fábrica que não produziu
+   * a semana inteira, "hoje empatou em primeiro" é a mesma mentira ao contrário.
+   */
+  if (hoje === 0) return null;
   return 1 + series.slice(0, -1).filter((d) => d.total > hoje).length;
 }
