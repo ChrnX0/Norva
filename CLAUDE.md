@@ -123,7 +123,7 @@ npm run lint
 npm test
 npm run mutate       # quebra o código de propósito: a suíte morde mesmo?
 npm run e2e:fast     # o app dirigido num navegador de verdade, em quatro fatias
-npm run db:verify    # Postgres descartável, dezessete garantias — inclui a fila
+npm run db:verify    # Postgres descartável, dezoito garantias — inclui a fila
                      # do aparelho reproduzida contra o servidor de verdade
 bash .proofgate/verify.sh
 ```
@@ -558,6 +558,22 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   deixa apagar, o centavo inteiro, a permissão na consulta — só vale se alguém tocar na
   tela de manhã. Fora da fábrica, é venda: ninguém compra um sistema de gestão olhando
   a migração `0040`.
+
+  **E a segunda metade, que ele fez questão de separar da primeira:** *"O belo vende
+  sim, mas o que faz permanecer é a qualidade."* São dois momentos diferentes e dois
+  compradores diferentes — o que decide na loja e o que decide na renovação. Beleza
+  ganha a primeira compra, porque é a única evidência que alguém consegue avaliar em
+  dois segundos. **Qualidade ganha a segunda**, e a segunda é a que paga: quem já
+  comprou não olha mais a tela inicial com olhos de comprador, olha com olhos de quem
+  depende do número.
+
+  A consequência para mim é uma regra de decisão, e ela vale nas duas direções:
+  **nunca trocar correção por aparência**, porque o bonito que erra é pior que o
+  simples que acerta — o cliente já pagou, e o que ele descobre é que foi enganado.
+  E nunca usar isso como desculpa para entregar feio: as duas são obrigatórias, e
+  quando parecerem brigar é quase sempre porque uma delas foi mal feita. A cena da
+  capa é a prova de que dá para ter as duas — ela é bonita **porque** diz o que
+  aconteceu.
 
   **E a regra de desenho que saiu de uma correção dele**, em três palavras — *"feio"* —
   sobre uma fileira de quatro lojas idênticas: **repetição regular lê como padrão de

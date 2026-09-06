@@ -1093,5 +1093,47 @@ done
 echo "    o que o servidor deixa corrigir sobe corrigível, e o que ele não deixa sobe uma vez só"
 
 echo
-echo "OK - migrations apply and all seventeen guarantees hold."
+echo "==> check 18: a empresa nasce com a segunda porta, e o código dá para ditar"
+
+# A `0011` criou `companies.join_code` com o propósito escrito ao lado — é o
+# segundo caminho de entrada, o código que o dono dita para alguém pedir
+# associação. A `0040` criou a empresa e o dono numa transação e NÃO gerou o
+# código: empresa nascida naquele dia tinha a coluna nula, e o caminho
+# documentado simplesmente não existia.
+#
+# É a doença do portão P1 um nível abaixo do código, e pior: no código o
+# compilador acaba reclamando de algo sem uso; num esquema, ninguém reclama
+# nunca. Por isso a garantia mora aqui e não numa leitura de arquivo.
+
+# 1. A função existe e produz código do tamanho combinado.
+TAMANHO=$(psql -d "$DB" -At -c "select length(private.fresh_join_code());")
+[ "$TAMANHO" = "6" ] ||
+  fail "o código de convite saiu com $TAMANHO caracteres; o combinado são 6, para caber num aviso falado"
+
+# 2. E ele evita o que se confunde ao ser DITO no chão de fábrica, com barulho.
+#    Zero e ó, um e i e L, cinco e esse, dois e zê: quem soletra duas vezes
+#    desiste de usar.
+CONFUNDE=$(psql -d "$DB" -At -c "
+  select count(*) from generate_series(1, 200) as g
+   where private.fresh_join_code() ~ '[OIL0125SZ]';")
+[ "$CONFUNDE" = "0" ] ||
+  fail "$CONFUNDE de 200 códigos trouxeram caractere ambíguo (O I L 0 1 2 5 S Z): o código é ditado em voz alta"
+
+# 3. Duzentos códigos, duzentos diferentes. Não prova ausência de colisão — prova
+#    que a geração não está presa num valor, que é o defeito que de fato acontece.
+DISTINTOS=$(psql -d "$DB" -At -c "
+  select count(distinct c) from (select private.fresh_join_code() as c from generate_series(1, 200)) as t;")
+[ "$DISTINTOS" -ge 195 ] ||
+  fail "200 códigos gerados renderam só $DISTINTOS distintos: a geração está presa"
+
+# 4. E nenhuma empresa fica sem a porta — nem as que já existiam quando a
+#    migração rodou, que é o que o `update` do fim dela conserta.
+SEM_CODIGO=$(psql -d "$DB" -At -c "select count(*) from companies where join_code is null;")
+[ "$SEM_CODIGO" = "0" ] ||
+  fail "$SEM_CODIGO empresa(s) sem código de convite: a segunda porta de entrada não existe para elas"
+
+echo "    o código sai com seis, sem caractere que se confunde ao ser dito, e nenhuma empresa fica sem ele"
+
+echo
+echo "OK - migrations apply and all eighteen guarantees hold."
 
