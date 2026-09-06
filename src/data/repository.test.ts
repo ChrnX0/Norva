@@ -12,6 +12,13 @@ import {
   pickingFor,
   lastSentBaseUnits,
   listPeople,
+  setNamesWhoRecorded,
+  namesWhoRecorded,
+  setFloorSignIn,
+  floorSignIn,
+  setCurrentOperator,
+  currentOperatorId,
+  matchPin,
   listProfiles,
   savePerson,
   recordProduction,
@@ -3615,4 +3622,123 @@ test('a person is registered, corrected, and leaves without being deleted', asyn
   // pode mexer num perfil que ninguém usa.
   const semGente = await listProfiles(LOCAL_COMPANY_ID);
   assert.equal(semGente.find((p) => p.id === operador.id)?.wearers, 0);
+});
+
+
+test('the PIN says who touched the name, and never leaves the database', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [perfil] = await listProfiles(LOCAL_COMPANY_ID);
+
+  const zeca = await savePerson(LOCAL_COMPANY_ID, {
+    name: 'Zeca',
+    profileId: perfil.id,
+    pin: '1234',
+  });
+  const ana = await savePerson(LOCAL_COMPANY_ID, { name: 'Ana', profileId: perfil.id });
+
+  // A grade sabe se abre o teclado; não sabe o número. Mandar a lista de PINs
+  // para a tela desenhar seis nomes seria carregar o segredo de todo mundo para
+  // não usar nenhum - e o tipo `Person` não tem onde guardá-lo.
+  const lista = await listPeople(LOCAL_COMPANY_ID);
+  assert.deepEqual(
+    lista.map((p) => [p.name, p.hasPin]),
+    [
+      ['Ana', false],
+      ['Zeca', true],
+    ],
+  );
+  assert.equal(JSON.stringify(lista).includes('1234'), false, 'o PIN não sai do banco');
+
+  assert.equal(await matchPin(LOCAL_COMPANY_ID, zeca.id, '1234'), true);
+  assert.equal(await matchPin(LOCAL_COMPANY_ID, zeca.id, '4321'), false);
+
+  // Espaço de teclado numérico de celular não deve reprovar quem digitou certo.
+  assert.equal(await matchPin(LOCAL_COMPANY_ID, zeca.id, ' 1234 '), true);
+
+  // Sem PIN passa com qualquer coisa, inclusive vazio: a fábrica que não quis
+  // PIN escolhe com um toque, e é isso que ela pediu.
+  assert.equal(await matchPin(LOCAL_COMPANY_ID, ana.id, ''), true);
+  assert.equal(await matchPin(LOCAL_COMPANY_ID, ana.id, '9999'), true);
+
+  // Quem saiu não se identifica mais, mesmo sabendo o número: `active = 0` é a
+  // porta fechando, e o histórico dela continua de pé.
+  await savePerson(LOCAL_COMPANY_ID, {
+    id: zeca.id,
+    name: 'Zeca',
+    profileId: perfil.id,
+    active: false,
+  });
+  assert.equal(await matchPin(LOCAL_COMPANY_ID, zeca.id, '1234'), false);
+
+  // E a edição que não falou de PIN não apagou o PIN: `undefined` é "não mexi
+  // nisso", que é diferente de `null`. Quem corrige um nome não deve deixar a
+  // pessoa sem se identificar sem ter pedido isso.
+  await savePerson(LOCAL_COMPANY_ID, {
+    id: zeca.id,
+    name: 'Zeca',
+    profileId: perfil.id,
+    active: true,
+  });
+  assert.equal(await matchPin(LOCAL_COMPANY_ID, zeca.id, '1234'), true);
+
+  // Nulo é o pedido explícito de tirar.
+  const semPin = await savePerson(LOCAL_COMPANY_ID, {
+    id: zeca.id,
+    name: 'Zeca',
+    profileId: perfil.id,
+    pin: null,
+  });
+  assert.equal(semPin.hasPin, false);
+  assert.equal(await matchPin(LOCAL_COMPANY_ID, zeca.id, 'qualquer coisa'), true);
+
+  // A forma é recusada AQUI, e não meses depois na primeira sincronia: o
+  // servidor cobra a mesma coisa na 0036, e erro que impede vale mais que erro
+  // que reclama.
+  await assert.rejects(
+    savePerson(LOCAL_COMPANY_ID, { name: 'Bia', profileId: perfil.id, pin: '12' }),
+    /pin/,
+  );
+  await assert.rejects(
+    savePerson(LOCAL_COMPANY_ID, { name: 'Bia', profileId: perfil.id, pin: 'abcd' }),
+    /pin/,
+  );
+});
+
+
+test('who is holding THIS phone is a fact of the phone, not of the company', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [perfil] = await listProfiles(LOCAL_COMPANY_ID);
+  const ana = await savePerson(LOCAL_COMPANY_ID, { name: 'Ana', profileId: perfil.id });
+
+  // Ninguém se identificou ainda, e nulo é a resposta honesta: quer dizer "não
+  // perguntamos", não "não sabemos quem".
+  assert.equal(await currentOperatorId(), null);
+
+  await setCurrentOperator(ana.id);
+  assert.equal(await currentOperatorId(), ana.id);
+
+  // E largar o aparelho volta ao estado de ninguém - o celular da câmara passa
+  // de mão, e quem pegou agora não é quem o largou.
+  await setCurrentOperator(null);
+  assert.equal(await currentOperatorId(), null);
+});
+
+
+test('the company chooses how the floor signs in, and the default is one phone per person', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+
+  // O padrão é o do servidor (0011): `personal`. E nomear quem gravou é
+  // desligado, que é a decisão do dono - o relatório fala de onde, não de quem.
+  assert.equal(await floorSignIn(), 'personal');
+  assert.equal(await namesWhoRecorded(), false);
+
+  await setFloorSignIn('shared');
+  await setNamesWhoRecorded(true);
+  assert.equal(await floorSignIn(), 'shared');
+  assert.equal(await namesWhoRecorded(), true);
+
+  // E voltar atrás é uma escolha como qualquer outra: a fábrica que experimentou
+  // nomear e achou fiscalização demais desliga sem perder nada.
+  await setNamesWhoRecorded(false);
+  assert.equal(await namesWhoRecorded(), false);
 });

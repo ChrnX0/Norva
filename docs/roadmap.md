@@ -32,8 +32,8 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | telas | **25** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **23** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **24** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **35** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V20** | último `const V` em `src/data/db.ts` |
+| migrações do servidor | **36** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V21** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **18** | `src/domain/access.ts` |
 | linhas de código | **~45.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -42,7 +42,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **371** testes |
+| `npm test` | **374** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **41** checagens num navegador de verdade |
 | `npm run db:verify` | **15** garantias contra um Postgres descartável, sob RLS |
@@ -365,6 +365,22 @@ ele conclui, curto:
 **A ordem que saiu do estudo:** grade com PIN → `operator_id` ganha escritor → servidor
 confere aparelho → conta por perfil e código de convite (quando o servidor subir) → chave
 e assinatura (só se alguém pedir).
+
+### A configuração da empresa não atravessa — dívida estrutural
+
+Achado ao construir a entrada, 6 de setembro. O servidor tem as três configurações em
+`companies`: `floor_sign_in` (0011), `names_who_recorded` (0012) e `orders_need_approval`
+(0019). O aparelho guarda a terceira em `app_meta` e agora as outras duas também — porque
+**não existe tabela `companies` no banco do aparelho**, e portanto não existe coluna de
+empresa que a sincronia saiba levar.
+
+Consequência prática: **configuração da empresa é a única coisa que dois celulares da mesma
+empresa não conseguem combinar entre si.** Numa fábrica com um aparelho é invisível; com
+dois, um pergunta quem está operando e o outro não.
+
+Não é urgente — nada sincroniza ainda — e o conserto é claro: uma tabela `companies` no
+aparelho, com as três colunas, entrando na travessia como qualquer outra. Fica escrito para
+não ser redescoberto na primeira fábrica com dois celulares.
 
 ### Dois defeitos que a medição achou
 

@@ -763,9 +763,40 @@ CREATE TABLE IF NOT EXISTS people (
 CREATE INDEX IF NOT EXISTS people_company_idx ON people (company_id, active);
 `;
 
+/**
+ * O PIN da grade de nomes — e ele é ATRIBUIÇÃO, não senha.
+ *
+ * A decisão do dono é de 1 de setembro: no aparelho compartilhado, entra-se por
+ * uma grade de nomes com PIN, *"dois segundos, de luva, offline"*. O estudo de 6
+ * de setembro (`docs/estudo-entrada.md`) mediu o que isso pode e não pode ser, e
+ * a conclusão precisa ficar colada na coluna, senão alguém a lê como senha:
+ *
+ * **Quatro dígitos num celular que seis pessoas dividem não protegem nada contra
+ * quem tem o aparelho.** O trabalho do PIN é impedir o toque errado e a troca
+ * casual de nome — que alguém assine uma conferência no lugar do colega sem
+ * querer, ou de propósito e sem esforço. Quem protege o número é o livro-razão
+ * ser append-only e a contagem ser cega; nunca foi o PIN.
+ *
+ * **Guardado em texto puro, e isto é escolha, não esquecimento.** Não existe
+ * criptografia neste projeto — nem `expo-crypto`, nem armazenamento seguro
+ * (medido em 6 de setembro). E mesmo com hash: quatro dígitos são dez mil
+ * possibilidades, então sem derivação lenta o hash não compra quase nada contra
+ * quem já tem o arquivo do banco. Contra quem tem o banco, nada aqui protege — a
+ * defesa desse caso é `allowBackup: false` e o aparelho ser da empresa.
+ *
+ * No dia em que `expo-crypto` entrar por outro motivo, isto vira hash com
+ * derivação, e a migração é de uma linha.
+ *
+ * Nulo é o caso normal: pessoa sem PIN é escolhida com um toque só, que é o que
+ * uma fábrica de seis pessoas quer.
+ */
+const V21 = `
+ALTER TABLE people ADD COLUMN pin TEXT;
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
-  V19, V20,
+  V19, V20, V21,
 ];
 
 export type SqlParam = string | number | null;

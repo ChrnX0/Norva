@@ -4065,6 +4065,73 @@ export async function setAlertSettings(settings: AlertSettings): Promise<void> {
   await writeMeta(ALERTS_KEY, JSON.stringify(settings));
 }
 
+const OPERATOR_KEY = 'operator.current';
+const NAMES_KEY = 'company.namesWhoRecorded';
+const SIGN_IN_KEY = 'company.floorSignIn';
+
+/** Um celular por pessoa, ou um pendurado na câmara que passa de mão. */
+export type FloorSignIn = 'personal' | 'shared';
+
+/**
+ * Quem está com ESTE aparelho agora.
+ *
+ * Mora no `app_meta` e **não atravessa a sincronia**, de propósito: a pergunta é
+ * sobre o aparelho, não sobre a empresa. Dois celulares na mesma fábrica têm
+ * respostas diferentes ao mesmo tempo, e é isso que se quer — o da câmara está
+ * com a Ana, o da expedição com o Zeca.
+ *
+ * Nulo quer dizer "ninguém se identificou", e é o padrão de uma fábrica que não
+ * nomeia ninguém. Nesse caso o movimento nasce sem operador, que é a resposta
+ * honesta: `operator_id` nulo diz "não perguntamos", e não "não sabemos quem".
+ */
+export async function currentOperatorId(): Promise<string | null> {
+  const lido = await readMeta(OPERATOR_KEY);
+  return lido && lido.length > 0 ? lido : null;
+}
+
+export async function setCurrentOperator(personId: string | null): Promise<void> {
+  await writeMeta(OPERATOR_KEY, personId ?? '');
+}
+
+/**
+ * Se o relatório nomeia quem gravou.
+ *
+ * Decisão do dono: *"o relatório fala de onde, não de quem"* é o padrão, e a
+ * responsabilidade vem do aparelho ter responsável. Quem quiser nomear a cada
+ * caixa liga isto — e é ligando isto que a grade de nomes passa a aparecer.
+ *
+ * **Guardado no aparelho, e o servidor tem a mesma coluna** (`companies`, 0012).
+ * As duas não conversam hoje, porque não existe tabela `companies` no aparelho —
+ * o mesmo já vale para `orders.needApproval` (0019). Isso está registrado como
+ * dívida em `docs/roadmap.md`: configuração da empresa é a única coisa que dois
+ * celulares da MESMA empresa não conseguem combinar entre si.
+ */
+export async function namesWhoRecorded(): Promise<boolean> {
+  return (await readMeta(NAMES_KEY)) === '1';
+}
+
+export async function setNamesWhoRecorded(on: boolean): Promise<void> {
+  await writeMeta(NAMES_KEY, on ? '1' : '0');
+}
+
+/**
+ * Como se entra no chão de fábrica.
+ *
+ * `personal` é o padrão e é o do servidor (0011): um celular por pessoa, escolhe
+ * uma vez e fica. `shared` é o aparelho que passa de mão — e aí a pergunta volta
+ * toda vez que o app abre, porque quem pegou o celular agora não é
+ * necessariamente quem o largou.
+ *
+ * "Depende de quem usa" vira dado, e os dois caminhos existem.
+ */
+export async function floorSignIn(): Promise<FloorSignIn> {
+  return (await readMeta(SIGN_IN_KEY)) === 'shared' ? 'shared' : 'personal';
+}
+
+export async function setFloorSignIn(how: FloorSignIn): Promise<void> {
+  await writeMeta(SIGN_IN_KEY, how);
+}
+
 const APPROVAL_KEY = 'orders.needApproval';
 
 /**
@@ -4656,6 +4723,15 @@ export type Person = {
   name: string;
   profileId: string;
   active: boolean;
+  /**
+   * Se esta pessoa pede PIN ao ser escolhida — e não QUAL é o PIN.
+   *
+   * A grade precisa saber se abre o teclado; não precisa do número. Mandar a
+   * lista de PINs para dentro da tela para desenhar seis nomes seria carregar o
+   * segredo de todo mundo em memória para não usar nenhum. Quem confere é
+   * `matchPin`, no banco.
+   */
+  hasPin: boolean;
 };
 
 /**
@@ -4742,8 +4818,11 @@ export async function listPeople(companyId: string): Promise<Person[]> {
     name: string;
     profile_id: string;
     active: number;
+    has_pin: number;
   }>(
-    `SELECT id, name, profile_id, active FROM people
+    // O PIN não sai do banco: sai a resposta de se ele existe. A grade precisa
+    // saber se abre o teclado, e não qual é o número de cada um.
+    `SELECT id, name, profile_id, active, (pin IS NOT NULL) AS has_pin FROM people
       WHERE company_id = ?
       ORDER BY active DESC, name COLLATE NOCASE`,
     [companyId],
@@ -4753,7 +4832,35 @@ export async function listPeople(companyId: string): Promise<Person[]> {
     name: r.name,
     profileId: r.profile_id,
     active: r.active === 1,
+    hasPin: r.has_pin === 1,
   }));
+}
+
+/**
+ * O PIN bate?
+ *
+ * A comparação mora aqui e não na tela por dois motivos. O primeiro é que o PIN
+ * nunca precisa atravessar para o React: `listPeople` devolve se existe, esta
+ * função devolve se bate, e o número fica no banco. O segundo é que a regra do
+ * "sem PIN passa direto" é uma só e tem que ser uma só — duas cópias divergem, e
+ * a que diverge para o lado errado deixa entrar sem perguntar.
+ *
+ * Pessoa sem PIN devolve verdadeiro para qualquer coisa, inclusive vazio: a
+ * fábrica que não quis PIN escolhe com um toque, e é isso que ela pediu.
+ */
+export async function matchPin(
+  companyId: string,
+  personId: string,
+  typed: string,
+): Promise<boolean> {
+  const conn = await db();
+  const row = await conn.getFirstAsync<{ pin: string | null }>(
+    `SELECT pin FROM people WHERE id = ? AND company_id = ? AND active = 1`,
+    [personId, companyId],
+  );
+  if (!row) return false;
+  if (row.pin === null) return true;
+  return row.pin === typed.trim();
 }
 
 /**
@@ -4765,11 +4872,27 @@ export async function listPeople(companyId: string): Promise<Person[]> {
  */
 export async function savePerson(
   companyId: string,
-  input: { id?: string; name: string; profileId: string; active?: boolean },
+  input: {
+    id?: string;
+    name: string;
+    profileId: string;
+    active?: boolean;
+    /**
+     * Quatro a oito dígitos, ou nulo para tirar o PIN. **Omitir não é nulo**:
+     * quem edita o nome de alguém não deve apagar o PIN dessa pessoa sem ter
+     * pedido isso, e `undefined` aqui quer dizer "não mexi nisso".
+     */
+    pin?: string | null;
+  },
 ): Promise<Person> {
   const conn = await db();
   const id = input.id ?? newId();
   const active = input.active === false ? 0 : 1;
+
+  // A mesma forma que o servidor cobra na `0036`, para o erro IMPEDIR aqui em
+  // vez de a linha ser recusada meses depois, na primeira sincronia.
+  const pin = input.pin == null ? input.pin : input.pin.trim();
+  if (pin != null && !/^[0-9]{4,8}$/.test(pin)) throw new Error('pin: 4 a 8 dígitos');
 
   await conn.withTransactionAsync(async () => {
     if (input.id) {
@@ -4777,15 +4900,33 @@ export async function savePerson(
         `UPDATE people SET name = ?, profile_id = ?, active = ? WHERE id = ? AND company_id = ?`,
         [input.name.trim(), input.profileId, active, id, companyId],
       );
+      if (pin !== undefined) {
+        await conn.runAsync(`UPDATE people SET pin = ? WHERE id = ? AND company_id = ?`, [
+          pin,
+          id,
+          companyId,
+        ]);
+      }
     } else {
       await conn.runAsync(
-        `INSERT INTO people (id, company_id, name, profile_id, active, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [id, companyId, input.name.trim(), input.profileId, active, nowIso()],
+        `INSERT INTO people (id, company_id, name, profile_id, active, created_at, pin)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [id, companyId, input.name.trim(), input.profileId, active, nowIso(), pin ?? null],
       );
     }
     await enqueue(conn, [{ table: 'people', rowId: id }]);
   });
 
-  return { id, name: input.name.trim(), profileId: input.profileId, active: active === 1 };
+  const atual = await conn.getFirstAsync<{ has_pin: number }>(
+    `SELECT (pin IS NOT NULL) AS has_pin FROM people WHERE id = ? AND company_id = ?`,
+    [id, companyId],
+  );
+
+  return {
+    id,
+    name: input.name.trim(),
+    profileId: input.profileId,
+    active: active === 1,
+    hasPin: (atual?.has_pin ?? 0) === 1,
+  };
 }

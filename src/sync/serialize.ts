@@ -176,7 +176,11 @@ const CROSSINGS: Record<
    * arquivo já fazem.
    */
   people: {
-    take: ['id', 'company_id', 'name', 'profile_id', 'active', 'created_at'],
+    // O PIN atravessa porque a grade tem que funcionar no segundo aparelho: uma
+    // fábrica com dois celulares na câmara não pode ter metade da equipe sem
+    // conseguir se identificar num deles. Ele é atribuição e não senha — o
+    // raciocínio inteiro está na `0036` e em `docs/estudo-entrada.md`.
+    take: ['id', 'company_id', 'name', 'profile_id', 'active', 'created_at', 'pin'],
   },
 
   locations: {
