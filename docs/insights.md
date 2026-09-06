@@ -4708,3 +4708,36 @@ e teria continuado verde afirmando a semântica antiga.
 restrição é o que roda — e o comentário é a prova de que alguém sabia. Procurar essa
 discordância é barato: leia o docblock da migração e depois leia o `references` dela. Se
 os dois contassem a mesma história, a migração não precisaria do parágrafo.
+
+---
+
+## 2026-09-06 — o filtro de caminho que não filtra nada num PR
+
+**O que se viu.** Hoje de manhã acrescentei `paths-ignore: ['docs/**', '**/*.md']` aos dois
+gatilhos da CI, para commit de documentação não gastar runner — e escrevi no relatório que
+isso estava resolvido. À tarde, um commit que tocou **só** `docs/estudo-entrada.md` e
+`docs/roadmap.md` disparou a CI do mesmo jeito.
+
+O motivo: num evento de `pull_request`, o GitHub avalia o filtro contra o **diff inteiro do
+PR** contra a base, não contra o push que acabou de chegar. Este PR mexe em centenas de
+arquivos que não são documentação, então o filtro nunca exclui coisa nenhuma. No gatilho de
+`push` ele funciona, porque ali o diff é o do push.
+
+**Por que importa.** O erro não é o desperdício — com a cota morta, hoje não custa nada. É
+que eu **afirmei uma economia que não existia**, num relatório sobre custo, para o dono
+ler. E a linha continuaria lá para sempre parecendo que protegia: filtro que não filtra é
+pior que filtro ausente, porque ninguém volta a olhar.
+
+O mecanismo do engano é específico e vale guardar: **eu li a documentação do gatilho errado**
+— `push` e `pull_request` compartilham a palavra `paths-ignore` e não compartilham a
+semântica. Duas coisas com o mesmo nome fazendo contas diferentes é o mesmo defeito que
+`recorded_by`/`operator_id` custaram uma rodada, e que "saldo da sala" contra "saldo da
+empresa" custou outra, hoje mesmo.
+
+**O que mudou.** A linha ficou, porque no `push` ela vale — mas agora carrega a explicação e
+a data do commit que provou o contrário. Uma linha de configuração que promete uma coisa e
+faz outra tem que dizer isso onde alguém a lê.
+
+**A regra que fica:** economia de CI se afirma **medida**, nunca lida. O que prova que um
+filtro filtra é um commit que ele deveria excluir não aparecendo na lista de execuções — e
+esse teste custa um push.

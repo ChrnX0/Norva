@@ -19,6 +19,14 @@ on:
     # Sem ele, sair de rascunho não dispara nada, e a pesada só rodaria no push
     # seguinte — ou nunca, se não houver push seguinte.
     types: [opened, synchronize, reopened, ready_for_review]
+    # `paths-ignore` NÃO economiza nada aqui, e a linha fica com a explicação em
+    # vez de sair: num evento de PR o GitHub avalia o diff INTEIRO do PR contra a
+    # base, não o push que acabou de chegar. Este PR mexe em centenas de arquivos
+    # que não são documentação, então o filtro nunca exclui nada — provado em 6 de
+    # setembro pelo commit f053344, que só tocou `docs/` e disparou a CI mesmo
+    # assim.
+    #
+    # No `push` acima ele funciona, porque ali o diff é o do push.
     paths-ignore: ['docs/**', '**/*.md', '.shots/**']
   workflow_dispatch:
 
