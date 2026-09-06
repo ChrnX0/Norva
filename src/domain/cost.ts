@@ -101,43 +101,6 @@ export function blendRate(
   return ((held.averageRate * heldUnits + arriving.rate * arriving.baseUnits) / total) as Rate;
 }
 
-export function foldCostEvents(
-  events: readonly CostEvent[],
-  from: StockCostState = emptyStock,
-): StockCostState {
-  return events.reduce(applyCostEvent, from);
-}
-
-/** Unit price of a single purchase - what the buyer typed, per base unit. */
-export function purchaseUnitCost(event: PurchaseEvent): Rate {
-  return rateFromCents(event.totalCents, event.baseUnits);
-}
-
-export type PriceMove = {
-  previousRate: Rate;
-  currentRate: Rate;
-  /** Signed fraction: 0.08 means it went up 8%. */
-  change: number;
-};
-
-/**
- * Compares the newest purchase against the one before it, which is the
- * comparison the buyer needs *at the moment of deciding*, standing in front of
- * the supplier - not in a report next month.
- */
-export function priceMove(purchases: readonly PurchaseEvent[]): PriceMove | null {
-  if (purchases.length < 2) return null;
-
-  const ordered = [...purchases].sort(
-    (a, b) => new Date(a.at).getTime() - new Date(b.at).getTime(),
-  );
-  const current = purchaseUnitCost(ordered[ordered.length - 1]);
-  const previous = purchaseUnitCost(ordered[ordered.length - 2]);
-  if (previous === 0) return null;
-
-  return { previousRate: previous, currentRate: current, change: (current - previous) / previous };
-}
-
 /**
  * Observed lead time, not the promised one. Suppliers say three days and
  * deliver in six; the reorder point has to be built on what actually happened,

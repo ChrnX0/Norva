@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyCostEvent, emptyStock, priceMove, reorderPoint } from './cost';
+import { applyCostEvent, emptyStock, reorderPoint } from './cost';
 import { allocateCents, amountOf, cents, fromDecimal, rate, type Rate } from './money';
 import {
   compareVersions,
@@ -345,16 +345,6 @@ test('consuming stock leaves the average alone', () => {
 
   assert.equal(after.averageRate, bought.averageRate);
   assert.equal(after.baseUnits, 600);
-});
-
-test('the price move is the comparison the buyer needs while standing there', () => {
-  const move = priceMove([
-    { kind: 'purchase', baseUnits: 100, totalCents: cents(11_200), at: '2026-07-01' },
-    { kind: 'purchase', baseUnits: 100, totalCents: cents(11_800), at: '2026-08-01' },
-  ]);
-
-  assert.ok(move);
-  assert.ok(move!.change > 0.05 && move!.change < 0.06, 'about 5.4% up');
 });
 
 test('the reorder point uses the observed lead time, not the promised one', () => {

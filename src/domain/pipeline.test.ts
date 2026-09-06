@@ -6,10 +6,8 @@ import {
   judgePriceChange,
   PRICE_ALARM,
   PRICE_RELIEF,
-  priceMove,
   ratesBefore,
   reorderPoint,
-  type PurchaseEvent,
 } from './cost';
 import { fromDecimal, rate, type Rate } from './money';
 import {
@@ -94,28 +92,6 @@ test('a purchase at a higher price raises the cost of the finished unit', () => 
   //           x 75 ml = 50 cents
   assert.equal(before, 45);
   assert.equal(raised, 50);
-});
-
-test('the buyer sees the move against the last invoice, not against the average', () => {
-  const purchases: PurchaseEvent[] = [
-    {
-      kind: 'purchase',
-      baseUnits: 25_000,
-      totalCents: fromDecimal(118),
-      at: '2026-07-02T09:00:00Z',
-    },
-    {
-      kind: 'purchase',
-      baseUnits: 25_000,
-      totalCents: fromDecimal(124),
-      at: '2026-08-14T09:00:00Z',
-    },
-  ];
-
-  const move = priceMove(purchases);
-  assert.ok(move);
-  // The average would have said 2.5%; what the buyer needs to hear is 5.1%.
-  assert.ok(Math.abs(move.change - 6 / 118) < 1e-9);
 });
 
 test('packaging is charged per unit, never smeared across the batch', () => {

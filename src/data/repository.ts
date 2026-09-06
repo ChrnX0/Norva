@@ -1,5 +1,6 @@
 import { applyCostEvent, blendRate, type StockCostState } from '@/domain/cost';
 import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
+import { isValidHierarchy } from '@/domain/units';
 import { DEFAULT_ALERTS, type AlertSettings } from '@/domain/alerts';
 import { daysOfCover } from '@/domain/ledger';
 import { ROLES, type Capability, type Role } from '@/domain/access';
@@ -210,6 +211,13 @@ export async function saveItem(
   /** `fullLevel` ausente é "não mexa no que já estava" — como a ficha de acordo. */
   item: Omit<Item, 'id' | 'fullLevel'> & { id?: string; fullLevel?: number | null },
 ): Promise<string> {
+  // A hierarquia é conferida ANTES de gravar, e a regra que confere já existia
+  // sem ninguém chamar: `isValidHierarchy` estava no domínio desde o começo,
+  // exercitada só por teste. Uma hierarquia inválida — o primeiro degrau
+  // diferente de 1, ou um degrau que não cresce — faz o `UnitStepper` oferecer
+  // conversão errada e a conta de caixa sair torta, sem nada acusando.
+  if (!isValidHierarchy(item.packaging)) throw new Error('packaging: degraus fora de ordem');
+
   const conn = await db();
   let id = '';
   await conn.withTransactionAsync(async () => {

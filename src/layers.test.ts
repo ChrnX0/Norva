@@ -569,3 +569,88 @@ test('every line the ledger gets says who was holding the phone', () => {
       '`await currentOperatorId()` no fim dos parâmetros, como os vizinhos.',
   );
 });
+
+
+/**
+ * As funções do domínio que nenhum código de produção chama — e por quê.
+ *
+ * O portão P1 deste projeto pergunta *quem chama isto no mesmo commit*, e a
+ * doença que ele existe para pegar já foi documentada quatro vezes:
+ * `assistant_phrase` com índice e nenhum escritor, `Draft.kind` sem leitor,
+ * `balanceAt` e `daysOfCover` chamados só por teste. O dicionário ganhou guarda
+ * para isso (`src/dictionary.test.ts`); o domínio não tinha, e a medição de 6 de
+ * setembro achou **dez** funções nessa situação.
+ *
+ * Quatro saíram no mesmo dia, porque o servidor passou a fazer o que elas faziam:
+ * `foldCostEvents` (um `reduce` de uma linha), `purchaseUnitCost` e `priceMove`
+ * (a comparação entre as duas últimas compras, que `item_cost_history` e
+ * `recentCostChanges` respondem em SQL). Uma ganhou chamador: `isValidHierarchy`
+ * passou a ser conferida em `saveItem`, e com isso hierarquia torta deixa de
+ * entrar em silêncio.
+ *
+ * As que ficam estão abaixo, cada uma com a razão. **"Ainda não tem tela" é razão
+ * válida quando a regra existe e a tela é escopo escrito** — e é o que separa
+ * fronteira registrada de código morto com desculpa.
+ */
+const DOMINIO_SEM_CHAMADOR: Record<string, string> = {
+  needsHumanYes:
+    'o piso de atos que sempre pedem um humano é promessa feita ANTES das funcionalidades existirem — o docblock diz isso por extenso, e quem construir preço ou lançamento financeiro herda a regra em vez de decidir de novo',
+  observedLeadTimeDays:
+    'compras inteligentes, F4 — precisa do prazo observado de cada fornecedor, que só existe depois de meses de nota. Cortada do mês por decisão do dono',
+  reorderPoint:
+    'mesma família: o ponto de recompra usa o prazo observado, e sem ele é adivinhação com cara de matemática',
+  ratesBefore:
+    'o custo de hoje contra o de ANTES de uma sequência de movimentos. O SQL (`recentCostChanges`) mostra a última mudança por item, que é outra pergunta — e a regra daqui é a que impede uma alta de 9% em dois passos aparecer como 2%',
+  daysUntilExpiry:
+    'a tela que trata "venceu ontem" diferente de "vence em três dias" não existe: hoje `expiringSoon` filtra por data e não conta dias',
+  toDecimal:
+    'primitiva da fundação do dinheiro, par de `fromDecimal`. Existe para ninguém dividir por 100 na mão, que é metade do erro que a capa deste projeto proíbe',
+  multiplyCents:
+    'a outra metade: existe para ninguém escrever `Math.round(x * f)` inline. Só o valor final arredonda, uma vez, e a primitiva certa presente é o que impede a errada de nascer',
+};
+
+test('every domain function has a caller in production, or a written reason', () => {
+  const dominio = readdirSync(join(process.cwd(), 'src/domain'))
+    .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
+    .map((f) => join('src/domain', f));
+
+  const producao = [...sourcesUnder('src'), ...sourcesUnder('app')].filter(
+    (f) => !f.endsWith('.test.ts'),
+  );
+  const codigoDeProducao = producao.map((f) => readFileSync(f, 'utf8'));
+
+  const orfas: string[] = [];
+  const registroVelho: string[] = [];
+
+  for (const arquivo of dominio) {
+    const fonte = readFileSync(join(process.cwd(), arquivo), 'utf8');
+    for (const [, nome] of fonte.matchAll(/^export (?:async )?function (\w+)/gm)) {
+      const usos = producao.filter(
+        (f, i) => f !== arquivo && new RegExp(`\\b${nome}\\b`).test(codigoDeProducao[i]),
+      );
+      // Chamada de dentro do próprio arquivo também é chamada: `qrModules` é viva
+      // porque `qrPath` a usa, e `qrPath` está numa tela.
+      const daCasa = (fonte.match(new RegExp(`\\b${nome}\\b`, 'g')) ?? []).length > 1;
+
+      if (usos.length === 0 && !daCasa) {
+        if (!DOMINIO_SEM_CHAMADOR[nome]) orfas.push(`${arquivo}: ${nome}`);
+      } else if (DOMINIO_SEM_CHAMADOR[nome]) {
+        registroVelho.push(nome);
+      }
+    }
+  }
+
+  assert.deepEqual(
+    orfas,
+    [],
+    `estas funções do domínio nenhum código de produção chama: ${orfas.join(' · ')}. ` +
+      'Traga o chamador no mesmo commit, apague, ou registre a fronteira com a razão — ' +
+      'que é o portão P1 deste projeto, e a doença que ele pega já apareceu quatro vezes.',
+  );
+  assert.deepEqual(
+    registroVelho,
+    [],
+    `${registroVelho.join(' · ')} ganhou chamador e continua na lista de fronteiras. ` +
+      'Tire a linha: registro que virou mentira é pior que registro nenhum.',
+  );
+});

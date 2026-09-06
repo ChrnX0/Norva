@@ -4775,3 +4775,43 @@ ali saber que aquele detalhe não é enfeite, é cicatriz.
 **A regra que fica:** depois de mexer em layout, fotografe **de novo**, mesmo que a
 verificação continue verde — principalmente se continuar. Verde depois de um conserto de
 forma não é confirmação: é a mesma medida de antes, feita outra vez.
+
+---
+
+## 2026-09-06 — o guarda que faltava era o do portão que este projeto mais cita
+
+**O que se viu.** O P1 — *"quem chama isto no mesmo commit?"* — é o primeiro portão deste
+repositório e o mais citado. A doença que ele existe para pegar apareceu quatro vezes com
+nome e sobrenome: `assistant_phrase`, `Draft.kind`, `balanceAt`, `daysOfCover`.
+
+E não havia guarda nenhum para ele. O dicionário tinha (`src/dictionary.test.ts` recusa
+seção sem leitor); o domínio, que é onde as quatro apareceram, não tinha. Medindo com a
+régua certa — referência fora de arquivo de teste, contando quem chama de dentro do próprio
+arquivo — havia **dez** funções nessa situação.
+
+**Por que importa.** Um portão citado em toda decisão e conferido por nenhum teste é
+exatamente o tipo de regra que este projeto já aprendeu a desconfiar: *"documentar a forma
+de conferir não é conferir"* está escrito aqui desde 3 de setembro, sobre outra coisa. O
+P1 estava sendo cobrado por atenção humana — e atenção humana já falhou quatro vezes no
+mesmo repositório, sempre do mesmo jeito.
+
+**O que a medição achou de graça.** `isValidHierarchy` estava no domínio, testada, e
+**nada validava hierarquia de embalagem em lugar nenhum**. Um degrau fora de ordem entrava
+no banco em silêncio e reapareceria como conversão errada no `UnitStepper`, na mão de quem
+conta caixa de luva. Não era código morto: era um guarda desligado da tomada.
+
+**A parte desconfortável do veredito.** Das dez, quatro saíram e sete ficaram registradas —
+e escrever sete razões é perigosamente parecido com escrever sete desculpas. O que separa
+uma coisa da outra é o teste que eu apliquei em cada uma: *a regra existe e o consumidor é
+escopo escrito?* `ratesBefore` passou porque implementa uma regra que o SQL não faz (uma
+alta de 9% em dois passos aparecendo como 2%); `priceMove` reprovou porque o SQL faz
+exatamente o que ela fazia. Sem esse teste, "fronteira registrada" vira o lugar onde código
+morto vai morar.
+
+**O que mudou.** Quatro funções apagadas, uma ligada à tomada, sete registradas com razão,
+e um guarda que cobra os dois sentidos: sem chamador reprova, e registro que ganhou chamador
+e ficou na lista também reprova.
+
+**A regra que fica:** todo portão que a casa cita numa decisão precisa de um teste que o
+cobre. Portão citado e não conferido não é regra — é intenção, e intenção não pega o quinto
+caso.

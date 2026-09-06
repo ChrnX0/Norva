@@ -42,7 +42,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **377** testes |
+| `npm test` | **374** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **42** checagens num navegador de verdade |
 | `npm run db:verify` | **16** garantias contra um Postgres descartável, sob RLS |
@@ -395,33 +395,34 @@ modelada no servidor**; o app é que não pergunta.
 
 ---
 
-## Dívida medida em 6 de setembro — dez funções do domínio sem chamador
+## ~~Dívida das dez funções do domínio sem chamador~~ — PAGA em 6 de setembro
 
-O portão P1 deste projeto pergunta *quem chama isto no mesmo commit*, e a doença que
-ele existe para pegar já foi documentada duas vezes (`balanceAt`, `daysOfCover`). A
-medição, agora feita com a régua certa — referências fora de arquivo de teste,
-contando quem chama de dentro do próprio arquivo:
+O portão P1 pergunta *quem chama isto no mesmo commit*, e a doença que ele existe para
+pegar já tinha aparecido quatro vezes. A medição achou dez funções do domínio que nenhum
+código de produção chamava. Verdito uma a uma:
 
-| função | arquivo |
-|---|---|
-| `needsHumanYes` | `src/domain/access.ts` |
-| `foldCostEvents` · `priceMove` · `ratesBefore` · `observedLeadTimeDays` · `reorderPoint` | `src/domain/cost.ts` |
-| `daysUntilExpiry` | `src/domain/lot.ts` |
-| `toDecimal` · `multiplyCents` | `src/domain/money.ts` |
-| `isValidHierarchy` | `src/domain/units.ts` |
+**Quatro saíram**, porque o servidor passou a fazer o que elas faziam: `foldCostEvents`
+(um `reduce` de uma linha), `purchaseUnitCost` e `priceMove` — a comparação entre as duas
+últimas compras, que `item_cost_history` mais `recentCostChanges` respondem em SQL — e o
+tipo `PriceMove` junto.
 
-**Nenhuma delas é acusação ainda**, e é por isso que isto é um item e não um commit.
-Pelo menos duas têm decisão escrita no próprio docblock — `needsHumanYes` diz que o
-piso *"é uma promessa feita antes de as funcionalidades existirem"* — e outras duas
-(`observedLeadTimeDays`, `reorderPoint`) são as compras inteligentes da F4, cortadas do
-mês por decisão do dono. As outras seis não têm razão escrita em lugar nenhum.
+**Uma ganhou chamador, e fechou um buraco de verdade:** `isValidHierarchy` estava no
+domínio desde o começo, exercitada só por teste, e **nada validava hierarquia de
+embalagem**. Agora `saveItem` confere antes de gravar — degrau fora de ordem faz o
+`UnitStepper` oferecer conversão errada e a conta de caixa sair torta, em silêncio.
 
-**O que fazer, e é uma coisa só:** o dicionário já tem o guarda que falta aqui —
-`src/dictionary.test.ts` recusa seção sem leitor, a menos que a fronteira esteja
-registrada com o motivo e a tela que vai lê-la, e recusa também registro que ganhou
-leitor e ficou na lista. O domínio não tem o equivalente, embora o P1 seja sobre
-exatamente isso. Escrever esse guarda **é** o trabalho: ele obriga a dar veredito nas
-dez, uma a uma, e faz a décima primeira nascer com razão escrita ou não nascer.
+**Sete ficaram registradas**, cada uma com a razão em `src/layers.test.ts`. Duas são
+promessa escrita antes da funcionalidade (`needsHumanYes`), duas são a F4 que o dono
+cortou do mês (`observedLeadTimeDays`, `reorderPoint`), uma implementa regra que o SQL
+não faz (`ratesBefore` — o custo de hoje contra o de antes de uma SEQUÊNCIA, que é o que
+impede uma alta de 9% em dois passos parecer 2%), uma espera tela (`daysUntilExpiry`) e
+duas são primitivas da fundação do dinheiro, presentes para ninguém escrever o
+arredondamento na mão.
+
+**E o guarda entrou**, que era o trabalho de verdade: função nova do domínio sem chamador
+reprova, a menos que a fronteira seja registrada com o motivo — e registro que ganhou
+chamador e ficou na lista também reprova, porque registro que virou mentira é pior que
+registro nenhum.
 
 ---
 
