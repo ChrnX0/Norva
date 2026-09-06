@@ -4684,9 +4684,27 @@ test('the extract lists ACTS, not lines, and says which ones were undone', async
   assert.equal(ato.kind, 'production');
   assert.equal(ato.reversed, false, 'ainda não foi desfeita');
   assert.equal(ato.isReversal, false, 'ela não desfaz ninguém');
-  assert.ok(
-    (ato.valueCents ?? 0) > 0,
-    'o dinheiro do ato é a soma em MÓDULO — com sinal, uma corrida daria quase zero',
+  /**
+   * O dinheiro do ato é UM LADO, e este número foi visto errado numa foto.
+   *
+   * A primeira versão somava todas as pernas em módulo e uma corrida de 506
+   * picolés apareceu na tela por R$ 625,27, quando o que saiu do tacho valia
+   * R$ 323,84. A conta fechava e não queria dizer nada: produção CONVERTE insumo
+   * em produto, então o mesmo dinheiro era contado duas vezes — uma saindo como
+   * polpa e açúcar, outra entrando como picolé.
+   *
+   * Somar com sinal daria quase zero (verdade contábil, mentira na tela). Somar em
+   * módulo dobra. O que sobra e é honesto: as pernas que ENTRAM.
+   */
+  // Uma corrida só: a média do item É a taxa congelada dela.
+  const custoUnitario = await custoDe(product.itemId);
+  assert.ok(custoUnitario > 0, 'a corrida congelou um custo por unidade');
+  const oQueSaiuDoTacho = amountOf(custoUnitario as Rate, 500);
+  assert.equal(
+    ato.valueCents,
+    oQueSaiuDoTacho,
+    `o ato vale o que ele PRODUZIU (${oQueSaiuDoTacho}), não a produção mais o ` +
+      `consumo (${ato.valueCents}) — o mesmo dinheiro contado duas vezes`,
   );
 
   // E ela aparece UMA vez, não uma por perna.

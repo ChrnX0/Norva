@@ -5011,11 +5011,23 @@ export type ExtractAct = {
   /** Quantas linhas do razão este ato escreveu. */
   lines: number;
   /**
-   * A soma das linhas pela TAXA CONGELADA, e `null` sem o portão do dinheiro.
+   * O tamanho do ato em dinheiro, pela TAXA CONGELADA — e `null` sem o portão.
+   *
+   * **É UM LADO da transação, e isso foi um defeito visto na foto.** A primeira
+   * versão somava todas as pernas em módulo, e uma corrida de 506 picolés apareceu
+   * na tela por **R$ 625,27** quando o que saiu do tacho valia R$ 323,84. A conta
+   * fechava e não queria dizer nada: produção CONVERTE insumo em produto, então o
+   * mesmo dinheiro era contado duas vezes — uma saindo como polpa e açúcar, outra
+   * entrando como picolé.
+   *
+   * A régua certa é somar as pernas que ENTRAM; e quando não entra nada — perda,
+   * consumo solto — o módulo das que saem. Assim uma produção vale o que ela fez,
+   * uma compra vale o que chegou, uma transferência vale a carga (e não o dobro
+   * dela), e uma perda vale o que sumiu.
    *
    * Somada em JavaScript por `amountOf`, e não em SQL — de propósito. Um
    * `ROUND(rate * qty)` dentro da consulta seria um segundo autor do
-   * arredondamento do sistema, que é exatamente o defeito consertado hoje em
+   * arredondamento do sistema, que é exatamente o outro defeito consertado hoje em
    * `stockByPlace`. O SQL devolve as linhas; quem converte taxa em dinheiro é o
    * único lugar que faz isso.
    */
@@ -5160,22 +5172,28 @@ export async function ledgerExtract(
    * ordem trocada reprova ali, em vez de descobrir pelo nome errado numa tela.
    */
   const porAto = new Map<string, ExtractAct>();
+  /** As duas somas de cada ato, para escolher a certa só no fim. */
+  const lados = new Map<string, { entra: number; sai: number; temDinheiro: boolean }>();
   for (const l of linhas) {
     const ja = porAto.get(l.g);
-    // Dinheiro do ATO é a soma das PERNAS QUE ENTRAM, em módulo: uma corrida move
-    // sete linhas e somar as sete com sinal daria quase zero, que é verdade
-    // contábil e mentira na tela — o que a pessoa quer saber é o tamanho do ato.
     const valor =
       dinheiro === 1 && l.unit_cost_rate !== null
         ? amountOf(l.unit_cost_rate as Rate, Math.abs(l.quantity_base_units))
         : null;
+    if (valor !== null) {
+      const lado = lados.get(l.g) ?? { entra: 0, sai: 0, temDinheiro: false };
+      if (l.quantity_base_units >= 0) lado.entra += valor;
+      else lado.sai += valor;
+      lado.temDinheiro = true;
+      lados.set(l.g, lado);
+    }
     if (!ja) {
       porAto.set(l.g, {
         groupId: l.g,
         kind: l.kind as MovementKind,
         occurredAt: l.occurred_at,
         lines: 1,
-        valueCents: valor,
+        valueCents: null,
         reversed: l.reversed === 1,
         isReversal: l.reverses !== null,
         items: l.item_name ? [l.item_name] : [],
@@ -5185,13 +5203,21 @@ export async function ledgerExtract(
       continue;
     }
     ja.lines += 1;
-    if (valor !== null) ja.valueCents = ((ja.valueCents ?? 0) + valor) as Cents;
     // Basta UMA perna estornada: o estorno vem sempre inteiro, e meia é defeito.
     if (l.reversed === 1) ja.reversed = true;
     if (l.reverses !== null) ja.isReversal = true;
     if (l.item_name && !ja.items.includes(l.item_name)) ja.items.push(l.item_name);
     if (!ja.placeName) ja.placeName = l.place_name;
     if (!ja.note) ja.note = l.note;
+  }
+
+  // UM LADO, escolhido agora que as duas somas existem: o que entrou, e o que saiu
+  // só quando nada entrou. Decidir perna a perna não daria — a escolha depende do
+  // ato inteiro.
+  for (const [g, lado] of lados) {
+    const ato = porAto.get(g);
+    if (!ato || !lado.temDinheiro) continue;
+    ato.valueCents = (lado.entra > 0 ? lado.entra : lado.sai) as Cents;
   }
 
   // A ordem da consulta dos atos manda: o `Map` guarda inserção, e a inserção
