@@ -149,6 +149,36 @@ export function GlyphBox({ size = 26, color, weight = 2.2 }: GlyphProps) {
   );
 }
 
+/**
+ * A cópia guardada: a gaveta, e a folha entrando nela.
+ *
+ * O verbo é **guardar fora**, e ele tem de estar no desenho e não na legenda —
+ * uma gaveta imóvel diz "arquivo", não "cópia". Então a folha desce para dentro
+ * da gaveta, 5,8 s, que é mais devagar que o passo do caminhão e mais rápido que
+ * a etiqueta pendurada: guardar é gesto deliberado, nem urgente nem à toa.
+ *
+ * O eixo é `y` e o passo é negativo porque a folha entra — subir seria a folha
+ * SAINDO, que é a restauração e não a cópia. O mesmo desenho contando o verbo
+ * errado é o defeito que este projeto já nomeou uma vez, com o caminhão que
+ * respirava como termômetro.
+ */
+export function GlyphArchive({ size = 26, color, weight = 2.2 }: GlyphProps) {
+  return (
+    <Svg {...frame(size)} accessibilityRole="image">
+      {/* A folha, que entra. Vem primeiro no desenho para a gaveta ficar na
+          frente dela — é assim que se lê "dentro". */}
+      <Vivo vida={{ como: 'anda', cicloMs: 5800, passo: -4.2, eixo: 'y' }}>
+        <Path d="M11 4h10v11H11z" {...line(color, weight - 0.4)} />
+        <Path d="M13.5 8h5M13.5 11h5" {...line(color, weight - 0.6)} />
+      </Vivo>
+      {/* A gaveta: fechada em cima, aberta na boca por onde a folha desce. */}
+      <Path d="M4 16h24v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" {...massIf(weight, color)} />
+      <Path d="M4 16h24v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" {...line(color, weight)} />
+      <Path d="M12 21h8" {...line(color, weight - 0.4)} />
+    </Svg>
+  );
+}
+
 /** Dinheiro: a etiqueta de preço, que é o que muda quando a nota chega. */
 export function GlyphPrice({ size = 26, color, weight = 2.2 }: GlyphProps) {
   return (

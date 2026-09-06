@@ -111,6 +111,10 @@ export const AREA_DO_GLIFO: Record<string, AreaDoGlifo> = {
   // A casa e o próprio aplicativo.
   GlyphAssistant: 'sky',
   GlyphSettings: 'mist',
+  // A cópia é do APLICATIVO e não do estoque: ela guarda o arquivo, não o que
+  // está na prateleira. Mesmo assunto que os Ajustes, então mesmo tom — o guarda
+  // cobra que assunto igual saia igual, e "guardar o aplicativo" é um assunto só.
+  GlyphArchive: 'mist',
   GlyphCalendar: 'anfitriao',
 
   // Perda é perda em qualquer tela: não é área, é sinal, e o sinal manda.

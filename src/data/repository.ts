@@ -5002,6 +5002,22 @@ async function canSeePrice(companyId: string): Promise<boolean> {
  * dívida em `docs/roadmap.md`: configuração da empresa é a única coisa que dois
  * celulares da MESMA empresa não conseguem combinar entre si.
  */
+/**
+ * Quantos movimentos o aparelho tem — o número que a tela de cópia compara.
+ *
+ * Sem empresa no parâmetro de propósito: a pergunta é do APARELHO e não de uma
+ * empresa. A cópia leva o arquivo inteiro, e um número filtrado por empresa
+ * mentiria sobre o que ela guarda no dia em que houver duas.
+ */
+export async function countMovements(): Promise<number> {
+  const conn = await db();
+  const linha = await conn.getFirstAsync<{ c: number }>(
+    `SELECT count(*) AS c FROM movements`,
+    [],
+  );
+  return linha?.c ?? 0;
+}
+
 export async function namesWhoRecorded(): Promise<boolean> {
   return (await readMeta(NAMES_KEY)) === '1';
 }

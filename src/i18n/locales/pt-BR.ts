@@ -359,6 +359,54 @@ export const ptBR = {
       reverseAlready: 'Esta corrida já foi corrigida.',
     },
 
+    /**
+     * A cópia do aparelho — a única tela cujo assunto é o que acontece se o
+     * aparelho não existir mais.
+     *
+     * O tom aqui é o da casa e ele custa uma linha a mais: **orienta, não
+     * fiscaliza**, e não assusta. "Você pode perder tudo" é verdade e é o jeito
+     * de fazer alguém fechar a tela; "Guarde uma cópia hoje" é a mesma verdade
+     * virada para a ação. E a confirmação diz o que vai acontecer com os números
+     * por extenso, porque restaurar é o ato mais destrutivo do aplicativo.
+     */
+    backup: {
+      title: 'Cópia de segurança',
+      overline: 'o que fica se o aparelho não ficar',
+      lead: 'Tudo o que a fábrica registrou mora neste aparelho. Guarde uma cópia.',
+      never: 'Você ainda não guardou nenhuma cópia.',
+      neverHint: 'Uma cópia é um arquivo. Guarde onde você já guarda o que importa — conversa sua, e-mail, nuvem.',
+      lastOne: 'Última cópia: {{when}}',
+      countsMovements: { one: '1 movimento', other: '{{n}} movimentos' },
+      holds: 'Ela guarda {{movements}} e pesa {{size}}.',
+      sinceThen: 'Depois dela entraram {{movements}}.',
+      upToDate: 'Nada entrou depois dela — a cópia está em dia.',
+      make: 'Guardar uma cópia agora',
+      making: 'Preparando a cópia…',
+      madeTitle: 'Cópia pronta',
+      madeBody: 'A cópia tem {{movements}} e pesa {{size}}. Agora escolha onde guardá-la.',
+      share: 'Escolher onde guardar',
+      inside: 'O que vai dentro',
+      insideBody: 'A cópia leva o livro-razão inteiro — o que entrou, o que saiu, custos e fornecedores. Quem abrir o arquivo lê tudo isso.',
+      restoreTitle: 'Trazer uma cópia de volta',
+      restoreLead: 'Aparelho novo, ou aparelho formatado. Escolha o arquivo da cópia.',
+      pick: 'Escolher o arquivo',
+      reading: 'Lendo a cópia…',
+      confirmTitle: 'Trazer esta cópia de volta?',
+      confirmBody: 'A cópia é de {{when}} e tem {{copyMovements}}. Este aparelho tem {{hereMovements}} agora, e eles serão substituídos pelos da cópia.',
+      confirmNoDate: 'A cópia tem {{copyMovements}}. Este aparelho tem {{hereMovements}} agora, e eles serão substituídos pelos da cópia.',
+      confirm: 'Trazer de volta',
+      restoring: 'Trazendo de volta…',
+      doneTitle: 'A fábrica voltou',
+      doneBody: 'Voltaram {{rows}} em {{tables}}.',
+      rowCount: { one: '1 linha', other: '{{n}} linhas' },
+      tableCount: { one: '1 tabela', other: '{{n}} tabelas' },
+      naoEhNorva: 'Este arquivo não é uma cópia do NORVA.',
+      maisNovaQueOApp: 'Esta cópia veio de uma versão mais nova do aplicativo. Atualize o aplicativo e tente de novo — trazer o que ele entende deixaria a fábrica sem uma parte dela.',
+      ilegivel: 'Este arquivo não abriu. Ele pode ter chegado incompleto.',
+      referenciasQuebradas: 'Esta cópia está inconsistente e nada foi mudado. O aparelho está como estava.',
+      naoDeuParaGuardar: 'Não deu para guardar a cópia agora.',
+      semPartilha: 'Este aparelho não sabe partilhar arquivo. A cópia está guardada aqui: {{path}}',
+    },
     losses: {
       title: 'Perdas',
       window: 'Últimos 30 dias',
@@ -556,6 +604,7 @@ export const ptBR = {
         purchases: 'Compras',
         orders: 'Pedidos',
         account: 'Conta',
+        backup: 'Cópia de segurança',
         weather: 'Clima',
         settings: 'Ajustes',
       },

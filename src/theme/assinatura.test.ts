@@ -325,6 +325,7 @@ export const MOVIMENTO_DO_GLIFO: Record<string, string> = {
   GlyphLabel: 'balanca',
   GlyphThermometer: 'coluna',
   GlyphSettings: 'gira',
+  GlyphArchive: 'anda',
   GlyphStock: 'coluna',
   GlyphStore: 'balanca',
 

@@ -11,6 +11,7 @@ import {
   GlyphRecipe,
   GlyphSettings,
   GlyphStock,
+  GlyphArchive,
   GlyphCustomer,
   GlyphStore,
   GlyphThermometer,
@@ -154,6 +155,10 @@ function Drawers() {
     // e a conta existe para o que SAI daqui. Uma tela de senha entre a pessoa e a
     // caixa que ela está segurando seria o defeito mais caro deste produto.
     { key: 'account', detail: t.app.account.overline, route: '/account', desenho: glifo(GlyphCustomer), tom: palette.sky },
+    // A cópia fica no mesmo grupo dos ajustes e não na frente do aplicativo, pelo
+    // mesmo motivo da conta — mas ela é a única porta daqui cujo assunto é o que
+    // acontece se o aparelho não existir mais, e por isso vem ANTES delas.
+    { key: 'backup', detail: t.app.backup.overline, route: '/backup', desenho: glifo(GlyphArchive), tom: palette.mist },
     { key: 'weather', detail: t.app.weather.change, route: '/weather', desenho: glifo(GlyphThermometer), tom: palette.sky },
     { key: 'settings', detail: t.app.settings.stored, route: '/settings', desenho: glifo(GlyphSettings), tom: palette.mist },
   ];

@@ -48,6 +48,7 @@ export const CENAS = [
   'compras',
   'gente',
   'ajustes',
+  'copia',
   'assistente',
   'espelho',
 ] as const;

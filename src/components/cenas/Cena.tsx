@@ -772,6 +772,73 @@ function Ajustes({ tinta, acento, frio }: Pincel) {
   );
 }
 
+/**
+ * A cópia: uma folha sai da fábrica e assenta na estante.
+ *
+ * O verbo desta cena é **guardar fora**, e ele tem de ser legível sem legenda —
+ * uma folha que só pulsasse no lugar diria "documento", não "cópia". Então a
+ * folha atravessa: nasce na porta da fábrica, viaja, e para em cima da pilha que
+ * já está guardada. Duas folhas em ciclos deslocados, para a estante nunca
+ * parecer vazia nem lotada.
+ *
+ * O papel de parede é a estante: quatro prateleiras de traço fino que existem
+ * antes de qualquer folha chegar. É a regra que nasceu do *"feio"* — cena sem
+ * fundo é objeto solto no branco, e objeto solto lê como erro de desenho.
+ *
+ * 8.4 s, primo com os vizinhos de propósito: cenas que batem no mesmo compasso
+ * viram um pulso só, e um pulso só é o oposto de organismo.
+ */
+function Copia({ tinta, acento, frio }: Pincel) {
+  return (
+    <>
+      {/* PAPEL DE PAREDE — a estante, que existe antes da primeira folha. */}
+      <G stroke={frio} opacity={0.32}>
+        <Path d={`M232 18v${CHAO - 18}`} />
+        <Path d={`M344 18v${CHAO - 18}`} />
+        <Path d="M232 18h112M232 34h112M232 50h112" />
+      </G>
+
+      {/* A fábrica, curta: é a origem e não o assunto. */}
+      <G stroke={tinta}>
+        <Path d={`M22 30h58v${CHAO - 30}H22z`} />
+        <Path d="M22 30l14-11 14 11M50 30l14-11 16 11" />
+        <Path d={`M44 ${CHAO}v-16h14v16`} />
+      </G>
+
+      {/* A pilha que já está guardada: baixa, e é o que a folha vem somar. */}
+      <G stroke={tinta} opacity={0.55}>
+        <Path d="M240 46h26M240 43h26M240 40h20" />
+      </G>
+
+      <Folha cor={acento} atrasoMs={0} />
+      <Folha cor={tinta} atrasoMs={4200} />
+    </>
+  );
+}
+
+/**
+ * Uma folha atravessando. Ela não muda de tamanho: cópia é a mesma coisa noutro
+ * lugar, e uma folha que encolhe no caminho contaria outra história.
+ */
+function Folha({ cor, atrasoMs }: { cor: string; atrasoMs: number }) {
+  const ciclo = useCiclo(8400, { atrasoMs, repouso: 1 });
+  const voo = useAnimatedProps(() => ({
+    // Sai da porta da fábrica e para na prateleira. O arco é raso: folha guardada
+    // por mão firme, não papel jogado.
+    transform: [
+      { translateX: 92 + ciclo.value * 148 },
+      { translateY: -10 * Math.sin(Math.PI * ciclo.value) },
+    ],
+    opacity: ciclo.value < 0.08 ? ciclo.value / 0.08 : 1,
+  }));
+  return (
+    <AnimatedG animatedProps={voo} stroke={cor}>
+      <Path d="M0 26h20v22H0z" />
+      <Path d="M4 32h12M4 37h12M4 42h8" />
+    </AnimatedG>
+  );
+}
+
 function Cursor({
   x,
   largura,
@@ -898,6 +965,7 @@ const DESENHOS: Record<Cena, (p: Pincel) => React.ReactElement> = {
   compras: Compras,
   gente: Gente,
   ajustes: Ajustes,
+  copia: Copia,
   assistente: Assistente,
   espelho: Espelho,
 };
