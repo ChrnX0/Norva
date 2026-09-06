@@ -2384,6 +2384,73 @@ check('the shared phone asks who is holding it, and only when the company names 
   assert.match(await screen(page), /Ninguém ainda/, 'largar o aparelho volta ao anônimo');
 });
 
+check('a load that covers the order offers to close it, and closing it changes the list', async (page) => {
+  // A regra do fechamento saiu da tela e foi para o repositório em 6 de setembro,
+  // porque a separação passou a precisar da mesma resposta — e duas telas fazendo
+  // a mesma conta é como duas verdades nascem. Nenhuma checagem de navegador
+  // exercitava essa costura: o `ordersCoveredBy` tinha teste de unidade, e o
+  // caminho da tela até o pedido fechado, nenhum.
+  await page.goto(`http://localhost:${PORT}/production/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Quantas unidades/).fill('500');
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar produção', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Como se chama').fill('Loja Centro');
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  await page.goto(`http://localhost:${PORT}/orders/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel('Quantidade').fill('300');
+  await page.waitForTimeout(400);
+  await page.getByText('Adicionar ao pedido', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+  await page.getByText('Anotar pedido', { exact: true }).last().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Anotar', { exact: true }).last().click();
+  await page.waitForTimeout(2500);
+
+  // A carga cobre o pedido inteiro — e o palpite já vem com o número dele.
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Picolé de morango/).first().click();
+  await page.waitForTimeout(700);
+  await page.getByText('Registrar a transferência', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Mandar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  // E aí a casa OFERECE fechar. Não fecha sozinha: o aplicativo sugere, nunca
+  // decide calado — quem acabou de carregar o caminhão é quem sabe se acabou.
+  const oferta = await screen(page);
+  assert.match(oferta, /Fechar o pedido dessa loja\?/, 'a carga que cobre o pedido oferece fechá-lo');
+  assert.match(oferta, /1 pedido/, 'e diz quantos, porque a loja pode ter mais de um');
+
+  await page.getByText('Fechar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  // Fechado, a separação para de pedir o que já saiu. Sem isto, a lista sugeriria
+  // o pedido inteiro para sempre e a capa continuaria mandando produzir o que já
+  // foi pela porta.
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Picolé de morango/).first().click();
+  await page.waitForTimeout(700);
+  assert.match(
+    await screen(page),
+    /nenhum pedido em aberto para esta loja/,
+    'o pedido fechado sai da lista de separação',
+  );
+});
+
 check('erasing refuses in an order, and explains the way out', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

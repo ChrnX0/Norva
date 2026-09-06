@@ -44,7 +44,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 |---|---|
 | `npm test` | **374** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
-| `npm run e2e:fast` | **42** checagens num navegador de verdade |
+| `npm run e2e:fast` | **43** checagens num navegador de verdade |
 | `npm run db:verify` | **16** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
@@ -529,30 +529,30 @@ Três decisões dentro dela, cada uma um jeito de errar que foi evitado:
   num telefone a frase de cima pode ter saído da tela quando o dedo chega nele, e o
   toque seguinte já é livro-razão.
 
-**4. Separação — o que falta NÃO é a tela, é uma pergunta sem resposta.** Conferido
-em 6 de setembro, ao ir construí-la.
+**4. Separação — DESTRAVADA pela decisão da carga, 6 de setembro.**
 
-Está tudo pronto para desenhar: `pickingFor` (`src/data/repository.ts:3238`) responde a
-conta e já tem chamador (`app/transfer.tsx:172`); `Item.packaging` traz a hierarquia
-engradado→caixa→unidade que o `UnitStepper` pede; o dicionário do stepper existe nos
-três idiomas.
+De manhã este item estava parado por uma pergunta sem resposta: *o que a separação
+grava?* Uma lista de conferência que não guarda nada zera quando o celular bloqueia, na
+câmara fria, com a pessoa de luva — pior que não existir.
 
-**O que ninguém respondeu é o que a separação GRAVA.** O docblock do `pickingFor` já
-decidiu metade: *"A lista NÃO reserva nada e não escreve no livro-razão… A carga
-continua sendo o único evento que move estoque."* Está certo — separar é montar um
-carrinho DENTRO da fábrica, e nada saiu. Só que uma tela de conferir item a item sem
-nada gravado é uma lista que zera quando o celular bloqueia, no meio da câmara fria,
-com a pessoa de luva. Pior que não existir.
+A decisão do dono respondeu: **a carga é um evento só**, e com isso a separação **não
+grava nada no livro-razão**. Ela conta, e quem move estoque continua sendo a carga — que
+é exatamente o que o docblock do `pickingFor` já dizia: *"A lista NÃO reserva nada e não
+escreve no livro-razão."*
 
-E a pergunta é a mesma do item 5: **"separado" é o primeiro dos quatro postos.** As
-duas entram juntas ou nenhuma entra direito.
+**A forma, então:**
 
-**A forma mais barata, para quem for decidir:** o carrinho é físico e local, então o
-estado dele pode ser do APARELHO — `app_meta`, como a ordem da capa —, e não do
-livro-razão. Nada sobe, nada trava fila, e a conferência sobrevive à tela apagando.
-O posto `picked` só vira movimento quando a carga sai, junto com a transferência que
-já existe. Isso não é decisão minha: é P3 quando toca `movements`, e é do dono quando
-decide o que a fábrica promete.
+- o carrinho é físico e local, então o estado dele é do **APARELHO** (`app_meta`, como a
+  ordem da capa) — sobrevive à tela apagando e não sobe para servidor nenhum;
+- a lista vem do `pickingFor`, que já desconta o que saiu hoje;
+- a contagem usa o **`UnitStepper`** (item 8), que é onde ele finalmente ganha chamador:
+  *"12 engradados = 3.600 picolés"* sem ninguém fazer conta de cabeça, de luva;
+- terminar a separação dispara as transferências, uma por item — que é o que o app já faz
+  hoje, e o fechamento de pedido já soma as viagens do DIA, não da carga.
+
+**O que continua fora:** a leitura de QR engradado a engradado na doca (a seção `scan` do
+dicionário). Ela precisa de câmera — módulo nativo sem implementação web, e esta sessão
+não tem como fotografar uma leitura de câmera para provar que funciona.
 
 **5.** ~~**Os quatro postos de controle.**~~ **RESOLVIDO POR DECISÃO, 6 de setembro.**
 A carga é **um evento só** — decisão do dono. Carregar e entregar continuam sendo o mesmo

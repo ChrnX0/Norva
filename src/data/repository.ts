@@ -9,6 +9,7 @@ import type { LossReason, ReturnReason } from '@/domain/ledger';
 import { explodeRequirements } from '@/domain/recipe';
 import type { ItemCosts, Recipe, RecipeLine } from '@/domain/recipe';
 import type { PackagingHierarchy } from '@/domain/units';
+import { ordersCoveredBy } from '@/domain/picking';
 import { db, newId, nowIso, type Db } from './db';
 import { readMeta, writeMeta } from './meta';
 import { enqueue, forgetOrphans } from './outbox';
@@ -4290,6 +4291,46 @@ export async function setOrderStatus(
     );
     await enqueue(conn, [{ table: 'orders', rowId: orderId }]);
   });
+}
+
+/**
+ * Quais pedidos daquela loja o dia de hoje já cobre por inteiro.
+ *
+ * **Extraída da tela de transferência quando a separação passou a precisar da
+ * mesma resposta.** Duas telas fazendo a mesma conta é a forma como duas
+ * verdades nascem — e esta conta tem três decisões dentro, cada uma paga com um
+ * defeito:
+ *
+ * 1. **A cobertura é do DIA, não da carga.** Quem carrega o caminhão faz duas
+ *    viagens até o freezer; comparar só com a última fazia um pedido de dois
+ *    itens nunca fechar.
+ * 2. **Só o pedido COBERTO entra.** Carga parcial não fecha nada: dizer
+ *    "entregue" faltando quarenta caixas transforma uma falta que a loja vai
+ *    cobrar num pedido que o sistema diz cumprido.
+ * 3. **Ela só RESPONDE.** Quem fecha é a pessoa, no diálogo — o aplicativo
+ *    sugere, nunca decide calado.
+ *
+ * Devolve os ids; a frase e a pergunta são da tela.
+ */
+export async function ordersCoveredToday(
+  companyId: string,
+  placeId: string,
+  dayFromIso: string,
+  dayToIso: string,
+): Promise<string[]> {
+  const abertos = await listOrders(companyId, ['pending', 'open']);
+  const daLoja = abertos.filter((o) => o.placeId === placeId);
+  if (daLoja.length === 0) return [];
+
+  const remessas = await shipmentsOn(companyId, dayFromIso, dayToIso);
+  const enviadoHoje = new Map<string, number>();
+  for (const destino of remessas.filter((r) => r.locationId === placeId)) {
+    for (const item of destino.items) {
+      enviadoHoje.set(item.itemId, (enviadoHoje.get(item.itemId) ?? 0) + item.baseUnits);
+    }
+  }
+
+  return ordersCoveredBy(daLoja, enviadoHoje);
 }
 
 export type Demand = {

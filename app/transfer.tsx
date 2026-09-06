@@ -20,19 +20,19 @@ import {
   type PickLine,
   listPlaces,
   listOrders,
+  ordersCoveredToday,
   type Order,
   recordReturn,
   lotsInStock,
   recordTransfer,
   setOrderStatus,
-  shipmentsOn,
   stockByPlace,
   type Place,
   type PlaceStock,
 } from '@/data/repository';
 import { nowIso } from '@/data/db';
 import { dayWindow, localDate } from '@/domain/day';
-import { freeToShip, ordersCoveredBy, pickSuggestion } from '@/domain/picking';
+import { freeToShip, pickSuggestion } from '@/domain/picking';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatCalendarDate, formatQuantity, plural } from '@/i18n';
@@ -331,24 +331,11 @@ function Transfer() {
       // Só o pedido COBERTO entra, e quem fecha é a pessoa: o aplicativo sugere,
       // nunca decide calado.
       if (!devolucao && to) {
-        const abertos = await listOrders(LOCAL_COMPANY_ID, ['pending', 'open']);
-        const daLoja = abertos.filter((o) => o.placeId === to.id);
-
-        // A cobertura é do DIA, não desta carga.
-        //
-        // Comparar só com o que acabou de sair fazia um pedido de dois itens
-        // nunca fechar: cada transferência cobre um item e nenhuma cobre o
-        // pedido. Quem carrega o caminhão faz duas viagens até o freezer, não um
-        // ato só - e o pedido é do dia, não da viagem.
-        const remessas = await shipmentsOn(LOCAL_COMPANY_ID, hoje.from, hoje.to);
-        const enviadoHoje = new Map<string, number>();
-        for (const destino of remessas.filter((r) => r.locationId === to.id)) {
-          for (const item of destino.items) {
-            enviadoHoje.set(item.itemId, (enviadoHoje.get(item.itemId) ?? 0) + item.baseUnits);
-          }
-        }
-
-        const cobertos = ordersCoveredBy(daLoja, enviadoHoje);
+        // A conta mora no repositório desde que a separação passou a precisar da
+        // mesma resposta: duas telas fazendo a mesma conta é como duas verdades
+        // nascem. As três decisões dela — cobertura do DIA, só pedido coberto, e
+        // quem fecha é a pessoa — estão escritas lá, uma vez.
+        const cobertos = await ordersCoveredToday(LOCAL_COMPANY_ID, to.id, hoje.from, hoje.to);
 
         if (cobertos.length > 0) {
           const fechar = await askConfirm({
