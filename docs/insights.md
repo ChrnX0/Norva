@@ -4374,3 +4374,36 @@ ignorar.
 **A regra que fica:** `&&` encadeia códigos de saída, não conclusões — e assim que entra
 um `|` no meio, o código de saída deixa de ser o de quem você acha que é. Verificação e
 ação irreversível não cabem no mesmo comando; o que cabe entre elas é você lendo.
+
+## 2026-09-06 — a bateria pesada rodava inteira a cada commit meu, num PR rascunho
+
+**O que apareceu.** Cinco jobs do CI voltaram como falha **em um segundo cada**, sem
+log nenhum para baixar. Job que falha em um segundo e não tem log não rodou: ele nem
+chegou a um runner.
+
+Não consigo ler o faturamento da conta pelas ferramentas que tenho, então não afirmo a
+causa. O que dá para medir é o consumo, e ele é indefensável: a condição da bateria
+pesada era *"PR cuja base é `main`"* — e um PR de trabalho tem a base `main` desde o
+primeiro commit. Então **cada push meu disparava mutação (16 min), navegador (11 min),
+banco e portão**. Numa manhã de doze pushes são mais de três horas de runner para provar
+doze vezes a mesma coisa. O dono já tinha dito, com todas as letras: *"cuidado para nao
+queimar todos os creditos"*.
+
+**Por que importa.** A regra da barra proporcional (decisão do dono, 5 de setembro) diz
+que a bateria inteira roda **"ao fechar uma etapa, ao abrir PR para `main`"** — e eu a
+tinha traduzido para YAML como "todo push num PR aberto para main", que é uma coisa
+completamente diferente. A tradução parecia fiel e multiplicava o custo por doze.
+
+E o defeito se esconde bem: cada execução individual é verde e correta. Nada num
+relatório aponta para "isto está caro"; só a soma aponta, e ninguém soma.
+
+**O que mudou.** A pesada não roda em **PR rascunho**. Rascunho é a palavra que o próprio
+GitHub tem para "ainda estou trabalhando", e ela volta sozinha no instante em que o PR é
+marcado como pronto para revisão — que é exatamente o momento que a decisão do dono
+descreve. `ready_for_review` entrou na lista de eventos, senão sair de rascunho não
+dispararia nada. A rápida (tipos, lint, teste, pacote) continua em todo push: custa dois
+minutos e é a que pega o erro enquanto ele ainda é barato.
+
+**A regra que fica:** ao traduzir uma regra de processo para uma condição de CI, escreva
+ao lado **quantas vezes por dia ela vai disparar**. "Ao abrir PR" e "em todo push a um PR
+aberto" são a mesma frase em português e diferem por um fator de doze na fatura.

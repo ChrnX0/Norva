@@ -15,8 +15,27 @@ on:
     branches: [main]
     paths-ignore: ['docs/**', '**/*.md', '.shots/**']
   pull_request:
+    # `ready_for_review` entra na lista porque é ele que liga a bateria pesada.
+    # Sem ele, sair de rascunho não dispara nada, e a pesada só rodaria no push
+    # seguinte — ou nunca, se não houver push seguinte.
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore: ['docs/**', '**/*.md', '.shots/**']
   workflow_dispatch:
+
+# A pesada NÃO roda em PR rascunho — e isto é sobre dinheiro do dono.
+#
+# A condição era "PR cuja base é `main`", e um PR de trabalho tem a base `main`
+# desde o primeiro commit: então cada push meu disparava mutação (16 min),
+# navegador (11 min), banco e portão. Numa manhã de doze pushes são mais de três
+# horas de runner para provar doze vezes a mesma coisa, e o dono já tinha dito
+# *"cuidado para nao queimar todos os creditos"*.
+#
+# Rascunho é a palavra que o próprio GitHub tem para "ainda estou trabalhando".
+# A pesada volta sozinha no instante em que o PR é marcado como pronto para
+# revisão — que é quando ela importa — e continua disponível pelo botão.
+#
+# A rápida (tipos, lint, teste, pacote) continua em todo push: ela custa dois
+# minutos e é a que pega o erro enquanto ele ainda é barato.
 
 # Push novo mata a corrida velha do mesmo ramo. Antes, três pushes seguidos
 # mantinham três baterias inteiras vivas ao mesmo tempo.
@@ -57,7 +76,10 @@ jobs:
 
   mutacao:
     name: a suíte morde?
-    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main' || github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.ref == 'refs/heads/main'
+      || (github.base_ref == 'main' && github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -74,7 +96,10 @@ jobs:
 
   navegador:
     name: o app dirigido como uma pessoa dirige
-    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main' || github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.ref == 'refs/heads/main'
+      || (github.base_ref == 'main' && github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -92,7 +117,10 @@ jobs:
 
   esquema:
     name: o banco cumpre o que promete
-    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main' || github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.ref == 'refs/heads/main'
+      || (github.base_ref == 'main' && github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -110,7 +138,10 @@ jobs:
 
   portao:
     name: proofgate
-    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main' || github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.ref == 'refs/heads/main'
+      || (github.base_ref == 'main' && github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     steps:
       # O portão lê o diff contra a base, então precisa do histórico.
