@@ -27,6 +27,38 @@ const FONTE = readFileSync('src/theme/tokens.ts', 'utf8');
 
 /** As camadas de tinta que pintam TEXTO, na ordem em que somem. */
 const TINTAS = ['ink', 'inkMuted', 'inkFaint'] as const;
+
+/**
+ * Os acentos — e eles entraram aqui por uma cicatriz de 6 de setembro.
+ *
+ * Ao subir a saturação do Papel a pedido do dono (*"está bonito, mas um tanto
+ * apagado"*), eu conferi cada tom novo contra `paper` e escrevi os catorze com o
+ * contraste na mão. Cinco deles caíram abaixo de 4,5 sobre `sunken`, que é o
+ * fundo mais escuro dos três — e **esta guarda passou verde**, porque media as
+ * três camadas de tinta e não os acentos.
+ *
+ * Acento pinta texto: o "amanhã +2°" do tempo é `palette.apricot` em corpo 11, e
+ * há pelo menos seis telas assim. A régua sempre valeu para eles; o que faltava
+ * era alguém medir.
+ *
+ * `onAccent` fica de fora de propósito: ele não pinta sobre fundo de página, e
+ * sim sobre o próprio acento — quem mede esse par é o `tintaSobre`, que o botão
+ * usa em tempo de execução.
+ */
+const ACENTOS = [
+  'sky',
+  'apricot',
+  'mint',
+  'lilac',
+  'rose',
+  'sage',
+  'sand',
+  'mist',
+  'ok',
+  'warning',
+  'danger',
+  'neutral',
+] as const;
 /** Os fundos em que uma tela deste aplicativo pinta texto. */
 const FUNDOS = ['paper', 'surface', 'sunken'] as const;
 /** WCAG AA para texto normal. */
@@ -224,4 +256,90 @@ test('the width breakpoints keep the phone out of the two-column grid', async ()
     `cada coluna sairia com ${MEDIDA_EM_PARES / 2} dp, mais estreita que um telefone`,
   );
   assert.ok(MEDIDA_EM_PARES >= PARES_A_PARTIR_DE, 'a medida em pares não pode ser menor que o ponto de quebra');
+});
+
+/**
+ * O mesmo para os ACENTOS, e este teste nasceu de um erro meu.
+ *
+ * Ele é separado do de cima porque a mensagem precisa dizer outra coisa: tinta
+ * fraca some, acento fraco parece decisão de design. Quem lê a falha tem de
+ * saber que a saída é escurecer o tom mantendo o matiz e a saturação, e não
+ * baixar a régua.
+ *
+ * A conta que resolveu o caso de 6 de setembro está aqui para a próxima pessoa:
+ * conferir contra `paper` (#FAF7F2) não basta, porque `sunken` (#F1EDE5) é meio
+ * ponto de luminosidade mais escuro e é o fundo dos blocos rebaixados. Mede-se
+ * contra o MAIS ESCURO dos fundos claros, e contra o MAIS CLARO dos escuros.
+ */
+/**
+ * Os pares que reprovam HOJE e continuam de pé, com a razão escrita.
+ *
+ * Isto não é uma dispensa: é o contrário dela. Sem o registro, a única saída para
+ * um achado que eu não posso consertar sozinho seria não medir — e aí a guarda
+ * ficaria verde mentindo. Com ele o número está na cara de quem abre o arquivo, e
+ * o teste falha nos DOIS sentidos: se aparecer um par novo, e se um par
+ * registrado parar de reprovar, porque registro que virou mentira sai da lista.
+ *
+ * **Por que estes ficam.** São todos do ORGÂNICO, todos anteriores a esta guarda,
+ * e consertá-los é mudar uma pele que o dono aprovou olhando. O acerto de
+ * `apricot` seria de #E29B52 para #9A5B1A — isso não é retoque de luminosidade, é
+ * outra cor. Os pequenos (mint, sage, ok, danger, que se movem menos de quatro
+ * por cento) foram corrigidos sem perguntar, porque não mudam o caráter de nada.
+ * Estes seis esperam a decisão do dono, e ela está pedida.
+ *
+ * O PAPEL não está aqui, e isso importa: os cinco tons que a subida de saturação
+ * de 6 de setembro deixou abaixo da régua foram escurecidos no mesmo commit em
+ * que esta guarda nasceu. Erro meu, conserto meu.
+ */
+const ABAIXO_DA_REGUA = new Set([
+  'lightPalette.warning',
+  'organicoClaro.sky',
+  'organicoClaro.apricot',
+  'organicoClaro.lilac',
+  'organicoClaro.rose',
+  'organicoClaro.sand',
+  'organicoClaro.mist',
+  'organicoClaro.warning',
+]);
+
+test('every accent the app writes text with is legible on every ground it writes on', () => {
+  const todas = paletas();
+  assert.ok(todas.length >= 4, `a leitura das paletas veio com ${todas.length} — a comparação seria de graça`);
+
+  const fracas: string[] = [];
+  const reprovaram = new Set<string>();
+  for (const { nome, cores } of todas) {
+    for (const acento of ACENTOS) {
+      for (const fundo of FUNDOS) {
+        if (!cores[acento] || !cores[fundo]) continue;
+        const razao = contraste(cores[acento], cores[fundo]);
+        if (razao >= MINIMO) continue;
+        const par = `${nome}.${acento}`;
+        reprovaram.add(par);
+        if (ABAIXO_DA_REGUA.has(par)) continue;
+        fracas.push(
+          `${par} sobre ${fundo}: ${razao.toFixed(2)}:1 (${cores[acento]} / ${cores[fundo]})`,
+        );
+      }
+    }
+  }
+
+  const mentiras = [...ABAIXO_DA_REGUA].filter((par) => !reprovaram.has(par));
+  assert.deepEqual(
+    mentiras,
+    [],
+    `estes pares estão registrados como abaixo da régua e HOJE passam: ${mentiras.join(', ')}. ` +
+      'Registro que virou mentira sai da lista — senão ela vira dispensa permanente que ' +
+      'ninguém revisita, que é exatamente o defeito que o registro existe para não ter.',
+  );
+
+  assert.deepEqual(
+    fracas,
+    [],
+    `estes acentos reprovam a régua de ${MINIMO}:1 da WCAG:\n  ${fracas.join('\n  ')}\n` +
+      'Acento pinta texto neste aplicativo — o "amanhã +2°" do tempo é o acento em corpo 11. ' +
+      'A saída é escurecer o tom mantendo o matiz E a saturação, nunca baixar a régua: ' +
+      'foi assim que mint, sage e sand voltaram à faixa depois da subida de saturação de ' +
+      '6 de setembro, que passou verde aqui porque esta checagem ainda não existia.',
+  );
 });

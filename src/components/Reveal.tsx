@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect } from 'react';
-import { AccessibilityInfo, type StyleProp, type ViewStyle } from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -7,6 +7,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useReduzirMovimento } from './vida';
 
 /**
  * O cartão entra em cena em vez de já estar lá.
@@ -52,21 +53,34 @@ export function Reveal({
   // navegador — deixaria a capa em branco com o banco cheio de dado. Uma tela
   // vazia por causa de enfeite é o pior defeito possível numa fábrica.
   // Começando visível, o pior caso é a tela aparecer sem a entrada.
-  const shown = useSharedValue(1);
+  // A resposta vem do cache do módulo, e é isso que tira o pulo para trás.
+  //
+  // Antes, cada `Reveal` perguntava ao sistema por conta própria: o cartão era
+  // pintado no LUGAR DE CHEGADA, a promessa resolvia um quadro depois, e só então
+  // ele saltava para o ponto de partida e subia. Vinte e seis dp de salto para
+  // trás, em cada cartão, sempre — e o defeito piora exatamente na proporção em
+  // que a amplitude sobe, que foi o que esta rodada fez.
+  //
+  // `useReduzirMovimento` guarda a resposta no módulo, então da segunda tela em
+  // diante ela já está em memória no primeiro render e o valor inicial pode ser o
+  // ponto de partida. Só a primeiríssima montagem do aplicativo ainda paga o
+  // salto, e ela é a única em que ninguém está olhando um cartão específico.
+  const reduzido = useReduzirMovimento();
+
+  // Começa em 1 enquanto NÃO SE SABE, e isso continua sendo segurança e não
+  // estilo: se o caminho da animação falhar — plugin de worklets fora do babel,
+  // biblioteca não carregando no navegador — o pior caso é a tela aparecer sem a
+  // entrada, e nunca uma tela em branco com o banco cheio de dado.
+  const shown = useSharedValue(reduzido === false ? 0 : 1);
 
   useEffect(() => {
-    let cancelled = false;
-
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (cancelled || reduced) return;
-      shown.value = 0;
-      shown.value = withDelay(index * motion.staggerMs, withSpring(1, motion.settle));
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [index, motion.settle, motion.staggerMs, shown]);
+    if (reduzido !== false) {
+      shown.value = 1;
+      return;
+    }
+    shown.value = 0;
+    shown.value = withDelay(index * motion.staggerMs, withSpring(1, motion.settle));
+  }, [index, motion.settle, motion.staggerMs, reduzido, shown]);
 
   // Sobe, cresce e aparece. As três juntas porque uma só não é chegada: subir sem
   // crescer lê como rolagem, crescer sem subir lê como estouro, e a opacidade

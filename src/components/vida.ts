@@ -31,9 +31,25 @@ import {
  *    perguntando ao sistema, cada um na sua montagem, é vinte e seis idas ao
  *    módulo nativo para responder a mesma coisa — e numa tela com oito ícones o
  *    atraso aparece como uma cascata de desenhos aparecendo fora de hora.
- * 2. **O ciclo é sempre linear e longo.** A regra da casa é ciclo de três a
- *    quarenta e oito segundos: percebe-se se você olhar, não se percebe se você
- *    estiver trabalhando. Nada aqui é capaz de piscar, e isso é intencional.
+ * 2. **O ciclo é longo, mas a faixa mudou em 6 de setembro.** O que estava
+ *    escrito aqui — *"de três a quarenta e oito segundos: percebe-se se você
+ *    olhar, não se percebe se você estiver trabalhando"* — caiu junto com a
+ *    doutrina do `tokens.ts`, e este arquivo não tinha sabido. A faixa de
+ *    trabalho da casa agora é **4 a 12 segundos**, que é onde as quinze cenas de
+ *    cabeçalho foram construídas, com piso de 2,6 s porque abaixo disso deixa de
+ *    ser ambiente e passa a chamar atenção.
+ *
+ *    E a frase que faltava, porque é ela que impede o defeito voltar: **ciclo
+ *    acima de vinte segundos num desenho de 24 dp é sub-pixel, e sub-pixel não é
+ *    sutileza, é ausência.** Um glifo de 26 px oscilando 1,5° em 40 s desloca
+ *    menos de meio pixel — a bateria é gasta e o olho não recebe nada.
+ *
+ *    A frase antiga tinha origem: é cópia literal do comentário do SOL no desenho
+ *    aprovado (`docs/design/aprovados/papel.html`), onde ela descreve uma volta
+ *    inteira de 360° em trinta segundos. Foi generalizada de um giro completo
+ *    para uma oscilação de um grau e meio, e nessa viagem virou o contrário do
+ *    que dizia. No próprio arquivo aprovado, tudo que NÃO é rotação roda entre
+ *    1,4 e 6 segundos.
  * 3. **Parar é parte do contrato.** `cancelAnimation` na saída, senão um laço
  *    infinito continua rodando na thread de UI depois de a tela sumir — trinta
  *    telas de navegação e o celular da fábrica fica quente sem nada na tela.

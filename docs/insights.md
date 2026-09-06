@@ -5767,3 +5767,45 @@ entende"*. Quem mostrou foi a comparação das duas fotos. Já está escrito na 
 projeto que verde não prova tela; falta a metade seguinte: **código certo não prova tela
 lida.** O único instrumento que responde isso é alguém olhando — e desta vez o alguém foi
 o dono, o que quer dizer que chegou tarde.
+
+---
+
+## O movimento existia em toda tela — calibrado para não ser visto — 6 de setembro
+
+O dono cobrou animação pela enésima vez, segundo ele mesmo: *"perdi as contas de
+quantas vezes eu te pedi… você já viu organismo vivo MORTO?"*. A primeira hipótese
+óbvia estava errada, e medir levou dois minutos: **as 28 telas de `app/` já
+importavam o vocabulário de movimento** (`Reveal`, `Vivo`, `Alive`, `Animated`).
+Cobertura era 27 de 28 — a única fora delega para o `Mosaic`, que anima.
+
+O defeito era amplitude, e ele estava escrito com todas as letras no
+`src/theme/tokens.ts`: *"percebe-se se você olhar, não se percebe se você estiver
+trabalhando"*, mais um teto de **dois elementos vivos por tela**. Os números que
+essa doutrina produziu:
+
+| | antes | depois |
+|---|---|---|
+| subida da entrada | 14 dp | 26 dp + escala 0,965 |
+| cascata entre cartões | 40 ms | 70 ms |
+| aperto do toque | 3% | 5% |
+| ultrapassagem da mola | 2,5% (ζ 0,76) | 9% (ζ 0,61) |
+
+Três efeitos ajustados para ficarem no limiar da percepção. Somados, produzem uma
+tela que aparece pronta — que é exatamente a palavra que o dono usou.
+
+**A cor tinha o mesmo formato de defeito e também era medível.** Os oito acentos
+do Papel viviam entre 31% e 39% de luminosidade, e quatro eram quase cinza:
+lilás com 18% de saturação, névoa com 12%. As réguas tinham contraste **1,39**
+contra o papel. Uma família inteira de tons escuros do mesmo valor sobre creme —
+sem registro claro, sem registro vivo, sem estrutura visível. Todos subiram de
+saturação mantendo o matiz, com o contraste conferido por conta antes de escrever
+(nenhum abaixo de 4,5).
+
+**A lição de método é a mesma nos dois casos, e é a que vale guardar:** a queixa
+do dono era qualitativa ("apagado", "morto") e a resposta foi um número em cada
+caso. Nenhuma das duas exigia gosto — exigia medir o que estava lá. E as duas
+foram consertadas em arquivo CENTRAL, não tela por tela: `Reveal` está em 27 das
+28 telas, `CollapsingHeader` em 27, `Button` em 23, `ListRow` em 17, e os dois
+últimos já liam o token do tema. **A alavanca de "todas as telas" eram quatro
+arquivos.** Procurar essa alavanca antes de abrir a primeira tela é o que separou
+uma rodada de vinte e oito.

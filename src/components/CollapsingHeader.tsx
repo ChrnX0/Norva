@@ -230,11 +230,30 @@ export function CollapsingHeader({
             quarenta milissegundos no meio da sequência. */}
         {emPares
           ? emColunas(Children.toArray(children), space.md)
-          : Children.toArray(children).map((filho, i) => (
-              <Reveal key={i} index={i}>
-                {filho}
-              </Reveal>
-            ))}
+          : Children.toArray(children).map((filho, i) =>
+              // Quem JÁ é uma entrada não ganha outra por cima.
+              //
+              // O casco embrulhava todo filho, e as telas embrulham os deles: são
+              // 141 `<Reveal>` em `app/` contra 27 telas que usam este casco. Com
+              // a subida de catorze para vinte e seis dp isso deixou de ser
+              // inofensivo — o cartão passou a subir 52 dp e a crescer 6,9% em
+              // vez de 3,5%, com DUAS molas de atrasos diferentes na mesma
+              // subárvore. E os índices divergem: `Children.toArray` descarta os
+              // nulos, então um cartão condicional ausente faz a posição do casco
+              // e o `index=` da tela discordarem, e o cartão entra em dois tempos.
+              //
+              // O comentário antigo aqui dizia que envolver de novo "não
+              // atrapalha". Era verdade na amplitude antiga, e é a forma mais
+              // cara de estar certo: a afirmação envelheceu em silêncio no dia em
+              // que o número mudou.
+              isValidElement(filho) && filho.type === Reveal ? (
+                filho
+              ) : (
+                <Reveal key={i} index={i}>
+                  {filho}
+                </Reveal>
+              ),
+            )}
         {/* A capa é a exceção conhecida: os cartões dela moram DENTRO de um
             componente de layout, então o casco vê um filho só e o escalonamento
             de verdade continua lá dentro. Envolver de novo aqui não atrapalha -

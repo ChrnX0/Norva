@@ -83,17 +83,17 @@ const lightPalette = {
   onAccent: '#FFFFFF',
 
   sky: '#3F7096',
-  apricot: '#A75F3A',
-  mint: '#2F7D6B',
+  apricot: '#9C5936',
+  mint: '#2C7665',
   lilac: '#67589C',
   rose: '#A3505C',
-  sage: '#5A7B49',
-  sand: '#9A7429',
+  sage: '#547244',
+  sand: '#866524',
   mist: '#6E6A64',
 
-  ok: '#2F7D5A',
+  ok: '#2D7756',
   warning: '#C7841E',
-  danger: '#C0453C',
+  danger: '#B8423A',
   neutral: '#6E6A65',
 };
 
@@ -277,18 +277,18 @@ const papelClaro: Palette = {
   // família inteira puxa para o quente e nenhuma delas grita.
   sky: '#205C86',
   apricot: '#AD3415',
-  mint: '#2E7C41',
+  mint: '#2D783F',
   // Ameixa, não violeta: o violeta era a última cor de interface que sobrava na
   // família, e uma cor fria e saturada ao lado de creme quente é o que faz a
   // paleta inteira parecer emprestada de outro aplicativo.
   lilac: '#7A3A54',
   rose: '#982940',
-  sage: '#577C2C',
-  sand: '#90660E',
+  sage: '#527429',
+  sand: '#8C630E',
   mist: '#716556',
 
-  ok: '#2E7C41',
-  warning: '#90660E',
+  ok: '#2D783F',
+  warning: '#8C630E',
   danger: '#AC1C1C',
   neutral: '#716556',
 };
@@ -348,16 +348,16 @@ const organicoClaro: Palette = {
 
   sky: '#5B8EC9',
   apricot: '#E29B52',
-  mint: '#2F7D5C',
+  mint: '#2D7758',
   lilac: '#6B7FD0',
   rose: '#C4677A',
-  sage: '#5A7B49',
+  sage: '#547244',
   sand: '#B28E42',
   mist: '#8BA192',
 
-  ok: '#2F7D5C',
+  ok: '#2D7758',
   warning: '#C2751F',
-  danger: '#C0453C',
+  danger: '#B8423A',
   neutral: '#4D6055',
 };
 

@@ -22,6 +22,7 @@ import { useQuery } from '@/data/useQuery';
 import type { Dictionary } from '@/i18n';
 import { fill } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
+import { tintaSobre } from '@/theme/contraste';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -181,7 +182,12 @@ function Grade() {
                         styles.nome,
                         {
                           backgroundColor: ativo ? palette.mint : color.surface,
-                          borderColor: ativo ? color.ok : color.line,
+                          // A borda do escolhido era `color.ok`, e `ok` e `mint`
+                          // são o MESMO hexadecimal nas duas peles claras — uma
+                          // borda a 1,00:1 contra o próprio preenchimento, ou
+                          // seja, borda nenhuma. Passou despercebida porque
+                          // ninguém compara dois tokens de nomes diferentes.
+                          borderColor: ativo ? color.ink : color.line,
                           borderRadius: radius.md,
                           paddingVertical: space.xl,
                           paddingHorizontal: space.md,
@@ -189,8 +195,17 @@ function Grade() {
                         },
                       ]}
                     >
+                      {/* A tinta do nome é MEDIDA contra o fundo, não escolhida.
+                          `color.ink` sobre o verde do escolhido dá 3,18:1 — e esta
+                          é a tela do PIN, lida de luva a dezoito graus negativos,
+                          que é o pior lugar do aplicativo para um nome ilegível.
+                          `tintaSobre` é o que o botão já faz desde sempre. */}
                       <Text
-                        style={[type.cardTitle, styles.meio, { color: color.ink }]}
+                        style={[
+                          type.cardTitle,
+                          styles.meio,
+                          { color: ativo ? tintaSobre(palette.mint, color.onAccent, color.ink) : color.ink },
+                        ]}
                         numberOfLines={2}
                       >
                         {quem.name}
