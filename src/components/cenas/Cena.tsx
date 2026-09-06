@@ -624,16 +624,18 @@ function Gota({ x, atrasoMs, cor }: { x: number; atrasoMs: number; cor: string }
 function Lotes({ tinta, acento, frio }: Pincel) {
   return (
     <>
+      {/* Caixas de tamanhos diferentes: duas iguais lado a lado leem como
+          repetição, e um lote não é um par de gêmeos. */}
       <G stroke={tinta}>
-        <Path d="M16 38h64v26H16zM16 48h64M48 38v26" />
-        <Path d="M26 38l6-9h32l6 9" />
+        <Path d="M16 32h70v32H16zM16 44h70M51 32v32" />
+        <Path d="M27 32l6-10h36l6 10" />
       </G>
-      <Etiqueta x={96} atrasoMs={0} cor={acento} />
+      <Etiqueta x={100} atrasoMs={0} cor={acento} />
       <G stroke={tinta}>
-        <Path d="M132 38h64v26h-64zM132 48h64M164 38v26" />
-        <Path d="M142 38l6-9h32l6 9" />
+        <Path d="M128 44h50v20h-50zM128 52h50M153 44v20" />
+        <Path d="M136 44l5-8h30l5 8" />
       </G>
-      <Etiqueta x={212} atrasoMs={1400} cor={frio} />
+      <Etiqueta x={196} atrasoMs={1400} cor={tinta} />
       {/* O código, que é o que a etiqueta carrega. */}
       <G stroke={tinta}>
         <Path d="M262 28h4v28h-4zM272 28h2v28h-2zM280 28h5v28h-5zM291 28h2v28h-2zM299 28h4v28h-4zM309 28h2v28h-2zM317 28h5v28h-5zM328 28h2v28h-2zM336 28h4v28h-4z" />
@@ -747,25 +749,57 @@ function Pessoa({
   );
 }
 
-/** OS AJUSTES — os cursores, e o que se move quando alguém escolhe. */
+/**
+ * OS AJUSTES — os cursores, e o que se move quando alguém escolhe.
+ *
+ * Três trilhos do mesmo comprimento em alturas iguais é o padrão de papel de
+ * parede outra vez — a mesma coisa que o dono recusou na rua. Comprimentos e
+ * percursos diferentes, e uma só alavanca com cor: a que está sendo mexida.
+ */
 function Ajustes({ tinta, acento, frio }: Pincel) {
   return (
     <>
-      <Cursor y={24} cor={acento} atrasoMs={0} />
-      <Cursor y={44} cor={tinta} atrasoMs={1900} />
-      <Cursor y={62} cor={frio} atrasoMs={3800} />
+      <Cursor x={16} largura={210} y={22} inicio={0.62} curso={0.3} cor={tinta} atrasoMs={0} />
+      <Cursor x={16} largura={300} y={42} inicio={0.18} curso={0.55} cor={acento} atrasoMs={1700} />
+      <Cursor x={16} largura={158} y={60} inicio={0.4} curso={0.35} cor={tinta} atrasoMs={3400} />
+
+      {/* O interruptor: nem toda escolha é um cursor. */}
+      <G stroke={frio}>
+        <Path d="M262 14h56a10 10 0 0 1 0 20h-56a10 10 0 0 1 0-20z" />
+        <Circle cx="308" cy="24" r="6" />
+      </G>
     </>
   );
 }
 
-function Cursor({ y, cor, atrasoMs }: { y: number; cor: string; atrasoMs: number }) {
+function Cursor({
+  x,
+  largura,
+  y,
+  inicio,
+  curso,
+  cor,
+  atrasoMs,
+}: {
+  x: number;
+  largura: number;
+  y: number;
+  /** Onde a alavanca fica em repouso, de 0 a 1 do trilho. */
+  inicio: number;
+  /** Quanto ela percorre. Percursos iguais em trilhos diferentes é o mesmo defeito. */
+  curso: number;
+  cor: string;
+  atrasoMs: number;
+}) {
   const ciclo = useCiclo(7200, { feitio: 'vaivem', atrasoMs, repouso: 0.5 });
-  const botao = useAnimatedProps(() => ({ transform: [{ translateX: ciclo.value * 190 }] }));
+  const botao = useAnimatedProps(() => ({
+    transform: [{ translateX: (inicio + curso * (ciclo.value - 0.5)) * largura }],
+  }));
   return (
     <>
-      <Path d={`M20 ${y}h300`} stroke={cor} opacity={0.45} />
+      <Path d={`M${x} ${y}h${largura}`} stroke={cor} opacity={0.4} />
       <AnimatedG animatedProps={botao} stroke={cor}>
-        <Circle cx="80" cy={y} r="7" />
+        <Circle cx={x} cy={y} r="7" />
       </AnimatedG>
     </>
   );

@@ -27,7 +27,9 @@ de altura, este número muda junto — e é melhor ele estar errado e visível a
 que a folha sair desalinhada sem ninguém saber por quê.
 """
 import os
+import subprocess
 import sys
+import time
 
 try:
     from PIL import Image, ImageDraw
@@ -45,7 +47,24 @@ arquivos = sorted(
 if not arquivos:
     sys.exit('nenhuma foto casou — rode `npm run shot` antes')
 
-tiras = [(f[: -len(SUFIXO)], Image.open(f'.shots/{f}').crop(FAIXA)) for f in arquivos]
+# Monta a folha ENQUANTO a exportação escreve e você lê uma linha velha sem
+# saber. Aconteceu na primeira vez: julguei uma cena pela versão anterior dela e
+# quase "consertei" um desenho que já estava certo. Duas redes contra isso — a
+# recusa se o `shot.mjs` estiver de pé, e a hora de cada arquivo escrita ao lado
+# do nome, para uma linha atrasada aparecer em vez de enganar.
+try:
+    vivo = subprocess.run(['pgrep', '-f', 'scripts/shot' + '.mjs'],
+                          capture_output=True, text=True).stdout.strip()
+except FileNotFoundError:
+    vivo = ''
+if vivo:
+    sys.exit('a exportação ainda está rodando — a folha sairia com linhas velhas. Espere terminar.')
+
+tiras = [
+    (f'{f[: -len(SUFIXO)]}  ·  {time.strftime("%H:%M", time.localtime(os.path.getmtime(f".shots/{f}")))}',
+     Image.open(f'.shots/{f}').crop(FAIXA))
+    for f in arquivos
+]
 altura = FAIXA[3] - FAIXA[1]
 folha = Image.new('RGB', (FAIXA[2], altura * len(tiras)), '#FAF7F2')
 lapis = ImageDraw.Draw(folha)
