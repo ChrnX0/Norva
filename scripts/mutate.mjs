@@ -553,8 +553,13 @@ const DEFECTS = [
   },
   {
     file: 'src/assistant/skills.ts',
-    from: "    for (const p of perdas) porMotivo.set(p.reason, (porMotivo.get(p.reason) ?? 0) + p.valueCents);",
-    to: "    for (const p of perdas) porMotivo.set(p.reason, Math.max(porMotivo.get(p.reason) ?? 0, p.valueCents));",
+    // O `?? 0` entrou quando o portão do dinheiro passou a devolver `valueCents`
+    // nulo para quem não vê custo, e esta mutação ficou apontando para a linha de
+    // antes — caduca, que a ferramenta marca com `?` e conta como defeito. É o
+    // conserto certo: mutação que não aplica não prova nada, e uma que não aplica
+    // em silêncio seria pior.
+    from: "    for (const p of perdas) porMotivo.set(p.reason, (porMotivo.get(p.reason) ?? 0) + (p.valueCents ?? 0));",
+    to: "    for (const p of perdas) porMotivo.set(p.reason, Math.max(porMotivo.get(p.reason) ?? 0, p.valueCents ?? 0));",
     hurts: 'o assistente aponta a maior perda isolada como causa, e manda olhar o freezer quando quem come o mes e a validade',
   },
   {

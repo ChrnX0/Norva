@@ -5600,3 +5600,42 @@ comparar o que as migrações declaram com o que alguma consulta lê de volta.
 E o achado só apareceu porque a peça nova precisou do campo. **Construir é a leitura mais
 atenta que existe:** três auditorias passaram por `recordPurchase` sem ver, e um `SELECT`
 novo viu na primeira tarde.
+
+---
+
+## A mutação tinha caducado, e a barra dizia verde há dias
+
+*6 de setembro, com o repositório aberto por uma hora.* O dono abriu o repo para destravar
+os minutos da CI, e a bateria pesada rodou pela primeira vez em dias. Quatro dos cinco jobs
+verdes — inclusive o `db:verify` contra um Postgres de verdade e o portão. O quinto reprovou,
+e o motivo é do tipo que **nenhuma barra local pegava**, porque local eu nunca rodava a
+mutação inteira:
+
+```
+?  src/assistant/skills.ts: o trecho mudou — atualize esta mutação
+   o assistente aponta a maior perda isolada como causa …
+```
+
+Não é mutação **sobrevivente**: é mutação **caduca**. A linha que ela quebrava era
+`... + p.valueCents`; quando o portão do dinheiro entrou e `lossesOn` passou a devolver
+`valueCents` nulo para quem não vê custo, a linha virou `... + (p.valueCents ?? 0)`. A
+mutação deixou de casar, deixou de aplicar — e **a regra do assistente ficou sem rede desde
+então, com a suíte verde por cima**.
+
+**A camada nova do mesmo defeito de sempre.** O `mutate` existe porque suíte verde não quer
+dizer regra protegida. Aqui foi um degrau acima: **a própria ferramenta que mede a proteção
+tinha uma medida quebrada**, e como ela imprime `?` em vez de `ok`, o único jeito de ver era
+ler a saída inteira — que é exatamente o que ninguém faz quando o comando leva seis minutos
+e some no fim de uma barra longa.
+
+O conserto foi de uma linha, e o que fica é maior: **toda mutação é acoplada a um texto exato
+do código, então toda mudança de código pode caducar uma sem avisar.** A ferramenta já
+distingue os três estados (`ok`, `?`, sobrevivente) e conta o `?` como defeito — isso estava
+certo. O que faltava era a mutação rodar em algum lugar onde alguém lesse: ela roda só no
+pesado, o pesado roda só em PR fora de rascunho, e o PR ficou meses em rascunho por decisão
+de custo. **Três decisões razoáveis, cada uma barata sozinha, e juntas uma regra sem rede
+por dias.**
+
+E o achado veio de graça, de uma janela de uma hora que existia por outro motivo. Vale
+lembrar disso na próxima vez que a conta apertar: o pesado não é luxo, é o único que
+responde a pergunta que o rápido não faz.
