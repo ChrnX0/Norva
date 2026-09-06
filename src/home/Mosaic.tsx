@@ -31,7 +31,16 @@ import { briefingFilas, coverState, type BriefingWidget } from '@/domain/briefin
 import { daysBetween, localDate } from '@/domain/day';
 import type { Cents } from '@/domain/money';
 import { brand } from '@/config/brand';
-import { CartaoClima, Comparativo, Legenda, Manchete, Nivel, Regua, Versalete } from './Capa';
+import {
+  CartaoClima,
+  Comparativo,
+  Legenda,
+  Manchete,
+  Nivel,
+  Porta,
+  Regua,
+  Versalete,
+} from './Capa';
 import { Peca } from './Peca';
 import { useVestimenta } from './capas/vestimenta';
 import type { BriefingView, Summary } from './types';
@@ -294,7 +303,7 @@ export function Mosaic(vista: BriefingView) {
       <Reveal index={1}>
         <View style={{ gap: space.lg }}>
           {data && data.shortly.length > 0 ? (
-            <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.runningOut}>
+            <Porta aoTocar={() => go('/inputs')} etiqueta={t.app.home.runningOut} convite={t.app.home.openScreen}>
               <Nivel
                 parcela={Math.min(1, data.shortly[0].daysLeft / 30)}
                 nome={data.shortly[0].name}
@@ -304,13 +313,13 @@ export function Mosaic(vista: BriefingView) {
                   days: plural(Math.floor(data.shortly[0].daysLeft), t.app.home.dayCount),
                 })}
               />
-            </Touchable>
+            </Porta>
           ) : data?.everMade && data.cover.length > 0 ? (
             // Está tudo bem é estado válido — e aqui ele é MOSTRADO, não
             // afirmado: o pote do insumo mais curto aparece cheio, com quanto
             // ele dura. Uma frase dizendo "insumos em dia" pede confiança; o
             // desenho do nível entrega a prova junto.
-            <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.inputsFine}>
+            <Porta aoTocar={() => go('/inputs')} etiqueta={t.app.home.inputsFine} convite={t.app.home.openScreen}>
               <Nivel
                 parcela={Math.min(1, data.cover[0].daysLeft / 30)}
                 nome={data.cover[0].name}
@@ -319,11 +328,11 @@ export function Mosaic(vista: BriefingView) {
                   days: plural(Math.floor(data.cover[0].daysLeft), t.app.home.dayCount),
                 })}
               />
-            </Touchable>
+            </Porta>
           ) : null}
 
           {data && data.boxes > 0 ? (
-            <Touchable onPress={() => go('/transport')} accessibilityLabel={t.app.home.boxesTitle}>
+            <Porta aoTocar={() => go('/transport')} etiqueta={t.app.home.boxesTitle} convite={t.app.home.openScreen}>
               <View>
                 <Versalete>{t.app.home.boxesTitle}</Versalete>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.sm }}>
@@ -358,7 +367,7 @@ export function Mosaic(vista: BriefingView) {
                     : ''}
                 </Legenda>
               </View>
-            </Touchable>
+            </Porta>
           ) : null}
         </View>
       </Reveal>
@@ -493,7 +502,7 @@ export function Mosaic(vista: BriefingView) {
        */
       moved.length === 0 ? (
         <Reveal index={6}>
-          <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.allSteady}>
+          <Porta aoTocar={() => go('/inputs')} etiqueta={t.app.home.allSteady} convite={t.app.home.openScreen}>
             <Card
               hue={palette.sky}
               icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
@@ -510,11 +519,11 @@ export function Mosaic(vista: BriefingView) {
                   : t.app.home.stableAlways}
               </Text>
             </Card>
-          </Touchable>
+          </Porta>
         </Reveal>
       ) : (
         <Reveal index={6}>
-          <Touchable onPress={() => go('/inputs')} accessibilityLabel={t.app.home.changed}>
+          <Porta aoTocar={() => go('/inputs')} etiqueta={t.app.home.changed} convite={t.app.home.openScreen}>
             <Card hue={palette.sky} icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />} title={t.app.home.changed}>
               <View style={{ gap: space.sm }}>
                 {moved.map((change) => {
@@ -533,7 +542,7 @@ export function Mosaic(vista: BriefingView) {
                 })}
               </View>
             </Card>
-          </Touchable>
+          </Porta>
         </Reveal>
       )
     ),

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarHeightContext } from 'expo-router/js-tabs';
 import { useContext } from 'react';
 import { SkyMark } from '@/components/Sky';
+import { Touchable } from '@/components/Touchable';
 import { useCiclo } from '@/components/vida';
 import { MEDIDA_DA_PAGINA } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -58,6 +59,49 @@ export function Versalete({ children, cor }: { children: ReactNode; cor?: string
  * duas ela faz a mesma coisa: diz em palavras o que o desenho acabou de dizer em
  * forma. É o `[por quê?]` da Lei 6 servido antes de alguém perguntar.
  */
+/**
+ * A PORTA — a peça da capa que leva para outra tela.
+ *
+ * Das quinze peças, nove ABREM no lugar e quatro LEVAM para outra tela. As nove
+ * dizem "toque para ver mais" no rodapé; as quatro não diziam nada, e quem tocava
+ * não tinha como saber qual das duas coisas ia acontecer. Isso não era decisão:
+ * era herança, e o dono acertaria em chamar de defeito.
+ *
+ * O conserto não é escrever a frase em quatro lugares — é fazer a porta TRAZER o
+ * rótulo, porque a frase escrita à mão some no quinto lugar que alguém
+ * acrescentar. Aqui o toque e o aviso do toque são a mesma peça e não dá para ter
+ * um sem o outro.
+ *
+ * A seta é a mesma do resto do aplicativo, e o rótulo é o mesmo `openScreen` que
+ * as peças abertas já usam por dentro: quem toca duas peças diferentes lê a mesma
+ * palavra para a mesma coisa.
+ */
+export function Porta({
+  aoTocar,
+  etiqueta,
+  convite,
+  children,
+}: {
+  aoTocar: () => void;
+  /** O que o leitor de tela anuncia — o assunto, não "abrir". */
+  etiqueta: string;
+  /** "Abrir a tela", já traduzido: quem escreve português é a tela, não o desenho. */
+  convite: string;
+  children: ReactNode;
+}) {
+  const { type, space, accent } = useTheme();
+  return (
+    <Touchable onPress={aoTocar} accessibilityLabel={etiqueta}>
+      <View>
+        {children}
+        <Text style={[type.caption, { color: accent, marginTop: space.sm }]}>
+          {`${convite} \u2192`}
+        </Text>
+      </View>
+    </Touchable>
+  );
+}
+
 export function Legenda({ children }: { children: ReactNode }) {
   const { color, type } = useTheme();
   return (
