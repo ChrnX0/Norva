@@ -1,4 +1,4 @@
-import { Fragment, useState, type ReactNode } from 'react';
+import { Fragment, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Bars } from '@/components/Bars';
 import { Drain } from '@/components/Drain';
@@ -101,6 +101,30 @@ export function Mosaic(vista: BriefingView) {
 
   /** As corridas que têm taxa congelada, que é o que a peça de custo compara. */
   const comCusto = (data?.runs ?? []).filter((r) => r.unitCostRate !== null);
+
+  /**
+   * O casco de cada peça da pele, montado UMA VEZ.
+   *
+   * A peça da pele recebe o próprio casco e o veste por dentro, porque só ela
+   * sabe se tem o que dizer: vestindo por fora, a capa só enxerga um elemento
+   * React, e um componente que devolve `null` na hora de desenhar continua sendo
+   * um elemento — o casco saía desenhado em volta do nada, que na foto do
+   * Orgânico é um cartão branco vazio no meio da capa.
+   *
+   * E ele é memorizado porque **componente criado dentro do render é um TIPO
+   * novo a cada render**: o React desmonta e remonta a árvore inteira embaixo
+   * dele, e as colunas da semana recomeçavam a animação a cada toque em qualquer
+   * lugar da capa. A roupa vem do registro e não muda; o `useMemo` só diz isso
+   * ao React.
+   */
+  const cascas = useMemo(() => {
+    const Bloco = vestimenta.Bloco;
+    const out: Partial<Record<BriefingWidget, ComponentType<{ children: ReactNode }>>> = {};
+    for (const id of Object.keys(vestimenta.pecas ?? {}) as BriefingWidget[]) {
+      out[id] = ({ children }) => <Bloco id={id}>{children}</Bloco>;
+    }
+    return out;
+  }, [vestimenta]);
 
   /**
    * As peças da capa, montadas na ordem que a casa combinou.
@@ -979,17 +1003,8 @@ export function Mosaic(vista: BriefingView) {
    * dito na cara dele. Se a substituição da pele viesse antes, o `firstDay` a
    * apagaria e o Orgânico voltaria a exibir a manchete do Papel.
    */
-  const Bloco = vestimenta.Bloco;
   for (const [id, Desenho] of Object.entries(vestimenta.pecas ?? {})) {
     const qual = id as BriefingWidget;
-    // A peça da pele recebe o próprio casco e o veste POR DENTRO, porque só ela
-    // sabe se tem o que dizer. Vestindo por fora, a capa só enxerga um elemento
-    // React — um componente que devolve `null` na hora de desenhar continua
-    // sendo um elemento, e o casco saía desenhado em volta do nada: na foto do
-    // Orgânico, um cartão branco vazio no meio da capa.
-    const Casca = ({ children }: { children: ReactNode }) => (
-      <Bloco id={qual}>{children}</Bloco>
-    );
     pecas[qual] = (
       <Desenho
         key={id}
@@ -997,7 +1012,7 @@ export function Mosaic(vista: BriefingView) {
         estado={estado}
         aberta={aberta}
         abrir={abrir}
-        Casca={Casca}
+        Casca={cascas[qual]!}
       />
     );
   }

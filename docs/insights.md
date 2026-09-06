@@ -4171,3 +4171,32 @@ a condição que faltava, e a semana virou peça própria no catálogo.
 **A regra que fica:** uma peça que devolve invólucro em vez de `null` está mentindo
 sobre existir, e a mentira fica invisível enquanto o casco for o nada. Antes de trocar
 o casco de qualquer coisa, confira o que o casco antigo estava escondendo.
+
+## 2026-09-06 — o ponto de extensão convida ao defeito que ele torna fácil
+
+**O que apareceu.** Para a peça de uma pele poder dizer "não tenho o que dizer", ela
+passou a receber o próprio casco (`Casca`) e vesti-lo por dentro. A forma óbvia de
+montar esse casco é criá-lo no lugar em que se sabe o `id` — dentro do render:
+
+```tsx
+const Casca = ({ children }) => <Bloco id={qual}>{children}</Bloco>;
+```
+
+Isso funciona, compila, passa em tudo, e **desmonta a árvore inteira a cada
+renderização**: componente criado dentro do render é um TIPO novo toda vez, e o React
+não reconcilia dois tipos diferentes — ele joga fora e remonta. Na tela: as colunas da
+semana recomeçando a animação a cada toque em qualquer lugar da capa.
+
+**Por que importa.** O defeito não existia antes do ponto de extensão, e não é culpa de
+quem o escreveu: **injetar componente é a coisa que o contrato pede**, e a maneira
+natural de produzir um componente ali dentro é a errada. Um ponto de extensão não é
+neutro — ele torna algumas coisas fáceis, e as fáceis são as que vão acontecer. A
+terceira pele vai escrever exatamente esta linha.
+
+**O que mudou.** O casco de cada peça é montado uma vez, num `useMemo` sobre a
+vestimenta — que vem do registro e não muda. O comentário no lugar diz o porquê, porque
+é ali que a próxima pessoa vai olhar.
+
+**A regra que fica:** ao abrir um ponto de extensão, escreva também qual é o jeito
+errado que ele torna conveniente. Contrato que só diz o que aceitar deixa o resto por
+conta da sorte de quem chega depois.
