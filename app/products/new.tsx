@@ -38,7 +38,7 @@ import {
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
-import { fromDecimal } from '@/domain/money';
+import { rate } from '@/domain/money';
 import {
   costPerProductUnit,
   costRecipe,
@@ -49,7 +49,7 @@ import {
 } from '@/domain/recipe';
 import { type PackagingHierarchy } from '@/domain/units';
 import { parseTyped } from '@/domain/number';
-import { currencySymbol, fill, formatMoney, formatQuantity } from '@/i18n';
+import { currencySymbol, fill, formatMoney, formatUnitRate, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -221,21 +221,31 @@ function ProductForm() {
     const portion = num(perUnit);
     if (!Number.isFinite(portion) || portion <= 0) return null;
 
-    const packagingCents = fromDecimal(num(packagingCost) || 0);
+    /**
+     * A embalagem digitada é TAXA, não centavo inteiro.
+     *
+     * Era `fromDecimal(...)`, que arredonda: um rótulo a R$ 0,004 por unidade
+     * virava zero aqui, entrava de graça na conta e ia para o `unit_cost_rate`
+     * congelado de toda corrida — que não se corrige, se estorna. `rate(x, 1)` é
+     * "x reais por UMA unidade produzida", e é a mesma espécie de número da polpa
+     * a R$ 12,40/kg. Só o valor final arredonda, e quem arredonda é
+     * `costPerProductUnit`, uma vez, no fim.
+     */
+    const packagingRate = rate(num(packagingCost) || 0, 1);
     const cost = costRecipe(chosenRecipe, data.graph, data.costs, data.labels);
 
     // O que a lista de embalagem custa, cotada pelas notas de compra. Some junto
     // com o valor digitado porque as duas metades são reais: uma sai do estoque,
     // a outra é o que ninguém quis transformar em item.
     const itemsRate = packagingRatePerUnit(chosenWrappings, data.costs);
-    const unit = costPerProductUnit(cost, portion, { cents: packagingCents, itemsRate });
+    const unit = costPerProductUnit(cost, portion, { typedRate: packagingRate, itemsRate });
     const units = unitsPerBatch(cost, portion);
 
     return {
       cost,
       unit,
       units,
-      packagingCents,
+      packagingRate,
       itemsRate,
       mixOnly: costPerProductUnit(cost, portion),
     };
@@ -335,7 +345,7 @@ function ProductForm() {
         kind,
         recipeId: kind === 'product' ? chosenRecipe : null,
         yieldPerUnit: kind === 'product' ? num(perUnit) : null,
-        unitPackagingCents: fromDecimal(num(packagingCost) || 0),
+        unitPackagingRate: rate(num(packagingCost) || 0, 1),
         packagingItems: chosenWrappings,
         shelfLifeDays: num(shelfLife) || null,
         fullLevel: num(fullLevel) > 0 ? num(fullLevel) : null,
@@ -756,8 +766,13 @@ function ProductForm() {
                   : t.app.productForm.mixPlusPackaging,
                 {
                   mix: formatMoney(costing.mixOnly, locale),
-                  packaging: formatMoney(costing.packagingCents, locale),
-                  stock: formatMoney(Math.round(costing.itemsRate), locale),
+                  // As duas metades são TAXAS: preço por unidade produzida. Com
+                  // `formatMoney` (e, no caso do estoque, com um `Math.round`
+                  // antes), qualquer embalagem abaixo de meio centavo aparecia
+                  // como R$ 0,00 — a tela dizendo de graça o que o razão já tinha
+                  // parado de dar de graça.
+                  packaging: formatUnitRate(costing.packagingRate, locale),
+                  stock: formatUnitRate(costing.itemsRate, locale),
                 },
               )}
             </Text>

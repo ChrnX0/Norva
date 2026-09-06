@@ -239,7 +239,7 @@ function Production() {
 
     // Mesmo número que o livro-razão vai congelar: o consumo (que agora inclui a
     // embalagem que sai do estoque) mais o que foi digitado à mão.
-    const packaging = selected.unitPackagingCents;
+    const packaging = selected.unitPackagingRate;
     return { lines, unitCostRate: value / units + packaging, short };
   }, [selected, recipe, data, consumedBatches, units, t.app.places.factory]);
 

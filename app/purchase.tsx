@@ -470,7 +470,7 @@ async function recordAndMeasure(
       return {
         name: product.name,
         value: costPerProductUnit(cost, product.yieldPerUnit, {
-          cents: product.unitPackagingCents,
+          typedRate: product.unitPackagingRate,
           itemsRate: packagingRatePerUnit(product.packagingItems, costs),
         }),
       };

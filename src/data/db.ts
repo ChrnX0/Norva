@@ -673,8 +673,38 @@ CREATE INDEX IF NOT EXISTS movements_reversal_idx
   WHERE reverses_movement_id IS NOT NULL;
 `;
 
+/**
+ * A embalagem digitada vira TAXA, porque preço por unidade sempre foi taxa.
+ *
+ * `unit_packaging_cents` guarda em centavo INTEIRO o valor que a fábrica digita
+ * para o que não lista no estoque — rótulo, fita, o que ninguém quer contar
+ * (migração V13). A tela fazia `fromDecimal(0,004)`, que é `Math.round(0,4)` =
+ * **zero**: rótulo abaixo de meio centavo entrava de graça. E entrava no
+ * `unit_cost_rate` **congelado** de toda corrida daquele produto — que, pela
+ * fundação desta casa, não se corrige: se estorna.
+ *
+ * É a fundação da capa na letra — *"`Cents` é inteiro, `Rate` é fracionário;
+ * valor que alguém paga e preço por unidade não são o mesmo tipo de número"* —
+ * e é o mesmo defeito da polpa a R$ 12,40/kg, num canto onde ninguém olhou.
+ *
+ * **A coluna velha fica e para de ser lida.** Migração não se edita: apagar a
+ * antiga faria banco e arquivo divergirem em silêncio em qualquer aparelho que
+ * já rodou a V13. Ela fica dormente, com este motivo escrito, e a nova nasce
+ * preenchida a partir dela — o que preserva exatamente o que cada fábrica já
+ * tinha digitado, com a precisão que ela tinha na hora.
+ *
+ * **Por que agora.** O `LossReason` deixou a regra: o vocabulário de um razão só
+ * é livre para mudar enquanto nenhuma linha foi gravada com ele. O servidor não
+ * está no ar por decisão do dono, então a janela está aberta. Ela fecha no dia
+ * do primeiro cliente.
+ */
+const V18 = `
+ALTER TABLE products ADD COLUMN unit_packaging_rate REAL NOT NULL DEFAULT 0;
+UPDATE products SET unit_packaging_rate = unit_packaging_cents;
+`;
+
 const MIGRATIONS: readonly string[] = [
-  V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17,
+  V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
 ];
 
 export type SqlParam = string | number | null;

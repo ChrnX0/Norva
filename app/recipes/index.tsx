@@ -100,7 +100,7 @@ function RecipesList() {
           product?.yieldPerUnit
             ? formatMoney(
                 costPerProductUnit(cost, product.yieldPerUnit, {
-                  cents: product.unitPackagingCents,
+                  typedRate: product.unitPackagingRate,
                   itemsRate: packagingRatePerUnit(product.packagingItems, costs),
                 }),
                 locale,

@@ -4073,3 +4073,42 @@ pequeno, que é exatamente o caso que o conserto existe para servir.
 valor pelos dois lados** — quem escreve e quem lê. O portão P3 diz "é caro e
 permanente"; o que ele quer dizer na prática é "a forma tem de ser lida por olhos que
 não são os que a escreveram", e uma rodada de intervalo é a versão barata disso.
+
+## 2026-09-06 — o portão P2 é uma pergunta, e eu a respondi sozinho
+
+**O que apareceu.** Travei o reflow em colunas no portão P2 completando a frase da
+casa — *"eu mudaria isto se eu visse ___"* → *"se eu visse alguém usando um tablet"* —
+e concluí: ninguém neste produto usa. Escrevi isso no roadmap com o raciocínio inteiro:
+as decisões do dono falam de celular de fábrica, luva e câmara fria; o único tablet que
+existe é uma largura no meu script de foto.
+
+O dono leu e respondeu em uma linha: *"eu tenho um tablet, depois a gente compila o
+apk e eu testo, bora pro seguinte."*
+
+**Por que importa.** O P2 **não é uma afirmação sobre o mundo, é uma pergunta** — e o
+que ele pergunta é se existe quem observe. Eu tratei a pergunta como se a resposta
+fosse dedutível do repositório, e ela não é: a resposta estava do outro lado da
+conversa, a uma frase de distância. O portão travou trabalho por eu não ter perguntado.
+
+E ele tem um irmão na mesma rodada, com o mesmo formato. Escrevi que o Espelho da Loja
+e as compras inteligentes "travam por dado". O dono cobrou: *"vc nao pode alimentar
+mais dados no banco de dados??????"*. Podia. O que eu tinha misturado eram três coisas
+que travam por motivos diferentes — o fiscal trava por certificado e homologação
+(externo, e nenhum dado encurta), e os outros dois **não travam para construir, travam
+para calibrar**. Qualquer padrão que um relatório descubra num banco semeado é o padrão
+que a semeadura plantou; a régua só se afere contra uma fábrica. Construir, exercitar a
+consulta com o razão crescido, ver a tela com o que dizer: tudo isso era agora.
+
+Os dois erros são o mesmo erro: **eu transformei "não sei" em "não dá"**, e escrevi a
+conclusão com a confiança de quem mediu. Um portão bem escrito não protege disso — ele
+até ajuda, porque dá à conclusão a forma de uma regra.
+
+**O que mudou.** As duas decisões do dono estão no `CLAUDE.md`, o roadmap foi corrigido
+nos dois pontos (o reflow voltou como construível, e a F4 passou a dizer "construir
+agora, calibrar depois"), e a coluna que eu tinha escrito como "trava por dado" virou
+uma tabela que separa os três casos.
+
+**A regra que fica:** quando o portão P2 pedir um observador, **procure o observador
+antes de declarar que não existe** — e o primeiro lugar a procurar é a pessoa com quem
+você está falando. Dedução sobre quem usa o produto não é medida; é palpite com cara
+de método.

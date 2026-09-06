@@ -61,7 +61,7 @@ const PRODUCTS: Product[] = [
     recipeId: 'popsicle',
     yieldPerUnit: 75,
     shelfLifeDays: 180,
-    unitPackagingCents: fromDecimal(0.05),
+    unitPackagingRate: rate(0.05, 1),
     packagingItems: [],
     packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }] },
     lineId: null,

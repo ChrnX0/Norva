@@ -239,7 +239,7 @@ const CROSSINGS: Record<
       'item_id',
       'recipe_id',
       'yield_per_unit',
-      'unit_packaging_cents',
+      'unit_packaging_rate',
       'shelf_life_days',
       'line_id',
       'type_id',

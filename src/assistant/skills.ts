@@ -62,7 +62,7 @@ const costOfProduct: Skill = {
     if (product?.recipeId && product.yieldPerUnit) {
       const cost = costRecipe(product.recipeId, graph, costs, names);
       const unit = costPerProductUnit(cost, product.yieldPerUnit, {
-        cents: product.unitPackagingCents,
+        typedRate: product.unitPackagingRate,
         itemsRate: packagingRatePerUnit(product.packagingItems, costs),
       });
       const mix = costPerProductUnit(cost, product.yieldPerUnit);
@@ -71,7 +71,7 @@ const costOfProduct: Skill = {
         text: `${product.name} custa ${formatMoney(unit, ctx.locale)} por unidade.`,
         detail: [
           { label: 'Massa', value: formatMoney(mix, ctx.locale) },
-          { label: 'Embalagem', value: formatMoney(product.unitPackagingCents, ctx.locale) },
+          { label: 'Embalagem', value: formatMoney(product.unitPackagingRate, ctx.locale) },
           { label: 'Custo do lote', value: formatMoney(cost.batchCents, ctx.locale) },
           {
             label: 'Perda prevista',

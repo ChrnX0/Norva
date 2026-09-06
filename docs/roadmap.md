@@ -32,8 +32,8 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | telas | **24** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **21** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **22** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **32** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V17** | último `const V` em `src/data/db.ts` |
+| migrações do servidor | **33** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V18** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **18** | `src/domain/access.ts` |
 | linhas de código | **~45.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -42,7 +42,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **356** testes |
+| `npm test` | **358** testes |
 | `npm run mutate` | **106** defeitos plantados, 104 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **36** checagens num navegador de verdade |
 | `npm run db:verify` | **13** garantias contra um Postgres descartável, sob RLS |
@@ -225,22 +225,39 @@ transporte cortava o nome do produto para caber o número.
 **De pé, e o primeiro item está TRAVADO pelo portão P2 — o que eu escrevi antes
 aqui estava errado:**
 
-1. **Refluir em colunas a 840 dp — trava por observação, não por trabalho.** Eu tinha
-   escrito isto como "o próximo passo do layout". Passando o portão P2 ("eu mudaria
-   isto se eu visse ___"), a frase sai inteira: *eu mudaria isto se eu visse alguém
-   usando um tablet*. Ninguém neste produto usa: as decisões do dono falam de celular
-   de fábrica, luva e câmara fria, e o único tablet que existe até hoje é uma largura
-   no meu script de foto.
-   O que a regra de layout exige — que a página **se adapte** — está feito e
-   conferido: a coluna para de crescer e se centraliza a partir de 600 dp
-   (`MEDIDA_DA_PAGINA`, `src/theme/tokens.ts`), e a 840 as linhas ficam legíveis em
-   vez de esticadas. Emparelhar cartão com cartão é desenho para um leitor que ainda
-   não existe, e a F7 não resolve: não é preferência de empresa, é fato sobre quem
-   usa. **Entra quando houver um tablet numa fábrica**, e o `shot -- --largura` já
-   sabe tirar as cinco larguras para julgar.
+1. **Refluir em colunas a 840 dp — DESTRAVADO, decisão do dono, 6 de setembro.**
+   Eu tinha travado isto no portão P2 completando a frase *"eu mudaria isto se eu
+   visse alguém usando um tablet"* e concluindo que ninguém usava. Errado: **o dono
+   tem um.** *"eu tenho um tablet, depois a gente compila o apk e eu testo, bora pro
+   seguinte."* O P2 não é uma regra sobre o mundo, é uma pergunta — e quando existe
+   quem observe, ele deixa de travar.
+   A metade que a regra de layout exige já está feita: a coluna para de crescer e se
+   centraliza a partir de 600 dp (`MEDIDA_DA_PAGINA`, `src/theme/tokens.ts`), e a 840
+   as linhas ficam legíveis em vez de esticadas. Falta a outra: **emparelhar cartão
+   com cartão**, que é por tela — os relatórios e o "Mais" são grades de pares; a
+   capa é uma página editorial e fica em coluna única; formulário em duas colunas num
+   toque é pior. `shot -- --largura` tira as cinco larguras para julgar, e o APK no
+   tablet dele é a prova final.
 2. **O cartão com desenho e sem título** deixa o glifo sozinho numa linha, em três
    telas (etiqueta do lote, clima, catálogo). No Papel lê como dingbat de seção e
    funciona; no Orgânico é um crachá flutuando. Decisão de desenho, não defeito.
+
+## A ORDEM — revista em 6 de setembro, com as decisões do dono
+
+A pergunta dele foi direta: *"o roadmap completo já foi feito, confere? sem ele nao faz
+sentido a gente sair fazendo as coisas pq vira bagunça."* Confere agora, e a ordem
+abaixo respeita duas decisões escritas dele — *"termina o layout, nada pela metade"* e
+*"depois do layout, o login/conta é o próximo, e ele pede estudo antes de código"*.
+
+| | o quê | por que nesta posição |
+|---|---|---|
+| **1** | **Refluir em colunas no tablet** | fecha o layout, que é a prioridade declarada, e agora tem quem teste: o dono tem tablet e vai rodar o APK. É a única coisa entre "o layout está pronto" e "o layout está pronto e visto". |
+| **2** | **Login e conta** | decisão dele de 5 de setembro, e ele pediu **estudo antes de código**: é a base de perfil, pedido de loja e notificação. Começar a escrever antes do estudo é o retrabalho que ele já pagou uma vez. |
+| **3** | **Espelho da Loja — construir** | destravado hoje: constrói e exercita agora, calibra depois. A captura (contagem cega, perda com motivo) já grava. |
+| **4** | **Os sete médios** | pequenos e independentes; cabem entre as coisas grandes. O maior é a aprovação de pedido, que é F7 — vira configuração da empresa, não escolha nossa. |
+| **5** | **A sala do tacho** | pergunta de PADRÃO para o dono, não de qual; e trava no P3 porque muda onde o consumo é gravado. Fica para a câmara fria da F2. |
+| **6** | **Compras inteligentes** | mesma classe do 3 — construir agora, calibrar contra prazo real depois. |
+| — | **O fiscal** | fora, e o único que trava por algo que nenhum dado resolve: certificado A1 e homologação na SEFAZ. |
 
 De pé, nesta ordem e por este motivo:
 
@@ -271,52 +288,18 @@ De pé, nesta ordem e por este motivo:
    verde — a abertura em si só se julga num build de release, e a própria Expo diz
    isso desde a SDK 52.
 
-2. **A embalagem digitada é um `Rate`, e está guardada como `Cents`.** *(P3 — a forma
-   está decidida abaixo; falta executar, e não no fim de uma rodada longa.)*
+2. ~~**A embalagem digitada é um `Rate`, e está guardada como `Cents`.**~~ **FEITO em
+   6 de setembro.** `products.unit_packaging_rate` (aparelho `V18`, servidor `0033`),
+   a coluna antiga dormente e declarada em `src/sync/columns.test.ts`, as duas metades
+   do cálculo agora são taxas com a procedência preservada, e a tela mostra
+   **R$ 0,004** de volta em vez de R$ 0,00 (`formatUnitRate`). Provado nos dois
+   sentidos: o guarda do custo congelado fica vermelho quando o arredondamento volta,
+   e as 33 migrações aplicam contra Postgres com as treze garantias de pé.
 
-   `products.unit_packaging_cents` é o valor que a fábrica digita para o que **não**
-   lista no estoque — rótulo, fita, o que ninguém quer contar (migração V13, decisão
-   escrita). A tela faz `fromDecimal(0,004)`, que é `Math.round(0,4)` = **zero**:
-   rótulo abaixo de meio centavo entra de graça, e entra no `unit_cost_rate`
-   **congelado** de toda corrida daquele produto — que não se corrige, se estorna.
-
-   É a fundação da capa deste projeto, na letra: *"`Cents` é inteiro, `Rate` é
-   fracionário. Valor que alguém paga e preço por unidade não são o mesmo tipo de
-   número."* Preço por unidade produzida é `Rate`. É o mesmo defeito da polpa a
-   R$ 12,40/kg, num lugar onde ninguém olhou.
-
-   A forma, para a próxima rodada não a adivinhar:
-
-   - migração nova dos dois lados (aparelho `V18`, servidor `0033`), **append-only**:
-     coluna `unit_packaging_rate` (`REAL` / `numeric`), preenchida a partir da antiga;
-   - `unit_packaging_cents` **fica e para de ser lida** — migração não se edita, e a
-     coluna dormente com o motivo escrito é mais barata que uma divergência viva;
-   - a tela deixa de chamar `fromDecimal` nesse campo e passa o valor fracionário
-     direto ao `costPerProductUnit`, que já recebe `itemsRate` fracionário e já
-     arredonda **uma vez**, no fim — o caminho certo já existe ao lado;
-   - **`costPerProductUnit` passa a receber duas TAXAS, não uma taxa e um inteiro.**
-     Hoje a assinatura é `{ cents?: Cents; itemsRate?: number }`, e o docblock dela
-     explica por que os dois são nomeados: `itemsRate` é a embalagem que sai do
-     estoque, `cents` é a que ninguém quis virar item. A distinção é de PROCEDÊNCIA e
-     tem de ficar; o que muda é o tipo do segundo. Fundir os dois num só argumento
-     perderia a razão que o docblock guarda;
-   - **e as três telas que MOSTRAM esse valor têm de mudar junto** — `assistant/skills.ts`,
-     `app/recipes/[id].tsx` e a lista de receitas chamam `formatMoney(unitPackagingCents)`.
-     Com uma taxa fracionária, `formatMoney(0,4)` imprime **R$ 0,00**: o defeito sairia
-     do razão e apareceria na tela, dizendo que a embalagem é de graça. O aplicativo já
-     tem a resposta para isso e ela é a mesma da polpa — mostrar **a cada mil unidades**
-     (`app/inputs/[id].tsx:167`, `perThousand` no dicionário). É assim que estas três
-     passam a dizer.
-
-   **Estes dois últimos itens não estavam na primeira versão desta forma, e foram
-   achados conferindo antes de construir** — que é a razão de o P3 existir. A regra
-   de ouro se confirmou: forma escrita numa rodada, executada na seguinte, com uma
-   leitura adversarial no meio.
-
-   **Por que agora e não depois:** o `LossReason` deixou a regra escrita — *"custou
-   nada consertar porque nenhuma perda jamais foi registrada, que é a única janela em
-   que o vocabulário de um razão é livre para mudar"*. O servidor não está no ar por
-   decisão do dono, então a janela está aberta. Ela fecha no dia do primeiro cliente.
+   *De quebra, a metade LISTADA da embalagem já tinha o mesmo defeito na tela*:
+   `formatMoney(Math.round(itemsRate))` — um palito de meio centavo aparecia como
+   R$ 0,00 desde que a lista existe. Só apareceu porque a mudança de tipo obrigou a
+   olhar as duas.
 
 ### A sala do tacho — a decisão que a F2 precisa, e ela é do dono
 
@@ -382,8 +365,27 @@ o teste acontecer junto, não no fim.
 
 ## F4 — a fábrica que se explica sozinha
 
-**Trava por dado, não por código.** Tudo aqui precisa de meses de movimento real, e
-trabalhar mais rápido não encurta um dia.
+**Trava por CALIBRAÇÃO, não por construção — corrigido em 6 de setembro.**
+
+Eu tinha escrito "trava por dado", e o dono cobrou a frase: *"vc nao pode alimentar
+mais dados no banco de dados??????"*. Ele está certo, e a confusão era minha: eu tinha
+misturado três coisas que travam por motivos diferentes.
+
+| | trava? | por quê |
+|---|---|---|
+| **Fiscal (NF-e)** | **sim** | certificado A1 e homologação na SEFAZ. Externo, e não encurta com dado nenhum. |
+| **Espelho da Loja** | **não** | o relatório se constrói e se exercita hoje. |
+| **Compras inteligentes** | **não** | o prazo observado a simulação gera. |
+
+O que é verdade dos dois últimos não é "não dá para construir", é **não dá para
+calibrar**: qualquer padrão que o relatório descubra num banco semeado é um padrão que
+a semeadura plantou, e a régua — *isto é perda demais*, *compre agora* — só se afere
+contra uma fábrica. Então eles entram como **construir agora, calibrar depois**, com a
+régua marcada no código como suposição até alguém usá-la.
+
+E semear mais **compra coisa real**: consulta exercitada com o razão crescido,
+desempenho medido em vez de estimado, telas com o que dizer. Hoje são noventa dias
+(`HORIZONTE_DE_TESTE`); um ano é trocar uma constante.
 
 **O Espelho da Loja — a captura entra, o relatório espera.** Contagem cega e perdas
 com motivo já existem e já gravam. O relatório fica fora por decisão escrita: ele

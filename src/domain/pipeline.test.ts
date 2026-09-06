@@ -11,7 +11,7 @@ import {
   reorderPoint,
   type PurchaseEvent,
 } from './cost';
-import { fromDecimal, rate, type Cents, type Rate } from './money';
+import { fromDecimal, rate, type Rate } from './money';
 import {
   compareVersions,
   costPerProductUnit,
@@ -121,7 +121,7 @@ test('the buyer sees the move against the last invoice, not against the average'
 test('packaging is charged per unit, never smeared across the batch', () => {
   const cost = costRecipe('popsicle', recipes, costs);
   const bare = costPerProductUnit(cost, 75);
-  const wrapped = costPerProductUnit(cost, 75, { cents: fromDecimal(0.05) as Cents });
+  const wrapped = costPerProductUnit(cost, 75, { typedRate: rate(0.05, 1) });
 
   assert.equal(wrapped - bare, 5);
 

@@ -50,6 +50,15 @@ const SO_DO_APARELHO: Record<string, Record<string, string>> = {
   orders: {
     recorded_by: 'o servidor estampa a partir da sessão',
   },
+  products: {
+    // DORMENTE, e por isso não atravessa: quem manda agora é
+    // `unit_packaging_rate`, que é o mesmo número sem o arredondamento que
+    // transformava rótulo abaixo de meio centavo em zero (migração V18 /
+    // servidor 0033). A coluna antiga fica porque migração é append-only nos
+    // dois lados — apagá-la faria o banco divergir de qualquer aparelho que já
+    // rodou a V13 —, e mandá-la seria dar dois autores ao mesmo número.
+    unit_packaging_cents: 'dormente desde a V18; quem atravessa é unit_packaging_rate',
+  },
 };
 
 let conn: Db;

@@ -431,6 +431,17 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   duas lojas. Fica a pergunta em aberto, para estudo: como se faz o equivalente
   disso noutros países.
 
+- **O `EXPO_TOKEN` vazado fica como está, por ora.** Decisão do dono, 6 de setembro:
+  *"por enquanto eu nao vou trocar o token do expo"*. Está registrado para não virar
+  lembrete repetido — o risco continua o mesmo e a decisão de quando trocar é dele.
+
+- **O dono tem tablet, e vai testar o APK nele.** Decisão de 6 de setembro, e ela
+  destrava o que eu tinha travado no portão P2: *"eu tenho um tablet, depois a gente
+  compila o apk e eu testo"*. Vale a lição junto — **P2 não é uma afirmação sobre o
+  mundo, é uma pergunta**, e eu a respondi sozinho ("ninguém usa tablet") em vez de
+  fazê-la. Antes de travar um item por observação, cheque se quem observa está do
+  outro lado da conversa.
+
 - **Foto do cadastro mora no celular.** *"Começa simples, pelo celular. Mais para
   frente quando o app estiver gerando receita a gente faz um upgrade nisso."*
   Nuvem custa todo mês e não paga nada até o produto pagar.

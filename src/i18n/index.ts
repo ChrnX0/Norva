@@ -116,6 +116,33 @@ export function formatMoney(cents: number, locale: LocaleSettings): string {
  * volta o código ISO, que é feio e verdadeiro — melhor que o símbolo de outro
  * país.
  */
+/**
+ * Um PREÇO POR UNIDADE, escrito sem esconder o que é menor que um centavo.
+ *
+ * `formatMoney` recebe centavos inteiros e imprime duas casas, que é o certo para
+ * uma quantia que alguém paga. Uma taxa não é isso: rótulo a R$ 0,004 por unidade,
+ * polpa a 1,24 centavo por grama. Passar uma taxa para `formatMoney` imprime
+ * **R$ 0,00** — e foi assim que a embalagem "de graça" ia aparecer na tela depois
+ * de a mesma embalagem deixar de ser de graça no razão.
+ *
+ * A regra é mostrar o que a pessoa digitou: quem escreveu 0,004 no campo lê
+ * R$ 0,004 de volta, que é a coisa menos surpreendente possível. Acima de um
+ * centavo nada muda — duas casas, como no resto do aplicativo.
+ *
+ * Isto NÃO substitui o "a cada mil unidades" da tela de insumo: lá a pergunta é
+ * quanto vale um saco, e mil gramas é a escala em que a resposta se compara. Aqui
+ * a pergunta é quanto entra em cada picolé, e a escala é a unidade.
+ */
+export function formatUnitRate(rateInCents: number, locale: LocaleSettings): string {
+  const subCentavo = rateInCents !== 0 && Math.abs(rateInCents) < 1;
+  return new Intl.NumberFormat(locale.formatting, {
+    style: 'currency',
+    currency: locale.currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: subCentavo ? 4 : 2,
+  }).format(rateInCents / 100);
+}
+
 export function currencySymbol(locale: LocaleSettings): string {
   const partes = new Intl.NumberFormat(locale.formatting, {
     style: 'currency',

@@ -20,7 +20,7 @@ import {
   saveRecipeVersion,
 } from '@/data/repository';
 import { useQuery } from '@/data/useQuery';
-import type { Cents } from '@/domain/money';
+import type { Rate } from '@/domain/money';
 import {
   compareVersions,
   costPerProductUnit,
@@ -94,7 +94,7 @@ type Loaded = {
   items: { id: string; name: string; baseUnit: string }[];
   /** How much of the batch becomes one sellable unit, if a product says so. */
   yieldPerUnit: number | null;
-  unitPackagingCents: Cents;
+  unitPackagingRate: Rate;
   /** A embalagem que sai do estoque, para o custo cotado bater com o congelado. */
   packagingItems: { itemId: string; name: string; quantityPerUnit: number }[];
   packaging: { id: string; perBaseUnit: number }[];
@@ -139,7 +139,7 @@ function RecipeEditor() {
         .filter((i) => i.kind === 'input' || i.kind === 'packaging')
         .map((i) => ({ id: i.id, name: i.name, baseUnit: i.baseUnit })),
       yieldPerUnit: product?.yieldPerUnit ?? null,
-      unitPackagingCents: (product?.unitPackagingCents ?? 0) as Cents,
+      unitPackagingRate: (product?.unitPackagingRate ?? 0) as Rate,
       packagingItems: product?.packagingItems ?? [],
       packaging: product?.packaging.tiers ?? [{ id: 'unit', perBaseUnit: 1 }],
     };
@@ -235,7 +235,7 @@ function RecipeEditor() {
       const hasPortion = Number.isFinite(portion) && portion > 0;
       const unitCents = hasPortion
         ? costPerProductUnit(cost, portion, {
-            cents: data.unitPackagingCents,
+            typedRate: data.unitPackagingRate,
             itemsRate: packagingRatePerUnit(data.packagingItems, data.costs),
           })
         : null;
@@ -596,9 +596,9 @@ function RecipeEditor() {
               suffix="ml"
               keyboardType="numeric"
               hint={
-                data.unitPackagingCents > 0
+                data.unitPackagingRate > 0
                   ? fill(t.app.recipe.packagingHint, {
-                      amount: formatMoney(data.unitPackagingCents, locale),
+                      amount: formatMoney(data.unitPackagingRate, locale),
                     })
                   : undefined
               }

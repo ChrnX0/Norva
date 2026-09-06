@@ -1478,7 +1478,7 @@ export async function recordProduction(
   // por nota. Ou seja, o custo sai certo, mas o estoque de palito só sobe.
   // Ligar os dois é mudança de esquema (produto -> itens de embalagem, com
   // quantidade por unidade), e vem separada desta.
-  const unitCostRate = (consumedValue / input.unitsProduced + product.unitPackagingCents) as Rate;
+  const unitCostRate = (consumedValue / input.unitsProduced + product.unitPackagingRate) as Rate;
   const productionId = newId();
 
   const lotId = newId();
@@ -1573,7 +1573,7 @@ export async function recordProduction(
       averageRate: (custoAtual?.average_rate ?? 0) as Rate,
     };
     // A taxa CONGELADA entra na média, não a soma dos consumos: ela já carrega
-    // a embalagem por unidade (`unitPackagingCents`), que é dinheiro do produto
+    // a embalagem por unidade (`unitPackagingRate`), que é dinheiro do produto
     // e não sai de movimento nenhum. E entra como taxa, sem virar centavo
     // inteiro no caminho — `blendRate` existe por causa desses oito décimos de
     // milésimo.
@@ -1786,8 +1786,15 @@ export type Product = {
    * uma fábrica que não quer contar palito no estoque digita o valor e segue.
    * Quem lista os itens vê o custo deles sair do próprio livro-razão, e usa este
    * campo só para o que sobrou de fora — rótulo, fita, o que nunca virou item.
+   *
+   * **É `Rate`, e já foi `Cents`.** Preço por unidade produzida é taxa — a mesma
+   * espécie de número da polpa a 1,24 centavo por grama. Como inteiro, um rótulo
+   * a R$ 0,004 por unidade virava zero na porta de entrada, e o zero ia para o
+   * `unit_cost_rate` congelado de toda corrida, que não se corrige: se estorna.
+   * A coluna antiga (`unit_packaging_cents`) continua no banco, dormente, porque
+   * migração é append-only — quem lê é a nova (migração V18 / servidor 0033).
    */
-  unitPackagingCents: Cents;
+  unitPackagingRate: Rate;
   /**
    * A embalagem que sai do estoque, por unidade produzida.
    *
@@ -1823,7 +1830,7 @@ export async function listProducts(companyId: string): Promise<Product[]> {
     name: string;
     recipe_id: string | null;
     yield_per_unit: number | null;
-    unit_packaging_cents: number;
+    unit_packaging_rate: number;
     shelf_life_days: number | null;
     packaging: string;
     packaging_items: string;
@@ -1832,7 +1839,7 @@ export async function listProducts(companyId: string): Promise<Product[]> {
     flavor_id: string | null;
   }>(
     `SELECT p.id, p.item_id, i.name, p.recipe_id, p.yield_per_unit,
-            p.unit_packaging_cents, p.shelf_life_days, i.packaging,
+            p.unit_packaging_rate, p.shelf_life_days, i.packaging,
             p.packaging_items, p.line_id, p.type_id, p.flavor_id
        FROM products p
        JOIN items i ON i.id = p.item_id
@@ -1852,7 +1859,7 @@ export async function listProducts(companyId: string): Promise<Product[]> {
     name: r.name,
     recipeId: r.recipe_id,
     yieldPerUnit: r.yield_per_unit,
-    unitPackagingCents: r.unit_packaging_cents as Cents,
+    unitPackagingRate: r.unit_packaging_rate as Rate,
     shelfLifeDays: r.shelf_life_days,
     packaging: parsePackaging(r.packaging),
     lineId: r.line_id,
@@ -1900,7 +1907,8 @@ export async function saveProduct(
     kind: Extract<ItemKind, 'product' | 'resale'>;
     recipeId: string | null;
     yieldPerUnit: number | null;
-    unitPackagingCents: Cents;
+    /** Preço por unidade produzida — taxa, não centavo inteiro. Ver o tipo `Product`. */
+    unitPackagingRate: Rate;
     packaging: PackagingHierarchy;
     /**
      * Quantos dias este produto dura depois de feito. Nulo: não vence.
@@ -1993,13 +2001,13 @@ export async function saveProduct(
     productId = input.id ?? newId();
     await conn.runAsync(
       `INSERT INTO products (id, company_id, item_id, recipe_id, yield_per_unit,
-                             unit_packaging_cents, packaging_items, shelf_life_days, active,
+                             unit_packaging_rate, packaging_items, shelf_life_days, active,
                              line_id, type_id, flavor_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          recipe_id = excluded.recipe_id,
          yield_per_unit = excluded.yield_per_unit,
-         unit_packaging_cents = excluded.unit_packaging_cents,
+         unit_packaging_rate = excluded.unit_packaging_rate,
          packaging_items = excluded.packaging_items,
          shelf_life_days = excluded.shelf_life_days,
          line_id = excluded.line_id,
@@ -2011,7 +2019,7 @@ export async function saveProduct(
         itemId,
         input.recipeId,
         input.yieldPerUnit,
-        input.unitPackagingCents,
+        input.unitPackagingRate,
         packagingItems,
         input.shelfLifeDays ?? null,
         input.lineId ?? null,

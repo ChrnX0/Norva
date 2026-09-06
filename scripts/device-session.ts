@@ -40,7 +40,7 @@ import {
   itemCosts,
 } from '@/data/repository';
 import { ensureStarterData, LOCAL_COMPANY_ID } from '@/data/seed';
-import { fromDecimal } from '@/domain/money';
+import { fromDecimal, rate} from '@/domain/money';
 import { sendableTables, serialize, type SyncActor } from '@/sync/serialize';
 
 /** Stands in for whoever is signed in when the phone finally finds a tower. */
@@ -124,7 +124,7 @@ async function main() {
     kind: 'product',
     recipeId: null,
     yieldPerUnit: null,
-    unitPackagingCents: fromDecimal(0.05),
+    unitPackagingRate: rate(0.05, 1),
     // A lista de embalagem atravessa como `jsonb` do outro lado. Mandada crua,
     // o Postgres guardaria uma string entre aspas onde deveria haver lista - e o
     // consumo do outro lado passaria a somar nada, sem uma reclamação. É o mesmo

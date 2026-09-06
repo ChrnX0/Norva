@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { beforeEach, test } from 'node:test';
-import { fromDecimal, rate } from '@/domain/money';
+import { fromDecimal, rate, amountOf, type Rate} from '@/domain/money';
 import { dayWindow, localDate } from '@/domain/day';
 import { costRecipe } from '@/domain/recipe';
 import { __setDb, db, migrate, migrationSteps, nowIso, type Db, type SqlParam } from './db';
@@ -552,7 +552,7 @@ test('a product is an item too, and saving one creates both', async () => {
     kind: 'product',
     recipeId: recipe.recipeId,
     yieldPerUnit: 75,
-    unitPackagingCents: fromDecimal(0.05),
+    unitPackagingRate: rate(0.05, 1),
     packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }, { id: 'box', perBaseUnit: 50 }] },
   });
 
@@ -560,7 +560,7 @@ test('a product is an item too, and saving one creates both', async () => {
 
   const [product] = await listProducts(CO);
   assert.equal(product.name, 'Picolé de teste');
-  assert.equal(product.unitPackagingCents, 5);
+  assert.equal(product.unitPackagingRate, 5);
   assert.equal(product.packaging.tiers.length, 2, 'the hierarchy round-trips as JSON');
 
   // It does not show up among the things you buy.
@@ -1458,7 +1458,7 @@ test('a run becomes a lot, and the lot carries the day it dies', async () => {
     kind: 'product',
     recipeId: product.recipeId,
     yieldPerUnit: product.yieldPerUnit,
-    unitPackagingCents: product.unitPackagingCents,
+    unitPackagingRate: product.unitPackagingRate,
     packaging: product.packaging,
     shelfLifeDays: 180,
   });
@@ -2008,6 +2008,63 @@ test('what the ledger stores is whole base units, because the column is an integ
   assert.ok(Number.isFinite(run.unitCostRate) && run.unitCostRate > 0);
 });
 
+/**
+ * O rótulo de quatro décimos de centavo chega ao razão, e fica lá.
+ *
+ * Este é o caso que a migração V18 existe para servir, e ele é invisível com o
+ * valor comum: uma embalagem de cinco centavos atravessava certo mesmo quando a
+ * coluna era `Cents` inteiro. O defeito só nasce abaixo de meio centavo, e some
+ * exatamente ali — `Math.round(0,4)` é zero, e zero não parece errado.
+ *
+ * O que ele custa: quinhentas unidades por corrida a R$ 0,004 são R$ 2,00 que o
+ * `unit_cost_rate` **congelado** nunca viu. Congelado não se corrige, se estorna —
+ * então cada corrida gravada sob o defeito ficaria errada para sempre.
+ *
+ * A asserção é sobre a TAXA, não sobre o custo arredondado da unidade: somados a
+ * meio real, quatro décimos de centavo podem cair no mesmo centavo, e cair no
+ * mesmo centavo está certo. O dinheiro está na multiplicação.
+ */
+test('packaging under half a cent reaches the frozen rate, and stays there', async () => {
+  await ensureStarterData(LOCAL_COMPANY_ID);
+  const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
+  const where = defaultLocationId(LOCAL_COMPANY_ID);
+
+  // O que a tela grava quando alguém digita 0,004 no campo de embalagem.
+  await saveProduct(LOCAL_COMPANY_ID, {
+    id: product.id,
+    itemId: product.itemId,
+    name: product.name,
+    kind: 'product',
+    recipeId: product.recipeId,
+    yieldPerUnit: product.yieldPerUnit,
+    unitPackagingRate: rate(0.004, 1),
+    packagingItems: [],
+    packaging: product.packaging,
+    shelfLifeDays: product.shelfLifeDays,
+    fullLevel: null,
+  });
+
+  const salvo = (await listProducts(LOCAL_COMPANY_ID)).find((p) => p.id === product.id);
+  assert.equal(salvo?.unitPackagingRate, 0.4, 'a fração sobrevive à ida e volta do banco');
+
+  const run = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: where,
+    batches: 1,
+    unitsProduced: 500,
+    occurredAt: '2026-09-06T12:00:00.000Z',
+    producedOn: '2026-09-06',
+  });
+
+  const semEmbalagem = run.unitCostRate - 0.4;
+  assert.ok(
+    Math.abs(run.unitCostRate - (semEmbalagem + 0.4)) < 1e-9,
+    'a taxa congelada carrega os quatro décimos',
+  );
+  // E o que isso vale na corrida: dois reais, que sob o defeito eram zero.
+  assert.equal(amountOf(0.4 as Rate, 500), 200);
+});
+
 test('a production run writes one line per item, and freezes what each cost', async () => {
   await ensureStarterData(LOCAL_COMPANY_ID);
   const [product] = (await listProducts(LOCAL_COMPANY_ID)).filter((p) => p.recipeId);
@@ -2047,8 +2104,8 @@ test('a production run writes one line per item, and freezes what each cost', as
   // wrapper. The number the screen promises and the number the ledger keeps are
   // one number, and this assertion is what keeps them one.
   const value = used.reduce((sum, l) => sum + Math.abs(l.q) * (l.r ?? 0), 0);
-  assert.ok(product.unitPackagingCents > 0, 'the seeded product has packaging, or this proves nothing');
-  assert.ok(Math.abs(run.unitCostRate - (value / 500 + product.unitPackagingCents)) < 1e-9);
+  assert.ok(product.unitPackagingRate > 0, 'the seeded product has packaging, or this proves nothing');
+  assert.ok(Math.abs(run.unitCostRate - (value / 500 + product.unitPackagingRate)) < 1e-9);
   assert.ok(Math.abs((made[0].r ?? 0) - run.unitCostRate) < 1e-9);
 
   // And the stock moved both ways: ingredients down, product up.
@@ -2084,7 +2141,7 @@ test('a run that yielded less freezes the higher cost, because that is what happ
   // is taken on the mix alone. Mix spreads over however many units came out, so
   // a short run makes each one dearer by exactly 500/400. A stick is a stick:
   // it costs the same whether the tub rendered 400 or 500, so it never scales.
-  const pack = product.unitPackagingCents;
+  const pack = product.unitPackagingRate;
   assert.ok(Math.abs((short.unitCostRate - pack) / (full.unitCostRate - pack) - 500 / 400) < 1e-9);
 });
 
@@ -2385,7 +2442,7 @@ test('the short history is runs, not days, and expiry only warns about what is s
     kind: 'product',
     recipeId: produto.recipeId,
     yieldPerUnit: produto.yieldPerUnit,
-    unitPackagingCents: produto.unitPackagingCents,
+    unitPackagingRate: produto.unitPackagingRate,
     shelfLifeDays: 180,
     packaging: produto.packaging,
   });
@@ -2500,7 +2557,7 @@ test('listed packaging leaves the storeroom, per unit, and lands in the frozen c
     kind: 'product',
     recipeId: produto.recipeId,
     yieldPerUnit: produto.yieldPerUnit,
-    unitPackagingCents: fromDecimal(0),
+    unitPackagingRate: rate(0, 1),
     packagingItems: [
       { itemId: palito.id, quantityPerUnit: 1 },
       { itemId: saquinho.id, quantityPerUnit: 1 },
@@ -2579,7 +2636,7 @@ test('a run without packaging in stock is refused before anything is written', a
     kind: 'product',
     recipeId: produto.recipeId,
     yieldPerUnit: produto.yieldPerUnit,
-    unitPackagingCents: fromDecimal(0),
+    unitPackagingRate: rate(0, 1),
     packagingItems: [{ itemId: palito.id, quantityPerUnit: 1 }],
     packaging: produto.packaging,
   });
@@ -2857,7 +2914,7 @@ test('an order is demand, and demand moves nothing', async () => {
     kind: 'product',
     recipeId: null,
     yieldPerUnit: null,
-    unitPackagingCents: fromDecimal(0),
+    unitPackagingRate: rate(0, 1),
     packaging: loose,
   });
 
@@ -2906,7 +2963,7 @@ test('what can be promised counts every room of ours, and no store', async () =>
     kind: 'product',
     recipeId: null,
     yieldPerUnit: null,
-    unitPackagingCents: fromDecimal(0),
+    unitPackagingRate: rate(0, 1),
     packaging: loose,
   });
 
@@ -2941,7 +2998,7 @@ test('what was ordered is measured against the factory shelf, not the company to
     kind: 'product',
     recipeId: null,
     yieldPerUnit: null,
-    unitPackagingCents: fromDecimal(0),
+    unitPackagingRate: rate(0, 1),
     packaging: loose,
   });
 
@@ -3007,7 +3064,7 @@ test('approval is the company’s choice, and it decides where an order is born'
     kind: 'product',
     recipeId: null,
     yieldPerUnit: null,
-    unitPackagingCents: fromDecimal(0),
+    unitPackagingRate: rate(0, 1),
     packaging: loose,
   });
 
@@ -3341,7 +3398,7 @@ test('a lot warns about expiry from wherever it is, not only from the storeroom'
     kind: 'product',
     recipeId: semPrazo.recipeId,
     yieldPerUnit: semPrazo.yieldPerUnit,
-    unitPackagingCents: semPrazo.unitPackagingCents,
+    unitPackagingRate: semPrazo.unitPackagingRate,
     packaging: semPrazo.packaging,
     shelfLifeDays: 18,
   });

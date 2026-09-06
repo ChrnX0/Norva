@@ -20,7 +20,7 @@ import {
 } from './repository';
 import { LOCAL_COMPANY_ID, LOOSE, STACKED } from './seed';
 import { dayWindow, localDate } from '@/domain/day';
-import { cents, fromDecimal } from '@/domain/money';
+import { cents, fromDecimal, rate} from '@/domain/money';
 
 /**
  * Two weeks of a factory that exists, written through the real front door.
@@ -213,7 +213,7 @@ async function garantirElenco(companyId: string) {
           kind: 'product',
           recipeId: receita.recipeId,
           yieldPerUnit: 75,
-          unitPackagingCents: fromDecimal(0.05),
+          unitPackagingRate: rate(0.05, 1),
           packaging: STACKED,
           lineId: linha,
           typeId: novo.tipo,
@@ -237,7 +237,7 @@ async function garantirElenco(companyId: string) {
           kind: 'product',
           recipeId: morango.recipeId,
           yieldPerUnit: morango.yieldPerUnit,
-          unitPackagingCents: morango.unitPackagingCents,
+          unitPackagingRate: morango.unitPackagingRate,
           packaging: morango.packaging,
           shelfLifeDays: 120,
           lineId: linha,

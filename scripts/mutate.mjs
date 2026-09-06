@@ -718,14 +718,14 @@ const DEFECTS = [
   {
     file: 'src/data/repository.ts',
     from:
-      '  const unitCostRate = (consumedValue / input.unitsProduced + product.unitPackagingCents) as Rate;',
-    to: '  const unitCostRate = (consumedValue / (input.batches * 500) + product.unitPackagingCents) as Rate;',
+      '  const unitCostRate = (consumedValue / input.unitsProduced + product.unitPackagingRate) as Rate;',
+    to: '  const unitCostRate = (consumedValue / (input.batches * 500) + product.unitPackagingRate) as Rate;',
     hurts: 'o custo congela pelo rendimento prometido em vez do que saiu do tacho, e a perda some no instante em que aconteceu',
   },
   {
     file: 'src/data/repository.ts',
     from:
-      '  const unitCostRate = (consumedValue / input.unitsProduced + product.unitPackagingCents) as Rate;',
+      '  const unitCostRate = (consumedValue / input.unitsProduced + product.unitPackagingRate) as Rate;',
     to: '  const unitCostRate = (consumedValue / input.unitsProduced) as Rate;',
     hurts:
       'o palito e o saquinho somem do custo congelado, e toda margem futura sai inflada exatamente pela embalagem - com sete telas continuando a prometer o número certo',

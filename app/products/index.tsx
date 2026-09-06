@@ -101,7 +101,7 @@ function ProductsList() {
         name: product.name,
         recipeId: product.recipeId,
         unitCents: costPerProductUnit(cost, product.yieldPerUnit, {
-          cents: product.unitPackagingCents,
+          typedRate: product.unitPackagingRate,
           itemsRate: packagingRatePerUnit(product.packagingItems, costs),
         }),
         detail: fill(t.app.products.batchYields, {

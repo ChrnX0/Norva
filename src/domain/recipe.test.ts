@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { applyCostEvent, emptyStock, priceMove, reorderPoint } from './cost';
-import { allocateCents, cents, fromDecimal, rate, type Rate } from './money';
+import { allocateCents, amountOf, cents, fromDecimal, rate, type Rate } from './money';
 import {
   compareVersions,
   costPerProductUnit,
@@ -184,7 +184,7 @@ test('the packaging that leaves stock is inside the quoted unit cost', () => {
   assert.equal(costPerProductUnit(cost, 75, { itemsRate: 2 }) - soMassa, 2);
 
   // E as duas metades somam: o que sai do estoque mais o que foi digitado.
-  assert.equal(costPerProductUnit(cost, 75, { itemsRate: 2, cents: cents(3) }) - soMassa, 5);
+  assert.equal(costPerProductUnit(cost, 75, { itemsRate: 2, typedRate: rate(0.03, 1) }) - soMassa, 5);
 
   // A fração não se perde no caminho, e é por isso que a taxa entra fracionária:
   // meio centavo somado dez vezes é cinco centavos, não zero e não dez. Onde
@@ -208,8 +208,8 @@ test('the packaging that leaves stock is inside the quoted unit cost', () => {
 
 test('product cost adds per-unit packaging on top of the mix', () => {
   const cost = costRecipe('strawberry', recipes, itemCosts);
-  const packaging = cents(itemCosts.stick + itemCosts.wrapper);
-  const perUnit = costPerProductUnit(cost, 75, { cents: packaging });
+  const packaging = (itemCosts.stick + itemCosts.wrapper) as Rate;
+  const perUnit = costPerProductUnit(cost, 75, { typedRate: packaging });
   const mixOnly = costPerProductUnit(cost, 75);
 
   assert.equal(perUnit - mixOnly, packaging);
@@ -515,4 +515,44 @@ test('an item with no invoice yet is free, and that is not the same thing', () =
   const cost = costRecipe('base', priced, { sugar: 0.472 as Rate });
   assert.equal(cost.batchCents, 236);
   assert.equal(cost.lines[1].totalCents, 0);
+});
+
+/**
+ * O rótulo de quatro décimos de centavo, que entrava de graça.
+ *
+ * Este é o caso que a migração V18 existe para servir, e ele é invisível com o
+ * valor padrão: uma embalagem de cinco centavos atravessava certo mesmo quando o
+ * campo era `Cents` inteiro. O defeito só nasce abaixo de meio centavo — e é
+ * justamente aí que ele some, porque `Math.round(0,4)` é zero e zero não parece
+ * errado.
+ *
+ * Quinhentas unidades a R$ 0,004 são R$ 2,00 por corrida. Num ano de produção
+ * diária, mil e quinhentos reais que o custo congelado nunca viu — e custo
+ * congelado não se corrige, se estorna.
+ */
+test('packaging under half a cent is charged, not rounded away', () => {
+  const cost = costRecipe('strawberry', recipes, itemCosts);
+
+  // O que a tela produz a partir do que a pessoa digitou: R$ 0,004 por unidade.
+  const rotulo = rate(0.004, 1);
+  assert.equal(rotulo, 0.4, 'quatro décimos de centavo continuam quatro décimos');
+
+  // O que a porta de entrada fazia antes, dito como aritmética: o mesmo valor
+  // digitado virava ZERO, e zero não parece errado em lugar nenhum.
+  assert.equal(fromDecimal(0.004), 0, 'era isto que a tela gravava');
+
+  // **Onde ele aparece é na escala, não na unidade** — e essa é a parte que
+  // engana. `costPerProductUnit` arredonda UMA vez, no fim: quatro décimos de
+  // centavo somados a um custo de meio real podem cair no mesmo centavo, e cair
+  // no mesmo centavo está certo. O dinheiro está na multiplicação: quinhentas
+  // unidades por corrida, todo dia.
+  assert.equal(amountOf(rotulo, 1000), 400, 'mil rótulos são quatro reais, não zero');
+  assert.equal(amountOf(fromDecimal(0.004) as unknown as Rate, 1000), 0, 'e antes eram zero');
+
+  // E as duas metades somam ANTES de arredondar, que é a regra da casa: meio
+  // centavo de palito mais quatro décimos de rótulo é quase um centavo inteiro, e
+  // nenhum dos dois vira zero no caminho.
+  const soMassa = costPerProductUnit(cost, 75);
+  const juntos = costPerProductUnit(cost, 75, { typedRate: rotulo, itemsRate: 0.5 });
+  assert.equal(juntos - soMassa, 1, 'nove décimos arredondam para um centavo, uma vez');
 });

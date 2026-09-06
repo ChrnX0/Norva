@@ -224,23 +224,32 @@ export function packagingRatePerUnit(
  * possible to say so, instead of smearing it across the mix.
  *
  * Ela chega em duas metades, e as duas existem de propósito: `itemsRate` é a
- * embalagem que SAI DO ESTOQUE, cotada pelas notas de compra, e `cents` é o que
- * ninguém quis transformar em item — rótulo, fita, o valor que a fábrica digita
- * e segue. Somar as duas é o número que a produção congela, e é por isso que
- * este parâmetro é um objeto: um terceiro argumento solto seria esquecido numa
- * das cinco telas que cotam custo, e a tela passaria a prometer menos do que o
- * livro-razão guarda. Foi nesse buraco, na direção contrária, que a embalagem já
- * ficou fora do custo congelado uma vez.
+ * embalagem que SAI DO ESTOQUE, cotada pelas notas de compra, e `typedRate` é o
+ * que ninguém quis transformar em item — rótulo, fita, o valor que a fábrica
+ * digita e segue. Somar as duas é o número que a produção congela, e é por isso
+ * que este parâmetro é um objeto: um terceiro argumento solto seria esquecido
+ * numa das cinco telas que cotam custo, e a tela passaria a prometer menos do
+ * que o livro-razão guarda. Foi nesse buraco, na direção contrária, que a
+ * embalagem já ficou fora do custo congelado uma vez.
+ *
+ * **As duas são TAXAS, e a segunda nem sempre foi.** `typedRate` se chamava
+ * `cents` e era `Cents` inteiro: um rótulo a R$ 0,004 por unidade virava zero na
+ * porta de entrada, e o zero ia para o custo congelado de toda corrida. A
+ * distinção que este objeto guarda é de **procedência** — de onde o número veio,
+ * do estoque ou do dedo de alguém —, nunca de tipo; as duas sempre foram preço
+ * por unidade, que é a definição de taxa nesta casa. Fundir as duas num
+ * argumento só arrumaria o tipo e jogaria fora a procedência, que é o que o
+ * parágrafo acima existe para proteger.
  */
 export function costPerProductUnit(
   recipeCost: RecipeCost,
   yieldPerUnit: number,
-  unitPackaging: { cents?: Cents; itemsRate?: number } = {},
+  unitPackaging: { typedRate?: Rate; itemsRate?: number } = {},
 ): Cents {
   return cents(
     recipeCost.perYieldUnit * yieldPerUnit +
       (unitPackaging.itemsRate ?? 0) +
-      (unitPackaging.cents ?? 0),
+      (unitPackaging.typedRate ?? 0),
   );
 }
 

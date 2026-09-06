@@ -151,7 +151,7 @@ test('the full cold room alarms too, not only the empty storeroom', async () => 
     kind: 'product',
     recipeId: produto.recipeId,
     yieldPerUnit: produto.yieldPerUnit,
-    unitPackagingCents: produto.unitPackagingCents,
+    unitPackagingRate: produto.unitPackagingRate,
     packaging: produto.packaging,
     fullLevel: 100,
   });

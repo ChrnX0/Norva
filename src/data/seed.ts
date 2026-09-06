@@ -1,4 +1,4 @@
-import { fromDecimal } from '@/domain/money';
+import { fromDecimal, rate} from '@/domain/money';
 import type { PackagingHierarchy } from '@/domain/units';
 import { db } from './db';
 import { recordPurchase, saveItem, saveProduct, saveRecipeVersion } from './repository';
@@ -190,7 +190,7 @@ async function writeStarterData(companyId: string): Promise<void> {
     recipeId: strawberry.recipeId,
     yieldPerUnit: 75,
     // Stick plus wrapper: packaging is a cost per unit, never per batch.
-    unitPackagingCents: fromDecimal(0.05),
+    unitPackagingRate: rate(0.05, 1),
     packaging: STACKED,
   });
 
