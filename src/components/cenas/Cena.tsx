@@ -60,14 +60,27 @@ export function CenaDoCabecalho({ cena }: { cena: Cena }) {
           strokeLinejoin="round"
         >
           <Path d={`M0 ${CHAO}h${PRANCHA_DO_CABECALHO.largura}`} stroke={color.line} />
-          <Desenho tinta={color.ink} acento={palette.apricot} frio={palette.sky} traco={traco} />
+          <Desenho
+            tinta={color.ink}
+            acento={palette.apricot}
+            frio={palette.sky}
+            quente={palette.sand}
+            traco={traco}
+          />
         </G>
       </Svg>
     </View>
   );
 }
 
-type Pincel = { tinta: string; acento: string; frio: string; traco: number };
+type Pincel = {
+  tinta: string;
+  acento: string;
+  frio: string;
+  /** O ocre, que é a cor de luz acesa. Entrou com o poste da rua. */
+  quente: string;
+  traco: number;
+};
 
 /**
  * Sobe e some — a mesma baforada da chaminé da capa, em escala de cabeçalho.
@@ -355,16 +368,16 @@ function Picole({ x, cor, atrasoMs }: { x: number; cor: string; atrasoMs: number
  * Agora: larguras diferentes, vãos entre elas, um poste que quebra o ritmo, e uma
  * só com toldo de cor — que é a que está sendo atendida.
  */
-function Lojas({ tinta, acento, frio }: Pincel) {
+function Lojas({ tinta, acento, quente }: Pincel) {
   return (
     <>
       <Loja x={14} largura={78} topo={30} cor={tinta} toldo={acento} atrasoMs={0} />
 
-      {/* O poste: é ele que faz duas fachadas virarem uma rua. */}
-      <G stroke={tinta}>
-        <Path d="M108 64V24" />
-        <Path d="M102 24h12l-3 8h-6z" stroke={frio} />
-      </G>
+      {/* O poste: é ele que faz duas fachadas virarem uma rua — e ele acende,
+          a pedido do dono. É o ambiente mais honesto que existe nesta folha:
+          não afirma nada sobre o razão, e é o que uma rua faz sozinha ao
+          entardecer. */}
+      <Poste x={108} cor={tinta} luz={quente} />
 
       <Loja x={126} largura={62} topo={38} cor={tinta} toldo={tinta} atrasoMs={1300} />
       <Loja x={200} largura={88} topo={26} cor={tinta} toldo={tinta} atrasoMs={2600} />
@@ -374,6 +387,31 @@ function Lojas({ tinta, acento, frio }: Pincel) {
         <Path d="M300 48h30v16h-30zM300 54h30M315 48v16" />
         <Path d="M336 54h22v10h-22zM336 58h22" />
       </G>
+    </>
+  );
+}
+
+/**
+ * O poste que acende.
+ *
+ * Onze segundos de volta, que é o ciclo mais longo desta folha e é de propósito:
+ * luz de rua não pisca. O vidro sobe de 0,25 a 1 e os três raios entram com ele
+ * — a luz aparece POR CIMA do desenho e nunca apaga a forma, senão o poste some
+ * metade do tempo e a rua fica com um buraco.
+ */
+function Poste({ x, cor, luz }: { x: number; cor: string; luz: string }) {
+  const ciclo = useCiclo(11000, { feitio: 'vaivem', repouso: 1 });
+  const aceso = useAnimatedProps(() => ({ opacity: 0.25 + ciclo.value * 0.75 }));
+  return (
+    <>
+      <G stroke={cor}>
+        <Path d={`M${x} 64V26`} />
+        <Path d={`M${x - 7} 26h14`} />
+      </G>
+      <AnimatedG animatedProps={aceso} stroke={luz}>
+        <Path d={`M${x - 6} 26h12l-3 9h-6z`} />
+        <Path d={`M${x - 13} 40l4-4M${x} 42v-3M${x + 13} 40l-4-4`} />
+      </AnimatedG>
     </>
   );
 }
@@ -615,32 +653,60 @@ function Compras({ tinta, acento, frio }: Pincel) {
   );
 }
 
-/** A GENTE — quem trabalha aqui, e o aceno de quem chega. */
+/**
+ * A GENTE — quem trabalha aqui.
+ *
+ * Refeita com a lição que o dono deu na rua: quatro figuras idênticas
+ * igualmente espaçadas, com a cor alternando entre elas, é padrão de papel de
+ * parede e não um grupo de pessoas. Agora são alturas diferentes, uma dupla
+ * junta e uma pessoa à parte — e **uma só tem cor**, que é a que o crachá ao
+ * lado identifica. Cor alternando em toda figura é cor que não quer dizer nada.
+ */
 function Gente({ tinta, acento, frio }: Pincel) {
   return (
     <>
-      <Pessoa x={30} cor={tinta} atrasoMs={0} />
-      <Pessoa x={100} cor={acento} atrasoMs={1500} />
-      <Pessoa x={170} cor={tinta} atrasoMs={3000} />
-      <Pessoa x={240} cor={frio} atrasoMs={4500} />
-      {/* O crachá que os identifica no aparelho. */}
+      {/* A dupla: perto uma da outra, alturas diferentes. */}
+      <Pessoa x={34} altura={40} cor={tinta} atrasoMs={0} />
+      <Pessoa x={72} altura={34} cor={acento} atrasoMs={1600} />
+
+      {/* E a que está à parte, do outro lado do vão. */}
+      <Pessoa x={146} altura={38} cor={tinta} atrasoMs={3200} />
+
+      {/* O crachá: é o que liga um nome a um aparelho. */}
       <G stroke={tinta}>
-        <Path d="M298 26h50v34h-50z" />
-        <Circle cx="312" cy="38" r="5" />
-        <Path d="M324 36h16M324 44h16M306 52h34" stroke={frio} />
+        <Path d="M218 22h130v42h-130z" />
+        <Path d="M262 14h42v8h-42z" />
+        <Circle cx="242" cy="38" r="8" />
+        <Path d="M262 34h70M262 44h48M232 54h96" stroke={frio} opacity={0.85} />
       </G>
     </>
   );
 }
 
-function Pessoa({ x, cor, atrasoMs }: { x: number; cor: string; atrasoMs: number }) {
+function Pessoa({
+  x,
+  altura,
+  cor,
+  atrasoMs,
+}: {
+  x: number;
+  /** Do chão ao alto da cabeça. Gente da mesma altura vira fileira. */
+  altura: number;
+  cor: string;
+  atrasoMs: number;
+}) {
   const ciclo = useCiclo(5200, { feitio: 'vaivem', atrasoMs, repouso: 0.5 });
-  // A cabeça balança meio grau: gente parada não fica de pedra.
+  // Um grau e meio no pé: gente parada não fica de pedra, e mais que isso vira
+  // cambaleio.
   const props = useAnimatedProps(() => ({ transform: [{ rotate: `${-1.5 + ciclo.value * 3}deg` }] }));
+  const raio = altura * 0.22;
+  const cabeca = CHAO - altura + raio;
   return (
-    <AnimatedG animatedProps={props} origin={`${x}, 64`} stroke={cor}>
-      <Circle cx={x} cy="26" r="9" />
-      <Path d={`M${x - 16} 64c0-14 7-21 16-21s16 7 16 21`} />
+    <AnimatedG animatedProps={props} origin={`${x}, ${CHAO}`} stroke={cor}>
+      <Circle cx={x} cy={cabeca} r={raio} />
+      <Path
+        d={`M${x - altura * 0.38} ${CHAO}c0-${altura * 0.34} ${altura * 0.17}-${altura * 0.5} ${altura * 0.38}-${altura * 0.5}s${altura * 0.38} ${altura * 0.16} ${altura * 0.38} ${altura * 0.5}`}
+      />
     </AnimatedG>
   );
 }

@@ -549,6 +549,24 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   E a regra de leitura que sai daqui, porque ela já me pegou uma vez: quando a tela
   parecer morta, a primeira hipótese **não** é "está certo, é dado" — é que falta vida.
 
+  **O porquê, dito por ele quando perguntei:** *"o ser humano ama o belo e alguns mais
+  ainda. Isso vende."* Então beleza aqui não é acabamento, é duas coisas de negócio.
+  Dentro da fábrica, é adoção: este arquivo já diz que equipe que vê o app como inimigo
+  sabota o dado, e aplicativo feio na câmara fria não é usado com má vontade — é
+  **pulado**. A contagem não acontece, a perda não é anotada, e três meses depois o
+  saldo é ficção. Tudo o que se construiu para proteger um número — o razão que não
+  deixa apagar, o centavo inteiro, a permissão na consulta — só vale se alguém tocar na
+  tela de manhã. Fora da fábrica, é venda: ninguém compra um sistema de gestão olhando
+  a migração `0040`.
+
+  **E a regra de desenho que saiu de uma correção dele**, em três palavras — *"feio"* —
+  sobre uma fileira de quatro lojas idênticas: **repetição regular lê como padrão de
+  papel de parede, não como coisa.** Vale para qualquer cena. O conserto é sempre o
+  mesmo e são três: tamanhos diferentes, vãos desiguais, e **uma só peça com cor** —
+  cor alternando em todo elemento é cor que não quer dizer nada. O mesmo defeito estava
+  na cena da gente e foi corrigido sem ele precisar repetir, que é o que a correção
+  dele deveria comprar.
+
 - **O operador confere a prateleira.** Numa fábrica de seis pessoas quem anda
   até a prateleira é quem trabalha lá, não o dono. Negar a permissão não deixa o
   número mais seguro — deixa a contagem sem acontecer, e saldo que ninguém
