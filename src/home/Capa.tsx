@@ -322,14 +322,18 @@ export function Folha({
     <View style={{ flex: 1, backgroundColor: color.paper }}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[
-          { paddingBottom: insets.bottom + space.xxl + tabBar },
-          largo ? { width: '100%', maxWidth: MEDIDA_DA_PAGINA, alignSelf: 'center' } : null,
-        ]}
+        contentContainerStyle={{ paddingBottom: insets.bottom + space.xxl + tabBar }}
       >
+        {/* O que SANGRA sangra até a borda da TELA, e não até a borda da coluna.
+            A largura máxima estava no contêiner inteiro, então num tablet a
+            paisagem do Orgânico virava uma faixa de 600 dp com a cor da página
+            sobrando dos dois lados — deixava de sangrar exatamente onde havia
+            tela de sobra para ela. Quem se limita é o miolo: texto em linha de
+            oitocentos dp não se lê, e é isso que a medida da página protege. */}
         {topo}
         <View
           style={{
+            ...(largo ? { width: '100%', maxWidth: MEDIDA_DA_PAGINA, alignSelf: 'center' } : null),
             // Com sangria, o miolo começa COLADO na cena — quem dá o respiro é
             // o casco da peça, e é isso que faz a margem negativa do primeiro
             // cartão valer o que ela diz valer. Com um `paddingTop` aqui, ela
