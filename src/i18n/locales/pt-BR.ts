@@ -101,7 +101,28 @@ export const ptBR = {
         producedToday: '{{unit}} produzidas hoje',
         quietToday: 'ainda não produziu hoje',
         yesterdayPill: 'ontem',
-        vsWeekdayPill: 'que na {{weekday}} passada',
+        /**
+         * "da semana passada", e não "na {{weekday}} passada" — por gênero.
+         *
+         * Cinco dias da semana são femininos em português (segunda a sexta) e
+         * dois são masculinos (sábado, domingo). "que na qua passada" está certo;
+         * "que na dom passada" está errado, e era o que a capa escrevia dois dias
+         * por semana. Apareceu na foto de um domingo.
+         *
+         * A moldura sem artigo serve aos sete. O espanhol não tem o problema —
+         * lá todos os dias são masculinos —, e o inglês não tem gênero.
+         */
+        vsWeekdayPill: 'que {{weekday}} da semana passada',
+        /**
+         * O empate se diz com palavra, nunca com "+0".
+         *
+         * Um sinal e uma seta ao lado de zero sugerem movimento que não houve —
+         * a mesma regra que o `sinal()` da capa do Papel já segue desde o começo,
+         * e que o selo do Orgânico não seguia. Apareceu na foto de um domingo, em
+         * que hoje e o domingo passado deram zero os dois: "↑ +0 que na dom
+         * passada", com seta verde para cima.
+         */
+        sameAsWeekdayPill: 'igual a {{weekday}} da semana passada',
         weekBest: 'hoje é o melhor dia',
         weekRank: 'hoje é o {{rank}} melhor dia',
         /** Os ordinais que a frase da semana usa, do segundo ao sétimo. */

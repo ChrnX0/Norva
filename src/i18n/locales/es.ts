@@ -83,6 +83,7 @@ export const es: Dictionary = {
         quietToday: 'todavía no produjo hoy',
         yesterdayPill: 'ayer',
         vsWeekdayPill: 'que el {{weekday}} pasado',
+        sameAsWeekdayPill: 'igual que el {{weekday}} pasado',
         weekBest: 'hoy es el mejor día',
         weekRank: 'hoy es el {{rank}} mejor día',
         ordinals: ['segundo', 'tercer', 'cuarto', 'quinto', 'sexto', 'séptimo'],

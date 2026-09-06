@@ -22,6 +22,7 @@ import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
 import { nowIso } from '@/data/db';
 import { todayRank } from '@/domain/briefing';
+import { MEDIDA_DA_PAGINA } from '@/theme/tokens';
 import { localDate } from '@/domain/day';
 import { Folha } from '../Capa';
 import type { PecaDaCapa, Vestimenta } from './vestimenta';
@@ -168,11 +169,12 @@ function HeroiOrganico({ data, sky, estado, go }: PecaDaCapa) {
   const { color, type, space, palette } = useTheme();
   const { locale, t } = useLocale();
   const insets = useSafeAreaInsets();
-  const { height: altura } = useWindowDimensions();
+  const { height: altura, width: larguraDaTela } = useWindowDimensions();
 
   const feito = data?.madeToday ?? 0;
   const carregando = estado === 'loading';
   const contraSemana = data ? data.madeToday - data.madeThen : 0;
+  const diaDaSemanaPassada = formatWeekdayAbbrev(localDate(nowIso(), locale.timeZone, -7), locale);
 
   return (
     <Touchable onPress={() => go('/production')} accessibilityLabel={t.app.home.capaLead}>
@@ -191,6 +193,19 @@ function HeroiOrganico({ data, sky, estado, go }: PecaDaCapa) {
 
         <View
           style={{
+            /**
+             * A cena sangra; o TEXTO segue a mesma coluna do miolo.
+             *
+             * Num tablet o texto do herói ficava colado na borda esquerda da tela
+             * e os cartões começavam duzentos e sessenta dp adentro: duas margens
+             * esquerdas diferentes na mesma página, que é o que faz uma tela
+             * parecer montada por duas pessoas. A largura máxima aqui é a mesma
+             * `MEDIDA_DA_PAGINA` que a `Folha` dá ao miolo — e ela é do TEXTO,
+             * não da cena, que continua indo até a borda por baixo dele.
+             */
+            ...(larguraDaTela >= MEDIDA_DA_PAGINA
+              ? { width: '100%', maxWidth: MEDIDA_DA_PAGINA, alignSelf: 'center' }
+              : null),
             /**
              * O herói ocupa uma FRAÇÃO da tela, não uma altura em pixel.
              *
@@ -282,22 +297,33 @@ function HeroiOrganico({ data, sky, estado, go }: PecaDaCapa) {
               {/* A comparação com o MESMO dia da semana passada, que é a que
                   responde "isto é normal numa quarta?". O rótulo diz o dia por
                   extenso porque "há uma semana" numa quarta é a quarta passada,
-                  e a pessoa pensa no nome do dia, não no número de dias. */}
+                  e a pessoa pensa no nome do dia, não no número de dias.
+
+                  Empate se diz com PALAVRA. "↑ +0" com seta verde para cima é um
+                  movimento que não houve — a mesma regra que o `sinal()` do Papel
+                  segue desde o começo, e que este selo não seguia. Apareceu na
+                  foto de um domingo, com hoje e o domingo passado zerados. */}
               <Selo>
-                <Text
-                  style={[
-                    type.secondary,
-                    estilos.numero,
-                    { color: contraSemana >= 0 ? palette.mint : palette.rose },
-                  ]}
-                >
-                  {`${contraSemana >= 0 ? '↑' : '↓'} ${contraSemana >= 0 ? '+' : '\u2212'}${formatQuantity(Math.abs(contraSemana), locale)}`}
-                </Text>
-                <Text style={[type.secondary, { color: color.inkMuted }]} numberOfLines={1}>
-                  {fill(t.app.home.organico.vsWeekdayPill, {
-                    weekday: formatWeekdayAbbrev(localDate(nowIso(), locale.timeZone, -7), locale),
-                  })}
-                </Text>
+                {contraSemana === 0 ? (
+                  <Text style={[type.secondary, { color: color.inkMuted }]} numberOfLines={1}>
+                    {fill(t.app.home.organico.sameAsWeekdayPill, { weekday: diaDaSemanaPassada })}
+                  </Text>
+                ) : (
+                  <>
+                    <Text
+                      style={[
+                        type.secondary,
+                        estilos.numero,
+                        { color: contraSemana > 0 ? palette.mint : palette.rose },
+                      ]}
+                    >
+                      {`${contraSemana > 0 ? '↑' : '↓'} ${contraSemana > 0 ? '+' : '\u2212'}${formatQuantity(Math.abs(contraSemana), locale)}`}
+                    </Text>
+                    <Text style={[type.secondary, { color: color.inkMuted }]} numberOfLines={1}>
+                      {fill(t.app.home.organico.vsWeekdayPill, { weekday: diaDaSemanaPassada })}
+                    </Text>
+                  </>
+                )}
               </Selo>
             </View>
           ) : null}
