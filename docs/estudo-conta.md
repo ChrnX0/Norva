@@ -78,8 +78,33 @@ Hoje o aplicativo é de uma empresa só (`LOCAL_COMPANY_ID`) e de uma pessoa só
 - **O responsável do aparelho**, que é de onde sai a responsabilidade quando o relatório
   não nomeia ninguém.
 
-Nada disso pede o servidor, e tudo isso é exercitável com a foto no emulador. **É por aqui
-que se começa.**
+~~Nada disso pede o servidor, e tudo isso é exercitável com a foto no emulador.~~
+**ERRADO — corrigido em 6 de setembro, antes de escrever a primeira linha.**
+
+Fui construir e fui medir antes. `movements.operator_id` é
+`uuid references memberships(id)` (`supabase/migrations/0014_who_was_holding_it.sql:21`)
+e `memberships.user_id` é `not null references auth.users(id)`
+(`0001_foundation.sql:60`). O aparelho **não pode criar `auth.users`**, logo não pode
+criar membership, logo **não pode inventar o id de um operador**.
+
+E o id inventado não ficaria quieto: `operator_id` está na lista fechada de colunas que
+a fila envia (`src/sync/serialize.ts:351`) e viaja tal e qual. No dia em que a sincronia
+existir, o primeiro movimento com um id local seria recusado por chave estrangeira — e o
+motor **para a fila no primeiro buraco de propósito**, então produção, contagem e leitura
+de câmara gravadas depois ficariam presas atrás dele. É exatamente o defeito crítico que
+esta branch já consertou uma vez (a fila travada atrás de um pedido reenviado).
+
+Hoje isso está adormecido porque **nada escreve `operator_id`**. Escrever seria acordá-lo.
+
+**A leitura certa da decisão do dono está no próprio texto dela:** *"a empresa distribui
+acesso criando outros e-mails ou mandando código de convite por perfil"*. Quem opera
+**tem** conta — criada pela empresa, não usada por ele para entrar no celular
+compartilhado. Não há contradição entre a decisão e o esquema; a contradição era a minha
+suposição de que a lista de gente podia nascer no aparelho.
+
+**Então a camada 1 não é independente do servidor.** O que sobra dela sem servidor é a
+grade de nomes escolhendo alguém que o razão não pode nomear — trabalho que parece
+entrega e não é.
 
 ### Camada 2 — a conta da empresa (pede servidor)
 
@@ -123,9 +148,28 @@ E as duas que **não** são pergunta, pela borda do `CLAUDE.md`:
 
 ---
 
-## 5. O que este estudo mudou já
+## 5. O que este estudo mudou já — e onde ele mesmo errou
 
-Nada de código. O que ele mudou é a **ordem**: a camada 1 não depende do servidor, é
-verificável com a foto, e entrega o `operator_id` que o livro-razão já tem coluna para
-guardar. O roadmap dizia "login e conta" como um bloco só — e um bloco só teria começado
-pelo Supabase, que é a parte que o dono mandou adiar.
+**Primeira versão (6 de setembro, manhã):** a ordem muda, porque a camada 1 não depende
+do servidor.
+
+**Correção, no mesmo dia, antes de virar código:** ela depende. A medida está na seção 3.
+O estudo acertou em separar as camadas e errou em qual delas vem primeiro — e o erro
+seria caro do jeito mais silencioso possível: a grade funcionaria, a foto ficaria bonita,
+e o defeito só apareceria no dia em que a sincronia subisse, com a fila travada e a causa
+três meses atrás.
+
+**A pergunta que sobra é de faseamento, e é do dono:**
+
+- **(a) Subir o servidor agora**, contra a decisão de *"o servidor sobe o mais tarde
+  possível"* — mas com um motivo que não existia quando ela foi tomada: sem ele, não há
+  lista de gente, e sem lista de gente não há quem operou.
+- **(b) Trocar a forma de `operator_id`** para um texto que não referencia membership,
+  resolvido para pessoa depois. Barato no aparelho, **caro e permanente no servidor** —
+  é o portão P3 no ponto exato em que ele existe para travar: o caminho de escrita de
+  `movements`.
+- **(c) Deixar a camada 1 para depois** e seguir para o que não esbarra nisso — o motivo
+  da devolução, a tela de conferir item a item, o preço combinado na ficha da loja.
+
+Eu faria **(c)** e depois **(a)**: (b) enfraquece a única coluna que amarra o razão a uma
+pessoa, para adiantar uma tela.

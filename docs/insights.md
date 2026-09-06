@@ -4304,3 +4304,41 @@ ficha; a tela de conferir item a item; o motivo da devolução).
 regra de fechamento já existe — *"item fechado sai do roadmap no mesmo commit que o
 fecha"* — e ela só funciona se alguém a cumprir toda vez; a leitura é a rede que pega o
 que escapou. Custa dois minutos de `grep` e paga uma tela inteira.
+
+## 2026-09-06 — o estudo que eu mesmo escrevi de manhã estava errado à tarde
+
+**O que apareceu.** O roadmap mandava construir a camada 1 do login — a grade de nomes
+com PIN, quem está com o aparelho — e dizia, com todas as letras, que ela **não depende
+do servidor**. Quem tinha escrito isso quatro horas antes era eu, no `docs/estudo-conta.md`.
+
+Antes de escrever a primeira linha fui medir. `movements.operator_id` é
+`uuid references memberships(id)`, e `memberships.user_id` é
+`not null references auth.users(id)`. O aparelho não pode criar `auth.users`, logo não
+pode criar membership, logo **não pode inventar o id de um operador**.
+
+E o id inventado não ficaria quieto: `operator_id` está na lista fechada de colunas que a
+fila envia e viaja tal e qual. No dia em que a sincronia existisse, o primeiro movimento
+com um id local seria recusado por chave estrangeira, e o motor **para a fila no primeiro
+buraco de propósito** — tudo o que fosse gravado depois ficaria preso atrás dele. É o
+mesmo defeito crítico que esta branch já consertou uma vez.
+
+**Por que importa.** O erro tinha a forma mais cara que um erro pode ter aqui: **ele
+funcionaria.** A grade abriria, o PIN validaria, a foto no emulador ficaria bonita, a
+barra ficaria verde — e o defeito só apareceria meses depois, com a fila travada e a
+causa três commits abaixo do horizonte de quem fosse investigar. Nenhum teste desta casa
+o pegaria, porque não há servidor contra o que rodar.
+
+E o estudo não foi displicente: ele listou o que existe, separou as camadas certo, e
+citou o `operator_id` como prova de que a camada 1 estava pronta para ser preenchida. O
+que ele não fez foi **seguir a referência até o fim** — parou em "a coluna existe" e não
+perguntou "existe apontando para quê".
+
+**O que mudou.** O estudo foi corrigido no lugar, com a medida e o `arquivo:linha`; o
+roadmap trocou o item 2 de "próximo" para "travado, decisão de faseamento do dono", com
+três saídas e a que eu recomendo; e o item 3 passou a ser o que de fato não esbarra nisso.
+
+**A regra que fica:** documento que eu escrevo não é medida, é hipótese com a minha
+assinatura — e a assinatura não a torna verdadeira. **Uma coluna existir não é a mesma
+coisa que ela poder ser preenchida**: siga a referência até o fim (`REFERENCES` de quê,
+com que `NOT NULL` do outro lado) antes de tratar o campo como pronto. E a hora de fazer
+isso é antes da primeira linha de código, que foi a única coisa que deu certo aqui.
