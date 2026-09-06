@@ -5010,3 +5010,53 @@ outras cinco provas desta sessão — inverter exatamente a linha que plantei, c
 `replace` ao contrário — ou commitar antes de experimentar. O que fica escrito, porque
 comando destrutivo não se lembra na pressa: **nesta árvore, `git checkout` de arquivo com
 mudança não commitada é perda de trabalho, não é `undo`.**
+
+---
+
+## A ferramenta de olhar não alcançava a metade que eu tinha acabado de construir
+
+**6 de setembro, depois do portão do dinheiro.** Treze telas mudadas, barra verde, e eu
+ia dizer que estava pronto. A regra da casa é que **verde não prova tela** — o tema claro
+ilegível que chegou ao dono passou por 338 testes e 36 checagens de navegador. Então fui
+tirar a foto.
+
+E a foto saiu **idêntica à de sempre**. O portão está dormente no padrão: sem ninguém
+escolhido, o aparelho é do dono e todos os números aparecem. Ou seja, a metade nova do
+aplicativo era exatamente a metade que a ferramenta não sabia alcançar, e tirar a foto
+sem pensar teria me dado a confirmação errada com a cara da certa.
+
+A bandeira `--como-operador` dirige o app pelo caminho de uma fábrica — cadastra a
+pessoa, liga a chave, toca no nome na grade — em vez de forjar o estado por baixo. E ela
+me corrigiu **quatro vezes** antes de me mostrar qualquer tela:
+
+1. *"Compartilhado" não existia na tela* quando eu procurei: aquele cartão só é desenhado
+   depois que a empresa nomeia, e eu tinha escrito as duas chaves na ordem inversa. A tela
+   estava certa e o roteiro, errado.
+2. *Nenhuma foto saía no compartilhado*, e o motivo é desenho, não defeito:
+   `app/_layout.tsx` limpa o operador a cada abertura — e para esta ferramenta cada `goto`
+   É uma abertura. Fotografa-se a outra configuração, "um por pessoa", em que se escolhe
+   uma vez e fica.
+3. *Duas execuções ao mesmo tempo* — eu disparei a segunda sem esperar a primeira, e o
+   guarda da própria ferramenta me barrou duas vezes. A foto que eu li como "o conserto
+   não pegou" era do pacote anterior ao conserto.
+4. E quando enfim mostrou: **três defeitos que nenhum teste vê.** Um separador vazio no
+   meio de uma linha ("22 un · derreteu ·  · 22/08", o lugar padrão nasce sem nome), um
+   cartão repetindo o rótulo da porta logo acima dele, e uma frase sem o respiro que a
+   figura que ela substituiu tinha.
+
+**Mas o achado grande a foto deu de graça, e ele não é sobre layout.** A tela de lugares
+mostrou "Mercado do Zé — CLIENTE". A fábrica de exemplo CRIA um cliente
+(`src/data/simulate.ts:130`), a tela o desenha com glifo e rótulo, o dicionário tem a
+palavra nos três idiomas — e `app/places.tsx` oferecia só lugares NOSSOS no cadastro.
+**A simulação mostrava ao dono uma coisa que o aplicativo dele não sabia fazer.**
+
+Isso amarra três coisas que pareciam soltas: `movement_kind` tem `sale` desde a fundação
+e ninguém escreve; `movements.unit_price_rate` existe desde a `0008` e ninguém escreve;
+`customer` existe e nenhuma tela cria. São a MESMA falta — sem cliente não há a quem
+vender, e o `moveBetween` já decidiu por escrito que loja própria não é venda. O item
+"preço combinado na ficha da loja" que o roadmap pedia não é um campo: é esta peça.
+
+**A regra que fica:** quando uma mudança acrescenta um ESTADO ao aplicativo, a ferramenta
+que olha tem de saber chegar nele — senão a foto passa a atestar o estado velho com a
+autoridade do novo. E dado semeado e formulário são dois autores da mesma lista: quem
+compara os dois é a foto, ou ninguém.

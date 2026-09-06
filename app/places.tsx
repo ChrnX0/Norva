@@ -159,7 +159,27 @@ function Places() {
     }
   };
 
-  const KINDS = ['own_store', 'cold_room', 'store_room'] as const;
+  /**
+   * As espécies que o cadastro oferece — e `customer` faltava.
+   *
+   * A foto de 6 de setembro mostrou o defeito: a fábrica de EXEMPLO cria um cliente
+   * (`src/data/simulate.ts`, "Mercado do Zé"), a tela o desenha com glifo e a
+   * sobrelinha "CLIENTE", o dicionário já tinha a palavra nos três idiomas — e o
+   * formulário só oferecia lugares NOSSOS. A simulação mostrava ao dono uma coisa
+   * que o aplicativo dele não sabia fazer, e nenhum teste vê isso: o dado semeado e
+   * o formulário são dois autores da mesma lista.
+   *
+   * E não é detalhe de cadastro. O `moveBetween` decidiu por escrito que *"loja
+   * própria é transferência e não venda: não há faturamento nem margem aqui"* — ou
+   * seja, sem cliente o aplicativo não tem a quem VENDER, e é por isso que
+   * `movement_kind` tem `sale` e `movements.unit_price_rate` existem desde a
+   * fundação sem um escritor. Esta linha é a primeira das três.
+   *
+   * Duas ficam de fora, com motivo: `factory` nasce sozinha (`ensureLocation`) e não
+   * se cadastra; `vehicle` é a viagem com linha do tempo, que o dono adiou em 6 de
+   * setembro ao decidir que a carga é UM evento.
+   */
+  const KINDS = ['own_store', 'customer', 'cold_room', 'store_room'] as const;
 
   /** Nada entrou em lugar nenhum ainda: desenho, uma frase, e a ação embaixo. */
   const semNada = (data?.stock.length ?? 0) === 0;

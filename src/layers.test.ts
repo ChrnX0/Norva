@@ -776,3 +776,56 @@ test('the crossing guard bites the real risk, and leaves the tests alone', () =>
   assert.ok(/from '@\/data\/repository'/.test("import { listItems } from '@/data/repository';"));
   assert.ok(!/from '@\/data\/repository'/.test("import type { OutboxEntry } from '@/data/outbox';"));
 });
+
+/**
+ * O cadastro oferece as espécies de lugar que o razão conhece, menos as que têm
+ * motivo escrito para ficar de fora.
+ *
+ * O defeito que este guarda existe para impedir foi achado por uma FOTO, e é da
+ * espécie que nenhum teste vê: `location_kind` tem `customer` desde a `0001`, o
+ * dicionário tem a palavra nos três idiomas, a tela desenha o glifo e o rótulo — e o
+ * formulário oferecia só lugares nossos. A fábrica de exemplo criava um cliente e o
+ * dono via na tela uma coisa que o aplicativo dele não sabia fazer.
+ *
+ * A lista de fora é registro com razão, e não uma lista de conveniência: quem tirar
+ * uma espécie do formulário tem de escrever por quê, aqui, e quem acrescentar uma
+ * espécie ao servidor descobre no vermelho que a tela não a oferece.
+ */
+const ESPECIE_FORA_DO_CADASTRO: Record<string, string> = {
+  factory:
+    'nasce sozinha com a empresa (`ensureLocation`), com o id da própria empresa — não há o que cadastrar',
+  vehicle:
+    'é a viagem com linha do tempo, adiada por decisão do dono em 6 de setembro: a carga é UM evento, e o veículo só passa a existir quando houver entregador que não é quem carregou',
+};
+
+test('the place form offers every kind the ledger knows, or says why not', () => {
+  const enums = readFileSync('supabase/migrations/0001_foundation.sql', 'utf8');
+  const linha = enums.match(/create type location_kind as enum \(([^)]*)\)/);
+  assert.ok(linha, 'a migração da fundação declara location_kind');
+  const doServidor = [...linha[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+  assert.ok(doServidor.length >= 5, `o enum tem ${doServidor.length} espécies`);
+
+  const tela = readFileSync('app/places.tsx', 'utf8');
+  const oferta = tela.match(/const KINDS = \[([^\]]*)\]/);
+  assert.ok(oferta, 'o formulário declara as espécies numa lista só');
+  const oferecidas = new Set([...oferta[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]));
+
+  const semExplicacao = doServidor.filter(
+    (k) => !oferecidas.has(k) && !(k in ESPECIE_FORA_DO_CADASTRO),
+  );
+  assert.deepEqual(
+    semExplicacao,
+    [],
+    `o servidor conhece estas espécies e o cadastro não as oferece: ${semExplicacao.join(', ')}.\n` +
+      'Ou entram no formulário, ou entram em ESPECIE_FORA_DO_CADASTRO com o motivo — ' +
+      'espécie que existe no razão e não existe na tela é o dono vendo dado que ele não consegue criar.',
+  );
+
+  // E a outra direção, que é a que envelhece calada: registro que virou mentira.
+  const registroVelho = Object.keys(ESPECIE_FORA_DO_CADASTRO).filter((k) => oferecidas.has(k));
+  assert.deepEqual(
+    registroVelho,
+    [],
+    `estas espécies estão registradas como fora e o formulário já as oferece: ${registroVelho.join(', ')}`,
+  );
+});

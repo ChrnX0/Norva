@@ -42,7 +42,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **385** testes |
+| `npm test` | **386** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **44** checagens num navegador de verdade |
 | `npm run db:verify` | **16** garantias contra um Postgres descartável, sob RLS |
@@ -490,6 +490,20 @@ porque cada um custaria uma migração para desfazer:
   congelar como "não havia preço". Zero não é preço.
 - **Devolução relê o preço de hoje** — contra o que `reverseGroup` e `recordCheck` já
   decidiram duas vezes: o ato que volta se avalia pelo valor com que aconteceu.
+
+E uma fronteira herdada, que não é defeito desta forma e vale escrever antes de existir
+linha: **`locations` é o LUGAR e a PARTE CONTRATANTE ao mesmo tempo** (a `0019` diz
+isso em voz alta — *"loja própria, cliente, distribuidor - tudo é `locations`"*). Uma
+rede com cinco filiais negocia uma vez e teria o mesmo preço digitado cinco vezes, e
+renegociar exigiria acertar as cinco ou as filiais discordam entre si. O preço congelado
+no razão não é afetado; o que herda a conflação é a chave do acordo. O dia em que
+aparecer rede, a parte contratante sai de `locations` — e é mais barato saber disso
+agora, com zero linhas, do que descobrir com o acordo já digitado.
+
+**O primeiro passo dos dois já entrou**, em 6 de setembro: `customer` é criável na tela
+(`app/places.tsx`), com guarda que compara o formulário ao enum do servidor e exige
+motivo escrito para cada espécie de fora. Sem isso, o preço combinado só teria como
+assunto uma loja nossa — onde o próprio razão decidiu que não há faturamento.
 
 ### A configuração da empresa não atravessa — dívida estrutural
 
