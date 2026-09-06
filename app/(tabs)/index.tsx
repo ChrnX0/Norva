@@ -222,6 +222,11 @@ function Briefing() {
 
 
 
+    // Uma conta só, lida duas vezes: a régua da semana e a pergunta "já
+    // produziu alguma vez" têm que responder a partir do MESMO dado, senão a
+    // capa afirma duas coisas diferentes na mesma tela.
+    const semana = dailySeries(week, locale.timeZone, nowIso(), 7);
+
     return {
       changes,
       demand,
@@ -229,9 +234,25 @@ function Briefing() {
       madeToday: sum(madeToday),
       madeThen: sum(madeThen),
       madeYesterday: sum(madeYesterday),
-      series: dailySeries(week, locale.timeZone, nowIso(), 7),
+      series: semana,
       shortly,
-      everMade: madeToday.length > 0 || madeThen.length > 0,
+      /**
+       * A fábrica já produziu ALGUMA VEZ — e o nome diz isso porque é isso que
+       * a capa pergunta antes de desenhar o diagrama da comparação.
+       *
+       * Ele lia `madeToday || madeThen`: hoje, ou o mesmo dia da semana passada.
+       * Num domingo — que a simulação deixa quieto de propósito, e que numa
+       * fábrica de verdade costuma ser quieto pelo mesmo motivo — as duas pontas
+       * dão zero, e a capa perdia o diagrama, a conta por extenso e os selos de
+       * comparação **justamente no dia em que "o que é normal aqui" é a única
+       * pergunta que sobra**. Uma fábrica com três meses de razão abria a capa
+       * como se nunca tivesse produzido.
+       *
+       * A semana responde certo: se alguma coluna dos sete dias tem produção, a
+       * fábrica produziu. E é a mesma fonte que desenha a régua logo abaixo, o
+       * que impede a capa de afirmar duas coisas diferentes na mesma tela.
+       */
+      everMade: madeToday.length > 0 || madeThen.length > 0 || semana.some((d) => d.total > 0),
       boxes,
       boxesYesterday,
       loose,

@@ -409,10 +409,10 @@ export const es: Dictionary = {
         system: 'Seguir el teléfono',
         lightLabel: 'La luz de la pantalla',
         lightHint: 'El claro es lo normal. Elige el oscuro para la cámara fría, o deja que el teléfono decida.',
-        papel: 'Papel',
-        papelHint: 'serifa, trazo fino, esquinas rectas',
-        organico: 'Orgánico',
-        organicoHint: 'paisaje, curva, esquinas suaves',
+        peles: {
+          papel: { nome: 'Papel', dica: 'serifa, trazo fino, esquinas rectas' },
+          organico: { nome: 'Orgánico', dica: 'paisaje, curva, esquinas suaves' },
+        },
         palette: 'El color del paisaje',
         paletteHint: 'Cambia el cielo y la colina. Las señales de subida y bajada no cambian — son lectura, no adorno.',
         hues: {

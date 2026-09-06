@@ -404,10 +404,10 @@ export const en: Dictionary = {
         system: 'Follow the phone',
         lightLabel: 'Screen light',
         lightHint: 'Light is the default. Pick dark for the cold room, or let the phone decide.',
-        papel: 'Paper',
-        papelHint: 'serif, thin line, sharp corners',
-        organico: 'Organic',
-        organicoHint: 'landscape, curve, soft corners',
+        peles: {
+          papel: { nome: 'Paper', dica: 'serif, thin line, sharp corners' },
+          organico: { nome: 'Organic', dica: 'landscape, curve, soft corners' },
+        },
         palette: 'The colour of the landscape',
         paletteHint: 'Changes the sky and the hill. The up and down signals stay put — they are reading, not decoration.',
         hues: {

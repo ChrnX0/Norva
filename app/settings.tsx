@@ -45,7 +45,7 @@ import {
   widgetsOffCover,
   type BriefingWidget,
 } from '@/domain/briefing';
-import { hues } from '@/theme/tokens';
+import { hues, skins, type Skin } from '@/theme/tokens';
 import {
   blockerFor,
   EraseBlockedError,
@@ -574,20 +574,15 @@ function Settings() {
             </View>
           </View>
 
+          {/* A lista sai do CATÁLOGO de peles, não de duas linhas escritas à mão.
+              O dono foi explícito em 6 de setembro: mais peles virão. Enquanto a
+              lista morava aqui, uma pele nova compilava, tinha traços, tinha
+              roupa — e não aparecia na tela para ninguém escolher. */}
           <View style={[styles.top, { gap: space.md, marginTop: space.md }]}>
-            {(
-              [
-                [
-                  'organico',
-                  t.app.settings.appearance.organico,
-                  t.app.settings.appearance.organicoHint,
-                ],
-                ['papel', t.app.settings.appearance.papel, t.app.settings.appearance.papelHint],
-              ] as const
-            ).map(([qual, nome, dica]) => (
+            {(Object.keys(skins) as Skin[]).map((qual) => (
               <View key={qual} style={{ flex: 1, gap: space.xs }}>
                 <Button
-                  label={nome}
+                  label={t.app.settings.appearance.peles[qual].nome}
                   variant={skin === qual ? 'primary' : 'ghost'}
                   onPress={() => setSkin(qual)}
                 />
@@ -597,7 +592,7 @@ function Settings() {
                     { color: skin === qual ? color.inkMuted : color.inkFaint },
                   ]}
                 >
-                  {dica}
+                  {t.app.settings.appearance.peles[qual].dica}
                 </Text>
               </View>
             ))}

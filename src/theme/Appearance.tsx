@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { readMeta, writeMeta } from '@/data/meta';
 import { SCHEME_PADRAO, SCHEMES, type SchemeChoice } from './scheme';
-import type { Hue, Skin } from './tokens';
+import { skins, type Hue, type Skin } from './tokens';
 
 export type { SchemeChoice };
 
@@ -82,7 +82,13 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     void Promise.all([readMeta(KEY), readMeta(HUE_KEY), readMeta(SCHEME_KEY)])
       .then(([savedSkin, savedHue, savedScheme]) => {
         if (cancelled) return;
-        if (savedSkin === 'papel' || savedSkin === 'organico') setState(savedSkin);
+        // A pele gravada vale se ela EXISTE no catálogo — a lista não se
+        // escreve aqui à mão. Escrita, uma pele nova era gravada pela tela de
+        // ajustes e descartada na leitura seguinte: o aplicativo voltava ao
+        // padrão sozinho, e ninguém liga uma coisa dessas a esta linha.
+        if (savedSkin && (Object.keys(skins) as string[]).includes(savedSkin)) {
+          setState(savedSkin as Skin);
+        }
         if (savedHue && (HUES as string[]).includes(savedHue)) setHueState(savedHue as Hue);
         if (savedScheme && (SCHEMES as string[]).includes(savedScheme)) {
           setSchemeState(savedScheme as SchemeChoice);

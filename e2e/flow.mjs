@@ -1550,7 +1550,37 @@ check('three months can be planted from Ajustes, and the briefing changes becaus
 
   // E a régua da semana está lá: sete colunas de produção, que é o que o dono
   // pediu quando disse que o custo do morango não interessava.
-  assert.match(capa, /fez [\d.]+ unidades/, 'a manchete da capa é o que saiu do tacho');
+  /**
+   * A manchete é o que saiu do tacho HOJE — e no domingo não sai nada.
+   *
+   * Esta linha era `assert.match(capa, /fez N unidades/)` e passava seis dias por
+   * semana. No domingo, 6 de setembro, ela ficou vermelha sozinha: o simulador
+   * deixa o domingo quieto de propósito (`weekday === 0 -> continue` em
+   * `simulate.ts`, "uma semana em que todo dia é igual ensina a comparar ruído
+   * com ruído"), então a capa dizia a verdade e a checagem chamava de defeito.
+   *
+   * A correção não é afrouxar para "uma coisa ou outra" — isso passaria com o
+   * aplicativo dizendo a frase errada no dia errado. A checagem passa a saber que
+   * dia é, pela MESMA regra do simulador, e cobra a frase daquele dia: no domingo
+   * a manchete tem que dizer que não produziu E a comparação tem que estar lá,
+   * porque o zero de hoje sem "ontem" ao lado é a Lei 3 quebrada justamente no
+   * dia em que ela mais importa.
+   */
+  const domingo = new Date().getUTCDay() === 0;
+  if (domingo) {
+    assert.match(capa, /ainda não produziu/, 'no domingo quieto, a capa diz que não produziu');
+    // Sem distinguir maiúscula: o rótulo da comparação é desenhado em
+    // versalete, e o texto que chega à checagem vem em caixa alta.
+    assert.match(capa, /ontem/i, 'e diz contra o que o zero de hoje se compara');
+    assert.match(capa, /[\d.]+ unidades|·\s*hoje/i, 'com o número do dia anterior por extenso');
+    // E não chama de primeiro dia uma fábrica com três meses de razão: a conta
+    // por extenso dizia "primeiro dia com produção registrada" ao lado das
+    // quinhentas unidades de ontem, porque a condição olhava só o mesmo dia da
+    // semana passada — que num domingo é zero por ser domingo.
+    assert.doesNotMatch(capa, /primeiro dia com produção/, 'e não chama isso de primeiro dia');
+  } else {
+    assert.match(capa, /fez [\d.]+ unidades/, 'a manchete da capa é o que saiu do tacho');
+  }
   // E o diagrama da conta desenhou: a subtração por extenso só existe quando as
   // duas referências e o número de hoje chegaram juntos. Sem esta linha, a
   // checagem passaria com a manchete sozinha — que é metade da Lei 3.

@@ -1097,8 +1097,22 @@ function contaDoDia(
     weekday: formatWeekdayAbbrev(localDate(nowIso(), locale.timeZone, -7), locale),
   });
   const vao = data.madeToday - data.madeThen;
+  /**
+   * "Primeiro dia com produção registrada" é uma afirmação forte, e ela estava
+   * saindo para uma fábrica com três meses de razão.
+   *
+   * A condição era só `madeThen === 0` — o mesmo dia da semana passada sem
+   * produção. Num domingo, em que a fábrica costuma parar, isso é o normal e não
+   * o começo: a capa dizia "0 − 511 = −511 · primeiro dia com produção
+   * registrada" com quinhentas unidades de ontem na linha de cima.
+   *
+   * Primeiro dia é quando os SEIS dias anteriores estão vazios e hoje não. Com
+   * os dois zerados, a frase certa é a do empate: "domingo, há uma semana deu o
+   * mesmo" — que é verdade e é o que responde "isto é normal aqui?".
+   */
+  const semanaVazia = data.series.slice(0, -1).every((d) => d.total === 0);
   const semana =
-    data.madeThen === 0
+    data.madeThen === 0 && semanaVazia && data.madeToday > 0
       ? t.app.home.mathNoBase
       : vao === 0
         ? fill(t.app.home.mathSame, { when: quando })

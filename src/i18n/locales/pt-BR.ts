@@ -456,10 +456,19 @@ export const ptBR = {
         system: 'Seguir o aparelho',
         lightLabel: 'A luz da tela',
         lightHint: 'O padrão é o claro. Escolha o escuro para a câmara fria, ou deixe o aparelho decidir.',
-        papel: 'Papel',
-        papelHint: 'serifa, traço fino, cantos retos',
-        organico: 'Orgânico',
-        organicoHint: 'paisagem, curva, cantos macios',
+        /**
+         * O nome e a frase de cada pele, com a CHAVE sendo o id da pele.
+         *
+         * Estava em quatro chaves soltas (`papel`, `papelHint`, `organico`,
+         * `organicoHint`), e a tela listava as duas à mão. Uma pele nova
+         * exigiria acrescentar duas chaves em três idiomas E lembrar de vir
+         * mexer na lista da tela — a segunda parte é a que se esquece.
+         * Assim a tela percorre `skins` e o `Widen` obriga os três idiomas.
+         */
+        peles: {
+          papel: { nome: 'Papel', dica: 'serifa, traço fino, cantos retos' },
+          organico: { nome: 'Orgânico', dica: 'paisagem, curva, cantos macios' },
+        },
         palette: 'A cor da paisagem',
         paletteHint: 'Muda o céu e a colina. Os sinais de alta e de queda não mudam — eles são leitura, não enfeite.',
         hues: {
