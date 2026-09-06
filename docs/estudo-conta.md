@@ -102,15 +102,24 @@ editável — todos os três esperam a camada 2.
 Perguntas de verdade, no sentido da borda do `CLAUDE.md`: a resposta muda o que é
 construído, e nenhuma delas vira configuração.
 
+**Uma só, e as outras duas eu tinha empurrado para ele por engano.**
+
 1. **A camada 1 sozinha resolve o mês?** Uma fábrica de seis pessoas com um celular
    compartilhado, PIN e responsável do aparelho funciona **sem servidor nenhum** — o
    livro-razão já grava quem operou. Se isso basta para a F2/F3, a camada 2 pode esperar
-   o Espelho da Loja, que é quando alguém de fora precisa entrar.
-2. **O PIN é de quatro dígitos por pessoa, ou um por aparelho?** Vira configuração se os
-   dois caminhos fizerem sentido — mas o padrão é decisão dele.
-3. **Recuperação de acesso sem e-mail pessoal.** Se a conta é da empresa e o operador
-   nunca teve e-mail, quem redefine o PIN esquecido é o dono, no aparelho dele. Isso é
-   caminho novo, não detalhe.
+   o Espelho da Loja, que é quando alguém de fora precisa entrar. É faseamento, e
+   faseamento é decisão de dono.
+
+E as duas que **não** são pergunta, pela borda do `CLAUDE.md`:
+
+- ~~*O PIN é por pessoa ou por aparelho?*~~ — é preferência de quem usa, então **vira
+  configuração e os dois caminhos existem**. A única coisa legítima a perguntar seria o
+  padrão, e ele já está decidido pela decisão de 1 de setembro: entrada compartilhada é
+  *"PIN numa grade de nomes"*, logo **por pessoa** por padrão. Um PIN por aparelho é o
+  caso da empresa que não quer distinguir ninguém — liga nos ajustes.
+- ~~*Quem redefine um PIN esquecido?*~~ — não há escolha: quem cadastrou a pessoa
+  redefine, no aparelho dele, com a mesma permissão que a criou. Perguntar isso era
+  pedir permissão para o óbvio.
 
 ---
 
