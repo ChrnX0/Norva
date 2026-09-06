@@ -434,3 +434,72 @@ test('every table the device queues is a table something knows how to send', () 
     `o repositório enfileira ${orfas.join(', ')} e nada sabe enviar — a fila trava na primeira`,
   );
 });
+
+
+test('the words the device has for a return are words the server accepts', () => {
+  // Esta checagem NÃO existia quando `return_reason` entrou, em 6 de setembro —
+  // e quem a escreveu fui eu, no mesmo dia, sem me lembrar deste arquivo. É
+  // exatamente a forma do defeito que ele já pegou uma vez: `internalUse` contra
+  // `internal_use`, aceito pelo SQLite, enfileirado, e recusado pelo Postgres com
+  // ninguém olhando.
+  //
+  // A lição não é "prestar atenção": é que um vocabulário novo do razão precisa
+  // entrar aqui no mesmo commit que o cria, e agora o vizinho de baixo cobra isso.
+  const server = enumValues(serverSql(), 'return_reason');
+
+  const ledger = readFileSync(join(process.cwd(), 'src', 'domain', 'ledger.ts'), 'utf8');
+  const declared = ledger.match(/export type ReturnReason =([^;]+);/);
+  assert.ok(declared, 'the ReturnReason union is not where this test looks for it');
+  const device = [...declared[1].matchAll(/'([a-z_]+)'/gi)].map((m) => m[1]);
+
+  assert.ok(device.length >= 4, 'no return reasons found - the parse is looking in the wrong shape');
+  for (const reason of device) {
+    assert.ok(
+      server.has(reason),
+      `the device can record a return as "${reason}" and the server enum has no such value`,
+    );
+  }
+});
+
+
+test('the control post the device stamps is a post the server knows', () => {
+  // `post` é TEXTO no aparelho e ENUM no servidor, e hoje só a conferência de
+  // chegada o escreve — `recordCheck` grava 'checked'. Uma palavra nova aqui
+  // (separado, carregado, entregue) sobe como texto e é recusada como enum, e a
+  // recusa acontece na fila, meses depois, longe de quem a escreveu.
+  const server = enumValues(serverSql(), 'control_post');
+
+  const ledger = readFileSync(join(process.cwd(), 'src', 'domain', 'ledger.ts'), 'utf8');
+  const declared = ledger.match(/export type ControlPost =([^;]+);/);
+  assert.ok(declared, 'the ControlPost union is not where this test looks for it');
+  const device = [...declared[1].matchAll(/'([a-z_]+)'/gi)].map((m) => m[1]);
+
+  assert.ok(device.length >= 4, 'no control posts found - the parse is looking in the wrong shape');
+  for (const post of device) {
+    assert.ok(
+      server.has(post),
+      `the device can stamp the post "${post}" and the server enum has no such value`,
+    );
+  }
+});
+
+
+test('the kind of thing the device registers is a kind the server knows', () => {
+  // `items.kind` decide quase tudo o que a tela oferece — insumo, embalagem,
+  // produto, revenda, material de loja. Uma palavra a mais aqui e o item inteiro
+  // é recusado na primeira sincronia, com as receitas que dependem dele atrás.
+  const server = enumValues(serverSql(), 'item_kind');
+
+  const repo = readFileSync(join(process.cwd(), 'src', 'data', 'repository.ts'), 'utf8');
+  const declared = repo.match(/export type ItemKind =([^;]+);/);
+  assert.ok(declared, 'the ItemKind union is not where this test looks for it');
+  const device = [...declared[1].matchAll(/'([a-z_]+)'/gi)].map((m) => m[1]);
+
+  assert.ok(device.length >= 3, 'no item kinds found - the parse is looking in the wrong shape');
+  for (const kind of device) {
+    assert.ok(
+      server.has(kind),
+      `the device can register an item as "${kind}" and the server enum has no such value`,
+    );
+  }
+});

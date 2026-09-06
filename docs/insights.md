@@ -4895,3 +4895,40 @@ deixou de ser uma.
 **A regra que fica:** ao ligar pela primeira vez uma peça que esperava chamador, **olhe a
 foto antes de comemorar**. Ela vai estar tecnicamente correta — tem teste — e pode estar
 respondendo outra pergunta.
+
+---
+
+## 2026-09-06 — escrevi um vocabulário novo do razão e não o levei ao guarda que existe para isso
+
+**O que se viu.** O `src/sync/agreement.test.ts` existe para uma coisa só: garantir que
+palavra que o aparelho grava é palavra que o servidor aceita. Ele nasceu de um defeito real
+— o aparelho dizia `internalUse` e o enum do servidor diz `internal_use`, o que o SQLite
+aceita, a fila enfileira e o Postgres recusa **meses depois, com ninguém olhando**.
+
+Ele cobre tipo de movimento, motivo de perda, tipo de lugar e capacidade. Fui conferir e
+**não cobre `return_reason`** — que eu mesmo criei hoje de manhã, nos dois lados, com
+migração, constraint e garantia no `db:verify`. Fiz tudo, menos a linha de dez segundos
+neste arquivo. Também não cobria `control_post` nem `item_kind`.
+
+**Por que importa.** O defeito que este guarda pega não aparece em teste, não aparece em
+navegador e não aparece na tela: ele aparece na primeira sincronia de verdade, num aparelho
+de fábrica, como uma fila que trava. Foi por isso que ele foi escrito. E ele estava
+protegendo quatro vocabulários enquanto três passavam ao lado.
+
+**A forma do buraco.** Um guarda por CASO cobre o caso que doeu. O `return_reason` era
+vocabulário novo do razão — a mesma espécie de coisa que o guarda existe para vigiar — e
+ninguém o levou até lá porque a lista de vocabulários vigiados é escrita à mão, um teste por
+enum. Não há nada que diga *"apareceu um enum novo no servidor e ninguém o compara"*.
+
+É a terceira vez hoje que a mesma forma aparece: guarda cuja entrada é escrita à mão
+envelhece em silêncio — o `ULTIMO_PUBLICADO` do release, a direção única do
+`columns.test.ts`, e agora esta.
+
+**O que mudou.** Os três entraram, cada um lendo a união do TypeScript em vez de repetir a
+lista — assim um valor acrescentado amanhã é conferido sem ninguém lembrar deste arquivo. E
+conferi que mordem: troquei `wrong_item` por `wrongItem` no domínio e o teste reprovou com
+a frase certa.
+
+**A regra que fica:** vocabulário novo do livro-razão entra em **quatro** lugares no mesmo
+commit — domínio, aparelho, servidor e o guarda de acordo. Os três primeiros a tela cobra
+na hora; o quarto só cobra na fábrica de alguém.
