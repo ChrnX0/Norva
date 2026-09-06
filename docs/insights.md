@@ -5339,3 +5339,33 @@ suíte tinha o mesmo buraco e ninguém tinha olhado.
 porque a largura de uma peça **não** muda com a coluna que a recebe — as duas são `flex: 1`
 da mesma linha. Sem essa propriedade, trocar de coluna mudaria a altura, que mudaria a
 distribuição, que mudaria a coluna. Está dito no `Grupo`, onde quem for mexer passa.
+
+---
+
+## A mesma raiz, segunda consequência: a aprovação de pedido é decoração no servidor
+
+*6 de setembro, ao escolher o próximo item.* O `docs/roadmap.md` listava *"a aprovação de
+pedido que nunca atravessa"* entre os médios que sobraram — do jeito que estava escrito,
+lia-se como "falta escrever a tela". Fui medir antes de construir, e é o contrário: **a
+aprovação existe inteira no aparelho.** `setOrdersNeedApproval` grava a bandeira, `saveOrder`
+nasce `pending` por causa dela, `setOrderStatus` enfileira a decisão. Nada falta ali.
+
+O que falta é a bandeira **atravessar**. Ela mora no `meta` do aparelho, `meta` não é tabela
+de sincronia, e não existe entrada `companies` em `src/sync/serialize.ts`. Do outro lado, o
+gatilho `order_starts_where_the_company_says` lê `companies.orders_need_approval` **no
+servidor** — coluna que ninguém nunca escreveu, com `default false`. Então, no dia em que a
+sincronia subir: a empresa liga a aprovação, o aparelho grava `pending`, e o servidor
+reescreve para `open` na inserção. **A aprovação que a empresa ligou vira decoração**, e o
+gatilho está certo — a regra não pode morar no aplicativo quando o pedido vem de fora.
+
+É a mesma raiz do achado de mais cedo hoje, com outro sintoma: **configuração de empresa só
+existe no aparelho.** Lá a consequência era o portão do dinheiro valer por aparelho; aqui é
+uma regra de negócio inteira que o servidor desconhece. Duas consequências de uma raiz é o
+sinal de que a raiz não é detalhe de implementação — é o item 2b (a camada da conta), e por
+isso o médio foi reclassificado no roadmap em vez de virar trabalho agora. Construir a tela
+antes da linha de `companies` é construir a metade que não fecha.
+
+**E o método que achou isto foi o mais barato que existe:** abrir os arquivos que o item
+pressupõe, antes de escrever a primeira linha. É o mesmo gesto de trinta segundos que já
+tinha desmentido a dívida escrita errada, a fronteira caduca do assistente e o índice único
+que eu ia chamar de ausente. Item de lista é hipótese até alguém conferir.

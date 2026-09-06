@@ -297,6 +297,22 @@ De pé, nesta ordem e por este motivo:
    **a fila que nunca era varrida** caíram. Entre os que ficam: a aprovação de
    pedido que nunca atravessa.
 
+   *E ela está MEDIDA, em 6 de setembro — não é "falta escrever", é bloqueada.*
+   A aprovação existe inteira no aparelho: `setOrdersNeedApproval`
+   (`src/data/repository.ts:4771`) grava a bandeira no `meta`, `saveOrder` (`:4789`)
+   nasce `pending` por causa dela, e `setOrderStatus` (`:4882`) enfileira a decisão.
+   O que não existe é a bandeira ATRAVESSAR: `meta` não é tabela de sincronia — não
+   há uma entrada `companies` em `src/sync/serialize.ts` —, e o gatilho
+   `order_starts_where_the_company_says` (`supabase/migrations/0019_an_order_is_demand.sql:103`)
+   lê `companies.orders_need_approval` **no servidor**, que ninguém nunca escreveu.
+   Resultado no dia em que a sincronia subir: a empresa liga a aprovação, o aparelho
+   grava `pending`, e o servidor reescreve para `open` na inserção. A aprovação vira
+   decoração — e o gatilho está certo, porque a regra não pode morar no aplicativo
+   quando o pedido vem de fora.
+   **Ela é do item 2b, não deste item:** o que falta é a linha de `companies` existir
+   e ser escrita, e isso é a camada da conta. Enquanto 2b não andar, mexer aqui é
+   construir a metade que não fecha.
+
    *E `forgetSentBefore` fechou junto, em 6 de setembro.* A auditoria dizia "sem
    chamador fora de teste" e estava certa — mas o conserto não era apagar: o motor
    de sincronia mandava e **nunca varria**, então no dia em que a sincronia existir
