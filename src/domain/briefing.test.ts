@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  avisoDaCopia,
+  DIAS_ATE_A_COPIA_ENVELHECER,
   addWidget,
   briefingFilas,
   BRIEFING_WIDGETS,
@@ -183,4 +185,40 @@ test('peça que não aceita meia continua inteira mesmo se pedirem', () => {
 
 test('meia ao lado de uma que não aceita não pareia', () => {
   assert.deepEqual(briefingFilas(['clima', 'semana'], ['clima', 'semana']), [['clima'], ['semana']]);
+});
+
+/**
+ * O aviso da cópia é a única regra da capa cuja primeira verificação em fábrica
+ * seria catorze dias depois de ela ser escrita.
+ *
+ * A peça não aparece no emulador no dia em que se constrói — a cópia é de hoje, e
+ * o aviso só existe quando ela envelhece. Sem teste, a regra ficaria sustentada
+ * por leitura, e leitura é o que este projeto já provou não bastar: o tema claro
+ * ilegível passou por 338 testes verdes porque nenhum deles olhava a coisa certa.
+ */
+test('the copy warning shows up when it should, and stays quiet when it should not', () => {
+  // Em dia: some. "Está tudo bem" é estado válido e bonito, e peça que aparece
+  // sempre é peça que ninguém lê.
+  assert.equal(avisoDaCopia({ diasAtras: 0 }, true), null);
+  assert.equal(avisoDaCopia({ diasAtras: DIAS_ATE_A_COPIA_ENVELHECER - 1 }, true), null);
+
+  // O limite é INCLUSIVO: no décimo quarto dia já avisa. A borda escrita aqui
+  // porque "quase catorze" e "catorze" é exatamente onde um >= vira > sem ninguém
+  // perceber.
+  assert.equal(avisoDaCopia({ diasAtras: DIAS_ATE_A_COPIA_ENVELHECER }, true), 'velha');
+  assert.equal(avisoDaCopia({ diasAtras: 90 }, true), 'velha');
+
+  // Sem cópia nenhuma E com o que perder: pede.
+  assert.equal(avisoDaCopia(null, true), 'nunca');
+  assert.equal(avisoDaCopia(undefined, true), 'nunca');
+
+  // Sem cópia e sem nada a perder: CALA. Pedir cópia de uma fábrica que ainda não
+  // produziu é o alerta inventado, e alerta inventado ensina a ignorar alerta —
+  // que é a Lei 7 desta casa. Esta é a metade que uma implementação apressada
+  // esquece, porque "sem cópia" parece resposta suficiente sozinha.
+  assert.equal(avisoDaCopia(null, false), null);
+
+  // E uma cópia velha continua velha mesmo numa fábrica parada: o razão que já
+  // existe é o que se perde, e ele não deixa de existir porque hoje foi quieto.
+  assert.equal(avisoDaCopia({ diasAtras: 30 }, false), 'velha');
 });

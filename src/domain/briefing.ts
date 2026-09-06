@@ -163,6 +163,41 @@ const ACEITA_MEIA = new Set<BriefingWidget>([
   'parado',
 ]);
 
+/**
+ * O que a capa diz sobre a cópia — e a decisão mora AQUI, não dentro do JSX.
+ *
+ * A primeira versão tinha os catorze dias e as duas pontas escritos no meio do
+ * componente, e isso deixava a regra sem teste: nada em `node --test` alcança um
+ * ternário dentro de um `<Peca>`. É a mesma lição de `src/components/cena.ts`, que
+ * nasceu porque a legenda e o desenho podiam discordar — o que decide vira módulo
+ * puro, e a tela só desenha o que ele responde.
+ *
+ * E aqui isso pesa mais que o normal, porque a peça **não aparece no emulador no
+ * dia em que se constrói**: a cópia é de hoje, e o aviso só existe quando ela
+ * envelhece. Se a regra não estivesse provada, ela seria a única do aplicativo
+ * cuja primeira verificação seria em fábrica de verdade, catorze dias depois.
+ *
+ * Três respostas, e cada uma tem um motivo diferente para existir:
+ *
+ * - `'nunca'` — não há cópia E a fábrica já tem o que perder. As duas metades são
+ *   obrigatórias: pedir cópia de uma fábrica que ainda não produziu é o alerta
+ *   inventado, e alerta inventado ensina a ignorar alerta.
+ * - `'velha'` — passou de catorze dias. Menos que isso vira barulho semanal; mais
+ *   que isso já é um mês de razão em risco.
+ * - `null` — está em dia, e "está tudo bem" é estado válido e some da tela.
+ */
+export const DIAS_ATE_A_COPIA_ENVELHECER = 14;
+
+export type AvisoDaCopia = 'nunca' | 'velha' | null;
+
+export function avisoDaCopia(
+  copia: { diasAtras: number } | null | undefined,
+  temOQuePerder: boolean,
+): AvisoDaCopia {
+  if (copia === null || copia === undefined) return temOQuePerder ? 'nunca' : null;
+  return copia.diasAtras >= DIAS_ATE_A_COPIA_ENVELHECER ? 'velha' : null;
+}
+
 export function aceitaMeia(w: BriefingWidget): boolean {
   return ACEITA_MEIA.has(w);
 }

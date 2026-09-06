@@ -27,7 +27,7 @@ import type { Dictionary, LocaleSettings } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
 import { nowIso } from '@/data/db';
-import { briefingFilas, coverState, type BriefingWidget } from '@/domain/briefing';
+import { avisoDaCopia, briefingFilas, coverState, type BriefingWidget } from '@/domain/briefing';
 import { daysBetween, localDate } from '@/domain/day';
 import type { Cents } from '@/domain/money';
 import { brand } from '@/config/brand';
@@ -958,46 +958,37 @@ export function Mosaic(vista: BriefingView) {
      * o intervalo em que uma fábrica pequena acumula trabalho que doeria perder —
      * menos que isso vira barulho semanal, mais que isso já é um mês de razão.
      */
-    copia:
-      data?.copia === undefined || data?.copia === null
-        ? // Nunca houve cópia nenhuma: aí não é lembrete, é a primeira vez — e ela
-          // só aparece depois que a fábrica tem o que perder.
-          (data?.madeToday ?? 0) > 0 || (data?.series ?? []).some((d) => d.total > 0)
-          ? (
-              <Peca
-                index={9}
-                tone="warning"
-                icon={(c) => <GlyphArchive size={26} color={c} weight={traco} />}
-                title={t.app.home.copyNeverTitle}
-                aberta={aberta === 'copia'}
-                onToggle={() => go('/backup')}
-              >
-                <Text style={[type.secondary, { color: color.ink }]}>
-                  {t.app.home.copyNeverBody}
-                </Text>
-              </Peca>
-            )
-          : null
-        : data.copia.diasAtras >= 14
-          ? (
-              <Peca
-                index={9}
-                tone="warning"
-                icon={(c) => <GlyphArchive size={26} color={c} weight={traco} />}
-                title={fill(t.app.home.copyOldTitle, { days: String(data.copia.diasAtras) })}
-                aberta={aberta === 'copia'}
-                onToggle={() => go('/backup')}
-              >
-                <Text style={[type.secondary, { color: color.ink }]}>
-                  {data.copia.desdeEla > 0
-                    ? fill(t.app.home.copyOldBody, {
-                        movements: plural(data.copia.desdeEla, t.app.home.movementCount),
-                      })
-                    : t.app.home.copyOldQuiet}
-                </Text>
-              </Peca>
-            )
-          : null,
+    copia: (() => {
+      // A REGRA mora em `avisoDaCopia`, no domínio, onde o teste alcança. Aqui só
+      // se desenha o que ela respondeu — foi assim que a legenda e a cena da capa
+      // pararam de poder discordar, e vale igual.
+      const aviso = avisoDaCopia(data?.copia, (data?.series ?? []).some((d) => d.total > 0));
+      if (aviso === null) return null;
+      return (
+        <Peca
+          index={9}
+          tone="warning"
+          icon={(c) => <GlyphArchive size={26} color={c} weight={traco} />}
+          title={
+            aviso === 'nunca'
+              ? t.app.home.copyNeverTitle
+              : fill(t.app.home.copyOldTitle, { days: String(data?.copia?.diasAtras ?? 0) })
+          }
+          aberta={aberta === 'copia'}
+          onToggle={() => go('/backup')}
+        >
+          <Text style={[type.secondary, { color: color.ink }]}>
+            {aviso === 'nunca'
+              ? t.app.home.copyNeverBody
+              : (data?.copia?.desdeEla ?? 0) > 0
+                ? fill(t.app.home.copyOldBody, {
+                    movements: plural(data!.copia!.desdeEla, t.app.home.movementCount),
+                  })
+                : t.app.home.copyOldQuiet}
+          </Text>
+        </Peca>
+      );
+    })(),
 
     parado: (
         (data?.heldCents ?? 0) > 0 ? (
