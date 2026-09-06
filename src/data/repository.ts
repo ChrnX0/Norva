@@ -440,10 +440,18 @@ export async function recordPurchase(
     // attempted, and the purchase then failed, would be a row nobody asked for.
     const locationId = await ensureLocation(conn, companyId);
 
+    // `received_at` é `occurred`, e não `at` — a mesma distinção que o razão faz.
+    //
+    // Escrevia o instante da DIGITAÇÃO nos dois campos, então a nota lançada ao
+    // meio-dia de uma entrega da véspera dizia ter chegado ao meio-dia de hoje,
+    // enquanto o movimento que ela criava dizia a data certa. A linha e o razão
+    // discordavam sobre o mesmo fato, e ninguém via porque nada lia esta coluna.
+    // Agora `deliveriesOf` lê, e o prazo do fornecedor sairia inflado por todo
+    // atraso de digitação — que é medir a fábrica em vez de medir o fornecedor.
     await conn.runAsync(
       `INSERT INTO purchases (id, company_id, supplier_name, ordered_at, received_at, created_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [purchaseId, companyId, input.supplierName ?? null, input.orderedAt ?? null, at, at],
+      [purchaseId, companyId, input.supplierName ?? null, input.orderedAt ?? null, occurred, at],
     );
 
     await conn.runAsync(
@@ -4198,6 +4206,46 @@ export type PriceMoveRow = {
  * that finally shows it, which is what turns "trust me, it went up" into
  * something the person can look at.
  */
+/**
+ * As entregas de um insumo que dizem quanto o fornecedor DEMOROU.
+ *
+ * Fato e só fato: o par de datas. Quem tira a média é `observedLeadTimeDays`, no
+ * domínio, e quem escreve *"o fornecedor leva 6 dias"* é a tela — esta camada não
+ * fala português e não faz conta de decisão.
+ *
+ * **Só as notas com data de pedido entram, e é isso que a torna honesta.** A
+ * coluna nasceu com a fundação e ficou sem escritor até hoje; enquanto a fábrica
+ * não anotar quando pediu, a lista volta vazia e a tela diz que ainda não sabe —
+ * em vez de inventar um prazo a partir da data de recebimento sozinha, que seria
+ * um número com cara de medição.
+ *
+ * Sem portão de dinheiro: aqui não há cifra, só dias.
+ */
+export type Delivery = { orderedAt: string; receivedAt: string };
+
+export async function deliveriesOf(
+  companyId: string,
+  itemId: string,
+  limit = 8,
+): Promise<Delivery[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{ ordered_at: string; received_at: string }>(
+    `SELECT p.ordered_at, p.received_at
+       FROM purchases p
+       JOIN purchase_lines pl ON pl.purchase_id = p.id
+      WHERE p.company_id = ?
+        AND pl.item_id = ?
+        AND p.ordered_at IS NOT NULL
+        AND p.received_at IS NOT NULL
+        AND p.received_at >= p.ordered_at
+      GROUP BY p.id
+      ORDER BY p.received_at DESC
+      LIMIT ?`,
+    [companyId, itemId, limit],
+  );
+  return rows.map((r) => ({ orderedAt: r.ordered_at, receivedAt: r.received_at }));
+}
+
 export async function itemHistory(
   companyId: string,
   itemId: string,

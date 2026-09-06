@@ -24,6 +24,7 @@ import {
   balanceByLocation,
   canSeeMoney,
   defaultLocationId,
+  deliveriesOf,
   findItem,
   listPlaces,
   itemHistory,
@@ -38,13 +39,14 @@ import {
   type MovementRow,
   type Place,
   type PriceMoveRow,
+  type Delivery,
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
-import { judgePriceChange } from '@/domain/cost';
+import { judgePriceChange, observedLeadTimeDays } from '@/domain/cost';
 import type { LossReason } from '@/domain/ledger';
 import { parseTyped } from '@/domain/number';
 import { useQuery } from '@/data/useQuery';
-import { fill, formatDayMonth, formatMoney, formatPercent, formatQuantity } from '@/i18n';
+import { fill, formatDayMonth, formatMoney, formatPercent, formatQuantity, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -95,6 +97,8 @@ type Loaded = {
   /** Onde este item está, sala por sala. Vazio é "não está em lugar nenhum". */
   spread: LocationBalance[];
   places: Place[];
+  /** As notas com as duas datas: é delas que sai o prazo do fornecedor. */
+  entregas: Delivery[];
   /** Se quem está com o aparelho vê dinheiro. Vem junto para não piscar cifra. */
   dinheiro: boolean;
 };
@@ -130,7 +134,10 @@ function InputDetail() {
 
   const { data, loading, refresh } = useQuery<Loaded>(async () => {
     if (!id)
-      return { item: null, history: [], recipes: [], movements: [], spread: [], places: [], dinheiro: false };
+      return {
+        item: null, history: [], recipes: [], movements: [], spread: [], places: [],
+        entregas: [], dinheiro: false,
+      };
 
     // Os lugares vêm primeiro porque a sala da rota tem de ser conferida contra
     // eles. Um id que não existe mais - o lugar foi apagado, ou o endereço veio
@@ -142,17 +149,20 @@ function InputDetail() {
 
     // O saldo e os movimentos vão pela sala; o preço e as receitas não têm sala
     // — custo médio é da empresa, e uma ficha não muda de sala em sala.
-    const [item, history, recipes, movements, spread, dinheiro] = await Promise.all([
+    const [item, history, recipes, movements, spread, entregas, dinheiro] = await Promise.all([
       findItem(LOCAL_COMPANY_ID, id, room),
       itemHistory(LOCAL_COMPANY_ID, id),
       recipesUsingItem(LOCAL_COMPANY_ID, id),
       itemMovements(LOCAL_COMPANY_ID, id, 20, room),
       balanceByLocation(LOCAL_COMPANY_ID, id),
+      // As notas que dizem quanto o fornecedor demorou. Sem portão: são dias, não
+      // dinheiro — e é o operador que fica sem insumo quando o prazo estica.
+      deliveriesOf(LOCAL_COMPANY_ID, id),
       // Na mesma consulta do resto: sem isso existe um instante em que a tela
       // tem os números e ainda não sabe se pode mostrá-los.
       canSeeMoney(LOCAL_COMPANY_ID),
     ]);
-    return { item, history, recipes, movements, spread, places, dinheiro };
+    return { item, history, recipes, movements, spread, places, entregas, dinheiro };
   }, `${id ?? ''}|${sala ?? ''}`);
 
   const item = data?.item ?? null;
@@ -180,6 +190,16 @@ function InputDetail() {
    * respondia as duas com a primeira, que é a única errada das duas.
    */
   const dinheiro = data?.dinheiro === true;
+
+  /**
+   * O prazo do fornecedor, em dias — e o cálculo é do DOMÍNIO, não daqui.
+   *
+   * `observedLeadTimeDays` estava implementada e sem chamador desde sempre, com
+   * uma razão registrada que dizia "precisa de meses de nota". A medição de 6 de
+   * setembro desmentiu: o que faltava era alguém escrever `ordered_at`, e agora a
+   * tela de compra escreve. Este é o primeiro leitor dela em produção.
+   */
+  const prazo = observedLeadTimeDays(data?.entregas ?? []);
   const temCusto = item.averageRate !== null && item.averageRate > 0;
   const perThousand = temCusto ? Math.round((item.averageRate ?? 0) * 1_000) : 0;
   const held = Math.round((item.averageRate ?? 0) * item.onHandBaseUnits);
@@ -537,6 +557,29 @@ function InputDetail() {
                 : '—'
             }
           />
+
+          {/* Quanto o fornecedor demora — medido, e ao lado de como se compra.
+              Sem régua nenhuma: não existe "compre agora" aqui, porque isso se
+              afere contra uma fábrica e não contra um banco semeado. O que existe é
+              o fato, e o fato só aparece quando alguém anotou a data do pedido; sem
+              isso a tela diz o que destrava, em vez de mostrar um traço. */}
+          {prazo === null ? (
+            <Text style={[type.caption, { color: color.inkFaint, marginTop: space.sm }]}>
+              {t.app.inputDetail.leadTimeUnknown}
+            </Text>
+          ) : (
+            <ListRow
+              label={t.app.inputDetail.leadTime}
+              detail={fill(t.app.inputDetail.leadTimeFrom, {
+                count: plural((data?.entregas ?? []).length, t.app.inputDetail.noteCount),
+              })}
+              trailing={plural(
+                Math.round(prazo),
+                t.app.home.dayCount,
+                formatQuantity(Math.round(prazo), locale),
+              )}
+            />
+          )}
         </Card>
       </Reveal>
 

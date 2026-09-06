@@ -26,9 +26,23 @@ import { fromDecimal, rate, type Rate } from '@/domain/money';
 import { applyCostEvent, judgePriceChange } from '@/domain/cost';
 import { costPerProductUnit, packagingRatePerUnit, costRecipe } from '@/domain/recipe';
 import { parseTyped } from '@/domain/number';
-import { currencySymbol, fill, formatMoney, formatPercent, formatQuantity } from '@/i18n';
+import { localDate } from '@/domain/day';
+import { nowIso } from '@/data/db';
+
+import { currencySymbol, fill, formatMoney, formatPercent, formatQuantity, plural } from '@/i18n';
+import type { Dictionary, LocaleSettings } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
+
+/**
+ * As respostas para "quando você pediu", em dias atrás.
+ *
+ * `null` é "não sei" e vem primeiro porque é o padrão. O resto cobre o que uma
+ * fábrica lembra sem olhar papel: hoje, ontem, anteontem, três dias, uma semana.
+ * Mais que isso ninguém responde de cabeça, e um campo de data aberto seria o
+ * teclado que esta casa evita no chão de fábrica.
+ */
+const QUANDO_PEDIU: readonly (number | null)[] = [null, 0, 1, 2, 3, 7];
 
 /**
  * Entering an invoice - the most valuable screen in the app per keystroke.
@@ -103,6 +117,14 @@ function PurchaseForm() {
   const { itemId } = useLocalSearchParams<{ itemId?: string }>();
   const [selectedId, setSelectedId] = useState<string | null>(itemId ?? null);
   const [supplier, setSupplier] = useState('');
+  /**
+   * Há quantos dias o pedido foi feito — `null` é "não sei", que é o padrão.
+   *
+   * Em dias e não em data porque o teclado de data não existe nesta casa: as
+   * telas perguntam "amanhã, +2, +7" e a pessoa toca. Aqui é o espelho disso,
+   * para trás, e o que o banco recebe é a data calculada.
+   */
+  const [pedidoHaDias, setPedidoHaDias] = useState<number | null>(null);
   const [quantity, setQuantity] = useState('1');
   const [total, setTotal] = useState('');
   const [saving, setSaving] = useState(false);
@@ -194,7 +216,17 @@ function PurchaseForm() {
 
     setSaving(true);
     try {
-      setImpact(await recordAndMeasure(selected, draft.packs, draft.baseUnits, draft.totalCents, supplier));
+      setImpact(
+        await recordAndMeasure(
+          selected,
+          draft.packs,
+          draft.baseUnits,
+          draft.totalCents,
+          supplier,
+          pedidoHaDias,
+          locale.timeZone,
+        ),
+      );
       setTotal('');
       setQuantity('1');
       refresh();
@@ -294,6 +326,37 @@ function PurchaseForm() {
                 onChangeText={setSupplier}
                 placeholder={t.app.purchase.supplierPlaceholder}
               />
+
+              {/* Quando o pedido foi feito.
+                  A única pergunta desta tela que o sistema não pode deduzir — a data
+                  do telefonema para o fornecedor não está no razão —, e é por isso
+                  que perguntar aqui não fere a Lei 1. "Não sei" nasce marcado: é o
+                  estado de hoje, e obrigar resposta trocaria uma lacuna honesta por um
+                  número inventado. */}
+              <View style={{ gap: space.sm }}>
+                <Text style={[type.overline, { color: color.inkFaint }]}>
+                  {t.app.purchase.orderedWhen.toUpperCase()}
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+                  {QUANDO_PEDIU.map((dias) => {
+                    const rotulo = rotuloDoPedido(dias, t, locale);
+                    return (
+                      <Pressable
+                        key={String(dias)}
+                        onPress={() => setPedidoHaDias(dias)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: pedidoHaDias === dias }}
+                        accessibilityLabel={rotulo}
+                      >
+                        <Chip signal={pedidoHaDias === dias ? 'ok' : 'neutral'} label={rotulo} />
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Text style={[type.caption, { color: color.inkFaint }]}>
+                  {t.app.purchase.orderedWhenHint}
+                </Text>
+              </View>
               <Field
                 label={fill(t.app.purchase.howMany, {
                   pack: selected.purchaseUnit ?? t.units.unit.other,
@@ -471,6 +534,9 @@ async function recordAndMeasure(
   baseUnits: number,
   totalCents: ReturnType<typeof fromDecimal>,
   supplier: string,
+  /** Há quantos dias o pedido foi feito; `null` quando ninguém sabe. */
+  pedidoHaDias: number | null,
+  timeZone: string,
 ): Promise<Impact[]> {
   const [recipesBefore, costsBefore, products, names] = await Promise.all([
     loadRecipeGraph(LOCAL_COMPANY_ID),
@@ -507,6 +573,12 @@ async function recordAndMeasure(
     purchaseQuantity: packs,
     baseUnits,
     totalCents,
+    // Sem resposta, nada é gravado: `ordered_at` continua nulo e `deliveriesOf`
+    // ignora a nota. Uma lacuna vazia é mais honesta que um palpite.
+    orderedAt:
+      pedidoHaDias === null
+        ? undefined
+        : `${localDate(nowIso(), timeZone, -pedidoHaDias)}T00:00:00.000Z`,
   });
 
   if (costsBefore === null) return [];
@@ -515,4 +587,20 @@ async function recordAndMeasure(
   return before
     .map((row, index) => ({ name: row.name, before: row.value, after: after[index].value }))
     .filter((row) => row.before !== row.after);
+}
+
+/** A palavra de cada resposta. Quem escreve português é a tela, e é aqui. */
+function rotuloDoPedido(
+  dias: number | null,
+  t: Dictionary,
+  locale: LocaleSettings,
+): string {
+  if (dias === null) return t.app.purchase.orderedUnknown;
+  if (dias === 0) return t.app.purchase.orderedToday;
+  // "Ontem" e não "Há 1 dia": a foto mostrou a diferença entre a palavra da
+  // pessoa e a do sistema, e esta tela é lida por quem está com a nota na mão.
+  if (dias === 1) return t.app.purchase.orderedYesterday;
+  return fill(t.app.purchase.orderedDaysAgo, {
+    days: plural(dias, t.app.home.dayCount, formatQuantity(dias, locale)),
+  });
 }

@@ -5535,3 +5535,68 @@ extrair o arquivo do commit para o rascunho e recortar por **intervalo de linhas
 O `git checkout` do arquivo, que seria o caminho curto, é justamente o que já apagou quinze
 edições nesta branch — e o classificador de permissão o recusou, o que foi a segunda rede
 funcionando.
+
+---
+
+## O prazo observado não espera meses de nota: espera alguém escrever a data do pedido
+
+*6 de setembro, escolhendo o item seguinte.* O roadmap põe **compras inteligentes** como
+"construir agora, calibrar depois", e a tabela da F4 — a que o dono mandou corrigir — diz o
+motivo: *"o prazo observado a simulação gera"*. Fui conferir antes de construir, como a casa
+manda, e a frase é **falsa**.
+
+`observedLeadTimeDays` (`src/domain/cost.ts`) calcula a média entre `orderedAt` e
+`receivedAt`. A coluna `purchases.ordered_at` existe desde a fundação, `recordPurchase`
+aceita o campo e o grava, e a travessia até o servidor o leva (`src/sync/serialize.ts:352`).
+**Ninguém escreve nele**: nem a tela de compra — `app/purchase.tsx` não tem campo de data
+nenhum — nem a simulação, que chama `recordPurchase` duas vezes sem `orderedAt`. Então
+`ordered_at` é sempre nulo, `observedLeadTimeDays` recebe uma lista vazia e devolve `null`,
+e o ponto de recompra que depende dele é adivinhação com cara de matemática — que é
+exatamente o que o registro da guarda diz, com o motivo errado.
+
+**A diferença importa para o que fazer.** "Precisa de meses de nota" é um item que se espera;
+"ninguém anota quando pediu" é um item que se **constrói**, e esperar não o resolve — sem o
+escritor, os meses passam e a coluna continua vazia. É o mesmo formato do achado da aprovação
+de pedido de hoje de manhã, com o sinal trocado: lá a peça estava pronta e faltava o caminho
+para o servidor; aqui a peça está pronta e falta a **pergunta na tela**.
+
+E a pergunta é legítima justamente porque o sistema **não** pode deduzi-la: a Lei 1 proíbe
+pedir o que se pode calcular, e a data em que alguém ligou para o fornecedor não está em
+lugar nenhum do razão. É o caso raro em que perguntar é o certo — e é uma pergunta só,
+opcional, na tela que a pessoa já está preenchendo.
+
+**O que muda por causa disto:** o roadmap deixa de dizer que a simulação gera o prazo, e o
+item 6 passa a ter um primeiro passo nomeado — a data do pedido na nota — em vez de uma
+espera que nunca terminaria sozinha.
+
+---
+
+## Duas linhas discordavam sobre a mesma data, e ninguém via porque ninguém lia
+
+*6 de setembro.* Ao construir a pergunta *"quando você pediu"* — o escritor que faltava
+para `ordered_at` — precisei do outro lado do par: `purchases.received_at`. E ele estava
+errado de um jeito específico.
+
+`recordPurchase` calcula duas datas: `at`, o instante da digitação, e `occurred`, a data
+que a pessoa informou (*"a nota chega atrasada: o caminhão descarrega às sete e alguém
+digita ao meio-dia"* — está no docblock, desde a V3). O **movimento** que a função cria usa
+`occurred`, certinho. A **linha da compra** usava `at` nos dois campos. Então uma nota de
+ontem lançada hoje dizia, na mesma transação: *o razão diz que chegou ontem, a compra diz
+que chegou hoje.*
+
+**Ficou invisível por três meses porque `received_at` não tinha um único leitor.** Coluna
+sem leitor não é código morto — é uma afirmação que ninguém conferiu, e ela envelhece
+errada em silêncio. No instante em que `deliveriesOf` passou a lê-la, o defeito virou
+consequência: o prazo do fornecedor sairia inflado por todo atraso de digitação, ou seja, a
+tela mediria **a fábrica** achando que mede o fornecedor.
+
+**O que fica de método, e vale mais que o conserto.** O portão P1 pergunta *quem chama isto*
+e a resposta "ninguém" é tratada como dívida de código. Este caso mostra a outra metade:
+**escrever num campo que ninguém lê também é dívida**, e mais perigosa, porque o dado errado
+se acumula. A guarda que ensinei hoje a olhar o `src` inteiro pega função sem chamador; ela
+não pega coluna sem leitor. Fica anotado como a próxima guarda que este repositório pede —
+comparar o que as migrações declaram com o que alguma consulta lê de volta.
+
+E o achado só apareceu porque a peça nova precisou do campo. **Construir é a leitura mais
+atenta que existe:** três auditorias passaram por `recordPurchase` sem ver, e um `SELECT`
+novo viu na primeira tarde.

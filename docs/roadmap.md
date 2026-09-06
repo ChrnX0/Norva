@@ -287,7 +287,7 @@ abaixo respeita duas decisões escritas dele — *"termina o layout, nada pela m
 | **3** | ~~**Espelho da Loja — construir**~~ **— FEITO em 6 de setembro** | `storeMirror` (`src/data/repository.ts`) e `app/mirror.tsx`, com a porta em Relatórios. A fração é por ITEM e não por loja, e isso é conserto de uma aritmética inválida que a primeira versão tinha: o razão conta em grama para o açúcar e em unidade para o picolé, e somar as duas afogava o item leve. Falta a calibração, que é o que precisa de fábrica — não há régua de "devolve demais" em lugar nenhum do código. |
 | **4** | **Os sete médios** | pequenos e independentes; cabem entre as coisas grandes. O maior é a aprovação de pedido, que é F7 — vira configuração da empresa, não escolha nossa. |
 | **5** | **A sala do tacho** | pergunta de PADRÃO para o dono, não de qual; e trava no P3 porque muda onde o consumo é gravado. Fica para a câmara fria da F2. |
-| **6** | **Compras inteligentes** | mesma classe do 3 — construir agora, calibrar contra prazo real depois. |
+| **6** | **Compras inteligentes** | mesma classe do 3 — construir agora, calibrar depois. **Primeiro passo medido em 6 de setembro:** a data do pedido na tela de compra, porque `observedLeadTimeDays` recebe lista vazia hoje — `ordered_at` não tem escritor. Sem ela, esperar meses não adianta: a coluna continua nula. |
 | — | **O fiscal** | fora, e o único que trava por algo que nenhum dado resolve: certificado A1 e homologação na SEFAZ. |
 
 De pé, nesta ordem e por este motivo:
@@ -858,7 +858,7 @@ misturado três coisas que travam por motivos diferentes.
 |---|---|---|
 | **Fiscal (NF-e)** | **sim** | certificado A1 e homologação na SEFAZ. Externo, e não encurta com dado nenhum. |
 | **Espelho da Loja** | **não** | o relatório se constrói e se exercita hoje. |
-| **Compras inteligentes** | **não** | o prazo observado a simulação gera. |
+| **Compras inteligentes** | **não, e o motivo mudou em 6 de setembro** | esta linha dizia *"o prazo observado a simulação gera"*, e é falso: `purchases.ordered_at` existe desde a fundação, `recordPurchase` o grava e a travessia o leva — mas **ninguém escreve nele**, nem a tela de compra nem a simulação. O que trava não é mês de nota, é a **pergunta na tela**: quando você pediu. É a pergunta rara que a Lei 1 permite, porque a data de um telefonema para o fornecedor não está no razão. |
 
 O que é verdade dos dois últimos não é "não dá para construir", é **não dá para
 calibrar**: qualquer padrão que o relatório descubra num banco semeado é um padrão que

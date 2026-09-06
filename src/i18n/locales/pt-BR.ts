@@ -810,6 +810,19 @@ export const ptBR = {
       noInvoiceYet: 'ainda sem nota lançada',
       wentUp: 'Subiu {{percent}} na última compra',
       wentDown: 'Caiu {{percent}} na última compra',
+      /**
+       * Quanto o fornecedor demora — fato medido, nunca conselho.
+       *
+       * A média entre pedir e receber, das notas que trazem as duas datas. Não há
+       * "compre agora" em lugar nenhum: essa régua precisa de fábrica, e o que a
+       * tela faz é pôr o prazo ao lado de como se compra, que é a vizinhança onde
+       * a conta se fecha sozinha na cabeça de quem compra.
+       */
+      leadTime: 'O fornecedor leva',
+      leadTimeFrom: 'média de {{count}}',
+      noteCount: { one: '1 nota', other: '{{n}} notas' },
+      leadTimeUnknown:
+        'Anote quando você pediu, na próxima nota, e o app passa a saber quanto seu fornecedor demora.',
       howYouBuy: 'Como você compra',
       pack: 'Embalagem',
       perPack: 'Quanto vem dentro',
@@ -1195,6 +1208,27 @@ export const ptBR = {
       /** Sem repetir a palavra do título nem do grupo que leva até aqui. */
       overline: 'a nota move o custo',
       openingStoreroom: 'Abrindo o almoxarifado…',
+      /**
+       * Quando o pedido foi feito — a pergunta rara que a Lei 1 permite.
+       *
+       * A lei proíbe pedir o que o sistema pode deduzir, e a data em que alguém
+       * ligou para o fornecedor não está no razão em lugar nenhum. Sem ela,
+       * `observedLeadTimeDays` recebe lista vazia e o ponto de recompra é
+       * adivinhação — esperar meses de nota não conserta, porque a coluna
+       * continua nula.
+       *
+       * "Não sei" nasce marcado de propósito: é o estado de hoje, e obrigar uma
+       * resposta trocaria uma lacuna honesta por um número inventado. A dica diz
+       * o que a resposta compra, em vez de cobrar.
+       */
+      orderedWhen: 'Quando você pediu',
+      orderedWhenHint:
+        'Com isso o app aprende quanto seu fornecedor demora, e avisa antes de faltar. Sem isso, ele não tem como saber.',
+      orderedUnknown: 'Não sei',
+      orderedToday: 'Hoje',
+      /** Uma palavra, e é a que a pessoa usa. "Há 1 dia" é como um sistema fala. */
+      orderedYesterday: 'Ontem',
+      orderedDaysAgo: 'Há {{days}}',
       whatYouBought: 'O que você comprou',
       /** Existe insumo, mas nenhum com embalagem e quanto vem dentro — sem isso a nota não converte. */
       noneBuyable:
