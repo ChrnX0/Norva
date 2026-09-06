@@ -4648,6 +4648,27 @@ export async function setBriefingHidden(hidden: readonly string[]): Promise<void
   await writeMeta(BRIEFING_HIDDEN_KEY, hidden.join(','));
 }
 
+const BRIEFING_HALF_KEY = 'briefing.half';
+
+/**
+ * Quais peças a casa quer em MEIA coluna.
+ *
+ * É da empresa e não do aparelho, pela mesma razão que a ordem é: se o dono monta
+ * a capa e o operador vê outra, *"olha lá na tela inicial"* deixa de funcionar. E
+ * é uma lista de nomes pelo mesmo motivo da ordem — `perdas,clima` se lê no banco
+ * durante um suporte.
+ *
+ * Vazio quer dizer "tudo inteiro", que é como o produto sempre foi.
+ */
+export async function briefingHalf(): Promise<string[]> {
+  const saved = await readMeta(BRIEFING_HALF_KEY);
+  return saved ? saved.split(',').filter(Boolean) : [];
+}
+
+export async function setBriefingHalf(half: readonly string[]): Promise<void> {
+  await writeMeta(BRIEFING_HALF_KEY, half.join(','));
+}
+
 const ALERTS_KEY = 'alerts.settings';
 
 /**

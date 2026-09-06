@@ -149,7 +149,12 @@ function ReportIndex() {
   return (
     // Três cartões irmãos — estoque, custo, perdas —, do mesmo tamanho e da
     // mesma importância: é a definição da tela que pareia.
-    <CollapsingHeader title={t.app.reports.title} overline={t.app.reports.subtitle} pares>
+    <CollapsingHeader
+      title={t.app.reports.title}
+      overline={t.app.reports.subtitle}
+      cena="relatorios"
+      pares
+    >
       {/* Estoque: o dinheiro que está parado, e por quantos dias ele dura. Duas
           grandezas diferentes do mesmo fato, que é o que faz o número decidir
           alguma coisa em vez de só existir. */}

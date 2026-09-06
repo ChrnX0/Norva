@@ -638,6 +638,13 @@ export const ptBR = {
         hidden: 'escondido aqui',
         show: 'Mostrar',
         hide: 'Esconder',
+        /* Meia coluna: a peça divide a linha com a vizinha. A frase diz o
+            RESULTADO e não o interruptor, porque marcar uma peça como meia pode
+            não mudar nada — a regra é que meia sozinha vira inteira, e quem
+            quiser o par marca as duas. */
+        half: 'Meia',
+        whole: 'Inteira',
+        halfAlone: 'sozinha, ocupa a linha',
         up: 'Subir',
         down: 'Descer',
         offCover: 'FORA DA CAPA',

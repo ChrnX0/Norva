@@ -25,6 +25,7 @@ import { Touchable } from '@/components/Touchable';
 import { brand } from '@/config/brand';
 import {
   alertSettings,
+  briefingHalf,
   briefingHidden,
   briefingOrder,
   countForErase,
@@ -32,6 +33,7 @@ import {
   floorSignIn,
   namesWhoRecorded,
   ordersNeedApproval,
+  setBriefingHalf,
   setBriefingHidden,
   setAlertSettings,
   setBriefingOrder,
@@ -45,6 +47,8 @@ import type { AlertKind, AlertSettings } from '@/domain/alerts';
 import { useAppearance } from '@/theme/Appearance';
 import {
   addWidget,
+  aceitaMeia,
+  briefingFilas,
   briefingLayout,
   moveWidget,
   widgetsOffCover,
@@ -191,19 +195,42 @@ function Settings() {
    */
   const [ordem, setOrdem] = useState<BriefingWidget[]>(() => briefingLayout([], []));
   const [escondidos, setEscondidos] = useState<string[]>([]);
+  /** Quais a casa quer em meia coluna. Da EMPRESA, como a ordem — não do aparelho. */
+  const [meias, setMeias] = useState<string[]>([]);
   const fora = widgetsOffCover(ordem);
+  const filas = briefingFilas(ordem, meias);
 
   useEffect(() => {
     let vivo = true;
-    void Promise.all([briefingOrder(), briefingHidden()]).then(([salva, ocultos]) => {
+    void Promise.all([briefingOrder(), briefingHidden(), briefingHalf()]).then(
+      ([salva, ocultos, metades]) => {
       if (!vivo) return;
       setOrdem(briefingLayout(salva, []));
       setEscondidos(ocultos);
-    });
+      setMeias(metades);
+      },
+    );
     return () => {
       vivo = false;
     };
   }, []);
+
+  /**
+   * Meia coluna ou inteira.
+   *
+   * O rótulo diz o RESULTADO e não o interruptor, e isso é a regra aparecendo na
+   * tela em vez de virar surpresa: marcar uma peça como meia pode não mudar nada,
+   * porque meia sozinha ocupa a linha. Quem quiser o par marca as duas — e o
+   * rótulo "sozinha, ocupa a linha" é o que conta isso sem obrigar ninguém a
+   * descobrir tentando.
+   */
+  const trocarLargura = async (widget: BriefingWidget) => {
+    const nova = meias.includes(widget)
+      ? meias.filter((w) => w !== widget)
+      : [...meias, widget];
+    setMeias(nova);
+    await setBriefingHalf(nova);
+  };
 
   const mover = async (widget: BriefingWidget, direcao: 'up' | 'down') => {
     const nova = moveWidget(ordem, widget, direcao);
@@ -764,6 +791,30 @@ function Settings() {
                     {t.app.settings.briefing.widgets[widget]}
                     {escondido ? ` · ${t.app.settings.briefing.hidden}` : ''}
                   </Text>
+
+                  {aceitaMeia(widget) ? (
+                    <Pressable
+                      onPress={() => void trocarLargura(widget)}
+                      accessibilityRole="switch"
+                      accessibilityState={{ checked: meias.includes(widget) }}
+                      accessibilityLabel={`${t.app.settings.briefing.widgets[widget]}: ${
+                        meias.includes(widget)
+                          ? t.app.settings.briefing.half
+                          : t.app.settings.briefing.whole
+                      }`}
+                    >
+                      <Chip
+                        signal={meias.includes(widget) ? 'ok' : 'neutral'}
+                        label={
+                          meias.includes(widget)
+                            ? filas.some((f) => f.length > 1 && f.includes(widget))
+                              ? t.app.settings.briefing.half
+                              : `${t.app.settings.briefing.half} · ${t.app.settings.briefing.halfAlone}`
+                            : t.app.settings.briefing.whole
+                        }
+                      />
+                    </Pressable>
+                  ) : null}
 
                   <Pressable
                     onPress={() => void trocarVisibilidade(widget)}

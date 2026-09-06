@@ -10,9 +10,12 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Reveal } from '@/components/Reveal';
+import { CenaDoCabecalho } from './cenas/Cena';
+import type { Cena } from './cenas/prancha';
 import { alternando, distribuir } from './colunas';
 import { Mark } from './Mark';
 import { MEDIDA_DA_PAGINA, MEDIDA_EM_PARES, PARES_A_PARTIR_DE } from '@/theme/tokens';
+import { PRANCHA_DO_CABECALHO } from './cenas/prancha';
 import { useTheme } from '@/theme/ThemeProvider';
 
 const EXPANDED = 34;
@@ -45,11 +48,26 @@ export function Inteiro({ children }: { children: ReactNode }) {
 export function CollapsingHeader({
   title,
   overline,
+  cena,
   pares = false,
   children,
 }: {
   title: string;
   overline?: string;
+  /**
+   * O desenho vivo desta tela.
+   *
+   * Decisão do dono, 6 de setembro: *"quero em TODAS as páginas um cabeçalho q
+   * fica animado tipo a da pagina home"*. Quem escolhe é a tela, porque só ela
+   * sabe do que trata — e é por isso que não há um mapa de rota para cena
+   * escondido aqui dentro: rota é endereço, não assunto, e duas rotas do mesmo
+   * assunto (a lista e a ficha) querem o mesmo desenho.
+   *
+   * Ele recolhe junto com a rolagem, como o título e a linha de olho. Cena que
+   * ficasse fixa comeria um terço da tela de quem está lendo uma lista longa —
+   * e a Lei manda que movimento nunca atrapalhe informação.
+   */
+  cena?: Cena;
   /**
    * Esta tela é feita de cartões IRMÃOS, e pode virar duas colunas no tablet.
    *
@@ -70,6 +88,9 @@ export function CollapsingHeader({
   // Em dp, que é o que o layout enxerga — nunca pixel.
   const { width: larguraDaTela } = useWindowDimensions();
   const emPares = pares && larguraDaTela >= PARES_A_PARTIR_DE;
+  // A cena guarda a proporção da prancheta, então a altura sai da largura útil.
+  const alturaDaCena =
+    ((larguraDaTela - space.lg * 2) / PRANCHA_DO_CABECALHO.largura) * PRANCHA_DO_CABECALHO.altura;
   const medida = emPares ? MEDIDA_EM_PARES : MEDIDA_DA_PAGINA;
   const coluna = { width: '100%' as const, maxWidth: medida, alignSelf: 'center' as const };
   const largo = larguraDaTela >= MEDIDA_DA_PAGINA;
@@ -94,6 +115,13 @@ export function CollapsingHeader({
   const overlineStyle = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [0, RANGE / 2], [1, 0], Extrapolation.CLAMP),
     height: interpolate(scrollY.value, [0, RANGE / 2], [18, 0], Extrapolation.CLAMP),
+  }));
+
+  // A cena sai antes do título e mais depressa que ele: quem rolou já decidiu
+  // que quer o conteúdo, e a ilustração é a boa-vinda, não a matéria.
+  const cenaStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, RANGE * 0.6], [1, 0], Extrapolation.CLAMP),
+    height: interpolate(scrollY.value, [0, RANGE * 0.6], [alturaDaCena, 0], Extrapolation.CLAMP),
   }));
 
   return (
@@ -162,6 +190,14 @@ export function CollapsingHeader({
             {title}
           </Animated.Text>
         </Reveal>
+
+        {cena ? (
+          <Reveal index={2}>
+            <Animated.View style={[cenaStyle, { overflow: 'hidden' }]}>
+              <CenaDoCabecalho cena={cena} />
+            </Animated.View>
+          </Reveal>
+        ) : null}
       </View>
 
       <Animated.ScrollView

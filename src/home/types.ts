@@ -72,5 +72,7 @@ export type BriefingView = {
    * escondeu. Quem resolve isso é o domínio; a tela só desenha o que recebe.
    */
   layout: BriefingWidget[];
+  /** As peças que a casa quer em meia coluna. Vazio = tudo inteiro. */
+  meias: string[];
   go: (route: string) => void;
 };

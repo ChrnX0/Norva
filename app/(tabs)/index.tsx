@@ -10,6 +10,7 @@ import {
   productionOn,
   recentRuns,
   runningOut,
+  briefingHalf,
   briefingHidden,
   briefingOrder,
   lastCostMove,
@@ -356,12 +357,17 @@ function Briefing() {
 
   // A ordem das peças: a da casa, sem o que este aparelho escondeu.
   const { data: preferencia } = useQuery(async () => {
-    const [order, hidden] = await Promise.all([briefingOrder(), briefingHidden()]);
-    return briefingLayout(order, hidden);
+    const [order, hidden, meias] = await Promise.all([
+      briefingOrder(),
+      briefingHidden(),
+      briefingHalf(),
+    ]);
+    return { layout: briefingLayout(order, hidden), meias };
   });
 
   const view: BriefingView = {
-    layout: preferencia ?? briefingLayout([], []),
+    layout: preferencia?.layout ?? briefingLayout([], []),
+    meias: preferencia?.meias ?? [],
     data: data ?? null,
     sky,
     weather: weather ?? null,

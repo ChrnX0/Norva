@@ -1,10 +1,12 @@
 import { useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarHeightContext } from 'expo-router/js-tabs';
 import { useContext } from 'react';
 import { SkyMark } from '@/components/Sky';
+import { useCiclo } from '@/components/vida';
 import { MEDIDA_DA_PAGINA } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -557,7 +559,7 @@ export function Nivel({
             justifyContent: 'flex-end',
           }}
         >
-          <View style={{ height: `${presa * 100}%`, backgroundColor: tinta, opacity: 0.22 }} />
+          <Liquido parcela={presa} cor={tinta} />
         </View>
       </View>
 
@@ -578,4 +580,34 @@ export function Nivel({
       </View>
     </View>
   );
+}
+
+/**
+ * O líquido dentro do pote, assentando.
+ *
+ * Pedido do dono, 6 de setembro, apontando a semana, o pote e o sol: *"quero
+ * todos eles seguindo o estilo de animação constante q a gente adotou para a
+ * fábrica do topo. algo bem suave."*
+ *
+ * O que se mexe é o LÍQUIDO e não o pote, porque é assim que a regra da casa
+ * funciona: cada coisa se mexe como ela mesma. Pote balançando é o desenho
+ * inteiro tremendo; líquido subindo e descendo meio ponto percentual é uma
+ * superfície que ainda não parou — que é o que se vê num balde que acabou de ser
+ * carregado até a câmara.
+ *
+ * Sete segundos de volta, mais lento que a semana de propósito: dois ambientes
+ * na mesma tela em ciclos parecidos entram em batimento, e o olho pega o
+ * compasso. Em ciclos primos entre si nunca sincronizam, e nada nunca "pisca
+ * junto".
+ *
+ * **A altura média do ciclo é exatamente `parcela`.** Ambiente que alterasse a
+ * leitura seria pior que ambiente nenhum: um pote parecendo mais cheio às nove
+ * da manhã e menos às nove e meia é um número mentindo devagar.
+ */
+function Liquido({ parcela, cor }: { parcela: number; cor: string }) {
+  const ciclo = useCiclo(7000, { feitio: 'vaivem', repouso: 0.5 });
+  const estilo = useAnimatedStyle(() => ({
+    height: `${Math.max(0, Math.min(100, parcela * 100 + (ciclo.value - 0.5) * 1.1))}%`,
+  }));
+  return <Animated.View style={[{ backgroundColor: cor, opacity: 0.22 }, estilo]} />;
 }

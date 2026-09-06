@@ -145,6 +145,7 @@ function WhereItWent() {
 
   return (
     <CollapsingHeader
+      cena="transporte"
       title={t.app.transport.title}
       // Sem resumo ainda, a linha de olho diz o que a tela é — nunca some.
       // Cabeçalho que aparece e desaparece conforme o dado faz a página pular, e

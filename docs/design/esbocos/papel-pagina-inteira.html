@@ -1,0 +1,222 @@
+<!doctype html><meta charset="utf-8">
+<title>NORVA · a capa inteira em diagramação editorial</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:412px;background:#FAF7F2;color:#221F1B;
+ font-family:Georgia,"Times New Roman",serif;-webkit-font-smoothing:antialiased}
+.folha{padding:26px 0 60px}
+.m{padding:0 24px}                       /* a margem da folha */
+
+/* A FAIXA SANGRADA — o equivalente editorial da cor em massa.
+   Vai de margem a margem, sem borda e sem canto: numa página impressa é
+   uma faixa de tinta, não um cartão. É assim que o pastel entra pesado
+   sem a página virar um painel de cartões. */
+.faixa{padding:0 24px;margin:22px 0}
+
+/* ---- o vocabulário da página: olho, manchete, fio, apoio ---- */
+.olho{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#B08A6E;
+ font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif}
+h1{font-size:29px;line-height:1.08;margin-top:8px;font-weight:400}
+h1 b{font-weight:700}
+.fio{height:1px;background:#CFC3B0;margin:22px 0 16px}
+.fio.grossa{height:2px;background:#221F1B;margin:20px 0 18px}
+.secao{margin-top:2px}
+.cabeca{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.titulo{font-size:19px;font-weight:700;line-height:1.2}
+.apoio{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;
+ font-size:13px;color:#5A5148;line-height:1.5;margin-top:5px}
+.numero{font-size:34px;line-height:1;font-weight:400;font-variant-numeric:tabular-nums;color:#AD3415}
+.mini{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;
+ font-size:11.5px;color:#8A8073;margin-top:6px}
+.mais{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;
+ font-size:11.5px;color:#205C86;margin-top:9px}
+svg{display:block}
+
+/* linhas de item, que substituem o cartão por entrelinha e alinhamento */
+.linha{display:flex;align-items:center;gap:12px;padding:10px 0;
+ border-bottom:1px solid #EFE4D6}
+.linha:last-child{border-bottom:0}
+.nome{flex:1;font-size:15px}
+.cifra{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;
+ font-size:13px;color:#5A5148;font-variant-numeric:tabular-nums}
+/* O selo: cor em massa do tamanho de uma palavra. É o pastel entrando forte sem
+   virar painel — a página segue de uma cor só, e a tinta mora no dado. */
+.selo{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;
+ font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif}
+.selo.quente{background:#F6DFD6;color:#8C2A10}
+.selo.fria{background:#DEEAF3;color:#1B4A6C}
+.selo.terra{background:#F0E6CE;color:#6E4E0B}
+.selo.folha{background:#DFEDDF;color:#255E36}
+
+/* a barra da semana, já editorial hoje */
+.semana{display:flex;gap:9px;align-items:flex-end;height:54px;margin-top:14px}
+.dia{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
+.col{width:100%;background:#EBD5CB;border-radius:1px}
+.col.hoje{background:#AD3415}
+.rot{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;
+ font-size:11px;color:#8A8073}
+
+/* o boxe do tempo: matéria de fora, marcada por fio vertical e não por moldura */
+.deFora{border-left:2px solid #205C86;margin:2px 24px 0;padding:2px 0 2px 14px}
+
+/* o pote de insumo, em traço, alinhado na coluna do texto */
+.pote{flex:0 0 26px}
+</style>
+
+<div class="folha">
+
+  <div class="m"><div class="olho">NORVA &middot; segunda, 7 de setembro</div>
+  <h1>Hoje a fábrica<br><b>fez 512 unidades</b></h1>
+
+  <svg viewBox="0 0 364 150" width="364" style="width:100%;height:auto;margin-top:10px">
+    <defs><clipPath id="corte"><rect x="216" y="82" width="20" height="34" rx="7"/></clipPath></defs>
+    <g fill="none" stroke="#221F1B" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M0 133h364" stroke="#CFC3B0"/>
+      <path d="M28 34c-5 0-8-3-8-7s4-7 8-6c1-6 8-8 12-3 5-2 10 2 9 8" stroke="#B9A992"/>
+      <g><circle cx="336" cy="30" r="11" stroke="#AD3415"/>
+        <g stroke="#AD3415"><path d="M336 11v6M336 43v6M317 30h6M349 30h6M323 17l4 4M345 39l4 4M349 17l-4 4M327 39l-4 4"/></g></g>
+      <path d="M20 88l0-16 16 16 0-16 16 16 0-16 16 16 0-16 16 16"/><path d="M20 88h64v45H20z"/>
+      <path d="M28 98h9v9h-9zM42 98h9v9h-9zM56 98h9v9h-9zM28 113h9v9h-9z"/><path d="M56 133v-23h12v23"/>
+      <path d="M92 133V58h14v75M90 62h18"/>
+      <g stroke="#B9A992">
+        <path d="M99 52c-7-5 5-11-2-17c-5-5 3-9 0-13"/>
+      </g>
+      <path d="M124 76h54v57h-54z"/><path d="M124 96h54M168 84v8M168 102v12"/>
+      <g stroke="#205C86"><path d="M151 49v18M143 53.5l16 9M143 62.5l16-9"/></g>
+      <rect x="192" y="82" width="20" height="34" rx="7"/><path d="M202 116v14"/>
+      <rect x="216" y="82" width="20" height="34" rx="7" stroke="#AD3415"/><path d="M226 116v14" stroke="#AD3415"/>
+      <g clip-path="url(#corte)"><rect x="216" y="93" width="20" height="23" fill="#AD3415" fill-opacity=".22" stroke="none"/></g>
+      <rect x="240" y="82" width="20" height="34" rx="7"/><path d="M250 116v14"/>
+      <g stroke="#AD3415">
+        <path d="M290 122c-14-9-18-22-9-27 4-2.5 7-1 9 1 2-2 5-3.5 9-1 9 5 5 18-9 27z"/>
+        <path d="M290 96l-9-6M290 96l9-6M290 96v-9"/></g>
+      <g><path d="M312 104h44v29h-44z"/><path d="M312 113h44M334 104v29"/><path d="M318 104l6-8h26l6 8"/></g>
+    </g>
+  </svg>
+
+  </div>
+  <div class="fio grossa m"></div>
+
+  <!-- A SEMANA — já é página hoje -->
+  <div class="secao m">
+    <div class="olho">A semana</div>
+    <div class="semana">
+      <div class="dia"><div class="col" style="height:31px"></div><div class="rot">seg</div></div>
+      <div class="dia"><div class="col" style="height:44px"></div><div class="rot">ter</div></div>
+      <div class="dia"><div class="col" style="height:26px"></div><div class="rot">qua</div></div>
+      <div class="dia"><div class="col" style="height:36px"></div><div class="rot">qui</div></div>
+      <div class="dia"><div class="col" style="height:29px"></div><div class="rot">sex</div></div>
+      <div class="dia"><div class="col" style="height:22px"></div><div class="rot">sáb</div></div>
+      <div class="dia"><div class="col hoje" style="height:38px"></div><div class="rot">seg</div></div>
+    </div>
+    <div class="mini">média de 496 · hoje está 3% acima</div>
+  </div>
+
+  <div class="fio m"></div>
+
+  <!-- INSUMO ACABANDO — hoje é cartão; aqui vira faixa de tinta -->
+  <div class="secao faixa">
+    <div class="cabeca">
+      <div class="titulo">Insumo acabando</div>
+      <div class="numero" style="font-size:20px">2</div>
+    </div>
+    <div class="apoio">Compre esta semana para não parar o tacho.</div>
+
+    <div style="margin-top:12px">
+      <div class="linha">
+        <svg class="pote" viewBox="0 0 26 34" width="26" height="34" fill="none"
+             stroke="#221F1B" stroke-width="1.3" stroke-linejoin="round">
+          <path d="M5 4h16v26a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3z"/>
+          <path d="M5 14h16" stroke="#CFC3B0"/>
+          <path d="M5 18h16v12a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3z" fill="#AD3415" fill-opacity=".14" stroke="none"/>
+        </svg>
+        <div class="nome">Polpa de morango</div>
+        <div><span class="selo quente">acaba em 3 dias</span></div>
+      </div>
+      <div class="linha">
+        <svg class="pote" viewBox="0 0 26 34" width="26" height="34" fill="none"
+             stroke="#221F1B" stroke-width="1.3" stroke-linejoin="round">
+          <path d="M5 4h16v26a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3z"/>
+          <path d="M5 14h16" stroke="#CFC3B0"/>
+          <path d="M5 24h16v6a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3z" fill="#AD3415" fill-opacity=".14" stroke="none"/>
+        </svg>
+        <div class="nome">Palito de madeira</div>
+        <div><span class="selo terra">acaba em 5 dias</span></div>
+      </div>
+    </div>
+    <div class="mais">Abrir os insumos →</div>
+  </div>
+
+  <div class="fio m"></div>
+
+  <!-- SAIU PARA AS LOJAS -->
+  <div class="secao m">
+    <div class="cabeca">
+      <div>
+        <div class="titulo">Saiu para as lojas</div>
+        <div class="apoio">3 lojas · a última às 14h20</div>
+      </div>
+      <div class="numero">18</div>
+    </div>
+    <div style="margin-top:12px">
+      <div class="linha"><div class="nome">Mercado do Zé</div><div><span class="selo folha">8 caixas</span></div></div>
+      <div class="linha"><div class="nome">Padaria Aurora</div><div><span class="selo folha">6 caixas</span></div></div>
+      <div class="linha"><div class="nome">Conveniência 24h</div><div><span class="selo folha">4 caixas</span></div></div>
+    </div>
+    <div class="mais">Abrir o transporte →</div>
+  </div>
+
+  <div class="fio m"></div>
+
+  <!-- VENCE PRIMEIRO -->
+  <div class="secao faixa">
+    <div class="cabeca">
+      <div class="titulo">Vence primeiro</div>
+      <div><span class="selo quente">em 6 dias</span></div>
+    </div>
+    <div class="apoio">Lote 20260901-02 &middot; 240 unidades de Picolé de morango.
+      Mande para a loja que gira mais rápido.</div>
+    <div class="mais">por quê? →</div>
+  </div>
+
+  <div class="fio m"></div>
+
+  <!-- O TEMPO — matéria de fora: faixa azul E fio vertical -->
+  <div class="secao deFora">
+    <div class="olho">São Paulo &middot; agora</div>
+    <div style="display:flex;align-items:center;gap:16px;margin-top:6px">
+      <svg viewBox="0 0 42 42" width="46" height="46" fill="none" stroke="#AD3415"
+           stroke-width="1.3" stroke-linecap="round">
+        <circle cx="21" cy="21" r="10"/>
+        <path d="M21 3v6M21 33v6M3 21h6M33 21h6M8 8l4 4M30 30l4 4M34 8l-4 4M12 30l-4 4"/>
+      </svg>
+      <div style="flex:1">
+        <div style="display:flex;align-items:baseline;gap:9px">
+          <div class="numero">31°</div>
+          <div class="cifra">mín 19°</div>
+        </div>
+        <div style="height:3px;background:#CFC3B0;margin-top:9px">
+          <div style="width:20%;height:3px;background:#205C86"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px">
+          <div><span class="selo fria">chuva 20%</span></div>
+          <div><span class="selo quente">amanhã +2°</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="mini">medido às 15h40 &middot; toque para ver a semana</div>
+  </div>
+
+  <div class="fio m"></div>
+
+  <!-- PREÇO -->
+  <div class="secao m">
+    <div class="cabeca">
+      <div class="titulo">Tudo estável</div>
+      <div><span class="selo folha">há 12 dias</span></div>
+    </div>
+    <div class="apoio">Nenhuma mudança de preço registrada desde 25 de agosto.</div>
+    <div class="mais">Abrir os insumos →</div>
+  </div>
+
+</div>

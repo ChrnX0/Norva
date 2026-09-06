@@ -27,7 +27,7 @@ import type { Dictionary, LocaleSettings } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
 import { nowIso } from '@/data/db';
-import { coverState, type BriefingWidget } from '@/domain/briefing';
+import { briefingFilas, coverState, type BriefingWidget } from '@/domain/briefing';
 import { daysBetween, localDate } from '@/domain/day';
 import type { Cents } from '@/domain/money';
 import { brand } from '@/config/brand';
@@ -45,7 +45,7 @@ import type { BriefingView, Summary } from './types';
  * retângulos iguais que o dono recusou.
  */
 export function Mosaic(vista: BriefingView) {
-  const { data, sky, weather, shortForOrders, moved, layout, go } = vista;
+  const { data, sky, weather, shortForOrders, moved, layout, meias, go } = vista;
   const { color, type, space, palette, accent, traco } = useTheme();
   const { locale, t } = useLocale();
   const vestimenta = useVestimenta();
@@ -1086,18 +1086,30 @@ export function Mosaic(vista: BriefingView) {
       heroi={heroi}
     >
       <View style={{ gap: space.xl }}>
-        {miolo.map((id) =>
-          // A peça da pele já se vestiu por dentro; a do padrão a capa veste,
-          // porque dessa a capa SABE se é nula — ela é o elemento, e não um
-          // componente que ainda vai decidir.
-          vestidasPelaPele.has(id) ? (
-            <Fragment key={id}>{pecas[id]}</Fragment>
-          ) : (
-            <vestimenta.Bloco key={id} id={id}>
-              {pecas[id]}
-            </vestimenta.Bloco>
-          ),
-        )}
+        {/* A capa desenha FILAS, e não peças soltas: uma inteira, ou duas meias
+            lado a lado. Quem decide é `briefingFilas`, no domínio, porque a regra
+            que importa não é de desenho — meia sozinha vira inteira, senão a
+            página fica com um dente faltando e a pessoa procura o que sumiu.
+            Aqui só se cumpre o que ela decidiu. */}
+        {briefingFilas(miolo, meias).map((fila) => (
+          <View
+            key={fila.join('+')}
+            style={fila.length > 1 ? { flexDirection: 'row', gap: space.lg } : undefined}
+          >
+            {fila.map((id) => (
+              <View key={id} style={fila.length > 1 ? { flex: 1 } : undefined}>
+                {/* A peça da pele já se vestiu por dentro; a do padrão a capa
+                    veste, porque dessa a capa SABE se é nula — ela é o elemento,
+                    e não um componente que ainda vai decidir. */}
+                {vestidasPelaPele.has(id) ? (
+                  <Fragment>{pecas[id]}</Fragment>
+                ) : (
+                  <vestimenta.Bloco id={id}>{pecas[id]}</vestimenta.Bloco>
+                )}
+              </View>
+            ))}
+          </View>
+        ))}
       </View>
     </vestimenta.Casco>
   );

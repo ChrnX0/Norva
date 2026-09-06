@@ -155,7 +155,11 @@ function ProductionDay() {
   } as const;
 
   return (
-    <CollapsingHeader title={t.app.production.title} overline={t.app.production.overline}>
+    <CollapsingHeader
+      title={t.app.production.title}
+      overline={t.app.production.overline}
+      cena="producao"
+    >
       {/* O que é normal ali, e o que está diferente agora. Ontem é a comparação
           honesta para uma fábrica que produz todo dia: a média da semana
           esconde o feriado, e o mês esconde a sazonalidade que o dono conhece

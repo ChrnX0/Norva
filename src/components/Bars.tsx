@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { tint } from '@/components/Card';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useCiclo } from './vida';
 
 /**
  * O ritmo da semana, em sete colunas.
@@ -115,6 +116,7 @@ export function Bars({
             ) : null}
             <View style={{ height, justifyContent: 'flex-end', width: '100%' }}>
               <Column
+                index={i}
                 share={share}
                 grown={grown}
                 height={organico ? height - FAIXA : height}
@@ -140,6 +142,7 @@ export function Bars({
 }
 
 function Column({
+  index,
   share,
   grown,
   height,
@@ -147,6 +150,8 @@ function Column({
   raio = 4,
   brilho = null,
 }: {
+  /** A posição na semana — é ela que defasa a respiração de uma coluna para a outra. */
+  index: number;
   share: number;
   grown: SharedValue<number>;
   height: number;
@@ -160,11 +165,29 @@ function Column({
    */
   brilho?: string | null;
 }) {
+  /**
+   * A respiração da coluna — pedido do dono, 6 de setembro, apontando a semana,
+   * o pote e o sol: *"quero todos eles seguindo o estilo de animação constante q
+   * a gente adotou para a fábrica do topo. algo bem suave."*
+   *
+   * Dois por cento de amplitude e cinco segundos e meio de volta, defasados de
+   * 340 ms entre colunas vizinhas — o que faz a semana ondular como uma coisa só
+   * em vez de sete retângulos pulsando juntos, que é a diferença entre respirar
+   * e piscar.
+   *
+   * **E ela nunca mexe no que o número diz.** A altura verdadeira é `share`; a
+   * respiração multiplica em volta de 1 e a média do ciclo é exatamente 1. Um
+   * ambiente que alterasse a leitura seria a pior coisa que esta tela poderia
+   * fazer — a coluna de terça ficaria maior que a de quinta por estar no tempo
+   * certo do ciclo.
+   */
+  const respiro = useCiclo(5400, { feitio: 'vaivem', atrasoMs: index * 340, repouso: 0.5 });
+
   // O piso de três pixels é o que faz um dia parado continuar sendo um dia:
   // sem ele a coluna zerada desaparece e a semana ganha um buraco que ninguém
   // sabe ler.
   const grow = useAnimatedStyle(() => ({
-    height: Math.max(3, share * height * grown.value),
+    height: Math.max(3, share * height * grown.value * (0.98 + 0.04 * respiro.value)),
   }));
 
   // A auréola cresce junto com a coluna, e o gancho dela mora AQUI, incondicional.
@@ -173,7 +196,7 @@ function Column({
   // claro (sem auréola) para o escuro (com) o React perde o alinhamento da lista
   // e o que quebra não é esta coluna: é o estado da tela inteira.
   const auréola = useAnimatedStyle(() => ({
-    height: Math.max(3, share * height * grown.value) + 8,
+    height: Math.max(3, share * height * grown.value * (0.98 + 0.04 * respiro.value)) + 8,
   }));
 
   return (

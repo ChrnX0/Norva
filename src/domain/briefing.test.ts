@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   addWidget,
+  briefingFilas,
   BRIEFING_WIDGETS,
   briefingLayout,
   coverState,
@@ -143,4 +144,43 @@ test('today\'s place in the week is counted, and a tie goes to today', () => {
   // fábrica fechada dizia "hoje é o sétimo melhor dia" ao lado de "ainda não
   // produziu hoje". Verdade e alerta inventado ao mesmo tempo.
   assert.equal(todayRank([dia(400), dia(500), dia(300), dia(0)]), null);
+});
+
+/**
+ * As filas da capa — meia coluna, e a regra que impede o buraco.
+ *
+ * Pedido do dono em 6 de setembro: *"e o tamanho dos widgets, dá para alterar?
+ * tipo meia coluna ou coluna inteira?"*. O que estes exemplos protegem não é o
+ * pareamento, que é fácil: é a regra de que **meia sozinha vira inteira**.
+ */
+test('duas meias seguidas viram um par', () => {
+  assert.deepEqual(briefingFilas(['perdas', 'clima'], ['perdas', 'clima']), [['perdas', 'clima']]);
+});
+
+test('meia sozinha ocupa a fila inteira, porque vazio ao lado é pior', () => {
+  assert.deepEqual(briefingFilas(['perdas', 'producao'], ['perdas']), [['perdas'], ['producao']]);
+});
+
+test('três meias seguidas viram um par e uma sozinha', () => {
+  assert.deepEqual(briefingFilas(['perdas', 'clima', 'custo'], ['perdas', 'clima', 'custo']), [
+    ['perdas', 'clima'],
+    ['custo'],
+  ]);
+});
+
+/**
+ * A manchete e a semana SÃO a página: meia manchete quebra a capa aprovada e
+ * meia semana são três dias e meio de barra. Marcar uma delas não faz nada — e o
+ * teste existe porque o caminho fácil seria confiar em a tela não oferecer a
+ * opção, o que deixa a regra dependendo de quem desenha o botão.
+ */
+test('peça que não aceita meia continua inteira mesmo se pedirem', () => {
+  assert.deepEqual(briefingFilas(['producao', 'semana'], ['producao', 'semana']), [
+    ['producao'],
+    ['semana'],
+  ]);
+});
+
+test('meia ao lado de uma que não aceita não pareia', () => {
+  assert.deepEqual(briefingFilas(['clima', 'semana'], ['clima', 'semana']), [['clima'], ['semana']]);
 });

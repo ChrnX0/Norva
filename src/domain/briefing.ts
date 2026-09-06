@@ -80,6 +80,74 @@ const DEFAULT_OFF = new Set<BriefingWidget>(['custo', 'parado']);
  * preferência sem quebrar nada. É o que permite acrescentar widget novo numa
  * versão futura sem que todo mundo precise reconfigurar a capa.
  */
+/**
+ * Quais peças aceitam meia coluna.
+ *
+ * Pedido do dono, 6 de setembro: *"e o tamanho dos widgets, dá para alterar?
+ * tipo meia coluna ou coluna inteira?"* — e a resposta não podia ser "escolha
+ * livre para as quinze", por um motivo que é de desenho e não de código.
+ *
+ * **A manchete e a régua da semana SÃO a página.** Meia manchete quebra a capa
+ * aprovada, e meia semana são três dias e meio de barra. Elas ficam de fora.
+ *
+ * **E o que sobra tem de caber em 168 dp**, que é metade do telefone de 360 com
+ * as margens. Cabe um número com rótulo — caixas de hoje, perdas do mês, o preço
+ * estável. Não cabe uma lista com nome de loja, nem o diagrama da conta. Por isso
+ * quem declara é a PEÇA e não a pessoa: oferecer meia coluna para "saiu para as
+ * lojas" seria oferecer uma escolha que só produz tela quebrada.
+ */
+const ACEITA_MEIA = new Set<BriefingWidget>([
+  'aoVivo',
+  'cobertura',
+  'entregaHoje',
+  'expedicao',
+  'validade',
+  'perdas',
+  'custo',
+  'precos',
+  'clima',
+  'parado',
+]);
+
+export function aceitaMeia(w: BriefingWidget): boolean {
+  return ACEITA_MEIA.has(w);
+}
+
+/**
+ * A capa em FILAS, que é o que a tela desenha — uma peça inteira, ou duas meias
+ * lado a lado.
+ *
+ * A regra que decide tudo aqui é uma só, e ela existe para não haver buraco:
+ * **meia sozinha vira inteira.** Uma peça de meia largura com um vazio do lado é
+ * pior que a inteira — a página fica com um dente faltando e a pessoa procura o
+ * que sumiu. Então duas meias SEGUIDAS pareiam, e a meia órfã ocupa a fila.
+ *
+ * Consequência que parece defeito e é a regra funcionando: marcar uma peça como
+ * meia pode não mudar nada na tela, se a vizinha dela for inteira. Quem quer o
+ * par marca as duas — e é por isso que a tela de ajustes mostra o resultado, e
+ * não só o interruptor.
+ */
+export function briefingFilas(
+  layout: readonly BriefingWidget[],
+  meias: readonly string[],
+): BriefingWidget[][] {
+  const querMeia = new Set(meias.filter((w): w is BriefingWidget => aceitaMeia(w as BriefingWidget)));
+  const filas: BriefingWidget[][] = [];
+
+  for (let i = 0; i < layout.length; i += 1) {
+    const atual = layout[i];
+    const proxima = layout[i + 1];
+    if (querMeia.has(atual) && proxima !== undefined && querMeia.has(proxima)) {
+      filas.push([atual, proxima]);
+      i += 1;
+      continue;
+    }
+    filas.push([atual]);
+  }
+
+  return filas;
+}
+
 export function briefingLayout(
   companyOrder: readonly string[],
   hiddenOnDevice: readonly string[],
