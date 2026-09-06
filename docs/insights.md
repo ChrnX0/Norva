@@ -5688,3 +5688,39 @@ servidor, **quebraria o `db:verify`** — lá não existe `anon` nem `authentica
 sem dono de tabela chama-se `app_user`. Verde onde ninguém olha e vermelho onde todo mundo
 olha. A guarda `if exists (select 1 from pg_roles ...)` já existia na `0005` pelo mesmo
 motivo, e eu não a copiei junto com a linha que copiei.
+
+---
+
+## Duas portas trancadas por dentro: o dono não podia criar a própria empresa
+
+*6 de setembro, com o servidor no ar.* A decisão está escrita desde o começo — *"quem cria
+a empresa é o dono, cadastrando-se sozinho"* — e o esquema **não permitia**:
+
+- `companies` tem `companies_read` (select) e `companies_write` (update). **Não tem política
+  de INSERT.** Com RLS ligada e sem política, insert é recusado para todo mundo, sempre.
+- `memberships_manage` exige `has_capability(company_id, 'manage_company')`, que exige uma
+  linha ativa em `memberships`. Para criar a primeira associação é preciso já tê-la.
+
+Duas portas trancadas por dentro, com a chave de cada uma do outro lado. **Nenhuma tela
+consertaria isso:** a recusa é do banco, e é ele que tem de saber abrir.
+
+**Só apareceu ao ir usar, e é a segunda vez no mesmo dia.** O `db:verify` sobe as migrações
+e prova dezessete garantias — nenhuma delas é *"uma conta nova consegue começar"*, porque a
+verificação semeia empresa e associação direto na tabela, como superusuário faria. Ela prova
+o esquema **depois** do primeiro dia, e o primeiro dia é o que ninguém tinha atravessado.
+
+**O conserto é uma função e não uma política**, e a diferença é a transação. Uma política de
+INSERT em `companies` abriria a criação para qualquer conta — o que está certo — mas deixaria
+a associação do dono como um segundo passo, e entre os dois existe o instante em que a
+empresa não tem dono. Uma conta que caísse ali criaria uma empresa **órfã**: invisível para
+ela mesma, porque `companies_read` filtra por associação ativa, e impossível de apagar. A
+função faz as duas numa transação — ou nasce empresa com dono, ou não nasce.
+
+**E a lição da 0039 pegou de primeira.** Ao escrever as permissões da função nova, revoguei
+de `public` **e** de `anon`, com a guarda `pg_roles`. Conferido na ACL: `postgres |
+authenticated | service_role`. Meia hora antes, a mesma coisa me custou duas migrações.
+
+**O aviso do linter fica, e a razão está no arquivo.** Ele acusa a função como executável por
+`authenticated` — que é exatamente o que ela precisa ser: **ela É a porta, e porta que
+ninguém abre não é porta.** Escrito na migração para a próxima leitura não "consertar" a
+única coisa que faz o cadastro existir.

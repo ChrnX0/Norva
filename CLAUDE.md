@@ -431,6 +431,23 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   duas lojas. Fica a pergunta em aberto, para estudo: como se faz o equivalente
   disso noutros países.
 
+- **Crédito de serviço é último recurso, não conveniência — decisão do dono, 6 de
+  setembro.** *"Coloca como regra usar os créditos e limites dos serviços APENAS se de
+  fato vc mesmo nao puder fazer o serviço."* Vale para minuto de GitHub Actions, build
+  da Expo/EAS, deploy da Vercel, e qualquer coisa que consuma cota de uma conta dele.
+
+  A pergunta, antes de disparar qualquer botão: **este container consegue fazer isto?**
+  Se consegue, faz aqui. O runner só entra no que a máquina daqui não alcança.
+
+  O que motivou: em 6 de setembro eu disparei o `build-apk.yml` para compilar o APK, e
+  este container compila o mesmo APK em **5 minutos** — SDK, JDK 21 e a pasta `android/`
+  estão aqui. Foram minutos de runner gastos por eu não ter perguntado se eu mesmo podia.
+
+  A borda, para a regra não virar teimosia: o que a máquina daqui NÃO faz é o que
+  precisa de outro mundo — um Postgres de verdade da conta dele, um runner limpo para
+  provar que a barra não depende do meu disco sujo, ou uma assinatura/loja. Nesses
+  casos usa-se, e diz-se por quê.
+
 - **O `EXPO_TOKEN` vazado fica como está, por ora.** Decisão do dono, 6 de setembro:
   *"por enquanto eu nao vou trocar o token do expo"*. Está registrado para não virar
   lembrete repetido — o risco continua o mesmo e a decisão de quando trocar é dele.
