@@ -92,7 +92,7 @@ const lightPalette = {
   mist: '#6E6A64',
 
   ok: '#2D7756',
-  warning: '#C7841E',
+  warning: '#936116',
   danger: '#B8423A',
   neutral: '#6E6A65',
 };
@@ -346,17 +346,17 @@ const organicoClaro: Palette = {
   lineStrong: '#C6D8CA',
   onAccent: '#FFFFFF',
 
-  sky: '#5B8EC9',
-  apricot: '#E29B52',
+  sky: '#386DAB',
+  apricot: '#9D5C1A',
   mint: '#2D7758',
-  lilac: '#6B7FD0',
-  rose: '#C4677A',
+  lilac: '#4C64C6',
+  rose: '#B4465D',
   sage: '#547244',
-  sand: '#B28E42',
-  mist: '#8BA192',
+  sand: '#826830',
+  mist: '#5B7062',
 
   ok: '#2D7758',
-  warning: '#C2751F',
+  warning: '#9B5D19',
   danger: '#B8423A',
   neutral: '#4D6055',
 };

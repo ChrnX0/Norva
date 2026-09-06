@@ -280,27 +280,29 @@ test('the width breakpoints keep the phone out of the two-column grid', async ()
  * o teste falha nos DOIS sentidos: se aparecer um par novo, e se um par
  * registrado parar de reprovar, porque registro que virou mentira sai da lista.
  *
- * **Por que estes ficam.** São todos do ORGÂNICO, todos anteriores a esta guarda,
- * e consertá-los é mudar uma pele que o dono aprovou olhando. O acerto de
- * `apricot` seria de #E29B52 para #9A5B1A — isso não é retoque de luminosidade, é
- * outra cor. Os pequenos (mint, sage, ok, danger, que se movem menos de quatro
- * por cento) foram corrigidos sem perguntar, porque não mudam o caráter de nada.
- * Estes seis esperam a decisão do dono, e ela está pedida.
+ * **A lista está VAZIA, e ficou assim em 6 de setembro.** Ela guardou oito pares
+ * por algumas horas — sete do Orgânico e o `warning` do Papel — porque consertá-los
+ * é mudar uma pele que o dono aprovou olhando, e essa é decisão dele. Ele decidiu:
+ * *"faz tudo então"*.
  *
- * O PAPEL não está aqui, e isso importa: os cinco tons que a subida de saturação
- * de 6 de setembro deixou abaixo da régua foram escurecidos no mesmo commit em
- * que esta guarda nasceu. Erro meu, conserto meu.
+ * Os oito foram escurecidos pelo remédio que esta própria guarda prescreve na
+ * mensagem de falha — **matiz e saturação intactos, só a luminosidade desce** — e
+ * o cálculo achou o primeiro ponto em que cada um passa, não um valor escolhido a
+ * olho. `apricot` foi de #E29B52 a #9D5C1A: matiz 30 nos dois, saturação 71% e
+ * 72%, luminosidade de 60% para 36%. É a mesma cor mais escura, e não outra cor —
+ * que era exatamente a dúvida que travava a decisão.
+ *
+ * **E o comentário antigo mentia sobre a própria lista.** Ele dizia "o PAPEL não
+ * está aqui" com `lightPalette.warning` na segunda linha do conjunto. Registro se
+ * escreve para ser lido depois, e um que se contradiz a três linhas de distância é
+ * pior que nenhum: ele ensina a não conferir. Ficou como aviso — a lista manda, o
+ * comentário só explica.
+ *
+ * **A lista vazia continua fazendo força**, e nos dois sentidos: um par novo
+ * abaixo da régua reprova, e um par registrado que passe a estar em dia também —
+ * porque registro que virou mentira sai da lista.
  */
-const ABAIXO_DA_REGUA = new Set([
-  'lightPalette.warning',
-  'organicoClaro.sky',
-  'organicoClaro.apricot',
-  'organicoClaro.lilac',
-  'organicoClaro.rose',
-  'organicoClaro.sand',
-  'organicoClaro.mist',
-  'organicoClaro.warning',
-]);
+const ABAIXO_DA_REGUA = new Set<string>([]);
 
 test('every accent the app writes text with is legible on every ground it writes on', () => {
   const todas = paletas();

@@ -70,7 +70,44 @@ export type BriefingWidget = (typeof BRIEFING_WIDGETS)[number];
  * entra na ordem da casa como qualquer outro. É a mesma forma da F7 — os dois
  * caminhos existem, e o que se escolhe aqui é só o PADRÃO.
  */
-const DEFAULT_OFF = new Set<BriefingWidget>(['custo', 'parado']);
+/*
+ * **O padrão encolheu em 6 de setembro, e a régua não é um número — é a Lei.**
+ *
+ * Eu tinha proposto "~5 peças" e o dono mandou fazer. Ao aplicar, o número
+ * arredondado brigou com a doutrina e a doutrina ganhou: são **sete**, e a conta
+ * de quais é esta.
+ *
+ * A capa responde três coisas — o que é normal, o que está diferente agora, e
+ * qual é a próxima ação provável. Então o padrão leva o que **avisa** e o que
+ * **decide**; o que só **conta** espera alguém pedir.
+ *
+ * Ficam: `producao` e `semana` (o que aconteceu e o que é normal), `aoVivo` (o
+ * agora), `cobertura` e `validade` (os dois que avisam a tempo), `entregaHoje` (a
+ * próxima ação), e `clima` — que parece enfeite e não é: calor muda produção, e o
+ * dono investiu nessa peça de propósito.
+ *
+ * **`validade` e `cobertura` não desceram, e é aí que os ~5 morreram.** Peça que
+ * avisa e que ninguém ligou é aviso que não existe — uma fábrica que nunca abre
+ * Ajustes nunca descobriria que tem lote vencendo. Cortar um aviso para chegar
+ * num número redondo seria servir a minha frase em vez de servir a tela.
+ *
+ * Saem oito, e todas por serem RELATÓRIO: histórico, insumos, pedidos, expedição,
+ * perdas, custo, preços e o que está parado. Nenhuma delas muda o que se faz hoje
+ * de manhã, e todas continuam a um toque em Ajustes.
+ *
+ * Fora do padrão não é fora do produto — é a mesma forma da F7: os dois caminhos
+ * existem, e o que se escolhe aqui é só o PADRÃO.
+ */
+const DEFAULT_OFF = new Set<BriefingWidget>([
+  'historico',
+  'insumos',
+  'pedidos',
+  'expedicao',
+  'perdas',
+  'custo',
+  'precos',
+  'parado',
+]);
 
 /**
  * A ordem que a casa combinou, filtrada pelo que este aparelho quer ver.
