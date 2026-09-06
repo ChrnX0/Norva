@@ -271,6 +271,165 @@ aqui estava errado:**
    virtualização e o app leva minutos para assentar; a prova final continua sendo o
    APK no aparelho do dono.
 
+## A FILA DE AGORA — 6 de setembro, noite
+
+O dono perguntou duas coisas: *"alguma coisa mais q vc acharia bom acrescentar? e
+vou inverter a pergunta, vc removeria ou alteraria alguma coisa?"* — e depois de
+ouvir: *"faz tudo então, coloca em ordem no roadmap"*. Está aqui, em ordem, com o
+motivo de cada posição. A ordem não é por tamanho nem por gosto: **é por quanto
+custa o erro se a coisa nunca for feita.**
+
+Três dela são achado de varredura desta noite e vêm com a medida ao lado; cinco
+são coisas que eu **removeria ou mudaria**, e essas são as que ninguém pede.
+
+### 0. O backup — porque é o único cujo prejuízo não tem conserto
+
+Hoje o razão inteiro mora em `norva.db` no aparelho. **Aparelho quebrado, roubado
+ou formatado = a fábrica sem histórico**, e não existe estorno para isso. Todas as
+outras coisas desta fila atrasam funcionalidade; esta perde dado.
+
+O dono levantou o Google Drive, e a ideia é boa — **com uma correção de ordem que
+vale mais que a escolha do destino: o risco fecha antes do Drive.**
+
+| passo | o que fecha | conta ou crédito que gasta |
+|---|---|---|
+| **0a. O arquivo** — `VACUUM INTO` num `.db` novo, e a restauração de volta | a prova de que existe cópia fiel e que ela volta | nenhum |
+| **0b. A partilha** — `expo-sharing`, o dono manda o arquivo para onde quiser | **o risco de perder tudo, inteiro** | nenhum |
+| **0c. O Drive automático** — entrar com Google, `appDataFolder`, sobe sozinho | o dono não precisa lembrar | OAuth do Google, de graça |
+
+**`VACUUM INTO` é o achado que torna o 0a pequeno.** O banco do aparelho é um
+arquivo de verdade (`src/data/db.ts:890`), e o SQLite tem uma instrução que escreve
+uma cópia **consistente** dele num arquivo novo — sem parar o app, sem WAL pela
+metade, sem serializador para escrever e manter. Provado nos dois lados: a cópia
+leva os dados e leva o `PRAGMA user_version`, que é justamente o marcador que o
+`migrate` já usa (`:954`). Então **um backup antigo se restaura sozinho**: o
+aparelho abre a cópia, vê a versão, e roda as migrações que faltam. É a mesma
+escada que já existe para um celular que ficou dois meses desligado.
+
+**E o 0b é o passo que fecha o risco, não o 0c.** Uma vez que o arquivo existe e
+volta, mandá-lo para o WhatsApp do dono, para o e-mail ou para o Drive na mão é uma
+folha de partilha do sistema — zero conta, zero crédito, funciona esta semana. O
+Drive automático é conveniência em cima disso, e conveniência não é o que separa
+uma fábrica com histórico de uma sem.
+
+**Três coisas decididas aqui, para não virarem pergunta:**
+
+1. **Backup não é sincronia, e confundir os dois é caro.** O Drive resolve *"o
+   celular morreu"*. Ele **não** resolve *"dois celulares escrevendo na mesma
+   fábrica"* — isso é o servidor, com `recorded_by` imposto por política e regra de
+   conflito. Então o Drive **não adianta o servidor: ele torna seguro o servidor
+   demorar**, que é exatamente a decisão escrita do dono (*"o servidor sobe o mais
+   tarde possível"*).
+2. **O destino é configuração da empresa (F7), e o primeiro construído é o Drive.**
+   Nem todo dono tem ou quer conta Google, e o aplicativo vai para as duas lojas —
+   quem está no iPhone espera iCloud. Chumbar Drive seria escolher por ele.
+3. **O que vai no arquivo é o razão inteiro, com custo e fornecedor dentro.** No
+   `appDataFolder` do Drive ele é privado ao aplicativo, e ainda assim: quem entra
+   na conta Google do dono lê a margem da fábrica. A tela diz isso em uma linha
+   antes do primeiro backup, e não depois.
+
+### 1. O extrato — uma tela que faz três trabalhos
+
+Medido esta noite: **nove funções escrevem no livro-razão a partir de tela**
+(`recordPurchase`, `recordCount`, `recordProduction`, `recordTransfer`,
+`recordReturn`, `recordLoss`, `recordCheck`, `recordReading`, e o próprio estorno) e
+**o caminho de volta é alcançável de duas** — `app/lots/[id].tsx:133` e
+`app/inputs/[id].tsx:505`. A carga (`app/picking.tsx:141`) e a transferência
+(`app/transfer.tsx:317`) gravam sem botão de volta.
+
+A fundação diz *"corrige-se por estorno, nunca por exclusão"*, e ela está honrada no
+banco e **inalcançável na mão de quem erra**. O que uma pessoa faz numa fábrica
+quando não dá para consertar: para de registrar. Perde-se o dado, não o conserto.
+
+E a tela que resolve isso é a que o dono já aprovou como **extrato fiscal** (§ *As
+seis*, item 6): uma lista de grupos de movimento, cada linha com `[estornar]`. Ela é
+também o `[por quê?]` de qualquer saldo. Uma tela, três trabalhos.
+
+**A régua dela, decidida e não perguntada** — é correção, não preferência: o extrato
+soma **taxa congelada linha por linha** (`amountOf(unit_cost_rate, base_units)`), e
+por isso **não fecha** com `stockByPlace`, que valoriza o saldo com o custo médio de
+hoje. Os dois estão certos e respondem perguntas diferentes; a diferença **aparece
+na tela**, com o `[por quê?]` ao lado. Esconder com arredondamento conveniente seria
+produzir o documento bonito, verde e falso que este repositório mais teme.
+
+**E o nome dele é conferência, não prova.** No aparelho o razão não é append-only:
+zero `TRIGGER` em `src/data/db.ts` contra três na `0001`, `erase.ts` apaga em bloco,
+`recorded_by` foi removida na V5 e `device_id` nunca existiu. Um documento gerado no
+celular **não tem signatário** — então ele assina *este aparelho, este operador,
+esta data*. Documento para terceiro é do servidor, onde a política impõe quem
+escreveu e o `UPDATE` levanta exceção.
+
+### 2. O caminho de escrita para o servidor
+
+A camada de conta existe (`src/sync/conta.ts`, `app/account.tsx`) e a fila existe
+(`src/data/outbox.ts`, `src/sync/serialize.ts`) — **o que não existe é o transporte
+entre as duas.** Com o 0 feito, isto para de ser urgência de sobrevivência e volta a
+ser o que sempre foi: a diferença entre um caderno e um sistema, e a única peça que
+não funciona offline (o prazo do entregador, em `docs/estudo-entrada.md`).
+
+Continua travado no que o item 2b já diz: **E1**. Nada foi exercitado contra o
+servidor porque entrar de verdade cria uma conta de autenticação no projeto do dono,
+e essa é decisão dele.
+
+### 3. Ouvir o aplicativo — cinco minutos dele, zero meus
+
+`src/acessivel.test.ts` prova que todo alvo de toque se anuncia. **Ninguém nunca
+ouviu o aplicativo.** O dono levantou o cego por conta própria (*"até para quem eh
+cego, imagina…"*), e o TalkBack é uma chave nos ajustes do tablet onde o APK já
+está. É um E3 que eu não alcanço daqui e ele alcança hoje.
+
+---
+
+## O que eu removeria ou mudaria — e o dono mandou fazer
+
+### 4. Papel é o produto; Orgânico é opção
+
+Duas peles se pagam duas vezes em tudo: quinze cenas × 2, quatro paletas, e uma
+guarda para mantê-las honestas. O preço já apareceu — **seis acentos do Orgânico
+estão abaixo da régua de legibilidade** e vivem registrados como exceção em
+`src/theme/contrast.test.ts` (o item 3c). **Seis exceções não é exceção, é padrão.**
+
+Não remover: **hierarquizar.** Cena nova sai no Papel e o Orgânico segue depois, em
+vez de um travar o outro. E os seis acentos são consertados em vez de registrados —
+o que muda uma pele que o dono aprovou olhando, e é por isso que estava parado. Ele
+mandou fazer.
+
+### 5. O padrão da capa cai para ~5 peças
+
+O catálogo de quinze está certo e fica. Errada é a **porta de entrada**: empresa
+nova recebe muita coisa, e quinze peças com posição e tamanho é uma tela de ajuste
+que um dono de baixa habilidade técnica não abre. O padrão entrega ~5 e o resto se
+descobre. É configuração, não corte — `ligar não é forçar` já é a doutrina da capa.
+
+### 6. O assistente congela até o áudio existir
+
+1142 linhas em `src/assistant/skills.ts`, monolíngue por decisão escrita no topo do
+`index.ts`, 791 de teste. Com o modo conversa e o áudio aprovados (§ *As seis*, item
+4), a forma muda: a entrada deixa de ser caixa de texto e a resposta deixa de ser
+parágrafo. Investir ali este mês é construir para jogar fora. **Congelar, não
+apagar** — nada é removido, só para de receber trabalho novo.
+
+### 7. O que é espera sai da lista de serviço
+
+Alguns itens abertos estão travados em observação — a frase do portão P2, *"eu
+mudaria isto se eu visse ___"*. Isso não é trabalho, é espera, e carregar espera
+junto com serviço **faz a lista mentir sobre quanto dela é acionável**. Vão para uma
+seção própria, **"espera aparelho"**, e o que ficar na fila é tudo fazível hoje.
+
+### 8. Feito nesta noite — as duas que eram conserto e não escolha
+
+- **Um ponto de arredondamento, não dois.** `amountOf` diz de si *"the one place
+  rounding happens"*, e `repository.ts` — que o importa na primeira linha — chamava
+  `cents(rate * qty)` em dois lugares, cada um com o comentário *"arredondada aqui e
+  só aqui"*. Três declarações de unicidade, dois autores de fato, e verdes porque
+  hoje dão o mesmo número. Os dois passaram por `amountOf`.
+- **A data do estorno virou regra escrita.** `reverseGroup` já datava em hoje, então
+  estornar em outubro um erro de março não mexia no março que alguém já leu — o
+  fechamento de período estável **de graça e por acidente**, sem comentário e sem
+  teste. Agora o docblock diz por quê e o teste prende as duas pontas: o padrão cai
+  em hoje, e a data explícita continua obedecida, que é como a sincronia reproduz um
+  estorno de outro aparelho.
+
 ## A ORDEM — revista em 6 de setembro, com as decisões do dono
 
 A pergunta dele foi direta: *"o roadmap completo já foi feito, confere? sem ele nao faz
