@@ -4112,3 +4112,62 @@ uma tabela que separa os três casos.
 antes de declarar que não existe** — e o primeiro lugar a procurar é a pessoa com quem
 você está falando. Dedução sobre quem usa o produto não é medida; é palpite com cara
 de método.
+
+## 2026-09-06 — o `else` é um lugar onde se cai, não uma escolha que se faz
+
+**O que apareceu.** O dono olhou a foto do Orgânico e disse: *"agora parece papel, mas
+o q estava NEM ORGANICO ERA"*. Fui procurar o defeito esperando um erro de cor, e
+encontrei outra coisa: o Orgânico era o Papel com a cena trocada. Dois ternários
+`skin === 'papel' ?` no meio de mil linhas da capa, e toda a composição — manchete,
+diagrama, régua, versalete — era a da página impressa, usada nas duas caras.
+
+Puxando o fio, o mesmo padrão estava em mais oito arquivos: `Card`, `Field`, `Button`,
+`Chip`, `Confirm`, `Sparkline`, `CollapsingHeader` e `Sky` decidiam cada um por conta
+própria com `skin === 'papel' ?`. Nenhum deles estava errado. O problema é o que
+acontece com o **terceiro** tema, e o dono confirmou que ele vem: *"futuramente a gente
+vai criar mais skins"*.
+
+**Por que importa.** Uma pele nova não cairia num erro — cairia no `else`. Herdaria as
+onze respostas do Orgânico sem que ninguém tivesse decidido nenhuma delas, e o
+compilador ficaria verde, porque `else` é sintaticamente perfeito. É o oposto do
+`Widen<T>` do i18n, que existe justamente para transformar "faltou" em "não compila":
+ali a omissão grita, aqui ela herdava em silêncio.
+
+**O que mudou.** A pele passou a dizer o que ela **decide**, e quem desenha pergunta:
+`genero: 'pagina' | 'superficie'`, `tintaCheia: 'marca' | 'area'`, `marcaVemDoTom`,
+`titulo`, `radius.controle`. E `skins` virou `Record<Skin, {...}>` em vez de `as const`
+— pele sem traço declarado agora não compila. Para a composição, `src/home/capas/`:
+uma roupa por pele, com casco de página, casco de peça e as peças que ela desenha à sua
+maneira. Um `registro.test.ts` recusa qualquer arquivo de `src/home` ou `src/components`
+que volte a decidir pelo NOME da pele, com prova negativa.
+
+**A regra que fica:** quando um `if` responde "qual dos dois", pergunte o que acontece
+quando existir um terceiro. Se a resposta for "cai no `else`", o `if` não é uma
+condição — é uma tabela que ainda não foi escrita. E o nome da opção tem que dizer o
+que ela **decide** (`genero: 'pagina'`), nunca **quem** a usa (`ehPapel`): o segundo
+compila igual e devolve o mesmo defeito na pele seguinte.
+
+## 2026-09-06 — o invólucro vazio que só aparece quando o casco muda
+
+**O que apareceu.** Ao dar ao Orgânico um cartão em volta de cada peça, precisei saber
+quais peças têm o que dizer. Descobri que oito das quinze devolviam
+`<>{condição ? <Peça/> : null}</>` — um fragmento que **nunca é nulo**, mesmo quando
+não desenha nada. Havia meses assim.
+
+**Por que importa.** Enquanto o casco do Papel era o nada, um invólucro vazio ocupava
+zero pixel e ninguém via. No Orgânico, cada peça mora num cartão branco: o mesmo
+invólucro viraria um cartão vazio no meio da capa. O defeito não nasceu com o tema
+novo — ele estava lá, **escondido por uma coincidência de estilo**, e o tema só tirou
+a coincidência.
+
+O irmão dele apareceu na mesma varredura: a semana morava DENTRO da peça da produção
+do dia. Dois assuntos numa peça só, e ninguém podia reordenar ou esconder um sem o
+outro. Isso não era decisão de ninguém — era a indentação de um arquivo mandando na
+ordem da capa.
+
+**O que mudou.** As oito peças passaram a devolver `null` de verdade, `insumos` ganhou
+a condição que faltava, e a semana virou peça própria no catálogo.
+
+**A regra que fica:** uma peça que devolve invólucro em vez de `null` está mentindo
+sobre existir, e a mentira fica invisível enquanto o casco for o nada. Antes de trocar
+o casco de qualquer coisa, confira o que o casco antigo estava escondendo.
