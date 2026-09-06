@@ -1276,6 +1276,31 @@ sobe**. É exatamente o cheiro que o `CLAUDE.md` manda procurar ("um número que
 e a cura é ligar produto → itens de embalagem com quantidade por unidade — mudança de
 esquema, que vem separada desta e sem a pressa de vir junto.
 
+> **FECHADO em 6 de setembro — e o achado é que ele ficou meio fechado por semanas.**
+> A mudança de esquema veio: `products.packaging_items` existe, e `recordProduction`
+> soma a lista em `needed`, com um comentário longo descrevendo esta mesma cicatriz.
+> **O que ninguém migrou foi o exemplo.** A semeadura continuou comprando palito e
+> embalagem, cobrando cinco centavos por unidade como taxa fixa, e deixando a lista
+> vazia — então o defeito descrito aqui seguia acontecendo **no único produto que
+> qualquer pessoa vê ao abrir o aplicativo**.
+>
+> Medido: 506 picolés, palito 10.000 → 10.000. Depois do conserto, 10.000 → **9.494**.
+> E o custo por unidade **não mudou** (R$ 325,28 no ato, nos dois casos), porque a
+> embalagem sempre esteve na taxa congelada — o que mudou foi o caminho dela.
+>
+> **A lição não é sobre embalagem.** Máquina construída e exemplo não migrado é um
+> estado que passa em tudo: o código está certo, o teste do código está verde, e o
+> comportamento que todo mundo observa é o antigo. Nenhuma guarda deste repositório
+> pega isso, porque nenhuma compara *o que o código sabe fazer* com *o que o exemplo
+> faz*. Achado ao fazer a conta de um número numa foto, que é de onde vieram cinco
+> dos seis achados desta noite.
+>
+> **E três testes reprovaram junto**, cada um codificando o estado intermediário — um
+> exigia `unitPackagingRate > 0`, outro derivava a proporção dele, e o terceiro usava
+> `> 0` onde queria dizer `!== null`. Os três foram reescritos para afirmar o que
+> queriam afirmar; o terceiro é a lição da asserção fraca de novo, encontrada por
+> acidente.
+
 **E uma regra de plural subiu de nível no caminho.** `n === 1 ? one : fill(other)` estava
 copiada em dois pontos de `app/settings.tsx` e ia virar o terceiro na produção. Virou
 `plural()` em `src/i18n`, com um detalhe que só aparece na terceira chamada: o número que

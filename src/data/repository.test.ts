@@ -2235,8 +2235,28 @@ test('a production run writes one line per item, and freezes what each cost', as
   // wrapper. The number the screen promises and the number the ledger keeps are
   // one number, and this assertion is what keeps them one.
   const value = used.reduce((sum, l) => sum + Math.abs(l.q) * (l.r ?? 0), 0);
-  assert.ok(product.unitPackagingRate > 0, 'the seeded product has packaging, or this proves nothing');
-  assert.ok(Math.abs(run.unitCostRate - (value / 500 + product.unitPackagingRate)) < 1e-9);
+
+  /**
+   * A embalagem entra por CONSUMO e não por taxa fixa — mudou em 6 de setembro, e
+   * a asserção mudou com ela sem perder o que provava.
+   *
+   * Antes o exemplo carregava `unitPackagingRate` e não gastava palito nenhum: o
+   * dinheiro fechava e o estoque mentia, com o palito subindo corrida após
+   * corrida. Agora a embalagem está entre as linhas consumidas, então ela já vive
+   * dentro de `value` — e somá-la de novo aqui a cobraria duas vezes.
+   *
+   * O que este trecho prova continua sendo o mesmo, e é a frase acima: o número
+   * que a tela promete e o número que o razão guarda são UM número. O que mudou é
+   * por onde a embalagem chega até ele.
+   */
+  const daEmbalagem = new Set(
+    (await listItems(LOCAL_COMPANY_ID)).filter((i) => i.kind === 'packaging').map((i) => i.id),
+  );
+  assert.ok(
+    used.some((l) => daEmbalagem.has(l.item_id)),
+    'a corrida gastou embalagem, ou este teste não prova o que diz provar',
+  );
+  assert.ok(Math.abs(run.unitCostRate - value / 500) < 1e-9);
   assert.ok(Math.abs((made[0].r ?? 0) - run.unitCostRate) < 1e-9);
 
   // And the stock moved both ways: ingredients down, product up.
@@ -2272,7 +2292,24 @@ test('a run that yielded less freezes the higher cost, because that is what happ
   // is taken on the mix alone. Mix spreads over however many units came out, so
   // a short run makes each one dearer by exactly 500/400. A stick is a stick:
   // it costs the same whether the tub rendered 400 or 500, so it never scales.
-  const pack = product.unitPackagingRate;
+  /**
+   * A parte da embalagem por unidade — e ela deixou de vir de um campo digitado.
+   *
+   * Era `product.unitPackagingRate`, um valor à mão. Desde 6 de setembro a
+   * embalagem é CONSUMO: um palito e uma embalagem por picolé, saindo do estoque
+   * como qualquer insumo. O conceito que este teste usa continua existindo — "a
+   * parte que não se espalha" — e o que mudou é de onde ele vem.
+   *
+   * Derivado das taxas dos próprios itens de embalagem, e não de uma constante
+   * escrita aqui: uma constante passaria a mentir no dia em que o exemplo mudasse
+   * de fornecedor, e o teste continuaria verde afirmando uma proporção falsa.
+   */
+  const embalagens = (await listItems(LOCAL_COMPANY_ID)).filter((i) => i.kind === 'packaging');
+  const pack = embalagens.reduce((soma, i) => soma + (i.averageRate ?? 0), 0);
+  assert.ok(pack > 0, 'o exemplo gasta embalagem, ou a proporção abaixo não prova nada');
+
+  // Mistura se espalha, palito não: tirada a parte constante, o que sobra tem de
+  // ficar mais caro por exatamente 500/400.
   assert.ok(Math.abs((short.unitCostRate - pack) / (full.unitCostRate - pack) - 500 / 400) < 1e-9);
 });
 
@@ -4264,7 +4301,19 @@ test('the list price answers to view_sale_price, and cost answers to view_cost',
   // E o caminho do livro-razão ignora os dois, como tem de ser: congelar custo e
   // ver custo são perguntas diferentes.
   const paraGravar = (await listProductsForLedger(CO)).find((p) => p.id === produto.id);
-  assert.ok(paraGravar && paraGravar.unitPackagingRate > 0, 'o razão continua vendo o número certo');
+  // `!== null` e não `> 0`, e a diferença é a lição do dia: o que este teste
+  // afirma é que o PORTÃO não apaga o número no caminho do razão, não que o
+  // número seja positivo. Escrito com `> 0`, ele reprovou no dia em que a
+  // embalagem virou consumo e a taxa foi legitimamente a zero — reclamando de uma
+  // mudança correta, que é o que uma asserção mal escrita faz quando não estraga
+  // pior: passar por engano.
+  assert.ok(paraGravar, 'o produto existe no caminho do razão');
+  assert.notEqual(
+    paraGravar.unitPackagingRate,
+    null,
+    'o razão continua vendo o número, seja ele qual for — congelar custo e ver ' +
+      'custo são perguntas diferentes, e só a segunda passa pelo portão',
+  );
 });
 
 test('the mirror says how much of what a store received came back, against last month', async () => {
@@ -4573,7 +4622,16 @@ test('a reversal is dated today, so a closed month stays closed', async () => {
     totalCents: fromDecimal(472),
     occurredAt: MARCO,
   });
-  const grupoDeMarco = (await itemMovements(CO, acucar)).find((m) => m.kind === 'purchase')?.groupId;
+  // A compra DE MARÇO, escolhida pela data e não pela ordem da lista.
+  //
+  // A primeira versão pegava "a primeira compra que aparecer", e `itemMovements`
+  // devolve do mais novo para o mais velho — então ela pegava uma compra da
+  // semeadura, feita hoje, e o teste passava por coincidência de haver poucas.
+  // Quando a semeadura ganhou consumo de embalagem a coincidência se desfez.
+  // Escolher pelo fato que o teste afirma é o que o mantém dizendo a verdade.
+  const grupoDeMarco = (await itemMovements(CO, acucar)).find(
+    (m) => m.kind === 'purchase' && m.occurredAt.startsWith('2026-03-10'),
+  )?.groupId;
   assert.ok(grupoDeMarco, 'a compra de março carrega o ato de que faz parte');
 
   const saldoDeMarco = async () => {
@@ -4621,7 +4679,7 @@ test('a reversal is dated today, so a closed month stays closed', async () => {
     occurredAt: MARCO,
   });
   const outra = (await itemMovements(CO, acucar)).find(
-    (m) => m.kind === 'purchase' && !m.reversed,
+    (m) => m.kind === 'purchase' && !m.reversed && m.occurredAt.startsWith('2026-03-10'),
   )?.groupId;
   assert.ok(outra, 'a segunda compra ainda não estornada é a que se estorna agora');
   const DITADO = '2026-05-20T09:30:00.000Z';
@@ -4814,4 +4872,75 @@ test('without the money gate the extract has no money at all, not zero', async (
   );
 
   await setCurrentOperator(null);
+});
+
+/**
+ * O palito sai do estoque quando o picolé sai do tacho.
+ *
+ * **O exemplo semeado demonstrava o defeito que o código conserta.** O seed
+ * comprava palito e embalagem, cobrava cinco centavos por unidade como
+ * `unitPackagingRate`, e deixava `packagingItems` vazia — então o dinheiro ficava
+ * certo (a taxa congelada carrega a embalagem) e o estoque mentia: **o palito só
+ * subia, corrida após corrida.** É palavra por palavra a cicatriz escrita no laço
+ * de `recordProduction` que existe para consertá-la.
+ *
+ * Ninguém viu porque nenhum teste olhava. A conta do dinheiro fechava, a produção
+ * gravava, o saldo dos insumos baixava — e uma fábrica de verdade só descobriria
+ * no inventário, ao achar dez mil palitos onde deviam estar nove mil e poucos.
+ *
+ * O teste prende as DUAS coisas, e a segunda é a que garante que o conserto não
+ * cobrou duas vezes: a embalagem sai do estoque, **e o custo por unidade não
+ * mudou** — porque ela sempre esteve na taxa congelada, agora pelo caminho do
+ * consumo em vez do da taxa fixa.
+ */
+test('a run takes the stick out of stock, and the unit cost does not move', async () => {
+  await ensureStarterData(CO);
+  const conn = await db();
+  const embalagens = await conn.getAllAsync<{ id: string; name: string }>(
+    `SELECT id, name FROM items WHERE company_id = ? AND kind = 'packaging' ORDER BY name`,
+    [CO],
+  );
+  assert.ok(embalagens.length >= 2, 'o exemplo tem palito e embalagem');
+
+  const saldo = async (itemId: string) => {
+    const l = await conn.getFirstAsync<{ s: number }>(
+      `SELECT COALESCE(SUM(quantity_base_units), 0) AS s FROM movements WHERE company_id = ? AND item_id = ?`,
+      [CO, itemId],
+    );
+    return l?.s ?? 0;
+  };
+
+  const antes = new Map<string, number>();
+  for (const e of embalagens) antes.set(e.id, await saldo(e.id));
+
+  const [product] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
+  const UNIDADES = 506;
+  await recordProduction(CO, {
+    productId: product.id,
+    locationId: defaultLocationId(CO),
+    batches: 1,
+    unitsProduced: UNIDADES,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+
+  for (const e of embalagens) {
+    assert.equal(
+      await saldo(e.id),
+      (antes.get(e.id) ?? 0) - UNIDADES,
+      `${e.name}: um picolé gasta uma unidade, e rendimento não devolve palito — ` +
+        'sem isto o estoque de embalagem só cresce e a fábrica descobre no inventário',
+    );
+  }
+
+  // E o dinheiro não se mexeu: a embalagem sempre esteve na taxa congelada, e o
+  // conserto trocou o CAMINHO dela, não o valor. Se tivesse cobrado duas vezes,
+  // este número teria subido.
+  const custo = await custoDe(product.itemId);
+  const [ato] = await ledgerExtract(CO, { limit: 1 });
+  assert.equal(
+    ato.valueCents,
+    amountOf(custo as Rate, UNIDADES),
+    'o valor do ato continua sendo o que saiu do tacho pela taxa congelada — ' +
+      'embalagem contada uma vez, pelo consumo',
+  );
 });

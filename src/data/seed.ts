@@ -189,8 +189,31 @@ async function writeStarterData(companyId: string): Promise<void> {
     kind: 'product',
     recipeId: strawberry.recipeId,
     yieldPerUnit: 75,
-    // Stick plus wrapper: packaging is a cost per unit, never per batch.
-    unitPackagingRate: rate(0.05, 1),
+    /**
+     * A embalagem por LISTA, e não por taxa fixa — e isto era um defeito do
+     * próprio exemplo, medido em 6 de setembro.
+     *
+     * O seed comprava palito e embalagem, cobrava cinco centavos por unidade como
+     * `unitPackagingRate`, e deixava `packagingItems` vazia. O dinheiro ficava
+     * certo (a taxa congelada carregava a embalagem) e **o estoque mentia: o
+     * palito só subia, corrida após corrida** — que é palavra por palavra a
+     * cicatriz descrita em `repository.ts`, no laço que existe para consertá-la.
+     * O exemplo demonstrava o defeito que o código conserta.
+     *
+     * Com a lista, tudo o que já existe atravessa: a trava de estoque recusa a
+     * corrida sem palito, o valor consumido entra na taxa congelada pelo mesmo
+     * caminho dos outros insumos, e o movimento sai com a mesma taxa deles.
+     *
+     * E a taxa fixa vai a ZERO junto, senão a embalagem entraria duas vezes no
+     * custo — uma pelo consumo e outra pela taxa. Um picolé, um palito, uma
+     * embalagem: rendimento não devolve palito, e é por isso que a lista conta
+     * por unidade produzida e não por tacho.
+     */
+    packagingItems: [
+      { itemId: stick, quantityPerUnit: 1 },
+      { itemId: wrapper, quantityPerUnit: 1 },
+    ],
+    unitPackagingRate: rate(0, 1),
     packaging: STACKED,
   });
 
