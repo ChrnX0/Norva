@@ -22,8 +22,8 @@ test('the alert fires on the decision date, not on the problem date', () => {
     {
       ...nada,
       cover: [
-        { itemId: 'polpa', name: 'Polpa de morango', daysLeft: 2 },
-        { itemId: 'acucar', name: 'Açúcar', daysLeft: 10 },
+        { itemId: 'polpa', name: 'Polpa de morango', daysLeft: 2, leadTimeDays: null },
+        { itemId: 'acucar', name: 'Açúcar', daysLeft: 10, leadTimeDays: null },
       ],
     },
     DEFAULT_ALERTS,
@@ -52,7 +52,7 @@ test('an alert nobody can act on is not sent', () => {
   assert.deepEqual(semNivel, [], 'sem nível cheio, o app estaria inventando o que é pouco');
 
   const desligado = alertsDue(
-    { ...nada, cover: [{ itemId: 'x', name: 'X', daysLeft: 0 }] },
+    { ...nada, cover: [{ itemId: 'x', name: 'X', daysLeft: 0, leadTimeDays: null }] },
     { ...DEFAULT_ALERTS, on: { ...DEFAULT_ALERTS.on, insumo: false } },
   );
   assert.deepEqual(desligado, []);
@@ -119,8 +119,8 @@ test('the most urgent alert comes first, because a notification holds one senten
     {
       ...nada,
       cover: [
-        { itemId: 'folgado', name: 'Folgado', daysLeft: 3 },
-        { itemId: 'apertado', name: 'Apertado', daysLeft: 0 },
+        { itemId: 'folgado', name: 'Folgado', daysLeft: 3, leadTimeDays: null },
+        { itemId: 'apertado', name: 'Apertado', daysLeft: 0, leadTimeDays: null },
       ],
       expiring: [{ lotId: 'l1', code: '20260903-01', daysLeft: 1 }],
     },
@@ -216,7 +216,7 @@ test('the cold room comes first, and a room with no range stays quiet', () => {
   const avisos = alertsDue(
     {
       ...nada,
-      cover: [{ itemId: 'polpa', name: 'Polpa', daysLeft: 0 }],
+      cover: [{ itemId: 'polpa', name: 'Polpa', daysLeft: 0, leadTimeDays: null }],
       ambient: [
         {
           locationId: 'c1',
@@ -272,4 +272,70 @@ test('the cold room comes first, and a room with no range stays quiet', () => {
     { ...DEFAULT_ALERTS, on: { ...DEFAULT_ALERTS.on, ambiente: false } },
   );
   assert.deepEqual(mudo, []);
+});
+
+/**
+ * Uma régua só para a decisão de comprar — e este teste existe porque havia DUAS.
+ *
+ * Medido em 6 de setembro: a ficha do insumo dizia "compre" quando a cobertura
+ * encostava no prazo do fornecedor mais a folga da empresa, e o aviso ficava
+ * calado até `daysAhead.insumo`, um número fixo sem prazo nenhum dentro. Com
+ * fornecedor de seis dias e folga de dois, a tela pedia para comprar a oito dias
+ * de cobertura e a notificação só falava a três. **Cinco dias em que o aplicativo
+ * discordava de si mesmo** — e quem lê o aviso é justamente quem não estava
+ * olhando a tela.
+ */
+test('the alert buys on the same day the item card does', () => {
+  const settings = { ...DEFAULT_ALERTS, purchaseSafetyDays: 2 };
+
+  // Fornecedor de seis dias, folga de dois: o dia da decisão é a oito de
+  // cobertura. Com a régua velha isto ficava calado.
+  const avisos = alertsDue(
+    {
+      ...nada,
+      cover: [{ itemId: 'i1', name: 'Polpa', daysLeft: 8, leadTimeDays: 6 }],
+    },
+    settings,
+  );
+  assert.deepEqual(
+    avisos.map((a) => a.subject),
+    ['Polpa'],
+    'oito dias de cobertura com fornecedor de seis e folga de dois é o dia de comprar',
+  );
+
+  // E um dia antes disso ainda não é.
+  assert.deepEqual(
+    alertsDue(
+      { ...nada, cover: [{ itemId: 'i1', name: 'Polpa', daysLeft: 9, leadTimeDays: 6 }] },
+      settings,
+    ),
+    [],
+    'nove dias ainda não é o dia da decisão',
+  );
+});
+
+/**
+ * E sem prazo anotado, o piso configurado — que é a resposta honesta de quem
+ * ainda não anotou a data de nenhum pedido. O aviso é tão inteligente quanto o
+ * dado permite, e nunca mais burro que a configuração.
+ */
+test('without an observed lead time it falls back to the configured floor', () => {
+  const settings = { ...DEFAULT_ALERTS, daysAhead: { ...DEFAULT_ALERTS.daysAhead, insumo: 3 } };
+
+  assert.deepEqual(
+    alertsDue(
+      { ...nada, cover: [{ itemId: 'i1', name: 'Polpa', daysLeft: 8, leadTimeDays: null }] },
+      settings,
+    ),
+    [],
+    'sem prazo, oito dias não dispara: o piso é três',
+  );
+  assert.equal(
+    alertsDue(
+      { ...nada, cover: [{ itemId: 'i1', name: 'Polpa', daysLeft: 3, leadTimeDays: null }] },
+      settings,
+    ).length,
+    1,
+    'e três dispara',
+  );
 });

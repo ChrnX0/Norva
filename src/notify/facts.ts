@@ -5,11 +5,13 @@ import {
   listOrders,
   listPlaces,
   stockAgainstOrders,
+  deliveriesOf,
   runningOut,
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { nowIso } from '@/data/db';
 import { dayWindow, localDate } from '@/domain/day';
+import { observedLeadTimeDays } from '@/domain/cost';
 import type { AlertFacts } from '@/domain/alerts';
 
 /**
@@ -51,7 +53,19 @@ export async function factsForAlerts(timeZone: string): Promise<AlertFacts> {
   ]);
 
   return {
-    cover: cover.map((c) => ({ itemId: c.itemId, name: c.name, daysLeft: c.daysLeft })),
+    // O prazo do fornecedor entra POR ITEM, e é o que faz o aviso usar a mesma
+    // régua da ficha do insumo. Uma consulta por item da cobertura: são poucos, e
+    // isto roda no trabalho de fundo que decide os avisos do dia, não num desenho
+    // de tela. Nulo quando ninguém anotou a data de um pedido — e aí o aviso cai
+    // no piso configurado, que é a resposta honesta de quem ainda não sabe.
+    cover: await Promise.all(
+      cover.map(async (c) => ({
+        itemId: c.itemId,
+        name: c.name,
+        daysLeft: c.daysLeft,
+        leadTimeDays: observedLeadTimeDays(await deliveriesOf(LOCAL_COMPANY_ID, c.itemId)),
+      })),
+    ),
     // Uma linha por (item, loja) em falta: a falta é a da FÁBRICA, do item, e a
     // loja é quem está esperando por ela. É o que permite o aviso contar lojas
     // sem inventar rateio: se falta picolé, toda loja que pediu picolé espera.

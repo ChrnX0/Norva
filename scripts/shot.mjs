@@ -509,7 +509,27 @@ try {
       for (const alvo of tocar) {
         await page.waitForTimeout(900);
         const digita = alvo.match(/^(.+?)=(.*)$/);
-        if (digita) await page.getByLabel(digita[1].trim()).first().fill(digita[2]);
+        if (digita) {
+          await page.getByLabel(digita[1].trim()).first().fill(digita[2]);
+          continue;
+        }
+
+        // O ALVO primeiro, o texto por último — e a ordem é uma cicatriz.
+        //
+        // `getByText(...).click()` clica no `<div>` do texto, que não é o alvo de
+        // toque: o Playwright não reclama, porque clicar em elemento não
+        // interativo é uma operação válida. A foto saía da tela ANTERIOR com o
+        // nome da tela pedida, que é a pior forma de errar — parece que a tela
+        // pedida está errada quando ela nem foi aberta.
+        //
+        // `getByRole` acha o alvo de verdade, porque `accessibilityRole` e
+        // `accessibilityLabel` viram ARIA na exportação web. Ou seja: a foto passa
+        // a depender da mesma coisa de que o leitor de tela depende — e uma tela
+        // que o cego não navega deixa de render foto também.
+        const porPapel = page.getByRole('button', { name: alvo, exact: true }).first();
+        const porLink = page.getByRole('link', { name: alvo, exact: true }).first();
+        if (await porPapel.count()) await porPapel.click();
+        else if (await porLink.count()) await porLink.click();
         else await page.getByText(alvo, { exact: true }).first().click();
       }
       // A capa tem animação de entrada; a foto tem de ser depois dela.

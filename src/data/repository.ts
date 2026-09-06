@@ -4727,6 +4727,12 @@ export async function alertSettings(): Promise<AlertSettings> {
       on: { ...DEFAULT_ALERTS.on, ...(lido.on ?? {}) },
       daysAhead: { ...DEFAULT_ALERTS.daysAhead, ...(lido.daysAhead ?? {}) },
       bands: { ...DEFAULT_ALERTS.bands, ...(lido.bands ?? {}) },
+      // A folga NÃO vem daqui: ela é configuração da empresa e mora na própria
+      // chave, que a ponte com o servidor já carrega. Ler os dois lugares faria
+      // duas verdades para o mesmo número — e quem lê o aviso passaria a receber
+      // uma régua diferente da que a ficha do insumo mostra, que é exatamente a
+      // contradição que esta mudança veio acabar.
+      purchaseSafetyDays: await purchaseSafetyDays(),
       minuteOfDay:
         typeof lido.minuteOfDay === 'number' &&
         lido.minuteOfDay >= 0 &&

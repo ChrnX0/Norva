@@ -43,6 +43,23 @@ export type AlertSettings = {
    */
   daysAhead: Record<Exclude<AlertKind, 'volume' | 'ambiente'>, number>;
   /**
+   * A folga que a empresa quer antes de comprar, somada ao prazo OBSERVADO do
+   * fornecedor.
+   *
+   * Entrou aqui em 6 de setembro para acabar com uma contradição que ninguém
+   * tinha visto: o aplicativo tinha DUAS RÉGUAS para a mesma decisão de compra.
+   * A ficha do insumo dizia "compre" quando a cobertura chegava ao prazo do
+   * fornecedor mais a folga; o aviso ficava calado até `daysAhead.insumo`, que é
+   * um número fixo sem prazo nenhum dentro. Com fornecedor de seis dias e folga
+   * de dois, a tela pedia para comprar a oito dias de cobertura e a notificação
+   * só falava a três — cinco dias em que o app discordava de si mesmo.
+   *
+   * `daysAhead.insumo` não morreu: virou o PISO de quando não se sabe o prazo,
+   * que é o caso de quem nunca anotou a data de um pedido. O aviso é tão
+   * inteligente quanto o dado permite, e nunca mais burro que a configuração.
+   */
+  purchaseSafetyDays: number;
+  /**
    * As faixas de volume, em porcentagem do nível cheio do item.
    *
    * Desenho do dono, e ele é melhor que piso e teto: "amarelo entre 30 e 40,
@@ -113,6 +130,7 @@ export const DEFAULT_ALERTS: AlertSettings = {
   // forma.
   on: { insumo: true, pedido: true, volume: false, validade: true, ambiente: true },
   daysAhead: { insumo: 3, pedido: 2, validade: 7 },
+  purchaseSafetyDays: 2,
   bands: { red: 25, yellow: 40, blue: 80, notifyFull: false },
   minuteOfDay: 7 * 60,
   weekdays: 0,
@@ -182,7 +200,18 @@ export type Alert = {
 /** Os fatos de onde os avisos saem. Nada aqui fala português. */
 export type AlertFacts = {
   /** Cobertura por item, em dias, pelo consumo que o livro-razão viu. */
-  cover: readonly { itemId: string; name: string; daysLeft: number }[];
+  cover: readonly {
+    itemId: string;
+    name: string;
+    daysLeft: number;
+    /**
+     * Quantos dias o fornecedor deste item leva, pela média das notas.
+     *
+     * Nulo é "ninguém anotou quando pediu", e é um caso diferente de zero: sem
+     * ele o aviso cai no piso configurado em vez de inventar um prazo.
+     */
+    leadTimeDays: number | null;
+  }[];
   /** Pedidos com o que falta produzir, para quando, e de quem. */
   orders: readonly {
     itemId: string;
@@ -238,7 +267,15 @@ export function alertsDue(facts: AlertFacts, settings: AlertSettings): Alert[] {
 
   if (settings.on.insumo) {
     for (const item of facts.cover) {
-      if (item.daysLeft > settings.daysAhead.insumo) continue;
+      // UMA régua, a mesma da ficha do insumo: o dia da decisão é o dia em que a
+      // cobertura encosta no prazo do fornecedor mais a folga da empresa. Sem
+      // prazo observado, o piso configurado — que é a resposta honesta de quem
+      // ainda não anotou nenhuma data de pedido.
+      const limite =
+        item.leadTimeDays === null
+          ? settings.daysAhead.insumo
+          : item.leadTimeDays + settings.purchaseSafetyDays;
+      if (item.daysLeft > limite) continue;
       out.push({ kind: 'insumo', subjectId: item.itemId, subject: item.name, amount: item.daysLeft });
     }
   }
