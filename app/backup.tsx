@@ -7,8 +7,14 @@ import { useConfirm } from '@/components/Confirm';
 import { GlyphArchive, GlyphPrice } from '@/components/Glyph';
 import { Reveal } from '@/components/Reveal';
 import { nowIso } from '@/data/db';
-import { readJson, writeJson } from '@/data/meta';
-import { CopiaRecusadaError, type MotivoDaCopia } from '@/data/backup';
+import { writeJson } from '@/data/meta';
+import {
+  CopiaRecusadaError,
+  ULTIMA_COPIA,
+  ultimaCopia,
+  type MotivoDaCopia,
+  type UltimaCopia,
+} from '@/data/backup';
 import { escolherCopia, guardarCopia, partilharCopia, trazerDeVolta } from '@/data/copia';
 import { countMovements } from '@/data/repository';
 import { useQuery } from '@/data/useQuery';
@@ -48,8 +54,6 @@ import { useTheme } from '@/theme/ThemeProvider';
  * volta, e vai para onde a pessoa já guarda o que importa.
  */
 
-const ULTIMA_COPIA = 'ultima.copia';
-
 /**
  * O que se lembra da última cópia — e são TRÊS coisas, não a data sozinha.
  *
@@ -58,7 +62,6 @@ const ULTIMA_COPIA = 'ultima.copia';
  * quantos movimentos entraram depois dela, que é a Lei 3 — nenhum número aparece
  * sozinho.
  */
-type UltimaCopia = { feitoEm: string; movimentos: number; bytes: number };
 
 /**
  * Há quantos dias, e não a data — porque a data faz a pessoa fazer conta.
@@ -98,7 +101,7 @@ export default function BackupScreen() {
   const estado = useQuery(
     useCallback(
       async () => ({
-        ultima: await readJson<UltimaCopia>(ULTIMA_COPIA),
+        ultima: await ultimaCopia(),
         movimentos: await countMovements(),
       }),
       [],

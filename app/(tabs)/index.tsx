@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import {
+  countMovements,
   expiringSoon,
   listItems,
   listPlaces,
@@ -18,6 +19,7 @@ import {
   shipmentsOn,
   type LossRow,
 } from '@/data/repository';
+import { ultimaCopia } from '@/data/backup';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { reading, type Forecast } from '@/weather';
 import { forecastForScreen } from '@/weather/live';
@@ -253,6 +255,24 @@ function Briefing() {
       madeThen: sum(madeThen),
       madeYesterday: sum(madeYesterday),
       series: semana,
+      /**
+       * A idade da cópia — e ela é a única coisa desta consulta que não é da
+       * fábrica.
+       *
+       * Entra aqui porque a capa é onde mora o que muda a decisão de hoje, e não
+       * nos alertas: aqueles são fatos da fábrica, e enfiar um assunto do
+       * aplicativo no meio deles ensina a ignorar a lista inteira.
+       */
+      copia: await (async () => {
+        const ultima = await ultimaCopia();
+        if (!ultima) return null;
+        const de = Date.parse(`${localDate(ultima.feitoEm, locale.timeZone)}T00:00:00Z`);
+        const ate = Date.parse(`${localDate(nowIso(), locale.timeZone)}T00:00:00Z`);
+        return {
+          diasAtras: Math.max(0, Math.round((ate - de) / 86_400_000)),
+          desdeEla: Math.max(0, (await countMovements()) - ultima.movimentos),
+        };
+      })(),
       shortly,
       /**
        * A fábrica já produziu ALGUMA VEZ — e o nome diz isso porque é isso que

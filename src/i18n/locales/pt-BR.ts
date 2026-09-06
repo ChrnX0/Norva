@@ -170,6 +170,12 @@ export const ptBR = {
       mathNoBase: 'primeiro dia com produção registrada',
       firstDayBody: 'A capa se enche sozinha conforme a fábrica trabalha: o que saiu hoje, o que está acabando, o que os clientes pediram.',
       firstDayAction: 'Lançar a primeira produção',
+      copyNeverTitle: 'Guarde uma cópia',
+      copyNeverBody: 'Tudo o que a fábrica registrou mora neste aparelho. Se ele quebrar, some junto.',
+      copyOldTitle: 'Sua cópia tem {{days}} dias',
+      copyOldBody: 'Entraram {{movements}} depois dela — é isso que se perde se o aparelho sumir.',
+      copyOldQuiet: 'Nada entrou depois dela, mas o aparelho continua sendo o único lugar.',
+      movementCount: { one: '1 movimento', other: '{{n}} movimentos' },
       firstDayNext: 'O QUE VAI APARECER AQUI',
       firstDayPreview: {
         producao: {
@@ -819,6 +825,7 @@ export const ptBR = {
           clima: 'Tempo',
           expedicao: 'Saiu para as lojas',
           precos: 'Preços que mexeram',
+          copia: 'Cópia de segurança',
         },
       },
       alerts: {

@@ -50,6 +50,23 @@ export const BRIEFING_WIDGETS = [
   'precos',
   'clima',
   'parado',
+  /**
+   * A cópia velha — e ela só aparece quando está velha.
+   *
+   * Entra porque o item 0 da fila fechou o risco de perder a fábrica e deixou um
+   * buraco atrás dele: **cópia que ninguém faz é cópia que não existe.** A tela de
+   * cópia diz há quantos dias foi a última, e ela só diz isso para quem a abre —
+   * que é exatamente quem não precisa do lembrete.
+   *
+   * Fica FORA dos alertas de propósito. Aquilo são fatos da fábrica — insumo
+   * acabando, lote vencendo, pedido atrasado — e enfiar um assunto do aplicativo
+   * no meio deles é a forma mais rápida de ensinar alguém a ignorar a lista
+   * inteira. Aqui é a capa, que é onde o que muda a decisão de hoje mora.
+   *
+   * E ela some quando a cópia está em dia: "está tudo bem" é estado válido, e
+   * peça que aparece sempre é peça que ninguém lê.
+   */
+  'copia',
 ] as const;
 
 export type BriefingWidget = (typeof BRIEFING_WIDGETS)[number];

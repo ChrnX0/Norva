@@ -509,7 +509,7 @@ abaixo respeita duas decisões escritas dele — *"termina o layout, nada pela m
 | **3d** | ~~**As quatro peças da capa que NAVEGAM em vez de abrir**~~ **— FEITO em 6 de setembro** | virou a `Porta` (`src/home/Capa.tsx`): o toque e o aviso do toque são a mesma peça, então não dá para acrescentar uma quinta porta sem o rótulo. |
 | **4** | **Os sete médios** | pequenos e independentes; cabem entre as coisas grandes. O maior é a aprovação de pedido, que é F7 — vira configuração da empresa, não escolha nossa. |
 | **5** | **A sala do tacho** | pergunta de PADRÃO para o dono, não de qual; e trava no P3 porque muda onde o consumo é gravado. Fica para a câmara fria da F2. |
-| **6** | **Compras inteligentes** | mesma classe do 3 — construir agora, calibrar depois. **Primeiro passo medido em 6 de setembro:** a data do pedido na tela de compra, porque `observedLeadTimeDays` recebe lista vazia hoje — `ordered_at` não tem escritor. Sem ela, esperar meses não adianta: a coluna continua nula. |
+| **6** | **Compras inteligentes** | mesma classe do 3 — construir agora, calibrar depois. ~~O primeiro passo era a data do pedido, porque `ordered_at` não tinha escritor~~ — **ele tem, desde 6 de setembro** (`app/purchase.tsx:578`), e com um desenho honesto: sem resposta nada é gravado, porque lacuna vazia é mais honesta que palpite. O que falta agora não é código, é **tempo**: `observedLeadTimeDays` precisa de entregas observadas, e isso é a linha *"calibração das compras"* da espera. |
 | — | **O fiscal** | fora, e o único que trava por algo que nenhum dado resolve: certificado A1 e homologação na SEFAZ. |
 
 De pé, nesta ordem e por este motivo:

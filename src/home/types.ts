@@ -11,6 +11,14 @@ import type { Forecast, Reading } from '@/weather';
  * cada layout é uma função pura daqui para baixo.
  */
 export type Summary = {
+  /**
+   * A idade da última cópia, e o que entrou depois dela. Nulo = nunca houve uma.
+   *
+   * Dois números e não um: "há 23 dias" já é alerta, mas "e 41 movimentos
+   * entraram depois" é o que diz o TAMANHO do que se perde. Nenhum número aparece
+   * sozinho.
+   */
+  copia: { diasAtras: number; desdeEla: number } | null;
   changes: CostChange[];
   /**
    * Quando um insumo mudou de preço pela última vez, ou nulo se nenhum nunca mudou.

@@ -106,6 +106,12 @@ export const en: Dictionary = {
       mathNoBase: 'first day with production recorded',
       firstDayBody: 'The cover fills itself as the factory works: what came out today, what is running low, what customers ordered.',
       firstDayAction: 'Record the first production',
+      copyNeverTitle: 'Keep a copy',
+      copyNeverBody: 'Everything the factory recorded lives on this device. If it breaks, that goes with it.',
+      copyOldTitle: 'Your copy is {{days}} days old',
+      copyOldBody: '{{movements}} came in after it — that is what is lost if the device disappears.',
+      copyOldQuiet: 'Nothing came in after it, but the device is still the only place.',
+      movementCount: { one: '1 movement', other: '{{n}} movements' },
       firstDayNext: 'WHAT WILL SHOW UP HERE',
       firstDayPreview: {
         producao: {
@@ -654,6 +660,7 @@ export const en: Dictionary = {
           clima: 'Weather',
           expedicao: 'Out to the stores',
           precos: 'Prices that moved',
+          copia: 'Backup',
         },
       },
       alerts: {

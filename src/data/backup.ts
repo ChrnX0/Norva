@@ -43,6 +43,26 @@
  */
 
 import { db, schemaVersion, type Db } from './db';
+import { readJson } from './meta';
+
+/**
+ * O que o aparelho lembra da última cópia — e mora AQUI, não na tela.
+ *
+ * Duas telas precisam do fato: a da cópia, para dizer há quantos dias foi, e a
+ * CAPA, para avisar quando ela envelheceu. Uma chave de `meta` escrita à mão nos
+ * dois lugares é a mesma família de defeito que este arquivo inteiro persegue —
+ * dois autores de um dado que tem de ser um só.
+ *
+ * São TRÊS coisas e não a data sozinha, porque a pergunta de quem olha não é
+ * "quando foi" e sim "ela cobre o que eu fiz desde então".
+ */
+export const ULTIMA_COPIA = 'ultima.copia';
+
+export type UltimaCopia = { feitoEm: string; movimentos: number; bytes: number };
+
+export async function ultimaCopia(): Promise<UltimaCopia | null> {
+  return readJson<UltimaCopia>(ULTIMA_COPIA);
+}
 
 /** O que uma cópia diz de si, antes de qualquer restauração. */
 export type CopiaLida = {
