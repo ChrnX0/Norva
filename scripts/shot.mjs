@@ -195,7 +195,28 @@ if (!limpar && pacoteServe()) {
 
 mkdirSync(SAIDA, { recursive: true });
 const server = serve();
-await new Promise((ok) => server.listen(PORT, ok));
+/**
+ * Duas execuções ao mesmo tempo não convivem, e a ferramenta diz isso em vez de
+ * despejar uma pilha de erro.
+ *
+ * Elas dividem duas coisas: esta porta e a pasta `dist`. Rodando juntas, uma
+ * apaga o pacote que a outra vai servir — foi assim que uma execução morreu com
+ * "ENOENT dist/index.html" depois de já ter tirado duas fotos boas, e a leitura
+ * óbvia ("a exportação quebrou") era a errada.
+ */
+await new Promise((ok, falhar) => {
+  server.once('error', (e) =>
+    falhar(
+      e.code === 'EADDRINUSE'
+        ? new Error(
+            `a porta ${PORT} está ocupada — já existe uma execução do shot no ar.\n` +
+            'Duas ao mesmo tempo também disputam a pasta `dist`: espere a primeira terminar.',
+          )
+        : e,
+    ),
+  );
+  server.listen(PORT, ok);
+});
 
 /**
  * O que foi fotografado, para a ferramenta poder se desmentir no fim.

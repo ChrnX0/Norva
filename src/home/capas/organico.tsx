@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bars } from '@/components/Bars';
 import { CountUp } from '@/components/CountUp';
@@ -168,6 +168,7 @@ function HeroiOrganico({ data, sky, estado, go }: PecaDaCapa) {
   const { color, type, space, palette } = useTheme();
   const { locale, t } = useLocale();
   const insets = useSafeAreaInsets();
+  const { height: altura } = useWindowDimensions();
 
   const feito = data?.madeToday ?? 0;
   const carregando = estado === 'loading';
@@ -190,7 +191,25 @@ function HeroiOrganico({ data, sky, estado, go }: PecaDaCapa) {
 
         <View
           style={{
-            paddingTop: insets.top + space.lg,
+            /**
+             * O herói ocupa uma FRAÇÃO da tela, não uma altura em pixel.
+             *
+             * Sem piso ele encolhe até a altura do próprio texto, e num dia sem
+             * produção — quando não há os dois selos de comparação — a cena
+             * perde a parte de cima: o sol sai pequeno e alto, a nuvem some, e
+             * o que sobra é uma tarja verde. A cena É a identidade desta pele;
+             * ela não pode depender de quanto texto o dia teve.
+             *
+             * Trinta por cento é o que o desenho aprovado usa, e em fração ele
+             * vale igual no telefone de 360 dp e no tablet de 800 — que é a
+             * regra da casa: nada de medida de tela em pixel fixo.
+             */
+            minHeight: Math.round(altura * 0.3),
+            // O texto começa EM CIMA e a altura que sobra vai para a cena. Com
+            // o texto no pé, o céu vazio ficava acima dele e a colina espremida
+            // embaixo — o contrário do desenho aprovado, em que o número está no
+            // primeiro terço e a paisagem ocupa o que vem depois dele.
+            paddingTop: insets.top + space.xl,
             paddingHorizontal: space.xl + 2,
             // O rodapé conta a sobreposição: o primeiro cartão do miolo sobe por
             // cima daqui, e sem esta folga ele cobriria os selos.
