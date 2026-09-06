@@ -4592,6 +4592,13 @@ async function operadorDaEmpresa(
  *
  * A F7 em uma linha: os dois caminhos existem, o padrão é `personal`, e nada aqui
  * escolheu por nenhuma fábrica.
+ *
+ * **E o portão é por APARELHO, não por empresa — dito aqui porque é onde se nota.**
+ * As duas bandeiras moram no `app_meta`, que não atravessa a sincronia; e a
+ * sincronia, mesmo que atravessasse, só SOBE (`Transport` tem `push` e mais nada).
+ * Então numa fábrica com dois celulares um pode esconder custo e o outro não, sem
+ * ninguém ter escolhido isso. Não é conserto de tabela: o que falta é o caminho de
+ * descida, que é decisão de desenho e está escrita em `docs/roadmap.md`.
  */
 async function pisoDoAparelho(): Promise<ReadonlySet<Capability>> {
   const [entrada, nomeia] = await Promise.all([floorSignIn(), namesWhoRecorded()]);

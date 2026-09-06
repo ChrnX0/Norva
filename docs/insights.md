@@ -5190,3 +5190,47 @@ E uma quarta, sobre mim: eu já tinha rodado a mordida em cinco guardas nesta se
 mesmo assim quase pulei esta, porque a checagem tinha passado *de primeira* — que é
 exatamente quando a suspeita deveria subir, não descer. Teste que passa na primeira
 tentativa contra código recém-escrito é a situação em que a mordida vale mais.
+
+---
+
+## Escrevi a dívida errada, prescrevi o conserto errado, e só não construí porque conferi a premissa
+
+**6 de setembro.** Fechei uma rodada anunciando qual seria a próxima: *"a configuração da
+empresa não atravessa a sincronia — o conserto é uma tabela `companies` no aparelho,
+entrando na travessia como qualquer outra"*. Eu mesmo tinha escrito isso no roadmap horas
+antes, com convicção e com os números certos ao lado (as três colunas, as três migrações
+que as criaram).
+
+Fui construir e conferi a premissa antes da primeira linha. **`Transport` só tem `push`.**
+O docblock do motor diz na primeira frase: *"sending what the phone wrote while it was
+alone"*. Não existe caminho de descida — e nunca existiu.
+
+Duas coisas caem juntas:
+
+1. **"É a única coisa que dois celulares não combinam"** era falso. Hoje eles não combinam
+   nada: a produção que o celular da fábrica grava não desce para o da expedição. A frase
+   fazia parecer que tudo mais já concorda e só a configuração ficou de fora — que é o tipo
+   de erro que sobrevive porque *soa* específico.
+2. **O conserto prescrito não consertaria.** Com travessia só de subida, cada aparelho
+   empurraria a própria configuração, o último venceria no servidor, e nenhum aprenderia o
+   valor do outro. Eu teria construído a tabela, os testes ficariam verdes, a barra inteira
+   passaria — e a consequência descrita continuaria exatamente igual. **Meio conserto com
+   cara de conserto inteiro.**
+
+**O que fica de método.** O `CLAUDE.md` diz que contradição achada é suspeita de leitura
+errada até virar prova, e eu sempre li isso como uma regra sobre achados de OUTROS lugares
+— o esquema, o domínio, o servidor. Aqui a premissa errada era minha, escrita por mim, no
+documento que existe justamente para dizer o que fazer em seguida. **A lista escrita não é
+mais confiável que a memória só por estar escrita**; ela é mais confiável porque pode ser
+conferida, e conferir é um ato, não uma propriedade do arquivo.
+
+O que salvou foi um gesto de trinta segundos: antes de construir o que o plano manda, abrir
+o arquivo que o plano pressupõe. Foi o mesmo gesto que hoje já tinha desmentido três coisas
+— a fronteira caduca do assistente, o `customer` que a simulação criava e a tela não, e o
+teste que passava por causa do estoque da fábrica.
+
+**E há uma consequência real que não é sobre documentação.** O portão do dinheiro que
+entrou hoje depende de duas bandeiras que moram só no aparelho. Enquanto não houver
+descida, **o portão é por APARELHO** — uma fábrica com dois celulares pode ter um
+escondendo custo e o outro não, sem ninguém ter escolhido. Está dito no
+`currentCapabilities`, onde quem for mexer nele passa, e não só no plano.

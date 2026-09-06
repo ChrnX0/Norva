@@ -530,13 +530,35 @@ Achado ao construir a entrada, 6 de setembro. O servidor tem as três configura�
 **não existe tabela `companies` no banco do aparelho**, e portanto não existe coluna de
 empresa que a sincronia saiba levar.
 
-Consequência prática: **configuração da empresa é a única coisa que dois celulares da mesma
-empresa não conseguem combinar entre si.** Numa fábrica com um aparelho é invisível; com
-dois, um pergunta quem está operando e o outro não.
+**E as duas frases que eu escrevi aqui em seguida estavam erradas — corrigidas em 6 de
+setembro, antes de construir em cima delas.**
 
-Não é urgente — nada sincroniza ainda — e o conserto é claro: uma tabela `companies` no
-aparelho, com as três colunas, entrando na travessia como qualquer outra. Fica escrito para
-não ser redescoberto na primeira fábrica com dois celulares.
+Eu tinha escrito que *"configuração da empresa é a única coisa que dois celulares da mesma
+empresa não conseguem combinar"*, e que o conserto era *"uma tabela `companies` no aparelho
+entrando na travessia como qualquer outra"*. Fui construir e conferi a premissa primeiro:
+**`Transport` só tem `push`** (`src/sync/engine.ts:35`). O docblock do motor diz isso na
+primeira linha, sem rodeio — *"sending what the phone wrote while it was alone"*.
+
+Então:
+
+- **Não é a única coisa: hoje dois celulares não combinam NADA.** A produção que o celular
+  da fábrica grava não desce para o celular da expedição, porque não existe caminho de
+  descida. A frase anterior fazia parecer que tudo mais já concorda e só a configuração
+  ficou de fora.
+- **E a tabela não consertaria.** Com travessia só de subida, cada aparelho empurraria a
+  própria configuração para o servidor — o último a subir vence — e nenhum dos dois
+  aprenderia o valor do outro. Seria meio conserto com cara de conserto inteiro, que é o
+  que este projeto mais paga caro.
+
+**A dívida verdadeira é: a sincronia é de mão única.** Não é uma tabela que falta, é o
+caminho de leitura — e ele não é um `ALTER TABLE`, é uma decisão de desenho (o que o
+servidor manda de volta, quando, e quem vence quando os dois lados mexeram na mesma linha).
+
+E o preço dela subiu em 6 de setembro, por minha causa: `floorSignIn` e `namesWhoRecorded`
+passaram a decidir **quem vê dinheiro**. Numa fábrica com dois aparelhos, um esconderia
+custo e o outro não, sem que ninguém tivesse escolhido isso. Enquanto não houver descida, a
+resposta honesta é que **o portão do dinheiro é por aparelho**, e está escrito assim no
+`currentCapabilities`.
 
 ### Dois defeitos que a medição achou
 
