@@ -340,7 +340,6 @@ function Transfer() {
         // nunca fechar: cada transferência cobre um item e nenhuma cobre o
         // pedido. Quem carrega o caminhão faz duas viagens até o freezer, não um
         // ato só - e o pedido é do dia, não da viagem.
-        const hoje = dayWindow(nowIso(), locale.timeZone);
         const remessas = await shipmentsOn(LOCAL_COMPANY_ID, hoje.from, hoje.to);
         const enviadoHoje = new Map<string, number>();
         for (const destino of remessas.filter((r) => r.locationId === to.id)) {
