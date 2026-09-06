@@ -4238,3 +4238,37 @@ não chame de primeiro dia uma fábrica com três meses de história.
 **A regra que fica:** uma suíte que só roda em dias úteis testa seis sétimos do
 produto. Quando um teste ficar vermelho sem que nada tenha mudado, **a primeira
 pergunta é que dia é hoje** — e o achado provavelmente não está no teste.
+
+## 2026-09-06 — largura se prova no navegador; densidade, só no aparelho
+
+**O que apareceu.** Precisava ver a capa nova a 800 dp, que é a largura do tablet do
+dono. O reflexo foi o certo pela regra da casa — *"o que prova tela é a foto do
+emulador"* — e me custou vinte minutos: subir o emulador por software leva sete
+minutos, o `system_server` mais alguns, o Metro tem que servir o pacote, e nesta rodada
+o gerenciador de atividades nem chegou a responder.
+
+A resposta veio em dois minutos por outro caminho: `npm run shot -- --largura 800`, que
+já existia e eu tinha esquecido.
+
+**Por que importa.** A regra "verde não prova tela" está certa e não vai mudar — mas ela
+foi escrita contra um defeito específico: **contraste ilegível**, que é cor, e cor no
+navegador mente. Reflow não é cor. A pergunta "isto vira duas colunas a 840 dp?" é
+decidida pela **largura em dp**, e 800 CSS px num navegador é 800 dp — a mesma conta que
+o layout faz.
+
+Então a regra tem duas metades, e eu vinha usando só a mais cara:
+
+| a pergunta é sobre | prova no |
+|---|---|
+| reflow, quebra de linha, ordem, o que cabe | **navegador**, com `--largura` |
+| cor, contraste, toque, fonte do sistema, densidade | **aparelho**, sem substituto |
+
+**O que mudou.** Fotografei a 800 dp e a foto pagou na hora: três defeitos, e dois deles
+eram do Papel também — a coluna do texto do herói colada na borda enquanto os cartões
+começavam 260 dp adentro, o "↑ +0" com seta verde num empate, e "que na **dom** passada"
+(cinco dias da semana são femininos em português e dois não são — a capa escrevia errado
+dois dias por semana desde que o selo existe).
+
+**A regra que fica:** antes de subir o emulador, pergunte se a dúvida é de **cor ou de
+largura**. Se for de largura, o navegador responde em dois minutos e responde igual. O
+emulador é para o que só ele sabe — e continua sendo obrigatório para isso.
