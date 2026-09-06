@@ -216,29 +216,39 @@ function HeroiOrganico({ data, sky, estado, go }: PecaDaCapa) {
             paddingBottom: space.xl + SOBREPOSICAO,
           }}
         >
-          {/* A marca e o dia, do tamanho de legenda. O nome do produto em corpo
-              grande gastaria o topo da tela dizendo o que a pessoa já sabe. */}
-          <Text
-            style={[type.overline, { color: color.inkMuted, letterSpacing: 3.2 }]}
-            numberOfLines={1}
-          >
-            {brand.name.toUpperCase()}
-          </Text>
-          <Text style={[type.secondary, { color: color.inkMuted, marginTop: 2 }]} numberOfLines={1}>
-            {formatCoverDate(nowIso(), locale)}
-          </Text>
+          {/* A COLUNA do texto para de antes do desenho.
+              A cena se ancora no canto direito — sol, nuvem e fábrica moram lá —,
+              e o comentário acima prometia esta margem sem que ela existisse: em
+              português curto nada encostava, mas "unidades produzidas hoje" em
+              espanhol, ou um número de cinco dígitos, entrariam por baixo do sol.
+              A fração é percentual porque a âncora é percentual: vale igual no
+              telefone de 360 dp e no tablet de 800.
+              Os selos ficam FORA dela, na largura toda, como no desenho aprovado —
+              eles vivem na altura da colina, onde não há desenho para atropelar. */}
+          <View style={{ paddingRight: '32%' }}>
+            {/* A marca e o dia, do tamanho de legenda. O nome do produto em corpo
+                grande gastaria o topo da tela dizendo o que a pessoa já sabe. */}
+            <Text
+              style={[type.overline, { color: color.inkMuted, letterSpacing: 3.2 }]}
+              numberOfLines={1}
+            >
+              {brand.name.toUpperCase()}
+            </Text>
+            <Text style={[type.secondary, { color: color.inkMuted, marginTop: 2 }]} numberOfLines={1}>
+              {formatCoverDate(nowIso(), locale)}
+            </Text>
 
-          {/* O número, e nada de "0" enquanto a resposta não chegou: meio segundo
-              de zero num aparelho lento é meio segundo dizendo que a fábrica não
-              produziu, para quem produziu. */}
-          <View style={{ minHeight: type.hero.lineHeight + 4, justifyContent: 'flex-end' }}>
-            {carregando ? null : (
-              <CountUp
-                value={feito}
-                format={(v) => formatQuantity(Math.round(v), locale)}
-                style={{ ...type.hero, color: color.ink }}
-              />
-            )}
+            {/* O número, e nada de "0" enquanto a resposta não chegou: meio segundo
+                de zero num aparelho lento é meio segundo dizendo que a fábrica não
+                produziu, para quem produziu. */}
+            <View style={{ minHeight: type.hero.lineHeight + 4, justifyContent: 'flex-end' }}>
+              {carregando ? null : (
+                <CountUp
+                  value={feito}
+                  format={(v) => formatQuantity(Math.round(v), locale)}
+                  style={{ ...type.hero, color: color.ink }}
+                />
+              )}
           </View>
           <Text style={[type.body, { color: color.inkMuted }]}>
             {carregando
@@ -249,6 +259,7 @@ function HeroiOrganico({ data, sky, estado, go }: PecaDaCapa) {
                   })
                 : t.app.home.organico.quietToday}
           </Text>
+          </View>
 
           {data && data.everMade ? (
             <View
