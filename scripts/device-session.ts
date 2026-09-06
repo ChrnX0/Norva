@@ -240,6 +240,10 @@ async function main() {
     fromLocationId: loja.id,
     toLocationId: defaultLocationId(LOCAL_COMPANY_ID),
     baseUnits: 500,
+    // Com motivo, e é ele que a sessão prova: o servidor recusa devolução sem
+    // razão (`movements_return_says_why`), então uma devolução sem ela nunca
+    // teria atravessado — e a checagem passaria por não ter tentado.
+    returnReason: 'unsold',
   });
 
   // --- and now, exactly what the server would receive -----------------------

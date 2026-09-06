@@ -703,8 +703,27 @@ ALTER TABLE products ADD COLUMN unit_packaging_rate REAL NOT NULL DEFAULT 0;
 UPDATE products SET unit_packaging_rate = unit_packaging_cents;
 `;
 
+/**
+ * Por que a carga voltou.
+ *
+ * O tipo `return` separou a devolução da transferência; o MOTIVO ainda não
+ * separava nada — "a loja não vendeu" e "a carga chegou derretida" entravam como
+ * a mesma linha, e as duas mandam fazer coisas opostas. Ver
+ * `supabase/migrations/0034_why_it_came_back.sql`, que é quem impõe a regra: o
+ * servidor recusa devolução sem motivo E motivo fora de devolução.
+ *
+ * Aqui a coluna é solta, como todas as outras do aparelho: quem valida é o
+ * domínio na entrada e o Postgres na saída. O aparelho grava rápido e offline;
+ * fazer o SQLite julgar vocabulário seria uma segunda regra para divergir da
+ * primeira.
+ */
+const V19 = `
+ALTER TABLE movements ADD COLUMN return_reason TEXT;
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
+  V19,
 ];
 
 export type SqlParam = string | number | null;

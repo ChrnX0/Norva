@@ -1801,7 +1801,43 @@ test('a return is a return, not a transfer running backwards', async () => {
     fromLocationId: loja,
     toLocationId: fabrica,
     baseUnits: 1000,
+    returnReason: 'unsold',
   });
+
+  // E o MOTIVO desceu junto, nas duas pernas.
+  //
+  // Sem ele o razão grava aritmética sem notícia: "a loja não vendeu" fica
+  // idêntico a "a carga chegou derretida", e as duas mandam fazer coisas
+  // opostas. A perna que entra na fábrica é a que um relatório de devolução vai
+  // ler, então é nela que a ausência doeria.
+  const pernas = await (
+    await db()
+  ).getAllAsync<{ return_reason: string | null; quantity_base_units: number }>(
+    `SELECT return_reason, quantity_base_units FROM movements WHERE kind = 'return' ORDER BY quantity_base_units`,
+  );
+  assert.equal(pernas.length, 2, 'a devolução tem duas pernas');
+  assert.deepEqual(
+    pernas.map((l) => l.return_reason),
+    ['unsold', 'unsold'],
+    'as duas pernas dizem por que voltou',
+  );
+
+  // E a regra IMPEDE em vez de reclamar: sem motivo não escreve, e motivo fora
+  // da devolução também não. A segunda metade é a que costuma faltar — uma
+  // transferência com motivo de devolução é dado errado com cara de dado certo,
+  // e o servidor a recusa (`movements_return_says_why`).
+  await assert.rejects(
+    () =>
+      recordTransfer(LOCAL_COMPANY_ID, {
+        itemId: acucar.id,
+        fromLocationId: fabrica,
+        toLocationId: loja,
+        baseUnits: 10,
+        returnReason: 'unsold',
+      }),
+    /motivo de devolução/,
+    'transferência não aceita motivo de devolução',
+  );
 
   // A aritmética é a mesma de sempre: a loja fica com 5.000 e a empresa não
   // muda, porque nada foi criado nem destruído.

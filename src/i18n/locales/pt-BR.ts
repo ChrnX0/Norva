@@ -830,6 +830,20 @@ export const ptBR = {
       orderedNone: 'nenhum pedido em aberto para esta loja',
       title: 'Transferir',
       overline: 'o que sai da fábrica',
+      /**
+       * Por que a carga voltou — as quatro respostas, e cada uma manda fazer
+       * uma coisa diferente.
+       *
+       * "Não vendeu" manda produzir menos para aquela loja. "Derreteu no
+       * caminho" manda olhar o caminhão e a câmara. Sem a distinção, o relatório
+       * dá o conselho errado com convicção.
+       */
+      returnReason: 'Por que voltou',
+      returnReasonHint: 'A resposta muda o que fazer: não vendeu manda produzir menos; derreteu manda olhar o caminhão.',
+      unsold: 'Não vendeu',
+      wrong_item: 'Veio errado',
+      returnMelted: 'Derreteu no caminho',
+      returnExpired: 'Passou da validade',
       returnOverline: 'o que volta para a fábrica',
       notASale: 'Loja própria é transferência, não venda: não há faturamento nem margem aqui. O valor só muda de sala.',
       noPlaces: 'Você ainda não cadastrou para onde mandar.',

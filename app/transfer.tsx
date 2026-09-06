@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { RETURN_REASONS, type ReturnReason } from '@/domain/ledger';
+import type { Dictionary } from '@/i18n';
 import { parseTyped } from '@/domain/number';
 import { Alive } from '@/components/Alive';
 import { Button } from '@/components/Button';
@@ -107,6 +109,13 @@ function Transfer() {
    * mandando é a fábrica movendo o que é dela.
    */
   const [devolucao, setDevolucao] = useState(false);
+  /**
+   * Por que voltou. Nasce vazio de propósito: **nenhum campo nasce vazio** vale
+   * para o que o sistema pode deduzir, e este ele não pode — só quem recebeu a
+   * carga de volta sabe. Um padrão aqui seria o sistema respondendo no lugar da
+   * pessoa, e o relatório da loja herdando o palpite.
+   */
+  const [motivo, setMotivo] = useState<ReturnReason | null>(null);
   const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
   const [toId, setToId] = useState<string | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
@@ -192,7 +201,11 @@ function Transfer() {
   const amount = typed ? Math.max(0, (parseTyped(amountText) ?? 0) || 0) : (suggestion ?? 0);
   const over = line != null && amount > line.baseUnits;
 
-  const ready = line != null && to != null && amount > 0 && !over && !sending;
+  // A devolução só fica pronta com o motivo escolhido. O erro IMPEDE em vez de
+  // reclamar (Lei 5): o botão não obedece enquanto a pergunta não foi respondida,
+  // em vez de aceitar e falhar na confirmação.
+  const ready =
+    line != null && to != null && amount > 0 && !over && !sending && (!devolucao || motivo != null);
 
   const onSend = async () => {
     if (!ready || !line || !to) return;
@@ -222,16 +235,23 @@ function Transfer() {
 
     setSending(true);
     try {
-      const registrar = devolucao ? recordReturn : recordTransfer;
-      await registrar(LOCAL_COMPANY_ID, {
+      const comum = {
         itemId: line.itemId,
         fromLocationId: from,
         toLocationId: to.id,
         baseUnits: amount,
         lotId: frente?.lotId ?? null,
-      });
+      };
+      // Sem ternário sobre a função: `recordReturn` pede o motivo no tipo, e
+      // escolher a função antes de saber os argumentos apagaria essa exigência.
+      if (devolucao) {
+        await recordReturn(LOCAL_COMPANY_ID, { ...comum, returnReason: motivo! });
+      } else {
+        await recordTransfer(LOCAL_COMPANY_ID, comum);
+      }
       setTyped(false);
       setAmountText('');
+      setMotivo(null);
 
       // A carga saiu; o pedido pode fechar junto — se ela o cobrir inteiro.
       //
@@ -374,6 +394,10 @@ function Transfer() {
                     setDevolucao(qual);
                     setTyped(false);
                     setAmountText('');
+                    // Sair da devolução leva o motivo junto: motivo de
+                    // devolução numa transferência é dado errado com cara de
+                    // dado certo, e o servidor recusa a linha.
+                    setMotivo(null);
                   }}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: ativo }}
@@ -452,6 +476,42 @@ function Transfer() {
               </Pressable>
             );
           })}
+
+          {/* POR QUE VOLTOU — e a pergunta mora aqui, junto da loja, porque é
+              sobre a loja que ela fala. "Não vendeu" manda produzir menos para
+              esta; "derreteu no caminho" manda olhar o caminhão. Sem a
+              distinção, a devolução é aritmética sem notícia, e o Espelho da
+              Loja daria o conselho errado com convicção.
+
+              Nenhuma opção nasce marcada: esta é a única resposta da tela que o
+              sistema não pode deduzir — só quem recebeu a carga sabe —, e um
+              padrão aqui seria o aplicativo respondendo no lugar da pessoa. */}
+          {devolucao ? (
+            <View style={{ marginTop: space.lg, gap: space.sm }}>
+              <Text style={[type.overline, { color: color.inkFaint }]}>
+                {words.returnReason.toUpperCase()}
+              </Text>
+              <View style={[styles.wrap, { gap: space.sm }]}>
+                {RETURN_REASONS.map((qual) => (
+                  <Pressable
+                    key={qual}
+                    onPress={() => setMotivo(qual)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: motivo === qual }}
+                    accessibilityLabel={rotuloDoMotivo(qual, words)}
+                  >
+                    <Chip
+                      signal={motivo === qual ? 'ok' : 'neutral'}
+                      label={rotuloDoMotivo(qual, words)}
+                    />
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={[type.caption, { color: color.inkFaint }]}>
+                {words.returnReasonHint}
+              </Text>
+            </View>
+          ) : null}
 
           {/* O que está diferente agora, para esta loja: sem pedido em aberto, a
               carga é reposição por hábito, e o palpite abaixo vem da última vez.
@@ -618,4 +678,20 @@ const styles = StyleSheet.create({
   centered: { textAlign: 'center' },
   grow: { flex: 1 },
   number: { fontVariant: ['tabular-nums'] },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap' },
 });
+
+/**
+ * O rótulo de cada motivo, do dicionário.
+ *
+ * Dois deles têm nome próprio (`returnMelted`, `returnExpired`) porque "Derreteu"
+ * sozinho já é o rótulo da PERDA, e a devolução diz outra coisa: "derreteu no
+ * caminho" acusa o transporte, "derreteu" acusa o freezer. Mesma palavra, dois
+ * fatos — e o dicionário é o lugar onde a diferença tem que ficar visível.
+ */
+function rotuloDoMotivo(qual: ReturnReason, words: Dictionary['app']['transfer']): string {
+  if (qual === 'melted') return words.returnMelted;
+  if (qual === 'expired') return words.returnExpired;
+  if (qual === 'wrong_item') return words.wrong_item;
+  return words.unsold;
+}

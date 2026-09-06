@@ -349,6 +349,10 @@ const CROSSINGS: Record<
       // empresa não quer nomear ninguém - e nulo é resposta, não ausência: a
       // linha continua respondendo pelo aparelho e pela conta.
       'operator_id',
+      // Por que a carga voltou. O servidor exige na devolução e proíbe fora
+      // dela, então a coluna tem que atravessar: sem ela na lista, toda
+      // devolução seria recusada por restrição, com a fila parando atrás.
+      'return_reason',
       'reverses_movement_id',
       'assistant_phrase',
       'note',

@@ -46,6 +46,38 @@ export type MovementKind =
 export type LossReason = 'melted' | 'broken' | 'expired' | 'courtesy' | 'internal_use';
 
 /**
+ * Por que a carga voltou — e por que isto NÃO é `LossReason`.
+ *
+ * Uma devolução não é uma perda: a mercadoria volta e entra no saldo de novo. E
+ * a razão responde outra pergunta. A da perda é *"o que aconteceu com isto"*; a
+ * da devolução é *"o que isto diz sobre aquela loja"* — que é exatamente a
+ * pergunta que o Espelho da Loja existe para responder, e a única que faz a
+ * devolução merecer tipo próprio no razão.
+ *
+ * Sem a razão, `recordReturn` grava aritmética sem notícia: mil gramas voltaram,
+ * e "a loja não vendeu" fica idêntico a "a carga chegou derretida". A primeira
+ * manda produzir menos para aquela loja; a segunda manda olhar o caminhão. Um
+ * relatório que não distingue as duas dá o conselho errado com convicção.
+ *
+ * O vocabulário sai do docblock do `moveBetween`, que já o tinha escrito em
+ * prosa antes de existir coluna: *"não vendeu, veio errado, chegou mole"*.
+ *
+ * Grafado como o enum do servidor (`return_reason` em
+ * `supabase/migrations/0034_why_it_came_back.sql`), e pelo mesmo motivo que o
+ * `LossReason`: o SQLite aceitaria camelCase, a fila enfileiraria, e o Postgres
+ * recusaria a linha sem ninguém olhando.
+ */
+export type ReturnReason = 'unsold' | 'wrong_item' | 'melted' | 'expired';
+
+/** Na ordem em que a tela oferece: a mais comum primeiro. */
+export const RETURN_REASONS: readonly ReturnReason[] = [
+  'unsold',
+  'melted',
+  'expired',
+  'wrong_item',
+];
+
+/**
  * Where a movement was recorded in the chain of custody. Comparing two posts
  * localizes a loss - picking error, route loss, or receiving error - without
  * accusing anyone.

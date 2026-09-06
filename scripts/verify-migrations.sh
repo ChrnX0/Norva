@@ -644,7 +644,7 @@ psql -d "$DB" -q -c "insert into auth.users (id) values ('${P}91'), ('${P}92');"
 psql -d "$DB" -q -c "insert into companies (id, name, orders_need_approval)
   values ('${P}01','Fábrica que aprova', true);" >/dev/null  # proofgate-allow
 psql -d "$DB" -q -c "insert into memberships (company_id, user_id, display_name, capabilities)
-  values ('${P}01','${P}91','Vendedora', array['place_order','dispatch']::capability[]),
+  values ('${P}01','${P}91','Vendedora', array['place_order','dispatch','check_receipt']::capability[]),
          ('${P}01','${P}92','Dona', array['place_order','approve_order']::capability[]);" >/dev/null  # proofgate-allow
 psql -d "$DB" -q -c "insert into locations (id, company_id, kind, name)
   values ('${P}11','${P}01','customer','Cliente do centro');" >/dev/null  # proofgate-allow
@@ -881,6 +881,34 @@ estado=$(psql -d "$DB" -Atqc "select status from orders where id = '${P}52';")  
 
 echo "    aprovar decide o pedido e não muda quem o anotou"
 
+echo "==> check 14: uma devolução diz por que voltou, e só ela tem motivo de devolução"
+
+# O tipo `return` separou a devolução da transferência. O MOTIVO não separava
+# nada: "a loja não vendeu" e "a carga chegou derretida" entravam como a mesma
+# linha, e as duas mandam fazer coisas opostas — a primeira manda produzir menos
+# para aquela loja, a segunda manda olhar o caminhão.
+#
+# A regra tem duas metades, e a segunda é a que costuma faltar: obrigatório NA
+# devolução, e proibido FORA dela. Sem a segunda, uma transferência entre salas
+# nossas carregaria motivo de devolução — dado errado entrando com cara de dado
+# certo, e o Espelho da Loja contando devolução que nunca houve.
+SEM_MOTIVO="insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id, quantity_base_units, location_id) values ('${P}61','${P}01','return',now(),'${P}91','${P}21',500,'${P}11');"  # proofgate-allow
+if as_user "${P}91" "$SEM_MOTIVO" >/dev/null 2>&1; then
+  fail "uma devolução sem motivo foi aceita: o razão grava aritmética sem notícia"
+fi
+
+COM_MOTIVO="insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id, quantity_base_units, location_id, return_reason) values ('${P}62','${P}01','return',now(),'${P}91','${P}21',500,'${P}11','unsold');"  # proofgate-allow
+as_user "${P}91" "$COM_MOTIVO" >/dev/null ||
+  fail "uma devolução COM motivo foi recusada: a regra travou o caminho que ela existe para permitir"
+
+# E a metade de trás: transferência com motivo de devolução não passa.
+INTRUSO="insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id, quantity_base_units, location_id, return_reason) values ('${P}63','${P}01','transfer',now(),'${P}91','${P}21',500,'${P}11','unsold');"  # proofgate-allow
+if as_user "${P}91" "$INTRUSO" >/dev/null 2>&1; then
+  fail "uma transferência com motivo de devolução foi aceita: o relatório da loja contaria devolução que não houve"
+fi
+
+echo "    devolução sem motivo é recusada, com motivo passa, e fora dela o motivo não entra"
+
 echo
-echo "OK - migrations apply and all thirteen guarantees hold."
+echo "OK - migrations apply and all fourteen guarantees hold."
 

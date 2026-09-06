@@ -3,7 +3,7 @@ import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
 import { DEFAULT_ALERTS, type AlertSettings } from '@/domain/alerts';
 import { daysOfCover } from '@/domain/ledger';
 import { expiresOn, lotCode } from '@/domain/lot';
-import type { LossReason } from '@/domain/ledger';
+import type { LossReason, ReturnReason } from '@/domain/ledger';
 import { explodeRequirements } from '@/domain/recipe';
 import type { ItemCosts, Recipe, RecipeLine } from '@/domain/recipe';
 import type { PackagingHierarchy } from '@/domain/units';
@@ -1660,6 +1660,11 @@ type MoveInput = {
   occurredAt?: string;
   note?: string;
   assistantPhrase?: string;
+  /**
+   * Por que voltou. Obrigatório na devolução — `recordReturn` pede; a
+   * transferência não aceita.
+   */
+  returnReason?: ReturnReason;
 };
 
 /**
@@ -1691,6 +1696,19 @@ async function moveBetween(
   if (input.baseUnits <= 0) {
     throw new Error('uma transferência move alguma coisa; para o sentido inverso, troque os lugares');
   }
+  /**
+   * A regra da razão, imposta ANTES da escrita — a mesma que o Postgres impõe.
+   *
+   * O erro IMPEDE em vez de reclamar (Lei 5): sem isto, a linha entraria no
+   * SQLite (a coluna é TEXT solto), a fila a enfileiraria, e o servidor a
+   * recusaria — travando a fila atrás dela, meses depois, longe da causa.
+   */
+  if (kind === 'return' && !input.returnReason) {
+    throw new Error('uma devolução diz por que voltou');
+  }
+  if (kind !== 'return' && input.returnReason) {
+    throw new Error('só devolução tem motivo de devolução');
+  }
 
   const conn = await db();
   const at = nowIso();
@@ -1713,8 +1731,9 @@ async function moveBetween(
       await conn.runAsync(
         `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                                 quantity_base_units, location_id, counterpart_location_id,
-                                unit_cost_rate, movement_group_id, lot_id, note, assistant_phrase)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                unit_cost_rate, movement_group_id, lot_id, note, assistant_phrase,
+                                return_reason)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           companyId,
@@ -1733,6 +1752,10 @@ async function moveBetween(
           input.lotId ?? null,
           input.note ?? null,
           input.assistantPhrase ?? null,
+          // As DUAS pernas levam o motivo, pelo mesmo motivo do lote: a perna
+          // que entra na fábrica é a que um relatório de devolução vai ler, e
+          // sem o motivo nela a metade que interessa fica muda.
+          input.returnReason ?? null,
         ],
       );
       await enqueue(conn, [{ table: 'movements', rowId: id }]);
@@ -1766,7 +1789,14 @@ export async function recordTransfer(
  */
 export async function recordReturn(
   companyId: string,
-  input: MoveInput,
+  /**
+   * O motivo é obrigatório no TIPO, e não só na checagem de dentro.
+   *
+   * Assim quem esquecer não compila, em vez de descobrir com uma exceção na mão
+   * de quem está na doca. É a mesma escolha do `recordLoss`, que pede `reason`
+   * desde sempre — e o mesmo motivo pelo qual `LossReason` nunca virou string.
+   */
+  input: MoveInput & { returnReason: ReturnReason },
 ): Promise<TransferResult> {
   return moveBetween(companyId, input, 'return');
 }

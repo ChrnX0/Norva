@@ -32,8 +32,8 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | telas | **24** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **21** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **22** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **33** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V18** | último `const V` em `src/data/db.ts` |
+| migrações do servidor | **34** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V19** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **18** | `src/domain/access.ts` |
 | linhas de código | **~45.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -45,7 +45,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 | `npm test` | **364** testes |
 | `npm run mutate` | **106** defeitos plantados, 104 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **36** checagens num navegador de verdade |
-| `npm run db:verify` | **13** garantias contra um Postgres descartável, sob RLS |
+| `npm run db:verify` | **14** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade, com
@@ -272,7 +272,7 @@ abaixo respeita duas decisões escritas dele — *"termina o layout, nada pela m
 | **1** | **Refluir em colunas no tablet** | fecha o layout, que é a prioridade declarada, e agora tem quem teste: o dono tem tablet e vai rodar o APK. É a única coisa entre "o layout está pronto" e "o layout está pronto e visto". |
 | **2** | **TRAVADO — decisão de faseamento, e ela é do dono.** A camada 1 do login **não** é independente do servidor | Medido em 6 de setembro antes da primeira linha de código, e **contra o que o próprio estudo tinha dito de manhã**: `movements.operator_id` referencia `memberships(id)` (`supabase/migrations/0014_who_was_holding_it.sql:21`), e `memberships.user_id` é `not null references auth.users` (`0001_foundation.sql:60`). O aparelho não pode criar `auth.users`, logo não pode inventar o id de um operador — e o id inventado **viaja** (`src/sync/serialize.ts:351`) e trava a fila por chave estrangeira no dia em que a sincronia subir, que é o defeito crítico que esta branch já consertou uma vez. As três saídas estão no fim de `docs/estudo-conta.md`; eu faria a (c) e depois a (a). |
 | **2b** | **A conta da empresa — a camada 2** | cliente Supabase, sessão, cadastro do dono, convite por código. Ela deixou de ser "depois": sem lista de gente não há quem operou, e é esse o motivo novo que a decisão de *"o servidor sobe o mais tarde possível"* não tinha quando foi tomada. |
-| **2c** | **O que não esbarra nisso, e dá para fazer agora** | o **motivo da devolução** (`MoveInput` não tem campo de razão, e é ele que separa "a loja não vendeu" de "a carga chegou derretida"), a **tela de conferir item a item** na separação, e o **preço combinado** na ficha da loja, que a migração `0021` não criou. |
+| **2c** | **O que não esbarra nisso** | ~~o motivo da devolução~~ **FEITO em 6 de setembro** (`return_reason`, aparelho `V19` e servidor `0034`, com a catorzena garantia do `db:verify` cobrando as duas metades da regra). Sobram a **tela de conferir item a item** na separação e o **preço combinado** na ficha da loja, que a migração `0021` não criou. |
 | **3** | **Espelho da Loja — construir** | destravado hoje: constrói e exercita agora, calibra depois. A captura (contagem cega, perda com motivo) já grava. |
 | **4** | **Os sete médios** | pequenos e independentes; cabem entre as coisas grandes. O maior é a aprovação de pedido, que é F7 — vira configuração da empresa, não escolha nossa. |
 | **5** | **A sala do tacho** | pergunta de PADRÃO para o dono, não de qual; e trava no P3 porque muda onde o consumo é gravado. Fica para a câmara fria da F2. |
@@ -376,12 +376,15 @@ seção `posts` do dicionário existe nos três idiomas — fronteira registrada
 **6. App do entregador.** O papel `driver` existe com `dispatch`, `check_receipt` e
 `record_loss`. Falta a tela dele.
 
-**7. Devolução — meio caminho feito, conferido em 6 de setembro.** O movimento
-existe e tem tela: `recordReturn` (`src/data/repository.ts:1767`) grava o fato com tipo
-próprio — *"sem ele, 'mandei 6.000 e voltaram 1.000' e 'mandei 5.000' ficam idênticos no
-livro-razão"* — e `app/transfer.tsx:109` o dirige com um alternador. **Falta o motivo:**
-`MoveInput` não tem campo de razão, e é o motivo que separa "a loja não vendeu" de "a
-carga chegou derretida". Sem ele a devolução é aritmética sem notícia.
+**7.** ~~**Devolução.**~~ **FEITA em 6 de setembro.** O movimento já tinha tipo próprio
+e tela; o que faltava era o **motivo**, e ele entrou inteiro: `ReturnReason` no domínio
+(não vendeu · derreteu no caminho · passou da validade · veio errado), `return_reason` no
+aparelho (`V19`) e no servidor (`0034`), obrigatório na devolução **e proibido fora
+dela** — a segunda metade é a que costuma faltar, e sem ela uma transferência entre salas
+nossas carregaria motivo de devolução, fazendo o Espelho da Loja contar devolução que não
+houve. A tela pergunta ao lado da loja, sem opção marcada por padrão (é a única resposta
+que o sistema não pode deduzir), e o botão não obedece enquanto ela não for respondida.
+A catorzena garantia do `db:verify` cobra as duas metades contra Postgres.
 
 **8. O `UnitStepper`.** Componente construído e sem chamador, decisão registrada no
 `CLAUDE.md` — é peça da F2/F3 e apontá-lo como defeito já custou uma rodada. Entra
