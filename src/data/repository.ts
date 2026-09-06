@@ -11,7 +11,7 @@ import type { ItemCosts, Recipe, RecipeLine } from '@/domain/recipe';
 import type { PackagingHierarchy } from '@/domain/units';
 import { ordersCoveredBy } from '@/domain/picking';
 import { db, newId, nowIso, type Db } from './db';
-import { readMeta, writeMeta } from './meta';
+import { readJson, readMeta, writeJson, writeMeta } from './meta';
 import { enqueue, forgetOrphans } from './outbox';
 import {
   blockerFor,
@@ -4084,6 +4084,39 @@ export async function alertSettings(): Promise<AlertSettings> {
 
 export async function setAlertSettings(settings: AlertSettings): Promise<void> {
   await writeMeta(ALERTS_KEY, JSON.stringify(settings));
+}
+
+/**
+ * O carrinho da separação — o que já foi posto nele, por loja.
+ *
+ * **Mora no aparelho e não sobe para lugar nenhum**, e essa é a decisão inteira
+ * deste assunto. Separar é montar um carrinho DENTRO da fábrica: nada saiu, nada
+ * mudou de dono, e o livro-razão não tem o que registrar. Quem move estoque
+ * continua sendo a carga — decisão do dono em 6 de setembro, que a carga é um
+ * evento só.
+ *
+ * Mas guardar é obrigatório, e por um motivo físico: a conferência acontece na
+ * câmara fria, item a item, e o celular bloqueia. Uma lista que zera no meio
+ * disso é pior que não existir — a pessoa recomeça a contar sem saber onde
+ * parou, ou pior, acha que sabe.
+ *
+ * Por loja, porque duas separações podem estar abertas ao mesmo tempo: quem
+ * separa para a Loja Centro e é interrompido para atender a Loja Norte volta e
+ * encontra as duas onde deixou.
+ */
+export async function pickingCart(placeId: string): Promise<Record<string, number>> {
+  return (await readJson<Record<string, number>>(`picking.${placeId}`)) ?? {};
+}
+
+export async function setPickingCart(
+  placeId: string,
+  cart: Record<string, number>,
+): Promise<void> {
+  // Item zerado sai do carrinho em vez de ficar como zero: o que a pessoa
+  // desfez não é a mesma coisa que o que ela contou como nenhum, e a lista de
+  // "o que já entrou" tem que dizer só o que entrou.
+  const limpo = Object.fromEntries(Object.entries(cart).filter(([, n]) => n > 0));
+  await writeJson(`picking.${placeId}`, limpo);
 }
 
 const OPERATOR_KEY = 'operator.current';

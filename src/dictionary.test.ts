@@ -41,8 +41,6 @@ import { ptBR } from './i18n/locales/pt-BR';
 const ESCRITAS_ADIANTADO: Record<string, string> = {
   posts:
     'os quatro postos de controle (separado, carregado, entregue, conferido) — escopo da F3 escrito no plano do mês, no CLAUDE.md',
-  stepper:
-    'o UnitStepper, componente da Fase 2 — decisão registrada no CLAUDE.md, e apontá-lo como defeito já custou uma rodada',
   scan:
     'a leitura do QR do engradado na doca — o QR já é impresso na etiqueta do lote; quem lê ainda não existe',
 };

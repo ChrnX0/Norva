@@ -57,13 +57,33 @@ export function UnitStepper({
 
   const countInTier = Math.round(value / tier.perBaseUnit);
 
+  /**
+   * O eco — e ele terminava a conta pela metade.
+   *
+   * A decomposição sozinha diz "1 engradado" quando o valor é um engradado
+   * exato, que é a MESMA informação do número acima. E o resto do aplicativo
+   * fala em unidade-base: o pedido diz "faltam 600 un", o saldo diz "900 un", o
+   * livro-razão guarda unidade-base. Sem o total nessa unidade, a pessoa na
+   * câmara precisa saber de cabeça que um engradado são 300 — que é exatamente
+   * a conta mental que este componente existe para remover, e que o exemplo
+   * escrito no dicionário já prometia: *"12 engradados = 72 caixas = 3.600
+   * picolés"*.
+   *
+   * Então: a decomposição, e depois o total na unidade-base. Quando o valor já
+   * ESTÁ em unidade-base, o total não se repete — eco de si mesmo é ruído.
+   */
   const echo = useMemo(() => {
-    const parts = breakdown(value, hierarchy).map(
+    const partes = breakdown(value, hierarchy);
+    if (partes.length === 0) return tierLabel(hierarchy.tiers[0].id, 0);
+
+    const escrito = partes.map(
       (part) =>
         `${formatQuantity(part.quantity, locale)} ${tierLabel(part.tier.id, part.quantity)}`,
     );
-    if (parts.length === 0) return tierLabel(hierarchy.tiers[0].id, 0);
-    return parts.join(' · ');
+    const base = hierarchy.tiers[0];
+    if (partes.length === 1 && partes[0].tier.id === base.id) return escrito[0];
+
+    return `${escrito.join(' · ')} = ${formatQuantity(value, locale)} ${tierLabel(base.id, value)}`;
   }, [value, hierarchy, locale, tierLabel]);
 
   const step = (delta: number) => {

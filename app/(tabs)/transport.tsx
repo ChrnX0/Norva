@@ -261,9 +261,22 @@ function WhereItWent() {
         </Reveal>
       ) : null}
 
+      {/* Duas portas, e a ordem entre elas é a do dia: primeiro se separa, depois
+          se manda. A carga de um item só continua indo direto pela transferência —
+          abrir uma lista de conferência para mandar uma caixa seria cobrar cinco
+          toques de quem precisava de um. */}
       <Reveal index={passos}>
         <Button
+          label={t.app.picking.title}
+          onPress={() => router.push('/picking' as never)}
+          icon={(c) => <GlyphBox size={22} color={c} weight={traco} />}
+        />
+      </Reveal>
+
+      <Reveal index={passos + 1}>
+        <Button
           label={t.app.transport.send}
+          variant="ghost"
           onPress={() => router.push('/transfer')}
           icon={(c) => <GlyphVehicle size={22} color={c} weight={traco} />}
         />

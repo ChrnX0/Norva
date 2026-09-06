@@ -240,6 +240,33 @@ export const ptBR = {
       current: 'Agora é {{name}}',
     },
 
+    picking: {
+      title: 'Separar',
+      overline: 'o que vai no carrinho',
+      /** A pergunta que a tela responde: quanto do pedido já está no carrinho. */
+      progress: '{{done}} de {{total}} itens contados',
+      ready: 'Tudo contado',
+      empty: 'Essa loja não tem pedido em aberto.',
+      emptyHint: 'Sem pedido, a carga é reposição — e a tela de transferir dá conta dela.',
+      ordered: 'pedido {{amount}}',
+      alreadySent: 'já foram {{amount}} hoje',
+      left: 'faltam {{amount}}',
+      /** Contado a mais que o pedido é fato, não erro: às vezes a loja pediu mais na porta. */
+      over: '{{amount}} a mais do que o pedido',
+      finish: 'Registrar a carga',
+      confirmTitle: 'Mandar o carrinho para {{place}}?',
+      confirmBody: 'Vão {{count}} de uma vez. O saldo sai da fábrica e entra na loja, um lançamento por item.',
+      confirmAction: 'Mandar',
+      lineCount: { one: '1 item', other: '{{n}} itens' },
+      sending: 'Registrando…',
+      failed: 'Não deu para registrar a carga',
+      /** Largar o carrinho é ato de gente, não defeito: a separação de ontem não serve hoje. */
+      clear: 'Esvaziar o carrinho',
+      clearAsk: 'Esvaziar o carrinho?',
+      clearBody: 'O que foi contado se perde. Nada foi gravado ainda, então nada é desfeito — o carrinho só volta a ficar vazio.',
+      kept: 'O carrinho fica guardado neste aparelho até você mandar a carga.',
+    },
+
     lotLabel: {
       title: 'Etiqueta do lote',
       overline: 'para colar na caixa',

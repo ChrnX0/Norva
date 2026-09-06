@@ -2451,6 +2451,91 @@ check('a load that covers the order offers to close it, and closing it changes t
   );
 });
 
+check('the picking cart counts in crates, survives the screen, and becomes the load', async (page) => {
+  // A separação não grava nada — a carga é um evento só, decisão do dono. Mas ela
+  // GUARDA, e é isso que esta checagem prova: a conferência acontece a −18 °C, o
+  // celular bloqueia, e uma lista que zera no meio é pior que não existir.
+  await page.goto(`http://localhost:${PORT}/production/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Quantas unidades/).fill('900');
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar produção', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Como se chama').fill('Loja Centro');
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  await page.goto(`http://localhost:${PORT}/orders/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel('Quantidade').fill('600');
+  await page.waitForTimeout(400);
+  await page.getByText('Adicionar ao pedido', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+  await page.getByText('Anotar pedido', { exact: true }).last().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Anotar', { exact: true }).last().click();
+  await page.waitForTimeout(2500);
+
+  await page.goto(`http://localhost:${PORT}/picking`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const lista = await screen(page);
+  assert.match(lista, /0 de 1 itens contados/, 'a separação abre dizendo onde ela está');
+  assert.match(lista, /pedido 600/, 'com o que o pedido diz');
+  assert.match(lista, /faltam 600/, 'e o que falta, que é o número que decide');
+
+  // A contagem é em ENGRADADO, não em picolé: ninguém na câmara pensa em 3.600
+  // unidades. Um toque no mais soma um engradado inteiro — 300 — e o eco embaixo
+  // faz a conta para a pessoa conferir a camada antes de gravar.
+  await page.getByLabel('Aumentar').first().click();
+  await page.waitForTimeout(900);
+  const umEngradado = await screen(page);
+  assert.match(umEngradado, /1 de 1 itens contados/, 'contou um item');
+  assert.match(
+    umEngradado,
+    /1 engradado = 300 unidades/,
+    'e o eco fecha a conta na unidade que o resto do app fala — sem isso, a pessoa na câmara precisa saber de cabeça que um engradado são 300',
+  );
+
+  await page.getByLabel('Aumentar').first().click();
+  await page.waitForTimeout(900);
+
+  // O carrinho sobrevive à tela: sair e voltar encontra o que foi contado. Sem
+  // isto, quem é interrompido no meio da câmara recomeça sem saber onde parou.
+  await page.goto(`http://localhost:${PORT}/transport`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1500);
+  await page.goto(`http://localhost:${PORT}/picking`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  assert.match(
+    await screen(page),
+    /1 de 1 itens contados/,
+    'o carrinho fica guardado no aparelho até a carga sair',
+  );
+
+  // E terminar vira carga: uma transferência por item, e o pedido coberto oferece
+  // fechar — a mesma regra da tela de transferir, que agora mora num lugar só.
+  await page.getByText('Registrar a carga', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  const confirma = await screen(page);
+  assert.match(confirma, /Mandar o carrinho para Loja Centro\?/);
+  assert.match(confirma, /1 item/, 'a confirmação diz quantos itens vão de uma vez');
+  await page.getByText('Mandar', { exact: true }).first().click();
+  await page.waitForTimeout(3000);
+
+  assert.match(
+    await screen(page),
+    /Fechar o pedido dessa loja\?/,
+    'a carga que cobre o pedido oferece fechá-lo, venha ela da separação ou da transferência',
+  );
+});
+
 check('erasing refuses in an order, and explains the way out', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

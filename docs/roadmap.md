@@ -29,7 +29,7 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 
 | | | como conferir |
 |---|---|---|
-| telas | **26** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
+| telas | **27** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **23** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **24** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
 | migrações do servidor | **36** | `ls supabase/migrations \| wc -l` |
@@ -44,7 +44,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 |---|---|
 | `npm test` | **374** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
-| `npm run e2e:fast` | **43** checagens num navegador de verdade |
+| `npm run e2e:fast` | **44** checagens num navegador de verdade |
 | `npm run db:verify` | **16** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
@@ -529,30 +529,28 @@ Três decisões dentro dela, cada uma um jeito de errar que foi evitado:
   num telefone a frase de cima pode ter saído da tela quando o dedo chega nele, e o
   toque seguinte já é livro-razão.
 
-**4. Separação — DESTRAVADA pela decisão da carga, 6 de setembro.**
+**4.** ~~**Separação.**~~ **FEITA em 6 de setembro**, destravada pela decisão de que a carga
+é um evento só. Com ela, a pergunta que segurava o item — *o que a separação grava?* — tem
+resposta: **nada**. Ela conta; quem move estoque continua sendo a carga.
 
-De manhã este item estava parado por uma pergunta sem resposta: *o que a separação
-grava?* Uma lista de conferência que não guarda nada zera quando o celular bloqueia, na
-câmara fria, com a pessoa de luva — pior que não existir.
+`app/picking.tsx`, com a porta na aba de transporte. O que ela faz:
 
-A decisão do dono respondeu: **a carga é um evento só**, e com isso a separação **não
-grava nada no livro-razão**. Ela conta, e quem move estoque continua sendo a carga — que
-é exatamente o que o docblock do `pickingFor` já dizia: *"A lista NÃO reserva nada e não
-escreve no livro-razão."*
+- **guarda no aparelho, por loja** (`pickingCart`), e isso é o ponto: a conferência é a
+  −18 °C, item a item, e o celular bloqueia. Lista que zera no meio é pior que não existir;
+- **conta em engradado**, não em picolé — o `UnitStepper` ganhou chamador depois de meses
+  construído, e o eco fecha a conta na unidade que o resto do app fala;
+- **termina em carga**: uma transferência por item, e o pedido coberto oferece fechar, pela
+  mesma regra que a transferência usa (`ordersCoveredToday`, um lugar só).
 
-**A forma, então:**
+**E o eco do stepper terminava a conta pela metade.** Ele dizia "1 engradado" quando o
+valor era um engradado exato — a mesma informação do número acima —, enquanto o pedido diz
+"faltam 600 un". A pessoa precisava saber de cabeça que um engradado são 300, que é
+exatamente a conta mental que o componente existe para remover, e que o exemplo escrito no
+dicionário já prometia. Agora ele diz `= 1 engradado = 300 unidades`.
 
-- o carrinho é físico e local, então o estado dele é do **APARELHO** (`app_meta`, como a
-  ordem da capa) — sobrevive à tela apagando e não sobe para servidor nenhum;
-- a lista vem do `pickingFor`, que já desconta o que saiu hoje;
-- a contagem usa o **`UnitStepper`** (item 8), que é onde ele finalmente ganha chamador:
-  *"12 engradados = 3.600 picolés"* sem ninguém fazer conta de cabeça, de luva;
-- terminar a separação dispara as transferências, uma por item — que é o que o app já faz
-  hoje, e o fechamento de pedido já soma as viagens do DIA, não da carga.
-
-**O que continua fora:** a leitura de QR engradado a engradado na doca (a seção `scan` do
-dicionário). Ela precisa de câmera — módulo nativo sem implementação web, e esta sessão
-não tem como fotografar uma leitura de câmera para provar que funciona.
+**O que continua fora:** a leitura de QR engradado a engradado na doca (a seção `scan`).
+Precisa de câmera — módulo nativo sem implementação web —, e esta sessão não tem como
+provar câmera.
 
 **5.** ~~**Os quatro postos de controle.**~~ **RESOLVIDO POR DECISÃO, 6 de setembro.**
 A carga é **um evento só** — decisão do dono. Carregar e entregar continuam sendo o mesmo
