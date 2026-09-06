@@ -67,6 +67,7 @@ import {
 } from '@/data/erase';
 import { exampleStillHere, LOCAL_COMPANY_ID, restoreStarterData } from '@/data/seed';
 import { HORIZONTE_DE_TESTE, simulateHistory } from '@/data/simulate';
+import { empurrar } from '@/data/configuracao';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatMoney, formatQuantity, formatWeekdayShort, joinList, plural } from '@/i18n';
 import type { Dictionary, LanguageTag } from '@/i18n';
@@ -1093,6 +1094,11 @@ function Settings() {
         <Pressable
           onPress={async () => {
             await setOrdersNeedApproval(!approval);
+            // E conta para a CASA. Sem isto a aprovação é decoração: o gatilho do
+            // servidor lê `companies.orders_need_approval` e reescreve o pedido
+            // para `open` na inserção. Silencioso de propósito — a mudança já
+            // valeu neste aparelho, e um erro de rede aqui faria parecer que não.
+            void empurrar();
             refreshApproval();
           }}
           accessibilityRole="switch"
@@ -1126,6 +1132,7 @@ function Settings() {
         <Pressable
           onPress={async () => {
             await setNamesWhoRecorded(!nomeia);
+            void empurrar();
             refreshNomeia();
           }}
           accessibilityRole="switch"
@@ -1159,6 +1166,7 @@ function Settings() {
           <Pressable
             onPress={async () => {
               await setFloorSignIn(entrada === 'shared' ? 'personal' : 'shared');
+              void empurrar();
               refreshEntrada();
             }}
             accessibilityRole="switch"

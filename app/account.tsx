@@ -10,6 +10,7 @@ import { useQuery } from '@/data/useQuery';
 import { useLocale } from '@/i18n/useLocale';
 import { ROLES } from '@/domain/access';
 import { fill } from '@/i18n';
+import { puxar } from '@/data/configuracao';
 import {
   aprovar,
   contaAtual,
@@ -73,6 +74,10 @@ export default function AccountScreen() {
     // devolveria vazio de qualquer jeito, e uma consulta que sempre volta vazia é
     // uma ida ao servidor para confirmar o que já se sabe.
     const espera = empresaAgora ? await pedidos() : null;
+    // Entrou e há empresa: a casa manda no que a casa combinou. É aqui que a
+    // aprovação de pedido para de ser decoração — o gatilho do servidor lê a
+    // coluna, e até hoje ninguém a escrevia nem a lia de volta.
+    if (empresaAgora) await puxar();
     return {
       conta: quem,
       empresa: empresaAgora,
