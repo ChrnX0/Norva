@@ -19,6 +19,25 @@ export { phase1Skills } from './skills';
  * matching, it maps any phrasing to a skill and its slots, and the language of
  * the question stops being the matcher's problem. The answers move to the
  * dictionary then, in the same change.
+ *
+ * ---
+ *
+ * **CONGELADO em 6 de setembro, e congelado não é apagado.**
+ *
+ * O dono aprovou o modo conversa com áudio — *"imagina o padeiro com a mão suja…
+ * até para quem eh cego"* — e isso muda a FORMA desta camada, não o conteúdo dela:
+ * a entrada deixa de ser caixa de texto e passa a ser fala, e a resposta deixa de
+ * ser parágrafo e passa a ser algo dito. O casamento por frase em português, que é
+ * o que ocupa as 1142 linhas do `skills.ts`, é exatamente a peça que um modelo
+ * substitui.
+ *
+ * Então o que vale daqui até o áudio existir: **nada de habilidade nova aqui, e
+ * nada de tradução das respostas.** Investir nesta forma agora é construir para
+ * jogar fora, e jogar fora custa duas vezes — a construção e a coragem de apagar.
+ *
+ * O que continua valendo sem prazo: conserto de defeito, e o `[por quê?]` que toda
+ * resposta abre. Essa parte não muda de forma, porque ela não é do casador — é da
+ * doutrina.
  */
 
 /**

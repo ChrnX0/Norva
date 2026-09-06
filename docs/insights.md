@@ -5969,3 +5969,56 @@ régua que eu escrevo para medir uma vez não passava por essa exigência — e 
 justamente a que fala direto com o dono, sem CI no meio. **Detector novo não
 reporta nada antes de passar num caso que eu sei verdadeiro e num que eu sei
 falso.** Está no `CLAUDE.md` agora, porque conselho em conversa dura uma sessão.
+
+---
+
+## A cópia do aparelho, e o que ela ensinou sobre a minha própria régua
+
+**6 de setembro, noite.** O dono levantou o Google Drive para backup, e a resposta
+útil não foi sobre o Drive: **o risco fecha antes dele.** O banco do aparelho é um
+arquivo (`src/data/db.ts:890`), e o SQLite tem `VACUUM INTO` — uma cópia consistente
+num arquivo novo, sem parar o app e sem WAL pela metade. Com o arquivo de pé, uma
+folha de partilha fecha o risco inteiro, sem conta, sem crédito e sem OAuth. O Drive
+automático é conveniência em cima disso, e conveniência não é o que separa uma
+fábrica com histórico de uma sem.
+
+E `VACUUM INTO` preserva o `PRAGMA user_version`, que é o mesmo marcador que o
+`migrate` usa — então **cópia antiga se restaura sozinha** pela escada que já existe
+para um celular que ficou dois meses desligado. Isso não foi projetado: foi
+descoberto medindo, e é o tipo de coisa que economiza um serializador inteiro.
+
+**A escolha que interessa é `ATTACH` em vez de trocar o arquivo.** Trocar é mais
+simples e tem uma janela em que não existe banco nenhum: falta de energia ali deixa a
+fábrica sem os dados de antes E sem os da cópia. Para a peça cujo propósito é não
+perder dado, atomicidade vale mais que simplicidade — e com `ATTACH` a volta é uma
+transação só.
+
+**A doença conhecida, um nível acima: a tabela sem restaurador.** A coluna sem
+escritor apareceu três vezes este mês. Um serializador escrito à mão teria a mesma
+forma e consequência pior — a fábrica voltaria *quase* inteira, o que **parece
+certo**. Por isso a lista de tabelas é lida do `sqlite_master` em tempo de execução, e
+o teste *no table is forgotten* cobra as duas metades: o que a cópia conhece volta, e
+o que ela não conhece fica **vazio** em vez de intacto. Sobrar um pedaço do estado
+antigo grudado na fábrica restaurada é o pior resultado possível dos três.
+
+### E a régua que eu quebrei uma hora depois de escrevê-la
+
+O teste da cópia antiga reprovou com `no such column: futura`, e a causa foi minha:
+**`copia.pragma_table_info('items')` compila, roda, devolve nomes de coluna — e
+devolve os de `main`.** O prefixo diz de onde vem a FUNÇÃO; o esquema da tabela é o
+segundo argumento (`pragma_table_info(?, ?)`). Com a forma errada, comparar a cópia
+com o aplicativo é comparar o aplicativo consigo mesmo, e o `INSERT` nomeia coluna que
+a cópia não tem: **cópia antiga nunca restaura** — exatamente o caso para o qual cópia
+existe.
+
+O interessante não é o erro de SQL. É **por que eu escrevi a forma errada com uma
+verificação na mão**: eu conferi `copia.pragma_table_info` contra uma tabela
+**idêntica nos dois esquemas**. A régua devolveu `a,b` e eu li isso como prova, quando
+ela não distinguia os dois casos que importavam. É a regra sobre detector novo que eu
+tinha acabado de escrever no `CLAUDE.md` — quebrada dentro da mesma hora, o que diz
+algo sobre o tipo de vigilância que uma regra escrita compra: nenhuma.
+
+**O que mudou:** a regra continua no `CLAUDE.md`, e o que de fato pegou o defeito foi
+outra coisa — **um teste cujo cenário era a cópia antiga**. Régua se verifica com dois
+casos; o que garante é o teste que exercita o caso real. O primeiro é conselho, o
+segundo roda sozinho.

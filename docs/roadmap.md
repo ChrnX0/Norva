@@ -282,7 +282,7 @@ custa o erro se a coisa nunca for feita.**
 Três dela são achado de varredura desta noite e vêm com a medida ao lado; cinco
 são coisas que eu **removeria ou mudaria**, e essas são as que ninguém pede.
 
-### 0. O backup — porque é o único cujo prejuízo não tem conserto
+### 0. O backup — 0a e 0b FEITOS em 6 de setembro; falta o 0c (Drive)
 
 Hoje o razão inteiro mora em `norva.db` no aparelho. **Aparelho quebrado, roubado
 ou formatado = a fábrica sem histórico**, e não existe estorno para isso. Todas as
@@ -382,7 +382,7 @@ está. É um E3 que eu não alcanço daqui e ele alcança hoje.
 
 ## O que eu removeria ou mudaria — e o dono mandou fazer
 
-### 4. Papel é o produto; Orgânico é opção
+### 4. ~~Papel é o produto; Orgânico é opção~~ — FEITO em 6 de setembro
 
 Duas peles se pagam duas vezes em tudo: quinze cenas × 2, quatro paletas, e uma
 guarda para mantê-las honestas. O preço já apareceu — **seis acentos do Orgânico
@@ -390,31 +390,75 @@ estão abaixo da régua de legibilidade** e vivem registrados como exceção em
 `src/theme/contrast.test.ts` (o item 3c). **Seis exceções não é exceção, é padrão.**
 
 Não remover: **hierarquizar.** Cena nova sai no Papel e o Orgânico segue depois, em
-vez de um travar o outro. E os seis acentos são consertados em vez de registrados —
-o que muda uma pele que o dono aprovou olhando, e é por isso que estava parado. Ele
-mandou fazer.
+vez de um travar o outro — está escrito no `CLAUDE.md`, na decisão das peles.
 
-### 5. O padrão da capa cai para ~5 peças
+**E os acentos foram consertados, não registrados: a lista de exceções da guarda
+ficou VAZIA.** Eram oito e não seis — o `warning` do Papel também estava lá, e o
+comentário do registro dizia "o PAPEL não está aqui" com ele na segunda linha do
+conjunto. Os oito desceram pelo remédio que a própria guarda prescreve: matiz e
+saturação intactos, só a luminosidade, e o cálculo achou o primeiro ponto em que
+cada um passa. `apricot` de `#E29B52` a `#9D5C1A` — matiz 30 nos dois, saturação
+71% e 72%, luminosidade de 60% para 36%. **É a mesma cor mais escura, e não outra
+cor**, que era a dúvida que travava a decisão.
 
-O catálogo de quinze está certo e fica. Errada é a **porta de entrada**: empresa
-nova recebe muita coisa, e quinze peças com posição e tamanho é uma tela de ajuste
-que um dono de baixa habilidade técnica não abre. O padrão entrega ~5 e o resto se
-descobre. É configuração, não corte — `ligar não é forçar` já é a doutrina da capa.
+### 5. ~~O padrão da capa cai para ~5 peças~~ — FEITO, e são SETE
 
-### 6. O assistente congela até o áudio existir
+O catálogo de quinze está certo e fica. Errada era a **porta de entrada**: empresa
+nova recebia muita coisa, e quinze peças com posição e tamanho é uma tela de ajuste
+que um dono de baixa habilidade técnica não abre.
+
+**Feito, e são sete — não os ~5 que eu propus.** Ao aplicar, o número arredondado
+brigou com a Lei da Inteligência e a Lei ganhou: o padrão leva o que **avisa** e o
+que **decide**, e o que só **conta** espera alguém pedir. Ficam `producao`,
+`semana`, `aoVivo`, `cobertura`, `validade`, `entregaHoje` e `clima`. Saem oito, e
+todas por serem relatório.
+
+**`cobertura` e `validade` não desceram, e é aí que os ~5 morreram:** peça que avisa
+e que ninguém ligou é aviso que não existe — uma fábrica que nunca abre Ajustes
+nunca descobriria que tem lote vencendo. Cortar um aviso para chegar num número
+redondo seria servir a minha frase em vez de servir a tela.
+
+### 6. ~~O assistente congela até o áudio existir~~ — CONGELADO em 6 de setembro
 
 1142 linhas em `src/assistant/skills.ts`, monolíngue por decisão escrita no topo do
 `index.ts`, 791 de teste. Com o modo conversa e o áudio aprovados (§ *As seis*, item
 4), a forma muda: a entrada deixa de ser caixa de texto e a resposta deixa de ser
-parágrafo. Investir ali este mês é construir para jogar fora. **Congelar, não
-apagar** — nada é removido, só para de receber trabalho novo.
+parágrafo. Investir ali este mês é construir para jogar fora, e jogar fora custa
+duas vezes — a construção e a coragem de apagar.
 
-### 7. O que é espera sai da lista de serviço
+**Congelado, e está escrito no topo do `src/assistant/index.ts`**, ao lado do
+raciocínio que já explicava o monolinguismo. Nada foi removido: o que congela é
+habilidade nova e tradução das respostas. Conserto de defeito e o `[por quê?]`
+continuam valendo sem prazo, porque essa parte não é do casador — é da doutrina.
+
+### 7. ~~O que é espera sai da lista de serviço~~ — FEITO, veja *Espera aparelho* acima
 
 Alguns itens abertos estão travados em observação — a frase do portão P2, *"eu
 mudaria isto se eu visse ___"*. Isso não é trabalho, é espera, e carregar espera
 junto com serviço **faz a lista mentir sobre quanto dela é acionável**. Vão para uma
 seção própria, **"espera aparelho"**, e o que ficar na fila é tudo fazível hoje.
+
+### Espera aparelho — o que NÃO é serviço, e por isso sai da fila
+
+Estes não estão pendentes: estão **esperando alguém usar**. Carregar espera junto
+com serviço faz a lista mentir sobre quanto dela é acionável, e a lista existe para
+responder *"qual é a próxima"* — não para parecer cheia.
+
+Cada linha diz **o que a tira daqui**. Espera sem condição de saída é espera para
+sempre, com outro nome.
+
+| o que espera | por que não se decide de dentro | o que a tira daqui |
+|---|---|---|
+| **A régua do "devolve demais"** do Espelho da Loja | não existe em lugar nenhum do código, e qualquer número que eu escolhesse seria invenção: 10% de devolução é ótimo numa loja de bairro e alarme num supermercado | um mês de movimento real numa loja, e a comparação de duas |
+| **A calibração das compras inteligentes** | o prazo do fornecedor é observado, não declarado — e a média de zero entregas não é média | o `ordered_at` sendo escrito (isso **é** serviço, e está na fila) e depois algumas semanas de compra |
+| **A ergonomia a -18 °C** | tela capacitiva com luva, QR a um braço de distância, dedo molhado. Nada disso é visível de dentro de um módulo nem de uma foto de emulador | o aparelho dentro da câmara fria, com alguém de luva |
+| **A conta em E3** | entrar de verdade cria uma conta de autenticação no projeto do dono, e isso é decisão dele — não minha e não do código | uma decisão de uma linha: posso criar uma conta de teste |
+| **Ouvir o aplicativo** | `src/acessivel.test.ts` prova que todo alvo se anuncia; ninguém nunca **ouviu**. Eu não alcanço o TalkBack daqui | cinco minutos dele no tablet, com o TalkBack ligado |
+
+E a lição que essa separação carrega, porque ela já custou uma rodada: **o P2 não é
+uma afirmação sobre o mundo, é uma pergunta.** Eu travei o refluxo em tablet
+respondendo sozinho *"ninguém usa tablet"*, e o dono tinha um. Antes de pôr um item
+aqui, a checagem é se quem observa não está do outro lado da conversa.
 
 ### 8. Feito nesta noite — as duas que eram conserto e não escolha
 

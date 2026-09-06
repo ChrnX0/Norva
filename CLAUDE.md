@@ -475,6 +475,15 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   `src/home/capas/registro.test.ts` recusa arquivo de `src/home` ou `src/components` que
   volte a decidir pelo NOME da pele.
 
+  **E entre as duas de hoje existe hierarquia — decidida em 6 de setembro.** Duas peles
+  se pagam duas vezes em tudo, e o preço apareceu: quinze cenas de cabeçalho vezes duas,
+  quatro paletas, e sete acentos do Orgânico que viveram algumas horas registrados como
+  exceção da régua de legibilidade. Então o **Papel é o produto e o Orgânico é a opção**:
+  cena nova, peça nova e cor nova saem no Papel primeiro, e o Orgânico segue depois — em
+  vez de um travar o outro. Isso não reduz o ponto de extensão em nada: o que uma pele
+  nova escreve continua sendo os traços e a roupa da capa. O que muda é a **ordem**, para
+  o trabalho não parar esperando o par.
+
 - **A carga é UM evento — e o app do entregador vem depois, por outro motivo.**
   Decisão do dono, 6 de setembro. Carregar e entregar continuam sendo o mesmo
   toque na fábrica; a viagem com linha do tempo (o entregador marcando a chegada
