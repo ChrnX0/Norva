@@ -6051,3 +6051,21 @@ Três coisas que ficam disso, e a terceira é a que vale:
    `df -h`. Antes de investigar a ferramenta que reclamou, vale conferir o que ela
    precisava e não tinha: disco, memória, e processo velho comendo CPU (esse último
    já está registrado aqui, do `expo start` que ficou 6h38 no ar).
+
+**E a terceira tentativa caiu por MEMÓRIA, com a causa sendo eu.** *"Gradle build
+daemon disappeared unexpectedly"* — e ele desapareceu porque eu rodei `npm test` e
+`npm run lint` **enquanto** o gradle compilava, numa máquina de 15 GB que já
+hospedava um emulador de 3,6 GB e um daemon velho de 2,6. O gradle pedia 4 GB de
+heap e não havia onde.
+
+Isto é a cicatriz do `expo start` de 6h38 numa dimensão nova. A regra escrita aqui
+fala de **processo esquecido** e de **CPU**; o que me pegou foi **processo meu, de
+propósito, e memória**. A regra que fecha o buraco: *"esperar não é trabalho, e
+trabalhar não é interromper"* já dizia para tocar o que não depende do que está
+rodando — e eu li isso como "o que não depende **logicamente**". Depende também de
+**máquina**. Enquanto o gradle compila, a suíte não roda: ela não conflita com o
+código, conflita com a RAM.
+
+Duas coisas práticas: `./gradlew --stop` é o jeito sancionado de matar daemon velho
+(pelo dono do processo, não por padrão de linha de comando), e um build com o
+emulador no ar cabe em `-Xmx2560m` — o nativo já está compilado, e o resto é Java.
