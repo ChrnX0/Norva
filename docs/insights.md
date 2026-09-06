@@ -6022,3 +6022,32 @@ algo sobre o tipo de vigilância que uma regra escrita compra: nenhuma.
 outra coisa — **um teste cujo cenário era a cópia antiga**. Régua se verifica com dois
 casos; o que garante é o teste que exercita o caso real. O primeiro é conselho, o
 segundo roda sozinho.
+
+## O `cmake` que falhava não era o `cmake`: era disco, e a causa era desperdício
+
+**6 de setembro, noite.** Duas compilações do APK falharam seguidas com
+`Process 'cmake' finished with non-zero exit value 1`. Eu quase fui atrás do
+`cmake` — e a causa era outra, dois passos atrás.
+
+`android/gradle.properties:31` pede as quatro arquiteturas
+(`armeabi-v7a,arm64-v8a,x86,x86_64`), que é **o certo para o APK de entrega**. O
+emulador desta máquina é x86_64, então três quartos do objeto nativo compilado ali
+nunca seriam executados. A conta, medida: `.cxx` + `build` do reanimated (3,2 GB),
+do expo-modules-core (3,3 GB) e do worklets (1,5 GB) — **8 GB**, quase todo de
+arquitetura inútil para este laço. O disco chegou a 1,5 GB livres e o `cmake` caiu
+por falta de espaço, reportando o próprio código de saída em vez da causa.
+
+Três coisas que ficam disso, e a terceira é a que vale:
+
+1. **Compilar aqui é uma arquitetura.** `-PreactNativeArchitectures=x86_64`. O
+   `gradle.properties` já documentava a bandeira na linha 30 — ela estava escrita e
+   ninguém a usava, que é a versão de biblioteca do "comando escrito é convite".
+2. **O verbo virou parte do laço:** `node scripts/aparelho.mjs compilar`. Conselho
+   em comentário eu esqueço na próxima sessão; verbo no script não se esquece,
+   porque é o caminho mais curto.
+3. **Mensagem de erro de ferramenta aponta para a ferramenta, e quase nunca para a
+   causa.** O `cmake` disse "saí 1"; o `gradle` disse "o cmake saiu 1"; nenhum dos
+   dois disse "sem espaço". A pergunta que resolveu não foi sobre o erro — foi
+   `df -h`. Antes de investigar a ferramenta que reclamou, vale conferir o que ela
+   precisava e não tinha: disco, memória, e processo velho comendo CPU (esse último
+   já está registrado aqui, do `expo start` que ficou 6h38 no ar).

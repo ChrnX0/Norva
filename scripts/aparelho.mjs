@@ -17,8 +17,18 @@
  *    ERRO — porque "o comando passou" já foi confundido com "a tela está certa" uma
  *    vez, e foi essa confusão que gerou o retrabalho da semana.
  *
+ * 3. **Compilar é UMA arquitetura, e isso é cicatriz de 6 de setembro.** O
+ *    `gradle.properties` pede as quatro (`armeabi-v7a,arm64-v8a,x86,x86_64`), que é o
+ *    certo para o APK de entrega e é desperdício aqui: o emulador é x86_64 e as outras
+ *    três só gastam. Duas compilações falharam seguidas com o `cmake` saindo 1, e a
+ *    causa não era o `cmake` — era **disco**. O `.cxx` e o `build` do reanimated, do
+ *    worklets e do expo-modules-core somavam **8 GB** de objeto nativo, quase todo de
+ *    arquitetura que este emulador nunca vai executar. O verbo `compilar` passa
+ *    `-PreactNativeArchitectures=x86_64` para não repetir isso.
+ *
  * Uso:
  *   node scripts/aparelho.mjs subir [--avd norva-cheio]
+ *   node scripts/aparelho.mjs compilar          — APK de depuração, só x86_64
  *   node scripts/aparelho.mjs instalar [caminho.apk]
  *   node scripts/aparelho.mjs foto <nome>     — uma foto na tela atual
  *   node scripts/aparelho.mjs fotos <nome>    — a mesma tela em cinco larguras
@@ -284,9 +294,29 @@ function derrubar() {
   }
 }
 
+/**
+ * O APK de depuração para ESTE emulador, e só para ele.
+ *
+ * Uma arquitetura em vez de quatro: o tempo cai por quatro e o disco também. As
+ * quatro ficam para o APK de entrega, onde elas são o requisito e não o desperdício.
+ */
+function compilar() {
+  dizer('compilando o APK de depuração (x86_64 apenas)');
+  execFileSync('./gradlew', ['assembleDebug', '-PreactNativeArchitectures=x86_64'], {
+    cwd: 'android',
+    stdio: 'inherit',
+    env: { ...process.env, ANDROID_HOME: SDK },
+  });
+  const apk = 'android/app/build/outputs/apk/debug/app-debug.apk';
+  if (!existsSync(apk)) throw new Error(`gradle saiu 0 e o APK não está em ${apk}`);
+  dizer(`${apk} — ${(statSync(apk).size / 1024 / 1024).toFixed(1)} MB`);
+  return apk;
+}
+
 const verbo = process.argv[2];
 const acoes = {
   subir,
+  compilar,
   instalar: () => instalar(process.argv[3]?.startsWith('--') ? null : process.argv[3]),
   foto: () => foto(process.argv[3]),
   fotos: () => fotos(process.argv[3]),
@@ -296,7 +326,7 @@ const acoes = {
 
 if (!acoes[verbo]) {
   console.error(
-    'verbos: subir | instalar [apk] | foto <nome> | fotos <nome> | tela <medida> | derrubar\n' +
+    'verbos: subir | compilar | instalar [apk] | foto <nome> | fotos <nome> | tela <medida> | derrubar\n' +
     `medidas: ${Object.keys(TELAS).join(' | ')} | original`,
   );
   process.exit(1);
