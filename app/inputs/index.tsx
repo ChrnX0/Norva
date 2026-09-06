@@ -284,7 +284,9 @@ function InputsList() {
                  um travessão sem explicação. Uma vez por tela, no cartão de
                  cima — a coluna da direita continua muda, porque vinte linhas
                  repetindo a mesma frase é castigo, não informação. */
-              <Text style={[type.body, { color: color.inkMuted }]}>{t.common.moneyHidden}</Text>
+              <Text style={[type.body, { color: color.inkMuted, marginBottom: space.xs }]}>
+                {t.common.moneyHidden}
+              </Text>
             ) : (
               <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
                 {formatMoney(heldCents, locale)}

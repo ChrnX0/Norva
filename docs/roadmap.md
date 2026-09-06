@@ -436,6 +436,61 @@ com o razão apodrecido — foi exatamente o que faltou.
   `savePerson`, antes da escrita): sem ele, trocar o próprio crachá para "Dono" era
   a porta dos fundos de todo o resto.
 
+### O preço de venda não é um campo que falta: é uma peça inteira que nunca existiu
+
+Medido em 6 de setembro, ao ir construir *"o preço combinado na ficha da loja"* que
+esta lista pedia. Três coisas que pareciam separadas são a MESMA falta:
+
+| o que existe | desde | quem escreve |
+|---|---|---|
+| `movement_kind` tem `sale` — *"sold to a customer (revenue + margin)"* | `0001` | **ninguém** |
+| `movements.unit_price_rate`, gateada por `view_sale_price` na view | `0008` | **ninguém** |
+| `location_kind` tem `customer`, e a tela desenha o glifo e o rótulo dele | `0001` | **só a simulação** |
+
+E a terceira linha é a pior das três, porque só a FOTO a mostrou. `app/places.tsx`
+oferece três espécies no cadastro — `own_store`, `cold_room`, `store_room` —, todas
+NOSSAS. Mas a fábrica de exemplo cria um cliente (`src/data/simulate.ts:130`, "Mercado
+do Zé"), e a tela o desenha certinho, com o glifo e a sobrelinha "CLIENTE". **A
+simulação mostra ao dono uma coisa que o aplicativo dele não sabe fazer** — é a mesma
+família da ferramenta de olhar que mente sobre o que está olhando, e nenhum teste vê:
+o dado semeado e o formulário são dois autores diferentes da mesma lista.
+
+E o docblock do `moveBetween` decide por escrito o que isso significa: *"loja própria
+é transferência e não venda: não há faturamento nem margem aqui, e o valor apenas muda
+de sala."* Ou seja: para quem instala o aplicativo hoje, **não há a quem vender**, e é
+por isso que a coluna de preço nunca teve escritor.
+
+Então "o preço combinado" não é um campo na ficha da loja. É esta ordem:
+
+1. **As duas tabelas de preço** — o de tabela no item e o combinado por lugar, com
+   HISTÓRICO append-only ao lado, como a `0002`/`0009` fizeram do lado da compra.
+   Barato, reversível, sem tocar no razão. É o que entra primeiro.
+2. **O cliente e a venda** — `customer` criável na tela, embarque como `kind='sale'`,
+   e só então o preço congelado no movimento. **Isto é P3 puro** e é decisão de
+   faseamento do dono.
+
+**O que a refutação adversarial derrubou da minha primeira forma**, e vale registrar
+porque cada um custaria uma migração para desfazer:
+
+- **A regra "preço só quando a contraparte é externa" trava a fila.** As duas pernas
+  de uma carga são espelhadas: a perna que entra na loja tem contraparte FÁBRICA, que
+  é interna. Um gatilho escrito sobre a contraparte aprova metade do ato e recusa a
+  outra — e o motor para no primeiro buraco de propósito. A regra é *"alguma das duas
+  pontas é externa"*.
+- **O preço combinado tem HISTÓRIA, e sobrescrever perde o que não volta.** O custo
+  pode ser sobrescrito porque `purchase_lines` é append-only e `item_cost_history`
+  reconstrói; preço digitado à mão não tem fonte nenhuma atrás. "Por quanto vendíamos
+  em março" some para sempre.
+- **`view_sale_price` não diz QUAIS LINHAS**, e o `access.ts` já avisa isso em voz
+  alta. Cinco dos sete papéis têm a capacidade: o gerente da Loja Norte leria quanto a
+  Loja Centro paga. Custo não tem esse problema — há um custo. Preço precisa de
+  ESCOPO, e escopo é a camada de conta, que ainda não existe.
+- **Chave tripla sem `id` não atravessa a fila**, que endereça linha por id único.
+- **`price_rate >= 0` mais o idioma `taxa || null`** faria um brinde combinado a zero
+  congelar como "não havia preço". Zero não é preço.
+- **Devolução relê o preço de hoje** — contra o que `reverseGroup` e `recordCheck` já
+  decidiram duas vezes: o ato que volta se avalia pelo valor com que aconteceu.
+
 ### A configuração da empresa não atravessa — dívida estrutural
 
 Achado ao construir a entrada, 6 de setembro. O servidor tem as três configurações em

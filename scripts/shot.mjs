@@ -378,32 +378,36 @@ try {
       await page.waitForTimeout(1500);
 
       /**
-       * As duas chaves, e a ORDEM entre elas é da tela, não minha.
+       * Uma chave só, e a que fica de fora é o achado desta ferramenta.
        *
-       * "Como se entra no chão de fábrica" só é desenhada quando a empresa nomeia —
-       * o comentário de `app/settings.tsx` diz por quê: *"sem nomear ninguém,
-       * escolher entre 'um por pessoa' e 'compartilhado' é escolher entre dois
-       * nadas"*. Eu tinha escrito na ordem inversa e a ferramenta esperou trinta
-       * segundos por um cartão que não existia — a tela estava certa e o roteiro,
-       * errado.
+       * A primeira versão ligava também "Compartilhado", que é a configuração da
+       * câmara fria. E aí nenhuma foto saía: `app/_layout.tsx` LIMPA o operador a
+       * cada abertura no compartilhado — de propósito, porque *"quem pegou agora não
+       * é quem largou"* —, e para esta ferramenta cada `goto` É uma abertura. A Ana
+       * era escolhida e esquecida antes da foto seguinte, toda vez.
        *
-       * E o alvo é o PAPEL que a tela declara (`accessibilityRole="switch"` com
-       * `accessibilityLabel`), não o texto do selo: o selo diz o estado ATUAL, então
-       * procurar por "Compartilhado" é procurar pelo depois para poder clicar no
+       * Isso não é defeito do app nem da bandeira: é a diferença entre as duas
+       * configurações, e a que se fotografa é a outra. "Um celular por pessoa"
+       * escolhe uma vez e FICA (`floorSignIn` continua `personal`, que é o padrão),
+       * que é a configuração de uma fábrica que dá um aparelho a cada pessoa — e as
+       * capacidades de quem está com ele são as mesmas nas duas. O que muda entre
+       * elas é quando se pergunta, não o que se vê.
+       *
+       * O alvo é o PAPEL que a tela declara (`accessibilityRole="switch"` com
+       * `accessibilityLabel`), e não o texto do selo: o selo diz o estado ATUAL, então
+       * procurar pelo nome do estado desejado é procurar pelo depois para clicar no
        * antes.
        */
       await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
       await page.waitForTimeout(1500);
       await page.getByRole('switch', { name: 'Nomear quem gravou' }).click();
-      await page.waitForTimeout(1200);
-      await page.getByRole('switch', { name: 'Como se entra no chão de fábrica' }).click();
-      await page.waitForTimeout(1200);
+      await page.waitForTimeout(1500);
 
-      // E a grade, que é o ato que o chão de fábrica faz toda manhã.
+      // E a grade, que é o ato que o chão de fábrica faz na primeira manhã.
       await page.goto(`http://localhost:${PORT}/who`, { waitUntil: 'networkidle' });
       await page.waitForTimeout(1500);
       await page.getByText('Ana', { exact: true }).first().click();
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(2000);
     }
 
     // A cara e a LUZ, as duas escolhidas dentro do aplicativo — SEMPRE as duas,

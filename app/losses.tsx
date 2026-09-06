@@ -217,13 +217,18 @@ function WhatWasLost() {
             </Text>
             {rows.map((row) => {
               const quanto = `${formatQuantity(row.baseUnits, locale)} ${row.baseUnit}`;
+              // O lugar padrão nasce SEM nome (`ensureLocation` grava ''), e a
+              // linha saía com um separador vazio no meio — "22 un · derreteu ·  ·
+              // 22/08". A foto mostrou; nenhum teste olha para um ponto sozinho. O
+              // nome de recurso é o mesmo que a tela de produção já usa.
+              const onde = row.locationName.trim() || t.app.places.factory;
               const motivo = t.loss[row.reason].toLocaleLowerCase(locale.formatting);
               const dia = formatDayMonth(row.occurredAt, locale);
               return (
                 <ListRow
                   key={`${row.itemId}-${row.occurredAt}`}
                   label={row.name}
-                  detail={`${quanto} · ${motivo} · ${row.locationName} · ${dia}`}
+                  detail={`${quanto} · ${motivo} · ${onde} · ${dia}`}
                   trailing={dinheiro ? formatMoney(row.valueCents ?? 0, locale) : undefined}
                 />
               );

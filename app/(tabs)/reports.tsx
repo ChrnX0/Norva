@@ -249,11 +249,11 @@ function ReportIndex() {
           quem é o dono e emprestou o aparelho. */}
       {dinheiro ? null : (
         <Reveal index={4}>
-          <Card
-            hue={palette.sky}
-            icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
-            title={t.app.reports.rows.cost.label}
-          >
+          {/* Sem título: a foto mostrou "Custo" no cartão logo abaixo da porta
+              chamada "Custo", e a repetição faz o cartão parecer o resumo daquela
+              linha em vez de a explicação da tela. É a mesma regra que a tela de
+              perdas registrou quando três cartões repetiam "Perdas". */}
+          <Card hue={palette.sky} icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}>
             <Text style={[type.body, { color: color.inkMuted }]}>{t.common.moneyHidden}</Text>
             <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
               {t.common.moneyHiddenWay}
