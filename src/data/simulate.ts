@@ -343,12 +343,28 @@ export async function simulateFortnight(
       const totalCents = Math.round(baseUnits * base * tendencia * drift);
       if (totalCents <= 0) continue;
 
+      // E QUANDO o pedido foi feito, que é a metade que faltava.
+      //
+      // A auditoria de 6 de setembro achou `purchases.ordered_at` sem escritor:
+      // a coluna existe desde a fundação, a travessia a leva, e nem a tela nem a
+      // simulação a preenchiam. A tela passou a perguntar; aqui a simulação
+      // passa a anotar, e é isso que faz o prazo do fornecedor e o ponto de
+      // recompra aparecerem numa fábrica semeada em vez de ficarem invisíveis
+      // até alguém lançar três notas à mão.
+      //
+      // O prazo varia de dois a cinco dias e é do ITEM, não sorteado a cada
+      // nota: um fornecedor que demora seis dias demora seis dias sempre, mais
+      // ou menos — e é a média disso que a ficha do insumo mostra. Sorteio livre
+      // por nota daria uma média bonita e um desvio que não existe em fábrica
+      // nenhuma.
+      const prazoDoFornecedor = 2 + (item.id.charCodeAt(0) % 4);
       await recordPurchase(companyId, {
         itemId: item.id,
         purchaseQuantity: packs,
         baseUnits,
         totalCents: cents(totalCents),
         occurredAt: at(7),
+        orderedAt: dayWindow(today, timeZone, -(back + prazoDoFornecedor)).from,
       });
       tally.invoices += 1;
     }
