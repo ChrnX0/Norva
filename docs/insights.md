@@ -6069,3 +6069,47 @@ código, conflita com a RAM.
 Duas coisas práticas: `./gradlew --stop` é o jeito sancionado de matar daemon velho
 (pelo dono do processo, não por padrão de linha de comando), e um build com o
 emulador no ar cabe em `-Xmx2560m` — o nativo já está compilado, e o resto é Java.
+
+---
+
+## A asserção fraca: eu escrevi o teste que qualquer resposta satisfaz
+
+**6 de setembro, noite.** Registrei uma produção pelo emulador — 506 picolés — e o
+extrato mostrou o ato por **R$ 625,27**. Fiz a conta na mão: 506 unidades a R$ 0,64
+são **R$ 323,84**. A diferença, R$ 301,43, era exatamente o consumo da receita.
+
+O defeito é conceitual e não aritmético: **produção CONVERTE insumo em produto.** O
+mesmo dinheiro aparece duas vezes no ato — uma saindo como polpa e açúcar, outra
+entrando como picolé. Somar as pernas em módulo dobra; somar com sinal dá quase
+zero (verdade contábil, mentira na tela). A régua honesta é **um lado**: o que
+ENTRA, e quando nada entra — perda, consumo solto — o módulo do que sai. Assim uma
+transferência vale a carga e não o dobro dela.
+
+**Mas o achado não é esse.** É que eu tinha escrito o teste, ele estava verde, e a
+asserção era:
+
+```ts
+assert.ok((ato.valueCents ?? 0) > 0, 'o dinheiro do ato é a soma em MÓDULO')
+```
+
+**Qualquer soma satisfaz "maior que zero".** A mensagem do assert descrevia uma
+régua específica — *"a soma em módulo"* — e a condição não verificava régua nenhuma.
+Escrevi a explicação certa ao lado de uma checagem que não a checa, e depois li o
+verde como prova de que a régua estava certa.
+
+Isso é a mesma família do `mutate` que trocou o `Math.round` do `amountOf` por
+`Math.floor` e viu noventa e dois testes seguirem verdes: **a suíte não protegia a
+regra, protegia a existência do número.** A diferença é que lá o culpado foi o
+conjunto de exemplos escolhidos, e aqui foi a forma da asserção — mais fácil de
+ver, e por isso mais vergonhoso.
+
+**A regra que sai disto, e ela é curta:** asserção sobre um número calculado é
+`assert.equal` contra o número **derivado de outra fonte**, nunca `assert.ok(x > 0)`.
+Se a única coisa que se sabe dizer é "é positivo", o que está sendo testado é que a
+função devolveu alguma coisa — e isso o typecheck já garante de graça. O teste agora
+deriva R$ 323,84 do custo congelado da corrida e exige igualdade.
+
+**E a régua que achou:** a foto. Nenhuma bateria olharia esse número, porque a
+bateria concordava com ele. O que discordou foi a aritmética feita na mão em cima de
+uma tela — que é a mesma coisa que o dono faria no primeiro dia de uso, e é por isso
+que ele veria antes de mim se eu não tivesse olhado.

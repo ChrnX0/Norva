@@ -632,6 +632,16 @@ todo guard do repositório; a exigência vale igual para a medida de uma vez. **
 de dizer um número, rode a régua contra um caso que você sabe que ela deve pegar e
 um que ela não deve** — se ela não distinguir os dois, o número não existe.
 
+**Asserção sobre número calculado é igualdade contra outra fonte, nunca `> 0`.**
+Em 6 de setembro o extrato mostrou uma corrida de 506 picolés por R$ 625,27 quando
+ela fez R$ 323,84 — o consumo somado junto, o mesmo dinheiro contado duas vezes. O
+teste existia e estava verde, e a asserção era `assert.ok(valor > 0)` com a
+mensagem *"o dinheiro do ato é a soma em módulo"* ao lado. **Qualquer soma satisfaz
+"maior que zero"**: escrevi a explicação certa junto de uma checagem que não checa
+nada, e li o verde como prova da régua. Se a única coisa que se sabe afirmar é "é
+positivo", o que está sendo testado é que a função devolveu alguma coisa — e isso o
+typecheck já dá de graça.
+
 **Comentário que se declara único não é o mesmo que ser único.** `amountOf` diz de
 si *"the one place rounding happens"*, e `repository.ts` — que o importa na
 primeira linha — chamava `cents(rate * qty)` em dois outros lugares, cada um com o
