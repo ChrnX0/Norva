@@ -342,6 +342,8 @@ export const es: Dictionary = {
       blocked: 'No se puede deshacer ahora: {{items}} ya salió de aquí.',
       blockedItem: '{{name}} — tiene {{held}}, necesitaría {{needed}}',
       undoFailed: 'No se pudo deshacer ahora. Nada fue cambiado.',
+      more: 'Ver más — {{n}} hasta aquí',
+      allOfIt: 'Esto es todo: {{n}} registros.',
     },
     losses: {
       title: 'Pérdidas',

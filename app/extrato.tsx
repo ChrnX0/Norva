@@ -1,13 +1,30 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactElement } from 'react';
 import { Text, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
-import { GlyphChart } from '@/components/Glyph';
+import {
+  GlyphBox,
+  GlyphChart,
+  GlyphCount,
+  GlyphKettle,
+  GlyphLoss,
+  GlyphPrice,
+  GlyphProduction,
+  GlyphPurchase,
+  GlyphVehicle,
+} from '@/components/Glyph';
 import { Reveal } from '@/components/Reveal';
 import { Touchable } from '@/components/Touchable';
-import { CannotReverseError, ledgerExtract, planReversal, reverseGroup, type ExtractAct } from '@/data/repository';
+import {
+  CannotReverseError,
+  ledgerExtract,
+  planReversal,
+  reverseGroup,
+  type ExtractAct,
+} from '@/data/repository';
+import type { MovementKind } from '@/domain/ledger';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatDayMonth, formatMoney, formatQuantity, plural } from '@/i18n';
@@ -44,6 +61,34 @@ import { useTheme } from '@/theme/ThemeProvider';
  * relatório, e a doutrina da assinatura desta casa diz que o mesmo assunto sai do
  * mesmo desenho.
  */
+/**
+ * O desenho de cada ESPÉCIE de ato — e ele existe por uma foto.
+ *
+ * A primeira versão punha o mesmo gráfico em todos os cartões, e a foto no
+ * emulador devolveu seis ícones azuis idênticos empilhados. É a regra que o dono
+ * ensinou com uma palavra — *"feio"* — sobre uma fileira de quatro lojas iguais:
+ * **repetição regular lê como papel de parede, não como coisa.**
+ *
+ * E o conserto aqui paga duas vezes, porque o desenho passa a INFORMAR: quem
+ * desce a lista vê pela coluna da esquerda o que é compra, o que é produção e o
+ * que é perda, sem ler uma palavra. Cada glifo é o do assunto dele — os mesmos
+ * que o resto do aplicativo usa para o mesmo assunto, que é o que a guarda da
+ * assinatura cobra.
+ */
+const DESENHO: Record<MovementKind, (c: string, t: number) => ReactElement> = {
+  purchase: (c, t) => <GlyphPurchase size={26} color={c} weight={t} />,
+  production: (c, t) => <GlyphProduction size={26} color={c} weight={t} />,
+  consumption: (c, t) => <GlyphKettle size={26} color={c} weight={t} />,
+  transfer: (c, t) => <GlyphVehicle size={26} color={c} weight={t} />,
+  sale: (c, t) => <GlyphPrice size={26} color={c} weight={t} />,
+  loss: (c, t) => <GlyphLoss size={26} color={c} weight={t} />,
+  return: (c, t) => <GlyphBox size={26} color={c} weight={t} />,
+  adjustment: (c, t) => <GlyphCount size={26} color={c} weight={t} />,
+  discrepancy: (c, t) => <GlyphCount size={26} color={c} weight={t} />,
+  // O estorno não tem assunto próprio: ele é o gráfico, que é o assunto do extrato.
+  reversal: (c, t) => <GlyphChart size={26} color={c} weight={t} />,
+};
+
 export default function ExtratoScreen() {
   const { t, locale } = useLocale();
   const { color, palette, space, type, traco } = useTheme();
@@ -52,8 +97,28 @@ export default function ExtratoScreen() {
 
   const [recusa, setRecusa] = useState<string | null>(null);
 
-  const dados = useQuery(useCallback(() => ledgerExtract(LOCAL_COMPANY_ID, { limit: 40 }), []));
+  /**
+   * Quantos atos a tela pede — e ela DIZ quando parou de pedir.
+   *
+   * A primeira versão trazia quarenta e calava. O estudo deste extrato avisava
+   * exatamente isso — *"paginação, nunca `.slice(0, 8)` silencioso"* — apontando o
+   * defeito que já existe em `app/inputs/[id].tsx:964`, e eu troquei o 8 por 40 e
+   * mantive o silêncio. Num extrato o corte calado é pior que numa lista qualquer:
+   * quem não vê o ato não sabe que ele existe, e o que ele quer desfazer pode ser
+   * justamente o quadragésimo primeiro.
+   *
+   * Pior ainda, o cursor `before` já estava construído na consulta e não tinha
+   * chamador — a doença que o portão P1 persegue, aninhada num parâmetro em vez de
+   * numa função.
+   */
+  const PAGINA = 40;
+  const [quantos, setQuantos] = useState(PAGINA);
+
+  const dados = useQuery(
+    useCallback(() => ledgerExtract(LOCAL_COMPANY_ID, { limit: quantos }), [quantos]),
+  );
   const atos = dados.data ?? [];
+  const podeHaverMais = atos.length >= quantos;
 
   const desfazer = useCallback(
     async (ato: ExtractAct) => {
@@ -139,26 +204,27 @@ export default function ExtratoScreen() {
         <Reveal key={ato.groupId} index={i + 2}>
           <Card
             hue={ato.isReversal ? palette.mist : undefined}
-            icon={(c) => <GlyphChart size={26} color={c} weight={traco} />}
+            icon={(c) => DESENHO[ato.kind](c, traco)}
           >
+            {/* A manchete é O QUE mexeu, não a espécie — porque a espécie está no
+                desenho ao lado, e seis "Compra" empilhados eram a mesma repetição
+                que o glifo repetido. O que varia vai em cima; o que se repete vai
+                embaixo ou vira figura. */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
               <Text style={[type.secondary, { color: color.ink, flex: 1 }]}>
-                {ato.isReversal
-                  ? fill(words.undoOf, { what: t.movement[ato.kind] })
-                  : t.movement[ato.kind]}
+                {ato.items.length > 0 ? ato.items.join(' · ') : t.movement[ato.kind]}
               </Text>
               <Text style={[type.caption, { color: color.inkFaint }]}>
                 {formatDayMonth(ato.occurredAt, locale)}
               </Text>
             </View>
 
-            {/* O que ele mexeu, dito por extenso — a linha não faz a pessoa adivinhar. */}
-            {ato.items.length > 0 ? (
-              <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
-                {ato.items.join(' · ')}
-                {ato.placeName ? ` — ${ato.placeName}` : ''}
-              </Text>
-            ) : null}
+            <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
+              {ato.isReversal
+                ? fill(words.undoOf, { what: t.movement[ato.kind] })
+                : t.movement[ato.kind]}
+              {ato.placeName ? ` — ${ato.placeName}` : ''}
+            </Text>
 
             <View
               style={{
@@ -192,6 +258,33 @@ export default function ExtratoScreen() {
           </Card>
         </Reveal>
       ))}
+
+      {/* O fim da lista é dito, e não deduzido pelo silêncio. Quando não há mais,
+          a frase também é dita — "isto é tudo" é informação, e uma lista que
+          simplesmente para deixa a pessoa sem saber se acabou ou se foi cortada. */}
+      {atos.length > 0 ? (
+        <Reveal index={atos.length + 2}>
+          {podeHaverMais ? (
+            <Touchable
+              onPress={() => setQuantos((n) => n + PAGINA)}
+              accessibilityLabel={words.more}
+            >
+              <Text
+                style={[
+                  type.body,
+                  { color: palette.sky, fontWeight: '600', paddingVertical: space.md },
+                ]}
+              >
+                {fill(words.more, { n: String(atos.length) })} →
+              </Text>
+            </Touchable>
+          ) : (
+            <Text style={[type.caption, { color: color.inkFaint, paddingVertical: space.md }]}>
+              {fill(words.allOfIt, { n: String(atos.length) })}
+            </Text>
+          )}
+        </Reveal>
+      ) : null}
     </CollapsingHeader>
   );
 }

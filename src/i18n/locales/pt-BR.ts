@@ -446,6 +446,8 @@ export const ptBR = {
       blocked: 'Não dá para desfazer agora: {{items}} já saiu daqui.',
       blockedItem: '{{name}} — tem {{held}}, precisaria de {{needed}}',
       undoFailed: 'Não deu para desfazer agora. Nada foi mudado.',
+      more: 'Ver mais — {{n}} até aqui',
+      allOfIt: 'Isto é tudo: {{n}} registros.',
     },
     losses: {
       title: 'Perdas',
