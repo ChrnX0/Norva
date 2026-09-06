@@ -386,11 +386,11 @@ sneaked=$(rows "select count(*) from movements where id = '${M}d7';")  # proofga
 # append policy doing its job: you may only say that YOU did something, so the
 # ledger's answer to "who" cannot be handed around.
 #
-# Which settles the shared-device question in the only place that counts. A
-# phone that passes from hand to hand cannot sync everybody's work under one
-# account and label each movement with whoever was holding it - the server
-# refuses. The person operating has to BE the session, and the device carries
-# one per person.
+# Which settles the shared-device question in the only place that counts: the
+# ACCOUNT cannot be handed around. Who was holding the phone is a different
+# question, answered by `operator_id` - and by a PERSON, who may have no account
+# at all. That is the whole point of `0035`: a shared phone is a question on a
+# screen, not an authentication problem.
 as_user "$OWNER" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
   item_id, quantity_base_units, location_id) values
   ('${M}d8','${M}c1','production',now(),'$OPERATOR','${M}b1',500,'${M}a1');" >/dev/null 2>&1 || true  # proofgate-allow
@@ -402,13 +402,21 @@ borrowed=$(rows "select count(*) from movements where id = '${M}d8';")  # proofg
 # `operator_id` says who was operating, chosen at the moment of the record.
 # Two questions, two columns; that is what makes a shared device a question on
 # a screen instead of an authentication problem.
+#
+# E quem é nomeado aqui NÃO tem conta: é uma pessoa da empresa, com perfil, como
+# a fábrica de verdade tem. Antes da `0035` esta linha só aceitava um id de
+# membership, e nomear quem entra pela grade de PIN era impossível.
+psql -d "$DB" -q -c "insert into profiles (id, company_id, template_role, capabilities)
+  values ('${M}f1','${M}c1','operator', array['record_production']::capability[]);" >/dev/null  # proofgate-allow
+psql -d "$DB" -q -c "insert into people (id, company_id, name, profile_id)
+  values ('${M}f2','${M}c1','Quem estava com o celular','${M}f1');" >/dev/null  # proofgate-allow
+
 as_user "$OWNER" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
   operator_id, item_id, quantity_base_units, location_id) values
-  ('${M}d9','${M}c1','production',now(),'$OWNER',
-   (select id from memberships where user_id = '$OPERATOR'),
+  ('${M}d9','${M}c1','production',now(),'$OWNER','${M}f2',
    '${M}b1',500,'${M}a1');" >/dev/null 2>&1 || true  # proofgate-allow
-named=$(rows "select count(*) from movements m join memberships mb on mb.id = m.operator_id
-  where m.id = '${M}d9' and mb.user_id = '$OPERATOR';")  # proofgate-allow
+named=$(rows "select count(*) from movements m join people g on g.id = m.operator_id
+  where m.id = '${M}d9' and g.name = 'Quem estava com o celular';")  # proofgate-allow
 [ "$named" = "1" ] || fail "a linha não pôde dizer quem estava operando"
 
 echo "    purchases post, an empty count is kept, an empty production is not"
@@ -452,6 +460,11 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
         recipes, recipe_versions, recipe_lines,
         product_lines, product_types, flavors,
         orders, order_lines to app_user;
+  -- Gente e perfil sobem com UPDATE pelo mesmo motivo que os cadastros: quem
+  -- corrige o nome de alguém offline precisa que a correção alcance o servidor.
+  -- A política ainda exige `manage_company` por cima disto — o grant abre a
+  -- porta da tabela, o RLS decide quem passa.
+  grant insert, update on profiles, people to app_user;
   -- Leitura de sensor entra só com INSERT, como o livro-razão: a temperatura de
   -- ontem às três da manhã não se corrige, se mede de novo. Uma série que aceita
   -- UPDATE deixa de ser prova de nada.
@@ -909,6 +922,60 @@ fi
 
 echo "    devolução sem motivo é recusada, com motivo passa, e fora dela o motivo não entra"
 
+echo "==> check 15: pessoa não é conta, e o operador do movimento aponta para gente"
+
+# A `0014` fez `movements.operator_id` apontar para `memberships`, e todo
+# membership exige `auth.users`. Lido junto: só dá para NOMEAR quem tem login.
+#
+# Isso contraria a decisão que a própria `0014` cita no topo — "o login autentica
+# o sistema, não a pessoa". Quem entra pela grade de nomes com PIN, de luva, no
+# celular compartilhado da empresa, não tem conta nenhuma e nunca vai ter.
+#
+# Esta checagem prova as duas metades: a pessoa existe SEM conta, e o operador só
+# aceita gente. Sem a segunda metade, a coluna continuaria aceitando um id de
+# membership e ninguém notaria até a primeira sincronia de verdade.
+psql -d "$DB" -q -c "insert into profiles (id, company_id, template_role, capabilities)
+  values ('${P}71','${P}01','driver', array['dispatch','check_receipt','record_loss']::capability[]);" >/dev/null  # proofgate-allow
+
+# A pessoa entra sem `auth.users` nenhum atrás dela. Se `people` exigisse conta,
+# este insert falharia aqui — que é exatamente o defeito que a 0035 desfaz.
+psql -d "$DB" -q -c "insert into people (id, company_id, name, profile_id)
+  values ('${P}81','${P}01','Zeca da câmara','${P}71');" >/dev/null ||  # proofgate-allow
+  fail "uma pessoa sem conta foi recusada: a grade de nomes com PIN não teria quem mostrar"
+
+psql -d "$DB" -q -c "grant insert on movements to app_user;" >/dev/null
+
+# O movimento com um OPERADOR de verdade passa.
+COM_GENTE="insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id, quantity_base_units, location_id, operator_id) values ('${P}64','${P}01','transfer',now(),'${P}91','${P}21',10,'${P}11','${P}81');"  # proofgate-allow
+as_user "${P}91" "$COM_GENTE" >/dev/null ||
+  fail "um movimento com operador PESSOA foi recusado: a coluna não aponta para gente"
+
+# E o id de um membership não passa mais. Este é o ponto: antes da 0035 ele era o
+# único que passava, e a pessoa sem conta é que não tinha como ser nomeada.
+MEMBRO=$(psql -d "$DB" -Atqc "select id from memberships where user_id = '${P}91';")
+COM_CONTA="insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id, quantity_base_units, location_id, operator_id) values ('${P}65','${P}01','transfer',now(),'${P}91','${P}21',10,'${P}11','$MEMBRO');"  # proofgate-allow
+if as_user "${P}91" "$COM_CONTA" >/dev/null 2>&1; then
+  fail "o operador aceitou um id de CONTA: as duas perguntas voltaram a ser uma coluna só"
+fi
+
+# E o aparelho responde por uma pessoa, pela mesma razão e pela mesma regra.
+psql -d "$DB" -q -c "insert into devices (id, company_id, name, responsible_id)
+  values ('${P}82','${P}01','Celular da câmara','${P}81');" >/dev/null ||  # proofgate-allow
+  fail "o aparelho não pôde apontar para uma pessoa"
+
+if psql -d "$DB" -q -c "insert into devices (id, company_id, name, responsible_id)
+  values ('${P}83','${P}01','Tablet da expedição','$MEMBRO');" >/dev/null 2>&1; then  # proofgate-allow
+  fail "o responsável pelo aparelho aceitou um id de CONTA"
+fi
+
+# Quem não gere a empresa não cadastra gente — a permissão mora na consulta.
+NOVA_PESSOA="insert into people (id, company_id, name, profile_id) values ('${P}84','${P}01','Quem não devia','${P}71');"  # proofgate-allow
+if as_user "${P}91" "$NOVA_PESSOA" >/dev/null 2>&1; then
+  fail "quem não tem manage_company cadastrou uma pessoa"
+fi
+
+echo "    pessoa existe sem conta, o operador só aceita gente, e cadastrar gente pede manage_company"
+
 echo
-echo "OK - migrations apply and all fourteen guarantees hold."
+echo "OK - migrations apply and all fifteen guarantees hold."
 

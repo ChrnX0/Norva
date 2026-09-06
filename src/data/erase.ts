@@ -49,6 +49,8 @@ export type ErasableTable =
   | 'item_costs'
   | 'items'
   | 'locations'
+  | 'people'
+  | 'profiles'
   | 'outbox';
 
 /** What the screen counts up so the confirmation can speak in real numbers. */
@@ -165,6 +167,12 @@ export function tablesFor(area: EraseArea): readonly ErasableTable[] {
         // sozinho por `ensureLocation` no primeiro movimento seguinte, então
         // apagar todos é seguro: o que some é o que a pessoa cadastrou.
         'locations',
+        // Gente antes de perfil, que é a mesma regra de filho antes de pai:
+        // `people.profile_id` aponta para cá com RESTRICT no servidor. Os sete
+        // modelos voltam sozinhos na próxima abertura, como o lugar padrão volta
+        // — o que some é quem a empresa cadastrou.
+        'people',
+        'profiles',
         'outbox',
       ];
   }

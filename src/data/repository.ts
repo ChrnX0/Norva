@@ -2,6 +2,7 @@ import { applyCostEvent, blendRate, type StockCostState } from '@/domain/cost';
 import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
 import { DEFAULT_ALERTS, type AlertSettings } from '@/domain/alerts';
 import { daysOfCover } from '@/domain/ledger';
+import { ROLES, type Capability, type Role } from '@/domain/access';
 import { expiresOn, lotCode } from '@/domain/lot';
 import type { LossReason, ReturnReason } from '@/domain/ledger';
 import { explodeRequirements } from '@/domain/recipe';
@@ -4613,4 +4614,170 @@ export async function reverseGroup(
   }
 
   return { groupId: newGroup, legs: plan.legs };
+}
+
+
+/* ---------------------------------------------------------------------------
+ * Gente e perfil — a tabela que faltava atrás de `operator_id`.
+ *
+ * Duas perguntas que o esquema misturava, e a `0035` separa com o motivo
+ * escrito: `membership` é uma CONTA (exige `auth.users`), e `people` é uma
+ * PESSOA que trabalha ali. Quem entra pela grade de nomes com PIN não tem conta
+ * nenhuma — o aparelho está logado com a conta da empresa, e quem está com ele
+ * na mão é anotação do registro.
+ * ------------------------------------------------------------------------- */
+
+/** Um pacote de permissões com nome, que a empresa monta. */
+export type Profile = {
+  id: string;
+  /**
+   * Vazio quando é um dos sete modelos: a palavra dele é da TELA, em três
+   * idiomas. Quem quiser nome próprio renomeia, e aí o nome vence.
+   */
+  name: string;
+  /** Qual dos sete papéis do produto originou este perfil. Nulo no perfil da empresa. */
+  templateRole: Role | null;
+  capabilities: Capability[];
+  /** Quantas pessoas ativas vestem este perfil — é o que impede apagar sem olhar. */
+  wearers: number;
+};
+
+/** Alguém que trabalha na empresa. Não é conta, e pode nunca ter uma. */
+export type Person = {
+  id: string;
+  name: string;
+  profileId: string;
+  active: boolean;
+};
+
+/**
+ * Os sete modelos entram na primeira vez que alguém abre a tela de gente.
+ *
+ * Semeados e não chumbados: a partir daqui são linhas como qualquer outra, que o
+ * dono renomeia e remarca permissão por permissão — decisão registrada no
+ * `CLAUDE.md`. O que o produto entrega é um ponto de partida, não uma gaiola.
+ *
+ * Nome VAZIO de propósito, como o lugar padrão: "Entregador" é palavra de tela.
+ * A ordem de `ROLES` é a ordem em que eles nascem, e ela não é alfabética — é a
+ * do organograma, do dono para fora.
+ */
+async function ensureProfiles(conn: Db, companyId: string): Promise<void> {
+  const existing = await conn.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM profiles WHERE company_id = ?`,
+    [companyId],
+  );
+  if ((existing?.n ?? 0) > 0) return;
+
+  const at = nowIso();
+  const ids: string[] = [];
+  for (const [role, caps] of Object.entries(ROLES)) {
+    const id = newId();
+    ids.push(id);
+    await conn.runAsync(
+      `INSERT INTO profiles (id, company_id, name, template_role, capabilities, created_at)
+       VALUES (?, ?, NULL, ?, ?, ?)`,
+      [id, companyId, role, caps.join(','), at],
+    );
+  }
+  // Eles têm que chegar ao servidor antes da pessoa que aponta para eles, senão
+  // a primeira sincronia falha numa chave estrangeira de uma linha que ninguém
+  // sabia que faltava.
+  await enqueue(
+    conn,
+    ids.map((id) => ({ table: 'profiles', rowId: id })),
+  );
+}
+
+/**
+ * Os perfis da empresa, com quantas pessoas vestem cada um.
+ *
+ * A contagem vem junto porque é ela que responde a pergunta seguinte da tela —
+ * "dá para mexer neste?" — sem uma segunda ida ao banco por linha.
+ */
+export async function listProfiles(companyId: string): Promise<Profile[]> {
+  const conn = await db();
+  await ensureProfiles(conn, companyId);
+
+  const rows = await conn.getAllAsync<{
+    id: string;
+    name: string | null;
+    template_role: string | null;
+    capabilities: string;
+    wearers: number;
+  }>(
+    `SELECT p.id, p.name, p.template_role, p.capabilities,
+            (SELECT COUNT(*) FROM people g
+              WHERE g.profile_id = p.id AND g.company_id = p.company_id AND g.active = 1) AS wearers
+       FROM profiles p
+      WHERE p.company_id = ?
+      ORDER BY p.created_at, p.name COLLATE NOCASE`,
+    [companyId],
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name ?? '',
+    templateRole: (r.template_role as Role | null) ?? null,
+    // Split de string vazia devolve `['']`, e uma permissão chamada "" passaria
+    // adiante como se existisse: o filtro é o que impede o perfil sem nenhuma
+    // permissão de parecer ter uma.
+    capabilities: r.capabilities.split(',').filter(Boolean) as Capability[],
+    wearers: r.wearers,
+  }));
+}
+
+/** Quem trabalha na empresa, os inativos por último. */
+export async function listPeople(companyId: string): Promise<Person[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    id: string;
+    name: string;
+    profile_id: string;
+    active: number;
+  }>(
+    `SELECT id, name, profile_id, active FROM people
+      WHERE company_id = ?
+      ORDER BY active DESC, name COLLATE NOCASE`,
+    [companyId],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    profileId: r.profile_id,
+    active: r.active === 1,
+  }));
+}
+
+/**
+ * Cadastra ou corrige uma pessoa.
+ *
+ * Sem `delete`: gente não se apaga, pelo mesmo motivo que aparelho não se apaga.
+ * Some da grade com `active = 0` e o histórico continua apontando para ela —
+ * movimento cujo operador sumiu é movimento que não se pode explicar.
+ */
+export async function savePerson(
+  companyId: string,
+  input: { id?: string; name: string; profileId: string; active?: boolean },
+): Promise<Person> {
+  const conn = await db();
+  const id = input.id ?? newId();
+  const active = input.active === false ? 0 : 1;
+
+  await conn.withTransactionAsync(async () => {
+    if (input.id) {
+      await conn.runAsync(
+        `UPDATE people SET name = ?, profile_id = ?, active = ? WHERE id = ? AND company_id = ?`,
+        [input.name.trim(), input.profileId, active, id, companyId],
+      );
+    } else {
+      await conn.runAsync(
+        `INSERT INTO people (id, company_id, name, profile_id, active, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [id, companyId, input.name.trim(), input.profileId, active, nowIso()],
+      );
+    }
+    await enqueue(conn, [{ table: 'people', rowId: id }]);
+  });
+
+  return { id, name: input.name.trim(), profileId: input.profileId, active: active === 1 };
 }

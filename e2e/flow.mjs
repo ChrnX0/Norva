@@ -2265,6 +2265,47 @@ check('the code printed on the box opens the label, days later', async (page) =>
   assert.match(await screen(page), /não está mais aqui/, 'código que não existe diz isso');
 });
 
+check('a person is registered with a profile, and the profile says what she may do', async (page) => {
+  // A porta "Pessoas" estava na prancha do dono e ficou fora com o motivo
+  // escrito: `operator_id` era coluna sem tabela de gente atrás. Esta checagem
+  // prova o caminho inteiro pelas mãos de alguém — inclusive que os sete papéis
+  // chegam traduzidos, que é a metade que um teste de unidade não alcança.
+  await page.goto(`http://localhost:${PORT}/more`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  assert.match(await screen(page), /Pessoas/, 'a porta existe na aba Mais');
+
+  await page.goto(`http://localhost:${PORT}/people`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const vazio = await screen(page);
+  assert.match(vazio, /ainda não cadastrou ninguém/, 'nada cadastrado é estado válido e dito');
+
+  // Os sete modelos chegam sozinhos, e chegam com PALAVRA: o banco guarda
+  // `driver`, e quem escreve "Entregador" é a tela, em três idiomas.
+  assert.match(vazio, /Entregador/, 'o papel semeado aparece traduzido, não como chave');
+  assert.match(vazio, /ninguém ainda/, 'e ninguém veste nada antes de existir gente');
+
+  await page.getByText('Cadastrar uma pessoa', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+  await page.getByLabel('Como se chama').fill('Zeca');
+  await page.waitForTimeout(300);
+  await page.getByLabel('Entregador').first().click();
+  await page.waitForTimeout(400);
+
+  // O perfil escolhido diz o que libera, colado na escolha: sem isso a pessoa
+  // escolhe uma palavra em vez de escolher um trabalho.
+  const escolhendo = await screen(page);
+  assert.match(escolhendo, /Despachar carga/, 'a permissão aparece por extenso');
+  assert.doesNotMatch(escolhendo, /Ver custo/, 'e o entregador não vê custo — a ausência é a regra');
+
+  await page.getByText('Salvar pessoa', { exact: true }).first().click();
+  await page.waitForTimeout(2000);
+
+  const depois = await screen(page);
+  assert.match(depois, /Zeca/, 'a pessoa entra na lista');
+  assert.match(depois, /1 pessoa/, 'e o perfil passa a dizer quantos o vestem');
+});
+
 check('erasing refuses in an order, and explains the way out', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

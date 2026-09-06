@@ -31,6 +31,8 @@ import {
   recordTransfer,
   recordPurchase,
   savePlace,
+  savePerson,
+  listProfiles,
   saveOrder,
   saveFlavor,
   saveLine,
@@ -176,6 +178,15 @@ async function main() {
     requestedFor: '2026-09-10',
     lines: [{ itemId: pulp.id, baseUnits: 300 }],
   });
+
+  // Gente e perfil, que é a travessia mais fácil de errar deste arquivo: no
+  // aparelho `capabilities` é texto separado por vírgula, e no servidor é
+  // `capability[]`. Mandada crua, o Postgres guarda uma palavra só chamada
+  // "dispatch,check_receipt" e recusa a fila inteira — com tudo o que a fábrica
+  // gravar depois preso atrás dela.
+  const perfis = await listProfiles(LOCAL_COMPANY_ID);
+  const entregador = perfis.find((p) => p.templateRole === 'driver') ?? perfis[0];
+  await savePerson(LOCAL_COMPANY_ID, { name: 'Zeca da câmara', profileId: entregador.id });
 
   // A câmara fria, com a faixa que julga a leitura — e uma leitura dentro dela.
   //

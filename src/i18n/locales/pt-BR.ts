@@ -381,6 +381,7 @@ export const ptBR = {
         recipes: 'Receitas',
         products: 'Produtos',
         places: 'Lojas e clientes',
+        people: 'Pessoas',
         purchases: 'Compras',
         orders: 'Pedidos',
         weather: 'Clima',
@@ -820,6 +821,64 @@ export const ptBR = {
       checkedOk: 'Conferido, bateu.',
       checkedShort: 'Conferido: faltaram {{amount}}.',
     },
+    /**
+     * Os sete papéis do produto, que são MODELOS e não a lista fechada.
+     *
+     * O nome mora aqui e não no banco porque o perfil semeado nasce sem nome —
+     * "Entregador" é uma palavra em três idiomas. No dia em que o dono renomear,
+     * o nome dele vence e esta chave deixa de ser consultada para aquele perfil.
+     */
+    roles: {
+      owner: 'Dono',
+      operator: 'Operador',
+      storeManager: 'Gerente de loja',
+      driver: 'Entregador',
+      buyer: 'Comprador',
+      customer: 'Cliente',
+      salesperson: 'Vendedor',
+    },
+
+    /**
+     * As doze permissões, com o que cada uma deixa fazer.
+     *
+     * A frase não é enfeite: o dono marca permissão por permissão, e uma lista de
+     * doze nomes técnicos sem explicação é uma tela que obriga a adivinhar. Cada
+     * linha diz o ATO, com o verbo na frente.
+     */
+    capabilities: {
+      view_cost: { label: 'Ver custo', hint: 'Quanto custa fazer, e quanto vale o que está parado.' },
+      view_sale_price: { label: 'Ver preço de venda', hint: 'Por quanto a mercadoria sai para a loja ou para o cliente.' },
+      record_production: { label: 'Registrar produção', hint: 'Lançar o que saiu do tacho, baixando o insumo.' },
+      dispatch: { label: 'Despachar carga', hint: 'Mandar mercadoria da fábrica para uma loja.' },
+      check_receipt: { label: 'Conferir chegada', hint: 'Abrir a caixa na loja e dizer o que veio.' },
+      record_loss: { label: 'Registrar perda', hint: 'Anotar o que derreteu, quebrou ou passou da validade.' },
+      place_order: { label: 'Anotar pedido', hint: 'Pedir para a fábrica em nome de uma loja.' },
+      approve_order: { label: 'Aprovar pedido', hint: 'Deixar um pedido virar carga.' },
+      adjust_stock: { label: 'Conferir prateleira', hint: 'Contar o que tem e gravar a diferença.' },
+      view_finance: { label: 'Ver dinheiro', hint: 'Quanto entrou, quanto saiu e quanto está parado.' },
+      issue_invoice: { label: 'Emitir nota', hint: 'Fazer a nota fiscal da carga.' },
+      manage_company: { label: 'Gerir a empresa', hint: 'Cadastrar gente, perfil, loja e aparelho.' },
+    },
+
+    people: {
+      title: 'Pessoas',
+      overline: 'quem trabalha aqui',
+      empty: 'Você ainda não cadastrou ninguém.',
+      emptyHint: 'Cadastre quem trabalha aqui para poder dizer, depois, quem estava com o aparelho.',
+      add: 'Cadastrar uma pessoa',
+      name: 'Como se chama',
+      profile: 'O que faz aqui',
+      save: 'Salvar pessoa',
+      saved: 'Pessoa salva',
+      away: 'Não trabalha mais aqui',
+      awayHint: 'Ela sai da lista e o histórico continua apontando para ela — nada é apagado.',
+      profilesTitle: 'Perfis',
+      profilesOverline: 'o que cada um pode fazer',
+      wearers: { one: '1 pessoa', other: '{{n}} pessoas' },
+      nobody: 'ninguém ainda',
+      canDo: { one: '1 permissão', other: '{{n}} permissões' },
+    },
+
     transfer: {
       fromLot: 'Sai do lote {{code}}, que vence primeiro.',
       /** Lote sem validade é caso normal, e aí a escolha foi por código: a frase não promete data. */

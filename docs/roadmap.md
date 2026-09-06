@@ -29,11 +29,11 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 
 | | | como conferir |
 |---|---|---|
-| telas | **24** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
-| tabelas no aparelho (SQLite) | **21** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
-| tabelas no servidor (Postgres) | **22** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **34** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V19** | último `const V` em `src/data/db.ts` |
+| telas | **25** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
+| tabelas no aparelho (SQLite) | **23** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
+| tabelas no servidor (Postgres) | **24** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
+| migrações do servidor | **35** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V20** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **18** | `src/domain/access.ts` |
 | linhas de código | **~45.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -42,10 +42,10 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **369** testes |
+| `npm test` | **371** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
-| `npm run e2e:fast` | **40** checagens num navegador de verdade |
-| `npm run db:verify` | **14** garantias contra um Postgres descartável, sob RLS |
+| `npm run e2e:fast` | **41** checagens num navegador de verdade |
+| `npm run db:verify` | **15** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade, com
@@ -477,10 +477,12 @@ comprar o aplicativo."* Decisão do dono, 6 de setembro. Com a carga atômica, o
 não tem o que gravar que a fábrica já não grave — então o que este item pede é a **camada
 de gente e permissão**, não a tela de entrega:
 
-1. **Gente e perfil no aparelho.** Não existe tabela de gente: `movements.operator_id` é
-   coluna sem escritor, e `app/(tabs)/more.tsx:49` já registrava isso como o motivo de a
-   porta "Pessoas" não estar na tela — ela **estava na prancha do dono** e ficou de fora
-   por não ter nada atrás.
+1. ~~**Gente e perfil no aparelho.**~~ **FEITO em 6 de setembro.** `people` e `profiles`
+   entraram nos dois lados (aparelho `V20`, servidor `0035`), a porta "Pessoas" abriu na
+   aba Mais, e os sete papéis chegam como MODELOS com nome vazio — a palavra é da tela, em
+   três idiomas. A décima quinta garantia do `db:verify` cobra as duas metades contra
+   Postgres: pessoa existe **sem conta**, e `operator_id` **só aceita gente** (um id de
+   membership passa a ser recusado, que era o único que passava antes).
 2. **Perfil é dado.** Os sete papéis de `src/domain/access.ts` viram modelos prontos, e o
    dono marca permissão por permissão. Decisão já registrada no `CLAUDE.md`.
 3. **A entrada.** Grade de nomes com PIN no aparelho compartilhado; pessoal entra uma vez e

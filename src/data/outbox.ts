@@ -170,6 +170,8 @@ export const QUEUED_TABLES = [
   'product_lines',
   'product_types',
   'flavors',
+  'profiles',
+  'people',
 ] as const;
 
 /**

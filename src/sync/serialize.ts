@@ -60,6 +60,8 @@ export type ServerWrite =
 
 export type ServerTable =
   | 'locations'
+  | 'profiles'
+  | 'people'
   | 'readings'
   | 'items'
   | 'recipes'
@@ -144,6 +146,37 @@ const CROSSINGS: Record<
       'source',
     ],
     build: (_row, actor) => ({ recorded_by: actor.userId }),
+  },
+
+  /**
+   * O perfil, com a lista de permissões virando array de verdade.
+   *
+   * No aparelho `capabilities` é texto separado por vírgula — legível num
+   * suporte, e o SQLite não tem array. No servidor é `capability[]`, um enum, e
+   * mandar a string crua faria o Postgres guardar uma palavra só chamada
+   * "dispatch,check_receipt" e recusar a fila inteira.
+   *
+   * Vazio vira array vazio e não `['']`: um perfil sem permissão nenhuma existe
+   * (é o ponto de partida de quem monta o dele), e uma permissão chamada "" não.
+   */
+  profiles: {
+    take: ['id', 'company_id', 'name', 'template_role', 'created_at'],
+    build: (row) => ({
+      capabilities: String(row.capabilities ?? '')
+        .split(',')
+        .filter(Boolean),
+    }),
+  },
+
+  /**
+   * A pessoa. Nada a converter: ela é nome, perfil e se ainda trabalha aqui.
+   *
+   * `active` é inteiro no aparelho e booleano no servidor, e o Postgres aceita
+   * 0/1 em coluna `boolean` — é a mesma travessia que as outras bandeiras deste
+   * arquivo já fazem.
+   */
+  people: {
+    take: ['id', 'company_id', 'name', 'profile_id', 'active', 'created_at'],
   },
 
   locations: {

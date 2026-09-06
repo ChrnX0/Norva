@@ -11,6 +11,7 @@ import {
   GlyphRecipe,
   GlyphSettings,
   GlyphStock,
+  GlyphCustomer,
   GlyphStore,
   GlyphThermometer,
 } from '@/components/Glyph';
@@ -45,8 +46,12 @@ import type { Dictionary } from '@/i18n';
  * terceiro — "Financeiro" e "Notas fiscais" — não tem nada atrás. Não existe
  * preço de venda neste aplicativo, nem conta, e o fiscal é um projeto .NET à
  * parte com certificado A1 e homologação na SEFAZ, do qual o plano diz que nada
- * depende. Gaveta que abre no vazio é pior que gaveta não desenhada. "Pessoas"
- * falta pelo mesmo motivo: `operator_id` é coluna sem tabela de gente atrás.
+ * depende. Gaveta que abre no vazio é pior que gaveta não desenhada.
+ *
+ * "Pessoas" faltava pelo mesmo motivo — `operator_id` era coluna sem tabela de
+ * gente atrás — e **entrou em 6 de setembro**, quando a tabela passou a existir
+ * (`supabase/migrations/0035`, que separa PESSOA de CONTA). A regra continua
+ * valendo para o terceiro grupo, que segue fora.
  *
  * E um cartão aqui NÃO está na tela desenhada: "Pergunte". O assistente existe,
  * responde catorze perguntas offline, e as cinco pranchas nunca o desenharam —
@@ -93,6 +98,9 @@ function Drawers() {
     { key: 'recipes', detail: t.app.recipes.overline, route: '/recipes', desenho: glifo(GlyphRecipe), tom: palette.apricot },
     { key: 'products', detail: t.app.products.overline, route: '/products', desenho: glifo(GlyphProduction), tom: palette.apricot },
     { key: 'places', detail: t.app.places.overline, route: '/places', desenho: glifo(GlyphStore), tom: palette.mint },
+    // A porta que a prancha desenhava e o código recusava: ela entra agora
+    // porque `people` existe, não porque coube na lista.
+    { key: 'people', detail: t.app.people.overline, route: '/people', desenho: glifo(GlyphCustomer), tom: palette.sky },
   ];
 
   /**

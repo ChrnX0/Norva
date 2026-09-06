@@ -721,9 +721,51 @@ const V19 = `
 ALTER TABLE movements ADD COLUMN return_reason TEXT;
 `;
 
+/**
+ * Gente e perfil — a tabela que faltava atrás de `operator_id`.
+ *
+ * O servidor tinha o nó, e a `0035` o desfaz com o raciocínio inteiro escrito:
+ * `memberships` é CONTA (exige `auth.users`), e a pessoa que entra pela grade de
+ * nomes com PIN não tem conta nenhuma. Aqui as duas tabelas nascem já certas,
+ * porque no aparelho não havia nem uma nem outra.
+ *
+ * `capabilities` é texto separado por vírgula, e não JSON, pelo mesmo motivo que
+ * a ordem da capa: é uma lista de palavras curtas que alguém pode precisar ler no
+ * banco durante um suporte, e `dispatch,check_receipt,record_loss` se lê. Quem
+ * julga o vocabulário é o domínio na entrada e o Postgres na saída — o SQLite
+ * guardando um segundo julgamento seria uma segunda regra para divergir.
+ *
+ * `template_role` guarda qual dos sete papéis do produto originou o perfil, e o
+ * `name` dele nasce VAZIO — o mesmo desenho do lugar padrão, pela mesma razão:
+ * "Entregador" é uma palavra em três idiomas, e essa palavra é da tela. No dia em
+ * que o dono renomear, o `name` ganha valor e vence; enquanto ele não renomeia, a
+ * tela traduz. Perfil criado pela empresa nasce com nome e sem papel.
+ */
+const V20 = `
+CREATE TABLE IF NOT EXISTS profiles (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  name TEXT,
+  template_role TEXT,
+  capabilities TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS people (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  profile_id TEXT NOT NULL,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS people_company_idx ON people (company_id, active);
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
-  V19,
+  V19, V20,
 ];
 
 export type SqlParam = string | number | null;

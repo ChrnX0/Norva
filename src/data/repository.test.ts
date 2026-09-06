@@ -11,6 +11,9 @@ import {
   lotsInRoomAt,
   pickingFor,
   lastSentBaseUnits,
+  listPeople,
+  listProfiles,
+  savePerson,
   recordProduction,
   runningOut,
   productionBetween,
@@ -3542,4 +3545,74 @@ test('a lot warns about expiry from wherever it is, not only from the storeroom'
     !soNoAlmoxarifado.some((l) => l.code === corrida.lot.code),
     'perguntando pelo almoxarifado, o lote que saiu não está lá — o filtro continua servindo',
   );
+});
+
+
+test('the seven roles arrive as profiles with no name, because the name is the screen\'s', async () => {
+  const perfis = await listProfiles(LOCAL_COMPANY_ID);
+
+  // Sete modelos, e nenhum deles carrega uma palavra: "Entregador" é texto de
+  // tela em três idiomas. Guardar a palavra aqui seria traduzir depois o nome
+  // que alguém digitou.
+  assert.equal(perfis.length, 7);
+  assert.deepEqual(
+    perfis.map((p) => p.templateRole),
+    ['owner', 'operator', 'storeManager', 'driver', 'buyer', 'customer', 'salesperson'],
+  );
+  assert.deepEqual(new Set(perfis.map((p) => p.name)), new Set(['']));
+
+  // E cada um chega com as permissões do papel, não vazio: o entregador
+  // despacha, confere chegada e registra perda - e não vê custo nenhum.
+  const entregador = perfis.find((p) => p.templateRole === 'driver');
+  assert.deepEqual([...(entregador?.capabilities ?? [])].sort(), [
+    'check_receipt',
+    'dispatch',
+    'record_loss',
+  ]);
+  assert.equal(entregador?.wearers, 0, 'ninguém veste nada antes de existir gente');
+
+  // Semear é uma vez só. Abrir a tela de novo não duplica os sete.
+  assert.equal((await listProfiles(LOCAL_COMPANY_ID)).length, 7);
+});
+
+
+test('a person is registered, corrected, and leaves without being deleted', async () => {
+  const perfis = await listProfiles(LOCAL_COMPANY_ID);
+  const entregador = perfis.find((p) => p.templateRole === 'driver')!;
+  const operador = perfis.find((p) => p.templateRole === 'operator')!;
+
+  const zeca = await savePerson(LOCAL_COMPANY_ID, { name: '  Zeca  ', profileId: entregador.id });
+  assert.equal(zeca.name, 'Zeca', 'o espaço em volta do nome não entra na grade');
+
+  const lista = await listPeople(LOCAL_COMPANY_ID);
+  assert.deepEqual(lista.map((p) => p.name), ['Zeca']);
+  assert.equal(lista[0].profileId, entregador.id);
+
+  // O perfil passa a saber quantos o vestem - é o que responde "dá para mexer
+  // neste?" antes de alguém tocar.
+  const comGente = await listProfiles(LOCAL_COMPANY_ID);
+  assert.equal(comGente.find((p) => p.id === entregador.id)?.wearers, 1);
+
+  // Corrigir troca o perfil sem criar uma segunda pessoa.
+  await savePerson(LOCAL_COMPANY_ID, { id: zeca.id, name: 'Zeca', profileId: operador.id });
+  assert.equal((await listPeople(LOCAL_COMPANY_ID)).length, 1);
+  assert.equal((await listPeople(LOCAL_COMPANY_ID))[0].profileId, operador.id);
+
+  // E sair da empresa não apaga ninguém: gente some da grade e o histórico
+  // continua apontando para ela. Movimento cujo operador sumiu é movimento que
+  // não se pode explicar.
+  await savePerson(LOCAL_COMPANY_ID, {
+    id: zeca.id,
+    name: 'Zeca',
+    profileId: operador.id,
+    active: false,
+  });
+  const depois = await listPeople(LOCAL_COMPANY_ID);
+  assert.equal(depois.length, 1, 'a pessoa continua existindo');
+  assert.equal(depois[0].active, false);
+
+  // Quem saiu não conta como quem veste o perfil - senão o dono acha que não
+  // pode mexer num perfil que ninguém usa.
+  const semGente = await listProfiles(LOCAL_COMPANY_ID);
+  assert.equal(semGente.find((p) => p.id === operador.id)?.wearers, 0);
 });
