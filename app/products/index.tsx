@@ -125,10 +125,27 @@ function ProductsList() {
                 itemsRate: packagingRatePerUnit(product.packagingItems, costs),
               })
             : null,
-        detail: fill(t.app.products.batchYields, {
-          units: formatQuantity(units, locale),
-          packed,
-        }),
+        /**
+         * O que rende, e por quanto sai — nesta ordem e nesta linha.
+         *
+         * O preço ao lado do rendimento é o que faz a coluna do custo, à direita,
+         * decidir alguma coisa: R$ 0,66 por unidade não diz nada sozinho, e diz tudo
+         * ao lado de "vende a R$ 2,50". É a Lei 3 numa linha de lista, sem inventar
+         * uma tela de margem que ninguém pediu.
+         */
+        detail: [
+          fill(t.app.products.batchYields, {
+            units: formatQuantity(units, locale),
+            packed,
+          }),
+          product.salePriceRate === null
+            ? null
+            : fill(t.app.products.sellsFor, {
+                amount: formatMoney(Math.round(product.salePriceRate), locale),
+              }),
+        ]
+          .filter(Boolean)
+          .join(' · '),
       };
     });
 

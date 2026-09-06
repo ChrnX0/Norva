@@ -42,9 +42,9 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **390** testes |
+| `npm test` | **391** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
-| `npm run e2e:fast` | **46** checagens num navegador de verdade |
+| `npm run e2e:fast` | **47** checagens num navegador de verdade |
 | `npm run db:verify` | **17** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
@@ -482,6 +482,18 @@ Então "o preço combinado" não é um campo na ficha da loja. É esta ordem:
    órfãs da fila —, e um teste achou um defeito de verdade: dois acordos combinados
    no mesmo segundo empatavam em `observed_at` e "de quanto veio" saía pela ordem
    que o SQLite quisesse.
+   ~~**E a metade de TABELA ficou sem tela**~~ — **FEITA em 6 de setembro**, e ela é o
+   portão P1 aplicado ao meu próprio commit: `saveSalePrice` com `placeId: null` tinha dois
+   chamadores, `repository.test.ts` e `device-session.ts`, e `view_sale_price` não tinha um
+   único leitor em `app/`. Construir o combinado primeiro — que é o que o dono pediu, e o
+   que *vence* a tabela — deu à peça de baixo cara de existente. Agora o campo mora no
+   cadastro do produto (`app/products/new.tsx`, gateado por `manage_company`: quem DEFINE) e
+   o número na lista (`app/products/index.tsx`, gateado por `view_sale_price`: quem VÊ), com
+   o `e2e` de ponta a ponta como chamador de produção. O campo mora em cartão próprio
+   logo depois do custo por unidade, e esse lugar é correção de uma FOTO: ele nasceu
+   dentro de "Palito, embalagem e rótulo", onde o número vizinho eram os cinco centavos
+   da embalagem, sob um título que não é o assunto.
+
 2. **O cliente e a venda** — `customer` criável na tela, embarque como `kind='sale'`,
    e só então o preço congelado no movimento. **Isto é P3 puro** e é decisão de
    faseamento do dono.

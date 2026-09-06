@@ -60,6 +60,8 @@ const PRODUCTS: Product[] = [
     name: 'Picolé de morango',
     recipeId: 'popsicle',
     yieldPerUnit: 75,
+    // O assistente não fala de preço de venda ainda: nulo é o estado real dele.
+    salePriceRate: null,
     shelfLifeDays: 180,
     unitPackagingRate: rate(0.05, 1),
     packagingItems: [],

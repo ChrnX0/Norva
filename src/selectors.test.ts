@@ -83,6 +83,8 @@ const NAO_E_DICIONARIO: Record<string, string> = {
   Ana:
     'nome de pessoa que a própria checagem cadastra antes de tocar nele — nome de gente é dado da fábrica, não frase de tela, pelo mesmo motivo que nome de loja',
   Uva: 'sabor que a própria checagem cadastra antes de tocar nele',
+  Coco:
+    'o sabor da checagem do preço de tabela — ela precisa de classificação PRÓPRIA, porque o índice único da grade é `nulls not distinct` e o exemplo semeado já ocupa a casa vazia',
   'Picolé de Uva': 'nome composto pela grade — linha, tipo e sabor — e não escrito em lugar nenhum',
   máxima: 'metade de um rótulo composto na tela do lugar',
   mínima: 'metade de um rótulo composto na tela do lugar',

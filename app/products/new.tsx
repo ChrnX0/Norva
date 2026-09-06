@@ -21,6 +21,7 @@ import {
   GridTakenError,
   itemCosts,
   listProducts,
+  currentCapabilities,
   labels as loadLabels,
   listItems,
   listRecipes,
@@ -34,6 +35,7 @@ import {
   type ItemWithCost,
   type Product,
   saveProduct,
+  saveSalePrice,
   type RecipeSummary,
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
@@ -109,6 +111,15 @@ type Loaded = {
   costs: ItemCosts;
   /** Se o custo é desta pessoa para ver — nulo em `itemCosts` é o portão. */
   dinheiro: boolean;
+  /**
+   * Se esta pessoa DEFINE o preço de tabela.
+   *
+   * Ver e definir são gates diferentes, e a diferença não é rigor: `view_sale_price`
+   * é de quem vende (precisa saber por quanto), e definir quanto a empresa cobra é
+   * decisão da empresa — o mesmo `manage_company` que `saveSalePrice` exige. Um
+   * campo que aparece e recusa ao salvar é pior que campo ausente.
+   */
+  podeCombinar: boolean;
   labels: Record<string, string>;
   /** Palito, saquinho, caixa: o que pode sair do estoque por unidade. */
   wrappings: ItemWithCost[];
@@ -138,11 +149,13 @@ function ProductForm() {
       listItems(LOCAL_COMPANY_ID),
       listProducts(LOCAL_COMPANY_ID),
     ]);
+    const podeCombinar = (await currentCapabilities(LOCAL_COMPANY_ID)).has('manage_company');
     const wrappings = items.filter((i) => i.kind === 'packaging');
     return {
       recipes,
       graph,
       dinheiro: costs !== null,
+      podeCombinar,
       costs: costs ?? {},
       labels,
       lines,
@@ -162,6 +175,20 @@ function ProductForm() {
   const [recipeId, setRecipeId] = useState<string | null>(null);
   const [perUnit, setPerUnit] = useState('75');
   const [packagingCost, setPackagingCost] = useState('0,05');
+  /**
+   * Por quanto isto sai — e ele mora AQUI, não na ficha de uma loja.
+   *
+   * O preço combinado entrou primeiro e a metade de tabela ficou sem tela: eu tinha
+   * escrito o caminho de gravação e só teste chamava, que é o portão P1 reprovando
+   * um commit meu. O lugar certo nunca foi o cartão de uma loja — o combinado é de
+   * uma parte, o de tabela é da empresa, e perguntar "por quanto você vende" ao lado
+   * de "quanto custa a embalagem" é a pergunta que quem cadastra o produto já está
+   * respondendo.
+   *
+   * Vazio é o caso comum e legítimo: uma fábrica que só abastece as próprias lojas
+   * não vende para ninguém, e não se inventa preço para ela.
+   */
+  const [salePrice, setSalePrice] = useState('');
   /**
    * A embalagem que sai do estoque, por unidade.
    *
@@ -365,7 +392,7 @@ function ProductForm() {
 
     setSaving(true);
     try {
-      await saveProduct(LOCAL_COMPANY_ID, {
+      const salvo = await saveProduct(LOCAL_COMPANY_ID, {
         name: composed.trim(),
         lineId,
         typeId,
@@ -379,6 +406,23 @@ function ProductForm() {
         fullLevel: num(fullLevel) > 0 ? num(fullLevel) : null,
         packaging: hierarchy,
       });
+
+      /**
+       * O preço vai pelo caminho que escreve HISTÓRIA, e não junto com a ficha.
+       *
+       * `saveProduct` grava cadastro; preço é a série de "por quanto isto saía", e
+       * quem a mantém é `saveSalePrice` — que confere se mudou, escreve a linha
+       * anterior e a nova, e enfileira as duas. Passá-lo por `saveProduct` seria um
+       * segundo lugar escrevendo preço, e no dia em que os dois discordassem a série
+       * teria buracos que nada reconstrói.
+       */
+      if (salvo.itemId && salePrice.trim() !== '') {
+        await saveSalePrice(LOCAL_COMPANY_ID, {
+          itemId: salvo.itemId,
+          placeId: null,
+          rate: rate(num(salePrice) || 0, 1),
+        });
+      }
       router.back();
     } catch (e) {
       await confirm({
@@ -424,6 +468,7 @@ function ProductForm() {
   const iEmbalagem = feito ? ordem++ : 0;
   const iEmpacotado = ordem++;
   const iCusto = costing ? ordem++ : 0;
+  const iVenda = data?.podeCombinar ? ordem++ : 0;
   const iTravado = ocupada ? ordem++ : 0;
   const iAcao = ordem++;
 
@@ -645,6 +690,7 @@ function ProductForm() {
                 hint={t.app.productForm.packagingHint}
               />
 
+
               {/* Só aparece quando existe embalagem cadastrada: oferecer a lista
                   numa fábrica que não cadastrou palito é pedir o que o sistema
                   sabe que não existe. */}
@@ -820,6 +866,44 @@ function ProductForm() {
                 />
               </View>
             ) : null}
+          </Card>
+        </Reveal>
+      ) : null}
+
+      {/* Por quanto ele SAI, em cartão próprio — e o cartão próprio é correção de
+          uma foto.
+          
+          A primeira versão pôs este campo dentro de "Palito, embalagem e rótulo",
+          com o argumento de que preço ao lado de custo faz os dois decidirem
+          (Lei 3). A foto desmentiu duas coisas de uma vez: o número ao lado não é
+          o custo — é os R$ 0,05 da embalagem, comparação que não decide nada — e
+          o título do cartão diz "palito", que não é o assunto. **Verde não prova
+          tela, e argumento escrito também não.**
+          
+          Fica logo depois do custo por unidade, que é a vizinhança que a Lei 3
+          pedia de verdade: R$ 0,64 para fazer, R$ 2,50 para sair. E fica FORA do
+          `costing`, porque a revenda não tem custo calculado e é justamente ela
+          que mais tem preço.
+
+          Só para quem define o que a empresa cobra: o comprador vê custo e não vê
+          preço, de propósito, e é aqui que essa capacidade deixa de ser uma
+          palavra no vocabulário. */}
+      {data?.podeCombinar ? (
+        <Reveal index={iVenda}>
+          <Card
+            hue={palette.sky}
+            icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
+            title={t.app.productForm.sellingTitle}
+          >
+            <Field
+              label={t.app.productForm.salePrice}
+              value={salePrice}
+              onChangeText={setSalePrice}
+              placeholder="2,50"
+              suffix={`${currencySymbol(locale)} ${t.app.productForm.perUnitShort}`}
+              keyboardType="numeric"
+              hint={t.app.productForm.salePriceHint}
+            />
           </Card>
         </Reveal>
       ) : null}

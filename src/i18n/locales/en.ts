@@ -1034,6 +1034,7 @@ export const en: Dictionary = {
       empty: 'No product yet. A manufactured product needs a recipe and how much goes into each unit.',
       resale: 'Resale — the cost comes from the purchase invoice.',
       batchYields: 'A batch makes {{units}} — {{packed}}',
+      sellsFor: 'sells at {{amount}}',
       addNew: 'Register a new one',
     },
 
@@ -1081,6 +1082,10 @@ export const en: Dictionary = {
       perUnit: 'How much goes into each unit',
       perUnitHint: 'A batch makes {{units}} units.',
       packagingCost: 'Stick, wrapper and label',
+      salePrice: 'What you sell it for',
+      sellingTitle: 'What it goes out for',
+      salePriceHint:
+        'Blank means this is not sold — the case of a factory that only supplies its own stores. Each store can have an agreed price, and that one wins.',
       perUnitShort: '/ unit',
       packagingHint: 'Packaging costs per unit, not per batch — smearing it across the batch hides the margin.',
       fromStock: 'What leaves stock per unit',

@@ -1040,6 +1040,7 @@ export const es: Dictionary = {
         'Ningún producto todavía. Un producto fabricado necesita una receta y cuánto va en cada unidad.',
       resale: 'Reventa — el costo viene de la factura de compra.',
       batchYields: 'Cada vez rinde {{units}} — {{packed}}',
+      sellsFor: 'se vende a {{amount}}',
       addNew: 'Cargar nuevo',
     },
 
@@ -1087,6 +1088,10 @@ export const es: Dictionary = {
       perUnit: 'Cuánto va en cada unidad',
       perUnitHint: 'Cada vez rinde {{units}} unidades.',
       packagingCost: 'Palito, empaque y etiqueta',
+      salePrice: 'Por cuánto lo vendés',
+      sellingTitle: 'Por cuánto sale',
+      salePriceHint:
+        'En blanco, este producto no se vende — es el caso de quien solo abastece sus propias tiendas. Cada tienda puede tener un precio acordado, y ese le gana.',
       perUnitShort: '/ un',
       packagingHint: 'El empaque cuesta por unidad, no por receta — diluirlo en el lote esconde el margen.',
       fromStock: 'Lo que sale del inventario por unidad',

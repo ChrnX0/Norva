@@ -5234,3 +5234,61 @@ entrou hoje depende de duas bandeiras que moram só no aparelho. Enquanto não h
 descida, **o portão é por APARELHO** — uma fábrica com dois celulares pode ter um
 escondendo custo e o outro não, sem ninguém ter escolhido. Está dito no
 `currentCapabilities`, onde quem for mexer nele passa, e não só no plano.
+
+---
+
+## O preço de tabela não tinha tela, e eu tinha escrito o portão P1 no mesmo commit
+
+*6 de setembro.* Fechei o preço de venda com três tabelas, o portão da leitura, o
+histórico append-only e a ficha da loja — e no fim, procurando insight, fiz ao meu próprio
+commit a pergunta do P1: **quem chama isto?** `saveSalePrice` com `placeId: null`, que é o
+caminho do preço de TABELA, tinha dois chamadores: `repository.test.ts` e
+`scripts/device-session.ts`. Nenhuma tela. E `canSeePrice` — a capacidade
+`view_sale_price`, o portão que eu tinha acabado de desenhar — **não tinha um único
+leitor** em `app/`.
+
+Os dois vazios eram o mesmo vazio, e a forma dele explica por que passou: eu construí o
+preço **combinado** primeiro, porque foi ele que o dono pediu, e o combinado *vence* a
+tabela. Uma peça que serve de piso para outra dá a impressão de existir quando a de cima
+funciona. O acordo por loja aparecia na tela, o número saía certo, o histórico gravava — e
+o preço de tabela, que é o que ele vence, não tinha onde ser digitado.
+
+**O que mudou.** `app/products/new.tsx` ganhou o campo (gateado por `manage_company`, quem
+DEFINE) e escreve por `saveSalePrice` para a história ser mantida por um lugar só;
+`app/products/index.tsx` mostra o número (gateado por `view_sale_price`, quem VÊ);
+`listProducts` passou a devolver as duas colunas por portões separados, e um teste cobra os
+quatro casos — comprador vê os dois, vendedor só preço, operador nenhum,
+`listProductsForLedger` sem portão. E o `e2e` ganhou o chamador de produção que fecha o P1
+de verdade: cadastra um produto dizendo por quanto ele sai, e lê a lista.
+
+**A lição é sobre onde eu aponto o P1.** Eu o uso como filtro para o que vou construir, e
+ele é bom nisso. Aqui ele serviu para outra coisa: **auditar o que eu acabei de empurrar.**
+Um commit meu passou pelo portão porque a peça de cima tinha tela — o portão pergunta "quem
+chama?", e a resposta "a peça que depende dela" parece suficiente e não é. A pergunta certa
+é quem chama **este caminho**, com **estes argumentos**: `placeId: null` e `placeId: 'x'`
+são dois caminhos, e só um deles tinha tela.
+
+**E a foto desmentiu o argumento que eu tinha escrito para justificar o lugar do
+campo.** Pus o preço dentro do cartão "Palito, embalagem e rótulo" com um comentário
+dizendo que preço ao lado de custo faz os dois decidirem (Lei 3) — e o comentário estava
+certo sobre a lei e errado sobre o lugar: o número ao lado não é o custo por unidade, são
+os cinco centavos da embalagem, e o título do cartão fala de palito. Nenhum teste podia
+pegar isso, porque nada ali está errado *funcionalmente*: o campo aparece, grava e volta.
+O que estava errado é o que a pessoa lê, e **a única coisa que lê é o olho**. O campo virou
+cartão próprio logo depois de "Custo por unidade" — R$ 0,33 para fazer, R$ 2,50 para sair —
+e ficou fora do `costing`, porque a revenda não tem custo calculado e é justamente ela que
+mais tem preço.
+
+Junto veio uma ferramenta: `--tocar` agora aceita `Rótulo=valor` e DIGITA. Metade do que a
+foto não alcança não mora atrás de um toque, mora atrás de um número — e sem digitar, a
+única foto possível deste campo era a do campo vazio, que é a foto do estado velho com o
+nome do novo (`scripts/shot.mjs`).
+
+**E uma coisa que a mesma rodada quase me fez consertar por engano.** Enquanto o `e2e` novo
+falhava com o botão morto, eu li que a trava de classificação era só de tela — `grep` por
+`unique.*flavor_id` não achou índice, e o docblock afirma que o banco recusa. Antes de
+escrever "fundação que só vale no papel", rodei a contradição: o índice existe na `0018`,
+com `nulls not distinct`, e `saveProduct` levanta `GridTakenError`. Meu `grep` procurou a
+palavra na linha errada de uma declaração de várias linhas. O defeito era o `grep`, e a
+regra da casa — *contradição achada é suspeita de leitura errada até virar prova* — pagou
+sozinha uma segunda vez no mesmo dia.

@@ -13,6 +13,7 @@
  *   npm run shot -- --rota /inputs  # qualquer tela
  *   npm run shot -- --como-operador # como quem não vê dinheiro
  *   npm run shot -- --tocar "Combinar entrega"   # a tela que mora atrás de um toque
+ *   npm run shot -- --tocar "Por quanto você vende=2,50"   # o estado atrás de um número
  *
  * As duas últimas existem pelo mesmo motivo, e ele é a lição desta ferramenta:
  * mudança que acrescenta um ESTADO ou uma tela atrás de um toque é exatamente a que
@@ -141,6 +142,12 @@ const comDado = tem('--com-dado') || tudo;
  * mesma ideia com o alvo vindo de fora.
  *
  * Vários alvos separados por `>`, na ordem — é o caminho que um dedo faria.
+ *
+ * E um passo escrito `Rótulo=valor` DIGITA em vez de tocar, porque metade do que a
+ * foto não alcança não mora atrás de um toque: mora atrás de um número digitado. O
+ * preço de tabela na ficha do produto só existe na tela depois de alguém escrever
+ * quanto é — sem isto, a única foto possível é a do campo vazio, que é a foto do
+ * estado velho com o nome do novo.
  */
 const tocar = arg('--tocar', '')
   .split('>')
@@ -501,7 +508,9 @@ try {
       // nome do lugar certo.
       for (const alvo of tocar) {
         await page.waitForTimeout(900);
-        await page.getByText(alvo, { exact: true }).first().click();
+        const digita = alvo.match(/^(.+?)=(.*)$/);
+        if (digita) await page.getByLabel(digita[1].trim()).first().fill(digita[2]);
+        else await page.getByText(alvo, { exact: true }).first().click();
       }
       // A capa tem animação de entrada; a foto tem de ser depois dela.
       await page.waitForTimeout(3500);

@@ -2671,6 +2671,65 @@ check('an agreed price is typed on the store card and comes back', async (page) 
   );
 });
 
+check('a product is registered with what it sells for, and the list says so', async (page) => {
+  /**
+   * O portão P1 desta peça, exercitado por onde ele reprovou.
+   *
+   * O preço combinado entrou primeiro e a metade de TABELA ficou sem tela: o caminho
+   * de gravação existia e só teste o chamava. Esta checagem é o chamador de produção
+   * — cadastra um produto dizendo por quanto ele sai, e depois lê a lista.
+   *
+   * E ela cobre a divisão que o `access.ts` declara: o campo aparece para quem DEFINE
+   * (a empresa decide quanto cobra) e o número aparece para quem VÊ preço de venda.
+   * Aqui é o dono, que é os dois.
+   *
+   * A grade vem primeiro, e não é cerimônia: o índice único da `0018` é
+   * `nulls not distinct`, então o exemplo semeado — que não tem classificação — ocupa
+   * a casa vazia e o botão morre com "Já existe Picolé de morango com essa
+   * classificação". Foi assim que esta checagem falhou três vezes antes de existir.
+   */
+  await page.goto(`http://localhost:${PORT}/catalog`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel('Nova linha').first().fill('Picolé');
+  await page.waitForTimeout(300);
+  await page.getByText('Nova linha', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+  await page.getByLabel('Novo sabor').first().fill('Coco');
+  await page.waitForTimeout(300);
+  await page.getByText('Novo sabor', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  await page.goto(`http://localhost:${PORT}/products/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Picolé', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByText('Coco', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByText('Picolé de morango', { exact: true }).first().click();
+  await page.waitForTimeout(700);
+
+  // O que se digita num campo não é texto na tela — `screen()` lê `innerText`, e
+  // `value` de input não mora lá. Por isso a leitura de volta é `inputValue()`.
+  await page.getByLabel('Por quanto você vende').first().fill('2,50');
+  await page.waitForTimeout(400);
+  assert.equal(await page.getByLabel('Por quanto você vende').first().inputValue(), '2,50');
+
+  await page.getByText('Cadastrar produto', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Cadastrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+  assert.doesNotMatch(await screen(page), /Não deu para cadastrar/);
+
+  await page.goto(`http://localhost:${PORT}/products`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const lista = await screen(page);
+  assert.match(lista, /Picolé de Coco/, 'o produto entrou');
+  // O preço ao lado do rendimento: é essa vizinhança que faz a coluna do custo,
+  // à direita, decidir alguma coisa (Lei 3).
+  assert.match(lista, /vende a R\$ 2,50/, 'e a lista diz por quanto ele sai');
+});
+
 const server = serve();
 
 try {

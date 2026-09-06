@@ -2150,6 +2150,17 @@ export type Product = {
    */
   unitPackagingRate: Rate | null;
   /**
+   * Por quanto isto SAI — o preço de tabela, e é o nulo dele que diz o vendável.
+   *
+   * Nulo tem as duas leituras de sempre, e quem separa é `listProducts`, não a tela:
+   * "não vendemos isto" (o caso comum de quem só produz para as próprias lojas) e
+   * "não é seu para ver". Para a tela as duas se desenham igual — sem preço —, e é
+   * de propósito: dizer "existe um preço, mas não para você" já é contar o que o
+   * portão nega. O acordo de uma loja vence este valor quando existe, e mora noutra
+   * tabela — aqui está o número que vale para todo mundo.
+   */
+  salePriceRate: Rate | null;
+  /**
    * A embalagem que sai do estoque, por unidade produzida.
    *
    * Vazia é o caso comum e legítimo. Cada linha vira consumo no livro-razão
@@ -2186,8 +2197,15 @@ export async function listProducts(companyId: string): Promise<Product[]> {
    * e errado, que é a única coisa pior que nenhum número. Nulo obriga a tela a
    * decidir, e é isso que o tipo está fazendo.
    */
-  if (await canSeeMoney(companyId)) return fichas;
-  return fichas.map((f) => ({ ...f, unitPackagingRate: null }));
+  // Dois portões e duas perguntas: quanto custa fazer, e por quanto sai. O
+  // comprador vê a primeira e não a segunda, de propósito.
+  const [custo, preco] = await Promise.all([canSeeMoney(companyId), canSeePrice(companyId)]);
+  if (custo && preco) return fichas;
+  return fichas.map((f) => ({
+    ...f,
+    unitPackagingRate: custo ? f.unitPackagingRate : null,
+    salePriceRate: preco ? f.salePriceRate : null,
+  }));
 }
 
 /**
@@ -2218,12 +2236,13 @@ export async function listProductsForLedger(
     shelf_life_days: number | null;
     packaging: string;
     packaging_items: string;
+    sale_price_rate: number | null;
     line_id: string | null;
     type_id: string | null;
     flavor_id: string | null;
   }>(
     `SELECT p.id, p.item_id, i.name, p.recipe_id, p.yield_per_unit,
-            p.unit_packaging_rate, p.shelf_life_days, i.packaging,
+            p.unit_packaging_rate, p.shelf_life_days, i.packaging, i.sale_price_rate,
             p.packaging_items, p.line_id, p.type_id, p.flavor_id
        FROM products p
        JOIN items i ON i.id = p.item_id
@@ -2244,6 +2263,7 @@ export async function listProductsForLedger(
     recipeId: r.recipe_id,
     yieldPerUnit: r.yield_per_unit,
     unitPackagingRate: r.unit_packaging_rate as Rate,
+    salePriceRate: r.sale_price_rate === null ? null : (r.sale_price_rate as Rate),
     shelfLifeDays: r.shelf_life_days,
     packaging: parsePackaging(r.packaging),
     lineId: r.line_id,
@@ -4661,6 +4681,38 @@ export async function currentCapabilities(companyId: string): Promise<ReadonlySe
  */
 export async function canSeeMoney(companyId: string): Promise<boolean> {
   return (await currentCapabilities(companyId)).has('view_cost');
+}
+
+/**
+ * O outro portão do dinheiro: por quanto a mercadoria SAI.
+ *
+ * Duas capacidades e não uma, e a diferença é do produto, não do esquema. O
+ * `access.ts` escreve a assimetria nos dois sentidos: o VENDEDOR *"sells at the
+ * customer's price table, and never sees what it cost to make"*, e o COMPRADOR vê os
+ * dois porque *"buying is where money and cost meet"*. Custo é o que a fábrica paga;
+ * preço é o que a loja paga; e há quem precise de um sem o outro.
+ *
+ * (Escrevi este parágrafo ao contrário na primeira versão — "o comprador vê custo e
+ * não vê preço" —, e foi o teste que me corrigiu ao reprovar contra a tabela de
+ * papéis. As ausências desse arquivo se leem com o mesmo cuidado que as presenças, e
+ * é o próprio docblock dele que pede isso.)
+ *
+ * **E este portão vale para o preço de TABELA, não para o combinado.** O combinado é
+ * uma linha por parte, e capacidade não diz quais linhas — por isso ele pede
+ * `manage_company` (ver `salePricesFor`). O de tabela é um número só da empresa:
+ * quem vende precisa saber por quanto, e é exatamente para isso que a capacidade
+ * existe. Separar os dois é o que faz `view_sale_price` deixar de ser uma palavra
+ * no vocabulário e passar a decidir alguma coisa.
+ *
+ * **Privada de propósito, e é o P1 que decide isso.** `canSeeMoney` é exportada
+ * porque seis telas a chamam para decidir o que desenhar; esta não tem tela nenhuma
+ * chamando, porque o portão dela já roda dentro de `listProducts` e o que chega à
+ * tela é nulo. Exportar por simetria seria criar a superfície morta que o portão
+ * existe para recusar — quando uma tela precisar, ela sai daqui junto com o
+ * chamador.
+ */
+async function canSeePrice(companyId: string): Promise<boolean> {
+  return (await currentCapabilities(companyId)).has('view_sale_price');
 }
 
 /**

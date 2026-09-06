@@ -4175,3 +4175,74 @@ test('zero is not a price, and whoever does not run the company does not set one
     /não administra a empresa/,
   );
 });
+
+/**
+ * O preço de TABELA tem portão próprio, e não é o mesmo do custo.
+ *
+ * `view_sale_price` existia no vocabulário desde a fundação, em cinco dos sete
+ * papéis, e não decidia nada em lugar nenhum — nem depois de o preço combinado
+ * entrar, porque aquele pede `manage_company` (é uma linha por parte, e capacidade
+ * não diz quais linhas). O de tabela é um número só da empresa: quem vende precisa
+ * saber por quanto, e é para isso que a capacidade existe.
+ *
+ * As duas metades juntas são o desenho: o comprador vê CUSTO e não vê PREÇO — está
+ * escrito no `access.ts` e não é desconfiança, é que o número não é do trabalho dele.
+ */
+test('the list price answers to view_sale_price, and cost answers to view_cost', async () => {
+  await ensureStarterData(CO);
+  const [produto] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
+  await saveSalePrice(CO, { itemId: produto.itemId, placeId: null, rate: rate(2.5, 1) });
+
+  // O dono vê os dois.
+  let ficha = (await listProducts(CO)).find((p) => p.id === produto.id);
+  assert.ok((ficha?.salePriceRate ?? 0) > 0, 'o dono vê por quanto sai');
+  assert.ok(ficha?.unitPackagingRate !== null, 'e quanto custa a embalagem');
+
+  const perfis = await listProfiles(CO);
+  const vestir = async (papel: string) => {
+    const perfil = perfis.find((p) => p.templateRole === papel);
+    assert.ok(perfil, `${papel} é um dos sete modelos`);
+    const quem = await savePerson(CO, { name: `Quem ${papel}`, profileId: perfil.id });
+    await setCurrentOperator(quem.id);
+  };
+
+  /**
+   * O comprador vê os DOIS, e essa era a minha primeira versão ao contrário.
+   *
+   * Eu tinha escrito que ele vê custo e não vê preço; o teste reprovou contra a
+   * tabela de papéis, que diz o oposto com todas as letras — *"buying is where money
+   * and cost meet, so this role sees both"*. Fica preso aqui porque a asserção que
+   * eu ia escrever teria passado a impressão de uma regra que o produto não tem.
+   */
+  await vestir('buyer');
+  ficha = (await listProducts(CO)).find((p) => p.id === produto.id);
+  assert.ok(ficha?.unitPackagingRate !== null, 'o comprador vê custo');
+  assert.ok((ficha?.salePriceRate ?? 0) > 0, 'e preço também: comprar é onde os dois se encontram');
+
+  /**
+   * O VENDEDOR é a assimetria: preço sim, custo não — *"sells at the customer's price
+   * table, and never sees what it cost to make"*. É ele que prova que são dois
+   * portões e não um com dois nomes.
+   *
+   * `savePerson` exige `manage_company`, e o comprador não tem: volta ao dono para
+   * cadastrar, que é o caminho de uma fábrica de verdade também.
+   */
+  await setCurrentOperator(null);
+  await vestir('salesperson');
+  ficha = (await listProducts(CO)).find((p) => p.id === produto.id);
+  assert.ok((ficha?.salePriceRate ?? 0) > 0, 'o vendedor vê por quanto sai');
+  assert.equal(ficha?.unitPackagingRate, null, 'e não vê o que custa fazer');
+
+  // E o operador, que não vê nenhum dos dois: o número não é do trabalho dele, e a
+  // presença dele convida conversa sobre margem no chão de fábrica.
+  await setCurrentOperator(null);
+  await vestir('operator');
+  ficha = (await listProducts(CO)).find((p) => p.id === produto.id);
+  assert.equal(ficha?.salePriceRate, null, 'quem embala não vê preço');
+  assert.equal(ficha?.unitPackagingRate, null, 'nem custo');
+
+  // E o caminho do livro-razão ignora os dois, como tem de ser: congelar custo e
+  // ver custo são perguntas diferentes.
+  const paraGravar = (await listProductsForLedger(CO)).find((p) => p.id === produto.id);
+  assert.ok(paraGravar && paraGravar.unitPackagingRate > 0, 'o razão continua vendo o número certo');
+});

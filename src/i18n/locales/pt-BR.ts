@@ -1258,6 +1258,7 @@ export const ptBR = {
         'Nenhum produto ainda. Um produto fabricado precisa de uma receita e de quanto vai em cada unidade.',
       resale: 'Revenda — o custo vem da nota de compra.',
       batchYields: 'Cada vez rende {{units}} — {{packed}}',
+      sellsFor: 'vende a {{amount}}',
       addNew: 'Cadastrar novo',
     },
 
@@ -1308,6 +1309,20 @@ export const ptBR = {
       perUnit: 'Quanto vai em cada unidade',
       perUnitHint: 'Cada vez rende {{units}} unidades.',
       packagingCost: 'Palito, embalagem e rótulo',
+      /**
+       * O preço de tabela, em cartão próprio e logo depois do custo por unidade.
+       *
+       * A vizinhança é a Lei 3 aplicada ao cadastro — R$ 0,64 para fazer, R$ 2,50
+       * para sair —, e ela custou uma correção: o campo nasceu dentro de "Palito,
+       * embalagem e rótulo", onde o número ao lado eram os cinco centavos da
+       * embalagem. Comparação que não decide nada, sob um título que não é o
+       * assunto. Quem viu foi a foto.
+       */
+      salePrice: 'Por quanto você vende',
+      /** O título do cartão. É a pergunta que ele responde, não o nome do campo. */
+      sellingTitle: 'Por quanto ele sai',
+      salePriceHint:
+        'Em branco, este produto não é vendido — é o caso de quem só abastece as próprias lojas. Cada loja pode ter um preço combinado, e ele vence este.',
       /** O sufixo do campo. Curto porque mora dentro da caixa, ao lado do número. */
       perUnitShort: '/ un',
       packagingHint: 'Embalagem custa por unidade, não por receita — diluir no lote esconde a margem.',
