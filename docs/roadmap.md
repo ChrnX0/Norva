@@ -851,6 +851,133 @@ o teste acontecer junto, não no fim.
 
 ---
 
+## As seis que o dono aprovou — 6 de setembro
+
+Nasceram de uma pergunta dele: *"eu queria saber o q vc tem de ideias que podemos
+implementar aqui para elevar o nível do app"*. Ele aprovou as seis e destacou duas —
+o extrato (*"essa última sobre a questão fiscal achei excelente, podendo até
+extrapolar um pouco"*) e o modo conversa com áudio, com um argumento que o roadmap
+já tinha sem enxergar a saída.
+
+Estão aqui e não numa fase porque **atravessam as fases**: nenhuma delas é uma tela
+nova, todas são uma propriedade que o produto passa a ter.
+
+---
+
+### 1. O `[por quê?]` em qualquer número
+
+A Lei 6 manda toda conclusão abrir a conta, e hoje **algumas** abrem. A ideia é que
+qualquer número responda a um toque longo com a aritmética que o produziu: os
+movimentos somados, as datas, a conta por extenso.
+
+O que sustenta: o livro-razão append-only guarda tudo, e `src/law.test.ts` já mantém
+a lista de qual comparação cada tela mostra. O que falta é o mecanismo compartilhado
+— hoje cada tela abre a sua conta à mão.
+
+**Por que eleva:** é o que faz um dono parar de conferir por fora no caderno. Não é
+uma funcionalidade, é a diferença entre um sistema que pede confiança e um que a
+prova.
+
+### 2. A conferência cega
+
+Contar sem ver o número esperado, e a diferença virar movimento no razão em vez de
+sobrescrever saldo. A decisão do dono sobre isso já está no `CLAUDE.md` — *"o
+operador confere a prateleira… o que protege é o piso, não a permissão"* — e a
+contagem existe em `app/inputs/[id].tsx`.
+
+**Por que eleva:** é a única da lista que melhora a **qualidade do dado** em vez da
+apresentação dele. Com o esperado na tela, a pessoa digita o esperado. Todas as
+outras cinco dependem de o número estar certo.
+
+### 3. O aviso na data da decisão, para tudo
+
+A Lei 4 manda avisar na data da decisão e não na do problema. Isso ficou pronto para
+**compras** em 6 de setembro (o ponto de recompra em `app/inputs/[id].tsx`, com a
+folga como configuração da empresa). A mesma forma serve para três coisas que o app
+já sabe: o lote que vence (mande para a loja que gira mais rápido — o Espelho da
+Loja sabe qual é), a produção (*"produza até segunda para não faltar"*) e o dinheiro
+parado.
+
+**Por que eleva:** um app que avisa no dia em que dá para agir é outro produto que
+um que avisa no dia do problema.
+
+### 4. O modo conversa — e o áudio, que é o que o dono viu
+
+`memberships.prefers_conversation` existe desde a fundação (`0001_foundation.sql`)
+**sem tela nenhuma**. A ideia é escrever — ou falar — *"chegaram 20 caixas de
+morango"* em vez de navegar por quatro telas.
+
+O dono acrescentou o argumento que decide: *"imagina o padeiro com a mão suja…
+até para quem eh cego"*. E o roadmap já listava a ergonomia da câmara fria como
+risco não resolvido — tela capacitiva a −18°C, luva. **Voz não é atalho ali: é a
+única entrada que funciona com a mão ocupada, suja ou dentro de uma luva.**
+
+Três medidas que mudam o desenho:
+
+- **O vocabulário é fechado e minúsculo.** O app já sabe os insumos, produtos,
+  unidades, lugares e clientes daquela empresa. Reconhecer trinta palavras e números
+  é outro problema que ditado livre — é o que torna modelo pequeno no aparelho
+  viável offline, que é o que o dono quer.
+- **A rede contra alucinação já é regra da casa.** A confirmação diz o que vai
+  acontecer com os números por extenso. Então: voz → interpretação → **o app repete
+  o que entendeu** → confirma. Áudio é palpite; a leitura de volta é o que impede
+  palpite de virar movimento.
+- **As duas metades têm preços muito diferentes.** A voz de SAÍDA é módulo de
+  primeira linha da Expo, offline, sem modelo embarcado — barata, e sozinha já
+  resolve conferir sem olhar. A de ENTRADA precisa do reconhecedor nativo ou de um
+  modelo tipo whisper; nenhum dos dois está no projeto.
+
+E sobre cegueira, medido antes de prometer: **o trabalho é auditoria, não
+construção.** Quem fala é o leitor de tela do sistema, e o app já tem 51 rótulos e
+78 papéis de acessibilidade — com `src/acessivel.test.ts` trancando isso desde 6 de
+setembro. O que ninguém nunca fez foi **ouvir** o app com o TalkBack ligado.
+
+### 5. A etiqueta que vira canal
+
+O QR da caixa hoje abre o lote dentro do app. Se abrisse uma página que a **loja** lê
+sem instalar nada — o que chegou, quando, validade —, a etiqueta deixa de ser
+controle interno e vira o começo do pedido seguinte.
+
+### 6. O extrato — a que o dono destacou, e ela é maior do que "exportar uma lista"
+
+O que o livro-razão append-only torna possível e quase nenhum sistema de fábrica
+pequena consegue: **prova, não relatório**. Todo número aqui é derivado de
+movimentos que ninguém pode editar, cada um com quem gravou, de qual aparelho e
+quando aconteceu no mundo.
+
+- **O extrato é a exportação fiscal antes de existir nota fiscal.** O contador quer
+  estoque no fechamento e custo do que saiu; os dois são derivados do razão. Nada
+  disso depende de SEFAZ, certificado A1 ou do microserviço .NET que está fora do
+  escopo — é a parte fiscal entregável agora.
+- **O fechamento de período**, e é aqui que a fundação paga: congelar um retrato e
+  guardá-lo, para o número que o contador viu em março continuar recuperável em
+  outubro. Como correção aqui é **estorno** e não edição, o histórico continua
+  honesto *e* o fechamento continua estável. Num sistema que deixa editar, essas
+  duas coisas brigam.
+- **O inventário assinado.** A contagem cega, fechada, vira o documento que o fisco
+  pede uma vez por ano e que quase toda fábrica pequena inventa em dezembro.
+- **O extrato do cliente**, que é a mesma peça virada para fora: tudo o que a loja
+  recebeu e devolveu num período. Resolve disputa e é a semente do contas a receber.
+- **E é isto que torna a IA segura.** O dono colocou a exigência quando falou do LLM:
+  um jeito de impedir alucinação. O extrato **é** esse jeito, e vira regra de
+  arquitetura em vez de ajuste de prompt: **a IA não lê o banco, ela lê o extrato.**
+  Um assistente que só responde a partir de fato derivado e que abre a conta junto
+  não consegue inventar saldo — sem os movimentos, ele não tem resposta.
+
+### Duas que eu acrescentei, e o dono mandou falar
+
+**A régua que a fábrica ensina.** A folga de compra é configuração com padrão dois.
+O passo seguinte é o app observar e **propor**: *"nos últimos três meses você sempre
+comprou com quatro dias de sobra — quer mudar de 2 para 4?"*. Estende a F7 num
+sentido novo: a configuração deixa de esperar calibração nossa e aprende com a
+fábrica, sem nunca decidir calada.
+
+**A caixa-preta do aparelho.** Cada escrita já grava aparelho, operador e hora. Uma
+linha do tempo por aparelho permite diagnosticar remoto sem perguntar nada a quem
+está de luva na câmara — e é quase de graça, porque o dado já está lá.
+
+---
+
 ## F4 — a fábrica que se explica sozinha
 
 **Trava por CALIBRAÇÃO, não por construção — corrigido em 6 de setembro.**
