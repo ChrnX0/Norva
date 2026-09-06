@@ -70,6 +70,7 @@ import {
   recentCostChanges,
   recordCount,
   lastCostMove,
+  dailyOutflowOf,
   recordPurchase,
   saveItem,
   saveProduct,
@@ -4475,4 +4476,65 @@ test('the first price of an item is not a change, and the second one is', async 
   // Lista vazia não é "nunca mudou": é pergunta sem sujeito, e a resposta é a mesma
   // sem ir ao banco.
   assert.equal(await lastCostMove(CO, []), null);
+});
+
+/**
+ * O consumo diário — a metade que faltava para o ponto de recompra existir.
+ *
+ * `dailyOutflowOf` nasceu ao lado de `runningOut` e não dentro dela, e a
+ * diferença é toda a razão de este teste existir: aquela lista **quem está
+ * acabando** e por isso DESCARTA quem tem folga. Se a ficha do insumo usasse a
+ * primeira, o insumo tranquilo voltaria sem consumo — e é justamente o ponto de
+ * recompra DELE que decide se hoje é o dia de comprar. A Lei 4 desta casa manda
+ * avisar na data da decisão, e a data da decisão de um item folgado é a única que
+ * dá tempo de agir.
+ */
+test('daily outflow answers for the calm item too, not only the one running out', async () => {
+  const acucar = await anInput('Açúcar de teste', 25_000);
+
+  await recordPurchase(CO, {
+    itemId: acucar,
+    purchaseQuantity: 4,
+    baseUnits: 100_000,
+    totalCents: fromDecimal(400),
+    occurredAt: '2026-09-01T09:00:00.000Z',
+  });
+
+  // Saíram sete mil ao longo da janela: mil por dia em sete dias.
+  await recordCount(CO, {
+    locationId: defaultLocationId(CO),
+    itemId: acucar,
+    countedBaseUnits: 93_000,
+    occurredAt: '2026-09-04T09:00:00.000Z',
+  });
+
+  const porDia = await dailyOutflowOf(
+    CO,
+    acucar,
+    '2026-09-01T00:00:00.000Z',
+    '2026-09-08T00:00:00.000Z',
+    7,
+  );
+  assert.equal(porDia, 1_000, 'sete mil na janela de sete dias é mil por dia');
+
+  /**
+   * E zero é resposta LEGÍTIMA, não "não sei".
+   *
+   * Insumo que ninguém consumiu na janela sai zero por dia, e é isso que faz a
+   * cobertura dele ser infinita em vez de desconhecida. A diferença decide a
+   * tela: desconhecida se cala, infinita diz "não precisa comprar ainda".
+   */
+  const parado = await anInput('Insumo parado', 1_000);
+  await recordPurchase(CO, {
+    itemId: parado,
+    purchaseQuantity: 1,
+    baseUnits: 1_000,
+    totalCents: fromDecimal(10),
+    occurredAt: '2026-09-01T09:00:00.000Z',
+  });
+  assert.equal(
+    await dailyOutflowOf(CO, parado, '2026-09-01T00:00:00.000Z', '2026-09-08T00:00:00.000Z', 7),
+    0,
+    'sem saída na janela, o consumo é zero e não nulo',
+  );
 });
