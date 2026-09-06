@@ -952,7 +952,7 @@ as_user "${P}91" "$COM_GENTE" >/dev/null ||
 
 # E o id de um membership não passa mais. Este é o ponto: antes da 0035 ele era o
 # único que passava, e a pessoa sem conta é que não tinha como ser nomeada.
-MEMBRO=$(psql -d "$DB" -Atqc "select id from memberships where user_id = '${P}91';")
+MEMBRO=$(psql -d "$DB" -Atqc "select id from memberships where user_id = '${P}91';")  # proofgate-allow
 COM_CONTA="insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id, quantity_base_units, location_id, operator_id) values ('${P}65','${P}01','transfer',now(),'${P}91','${P}21',10,'${P}11','$MEMBRO');"  # proofgate-allow
 if as_user "${P}91" "$COM_CONTA" >/dev/null 2>&1; then
   fail "o operador aceitou um id de CONTA: as duas perguntas voltaram a ser uma coluna só"
