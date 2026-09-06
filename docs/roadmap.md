@@ -426,6 +426,33 @@ registro nenhum.
 
 ---
 
+## O pacote sai com o dobro do tamanho — medido em 6 de setembro
+
+Compilando o APK aqui (a CI não pode: cota), o arquivo saiu com **48 MB**. Abrindo:
+
+| dentro do APK | tamanho |
+|---|---|
+| `classes.dex` … `classes5.dex` (cinco arquivos) | **~50 MB descompactados** |
+| `lib/arm64-v8a/libreactnative.so` | 7 MB |
+| `assets/index.android.bundle` (o JavaScript) | 4 MB |
+
+O bytecode Java/Kotlin domina, e o motivo é uma linha:
+`android/app/build.gradle:69` lê `android.enableMinifyInReleaseBuilds` com **`false`** como
+padrão, e nada no projeto define a propriedade. Ou seja: **todo APK que este projeto já
+publicou saiu sem minificação.** Ligar o R8 costuma cortar metade disso.
+
+**Por que não liguei junto:** minificação quebra em tempo de execução, não de compilação —
+reflexão, nomes de classe que uma biblioteca resolve por string, `keep` que falta. O jeito
+de saber é abrir no aparelho, e eu não tenho aparelho aqui. Ligar às cegas e mandar o APK
+seria entregar configuração de release não testada, que é o oposto do que esta casa faz.
+
+**O que isso muda quando for feito:** o dono da fábrica baixa o app numa conexão de
+interior, e 48 MB contra ~25 MB é a diferença entre baixar e desistir. É item de véspera de
+loja, não de hoje — mas o número fica escrito para não ser redescoberto na semana do
+lançamento.
+
+---
+
 ## F3 — o mês que tira o papel do chão de fábrica
 
 O alvo decidido pelo dono. No fim disto, a fábrica para de usar papel para
