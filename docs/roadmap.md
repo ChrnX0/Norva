@@ -383,13 +383,36 @@ está na porta e a carga tem que sair mesmo assim. O que falta é a tela de tran
 dizer, na hora, quanto daquilo tem dono e de quem: `livre = onHand − requested`, com
 o aviso nomeando quem espera quando a quantidade digitada passa disso.
 
-**4. Separação.** `pickingFor` já responde a conta **e já tem chamador** —
-`app/transfer.tsx:172` a usa para ordenar o que vai na carga. O que falta é a tela de
-quem **anda com o carrinho**: a lista de conferir item a item, que é onde o
-`UnitStepper` do item 8 entra.
+**4. Separação — o que falta NÃO é a tela, é uma pergunta sem resposta.** Conferido
+em 6 de setembro, ao ir construí-la.
+
+Está tudo pronto para desenhar: `pickingFor` (`src/data/repository.ts:3238`) responde a
+conta e já tem chamador (`app/transfer.tsx:172`); `Item.packaging` traz a hierarquia
+engradado→caixa→unidade que o `UnitStepper` pede; o dicionário do stepper existe nos
+três idiomas.
+
+**O que ninguém respondeu é o que a separação GRAVA.** O docblock do `pickingFor` já
+decidiu metade: *"A lista NÃO reserva nada e não escreve no livro-razão… A carga
+continua sendo o único evento que move estoque."* Está certo — separar é montar um
+carrinho DENTRO da fábrica, e nada saiu. Só que uma tela de conferir item a item sem
+nada gravado é uma lista que zera quando o celular bloqueia, no meio da câmara fria,
+com a pessoa de luva. Pior que não existir.
+
+E a pergunta é a mesma do item 5: **"separado" é o primeiro dos quatro postos.** As
+duas entram juntas ou nenhuma entra direito.
+
+**A forma mais barata, para quem for decidir:** o carrinho é físico e local, então o
+estado dele pode ser do APARELHO — `app_meta`, como a ordem da capa —, e não do
+livro-razão. Nada sobe, nada trava fila, e a conferência sobrevive à tela apagando.
+O posto `picked` só vira movimento quando a carga sai, junto com a transferência que
+já existe. Isso não é decisão minha: é P3 quando toca `movements`, e é do dono quando
+decide o que a fábrica promete.
 
 **5. Os quatro postos de controle.** Separado, carregado, entregue, conferido. A
-seção `posts` do dicionário existe nos três idiomas — fronteira registrada.
+seção `posts` do dicionário existe nos três idiomas — fronteira registrada. **Depende da
+mesma resposta do item 4:** `separado` é o primeiro dos quatro, e hoje nada grava esse
+posto. Enquanto não se decidir o que a separação grava, os quatro postos são quatro
+palavras traduzidas.
 
 **6. App do entregador.** O papel `driver` existe com `dispatch`, `check_receipt` e
 `record_loss`. Falta a tela dele.

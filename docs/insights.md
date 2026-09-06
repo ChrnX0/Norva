@@ -4444,3 +4444,46 @@ O que falta é a tela dizer, na hora, quanto daquilo tem dono e de quem.
 poderia ser violada** — e vá olhar essa. Regra que mora num lugar só protege esse lugar,
 e a lista de tarefas não distingue "não construído" de "construído pela metade", porque
 quem escreve a lista olhou a metade que existe.
+
+---
+
+## 2026-09-06 — o que faltava na separação não era a tela: era saber o que ela grava
+
+**O que se viu.** Fui construir a tela de conferir item a item da separação — a última que
+o roadmap descrevia como "só falta a tela" — e todas as peças estavam mesmo prontas:
+`pickingFor` responde a conta e já tem chamador, `Item.packaging` traz a hierarquia que o
+`UnitStepper` pede, o dicionário do stepper existe nos três idiomas. Faltava desenhar, e
+nada mais.
+
+Só que o próprio `pickingFor` já tinha respondido a pergunta que eu ia fazer, no docblock
+dele: *"A lista NÃO reserva nada e não escreve no livro-razão… A carga continua sendo o
+único evento que move estoque."* Está certo — separar é montar um carrinho **dentro** da
+fábrica, e nada saiu de lugar nenhum.
+
+E é aí que a tela morre. Uma conferência item a item que não grava nada é uma lista que
+**zera quando o celular bloqueia**, na câmara fria, com a pessoa de luva no meio das
+caixas. Isso não é uma tela pela metade: é pior que não ter tela, porque ela promete
+guardar a contagem e não guarda.
+
+**Por que importa.** O portão P1 pergunta quem chama, e o P3 pergunta se conserta com um
+commit — mas nenhum dos dois pega este caso, porque o problema não é chamador nem esquema:
+é que **a tela existe entre dois estados e nenhum é dela**. Antes dela o pedido é demanda;
+depois dela a carga é movimento. O carrinho no meio não tem casa, e escolher a casa é
+decisão de dono (o que a fábrica promete quando diz "separado"), não de quem desenha.
+
+O que engana é que a pergunta não aparece na lista de peças. Toda peça estava pronta, e a
+lista de peças prontas parecia uma lista de tela pronta. **Item de roadmap descreve o que
+falta construir, e é cego para o que falta decidir** — e as duas coisas somem no mesmo
+"falta a tela".
+
+**O que mudou.** O item 4 do roadmap passou a dizer o que realmente bloqueia, com a frase
+do `pickingFor` citada, e a nomear que é a mesma pergunta do item 5: *"separado"* é o
+primeiro dos quatro postos de controle, então as duas entram juntas ou nenhuma entra
+direito. Ficou registrada também a forma mais barata, para quem decidir não começar do
+zero: o carrinho é físico e local, então o estado dele pode morar no **aparelho**
+(`app_meta`, como a ordem da capa) e não no livro-razão — nada sobe, nada trava fila, e a
+conferência sobrevive à tela apagando.
+
+**A regra que fica:** antes de desenhar uma tela, pergunte **o que ela grava**. Se a
+resposta for "nada", ela é leitura — e leitura não pede conferência. Se a resposta for
+"não sei", o que falta não é desenho.
