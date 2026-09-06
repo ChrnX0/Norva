@@ -927,6 +927,37 @@ Três medidas que mudam o desenho:
   resolve conferir sem olhar. A de ENTRADA precisa do reconhecedor nativo ou de um
   modelo tipo whisper; nenhum dos dois está no projeto.
 
+**E as três coisas que o dono acrescentou em 6 de setembro, que mudam o desenho:**
+
+- **A confirmação é REDUNDANTE entre sentidos, e o motivo é a fábrica.** Ele pediu
+  *"uma piscada… cor de confirmação e cor de erro… ou até um aviso sonoro"*. Cada
+  canal falha num ambiente diferente: o galpão barulhento mata o som, a luva mata a
+  precisão do toque, e quem está com a mão na massa não olha a tela. Então a
+  confirmação não escolhe um canal — acende **cor, vibração e voz ao mesmo tempo**, e
+  quem estiver disponível entrega a mensagem. É a forma da F7 aplicada a feedback:
+  não se escolhe pelo usuário, os caminhos coexistem.
+
+  E a vibração **já está paga**: `expo-haptics` está no `package.json`. Padrão
+  diferente para "gravei" e para "não entendi" sai hoje, sem dependência nova, e é o
+  canal que funciona de luva grossa e no escuro.
+
+- **Microfone Bluetooth, e não só a tecla de volume.** Ideia dele, e ela é melhor do
+  que conforto: a −18°C a bateria despenca, então com fone **o telefone fica no bolso
+  quente ou no carregador** e a pessoa usa só o microfone. O botão do fone é tecla de
+  mídia — o mesmo mecanismo de captura da tecla de volume, uma implementação para as
+  duas. *A ressalva honesta:* capturar a tecla de volume vale com o app em primeiro
+  plano, que é o caso real; com a tela apagada o Android restringe, e aí quem resolve
+  é o fone.
+
+- **Não reconheceu: pergunta de novo, com sugestão.** Aqui o vocabulário fechado paga
+  outra vez. Genérico seria "não entendi"; com a lista da empresa na mão é *"não achei
+  'morango' — você quis dizer Polpa de morango ou Picolé de morango?"*. É a Lei 5
+  aplicada à voz: **erro se impede, não se reclama.**
+
+- **E voz nunca é o único caminho** — confirmado por ele: *"com ctz"*. Galpão
+  barulhento, pessoa muda, modelo que erra. A entrada por toque continua existindo
+  para tudo; voz é outra porta da frente, não a substituição da que existe.
+
 E sobre cegueira, medido antes de prometer: **o trabalho é auditoria, não
 construção.** Quem fala é o leitor de tela do sistema, e o app já tem 51 rótulos e
 78 papéis de acessibilidade — com `src/acessivel.test.ts` trancando isso desde 6 de
