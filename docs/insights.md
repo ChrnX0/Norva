@@ -5292,3 +5292,50 @@ com `nulls not distinct`, e `saveProduct` levanta `GridTakenError`. Meu `grep` p
 palavra na linha errada de uma declaração de várias linhas. O defeito era o `grep`, e a
 regra da casa — *contradição achada é suspeita de leitura errada até virar prova* — pagou
 sozinha uma segunda vez no mesmo dia.
+
+---
+
+## O empacotamento guloso não era melhor que alternar, e eu já tinha escrito que era
+
+*6 de setembro.* O último resto do layout do tablet era o pé desigual das duas colunas —
+estava no `docs/roadmap.md` como limitação conhecida: *"empacotar sem medir altura só é
+justo por cima"*. Medir resolve, e a regra óbvia é gulosa: cada peça vai para a coluna mais
+baixa no momento em que chega, na ordem da leitura.
+
+Escrevi isso no docblock com a frase *"melhor que alternar em todo caso"* — e escrevi
+**antes** de rodar. O teste sorteou cem listas de alturas e uma caiu: `290, 229, 119, 384,
+236`. Guloso fecha com 90 de desnível; alternar, que não olha nada, fecha com 32. O motivo
+é que guloso decide olhando só o presente — quando o 384 chega, a escolha que o acomodaria
+já passou.
+
+**O que mudou.** `distribuir` calcula as duas e fica com o pé menor (`src/components/
+colunas.ts`), e um teste fixa esse caso pelo número para a próxima leitura não "simplificar"
+de volta para a estratégia que perde nele. Na gaveta do "Mais" o desnível caiu de uns 800 dp
+para uns 20; em "Relatórios" nada mudou, e a foto explica por quê — com três cartões,
+`[0,1,0]` já é o melhor corte que duas colunas permitem.
+
+**O que fica de método, e é o mesmo defeito de mais cedo hoje, noutra roupa.** De manhã eu
+tinha escrito um comentário justificando o lugar de um campo com a Lei 3, e a foto mostrou
+que o número vizinho não era o que eu dizia. Agora escrevi um docblock afirmando uma
+propriedade da regra, e o sorteio mostrou que a propriedade é falsa. **Nos dois casos o
+texto estava certo sobre o princípio e errado sobre o fato**, e nos dois o que corrigiu não
+foi releitura: foi um instrumento que não lê — a foto e o sorteio.
+
+Daí a regra prática: *frase que afirma uma propriedade do código ("sempre", "nunca", "em
+todo caso") é uma asserção sem teste até alguém escrever o teste.* Ou se mede, ou se escreve
+mais fraco.
+
+**E um terceiro instrumento estava cego, o que explica por que só a foto pegava.** As 47
+checagens do navegador rodam todas a **412 dp**, e `pares` só liga a partir de 840 — ou seja,
+o caminho de duas colunas, que é metade do trabalho de layout desta semana, não tinha um
+único exercício automático. Quem provava era a foto, e foto ninguém roda no CI. Entrou a
+48ª, que abre `/more` a 900 dp e mede a coluna de cada grupo; com `alternando` no lugar de
+`distribuir` ela falha dizendo o número — *"Ajustes x=16 contra 456 e 16"*, que é "Ajustes
+está na coluna de Cadastros". **Suíte que roda numa largura só é cega para metade dos
+defeitos de tela**, e isso já estava escrito no `shot.mjs` sobre a ferramenta de foto — a
+suíte tinha o mesmo buraco e ninguém tinha olhado.
+
+**E uma escolha que quase virou laço.** Medir para decidir onde a peça vai só é seguro
+porque a largura de uma peça **não** muda com a coluna que a recebe — as duas são `flex: 1`
+da mesma linha. Sem essa propriedade, trocar de coluna mudaria a altura, que mudaria a
+distribuição, que mudaria a coluna. Está dito no `Grupo`, onde quem for mexer passa.

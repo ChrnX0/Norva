@@ -42,9 +42,9 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **391** testes |
+| `npm test` | **396** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
-| `npm run e2e:fast` | **47** checagens num navegador de verdade |
+| `npm run e2e:fast` | **48** checagens num navegador de verdade |
 | `npm run db:verify` | **17** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
@@ -240,9 +240,20 @@ aqui estava errado:**
    duas pilhas em vez de uma grade com linhas, um filho marcado `Inteiro` sai na
    largura toda, e as abas se juntam na mesma medida do conteúdo. Abaixo de 840 dp
    nada muda, com guarda.
-   **O que fica de pé, dito por extenso:** o pé das duas colunas é desigual, porque
-   empacotar sem medir altura só é justo por cima. E a prova final é o APK no tablet
-   dele — o que é "padrão" de tablet se decide com o aparelho na mão.
+   ~~**O que fica de pé:** o pé das duas colunas é desigual~~ — **FECHADO em 6 de
+   setembro.** As peças passaram a ser medidas (`onLayout`) e a distribuição é
+   escolhida por `src/components/colunas.ts`. Na gaveta do "Mais" o desnível caiu de
+   uns 800 dp para uns 20: alternar punha "Cadastros" (cinco portas) e "Ajustes" do
+   mesmo lado; medindo, "Lançamentos" e "Ajustes" se acomodam juntos à direita. Em
+   "Relatórios" nada muda, e a foto explica: com três cartões, `[0,1,0]` já é o melhor
+   corte que duas colunas permitem.
+   **E o guloso sozinho não era melhor que alternar** — o teste desmentiu o docblock
+   que eu tinha escrito: com as alturas `290,229,119,384,236` ele fecha com 90 e
+   alternar fecha com 32, porque decide olhando só o presente. Por isso `distribuir`
+   calcula as duas e fica com o pé menor: é o que faz "nunca pior que antes" ser
+   verdade em vez de plausível.
+   A prova final continua sendo o APK no tablet dele — o que é "padrão" de tablet se
+   decide com o aparelho na mão.
 2. **O cartão com desenho e sem título** deixa o glifo sozinho numa linha, em três
    telas (etiqueta do lote, clima, catálogo). No Papel lê como dingbat de seção e
    funciona; no Orgânico é um crachá flutuando. Decisão de desenho, não defeito.
@@ -269,7 +280,7 @@ abaixo respeita duas decisões escritas dele — *"termina o layout, nada pela m
 
 | | o quê | por que nesta posição |
 |---|---|---|
-| **1** | **Refluir em colunas no tablet** | fecha o layout, que é a prioridade declarada, e agora tem quem teste: o dono tem tablet e vai rodar o APK. É a única coisa entre "o layout está pronto" e "o layout está pronto e visto". |
+| **1** | ~~**Refluir em colunas no tablet**~~ **— o código fechou em 6 de setembro** | as peças pareiam, o `Inteiro` interrompe, as abas se juntam e **o pé das colunas ficou nivelado** (medido, `src/components/colunas.ts`). O que resta não é código: é o APK no tablet dele, que é o que decide o que "padrão de tablet" quer dizer. |
 | **2** | **TRAVADO — decisão de faseamento, e ela é do dono.** A camada 1 do login **não** é independente do servidor | Medido em 6 de setembro antes da primeira linha de código, e **contra o que o próprio estudo tinha dito de manhã**: `movements.operator_id` referencia `memberships(id)` (`supabase/migrations/0014_who_was_holding_it.sql:21`), e `memberships.user_id` é `not null references auth.users` (`0001_foundation.sql:60`). O aparelho não pode criar `auth.users`, logo não pode inventar o id de um operador — e o id inventado **viaja** (`src/sync/serialize.ts:351`) e trava a fila por chave estrangeira no dia em que a sincronia subir, que é o defeito crítico que esta branch já consertou uma vez. As três saídas estão no fim de `docs/estudo-conta.md`; eu faria a (c) e depois a (a). |
 | **2b** | **A conta da empresa — a camada 2** | cliente Supabase, sessão, cadastro do dono, convite por código. Ela deixou de ser "depois": sem lista de gente não há quem operou, e é esse o motivo novo que a decisão de *"o servidor sobe o mais tarde possível"* não tinha quando foi tomada. |
 | **2c** | **O que não esbarra nisso** | ~~o motivo da devolução~~ **FEITO em 6 de setembro** (`return_reason`, aparelho `V19` e servidor `0034`, com a catorzena garantia do `db:verify` cobrando as duas metades da regra). ~~A **tela de conferir item a item**~~ fechou com a separação (`app/picking.tsx`, engradado a engradado, com a lista guardada por loja). ~~E o **preço combinado**~~ entrou em 6 de setembro (`0037` / `V22`), com histórico append-only ao lado — e o que ele destravou não é um campo: é a descoberta de que o aplicativo não tinha a quem vender. **O 2c está vazio.** |

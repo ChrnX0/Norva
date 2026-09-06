@@ -1,5 +1,5 @@
 import { BottomTabBarHeightContext } from 'expo-router/js-tabs';
-import { Children, isValidElement, useContext, type ReactNode } from 'react';
+import { Children, isValidElement, useCallback, useContext, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Reveal } from '@/components/Reveal';
+import { alternando, distribuir } from './colunas';
 import { Mark } from './Mark';
 import { MEDIDA_DA_PAGINA, MEDIDA_EM_PARES, PARES_A_PARTIR_DE } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -206,37 +207,29 @@ export function CollapsingHeader({
  * do tamanho da diferença. Na gaveta do "Mais" isso era um buraco de três portas
  * debaixo de "Pergunte", e o dono viu antes de mim.
  *
- * Aqui os filhos são distribuídos em duas pilhas, alternando — o primeiro vai
- * para a esquerda, o segundo para a direita, o terceiro para a esquerda —, e
- * cada pilha empacota os seus sem olhar para a outra. O único desnível que
- * sobra é o do pé das duas colunas, que é como uma página de revista termina.
+ * A segunda alternava — primeiro à esquerda, segundo à direita — e resolvia o
+ * buraco do MEIO deixando o do PÉ: alternar não olha altura, então dois cartões
+ * altos caem do mesmo lado e a página termina desigual. Estava escrito como
+ * limitação conhecida, e é o último resto do layout do tablet.
  *
+ * Agora as peças são medidas e a distribuição escolhida por `distribuir`
+ * (`colunas.ts`, com o teste que corrigiu o que eu tinha afirmado sobre ela).
  * Um filho marcado com `Inteiro` interrompe as pilhas: ele sai na largura toda,
  * e a grade recomeça depois dele. O índice do `Reveal` continua sendo a ordem
  * em que a pessoa lê, para o escalonamento da entrada não pular.
  */
 function emColunas(filhos: ReactNode[], vao: number): ReactNode[] {
   const saida: ReactNode[] = [];
-  let esquerda: ReactNode[] = [];
-  let direita: ReactNode[] = [];
-  let lado = 0;
+  let grupo: { no: ReactNode; i: number }[] = [];
 
   const fechar = (chave: string) => {
-    if (esquerda.length === 0 && direita.length === 0) return;
-    saida.push(
-      <View key={chave} style={{ flexDirection: 'row', gap: vao, alignItems: 'flex-start' }}>
-        <View style={{ flex: 1, gap: vao }}>{esquerda}</View>
-        <View style={{ flex: 1, gap: vao }}>{direita}</View>
-      </View>,
-    );
-    esquerda = [];
-    direita = [];
-    lado = 0;
+    if (grupo.length === 0) return;
+    saida.push(<Grupo key={chave} pecas={grupo} vao={vao} />);
+    grupo = [];
   };
 
   filhos.forEach((filho, i) => {
-    const inteiro = isValidElement(filho) && filho.type === Inteiro;
-    if (inteiro) {
+    if (isValidElement(filho) && filho.type === Inteiro) {
       fechar(`pares-${i}`);
       saida.push(
         <Reveal key={i} index={i}>
@@ -245,17 +238,61 @@ function emColunas(filhos: ReactNode[], vao: number): ReactNode[] {
       );
       return;
     }
-    const peca = (
-      <Reveal key={i} index={i}>
-        {filho}
-      </Reveal>
-    );
-    if (lado === 0) esquerda.push(peca);
-    else direita.push(peca);
-    lado = 1 - lado;
+    grupo.push({ no: filho, i });
   });
   fechar('pares-fim');
   return saida;
+}
+
+/**
+ * Um trecho de duas colunas, com as peças medidas.
+ *
+ * **Por que medir é seguro aqui, e seria um laço em quase todo outro lugar.** A
+ * largura de uma peça não muda com a coluna que a recebe — as duas são `flex: 1`
+ * da mesma linha —, então a altura medida continua valendo depois de a peça
+ * trocar de lado. Sem essa propriedade, mudar de coluna mudaria a altura, que
+ * mudaria a distribuição, que mudaria a coluna: o laço clássico de quem mede
+ * para decidir o que a medida depende.
+ *
+ * **A primeira pintura é a de antes.** Enquanto falta medida, distribui-se
+ * alternando — que é exatamente o que a tela fazia — e a troca acontece no
+ * quadro seguinte, dentro da janela em que o `Reveal` ainda está abrindo os
+ * cartões. Quem desligou movimento no sistema vê um reposicionamento de um
+ * quadro; é o preço, e ele é menor que a página terminar torta em todo tablet.
+ */
+function Grupo({ pecas, vao }: { pecas: { no: ReactNode; i: number }[]; vao: number }) {
+  const [alturas, setAlturas] = useState<Record<number, number>>({});
+
+  // Só grava quando muda de verdade: `onLayout` dispara em toda rolagem que
+  // remonta a linha, e `setState` com o mesmo número em cada disparo é um
+  // re-render por quadro que não muda nada na tela e some no perfil.
+  const medir = useCallback((chave: number, altura: number) => {
+    setAlturas((antes) =>
+      Math.abs((antes[chave] ?? -1) - altura) < 1 ? antes : { ...antes, [chave]: altura },
+    );
+  }, []);
+
+  const medidas = pecas.map((p) => alturas[p.i]);
+  const todas = medidas.every((h) => typeof h === 'number' && h > 0);
+  const lados = todas
+    ? distribuir(medidas as number[])
+    : alternando(pecas.map(() => 0));
+
+  const colunas: ReactNode[][] = [[], []];
+  pecas.forEach((peca, k) => {
+    colunas[lados[k] ?? 0].push(
+      <View key={peca.i} onLayout={(e) => medir(peca.i, e.nativeEvent.layout.height)}>
+        <Reveal index={peca.i}>{peca.no}</Reveal>
+      </View>,
+    );
+  });
+
+  return (
+    <View style={{ flexDirection: 'row', gap: vao, alignItems: 'flex-start' }}>
+      <View style={{ flex: 1, gap: vao }}>{colunas[0]}</View>
+      <View style={{ flex: 1, gap: vao }}>{colunas[1]}</View>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

@@ -2671,6 +2671,40 @@ check('an agreed price is typed on the store card and comes back', async (page) 
   );
 });
 
+check('at tablet width the two columns end level, not ragged', async (page) => {
+  /**
+   * A única checagem da suíte que abre a tela numa largura de tablet.
+   *
+   * Todas as outras rodam a 412 dp, onde `pares` nem liga — então o caminho de duas
+   * colunas, que é metade do trabalho de layout desta semana, não tinha um único
+   * exercício automático. O que provava era a foto, e foto ninguém roda no CI.
+   *
+   * Ela mede o que o olho mediu: com alternar, "Ajustes" cai debaixo de "Cadastros"
+   * (que tem cinco portas) e o pé fica desigual por umas oitocentas unidades; medindo,
+   * "Ajustes" se acomoda ao lado de "Lançamentos" e as duas colunas terminam juntas.
+   */
+  await page.setViewportSize({ width: 900, height: 1200 });
+  await page.goto(`http://localhost:${PORT}/more`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const caixa = async (texto) =>
+    await page.getByText(texto, { exact: true }).first().boundingBox();
+  const cadastros = await caixa('Cadastros');
+  const lancamentos = await caixa('Lançamentos');
+  const ajustes = await caixa('Ajustes');
+  assert.ok(cadastros && lancamentos && ajustes, 'os três grupos têm que estar na tela');
+  assert.ok(
+    Math.abs(lancamentos.x - cadastros.x) > 100,
+    'a 900 dp a gaveta tem que ter DUAS colunas — sem isso o resto não mede nada',
+  );
+  assert.ok(
+    Math.abs(ajustes.x - lancamentos.x) < 1,
+    `"Ajustes" tem que acompanhar "Lançamentos": alternar o poria debaixo de "Cadastros" (x=${ajustes.x} contra ${lancamentos.x} e ${cadastros.x})`,
+  );
+
+  await page.setViewportSize({ width: 412, height: 915 });
+});
+
 check('a product is registered with what it sells for, and the list says so', async (page) => {
   /**
    * O portão P1 desta peça, exercitado por onde ele reprovou.
