@@ -87,6 +87,7 @@ const TODAS = [
  */
 const CONHECIDAS = new Set([
   '--tudo', '--com-dado', '--escuro', '--claro', '--rota', '--largura',
+  '--como-operador',
 ]);
 const desconhecidas = process.argv
   .slice(2)
@@ -103,6 +104,27 @@ const rotas = tudo
   ? TODAS
   : arg('--rota', '/').split(',').map((r) => r.trim()).filter(Boolean);
 const comDado = tem('--com-dado') || tudo;
+/**
+ * Fotografar como quem NÃO vê dinheiro — o estado que nenhuma foto já mostrou.
+ *
+ * O portão do dinheiro entrou em 6 de setembro e mudou treze telas, e ele está
+ * dormente no padrão: sem ninguém escolhido, o aparelho é do dono e as fotos saem
+ * iguais às de sempre. Ou seja, a metade nova do aplicativo era exatamente a metade
+ * que esta ferramenta não alcançava — e a regra da casa é que verde não prova tela.
+ *
+ * A bandeira dirige o aplicativo pelo caminho de uma fábrica de verdade: cadastra
+ * a Ana com o perfil de produção, liga "Compartilhado" e "Nomear quem gravou", e
+ * toca no nome dela na grade. Nada é forjado por baixo — se o caminho não existir na
+ * tela, a foto não sai, que é o que se quer saber.
+ *
+ * Exige `--com-dado`: sem número na fábrica não há como ver número escondido, e uma
+ * foto de tela vazia diria que o portão funciona quando não prova nada.
+ */
+const comoOperador = tem('--como-operador');
+if (comoOperador && !comDado) {
+  console.error('✗ --como-operador pede --com-dado: sem número não há como ver número escondido.');
+  process.exit(1);
+}
 /**
  * O tema escuro, que é onde o dono abriu o aplicativo.
  *
@@ -334,6 +356,56 @@ try {
       await page.waitForTimeout(1500);
     }
 
+    if (comoOperador) {
+      /**
+       * A ORDEM aqui não é estética: cadastrar vem antes de ligar as chaves.
+       *
+       * `savePerson` exige `manage_company`, e quem tem é o dono — que é quem está
+       * com o aparelho enquanto ninguém foi escolhido. Ligar as chaves primeiro
+       * derrubaria o próprio cadastro, e a ferramenta reportaria "não achei o botão"
+       * onde a verdade é "o portão recusou". É também a ordem de uma fábrica de
+       * verdade: cadastra-se a equipe antes de pendurar o celular na câmara.
+       */
+      await page.goto(`http://localhost:${PORT}/people`, { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1500);
+      await page.getByText('Cadastrar uma pessoa', { exact: true }).first().click();
+      await page.waitForTimeout(600);
+      await page.getByRole('textbox', { name: 'Como se chama' }).fill('Ana');
+      await page.waitForTimeout(300);
+      await page.getByText('Operador', { exact: true }).first().click();
+      await page.waitForTimeout(400);
+      await page.getByText('Salvar pessoa', { exact: true }).first().click();
+      await page.waitForTimeout(1500);
+
+      /**
+       * As duas chaves, e a ORDEM entre elas é da tela, não minha.
+       *
+       * "Como se entra no chão de fábrica" só é desenhada quando a empresa nomeia —
+       * o comentário de `app/settings.tsx` diz por quê: *"sem nomear ninguém,
+       * escolher entre 'um por pessoa' e 'compartilhado' é escolher entre dois
+       * nadas"*. Eu tinha escrito na ordem inversa e a ferramenta esperou trinta
+       * segundos por um cartão que não existia — a tela estava certa e o roteiro,
+       * errado.
+       *
+       * E o alvo é o PAPEL que a tela declara (`accessibilityRole="switch"` com
+       * `accessibilityLabel`), não o texto do selo: o selo diz o estado ATUAL, então
+       * procurar por "Compartilhado" é procurar pelo depois para poder clicar no
+       * antes.
+       */
+      await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1500);
+      await page.getByRole('switch', { name: 'Nomear quem gravou' }).click();
+      await page.waitForTimeout(1200);
+      await page.getByRole('switch', { name: 'Como se entra no chão de fábrica' }).click();
+      await page.waitForTimeout(1200);
+
+      // E a grade, que é o ato que o chão de fábrica faz toda manhã.
+      await page.goto(`http://localhost:${PORT}/who`, { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1500);
+      await page.getByText('Ana', { exact: true }).first().click();
+      await page.waitForTimeout(1500);
+    }
+
     // A cara e a LUZ, as duas escolhidas dentro do aplicativo — SEMPRE as duas,
     // nunca uma delas por omissão.
     //
@@ -397,7 +469,7 @@ try {
       // A largura entra no nome quando não é a padrão: sem isso a foto estreita
       // sobrescreve a larga, e a comparação entre as duas — que é o motivo de a
       // largura existir — deixa de ser possível.
-      const nome = `${rota.replace(/\W+/g, '') || 'capa'}-${cara}-${esquema === 'dark' ? 'escuro' : 'claro'}${comDado ? '-com-dado' : '-virgem'}${largura === 412 ? '' : `-${largura}`}.png`;
+      const nome = `${rota.replace(/\W+/g, '') || 'capa'}-${cara}-${esquema === 'dark' ? 'escuro' : 'claro'}${comDado ? '-com-dado' : '-virgem'}${comoOperador ? '-operador' : ''}${largura === 412 ? '' : `-${largura}`}.png`;
       const imagem = await page.screenshot({ path: join(SAIDA, nome), fullPage: true });
       tiradas.push({ nome, rota, cara, esquema, soma: createHash('sha1').update(imagem).digest('hex') });
       console.log(`  ${nome}`);

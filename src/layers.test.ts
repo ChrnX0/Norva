@@ -725,3 +725,54 @@ test('the ledger-read guard bites a screen, and leaves the data layer alone', ()
     'e deixa em paz o caminho com portão',
   );
 });
+
+/**
+ * A fila lê a LINHA, nunca uma função de leitura — e este guarda fecha um buraco
+ * que o portão do dinheiro acabou de abrir.
+ *
+ * O `serialize.ts` já diz a regra na primeira página: *"Everything is explicit.
+ * There is no 'send whatever columns the row has', because that is how a device
+ * column added next month reaches the server as a silent failure instead of a
+ * compile error."* A lista `take` é fechada, e quem monta a linha lê o registro
+ * cru.
+ *
+ * O buraco: o guarda de cima proíbe `src/sync/` de usar as leituras SEM portão, e
+ * `src/sync/` não é `src/data/`. Quem for escrever o transporte amanhã, obedecendo
+ * àquele guarda, seria empurrado para a leitura COM portão — e aí o celular de
+ * quem não vê custo subiria a fila com `unit_cost_rate` nulo, apagando dinheiro do
+ * que ATRAVESSA em vez de do que se mostra. Seria a versão da corrupção do razão
+ * que nenhum teste de tela pega, porque o número certo está gravado no aparelho: o
+ * errado é o que viaja.
+ *
+ * Então a regra é mais estreita que "sem portão": a travessia não chama leitura
+ * nenhuma do repositório. Ela lê a linha que o `outbox` nomeia.
+ */
+test('the crossing reads the stored row, never a repository read', () => {
+  const culpados = sourcesUnder('src/sync').filter((file) =>
+    /from '@\/data\/repository'/.test(readFileSync(file, 'utf8')),
+  );
+
+  assert.deepEqual(
+    culpados,
+    [],
+    `estes arquivos da travessia leem pelo repositório:\n  ${culpados.join('\n  ')}\n` +
+      'A fila envia o que está GRAVADO. Toda leitura do repositório filtra, arredonda ou ' +
+      'esconde alguma coisa para uma tela — inclusive o portão do dinheiro —, e o que ' +
+      'atravessa não pode depender de quem estava com o aparelho na hora de sincronizar.',
+  );
+});
+
+test('the crossing guard bites the real risk, and leaves the tests alone', () => {
+  // `sourcesUnder` já descarta `*.test.ts`, e é isso que permite ao teste da
+  // sincronia gravar com o repositório para depois olhar a fila — ele imita o
+  // aplicativo, não faz parte da travessia.
+  const arquivos = sourcesUnder('src/sync');
+  assert.ok(arquivos.length >= 2, 'a travessia tem engine e serialize');
+  assert.ok(
+    !arquivos.some((f) => f.endsWith('.test.ts')),
+    'teste de sincronia pode chamar o repositório: ele é o aplicativo imitado, não a travessia',
+  );
+  // E o padrão pega o que tem de pegar.
+  assert.ok(/from '@\/data\/repository'/.test("import { listItems } from '@/data/repository';"));
+  assert.ok(!/from '@\/data\/repository'/.test("import type { OutboxEntry } from '@/data/outbox';"));
+});
