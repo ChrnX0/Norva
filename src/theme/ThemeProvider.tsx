@@ -12,6 +12,7 @@ import {
   type ColorScheme,
   type Palette,
   type Skin,
+  type Tracos,
 } from './tokens';
 
 type Theme = {
@@ -41,7 +42,14 @@ type Theme = {
   type: typeof typeBase;
   space: typeof space;
   /** Os cantos são da identidade: retos no Papel, generosos no Orgânico. */
-  radius: { sm: number; md: number; lg: number; xl: number; pill: number };
+  radius: { sm: number; md: number; lg: number; xl: number; pill: number; controle: number };
+  /**
+   * O que esta pele decide, dito por ela em vez de adivinhado por cada tela.
+   *
+   * Ver `Tracos` em `./tokens`: é o que impede que a terceira pele nasça caindo
+   * no ramo `else` de oito componentes que ninguém lembrou de abrir.
+   */
+  tracos: Tracos;
   /**
    * A família dos títulos — serifa no Papel, a do sistema no Orgânico.
    *
@@ -118,13 +126,16 @@ export function ThemeProvider({
       color,
       palette: color,
       skin,
-      // No Papel a marca é o próprio acento terroso; no Orgânico é a paleta
-      // escolhida, que move a paisagem inteira.
-      brand: skin === 'organico' ? hues[hue].brand : color.apricot,
+      // A marca sai do tom escolhido só na pele que tem tom escolhido. A
+      // pergunta é da PELE — perguntar `skin === 'organico'` aqui era a mesma
+      // resposta escrita no lugar errado, e a terceira pele herdaria o tom sem
+      // ninguém decidir isso.
+      brand: chosen.tracos.marcaVemDoTom ? hues[hue].brand : color.apricot,
       accent: color[area],
       type,
       space,
       radius: chosen.radius,
+      tracos: chosen.tracos,
       titleFamily: familia,
       traco: chosen.traco,
       motion,

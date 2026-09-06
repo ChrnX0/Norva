@@ -41,7 +41,7 @@ export function Sparkline({
   width?: number;
   height?: number;
 }) {
-  const { accent, motion, skin, traco } = useTheme();
+  const { accent, motion, tracos, traco } = useTheme();
   // O gesto tem a duração de um traço de mão: rápido o bastante para não atrasar
   // a leitura, lento o bastante para o olho ver a linha nascer.
   const desenho = motion.countMs;
@@ -63,7 +63,7 @@ export function Sparkline({
    * conteúdo MEDIDO dentro de uma forma fechada, como o líquido do termômetro.
    * A área sob uma curva não mede nada que a curva já não diga: é sombra.
    */
-  const area = skin === 'papel' ? null : sparkArea(points, height);
+  const area = tracos.genero === 'pagina' ? null : sparkArea(points, height);
   const last = points[points.length - 1];
 
   // O comprimento do traço não precisa ser exato: qualquer valor maior que a

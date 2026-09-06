@@ -90,8 +90,8 @@ function ConfirmSurface({
   request: ConfirmRequest;
   onAnswer: (ok: boolean) => void;
 }) {
-  const { color, radius, space, type, accent, skin } = useTheme();
-  const papel = skin === 'papel';
+  const { color, radius, space, type, accent, tracos } = useTheme();
+  const papel = tracos.genero === 'pagina';
   const { t } = useLocale();
   const insets = useSafeAreaInsets();
 

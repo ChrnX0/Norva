@@ -428,13 +428,81 @@ export const PARES_A_PARTIR_DE = 840;
 /** Duas colunas de ~420 e o vão entre elas. Acima disso a página para de crescer. */
 export const MEDIDA_EM_PARES = 900;
 
-export const skins = {
+/**
+ * Os traços de uma pele: o que os componentes compartilhados perguntam a ela.
+ *
+ * **Existe porque "aplicar um tema novo" não pode ser caçar `if` pelo repositório.**
+ * Oito componentes decidiam sozinhos com `skin === 'papel' ?` — o cartão, o campo,
+ * o botão, a pastilha, a confirmação, o gráfico, o cabeçalho e o selo do tempo.
+ * Cada um deles funcionava; juntos formavam uma regra que só existia espalhada, e
+ * uma terceira pele cairia no ramo do Orgânico em todos os oito sem ninguém
+ * decidir isso. O dono foi explícito em 6 de setembro: *"qq tema futuro ou o q vc
+ * chama de skin tem q poder ser aplicado sem problemas"* — e mais skins virão.
+ *
+ * O nome de cada traço diz o que ele DECIDE, nunca qual pele o usa. `genero:
+ * 'pagina'` diz o que a pele faz; `ehPapel` diria só quem ela é, e a terceira
+ * pele voltaria a ser um `if`.
+ */
+export type Tracos = {
+  /**
+   * Como esta pele separa um assunto do outro.
+   *
+   * `'pagina'` — régua em cima, sem caixa, sem fundo, desenho solto na folha. É
+   * uma página impressa, e cor entra em traço, nunca em massa.
+   * `'superficie'` — cada assunto numa superfície própria, com crachá redondo,
+   * canto generoso e massa de cor.
+   *
+   * Sete componentes leem este traço, e é ele que faz duas peles parecerem dois
+   * produtos em vez de duas paletas.
+   */
+  genero: 'pagina' | 'superficie';
+  /**
+   * De onde sai a tinta de um botão cheio.
+   *
+   * `'marca'` — a cor do aplicativo, igual em toda tela: numa folha de contato o
+   * Papel apareceu com quatro botões de cores diferentes, e cor de seção no botão
+   * responde a pergunta errada ("registrar saída" não é outra coisa por estar
+   * noutra aba).
+   * `'area'` — o acento da área, que é como o dono escolheu o Orgânico: lá a cor
+   * É o assunto.
+   */
+  tintaCheia: 'marca' | 'area';
+  /**
+   * A marca desta pele vem do tom que a empresa escolheu nos ajustes.
+   *
+   * Falso numa pele de cara única — revista impressa não vem em cinco cores de
+   * capa. Decide a `brand` do tema e, com ela, a cor do dia morno no selo do
+   * tempo.
+   */
+  marcaVemDoTom: boolean;
+  /** O peso e o aperto do título do cabeçalho, que seguem a família. */
+  titulo: { peso: '600' | '700'; aperto: number };
+};
+
+export const skins: Record<
+  Skin,
+  {
+    light: Palette;
+    dark: Palette;
+    titleFamily: 'serif' | undefined;
+    radius: { sm: number; md: number; lg: number; xl: number; pill: number; controle: number };
+    /** A espessura do traço de um desenho nesta pele. */
+    traco: number;
+    tracos: Tracos;
+  }
+> = {
   papel: {
     light: papelClaro,
     dark: papelEscuro,
     /** Serifa nos títulos; o resto continua na fonte do sistema. */
     titleFamily: 'serif' as const,
-    radius: { sm: 4, md: 6, lg: 8, xl: 10, pill: 999 },
+    radius: { sm: 4, md: 6, lg: 8, xl: 10, pill: 999, controle: 4 },
+    tracos: {
+      genero: 'pagina',
+      tintaCheia: 'marca',
+      marcaVemDoTom: false,
+      titulo: { peso: '700', aperto: -0.2 },
+    },
     /**
      * A espessura do traço dos desenhos — fina, como bico de pena.
      *
@@ -451,7 +519,13 @@ export const skins = {
     light: organicoClaro,
     dark: organicoEscuro,
     titleFamily: undefined,
-    radius: { sm: 12, md: 18, lg: 22, xl: 28, pill: 999 },
+    radius: { sm: 12, md: 18, lg: 22, xl: 28, pill: 999, controle: 999 },
+    tracos: {
+      genero: 'superficie',
+      tintaCheia: 'area',
+      marcaVemDoTom: true,
+      titulo: { peso: '600', aperto: -0.8 },
+    },
     /** Mais cheio: o Orgânico é um tema de massa, não de linha. */
     traco: 2.2,
   },

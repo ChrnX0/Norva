@@ -40,7 +40,7 @@ export function Button({
   disabled?: boolean;
   style?: ViewStyle;
 }) {
-  const { color, radius, type, space, accent, brand, motion, skin } = useTheme();
+  const { color, radius, type, space, accent, brand, motion, tracos } = useTheme();
 
   /**
    * A pílula é do Orgânico. No Papel, retângulo.
@@ -50,7 +50,7 @@ export function Button({
    * retas e serifa. Canto reto não deixa o botão menos achável — o que o torna
    * achável é ser a única massa de cor da tela, e isso continua.
    */
-  const papel = skin === 'papel';
+  const papel = tracos.genero === 'pagina';
 
   /**
    * A cor da AÇÃO é do aplicativo, não da seção.
@@ -66,7 +66,7 @@ export function Button({
    * mancha. No Orgânico o acento por área continua — lá a cor é o assunto, e
    * foi assim que o dono escolheu.
    */
-  const preenchimento = papel ? brand : accent;
+  const preenchimento = tracos.tintaCheia === 'marca' ? brand : accent;
 
   /**
    * A tinta do rótulo é MEDIDA contra o preenchimento, não declarada.
@@ -110,7 +110,7 @@ export function Button({
         styles.base,
         {
           backgroundColor: isPrimary ? preenchimento : 'transparent',
-          borderRadius: papel ? radius.sm : radius.pill,
+          borderRadius: radius.controle,
           paddingVertical: space.lg,
           paddingHorizontal: space.xl,
           opacity: disabled ? 0.45 : 1,

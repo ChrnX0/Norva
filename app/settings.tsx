@@ -174,7 +174,7 @@ function sayTally(area: EraseArea, tally: EraseTally, t: Dictionary): string {
 }
 
 function Settings() {
-  const { color, type, space, palette, skin, traco } = useTheme();
+  const { color, type, space, palette, skin, traco, tracos } = useTheme();
   const { setSkin, hue, setHue, scheme, setScheme } = useAppearance();
 
   /**
@@ -603,15 +603,17 @@ function Settings() {
             ))}
           </View>
 
-          {/* A paleta da paisagem, e só o Orgânico a tem.
+          {/* A paleta da paisagem, e só a pele cuja marca VEM do tom a tem.
               O Papel tem uma cara só, que é a graça dele: revista impressa não
-              vem em cinco cores de capa.
+              vem em cinco cores de capa. A pergunta é do traço e não do nome —
+              uma pele nova com paleta escolhível ganha este seletor sozinha,
+              sem ninguém lembrar de vir aqui acrescentar um `ou`.
 
               O disco é a única cor escrita fora do tema em toda a tela, e tem
               que ser: ele não representa a paleta, ele É a amostra dela. O que
               marca a escolhida é o tamanho e o nome em tinta cheia — anel
               desenhado à mão seria mais uma caixa. */}
-          {skin === 'organico' ? (
+          {tracos.marcaVemDoTom ? (
             <View style={{ marginTop: space.lg, gap: space.xs }}>
               <Text style={[type.body, { color: color.ink }]}>
                 {t.app.settings.appearance.palette}

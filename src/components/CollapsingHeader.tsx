@@ -64,7 +64,7 @@ export function CollapsingHeader({
   pares?: boolean;
   children: ReactNode;
 }) {
-  const { color, space, type, accent, skin, titleFamily } = useTheme();
+  const { color, space, type, accent, tracos, titleFamily } = useTheme();
   const insets = useSafeAreaInsets();
   // Em dp, que é o que o layout enxerga — nunca pixel.
   const { width: larguraDaTela } = useWindowDimensions();
@@ -132,7 +132,7 @@ export function CollapsingHeader({
         <View style={[styles.titleRow, { gap: space.sm + 1 }]}>
           {/* O selo só sobra no Orgânico, que é a identidade de curva e cor. No
               Papel a marca não entra na página: a página é tinta e régua. */}
-          {skin === 'papel' ? null : (
+          {tracos.genero === 'pagina' ? null : (
             <View style={[styles.icon, { backgroundColor: `${accent}22`, borderRadius: 9 }]}>
               <Mark size={15} color={accent} />
             </View>
@@ -142,8 +142,8 @@ export function CollapsingHeader({
               {
                 color: color.ink,
                 fontFamily: titleFamily,
-                fontWeight: skin === 'papel' ? '700' : '600',
-                letterSpacing: skin === 'papel' ? -0.2 : -0.8,
+                fontWeight: tracos.titulo.peso,
+                letterSpacing: tracos.titulo.aperto,
               },
               titleStyle,
             ]}

@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Line, Path, RadialGradient, Stop } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
-import type { Palette, Skin } from '@/theme/tokens';
+import type { Palette, Tracos } from '@/theme/tokens';
 
 /**
  * O dia, desenhado — e por que ele deixou de ser um bloco.
@@ -72,13 +72,14 @@ export function temperatureBand(maxC: number): 'cold' | 'mild' | 'warm' | 'hot' 
  */
 export function skyInk(
   maxC: number,
-  { palette, brand, skin }: { palette: Palette; brand: string; skin: Skin },
+  { palette, brand, tracos }: { palette: Palette; brand: string; tracos: Tracos },
 ): string {
   const band = temperatureBand(maxC);
   if (band === 'cold') return palette.sky;
-  // No Orgânico o morno é a marca escolhida — quem trocou o verde por âmbar não
-  // quer um dia morno verde.
-  if (band === 'mild') return skin === 'organico' ? brand : palette.mint;
+  // Numa pele com tom escolhido, o morno É esse tom: quem trocou o verde por
+  // âmbar não quer um dia morno verde. Numa pele de cara única o morno é o
+  // verde da paleta — e a pergunta é da PELE, não do nome dela.
+  if (band === 'mild') return tracos.marcaVemDoTom ? brand : palette.mint;
   return band === 'warm' ? palette.sand : palette.apricot;
 }
 
@@ -99,10 +100,10 @@ export function SkyMark({
   rainChance: number | null;
   size?: number;
 }) {
-  const { palette, brand, skin, traco } = useTheme();
+  const { palette, brand, tracos, traco } = useTheme();
   const raining = rainChance !== null && rainChance >= 30;
-  const papel = skin === 'papel';
-  const tinta = skyInk(maxC, { palette, brand, skin });
+  const papel = tracos.genero === 'pagina';
+  const tinta = skyInk(maxC, { palette, brand, tracos });
 
   const spin = useSharedValue(0);
   const drift = useSharedValue(0);

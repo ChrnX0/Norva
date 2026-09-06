@@ -87,7 +87,7 @@ export function Card({
       title?: string;
     }
 )) {
-  const { color, scheme, radius, space, type, accent, skin } = useTheme();
+  const { color, scheme, radius, space, type, accent, tracos } = useTheme();
 
   const toneColor =
     hue ??
@@ -121,7 +121,7 @@ export function Card({
    * uma página impressa separa — e foi exatamente isso que ele escolheu quando
    * escolheu esta cara.
    */
-  const papel = skin === 'papel';
+  const papel = tracos.genero === 'pagina';
 
   return (
     <View

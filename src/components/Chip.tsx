@@ -17,9 +17,8 @@ export type Signal = 'ok' | 'warning' | 'danger' | 'neutral';
  * green shows up because it looked nice, green stops meaning "checked".
  */
 export function Chip({ signal, label }: { signal: Signal; label: string }) {
-  const { color, radius, type, space, skin } = useTheme();
+  const { color, radius, type, space } = useTheme();
   // A pílula é do Orgânico; no Papel a etiqueta é reta, como um carimbo.
-  const papel = skin === 'papel';
   const tint = color[signal];
 
   return (
@@ -28,7 +27,7 @@ export function Chip({ signal, label }: { signal: Signal; label: string }) {
         styles.chip,
         {
           borderColor: tint,
-          borderRadius: papel ? radius.sm : radius.pill,
+          borderRadius: radius.controle,
           paddingVertical: space.xs + 1,
           paddingHorizontal: space.md,
           gap: space.sm - 1,

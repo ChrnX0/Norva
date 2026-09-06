@@ -43,8 +43,8 @@ export function Field({
   keyboardType?: KeyboardTypeOptions;
   autoFocus?: boolean;
 }) {
-  const { color, radius, space, type, accent, skin } = useTheme();
-  const papel = skin === 'papel';
+  const { color, radius, space, type, accent, tracos } = useTheme();
+  const papel = tracos.genero === 'pagina';
 
   // Onde o dedo está. No Orgânico a caixa já responde por si; no Papel a linha é
   // a única resposta que existe, e um formulário de oito campos sem ela é uma
