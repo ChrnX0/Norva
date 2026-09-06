@@ -289,3 +289,109 @@ test('the stroke weight is decided once, in the theme', () => {
   }
   assert.deepEqual(erros, [], `\n${erros.join('\n')}\n`);
 });
+
+
+/**
+ * O que cada desenho FAZ — ou por que ele fica parado.
+ *
+ * **Por que esta tabela existe.** Em 6 de setembro o dono apontou uma tela e
+ * disse: *"me incomoda esses ícones sem cor e sem animação"*. Fui contar: oito
+ * dos vinte e seis se mexiam. Os outros dezoito não estavam parados por decisão
+ * — estavam parados porque **ninguém tinha feito a pergunta** para cada um.
+ *
+ * A decisão escrita (`src/components/Card.tsx`) nunca disse "desenho não se
+ * mexe". Ela recusou uma coisa diferente e mais específica: **um respiro
+ * genérico, igual para os vinte e seis**. O que ficou no lugar foi *"a vida mora
+ * DENTRO de cada desenho, e só onde ela tem o que dizer"* — e "só onde tem o que
+ * dizer" é uma pergunta por glifo que nunca foi respondida por glifo.
+ *
+ * Então a resposta agora é obrigatória, e vale nos dois sentidos: quem declara um
+ * movimento tem que ter `Vivo` ou `Coluna` no desenho, e quem declara `parado`
+ * tem que dizer POR QUÊ e não pode ter. `src/theme/assinatura.test.ts` cobra as
+ * duas metades.
+ *
+ * **E parado continua sendo resposta certa para a maioria.** Papel não se mexe.
+ * Uma grade de produtos não se mexe. Um "+" que balança é ruído, não vida. O que
+ * se mexe é o que a FÁBRICA mexe — e é por isso que o saco enche, o toldo balança
+ * e a coluna do termômetro sobe.
+ */
+export const MOVIMENTO_DO_GLIFO: Record<string, string> = {
+  // --- os que se mexem, e o que cada um faz ---
+  GlyphProduction: 'anda',
+  GlyphPrice: 'anda',
+  GlyphKettle: 'sobe',
+  GlyphVehicle: 'gira',
+  GlyphCustomer: 'balanca',
+  GlyphLabel: 'balanca',
+  GlyphThermometer: 'coluna',
+  GlyphSettings: 'gira',
+  GlyphStock: 'coluna',
+  GlyphStore: 'balanca',
+
+  // --- os que ficam, e por quê ---
+  GlyphBox:
+    'parado: a caixa É o desenho inteiro, e mover tudo é exatamente o respiro genérico que o dono recusou. Ela anda quando está na esteira, e lá quem anda é o GlyphProduction',
+  GlyphOrder: 'parado: prancheta apoiada. Papel não se mexe sozinho, e seis papéis balançando seria o respiro de volta com outro nome',
+  GlyphRecipe: 'parado: a ficha é papel na parede — o que muda nela é o texto, não o papel',
+  GlyphPurchase: 'parado: a nota chegou com a mercadoria e ficou. Recibo em cima da mesa não se mexe',
+  GlyphCount: 'parado: a lista com os tiques é o registro de uma conferência que já aconteceu',
+  GlyphCalendar: 'parado: folhinha na parede. O que muda é o dia marcado, e dia marcado não é movimento',
+  GlyphCatalog: 'parado: a grade do que a fábrica sabe fazer é um índice, e índice não se agita',
+  GlyphChart:
+    'parado por ora, e é candidato: as três barras poderiam subir com a mesma peça do termômetro, mas hoje são `Path` e não `Rect` — mexer nisso é redesenhar, não animar',
+  GlyphFactory:
+    'parado por ora, e é candidato: a fumaça da chaminé SOBE na cena aprovada da capa, e este desenho não tem fumaça desenhada. Acrescentá-la é traço novo',
+  GlyphSack: 'parado: o saco que chega no caminhão está no chão, cheio e fechado. Quem enche e esvazia é o almoxarifado (GlyphStock)',
+  GlyphBucket: 'parado: balde em pé. Ele balança quando alguém o carrega, e ninguém o carrega dentro de um crachá',
+  GlyphPackaging: 'parado: filme soldado é material em repouso, e o que ele faz é ficar fechado',
+  GlyphStick: 'parado: palitos em leque, material contado por milheiro. Haste de madeira parada é haste de madeira',
+  GlyphLoss:
+    'parado: "a gota que escorreu" está no passado — ela já correu. Uma gota que escorre para sempre num crachá é a perda acontecendo agora, que não é o que a tela diz',
+  GlyphAssistant: 'parado: balão de fala é a pergunta escrita, e escrita não treme',
+  GlyphPlus: 'parado: gesto de interface, não coisa da fábrica. Um "+" que se mexe é ruído com cara de vida',
+};
+
+test('every drawing says what it does, or why it stays still', () => {
+  // O dono apontou "ícones sem cor e sem animação" e o número era oito de vinte
+  // e seis. Nenhum dos dezoito estava parado por decisão: estava parado porque a
+  // pergunta nunca tinha sido feita para ele. Este guarda faz a pergunta virar
+  // obrigatória — e obriga nos dois sentidos, senão a tabela vira enfeite.
+  const fonte = readFileSync('src/components/Glyph.tsx', 'utf8');
+  const blocos = fonte.split(/\nexport function (Glyph\w+)/);
+
+  const semDeclaracao: string[] = [];
+  const mente: string[] = [];
+
+  for (let i = 1; i < blocos.length; i += 2) {
+    const nome = blocos[i];
+    const corpo = blocos[i + 1].split('\n}\n')[0];
+    const declarado = MOVIMENTO_DO_GLIFO[nome];
+
+    if (declarado === undefined) {
+      semDeclaracao.push(nome);
+      continue;
+    }
+
+    const seMexe = corpo.includes('<Vivo') || corpo.includes('<Coluna');
+    const diseQueFica = declarado.startsWith('parado');
+
+    if (diseQueFica && seMexe) {
+      mente.push(`${nome} diz que fica parado e tem movimento no desenho`);
+    }
+    if (!diseQueFica && !seMexe) {
+      mente.push(`${nome} declara "${declarado}" e não tem Vivo nem Coluna no desenho`);
+    }
+    if (diseQueFica && declarado.length < 40) {
+      mente.push(`${nome}: "parado" precisa dizer POR QUÊ, e a razão tem que caber numa frase de verdade`);
+    }
+  }
+
+  assert.deepEqual(
+    semDeclaracao,
+    [],
+    `estes desenhos não dizem o que fazem: ${semDeclaracao.join(' · ')}. Declare em ` +
+      'src/components/glifos.ts o movimento, ou "parado: <por quê>". Parado é resposta ' +
+      'certa para papel e para grade — o que não é resposta é ninguém ter perguntado.',
+  );
+  assert.deepEqual(mente, [], mente.join(' · '));
+});

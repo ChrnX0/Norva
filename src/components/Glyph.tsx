@@ -116,11 +116,22 @@ export function GlyphProduction({ size = 26, color, weight = 2.2 }: GlyphProps) 
   );
 }
 
-/** Almoxarifado: o saco de insumo, que enche e esvazia. */
+/**
+ * Almoxarifado: o saco de insumo, que enche e esvazia.
+ *
+ * A frase acima estava aqui desde o começo e o desenho não a cumpria — o saco
+ * ficava parado. É o mesmo defeito que este projeto já pegou noutro lugar hoje:
+ * o docblock afirmando um comportamento que nenhuma linha implementa.
+ *
+ * Agora o nível sobe e desce dentro do saco, com a mesma peça que faz a coluna
+ * do termômetro: o contorno fica parado porque saco não se mexe, e o que se mexe
+ * é o que tem dentro dele.
+ */
 export function GlyphStock({ size = 26, color, weight = 2.2 }: GlyphProps) {
   return (
     <Svg {...frame(size)} accessibilityRole="image">
       <Path d="M8 12h16l-1.6 15H9.6z" {...massIf(weight, color)} />
+      <Coluna x={10} largura={12} base={26.6} vaoDe={14.5} vaoAte={24} cor={color} cicloMs={14000} />
       <Path d="M8 12h16l-1.6 15H9.6z" {...line(color, weight)} />
       <Path d="M11.5 12V8a4.5 4.5 0 0 1 9 0v4" {...line(color, weight)} />
     </Svg>
@@ -195,14 +206,20 @@ export function GlyphKettle({ size = 26, color, weight = 2.2 }: GlyphProps) {
 export function GlyphStore({ size = 26, color, weight = 2.2 }: GlyphProps) {
   return (
     <Svg {...frame(size)} accessibilityRole="image">
-      <Path
-        d="M8 6h16l4 6a4 3 0 0 1-8 0a4 3 0 0 1-8 0a4 3 0 0 1-8 0z"
-        {...massIf(weight, color)}
-      />
-      <Path
-        d="M8 6h16l4 6a4 3 0 0 1-8 0a4 3 0 0 1-8 0a4 3 0 0 1-8 0z"
-        {...line(color, weight)}
-      />
+      {/* O TOLDO balança; a fachada não. Um toldo de bico é pano esticado numa
+          armação, e pano na calçada se mexe — a parede atrás dele não. Meio grau
+          em trinta segundos: quem olha não vê o movimento acontecer, vê que a
+          loja está viva. */}
+      <Vivo vida={{ como: 'balanca', cicloMs: 30000, graus: 0.6, centro: [16, 6] }}>
+        <Path
+          d="M8 6h16l4 6a4 3 0 0 1-8 0a4 3 0 0 1-8 0a4 3 0 0 1-8 0z"
+          {...massIf(weight, color)}
+        />
+        <Path
+          d="M8 6h16l4 6a4 3 0 0 1-8 0a4 3 0 0 1-8 0a4 3 0 0 1-8 0z"
+          {...line(color, weight)}
+        />
+      </Vivo>
       <Rect x="6" y="15" width="20" height="13" rx="1" {...massIf(weight, color)} />
       <Rect x="6" y="15" width="20" height="13" rx="1" {...line(color, weight)} />
       <Path d="M13 28v-6a3 3 0 0 1 6 0v6" {...line(color, weight - 0.4)} />

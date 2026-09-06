@@ -119,3 +119,4 @@ export const AREA_DO_GLIFO: Record<string, AreaDoGlifo> = {
   // Sem assunto próprio: acrescentar o quê depende de onde.
   GlyphPlus: 'anfitriao',
 };
+
