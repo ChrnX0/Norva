@@ -306,6 +306,22 @@ leva os dados e leva o `PRAGMA user_version`, que é justamente o marcador que o
 aparelho abre a cópia, vê a versão, e roda as migrações que faltam. É a mesma
 escada que já existe para um celular que ficou dois meses desligado.
 
+**Nível de evidência, medido em 6 de setembro às 19h41 no emulador — E3.**
+
+| a afirmação | nível | o que provou |
+|---|---|---|
+| a regra (grava, volta, recusa cópia nova, não esquece tabela, desfaz em órfão) | **E3** | `npx tsx --test src/data/backup.test.ts` — 7 provas contra SQLite de verdade |
+| `VACUUM INTO` e `ATTACH` funcionarem **no aparelho** | **E3** | o toque no botão, e a tela respondendo *"Ela guarda 6 movimentos e pesa 320 kB"* |
+| a cópia chegar num app que a receba | **E1** | a folha abriu vazia no emulador nu; em aparelho real depende do mimetype, que foi corrigido para `octet-stream` e **não foi visto funcionando** |
+
+A terceira linha é o que falta, e ela é do dono: o APK no tablet dele, tocar em
+*"Guardar uma cópia agora"*, e ver o WhatsApp aparecer na lista.
+
+**E o emulador achou o que teste nenhum acharia**, que é a razão de a foto ser regra
+aqui: o mimetype `application/vnd.sqlite3` faz o Android oferecer **nenhum**
+aplicativo, porque quase nenhum declara aceitá-lo. A chamada é idêntica, a promessa
+resolve igual, e o que muda é a lista montada do outro lado.
+
 **E o 0b é o passo que fecha o risco, não o 0c.** Uma vez que o arquivo existe e
 volta, mandá-lo para o WhatsApp do dono, para o e-mail ou para o Drive na mão é uma
 folha de partilha do sistema — zero conta, zero crédito, funciona esta semana. O
