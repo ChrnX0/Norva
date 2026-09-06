@@ -280,7 +280,15 @@ check('the five tabs are there, and the old addresses still answer', async (page
   // corrige editando, escrita no livro-razão só se corrige por estorno.
   assert.match(more, /Lançamentos/, 'o que se lança não fica sob Cadastros');
   assert.match(more, /Pergunte/, 'the assistant has a door');
-  assert.doesNotMatch(more, /Financeiro|Notas fiscais|Pessoas/, 'a drawer that opens onto nothing');
+  // "Pessoas" SAIU desta lista em 6 de setembro, e a saída é o registro de uma
+  // dívida paga: a porta ficou fora da tela enquanto `operator_id` era coluna sem
+  // tabela de gente atrás, e agora tem o que abrir. Financeiro e Notas fiscais
+  // continuam aqui porque continuam sem nada atrás.
+  //
+  // A lição de processo fica junto: por um dia esta linha e a checagem que afirma
+  // /Pessoas/ na mesma aba disseram coisas opostas sobre a mesma tela, e ninguém
+  // notou porque eu rodei `--only` e não a suíte.
+  assert.doesNotMatch(more, /Financeiro|Notas fiscais/, 'a drawer that opens onto nothing');
 
   // And the addresses that existed before still answer, unchanged.
   // O título de cada tela, não um botão: numa instalação virgem a transferência

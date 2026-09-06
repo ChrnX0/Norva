@@ -245,9 +245,15 @@ export function GlyphCustomer({ size = 26, color, weight = 2.2 }: GlyphProps) {
       <Circle cx="10" cy="8" r="4" {...line(color, weight)} />
       <Path d="M3.5 27v-6a6.5 6.5 0 0 1 13 0v6z" {...massIf(weight, color)} />
       <Path d="M3.5 27v-6a6.5 6.5 0 0 1 13 0v6z" {...line(color, weight)} />
-      <Rect x="20" y="18" width="8" height="9" rx="1" {...massIf(weight, color)} />
-      <Rect x="20" y="18" width="8" height="9" rx="1" {...line(color, weight)} />
-      <Path d="M21.5 18v-1a2.5 2.5 0 0 1 5 0v1" {...line(color, weight)} />
+      {/* O cadeado PENDURA e balança um grau e meio, devagar. A pessoa fica
+          parada porque pessoa parada é pessoa; o que se mexe é a coisa que pende
+          dela — que é o que a cena da fábrica ensinou: cada desenho faz o que ele
+          faz, e não um respiro igual para todos. */}
+      <Vivo vida={{ como: 'balanca', cicloMs: 26000, graus: 1.5, centro: [24, 17.5] }}>
+        <Rect x="20" y="18" width="8" height="9" rx="1" {...massIf(weight, color)} />
+        <Rect x="20" y="18" width="8" height="9" rx="1" {...line(color, weight)} />
+        <Path d="M21.5 18v-1a2.5 2.5 0 0 1 5 0v1" {...line(color, weight)} />
+      </Vivo>
     </Svg>
   );
 }
