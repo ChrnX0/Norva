@@ -439,17 +439,28 @@ Compilando o APK aqui (a CI não pode: cota), o arquivo saiu com **48 MB**. Abri
 O bytecode Java/Kotlin domina, e o motivo é uma linha:
 `android/app/build.gradle:69` lê `android.enableMinifyInReleaseBuilds` com **`false`** como
 padrão, e nada no projeto define a propriedade. Ou seja: **todo APK que este projeto já
-publicou saiu sem minificação.** Ligar o R8 costuma cortar metade disso.
+publicou saiu sem minificação.**
+
+**E o ganho foi medido, não estimado** — eu tinha escrito "costuma cortar metade", que é
+palpite, e aqui se mede:
+
+| | sem R8 | com R8 |
+|---|---|---|
+| APK | 48 MB | **37 MB** |
+| `dex` somados (descompactados) | ~50 MB | **15 MB** |
+
+O R8 corta **70% do bytecode** e só **23% do pacote**, porque o que sobra é biblioteca
+nativa e recurso, que ele não toca. A compilação com minificação levou 2m16 e passou — ou
+seja, R8 não quebra o BUILD; o que continua sem prova é o tempo de execução.
 
 **Por que não liguei junto:** minificação quebra em tempo de execução, não de compilação —
 reflexão, nomes de classe que uma biblioteca resolve por string, `keep` que falta. O jeito
 de saber é abrir no aparelho, e eu não tenho aparelho aqui. Ligar às cegas e mandar o APK
 seria entregar configuração de release não testada, que é o oposto do que esta casa faz.
 
-**O que isso muda quando for feito:** o dono da fábrica baixa o app numa conexão de
-interior, e 48 MB contra ~25 MB é a diferença entre baixar e desistir. É item de véspera de
-loja, não de hoje — mas o número fica escrito para não ser redescoberto na semana do
-lançamento.
+**O que isso muda quando for feito:** onze megabytes a menos numa conexão de interior. É
+menos do que eu tinha prometido, e é real. Item de véspera de loja, com o número já medido
+para ninguém precisar descobri-lo na semana do lançamento.
 
 ---
 
