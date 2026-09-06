@@ -361,9 +361,27 @@ combinada, `app/places.tsx:189` mostra a próxima entrega, e `app/(tabs)/index.t
 monta "quem recebe hoje" na capa. A fila também o carrega (`src/sync/serialize.ts:159`).
 O que falta desta ficha é **preço combinado**, que a migração não criou.
 
-**3. Pedido com reserva.** Hoje pedido é demanda e nada sai do freezer porque
-alguém ligou — decisão escrita, e ela fica. A reserva é a camada por cima: separar
-do saldo o que já tem dono.
+**3. Pedido com reserva — METADE existe, e é a metade que NÃO protege.** Conferido
+em 6 de setembro, e a linha antiga ("a reserva é a camada por cima") dizia que nada
+existia.
+
+Existe: `stockAgainstOrders` (`src/data/repository.ts:4185`) soma o que os pedidos em
+aberto pediram contra o que há em mãos, e `app/orders/new.tsx:206` (`livreDe`) recusa
+prometer mais do que `onHand − requested`, contando até as linhas do rascunho da tela.
+
+**Não existe no momento em que a mercadoria sai.** `app/transfer.tsx` não menciona
+`stockAgainstOrders`: o único limite é `over = amount > line.baseUnits`, o saldo
+FÍSICO da sala. Então a Loja A pede 500 para sexta, o estoque tem 600, e a carga de
+hoje para a Loja B pode levar as 600 — o sistema disse "reservado" na hora de
+prometer e não disse nada na hora de carregar o caminhão.
+
+Uma reserva que só uma tela honra não é reserva; é uma frase. E a que falta é
+justamente a do instante em que a promessa se perde de verdade.
+
+**O conserto não é bloquear.** A casa sugere e nunca decide calada — às vezes a loja
+está na porta e a carga tem que sair mesmo assim. O que falta é a tela de transferir
+dizer, na hora, quanto daquilo tem dono e de quem: `livre = onHand − requested`, com
+o aviso nomeando quem espera quando a quantidade digitada passa disso.
 
 **4. Separação.** `pickingFor` já responde a conta **e já tem chamador** —
 `app/transfer.tsx:172` a usa para ordenar o que vai na carga. O que falta é a tela de

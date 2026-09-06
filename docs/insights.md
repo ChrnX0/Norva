@@ -4407,3 +4407,40 @@ minutos e é a que pega o erro enquanto ele ainda é barato.
 **A regra que fica:** ao traduzir uma regra de processo para uma condição de CI, escreva
 ao lado **quantas vezes por dia ela vai disparar**. "Ao abrir PR" e "em todo push a um PR
 aberto" são a mesma frase em português e diferem por um fator de doze na fatura.
+
+## 2026-09-06 — a reserva existe onde se promete e some onde a carga sai
+
+**O que apareceu.** Continuando a leitura da lista da F3 — a mesma que já tinha mostrado
+um item pronto e dois adiantados —, o item 3 dizia *"a reserva é a camada por cima:
+separar do saldo o que já tem dono"*, como se nada existisse. Metade existe.
+
+`stockAgainstOrders` soma o que os pedidos em aberto pediram contra o que há em mãos, e
+a tela de anotar pedido recusa prometer mais do que `onHand − requested` — contando até
+as linhas ainda não salvas do próprio rascunho, para a segunda linha não prometer as
+caixas da primeira. É um cuidado fino.
+
+**E a tela de transferir não conhece nada disso.** O único limite ali é o saldo FÍSICO da
+sala. Loja A pede 500 para sexta, o estoque tem 600, e a carga de hoje para a Loja B pode
+levar as 600. O sistema disse "reservado" na hora de prometer e ficou calado na hora de
+carregar o caminhão.
+
+**Por que importa.** Uma reserva que só uma tela honra não é uma reserva — é uma frase. E
+a metade que falta é exatamente a do instante em que a promessa se perde: prometer é
+barato e reversível; despachar é o que esvazia a câmara. A metade construída é a que
+protege menos.
+
+E o defeito é invisível das duas pontas: a tela de pedido está certa e completa; a de
+transferência está certa dentro do que ela sabe. **Nenhum arquivo está errado sozinho** —
+o que falta é uma conversa entre dois que não se conhecem. Foi por isso que a lista podia
+dizer "não existe" enquanto metade existia: quem olhou o pedido viu pronto, quem olhou a
+transferência não viu o assunto.
+
+**O que mudou.** O item 3 do roadmap passou a descrever as duas metades com
+`arquivo:linha`, e a que falta com o conserto certo — que **não é bloquear**: a casa
+sugere e nunca decide calada, e às vezes a loja está na porta e a carga sai mesmo assim.
+O que falta é a tela dizer, na hora, quanto daquilo tem dono e de quem.
+
+**A regra que fica:** quando uma regra vale numa tela, pergunte **em que outra tela ela
+poderia ser violada** — e vá olhar essa. Regra que mora num lugar só protege esse lugar,
+e a lista de tarefas não distingue "não construído" de "construído pela metade", porque
+quem escreve a lista olhou a metade que existe.
