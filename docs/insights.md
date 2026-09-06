@@ -5809,3 +5809,38 @@ foram consertadas em arquivo CENTRAL, não tela por tela: `Reveal` está em 27 d
 últimos já liam o token do tema. **A alavanca de "todas as telas" eram quatro
 arquivos.** Procurar essa alavanca antes de abrir a primeira tela é o que separou
 uma rodada de vinte e oito.
+
+---
+
+## Sub-pixel não é sutileza, é ausência — 6 de setembro
+
+Dezessete glifos deste aplicativo rodavam `withRepeat` perpetuamente para se
+deslocar **menos de meio pixel**. A conta é direta e ninguém a tinha feito: um
+ícone de aba desenha a 24 px numa prancheta de 24 unidades, então 1 unidade = 1 px
+exato; ele oscilava 0,8° em torno de um centro a 20 unidades de distância, o que dá
+um arco de 0,28 px — em quarenta segundos. Os glifos de 26 px numa prancheta de 32
+ficavam entre 0,19 e 0,48 px.
+
+**O laço roda, a bateria é gasta, e o olho não recebe nada.** E a assimetria que
+torna isso um defeito e não um desperdício: `withRepeat` custa exatamente o mesmo
+com 0,6° ou com 6°. A amplitude é de graça — só a decisão era cara.
+
+**A causa tem endereço, e é uma frase copiada fora de contexto.** O `vida.ts` dizia
+*"a regra da casa é ciclo de três a quarenta e oito segundos: percebe-se se você
+olhar, não se percebe se você estiver trabalhando"*. Fui procurar de onde ela veio:
+é cópia literal do comentário do **sol** no desenho aprovado
+(`docs/design/aprovados/papel.html`), onde descreve uma **volta inteira de 360° em
+trinta segundos**. Ela foi generalizada de um giro completo para uma oscilação de um
+grau e meio — e nessa viagem virou o contrário do que dizia. No próprio arquivo
+aprovado, tudo o que **não** é rotação roda entre 1,4 e 6 segundos: a fumaça em 6, o
+picolé enchendo em 3,2, a caixa entrando em 1,4.
+
+O que isso ensina, e vale além de animação: **uma regra citada de um lugar onde ela
+era verdadeira pode ser falsa no lugar novo, e a citação carrega a autoridade sem
+carregar a condição.** Enquanto a frase estivesse lá, a próxima sessão escreveria
+mais um ciclo de trinta segundos — e estaria certa em citá-la. É a forma mais
+educada de um erro se reproduzir.
+
+**E é por isso que o dono "perdeu as contas de quantas vezes" pediu animação.** Ele
+não estava pedindo de novo a mesma coisa: ele estava vendo, corretamente, que o que
+tinha sido construído não aparecia. Três pedidos negados por uma frase.
