@@ -483,6 +483,16 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   `membership` continua sendo o que sempre foi: uma CONTA, que pode apontar para
   uma pessoa. Migração nova, nunca edição das que já existem.
 
+- **A entrada do entregador é um PRAZO, não uma senha eterna.** Desenho proposto pelo
+  dono em 6 de setembro, e ele conserta o que o estudo tinha dado como insolúvel:
+  não se alcança um celular perdido, mas se faz o celular **parar de confiar em si
+  mesmo**. O acesso vale até uma data; cada contato renova; sem contato por N dias,
+  o aparelho se tranca e pede matrícula nova. Três ajustes ficaram registrados em
+  `docs/estudo-entrada.md`: o que roda todo dia é o prazo e não o PIN, o sinal de
+  vida é do entregador para o servidor (e não de um celular para o outro), e o
+  prazo aparece na tela antes de vencer. **É esta peça que decide quando o servidor
+  sobe** — é o primeiro caso que não funciona offline.
+
 - **Perfil é dado, com os de hoje como sugestão.** O dono cria perfis e marca
   permissão por permissão; `owner`, `operator`, `driver`, `buyer`, `customer` e
   `salesperson` continuam existindo como **modelos prontos**, não como a lista

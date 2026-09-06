@@ -239,3 +239,71 @@ Ambos pequenos, ambos reais, nenhum deles era o assunto do estudo.
   compartilhado, `0011:65-68`), `join_code` (`0011:55`) e `names_who_recorded`
   (`0012:20-21`). A escolha entre os dois caminhos de entrada **já está modelada no
   servidor** — o app é que ainda não pergunta.
+
+---
+
+## 10. A ideia do dono, e o que ela conserta — 6 de setembro
+
+Depois de ler as seções acima, o dono propôs um desenho. Ele entra aqui porque **resolve
+o item 6**, que esta análise tinha dado como sem solução.
+
+**O que ele propôs**, na palavra dele: o aparelho com a conta de administração gera os
+códigos e os troca todo dia; o entregador digita o primeiro no lugar do login; a partir
+daí o app manda um *ping* diário verificando se está tudo bem; se passar o intervalo sem
+resposta, o acesso é bloqueado e a tela pede matrícula nova; e enquanto ele conectar
+dentro do intervalo, a autenticação vale **até o dono revogar**. Mais uma segunda ideia:
+um **código próprio do entregador que não muda**, gerado ao criar o perfil dele, e um
+**PIN de controle** à parte.
+
+### Por que isso conserta o que a seção 6 disse não ter conserto
+
+A seção 6 pergunta *"como alcançar um celular que nunca mais conecta?"*, e a resposta é
+que não dá. A pergunta dele é outra: **como fazer o celular parar de confiar em si
+mesmo?** E essa tem resposta, porque não depende de alcançar ninguém.
+
+O mecanismo chama-se **prazo**: o aparelho não fica válido para sempre, fica válido *até
+tal dia*, e cada contato renova. Sumiu, expira sozinho. Isso converte "exposição
+indefinida" em "exposição de no máximo N dias", com N escolhido pelo dono. É o mesmo
+raciocínio de um certificado com validade curta, e é a resposta certa.
+
+### Três ajustes, e o motivo de cada um
+
+**1. O que roda todo dia é o PRAZO, não o PIN.** Se o código muda diariamente e o
+entregador precisa digitar o novo, a fábrica passa a mandar código por WhatsApp todo dia:
+atrito diário, e um canal de vazamento diário. Curto e descartável tem que ser o **código
+de MATRÍCULA** — vale minutos, serve uma vez, morre. Depois da matrícula o aparelho já
+carrega credencial, e o PIN da pessoa não precisa mudar nunca.
+
+**2. O sinal de vida é do entregador para o SERVIDOR, não de um celular para o outro.** Do
+jeito descrito, os dois telefones precisam estar online ao mesmo tempo — e o dono dorme,
+viaja, fica sem sinal. Invertido, o aparelho do entregador tem que dar sinal a cada N
+dias; se não der, ele mesmo se tranca. O dono revoga quando quiser, e a revogação pega no
+próximo sinal — ou o prazo pega por ela, se ele nunca mais aparecer.
+
+**3. O prazo é VISÍVEL antes de vencer.** Trancar alguém na porta de uma loja, com o
+caminhão carregado, é o pior instante possível. A tela diz *"acesso vale até sexta"* e
+avisa dois dias antes: é a Lei 4 — avise na data da decisão, não na do problema.
+
+### A forma final, e o que dela já existe
+
+Três camadas, cada uma respondendo uma pergunta diferente — a mesma divisão da seção 4:
+
+| camada | responde | onde está hoje |
+|---|---|---|
+| **pessoa** (código fixo) | quem é | `people`, com nome e perfil — **existe** |
+| **PIN** | quem tocou agora | `people.pin`, 4 a 8 dígitos — **existe** |
+| **credencial do aparelho, com prazo** | este celular ainda é nosso | **falta** |
+
+Duas das três entraram em 6 de setembro. A que falta é a que precisa de servidor, porque
+**um prazo tem que ser emitido e renovado por algo que não seja o próprio aparelho** — se
+o celular emite o próprio prazo, ele o renova sozinho e o prazo não vale nada.
+
+**Consequência de planejamento, e ela responde uma pergunta que estava aberta:** esta é a
+peça que decide **quando o servidor sobe**. Até ela, a fábrica funciona inteira offline
+com a grade de nomes. O entregador com celular próprio é o primeiro caso que não funciona
+sem servidor — e agora se sabe exatamente por quê.
+
+**Uma melhoria de graça:** o código de matrícula sai como **QR** na tela de quem
+administra. O app já desenha QR (a etiqueta do lote) e já resolve código impresso de volta
+(entrou hoje). Digitar continua existindo para quando a câmera falhar — a mesma ordem da
+etiqueta: o caminho digitado primeiro, a câmera por cima dele.
