@@ -4538,3 +4538,103 @@ test('daily outflow answers for the calm item too, not only the one running out'
     'sem saída na janela, o consumo é zero e não nulo',
   );
 });
+
+/**
+ * O fechamento de período estava correto por acidente — este teste é o que o
+ * transforma em regra.
+ *
+ * Todo saldo deste sistema é uma soma cortada por `occurred_at <= ?`. Então a
+ * data que o estorno escreve decide se um mês já lido pode mudar depois. Datar
+ * o estorno no dia do erro parece mais correto e é o contrário: o março que o
+ * contador leu mudaria em outubro, sem erro, sem log e sem teste vermelho.
+ *
+ * `reverseGroup` já datava em hoje, porque `occurredAt` é opcional e os dois
+ * chamadores de tela o omitem. Nada dizia que era de propósito, e nada
+ * reprovava quem "consertasse" isso passando a data original — o defeito mais
+ * caro deste repositório é justamente o que compila, passa e mente.
+ *
+ * Duas pontas, porque só a primeira metade viraria uma regra falsa: o padrão
+ * cai em hoje, E o parâmetro explícito continua funcionando, que é como a
+ * sincronia reproduz um estorno vindo de outro aparelho.
+ */
+test('a reversal is dated today, so a closed month stays closed', async () => {
+  await ensureStarterData(CO);
+  const acucar = (await listItems(CO)).find((i) => i.kind === 'input')!.id;
+  const conn = await db();
+
+  const MARCO = '2026-03-10T13:00:00.000Z';
+  const FIM_DE_MARCO = '2026-04-01T00:00:00.000Z';
+
+  await recordPurchase(CO, {
+    itemId: acucar,
+    purchaseQuantity: 4,
+    baseUnits: 100_000,
+    totalCents: fromDecimal(472),
+    occurredAt: MARCO,
+  });
+  const grupoDeMarco = (await itemMovements(CO, acucar)).find((m) => m.kind === 'purchase')?.groupId;
+  assert.ok(grupoDeMarco, 'a compra de março carrega o ato de que faz parte');
+
+  const saldoDeMarco = async () => {
+    const [linha] = await conn.getAllAsync<{ total: number }>(
+      `SELECT COALESCE(SUM(quantity_base_units), 0) AS total FROM movements
+        WHERE company_id = ? AND item_id = ? AND occurred_at < ?`,
+      [CO, acucar, FIM_DE_MARCO],
+    );
+    return linha.total;
+  };
+
+  const antes = await saldoDeMarco();
+  assert.equal(antes, 100_000, 'a compra de março entrou no saldo de março');
+
+  await reverseGroup(CO, { groupId: grupoDeMarco });
+
+  // A ponta que importa: março não se move. O estorno existe, o saldo de hoje
+  // já está sem o açúcar, e o número que alguém leu em março continua o mesmo.
+  assert.equal(
+    await saldoDeMarco(),
+    antes,
+    'estornar hoje um erro de março não pode mexer no saldo de março — ' +
+      'se mexer, todo fechamento de período que alguém já leu é retroativo',
+  );
+
+  const [perna] = await conn.getAllAsync<{ occurred_at: string }>(
+    `SELECT occurred_at FROM movements
+      WHERE company_id = ? AND reverses_movement_id IS NOT NULL AND item_id = ?`,
+    [CO, acucar],
+  );
+  assert.ok(perna, 'o estorno gravou uma perna');
+  assert.ok(
+    perna.occurred_at > FIM_DE_MARCO,
+    `a perna do estorno cai em hoje e não na data do erro (veio ${perna.occurred_at})`,
+  );
+
+  // E a outra ponta, senão a regra acima viraria "estorno não aceita data" —
+  // que é falso e quebraria a sincronia, que reproduz o estorno de outro
+  // aparelho com a data em que ele de fato aconteceu lá.
+  await recordPurchase(CO, {
+    itemId: acucar,
+    purchaseQuantity: 4,
+    baseUnits: 50_000,
+    totalCents: fromDecimal(200),
+    occurredAt: MARCO,
+  });
+  const outra = (await itemMovements(CO, acucar)).find(
+    (m) => m.kind === 'purchase' && !m.reversed,
+  )?.groupId;
+  assert.ok(outra, 'a segunda compra ainda não estornada é a que se estorna agora');
+  const DITADO = '2026-05-20T09:30:00.000Z';
+  await reverseGroup(CO, { groupId: outra, occurredAt: DITADO });
+
+  const pernas = await conn.getAllAsync<{ occurred_at: string }>(
+    `SELECT occurred_at FROM movements
+      WHERE company_id = ? AND reverses_movement_id IS NOT NULL AND item_id = ?
+      ORDER BY recorded_at`,
+    [CO, acucar],
+  );
+  assert.equal(
+    pernas[pernas.length - 1].occurred_at,
+    DITADO,
+    'quem passa a data explícita continua sendo obedecido — é o caminho da sincronia',
+  );
+});

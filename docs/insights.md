@@ -5888,3 +5888,84 @@ função, porque função é um caminho e gatilho é a porta por onde todos pass
 guarda que liste toda coluna do servidor lida por política ou por gatilho e
 confira que alguma escrita a alcança? Hoje não. As três acima foram achadas indo
 construir em cima delas — que é o jeito caro.
+
+---
+
+## O mesmo estoque tem duas avaliações, e só uma pode assinar documento
+
+**6 de setembro.** O dono perguntou o que eu acrescentaria e o que eu removeria. A
+metade do "acrescentar" que eu tinha medido sozinho era pequena: o estorno existe,
+é sólido, tem dez testes, e é alcançável de **duas** telas entre as nove que
+escrevem no razão (`app/lots/[id].tsx:133` e `app/inputs/[id].tsx:505`). A carga
+(`app/picking.tsx`) e a transferência (`app/transfer.tsx`) gravam sem botão de
+volta — e operador que não consegue consertar aprende a não registrar, que é a
+fundação perdendo pelo lado de fora.
+
+A varredura adversarial achou três coisas maiores, e as três se confirmaram
+contra o código.
+
+**Primeiro, o que impede o extrato de ser prova.** `stockByPlace`
+(`src/data/repository.ts:1073`) valoriza o saldo com o custo médio de **hoje** —
+`item_costs.average_rate` é sobrescrito no lugar (`:502`, `ON CONFLICT DO UPDATE`)
+e recomposto a cada estorno. `itemMovements` (`:1288`) devolve a taxa
+**congelada por linha**, que é o que a `0008` criou de propósito ao largar
+`unit_cost_cents`. São duas perguntas diferentes sob o mesmo rótulo: compre polpa
+a 1,24 ¢/g em março e a 1,60 ¢/g em outubro, e o saldo de março re-lido hoje vale
+1,60 enquanto a linha de março continua valendo 1,24. **Um extrato que soma as
+linhas não fecha com a tela do lugar.** A régua, decidida aqui porque é correção e
+não preferência: documento é o razão, e o razão é a taxa congelada — o valor do
+saldo num extrato é a soma das linhas, nunca `saldo × média de hoje`. A média
+continua servindo para precificar receita e decidir compra, e não pode assinar
+nada, porque ela muda.
+
+**E dois autores do mesmo arredondamento, cada um dizendo ser o único.**
+`repository.ts` importa `amountOf` na primeira linha — *"the one place rounding
+happens"* — e então chamava `cents(rate * qty)` em dois lugares (`:1119`, `:2875`),
+cada um com o comentário *"arredondada aqui e só aqui"*. Dão o mesmo número hoje, e
+é a igualdade que esconde o defeito: são dois lugares para consertar quando a regra
+mudar. Neste repositório o `mutate` já trocou o `Math.round` do `amountOf` por
+`Math.floor` e **noventa e dois testes seguiram verdes** — comentário que se
+declara único não é o mesmo que ser. Os dois passaram a chamar `amountOf`.
+
+**Segundo: o fechamento de período estava certo por acidente.** `reverseGroup`
+faz `const occurred = input.occurredAt ?? at` e os dois chamadores de tela omitem
+o parâmetro — então estornar hoje um erro de março escreve uma linha em outubro, e
+o março que alguém já leu não se move. Isso é o fechamento de período estável de
+graça, e **nada dizia que era de propósito**: nenhum comentário, nenhum teste, e
+o parâmetro aberto para o próximo que achar "mais correto" datar o estorno no dia
+do erro. No dia em que alguém fizer isso, todo mês fechado vira ficção retroativa,
+sem erro, sem log e sem teste vermelho. Agora o docblock explica e o teste *a
+reversal is dated today, so a closed month stays closed* prende as **duas** pontas
+— o padrão cai em hoje, e a data explícita continua obedecida, que é como a
+sincronia reproduz um estorno de outro aparelho.
+
+**Terceiro, e é o que decide o adjetivo:** no aparelho o razão **não** é
+append-only. Zero `TRIGGER` em `src/data/db.ts` contra três na `0001`; `erase.ts`
+apaga `movements` em bloco com razão escrita e correta para o que ele faz;
+`recorded_by` foi removida do aparelho na V5 (o serializador a preenche na
+sincronia) e `device_id` nunca existiu. Somando: **um documento gerado no celular
+não tem signatário.** Não trava nada hoje — trava só o nome: extrato do aparelho é
+**conferência**, assinada por este aparelho, este operador, esta data. Documento
+para terceiro é do servidor, onde `recorded_by` é imposto por política e o
+`UPDATE` levanta exceção.
+
+**O que mudou por causa disso:** os dois pontos de arredondamento viraram um,
+o docblock do `reverseGroup` passou a dizer a regra da data, e o teste 420 a
+prende. O extrato — que é a tela que torna o estorno alcançável das nove portas,
+e é a mesma tela do extrato fiscal que o dono aprovou — soma taxa congelada, e
+por isso não vai fechar com `stockByPlace`. Essa diferença é para aparecer na
+tela, não para ser escondida com um arredondamento conveniente.
+
+## E uma sobre a minha própria régua
+
+Nesta mesma sessão eu reportei dois resultados de detector que eram artefato: os
+"34 alvos de toque sem rótulo" (um `=>` terminando a expressão regular; a resposta
+real era zero) e coordenadas de cena fora do chão (comandos SVG relativos lidos
+como absolutos). Os dois custaram uma leitura do dono, e o segundo eu descartei
+sem reportar só porque o primeiro tinha acabado de me queimar.
+
+O projeto já exige de todo guard do repositório um teste positivo e um negativo. A
+régua que eu escrevo para medir uma vez não passava por essa exigência — e é
+justamente a que fala direto com o dono, sem CI no meio. **Detector novo não
+reporta nada antes de passar num caso que eu sei verdadeiro e num que eu sei
+falso.** Está no `CLAUDE.md` agora, porque conselho em conversa dura uma sessão.

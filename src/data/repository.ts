@@ -1114,9 +1114,19 @@ export async function stockByPlace(companyId: string): Promise<PlaceStock[]> {
       };
       byPlace.set(r.location_id, place);
     }
-    // Taxa fracionária vezes quantidade, arredondada aqui e só aqui. Sem portão
-    // a taxa não veio, e o valor não existe — em vez de existir valendo zero.
-    const value = dinheiro === 1 ? cents((r.rate ?? 0) * r.base_units) : null;
+    // Quem arredonda é `amountOf`, e só ele.
+    //
+    // Este comentário dizia "arredondada aqui e só aqui" enquanto a linha
+    // chamava `cents` — e `amountOf` está importado na primeira linha deste
+    // arquivo, dizendo de si a mesma coisa. Dois autores do mesmo
+    // arredondamento, com o mesmo resultado hoje, e é essa igualdade que
+    // esconde o defeito: o risco não é o valor de agora, é existir um segundo
+    // lugar para consertar quando a regra mudar. Neste projeto o `mutate` já
+    // trocou o `Math.round` do `amountOf` por `Math.floor` e noventa e dois
+    // testes seguiram verdes.
+    //
+    // Sem portão a taxa não veio, e o valor não existe — em vez de valer zero.
+    const value = dinheiro === 1 ? amountOf((r.rate ?? 0) as Rate, r.base_units) : null;
     place.lines.push({
       itemId: r.item_id,
       name: r.item_name,
@@ -2871,8 +2881,8 @@ export async function lossesOn(
     baseUnit: r.base_unit,
     reason: r.reason,
     locationName: r.location_name,
-    // Taxa fracionária vezes quantidade, arredondada aqui e só aqui.
-    valueCents: dinheiro ? cents(Math.abs(r.quantity) * (r.rate ?? 0)) : null,
+    // Mesmo motivo do saldo por lugar: quem arredonda é `amountOf`.
+    valueCents: dinheiro ? amountOf((r.rate ?? 0) as Rate, Math.abs(r.quantity)) : null,
     occurredAt: r.occurred_at,
   }));
 }
@@ -5556,6 +5566,28 @@ export async function recomputeItemCost(companyId: string, itemId: string): Prom
  * a zero pelo movimento, e apagar a linha seria a exclusão que a fundação
  * proíbe — além de quebrar o rastro de uma etiqueta que talvez já esteja colada
  * numa caixa.
+ *
+ * ---
+ *
+ * **O estorno acontece HOJE, não na data do erro — e isto é regra, não detalhe.**
+ *
+ * `occurredAt` fica aberto no parâmetro porque a sincronia precisa reproduzir a
+ * data de um estorno que já aconteceu noutro aparelho. Os dois chamadores de
+ * produção o omitem de propósito (`app/inputs/[id].tsx`, `app/lots/[id].tsx`) e
+ * a linha cai em `nowIso()`.
+ *
+ * Datar o estorno no dia do erro parece mais correto e é o contrário disso.
+ * Todo saldo deste sistema é uma soma cortada por `occurred_at <= ?`
+ * (`lotsInRoomAt` é o precedente). Se um erro de março for estornado em outubro
+ * com a data de março, **o março que o contador já leu muda em outubro**, sem
+ * erro, sem log e sem teste vermelho — o fechamento de período vira ficção
+ * retroativa. Datando hoje, março fica como estava e o conserto aparece no mês
+ * em que alguém o fez, que é também o mês em que se explica por quê.
+ *
+ * Isso é o que torna o fechamento de período estável de graça, e até 6 de
+ * setembro de 2026 valia por acidente: nenhum comentário dizia, e nenhum teste
+ * prendia. `repository.test.ts` prende agora, nas duas pontas — o padrão cai em
+ * hoje, e o parâmetro explícito continua funcionando para a sincronia.
  */
 export async function reverseGroup(
   companyId: string,

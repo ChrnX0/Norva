@@ -612,6 +612,24 @@ sistema** até ela falhar ou passar de verdade. Construir sobre uma premissa
 inventada custa a rodada inteira, e o pior é que o código fica bonito: testes
 verdes protegendo uma regra que ninguém pediu.
 
+**Detector novo não reporta nada antes de passar num caso verdadeiro e num
+falso.** A régua descartável — o `grep` que conta, o script que varre uma vez para
+responder uma pergunta — não passa por CI, não tem guard, e fala direto com o dono.
+É a menos verificada e a mais exposta. Em 6 de setembro duas dela erraram na mesma
+sessão: "34 alvos de toque sem rótulo" (um `=>` terminando a expressão regular; a
+resposta real era **zero**) e coordenadas de cena fora do chão (comandos SVG
+relativos lidos como absolutos). O projeto já exige teste positivo e negativo de
+todo guard do repositório; a exigência vale igual para a medida de uma vez. **Antes
+de dizer um número, rode a régua contra um caso que você sabe que ela deve pegar e
+um que ela não deve** — se ela não distinguir os dois, o número não existe.
+
+**Comentário que se declara único não é o mesmo que ser único.** `amountOf` diz de
+si *"the one place rounding happens"*, e `repository.ts` — que o importa na
+primeira linha — chamava `cents(rate * qty)` em dois outros lugares, cada um com o
+comentário *"arredondada aqui e só aqui"*. Três declarações de unicidade, dois
+autores de fato, e todas verdes porque hoje dão o mesmo número. Onde a doutrina diz
+"só num lugar", o que prova não é o comentário: é `grep` pelos outros.
+
 **A proofgate cresce com o uso — é diretriz, não cortesia.** Toda vez que um erro
 aqui vira um padrão que um script pegaria, ele vira guard no repositório dela
 (`ChrnX0/proofgate`), com teste positivo e negativo, e sobe por PR. Conselho eu
