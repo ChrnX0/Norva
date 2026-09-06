@@ -613,7 +613,7 @@ test('every line the ledger gets says who was holding the phone', () => {
  * válida quando a regra existe e a tela é escopo escrito** — e é o que separa
  * fronteira registrada de código morto com desculpa.
  */
-const DOMINIO_SEM_CHAMADOR: Record<string, string> = {
+const SEM_CHAMADOR: Record<string, string> = {
   needsHumanYes:
     'o piso de atos que sempre pedem um humano é promessa feita ANTES das funcionalidades existirem — o docblock diz isso por extenso, e quem construir preço ou lançamento financeiro herda a regra em vez de decidir de novo',
   observedLeadTimeDays:
@@ -628,15 +628,28 @@ const DOMINIO_SEM_CHAMADOR: Record<string, string> = {
     'primitiva da fundação do dinheiro, par de `fromDecimal`. Existe para ninguém dividir por 100 na mão, que é metade do erro que a capa deste projeto proíbe',
   multiplyCents:
     'a outra metade: existe para ninguém escrever `Math.round(x * f)` inline. Só o valor final arredonda, uma vez, e a primitiva certa presente é o que impede a errada de nascer',
+
+  // ---- Fora do domínio, desde que a guarda passou a olhar o `src` inteiro ----
+  __setOpener:
+    'gancho de teste, e o sublinhado duplo diz isso na assinatura: ele troca quem ABRE o banco, para a suíte rodar contra o SQLite do node em vez do do aparelho. Par de `__setDb`, que a suíte usa em todo arquivo de dado',
+  drain:
+    'o motor de sincronia, e ele não tem chamador porque o servidor não subiu — decisão escrita do dono, *"o servidor sobe o mais tarde possível"*. A regra existe, é exercitada contra Postgres pelo `db:verify`, e o chamador é a tela de conta, que é o item 2b do roadmap',
+  serialize:
+    'mesma fronteira: é ela que transforma a linha do aparelho no que o servidor aceita, com a travessia de colunas guardada por teste. Sem caminho de escrita não há quem a chame, e inventar um chamador agora seria construir a metade que não fecha',
 };
 
-test('every domain function has a caller in production, or a written reason', () => {
-  const dominio = readdirSync(join(process.cwd(), 'src/domain'))
-    .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
-    .map((f) => join('src/domain', f));
+test('every exported function has a caller in production, or a written reason', () => {
+  // Todo o `src`, e não só o domínio.
+  //
+  // A guarda nasceu olhando `src/domain` porque foi ali que a medição de 6 de
+  // setembro achou dez órfãs. Uma varredura mais larga no mesmo dia achou sete
+  // FORA dele — um ponto de extensão do assistente que nada estende, três ícones
+  // substituídos pelos glifos, dois formatadores e um mapa de cores. A doença não
+  // conhecia a fronteira da pasta; a guarda também não conhece mais.
+  const dominio = sourcesUnder('src').filter((f) => !/\.test\.tsx?$/.test(f));
 
   const producao = [...sourcesUnder('src'), ...sourcesUnder('app')].filter(
-    (f) => !f.endsWith('.test.ts'),
+    (f) => !/\.test\.tsx?$/.test(f),
   );
   const codigoDeProducao = producao.map((f) => readFileSync(f, 'utf8'));
 
@@ -654,8 +667,8 @@ test('every domain function has a caller in production, or a written reason', ()
       const daCasa = (fonte.match(new RegExp(`\\b${nome}\\b`, 'g')) ?? []).length > 1;
 
       if (usos.length === 0 && !daCasa) {
-        if (!DOMINIO_SEM_CHAMADOR[nome]) orfas.push(`${arquivo}: ${nome}`);
-      } else if (DOMINIO_SEM_CHAMADOR[nome]) {
+        if (!SEM_CHAMADOR[nome]) orfas.push(`${arquivo}: ${nome}`);
+      } else if (SEM_CHAMADOR[nome]) {
         registroVelho.push(nome);
       }
     }
@@ -664,7 +677,7 @@ test('every domain function has a caller in production, or a written reason', ()
   assert.deepEqual(
     orfas,
     [],
-    `estas funções do domínio nenhum código de produção chama: ${orfas.join(' · ')}. ` +
+    `estas funções exportadas nenhum código de produção chama: ${orfas.join(' · ')}. ` +
       'Traga o chamador no mesmo commit, apague, ou registre a fronteira com a razão — ' +
       'que é o portão P1 deste projeto, e a doença que ele pega já apareceu quatro vezes.',
   );

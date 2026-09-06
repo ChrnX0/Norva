@@ -160,14 +160,6 @@ export function formatQuantity(value: number, locale: LocaleSettings): string {
   }).format(value);
 }
 
-export function formatWeight(grams: number, locale: LocaleSettings): string {
-  const kg = grams / 1000;
-  const formatted = new Intl.NumberFormat(locale.formatting, {
-    maximumFractionDigits: kg >= 10 ? 0 : 1,
-  }).format(kg);
-  return `${formatted} kg`;
-}
-
 export function formatDate(iso: string, locale: LocaleSettings): string {
   return new Intl.DateTimeFormat(locale.formatting, {
     day: '2-digit',
@@ -274,13 +266,6 @@ export function formatPercent(fraction: number, locale: LocaleSettings, digits =
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   }).format(fraction);
-}
-
-export function formatWeekdayInitial(date: string, locale: LocaleSettings): string {
-  return new Intl.DateTimeFormat(locale.formatting, {
-    weekday: 'narrow',
-    timeZone: 'UTC',
-  }).format(new Date(`${date}T00:00:00Z`));
 }
 
 /**

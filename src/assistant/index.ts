@@ -24,19 +24,15 @@ export { phase1Skills } from './skills';
 /**
  * The one door every question goes through.
  *
- * Modules register what they can answer and what they can fill, so turning a
- * module on extends the assistant automatically instead of leaving it behind.
+ * There was a `registerSkills` here, so a module could extend the assistant by
+ * pushing into a mutable registry. Nothing ever pushed: the list has always been
+ * `phase1Skills`, and a registry with one writer and no extender is a mutable
+ * array pretending to be an extension point. The P1 gate of this project asks who
+ * calls it in the same commit — when a second module has skills to add, it comes
+ * back with its caller, and a `const` becomes a registry again in one line.
  */
-const registry: Skill[] = [...phase1Skills];
-
-export function registerSkills(skills: readonly Skill[]): void {
-  for (const skill of skills) {
-    if (!registry.some((existing) => existing.id === skill.id)) registry.push(skill);
-  }
-}
-
 export function knownSkills(capabilities: ReadonlySet<Capability>): Skill[] {
-  return registry.filter((s) => !s.requires || capabilities.has(s.requires));
+  return phase1Skills.filter((s) => !s.requires || capabilities.has(s.requires));
 }
 
 /**
@@ -55,7 +51,7 @@ export async function ask(question: string, context: SkillContext): Promise<Answ
   const trimmed = question.trim();
   if (!trimmed) return { text: 'Pode perguntar.' };
 
-  for (const skill of registry) {
+  for (const skill of phase1Skills) {
     const match = skill.match(trimmed);
     if (!match) continue;
 

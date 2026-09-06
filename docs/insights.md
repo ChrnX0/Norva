@@ -5491,3 +5491,47 @@ E o resultado mudou de natureza no meio do caminho: comecei procurando o que apa
 terminei achando uma tela que faltava — **função sem chamador é uma pergunta, não um
 veredito**, e a resposta certa foi a mesma do `forgetSentBefore` de manhã: o conserto não era
 apagar.
+
+---
+
+## A guarda do P1 só olhava uma pasta, e a doença não conhece pasta
+
+*6 de setembro, depois da varredura.* Fechadas as duas órfãs da camada de dados, rodei o
+mesmo script sobre **todo o `src/`** em vez de um arquivo. Sete exportações a mais sem
+chamador nenhum, todas fora de `src/domain` — que é exatamente onde a guarda existente
+olhava, e só ali.
+
+O que apareceu, e o que cada uma era:
+
+- **`registerSkills`** (assistente): um registro mutável com um escritor e nenhum
+  extensor. O docblock dizia *"módulos registram o que sabem responder"*; nada nunca
+  registrou, e a lista sempre foi `phase1Skills`. Ponto de extensão sem quem estenda é
+  array pretendendo ser API. Saiu, e `knownSkills` passou a filtrar a lista direto.
+- **`IconStock`, `IconCost`, `IconLoss`**: as linhas de relatório e a grade do "Mais"
+  desenham com `Glyph.tsx` há tempo. Dois desenhos da mesma coisa é a doença das duas
+  grafias em forma de traço — e **o docblock do arquivo afirmava que as telas usavam estes**,
+  o que deixou de ser verdade sem ninguém notar.
+- **`formatWeight`**: formatava gramas em "kg" com a unidade **escrita no código**, num
+  aplicativo que agora tira a régua de `item.baseUnit` e vai para as duas lojas. Morta e
+  errada.
+- **`formatWeekdayInitial`**: a inicial do dia, ao lado de `formatWeekdayAbbrev`, que é a
+  que se usa.
+
+E três ficaram, com a razão escrita: `__setOpener` (gancho de teste, par de `__setDb`) e
+`drain`/`serialize` — o motor de sincronia, que não tem chamador porque **o servidor não
+subiu**, decisão do dono. Fronteira registrada não é código morto com desculpa; a diferença
+é a razão poder ser conferida.
+
+**O que fica, e é o ponto.** A guarda passou a ler o `src` inteiro, e a mensagem dela também
+— *"estas funções exportadas nenhum código de produção chama"*. Provei que morde plantando
+um `export function` inútil no `i18n` e desfazendo a plantação. Isso troca *"eu varri uma
+vez"* por *"o repositório recusa a próxima"*, que é a diretriz da casa sobre guardas: conselho
+eu esqueço na sessão seguinte, guarda roda sozinha.
+
+**E a lição menor, que custou uma restauração.** Apaguei os três ícones com um laço que
+cortava "do parágrafo anterior até a próxima função" — e ele comeu o `IconMore`, que estava
+no meio. Edição mecânica por padrão textual não sabe onde uma função termina; o conserto foi
+extrair o arquivo do commit para o rascunho e recortar por **intervalo de linhas conferido**.
+O `git checkout` do arquivo, que seria o caminho curto, é justamente o que já apagou quinze
+edições nesta branch — e o classificador de permissão o recusou, o que foi a segunda rede
+funcionando.

@@ -308,6 +308,15 @@ De pé, nesta ordem e por este motivo:
    ícone de picolé, **a tela de abertura** e **a fila que nunca era varrida**.
    Fica de pé: a aprovação de pedido, que **não é trabalho, é bloqueio** — ver abaixo.
 
+   *E a varredura virou GUARDA, para não precisar acontecer de novo.* A de "toda função
+   exportada tem chamador ou razão escrita" (`src/layers.test.ts`) olhava só
+   `src/domain`; passou a ler o `src` inteiro, e no mesmo dia isso tirou sete
+   exportações mortas fora do domínio — um ponto de extensão do assistente que nada
+   estende, três ícones substituídos pelos glifos (com o docblock do arquivo afirmando
+   o contrário) e dois formatadores. Ficaram registradas `__setOpener` (gancho de
+   teste) e `drain`/`serialize` (o motor de sincronia, sem chamador porque o servidor
+   não subiu). **Daqui em diante a próxima morta reprova sozinha.**
+
    *E ela está MEDIDA, em 6 de setembro — não é "falta escrever", é bloqueada.*
    A aprovação existe inteira no aparelho: `setOrdersNeedApproval`
    (`src/data/repository.ts:4771`) grava a bandeira no `meta`, `saveOrder` (`:4789`)

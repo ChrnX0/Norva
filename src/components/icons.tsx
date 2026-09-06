@@ -5,9 +5,15 @@ import { Vivo } from './Vivo';
  * The icons the design draws, and nothing else.
  *
  * Every shape here was traced from the artboards in the design canvas, not
- * picked from a library: the tab bar, the report rows and the "Mais" grid use
- * the same drawing at different sizes, which is what makes the app feel like
- * one hand drew it.
+ * picked from a library: the tab bar uses the same drawing at different sizes,
+ * which is what makes the app feel like one hand drew it.
+ *
+ * **As linhas de relatório e a grade do "Mais" saíram daqui** — elas desenham com
+ * `Glyph.tsx`, que é a família que a pele escolhe. Este arquivo guardava um
+ * `IconStock`, um `IconCost` e um `IconLoss` que ninguém chamava mais: dois
+ * desenhos da mesma coisa é a doença das duas grafias, em forma de traço. E a
+ * frase acima afirmava o contrário até 6 de setembro — a varredura do P1 a
+ * desmentiu, que é o motivo de o docblock ser conferível e não decorativo.
  *
  * Two rules the canvas states and this file obeys. The colour lives ONLY in the
  * stroke - no filled surfaces, ever - so an icon is a line drawing that carries
@@ -131,43 +137,10 @@ export function IconMore({ size = 24, color }: IconProps) {
   );
 }
 
-/** A cube: what is held somewhere. Used by the Estoque report row. */
-export function IconStock({ size = 24, color }: IconProps) {
-  return (
-    <Svg {...frame(size)} accessibilityRole="image">
-      <Path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" {...stroke(color)} />
-      <Path d="M4 7.5l8 4.5 8-4.5" {...stroke(color)} />
-      <Path d="M12 12v9" {...stroke(color)} />
-    </Svg>
-  );
-}
-
-/** Money: what a unit costs. */
-export function IconCost({ size = 24, color }: IconProps) {
-  return (
-    <Svg {...frame(size)} accessibilityRole="image">
-      <Path d="M12 3v18" {...stroke(color)} />
-      <Path d="M16 7.5a3.5 3.5 0 0 0-3.5-2.5h-1a3.5 3.5 0 0 0 0 7h1a3.5 3.5 0 0 1 0 7h-1A3.5 3.5 0 0 1 8 16.5" {...stroke(color)} />
-    </Svg>
-  );
-}
-
-/** A chevron, for a row that opens something. */
 export function IconChevron({ size = 24, color }: IconProps) {
   return (
     <Svg {...frame(size)} accessibilityRole="image">
       <Path d="M9.5 5l7 7-7 7" {...stroke(color)} />
-    </Svg>
-  );
-}
-
-/** A triangle with a bang: what was lost, and why the report exists. */
-export function IconLoss({ size = 24, color }: IconProps) {
-  return (
-    <Svg {...frame(size)} accessibilityRole="image">
-      <Path d="M12 3.5l9 16H3z" {...stroke(color)} />
-      <Path d="M12 9.5v5" {...stroke(color)} />
-      <Path d="M12 17.2v.1" {...stroke(color)} />
     </Svg>
   );
 }
