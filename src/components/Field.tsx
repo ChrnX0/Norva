@@ -33,6 +33,8 @@ export function Field({
   suffix,
   keyboardType = 'default',
   autoFocus = false,
+  segredo = false,
+  caixaAutomatica = 'sentences',
 }: {
   label: string;
   value: string;
@@ -42,6 +44,21 @@ export function Field({
   suffix?: string;
   keyboardType?: KeyboardTypeOptions;
   autoFocus?: boolean;
+  /**
+   * Senha: esconde o que se digita e desliga o corretor.
+   *
+   * Entrou com a tela de conta. E o `hint` continua servindo aqui, que é o que
+   * separa um campo de senha decente de um ruim — "faltam 3 letras" dito enquanto
+   * se digita evita o erro depois de enviar, que é a Lei 5 desta casa: erro se
+   * IMPEDE, não se reclama.
+   */
+  segredo?: boolean;
+  /**
+   * E-mail não começa com maiúscula. O padrão do Android é `sentences`, e num
+   * campo de e-mail isso produz `Rockx0@…` — que o servidor aceita e o dono não
+   * reconhece quando erra a senha.
+   */
+  caixaAutomatica?: 'none' | 'sentences' | 'words' | 'characters';
 }) {
   const { color, radius, space, type, accent, tracos } = useTheme();
   const papel = tracos.genero === 'pagina';
@@ -84,6 +101,10 @@ export function Field({
           placeholderTextColor={color.inkFaint}
           keyboardType={keyboardType}
           autoFocus={autoFocus}
+          secureTextEntry={segredo}
+          autoCapitalize={caixaAutomatica}
+          autoCorrect={!segredo}
+          textContentType={segredo ? 'password' : 'none'}
           accessibilityLabel={label}
           selectionColor={accent}
           onFocus={() => setAceso(true)}

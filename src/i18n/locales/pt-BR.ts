@@ -451,6 +451,42 @@ export const ptBR = {
      * com cara de conta. Ela diz a máxima, a de amanhã e a diferença — e quem
      * conhece a própria fábrica decide sozinho o que fazer com isso.
      */
+    account: {
+      title: 'Conta',
+      overline: 'o que liga este aparelho ao servidor',
+      /* A frase que evita a pergunta mais provável: "sou obrigado a fazer isto?" */
+      why:
+        'O aplicativo funciona inteiro sem conta. Ela serve para o que sai deste aparelho: '
+        + 'guardar no servidor, cadastrar quem trabalha aqui, e abrir o app noutro celular '
+        + 'com os mesmos dados.',
+      email: 'E-mail',
+      password: 'Senha',
+      passwordHint: 'Pelo menos 6 letras ou números.',
+      signIn: 'Entrar',
+      signUp: 'Criar conta',
+      switchToSignUp: 'Ainda não tenho conta',
+      switchToSignIn: 'Já tenho conta',
+      checkEmail: 'Conta criada. Confirme pelo link que chegou no seu e-mail e volte aqui para entrar.',
+      companyTitle: 'A sua empresa',
+      companyBody: 'Falta dar um nome. É ele que aparece no topo do aplicativo e nos relatórios.',
+      companyName: 'Nome da empresa',
+      createCompany: 'Criar a empresa',
+      signedInAs: 'Entrou como',
+      companyIs: 'Empresa',
+      signOut: 'Sair da conta',
+      signOutHint: 'O que está gravado neste aparelho continua aqui.',
+      working: 'Um instante…',
+      /* Os motivos: fato do servidor traduzido em frase, e a frase diz o que FAZER. */
+      reason: {
+        semServidor: 'Este aplicativo está sem servidor configurado. Só o aparelho, por enquanto.',
+        semRede: 'Sem alcançar o servidor. Confira a internet e tente de novo.',
+        credenciais: 'E-mail ou senha não conferem.',
+        emailEmUso: 'Já existe conta com este e-mail. Entre em vez de criar.',
+        senhaFraca: 'A senha é curta demais. Use pelo menos 6 letras ou números.',
+        emailNaoConfirmado: 'Falta confirmar o e-mail. Procure o link que o servidor mandou.',
+        desconhecido: 'Não deu certo, e o motivo não é um dos conhecidos.',
+      },
+    },
     weather: {
       overline: 'clima em {{city}}',
       today: 'máxima de hoje',
@@ -503,6 +539,7 @@ export const ptBR = {
         people: 'Pessoas',
         purchases: 'Compras',
         orders: 'Pedidos',
+        account: 'Conta',
         weather: 'Clima',
         settings: 'Ajustes',
       },

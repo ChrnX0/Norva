@@ -325,6 +325,40 @@ export const es: Dictionary = {
       confirmItem: '{{amount}} de {{name}}',
     },
 
+    account: {
+      title: 'Cuenta',
+      overline: 'lo que conecta este aparato con el servidor',
+      why:
+        'La aplicación funciona entera sin cuenta. Sirve para lo que sale de este aparato: '
+        + 'guardar en el servidor, registrar a quien trabaja aquí, y abrir la app en otro '
+        + 'celular con los mismos datos.',
+      email: 'Correo',
+      password: 'Contraseña',
+      passwordHint: 'Al menos 6 letras o números.',
+      signIn: 'Entrar',
+      signUp: 'Crear cuenta',
+      switchToSignUp: 'Todavía no tengo cuenta',
+      switchToSignIn: 'Ya tengo cuenta',
+      checkEmail: 'Cuenta creada. Confírmela con el enlace que llegó a su correo y vuelva aquí para entrar.',
+      companyTitle: 'Su empresa',
+      companyBody: 'Falta ponerle nombre. Es el que aparece arriba en la app y en los informes.',
+      companyName: 'Nombre de la empresa',
+      createCompany: 'Crear la empresa',
+      signedInAs: 'Entró como',
+      companyIs: 'Empresa',
+      signOut: 'Salir de la cuenta',
+      signOutHint: 'Lo que está guardado en este aparato sigue aquí.',
+      working: 'Un momento…',
+      reason: {
+        semServidor: 'Esta aplicación no tiene servidor configurado. Solo el aparato, por ahora.',
+        semRede: 'No se alcanzó el servidor. Revise la conexión e intente de nuevo.',
+        credenciais: 'El correo o la contraseña no coinciden.',
+        emailEmUso: 'Ya existe una cuenta con este correo. Entre en vez de crear.',
+        senhaFraca: 'La contraseña es muy corta. Use al menos 6 letras o números.',
+        emailNaoConfirmado: 'Falta confirmar el correo. Busque el enlace que mandó el servidor.',
+        desconhecido: 'No funcionó, y el motivo no es uno de los conocidos.',
+      },
+    },
     weather: {
       overline: 'clima en {{city}}',
       today: 'máxima de hoy',
@@ -376,6 +410,7 @@ export const es: Dictionary = {
         people: 'Personas',
         purchases: 'Compras',
         orders: 'Pedidos',
+        account: 'Cuenta',
         weather: 'Clima',
         settings: 'Ajustes',
       },

@@ -320,6 +320,40 @@ export const en: Dictionary = {
       confirmItem: '{{amount}} of {{name}}',
     },
 
+    account: {
+      title: 'Account',
+      overline: 'what connects this device to the server',
+      why:
+        'The app works fully without an account. It is for what leaves this device: '
+        + 'keeping a copy on the server, registering who works here, and opening the app '
+        + 'on another phone with the same data.',
+      email: 'Email',
+      password: 'Password',
+      passwordHint: 'At least 6 letters or numbers.',
+      signIn: 'Sign in',
+      signUp: 'Create account',
+      switchToSignUp: "I don't have an account yet",
+      switchToSignIn: 'I already have an account',
+      checkEmail: 'Account created. Confirm it through the link sent to your email, then come back to sign in.',
+      companyTitle: 'Your company',
+      companyBody: 'It still needs a name. This is what shows at the top of the app and on reports.',
+      companyName: 'Company name',
+      createCompany: 'Create the company',
+      signedInAs: 'Signed in as',
+      companyIs: 'Company',
+      signOut: 'Sign out',
+      signOutHint: 'What is stored on this device stays here.',
+      working: 'One moment…',
+      reason: {
+        semServidor: 'This app has no server configured. Device only, for now.',
+        semRede: 'Could not reach the server. Check the connection and try again.',
+        credenciais: 'Email or password do not match.',
+        emailEmUso: 'An account with this email already exists. Sign in instead.',
+        senhaFraca: 'That password is too short. Use at least 6 letters or numbers.',
+        emailNaoConfirmado: 'The email is not confirmed yet. Look for the link the server sent.',
+        desconhecido: 'It did not work, and the reason is not one of the known ones.',
+      },
+    },
     weather: {
       overline: 'weather in {{city}}',
       today: "today's high",
@@ -371,6 +405,7 @@ export const en: Dictionary = {
         people: 'People',
         purchases: 'Purchases',
         orders: 'Orders',
+        account: 'Account',
         weather: 'Weather',
         settings: 'Settings',
       },

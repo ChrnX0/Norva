@@ -149,6 +149,11 @@ function Drawers() {
     // quando há previsão guardada, e quem abre o app pela primeira vez dentro da
     // câmara fria não tem nenhuma. Sem esta linha, trocar a cidade dependeria de
     // ter internet — que é a única coisa que essa tela existe para consertar.
+    // A conta fica AQUI e não na frente do aplicativo, e isso é decisão: a
+    // fábrica offline na câmara fria é o caso normal, tudo funciona no aparelho,
+    // e a conta existe para o que SAI daqui. Uma tela de senha entre a pessoa e a
+    // caixa que ela está segurando seria o defeito mais caro deste produto.
+    { key: 'account', detail: t.app.account.overline, route: '/account', desenho: glifo(GlyphCustomer), tom: palette.sky },
     { key: 'weather', detail: t.app.weather.change, route: '/weather', desenho: glifo(GlyphThermometer), tom: palette.sky },
     { key: 'settings', detail: t.app.settings.stored, route: '/settings', desenho: glifo(GlyphSettings), tom: palette.mist },
   ];
