@@ -114,11 +114,26 @@ export type FreeToShip = {
  * A fila vem ordenada por data, sem dia marcado no fim — a mesma ordem do
  * `listOrders`, refeita aqui porque uma função pura que promete ordem não pode
  * depender de quem a chamou ter ordenado.
+ *
+ * **E ela tem horizonte, pelo mesmo motivo que o palpite tem.** Pedido para daqui
+ * a cinco semanas não disputa o caminhão de hoje: a fábrica produz de novo antes
+ * disso, e avisar sobre ele seria alarme que aparece sem ter o que evitar — que é
+ * como se ensina alguém a ignorar alarme. O corte é o mesmo de `pickingFor` e do
+ * `stockAgainstOrders`, inclusive na letra miúda: **pedido sem dia marcado conta
+ * sempre**, porque ninguém sabe dizer que ele é distante.
+ *
+ * Sem isto a MESMA tela contava dois conjuntos de pedidos — um para sugerir o
+ * número, outro para avisar sobre ele.
  */
 export function freeToShip(input: {
   itemId: string;
   /** Para onde esta carga vai. */
   toPlaceId: string;
+  /**
+   * Até quando um pedido disputa esta carga, `YYYY-MM-DD`. Depois disso, a
+   * fábrica produz de novo antes de a promessa vencer.
+   */
+  through: string;
   /** Saldo físico na sala de onde a carga sai. */
   onHand: number;
   /** Quanto a pessoa digitou, na unidade base. */
@@ -138,6 +153,7 @@ export function freeToShip(input: {
   const queue: Waiting[] = [];
   for (const order of input.orders) {
     if (order.placeId === input.toPlaceId) continue;
+    if (order.requestedFor !== null && order.requestedFor > input.through) continue;
     const baseUnits = order.lines
       .filter((l) => l.itemId === input.itemId)
       .reduce((n, l) => n + l.baseUnits, 0);

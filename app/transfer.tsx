@@ -188,11 +188,13 @@ function Transfer() {
     return lotes[0] ?? null;
   }, `${itemId ?? ''}:${devolucao ? 'v' : 'i'}:${toId ?? ''}`);
 
+  // Sete dias: o horizonte da separação e o da reserva são o mesmo, e por isso
+  // é uma constante só. Com dois números, a tela sugeria contando um conjunto de
+  // pedidos e avisava contando outro.
+  const ateQuando = localDate(nowIso(), locale.timeZone, 7);
+
   const { data: pedido } = useQuery<PickLine[]>(
-    () =>
-      to
-        ? pickingFor(LOCAL_COMPANY_ID, to.id, from, localDate(nowIso(), locale.timeZone, 7))
-        : Promise.resolve([]),
+    () => (to ? pickingFor(LOCAL_COMPANY_ID, to.id, from, ateQuando) : Promise.resolve([])),
     to?.id ?? '',
   );
   const paraSeparar = pedido?.find((p) => p.itemId === line?.itemId) ?? null;
@@ -239,6 +241,7 @@ function Transfer() {
       ? freeToShip({
           itemId: line.itemId,
           toPlaceId: to.id,
+          through: ateQuando,
           onHand: nossas.reduce(
             (n, p) => n + (p.lines.find((l) => l.itemId === line.itemId)?.baseUnits ?? 0),
             0,

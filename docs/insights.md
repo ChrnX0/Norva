@@ -4568,3 +4568,35 @@ dizer que existe *se e só se* a decisão do 5 for pela viagem.
 **A regra que fica:** quando dois itens da lista travam pelo mesmo motivo, eles não são
 dois itens. Some-os antes de estimar qualquer um dos dois — senão a lista promete três
 semanas de trabalho onde há uma conversa de dez minutos com quem decide.
+
+---
+
+## 2026-09-06 — unir duas metades e deixar os termos diferentes
+
+**O que se viu.** Uma hora depois de ligar as duas metades da reserva — prometer e
+despachar passaram a contar a mesma coisa —, a pergunta óbvia ainda não tinha sido feita:
+*contar a mesma coisa como?* A tela de transferência já lia pedido com um horizonte de
+sete dias para montar o palpite (`pickingFor`), e o aviso novo lia **todos os pedidos, sem
+data de corte**. Um pedido para daqui a cinco semanas disparava alarme sobre o caminhão de
+hoje.
+
+**Por que importa.** O defeito não é aritmético: é de ruído, e ruído é o jeito mais
+eficiente de desligar um alerta que funciona. A fábrica produz de novo antes de outubro,
+então não há nada a evitar — e quem vê o aviso aparecer sem motivo aprende, em duas
+semanas, a passar por ele sem ler. Foi a Lei 7 sendo desfeita por dentro pela feature que
+existe para servi-la.
+
+E o mais desconfortável: a tela ficou com **dois conjuntos de pedidos ao mesmo tempo** —
+um para sugerir o número, outro para avisar sobre o número sugerido. É a mesma
+inconsistência que eu tinha acabado de consertar entre duas telas, reaparecida dentro de
+uma.
+
+**O que mudou.** `freeToShip` passou a receber `through`, a tela calcula o horizonte uma
+vez só e passa para os dois usos, e o teste cobre a borda (no dia exato do corte o pedido
+ainda disputa) e a letra miúda (pedido sem dia marcado conta sempre).
+
+**A regra que fica:** quando duas coisas passam a concordar, confira em **quantos termos**
+elas concordam. "Agora as duas leem pedido" é meia verificação — a outra metade é *quais*
+pedidos, em que janela, com qual regra para o que não tem data. A concordância que só vale
+no verbo é a que passa despercebida, porque a frase que descreve o conserto continua
+verdadeira.

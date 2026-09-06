@@ -75,7 +75,7 @@ test('the promise of the place you are shipping TO is not a competitor', () => {
       lines: [{ itemId: 'picole', baseUnits: 500 }],
     },
   ];
-  const base = { itemId: 'picole', onHand: 600, amount: 600, orders: pedidos };
+  const base = { itemId: 'picole', onHand: 600, amount: 600, orders: pedidos, through: '2026-09-30' };
 
   // Mandando para a Loja Centro: as 500 dela são o MOTIVO da carga, não uma
   // promessa que a carga rouba. Contá-las aqui faria a tela avisar contra a
@@ -108,7 +108,7 @@ test('what is short is what is missing AFTER the load, and it never goes below z
       lines: [{ itemId: 'picole', baseUnits: 500 }],
     },
   ];
-  const base = { itemId: 'picole', toPlaceId: 'bairro', onHand: 600, orders: pedidos };
+  const base = { itemId: 'picole', toPlaceId: 'bairro', onHand: 600, orders: pedidos, through: '2026-09-30' };
 
   // Cabendo na folga, nada falta - e a tela não avisa. Estado bom é estado
   // válido: alerta inventado ensina a ignorar alerta.
@@ -134,6 +134,7 @@ test('a factory that promised more than it has says so before the load exists', 
     onHand: 600,
     amount: 0,
     orders: pedidos,
+    through: '2026-09-30',
   });
 
   // Prometeu 900 e tem 600: a folga é NEGATIVA, e isso é notícia - não um zero
@@ -169,6 +170,7 @@ test('only the asked item counts, and a place waiting twice counts twice', () =>
     onHand: 600,
     amount: 600,
     orders: pedidos,
+    through: '2026-09-30',
   });
 
   // As 900 de pote não reservam picolé nenhum: a promessa é por produto.
@@ -179,4 +181,59 @@ test('only the asked item counts, and a place waiting twice counts twice', () =>
   // esperando numa data.
   assert.deepEqual(conta.queue.map((w) => w.baseUnits), [300, 200]);
   assert.equal(conta.queue[1].requestedFor, null);
+});
+
+
+test('an order for five weeks out does not fight over today truck', () => {
+  const pedidos = [
+    {
+      id: 'perto',
+      placeId: 'centro',
+      requestedFor: '2026-09-08',
+      lines: [{ itemId: 'picole', baseUnits: 300 }],
+    },
+    {
+      id: 'longe',
+      placeId: 'praia',
+      requestedFor: '2026-10-15',
+      lines: [{ itemId: 'picole', baseUnits: 500 }],
+    },
+    {
+      id: 'semdia',
+      placeId: 'norte',
+      requestedFor: null,
+      lines: [{ itemId: 'picole', baseUnits: 50 }],
+    },
+  ];
+  const conta = freeToShip({
+    itemId: 'picole',
+    toPlaceId: 'bairro',
+    onHand: 600,
+    amount: 600,
+    orders: pedidos,
+    through: '2026-09-13',
+  });
+
+  // O pedido de outubro não disputa o caminhão de hoje: a fábrica produz de novo
+  // antes disso, e avisar sobre ele seria alarme sem nada para evitar - que é
+  // como se ensina alguém a ignorar alarme.
+  assert.deepEqual(conta.queue.map((w) => w.orderId), ['perto', 'semdia']);
+  assert.equal(conta.promised, 350);
+
+  // Sem dia marcado conta SEMPRE. Ninguém sabe dizer que ele é distante, e o
+  // corte é a mesma letra miúda do SQL que a tela de pedido já usava.
+  assert.equal(conta.queue[1].requestedFor, null);
+
+  // E o horizonte é do lado de dentro: no dia exato do corte o pedido ainda
+  // disputa. Trocar `>` por `>=` some com quem espera justamente no dia em que
+  // a carga sairia sem ele.
+  const noDia = freeToShip({
+    itemId: 'picole',
+    toPlaceId: 'bairro',
+    onHand: 600,
+    amount: 600,
+    orders: pedidos,
+    through: '2026-10-15',
+  });
+  assert.equal(noDia.promised, 850);
 });

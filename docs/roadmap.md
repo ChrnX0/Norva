@@ -42,7 +42,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **368** testes |
+| `npm test` | **369** testes |
 | `npm run mutate` | **106** defeitos plantados, 104 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **38** checagens num navegador de verdade |
 | `npm run db:verify` | **14** garantias contra um Postgres descartável, sob RLS |
@@ -381,6 +381,11 @@ Três decisões dentro dela, cada uma um jeito de errar que foi evitado:
   base do `stockAgainstOrders`, pela régua compartilhada `INTERNAL_PLACE_KINDS`. Uma sala
   só avisaria contra carga que não quebra promessa nenhuma: 500 reservadas que estão na
   câmara fria continuam existindo quando o caminhão carrega no freezer da frente.
+- **Tem horizonte: sete dias, o mesmo do palpite.** Pedido para daqui a cinco semanas
+  não disputa o caminhão de hoje — a fábrica produz de novo antes disso. Sem o corte, a
+  MESMA tela contava dois conjuntos de pedidos: um para sugerir o número e outro para
+  avisar sobre ele. Pedido sem dia marcado conta sempre, que é a letra miúda do SQL que
+  a tela de pedido já usava.
 - **Não bloqueia.** Às vezes a loja está na porta. A frase de fato aparece sempre que
   alguém espera; o aviso, só quando esta carga passa da folga; o botão obedece nos dois
   casos. E a conta é repetida na confirmação, porque o botão fica embaixo do cartão:
