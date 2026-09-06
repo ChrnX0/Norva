@@ -44,7 +44,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 |---|---|
 | `npm test` | **369** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
-| `npm run e2e:fast` | **39** checagens num navegador de verdade |
+| `npm run e2e:fast` | **40** checagens num navegador de verdade |
 | `npm run db:verify` | **14** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
@@ -348,9 +348,25 @@ transferir não faz (ela sai sempre da fábrica, e o caminho de volta grava
 O alvo decidido pelo dono. No fim disto, a fábrica para de usar papel para
 romaneio, conferência e etiqueta.
 
-**1. Etiqueta e QR do lote.** O QR já é impresso; falta quem o leia. A seção `scan`
-do dicionário existe nos três idiomas esperando a tela — está registrada como
-fronteira em `src/dictionary.test.ts`, com o motivo.
+**1. Etiqueta e QR do lote — metade entrou em 6 de setembro.** O que faltava era
+"quem o leia", e isso eram duas coisas diferentes.
+
+**A que entrou:** o código impresso virou **endereço de verdade**. O QR carrega o
+código (`app/lots/[id].tsx:208` imprime `lote.code`) e o `findLot` só conhecia o id —
+então bipar a caixa, ou digitar os onze caracteres como a própria etiqueta promete por
+escrito, não levava a lugar nenhum. Agora `findLot` aceita os dois (uuid e `AAAAMMDD-NN`
+não se confundem), e a aba de produção ganhou onde digitar: o cartão de cima lista os
+lotes do DIA, e o comentário dele já dizia a verdade que faltava — *quem procura o lote
+de uma caixa procura HORAS depois*. Três dias depois, não havia caminho.
+
+Sem exigir formato: o `lotCode` diz por escrito que `AAAAMMDD-NN` é o padrão e não a
+única forma, e a fábrica que já tem código próprio vai poder usá-lo.
+
+**O que falta:** a **câmera** (dependência nativa, e esta sessão não tem como fotografar
+uma leitura de câmera para provar), e a **leitura engradado a engradado na doca** — que é
+o que a seção `scan` do dicionário descreve (`{{done}} de {{total}}`, "esse engradado já
+foi bipado") e que pertence ao mesmo bloco dos itens 4 e 5: ela é a conferência da carga
+saindo, e depende da mesma decisão.
 
 **2.** ~~**Lojas e clientes com ficha de acordo.**~~ **JÁ EXISTE — conferido em 6 de
 setembro, e o roadmap estava errado.** A linha dizia "falta a tela" e a tela está

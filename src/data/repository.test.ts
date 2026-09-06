@@ -1587,6 +1587,20 @@ test('a lot opens by its own id, and a lot that is gone says so', async () => {
 
   // E o lote de outra empresa não vaza por id adivinhado.
   assert.equal(await findLot('outra-empresa', corrida.lot.id), null);
+
+  // O CÓDIGO impresso abre o mesmo lote que o id.
+  //
+  // É ele que o QR carrega e é ele que alguém digita quando a etiqueta congela e
+  // descasca - a própria tela promete isso por escrito. A consulta só conhecia o
+  // id, então o código era um endereço que não levava a lugar nenhum: caixa
+  // bipada, onze caracteres digitados, e nada abria.
+  const pelaEtiqueta = await findLot(LOCAL_COMPANY_ID, corrida.lot.code);
+  assert.equal(pelaEtiqueta?.id, corrida.lot.id, 'o código impresso abre o lote');
+  assert.equal(pelaEtiqueta?.baseUnits, 480);
+
+  // E o código de outra empresa continua sem vazar: a régua é a empresa, não o
+  // formato. Duas fábricas podem ter o mesmo `20260902-01` no mesmo dia.
+  assert.equal(await findLot('outra-empresa', corrida.lot.code), null);
 });
 
 test('a product with no shelf life still gets a lot, without a date', async () => {

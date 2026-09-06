@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
+import { Field } from '@/components/Field';
 import { GlyphKettle, GlyphLabel, GlyphPlus, GlyphProduction } from '@/components/Glyph';
 import { IconChevron } from '@/components/icons';
 import { PulseDot } from '@/components/PulseDot';
@@ -76,6 +77,9 @@ type Loaded = {
 function ProductionDay() {
   const { color, type, space, palette, traco } = useTheme();
   const { locale, t } = useLocale();
+
+  /** O código digitado de uma caixa que não é de hoje. */
+  const [codigo, setCodigo] = useState('');
 
   const { data, loading } = useQuery<Loaded>(async () => {
     const hoje = dayWindow(nowIso(), locale.timeZone);
@@ -327,6 +331,42 @@ function ProductionDay() {
           </Card>
         </Reveal>
       ) : null}
+
+      {/* A caixa que não é de hoje.
+          O cartão de cima lista os lotes do DIA, e o comentário dele já dizia o
+          que faltava: quem procura o lote de uma caixa procura HORAS depois.
+          Três dias depois não havia caminho nenhum — o código impresso era um
+          endereço que o aplicativo não sabia abrir, embora a própria etiqueta
+          prometa que "alguém digita os onze caracteres e a conferência segue".
+
+          Sem conferir antes de navegar: a etiqueta já sabe dizer "esse lote não
+          está mais aqui", com a porta de volta. Duplicar a checagem aqui seria
+          dois lugares dizendo a mesma coisa e um deles envelhecendo.
+
+          E sem exigir formato. `AAAAMMDD-NN` é o PADRÃO, não a única forma — o
+          `lotCode` diz isso por escrito, e a fábrica que já tem código próprio
+          vai poder usá-lo. Recusar por forma aqui quebraria essa promessa. */}
+      <Reveal index={4}>
+        <Card
+          hue={palette.apricot}
+          icon={(c) => <GlyphLabel size={26} color={c} weight={traco} />}
+          title={t.app.lotLabel.findTitle}
+        >
+          <Field
+            label={t.app.lotLabel.findLabel}
+            value={codigo}
+            onChangeText={setCodigo}
+            hint={t.app.lotLabel.findHint}
+          />
+          <Button
+            label={t.app.lotLabel.findAction}
+            variant="ghost"
+            disabled={codigo.trim().length === 0}
+            onPress={() => router.push(`/lots/${codigo.trim()}`)}
+            style={{ marginTop: space.md }}
+          />
+        </Card>
+      </Reveal>
 
       {/* "Está tudo bem" é estado válido, e nada produzido ainda também é.
           Um convite, não quatro cartões zerados: desenho, uma frase que diz o

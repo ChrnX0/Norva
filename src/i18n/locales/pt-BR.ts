@@ -236,6 +236,18 @@ export const ptBR = {
       validUntil: 'válido até {{date}}',
       noExpiry: 'não vence',
       gone: 'Esse lote não está mais aqui.',
+      /**
+       * Achar a caixa que não é de hoje.
+       *
+       * O cartão de cima só lista os lotes do DIA, e o comentário dele já dizia
+       * a verdade que faltava: quem procura o lote de uma caixa procura HORAS
+       * depois. Três dias depois, não havia caminho nenhum — o código impresso
+       * era um endereço que o aplicativo não sabia abrir.
+       */
+      findTitle: 'Achar um lote',
+      findLabel: 'Código do lote',
+      findHint: 'Digite o código que está na caixa — o mesmo que aparece embaixo do quadrado.',
+      findAction: 'Abrir a etiqueta',
       why: 'O código aparece duas vezes de propósito: quando a etiqueta congela ou descasca, alguém digita os onze caracteres e a conferência segue.',
       // O conserto do livro-razão, dito sem a palavra "estorno" - que é
       // vocabulário de contador, e quem lança a corrida é quem estava no tacho.

@@ -3156,6 +3156,16 @@ export async function lotsInRoomAt(
  * Devolve nulo quando o lote não existe - e não lança. Etiqueta se abre por
  * link, e link envelhece: alguém guarda o endereço, o dado é apagado, e a tela
  * tem que saber dizer "esse lote não está mais aqui" em vez de quebrar.
+ *
+ * **Aceita o id OU o código impresso**, e essa é a diferença entre uma etiqueta
+ * bonita e uma etiqueta que serve. O QR carrega o CÓDIGO (`app/lots/[id].tsx`
+ * imprime `lote.code`) e esta consulta só conhecia o id: quem bipasse a caixa —
+ * ou digitasse os onze caracteres, como a própria tela promete para quando a
+ * etiqueta congela e descasca — não chegava a lugar nenhum. O código era um
+ * endereço que não existia.
+ *
+ * Os dois formatos não se confundem: id é uuid, código é `AAAAMMDD-NN`. Procurar
+ * pelos dois na mesma consulta é uma comparação a mais e nenhuma ambiguidade.
  */
 export async function findLot(companyId: string, lotId: string): Promise<LotOfDay | null> {
   const conn = await db();
@@ -3181,9 +3191,9 @@ export async function findLot(companyId: string, lotId: string): Promise<LotOfDa
        LEFT JOIN recipe_versions v ON v.id = l.recipe_version_id
        LEFT JOIN recipes r ON r.id = v.recipe_id
        LEFT JOIN movements m ON m.lot_id = l.id AND m.kind = 'production'
-      WHERE l.company_id = ? AND l.id = ?
+      WHERE l.company_id = ? AND (l.id = ? OR l.code = ?)
       GROUP BY l.id, l.code, i.name, l.expires_on, l.produced_on, r.name, v.version`,
-    [companyId, lotId],
+    [companyId, lotId, lotId],
   );
 
   if (!row) return null;

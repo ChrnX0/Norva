@@ -4633,3 +4633,37 @@ maquete.
 decoração. Quando ela diz "e ainda não recebeu", vá ver se alguma linha subtrai alguma
 coisa. Foi a segunda vez em uma hora que perguntar *"o que mais esta tela conta?"* achou
 um defeito — a primeira foi o horizonte. A pergunta é barata e não tem fundo.
+
+---
+
+## 2026-09-06 — o código impresso era um endereço que não existia
+
+**O que se viu.** A etiqueta do lote imprime o QR e, embaixo dele, os onze caracteres do
+código — com uma frase própria explicando por quê: *"quando a etiqueta congela ou
+descasca, alguém digita os onze caracteres e a conferência segue"*. Só que `findLot`
+procurava **por id**, e o QR carrega o **código**. Ninguém podia digitar coisa nenhuma: não
+havia campo, e se houvesse a consulta não acharia.
+
+Duas peças perfeitas, cada uma certa por dentro, e nenhuma ligação entre elas. O QR estava
+impresso havia semanas apontando para um endereço que o aplicativo não sabia abrir.
+
+**Por que importa.** É a mesma forma do achado da reserva, hoje de manhã: *nenhum arquivo
+está errado sozinho*. A tela da etiqueta faz o que promete; o `findLot` responde
+corretamente o que lhe perguntam. O que falta é a conversa entre os dois — e a lista de
+tarefas dizia só "falta quem o leia", que se lê como "falta uma tela de câmera" e esconde
+que a metade barata (digitar) também não existia.
+
+O comentário do cartão de lotes da aba de produção já tinha escrito a necessidade, com
+todas as letras: *"quem procura o lote de uma caixa procura HORAS depois, não no segundo
+seguinte."* O cartão lista os lotes do DIA. Três dias depois, não havia caminho nenhum — e
+a frase que descrevia o problema estava a dez linhas do código que o causava.
+
+**O que mudou.** `findLot` aceita id ou código (uuid e `AAAAMMDD-NN` não se confundem), a
+aba de produção ganhou o campo, e a navegação não confere nada antes: a etiqueta já sabe
+dizer "esse lote não está mais aqui" com a porta de volta, e duplicar a checagem seria dois
+lugares dizendo o mesmo com um deles envelhecendo. Sem exigir formato, porque o `lotCode`
+diz por escrito que `AAAAMMDD-NN` é o padrão e não a única forma.
+
+**A regra que fica:** quando um dado é IMPRESSO — etiqueta, QR, código lido em voz alta ao
+telefone —, ele virou endereço público. Pergunte quem sabe resolvê-lo de volta. Um
+identificador que sai no papel e não entra pelo teclado é uma porta pintada na parede.

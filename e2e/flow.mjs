@@ -2224,6 +2224,47 @@ check('a second trip to the freezer suggests what is LEFT of the order', async (
   assert.match(await screen(page), /pedido para/, 'e o palpite continua vindo do pedido');
 });
 
+check('the code printed on the box opens the label, days later', async (page) => {
+  // A etiqueta promete por escrito que "alguém digita os onze caracteres e a
+  // conferência segue" — e não havia onde digitar. O cartão de lotes lista o
+  // DIA, e quem procura o lote de uma caixa procura horas ou dias depois; o
+  // código impresso era um endereço que o aplicativo não sabia abrir.
+  await page.goto(`http://localhost:${PORT}/production/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Quantas unidades/).fill('400');
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar produção', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.goto(`http://localhost:${PORT}/production`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  const codigo = (await screen(page)).match(/\d{8}-\d{2}/);
+  assert.ok(codigo, 'a produção do dia mostra o código do lote');
+
+  // O caminho de quem está com a caixa na mão: digita o que está impresso.
+  await page.getByLabel('Código do lote').fill(codigo[0]);
+  await page.waitForTimeout(500);
+  await page.getByText('Abrir a etiqueta', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  const etiqueta = await screen(page);
+  assert.match(etiqueta, /Etiqueta do lote/, 'o código abre a etiqueta');
+  assert.match(etiqueta, new RegExp(codigo[0]), 'e é a etiqueta DAQUELE lote');
+  assert.doesNotMatch(
+    etiqueta,
+    /não está mais aqui/,
+    'o código impresso é endereço de verdade, não um caminho para o vazio',
+  );
+
+  // E um código que ninguém imprimiu cai no estado vazio que a etiqueta já
+  // sabia desenhar, com a porta de volta — em vez de quebrar a tela.
+  await page.goto(`http://localhost:${PORT}/lots/99999999-99`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2000);
+  assert.match(await screen(page), /não está mais aqui/, 'código que não existe diz isso');
+});
+
 check('erasing refuses in an order, and explains the way out', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
