@@ -4854,3 +4854,44 @@ o `app.json` foi para `0.12.0`, que é o que o guarda então exige. O APK foi re
 lembra — e o momento de esquecer é exatamente o momento em que ela importa, porque é o dia
 em que algo foi publicado. Antes de compilar pacote para alguém instalar, **olhe a página
 de releases**, não a constante.
+
+---
+
+## 2026-09-06 — o componente tinha teste, tinha docblock, e terminava a conta pela metade
+
+**O que se viu.** O `UnitStepper` foi construído meses atrás, com teste e com um docblock
+que diz o que ele existe para fazer: *"The echo is the whole point: it removes mental
+math, which is where miscounts come from."* O dicionário até traz o exemplo:
+*"12 engradados = 72 caixas = 3.600 picolés"*.
+
+Ao usá-lo pela primeira vez, na separação, a foto mostrou o eco dizendo **"= 1 engradado"**
+— a mesma informação do número grande logo acima. E a linha do pedido, dois centímetros
+antes, diz *"faltam 600 un"*. Ou seja: para saber se o que ela contou cobre o pedido, a
+pessoa na câmara precisava saber **de cabeça** que um engradado são 300.
+
+Exatamente a conta mental que o componente existe para remover.
+
+**Por que ninguém tinha visto.** Porque ninguém tinha chamado. O `UnitStepper` estava na
+lista de fronteiras registradas do dicionário — *"componente da Fase 2, e apontá-lo como
+defeito já custou uma rodada"* —, o que estava certo: não era código morto, era escopo
+escrito. Mas fronteira registrada não é o mesmo que peça provada.
+
+**E isto é a outra metade do portão P1**, que hoje ganhou guarda por causa das dez funções
+do domínio sem chamador. O P1 é lido como uma regra sobre código morto — *"sem chamador,
+não entra"* — e ele é mais que isso:
+
+> **Peça sem chamador não é apenas não-usada: é NÃO-VERIFICADA — mesmo com teste verde.**
+> O teste prova o que o autor imaginou. O chamador prova o que a tela precisa. São coisas
+> diferentes, e a segunda só aparece no dia em que alguém liga o fio.
+
+O teste do stepper exercitava a decomposição e passava; ele nunca perguntou *"isso responde
+a pergunta que a tela ao lado está fazendo?"*, porque não havia tela ao lado.
+
+**O que mudou.** O eco fecha a conta: decomposição e, quando o valor não está em
+unidade-base, o total nela — `= 1 engradado = 300 unidades`, que é a corrente de igualdades
+que o dicionário prometia desde o começo. E o `stepper` saiu da lista de fronteiras, porque
+deixou de ser uma.
+
+**A regra que fica:** ao ligar pela primeira vez uma peça que esperava chamador, **olhe a
+foto antes de comemorar**. Ela vai estar tecnicamente correta — tem teste — e pode estar
+respondendo outra pergunta.
