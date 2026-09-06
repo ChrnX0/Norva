@@ -21,7 +21,9 @@ import {
   currentCapabilities,
   matchPin,
   listProfiles,
+  salePricesFor,
   savePerson,
+  saveSalePrice,
   recordProduction,
   runningOut,
   productionBetween,
@@ -4046,5 +4048,130 @@ test('a shared phone with nobody named is the floor, and a phone that never asks
   assert.ok(
     (await currentCapabilities(CO)).has('view_cost'),
     'aparelho que não pergunta não tem como alguém se identificar',
+  );
+});
+
+/**
+ * O preço combinado, e a história que é a única fonte dele.
+ *
+ * A refutação da forma derrubou a versão sem história com um cenário concreto:
+ * combinado a 14,50 em janeiro, renegociado a 15,80 em março, e janeiro deixa de
+ * existir em qualquer tabela. A assimetria com o custo é o ponto — `item_costs`
+ * pode ser sobrescrito porque as notas reconstroem a série; **preço digitado à mão
+ * não tem nota atrás dele**. O esquema se re-chaveia por migração; os meses
+ * perdidos não voltam por nenhuma.
+ */
+test('an agreed price beats the list price, and how it changed is kept', async () => {
+  await ensureStarterData(CO);
+  const loja = (await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' })).id;
+  const [produto] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
+
+  // O preço de tabela: 2,50 por picolé.
+  await saveSalePrice(CO, { itemId: produto.itemId, placeId: null, rate: rate(2.5, 1) });
+  let linhas = await salePricesFor(CO, loja);
+  let linha = linhas.find((l) => l.itemId === produto.itemId);
+  assert.ok(linha, 'o produto entra na lista do que se vende');
+  // `perto` e não `equal`: taxa é FRACIONÁRIA por fundação, e `2,20 * 100` em
+  // ponto flutuante é 220.00000000000003. Arredondar aqui para o teste passar seria
+  // o teste pedindo à fundação que ela se dobrasse — só o valor final arredonda, e
+  // quem arredonda é `amountOf`, uma vez.
+  const perto = (a: number | null, b: number, o: string) =>
+    assert.ok(a !== null && Math.abs(a - b) < 1e-9, `${o}: ${a} não é ${b}`);
+  perto(linha.listRate, 250, 'R$ 2,50 por unidade são 250 centavos por unidade');
+  assert.equal(linha.agreedRate, null, 'sem acordo, vale a tabela');
+
+  // E o combinado com esta loja: 2,20.
+  await saveSalePrice(CO, { itemId: produto.itemId, placeId: loja, rate: rate(2.2, 1) });
+  linha = (await salePricesFor(CO, loja)).find((l) => l.itemId === produto.itemId);
+  perto(linha?.agreedRate ?? null, 220, 'o combinado vence a tabela');
+  perto(linha?.listRate ?? null, 250, 'e a tabela continua ao lado, para a tela comparar');
+
+  // A renegociação, que é o caso que a história existe para responder.
+  await saveSalePrice(CO, { itemId: produto.itemId, placeId: loja, rate: rate(2.4, 1) });
+  linha = (await salePricesFor(CO, loja)).find((l) => l.itemId === produto.itemId);
+  perto(linha?.agreedRate ?? null, 240, 'o novo acordo');
+  perto(linha?.previousRate ?? null, 220, 'de quanto veio, que some se a linha for sobrescrita sozinha');
+
+  const serie = await live.getAllAsync<{ previous_rate: number | null; new_rate: number }>(
+    `SELECT previous_rate, new_rate FROM sale_price_history
+      WHERE company_id = ? AND location_id = ? ORDER BY observed_at, rowid`,
+    [CO, loja],
+  );
+  assert.equal(serie.length, 2, 'a série guarda cada acordo, e não só o último');
+  assert.equal(serie[0].previous_rate, null, 'o primeiro acordo não tem anterior');
+  perto(serie[0].new_rate, 220, 'o primeiro acordo');
+  perto(serie[1].previous_rate, 220, 'e o segundo diz de onde veio');
+  perto(serie[1].new_rate, 240, 'o segundo acordo');
+});
+
+test('saving the same price twice is not history, and removing the agreement is', async () => {
+  await ensureStarterData(CO);
+  const loja = (await savePlace(CO, { name: 'Loja Norte', kind: 'own_store' })).id;
+  const [produto] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
+
+  await saveSalePrice(CO, { itemId: produto.itemId, placeId: null, rate: rate(2.5, 1) });
+  await saveSalePrice(CO, { itemId: produto.itemId, placeId: loja, rate: rate(2.2, 1) });
+  await saveSalePrice(CO, { itemId: produto.itemId, placeId: loja, rate: rate(2.2, 1) });
+
+  const contar = async () =>
+    (
+      await live.getFirstAsync<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM sale_price_history WHERE company_id = ? AND location_id = ?`,
+        [CO, loja],
+      )
+    )?.n ?? 0;
+  assert.equal(await contar(), 1, 'salvar sem trocar o número é ruído com data, não história');
+
+  // Tirar o acordo: a loja volta a pagar a tabela, e o dia em que isso mudou é a
+  // mesma pergunta que qualquer outra mudança de preço.
+  await saveSalePrice(CO, { itemId: produto.itemId, placeId: loja, rate: null });
+  const linha = (await salePricesFor(CO, loja)).find((l) => l.itemId === produto.itemId);
+  assert.equal(linha?.agreedRate, null, 'sem acordo de novo');
+  assert.ok(
+    linha?.listRate !== null && Math.abs((linha?.listRate ?? 0) - 250) < 1e-9,
+    'e a tabela é o que passa a valer',
+  );
+
+  const ultima = await live.getFirstAsync<{ previous_rate: number; new_rate: number }>(
+    `SELECT previous_rate, new_rate FROM sale_price_history
+      WHERE company_id = ? AND location_id = ? ORDER BY observed_at DESC, rowid DESC LIMIT 1`,
+    [CO, loja],
+  );
+  assert.ok(
+    ultima && Math.abs(ultima.previous_rate - 220) < 1e-9 && Math.abs(ultima.new_rate - 250) < 1e-9,
+    `tirar o acordo é a volta à tabela, e isso é história como qualquer outra: ${JSON.stringify(ultima)}`,
+  );
+});
+
+test('zero is not a price, and whoever does not run the company does not set one', async () => {
+  await ensureStarterData(CO);
+  const loja = (await savePlace(CO, { name: 'Loja Sul', kind: 'customer' })).id;
+  const [produto] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
+
+  // Zero congelaria como nulo no razão — indistinguível de "não havia acordo".
+  // Mercadoria dada é carga SEM preço, e é assim que ela se diz.
+  await assert.rejects(
+    () => saveSalePrice(CO, { itemId: produto.itemId, placeId: loja, rate: 0 as Rate }),
+    /zero não é preço/,
+  );
+
+  // E o portão, que aqui é `manage_company` e não `view_sale_price` — a capacidade
+  // diz O QUE se pode ver, nunca QUAIS LINHAS, e preço combinado é uma linha por
+  // parte. Sem escopo de conta, quem administra vê o acordo de todos e mais
+  // ninguém vê o de ninguém.
+  const perfis = await listProfiles(CO);
+  const vendedor = perfis.find((p) => p.templateRole === 'salesperson');
+  assert.ok(vendedor, 'o vendedor é um dos sete modelos');
+  assert.ok(
+    vendedor.capabilities.includes('view_sale_price'),
+    'e ele TEM view_sale_price — é isso que torna a capacidade o portão errado aqui',
+  );
+  const zeca = await savePerson(CO, { name: 'Zeca', profileId: vendedor.id });
+  await setCurrentOperator(zeca.id);
+
+  assert.deepEqual(await salePricesFor(CO, loja), [], 'a consulta não devolve acordo de ninguém');
+  await assert.rejects(
+    () => saveSalePrice(CO, { itemId: produto.itemId, placeId: loja, rate: rate(2, 1) }),
+    /não administra a empresa/,
   );
 });

@@ -5060,3 +5060,79 @@ vender, e o `moveBetween` já decidiu por escrito que loja própria não é vend
 que olha tem de saber chegar nele — senão a foto passa a atestar o estado velho com a
 autoridade do novo. E dado semeado e formulário são dois autores da mesma lista: quem
 compara os dois é a foto, ou ninguém.
+
+---
+
+## Quatro guardas morderam numa migração só, e nenhum deles é sobre a migração
+
+**6 de setembro, ao entrar as tabelas de preço.** Duas tabelas novas e uma coluna, e
+o caminho até verde passou por quatro guardas que já existiam — cada um cobrando uma
+coisa que eu não teria lembrado:
+
+1. **`erase.test.ts`**: as tabelas novas não estavam no conjunto de apagar. Sem isso,
+   "apagar tudo" bateria na chave estrangeira e a transação voltaria atrás inteira —
+   o defeito que esse guarda foi escrito para pegar, em 4 de setembro, repetido por
+   mim três dias depois.
+2. **`columns.test.ts`**: `items.sale_price_rate` não atravessava a fila. A tela
+   escreveria, o teste do repositório passaria, e o dado nunca chegaria ao servidor.
+3. **`outbox.test.ts`**: `location_prices` é enfileirada e a varredura de órfãs não a
+   conhecia — e é a única tabela deste conjunto que o aplicativo APAGA (tirar o
+   acordo de uma loja apaga a linha). A entrada da fila apontaria para uma linha que
+   não existe mais, e o motor pararia na primeira subida com tudo preso atrás.
+4. **`device-session.ts`**: a sessão que prova a travessia contra Postgres se RECUSOU
+   a rodar, porque as tabelas novas não apareciam nela — *"a checagem 6 cobriria menos
+   do que promete"*. Um guarda que se recusa a atestar menos do que o nome dele diz.
+
+O padrão vale mais que os quatro: **nenhum deles é sobre preço.** Cada um nasceu de
+uma cicatriz de outro assunto e cobrou a mesma forma num assunto novo. É a diferença
+entre um teste que confere um caso e um guarda que confere uma REGRA — o primeiro
+protege o que já existia, o segundo protege o que ainda vai ser escrito, inclusive
+por quem não leu a cicatriz.
+
+E um defeito de verdade veio do teste comum, não do guarda: dois acordos combinados
+no mesmo segundo empatam em `observed_at`, e "de quanto veio" saía pela ordem que o
+SQLite quisesse. `itemMovements` já desempatava por `rowid` pelo mesmo motivo — a
+regra existia no repositório e eu não a levei para a consulta nova.
+
+E o guarda do Postgres achou um quinto, que não é meu e estava lá há dias: a
+verificação monta o SQL dentro de uma string de shell entre aspas duplas, e um
+comentário ali dizia *"a política ainda exige `manage_company`"* — com crase, que em
+shell é substituição de comando. Toda execução imprimia `manage_company: command not
+found` dentro de um comentário, sem consequência e sem ninguém olhar.
+
+**E a minha correção reproduziu o defeito um nível acima, na hora.** Escrevi no
+comentário novo *imprimindo "manage_company: command not found"* — com aspas duplas,
+dentro da mesma string entre aspas duplas. A string fechou ali, e os `grant` que vinham
+logo abaixo deixaram de fazer parte do comando: a verificação passou a recusar
+`profiles`, uma tabela que eu não tinha tocado. Ou seja, escrevi a explicação do defeito
+e a explicação cometeu o defeito.
+
+**Crase é pontuação em Markdown e é execução em shell; aspas são citação em prosa e são
+delimitador em shell.** Prosa cuidadosa dentro de uma string de shell é exatamente onde
+os dois hábitos colidem — e o sinal de que colidiram não foi um erro de sintaxe, foi uma
+tabela vizinha reclamando de permissão. Nesta árvore, comentário dentro de `-c "..."`
+escreve-se sem crase e sem aspas, e quem duvidar roda `bash -n`, que não pega nada disto
+porque tudo continua sintaticamente válido.
+
+**E o quinto guarda eu escrevi, porque três dos quatro contavam a mesma história.**
+A regra que faltava: *uma tabela cuja política no servidor só tem `for insert` nunca
+vai ter UPDATE, e a fila que a subir com `on conflict do update` é recusada no plano
+— com uma mensagem que fala de permissão, não de política, numa tabela que ninguém
+tocou*. O que existia contra isso era uma lista escrita à mão dentro do gerador da
+fila. A garantia nova pergunta ao `pg_policies` do banco que acabou de aplicar as
+migrações: append-only não é o que eu lembro, é o que a política diz.
+
+E ela achou uma divergência na primeira execução, que eu quase tratei como defeito:
+`readings` ganhou política de update na `0031` — escrita quando a fila subia tudo com
+DO UPDATE — e hoje o aparelho a sobe uma vez só. Não é defeito: é permissão concedida
+a um caminho que o aparelho deixou de usar. Virou registro com motivo escrito, e o
+registro se confere contra o sistema, para a exceção que deixar de ser exceção
+reprovar em vez de envelhecer calada.
+
+**Uma coisa que eu quase escrevi aqui e não era verdade.** Quebrei um literal de
+template com crase dentro de um comentário SQL, e a suíte falhou onde o typecheck
+tinha passado. Ia registrar como divergência entre `tsc` e `esbuild` — soava bom, e
+seria um achado. Fui conferir com um arquivo de três linhas: `tsc` pega, e o que
+tinha acontecido é que eu não rodei o typecheck depois daquela edição. Alarme
+inventado ensina a ignorar alarme, e a diferença entre insight e história bonita é
+justamente o arquivo de três linhas.

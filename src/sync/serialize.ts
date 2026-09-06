@@ -76,6 +76,8 @@ export type ServerTable =
   | 'purchase_lines'
   | 'orders'
   | 'order_lines'
+  | 'location_prices'
+  | 'sale_price_history'
   | 'movements';
 
 export class UnknownTableError extends Error {
@@ -214,8 +216,44 @@ const CROSSINGS: Record<
       'base_unit',
       'created_at',
       'full_level',
+      // Por quanto isto SAI, quando sai. Nulo é "não vendemos isto", e o nulo é o
+      // que define o vendável — não a tabela em que a coluna mora.
+      'sale_price_rate',
     ],
     build: (row) => ({ active: flag(row.active), packaging: structure(row.packaging) }),
+  },
+
+  /**
+   * O acordo comercial e a história dele.
+   *
+   * A linha corrente é sobrescrita a cada renegociação — `upsert` por id, como
+   * qualquer cadastro. A HISTÓRIA não: ela é append-only dos dois lados, e a
+   * política do servidor só tem `for insert` de propósito. O que corrige uma linha
+   * errada é outra linha, nunca a borracha, e é a mesma forma de `movements`.
+   */
+  location_prices: {
+    take: ['id', 'company_id', 'location_id', 'item_id', 'price_rate', 'created_at'],
+  },
+
+  sale_price_history: {
+    take: [
+      'id',
+      'company_id',
+      'item_id',
+      // Nulo é a mudança do preço de TABELA, e não uma linha incompleta.
+      'location_id',
+      'previous_rate',
+      'new_rate',
+      'observed_at',
+    ],
+    /**
+     * A conta que combinou o preço, imposta pelo servidor como em `movements`.
+     *
+     * E aqui não há a segunda pergunta que o razão tem: quem estava com o aparelho
+     * não pertence a um acordo comercial. Preço se combina no escritório, não na
+     * doca — por isso não existe `operator_id` nesta travessia.
+     */
+    build: (_row, actor) => ({ recorded_by: actor.userId }),
   },
 
   recipes: {

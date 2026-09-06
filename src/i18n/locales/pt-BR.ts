@@ -880,6 +880,20 @@ export const ptBR = {
       deliveryDays: 'Dias de entrega',
       deliveryDaysHint: 'Sem dia combinado, o pedido não ganha atalho de data.',
       agreementNote: 'Combinado',
+      /** O preço combinado com este lugar, item a item. */
+      prices: 'O QUE ELE PAGA',
+      /**
+       * A frase diz o que o vazio SIGNIFICA, e não que o campo é opcional.
+       *
+       * "Opcional" faz a pessoa pular sem saber o que acontece; isto responde a
+       * pergunta que ela tem com o dedo no campo — se eu não escrever nada, quanto
+       * é que ele paga?
+       */
+      pricesHint: 'Em branco vale o preço de tabela. O que você escrever aqui vence a tabela, só para este lugar.',
+      listPrice: 'tabela {{amount}}',
+      noListPrice: 'sem preço de tabela',
+      priceWas: 'era {{amount}} até {{date}}',
+      pricePerUnit: 'por {{unit}}',
       agreementNoteHint: 'Uma frase: onde descarregar, com quem falar, o que evitar.',
       noAgreement: 'sem acordo de dia',
       agreedDays: 'entrega {{days}}',

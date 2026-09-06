@@ -462,9 +462,23 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
         orders, order_lines to app_user;
   -- Gente e perfil sobem com UPDATE pelo mesmo motivo que os cadastros: quem
   -- corrige o nome de alguém offline precisa que a correção alcance o servidor.
-  -- A política ainda exige `manage_company` por cima disto — o grant abre a
-  -- porta da tabela, o RLS decide quem passa.
+  -- A política ainda exige manage_company por cima disto — o grant abre a porta
+  -- da tabela, o RLS decide quem passa.
+  --
+  -- (Sem crase nesta palavra, e sem aspas neste comentário: esta SQL viaja dentro
+  -- de uma string de shell entre aspas duplas, onde crase é substituição de comando
+  -- e aspas fecham a string. A verificação vinha imprimindo um command-not-found a
+  -- cada execução, dentro de um comentário, sem consequência e sem ninguém olhar —
+  -- e a minha primeira correção pôs aspas aqui, o que cortou a string ao meio e
+  -- levou os grants embaixo junto. Prosa dentro de string de shell é onde o hábito
+  -- de Markdown vira erro de execução.)
   grant insert, update on profiles, people to app_user;
+  -- O acordo comercial: a linha corrente sobe com UPDATE, como qualquer cadastro
+  -- que se corrige offline. A HISTÓRIA entra só com INSERT, pelo mesmo motivo do
+  -- livro-razão e da leitura de sensor — por quanto se vendia em março não se
+  -- corrige, se combina de novo. A política exige manage_company por cima dos dois.
+  grant insert, update on location_prices to app_user;
+  grant insert on sale_price_history to app_user;
   -- Leitura de sensor entra só com INSERT, como o livro-razão: a temperatura de
   -- ontem às três da manhã não se corrige, se mede de novo. Uma série que aceita
   -- UPDATE deixa de ser prova de nada.
@@ -1007,5 +1021,77 @@ fi
 echo "    quatro a oito dígitos ou nada, e nada é o caso comum"
 
 echo
-echo "OK - migrations apply and all sixteen guarantees hold."
+echo "==> check 17: tabela append-only sobe append-only, e quem decide é o banco"
+
+# A regra que este projeto aprendeu tarde, três vezes no mesmo dia.
+#
+# Uma tabela cuja política no servidor só tem `for insert` NUNCA vai ganhar o
+# privilégio de UPDATE. Se a fila subir uma linha dela com `on conflict do update`,
+# o Postgres recusa no plano — e recusa dizendo apenas "permission denied for
+# table", sem falar de política e sem dizer qual privilégio falta. Foi assim que
+# `sale_price_history` parou a checagem 6, e antes dela `movements` e `readings`
+# ensinaram o mesmo.
+#
+# O que existia contra isso era uma LISTA ESCRITA À MÃO dentro do gerador da fila.
+# Lista escrita à mão envelhece calada, e este arquivo já registrou esse padrão em
+# quatro guardas diferentes. Aqui quem responde é o `pg_policies` do banco que
+# acabou de aplicar as migrações: append-only não é o que eu lembro, é o que a
+# política diz.
+DIVERGENTES=$(psql -d "$DB" -At -c "
+  with so_insert as (
+    select tablename
+      from pg_policies
+     where schemaname = 'public'
+     group by tablename
+    having bool_and(cmd = 'INSERT')
+  )
+  select tablename from so_insert;")
+
+for TABELA in $DIVERGENTES; do
+  # A fila só fala das tabelas que ela envia; uma append-only que não atravessa não
+  # tem como divergir de nada.
+  grep -q "insert into $TABELA " "$QUEUE" || continue
+  if grep -E "insert into $TABELA .*do update" "$QUEUE" >/dev/null; then
+    fail "$TABELA só aceita INSERT no servidor e a fila a sobe com DO UPDATE"
+  fi
+done
+
+# E a outra direção, que é a que envelhece calada: subir append-only uma tabela que
+# o servidor deixa corrigir seria uma correção offline que nunca alcança o servidor
+# — o defeito silencioso, sem erro nenhum, que é sempre o pior dos dois.
+#
+# Com uma exceção registrada, e ela apareceu na primeira execução desta checagem:
+# `readings` GANHOU política de update na 0031, escrita quando a fila subia tudo com
+# DO UPDATE. Hoje o aparelho a sobe uma vez só, pela regra escrita no gerador — uma
+# série que aceita UPDATE deixa de ser prova de nada, e a temperatura de ontem às
+# três da manhã não se corrige, se mede de novo. O servidor continua mais permissivo
+# do que o aparelho precisa, o que não é defeito: é permissão concedida a um caminho
+# que o aparelho deixou de usar. Fica escrito para não virar alarme repetido — e para
+# que o dia em que alguém retirar a política saiba por que ela estava lá.
+MAIS_LARGO_QUE_PRECISA="readings"
+
+CORRIGIVEIS=$(psql -d "$DB" -At -c "
+  select distinct tablename
+    from pg_policies
+   where schemaname = 'public' and cmd in ('ALL', 'UPDATE');")
+
+for TABELA in $CORRIGIVEIS; do
+  grep -q "insert into $TABELA " "$QUEUE" || continue
+  case " $MAIS_LARGO_QUE_PRECISA " in *" $TABELA "*) continue ;; esac
+  if grep -E "insert into $TABELA .*do nothing" "$QUEUE" >/dev/null; then
+    fail "$TABELA aceita correção no servidor e a fila a sobe com DO NOTHING: a correção offline nunca chega"
+  fi
+done
+
+# E o registro se confere contra o sistema, senão ele envelhece calado como toda
+# lista escrita à mão: a exceção que deixou de ser exceção tem de reprovar aqui.
+for TABELA in $MAIS_LARGO_QUE_PRECISA; do
+  grep -E "insert into $TABELA .*do nothing" "$QUEUE" >/dev/null ||
+    fail "$TABELA está registrada como append-only no aparelho e a fila já a sobe corrigível: tire o registro"
+done
+
+echo "    o que o servidor deixa corrigir sobe corrigível, e o que ele não deixa sobe uma vez só"
+
+echo
+echo "OK - migrations apply and all seventeen guarantees hold."
 

@@ -172,6 +172,13 @@ export const QUEUED_TABLES = [
   'flavors',
   'profiles',
   'people',
+  // O acordo comercial e a série dele. `location_prices` é a única deste conjunto
+  // que o aplicativo APAGA — tirar o acordo de uma loja é apagar a linha —, e é
+  // exatamente por isso que ela precisa estar aqui: sem a varredura, a entrada da
+  // fila apontaria para uma linha que não existe mais e o motor pararia na primeira
+  // subida, com a fila travada atrás de um acordo desfeito.
+  'location_prices',
+  'sale_price_history',
 ] as const;
 
 /**

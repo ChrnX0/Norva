@@ -47,6 +47,8 @@ export type ErasableTable =
   | 'recipes'
   | 'item_cost_history'
   | 'item_costs'
+  | 'sale_price_history'
+  | 'location_prices'
   | 'items'
   | 'locations'
   | 'people'
@@ -162,6 +164,12 @@ export function tablesFor(area: EraseArea): readonly ErasableTable[] {
         'recipes',
         'item_cost_history',
         'item_costs',
+        // O acordo comercial e a história dele vêm ANTES de `items` e
+        // `locations`: os dois apontam para os dois, e o SQLite dispara a chave
+        // estrangeira linha por linha. É a mesma ordem, e o mesmo motivo, que
+        // pôs `people` antes de `profiles`.
+        'sale_price_history',
+        'location_prices',
         'items',
         // Depois de `movements`, que aponta para cá. O lugar padrão é recriado
         // sozinho por `ensureLocation` no primeiro movimento seguinte, então

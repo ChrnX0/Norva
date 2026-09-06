@@ -696,6 +696,204 @@ export async function listPlaces(companyId: string): Promise<Place[]> {
  * id. Trocar "Loja Centro" por "Loja da Praça" não move um centavo, exatamente
  * como corrigir o nome de um insumo já não movia.
  */
+/**
+ * O que um lugar paga por cada coisa, e o que a fábrica pede por ela.
+ *
+ * Uma linha por item vendável — vendável é o item que TEM preço de tabela, e é o
+ * nulo daquela coluna que define isso, não a tabela em que ela mora. O combinado
+ * vence a tabela quando existe, e as duas vêm juntas porque a tela precisa mostrar
+ * o combinado ao lado do que ele substitui: número sozinho não decide nada (Lei 3).
+ */
+export type SalePrice = {
+  itemId: string;
+  name: string;
+  baseUnit: string;
+  /** O preço de tabela. Nulo é "não vendemos isto". */
+  listRate: Rate | null;
+  /** O combinado com ESTE lugar. Nulo é "vale a tabela". */
+  agreedRate: Rate | null;
+  /** Quando o combinado mudou pela última vez, e de quanto veio. */
+  previousRate: Rate | null;
+  changedAt: string | null;
+};
+
+/**
+ * O acordo comercial de um lugar — e o portão aqui é `manage_company`, não
+ * `view_sale_price`.
+ *
+ * Parece o portão errado e é o certo, pelo motivo que o `access.ts` já escreve: a
+ * capacidade diz O QUE se pode ver, nunca QUAIS LINHAS. Cinco dos sete papéis têm
+ * `view_sale_price` — com ela como portão, o gerente de uma loja leria quanto a
+ * outra paga. Custo não tem esse problema porque há UM custo; preço combinado é uma
+ * linha por parte, e por isso precisa de escopo.
+ *
+ * Escopo de verdade pede uma coluna que amarre a conta a um lugar, e `memberships`
+ * não tem nenhuma. Enquanto ela não existir, quem administra vê o acordo de todo
+ * mundo e mais ninguém vê o de ninguém — mais estreito do que o produto quer, e
+ * estreito é o lado seguro de errar. A política do servidor (`0037`) diz o mesmo.
+ */
+export async function salePricesFor(companyId: string, placeId: string): Promise<SalePrice[]> {
+  if (!(await currentCapabilities(companyId)).has('manage_company')) return [];
+
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    item_id: string;
+    name: string;
+    base_unit: string;
+    list_rate: number | null;
+    agreed_rate: number | null;
+    previous_rate: number | null;
+    changed_at: string | null;
+  }>(
+    `SELECT i.id AS item_id, i.name, i.base_unit,
+            i.sale_price_rate AS list_rate,
+            p.price_rate AS agreed_rate,
+            -- rowid no desempate, e não é detalhe: dois acordos combinados no
+            -- mesmo segundo empatam em observed_at, e aí "de quanto veio" sai pela
+            -- ordem que o SQLite quiser. Foi o teste que pegou, e é a mesma forma
+            -- que itemMovements já usa pelo mesmo motivo.
+            (SELECT h.previous_rate FROM sale_price_history h
+              WHERE h.company_id = i.company_id AND h.item_id = i.id
+                AND h.location_id = ?
+              ORDER BY h.observed_at DESC, h.rowid DESC LIMIT 1) AS previous_rate,
+            (SELECT h.observed_at FROM sale_price_history h
+              WHERE h.company_id = i.company_id AND h.item_id = i.id
+                AND h.location_id = ?
+              ORDER BY h.observed_at DESC, h.rowid DESC LIMIT 1) AS changed_at
+       FROM items i
+       LEFT JOIN location_prices p
+              ON p.item_id = i.id AND p.company_id = i.company_id AND p.location_id = ?
+      WHERE i.company_id = ?
+        AND i.active = 1
+        AND i.kind IN ('product', 'resale')
+      ORDER BY i.name COLLATE NOCASE`,
+    [placeId, placeId, placeId, companyId],
+  );
+
+  return rows.map((r) => ({
+    itemId: r.item_id,
+    name: r.name,
+    baseUnit: r.base_unit,
+    listRate: r.list_rate === null ? null : (r.list_rate as Rate),
+    agreedRate: r.agreed_rate === null ? null : (r.agreed_rate as Rate),
+    previousRate: r.previous_rate === null ? null : (r.previous_rate as Rate),
+    changedAt: r.changed_at,
+  }));
+}
+
+/**
+ * Combina um preço — e escreve a HISTÓRIA no mesmo ato.
+ *
+ * As duas escritas numa transação só, porque separá-las é como o histórico deixa de
+ * existir: a linha corrente é sobrescrita, o append falha, e "por quanto vendíamos
+ * em março" some sem ninguém saber. Preço digitado à mão não tem nota atrás dele —
+ * esta série é a ÚNICA fonte, e é por isso que ela não pode ser sobrescrita nem
+ * perdida.
+ *
+ * `placeId` nulo é o preço de TABELA, no item. Uma função para as duas porque a
+ * regra é uma só: o que muda vira linha na história, o que não muda não vira nada.
+ *
+ * `rate` nulo tira o preço. Tirar também é história — a loja que deixou de ter
+ * acordo passa a pagar a tabela, e o dia em que isso mudou é a mesma pergunta.
+ */
+export async function saveSalePrice(
+  companyId: string,
+  input: { itemId: string; placeId: string | null; rate: Rate | null },
+): Promise<void> {
+  if (!(await currentCapabilities(companyId)).has('manage_company')) {
+    throw new Error('preço: quem não administra a empresa não combina preço');
+  }
+  // Zero não é preço, e a checagem impede aqui pelo mesmo motivo que o servidor
+  // impede lá: mercadoria dada é movimento SEM preço, e um zero guardado viraria
+  // "não havia acordo" na primeira leitura.
+  if (input.rate !== null && !(input.rate > 0)) {
+    throw new Error('preço: zero não é preço — mercadoria dada é carga sem preço');
+  }
+
+  const conn = await db();
+  const at = nowIso();
+
+  await conn.withTransactionAsync(async () => {
+    const antes = input.placeId
+      ? await conn.getFirstAsync<{ price_rate: number }>(
+          `SELECT price_rate FROM location_prices
+            WHERE company_id = ? AND location_id = ? AND item_id = ?`,
+          [companyId, input.placeId, input.itemId],
+        )
+      : await conn.getFirstAsync<{ price_rate: number | null }>(
+          `SELECT sale_price_rate AS price_rate FROM items WHERE id = ? AND company_id = ?`,
+          [input.itemId, companyId],
+        );
+    const anterior = antes?.price_rate ?? null;
+
+    // Salvar sem trocar o número não é história: é ruído com data. A mesma regra
+    // que o razão tem para linha que não move nada.
+    if (anterior === input.rate) return;
+
+    if (input.placeId === null) {
+      await conn.runAsync(`UPDATE items SET sale_price_rate = ? WHERE id = ? AND company_id = ?`, [
+        input.rate,
+        input.itemId,
+        companyId,
+      ]);
+      await enqueue(conn, [{ table: 'items', rowId: input.itemId }]);
+    } else if (input.rate === null) {
+      const linha = await conn.getFirstAsync<{ id: string }>(
+        `SELECT id FROM location_prices
+          WHERE company_id = ? AND location_id = ? AND item_id = ?`,
+        [companyId, input.placeId, input.itemId],
+      );
+      if (linha) {
+        await conn.runAsync(`DELETE FROM location_prices WHERE id = ?`, [linha.id]);
+        // A fila não sabe apagar linha: o servidor tem `erase` por ÁREA e upsert por
+        // id, e nada entre os dois. Fica registrado como fronteira em vez de virar
+        // uma linha que atravessa e não faz nada — quando o caminho de apagar
+        // existir, é aqui que ele entra.
+      }
+    } else {
+      const existente = await conn.getFirstAsync<{ id: string }>(
+        `SELECT id FROM location_prices
+          WHERE company_id = ? AND location_id = ? AND item_id = ?`,
+        [companyId, input.placeId, input.itemId],
+      );
+      const id = existente?.id ?? newId();
+      await conn.runAsync(
+        `INSERT INTO location_prices (id, company_id, location_id, item_id, price_rate, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT (company_id, location_id, item_id)
+         DO UPDATE SET price_rate = excluded.price_rate`,
+        [id, companyId, input.placeId, input.itemId, input.rate, at],
+      );
+      await enqueue(conn, [{ table: 'location_prices', rowId: id }]);
+    }
+
+    // E a história, sempre — inclusive quando o preço foi TIRADO. `new_rate` não
+    // aceita nulo no esquema (preço que não é preço não entra), então tirar o
+    // acordo é registrado como a volta ao preço de tabela, que é o que de fato
+    // passa a valer.
+    const novo = input.rate ?? (await precoDeTabela(conn, companyId, input.itemId));
+    if (novo !== null && novo !== anterior) {
+      const idH = newId();
+      await conn.runAsync(
+        `INSERT INTO sale_price_history
+           (id, company_id, item_id, location_id, previous_rate, new_rate, observed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [idH, companyId, input.itemId, input.placeId, anterior, novo, at],
+      );
+      await enqueue(conn, [{ table: 'sale_price_history', rowId: idH }]);
+    }
+  });
+}
+
+/** O preço de tabela cru, para a história saber ao que se volta. */
+async function precoDeTabela(conn: Db, companyId: string, itemId: string): Promise<number | null> {
+  const linha = await conn.getFirstAsync<{ sale_price_rate: number | null }>(
+    `SELECT sale_price_rate FROM items WHERE id = ? AND company_id = ?`,
+    [itemId, companyId],
+  );
+  return linha?.sale_price_rate ?? null;
+}
+
 export async function savePlace(
   companyId: string,
   input: {

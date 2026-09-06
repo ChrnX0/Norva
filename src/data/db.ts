@@ -794,9 +794,55 @@ const V21 = `
 ALTER TABLE people ADD COLUMN pin TEXT;
 `;
 
+/**
+ * Por quanto a mercadoria sai — o preço de tabela e o combinado com cada um.
+ *
+ * As três peças da `0037` do servidor, e nenhuma delas toca o livro-razão:
+ * `movements.unit_price_rate` continua sem escritor, porque congelar preço é P3 e
+ * depende da venda para cliente, que ainda não existe.
+ *
+ * **O histórico não é enfeite.** Preço combinado é digitado à mão e não tem nota
+ * atrás dele: sobrescrever a linha corrente apaga "por quanto vendíamos em março"
+ * de toda tabela, e isso não volta por migração nenhuma. É a assimetria com o
+ * custo, que pode ser sobrescrito porque as notas reconstroem a série.
+ *
+ * `location_id` NULO no histórico é a mudança do preço de TABELA — uma tabela para
+ * as duas séries, porque a pergunta é uma só: por quanto isto saía naquele dia.
+ *
+ * O `id` próprio em `location_prices` é o que faz a linha atravessar: a fila
+ * endereça por id único, e a única tabela de chave composta do aparelho é
+ * justamente a que não sobe.
+ */
+const V22 = `
+ALTER TABLE items ADD COLUMN sale_price_rate REAL;
+
+CREATE TABLE IF NOT EXISTS location_prices (
+  id          TEXT PRIMARY KEY,
+  company_id  TEXT NOT NULL,
+  location_id TEXT NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+  item_id     TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+  price_rate  REAL NOT NULL CHECK (price_rate > 0),
+  created_at  TEXT NOT NULL,
+  UNIQUE (company_id, location_id, item_id)
+);
+
+CREATE TABLE IF NOT EXISTS sale_price_history (
+  id            TEXT PRIMARY KEY,
+  company_id    TEXT NOT NULL,
+  item_id       TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+  location_id   TEXT REFERENCES locations(id) ON DELETE CASCADE,
+  previous_rate REAL,
+  new_rate      REAL NOT NULL CHECK (new_rate > 0),
+  observed_at   TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS sale_price_history_idx
+  ON sale_price_history (company_id, item_id, observed_at DESC);
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
-  V19, V20, V21,
+  V19, V20, V21, V22,
 ];
 
 export type SqlParam = string | number | null;

@@ -39,6 +39,7 @@ import {
   saveProduct,
   saveType,
   saveRecipeVersion,
+  saveSalePrice,
   averageRatesForLedger,
 } from '@/data/repository';
 import { ensureStarterData, LOCAL_COMPANY_ID } from '@/data/seed';
@@ -188,6 +189,25 @@ async function main() {
   const entregador = perfis.find((p) => p.templateRole === 'driver') ?? perfis[0];
   await savePerson(LOCAL_COMPANY_ID, { name: 'Zeca da câmara', profileId: entregador.id });
 
+  /**
+   * O acordo comercial: o preço de tabela, o combinado com a loja, e a história.
+   *
+   * Atravessa aqui porque é onde o par mais delicado desta migração se prova
+   * contra o Postgres de verdade: `location_prices` tem `unique (company_id,
+   * location_id, item_id)` além do `id`, então o `on conflict` da fila tem de casar
+   * com a chave certa; e `sale_price_history` só tem política de INSERT — a mesma
+   * forma de `movements` —, o que quer dizer que um reenvio da fila não pode tentar
+   * atualizar nada nela.
+   *
+   * As três chamadas escrevem QUATRO linhas: a tabela (que é `items`, já na fila),
+   * o combinado, e duas de história — uma por mudança.
+   */
+  const vendavel = (await listProducts(LOCAL_COMPANY_ID))[0];
+  if (!vendavel) throw new Error('a sessão precisa de um produto para precificar');
+  await saveSalePrice(LOCAL_COMPANY_ID, { itemId: vendavel.itemId, placeId: null, rate: rate(2.5, 1) });
+  await saveSalePrice(LOCAL_COMPANY_ID, { itemId: vendavel.itemId, placeId: loja.id, rate: rate(2.2, 1) });
+  await saveSalePrice(LOCAL_COMPANY_ID, { itemId: vendavel.itemId, placeId: loja.id, rate: rate(2.4, 1) });
+
   // A câmara fria, com a faixa que julga a leitura — e uma leitura dentro dela.
   //
   // Atravessa por dois motivos, e os dois são cicatriz: a faixa é `jsonb` do
@@ -307,7 +327,14 @@ async function main() {
     // às três da manhã não se corrige, se mede de novo. Uma série que aceita
     // UPDATE deixa de ser prova de nada — e o servidor recusa a coluna sem UPDATE
     // dizendo apenas "permission denied", sem contar qual privilégio falta.
-    const appendOnly = write.table === 'movements' || write.table === 'readings';
+    //
+    // `sale_price_history` entrou nesta lista pelo mesmo motivo, e o Postgres foi
+    // quem apontou: a política dela no servidor só tem `for insert`, então subir com
+    // `do update` pede um privilégio que ela nunca vai ter — e o erro não fala de
+    // política, fala de permissão numa tabela que ninguém tocou. Por quanto se
+    // vendia em março não se corrige: combina-se de novo, e isso é uma linha nova.
+    const APPEND_ONLY = ['movements', 'readings', 'sale_price_history'];
+    const appendOnly = APPEND_ONLY.includes(write.table);
 
     const onConflict = appendOnly
       ? 'do nothing'

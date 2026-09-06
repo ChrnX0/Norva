@@ -30,10 +30,10 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | | | como conferir |
 |---|---|---|
 | telas | **27** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
-| tabelas no aparelho (SQLite) | **23** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
-| tabelas no servidor (Postgres) | **24** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **36** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V21** | último `const V` em `src/data/db.ts` |
+| tabelas no aparelho (SQLite) | **25** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
+| tabelas no servidor (Postgres) | **26** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
+| migrações do servidor | **37** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V22** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **18** | `src/domain/access.ts` |
 | linhas de código | **~45.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -42,10 +42,10 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **386** testes |
+| `npm test` | **389** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **44** checagens num navegador de verdade |
-| `npm run db:verify` | **16** garantias contra um Postgres descartável, sob RLS |
+| `npm run db:verify` | **17** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade, com
@@ -462,9 +462,26 @@ por isso que a coluna de preço nunca teve escritor.
 
 Então "o preço combinado" não é um campo na ficha da loja. É esta ordem:
 
-1. **As duas tabelas de preço** — o de tabela no item e o combinado por lugar, com
-   HISTÓRICO append-only ao lado, como a `0002`/`0009` fizeram do lado da compra.
-   Barato, reversível, sem tocar no razão. É o que entra primeiro.
+1. ~~**As duas tabelas de preço**~~ — **FEITO em 6 de setembro.** São três, e a
+   terceira é a que a refutação salvou: `items.sale_price_rate` (tabela),
+   `location_prices` (o combinado, com `id` próprio para atravessar a fila) e
+   `sale_price_history` (append-only, `location_id` nulo para a série do preço de
+   tabela). Servidor `0037`, aparelho `V22`. **Nada toca o razão**:
+   `movements.unit_price_rate` continua sem escritor.
+
+   O portão da leitura é `manage_company` e **não** `view_sale_price`, contra o que
+   eu ia escrever: a capacidade diz o QUE se pode ver, nunca QUAIS LINHAS, e cinco
+   dos sete papéis a têm — com ela como portão, o gerente de uma loja leria quanto a
+   outra paga. Sem coluna que amarre a conta a um lugar, quem administra vê o acordo
+   de todos e mais ninguém vê o de ninguém; é mais estreito do que o produto quer, e
+   estreito é o lado seguro de errar.
+
+   A tela é a ficha da loja: um campo por produto, com a tabela ao lado (Lei 3) e
+   *"era R$ 2,20 até 10/mar"* quando houve renegociação. Três guardas morderam ao
+   longo do caminho — o conjunto de apagar, a travessia de colunas e a varredura de
+   órfãs da fila —, e um teste achou um defeito de verdade: dois acordos combinados
+   no mesmo segundo empatavam em `observed_at` e "de quanto veio" saía pela ordem
+   que o SQLite quisesse.
 2. **O cliente e a venda** — `customer` criável na tela, embarque como `kind='sale'`,
    e só então o preço congelado no movimento. **Isto é P3 puro** e é decisão de
    faseamento do dono.

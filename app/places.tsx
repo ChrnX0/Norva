@@ -24,20 +24,25 @@ import {
   lotsInRoomAt,
   readingsBetween,
   recordReading,
+  salePricesFor,
   savePlace,
+  saveSalePrice,
   stockByPlace,
   type Place,
   type PlaceStock,
   type Reading,
 } from '@/data/repository';
 import { dayWindow, localDate } from '@/domain/day';
+import { rate } from '@/domain/money';
 import { receivesCargo } from '@/domain/ledger';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { agreedOn, daysUntilNextDelivery, toggleDay } from '@/domain/agreement';
 import { formatTyped, parseTyped } from '@/domain/number';
 import {
+  currencySymbol,
   fill,
+  formatDayMonth,
   formatMoney,
   formatQuantity,
   formatTime,
@@ -682,6 +687,23 @@ function Agreement({ place, onDone }: { place: Place; onDone: () => void }) {
   const [note, setNote] = useState(place.agreementNote);
   const [saving, setSaving] = useState(false);
 
+  /**
+   * O que este lugar paga, item a item — e a lista vem vazia para quem não
+   * administra a empresa.
+   *
+   * Vazia e não escondida por decoração: `salePricesFor` recusa ANTES de consultar,
+   * e o motivo está no docblock dela — a capacidade diz o que se pode ver, nunca
+   * quais linhas, e preço combinado é uma linha por parte. Enquanto não houver
+   * escopo de conta, quem administra vê o acordo de todos e mais ninguém vê o de
+   * ninguém.
+   */
+  const { data: precos, refresh: refreshPrecos } = useQuery(
+    () => salePricesFor(LOCAL_COMPANY_ID, place.id),
+    place.id,
+  );
+  /** O que foi digitado, por item. Ausente é "não mexi neste". */
+  const [digitado, setDigitado] = useState<Record<string, string>>({});
+
   const save = async () => {
     if (saving) return;
     setSaving(true);
@@ -694,6 +716,24 @@ function Agreement({ place, onDone }: { place: Place; onDone: () => void }) {
         deliveryDays: days,
         agreementNote: note.trim(),
       });
+
+      // Só o que foi TOCADO, e o repositório ainda confere se mudou de verdade:
+      // salvar sem trocar o número não vira linha de história. Duas redes para o
+      // mesmo ruído, e a de dentro é a que vale — esta poupa a ida ao banco.
+      for (const [itemId, texto] of Object.entries(digitado)) {
+        const limpo = texto.trim();
+        const valor = limpo === '' ? null : parseTyped(limpo);
+        if (limpo !== '' && (valor === null || !Number.isFinite(valor))) continue;
+        await saveSalePrice(LOCAL_COMPANY_ID, {
+          itemId,
+          placeId: place.id,
+          // O que se digita é dinheiro POR UNIDADE-BASE; o que se guarda é taxa.
+          // `rate(2,50, 1)` são 250 centavos por picolé — e para o que se vende a
+          // peso a mesma conta dá a fração que um inteiro perderia.
+          rate: valor === null ? null : rate(valor, 1),
+        });
+      }
+      refreshPrecos();
       onDone();
     } finally {
       setSaving(false);
@@ -739,6 +779,52 @@ function Agreement({ place, onDone }: { place: Place; onDone: () => void }) {
         onChangeText={setNote}
         hint={words.agreementNoteHint}
       />
+
+      {/* O que ele paga. Só aparece quando há o que precificar E quem possa ver:
+          um cartão vazio com um título é pior que cartão nenhum. */}
+      {(precos ?? []).length > 0 ? (
+        <View style={{ gap: space.sm }}>
+          <Text style={[type.overline, { color: color.inkFaint }]}>{words.prices}</Text>
+          <Text style={[type.caption, { color: color.inkFaint }]}>{words.pricesHint}</Text>
+          {(precos ?? []).map((linha) => (
+            <Field
+              key={linha.itemId}
+              label={linha.name}
+              value={
+                digitado[linha.itemId] ??
+                (linha.agreedRate === null
+                  ? ''
+                  : formatTyped(linha.agreedRate / 100, locale.formatting))
+              }
+              onChangeText={(texto) =>
+                setDigitado((atual) => ({ ...atual, [linha.itemId]: texto }))
+              }
+              placeholder="2,50"
+              suffix={currencySymbol(locale)}
+              keyboardType="numeric"
+              /* Lei 3: o combinado nunca aparece sozinho — ao lado vem a tabela que
+                 ele substitui, e, quando houve renegociação, de quanto ele veio. */
+              hint={[
+                linha.listRate === null
+                  ? words.noListPrice
+                  : fill(words.listPrice, {
+                      amount: formatMoney(Math.round(linha.listRate), locale),
+                    }),
+                fill(words.pricePerUnit, { unit: linha.baseUnit }),
+                linha.previousRate !== null && linha.changedAt !== null
+                  ? fill(words.priceWas, {
+                      amount: formatMoney(Math.round(linha.previousRate), locale),
+                      date: formatDayMonth(linha.changedAt, locale),
+                    })
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            />
+          ))}
+        </View>
+      ) : null}
+
       <Button label={words.save} onPress={save} disabled={saving} />
     </View>
   );
