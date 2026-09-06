@@ -28,7 +28,7 @@
  *
  * Uso:
  *   node scripts/aparelho.mjs subir [--avd norva-cheio]
- *   node scripts/aparelho.mjs compilar          — APK de depuração, só x86_64
+ *   node scripts/aparelho.mjs compilar          — APK que roda sozinho, só x86_64
  *   node scripts/aparelho.mjs instalar [caminho.apk]
  *   node scripts/aparelho.mjs foto <nome>     — uma foto na tela atual
  *   node scripts/aparelho.mjs fotos <nome>    — a mesma tela em cinco larguras
@@ -295,19 +295,30 @@ function derrubar() {
 }
 
 /**
- * O APK de depuração para ESTE emulador, e só para ele.
+ * O APK que RODA SOZINHO neste emulador — e é `release`, não `debug`.
  *
- * Uma arquitetura em vez de quatro: o tempo cai por quatro e o disco também. As
- * quatro ficam para o APK de entrega, onde elas são o requisito e não o desperdício.
+ * Duas coisas que custaram uma rodada cada:
+ *
+ * **`assembleDebug` não empacota o JavaScript.** O APK instala, abre, desenha o
+ * splash e para em cinco quadros, e o `logcat` diz por quê: *"Make sure you're
+ * running Metro"*. Sem `index.android.bundle` dentro, o aplicativo espera um
+ * servidor que não existe aqui — e uma foto do splash não prova tela nenhuma.
+ * O `release` empacota, e assina com a keystore de depuração
+ * (`android/app/build.gradle:115`), então ele roda sem nada por trás.
+ *
+ * **Uma arquitetura em vez de quatro.** O `gradle.properties` pede as quatro, que é
+ * o certo para a loja e desperdício aqui: o emulador é x86_64. As outras três
+ * enchem o disco de objeto nativo que ele nunca vai executar — 8 GB medidos, e foi
+ * o que derrubou duas compilações com o `cmake` saindo 1 por falta de espaço.
  */
 function compilar() {
-  dizer('compilando o APK de depuração (x86_64 apenas)');
-  execFileSync('./gradlew', ['assembleDebug', '-PreactNativeArchitectures=x86_64'], {
+  dizer('compilando o APK de entrega (x86_64 apenas) — release, porque debug não traz o bundle');
+  execFileSync('./gradlew', ['assembleRelease', '-PreactNativeArchitectures=x86_64'], {
     cwd: 'android',
     stdio: 'inherit',
     env: { ...process.env, ANDROID_HOME: SDK },
   });
-  const apk = 'android/app/build/outputs/apk/debug/app-debug.apk';
+  const apk = 'android/app/build/outputs/apk/release/app-release.apk';
   if (!existsSync(apk)) throw new Error(`gradle saiu 0 e o APK não está em ${apk}`);
   dizer(`${apk} — ${(statSync(apk).size / 1024 / 1024).toFixed(1)} MB`);
   return apk;
