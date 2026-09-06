@@ -55,6 +55,31 @@ function paletas(): { nome: string; cores: Record<string, string> }[] {
   return achadas;
 }
 
+/**
+ * Toda pele do catálogo tem as duas paletas MEDIDAS aqui — e não só as que a
+ * busca por nome encontrou.
+ *
+ * A leitura acima acha paleta por convenção de nome (`\w*Claro|\w*Escuro`). Isso
+ * bastava com duas peles, e é exatamente o tipo de coisa que falha em silêncio na
+ * terceira: uma paleta batizada fora do padrão simplesmente não é encontrada, e
+ * o teste passa por não ter olhado. Aqui a lista de peles vem do catálogo, e o
+ * que não foi medido é dito pelo nome.
+ */
+test('every skin in the catalogue has both palettes measured', async () => {
+  const { skins } = await import('./tokens');
+  const medidas = new Set(paletas().map((p) => p.nome.toLowerCase()));
+  const faltando = Object.keys(skins).flatMap((pele) =>
+    ['claro', 'escuro']
+      .filter((luz) => !medidas.has(`${pele}${luz}`))
+      .map((luz) => `${pele}${luz}`),
+  );
+  assert.deepEqual(
+    faltando,
+    [],
+    `estas paletas não foram medidas por nenhuma checagem de contraste: ${faltando.join(', ')}`,
+  );
+});
+
 test('every ink the app writes text with is legible on every ground it writes on', () => {
   const todas = paletas();
   assert.ok(todas.length >= 4, `a leitura das paletas veio com ${todas.length} — a comparação seria de graça`);
