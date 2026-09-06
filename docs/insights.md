@@ -4667,3 +4667,44 @@ diz por escrito que `AAAAMMDD-NN` é o padrão e não a única forma.
 **A regra que fica:** quando um dado é IMPRESSO — etiqueta, QR, código lido em voz alta ao
 telefone —, ele virou endereço público. Pergunte quem sabe resolvê-lo de volta. Um
 identificador que sai no papel e não entra pelo teclado é uma porta pintada na parede.
+
+---
+
+## 2026-09-06 — a coluna dizia que operar exige ter login
+
+**O que se viu.** Fui construir a camada de gente que o dono pediu e o esquema já tinha
+uma resposta pronta — errada. A `0014` criou `movements.operator_id` referenciando
+`memberships(id)`, e `memberships.user_id` é `not null references auth.users(id)`. Lido
+junto: **toda pessoa que o sistema consegue nomear precisa de uma conta de autenticação.**
+
+O desconfortável é que a própria `0014` cita, no topo, a decisão que ela contraria: *"o
+login autentica o sistema, não a pessoa"*. Quem entra pela grade de nomes com PIN, de
+luva, no celular compartilhado da fábrica, não tem conta nenhuma e nunca vai ter. A
+migração escreveu a decisão certa no comentário e a decisão errada no `references`.
+
+E `devices.responsible_id` tinha o mesmo defeito, pelo mesmo motivo, com a mesma decisão
+escrita ao lado — *"o aparelho aponta para uma pessoa"*.
+
+**Por que ninguém tinha notado.** Porque **nada escreve a coluna**. Ela atravessa a
+sincronia, tem índice dedicado, tem comentário no servidor, e nenhum caminho do aparelho
+a preenche — `app/(tabs)/more.tsx` até registrava a lacuna com todas as letras, *"coluna
+sem tabela de gente atrás"*, como o motivo de a porta "Pessoas" não existir. A
+contradição estava documentada dos dois lados e nunca foi executada por ninguém.
+
+**Por que agora era a hora, e não daqui a um mês.** Consertar custou uma migração nova
+porque não há um único movimento gravado em servidor nenhum. Com a fábrica rodando, a
+mesma correção seria estorno de linha por linha, ou um `operator_id` que aponta para duas
+coisas diferentes conforme a data. O `src/domain/ledger.ts` já tinha escrito a regra sobre
+outro assunto: *"a única janela em que o vocabulário de um razão é livre para mudar"* é
+enquanto não há linha gravada com ele.
+
+**O que mudou.** `people` e `profiles` nos dois lados, as duas colunas reapontadas, e a
+décima quinta garantia do `db:verify` cobrando as duas metades contra Postgres: pessoa
+existe **sem conta**, e o operador **recusa** um id de membership — que era o único que
+passava antes. A checagem 5 foi corrigida junto, porque ela gravava o operador como conta
+e teria continuado verde afirmando a semântica antiga.
+
+**A regra que fica:** quando um comentário e uma restrição do esquema discordam, a
+restrição é o que roda — e o comentário é a prova de que alguém sabia. Procurar essa
+discordância é barato: leia o docblock da migração e depois leia o `references` dela. Se
+os dois contassem a mesma história, a migração não precisaria do parágrafo.

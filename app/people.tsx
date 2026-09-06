@@ -5,7 +5,7 @@ import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
-import { GlyphCustomer, GlyphStore } from '@/components/Glyph';
+import { GlyphCustomer, GlyphSettings } from '@/components/Glyph';
 import { ListRow } from '@/components/ListRow';
 import { Reveal } from '@/components/Reveal';
 import { listPeople, listProfiles, savePerson, type Person, type Profile } from '@/data/repository';
@@ -104,10 +104,12 @@ function WhoWorksHere() {
   return (
     <CollapsingHeader title={words.title} overline={words.overline}>
       <Reveal index={0}>
+        {/* Sem título: o cabeçalho já diz "Pessoas" em cima, e repetir a palavra
+            num crachá logo abaixo é rótulo inventado — a mesma regra que a tela
+            de perdas registrou quando três cartões repetiam "Perdas". */}
         <Card
           hue={palette.sky}
           icon={(c) => <GlyphCustomer size={26} color={c} weight={traco} />}
-          title={words.title}
         >
           {gente.length === 0 ? (
             <Text style={[type.body, { color: color.inkMuted }]}>{words.empty}</Text>
@@ -212,9 +214,13 @@ function WhoWorksHere() {
           A contagem é o que responde a pergunta seguinte — "dá para mexer neste?"
           — antes de alguém tocar. Zero é estado válido e é o normal no começo. */}
       <Reveal index={2}>
+        {/* O tom aqui é o do ASSUNTO e não o da tela: `GlyphSettings` fala de
+            ajuste, e o guarda de assinatura recusa desenho de assunto pintado
+            com a cor do lugar onde ele mora. Desenho MEDIDO é o contrário — esse
+            toma o tom da tela. */}
         <Card
-          hue={palette.sky}
-          icon={(c) => <GlyphStore size={26} color={c} weight={traco} />}
+          hue={palette.mist}
+          icon={(c) => <GlyphSettings size={26} color={c} weight={traco} />}
           title={words.profilesTitle}
         >
           {perfis.map((p) => (
