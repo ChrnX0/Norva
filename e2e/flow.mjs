@@ -2064,6 +2064,100 @@ check('a return says why it came back, and the button does not obey until it doe
   );
 });
 
+check('the load says who else is waiting, and still lets the truck leave', async (page) => {
+  // A reserva tinha metade: prometer descontava o que já tinha dono, despachar
+  // não. Esta checagem monta exatamente o caso que se perdia — uma loja
+  // esperando, a carga saindo para OUTRA — e prova as duas metades que o
+  // desenho decide: a frase aparece contra outro destino e NÃO aparece contra
+  // quem está esperando (senão ela avisaria contra a própria separação), e o
+  // botão continua obedecendo, porque às vezes a loja está na porta.
+  await page.goto(`http://localhost:${PORT}/production/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Quantas unidades/).fill('500');
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar produção', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  // A loja que espera entra primeiro e sozinha: com uma só, o pedido não tem
+  // como cair na loja errada e a montagem não depende da ordem da lista.
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Como se chama').fill('Loja Centro');
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  await page.goto(`http://localhost:${PORT}/orders/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel('Quantidade').fill('300');
+  await page.waitForTimeout(400);
+  await page.getByText('Adicionar ao pedido', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+  await page.getByText('Anotar pedido', { exact: true }).last().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Anotar', { exact: true }).last().click();
+  await page.waitForTimeout(2500);
+
+  // E a outra loja depois, que é para onde a carga vai.
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Como se chama').fill('Loja Norte');
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Picolé de morango/).first().click();
+  await page.waitForTimeout(700);
+
+  // Destino é a Loja Centro, que é justamente quem espera: mandar para ela é o
+  // que a promessa dela pede. Avisar aqui seria avisar contra a separação, em
+  // toda carga legítima — e alerta que aparece sempre ensina a ignorar alerta.
+  const paraQuemEspera = await screen(page);
+  assert.doesNotMatch(
+    paraQuemEspera,
+    /já tem dono/,
+    'o pedido do próprio destino não é concorrente da carga que vai atendê-lo',
+  );
+
+  await page.getByLabel('Loja Norte').first().click();
+  await page.waitForTimeout(900);
+
+  // Os MESMOS 500 em estoque, o MESMO pedido de 300: só mudou para onde vai, e
+  // agora as 300 têm dono e a tela diz de quem e para quando.
+  const paraOutra = await screen(page);
+  assert.match(paraOutra, /já tem dono/, 'a carga para outra loja avisa que aquilo tem dono');
+  assert.match(paraOutra, /Loja Centro/, 'e diz quem espera, não só quanto');
+
+  // Mandando as 500 inteiras, faltam as 300 de quem esperava.
+  await page.getByLabel('Quanto vai').fill('500');
+  await page.waitForTimeout(900);
+  assert.match(await screen(page), /faltam 300/, 'o aviso conta o que sobra para quem espera');
+
+  // E o botão obedece. Sem `force`: se ele estivesse desligado, o clique
+  // estouraria em vez de abrir a confirmação — que é como a devolução prova o
+  // contrário, logo acima. Quem está com o caminhão aberto decide melhor que a
+  // regra, e o aplicativo sugere, nunca decide calado.
+  await page.getByText('Registrar a transferência', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  const dialogo = await screen(page);
+  assert.match(dialogo, /Confirmar a transferência/, 'avisar não é impedir: a carga sai se quem está lá mandar');
+
+  // E o diálogo repete a conta, com a frase que só ele tem. O cartão já disse,
+  // mas o botão fica embaixo: num telefone a frase de cima pode ter saído da
+  // tela quando o dedo chega nele, e este é o instante que vira livro-razão.
+  assert.match(
+    dialogo,
+    /Depois desta carga faltam 300/,
+    'a confirmação diz o que vai acontecer, no instante em que dá para desistir',
+  );
+});
+
 check('erasing refuses in an order, and explains the way out', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

@@ -277,6 +277,14 @@ function Transfer() {
           // caminhão é quem vai ler o código na caixa se alguém ligar depois.
           (frente
             ? ` ${fill(frente.expiresOn ? words.fromLot : words.fromLotNoDate, { code: frente.code })}`
+            : '') +
+          // E o que esta carga tira de quem esperava, dito no instante em que
+          // vira livro-razão. O cartão já disse — mas o botão fica embaixo, e
+          // num telefone a frase pode ter saído da tela quando o dedo chega nele.
+          (compromisso && compromisso.short > 0
+            ? ` ${fill(words.confirmShort, {
+                amount: `${formatQuantity(compromisso.short, locale)} ${line.baseUnit}`,
+              })}`
             : ''),
     });
     if (!go) return;

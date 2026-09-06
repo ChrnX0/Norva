@@ -44,7 +44,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 |---|---|
 | `npm test` | **368** testes |
 | `npm run mutate` | **106** defeitos plantados, 104 pegos e 2 equivalentes |
-| `npm run e2e:fast` | **37** checagens num navegador de verdade |
+| `npm run e2e:fast` | **38** checagens num navegador de verdade |
 | `npm run db:verify` | **14** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
@@ -383,7 +383,9 @@ Três decisões dentro dela, cada uma um jeito de errar que foi evitado:
   câmara fria continuam existindo quando o caminhão carrega no freezer da frente.
 - **Não bloqueia.** Às vezes a loja está na porta. A frase de fato aparece sempre que
   alguém espera; o aviso, só quando esta carga passa da folga; o botão obedece nos dois
-  casos.
+  casos. E a conta é repetida na confirmação, porque o botão fica embaixo do cartão:
+  num telefone a frase de cima pode ter saído da tela quando o dedo chega nele, e o
+  toque seguinte já é livro-razão.
 
 **4. Separação — o que falta NÃO é a tela, é uma pergunta sem resposta.** Conferido
 em 6 de setembro, ao ir construí-la.

@@ -758,6 +758,7 @@ export const es: Dictionary = {
       promisedWhenever: 'sin día marcado',
       promisedRest: { one: '1 pedido', other: '{{n}} pedidos' },
       short: 'Mandando eso, faltan {{amount}} para quien espera',
+      confirmShort: 'Después de esta carga faltan {{amount}} para quien espera.',
       send: 'Registrar la transferencia',
       sending: 'Registrando…',
       confirmTitle: 'Confirmar la transferencia',

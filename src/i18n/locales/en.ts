@@ -753,6 +753,7 @@ export const en: Dictionary = {
       promisedWhenever: 'with no date set',
       promisedRest: { one: '1 order', other: '{{n}} orders' },
       short: 'Sending that leaves {{amount}} missing for who is waiting',
+      confirmShort: 'After this load, {{amount}} is missing for who is waiting.',
       send: 'Record the transfer',
       sending: 'Recording…',
       confirmTitle: 'Confirm the transfer',

@@ -871,6 +871,9 @@ export const ptBR = {
       promisedWhenever: 'sem dia marcado',
       promisedRest: { one: '1 pedido', other: '{{n}} pedidos' },
       short: 'Mandando isso, faltam {{amount}} para quem espera',
+      /** No diálogo o aviso é dito de novo: o botão fica embaixo, e num telefone
+          a frase do cartão pode ter saído da tela quando o dedo chega nele. */
+      confirmShort: 'Depois desta carga faltam {{amount}} para quem espera.',
       send: 'Registrar a transferência',
       sending: 'Registrando…',
       confirmTitle: 'Confirmar a transferência',
