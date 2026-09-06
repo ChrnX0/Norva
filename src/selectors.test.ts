@@ -76,6 +76,8 @@ const NAO_E_DICIONARIO: Record<string, string> = {
   'Açúcar cristal': 'nome de insumo do exemplo semeado, não frase de tela',
   'Polpa de morango': 'nome de insumo do exemplo semeado, não frase de tela',
   'Apagar Produtos': 'rótulo de acessibilidade montado com o nome da área pela tela',
+  'Loja Centro':
+    'nome de loja que a própria checagem cadastra antes de tocar nele — como o sabor Uva acima. Nome de lugar é dado da fábrica, não frase de tela: traduzi-lo seria traduzir o nome do cliente de alguém',
   Uva: 'sabor que a própria checagem cadastra antes de tocar nele',
   'Picolé de Uva': 'nome composto pela grade — linha, tipo e sabor — e não escrito em lugar nenhum',
   máxima: 'metade de um rótulo composto na tela do lugar',
