@@ -130,3 +130,63 @@ test('every device column either crosses to the server or says why it stays', as
       'do repositório passa, e o dado nunca chega ao servidor.',
   );
 });
+
+
+/**
+ * O nome do `take` existe MESMO na tabela do aparelho.
+ *
+ * O guarda acima cobra uma direção — coluna do aparelho que não atravessa. Esta
+ * é a outra, e o defeito dela apareceu em 6 de setembro numa medição de rotina:
+ * `movements.device_id` está na lista de colunas que viajam e **não existe no
+ * banco do aparelho**. Nenhum `ALTER TABLE` a cria.
+ *
+ * O que acontece então é o pior tipo de defeito silencioso: o `nullable()` do
+ * serializador transforma chave ausente em `null`, a linha sobe válida, e o
+ * servidor guarda `device_id` nulo para sempre. Nada falha. A coluna existe nos
+ * dois lados, atravessa a sincronia, e carrega nada — e a resposta de "qual
+ * aparelho gravou isto?" nasce vazia sem ninguém saber.
+ *
+ * A direção contrária tinha guarda porque o defeito dela já tinha acontecido. Esta
+ * não tinha porque o defeito ainda não tinha sido encontrado — e é exatamente por
+ * isso que ela entra agora, com o caso conhecido registrado.
+ */
+const PROMETIDA_E_AUSENTE: Record<string, Record<string, string>> = {
+  movements: {
+    device_id:
+      'a coluna existe no servidor (0013) e o aparelho ainda não sabe qual aparelho ele é — o comentário do serializador diz isso. Entra no banco local quando houver matrícula de aparelho, que é a peça que precisa do servidor',
+  },
+};
+
+test('every column the serializer promises to send exists on the device', async () => {
+  const inventadas: string[] = [];
+  const registroVelho: string[] = [];
+
+  for (const [table, crossing] of Object.entries(CROSSINGS_FOR_TESTS_ONLY())) {
+    const colunas = await conn.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+    if (colunas.length === 0) continue;
+    const existem = new Set(colunas.map((c) => c.name));
+
+    for (const nome of crossing.take ?? []) {
+      const registrada = PROMETIDA_E_AUSENTE[table]?.[nome];
+      if (!existem.has(nome)) {
+        if (!registrada) inventadas.push(`${table}.${nome}`);
+      } else if (registrada) {
+        registroVelho.push(`${table}.${nome}`);
+      }
+    }
+  }
+
+  assert.deepEqual(
+    inventadas,
+    [],
+    `o serializador promete mandar ${inventadas.join(' · ')}, e a coluna não existe no ` +
+      'aparelho. Ela viaja como `null` para sempre e nada falha — crie a coluna, tire o ' +
+      'nome da lista, ou registre a fronteira dizendo quando ela vai existir.',
+  );
+  assert.deepEqual(
+    registroVelho,
+    [],
+    `${registroVelho.join(' · ')} passou a existir no aparelho e continua na lista de ` +
+      'ausentes. Tire a linha: registro que virou mentira é pior que registro nenhum.',
+  );
+});

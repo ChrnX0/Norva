@@ -42,7 +42,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **374** testes |
+| `npm test` | **375** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **44** checagens num navegador de verdade |
 | `npm run db:verify` | **16** garantias contra um Postgres descartável, sob RLS |
@@ -384,10 +384,12 @@ não ser redescoberto na primeira fábrica com dois celulares.
 
 ### Dois defeitos que a medição achou
 
-**`movements.device_id` atravessa a sincronia e não existe no aparelho.** Está na lista de
-colunas que viajam (`src/sync/serialize.ts:374`) e nenhum `ALTER TABLE` de `src/data/db.ts`
-a cria: é serializada como `null`, sempre. O guarda `src/sync/columns.test.ts` cobra a
-direção contrária e não esta.
+**`movements.device_id` atravessa a sincronia e não existe no aparelho** — e agora existe
+guarda para isso. Ela está na lista de colunas que viajam e nenhum `ALTER TABLE` de
+`src/data/db.ts` a cria: viaja como `null`, sempre, e nada falha. O `columns.test.ts` cobrava
+só a direção contrária (coluna do aparelho que não sobe); passou a cobrar as duas, com o
+`device_id` registrado como fronteira até haver matrícula de aparelho — que é a peça que
+precisa do servidor.
 
 **Três configurações de empresa sem leitor:** `floor_sign_in` (pessoal ou compartilhado),
 `join_code` e `names_who_recorded`. A escolha entre os dois caminhos de entrada **já está
