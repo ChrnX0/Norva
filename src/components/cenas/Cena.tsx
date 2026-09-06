@@ -823,8 +823,13 @@ function Copia({ tinta, acento, frio }: Pincel) {
 
       {/* E o vão da prateleira do meio, à direita da pilha com cor, é onde a
           folha que viaja vai parar — o lugar vazio é o que faz o voo ter destino. */}
+      {/* TRÊS folhas e não duas, em ciclos igualmente espaçados: com duas, o
+          trecho entre a fábrica e a estante ficava vazio metade do tempo, e o
+          vazio no meio é o que fazia a cena parecer duas coisas soltas em vez de
+          um caminho. Com três, sempre há uma no meio. */}
       <Folha cor={tinta} atrasoMs={0} />
-      <Folha cor={acento} atrasoMs={4200} />
+      <Folha cor={acento} atrasoMs={2800} />
+      <Folha cor={tinta} atrasoMs={5600} />
     </>
   );
 }

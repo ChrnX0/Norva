@@ -13,6 +13,7 @@ import { escolherCopia, guardarCopia, partilharCopia, trazerDeVolta } from '@/da
 import { countMovements } from '@/data/repository';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatDayMonth, plural } from '@/i18n';
+import { localDate } from '@/domain/day';
 import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -58,6 +59,23 @@ const ULTIMA_COPIA = 'ultima.copia';
  * sozinho.
  */
 type UltimaCopia = { feitoEm: string; movimentos: number; bytes: number };
+
+/**
+ * Há quantos dias, e não a data — porque a data faz a pessoa fazer conta.
+ *
+ * *"Última cópia: 14/08"* obriga quem lê a subtrair, e ninguém subtrai: passa o
+ * olho e segue. *"há 23 dias"* **é** o alerta, sem alerta nenhum precisar ser
+ * inventado. É a Lei 4 desta casa — avisar na data da decisão e não na do
+ * problema — aplicada à única tela cujo assunto é o tempo desde a última vez.
+ *
+ * Compara DIA de calendário no fuso do galpão, não instante: uma cópia feita
+ * ontem às 23h não é "há 1 hora", é ontem.
+ */
+function diasDesde(iso: string, agora: string, timeZone: string): number {
+  const de = Date.parse(`${localDate(iso, timeZone)}T00:00:00Z`);
+  const ate = Date.parse(`${localDate(agora, timeZone)}T00:00:00Z`);
+  return Math.max(0, Math.round((ate - de) / 86_400_000));
+}
 
 /** Bytes em algo que uma pessoa lê. Cópia de fábrica pequena tem kilobytes. */
 function tamanho(bytes: number, locale: { formatting: string }): string {
@@ -178,6 +196,13 @@ export default function BackupScreen() {
   const ultima = estado.data?.ultima ?? null;
   const movimentos = estado.data?.movimentos ?? 0;
 
+  const quandoFoi = (iso: string) => {
+    const dias = diasDesde(iso, nowIso(), locale.timeZone);
+    if (dias === 0) return words.today;
+    if (dias === 1) return words.yesterday;
+    return fill(words.daysAgo, { n: String(dias) });
+  };
+
   return (
     <CollapsingHeader cena="copia" title={words.title} overline={words.overline}>
       {/* O ESTADO. Nenhum campo nasce vazio e nenhum número aparece sozinho: a
@@ -196,9 +221,7 @@ export default function BackupScreen() {
         >
           <Text style={[type.body, { color: color.ink }]}>{words.lead}</Text>
           <Text style={[type.secondary, { color: color.ink, marginTop: space.sm }]}>
-            {ultima
-              ? fill(words.lastOne, { when: formatDayMonth(ultima.feitoEm, locale) })
-              : words.never}
+            {ultima ? fill(words.lastOne, { when: quandoFoi(ultima.feitoEm) }) : words.never}
           </Text>
           <Text style={[type.caption, { color: color.inkFaint }]}>
             {ultima
