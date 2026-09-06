@@ -42,7 +42,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **352** testes |
+| `npm test` | **354** testes |
 | `npm run mutate` | **106** defeitos plantados, 104 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **36** checagens num navegador de verdade |
 | `npm run db:verify` | **13** garantias contra um Postgres descartável, sob RLS |
@@ -244,10 +244,21 @@ aqui estava errado:**
 
 De pé, nesta ordem e por este motivo:
 
-1. **Os médios que sobraram** — nove, agora que o `versionCode`, o `recorded_by`
-   cedível, o percentual com ponto e o ícone de picolé caíram. Entre eles: a
-   aprovação de pedido que nunca atravessa, a tela de abertura ainda ser o andaime da
-   Expo, e `forgetSentBefore` sem chamador fora de teste.
+1. **Os médios que sobraram** — oito, agora que o `versionCode`, o `recorded_by`
+   cedível, o percentual com ponto, o ícone de picolé e **a tela de abertura**
+   caíram. Entre os que ficam: a aprovação de pedido que nunca atravessa e
+   `forgetSentBefore` sem chamador fora de teste.
+
+   *A abertura fechou em 6 de setembro, e o achado não era o que parecia:* a marca
+   dela **já era gerada** pelo `scripts/icons.mjs` e o `app.json` nunca a citou —
+   arquivo desenhado com cuidado e jogado fora, que é o P1 numa forma que o P1 não
+   pega, porque o citador é um JSON. Agora está configurada nas duas luzes (o
+   `expo-splash-screen` não recolore: o escuro pede o próprio arquivo) e só sai
+   quando a cara escolhida já foi lida do disco, para não haver um flash branco entre
+   uma abertura carvão e uma página carvão. `src/marca.test.ts` cobra a ponte.
+   **Evidência E2:** as imagens foram olhadas, o contrato foi lido, a barra está
+   verde — a abertura em si só se julga num build de release, e a própria Expo diz
+   isso desde a SDK 52.
 
 2. **A embalagem digitada é um `Rate`, e está guardada como `Cents`.** *(P3 — a forma
    está decidida abaixo; falta executar, e não no fim de uma rodada longa.)*

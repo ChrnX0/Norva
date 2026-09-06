@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { BarraDoSistema } from '@/components/BarraDoSistema';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ConfirmProvider } from '@/components/Confirm';
@@ -10,8 +10,48 @@ import { WhatsNew } from '@/components/WhatsNew';
 import { Alerts } from '@/notify/Alerts';
 import { ensureStarterData } from '@/data/seed';
 import { LocaleProvider } from '@/i18n/Locale';
-import { AppearanceProvider } from '@/theme/Appearance';
+import { AppearanceProvider, useAppearance } from '@/theme/Appearance';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+
+/**
+ * A abertura fica até o aplicativo saber QUE CARA desenhar.
+ *
+ * A tela de abertura era a padrão da Expo — um branco sem nada, com a marca que
+ * o `scripts/icons.mjs` gera para ela existindo no disco e não sendo citada em
+ * lugar nenhum (`app.json` não tinha `expo-splash-screen`). Peça desenhada com
+ * cuidado e jogada fora é o P1 desta casa, na primeira tela que alguém vê.
+ *
+ * Configurada, ela ainda sumia cedo demais. O casco abre o banco e, enquanto
+ * abre, devolvia uma `View` vazia; depois a `AppearanceProvider` lê do disco qual
+ * cara e qual luz a empresa escolheu, e só então a página nasce. Entre uma coisa
+ * e outra o aparelho mostrava BRANCO — e num celular no escuro, entre uma
+ * abertura carvão e uma página carvão, esse branco é um flash na cara de quem
+ * abriu. É a mesma cicatriz do tema claro ilegível, na primeira tela.
+ *
+ * Então: `preventAutoHideAsync` no escopo do módulo (como a documentação manda,
+ * fora de componente, senão chega tarde) e a abertura sai quando as DUAS coisas
+ * estão prontas — o banco e a escolha da cara. Do carvão para o carvão, sem
+ * costura.
+ */
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
+
+/** Cento e sessenta milissegundos: o mesmo assentar do resto do aplicativo. */
+SplashScreen.setOptions({ duration: 160, fade: true });
+
+/**
+ * Some a abertura quando a cara já está escolhida.
+ *
+ * Componente em vez de efeito no casco porque `ready` mora DENTRO da
+ * `AppearanceProvider` — e é justamente essa leitura que não pode ficar de fora
+ * da conta. Não desenha nada.
+ */
+function AberturaSai() {
+  const { ready } = useAppearance();
+  useEffect(() => {
+    if (ready) SplashScreen.hide();
+  }, [ready]);
+  return null;
+}
 
 /**
  * Expo Router renders this instead of the screen when a render throws.
@@ -26,6 +66,7 @@ export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Pro
       <LocaleProvider>
         <AppearanceProvider>
           <ThemeProvider>
+            <AberturaSai />
             <Crash error={error} retry={() => void retry()} />
           </ThemeProvider>
         </AppearanceProvider>
@@ -86,6 +127,7 @@ export default function RootLayout() {
         <LocaleProvider>
           <AppearanceProvider>
             <ThemeProvider>
+              <AberturaSai />
               <Crash error={state.error} retry={retry} />
             </ThemeProvider>
           </AppearanceProvider>
@@ -94,7 +136,10 @@ export default function RootLayout() {
     );
   }
 
-  if (!state.ready) return <View style={{ flex: 1 }} />;
+  // `null`, e não uma `View` branca: enquanto isto vale, quem está na tela é a
+  // abertura, e uma folha branca por baixo dela é a costura que ela existe para
+  // não ter.
+  if (!state.ready) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -107,6 +152,7 @@ export default function RootLayout() {
               o raio dos cantos que o resto do aplicativo lê do tema. */}
           <AppearanceProvider>
             <ThemeProvider>
+              <AberturaSai />
               <ConfirmProvider>
                 <BarraDoSistema />
                 <Stack screenOptions={{ headerShown: false }} />

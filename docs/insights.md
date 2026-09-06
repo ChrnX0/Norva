@@ -3953,3 +3953,52 @@ conserto restringe, **rode o casamento** contra a biblioteca que o serviço nome
 padrão de glob é código, e código se executa em vez de se ler. Eu escrevi um conserto
 que parecia certo para um defeito que era "parecia certo" — duas vezes a mesma
 armadilha, com dez minutos de intervalo.
+
+## 2026-09-06 — a marca desenhada com cuidado, guardada no disco e nunca citada
+
+**O que apareceu.** A auditoria listava, entre os médios, *"a tela de abertura ainda
+ser o andaime da Expo"*. Fui ver esperando encontrar uma imagem feia. Não era isso: o
+`scripts/icons.mjs` **já desenhava** `assets/splash-icon.png` a partir do caminho da
+marca em `brand.ts`, com fração própria e comentário explicando a escolha — e o
+`app.json` **não tinha `expo-splash-screen`**. O arquivo era gerado, versionado e
+jogado fora a cada abertura; o aplicativo abria na tela padrão da Expo, branca.
+
+**Por que o P1 não pegou.** A regra da casa é *"quem chama isto no mesmo commit?"*, e
+ela mira código: função exportada e nunca importada, chave de dicionário sem tela,
+coluna sem escrita. Aqui não havia código — havia um **caminho dentro de um JSON de
+configuração**, e nenhuma ferramenta de código enxerga isso. É a mesma doença numa
+superfície onde o remédio não alcançava.
+
+E ela some da vista com facilidade porque **a ausência não parece ausência**: uma tela
+de abertura branca é uma tela de abertura. Ninguém abre o aplicativo e pensa "faltou
+alguma coisa aqui" — pensa que é assim.
+
+**A segunda metade, que só apareceu lendo o contrato.** O `expo-splash-screen` **não
+recolore a imagem**: o modo escuro pede o próprio arquivo (`dark: { image }`). Com um
+arquivo só, a marca de grafite abriria sobre papel carvão. Seria a cicatriz do tema
+claro ilegível de novo, na primeira tela que existe.
+
+**E a terceira, que era um flash.** Configurada, a abertura sumia cedo demais: o casco
+abre o banco devolvendo uma `View` vazia, e só depois a `AppearanceProvider` lê do
+disco qual cara e qual luz a empresa escolheu. Entre uma coisa e outra o aparelho
+mostrava **branco** — entre uma abertura carvão e uma página carvão. Agora
+`preventAutoHideAsync` roda no escopo do módulo (como a documentação manda: dentro de
+componente chega tarde) e a abertura sai quando as duas coisas estão prontas.
+
+**O que mudou.** `expo-splash-screen` configurado com os dois papéis do Papel
+(`#FAF7F2` e `#1B1610`), a marca gerada nas duas tintas, e `src/marca.test.ts`
+cobrando a ponte nos dois sentidos — o gerador desenhou, a configuração cita —, com
+prova negativa: tirando a citação da abertura escura, a guarda fica vermelha nomeando
+o arquivo.
+
+**Nível de evidência, dito por extenso: E2.** As imagens foram compostas sobre os
+papéis e olhadas; o contrato do plugin foi lido; tipos, lint, 354 testes e o navegador
+estão verdes. **A abertura em si não foi vista**, e a própria documentação da Expo
+avisa por quê: desde a SDK 52, nem o Expo Go nem o build de desenvolvimento reproduzem
+a tela de abertura — ela só se julga num build de release. Fica assim escrito em vez
+de afirmado.
+
+**A regra que fica:** o P1 vale para **arquivo** também, não só para código. Toda peça
+que uma ferramenta gera precisa de alguém que a cite, e quando o citador é um JSON de
+configuração, a ponte tem de ser conferida por um teste — porque nenhum compilador vai
+conferir por você, e a falta se disfarça de padrão.

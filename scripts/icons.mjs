@@ -152,6 +152,14 @@ const ALVOS = [
   { arquivo: 'assets/android-icon-background.png',  lado: 1024, fracao: 0,    fundo: '#FAF7F2' },
   { arquivo: 'assets/android-icon-monochrome.png',  lado: 1024, fracao: 0.44, fundo: null, tinta: '#000000' },
   { arquivo: 'assets/splash-icon.png',              lado: 1024, fracao: 0.50, fundo: null },
+  // A abertura tem duas luzes, como o resto do aplicativo.
+  //
+  // O `expo-splash-screen` não recolore a imagem: o modo escuro pede o SEU
+  // arquivo (`dark: { image }`), e sem ele a marca de grafite abre sobre papel
+  // carvão, quase invisível. É a mesma cicatriz do tema claro ilegível, na
+  // primeira tela que alguém vê.
+  { arquivo: 'assets/splash-icon-dark.png',         lado: 1024, fracao: 0.50, fundo: null,
+    tinta: pega('markColorDark') },
   { arquivo: 'assets/favicon.png',                  lado: 96,   fracao: 0.72, fundo: '#FAF7F2' },
 ];
 
