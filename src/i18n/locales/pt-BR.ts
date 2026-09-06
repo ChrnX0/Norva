@@ -387,6 +387,7 @@ export const ptBR = {
       share: 'Escolher onde guardar',
       inside: 'O que vai dentro',
       insideBody: 'A cópia leva o livro-razão inteiro — o que entrou, o que saiu, custos e fornecedores. Quem abrir o arquivo lê tudo isso.',
+      insidePrefs: 'Suas escolhas vêm junto: cidade do tempo, ordem da capa, como se entra. Num aparelho novo é isso que faz ele parecer o antigo.',
       restoreTitle: 'Trazer uma cópia de volta',
       restoreLead: 'Aparelho novo, ou aparelho formatado. Escolha o arquivo da cópia.',
       pick: 'Escolher o arquivo',

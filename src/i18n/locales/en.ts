@@ -278,6 +278,7 @@ export const en: Dictionary = {
       share: 'Choose where to keep it',
       inside: 'What goes inside',
       insideBody: 'The copy carries the whole ledger — what came in, what went out, costs and suppliers. Whoever opens the file reads all of it.',
+      insidePrefs: 'Your choices come along: weather city, cover order, how people sign in. On a new device that is what makes it feel like the old one.',
       restoreTitle: 'Bring a copy back',
       restoreLead: 'New device, or a wiped one. Choose the copy file.',
       pick: 'Choose the file',

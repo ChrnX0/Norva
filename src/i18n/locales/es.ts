@@ -283,6 +283,7 @@ export const es: Dictionary = {
       share: 'Elegir dónde guardarla',
       inside: 'Lo que va dentro',
       insideBody: 'La copia lleva el libro mayor completo — lo que entró, lo que salió, costos y proveedores. Quien abra el archivo lee todo eso.',
+      insidePrefs: 'Sus elecciones vienen junto: ciudad del clima, orden de la portada, cómo se entra. En un aparato nuevo es eso lo que lo hace parecer el antiguo.',
       restoreTitle: 'Traer una copia de vuelta',
       restoreLead: 'Aparato nuevo, o aparato formateado. Elija el archivo de la copia.',
       pick: 'Elegir el archivo',

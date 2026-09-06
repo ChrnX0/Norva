@@ -138,7 +138,27 @@ export default function BackupScreen() {
 
       setOcupado('voltando');
       const volta = await trazerDeVolta(escolha.caminho);
+
+      // 2) A tela mentiria aqui, e o motivo é fino: `ULTIMA_COPIA` mora no
+      // `app_meta`, que é tabela do banco — a restauração acabou de sobrescrevê-lo
+      // com o que a cópia tinha dentro. Restaurar uma cópia feita antes de existir
+      // qualquer registro faria a tela dizer "você ainda não guardou nenhuma
+      // cópia" logo depois de uma restauração bem-sucedida.
+      //
+      // O conserto grava o selo da cópia que acabou de voltar, e isso não é
+      // remendo: ela É a última cópia que existe. Quem restaurou não perdeu a
+      // rede de segurança — ela é exatamente o arquivo que ele acabou de usar.
+      await writeJson(ULTIMA_COPIA, {
+        feitoEm: escolha.lida.feitoEm ?? nowIso(),
+        movimentos: escolha.lida.movimentos,
+        bytes: escolha.lida.bytes,
+      } satisfies UltimaCopia);
       estado.refresh();
+
+      // `acknowledge` porque não há o que confirmar: a fábrica já voltou. Sem
+      // isto o aviso sai com botão de cancelar, e cancelar o quê? O componente já
+      // previa o caso — *"Drops the cancel button: for telling, not asking"* — e
+      // eu não tinha lido a API antes de usá-la.
       await confirm({
         title: words.doneTitle,
         message: fill(words.doneBody, {
@@ -146,6 +166,7 @@ export default function BackupScreen() {
           tables: plural(volta.tabelas, words.tableCount),
         }),
         confirmLabel: words.confirm,
+        acknowledge: true,
       });
     } catch (e) {
       setRecusa(e instanceof CopiaRecusadaError ? e.motivo : 'ilegivel');
@@ -215,6 +236,17 @@ export default function BackupScreen() {
           <Text style={[type.secondary, { color: color.ink }]}>{words.inside}</Text>
           <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
             {words.insideBody}
+          </Text>
+          {/* E as preferências vêm junto, o que é decisão e não descuido.
+              O caso principal é celular morto e celular novo: ali o aparelho não
+              tem cidade do tempo, nem ordem de capa, nem grade de nomes — e
+              trazê-las de volta é justamente o que faz o aparelho novo parecer o
+              antigo. Meu instinto foi o contrário ("a cópia é da fábrica, as
+              preferências são do aparelho") e ele não sobreviveu ao caso que
+              acontece de verdade. O que faltava não era mudar o código: era a
+              tela DIZER. */}
+          <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
+            {words.insidePrefs}
           </Text>
         </Card>
       </Reveal>
