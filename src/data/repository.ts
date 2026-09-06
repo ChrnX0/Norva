@@ -5068,10 +5068,23 @@ export async function ledgerExtract(
     from?: string;
     /** Até este instante, exclusive — é o corte de fechamento de período. */
     to?: string;
-    /** Quantos ATOS, não quantas linhas. */
+    /**
+     * Quantos ATOS, não quantas linhas — e a tela CRESCE este número em vez de
+     * paginar por cursor.
+     *
+     * Eu tinha construído um `before` aqui, para continuar da última data da
+     * página anterior, e ele nasceu sem chamador — a doença que o portão P1
+     * persegue, aninhada num parâmetro em vez de numa função. Pior: eu a
+     * diagnostiquei por escrito na mensagem do commit e entreguei outra solução,
+     * deixando o parâmetro morto no lugar.
+     *
+     * Ele saiu, e não por disciplina apenas: **crescer o limite é o desenho certo
+     * aqui.** Depois de um estorno a lista precisa ser relida inteira de qualquer
+     * jeito, e páginas acumuladas em estado teriam de ser refeitas uma a uma. Numa
+     * fábrica o razão de um ano cabe em centenas de atos, não milhões. Cursor
+     * seria generalidade especulativa pagando complexidade real.
+     */
     limit?: number;
-    /** O `occurredAt` do último ato da página anterior, para continuar dali. */
-    before?: string;
   } = {},
 ): Promise<ExtractAct[]> {
   const conn = await db();
@@ -5088,14 +5101,12 @@ export async function ledgerExtract(
         AND (? IS NULL OR m.occurred_at >= ?)
         AND (? IS NULL OR m.occurred_at < ?)
       GROUP BY g
-     HAVING (? IS NULL OR quando < ?)
       ORDER BY quando DESC, g DESC
       LIMIT ?`,
     [
       companyId,
       opts.from ?? null, opts.from ?? null,
       opts.to ?? null, opts.to ?? null,
-      opts.before ?? null, opts.before ?? null,
       limite,
     ],
   );
