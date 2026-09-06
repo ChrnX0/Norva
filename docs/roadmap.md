@@ -293,7 +293,25 @@ De pé, nesta ordem e por este motivo:
      coluna dormente com o motivo escrito é mais barata que uma divergência viva;
    - a tela deixa de chamar `fromDecimal` nesse campo e passa o valor fracionário
      direto ao `costPerProductUnit`, que já recebe `itemsRate` fracionário e já
-     arredonda **uma vez**, no fim — o caminho certo já existe ao lado.
+     arredonda **uma vez**, no fim — o caminho certo já existe ao lado;
+   - **`costPerProductUnit` passa a receber duas TAXAS, não uma taxa e um inteiro.**
+     Hoje a assinatura é `{ cents?: Cents; itemsRate?: number }`, e o docblock dela
+     explica por que os dois são nomeados: `itemsRate` é a embalagem que sai do
+     estoque, `cents` é a que ninguém quis virar item. A distinção é de PROCEDÊNCIA e
+     tem de ficar; o que muda é o tipo do segundo. Fundir os dois num só argumento
+     perderia a razão que o docblock guarda;
+   - **e as três telas que MOSTRAM esse valor têm de mudar junto** — `assistant/skills.ts`,
+     `app/recipes/[id].tsx` e a lista de receitas chamam `formatMoney(unitPackagingCents)`.
+     Com uma taxa fracionária, `formatMoney(0,4)` imprime **R$ 0,00**: o defeito sairia
+     do razão e apareceria na tela, dizendo que a embalagem é de graça. O aplicativo já
+     tem a resposta para isso e ela é a mesma da polpa — mostrar **a cada mil unidades**
+     (`app/inputs/[id].tsx:167`, `perThousand` no dicionário). É assim que estas três
+     passam a dizer.
+
+   **Estes dois últimos itens não estavam na primeira versão desta forma, e foram
+   achados conferindo antes de construir** — que é a razão de o P3 existir. A regra
+   de ouro se confirmou: forma escrita numa rodada, executada na seguinte, com uma
+   leitura adversarial no meio.
 
    **Por que agora e não depois:** o `LossReason` deixou a regra escrita — *"custou
    nada consertar porque nenhuma perda jamais foi registrada, que é a única janela em

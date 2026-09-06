@@ -4036,3 +4036,40 @@ que passou da janela sai; o que subiu hoje fica).
 **A regra que fica:** antes de apagar uma peça sem chamador, **leia o que ela faz**.
 Se o que falta é a chamada, apagar não remove dívida — remove a evidência dela. E o
 P1 continua valendo: o commit que decide isso tem de trazer o chamador, ou a remoção.
+
+## 2026-09-06 — a forma escrita estava incompleta, e conferir antes de construir mostrou onde
+
+**O que apareceu.** Deixei escrita no roadmap a forma do próximo P3 — a embalagem
+digitada, que é preço por unidade, guardada como `Cents` inteiro — para executar numa
+rodada seguinte em vez de decidir cansado. Antes de construir, fui conferir a forma
+contra o código. Ela estava **incompleta em dois pontos**, e os dois teriam aparecido
+tarde:
+
+1. **`costPerProductUnit` recebe `{ cents?: Cents; itemsRate?: number }`**, e o
+   docblock dela explica que os dois são nomeados de propósito: `itemsRate` é a
+   embalagem que sai do estoque, `cents` é a que ninguém quis virar item. A distinção é
+   de **procedência**, não de tipo. Minha forma dizia "passa o valor fracionário
+   direto", o que na prática fundiria os dois — e perderia a razão que o docblock
+   guarda há duas migrações.
+
+2. **Três telas MOSTRAM esse valor com `formatMoney`** — o assistente, a ficha da
+   receita e a lista. Com uma taxa fracionária, `formatMoney(0,4)` imprime **R$ 0,00**.
+   Ou seja: o conserto tiraria o defeito do razão e o colocaria na tela, dizendo com
+   todas as letras que a embalagem é de graça. O aplicativo já tem a resposta e ela é a
+   mesma da polpa — **a cada mil unidades** (`app/inputs/[id].tsx:167`).
+
+**Por que importa.** A forma parecia completa quando eu a escrevi: migração, coluna
+dormente, tela passando o valor. Faltava justamente a metade que não está no caminho
+de escrita — o caminho de LEITURA. Um número tem dois lados, e eu tinha desenhado um.
+
+E o modo como isso apareceu é o argumento inteiro a favor do portão P3: **decidir a
+forma numa rodada e executá-la na seguinte, com uma leitura adversarial no meio.** Se
+eu tivesse implementado logo depois de escrever, as três telas dizendo "R$ 0,00" só
+apareceriam numa foto — ou, pior, não apareceriam, porque uma embalagem de cinco
+centavos (o padrão semeado) continua imprimindo certo. O defeito só nasce com o valor
+pequeno, que é exatamente o caso que o conserto existe para servir.
+
+**A regra que fica:** forma escrita não é forma pronta. Antes de executá-la, **siga o
+valor pelos dois lados** — quem escreve e quem lê. O portão P3 diz "é caro e
+permanente"; o que ele quer dizer na prática é "a forma tem de ser lida por olhos que
+não são os que a escreveram", e uma rodada de intervalo é a versão barata disso.
