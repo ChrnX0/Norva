@@ -1,0 +1,29 @@
+-- Uma função criada DEPOIS da 0005 não herda a revogação dela.
+--
+-- Achado em 6 de setembro, no minuto em que as 31 migrações pendentes subiram
+-- para o servidor de verdade e o linter da Supabase falou. É um defeito que o
+-- Postgres descartável do `db:verify` não tinha como mostrar: ele prova o
+-- formato do esquema, e este é um fato sobre a API que o PostgREST publica em
+-- cima dele.
+--
+-- A 0005 revogou `execute ... from public` nas duas funções que existiam
+-- naquele dia, e a 0006 mudou as duas de lugar para `private`, fora do alcance
+-- do PostgREST. `apply_purchase_to_cost` ficou protegida por tabela: ela nasceu
+-- antes e a 0009 a reescreveu com `create or replace`, que PRESERVA as
+-- permissões.
+--
+-- `apply_production_to_cost` nasceu na 0025, com `create` e não com `replace`.
+-- Função nova em `public` nasce executável por `public`, então ela chegou ao
+-- servidor exposta em `/rest/v1/rpc/apply_production_to_cost` para `anon` e
+-- `authenticated`.
+--
+-- **O que isso vale na prática, dito sem inflar:** ela é função de gatilho, e o
+-- Postgres recusa chamada direta de gatilho ("trigger functions can only be
+-- called as triggers"). Ninguém executa nada por essa porta hoje. O que se
+-- conserta aqui é a porta existir — uma superfície publicada que ninguém
+-- pretendeu publicar, ao lado de duas irmãs que estão fechadas.
+--
+-- E o que fica de regra: **revogar não é propriedade do esquema, é propriedade
+-- de cada função.** Toda função nova em `public` recomeça aberta, e a migração
+-- que a cria tem de fechá-la na mesma migração — como esta faz, tarde.
+revoke execute on function public.apply_production_to_cost() from public;

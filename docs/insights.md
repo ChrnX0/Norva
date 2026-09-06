@@ -5639,3 +5639,52 @@ por dias.**
 E o achado veio de graça, de uma janela de uma hora que existia por outro motivo. Vale
 lembrar disso na próxima vez que a conta apertar: o pesado não é luxo, é o único que
 responde a pergunta que o rápido não faz.
+
+---
+
+## O servidor de verdade contou duas coisas que o Postgres descartável não tinha como contar
+
+*6 de setembro.* O dono decidiu (a) — subir o servidor —, e as 31 migrações pendentes foram
+para o projeto `norva`, que já existia desde 1 de setembro com só seis aplicadas. As 31
+subiram sem uma falha. **E aí o linter da Supabase falou duas coisas que o `db:verify` não
+sabe perguntar.**
+
+**Uma função nova em `public` nasce aberta, e a revogação não se herda.** A `0005` revogou
+`execute ... from public` nas duas funções daquele dia, e a `0006` mudou as duas para o
+esquema `private`, fora do alcance do PostgREST. `apply_purchase_to_cost` seguiu protegida
+porque a `0009` a reescreveu com `create or replace`, que **preserva** permissões.
+`apply_production_to_cost` nasceu na `0025` com `create` — e chegou ao servidor publicada em
+`/rest/v1/rpc/`, para `anon` e para `authenticated`.
+
+Vale medir o risco sem inflar: é função de gatilho, e o Postgres recusa chamada direta
+("trigger functions can only be called as triggers"). Ninguém entra por ali hoje. O que se
+conserta é a **porta existir** — superfície publicada que ninguém pretendeu publicar, ao lado
+de duas irmãs fechadas.
+
+**E o conserto errou de papel na primeira tentativa.** Escrevi `revoke ... from public`,
+copiando a `0005`. Rodou sem erro e o linter continuou acusando. A ACL, medida em vez de
+suposta:
+
+```
+apply_production_to_cost  postgres=X  anon=X  authenticated=X  service_role=X
+apply_purchase_to_cost    postgres=X                          service_role=X
+```
+
+`anon` e `authenticated` não estavam ali por herança de `PUBLIC`: são concessões
+**nominais**, que a Supabase dá por privilégio padrão. Revogar de `PUBLIC` não remove uma
+concessão nominal — são linhas diferentes da mesma ACL. E a `0005` tinha "funcionado" por
+outro motivo que eu li como sucesso: quem protegeu aquelas duas foi a **mudança de casa** da
+`0006`, não a revogação.
+
+**As duas coisas que ficam de método.** A primeira é sobre o que cada instrumento pode
+responder: o `db:verify` prova o **formato do esquema** contra um Postgres limpo, e isto é um
+fato sobre a **API que o PostgREST publica em cima dele** — categoria que nenhum Postgres
+descartável tem. *"O servidor sobe o mais tarde possível"* continua certo como economia, e o
+preço dele acabou de aparecer: cada semana sem servidor é uma semana sem esta classe de
+resposta.
+
+A segunda é a armadilha que quase caiu junto: a migração do conserto, escrita para o
+servidor, **quebraria o `db:verify`** — lá não existe `anon` nem `authenticated`, o papel
+sem dono de tabela chama-se `app_user`. Verde onde ninguém olha e vermelho onde todo mundo
+olha. A guarda `if exists (select 1 from pg_roles ...)` já existia na `0005` pelo mesmo
+motivo, e eu não a copiei junto com a linha que copiei.
