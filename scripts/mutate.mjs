@@ -309,10 +309,40 @@ const DEFECTS = [
 
   {
     file: 'src/domain/picking.ts',
-    from: '  return sources.ordered ?? sources.lastSent ?? null;',
-    to: '  return sources.lastSent ?? sources.ordered ?? null;',
+    from: '  if (sources.ordered != null) return Math.max(0, sources.ordered - sources.alreadySent);',
+    to: '  if (sources.lastSent != null) return sources.lastSent;',
     hurts:
       'a separacao volta a sugerir o envio da semana passada em vez do que a loja pediu, e quem esta com a lista na mao repete o habito em vez de atender o combinado',
+  },
+  {
+    file: 'src/domain/picking.ts',
+    from: '  if (sources.ordered != null) return Math.max(0, sources.ordered - sources.alreadySent);',
+    to: '  if (sources.ordered != null) return sources.ordered;',
+    hurts:
+      'a segunda viagem ao freezer volta a oferecer o pedido inteiro: quem mandou 300 de um pedido de 500 ve 500 de novo no campo, e a loja recebe 800',
+  },
+  {
+    file: 'src/domain/picking.ts',
+    from: `    if (order.placeId === input.toPlaceId) continue;
+    if (order.requestedFor !== null && order.requestedFor > input.through) continue;`,
+    to: `    if (order.requestedFor !== null && order.requestedFor > input.through) continue;`,
+    hurts:
+      'a carga que vai ATENDER um pedido passa a ser avisada como se roubasse dele, em toda carga legitima - e alerta que aparece sempre ensina a ignorar alerta',
+  },
+  {
+    file: 'src/domain/picking.ts',
+    from: `    if (order.placeId === input.toPlaceId) continue;
+    if (order.requestedFor !== null && order.requestedFor > input.through) continue;`,
+    to: `    if (order.placeId === input.toPlaceId) continue;`,
+    hurts:
+      'pedido para daqui a cinco semanas volta a disputar o caminhao de hoje, e o aviso dispara sobre uma promessa que a fabrica tem um mes para cumprir',
+  },
+  {
+    file: 'src/domain/picking.ts',
+    from: '    short: Math.max(0, promised - (input.onHand - input.amount)),',
+    to: '    short: Math.max(0, promised - input.onHand),',
+    hurts:
+      'o aviso para de olhar a quantidade digitada: mandar dez unidades passa a acusar a mesma falta que mandar o freezer inteiro',
   },
   {
     file: 'src/data/repository.ts',
