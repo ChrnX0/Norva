@@ -32,6 +32,14 @@ test('the ledger does not leave the phone through the Android backup', () => {
   );
 });
 
+/**
+ * A última versão com APK publicado, escrita à mão e de propósito.
+ *
+ * Ela sobe quando um release sai, não quando o `app.json` muda: é o número que
+ * está NO APARELHO de alguém, e o repositório não tem como descobri-lo sozinho.
+ */
+const ULTIMO_PUBLICADO = '0.10.0';
+
 test('the version can always produce a build number that grows', () => {
   // O `versionCode` sai da versão (`build-apk.yml`), e a fórmula dá a cada parte
   // uma faixa própria: `a * 1.000.000 + b * 10.000 + c * 100`. Ela só é monótona
@@ -48,8 +56,29 @@ test('the version can always produce a build number that grows', () => {
   assert.ok(b < 100, `menor ${b} não cabe: a faixa do menor vai até 99`);
   assert.ok(c < 100, `correção ${c} não cabe: a faixa da correção vai até 99`);
 
-  // E o número desta versão continua sendo o que já foi publicado com ela: a
-  // fórmula nova concorda com a antiga em toda versão 0.x.0, e 0.10.0 — o APK que
-  // está no celular do dono — segue valendo 100000.
-  assert.equal(a * 1_000_000 + b * 10_000 + c * 100, 100_000);
+  const codigo = (v: string) => {
+    const [x, y, z] = v.split('.').map(Number);
+    return x * 1_000_000 + y * 10_000 + z * 100;
+  };
+
+  // O que já foi publicado não pode mudar de número: `0.10.0` é o APK que está
+  // no celular do dono, e ele vale 100000. A fórmula nova concorda com a antiga
+  // em toda versão 0.x.0, e é isso que esta linha guarda.
+  assert.equal(codigo('0.10.0'), 100_000);
+
+  /**
+   * E a versão de agora tem que ser MAIOR que a última publicada.
+   *
+   * Esta linha era `assert.equal(codigo(versão atual), 100_000)` — ela fixava o
+   * número da versão que estava no `app.json` no dia em que foi escrita, então
+   * toda subida de versão a deixava vermelha e a correção óbvia era trocar o
+   * número esperado. Um guarda que se atualiza junto com o que ele guarda não
+   * guarda nada: a pergunta certa é se o número CRESCE, porque `versionCode`
+   * repetido não é atualização para o Android — é outra build com o mesmo nome,
+   * e o aparelho não sabe qual é a nova.
+   */
+  assert.ok(
+    codigo(APP.expo.version) > codigo(ULTIMO_PUBLICADO),
+    `${APP.expo.version} não passa de ${ULTIMO_PUBLICADO}: o Android não veria isso como atualização`,
+  );
 });
