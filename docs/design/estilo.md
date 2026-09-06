@@ -96,3 +96,42 @@ E o defeito que ela pega melhor que qualquer outro instrumento é o que o dono
 nomeou em três letras — **feio** — e que tem sempre a mesma forma: repetição
 regular. O conserto também é sempre o mesmo: tamanhos diferentes, vãos desiguais,
 e uma só peça com cor.
+
+---
+
+## As regras de desenho — aprendidas apanhando, para não apanhar de novo
+
+Cada uma abaixo custou uma correção do dono ou uma foto que me desmentiu. Estão
+aqui para a próxima sessão não pagar de novo.
+
+**1. Repetição regular lê como padrão de papel de parede, não como coisa.**
+Custou a palavra *"feio"* sobre uma fileira de quatro lojas idênticas. O conserto
+são sempre três: **tamanhos diferentes, vãos desiguais, e uma só peça com cor** —
+cor alternando em todo elemento é cor que não quer dizer nada. O mesmo defeito
+estava na gente, no catálogo, nos cursores dos ajustes e nas caixas dos lotes.
+
+**2. Cena precisa de VERBO, não de substantivo.** As que funcionam mostram algo
+*acontecendo*: o tacho ferve, a estrada corre, a caixa é empilhada, a gota cai, a
+página vira. As que ficaram fracas são listas de objetos — "três pessoas em pé",
+"quatro produtos pendurados". Consertar a repetição melhora um desenho fraco; não
+o torna uma cena. Se a frase que descreve o desenho não tem um verbo, ele ainda
+não está pronto.
+
+**3. Nada cruza a linha do chão.** É ela que faz sete objetos soltos lerem como
+uma cena. Um balão do assistente descia dois pixels abaixo dela e a cena inteira
+lia como recorte errado; um pedaço de chão desenhado no meio da folha lia como a
+linha quebrada.
+
+**4. Cor tem que significar.** Uma linha azul atravessada dentro de um saco de
+açúcar não quer dizer nada, e cor que não significa é ruído numa faixa que tem
+setenta e dois de altura. Azul é frio e água; ocre é luz acesa; o acento é o que
+está em foco.
+
+**5. Medida que vem de outra medida quebra em silêncio.** A porta de uma loja era
+calculada a partir do topo da fachada, e na loja mais baixa a conta deu **altura
+zero** — a porta virou um risco solto na calçada, e nenhum teste podia pegar isso.
+Porta tem a altura de uma pessoa: mede do chão.
+
+**6. Sub-pixel não é sutileza, é ausência.** Um desenho de 26 px oscilando um grau
+e meio desloca menos de meio pixel. O laço roda, a bateria é gasta e o olho não
+recebe nada — e `withRepeat` custa igual com 0,6° ou com 6°.
