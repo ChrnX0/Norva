@@ -307,3 +307,51 @@ sem servidor — e agora se sabe exatamente por quê.
 administra. O app já desenha QR (a etiqueta do lote) e já resolve código impresso de volta
 (entrou hoje). Digitar continua existindo para quando a câmera falhar — a mesma ordem da
 etiqueta: o caminho digitado primeiro, a câmera por cima dele.
+
+### A versão refinada, e onde ela ficou melhor que a minha
+
+O dono voltou ao assunto no mesmo dia e ajustou o desenho. **Dois relógios, e é isso que
+faz a coisa funcionar:**
+
+- **O código do entregador é IDENTIDADE.** Nasce quando o admin cadastra a pessoa, já
+  atrelado ao perfil, é único por entregador e **não muda nunca**.
+- **O PIN é o segredo da MATRÍCULA.** Ele roda porque tem vida curta — serve para o
+  aparelho entrar **uma vez**. Depois disso ninguém redigita nada: quem segura o acesso é o
+  prazo, e o PIN só reaparece se o prazo morrer.
+
+Isto corrige a leitura que eu tinha feito da primeira versão. Eu li "PIN diário" como
+*digitar todo dia* e reclamei do atrito; do jeito que ele descreveu — **roda para expirar,
+não para ser redigitado** — o atrito não existe.
+
+**Uma correção de segurança, e é a única.** Ele propôs o PIN atrelado à credencial do
+admin que o gera. Se o mesmo PIN vale para todos que aquele admin matricular, então **um
+PIN vazado mais um código de entregador dá acesso** — e o código do entregador circula por
+natureza: ele recebe por mensagem, mostra ao colega, anota no caderno.
+
+O ajuste: o PIN é gerado **para aquela matrícula** — este entregador, agora, uso único,
+minutos de vida — e o admin que autorizou fica gravado **como dado da matrícula**, não como
+o segredo dela. A rastreabilidade que ele queria (*"quem deixou o Zeca entrar?"*) continua
+inteira, sem transformar a credencial do admin numa chave-mestra.
+
+**A tela de completar cadastro é a melhor parte, e é dele.** O admin põe o que sabe (nome,
+perfil, empresa) e o entregador completa o que só ele sabe, no primeiro acesso. Isso
+distribui a digitação para quem tem a informação em vez de travar a matrícula até o dono
+ter tudo na mão. Duas bordas para ela não virar buraco:
+
+1. **O entregador completa o que está EM BRANCO e não reescreve o que o admin pôs** —
+   senão ele se renomeia, e `operator_id` passa a apontar para um nome que o dono não
+   reconhece.
+2. **"Obrigatório" tem que ser dado do perfil**, não regra chumbada, senão o app não sabe
+   quando abrir essa tela.
+
+**Um alerta que atravessa outra decisão:** ele citou "documento" entre os dados. Existe
+decisão escrita de 6 de setembro — *"Sem dados fiscais no começo. CPF e CNPJ ficam para
+depois: pedi-los puxaria o cadastro fiscal de graça, mas prende o produto ao Brasil, e o
+app vai para as duas lojas."* Um campo **documento livre**, sem máscara e sem validação,
+não reabre isso; um campo **CPF com formato** reabre. Fica registrado para a decisão não
+mudar sem alguém notar.
+
+**Os dois prazos, com ordem de grandeza:** matrícula em **minutos a horas** (é uma conversa
+entre duas pessoas na mesma hora); acesso em **dias a semanas** (é a folga que o entregador
+tem sem sinal antes de o aparelho se trancar). Misturá-los é o erro clássico: prazo de
+matrícula longo vira chave permanente, prazo de acesso curto tranca gente na porta da loja.
