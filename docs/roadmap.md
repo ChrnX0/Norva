@@ -412,14 +412,33 @@ O posto `picked` só vira movimento quando a carga sai, junto com a transferênc
 já existe. Isso não é decisão minha: é P3 quando toca `movements`, e é do dono quando
 decide o que a fábrica promete.
 
-**5. Os quatro postos de controle.** Separado, carregado, entregue, conferido. A
-seção `posts` do dicionário existe nos três idiomas — fronteira registrada. **Depende da
-mesma resposta do item 4:** `separado` é o primeiro dos quatro, e hoje nada grava esse
-posto. Enquanto não se decidir o que a separação grava, os quatro postos são quatro
-palavras traduzidas.
+**5. Os quatro postos de controle — dois existem, e a pergunta é outra.** Conferido em
+6 de setembro, lendo o que grava cada um.
 
-**6. App do entregador.** O papel `driver` existe com `dispatch`, `check_receipt` e
-`record_loss`. Falta a tela dele.
+| posto | existe? | onde |
+|---|---|---|
+| **separado** | não | ninguém grava. É a pergunta do item 4. |
+| **carregado** | sim, colado no seguinte | a transferência escreve as duas pernas no mesmo instante |
+| **entregue** | idem | mesmo evento que o de cima — não há um segundo momento |
+| **conferido** | **sim, inteiro** | `recordCheck` (`src/data/repository.ts:2474`), com tela na aba de transporte, linha própria no razão e migração dedicada (0017, para poder gravar "conferi e bateu" como zero) |
+
+Então "construir os quatro postos" descreve mal o que falta. O que falta é **uma
+decisão**: a carga é um evento só ou é uma viagem com linha do tempo? Hoje carregar e
+entregar acontecem no mesmo toque, na fábrica — quem separa carregado de entregue está
+dizendo que existe um segundo momento, noutro lugar e noutra hora, e que alguém o
+registra de lá.
+
+É P3, e com prazo: dividir mexe no caminho de escrita de `movements` e provavelmente
+acrescenta tipo ao razão — e o próprio `src/domain/ledger.ts` avisa que *"a única janela
+em que o vocabulário de um razão é livre para mudar"* é enquanto não há linha gravada
+com ele. A janela está aberta agora.
+
+**6. App do entregador — existe se, e só se, "entregue" for separado de "carregado".**
+O papel `driver` já tem `dispatch`, `check_receipt` e `record_loss`, e as três já têm
+por onde escrever: a transferência, a conferência da aba de transporte, e a perda com
+motivo. Se a carga continuar sendo um evento só, o entregador não tem o que gravar que
+a fábrica já não grave — a tela dele seria a mesma lista, noutro telefone. A decisão do
+item 5 é que decide se este item existe.
 
 **7.** ~~**Devolução.**~~ **FEITA em 6 de setembro.** O movimento já tinha tipo próprio
 e tela; o que faltava era o **motivo**, e ele entrou inteiro: `ReturnReason` no domínio

@@ -4528,3 +4528,43 @@ promessa da Loja A pede.
 **A regra que fica:** quando o número que você precisa já está em escopo, desconfie
 exatamente por isso. Pergunte de que pergunta aquele número é a resposta — e se a sua
 pergunta é outra, ele é a armadilha mais bem colocada do arquivo.
+
+---
+
+## 2026-09-06 — três itens do roadmap eram uma pergunta só, e ela tem prazo
+
+**O que se viu.** A lista tratava separação (4), os quatro postos de controle (5) e o
+app do entregador (6) como três construções. Lendo o que cada posto **grava**, eles são
+uma coisa só:
+
+- **conferido** existe inteiro — `recordCheck`, tela na aba de transporte, linha própria
+  no razão e até migração dedicada (0017) para poder gravar "conferi e bateu" como zero;
+- **carregado** e **entregue** são o **mesmo evento**: a transferência escreve as duas
+  pernas no mesmo instante, na fábrica;
+- **separado** não tem onde morar, que é o achado da manhã.
+
+Então não faltam quatro postos. Falta **uma decisão**: a carga é um evento só ou é uma
+viagem com linha do tempo? E o app do entregador é consequência dela, não item próprio —
+com a carga atômica, o entregador não tem o que gravar que a fábrica já não grave; a tela
+dele seria a mesma lista noutro telefone.
+
+**Por que importa, e por que agora.** O `src/domain/ledger.ts` escreve, sobre outro
+assunto, a frase que decide este: *"a única janela em que o vocabulário de um razão é
+livre para mudar"* é enquanto não há linha gravada com ele. Dividir carregado de entregue
+provavelmente acrescenta tipo ao razão, e o preço disso sobe no dia em que a primeira
+fábrica gravar movimento de verdade. É a rara dívida que fica **mais cara com o tempo**
+sem ninguém tocar nela.
+
+**O que engana.** Uma lista de tarefas é uma lista de coisas para construir, e por isso
+ela descreve tudo como construção — inclusive o que é pergunta. Três itens diferentes
+esconderam que a resposta é uma, e cada um sozinho parecia trabalho de um dia. Foi a
+terceira vez hoje que medir antes de construir mudou o item, e as três tinham a mesma
+forma: **o roadmap sabia o que falta fazer e não sabia o que falta decidir.**
+
+**O que mudou.** Os itens 5 e 6 foram reescritos com a tabela do que cada posto grava e
+com a pergunta dita por extenso, marcada como P3 e com o prazo nomeado. O item 6 passou a
+dizer que existe *se e só se* a decisão do 5 for pela viagem.
+
+**A regra que fica:** quando dois itens da lista travam pelo mesmo motivo, eles não são
+dois itens. Some-os antes de estimar qualquer um dos dois — senão a lista promete três
+semanas de trabalho onde há uma conversa de dez minutos com quem decide.
