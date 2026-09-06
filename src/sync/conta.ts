@@ -37,6 +37,8 @@ export type MotivoDaConta =
   | 'senhaFraca'
   /** O e-mail existe mas ainda não foi confirmado. */
   | 'emailNaoConfirmado'
+  /** O código de convite digitado não pertence a nenhuma empresa. */
+  | 'codigoNaoConfere'
   /** Nada acima. A mensagem crua vem junto, para o suporte. */
   | 'desconhecido';
 
@@ -119,7 +121,22 @@ export async function sair(): Promise<void> {
 }
 
 /** A empresa desta conta, ou nulo quando ela ainda não criou nenhuma. */
-export type Empresa = { id: string; nome: string };
+export type Empresa = {
+  id: string;
+  nome: string;
+  /**
+   * O código que o dono dita para alguém pedir associação.
+   *
+   * Nulo só em empresa nascida antes da `0041`, e o gatilho de lá já não deixa
+   * isso acontecer de novo. Ele não dá acesso a nada sozinho: cria um pedido
+   * pendente, e pendente não vê nada — quem decide é a `0011`, no banco, e não
+   * uma checagem de tela.
+   */
+  codigo: string | null;
+};
+
+/** Quem pediu para entrar e ainda espera. */
+export type Pedido = { id: string; nome: string; quando: string };
 
 /**
  * Qual empresa esta conta enxerga.
@@ -131,10 +148,104 @@ export type Empresa = { id: string; nome: string };
  */
 export async function minhaEmpresa(): Promise<Resultado<Empresa | null>> {
   if (!supabase) return semServidor();
-  const { data, error } = await supabase.from('companies').select('id, name').limit(1);
+  const { data, error } = await supabase.from('companies').select('id, name, join_code').limit(1);
   if (error) return { ok: false, motivo: motivoDe(error.message), cru: error.message };
   const linha = data?.[0];
-  return { ok: true, valor: linha ? { id: linha.id as string, nome: linha.name as string } : null };
+  return {
+    ok: true,
+    valor: linha
+      ? {
+          id: linha.id as string,
+          nome: linha.name as string,
+          codigo: (linha.join_code as string | null) ?? null,
+        }
+      : null,
+  };
+}
+
+/**
+ * Pedir associação com o código da empresa.
+ *
+ * Devolve o NOME da empresa, e isso é o que faz a tela poder dizer "seu pedido
+ * foi para a Sorvetes do Zé" em vez de "pedido enviado" — quem digitou seis
+ * letras precisa saber que acertou a empresa certa antes de esperar.
+ *
+ * Chama a função do servidor e não um `insert`, porque as duas portas estão
+ * trancadas por dentro do lado de fora: quem ainda não é membro não enxerga a
+ * empresa (a política filtra por associação ativa) e não pode escrever em
+ * `memberships`. É a mesma forma do problema que o dono tinha para criar a
+ * empresa dele, do outro lado.
+ */
+export async function pedirAssociacao(codigo: string): Promise<Resultado<string>> {
+  if (!supabase) return semServidor();
+  const { data, error } = await supabase.rpc('request_to_join', { code: codigo.trim() });
+  if (error) {
+    // "Código não confere" vem da função e não é falha de rede nem de senha: é a
+    // única resposta desta chamada que a pessoa consegue consertar sozinha.
+    if (error.message.toLowerCase().includes('confere')) {
+      return { ok: false, motivo: 'codigoNaoConfere', cru: error.message };
+    }
+    return { ok: false, motivo: motivoDe(error.message), cru: error.message };
+  }
+  return { ok: true, valor: data as string };
+}
+
+/**
+ * Quem está esperando aprovação.
+ *
+ * Sem filtro de empresa na consulta, e isso é a fundação e não descuido: a
+ * política `memberships_read` já devolve só o que é das empresas em que esta
+ * conta é membro ATIVA. A checagem roda antes da consulta, então não existe
+ * linha de outra empresa para vazar.
+ */
+export async function pedidos(): Promise<Resultado<Pedido[]>> {
+  if (!supabase) return semServidor();
+  const { data, error } = await supabase
+    .from('memberships')
+    .select('id, display_name, created_at')
+    .eq('state', 'pending')
+    .order('created_at', { ascending: true });
+  if (error) return { ok: false, motivo: motivoDe(error.message), cru: error.message };
+  return {
+    ok: true,
+    valor: (data ?? []).map((linha) => ({
+      id: linha.id as string,
+      nome: linha.display_name as string,
+      quando: linha.created_at as string,
+    })),
+  };
+}
+
+/**
+ * Dizer sim a um pedido.
+ *
+ * Aprovar é `update` direto e não outra função de servidor, porque aqui a porta
+ * não está trancada: `memberships_manage` já exige `manage_company`, que só quem
+ * administra tem. Criar uma função para isto seria repetir no código uma
+ * permissão que o banco já impõe — e a fundação desta casa é o contrário disso.
+ *
+ * O papel entra na aprovação e não no pedido: quem pediu não escolhe o que pode
+ * fazer.
+ */
+export async function aprovar(idDaAssociacao: string, capacidades: string[]): Promise<Resultado<true>> {
+  if (!supabase) return semServidor();
+  const { error } = await supabase
+    .from('memberships')
+    .update({ state: 'active', capabilities: capacidades })
+    .eq('id', idDaAssociacao);
+  if (error) return { ok: false, motivo: motivoDe(error.message), cru: error.message };
+  return { ok: true, valor: true };
+}
+
+/** Dizer não. A linha fica, revogada, porque quem pediu uma vez pode pedir de novo. */
+export async function recusar(idDaAssociacao: string): Promise<Resultado<true>> {
+  if (!supabase) return semServidor();
+  const { error } = await supabase
+    .from('memberships')
+    .update({ state: 'revoked' })
+    .eq('id', idDaAssociacao);
+  if (error) return { ok: false, motivo: motivoDe(error.message), cru: error.message };
+  return { ok: true, valor: true };
 }
 
 /**

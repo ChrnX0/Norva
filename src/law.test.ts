@@ -117,6 +117,12 @@ const TELAS: Record<string, Declaracao | Declaracao[]> = {
     sozinho:
       'o número grande é o CÓDIGO do lote, não uma medida. Código não tem mais nem menos, e comparar dois códigos não decide nada.',
   },
+  'app/account.tsx': {
+    sozinho:
+      'o corpo grande é o CÓDIGO de convite da empresa — seis letras para serem ditas em voz alta, '
+      + 'não uma medida. Ele está em corpo de figura por um motivo de uso e não de importância: '
+      + 'seis caracteres apertados numa legenda são soprados errado num galpão com barulho.',
+  },
   'app/purchase.tsx': {
     sozinho:
       'formulário: o número é o total da nota que a pessoa está digitando agora. A comparação dele é a própria nota na mão dela.',

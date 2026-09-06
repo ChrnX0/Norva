@@ -64,6 +64,14 @@ create table auth.users (id uuid primary key default gen_random_uuid());
 create or replace function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('test.uid', true), '')::uuid
 $$;
+-- E o `auth.jwt()`, pelo mesmo motivo e do mesmo jeito. Duas funções do servidor
+-- leem o e-mail de dentro dele para batizar a associação — a do dono
+-- (`create_company_for_me`) e a de quem pede (`request_to_join`) —, e sem este
+-- talo elas nem chegam a ser exercitadas aqui: aplicar uma função não a executa,
+-- então a ausência passava despercebida.
+create or replace function auth.jwt() returns jsonb language sql stable as $$
+  select coalesce(nullif(current_setting('test.jwt', true), ''), '{}')::jsonb
+$$;
 insert into auth.users (id) values
   ('00000000-0000-4000-8000-000000000001'),
   ('00000000-0000-4000-8000-000000000002'),
@@ -249,6 +257,7 @@ grant select on all tables in schema public to app_user;
 grant execute on function private.current_companies() to app_user;
 grant execute on function private.has_capability(uuid, capability) to app_user;
 grant execute on function auth.uid() to app_user;
+grant execute on function auth.jwt() to app_user;
 SQL
 
 # Runs one query as a given signed-in user. `-q` keeps psql from echoing the
@@ -1135,5 +1144,73 @@ SEM_CODIGO=$(psql -d "$DB" -At -c "select count(*) from companies where join_cod
 echo "    o código sai com seis, sem caractere que se confunde ao ser dito, e nenhuma empresa fica sem ele"
 
 echo
-echo "OK - migrations apply and all eighteen guarantees hold."
+echo "==> check 19: pedir para entrar não é entrar, e pedir duas vezes não desfaz nada"
+
+# A `0011` desenhou os dois caminhos que o dono decidiu — ele cadastra, ou aprova
+# quem pediu com o código —, e o caminho de QUEM PEDE nunca existiu. Ele não podia
+# existir como insert do aplicativo: quem ainda não é membro não enxerga a empresa
+# (`companies_read` filtra por associação ativa) e não pode escrever em
+# `memberships` (`memberships_manage` exige já ser membro ativo). Duas portas
+# trancadas por dentro, do lado de fora desta vez.
+#
+# O que esta garantia protege não é o caminho feliz: é a linha que fica PENDENTE.
+# Se um segundo pedido reescrevesse a primeira linha, quem já esperava voltaria ao
+# fim da fila — e se quem já é membro ATIVO pedisse de novo, seria rebaixado e
+# perderia o acesso. Esse é o defeito que dá para escrever sem perceber.
+
+CODIGO=$(psql -d "$DB" -At -c "select join_code from companies limit 1;")
+EMPRESA=$(psql -d "$DB" -At -c "select id from companies where join_code = '$CODIGO';")
+DONO=$(psql -d "$DB" -At -c "select user_id from memberships where company_id = '$EMPRESA' and state = 'active' limit 1;")
+# Uma conta NOVA, criada aqui: os três usuários semeados no topo já têm
+# associação nas empresas da verificação, e usar um deles fazia a função sair
+# cedo — corretamente — enquanto o teste lia a linha antiga e acusava a função.
+# Foi o primeiro veredito desta garantia, e o defeito era do figurante.
+FORASTEIRO='00000000-0000-4000-8000-0000000000ff'
+psql -d "$DB" -q -c "insert into auth.users (id) values ('$FORASTEIRO') on conflict do nothing;"
+
+# 1. Código que não existe é recusado, e a recusa não escreve nada.
+if psql -d "$DB" -q -c "
+  set local test.uid = '$FORASTEIRO';
+  select public.request_to_join('ZZZZZZ');" >/dev/null 2>&1; then
+  fail "um código inexistente foi aceito: qualquer conta entraria na fila de qualquer empresa"
+fi
+
+# 2. O código vale em minúscula e com espaço colado — ele é DITADO em voz alta e
+#    digitado de luva, e recusar por causa disso é transformar um acerto em erro.
+NOME=$(psql -d "$DB" -At -c "
+  set local test.uid = '$FORASTEIRO';
+  set local test.jwt = '{\"email\": \"forasteiro@exemplo.com\"}';
+  select public.request_to_join(' $(echo "$CODIGO" | tr 'A-Z' 'a-z') ');")
+[ -n "$NOME" ] || fail "o código válido em minúscula e com espaço foi recusado"
+
+# 3. E o que entrou é PENDENTE e sem capacidade nenhuma.
+ESTADO=$(psql -d "$DB" -At -c "
+  select state || '/' || coalesce(array_length(capabilities, 1), 0)
+    from memberships where company_id = '$EMPRESA' and user_id = '$FORASTEIRO';")
+[ "$ESTADO" = "pending/0" ] ||
+  fail "o pedido entrou como '$ESTADO' e devia ser 'pending/0': pedir para entrar não é entrar"
+
+# 4. Pedir de novo não cria segunda linha nem reescreve a primeira.
+psql -d "$DB" -q -c "
+  set local test.uid = '$FORASTEIRO';
+  set local test.jwt = '{\"email\": \"forasteiro@exemplo.com\"}';
+  select public.request_to_join('$CODIGO');" >/dev/null
+LINHAS=$(psql -d "$DB" -At -c "
+  select count(*) from memberships where company_id = '$EMPRESA' and user_id = '$FORASTEIRO';")
+[ "$LINHAS" = "1" ] || fail "pedir duas vezes rendeu $LINHAS linhas: a fila duplica"
+
+# 5. E quem JÁ é membro ativo não é rebaixado por pedir de novo.
+psql -d "$DB" -q -c "
+  set local test.uid = '$DONO';
+  set local test.jwt = '{\"email\": \"dono@exemplo.com\"}';
+  select public.request_to_join('$CODIGO');" >/dev/null
+AINDA=$(psql -d "$DB" -At -c "
+  select state from memberships where company_id = '$EMPRESA' and user_id = '$DONO';")
+[ "$AINDA" = "active" ] ||
+  fail "quem já era membro ativo virou '$AINDA' ao pedir de novo: um toque tirava o dono do sistema"
+
+echo "    código errado é recusado, o certo entra pendente e sem capacidade, e pedir de novo não desfaz nada"
+
+echo
+echo "OK - migrations apply and all nineteen guarantees hold."
 

@@ -4,20 +4,27 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
-import { GlyphCustomer, GlyphFactory } from '@/components/Glyph';
+import { GlyphCustomer, GlyphFactory, GlyphLabel } from '@/components/Glyph';
 import { Reveal } from '@/components/Reveal';
 import { useQuery } from '@/data/useQuery';
 import { useLocale } from '@/i18n/useLocale';
+import { ROLES } from '@/domain/access';
+import { fill } from '@/i18n';
 import {
+  aprovar,
   contaAtual,
   criarConta,
   criarEmpresa,
   entrar,
   minhaEmpresa,
+  pedidos,
+  pedirAssociacao,
+  recusar,
   sair,
   type Conta,
   type Empresa,
   type MotivoDaConta,
+  type Pedido,
 } from '@/sync/conta';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -53,22 +60,36 @@ export default function AccountScreen() {
    * escrita à mão já tinha `reler` numa `useCallback` só para segurar isso.
    * `useQuery` faz a mesma coisa com uma chave e uma releitura explícita.
    */
-  const { data: estado, refresh } = useQuery<{ conta: Conta | null; empresa: Empresa | null }>(
-    async () => {
-      const quem = await contaAtual();
-      if (!quem) return { conta: null, empresa: null };
-      const resposta = await minhaEmpresa();
-      return { conta: quem, empresa: resposta.ok ? resposta.valor : null };
-    },
-  );
+  const { data: estado, refresh } = useQuery<{
+    conta: Conta | null;
+    empresa: Empresa | null;
+    fila: Pedido[];
+  }>(async () => {
+    const quem = await contaAtual();
+    if (!quem) return { conta: null, empresa: null, fila: [] };
+    const resposta = await minhaEmpresa();
+    const empresaAgora = resposta.ok ? resposta.valor : null;
+    // A fila só é perguntada quando há empresa: sem associação ativa a política
+    // devolveria vazio de qualquer jeito, e uma consulta que sempre volta vazia é
+    // uma ida ao servidor para confirmar o que já se sabe.
+    const espera = empresaAgora ? await pedidos() : null;
+    return {
+      conta: quem,
+      empresa: empresaAgora,
+      fila: espera && espera.ok ? espera.valor : [],
+    };
+  });
   const conta = estado?.conta ?? null;
   const empresa = estado?.empresa ?? null;
+  const fila = estado?.fila ?? [];
   const carregando = estado === null;
 
   const [criando, setCriando] = useState(false);
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [nomeDaEmpresa, setNomeDaEmpresa] = useState('');
+  const [codigo, setCodigo] = useState('');
+  const [pedidoPara, setPedidoPara] = useState<string | null>(null);
 
   const [ocupado, setOcupado] = useState(false);
   const [motivo, setMotivo] = useState<MotivoDaConta | null>(null);
@@ -107,6 +128,30 @@ export default function AccountScreen() {
     const resposta = await criarEmpresa(nomeDaEmpresa);
     if (!resposta.ok) setMotivo(resposta.motivo);
     else setNomeDaEmpresa('');
+    refresh();
+    setOcupado(false);
+  };
+
+  const pedir = async () => {
+    setOcupado(true);
+    setMotivo(null);
+    const resposta = await pedirAssociacao(codigo);
+    if (!resposta.ok) setMotivo(resposta.motivo);
+    else {
+      setPedidoPara(resposta.valor);
+      setCodigo('');
+    }
+    setOcupado(false);
+  };
+
+  const decidir = async (id: string, sim: boolean) => {
+    setOcupado(true);
+    setMotivo(null);
+    // O papel entra na APROVAÇÃO e não no pedido: quem pede não escolhe o que
+    // pode fazer. `operator` é o padrão pela decisão do dono — aparelho
+    // emprestado produz, despacha e confere, e não vê dinheiro em lugar nenhum.
+    const resposta = sim ? await aprovar(id, [...ROLES.operator]) : await recusar(id);
+    if (!resposta.ok) setMotivo(resposta.motivo);
     refresh();
     setOcupado(false);
   };
@@ -201,6 +246,42 @@ export default function AccountScreen() {
           </Reveal>
         ) : null}
 
+        {/* E o outro caminho, que é o do dono e não escolha nossa: quem não vai
+            criar empresa nenhuma entra na de alguém, com o código de seis letras
+            que essa pessoa dita. Os dois existem, lado a lado, porque as duas
+            situações são igualmente comuns no primeiro dia. */}
+        {!carregando && conta && !empresa ? (
+          <Reveal index={1}>
+            <Card
+              hue={palette.sky}
+              icon={(c) => <GlyphCustomer size={26} color={c} />}
+              title={t.app.account.joinTitle}
+            >
+              <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.md }]}>
+                {t.app.account.joinBody}
+              </Text>
+              <Field
+                label={t.app.account.joinCode}
+                value={codigo}
+                onChangeText={(texto) => setCodigo(texto.toUpperCase())}
+                caixaAutomatica="characters"
+              />
+              <Button
+                variant="ghost"
+                label={t.app.account.joinAsk}
+                onPress={() => void pedir()}
+                disabled={codigo.trim().length < 6 || ocupado}
+                style={{ marginTop: space.md }}
+              />
+              {pedidoPara ? (
+                <Text style={[type.body, { color: color.ink, marginTop: space.sm }]}>
+                  {fill(t.app.account.joinSent, { company: pedidoPara })}
+                </Text>
+              ) : null}
+            </Card>
+          </Reveal>
+        ) : null}
+
         {/* Com as duas: quem entrou, qual empresa, e a saída. */}
         {!carregando && conta && empresa ? (
           <Reveal index={0}>
@@ -225,6 +306,69 @@ export default function AccountScreen() {
               <Text style={[type.caption, { color: color.inkFaint }]}>
                 {t.app.account.signOutHint}
               </Text>
+            </Card>
+          </Reveal>
+        ) : null}
+
+        {/* O código, em corpo grande e espaçado: ele é DITADO em voz alta, com
+            barulho de fábrica, para alguém digitar do outro lado. Seis letras
+            apertadas em corpo de legenda seriam sopradas errado. */}
+        {!carregando && empresa?.codigo ? (
+          <Reveal index={1}>
+            <Card
+              hue={palette.sky}
+              icon={(c) => <GlyphLabel size={26} color={c} />}
+              title={t.app.account.codeTitle}
+            >
+              <Text
+                style={[
+                  type.figure,
+                  { color: color.ink, letterSpacing: 6, marginBottom: space.sm },
+                ]}
+                accessibilityLabel={empresa.codigo.split('').join(' ')}
+              >
+                {empresa.codigo}
+              </Text>
+              <Text style={[type.secondary, { color: color.inkMuted }]}>
+                {t.app.account.codeBody}
+              </Text>
+            </Card>
+          </Reveal>
+        ) : null}
+
+        {/* Quem está esperando. A peça só existe quando há alguém — "ninguém
+            pediu" é um cartão que ensina a ignorar cartão, e a regra da capa vale
+            aqui igual: ligar não é forçar. */}
+        {!carregando && empresa && fila.length > 0 ? (
+          <Reveal index={2}>
+            <Card
+              hue={palette.sky}
+              icon={(c) => <GlyphCustomer size={26} color={c} />}
+              title={t.app.account.waitingTitle}
+            >
+              {fila.map((pedido) => (
+                <View key={pedido.id} style={{ marginBottom: space.md }}>
+                  <Text style={[type.body, { color: color.ink }]}>{pedido.nome}</Text>
+                  <Text style={[type.caption, { color: color.inkFaint }]}>
+                    {t.app.account.approveAs}
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: space.md, marginTop: space.sm }}>
+                    <Button
+                      label={t.app.account.approve}
+                      onPress={() => void decidir(pedido.id, true)}
+                      disabled={ocupado}
+                      style={{ flex: 1 }}
+                    />
+                    <Button
+                      variant="ghost"
+                      label={t.app.account.refuse}
+                      onPress={() => void decidir(pedido.id, false)}
+                      disabled={ocupado}
+                      style={{ flex: 1 }}
+                    />
+                  </View>
+                </View>
+              ))}
             </Card>
           </Reveal>
         ) : null}
