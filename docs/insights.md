@@ -4200,3 +4200,41 @@ vestimenta — que vem do registro e não muda. O comentário no lugar diz o por
 **A regra que fica:** ao abrir um ponto de extensão, escreva também qual é o jeito
 errado que ele torna conveniente. Contrato que só diz o que aceitar deixa o resto por
 conta da sorte de quem chega depois.
+
+## 2026-09-06 — o domingo é um dia de teste, e nenhum teste tinha rodado num
+
+**O que apareceu.** Uma checagem do navegador ficou vermelha sozinha, sem eu ter
+mexido nela: *"a manchete da capa é o que saiu do tacho"*. A leitura fácil era
+regressão minha. Não era — era domingo.
+
+Puxando o fio, três coisas apareceram, e nenhuma é do teste:
+
+1. **`everMade` não queria dizer "já produziu".** Queria dizer *"produziu hoje ou no
+   mesmo dia da semana passada"*. O simulador deixa o domingo quieto de propósito
+   ("uma semana em que todo dia é igual ensina a comparar ruído com ruído"), e uma
+   fábrica de verdade para pelo mesmo motivo — então as duas pontas dão zero e a capa
+   perde o diagrama da comparação, a conta por extenso e os selos do Orgânico. Três
+   meses de razão no banco, e a tela abria como se fosse o primeiro dia.
+2. **A conta por extenso chamava isso de primeiro dia**: *"0 − 511 = −511 · primeiro
+   dia com produção registrada"*, com as quinhentas de ontem na linha logo acima.
+3. **A checagem não sabia que dia era.** Cobrava "fez N unidades" todo dia.
+
+**Por que importa.** O defeito não é o domingo: é que **a capa fica mais pobre
+exatamente no dia em que ela é mais necessária**. Segunda de manhã, a pergunta do dono
+não é "quanto saiu hoje" — é "como foi a semana", e era essa a parte que sumia. Um
+número sozinho, sem a comparação, é o que a Lei 3 proíbe, e ele estava sozinho um dia
+em cada sete sem ninguém notar.
+
+E a forma do erro se repete: **um nome que descreve a resposta de um caso particular e
+é lido como a pergunta geral.** `everMade` lia como "alguma vez"; `mathNoBase` lia como
+"não há base". Os dois estavam certos no dia em que foram escritos — uma quarta-feira.
+
+**O que mudou.** `everMade` passou a ler a semana inteira (a MESMA conta que desenha a
+régua logo abaixo, para a tela não afirmar duas coisas diferentes); "primeiro dia" só
+vale quando os seis dias anteriores estão vazios e hoje não; e a checagem sabe que dia
+é, pela mesma regra do simulador, cobrando a frase daquele dia — inclusive que a capa
+não chame de primeiro dia uma fábrica com três meses de história.
+
+**A regra que fica:** uma suíte que só roda em dias úteis testa seis sétimos do
+produto. Quando um teste ficar vermelho sem que nada tenha mudado, **a primeira
+pergunta é que dia é hoje** — e o achado provavelmente não está no teste.
