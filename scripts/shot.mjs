@@ -11,6 +11,13 @@
  *   npm run shot                    # capa nas duas caras, instalação virgem
  *   npm run shot -- --com-dado      # depois de plantar duas semanas de movimento
  *   npm run shot -- --rota /inputs  # qualquer tela
+ *   npm run shot -- --como-operador # como quem não vê dinheiro
+ *   npm run shot -- --tocar "Combinar entrega"   # a tela que mora atrás de um toque
+ *
+ * As duas últimas existem pelo mesmo motivo, e ele é a lição desta ferramenta:
+ * mudança que acrescenta um ESTADO ou uma tela atrás de um toque é exatamente a que
+ * a foto não alcança sozinha — e uma foto do estado velho com o nome do novo é pior
+ * que foto nenhuma.
  *
  * As fotos saem em `.shots/`, que o git ignora: elas são para olhar agora, não
  * para versionar.
@@ -87,7 +94,7 @@ const TODAS = [
  */
 const CONHECIDAS = new Set([
   '--tudo', '--com-dado', '--escuro', '--claro', '--rota', '--largura',
-  '--como-operador',
+  '--como-operador', '--tocar',
 ]);
 const desconhecidas = process.argv
   .slice(2)
@@ -120,6 +127,26 @@ const comDado = tem('--com-dado') || tudo;
  * Exige `--com-dado`: sem número na fábrica não há como ver número escondido, e uma
  * foto de tela vazia diria que o portão funciona quando não prova nada.
  */
+/**
+ * O que TOCAR depois de chegar na rota, antes de fotografar.
+ *
+ * Meia tela deste aplicativo mora atrás de um toque — o acordo de uma loja, o
+ * formulário de um cadastro, a gaveta de uma configuração —, e a ferramenta só
+ * sabia chegar por URL. O resultado é o mesmo de hoje de manhã com o portão do
+ * dinheiro: a parte nova era exatamente a parte que a foto não alcançava, e uma
+ * foto da lista atestaria o editor que ela não mostra.
+ *
+ * Já havia dois casos assim resolvidos por NOME de rota (`receita`, `lote`), e um
+ * caso especial por tela não escala: o terceiro vira o terceiro `if`. Isto é a
+ * mesma ideia com o alvo vindo de fora.
+ *
+ * Vários alvos separados por `>`, na ordem — é o caminho que um dedo faria.
+ */
+const tocar = arg('--tocar', '')
+  .split('>')
+  .map((t) => t.trim())
+  .filter(Boolean);
+
 const comoOperador = tem('--como-operador');
 if (comoOperador && !comDado) {
   console.error('✗ --como-operador pede --com-dado: sem número não há como ver número escondido.');
@@ -467,13 +494,22 @@ try {
       } else {
         await page.goto(`http://localhost:${PORT}${rota}`, { waitUntil: 'networkidle' });
       }
+
+      // E o caminho do dedo, quando a tela pedida mora atrás de um toque. Falha
+      // aqui é falha da FOTO, não da tela: cai no `catch` abaixo e a rota é
+      // reprovada com o motivo, em vez de sair uma foto do lugar errado com o
+      // nome do lugar certo.
+      for (const alvo of tocar) {
+        await page.waitForTimeout(900);
+        await page.getByText(alvo, { exact: true }).first().click();
+      }
       // A capa tem animação de entrada; a foto tem de ser depois dela.
       await page.waitForTimeout(3500);
 
       // A largura entra no nome quando não é a padrão: sem isso a foto estreita
       // sobrescreve a larga, e a comparação entre as duas — que é o motivo de a
       // largura existir — deixa de ser possível.
-      const nome = `${rota.replace(/\W+/g, '') || 'capa'}-${cara}-${esquema === 'dark' ? 'escuro' : 'claro'}${comDado ? '-com-dado' : '-virgem'}${comoOperador ? '-operador' : ''}${largura === 412 ? '' : `-${largura}`}.png`;
+      const nome = `${rota.replace(/\W+/g, '') || 'capa'}-${cara}-${esquema === 'dark' ? 'escuro' : 'claro'}${comDado ? '-com-dado' : '-virgem'}${comoOperador ? '-operador' : ''}${tocar.length > 0 ? `-${tocar[tocar.length - 1].replace(/\W+/g, '')}` : ''}${largura === 412 ? '' : `-${largura}`}.png`;
       const imagem = await page.screenshot({ path: join(SAIDA, nome), fullPage: true });
       tiradas.push({ nome, rota, cara, esquema, soma: createHash('sha1').update(imagem).digest('hex') });
       console.log(`  ${nome}`);

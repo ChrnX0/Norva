@@ -42,9 +42,9 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **389** testes |
+| `npm test` | **390** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
-| `npm run e2e:fast` | **44** checagens num navegador de verdade |
+| `npm run e2e:fast` | **46** checagens num navegador de verdade |
 | `npm run db:verify` | **17** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **24** guardas de entrega |
 
@@ -272,7 +272,7 @@ abaixo respeita duas decisões escritas dele — *"termina o layout, nada pela m
 | **1** | **Refluir em colunas no tablet** | fecha o layout, que é a prioridade declarada, e agora tem quem teste: o dono tem tablet e vai rodar o APK. É a única coisa entre "o layout está pronto" e "o layout está pronto e visto". |
 | **2** | **TRAVADO — decisão de faseamento, e ela é do dono.** A camada 1 do login **não** é independente do servidor | Medido em 6 de setembro antes da primeira linha de código, e **contra o que o próprio estudo tinha dito de manhã**: `movements.operator_id` referencia `memberships(id)` (`supabase/migrations/0014_who_was_holding_it.sql:21`), e `memberships.user_id` é `not null references auth.users` (`0001_foundation.sql:60`). O aparelho não pode criar `auth.users`, logo não pode inventar o id de um operador — e o id inventado **viaja** (`src/sync/serialize.ts:351`) e trava a fila por chave estrangeira no dia em que a sincronia subir, que é o defeito crítico que esta branch já consertou uma vez. As três saídas estão no fim de `docs/estudo-conta.md`; eu faria a (c) e depois a (a). |
 | **2b** | **A conta da empresa — a camada 2** | cliente Supabase, sessão, cadastro do dono, convite por código. Ela deixou de ser "depois": sem lista de gente não há quem operou, e é esse o motivo novo que a decisão de *"o servidor sobe o mais tarde possível"* não tinha quando foi tomada. |
-| **2c** | **O que não esbarra nisso** | ~~o motivo da devolução~~ **FEITO em 6 de setembro** (`return_reason`, aparelho `V19` e servidor `0034`, com a catorzena garantia do `db:verify` cobrando as duas metades da regra). ~~A **tela de conferir item a item**~~ fechou com a separação (`app/picking.tsx`, engradado a engradado, com a lista guardada por loja). Sobra o **preço combinado** na ficha da loja, que a migração `0021` não criou. |
+| **2c** | **O que não esbarra nisso** | ~~o motivo da devolução~~ **FEITO em 6 de setembro** (`return_reason`, aparelho `V19` e servidor `0034`, com a catorzena garantia do `db:verify` cobrando as duas metades da regra). ~~A **tela de conferir item a item**~~ fechou com a separação (`app/picking.tsx`, engradado a engradado, com a lista guardada por loja). ~~E o **preço combinado**~~ entrou em 6 de setembro (`0037` / `V22`), com histórico append-only ao lado — e o que ele destravou não é um campo: é a descoberta de que o aplicativo não tinha a quem vender. **O 2c está vazio.** |
 | **3** | **Espelho da Loja — construir** | destravado hoje: constrói e exercita agora, calibra depois. A captura (contagem cega, perda com motivo) já grava. |
 | **4** | **Os sete médios** | pequenos e independentes; cabem entre as coisas grandes. O maior é a aprovação de pedido, que é F7 — vira configuração da empresa, não escolha nossa. |
 | **5** | **A sala do tacho** | pergunta de PADRÃO para o dono, não de qual; e trava no P3 porque muda onde o consumo é gravado. Fica para a câmara fria da F2. |
@@ -654,7 +654,7 @@ sete, com o rótulo por extenso embaixo para quem lê de luva) e a observação 
 E o acordo já é USADO em três lugares — `app/orders/new.tsx:154` nasce o pedido na data
 combinada, `app/places.tsx:189` mostra a próxima entrega, e `app/(tabs)/index.tsx:272`
 monta "quem recebe hoje" na capa. A fila também o carrega (`src/sync/serialize.ts:159`).
-O que falta desta ficha é **preço combinado**, que a migração não criou.
+~~O que falta desta ficha é **preço combinado**~~ — **FEITO em 6 de setembro**, e ele veio com três peças em vez de uma: o preço de tabela no item, o combinado por lugar, e a história append-only que é a única fonte dele. A tela é esta mesma ficha. O que ficou de fora, por ser P3 e decisão de faseamento do dono, é congelar o preço no movimento — ver "O preço de venda não é um campo que falta", acima.
 
 **3.** ~~**Pedido com reserva.**~~ **FEITA em 6 de setembro.** A metade que existia era
 a que não protege: `livreDe` (`app/orders/new.tsx:207`) já recusava PROMETER além de

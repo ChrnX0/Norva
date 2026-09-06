@@ -82,9 +82,24 @@ export function parseTyped(raw: string): number | null {
  * one the person's language uses, so a Brazilian sees `2,5` and an American
  * sees `2.5` - and both come back as 2.5.
  */
-export function formatTyped(value: number, formatting: string, maxDecimals = 4): string {
+export function formatTyped(
+  value: number,
+  formatting: string,
+  maxDecimals = 4,
+  /**
+   * O mínimo de casas — zero para quantidade, DOIS para dinheiro.
+   *
+   * Sem isto, R$ 2,50 volta ao campo como "2,5", e R$ 118,00 como "118". Para uma
+   * quantidade está certo (ninguém escreve "6,00 sacos"); num campo de preço lê como
+   * inacabado, e foi um teste de ponta a ponta que mostrou — a asserção comparava o
+   * valor do CAMPO, e a diferença entre "2,5" e "2,50" é exatamente o tipo de coisa
+   * que só aparece quando se olha o campo em vez do texto da tela.
+   */
+  minDecimals = 0,
+): string {
   return new Intl.NumberFormat(formatting, {
     useGrouping: false,
-    maximumFractionDigits: maxDecimals,
+    maximumFractionDigits: Math.max(maxDecimals, minDecimals),
+    minimumFractionDigits: minDecimals,
   }).format(value);
 }

@@ -794,7 +794,7 @@ function Agreement({ place, onDone }: { place: Place; onDone: () => void }) {
                 digitado[linha.itemId] ??
                 (linha.agreedRate === null
                   ? ''
-                  : formatTyped(linha.agreedRate / 100, locale.formatting))
+                  : formatTyped(linha.agreedRate / 100, locale.formatting, 4, 2))
               }
               onChangeText={(texto) =>
                 setDigitado((atual) => ({ ...atual, [linha.itemId]: texto }))

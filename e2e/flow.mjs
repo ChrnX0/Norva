@@ -166,8 +166,52 @@ const assentar = async (page, { limite = 20000, quieto = 400 } = {}) => {
   }
 };
 
+/**
+ * O texto da tela — e o que ele NÃO contém é o que precisa estar escrito aqui.
+ *
+ * `innerText` é o texto do documento. O que está DENTRO de um campo é `value`, um
+ * atributo, e não aparece aqui nunca. Então toda asserção sobre o que um campo
+ * guarda, escrita com esta função, ou casa outra coisa na página ou não casa nada —
+ * e a primeira é pior, porque fica verde.
+ *
+ * Não é hipótese: em 6 de setembro escrevi `assert.match(screen(page), /2,50/)` para
+ * provar que um preço digitado voltava do banco. Passou de primeira. Com a gravação
+ * DESLIGADA continuou passando — o que ela casava era `R$ 1.932,50`, o valor do
+ * estoque num cartão mais abaixo da mesma página. Quem responde por campo é
+ * `inputValue()`, e a checagem logo abaixo prende esta diferença.
+ */
 const screen = async (page) =>
   (await page.locator('body').innerText()).replace(/\u00a0/g, ' ').replace(/\n+/g, ' | ');
+
+check('what is typed into a field is not text on the screen', async (page) => {
+  /**
+   * A checagem mais barata desta suíte, e ela existe para uma asserção minha que
+   * ficou verde pelo motivo errado.
+   *
+   * Ela prende o comportamento de `screen()` em vez de confiar que alguém leia o
+   * comentário: o dia em que `innerText` passar a incluir valor de campo — ou em que
+   * alguém trocar o `screen()` por outra coisa —, esta reprova e conta o porquê.
+   */
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+
+  const nonce = 'Zzq7Nonce';
+  await page.getByLabel('Como se chama').fill(nonce);
+  await page.waitForTimeout(400);
+
+  assert.equal(
+    await page.getByLabel('Como se chama').inputValue(),
+    nonce,
+    'o campo guarda o que foi digitado',
+  );
+  assert.doesNotMatch(
+    await screen(page),
+    new RegExp(nonce),
+    'e o texto da tela NÃO o contém: asserção sobre campo se faz com inputValue()',
+  );
+});
 
 check('opens on the day, not on the price of a popsicle', async (page) => {
   // Esta checagem media o custo por unidade na capa até o dono abrir o
@@ -2553,6 +2597,78 @@ check('erasing refuses in an order, and explains the way out', async (page) => {
   assert.match(asking, /Apagar produtos\?/);
   assert.match(asking, /Isso apaga 1 produto/);
   assert.match(asking, /Isso não tem volta/);
+});
+
+check('an agreed price is typed on the store card and comes back', async (page) => {
+  /**
+   * A costura que teste nenhum de repositório alcança: o que a TELA guarda no
+   * estado, o que ela manda ao salvar, e o que ela lê de volta ao reabrir.
+   *
+   * `saveSalePrice` tem teste próprio e prova a regra — o combinado vence a tabela,
+   * a história registra a mudança, salvar igual não vira linha. O que ele não prova
+   * é que o campo da ficha da loja chega até ele: entre os dois há um `Record` de
+   * texto digitado, um `parseTyped` que aceita vírgula, e a conversão de reais para
+   * taxa. Três lugares onde a tela pode escrever certo e mandar errado.
+   */
+  // A loja primeiro: cada checagem abre uma instalação VIRGEM, como quem instalou
+  // o aplicativo agora — e uma fábrica nova não tem lugar nenhum além do próprio
+  // almoxarifado. É o mesmo caminho que a checagem da separação faz, e é ele que
+  // torna a asserção uma prova: o lugar existe porque a tela o criou.
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Como se chama').fill('Loja Centro');
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(2000);
+
+  await page.getByText('Combinar entrega', { exact: true }).first().click();
+  await page.waitForTimeout(1200);
+
+  const abriu = await screen(page);
+  assert.match(abriu, /O QUE ELE PAGA/, 'a ficha do acordo abre com a seção de preço');
+  assert.match(
+    abriu,
+    /Em branco vale o preço de tabela/,
+    'e diz o que o vazio SIGNIFICA, que é a pergunta de quem está com o dedo no campo',
+  );
+  // Sem preço de tabela ainda, e a tela DIZ isso em vez de deixar o campo mudo.
+  assert.match(abriu, /sem preço de tabela/);
+
+  // O picolé de morango, a 2,50 — com vírgula, que é o que um teclado brasileiro
+  // oferece e o que já quebrou a leitura de preço uma vez neste projeto.
+  const campo = page.getByLabel(/morango/i).first();
+  await campo.fill('2,50');
+  await page.waitForTimeout(400);
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(2000);
+
+  // E de volta: reabrir é o que prova que foi GRAVADO, e não que ficou no estado
+  // do componente. A tela some e volta do banco.
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Combinar entrega', { exact: true }).first().click();
+  await page.waitForTimeout(1200);
+
+  /**
+   * O valor do CAMPO, e não o texto da tela — e esta linha é a checagem inteira.
+   *
+   * A primeira versão fazia `assert.match(screen(page), /2,50/)`, passou de
+   * primeira, e eu ia entregá-la como prova. O teste de mordida derrubou: com a
+   * gravação DESLIGADA ela continuava verde. O que ela casava era `R$ 1.932,50` —
+   * o valor do estoque da fábrica, num cartão mais abaixo da mesma página.
+   *
+   * A causa é mecânica e vale para toda a suíte: `screen()` lê `body.innerText`, e
+   * o que está DENTRO de um campo é `value`, que não é texto do documento. Qualquer
+   * asserção sobre o que um campo guarda, escrita com `screen()`, ou casa outra
+   * coisa ou não casa nada — nunca o campo. Quem responde é `inputValue()`.
+   */
+  const guardado = await page.getByLabel(/morango/i).first().inputValue();
+  assert.equal(
+    guardado,
+    '2,50',
+    'o preço combinado volta do banco, com a vírgula que foi digitada',
+  );
 });
 
 const server = serve();

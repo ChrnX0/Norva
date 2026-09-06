@@ -5061,6 +5061,16 @@ que olha tem de saber chegar nele — senão a foto passa a atestar o estado vel
 autoridade do novo. E dado semeado e formulário são dois autores da mesma lista: quem
 compara os dois é a foto, ou ninguém.
 
+**E aconteceu de novo no mesmo dia, o que mudou a forma do conserto.** Entrou o editor de
+preço, que mora atrás de um toque em "Combinar entrega" — e a ferramenta só sabia chegar
+por URL. Da primeira vez eu tinha resolvido com uma bandeira para aquele estado; a
+ferramenta já tinha DOIS casos assim resolvidos por nome de rota (`receita`, `lote`), e o
+terceiro viraria o terceiro `if`. Então virou `--tocar`, com o alvo vindo de fora: meia
+tela deste aplicativo mora atrás de um toque, e o caminho do dedo é um argumento, não um
+caso especial por tela. **Duas vezes é coincidência; três vezes é assinatura de que a
+forma está errada** — e a diferença entre consertar o caso e consertar a forma é que a
+segunda não pede que ninguém se lembre dela na quarta vez.
+
 ---
 
 ## Quatro guardas morderam numa migração só, e nenhum deles é sobre a migração
@@ -5136,3 +5146,47 @@ seria um achado. Fui conferir com um arquivo de três linhas: `tsc` pega, e o qu
 tinha acontecido é que eu não rodei o typecheck depois daquela edição. Alarme
 inventado ensina a ignorar alarme, e a diferença entre insight e história bonita é
 justamente o arquivo de três linhas.
+
+---
+
+## O teste que eu ia entregar como prova passava por causa do estoque da fábrica
+
+**6 de setembro.** Escrevi uma checagem de ponta a ponta para provar que o preço
+digitado na ficha da loja chega ao banco e volta: digita `2,50`, salva, recarrega,
+`assert.match(screen(page), /2,50/)`. Passou de primeira. Ia commitar.
+
+O teste de mordida — desligar a gravação e conferir que fica vermelho — derrubou:
+**com a gravação desligada ela continuava verde.** O que ela casava era `R$ 1.932,50`,
+o valor do estoque da fábrica, num cartão mais abaixo da mesma página.
+
+A causa é mecânica e vale para a suíte inteira: `screen()` lê `body.innerText`, que é
+o texto do DOCUMENTO. O que está dentro de um campo é `value`, um atributo — não
+aparece ali nunca. Então toda asserção sobre o que um campo guarda, escrita com
+`screen()`, ou casa outra coisa na página ou não casa nada. **A primeira é pior,
+porque fica verde**, e uma regex de quatro caracteres numa página cheia de dinheiro
+casa quase sempre.
+
+Trocada por `inputValue()`, a checagem virou prova — e imediatamente achou um defeito
+de verdade que a versão falsa nunca acharia: o preço voltava como **`2,5`** e não
+`2,50`. `formatTyped` tem máximo de casas e não tinha mínimo, então dinheiro
+pré-carregado num campo saía sem os centavos. O mesmo valia para o campo de preço da
+compra, que trazia `118` onde a nota dizia R$ 118,00 — consertados os dois, porque a
+mesma cifra escrita de dois jeitos no mesmo aplicativo é pior que qualquer um deles.
+
+**Três coisas ficam, e a terceira é a que muda o método:**
+
+1. Asserção sobre campo se faz com `inputValue()`. Está escrito no docblock do
+   `screen()`, onde quem for escrever a próxima passa.
+2. E não só escrito: uma checagem nova preenche um campo com um nonce e afirma que o
+   texto da tela **não** o contém. O comentário depende de alguém ler; a checagem
+   reprova sozinha se `innerText` mudar de comportamento.
+3. **O teste de mordida não é cerimônia — é o único lugar onde este defeito aparece.**
+   A checagem estava verde, o código estava certo, e a barra inteira concordava. O que
+   separou "passa" de "prova" foi desligar a coisa que ela dizia estar provando. Nesta
+   sessão o mesmo gesto salvou duas vezes: aqui, e no teste gêmeo do livro-razão, onde
+   a versão que eu ia escrever sozinho passaria com o razão apodrecido.
+
+E uma quarta, sobre mim: eu já tinha rodado a mordida em cinco guardas nesta sessão e
+mesmo assim quase pulei esta, porque a checagem tinha passado *de primeira* — que é
+exatamente quando a suspeita deveria subir, não descer. Teste que passa na primeira
+tentativa contra código recém-escrito é a situação em que a mordida vale mais.

@@ -60,3 +60,21 @@ test('a field never receives a grouping separator', () => {
   assert.equal(formatTyped(2.5, 'pt-BR'), '2,5');
   assert.equal(formatTyped(2.5, 'en-US'), '2.5');
 });
+
+test('money in a field keeps its cents, and a quantity does not grow any', () => {
+  // R$ 2,50 voltava ao campo como "2,5" e R$ 118,00 como "118" — a mesma cifra
+  // escrita de dois jeitos no mesmo aplicativo. Quantidade continua sem casas
+  // inventadas: ninguém escreve "6,00 sacos".
+  assert.equal(formatTyped(2.5, 'pt-BR', 4, 2), '2,50');
+  assert.equal(formatTyped(118, 'pt-BR', 4, 2), '118,00');
+  assert.equal(formatTyped(2.5, 'en-US', 4, 2), '2.50');
+  assert.equal(formatTyped(6, 'pt-BR'), '6', 'quantidade não ganha centavos');
+
+  // E a taxa fracionária não é truncada pelo mínimo: o máximo continua mandando,
+  // que é o que impede o preço por grama de virar dois dígitos na volta.
+  assert.equal(formatTyped(0.4725, 'pt-BR', 4, 2), '0,4725');
+
+  // O que se escreve tem de voltar como o mesmo número, com ou sem mínimo — é a
+  // propriedade que o resto deste arquivo já exige do par formatar/ler.
+  assert.equal(parseTyped(formatTyped(2.5, 'pt-BR', 4, 2)), 2.5);
+});

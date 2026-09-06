@@ -159,6 +159,12 @@ function InputForm() {
               ? formatTyped(
                   (existing.averageRate * (existing.purchaseToBase ?? 1)) / 100,
                   locale.formatting,
+                  4,
+                  // Duas casas porque é DINHEIRO: o campo trazia "118" onde a nota
+                  // dizia R$ 118,00. Mesmo defeito que o preço combinado, achado no
+                  // preço combinado, consertado nos dois — deixar um em cada forma
+                  // seria a mesma cifra escrita de dois jeitos no mesmo aplicativo.
+                  2,
                 )
               : '',
         }
