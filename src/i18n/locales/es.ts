@@ -111,6 +111,25 @@ export const es: Dictionary = {
       mathNoBase: 'primer día con producción registrada',
       firstDayBody: 'La portada se llena sola conforme la fábrica trabaja: lo que salió hoy, lo que se está acabando, lo que pidieron los clientes.',
       firstDayAction: 'Registrar la primera producción',
+      firstDayNext: 'LO QUE VA A APARECER AQUÍ',
+      firstDayPreview: {
+        producao: {
+          title: 'Lo que salió hoy',
+          body: 'La cuenta del día, y al lado su semana — porque un número solo no dice si fue mucho.',
+        },
+        estoque: {
+          title: 'Cuántos días faltan',
+          body: 'Cuándo se acaba cada insumo, contando el plazo del proveedor y el margen que usted elija.',
+        },
+        entregas: {
+          title: 'Quién recibe hoy',
+          body: 'Lo que cada tienda acordó, lo que ya se cargó, y lo que falta separar.',
+        },
+        validade: {
+          title: 'Lo que vence antes de salir',
+          body: 'Avisado con días de anticipación, en la fecha en que todavía se puede decidir.',
+        },
+      },
       liveTitle: 'Producción en vivo',
       liveNothing: 'Todavía no salió nada hoy.',
       runCount: { one: 'una producción', other: '{{n}} producciones' },

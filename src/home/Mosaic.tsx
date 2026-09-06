@@ -7,7 +7,7 @@ import { Card } from '@/components/Card';
 import { cenaParada, type CenaDaFabrica } from '@/components/cena';
 import { FactoryScene } from '@/components/FactoryScene';
 import { CountUp } from '@/components/CountUp';
-import { GlyphBox, GlyphOrder, GlyphPrice, GlyphProduction, GlyphStock } from '@/components/Glyph';
+import { GlyphBox, GlyphCalendar, GlyphOrder, GlyphPrice, GlyphProduction, GlyphStock } from '@/components/Glyph';
 import { PulseDot } from '@/components/PulseDot';
 import { Reveal } from '@/components/Reveal';
 import { TemperatureRange } from '@/components/Sky';
@@ -1043,6 +1043,46 @@ export function Mosaic(vista: BriefingView) {
               {t.app.home.firstDayAction} →
             </Text>
           </Touchable>
+
+          {/* O QUE VAI APARECER AQUI — e isto existe por uma foto.
+              O emulador mostrou a capa do primeiro dia com DOIS TERÇOS da tela em
+              branco: manchete, cena, uma frase, um link, a semana, e nada. Cada
+              peça estava certa em calar (cobertura precisa de consumo, entrega
+              precisa de acordo, validade precisa de lote), e o conjunto parecia o
+              aplicativo desligado — que é a coisa que o dono nomeou com todas as
+              letras: *"vc já viu organismo vivo MORTO?"*.
+              A regra dele diz o conserto e diz que não é inventar dado: **vida é
+              ambiente, o que se mexe sem afirmar nada sobre o razão**. Então o
+              primeiro dia ganha o que um jornal põe na edição fina — não espaço
+              branco, uma pauta. Estas quatro linhas não afirmam número nenhum:
+              dizem o que a página vai ser, que é a primeira das três perguntas da
+              Lei ("o que é normal aqui") respondida para quem nunca viu.
+              E some sozinho no dia seguinte, porque só existe no `firstDay`. */}
+          <Regua />
+          <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.home.firstDayNext}</Text>
+          {(
+            [
+              ['producao', (c: string) => <GlyphProduction size={22} color={c} weight={traco} />],
+              ['estoque', (c: string) => <GlyphStock size={22} color={c} weight={traco} />],
+              ['entregas', (c: string) => <GlyphBox size={22} color={c} weight={traco} />],
+              ['validade', (c: string) => <GlyphCalendar size={22} color={c} weight={traco} />],
+            ] as const
+          ).map(([chave, desenho], i) => (
+            <View
+              key={chave}
+              style={{ flexDirection: 'row', gap: space.md, marginTop: space.md }}
+            >
+              <View style={{ paddingTop: 2 }}>{desenho(color.inkFaint)}</View>
+              <View style={{ flex: 1 }}>
+                <Text style={[type.secondary, { color: color.ink }]}>
+                  {t.app.home.firstDayPreview[chave].title}
+                </Text>
+                <Text style={[type.caption, { color: color.inkFaint }]}>
+                  {t.app.home.firstDayPreview[chave].body}
+                </Text>
+              </View>
+            </View>
+          ))}
         </View>
       </Reveal>
     );

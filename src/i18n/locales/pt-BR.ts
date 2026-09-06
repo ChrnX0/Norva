@@ -170,6 +170,25 @@ export const ptBR = {
       mathNoBase: 'primeiro dia com produção registrada',
       firstDayBody: 'A capa se enche sozinha conforme a fábrica trabalha: o que saiu hoje, o que está acabando, o que os clientes pediram.',
       firstDayAction: 'Lançar a primeira produção',
+      firstDayNext: 'O QUE VAI APARECER AQUI',
+      firstDayPreview: {
+        producao: {
+          title: 'O que saiu hoje',
+          body: 'A conta do dia, e ao lado dela a sua semana — porque um número sozinho não diz se foi muito.',
+        },
+        estoque: {
+          title: 'Quantos dias faltam',
+          body: 'Quando cada insumo acaba, contando o prazo do fornecedor e a folga que você escolher.',
+        },
+        entregas: {
+          title: 'Quem recebe hoje',
+          body: 'O que cada loja combinou, o que já foi carregado, e o que ainda falta separar.',
+        },
+        validade: {
+          title: 'O que vence antes de sair',
+          body: 'Avisado com dias de antecedência, na data em que ainda dá para decidir.',
+        },
+      },
       liveTitle: 'Produção ao vivo',
       liveNothing: 'Nada saiu ainda hoje.',
       runCount: { one: 'uma produção', other: '{{n}} produções' },

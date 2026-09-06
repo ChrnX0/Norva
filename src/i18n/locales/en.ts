@@ -106,6 +106,25 @@ export const en: Dictionary = {
       mathNoBase: 'first day with production recorded',
       firstDayBody: 'The cover fills itself as the factory works: what came out today, what is running low, what customers ordered.',
       firstDayAction: 'Record the first production',
+      firstDayNext: 'WHAT WILL SHOW UP HERE',
+      firstDayPreview: {
+        producao: {
+          title: 'What came out today',
+          body: "The day's count, and your week beside it — because a number on its own cannot say whether it was a lot.",
+        },
+        estoque: {
+          title: 'How many days are left',
+          body: 'When each input runs out, counting the supplier lead time and the slack you choose.',
+        },
+        entregas: {
+          title: 'Who gets a delivery today',
+          body: 'What each shop agreed to, what has been loaded, and what is still to pick.',
+        },
+        validade: {
+          title: 'What expires before it ships',
+          body: 'Flagged days ahead, on the date when you can still decide.',
+        },
+      },
       liveTitle: 'Production, live',
       liveNothing: 'Nothing out yet today.',
       runCount: { one: 'one production', other: '{{n}} productions' },
