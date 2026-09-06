@@ -3932,6 +3932,24 @@ todos, **a coisa parecia dizer o que não dizia**, e ninguém foi conferir na fo
 documentada e é a que se quer: um ramo que casa com duas regras publica se **alguma**
 delas for `true`, então `main` continua publicando e nenhum outro publica.
 
-**A regra que fica:** antes de acreditar que uma configuração restringe, **leia a
-documentação do valor-padrão dela**. O que não está escrito não é "nada" — é o
-padrão, e o padrão costuma ser permissivo.
+**E o conserto errou também, na mesma hora.** Pus `"*": false`, empurrei, e o deploy
+seguinte — do commit que continha o conserto — subiu igual. A documentação diz, numa
+frase que eu tinha lido sem pesar: *"Match multiple branches using **minimatch**"*. Em
+minimatch, `*` **não atravessa a barra**, e a branch é `claude/recipes-production-app-vbwrde`.
+Conferido contra a biblioteca de verdade, que é o que eu devia ter feito antes de
+empurrar:
+
+    minimatch('claude/recipes-production-app-vbwrde', '*')   → false
+    minimatch('claude/recipes-production-app-vbwrde', '**')  → true
+    minimatch('main', '**')                                  → true
+
+O globstar é o certo, e `main` continua publicando pela regra de sobreposição
+documentada (casa com dois padrões, e basta um ser `true`).
+
+**A regra que fica, agora em duas metades.** Antes de acreditar que uma configuração
+restringe, **leia a documentação do valor-padrão dela** — o que não está escrito não é
+"nada", é o padrão, e o padrão costuma ser permissivo. E antes de acreditar que o
+conserto restringe, **rode o casamento** contra a biblioteca que o serviço nomeia: um
+padrão de glob é código, e código se executa em vez de se ler. Eu escrevi um conserto
+que parecia certo para um defeito que era "parecia certo" — duas vezes a mesma
+armadilha, com dez minutos de intervalo.
