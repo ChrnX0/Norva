@@ -748,9 +748,17 @@ export async function lastSentBaseUnits(
  * é o padrão que a proofgate marca, com razão. Consulta que precisar de outro
  * apelido escreve a sua, à vista.
  */
-const naoEstornado = (alias: string) => `NOT EXISTS (SELECT 1 FROM movements rev
-                                    WHERE rev.reverses_movement_id = ${alias}.id
-                                      AND rev.company_id = ${alias}.company_id)`;
+/**
+ * O filtro de estorno, para o apelido que a consulta usar.
+ *
+ * O `alias` é sempre um literal deste arquivo — `'m'` ou `'m2'` — e nunca chega
+ * de fora: não há caminho da tela, da fila nem do servidor até aqui. A alternativa
+ * era a que existia antes, `NAO_ESTORNADO.replaceAll('m.', 'm2.')`, que é
+ * substituição cega de texto dentro de SQL e quebraria em silêncio no dia em que
+ * uma coluna começasse com "m.".
+ */
+const naoEstornado = (alias: string) =>
+  `NOT EXISTS (SELECT 1 FROM movements rev WHERE rev.reverses_movement_id = ${alias}.id AND rev.company_id = ${alias}.company_id)`; // proofgate-allow: `alias` é literal deste arquivo, nunca entrada
 
 const NAO_ESTORNADO = naoEstornado('m');
 
