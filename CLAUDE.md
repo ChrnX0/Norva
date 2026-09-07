@@ -112,7 +112,8 @@ Nada foi apagado. O que mudou é **quando** cada coisa roda:
 |---|---|
 | Ambiente, script, documentação, design | **nada** — o que prova é a coisa funcionar |
 | Tela ou componente | compila + **a foto no emulador** |
-| Domínio, dados, migração — onde mora dinheiro e saldo | `typecheck` + `npm test` |
+| Domínio, dados — onde mora dinheiro e saldo | `typecheck` + `npm test` |
+| **Migração** (`supabase/migrations/` ou o `MIGRATIONS` do aparelho) | `typecheck` + `npm test` + **`npm run db:verify`** |
 | Fechar uma etapa, abrir PR para `main` | a barra inteira, uma vez |
 
 A barra inteira, quando for a vez dela:
@@ -158,6 +159,17 @@ Daí três regras de construção:
    uma variável que ninguém vê no retrato. **Antes de olhar qualquer foto, `adb
    shell wm density` e a conta** — e `wm density reset` ao terminar de comparar
    larguras, sempre, porque quem esquecer envenena a próxima sessão inteira.
+
+**E migração não se prova com teste — cicatriz de 7 de setembro.** A linha da tabela
+dizia *"domínio, dados, migração → typecheck + npm test"*, e uma migração de vinte
+linhas passou por 491 testes verdes e pelo portão carregando **três** defeitos que só
+um Postgres de verdade acusa: expressão dentro de `unique (...)` de tabela (que só
+existe em índice), duas ajudantes de política chamadas sem o esquema `private` (a
+forma da `0001`, revogada na `0005`), e a falta do `grant` para o papel do
+aplicativo — sem ele a fila inteira é recusada por permissão. Nenhum dos três é
+visível de dentro do aparelho: o SQLite não tem política, não tem esquema e não tem
+papel. **Quem toca migração roda o `db:verify` antes de empurrar**, e ele leva um
+minuto.
 
 **E a regra que vale mais que todas elas juntas: verde não prova tela.** O tema
 claro ilegível que chegou ao dono passou por 338 testes verdes e 36 checagens de

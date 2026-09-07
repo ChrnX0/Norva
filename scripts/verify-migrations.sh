@@ -495,6 +495,10 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
   -- levou os grants embaixo junto. Prosa dentro de string de shell é onde o hábito
   -- de Markdown vira erro de execução.)
   grant insert, update on profiles, people to app_user;
+  -- A transportadora sobe com UPDATE pelo mesmo motivo dos outros cadastros: quem
+  -- corrige o telefone dela offline precisa que a correção alcance o servidor. A
+  -- política continua exigindo manage_company por cima disto.
+  grant insert, update on carriers to app_user;
   -- O acordo comercial: a linha corrente sobe com UPDATE, como qualquer cadastro
   -- que se corrige offline. A HISTÓRIA entra só com INSERT, pelo mesmo motivo do
   -- livro-razão e da leitura de sensor — por quanto se vendia em março não se

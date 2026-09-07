@@ -40,25 +40,36 @@ create table carriers (
   active     boolean not null default true,
   created_at timestamptz not null default now(),
 
-  -- Duas com o mesmo nome na mesma empresa é a mesma transportadora digitada
-  -- duas vezes, e é assim que um relatório por transportadora passa a somar
-  -- metade em cada linha.
-  unique (company_id, lower(btrim(name))),
-
   -- O par que a chave estrangeira COMPOSTA do movimento exige. É a mesma forma
   -- que `locations` e `items` ganharam na `0019`: sem ela, uma linha poderia
   -- apontar para a transportadora de outra empresa.
   unique (id, company_id)
 );
 
+-- Duas com o mesmo nome na mesma empresa é a mesma transportadora digitada duas
+-- vezes, e é assim que um relatório por transportadora passa a somar metade em
+-- cada linha.
+--
+-- Índice e não `unique (...)` na tabela: Postgres não aceita EXPRESSÃO em
+-- restrição de tabela, só em índice — e a primeira versão desta migração morreu
+-- exatamente aí, no `db:verify`, com "syntax error at or near (". A `0018` já
+-- tinha resolvido o mesmo caso do jeito certo (`flavors_name_idx`), e eu não fui
+-- olhar como o vizinho fazia antes de escrever.
+create unique index carriers_name_idx on carriers (company_id, lower(btrim(name)));
+
 alter table carriers enable row level security;
 
+-- As duas ajudantes moram em `private` desde a `0005`, que revogou o `execute`
+-- público delas — e a `0001`, onde a forma sem prefixo ainda valia, é de onde eu
+-- copiei sem conferir. Ler quem lê carga é de todo mundo: quem opera precisa saber
+-- para quem ligar quando a carga não chegou. Cadastrar é de quem administra, como
+-- o lugar.
 create policy carriers_read on carriers
-  for select using (company_id in (select current_companies()));
+  for select using (company_id in (select private.current_companies()));
 
 create policy carriers_manage on carriers
-  for all using (has_capability(company_id, 'manage_company'))
-  with check (has_capability(company_id, 'manage_company'));
+  for all using (private.has_capability(company_id, 'manage_company'))
+  with check (private.has_capability(company_id, 'manage_company'));
 
 comment on table carriers is
   'Quem levou a carga, quando não foi o carro da fábrica. Não é lugar: carga em '

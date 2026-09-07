@@ -29,6 +29,7 @@ import {
   recordReturn,
   recordReading,
   recordTransfer,
+  saveCarrier,
   recordPurchase,
   savePlace,
   savePerson,
@@ -260,12 +261,26 @@ async function main() {
     producedOn: '2026-09-02',
   });
 
-  // A carga que sai da fábrica para a loja.
+  // Quem leva a carga, com telefone — e a carga apontando para ela.
+  //
+  // Não é enfeite da sessão: a checagem 6 promete que TODA tabela que atravessa
+  // chega inteira, e a guarda de completude no fim deste arquivo recusa a execução
+  // se alguma ficar de fora. Uma carga com transportadora é o único jeito de
+  // provar a chave estrangeira COMPOSTA que a `0044` monta — `(carrier_id,
+  // company_id)` —, e é ela que recusaria uma carga apontando para a
+  // transportadora de outra empresa.
+  const transportadora = await saveCarrier(empresaDaqui(), {
+    name: 'Transportes do Vale',
+    phone: '11 95555-0000',
+  });
+
+  // A carga que sai da fábrica para a loja, levada por ela.
   await recordTransfer(empresaDaqui(), {
     itemId: pulp.id,
     fromLocationId: defaultLocationId(empresaDaqui()),
     toLocationId: loja.id,
     baseUnits: 2000,
+    carrierId: transportadora.id,
   });
 
   // E uma perda com motivo, que é o tipo com a capacidade mais restrita.
