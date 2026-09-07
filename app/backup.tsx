@@ -275,7 +275,11 @@ export default function BackupScreen() {
         <Card icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}>
           <Text style={[type.secondary, { color: color.ink }]}>{words.inside}</Text>
           <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
-            {words.insideBody}
+            {movimentos > 0
+              ? fill(words.insideBody, {
+                  movements: plural(movimentos, words.countsMovements),
+                })
+              : words.insideBodyEmpty}
           </Text>
           {/* E as preferências vêm junto, o que é decisão e não descuido.
               O caso principal é celular morto e celular novo: ali o aparelho não

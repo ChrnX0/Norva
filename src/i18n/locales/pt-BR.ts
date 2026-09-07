@@ -424,7 +424,20 @@ export const ptBR = {
       madeBody: 'A cópia tem {{movements}} e pesa {{size}}. Agora escolha onde guardá-la.',
       share: 'Escolher onde guardar',
       inside: 'O que vai dentro',
-      insideBody: 'A cópia leva o livro-razão inteiro — o que entrou, o que saiu, custos e fornecedores. Quem abrir o arquivo lê tudo isso.',
+      // O NÚMERO em cima da palavra — e por que aqui não entra confirmação.
+      //
+      // Guardar a cópia é a única ação do aplicativo que PUBLICA para fora: um
+      // toque grava e abre a folha de partilha com o livro-razão inteiro dentro.
+      // Pela borda das perguntas isso pediria confirmação, e não pede, por uma
+      // decisão escrita no código e que é boa: "pedir um segundo toque para o
+      // passo que fecha o risco é onde as pessoas param" — e quem para não faz
+      // cópia. A folha de partilha do sistema JÁ é o segundo passo, com destino
+      // a escolher e saída pela lateral.
+      //
+      // O que faltava não era um diálogo, era a pessoa saber QUANTO está saindo
+      // antes de tocar. A frase dizia o que vai dentro sem dizer o tamanho.
+      insideBody: 'A cópia leva o livro-razão inteiro — o que entrou, o que saiu, custos e fornecedores. Quem abrir o arquivo lê tudo isso: hoje são {{movements}}.',
+      insideBodyEmpty: 'A cópia leva o livro-razão inteiro — o que entrou, o que saiu, custos e fornecedores. Quem abrir o arquivo lê tudo isso.',
       insidePrefs: 'Suas escolhas vêm junto: cidade do tempo, ordem da capa, como se entra. Num aparelho novo é isso que faz ele parecer o antigo.',
       restoreTitle: 'Trazer uma cópia de volta',
       restoreLead: 'Aparelho novo, ou aparelho formatado. Escolha o arquivo da cópia.',
