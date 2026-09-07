@@ -640,6 +640,11 @@ pergunta seguinte nunca foi feita. Então ela vira regra: quando uma peça passa
 perguntar o traço, a rodada só fecha depois de `grep` pelo que MAIS desenha aquilo.
 Uma pele consertada em um lugar é uma pele consertada em um lugar.
 
+**E a regra já se pagou no mesmo dia em que foi escrita:** procurando o que MAIS
+estava só na capa, apareceu o `CountUp` — o número que anda até o valor existia em
+`src/home/` e em lugar nenhum das vinte telas, com o pedido do dono escrito
+(*"quero em todas as telas"*) meses antes. Não foi o dono que achou desta vez.
+
 **E o defeito de pele mora onde a outra pele não tem como tê-lo.** A cunha na quina
 do cartão só existia no Orgânico: ela nasce de borda grossa de um lado com canto
 arredondado, e o Papel não tem canto nem caixa. Olhar a pele padrão e concluir "está

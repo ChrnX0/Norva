@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
+import { CountUp } from '@/components/CountUp';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { GlyphLoss, GlyphPrice, GlyphStock, GlyphStore } from '@/components/Glyph';
@@ -166,7 +167,11 @@ function ReportIndex() {
               icon={(c) => <GlyphStock size={26} color={c} weight={traco} />}
               title={t.app.reports.rows.stock.label}
             >
-              <Text style={[type.figure, { color: color.ink }]}>{formatMoney(parado, locale)}</Text>
+              <CountUp
+                value={parado}
+                format={(v) => formatMoney(v as Cents, locale)}
+                style={{ ...type.figure, color: color.ink }}
+              />
               <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={2}>
                 {plural((data?.lugares ?? []).length, t.app.places.placeCount)}
                 {(data?.cobertura ?? []).length > 0
@@ -195,9 +200,11 @@ function ReportIndex() {
               icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
               title={t.app.reports.rows.cost.label}
             >
-              <Text style={[type.figure, { color: color.ink }]}>
-                {formatMoney(Math.round(comCusto[0]!.unitCostRate!) as Cents, locale)}
-              </Text>
+              <CountUp
+                value={Math.round(comCusto[0]!.unitCostRate!)}
+                format={(v) => formatMoney(v as Cents, locale)}
+                style={{ ...type.figure, color: color.ink }}
+              />
               <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={2}>
                 {comCusto[0]!.name}
               </Text>
@@ -224,7 +231,11 @@ function ReportIndex() {
               icon={(c) => <GlyphLoss size={26} color={c} weight={traco} />}
               title={t.app.reports.rows.losses.label}
             >
-              <Text style={[type.figure, { color: color.ink }]}>{formatMoney(perdido, locale)}</Text>
+              <CountUp
+                value={perdido}
+                format={(v) => formatMoney(v as Cents, locale)}
+                style={{ ...type.figure, color: color.ink }}
+              />
               <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={2}>
                 {perdidoAntes > 0
                   ? fill(t.app.home.lossVsBefore, { amount: formatMoney(perdidoAntes, locale) })

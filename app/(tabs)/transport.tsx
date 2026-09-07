@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
+import { CountUp } from '@/components/CountUp';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
@@ -164,9 +165,11 @@ function WhereItWent() {
             icon={(c) => <GlyphVehicle size={26} color={c} weight={traco} />}
             title={t.app.transport.dayTitle}
           >
-            <Text style={[type.figure, { color: color.ink }]}>
-              {formatQuantity(places.length, locale)}
-            </Text>
+            <CountUp
+              value={places.length}
+              format={(v) => formatQuantity(v, locale)}
+              style={{ ...type.figure, color: color.ink }}
+            />
             <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={2}>
               {summary}
             </Text>

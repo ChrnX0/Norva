@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { CountUp } from '@/components/CountUp';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
@@ -275,9 +276,14 @@ function ProductionDay() {
             icon={(c) => <GlyphProduction size={26} color={c} weight={traco} />}
             title={t.app.production.todayTotal}
           >
-            <Text style={[type.figure, styles.number, { color: color.ink }]}>
-              {loading ? '—' : formatQuantity(totals.hoje, locale)}
-            </Text>
+            {/* O "ainda não sei" mora no FORMATO e não num segundo elemento: dois
+                elementos de figura fazem a tela declarar dois números grandes onde
+                há um, e a guarda da Lei 3 cobra uma comparação para cada. */}
+            <CountUp
+              value={loading ? 0 : totals.hoje}
+              format={(v) => (loading ? '—' : formatQuantity(v, locale))}
+              style={{ ...type.figure, ...styles.number, color: color.ink }}
+            />
             {!loading ? (
               <Text style={[type.caption, { color: color.inkMuted }]}>
                 {totals.ontem === 0

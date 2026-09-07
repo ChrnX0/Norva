@@ -305,6 +305,23 @@ Três defeitos que **só a foto pegava**, achados no mesmo passe:
 oito telas: cunha ausente, engrenagens girando, botões nos trilhos. Guarda novo em
 `src/home/capas/registro.test.ts`, provado contra `git show HEAD:src/components/Card.tsx`.
 
+Depois das duas correções, três coisas que saíram da MESMA regra ("conserto de pele
+não termina no arquivo que o mostrou") aplicada de propósito, procurando:
+
+- **A paisagem sangra** quando a pele desenha paisagem. Na capa ia de borda a borda;
+  nas outras vinte era um retângulo com margem — janela virou foto colada.
+- **O chão do Orgânico ganhou verde de verdade** (`#F3F7F3` → `#E4EFE7`). Eram três
+  por cento de diferença para o cartão branco: o cartão só existia pela sombra. E ao
+  medir apareceu o que ninguém sabia — a paleta estava **presa**, com `apricot` sobre
+  `sunken` em exatos 4,50:1. Os onze acentos desceram junto, matiz e saturação
+  intactas.
+- **A barra de abas é do material da pele.** Era `paper` nas duas; com o chão novo ela
+  virou a cor da página com uma linha invisível. Numa pele de superfícies a barra é
+  superfície.
+- **O `CountUp` existia só na capa** — e o dono tinha pedido *"quero em todas as
+  telas"*. Passou a valer para o número de que a tela fala: estoque parado, custo
+  unitário, perdas, produção de hoje, destinos do dia, insumos guardados.
+
 **O que NÃO foi feito e por quê:** a paleta do Orgânico continua clara. O dono pediu
 *"dá mais cor para o tema papel"* — o Papel já ganhou os oito acentos escurecidos; o
 Orgânico ainda não foi olhado sob essa régua, e a hierarquia escrita manda o Papel

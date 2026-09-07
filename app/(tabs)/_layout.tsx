@@ -32,7 +32,7 @@ import { MEDIDA_EM_PARES, PARES_A_PARTIR_DE, type Ambient } from '@/theme/tokens
  * draws: no artboard shows a tab bar on a screen you had to walk into.
  */
 export default function TabsLayout() {
-  const { color, type, space, palette } = useTheme();
+  const { color, type, space, palette, tracos } = useTheme();
   const insets = useSafeAreaInsets();
 
   /**
@@ -120,8 +120,17 @@ export default function TabsLayout() {
         // o aparelho reserva embaixo dela. Num celular com gesto o `bottom` é
         // pequeno; num com três botões são 48 dp, e some uma linha inteira.
         tabBarStyle: {
-          backgroundColor: color.paper,
-          borderTopColor: color.line,
+          // A barra é do material da PELE, não uma cor fixa.
+          //
+          // Ela era `paper` nas duas, e no dia em que o chão do Orgânico ganhou
+          // verde de verdade a barra virou a mesma cor da página com uma linha que
+          // não se vê — cinco ícones flutuando no nada embaixo da tela. Numa pele
+          // que separa assunto por SUPERFÍCIE, a barra é uma superfície: branca,
+          // como os cartões que sobrevoam a paisagem. Numa pele de PÁGINA ela é o
+          // papel com uma régua em cima, que é como o rodapé de uma página
+          // impressa se separa do corpo.
+          backgroundColor: tracos.genero === 'superficie' ? color.surface : color.paper,
+          borderTopColor: tracos.genero === 'superficie' ? color.line : color.lineStrong,
           borderTopWidth: 1,
           height: 58 + space.lg + insets.bottom,
           paddingTop: space.sm,

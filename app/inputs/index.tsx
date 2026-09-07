@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { CountUp } from '@/components/CountUp';
 import { Button } from '@/components/Button';
 import { Alive } from '@/components/Alive';
 import { Card } from '@/components/Card';
@@ -20,6 +21,7 @@ import {
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
+import type { Cents } from '@/domain/money';
 import { volumeBand } from '@/domain/alerts';
 import { nowIso } from '@/data/db';
 import { dayWindow } from '@/domain/day';
@@ -288,9 +290,11 @@ function InputsList() {
                 {t.common.moneyHidden}
               </Text>
             ) : (
-              <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
-                {formatMoney(heldCents, locale)}
-              </Text>
+              <CountUp
+                value={heldCents}
+                format={(v) => formatMoney(v as Cents, locale)}
+                style={{ ...type.figure, color: color.ink, marginTop: space.xs }}
+              />
             )}
             <Text style={[type.caption, { color: color.inkMuted }]}>
               {/* "4 itens", não "4 unidades".

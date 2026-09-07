@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
+import { CountUp } from '@/components/CountUp';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
@@ -10,6 +11,7 @@ import { nowIso } from '@/data/db';
 import { canSeeMoney, lossesOn, type LossRow } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
+import type { Cents } from '@/domain/money';
 import { dayWindow } from '@/domain/day';
 import { fill, formatDayMonth, formatMoney, formatQuantity, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -135,9 +137,11 @@ function WhatWasLost() {
                   sobra, e ele é fato. Dois elementos de figura no mesmo cartão
                   fariam a guarda da Lei 3 cobrar duas comparações para um
                   número, e ela está certa: a comparação embaixo é uma. */}
-              <Text style={[type.figure, { color: color.ink }]}>
-                {dinheiro ? formatMoney(total, locale) : formatQuantity(rows.length, locale)}
-              </Text>
+              <CountUp
+                value={dinheiro ? total : rows.length}
+                format={(v) => (dinheiro ? formatMoney(v as Cents, locale) : formatQuantity(v, locale))}
+                style={{ ...type.figure, color: color.ink }}
+              />
               {/* A companhia da figura é a PALAVRA quando a figura já é a
                   contagem. Sem isto a linha saía "12   12 perdas" — o mesmo
                   defeito que este projeto já nomeou na capa ("500 duas vezes"),
