@@ -91,6 +91,8 @@ const NAO_E_DICIONARIO: Record<string, string> = {
   '^\\d{8}-\\d{2}$': 'o formato do código do lote, gerado pelo domínio e não traduzido',
   '^Tempo: (Esconder|Mostrar)$':
     'rótulo de acessibilidade montado pela capa com o nome da peça mais a ação',
+  '^Colocar na capa: Preços que mexeram$':
+    'o mesmo caso, do outro lado da lista: peça que está FORA da capa tem "Colocar na capa" e não "Esconder/Mostrar". As duas metades existem no dicionário e a tela as junta — e errar qual das duas listas a peça está custa trinta segundos de espera por um alvo que não existe, com o Playwright dizendo "timeout" em vez de "seletor inventado"',
   English:
     'nome de idioma escrito NA língua dele, de propósito: quem procura o próprio idioma numa lista o reconhece escrito como ele se escreve, e não precisa saber ler o idioma atual para achar o seu. Por isso não passa pelo dicionário — traduzir "English" para "Inglês" esconderia a palavra de quem só lê inglês',
 };
