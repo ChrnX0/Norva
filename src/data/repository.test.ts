@@ -404,7 +404,30 @@ test('a sub-recipe survives the round trip through the database', async () => {
 
   assert.equal(cost.lines.length, 1);
   assert.equal(cost.lines[0].label, 'Base');
-  assert.ok(cost.batchCents > 0, 'the sub-recipe carried its cost up');
+  /**
+   * O custo da sub-receita entra pelo VALOR, e não só por existir.
+   *
+   * Aqui estava `assert.ok(cost.batchCents > 0, 'the sub-recipe carried its cost
+   * up')` — e qualquer valor positivo satisfaz isso. Um defeito que trouxesse metade
+   * do custo da Base passaria verde, com a mensagem certa escrita ao lado. É o mesmo
+   * par explicação-certa-checagem-vazia que este repositório já pagou uma vez no
+   * extrato, e a regra que saiu de lá é: **asserção sobre número calculado é
+   * igualdade contra outra fonte.**
+   *
+   * A outra fonte aqui é a própria Base, custeada pelo mesmo motor: o Sabor usa
+   * 10.000 dos 20.000 ml que ela rende, então carrega exatamente metade do lote dela.
+   *
+   * E a igualdade prova uma SEGUNDA coisa de graça: a perda de 5% do Sabor não
+   * reduziu o custo do lote. Quem perde perde o que sobra — o lote é pago inteiro —,
+   * e um motor que descontasse a perda aqui daria 672 em vez de 708.
+   */
+  const daBase = costRecipe(
+    base.recipeId,
+    await loadRecipeGraph(CO),
+    await averageRatesForLedger(CO),
+    await labels(CO),
+  );
+  assert.equal(cost.batchCents, daBase.batchCents / 2);
 });
 
 test('the starter data lands, and does not come back after it is wiped', async () => {

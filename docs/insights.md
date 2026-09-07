@@ -6408,3 +6408,38 @@ chamam.
 embora — a foto sairia da tela seguinte com o nome da conta, que é a pior forma de
 errar. `--segurar` existe agora, e sem ele nenhum `[por quê?]` deste roadmap poderia
 ser olhado daqui.
+
+## E o ângulo que sobrou quando a fila acabou: o que um teste afirma × o que ele exercita
+
+Com a lista sem item desbloqueado, a diretriz manda **procurar** o achado. O ângulo
+que eu ainda não tinha olhado nesta sessão é o que o `CLAUDE.md` nomeia como o defeito
+mais caro que já apareceu aqui: *asserção sobre número calculado é igualdade contra
+outra fonte, nunca `> 0`*.
+
+Varri as 53 ocorrências de `assert.ok(... > 0)` da suíte. A maioria é pré-condição
+legítima — *"havia movimento para copiar"* prepara o cenário e não afirma nada sobre o
+resultado. **Duas eram a afirmação central do teste**, e as duas passariam verdes com
+o número errado:
+
+| o teste | o que ele afirmava | o que provava |
+|---|---|---|
+| *"a sub-receita levou o custo para cima"* | que o custo da sub-receita entra no lote | só que o total é positivo — e o total tem a sub-receita como ÚNICA linha, então qualquer fração dela passa |
+| *"a cópia levou os movimentos"* | que o backup carrega tudo | só que carregou pelo menos um. Uma cópia com 1 de 1.240 movimentos passava |
+
+O segundo é o pior possível: **prejuízo de backup incompleto não tem estorno**, e só
+aparece no dia em que alguém precisa dele.
+
+Os dois viraram igualdade contra outra fonte — o custo do Sabor contra metade do lote
+da Base (ele usa 10.000 dos 20.000 ml que ela rende), e a contagem da cópia contra
+`countMovements()` do aparelho. E **as duas foram provadas quebrando o código de
+propósito**: com a sub-receita pela metade o teste falha em `354 !== 708`; com um
+movimento a menos na cópia, `6 !== 7`. Restaurado o código, verdes.
+
+A igualdade do custo ainda prova uma segunda coisa de graça, que a antiga não tocava:
+a perda de 5% do Sabor **não** reduz o custo do lote. Quem perde perde o que sobra — o
+lote é pago inteiro —, e um motor que descontasse a perda ali daria 672 em vez de 708.
+
+**A lição de método:** a busca por "teste que passa pelo motivo errado" é barata e
+dirigível — um `grep` por `assert.ok` com comparação frouxa, e depois julgamento sobre
+quais são pré-condição e quais são a tese. O que ela custa é a parte que não dá para
+automatizar: ler a frase ao lado da asserção e perguntar se a checagem prova aquilo.

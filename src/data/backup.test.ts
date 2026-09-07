@@ -12,7 +12,7 @@ import {
   CopiaRecusadaError,
   type MotivoDaCopia,
 } from './backup';
-import { listItems, recordPurchase, itemMovements } from './repository';
+import { countMovements, listItems, recordPurchase, itemMovements } from './repository';
 import { ensureStarterData, LOCAL_COMPANY_ID } from './seed';
 import { fromDecimal } from '@/domain/money';
 
@@ -93,13 +93,24 @@ test('a copy holds the whole factory and gives it back', async () => {
 
   const antes = (await itemMovements(LOCAL_COMPANY_ID, acucar)).length;
   assert.ok(antes > 0, 'havia movimento para copiar');
+  // O total do aparelho, para a cópia ser conferida contra ele e não contra zero.
+  const totalNoAparelho = await countMovements();
 
   const arquivo = join(pasta, 'copia.db');
   const feita = await gravarCopia(arquivo, nowIso());
   assert.ok(existsSync(arquivo), 'a cópia existe no disco');
   assert.ok(feita.bytes > 0, 'a cópia tem tamanho');
   assert.equal(feita.versaoDoEsquema, schemaVersion, 'a cópia carrega a versão do esquema');
-  assert.ok(feita.movimentos > 0, 'a cópia levou os movimentos');
+  /**
+   * A cópia levou TODOS os movimentos — e a asserção é igualdade, não "maior que zero".
+   *
+   * Estava `assert.ok(feita.movimentos > 0, 'a cópia levou os movimentos')`, com a
+   * frase certa ao lado de uma checagem que qualquer número positivo satisfaz: uma
+   * cópia que levasse um movimento de mil passaria verde. Nesta peça isso é o pior
+   * defeito possível — o prejuízo de um backup incompleto não tem estorno, e ele só
+   * aparece no dia em que alguém precisa dele.
+   */
+  assert.equal(feita.movimentos, totalNoAparelho, 'a cópia levou TODOS os movimentos');
 
   // O estrago: mais uma compra depois da cópia. Ela NÃO pode sobreviver à volta,
   // senão a restauração é uma mistura e não uma volta.
