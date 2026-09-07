@@ -662,10 +662,46 @@ reais junto com as de exemplo, e cada cadastro real cria uma `purchase_line` que
 É a saída **H** do estudo do erase — separar exemplo de dado real na origem — e ela
 entra no desenho do Reset em vez de ser tratada à parte.
 
-**O que falta, e é engenharia:** como o servidor honra isso sem que
-`movements_are_immutable` recuse (um `DELETE` no razão é recusado **até para o dono do
-banco** — medido); se o alcance é a empresa inteira ou continua por área; e se o caminho
-é esvaziar ou aposentar a empresa. É P3, então a forma é mostrada antes de rodar.
+**A engenharia que faltava, com a forma escrita — 7 de setembro, noite.** Três perguntas
+estavam abertas, e as três têm resposta medida:
+
+**1. Como o servidor honra sem que a tranca recuse.** Não honra com `TRUNCATE`: ele é por
+TABELA, e apagaria as outras empresas junto. Não honra por `delete from companies` esperando
+o `on delete cascade`: apagamento em cascata **dispara gatilho de linha**, então o razão
+recusa igual. E não honra com uma bandeira de sessão (`set_config`), porque `set_config` não
+é privilegiado — qualquer conta autenticada a ligaria e o razão ficaria aberto para todo
+mundo. O que resta, e é a única porta estreita: o gatilho passa a admitir a mutação quando
+`current_user` é o **dono do banco** E a bandeira está posta. Cliente nenhum chega lá — a
+conta do aplicativo é `authenticated` —, e quem chega é uma função `security definer` em
+`private`, com `execute` revogado de `public`, `anon` e `authenticated`. A bandeira sozinha
+não abre nada; o dono sozinho também não (uma migração distraída continua sendo recusada).
+
+**2. O alcance continua por ÁREA**, porque é o que a tela já pergunta e o que o dono
+confirma na segunda confirmação, com os números por extenso. "Empresa inteira" é a área
+`all`, que já existe.
+
+**3. Esvaziar, não aposentar.** Aposentar guardaria o livro de alguém que pediu para apagar —
+é a saída B, que ele recusou por fora.
+
+**O desenho, então:**
+
+- `companies.erase_grace_days` — **10** de padrão (decisão dele), `0` destrói no ato, e
+  **nulo** é *"nunca destrói no servidor"*. Os três casos que ele nomeou, um em cada valor;
+- `erase_requests` — o PEDIDO, que é fato e não comando: empresa, área, quem pediu, quando, e
+  quando vence. Só `insert` para o cliente (a mesma forma de `sale_price_history`), com
+  `manage_company` e `requested_by = auth.uid()`; sem `update` e sem `delete`, porque pedido
+  não se reescreve — desistir é outro pedido;
+- `private.run_due_erases()` — o que EXECUTA, uma vez por pedido vencido, e marca o pedido
+  como feito. É ela que abre a porta estreita do item 1, e só ela;
+- o `serialize` deixa de mandar um comando solto e passa a inserir o pedido: assim a fila
+  volta a carregar só FATO, que é a fundação dela.
+
+**O prazo aparece na tela antes de vencer** — a mesma regra do prazo do entregador: *"avise
+na data da decisão, não na data do problema"*. Enquanto o pedido não venceu, o dono vê
+quanto falta e pode pedir o contrário.
+
+<!-- medida: espera :: o lado servidor do Reset é a próxima construção; a forma está escrita
+aqui e o que falta é a migração com as três peças e as garantias novas no db:verify -->
 
 **E zerar antes do lançamento é outro ato, que não depende disto.** Provado contra um
 Postgres com as 43 migrações: `DELETE` e `UPDATE` em `movements` são recusados até para
