@@ -18,6 +18,7 @@ import {
   type LotOfDay,
   type OpenRun,
   type ProducedInWindow,
+  defaultLocationId,
   runningOut,
   type Running,
 } from '@/data/repository';
@@ -112,9 +113,22 @@ function ProductionDay() {
       openProductionRuns(LOCAL_COMPANY_ID),
       lotsOn(LOCAL_COMPANY_ID, hoje.from, hoje.to),
       // `runningOut` já sabia responder por PRODUTO — o parâmetro existia com o
-      // padrão em insumo e embalagem, e nenhuma tela o passava. Quarta vez nesta
-      // sessão em que a máquina estava construída e ninguém a usava.
-      runningOut(LOCAL_COMPANY_ID, semana.from, hoje.to, 7, 14, undefined, ['product']),
+      // padrão em insumo e embalagem, e nenhuma tela o passava.
+      //
+      // **A pergunta é da FÁBRICA, e não da empresa**, e a primeira versão errava
+      // isso. Perguntando da empresa, a mudança de sala não conta como saída (e
+      // não deve mesmo: ela não perde nada) — só que nada mais tira produto da
+      // empresa, porque **nenhuma tela registra venda**: o tipo `sale` existe no
+      // domínio e ninguém o escreve. O cartão nunca apareceria.
+      //
+      // O modelo certo é mais simples e é o da fábrica de verdade: a produção
+      // enche o estoque da fábrica, e carregar caminhão o esvazia. O sinal de
+      // "produza" é o que SAI DAQUI, e ele existe mesmo quando o destino é uma
+      // loja da própria empresa — porque a fábrica precisa repor de qualquer
+      // jeito.
+      runningOut(LOCAL_COMPANY_ID, semana.from, hoje.to, 7, 14, defaultLocationId(LOCAL_COMPANY_ID), [
+        'product',
+      ]),
     ]);
     return { today, yesterday, runs, lots, acabando };
   });
