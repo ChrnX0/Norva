@@ -668,6 +668,101 @@ export type Place = {
  * dele é uma palavra em três idiomas, e essa palavra é da tela. Aqui devolve-se
  * o fato — string vazia e `isDefault` — e quem fala português é quem desenha.
  */
+/** Uma transportadora: nome, telefone, e se ainda está em uso. */
+export type Carrier = {
+  id: string;
+  name: string;
+  phone: string | null;
+  note: string | null;
+  active: boolean;
+};
+
+/**
+ * As transportadoras da empresa, as em uso primeiro.
+ *
+ * Sem portão de leitura: nome de transportadora não é dinheiro. Quem NÃO pode
+ * cadastrar é outra pergunta, e ela é respondida no `saveCarrier` — do mesmo jeito
+ * que o lugar.
+ */
+export async function listCarriers(companyId: string): Promise<Carrier[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    id: string;
+    name: string;
+    phone: string | null;
+    note: string | null;
+    active: number;
+  }>(
+    `SELECT id, name, phone, note, active FROM carriers
+      WHERE company_id = ? ORDER BY active DESC, name`,
+    [companyId],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    phone: r.phone,
+    note: r.note,
+    active: r.active === 1,
+  }));
+}
+
+/**
+ * Cadastra ou corrige uma transportadora.
+ *
+ * **O portão é o mesmo do lugar, e pelo mesmo motivo.** A política
+ * `carriers_manage` exige `manage_company` no servidor; sem a checagem aqui, o
+ * celular emprestado cadastraria a transportadora, a linha entraria na fila, e o
+ * servidor a recusaria — travando tudo o que viesse atrás. É a quinta aparição da
+ * fila travada, e desta vez ela nem chega a acontecer.
+ *
+ * **Não apaga, inativa.** O que a transportadora levou continua no livro-razão, e
+ * um `DELETE` levaria a chave estrangeira do movimento com ele. Sair de uso é
+ * `active = 0`, e a lista de escolha só oferece as em uso.
+ */
+export async function saveCarrier(
+  companyId: string,
+  input: { id?: string; name: string; phone?: string; note?: string; active?: boolean },
+): Promise<Carrier> {
+  if (!(await currentCapabilities(companyId)).has('manage_company')) {
+    throw new Error('transportadora: quem não administra a empresa não cadastra transportadora');
+  }
+  const nome = input.name.trim();
+  if (!nome) throw new Error('transportadora: sem nome não é transportadora');
+
+  const conn = await db();
+  const id = input.id ?? newId();
+  const at = nowIso();
+  await conn.withTransactionAsync(async () => {
+    await conn.runAsync(
+      `INSERT INTO carriers (id, company_id, name, phone, note, active, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT (id) DO UPDATE SET
+         name = excluded.name,
+         phone = excluded.phone,
+         note = excluded.note,
+         active = excluded.active`,
+      [
+        id,
+        companyId,
+        nome,
+        input.phone?.trim() ? input.phone.trim() : null,
+        input.note?.trim() ? input.note.trim() : null,
+        input.active === false ? 0 : 1,
+        at,
+      ],
+    );
+    await enqueue(conn, [{ table: 'carriers', rowId: id }]);
+  });
+
+  return {
+    id,
+    name: nome,
+    phone: input.phone?.trim() ? input.phone.trim() : null,
+    note: input.note?.trim() ? input.note.trim() : null,
+    active: input.active !== false,
+  };
+}
+
 export async function listPlaces(companyId: string): Promise<Place[]> {
   const conn = await db();
   await ensureLocation(conn, companyId);
@@ -2036,6 +2131,15 @@ type MoveInput = {
    * transferência não aceita.
    */
   returnReason?: ReturnReason;
+  /**
+   * Quem LEVOU, quando não foi o carro da fábrica.
+   *
+   * Ausente é resposta e não esquecimento: a maioria das fábricas entrega com o
+   * carro dela. Vai nas DUAS pernas pelo mesmo motivo do lote e do motivo de
+   * devolução — a perna que chega na loja é a que alguém lê quando pergunta
+   * *"quem trouxe isso?"*, e sem ela ali a metade que interessa fica muda.
+   */
+  carrierId?: string | null;
 };
 
 /**
@@ -2128,8 +2232,9 @@ async function moveBetween(
                                 quantity_base_units, location_id, counterpart_location_id,
                                 unit_cost_rate, movement_group_id, lot_id, note, assistant_phrase,
                                 return_reason,
+                                carrier_id,
                                 operator_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           companyId,
@@ -2152,6 +2257,7 @@ async function moveBetween(
           // que entra na fábrica é a que um relatório de devolução vai ler, e
           // sem o motivo nela a metade que interessa fica muda.
           input.returnReason ?? null,
+          input.carrierId ?? null,
           await currentOperatorId(),
         ],
       );
@@ -2811,6 +2917,10 @@ export async function storeMirror(
        FROM movements m
        JOIN locations l ON l.id = m.location_id
        JOIN items i ON i.id = m.item_id
+       -- LEFT, e é a diferença entre mostrar quem levou e esconder a carga: a
+       -- maioria das entregas é com o carro da fábrica, e um JOIN comum apagaria
+       -- todas elas da tela.
+       LEFT JOIN carriers t ON t.id = m.carrier_id
       WHERE m.company_id = ?
         AND l.kind IN ('own_store', 'customer')
         AND m.occurred_at >= ?
@@ -4005,6 +4115,14 @@ export type Shipment = {
   /** Mesmo tipo que `Place.kind`: texto, como o resto do repositório o trata. */
   kind: string;
   /**
+   * Quem levou, quando não foi o carro da fábrica. Nulo é resposta.
+   *
+   * É o LEITOR que justifica a coluna existir: `suppliers` está no esquema desde
+   * a fundação sem ninguém que a leia, e foi por isso que `carrier_id` não entrou
+   * antes desta tela.
+   */
+  carrierName: string | null;
+  /**
    * A embalagem vem junto porque toda tela que mostra isto precisa dizer a
    * quantidade na unidade que a pessoa manuseia - e porque é a única forma
    * honesta de saber quais itens TÊM caixa. Fato, não frase: a conversão em
@@ -4055,6 +4173,7 @@ export async function shipmentsOn(
     location_id: string;
     location_name: string;
     kind: string;
+    carrier_name: string | null;
     group_id: string;
     item_id: string;
     item_name: string;
@@ -4065,6 +4184,7 @@ export async function shipmentsOn(
   }>(
     `SELECT m.movement_group_id AS group_id, m.location_id, l.name AS location_name, l.kind,
             m.item_id, i.name AS item_name, i.base_unit, i.packaging,
+            t.name AS carrier_name,
             SUM(m.quantity_base_units) AS total,
             EXISTS (
               SELECT 1 FROM movements c
@@ -4075,6 +4195,10 @@ export async function shipmentsOn(
        FROM movements m
        JOIN locations l ON l.id = m.location_id
        JOIN items i ON i.id = m.item_id
+       -- LEFT, e é a diferença entre mostrar quem levou e esconder a carga: a
+       -- maioria das entregas é com o carro da fábrica, e um JOIN comum apagaria
+       -- todas elas da tela.
+       LEFT JOIN carriers t ON t.id = m.carrier_id
       WHERE m.company_id = ?
         AND m.kind = 'transfer'
         AND m.quantity_base_units > 0
@@ -4082,22 +4206,35 @@ export async function shipmentsOn(
         AND m.occurred_at < ?
         AND ${NAO_ESTORNADO}
       GROUP BY m.movement_group_id, m.location_id, l.name, l.kind, m.item_id, i.name, i.base_unit,
-               i.packaging
+               i.packaging, t.name
       HAVING total > 0
       ORDER BY l.name, total DESC`,
     [companyId, fromIso, toIso],
   );
 
   const byPlace = new Map<string, Shipment>();
+  /** Por destino, os jeitos que a carga foi hoje. Um só nome vira frase. */
+  const quemLevou = new Map<string, Set<string | null>>();
   for (const r of rows) {
     const place = byPlace.get(r.location_id) ?? {
       groupIds: [],
       locationId: r.location_id,
       locationName: r.location_name,
       kind: r.kind,
+      carrierName: null,
       items: [],
       checked: true,
     };
+    // Quem levou é dito só quando FOI UM SÓ.
+    //
+    // Duas cargas no mesmo dia para a mesma loja podem ter ido de jeitos
+    // diferentes — uma na transportadora, outra no carro da casa. A primeira
+    // versão mostrava a primeira que aparecesse, e o teste de mordida não a
+    // pegou porque o exemplo tinha uma carga por destino; pensar no caso que
+    // faltava mostrou que a regra estava errada, não o teste. Meia verdade num
+    // cartão é pior que silêncio: quem lê "levou Transportes Silva" conclui que
+    // tudo foi com eles. Divergiu, cala — e quem quiser as duas abre o destino.
+    quemLevou.set(r.location_id, (quemLevou.get(r.location_id) ?? new Set()).add(r.carrier_name));
 
     // Conferido só quando TODAS as remessas do dia para lá foram conferidas: um
     // "conferido" que ignora a carga da tarde é pior que nenhum.
@@ -4118,6 +4255,11 @@ export async function shipmentsOn(
     byPlace.set(r.location_id, place);
   }
 
+
+  for (const place of byPlace.values()) {
+    const jeitos = [...(quemLevou.get(place.locationId) ?? new Set())];
+    place.carrierName = jeitos.length === 1 && jeitos[0] ? jeitos[0] : null;
+  }
   return [...byPlace.values()];
 }
 
@@ -4181,6 +4323,7 @@ export async function countForErase(companyId: string): Promise<EraseCounts> {
           AND id <> ?1) AS places,
        (SELECT COUNT(*) FROM purchases WHERE company_id = ?1) AS purchases,
        (SELECT COUNT(*) FROM people    WHERE company_id = ?1) AS people,
+       (SELECT COUNT(*) FROM carriers  WHERE company_id = ?1) AS carriers,
        (SELECT COUNT(*) FROM lots      WHERE company_id = ?1) AS lots,
        (SELECT COUNT(*) FROM orders    WHERE company_id = ?1) AS orders,
        (SELECT COUNT(*) FROM recipe_lines WHERE company_id = ?1

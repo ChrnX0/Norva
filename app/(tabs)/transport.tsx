@@ -198,6 +198,16 @@ function WhereItWent() {
               icon={(c) => <GlyphStore size={26} color={c} weight={traco} />}
               title={place.locationName}
             >
+              {/* Quem levou, quando não foi o carro da fábrica. É o LEITOR que
+                  justifica a coluna existir: `suppliers` está no esquema desde a
+                  fundação sem ninguém que a leia, e foi por isso que `carrier_id`
+                  não entrou antes desta linha. Ausente não vira frase — "carro da
+                  fábrica" em toda entrega é papel de parede. */}
+              {place.carrierName ? (
+                <Text style={[type.caption, { color: color.inkMuted, marginBottom: space.xs }]}>
+                  {fill(t.app.transport.carrierTook, { carrier: place.carrierName })}
+                </Text>
+              ) : null}
               {/* Orienta, não fiscaliza: a frase fala do que chegou, nunca de
                   quem deveria ter conferido. E o cartão inteiro é o toque que
                   registra a conferência. */}
@@ -282,6 +292,16 @@ function WhereItWent() {
           label={t.app.transport.send}
           variant="ghost"
           onPress={() => router.push('/transfer')}
+          icon={(c) => <GlyphVehicle size={22} color={c} weight={traco} />}
+        />
+      </Reveal>
+      {/* A porta do cadastro fica no fim e existe SEMPRE — inclusive no dia sem
+          carga, que é justamente quando alguém tem tempo de cadastrar quem leva. */}
+      <Reveal index={places.length + 1}>
+        <Button
+          label={t.app.transport.carrierTitle}
+          variant="ghost"
+          onPress={() => router.push('/carriers' as never)}
           icon={(c) => <GlyphVehicle size={22} color={c} weight={traco} />}
         />
       </Reveal>

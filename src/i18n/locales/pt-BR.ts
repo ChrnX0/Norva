@@ -1252,6 +1252,22 @@ export const ptBR = {
       },
     },
     transport: {
+      /* A transportadora: quem levou, quando não foi o carro da fábrica. */
+      carrierTitle: 'Transportadoras',
+      carrierHint: 'Quem leva a carga quando não é o carro da fábrica.',
+      carrierNone: 'Nenhuma cadastrada. A fábrica entrega com o carro dela.',
+      carrierAdd: 'Cadastrar transportadora',
+      carrierName: 'Nome',
+      carrierPhone: 'Telefone',
+      carrierSave: 'Salvar transportadora',
+      carrierRetire: 'Tirar de uso',
+      carrierRetired: 'fora de uso',
+      carrierRetireAsk:
+        'Ela sai da lista de escolha. O que ela já levou continua no registro, com o nome dela.',
+      carrierOnlyAdmin: 'Só quem administra a empresa cadastra transportadora.',
+      carrierPick: 'Quem leva',
+      carrierOwn: 'Carro da fábrica',
+      carrierTook: 'levou {{carrier}}',
       /** O cartão conta DESTINOS; o título era o das caixas da capa. */
       dayTitle: 'Saiu hoje',
       vsYesterday: 'Ontem foram {{count}}.',

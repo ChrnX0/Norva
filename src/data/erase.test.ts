@@ -233,6 +233,7 @@ test('a product made from a recipe blocks the recipe', () => {
 test('erasing everything is never blocked - that is the point of it', () => {
   const tangled: EraseCounts = {
     inputs: 6,
+    carriers: 0,
     movements: 0,
     movementsOfProducts: 0,
     people: 0,
@@ -273,6 +274,9 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     people: 6,
     lots: 9,
     orders: 4,
+    // E a transportadora, com número diferente de zero pelo mesmo motivo das
+    // outras: zero satisfaz a asserção com ou sem o campo ser carregado.
+    carriers: 2,
   };
 
   assert.deepEqual(tallyFor('all', counts), {
@@ -285,6 +289,7 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     people: 6,
     lots: 9,
     orders: 4,
+    carriers: 2,
   });
 
   // One area takes only its own with it. Places are the sharpest case: a store
@@ -304,6 +309,8 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     people: 0,
     lots: 0,
     orders: 0,
+    // Nenhuma área menor leva transportadora: ela é da empresa, como o lugar.
+    carriers: 0,
   });
   assert.deepEqual(tallyFor('inputs', counts), {
     inputs: 6,
@@ -315,6 +322,8 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     people: 0,
     lots: 0,
     orders: 0,
+    // Nenhuma área menor leva transportadora: ela é da empresa, como o lugar.
+    carriers: 0,
   });
 
   // Só "apagar tudo" leva GENTE. Nenhuma área menor pode dizer que leva — e
@@ -411,6 +420,7 @@ const CONTADA: Record<string, keyof EraseTally> = {
   lots: 'lots',
   orders: 'orders',
   people: 'people',
+  carriers: 'carriers',
 };
 
 test('toda tabela que uma área apaga é contada, ou tem razão escrita para não ser', () => {

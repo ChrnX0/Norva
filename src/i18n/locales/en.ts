@@ -1000,6 +1000,22 @@ export const en: Dictionary = {
       },
     },
     transport: {
+      /* The carrier: who took it, when it was not the factory's own van. */
+      carrierTitle: 'Carriers',
+      carrierHint: 'Who takes the load when it is not the factory van.',
+      carrierNone: 'None registered. The factory delivers with its own van.',
+      carrierAdd: 'Add a carrier',
+      carrierName: 'Name',
+      carrierPhone: 'Phone',
+      carrierSave: 'Save carrier',
+      carrierRetire: 'Retire',
+      carrierRetired: 'retired',
+      carrierRetireAsk:
+        'It leaves the picker. What it already carried stays in the record, under its name.',
+      carrierOnlyAdmin: 'Only whoever manages the company can add a carrier.',
+      carrierPick: 'Who takes it',
+      carrierOwn: 'Factory van',
+      carrierTook: '{{carrier}} took it',
       dayTitle: 'Left today',
       vsYesterday: 'Yesterday it was {{count}}.',
       noYesterday: 'Nothing left yesterday.',

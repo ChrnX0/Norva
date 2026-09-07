@@ -51,6 +51,7 @@ export function isEraseArea(value: unknown): value is EraseArea {
  */
 export type ErasableTable =
   | 'movements'
+  | 'carriers'
   | 'readings'
   | 'production_runs'
   | 'order_lines'
@@ -78,6 +79,8 @@ export type ErasableTable =
 /** What the screen counts up so the confirmation can speak in real numbers. */
 export type EraseCounts = {
   inputs: number;
+  /** As transportadoras cadastradas. Só "apagar tudo" as leva. */
+  carriers: number;
   /**
    * Movimentos do livro-razão que a área leva junto.
    *
@@ -150,6 +153,7 @@ export type EraseCounts = {
 
 export const emptyCounts: EraseCounts = {
   inputs: 0,
+  carriers: 0,
   movements: 0,
   movementsOfProducts: 0,
   places: 0,
@@ -242,6 +246,11 @@ export function tablesFor(area: EraseArea): readonly ErasableTable[] {
         // — o que some é quem a empresa cadastrou.
         'people',
         'profiles',
+        // A transportadora vem depois de `movements`, que aponta para ela com
+        // `carrier_id`. Mesmo sendo NULO na maioria das linhas, uma única carga
+        // com transportadora faria o DELETE levantar chave estrangeira e "apagar
+        // tudo" voltaria a não apagar nada — que é a cicatriz escrita acima.
+        'carriers',
         'outbox',
       ];
   }
@@ -311,6 +320,8 @@ export class EraseBlockedError extends Error {
  */
 export type EraseTally = {
   inputs: number;
+  /** As transportadoras: coisa que a pessoa cadastrou e reconhece pelo nome. */
+  carriers: number;
   /** Movimentos do livro-razão. Ver `EraseCounts.movements`. */
   movements: number;
   recipes: number;
@@ -327,6 +338,7 @@ export type EraseTally = {
 export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
   const nothing: EraseTally = {
     inputs: 0,
+    carriers: 0,
     movements: 0,
     recipes: 0,
     products: 0,
@@ -368,6 +380,7 @@ export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
         people: counts.people,
         lots: counts.lots,
         orders: counts.orders,
+        carriers: counts.carriers,
       };
   }
 }

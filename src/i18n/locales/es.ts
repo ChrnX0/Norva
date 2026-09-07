@@ -1005,6 +1005,22 @@ export const es: Dictionary = {
       },
     },
     transport: {
+      /* El transportista: quién la llevó, cuando no fue el carro de la fábrica. */
+      carrierTitle: 'Transportistas',
+      carrierHint: 'Quién lleva la carga cuando no es el carro de la fábrica.',
+      carrierNone: 'Ninguno registrado. La fábrica entrega con su carro.',
+      carrierAdd: 'Registrar transportista',
+      carrierName: 'Nombre',
+      carrierPhone: 'Teléfono',
+      carrierSave: 'Guardar transportista',
+      carrierRetire: 'Sacar de uso',
+      carrierRetired: 'fuera de uso',
+      carrierRetireAsk:
+        'Sale de la lista de elección. Lo que ya llevó sigue en el registro, con su nombre.',
+      carrierOnlyAdmin: 'Solo quien administra la empresa registra transportista.',
+      carrierPick: 'Quién la lleva',
+      carrierOwn: 'Carro de la fábrica',
+      carrierTook: '{{carrier}} la llevó',
       dayTitle: 'Salió hoy',
       vsYesterday: 'Ayer fueron {{count}}.',
       noYesterday: 'Ayer no salió carga.',

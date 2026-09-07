@@ -6,7 +6,7 @@ import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
-import { GlyphBox, GlyphStore } from '@/components/Glyph';
+import { GlyphBox, GlyphStore, GlyphVehicle } from '@/components/Glyph';
 import { Reveal } from '@/components/Reveal';
 import { UnitStepper } from '@/components/UnitStepper';
 import { nowIso } from '@/data/db';
@@ -17,12 +17,14 @@ import {
   ordersCoveredToday,
   pickingCart,
   pickingFor,
+  listCarriers,
   recordTransfer,
   NotEnoughStockError,
   setOrderStatus,
   setPickingCart,
   type Item,
   type PickLine,
+  type Carrier,
   type Place,
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
@@ -68,6 +70,8 @@ export default function Picking() {
 
 type Carregado = {
   places: Place[];
+  /** As em uso, para a escolha. Vazio é resposta: a fábrica leva no carro dela. */
+  carriers: Carrier[];
   linhas: PickLine[];
   itens: Item[];
   carrinho: Record<string, number>;
@@ -82,6 +86,15 @@ function Carrinho() {
 
   const fabrica = defaultLocationId(empresaDaqui());
   const [lojaId, setLojaId] = useState<string | null>(null);
+  /**
+   * Quem leva esta carga. Nulo é o carro da fábrica, e é o padrão.
+   *
+   * **Padrão e não pergunta.** A maioria das fábricas entrega com o carro dela, e
+   * quem usa transportadora usa quase sempre a mesma — então a escolha aparece
+   * pré-marcada na última usada e só existe quando há alguma cadastrada. Tela que
+   * pergunta o que o sistema pode deduzir é a Lei 1 quebrada.
+   */
+  const [quemLeva, setQuemLeva] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
   const { data: lugares } = useQuery<Place[]>(() => listPlaces(empresaDaqui()));
@@ -91,8 +104,9 @@ function Carrinho() {
   const { data, refresh } = useQuery<Carregado | null>(async () => {
     if (!loja) return null;
     const hoje = dayWindow(nowIso(), locale.timeZone);
-    const [places, linhas, itens, carrinho] = await Promise.all([
+    const [places, carriers, linhas, itens, carrinho] = await Promise.all([
       listPlaces(empresaDaqui()),
+      listCarriers(empresaDaqui()),
       pickingFor(
         empresaDaqui(),
         loja.id,
@@ -104,11 +118,14 @@ function Carrinho() {
       listItems(empresaDaqui()),
       pickingCart(loja.id),
     ]);
-    return { places, linhas, itens, carrinho };
+    return { places, carriers, linhas, itens, carrinho };
   }, loja?.id ?? '');
 
   const linhas = data?.linhas ?? [];
   const carrinho = data?.carrinho ?? {};
+  // Só as em uso se oferecem: transportadora aposentada continua no registro do
+  // que ela levou, e oferecê-la de novo seria ressuscitar um cadastro por engano.
+  const transportadoras = (data?.carriers ?? []).filter((c) => c.active);
 
   /** O que falta daquele item, já descontando o que saiu hoje. Nunca negativo. */
   const falta = (linha: PickLine) => Math.max(0, linha.ordered - linha.sentToday);
@@ -144,6 +161,7 @@ function Carrinho() {
           fromLocationId: fabrica,
           toLocationId: loja.id,
           baseUnits,
+          carrierId: quemLeva,
         });
       }
       await setPickingCart(loja.id, {});
@@ -347,7 +365,50 @@ function Carrinho() {
             );
           })}
 
-          <Reveal index={2 + linhas.length}>
+          {/* Quem leva — e o cartão só existe quando há transportadora cadastrada.
+              Uma fábrica que entrega no carro dela nunca vê esta pergunta, que é a
+              Lei 1: não se pede o que o sistema pode deduzir. O carro da fábrica
+              vem marcado; a última escolha não é lembrada de propósito, porque
+              carga por transportadora e carga própria se alternam no mesmo dia. */}
+          {transportadoras.length > 0 ? (
+            <Reveal index={2 + linhas.length}>
+              <Card
+                hue={palette.lilac}
+                icon={(c) => <GlyphVehicle size={26} color={c} weight={traco} />}
+                title={t.app.transport.carrierPick}
+              >
+                <View style={[styles.wrap, { gap: space.sm }]}>
+                  <Pressable
+                    onPress={() => setQuemLeva(null)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: quemLeva === null }}
+                    accessibilityLabel={t.app.transport.carrierOwn}
+                  >
+                    <Chip
+                      signal={quemLeva === null ? 'ok' : 'neutral'}
+                      label={t.app.transport.carrierOwn}
+                    />
+                  </Pressable>
+                  {transportadoras.map((quem) => (
+                    <Pressable
+                      key={quem.id}
+                      onPress={() => setQuemLeva(quem.id)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: quemLeva === quem.id }}
+                      accessibilityLabel={quem.name}
+                    >
+                      <Chip
+                        signal={quemLeva === quem.id ? 'ok' : 'neutral'}
+                        label={quem.name}
+                      />
+                    </Pressable>
+                  ))}
+                </View>
+              </Card>
+            </Reveal>
+          ) : null}
+
+          <Reveal index={3 + linhas.length}>
             <Button
               label={enviando ? words.sending : words.finish}
               onPress={() => void mandar()}
@@ -361,7 +422,7 @@ function Carrinho() {
               nada é desfeito, porque nada foi gravado — a diferença entre
               esvaziar e estornar tem que ficar clara antes do toque. */}
           {total > 0 ? (
-            <Reveal index={3 + linhas.length}>
+            <Reveal index={4 + linhas.length}>
               <Button
                 label={words.clear}
                 variant="ghost"
@@ -386,6 +447,7 @@ function Carrinho() {
 }
 
 const styles = StyleSheet.create({
+  wrap: { flexDirection: 'row', flexWrap: 'wrap' },
   row: { flexDirection: 'row', alignItems: 'center' },
   grow: { flex: 1 },
 });

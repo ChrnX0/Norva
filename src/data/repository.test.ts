@@ -24,6 +24,8 @@ import {
   matchPin,
   listProfiles,
   salePricesFor,
+  listCarriers,
+  saveCarrier,
   savePerson,
   saveSalePrice,
   recordProduction,
@@ -5476,4 +5478,105 @@ test('apagar tudo solta o aparelho de quem estava com ele — senão ele tranca 
   assert.ok((await currentCapabilities(CO)).has('manage_company'), 'e quem recomeça consegue cadastrar');
   const denovo = await savePlace(CO, { name: 'Recomeço', kind: 'own_store' });
   assert.equal(denovo.name, 'Recomeço');
+});
+
+test('a carrier is who took it — and the load says so, in the report and in the queue', async () => {
+  await ensureStarterData(CO);
+  const [produto] = await listProductsForLedger(CO);
+  const loja = await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' });
+
+  // Produz antes de mandar: transferir o que ninguém fez é o teste que passava
+  // pelo motivo errado, e o piso da transferência agora recusa.
+  await recordProduction(CO, {
+    productId: produto.id,
+    locationId: defaultLocationId(CO),
+    batches: 1,
+    unitsProduced: 200,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+
+  const transportes = await saveCarrier(CO, { name: '  Transportes Silva  ', phone: '11 90000-0000' });
+  assert.equal(transportes.name, 'Transportes Silva', 'o espaço em volta não entra no nome');
+
+  await recordTransfer(CO, {
+    itemId: produto.itemId,
+    fromLocationId: defaultLocationId(CO),
+    toLocationId: loja.id,
+    baseUnits: 50,
+    carrierId: transportes.id,
+  });
+  // E uma carga no carro da fábrica, para o nulo continuar sendo resposta.
+  const norte = await savePlace(CO, { name: 'Loja Norte', kind: 'own_store' });
+  await recordTransfer(CO, {
+    itemId: produto.itemId,
+    fromLocationId: defaultLocationId(CO),
+    toLocationId: norte.id,
+    baseUnits: 30,
+  });
+
+  // AS DUAS PERNAS levam a transportadora: a que chega na loja é a que alguém lê
+  // ao perguntar "quem trouxe isso?".
+  const pernas = await live.getAllAsync<{ carrier_id: string | null; location_id: string }>(
+    `SELECT carrier_id, location_id FROM movements
+      WHERE company_id = ? AND kind = 'transfer' AND carrier_id IS NOT NULL`,
+    [CO],
+  );
+  assert.equal(pernas.length, 2, 'a carga com transportadora grava as duas pernas com o nome dela');
+  assert.deepEqual(
+    [...new Set(pernas.map((l) => l.location_id))].sort(),
+    [defaultLocationId(CO), loja.id].sort(),
+    'uma perna na fábrica e uma na loja',
+  );
+
+  // O relatório do dia diz quem levou onde levou — e cala onde foi o carro da casa.
+  const hoje = await shipmentsOn(CO, '2000-01-01T00:00:00.000Z', '2100-01-01T00:00:00.000Z');
+  const paraLoja = hoje.find((r) => r.locationId === loja.id);
+  const paraNorte = hoje.find((r) => r.locationId === norte.id);
+  assert.equal(paraLoja?.carrierName, 'Transportes Silva');
+  assert.equal(paraNorte?.carrierName, null, 'sem transportadora é nulo, não é uma frase');
+
+  // Duas cargas para a MESMA loja, uma na transportadora e outra no carro da casa:
+  // a tela cala em vez de dizer meia verdade. Foi o caso que a mordida não pegou,
+  // e pensar nele mostrou que a regra estava errada — não o teste.
+  await recordTransfer(CO, {
+    itemId: produto.itemId,
+    fromLocationId: defaultLocationId(CO),
+    toLocationId: loja.id,
+    baseUnits: 10,
+  });
+  const misturado = await shipmentsOn(CO, '2000-01-01T00:00:00.000Z', '2100-01-01T00:00:00.000Z');
+  assert.equal(
+    misturado.find((r) => r.locationId === loja.id)?.carrierName,
+    null,
+    'divergiu como foi, então a tela não nomeia ninguém',
+  );
+
+  // A fila leva o cadastro, senão o servidor recusa o movimento que aponta para ele.
+  const naFila = await live.getAllAsync<{ row_id: string }>(
+    `SELECT row_id FROM outbox WHERE table_name = 'carriers'`,
+  );
+  assert.deepEqual(naFila.map((l) => l.row_id), [transportes.id]);
+});
+
+test('a carrier leaves use without leaving the record, and only an admin registers one', async () => {
+  await ensureStarterData(CO);
+  const quem = await saveCarrier(CO, { name: 'Expresso Norte' });
+
+  await saveCarrier(CO, { id: quem.id, name: 'Expresso Norte', active: false });
+  const todas = await listCarriers(CO);
+  assert.equal(todas.length, 1, 'tirar de uso não apaga');
+  assert.equal(todas[0].active, false);
+
+  // E o portão, nos dois sentidos: o operador não cadastra.
+  const perfis = await listProfiles(CO);
+  const operador = perfis.find((p) => p.templateRole === 'operator');
+  assert.ok(operador, 'o exemplo semeia o perfil de operador');
+  const pessoa = await savePerson(CO, { name: 'Zeca', profileId: operador.id });
+  await setCurrentOperator(pessoa.id);
+  await assert.rejects(
+    () => saveCarrier(CO, { name: 'Fretes do Zeca' }),
+    /transportadora/,
+    'celular emprestado não cadastra transportadora — o servidor recusaria e a fila travaria',
+  );
+  await setCurrentOperator(null);
 });

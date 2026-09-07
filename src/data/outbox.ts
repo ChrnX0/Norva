@@ -172,6 +172,10 @@ export const QUEUED_TABLES = [
   'flavors',
   'profiles',
   'people',
+  // A transportadora entra na varredura mesmo não sendo apagada por área nenhuma
+  // menor: "apagar tudo" a leva, e a entrada órfã dela travaria a fila inteira
+  // atrás de um cadastro que não existe mais.
+  'carriers',
   // O acordo comercial e a série dele. `location_prices` é a única deste conjunto
   // que o aplicativo APAGA — tirar o acordo de uma loja é apagar a linha —, e é
   // exatamente por isso que ela precisa estar aqui: sem a varredura, a entrada da

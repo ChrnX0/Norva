@@ -864,9 +864,43 @@ UPDATE locations SET kind = 'factory'
  WHERE id = company_id AND kind = 'store_room';
 `;
 
+/**
+ * A transportadora: quem LEVOU, que não é quem carregou nem para onde foi.
+ *
+ * **Ela não é um lugar, e é por isso que não entra em `locations`.** O docblock
+ * das espécies de lugar já decide o caso vizinho — *"caminhão é caminho, não é
+ * sala nem destino"* —, e uma transportadora é menos ainda: é uma empresa com
+ * telefone. Carga em cima dela não está numa sala nem chegou a ninguém.
+ *
+ * **E ela não copia o molde de `suppliers`.** Aquela tabela existe desde a
+ * fundação com zero escritores e zero leitores: `purchases.supplier_id` nunca foi
+ * escrito, e quem vive é o `supplier_name` digitado. Cadastro sem quem leia é a
+ * doença que este repositório documentou quatro vezes — então `carrier_id` nasce
+ * com a tela que escolhe e a tela que mostra, no mesmo commit.
+ *
+ * `carrier_id` é NULO por padrão e continua sendo: a fábrica que entrega com o
+ * carro dela não tem transportadora, e obrigar um nome ali seria inventar um fato.
+ */
+const V24 = `
+CREATE TABLE IF NOT EXISTS carriers (
+  id         TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  name       TEXT NOT NULL,
+  phone      TEXT,
+  note       TEXT,
+  active     INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS carriers_name_idx
+  ON carriers (company_id, lower(trim(name)));
+
+ALTER TABLE movements ADD COLUMN carrier_id TEXT REFERENCES carriers(id);
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
-  V19, V20, V21, V22, V23,
+  V19, V20, V21, V22, V23, V24,
 ];
 
 export type SqlParam = string | number | null;

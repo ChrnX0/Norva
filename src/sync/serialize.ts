@@ -60,6 +60,7 @@ export type ServerWrite =
   | { kind: 'derived'; table: string };
 
 export type ServerTable =
+  | 'carriers'
   | 'locations'
   | 'profiles'
   | 'people'
@@ -192,6 +193,13 @@ const CROSSINGS: Record<
     // conseguir se identificar num deles. Ele é atribuição e não senha — o
     // raciocínio inteiro está na `0036` e em `docs/estudo-entrada.md`.
     take: ['id', 'company_id', 'name', 'profile_id', 'active', 'created_at', 'pin'],
+  },
+
+  carriers: {
+    // A transportadora atravessa inteira porque ela é cadastro: nome e telefone
+    // que só existem num aparelho somem com o aparelho, e o telefone dela é o
+    // número que alguém liga quando a carga não chegou.
+    take: ['id', 'company_id', 'name', 'phone', 'note', 'active', 'created_at'],
   },
 
   locations: {
@@ -437,6 +445,10 @@ const CROSSINGS: Record<
       // dela, então a coluna tem que atravessar: sem ela na lista, toda
       // devolução seria recusada por restrição, com a fila parando atrás.
       'return_reason',
+      // Quem LEVOU a carga, quando não foi o carro da fábrica. Nulo é resposta e
+      // não ausência: a maioria das fábricas entrega com o carro dela, e um nome
+      // obrigatório ali seria fato inventado.
+      'carrier_id',
       'reverses_movement_id',
       'assistant_phrase',
       'note',

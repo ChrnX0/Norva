@@ -36,11 +36,11 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 
 | | | como conferir |
 |---|---|---|
-| telas | **31** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
-| tabelas no aparelho (SQLite) | **25** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
-| tabelas no servidor (Postgres) | **26** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **43** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V23** | último `const V` em `src/data/db.ts` |
+| telas | **32** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
+| tabelas no aparelho (SQLite) | **26** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
+| tabelas no servidor (Postgres) | **27** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
+| migrações do servidor | **44** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V24** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
 | linhas de código | **~72.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **487** testes |
+| `npm test` | **490** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **51** checagens num navegador de verdade |
 | `npm run db:verify` | **19** garantias contra um Postgres descartável, sob RLS |
@@ -403,13 +403,22 @@ como as várias unidades de loja e clientes."*
 | lojas e clientes, várias | **já funciona, sem limite** | `locations` aceita quantas linhas quiser e `app/places.tsx` oferece as duas espécies |
 | vários funcionários produzindo | **já funciona, desde 6 de setembro** | tabela `people` com PIN, e os sete `INSERT INTO movements` carimbam `operator_id` |
 | **várias fábricas** | **o esquema suporta, o app não deixa** | `factory` é a PRIMEIRA espécie de `location_kind` na `0001`; `app/places.tsx:185` oferece quatro e não a inclui |
-| **transportadoras** | **não existe** | zero ocorrências de carrier/transportadora no repositório; há `vehicle` como lugar e `driver` como papel, e nada que se cadastre |
+| **transportadoras** | ~~não existe~~ **FEITA em 7 de setembro** | tabela `carriers` (migração 0044 e V24), tela `app/carriers.tsx`, escolha na separação e o nome de quem levou no cartão do destino — o leitor no mesmo commit, para não repetir `suppliers` |
 
 **As duas que faltam têm pesos opostos, e isso decide a ordem.**
 
-A **transportadora é barata**: é cadastro, como loja e cliente já são, e não toca o
-livro-razão. Falta a espécie na tela, o nome e o contato, e a carga apontando para
-ela. Cabe numa rodada.
+A **transportadora era barata e está feita** — e o que ela ensinou foi sobre o molde
+que eu ia copiar. `suppliers` está no esquema desde a `0002` com **zero escritores e
+zero leitores**: `purchases.supplier_id` nunca foi escrito, e quem vive é o
+`supplier_name` digitado. Copiar aquilo criaria a segunda tabela morta. Então
+`carrier_id` entrou no mesmo commit que a tela que escolhe e a linha que mostra quem
+levou, e ela **não é um lugar**: o docblock das espécies já decide o caso vizinho —
+*"caminhão é caminho, não é sala nem destino"*.
+
+Duas decisões de desenho que o uso vai medir: a escolha só aparece quando há
+transportadora cadastrada (fábrica que entrega no carro dela nunca vê a pergunta), e o
+cartão do destino **cala** quando o dia teve carga de dois jeitos, em vez de nomear a
+primeira — meia verdade num cartão é pior que silêncio.
 
 A **segunda fábrica é cara, e o motivo é um atalho registrado**: `defaultLocationId`
 devolve o próprio `company_id` — *"enquanto há um lugar só, o id dele é o da própria
