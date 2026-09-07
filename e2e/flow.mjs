@@ -1986,7 +1986,11 @@ check('the home is assembled from pieces the house chose', async (page) => {
   // na capa padrão provaria o contrário do que se quer.
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
-  await page.getByLabel(/^Preços que mexeram: (Esconder|Mostrar)$/).first().click();
+  // Peça FORA da capa não tem "Esconder/Mostrar": ela tem "Colocar na capa", que é
+  // outra lista e outro rótulo. Errar isso deu um `locator.click` esperando trinta
+  // segundos por um alvo que não existe — e o erro dizia "timeout", não "rótulo
+  // errado", que é a cara de toda espera por seletor inventado.
+  await page.getByLabel(/^Colocar na capa: Preços que mexeram$/).first().click();
   await page.waitForTimeout(1200);
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(3000);
