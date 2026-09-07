@@ -1971,13 +1971,30 @@ check('the home is assembled from pieces the house chose', async (page) => {
     /medido às|trocar a cidade/,
     'o cartão do tempo sai da capa deste aparelho',
   );
-  // E o custo firme DIZ que está firme.
+  // E o custo firme DIZ que está firme — depois de LIGAR a peça de preço.
   //
   // A peça de preço só existia quando algo mexia, então a capa de quem tem o custo
   // estável era igual à de quem instalou ontem — e "está tudo bem" é estado válido.
   // A frase é o chamador de produção de `lastCostMove`, que a auditoria tinha
   // marcado como implementada e sem chamador nenhum, nem de teste.
-  assert.match(semTempo, /Tudo estável/, 'a capa diz que o custo está firme em vez de calar');
+  //
+  // **A checagem passou a ligar a peça antes de cobrar a frase, e isso é conserto de
+  // uma afirmação que envelheceu.** Ela nasceu quando "Preços que mexeram" vinha na
+  // capa por padrão; a capa emagreceu e a peça virou opcional, então o que a checagem
+  // media deixou de ser "a frase existe" e passou a ser "a peça está ligada por
+  // padrão" — que é outra coisa, e não é o que o comentário acima diz. Cobrar a frase
+  // na capa padrão provaria o contrário do que se quer.
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/^Preços que mexeram: (Esconder|Mostrar)$/).first().click();
+  await page.waitForTimeout(1200);
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(3000);
+  assert.match(
+    await screen(page),
+    /Tudo estável/,
+    'a capa diz que o custo está firme em vez de calar',
+  );
 
   // E volta quando alguém quer de volta: esconder não é apagar.
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });

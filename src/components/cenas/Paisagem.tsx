@@ -99,10 +99,14 @@ export function CenaPaisagem({ cena }: { cena: Cena }) {
         </AnimatedG>
         {/* O bosque mora ENTRE as colinas, e é isso que constrói a profundidade:
             atrás dele passa a colina de longe, na frente vem a de perto. */}
+        {/* O desvio do trecho vai NUM GRUPO DE DENTRO, nunca ao lado do `transform`
+            animado do pai: `animatedProps` substitui o `transform` declarado, e foi
+            assim que a engrenagem sumiu da faixa algumas horas atrás. */}
         <AnimatedG animatedProps={arLonge}>
-          <Bosque {...pincel} trecho={trechoDaEstrada(cena)} />
+          <G transform={`translate(${desvioDoTrecho(cena)} 0)`}>
+            <Patio {...pincel} />
+          </G>
         </AnimatedG>
-        <Passaros massa={pincel.longe} />
         <AnimatedG animatedProps={arPerto}>
           <Path
             d="M-16 62c70-11 116 7 182 3s114-14 200-4v27H-16z"
@@ -128,29 +132,44 @@ type Pincel = {
 };
 
 /**
- * Três árvores à esquerda — e elas existem para a folha não ficar torta.
+ * O PÁTIO à esquerda: dois silos, um galpão e um poste.
  *
- * A prancheta manda a cena ocupar a largura inteira (`prancha.ts` explica por quê:
- * uma composição apertada num terço lê como desenho torto, não como desenho
- * pequeno). Um assunto só não enche 364 sem virar gigante, então o resto da folha
- * é paisagem.
+ * **A primeira versão eram três árvores, e o dono as recusou com a pergunta certa:**
+ * *"o q são essas árvores esquisitas aí? suponho q sejam fungos... mas o q q isso
+ * tem a ver com 'ajustes'? o app nao é aplicativo de biologia. é produção,
+ * controle, transporte, financeiro..."*
  *
- * E a regra que o dono deu com uma palavra — *"feio"*, sobre quatro lojas iguais em
- * fila — vale aqui inteira: **alturas diferentes, vãos desiguais, nenhuma com cor**.
- * Três árvores idênticas e igualmente espaçadas seriam papel de parede.
+ * Ele está certo e o defeito não é o desenho ser feio: é ser **decoração**. Eu
+ * tinha um vão de trinta por cento de céu vazio e o enchi com a primeira coisa que
+ * cabia num horizonte, em vez de com a coisa que pertence a ESTE horizonte. É o
+ * mesmo defeito do alerta inventado, virado para o desenho — encher espaço com o
+ * que não afirma nada ensina a não olhar.
+ *
+ * O que pertence é o mundo em que o assunto vive: silo, galpão, poste. A leitura
+ * fica "o pátio, e nele a coisa de que esta tela fala" em vez de "a natureza, e nela
+ * um caminhão".
+ *
+ * E a regra do *"feio"* continua valendo por cima: **alturas diferentes, vãos
+ * desiguais, nenhum com cor.** Dois silos idênticos lado a lado seriam papel de
+ * parede com outro contorno.
  */
-function Bosque({ longe, trecho }: Pincel & { trecho: Trecho }) {
+function Patio({ longe }: Pincel) {
   return (
-    <G fill={longe} transform={`translate(${trecho.desvio} 0) scale(${trecho.porte} 1)`}>
-      <Path d="M24 62V44c-11-1-13-11-6-15s6-13 14-13 15 7 14 14 4 13-6 14v18z" />
-      <Path d="M64 63V54c-6 0-8-6-4-9s3-8 8-8 9 4 8 8 2 9-4 9v9z" />
-      <Path d="M112 62V47c-9-1-12-9-5-13s5-11 12-11 13 6 12 12 3 11-6 12v15z" />
+    <G fill={longe}>
+      {/* O silo alto: cilindro com tampa cônica. */}
+      <Path d="M16 62V34a10 10 0 0 1 20 0v28z" />
+      <Path d="M14 34l12-11 12 11z" />
+      {/* O galpão baixo, de telhado de duas águas — mais largo que alto. */}
+      <Path d="M44 62V48h34v14z" />
+      <Path d="M41 48l20-9 20 9z" />
+      {/* O silo menor, encostado, e o poste fino que fecha o grupo. */}
+      <Path d="M86 62V44a7 7 0 0 1 14 0v18z" />
+      <Path d="M85 44l8-7 8 7z" />
+      <Path d="M110 62V30h3v32z" />
+      <Path d="M105 32h13v3h-13z" />
     </G>
   );
 }
-
-/** Que trecho da estrada esta tela mostra. */
-type Trecho = { desvio: number; porte: number };
 
 /**
  * O mesmo horizonte, outro trecho da estrada — e isto é conserto de folha de contato.
@@ -165,43 +184,10 @@ type Trecho = { desvio: number; porte: number };
  * paisagem que se rearranja sozinha entre duas visitas à mesma tela é pior que a
  * repetição. Mesma tela, mesmo trecho, sempre.
  */
-function trechoDaEstrada(cena: Cena): Trecho {
+function desvioDoTrecho(cena: Cena): number {
   let soma = 0;
   for (let i = 0; i < cena.length; i++) soma += cena.charCodeAt(i) * (i + 1);
-  return { desvio: (soma % 9) * 7 - 28, porte: 0.9 + ((soma >> 3) % 5) * 0.06 };
-}
-
-/**
- * Dois pássaros no vão do meio — e eles são AMBIENTE, não afirmação.
- *
- * A primeira foto mostrou trinta por cento de céu vazio entre o bosque e o
- * assunto, e vazio numa faixa baixa e larga não lê como espaço: lê como desligado.
- * A regra do dono cobre exatamente isto — *"todo o sistema funciona como um
- * organismo vivo e vc já viu organismo vivo MORTO?"* —, e a borda que a acompanha
- * também: o que se mexe aqui **não afirma nada** sobre o razão. Pássaro voando não
- * diz que houve produção; a silhueta é que carrega o assunto.
- *
- * Tamanhos diferentes e alturas diferentes, pela mesma razão de sempre: dois
- * iguais lado a lado viram padrão de papel de parede.
- */
-function Passaros({ massa }: { massa: string }) {
-  const deriva = useCiclo(26_000, { feitio: 'vaivem', repouso: 0.5 });
-  const alto = useAnimatedProps(() => ({
-    transform: [{ translateX: deriva.value * 26 }, { translateY: -deriva.value * 4 }],
-  }));
-  const baixo = useAnimatedProps(() => ({
-    transform: [{ translateX: 8 + deriva.value * 18 }, { translateY: deriva.value * 3 }],
-  }));
-  return (
-    <G fill="none" stroke={massa} strokeWidth={1.6} strokeLinecap="round" opacity={0.75}>
-      <AnimatedG animatedProps={alto}>
-        <Path d="M150 20c3-4 6-4 8 0 2-4 5-4 8 0" />
-      </AnimatedG>
-      <AnimatedG animatedProps={baixo}>
-        <Path d="M178 33c2-3 4-3 5 0 2-3 4-3 5 0" />
-      </AnimatedG>
-    </G>
-  );
+  return (soma % 9) * 6 - 24;
 }
 
 /**
