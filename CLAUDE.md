@@ -669,9 +669,16 @@ arredondado, e o Papel não tem canto nem caixa. Olhar a pele padrão e concluir
 bom" é olhar exatamente a metade onde o defeito não cabe.
 
 **Antes de construir o próximo item da lista, meça a afirmação dele contra o código.**
-Em 7 de setembro peguei a próxima coisa da fila quatro vezes, e nas quatro o código já
+Em 7 de setembro peguei a próxima coisa da fila **seis vezes**, e nas seis o código já
 tinha a coisa pronta: o estorno alcançável de qualquer ato, as três configurações de
-empresa com leitor, o `[por quê?]` da receita, a conta das perdas já aberta na página.
+empresa com leitor, o `[por quê?]` da receita, a conta das perdas já aberta na página,
+a conta da produção idem, e o aviso de validade já agendado desde a raiz do app.
+
+**E a causa é estrutural, não descuido:** a seção *"As seis"* do roadmap foi escrita
+como ASPIRAÇÃO — o que o produto quer ser — e passou a ser lida como FILA pela regra de
+nunca ficar ocioso. Aspiração não envelhece sozinha; fila envelhece a cada commit. Uma
+lista que mistura as duas manda reconstruir o que existe, e foi o que ela fez seis
+vezes numa noite. Item de aspiração sem medida ao lado é convite, não trabalho.
 O defeito não é a documentação envelhecer — é a lista ser **a entrada de um laço
 automático** ("nunca ocioso: pegue a próxima da lista escrita") e ninguém medir o que
 ela afirma. Um `grep` pelo chamador custa dez segundos. E ela erra nas duas direções:
