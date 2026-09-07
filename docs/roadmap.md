@@ -1207,7 +1207,23 @@ O QR da caixa hoje abre o lote dentro do app. Se abrisse uma página que a **loj
 sem instalar nada — o que chegou, quando, validade —, a etiqueta deixa de ser
 controle interno e vira o começo do pedido seguinte.
 
-### 6. O extrato — a que o dono destacou, e ela é maior do que "exportar uma lista"
+### 6. O extrato — a PRIMEIRA CAMADA FEITA em 6 de setembro; o resto continua de pé
+
+**A tela existe** (`app/extrato.tsx`, `ledgerExtract` em `src/data/repository.ts`),
+por ATO e não por linha, com o valor pela taxa congelada e o `[Desfazer]` ao lado de
+qualquer um. Ela nasceu resolvendo um defeito que não era de apresentação: o caminho
+de volta existia em **duas** das nove telas que escrevem no razão, e fundação que não
+se alcança é fundação que faz a pessoa parar de registrar.
+
+Exercitada no aparelho até o fim — a corrida de sete pernas aparece como um ato, o
+desfazer devolve os insumos e marca o ato, e a correção entra como ato próprio
+dizendo o que corrige.
+
+**O que dos cinco marcadores abaixo já está de pé:** a exportação fiscal tem a
+consulta e o corte por período (`from`/`to`, com o fim exclusivo e teste nas duas
+pontas). **O que continua de pé:** o retrato de fechamento guardado, o inventário
+assinado, o extrato do cliente, e a regra de fundamentação da IA. Os quatro pedem
+coisas que o razão já tem — nenhum pede esquema novo.
 
 O que o livro-razão append-only torna possível e quase nenhum sistema de fábrica
 pequena consegue: **prova, não relatório**. Todo número aqui é derivado de
