@@ -1234,6 +1234,22 @@ total. O gesto é o toque longo, no `Touchable`, com `accessibilityActions` junt
 Dois chamadores hoje: o custo de uma receita e o dinheiro parado nos relatórios
 (conferido na mão contra a foto — 11.616,44 + 807,96 + 237,90 + 207,26 = 12.869,56).
 
+**E o item está MUITO mais perto de fechado do que a linha dizia — medido tela a
+tela em 7 de setembro.** Os dezoito números grandes do aplicativo (`type.figure`, que é
+o que a guarda da Lei 3 conta) se dividem assim:
+
+| como a conta é alcançada | telas |
+|---|---|
+| **já aberta na própria página** | produção (*"A conta do número, aberta"*), perdas (cartão por motivo), Espelho da Loja (*"o par que produziu a fração"*), estoque por lugar (*"item por item, logo abaixo"*), transporte (a lista dos destinos), insumos (a lista dos itens) |
+| **a folha, porque a conta não cabe** | custo de receita, dinheiro parado |
+| **um toque, na tela do assunto** | custo por unidade nos relatórios, custo por receita na lista |
+| **não é número** | código do lote, código de convite |
+
+Ou seja: **não sobrou nenhum número grande cuja conta seja inalcançável.** O que
+faltava era o MECANISMO para os dois casos em que ela não cabe — e ele foi construído.
+O que sobra do item é vigilância: número novo nasce com a conta alcançável, e a guarda
+da Lei 3 já cobra a declaração de cada um.
+
 **E a régua de QUANDO usar a folha, que só apareceu ao ir ligar a terceira tela.**
 Fui abrir a conta das perdas e ela **já estava aberta**: o segundo cartão da tela
 lista cada motivo com o que custou e em quantas vezes, e o comentário dele cita a Lei
