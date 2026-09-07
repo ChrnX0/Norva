@@ -4578,6 +4578,8 @@ export async function dailyOutflowOf(
   fromIso: string,
   toIso: string,
   days: number,
+  /** A sala. Sem ela, a conta é da empresa inteira — como no `runningOut`. */
+  locationId?: string,
 ): Promise<number> {
   const conn = await db();
   const linha = await conn.getFirstAsync<{ out_units: number }>(
@@ -4585,8 +4587,22 @@ export async function dailyOutflowOf(
        FROM movements
       WHERE company_id = ? AND item_id = ?
         AND quantity_base_units < 0
+        AND (? IS NULL OR location_id = ?)
+        -- Mudar de sala não é consumir, e sem esta linha era.
+        --
+        -- A regra é a MESMA do runningOut, e ela estava só lá. Esta função
+        -- nasceu ao lado dele para responder por um item só, e não herdou nem o
+        -- escopo de sala nem a correção da perna de transferência — que foi
+        -- medida em 7 de setembro: depois de mandar 400 unidades para a PRÓPRIA
+        -- loja, a régua dizia "saída de 57 por dia" com a empresa tendo as mesmas
+        -- quinhentas. A perna negativa entra como saída e a positiva não
+        -- compensa, porque a soma só olha o que é negativo.
+        --
+        -- Só quando a pergunta é da EMPRESA. Perguntando de uma sala, a carga que
+        -- saiu dali saiu mesmo, e conta.
+        AND (? IS NOT NULL OR kind NOT IN ('transfer', 'return'))
         AND occurred_at >= ? AND occurred_at < ?`,
-    [companyId, itemId, fromIso, toIso],
+    [companyId, itemId, locationId ?? null, locationId ?? null, locationId ?? null, fromIso, toIso],
   );
   const saiu = linha?.out_units ?? 0;
   return days > 0 ? saiu / days : 0;

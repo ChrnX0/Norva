@@ -190,7 +190,12 @@ function InputDetail() {
       // Na mesma consulta do resto: sem isso existe um instante em que a tela
       // tem os números e ainda não sabe se pode mostrá-los.
       canSeeMoney(LOCAL_COMPANY_ID),
-      dailyOutflowOf(LOCAL_COMPANY_ID, id, semanaAtras.from, hoje.to, 7),
+      // A MESMA sala do saldo logo acima.
+      //
+      // Sem ela a tela dividia o saldo de UMA sala pelo consumo de TODAS, e o
+      // resultado é o número que decide compra: abrindo a câmara fria, "acaba
+      // em" saía menor do que é e o aviso de recompra disparava cedo.
+      dailyOutflowOf(LOCAL_COMPANY_ID, id, semanaAtras.from, hoje.to, 7, room),
     ]);
     return {
       item, history, recipes, movements, spread, places, entregas, dinheiro, saiPorDia,

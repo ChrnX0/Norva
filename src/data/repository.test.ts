@@ -4659,6 +4659,86 @@ test('daily outflow answers for the calm item too, not only the one running out'
   );
 });
 
+test('mudar de sala não é consumir, e perguntar de uma sala não mistura o consumo das outras', async () => {
+  /**
+   * Os DOIS defeitos que a ficha do insumo tinha, e nenhum teste pegava.
+   *
+   * `dailyOutflowOf` nasceu ao lado do `runningOut` e não herdou duas coisas que
+   * ele tem, ambas medidas e escritas lá:
+   *
+   * **1. A perna da transferência.** Mandar mercadoria para a própria loja gera
+   * uma linha negativa na origem e uma positiva no destino, e a soma só olha o
+   * que é negativo — então mover estoque entre salas suas aparecia como consumo.
+   * Medido em 7 de setembro no irmão: depois de mandar 400 para a própria loja, a
+   * régua dizia "saída de 57 por dia" com a empresa tendo as mesmas quinhentas
+   * unidades. O conselho saía invertido — "compre mais" porque você moveu.
+   *
+   * **2. O escopo de sala.** A ficha mostra o saldo da sala aberta e dividia por
+   * um consumo da empresa inteira. Abrindo a câmara fria, "acaba em" saía menor
+   * do que é, e é esse número que dispara o aviso de recompra.
+   *
+   * A régua é dos dois lados: da EMPRESA a transferência não conta, da SALA ela
+   * conta — porque a carga que saiu dali saiu mesmo.
+   */
+  const acucar = await anInput('Açúcar da sala', 25_000);
+  await recordPurchase(CO, {
+    itemId: acucar,
+    purchaseQuantity: 4,
+    baseUnits: 100_000,
+    totalCents: fromDecimal(400),
+    occurredAt: '2026-09-01T09:00:00.000Z',
+  });
+
+  const loja = (await savePlace(CO, { name: 'Loja da régua', kind: 'own_store' })).id;
+  const fabrica = defaultLocationId(CO);
+
+  // Consumo de verdade: sete mil somem da fábrica na janela.
+  await recordCount(CO, {
+    locationId: fabrica,
+    itemId: acucar,
+    countedBaseUnits: 93_000,
+    occurredAt: '2026-09-04T09:00:00.000Z',
+  });
+
+  // E uma transferência de catorze mil da fábrica para a própria loja, que NÃO é
+  // consumo da empresa: o mesmo estoque, noutra sala.
+  await recordTransfer(CO, {
+    itemId: acucar,
+    baseUnits: 14_000,
+    fromLocationId: fabrica,
+    toLocationId: loja,
+    occurredAt: '2026-09-05T09:00:00.000Z',
+  });
+
+  const de = '2026-09-01T00:00:00.000Z';
+  const ate = '2026-09-08T00:00:00.000Z';
+
+  // A empresa consumiu mil por dia — a transferência não entra.
+  assert.equal(
+    await dailyOutflowOf(CO, acucar, de, ate, 7),
+    1_000,
+    'mover para a própria loja não é consumo da empresa',
+  );
+
+  // Da FÁBRICA saíram os dois: sete mil consumidos e catorze mil mandados.
+  assert.equal(
+    await dailyOutflowOf(CO, acucar, de, ate, 7, fabrica),
+    3_000,
+    'da sala, a carga que saiu dali saiu mesmo',
+  );
+
+  // E da LOJA não saiu nada: ela só recebeu.
+  assert.equal(
+    await dailyOutflowOf(CO, acucar, de, ate, 7, loja),
+    0,
+    'quem só recebeu não consumiu',
+  );
+
+  // A régua é régua: os três números são diferentes entre si, senão o teste
+  // passaria com a sala sendo ignorada.
+  assert.notEqual(1_000, 3_000, 'empresa e fábrica têm de discordar, senão o escopo não faz nada');
+});
+
 /**
  * O fechamento de período estava correto por acidente — este teste é o que o
  * transforma em regra.
