@@ -6352,3 +6352,59 @@ escrever o parágrafo explicando que **`animatedProps` substitui o `transform`
 declarado**, escrevi um `transform` estático ao lado de um `animatedProps`. O
 comentário estava a quarenta linhas de distância. Regra escrita no arquivo não
 impede o autor do arquivo.
+
+---
+
+## 7 de setembro, madrugada — a lista mentia quatro vezes, e o achado é a lista
+
+Fui pegar a próxima coisa da fila quatro vezes nesta sessão. **Quatro vezes o código já
+tinha a coisa pronta** e o `docs/roadmap.md` a descrevia como aberta:
+
+| o que a lista dizia | o que o código já tinha |
+|---|---|
+| "o caminho de volta é alcançável de duas telas" | `app/extrato.tsx` lista qualquer ato e estorna qualquer um |
+| "três configurações de empresa sem leitor" | `configuracao.ts:122` lê as quatro; `floorSignIn()` decide a entrada |
+| "o `[por quê?]` falta em quase toda tela" | falta, mas a peça existe e serve uma tela — o trabalho é outro |
+| "as perdas não abrem a conta" | abrem: o segundo cartão da tela lista cada motivo, e o comentário cita a Lei 6 |
+
+**Por que isso importa mais que quatro linhas erradas.** A regra "nunca ocioso" manda
+pegar a próxima da lista escrita em vez de inventar tarefa — e uma lista velha
+transforma essa regra numa máquina de reconstruir o que existe. O defeito não é a
+documentação estar desatualizada; é a lista ser **a entrada de um laço automático** e
+ninguém medir o que ela afirma.
+
+A regra que sai daqui e vale para toda sessão: **antes de construir o próximo item,
+medir a afirmação dele contra o código.** Um `grep` pelo chamador custa dez segundos e
+já evitou quatro reconstruções.
+
+E o inverso também apareceu, no mesmo dia e mais caro: o item que a lista dava como
+**feito** — o cabeçalho vivo do Orgânico — era o que o dono achou quebrado na foto. A
+lista erra nas duas direções, e nas duas o conserto é o mesmo: medir.
+
+## E a régua que veio de NÃO construir: a conta que cabe na página fica na página
+
+O `WhySheet` foi generalizado — deixou de conhecer `RecipeCost` e passou a receber uma
+`Conta` de parcelas e fechos, com a aritmética em `src/domain/conta.ts` provada por
+igualdade (as fatias somam um, as partes somam o total). Dois chamadores: o custo de
+uma receita e o dinheiro parado.
+
+Ao ir ligar o terceiro — as perdas — a conta **já estava aberta na página**. E ali a
+folha seria pior: um gesto escondido substituindo uma lista visível.
+
+Então a Lei 6 não pede uma folha; ela pede que a conta seja alcançável. **A folha é o
+mecanismo para quando a conta não cabe na página**, e onde cabe ela fica à vista — sem
+depender de alguém descobrir que existe um toque longo. Escrever isso mudou o que
+sobra do item: ligar os números cuja conta é longa ou mora noutra tela, e não os que já
+mostram as parcelas embaixo de si.
+
+**O que a foto pegou e nenhum teste pegaria:** a maior parcela da conta do estoque
+saiu como `R$ 11.616,44` **sem rótulo** — o lugar padrão nasce sem nome, e
+`app/places.tsx` já tinha a palavra de reserva certa desde sempre. Seria a terceira
+divergência da noite se eu a copiasse; virou `nomeDoLugar`, uma peça que as duas telas
+chamam.
+
+**E uma ferramenta que faltava para a Lei 6 poder ser verificada de todo:** o
+`shot.mjs` não sabia segurar o dedo. `--tocar` num cartão que também navega leva
+embora — a foto sairia da tela seguinte com o nome da conta, que é a pior forma de
+errar. `--segurar` existe agora, e sem ele nenhum `[por quê?]` deste roadmap poderia
+ser olhado daqui.

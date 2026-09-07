@@ -668,6 +668,21 @@ do cartão só existia no Orgânico: ela nasce de borda grossa de um lado com ca
 arredondado, e o Papel não tem canto nem caixa. Olhar a pele padrão e concluir "está
 bom" é olhar exatamente a metade onde o defeito não cabe.
 
+**Antes de construir o próximo item da lista, meça a afirmação dele contra o código.**
+Em 7 de setembro peguei a próxima coisa da fila quatro vezes, e nas quatro o código já
+tinha a coisa pronta: o estorno alcançável de qualquer ato, as três configurações de
+empresa com leitor, o `[por quê?]` da receita, a conta das perdas já aberta na página.
+O defeito não é a documentação envelhecer — é a lista ser **a entrada de um laço
+automático** ("nunca ocioso: pegue a próxima da lista escrita") e ninguém medir o que
+ela afirma. Um `grep` pelo chamador custa dez segundos. E ela erra nas duas direções:
+no mesmo dia, o item que a lista dava como FEITO — o cabeçalho vivo do Orgânico — foi o
+que o dono achou quebrado na foto.
+
+**A Lei 6 não pede uma folha; pede que a conta seja alcançável.** A folha do
+`[por quê?]` é o mecanismo para quando a conta **não cabe na página** — onde cabe, ela
+fica à vista, e trocar uma lista visível por um gesto escondido é piorar cumprindo a
+regra. Isso só apareceu ao ir ligar a terceira tela e encontrar a conta já aberta nela.
+
 **Detector novo não reporta nada antes de passar num caso verdadeiro e num
 falso.** A régua descartável — o `grep` que conta, o script que varre uma vez para
 responder uma pergunta — não passa por CI, não tem guard, e fala direto com o dono.
