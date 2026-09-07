@@ -5003,3 +5003,69 @@ test('the customer extract shows that place, and the act keeps its own numbers',
   assert.equal(daLoja[0].lines, daquiTambem.lines, 'o mesmo ato tem as mesmas linhas dos dois lados');
   assert.equal(daLoja[0].valueCents, daquiTambem.valueCents, 'e o mesmo valor');
 });
+
+/**
+ * Mudar de sala não é consumir — e sem esta regra o conselho saía invertido.
+ *
+ * **Medido em 7 de setembro, construindo o "produza até".** Antes de qualquer
+ * carga o picolé não aparecia acabando. Depois de mandar 400 para a **própria
+ * loja**, a régua dizia *"saem 57 por dia, dura 8,8 dias"* — com a empresa tendo
+ * exatamente as mesmas quinhentas unidades. A perna negativa da transferência
+ * entrava como saída e a positiva não compensava, porque a soma só olha o que é
+ * negativo.
+ *
+ * O resultado seria a tela mandando **produzir mais porque você moveu estoque de
+ * uma sala sua para outra** — um aviso inventado, que é o que a Lei 7 proíbe, e
+ * inventado com a aparência de aritmética.
+ *
+ * O defeito já existia para insumo e era raro; para produto, mandar para a própria
+ * loja É o fluxo normal da fábrica, e por isso ele apareceu na primeira vez em que
+ * alguém perguntou por produto.
+ *
+ * As duas pontas, porque a régua invertida seria igualmente errada: a EMPRESA não
+ * perde nada numa mudança de sala, e a SALA perde — quem pergunta de um lugar
+ * quer saber o que saiu dali.
+ */
+test('moving stock between your own rooms is not consumption, but leaving a room is', async () => {
+  await ensureStarterData(CO);
+  const [product] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
+  const fabrica = defaultLocationId(CO);
+  await recordProduction(CO, {
+    productId: product.id,
+    locationId: fabrica,
+    batches: 1,
+    unitsProduced: 500,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+
+  const loja = await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' });
+  await recordTransfer(CO, {
+    itemId: product.itemId,
+    fromLocationId: fabrica,
+    toLocationId: loja.id,
+    baseUnits: 400,
+  });
+
+  const hoje = dayWindow(nowIso(), 'America/Sao_Paulo');
+  const semana = dayWindow(nowIso(), 'America/Sao_Paulo', -6);
+
+  // A EMPRESA continua com as 500: nada saiu dela, e nada está acabando.
+  const daEmpresa = await runningOut(CO, semana.from, hoje.to, 7, 9999, undefined, ['product']);
+  assert.deepEqual(
+    daEmpresa.map((r) => r.name),
+    [],
+    'a empresa não perde nada mudando de sala — dizer o contrário manda produzir ' +
+      'por causa de um consumo que não aconteceu',
+  );
+
+  // A FÁBRICA perde: dali saíram 400 de verdade, e quem pergunta de um lugar quer
+  // saber o que saiu dali.
+  const daFabrica = await runningOut(CO, semana.from, hoje.to, 7, 9999, fabrica, ['product']);
+  const linha = daFabrica.find((r) => r.itemId === product.itemId);
+  assert.ok(linha, 'a fábrica vê a saída dela');
+  assert.ok(
+    linha.dailyOutflow > 0,
+    'a carga saiu da fábrica mesmo, e a régua da SALA tem de enxergar isso — ' +
+      'senão o conserto acima vira o defeito virado do avesso',
+  );
+});

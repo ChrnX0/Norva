@@ -4596,12 +4596,32 @@ export async function runningOut(
                        WHERE m.company_id = i.company_id AND m.item_id = i.id
                          AND m.quantity_base_units < 0
                          AND (? IS NULL OR m.location_id = ?)
+                         -- Mudar de sala não é consumir, e sem esta linha era.
+                         --
+                         -- Medido em 7 de setembro: antes de qualquer carga, o
+                         -- picolé não aparecia acabando; depois de mandar 400 para
+                         -- a PRÓPRIA loja, a régua dizia "saída de 57 por dia,
+                         -- dura 8,8 dias" — com a empresa tendo exatamente as
+                         -- mesmas quinhentas unidades. A perna negativa da
+                         -- transferência na fábrica entrava como saída e a
+                         -- positiva na loja não compensava, porque a soma só olha
+                         -- o que é negativo.
+                         --
+                         -- O conselho saía invertido: "produza mais" porque você
+                         -- moveu estoque de uma sala sua para outra. Para insumo o
+                         -- defeito existia e era raro; para PRODUTO, mandar para a
+                         -- própria loja é o fluxo normal da fábrica.
+                         --
+                         -- Só quando a pergunta é da EMPRESA. Perguntando de uma
+                         -- sala, a carga que saiu dali saiu mesmo, e conta.
+                         AND (? IS NOT NULL OR m.kind NOT IN ('transfer', 'return'))
                          AND m.occurred_at >= ? AND m.occurred_at < ?), 0) AS out_units
        FROM items i
       WHERE i.company_id = ? AND i.active = 1
         AND i.kind IN (${kinds.map(() => '?').join(', ')})`,
     [
       // Dois pares de sala: um para o saldo, outro para a saída.
+      locationId ?? null,
       locationId ?? null,
       locationId ?? null,
       locationId ?? null,
