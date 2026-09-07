@@ -4,7 +4,7 @@ import { useWindowDimensions, View } from 'react-native';
 import Animated, { useAnimatedProps } from 'react-native-reanimated';
 import Svg, { Defs, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { useAppearance } from '@/theme/Appearance';
-import { hues, noturno } from '@/theme/tokens';
+import { escurecer, hues } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useCiclo } from '../vida';
 import { CHAO, PRANCHA_DO_CABECALHO, type Cena } from './prancha';
@@ -64,11 +64,11 @@ export function CenaPaisagem({ cena }: { cena: Cena }) {
   const pincel: Pincel = {
     // A silhueta é da cor da colina da frente, um tom mais fechada: é o que faz
     // uma coisa ler como recortada no horizonte em vez de colada em cima dele.
-    massa: noite ? noturno(paleta.hillNear, 0.72) : paleta.hillNear,
+    massa: noite ? escurecer(paleta.hillNear, 0.72) : escurecer(paleta.hillNear, 0.82),
     // O vão é a única coisa com cor quente na cena, e é assim que ele significa
     // "aceso". Cor alternando em todo elemento é cor que não quer dizer nada.
     vazio: noite ? '#F5C66A' : '#FFFFFF',
-    longe: noite ? noturno(paleta.hillFar, 0.5) : paleta.hillFar,
+    longe: noite ? escurecer(paleta.hillFar, 0.5) : escurecer(paleta.hillFar, 0.93),
   };
 
   return (
@@ -85,8 +85,8 @@ export function CenaPaisagem({ cena }: { cena: Cena }) {
       >
         <Defs>
           <LinearGradient id="ceuDaFaixa" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={noite ? color.paper : paleta.skyTop} stopOpacity={0.92} />
-            <Stop offset="1" stopColor={noite ? noturno(paleta.skyBottom, 0.3) : paleta.skyBottom} />
+            <Stop offset="0" stopColor={noite ? color.paper : paleta.skyTop} />
+            <Stop offset="1" stopColor={noite ? escurecer(paleta.skyBottom, 0.3) : paleta.skyBottom} />
           </LinearGradient>
         </Defs>
         <Rect width={PRANCHA_DO_CABECALHO.largura} height={PRANCHA_DO_CABECALHO.altura} fill="url(#ceuDaFaixa)" />
@@ -94,18 +94,19 @@ export function CenaPaisagem({ cena }: { cena: Cena }) {
         <AnimatedG animatedProps={arLonge}>
           <Path
             d="M-16 51c62-14 106 9 182 2s120-17 200-7v34H-16z"
-            fill={noite ? noturno(paleta.hillFar, 0.42) : paleta.hillFar}
+            fill={noite ? escurecer(paleta.hillFar, 0.42) : paleta.hillFar}
           />
         </AnimatedG>
         {/* O bosque mora ENTRE as colinas, e é isso que constrói a profundidade:
             atrás dele passa a colina de longe, na frente vem a de perto. */}
         <AnimatedG animatedProps={arLonge}>
-          <Bosque {...pincel} />
+          <Bosque {...pincel} trecho={trechoDaEstrada(cena)} />
         </AnimatedG>
+        <Passaros massa={pincel.longe} />
         <AnimatedG animatedProps={arPerto}>
           <Path
             d="M-16 62c70-11 116 7 182 3s114-14 200-4v27H-16z"
-            fill={noite ? noturno(paleta.hillNear, 0.58) : paleta.hillNear}
+            fill={noite ? escurecer(paleta.hillNear, 0.58) : paleta.hillNear}
           />
         </AnimatedG>
 
@@ -138,12 +139,67 @@ type Pincel = {
  * fila — vale aqui inteira: **alturas diferentes, vãos desiguais, nenhuma com cor**.
  * Três árvores idênticas e igualmente espaçadas seriam papel de parede.
  */
-function Bosque({ longe }: Pincel) {
+function Bosque({ longe, trecho }: Pincel & { trecho: Trecho }) {
   return (
-    <G fill={longe}>
-      <Path d="M22 62V46c-9-1-11-9-5-13s5-11 12-11 13 6 12 12 3 11-5 12v16z" />
-      <Path d="M58 63V54c-6 0-8-6-4-9s3-8 8-8 9 4 8 8 2 9-4 9v9z" />
-      <Path d="M96 62V49c-8-1-10-8-4-11s4-9 10-9 11 5 10 10 2 9-5 10v13z" />
+    <G fill={longe} transform={`translate(${trecho.desvio} 0) scale(${trecho.porte} 1)`}>
+      <Path d="M24 62V44c-11-1-13-11-6-15s6-13 14-13 15 7 14 14 4 13-6 14v18z" />
+      <Path d="M64 63V54c-6 0-8-6-4-9s3-8 8-8 9 4 8 8 2 9-4 9v9z" />
+      <Path d="M112 62V47c-9-1-12-9-5-13s5-11 12-11 13 6 12 12 3 11-6 12v15z" />
+    </G>
+  );
+}
+
+/** Que trecho da estrada esta tela mostra. */
+type Trecho = { desvio: number; porte: number };
+
+/**
+ * O mesmo horizonte, outro trecho da estrada — e isto é conserto de folha de contato.
+ *
+ * Vendo as telas lado a lado (e só lado a lado), o bosque estava no MESMO pixel em
+ * todas as dezoito. Um horizonte comum é o que faz as telas serem um lugar só; três
+ * arbustos idênticos na mesma coordenada é o *"feio"* que o dono nomeou numa fileira
+ * de quatro lojas iguais — repetição regular lê como padrão de papel de parede, não
+ * como coisa.
+ *
+ * O desvio sai do NOME da cena e não de sorteio: sorteio muda a cada abertura, e uma
+ * paisagem que se rearranja sozinha entre duas visitas à mesma tela é pior que a
+ * repetição. Mesma tela, mesmo trecho, sempre.
+ */
+function trechoDaEstrada(cena: Cena): Trecho {
+  let soma = 0;
+  for (let i = 0; i < cena.length; i++) soma += cena.charCodeAt(i) * (i + 1);
+  return { desvio: (soma % 9) * 7 - 28, porte: 0.9 + ((soma >> 3) % 5) * 0.06 };
+}
+
+/**
+ * Dois pássaros no vão do meio — e eles são AMBIENTE, não afirmação.
+ *
+ * A primeira foto mostrou trinta por cento de céu vazio entre o bosque e o
+ * assunto, e vazio numa faixa baixa e larga não lê como espaço: lê como desligado.
+ * A regra do dono cobre exatamente isto — *"todo o sistema funciona como um
+ * organismo vivo e vc já viu organismo vivo MORTO?"* —, e a borda que a acompanha
+ * também: o que se mexe aqui **não afirma nada** sobre o razão. Pássaro voando não
+ * diz que houve produção; a silhueta é que carrega o assunto.
+ *
+ * Tamanhos diferentes e alturas diferentes, pela mesma razão de sempre: dois
+ * iguais lado a lado viram padrão de papel de parede.
+ */
+function Passaros({ massa }: { massa: string }) {
+  const deriva = useCiclo(26_000, { feitio: 'vaivem', repouso: 0.5 });
+  const alto = useAnimatedProps(() => ({
+    transform: [{ translateX: deriva.value * 26 }, { translateY: -deriva.value * 4 }],
+  }));
+  const baixo = useAnimatedProps(() => ({
+    transform: [{ translateX: 8 + deriva.value * 18 }, { translateY: deriva.value * 3 }],
+  }));
+  return (
+    <G fill="none" stroke={massa} strokeWidth={1.6} strokeLinecap="round" opacity={0.75}>
+      <AnimatedG animatedProps={alto}>
+        <Path d="M150 20c3-4 6-4 8 0 2-4 5-4 8 0" />
+      </AnimatedG>
+      <AnimatedG animatedProps={baixo}>
+        <Path d="M178 33c2-3 4-3 5 0 2-3 4-3 5 0" />
+      </AnimatedG>
     </G>
   );
 }
@@ -182,8 +238,10 @@ function Fabrica({ massa, vazio }: Pincel): ReactElement {
 
 /** O CAMINHÃO, e ele ANDA: o verbo do transporte é atravessar. */
 function Caminhao({ massa, vazio }: Pincel): ReactElement {
-  const passo = useCiclo(13_000, { repouso: 0.4 });
-  const ar = useAnimatedProps(() => ({ transform: [{ translateX: 130 + passo.value * 200 }] }));
+  // Entra por fora da folha e sai por fora dela: um caminhão que nasce no meio do
+  // quadro não está atravessando, está aparecendo.
+  const passo = useCiclo(13_000, { repouso: 0.45 });
+  const ar = useAnimatedProps(() => ({ transform: [{ translateX: -96 + passo.value * 470 }] }));
   return (
     <AnimatedG animatedProps={ar}>
       <G fill={massa}>
@@ -354,26 +412,67 @@ function Escuta({ massa }: Pincel): ReactElement {
   );
 }
 
-/** A ENGRENAGEM — ajustes. Gira devagar, porque é o único verbo que ela tem. */
+/**
+ * A ENGRENAGEM — ajustes. Duas, de tamanhos diferentes, girando em sentidos opostos.
+ *
+ * **O giro NÃO usa a propriedade `origin`, e isso é cicatriz de foto.** A primeira
+ * versão era um `<G origin="272, 42">` com `transform: [{ rotate }]` vindo de
+ * `animatedProps` — e na foto do emulador a engrenagem aparecia no primeiro quadro
+ * e **sumia** depois, sobrando um calço solto no horizonte. O `transform` animado
+ * substitui o eixo declarado em `origin`, então a peça passa a girar em torno do
+ * canto (0,0) do quadro e sai de vista em poucos graus.
+ *
+ * O eixo entra na própria lista de transformações — ir até o centro, girar, voltar
+ * —, que não depende de propriedade nenhuma. Vale a pena repetir por que isto não
+ * apareceu antes: `typecheck`, `lint` e a suíte inteira ficam verdes com a peça
+ * fora da tela. **O que pegou foi olhar a foto.**
+ */
 function Engrenagem({ massa, vazio }: Pincel): ReactElement {
-  const giro = useCiclo(28_000, { repouso: 0 });
-  const ar = useAnimatedProps(() => ({ transform: [{ rotate: `${giro.value * 360}deg` }] }));
-  const dentes = Array.from({ length: 8 }, (_, i) => i);
+  const giro = useCiclo(34_000, { repouso: 0 });
+  const grande = useAnimatedProps(() => ({
+    transform: [
+      { translateX: 258 },
+      { translateY: 40 },
+      { rotate: `${giro.value * 360}deg` },
+      { translateX: -258 },
+      { translateY: -40 },
+    ],
+  }));
+  const pequena = useAnimatedProps(() => ({
+    transform: [
+      { translateX: 316 },
+      { translateY: 52 },
+      { rotate: `${-giro.value * 360}deg` },
+      { translateX: -316 },
+      { translateY: -52 },
+    ],
+  }));
   return (
     <>
-      <AnimatedG animatedProps={ar} origin="272, 42">
+      <AnimatedG animatedProps={grande}>
         <G fill={massa}>
-          <Path d="M272 20a22 22 0 1 1 0 44 22 22 0 0 1 0-44z" />
-          {dentes.map((i) => (
-            <Rect key={i} x={267} y={12} width={10} height={10} rx={2} origin="272, 42" rotation={i * 45} />
+          <Path d="M258 16a24 24 0 1 1 0 48 24 24 0 0 1 0-48z" />
+          {DENTES.map((a) => (
+            <Rect key={a} x={252} y={8} width={12} height={12} rx={2} transform={`rotate(${a} 258 40)`} />
           ))}
         </G>
-        <Path d="M272 34a8 8 0 1 1 0 16 8 8 0 0 1 0-16z" fill={vazio} />
+        <Path d="M258 31a9 9 0 1 1 0 18 9 9 0 0 1 0-18z" fill={vazio} />
       </AnimatedG>
-      <Rect x={300} y={52} width={26} height={12} rx={5} fill={massa} />
+      <AnimatedG animatedProps={pequena}>
+        <G fill={massa}>
+          <Path d="M316 38a14 14 0 1 1 0 28 14 14 0 0 1 0-28z" />
+          {DENTES.map((a) => (
+            <Rect key={a} x={312} y={34} width={8} height={8} rx={2} transform={`rotate(${a} 316 52)`} />
+          ))}
+        </G>
+        <Path d="M316 47a5 5 0 1 1 0 10 5 5 0 0 1 0-10z" fill={vazio} />
+      </AnimatedG>
     </>
   );
 }
+
+/** Oito dentes, de quarenta e cinco em quarenta e cinco graus. */
+const DENTES = [0, 45, 90, 135, 180, 225, 270, 315];
 
 /** A ESTANTE da cópia: prateleiras de comprimentos diferentes, e uma pasta a guardar. */
 function Estante({ massa, vazio }: Pincel): ReactElement {

@@ -6211,3 +6211,71 @@ e cabe no que já foi construído; a primeira é um PDV, que é outro produto.
 
 Fica escrito porque é a lacuna que mais decide o que o aplicativo consegue afirmar, e
 porque descobri-la custou construir uma feature que perguntava a coisa errada.
+
+---
+
+## 7 de setembro — a capa foi consertada duas vezes e o resto ficou para trás, duas vezes
+
+**O achado não é nenhum dos quatro defeitos abaixo. É o padrão que eles formam.**
+
+O dono abriu o aplicativo e mandou duas correções em poucas horas. As duas são a
+mesma frase com outro sujeito:
+
+> *"o cabeçalho animado pegou as animações do tema do Papel. pelo visto vc esqueceu
+> de fazer para o orgânico."*
+
+> *"tem elemento aí do tema legado q está atrapalhando tudo"* — circulando a quina de
+> um cartão dos Ajustes.
+
+Nos dois casos a **capa** já tinha o vocabulário certo da pele e as **vinte outras
+telas** ficaram com o antigo. E nos dois casos o conserto da capa está escrito no
+repositório com o motivo certo — `src/home/capas/` existe exatamente porque *"o
+Orgânico era o Papel com a cena trocada"* foi recusado uma vez. O que não aconteceu
+foi a pergunta seguinte: **o que MAIS desenha isto?**
+
+| o que a capa ganhou | o que ficou para trás | quanto tempo ficou |
+|---|---|---|
+| casco de página e de peça por pele (`Vestimenta`) | o `Card` de 35 telas desenhando a própria caixa | desde que `Tracos` nasceu |
+| cena do herói por pele (`capas/organico.tsx`) | as 18 cenas de cabeçalho, uma geometria só | desde que o cabeçalho vivo nasceu |
+
+A consequência escrita no `CLAUDE.md`: **conserto de pele não termina no arquivo que
+o mostrou.** Quando uma peça passa a perguntar o traço, a rodada só fecha depois de
+`grep` pelos outros que desenham a mesma coisa.
+
+### Os quatro defeitos, e o que cada um ensina
+
+**1. A cena do cabeçalho lia cor e espessura e desenhava uma geometria só.** O pior
+não é o defeito: é que o docblock do arquivo dizia que ler a espessura da pele era
+*justamente* o que evitava "o Orgânico é o Papel com outro desenho". Era o defeito,
+com um parágrafo explicando por que não era. **Comentário que se declara imune é a
+melhor pista de que ninguém conferiu.**
+
+**2. A engrenagem sumia depois de começar a girar.** `transform` vindo de
+`animatedProps` substitui o eixo declarado em `origin`, então a peça passa a girar em
+torno do canto (0,0) e sai de vista em poucos graus. O eixo tem de entrar na própria
+lista de transformações.
+
+**3. O botão de um controle saía da prancheta pela esquerda.** `Cursor` recebia
+CENTRO e CURSO, e a cena dos ajustes pedia centro 0,18 com curso 0,55 — meio curso é
+0,275, então o botão ia a −0,095. **A assinatura deixava escrever um estado inválido**;
+com começo e fim, qualquer par entre 0 e 1 fica no trilho. Não se conserta o número:
+conserta-se a assinatura que permitia o número.
+
+**4. A cunha na quina do cartão.** Borda esquerda grossa com canto arredondado: as
+duas bordas têm de se encontrar ao longo de vinte e oito unidades de curva, e o que
+sai é uma cunha que afina e desaparece. **O Papel nunca teve o defeito porque no
+Papel a régua é em cima e a caixa não existe** — era defeito exclusivo da pele de
+canto redondo, o que é outra forma de dizer que ninguém olhou a pele de canto redondo
+fora da capa.
+
+### E a régua que quase mentiu
+
+O guarda escrito para o defeito 4 procurava os dois sinais no arquivo INTEIRO e
+acusou o `Card` já consertado: o crachá redondo usa `radius.lg` num objeto e a régua
+reta usa `borderLeftWidth` noutro, a oitenta linhas de distância. A segunda versão
+ainda errava, porque corpo de função também é `{ … }`. **A régua só ficou de pé na
+terceira**, e quem pegou as duas primeiras foi o teste do caso FALSO — o que a regra
+da casa já exigia e que desta vez foi escrito antes de o número sair.
+
+Prova final: rodada contra `git show HEAD:src/components/Card.tsx` — o arquivo real de
+antes do conserto — ela acusa; contra o de depois, não.

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { cenaParada } from './cena';
+import { noTrilho } from './cenas/prancha';
 
 /**
  * A cena parada — a regra que decide se a legenda explica o silêncio.
@@ -34,4 +35,35 @@ test('nulo e zero enchem o mesmo tanto, então a legenda os trata igual', () => 
     cenaParada({ running: false, shipped: false, dayShare: null }),
     cenaParada({ running: false, shipped: false, dayShare: 0 }),
   );
+});
+
+/**
+ * O botão do cursor não sai do trilho — e este teste nasceu de uma foto.
+ *
+ * A cena dos ajustes escrevia centro 0,18 e curso 0,55: meio curso é 0,275, então
+ * o botão ia a −0,095 e saía da prancheta pela esquerda. Verde em tudo, e no
+ * emulador o trilho do meio aparecia vazio com um arco vermelho cortado na borda.
+ *
+ * A régua vale porque distingue: os valores de hoje passam, e o par que causou o
+ * defeito reprova. Régua que só sabe aprovar não é régua.
+ */
+test('começo e fim dentro do trilho mantêm o botão no trilho', () => {
+  for (const [de, ate] of [
+    [0.47, 0.77],
+    [0.08, 0.63],
+    [0.22, 0.57],
+  ]) {
+    for (const ciclo of [0, 0.25, 0.5, 0.75, 1]) {
+      const onde = noTrilho(de, ate, ciclo);
+      assert.ok(onde >= 0 && onde <= 1, `${de}..${ate} em ${ciclo} deu ${onde}`);
+    }
+  }
+});
+
+test('o par que causou o defeito seria pego — a régua reprova o caso errado', () => {
+  // O que a assinatura antiga permitia escrever: centro 0,18 com curso 0,55.
+  const de = 0.18 - 0.55 / 2;
+  const ate = 0.18 + 0.55 / 2;
+  assert.ok(noTrilho(de, ate, 0) < 0, 'o começo desse par está fora do trilho');
+  assert.equal(Number(noTrilho(de, ate, 0).toFixed(3)), -0.095);
 });

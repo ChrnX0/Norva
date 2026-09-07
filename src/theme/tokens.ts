@@ -420,7 +420,12 @@ export const hues: Record<Hue, { brand: string; skyTop: string; skyBottom: strin
 };
 
 /**
- * A mesma cor, à noite — e não um cinza no lugar dela.
+ * A mesma cor, mais fechada — e não um cinza no lugar dela.
+ *
+ * O nome diz o EFEITO e não a ocasião: ela nasceu para a noite e a segunda cena
+ * que precisou dela queria a mesma matiz um tom abaixo em pleno dia, para a
+ * silhueta se separar da colina. `noturno` obrigaria a segunda chamada a mentir
+ * sobre o que está fazendo.
  *
  * No escuro a paisagem pintava `sunken` sobre `surface` sobre `paper`: três
  * cinzas separados por dezoito unidades de brilho. O desenho existia e não se
@@ -431,7 +436,7 @@ export const hues: Record<Hue, { brand: string; skyTop: string; skyBottom: strin
  * SUPERFÍCIE, não para cena: uma colina não é fundo de cartão, é a figura. Aqui
  * a matiz escolhida continua, escurecida — que é o que uma colina faz à noite.
  */
-export function noturno(hex: string, fator: number): string {
+export function escurecer(hex: string, fator: number): string {
   const n = parseInt(hex.replace('#', ''), 16);
   const r = Math.round(((n >> 16) & 255) * fator);
   const g = Math.round(((n >> 8) & 255) * fator);

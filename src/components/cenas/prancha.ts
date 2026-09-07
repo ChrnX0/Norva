@@ -54,3 +54,24 @@ export const CENAS = [
 ] as const;
 
 export type Cena = (typeof CENAS)[number];
+
+/**
+ * Onde o botão está no trilho, de 0 (começo) a 1 (fim).
+ *
+ * **Existe porque a assinatura anterior deixava escrever um botão que não cabe.**
+ * `Cursor` recebia o CENTRO do percurso e o CURSO, e a cena dos ajustes pedia
+ * centro 0,18 com curso 0,55 — meio curso é 0,275, então o botão ia até −0,095 do
+ * trilho e saía da prancheta. Na foto do emulador ele aparece como um arco
+ * vermelho cortado na borda esquerda da faixa, com o trilho do meio vazio.
+ *
+ * Nada disso é visível de dentro de um módulo: `typecheck`, `lint` e a suíte
+ * inteira ficam verdes com a peça fora da tela. **O que pegou foi olhar a foto.**
+ *
+ * Com começo e fim, qualquer par dentro de 0 e 1 mantém o botão no trilho — o
+ * estado inválido deixa de ser escrevível em vez de depender de quem calcula
+ * certo na hora de escrever a cena.
+ */
+export function noTrilho(de: number, ate: number, ciclo: number): number {
+  'worklet';
+  return de + (ate - de) * ciclo;
+}

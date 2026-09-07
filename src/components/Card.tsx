@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { RAIL_WIDTH } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useVestimenta } from '@/home/capas/vestimenta';
 import { useSuperficie } from './Superficie';
 
 type Tone = 'plain' | 'area' | 'danger' | 'warning';
@@ -40,14 +41,20 @@ export function tint(hex: string, alpha: number): string {
  * `title` do lado. Ícone é a coisa mais barata que existe para uma tela deixar
  * de ser uma lista de parágrafos.
  */
-export function Card({
-  children,
-  tone = 'plain',
-  hue,
-  icon,
-  title,
-  style,
-}: {
+export function Card(props: CartaoProps) {
+  const jaEmSuperficie = useSuperficie();
+  const { Bloco } = useVestimenta();
+  // Já sobre uma superfície, o cartão desenha só o CONTEÚDO: um segundo casco
+  // dentro do primeiro é a caixa dentro da caixa que o dono recusou.
+  if (jaEmSuperficie) return <Miolo {...props} />;
+  return (
+    <Bloco>
+      <Miolo {...props} />
+    </Bloco>
+  );
+}
+
+type CartaoProps = {
   children: ReactNode;
   tone?: Tone;
   /**
@@ -87,7 +94,9 @@ export function Card({
       icon?: undefined;
       title?: string;
     }
-)) {
+);
+
+function Miolo({ children, tone = 'plain', hue, icon, title, style }: CartaoProps) {
   const { color, scheme, radius, space, type, accent, tracos } = useTheme();
 
   const toneColor =
@@ -99,11 +108,6 @@ export function Card({
         : tone === 'warning'
           ? color.warning
           : null);
-
-  // O escuro aguenta mais cor que o claro: sobre papel quase branco, doze por
-  // cento de âmbar já vira um cartão amarelo.
-  const wash = scheme === 'dark' ? 0.13 : 0.08;
-  const edge = scheme === 'dark' ? 0.34 : 0.24;
 
   /**
    * O Papel não tem caixa. Esta é a segunda vez que isso é dito no código.
@@ -124,16 +128,11 @@ export function Card({
    */
   const papel = tracos.genero === 'pagina';
 
-  // Já sobre uma superfície, o cartão desenha o CONTEÚDO e não a moldura: o
-  // casco de peça do Orgânico é o cartão, e um segundo cartão dentro dele é a
-  // caixa dentro da caixa que o dono recusou. Ver `Superficie`.
-  const jaEmSuperficie = useSuperficie();
-
   return (
     <View
       style={[
         styles.base,
-        papel && !jaEmSuperficie
+        papel
           ? {
               backgroundColor: 'transparent',
               borderRadius: 0,
@@ -150,28 +149,19 @@ export function Card({
               paddingBottom: space.lg,
               paddingHorizontal: 0,
             }
-          : jaEmSuperficie
-            ? {
-                // Sobre uma superfície sobra a RÉGUA da cor do assunto, que é o
-                // que responde "de que isto fala" — e ela é a única coisa do
-                // casco que não é moldura.
-                backgroundColor: 'transparent',
-                borderRadius: 0,
-                borderTopWidth: 0,
-                borderRightWidth: 0,
-                borderBottomWidth: 0,
-                borderLeftWidth: toneColor ? RAIL_WIDTH : 0,
-                borderLeftColor: toneColor ?? 'transparent',
-                paddingLeft: toneColor ? space.lg : 0,
-              }
-            : {
-                backgroundColor: toneColor ? tint(toneColor, wash) : color.surface,
-                borderColor: toneColor ? tint(toneColor, edge) : color.line,
-                borderRadius: radius.xl,
-                padding: space.lg,
-                borderLeftWidth: toneColor ? RAIL_WIDTH : StyleSheet.hairlineWidth,
-                borderLeftColor: toneColor ?? color.line,
-              },
+          : {
+              // Sobre uma superfície sobra a RÉGUA da cor do assunto, que é o
+              // que responde "de que isto fala" — e ela é a única coisa do casco
+              // que não é moldura. Reta, porque aqui não há canto para curvar.
+              backgroundColor: 'transparent',
+              borderRadius: 0,
+              borderTopWidth: 0,
+              borderRightWidth: 0,
+              borderBottomWidth: 0,
+              borderLeftWidth: toneColor ? RAIL_WIDTH : 0,
+              borderLeftColor: toneColor ?? 'transparent',
+              paddingLeft: toneColor ? space.lg : 0,
+            },
         style,
       ]}
     >

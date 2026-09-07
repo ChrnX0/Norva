@@ -80,8 +80,17 @@ export type Vestimenta = {
    * outros — não porque ela precise saber a ORDEM. Quem encosta na paisagem é o
    * miolo inteiro, subido pelo casco: amarrar a sobreposição à "primeira peça"
    * quebrava no dia em que a primeira peça não tivesse o que dizer.
+   *
+   * **E o `id` é opcional porque este casco não é mais só da capa.** O `Card` de
+   * TODA tela pergunta a roupa da pele em vez de desenhar a própria caixa — foi o
+   * dono quem apontou, em 7 de setembro, circulando a quina de um cartão dos
+   * Ajustes: *"tem elemento aí do tema legado q está atrapalhando tudo"*. Estava:
+   * a capa ganhou o casco da pele e as outras vinte telas continuaram com o cartão
+   * de antes de existir `Tracos` — retângulo arredondado com uma borda esquerda
+   * grossa, que na curva do canto vira uma cunha torta. A capa nunca teve o
+   * defeito porque a capa nunca desenhou aquela caixa.
    */
-  Bloco: ComponentType<{ id: BriefingWidget; children: ReactNode }>;
+  Bloco: ComponentType<{ id?: BriefingWidget; children: ReactNode }>;
   /**
    * A peça que SANGRA no topo, fora do miolo, e vira o herói da página.
    *

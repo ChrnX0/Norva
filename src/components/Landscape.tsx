@@ -9,7 +9,7 @@ import Svg, {
   Rect,
   Stop,
 } from 'react-native-svg';
-import { hues, noturno } from '@/theme/tokens';
+import { escurecer, hues } from '@/theme/tokens';
 import { Vivo } from './Vivo';
 import { useAppearance } from '@/theme/Appearance';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -88,18 +88,18 @@ export function Landscape({
         <Defs>
           <LinearGradient id="ceu" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={noite ? color.paper : paleta.skyTop} stopOpacity={quente ? 1 : 0.85} />
-            <Stop offset="1" stopColor={noite ? noturno(paleta.skyBottom, 0.3) : paleta.skyBottom} />
+            <Stop offset="1" stopColor={noite ? escurecer(paleta.skyBottom, 0.3) : paleta.skyBottom} />
           </LinearGradient>
         </Defs>
         <Rect width={412} height={210} fill="url(#ceu)" />
 
         <Path
           d="M0 150c70-22 120 14 206 2s136-30 206-12v70H0z"
-          fill={noite ? noturno(paleta.hillFar, 0.42) : paleta.hillFar}
+          fill={noite ? escurecer(paleta.hillFar, 0.42) : paleta.hillFar}
         />
         <Path
           d="M0 182c80-16 130 12 206 4s130-22 206-6v34H0z"
-          fill={noite ? noturno(paleta.hillNear, 0.58) : paleta.hillNear}
+          fill={noite ? escurecer(paleta.hillNear, 0.58) : paleta.hillNear}
         />
       </Svg>
 
@@ -119,7 +119,7 @@ export function Landscape({
             <Stop offset="1" stopColor="#F7E6B5" stopOpacity={0} />
           </RadialGradient>
         </Defs>
-        <G fill={noite ? noturno(paleta.hillNear, 0.72) : paleta.hillNear}>
+        <G fill={noite ? escurecer(paleta.hillNear, 0.72) : paleta.hillNear}>
           <Path d="M282 156h60v30h-60z" />
           <Path d="M282 156l10-15 10 15 10-15 10 15 10-15 10 15" />
           <Rect x={348} y={132} width={9} height={54} />

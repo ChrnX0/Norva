@@ -6,7 +6,7 @@ import type { Tracos } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useCiclo } from '../vida';
 import { CenaPaisagem } from './Paisagem';
-import { CHAO, PRANCHA_DO_CABECALHO, type Cena } from './prancha';
+import { CHAO, noTrilho, PRANCHA_DO_CABECALHO, type Cena } from './prancha';
 
 const AnimatedG = Animated.createAnimatedComponent(G);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -800,9 +800,11 @@ function Pessoa({
 function Ajustes({ tinta, acento, frio }: Pincel) {
   return (
     <>
-      <Cursor x={16} largura={210} y={22} inicio={0.62} curso={0.3} cor={tinta} atrasoMs={0} />
-      <Cursor x={16} largura={300} y={42} inicio={0.18} curso={0.55} cor={acento} atrasoMs={1700} />
-      <Cursor x={16} largura={158} y={60} inicio={0.4} curso={0.35} cor={tinta} atrasoMs={3400} />
+      <Cursor x={16} largura={210} y={22} de={0.47} ate={0.77} cor={tinta} atrasoMs={0} />
+      <Cursor x={16} largura={300} y={42} de={0.08} ate={0.63} cor={acento} atrasoMs={1700} />
+      {/* A 60 este trilho encostava na linha do chão (64): dois riscos paralelos a
+          quatro unidades leem como um risco grosso, não como duas coisas. */}
+      <Cursor x={16} largura={158} y={54} de={0.22} ate={0.57} cor={tinta} atrasoMs={3400} />
 
       {/* O interruptor: nem toda escolha é um cursor. */}
       <G stroke={frio}>
@@ -903,24 +905,24 @@ function Cursor({
   x,
   largura,
   y,
-  inicio,
-  curso,
+  de,
+  ate,
   cor,
   atrasoMs,
 }: {
   x: number;
   largura: number;
   y: number;
-  /** Onde a alavanca fica em repouso, de 0 a 1 do trilho. */
-  inicio: number;
-  /** Quanto ela percorre. Percursos iguais em trilhos diferentes é o mesmo defeito. */
-  curso: number;
+  /** Onde o percurso começa, de 0 a 1 do trilho. */
+  de: number;
+  /** Onde ele termina. Percursos iguais em trilhos diferentes é o mesmo defeito. */
+  ate: number;
   cor: string;
   atrasoMs: number;
 }) {
   const ciclo = useCiclo(7200, { feitio: 'vaivem', atrasoMs, repouso: 0.5 });
   const botao = useAnimatedProps(() => ({
-    transform: [{ translateX: (inicio + curso * (ciclo.value - 0.5)) * largura }],
+    transform: [{ translateX: noTrilho(de, ate, ciclo.value) * largura }],
   }));
   return (
     <>
