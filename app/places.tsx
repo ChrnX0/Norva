@@ -31,6 +31,7 @@ import {
   type Place,
   type PlaceStock,
   type Reading,
+  currentCapabilities,
 } from '@/data/repository';
 import { dayWindow, localDate } from '@/domain/day';
 import { rate } from '@/domain/money';
@@ -81,7 +82,19 @@ export default function PlacesScreen() {
   );
 }
 
-type Loaded = { places: Place[]; stock: PlaceStock[]; readings: Reading[] };
+type Loaded = {
+  places: Place[];
+  stock: PlaceStock[];
+  readings: Reading[];
+  /**
+   * Se quem está com o aparelho administra a empresa.
+   *
+   * A camada de dados já recusa (`savePlace` exige `manage_company`), então
+   * isto não é permissão — é a tela não oferecer um botão que vai dar erro.
+   * Erro que IMPEDE, não que reclama: quem não pode, não vê o convite.
+   */
+  podeAdministrar: boolean;
+};
 
 /**
  * O desenho de cada tipo de lugar.
@@ -108,12 +121,13 @@ function Places() {
   const words = t.app.places;
 
   const { data, refresh } = useQuery<Loaded>(async () => {
-    const [places, stock, readings] = await Promise.all([
+    const [places, stock, readings, capacidades] = await Promise.all([
       listPlaces(LOCAL_COMPANY_ID),
       stockByPlace(LOCAL_COMPANY_ID),
       lastReadings(LOCAL_COMPANY_ID),
+      currentCapabilities(LOCAL_COMPANY_ID),
     ]);
-    return { places, stock, readings };
+    return { places, stock, readings, podeAdministrar: capacidades.has('manage_company') };
   });
 
   const [adding, setAdding] = useState(false);
@@ -121,6 +135,36 @@ function Places() {
   const [kind, setKind] = useState('own_store');
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  /**
+   * Renomear — e ele tinha que existir ANTES de qualquer outra coisa sobre lugar.
+   *
+   * Não havia tela nenhuma que mudasse o nome de um lugar. Quem instala quer,
+   * na primeira hora, chamar a sala padrão de "Fábrica Centro" ou "Galpão 2", e
+   * a sala padrão nasce com o nome VAZIO — a palavra "Fábrica" é da tela. Então
+   * qualquer edição que passasse `name: place.name` para a sala padrão seria
+   * recusada por `savePlace` ("um lugar sem nome não se distingue de outro").
+   * Renomear é a porta que faz a sala padrão ganhar um nome de verdade, e a
+   * partir daí as outras edições dela passam a ser possíveis.
+   */
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [newName, setNewName] = useState('');
+  const podeAdministrar = data?.podeAdministrar ?? false;
+
+  const salvarNome = async (place: Place) => {
+    const nome = newName.trim();
+    if (!nome || saving) return;
+    setSaving(true);
+    try {
+      // Só o nome: `savePlace` sem `contactPhone`/`deliveryDays`/`sensorRanges`
+      // é "não mexa no que já estava combinado", por contrato.
+      await savePlace(LOCAL_COMPANY_ID, { id: place.id, name: nome, kind: place.kind });
+      setRenaming(null);
+      setNewName('');
+      refresh();
+    } finally {
+      setSaving(false);
+    }
+  };
 
   /**
    * Que dia da semana é hoje, no fuso da fábrica.
@@ -221,6 +265,45 @@ function Places() {
               <Text style={[type.overline, { color: color.inkFaint }]}>
                 {(words.kinds[place.kind as keyof typeof words.kinds] ?? place.kind).toUpperCase()}
               </Text>
+
+              {renaming === place.id ? (
+                <View style={{ gap: space.sm, marginTop: space.sm }}>
+                  <Field
+                    label={words.placeName}
+                    value={newName}
+                    onChangeText={setNewName}
+                    hint={words.renameHint}
+                  />
+                  {/* Empilhados, não lado a lado. A foto mostrou "Salvar lugar" quebrado
+                      em duas linhas, espremido por "Deixar como está" — o botão cheio é a
+                      ação e não pode ceder largura para a saída. É a mesma forma do
+                      cadastro logo abaixo: o Salvar ocupa a linha inteira. */}
+                  <Button
+                    label={words.save}
+                    onPress={() => void salvarNome(place)}
+                    disabled={!newName.trim() || saving}
+                  />
+                  <Button
+                    label={words.keep}
+                    variant="ghost"
+                    onPress={() => {
+                      setRenaming(null);
+                      setNewName('');
+                    }}
+                    style={{ alignSelf: 'flex-start', paddingVertical: space.sm, paddingHorizontal: space.lg }}
+                  />
+                </View>
+              ) : podeAdministrar ? (
+                <Button
+                  label={words.rename}
+                  variant="ghost"
+                  onPress={() => {
+                    setRenaming(place.id);
+                    setNewName(place.name);
+                  }}
+                  style={{ alignSelf: 'flex-start', paddingVertical: space.sm, paddingHorizontal: space.lg }}
+                />
+              ) : null}
 
               {/* Lei 3: nenhum número sozinho. O dinheiro parado ali vem com a
                   conta de quantos itens o somam — é o que transforma "R$ 1.240"
@@ -415,8 +498,10 @@ function Places() {
               <Button label={words.save} onPress={onSave} disabled={!name.trim() || saving} />
             </View>
           </Card>
-        ) : (
+        ) : podeAdministrar ? (
           <Button label={words.newPlace} onPress={() => setAdding(true)} variant="ghost" />
+        ) : (
+          <Text style={[type.caption, { color: color.inkFaint }]}>{words.onlyAdminEdits}</Text>
         )}
       </Reveal>
 

@@ -1466,6 +1466,39 @@ check('what went out today lands on the transport tab, by destination', async (p
   assert.doesNotMatch(await screen(page), /[Pp]rimeira carga/);
 });
 
+check('the default room can be given a real name, and keeps being the factory', async (page) => {
+  /**
+   * Renomear não existia em tela nenhuma — e é a primeira coisa que quem instala
+   * quer fazer. A sala padrão nasce com o nome VAZIO (a palavra "Fábrica" é da
+   * tela), então esta checagem é a que prova a porta por onde ela ganha um nome
+   * de verdade. Mudança no que a tela mostra por PADRÃO é mudança de que o
+   * navegador faz parte, não do fechamento — regra da casa, com cinco cicatrizes.
+   */
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const antes = await screen(page);
+  assert.match(antes, /Fábrica/, 'a sala padrão está na tela com o nome que a tela lhe dá');
+  assert.match(antes, /Renomear/, 'e o dono vê a porta de renomear');
+
+  // A lista sai ordenada por espécie: o cliente semeado ("Mercado do Zé") vem
+  // antes da fábrica. A precondição fica presa para a checagem não renomear a
+  // loja errada em silêncio quando a ordem mudar.
+  const botoes = page.getByRole('button', { name: 'Renomear' });
+  assert.ok((await botoes.count()) >= 2, 'há pelo menos o cliente semeado e a fábrica');
+  await botoes.nth(1).click();
+  await page.waitForTimeout(600);
+
+  await page.getByLabel('Como se chama').first().fill('Galpão 2');
+  await page.getByRole('button', { name: 'Salvar lugar' }).first().click();
+  await page.getByText('Galpão 2').first().waitFor({ timeout: 10_000 });
+
+  const depois = await screen(page);
+  assert.match(depois, /Galpão 2/, 'o nome novo está na tela');
+  assert.match(depois, /FÁBRICA/, 'e a sala continua sendo a fábrica — renomear não muda a espécie');
+  assert.doesNotMatch(depois, /Galpão 2[^|]*\| *Fábrica/, 'a palavra padrão sai quando há nome de verdade');
+});
+
 check('a store is created, loaded, and the company still has the same sugar', async (page) => {
   await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);

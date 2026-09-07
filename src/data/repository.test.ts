@@ -5363,3 +5363,36 @@ test('a sala que nasce sozinha é a FÁBRICA, e quem já instalou é corrigido',
     'e não recebe carga',
   );
 });
+
+test('a sala padrão nasce sem nome, e renomear é a porta por onde ela ganha um', async () => {
+  /**
+   * Nenhuma tela renomeava lugar — e a sala padrão é o caso que mais precisa.
+   *
+   * Ela nasce com o nome VAZIO de propósito (a palavra "Fábrica" é da tela, em
+   * três idiomas, e não do banco). Só que `savePlace` recusa nome vazio, então
+   * qualquer edição que passasse `name: place.name` para ela era recusada — a
+   * sala padrão era a única que não se podia editar, e era a primeira que
+   * alguém quer chamar de "Galpão 2".
+   *
+   * O que este teste prende: renomear muda SÓ o nome. A espécie fica (é a
+   * fábrica), o acordo fica (ausente é "não mexa"), e o id fica — porque todo
+   * movimento já gravado aponta para ele.
+   */
+  await ensureStarterData(CO);
+  const id = defaultLocationId(CO);
+  const antes = (await listPlaces(CO)).find((p) => p.id === id);
+  assert.ok(antes, 'a sala padrão existe');
+  assert.equal(antes.name, '', 'e nasce sem nome, por desenho');
+
+  const depois = await savePlace(CO, { id, name: 'Galpão 2', kind: antes.kind });
+  assert.equal(depois.id, id, 'renomear não troca o id — o razão aponta para ele');
+  assert.equal(depois.name, 'Galpão 2');
+  assert.equal(depois.kind, 'factory', 'renomear não muda a espécie');
+
+  // E o nome vazio continua recusado: sem nome, dois lugares não se distinguem.
+  await assert.rejects(
+    () => savePlace(CO, { id, name: '   ', kind: antes.kind }),
+    /sem nome/,
+    'o vazio não volta pela porta do renomear',
+  );
+});

@@ -1201,6 +1201,12 @@ export const ptBR = {
       outOfRange: 'fora da faixa de {{min}} a {{max}}',
       inRange: 'dentro da faixa',
       editAgreement: 'Combinar entrega',
+      // Renomear não existia em tela nenhuma — e é a primeira coisa que quem
+      // instala quer fazer. A sala padrão nasce sem nome; é aqui que ela ganha um.
+      rename: 'Renomear',
+      renameHint: 'O nome que a sua equipe usa para este lugar.',
+      keep: 'Deixar como está',
+      onlyAdminEdits: 'Cadastrar e renomear lugares é de quem administra a empresa.',
       deliversToday: 'hoje é dia de entrega',
       deliversIn: 'a próxima é {{day}}',
       emptyPlace: 'nada aqui ainda',
