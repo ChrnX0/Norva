@@ -1,23 +1,19 @@
-import { Stack, useRouter } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
-import { BarraDoSistema } from "@/components/BarraDoSistema";
-import { useEffect, useState } from "react";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import { ConfirmProvider } from "@/components/Confirm";
-import { Crash } from "@/components/Crash";
-import { WhatsNew } from "@/components/WhatsNew";
-import { Alerts } from "@/notify/Alerts";
-import { carregarEmpresa } from "@/data/empresa";
-import { ensureStarterData } from "@/data/seed";
-import {
-  floorSignIn,
-  namesWhoRecorded,
-  setCurrentOperator,
-} from "@/data/repository";
-import { LocaleProvider } from "@/i18n/Locale";
-import { AppearanceProvider, useAppearance } from "@/theme/Appearance";
-import { ThemeProvider } from "@/theme/ThemeProvider";
+import { Stack, useRouter } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { BarraDoSistema } from '@/components/BarraDoSistema';
+import { useEffect, useState } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ConfirmProvider } from '@/components/Confirm';
+import { Crash } from '@/components/Crash';
+import { WhatsNew } from '@/components/WhatsNew';
+import { Alerts } from '@/notify/Alerts';
+import { carregarEmpresa } from '@/data/empresa';
+import { ensureStarterData } from '@/data/seed';
+import { floorSignIn, namesWhoRecorded, setCurrentOperator } from '@/data/repository';
+import { LocaleProvider } from '@/i18n/Locale';
+import { AppearanceProvider, useAppearance } from '@/theme/Appearance';
+import { ThemeProvider } from '@/theme/ThemeProvider';
 
 /**
  * A abertura fica até o aplicativo saber QUE CARA desenhar.
@@ -80,17 +76,14 @@ function QuemEstaComOAparelho() {
   useEffect(() => {
     let vivo = true;
     void (async () => {
-      const [nomeia, entrada] = await Promise.all([
-        namesWhoRecorded(),
-        floorSignIn(),
-      ]);
-      if (!vivo || !nomeia || entrada !== "shared") return;
+      const [nomeia, entrada] = await Promise.all([namesWhoRecorded(), floorSignIn()]);
+      if (!vivo || !nomeia || entrada !== 'shared') return;
       await setCurrentOperator(null);
       // `replace`, não `push`: com `push` o gesto de voltar deixa a pessoa no
       // estado de ninguém identificado sem ter tocado em nada — e num aparelho
       // compartilhado esse estado é o PISO (`currentCapabilities`), então voltar
       // seria um jeito de operar sem dizer quem é. A grade não tem "atrás".
-      if (vivo) router.replace("/who" as never);
+      if (vivo) router.replace('/who' as never);
     })();
     return () => {
       vivo = false;
@@ -106,13 +99,7 @@ function QuemEstaComOAparelho() {
  * whether to trust software with their money is the worst possible answer: they
  * cannot tell a bug from their own mistake, so they assume it was theirs.
  */
-export function ErrorBoundary({
-  error,
-  retry,
-}: {
-  error: Error;
-  retry: () => Promise<void>;
-}) {
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
   return (
     <SafeAreaProvider>
       <LocaleProvider>
@@ -155,18 +142,15 @@ export default function RootLayout() {
     carregarEmpresa()
       .then(() => ensureStarterData())
       .then(
-        () => {
-          if (alive) setState({ ready: true, error: null });
-        },
-        (e: unknown) => {
-          if (alive) {
-            setState({
-              ready: true,
-              error: e instanceof Error ? e : new Error(String(e)),
-            });
-          }
-        },
-      );
+      () => {
+        if (alive) setState({ ready: true, error: null });
+      },
+      (e: unknown) => {
+        if (alive) {
+          setState({ ready: true, error: e instanceof Error ? e : new Error(String(e)) });
+        }
+      },
+    );
     return () => {
       alive = false;
     };

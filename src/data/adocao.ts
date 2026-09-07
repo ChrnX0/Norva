@@ -1,6 +1,6 @@
-import { db, type Db } from "./db";
-import { CHAVE_DA_EMPRESA, carregarEmpresa, empresaDaqui } from "./empresa";
-import { exampleStillHere } from "./seed";
+import { db, type Db } from './db';
+import { CHAVE_DA_EMPRESA, carregarEmpresa, empresaDaqui } from './empresa';
+import { exampleStillHere } from './seed';
 
 /**
  * Ligar este aparelho a uma empresa de verdade — e reescrever o carimbo do que
@@ -25,10 +25,10 @@ import { exampleStillHere } from "./seed";
  * escreve português é a tela.
  */
 export const MOTIVOS_DA_RECUSA = [
-  "idVazio",
-  "jaSubiu",
-  "exemploAqui",
-  "idOcupado",
+  'idVazio',
+  'jaSubiu',
+  'exemploAqui',
+  'idOcupado',
 ] as const;
 
 export type MotivoDaRecusa = (typeof MOTIVOS_DA_RECUSA)[number];
@@ -36,7 +36,7 @@ export type MotivoDaRecusa = (typeof MOTIVOS_DA_RECUSA)[number];
 export class AdocaoRecusadaError extends Error {
   constructor(readonly motivo: MotivoDaRecusa) {
     super(`adoção recusada: ${motivo}`);
-    this.name = "AdocaoRecusadaError";
+    this.name = 'AdocaoRecusadaError';
   }
 }
 
@@ -45,7 +45,7 @@ export class AdocaoRecusadaError extends Error {
  *
  * Identificador não se liga com `?` em SQLite, e estes vêm do próprio esquema —
  * `sqlite_master` e `pragma_foreign_key_list`, não de quem digitou. A checagem
- * existe porque "vem do banco" é a frase que precede toda injeção: se algum dia
+ * existe porque 'vem do banco' é a frase que precede toda injeção: se algum dia
  * uma migração criar tabela com nome estranho, o certo é levantar aqui e não
  * emendar SQL.
  */
@@ -78,7 +78,7 @@ export async function tabelasComEmpresa(conn: Db): Promise<string[]> {
       `SELECT name FROM pragma_table_info(?)`,
       [name],
     );
-    if (colunas.some((c) => c.name === "company_id")) comEmpresa.push(name);
+    if (colunas.some((c) => c.name === 'company_id')) comEmpresa.push(name);
   }
   return comEmpresa;
 }
@@ -99,11 +99,17 @@ export async function colunasDeLugar(
   const achadas: { tabela: string; coluna: string }[] = [];
   for (const { name } of tabelas) {
     const fks = await conn.getAllAsync<{ table: string; from: string }>(
+      // Aspas DUPLAS, e isto não é estilo: em SQL aspa dupla é identificador e aspa
+      // simples é texto. `SELECT 'table', 'from'` compila, roda, e devolve as duas
+      // palavras em vez das duas colunas — então a lista de filhos volta vazia, a
+      // adoção não reponta nada, e o `DELETE` do lugar velho é recusado por chave
+      // estrangeira. Foi o que aconteceu quando uma varredura de aspas passou por
+      // aqui achando que aspa é enfeite.
       `SELECT "table", "from" FROM pragma_foreign_key_list(?)`,
       [name],
     );
     for (const fk of fks) {
-      if (fk.table === "locations")
+      if (fk.table === 'locations')
         achadas.push({ tabela: name, coluna: fk.from });
     }
   }
@@ -121,21 +127,21 @@ export async function porQueNaoPodeAdotar(
   novoId: string,
 ): Promise<MotivoDaRecusa | null> {
   const limpo = novoId.trim();
-  if (!limpo) return "idVazio";
+  if (!limpo) return 'idVazio';
   const conn = await db();
 
   // 1. Alguma linha já subiu: o carimbo velho está no servidor e não sai mais.
   const subiu = await conn.getFirstAsync<{ n: number }>(
     `SELECT COUNT(*) AS n FROM outbox WHERE sent_at IS NOT NULL`,
   );
-  if ((subiu?.n ?? 0) > 0) return "jaSubiu";
+  if ((subiu?.n ?? 0) > 0) return 'jaSubiu';
 
   // 2. O exemplo semeado ainda está aqui. Ele nasceu para ninguém abrir o app
   //    numa tela vazia, e passa pelos escritores de verdade — então uma nota
   //    inventada de polpa é, para o razão, indistinguível de uma nota real.
   //    Adotar com ele dentro sobe fatos fabricados para o livro da fábrica, onde
   //    só o estorno alcança: estorno de coisa que nunca aconteceu.
-  if (await exampleStillHere(empresaDaqui())) return "exemploAqui";
+  if (await exampleStillHere(empresaDaqui())) return 'exemploAqui';
 
   // 3. Já existe linha com o id novo: adoção rodada duas vezes com ids
   //    diferentes, ou cópia restaurada de outro aparelho. Deixar seguir bate num
@@ -145,7 +151,7 @@ export async function porQueNaoPodeAdotar(
     `SELECT COUNT(*) AS n FROM locations WHERE id = ?`,
     [limpo],
   );
-  if ((ocupado?.n ?? 0) > 0) return "idOcupado";
+  if ((ocupado?.n ?? 0) > 0) return 'idOcupado';
 
   return null;
 }
@@ -184,7 +190,7 @@ export async function adotarEmpresa(novoId: string): Promise<void> {
   const lugares = await colunasDeLugar(conn);
   const colunasDoLugar = await conn.getAllAsync<{ name: string }>(
     `SELECT name FROM pragma_table_info(?)`,
-    ["locations"],
+    ['locations'],
   );
 
   await conn.withTransactionAsync(async () => {
@@ -193,10 +199,10 @@ export async function adotarEmpresa(novoId: string): Promise<void> {
     //    acrescente coluna mudaria o significado de um `INSERT` posicional.
     const nomes = colunasDoLugar.map((c) => ident(c.name));
     const valores = nomes.map((n) =>
-      n === "id" || n === "company_id" ? "?" : n,
+      n === 'id' || n === 'company_id' ? '?' : n,
     );
     await conn.runAsync(
-      `INSERT INTO locations (${nomes.join(", ")}) SELECT ${valores.join(", ")} FROM locations WHERE id = ?`, // proofgate-allow
+      `INSERT INTO locations (${nomes.join(', ')}) SELECT ${valores.join(', ')} FROM locations WHERE id = ?`, // proofgate-allow
       [limpo, limpo, velho],
     );
 

@@ -1,4 +1,4 @@
-import { readMeta } from "./meta";
+import { readMeta } from './meta';
 
 /**
  * Qual empresa é a deste aparelho.
@@ -31,10 +31,10 @@ import { readMeta } from "./meta";
  * "este aparelho ainda é uma instalação nova" de "este aparelho é da empresa
  * tal". Quem for subir dado tem de perguntar isso antes.
  */
-export const EMPRESA_SEMENTE = "00000000-0000-4000-8000-000000000001";
+export const EMPRESA_SEMENTE = '00000000-0000-4000-8000-000000000001';
 
 /** Onde o fato mora. Uma chave, não uma coluna: o aparelho tem uma empresa só. */
-export const CHAVE_DA_EMPRESA = "company.id";
+export const CHAVE_DA_EMPRESA = 'company.id';
 
 let daqui: string = EMPRESA_SEMENTE;
 
@@ -46,7 +46,7 @@ export function empresaDaqui(): string {
 /**
  * Este aparelho já foi ligado a uma empresa de verdade?
  *
- * Não é "tem servidor configurado" nem "tem sessão aberta": é se o carimbo das
+ * Não é 'tem servidor configurado' nem 'tem sessão aberta': é se o carimbo das
  * linhas daqui é um id que o servidor conhece. Enquanto for a semente, o que
  * está gravado aqui não tem para onde subir — e quem tenta subir assim é
  * recusado em bloco, com uma mensagem de chave estrangeira que não explica nada

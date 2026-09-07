@@ -1,23 +1,19 @@
-import { useState } from "react";
-import { Text, View } from "react-native";
-import { Button } from "@/components/Button";
-import { Card } from "@/components/Card";
-import { useConfirm } from "@/components/Confirm";
-import { CollapsingHeader } from "@/components/CollapsingHeader";
-import { Field } from "@/components/Field";
-import { GlyphCustomer, GlyphFactory, GlyphLabel } from "@/components/Glyph";
-import { Reveal } from "@/components/Reveal";
-import { useQuery } from "@/data/useQuery";
-import { useLocale } from "@/i18n/useLocale";
-import { ROLES } from "@/domain/access";
-import { fill } from "@/i18n";
-import {
-  AdocaoRecusadaError,
-  adotarEmpresa,
-  type MotivoDaRecusa,
-} from "@/data/adocao";
-import { puxar } from "@/data/configuracao";
-import { empresaDaqui } from "@/data/empresa";
+import { useState } from 'react';
+import { Text, View } from 'react-native';
+import { Button } from '@/components/Button';
+import { Card } from '@/components/Card';
+import { useConfirm } from '@/components/Confirm';
+import { CollapsingHeader } from '@/components/CollapsingHeader';
+import { Field } from '@/components/Field';
+import { GlyphCustomer, GlyphFactory, GlyphLabel } from '@/components/Glyph';
+import { Reveal } from '@/components/Reveal';
+import { useQuery } from '@/data/useQuery';
+import { useLocale } from '@/i18n/useLocale';
+import { ROLES } from '@/domain/access';
+import { fill } from '@/i18n';
+import { AdocaoRecusadaError, adotarEmpresa, type MotivoDaRecusa } from '@/data/adocao';
+import { puxar } from '@/data/configuracao';
+import { empresaDaqui } from '@/data/empresa';
 import {
   aprovar,
   contaAtual,
@@ -33,8 +29,8 @@ import {
   type Empresa,
   type MotivoDaConta,
   type Pedido,
-} from "@/sync/conta";
-import { AreaProvider, useTheme } from "@/theme/ThemeProvider";
+} from '@/sync/conta';
+import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
  * A conta da empresa.
@@ -101,10 +97,10 @@ export default function AccountScreen() {
   const carregando = estado === null;
 
   const [criando, setCriando] = useState(false);
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [nomeDaEmpresa, setNomeDaEmpresa] = useState("");
-  const [codigo, setCodigo] = useState("");
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
+  const [nomeDaEmpresa, setNomeDaEmpresa] = useState('');
+  const [codigo, setCodigo] = useState('');
   const [pedidoPara, setPedidoPara] = useState<string | null>(null);
 
   const [ocupado, setOcupado] = useState(false);
@@ -118,9 +114,7 @@ export default function AccountScreen() {
     setOcupado(true);
     setMotivo(null);
     setConfirmePorEmail(false);
-    const resposta = criando
-      ? await criarConta(email, senha)
-      : await entrar(email, senha);
+    const resposta = criando ? await criarConta(email, senha) : await entrar(email, senha);
     if (!resposta.ok) {
       setMotivo(resposta.motivo);
       setOcupado(false);
@@ -129,14 +123,14 @@ export default function AccountScreen() {
     // Criar conta nem sempre abre sessão: o servidor pode exigir confirmação por
     // e-mail. Dizer "conta criada" e deixar a pessoa numa tela que recusa a senha
     // dela é o pior desfecho deste caminho, então os dois casos são ditos.
-    if (criando && "sessao" in resposta.valor && !resposta.valor.sessao) {
+    if (criando && 'sessao' in resposta.valor && !resposta.valor.sessao) {
       setConfirmePorEmail(true);
       setCriando(false);
-      setSenha("");
+      setSenha('');
       setOcupado(false);
       return;
     }
-    setSenha("");
+    setSenha('');
     refresh();
     setOcupado(false);
   };
@@ -146,7 +140,7 @@ export default function AccountScreen() {
     setMotivo(null);
     const resposta = await criarEmpresa(nomeDaEmpresa);
     if (!resposta.ok) setMotivo(resposta.motivo);
-    else setNomeDaEmpresa("");
+    else setNomeDaEmpresa('');
     refresh();
     setOcupado(false);
   };
@@ -173,7 +167,7 @@ export default function AccountScreen() {
     } catch (erro) {
       // Fato virando frase é trabalho da tela: a camada de dados devolveu um
       // código, e cada código tem uma frase que diz o que FAZER.
-      setRecusa(erro instanceof AdocaoRecusadaError ? erro.motivo : "idVazio");
+      setRecusa(erro instanceof AdocaoRecusadaError ? erro.motivo : 'idVazio');
     }
     refresh();
     setOcupado(false);
@@ -186,7 +180,7 @@ export default function AccountScreen() {
     if (!resposta.ok) setMotivo(resposta.motivo);
     else {
       setPedidoPara(resposta.valor);
-      setCodigo("");
+      setCodigo('');
     }
     setOcupado(false);
   };
@@ -197,9 +191,7 @@ export default function AccountScreen() {
     // O papel entra na APROVAÇÃO e não no pedido: quem pede não escolhe o que
     // pode fazer. `operator` é o padrão pela decisão do dono — aparelho
     // emprestado produz, despacha e confere, e não vê dinheiro em lugar nenhum.
-    const resposta = sim
-      ? await aprovar(id, [...ROLES.operator])
-      : await recusar(id);
+    const resposta = sim ? await aprovar(id, [...ROLES.operator]) : await recusar(id);
     if (!resposta.ok) setMotivo(resposta.motivo);
     refresh();
     setOcupado(false);
@@ -214,16 +206,10 @@ export default function AccountScreen() {
 
   return (
     <AreaProvider area="sky">
-      <CollapsingHeader
-        cena="gente"
-        title={t.app.account.title}
-        overline={t.app.account.overline}
-      >
+      <CollapsingHeader cena="gente" title={t.app.account.title} overline={t.app.account.overline}>
         {carregando ? (
           <Reveal index={0}>
-            <Text style={[type.body, { color: color.inkMuted }]}>
-              {t.app.account.working}
-            </Text>
+            <Text style={[type.body, { color: color.inkMuted }]}>{t.app.account.working}</Text>
           </Reveal>
         ) : null}
 
@@ -235,12 +221,7 @@ export default function AccountScreen() {
               icon={(c) => <GlyphCustomer size={26} color={c} />}
               title={criando ? t.app.account.signUp : t.app.account.signIn}
             >
-              <Text
-                style={[
-                  type.secondary,
-                  { color: color.inkMuted, marginBottom: space.md },
-                ]}
-              >
+              <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.md }]}>
                 {t.app.account.why}
               </Text>
 
@@ -257,11 +238,7 @@ export default function AccountScreen() {
                   value={senha}
                   onChangeText={setSenha}
                   segredo
-                  hint={
-                    senha.length > 0 && senha.length < 6
-                      ? t.app.account.passwordHint
-                      : undefined
-                  }
+                  hint={senha.length > 0 && senha.length < 6 ? t.app.account.passwordHint : undefined}
                 />
               </View>
 
@@ -273,11 +250,7 @@ export default function AccountScreen() {
               />
               <Button
                 variant="ghost"
-                label={
-                  criando
-                    ? t.app.account.switchToSignIn
-                    : t.app.account.switchToSignUp
-                }
+                label={criando ? t.app.account.switchToSignIn : t.app.account.switchToSignUp}
                 onPress={() => {
                   setCriando((antes) => !antes);
                   setMotivo(null);
@@ -295,12 +268,7 @@ export default function AccountScreen() {
               icon={(c) => <GlyphFactory size={26} color={c} />}
               title={t.app.account.companyTitle}
             >
-              <Text
-                style={[
-                  type.secondary,
-                  { color: color.inkMuted, marginBottom: space.md },
-                ]}
-              >
+              <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.md }]}>
                 {t.app.account.companyBody}
               </Text>
               <Field
@@ -330,12 +298,7 @@ export default function AccountScreen() {
               icon={(c) => <GlyphCustomer size={26} color={c} />}
               title={t.app.account.joinTitle}
             >
-              <Text
-                style={[
-                  type.secondary,
-                  { color: color.inkMuted, marginBottom: space.md },
-                ]}
-              >
+              <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.md }]}>
                 {t.app.account.joinBody}
               </Text>
               <Field
@@ -352,9 +315,7 @@ export default function AccountScreen() {
                 style={{ marginTop: space.md }}
               />
               {pedidoPara ? (
-                <Text
-                  style={[type.body, { color: color.ink, marginTop: space.sm }]}
-                >
+                <Text style={[type.body, { color: color.ink, marginTop: space.sm }]}>
                   {fill(t.app.account.joinSent, { company: pedidoPara })}
                 </Text>
               ) : null}
@@ -403,17 +364,13 @@ export default function AccountScreen() {
                 {fill(t.app.account.adoptBody, { company: empresa.nome })}
               </Text>
               <Button
-                label={fill(t.app.account.adoptAction, {
-                  company: empresa.nome,
-                })}
+                label={fill(t.app.account.adoptAction, { company: empresa.nome })}
                 onPress={() => void ligar()}
                 disabled={ocupado}
                 style={{ marginTop: space.md }}
               />
               {recusa ? (
-                <Text
-                  style={[type.body, { color: color.ink, marginTop: space.sm }]}
-                >
+                <Text style={[type.body, { color: color.ink, marginTop: space.sm }]}>
                   {t.app.account.adoptRefuse[recusa]}
                 </Text>
               ) : null}
@@ -434,13 +391,9 @@ export default function AccountScreen() {
               <Text
                 style={[
                   type.figure,
-                  {
-                    color: color.ink,
-                    letterSpacing: 6,
-                    marginBottom: space.sm,
-                  },
+                  { color: color.ink, letterSpacing: 6, marginBottom: space.sm },
                 ]}
-                accessibilityLabel={empresa.codigo.split("").join(" ")}
+                accessibilityLabel={empresa.codigo.split('').join(' ')}
               >
                 {empresa.codigo}
               </Text>
@@ -463,19 +416,11 @@ export default function AccountScreen() {
             >
               {fila.map((pedido) => (
                 <View key={pedido.id} style={{ marginBottom: space.md }}>
-                  <Text style={[type.body, { color: color.ink }]}>
-                    {pedido.nome}
-                  </Text>
+                  <Text style={[type.body, { color: color.ink }]}>{pedido.nome}</Text>
                   <Text style={[type.caption, { color: color.inkFaint }]}>
                     {t.app.account.approveAs}
                   </Text>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      gap: space.md,
-                      marginTop: space.sm,
-                    }}
-                  >
+                  <View style={{ flexDirection: 'row', gap: space.md, marginTop: space.sm }}>
                     <Button
                       label={t.app.account.approve}
                       onPress={() => void decidir(pedido.id, true)}
@@ -500,17 +445,13 @@ export default function AccountScreen() {
             crua do servidor: ela é inglês de biblioteca e muda de versão. */}
         {motivo ? (
           <Reveal index={1}>
-            <Text style={[type.body, { color: color.danger }]}>
-              {t.app.account.reason[motivo]}
-            </Text>
+            <Text style={[type.body, { color: color.danger }]}>{t.app.account.reason[motivo]}</Text>
           </Reveal>
         ) : null}
 
         {confirmePorEmail ? (
           <Reveal index={1}>
-            <Text style={[type.body, { color: color.ink }]}>
-              {t.app.account.checkEmail}
-            </Text>
+            <Text style={[type.body, { color: color.ink }]}>{t.app.account.checkEmail}</Text>
           </Reveal>
         ) : null}
       </CollapsingHeader>

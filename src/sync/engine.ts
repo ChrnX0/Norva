@@ -1,11 +1,5 @@
-import { empresaAdotada } from "@/data/empresa";
-import {
-  forgetSentBefore,
-  markSent,
-  pendingCount,
-  pendingEntries,
-  type OutboxEntry,
-} from "@/data/outbox";
+import { empresaAdotada } from '@/data/empresa';
+import { forgetSentBefore, markSent, pendingCount, pendingEntries, type OutboxEntry } from '@/data/outbox';
 
 /**
  * Sending what the phone wrote while it was alone.
@@ -59,7 +53,7 @@ export type SyncReport = {
    * cadeia de caracteres, e a diferença é o que a tela precisa dizer: uma pede
    * para tentar de novo, a outra pede uma decisão de quem está com o aparelho.
    */
-  recusa?: "semEmpresa";
+  recusa?: 'semEmpresa';
 };
 
 export type SyncOptions = {
@@ -96,8 +90,7 @@ export function backoffMs(attempt: number, base = 1_000, cap = 60_000): number {
   return Math.min(cap, base * 2 ** (attempt - 1));
 }
 
-const defaultSleep = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
+const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
  * Pushes the queue until it is empty, the server stops accepting, or the
@@ -124,7 +117,7 @@ export async function drain(
       remaining: await pendingCount(),
       batches: 0,
       attempts: 0,
-      recusa: "semEmpresa",
+      recusa: 'semEmpresa',
     };
   }
 
@@ -181,9 +174,7 @@ export async function drain(
    * cego entre meia-noite e três da manhã.
    */
   const agora = options.now?.() ?? Date.now();
-  const corte = new Date(
-    agora - (options.keepDays ?? 7) * 86_400_000,
-  ).toISOString();
+  const corte = new Date(agora - (options.keepDays ?? 7) * 86_400_000).toISOString();
   await forgetSentBefore(corte);
 
   return { sent, remaining: await pendingCount(), batches, attempts, error };

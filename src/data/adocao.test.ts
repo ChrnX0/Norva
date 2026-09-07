@@ -1,21 +1,21 @@
-import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
-import { beforeEach, test } from "node:test";
-import { __setDb, db, migrate, type Db, type SqlParam } from "./db";
+import assert from 'node:assert/strict';
+import { DatabaseSync } from 'node:sqlite';
+import { beforeEach, test } from 'node:test';
+import { __setDb, db, migrate, type Db, type SqlParam } from './db';
 import {
   AdocaoRecusadaError,
   adotarEmpresa,
   colunasDeLugar,
   porQueNaoPodeAdotar,
   tabelasComEmpresa,
-} from "./adocao";
+} from './adocao';
 import {
   CHAVE_DA_EMPRESA,
   EMPRESA_SEMENTE,
   carregarEmpresa,
   empresaDaqui,
-} from "./empresa";
-import { fromDecimal, rate } from "@/domain/money";
+} from './empresa';
+import { fromDecimal, rate } from '@/domain/money';
 import {
   countMovements,
   defaultLocationId,
@@ -27,22 +27,22 @@ import {
   savePerson,
   savePlace,
   saveSalePrice,
-} from "./repository";
-import { ensureStarterData } from "./seed";
-import { pendingEntries } from "./outbox";
+} from './repository';
+import { ensureStarterData } from './seed';
+import { pendingEntries } from './outbox';
 
 /**
  * A adoção, provada pelo que sobra no banco — não pelo que a função devolve.
  *
  * **Toda asserção aqui é uma igualdade contra outra fonte.** "Não sobrou nada com
  * o id velho" é uma varredura de TODAS as tabelas que carimbam empresa, derivada
- * do esquema; "os preços não sumiram" é uma contagem antes e depois. `> 0` não
+ * do esquema; 'os preços não sumiram' é uma contagem antes e depois. `> 0` não
  * prova adoção: qualquer reescrita parcial satisfaz.
  */
-const NOVA = "7c9e6a11-2b34-4d55-9f01-0000000000ee";
+const NOVA = '7c9e6a11-2b34-4d55-9f01-0000000000ee';
 
 function ligar(): Db {
-  const sqlite = new DatabaseSync(":memory:");
+  const sqlite = new DatabaseSync(':memory:');
   const bind = (params: SqlParam[]) =>
     params.map((p) => (p === undefined ? null : p));
   return {
@@ -56,12 +56,12 @@ function ligar(): Db {
       sqlite.exec(sql);
     },
     withTransactionAsync: async (task: () => Promise<void>) => {
-      sqlite.exec("BEGIN");
+      sqlite.exec('BEGIN');
       try {
         await task();
-        sqlite.exec("COMMIT");
+        sqlite.exec('COMMIT');
       } catch (erro) {
-        sqlite.exec("ROLLBACK");
+        sqlite.exec('ROLLBACK');
         throw erro;
       }
     },
@@ -72,12 +72,12 @@ function ligar(): Db {
 async function fabricaDeVerdade(): Promise<{ acucar: string; loja: string }> {
   const co = empresaDaqui();
   const acucar = await saveItem(co, {
-    kind: "input",
-    name: "Açúcar",
-    purchaseUnit: "saco",
+    kind: 'input',
+    name: 'Açúcar',
+    purchaseUnit: 'saco',
     purchaseToBase: 50_000,
-    baseUnit: "g",
-    packaging: { tiers: [{ id: "unit", perBaseUnit: 1 }] },
+    baseUnit: 'g',
+    packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }] },
   });
   await recordPurchase(co, {
     itemId: acucar,
@@ -85,15 +85,15 @@ async function fabricaDeVerdade(): Promise<{ acucar: string; loja: string }> {
     baseUnits: 50_000,
     totalCents: fromDecimal(200),
   });
-  const loja = await savePlace(co, { name: "Loja Centro", kind: "own_store" });
+  const loja = await savePlace(co, { name: 'Loja Centro', kind: 'own_store' });
   // Uma pessoa também, e não é enfeite: `people` e `profiles` carimbam empresa, e
   // uma varredura sobre tabela vazia passa verde sem varrer nada. O teste de
   // mordida provou isso — excluir `people` da régua não fez a asserção morder,
   // porque não havia linha lá para deixar para trás.
   const perfis = await listProfiles(co);
-  const operador = perfis.find((perfil) => perfil.templateRole === "operator");
-  assert.ok(operador, "a semeadura de perfis tem de existir para haver gente");
-  await savePerson(co, { name: "Dona Maria", profileId: operador.id });
+  const operador = perfis.find((perfil) => perfil.templateRole === 'operator');
+  assert.ok(operador, 'a semeadura de perfis tem de existir para haver gente');
+  await savePerson(co, { name: 'Dona Maria', profileId: operador.id });
   return { acucar, loja: loja.id };
 }
 
@@ -104,7 +104,7 @@ beforeEach(async () => {
   await carregarEmpresa();
 });
 
-test("a adoção não deixa uma linha com o carimbo velho, em nenhuma tabela", async () => {
+test('a adoção não deixa uma linha com o carimbo velho, em nenhuma tabela', async () => {
   const { acucar, loja } = await fabricaDeVerdade();
   await saveSalePrice(empresaDaqui(), {
     itemId: acucar,
@@ -129,12 +129,12 @@ test("a adoção não deixa uma linha com o carimbo velho, em nenhuma tabela", a
       `SELECT name FROM pragma_table_info(?)`,
       [name],
     );
-    if (cols.some((c) => c.name === "company_id")) tabelas.push(name);
+    if (cols.some((c) => c.name === 'company_id')) tabelas.push(name);
   }
   assert.equal(
     tabelas.length,
     23,
-    "o esquema do aparelho tem 23 tabelas que carimbam empresa",
+    'o esquema do aparelho tem 23 tabelas que carimbam empresa',
   );
 
   await adotarEmpresa(NOVA);
@@ -148,16 +148,16 @@ test("a adoção não deixa uma linha com o carimbo velho, em nenhuma tabela", a
     );
     if ((linha?.n ?? 0) > 0) sobrou.push(`${t}: ${linha?.n}`);
   }
-  assert.deepEqual(sobrou, [], "estas tabelas ficaram com o carimbo velho");
+  assert.deepEqual(sobrou, [], 'estas tabelas ficaram com o carimbo velho');
 
   // O que a fábrica tinha continua lá, com o mesmo número — adoção não é perda.
   assert.equal(await countMovements(), antesDosMovimentos);
   const itens = await listItems(NOVA);
   assert.equal(itens.length, 1);
-  assert.equal(itens[0].name, "Açúcar");
+  assert.equal(itens[0].name, 'Açúcar');
 });
 
-test("o lugar padrão muda de id sem levar os preços combinados embora", async () => {
+test('o lugar padrão muda de id sem levar os preços combinados embora', async () => {
   const { acucar, loja } = await fabricaDeVerdade();
   await saveSalePrice(empresaDaqui(), {
     itemId: acucar,
@@ -177,12 +177,12 @@ test("o lugar padrão muda de id sem levar os preços combinados embora", async 
     `SELECT COUNT(*) AS n FROM locations WHERE id = ?`,
     [EMPRESA_SEMENTE],
   );
-  assert.equal(velho?.n, 0, "a linha velha do lugar tem de sair");
+  assert.equal(velho?.n, 0, 'a linha velha do lugar tem de sair');
   const novo = await conn.getFirstAsync<{ n: number }>(
     `SELECT COUNT(*) AS n FROM locations WHERE id = ?`,
     [NOVA],
   );
-  assert.equal(novo?.n, 1, "e a nova tem de estar lá, uma vez");
+  assert.equal(novo?.n, 1, 'e a nova tem de estar lá, uma vez');
 
   // `location_prices.location_id` é ON DELETE CASCADE: apagar o pai antes de
   // repontar os filhos apagaria isto em silêncio.
@@ -192,7 +192,7 @@ test("o lugar padrão muda de id sem levar os preços combinados embora", async 
   assert.equal(
     depois?.n,
     antes?.n,
-    "os preços combinados não podem ser levados pelo CASCADE",
+    'os preços combinados não podem ser levados pelo CASCADE',
   );
 
   const movimentos = await conn.getFirstAsync<{ n: number }>(
@@ -202,11 +202,11 @@ test("o lugar padrão muda de id sem levar os preços combinados embora", async 
   assert.equal(
     movimentos?.n,
     0,
-    "nenhum movimento pode ficar apontando para o lugar que saiu",
+    'nenhum movimento pode ficar apontando para o lugar que saiu',
   );
 });
 
-test("a fila aponta para o lugar novo, senão ela nunca mais anda", async () => {
+test('a fila aponta para o lugar novo, senão ela nunca mais anda', async () => {
   await fabricaDeVerdade();
   await adotarEmpresa(NOVA);
   const conn = await db();
@@ -217,54 +217,54 @@ test("a fila aponta para o lugar novo, senão ela nunca mais anda", async () => 
   assert.deepEqual(
     orfas,
     [],
-    "row_id órfão levanta no serializador e trava a fila inteira",
+    'row_id órfão levanta no serializador e trava a fila inteira',
   );
   const pendentes = await pendingEntries(50);
-  assert.ok(pendentes.length > 0, "a fila desta fábrica não pode estar vazia");
+  assert.ok(pendentes.length > 0, 'a fila desta fábrica não pode estar vazia');
 });
 
-test("o exemplo semeado impede a adoção — e sai do caminho quando o dono limpa", async () => {
+test('o exemplo semeado impede a adoção — e sai do caminho quando o dono limpa', async () => {
   await ensureStarterData();
-  assert.equal(await porQueNaoPodeAdotar(NOVA), "exemploAqui");
+  assert.equal(await porQueNaoPodeAdotar(NOVA), 'exemploAqui');
   await assert.rejects(
     () => adotarEmpresa(NOVA),
     (erro: unknown) =>
-      erro instanceof AdocaoRecusadaError && erro.motivo === "exemploAqui",
-    "noventa dias de nota inventada não podem virar fato no livro da fábrica",
+      erro instanceof AdocaoRecusadaError && erro.motivo === 'exemploAqui',
+    'noventa dias de nota inventada não podem virar fato no livro da fábrica',
   );
   assert.equal(
     empresaDaqui(),
     EMPRESA_SEMENTE,
-    "recusar não pode ter mexido em nada",
+    'recusar não pode ter mexido em nada',
   );
 
-  await eraseArea(empresaDaqui(), "all");
+  await eraseArea(empresaDaqui(), 'all');
   assert.equal(await porQueNaoPodeAdotar(NOVA), null);
   await adotarEmpresa(NOVA);
   assert.equal(empresaDaqui(), NOVA);
 });
 
-test("linha que já subiu tranca a adoção para sempre", async () => {
+test('linha que já subiu tranca a adoção para sempre', async () => {
   await fabricaDeVerdade();
   const conn = await db();
   await conn.runAsync(
     `UPDATE outbox SET sent_at = ? WHERE rowid = (SELECT MIN(rowid) FROM outbox)`,
-    ["2026-09-07T00:00:00.000Z"],
+    ['2026-09-07T00:00:00.000Z'],
   );
-  assert.equal(await porQueNaoPodeAdotar(NOVA), "jaSubiu");
+  assert.equal(await porQueNaoPodeAdotar(NOVA), 'jaSubiu');
 });
 
-test("id já ocupado é recusa, não colisão de índice no meio da transação", async () => {
+test('id já ocupado é recusa, não colisão de índice no meio da transação', async () => {
   await fabricaDeVerdade();
   await savePlace(empresaDaqui(), {
     id: NOVA,
-    name: "Depósito",
-    kind: "store_room",
+    name: 'Depósito',
+    kind: 'store_room',
   });
-  assert.equal(await porQueNaoPodeAdotar(NOVA), "idOcupado");
+  assert.equal(await porQueNaoPodeAdotar(NOVA), 'idOcupado');
 });
 
-test("adotar a mesma empresa duas vezes não faz nada na segunda", async () => {
+test('adotar a mesma empresa duas vezes não faz nada na segunda', async () => {
   await fabricaDeVerdade();
   await adotarEmpresa(NOVA);
   const conn = await db();
@@ -278,7 +278,7 @@ test("adotar a mesma empresa duas vezes não faz nada na segunda", async () => {
   assert.equal(
     depois?.n,
     antes?.n,
-    "a segunda adoção não pode duplicar o lugar",
+    'a segunda adoção não pode duplicar o lugar',
   );
   const guardado = await conn.getFirstAsync<{ value: string }>(
     `SELECT value FROM app_meta WHERE key = ?`,
@@ -287,27 +287,27 @@ test("adotar a mesma empresa duas vezes não faz nada na segunda", async () => {
   assert.equal(guardado?.value, NOVA);
 });
 
-test("as duas réguas que a adoção usa leem o esquema, e distinguem caso verdadeiro de falso", async () => {
+test('as duas réguas que a adoção usa leem o esquema, e distinguem caso verdadeiro de falso', async () => {
   const conn = await db();
   const tabelas = await tabelasComEmpresa(conn);
-  assert.ok(tabelas.includes("movements"), "movements carimba empresa");
-  assert.ok(tabelas.includes("people"), "people carimba empresa");
-  assert.ok(!tabelas.includes("outbox"), "outbox NÃO carimba empresa");
-  assert.ok(!tabelas.includes("app_meta"), "app_meta NÃO carimba empresa");
+  assert.ok(tabelas.includes('movements'), 'movements carimba empresa');
+  assert.ok(tabelas.includes('people'), 'people carimba empresa');
+  assert.ok(!tabelas.includes('outbox'), 'outbox NÃO carimba empresa');
+  assert.ok(!tabelas.includes('app_meta'), 'app_meta NÃO carimba empresa');
 
   const lugares = await colunasDeLugar(conn);
   const chaves = lugares.map((l) => `${l.tabela}.${l.coluna}`).sort();
   assert.ok(
-    chaves.includes("movements.location_id"),
-    "o razão aponta para lugar",
+    chaves.includes('movements.location_id'),
+    'o razão aponta para lugar',
   );
   assert.ok(
-    chaves.includes("movements.counterpart_location_id"),
-    "a transferência aponta duas vezes, e a segunda foi acrescentada por ALTER TABLE",
+    chaves.includes('movements.counterpart_location_id'),
+    'a transferência aponta duas vezes, e a segunda foi acrescentada por ALTER TABLE',
   );
   assert.ok(
-    chaves.includes("location_prices.location_id"),
-    "o preço por lugar aponta para lugar",
+    chaves.includes('location_prices.location_id'),
+    'o preço por lugar aponta para lugar',
   );
-  assert.ok(!chaves.includes("items.company_id"), "empresa não é lugar");
+  assert.ok(!chaves.includes('items.company_id'), 'empresa não é lugar');
 });
