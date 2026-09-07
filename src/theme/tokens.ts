@@ -336,28 +336,54 @@ const papelEscuro: Palette = {
 };
 
 const organicoClaro: Palette = {
-  paper: '#F3F7F3',
+  /**
+   * O CHÃO do Orgânico, e ele precisa ser chão.
+   *
+   * Era `#F3F7F3` contra um cartão `#FFFFFF`: três por cento de diferença, que numa
+   * tela de fábrica com o brilho alto é diferença nenhuma. O cartão só existia pela
+   * sombra, e a foto mostrou o que isso vira — uma folha branca com texto, que é a
+   * cara do Papel na pele que não é o Papel.
+   *
+   * Esta pele se descreve como *cartões flutuando sobre uma paisagem*. Para flutuar
+   * é preciso haver sobre o quê, e é isso que estes onze pontos de verde a mais
+   * fazem. O dono pediu cor — *"estamos usando uma paleta pastel, mas pode usar algo
+   * mais forte uma vez ou outra"* —, e o lugar mais barato para pôr cor num tema
+   * claro é o chão, que ninguém lê: o texto continua no branco do cartão.
+   */
+  paper: '#E4EFE7',
   surface: '#FFFFFF',
-  sunken: '#E7EFE8',
+  sunken: '#D6E4DA',
   ink: '#16281D',
   inkMuted: '#425249',
-  inkFaint: '#5F6D63',
+  inkFaint: '#58655C',
   line: '#DDE9DF',
   lineStrong: '#C6D8CA',
   onAccent: '#FFFFFF',
 
-  sky: '#386DAB',
-  apricot: '#9D5C1A',
-  mint: '#2D7758',
-  lilac: '#4C64C6',
-  rose: '#B4465D',
-  sage: '#547244',
-  sand: '#826830',
-  mist: '#5B7062',
+  /**
+   * Os acentos do Orgânico, um tom abaixo — e o motivo é o CHÃO, não o gosto.
+   *
+   * Escurecer o `paper` para o cartão branco se ver de novo empurrou onze acentos
+   * para baixo de 4,5:1 sobre `sunken`. A régua de legibilidade recusou, e ela está
+   * certa: o número que o dono lê tem de ser lido. Então os dois desceram juntos.
+   *
+   * Cada um perdeu de cinco a oito por cento de brilho **com a matiz e a saturação
+   * intactas** — é a mesma operação que os oito acentos do Papel sofreram no dia 6,
+   * pelo mesmo motivo. Cor mais funda não é cor mais apagada: sobre um chão de
+   * verde, um azul mais fundo grita mais que um azul lavado.
+   */
+  sky: '#34649E',
+  apricot: '#905418',
+  mint: '#2A6E51',
+  lilac: '#405AC2',
+  rose: '#A54055',
+  sage: '#4E6A3F',
+  sand: '#775F2C',
+  mist: '#536659',
 
-  ok: '#2D7758',
-  warning: '#9B5D19',
-  danger: '#B8423A',
+  ok: '#2A6E51',
+  warning: '#8E5517',
+  danger: '#AA3D36',
   neutral: '#4D6055',
 };
 

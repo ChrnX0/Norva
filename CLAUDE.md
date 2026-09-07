@@ -630,6 +630,21 @@ são. E onde houver número, **faça a conta na mão**: 506 × R$ 0,64 não bate
 R$ 625,27 da tela, e a aritmética de cabeça é a única régua que não compartilha os
 erros do código que produziu o número.
 
+**Conserto de pele não termina no arquivo que o mostrou.** Em 7 de setembro o dono
+mandou duas correções em poucas horas e as duas eram a mesma frase com outro sujeito:
+o cabeçalho vivo desenhava a geometria do Papel dentro do Orgânico, e o cartão de
+toda tela desenhava a caixa de antes de existir `Tracos`. Nos dois casos **a capa já
+estava certa** — `src/home/capas/` existe justamente porque *"o Orgânico era o Papel
+com a cena trocada"* foi recusado uma vez — e o resto ficou para trás, porque a
+pergunta seguinte nunca foi feita. Então ela vira regra: quando uma peça passa a
+perguntar o traço, a rodada só fecha depois de `grep` pelo que MAIS desenha aquilo.
+Uma pele consertada em um lugar é uma pele consertada em um lugar.
+
+**E o defeito de pele mora onde a outra pele não tem como tê-lo.** A cunha na quina
+do cartão só existia no Orgânico: ela nasce de borda grossa de um lado com canto
+arredondado, e o Papel não tem canto nem caixa. Olhar a pele padrão e concluir "está
+bom" é olhar exatamente a metade onde o defeito não cabe.
+
 **Detector novo não reporta nada antes de passar num caso verdadeiro e num
 falso.** A régua descartável — o `grep` que conta, o script que varre uma vez para
 responder uma pergunta — não passa por CI, não tem guard, e fala direto com o dono.

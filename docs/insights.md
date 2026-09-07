@@ -6279,3 +6279,23 @@ da casa já exigia e que desta vez foi escrito antes de o número sair.
 
 Prova final: rodada contra `git show HEAD:src/components/Card.tsx` — o arquivo real de
 antes do conserto — ela acusa; contra o de depois, não.
+
+### E um achado que só aparece quando se tenta mexer: o chão e os acentos são UM sistema
+
+Para o cartão branco voltar a se ver, o chão do Orgânico precisava escurecer — ele
+tinha três por cento de diferença para o cartão, o que numa tela de fábrica com o
+brilho alto é diferença nenhuma. Ao escurecer, **onze acentos caíram abaixo de 4,5:1**
+e a régua de legibilidade recusou.
+
+O reflexo seria escolher no olho um verde "que dá para ler". Medindo, a resposta foi
+outra e mais dura: **o chão de hoje já estava no limite** — `apricot` sobre `sunken`
+dava exatamente 4,50:1, zero de folga. Ou seja, aquele chão não podia escurecer nem
+um ponto sem os acentos escurecerem junto; a paleta estava presa, e ninguém sabia.
+
+Então os dois desceram juntos: cinco a oito por cento de brilho a menos em cada
+acento, **matiz e saturação intactas** — a mesma operação que os oito do Papel
+sofreram no dia 6, pelo mesmo motivo. A régua ficou com folga em vez de encostada.
+
+A lição de método: **quando um ajuste de cor quebra uma régua, a pergunta não é
+quanto recuar — é se o valor de antes tinha folga.** Se não tinha, o que existia era
+um limite escondido, e recuar é voltar a fingir que ele não está lá.

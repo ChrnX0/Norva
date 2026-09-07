@@ -42,7 +42,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **441** testes |
+| `npm test` | **443** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **49** checagens num navegador de verdade |
 | `npm run db:verify` | **19** garantias contra um Postgres descartável, sob RLS |
@@ -281,6 +281,34 @@ custa o erro se a coisa nunca for feita.**
 
 Três dela são achado de varredura desta noite e vêm com a medida ao lado; cinco
 são coisas que eu **removeria ou mudaria**, e essas são as que ninguém pede.
+
+### FEITO em 7 de setembro — o Orgânico deixou de ser o Papel fora da capa
+
+Duas correções do dono, no mesmo dia, com a mesma forma: **a capa estava certa e o
+resto tinha ficado para trás.**
+
+| o que ele viu | o que era | o que ficou |
+|---|---|---|
+| *"o cabeçalho animado pegou as animações do tema do Papel"* | a cena lia cor e espessura da pele e desenhava UMA geometria — traço fino, canto duro | traço `cabecalho: 'vinheta' \| 'paisagem'`, despacho por `Record` (pele nova quebra a compilação em vez de cair no Papel calada) |
+| *"tem elemento aí do tema legado q está atrapalhando tudo"*, circulando a quina de um cartão | `Card` desenhava a própria caixa: canto arredondado com borda esquerda grossa, que na curva vira uma cunha torta | `Card` pergunta a roupa da pele (`Bloco`); o ramo legado foi apagado, não remendado |
+
+Três defeitos que **só a foto pegava**, achados no mesmo passe:
+
+- a engrenagem sumia depois de começar a girar — `transform` de `animatedProps`
+  substitui o eixo de `origin`, e a peça gira em torno de (0,0);
+- o botão de um controle saía da prancheta pela esquerda — `Cursor` recebia centro e
+  curso, e 0,18 com curso 0,55 dá −0,095; passou a receber começo e fim;
+- o bosque estava no mesmo pixel nas dezoito telas — o desvio agora sai do nome da
+  cena, determinístico.
+
+**Nível de evidência — E3.** `.shots/organico-cartao3.png` e a folha de contato de
+oito telas: cunha ausente, engrenagens girando, botões nos trilhos. Guarda novo em
+`src/home/capas/registro.test.ts`, provado contra `git show HEAD:src/components/Card.tsx`.
+
+**O que NÃO foi feito e por quê:** a paleta do Orgânico continua clara. O dono pediu
+*"dá mais cor para o tema papel"* — o Papel já ganhou os oito acentos escurecidos; o
+Orgânico ainda não foi olhado sob essa régua, e a hierarquia escrita manda o Papel
+primeiro.
 
 ### 0. O backup — 0a e 0b FEITOS em 6 de setembro; falta o 0c (Drive)
 

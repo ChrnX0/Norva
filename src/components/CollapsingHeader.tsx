@@ -193,7 +193,22 @@ export function CollapsingHeader({
 
         {cena ? (
           <Reveal index={2}>
-            <Animated.View style={[cenaStyle, { overflow: 'hidden' }]}>
+            {/* A cena SANGRA quando a pele desenha paisagem, e é margem quando ela
+                desenha vinheta — decidido pelo traço, nunca pelo nome da pele.
+
+                Não é gosto: é a diferença entre uma janela e uma foto colada. Na
+                capa do Orgânico a paisagem vai de borda a borda, e nas outras vinte
+                telas ela era um retângulo com margem dos dois lados — o mesmo
+                desenho parecendo um recorte no meio da folha. A vinheta do Papel é o
+                contrário: ela é um desenho NA página impressa, e desenho que
+                encosta na borda do papel é desenho torto. */}
+            <Animated.View
+              style={[
+                cenaStyle,
+                { overflow: 'hidden' },
+                tracos.cabecalho === 'paisagem' ? { marginHorizontal: -space.lg } : null,
+              ]}
+            >
               <CenaDoCabecalho cena={cena} />
             </Animated.View>
           </Reveal>
