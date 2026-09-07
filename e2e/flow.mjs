@@ -507,6 +507,18 @@ check('an order is written, and the briefing turns it into what to make', async 
   // E a capa passa a dizer o que fazer com isso. A fábrica semeada nunca
   // produziu, então os 300 pedidos são 300 que faltam - e o cartão diz isso
   // sem que ninguém tenha somado nada na mão.
+  //
+  // **A peça é LIGADA antes de a frase ser cobrada**, e isso é conserto de uma
+  // afirmação que envelheceu — a mesma que já tinha sido feita para "Preços que
+  // mexeram" e não foi feita para as irmãs dela. A checagem nasceu quando a capa
+  // trazia quinze peças por padrão; ela emagreceu para sete por decisão do dono, e
+  // aí o que esta linha media deixou de ser "a capa sabe transformar pedido em
+  // produção" e passou a ser "esta peça vem ligada de fábrica" — que é outra coisa,
+  // e não é a que o comentário acima promete.
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/^Colocar na capa: Pedidos dos clientes$/).first().click();
+  await page.waitForTimeout(1200);
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(3000);
   const capa = await screen(page);
@@ -631,6 +643,14 @@ check('an invoice warns before it is committed, then moves everything', async (p
   // And the briefing carries the consequence, not just the figure. Until now
   // the first card the owner saw was a bare unit cost - 55 cents, neither good
   // nor bad, with nothing beside it.
+  //
+  // A peça é ligada antes: "Preços que mexeram" saiu das sete que a capa traz por
+  // padrão quando o dono mandou emagrecê-la, e cobrar a frase na capa padrão mediria
+  // a preferência em vez da consequência da nota.
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/^Colocar na capa: Preços que mexeram$/).first().click();
+  await page.waitForTimeout(1200);
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2000);
 
@@ -664,6 +684,14 @@ check('the briefing is up to date when you tap Back into it', async (page) => {
   // mounts once per launch, and on a phone that is days - so it showed the cost
   // it read on the first frame and said "nothing changed in price" beside it,
   // with the invoice already in the ledger.
+  //
+  // A peça de preço é ligada LOGO NO COMEÇO, e não no meio: o que esta checagem
+  // mede é a volta pelo botão Voltar, e passar pelos ajustes no meio do caminho
+  // trocaria a navegação que está sendo testada por outra.
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/^Colocar na capa: Preços que mexeram$/).first().click();
+  await page.waitForTimeout(1200);
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
 
@@ -806,8 +834,19 @@ check('what came out today reaches the briefing, with what it was to compare', a
   // Com corrida gravada, o histórico curto tem o que dizer - e ele diz corrida
   // por corrida, não o total do dia: 3x100 e 1x300 dão o mesmo total e são
   // semanas diferentes.
-  assert.match(briefing, /Últimas corridas/);
-  assert.match(briefing, /média das últimas/, 'a corrida vem com o normal dela ao lado');
+  //
+  // A peça é ligada antes de ser cobrada: "Últimas corridas" saiu das sete que a
+  // capa traz por padrão quando o dono mandou emagrecê-la, e cobrar a frase na capa
+  // padrão mediria a preferência em vez do histórico.
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/^Colocar na capa: Últimas corridas$/).first().click();
+  await page.waitForTimeout(1200);
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(3000);
+  const comHistorico = await screen(page);
+  assert.match(comHistorico, /Últimas corridas/);
+  assert.match(comHistorico, /média das últimas/, 'a corrida vem com o normal dela ao lado');
 
   // E abre NO LUGAR, que é o que o dono pediu: o detalhe aparece sem sair da
   // capa, e o segundo toque fecha.
@@ -1592,6 +1631,13 @@ check('three months can be planted from Ajustes, and the briefing changes becaus
 
   // Agora a capa tem passado: o custo mexeu em algum momento das duas semanas,
   // então a linha de estabilidade some ou passa a contar dias.
+  //
+  // A peça de preço é ligada antes — ela saiu das sete que a capa traz por padrão, e
+  // esta checagem é sobre o que as NOTAS causaram, não sobre qual peça vem de fábrica.
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/^Colocar na capa: Preços que mexeram$/).first().click();
+  await page.waitForTimeout(1200);
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(3000);
   const capa = await screen(page);
