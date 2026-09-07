@@ -1071,6 +1071,10 @@ export const es: Dictionary = {
     production: {
       byBatch: 'Trabajo por paila',
       todayTotal: 'Producido hoy',
+      makeTitle: 'Qué producir',
+      makeBy: 'Produzca {{name}} hasta el {{day}}.',
+      makeToday: 'Produzca {{name}} hoy — el inventario se acaba.',
+      makeWhy: 'Hay {{held}}, y salen cerca de {{perDay}} por día.',
       vsYesterday: 'Ayer fueron {{units}}.',
       noYesterday: 'Ayer no hubo producción.',
       aboveYesterday: '{{percent}}% por encima de ayer',

@@ -1066,6 +1066,10 @@ export const en: Dictionary = {
     production: {
       byBatch: 'Enter by the recipe',
       todayTotal: 'Made today',
+      makeTitle: 'What to make',
+      makeBy: 'Make {{name}} by {{day}}.',
+      makeToday: 'Make {{name}} today — the stock runs out.',
+      makeWhy: 'There is {{held}}, and about {{perDay}} goes out a day.',
       vsYesterday: 'Yesterday it was {{units}}.',
       noYesterday: 'Nothing was made yesterday.',
       aboveYesterday: '{{percent}}% above yesterday',

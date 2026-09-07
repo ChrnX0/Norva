@@ -1328,6 +1328,10 @@ export const ptBR = {
     production: {
       byBatch: 'Informar pela receita',
       todayTotal: 'Produzido hoje',
+      makeTitle: 'O que produzir',
+      makeBy: 'Produza {{name}} até {{day}}.',
+      makeToday: 'Produza {{name}} hoje — o estoque acaba.',
+      makeWhy: 'Tem {{held}}, e saem cerca de {{perDay}} por dia.',
       vsYesterday: 'Ontem foram {{units}}.',
       noYesterday: 'Ontem não houve produção.',
       aboveYesterday: '{{percent}}% acima de ontem',

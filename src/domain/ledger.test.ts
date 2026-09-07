@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { daysOfCover, ordemDeCarga } from './ledger';
+import { daysOfCover, diasAteProduzir, ordemDeCarga } from './ledger';
 
 /**
  * A única conta deste módulo que o aplicativo roda.
@@ -75,4 +75,20 @@ test('the load list puts the likely thing first, and only where that is deducibl
   const original = [{ itemId: 'a', kind: 'input' }, { itemId: 'p', kind: 'product' }];
   ordemDeCarga(original, true);
   assert.deepEqual(original.map((l) => l.itemId), ['a', 'p'], 'a lista de quem chamou fica como estava');
+});
+
+/**
+ * "Produza até segunda" contra "Estoque insuficiente": as duas dizem o mesmo fato
+ * e só a primeira é acionável. A Lei 4 manda avisar na data da decisão.
+ */
+test('the production warning lands on the day you can still act, never in the past', () => {
+  // Trunca: meio dia de cobertura não é um dia, e arredondar para cima daria o
+  // aviso um dia depois de o estoque ter acabado — a data do problema.
+  assert.equal(diasAteProduzir(3.9), 3);
+  assert.equal(diasAteProduzir(1.0), 1);
+
+  // Zero e negativo viram hoje. Não existe agir no passado, e uma data passada
+  // numa tela faz a pessoa parar de acreditar no aviso inteiro.
+  assert.equal(diasAteProduzir(0), 0);
+  assert.equal(diasAteProduzir(-4), 0);
 });

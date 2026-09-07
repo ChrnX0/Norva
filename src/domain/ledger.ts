@@ -130,6 +130,27 @@ export const CARGO_PLACE_KINDS = ['own_store', 'customer'] as const;
  * já é a ordem por nome. Reordenar por outro critério aqui faria a lista dançar
  * entre destinos, e lista que dança é lista que ninguém decora.
  */
+/**
+ * O último dia em que ainda dá para produzir — a data da DECISÃO, não a do problema.
+ *
+ * A Lei 4 desta casa manda avisar no dia em que dá para agir, e o `CLAUDE.md`
+ * escolhe a frase como exemplo do tom: *"Produza até segunda", não "Estoque
+ * insuficiente"*. As duas dizem o mesmo fato; só a primeira é acionável.
+ *
+ * A conta é a mais simples que é honesta: o saldo dura `daysLeft` dias, então ele
+ * acaba no dia `hoje + daysLeft`, e produzir naquele dia ainda salva. Depois dele,
+ * não. Trunca em vez de arredondar — meio dia de cobertura não é um dia, e um
+ * aviso que chega um dia atrasado é o aviso na data do problema, que é exatamente
+ * o que a Lei proíbe.
+ *
+ * **Zero e negativo devolvem hoje.** Já acabou ou acaba hoje; o aviso não vira
+ * ontem, porque não existe agir no passado — e uma data no passado numa tela é a
+ * coisa que faz alguém parar de acreditar no aviso inteiro.
+ */
+export function diasAteProduzir(daysLeft: number): number {
+  return Math.max(0, Math.floor(daysLeft));
+}
+
 export function ordemDeCarga<T extends { kind: string }>(
   linhas: readonly T[],
   destinoRecebeCarga: boolean,

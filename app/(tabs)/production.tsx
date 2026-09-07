@@ -18,12 +18,22 @@ import {
   type LotOfDay,
   type OpenRun,
   type ProducedInWindow,
+  runningOut,
+  type Running,
 } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { nowIso } from '@/data/db';
 import { useQuery } from '@/data/useQuery';
-import { dayWindow } from '@/domain/day';
-import { fill, formatCalendarDate, formatQuantity, formatTime, plural } from '@/i18n';
+import { diasAteProduzir } from '@/domain/ledger';
+import { dayWindow, localDate } from '@/domain/day';
+import {
+  fill,
+  formatCalendarDate,
+  formatQuantity,
+  formatTime,
+  formatWeekdayAbbrev,
+  plural,
+} from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -72,6 +82,14 @@ type Loaded = {
   runs: OpenRun[];
   /** Os lotes que nasceram hoje, com o código que vai na caixa. */
   lots: LotOfDay[];
+  /**
+   * O que vai acabar, e por isso precisa sair do tacho.
+   *
+   * A aba de produção só contava o que ACONTECEU — total do dia, tachos abertos,
+   * lotes de hoje. Nenhuma das três responde a terceira pergunta da Lei, *"qual é
+   * a próxima ação provável"*, na tela cujo assunto É a ação.
+   */
+  acabando: Running[];
 };
 
 function ProductionDay() {
@@ -84,13 +102,21 @@ function ProductionDay() {
   const { data, loading } = useQuery<Loaded>(async () => {
     const hoje = dayWindow(nowIso(), locale.timeZone);
     const ontem = dayWindow(nowIso(), locale.timeZone, -1);
-    const [today, yesterday, runs, lots] = await Promise.all([
+    // Uma semana de saída para estimar o consumo, e catorze dias de horizonte: o
+    // que acaba depois disso não é decisão de hoje, e avisar cedo demais é a
+    // mesma doença de avisar tarde — ensina a ignorar.
+    const semana = dayWindow(nowIso(), locale.timeZone, -6);
+    const [today, yesterday, runs, lots, acabando] = await Promise.all([
       productionOn(LOCAL_COMPANY_ID, hoje.from, hoje.to),
       productionOn(LOCAL_COMPANY_ID, ontem.from, ontem.to),
       openProductionRuns(LOCAL_COMPANY_ID),
       lotsOn(LOCAL_COMPANY_ID, hoje.from, hoje.to),
+      // `runningOut` já sabia responder por PRODUTO — o parâmetro existia com o
+      // padrão em insumo e embalagem, e nenhuma tela o passava. Quarta vez nesta
+      // sessão em que a máquina estava construída e ninguém a usava.
+      runningOut(LOCAL_COMPANY_ID, semana.from, hoje.to, 7, 14, undefined, ['product']),
     ]);
-    return { today, yesterday, runs, lots };
+    return { today, yesterday, runs, lots, acabando };
   });
 
   const totals = useMemo(() => {
@@ -160,6 +186,53 @@ function ProductionDay() {
       overline={t.app.production.overline}
       cena="producao"
     >
+      {/* A PRÓXIMA AÇÃO, antes do relato do dia — e a ordem é a decisão.
+          Esta aba respondia duas das três perguntas da Lei (o que é normal, o que
+          está diferente) e calava na terceira, na tela cujo assunto É a ação.
+          Vem primeiro porque quem abre a produção de manhã abre para decidir o que
+          fazer, não para saber o que já fez. E some quando não há nada acabando:
+          "está tudo bem" é estado válido, e aviso que aparece todo dia é aviso que
+          ninguém lê.
+          A frase é a que o `CLAUDE.md` escolhe como exemplo do tom desta casa —
+          *"Produza até segunda", não "Estoque insuficiente"*. As duas dizem o mesmo
+          fato; só a primeira é acionável. */}
+      {(data?.acabando ?? []).length > 0 ? (
+        <Reveal index={0}>
+          <Card
+            tone="warning"
+            icon={(c) => <GlyphProduction size={26} color={c} weight={traco} />}
+            title={t.app.production.makeTitle}
+          >
+            {(data?.acabando ?? []).map((p) => {
+              const dias = diasAteProduzir(p.daysLeft);
+              return (
+                <View key={p.itemId} style={{ marginTop: space.sm }}>
+                  <Text style={[type.body, { color: color.ink }]}>
+                    {dias === 0
+                      ? fill(t.app.production.makeToday, { name: p.name })
+                      : fill(t.app.production.makeBy, {
+                          name: p.name,
+                          day: formatWeekdayAbbrev(
+                            localDate(nowIso(), locale.timeZone, dias),
+                            locale,
+                          ),
+                        })}
+                  </Text>
+                  {/* A conta aberta: toda conclusão abre a conta (Lei 6), e aqui
+                      ela cabe numa linha — o que tem, e o quanto sai por dia. */}
+                  <Text style={[type.caption, { color: color.inkFaint }]}>
+                    {fill(t.app.production.makeWhy, {
+                      held: `${formatQuantity(p.onHandBaseUnits, locale)} ${p.baseUnit}`,
+                      perDay: `${formatQuantity(Math.round(p.dailyOutflow), locale)} ${p.baseUnit}`,
+                    })}
+                  </Text>
+                </View>
+              );
+            })}
+          </Card>
+        </Reveal>
+      ) : null}
+
       {/* O que é normal ali, e o que está diferente agora. Ontem é a comparação
           honesta para uma fábrica que produz todo dia: a média da semana
           esconde o feriado, e o mês esconde a sazonalidade que o dono conhece
