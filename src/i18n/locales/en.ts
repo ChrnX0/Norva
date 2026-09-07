@@ -349,7 +349,8 @@ export const en: Dictionary = {
       blockedItem: '{{name}} — has {{held}}, would need {{needed}}',
       undoFailed: 'Could not undo right now. Nothing was changed.',
       more: 'Show more — {{n}} so far',
-      allOfIt: 'That is all of it: {{n}} records.',
+      allOfIt: 'That is all of it: {{n}}.',
+      recordCount: { one: '1 record', other: '{{n}} records' },
     },
     losses: {
       title: 'Losses',

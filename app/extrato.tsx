@@ -304,7 +304,12 @@ export default function ExtratoScreen() {
             </Touchable>
           ) : (
             <Text style={[type.caption, { color: color.inkFaint, paddingVertical: space.md }]}>
-              {fill(words.allOfIt, { n: String(atos.length) })}
+              {/* `plural` e não `fill` com o número cru: a tela dizia "1 registros".
+                  Este projeto extraiu `plural()` justamente porque a regra estava
+                  copiada em dois lugares e ia virar o terceiro — e aqui ela tinha
+                  sido esquecida de novo, num texto que só aparece quando a lista
+                  acaba, que é onde ninguém olha duas vezes. */}
+              {fill(words.allOfIt, { n: plural(atos.length, words.recordCount) })}
             </Text>
           )}
         </Reveal>

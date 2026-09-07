@@ -406,6 +406,13 @@ export const ptBR = {
       lastOne: 'Última cópia: {{when}}',
       today: 'hoje',
       yesterday: 'ontem',
+      /**
+       * Sem forma singular de propósito, e isto é para o próximo leitor não
+       * "consertar" o que está certo: zero vira `today` e um vira `yesterday` na
+       * tela, então `daysAgo` só é chamado de dois em diante. Uma chave plural
+       * aqui seria um ramo que nunca roda — e ramo que nunca roda é onde o defeito
+       * dorme.
+       */
       daysAgo: 'há {{n}} dias',
       countsMovements: { one: '1 movimento', other: '{{n}} movimentos' },
       holds: 'Ela guarda {{movements}} e pesa {{size}}.',
@@ -458,7 +465,8 @@ export const ptBR = {
       blockedItem: '{{name}} — tem {{held}}, precisaria de {{needed}}',
       undoFailed: 'Não deu para desfazer agora. Nada foi mudado.',
       more: 'Ver mais — {{n}} até aqui',
-      allOfIt: 'Isto é tudo: {{n}} registros.',
+      allOfIt: 'Isto é tudo: {{n}}.',
+      recordCount: { one: '1 registro', other: '{{n}} registros' },
     },
     losses: {
       title: 'Perdas',
