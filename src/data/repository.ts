@@ -1189,8 +1189,11 @@ async function ensureLocation(conn: Db, companyId: string): Promise<string> {
   if (existing) return existing.id;
 
   await conn.runAsync(
+    // FÁBRICA, e não almoxarifado: a tela titula esta sala como "Fábrica" desde
+    // sempre, e lia `store_room` para a sobrelinha — um cartão dizendo as duas
+    // coisas. Ver a V23 do esquema, que conserta quem já instalou.
     `INSERT INTO locations (id, company_id, name, kind, created_at)
-     VALUES (?, ?, '', 'store_room', ?)`,
+     VALUES (?, ?, '', 'factory', ?)`,
     [companyId, companyId, nowIso()],
   );
   // It has to reach the server before the movement that stands on it does, or

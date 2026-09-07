@@ -4,7 +4,7 @@ import { beforeEach, test } from 'node:test';
 import { fromDecimal, rate, amountOf, type Rate} from '@/domain/money';
 import { dayWindow, localDate } from '@/domain/day';
 import { costRecipe } from '@/domain/recipe';
-import type { ReturnReason } from '@/domain/ledger';
+import { CARGO_PLACE_KINDS, INTERNAL_PLACE_KINDS, type ReturnReason } from '@/domain/ledger';
 import { __setDb, db, migrate, migrationSteps, nowIso, type Db, type SqlParam } from './db';
 import {
   balanceByLocation,
@@ -5326,4 +5326,40 @@ test('quem não administra a empresa não cadastra lugar, e o aparelho recusa an
   // teste passa a comparar o dono com o dono e não prova nada.
   const capacidades = await currentCapabilities(CO);
   assert.equal(capacidades.has('manage_company'), false, 'o operador não administra a empresa');
+});
+
+test('a sala que nasce sozinha é a FÁBRICA, e quem já instalou é corrigido', async () => {
+  /**
+   * O cartão dizia "Fábrica" e a sobrelinha dizia "ALMOXARIFADO".
+   *
+   * `ensureLocation` gravava `store_room`, e a tela titula a sala sem nome como
+   * "Fábrica" (`nomeDoLugar`) lendo a espécie para a sobrelinha. A mesma linha
+   * afirmava duas coisas, e é a primeira tela que alguém abre depois de instalar.
+   *
+   * A outra metade é a que importa mais: **`factory` é a primeira espécie de
+   * `location_kind` desde a fundação do servidor e não tinha um único escritor no
+   * sistema inteiro** — peça pronta que ninguém chama, que é o defeito exato que
+   * o portão P1 desta casa persegue.
+   *
+   * A troca é segura por medida, não por opinião: `factory` e `store_room` são as
+   * duas salas INTERNAS, então nenhuma regra de carga muda de resposta. Esta
+   * asserção prende isso — se um dia `factory` sair de `INTERNAL_PLACE_KINDS`, a
+   * separação passa a oferecer a fábrica como destino e este teste avisa antes.
+   */
+  await ensureStarterData(CO);
+
+  const lugares = await listPlaces(CO);
+  const padrao = lugares.find((p) => p.id === defaultLocationId(CO));
+  assert.ok(padrao, 'a sala padrão existe depois do primeiro movimento');
+  assert.equal(padrao.kind, 'factory', 'a sala que nasce sozinha é a fábrica');
+
+  // A regra que a troca não pode ter quebrado, presa aqui.
+  assert.ok(
+    (INTERNAL_PLACE_KINDS as readonly string[]).includes('factory'),
+    'a fábrica é sala interna: se sair daqui, ela vira destino de carga na separação',
+  );
+  assert.ok(
+    !(CARGO_PLACE_KINDS as readonly string[]).includes('factory'),
+    'e não recebe carga',
+  );
 });

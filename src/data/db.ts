@@ -260,7 +260,7 @@ CREATE INDEX IF NOT EXISTS movements_balance_idx
 -- that ships as one language would be the single string that escaped. An
 -- unnamed location means "the one place", and the interface is what names it.
 INSERT OR IGNORE INTO locations (id, company_id, name, kind, created_at)
-SELECT company_id, company_id, '', 'store_room', MIN(created_at)
+SELECT company_id, company_id, '', 'factory', MIN(created_at)
   FROM items GROUP BY company_id;
 
 INSERT OR IGNORE INTO movements
@@ -840,9 +840,33 @@ CREATE INDEX IF NOT EXISTS sale_price_history_idx
   ON sale_price_history (company_id, item_id, observed_at DESC);
 `;
 
+/**
+ * A sala padrão passa a ser FÁBRICA, que é o que a tela sempre disse que ela é.
+ *
+ * `ensureLocation` gravava `store_room` e a tela titula a sala sem nome como
+ * "Fábrica" (`nomeDoLugar`), lendo a espécie para a sobrelinha. Resultado no
+ * aparelho: um cartão escrito **Fábrica** com a sobrelinha **ALMOXARIFADO** — a
+ * mesma linha dizendo duas coisas.
+ *
+ * E o defeito tem a outra metade, que é a que importa: `factory` é a PRIMEIRA
+ * espécie de `location_kind` desde a fundação do servidor e **não tinha um único
+ * escritor no sistema inteiro**. Peça pronta que ninguém chama é o defeito que o
+ * portão P1 desta casa existe para pegar, e ela estava no esquema desde o
+ * primeiro dia.
+ *
+ * A troca é segura porque `factory` e `store_room` são as duas salas INTERNAS
+ * (`INTERNAL_PLACE_KINDS`): nenhuma regra de carga, de separação ou de espelho
+ * muda de resposta. E a fila carrega o ID da linha, não uma cópia dela — então o
+ * que ainda não subiu sobe já com a espécie certa.
+ */
+const V23 = `
+UPDATE locations SET kind = 'factory'
+ WHERE id = company_id AND kind = 'store_room';
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
-  V19, V20, V21, V22,
+  V19, V20, V21, V22, V23,
 ];
 
 export type SqlParam = string | number | null;

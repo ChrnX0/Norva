@@ -40,7 +40,7 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | tabelas no aparelho (SQLite) | **25** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **26** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
 | migrações do servidor | **43** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V22** | último `const V` em `src/data/db.ts` |
+| migrações do aparelho | **V23** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
 | linhas de código | **~72.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **466** testes |
+| `npm test` | **467** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **49** checagens num navegador de verdade |
 | `npm run db:verify` | **19** garantias contra um Postgres descartável, sob RLS |
