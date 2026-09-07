@@ -491,8 +491,9 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   *"qq tema futuro ou o q vc chama de skin tem q poder ser aplicado sem problemas… vc
   notou q futuramente a gente vai criar mais skins? pq essa é a ideia."* Então uma pele
   nova escreve **duas coisas** e ganha o resto: os **traços** (`Tracos` em
-  `src/theme/tokens.ts` — `genero`, `tintaCheia`, `marcaVemDoTom`, `titulo`,
-  `radius.controle`), que é o que os componentes compartilhados perguntam a ela; e a
+  `src/theme/tokens.ts`, e o tipo é a lista — **não copie os nomes para cá**, porque a
+  cópia envelhece: em 7 de setembro nasceu o `cabecalho` e este parágrafo continuou
+  citando cinco), que é o que os componentes compartilhados perguntam a ela; e a
   **roupa da capa** (`src/home/capas/` — casco de página, casco de peça, e as peças que
   ela desenha à sua maneira). O nome de cada traço diz o que ele **decide**, nunca qual
   pele o usa: `ehPapel` compila e devolve o mesmo defeito na pele seguinte.

@@ -219,6 +219,32 @@ test('todo item da fila carrega uma medida', () => {
   );
 });
 
+/**
+ * A medida cabe dentro de uma célula de tabela, e um `|` a rebenta.
+ *
+ * Escrevi `:: joinCode|join_code` numa linha da tabela *A ORDEM* e a célula se
+ * partiu em duas: o markdown conta `|` antes de qualquer outra coisa, e o
+ * comentário de HTML não o protege. A tabela renderizou com uma coluna a mais e
+ * nada acusou — nem a suíte, que só lê a medida, nem o olho, que não conta cano.
+ *
+ * O separador da gramática já é `::` por causa disto; faltava a guarda.
+ */
+test('nenhuma medida carrega um cano que rebenta a tabela', () => {
+  const rebentam: string[] = [];
+  LINHAS.forEach((linha, i) => {
+    for (const m of linha.matchAll(/<!-- medida: [^>]*-->/g)) {
+      if (m[0].includes('|')) rebentam.push(`docs/roadmap.md:${i + 1} — ${m[0]}`);
+    }
+  });
+  assert.deepEqual(
+    rebentam,
+    [],
+    `estas medidas partem a célula em que estão:\n  ${rebentam.join('\n  ')}\n` +
+      'Escolha uma agulha sem `|` — a alternância quase sempre dá para trocar por um ' +
+      'trecho comum às duas formas.',
+  );
+});
+
 /** As linhas numeradas da tabela "A ORDEM" — a que envelheceu por último. */
 test('toda linha da tabela A ORDEM carrega uma medida', () => {
   const inicio = LINHAS.findIndex((l) => l.startsWith('## A ORDEM'));
