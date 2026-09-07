@@ -2210,11 +2210,52 @@ test('packaging under half a cent reaches the frozen rate, and stays there', asy
     producedOn: '2026-09-06',
   });
 
-  const semEmbalagem = run.unitCostRate - 0.4;
-  assert.ok(
-    Math.abs(run.unitCostRate - (semEmbalagem + 0.4)) < 1e-9,
-    'a taxa congelada carrega os quatro décimos',
+  /**
+   * A OUTRA fonte é a MESMA corrida com a embalagem zerada — e esta asserção
+   * substitui uma que não podia falhar.
+   *
+   * Estava assim, com a frase certa ao lado:
+   *
+   *     const semEmbalagem = run.unitCostRate - 0.4;
+   *     assert.ok(Math.abs(run.unitCostRate - (semEmbalagem + 0.4)) < 1e-9, ...)
+   *
+   * `semEmbalagem` é DEFINIDO como a taxa menos 0,4, então `semEmbalagem + 0,4` é a
+   * própria taxa: a igualdade é circular e vale para qualquer número. O `mutate`
+   * provou o custo disso — apagar `+ product.unitPackagingRate` do custo congelado
+   * atravessou a suíte inteira, e nenhum `grep` acharia, porque a linha parece uma
+   * comparação de verdade.
+   *
+   * Duas corridas idênticas congelam o mesmo consumo (a média só se move em COMPRA,
+   * e não há compra entre elas), então a diferença entre as duas é a embalagem e
+   * nada mais.
+   */
+  await saveProduct(LOCAL_COMPANY_ID, {
+    id: product.id,
+    itemId: product.itemId,
+    name: product.name,
+    kind: 'product',
+    recipeId: product.recipeId,
+    yieldPerUnit: product.yieldPerUnit,
+    unitPackagingRate: rate(0, 1),
+    packagingItems: [],
+    packaging: product.packaging,
+    shelfLifeDays: product.shelfLifeDays,
+    fullLevel: null,
+  });
+  const semTaxa = await recordProduction(LOCAL_COMPANY_ID, {
+    productId: product.id,
+    locationId: where,
+    batches: 1,
+    unitsProduced: 500,
+    occurredAt: '2026-09-06T13:00:00.000Z',
+    producedOn: '2026-09-06',
+  });
+  assert.equal(
+    Number((run.unitCostRate - semTaxa.unitCostRate).toFixed(9)),
+    0.4,
+    'a diferença entre as duas corridas é a embalagem, e só ela',
   );
+
   // E o que isso vale na corrida: dois reais, que sob o defeito eram zero.
   assert.equal(amountOf(0.4 as Rate, 500), 200);
 });
