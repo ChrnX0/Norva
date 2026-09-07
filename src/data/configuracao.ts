@@ -35,7 +35,7 @@
  * acomodar uma configuração seria pagar caro por conveniência, então quem se
  * move é o arquivo.
  */
-import { supabase } from '@/sync/supabase';
+import { readMeta, writeMeta } from './meta';
 import {
   floorSignIn,
   namesWhoRecorded,
@@ -55,6 +55,75 @@ export type ConfiguracaoDaEmpresa = {
   orders_need_approval: boolean;
   purchase_safety_days: number;
 };
+
+/**
+ * A marca de que este aparelho mexeu num interruptor e a mudança NÃO subiu.
+ *
+ * **Ela existe por causa de um caminho de perda silenciosa.** O docblock acima
+ * decide, com razão, que não há carimbo de tempo e que a última palavra vale —
+ * quem mexe nestes interruptores é o dono, num aparelho. O que essa decisão não
+ * cobre é o dono mexendo **sem rede**: `empurrar` falha calado (de propósito, e
+ * está certo — a mudança já vale neste celular), e a próxima descida sobrescreve
+ * a escolha dele com o valor velho do servidor. Ninguém vê, e o interruptor volta
+ * sozinho.
+ *
+ * Isto não é um relógio nem uma resolução de conflito: é uma pergunta de sim ou
+ * não — *"o que está aqui já foi contado para a casa?"*. Enquanto a resposta for
+ * não, a descida não escreve; ela tenta subir primeiro.
+ */
+const PENDENTE = 'company.naoSubiu';
+
+/**
+ * O que a casa sabe fazer com a configuração — duas perguntas, e nada de rede.
+ *
+ * A costura existe para este arquivo ter teste. Ele é inteiro sobre COMPORTAMENTO
+ * de rede — subiu, não subiu, e o que a descida faz depois — e nada disso se
+ * exercita com um cliente de Supabase construído no topo do módulo. É a mesma
+ * forma que o motor de sincronia já usa para o relógio: quem chama passa o de
+ * verdade, e o teste passa um que responde o que ele precisa provar.
+ */
+export type Casa = {
+  /** Conta para a casa o que este aparelho combinou. `false` é "não chegou". */
+  escrever(valores: ConfiguracaoDaEmpresa): Promise<boolean>;
+  /** O que a casa combinou, ou nulo quando não deu para perguntar. */
+  ler(): Promise<Partial<ConfiguracaoDaEmpresa> | null>;
+};
+
+/**
+ * A casa de verdade, quando existe servidor.
+ *
+ * **Sem `where` de empresa, e isso é a fundação e não descuido:**
+ * `companies_write` já exige `manage_company`, então o servidor decide ANTES da
+ * consulta quais linhas esta conta pode tocar. Carregar o id daqui seria repetir
+ * no aplicativo uma permissão que o banco impõe — e repetir permissão é como duas
+ * verdades nascem. Sem sessão, ou sem ser quem administra, isto simplesmente não
+ * escreve nada.
+ */
+async function daCasa(): Promise<Casa | null> {
+  // Importado AQUI, e não no topo: `@/sync/supabase` arrasta o cliente do
+  // servidor e, por baixo dele, o React Native inteiro — e o React Native não
+  // atravessa o transformador da suíte de teste. Com o import no topo, este
+  // arquivo não podia ser exercitado por teste nenhum, o que é exatamente o que
+  // acontecia até agora: o arquivo é todo sobre comportamento de rede e não tinha
+  // uma linha de teste.
+  const { supabase } = await import('@/sync/supabase');
+  const cliente = supabase;
+  if (!cliente) return null;
+  return {
+    escrever: async (valores) => {
+      const { error } = await cliente.from('companies').update(valores).not('id', 'is', null);
+      return !error;
+    },
+    ler: async () => {
+      const { data, error } = await cliente
+        .from('companies')
+        .select('names_who_recorded, floor_sign_in, orders_need_approval, purchase_safety_days')
+        .limit(1);
+      if (error || !data?.[0]) return null;
+      return data[0] as Partial<ConfiguracaoDaEmpresa>;
+    },
+  };
+}
 
 /** O que este aparelho tem guardado. */
 export async function daqui(): Promise<ConfiguracaoDaEmpresa> {
@@ -102,26 +171,36 @@ export async function guardarAqui(vinda: Partial<ConfiguracaoDaEmpresa>): Promis
  * rede aqui transformaria uma configuração que funcionou numa que parece ter
  * falhado — e ela não falhou, só ainda não foi contada para a casa.
  */
-export async function empurrar(): Promise<boolean> {
-  if (!supabase) return false;
-  // Sem `where` de empresa, e isso é a fundação e não descuido: `companies_write`
-  // já exige `manage_company`, então o servidor decide ANTES da consulta quais
-  // linhas esta conta pode tocar. Carregar o id daqui seria repetir no aplicativo
-  // uma permissão que o banco impõe — e repetir permissão é como duas verdades
-  // nascem. Sem sessão, ou sem ser quem administra, isto simplesmente não
-  // escreve nada.
-  const { error } = await supabase.from('companies').update(await daqui()).not('id', 'is', null);
-  return !error;
+export async function empurrar(casa?: Casa | null): Promise<boolean> {
+  const alvo = casa === undefined ? await daCasa() : casa;
+  if (!alvo) return false;
+  const deu = await alvo.escrever(await daqui());
+  // Falhou: fica a marca, para a próxima descida não passar por cima.
+  await writeMeta(PENDENTE, deu ? '' : '1');
+  return deu;
 }
 
 /** Puxa o que a casa combinou para este aparelho. */
-export async function puxar(): Promise<boolean> {
-  if (!supabase) return false;
-  const { data, error } = await supabase
-    .from('companies')
-    .select('names_who_recorded, floor_sign_in, orders_need_approval, purchase_safety_days')
-    .limit(1);
-  if (error || !data?.[0]) return false;
-  await guardarAqui(data[0] as Partial<ConfiguracaoDaEmpresa>);
+export async function puxar(casa?: Casa | null): Promise<boolean> {
+  const alvo = casa === undefined ? await daCasa() : casa;
+  if (!alvo) return false;
+  // O que está aqui ainda não foi contado para a casa: sobe primeiro. Se subir,
+  // a casa passa a concordar com o aparelho e a descida seguinte é inofensiva; se
+  // não subir, a descida NÃO acontece — melhor uma configuração velha no servidor
+  // do que o interruptor do dono voltando sozinho.
+  if ((await readMeta(PENDENTE)) === '1') {
+    const subiu = await empurrar(alvo);
+    if (!subiu) return false;
+    // Subiu: a casa acabou de aprender o que este aparelho tinha, e **a descida
+    // para aqui**. Continuar e escrever a leitura da mesma rodada é como o teste
+    // desta regra me pegou: a resposta pode ter sido montada antes da minha
+    // escrita, e o interruptor do dono voltava — pela mão do conserto que existe
+    // para impedir isso. Não há nada a aprender numa rodada em que quem falou fui
+    // eu; a próxima descida traz o que a casa tiver de novo.
+    return true;
+  }
+  const vinda = await alvo.ler();
+  if (!vinda) return false;
+  await guardarAqui(vinda);
   return true;
 }

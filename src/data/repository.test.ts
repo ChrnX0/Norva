@@ -4850,14 +4850,25 @@ test('a reversal is dated today, so a closed month stays closed', async () => {
   const DITADO = '2026-05-20T09:30:00.000Z';
   await reverseGroup(CO, { groupId: outra, occurredAt: DITADO });
 
-  const pernas = await conn.getAllAsync<{ occurred_at: string }>(
+  // A perna DAQUELE estorno, escolhida pelo que ela estorna — não pela ordem.
+  //
+  // A primeira versão pedia `ORDER BY recorded_at` e olhava a última. As duas
+  // pernas são gravadas no MESMO milissegundo quando a máquina está sob carga, e
+  // empate em `ORDER BY` é sorteio: o teste falhou uma vez em três com a máquina
+  // ocupada, apontando a perna de hoje como se fosse a ditada. É a lição que este
+  // arquivo já traz vinte linhas acima, sobre a compra de março — escolher pelo
+  // fato que o teste afirma é o que o mantém dizendo a verdade.
+  const [pernaDitada] = await conn.getAllAsync<{ occurred_at: string }>(
     `SELECT occurred_at FROM movements
-      WHERE company_id = ? AND reverses_movement_id IS NOT NULL AND item_id = ?
-      ORDER BY recorded_at`,
-    [CO, acucar],
+      WHERE company_id = ? AND item_id = ?
+        AND reverses_movement_id IN (
+          SELECT id FROM movements WHERE company_id = ? AND movement_group_id = ?
+        )`,
+    [CO, acucar, CO, outra],
   );
+  assert.ok(pernaDitada, 'o segundo estorno gravou a perna dele');
   assert.equal(
-    pernas[pernas.length - 1].occurred_at,
+    pernaDitada.occurred_at,
     DITADO,
     'quem passa a data explícita continua sendo obedecido — é o caminho da sincronia',
   );
