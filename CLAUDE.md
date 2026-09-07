@@ -647,6 +647,11 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   migração, permanente — então a forma é mostrada antes de rodar, mas a decisão de que
   ele existe já está tomada.
 
+  **O prazo é 10 dias corridos — decisão do dono, 7 de setembro.** *"podem ser 10 dias
+  corridos."* É o padrão da empresa, e os extremos continuam existindo como
+  configuração: zero destrói no ato, "nunca" guarda o livro fechado para sempre. No
+  aparelho o apagamento é imediato nos três casos — o prazo é do servidor.
+
   **E o dono zerando ANTES do lançamento é outro ato, que não depende disto.** Provado
   contra um Postgres com as 43 migrações aplicadas: `DELETE` e `UPDATE` em `movements`
   são recusados **até para o dono do banco** (gatilho de linha), e `TRUNCATE` passa —
