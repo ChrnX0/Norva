@@ -973,6 +973,67 @@ function Assistente({ tinta, acento, frio }: Pincel) {
   );
 }
 
+/**
+ * O CLIMA — e a cena existe porque a tela dele estava usando a de outro assunto.
+ *
+ * `app/weather.tsx` desenhava `cena="relatorios"`: um gráfico de barras numa tela que
+ * pergunta onde a fábrica fica. Cena emprestada afirma o assunto errado, que é a mesma
+ * família do cabeçalho de Ajustes cheio de árvores — *"o app nao é aplicativo de
+ * biologia"*, disse o dono. O desenho é do mundo da tela.
+ *
+ * Três coisas de tamanhos diferentes e vãos desiguais, pela regra que nasceu do
+ * *"feio"*: a nuvem à esquerda, o cata-vento no meio (o único que se mexe, porque é o
+ * único com verbo), e o sol à direita. E **nada aqui afirma o tempo de HOJE** — é a
+ * placa da oficina, não o termômetro. Quem afirma é o cartão do clima, com número.
+ *
+ * As rotações levam o eixo DENTRO da lista de transformações, e não em `origin`:
+ * `animatedProps` substitui o eixo declarado, e foi assim que a engrenagem da faixa
+ * sumiu da tela algumas horas atrás.
+ */
+function Clima({ tinta, acento, frio }: Pincel) {
+  const vento = useCiclo(11_000, { feitio: 'vaivem', repouso: 0.5 });
+  const gira = useAnimatedProps(() => ({
+    transform: [
+      { translateX: 186 },
+      { translateY: 26 },
+      { rotate: `${-20 + vento.value * 40}deg` },
+      { translateX: -186 },
+      { translateY: -26 },
+    ],
+  }));
+  const sol = useCiclo(48_000, { repouso: 0 });
+  const roda = useAnimatedProps(() => ({
+    transform: [
+      { translateX: 312 },
+      { translateY: 30 },
+      { rotate: `${sol.value * 360}deg` },
+      { translateX: -312 },
+      { translateY: -30 },
+    ],
+  }));
+  return (
+    <>
+      {/* A nuvem: um contorno só, e ela é a maior das três. */}
+      <G stroke={frio}>
+        <Path d="M22 44a13 13 0 0 1 13-12 17 17 0 0 1 32 5 11 11 0 0 1-3 22H36a11 11 0 0 1-14-15z" />
+      </G>
+
+      <G stroke={tinta}>
+        <Path d="M186 64V26" />
+        <Path d="M170 38h32M186 32v12" />
+        <AnimatedG animatedProps={gira}>
+          <Path d="M166 20h22v-6l12 9-12 9v-6h-22z" />
+        </AnimatedG>
+      </G>
+
+      <AnimatedG animatedProps={roda} stroke={acento}>
+        <Circle cx={312} cy={30} r={9} />
+        <Path d="M312 13v5M312 42v5M295 30h5M324 30h5M300 18l4 4M320 38l4 4M324 18l-4 4M304 38l-4 4" />
+      </AnimatedG>
+    </>
+  );
+}
+
 /** O ESPELHO DA LOJA — o que foi, e a caixa que volta. */
 function Espelho({ tinta, acento, frio }: Pincel) {
   const ciclo = useCiclo(6000, { repouso: 0 });
@@ -1030,4 +1091,5 @@ const DESENHOS: Record<Cena, (p: Pincel) => React.ReactElement> = {
   copia: Copia,
   assistente: Assistente,
   espelho: Espelho,
+  clima: Clima,
 };

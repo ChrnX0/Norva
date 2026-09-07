@@ -51,6 +51,7 @@ export const CENAS = [
   'copia',
   'assistente',
   'espelho',
+  'clima',
 ] as const;
 
 export type Cena = (typeof CENAS)[number];

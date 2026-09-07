@@ -583,6 +583,43 @@ function Estante({ massa, vazio }: Pincel): ReactElement {
 }
 
 /**
+ * O CATA-VENTO — o clima.
+ *
+ * A tela do clima desenhava o gráfico de barras dos relatórios: ela não tinha cena
+ * própria e pegou emprestada a mais próxima. Isso afirma "relatório" numa tela que
+ * pergunta onde a fábrica fica — a mesma família de erro que pôs três árvores e dois
+ * pássaros num cabeçalho de Ajustes, e que o dono nomeou: *"o app nao é aplicativo de
+ * biologia"*. O desenho tem de ser do mundo da tela.
+ *
+ * Um cata-vento é objeto de pátio, tem verbo próprio (vira com o vento) e diz "tempo"
+ * sem virar nuvem de desenho animado. E ele NÃO afirma o tempo de hoje: é a placa da
+ * oficina, não o termômetro.
+ */
+function CataVento({ massa }: Pincel): ReactElement {
+  const vento = useCiclo(12_000, { feitio: 'vaivem', repouso: 0.5 });
+  const ar = useAnimatedProps(() => ({
+    transform: [
+      { translateX: 272 },
+      { translateY: 24 },
+      { rotate: `${-22 + vento.value * 44}deg` },
+      { translateX: -272 },
+      { translateY: -24 },
+    ],
+  }));
+  return (
+    <G fill={massa}>
+      <Path d="M270 64V26h5v38z" />
+      {/* A cruz dos rumos, que é o que faz ler cata-vento e não antena. */}
+      <Path d="M254 38h37v4h-37z" />
+      <Path d="M270 34h5v12h-5z" />
+      <AnimatedG animatedProps={ar}>
+        <Path d="M258 20h20v-6l14 10-14 10v-6h-20z" />
+      </AnimatedG>
+    </G>
+  );
+}
+
+/**
  * Qual silhueta cada assunto usa — e o compartilhamento é escolha, não preguiça.
  *
  * Na escala de uma silhueta no horizonte alguns assuntos SÃO a mesma coisa: um
@@ -615,4 +652,5 @@ const SILHUETAS: Record<Cena, (p: Pincel) => ReactElement> = {
   assistente: Escuta,
   ajustes: Engrenagem,
   copia: Estante,
+  clima: CataVento,
 };
