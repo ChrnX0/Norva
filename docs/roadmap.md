@@ -301,9 +301,17 @@ Três defeitos que **só a foto pegava**, achados no mesmo passe:
 - o bosque estava no mesmo pixel nas dezoito telas — o desvio agora sai do nome da
   cena, determinístico.
 
-**Nível de evidência — E3.** `.shots/organico-cartao3.png` e a folha de contato de
-oito telas: cunha ausente, engrenagens girando, botões nos trilhos. Guarda novo em
-`src/home/capas/registro.test.ts`, provado contra `git show HEAD:src/components/Card.tsx`.
+**Nível de evidência — E3, e com uma correção de método junto.** A prova é
+`.shots/ajustes-393.png` — a MESMA tela que o dono circulou, depois: cunha ausente,
+engrenagens girando, faixa sangrando, cartão branco sobre chão verde. Dois guardas
+novos em `src/home/capas/registro.test.ts` (a cunha da quina e a tinta declarada),
+os dois provados contra os arquivos reais de antes do conserto.
+
+**A correção de método:** as primeiras horas de foto saíram todas em **720 dp** —
+tablets — porque o emulador tinha `wm density 240` preso de um teste antigo, e eu
+li margem e composição na largura errada. A foto não avisa: sai 1080 px de qualquer
+jeito. Agora avisa — a legenda de toda foto traz a conta e marca ⚠ TABLET acima de
+600 dp (`scripts/aparelho.mjs`), provado nos dois sentidos.
 
 Depois das duas correções, três coisas que saíram da MESMA regra ("conserto de pele
 não termina no arquivo que o mostrou") aplicada de propósito, procurando:
