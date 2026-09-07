@@ -221,6 +221,11 @@ export const en: Dictionary = {
     },
 
     who: {
+      /* Search, which only exists once the grid gets long. */
+      search: 'Find by name',
+      searchHint: 'Type the first letters. With or without accents, either way.',
+      searchNone: 'No name matches that. Check the letters.',
+      searchOf: '{{shown}} of {{total}} names',
       title: 'Who is holding the phone',
       overline: 'tap your name',
       hint: 'The name stays with whatever you record. It is there so the check-in knows who to ask, never to blame.',

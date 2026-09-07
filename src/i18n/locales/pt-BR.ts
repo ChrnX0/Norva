@@ -305,6 +305,11 @@ export const ptBR = {
     },
 
     who: {
+      /* A busca, que só existe quando a grade fica longa. */
+      search: 'Procurar pelo nome',
+      searchHint: 'Escreva as primeiras letras. Com ou sem acento, tanto faz.',
+      searchNone: 'Nenhum nome com isso. Confira as letras.',
+      searchOf: '{{shown}} de {{total}} nomes',
       title: 'Quem está com o aparelho',
       overline: 'toque no seu nome',
       /** Sem acusar ninguém: a frase explica para que serve, não cobra. */

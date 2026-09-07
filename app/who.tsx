@@ -18,6 +18,7 @@ import {
   type Profile,
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
+import { procurar, valeProcurar } from '@/domain/busca';
 import { useQuery } from '@/data/useQuery';
 import type { Dictionary } from '@/i18n';
 import { fill } from '@/i18n';
@@ -113,8 +114,27 @@ function Grade() {
   const [digitado, setDigitado] = useState('');
   const [errou, setErrou] = useState(false);
 
-  const ativas = (data?.pessoas ?? []).filter((p) => p.active);
-  const atual = ativas.find((p) => p.id === data?.atual) ?? null;
+  const todas = (data?.pessoas ?? []).filter((p) => p.active);
+  const atual = todas.find((p) => p.id === data?.atual) ?? null;
+
+  /**
+   * A busca, e por que ela só aparece com a grade longa.
+   *
+   * **O dono levantou isso ao pensar em porte:** *"funciona com seis pessoas; com
+   * duzentas, uma grade de nomes é uma lista telefônica"*. Com duzentos nomes em
+   * duas colunas são cem linhas de rolagem, de luva, a dezoito graus negativos.
+   *
+   * Doze é o corte, e ele não é gosto: a duas colunas com alvo grande, doze nomes
+   * são cerca de duas telas num telefone de 360 dp — daí para cima procurar ganha
+   * de rolar. Abaixo disso o campo não existe, porque uma fábrica de seis pessoas
+   * não deve ver uma caixa de busca para escolher entre seis nomes: seria pedir o
+   * que a tela já mostra inteiro, que é a Lei 1 virada do avesso.
+   *
+   * E ela ignora acento de propósito — quem digita com luva não vai atrás do til.
+   */
+  const [busca, setBusca] = useState('');
+  const procurando = valeProcurar(todas.length);
+  const ativas = procurar(todas, busca, (p) => p.name);
 
   const entrar = async (quem: Person) => {
     if (!(await matchPin(empresaDaqui(), quem.id, digitado))) {
@@ -183,6 +203,29 @@ function Grade() {
       ) : (
         <Reveal index={1}>
           <View style={{ gap: space.md }}>
+            {procurando ? (
+              <View>
+                <Field
+                  label={words.search}
+                  value={busca}
+                  onChangeText={setBusca}
+                  hint={words.searchHint}
+                />
+                {/* Lei 3: o número nunca aparece sozinho. "8 de 214" diz onde a
+                    pessoa está; "8" sozinho não diz nada. */}
+                <Text style={[type.caption, { color: color.inkFaint }]}>
+                  {fill(words.searchOf, {
+                    shown: String(ativas.length),
+                    total: String(todas.length),
+                  })}
+                </Text>
+              </View>
+            ) : null}
+
+            {procurando && ativas.length === 0 ? (
+              <Text style={[type.body, { color: color.inkMuted }]}>{words.searchNone}</Text>
+            ) : null}
+
             {emLinhas(ativas, colunas).map((linha, i) => (
               <View key={i} style={[styles.linha, { gap: space.md }]}>
                 {linha.map((quem) => {

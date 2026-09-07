@@ -2553,11 +2553,31 @@ check('tapping a name on the grid leaves the grid, even when the grid is the onl
    * `/who` DIRETO, que é a mesma pilha de uma rota, toca num nome e afirma que a
    * página mudou.
    */
+  /**
+   * **E esta checagem passou pelo motivo errado por um dia.** Ela pedia
+   * `getByRole('button').first()` numa instalação virgem — e o exemplo semeado NÃO
+   * cadastra gente, então o único botão da tela era o do estado vazio, que leva
+   * para "Pessoas". A página mudava, a asserção passava, e nenhum nome tinha sido
+   * tocado: o defeito que ela existe para pegar não era exercitado nunca. Agora ela
+   * cadastra alguém primeiro e toca no NOME, pelo rótulo dele.
+   */
+  await page.goto(`http://localhost:${PORT}/people`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Cadastrar uma pessoa', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+  await page.getByLabel('Como se chama').fill('Dona Ana');
+  await page.getByText('Salvar pessoa', { exact: true }).first().click();
+  await page.waitForTimeout(2000);
+
   await page.goto(`http://localhost:${PORT}/who`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
-  const nomes = page.getByRole('button');
-  assert.ok((await nomes.count()) > 0, 'há alguém na grade para tocar');
-  await nomes.first().click();
+  const grade = await screen(page);
+  assert.match(grade, /Dona Ana/, 'a grade mostra quem a empresa cadastrou');
+  // Com um nome só, a busca NÃO existe: pedir uma caixa de busca para escolher
+  // entre um nome é pedir o que a tela já mostra inteiro.
+  assert.doesNotMatch(grade, /Procurar pelo nome/, 'com a grade curta não há busca');
+
+  await page.getByLabel('Dona Ana').first().click();
   await page.waitForTimeout(1500);
   assert.doesNotMatch(
     page.url(),

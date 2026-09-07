@@ -83,6 +83,8 @@ const NAO_E_DICIONARIO: Record<string, string> = {
   Ana:
     'nome de pessoa que a própria checagem cadastra antes de tocar nele — nome de gente é dado da fábrica, não frase de tela, pelo mesmo motivo que nome de loja',
   Uva: 'sabor que a própria checagem cadastra antes de tocar nele',
+  'Dona Ana':
+    'nome de pessoa que a checagem da grade cadastra antes de tocar nele — e ela precisa cadastrar, porque o exemplo semeado NÃO semeia gente: era por isso que a versão anterior tocava no botão do estado vazio e passava sem tocar em nome nenhum',
   'Transportes Silva':
     'nome de transportadora que a própria checagem cadastra antes de tocar nele — nome de empresa de fora é dado da fábrica, não frase de tela, pelo mesmo motivo que nome de loja e de gente',
   Coco:

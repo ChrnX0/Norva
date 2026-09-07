@@ -226,6 +226,11 @@ export const es: Dictionary = {
     },
 
     who: {
+      /* La búsqueda, que solo existe cuando la cuadrícula se alarga. */
+      search: 'Buscar por el nombre',
+      searchHint: 'Escriba las primeras letras. Con o sin acento, da igual.',
+      searchNone: 'Ningún nombre con eso. Revise las letras.',
+      searchOf: '{{shown}} de {{total}} nombres',
       title: 'Quién tiene el aparato',
       overline: 'toca tu nombre',
       hint: 'El nombre queda junto a lo que registres. Sirve para que la verificación sepa a quién preguntar, nunca para culpar.',
