@@ -1481,12 +1481,23 @@ check('the default room can be given a real name, and keeps being the factory', 
   assert.match(antes, /Fábrica/, 'a sala padrão está na tela com o nome que a tela lhe dá');
   assert.match(antes, /Renomear/, 'e o dono vê a porta de renomear');
 
-  // A lista sai ordenada por espécie: o cliente semeado ("Mercado do Zé") vem
-  // antes da fábrica. A precondição fica presa para a checagem não renomear a
-  // loja errada em silêncio quando a ordem mudar.
+  // O botão da FÁBRICA, achado pela posição — o primeiro "Renomear" abaixo do
+  // título "Fábrica" —, e não por índice. A primeira versão contava dois cartões
+  // (cliente semeado + fábrica) e o `e2e` semeia só o exemplo inicial, sem o
+  // cliente que o `--com-dado` da foto acrescenta: havia UM cartão e o índice 1
+  // não existia. Posição não depende do que está semeado nem da ordem da lista.
+  const titulo = await page.getByText('Fábrica', { exact: true }).first().boundingBox();
+  assert.ok(titulo, 'o título da fábrica tem posição na tela');
   const botoes = page.getByRole('button', { name: 'Renomear' });
-  assert.ok((await botoes.count()) >= 2, 'há pelo menos o cliente semeado e a fábrica');
-  await botoes.nth(1).click();
+  const total = await botoes.count();
+  assert.ok(total >= 1, 'há pelo menos a fábrica para renomear');
+  let alvo = null;
+  for (let i = 0; i < total; i++) {
+    const caixa = await botoes.nth(i).boundingBox();
+    if (caixa && caixa.y > titulo.y) { alvo = botoes.nth(i); break; }
+  }
+  assert.ok(alvo, 'existe um "Renomear" abaixo do título da fábrica');
+  await alvo.click();
   await page.waitForTimeout(600);
 
   await page.getByLabel('Como se chama').first().fill('Galpão 2');
