@@ -4964,7 +4964,7 @@ export async function setCurrentOperator(personId: string | null): Promise<void>
  * o dono abriria a empresa B e o dinheiro desapareceria de tudo em silêncio, pela
  * regra que existe para "pessoa apagada".
  *
- * Não é alcançável hoje (`LOCAL_COMPANY_ID` é a única empresa do app), e é de graça
+ * Não é alcançável hoje (`empresaDaqui()` é a única empresa do app), e é de graça
  * agora: `'outra'` diz "existe alguém escolhido, e não é desta empresa", que é uma
  * terceira resposta e não a segunda.
  */

@@ -12,7 +12,7 @@ import { Reveal } from '@/components/Reveal';
 import { Touchable } from '@/components/Touchable';
 import { nowIso } from '@/data/db';
 import { recordCheck, shipmentsOn, type Shipment } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { dayWindow } from '@/domain/day';
 import { boxesOf } from '@/domain/units';
@@ -62,10 +62,10 @@ function WhereItWent() {
     const today = dayWindow(nowIso(), locale.timeZone);
     const yesterday = dayWindow(nowIso(), locale.timeZone, -1);
     const [hoje, ontem] = await Promise.all([
-      shipmentsOn(LOCAL_COMPANY_ID, today.from, today.to),
+      shipmentsOn(empresaDaqui(), today.from, today.to),
       // Ontem entra pela Lei 3: "3 destinos" não é muito nem pouco até estar ao
       // lado do que foi ontem. Esta aba dizia o número sozinho.
-      shipmentsOn(LOCAL_COMPANY_ID, yesterday.from, yesterday.to),
+      shipmentsOn(empresaDaqui(), yesterday.from, yesterday.to),
     ]);
     return { hoje, ontem };
   });
@@ -124,7 +124,7 @@ function WhereItWent() {
     // remessa contaria a mesma mercadoria duas vezes quando a loja recebeu duas
     // cargas no mesmo dia.
     for (const groupId of place.groupIds) {
-      await recordCheck(LOCAL_COMPANY_ID, { groupId });
+      await recordCheck(empresaDaqui(), { groupId });
     }
     refresh();
   };

@@ -18,7 +18,7 @@ import {
   type ProductLine,
   type ProductType,
 } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { fill } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -73,9 +73,9 @@ function Catalog() {
 
   const { data, loading, refresh } = useQuery<Loaded>(async () => {
     const [lines, types, flavors] = await Promise.all([
-      listLines(LOCAL_COMPANY_ID),
-      listTypes(LOCAL_COMPANY_ID),
-      listFlavors(LOCAL_COMPANY_ID),
+      listLines(empresaDaqui()),
+      listTypes(empresaDaqui()),
+      listFlavors(empresaDaqui()),
     ]);
     return { lines, types, flavors };
   });
@@ -227,7 +227,7 @@ function Catalog() {
               variant="ghost"
               disabled={novaLinha.trim().length === 0}
               onPress={() =>
-                gravar(() => saveLine(LOCAL_COMPANY_ID, { name: novaLinha }), () => setNovaLinha(''))
+                gravar(() => saveLine(empresaDaqui(), { name: novaLinha }), () => setNovaLinha(''))
               }
             />
           </View>
@@ -291,7 +291,7 @@ function Catalog() {
                   disabled={novoTipo.trim().length === 0}
                   onPress={() =>
                     gravar(
-                      () => saveType(LOCAL_COMPANY_ID, { lineId: linhaAtiva.id, name: novoTipo }),
+                      () => saveType(empresaDaqui(), { lineId: linhaAtiva.id, name: novoTipo }),
                       () => setNovoTipo(''),
                     )
                   }
@@ -333,7 +333,7 @@ function Catalog() {
               disabled={novoSabor.trim().length === 0}
               onPress={() =>
                 gravar(
-                  () => saveFlavor(LOCAL_COMPANY_ID, { name: novoSabor }),
+                  () => saveFlavor(empresaDaqui(), { name: novoSabor }),
                   () => setNovoSabor(''),
                 )
               }

@@ -14,7 +14,7 @@ import {
   listProducts,
   loadRecipeGraph,
 } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { costPerProductUnit, packagingRatePerUnit, costRecipe, unitsPerBatch } from '@/domain/recipe';
 import { fill, formatMoney, formatPacked, formatQuantity, plural } from '@/i18n';
@@ -72,10 +72,10 @@ function ProductsList() {
 
   const { data, loading } = useQuery<{ rows: Row[]; dinheiro: boolean }>(async () => {
     const [products, graph, custos, names] = await Promise.all([
-      listProducts(LOCAL_COMPANY_ID),
-      loadRecipeGraph(LOCAL_COMPANY_ID),
-      itemCosts(LOCAL_COMPANY_ID),
-      loadLabels(LOCAL_COMPANY_ID),
+      listProducts(empresaDaqui()),
+      loadRecipeGraph(empresaDaqui()),
+      itemCosts(empresaDaqui()),
+      loadLabels(empresaDaqui()),
     ]);
 
     /**

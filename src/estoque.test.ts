@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { before, test } from 'node:test';
 import { __setDb, migrate, type Db, type SqlParam } from '@/data/db';
-import { ensureStarterData, LOCAL_COMPANY_ID as CO } from '@/data/seed';
+import { ensureStarterData } from '@/data/seed';
+import { EMPRESA_SEMENTE as CO } from '@/data/empresa';
 
 /**
  * Insumo que se compra e que nada consome é um número que só sobe.

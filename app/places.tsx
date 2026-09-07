@@ -36,7 +36,7 @@ import {
 import { dayWindow, localDate } from '@/domain/day';
 import { rate } from '@/domain/money';
 import { nomeDoLugar, receivesCargo } from '@/domain/ledger';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { agreedOn, daysUntilNextDelivery, toggleDay } from '@/domain/agreement';
 import { formatTyped, parseTyped } from '@/domain/number';
@@ -122,10 +122,10 @@ function Places() {
 
   const { data, refresh } = useQuery<Loaded>(async () => {
     const [places, stock, readings, capacidades] = await Promise.all([
-      listPlaces(LOCAL_COMPANY_ID),
-      stockByPlace(LOCAL_COMPANY_ID),
-      lastReadings(LOCAL_COMPANY_ID),
-      currentCapabilities(LOCAL_COMPANY_ID),
+      listPlaces(empresaDaqui()),
+      stockByPlace(empresaDaqui()),
+      lastReadings(empresaDaqui()),
+      currentCapabilities(empresaDaqui()),
     ]);
     return { places, stock, readings, podeAdministrar: capacidades.has('manage_company') };
   });
@@ -157,7 +157,7 @@ function Places() {
     try {
       // Só o nome: `savePlace` sem `contactPhone`/`deliveryDays`/`sensorRanges`
       // é "não mexa no que já estava combinado", por contrato.
-      await savePlace(LOCAL_COMPANY_ID, { id: place.id, name: nome, kind: place.kind });
+      await savePlace(empresaDaqui(), { id: place.id, name: nome, kind: place.kind });
       setRenaming(null);
       setNewName('');
       refresh();
@@ -197,7 +197,7 @@ function Places() {
     if (!name.trim() || saving) return;
     setSaving(true);
     try {
-      await savePlace(LOCAL_COMPANY_ID, { name, kind });
+      await savePlace(empresaDaqui(), { name, kind });
       setName('');
       setAdding(false);
       refresh();
@@ -569,7 +569,7 @@ function Ambiente({
     async () => {
       const hoje = dayWindow(nowIso(), locale.timeZone);
       const semana = dayWindow(nowIso(), locale.timeZone, -6);
-      return readingsBetween(LOCAL_COMPANY_ID, place.id, TEMPERATURA, semana.from, hoje.to);
+      return readingsBetween(empresaDaqui(), place.id, TEMPERATURA, semana.from, hoje.to);
     },
     `${place.id}:${last?.id ?? ''}`,
   );
@@ -595,7 +595,7 @@ function Ambiente({
     try {
       const min = parseTyped(minimo);
       const max = parseTyped(maximo);
-      await savePlace(LOCAL_COMPANY_ID, {
+      await savePlace(empresaDaqui(), {
         id: place.id,
         name: place.name,
         kind: place.kind,
@@ -636,7 +636,7 @@ function Ambiente({
    * lote em câmara saudável seria a lista pela lista.
    */
   const { data: expostos } = useQuery(
-    async () => (fora && last ? lotsInRoomAt(LOCAL_COMPANY_ID, place.id, last.takenAt) : []),
+    async () => (fora && last ? lotsInRoomAt(empresaDaqui(), place.id, last.takenAt) : []),
     `${place.id}:${fora ? (last?.id ?? '') : ''}`,
   );
 
@@ -645,7 +645,7 @@ function Ambiente({
     if (lido === null || !Number.isFinite(lido) || salvando) return;
     setSalvando(true);
     try {
-      await recordReading(LOCAL_COMPANY_ID, {
+      await recordReading(empresaDaqui(), {
         locationId: place.id,
         kind: TEMPERATURA,
         value: lido,
@@ -815,7 +815,7 @@ function Agreement({ place, onDone }: { place: Place; onDone: () => void }) {
    * ninguém.
    */
   const { data: precos, refresh: refreshPrecos } = useQuery(
-    () => salePricesFor(LOCAL_COMPANY_ID, place.id),
+    () => salePricesFor(empresaDaqui(), place.id),
     place.id,
   );
   /** O que foi digitado, por item. Ausente é "não mexi neste". */
@@ -825,7 +825,7 @@ function Agreement({ place, onDone }: { place: Place; onDone: () => void }) {
     if (saving) return;
     setSaving(true);
     try {
-      await savePlace(LOCAL_COMPANY_ID, {
+      await savePlace(empresaDaqui(), {
         id: place.id,
         name: place.name,
         kind: place.kind,
@@ -841,7 +841,7 @@ function Agreement({ place, onDone }: { place: Place; onDone: () => void }) {
         const limpo = texto.trim();
         const valor = limpo === '' ? null : parseTyped(limpo);
         if (limpo !== '' && (valor === null || !Number.isFinite(valor))) continue;
-        await saveSalePrice(LOCAL_COMPANY_ID, {
+        await saveSalePrice(empresaDaqui(), {
           itemId,
           placeId: place.id,
           // O que se digita é dinheiro POR UNIDADE-BASE; o que se guarda é taxa.

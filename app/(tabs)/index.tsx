@@ -20,7 +20,7 @@ import {
   type LossRow,
 } from '@/data/repository';
 import { ultimaCopia } from '@/data/backup';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { reading, type Forecast } from '@/weather';
 import { forecastForScreen } from '@/weather/live';
 import { useQuery } from '@/data/useQuery';
@@ -158,21 +158,21 @@ function Briefing() {
       places,
       stockItems,
     ] = await Promise.all([
-      recentCostChanges(LOCAL_COMPANY_ID, 12),
-      productionOn(LOCAL_COMPANY_ID, today.from, today.to),
-      productionOn(LOCAL_COMPANY_ID, then.from, then.to),
-      productionOn(LOCAL_COMPANY_ID, yesterday.from, yesterday.to),
-      shipmentsOn(LOCAL_COMPANY_ID, today.from, today.to),
-      shipmentsOn(LOCAL_COMPANY_ID, yesterday.from, yesterday.to),
-      openProductionRuns(LOCAL_COMPANY_ID),
-      runningOut(LOCAL_COMPANY_ID, lastWeek.from, today.to, 7),
-      stockAgainstOrders(LOCAL_COMPANY_ID, through),
-      productionBetween(LOCAL_COMPANY_ID, weekAgo.from, today.to),
-      recentRuns(LOCAL_COMPANY_ID, 6),
+      recentCostChanges(empresaDaqui(), 12),
+      productionOn(empresaDaqui(), today.from, today.to),
+      productionOn(empresaDaqui(), then.from, then.to),
+      productionOn(empresaDaqui(), yesterday.from, yesterday.to),
+      shipmentsOn(empresaDaqui(), today.from, today.to),
+      shipmentsOn(empresaDaqui(), yesterday.from, yesterday.to),
+      openProductionRuns(empresaDaqui()),
+      runningOut(empresaDaqui(), lastWeek.from, today.to, 7),
+      stockAgainstOrders(empresaDaqui(), through),
+      productionBetween(empresaDaqui(), weekAgo.from, today.to),
+      recentRuns(empresaDaqui(), 6),
       // Sem horizonte: aqui a pergunta não é "o que acaba esta semana" (isso é o
       // cartão de insumo) e sim "quanto tempo o estoque dura", que é o normal
       // contra o qual a semana se compara.
-      runningOut(LOCAL_COMPANY_ID, lastWeek.from, today.to, 7, Number.POSITIVE_INFINITY),
+      runningOut(empresaDaqui(), lastWeek.from, today.to, 7, Number.POSITIVE_INFINITY),
       // SEM local: o aviso de validade é sobre o lote, onde quer que ele esteja.
       //
       // Ele filtrava pelo almoxarifado, e o filtro silenciava o aviso EXATAMENTE
@@ -180,11 +180,11 @@ function Briefing() {
       // fria ou para a loja dá zero no almoxarifado, e o `HAVING > 0` o descarta.
       // Uma fábrica de picolés manda picolé para a câmara: dali em diante este
       // cartão nunca mais avisava de nada, e o produto vencia dentro dela.
-      expiringSoon(LOCAL_COMPANY_ID, trintaDias, 5),
-      lossesOn(LOCAL_COMPANY_ID, mes.from, today.to),
-      lossesOn(LOCAL_COMPANY_ID, mesAnterior.de.from, mesAnterior.ate.to),
-      listPlaces(LOCAL_COMPANY_ID),
-      listItems(LOCAL_COMPANY_ID),
+      expiringSoon(empresaDaqui(), trintaDias, 5),
+      lossesOn(empresaDaqui(), mes.from, today.to),
+      lossesOn(empresaDaqui(), mesAnterior.de.from, mesAnterior.ate.to),
+      listPlaces(empresaDaqui()),
+      listItems(empresaDaqui()),
     ]);
 
     /**
@@ -195,7 +195,7 @@ function Briefing() {
      * lista de itens antes de saber quais existem.
      */
     const steadySince = await lastCostMove(
-      LOCAL_COMPANY_ID,
+      empresaDaqui(),
       stockItems.filter((i) => i.kind === 'input' || i.kind === 'packaging').map((i) => i.id),
     );
 

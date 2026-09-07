@@ -38,7 +38,7 @@ import {
   saveSalePrice,
   type RecipeSummary,
 } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { rate } from '@/domain/money';
 import {
@@ -139,17 +139,17 @@ function ProductForm() {
   const { data, loading } = useQuery<Loaded>(async () => {
     const [recipes, graph, costs, labels, lines, types, flavors, items, products] =
       await Promise.all([
-      listRecipes(LOCAL_COMPANY_ID),
-      loadRecipeGraph(LOCAL_COMPANY_ID),
-      itemCosts(LOCAL_COMPANY_ID),
-      loadLabels(LOCAL_COMPANY_ID),
-      listLines(LOCAL_COMPANY_ID),
-      listTypes(LOCAL_COMPANY_ID),
-      listFlavors(LOCAL_COMPANY_ID),
-      listItems(LOCAL_COMPANY_ID),
-      listProducts(LOCAL_COMPANY_ID),
+      listRecipes(empresaDaqui()),
+      loadRecipeGraph(empresaDaqui()),
+      itemCosts(empresaDaqui()),
+      loadLabels(empresaDaqui()),
+      listLines(empresaDaqui()),
+      listTypes(empresaDaqui()),
+      listFlavors(empresaDaqui()),
+      listItems(empresaDaqui()),
+      listProducts(empresaDaqui()),
     ]);
-    const podeCombinar = (await currentCapabilities(LOCAL_COMPANY_ID)).has('manage_company');
+    const podeCombinar = (await currentCapabilities(empresaDaqui())).has('manage_company');
     const wrappings = items.filter((i) => i.kind === 'packaging');
     return {
       recipes,
@@ -392,7 +392,7 @@ function ProductForm() {
 
     setSaving(true);
     try {
-      const salvo = await saveProduct(LOCAL_COMPANY_ID, {
+      const salvo = await saveProduct(empresaDaqui(), {
         name: composed.trim(),
         lineId,
         typeId,
@@ -417,7 +417,7 @@ function ProductForm() {
        * teria buracos que nada reconstrói.
        */
       if (salvo.itemId && salePrice.trim() !== '') {
-        await saveSalePrice(LOCAL_COMPANY_ID, {
+        await saveSalePrice(empresaDaqui(), {
           itemId: salvo.itemId,
           placeId: null,
           rate: rate(num(salePrice) || 0, 1),

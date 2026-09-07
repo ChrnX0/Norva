@@ -42,7 +42,8 @@ import {
   saveSalePrice,
   averageRatesForLedger,
 } from '@/data/repository';
-import { ensureStarterData, LOCAL_COMPANY_ID } from '@/data/seed';
+import { ensureStarterData } from '@/data/seed';
+import { EMPRESA_SEMENTE } from '@/data/empresa';
 import { fromDecimal, rate} from '@/domain/money';
 import { sendableTables, serialize, type SyncActor } from '@/sync/serialize';
 
@@ -102,9 +103,9 @@ async function main() {
   __setDb(db);
 
   // A day in the factory, in the order it really happens.
-  await ensureStarterData(LOCAL_COMPANY_ID);
+  await ensureStarterData(EMPRESA_SEMENTE);
 
-  const items = await listItems(LOCAL_COMPANY_ID);
+  const items = await listItems(EMPRESA_SEMENTE);
   const sugar = items.find((i) => i.name.startsWith('Açúcar'));
   const pulp = items.find((i) => i.name.startsWith('Polpa'));
   if (!sugar || !pulp) throw new Error('the starter data did not arrive');
@@ -113,16 +114,16 @@ async function main() {
   // primeiro, o tipo dentro dela, o sabor solto. A ordem importa e é a mesma
   // que vai para o servidor - tipo antes da linha seria chave estrangeira
   // quebrada do outro lado, e a fila é enviada na ordem em que foi escrita.
-  const linha = await saveLine(LOCAL_COMPANY_ID, { name: 'Picolé' });
-  const tipo = await saveType(LOCAL_COMPANY_ID, { lineId: linha, name: 'Tradicional' });
-  const sabor = await saveFlavor(LOCAL_COMPANY_ID, { name: 'Morango' });
+  const linha = await saveLine(EMPRESA_SEMENTE, { name: 'Picolé' });
+  const tipo = await saveType(EMPRESA_SEMENTE, { lineId: linha, name: 'Tradicional' });
+  const sabor = await saveFlavor(EMPRESA_SEMENTE, { name: 'Morango' });
 
   // E um produto que a usa, porque uma grade que não chega presa a um produto
   // atravessa sem provar que as três colunas novas atravessam.
   const palito = items.find((i) => i.name.includes('Palito'));
   if (!palito) throw new Error('the starter data has no stick');
 
-  await saveProduct(LOCAL_COMPANY_ID, {
+  await saveProduct(EMPRESA_SEMENTE, {
     name: 'Picolé Tradicional de Morango',
     kind: 'product',
     recipeId: null,
@@ -141,7 +142,7 @@ async function main() {
   });
 
   // A second invoice, so the moving average has something to move.
-  await recordPurchase(LOCAL_COMPANY_ID, {
+  await recordPurchase(EMPRESA_SEMENTE, {
     itemId: sugar.id,
     supplierName: 'Fornecedor Silva',
     purchaseQuantity: 2,
@@ -150,14 +151,14 @@ async function main() {
   });
 
   // Somebody walks to the shelf and finds less than the books expected.
-  await recordCount(LOCAL_COMPANY_ID, {
-    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+  await recordCount(EMPRESA_SEMENTE, {
+    locationId: defaultLocationId(EMPRESA_SEMENTE),
     itemId: sugar.id,
     countedBaseUnits: 92_000,
   });
 
   // And a recipe, whose lines carry an order somebody chose.
-  await saveRecipeVersion(LOCAL_COMPANY_ID, {
+  await saveRecipeVersion(EMPRESA_SEMENTE, {
     name: 'Base de creme',
     yieldAmount: 10_000,
     yieldUnit: 'ml',
@@ -173,8 +174,8 @@ async function main() {
   // uma tabela que `serialize` diz saber mandar e que nenhuma sessão exercita
   // é uma promessa que ninguém cobrou - o servidor recusaria na primeira vez,
   // em produção, com a fila inteira parada atrás dela.
-  const loja = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
-  await saveOrder(LOCAL_COMPANY_ID, {
+  const loja = await savePlace(EMPRESA_SEMENTE, { name: 'Loja Centro', kind: 'own_store' });
+  await saveOrder(EMPRESA_SEMENTE, {
     placeId: loja.id,
     requestedFor: '2026-09-10',
     lines: [{ itemId: pulp.id, baseUnits: 300 }],
@@ -185,9 +186,9 @@ async function main() {
   // `capability[]`. Mandada crua, o Postgres guarda uma palavra só chamada
   // "dispatch,check_receipt" e recusa a fila inteira — com tudo o que a fábrica
   // gravar depois preso atrás dela.
-  const perfis = await listProfiles(LOCAL_COMPANY_ID);
+  const perfis = await listProfiles(EMPRESA_SEMENTE);
   const entregador = perfis.find((p) => p.templateRole === 'driver') ?? perfis[0];
-  await savePerson(LOCAL_COMPANY_ID, { name: 'Zeca da câmara', profileId: entregador.id });
+  await savePerson(EMPRESA_SEMENTE, { name: 'Zeca da câmara', profileId: entregador.id });
 
   /**
    * O acordo comercial: o preço de tabela, o combinado com a loja, e a história.
@@ -202,11 +203,11 @@ async function main() {
    * As três chamadas escrevem QUATRO linhas: a tabela (que é `items`, já na fila),
    * o combinado, e duas de história — uma por mudança.
    */
-  const vendavel = (await listProducts(LOCAL_COMPANY_ID))[0];
+  const vendavel = (await listProducts(EMPRESA_SEMENTE))[0];
   if (!vendavel) throw new Error('a sessão precisa de um produto para precificar');
-  await saveSalePrice(LOCAL_COMPANY_ID, { itemId: vendavel.itemId, placeId: null, rate: rate(2.5, 1) });
-  await saveSalePrice(LOCAL_COMPANY_ID, { itemId: vendavel.itemId, placeId: loja.id, rate: rate(2.2, 1) });
-  await saveSalePrice(LOCAL_COMPANY_ID, { itemId: vendavel.itemId, placeId: loja.id, rate: rate(2.4, 1) });
+  await saveSalePrice(EMPRESA_SEMENTE, { itemId: vendavel.itemId, placeId: null, rate: rate(2.5, 1) });
+  await saveSalePrice(EMPRESA_SEMENTE, { itemId: vendavel.itemId, placeId: loja.id, rate: rate(2.2, 1) });
+  await saveSalePrice(EMPRESA_SEMENTE, { itemId: vendavel.itemId, placeId: loja.id, rate: rate(2.4, 1) });
 
   // A câmara fria, com a faixa que julga a leitura — e uma leitura dentro dela.
   //
@@ -215,12 +216,12 @@ async function main() {
   // entre aspas onde deveria haver objeto (foi o que a lista de embalagem já
   // fez); e `readings` exige `recorded_by` na política, que é a coluna que o
   // aparelho não conhece e o serializador estampa.
-  const camara = await savePlace(LOCAL_COMPANY_ID, {
+  const camara = await savePlace(EMPRESA_SEMENTE, {
     name: 'Câmara fria',
     kind: 'cold_room',
     sensorRanges: { temperature: { min: -22, max: -16, unit: 'C' } },
   });
-  await recordReading(LOCAL_COMPANY_ID, {
+  await recordReading(EMPRESA_SEMENTE, {
     locationId: camara.id,
     kind: 'temperature',
     value: -18.4,
@@ -234,26 +235,26 @@ async function main() {
   // aponta para `lots` lá, e aqui é só um TEXT. Se a ordem estivesse errada, o
   // aparelho aceitaria e o servidor recusaria: o defeito só apareceria no
   // primeiro celular sem sinal, com a fila inteira parada atrás dele.
-  const produto = (await listProducts(LOCAL_COMPANY_ID)).find((p) => p.recipeId);
+  const produto = (await listProducts(EMPRESA_SEMENTE)).find((p) => p.recipeId);
   if (!produto) throw new Error('a sessão precisa de um produto com receita');
-  await recordProduction(LOCAL_COMPANY_ID, {
+  await recordProduction(EMPRESA_SEMENTE, {
     productId: produto.id,
-    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    locationId: defaultLocationId(EMPRESA_SEMENTE),
     batches: 1,
     unitsProduced: 480,
     producedOn: '2026-09-02',
   });
 
   // A carga que sai da fábrica para a loja.
-  await recordTransfer(LOCAL_COMPANY_ID, {
+  await recordTransfer(EMPRESA_SEMENTE, {
     itemId: pulp.id,
-    fromLocationId: defaultLocationId(LOCAL_COMPANY_ID),
+    fromLocationId: defaultLocationId(EMPRESA_SEMENTE),
     toLocationId: loja.id,
     baseUnits: 2000,
   });
 
   // E uma perda com motivo, que é o tipo com a capacidade mais restrita.
-  await recordLoss(LOCAL_COMPANY_ID, {
+  await recordLoss(EMPRESA_SEMENTE, {
     itemId: pulp.id,
     baseUnits: 300,
     reason: 'melted',
@@ -266,10 +267,10 @@ async function main() {
   // `check_receipt`. Uma devolução que nunca foi replicada é uma política que
   // nunca foi cobrada, e ela só falharia na primeira loja que devolvesse
   // mercadoria, em produção, com a fila inteira parada atrás dela.
-  await recordReturn(LOCAL_COMPANY_ID, {
+  await recordReturn(EMPRESA_SEMENTE, {
     itemId: pulp.id,
     fromLocationId: loja.id,
-    toLocationId: defaultLocationId(LOCAL_COMPANY_ID),
+    toLocationId: defaultLocationId(EMPRESA_SEMENTE),
     baseUnits: 500,
     // Com motivo, e é ele que a sessão prova: o servidor recusa devolução sem
     // razão (`movements_return_says_why`), então uma devolução sem ela nunca
@@ -395,11 +396,11 @@ async function main() {
   }
 
   // What the device believes, for the shell to check the server against.
-  const after = await listItems(LOCAL_COMPANY_ID);
+  const after = await listItems(EMPRESA_SEMENTE);
   const heldSugar = after.find((i) => i.id === sugar.id);
   // A média pelo caminho do LIVRO-RAZÃO: esta saída é comparada número por
   // número com a que o Postgres calcula, e é verdade de razão, não figura de tela.
-  const costs = await averageRatesForLedger(LOCAL_COMPANY_ID);
+  const costs = await averageRatesForLedger(EMPRESA_SEMENTE);
 
   out.push('');
   out.push(`-- DEVICE_SUGAR_ID=${sugar.id}`);

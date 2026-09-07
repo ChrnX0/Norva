@@ -25,7 +25,7 @@ import {
   type PickLine,
   type Place,
 } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { dayWindow, localDate } from '@/domain/day';
 import { fill, formatQuantity, plural } from '@/i18n';
@@ -80,11 +80,11 @@ function Carrinho() {
   const router = useRouter();
   const words = t.app.picking;
 
-  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const fabrica = defaultLocationId(empresaDaqui());
   const [lojaId, setLojaId] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
-  const { data: lugares } = useQuery<Place[]>(() => listPlaces(LOCAL_COMPANY_ID));
+  const { data: lugares } = useQuery<Place[]>(() => listPlaces(empresaDaqui()));
   const lojas = (lugares ?? []).filter((p) => p.id !== fabrica);
   const loja = lojas.find((p) => p.id === lojaId) ?? lojas[0] ?? null;
 
@@ -92,16 +92,16 @@ function Carrinho() {
     if (!loja) return null;
     const hoje = dayWindow(nowIso(), locale.timeZone);
     const [places, linhas, itens, carrinho] = await Promise.all([
-      listPlaces(LOCAL_COMPANY_ID),
+      listPlaces(empresaDaqui()),
       pickingFor(
-        LOCAL_COMPANY_ID,
+        empresaDaqui(),
         loja.id,
         fabrica,
         localDate(nowIso(), locale.timeZone, 7),
         hoje.from,
         hoje.to,
       ),
-      listItems(LOCAL_COMPANY_ID),
+      listItems(empresaDaqui()),
       pickingCart(loja.id),
     ]);
     return { places, linhas, itens, carrinho };
@@ -139,7 +139,7 @@ function Carrinho() {
       // próprio grupo — igual a quem carrega o caminhão em duas viagens. O que
       // costura as duas coisas é o fechamento, que conta o DIA.
       for (const [itemId, baseUnits] of itens) {
-        await recordTransfer(LOCAL_COMPANY_ID, {
+        await recordTransfer(empresaDaqui(), {
           itemId,
           fromLocationId: fabrica,
           toLocationId: loja.id,
@@ -149,7 +149,7 @@ function Carrinho() {
       await setPickingCart(loja.id, {});
 
       const hoje = dayWindow(nowIso(), locale.timeZone);
-      const cobertos = await ordersCoveredToday(LOCAL_COMPANY_ID, loja.id, hoje.from, hoje.to);
+      const cobertos = await ordersCoveredToday(empresaDaqui(), loja.id, hoje.from, hoje.to);
       if (cobertos.length > 0) {
         const fechar = await askConfirm({
           title: t.app.transfer.closeAsk,
@@ -160,7 +160,7 @@ function Carrinho() {
           cancelLabel: t.app.transfer.closeKeep,
         });
         if (fechar) {
-          for (const id of cobertos) await setOrderStatus(LOCAL_COMPANY_ID, id, 'delivered');
+          for (const id of cobertos) await setOrderStatus(empresaDaqui(), id, 'delivered');
         }
       }
       refresh();

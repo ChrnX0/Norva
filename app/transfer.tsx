@@ -39,7 +39,7 @@ import {
 import { nowIso } from '@/data/db';
 import { dayWindow, localDate } from '@/domain/day';
 import { freeToShip, pickSuggestion } from '@/domain/picking';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatCalendarDate, formatQuantity, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -108,9 +108,9 @@ function Transfer() {
     // ANTES de digitar que eles decidem: quem carrega precisa saber que aquelas
     // caixas têm dono enquanto ainda dá para mandar menos.
     const [places, stock, orders] = await Promise.all([
-      listPlaces(LOCAL_COMPANY_ID),
-      stockByPlace(LOCAL_COMPANY_ID),
-      listOrders(LOCAL_COMPANY_ID, ['pending', 'open']),
+      listPlaces(empresaDaqui()),
+      stockByPlace(empresaDaqui()),
+      listOrders(empresaDaqui(), ['pending', 'open']),
     ]);
     return { places, stock, orders };
   });
@@ -135,7 +135,7 @@ function Transfer() {
    * pessoa, e o relatório da loja herdando o palpite.
    */
   const [motivo, setMotivo] = useState<ReturnReason | null>(null);
-  const fabrica = defaultLocationId(LOCAL_COMPANY_ID);
+  const fabrica = defaultLocationId(empresaDaqui());
   const [toId, setToId] = useState<string | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
   const [amountText, setAmountText] = useState('');
@@ -170,7 +170,7 @@ function Transfer() {
   useEffect(() => {
     let alive = true;
     if (!line || !toId2) return;
-    void lastSentBaseUnits(LOCAL_COMPANY_ID, line.itemId, toId2).then((n) => {
+    void lastSentBaseUnits(empresaDaqui(), line.itemId, toId2).then((n) => {
       if (alive) setLastSent(n);
     });
     return () => {
@@ -193,7 +193,7 @@ function Transfer() {
   const { data: frente } = useQuery<Frente>(async () => {
     if (!itemId) return null;
     const origem = devolucao ? (toId ?? fabrica) : fabrica;
-    const lotes = await lotsInStock(LOCAL_COMPANY_ID, itemId, origem);
+    const lotes = await lotsInStock(empresaDaqui(), itemId, origem);
     return lotes[0] ?? null;
   }, `${itemId ?? ''}:${devolucao ? 'v' : 'i'}:${toId ?? ''}`);
 
@@ -209,7 +209,7 @@ function Transfer() {
   const { data: pedido } = useQuery<PickLine[]>(
     () =>
       to
-        ? pickingFor(LOCAL_COMPANY_ID, to.id, from, ateQuando, hoje.from, hoje.to)
+        ? pickingFor(empresaDaqui(), to.id, from, ateQuando, hoje.from, hoje.to)
         : Promise.resolve([]),
     to?.id ?? '',
   );
@@ -321,9 +321,9 @@ function Transfer() {
       // Sem ternário sobre a função: `recordReturn` pede o motivo no tipo, e
       // escolher a função antes de saber os argumentos apagaria essa exigência.
       if (devolucao) {
-        await recordReturn(LOCAL_COMPANY_ID, { ...comum, returnReason: motivo! });
+        await recordReturn(empresaDaqui(), { ...comum, returnReason: motivo! });
       } else {
-        await recordTransfer(LOCAL_COMPANY_ID, comum);
+        await recordTransfer(empresaDaqui(), comum);
       }
       setTyped(false);
       setAmountText('');
@@ -344,7 +344,7 @@ function Transfer() {
         // mesma resposta: duas telas fazendo a mesma conta é como duas verdades
         // nascem. As três decisões dela — cobertura do DIA, só pedido coberto, e
         // quem fecha é a pessoa — estão escritas lá, uma vez.
-        const cobertos = await ordersCoveredToday(LOCAL_COMPANY_ID, to.id, hoje.from, hoje.to);
+        const cobertos = await ordersCoveredToday(empresaDaqui(), to.id, hoje.from, hoje.to);
 
         if (cobertos.length > 0) {
           const fechar = await askConfirm({
@@ -357,7 +357,7 @@ function Transfer() {
           });
           if (fechar) {
             for (const id of cobertos) {
-              await setOrderStatus(LOCAL_COMPANY_ID, id, 'delivered');
+              await setOrderStatus(empresaDaqui(), id, 'delivered');
             }
           }
         }

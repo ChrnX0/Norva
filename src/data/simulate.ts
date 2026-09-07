@@ -20,7 +20,8 @@ import {
   saveRecipeVersion,
   saveType,
 } from './repository';
-import { LOCAL_COMPANY_ID, LOOSE, STACKED } from './seed';
+import { LOOSE, STACKED } from './seed';
+import { empresaDaqui } from './empresa';
 import { RETURN_REASONS } from '@/domain/ledger';
 import { dayWindow, localDate } from '@/domain/day';
 import { cents, fromDecimal, rate} from '@/domain/money';
@@ -102,7 +103,7 @@ export type Simulation = {
 export const HORIZONTE_DE_TESTE = 90;
 
 export async function simulateHistory(
-  companyId = LOCAL_COMPANY_ID,
+  companyId = empresaDaqui(),
   options: { days?: number; seed?: number; timeZone?: string; at?: string } = {},
 ): Promise<Simulation> {
   return simulateFortnight(companyId, options);
@@ -267,7 +268,7 @@ async function garantirElenco(companyId: string) {
 }
 
 export async function simulateFortnight(
-  companyId = LOCAL_COMPANY_ID,
+  companyId = empresaDaqui(),
   options: { days?: number; seed?: number; timeZone?: string; at?: string } = {},
 ): Promise<Simulation> {
   const days = options.days ?? 14;

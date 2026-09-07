@@ -36,8 +36,8 @@ const DEFECTS = [
   // produzi-lo, numa fábrica de picolés.
   {
     file: 'app/(tabs)/index.tsx',
-    from: '      expiringSoon(LOCAL_COMPANY_ID, trintaDias, 5),',
-    to: '      expiringSoon(LOCAL_COMPANY_ID, trintaDias, 5, LOCAL_COMPANY_ID),',
+    from: '      expiringSoon(empresaDaqui(), trintaDias, 5),',
+    to: '      expiringSoon(empresaDaqui(), trintaDias, 5, empresaDaqui()),',
     hurts:
       'o cartao de validade da capa volta a olhar so o almoxarifado, e emudece no dia em que o lote vai para a camara fria ou para a loja - o produto vence longe dos olhos e o aviso nunca toca',
   },
@@ -932,8 +932,8 @@ const DEFECTS = [
   // a tela liberava o botao e TODA corrida batia num erro em ingles.
   {
     file: 'app/production/new.tsx',
-    from: '      listItems(LOCAL_COMPANY_ID, undefined, false, defaultLocationId(LOCAL_COMPANY_ID)),',
-    to: '      listItems(LOCAL_COMPANY_ID),',
+    from: '      listItems(empresaDaqui(), undefined, false, defaultLocationId(empresaDaqui())),',
+    to: '      listItems(empresaDaqui()),',
     hurts:
       'a tela de producao volta a ler o saldo da empresa e a liberar o botao com o insumo noutra sala: cada toque devolve o erro de programador do piso, e nenhuma corrida entra',
   },
@@ -953,7 +953,7 @@ const DEFECTS = [
   {
     file: 'app/inputs/[id].tsx',
     from: '      locationId: contarEm,',
-    to: '      locationId: defaultLocationId(LOCAL_COMPANY_ID),',
+    to: '      locationId: defaultLocationId(empresaDaqui()),',
     hurts:
       'a tela volta a gravar a contagem no almoxarifado qualquer que seja a sala aberta: contar a camara fria apaga da fabrica a diferenca entre as duas',
   },

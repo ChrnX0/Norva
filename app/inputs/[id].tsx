@@ -43,7 +43,7 @@ import {
   type PriceMoveRow,
   type Delivery,
 } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { judgePriceChange, observedLeadTimeDays, reorderPoint } from '@/domain/cost';
 import type { LossReason } from '@/domain/ledger';
 import { parseTyped } from '@/domain/number';
@@ -168,7 +168,7 @@ function InputDetail() {
     // digitado na web - gravaria um movimento apontando para nada, e o servidor
     // recusaria a linha: fila travada atrás dela, que é a família de defeito que
     // já apareceu quatro vezes neste repositório.
-    const places = await listPlaces(LOCAL_COMPANY_ID);
+    const places = await listPlaces(empresaDaqui());
     const room = sala && places.some((place) => place.id === sala) ? sala : undefined;
 
     // O saldo e os movimentos vão pela sala; o preço e as receitas não têm sala
@@ -179,23 +179,23 @@ function InputDetail() {
     const hoje = dayWindow(nowIso(), locale.timeZone);
     const semanaAtras = dayWindow(nowIso(), locale.timeZone, -7);
     const [item, history, recipes, movements, spread, entregas, dinheiro, saiPorDia] = await Promise.all([
-      findItem(LOCAL_COMPANY_ID, id, room),
-      itemHistory(LOCAL_COMPANY_ID, id),
-      recipesUsingItem(LOCAL_COMPANY_ID, id),
-      itemMovements(LOCAL_COMPANY_ID, id, 20, room),
-      balanceByLocation(LOCAL_COMPANY_ID, id),
+      findItem(empresaDaqui(), id, room),
+      itemHistory(empresaDaqui(), id),
+      recipesUsingItem(empresaDaqui(), id),
+      itemMovements(empresaDaqui(), id, 20, room),
+      balanceByLocation(empresaDaqui(), id),
       // As notas que dizem quanto o fornecedor demorou. Sem portão: são dias, não
       // dinheiro — e é o operador que fica sem insumo quando o prazo estica.
-      deliveriesOf(LOCAL_COMPANY_ID, id),
+      deliveriesOf(empresaDaqui(), id),
       // Na mesma consulta do resto: sem isso existe um instante em que a tela
       // tem os números e ainda não sabe se pode mostrá-los.
-      canSeeMoney(LOCAL_COMPANY_ID),
+      canSeeMoney(empresaDaqui()),
       // A MESMA sala do saldo logo acima.
       //
       // Sem ela a tela dividia o saldo de UMA sala pelo consumo de TODAS, e o
       // resultado é o número que decide compra: abrindo a câmara fria, "acaba
       // em" saía menor do que é e o aviso de recompra disparava cedo.
-      dailyOutflowOf(LOCAL_COMPANY_ID, id, semanaAtras.from, hoje.to, 7, room),
+      dailyOutflowOf(empresaDaqui(), id, semanaAtras.from, hoje.to, 7, room),
     ]);
     return {
       item, history, recipes, movements, spread, places, entregas, dinheiro, saiPorDia,
@@ -320,7 +320,7 @@ function InputDetail() {
     salaAberta ??
     (spread.length > 1
       ? null
-      : (spread[0]?.locationId ?? defaultLocationId(LOCAL_COMPANY_ID)));
+      : (spread[0]?.locationId ?? defaultLocationId(empresaDaqui())));
 
   const lastCount = (data?.movements ?? []).find((m) => m.kind === 'adjustment');
   const lastCounted = lastCount
@@ -366,7 +366,7 @@ function InputDetail() {
     if (!go) return;
 
     try {
-      await recordLoss(LOCAL_COMPANY_ID, {
+      await recordLoss(empresaDaqui(), {
         itemId: item.id,
         baseUnits: Math.round(lost),
         reason,
@@ -420,7 +420,7 @@ function InputDetail() {
     });
     if (!go) return;
 
-    await recordCount(LOCAL_COMPANY_ID, {
+    await recordCount(empresaDaqui(), {
       locationId: contarEm,
       itemId: item.id,
       countedBaseUnits: Math.round(counted),
@@ -445,7 +445,7 @@ function InputDetail() {
 
     let plano;
     try {
-      plano = await planReversal(LOCAL_COMPANY_ID, move.groupId);
+      plano = await planReversal(empresaDaqui(), move.groupId);
     } catch {
       // Grupo que não existe é linha antiga, gravada antes de o ato carregar
       // grupo. Não é erro da pessoa e não vale diálogo de falha.
@@ -507,7 +507,7 @@ function InputDetail() {
 
     setDesfazendo(true);
     try {
-      await reverseGroup(LOCAL_COMPANY_ID, { groupId: move.groupId });
+      await reverseGroup(empresaDaqui(), { groupId: move.groupId });
       await refresh();
     } catch (e) {
       await confirm({
@@ -534,7 +534,7 @@ function InputDetail() {
     });
     if (!go) return;
 
-    await setItemActive(LOCAL_COMPANY_ID, item.id, !item.active).then(refresh);
+    await setItemActive(empresaDaqui(), item.id, !item.active).then(refresh);
   };
 
   return (

@@ -13,7 +13,7 @@ import { Reveal } from '@/components/Reveal';
 import { ask, knownSkills, type Answer, type Capability } from '@/assistant';
 import { liveData } from '@/data/assistantData';
 import { currentCapabilities } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { defaultLocale, fill } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -84,7 +84,7 @@ export default function AssistantScreen() {
  * em vez de responder o que não devia.
  */
 function useCapacidades(): ReadonlySet<Capability> {
-  const { data } = useQuery(() => currentCapabilities(LOCAL_COMPANY_ID));
+  const { data } = useQuery(() => currentCapabilities(empresaDaqui()));
   return data ?? VAZIO;
 }
 
@@ -108,7 +108,7 @@ function Conversation() {
 
   const context = useMemo(
     () => ({
-      data: liveData(LOCAL_COMPANY_ID, locale.timeZone),
+      data: liveData(empresaDaqui(), locale.timeZone),
       capabilities: capacidades,
       locale: defaultLocale,
     }),

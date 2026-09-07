@@ -19,7 +19,7 @@ import {
   type ItemKind,
   type ItemWithCost,
 } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import type { Cents } from '@/domain/money';
 import { volumeBand } from '@/domain/alerts';
@@ -96,7 +96,7 @@ function InputsList() {
    */
   const [place, setPlace] = useState<string | null>(null);
 
-  const { data: places } = useQuery(() => listPlaces(LOCAL_COMPANY_ID));
+  const { data: places } = useQuery(() => listPlaces(empresaDaqui()));
   /** As faixas que a casa combinou. Sem elas, nenhuma linha ganha cor. */
   const { data: faixas } = useQuery(() => alertSettings());
   /**
@@ -108,8 +108,8 @@ function InputsList() {
    */
   const { data: carregado, loading } = useQuery(
     async () => ({
-      itens: await listItems(LOCAL_COMPANY_ID, undefined, false, place ?? undefined),
-      dinheiro: await canSeeMoney(LOCAL_COMPANY_ID),
+      itens: await listItems(empresaDaqui(), undefined, false, place ?? undefined),
+      dinheiro: await canSeeMoney(empresaDaqui()),
     }),
     place ?? '',
   );
@@ -132,7 +132,7 @@ function InputsList() {
     const today = dayWindow(nowIso(), locale.timeZone);
     const lastWeek = dayWindow(nowIso(), locale.timeZone, -7);
     return runningOut(
-      LOCAL_COMPANY_ID,
+      empresaDaqui(),
       lastWeek.from,
       today.to,
       7,

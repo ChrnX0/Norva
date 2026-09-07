@@ -5,7 +5,8 @@ import { __setDb, migrate, type Db, type SqlParam } from '@/data/db';
 import { markSent, pendingCount, pendingEntries, type OutboxEntry } from '@/data/outbox';
 import { fromDecimal } from '@/domain/money';
 import { recordPurchase, saveItem, saveRecipeVersion, eraseArea } from '@/data/repository';
-import { ensureStarterData, LOCAL_COMPANY_ID } from '@/data/seed';
+import { ensureStarterData } from '@/data/seed';
+import { EMPRESA_SEMENTE } from '@/data/empresa';
 import { backoffMs, drain, type PushResult, type Transport } from './engine';
 
 /**
@@ -41,7 +42,7 @@ function inMemoryDb(): Db {
   };
 }
 
-const CO = LOCAL_COMPANY_ID;
+const CO = EMPRESA_SEMENTE;
 
 /** Guardada para um teste poder perguntar ao ESQUEMA, e não só ao dado. */
 let live: Db;
@@ -258,7 +259,7 @@ test('backoff grows and then stops growing', () => {
  * fábrica nunca vai ver.
  */
 test('the drain sweeps what the server took long ago, and never what is still waiting', async () => {
-  await ensureStarterData(LOCAL_COMPANY_ID);
+  await ensureStarterData(EMPRESA_SEMENTE);
 
   const fila = await pendingEntries();
   assert.ok(fila.length > 2, 'a semente deixa fila com que trabalhar');
@@ -297,7 +298,7 @@ test('the drain sweeps what the server took long ago, and never what is still wa
 });
 
 test('the sweep spares what went up inside the window', async () => {
-  await ensureStarterData(LOCAL_COMPANY_ID);
+  await ensureStarterData(EMPRESA_SEMENTE);
   const fila = await pendingEntries();
   const ids = fila.map((e) => e.id);
   await markSent(ids);

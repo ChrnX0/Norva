@@ -17,7 +17,7 @@ import {
   type Person,
   type Profile,
 } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import type { Dictionary } from '@/i18n';
 import { fill } from '@/i18n';
@@ -101,8 +101,8 @@ function Grade() {
 
   const { data, refresh } = useQuery<Carregado>(async () => {
     const [pessoas, perfis, atual] = await Promise.all([
-      listPeople(LOCAL_COMPANY_ID),
-      listProfiles(LOCAL_COMPANY_ID),
+      listPeople(empresaDaqui()),
+      listProfiles(empresaDaqui()),
       currentOperatorId(),
     ]);
     return { pessoas, perfis, atual };
@@ -117,7 +117,7 @@ function Grade() {
   const atual = ativas.find((p) => p.id === data?.atual) ?? null;
 
   const entrar = async (quem: Person) => {
-    if (!(await matchPin(LOCAL_COMPANY_ID, quem.id, digitado))) {
+    if (!(await matchPin(empresaDaqui(), quem.id, digitado))) {
       setErrou(true);
       return;
     }

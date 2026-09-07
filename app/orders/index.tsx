@@ -10,7 +10,7 @@ import { ListRow } from '@/components/ListRow';
 import { Reveal } from '@/components/Reveal';
 import { localDate } from '@/domain/day';
 import { listOrders, setOrderStatus, type Order } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatCalendarDate, formatQuantity, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -81,7 +81,7 @@ function Orders() {
    * a volta, não a fricção** — e aqui a volta custa uma consulta mais larga.
    */
   const { data, loading, refresh } = useQuery<Order[]>(() =>
-    listOrders(LOCAL_COMPANY_ID, ['pending', 'open', 'delivered', 'cancelled']),
+    listOrders(empresaDaqui(), ['pending', 'open', 'delivered', 'cancelled']),
   );
 
   const decide = async (order: Order, status: 'open' | 'delivered' | 'cancelled') => {
@@ -102,7 +102,7 @@ function Orders() {
       });
       if (!yes) return;
     }
-    await setOrderStatus(LOCAL_COMPANY_ID, order.id, status);
+    await setOrderStatus(empresaDaqui(), order.id, status);
     refresh();
   };
 

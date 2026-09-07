@@ -42,6 +42,7 @@
  * agora. É a mesma escada de um celular que ficou dois meses desligado.
  */
 
+import { carregarEmpresa } from './empresa';
 import { db, schemaVersion, type Db } from './db';
 import { readJson } from './meta';
 
@@ -323,6 +324,12 @@ export async function restaurar(
         throw new CopiaRecusadaError('referenciasQuebradas', quebradas);
       }
     });
+
+    // A cópia repôs `app_meta` inteiro, inclusive a empresa que este aparelho
+    // achava que era. O que está na memória pode ser mais novo que o disco
+    // agora — e memória mais nova que o disco é exatamente como uma linha nasce
+    // carimbada com uma empresa que não existe mais.
+    await carregarEmpresa();
 
     return { tabelas: minhas.length, linhas, versaoDaCopia: lida.versaoDoEsquema };
   } finally {

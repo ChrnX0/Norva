@@ -18,7 +18,7 @@ import {
   type Place,
   type Product,
 } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { daysUntilNextDelivery } from '@/domain/agreement';
 import { nowIso } from '@/data/db';
 import { useQuery } from '@/data/useQuery';
@@ -108,8 +108,8 @@ function NewOrder() {
 
   const { data } = useQuery<Loaded>(async () => {
     const [places, products] = await Promise.all([
-      listPlaces(LOCAL_COMPANY_ID),
-      listProducts(LOCAL_COMPANY_ID),
+      listPlaces(empresaDaqui()),
+      listProducts(empresaDaqui()),
     ]);
     // A fábrica não pede para si mesma: o lugar padrão é de onde a carga sai.
     //
@@ -189,7 +189,7 @@ function NewOrder() {
    * devolve. As duas são SQLite local, e a segunda repete quando a data muda.
    */
   const { data: demanda } = useQuery<Demand[]>(
-    () => stockAgainstOrders(LOCAL_COMPANY_ID, requestedFor),
+    () => stockAgainstOrders(empresaDaqui(), requestedFor),
     requestedFor,
   );
 
@@ -263,7 +263,7 @@ function NewOrder() {
 
     setSaving(true);
     try {
-      await saveOrder(LOCAL_COMPANY_ID, {
+      await saveOrder(empresaDaqui(), {
         placeId: place.id,
         requestedFor,
         lines: lines.map((l) => ({ itemId: l.itemId, baseUnits: l.baseUnits })),

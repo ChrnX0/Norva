@@ -9,7 +9,7 @@ import { ListRow } from '@/components/ListRow';
 import { Reveal } from '@/components/Reveal';
 import { nowIso } from '@/data/db';
 import { canSeeMoney, lossesOn, type LossRow } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import type { Cents } from '@/domain/money';
 import { dayWindow } from '@/domain/day';
@@ -78,10 +78,10 @@ function WhatWasLost() {
     const antesInicio = dayWindow(nowIso(), locale.timeZone, -59);
     const antesFim = dayWindow(nowIso(), locale.timeZone, -30);
     const [agora, antes] = await Promise.all([
-      lossesOn(LOCAL_COMPANY_ID, inicio.from, hoje.to),
-      lossesOn(LOCAL_COMPANY_ID, antesInicio.from, antesFim.to),
+      lossesOn(empresaDaqui(), inicio.from, hoje.to),
+      lossesOn(empresaDaqui(), antesInicio.from, antesFim.to),
     ]);
-    return { agora, antes, dinheiro: await canSeeMoney(LOCAL_COMPANY_ID) };
+    return { agora, antes, dinheiro: await canSeeMoney(empresaDaqui()) };
   });
 
   const rows = data?.agora ?? [];

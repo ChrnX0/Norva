@@ -1,8 +1,8 @@
-import assert from 'node:assert/strict';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
-import { test } from 'node:test';
-import { CARGO_PLACE_KINDS, INTERNAL_PLACE_KINDS } from './domain/ledger';
+import assert from "node:assert/strict";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { test } from "node:test";
+import { CARGO_PLACE_KINDS, INTERNAL_PLACE_KINDS } from "./domain/ledger";
 
 /**
  * Where SQL is allowed to live, pinned.
@@ -18,11 +18,12 @@ import { CARGO_PLACE_KINDS, INTERNAL_PLACE_KINDS } from './domain/ledger';
  * Convention survives until somebody is in a hurry.
  */
 
-const SQL = /\b(SELECT\s+[\s\S]*?\bFROM\b|INSERT\s+INTO\b|UPDATE\s+[\s\S]*?\bSET\b|DELETE\s+FROM\b)/i;
+const SQL =
+  /\b(SELECT\s+[\s\S]*?\bFROM\b|INSERT\s+INTO\b|UPDATE\s+[\s\S]*?\bSET\b|DELETE\s+FROM\b)/i;
 
 /** Comments talk about SQL all the time; only code counts. */
 function code(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 }
 
 /**
@@ -63,10 +64,12 @@ function sourcesUnder(dir: string): string[] {
  * existia protege o código velho, que não é o que quebra.
  */
 function layersOutsideData(): string[] {
-  const inSrc = readdirSync('src')
-    .filter((entry) => entry !== 'data' && statSync(join('src', entry)).isDirectory())
-    .map((entry) => join('src', entry));
-  return ['app', ...inSrc];
+  const inSrc = readdirSync("src")
+    .filter(
+      (entry) => entry !== "data" && statSync(join("src", entry)).isDirectory(),
+    )
+    .map((entry) => join("src", entry));
+  return ["app", ...inSrc];
 }
 
 /**
@@ -86,33 +89,38 @@ function layersOutsideData(): string[] {
  */
 const PROSA = /^src\/i18n\/locales\//;
 
-test('only the data layer speaks SQL', () => {
+test("only the data layer speaks SQL", () => {
   const offenders: string[] = [];
   for (const dir of layersOutsideData()) {
     for (const file of sourcesUnder(dir)) {
       if (PROSA.test(file)) continue;
-      if (SQL.test(code(readFileSync(file, 'utf8')))) offenders.push(file);
+      if (SQL.test(code(readFileSync(file, "utf8")))) offenders.push(file);
     }
   }
 
   assert.deepEqual(
     offenders,
     [],
-    `these reach past the data layer: ${offenders.join(', ')}. A query written here is a ` +
-      'second implementation of a rule that already exists in src/data, and the two answers ' +
-      'diverge the first time one of them is corrected.',
+    `these reach past the data layer: ${offenders.join(", ")}. A query written here is a ` +
+      "second implementation of a rule that already exists in src/data, and the two answers " +
+      "diverge the first time one of them is corrected.",
   );
 });
 
-test('the data layer is where SQL actually is, so the test above means something', () => {
+test("the data layer is where SQL actually is, so the test above means something", () => {
   // A rule that would pass on an empty repository proves nothing. This is the
   // control: if the queries ever move somewhere else, the check above stops
   // being a check and this one says so.
-  const withSql = sourcesUnder('src/data').filter((f) => SQL.test(code(readFileSync(f, 'utf8'))));
-  assert.ok(withSql.length >= 3, `expected the data layer to hold the queries, found ${withSql.length}`);
+  const withSql = sourcesUnder("src/data").filter((f) =>
+    SQL.test(code(readFileSync(f, "utf8"))),
+  );
+  assert.ok(
+    withSql.length >= 3,
+    `expected the data layer to hold the queries, found ${withSql.length}`,
+  );
 });
 
-test('the suite runs every test file, whatever folder it lands in', () => {
+test("the suite runs every test file, whatever folder it lands in", () => {
   // This file is the one that found it: `src/**/*.test.ts` UNQUOTED is expanded
   // by the shell, which without globstar reads `**` as a single level. Sitting
   // at the root of src/, this file was silently never executed - and a test
@@ -120,28 +128,34 @@ test('the suite runs every test file, whatever folder it lands in', () => {
   //
   // Quoted, the pattern reaches node's own runner, which understands `**` at
   // any depth. The pin is on the quotes because that is the whole defect.
-  const script = JSON.parse(readFileSync('package.json', 'utf8')).scripts.test as string;
+  const script = JSON.parse(readFileSync("package.json", "utf8")).scripts
+    .test as string;
   assert.match(
     script,
     /'src\/\*\*\/\*\.test\.ts'|"src\/\*\*\/\*\.test\.ts"/,
-    'the test glob must be quoted, or the shell flattens ** to one directory level',
+    "the test glob must be quoted, or the shell flattens ** to one directory level",
   );
 });
 
-test('the prose exclusion is narrow, and the guard still bites next door', () => {
+test("the prose exclusion is narrow, and the guard still bites next door", () => {
   // A exceção precisa ser do tamanho exato do problema. Se ela crescer para
   // `src/i18n` inteiro, uma consulta escrita no formatador passaria — e o
   // formatador é código, não prosa.
-  assert.ok(PROSA.test('src/i18n/locales/pt-BR.ts'));
-  assert.ok(!PROSA.test('src/i18n/index.ts'), 'o código do i18n continua coberto');
-  assert.ok(!PROSA.test('src/home/Mosaic.tsx'));
+  assert.ok(PROSA.test("src/i18n/locales/pt-BR.ts"));
+  assert.ok(
+    !PROSA.test("src/i18n/index.ts"),
+    "o código do i18n continua coberto",
+  );
+  assert.ok(!PROSA.test("src/home/Mosaic.tsx"));
 
   // E o padrão continua achando SQL de verdade, que é o que ele existe para
   // achar: sem isto, a exceção poderia ter quebrado a checagem inteira sem
   // ninguém notar.
-  assert.ok(SQL.test('const q = `SELECT id\n FROM items`;'));
-  assert.ok(SQL.test('await conn.runAsync(`UPDATE products\n SET name = ?`);'));
-  assert.ok(!SQL.test('a frase diz que o app se atualiza sozinho e o campo fica set'));
+  assert.ok(SQL.test("const q = `SELECT id\n FROM items`;"));
+  assert.ok(SQL.test("await conn.runAsync(`UPDATE products\n SET name = ?`);"));
+  assert.ok(
+    !SQL.test("a frase diz que o app se atualiza sozinho e o campo fica set"),
+  );
 });
 
 /**
@@ -166,7 +180,18 @@ test('the prose exclusion is narrow, and the guard still bites next door', () =>
  * "qualquer literal com espaço" erra por excesso — 'America/Sao_Paulo' e
  * 'svg path' não são frases.
  */
-const PALAVRAS = ['do', 'da', 'de', 'no', 'na', 'em', 'para', 'por', 'com', 'que'];
+const PALAVRAS = [
+  "do",
+  "da",
+  "de",
+  "no",
+  "na",
+  "em",
+  "para",
+  "por",
+  "com",
+  "que",
+];
 
 /**
  * Um literal é frase quando tem palavra funcional E espaço, e não é caminho.
@@ -182,34 +207,40 @@ const PALAVRAS = ['do', 'da', 'de', 'no', 'na', 'em', 'para', 'por', 'com', 'que
 function pareceFrase(linha: string): boolean {
   const literais = linha.match(/(['"`])[^'"`]{4,}\1/g) ?? [];
   return literais.some((bruto) => {
-    const texto = bruto.slice(1, -1).replace(/\$\{[^}]*\}/g, ' ');
-    if (!texto.includes(' ')) return false;
-    if (texto.includes('/') || texto.includes('=')) return false;
-    return new RegExp(`\\b(${PALAVRAS.join('|')})\\b`, 'i').test(texto);
+    const texto = bruto.slice(1, -1).replace(/\$\{[^}]*\}/g, " ");
+    if (!texto.includes(" ")) return false;
+    if (texto.includes("/") || texto.includes("=")) return false;
+    return new RegExp(`\\b(${PALAVRAS.join("|")})\\b`, "i").test(texto);
   });
 }
 
 /** As pastas que desenham. `src/data` semeia exemplo, e exemplo é dado. */
 function screenLayers(): string[] {
-  const inSrc = readdirSync('src')
-    .filter((entry) => ['components', 'home', 'notify'].includes(entry))
-    .map((entry) => join('src', entry));
-  return ['app', ...inSrc];
+  const inSrc = readdirSync("src")
+    .filter((entry) => ["components", "home", "notify"].includes(entry))
+    .map((entry) => join("src", entry));
+  return ["app", ...inSrc];
 }
 
-test('no screen writes a sentence of its own', () => {
+test("no screen writes a sentence of its own", () => {
   const offenders: string[] = [];
 
   for (const dir of screenLayers()) {
     for (const file of sourcesUnder(dir)) {
       // Comentário fala português à vontade — é para humano, não para tela. O
       // mesmo `code()` que a checagem de SQL usa, pelo mesmo motivo.
-      const source = code(readFileSync(file, 'utf8'));
-      for (const linha of source.split('\n')) {
+      const source = code(readFileSync(file, "utf8"));
+      for (const linha of source.split("\n")) {
         // Caminho de importação e rota não são frase: `@/domain/day` e
         // `/inputs/new` casariam com "do" e "in" sem ser texto de tela.
-        if (/^\s*import |from '@?[./]|router\.(push|replace)|getByLabel|goto\(/.test(linha)) continue;
-        if (pareceFrase(linha)) offenders.push(`${file}: ${linha.trim().slice(0, 70)}`);
+        if (
+          /^\s*import |from '@?[./]|router\.(push|replace)|getByLabel|goto\(/.test(
+            linha,
+          )
+        )
+          continue;
+        if (pareceFrase(linha))
+          offenders.push(`${file}: ${linha.trim().slice(0, 70)}`);
       }
     }
   }
@@ -217,29 +248,38 @@ test('no screen writes a sentence of its own', () => {
   assert.deepEqual(
     offenders,
     [],
-    `estas linhas escrevem frase na tela em vez de no dicionário:\n${offenders.join('\n')}\n` +
-      'A interface inteira fica traduzida e a frase cravada aparece em português no meio dela — ' +
-      'foi o que aconteceu com a folha do [por quê?].',
+    `estas linhas escrevem frase na tela em vez de no dicionário:\n${offenders.join("\n")}\n` +
+      "A interface inteira fica traduzida e a frase cravada aparece em português no meio dela — " +
+      "foi o que aconteceu com a folha do [por quê?].",
   );
 });
 
-test('the sentence guard bites the real scar, and leaves identifiers alone', () => {
+test("the sentence guard bites the real scar, and leaves identifiers alone", () => {
   // O caso que a primeira versão deste guard NÃO pegava, e que é a cicatriz
   // inteira: nenhum acento, e frase mesmo assim.
-  assert.ok(pareceFrase("<Text>{'Custo do lote'}</Text>"), 'a cicatriz tem que reprovar');
+  assert.ok(
+    pareceFrase("<Text>{'Custo do lote'}</Text>"),
+    "a cicatriz tem que reprovar",
+  );
   assert.ok(pareceFrase('const titulo = "Perda prevista no lote";'));
 
   // Comentário é para humano.
-  assert.ok(!pareceFrase(code('// isto é um comentário que fala do lote')));
+  assert.ok(!pareceFrase(code("// isto é um comentário que fala do lote")));
 
   // E os três alarmes falsos que a régua anterior deu, cada um por um motivo
   // diferente: palavra-chave da linguagem, literal de uma palavra, e caminho.
-  assert.ok(!pareceFrase(": 'input') as Draft['kind'],"), 'as é palavra-chave, não frase');
-  assert.ok(!pareceFrase("const kind = 'temperature';"));
-  assert.ok(!pareceFrase("import { dayWindow } from '@/domain/day';"), 'caminho não é frase');
   assert.ok(
-    !pareceFrase('`${formatQuantity(l.baseUnits, locale)} ${l.unit}`'),
-    'interpolação é composição de pedaço já traduzido',
+    !pareceFrase(": 'input') as Draft['kind'],"),
+    "as é palavra-chave, não frase",
+  );
+  assert.ok(!pareceFrase("const kind = 'temperature';"));
+  assert.ok(
+    !pareceFrase("import { dayWindow } from '@/domain/day';"),
+    "caminho não é frase",
+  );
+  assert.ok(
+    !pareceFrase("`${formatQuantity(l.baseUnits, locale)} ${l.unit}`"),
+    "interpolação é composição de pedaço já traduzido",
   );
 });
 
@@ -269,30 +309,37 @@ test('the sentence guard bites the real scar, and leaves identifiers alone', () 
  * O que ele NÃO prova, dito em vez de omitido: que a capa DESENHA o aviso. Prova
  * que ela não o restringe a uma sala.
  */
-test('no screen scopes the expiry warning to a single room', () => {
-  const fontes = [...sourcesUnder('app'), ...sourcesUnder('src')];
-  assert.ok(fontes.length > 20, 'a varredura de fontes veio vazia — a comparação seria de graça');
+test("no screen scopes the expiry warning to a single room", () => {
+  const fontes = [...sourcesUnder("app"), ...sourcesUnder("src")];
+  assert.ok(
+    fontes.length > 20,
+    "a varredura de fontes veio vazia — a comparação seria de graça",
+  );
 
   const chamadas: string[] = [];
   for (const f of fontes) {
-    const texto = readFileSync(f, 'utf8');
+    const texto = readFileSync(f, "utf8");
     // `(?<!function )` tira a DECLARAÇÃO: a assinatura em `repository.ts` também
     // casa com "expiringSoon(" e tem quatro parâmetros, então sem isto a guarda
     // acusa a própria função que ela existe para proteger.
     for (const m of texto.matchAll(/(?<!function )expiringSoon\(([^)]*)\)/g)) {
-      const args = m[1].split(',').map((a) => a.trim()).filter(Boolean);
+      const args = m[1]
+        .split(",")
+        .map((a) => a.trim())
+        .filter(Boolean);
       // companyId, data limite, limite — o quarto é a sala.
-      if (args.length >= 4) chamadas.push(`${f}: expiringSoon(..., ${args[3]})`);
+      if (args.length >= 4)
+        chamadas.push(`${f}: expiringSoon(..., ${args[3]})`);
     }
   }
 
   assert.deepEqual(
     chamadas,
     [],
-    `estas telas prendem o aviso de validade a uma sala:\n  ${chamadas.join('\n  ')}\n` +
-      'A soma por local de um lote que saiu daquela sala dá zero, e o aviso emudece — ' +
-      'justamente quando o produto está longe dos olhos, prestes a vencer. O aviso é sobre ' +
-      'o LOTE, onde quer que ele esteja.',
+    `estas telas prendem o aviso de validade a uma sala:\n  ${chamadas.join("\n  ")}\n` +
+      "A soma por local de um lote que saiu daquela sala dá zero, e o aviso emudece — " +
+      "justamente quando o produto está longe dos olhos, prestes a vencer. O aviso é sobre " +
+      "o LOTE, onde quer que ele esteja.",
   );
 });
 
@@ -330,50 +377,56 @@ export function contagemCega(texto: string): string[] {
     const local = m[1].match(/locationId:\s*([^,\n]+)/);
     if (!local) continue;
     const valor = local[1].trim();
-    if (/\w\(|LOCAL_COMPANY_ID|companyId/.test(valor)) achados.push(valor);
+    if (/\w\(|EMPRESA_SEMENTE|companyId/.test(valor)) achados.push(valor);
   }
   return achados;
 }
 
-test('no screen counts a room it did not show', () => {
-  const telas = sourcesUnder('app');
-  assert.ok(telas.length > 10, 'a varredura de telas veio vazia — a comparação seria de graça');
+test("no screen counts a room it did not show", () => {
+  const telas = sourcesUnder("app");
+  assert.ok(
+    telas.length > 10,
+    "a varredura de telas veio vazia — a comparação seria de graça",
+  );
 
   const cegas: string[] = [];
   for (const f of telas) {
-    for (const valor of contagemCega(readFileSync(f, 'utf8'))) cegas.push(`${f}: ${valor}`);
+    for (const valor of contagemCega(readFileSync(f, "utf8")))
+      cegas.push(`${f}: ${valor}`);
   }
 
   assert.deepEqual(
     cegas,
     [],
-    `estas telas gravam a contagem num lugar fixo:\n  ${cegas.join('\n  ')}\n` +
-      'A diferença de uma contagem só é verdade contra o saldo que estava na tela. ' +
-      'Lugar fixo ao lado de um saldo que pode ser de outra sala teleporta estoque, ' +
-      'e contagem não se apaga — se estorna.',
+    `estas telas gravam a contagem num lugar fixo:\n  ${cegas.join("\n  ")}\n` +
+      "A diferença de uma contagem só é verdade contra o saldo que estava na tela. " +
+      "Lugar fixo ao lado de um saldo que pode ser de outra sala teleporta estoque, " +
+      "e contagem não se apaga — se estorna.",
   );
 });
 
-test('the counting guard bites the real scar, and leaves the fix alone', () => {
+test("the counting guard bites the real scar, and leaves the fix alone", () => {
   // A linha exata que existia em `app/inputs/[id].tsx`, numa linha só.
   assert.deepEqual(
     contagemCega(
-      `await recordCount(LOCAL_COMPANY_ID, { locationId: defaultLocationId(LOCAL_COMPANY_ID), itemId: item.id, countedBaseUnits: 1 });`,
+      `await recordCount(EMPRESA_SEMENTE, { locationId: defaultLocationId(EMPRESA_SEMENTE), itemId: item.id, countedBaseUnits: 1 });`,
     ),
-    ['defaultLocationId(LOCAL_COMPANY_ID)'],
-    'a cicatriz tem que reprovar',
+    ["defaultLocationId(EMPRESA_SEMENTE)"],
+    "a cicatriz tem que reprovar",
   );
 
   // E a outra forma de dizer a mesma coisa.
   assert.deepEqual(
-    contagemCega(`recordCount(LOCAL_COMPANY_ID, {\n  locationId: LOCAL_COMPANY_ID,\n});`),
-    ['LOCAL_COMPANY_ID'],
+    contagemCega(
+      `recordCount(EMPRESA_SEMENTE, {\n  locationId: EMPRESA_SEMENTE,\n});`,
+    ),
+    ["EMPRESA_SEMENTE"],
   );
 
   // O conserto passa: o local é um valor que a tela calculou.
   assert.deepEqual(
     contagemCega(
-      `await recordCount(LOCAL_COMPANY_ID, {\n      locationId: contarEm,\n      itemId: item.id,\n      countedBaseUnits: Math.round(counted),\n    });`,
+      `await recordCount(EMPRESA_SEMENTE, {\n      locationId: contarEm,\n      itemId: item.id,\n      countedBaseUnits: Math.round(counted),\n    });`,
     ),
     [],
   );
@@ -401,37 +454,50 @@ test('the counting guard bites the real scar, and leaves the fix alone', () => {
  * que a guarda continua recusando é o que ela sempre recusou: uma lista escrita à mão
  * no SQL que não é nenhuma das duas — a quarta grafia da regra.
  */
-test('the rooms SQL calls ours are the rooms the domain calls ours', () => {
-  const fonte = readFileSync('src/data/repository.ts', 'utf8');
+test("the rooms SQL calls ours are the rooms the domain calls ours", () => {
+  const fonte = readFileSync("src/data/repository.ts", "utf8");
   const noSql = [...fonte.matchAll(/l\.kind IN \(([^)]*)\)/g)].map((m) =>
     m[1]
-      .split(',')
-      .map((k) => k.trim().replace(/^'|'$/g, ''))
+      .split(",")
+      .map((k) => k.trim().replace(/^'|'$/g, ""))
       .sort(),
   );
-  assert.ok(noSql.length > 0, 'nenhuma consulta filtra por tipo de lugar — a comparação seria de graça');
+  assert.ok(
+    noSql.length > 0,
+    "nenhuma consulta filtra por tipo de lugar — a comparação seria de graça",
+  );
 
   const REGUAS = [
-    { nome: 'INTERNAL_PLACE_KINDS', lista: [...INTERNAL_PLACE_KINDS].sort() },
-    { nome: 'CARGO_PLACE_KINDS', lista: [...CARGO_PLACE_KINDS].sort() },
+    { nome: "INTERNAL_PLACE_KINDS", lista: [...INTERNAL_PLACE_KINDS].sort() },
+    { nome: "CARGO_PLACE_KINDS", lista: [...CARGO_PLACE_KINDS].sort() },
   ];
 
   for (const lista of noSql) {
     assert.ok(
-      REGUAS.some((r) => r.lista.length === lista.length && r.lista.every((k, i) => k === lista[i])),
-      `o SQL escreve \`l.kind IN (${lista.join(', ')})\`, que não é nenhuma das duas réguas do domínio (${REGUAS.map((r) => r.nome).join(', ')})`,
+      REGUAS.some(
+        (r) =>
+          r.lista.length === lista.length &&
+          r.lista.every((k, i) => k === lista[i]),
+      ),
+      `o SQL escreve \`l.kind IN (${lista.join(", ")})\`, que não é nenhuma das duas réguas do domínio (${REGUAS.map((r) => r.nome).join(", ")})`,
     );
   }
 });
 
-test('the rooms guard still bites a list that is neither ruler', () => {
+test("the rooms guard still bites a list that is neither ruler", () => {
   // A guarda ficou mais larga ao aprender a segunda régua, e larga demais não
   // guarda nada. Isto fixa o que ela continua recusando: uma lista à mão.
-  const inventada = ['factory', 'own_store'].sort();
-  const REGUAS = [[...INTERNAL_PLACE_KINDS].sort(), [...CARGO_PLACE_KINDS].sort()];
+  const inventada = ["factory", "own_store"].sort();
+  const REGUAS = [
+    [...INTERNAL_PLACE_KINDS].sort(),
+    [...CARGO_PLACE_KINDS].sort(),
+  ];
   assert.ok(
-    !REGUAS.some((r) => r.length === inventada.length && r.every((k, i) => k === inventada[i])),
-    'uma lista que mistura sala nossa com destino tem que continuar reprovando',
+    !REGUAS.some(
+      (r) =>
+        r.length === inventada.length && r.every((k, i) => k === inventada[i]),
+    ),
+    "uma lista que mistura sala nossa com destino tem que continuar reprovando",
   );
 });
 
@@ -442,7 +508,7 @@ test('the rooms guard still bites a list that is neither ruler', () => {
  * ao lado: a guarda somava o saldo de todos os lugares e escrevia o consumo num,
  * então bastava mandar um saco de açúcar para a loja para autorizar um tacho com o
  * açúcar que está a dez quilômetros. A tela, porém, continuou lendo
- * `listItems(LOCAL_COMPANY_ID)` — o total da empresa — para decidir se libera o
+ * `listItems(EMPRESA_SEMENTE)` — o total da empresa — para decidir se libera o
  * botão. Com a polpa na câmara fria, que é onde polpa mora numa fábrica de picolés,
  * a tela dizia que havia polpa, liberava o botão, e **toda** corrida batia no piso
  * do livro-razão com um erro de programador em inglês.
@@ -454,54 +520,110 @@ test('the rooms guard still bites a list that is neither ruler', () => {
 export function pisoDeOutraSala(texto: string): string[] {
   if (!/recordProduction\(/.test(texto)) return [];
   const achados: string[] = [];
-  for (const m of texto.matchAll(/listItems\(([^)]*)\)/g)) {
-    const args = m[1]
-      .split(',')
-      .map((a) => a.trim())
-      .filter(Boolean);
+  for (const m of texto.matchAll(/listItems\(/g)) {
+    const args = argumentos(texto, (m.index ?? 0) + "listItems(".length);
+    if (args === null) continue;
     // companyId, tipo, inativos, sala — sem o quarto, o saldo é o da empresa.
-    if (args.length < 4) achados.push(`listItems(${args.join(', ')})`);
+    if (args.length < 4) achados.push(`listItems(${args.join(", ")})`);
   }
   return achados;
 }
 
-test('a screen that produces reads the floor of the room the kettle is in', () => {
-  const telas = sourcesUnder('app');
-  assert.ok(telas.length > 10, 'a varredura de telas veio vazia — a comparação seria de graça');
+/**
+ * Os argumentos de uma chamada, contando parêntese em vez de parar no primeiro.
+ *
+ * **A cicatriz é do mesmo dia em que a guarda passou a valer.** A versão anterior
+ * era `/listItems\(([^)]*)\)/` — e no dia em que o argumento deixou de ser uma
+ * constante e passou a ser uma pergunta (`empresaDaqui()`), `[^)]*` casou
+ * `empresaDaqui(` e o `)` da PRÓPRIA pergunta fechou a conta: um argumento onde
+ * havia quatro, e a guarda acusou a tela consertada. Detector que conta separador
+ * sem contar aninhamento acusa quem ele existe para proteger — é a irmã da
+ * contagem de chaves que o `confirm.test.ts` já precisou fazer.
+ */
+function argumentos(texto: string, comeco: number): string[] | null {
+  let nivel = 1;
+  let atual = "";
+  const args: string[] = [];
+  for (let i = comeco; i < texto.length; i++) {
+    const c = texto[i];
+    if (c === "(" || c === "[" || c === "{") nivel += 1;
+    else if (c === ")" || c === "]" || c === "}") {
+      nivel -= 1;
+      if (nivel === 0) {
+        if (atual.trim()) args.push(atual.trim());
+        return args;
+      }
+    }
+    if (c === "," && nivel === 1) {
+      if (atual.trim()) args.push(atual.trim());
+      atual = "";
+      continue;
+    }
+    atual += c;
+  }
+  return null;
+}
+
+test("a screen that produces reads the floor of the room the kettle is in", () => {
+  const telas = sourcesUnder("app");
+  assert.ok(
+    telas.length > 10,
+    "a varredura de telas veio vazia — a comparação seria de graça",
+  );
 
   const cegas: string[] = [];
   for (const f of telas) {
-    for (const chamada of pisoDeOutraSala(readFileSync(f, 'utf8'))) cegas.push(`${f}: ${chamada}`);
+    for (const chamada of pisoDeOutraSala(readFileSync(f, "utf8")))
+      cegas.push(`${f}: ${chamada}`);
   }
 
   assert.deepEqual(
     cegas,
     [],
-    `estas telas de produção leem o saldo da empresa:\n  ${cegas.join('\n  ')}\n` +
-      'O piso que o livro-razão confere é o da sala em que o tacho roda, com razão escrita. ' +
-      'Ler o total aqui libera um botão que a escrita vai recusar — e a Lei 5 diz que o erro ' +
-      'impede, não reclama.',
+    `estas telas de produção leem o saldo da empresa:\n  ${cegas.join("\n  ")}\n` +
+      "O piso que o livro-razão confere é o da sala em que o tacho roda, com razão escrita. " +
+      "Ler o total aqui libera um botão que a escrita vai recusar — e a Lei 5 diz que o erro " +
+      "impede, não reclama.",
   );
 });
 
-test('the production floor guard bites the real scar, and leaves the fix alone', () => {
-  const comProducao = (corpo: string) => `await recordProduction(LOCAL_COMPANY_ID, {});\n${corpo}`;
+test("the production floor guard bites the real scar, and leaves the fix alone", () => {
+  const comProducao = (corpo: string) =>
+    `await recordProduction(EMPRESA_SEMENTE, {});\n${corpo}`;
 
   assert.deepEqual(
-    pisoDeOutraSala(comProducao('listItems(LOCAL_COMPANY_ID),')),
-    ['listItems(LOCAL_COMPANY_ID)'],
-    'a cicatriz tem que reprovar',
+    pisoDeOutraSala(comProducao("listItems(EMPRESA_SEMENTE),")),
+    ["listItems(EMPRESA_SEMENTE)"],
+    "a cicatriz tem que reprovar",
   );
   assert.deepEqual(
     pisoDeOutraSala(
-      comProducao('listItems(LOCAL_COMPANY_ID, undefined, false, defaultLocationId(LOCAL_COMPANY_ID)),'),
+      comProducao(
+        "listItems(EMPRESA_SEMENTE, undefined, false, defaultLocationId(EMPRESA_SEMENTE)),",
+      ),
     ),
     [],
-    'o conserto passa',
+    "o conserto passa",
+  );
+  // O caso que derrubou a versão anterior: o argumento é uma PERGUNTA, e o
+  // parêntese dela fechava a conta antes da vírgula.
+  assert.deepEqual(
+    pisoDeOutraSala(
+      comProducao(
+        "listItems(empresaDaqui(), undefined, false, defaultLocationId(empresaDaqui())),",
+      ),
+    ),
+    [],
+    "a tela consertada continua passando quando a empresa é lida em vez de constante",
+  );
+  assert.deepEqual(
+    pisoDeOutraSala(comProducao("listItems(empresaDaqui()),")),
+    ["listItems(empresaDaqui())"],
+    "e a cicatriz continua reprovando com a mesma leitura",
   );
   // E a régua não fala com quem não produz: a lista do almoxarifado lê a empresa
   // inteira de propósito, e está certa.
-  assert.deepEqual(pisoDeOutraSala('listItems(LOCAL_COMPANY_ID),'), []);
+  assert.deepEqual(pisoDeOutraSala("listItems(EMPRESA_SEMENTE),"), []);
 });
 
 /**
@@ -531,55 +653,78 @@ export function porCentoNaMao(texto: string): string[] {
   // e entrega o número ao `formatTyped` — que sabe o idioma. O que faz do trecho um
   // defeito não é a multiplicação: é a porcentagem SAINDO como texto ali mesmo.
   return texto
-    .split('\n')
-    .filter((linha) => /\*\s*100\s*\)?\s*\.toFixed\(/.test(linha) && linha.includes('%'))
+    .split("\n")
+    .filter(
+      (linha) =>
+        /\*\s*100\s*\)?\s*\.toFixed\(/.test(linha) && linha.includes("%"),
+    )
     .map((linha) => linha.trim().slice(0, 80));
 }
 
-test('no screen builds a percentage by hand', () => {
-  const fontes = [...sourcesUnder('app'), ...sourcesUnder('src')];
-  assert.ok(fontes.length > 20, 'a varredura de fontes veio vazia — a comparação seria de graça');
+test("no screen builds a percentage by hand", () => {
+  const fontes = [...sourcesUnder("app"), ...sourcesUnder("src")];
+  assert.ok(
+    fontes.length > 20,
+    "a varredura de fontes veio vazia — a comparação seria de graça",
+  );
 
   const naMao: string[] = [];
   for (const f of fontes) {
-    for (const achado of porCentoNaMao(readFileSync(f, 'utf8'))) naMao.push(`${f}: ${achado}`);
+    for (const achado of porCentoNaMao(readFileSync(f, "utf8")))
+      naMao.push(`${f}: ${achado}`);
   }
 
   assert.deepEqual(
     naMao,
     [],
-    `estes lugares montam porcentagem à mão:\n  ${naMao.join('\n  ')}\n` +
-      '`formatPercent` existe e sabe o idioma. Ponto decimal do JavaScript numa tela ' +
+    `estes lugares montam porcentagem à mão:\n  ${naMao.join("\n  ")}\n` +
+      "`formatPercent` existe e sabe o idioma. Ponto decimal do JavaScript numa tela " +
       'brasileira é "9.0%" onde se lê "9,0%", e trocar por vírgula à mão erra no ' +
-      'espanhol do México, onde o separador é o ponto.',
+      "espanhol do México, onde o separador é o ponto.",
   );
 });
 
-test('the percentage guard bites the real scar, and leaves honest toFixed alone', () => {
-  assert.equal(porCentoNaMao('`${(Math.abs(change) * 100).toFixed(1)}%`').length, 1);
+test("the percentage guard bites the real scar, and leaves honest toFixed alone", () => {
   assert.equal(
-    porCentoNaMao("`${(cost.lossFraction * 100).toFixed(1).replace('.', ',')}%`").length,
+    porCentoNaMao("`${(Math.abs(change) * 100).toFixed(1)}%`").length,
     1,
-    'a cicatriz do assistente também',
+  );
+  assert.equal(
+    porCentoNaMao(
+      "`${(cost.lossFraction * 100).toFixed(1).replace('.', ',')}%`",
+    ).length,
+    1,
+    "a cicatriz do assistente também",
   );
 
   // E os três inocentes, cada um por um motivo diferente.
-  assert.deepEqual(porCentoNaMao('rate: parsed.unitRate.toFixed(4),'), [], 'taxa não é porcentagem');
-  assert.deepEqual(porCentoNaMao('`${batches.toFixed(2)} (pelo que saiu)`'), [], 'tacho não é porcentagem');
   assert.deepEqual(
-    porCentoNaMao('lossPercent: formatTyped(Number((stored.lossFraction * 100).toFixed(2)), locale.formatting),'),
+    porCentoNaMao("rate: parsed.unitRate.toFixed(4),"),
     [],
-    'valor de campo entregue a um formatador que sabe o idioma',
+    "taxa não é porcentagem",
   );
   assert.deepEqual(
-    porCentoNaMao(' * Existia em três lugares como `(x * 100).toFixed(1)`, que é o ponto decimal'),
+    porCentoNaMao("`${batches.toFixed(2)} (pelo que saiu)`"),
     [],
-    'prosa que cita o padrão não é o padrão',
+    "tacho não é porcentagem",
+  );
+  assert.deepEqual(
+    porCentoNaMao(
+      "lossPercent: formatTyped(Number((stored.lossFraction * 100).toFixed(2)), locale.formatting),",
+    ),
+    [],
+    "valor de campo entregue a um formatador que sabe o idioma",
+  );
+  assert.deepEqual(
+    porCentoNaMao(
+      " * Existia em três lugares como `(x * 100).toFixed(1)`, que é o ponto decimal",
+    ),
+    [],
+    "prosa que cita o padrão não é o padrão",
   );
 });
 
-
-test('every line the ledger gets says who was holding the phone', () => {
+test("every line the ledger gets says who was holding the phone", () => {
   // A coluna existiu por semanas sem escritor — `movements.operator_id` entrou na
   // 0014, atravessava a sincronia, e nenhum dos SETE `INSERT INTO movements` a
   // preenchia. `app/(tabs)/more.tsx` registrava a lacuna com todas as letras.
@@ -588,25 +733,33 @@ test('every line the ledger gets says who was holding the phone', () => {
   // quem acrescentar um tipo de movimento amanhã copia um `INSERT` vizinho, e o
   // que ele copiar decide se a linha nasce sem operador para sempre. Livro-razão
   // não se corrige por UPDATE — se nascer sem, nasceu sem.
-  const fonte = readFileSync(join(process.cwd(), 'src/data/repository.ts'), 'utf8');
+  const fonte = readFileSync(
+    join(process.cwd(), "src/data/repository.ts"),
+    "utf8",
+  );
 
-  const inserts = fonte.split('INSERT INTO movements').slice(1);
-  assert.ok(inserts.length >= 7, `o arquivo tem ${inserts.length} inserts de movimento`);
+  const inserts = fonte.split("INSERT INTO movements").slice(1);
+  assert.ok(
+    inserts.length >= 7,
+    `o arquivo tem ${inserts.length} inserts de movimento`,
+  );
 
   const semOperador = inserts
-    .map((trecho, i) => ({ i, colunas: trecho.slice(0, trecho.indexOf('VALUES')) }))
-    .filter(({ colunas }) => !colunas.includes('operator_id'))
+    .map((trecho, i) => ({
+      i,
+      colunas: trecho.slice(0, trecho.indexOf("VALUES")),
+    }))
+    .filter(({ colunas }) => !colunas.includes("operator_id"))
     .map(({ i }) => `o ${i + 1}º INSERT INTO movements`);
 
   assert.deepEqual(
     semOperador,
     [],
-    `${semOperador.join(' · ')} não grava \`operator_id\`. A linha nasce anônima e o ` +
-      'razão é append-only: não há UPDATE que conserte depois. Acrescente a coluna e ' +
-      '`await currentOperatorId()` no fim dos parâmetros, como os vizinhos.',
+    `${semOperador.join(" · ")} não grava \`operator_id\`. A linha nasce anônima e o ` +
+      "razão é append-only: não há UPDATE que conserte depois. Acrescente a coluna e " +
+      "`await currentOperatorId()` no fim dos parâmetros, como os vizinhos.",
   );
 });
-
 
 /**
  * As funções do domínio que nenhum código de produção chama — e por quê.
@@ -631,15 +784,15 @@ test('every line the ledger gets says who was holding the phone', () => {
  */
 const SEM_CHAMADOR: Record<string, string> = {
   needsHumanYes:
-    'o piso de atos que sempre pedem um humano é promessa feita ANTES das funcionalidades existirem — o docblock diz isso por extenso, e quem construir preço ou lançamento financeiro herda a regra em vez de decidir de novo',
+    "o piso de atos que sempre pedem um humano é promessa feita ANTES das funcionalidades existirem — o docblock diz isso por extenso, e quem construir preço ou lançamento financeiro herda a regra em vez de decidir de novo",
   ratesBefore:
-    'o custo de hoje contra o de ANTES de uma sequência de movimentos. O SQL (`recentCostChanges`) mostra a última mudança por item, que é outra pergunta — e a regra daqui é a que impede uma alta de 9% em dois passos aparecer como 2%',
+    "o custo de hoje contra o de ANTES de uma sequência de movimentos. O SQL (`recentCostChanges`) mostra a última mudança por item, que é outra pergunta — e a regra daqui é a que impede uma alta de 9% em dois passos aparecer como 2%",
   daysUntilExpiry:
     'a tela que trata "venceu ontem" diferente de "vence em três dias" não existe: hoje `expiringSoon` filtra por data e não conta dias',
   toDecimal:
-    'primitiva da fundação do dinheiro, par de `fromDecimal`. Existe para ninguém dividir por 100 na mão, que é metade do erro que a capa deste projeto proíbe',
+    "primitiva da fundação do dinheiro, par de `fromDecimal`. Existe para ninguém dividir por 100 na mão, que é metade do erro que a capa deste projeto proíbe",
   multiplyCents:
-    'a outra metade: existe para ninguém escrever `Math.round(x * f)` inline. Só o valor final arredonda, uma vez, e a primitiva certa presente é o que impede a errada de nascer',
+    "a outra metade: existe para ninguém escrever `Math.round(x * f)` inline. Só o valor final arredonda, uma vez, e a primitiva certa presente é o que impede a errada de nascer",
 
   // ---- Fora do domínio, desde que a guarda passou a olhar o `src` inteiro ----
   /**
@@ -651,16 +804,16 @@ const SEM_CHAMADOR: Record<string, string> = {
    * `__` diz isso.
    */
   __setDb:
-    'gancho de teste: troca a conexão do banco. Chamado só por *.test.ts, e o `__` diz que é assim',
+    "gancho de teste: troca a conexão do banco. Chamado só por *.test.ts, e o `__` diz que é assim",
   __setOpener:
-    'gancho de teste, e o sublinhado duplo diz isso na assinatura: ele troca quem ABRE o banco, para a suíte rodar contra o SQLite do node em vez do do aparelho. Par de `__setDb`, que a suíte usa em todo arquivo de dado',
+    "gancho de teste, e o sublinhado duplo diz isso na assinatura: ele troca quem ABRE o banco, para a suíte rodar contra o SQLite do node em vez do do aparelho. Par de `__setDb`, que a suíte usa em todo arquivo de dado",
   drain:
     'o motor de sincronia, e ele não tem chamador porque o servidor não subiu — decisão escrita do dono, *"o servidor sobe o mais tarde possível"*. A regra existe, é exercitada contra Postgres pelo `db:verify`, e o chamador é a tela de conta, que é o item 2b do roadmap',
   serialize:
-    'mesma fronteira: é ela que transforma a linha do aparelho no que o servidor aceita, com a travessia de colunas guardada por teste. Sem caminho de escrita não há quem a chame, e inventar um chamador agora seria construir a metade que não fecha',
+    "mesma fronteira: é ela que transforma a linha do aparelho no que o servidor aceita, com a travessia de colunas guardada por teste. Sem caminho de escrita não há quem a chame, e inventar um chamador agora seria construir a metade que não fecha",
 };
 
-test('every exported function has a caller in production, or a written reason', () => {
+test("every exported function has a caller in production, or a written reason", () => {
   // Todo o `src`, e não só o domínio.
   //
   // A guarda nasceu olhando `src/domain` porque foi ali que a medição de 6 de
@@ -668,9 +821,9 @@ test('every exported function has a caller in production, or a written reason', 
   // FORA dele — um ponto de extensão do assistente que nada estende, três ícones
   // substituídos pelos glifos, dois formatadores e um mapa de cores. A doença não
   // conhecia a fronteira da pasta; a guarda também não conhece mais.
-  const dominio = sourcesUnder('src').filter((f) => !/\.test\.tsx?$/.test(f));
+  const dominio = sourcesUnder("src").filter((f) => !/\.test\.tsx?$/.test(f));
 
-  const producao = [...sourcesUnder('src'), ...sourcesUnder('app')].filter(
+  const producao = [...sourcesUnder("src"), ...sourcesUnder("app")].filter(
     (f) => !/\.test\.tsx?$/.test(f),
   );
   /**
@@ -689,20 +842,25 @@ test('every exported function has a caller in production, or a written reason', 
    *
    * O `code()` deste mesmo arquivo já existia para o guarda do SQL. Faltava aqui.
    */
-  const codigoDeProducao = producao.map((f) => code(readFileSync(f, 'utf8')));
+  const codigoDeProducao = producao.map((f) => code(readFileSync(f, "utf8")));
 
   const orfas: string[] = [];
   const registroVelho: string[] = [];
 
   for (const arquivo of dominio) {
-    const fonte = readFileSync(join(process.cwd(), arquivo), 'utf8');
-    for (const [, nome] of fonte.matchAll(/^export (?:async )?function (\w+)/gm)) {
+    const fonte = readFileSync(join(process.cwd(), arquivo), "utf8");
+    for (const [, nome] of fonte.matchAll(
+      /^export (?:async )?function (\w+)/gm,
+    )) {
       const usos = producao.filter(
-        (f, i) => f !== arquivo && new RegExp(`\\b${nome}\\b`).test(codigoDeProducao[i]),
+        (f, i) =>
+          f !== arquivo &&
+          new RegExp(`\\b${nome}\\b`).test(codigoDeProducao[i]),
       );
       // Chamada de dentro do próprio arquivo também é chamada: `qrModules` é viva
       // porque `qrPath` a usa, e `qrPath` está numa tela.
-      const daCasa = (code(fonte).match(new RegExp(`\\b${nome}\\b`, 'g')) ?? []).length > 1;
+      const daCasa =
+        (code(fonte).match(new RegExp(`\\b${nome}\\b`, "g")) ?? []).length > 1;
 
       if (usos.length === 0 && !daCasa) {
         if (!SEM_CHAMADOR[nome]) orfas.push(`${arquivo}: ${nome}`);
@@ -715,15 +873,15 @@ test('every exported function has a caller in production, or a written reason', 
   assert.deepEqual(
     orfas,
     [],
-    `estas funções exportadas nenhum código de produção chama: ${orfas.join(' · ')}. ` +
-      'Traga o chamador no mesmo commit, apague, ou registre a fronteira com a razão — ' +
-      'que é o portão P1 deste projeto, e a doença que ele pega já apareceu quatro vezes.',
+    `estas funções exportadas nenhum código de produção chama: ${orfas.join(" · ")}. ` +
+      "Traga o chamador no mesmo commit, apague, ou registre a fronteira com a razão — " +
+      "que é o portão P1 deste projeto, e a doença que ele pega já apareceu quatro vezes.",
   );
   assert.deepEqual(
     registroVelho,
     [],
-    `${registroVelho.join(' · ')} ganhou chamador e continua na lista de fronteiras. ` +
-      'Tire a linha: registro que virou mentira é pior que registro nenhum.',
+    `${registroVelho.join(" · ")} ganhou chamador e continua na lista de fronteiras. ` +
+      "Tire a linha: registro que virou mentira é pior que registro nenhum.",
   );
 });
 
@@ -762,25 +920,32 @@ const SEM_PORTAO = /\b(averageRatesForLedger|listProductsForLedger)\b/;
  */
 const TESTE_PODE_LER = new Map<string, string>([
   [
-    join('src', 'notify', 'facts.test.ts'),
-    'semeia um produto para exercitar o aviso, e a semeadura é escrita de razão: ' +
-      'o portão aqui esconderia a taxa do próprio dado que o teste acabou de plantar',
+    join("src", "notify", "facts.test.ts"),
+    "semeia um produto para exercitar o aviso, e a semeadura é escrita de razão: " +
+      "o portão aqui esconderia a taxa do próprio dado que o teste acabou de plantar",
   ],
 ]);
 
 /** Onde o razão é escrito. Fora daqui, dinheiro se lê pelo caminho com portão. */
 function podeLerSemPortao(path: string): boolean {
-  return path.startsWith('src/data/') || path.startsWith('scripts/') || TESTE_PODE_LER.has(path);
+  return (
+    path.startsWith("src/data/") ||
+    path.startsWith("scripts/") ||
+    TESTE_PODE_LER.has(path)
+  );
 }
 
-test('only the ledger reads money without the gate', () => {
+test("only the ledger reads money without the gate", () => {
   const culpados: string[] = [];
-  for (const layer of ['app', ...readdirSync('src')
-    .filter((entry) => statSync(join('src', entry)).isDirectory())
-    .map((entry) => join('src', entry))]) {
+  for (const layer of [
+    "app",
+    ...readdirSync("src")
+      .filter((entry) => statSync(join("src", entry)).isDirectory())
+      .map((entry) => join("src", entry)),
+  ]) {
     for (const file of [...sourcesUnder(layer), ...testesUnder(layer)]) {
       if (podeLerSemPortao(file)) continue;
-      const linhas = code(readFileSync(file, 'utf8')).split('\n');
+      const linhas = code(readFileSync(file, "utf8")).split("\n");
       linhas.forEach((linha, i) => {
         if (SEM_PORTAO.test(linha)) culpados.push(`${file}:${i + 1}`);
       });
@@ -790,45 +955,57 @@ test('only the ledger reads money without the gate', () => {
   assert.deepEqual(
     culpados,
     [],
-    `estes arquivos leem dinheiro pelo caminho SEM portão:\n  ${culpados.join('\n  ')}\n` +
-      'Fora de src/data/ e scripts/, custo se lê por `itemCosts`, `listItems` ou ' +
-      '`listProducts` — que perguntam antes de consultar. O caminho sem portão existe ' +
-      'para CONGELAR taxa no livro-razão, e livro-razão não se corrige: se estorna.',
+    `estes arquivos leem dinheiro pelo caminho SEM portão:\n  ${culpados.join("\n  ")}\n` +
+      "Fora de src/data/ e scripts/, custo se lê por `itemCosts`, `listItems` ou " +
+      "`listProducts` — que perguntam antes de consultar. O caminho sem portão existe " +
+      "para CONGELAR taxa no livro-razão, e livro-razão não se corrige: se estorna.",
   );
 });
 
-test('the ledger-read guard bites a screen, and leaves the data layer alone', () => {
+test("the ledger-read guard bites a screen, and leaves the data layer alone", () => {
   // Positivo: a chamada de verdade, dentro da camada de dados, passa.
   assert.ok(
-    podeLerSemPortao('src/data/simulate.ts'),
-    'a semeadura escreve razão e tem de poder ler sem portão',
+    podeLerSemPortao("src/data/simulate.ts"),
+    "a semeadura escreve razão e tem de poder ler sem portão",
   );
   assert.ok(
-    podeLerSemPortao('scripts/device-session.ts'),
-    'o script que compara o aparelho com o Postgres compara verdade de razão',
+    podeLerSemPortao("scripts/device-session.ts"),
+    "o script que compara o aparelho com o Postgres compara verdade de razão",
   );
   // Negativo: a mesma linha numa tela é recusada.
-  assert.ok(!podeLerSemPortao('app/inputs/index.tsx'), 'tela nenhuma lê sem portão');
-  assert.ok(!podeLerSemPortao('src/home/Mosaic.tsx'), 'a capa é tela');
-  assert.ok(!podeLerSemPortao('src/assistant/skills.ts'), 'o assistente responde por tela');
   assert.ok(
-    SEM_PORTAO.test('const c = await averageRatesForLedger(companyId);'),
-    'o padrão pega a chamada que importa',
+    !podeLerSemPortao("app/inputs/index.tsx"),
+    "tela nenhuma lê sem portão",
+  );
+  assert.ok(!podeLerSemPortao("src/home/Mosaic.tsx"), "a capa é tela");
+  assert.ok(
+    !podeLerSemPortao("src/assistant/skills.ts"),
+    "o assistente responde por tela",
   );
   assert.ok(
-    !SEM_PORTAO.test('const c = await itemCosts(companyId);'),
-    'e deixa em paz o caminho com portão',
+    SEM_PORTAO.test("const c = await averageRatesForLedger(companyId);"),
+    "o padrão pega a chamada que importa",
+  );
+  assert.ok(
+    !SEM_PORTAO.test("const c = await itemCosts(companyId);"),
+    "e deixa em paz o caminho com portão",
   );
 
   // E o buraco do coletor, provado nos dois sentidos: um teste fora da camada de
   // dados É varrido agora, e o único que pode ler tem a razão escrita.
   assert.ok(
-    testesUnder('src/notify').includes(join('src', 'notify', 'facts.test.ts')),
-    'o coletor de testes tem de enxergar o arquivo que o guarda deixou passar por semanas',
+    testesUnder("src/notify").includes(join("src", "notify", "facts.test.ts")),
+    "o coletor de testes tem de enxergar o arquivo que o guarda deixou passar por semanas",
   );
-  assert.ok(!podeLerSemPortao(join('src', 'notify', 'alerts.test.ts')), 'teste não vira passe livre');
+  assert.ok(
+    !podeLerSemPortao(join("src", "notify", "alerts.test.ts")),
+    "teste não vira passe livre",
+  );
   for (const [arquivo, razao] of TESTE_PODE_LER) {
-    assert.ok(razao.length > 40, `${arquivo} está dispensado sem razão escrita`);
+    assert.ok(
+      razao.length > 40,
+      `${arquivo} está dispensado sem razão escrita`,
+    );
   }
 });
 
@@ -853,34 +1030,42 @@ test('the ledger-read guard bites a screen, and leaves the data layer alone', ()
  * Então a regra é mais estreita que "sem portão": a travessia não chama leitura
  * nenhuma do repositório. Ela lê a linha que o `outbox` nomeia.
  */
-test('the crossing reads the stored row, never a repository read', () => {
-  const culpados = sourcesUnder('src/sync').filter((file) =>
-    /from '@\/data\/repository'/.test(readFileSync(file, 'utf8')),
+test("the crossing reads the stored row, never a repository read", () => {
+  const culpados = sourcesUnder("src/sync").filter((file) =>
+    /from '@\/data\/repository'/.test(readFileSync(file, "utf8")),
   );
 
   assert.deepEqual(
     culpados,
     [],
-    `estes arquivos da travessia leem pelo repositório:\n  ${culpados.join('\n  ')}\n` +
-      'A fila envia o que está GRAVADO. Toda leitura do repositório filtra, arredonda ou ' +
-      'esconde alguma coisa para uma tela — inclusive o portão do dinheiro —, e o que ' +
-      'atravessa não pode depender de quem estava com o aparelho na hora de sincronizar.',
+    `estes arquivos da travessia leem pelo repositório:\n  ${culpados.join("\n  ")}\n` +
+      "A fila envia o que está GRAVADO. Toda leitura do repositório filtra, arredonda ou " +
+      "esconde alguma coisa para uma tela — inclusive o portão do dinheiro —, e o que " +
+      "atravessa não pode depender de quem estava com o aparelho na hora de sincronizar.",
   );
 });
 
-test('the crossing guard bites the real risk, and leaves the tests alone', () => {
+test("the crossing guard bites the real risk, and leaves the tests alone", () => {
   // `sourcesUnder` já descarta `*.test.ts`, e é isso que permite ao teste da
   // sincronia gravar com o repositório para depois olhar a fila — ele imita o
   // aplicativo, não faz parte da travessia.
-  const arquivos = sourcesUnder('src/sync');
-  assert.ok(arquivos.length >= 2, 'a travessia tem engine e serialize');
+  const arquivos = sourcesUnder("src/sync");
+  assert.ok(arquivos.length >= 2, "a travessia tem engine e serialize");
   assert.ok(
-    !arquivos.some((f) => f.endsWith('.test.ts')),
-    'teste de sincronia pode chamar o repositório: ele é o aplicativo imitado, não a travessia',
+    !arquivos.some((f) => f.endsWith(".test.ts")),
+    "teste de sincronia pode chamar o repositório: ele é o aplicativo imitado, não a travessia",
   );
   // E o padrão pega o que tem de pegar.
-  assert.ok(/from '@\/data\/repository'/.test("import { listItems } from '@/data/repository';"));
-  assert.ok(!/from '@\/data\/repository'/.test("import type { OutboxEntry } from '@/data/outbox';"));
+  assert.ok(
+    /from '@\/data\/repository'/.test(
+      "import { listItems } from '@/data/repository';",
+    ),
+  );
+  assert.ok(
+    !/from '@\/data\/repository'/.test(
+      "import type { OutboxEntry } from '@/data/outbox';",
+    ),
+  );
 });
 
 /**
@@ -899,22 +1084,24 @@ test('the crossing guard bites the real risk, and leaves the tests alone', () =>
  */
 const ESPECIE_FORA_DO_CADASTRO: Record<string, string> = {
   factory:
-    'nasce sozinha com a empresa (`ensureLocation`), com o id da própria empresa — não há o que cadastrar',
+    "nasce sozinha com a empresa (`ensureLocation`), com o id da própria empresa — não há o que cadastrar",
   vehicle:
-    'é a viagem com linha do tempo, adiada por decisão do dono em 6 de setembro: a carga é UM evento, e o veículo só passa a existir quando houver entregador que não é quem carregou',
+    "é a viagem com linha do tempo, adiada por decisão do dono em 6 de setembro: a carga é UM evento, e o veículo só passa a existir quando houver entregador que não é quem carregou",
 };
 
-test('the place form offers every kind the ledger knows, or says why not', () => {
-  const enums = readFileSync('supabase/migrations/0001_foundation.sql', 'utf8');
+test("the place form offers every kind the ledger knows, or says why not", () => {
+  const enums = readFileSync("supabase/migrations/0001_foundation.sql", "utf8");
   const linha = enums.match(/create type location_kind as enum \(([^)]*)\)/);
-  assert.ok(linha, 'a migração da fundação declara location_kind');
+  assert.ok(linha, "a migração da fundação declara location_kind");
   const doServidor = [...linha[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
   assert.ok(doServidor.length >= 5, `o enum tem ${doServidor.length} espécies`);
 
-  const tela = readFileSync('app/places.tsx', 'utf8');
+  const tela = readFileSync("app/places.tsx", "utf8");
   const oferta = tela.match(/const KINDS = \[([^\]]*)\]/);
-  assert.ok(oferta, 'o formulário declara as espécies numa lista só');
-  const oferecidas = new Set([...oferta[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]));
+  assert.ok(oferta, "o formulário declara as espécies numa lista só");
+  const oferecidas = new Set(
+    [...oferta[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]),
+  );
 
   const semExplicacao = doServidor.filter(
     (k) => !oferecidas.has(k) && !(k in ESPECIE_FORA_DO_CADASTRO),
@@ -922,17 +1109,19 @@ test('the place form offers every kind the ledger knows, or says why not', () =>
   assert.deepEqual(
     semExplicacao,
     [],
-    `o servidor conhece estas espécies e o cadastro não as oferece: ${semExplicacao.join(', ')}.\n` +
-      'Ou entram no formulário, ou entram em ESPECIE_FORA_DO_CADASTRO com o motivo — ' +
-      'espécie que existe no razão e não existe na tela é o dono vendo dado que ele não consegue criar.',
+    `o servidor conhece estas espécies e o cadastro não as oferece: ${semExplicacao.join(", ")}.\n` +
+      "Ou entram no formulário, ou entram em ESPECIE_FORA_DO_CADASTRO com o motivo — " +
+      "espécie que existe no razão e não existe na tela é o dono vendo dado que ele não consegue criar.",
   );
 
   // E a outra direção, que é a que envelhece calada: registro que virou mentira.
-  const registroVelho = Object.keys(ESPECIE_FORA_DO_CADASTRO).filter((k) => oferecidas.has(k));
+  const registroVelho = Object.keys(ESPECIE_FORA_DO_CADASTRO).filter((k) =>
+    oferecidas.has(k),
+  );
   assert.deepEqual(
     registroVelho,
     [],
-    `estas espécies estão registradas como fora e o formulário já as oferece: ${registroVelho.join(', ')}`,
+    `estas espécies estão registradas como fora e o formulário já as oferece: ${registroVelho.join(", ")}`,
   );
 });
 
@@ -962,10 +1151,10 @@ test('the place form offers every kind the ledger knows, or says why not', () =>
  * está lendo, e o lugar de explicar a armadilha citando o nome pelado é
  * justamente aqui.
  */
-test('a docblock naming a test file names exactly one', () => {
+test("a docblock naming a test file names exactly one", () => {
   const testes = (dir: string, into: string[] = []): string[] => {
     for (const entry of readdirSync(dir)) {
-      if (entry === 'node_modules' || entry.startsWith('.')) continue;
+      if (entry === "node_modules" || entry.startsWith(".")) continue;
       const path = join(dir, entry);
       if (statSync(path).isDirectory()) testes(path, into);
       else if (/\.test\.tsx?$/.test(entry)) into.push(path);
@@ -974,25 +1163,35 @@ test('a docblock naming a test file names exactly one', () => {
   };
 
   const porNome = new Map<string, string[]>();
-  for (const arquivo of ['src', 'app', 'e2e', 'scripts'].flatMap((d) => testes(d))) {
-    const base = arquivo.slice(arquivo.lastIndexOf('/') + 1);
+  for (const arquivo of ["src", "app", "e2e", "scripts"].flatMap((d) =>
+    testes(d),
+  )) {
+    const base = arquivo.slice(arquivo.lastIndexOf("/") + 1);
     porNome.set(base, [...(porNome.get(base) ?? []), arquivo]);
   }
-  const ambiguos = [...porNome].filter(([, onde]) => onde.length > 1).map(([base]) => base);
+  const ambiguos = [...porNome]
+    .filter(([, onde]) => onde.length > 1)
+    .map(([base]) => base);
 
   // A régua provada: hoje `agreement.test.ts` é o único nome repetido, e um nome
   // que só existe uma vez não pode entrar nesta lista.
-  assert.ok(ambiguos.includes('agreement.test.ts'), 'a leitura de nomes repetidos quebrou');
-  assert.ok(!ambiguos.includes('layers.test.ts'), 'nome único não é ambíguo');
+  assert.ok(
+    ambiguos.includes("agreement.test.ts"),
+    "a leitura de nomes repetidos quebrou",
+  );
+  assert.ok(!ambiguos.includes("layers.test.ts"), "nome único não é ambíguo");
 
   const soltos: string[] = [];
-  for (const arquivo of ['src', 'app'].flatMap((d) => sourcesUnder(d))) {
-    const linhas = readFileSync(arquivo, 'utf8').split('\n');
+  for (const arquivo of ["src", "app"].flatMap((d) => sourcesUnder(d))) {
+    const linhas = readFileSync(arquivo, "utf8").split("\n");
     linhas.forEach((linha, i) => {
       for (const base of ambiguos) {
         // Citação com caminho está certa; o que se recusa é o nome pelado.
-        const semCaminho = new RegExp(`(^|[^/\\w])${base.replace(/\./g, '\\.')}`);
-        if (semCaminho.test(linha)) soltos.push(`${arquivo}:${i + 1} — \`${base}\` sem caminho`);
+        const semCaminho = new RegExp(
+          `(^|[^/\\w])${base.replace(/\./g, "\\.")}`,
+        );
+        if (semCaminho.test(linha))
+          soltos.push(`${arquivo}:${i + 1} — \`${base}\` sem caminho`);
       }
     });
   }
@@ -1000,8 +1199,8 @@ test('a docblock naming a test file names exactly one', () => {
   assert.deepEqual(
     soltos,
     [],
-    `estes docblocks apontam para um guarda por um nome que existe em mais de um lugar:\n  ${soltos.join('\n  ')}\n` +
-      'Quem for conferir a promessa vai abrir o arquivo errado, não achar nada, e concluir ' +
-      'que a rede não existe — que foi exatamente o que aconteceu. Escreva o caminho inteiro.',
+    `estes docblocks apontam para um guarda por um nome que existe em mais de um lugar:\n  ${soltos.join("\n  ")}\n` +
+      "Quem for conferir a promessa vai abrir o arquivo errado, não achar nada, e concluir " +
+      "que a rede não existe — que foi exatamente o que aconteceu. Escreva o caminho inteiro.",
   );
 });

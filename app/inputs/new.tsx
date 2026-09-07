@@ -13,7 +13,7 @@ import { Touchable } from '@/components/Touchable';
 import { packSize } from '@/domain/measure';
 import { findItem, recordPurchase, saveItem, type ItemKind } from '@/data/repository';
 import { useQuery } from '@/data/useQuery';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { fromDecimal, rate } from '@/domain/money';
 import { parseTyped, formatTyped } from '@/domain/number';
 import { currencySymbol, fill, formatMoney, formatQuantity } from '@/i18n';
@@ -111,7 +111,7 @@ function InputForm() {
   const editing = Boolean(id);
 
   const { data: existing } = useQuery(
-    async () => (id ? findItem(LOCAL_COMPANY_ID, id) : null),
+    async () => (id ? findItem(empresaDaqui(), id) : null),
     id ?? '',
   );
 
@@ -324,7 +324,7 @@ function InputForm() {
      * what keeps a single definition of what an item costs.
      */
     async function save() {
-      const itemId = await saveItem(LOCAL_COMPANY_ID, {
+      const itemId = await saveItem(empresaDaqui(), {
         id,
         kind,
         name: name.trim(),
@@ -339,7 +339,7 @@ function InputForm() {
       // average - that is what the purchase screen is for.
       if (editing) return;
 
-      await recordPurchase(LOCAL_COMPANY_ID, {
+      await recordPurchase(empresaDaqui(), {
         itemId,
         purchaseQuantity: 1,
         baseUnits: Math.round(parsed.factor),

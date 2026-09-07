@@ -14,7 +14,7 @@ import {
   listRecipes,
   loadRecipeGraph,
 } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { costPerProductUnit, packagingRatePerUnit, costRecipe, RecipeCycleError } from '@/domain/recipe';
 import { fill, formatMoney, plural } from '@/i18n';
@@ -82,11 +82,11 @@ function RecipesList() {
 
   const { data, loading } = useQuery<Row[]>(async () => {
     const [recipes, graph, custos, names, products] = await Promise.all([
-      listRecipes(LOCAL_COMPANY_ID),
-      loadRecipeGraph(LOCAL_COMPANY_ID),
-      itemCosts(LOCAL_COMPANY_ID),
-      loadLabels(LOCAL_COMPANY_ID),
-      listProducts(LOCAL_COMPANY_ID),
+      listRecipes(empresaDaqui()),
+      loadRecipeGraph(empresaDaqui()),
+      itemCosts(empresaDaqui()),
+      loadLabels(empresaDaqui()),
+      listProducts(empresaDaqui()),
     ]);
 
     // O portão é o próprio `itemCosts`: nulo é "não é seu para ver". O mapa vazio

@@ -68,7 +68,8 @@ import {
   type EraseCounts,
   type EraseTally,
 } from '@/data/erase';
-import { exampleStillHere, LOCAL_COMPANY_ID, restoreStarterData } from '@/data/seed';
+import { exampleStillHere, restoreStarterData } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { HORIZONTE_DE_TESTE, simulateHistory } from '@/data/simulate';
 import { empurrar } from '@/data/configuracao';
 import { useQuery } from '@/data/useQuery';
@@ -297,12 +298,12 @@ function Settings() {
 
   const { data, loading, refresh } = useQuery(
     async () => ({
-      counts: await countForErase(LOCAL_COMPANY_ID),
+      counts: await countForErase(empresaDaqui()),
       // A PRESENÇA do exemplo, não o histórico dele: a marca `seeded` nunca é
       // apagada, então ela dizia "inclui o exemplo" para sempre, em todo
       // aparelho, inclusive depois de apagar tudo e cadastrar o primeiro insumo
       // próprio.
-      example: await exampleStillHere(LOCAL_COMPANY_ID),
+      example: await exampleStillHere(empresaDaqui()),
     }),
   );
 
@@ -344,7 +345,7 @@ function Settings() {
 
     setBusy(true);
     try {
-      await eraseArea(LOCAL_COMPANY_ID, area);
+      await eraseArea(empresaDaqui(), area);
       refresh();
     } catch (e) {
       await confirm({
@@ -418,7 +419,7 @@ function Settings() {
       // exatamente para isto e nunca tinha sido chamado por ninguém: o docblock
       // dele já dizia que catorze dias não provam custo médio que anda, cobertura
       // que encolhe nem consulta lenta com o livro-razão crescido.
-      const feito = await simulateHistory(LOCAL_COMPANY_ID, {
+      const feito = await simulateHistory(empresaDaqui(), {
         days: HORIZONTE_DE_TESTE,
         timeZone: locale.timeZone,
       });

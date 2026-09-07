@@ -7,7 +7,7 @@ import { GlyphStore } from '@/components/Glyph';
 import { Reveal } from '@/components/Reveal';
 import { Touchable } from '@/components/Touchable';
 import { storeMirror, type MirrorItem, type MirrorRow } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import type { Dictionary } from '@/i18n';
 import { fill, formatPercent, formatQuantity, plural } from '@/i18n';
@@ -64,7 +64,7 @@ function Espelho() {
   const router = useRouter();
   const words = t.app.reports.mirror;
 
-  const { data } = useQuery<MirrorRow[]>(() => storeMirror(LOCAL_COMPANY_ID, DIAS));
+  const { data } = useQuery<MirrorRow[]>(() => storeMirror(empresaDaqui(), DIAS));
   const linhas = data ?? [];
 
   return (

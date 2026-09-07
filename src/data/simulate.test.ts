@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import { __setDb, migrate, type Db, type SqlParam } from './db';
 import { dayWindow } from '@/domain/day';
 import { listItems, productionOn, shipmentsOn } from './repository';
-import { ensureStarterData, LOCAL_COMPANY_ID } from './seed';
+import { ensureStarterData } from './seed';
+import { EMPRESA_SEMENTE } from './empresa';
 import { simulateFortnight } from './simulate';
 
 /**
@@ -62,9 +63,9 @@ function memoria(): Db {
 
 test('a fortnight of operation lands in the ledger, spread over its days', async () => {
   await bancoLimpo();
-  await ensureStarterData(LOCAL_COMPANY_ID);
+  await ensureStarterData(EMPRESA_SEMENTE);
 
-  const feito = await simulateFortnight(LOCAL_COMPANY_ID, { timeZone: SP, at: AGORA });
+  const feito = await simulateFortnight(EMPRESA_SEMENTE, { timeZone: SP, at: AGORA });
 
   assert.ok(feito.runs >= 8, `poucas corridas para catorze dias: ${feito.runs}`);
   assert.ok(feito.deliveries >= 5, `poucas entregas: ${feito.deliveries}`);
@@ -84,8 +85,8 @@ test('a fortnight of operation lands in the ledger, spread over its days', async
   const hoje = dayWindow(AGORA, SP);
   const semanaPassada = dayWindow(AGORA, SP, -7);
 
-  const deHoje = await productionOn(LOCAL_COMPANY_ID, hoje.from, hoje.to);
-  const deEntao = await productionOn(LOCAL_COMPANY_ID, semanaPassada.from, semanaPassada.to);
+  const deHoje = await productionOn(EMPRESA_SEMENTE, hoje.from, hoje.to);
+  const deEntao = await productionOn(EMPRESA_SEMENTE, semanaPassada.from, semanaPassada.to);
 
   assert.ok(deEntao.length > 0, 'a semana passada ficou vazia - não há com o que comparar');
   assert.ok(deHoje.length + deEntao.length > 0);
@@ -94,8 +95,8 @@ test('a fortnight of operation lands in the ledger, spread over its days', async
 test('the same seed writes the same fortnight, twice', async () => {
   const rodar = async () => {
     await bancoLimpo();
-    await ensureStarterData(LOCAL_COMPANY_ID);
-    return simulateFortnight(LOCAL_COMPANY_ID, { seed: 7, timeZone: SP, at: AGORA });
+    await ensureStarterData(EMPRESA_SEMENTE);
+    return simulateFortnight(EMPRESA_SEMENTE, { seed: 7, timeZone: SP, at: AGORA });
   };
 
   // Determinismo não é preciosismo: um teste que falha tem de falhar de novo
@@ -106,13 +107,13 @@ test('the same seed writes the same fortnight, twice', async () => {
 
 test('the simulation writes through the front door, so the balance survives it', async () => {
   await bancoLimpo();
-  await ensureStarterData(LOCAL_COMPANY_ID);
-  await simulateFortnight(LOCAL_COMPANY_ID, { timeZone: SP, at: AGORA });
+  await ensureStarterData(EMPRESA_SEMENTE);
+  await simulateFortnight(EMPRESA_SEMENTE, { timeZone: SP, at: AGORA });
 
   // Nada de saldo negativo: a simulação chama `recordProduction`, que hoje
   // recusa consumir o que não tem. Se ela escrevesse SQL próprio, isto passaria
   // e a fábrica simulada seria impossível.
-  const itens = await listItems(LOCAL_COMPANY_ID);
+  const itens = await listItems(EMPRESA_SEMENTE);
   for (const item of itens) {
     assert.ok(
       item.onHandBaseUnits >= 0,
@@ -124,8 +125,8 @@ test('the simulation writes through the front door, so the balance survives it',
   const hoje = dayWindow(AGORA, SP);
   const ontem = dayWindow(AGORA, SP, -1);
   const remessas = [
-    ...(await shipmentsOn(LOCAL_COMPANY_ID, ontem.from, ontem.to)),
-    ...(await shipmentsOn(LOCAL_COMPANY_ID, hoje.from, hoje.to)),
+    ...(await shipmentsOn(EMPRESA_SEMENTE, ontem.from, ontem.to)),
+    ...(await shipmentsOn(EMPRESA_SEMENTE, hoje.from, hoje.to)),
   ];
   assert.ok(remessas.length > 0, 'nenhuma remessa nos dois últimos dias');
 });

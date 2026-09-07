@@ -20,7 +20,7 @@ import {
   type ItemWithCost,
   purchaseToBaseUnits,
 } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { fromDecimal, rate, type Rate } from '@/domain/money';
 import { applyCostEvent, judgePriceChange } from '@/domain/cost';
@@ -106,7 +106,7 @@ function PurchaseForm() {
    * depois na tela".
    */
   const { data, loading, refresh } = useQuery(() =>
-    listItems(LOCAL_COMPANY_ID).then((all) => ({
+    listItems(empresaDaqui()).then((all) => ({
       compraveis: all.filter((i) => i.purchaseToBase !== null),
       cadastrados: all.length,
     })),
@@ -539,10 +539,10 @@ async function recordAndMeasure(
   timeZone: string,
 ): Promise<Impact[]> {
   const [recipesBefore, costsBefore, products, names] = await Promise.all([
-    loadRecipeGraph(LOCAL_COMPANY_ID),
-    itemCosts(LOCAL_COMPANY_ID),
-    listProducts(LOCAL_COMPANY_ID),
-    loadLabels(LOCAL_COMPANY_ID),
+    loadRecipeGraph(empresaDaqui()),
+    itemCosts(empresaDaqui()),
+    listProducts(empresaDaqui()),
+    loadLabels(empresaDaqui()),
   ]);
 
   const unitCost = (costs: Record<string, Rate>) =>
@@ -567,7 +567,7 @@ async function recordAndMeasure(
    */
   const before = costsBefore === null ? [] : unitCost(costsBefore);
 
-  await recordPurchase(LOCAL_COMPANY_ID, {
+  await recordPurchase(empresaDaqui(), {
     itemId: item.id,
     supplierName: supplier.trim() || undefined,
     purchaseQuantity: packs,
@@ -582,7 +582,7 @@ async function recordAndMeasure(
   });
 
   if (costsBefore === null) return [];
-  const after = unitCost((await itemCosts(LOCAL_COMPANY_ID)) ?? {});
+  const after = unitCost((await itemCosts(empresaDaqui())) ?? {});
 
   return before
     .map((row, index) => ({ name: row.name, before: row.value, after: after[index].value }))

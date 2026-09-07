@@ -16,7 +16,7 @@ import {
   type Person,
   type Profile,
 } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import type { Dictionary } from '@/i18n';
 import { plural } from '@/i18n';
@@ -75,9 +75,9 @@ function WhoWorksHere() {
 
   const { data, refresh } = useQuery<Loaded>(async () => {
     const [people, profiles, capacidades] = await Promise.all([
-      listPeople(LOCAL_COMPANY_ID),
-      listProfiles(LOCAL_COMPANY_ID),
-      currentCapabilities(LOCAL_COMPANY_ID),
+      listPeople(empresaDaqui()),
+      listProfiles(empresaDaqui()),
+      currentCapabilities(empresaDaqui()),
     ]);
     return { people, profiles, administra: capacidades.has('manage_company') };
   });
@@ -109,7 +109,7 @@ function WhoWorksHere() {
     if (!pronto || !perfilId) return;
     setSalvando(true);
     try {
-      await savePerson(LOCAL_COMPANY_ID, {
+      await savePerson(empresaDaqui(), {
         id: editando === 'novo' || editando === null ? undefined : editando.id,
         name: nome,
         profileId: perfilId,

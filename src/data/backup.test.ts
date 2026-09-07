@@ -13,7 +13,8 @@ import {
   type MotivoDaCopia,
 } from './backup';
 import { countMovements, listItems, recordPurchase, itemMovements } from './repository';
-import { ensureStarterData, LOCAL_COMPANY_ID } from './seed';
+import { ensureStarterData } from './seed';
+import { EMPRESA_SEMENTE } from './empresa';
 import { fromDecimal } from '@/domain/money';
 
 /**
@@ -82,16 +83,16 @@ async function motivoDe(acao: () => Promise<unknown>): Promise<MotivoDaCopia | '
 }
 
 test('a copy holds the whole factory and gives it back', async () => {
-  await ensureStarterData(LOCAL_COMPANY_ID);
-  const acucar = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.kind === 'input')!.id;
-  await recordPurchase(LOCAL_COMPANY_ID, {
+  await ensureStarterData(EMPRESA_SEMENTE);
+  const acucar = (await listItems(EMPRESA_SEMENTE)).find((i) => i.kind === 'input')!.id;
+  await recordPurchase(EMPRESA_SEMENTE, {
     itemId: acucar,
     purchaseQuantity: 4,
     baseUnits: 100_000,
     totalCents: fromDecimal(472),
   });
 
-  const antes = (await itemMovements(LOCAL_COMPANY_ID, acucar)).length;
+  const antes = (await itemMovements(EMPRESA_SEMENTE, acucar)).length;
   assert.ok(antes > 0, 'havia movimento para copiar');
   // O total do aparelho, para a cópia ser conferida contra ele e não contra zero.
   const totalNoAparelho = await countMovements();
@@ -114,25 +115,25 @@ test('a copy holds the whole factory and gives it back', async () => {
 
   // O estrago: mais uma compra depois da cópia. Ela NÃO pode sobreviver à volta,
   // senão a restauração é uma mistura e não uma volta.
-  await recordPurchase(LOCAL_COMPANY_ID, {
+  await recordPurchase(EMPRESA_SEMENTE, {
     itemId: acucar,
     purchaseQuantity: 99,
     baseUnits: 1_000_000,
     totalCents: fromDecimal(9999),
   });
-  assert.ok((await itemMovements(LOCAL_COMPANY_ID, acucar)).length > antes, 'o estrago entrou');
+  assert.ok((await itemMovements(EMPRESA_SEMENTE, acucar)).length > antes, 'o estrago entrou');
 
   const volta = await restaurar(arquivo);
   assert.ok(volta.tabelas > 10, `a volta tocou as tabelas da fábrica (${volta.tabelas})`);
   assert.equal(
-    (await itemMovements(LOCAL_COMPANY_ID, acucar)).length,
+    (await itemMovements(EMPRESA_SEMENTE, acucar)).length,
     antes,
     'depois da volta o razão é o da cópia, sem a compra que veio depois',
   );
 });
 
 test('an old copy climbs the ladder: columns the copy never had take their default', async () => {
-  await ensureStarterData(LOCAL_COMPANY_ID);
+  await ensureStarterData(EMPRESA_SEMENTE);
   const arquivo = join(pasta, 'antiga.db');
   await gravarCopia(arquivo, nowIso());
 
@@ -179,7 +180,7 @@ test('a file that is not a factory is refused', async () => {
 });
 
 test('the copy says when it was made, because the file date does not survive the trip', async () => {
-  await ensureStarterData(LOCAL_COMPANY_ID);
+  await ensureStarterData(EMPRESA_SEMENTE);
   const arquivo = join(pasta, 'selada.db');
   const quando = '2026-09-04T11:20:00.000Z';
   await gravarCopia(arquivo, quando);
@@ -201,7 +202,7 @@ test('the copy says when it was made, because the file date does not survive the
  * lembrar do `backup.ts`.
  */
 test('no table is forgotten: everything the schema has is either restored or emptied', async () => {
-  await ensureStarterData(LOCAL_COMPANY_ID);
+  await ensureStarterData(EMPRESA_SEMENTE);
   const arquivo = join(pasta, 'inteira.db');
   await gravarCopia(arquivo, nowIso());
 
@@ -238,9 +239,9 @@ test('no table is forgotten: everything the schema has is either restored or emp
  * cópia tem, porque o dono acredita que voltou.
  */
 test('a copy with broken references is refused and nothing changed', async () => {
-  await ensureStarterData(LOCAL_COMPANY_ID);
-  const acucar = (await listItems(LOCAL_COMPANY_ID)).find((i) => i.kind === 'input')!.id;
-  await recordPurchase(LOCAL_COMPANY_ID, {
+  await ensureStarterData(EMPRESA_SEMENTE);
+  const acucar = (await listItems(EMPRESA_SEMENTE)).find((i) => i.kind === 'input')!.id;
+  await recordPurchase(EMPRESA_SEMENTE, {
     itemId: acucar,
     purchaseQuantity: 4,
     baseUnits: 100_000,

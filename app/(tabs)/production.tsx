@@ -23,7 +23,7 @@ import {
   runningOut,
   type Running,
 } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { nowIso } from '@/data/db';
 import { useQuery } from '@/data/useQuery';
 import { diasAteProduzir } from '@/domain/ledger';
@@ -110,10 +110,10 @@ function ProductionDay() {
     // mesma doença de avisar tarde — ensina a ignorar.
     const semana = dayWindow(nowIso(), locale.timeZone, -6);
     const [today, yesterday, runs, lots, acabando] = await Promise.all([
-      productionOn(LOCAL_COMPANY_ID, hoje.from, hoje.to),
-      productionOn(LOCAL_COMPANY_ID, ontem.from, ontem.to),
-      openProductionRuns(LOCAL_COMPANY_ID),
-      lotsOn(LOCAL_COMPANY_ID, hoje.from, hoje.to),
+      productionOn(empresaDaqui(), hoje.from, hoje.to),
+      productionOn(empresaDaqui(), ontem.from, ontem.to),
+      openProductionRuns(empresaDaqui()),
+      lotsOn(empresaDaqui(), hoje.from, hoje.to),
       // `runningOut` já sabia responder por PRODUTO — o parâmetro existia com o
       // padrão em insumo e embalagem, e nenhuma tela o passava.
       //
@@ -128,7 +128,7 @@ function ProductionDay() {
       // "produza" é o que SAI DAQUI, e ele existe mesmo quando o destino é uma
       // loja da própria empresa — porque a fábrica precisa repor de qualquer
       // jeito.
-      runningOut(LOCAL_COMPANY_ID, semana.from, hoje.to, 7, 14, defaultLocationId(LOCAL_COMPANY_ID), [
+      runningOut(empresaDaqui(), semana.from, hoje.to, 7, 14, defaultLocationId(empresaDaqui()), [
         'product',
       ]),
     ]);

@@ -26,7 +26,7 @@ import {
   type ExtractAct,
 } from '@/data/repository';
 import type { MovementKind } from '@/domain/ledger';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatDayMonth, formatMoney, formatQuantity, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -127,7 +127,7 @@ export default function ExtratoScreen() {
 
   const dados = useQuery(
     useCallback(
-      () => ledgerExtract(LOCAL_COMPANY_ID, { limit: quantos, placeId: lugar }),
+      () => ledgerExtract(empresaDaqui(), { limit: quantos, placeId: lugar }),
       [quantos, lugar],
     ),
   );
@@ -137,7 +137,7 @@ export default function ExtratoScreen() {
   const desfazer = useCallback(
     async (ato: ExtractAct) => {
       setRecusa(null);
-      const plano = await planReversal(LOCAL_COMPANY_ID, ato.groupId);
+      const plano = await planReversal(empresaDaqui(), ato.groupId);
 
       // Erro que IMPEDE, e diz o que fazer — não reclama depois do toque.
       if (plano.alreadyReversed) {
@@ -184,7 +184,7 @@ export default function ExtratoScreen() {
       if (!sim) return;
 
       try {
-        await reverseGroup(LOCAL_COMPANY_ID, { groupId: ato.groupId });
+        await reverseGroup(empresaDaqui(), { groupId: ato.groupId });
         dados.refresh();
       } catch (e) {
         setRecusa(e instanceof CannotReverseError ? words.alreadyUndone : words.undoFailed);

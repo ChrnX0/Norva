@@ -14,7 +14,7 @@ import {
   type LotOfDay,
   type ReversalPlan,
 } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatCalendarDate, formatQuantity, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -91,9 +91,9 @@ function Label() {
   // tela diz isso antes, com o item pelo nome, em vez de deixar a pessoa tocar
   // e receber "não foi possível".
   const { data, loading, refresh } = useQuery<Loaded>(async () => {
-    const lot = await findLot(LOCAL_COMPANY_ID, id);
+    const lot = await findLot(empresaDaqui(), id);
     if (!lot?.runGroupId) return { lot, plan: null };
-    return { lot, plan: await planReversal(LOCAL_COMPANY_ID, lot.runGroupId) };
+    return { lot, plan: await planReversal(empresaDaqui(), lot.runGroupId) };
   });
 
   const lote = data?.lot ?? null;
@@ -130,7 +130,7 @@ function Label() {
     });
     if (!yes) return;
 
-    await reverseGroup(LOCAL_COMPANY_ID, { groupId: lote.runGroupId });
+    await reverseGroup(empresaDaqui(), { groupId: lote.runGroupId });
     refresh();
     router.back();
   };

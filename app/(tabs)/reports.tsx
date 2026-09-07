@@ -25,7 +25,7 @@ import {
   type LossRow,
   type PlaceStock,
 } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { dayWindow } from '@/domain/day';
 import type { Cents } from '@/domain/money';
@@ -83,12 +83,12 @@ function ReportIndex() {
     const semanaAtras = dayWindow(nowIso(), locale.timeZone, -6);
 
     const [lugares, cobertura, corridas, mes, mesAnterior, dinheiro] = await Promise.all([
-      stockByPlace(LOCAL_COMPANY_ID),
-      runningOut(LOCAL_COMPANY_ID, semanaAtras.from, hoje.to, 7, Number.POSITIVE_INFINITY),
-      recentRuns(LOCAL_COMPANY_ID, 8),
-      lossesOn(LOCAL_COMPANY_ID, trintaDias.from, hoje.to),
-      lossesOn(LOCAL_COMPANY_ID, anterior.de.from, anterior.ate.to),
-      canSeeMoney(LOCAL_COMPANY_ID),
+      stockByPlace(empresaDaqui()),
+      runningOut(empresaDaqui(), semanaAtras.from, hoje.to, 7, Number.POSITIVE_INFINITY),
+      recentRuns(empresaDaqui(), 8),
+      lossesOn(empresaDaqui(), trintaDias.from, hoje.to),
+      lossesOn(empresaDaqui(), anterior.de.from, anterior.ate.to),
+      canSeeMoney(empresaDaqui()),
     ]);
     return { lugares, cobertura, corridas, mes, mesAnterior, dinheiro };
   });

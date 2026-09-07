@@ -1,15 +1,8 @@
 import { fromDecimal, rate} from '@/domain/money';
 import type { PackagingHierarchy } from '@/domain/units';
 import { db } from './db';
+import { empresaDaqui } from './empresa';
 import { recordPurchase, saveItem, saveProduct, saveRecipeVersion } from './repository';
-
-/**
- * The company this device belongs to.
- *
- * One local company until sign-in lands; every row is already stamped with it,
- * so multi-company stops being a migration later and becomes a login.
- */
-export const LOCAL_COMPANY_ID = '00000000-0000-4000-8000-000000000001';
 
 export const LOOSE: PackagingHierarchy = { tiers: [{ id: 'unit', perBaseUnit: 1 }] };
 
@@ -35,13 +28,13 @@ export const STACKED: PackagingHierarchy = {
  * somebody deliberately wiped it, and an app that undoes your deletions is one
  * nobody trusts with anything else.
  */
-export async function ensureStarterData(companyId = LOCAL_COMPANY_ID): Promise<void> {
+export async function ensureStarterData(companyId = empresaDaqui()): Promise<void> {
   if (await hasSeeded()) return;
   await writeStarterData(companyId);
 }
 
 /** Puts the example back on purpose, after somebody cleared it. */
-export async function restoreStarterData(companyId = LOCAL_COMPANY_ID): Promise<void> {
+export async function restoreStarterData(companyId = empresaDaqui()): Promise<void> {
   await writeStarterData(companyId);
 }
 
@@ -59,7 +52,7 @@ export async function restoreStarterData(companyId = LOCAL_COMPANY_ID): Promise<
  * — instalação que já tinha dado quando a marca foi posta — a resposta é não,
  * que é o certo: ali o exemplo de fato não foi escrito.
  */
-export async function exampleStillHere(companyId = LOCAL_COMPANY_ID): Promise<boolean> {
+export async function exampleStillHere(companyId = empresaDaqui()): Promise<boolean> {
   const conn = await db();
   const row = await conn.getFirstAsync<{ value: string }>(
     `SELECT value FROM app_meta WHERE key = 'seeded_items'`,

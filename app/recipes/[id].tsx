@@ -10,7 +10,7 @@ import { GlyphPrice, GlyphRecipe, GlyphSack } from '@/components/Glyph';
 import { ListRow } from '@/components/ListRow';
 import { Reveal } from '@/components/Reveal';
 import { WhySheet, type Conta } from '@/components/WhySheet';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import {
   itemCosts,
   labels as loadLabels,
@@ -180,11 +180,11 @@ function RecipeEditor() {
 
   const { data, loading } = useQuery<Loaded>(async () => {
     const [recipes, costs, labels, items, products] = await Promise.all([
-      loadRecipeGraph(LOCAL_COMPANY_ID),
-      itemCosts(LOCAL_COMPANY_ID),
-      loadLabels(LOCAL_COMPANY_ID),
-      listItems(LOCAL_COMPANY_ID),
-      listProducts(LOCAL_COMPANY_ID),
+      loadRecipeGraph(empresaDaqui()),
+      itemCosts(empresaDaqui()),
+      loadLabels(empresaDaqui()),
+      listItems(empresaDaqui()),
+      listProducts(empresaDaqui()),
     ]);
 
     const recipeId = params.id ?? Object.keys(recipes)[0];
@@ -366,7 +366,7 @@ function RecipeEditor() {
 
     setSaving(true);
     try {
-      await saveRecipeVersion(LOCAL_COMPANY_ID, {
+      await saveRecipeVersion(empresaDaqui(), {
         recipeId,
         name: data?.labels[recipeId] ?? 'Receita',
         yieldAmount: num(yieldAmount),

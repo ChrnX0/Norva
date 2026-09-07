@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **470** testes |
+| `npm test` | **473** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **51** checagens num navegador de verdade |
 | `npm run db:verify` | **19** garantias contra um Postgres descartável, sob RLS |
@@ -442,9 +442,9 @@ configuração dele.
 
 ### 0b-ter. A empresa deste aparelho é uma constante compilada — e é o que quebra na primeira subida
 
-<!-- medida: ausente src/data :: company\.id -->
+<!-- medida: ausente src/data :: export async function adotarEmpresa -->
 
-`LOCAL_COMPANY_ID` (`src/data/seed.ts:11`) é a MESMA constante em toda instalação, e é ela
+`LOCAL_COMPANY_ID` (`src/data/empresa.ts`) é a MESMA constante em toda instalação, e é ela
 que carimba cada linha do razão. Quando o dono cria a empresa, `criarEmpresa` devolve o id
 verdadeiro do servidor e `app/account.tsx:130` **joga fora**. Duas consequências, e nenhuma
 delas aparece antes de haver servidor:
@@ -459,10 +459,14 @@ uma empresa com exatamente essa constante (`scripts/verify-migrations.sh`, `DEVI
 — ela **fabrica à mão a condição que esconde o defeito**. É a família de sempre: guarda que
 compara duas coisas escritas pela mesma mão.
 
-**O caminho, e ele não pede migração de servidor:**
+**O caminho, e ele não pede migração de servidor** — o passo 1 está **FEITO**; os
+outros quatro são a adoção:
 
-1. a empresa deste aparelho vira **fato guardado** (`app_meta`, chave `company.id`),
-   escrito quando a empresa é criada e quando a associação é aprovada;
+1. ~~a empresa deste aparelho vira **fato guardado** (`app_meta`, chave `company.id`)~~ —
+   **feito**: `src/data/empresa.ts` guarda o fato, `empresaDaqui()` responde de memória, o
+   boot lê o disco antes da primeira tela, e as 211 chamadas das 31 telas passaram a
+   perguntar em vez de citar a constante. Restaurar cópia relê, porque a cópia repõe
+   `app_meta` inteiro;
 2. a **adoção** reescreve o carimbo das linhas locais numa transação, antes de qualquer
    transporte — o SQLite do aparelho não tem gatilho de imutabilidade, é o mesmo livro com
    outra capa, e nenhuma linha saiu de aparelho nenhum até hoje;
@@ -471,6 +475,24 @@ compara duas coisas escritas pela mesma mão.
    frase, em vez de falhar no servidor sem ninguém entender;
 5. a barra passa a adotar uma empresa cujo id NÃO é a constante, para a checagem 6 provar o
    que promete.
+
+**O que a medição acrescentou ao desenho, e ela derrubou três coisas que eu ia fazer:**
+
+- **23 tabelas** têm `company_id` e **7 colunas** apontam para `locations` — nenhuma com
+  `ON UPDATE`, então trocar a chave primária do lugar falha na hora. O caminho provado é
+  copiar a linha nova, repontar os sete filhos e apagar a velha: sem pragma nenhum, e o
+  `ON DELETE RESTRICT` de `movements` vira rede de graça.
+- **Reescrever o `payload` da fila era trabalho morto** — o payload é `{}` em 25 dos 26
+  `enqueue`. O que trava a fila é o `row_id`: o lugar padrão é enfileirado com o id da
+  empresa, e um `row_id` órfão faz o serializador levantar exceção e a fila nunca mais
+  andar.
+- **A adoção tem de recusar em três casos**, e cada um é irrecuperável se passar: alguma
+  linha já subiu (`sent_at` preenchido — o razão do servidor não se reescreve), o exemplo
+  semeado ainda está aqui (noventa dias de nota fabricada entrariam no livro da fábrica
+  como fato), e já existe linha com o id novo (adoção rodada duas vezes).
+- **O servidor tem chave estrangeira COMPOSTA** (`location_id, company_id`) e o aparelho
+  não tem nenhuma composta: uma adoção pela metade passa no SQLite e é recusada em bloco
+  pelo Postgres. A rede é a transação única.
 
 É **P3** — carimbo de `movements` —, então a forma é mostrada antes de rodar. E é **antes do
 item 2** (o transporte): tudo que subir antes disto sobe carimbado errado.

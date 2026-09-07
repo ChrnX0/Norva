@@ -55,22 +55,23 @@ before(async () => {
 });
 
 test('the order alert counts stores, not flavours', async () => {
-  const { ensureStarterData, LOCAL_COMPANY_ID } = await import('@/data/seed');
+  const { ensureStarterData } = await import('@/data/seed');
+  const { EMPRESA_SEMENTE } = await import('@/data/empresa');
   const { savePlace, saveOrder, listProductsForLedger } = await import('@/data/repository');
   const { factsForAlerts } = await import('./facts');
 
-  await ensureStarterData(LOCAL_COMPANY_ID);
-  const [produto] = await listProductsForLedger(LOCAL_COMPANY_ID);
-  const centro = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Centro', kind: 'own_store' });
-  const norte = await savePlace(LOCAL_COMPANY_ID, { name: 'Loja Norte', kind: 'own_store' });
+  await ensureStarterData(EMPRESA_SEMENTE);
+  const [produto] = await listProductsForLedger(EMPRESA_SEMENTE);
+  const centro = await savePlace(EMPRESA_SEMENTE, { name: 'Loja Centro', kind: 'own_store' });
+  const norte = await savePlace(EMPRESA_SEMENTE, { name: 'Loja Norte', kind: 'own_store' });
 
   // A MESMA loja pede o mesmo produto duas vezes, em pedidos separados. Uma loja
   // esperando, não duas.
-  await saveOrder(LOCAL_COMPANY_ID, {
+  await saveOrder(EMPRESA_SEMENTE, {
     placeId: centro.id,
     lines: [{ itemId: produto.itemId, baseUnits: 400 }],
   });
-  await saveOrder(LOCAL_COMPANY_ID, {
+  await saveOrder(EMPRESA_SEMENTE, {
     placeId: centro.id,
     lines: [{ itemId: produto.itemId, baseUnits: 300 }],
   });
@@ -84,7 +85,7 @@ test('the order alert counts stores, not flavours', async () => {
   );
 
   // Outra loja pedindo o mesmo produto: agora são duas.
-  await saveOrder(LOCAL_COMPANY_ID, {
+  await saveOrder(EMPRESA_SEMENTE, {
     placeId: norte.id,
     lines: [{ itemId: produto.itemId, baseUnits: 100 }],
   });
@@ -98,12 +99,12 @@ test('the order alert counts stores, not flavours', async () => {
 });
 
 test('a reading with no range is a fact without a judgement', async () => {
-  const { LOCAL_COMPANY_ID } = await import('@/data/seed');
+  const { EMPRESA_SEMENTE } = await import('@/data/empresa');
   const { savePlace, recordReading } = await import('@/data/repository');
   const { factsForAlerts } = await import('./facts');
 
-  const camara = await savePlace(LOCAL_COMPANY_ID, { name: 'Câmara sem faixa', kind: 'cold_room' });
-  await recordReading(LOCAL_COMPANY_ID, {
+  const camara = await savePlace(EMPRESA_SEMENTE, { name: 'Câmara sem faixa', kind: 'cold_room' });
+  await recordReading(EMPRESA_SEMENTE, {
     locationId: camara.id,
     kind: 'temperature',
     value: 12,
@@ -119,7 +120,7 @@ test('a reading with no range is a fact without a judgement', async () => {
 
   // Com faixa, o mesmo fato passa a ter julgamento — e é o alarme que decide, não
   // esta camada.
-  await savePlace(LOCAL_COMPANY_ID, {
+  await savePlace(EMPRESA_SEMENTE, {
     id: camara.id,
     name: 'Câmara sem faixa',
     kind: 'cold_room',
@@ -133,7 +134,7 @@ test('a reading with no range is a fact without a judgement', async () => {
 });
 
 test('the full cold room alarms too, not only the empty storeroom', async () => {
-  const { LOCAL_COMPANY_ID } = await import('@/data/seed');
+  const { EMPRESA_SEMENTE } = await import('@/data/empresa');
   const { listProductsForLedger, saveProduct } = await import('@/data/repository');
   const { factsForAlerts } = await import('./facts');
   const { alertsDue, DEFAULT_ALERTS } = await import('@/domain/alerts');
@@ -143,8 +144,8 @@ test('the full cold room alarms too, not only the empty storeroom', async () => 
   // aparece olhando insumo. A primeira versão dos fatos filtrava insumo e
   // embalagem, copiando o recorte do cartão de dinheiro parado, que é outra
   // pergunta.
-  const [produto] = await listProductsForLedger(LOCAL_COMPANY_ID);
-  await saveProduct(LOCAL_COMPANY_ID, {
+  const [produto] = await listProductsForLedger(EMPRESA_SEMENTE);
+  await saveProduct(EMPRESA_SEMENTE, {
     id: produto.id,
     itemId: produto.itemId,
     name: produto.name,
@@ -167,9 +168,9 @@ test('the full cold room alarms too, not only the empty storeroom', async () => 
 
   // Produz o suficiente para encher a câmara: 300 contra 100 de cheio é azul.
   const { recordProduction, defaultLocationId } = await import('@/data/repository');
-  await recordProduction(LOCAL_COMPANY_ID, {
+  await recordProduction(EMPRESA_SEMENTE, {
     productId: produto.id,
-    locationId: defaultLocationId(LOCAL_COMPANY_ID),
+    locationId: defaultLocationId(EMPRESA_SEMENTE),
     batches: 1,
     unitsProduced: 300,
     occurredAt: '2026-09-03T10:00:00.000Z',

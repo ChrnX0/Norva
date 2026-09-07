@@ -31,7 +31,7 @@ import {
 } from '@/data/repository';
 import { nowIso } from '@/data/db';
 import { localDate } from '@/domain/day';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { INTERNAL_PLACE_KINDS } from '@/domain/ledger';
 import { explodeRequirements, type Recipe } from '@/domain/recipe';
@@ -128,12 +128,12 @@ function Production() {
     // a sala, com razão escrita) recusava a corrida com um erro em inglês. Com a
     // polpa na câmara fria, TODA corrida batia nessa parede.
     const [products, graph, items, names, runs, stock] = await Promise.all([
-      listProducts(LOCAL_COMPANY_ID),
-      loadRecipeGraph(LOCAL_COMPANY_ID),
-      listItems(LOCAL_COMPANY_ID, undefined, false, defaultLocationId(LOCAL_COMPANY_ID)),
-      loadLabels(LOCAL_COMPANY_ID),
-      openProductionRuns(LOCAL_COMPANY_ID),
-      stockByPlace(LOCAL_COMPANY_ID),
+      listProducts(empresaDaqui()),
+      loadRecipeGraph(empresaDaqui()),
+      listItems(empresaDaqui(), undefined, false, defaultLocationId(empresaDaqui())),
+      loadLabels(empresaDaqui()),
+      openProductionRuns(empresaDaqui()),
+      stockByPlace(empresaDaqui()),
     ]);
     return { products: products.filter((p) => p.recipeId), graph, items, names, runs, stock };
   });
@@ -209,7 +209,7 @@ function Production() {
     // câmara fria a três metros de distância. A frase que diz ONDE está é a
     // diferença entre um erro e uma instrução — e é só a sala nossa que conta:
     // o que já foi entregue numa loja não volta para o tacho.
-    const salaDoTacho = defaultLocationId(LOCAL_COMPANY_ID);
+    const salaDoTacho = defaultLocationId(empresaDaqui());
     const nossasSalas = data.stock.filter(
       (place) =>
         place.locationId !== salaDoTacho &&
@@ -270,7 +270,7 @@ function Production() {
       setShowBatches(true);
       setBatchText(String(quantos));
     }
-    await openProductionRun(LOCAL_COMPANY_ID, { productId: selected.id, batches: quantos });
+    await openProductionRun(empresaDaqui(), { productId: selected.id, batches: quantos });
     // E volta para o dia, onde o tacho aberto tem cartão. Quem marca o tacho
     // marca e sai andando; ficar no formulário depois de abrir é ficar parado
     // numa tela que só terá o que dizer quando a corrida acabar.
@@ -285,7 +285,7 @@ function Production() {
       confirmLabel: words.cancel,
     });
     if (!yes) return;
-    await cancelProductionRun(LOCAL_COMPANY_ID, aberta.id);
+    await cancelProductionRun(empresaDaqui(), aberta.id);
     refresh();
   };
 
@@ -334,7 +334,7 @@ function Production() {
       // Sem tacho aberto, é o lançamento direto de sempre - quem trabalha
       // assim nunca toca no outro botão.
       if (aberta) {
-        await closeProductionRun(LOCAL_COMPANY_ID, {
+        await closeProductionRun(empresaDaqui(), {
           runId: aberta.id,
           unitsProduced: units,
           // O dia em que o tacho foi ABERTO, no fuso da fábrica: uma corrida
@@ -343,9 +343,9 @@ function Production() {
           producedOn: localDate(aberta.openedAt, locale.timeZone),
         });
       } else {
-        await recordProduction(LOCAL_COMPANY_ID, {
+        await recordProduction(empresaDaqui(), {
           productId: selected.id,
-          locationId: defaultLocationId(LOCAL_COMPANY_ID),
+          locationId: defaultLocationId(empresaDaqui()),
           batches: consumedBatches,
           unitsProduced: units,
           // O dia da FÁBRICA, não o do relógio universal: um tacho fechado às
