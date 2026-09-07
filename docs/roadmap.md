@@ -977,9 +977,17 @@ só a direção contrária (coluna do aparelho que não sobe); passou a cobrar a
 `device_id` registrado como fronteira até haver matrícula de aparelho — que é a peça que
 precisa do servidor.
 
-**Três configurações de empresa sem leitor:** `floor_sign_in` (pessoal ou compartilhado),
-`join_code` e `names_who_recorded`. A escolha entre os dois caminhos de entrada **já está
-modelada no servidor**; o app é que não pergunta.
+**~~Três configurações de empresa sem leitor~~ — TÊM leitor, medido em 7 de setembro.**
+`src/data/configuracao.ts:122` lê as quatro do servidor (`names_who_recorded`,
+`floor_sign_in`, `orders_need_approval`, `purchase_safety_days`) e grava no aparelho;
+`floorSignIn()` é lido por `src/data/repository.ts:4923` para decidir o caminho de
+entrada, e `app/settings.tsx` escreve os dois. O `join_code` é lido por
+`src/sync/conta.ts:151`.
+
+Fica a lição de lista, que já apareceu duas vezes esta noite: **item que descreve como
+aberto o que já está pronto mente sobre quanto dela é acionável.** Antes de pegar a
+próxima, medir a afirmação da linha contra o código — e não confiar nela por estar
+escrita.
 
 ---
 
@@ -1217,6 +1225,11 @@ movimentos somados, as datas, a conta por extenso.
 O que sustenta: o livro-razão append-only guarda tudo, e `src/law.test.ts` já mantém
 a lista de qual comparação cada tela mostra. O que falta é o mecanismo compartilhado
 — hoje cada tela abre a sua conta à mão.
+
+**O tamanho, medido em 7 de setembro:** o `WhySheet` existe e tem **um** chamador —
+`app/recipes/[id].tsx:639`. Ou seja, a peça está construída e serve uma tela; o
+trabalho não é inventá-la, é generalizá-la e ligá-la nos números que hoje concluem
+sem abrir a conta. É a maior peça ainda desbloqueada da lista.
 
 **Por que eleva:** é o que faz um dono parar de conferir por fora no caderno. Não é
 uma funcionalidade, é a diferença entre um sistema que pede confiança e um que a
