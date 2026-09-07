@@ -163,7 +163,7 @@ function PurchaseForm() {
      * mais abaixo. Não existe capacidade própria de "lançar compra" no vocabulário
      * (`src/domain/access.ts` tem doze valores e nenhum deles é isso), então quem
      * compra é quem vê custo, por construção; se um dia houver, o enum do servidor
-     * muda junto e o `agreement.test.ts` cobra as duas metades.
+     * muda junto e o `src/sync/agreement.test.ts` cobra as duas metades.
      */
     const after = applyCostEvent(
       { baseUnits: selected.onHandBaseUnits, averageRate: selected.averageRate ?? rate(0, 1) },

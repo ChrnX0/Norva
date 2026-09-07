@@ -333,7 +333,7 @@ ALTER TABLE movements DROP COLUMN recorded_by;
  * `counterpart_location_id` existe no servidor desde a 0001 e nunca existiu
  * aqui. A transferência escreve duas linhas — saída e entrada — e cada uma
  * precisa dizer para onde foi a outra metade; sem a coluna, a perna sobe muda e
- * o servidor recebe metade da explicação. Um guarda em `agreement.test.ts`
+ * o servidor recebe metade da explicação. Um guarda em `src/sync/agreement.test.ts`
  * listava esta ausência de propósito, para ela ser deliberada em vez de
  * descoberta por uma chave estrangeira falhando de madrugada.
  *

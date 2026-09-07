@@ -909,3 +909,73 @@ test('the place form offers every kind the ledger knows, or says why not', () =>
     `estas espécies estão registradas como fora e o formulário já as oferece: ${registroVelho.join(', ')}`,
   );
 });
+
+/**
+ * Docblock que nomeia um guarda tem de nomear UM guarda.
+ *
+ * **A cicatriz é de 7 de setembro e é minha, inteira.** O docblock do
+ * `capabilities` dizia *"`agreement.test.ts` fails if the two ever drift"*.
+ * Existem **dois** arquivos com esse nome — `src/domain/agreement.test.ts` e
+ * `src/sync/agreement.test.ts` — e eu grepei o primeiro, achei zero ocorrências
+ * de `capability`, e conclui que a rede não existia. Escrevi a rede, escrevi o
+ * achado, escrevi o commit. A rede existia no outro arquivo desde sempre, fazendo
+ * exatamente o que eu tinha acabado de duplicar: lê o enum das migrações e
+ * compara nos dois sentidos.
+ *
+ * O `CLAUDE.md` já tem a regra que eu quebrei — *"contradição achada é suspeita de
+ * leitura errada, até virar prova"* —, e ela não me salvou porque eu **tinha**
+ * uma prova: um `grep` que devolveu zero. O que faltava era saber que o alvo era
+ * ambíguo.
+ *
+ * Então o conserto não é lembrar melhor: é o nome deixar de ser ambíguo. Um
+ * docblock que aponta para um guarda por nome de arquivo só pode fazer isso
+ * quando o nome resolve para um arquivo só; havendo dois, escreve-se o caminho.
+ *
+ * A varredura é do código que EMBARCA, não dos testes, e a fronteira é
+ * deliberada: a armadilha é para quem segue um ponteiro a partir do arquivo que
+ * está lendo, e o lugar de explicar a armadilha citando o nome pelado é
+ * justamente aqui.
+ */
+test('a docblock naming a test file names exactly one', () => {
+  const testes = (dir: string, into: string[] = []): string[] => {
+    for (const entry of readdirSync(dir)) {
+      if (entry === 'node_modules' || entry.startsWith('.')) continue;
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) testes(path, into);
+      else if (/\.test\.tsx?$/.test(entry)) into.push(path);
+    }
+    return into;
+  };
+
+  const porNome = new Map<string, string[]>();
+  for (const arquivo of ['src', 'app', 'e2e', 'scripts'].flatMap((d) => testes(d))) {
+    const base = arquivo.slice(arquivo.lastIndexOf('/') + 1);
+    porNome.set(base, [...(porNome.get(base) ?? []), arquivo]);
+  }
+  const ambiguos = [...porNome].filter(([, onde]) => onde.length > 1).map(([base]) => base);
+
+  // A régua provada: hoje `agreement.test.ts` é o único nome repetido, e um nome
+  // que só existe uma vez não pode entrar nesta lista.
+  assert.ok(ambiguos.includes('agreement.test.ts'), 'a leitura de nomes repetidos quebrou');
+  assert.ok(!ambiguos.includes('layers.test.ts'), 'nome único não é ambíguo');
+
+  const soltos: string[] = [];
+  for (const arquivo of ['src', 'app'].flatMap((d) => sourcesUnder(d))) {
+    const linhas = readFileSync(arquivo, 'utf8').split('\n');
+    linhas.forEach((linha, i) => {
+      for (const base of ambiguos) {
+        // Citação com caminho está certa; o que se recusa é o nome pelado.
+        const semCaminho = new RegExp(`(^|[^/\\w])${base.replace(/\./g, '\\.')}`);
+        if (semCaminho.test(linha)) soltos.push(`${arquivo}:${i + 1} — \`${base}\` sem caminho`);
+      }
+    });
+  }
+
+  assert.deepEqual(
+    soltos,
+    [],
+    `estes docblocks apontam para um guarda por um nome que existe em mais de um lugar:\n  ${soltos.join('\n  ')}\n` +
+      'Quem for conferir a promessa vai abrir o arquivo errado, não achar nada, e concluir ' +
+      'que a rede não existe — que foi exatamente o que aconteceu. Escreva o caminho inteiro.',
+  );
+});

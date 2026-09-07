@@ -6627,3 +6627,40 @@ capa, cujas peças o usam por dentro. A régua estava errada, não o app.
 Fica registrado porque a lição não é sobre animação: **antes de dizer um número, rode a
 régua contra um caso que você sabe que ela deve pegar.** Aqui o caso verdadeiro era
 `app/settings.tsx`, e a régua o deu como vazio.
+
+## Dois arquivos com o mesmo nome, e eu construí de novo o que já existia
+
+**O achado é o meu erro, e ele quase virou código no repositório.**
+
+Procurando o irmão do achado das capacidades — *"e quem confere que a lista do aparelho
+é a mesma do servidor?"* —, o próprio `src/domain/access.ts` respondia, com nome e tudo:
+*"matching the server's `capability` enum value for value — `agreement.test.ts` fails if
+the two ever drift"*. Grepei `agreement.test.ts` por `capability` e a resposta foi
+**zero**. Isso lê exatamente como a família que eu já tinha achado três vezes na mesma
+rodada: docblock que promete uma rede que não está lá.
+
+Escrevi a rede. Escrevi o achado. Escrevi o commit. E aí, procurando OUTROS docblocks
+que nomeiam guarda, descobri que existem **dois** arquivos chamados `agreement.test.ts`
+— um em `src/domain/`, outro em `src/sync/` — e que o segundo tem, desde sempre, o teste
+*'the capability vocabulary is the same word list on both sides'*, lendo o enum das
+migrações e comparando nos dois sentidos. Eu tinha duplicado uma rede existente, e
+desfiz o commit antes de ele sair daqui.
+
+**Por que a regra da casa não me salvou.** O `CLAUDE.md` diz *"contradição achada é
+suspeita de leitura errada, até virar prova"*, e ela não pegou porque eu **tinha** uma
+prova: um `grep` que devolveu zero. O que faltava não era ceticismo, era saber que o
+alvo do `grep` era ambíguo. Um `grep -c` num arquivo é régua perfeita para *"este arquivo
+menciona isto?"* e régua quebrada para *"o repositório tem esta rede?"* — e as duas
+perguntas se parecem demais quando se está com pressa.
+
+**O conserto não é lembrar melhor.** `src/layers.test.ts` passou a recusar docblock de
+código que aponte para um guarda por um nome de arquivo que existe em mais de um lugar;
+os apontadores soltos (`access.ts`, `db.ts`, `purchase.tsx`) ganharam o caminho inteiro.
+Provado nos dois sentidos: `agreement.test.ts` é hoje o único nome repetido do
+repositório, e um nome único não entra na lista.
+
+*O motivo de a rede importar continua de pé, e vale escrever: `memberships.capabilities`
+e `people.capabilities` são `capability[]` no Postgres, então uma capacidade que só
+existe no aparelho é um valor que o enum recusa — o insert falha e a fila trava para
+sempre, que é o defeito crítico já consertado três vezes nesta branch por três caminhos
+diferentes. Só que a rede contra ele estava lá.*

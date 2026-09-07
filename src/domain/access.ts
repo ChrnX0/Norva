@@ -21,7 +21,22 @@
 
 /**
  * The complete vocabulary, matching the server's `capability` enum value for
- * value - `agreement.test.ts` fails if the two ever drift.
+ * value - `src/sync/agreement.test.ts` fails if the two ever drift.
+ *
+ * The path is spelled out here because it cost a whole round without it. This
+ * docblock used to give the bare filename, and the repository has two files by
+ * that name: one under `src/domain/` and one under `src/sync/`. Grepping the
+ * first for "capability" returns nothing, which reads exactly like a docblock
+ * promising a net that is not there. The net is there, in the second, and it
+ * does the right thing - it reads the enum out of the migrations and compares
+ * both directions. `src/layers.test.ts` now refuses a bare filename whenever
+ * the name is not unique.
+ *
+ * Why it matters that it exists: `memberships.capabilities` and
+ * `people.capabilities` are `capability[]` in Postgres. A capability that
+ * exists only here is a value the enum refuses, so the insert fails and the
+ * sync queue jams - the same failure this branch has already fixed three times
+ * by three other routes.
  */
 export const capabilities = [
   'view_cost',
