@@ -23,6 +23,13 @@ Os números abaixo saem de comando, não de memória. Cada um tem como conferir 
 `src/bar.test.ts` **roda essa coluna**: cada linha é derivada do sistema e comparada
 com o que está escrito aqui, então a tabela não envelhece em silêncio.
 
+*E isso passou a ser verdade em 7 de setembro. Até então a guarda cobria **dez das
+treze** linhas, e a fronteira estava dita em voz alta no docblock dela — "acrescentar
+uma linha sem acrescentar uma entrada aqui não quebra nada" — contra esta promessa,
+quatro linhas acima, de que cobria todas. As três de fora eram a versão do aparelho, a
+contagem de linhas e as guardas da proofgate; duas estavam erradas, uma por 59%. Agora
+uma segunda checagem recusa linha de tabela sem derivação atrás.*
+
 *Ela já envelheceu, no dia em que foi escrita: quatro linhas ficaram para trás antes
 do fim da tarde. Comando escrito ao lado do número é convite, não garantia — ninguém
 roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
@@ -35,18 +42,18 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | migrações do servidor | **43** | `ls supabase/migrations \| wc -l` |
 | migrações do aparelho | **V22** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
-| capacidades | **18** | `src/domain/access.ts` |
-| linhas de código | **~45.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
+| capacidades | **12** | `src/domain/access.ts` |
+| linhas de código | **~72.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
 
 E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **451** testes |
+| `npm test` | **457** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **49** checagens num navegador de verdade |
 | `npm run db:verify` | **19** garantias contra um Postgres descartável, sob RLS |
-| `.proofgate/verify.sh` | **24** guardas de entrega |
+| `.proofgate/verify.sh` | **25** guardas de entrega |
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade, com
 as 21 telas fotografadas nas **quatro caras de verdade** (Papel e Orgânico × claro e
@@ -222,8 +229,8 @@ por pixel na borda enquanto o céu esticava; o degradê sob a `Sparkline` punha 
 no Papel; a palavra do botão saía ilegível sobre a cor do Papel escuro; e a linha do
 transporte cortava o nome do produto para caber o número.
 
-**De pé, e o primeiro item está TRAVADO pelo portão P2 — o que eu escrevi antes
-aqui estava errado:**
+**De pé, e nenhum deles está travado** — o P2 do primeiro caiu no dia em que o dono
+disse que tem um tablet, e é isso que o item 1 conta:
 
 1. **Refluir em colunas a 840 dp — DESTRAVADO, decisão do dono, 6 de setembro.**
    Eu tinha travado isto no portão P2 completando a frase *"eu mudaria isto se eu
@@ -254,19 +261,23 @@ aqui estava errado:**
    verdade em vez de plausível.
    A prova final continua sendo o APK no tablet dele — o que é "padrão" de tablet se
    decide com o aparelho na mão.
-2. **O cartão com desenho e sem título** deixa o glifo sozinho numa linha, em três
-   telas (etiqueta do lote, clima, catálogo). No Papel lê como dingbat de seção e
-   funciona; no Orgânico é um crachá flutuando. Decisão de desenho, não defeito.
+2. **O cartão com desenho e sem título** deixa o glifo sozinho numa linha. Eram
+   "três telas" por estimativa; **medido em 7 de setembro são 27 cartões em 15
+   telas** — a lista das três (etiqueta do lote, clima, catálogo) era a das que eu
+   tinha aberto. No Papel lê como dingbat de seção e funciona; no Orgânico é um
+   crachá flutuando. Decisão de desenho, não defeito — mas a decisão vale para
+   vinte e sete, não para três, e isso muda o tamanho dela.
 3. **A pele virou ponto de extensão — 6 de setembro.** O dono olhou a foto do
    Orgânico e disse *"o q estava NEM ORGANICO ERA"*, e depois foi explícito sobre o
    porquê de isso importar: *"qq tema futuro ou o q vc chama de skin tem q poder ser
    aplicado sem problemas… futuramente a gente vai criar mais skins"*.
    O defeito era estrutural: o Orgânico era o Papel com a cena trocada, e mais oito
    componentes decidiam sozinhos com `skin === 'papel' ?`. Agora a pele **declara os
-   traços** (`genero`, `tintaCheia`, `marcaVemDoTom`, `titulo`, `radius.controle`) e
-   **veste a capa** (`src/home/capas/`: casco de página, casco de peça, e as peças
-   que ela desenha à sua maneira). Uma pele nova escreve isso e ganha as quinze
-   peças funcionando; `registro.test.ts` recusa quem voltar a decidir pelo nome.
+   traços** (`genero`, `tintaCheia`, `marcaVemDoTom`, `titulo`, `radius.controle` e,
+   desde 7 de setembro, `cabecalho`) e **veste a capa** (`src/home/capas/`: casco de
+   página, casco de peça, e as peças que ela desenha à sua maneira). Uma pele nova
+   escreve isso e ganha as dezesseis peças funcionando; `registro.test.ts` recusa
+   quem voltar a decidir pelo nome.
    **O que fica de pé:** a foto no emulador desta sessão. A máquina não tem
    virtualização e o app leva minutos para assentar; a prova final continua sendo o
    APK no aparelho do dono.
@@ -283,6 +294,8 @@ Três dela são achado de varredura desta noite e vêm com a medida ao lado; cin
 são coisas que eu **removeria ou mudaria**, e essas são as que ninguém pede.
 
 ### FEITO em 7 de setembro — o Orgânico deixou de ser o Papel fora da capa
+
+<!-- medida: presente src/theme/tokens.ts :: cabecalho: 'vinheta' -->
 
 Duas correções do dono, no mesmo dia, com a mesma forma: **a capa estava certa e o
 resto tinha ficado para trás.**
@@ -301,11 +314,17 @@ Três defeitos que **só a foto pegava**, achados no mesmo passe:
 - o bosque estava no mesmo pixel nas dezoito telas — o desvio agora sai do nome da
   cena, determinístico.
 
-**Nível de evidência — E3, e com uma correção de método junto.** A prova é
-`.shots/ajustes-393.png` — a MESMA tela que o dono circulou, depois: cunha ausente,
-engrenagens girando, faixa sangrando, cartão branco sobre chão verde. Dois guardas
-novos em `src/home/capas/registro.test.ts` (a cunha da quina e a tinta declarada),
-os dois provados contra os arquivos reais de antes do conserto.
+**Nível de evidência — E3, e com duas correções de método junto.** A prova olhada foi
+a foto de `/settings` a 393 dp — a MESMA tela que o dono circulou, depois: cunha
+ausente, engrenagens girando, faixa sangrando, cartão branco sobre chão verde.
+
+*E a foto não é citável como evidência daqui, o que é a segunda correção.* `.shots/`
+está no `.gitignore`, então `.shots/ajustes-393.png` — como este parágrafo dizia até 7
+de setembro — é um caminho que só existe na máquina da sessão que o escreveu. Quem ler
+o plano depois não tem como conferir. **A evidência durável são os dois guardas** de
+`src/home/capas/registro.test.ts` (a cunha da quina e a tinta declarada), os dois
+provados contra os arquivos reais de antes do conserto; a foto é o que convenceu a
+mim, e ela se refaz com `node scripts/aparelho.mjs fotos /settings`.
 
 **A correção de método:** as primeiras horas de foto saíram todas em **720 dp** —
 tablets — porque o emulador tinha `wm density 240` preso de um teste antigo, e eu
@@ -349,6 +368,8 @@ Orgânico ainda não foi olhado sob essa régua, e a hierarquia escrita manda o 
 primeiro.
 
 ### 0. O backup — 0a e 0b FEITOS em 6 de setembro; falta o 0c (Drive)
+
+<!-- medida: ausente src :: googleapis -->
 
 Hoje o razão inteiro mora em `norva.db` no aparelho. **Aparelho quebrado, roubado
 ou formatado = a fábrica sem histórico**, e não existe estorno para isso. Todas as
@@ -412,6 +433,8 @@ uma fábrica com histórico de uma sem.
 
 ### 1. ~~O extrato — uma tela que faz três trabalhos~~ — FEITO em 7 de setembro
 
+<!-- medida: presente app/extrato.tsx :: ledgerExtract -->
+
 O que estava medido aqui: **nove funções escrevem no livro-razão a partir de tela** e
 **o caminho de volta era alcançável de duas** (`app/lots/[id].tsx:133` e
 `app/inputs/[id].tsx:505`). A carga e a transferência gravavam sem botão de volta. A
@@ -445,6 +468,8 @@ escreveu e o `UPDATE` levanta exceção.
 
 ### 2. O caminho de escrita para o servidor
 
+<!-- medida: ausente app :: drain\( -->
+
 A camada de conta existe (`src/sync/conta.ts`, `app/account.tsx`) e a fila existe
 (`src/data/outbox.ts`, `src/sync/serialize.ts`) — **o que não existe é o transporte
 entre as duas.** Com o 0 feito, isto para de ser urgência de sobrevivência e volta a
@@ -457,6 +482,8 @@ e essa é decisão dele.
 
 ### 2b. O que trava o transporte, e é decisão de dono: o `erase` não tem para onde ir
 
+<!-- medida: ausente supabase/migrations :: erase -->
+
 **Achado em 7 de setembro indo construir o transporte.** As peças estão todas de pé —
 o motor (`src/sync/engine.ts`) com as três regras e provado contra um `Transport`
 falso, a fila (`src/data/outbox.ts`), o tradutor (`src/sync/serialize.ts`) e a conta
@@ -466,7 +493,7 @@ escrever a primeira, ela bate numa parede.
 O aparelho enfileira `{ table: 'erase', rowId: area }` quando alguém usa *"limpar por
 área"* (`src/data/repository.ts:4204`), e o `serialize` transforma isso num comando
 `{ kind: 'erase', area }`. **Não existe função no servidor que o receba** — nenhuma
-migração das 39 declara uma. E ela não poderia apagar o razão nem se existisse: a
+migração das 43 declara uma. E ela não poderia apagar o razão nem se existisse: a
 `0001` cria `movements_are_immutable` como `before update or delete on movements`, e
 a checagem 1 do `db:verify` prova que os dois são recusados.
 
@@ -489,6 +516,8 @@ o lado errado destrói dado num servidor. É uma das três bordas.
 
 ### 3. Ouvir o aplicativo — cinco minutos dele, zero meus
 
+<!-- medida: espera :: cinco minutos de TalkBack no tablet do dono — nenhum comando escuta o app por ele -->
+
 `src/acessivel.test.ts` prova que todo alvo de toque se anuncia. **Ninguém nunca
 ouviu o aplicativo.** O dono levantou o cego por conta própria (*"até para quem eh
 cego, imagina…"*), e o TalkBack é uma chave nos ajustes do tablet onde o APK já
@@ -499,6 +528,8 @@ está. É um E3 que eu não alcanço daqui e ele alcança hoje.
 ## O que eu removeria ou mudaria — e o dono mandou fazer
 
 ### 4. ~~Papel é o produto; Orgânico é opção~~ — FEITO em 6 de setembro
+
+<!-- medida: presente src/home/capas/vestimenta.ts :: Record<Skin -->
 
 Duas peles se pagam duas vezes em tudo: quinze cenas × 2, quatro paletas, e uma
 guarda para mantê-las honestas. O preço já apareceu — **seis acentos do Orgânico
@@ -517,17 +548,25 @@ cada um passa. `apricot` de `#E29B52` a `#9D5C1A` — matiz 30 nos dois, satura�
 71% e 72%, luminosidade de 60% para 36%. **É a mesma cor mais escura, e não outra
 cor**, que era a dúvida que travava a decisão.
 
-### 5. ~~O padrão da capa cai para ~5 peças~~ — FEITO, e são SETE
+### 5. ~~O padrão da capa cai para ~5 peças~~ — FEITO, e são OITO
 
-O catálogo de quinze está certo e fica. Errada era a **porta de entrada**: empresa
+<!-- medida: presente src/domain/briefing.ts :: DEFAULT_OFF -->
+
+O catálogo de dezesseis está certo e fica. Errada era a **porta de entrada**: empresa
 nova recebia muita coisa, e quinze peças com posição e tamanho é uma tela de ajuste
 que um dono de baixa habilidade técnica não abre.
 
-**Feito, e são sete — não os ~5 que eu propus.** Ao aplicar, o número arredondado
+**Feito, e são oito — não os ~5 que eu propus.** Ao aplicar, o número arredondado
 brigou com a Lei da Inteligência e a Lei ganhou: o padrão leva o que **avisa** e o
 que **decide**, e o que só **conta** espera alguém pedir. Ficam `producao`,
-`semana`, `aoVivo`, `cobertura`, `validade`, `entregaHoje` e `clima`. Saem oito, e
-todas por serem relatório.
+`semana`, `aoVivo`, `cobertura`, `validade`, `entregaHoje`, `clima` e `copia`. Saem
+oito, e todas por serem relatório.
+
+*Este parágrafo disse "sete" por um dia inteiro contando só as sete que eu tinha
+escolhido à mão: `copia` entrou depois, pelo outro lado da conta — ela não está no
+`DEFAULT_OFF`, logo está no padrão. O número certo é dezesseis menos oito, e não a
+lista que eu lembrava. `copia` só se mostra quando a cópia está atrasada, o que é o
+motivo de ela não aparecer numa foto e de eu não a ter contado.*
 
 **`cobertura` e `validade` não desceram, e é aí que os ~5 morreram:** peça que avisa
 e que ninguém ligou é aviso que não existe — uma fábrica que nunca abre Ajustes
@@ -535,6 +574,8 @@ nunca descobriria que tem lote vencendo. Cortar um aviso para chegar num número
 redondo seria servir a minha frase em vez de servir a tela.
 
 ### 6. ~~O assistente congela até o áudio existir~~ — CONGELADO em 6 de setembro
+
+<!-- medida: ausente src :: expo-speech -->
 
 1142 linhas em `src/assistant/skills.ts`, monolíngue por decisão escrita no topo do
 `index.ts`, 791 de teste. Com o modo conversa e o áudio aprovados (§ *As seis*, item
@@ -549,12 +590,16 @@ continuam valendo sem prazo, porque essa parte não é do casador — é da dout
 
 ### 7. ~~O que é espera sai da lista de serviço~~ — FEITO, veja *Espera aparelho* acima
 
+<!-- medida: espera :: a lista de espera é prosa deste arquivo; não existe código que a represente, e é essa a intenção -->
+
 Alguns itens abertos estão travados em observação — a frase do portão P2, *"eu
 mudaria isto se eu visse ___"*. Isso não é trabalho, é espera, e carregar espera
 junto com serviço **faz a lista mentir sobre quanto dela é acionável**. Vão para uma
 seção própria, **"espera aparelho"**, e o que ficar na fila é tudo fazível hoje.
 
 ### A pergunta que mais decide o que o app consegue afirmar — `sale` sem escritor
+
+<!-- medida: ausente src/data/repository.ts :: 'sale' -->
 
 **Achada em 7 de setembro construindo o "produza até".** O tipo `sale` existe no
 razão desde a fundação e **nenhuma tela o escreve**. O aplicativo sabe o que saiu da
@@ -579,6 +624,8 @@ aguenta. O primeiro é outro produto. **A escolha é sua**, e ela decide se o Es
 da Loja tem como existir de verdade.
 
 ### Espera aparelho — o que NÃO é serviço, e por isso sai da fila
+
+<!-- medida: espera :: fábrica de verdade usando o app: ergonomia de luva, QR a um braço, calibração de devolução e de prazo -->
 
 Estes não estão pendentes: estão **esperando alguém usar**. Carregar espera junto
 com serviço faz a lista mentir sobre quanto dela é acionável, e a lista existe para
@@ -624,17 +671,17 @@ abaixo respeita duas decisões escritas dele — *"termina o layout, nada pela m
 
 | | o quê | por que nesta posição |
 |---|---|---|
-| **1** | ~~**Refluir em colunas no tablet**~~ **— fechado, e o APK JÁ FOI ABERTO no tablet dele em 6 de setembro.** | as peças pareiam, o `Inteiro` interrompe, as abas se juntam e o pé das colunas ficou nivelado (`src/components/colunas.ts`). O que ele viu ao abrir não foi o layout: foi a cena parada e a cor apagada — que viraram o 3b. |
-| **2** | **TRAVADO — decisão de faseamento, e ela é do dono.** A camada 1 do login **não** é independente do servidor | Medido em 6 de setembro antes da primeira linha de código, e **contra o que o próprio estudo tinha dito de manhã**: `movements.operator_id` referencia `memberships(id)` (`supabase/migrations/0014_who_was_holding_it.sql:21`), e `memberships.user_id` é `not null references auth.users` (`0001_foundation.sql:60`). O aparelho não pode criar `auth.users`, logo não pode inventar o id de um operador — e o id inventado **viaja** (`src/sync/serialize.ts:351`) e trava a fila por chave estrangeira no dia em que a sincronia subir, que é o defeito crítico que esta branch já consertou uma vez. As três saídas estão no fim de `docs/estudo-conta.md`; eu faria a (c) e depois a (a). |
-| **2b** | **A conta da empresa — a camada 2.** ~~O servidor não subiu~~ **— SUBIU**, e ~~falta o cliente, sessão, cadastro do dono~~ **— FEITO em 6 de setembro** (`src/sync/conta.ts`, `app/account.tsx`, porta em *Mais*). A porta fica nos Ajustes e não na frente do aplicativo: a fábrica offline é o caso normal. **Falta o convite por código**, e falta o que só um login de verdade prova. | **Nível de evidência: E1.** Compila, passa as 410 do `npm test` e as guardas de tom e de camada — e **nada disso foi exercitado contra o servidor**, porque entrar de verdade cria uma conta de autenticação no projeto do dono e essa é decisão dele. O que falta para E3 é um `entrar` real: sessão guardada, `create_company_for_me` chamada, e a `companies_read` filtrando por associação. |
-| **2c** | **O que não esbarra nisso** | ~~o motivo da devolução~~ **FEITO em 6 de setembro** (`return_reason`, aparelho `V19` e servidor `0034`, com a catorzena garantia do `db:verify` cobrando as duas metades da regra). ~~A **tela de conferir item a item**~~ fechou com a separação (`app/picking.tsx`, engradado a engradado, com a lista guardada por loja). ~~E o **preço combinado**~~ entrou em 6 de setembro (`0037` / `V22`), com histórico append-only ao lado — e o que ele destravou não é um campo: é a descoberta de que o aplicativo não tinha a quem vender. **O 2c está vazio.** |
-| **3** | ~~**Espelho da Loja — construir**~~ **— FEITO em 6 de setembro** | `storeMirror` (`src/data/repository.ts`) e `app/mirror.tsx`, com a porta em Relatórios. A fração é por ITEM e não por loja, e isso é conserto de uma aritmética inválida que a primeira versão tinha: o razão conta em grama para o açúcar e em unidade para o picolé, e somar as duas afogava o item leve. Falta a calibração, que é o que precisa de fábrica — não há régua de "devolve demais" em lugar nenhum do código. |
-| **3b** | ~~**A vida do aplicativo**~~ **— FEITO em 6 de setembro, e cobrado pelo dono** | *"o app tem q ser uma obra de arte… vc já viu organismo vivo MORTO?"*. A amplitude central subiu (`src/theme/tokens.ts`), as quinze cenas de cabeçalho existem (`src/components/cenas/`) e as 27 telas que usam o casco estão vestidas, a semana e o pote respiram, o bloco do tempo veste a pele, e a capa aceita meia coluna (`briefingFilas`, com teste). O estilo tem nome gravado: `docs/design/estilo.md`. |
-| **3c** | **Os seis acentos do Orgânico abaixo da régua — decisão do dono** | `src/theme/contrast.test.ts` os registra com a razão escrita. Consertá-los muda uma pele que ele aprovou olhando: `apricot` sairia de `#E29B52` para `#9A5B1A`, que não é retoque de luminosidade, é outra cor. Os pequenos já foram. |
-| **3d** | ~~**As quatro peças da capa que NAVEGAM em vez de abrir**~~ **— FEITO em 6 de setembro** | virou a `Porta` (`src/home/Capa.tsx`): o toque e o aviso do toque são a mesma peça, então não dá para acrescentar uma quinta porta sem o rótulo. |
-| **4** | **Os sete médios** | pequenos e independentes; cabem entre as coisas grandes. O maior é a aprovação de pedido, que é F7 — vira configuração da empresa, não escolha nossa. |
-| **5** | **A sala do tacho** | pergunta de PADRÃO para o dono, não de qual; e trava no P3 porque muda onde o consumo é gravado. Fica para a câmara fria da F2. |
-| **6** | **Compras inteligentes** | mesma classe do 3 — construir agora, calibrar depois. ~~O primeiro passo era a data do pedido, porque `ordered_at` não tinha escritor~~ — **ele tem, desde 6 de setembro** (`app/purchase.tsx:578`), e com um desenho honesto: sem resposta nada é gravado, porque lacuna vazia é mais honesta que palpite. O que falta agora não é código, é **tempo**: `observedLeadTimeDays` precisa de entregas observadas, e isso é a linha *"calibração das compras"* da espera. |
+| **1** | ~~**Refluir em colunas no tablet**~~ **— fechado, e o APK JÁ FOI ABERTO no tablet dele em 6 de setembro.** | as peças pareiam, o `Inteiro` interrompe, as abas se juntam e o pé das colunas ficou nivelado (`src/components/colunas.ts`). O que ele viu ao abrir não foi o layout: foi a cena parada e a cor apagada — que viraram o 3b.  <!-- medida: presente src/components/colunas.ts :: export function distribuir --> |
+| **2** | ~~**A camada 1 do login depende do servidor**~~ **— DESTRAVADO e FEITO, e este item ficou dizendo TRAVADO por um dia inteiro com a saída já no disco.** <!-- medida: presente supabase/migrations :: references people\(id\) --> | O nó era `movements.operator_id` referenciar `memberships(id)`, e `memberships.user_id` ser `not null references auth.users`: o aparelho não pode criar conta de autenticação, logo não podia nomear ninguém. A saída não era nenhuma das três do estudo — foi a quarta, e é a decisão escrita no `CLAUDE.md`: **pessoa não é conta.** A `0035` derruba a chave e reaponta `operator_id` para `people(id)` (aparelho `V20`), a `0036` guarda o PIN, `app/who.tsx` é a grade de nomes e `app/_layout.tsx` manda para ela quando a empresa liga o aparelho compartilhado. Os sete `INSERT INTO movements` gravam quem estava com o aparelho, e `src/layers.test.ts` reprova o oitavo que não gravar. |
+| **2b** | **A conta da empresa — a camada 2.** ~~O servidor não subiu~~ **— SUBIU**, e ~~falta o cliente, sessão, cadastro do dono~~ **— FEITO em 6 de setembro** (`src/sync/conta.ts`, `app/account.tsx`, porta em *Mais*). A porta fica nos Ajustes e não na frente do aplicativo: a fábrica offline é o caso normal. ~~**Falta o convite por código**~~ **— FEITO** (`0041` carimba um código em toda empresa, `src/sync/conta.ts` pede associação por ele), e falta o que só um login de verdade prova. <!-- medida: presente src/sync/conta.ts :: joinCode|join_code --> | **Nível de evidência: E1.** Compila, passa o `npm test` e as guardas de tom e de camada — e **nada disso foi exercitado contra o servidor**, porque entrar de verdade cria uma conta de autenticação no projeto do dono e essa é decisão dele. O que falta para E3 é um `entrar` real: sessão guardada, `create_company_for_me` chamada, e a `companies_read` filtrando por associação. |
+| **2c** | **O que não esbarra nisso** | ~~o motivo da devolução~~ **FEITO em 6 de setembro** (`return_reason`, aparelho `V19` e servidor `0034`, com a catorzena garantia do `db:verify` cobrando as duas metades da regra). ~~A **tela de conferir item a item**~~ fechou com a separação (`app/picking.tsx`, engradado a engradado, com a lista guardada por loja). ~~E o **preço combinado**~~ entrou em 6 de setembro (`0037` / `V22`), com histórico append-only ao lado — e o que ele destravou não é um campo: é a descoberta de que o aplicativo não tinha a quem vender. **O 2c está vazio.**  <!-- medida: presente src/data/db.ts :: return_reason --> |
+| **3** | ~~**Espelho da Loja — construir**~~ **— FEITO em 6 de setembro** | `storeMirror` (`src/data/repository.ts`) e `app/mirror.tsx`, com a porta em Relatórios. A fração é por ITEM e não por loja, e isso é conserto de uma aritmética inválida que a primeira versão tinha: o razão conta em grama para o açúcar e em unidade para o picolé, e somar as duas afogava o item leve. Falta a calibração, que é o que precisa de fábrica — não há régua de "devolve demais" em lugar nenhum do código.  <!-- medida: presente app/mirror.tsx :: storeMirror --> |
+| **3b** | ~~**A vida do aplicativo**~~ **— FEITO em 6 de setembro, e cobrado pelo dono** | *"o app tem q ser uma obra de arte… vc já viu organismo vivo MORTO?"*. A amplitude central subiu (`src/theme/tokens.ts`), as dezenove cenas de cabeçalho existem (`src/components/cenas/`) e as 27 telas que usam o casco estão vestidas, a semana e o pote respiram, o bloco do tempo veste a pele, e a capa aceita meia coluna (`briefingFilas`, com teste). O estilo tem nome gravado: `docs/design/estilo.md`.  <!-- medida: presente src/components/cenas/prancha.ts :: export const CENAS --> |
+| **3c** | ~~**Os acentos do Orgânico abaixo da régua**~~ **— FECHADO em 7 de setembro, e não por decisão: por consequência.** <!-- medida: ausente src/theme/contrast.test.ts :: ABAIXO_DA_REGUA = new Set<string>\(\[$ --> | Eram oito, não seis, e a lista de exceções hoje está **vazia**. Não foram consertados por escolha de cor: o chão do Orgânico precisou escurecer (o cartão branco só existia pela sombra), e a régua de 4,5:1 desceu os onze acentos junto, matiz e saturação intactas. Medido depois: o pior fica em **4,61:1**, e a paleta não tem folga — mexer no chão de novo derruba os onze de uma vez, e é o `contrast.test.ts` que avisa. |
+| **3d** | ~~**As quatro peças da capa que NAVEGAM em vez de abrir**~~ **— FEITO em 6 de setembro** | virou a `Porta` (`src/home/Capa.tsx`): o toque e o aviso do toque são a mesma peça, então não dá para acrescentar uma quinta porta sem o rótulo.  <!-- medida: presente src/home/Capa.tsx :: function Porta --> |
+| **4** | ~~**Os sete médios**~~ **— ACABARAM em 6 de setembro** <!-- medida: presente src/data/configuracao.ts :: orders_need_approval --> | `unchecked` foi removida, `lastCostMove` ganhou tela na capa, e a aprovação de pedido — a única que não era trabalho e sim bloqueio — destravou quando a linha de `companies` passou a existir: `src/data/configuracao.ts` faz as quatro configurações da empresa atravessarem. Não sobrou nenhum. |
+| **5** | **A sala do tacho** | pergunta de PADRÃO para o dono, não de qual; e trava no P3 porque muda onde o consumo é gravado. Fica para a câmara fria da F2.  <!-- medida: espera :: qual é o PADRÃO, decisão do dono, e o P3 do caminho de escrita de movements --> |
+| **6** | **Compras inteligentes** | mesma classe do 3 — construir agora, calibrar depois. ~~O primeiro passo era a data do pedido, porque `ordered_at` não tinha escritor~~ — **ele tem, desde 6 de setembro** (`app/purchase.tsx:578`), e com um desenho honesto: sem resposta nada é gravado, porque lacuna vazia é mais honesta que palpite. O que falta agora não é código, é **tempo**: `observedLeadTimeDays` precisa de entregas observadas, e isso é a linha *"calibração das compras"* da espera.  <!-- medida: espera :: entregas observadas numa fábrica de verdade para calibrar o prazo --> |
 | — | **O fiscal** | fora, e o único que trava por algo que nenhum dado resolve: certificado A1 e homologação na SEFAZ. |
 
 De pé, nesta ordem e por este motivo:
@@ -666,8 +713,11 @@ De pé, nesta ordem e por este motivo:
 
    *E ela está MEDIDA, em 6 de setembro — não é "falta escrever", é bloqueada.*
    A aprovação existe inteira no aparelho: `setOrdersNeedApproval`
-   (`src/data/repository.ts:4771`) grava a bandeira no `meta`, `saveOrder` (`:4789`)
-   nasce `pending` por causa dela, e `setOrderStatus` (`:4882`) enfileira a decisão.
+   grava a bandeira no `meta`, `saveOrder` nasce `pending` por causa dela, e
+   `setOrderStatus` enfileira a decisão. *(As três âncoras `arquivo:linha` que este
+   parágrafo trazia apontavam para outro código em 7 de setembro — número de linha em
+   arquivo de seis mil linhas envelhece a cada commit, e a regra do plano pede
+   `arquivo:linha`. O nome da função não envelhece; ele fica.)*
    O que não existe é a bandeira ATRAVESSAR: `meta` não é tabela de sincronia — não
    há uma entrada `companies` em `src/sync/serialize.ts` —, e o gatilho
    `order_starts_where_the_company_says` (`supabase/migrations/0019_an_order_is_demand.sql:103`)
@@ -718,6 +768,8 @@ De pé, nesta ordem e por este motivo:
    olhar as duas.
 
 ### A sala do tacho — a decisão que a F2 precisa, e ela é do dono
+
+<!-- medida: espera :: qual é o PADRÃO, decisão do dono; e o P3, porque muda onde o consumo é gravado -->
 
 O piso da produção conta a sala em que o tacho roda, e isso está certo: somar todos
 os lugares autorizaria um tacho com o açúcar que está a dez quilômetros, numa loja.
@@ -773,10 +825,11 @@ escrita e deixou de ser** — a grade de nomes existe desde ontem, `people.profi
 aponta para um perfil, e o perfil carrega as capacidades. Ela esperava a CONTA, e o
 que faltava era a PESSOA.
 
-Agora `currentCapabilities` responde, e **oito leituras de dinheiro perguntam antes
+Agora `currentCapabilities` responde, e **dez leituras de dinheiro perguntam antes
 de consultar**: `listItems`, `itemCosts`, `stockByPlace`, `lossesOn`, `recentRuns`,
-`recentCostChanges`, `itemHistory`, `itemMovements` e a embalagem digitada de
-`listProducts`. O portão fechado não apaga o número depois de lê-lo — ele não junta a
+`recentCostChanges`, `itemHistory`, `itemMovements`, `ledgerExtract` e a embalagem
+digitada de `listProducts`. *(Eram oito quando isto foi escrito; o extrato ganhou o
+portão depois e ninguém voltou aqui.)* O portão fechado não apaga o número depois de lê-lo — ele não junta a
 tabela de custo, que é a mesma forma da view do servidor (`0008`).
 
 **Treze telas distinguem três estados** onde antes havia dois: tem número · ainda não
@@ -802,6 +855,14 @@ arquivo fora de `src/data/` e `scripts/` que as mencione, porque os docblocks j�
 afirmavam esse guarda antes de ele existir — e docblock que promete uma rede que não
 está lá é pior que docblock nenhum.
 
+*E "qualquer arquivo" era metade dos arquivos até 7 de setembro.* O coletor da guarda
+descarta `*.test.ts`, o que está certo para quase toda regra de camada — teste que
+FALA de SQL não é tela que FAZ SQL — e está errado para esta, que é sobre quem CHAMA.
+Havia um chamador de verdade lá dentro: `src/notify/facts.test.ts`, em quatro linhas.
+Agora os testes são varridos também, e esse fica dispensado com a razão escrita ao
+lado. É o vizinho da propriedade de novo: a guarda media uma coisa parecida com a que
+prometia.
+
 **Três testes novos, e a ordem entre eles é o achado:** o *gêmeo* grava produção,
 compra, perda, contagem e transferência duas vezes — dono e operador — e afirma que
 `unit_cost_rate` de cada linha é IGUAL, número por número; o *de mão única* prova que
@@ -816,7 +877,7 @@ com o razão apodrecido — foi exatamente o que faltou.
   aparelho é do dono, como sempre foi. A fábrica que mais precisa dele é a que o
   liga.
 - **Não é autenticação, e nada aqui finge que é.** A grade não pede senha, o PIN tem
-  quatro dígitos e é opcional, e qualquer um pode tocar no nome do dono. O que o
+  de quatro a oito dígitos e é opcional, e qualquer um pode tocar no nome do dono. O que o
   portão compra é o que o `access.ts` diz querer comprar: tirar a margem da vista de
   quem está embalando. Quem impõe de verdade é o servidor, e ele já impõe.
 - **A aba Relatórios fica com um cartão só** para quem não vê dinheiro — os três
@@ -841,11 +902,12 @@ esta lista pedia. Três coisas que pareciam separadas são a MESMA falta:
 |---|---|---|
 | `movement_kind` tem `sale` — *"sold to a customer (revenue + margin)"* | `0001` | **ninguém** |
 | `movements.unit_price_rate`, gateada por `view_sale_price` na view | `0008` | **ninguém** |
-| `location_kind` tem `customer`, e a tela desenha o glifo e o rótulo dele | `0001` | **só a simulação** |
+| `location_kind` tem `customer`, e a tela desenha o glifo e o rótulo dele | `0001` | ~~só a simulação~~ **a tela também, desde 6 de setembro** |
 
 E a terceira linha é a pior das três, porque só a FOTO a mostrou. `app/places.tsx`
-oferece três espécies no cadastro — `own_store`, `cold_room`, `store_room` —, todas
-NOSSAS. Mas a fábrica de exemplo cria um cliente (`src/data/simulate.ts:130`, "Mercado
+oferecia três espécies no cadastro — `own_store`, `cold_room`, `store_room` —, todas
+NOSSAS. **Hoje oferece as quatro, com `customer` junto, e este parágrafo ficou no
+passado sem ninguém voltar aqui.** Mas a fábrica de exemplo cria um cliente (`src/data/simulate.ts:130`, "Mercado
 do Zé"), e a tela o desenha certinho, com o glifo e a sobrelinha "CLIENTE". **A
 simulação mostra ao dono uma coisa que o aplicativo dele não sabe fazer** — é a mesma
 família da ferramenta de olhar que mente sobre o que está olhando, e nenhum teste vê:
@@ -932,9 +994,9 @@ assunto uma loja nossa — onde o próprio razão decidiu que não há faturamen
 
 ### A configuração da empresa não atravessa — dívida estrutural
 
-Achado ao construir a entrada, 6 de setembro. O servidor tem as três configurações em
-`companies`: `floor_sign_in` (0011), `names_who_recorded` (0012) e `orders_need_approval`
-(0019). O aparelho guarda a terceira em `app_meta` e agora as outras duas também — porque
+Achado ao construir a entrada, 6 de setembro. O servidor tem **quatro** configurações em
+`companies`: `floor_sign_in` (0011), `names_who_recorded` (0012), `orders_need_approval`
+(0019) e `purchase_safety_days` (0043 — este entrou depois, e o parágrafo dizia três). O aparelho guarda a terceira em `app_meta` e agora as outras duas também — porque
 **não existe tabela `companies` no banco do aparelho**, e portanto não existe coluna de
 empresa que a sincronia saiba levar.
 
@@ -980,9 +1042,11 @@ precisa do servidor.
 **~~Três configurações de empresa sem leitor~~ — TÊM leitor, medido em 7 de setembro.**
 `src/data/configuracao.ts:122` lê as quatro do servidor (`names_who_recorded`,
 `floor_sign_in`, `orders_need_approval`, `purchase_safety_days`) e grava no aparelho;
-`floorSignIn()` é lido por `src/data/repository.ts:4923` para decidir o caminho de
-entrada, e `app/settings.tsx` escreve os dois. O `join_code` é lido por
-`src/sync/conta.ts:151`.
+`floorSignIn()` é lido em dois lugares diferentes, e confundir os dois já custou uma
+leitura errada deste parágrafo: `pisoDoAparelho` (`src/data/repository.ts`) o usa para
+decidir o **piso de capacidade** — quem vê dinheiro num aparelho compartilhado —, e
+`app/_layout.tsx` o usa para decidir o **caminho de entrada**, mandando para a grade de
+nomes. `app/settings.tsx` escreve os dois. O `join_code` é lido por `src/sync/conta.ts`.
 
 Fica a lição de lista, que já apareceu duas vezes esta noite: **item que descreve como
 aberto o que já está pronto mente sobre quanto dela é acionável.** Antes de pegar a
@@ -1170,17 +1234,23 @@ de gente e permissão**, não a tela de entrega:
    membership passa a ser recusado, que era o único que passava antes).
 2. **Perfil é dado.** Os sete papéis de `src/domain/access.ts` viram modelos prontos, e o
    dono marca permissão por permissão. Decisão já registrada no `CLAUDE.md`.
-3. **A entrada.** Grade de nomes com PIN no aparelho compartilhado; pessoal entra uma vez e
-   fica. Os dois caminhos, escolha da empresa — decisão de 1 de setembro.
-4. **O operador no movimento.** `operator_id` passa a ter escritor, e a tela só pergunta
-   quando a empresa liga `names_who_recorded`.
+3. ~~**A entrada.**~~ **FEITA.** Grade de nomes com PIN no aparelho compartilhado
+   (`app/who.tsx`, com `app/_layout.tsx` mandando para lá quando a empresa liga o
+   compartilhado); pessoal entra uma vez e fica. Os dois caminhos existem, escolha da
+   empresa — decisão de 1 de setembro.
+4. ~~**O operador no movimento.**~~ **FEITO.** Os sete `INSERT INTO movements` gravam
+   `operator_id`, e `src/layers.test.ts` reprova o oitavo que não gravar. A tela só
+   pergunta quando a empresa liga `names_who_recorded`.
 
-**O nó de esquema, e ele se desfaz de graça hoje:** a `0014` aponta `operator_id` para
-`memberships(id)`, e `memberships.user_id` é `not null references auth.users` — cada pessoa
-nomeável precisaria de uma CONTA. Isso contraria a decisão escrita de que *"o login
-autentica o sistema, não a pessoa"*. Como **nada escreve a coluna** e não há um movimento
-gravado em servidor nenhum, a correção custa uma migração nova: gente vira tabela própria,
-sem conta, e `membership` volta a ser só o que sempre foi.
+~~**O nó de esquema, e ele se desfaz de graça hoje:**~~ **DESFEITO — e este parágrafo
+ficou no presente depois de a coisa ter acontecido, que é a forma mais cara de erro
+deste arquivo.** O nó era a `0014` apontar `operator_id` para `memberships(id)`, com
+`memberships.user_id` sendo `not null references auth.users`: cada pessoa nomeável
+precisaria de uma CONTA, contra a decisão escrita de que *"o login autentica o sistema,
+não a pessoa"*. A `0035` desfez: gente virou tabela própria, sem conta, e `membership`
+voltou a ser o que sempre foi. A premissa que autorizava dizer "de graça" — *nada
+escreve a coluna* — deixou de valer no mesmo dia: **sete `INSERT`s escrevem**, e o
+`db:verify` prova contra Postgres que um id de membership passa a ser recusado ali.
 
 **7.** ~~**Devolução.**~~ **FEITA em 6 de setembro.** O movimento já tinha tipo próprio
 e tela; o que faltava era o **motivo**, e ele entrou inteiro: `ReturnReason` no domínio
@@ -1192,9 +1262,12 @@ houve. A tela pergunta ao lado da loja, sem opção marcada por padrão (é a ú
 que o sistema não pode deduzir), e o botão não obedece enquanto ela não for respondida.
 A catorzena garantia do `db:verify` cobra as duas metades contra Postgres.
 
-**8. O `UnitStepper`.** Componente construído e sem chamador, decisão registrada no
-`CLAUDE.md` — é peça da F2/F3 e apontá-lo como defeito já custou uma rodada. Entra
-quando a tela de separação existir: é ali que se conta caixa com luva.
+**8.** ~~**O `UnitStepper`.**~~ **ENTROU.** A condição que este item punha — *"entra
+quando a tela de separação existir"* — foi satisfeita: `app/picking.tsx` existe, tem
+porta em Transporte e o renderiza. A decisão registrada no `CLAUDE.md` (é peça da
+F2/F3, apontá-lo como defeito já custou uma rodada) **era verdadeira quando escrita e
+deixou de ser** — e o item 4 desta mesma lista comemora o chamador cinquenta linhas
+acima, enquanto este continuava chamando o componente de órfão.
 
 **O risco nomeado, e ele não se resolve escrevendo código:** a F3 tem ergonomia que
 não se verifica sem aparelho na mão. Tela capacitiva a −18 °C, luva, QR a um braço
@@ -1235,8 +1308,11 @@ Dois chamadores hoje: o custo de uma receita e o dinheiro parado nos relatórios
 (conferido na mão contra a foto — 11.616,44 + 807,96 + 237,90 + 207,26 = 12.869,56).
 
 **E o item está MUITO mais perto de fechado do que a linha dizia — medido tela a
-tela em 7 de setembro.** Os dezoito números grandes do aplicativo (`type.figure`, que é
-o que a guarda da Lei 3 conta) se dividem assim:
+tela em 7 de setembro.** Os **dezoito** números grandes das telas de `app/` se dividem
+assim (a guarda da Lei 3 conta **29**, porque varre também a capa em `src/home/` — o
+parêntese que estava aqui atribuía o 18 a ela, e os onze da capa não aparecem na
+tabela abaixo; a conta da capa abre num toque, na receita, e isso é fronteira
+registrada no `CLAUDE.md`):
 
 | como a conta é alcançada | telas |
 |---|---|
@@ -1401,9 +1477,11 @@ Três medidas que mudam o desenho:
   para tudo; voz é outra porta da frente, não a substituição da que existe.
 
 E sobre cegueira, medido antes de prometer: **o trabalho é auditoria, não
-construção.** Quem fala é o leitor de tela do sistema, e o app já tem 51 rótulos e
-78 papéis de acessibilidade — com `src/acessivel.test.ts` trancando isso desde 6 de
-setembro. O que ninguém nunca fez foi **ouvir** o app com o TalkBack ligado.
+construção.** Quem fala é o leitor de tela do sistema, e o app já tem **78 rótulos e
+77 papéis** de acessibilidade — com `src/acessivel.test.ts` trancando isso desde 6 de
+setembro. *(Dizia "51 e 78", e o 51 não era invenção: era `app/` sozinho, enquanto o
+78 era `app/` mais `src/`. Duas bases numa frase só dão um número que nenhuma leitura
+sustenta.)* O que ninguém nunca fez foi **ouvir** o app com o TalkBack ligado.
 
 ### 5. A etiqueta que vira canal
 
@@ -1426,8 +1504,10 @@ dizendo o que corrige.
 **O que dos cinco marcadores abaixo já está de pé:** a exportação fiscal tem a
 consulta e o corte por período (`from`/`to`, com o fim exclusivo e teste nas duas
 pontas). **O que continua de pé:** o retrato de fechamento guardado, o inventário
-assinado, o extrato do cliente, e a regra de fundamentação da IA. Os quatro pedem
-coisas que o razão já tem — nenhum pede esquema novo.
+assinado, e a regra de fundamentação da IA — ~~o extrato do cliente~~ **entrou seis
+minutos depois de esta linha ser escrita**, e ela não foi atualizada: `ledgerExtract`
+recebe `placeId`, e `app/places.tsx` navega para ele. Os três pedem coisas que o razão
+já tem — nenhum pede esquema novo.
 
 O que o livro-razão append-only torna possível e quase nenhum sistema de fábrica
 pequena consegue: **prova, não relatório**. Todo número aqui é derivado de
@@ -1479,7 +1559,7 @@ misturado três coisas que travam por motivos diferentes.
 |---|---|---|
 | **Fiscal (NF-e)** | **sim** | certificado A1 e homologação na SEFAZ. Externo, e não encurta com dado nenhum. |
 | **Espelho da Loja** | **não** | o relatório se constrói e se exercita hoje. |
-| **Compras inteligentes** | **não, e o motivo mudou em 6 de setembro** | esta linha dizia *"o prazo observado a simulação gera"*, e é falso: `purchases.ordered_at` existe desde a fundação, `recordPurchase` o grava e a travessia o leva — mas **ninguém escreve nele**, nem a tela de compra nem a simulação. O que trava não é mês de nota, é a **pergunta na tela**: quando você pediu. É a pergunta rara que a Lei 1 permite, porque a data de um telefonema para o fornecedor não está no razão. |
+| **Compras inteligentes** | **não, e o motivo mudou em 6 de setembro** | esta linha dizia *"o prazo observado a simulação gera"*, e é falso: `purchases.ordered_at` existe desde a fundação, `recordPurchase` o grava e a travessia o leva — ~~mas **ninguém escreve nele**, nem a tela de compra nem a simulação~~ — **as duas escrevem desde 6 de setembro**, e esta linha chegou falsa ao disco: foi escrita no MESMO commit que acrescentou a pergunta a `app/purchase.tsx`. A pergunta que ela dava como travando já está na tela, e é a pergunta rara que a Lei 1 permite, porque a data de um telefonema para o fornecedor não está no razão. **O que trava agora é tempo:** o prazo só fica confiável com entregas observadas. |
 
 O que é verdade dos dois últimos não é "não dá para construir", é **não dá para
 calibrar**: qualquer padrão que o relatório descubra num banco semeado é um padrão que
@@ -1511,8 +1591,11 @@ um `recordSale` por causa disso: ela usa a contagem cega, que é o que a fábric
 verdade sabe hoje sobre a prateleira do cliente.
 
 **Compras inteligentes.** Precisam do **prazo observado** de cada fornecedor — o
-tempo real entre pedir e chegar, que só existe depois de meses de nota. Sem ele, é
-adivinhação com cara de matemática.
+tempo real entre pedir e chegar. *E o motivo do corte mudou de forma em 6 de setembro,
+sem esta linha acompanhar:* o mecanismo existe e é lido em duas superfícies (a ficha do
+insumo e o aviso), e a semeadura já preenche `ordered_at`. Não é adivinhação com cara
+de matemática — sem prazo, o gatilho é nulo e a tela cala. **O que falta é calibração
+com entregas de uma fábrica de verdade**, que é espera, não construção.
 
 **A previsão aplicada.** O clima já entra na tela. Cruzar clima com venda observada
 para prever demanda é F4 pelo mesmo motivo.
@@ -1549,7 +1632,9 @@ O que falta não é código de produto; é a papelada e as decisões que só o d
 - **Busca de marca.** `NORVA` ainda não passou por busca de anterioridade no INPI
   (classes 9 e 42). Precisa de login gov.br — não é automatizável. Nada mais no
   código chumba o nome: trocar de marca é editar `src/config/brand.ts` e o
-  `app.json`.
+  `app.json` — **e isso era promessa até 7 de setembro, quando virou guarda.** Uma
+  auditoria achou quatro lugares embarcando "NORVA" (o título da folha de partilha do
+  backup e a recusa de cópia nos três idiomas); `src/marca.test.ts` reprova o quinto.
 
 ---
 
@@ -1570,7 +1655,7 @@ como "boa ideia" numa sessão futura.
 |---|---|
 | ~~**Relatório do Espelho da Loja**~~ **— voltou, e a razão escrita estava confusa** | o corte dizia *"mente com duas semanas de dado"*, e isso misturava **não dá para calibrar** com **não dá para construir**. O dono cobrou a frase (*"vc nao pode alimentar mais dados no banco de dados??????"*) e a tabela da F4 foi corrigida em 6 de setembro; o relatório entrou junto, **sem régua de "devolve demais" em lugar nenhum** — essa parte continua precisando de fábrica. |
 | **Microserviço fiscal** | projeto à parte — certificado A1, homologação SEFAZ; nada depende dele |
-| **Compras inteligentes** | precisam do **prazo observado**, que só existe depois de meses de nota |
+| **Compras inteligentes** | ~~precisam do prazo observado, que só existe depois de meses de nota~~ — **o mecanismo está construído e lido; o que falta é calibração com entregas reais** |
 | **Trunfos** (PAC/POD, clima, roteirização) | diferencial de mercado, não a dor de hoje |
 
 E as decisões do dono que **restringem desenho futuro** — leia antes de "consertar"

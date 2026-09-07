@@ -130,17 +130,45 @@ test('CLAUDE.md states the number of guarantees the script really has', () => {
  * não descobre o que não foi. O que ela impede é o número registrado envelhecer,
  * que é o que aconteceu duas vezes num dia.
  */
-const TABELA: { rotulo: string; derivar: () => number }[] = [
+type Linha = {
+  /** O rótulo, como expressão regular: é ele que acha a linha na tabela. */
+  rotulo: string;
+  /** De onde o número sai de verdade. */
+  derivar: () => number;
+  /**
+   * Como o valor está ESCRITO na tabela, quando não é um inteiro puro.
+   *
+   * Sem isto, duas linhas ficavam de fora sem ninguém saber: `**V22**` e
+   * `**~45.000**` não casam com `\*\*([\d.]+)\*\*`, e a guarda apenas não as
+   * encontrava — e não encontrar não era erro, era silêncio.
+   */
+  valor?: string;
+  /**
+   * A folga aceita, em fração, para o que MUDA a cada commit.
+   *
+   * Só a contagem de linhas usa isto, e o motivo é honesto: ela é uma escala,
+   * não um fato. Guardá-la por igualdade deixaria a suíte vermelha em todo
+   * commit; guardá-la por nada foi o que deixou `~45.000` de pé enquanto o
+   * repositório passava de setenta mil — 59% acima, na linha cujo título diz
+   * "medido, não afirmado".
+   */
+  banda?: number;
+};
+
+const TABELA: Linha[] = [
   { rotulo: 'telas', derivar: () => contaTelas() },
   { rotulo: 'tabelas no aparelho \\(SQLite\\)', derivar: () => conta(DB, /CREATE TABLE IF NOT EXISTS/g) },
   { rotulo: 'tabelas no servidor \\(Postgres\\)', derivar: () => conta(SERVIDOR, /^create table /gm) },
   { rotulo: 'migrações do servidor', derivar: () => MIGRACOES.length },
+  { rotulo: 'migrações do aparelho', derivar: () => versaoDoAparelho(), valor: '\\*\\*V(\\d+)\\*\\*' },
   { rotulo: 'papéis', derivar: () => conta(papeis(), /^ {2}[A-Za-z]+:/gm) },
-  { rotulo: 'capacidades', derivar: () => new Set([...ACESSO.matchAll(/'([a-z_]+)'/g)].map((m) => m[1])).size },
+  { rotulo: 'capacidades', derivar: () => conta(capacidades(), /^ {2}'[a-z_]+',$/gm) },
+  { rotulo: 'linhas de código', derivar: () => linhasDeCodigo(), valor: '\\*\\*~([\\d.]+)\\*\\*', banda: 0.1 },
   { rotulo: '`npm test`', derivar: () => testes('src').reduce((n, f) => n + conta(ler(f), /^test\(/gm), 0) },
   { rotulo: '`npm run mutate`', derivar: () => conta(ler('scripts/mutate.mjs'), /^ {4}file: '/gm) },
   { rotulo: '`npm run e2e:fast`', derivar: () => conta(ler('e2e/flow.mjs'), /^check\(/gm) },
   { rotulo: '`npm run db:verify`', derivar: () => GARANTIAS },
+  { rotulo: '`\\.proofgate/verify\\.sh`', derivar: () => readdirSync('.proofgate/guards.d').filter((f) => f.endsWith('.sh')).length },
 ];
 
 /** As telas: tudo em `app/` que não é layout. */
@@ -162,18 +190,75 @@ function papeis(): string {
   return depois.split('\n};')[0] ?? '';
 }
 
+/**
+ * O corpo do `capabilities` — e por que ele precisou virar função.
+ *
+ * **A cicatriz é desta guarda contra si mesma.** A derivação era
+ * `new Set([...ACESSO.matchAll(/'([a-z_]+)'/g)])` sobre o ARQUIVO INTEIRO, e o
+ * arquivo tem duas listas: as doze capacidades e os sete papéis. Seis dos sete
+ * papéis são minúsculos (`'owner'`, `'operator'`, `'driver'`, `'buyer'`,
+ * `'customer'`, `'salesperson'`) e entravam na conta; `'storeManager'` escapava
+ * só por ter maiúscula. Doze mais seis dá dezoito, e o plano dizia dezoito.
+ *
+ * Então a guarda ficou VERDE afirmando um número errado, porque o documento
+ * tinha sido escrito a partir dela. E a linha de cima da mesma tabela já dizia
+ * `papéis | 7` — ou seja, os papéis eram contados duas vezes, uma delas com o
+ * nome errado, e nada podia perceber: a única fonte independente é o enum
+ * `capability` do Postgres, que tem doze valores.
+ *
+ * A lição é a da casa, virada para dentro: **uma guarda que deriva do escopo
+ * errado não é uma guarda folgada, é uma guarda que fabrica o número que o
+ * documento vai repetir.** O recorte agora é o mesmo do `ROLES` — o corpo da
+ * lista, e nada além dele.
+ */
+function capacidades(): string {
+  const depois = ACESSO.split('export const capabilities = [')[1] ?? '';
+  return depois.split('\n] as const;')[0] ?? '';
+}
+
+/** A última migração do aparelho, que é escrita `V22` e não `22`. */
+function versaoDoAparelho(): number {
+  const todas = [...DB.matchAll(/^const V(\d+) =/gm)].map((m) => Number(m[1]));
+  return todas.length ? Math.max(...todas) : 0;
+}
+
+/** As linhas de código, pelo mesmo comando que a tabela oferece ao leitor. */
+function linhasDeCodigo(): number {
+  const achar = (dir: string, into: string[] = []): string[] => {
+    for (const entrada of readdirSync(dir)) {
+      if (entrada === 'node_modules' || entrada.startsWith('.')) continue;
+      const caminho = join(dir, entrada);
+      if (statSync(caminho).isDirectory()) achar(caminho, into);
+      else if (/\.(tsx?|sql|mjs)$/.test(entrada)) into.push(caminho);
+    }
+    return into;
+  };
+  const arquivos = ['src', 'app', 'e2e', 'scripts', 'supabase'].flatMap((d) => achar(d));
+  return arquivos.reduce((n, f) => n + ler(f).split('\n').length - 1, 0);
+}
+
 test('every number the plan states about the system is the number the system has', () => {
   assert.ok(TABELA.length > 5, 'a lista de linhas chegou vazia — a comparação seria de graça');
 
   const errados: string[] = [];
-  for (const { rotulo, derivar } of TABELA) {
-    const linha = PLANO.match(new RegExp(`^\\| ${rotulo} \\| \\*\\*([\\d.]+)\\*\\*`, 'm'));
+  for (const { rotulo, derivar, valor, banda } of TABELA) {
+    const linha = PLANO.match(new RegExp(`^\\| ${rotulo} \\| ${valor ?? '\\*\\*([\\d.]+)\\*\\*'}`, 'm'));
     if (!linha) {
       errados.push(`"${rotulo}": a linha sumiu da tabela do plano`);
       continue;
     }
     const escrito = Number(linha[1].replace(/\./g, ''));
     const real = derivar();
+    if (banda) {
+      const folga = Math.abs(escrito - real) / Math.max(real, 1);
+      if (folga > banda) {
+        errados.push(
+          `"${rotulo}": o plano diz ~${escrito}, o sistema tem ${real} — ${(folga * 100).toFixed(0)}% de diferença, ` +
+            `e a folga desta linha é ${(banda * 100).toFixed(0)}%`,
+        );
+      }
+      continue;
+    }
     if (escrito !== real) errados.push(`"${rotulo}": o plano diz ${escrito}, o sistema tem ${real}`);
   }
 
@@ -183,5 +268,44 @@ test('every number the plan states about the system is the number the system has
     `a tabela "onde o produto está hoje" do docs/roadmap.md envelheceu:\n  ${errados.join('\n  ')}\n` +
       'Ela se chama "medido, não afirmado" e traz a coluna "como conferir" ao lado de cada ' +
       'número — mas comando escrito é convite, não garantia. O lado que manda é o sistema.',
+  );
+});
+
+/**
+ * E a metade que faltava: **linha da tabela sem derivação não existe.**
+ *
+ * O docblock do `TABELA` admitia a fronteira em voz alta — *"acrescentar uma
+ * linha à tabela sem acrescentar uma entrada aqui não quebra nada"* — e o
+ * roadmap, quatro linhas depois do seu próprio título, prometia o contrário:
+ * *"`src/bar.test.ts` roda essa coluna: cada linha é derivada do sistema"*. Uma
+ * auditoria de 7 de setembro mediu a distância entre as duas frases: **dez das
+ * treze linhas**. As três de fora eram a versão do aparelho, a contagem de
+ * linhas de código e o número de guardas da proofgate — e duas delas estavam
+ * erradas, uma por 59%.
+ *
+ * Fronteira dita em voz alta continua sendo fronteira. Agora a promessa do
+ * roadmap é a que vale, e quem escrever a décima quarta linha sem derivação
+ * fica vermelho aqui.
+ */
+test('every row of the plan tables has a derivation behind it', () => {
+  const inicio = PLANO.indexOf('## Onde o produto está hoje');
+  assert.ok(inicio > 0, 'a seção medida mudou de nome — a guarda deixou de olhar para ela');
+  const fim = PLANO.indexOf('\n## ', inicio + 1);
+  const secao = PLANO.slice(inicio, fim);
+
+  const semDerivacao: string[] = [];
+  for (const linha of secao.split('\n')) {
+    if (!linha.startsWith('| ')) continue;
+    if (/^\|\s*\|/.test(linha) || /^\|-+/.test(linha)) continue; // cabeçalho e separador
+    const rotulo = linha.slice(2, linha.indexOf(' | '));
+    const coberta = TABELA.some(({ rotulo: re }) => new RegExp(`^${re}$`).test(rotulo));
+    if (!coberta) semDerivacao.push(rotulo);
+  }
+
+  assert.deepEqual(
+    semDerivacao,
+    [],
+    `estas linhas da tabela do plano não são derivadas de nada:\n  ${semDerivacao.join('\n  ')}\n` +
+      'Enquanto não tiverem uma entrada em TABELA, o número que estiver ali é palpite com cara de medida.',
   );
 });
