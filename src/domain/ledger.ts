@@ -111,6 +111,34 @@ export const INTERNAL_PLACE_KINDS = ['factory', 'cold_room', 'store_room'] as co
 export const CARGO_PLACE_KINDS = ['own_store', 'customer'] as const;
 
 /** Quem RECEBE carga: loja própria e cliente. O resto é sala interna ou caminho. */
+/**
+ * A ordem em que o estoque de um lugar se oferece para carregar.
+ *
+ * **Existe por uma tela que estava certa e não era inteligente.** A transferência
+ * listava os sete itens da fábrica em ordem alfabética e já vinha com o primeiro
+ * escolhido — *Açúcar cristal* — com o destino sendo uma LOJA. Ninguém manda
+ * quarenta quilos de açúcar e vinte e dois de polpa para uma loja; manda picolé.
+ * Nenhum número estava errado e a Lei estava: *"nunca peça o que o sistema pode
+ * deduzir"*, e *"qual é a próxima ação provável"*.
+ *
+ * A dedução é do DESTINO e não uma preferência: um lugar que recebe carga vende
+ * ao cliente final, e o que se vende é produto acabado. Já uma câmara fria ou um
+ * segundo almoxarifado recebem qualquer coisa — lá a ordem alfabética é a certa,
+ * porque não há palpite honesto a fazer.
+ *
+ * Estável de propósito: dentro de cada grupo a ordem que veio é preservada, e ela
+ * já é a ordem por nome. Reordenar por outro critério aqui faria a lista dançar
+ * entre destinos, e lista que dança é lista que ninguém decora.
+ */
+export function ordemDeCarga<T extends { kind: string }>(
+  linhas: readonly T[],
+  destinoRecebeCarga: boolean,
+): T[] {
+  if (!destinoRecebeCarga) return [...linhas];
+  const produtos = linhas.filter((l) => l.kind === 'product');
+  return [...produtos, ...linhas.filter((l) => l.kind !== 'product')];
+}
+
 export function receivesCargo(kind: string): boolean {
   return (CARGO_PLACE_KINDS as readonly string[]).includes(kind);
 }

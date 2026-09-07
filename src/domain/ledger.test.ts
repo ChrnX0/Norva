@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { daysOfCover } from './ledger';
+import { daysOfCover, ordemDeCarga } from './ledger';
 
 /**
  * A única conta deste módulo que o aplicativo roda.
@@ -21,4 +21,58 @@ test('days of cover turns a quantity into the sentence somebody can act on', () 
   // and saying so beats printing a number that means nothing.
   assert.equal(daysOfCover(70_000, 0), null);
   assert.equal(daysOfCover(70_000, -5), null);
+});
+
+/**
+ * O que vai na frente da lista de carga.
+ *
+ * A tela de transferir listava os sete itens da fábrica em ordem alfabética e já
+ * vinha com o primeiro escolhido — *Açúcar cristal* — com o destino sendo uma
+ * LOJA. Nenhum número estava errado; o que faltava era a Lei: *"nunca peça o que o
+ * sistema pode deduzir"*, e *"qual é a próxima ação provável"*. Ninguém manda
+ * quarenta quilos de açúcar para uma loja.
+ *
+ * Prende as duas pontas, e a segunda é a que impede a régua de virar "produto
+ * sempre primeiro": para um lugar que NÃO recebe carga — outra câmara, outro
+ * almoxarifado — não há palpite honesto, e a ordem alfabética que veio é a certa.
+ */
+test('the load list puts the likely thing first, and only where that is deducible', () => {
+  const estoque = [
+    { itemId: 'a', name: 'Açúcar', kind: 'input' },
+    { itemId: 'e', name: 'Embalagem', kind: 'packaging' },
+    { itemId: 'p', name: 'Picolé', kind: 'product' },
+    { itemId: 'z', name: 'Polpa', kind: 'input' },
+  ];
+
+  // Para uma loja: o produto na frente, e o resto na ordem em que veio.
+  assert.deepEqual(
+    ordemDeCarga(estoque, true).map((l) => l.itemId),
+    ['p', 'a', 'e', 'z'],
+    'quem recebe carga vende ao cliente final, e o que se vende é produto acabado',
+  );
+
+  // Para uma câmara fria: nada muda. Aqui qualquer item é plausível, e inventar
+  // uma ordem seria um palpite sem fato embaixo.
+  assert.deepEqual(
+    ordemDeCarga(estoque, false).map((l) => l.itemId),
+    ['a', 'e', 'p', 'z'],
+    'sem destino que deduza, a ordem que veio é a certa — palpite sem fato é chute',
+  );
+
+  // A ordem DENTRO de cada grupo é preservada: lista que dança entre destinos é
+  // lista que ninguém decora.
+  const doisProdutos = [
+    { itemId: 'a', kind: 'input' },
+    { itemId: 'p1', kind: 'product' },
+    { itemId: 'p2', kind: 'product' },
+  ];
+  assert.deepEqual(
+    ordemDeCarga(doisProdutos, true).map((l) => l.itemId),
+    ['p1', 'p2', 'a'],
+  );
+
+  // E não mexe na lista original: quem chama desenha, não muda o que recebeu.
+  const original = [{ itemId: 'a', kind: 'input' }, { itemId: 'p', kind: 'product' }];
+  ordemDeCarga(original, true);
+  assert.deepEqual(original.map((l) => l.itemId), ['a', 'p'], 'a lista de quem chamou fica como estava');
 });

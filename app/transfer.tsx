@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { INTERNAL_PLACE_KINDS, RETURN_REASONS, type ReturnReason } from '@/domain/ledger';
+import {
+  INTERNAL_PLACE_KINDS,
+  ordemDeCarga,
+  receivesCargo,
+  RETURN_REASONS,
+  type ReturnReason,
+} from '@/domain/ledger';
 import type { Dictionary } from '@/i18n';
 import { parseTyped } from '@/domain/number';
 import { Alive } from '@/components/Alive';
@@ -154,7 +160,10 @@ function Transfer() {
   const to = toId2 ? { id: toId2 } : null;
 
   const here = data?.stock.find((p) => p.locationId === from);
-  const lines = here?.lines ?? [];
+  // O provável na frente, deduzido do DESTINO: uma loja vende produto acabado, e
+  // era açúcar que vinha escolhido por ser o primeiro em ordem alfabética. Quem
+  // decide é `ordemDeCarga`, no domínio, onde o teste alcança.
+  const lines = ordemDeCarga(here?.lines ?? [], receivesCargo(outra?.kind ?? ''));
   const line = lines.find((l) => l.itemId === itemId) ?? lines[0] ?? null;
 
   // Lei 1 e Lei 2 juntas: o palpite vem do que já aconteceu, não de um zero.

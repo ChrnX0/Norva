@@ -164,6 +164,7 @@ const PLACE_STOCK: PlaceStock[] = [
       {
         itemId: 'sugar',
         name: 'Açúcar cristal',
+        kind: 'input',
         baseUnits: 44_000,
         baseUnit: 'g',
         valueCents: 20_768 as Cents,
@@ -179,6 +180,7 @@ const PLACE_STOCK: PlaceStock[] = [
       {
         itemId: 'sugar',
         name: 'Açúcar cristal',
+        kind: 'input',
         baseUnits: 6_000,
         baseUnit: 'g',
         valueCents: 2_832 as Cents,

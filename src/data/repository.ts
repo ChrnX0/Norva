@@ -1053,6 +1053,8 @@ export type PlaceStock = {
   lines: {
     itemId: string;
     name: string;
+    /** A espécie, para quem desenha poder pôr o provável na frente. */
+    kind: string;
     baseUnits: number;
     baseUnit: string;
     valueCents: Cents | null;
@@ -1082,12 +1084,13 @@ export async function stockByPlace(companyId: string): Promise<PlaceStock[]> {
     kind: string;
     item_id: string;
     item_name: string;
+    item_kind: string;
     base_unit: string;
     base_units: number;
     rate: number | null;
   }>(
     `SELECT m.location_id, l.name AS location_name, l.kind,
-            m.item_id, i.name AS item_name, i.base_unit,
+            m.item_id, i.name AS item_name, i.kind AS item_kind, i.base_unit,
             SUM(m.quantity_base_units) AS base_units,
             c.average_rate AS rate
        FROM movements m
@@ -1130,6 +1133,8 @@ export async function stockByPlace(companyId: string): Promise<PlaceStock[]> {
     place.lines.push({
       itemId: r.item_id,
       name: r.item_name,
+      /** A espécie, para quem desenha poder pôr o provável na frente. */
+      kind: r.item_kind,
       baseUnits: r.base_units,
       baseUnit: r.base_unit,
       valueCents: value,
