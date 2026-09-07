@@ -355,7 +355,16 @@ function Places() {
         {adding ? (
           <Card
             hue={palette.mint}
-            icon={(c) => <GlyphFactory size={26} color={c} weight={traco} />}
+            /* O desenho SEGUE o tipo escolhido, e antes era uma fábrica fixa num
+               formulário que cria loja, cliente ou câmara fria — o mesmo defeito
+               dos dois glifos consertados hoje na tela de cópia: guarda passando
+               não é desenho certo.
+               E seguir é melhor que só corrigir: `desenhoDoLugar` já existia e já
+               decide por tipo, então o cartão vira loja ao tocar em "Loja
+               própria" e cliente ao tocar em "Cliente". A escolha passa a ter
+               resposta visível, que é a mesma doutrina do resto do aplicativo —
+               nada aqui aparece pronto e imóvel. */
+            icon={(c) => desenhoDoLugar(kind, c, traco)}
             title={words.newPlace}
           >
             <View style={{ gap: space.lg }}>
