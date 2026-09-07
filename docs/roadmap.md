@@ -470,6 +470,7 @@ sempre, com outro nome.
 | **A ergonomia a -18 °C** | tela capacitiva com luva, QR a um braço de distância, dedo molhado. Nada disso é visível de dentro de um módulo nem de uma foto de emulador | o aparelho dentro da câmara fria, com alguém de luva |
 | **A conta em E3** | entrar de verdade cria uma conta de autenticação no projeto do dono, e isso é decisão dele — não minha e não do código | uma decisão de uma linha: posso criar uma conta de teste |
 | **Ouvir o aplicativo** | `src/acessivel.test.ts` prova que todo alvo se anuncia; ninguém nunca **ouviu**. Eu não alcanço o TalkBack daqui | cinco minutos dele no tablet, com o TalkBack ligado |
+| **A conferência cega NA DOCA** | duas posições escritas discordam, e as duas têm razão: um formulário por item ninguém preenche de luva, e o esperado na tela faz a pessoa confirmar sem contar. A contagem do item já é cega; a chegada da carga não | ele ver uma conferência de carga acontecendo — ou dizer que o padrão passa a ser perguntar quantas caixas chegaram |
 
 E a lição que essa separação carrega, porque ela já custou uma rodada: **o P2 não é
 uma afirmação sobre o mundo, é uma pergunta.** Eu travei o refluxo em tablet
@@ -1097,16 +1098,34 @@ a lista de qual comparação cada tela mostra. O que falta é o mecanismo compar
 uma funcionalidade, é a diferença entre um sistema que pede confiança e um que a
 prova.
 
-### 2. A conferência cega
+### 2. ~~A conferência cega~~ — JÁ EXISTE na contagem, e o que sobra é a DOCA
 
-Contar sem ver o número esperado, e a diferença virar movimento no razão em vez de
-sobrescrever saldo. A decisão do dono sobre isso já está no `CLAUDE.md` — *"o
-operador confere a prateleira… o que protege é o piso, não a permissão"* — e a
-contagem existe em `app/inputs/[id].tsx`.
+**Achado em 7 de setembro seguindo o caminho no emulador, e é correção de registro:**
+a conferência cega **está construída** em `app/inputs/[id].tsx:699`, com o raciocínio
+escrito ao lado — *"o número desaparece enquanto a contagem está aberta: com ele na
+tela a conferência vira cópia, e uma cópia não se distingue de uma contagem"*. Este
+item pedia o que já havia. Registro que virou mentira é pior que registro nenhum,
+porque manda alguém reconstruir o que existe.
 
-**Por que eleva:** é a única da lista que melhora a **qualidade do dado** em vez da
-apresentação dele. Com o esperado na tela, a pessoa digita o esperado. Todas as
-outras cinco dependem de o número estar certo.
+**O que sobra é outro caso, e ele NÃO é o mesmo.** Ao conferir a chegada de uma carga,
+a tela de transporte mostra *"4 caixas picolé de morango"* e oferece um toque em
+*"Conferir chegada"*. Aí o esperado está na tela, e quem está cansado confirma sem
+contar.
+
+**E isso é escolha deliberada, com razão escrita** em `app/(tabs)/transport.tsx:100`:
+*"o padrão é 'chegou tudo', porque é o que acontece na maioria das vezes e porque um
+formulário de contagem por item, no celular, na doca, ninguém preenche. Quem achou
+diferença corrige na tela do lugar, que já sabe registrar contagem cega."*
+
+**Os dois lados estão certos sobre coisas diferentes** — ergonomia da doca contra
+qualidade do dado — e por isso a decisão **não é minha**. Ela cai no portão P2 com a
+frase saindo inteira: *eu mudaria isto se eu visse alguém conferindo uma carga na doca,
+com luva, com o caminhão esperando.* Uma síntese possível existe e cabe em um campo —
+perguntar **quantas caixas chegaram**, sem mostrar o número, e só então dizer a
+diferença — mas trocar um padrão que alguém escolheu por observação é decisão de quem
+observou.
+
+Foi para a espera, com o que a tira de lá.
 
 ### 3. O aviso na data da decisão, para tudo
 
