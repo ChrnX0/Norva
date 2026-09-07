@@ -6179,3 +6179,35 @@ estáticas de portas que nunca esvaziam.** Uma guarda que nasce com zero achados
 quatro dispensas registradas é decoração, e decoração verde é pior que nada porque
 ensina a confiar. Registrado o **não** com a medida ao lado, para o próximo que
 tiver a mesma ideia não precisar remedir.
+
+---
+
+## `sale` não tem escritor, e isso decide o que o aplicativo consegue saber
+
+**7 de setembro, achado construindo o *"produza até segunda"*.** O tipo de movimento
+`sale` existe desde a fundação, e **nenhuma tela o escreve**. É a mesma família da
+coluna sem escritor que apareceu três vezes ontem, um andar acima: uma **espécie de
+fato** que o razão sabe representar e que nunca acontece.
+
+A consequência não é cosmética. Hoje o aplicativo sabe **o que saiu da fábrica** e
+não sabe **o que saiu para o consumidor** — a carga sai, chega na loja, e ali o
+razão para. Três coisas dependem disso e nenhuma delas funciona sem:
+
+- **O Espelho da Loja não tem como calibrar.** Ele compara o que chegou com o que
+  voltou; sem venda, o que ficou na prateleira e o que vendeu são a mesma coisa
+  para ele.
+- **A cobertura da EMPRESA é infinita para produto.** Com a mudança de sala
+  corretamente excluída da saída, o único jeito de um produto sair da empresa é
+  perda. O *"produza até"* teve de perguntar da FÁBRICA por causa disso — o que é o
+  modelo certo para produzir, e não substitui saber o que vendeu.
+- **Margem não existe.** Custo congelado o razão tem; preço de venda combinado
+  também. O que falta entre os dois é o fato de a venda ter acontecido.
+
+**O que isto NÃO é: um defeito a consertar sozinho.** É tela nova, é decisão de
+escopo, e existe uma pergunta de produto embaixo — quem registra a venda? A loja
+própria, num aparelho da empresa, item a item? Ou a contagem periódica da prateleira,
+que já existe e é cega, deduz a venda pela diferença? A segunda é muito mais barata
+e cabe no que já foi construído; a primeira é um PDV, que é outro produto.
+
+Fica escrito porque é a lacuna que mais decide o que o aplicativo consegue afirmar, e
+porque descobri-la custou construir uma feature que perguntava a coisa errada.

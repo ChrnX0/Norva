@@ -454,6 +454,30 @@ mudaria isto se eu visse ___"*. Isso não é trabalho, é espera, e carregar esp
 junto com serviço **faz a lista mentir sobre quanto dela é acionável**. Vão para uma
 seção própria, **"espera aparelho"**, e o que ficar na fila é tudo fazível hoje.
 
+### A pergunta que mais decide o que o app consegue afirmar — `sale` sem escritor
+
+**Achada em 7 de setembro construindo o "produza até".** O tipo `sale` existe no
+razão desde a fundação e **nenhuma tela o escreve**. O aplicativo sabe o que saiu da
+FÁBRICA e não sabe o que saiu para o CONSUMIDOR — a carga sai, chega na loja, e ali o
+razão para.
+
+Três coisas dependem disso: o Espelho da Loja não tem como calibrar (sem venda, o que
+ficou na prateleira e o que vendeu são a mesma coisa para ele), a cobertura da empresa
+é infinita para produto, e **margem não existe** — o custo congelado o razão tem, o
+preço combinado também, e o que falta entre os dois é o fato da venda.
+
+**E a pergunta é de produto, não de código, por isso está aqui e não na fila.** Duas
+respostas possíveis, e elas são produtos diferentes:
+
+| caminho | o que custa | o que dá |
+|---|---|---|
+| **A loja registra cada venda** | um PDV — aparelho, tela de venda, pessoa treinada | a venda no instante em que acontece |
+| **A contagem periódica deduz** | quase nada: a contagem cega **já existe** e já vira movimento | a venda do período, com a diferença explicada |
+
+O segundo cabe no que já foi construído e é o que uma fábrica de seis pessoas
+aguenta. O primeiro é outro produto. **A escolha é sua**, e ela decide se o Espelho
+da Loja tem como existir de verdade.
+
 ### Espera aparelho — o que NÃO é serviço, e por isso sai da fila
 
 Estes não estão pendentes: estão **esperando alguém usar**. Carregar espera junto
