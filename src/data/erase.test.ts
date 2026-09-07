@@ -233,6 +233,9 @@ test('erasing everything is never blocked - that is the point of it', () => {
     inputs: 6,
     movements: 0,
     movementsOfProducts: 0,
+    people: 0,
+    lots: 0,
+    orders: 0,
     recipes: 2,
     products: 1,
     purchases: 6,
@@ -262,6 +265,12 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     products: 1,
     purchases: 6,
     places: 3,
+    // As três que a confirmação não contava até 7 de setembro. Entram com número
+    // DIFERENTE de zero pela mesma razão da cicatriz de cima: zero faz a
+    // asserção passar com ou sem o campo ser carregado.
+    people: 6,
+    lots: 9,
+    orders: 4,
   };
 
   assert.deepEqual(tallyFor('all', counts), {
@@ -271,6 +280,9 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     products: 1,
     purchases: 6,
     places: 3,
+    people: 6,
+    lots: 9,
+    orders: 4,
   });
 
   // One area takes only its own with it. Places are the sharpest case: a store
@@ -287,6 +299,9 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     products: 0,
     purchases: 6,
     places: 0,
+    people: 0,
+    lots: 0,
+    orders: 0,
   });
   assert.deepEqual(tallyFor('inputs', counts), {
     inputs: 6,
@@ -295,7 +310,23 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     products: 0,
     purchases: 0,
     places: 0,
+    people: 0,
+    lots: 0,
+    orders: 0,
   });
+
+  // Só "apagar tudo" leva GENTE. Nenhuma área menor pode dizer que leva — e
+  // nenhuma pode CALAR que leva, que era o defeito: a grade de nomes com PIN
+  // sumia contada como zero.
+  assert.equal(tallyFor('all', counts).people, 6);
+  for (const area of ['purchases', 'recipes', 'products', 'inputs'] as const) {
+    assert.equal(tallyFor(area, counts).people, 0, `${area} não apaga gente`);
+  }
+
+  // Os lotes vão em "apagar tudo" E em "apagar produtos" — `tablesFor` lista os
+  // dois —, e não iam contados em nenhum.
+  assert.equal(tallyFor('products', counts).lots, 9, 'apagar produtos leva os lotes junto');
+  assert.equal(tallyFor('recipes', counts).lots, 0, 'apagar receitas não leva lote');
 
   // A receita não toca o livro-razão, e não pode dizer que toca: anunciar 412
   // movimentos ali seria assustar quem não precisa.

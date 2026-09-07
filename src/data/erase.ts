@@ -117,6 +117,24 @@ export type EraseCounts = {
   movementsOfProducts: number;
   /** Lugares que a pessoa cadastrou. O padrão, que nasce sem nome, não conta. */
   places: number;
+  /**
+   * Gente cadastrada — e é a ausência que mais custava.
+   *
+   * `tablesFor('all')` apaga `people` e `profiles`, e a confirmação contava
+   * ZERO: a grade de nomes com PIN pela qual o chão de fábrica inteiro entra
+   * sumia sem uma palavra. Quem aperta "começar do zero" para limpar o exemplo
+   * não imagina que está apagando as seis pessoas que cadastrou.
+   */
+  people: number;
+  /**
+   * Lotes — rastreabilidade e validade.
+   *
+   * Some em "apagar tudo" e em "apagar produtos", e não era contado em nenhuma
+   * das duas. É o que responde "de que ficha saiu esta caixa" e "quando vence".
+   */
+  lots: number;
+  /** Pedidos de loja. Só "apagar tudo" os leva inteiros. */
+  orders: number;
   recipes: number;
   products: number;
   purchases: number;
@@ -135,6 +153,9 @@ export const emptyCounts: EraseCounts = {
   movements: 0,
   movementsOfProducts: 0,
   places: 0,
+  people: 0,
+  lots: 0,
+  orders: 0,
   recipes: 0,
   products: 0,
   purchases: 0,
@@ -297,10 +318,24 @@ export type EraseTally = {
   purchases: number;
   /** Só "apagar tudo" leva os lugares; nenhuma área menor é dona deles. */
   places: number;
+  /** Ver `EraseCounts.people`: a grade de nomes sumia contada como zero. */
+  people: number;
+  lots: number;
+  orders: number;
 };
 
 export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
-  const nothing: EraseTally = { inputs: 0, movements: 0, recipes: 0, products: 0, purchases: 0, places: 0 };
+  const nothing: EraseTally = {
+    inputs: 0,
+    movements: 0,
+    recipes: 0,
+    products: 0,
+    purchases: 0,
+    places: 0,
+    people: 0,
+    lots: 0,
+    orders: 0,
+  };
 
   switch (area) {
     case 'purchases':
@@ -310,7 +345,16 @@ export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
     case 'products':
       // O movimento vai por CASCADE de `items`, e por muito tempo isto dizia
       // zero. Ver `EraseCounts.movementsOfProducts`.
-      return { ...nothing, products: counts.products, movements: counts.movementsOfProducts };
+      // Os lotes vão junto (`tablesFor('products')` os lista) e não eram
+      // contados. Os PEDIDOS não: a área leva `order_lines` e deixa `orders`,
+      // então o cabeçalho sobrevive apontando para nada — dito na prosa, não
+      // contado aqui, porque contar o que fica seria mentir do outro lado.
+      return {
+        ...nothing,
+        products: counts.products,
+        movements: counts.movementsOfProducts,
+        lots: counts.lots,
+      };
     case 'inputs':
       return { ...nothing, inputs: counts.inputs, movements: counts.movements };
     case 'all':
@@ -321,6 +365,9 @@ export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
         products: counts.products,
         purchases: counts.purchases,
         places: counts.places,
+        people: counts.people,
+        lots: counts.lots,
+        orders: counts.orders,
       };
   }
 }

@@ -607,6 +607,9 @@ export const en: Dictionary = {
         products: { one: '1 product', other: '{{n}} products' },
         places: { one: '1 place', other: '{{n}} places' },
         purchases: { one: '1 purchase', other: '{{n}} purchases' },
+        people: { one: '1 registered person', other: '{{n}} registered people' },
+        lots: { one: '1 batch', other: '{{n}} batches' },
+        orders: { one: '1 order', other: '{{n}} orders' },
       },
       back: 'Back',
       language: {

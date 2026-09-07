@@ -612,6 +612,9 @@ export const es: Dictionary = {
         products: { one: '1 producto', other: '{{n}} productos' },
         places: { one: '1 lugar', other: '{{n}} lugares' },
         purchases: { one: '1 compra', other: '{{n}} compras' },
+        people: { one: '1 persona registrada', other: '{{n}} personas registradas' },
+        lots: { one: '1 lote', other: '{{n}} lotes' },
+        orders: { one: '1 pedido', other: '{{n}} pedidos' },
       },
       back: 'Volver',
       language: {

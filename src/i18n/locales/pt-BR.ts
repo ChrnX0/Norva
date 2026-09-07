@@ -764,6 +764,11 @@ export const ptBR = {
         products: { one: '1 produto', other: '{{n}} produtos' },
         places: { one: '1 lugar', other: '{{n}} lugares' },
         purchases: { one: '1 compra', other: '{{n}} compras' },
+        // As três que a confirmação não contava. A primeira é a que mais dói:
+        // "apagar tudo" leva a grade de nomes com PIN, e dizia zero.
+        people: { one: '1 pessoa cadastrada', other: '{{n}} pessoas cadastradas' },
+        lots: { one: '1 lote', other: '{{n}} lotes' },
+        orders: { one: '1 pedido', other: '{{n}} pedidos' },
       },
       back: 'Voltar',
       /**
