@@ -1226,10 +1226,24 @@ O que sustenta: o livro-razão append-only guarda tudo, e `src/law.test.ts` já 
 a lista de qual comparação cada tela mostra. O que falta é o mecanismo compartilhado
 — hoje cada tela abre a sua conta à mão.
 
-**O tamanho, medido em 7 de setembro:** o `WhySheet` existe e tem **um** chamador —
-`app/recipes/[id].tsx:639`. Ou seja, a peça está construída e serve uma tela; o
-trabalho não é inventá-la, é generalizá-la e ligá-la nos números que hoje concluem
-sem abrir a conta. É a maior peça ainda desbloqueada da lista.
+**PRIMEIRA CAMADA FEITA em 7 de setembro.** O `WhySheet` deixou de conhecer receita:
+recebe uma `Conta` (parcelas e fechos) e serve qualquer número. A aritmética saiu para
+`src/domain/conta.ts`, provada por igualdade — as fatias somam um, as partes somam o
+total. O gesto é o toque longo, no `Touchable`, com `accessibilityActions` junto.
+
+Dois chamadores hoje: o custo de uma receita e o dinheiro parado nos relatórios
+(conferido na mão contra a foto — 11.616,44 + 807,96 + 237,90 + 207,26 = 12.869,56).
+
+**E a régua de QUANDO usar a folha, que só apareceu ao ir ligar a terceira tela.**
+Fui abrir a conta das perdas e ela **já estava aberta**: o segundo cartão da tela
+lista cada motivo com o que custou e em quantas vezes, e o comentário dele cita a Lei
+6 desde que foi escrito. Uma folha ali seria uma segunda cópia, pior, de uma conta que
+já está na página.
+
+Então a folha não é "o jeito de cumprir a Lei 6" — é o jeito **quando a conta não cabe
+na página**. Onde ela cabe, ela fica à vista, que é melhor: não depende de gesto nem de
+alguém descobrir que existe. O que sobra para ligar são os números cuja conta é longa
+ou vem de outra tela — não os que já mostram as parcelas embaixo de si.
 
 **Por que eleva:** é o que faz um dono parar de conferir por fora no caderno. Não é
 uma funcionalidade, é a diferença entre um sistema que pede confiança e um que a
