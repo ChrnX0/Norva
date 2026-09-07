@@ -293,6 +293,27 @@ custa o erro se a coisa nunca for feita.**
 Três dela são achado de varredura desta noite e vêm com a medida ao lado; cinco
 são coisas que eu **removeria ou mudaria**, e essas são as que ninguém pede.
 
+---
+
+**O estado em 7 de setembro, depois da auditoria — o que está aberto e o que cada
+coisa espera.** Toda linha abaixo tem a medida escrita ao lado do item, e
+`src/plano.test.ts` a roda: se alguém construir o que aqui está como aberto, a suíte
+fica vermelha até este parágrafo mudar.
+
+| o que | espera |
+|---|---|
+| **o `erase` não tem para onde ir** (2b) | **decisão sua.** Duas saídas escritas; a recomendação é B, o marcador. É P3 — migração, e o lado errado destrói dado num servidor. **Ela trava o item 2**, que é o transporte para o servidor. |
+| **quem registra a venda** (`sale` sem escritor) | **decisão sua.** Decide se o Espelho da Loja pode existir de verdade ou continua sendo contagem cega. |
+| **o cliente OAuth do Google** (0c) | **você**, para o backup subir sozinho. O 0a e o 0b estão feitos: o razão sai do aparelho por cópia manual hoje. |
+| **cinco minutos de TalkBack** (3) | **você, com o tablet.** A guarda prova que todo alvo se anuncia; ninguém nunca ouviu. |
+| **a sala do tacho** (5) | **decisão sua de PADRÃO**, não de qual — os dois caminhos existem como configuração. P3. |
+| **compras inteligentes** (6) | **tempo.** O mecanismo está construído e lido em duas telas; falta entrega observada de fábrica de verdade para calibrar. |
+
+**Fora dessas seis, não há item de código aberto na fila.** É por isso que a rodada de
+7 de setembro foi de auditoria e de rede: com a construção travada em decisão, o
+serviço que sobrava era medir o que o plano afirmava — e ele afirmava 38 coisas que o
+código desmentia.
+
 ### FEITO em 7 de setembro — o Orgânico deixou de ser o Papel fora da capa
 
 <!-- medida: presente src/theme/tokens.ts :: cabecalho: 'vinheta' -->
