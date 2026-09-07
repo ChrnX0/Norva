@@ -30,6 +30,7 @@ import { dayWindow, localDate } from '@/domain/day';
 import {
   fill,
   formatCalendarDate,
+  formatDayMonth,
   formatQuantity,
   formatTime,
   formatWeekdayAbbrev,
@@ -226,10 +227,22 @@ function ProductionDay() {
                       ? fill(t.app.production.makeToday, { name: p.name })
                       : fill(t.app.production.makeBy, {
                           name: p.name,
-                          day: formatWeekdayAbbrev(
-                            localDate(nowIso(), locale.timeZone, dias),
-                            locale,
-                          ),
+                          // Nome de dia só serve DENTRO de uma semana, e a foto
+                          // provou: com dez dias de folga a tela dizia "até qua." e
+                          // quem lê entende "quarta que vem" — um aviso ambíguo é
+                          // um aviso que a pessoa resolve pelo palpite dela.
+                          // Seis dias é o limite em que "quarta" só tem um
+                          // significado possível; do sétimo em diante vai a data.
+                          day:
+                            dias <= 6
+                              ? formatWeekdayAbbrev(
+                                  localDate(nowIso(), locale.timeZone, dias),
+                                  locale,
+                                )
+                              : formatDayMonth(
+                                  `${localDate(nowIso(), locale.timeZone, dias)}T12:00:00.000Z`,
+                                  locale,
+                                ),
                         })}
                   </Text>
                   {/* A conta aberta: toda conclusão abre a conta (Lei 6), e aqui
