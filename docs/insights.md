@@ -6521,3 +6521,109 @@ A consequência que dá para escrever hoje: **quando uma decisão muda o que a c
 por PADRÃO, o `e2e` é parte da mudança e não do fechamento.** Não é a barra inteira que
 falta — é reconhecer que mexer no padrão de uma tela é mexer no que as checagens
 assumem, e isso se descobre em quatro minutos de navegador ou em semanas de silêncio.
+
+---
+
+## 2026-09-07 — a guarda que FABRICA o número que o documento repete
+
+**O que se viu.** A tabela do `docs/roadmap.md` que se chama *"onde o produto está hoje
+— medido, não afirmado"* dizia **18 capacidades**. A guarda que a defende, `src/bar.test.ts`,
+derivava esse número assim:
+
+```ts
+new Set([...ACESSO.matchAll(/'([a-z_]+)'/g)]).size
+```
+
+— sobre o **arquivo inteiro** de `src/domain/access.ts`. E o arquivo tem duas listas: as
+doze capacidades e os sete papéis. Seis dos sete papéis são minúsculos (`'owner'`,
+`'operator'`, `'driver'`, `'buyer'`, `'customer'`, `'salesperson'`) e entravam na conta;
+`'storeManager'` escapava **só por ter maiúscula**. Doze mais seis dá dezoito.
+
+**Por que é pior que um número errado.** O documento não foi escrito antes e conferido
+depois: ele foi escrito **a partir da guarda**. Então os dois concordavam, o teste ficava
+verde, e a única fonte independente — o enum `capability` do Postgres, que tem doze
+valores — nunca era consultada. A linha de cima da mesma tabela já dizia `papéis | 7`,
+ou seja, os papéis eram contados duas vezes, uma delas com o nome errado.
+
+Este projeto já tinha escrito a regra certa noutra forma: *"uma guarda que compara duas
+coisas escritas pela mesma mão não guarda nada, e a pergunta certa é de onde vem o outro
+lado da comparação"*. Faltava a versão de dentro: **uma guarda que deriva do escopo
+errado não é uma guarda folgada — é uma fábrica de número, e o documento vira o eco
+dela.** O recorte agora é o corpo da lista, como o `papeis()` ao lado sempre fez.
+
+## Fronteira dita em voz alta continua sendo fronteira
+
+O docblock do `TABELA` admitia, com estas palavras: *"acrescentar uma linha à tabela sem
+acrescentar uma entrada aqui não quebra nada — e essa é a fronteira honesta desta
+guarda"*. Quatro linhas abaixo do próprio título, o roadmap prometia o contrário:
+*"`src/bar.test.ts` **roda essa coluna**: cada linha é derivada do sistema"*.
+
+Medido: **dez das treze linhas**. Fora ficavam a versão do aparelho (`V22`), a contagem
+de linhas de código (`~45.000`) e as guardas da proofgate (`24`) — e o regex da guarda
+**nem casaria** com `**V22**` nem com `**~45.000**`, então não encontrar não era erro,
+era silêncio. Duas das três estavam erradas: a proofgate tem 25 guardas, e o repositório
+tem **71.828** linhas, 59% acima do escrito.
+
+A honestidade do docblock não conserta nada — ela só documenta o buraco para quem lê o
+teste, e quem lê o plano lê a promessa. Agora uma segunda checagem recusa linha de tabela
+sem derivação atrás, e as três entraram (a de linhas de código com folga declarada de
+10%, porque ela é escala e não fato).
+
+## O plano errou nas duas direções, e uma auditoria adversarial contou: 38 vezes
+
+Seis auditores mediram `docs/roadmap.md` contra o código, e um refutador independente por
+fatia tentou derrubar cada achado. **38 contradições de pé, 16 derrubadas.** A maior parte
+é *aberto-mas-pronto* — o defeito que já tinha custado seis re-derivações numa noite —, e
+três formas novas apareceram:
+
+- **Linha que chegou falsa ao disco.** *"`ordered_at` … ninguém escreve nele"* foi escrita
+  no MESMO commit que acrescentou a pergunta à tela de compra. Não envelheceu: nasceu
+  velha.
+- **Item corrigido num lugar e não no outro.** *"O extrato do cliente continua de pé"* foi
+  escrita às 00:40 e o extrato entrou às 00:46 — seis minutos —, e a linha ficou.
+- **Âncora `arquivo:linha` que aponta para outra coisa.** Três âncoras da aprovação de
+  pedido caíram em código diferente. Em arquivo de seis mil linhas, o número da linha
+  envelhece a cada commit; o nome da função não.
+
+**A consequência é mecânica, não conselho.** Cada item da fila e cada linha da tabela *A
+ORDEM* passou a carregar uma **medida** em comentário de HTML — `<!-- medida: ausente
+<alvo> :: <agulha> -->` para item aberto, `presente` para item fechado, `espera` para o
+que nenhum comando responde (com o que se espera escrito). `src/plano.test.ts` roda todas
+e recusa item sem medida. No dia em que alguém construir o que a fila dá como aberto, a
+suíte fica vermelha e o plano é atualizado no mesmo commit — que é a regra 1 dele
+deixando de depender de memória.
+
+## Promessa em docblock não envelhece sozinha; guarda envelhece a cada commit
+
+`src/config/brand.ts` abre dizendo *"nothing else in the codebase hardcodes the name.
+Changing brands is an edit to this file plus `app.json`"*. Era verdade em 4 de setembro e
+apodreceu em 6, quando entraram a folha de partilha do backup (`dialogTitle: 'NORVA'`) e a
+recusa de cópia nos três idiomas. **Quatro lugares, os quatro chegando à tela**, num
+produto cujo nome ainda não passou pelo INPI e que vai para duas lojas.
+
+O conserto foi o de sempre e o guarda é novo: o nome sai de `brand.name`, o texto traduzido
+recebe `{{app}}`, e `src/marca.test.ts` recusa o quinto. Provado nos dois sentidos contra
+os arquivos de antes — pega os quatro, e deixa em paz o comentário que fala do produto pelo
+nome, porque a prosa deste repositório fala dele assim.
+
+## O vizinho da propriedade, terceira aparição: o coletor que descarta teste
+
+`src/layers.test.ts` promete que só a camada de dados lê dinheiro sem portão, e o roadmap
+promete mais: *"recusa qualquer arquivo fora de `src/data/` e `scripts/`"*. O coletor
+descarta `*.test.ts` — o que está certo para quase toda regra de camada, porque teste que
+FALA de SQL não é tela que FAZ SQL, e está errado para esta, que é sobre quem **chama**.
+
+Havia um chamador de verdade lá dentro: `src/notify/facts.test.ts`, em quatro linhas. O
+guarda agora varre os testes também, e esse fica dispensado com a razão escrita ao lado.
+Provado desligando a dispensa: quatro linhas acusadas, e religando, zero.
+
+## Nada achado: a animação de entrada
+
+Fui medir a cobertura de *"quero animação em todas as telas"* com um `grep` por
+`FadeIn|entering=` e ele devolveu **uma** tela de 22 — número que, dito ao dono, teria sido
+uma acusação falsa. A entrada mora no `Reveal`, e são **30 de 31 telas**; a que falta é a
+capa, cujas peças o usam por dentro. A régua estava errada, não o app.
+
+Fica registrado porque a lição não é sobre animação: **antes de dizer um número, rode a
+régua contra um caso que você sabe que ela deve pegar.** Aqui o caso verdadeiro era
+`app/settings.tsx`, e a régua o deu como vazio.

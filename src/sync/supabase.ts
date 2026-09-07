@@ -15,8 +15,8 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
  * **A chave publicável está no `app.json` de propósito, e isso não é descuido.**
  * Ela é publicável por desenho: vai dentro do APK, e qualquer pessoa com o
  * arquivo a extrai em um minuto. Quem protege o dado é a RLS, que é o que o
- * `db:verify` prova em dezessete garantias e o que o linter do servidor conferiu
- * quando as 39 migrações subiram. A chave que NÃO pode aparecer aqui — nem no
+ * `db:verify` prova contra um Postgres de verdade e o que o linter do servidor conferiu
+ * quando as migrações subiram. A chave que NÃO pode aparecer aqui — nem no
  * repositório, nem numa conversa — é a `service_role`, que passa por cima de
  * toda política; ela não é usada em lugar nenhum deste aplicativo.
  *

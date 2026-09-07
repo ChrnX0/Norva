@@ -421,12 +421,19 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   e incedível; `operator_id` = quem estava com o aparelho), e uma coluna só
   respondendo as duas é erro — já custou uma rodada inteira.
 
-- **Supabase: nada no ar antes de a sincronia existir.** Não há cliente Supabase no
-  projeto — nem em `package.json`, nem em `node_modules`; toda menção ao nome é
-  comentário ou leitura da pasta de migrações. As 32 migrações são arquivos
-  versionados, e quem as prova é o `npm run db:verify`, que sobe um Postgres
-  descartável e não depende de nuvem nenhuma. Provisionar (e pagar) projeto antes de
-  existir o caminho de escrita é gastar por nada.
+- **Supabase: nada no ar antes de a sincronia existir** — ~~e não havia cliente no
+  projeto~~ **valeu até 6 de setembro, quando o servidor subiu.** A regra continua
+  sendo a certa e o que a derrubou foi medida, não impaciência: três coisas ficaram
+  presas atrás dela ao mesmo tempo (a aprovação de pedido que não atravessa, a
+  configuração que vale por aparelho, e a lista de gente sem a qual não há quem
+  operou). Hoje `@supabase/supabase-js` está no `package.json` e `src/sync/supabase.ts`
+  monta o cliente — nulo quando não há servidor configurado, que é estado legítimo. As
+  migrações continuam sendo arquivos versionados, e quem as prova é o `npm run
+  db:verify`, que sobe um Postgres descartável e não depende de nuvem nenhuma.
+
+  *Este parágrafo afirmou "não há cliente Supabase no projeto" por um dia depois de o
+  cliente existir. Decisão registrada envelhece igual a plano — e como ela é lida em
+  toda sessão, o custo dela é maior.*
 
 - **Aparelho emprestado entra como produção e nada mais.** Celular da empresa
   passa de mão; quem está com ele usa o papel `operator` — sem custo, sem preço,
@@ -440,7 +447,7 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
 
 - **O servidor sobe o mais tarde possível.** A conta do Supabase é paga e tem
   folga, e mesmo assim: *"usar com sabedoria"*. Enquanto o caminho de escrita não
-  existir de verdade, o app continua inteiro no aparelho — as 32 migrações são
+  existir de verdade, o app continua inteiro no aparelho — as migrações são
   arquivos, e quem as prova é o `db:verify` local.
 
 - **Sem dados fiscais no começo.** CPF e CNPJ ficam para depois: pedi-los puxaria
@@ -708,6 +715,32 @@ relativos lidos como absolutos). O projeto já exige teste positivo e negativo d
 todo guard do repositório; a exigência vale igual para a medida de uma vez. **Antes
 de dizer um número, rode a régua contra um caso que você sabe que ela deve pegar e
 um que ela não deve** — se ela não distinguir os dois, o número não existe.
+
+**Guarda que deriva do escopo errado FABRICA o número que o documento repete.** Em 7
+de setembro a tabela *"medido, não afirmado"* dizia 18 capacidades e a guarda derivava
+18 — do arquivo inteiro do `access.ts`, onde moram as **doze** capacidades e os sete
+papéis, seis deles minúsculos e por isso contados junto (`storeManager` escapava só por
+ter maiúscula). O documento não foi conferido contra a guarda: foi **escrito a partir
+dela**, então os dois concordavam e o verde não significava nada. A regra irmã já estava
+escrita — *"uma guarda que compara duas coisas escritas pela mesma mão não guarda
+nada"* — e faltava esta: **pergunte de qual RECORTE a derivação lê**, e prefira sempre a
+fonte que não passou pela sua mão (aqui, o enum `capability` do Postgres).
+
+**Fronteira dita em voz alta continua sendo fronteira.** O docblock da mesma guarda
+admitia que "acrescentar uma linha à tabela sem acrescentar uma entrada aqui não quebra
+nada", enquanto o plano prometia que ela cobria todas — e cobria dez de treze, com duas
+das três de fora erradas. Honestidade em comentário documenta o buraco para quem lê o
+teste; quem lê o documento lê a promessa. **Se a promessa é boa, feche o buraco; se não
+é, corrija a promessa.** Não existe terceira saída.
+
+**E o plano carrega a medida junto do item, desde 7 de setembro.** Cada item da fila do
+`docs/roadmap.md` e cada linha da tabela *A ORDEM* traz um comentário
+`<!-- medida: ausente|presente|espera ... -->` que `src/plano.test.ts` roda: item aberto
+prova que a coisa não existe, item fechado prova que existe, e `espera` diz por escrito o
+que se espera de fora. No dia em que alguém construir o que a fila dá como aberto, a suíte
+fica vermelha — que é a regra 1 do plano ("item fechado sai no mesmo commit que o fecha")
+deixando de depender de memória. Uma auditoria adversarial de 7 de setembro contou o
+tamanho do problema antes do conserto: **38 contradições de pé, 16 derrubadas.**
 
 **Asserção sobre número calculado é igualdade contra outra fonte, nunca `> 0`.**
 Em 6 de setembro o extrato mostrou uma corrida de 506 picolés por R$ 625,27 quando
