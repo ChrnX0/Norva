@@ -8,6 +8,7 @@ import { useConfirm } from '@/components/Confirm';
 import { GlyphOrder, GlyphPlus } from '@/components/Glyph';
 import { ListRow } from '@/components/ListRow';
 import { Reveal } from '@/components/Reveal';
+import { localDate } from '@/domain/day';
 import { listOrders, setOrderStatus, type Order } from '@/data/repository';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
@@ -64,7 +65,24 @@ function Orders() {
   const askConfirm = useConfirm();
   const words = t.app.orders;
 
-  const { data, loading, refresh } = useQuery<Order[]>(() => listOrders(LOCAL_COMPANY_ID));
+  /**
+   * Os QUATRO estados, e não só os dois abertos — para poder desfazer.
+   *
+   * Entregar ou cancelar um pedido não toca o livro-razão: é um `UPDATE` de
+   * estado, e o tipo aceita ir e voltar. Mesmo assim o ato não tinha volta, por
+   * um motivo que não é do dado e sim da tela: **a lista mostrava só pendente e
+   * aberto**, então o pedido decidido SUMIA e não havia por onde desfazer. O
+   * comentário do `decide`, logo abaixo, já dizia isso desde que foi escrito.
+   *
+   * Uma auditoria de 7 de setembro classificou "entregar pedido" como
+   * irrecuperável e queria duas confirmações. Duas confirmações num ato que a
+   * pessoa faz várias vezes por dia é o alerta inventado: treina o dedo a passar
+   * batido. **Onde um ato rotineiro cai em irrecuperável, o conserto é construir
+   * a volta, não a fricção** — e aqui a volta custa uma consulta mais larga.
+   */
+  const { data, loading, refresh } = useQuery<Order[]>(() =>
+    listOrders(LOCAL_COMPANY_ID, ['pending', 'open', 'delivered', 'cancelled']),
+  );
 
   const decide = async (order: Order, status: 'open' | 'delivered' | 'cancelled') => {
     if (status === 'cancelled') {
@@ -88,7 +106,24 @@ function Orders() {
     refresh();
   };
 
-  const pedidos = data ?? [];
+  const todos = data ?? [];
+  const pedidos = todos.filter((o) => o.status === 'pending' || o.status === 'open');
+
+  /**
+   * O que foi decidido HOJE, que é a janela em que alguém desfaz.
+   *
+   * Hoje e não "os últimos dez": quem entregou por engano percebe no mesmo dia,
+   * e uma lista de decididos que cresce sem fim vira outra tela para ler. O dia
+   * vem de `localDate`, que é o dia da FÁBRICA — recortar texto de data foi a
+   * cicatriz que deixou uma tela cega entre meia-noite e três da manhã.
+   */
+  const hoje = localDate(new Date().toISOString(), locale.timeZone);
+  const decididosHoje = todos.filter(
+    (o) =>
+      (o.status === 'delivered' || o.status === 'cancelled') &&
+      o.decidedAt !== null &&
+      localDate(o.decidedAt, locale.timeZone) === hoje,
+  );
   /**
    * A cascata não pula número: abrindo ou vazio ocupam a posição 0, e aí o
    * primeiro pedido entra na 1. Com lista, o primeiro pedido é o 0.
@@ -202,10 +237,41 @@ function Orders() {
         );
       })}
 
+      {/* O QUE FOI DECIDIDO HOJE, e o caminho de volta.
+          Fica embaixo dos abertos porque é o caso raro, e a ordem da página é a
+          ordem da probabilidade. */}
+      {decididosHoje.length > 0 ? (
+        <Reveal index={antesDaLista + pedidos.length}>
+          <Card
+            icon={(c) => <GlyphOrder size={26} color={c} weight={traco} />}
+            title={words.decidedToday}
+          >
+            {decididosHoje.map((order) => (
+              <View key={order.id} style={[styles.row, { gap: space.sm, marginTop: space.sm }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[type.body, { color: color.ink }]}>
+                    {order.placeName || t.app.places.factory}
+                  </Text>
+                  <Text style={[type.caption, { color: color.inkFaint }]}>
+                    {order.status === 'delivered' ? words.wasDelivered : words.wasCancelled}
+                  </Text>
+                </View>
+                <Button
+                  label={words.undo}
+                  variant="ghost"
+                  onPress={() => void decide(order, 'open')}
+                  style={{ paddingVertical: space.sm, paddingHorizontal: space.lg }}
+                />
+              </View>
+            ))}
+          </Card>
+        </Reveal>
+      ) : null}
+
       {/* A porta de anotar pedido fica sempre aqui, com lista ou sem ela: é a
           única saída desta tela, e esconder caminho já custou duas telas sem
           porta na primeira instalação. */}
-      <Reveal index={antesDaLista + pedidos.length}>
+      <Reveal index={antesDaLista + pedidos.length + (decididosHoje.length > 0 ? 1 : 0)}>
         <Button
           label={words.add}
           onPress={() => router.push('/orders/new')}

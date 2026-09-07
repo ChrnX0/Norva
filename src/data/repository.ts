@@ -4684,6 +4684,17 @@ export type Order = {
   requestedFor: string | null;
   note: string | null;
   createdAt: string;
+  /**
+   * Quando a decisão foi tomada, ou nulo enquanto não foi.
+   *
+   * A coluna existe desde sempre e `setOrderStatus` a escreve; **ninguém a lia**.
+   * Ela passou a sair daqui porque a tela precisa de uma coisa que não tinha:
+   * mostrar o que foi decidido HOJE, para poder desfazer. Entregar um pedido por
+   * engano não tocava o razão e mesmo assim não tinha volta — não porque o dado
+   * proíbe (o estado vai e volta), mas porque a lista só mostra pendente e
+   * aberto, e o pedido decidido SUMIA da tela.
+   */
+  decidedAt: string | null;
   lines: OrderLine[];
 };
 
@@ -5437,8 +5448,10 @@ export async function listOrders(
     requested_for: string | null;
     note: string | null;
     created_at: string;
+    decided_at: string | null;
   }>(
-    `SELECT o.id, o.place_id, l.name AS place_name, o.status, o.requested_for, o.note, o.created_at
+    `SELECT o.id, o.place_id, l.name AS place_name, o.status, o.requested_for, o.note,
+            o.created_at, o.decided_at
        FROM orders o
        JOIN locations l ON l.id = o.place_id
       WHERE o.company_id = ? AND o.status IN (${marks}) AND (? IS NULL OR o.id = ?)
@@ -5469,6 +5482,7 @@ export async function listOrders(
     requestedFor: r.requested_for,
     note: r.note,
     createdAt: r.created_at,
+    decidedAt: r.decided_at,
     lines: lines
       .filter((l) => l.order_id === r.id)
       .map((l) => ({ itemId: l.item_id, name: l.name, baseUnits: l.base_units })),

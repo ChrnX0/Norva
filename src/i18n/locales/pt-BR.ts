@@ -527,6 +527,13 @@ export const ptBR = {
       title: 'Pedidos',
       overline: 'o que os clientes pediram',
       add: 'Anotar pedido',
+      // O caminho de volta de um pedido decidido por engano. Ver o docblock da
+      // consulta em app/orders/index.tsx: o ato não tocava o razão e mesmo assim
+      // não tinha volta, porque a lista escondia o que foi decidido.
+      decidedToday: 'Decididos hoje',
+      wasDelivered: 'marcado como entregue',
+      wasCancelled: 'cancelado',
+      undo: 'Desfazer',
       empty: 'Nenhum pedido aberto',
       emptyHint: 'Anote o que o cliente pedir. A capa passa a dizer o que falta produzir até o dia combinado.',
       forDate: 'para {{date}}',
