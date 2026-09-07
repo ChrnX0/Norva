@@ -25,6 +25,22 @@ function code(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 }
 
+/**
+ * Os arquivos de teste, que o `sourcesUnder` descarta de propósito.
+ *
+ * Duas varreduras diferentes porque as perguntas são diferentes: quase toda
+ * regra de camada é sobre o que EMBARCA, e teste não embarca. A do dinheiro sem
+ * portão é sobre quem CHAMA, e teste chama.
+ */
+function testesUnder(dir: string, into: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) testesUnder(path, into);
+    else if (/\.test\.tsx?$/.test(entry)) into.push(path);
+  }
+  return into;
+}
+
 function sourcesUnder(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir)) {
@@ -703,9 +719,32 @@ test('every exported function has a caller in production, or a written reason', 
  */
 const SEM_PORTAO = /\b(averageRatesForLedger|listProductsForLedger)\b/;
 
+/**
+ * Os testes que leem sem portão, cada um com a razão escrita.
+ *
+ * **Buraco medido em 7 de setembro, e ele era do coletor.** `sourcesUnder`
+ * descarta `*.test.ts` — o que está certo para quase tudo, porque um teste que
+ * fala de SQL não é uma tela que faz SQL. Só que este guarda não é sobre falar:
+ * é sobre CHAMAR, e o docblock dele prometia *"tela nenhuma as chama"* enquanto
+ * o roadmap prometia mais ainda — *"recusa qualquer arquivo fora de `src/data/`
+ * e `scripts/`"*. Com os testes fora do coletor, "qualquer arquivo" era metade
+ * dos arquivos, e havia um chamador de verdade lá dentro.
+ *
+ * É a mesma família que este arquivo já registrou duas vezes: **o vizinho da
+ * propriedade** — a guarda mede uma coisa parecida com a que promete, e passa
+ * verde por não ter olhado.
+ */
+const TESTE_PODE_LER = new Map<string, string>([
+  [
+    join('src', 'notify', 'facts.test.ts'),
+    'semeia um produto para exercitar o aviso, e a semeadura é escrita de razão: ' +
+      'o portão aqui esconderia a taxa do próprio dado que o teste acabou de plantar',
+  ],
+]);
+
 /** Onde o razão é escrito. Fora daqui, dinheiro se lê pelo caminho com portão. */
 function podeLerSemPortao(path: string): boolean {
-  return path.startsWith('src/data/') || path.startsWith('scripts/');
+  return path.startsWith('src/data/') || path.startsWith('scripts/') || TESTE_PODE_LER.has(path);
 }
 
 test('only the ledger reads money without the gate', () => {
@@ -713,7 +752,7 @@ test('only the ledger reads money without the gate', () => {
   for (const layer of ['app', ...readdirSync('src')
     .filter((entry) => statSync(join('src', entry)).isDirectory())
     .map((entry) => join('src', entry))]) {
-    for (const file of sourcesUnder(layer)) {
+    for (const file of [...sourcesUnder(layer), ...testesUnder(layer)]) {
       if (podeLerSemPortao(file)) continue;
       const linhas = code(readFileSync(file, 'utf8')).split('\n');
       linhas.forEach((linha, i) => {
@@ -754,6 +793,17 @@ test('the ledger-read guard bites a screen, and leaves the data layer alone', ()
     !SEM_PORTAO.test('const c = await itemCosts(companyId);'),
     'e deixa em paz o caminho com portão',
   );
+
+  // E o buraco do coletor, provado nos dois sentidos: um teste fora da camada de
+  // dados É varrido agora, e o único que pode ler tem a razão escrita.
+  assert.ok(
+    testesUnder('src/notify').includes(join('src', 'notify', 'facts.test.ts')),
+    'o coletor de testes tem de enxergar o arquivo que o guarda deixou passar por semanas',
+  );
+  assert.ok(!podeLerSemPortao(join('src', 'notify', 'alerts.test.ts')), 'teste não vira passe livre');
+  for (const [arquivo, razao] of TESTE_PODE_LER) {
+    assert.ok(razao.length > 40, `${arquivo} está dispensado sem razão escrita`);
+  }
 });
 
 /**
