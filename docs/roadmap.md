@@ -501,9 +501,43 @@ Continua travado no que o item 2b já diz: **E1**. Nada foi exercitado contra o
 servidor porque entrar de verdade cria uma conta de autenticação no projeto do dono,
 e essa é decisão dele.
 
-### 2b. O que trava o transporte, e é decisão de dono: o `erase` não tem para onde ir
+### 2b. ~~O que trava o transporte, e é decisão de dono~~ — **DECIDIDO em 7 de setembro: existe Reset, e ele apaga**
 
 <!-- medida: ausente supabase/migrations :: erase -->
+
+**A resposta do dono não foi nenhuma das duas que eu ofereci.** Eu tinha posto uma
+escolha entre *(A) limpar é só no telefone* e *(B) o servidor esquece sem apagar*, e ele
+respondeu por fora das duas:
+
+> *"coloca uma opção de Reset q passa por duas etapas de confirmações do usuário
+> explicando isso do registro aí antes de apagar. aí fica a critério do usuário.
+> obviamente q apenas o adm pode fazer isso."*
+
+Ou seja: **apagar de verdade, com o usuário sabendo exatamente o que perde.** O que
+carrega o peso é a TELA — duas confirmações, a segunda explicando o que o registro é —,
+não uma proibição do banco. É a mesma forma da Lei 5 deste projeto: *erro se impede, não
+se reclama* — aqui, o que impede é a pessoa entender antes, não o sistema recusar depois.
+
+E é a mesma lição que a decisão do PIN já tinha dado: **eu ofereci duas opções e as duas
+eram erradas.** A borda das perguntas do `CLAUDE.md` diz para perguntar qual é o PADRÃO,
+não qual é o único — e eu apresentei um mundo de duas saídas construído a partir do que
+eu tinha medido, não do que o produto precisa.
+
+**O que está fixo e não se repergunta:** existe Reset · ele apaga · são duas
+confirmações · a segunda explica o que se perde · só quem tem `manage_company` alcança.
+
+**O que falta, e é engenharia:** como o servidor honra isso sem que
+`movements_are_immutable` recuse (um `DELETE` no razão é recusado **até para o dono do
+banco** — medido); se o alcance é a empresa inteira ou continua por área; e se o caminho
+é esvaziar ou aposentar a empresa. É P3, então a forma é mostrada antes de rodar.
+
+**E zerar antes do lançamento é outro ato, que não depende disto.** Provado contra um
+Postgres com as 43 migrações: `DELETE` e `UPDATE` em `movements` são recusados até para
+o dono; `TRUNCATE` passa, porque não dispara gatilho de linha. Zerar pelo console do
+Supabase é `truncate`, nunca `delete`.
+
+<details>
+<summary>O achado original, que continua valendo como descrição do problema</summary>
 
 **Achado em 7 de setembro indo construir o transporte.** As peças estão todas de pé —
 o motor (`src/sync/engine.ts`) com as três regras e provado contra um `Transport`
@@ -532,8 +566,10 @@ em silêncio, e aí aparelho e servidor divergem para sempre sem ninguém saber.
 o razão continua append-only, e *"começar do zero"* continua fazendo o que promete na
 tela de quem apertou. É migração, então é P3 — entra com cuidado e não se edita depois.
 
-**Isto está aqui e não na fila porque a resposta muda o que é construído**, e porque
-o lado errado destrói dado num servidor. É uma das três bordas.
+~~**Isto está aqui e não na fila porque a resposta muda o que é construído**, e porque
+o lado errado destrói dado num servidor. É uma das três bordas.~~ — **respondido acima.**
+
+</details>
 
 ### 3. Ouvir o aplicativo — cinco minutos dele, zero meus
 

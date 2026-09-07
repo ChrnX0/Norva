@@ -626,6 +626,33 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   na cena da gente e foi corrigido sem ele precisar repetir, que é o que a correção
   dele deveria comprar.
 
+- **O Reset existe, é do dono, e passa por duas confirmações — decisão do dono, 7 de
+  setembro.** *"coloca uma opção de Reset q passa por duas etapas de confirmações do
+  usuário explicando isso do registro aí antes de apagar. aí fica a critério do usuário.
+  obviamente q apenas o adm pode fazer isso."*
+
+  Isso encerra a pergunta que estava aberta sobre o `erase` — e a resposta não era
+  nenhuma das duas que eu tinha oferecido (limpar só no telefone, ou marcador no
+  servidor). É uma terceira: **apagar de verdade, com o usuário sabendo exatamente o que
+  perde.** A tela é que carrega o peso, não a proibição.
+
+  O que a decisão fixa, e não se repergunta: existe Reset; ele apaga; são **duas**
+  confirmações e não uma; a segunda explica **o que o registro é e o que se perde com
+  ele**; e só quem tem `manage_company` alcança o botão — nem `operator`, nem aparelho
+  emprestado.
+
+  O que ela NÃO decide, porque é engenharia e não produto: *como* o servidor honra isso
+  sem que a tranca do razão (`movements_are_immutable`) recuse, se o alcance é a empresa
+  inteira ou continua por área, e se o caminho é esvaziar ou aposentar a empresa. É P3 —
+  migração, permanente — então a forma é mostrada antes de rodar, mas a decisão de que
+  ele existe já está tomada.
+
+  **E o dono zerando ANTES do lançamento é outro ato, que não depende disto.** Provado
+  contra um Postgres com as 43 migrações aplicadas: `DELETE` e `UPDATE` em `movements`
+  são recusados **até para o dono do banco** (gatilho de linha), e `TRUNCATE` passa —
+  ele não dispara gatilho de linha. Então zerar pelo console do Supabase é `truncate`,
+  nunca `delete`, e quem digitar `delete from movements` lá vai achar que o app quebrou.
+
 - **O operador confere a prateleira.** Numa fábrica de seis pessoas quem anda
   até a prateleira é quem trabalha lá, não o dono. Negar a permissão não deixa o
   número mais seguro — deixa a contagem sem acontecer, e saldo que ninguém
