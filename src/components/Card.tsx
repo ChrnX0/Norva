@@ -128,6 +128,28 @@ function Miolo({ children, tone = 'plain', hue, icon, title, style }: CartaoProp
    */
   const papel = tracos.genero === 'pagina';
 
+  /**
+   * O desenho do assunto, já vestido pela pele — crachá no Orgânico, traço solto
+   * no Papel. Sai daqui como variável porque ele é desenhado em DOIS lugares
+   * agora, e duplicá-lo seria a porta de as duas peles divergirem de novo.
+   */
+  const desenho = !icon ? null : papel ? (
+    // Sem crachá: o desenho fica na página, do tamanho do texto ao lado.
+    icon(toneColor ?? accent)
+  ) : (
+    <View
+      style={[
+        styles.badge,
+        {
+          backgroundColor: tint(toneColor ?? accent, scheme === 'dark' ? 0.22 : 0.14),
+          borderRadius: radius.lg,
+        },
+      ]}
+    >
+      {icon(toneColor ?? accent)}
+    </View>
+  );
+
   return (
     <View
       style={[
@@ -165,46 +187,55 @@ function Miolo({ children, tone = 'plain', hue, icon, title, style }: CartaoProp
         style,
       ]}
     >
-      {icon || title ? (
-        <View style={[styles.head, { gap: space.sm, marginBottom: space.sm }]}>
-          {/* O desenho NÃO respira mais aqui — e essa é uma reversão consciente.
+      {/* O desenho NÃO respira mais aqui — e essa é uma reversão consciente.
 
-              O `Alive` embrulhava todo crachá numa oscilação de escala de três
-              centésimos, igual para os vinte e seis desenhos. Ele nasceu de um
-              pedido do dono ("quero todos eles com aquela animação bem suave do
-              desenho de fábrica"), e o pedido estava certo — a leitura dele é que
-              estava errada. Na cena da fábrica o sol GIRA e a fumaça SOBE: cada
-              coisa faz o que ela faz. Um respiro só, aplicado a tudo, é o
-              contrário disso, e foi o que o dono recusou ao voltar ao assunto:
-              *"sutil, mas vivo"*, apontando a mesma cena de novo.
+          O `Alive` embrulhava todo crachá numa oscilação de escala de três
+          centésimos, igual para os vinte e seis desenhos. Ele nasceu de um
+          pedido do dono ("quero todos eles com aquela animação bem suave do
+          desenho de fábrica"), e o pedido estava certo — a leitura dele é que
+          estava errada. Na cena da fábrica o sol GIRA e a fumaça SOBE: cada
+          coisa faz o que ela faz. Um respiro só, aplicado a tudo, é o
+          contrário disso, e foi o que o dono recusou ao voltar ao assunto:
+          *"sutil, mas vivo"*, apontando a mesma cena de novo.
 
-              A chegada continua: o `Reveal` do casco assenta cada cartão. O que
-              saiu foi o laço perpétuo genérico — a vida agora mora DENTRO de cada
-              desenho, no `Vivo`, e só onde ela tem o que dizer. */}
-          {!icon ? null : papel ? (
-            // Sem crachá: o desenho fica na página, do tamanho do texto ao lado.
-            icon(toneColor ?? accent)
-          ) : (
-            <View
-              style={[
-                styles.badge,
-                {
-                  backgroundColor: tint(toneColor ?? accent, scheme === 'dark' ? 0.22 : 0.14),
-                  borderRadius: radius.lg,
-                },
-              ]}
-            >
-              {icon(toneColor ?? accent)}
-            </View>
-          )}
-          {title ? (
-            <Text style={[type.cardTitle, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-              {title}
-            </Text>
-          ) : null}
+          A chegada continua: o `Reveal` do casco assenta cada cartão. */}
+      {icon && !title ? (
+        /**
+         * Desenho SEM título vai ao LADO do conteúdo, não em cima dele.
+         *
+         * Ele ficava sozinho numa linha própria, com o vão à direita vazio, e a
+         * medida do problema é o que decidiu: eram **27 cartões em 15 telas**,
+         * não os "três" que a decisão de desenho tinha registrado. Vinte e sete
+         * linhas de altura gastas sem dizer nada.
+         *
+         * O que a foto mostrou, e desmentiu o que eu tinha escrito antes de
+         * olhar: o crachá do Orgânico **não** é decoração — ele é tingido com o
+         * tom do cartão e é o que dá cor à peça inteira. Quem estava pior era o
+         * Papel, onde a gota ficava órfã lá em cima, longe do número de que
+         * falava. Ao lado, ela encosta nele.
+         *
+         * `flex-start` e não `center`: o desenho acompanha a PRIMEIRA linha do
+         * conteúdo, que é onde mora a figura. Centralizado contra um bloco alto,
+         * ele desceria para o meio de um parágrafo e passaria a apontar para
+         * nada.
+         */
+        <View style={[styles.head, { gap: space.sm, alignItems: 'flex-start' }]}>
+          {desenho}
+          <View style={{ flex: 1 }}>{children}</View>
         </View>
-      ) : null}
-      {children}
+      ) : (
+        <>
+          {title ? (
+            <View style={[styles.head, { gap: space.sm, marginBottom: space.sm }]}>
+              {desenho}
+              <Text style={[type.cardTitle, { color: color.ink, flex: 1 }]} numberOfLines={1}>
+                {title}
+              </Text>
+            </View>
+          ) : null}
+          {children}
+        </>
+      )}
     </View>
   );
 }
