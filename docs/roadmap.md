@@ -49,9 +49,9 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **468** testes |
+| `npm test` | **470** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
-| `npm run e2e:fast` | **50** checagens num navegador de verdade |
+| `npm run e2e:fast` | **51** checagens num navegador de verdade |
 | `npm run db:verify` | **19** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
@@ -559,6 +559,13 @@ eu tinha medido, não do que o produto precisa.
 
 **O que está fixo e não se repergunta:** existe Reset · ele apaga · são duas
 confirmações · a segunda explica o que se perde · só quem tem `manage_company` alcança.
+
+**E um achado de olhos novos (Fable, 7 de setembro) que muda o desenho do Reset:** não
+existe *"apagar só o exemplo"*. As áreas são por TIPO — apagar "compras" leva as compras
+reais junto com as de exemplo, e cada cadastro real cria uma `purchase_line` que trava
+"apagar insumos". O caminho seguro (desativar um a um) não é apontado em lugar nenhum.
+É a saída **H** do estudo do erase — separar exemplo de dado real na origem — e ela
+entra no desenho do Reset em vez de ser tratada à parte.
 
 **O que falta, e é engenharia:** como o servidor honra isso sem que
 `movements_are_immutable` recuse (um `DELETE` no razão é recusado **até para o dono do

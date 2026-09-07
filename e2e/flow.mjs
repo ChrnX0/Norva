@@ -2534,6 +2534,27 @@ check('a person is registered with a profile, and the profile says what she may 
   assert.match(depois, /1 pessoa/, 'e o perfil passa a dizer quantos o vestem');
 });
 
+check('tapping a name on the grid leaves the grid, even when the grid is the only screen', async (page) => {
+  /**
+   * A grade chega pela abertura por `router.replace('/who')` — pilha de UMA
+   * rota — e saía por `router.back()`, que sem rota atrás não faz nada. Achado
+   * por leitura numa análise de olhos novos (E1); esta checagem é o E3: abre
+   * `/who` DIRETO, que é a mesma pilha de uma rota, toca num nome e afirma que a
+   * página mudou.
+   */
+  await page.goto(`http://localhost:${PORT}/who`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  const nomes = page.getByRole('button');
+  assert.ok((await nomes.count()) > 0, 'há alguém na grade para tocar');
+  await nomes.first().click();
+  await page.waitForTimeout(1500);
+  assert.doesNotMatch(
+    page.url(),
+    /\/who(\?|$)/,
+    `tocar num nome tem que SAIR da grade; a página continuou em ${page.url()}`,
+  );
+});
+
 check('the shared phone asks who is holding it, and only when the company names people', async (page) => {
   // A porta não pode existir antes de a empresa nomear: sem isso, "quem está com
   // o aparelho" é pergunta sem consequência — o movimento nasce sem operador de

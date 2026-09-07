@@ -255,6 +255,9 @@ export const en: Dictionary = {
       confirmAction: 'Send',
       lineCount: { one: '1 item', other: '{{n}} items' },
       sending: 'Recording…',
+      missingTitle: 'The factory is short for this load',
+      missingStock:
+        'The factory does not have everything in the cart: {{items}}. Check the stock, or send only what is there.',
       failed: 'Could not record the load',
       clear: 'Empty the cart',
       clearAsk: 'Empty the cart?',
@@ -808,7 +811,7 @@ export const en: Dictionary = {
       saving: 'Saving…',
       confirmTitle: 'Confirm?',
       confirmNew:
-        'You are registering {{name}}, bought as {{pack}} with {{factor}} {{unit}} per pack, costing {{price}}.',
+        'You are registering {{name}}, bought as {{pack}} with {{factor}} {{unit}} per pack, costing {{price}}. One {{pack}} goes into stock now, as the first invoice — if you have not bought it yet, record the invoice later instead of registering with a price.',
       confirmEdit:
         '{{name}} will now be bought as {{pack}}, with {{factor}} {{unit}} per pack. The average cost and the purchase history do not change.',
       failedToSave: 'Could not save',

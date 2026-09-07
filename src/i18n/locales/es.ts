@@ -260,6 +260,9 @@ export const es: Dictionary = {
       confirmAction: 'Mandar',
       lineCount: { one: '1 ítem', other: '{{n}} ítems' },
       sending: 'Registrando…',
+      missingTitle: 'Falta producto en la fábrica para esta carga',
+      missingStock:
+        'La fábrica no tiene todo lo que está en el carrito: {{items}}. Revise el stock, o mande solo lo que hay.',
       failed: 'No se pudo registrar la carga',
       clear: 'Vaciar el carro',
       clearAsk: '¿Vaciar el carro?',
@@ -813,7 +816,7 @@ export const es: Dictionary = {
       saving: 'Guardando…',
       confirmTitle: '¿Confirmas?',
       confirmNew:
-        'Vas a dar de alta {{name}}, comprado en {{pack}} con {{factor}} {{unit}} por empaque, costando {{price}}.',
+        'Vas a dar de alta {{name}}, comprado en {{pack}} con {{factor}} {{unit}} por empaque, costando {{price}}. Entra 1 {{pack}} al stock ahora, como la primera factura — si aún no lo compró, registre la factura después en vez de dar de alta con precio.',
       confirmEdit:
         '{{name}} pasa a comprarse en {{pack}}, con {{factor}} {{unit}} por empaque. El costo promedio y el historial de compras no cambian.',
       failedToSave: 'No se pudo guardar',

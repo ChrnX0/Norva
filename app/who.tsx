@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { router, useRouter } from 'expo-router';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
@@ -50,6 +50,22 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * carimbando as caixas de quem entrou — que é pior que não nomear ninguém,
  * porque tem cara de informação.
  */
+/**
+ * Sair da grade — para a capa quando a grade é a ÚNICA tela da pilha.
+ *
+ * `app/_layout.tsx` chega aqui por `router.replace('/who')` na abertura, então a
+ * pilha tem uma rota só, e `router.back()` não tem para onde voltar: o
+ * expo-router enfileira GO_BACK e nada acontece. A pessoa toca no nome, a grade
+ * diz "Agora é Ana" e fica ali — o modo compartilhado inteiro travado na porta.
+ * Pelo caminho `/more → Trocar de pessoa` (um `push`) funcionava, que é por isso
+ * que ninguém viu. Achado por leitura (E1) numa análise de olhos novos; a
+ * checagem de navegador que abre `/who` direto e toca num nome é o que o prova.
+ */
+function sairDaGrade() {
+  if (router.canGoBack()) router.back();
+  else router.replace('/' as never);
+}
+
 export default function Who() {
   return (
     <AreaProvider area="mist">
@@ -109,7 +125,7 @@ function Grade() {
     setPedindo(null);
     setDigitado('');
     setErrou(false);
-    router.back();
+    sairDaGrade();
   };
 
   const tocar = async (quem: Person) => {
@@ -119,7 +135,7 @@ function Grade() {
     // cobrar dois segundos de quem escolheu não ter PIN.
     if (!quem.hasPin) {
       await setCurrentOperator(quem.id);
-      router.back();
+      sairDaGrade();
       return;
     }
     setPedindo(quem);

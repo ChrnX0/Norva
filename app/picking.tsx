@@ -18,6 +18,7 @@ import {
   pickingCart,
   pickingFor,
   recordTransfer,
+  NotEnoughStockError,
   setOrderStatus,
   setPickingCart,
   type Item,
@@ -164,9 +165,16 @@ function Carrinho() {
       }
       refresh();
     } catch (e) {
+      // A recusa do piso vem com os números; a frase é desta tela, em três
+      // idiomas — a mensagem crua do erro é em inglês e é para o registro.
       await askConfirm({
-        title: words.failed,
-        message: e instanceof Error ? e.message : String(e),
+        title: e instanceof NotEnoughStockError ? words.missingTitle : words.failed,
+        message:
+          e instanceof NotEnoughStockError
+            ? fill(words.missingStock, { items: e.missing.map((m) => m.name).join(', ') })
+            : e instanceof Error
+              ? e.message
+              : String(e),
         acknowledge: true,
       });
     } finally {

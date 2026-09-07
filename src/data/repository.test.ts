@@ -4470,6 +4470,20 @@ test('a store that received two rulers keeps two fractions, and never one sum', 
   assert.ok(acucar && picole);
   const quando = '2026-09-20T12:00:00.000Z';
 
+  // A fábrica PRODUZ antes de mandar. Este teste transferia dez picolés que
+  // ninguém tinha feito — o exemplo semeado só tem compras de insumo — e passava
+  // porque a fábrica podia ficar negativa. O piso da transferência (o mesmo da
+  // produção) fechou essa porta, e o cenário passa a ser o de verdade.
+  const produto = (await listProductsForLedger(LOCAL_COMPANY_ID)).find((p) => p.itemId === picole.id);
+  assert.ok(produto, 'o picolé semeado é um produto com ficha');
+  await recordProduction(LOCAL_COMPANY_ID, {
+    productId: produto.id,
+    locationId: fabrica,
+    batches: 1,
+    unitsProduced: 400,
+    producedOn: '2026-09-19',
+  });
+
   for (const [item, quanto] of [[acucar, 1000], [picole, 10]] as const) {
     await recordTransfer(LOCAL_COMPANY_ID, {
       itemId: item.id, fromLocationId: fabrica, toLocationId: centro.id,
@@ -5395,4 +5409,59 @@ test('a sala padrão nasce sem nome, e renomear é a porta por onde ela ganha um
     /sem nome/,
     'o vazio não volta pela porta do renomear',
   );
+});
+
+test('mandar mais do que a sala tem é recusado antes de escrever — pela camada de dados', async () => {
+  /**
+   * A separação mandava o que estava no carrinho, e a fábrica ficava NEGATIVA.
+   *
+   * `app/transfer.tsx` conferia o saldo; `app/picking.tsx` comparava o carrinho
+   * com o PEDIDO e não lia `available` em lugar nenhum. Duas telas, duas
+   * respostas para a mesma regra — então a regra sobe para `moveBetween`, que
+   * as duas atravessam, como o piso da produção já faz.
+   */
+  await ensureStarterData(CO);
+  const acucar = await anInput('Açúcar do piso', 25_000);
+  await recordPurchase(CO, {
+    itemId: acucar,
+    purchaseQuantity: 2,
+    baseUnits: 50_000,
+    totalCents: fromDecimal(200),
+    occurredAt: '2026-09-01T09:00:00.000Z',
+  });
+  const loja = (await savePlace(CO, { name: 'Loja do piso', kind: 'own_store' })).id;
+  const fabrica = defaultLocationId(CO);
+
+  await assert.rejects(
+    () =>
+      recordTransfer(CO, { itemId: acucar, baseUnits: 80_000, fromLocationId: fabrica, toLocationId: loja }),
+    NotEnoughStockError,
+    'oitenta mil não saem de uma sala que tem cinquenta mil',
+  );
+  // E nada foi escrito: o saldo da fábrica é o que era.
+  assert.equal((await findItem(CO, acucar, fabrica))?.onHandBaseUnits, 50_000, 'a recusa não mexe no razão');
+
+  // O caso verdadeiro passa, e o saldo desce exatamente o que saiu.
+  await recordTransfer(CO, { itemId: acucar, baseUnits: 30_000, fromLocationId: fabrica, toLocationId: loja });
+  assert.equal((await findItem(CO, acucar, fabrica))?.onHandBaseUnits, 20_000);
+  assert.equal((await findItem(CO, acucar, loja))?.onHandBaseUnits, 30_000);
+});
+
+test('apagar tudo solta o aparelho de quem estava com ele — senão ele tranca sem volta', async () => {
+  await ensureStarterData(CO);
+  const perfis = await listProfiles(CO);
+  const dono = perfis.find((p) => p.templateRole === 'owner');
+  assert.ok(dono, 'o modelo de dono é semeado');
+  const eu = await savePerson(CO, { name: 'Eu', profileId: dono.id });
+  await setCurrentOperator(eu.id);
+  assert.ok((await currentCapabilities(CO)).has('manage_company'), 'o dono escolhido administra');
+
+  await eraseArea(CO, 'all');
+
+  // A pessoa sumiu E o ponteiro sumiu: o aparelho volta ao piso do dono, e o dono
+  // consegue recomeçar — que é o que "começar do zero" promete.
+  assert.equal(await currentOperatorId(), null, 'ninguém está com o aparelho depois de apagar tudo');
+  assert.ok((await currentCapabilities(CO)).has('manage_company'), 'e quem recomeça consegue cadastrar');
+  const denovo = await savePlace(CO, { name: 'Recomeço', kind: 'own_store' });
+  assert.equal(denovo.name, 'Recomeço');
 });

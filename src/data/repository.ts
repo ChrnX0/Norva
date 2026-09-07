@@ -2081,6 +2081,30 @@ async function moveBetween(
     throw new Error('só devolução tem motivo de devolução');
   }
 
+  /**
+   * O piso da ORIGEM, imposto aqui e não na tela — porque havia duas telas e só
+   * uma conferia.
+   *
+   * A transferência (`app/transfer.tsx`) recusava mandar mais do que a sala tem;
+   * a separação (`app/picking.tsx`) comparava o carrinho com o PEDIDO e mandava
+   * o que estivesse nele. Medido: açúcar com 50.000 g na fábrica, carrinho de
+   * 80.000 → fábrica em **−30.000 g**, loja com 80.000, sem erro nenhum. É a
+   * cicatriz exata que o piso da produção foi escrito para impedir, entrando
+   * pela outra porta — e a corrida seguinte para com "falta açúcar" enquanto a
+   * loja mostra estoque que nunca recebeu.
+   *
+   * A regra mora na camada de dados pelo mesmo motivo do piso da produção: uma
+   * tela a mais amanhã não pode reabrir o buraco. `NotEnoughStockError` é o
+   * mesmo erro, com os mesmos números, para a tela escrever a mesma frase.
+   */
+  const origem = await findItem(companyId, input.itemId, input.fromLocationId);
+  if (!origem) throw new Error('o item desta transferência não existe');
+  if (origem.onHandBaseUnits < input.baseUnits) {
+    throw new NotEnoughStockError([
+      { itemId: input.itemId, name: origem.name, needed: input.baseUnits, held: origem.onHandBaseUnits },
+    ]);
+  }
+
   const conn = await db();
   const at = nowIso();
   const occurred = input.occurredAt ?? at;
@@ -4223,6 +4247,28 @@ export async function eraseArea(companyId: string, area: EraseArea): Promise<voi
     // serializador levanta exceção, o motor para no primeiro buraco de propósito,
     // e tudo o que a fábrica gravar depois fica preso atrás dela para sempre.
     await forgetOrphans(conn);
+
+    /**
+     * Apagar as pessoas apaga também QUEM ESTÁ COM O APARELHO — senão ele tranca.
+     *
+     * `people` sai em "apagar tudo", mas o ponteiro `operator.current` mora em
+     * `app_meta`, que nenhuma área toca. Ficava apontando para uma pessoa que não
+     * existe; `currentCapabilities` resolve isso como "sumiu" e devolve o
+     * conjunto VAZIO — de propósito, para ninguém herdar poder de um fantasma.
+     * Só que `savePerson` e `savePlace` exigem `manage_company`: o dono não
+     * recadastrava ninguém, nem lugar, nem via dinheiro. Sem caminho de volta
+     * na tela — a grade só oferece "largar o aparelho" quando a pessoa existe.
+     *
+     * Medido por um teste de fora: dono cadastrado e escolhido → apagar tudo →
+     * zero capacidades, e as duas recusas. Irrecuperável sem reinstalar, na
+     * mesma tela em que a segunda confirmação explica o registro e não diz isto.
+     *
+     * Dentro da transação e com esta conexão, pelo mesmo motivo do `enqueue`:
+     * não pode existir instante em que a pessoa sumiu e o ponteiro ficou.
+     */
+    if (area === 'all') {
+      await conn.runAsync(`INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, '')`, [OPERATOR_KEY]);
+    }
 
     // Enqueued *after* the deletes, and that order is the whole point.
     //

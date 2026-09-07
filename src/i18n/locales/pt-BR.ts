@@ -342,6 +342,9 @@ export const ptBR = {
       confirmAction: 'Mandar',
       lineCount: { one: '1 item', other: '{{n}} itens' },
       sending: 'Registrando…',
+      missingTitle: 'Falta produto na fábrica para esta carga',
+      missingStock:
+        'A fábrica não tem tudo o que está no carrinho: {{items}}. Confira o estoque, ou mande só o que tem.',
       failed: 'Não deu para registrar a carga',
       /** Largar o carrinho é ato de gente, não defeito: a separação de ontem não serve hoje. */
       clear: 'Esvaziar o carrinho',
@@ -1027,7 +1030,7 @@ export const ptBR = {
       saving: 'Salvando…',
       confirmTitle: 'Confirma?',
       confirmNew:
-        'Você vai cadastrar {{name}}, comprado em {{pack}} com {{factor}} {{unit}} por embalagem, custando {{price}}.',
+        'Você vai cadastrar {{name}}, comprado em {{pack}} com {{factor}} {{unit}} por embalagem, custando {{price}}. Entra 1 {{pack}} no estoque agora, como a primeira nota — se ainda não comprou, lance a nota depois em vez de cadastrar com preço.',
       confirmEdit:
         '{{name}} passa a ser comprado em {{pack}}, com {{factor}} {{unit}} por embalagem. O custo médio e o histórico de compras não mudam.',
       failedToSave: 'Não deu para salvar',
