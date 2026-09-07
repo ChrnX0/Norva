@@ -6731,3 +6731,49 @@ git guarda a função se um dia alguém precisar dividir igualmente.
 **A regra que sai daqui:** toda régua que procura um NOME dentro de arquivos tem de tirar
 comentário antes. E o sinal de que uma está quebrada é este — ela reprova quando a
 documentação melhora.
+
+## A peça que marca "isto não tem volta" estava marcando o caminho de volta
+
+**O que se viu.** O dono propôs uma regra: *"toda ação destrutiva requer uma confirmação,
+toda ação irreversível deve requerer duas"*. Antes de aplicá-la, uma auditoria classificou
+**82 atos por três lentes**. O primeiro achado não foi sobre a regra: foi sobre o eixo que
+o aplicativo já usava.
+
+O campo `destructive` da folha de confirmação diz, no docblock que existe desde que a
+folha existe, que a forma centrada e vermelha é *"reservada para as ações que não podem
+ser desfeitas"*. Ele estava ligado em **três estornos** — o único ato do aplicativo cujo
+propósito inteiro é **ser** o caminho de volta — e em tirar um insumo de circulação, que o
+mesmo botão traz de volta. **Dos seis lugares que o passavam, quatro tinham volta.**
+
+Aplicar a regra do dono por cima desse sinalizador teria dado duas confirmações ao estorno
+e deixado o Reset com uma. **A regra certa, no eixo errado, protege ao contrário.**
+
+## E "irreversível" é o eixo errado neste sistema, o que é mais fundo
+
+Num razão append-only, **irreversível é o caso NORMAL**. Toda produção, perda, contagem e
+transferência fica para sempre — o gatilho do banco recusa apagar. Mas é **corrigível**: o
+estorno põe o fato contrário ao lado.
+
+Ao pé da letra, a regra poria o operador de luva confirmando **duas vezes por engradado**.
+E aí acontece o que este arquivo já registrou noutra forma: *alerta inventado ensina a
+ignorar alerta*. A pessoa cria o reflexo de passar batido, e no dia do Reset ela passa
+batido também — **a regra teria destruído exatamente a proteção que queria criar.**
+
+O eixo que ficou: **destrutivo → uma; irrecuperável → duas.** Trocar *irreversível* por
+*irrecuperável* encolhe a lista das duas confirmações para pouquíssimos atos, e é isso que
+faz a segunda significar alguma coisa quando aparecer.
+
+Duas consequências que valem tanto quanto o eixo:
+
+1. **A segunda folha tem de dizer coisa DIFERENTE da primeira.** Duas iguais são uma com
+   fricção, e treinam o mesmo reflexo. A primeira diz o que vai acontecer; a segunda diz o
+   que se perde e não volta, com os números.
+2. **Onde existe volta de verdade, ela vale mais que um segundo toque.** O prazo de dez
+   dias que o dono fixou para o Reset é a segunda rede — uma confirmação mais um caminho
+   de volta visível é mais seguro que dois toques sem volta, porque toque vira memória
+   muscular e prazo é fato.
+
+**E onde um ato ROTINEIRO cai em irrecuperável, o conserto é construir a volta, não a
+fricção.** A auditoria classificou "anotar a temperatura da câmara" como irrecuperável, e
+tecnicamente acertou: não existe correção de leitura. Duas confirmações ali seriam o
+desastre da câmara fria. O que falta é a leitura poder ser corrigida.
