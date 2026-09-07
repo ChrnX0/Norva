@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { useMemo } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import Animated, { useAnimatedProps } from 'react-native-reanimated';
-import Svg, { Defs, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { useAppearance } from '@/theme/Appearance';
 import { escurecer, hues } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -108,6 +108,7 @@ export function CenaPaisagem({ cena }: { cena: Cena }) {
         </Defs>
         <Rect width={PRANCHA_DO_CABECALHO.largura} height={PRANCHA_DO_CABECALHO.altura} fill="url(#ceuDaFaixa)" />
 
+        <Ceu noite={noite} />
         <AnimatedG animatedProps={arLonge}>
           <Path
             d="M-16 51c62-14 106 9 182 2s120-17 200-7v34H-16z"
@@ -121,7 +122,7 @@ export function CenaPaisagem({ cena }: { cena: Cena }) {
             assim que a engrenagem sumiu da faixa algumas horas atrás. */}
         <AnimatedG animatedProps={arLonge}>
           <G transform={`translate(${desvioDoTrecho(cena)} 0)`}>
-            <Patio {...pincel} />
+            <Patio {...pincel} noite={noite} />
           </G>
         </AnimatedG>
         <AnimatedG animatedProps={arPerto}>
@@ -149,7 +150,67 @@ type Pincel = {
 };
 
 /**
- * O PÁTIO à esquerda: dois silos, um galpão e um poste.
+ * O CÉU: sol de dia, lua e estrelas à noite — e é o vocabulário da capa, não um novo.
+ *
+ * **Cobrado pelo dono em 7 de setembro:** *"não falta um poste? uma lua? estrelas?...
+ * no light um solzinho como na home..."*. O céu da faixa estava vazio, e vazio numa
+ * faixa baixa é o que faz o meio dela ler como desligado — o mesmo defeito que as
+ * árvores tentaram consertar pelo caminho errado.
+ *
+ * O que muda desta vez é de onde a coisa vem: sol, lua e estrelas já existem no herói
+ * da capa que ele aprovou. Não é encher espaço, é a faixa falar a língua da própria
+ * pele — e um céu tem sol ou lua em qualquer mundo, inclusive no de uma fábrica.
+ *
+ * **As estrelas ficam PARADAS**, pela mesma regra que a capa já escreve: piscar é o
+ * primeiro movimento que a casa proíbe, e um céu piscando compete com quem trabalha.
+ */
+function Ceu({ noite }: { noite: boolean }) {
+  // O giro do sol é o mesmo da capa em compasso de faixa: devagar o bastante para
+  // não chamar, vivo o bastante para o céu não ser um retângulo de cor.
+  const giro = useCiclo(90_000, { repouso: 0 });
+  const ar = useAnimatedProps(() => ({
+    transform: [
+      { translateX: 150 },
+      { translateY: 22 },
+      { rotate: `${giro.value * 360}deg` },
+      { translateX: -150 },
+      { translateY: -22 },
+    ],
+  }));
+
+  if (noite) {
+    return (
+      <G>
+        <G fill="#F7E6B5">
+          <Circle cx={96} cy={14} r={0.9} opacity={0.5} />
+          <Circle cx={124} cy={26} r={0.7} opacity={0.38} />
+          <Circle cx={168} cy={10} r={1} opacity={0.55} />
+          <Circle cx={196} cy={30} r={0.8} opacity={0.42} />
+          <Circle cx={214} cy={16} r={0.6} opacity={0.32} />
+        </G>
+        {/* O quarto: um arco grande e um menor voltando, como no herói. Recortar por
+            círculo da cor do céu não serve — o céu é degradê, e a emenda apareceria. */}
+        <Path
+          d="M144 12a11 11 0 1 0 3 20 9 9 0 1 1-3-20z"
+          fill="#F7E6B5"
+          opacity={0.9}
+        />
+      </G>
+    );
+  }
+
+  return (
+    <AnimatedG animatedProps={ar}>
+      <Circle cx={150} cy={22} r={7} fill="#FFD76A" />
+      <G stroke="#FFD76A" strokeWidth={1.6} strokeLinecap="round">
+        <Path d="M150 9v3M150 32v3M137 22h3M160 22h3M141 13l2 2M157 29l2 2M159 13l-2 2M143 29l-2 2" />
+      </G>
+    </AnimatedG>
+  );
+}
+
+/**
+ * O PÁTIO à esquerda: dois silos, um galpão e uma LUMINÁRIA.
  *
  * **A primeira versão eram três árvores, e o dono as recusou com a pergunta certa:**
  * *"o q são essas árvores esquisitas aí? suponho q sejam fungos... mas o q q isso
@@ -170,9 +231,10 @@ type Pincel = {
  * desiguais, nenhum com cor.** Dois silos idênticos lado a lado seriam papel de
  * parede com outro contorno.
  */
-function Patio({ longe }: Pincel) {
+function Patio({ longe, vazio, noite }: Pincel & { noite: boolean }) {
   return (
-    <G fill={longe}>
+    <>
+      <G fill={longe}>
       {/* O silo alto: cilindro com tampa cônica. */}
       <Path d="M16 62V34a10 10 0 0 1 20 0v28z" />
       <Path d="M14 34l12-11 12 11z" />
@@ -182,9 +244,17 @@ function Patio({ longe }: Pincel) {
       {/* O silo menor, encostado, e o poste fino que fecha o grupo. */}
       <Path d="M86 62V44a7 7 0 0 1 14 0v18z" />
       <Path d="M85 44l8-7 8 7z" />
-      <Path d="M110 62V30h3v32z" />
-      <Path d="M105 32h13v3h-13z" />
-    </G>
+      {/* O mastro e a HASTE que sai dele para o lado. A primeira versão punha uma
+          travessa simétrica no topo e uma cabeça embaixo dela: lia como antena
+          parabólica, não como luminária. O que faz um poste de luz é o braço em
+          balanço, com a lâmpada pendurada na ponta. */}
+      <Path d="M111 62V29h3v33z" />
+      <Path d="M99 27h14v3H99z" />
+      </G>
+      {/* A lâmpada acende à noite e apaga de dia — é a única coisa do pátio que muda
+          com a hora, e é ela que dá a hora sem escrever a hora. */}
+      <Path d="M96 29h9l-2 5h-5z" fill={noite ? vazio : longe} />
+    </>
   );
 }
 
