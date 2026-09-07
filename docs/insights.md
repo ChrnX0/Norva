@@ -6861,3 +6861,57 @@ quando o que ela queria era *"a caixa de texto do preço do picolé"*. Trocada p
 medir — o que a tela guarda, manda e lê de volta — e para de depender de quem desenha
 primeiro. **Onde um `.first()` decide QUAL elemento, a asserção está amarrada ao layout**, e
 layout muda a cada tela nova.
+
+## A guarda que semeava a própria condição — e três formas do mesmo defeito num dia
+
+O dono nomeou quatro quebras de porte. Doze agentes as mediram, três atacaram cada
+resposta, e o veredito foi que **três das quatro não eram porte**: transportadora é cadastro
+barato, a grade com duzentos nomes é urgência fabricada (`people` é dimensão, não razão), e a
+segunda fábrica não é urgente porque nenhuma tela oferece a espécie. A quarta não espera porte
+nenhum: **a empresa deste aparelho era uma constante compilada**, o uuid que o servidor devolve
+ao criar a empresa era descartado, e a primeira subida seria recusada em bloco com UM aparelho
+e UMA fábrica.
+
+**Por que 470 testes, 19 garantias de banco e 51 checagens de navegador não viram isso.** A
+checagem 6 do `db:verify` — a que reproduz a fila do aparelho contra um Postgres de verdade,
+sob RLS — **inseria no servidor uma empresa com exatamente o id compilado do aparelho**, e o id
+da CONTA era o mesmo número. Um uuid fazendo três papéis. Ela provava que as colunas batem e
+absolutamente nada sobre o servidor aceitar uma fila carimbada por uma empresa que ele conhece.
+É a família já registrada aqui — *guarda que compara duas coisas escritas pela mesma mão* —
+numa forma nova: **a guarda que FABRICA a condição que esconde o defeito.** A pergunta que a
+pega: *de onde vem o valor que esta checagem usa como premissa?* Se a resposta é "deste mesmo
+arquivo", não há checagem. Agora o aparelho adota uma empresa, imprime qual, a shell lê dali —
+e recusa se ela for igual à conta.
+
+**E a mesma forma apareceu duas vezes mais na mesma rodada, o que é o que a torna um padrão:**
+
+1. **A verificação do teste usava a régua do código.** Os oito testes da adoção passaram de
+   primeira, então quebrei a adoção em quatro lugares para ver se mordiam. Uma mordida —
+   excluir uma tabela da varredura — **passou verde**, porque o teste conferia o resultado
+   chamando a mesma função que a adoção usa: excluir a tabela da régua a excluía da
+   conferência junto. A varredura do teste passou a ler o esquema por conta própria.
+2. **O "flake" que era empate.** Um teste de estorno falhou uma vez em três com a máquina
+   ocupada. Ele pedia *"a última perna por `recorded_at`"* — e as duas pernas caem no mesmo
+   milissegundo sob carga. **Empate em `ORDER BY` é sorteio**, e a lição estava escrita vinte
+   linhas acima no mesmo arquivo (escolher pelo fato que o teste afirma, não pela ordem).
+   Flake não é causa raiz: era ambiguidade minha.
+
+**A formatação que não sabe a língua da cadeia de caracteres não é cosmética.** Rodei
+`npx prettier --write` em seis arquivos — e este repositório **não tem configuração de
+prettier**. Valeu o padrão da ferramenta: aspas duplas, oitenta colunas, 6.823 linhas de diff
+para uma mudança de duzentas, e um guarda de tela reprovando porque o arquivo virou outro
+arquivo. Ao desfazer, a varredura que trazia as aspas de volta trocou `SELECT "table", "from"`
+por `SELECT 'table', 'from'`: em SQL aspa dupla é **identificador** e aspa simples é **texto**,
+então a consulta passou a devolver as duas palavras em vez das duas colunas — a lista de filhos
+do lugar voltou vazia e a adoção morreu na chave estrangeira. Quem pegou foi a suíte.
+
+**E o conserto que causava o defeito que ele existia para impedir.** A configuração da empresa
+sobe quando o dono mexe num interruptor e falha calada sem rede — correto, porque a mudança já
+vale naquele celular. Faltava a metade de baixo: a descida escrevia o valor velho do servidor
+por cima, e o interruptor voltava sozinho. Construí a marca de "não subiu ainda"… e no teste
+descobri que, depois de subir o pendente, eu **continuava descendo na mesma rodada** — e a
+resposta pode ter sido montada antes da minha escrita. O conserto reintroduzia a perda. A
+descida para ali agora. Para nada disso ser possível de testar antes, havia um motivo
+estrutural: o arquivo importava o cliente do servidor no topo, o cliente arrasta o React
+Native, e o React Native não atravessa o transformador da suíte — **um arquivo inteiro sobre
+comportamento de rede, sem uma linha de teste, e ninguém tinha perguntado por quê.**
