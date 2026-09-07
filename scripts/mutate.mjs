@@ -654,8 +654,8 @@ const DEFECTS = [
   },
   {
     file: 'src/data/repository.ts',
-    from: "VALUES (?, ?, '', 'store_room', ?)",
-    to: "VALUES (?, ?, '', 'storeroom', ?)",
+    from: "VALUES (?, ?, '', 'factory', ?)",
+    to: "VALUES (?, ?, '', 'factory_room', ?)",
     hurts: 'o local vai com um kind que o servidor não conhece e trava a fila inteira atrás dele',
   },
   {

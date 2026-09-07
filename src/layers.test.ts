@@ -517,6 +517,71 @@ test('a screen that produces reads the floor of the room the kettle is in', () =
   );
 });
 
+/**
+ * O aviso de validade da capa pergunta pela EMPRESA, não por uma sala.
+ *
+ * **A mutação que sobreviveu à suíte inteira.** Trocar
+ * `expiringSoon(empresa, trintaDias, 5)` por
+ * `expiringSoon(empresa, trintaDias, 5, empresa)` — acrescentando o lugar padrão
+ * como filtro — passou por 487 testes, 51 checagens de navegador e 19 garantias de
+ * banco sem que nada reclamasse. E o dano é o pior tipo: **silêncio**. O picolé
+ * pronto sai do almoxarifado no mesmo dia em que nasce; ele vence na câmara fria
+ * ou na loja, longe dos olhos. Com o filtro, o cartão emudece exatamente onde a
+ * validade importa, e um alerta que nunca toca é indistinguível de "está tudo
+ * bem".
+ *
+ * O repositório TEM teste de sala, e é ele que engana: prova que filtrar funciona
+ * e não diz nada sobre quem deve filtrar. A pergunta da capa é *"o que vence do
+ * que é meu"*; a pergunta da tela de uma sala é *"o que vence aqui"*. Duas
+ * perguntas, e só a segunda leva lugar.
+ */
+export function validadeDeUmaSalaSo(texto: string): string[] {
+  const achados: string[] = [];
+  for (const m of texto.matchAll(/expiringSoon\(/g)) {
+    const args = argumentos(texto, (m.index ?? 0) + 'expiringSoon('.length);
+    if (args === null) continue;
+    // empresa, data, quantos, sala — o quarto é o filtro, e a capa não o quer.
+    if (args.length > 3) achados.push(`expiringSoon(${args.join(', ')})`);
+  }
+  return achados;
+}
+
+test('the home expiry card asks the company, never one room', () => {
+  const capa = 'app/(tabs)/index.tsx';
+  const fonte = readFileSync(capa, 'utf8');
+  assert.match(fonte, /expiringSoon\(/, 'a capa tem de continuar perguntando validade');
+  assert.deepEqual(
+    validadeDeUmaSalaSo(fonte),
+    [],
+    `${capa} filtra a validade por um lugar. O picolé vence na câmara fria e na loja, ` +
+      'longe dos olhos: com filtro de sala o cartão emudece justamente onde a validade ' +
+      'importa, e alerta que nunca toca ensina a ignorar alerta.',
+  );
+});
+
+test('the expiry guard bites the surviving mutation, and leaves the room screens alone', () => {
+  // A mutação, letra por letra, como o `mutate` a escreve.
+  assert.deepEqual(
+    validadeDeUmaSalaSo('      expiringSoon(empresaDaqui(), trintaDias, 5, empresaDaqui()),'),
+    ['expiringSoon(empresaDaqui(), trintaDias, 5, empresaDaqui())'],
+    'a mutação que atravessou a suíte tem de reprovar aqui',
+  );
+  // E a forma da capa passa.
+  assert.deepEqual(
+    validadeDeUmaSalaSo('      expiringSoon(empresaDaqui(), trintaDias, 5),'),
+    [],
+    'a pergunta da empresa passa',
+  );
+  // A tela de UMA SALA continua livre para perguntar da sala dela: a guarda olha
+  // a capa, não o arquivo que contém a palavra.
+  const deSala = 'const aqui = await expiringSoon(co, ate, 5, sala);';
+  assert.deepEqual(
+    validadeDeUmaSalaSo(deSala),
+    ['expiringSoon(co, ate, 5, sala)'],
+    'a régua acha o filtro onde ele está — quem decide se ele é defeito é o teste, pelo arquivo',
+  );
+});
+
 test('the production floor guard bites the real scar, and leaves the fix alone', () => {
   const comProducao = (corpo: string) => `await recordProduction(EMPRESA_SEMENTE, {});\n${corpo}`;
 
