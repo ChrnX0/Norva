@@ -40,7 +40,7 @@ const AnimatedG = Animated.createAnimatedComponent(G);
  * evitar. Aqui o que muda entre assuntos é a silhueta; o horizonte é o mesmo.
  */
 export function CenaPaisagem({ cena }: { cena: Cena }) {
-  const { color, scheme } = useTheme();
+  const { color, scheme, accent } = useTheme();
   const { hue } = useAppearance();
   const paleta = hues[hue];
   const noite = scheme === 'dark';
@@ -62,9 +62,26 @@ export function CenaPaisagem({ cena }: { cena: Cena }) {
 
   const Silhueta = SILHUETAS[cena];
   const pincel: Pincel = {
-    // A silhueta é da cor da colina da frente, um tom mais fechada: é o que faz
-    // uma coisa ler como recortada no horizonte em vez de colada em cima dele.
-    massa: noite ? escurecer(paleta.hillNear, 0.72) : escurecer(paleta.hillNear, 0.82),
+    /**
+     * O ASSUNTO carrega a cor da ÁREA, e não a da colina.
+     *
+     * **Cobrado pelo dono em 7 de setembro, em três palavras: "porque é tudo
+     * verde?"** — e ele estava olhando o defeito certo. As cinco camadas da faixa
+     * saíam todas da mesma matiz: céu, colina de longe, colina de perto, pátio e a
+     * silhueta. Cinco tons de uma cor só é o *"apagado"* que ele já tinha recusado
+     * no Papel, escrito na outra pele.
+     *
+     * O conserto não é clarear nem inventar uma cor bonita: é a silhueta usar o
+     * acento da ÁREA, que é um sistema que o aplicativo já tem e que já pinta a
+     * régua e o crachá do cartão logo abaixo. Aí a cor **diz** alguma coisa —
+     * produção é terracota, transporte é lavanda, relatório é ocre — em vez de
+     * enfeitar. É a mesma regra do `tintaCheia: 'area'` desta pele: aqui a cor é o
+     * assunto.
+     *
+     * O pátio NÃO acompanha: ele é cenário, fica na cor da colina, e é esse
+     * contraste que separa o que a tela é do que está em volta.
+     */
+    massa: accent,
     // O vão é a única coisa com cor quente na cena, e é assim que ele significa
     // "aceso". Cor alternando em todo elemento é cor que não quer dizer nada.
     vazio: noite ? '#F5C66A' : '#FFFFFF',
@@ -222,7 +239,17 @@ function Fabrica({ massa, vazio }: Pincel): ReactElement {
   );
 }
 
-/** O CAMINHÃO, e ele ANDA: o verbo do transporte é atravessar. */
+/**
+ * O CAMINHÃO, e ele ANDA: o verbo do transporte é atravessar.
+ *
+ * **As rodas ficam FORA do corpo, e isso não é detalhe.** A primeira versão as
+ * desenhava como meias-luas encostadas na barriga da carroceria, e no render em
+ * escala de faixa o conjunto lia como um bloco com um degrau — um borrão, não um
+ * caminhão. Roda que não se destaca do corpo não é roda: é sombra.
+ *
+ * O corpo para em 58 e as rodas ficam centradas em 61, então elas sobram por baixo
+ * e por cima do contorno. O miolo vazado é o que fecha a leitura a três metros.
+ */
 function Caminhao({ massa, vazio }: Pincel): ReactElement {
   // Entra por fora da folha e sai por fora dela: um caminhão que nasce no meio do
   // quadro não está atravessando, está aparecendo.
@@ -231,11 +258,15 @@ function Caminhao({ massa, vazio }: Pincel): ReactElement {
   return (
     <AnimatedG animatedProps={ar}>
       <G fill={massa}>
-        <Path d="M0 42h52v22H0z" />
-        <Path d="M52 48h16l10 16H52z" />
-        <Path d="M6 64a6 6 0 1 1 13 0zM56 64a6 6 0 1 1 13 0z" />
+        {/* A carroceria, e a cabine mais baixa com o pára-brisa inclinado. */}
+        <Path d="M0 36h52v22H0z" />
+        <Path d="M52 43h13l9 15H52z" />
+        <Path d="M8 61a6 6 0 1 1 12 0 6 6 0 0 1-12 0zM52 61a6 6 0 1 1 12 0 6 6 0 0 1-12 0z" />
       </G>
-      <Rect x={56} y={51} width={10} height={8} fill={vazio} />
+      <G fill={vazio}>
+        <Path d="M55 46h8l5 8h-13z" />
+        <Path d="M11.5 61a2.5 2.5 0 1 1 5 0 2.5 2.5 0 0 1-5 0zM55.5 61a2.5 2.5 0 1 1 5 0 2.5 2.5 0 0 1-5 0z" />
+      </G>
     </AnimatedG>
   );
 }
