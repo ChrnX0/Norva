@@ -1165,6 +1165,35 @@ um que avisa no dia do problema.
 
 ### 4. O modo conversa — e o áudio, que é o que o dono viu
 
+**"Hey, Norva" — pedido do dono em 7 de setembro**, e ele acertou o motivo antes da
+ideia: *"tipo qdo a gente aciona o assistente do google"*. O caso é o que ele mesmo
+já tinha dado — *"o padeiro com a mão suja"* — e um botão que precisa ser tocado com
+luva **anula o mãos-livres**. A palavra de acionamento não é enfeite: é o que separa
+o modo voz de "um jeito diferente de digitar".
+
+**O que joga a favor:** motor de palavra-chave roda **no aparelho e offline**
+(Porcupine, openWakeWord), o que combina com a câmara fria; e *"Norva"* é um bom
+nome justamente por ser inventado — palavra que não aparece em conversa normal é o
+que segura o falso positivo. Com o "Hey" na frente são três sílabas, o mínimo que
+funciona.
+
+**O que custa:** um modelo treinado para a frase (pequeno, mas é dependência — pago
+no Porcupine para uso comercial, livre no openWakeWord), e bateria, que só pesa em
+aparelho fora da tomada.
+
+**E a consequência de desenho, que a ideia CRIA e vale mais que o custo:** este
+projeto grava **quem estava com o aparelho**, e um celular que escuta sem ser tocado
+quebra essa corrente — quem falou não é necessariamente quem destravou. Num aparelho
+compartilhado, **um comando de voz precisa dizer de quem ele é**, ou o movimento é
+atribuído à pessoa errada. Some isso ao fato de a escuta contínua ouvir todo mundo o
+tempo todo, e a conclusão é a F7: **ligar a palavra de acionamento é configuração da
+empresa**, como a entrada por PIN.
+
+**A ordem, e ela não é negociável pela natureza da coisa:** o aplicativo ouvir e
+entender vem primeiro, responder por voz vem depois, e acordar sem ser tocado vem por
+último. Palavra de acionamento sem assistente que escute é campainha de casa vazia.
+
+
 `memberships.prefers_conversation` existe desde a fundação (`0001_foundation.sql`)
 **sem tela nenhuma**. A ideia é escrever — ou falar — *"chegaram 20 caixas de
 morango"* em vez de navegar por quatro telas.
