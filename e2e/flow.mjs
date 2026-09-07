@@ -250,6 +250,31 @@ check('the storeroom is seeded on a deep link, not only from home', async (page)
   await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
 
+  /**
+   * Espera o FATO, não o relógio — e esta linha é a cicatriz de 7 de setembro.
+   *
+   * O `CountUp` chegou a esta tela nesta madrugada, e com ele a figura passou a
+   * subir de zero até o valor em 1250 ms. A consulta que traz `heldCents` é
+   * assíncrona: com a máquina carregada (quatro fatias de navegador em quatro
+   * núcleos), ela resolve DEPOIS do sono fixo, a animação começa depois disso, e
+   * o `screen()` lê um número que está no meio do voo. A checagem ficou vermelha
+   * nas quatro fatias e VERDE sozinha — que é a assinatura de tempo, não de
+   * defeito.
+   *
+   * O conserto errado seria aumentar o sono: é a mesma armadilha com um número
+   * maior, e ela volta na próxima máquina mais lenta. O certo é esperar pela
+   * coisa — e a PRIMEIRA tentativa de esperar pela coisa também estava errada,
+   * pelo motivo que vale escrever: eu esperei pelo RÓTULO ACESSÍVEL, que o
+   * `CountUp` publica com o valor final desde o primeiro quadro. É exatamente a
+   * propriedade cujo propósito é estar certa ANTES de a animação acabar, então
+   * a espera devolvia na hora e a leitura seguia lendo o meio do voo.
+   *
+   * O que assenta é o TEXTO VISÍVEL: o Playwright reconsulta até ele bater, e
+   * ele só bate quando a contagem chega. Sem sono novo e sem tolerância — se o
+   * número estiver errado, isto não passa.
+   */
+  await page.getByText('R$ 1.552,50').first().waitFor({ timeout: 15_000 });
+
   const text = await screen(page);
   assert.match(text, /R\$ 1\.552,50/, 'the four inputs are worth this much at average cost');
   assert.match(text, /Polpa de morango/);
