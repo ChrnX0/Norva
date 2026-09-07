@@ -150,6 +150,15 @@ Daí três regras de construção:
    tablet e tablet deitado — trocando `wm size`/`wm density` sem reiniciar. Uma foto
    isolada não responde "adapta?"; cinco lado a lado respondem.
 
+4. **A ferramenta que troca a largura DEIXA a largura trocada.** `wm density` é
+   persistente: em 7 de setembro o emulador estava preso em 240 dpi de um teste
+   antigo, e eu passei a sessão inteira lendo **720 dp — tablets** — como se fossem
+   telefones, medindo margens e julgando composição na largura errada. A foto não
+   avisa: ela sai 1080 px de qualquer jeito, e 1080 px é 393 dp ou 720 dp conforme
+   uma variável que ninguém vê no retrato. **Antes de olhar qualquer foto, `adb
+   shell wm density` e a conta** — e `wm density reset` ao terminar de comparar
+   larguras, sempre, porque quem esquecer envenena a próxima sessão inteira.
+
 **E a regra que vale mais que todas elas juntas: verde não prova tela.** O tema
 claro ilegível que chegou ao dono passou por 338 testes verdes e 36 checagens de
 navegador. O que prova tela é a **foto do emulador**, olhada. Isso agora existe:

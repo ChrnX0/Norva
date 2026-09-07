@@ -160,6 +160,32 @@ function pareceViva(caminho) {
   return { bytes, variacao: vistos.size, viva: bytes > 40_000 && vistos.size > 60 };
 }
 
+/**
+ * Em quantos dp esta tela está AGORA — e por que toda foto diz isso.
+ *
+ * `wm density` é persistente: quem comparou larguras e não devolveu deixa o
+ * aparelho preso. Em 7 de setembro o emulador estava em 240 dpi de um teste
+ * antigo, e uma sessão inteira leu **720 dp — tablet** como se fosse telefone,
+ * medindo margem e julgando composição na largura errada.
+ *
+ * A foto não avisa sozinha: ela sai 1080 px de qualquer jeito, e 1080 px é 393 dp
+ * ou 720 dp conforme uma variável que não aparece no retrato. Então a legenda de
+ * toda foto passa a trazer a conta. Regra escrita não impede; o que impede é o
+ * número estar na frente de quem olha.
+ */
+function larguraEmDp() {
+  try {
+    const d = adbBin('shell', 'wm', 'density').toString();
+    const t = adbBin('shell', 'wm', 'size').toString();
+    const dpi = Number((d.match(/Override density:\s*(\d+)/) ?? d.match(/Physical density:\s*(\d+)/))?.[1]);
+    const px = Number((t.match(/Override size:\s*(\d+)/) ?? t.match(/Physical size:\s*(\d+)/))?.[1]);
+    if (!dpi || !px) return null;
+    return { dp: Math.round(px / (dpi / 160)), px, dpi };
+  } catch {
+    return null;
+  }
+}
+
 function foto(nome) {
   if (!nome) throw new Error('uso: node scripts/aparelho.mjs foto <nome>');
   mkdirSync(SAIDA, { recursive: true });
@@ -191,7 +217,13 @@ function foto(nome) {
     rmSync(tmp, { recursive: true, force: true });
   }
 
-  console.log(`${destino} — ${(veredito.bytes / 1024).toFixed(0)} KB, variação ${veredito.variacao}`);
+  const largura = larguraEmDp();
+  const emQue = largura
+    ? ` — ${largura.dp} dp (${largura.px} px a ${largura.dpi} dpi)${largura.dp >= 600 ? ' ⚠ TABLET' : ''}`
+    : '';
+  console.log(
+    `${destino} — ${(veredito.bytes / 1024).toFixed(0)} KB, variação ${veredito.variacao}${emQue}`,
+  );
   if (!veredito.viva) {
     throw new Error(
       'a foto saiu morta (cor única). Isso NÃO é sucesso: o comando sairia zero e a tela\n' +
@@ -264,6 +296,7 @@ async function esperarDesenho(pacote = 'app.norva.mobile', minutos = 8) {
 async function fotos(nome) {
   if (!nome) throw new Error('uso: node scripts/aparelho.mjs fotos <nome-da-rota>');
   const ruins = [];
+  process.on('exit', () => tela('original'));
   for (const chave of Object.keys(TELAS)) {
     tela(chave);
     const desenhou = await esperarDesenho();
@@ -275,6 +308,9 @@ async function fotos(nome) {
       console.error(`  ${chave}: ${e.message.split('\n')[0]}`);
     }
   }
+  // Devolver a tela é `finally` e não a última linha: uma exceção no meio do laço
+  // deixava o aparelho preso na última largura, e a sessão seguinte fotografava
+  // tablet sem saber. Ver `larguraEmDp`.
   tela('original');
   if (ruins.length) {
     throw new Error(
