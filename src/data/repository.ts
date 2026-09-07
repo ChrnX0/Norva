@@ -916,6 +916,29 @@ export async function savePlace(
     sensorRanges?: Record<string, SensorRange>;
   },
 ): Promise<Place> {
+  /**
+   * Quem não administra a empresa não cadastra lugar — e o aparelho recusa ANTES.
+   *
+   * **A quinta aparição da fila travada, e desta vez o servidor já estava certo.**
+   * A política `locations_manage` exige `manage_company` desde a fundação, e o
+   * papel `operator` não a tem. O aparelho não conferia nada: o celular
+   * emprestado cadastrava uma loja, a linha entrava na fila, e o servidor a
+   * recusaria no dia em que a sincronia subisse — travando tudo o que a fábrica
+   * gravasse depois, com a causa três meses atrás.
+   *
+   * O `db:verify` já documenta a quarta aparição desta família na checagem 11, e
+   * a resposta dela foi abrir exceção para a linha de escrituração do próprio
+   * sistema (o lugar padrão, que `ensureLocation` cria no primeiro movimento de
+   * qualquer aparelho). O que ficou de fora foi o caso do meio: um lugar que uma
+   * PESSOA cadastra sem poder.
+   *
+   * A recusa é a mesma forma do `savePerson`: capacidade conferida na camada de
+   * dados, e a tela escrevendo a frase. Erro que IMPEDE, não que reclama.
+   */
+  if (!(await currentCapabilities(companyId)).has('manage_company')) {
+    throw new Error('lugar: quem não administra a empresa não cadastra nem renomeia lugar');
+  }
+
   const name = input.name.trim();
   if (!name) throw new Error('um lugar sem nome não se distingue de outro');
 

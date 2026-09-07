@@ -3977,6 +3977,12 @@ test('the ledger freezes the same rate whoever is holding the phone', async () =
     live = conn;
     await ensureStarterData(CO);
 
+    // A loja é criada ANTES de trocar de quem segura o aparelho, pelo mesmo
+    // motivo que a pessoa: `savePlace` passou a exigir `manage_company` — o
+    // servidor sempre exigiu, e o aparelho não conferia. É preparação do
+    // cenário, não o que este teste mede; o que ele mede é a taxa congelada.
+    const loja = (await savePlace(CO, { name: 'Loja Centro', kind: 'store' })).id;
+
     if (comOperador) {
       // A pessoa é criada ANTES de ser escolhida: `savePerson` exige
       // `manage_company`, e sem ninguém escolhido num aparelho pessoal quem está
@@ -4021,7 +4027,6 @@ test('the ledger freezes the same rate whoever is holding the phone', async () =
       itemId: acucar.id,
       countedBaseUnits: 1_000,
     });
-    const loja = (await savePlace(CO, { name: 'Loja Centro', kind: 'store' })).id;
     await recordTransfer(CO, {
       itemId: produto.itemId,
       baseUnits: 100,
@@ -5190,4 +5195,55 @@ test('erasing products takes ledger with it, and the confirmation says how much'
     antes - depois,
     'e a confirmação anuncia esse número, não zero — a regra da casa é que ela diga o que vai acontecer',
   );
+});
+
+test('quem não administra a empresa não cadastra lugar, e o aparelho recusa antes da fila', async () => {
+  /**
+   * A quinta aparição da fila travada — e desta vez o servidor já estava certo.
+   *
+   * A política `locations_manage` exige `manage_company` desde a fundação, e o
+   * papel `operator` não a tem. O aparelho não conferia nada: o celular
+   * emprestado cadastrava uma loja, a linha entrava na fila, e o servidor a
+   * recusaria no dia da sincronia — travando tudo o que a fábrica gravasse
+   * depois, com a causa três meses atrás.
+   *
+   * A checagem 11 do `db:verify` documenta a QUARTA aparição desta família e
+   * abriu exceção para a linha de escrituração do próprio sistema (o lugar
+   * padrão, que `ensureLocation` cria no primeiro movimento de qualquer
+   * aparelho). O caso do meio ficou de fora: um lugar que uma PESSOA cadastra
+   * sem poder.
+   *
+   * Aqui a régua é dos dois lados — o dono passa, o operador é recusado — porque
+   * uma recusa que recusa todo mundo também passaria neste teste.
+   */
+  await ensureStarterData(CO);
+
+  // O dono cadastra, que é o caminho normal.
+  const centro = await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' });
+  assert.equal(centro.name, 'Loja Centro');
+
+  // E o aparelho emprestado é recusado, com a razão na mensagem.
+  const perfis = await listProfiles(CO);
+  const operador = perfis.find((p) => p.templateRole === 'operator');
+  assert.ok(operador, 'os modelos são semeados, e um deles é o operador');
+  const ana = await savePerson(CO, { name: 'Ana', profileId: operador.id });
+  await setCurrentOperator(ana.id);
+
+  await assert.rejects(
+    () => savePlace(CO, { name: 'Loja Norte', kind: 'own_store' }),
+    /não administra a empresa/,
+    'o operador não cadastra lugar',
+  );
+
+  // E renomear é a mesma porta: `savePlace` faz upsert pelo id.
+  await assert.rejects(
+    () => savePlace(CO, { id: centro.id, name: 'Loja do Centro', kind: 'own_store' }),
+    /não administra a empresa/,
+    'nem renomeia o que já existe',
+  );
+
+  // A premissa, presa aqui: se um dia `operator` ganhar `manage_company`, este
+  // teste passa a comparar o dono com o dono e não prova nada.
+  const capacidades = await currentCapabilities(CO);
+  assert.equal(capacidades.has('manage_company'), false, 'o operador não administra a empresa');
 });
