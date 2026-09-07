@@ -177,3 +177,52 @@ test('a régua reprova o caso errado — e aprova o certo, que é onde ela já e
   `;
   assert.equal(cunha(separados), false, 'objetos diferentes não formam cunha nenhuma');
 });
+
+/**
+ * A tinta de um rótulo sobre cor é MEDIDA, nunca declarada — e a régua é `onAccent`.
+ *
+ * `color.onAccent` é a tinta escolhida para o ACENTO DA ÁREA. Quem pinta um botão com
+ * outra cor — a marca, o vermelho de apagar — e declara `onAccent` por cima acerta por
+ * acaso: a foto do Papel escuro já mostrou o resultado, "Procurar cidade" em tinta
+ * escura sobre marrom médio, ilegível de luva no corredor da câmara.
+ *
+ * O `Button` faz certo há tempo: mede com `tintaSobre` entre o branco e o quase-preto.
+ * O que este guarda pega são as CÓPIAS dele — e havia três, todas declarando. Copiar a
+ * regra em vez de usar a peça é o defeito; a assinatura dele é esta linha.
+ *
+ * A única leitura legítima de `onAccent` é como CANDIDATA de `tintaSobre`, que é o que
+ * `app/who.tsx` faz. Por isso a régua olha a linha inteira e não a palavra.
+ */
+test('ninguém declara a tinta sobre cor — ela se mede', () => {
+  const olhados = [...arquivos('src/components'), ...arquivos('src/home'), ...arquivos('app')];
+  assert.ok(olhados.length > 40, 'a busca precisa achar arquivo, senão ela passa por não olhar');
+
+  const culpados = olhados.filter((f) =>
+    semComentarios(readFileSync(f, 'utf8')).split('\n').some(declara),
+  );
+  assert.deepEqual(
+    culpados,
+    [],
+    `estes declaram a tinta em vez de medi-la — use o \`Button\` ou \`tintaSobre\`: ${culpados.join(', ')}`,
+  );
+});
+
+/** A linha usa `onAccent` como cor pronta em vez de candidata de `tintaSobre`. */
+function declara(linha: string): boolean {
+  return /\bcolor\.onAccent\b/.test(linha) && !/tintaSobre\s*\(/.test(linha);
+}
+
+test('a régua separa a cópia do uso legítimo', () => {
+  // O que o `WhatsNew` tinha escrito, palavra por palavra, antes do conserto.
+  assert.equal(
+    declara("          <Text style={[type.body, { color: color.onAccent, fontWeight: '600' }]}>"),
+    true,
+    'tem de pegar a tinta declarada',
+  );
+  // E o que `app/who.tsx` faz, que é o uso certo: candidata de uma medida.
+  assert.equal(
+    declara('{ color: ativo ? tintaSobre(palette.mint, color.onAccent, color.ink) : color.ink },'),
+    false,
+    'candidata de `tintaSobre` não é declaração',
+  );
+});
