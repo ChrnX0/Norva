@@ -320,6 +320,10 @@ export const es: Dictionary = {
       pick: 'Elegir el archivo',
       reading: 'Leyendo la copia…',
       confirmTitle: '¿Traer esta copia de vuelta?',
+      apagaAntesTitle: 'Lo que está aquí ahora se va',
+      apagaAntesBody:
+        'Traer la copia de vuelta vacía este aparato antes de llenarlo. Todo lo registrado después de la fecha de la copia se va con ello — asientos, lotes, pedidos y las personas registradas con PIN — y lo que aún no subió deja de existir. Si quiere los dos, guarde una copia de ahora antes.',
+      apagaAntesConfirm: 'Traer de vuelta igual',
       confirmBody: 'La copia es del {{when}} y guarda {{copyMovements}}. Este aparato tiene {{hereMovements}} ahora, y serán sustituidos por los de la copia.',
       confirmNoDate: 'La copia guarda {{copyMovements}}. Este aparato tiene {{hereMovements}} ahora, y serán sustituidos por los de la copia.',
       confirm: 'Traer de vuelta',
@@ -552,6 +556,10 @@ export const es: Dictionary = {
       erasing: 'Borrando…',
       cannotYet: 'Todavía no se puede',
       noUndo: 'Esto no tiene vuelta atrás.',
+      registroTitle: 'El registro no se rehace',
+      registroBody:
+        'Lo que la fábrica registró es la suma de cada asiento — de ahí salen el stock, el costo y el margen. Borrar no deshace los asientos: los saca del mundo. Ninguna reversión alcanza lo que ya no existe, y este aparato es el único lugar donde están.',
+      registroConfirm: 'Borrar igual',
       eraseTitle: '¿Borrar {{area}}?',
       eraseAllTitle: '¿Borrar todo?',
       erase: 'Borrar',

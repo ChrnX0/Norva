@@ -315,6 +315,10 @@ export const en: Dictionary = {
       pick: 'Choose the file',
       reading: 'Reading the copy…',
       confirmTitle: 'Bring this copy back?',
+      apagaAntesTitle: 'What is here now goes',
+      apagaAntesBody:
+        'Bringing the copy back empties this device before filling it. Everything recorded after the copy was made goes with it — entries, batches, orders and the people registered with a PIN — and whatever has not been sent yet stops existing. If you want both, save a copy of now first.',
+      apagaAntesConfirm: 'Bring it back anyway',
       confirmBody: 'The copy is from {{when}} and holds {{copyMovements}}. This device has {{hereMovements}} now, and they will be replaced by the ones in the copy.',
       confirmNoDate: 'The copy holds {{copyMovements}}. This device has {{hereMovements}} now, and they will be replaced by the ones in the copy.',
       confirm: 'Bring it back',
@@ -547,6 +551,10 @@ export const en: Dictionary = {
       erasing: 'Erasing…',
       cannotYet: 'Not yet',
       noUndo: 'There is no undo.',
+      registroTitle: 'The record cannot be rebuilt',
+      registroBody:
+        'What the factory recorded is the sum of every entry — stock, cost and margin all come from it. Erasing does not undo the entries: it takes them out of the world. No reversal reaches what no longer exists, and this device is the only place they live.',
+      registroConfirm: 'Erase anyway',
       eraseTitle: 'Erase {{area}}?',
       eraseAllTitle: 'Erase everything?',
       erase: 'Erase',

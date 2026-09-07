@@ -126,7 +126,7 @@ function Label() {
         back: volta.map(nomeada).join(' · '),
       }),
       confirmLabel: t.app.lotLabel.reverseConfirm,
-      destructive: true,
+      // Sem `destructive`: estornar um lote é a correção, não a perda.
     });
     if (!yes) return;
 

@@ -496,7 +496,7 @@ function InputDetail() {
         out: sai.length > 0 ? sai.map(diga).join(' · ') : t.app.inputDetail.undoNothingOut,
       }),
       confirmLabel: t.app.inputDetail.undoConfirm,
-      destructive: true,
+      // Sem `destructive`: desfazer um lançamento é o caminho de volta.
     });
     if (!go) return;
 
@@ -524,7 +524,8 @@ function InputDetail() {
         { name: item.name },
       ),
       confirmLabel: item.active ? t.app.inputDetail.retireConfirm : t.app.inputDetail.bringBack,
-      destructive: item.active,
+      // Sem `destructive`: tirar de circulação é destrutivo e TEM volta — o mesmo
+      // botão traz de volta, e o histórico do insumo não é tocado.
     });
     if (!go) return;
 

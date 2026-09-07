@@ -431,6 +431,12 @@ export const ptBR = {
       pick: 'Escolher o arquivo',
       reading: 'Lendo a cópia…',
       confirmTitle: 'Trazer esta cópia de volta?',
+      // A SEGUNDA folha. A primeira compara os dois números; esta diz o que a
+      // subtração significa, e o que ela não conta.
+      apagaAntesTitle: 'O que está aqui agora sai',
+      apagaAntesBody:
+        'Trazer a cópia de volta esvazia este aparelho antes de enchê-lo com ela. Tudo o que foi registrado depois da data da cópia sai junto — lançamentos, lotes, pedidos e as pessoas cadastradas com PIN —, e o que ainda não subiu deixa de existir. Se quiser os dois, guarde uma cópia de agora antes.',
+      apagaAntesConfirm: 'Trazer de volta mesmo assim',
       confirmBody: 'A cópia é de {{when}} e tem {{copyMovements}}. Este aparelho tem {{hereMovements}} agora, e eles serão substituídos pelos da cópia.',
       confirmNoDate: 'A cópia tem {{copyMovements}}. Este aparelho tem {{hereMovements}} agora, e eles serão substituídos pelos da cópia.',
       confirm: 'Trazer de volta',
@@ -699,6 +705,13 @@ export const ptBR = {
       erasing: 'Apagando…',
       cannotYet: 'Ainda não dá',
       noUndo: 'Isso não tem volta.',
+      // A SEGUNDA folha, e ela diz coisa diferente da primeira: a primeira conta
+      // o que sai, esta explica o que o registro é e por que ele não se refaz.
+      // Decisão do dono, 7 de setembro.
+      registroTitle: 'O registro não se refaz',
+      registroBody:
+        'O que a fábrica registrou é a soma de cada lançamento — é dela que saem o estoque, o custo e a margem. Apagar não desfaz os lançamentos: tira-os do mundo. Nenhum estorno alcança o que não existe mais, e este aparelho é o único lugar onde eles estão.',
+      registroConfirm: 'Apagar mesmo assim',
       eraseTitle: 'Apagar {{area}}?',
       eraseAllTitle: 'Apagar tudo?',
       erase: 'Apagar',

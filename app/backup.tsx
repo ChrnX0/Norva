@@ -155,6 +155,13 @@ export default function BackupScreen() {
           : fill(words.confirmNoDate, { copyMovements: daCopia, hereMovements: daqui }),
         confirmLabel: words.confirm,
         destructive: true,
+        // A segunda folha: a primeira compara os dois números, esta diz o que a
+        // subtração significa. Restaurar ESVAZIA o aparelho antes de encher.
+        segunda: {
+          title: words.apagaAntesTitle,
+          message: words.apagaAntesBody,
+          confirmLabel: words.apagaAntesConfirm,
+        },
       });
       if (!sim) return;
 

@@ -178,7 +178,8 @@ export default function ExtratoScreen() {
           back: volta.map(diga).join(' · ') || words.nothing,
         }),
         confirmLabel: words.undo,
-        destructive: true,
+        // Sem `destructive`: o estorno É o caminho de volta. Marcá-lo como
+        // irrecuperável era o eixo invertido — ver o docblock do campo.
       });
       if (!sim) return;
 

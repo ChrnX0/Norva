@@ -44,8 +44,39 @@ export type ConfirmRequest = {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
-  /** Draws it as a centred dialog in the danger colour, and has no default. */
+  /**
+   * O ato NÃO tem volta. Desenha a folha centrada, em vermelho, e sem padrão.
+   *
+   * **O eixo estava invertido, e dava para provar por este campo.** O docblock
+   * acima diz, desde que a folha existe, que a forma centrada é *"reservada para
+   * as ações que não podem ser desfeitas"*. Ele estava ligado em três estornos —
+   * o único ato do aplicativo cujo propósito inteiro é **ser** o caminho de
+   * volta — e em tirar um insumo de circulação, que o mesmo botão traz de volta.
+   *
+   * Uma auditoria de 7 de setembro classificou 82 atos por três lentes e mediu
+   * isso: dos seis lugares que passavam `destructive`, **quatro tinham volta**.
+   * A peça que marca "isto é grave" estava marcando o mecanismo de recuperação.
+   *
+   * Agora ele quer dizer o que sempre disse que queria, e **obriga a segunda
+   * folha**: `src/components/confirm.test.ts` recusa `destructive` sem `segunda`.
+   * Assim a regra do dono — *"toda ação irreversível deve requerer duas
+   * confirmações"* — não depende de cada tela lembrar.
+   */
   destructive?: boolean;
+  /**
+   * A segunda folha, e ela tem de dizer coisa DIFERENTE da primeira.
+   *
+   * Duas perguntas iguais não são duas confirmações: são uma com fricção, e
+   * fricção repetida treina o dedo a passar batido — que é o "alerta inventado"
+   * do `CLAUDE.md` na forma mais cara, porque estraga justamente a folha que
+   * importa.
+   *
+   * A primeira diz **o que vai acontecer**. A segunda diz **o que se perde e não
+   * volta**, com os números por extenso. É a decisão do dono, 7 de setembro:
+   * *"duas etapas de confirmações explicando isso do registro aí antes de
+   * apagar"*.
+   */
+  segunda?: { title: string; message: string; confirmLabel?: string };
   /** Drops the cancel button: for telling, not asking. */
   acknowledge?: boolean;
   /**
@@ -84,8 +115,28 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  /**
+   * O sim da primeira folha abre a segunda; o não resolve na hora.
+   *
+   * A segunda entra como uma pergunta nova com o mesmo `resolve`, então quem
+   * chamou continua esperando UMA promessa e recebe `true` só se as duas forem
+   * respondidas. A tela não sabe que houve dois passos, e é isso que faz a regra
+   * caber numa declaração em vez de num `if` repetido em cada chamada.
+   *
+   * `destructive` continua ligado na segunda: a forma centrada e vermelha é o
+   * aviso antes da leitura, e ela não pode afrouxar no passo mais grave.
+   */
   const settle = (answer: boolean) => {
     setPending((current) => {
+      if (answer && current?.segunda) {
+        return {
+          ...current,
+          title: current.segunda.title,
+          message: current.segunda.message,
+          confirmLabel: current.segunda.confirmLabel ?? current.confirmLabel,
+          segunda: undefined,
+        };
+      }
       current?.resolve(answer);
       return queue.current.shift() ?? null;
     });

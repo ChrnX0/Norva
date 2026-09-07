@@ -332,6 +332,13 @@ function Settings() {
       message: `${sayTally(area, tallyFor(area, counts), t)}\n\n${t.app.settings.noUndo}`,
       confirmLabel: t.app.settings.erase,
       destructive: true,
+      // A segunda folha, exigida por `destructive` e cobrada pelo guarda: a
+      // primeira conta o que sai, esta explica o que o registro é.
+      segunda: {
+        title: t.app.settings.registroTitle,
+        message: t.app.settings.registroBody,
+        confirmLabel: t.app.settings.registroConfirm,
+      },
     });
     if (!go) return;
 
