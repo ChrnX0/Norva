@@ -6801,3 +6801,63 @@ que a régua não existia; ela existe agora e mede da empresa e da sala.
 foto com `&` dentro de um subshell em vez de `run_in_background`, fiquei sem notificação de
 término, e tentei escrever um `until … sleep` para esperar o arquivo. O gancho `sem-espera`
 recusou com a frase da cicatriz de 1h03. Regra que está escrita não impede; gancho impede.
+
+
+## Olhos novos com teto de vinte minutos acharam quatro coisas que a barra inteira não viu
+
+O dono pediu *"uma análise rápida (max 20min) com o modelo Fable"* para usar o resto do
+limite semanal. A pergunta que eu dei ao agente não foi "o que falta" — foi **"o que quebra
+na segunda-feira de manhã numa fábrica de verdade"**, seguindo o caminho do primeiro dia:
+instalar, dar nome, cadastrar insumo, comprar, produzir, mandar carga, contar, entrar pela
+grade. E a regra: medir, procurar a decisão antes de acusar, e dizer o que procurou e não
+achou.
+
+**Cinco achados, três provados com teste de fora, quatro consertados.** Nenhum deles é
+"falta feature": todos são o app fazendo dano calado.
+
+| passo | o que acontecia | prova |
+|---|---|---|
+| cadastrar insumo | uma embalagem inteira entrava no estoque e a confirmação calava — decisão escrita ("a primeira nota"), mas a tela não dizia | E3 |
+| separação | mandava mais do que a fábrica tinha; a fábrica ficava **negativa** sem erro (50 kg → carrinho de 80 → −30 kg) | E3 |
+| apagar tudo | com uma pessoa escolhida, o ponteiro ficava apontando para um fantasma → **zero permissões**, sem volta | E3 |
+| grade de nomes | tocar não saía da grade quando ela era a única tela — a abertura chega nela assim | E1 → E3 pela checagem de navegador |
+
+**O que faz esta rodada valer a linha, além dos consertos:**
+
+1. **Dois testes passavam pelo motivo errado, e o piso novo os denunciou.** O da loja com
+   duas réguas transferia dez picolés que ninguém tinha produzido — passava porque a
+   fábrica podia ficar negativa. A régua nova (o piso da transferência) fez o teste
+   contar a verdade: agora produz antes. É a família de sempre: suíte verde protegendo
+   uma regra que ninguém pediu.
+
+2. **A mesma regra em duas telas com duas respostas.** A transferência conferia o saldo;
+   a separação comparava com o pedido. A resposta certa não é consertar a segunda tela —
+   é subir a regra para onde as duas passam (`moveBetween`), como o piso da produção já
+   faz. Uma terceira tela amanhã não reabre o buraco.
+
+3. **O que ele procurou e NÃO achou vale tanto quanto o que achou**: a conta da compra
+   (R$ 496 ÷ 40 kg = 1,24 c/g, confere), vírgula e ponto, produção com piso por sala,
+   contagem que grava diferença, semeadura que não ressuscita. E ele deixou de listar duas
+   coisas que pareciam defeito porque **achou a decisão registrada** — o consumo
+   proporcional sem tacho declarado e o PIN sem senha. É o comportamento que o
+   `CLAUDE.md` pede de mim e que eu mesmo falhei três vezes hoje.
+
+**E o meu erro repetido, para ficar barato da próxima vez:** duas vezes na mesma hora eu
+escrevi `assert s.count("    router.back();") == N` e a contagem veio maior porque a
+string de quatro espaços é **substring** da de seis — o script abortava antes de escrever
+e eu culpava o arquivo. Contagem de linha se ancora (`^\s*…$`, `re.M`), nunca por
+substring. Já tinha acontecido com `"    router"` de manhã; virou regra só na segunda.
+
+## Selector que acha pelo `.first()` acha pela ordem do desenho — e a ordem mudou
+
+A checagem do preço combinado pedia o campo por `getByLabel(/morango/i).first()` e passou
+por semanas. Ela quebrou hoje sem que ninguém tocasse no preço: o cartão do lugar ganhou a
+lista do que ele guarda, e a primeira coisa da página a falar de morango passou a ser a
+**linha da polpa** — que não é campo nenhum, então o `fill` estourou em vez de escrever.
+
+O defeito não é a linha nova; é a checagem ter dito *"alguma coisa que fale de morango"*
+quando o que ela queria era *"a caixa de texto do preço do picolé"*. Trocada por
+`getByRole('textbox', { name: /morango/i })`, ela volta a medir a costura que existe para
+medir — o que a tela guarda, manda e lê de volta — e para de depender de quem desenha
+primeiro. **Onde um `.first()` decide QUAL elemento, a asserção está amarrada ao layout**, e
+layout muda a cada tela nova.

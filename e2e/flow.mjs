@@ -2845,7 +2845,13 @@ check('an agreed price is typed on the store card and comes back', async (page) 
 
   // O picolé de morango, a 2,50 — com vírgula, que é o que um teclado brasileiro
   // oferece e o que já quebrou a leitura de preço uma vez neste projeto.
-  const campo = page.getByLabel(/morango/i).first();
+  //
+  // Pelo PAPEL, e não pelo rótulo: `getByLabel(/morango/i).first()` passou por
+  // semanas e quebrou no dia em que o cartão do lugar ganhou a lista do que ele
+  // guarda — a primeira coisa da página a falar de morango passou a ser a LINHA
+  // da polpa, que não é campo nenhum. Selector que depende de `.first()` depende
+  // da ordem do desenho, e ordem de desenho muda a cada tela nova.
+  const campo = page.getByRole('textbox', { name: /morango/i }).first();
   await campo.fill('2,50');
   await page.waitForTimeout(400);
   await page.getByText('Salvar lugar', { exact: true }).first().click();
@@ -2871,7 +2877,10 @@ check('an agreed price is typed on the store card and comes back', async (page) 
    * asserção sobre o que um campo guarda, escrita com `screen()`, ou casa outra
    * coisa ou não casa nada — nunca o campo. Quem responde é `inputValue()`.
    */
-  const guardado = await page.getByLabel(/morango/i).first().inputValue();
+  const guardado = await page
+    .getByRole('textbox', { name: /morango/i })
+    .first()
+    .inputValue();
   assert.equal(
     guardado,
     '2,50',
