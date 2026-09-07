@@ -25,7 +25,13 @@ export function Button({
 }: {
   label: string;
   onPress?: () => void;
-  variant?: 'primary' | 'ghost';
+  /**
+   * `'danger'` é `'primary'` pintado com o vermelho do tema — apagar, estornar,
+   * começar do zero. Existe aqui e não como cor solta no lugar da chamada porque
+   * a tinta do rótulo é MEDIDA contra o preenchimento (ver abaixo), e uma cópia
+   * do botão lá fora perde a medida junto com o resto da regra.
+   */
+  variant?: 'primary' | 'ghost' | 'danger';
   /**
    * Drawn to the left of the label, in the label's own colour.
    *
@@ -66,7 +72,8 @@ export function Button({
    * mancha. No Orgânico o acento por área continua — lá a cor é o assunto, e
    * foi assim que o dono escolheu.
    */
-  const preenchimento = tracos.tintaCheia === 'marca' ? brand : accent;
+  const preenchimento =
+    variant === 'danger' ? color.danger : tracos.tintaCheia === 'marca' ? brand : accent;
 
   /**
    * A tinta do rótulo é MEDIDA contra o preenchimento, não declarada.
@@ -92,7 +99,7 @@ export function Button({
     transform: [{ scale: withSpring(pressed ? motion.pressScale : 1, motion.press) }],
   }));
 
-  const isPrimary = variant === 'primary';
+  const isPrimary = variant !== 'ghost';
 
   return (
     <AnimatedPressable

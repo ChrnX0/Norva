@@ -6299,3 +6299,32 @@ sofreram no dia 6, pelo mesmo motivo. A régua ficou com folga em vez de encosta
 A lição de método: **quando um ajuste de cor quebra uma régua, a pergunta não é
 quanto recuar — é se o valor de antes tinha folga.** Se não tinha, o que existia era
 um limite escondido, e recuar é voltar a fingir que ele não está lá.
+
+### O terceiro caso do mesmo padrão, e este ninguém tinha visto: a folha de confirmação
+
+Procurando o que MAIS estava só num lugar, apareceram dois de uma vez.
+
+**O `CountUp` existia só em `src/home/`** — o número que anda até o valor, pedido pelo
+dono para *"todas as telas"*, morava na capa e em lugar nenhum das outras vinte.
+
+E **toda confirmação do aplicativo saía azul.** `ConfirmProvider` mora na raiz, acima
+de todo `AreaProvider`, então lia a área padrão — que é a da capa. Apagar uma receita
+nos Ajustes, despachar carga no Transporte, tudo com o tom da home. No Papel isso
+nem se notava, porque lá o botão cheio é da marca e é igual em toda tela; **no
+Orgânico, onde a cor É o assunto, a folha respondia o assunto errado** — e é a única
+pele em que dá para ver.
+
+O conserto não é passar a cor: é a folha aprender o NOME da área e abrir um
+`AreaProvider`, porque a regra do tema é *"No screen ever passes a color down by
+hand"*. Com o nome, o botão, a régua e o crachá acertam sozinhos.
+
+**E embaixo disso havia uma cópia.** A folha desenhava o próprio botão em vez de usar
+o `Button`, e a cópia já tinha divergido três vezes: a forma do canto (consertada uma
+vez, copiando a regra em vez de usar a peça — o comentário dessa correção ainda está
+lá, dizendo que o `Button` respeitava e a folha não), a tinta do preenchimento (que
+ignorava `tintaCheia`) e a tinta do rótulo (declarada em vez de medida contra o
+fundo, que é um defeito que a foto do Papel escuro já mostrou uma vez).
+
+A lição, e ela é a de sempre neste arquivo virada de outro lado: **quando se corrige
+uma divergência copiando a regra, a próxima divergência já está paga.** O conserto
+certo era usar a peça.

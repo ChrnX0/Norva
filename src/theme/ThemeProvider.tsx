@@ -39,6 +39,16 @@ type Theme = {
   brand: string;
   /** The ambient hue of the area the user is currently in. */
   accent: string;
+  /**
+   * Qual área, e não só a cor dela.
+   *
+   * Existe porque uma peça montada FORA da tela — a folha de confirmação, que
+   * mora na raiz — precisa vestir a área de quem a chamou, e cor passada na mão
+   * é exatamente o que a regra de baixo proíbe: *"No screen ever passes a color
+   * down by hand"*. Com o nome da área, a peça abre um `AreaProvider` e tudo lá
+   * dentro (botão, régua, crachá) acerta sozinho.
+   */
+  area: Ambient;
   type: typeof typeBase;
   space: typeof space;
   /** Os cantos são da identidade: retos no Papel, generosos no Orgânico. */
@@ -132,6 +142,7 @@ export function ThemeProvider({
       // ninguém decidir isso.
       brand: chosen.tracos.marcaVemDoTom ? hues[hue].brand : color.apricot,
       accent: color[area],
+      area,
       type,
       space,
       radius: chosen.radius,
