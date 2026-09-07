@@ -422,6 +422,59 @@ qualquer lugar nosso ou só da sala em que roda? Com duas unidades a resposta er
 autoriza um tacho de uma cidade a consumir a polpa da outra. Não é pergunta de qual —
 é qual é o **padrão**, e os dois caminhos existem como configuração.
 
+**O estudo que o dono pediu — 7 de setembro: três das quatro quebras não eram porte.**
+Doze agentes, cada resposta atacada por três, e cada afirmação que sobrou conferida por
+leitura depois. Uma delas estava errada, e está registrada como errada.
+
+| a quebra que ele nomeou | o veredito | por quê |
+|---|---|---|
+| **o aparelho como único lar do razão** | **é a única de verdade, e é a primeira** | não espera duas fábricas nem duzentas pessoas: quebra na primeira subida de um aparelho só — item 0b-ter |
+| `fábrica = empresa` | **não é urgente** | nenhuma tela oferece a espécie `factory`, então ninguém cria a segunda; e o que ela arrasta (a descida de `locations`) é pré-requisito do 0b-ter, não o contrário |
+| **transportadora** | **barata, com uma armadilha** | `suppliers` (migração 0002) tem zero escritores e zero leitores, e `purchases.supplier_id` nunca é escrito — só `supplier_name` vive. Copiar aquele molde cria a segunda tabela morta: `carriers` entra **com tela no mesmo commit**, e a coluna no ato da carga só depois de haver leitor |
+| **a grade com duzentos nomes** | **urgência fabricada** | `people` é dimensão e não razão, então afrouxar a unicidade de nome depois é de graça; o que entra agora é espelhar no aparelho a restrição que o servidor já tem — hoje o aparelho aceita duas "Maria" e o servidor recusaria a segunda. Busca acima de N nomes é configuração de peça |
+
+**E a correção do próprio estudo, registrada porque o número foi dito antes de ser
+conferido:** ele afirmou que `puxar` e `empurrar` não têm chamador. Os dois têm —
+`empurrar` quatro vezes em `app/settings.tsx`, `puxar` uma em `app/account.tsx:80`. O que
+sobra é menor e continua sendo dívida: a configuração da casa desce **só quando a tela da
+Conta abre**, nunca no boot, então um aparelho que nunca abre Conta trabalha com a
+configuração dele.
+
+### 0b-ter. A empresa deste aparelho é uma constante compilada — e é o que quebra na primeira subida
+
+<!-- medida: ausente src/data :: company\.id -->
+
+`LOCAL_COMPANY_ID` (`src/data/seed.ts:11`) é a MESMA constante em toda instalação, e é ela
+que carimba cada linha do razão. Quando o dono cria a empresa, `criarEmpresa` devolve o id
+verdadeiro do servidor e `app/account.tsx:130` **joga fora**. Duas consequências, e nenhuma
+delas aparece antes de haver servidor:
+
+- a primeira subida é recusada em bloco — o servidor não conhece a empresa `0000…1` e a
+  conta que empurra não é membro dela: chave estrangeira e política, as duas;
+- o lugar padrão tem o id da própria empresa (`defaultLocationId` devolve o `company_id`),
+  então dois aparelhos colidem no mesmo lugar ainda que a empresa estivesse certa.
+
+**Por que a barra nunca viu:** a checagem 6 do `db:verify` insere no Postgres descartável
+uma empresa com exatamente essa constante (`scripts/verify-migrations.sh`, `DEVICE_ACCOUNT`)
+— ela **fabrica à mão a condição que esconde o defeito**. É a família de sempre: guarda que
+compara duas coisas escritas pela mesma mão.
+
+**O caminho, e ele não pede migração de servidor:**
+
+1. a empresa deste aparelho vira **fato guardado** (`app_meta`, chave `company.id`),
+   escrito quando a empresa é criada e quando a associação é aprovada;
+2. a **adoção** reescreve o carimbo das linhas locais numa transação, antes de qualquer
+   transporte — o SQLite do aparelho não tem gatilho de imutabilidade, é o mesmo livro com
+   outra capa, e nenhuma linha saiu de aparelho nenhum até hoje;
+3. o lugar padrão ganha id próprio, e `defaultLocationId` deixa de devolver o `company_id`;
+4. a fila **se recusa a subir** enquanto não houver empresa adotada — falhar aqui, com
+   frase, em vez de falhar no servidor sem ninguém entender;
+5. a barra passa a adotar uma empresa cujo id NÃO é a constante, para a checagem 6 provar o
+   que promete.
+
+É **P3** — carimbo de `movements` —, então a forma é mostrada antes de rodar. E é **antes do
+item 2** (o transporte): tudo que subir antes disto sobe carimbado errado.
+
 ### 0. O backup — 0a e 0b FEITOS em 6 de setembro; falta o 0c (Drive)
 
 <!-- medida: ausente src :: googleapis -->
