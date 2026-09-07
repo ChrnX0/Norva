@@ -6915,3 +6915,41 @@ descida para ali agora. Para nada disso ser possível de testar antes, havia um 
 estrutural: o arquivo importava o cliente do servidor no topo, o cliente arrasta o React
 Native, e o React Native não atravessa o transformador da suíte — **um arquivo inteiro sobre
 comportamento de rede, sem uma linha de teste, e ninguém tinha perguntado por quê.**
+
+## Migração não se prova com teste — e a checagem que passa pelo motivo errado agora tem terceira forma
+
+**Três defeitos numa migração de vinte linhas, e 495 testes verdes por cima deles.** A
+`0044` (transportadora) foi empurrada com expressão dentro de `unique (...)` de tabela — que
+em Postgres só existe em índice, e a `0018` já tinha resolvido o mesmo caso quatro migrações
+antes —, com duas ajudantes de política chamadas sem o esquema `private` (a forma da `0001`,
+revogada na `0005`), e sem o `grant insert, update` para o papel do aplicativo, cuja falta faz
+o servidor recusar **a fila inteira** por permissão.
+
+Nenhum dos três é visível de dentro do aparelho: o SQLite não tem política, não tem esquema e
+não tem papel. O `typecheck` passou, os 495 testes passaram, o portão passou. Quem pegou foi o
+`db:verify`, um por execução — e ele pegou um quarto, que é dele mesmo: a sessão do aparelho
+tem guarda de completude, então tabela que atravessa e não é exercitada **reprova a
+execução**. Daí a linha nova na barra do `CLAUDE.md`: *migração roda `db:verify`*, e ele leva
+um minuto.
+
+**A terceira forma da checagem que passa pelo motivo errado, e esta era minha, de ontem.** A
+checagem *"tocar num nome sai da grade"* pedia `getByRole('button').first()` numa instalação
+virgem. O exemplo semeado **não cadastra gente** — então o único botão da tela era o do estado
+vazio, que leva para "Pessoas". A URL mudava, a asserção passava, e nenhum nome havia sido
+tocado: o defeito que ela existe para pegar (a grade aberta como única rota, que é a abertura
+do aplicativo) nunca era exercitado.
+
+As três formas que este dia mostrou, juntas, porque elas se parecem e enganam por motivos
+diferentes:
+
+| forma | o que a torna verde | o que a pega |
+|---|---|---|
+| a guarda que **semeia a própria condição** (checagem 6 com o id compilado do aparelho) | premissa escrita pela mesma mão que a checa | perguntar de onde vem o valor que ela usa como premissa |
+| a verificação que usa **a régua do código** (o teste da adoção chamando `tabelasComEmpresa`) | excluir da régua exclui da conferência junto | a segunda fonte ser lida de novo, não reusada |
+| o seletor que acha **outra coisa** (o botão do estado vazio no lugar do nome) | a asserção é sobre o efeito, e o efeito acontece por outro caminho | tocar pelo RÓTULO do que se afirma, e afirmar o que está na tela antes |
+
+**E duas afirmações do estudo de porte caíram ao serem medidas** — as duas ditas com
+confiança por agentes, as duas erradas: `puxar` e `empurrar` têm chamador (a configuração
+desce quando a Conta abre), e **nenhum dos dois lados exige nome único de gente** (o servidor
+tem índice, não restrição), então homônimo não travava fila alguma. O que a grade precisava
+não era unicidade: era busca. Achado de agente é hipótese até passar pelo `grep`.
