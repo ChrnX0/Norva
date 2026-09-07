@@ -6478,6 +6478,18 @@ corridas idênticas congelam o mesmo consumo, porque a média só se move em COM
 há compra entre elas; logo a diferença entre as duas é a embalagem e nada mais.
 Reproduzindo a mutação, o teste agora falha em `0 !== 0.4`.
 
-E uma medida junto: o `docs/roadmap.md` afirmava *"108 pegos e 2 equivalentes"* e a
-execução real deu 107 pegos, 1 sobrevivente e 2 equivalentes. O número da barra estava
-um a mais que a verdade — e a barra existe justamente para não afirmar sem medir.
+E uma medida junto, com uma inversão no fim. O `docs/roadmap.md` afirmava *"108 pegos e
+2 equivalentes"* e a execução real deu **107 pegos, 1 sobrevivente e 2 equivalentes**.
+
+Só que o número da barra não estava errado: **o código é que tinha escorregado até
+ele.** Depois do conserto, a segunda execução deu exatamente 108 pegos, zero
+sobreviventes e as 2 equivalentes de sempre. A linha do plano estava certa e a suíte
+havia deixado de cumpri-la sem ninguém notar — que é o contrário do padrão desta noite,
+em que a lista descrevia como aberto o que já estava pronto. **A lista erra nas duas
+direções, e as duas se descobrem do mesmo jeito: medindo.**
+
+As duas equivalentes continuam sendo as mesmas de sempre, e a ferramenta explica por
+quê: o estorno tem duas checagens em camadas, e tirar uma deixa a outra pegando com o
+mesmo erro. Nenhum teste de uma linha de execução só as distingue — só concorrência
+real, e a suíte não tem duas conexões. Elas ficam na lista porque apagá-las esconderia
+a redundância que as torna assim.
