@@ -3192,3 +3192,83 @@ try {
 } finally {
   server.close();
 }
+
+check('a carrier is registered, chosen on the load, and named on the day', async (page) => {
+  /**
+   * A transportadora de ponta a ponta — cadastro, escolha, e quem levou na tela.
+   *
+   * **A costura que teste de repositório nenhum alcança.** O `carrier_id` só vale
+   * se três telas concordarem: a que cadastra, a que escolhe na hora da carga, e a
+   * que conta o dia. E o caso que mais importa é o do MEIO — a escolha só existe
+   * quando há transportadora cadastrada, então uma fábrica que entrega no carro
+   * dela nunca vê a pergunta. Isso é decisão de desenho (Lei 1), e é exatamente o
+   * tipo de coisa que um teste de módulo não sabe olhar.
+   */
+  // Sem transportadora nenhuma, a pergunta NÃO existe. Esta é a metade que
+  // ninguém pensa em provar, e é a que protege a fábrica que entrega no carro dela.
+  await page.goto(`http://localhost:${PORT}/production/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Quantas unidades/).fill('900');
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar produção', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Como se chama').fill('Loja Centro');
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  await page.goto(`http://localhost:${PORT}/picking`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  const semTransportadora = await screen(page);
+  assert.doesNotMatch(
+    semTransportadora,
+    /QUEM LEVA|Quem leva/,
+    'sem transportadora cadastrada a pergunta não aparece — Lei 1, não se pede o que se pode deduzir',
+  );
+
+  // Agora ela existe.
+  await page.goto(`http://localhost:${PORT}/carriers`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  const vazia = await screen(page);
+  assert.match(vazia, /Nenhuma cadastrada/, 'a tela diz o que a ausência SIGNIFICA');
+  await page.getByText('Cadastrar transportadora', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+  await page.getByLabel('Nome').fill('Transportes Silva');
+  await page.getByLabel('Telefone').fill('11 98888-0000');
+  await page.getByText('Salvar transportadora', { exact: true }).first().click();
+  await page.waitForTimeout(2000);
+  assert.match(
+    await screen(page),
+    /Transportes Silva/,
+    'o cadastro volta do banco, com o telefone que alguém liga quando a carga não chega',
+  );
+
+  // E a separação passa a perguntar, com o carro da fábrica já marcado.
+  await page.goto(`http://localhost:${PORT}/picking`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  assert.match(await screen(page), /Quem leva/, 'com transportadora cadastrada, a pergunta existe');
+
+  await page.getByLabel('Aumentar').first().click();
+  await page.waitForTimeout(900);
+  await page.getByLabel('Transportes Silva').first().click();
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar a carga', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Mandar', { exact: true }).first().click();
+  await page.waitForTimeout(3000);
+
+  // O dia diz quem levou. É o LEITOR que justifica a coluna existir.
+  await page.goto(`http://localhost:${PORT}/transport`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  assert.match(
+    await screen(page),
+    /levou Transportes Silva/,
+    'o cartão do destino nomeia quem levou a carga do dia',
+  );
+});
