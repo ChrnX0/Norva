@@ -91,6 +91,10 @@ const NAO_E_DICIONARIO: Record<string, string> = {
   '^\\d{8}-\\d{2}$': 'o formato do código do lote, gerado pelo domínio e não traduzido',
   '^Tempo: (Esconder|Mostrar)$':
     'rótulo de acessibilidade montado pela capa com o nome da peça mais a ação',
+  '^Colocar na capa: Pedidos dos clientes$':
+    'mesma composição, e as três entraram juntas quando a capa emagreceu de quinze peças para sete: a checagem do navegador passou a LIGAR a peça antes de cobrar a frase dela, senão mediria qual peça vem de fábrica em vez do que a peça diz',
+  '^Colocar na capa: Últimas corridas$':
+    'idem — e vale notar que o `e2e` passa com estas duas: o rótulo existe na tela, montado pelo prefixo mais o nome da peça. Quem não o enxerga é esta guarda, que compara com frases INTEIRAS do dicionário; é exatamente para isso que esta lista existe',
   '^Colocar na capa: Preços que mexeram$':
     'o mesmo caso, do outro lado da lista: peça que está FORA da capa tem "Colocar na capa" e não "Esconder/Mostrar". As duas metades existem no dicionário e a tela as junta — e errar qual das duas listas a peça está custa trinta segundos de espera por um alvo que não existe, com o Playwright dizendo "timeout" em vez de "seletor inventado"',
   English:
