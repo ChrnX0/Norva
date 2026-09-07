@@ -1013,8 +1013,13 @@ function Clima({ tinta, acento, frio }: Pincel) {
   }));
   return (
     <>
-      {/* A nuvem: um contorno só, e ela é a maior das três. */}
-      <G stroke={frio}>
+      {/* A nuvem: um contorno só, e ela é a maior das três.
+
+          Ela FLUTUA, e isso não é gosto: a linha do chão desta prancheta é onde as
+          coisas aterrissam, e a primeira versão desenhou a nuvem pousada nela. Nuvem
+          no chão é neblina, e a cena passaria a afirmar tempo — que é justamente o
+          que ela não faz. Quem afirma o tempo é o cartão, com número. */}
+      <G stroke={frio} transform="translate(0 -10)">
         <Path d="M22 44a13 13 0 0 1 13-12 17 17 0 0 1 32 5 11 11 0 0 1-3 22H36a11 11 0 0 1-14-15z" />
       </G>
 
