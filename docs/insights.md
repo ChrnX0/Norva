@@ -6777,3 +6777,27 @@ Duas consequências que valem tanto quanto o eixo:
 fricção.** A auditoria classificou "anotar a temperatura da câmara" como irrecuperável, e
 tecnicamente acertou: não existe correção de leitura. Duas confirmações ali seriam o
 desastre da câmara fria. O que falta é a leitura poder ser corrigida.
+
+## Quatro defeitos que a segunda-feira de uma fábrica de verdade encontraria
+
+O dono disse que vai testar na fábrica do pai. A régua mudou de *"o que falta construir"*
+para **"o que quebra no primeiro dia"**, e o estudo do porte tinha medido quatro coisas
+vivas. Consertadas, com a prova de cada uma:
+
+| | o que acontecia | o que ficou |
+|---|---|---|
+| **o celular emprestado cadastrava lugar** | o servidor sempre recusou (`locations_manage` exige `manage_company`); o aparelho não conferia — a linha entrava na fila e travaria tudo depois dela. Quinta aparição da fila travada | `savePlace` recusa antes, com a razão; a tela não oferece o botão a quem não pode |
+| **"acaba em N dias" errado por dois motivos** | saldo de UMA sala dividido pelo consumo de TODAS; e transferência para a própria loja contada como consumo — *"compre mais" porque você moveu* | `dailyOutflowOf` ganhou a sala e a regra da perna de transferência, que o irmão `runningOut` já tinha desde 7 de setembro |
+| **"Fábrica" com a sobrelinha "ALMOXARIFADO"** | `ensureLocation` gravava `store_room`; e `factory`, primeira espécie do esquema desde a fundação, **não tinha um único escritor** | a sala padrão nasce `factory`; a V23 corrige quem já instalou |
+| **renomear lugar não existia** | nenhuma tela mudava o nome; a sala padrão nasce com nome VAZIO e `savePlace` recusa vazio — então nenhuma edição dela era possível | "Renomear" em todo cartão, só para quem administra; é a porta por onde a sala padrão ganha nome de verdade |
+
+**O achado transversal está na segunda linha, e é o mesmo de ontem noutra roupa:** a regra
+da transferência foi medida, escrita e corrigida no `runningOut` — e `dailyOutflowOf`, que
+nasceu dele e mora ao lado, ficou com o defeito. *Conserto que não termina no arquivo que o
+mostrou*, agora em aritmética. Nenhum teste pegava nenhum dos dois lados, o que quer dizer
+que a régua não existia; ela existe agora e mede da empresa e da sala.
+
+**E um erro de método meu, registrado porque o gancho do repositório o pegou:** disparei a
+foto com `&` dentro de um subshell em vez de `run_in_background`, fiquei sem notificação de
+término, e tentei escrever um `until … sleep` para esperar o arquivo. O gancho `sem-espera`
+recusou com a frase da cicatriz de 1h03. Regra que está escrita não impede; gancho impede.
