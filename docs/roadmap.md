@@ -410,29 +410,31 @@ uma fábrica com histórico de uma sem.
    na conta Google do dono lê a margem da fábrica. A tela diz isso em uma linha
    antes do primeiro backup, e não depois.
 
-### 1. O extrato — uma tela que faz três trabalhos
+### 1. ~~O extrato — uma tela que faz três trabalhos~~ — FEITO em 7 de setembro
 
-Medido esta noite: **nove funções escrevem no livro-razão a partir de tela**
-(`recordPurchase`, `recordCount`, `recordProduction`, `recordTransfer`,
-`recordReturn`, `recordLoss`, `recordCheck`, `recordReading`, e o próprio estorno) e
-**o caminho de volta é alcançável de duas** — `app/lots/[id].tsx:133` e
-`app/inputs/[id].tsx:505`. A carga (`app/picking.tsx:141`) e a transferência
-(`app/transfer.tsx:317`) gravam sem botão de volta.
+O que estava medido aqui: **nove funções escrevem no livro-razão a partir de tela** e
+**o caminho de volta era alcançável de duas** (`app/lots/[id].tsx:133` e
+`app/inputs/[id].tsx:505`). A carga e a transferência gravavam sem botão de volta. A
+fundação diz *"corrige-se por estorno, nunca por exclusão"*, e ela estava honrada no
+banco e **inalcançável na mão de quem erra** — e o que uma pessoa faz numa fábrica
+quando não dá para consertar é parar de registrar. Perde-se o dado, não o conserto.
 
-A fundação diz *"corrige-se por estorno, nunca por exclusão"*, e ela está honrada no
-banco e **inalcançável na mão de quem erra**. O que uma pessoa faz numa fábrica
-quando não dá para consertar: para de registrar. Perde-se o dado, não o conserto.
+**Fechado por `app/extrato.tsx`**, e a medida é esta: `ledgerExtract` agrupa por
+`COALESCE(movement_group_id, id)`, então lista **qualquer** ato, venha ele de qual das
+nove funções vier; o `Desfazer` é incondicional exceto nas duas exclusões corretas —
+ato já desfeito, e o próprio estorno (`app/extrato.tsx:272`). A tela é alcançável de
+dois lugares: a gaveta do *Mais* (`app/(tabs)/more.tsx:163`) e a ficha de uma loja
+(`app/places.tsx:309`), que é o P1 satisfeito no mesmo commit.
 
-E a tela que resolve isso é a que o dono já aprovou como **extrato fiscal** (§ *As
-seis*, item 6): uma lista de grupos de movimento, cada linha com `[estornar]`. Ela é
-também o `[por quê?]` de qualquer saldo. Uma tela, três trabalhos.
-
-**A régua dela, decidida e não perguntada** — é correção, não preferência: o extrato
-soma **taxa congelada linha por linha** (`amountOf(unit_cost_rate, base_units)`), e
-por isso **não fecha** com `stockByPlace`, que valoriza o saldo com o custo médio de
-hoje. Os dois estão certos e respondem perguntas diferentes; a diferença **aparece
-na tela**, com o `[por quê?]` ao lado. Esconder com arredondamento conveniente seria
-produzir o documento bonito, verde e falso que este repositório mais teme.
+**A régua da taxa congelada continua escrita, e ela é CONDICIONAL — vale no dia em que
+o extrato somar.** Hoje ele não soma: cada ato mostra o seu valor e não há total, então
+os dois números nunca aparecem lado a lado e não há o que reconciliar. A diferença está
+explicada no docblock da tela (`app/extrato.tsx:55`). **Se um total entrar**, ele soma
+taxa congelada linha por linha (`amountOf(unit_cost_rate, base_units)`) e por isso não
+fecha com `stockByPlace`, que valoriza o saldo com o custo médio de hoje: os dois estão
+certos e respondem perguntas diferentes, e a diferença tem de **aparecer na tela** com
+o `[por quê?]` ao lado. Esconder com arredondamento conveniente seria produzir o
+documento bonito, verde e falso que este repositório mais teme.
 
 **E o nome dele é conferência, não prova.** No aparelho o razão não é append-only:
 zero `TRIGGER` em `src/data/db.ts` contra três na `0001`, `erase.ts` apaga em bloco,
