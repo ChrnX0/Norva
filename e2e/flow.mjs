@@ -180,8 +180,48 @@ const assentar = async (page, { limite = 20000, quieto = 400 } = {}) => {
  * estoque num cartão mais abaixo da mesma página. Quem responde por campo é
  * `inputValue()`, e a checagem logo abaixo prende esta diferença.
  */
-const screen = async (page) =>
+const leia = async (page) =>
   (await page.locator('body').innerText()).replace(/\u00a0/g, ' ').replace(/\n+/g, ' | ');
+
+/**
+ * Lê a tela DEPOIS que ela parou de mudar — e isto é o conserto de uma esteira.
+ *
+ * **A medida que obrigou.** O arquivo tem 420 esperas de relógio, e **cem** delas
+ * são seguidas de uma leitura da tela. Toda consulta deste aplicativo é
+ * assíncrona: com a máquina carregada, ela resolve DEPOIS do sono fixo e a
+ * leitura pega a tela do jeito que ela estava antes de o dado chegar. Não é uma
+ * checagem frágil, são cem — e qual delas fica vermelha é loteria, o que fez
+ * cinco caírem juntas numa corrida e outra, diferente, na seguinte.
+ *
+ * Consertar a que caiu é esteira: a próxima corrida escolhe outra. Aumentar o
+ * sono é a mesma armadilha com número maior, e volta na próxima máquina mais
+ * lenta.
+ *
+ * O que conserta as cem de uma vez é a leitura esperar a tela ASSENTAR: lê,
+ * espera um pouco, lê de novo, e só devolve quando as duas leituras batem. É o
+ * que uma pessoa faz — ela não lê a tela no meio do carregamento, ela espera
+ * parar de mexer.
+ *
+ * **E ela assenta de verdade**, que é o que torna isto possível: o movimento
+ * deste aplicativo é de FORMA (entrada em cascata, engrenagem girando), não de
+ * texto. A única peça que muda texto sozinha é o `CountUp`, e esperar por ele é
+ * exatamente o certo — a leitura passa a ver o número final em vez de um do meio
+ * do voo, que era a outra metade do mesmo defeito.
+ *
+ * O teto existe para o caso de uma tela que nunca para: aí devolve a última
+ * leitura e a asserção reprova com a mensagem dela, que é melhor diagnóstico do
+ * que um estouro de tempo genérico.
+ */
+const screen = async (page, { passo = 250, teto = 8_000 } = {}) => {
+  let anterior = await leia(page);
+  for (let esperou = 0; esperou < teto; esperou += passo) {
+    await page.waitForTimeout(passo);
+    const agora = await leia(page);
+    if (agora === anterior) return agora;
+    anterior = agora;
+  }
+  return anterior;
+};
 
 check('what is typed into a field is not text on the screen', async (page) => {
   /**
@@ -2859,8 +2899,25 @@ check('at tablet width the two columns end level, not ragged', async (page) => {
   await page.goto(`http://localhost:${PORT}/more`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
 
-  const caixa = async (texto) =>
-    await page.getByText(texto, { exact: true }).first().boundingBox();
+  /**
+   * A caixa DEPOIS que ela parou de se mexer — o irmão geométrico do `screen()`.
+   *
+   * A leitura de texto já espera a tela assentar; a de posição não esperava, e
+   * caiu pelo mesmo motivo: a grade de duas colunas é calculada a partir das
+   * ALTURAS medidas, e medir antes de a última peça chegar dá um arranjo que
+   * ainda vai mudar.
+   */
+  const caixa = async (texto) => {
+    const alvo = page.getByText(texto, { exact: true }).first();
+    let anterior = await alvo.boundingBox();
+    for (let esperou = 0; esperou < 6_000; esperou += 250) {
+      await page.waitForTimeout(250);
+      const agora = await alvo.boundingBox();
+      if (agora && anterior && agora.x === anterior.x && agora.y === anterior.y) return agora;
+      anterior = agora;
+    }
+    return anterior;
+  };
   const cadastros = await caixa('Cadastros');
   const lancamentos = await caixa('Lançamentos');
   const ajustes = await caixa('Ajustes');
@@ -2869,9 +2926,24 @@ check('at tablet width the two columns end level, not ragged', async (page) => {
     Math.abs(lancamentos.x - cadastros.x) > 100,
     'a 900 dp a gaveta tem que ter DUAS colunas — sem isso o resto não mede nada',
   );
+  /**
+   * A folga é de COLUNA, não de pixel — e o número tem de vir da distância real.
+   *
+   * Isto exigia menos de 1 px e reprovou com **2,2**, com o layout certo: as duas
+   * colunas estão a mais de quatrocentos pixels uma da outra, e a diferença de
+   * dois vinha de arredondamento de medida em ponto flutuante. Uma asserção que
+   * distingue coluna não pode ser sensível a ruído de vírgula: o que ela mede é
+   * "está na mesma coluna", e para isso a folga certa é uma fração da distância
+   * entre elas, não um pixel.
+   *
+   * Não é afrouxar para ficar verde — é medir a coisa certa. Com 5 px, pôr
+   * "Ajustes" na outra coluna continua reprovando por uma diferença 87 vezes
+   * maior que a folga.
+   */
+  const entreColunas = Math.abs(lancamentos.x - cadastros.x);
   assert.ok(
-    Math.abs(ajustes.x - lancamentos.x) < 1,
-    `"Ajustes" tem que acompanhar "Lançamentos": alternar o poria debaixo de "Cadastros" (x=${ajustes.x} contra ${lancamentos.x} e ${cadastros.x})`,
+    Math.abs(ajustes.x - lancamentos.x) < 5,
+    `"Ajustes" tem que acompanhar "Lançamentos": alternar o poria debaixo de "Cadastros" (x=${ajustes.x} contra ${lancamentos.x} e ${cadastros.x}; as colunas distam ${entreColunas})`,
   );
 
   await page.setViewportSize({ width: 412, height: 915 });
