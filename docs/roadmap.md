@@ -1296,12 +1296,20 @@ Foi para a espera, com o que a tira de lá.
 
 ### 3. O aviso na data da decisão, para tudo
 
-A Lei 4 manda avisar na data da decisão e não na do problema. Isso ficou pronto para
-**compras** em 6 de setembro (o ponto de recompra em `app/inputs/[id].tsx`, com a
-folga como configuração da empresa). A mesma forma serve para três coisas que o app
-já sabe: o lote que vence (mande para a loja que gira mais rápido — o Espelho da
-Loja sabe qual é), a produção (*"produza até segunda para não faltar"*) e o dinheiro
-parado.
+A Lei 4 manda avisar na data da decisão e não na do problema. **Medido em 7 de
+setembro, das três coisas que esta linha listava como pendentes, duas estão feitas e a
+terceira é duvidosa:**
+
+| o que a linha pedia | estado medido |
+|---|---|
+| compras — o ponto de recompra | FEITO em 6/9 (`app/inputs/[id].tsx`, folga como configuração) |
+| **o lote que vence** | FEITO — `AlertKind` tem `'validade'` com sete dias de antecedência (`src/domain/alerts.ts:132,324`), e o agendador está montado na raiz (`app/_layout.tsx:10`) |
+| **a produção** | FEITO em 7/9 — *"Produza Picolé de leite até 17/09"* na tela de produção |
+| **o dinheiro parado** | **não deve virar aviso.** O número já aparece com a comparação ("17 dias pelo consumo da semana"), e não existe uma DATA de decisão para ele: dinheiro parado não vence. Um aviso sem data de ação é o alerta inventado que este projeto proíbe na Lei 7 |
+
+O que sobra do item é o segundo passo do lote que vence — *"mande para a loja que gira
+mais rápido"* —, e esse depende do Espelho da Loja ter movimento real para saber qual
+é. Está na seção **Espera aparelho**, e não aqui.
 
 **Por que eleva:** um app que avisa no dia em que dá para agir é outro produto que
 um que avisa no dia do problema.
