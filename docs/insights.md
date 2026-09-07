@@ -6328,3 +6328,27 @@ fundo, que é um defeito que a foto do Papel escuro já mostrou uma vez).
 A lição, e ela é a de sempre neste arquivo virada de outro lado: **quando se corrige
 uma divergência copiando a regra, a próxima divergência já está paga.** O conserto
 certo era usar a peça.
+
+### E o achado mais duro do dia veio numa pergunta de três palavras: "o q são essas árvores?"
+
+O dono olhou a faixa e perguntou o que árvore (ou fungo) tem a ver com Ajustes —
+*"o app nao é aplicativo de biologia. é produção, controle, transporte,
+financeiro..."*.
+
+**O defeito não é o desenho ser feio. É ser decoração.** Eu tinha medido um vão de
+trinta por cento de céu vazio, concluí certo que vazio numa faixa baixa lê como
+desligado, e enchi com a primeira coisa que cabe num horizonte — em vez de com a
+coisa que pertence a ESTE horizonte. Escrevi no próprio arquivo que os pássaros eram
+*"ambiente, não afirmação"*, como se isso fosse permissão. Não é: é o alerta
+inventado virado para o desenho, e ensina exatamente a mesma coisa — a não olhar.
+
+A regra que sai daqui e que o `CLAUDE.md` não tinha: **"vida é ambiente" não
+autoriza vocabulário de outro mundo.** Um horizonte de fábrica se enche com silo,
+galpão e poste; se a única coisa que ocorre para encher é natureza, o problema não é
+o vão — é que não se perguntou de que mundo a tela é.
+
+E uma coincidência que não é coincidência: no mesmo arquivo, três horas depois de eu
+escrever o parágrafo explicando que **`animatedProps` substitui o `transform`
+declarado**, escrevi um `transform` estático ao lado de um `animatedProps`. O
+comentário estava a quarenta linhas de distância. Regra escrita no arquivo não
+impede o autor do arquivo.

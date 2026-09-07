@@ -564,6 +564,15 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
      *cena conta*; o que não pode é o aplicativo **parecer desligado**. Vida é ambiente
      — o que se mexe sem afirmar nada sobre o razão.
 
+  **E "vida é ambiente" não autoriza vocabulário de outro mundo — cobrado pelo dono em
+  7 de setembro.** Eu enchi o vão de um cabeçalho com três árvores e dois pássaros, e
+  ele perguntou o que aquilo tem a ver com Ajustes: *"o app nao é aplicativo de
+  biologia. é produção, controle, transporte, financeiro..."*. O defeito não é o
+  desenho ser feio, é ser **decoração** — o alerta inventado virado para o desenho, e
+  ensina a mesma coisa: a não olhar. Um horizonte de fábrica se enche com silo, galpão
+  e poste. Se a única coisa que ocorre para encher um vão é natureza, o problema não é
+  o vão: é que não se perguntou de que mundo a tela é.
+
   E a regra de leitura que sai daqui, porque ela já me pegou uma vez: quando a tela
   parecer morta, a primeira hipótese **não** é "está certo, é dado" — é que falta vida.
 
