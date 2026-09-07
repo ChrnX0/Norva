@@ -573,6 +573,12 @@ export const es: Dictionary = {
       simulateBody:
         'Escribe noventa días de fábrica sobre lo que ya existe: producción casi todos los días, entregas a la tienda y facturas con el precio variando. Un trimestre es el horizonte más corto en el que el costo promedio se mueve de verdad y la cobertura se encoge — cosas que catorce días no muestran. El libro mayor se queda con esos asientos, y borrar todo sigue estando en Ajustes.',
       simulateConfirm: 'Sembrar',
+      simulateMixTitle: 'Entran en el mismo libro que los suyos',
+      simulateMixBody:
+        'Nada distingue un asiento sembrado de uno suyo una vez que entra. No se pueden quitar solo los inventados: para removerlos existe únicamente "borrar todo", en Ajustes, y eso se lleva los suyos también. Esta fábrica ya tiene {{movements}}.',
+      simulateMixEmpty:
+        'Nada distingue un asiento sembrado de uno suyo una vez que entra. No se pueden quitar solo los inventados: para removerlos existe únicamente "borrar todo", en Ajustes.',
+      simulateMixConfirm: 'Sembrar igual',
       simulateDone:
         'Listo: {{runs}} corridas, {{deliveries}} entregas, {{invoices}} facturas y {{counts}} conteos de estante.',
       failedToSimulate: 'No se pudo sembrar el movimiento',

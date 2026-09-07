@@ -388,6 +388,40 @@ aparelho no escuro fica para quando ele estiver recém-subido e sozinho na máqu
 Orgânico ainda não foi olhado sob essa régua, e a hierarquia escrita manda o Papel
 primeiro.
 
+### 0b-bis. Mais de uma unidade de tudo — levantado pelo dono em 7 de setembro
+
+<!-- medida: ausente app/places.tsx :: 'factory' -->
+
+*"a gente não considerou que de repente possam existir mais de 1 unidade da
+fábrica… assim como vários funcionários produzindo e várias transportadoras assim
+como as várias unidades de loja e clientes."*
+
+**Medido antes de responder, e duas das quatro já funcionam.**
+
+| | estado | a medida |
+|---|---|---|
+| lojas e clientes, várias | **já funciona, sem limite** | `locations` aceita quantas linhas quiser e `app/places.tsx` oferece as duas espécies |
+| vários funcionários produzindo | **já funciona, desde 6 de setembro** | tabela `people` com PIN, e os sete `INSERT INTO movements` carimbam `operator_id` |
+| **várias fábricas** | **o esquema suporta, o app não deixa** | `factory` é a PRIMEIRA espécie de `location_kind` na `0001`; `app/places.tsx:185` oferece quatro e não a inclui |
+| **transportadoras** | **não existe** | zero ocorrências de carrier/transportadora no repositório; há `vehicle` como lugar e `driver` como papel, e nada que se cadastre |
+
+**As duas que faltam têm pesos opostos, e isso decide a ordem.**
+
+A **transportadora é barata**: é cadastro, como loja e cliente já são, e não toca o
+livro-razão. Falta a espécie na tela, o nome e o contato, e a carga apontando para
+ela. Cabe numa rodada.
+
+A **segunda fábrica é cara, e o motivo é um atalho registrado**: `defaultLocationId`
+devolve o próprio `company_id` — *"enquanto há um lugar só, o id dele é o da própria
+empresa, foi assim que todo movimento já gravado foi carimbado"*. No dia em que são
+duas, a fábrica deixa de ser "a empresa" e vira um lugar entre vários. É o caminho de
+escrita de `movements`: **P3**.
+
+**E ela arrasta a pergunta da sala do tacho, um andar acima:** uma corrida consome de
+qualquer lugar nosso ou só da sala em que roda? Com duas unidades a resposta errada
+autoriza um tacho de uma cidade a consumir a polpa da outra. Não é pergunta de qual —
+é qual é o **padrão**, e os dois caminhos existem como configuração.
+
 ### 0. O backup — 0a e 0b FEITOS em 6 de setembro; falta o 0c (Drive)
 
 <!-- medida: ausente src :: googleapis -->

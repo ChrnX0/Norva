@@ -725,6 +725,17 @@ export const ptBR = {
       simulateBody:
         'Escreve noventa dias de fábrica em cima do que já existe: produção quase todo dia, entregas para a loja, e notas de compra com o preço variando. Um trimestre é o menor horizonte em que dá para ver o custo médio andar e a cobertura encolher — coisas que catorze dias não mostram. O livro-razão fica com esses lançamentos, e apagar tudo continua sendo em Ajustes.',
       simulateConfirm: 'Plantar',
+      // A SEGUNDA folha, e o motivo dela é medido: nada marca o que a simulação
+      // planta. `src/data/simulate.ts` não escreve nenhuma anotação nas linhas,
+      // então não há como SELECIONAR o inventado depois — o estorno não alcança
+      // o que não se consegue identificar, e o único removedor é "apagar tudo",
+      // que leva o dado de verdade junto.
+      simulateMixTitle: 'Eles entram no mesmo livro que os seus',
+      simulateMixBody:
+        'Nada distingue um lançamento plantado de um seu depois que ele entra. Não dá para tirar só os inventados: para removê-los existe apenas "apagar tudo", em Ajustes, e isso leva os seus junto. Esta fábrica já tem {{movements}}.',
+      simulateMixEmpty:
+        'Nada distingue um lançamento plantado de um seu depois que ele entra. Não dá para tirar só os inventados: para removê-los existe apenas "apagar tudo", em Ajustes.',
+      simulateMixConfirm: 'Plantar mesmo assim',
       simulateDone:
         'Pronto: {{runs}} corridas, {{deliveries}} entregas, {{invoices}} notas e {{counts}} conferências de prateleira.',
       failedToSimulate: 'Não deu para plantar o movimento',

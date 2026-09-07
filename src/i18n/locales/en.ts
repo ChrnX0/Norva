@@ -568,6 +568,12 @@ export const en: Dictionary = {
       simulateBody:
         'Writes ninety days of factory on top of what is already there: production most days, deliveries to the store, and invoices with the price moving. A quarter is the shortest horizon where average cost actually moves and cover actually shrinks — things fourteen days never show. The ledger keeps these entries, and erasing everything is still in Settings.',
       simulateConfirm: 'Plant',
+      simulateMixTitle: 'They join the same book as yours',
+      simulateMixBody:
+        'Nothing tells a planted entry from one of yours once it is in. There is no way to remove only the invented ones: the only remover is "erase everything", in Settings, and that takes yours with it. This factory already has {{movements}}.',
+      simulateMixEmpty:
+        'Nothing tells a planted entry from one of yours once it is in. There is no way to remove only the invented ones: the only remover is "erase everything", in Settings.',
+      simulateMixConfirm: 'Plant anyway',
       simulateDone:
         'Done: {{runs}} runs, {{deliveries}} deliveries, {{invoices}} invoices and {{counts}} shelf counts.',
       failedToSimulate: 'Could not plant the movement',
