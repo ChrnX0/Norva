@@ -160,14 +160,6 @@ export function formatQuantity(value: number, locale: LocaleSettings): string {
   }).format(value);
 }
 
-export function formatDate(iso: string, locale: LocaleSettings): string {
-  return new Intl.DateTimeFormat(locale.formatting, {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: locale.timeZone,
-  }).format(new Date(iso));
-}
 
 /**
  * The day, as the header of the briefing says it: "segunda, 1 de set".
@@ -214,14 +206,6 @@ export function formatTime(iso: string, locale: LocaleSettings): string {
   }).format(new Date(iso));
 }
 
-export function formatWeekday(iso: string, locale: LocaleSettings): string {
-  return new Intl.DateTimeFormat(locale.formatting, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'short',
-    timeZone: locale.timeZone,
-  }).format(new Date(iso));
-}
 
 /**
  * Uma data de calendário (`YYYY-MM-DD`) dita sem passar por fuso nenhum.

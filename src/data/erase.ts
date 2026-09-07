@@ -17,7 +17,27 @@
  * database.
  */
 
-export type EraseArea = 'purchases' | 'recipes' | 'products' | 'inputs' | 'all';
+/**
+ * As áreas, como LISTA — e o tipo sai dela, não o contrário.
+ *
+ * A ordem importa: um `type` puro some na compilação, e quem precisa perguntar
+ * *"esta string é uma área?"* em tempo de execução fica sem régua. O `serialize`
+ * ficava assim — ele aceitava `typeof area === 'string'` e mandava adiante
+ * qualquer texto que chegasse pela fila, enquanto o tipo prometia cinco valores.
+ *
+ * É a forma de defeito que este repositório já pagou três vezes: a validação
+ * existe no tipo e não existe na fronteira. O padrão do `capabilities` em
+ * `src/domain/access.ts` é este — a lista é a fonte, o tipo é derivado dela — e
+ * assim as duas não podem discordar.
+ */
+export const ERASE_AREAS = ['purchases', 'recipes', 'products', 'inputs', 'all'] as const;
+
+export type EraseArea = (typeof ERASE_AREAS)[number];
+
+/** Se este texto é uma área de verdade. A pergunta que a fronteira precisa fazer. */
+export function isEraseArea(value: unknown): value is EraseArea {
+  return typeof value === 'string' && (ERASE_AREAS as readonly string[]).includes(value);
+}
 
 /**
  * The tables an erase may touch, as a closed set.

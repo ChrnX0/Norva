@@ -1,4 +1,5 @@
 import type { OutboxEntry } from '@/data/outbox';
+import { isEraseArea } from '@/data/erase';
 
 /**
  * The one place a device row becomes something the server accepts.
@@ -84,6 +85,14 @@ export class UnknownTableError extends Error {
   constructor(public readonly table: string) {
     super(`Nothing knows how to send rows of "${table}"`);
     this.name = 'UnknownTableError';
+  }
+}
+
+/** Uma área que a fila carrega e o produto não tem. Ver o ramo do `erase`. */
+export class UnknownAreaError extends Error {
+  constructor(public readonly area: string) {
+    super(`"${area}" is not an area this app can erase`);
+    this.name = 'UnknownAreaError';
   }
 }
 
@@ -467,8 +476,22 @@ export function serialize(
   }
 
   if (entry.table === 'erase') {
-    const area = entry.payload?.area;
-    return { kind: 'erase', area: typeof area === 'string' ? area : entry.rowId };
+    /**
+     * A área é conferida contra a lista, e não contra `typeof string`.
+     *
+     * Isto aceitava qualquer texto que a fila carregasse e o mandava adiante
+     * como área. Não fazia dano hoje porque nada consome o comando ainda — e é
+     * exatamente por isso que era perigoso: a primeira implementação de
+     * `Transport` herdaria uma fronteira aberta sem ninguém ter decidido abri-la,
+     * e o servidor receberia uma palavra que ele não conhece.
+     *
+     * A fila é escrita por este aplicativo, então "não devia acontecer". O
+     * arquivo inteiro existe porque "não devia acontecer" já aconteceu seis
+     * vezes entre o SQLite e o Postgres.
+     */
+    const area = entry.payload?.area ?? entry.rowId;
+    if (!isEraseArea(area)) throw new UnknownAreaError(String(area));
+    return { kind: 'erase', area };
   }
 
   const crossing = CROSSINGS[entry.table as ServerTable];

@@ -20,19 +20,6 @@ export function multiplyCents(value: Cents, factor: number): Cents {
   return Math.round(value * factor) as Cents;
 }
 
-/**
- * Splits an amount across n parts without losing or inventing a cent. The
- * remainder is spread one cent at a time over the first parts, so the sum of
- * the result always equals the input exactly.
- */
-export function allocateCents(total: Cents, parts: number): Cents[] {
-  if (parts <= 0) return [];
-  const base = Math.floor(total / parts);
-  const remainder = total - base * parts;
-  return Array.from({ length: parts }, (_, i) =>
-    (base + (i < remainder ? 1 : 0)) as Cents,
-  );
-}
 
 /**
  * A unit rate: fractional cents per base unit.
@@ -67,7 +54,8 @@ export function rateFromCents(total: Cents, quantity: number): Rate {
 /**
  * Splits a total across weighted parts without losing or inventing a cent.
  *
- * The sibling of `allocateCents`, for the case where the parts are not equal.
+ * A repartição por PESO, que é a única que este produto precisa — a irmã de
+ * partes iguais existiu até 7 de setembro sem nenhum chamador e saiu pelo P1.
  * It exists because of a real defect: a recipe's batch cost was the sum of its
  * lines *after each line had been rounded*, so ten ingredients at four tenths
  * of a cent each summed to nothing while the batch really cost four cents.

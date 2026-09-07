@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { applyCostEvent, emptyStock, reorderPoint } from './cost';
-import { allocateCents, amountOf, cents, fromDecimal, rate, type Rate } from './money';
+import { amountOf, cents, fromDecimal, rate, type Rate } from './money';
 import {
   compareVersions,
   costPerProductUnit,
@@ -18,15 +18,6 @@ import {
 import { breakdown, roundUpToFullContainer, type PackagingHierarchy } from './units';
 
 // --- money -----------------------------------------------------------------
-
-test('splitting an amount never loses or invents a cent', () => {
-  const parts = allocateCents(cents(1000), 3);
-  assert.deepEqual(parts, [334, 333, 333]);
-  assert.equal(
-    parts.reduce((a, b) => a + b, 0),
-    1000,
-  );
-});
 
 // --- packaging -------------------------------------------------------------
 

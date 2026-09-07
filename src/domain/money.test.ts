@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   allocateByWeight,
-  allocateCents,
   amountOf,
   cents,
   fromDecimal,
@@ -73,15 +72,12 @@ test('money in and money out are the same number', () => {
 });
 
 test('splitting a total never invents or loses a cent', () => {
-  // Equal parts: 100 cents across three people cannot be 33 each.
-  const equal = allocateCents(cents(100), 3);
-  assert.equal(
-    equal.reduce((a, b) => a + b, 0),
-    100,
-  );
-  assert.deepEqual(equal, [34, 33, 33]);
-
-  // Weighted: the same promise when the parts are not equal.
+  // A metade de partes IGUAIS saiu em 7 de setembro pelo portão P1: a função
+  // existia, tinha teste e invariante certos, e nenhuma linha de produção a
+  // chamava. Ela passou meses verde porque o único lugar que dizia o nome dela
+  // era um comentário — e a guarda de órfãs lia comentário como chamada.
+  //
+  // O que a fábrica precisa é a repartição por PESO, e essa tem chamador.
   const weighted = allocateByWeight(cents(100), [1, 1, 1]);
   assert.equal(
     weighted.reduce((a, b) => a + b, 0),

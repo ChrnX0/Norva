@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { OutboxEntry } from '@/data/outbox';
-import { serialize, sendableTables, UnknownTableError, type SyncActor } from './serialize';
+import { serialize, sendableTables, UnknownAreaError, UnknownTableError, type SyncActor } from './serialize';
+import { ERASE_AREAS } from '@/data/erase';
 
 /**
  * The crossing between SQLite and Postgres, checked without either.
@@ -156,4 +157,43 @@ test('the erase command carries its area, not a row', () => {
 
   const write = serialize(entry, null, ACTOR);
   assert.deepEqual(write, { kind: 'erase', area: 'all' });
+});
+
+test('an area the product does not have is refused at the boundary, not passed along', () => {
+  /**
+   * A fronteira confere a área contra a LISTA, e não contra `typeof string`.
+   *
+   * O ramo do `erase` fazia `typeof area === 'string' ? area : entry.rowId` e
+   * mandava adiante o que viesse. Não fazia dano hoje — nada consome o comando
+   * ainda —, e é justamente por isso que era perigoso: a primeira implementação
+   * de `Transport` herdaria uma fronteira aberta sem ninguém ter decidido
+   * abri-la.
+   *
+   * "A fila é escrita por este aplicativo, então não devia acontecer" é o
+   * argumento que este arquivo existe para recusar: ele nasceu porque seis
+   * incompatibilidades entre o SQLite e o Postgres estavam exatamente nesse
+   * ponto cego.
+   */
+  const comando = (area: unknown): OutboxEntry => ({
+    id: 'e1',
+    table: 'erase',
+    rowId: String(area),
+    op: 'delete',
+    payload: { area },
+    queuedAt: '2026-09-07T12:00:00.000Z',
+  });
+
+  // As cinco de verdade atravessam, e cada uma sai com o próprio nome.
+  for (const area of ERASE_AREAS) {
+    assert.deepEqual(serialize(comando(area), null, ACTOR), { kind: 'erase', area });
+  }
+
+  // E qualquer outra coisa para aqui, com o nome no erro.
+  assert.throws(() => serialize(comando('tudo'), null, ACTOR), UnknownAreaError);
+  assert.throws(() => serialize(comando(''), null, ACTOR), UnknownAreaError);
+  assert.throws(() => serialize(comando(42), null, ACTOR), UnknownAreaError);
+  assert.throws(() => serialize(comando(null), null, ACTOR), UnknownAreaError);
+
+  // A régua é régua: uma área válida escrita com maiúscula não é a mesma área.
+  assert.throws(() => serialize(comando('ALL'), null, ACTOR), UnknownAreaError);
 });

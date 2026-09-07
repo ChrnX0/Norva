@@ -6699,3 +6699,35 @@ vermelho.
 cicatriz é paga com um docblock que explica um caminho, pergunte **por quantos caminhos
 o mesmo dano chega**. `DELETE` explícito e `ON DELETE CASCADE` fazem a mesma coisa ao
 razão, e só o primeiro tem nome escrito no código.
+
+## A guarda de órfãs lia COMENTÁRIO como chamada, e isso escondia quatro mortas
+
+**Como apareceu.** Escrevi um docblock em `src/data/erase.ts` explicando que *"o
+`serialize` ficava assim"* — e a guarda de exportações sem chamador reprovou dizendo que
+`serialize` "ganhou chamador e continua na lista de fronteiras". Ele não ganhou: o motor
+de sincronia continua exatamente sem chamador, esperando o transporte. O que aconteceu é
+que a busca era sobre o **arquivo cru**, então a minha frase contava como uma chamada.
+
+É a pior forma da família "régua que lê prosa como código", porque está virada para
+dentro: **a guarda reclama de uma verdade porque alguém a explicou por escrito**, o que
+ensina a não escrever a explicação. O `code()` que tira comentário já existia no mesmo
+arquivo, usado pelo guarda do SQL. Faltava aqui.
+
+**O que apareceu quando a prosa saiu da conta: quatro exportações mortas**, verdes há
+meses porque o único lugar que dizia o nome delas era um comentário.
+
+| | o que era | o que ficou |
+|---|---|---|
+| `__setDb` | gancho de teste, usado por três arquivos de teste | registrado com a razão, como o `__setOpener` já estava |
+| `formatDate` · `formatWeekday` | dois formatadores de data sem uma tela | apagados — é o mesmo desfecho dos dois que a varredura de 6 de setembro tirou |
+| `allocateCents` | repartição em partes IGUAIS, com invariante certa e teste | apagado pelo P1: a irmã por PESO (`allocateByWeight`) é a que a fábrica usa, e tem chamador |
+
+**O `allocateCents` merece uma linha à parte**, porque apagar aritmética de dinheiro
+correta parece errado. Ela não estava errada — estava sem quem a chamasse, com um teste
+verde provando uma invariante que ninguém exercia. É exatamente a doença que o portão P1
+existe para pegar, e a lista de vítimas dela neste repositório já tinha cinco nomes. O
+git guarda a função se um dia alguém precisar dividir igualmente.
+
+**A regra que sai daqui:** toda régua que procura um NOME dentro de arquivos tem de tirar
+comentário antes. E o sinal de que uma está quebrada é este — ela reprova quando a
+documentação melhora.

@@ -642,6 +642,16 @@ const SEM_CHAMADOR: Record<string, string> = {
     'a outra metade: existe para ninguém escrever `Math.round(x * f)` inline. Só o valor final arredonda, uma vez, e a primitiva certa presente é o que impede a errada de nascer',
 
   // ---- Fora do domínio, desde que a guarda passou a olhar o `src` inteiro ----
+  /**
+   * O gancho que troca a conexão do banco por uma de teste.
+   *
+   * Mesmo caso do `__setOpener`, e apareceu pelo mesmo motivo: quando a guarda
+   * parou de ler comentário como chamada, ele deixou de ter "chamador". Três
+   * arquivos de teste o usam; produção nenhuma, e é essa a intenção — o prefixo
+   * `__` diz isso.
+   */
+  __setDb:
+    'gancho de teste: troca a conexão do banco. Chamado só por *.test.ts, e o `__` diz que é assim',
   __setOpener:
     'gancho de teste, e o sublinhado duplo diz isso na assinatura: ele troca quem ABRE o banco, para a suíte rodar contra o SQLite do node em vez do do aparelho. Par de `__setDb`, que a suíte usa em todo arquivo de dado',
   drain:
@@ -663,7 +673,23 @@ test('every exported function has a caller in production, or a written reason', 
   const producao = [...sourcesUnder('src'), ...sourcesUnder('app')].filter(
     (f) => !/\.test\.tsx?$/.test(f),
   );
-  const codigoDeProducao = producao.map((f) => readFileSync(f, 'utf8'));
+  /**
+   * Sem comentário — e esta linha é a cicatriz de 7 de setembro.
+   *
+   * A busca era sobre o arquivo cru, então **prosa contava como chamada**. Um
+   * docblock em `src/data/erase.ts` que dizia *"o `serialize` ficava assim"* deu
+   * chamador ao `serialize`, e a guarda passou a acusar o registro de fronteira
+   * dele de estar velho — quando o motor de sincronia continua exatamente sem
+   * chamador, esperando o transporte.
+   *
+   * É a família que este repositório já nomeou: régua que lê comentário como
+   * código. A pior forma dela é esta, virada para dentro — a guarda que reclama
+   * de uma verdade porque alguém a EXPLICOU por escrito, o que ensina a não
+   * escrever a explicação.
+   *
+   * O `code()` deste mesmo arquivo já existia para o guarda do SQL. Faltava aqui.
+   */
+  const codigoDeProducao = producao.map((f) => code(readFileSync(f, 'utf8')));
 
   const orfas: string[] = [];
   const registroVelho: string[] = [];
@@ -676,7 +702,7 @@ test('every exported function has a caller in production, or a written reason', 
       );
       // Chamada de dentro do próprio arquivo também é chamada: `qrModules` é viva
       // porque `qrPath` a usa, e `qrPath` está numa tela.
-      const daCasa = (fonte.match(new RegExp(`\\b${nome}\\b`, 'g')) ?? []).length > 1;
+      const daCasa = (code(fonte).match(new RegExp(`\\b${nome}\\b`, 'g')) ?? []).length > 1;
 
       if (usos.length === 0 && !daCasa) {
         if (!SEM_CHAMADOR[nome]) orfas.push(`${arquivo}: ${nome}`);
