@@ -44,6 +44,19 @@ export function empresaDaqui(): string {
 }
 
 /**
+ * Este aparelho já foi ligado a uma empresa de verdade?
+ *
+ * Não é "tem servidor configurado" nem "tem sessão aberta": é se o carimbo das
+ * linhas daqui é um id que o servidor conhece. Enquanto for a semente, o que
+ * está gravado aqui não tem para onde subir — e quem tenta subir assim é
+ * recusado em bloco, com uma mensagem de chave estrangeira que não explica nada
+ * a ninguém.
+ */
+export function empresaAdotada(): boolean {
+  return daqui !== EMPRESA_SEMENTE;
+}
+
+/**
  * Lê do disco o que este aparelho já sabe. Chamado no boot, antes de qualquer tela.
  *
  * Devolve a empresa para quem quiser encadear, e é idempotente: chamar duas

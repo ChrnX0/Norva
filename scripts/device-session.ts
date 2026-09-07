@@ -16,9 +16,9 @@
  * shell can check that both sides agree on the number.
  */
 
-import { DatabaseSync } from 'node:sqlite';
-import { __setDb, migrate, type Db, type SqlParam } from '@/data/db';
-import { pendingEntries } from '@/data/outbox';
+import { DatabaseSync } from "node:sqlite";
+import { __setDb, migrate, type Db, type SqlParam } from "@/data/db";
+import { pendingEntries } from "@/data/outbox";
 import {
   defaultLocationId,
   listItems,
@@ -41,14 +41,15 @@ import {
   saveRecipeVersion,
   saveSalePrice,
   averageRatesForLedger,
-} from '@/data/repository';
-import { ensureStarterData } from '@/data/seed';
-import { EMPRESA_SEMENTE } from '@/data/empresa';
-import { fromDecimal, rate} from '@/domain/money';
-import { sendableTables, serialize, type SyncActor } from '@/sync/serialize';
+} from "@/data/repository";
+import { ensureStarterData } from "@/data/seed";
+import { empresaDaqui } from "@/data/empresa";
+import { adotarEmpresa } from "@/data/adocao";
+import { fromDecimal, rate } from "@/domain/money";
+import { sendableTables, serialize, type SyncActor } from "@/sync/serialize";
 
 /** Stands in for whoever is signed in when the phone finally finds a tower. */
-const ACTOR: SyncActor = { userId: '00000000-0000-4000-8000-000000000001' };
+const ACTOR: SyncActor = { userId: "00000000-0000-4000-8000-000000000001" };
 
 /**
  * An identifier on its way into SQL, checked instead of trusted.
@@ -62,21 +63,24 @@ const ACTOR: SyncActor = { userId: '00000000-0000-4000-8000-000000000001' };
  */
 function ident(name: string): string {
   if (!/^[a-z][a-z0-9_]*$/.test(name)) {
-    throw new Error(`refusing to build SQL around an identifier like "${name}"`);
+    throw new Error(
+      `refusing to build SQL around an identifier like "${name}"`,
+    );
   }
   return name;
 }
 
 function connect(): { db: Db; raw: DatabaseSync } {
-  const sqlite = new DatabaseSync(':memory:');
-  const bind = (params: SqlParam[]) => params.map((p) => (p === undefined ? null : p));
+  const sqlite = new DatabaseSync(":memory:");
+  const bind = (params: SqlParam[]) =>
+    params.map((p) => (p === undefined ? null : p));
 
   return {
     raw: sqlite,
     db: {
-      getAllAsync: async <T,>(sql: string, params: SqlParam[] = []) =>
+      getAllAsync: async <T>(sql: string, params: SqlParam[] = []) =>
         sqlite.prepare(sql).all(...bind(params)) as T[],
-      getFirstAsync: async <T,>(sql: string, params: SqlParam[] = []) =>
+      getFirstAsync: async <T>(sql: string, params: SqlParam[] = []) =>
         (sqlite.prepare(sql).get(...bind(params)) as T) ?? null,
       runAsync: async (sql: string, params: SqlParam[] = []) =>
         sqlite.prepare(sql).run(...bind(params)),
@@ -84,12 +88,12 @@ function connect(): { db: Db; raw: DatabaseSync } {
         sqlite.exec(sql);
       },
       withTransactionAsync: async (task: () => Promise<void>) => {
-        sqlite.exec('BEGIN');
+        sqlite.exec("BEGIN");
         try {
           await task();
-          sqlite.exec('COMMIT');
+          sqlite.exec("COMMIT");
         } catch (e) {
-          sqlite.exec('ROLLBACK');
+          sqlite.exec("ROLLBACK");
           throw e;
         }
       },
@@ -102,30 +106,47 @@ async function main() {
   await migrate(db);
   __setDb(db);
 
-  // A day in the factory, in the order it really happens.
-  await ensureStarterData(EMPRESA_SEMENTE);
+  /**
+   * O aparelho adota uma empresa ANTES de escrever a primeira linha — e o id dela
+   * não é a semente nem o da conta.
+   *
+   * **Era aqui que esta checagem escondia o defeito que ela existe para pegar.**
+   * A empresa semeada no Postgres descartável tinha exatamente o id compilado do
+   * aparelho, e o id da CONTA era o mesmo número: um uuid fazendo três papéis.
+   * Então a fila entrava, tudo fechava, e nada disso provava que o servidor
+   * aceita uma fila cujo `company_id` foi carimbado por adoção — que é o único
+   * caso que vai existir de verdade. A empresa passa a ter id próprio, a conta
+   * continua sendo outra, e a shell LÊ daqui qual empresa semear.
+   */
+  await adotarEmpresa("c4b1f7a8-9e02-4d31-8b55-000000000f01");
 
-  const items = await listItems(EMPRESA_SEMENTE);
-  const sugar = items.find((i) => i.name.startsWith('Açúcar'));
-  const pulp = items.find((i) => i.name.startsWith('Polpa'));
-  if (!sugar || !pulp) throw new Error('the starter data did not arrive');
+  // A day in the factory, in the order it really happens.
+  await ensureStarterData(empresaDaqui());
+
+  const items = await listItems(empresaDaqui());
+  const sugar = items.find((i) => i.name.startsWith("Açúcar"));
+  const pulp = items.find((i) => i.name.startsWith("Polpa"));
+  if (!sugar || !pulp) throw new Error("the starter data did not arrive");
 
   // A grade do que a fábrica faz, cadastrada como o dono cadastra: a linha
   // primeiro, o tipo dentro dela, o sabor solto. A ordem importa e é a mesma
   // que vai para o servidor - tipo antes da linha seria chave estrangeira
   // quebrada do outro lado, e a fila é enviada na ordem em que foi escrita.
-  const linha = await saveLine(EMPRESA_SEMENTE, { name: 'Picolé' });
-  const tipo = await saveType(EMPRESA_SEMENTE, { lineId: linha, name: 'Tradicional' });
-  const sabor = await saveFlavor(EMPRESA_SEMENTE, { name: 'Morango' });
+  const linha = await saveLine(empresaDaqui(), { name: "Picolé" });
+  const tipo = await saveType(empresaDaqui(), {
+    lineId: linha,
+    name: "Tradicional",
+  });
+  const sabor = await saveFlavor(empresaDaqui(), { name: "Morango" });
 
   // E um produto que a usa, porque uma grade que não chega presa a um produto
   // atravessa sem provar que as três colunas novas atravessam.
-  const palito = items.find((i) => i.name.includes('Palito'));
-  if (!palito) throw new Error('the starter data has no stick');
+  const palito = items.find((i) => i.name.includes("Palito"));
+  if (!palito) throw new Error("the starter data has no stick");
 
-  await saveProduct(EMPRESA_SEMENTE, {
-    name: 'Picolé Tradicional de Morango',
-    kind: 'product',
+  await saveProduct(empresaDaqui(), {
+    name: "Picolé Tradicional de Morango",
+    kind: "product",
     recipeId: null,
     yieldPerUnit: null,
     unitPackagingRate: rate(0.05, 1),
@@ -135,37 +156,37 @@ async function main() {
     // defeito que a hierarquia de `items` já teve, e a única forma de provar que
     // não voltou é uma linha de verdade atravessando a fila.
     packagingItems: [{ itemId: palito.id, quantityPerUnit: 1 }],
-    packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }] },
+    packaging: { tiers: [{ id: "unit", perBaseUnit: 1 }] },
     lineId: linha,
     typeId: tipo,
     flavorId: sabor,
   });
 
   // A second invoice, so the moving average has something to move.
-  await recordPurchase(EMPRESA_SEMENTE, {
+  await recordPurchase(empresaDaqui(), {
     itemId: sugar.id,
-    supplierName: 'Fornecedor Silva',
+    supplierName: "Fornecedor Silva",
     purchaseQuantity: 2,
     baseUnits: 50_000,
     totalCents: fromDecimal(295),
   });
 
   // Somebody walks to the shelf and finds less than the books expected.
-  await recordCount(EMPRESA_SEMENTE, {
-    locationId: defaultLocationId(EMPRESA_SEMENTE),
+  await recordCount(empresaDaqui(), {
+    locationId: defaultLocationId(empresaDaqui()),
     itemId: sugar.id,
     countedBaseUnits: 92_000,
   });
 
   // And a recipe, whose lines carry an order somebody chose.
-  await saveRecipeVersion(EMPRESA_SEMENTE, {
-    name: 'Base de creme',
+  await saveRecipeVersion(empresaDaqui(), {
+    name: "Base de creme",
     yieldAmount: 10_000,
-    yieldUnit: 'ml',
+    yieldUnit: "ml",
     lossFraction: 0.04,
     lines: [
-      { kind: 'item', itemId: pulp.id, quantity: 3_000 },
-      { kind: 'item', itemId: sugar.id, quantity: 1_500 },
+      { kind: "item", itemId: pulp.id, quantity: 3_000 },
+      { kind: "item", itemId: sugar.id, quantity: 1_500 },
     ],
   });
 
@@ -174,10 +195,13 @@ async function main() {
   // uma tabela que `serialize` diz saber mandar e que nenhuma sessão exercita
   // é uma promessa que ninguém cobrou - o servidor recusaria na primeira vez,
   // em produção, com a fila inteira parada atrás dela.
-  const loja = await savePlace(EMPRESA_SEMENTE, { name: 'Loja Centro', kind: 'own_store' });
-  await saveOrder(EMPRESA_SEMENTE, {
+  const loja = await savePlace(empresaDaqui(), {
+    name: "Loja Centro",
+    kind: "own_store",
+  });
+  await saveOrder(empresaDaqui(), {
     placeId: loja.id,
-    requestedFor: '2026-09-10',
+    requestedFor: "2026-09-10",
     lines: [{ itemId: pulp.id, baseUnits: 300 }],
   });
 
@@ -186,9 +210,13 @@ async function main() {
   // `capability[]`. Mandada crua, o Postgres guarda uma palavra só chamada
   // "dispatch,check_receipt" e recusa a fila inteira — com tudo o que a fábrica
   // gravar depois preso atrás dela.
-  const perfis = await listProfiles(EMPRESA_SEMENTE);
-  const entregador = perfis.find((p) => p.templateRole === 'driver') ?? perfis[0];
-  await savePerson(EMPRESA_SEMENTE, { name: 'Zeca da câmara', profileId: entregador.id });
+  const perfis = await listProfiles(empresaDaqui());
+  const entregador =
+    perfis.find((p) => p.templateRole === "driver") ?? perfis[0];
+  await savePerson(empresaDaqui(), {
+    name: "Zeca da câmara",
+    profileId: entregador.id,
+  });
 
   /**
    * O acordo comercial: o preço de tabela, o combinado com a loja, e a história.
@@ -203,11 +231,24 @@ async function main() {
    * As três chamadas escrevem QUATRO linhas: a tabela (que é `items`, já na fila),
    * o combinado, e duas de história — uma por mudança.
    */
-  const vendavel = (await listProducts(EMPRESA_SEMENTE))[0];
-  if (!vendavel) throw new Error('a sessão precisa de um produto para precificar');
-  await saveSalePrice(EMPRESA_SEMENTE, { itemId: vendavel.itemId, placeId: null, rate: rate(2.5, 1) });
-  await saveSalePrice(EMPRESA_SEMENTE, { itemId: vendavel.itemId, placeId: loja.id, rate: rate(2.2, 1) });
-  await saveSalePrice(EMPRESA_SEMENTE, { itemId: vendavel.itemId, placeId: loja.id, rate: rate(2.4, 1) });
+  const vendavel = (await listProducts(empresaDaqui()))[0];
+  if (!vendavel)
+    throw new Error("a sessão precisa de um produto para precificar");
+  await saveSalePrice(empresaDaqui(), {
+    itemId: vendavel.itemId,
+    placeId: null,
+    rate: rate(2.5, 1),
+  });
+  await saveSalePrice(empresaDaqui(), {
+    itemId: vendavel.itemId,
+    placeId: loja.id,
+    rate: rate(2.2, 1),
+  });
+  await saveSalePrice(empresaDaqui(), {
+    itemId: vendavel.itemId,
+    placeId: loja.id,
+    rate: rate(2.4, 1),
+  });
 
   // A câmara fria, com a faixa que julga a leitura — e uma leitura dentro dela.
   //
@@ -216,16 +257,16 @@ async function main() {
   // entre aspas onde deveria haver objeto (foi o que a lista de embalagem já
   // fez); e `readings` exige `recorded_by` na política, que é a coluna que o
   // aparelho não conhece e o serializador estampa.
-  const camara = await savePlace(EMPRESA_SEMENTE, {
-    name: 'Câmara fria',
-    kind: 'cold_room',
-    sensorRanges: { temperature: { min: -22, max: -16, unit: 'C' } },
+  const camara = await savePlace(empresaDaqui(), {
+    name: "Câmara fria",
+    kind: "cold_room",
+    sensorRanges: { temperature: { min: -22, max: -16, unit: "C" } },
   });
-  await recordReading(EMPRESA_SEMENTE, {
+  await recordReading(empresaDaqui(), {
     locationId: camara.id,
-    kind: 'temperature',
+    kind: "temperature",
     value: -18.4,
-    unit: 'C',
+    unit: "C",
   });
 
   // E uma corrida de verdade, que é o que faz nascer um LOTE.
@@ -235,29 +276,29 @@ async function main() {
   // aponta para `lots` lá, e aqui é só um TEXT. Se a ordem estivesse errada, o
   // aparelho aceitaria e o servidor recusaria: o defeito só apareceria no
   // primeiro celular sem sinal, com a fila inteira parada atrás dele.
-  const produto = (await listProducts(EMPRESA_SEMENTE)).find((p) => p.recipeId);
-  if (!produto) throw new Error('a sessão precisa de um produto com receita');
-  await recordProduction(EMPRESA_SEMENTE, {
+  const produto = (await listProducts(empresaDaqui())).find((p) => p.recipeId);
+  if (!produto) throw new Error("a sessão precisa de um produto com receita");
+  await recordProduction(empresaDaqui(), {
     productId: produto.id,
-    locationId: defaultLocationId(EMPRESA_SEMENTE),
+    locationId: defaultLocationId(empresaDaqui()),
     batches: 1,
     unitsProduced: 480,
-    producedOn: '2026-09-02',
+    producedOn: "2026-09-02",
   });
 
   // A carga que sai da fábrica para a loja.
-  await recordTransfer(EMPRESA_SEMENTE, {
+  await recordTransfer(empresaDaqui(), {
     itemId: pulp.id,
-    fromLocationId: defaultLocationId(EMPRESA_SEMENTE),
+    fromLocationId: defaultLocationId(empresaDaqui()),
     toLocationId: loja.id,
     baseUnits: 2000,
   });
 
   // E uma perda com motivo, que é o tipo com a capacidade mais restrita.
-  await recordLoss(EMPRESA_SEMENTE, {
+  await recordLoss(empresaDaqui(), {
     itemId: pulp.id,
     baseUnits: 300,
-    reason: 'melted',
+    reason: "melted",
   });
 
   // E a loja devolve parte do que recebeu.
@@ -267,15 +308,15 @@ async function main() {
   // `check_receipt`. Uma devolução que nunca foi replicada é uma política que
   // nunca foi cobrada, e ela só falharia na primeira loja que devolvesse
   // mercadoria, em produção, com a fila inteira parada atrás dela.
-  await recordReturn(EMPRESA_SEMENTE, {
+  await recordReturn(empresaDaqui(), {
     itemId: pulp.id,
     fromLocationId: loja.id,
-    toLocationId: defaultLocationId(EMPRESA_SEMENTE),
+    toLocationId: defaultLocationId(empresaDaqui()),
     baseUnits: 500,
     // Com motivo, e é ele que a sessão prova: o servidor recusa devolução sem
     // razão (`movements_return_says_why`), então uma devolução sem ela nunca
     // teria atravessado — e a checagem passaria por não ter tentado.
-    returnReason: 'unsold',
+    returnReason: "unsold",
   });
 
   // --- and now, exactly what the server would receive -----------------------
@@ -285,13 +326,17 @@ async function main() {
   const exercised = new Set<string>();
   const kindsNaFila = new Set<string>();
 
-  out.push('-- Gerado por scripts/device-session.ts. Não editar à mão.');
-  out.push(`-- ${queue.length} escritas na fila, na ordem em que o aparelho gravou.`);
-  out.push('');
+  out.push("-- Gerado por scripts/device-session.ts. Não editar à mão.");
+  out.push(
+    `-- ${queue.length} escritas na fila, na ordem em que o aparelho gravou.`,
+  );
+  out.push("");
 
   for (const entry of queue) {
-    if (entry.table === 'erase') {
-      out.push(`-- erase ${entry.rowId}: comando, não linha; o servidor ainda não o recebe`);
+    if (entry.table === "erase") {
+      out.push(
+        `-- erase ${entry.rowId}: comando, não linha; o servidor ainda não o recebe`,
+      );
       continue;
     }
 
@@ -303,14 +348,17 @@ async function main() {
       .get(entry.rowId) as Record<string, unknown> | undefined;
 
     const write = serialize(entry, row ?? null, ACTOR);
-    if (write.kind === 'derived') {
-      out.push(`-- ${write.table} não viaja: valor derivado tem um dono só, e é o servidor`);
+    if (write.kind === "derived") {
+      out.push(
+        `-- ${write.table} não viaja: valor derivado tem um dono só, e é o servidor`,
+      );
       continue;
     }
-    if (write.kind !== 'upsert') continue;
+    if (write.kind !== "upsert") continue;
 
     const json = JSON.stringify(write.row);
-    if (json.includes('$sync$')) throw new Error('a value collided with the quoting tag');
+    if (json.includes("$sync$"))
+      throw new Error("a value collided with the quoting tag");
 
     // How a repeat is handled is not a detail - it is the contract.
     //
@@ -321,7 +369,7 @@ async function main() {
     // nothing. That is what the shared id between a purchase line and its
     // movement was always for.
     const keys = Object.keys(write.row);
-    const conflict = ['id'];
+    const conflict = ["id"];
     const settled = keys.filter((k) => !conflict.includes(k));
 
     // Leitura de sensor é da mesma família do livro-razão: a temperatura de ontem
@@ -334,12 +382,12 @@ async function main() {
     // `do update` pede um privilégio que ela nunca vai ter — e o erro não fala de
     // política, fala de permissão numa tabela que ninguém tocou. Por quanto se
     // vendia em março não se corrige: combina-se de novo, e isso é uma linha nova.
-    const APPEND_ONLY = ['movements', 'readings', 'sale_price_history'];
+    const APPEND_ONLY = ["movements", "readings", "sale_price_history"];
     const appendOnly = APPEND_ONLY.includes(write.table);
 
     const onConflict = appendOnly
-      ? 'do nothing'
-      : `do update set ${settled.map((k) => `${ident(k)} = excluded.${ident(k)}`).join(', ')}`;
+      ? "do nothing"
+      : `do update set ${settled.map((k) => `${ident(k)} = excluded.${ident(k)}`).join(", ")}`;
 
     // The columns are named, and that is not cosmetic.
     //
@@ -352,13 +400,14 @@ async function main() {
     // point of running this. Every name here comes from `serialize`'s own closed
     // list, never from outside, and `ident` enforces that rather than asserting it.
     exercised.add(write.table);
-    if (write.table === 'movements' && typeof row?.kind === 'string') kindsNaFila.add(row.kind);
+    if (write.table === "movements" && typeof row?.kind === "string")
+      kindsNaFila.add(row.kind);
 
-    const columns = keys.map(ident).join(', ');
+    const columns = keys.map(ident).join(", ");
     out.push(
       `insert into ${ident(write.table)} (${columns}) select ${columns} from ` + // proofgate-allow: ident() above
         `jsonb_populate_record(null::${write.table}, $sync$${json}$sync$::jsonb) ` +
-        `on conflict (${conflict.join(', ')}) ${onConflict};`,
+        `on conflict (${conflict.join(", ")}) ${onConflict};`,
     );
   }
 
@@ -371,7 +420,7 @@ async function main() {
   const untouched = sendableTables.filter((table) => !exercised.has(table));
   if (untouched.length > 0) {
     throw new Error(
-      `a sessão não exercita ${untouched.join(', ')} — a checagem 6 cobriria menos do que promete`,
+      `a sessão não exercita ${untouched.join(", ")} — a checagem 6 cobriria menos do que promete`,
     );
   }
 
@@ -386,23 +435,33 @@ async function main() {
   // A lista é do que este aplicativo SABE escrever, não do enum inteiro do
   // servidor: `sale` e `reversal` não têm escritor ainda, e cobrar por eles
   // seria pedir que a sessão finja um caminho que o app não tem.
-  const kindsQueTemEscritor = ['purchase', 'production', 'consumption', 'transfer', 'return', 'adjustment', 'loss'];
-  const kindsDeFora = kindsQueTemEscritor.filter((kind) => !kindsNaFila.has(kind));
+  const kindsQueTemEscritor = [
+    "purchase",
+    "production",
+    "consumption",
+    "transfer",
+    "return",
+    "adjustment",
+    "loss",
+  ];
+  const kindsDeFora = kindsQueTemEscritor.filter(
+    (kind) => !kindsNaFila.has(kind),
+  );
   if (kindsDeFora.length > 0) {
     throw new Error(
-      `a sessão não grava movimento de tipo ${kindsDeFora.join(', ')} — a política desses tipos ` +
+      `a sessão não grava movimento de tipo ${kindsDeFora.join(", ")} — a política desses tipos ` +
         `nunca é exercitada, e cada tipo tem a sua própria capacidade no servidor`,
     );
   }
 
   // What the device believes, for the shell to check the server against.
-  const after = await listItems(EMPRESA_SEMENTE);
+  const after = await listItems(empresaDaqui());
   const heldSugar = after.find((i) => i.id === sugar.id);
   // A média pelo caminho do LIVRO-RAZÃO: esta saída é comparada número por
   // número com a que o Postgres calcula, e é verdade de razão, não figura de tela.
-  const costs = await averageRatesForLedger(EMPRESA_SEMENTE);
+  const costs = await averageRatesForLedger(empresaDaqui());
 
-  out.push('');
+  out.push("");
   out.push(`-- DEVICE_SUGAR_ID=${sugar.id}`);
   out.push(`-- DEVICE_SUGAR_BALANCE=${heldSugar?.onHandBaseUnits ?? 0}`);
   // A Rate, not money: fractional by foundation, and printed here only so the
@@ -416,13 +475,18 @@ async function main() {
   // pelo movimento de produção, e não olhava. As duas implementações
   // independentes da mesma regra, agora nos dois caminhos.
   out.push(`-- DEVICE_PRODUCT_ID=${produto.itemId}`);
-  out.push(`-- DEVICE_PRODUCT_AVERAGE=${(costs[produto.itemId] ?? 0).toFixed(4)}`); // proofgate-allow
+  out.push(
+    `-- DEVICE_PRODUCT_AVERAGE=${(costs[produto.itemId] ?? 0).toFixed(4)}`,
+  ); // proofgate-allow
+  out.push(`-- DEVICE_COMPANY=${empresaDaqui()}`);
   out.push(`-- DEVICE_QUEUE_LENGTH=${queue.length}`);
 
-  process.stdout.write(out.join('\n') + '\n');
+  process.stdout.write(out.join("\n") + "\n");
 }
 
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.stack : String(error)}\n`);
+  process.stderr.write(
+    `${error instanceof Error ? error.stack : String(error)}\n`,
+  );
   process.exit(1);
 });

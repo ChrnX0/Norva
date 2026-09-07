@@ -1,16 +1,23 @@
-import { useState } from 'react';
-import { Text, View } from 'react-native';
-import { Button } from '@/components/Button';
-import { Card } from '@/components/Card';
-import { CollapsingHeader } from '@/components/CollapsingHeader';
-import { Field } from '@/components/Field';
-import { GlyphCustomer, GlyphFactory, GlyphLabel } from '@/components/Glyph';
-import { Reveal } from '@/components/Reveal';
-import { useQuery } from '@/data/useQuery';
-import { useLocale } from '@/i18n/useLocale';
-import { ROLES } from '@/domain/access';
-import { fill } from '@/i18n';
-import { puxar } from '@/data/configuracao';
+import { useState } from "react";
+import { Text, View } from "react-native";
+import { Button } from "@/components/Button";
+import { Card } from "@/components/Card";
+import { useConfirm } from "@/components/Confirm";
+import { CollapsingHeader } from "@/components/CollapsingHeader";
+import { Field } from "@/components/Field";
+import { GlyphCustomer, GlyphFactory, GlyphLabel } from "@/components/Glyph";
+import { Reveal } from "@/components/Reveal";
+import { useQuery } from "@/data/useQuery";
+import { useLocale } from "@/i18n/useLocale";
+import { ROLES } from "@/domain/access";
+import { fill } from "@/i18n";
+import {
+  AdocaoRecusadaError,
+  adotarEmpresa,
+  type MotivoDaRecusa,
+} from "@/data/adocao";
+import { puxar } from "@/data/configuracao";
+import { empresaDaqui } from "@/data/empresa";
 import {
   aprovar,
   contaAtual,
@@ -26,8 +33,8 @@ import {
   type Empresa,
   type MotivoDaConta,
   type Pedido,
-} from '@/sync/conta';
-import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
+} from "@/sync/conta";
+import { AreaProvider, useTheme } from "@/theme/ThemeProvider";
 
 /**
  * A conta da empresa.
@@ -61,6 +68,7 @@ export default function AccountScreen() {
    * escrita à mão já tinha `reler` numa `useCallback` só para segurar isso.
    * `useQuery` faz a mesma coisa com uma chave e uma releitura explícita.
    */
+  const confirm = useConfirm();
   const { data: estado, refresh } = useQuery<{
     conta: Conta | null;
     empresa: Empresa | null;
@@ -86,18 +94,22 @@ export default function AccountScreen() {
   });
   const conta = estado?.conta ?? null;
   const empresa = estado?.empresa ?? null;
+  // O aparelho é desta empresa? Comparação de fato com fato: o id que o servidor
+  // devolveu contra o que este aparelho carimba nas linhas dele.
+  const ligado = empresa !== null && empresa.id === empresaDaqui();
   const fila = estado?.fila ?? [];
   const carregando = estado === null;
 
   const [criando, setCriando] = useState(false);
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
-  const [nomeDaEmpresa, setNomeDaEmpresa] = useState('');
-  const [codigo, setCodigo] = useState('');
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [nomeDaEmpresa, setNomeDaEmpresa] = useState("");
+  const [codigo, setCodigo] = useState("");
   const [pedidoPara, setPedidoPara] = useState<string | null>(null);
 
   const [ocupado, setOcupado] = useState(false);
   const [motivo, setMotivo] = useState<MotivoDaConta | null>(null);
+  const [recusa, setRecusa] = useState<MotivoDaRecusa | null>(null);
   const [confirmePorEmail, setConfirmePorEmail] = useState(false);
 
   const podeEnviar = email.trim().length > 3 && senha.length >= 6 && !ocupado;
@@ -106,7 +118,9 @@ export default function AccountScreen() {
     setOcupado(true);
     setMotivo(null);
     setConfirmePorEmail(false);
-    const resposta = criando ? await criarConta(email, senha) : await entrar(email, senha);
+    const resposta = criando
+      ? await criarConta(email, senha)
+      : await entrar(email, senha);
     if (!resposta.ok) {
       setMotivo(resposta.motivo);
       setOcupado(false);
@@ -115,14 +129,14 @@ export default function AccountScreen() {
     // Criar conta nem sempre abre sessão: o servidor pode exigir confirmação por
     // e-mail. Dizer "conta criada" e deixar a pessoa numa tela que recusa a senha
     // dela é o pior desfecho deste caminho, então os dois casos são ditos.
-    if (criando && 'sessao' in resposta.valor && !resposta.valor.sessao) {
+    if (criando && "sessao" in resposta.valor && !resposta.valor.sessao) {
       setConfirmePorEmail(true);
       setCriando(false);
-      setSenha('');
+      setSenha("");
       setOcupado(false);
       return;
     }
-    setSenha('');
+    setSenha("");
     refresh();
     setOcupado(false);
   };
@@ -132,7 +146,35 @@ export default function AccountScreen() {
     setMotivo(null);
     const resposta = await criarEmpresa(nomeDaEmpresa);
     if (!resposta.ok) setMotivo(resposta.motivo);
-    else setNomeDaEmpresa('');
+    else setNomeDaEmpresa("");
+    refresh();
+    setOcupado(false);
+  };
+
+  /**
+   * Liga este aparelho à empresa — uma vez, e com o dono sabendo o que muda.
+   *
+   * Uma confirmação e não duas: nada é apagado aqui. O carimbo das linhas passa a
+   * ser o da empresa de verdade, que é o que faz a fila ter para onde subir. O
+   * eixo desta casa é irrecuperável, não irreversível — e adoção não perde dado.
+   */
+  const ligar = async () => {
+    if (!empresa) return;
+    const vai = await confirm({
+      title: fill(t.app.account.adoptAction, { company: empresa.nome }),
+      message: fill(t.app.account.adoptAsk, { company: empresa.nome }),
+      confirmLabel: t.app.confirm.confirm,
+    });
+    if (!vai) return;
+    setOcupado(true);
+    setRecusa(null);
+    try {
+      await adotarEmpresa(empresa.id);
+    } catch (erro) {
+      // Fato virando frase é trabalho da tela: a camada de dados devolveu um
+      // código, e cada código tem uma frase que diz o que FAZER.
+      setRecusa(erro instanceof AdocaoRecusadaError ? erro.motivo : "idVazio");
+    }
     refresh();
     setOcupado(false);
   };
@@ -144,7 +186,7 @@ export default function AccountScreen() {
     if (!resposta.ok) setMotivo(resposta.motivo);
     else {
       setPedidoPara(resposta.valor);
-      setCodigo('');
+      setCodigo("");
     }
     setOcupado(false);
   };
@@ -155,7 +197,9 @@ export default function AccountScreen() {
     // O papel entra na APROVAÇÃO e não no pedido: quem pede não escolhe o que
     // pode fazer. `operator` é o padrão pela decisão do dono — aparelho
     // emprestado produz, despacha e confere, e não vê dinheiro em lugar nenhum.
-    const resposta = sim ? await aprovar(id, [...ROLES.operator]) : await recusar(id);
+    const resposta = sim
+      ? await aprovar(id, [...ROLES.operator])
+      : await recusar(id);
     if (!resposta.ok) setMotivo(resposta.motivo);
     refresh();
     setOcupado(false);
@@ -170,10 +214,16 @@ export default function AccountScreen() {
 
   return (
     <AreaProvider area="sky">
-      <CollapsingHeader cena="gente" title={t.app.account.title} overline={t.app.account.overline}>
+      <CollapsingHeader
+        cena="gente"
+        title={t.app.account.title}
+        overline={t.app.account.overline}
+      >
         {carregando ? (
           <Reveal index={0}>
-            <Text style={[type.body, { color: color.inkMuted }]}>{t.app.account.working}</Text>
+            <Text style={[type.body, { color: color.inkMuted }]}>
+              {t.app.account.working}
+            </Text>
           </Reveal>
         ) : null}
 
@@ -185,7 +235,12 @@ export default function AccountScreen() {
               icon={(c) => <GlyphCustomer size={26} color={c} />}
               title={criando ? t.app.account.signUp : t.app.account.signIn}
             >
-              <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.md }]}>
+              <Text
+                style={[
+                  type.secondary,
+                  { color: color.inkMuted, marginBottom: space.md },
+                ]}
+              >
                 {t.app.account.why}
               </Text>
 
@@ -202,7 +257,11 @@ export default function AccountScreen() {
                   value={senha}
                   onChangeText={setSenha}
                   segredo
-                  hint={senha.length > 0 && senha.length < 6 ? t.app.account.passwordHint : undefined}
+                  hint={
+                    senha.length > 0 && senha.length < 6
+                      ? t.app.account.passwordHint
+                      : undefined
+                  }
                 />
               </View>
 
@@ -214,7 +273,11 @@ export default function AccountScreen() {
               />
               <Button
                 variant="ghost"
-                label={criando ? t.app.account.switchToSignIn : t.app.account.switchToSignUp}
+                label={
+                  criando
+                    ? t.app.account.switchToSignIn
+                    : t.app.account.switchToSignUp
+                }
                 onPress={() => {
                   setCriando((antes) => !antes);
                   setMotivo(null);
@@ -232,7 +295,12 @@ export default function AccountScreen() {
               icon={(c) => <GlyphFactory size={26} color={c} />}
               title={t.app.account.companyTitle}
             >
-              <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.md }]}>
+              <Text
+                style={[
+                  type.secondary,
+                  { color: color.inkMuted, marginBottom: space.md },
+                ]}
+              >
                 {t.app.account.companyBody}
               </Text>
               <Field
@@ -262,7 +330,12 @@ export default function AccountScreen() {
               icon={(c) => <GlyphCustomer size={26} color={c} />}
               title={t.app.account.joinTitle}
             >
-              <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.md }]}>
+              <Text
+                style={[
+                  type.secondary,
+                  { color: color.inkMuted, marginBottom: space.md },
+                ]}
+              >
                 {t.app.account.joinBody}
               </Text>
               <Field
@@ -279,7 +352,9 @@ export default function AccountScreen() {
                 style={{ marginTop: space.md }}
               />
               {pedidoPara ? (
-                <Text style={[type.body, { color: color.ink, marginTop: space.sm }]}>
+                <Text
+                  style={[type.body, { color: color.ink, marginTop: space.sm }]}
+                >
                   {fill(t.app.account.joinSent, { company: pedidoPara })}
                 </Text>
               ) : null}
@@ -315,6 +390,37 @@ export default function AccountScreen() {
           </Reveal>
         ) : null}
 
+        {/* E a ligação, que só aparece enquanto ela falta. Tela que oferece o que
+            já está feito ensina a ignorar o que ela oferece. */}
+        {!carregando && conta && empresa && !ligado ? (
+          <Reveal index={1}>
+            <Card
+              hue={palette.sky}
+              icon={(c) => <GlyphFactory size={26} color={c} />}
+              title={t.app.account.adoptTitle}
+            >
+              <Text style={[type.secondary, { color: color.inkMuted }]}>
+                {fill(t.app.account.adoptBody, { company: empresa.nome })}
+              </Text>
+              <Button
+                label={fill(t.app.account.adoptAction, {
+                  company: empresa.nome,
+                })}
+                onPress={() => void ligar()}
+                disabled={ocupado}
+                style={{ marginTop: space.md }}
+              />
+              {recusa ? (
+                <Text
+                  style={[type.body, { color: color.ink, marginTop: space.sm }]}
+                >
+                  {t.app.account.adoptRefuse[recusa]}
+                </Text>
+              ) : null}
+            </Card>
+          </Reveal>
+        ) : null}
+
         {/* O código, em corpo grande e espaçado: ele é DITADO em voz alta, com
             barulho de fábrica, para alguém digitar do outro lado. Seis letras
             apertadas em corpo de legenda seriam sopradas errado. */}
@@ -328,9 +434,13 @@ export default function AccountScreen() {
               <Text
                 style={[
                   type.figure,
-                  { color: color.ink, letterSpacing: 6, marginBottom: space.sm },
+                  {
+                    color: color.ink,
+                    letterSpacing: 6,
+                    marginBottom: space.sm,
+                  },
                 ]}
-                accessibilityLabel={empresa.codigo.split('').join(' ')}
+                accessibilityLabel={empresa.codigo.split("").join(" ")}
               >
                 {empresa.codigo}
               </Text>
@@ -353,11 +463,19 @@ export default function AccountScreen() {
             >
               {fila.map((pedido) => (
                 <View key={pedido.id} style={{ marginBottom: space.md }}>
-                  <Text style={[type.body, { color: color.ink }]}>{pedido.nome}</Text>
+                  <Text style={[type.body, { color: color.ink }]}>
+                    {pedido.nome}
+                  </Text>
                   <Text style={[type.caption, { color: color.inkFaint }]}>
                     {t.app.account.approveAs}
                   </Text>
-                  <View style={{ flexDirection: 'row', gap: space.md, marginTop: space.sm }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      gap: space.md,
+                      marginTop: space.sm,
+                    }}
+                  >
                     <Button
                       label={t.app.account.approve}
                       onPress={() => void decidir(pedido.id, true)}
@@ -382,13 +500,17 @@ export default function AccountScreen() {
             crua do servidor: ela é inglês de biblioteca e muda de versão. */}
         {motivo ? (
           <Reveal index={1}>
-            <Text style={[type.body, { color: color.danger }]}>{t.app.account.reason[motivo]}</Text>
+            <Text style={[type.body, { color: color.danger }]}>
+              {t.app.account.reason[motivo]}
+            </Text>
           </Reveal>
         ) : null}
 
         {confirmePorEmail ? (
           <Reveal index={1}>
-            <Text style={[type.body, { color: color.ink }]}>{t.app.account.checkEmail}</Text>
+            <Text style={[type.body, { color: color.ink }]}>
+              {t.app.account.checkEmail}
+            </Text>
           </Reveal>
         ) : null}
       </CollapsingHeader>

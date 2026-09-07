@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **473** testes |
+| `npm test` | **482** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **51** checagens num navegador de verdade |
 | `npm run db:verify` | **19** garantias contra um Postgres descartável, sob RLS |
@@ -440,9 +440,9 @@ sobra é menor e continua sendo dívida: a configuração da casa desce **só qu
 Conta abre**, nunca no boot, então um aparelho que nunca abre Conta trabalha com a
 configuração dele.
 
-### 0b-ter. A empresa deste aparelho é uma constante compilada — e é o que quebra na primeira subida
+### 0b-ter. ~~A empresa deste aparelho é uma constante compilada~~ — FEITO em 7 de setembro
 
-<!-- medida: ausente src/data :: export async function adotarEmpresa -->
+<!-- medida: presente src/data :: export async function adotarEmpresa -->
 
 `LOCAL_COMPANY_ID` (`src/data/empresa.ts`) é a MESMA constante em toda instalação, e é ela
 que carimba cada linha do razão. Quando o dono cria a empresa, `criarEmpresa` devolve o id
@@ -459,22 +459,33 @@ uma empresa com exatamente essa constante (`scripts/verify-migrations.sh`, `DEVI
 — ela **fabrica à mão a condição que esconde o defeito**. É a família de sempre: guarda que
 compara duas coisas escritas pela mesma mão.
 
-**O caminho, e ele não pede migração de servidor** — o passo 1 está **FEITO**; os
-outros quatro são a adoção:
+**Os cinco passos, todos feitos — e o que cada um virou:**
 
 1. ~~a empresa deste aparelho vira **fato guardado** (`app_meta`, chave `company.id`)~~ —
    **feito**: `src/data/empresa.ts` guarda o fato, `empresaDaqui()` responde de memória, o
    boot lê o disco antes da primeira tela, e as 211 chamadas das 31 telas passaram a
    perguntar em vez de citar a constante. Restaurar cópia relê, porque a cópia repõe
    `app_meta` inteiro;
-2. a **adoção** reescreve o carimbo das linhas locais numa transação, antes de qualquer
-   transporte — o SQLite do aparelho não tem gatilho de imutabilidade, é o mesmo livro com
-   outra capa, e nenhuma linha saiu de aparelho nenhum até hoje;
-3. o lugar padrão ganha id próprio, e `defaultLocationId` deixa de devolver o `company_id`;
-4. a fila **se recusa a subir** enquanto não houver empresa adotada — falhar aqui, com
-   frase, em vez de falhar no servidor sem ninguém entender;
-5. a barra passa a adotar uma empresa cujo id NÃO é a constante, para a checagem 6 provar o
-   que promete.
+2. **a adoção reescreve o carimbo numa transação** (`src/data/adocao.ts`): copia o lugar
+   padrão com o id novo, reponta as sete colunas que apontam para `locations`, apaga o lugar
+   velho, troca `company_id` nas 23 tabelas, conserta o `row_id` da fila, e grava o fato
+   **na mesma transação** — se o aparelho desligar no meio, ou tudo voltou ou tudo valeu;
+3. **o lugar padrão ANDA em vez de ganhar id próprio** — e isto é mudança de plano medida:
+   o pragma que o outro caminho pedia é dispensável, e enquanto `defaultLocationId` devolve
+   o `company_id` o lugar padrão passa a ter o uuid da empresa, que é único no mundo. Quebrar
+   o atalho fica para o 0b-bis, que é quem precisa dele (duas fábricas);
+4. **a fila se recusa a subir** sem empresa adotada, e a recusa é um campo próprio do
+   relatório (`recusa: 'semEmpresa'`) e não uma frase em `error` — *"eu não tentei"* e *"o
+   servidor recusou"* pedem coisas diferentes de quem está com o aparelho;
+5. **a barra LÊ do aparelho qual empresa semear** (`-- DEVICE_COMPANY=`), e recusa se ela for
+   o mesmo uuid da conta. Era aqui que a checagem 6 se provava sozinha.
+
+**E três recusas, cada uma irrecuperável se passasse:** linha que já subiu (`sent_at`
+preenchido — o razão do servidor não se reescreve), exemplo semeado ainda no aparelho
+(nota inventada não entra no livro da fábrica; a tela manda apagar em Ajustes, onde a
+conta do que sai já é mostrada), e id já ocupado (cópia restaurada de outro aparelho).
+Cada uma tem teste, e cada teste foi provado por mordida — quebrei a adoção em quatro
+lugares e a suíte mordeu nos quatro.
 
 **O que a medição acrescentou ao desenho, e ela derrubou três coisas que eu ia fazer:**
 

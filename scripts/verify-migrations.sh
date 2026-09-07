@@ -453,12 +453,25 @@ fi
 
 # A empresa e a conta dela. O login autentica o SISTEMA: quem sincroniza é a
 # conta da empresa, e é sob ela que a fila inteira entra.
+#
+# E a empresa é LIDA da saída do aparelho, não escrita aqui. Enquanto este script
+# semeava o id que ele mesmo escolhia — o mesmo número da conta, e o mesmo do
+# carimbo compilado do aparelho —, a checagem fabricava à mão a condição que
+# esconde o defeito: um uuid fazendo três papéis prova que as colunas batem e
+# nada sobre o servidor aceitar uma fila carimbada por adoção.
 DEVICE_ACCOUNT=00000000-0000-4000-8000-000000000001
+DEVICE_COMPANY=$(sed -n 's/^-- DEVICE_COMPANY=//p' "$QUEUE" | tail -1)
+if [ -z "$DEVICE_COMPANY" ]; then
+  fail "a sessão do aparelho não disse qual empresa ela adotou"
+fi
+if [ "$DEVICE_COMPANY" = "$DEVICE_ACCOUNT" ]; then
+  fail "a empresa do aparelho é o mesmo uuid da conta — a checagem voltaria a se provar sozinha"
+fi
 psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
   insert into companies (id, name)
-    values ('$DEVICE_ACCOUNT', 'Fábrica local');
+    values ('$DEVICE_COMPANY', 'Fábrica local');
   insert into memberships (company_id, user_id, display_name, capabilities)
-    values ('$DEVICE_ACCOUNT', '$DEVICE_ACCOUNT', 'Conta da empresa',
+    values ('$DEVICE_COMPANY', '$DEVICE_ACCOUNT', 'Conta da empresa',
             enum_range(null::capability));
   -- INSERT e UPDATE, e o UPDATE não é excesso: a fila sobe com
   -- ON CONFLICT DO UPDATE, porque uma linha corrigida no aparelho offline tem
