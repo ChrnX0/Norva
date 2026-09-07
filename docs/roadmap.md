@@ -455,6 +455,38 @@ Continua travado no que o item 2b já diz: **E1**. Nada foi exercitado contra o
 servidor porque entrar de verdade cria uma conta de autenticação no projeto do dono,
 e essa é decisão dele.
 
+### 2b. O que trava o transporte, e é decisão de dono: o `erase` não tem para onde ir
+
+**Achado em 7 de setembro indo construir o transporte.** As peças estão todas de pé —
+o motor (`src/sync/engine.ts`) com as três regras e provado contra um `Transport`
+falso, a fila (`src/data/outbox.ts`), o tradutor (`src/sync/serialize.ts`) e a conta
+(`src/sync/conta.ts`). Falta **uma** implementação de `Transport` e quem a chame. Ao
+escrever a primeira, ela bate numa parede.
+
+O aparelho enfileira `{ table: 'erase', rowId: area }` quando alguém usa *"limpar por
+área"* (`src/data/repository.ts:4204`), e o `serialize` transforma isso num comando
+`{ kind: 'erase', area }`. **Não existe função no servidor que o receba** — nenhuma
+migração das 39 declara uma. E ela não poderia apagar o razão nem se existisse: a
+`0001` cria `movements_are_immutable` como `before update or delete on movements`, e
+a checagem 1 do `db:verify` prova que os dois são recusados.
+
+Ou seja: o primeiro transporte de verdade **trava no primeiro erase** — ou o descarta
+em silêncio, e aí aparelho e servidor divergem para sempre sem ninguém saber.
+
+**Duas saídas, e as duas são produto, não código:**
+
+| | o que acontece | o preço |
+|---|---|---|
+| **A. "Começar do zero" é LOCAL, e ponto** | o aparelho volta a zero; o servidor guarda tudo; a sincronia seguinte devolve o que o servidor tem | "limpar" deixa de limpar de verdade quando há servidor — e a pessoa que limpou vê tudo voltar |
+| **B. O erase é um MARCADOR, não um apagamento** | o servidor grava *"esta empresa pediu para esquecer a área X nesta data"* e para de devolver essas linhas; nada é apagado | uma migração nova, e o razão fica íntegro por baixo de uma tela limpa |
+
+**A recomendação é B**, porque é a única que honra as duas fundações ao mesmo tempo:
+o razão continua append-only, e *"começar do zero"* continua fazendo o que promete na
+tela de quem apertou. É migração, então é P3 — entra com cuidado e não se edita depois.
+
+**Isto está aqui e não na fila porque a resposta muda o que é construído**, e porque
+o lado errado destrói dado num servidor. É uma das três bordas.
+
 ### 3. Ouvir o aplicativo — cinco minutos dele, zero meus
 
 `src/acessivel.test.ts` prova que todo alvo de toque se anuncia. **Ninguém nunca
