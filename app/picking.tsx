@@ -179,6 +179,34 @@ function Carrinho() {
       {/* Para qual loja. Mesma lista da transferência, e a escolha marca com a
           tinta e o peso da palavra — caixa desenhada à mão aqui era o que não
           tinha como virar Papel. */}
+      {/* ANTES DE TUDO: existe para onde mandar?
+          Achado no emulador, e é o defeito que a Lei da Inteligência proíbe com
+          todas as letras. Numa fábrica recém-instalada não há loja nem cliente, e
+          esta tela desenhava um cabeçalho "Para onde vai" com **nada embaixo** —
+          o `map` de uma lista vazia — e logo abaixo a frase *"essa loja não tem
+          pedido em aberto"*, falando de uma loja que ela nunca ofereceu nem
+          nomeou. Duas mentiras pequenas que juntas fazem a tela parecer quebrada
+          exatamente na primeira vez em que alguém a abre.
+          O ramo de "sem pedido" continua certo — para quando HÁ loja. */}
+      {lojas.length === 0 ? (
+        <Reveal index={0}>
+          <Card
+            hue={palette.lilac}
+            icon={(c) => <GlyphStore size={26} color={c} weight={traco} />}
+            title={words.noPlacesTitle}
+          >
+            <Text style={[type.body, { color: color.inkMuted }]}>{words.noPlacesHint}</Text>
+            {/* Erro que IMPEDE diz para onde ir. Sem esta porta a pessoa fica
+                sabendo que falta algo e não sabendo o quê fazer. */}
+            <Button
+              label={words.noPlacesAction}
+              variant="ghost"
+              onPress={() => router.push('/places')}
+              style={{ marginTop: space.md }}
+            />
+          </Card>
+        </Reveal>
+      ) : (
       <Reveal index={0}>
         <Card
           hue={palette.lilac}
@@ -211,10 +239,12 @@ function Carrinho() {
           })}
         </Card>
       </Reveal>
+      )}
 
       {/* Sem pedido não há o que separar, e isso é estado válido: a tela diz para
-          onde ir em vez de mostrar uma lista vazia. */}
-      {linhas.length === 0 ? (
+          onde ir em vez de mostrar uma lista vazia. Só vale quando HÁ loja — sem
+          loja, quem responde é o cartão acima. */}
+      {lojas.length === 0 ? null : linhas.length === 0 ? (
         <Reveal index={1}>
           <Card hue={palette.lilac} title={words.empty}>
             <Text style={[type.body, { color: color.inkMuted }]}>{words.emptyHint}</Text>
