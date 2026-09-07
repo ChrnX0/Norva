@@ -6138,3 +6138,44 @@ deriva R$ 323,84 do custo congelado da corrida e exige igualdade.
 bateria concordava com ele. O que discordou foi a aritmética feita na mão em cima de
 uma tela — que é a mesma coisa que o dono faria no primeiro dia de uso, e é por isso
 que ele veria antes de mim se eu não tivesse olhado.
+
+---
+
+## Sete defeitos numa noite, e o que os achou não foi a suíte
+
+**6 para 7 de setembro.** A barra estava verde o tempo inteiro — 435 testes, lint,
+typecheck, CI. E sete defeitos reais apareceram, todos por **abrir o aplicativo**:
+
+1. `application/vnd.sqlite3` faz o Android não oferecer **nenhum** app para receber
+   a cópia. A chamada é idêntica, a promessa resolve igual; o que muda é a lista
+   que o sistema monta do outro lado.
+2. A estante da cena lia como janela vazia ocupando um terço da prancha.
+3. Dois glifos diziam o assunto errado — um balde de estoque no cartão que avisa
+   que a cópia leva **dinheiro** dentro. A guarda da assinatura passou nos dois.
+4. A capa do primeiro dia deixava dois terços da tela em branco.
+5. O extrato mostrou **R$ 625,27** numa corrida que fez R$ 323,84 — o mesmo
+   dinheiro contado duas vezes, com o teste verde porque a asserção era `> 0`.
+6. O estorno se anunciava como **"Correção de Correção"** — dado certo, leitura
+   errada, e a asserção óbvia (`isReversal === true`) passava.
+7. A separação mostrava o cabeçalho *"Para onde vai"* com **nada embaixo** e a
+   frase *"essa loja não tem pedido"* numa fábrica sem loja nenhuma.
+
+**Dois deles precisaram de mais que olhar.** O nº 5 saiu de eu **fazer a conta de
+cabeça** em cima de um número na tela — 506 × R$ 0,64 — e ela não bateu. O nº 7 só
+apareceu porque eu **segui a sequência**: produzir, e então separar. Abrir a tela de
+separação isolada mostraria a mesma coisa e eu teria lido como estado vazio normal;
+o que a torna defeito é chegar nela vindo de uma produção, com picolé no estoque e
+nenhum lugar para mandá-lo.
+
+**A regra que sai daqui, e ela é mais estreita que "olhe a tela":** exercitar o
+aplicativo é seguir o CAMINHO de quem usa, não visitar telas. E onde houver número,
+fazer a conta — a aritmética na mão é a única régua que não compartilha os erros do
+código que produziu o número.
+
+**E a guarda que eu não construí, medida antes de decidir.** A classe do nº 7 é
+checkável — cartão com título cujo único conteúdo é um `map` sobre lista que pode
+estar vazia. Varri: **quatro ocorrências, todas em `more.tsx`, todas listas
+estáticas de portas que nunca esvaziam.** Uma guarda que nasce com zero achados e
+quatro dispensas registradas é decoração, e decoração verde é pior que nada porque
+ensina a confiar. Registrado o **não** com a medida ao lado, para o próximo que
+tiver a mesma ideia não precisar remedir.

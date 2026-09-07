@@ -621,6 +621,15 @@ sistema** até ela falhar ou passar de verdade. Construir sobre uma premissa
 inventada custa a rodada inteira, e o pior é que o código fica bonito: testes
 verdes protegendo uma regra que ninguém pediu.
 
+**Exercitar o app é seguir o CAMINHO de quem usa, não visitar telas.** Em 6 de
+setembro sete defeitos apareceram numa noite com a barra verde, e dois deles não
+apareceriam abrindo telas isoladas. A separação parecia um estado vazio normal —
+até eu chegar nela **vindo de uma produção**, com picolé no estoque e nenhum lugar
+para mandá-lo; aí o cabeçalho sem conteúdo e o *"essa loja"* sem loja viraram o que
+são. E onde houver número, **faça a conta na mão**: 506 × R$ 0,64 não bateu com o
+R$ 625,27 da tela, e a aritmética de cabeça é a única régua que não compartilha os
+erros do código que produziu o número.
+
 **Detector novo não reporta nada antes de passar num caso verdadeiro e num
 falso.** A régua descartável — o `grep` que conta, o script que varre uma vez para
 responder uma pergunta — não passa por CI, não tem guard, e fala direto com o dono.
