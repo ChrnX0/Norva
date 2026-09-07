@@ -6493,3 +6493,31 @@ quê: o estorno tem duas checagens em camadas, e tirar uma deixa a outra pegando
 mesmo erro. Nenhum teste de uma linha de execução só as distingue — só concorrência
 real, e a suíte não tem duas conexões. Elas ficam na lista porque apagá-las esconderia
 a redundância que as torna assim.
+
+## O custo medido da divisão rápido/pesado: cinco checagens vermelhas por semanas
+
+A barra inteira rodou nesta madrugada pela primeira vez em muito tempo, e o navegador
+deu **44 de 49**. As cinco falhas não eram defeito do aplicativo: eram checagens que
+envelheceram quando a capa emagreceu de quinze peças para sete — decisão do dono,
+registrada. Cada uma media, sem querer, *"esta peça vem ligada de fábrica"* em vez do
+que o nome dela promete.
+
+**O que interessa não é o conserto, é o tempo.** Elas estavam vermelhas desde aquela
+mudança e ninguém viu, porque:
+
+- a CI rápida (tipos, lint, teste, pacote) roda em todo push e **não abre navegador**;
+- a CI pesada (`mutate`, `e2e`, `db:verify`, `proofgate`) só roda indo para `main` ou
+  pelo botão — e não foi para `main` desde então;
+- e a regra da casa que manda rodar a barra inteira ao "fechar uma etapa" depende de
+  alguém lembrar.
+
+Essa divisão foi uma decisão certa e medida: a barra inteira levava perto de meia hora
+por commit, e servir a barra estava roubando rodadas de servir o app. **O custo dela é
+este, e agora tem número:** cinco checagens do navegador ficaram vermelhas por semanas
+sem ninguém saber, e o mesmo passe achou uma mutação sobrevivente no custo congelado —
+o número de onde sai toda margem.
+
+A consequência que dá para escrever hoje: **quando uma decisão muda o que a capa mostra
+por PADRÃO, o `e2e` é parte da mudança e não do fechamento.** Não é a barra inteira que
+falta — é reconhecer que mexer no padrão de uma tela é mexer no que as checagens
+assumem, e isso se descobre em quatro minutos de navegador ou em semanas de silêncio.

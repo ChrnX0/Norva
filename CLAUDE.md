@@ -168,6 +168,14 @@ instala e fotografa.
 A CI segue a mesma divisão: rápido (tipos, lint, teste, pacote) em todo push;
 pesado (mutação, navegador, banco, portão) só indo para `main` ou pelo botão.
 
+**E o custo dessa divisão tem número, medido em 7 de setembro.** A barra inteira rodou
+depois de muito tempo e o navegador deu 44 de 49: cinco checagens estavam vermelhas
+**desde que a capa emagreceu de quinze peças para sete**, e ninguém viu porque a CI
+rápida não abre navegador e a pesada não roda fora de `main`. Nenhuma era defeito do
+app — todas mediam, sem querer, "esta peça vem ligada de fábrica". A regra que sai
+disso: **mudança no que uma tela mostra por PADRÃO é mudança que o `e2e` faz parte, não
+o fechamento.** Quatro minutos de navegador ali, ou semanas de silêncio.
+
 **A espera era o gargalo, e virou medida — 3 de setembro.** A barra inteira levava
 perto de meia hora por commit, e quase tudo era partida de processo: `mutate` abria
 64 vezes a suíte em série, o `e2e` rodava 30 checagens uma atrás da outra, e cada
