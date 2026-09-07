@@ -6664,3 +6664,38 @@ e `people.capabilities` são `capability[]` no Postgres, então uma capacidade q
 existe no aparelho é um valor que o enum recusa — o insert falha e a fila trava para
 sempre, que é o defeito crítico já consertado três vezes nesta branch por três caminhos
 diferentes. Só que a rede contra ele estava lá.*
+
+## A confirmação dizia "isso apaga 1 produto" e levava o livro-razão junto
+
+**O que se viu.** `eraseArea('products')` apaga `items` de tipo produto, e
+`movements.item_id` referencia `items` com `ON DELETE CASCADE`. Então apagar produtos
+leva **produção, despacho, perda e contagem daquele produto** — e `tallyFor('products')`
+devolvia `movements: 0`, então o diálogo dizia só *"isso apaga 1 produto"*.
+
+Medido contra o banco, com o exemplo semeado mais uma corrida de tacho: os movimentos
+caem exatamente pelo número dos que apontam para produto, e o número anunciado era zero.
+
+**Por que escapou, e é a parte que interessa.** A cicatriz irmã já existia e já tinha
+sido paga: quando *"apagar compras"* levava o razão inteiro, o conserto foi acrescentar
+`EraseCounts.movements` e dizer o número na tela, com o raciocínio escrito no docblock.
+Aqui o mesmo dano acontece por outro caminho — **ninguém escreve a palavra `movements`
+em `tablesFor('products')`**, ele sai por CASCADE — e o docblock da cicatriz não alcança
+o que não é `DELETE` explícito.
+
+**E o que segurava a crença errada era um TESTE.** A fixação do `tallyFor` afirmava, com
+estas palavras: *"apagar receita ou produto não apaga movimento nenhum"*, e travava o
+zero com `assert.equal(tallyFor('products', counts).movements, 0)`. Crença errada com
+asserção em volta é pior que crença errada solta: **ela convence quem passa a não
+olhar** — e passou por mim quatro vezes, porque toda vez que abri este arquivo li a
+afirmação e segui.
+
+**O conserto** é uma contagem nova (`movementsOfProducts` — os movimentos que apontam
+para item de produto, não o total, que seria a mentira oposta) e a medida que faltava:
+um teste **contra o banco** que conta antes, apaga, conta depois, e exige que o número
+anunciado seja o número perdido. Provado nos dois sentidos — com o conserto desfeito,
+vermelho.
+
+**A regra que sai daqui, e ela é sobre o achado e não sobre o erase:** quando uma
+cicatriz é paga com um docblock que explica um caminho, pergunte **por quantos caminhos
+o mesmo dano chega**. `DELETE` explícito e `ON DELETE CASCADE` fazem a mesma coisa ao
+razão, e só o primeiro tem nome escrito no código.

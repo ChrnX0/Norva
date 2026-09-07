@@ -76,6 +76,25 @@ export type EraseCounts = {
    * números por extenso. Faltava o número.
    */
   movements: number;
+  /**
+   * Os movimentos que **apagar produtos** leva junto, por CASCADE.
+   *
+   * **A cicatriz é irmã da de cima, e escapou por ser de outra forma.** Ali o
+   * razão saía por um `DELETE FROM movements` escrito com todas as letras, e o
+   * conserto foi contar. Aqui ele sai sem ninguém escrever a palavra: a área
+   * apaga `items` de tipo produto, e `movements.item_id` referencia `items` com
+   * `ON DELETE CASCADE`. A confirmação dizia *"isso apaga 1 produto"* e levava
+   * produção, despacho, perda e contagem daquele produto com ela.
+   *
+   * Não é `movements` inteiro: só o que aponta para produto. Anunciar o total
+   * seria a mentira oposta — dizer que a produção de insumo vai, quando ela
+   * fica.
+   *
+   * E o que segurava isto de pé era um TESTE: a fixação do `tallyFor` afirmava,
+   * por escrito, que *"apagar receita ou produto não apaga movimento nenhum"*.
+   * Crença errada com asserção em volta é o motivo de ninguém olhar.
+   */
+  movementsOfProducts: number;
   /** Lugares que a pessoa cadastrou. O padrão, que nasce sem nome, não conta. */
   places: number;
   recipes: number;
@@ -94,6 +113,7 @@ export type EraseCounts = {
 export const emptyCounts: EraseCounts = {
   inputs: 0,
   movements: 0,
+  movementsOfProducts: 0,
   places: 0,
   recipes: 0,
   products: 0,
@@ -268,7 +288,9 @@ export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
     case 'recipes':
       return { ...nothing, recipes: counts.recipes };
     case 'products':
-      return { ...nothing, products: counts.products };
+      // O movimento vai por CASCADE de `items`, e por muito tempo isto dizia
+      // zero. Ver `EraseCounts.movementsOfProducts`.
+      return { ...nothing, products: counts.products, movements: counts.movementsOfProducts };
     case 'inputs':
       return { ...nothing, inputs: counts.inputs, movements: counts.movements };
     case 'all':

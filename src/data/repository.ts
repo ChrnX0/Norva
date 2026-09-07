@@ -4122,6 +4122,9 @@ export async function countForErase(companyId: string): Promise<EraseCounts> {
        (SELECT COUNT(*) FROM items WHERE company_id = ?1
           AND kind IN ('input','packaging','store_supply')) AS inputs,
        (SELECT COUNT(*) FROM movements WHERE company_id = ?1) AS movements,
+       (SELECT COUNT(*) FROM movements m JOIN items i ON i.id = m.item_id
+          WHERE m.company_id = ?1
+            AND i.kind IN ('product','resale')) AS movementsOfProducts,
        (SELECT COUNT(*) FROM recipes   WHERE company_id = ?1) AS recipes,
        (SELECT COUNT(*) FROM products  WHERE company_id = ?1) AS products,
        (SELECT COUNT(*) FROM locations WHERE company_id = ?1

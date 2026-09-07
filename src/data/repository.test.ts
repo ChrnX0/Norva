@@ -55,6 +55,7 @@ import {
   reverseGroup,
   CannotReverseError,
   countForErase,
+  countMovements,
   eraseArea,
   averageRatesForLedger,
   itemCosts,
@@ -85,7 +86,7 @@ import {
   ordersNeedApproval,
   setOrdersNeedApproval,
 } from './repository';
-import { EraseBlockedError } from './erase';
+import { EraseBlockedError, tallyFor } from './erase';
 import { markSent, pendingCount, pendingEntries, forgetSentBefore } from './outbox';
 import { serialize } from '../sync/serialize';
 import { ensureStarterData, exampleStillHere, hasSeeded, LOCAL_COMPANY_ID } from './seed';
@@ -5131,5 +5132,62 @@ test('moving stock between your own rooms is not consumption, but leaving a room
     linha.dailyOutflow > 0,
     'a carga saiu da fábrica mesmo, e a régua da SALA tem de enxergar isso — ' +
       'senão o conserto acima vira o defeito virado do avesso',
+  );
+});
+
+test('erasing products takes ledger with it, and the confirmation says how much', async () => {
+  /**
+   * A confirmação contava zero movimento e o razão perdia linhas — medido.
+   *
+   * **A cicatriz, e ela tem irmã.** Quando "apagar compras" levava o razão
+   * inteiro sem avisar, o conserto foi acrescentar `EraseCounts.movements` e
+   * dizer o número na tela. O mesmo buraco existia em "apagar produtos" por
+   * outro caminho, e por isso escapou: ali o movimento não sai por `DELETE`
+   * explícito, sai por **CASCADE** de `items` (`movements.item_id ... ON DELETE
+   * CASCADE`, `db.ts`), e ninguém escreve a palavra `movements` em
+   * `tablesFor('products')`.
+   *
+   * Pior: o teste de `tallyFor` afirmava por escrito que *"apagar receita ou
+   * produto não apaga movimento nenhum"*. A crença errada estava fixada com
+   * asserção — que é o motivo de ninguém ter olhado.
+   *
+   * Aqui a régua é o banco, não a leitura: conta antes, apaga, conta depois, e
+   * exige que o número anunciado seja o número perdido.
+   */
+  await ensureStarterData(CO);
+
+  // O exemplo semeado sozinho não serve de régua aqui: ele traz compras de
+  // insumo e nenhuma produção, então NENHUM movimento aponta para um item de
+  // produto e a medição passaria por vazio. Uma corrida de tacho é o que cria a
+  // linha do razão que a área "produtos" leva embora por CASCADE.
+  const [produto] = await listProductsForLedger(CO);
+  await recordProduction(CO, {
+    productId: produto.id,
+    locationId: defaultLocationId(CO),
+    batches: 1,
+    unitsProduced: 400,
+    producedOn: '2026-09-02',
+  });
+
+  const antes = await countMovements();
+  const counts = await countForErase(CO);
+  const doProduto = counts.movementsOfProducts;
+  assert.ok(doProduto > 0, 'o exemplo tem movimento de produto — senão a medição seria de graça');
+  assert.ok(antes > doProduto, 'e tem movimento que NÃO é de produto, senão não dá para separar');
+
+  const anunciado = tallyFor('products', counts);
+
+  await eraseArea(CO, 'products');
+  const depois = await countMovements();
+
+  assert.equal(
+    antes - depois,
+    doProduto,
+    'apagar produtos leva exatamente os movimentos que apontam para produto',
+  );
+  assert.equal(
+    anunciado.movements,
+    antes - depois,
+    'e a confirmação anuncia esse número, não zero — a regra da casa é que ela diga o que vai acontecer',
   );
 });

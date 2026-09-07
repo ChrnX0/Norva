@@ -232,6 +232,7 @@ test('erasing everything is never blocked - that is the point of it', () => {
   const tangled: EraseCounts = {
     inputs: 6,
     movements: 0,
+    movementsOfProducts: 0,
     recipes: 2,
     products: 1,
     purchases: 6,
@@ -296,11 +297,27 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     places: 0,
   });
 
-  // E as áreas que NÃO tocam o livro-razão não podem dizer que tocam: apagar
-  // receita ou produto não apaga movimento nenhum, e anunciar 412 movimentos ali
-  // seria assustar quem não precisa.
+  // A receita não toca o livro-razão, e não pode dizer que toca: anunciar 412
+  // movimentos ali seria assustar quem não precisa.
   assert.equal(tallyFor('recipes', counts).movements, 0);
-  assert.equal(tallyFor('products', counts).movements, 0);
+
+  // **O produto toca, e esta linha afirmava o contrário por escrito.**
+  //
+  // Ela dizia *"apagar receita ou produto não apaga movimento nenhum"* e travava
+  // o zero com uma asserção. Era falso: a área apaga `items` de tipo produto, e
+  // `movements.item_id` referencia `items` com `ON DELETE CASCADE` — produção,
+  // despacho, perda e contagem daquele produto iam junto, com a confirmação
+  // dizendo "isso apaga 1 produto".
+  //
+  // Crença errada com asserção em volta é pior que crença errada solta: ela
+  // convence quem passa a não olhar. A medida contra o BANCO está em
+  // `repository.test.ts` ("erasing products takes ledger with it").
+  //
+  // E o número é o dos movimentos DE PRODUTO, não o total: dizer 412 aqui seria
+  // a mentira oposta — anunciar que a compra de açúcar vai embora, quando ela
+  // fica.
+  assert.equal(tallyFor('products', { ...counts, movementsOfProducts: 37 }).movements, 37);
+  assert.equal(tallyFor('products', counts).movements, 0, 'sem movimento de produto, não assusta ninguém');
 
   assert.equal(isEmpty(tallyFor('all', emptyCounts)), true);
   assert.equal(isEmpty(tallyFor('all', counts)), false);
