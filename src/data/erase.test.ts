@@ -4,12 +4,14 @@ import { test } from 'node:test';
 import {
   blockerFor,
   emptyCounts,
+  ERASE_AREAS,
   isEmpty,
   itemKindsFor,
   tablesFor,
   tallyFor,
   type EraseArea,
   type EraseCounts,
+  type EraseTally,
 } from './erase';
 
 /**
@@ -352,4 +354,94 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
 
   assert.equal(isEmpty(tallyFor('all', emptyCounts)), true);
   assert.equal(isEmpty(tallyFor('all', counts)), false);
+});
+
+/**
+ * A lista do que se APAGA e a lista do que se CONTA, comparadas por máquina.
+ *
+ * **Três vezes esta tela contou menos do que destruiu**, e sempre pelo mesmo
+ * motivo estrutural: `tablesFor` diz o que sai e `tallyFor` diz o que a pessoa
+ * vai ler, e as duas são escritas em lugares diferentes por mãos diferentes.
+ * Ninguém as compara.
+ *
+ *   1. "apagar compras" começava em `movements` e levava o razão INTEIRO da
+ *      fábrica; a confirmação falava de custo médio.
+ *   2. "apagar produtos" levava o razão por CASCADE de `items`, e a confirmação
+ *      dizia "isso apaga 1 produto".
+ *   3. "apagar tudo" levava `people` — a grade de nomes com PIN pela qual o chão
+ *      de fábrica entra — contada como zero.
+ *
+ * A regra da casa é uma frase só: *a confirmação diz o que vai acontecer, com os
+ * números por extenso.* Conselho não a fez valer três vezes; esta guarda faz.
+ *
+ * Toda tabela que uma área apaga precisa de UMA das duas coisas: um campo da
+ * contagem que a represente, ou uma razão escrita para não ser contada. Tabela
+ * nova sem nenhuma das duas reprova aqui — e é isso que impede a quarta vez.
+ */
+const NAO_CONTADA: Record<string, string> = {
+  production_runs:
+    'escrituração da corrida; o FATO que a pessoa reconhece é o movimento, e ele é contado',
+  order_lines: 'as linhas de um pedido; quem a pessoa conta é o pedido',
+  purchase_lines: 'as linhas de uma nota; quem a pessoa conta é a compra',
+  recipe_lines: 'os ingredientes de uma ficha; quem a pessoa conta é a receita',
+  recipe_versions: 'as versões de uma ficha; idem',
+  item_cost_history: 'derivado — o custo médio é recomposto do razão, não digitado',
+  item_costs: 'derivado, pelo mesmo motivo',
+  items: 'contados como `inputs` e `products`, que é como a pessoa os chama',
+  locations: 'contados como `places`',
+  profiles: 'os perfis vão junto com a gente, e é a gente que a pessoa reconhece',
+  outbox: 'a fila de sincronia; é máquina, não coisa da fábrica',
+  // As quatro abaixo são coisas que a pessoa RECONHECE e que hoje somem sem
+  // número. Ficam registradas com a dívida escrita em vez de com uma desculpa —
+  // a razão aqui não é "não precisa contar", é "ainda não conta".
+  readings: 'DÍVIDA: o histórico da câmara some sem número. Contar junto com a próxima rodada',
+  product_types: 'DÍVIDA: a grade do catálogo (linha, tipo, sabor) some sem número',
+  product_lines: 'DÍVIDA: idem',
+  flavors: 'DÍVIDA: idem',
+  sale_price_history: 'DÍVIDA: o histórico de preço de venda some sem número',
+  location_prices: 'DÍVIDA: os preços combinados com cada loja somem sem número',
+};
+
+/** Que campo da contagem representa cada tabela apagada. */
+const CONTADA: Record<string, keyof EraseTally> = {
+  movements: 'movements',
+  purchases: 'purchases',
+  products: 'products',
+  recipes: 'recipes',
+  lots: 'lots',
+  orders: 'orders',
+  people: 'people',
+};
+
+test('toda tabela que uma área apaga é contada, ou tem razão escrita para não ser', () => {
+  const semResposta: string[] = [];
+  for (const area of ERASE_AREAS) {
+    for (const tabela of tablesFor(area)) {
+      if (CONTADA[tabela] || NAO_CONTADA[tabela]) continue;
+      semResposta.push(`${area}: ${tabela}`);
+    }
+  }
+
+  assert.deepEqual(
+    semResposta,
+    [],
+    `estas tabelas somem sem a confirmação dizer nada e sem razão escrita:\n  ${semResposta.join('\n  ')}\n` +
+      'Conte a tabela em `EraseTally`, ou escreva em NAO_CONTADA por que a pessoa não precisa do número. ' +
+      'Três vezes esta tela contou menos do que destruiu.',
+  );
+
+  // E o outro sentido: razão escrita para tabela que nenhuma área apaga é
+  // registro que virou mentira, do mesmo jeito que a lista de órfãs.
+  const todasApagadas = new Set(ERASE_AREAS.flatMap((a) => [...tablesFor(a)]));
+  const registroVelho = [...Object.keys(NAO_CONTADA), ...Object.keys(CONTADA)].filter(
+    (t) => !todasApagadas.has(t as never),
+  );
+  assert.deepEqual(registroVelho, [], `estas entradas falam de tabela que nenhuma área apaga: ${registroVelho.join(' · ')}`);
+});
+
+test('a régua da contagem é régua: pega a tabela nova e deixa a registrada passar', () => {
+  // O caso verdadeiro e o falso, sem depender do estado real das duas listas.
+  assert.ok(!CONTADA['tabela_nova'] && !NAO_CONTADA['tabela_nova'], 'tabela desconhecida não tem resposta');
+  assert.ok(CONTADA['people'] === 'people', 'gente é contada, e a guarda enxerga isso');
+  assert.ok(NAO_CONTADA['outbox']?.length > 20, 'a fila tem razão escrita, e a razão é uma frase');
 });
