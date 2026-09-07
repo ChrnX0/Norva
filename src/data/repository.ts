@@ -5096,6 +5096,21 @@ export async function ledgerExtract(
     /** Até este instante, exclusive — é o corte de fechamento de período. */
     to?: string;
     /**
+     * Só o que passou por ESTE lugar — e é o extrato do cliente.
+     *
+     * Uma remessa escreve duas pernas: negativa na origem, positiva no destino.
+     * Filtrar pelo lugar da loja devolve **o lado dela** — o que chegou e o que
+     * ela devolveu —, que é exatamente a pergunta de uma disputa: *"vocês mandaram
+     * mesmo isso?"*. Sem o filtro, o mesmo ato apareceria com o valor da fábrica.
+     *
+     * O ATO continua sendo o do razão inteiro: as pernas do outro lado existem e
+     * pertencem ao mesmo grupo. Recortar o ato pelo lugar mudaria a contagem de
+     * linhas e o valor, e um extrato que muda de número conforme quem olha é a
+     * coisa que ele existe para não ser. Então o filtro escolhe QUAIS atos
+     * aparecem, e não o que cada ato é.
+     */
+    placeId?: string;
+    /**
      * Quantos ATOS, não quantas linhas — e a tela CRESCE este número em vez de
      * paginar por cursor.
      *
@@ -5127,6 +5142,7 @@ export async function ledgerExtract(
       WHERE m.company_id = ?
         AND (? IS NULL OR m.occurred_at >= ?)
         AND (? IS NULL OR m.occurred_at < ?)
+        AND (? IS NULL OR m.location_id = ?)
       GROUP BY g
       ORDER BY quando DESC, g DESC
       LIMIT ?`,
@@ -5134,6 +5150,7 @@ export async function ledgerExtract(
       companyId,
       opts.from ?? null, opts.from ?? null,
       opts.to ?? null, opts.to ?? null,
+      opts.placeId ?? null, opts.placeId ?? null,
       limite,
     ],
   );

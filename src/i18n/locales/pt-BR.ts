@@ -442,6 +442,8 @@ export const ptBR = {
     extract: {
       title: 'Extrato',
       overline: 'tudo o que foi registrado, e como desfazer',
+      ofPlace: 'o que {{place}} recebeu e devolveu',
+      ofPlaceAction: 'Ver o extrato desta loja',
       empty: 'Nada foi registrado ainda.',
       emptyHint: 'Cada compra, produção, carga e conferência aparece aqui — com o caminho de volta ao lado.',
       lineCount: { one: '1 linha', other: '{{n}} linhas' },

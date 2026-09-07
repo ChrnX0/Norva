@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useState, type ReactElement } from 'react';
 import { Text, View } from 'react-native';
 import { Card } from '@/components/Card';
@@ -95,6 +96,16 @@ export default function ExtratoScreen() {
   const confirm = useConfirm();
   const words = t.app.extract;
 
+  /**
+   * O extrato de UM lugar — o mesmo virado para fora.
+   *
+   * Sem parâmetro é o razão da fábrica inteira. Com ele, é o que aquela loja
+   * recebeu e devolveu, que é a resposta de *"vocês mandaram mesmo isso?"* — uma
+   * disputa se resolve com fato, e o fato já estava guardado, alcançável só
+   * rolando o extrato inteiro.
+   */
+  const { lugar, nome } = useLocalSearchParams<{ lugar?: string; nome?: string }>();
+
   const [recusa, setRecusa] = useState<string | null>(null);
 
   /**
@@ -115,7 +126,10 @@ export default function ExtratoScreen() {
   const [quantos, setQuantos] = useState(PAGINA);
 
   const dados = useQuery(
-    useCallback(() => ledgerExtract(LOCAL_COMPANY_ID, { limit: quantos }), [quantos]),
+    useCallback(
+      () => ledgerExtract(LOCAL_COMPANY_ID, { limit: quantos, placeId: lugar }),
+      [quantos, lugar],
+    ),
   );
   const atos = dados.data ?? [];
   const podeHaverMais = atos.length >= quantos;
@@ -179,7 +193,14 @@ export default function ExtratoScreen() {
   );
 
   return (
-    <CollapsingHeader cena="relatorios" title={words.title} overline={words.overline}>
+    <CollapsingHeader
+      cena="relatorios"
+      title={words.title}
+      // O nome do lugar na chamada, e não uma linha a mais: quem abriu o extrato
+      // de uma loja precisa ver DE QUEM ele é antes de qualquer número, senão o
+      // documento não serve para o que ele existe.
+      overline={nome ? fill(words.ofPlace, { place: nome }) : words.overline}
+    >
       {recusa ? (
         <Reveal index={0}>
           <Card hue={color.danger}>

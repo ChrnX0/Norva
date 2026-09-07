@@ -333,6 +333,8 @@ export const en: Dictionary = {
     extract: {
       title: 'Ledger',
       overline: 'everything recorded, and how to undo it',
+      ofPlace: 'what {{place}} received and returned',
+      ofPlaceAction: 'See this shop\u2019s ledger',
       empty: 'Nothing has been recorded yet.',
       emptyHint: 'Every purchase, run, load and count shows up here — with the way back beside it.',
       lineCount: { one: '1 line', other: '{{n}} lines' },

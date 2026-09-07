@@ -338,6 +338,8 @@ export const es: Dictionary = {
     extract: {
       title: 'Extracto',
       overline: 'todo lo registrado, y cómo deshacerlo',
+      ofPlace: 'lo que {{place}} recibió y devolvió',
+      ofPlaceAction: 'Ver el extracto de esta tienda',
       empty: 'Todavía no se registró nada.',
       emptyHint: 'Cada compra, producción, carga y conteo aparece aquí — con el camino de vuelta al lado.',
       lineCount: { one: '1 línea', other: '{{n}} líneas' },

@@ -4944,3 +4944,62 @@ test('a run takes the stick out of stock, and the unit cost does not move', asyn
       'embalagem contada uma vez, pelo consumo',
   );
 });
+
+/**
+ * O extrato do cliente: o que a loja recebeu e devolveu, e nada mais.
+ *
+ * É o mesmo extrato virado para fora, e ele existe porque disputa de loja se
+ * resolve com fato: *"vocês mandaram mesmo isso?"* tem resposta no razão, e ela
+ * hoje só era alcançável rolando o extrato inteiro da fábrica.
+ *
+ * **A decisão fina está na segunda metade deste teste.** Uma remessa escreve duas
+ * pernas — negativa na fábrica, positiva na loja — e seria tentador recortar o ato
+ * pelo lugar, mostrando só a perna dela. Isso mudaria a contagem de linhas e o
+ * valor conforme quem olha, e um extrato que muda de número dependendo de quem
+ * abre é exatamente a coisa que ele existe para não ser. Então o lugar escolhe
+ * QUAIS atos aparecem; cada ato continua sendo o do razão inteiro.
+ */
+test('the customer extract shows that place, and the act keeps its own numbers', async () => {
+  await ensureStarterData(CO);
+  const [product] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
+  const fabrica = defaultLocationId(CO);
+  await recordProduction(CO, {
+    productId: product.id,
+    locationId: fabrica,
+    batches: 1,
+    unitsProduced: 500,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+
+  const loja = await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' });
+  await recordTransfer(CO, {
+    itemId: product.itemId,
+    fromLocationId: fabrica,
+    toLocationId: loja.id,
+    baseUnits: 200,
+  });
+
+  const daLoja = await ledgerExtract(CO, { placeId: loja.id });
+  assert.equal(daLoja.length, 1, 'a loja viu UM ato: a carga que chegou nela');
+  assert.equal(daLoja[0].kind, 'transfer');
+
+  // A produção e as compras não são dela, e não aparecem. Sem isto o "extrato do
+  // cliente" seria o extrato da fábrica com outro título.
+  const daFabrica = await ledgerExtract(CO, { placeId: fabrica });
+  assert.ok(
+    daFabrica.length > daLoja.length,
+    `a fábrica tem mais atos que a loja (${daFabrica.length} contra ${daLoja.length})`,
+  );
+  assert.ok(
+    daFabrica.some((a) => a.kind === 'production'),
+    'a produção é da fábrica',
+  );
+
+  // E o ato é O MESMO dos dois lados: mesmas linhas, mesmo valor. Recortar pelo
+  // lugar faria a loja e a fábrica lerem números diferentes do mesmo fato, e é
+  // isso que transforma um extrato em objeto de disputa em vez de prova dela.
+  const daquiTambem = (await ledgerExtract(CO)).find((a) => a.groupId === daLoja[0].groupId);
+  assert.ok(daquiTambem);
+  assert.equal(daLoja[0].lines, daquiTambem.lines, 'o mesmo ato tem as mesmas linhas dos dois lados');
+  assert.equal(daLoja[0].valueCents, daquiTambem.valueCents, 'e o mesmo valor');
+});

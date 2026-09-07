@@ -289,6 +289,31 @@ function Places() {
                 />
               ) : null}
 
+              {/* O extrato DELE, e só para quem recebe carga — o almoxarifado da
+                  própria fábrica já é o extrato inteiro, e oferecer os dois seria
+                  a mesma lista com dois nomes.
+                  É a peça virada para fora: o que esta loja recebeu e devolveu
+                  responde *"vocês mandaram mesmo isso?"* com fato, e o fato já
+                  estava guardado — só não era alcançável sem rolar o razão da
+                  fábrica inteira. */}
+              {recebe ? (
+                <Button
+                  label={t.app.extract.ofPlaceAction}
+                  variant="ghost"
+                  onPress={() =>
+                    // `as never` como na linha do lote logo abaixo: o mapa de
+                    // rotas do Expo Router é GERADO por `expo start`, que não roda
+                    // nesta máquina, então ele não conhece telas criadas depois da
+                    // última geração. O caminho existe; quem está velho é o tipo.
+                    router.push({
+                      pathname: '/extrato',
+                      params: { lugar: place.id, nome: place.name },
+                    } as never)
+                  }
+                  style={{ marginTop: space.sm }}
+                />
+              ) : null}
+
               {/* A ficha de acordo, e só para quem recebe carga: combinar dia de
                   entrega com o próprio almoxarifado não quer dizer nada. */}
               {recebe ? (
