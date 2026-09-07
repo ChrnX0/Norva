@@ -330,17 +330,18 @@ não termina no arquivo que o mostrou") aplicada de propósito, procurando:
   telas"*. Passou a valer para o número de que a tela fala: estoque parado, custo
   unitário, perdas, produção de hoje, destinos do dia, insumos guardados.
 
-**O que ficou ABERTO desta rodada, e é honesto dizer:** o **escuro** do cabeçalho novo
-não foi fotografado. As cores dele saem de `escurecer(...)` com os mesmos fatores do
-herói aprovado, e a ordem de valor foi conferida na conta — silhueta mais clara que a
-colina à noite, mais escura de dia —, mas isso é E2, não E3. **O escuro é exatamente
-onde este projeto já se queimou uma vez**, com uma caixa preta e um sol dentro
-chegando na tela do dono. Fica como primeira coisa da próxima rodada, e o que a tira
-daqui é uma foto.
+**O ESCURO foi olhado, e passou.** Ele é onde este projeto já se queimou uma vez — uma
+caixa preta com um sol dentro chegou na tela do dono —, então não podia ficar em
+"deve estar certo". A fábrica sai âmbar acesa sobre a noite verde, as engrenagens
+ganham miolo âmbar, e o chão continua sendo a matiz escolhida escurecida, que é o que
+uma colina faz à noite. Foi a melhor das quatro caras.
 
-O emulador atrapalhou três tentativas seguidas (System UI travando sob carga, e o
-`system_server` subindo quebrado uma vez). Isso não é desculpa, é a condição a
-resolver: a próxima tentativa começa com o aparelho recém-subido e nada mais rodando.
+**Com uma ressalva de nível, dita porque ela importa:** a prova é do NAVEGADOR
+(`npm run shot -- --rota /settings,/production --escuro --com-dado`), não do aparelho.
+Isso prova os tokens e a composição — que é o que estava em dúvida —, e não prova
+densidade nem toque. O emulador atrapalhou três tentativas seguidas (System UI
+travando sob carga, e o `system_server` subindo quebrado uma vez), e a foto de
+aparelho no escuro fica para quando ele estiver recém-subido e sozinho na máquina.
 
 **O que NÃO foi feito e por quê:** a paleta do Orgânico continua clara. O dono pediu
 *"dá mais cor para o tema papel"* — o Papel já ganhou os oito acentos escurecidos; o
