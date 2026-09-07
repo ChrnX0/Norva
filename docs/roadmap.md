@@ -330,6 +330,18 @@ não termina no arquivo que o mostrou") aplicada de propósito, procurando:
   telas"*. Passou a valer para o número de que a tela fala: estoque parado, custo
   unitário, perdas, produção de hoje, destinos do dia, insumos guardados.
 
+**O que ficou ABERTO desta rodada, e é honesto dizer:** o **escuro** do cabeçalho novo
+não foi fotografado. As cores dele saem de `escurecer(...)` com os mesmos fatores do
+herói aprovado, e a ordem de valor foi conferida na conta — silhueta mais clara que a
+colina à noite, mais escura de dia —, mas isso é E2, não E3. **O escuro é exatamente
+onde este projeto já se queimou uma vez**, com uma caixa preta e um sol dentro
+chegando na tela do dono. Fica como primeira coisa da próxima rodada, e o que a tira
+daqui é uma foto.
+
+O emulador atrapalhou três tentativas seguidas (System UI travando sob carga, e o
+`system_server` subindo quebrado uma vez). Isso não é desculpa, é a condição a
+resolver: a próxima tentativa começa com o aparelho recém-subido e nada mais rodando.
+
 **O que NÃO foi feito e por quê:** a paleta do Orgânico continua clara. O dono pediu
 *"dá mais cor para o tema papel"* — o Papel já ganhou os oito acentos escurecidos; o
 Orgânico ainda não foi olhado sob essa régua, e a hierarquia escrita manda o Papel
