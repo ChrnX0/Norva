@@ -14,6 +14,7 @@
  *   npm run shot -- --como-operador # como quem não vê dinheiro
  *   npm run shot -- --tocar "Combinar entrega"   # a tela que mora atrás de um toque
  *   npm run shot -- --tocar "Por quanto você vende=2,50"   # o estado atrás de um número
+ *   npm run shot -- --segurar "Estoque"          # a CONTA que abre no toque longo
  *
  * As duas últimas existem pelo mesmo motivo, e ele é a lição desta ferramenta:
  * mudança que acrescenta um ESTADO ou uma tela atrás de um toque é exatamente a que
@@ -95,7 +96,7 @@ const TODAS = [
  */
 const CONHECIDAS = new Set([
   '--tudo', '--com-dado', '--escuro', '--claro', '--rota', '--largura',
-  '--como-operador', '--tocar',
+  '--como-operador', '--tocar', '--segurar',
 ]);
 const desconhecidas = process.argv
   .slice(2)
@@ -149,6 +150,22 @@ const comDado = tem('--com-dado') || tudo;
  * quanto é — sem isto, a única foto possível é a do campo vazio, que é a foto do
  * estado velho com o nome do novo.
  */
+/**
+ * O que fotografar atrás de um toque LONGO — e ele existe por uma lacuna de prova.
+ *
+ * A Lei 6 manda toda conclusão abrir a conta, e o gesto que a abre é segurar o
+ * número. Sem isto, nenhuma dessas contas pode ser olhada daqui: `--tocar` dá um
+ * toque curto, e num cartão que também navega o toque curto leva embora — a foto
+ * sai da tela seguinte com o nome da conta, que é a pior forma de errar.
+ *
+ * Seiscentos milissegundos porque é o limiar do `Pressable`; abaixo disso o
+ * navegador entrega um toque curto e a foto mente.
+ */
+const segurar = arg('--segurar', '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 const tocar = arg('--tocar', '')
   .split('>')
   .map((t) => t.trim())
@@ -532,13 +549,27 @@ try {
         else if (await porLink.count()) await porLink.click();
         else await page.getByText(alvo, { exact: true }).first().click();
       }
+      // E o dedo que SEGURA, para as contas que abrem no toque longo.
+      for (const alvo of segurar) {
+        await page.waitForTimeout(900);
+        const caixa = await page
+          .getByRole('button', { name: alvo, exact: true })
+          .first()
+          .boundingBox();
+        if (!caixa) throw new Error(`não achei o alvo "${alvo}" para segurar`);
+        await page.mouse.move(caixa.x + caixa.width / 2, caixa.y + caixa.height / 2);
+        await page.mouse.down();
+        await page.waitForTimeout(600);
+        await page.mouse.up();
+      }
+
       // A capa tem animação de entrada; a foto tem de ser depois dela.
       await page.waitForTimeout(3500);
 
       // A largura entra no nome quando não é a padrão: sem isso a foto estreita
       // sobrescreve a larga, e a comparação entre as duas — que é o motivo de a
       // largura existir — deixa de ser possível.
-      const nome = `${rota.replace(/\W+/g, '') || 'capa'}-${cara}-${esquema === 'dark' ? 'escuro' : 'claro'}${comDado ? '-com-dado' : '-virgem'}${comoOperador ? '-operador' : ''}${tocar.length > 0 ? `-${tocar[tocar.length - 1].replace(/\W+/g, '')}` : ''}${largura === 412 ? '' : `-${largura}`}.png`;
+      const nome = `${rota.replace(/\W+/g, '') || 'capa'}-${cara}-${esquema === 'dark' ? 'escuro' : 'claro'}${comDado ? '-com-dado' : '-virgem'}${comoOperador ? '-operador' : ''}${tocar.length > 0 ? `-${tocar[tocar.length - 1].replace(/\W+/g, '')}` : ''}${segurar.length > 0 ? `-conta-${segurar[segurar.length - 1].replace(/\W+/g, '')}` : ''}${largura === 412 ? '' : `-${largura}`}.png`;
       const imagem = await page.screenshot({ path: join(SAIDA, nome), fullPage: true });
       tiradas.push({ nome, rota, cara, esquema, soma: createHash('sha1').update(imagem).digest('hex') });
       console.log(`  ${nome}`);

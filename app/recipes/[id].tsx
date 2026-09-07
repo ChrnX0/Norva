@@ -9,7 +9,7 @@ import { Field } from '@/components/Field';
 import { GlyphPrice, GlyphRecipe, GlyphSack } from '@/components/Glyph';
 import { ListRow } from '@/components/ListRow';
 import { Reveal } from '@/components/Reveal';
-import { WhySheet } from '@/components/WhySheet';
+import { WhySheet, type Conta } from '@/components/WhySheet';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import {
   itemCosts,
@@ -31,12 +31,14 @@ import {
   unitsPerBatch,
   type ItemCosts,
   type Recipe,
+  type RecipeCost,
   type RecipeLine,
 } from '@/domain/recipe';
 import { roundUpToFullContainer } from '@/domain/units';
 import { parseTyped, formatTyped } from '@/domain/number';
 import { fill, formatMoney, formatUnitRate, formatPercent, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
+import type { Dictionary, LocaleSettings } from '@/i18n';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -78,6 +80,57 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * continua dita por extenso na linha, e a coluna de dinheiro à direita, em
  * figuras tabulares, é o que se compara de olho.
  */
+/**
+ * A conta de uma receita, escrita pela TELA da receita.
+ *
+ * A folha do `[por quê?]` não conhece receita nenhuma desde 7 de setembro — ela
+ * desenha parcelas e fechos. Quem sabe que "fatia do lote" e "perda esperada"
+ * querem dizer alguma coisa é esta tela, e é aqui que o fato vira frase. É a
+ * fundação da casa aplicada a uma folha: a camada de dados devolve fato, quem
+ * escreve português é a tela.
+ *
+ * A ORDEM também mora aqui, e não na folha: "o que domina o custo" é a pergunta
+ * de quem abre a conta de uma receita, e ordenar por fatia dentro da folha
+ * imporia essa pergunta a contas que não a têm.
+ */
+function contaDaReceita(
+  cost: RecipeCost,
+  locale: LocaleSettings,
+  t: Dictionary,
+): Conta {
+  const linhas = [...cost.lines].sort((a, b) => b.share - a.share);
+  return {
+    origem: t.whySheet.where,
+    parcelas: linhas.map((linha) => ({
+      rotulo: linha.label,
+      valor: formatMoney(linha.totalCents, locale),
+      parte: linha.share,
+      nota: fill(t.whySheet.shareOfBatch, { percent: formatPercent(linha.share, locale, 0) }),
+    })),
+    fechos: [
+      { rotulo: t.whySheet.batchCost, valor: formatMoney(cost.batchCents, locale) },
+      {
+        rotulo: fill(t.whySheet.expectedLoss, {
+          percent: formatPercent(cost.lossFraction, locale),
+        }),
+        valor: fill(t.whySheet.remains, { amount: formatQuantity(cost.netYield, locale) }),
+      },
+      {
+        rotulo: t.whySheet.perMassUnit,
+        // Mil unidades-base, escritas pelo formatador e não à mão: "1.000" cravado
+        // na string é o ponto de milhar do português dentro de uma tela que também
+        // abre em inglês, onde o mesmo mil é "1,000".
+        valor: fill(t.whySheet.perAmount, {
+          money: formatMoney(Math.round(cost.perYieldUnit * 1000), locale),
+          amount: formatQuantity(1000, locale),
+        }),
+        forte: true,
+      },
+    ],
+    nota: t.whySheet.lossNote,
+  };
+}
+
 export default function RecipeScreen() {
   return (
     <AreaProvider area="apricot">
@@ -639,8 +692,7 @@ function RecipeEditor() {
         <WhySheet
           visible={whyOpen}
           onClose={() => setWhyOpen(false)}
-          cost={computed.cost}
-          locale={locale}
+          conta={contaDaReceita(computed.cost, locale, t)}
           title={title}
         />
       ) : null}

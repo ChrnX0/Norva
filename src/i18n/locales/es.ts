@@ -1346,6 +1346,11 @@ export const es: Dictionary = {
   },
 
   whySheet: {
+    open: 'Abrir la cuenta',
+    stockWhere: 'Sumado lugar por lugar, con el costo de hoy',
+    stockTotal: 'Parado en total',
+    stockNote:
+      'Cada lugar vale lo que tiene dentro, al costo promedio de hoy. El total es la suma: nada aqu\u00ed es una estimaci\u00f3n.',
     close: 'Cerrar',
     where: 'De dónde sale este número',
     shareOfBatch: '{{percent}} del lote',

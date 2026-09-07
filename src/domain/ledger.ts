@@ -265,3 +265,21 @@ export function daysOfCover(baseUnits: number, dailyOutflow: number): number | n
   if (dailyOutflow <= 0) return null;
   return baseUnits / dailyOutflow;
 }
+
+/**
+ * O nome de um lugar para MOSTRAR — e a palavra vem de quem chama, não daqui.
+ *
+ * O lugar padrão nasce sem nome: `ensureLocation` cria uma `location` cujo id é o
+ * `company_id` e cuja coluna `name` fica vazia, porque a palavra "Fábrica" é do
+ * idioma de quem olha e o banco não fala idioma nenhum.
+ *
+ * **Existe como função em 7 de setembro porque a regra estava numa tela só.**
+ * `app/places.tsx` tinha o `nameOf` com a reserva escrita e certa; a conta do
+ * dinheiro parado, na tela de relatórios, mostrou a maior parcela do estoque como
+ * um número sem rótulo — R$ 11.616,44 sozinho, que é exatamente o que a Lei 3
+ * proíbe. Copiar a reserva para a segunda tela seria a terceira divergência da
+ * noite; a peça compartilhada é o conserto.
+ */
+export function nomeDoLugar(bruto: string | null | undefined, padrao: string): string {
+  return (bruto ?? '').trim() || padrao;
+}

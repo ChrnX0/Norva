@@ -1661,6 +1661,12 @@ export const ptBR = {
    * obriga a chave a existir nos três dicionários, nunca a tela a usá-la.
    */
   whySheet: {
+    /** O gesto, dito em palavras — para quem usa leitor de tela e para a legenda. */
+    open: 'Abrir a conta',
+    stockWhere: 'Somado lugar por lugar, com o custo de hoje',
+    stockTotal: 'Parado no total',
+    stockNote:
+      'Cada lugar vale o que tem dentro, pelo custo médio de hoje. O total é a soma — nada aqui é estimativa.',
     close: 'Fechar',
     where: 'De onde sai esse número',
     shareOfBatch: '{{percent}} do lote',

@@ -34,7 +34,7 @@ import {
 } from '@/data/repository';
 import { dayWindow, localDate } from '@/domain/day';
 import { rate } from '@/domain/money';
-import { receivesCargo } from '@/domain/ledger';
+import { nomeDoLugar, receivesCargo } from '@/domain/ledger';
 import { LOCAL_COMPANY_ID } from '@/data/seed';
 import { useQuery } from '@/data/useQuery';
 import { agreedOn, daysUntilNextDelivery, toggleDay } from '@/domain/agreement';
@@ -132,10 +132,8 @@ function Places() {
   const hoje = new Date(`${localDate(nowIso(), locale.timeZone)}T00:00:00Z`).getUTCDay();
 
   /** O padrão nasce sem nome; a palavra é desta camada, nunca do banco. */
-  const nameOf = (place: { locationId?: string; id?: string; name?: string; locationName?: string }) => {
-    const raw = place.name ?? place.locationName ?? '';
-    return raw.trim() || words.factory;
-  };
+  const nameOf = (place: { locationId?: string; id?: string; name?: string; locationName?: string }) =>
+    nomeDoLugar(place.name ?? place.locationName, words.factory);
 
   /**
    * O tom de um lugar, e ele é o tom do ASSUNTO — não uma cor por linha.

@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { CountUp } from '@/components/CountUp';
 import { Card } from '@/components/Card';
@@ -9,7 +10,10 @@ import { IconChevron } from '@/components/icons';
 import { Reveal } from '@/components/Reveal';
 import { Sparkline } from '@/components/Sparkline';
 import { Touchable } from '@/components/Touchable';
+import { WhySheet, type Conta } from '@/components/WhySheet';
 import { nowIso } from '@/data/db';
+import { comFatia, somaDe } from '@/domain/conta';
+import { nomeDoLugar } from '@/domain/ledger';
 import {
   canSeeMoney,
   lossesOn,
@@ -99,7 +103,38 @@ function ReportIndex() {
    * um fato sobre quem está olhando.
    */
   const dinheiro = data?.dinheiro === true;
-  const parado = (data?.lugares ?? []).reduce((n, l) => n + (l.valueCents ?? 0), 0) as Cents;
+  // A soma vem de `somaDe`, a mesma função que `comFatia` usa por dentro para
+  // achar o todo — senão o número do cartão e o fecho da conta seriam duas somas
+  // escritas em dois lugares, que é como elas passam a discordar.
+  const parado = somaDe(
+    (data?.lugares ?? []).map((l) => ({ de: l.locationId, valor: l.valueCents ?? 0 })),
+  ) as Cents;
+
+  /**
+   * A conta do dinheiro parado, aberta por toque longo — Lei 6.
+   *
+   * A soma é lugar a lugar e está bem à vista: `parado` é a redução das linhas de
+   * `lugares`. Abrir isso não é enfeite — é a diferença entre "o app disse" e "o app
+   * está certo" para alguém que ainda não confia software com o dinheiro dele.
+   */
+  const [contaAberta, setContaAberta] = useState(false);
+  const contaDoParado: Conta = {
+    origem: t.whySheet.stockWhere,
+    // A aritmética vem de `comFatia`, que é provada em `src/domain/conta.test.ts`
+    // por igualdade — as fatias somam um, as partes somam o total. A tela só
+    // escreve as palavras em volta.
+    parcelas: comFatia(
+      (data?.lugares ?? [])
+        .filter((l) => l.valueCents !== null)
+        .map((l) => ({ de: nomeDoLugar(l.locationName, t.app.places.factory), valor: l.valueCents ?? 0 })),
+    ).map((p) => ({
+      rotulo: p.de,
+      valor: formatMoney(p.valor as Cents, locale),
+      parte: p.fatia,
+    })),
+    fechos: [{ rotulo: t.whySheet.stockTotal, valor: formatMoney(parado, locale), forte: true }],
+    nota: t.whySheet.stockNote,
+  };
   const comCusto = (data?.corridas ?? []).filter((r) => r.unitCostRate !== null);
   const perdido = (data?.mes ?? []).reduce((n, l) => n + (l.valueCents ?? 0), 0) as Cents;
   const perdidoAntes = (data?.mesAnterior ?? []).reduce(
@@ -161,7 +196,12 @@ function ReportIndex() {
           alguma coisa em vez de só existir. */}
       {parado > 0 ? (
         <Reveal index={0}>
-          <Touchable onPress={() => router.push('/places')} accessibilityLabel={t.app.reports.rows.stock.label}>
+          <Touchable
+            onPress={() => router.push('/places')}
+            onLongPress={() => setContaAberta(true)}
+            longPressLabel={t.whySheet.open}
+            accessibilityLabel={t.app.reports.rows.stock.label}
+          >
             <Card
               hue={palette.mint}
               icon={(c) => <GlyphStock size={26} color={c} weight={traco} />}
@@ -188,6 +228,13 @@ function ReportIndex() {
           </Touchable>
         </Reveal>
       ) : null}
+
+      <WhySheet
+        visible={contaAberta}
+        onClose={() => setContaAberta(false)}
+        conta={contaDoParado}
+        title={t.app.reports.rows.stock.label}
+      />
 
       {/* Custo: o que a última corrida congelou, com a linha das anteriores.
           Sozinho ele não decide nada — quem produz sabe de cabeça a ordem de

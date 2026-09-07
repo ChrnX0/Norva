@@ -1,10 +1,35 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { LocaleSettings } from '@/i18n';
-import { fill, formatMoney, formatPercent, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
-import type { RecipeCost } from '@/domain/recipe';
 import { useTheme } from '@/theme/ThemeProvider';
+
+/**
+ * Uma parcela da conta: o que entrou, quanto, e que fatia do todo é.
+ *
+ * `parte` é opcional porque nem toda conta tem fatia — a soma de três lugares
+ * tem, a diferença entre duas datas não tem. Sem ela a barra some, e some por
+ * ausência de fato, não por decisão de layout.
+ */
+export type Parcela = { rotulo: string; valor: string; parte?: number; nota?: string };
+
+/** O fecho: o que a conta conclui, linha a linha. O último costuma ser o forte. */
+export type Fecho = { rotulo: string; valor: string; forte?: boolean };
+
+/**
+ * A CONTA por trás de um número — e ela é fato, nunca frase pronta.
+ *
+ * Quem escreve português é a tela, que é a fundação da casa: o mesmo `WhySheet`
+ * serve o custo de uma receita e o valor parado no estoque sem saber o que
+ * nenhum dos dois significa. O que ele sabe é desenhar parcelas e fechos.
+ */
+export type Conta = {
+  /** De onde o número vem, em uma frase. */
+  origem: string;
+  parcelas: Parcela[];
+  fechos: Fecho[];
+  /** O rodapé, quando a conta precisa dizer o que ela NÃO afirma. */
+  nota?: string;
+};
 
 /**
  * The sheet behind every `[por quê?]`.
@@ -17,25 +42,28 @@ import { useTheme } from '@/theme/ThemeProvider';
  *
  * It rises from the bottom, as every choice in this app does; a centred dialog
  * is reserved for destructive actions.
+ *
+ * **Ele deixou de conhecer receita em 7 de setembro.** Estava tipado em
+ * `RecipeCost`, e por isso a Lei 6 valia numa tela só: qualquer outro número que
+ * quisesse abrir a conta teria de reescrever a folha inteira. Agora recebe uma
+ * `Conta` — parcelas e fechos —, e quem sabe o que os números significam é quem
+ * os produziu. A ORDEM também é de quem chama: "o que domina" é pergunta da
+ * receita, e ordenar aqui imporia essa pergunta a contas que não a têm.
  */
 export function WhySheet({
   visible,
   onClose,
-  cost,
-  locale,
+  conta,
   title,
 }: {
   visible: boolean;
   onClose: () => void;
-  cost: RecipeCost;
-  locale: LocaleSettings;
+  conta: Conta;
   title: string;
 }) {
   const { color, radius, space, type, accent } = useTheme();
   const { t } = useLocale();
   const insets = useSafeAreaInsets();
-
-  const sorted = [...cost.lines].sort((a, b) => b.share - a.share);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -56,65 +84,57 @@ export function WhySheet({
 
         <Text style={[type.section, { color: color.ink, marginBottom: space.xs }]}>{title}</Text>
         <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.lg }]}>
-          {t.whySheet.where}
+          {conta.origem}
         </Text>
 
         <ScrollView>
-          {sorted.map((line) => (
-            <View key={line.label} style={{ marginBottom: space.md }}>
+          {conta.parcelas.map((parcela) => (
+            <View key={parcela.rotulo} style={{ marginBottom: space.md }}>
               <View style={styles.row}>
                 <Text style={[type.body, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-                  {line.label}
+                  {parcela.rotulo}
                 </Text>
                 <Text
                   style={[type.body, { color: color.ink, fontVariant: ['tabular-nums'], fontWeight: '600' }]}
                 >
-                  {formatMoney(line.totalCents, locale)}
+                  {parcela.valor}
                 </Text>
               </View>
 
               {/* The bar is the point: it shows what dominates the cost at a
-                  glance, which is the question behind opening this sheet. */}
-              <View style={[styles.track, { backgroundColor: color.sunken }]}>
-                <View
-                  style={{
-                    width: `${Math.max(1, Math.round(line.share * 100))}%`,
-                    height: '100%',
-                    backgroundColor: accent,
-                    borderRadius: 99,
-                  }}
-                />
-              </View>
-              <Text style={[type.caption, { color: color.inkFaint, marginTop: 3 }]}>
-                {fill(t.whySheet.shareOfBatch, { percent: formatPercent(line.share, locale, 0) })}
-              </Text>
+                  glance, which is the question behind opening this sheet. Sem
+                  fatia não há barra — e a ausência é fato, não falta de capricho. */}
+              {parcela.parte === undefined ? null : (
+                <View style={[styles.track, { backgroundColor: color.sunken }]}>
+                  <View
+                    style={{
+                      width: `${Math.max(1, Math.round(parcela.parte * 100))}%`,
+                      height: '100%',
+                      backgroundColor: accent,
+                      borderRadius: 99,
+                    }}
+                  />
+                </View>
+              )}
+              {parcela.nota ? (
+                <Text style={[type.caption, { color: color.inkFaint, marginTop: 3 }]}>
+                  {parcela.nota}
+                </Text>
+              ) : null}
             </View>
           ))}
 
           <View style={[styles.divider, { backgroundColor: color.line }]} />
 
-          <Summary label={t.whySheet.batchCost} value={formatMoney(cost.batchCents, locale)} />
-          <Summary
-            label={fill(t.whySheet.expectedLoss, {
-              percent: formatPercent(cost.lossFraction, locale),
-            })}
-            value={fill(t.whySheet.remains, { amount: formatQuantity(cost.netYield, locale) })}
-          />
-          <Summary
-            label={t.whySheet.perMassUnit}
-            // Mil unidades-base, escritas pelo formatador e não à mão: "1.000"
-            // cravado na string é o ponto de milhar do português dentro de uma
-            // tela que também abre em inglês, onde o mesmo mil é "1,000".
-            value={fill(t.whySheet.perAmount, {
-              money: formatMoney(Math.round(cost.perYieldUnit * 1000), locale),
-              amount: formatQuantity(1000, locale),
-            })}
-            strong
-          />
+          {conta.fechos.map((fecho) => (
+            <Summary key={fecho.rotulo} label={fecho.rotulo} value={fecho.valor} strong={fecho.forte} />
+          ))}
 
-          <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
-            {t.whySheet.lossNote}
-          </Text>
+          {conta.nota ? (
+            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
+              {conta.nota}
+            </Text>
+          ) : null}
         </ScrollView>
       </View>
     </Modal>

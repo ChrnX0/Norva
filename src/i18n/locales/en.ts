@@ -1340,6 +1340,11 @@ export const en: Dictionary = {
   },
 
   whySheet: {
+    open: 'Open the maths',
+    stockWhere: 'Added up place by place, at today\u2019s cost',
+    stockTotal: 'Sitting still, in total',
+    stockNote:
+      'Each place is worth what is inside it, at today\u2019s average cost. The total is the sum \u2014 nothing here is an estimate.',
     close: 'Close',
     where: 'Where this number comes from',
     shareOfBatch: '{{percent}} of the batch',
