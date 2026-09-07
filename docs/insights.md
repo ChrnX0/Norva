@@ -6443,3 +6443,41 @@ lote é pago inteiro —, e um motor que descontasse a perda ali daria 672 em ve
 dirigível — um `grep` por `assert.ok` com comparação frouxa, e depois julgamento sobre
 quais são pré-condição e quais são a tese. O que ela custa é a parte que não dá para
 automatizar: ler a frase ao lado da asserção e perguntar se a checagem prova aquilo.
+
+## O achado que só a máquina acha: uma asserção circular com cara de igualdade
+
+Depois da varredura manual por `assert.ok(... > 0)`, rodei o `mutate` — a versão
+exaustiva da mesma pergunta. Ele plantou 110 defeitos e **um atravessou a suíte
+inteira**: apagar `+ product.unitPackagingRate` do custo congelado de uma corrida.
+
+O estrago desse: o palito e o saquinho somem do custo, toda margem futura sai inflada
+exatamente pela embalagem, e **congelado é congelado** — o número errado fica no razão
+para sempre, sem estorno possível porque não é um erro de lançamento, é a definição do
+custo daquela corrida.
+
+E o teste que afirmava justamente isso **existia**, com a frase certa ao lado:
+
+```js
+const semEmbalagem = run.unitCostRate - 0.4;
+assert.ok(Math.abs(run.unitCostRate - (semEmbalagem + 0.4)) < 1e-9,
+          'a taxa congelada carrega os quatro décimos');
+```
+
+`semEmbalagem` é DEFINIDO como a taxa menos 0,4. Logo `semEmbalagem + 0,4` é a própria
+taxa, e a comparação é verdadeira para qualquer número — inclusive para nenhum.
+
+**O que isto ensina sobre a busca manual que eu tinha acabado de fazer:** ela achou
+duas asserções fracas e passou por esta sem ver, porque a linha tem `Math.abs`, tem
+tolerância e tem duas variáveis — ela *parece* uma igualdade contra outra fonte. A
+fraqueza não está na forma da linha, está na PROCEDÊNCIA do valor comparado: um lado
+foi derivado do outro. Isso um `grep` não enxerga e um olho distraído também não.
+
+Daí a regra que fecha o assunto: **a segunda fonte tem de ser independente da
+primeira.** Aqui ela passou a ser a mesma corrida com a embalagem zerada — duas
+corridas idênticas congelam o mesmo consumo, porque a média só se move em COMPRA e não
+há compra entre elas; logo a diferença entre as duas é a embalagem e nada mais.
+Reproduzindo a mutação, o teste agora falha em `0 !== 0.4`.
+
+E uma medida junto: o `docs/roadmap.md` afirmava *"108 pegos e 2 equivalentes"* e a
+execução real deu 107 pegos, 1 sobrevivente e 2 equivalentes. O número da barra estava
+um a mais que a verdade — e a barra existe justamente para não afirmar sem medir.

@@ -711,6 +711,16 @@ nada, e li o verde como prova da régua. Se a única coisa que se sabe afirmar �
 positivo", o que está sendo testado é que a função devolveu alguma coisa — e isso o
 typecheck já dá de graça.
 
+**A segunda fonte tem de ser INDEPENDENTE da primeira — e a forma da linha engana.**
+A regra de cima ("igualdade contra outra fonte, nunca `> 0`") tem um buraco que só o
+`mutate` acha. Em 7 de setembro o custo congelado de uma corrida perdeu a embalagem e
+a suíte inteira passou, porque o teste que afirmava exatamente isso comparava
+`taxa` com `(taxa - 0,4) + 0,4`: um lado derivado do outro, verdadeiro para qualquer
+número. A linha tem `Math.abs`, tem tolerância e tem duas variáveis — ela **parece**
+uma igualdade de verdade, e a varredura manual que eu tinha acabado de fazer por
+`assert.ok(... > 0)` passou por ela sem ver. Onde a asserção é o coração do teste,
+pergunte de onde veio o valor comparado; se ele veio do valor testado, não há teste.
+
 **Comentário que se declara único não é o mesmo que ser único.** `amountOf` diz de
 si *"the one place rounding happens"*, e `repository.ts` — que o importa na
 primeira linha — chamava `cents(rate * qty)` em dois outros lugares, cada um com o
