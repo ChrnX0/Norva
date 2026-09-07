@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Text } from 'react-native';
+import { brand } from '@/config/brand';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
@@ -316,7 +317,7 @@ export default function BackupScreen() {
       {recusa ? (
         <Reveal index={3}>
           <Card hue={color.danger}>
-            <Text style={[type.body, { color: color.ink }]}>{words[recusa]}</Text>
+            <Text style={[type.body, { color: color.ink }]}>{fill(words[recusa], { app: brand.name })}</Text>
           </Card>
         </Reveal>
       ) : null}

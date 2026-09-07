@@ -17,6 +17,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
+import { brand } from '@/config/brand';
 import { gravarCopia, lerCopia, restaurar, type CopiaLida } from './backup';
 
 /** O `file://` fora, que é o que o SQLite entende. */
@@ -89,7 +90,7 @@ export async function partilharCopia(uri: string): Promise<boolean> {
   await Sharing.shareAsync(uri, {
     mimeType: 'application/octet-stream',
     UTI: 'public.data',
-    dialogTitle: 'NORVA',
+    dialogTitle: brand.name,
   });
   return true;
 }

@@ -328,7 +328,7 @@ export const es: Dictionary = {
       doneBody: 'Volvieron {{rows}} en {{tables}}.',
       rowCount: { one: '1 fila', other: '{{n}} filas' },
       tableCount: { one: '1 tabla', other: '{{n}} tablas' },
-      naoEhNorva: 'Este archivo no es una copia de NORVA.',
+      naoEhCopiaNossa: 'Este archivo no es una copia de {{app}}.',
       maisNovaQueOApp: 'Esta copia vino de una versión más nueva de la aplicación. Actualice la aplicación e intente de nuevo — traer solo lo que ella entiende dejaría la fábrica sin una parte de sí.',
       ilegivel: 'Este archivo no abrió. Puede haber llegado incompleto.',
       referenciasQuebradas: 'Esta copia es inconsistente y nada fue cambiado. El aparato está como estaba.',

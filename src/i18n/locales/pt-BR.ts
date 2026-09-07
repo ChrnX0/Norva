@@ -439,7 +439,7 @@ export const ptBR = {
       doneBody: 'Voltaram {{rows}} em {{tables}}.',
       rowCount: { one: '1 linha', other: '{{n}} linhas' },
       tableCount: { one: '1 tabela', other: '{{n}} tabelas' },
-      naoEhNorva: 'Este arquivo não é uma cópia do NORVA.',
+      naoEhCopiaNossa: 'Este arquivo não é uma cópia do {{app}}.',
       maisNovaQueOApp: 'Esta cópia veio de uma versão mais nova do aplicativo. Atualize o aplicativo e tente de novo — trazer o que ele entende deixaria a fábrica sem uma parte dela.',
       ilegivel: 'Este arquivo não abriu. Ele pode ter chegado incompleto.',
       referenciasQuebradas: 'Esta cópia está inconsistente e nada foi mudado. O aparelho está como estava.',

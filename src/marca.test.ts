@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from 'node:test';
 
 /**
@@ -68,4 +69,53 @@ test('the two openings are drawn in opposite inks, so neither is invisible', () 
     backgroundColor: '#1B1610',
     image: './assets/splash-icon-dark.png',
   });
+});
+
+/**
+ * O nome da marca mora num arquivo só — e isso era promessa, não guarda.
+ *
+ * `src/config/brand.ts` abre dizendo *"nothing else in the codebase hardcodes
+ * the name. Changing brands is an edit to this file plus `app.json`"*, e o
+ * roadmap repetia a frase. Uma auditoria de 7 de setembro mediu: **quatro
+ * lugares a mais**, e os quatro chegavam à tela — o título da folha de partilha
+ * do backup (`dialogTitle: 'NORVA'`) e a recusa de cópia nos três idiomas. Um
+ * app publicado com outro nome mostraria o antigo no dia em que alguém tentasse
+ * restaurar do arquivo errado.
+ *
+ * A promessa era verdadeira quando escrita, em 4 de setembro, e apodreceu em 6
+ * quando a folha de partilha e a cópia do aparelho entraram. **Promessa em
+ * docblock não envelhece sozinha; guarda envelhece a cada commit.**
+ *
+ * Comentário fica de fora de propósito: a prosa deste repositório fala do
+ * produto pelo nome, e proibir isso seria inventar regra. O que a guarda cobra é
+ * o nome em **texto que embarca** — literal de string, chave, JSX.
+ */
+test('the brand name is written in one place, and nothing else ships it', () => {
+  const semComentario = (fonte: string) =>
+    fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+  const fontes = (dir: string, into: string[] = []): string[] => {
+    for (const entrada of readdirSync(dir)) {
+      if (entrada === 'node_modules' || entrada.startsWith('.')) continue;
+      const caminho = join(dir, entrada);
+      if (statSync(caminho).isDirectory()) fontes(caminho, into);
+      else if (/\.tsx?$/.test(entrada)) into.push(caminho);
+    }
+    return into;
+  };
+
+  const nome = readFileSync('src/config/brand.ts', 'utf8').match(/name: '([^']+)'/)?.[1];
+  assert.ok(nome, 'o nome da marca não foi lido de src/config/brand.ts — a guarda mediria nada');
+
+  const chumbados = [...fontes('src'), ...fontes('app'), ...fontes('e2e')]
+    .filter((f) => f !== join('src', 'config', 'brand.ts'))
+    .filter((f) => semComentario(readFileSync(f, 'utf8')).includes(nome));
+
+  assert.deepEqual(
+    chumbados,
+    [],
+    `estes arquivos embarcam o nome "${nome}" fora de src/config/brand.ts:\n  ${chumbados.join('\n  ')}\n` +
+      'O nome está pendente de busca de marca no INPI, e o app vai para duas lojas. ' +
+      'Use `brand.name` — e num texto traduzido, um {{app}} preenchido com ele.',
+  );
 });

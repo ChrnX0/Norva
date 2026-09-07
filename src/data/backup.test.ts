@@ -171,7 +171,7 @@ test('a file that is not a factory is refused', async () => {
   const d = new DatabaseSync(estranho);
   d.exec('CREATE TABLE fotos(a); INSERT INTO fotos VALUES (1);');
   d.close();
-  assert.equal(await motivoDe(() => lerCopia(estranho)), 'naoEhNorva');
+  assert.equal(await motivoDe(() => lerCopia(estranho)), 'naoEhCopiaNossa');
 
   const truncado = join(pasta, 'truncado.db');
   writeFileSync(truncado, 'isto nao e um banco');

@@ -323,7 +323,7 @@ export const en: Dictionary = {
       doneBody: '{{rows}} came back across {{tables}}.',
       rowCount: { one: '1 row', other: '{{n}} rows' },
       tableCount: { one: '1 table', other: '{{n}} tables' },
-      naoEhNorva: 'This file is not a NORVA copy.',
+      naoEhCopiaNossa: 'This file is not a {{app}} copy.',
       maisNovaQueOApp: 'This copy came from a newer version of the app. Update the app and try again — bringing back only what it understands would leave the factory missing a part of itself.',
       ilegivel: 'This file did not open. It may have arrived incomplete.',
       referenciasQuebradas: 'This copy is inconsistent and nothing was changed. The device is as it was.',

@@ -83,7 +83,7 @@ export type CopiaLida = {
  */
 export type MotivoDaCopia =
   /** Nenhum selo e nenhuma tabela de movimentos: não saiu deste aplicativo. */
-  | 'naoEhNorva'
+  | 'naoEhCopiaNossa'
   /**
    * Feita por uma versão mais nova do aplicativo.
    *
@@ -228,7 +228,7 @@ export async function lerCopia(origem: string): Promise<CopiaLida> {
   }
   try {
     const daCopia = await tabelasDe(conn, 'copia');
-    if (!daCopia.includes('movements')) throw new CopiaRecusadaError('naoEhNorva');
+    if (!daCopia.includes('movements')) throw new CopiaRecusadaError('naoEhCopiaNossa');
 
     const versaoDoEsquema = await versaoDe(conn, 'copia');
     if (versaoDoEsquema > schemaVersion) {
