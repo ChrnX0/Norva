@@ -9,7 +9,7 @@ import Svg, {
   Rect,
   Stop,
 } from 'react-native-svg';
-import { hues } from '@/theme/tokens';
+import { hues, noturno } from '@/theme/tokens';
 import { Vivo } from './Vivo';
 import { useAppearance } from '@/theme/Appearance';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -33,25 +33,6 @@ import { useTheme } from '@/theme/ThemeProvider';
  * fábrica e sol, e nenhuma nuvem. É a mesma decisão do cartão do clima, que
  * some em vez de mostrar um "--°" que ninguém pode conferir.
  */
-/**
- * A mesma cor, à noite — e não um cinza no lugar dela.
- *
- * No escuro a paisagem pintava `sunken` sobre `surface` sobre `paper`: três
- * cinzas separados por dezoito unidades de brilho. O desenho existia e não se
- * via — o dono abriu o aplicativo e mandou a foto de uma caixa preta com um sol
- * dentro, que é exatamente o que estava lá.
- *
- * A regra do tema ("escuro é cinza neutro, cor só de acento") vale para
- * SUPERFÍCIE, não para cena: uma colina não é fundo de cartão, é a figura. Aqui
- * a matiz escolhida continua, escurecida — que é o que uma colina faz à noite.
- */
-function noturno(hex: string, fator: number): string {
-  const n = parseInt(hex.replace('#', ''), 16);
-  const r = Math.round(((n >> 16) & 255) * fator);
-  const g = Math.round(((n >> 8) & 255) * fator);
-  const b = Math.round((n & 255) * fator);
-  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
-}
 
 export function Landscape({
   maxC,

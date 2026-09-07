@@ -1,9 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactElement } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import Animated, { useAnimatedProps } from 'react-native-reanimated';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
+import type { Tracos } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useCiclo } from '../vida';
+import { CenaPaisagem } from './Paisagem';
 import { CHAO, PRANCHA_DO_CABECALHO, type Cena } from './prancha';
 
 const AnimatedG = Animated.createAnimatedComponent(G);
@@ -11,17 +13,17 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 /**
- * O cabeçalho vivo de uma tela.
+ * As cenas de cabeçalho — uma por assunto, em duas línguas de desenho.
  *
  * A capa tinha a fábrica em traço e o dono quis a mesma coisa em toda parte:
  * *"quero em TODAS as páginas um cabeçalho q fica animado tipo a da pagina home
  * com aquela fabricazinha e o sol se movendo"*.
  *
  * O que este arquivo NÃO faz, de propósito, é repetir um efeito genérico com
- * outro ícone dentro. A regra da casa é a da cena aprovada e vale aqui inteira:
- * **cada coisa se mexe como ela mesma** — o caminhão anda, a fumaça sobe, a
- * balança pende, a barra cresce. Um caminhão que respira igual a um termômetro
- * não está vivo, está tremendo, e essa versão já foi recusada uma vez.
+ * outro ícone dentro. A regra da casa é a da cena aprovada e vale nas duas
+ * línguas: **cada coisa se mexe como ela mesma** — o caminhão anda, a fumaça
+ * sobe, a balança pende, a barra cresce. Um caminhão que respira igual a um
+ * termômetro não está vivo, está tremendo, e essa versão já foi recusada uma vez.
  *
  * Três coisas que o casco resolve para todos os desenhos, e por isso eles são
  * curtos:
@@ -30,11 +32,50 @@ const AnimatedRect = Animated.createAnimatedComponent(Rect);
  *    Do telefone de 360 dp ao tablet a cena dobra junto com o resto da página.
  * 2. **O relógio é o compartilhado** (`useCiclo`), então "reduzir movimento" é
  *    lido uma vez para o aplicativo todo e cada desenho estaciona no lugar certo.
- * 3. **A espessura é a da pele.** Chumbar 1,3 aqui deixaria a cena fina na pele
- *    de traço grosso — que é exatamente o defeito de "o Orgânico é o Papel com
- *    outro desenho".
+ * 3. **A LÍNGUA vem da pele, e não só a cor.** Aqui estava escrito que ler a
+ *    espessura do traço da pele era o que evitava *"o Orgânico é o Papel com
+ *    outro desenho"* — e estava errado: era esse defeito exatamente, com um
+ *    parágrafo explicando por que não era. O dono viu na foto e disse. Cor e
+ *    espessura são parâmetros; **geometria é vocabulário**, e ela se despacha.
+ */
+/**
+ * O cabeçalho vivo de uma tela — e quem desenha depende da PELE.
+ *
+ * Este despacho existe por uma correção do dono, em 7 de setembro: *"o cabeçalho
+ * animado pegou as animações do tema do Papel. pelo visto vc esqueceu de fazer
+ * para o orgânico."* Ele estava certo. A vinheta abaixo lia a cor e a espessura da
+ * pele e desenhava **uma geometria só** — traço fino, canto duro, papel milimetrado
+ * —, que é o Papel aparecendo dentro do Orgânico. O projeto já recusou esse mesmo
+ * defeito na capa, e consertou movendo a peça para `src/home/capas/`; as dezoito
+ * cenas de cabeçalho ficaram para trás naquele conserto.
+ *
+ * A escolha é pelo TRAÇO (`cabecalho`) e nunca pelo nome da pele: `src/home/capas/
+ * registro.test.ts` recusa arquivo em `src/components` que decida por nome, porque
+ * `ehPapel` compila e devolve o mesmo defeito na pele seguinte. Pele nova declara
+ * `vinheta` ou `paisagem` e ganha as dezoito cenas de graça — ou declara uma língua
+ * nova, e aí este despacho cresce um ramo.
  */
 export function CenaDoCabecalho({ cena }: { cena: Cena }) {
+  const { tracos } = useTheme();
+  const Desenha = LINGUAS[tracos.cabecalho];
+  return <Desenha cena={cena} />;
+}
+
+/**
+ * As línguas que existem. É um `Record` e não um `if` porque a pele seguinte tem
+ * que QUEBRAR A COMPILAÇÃO em vez de cair no Papel em silêncio — que é como a
+ * cena chegou na foto do dono. Um ternário aceita um terceiro valor e desenha o
+ * ramo errado; este mapa não compila até alguém dizer qual é o desenho.
+ */
+const LINGUAS: Record<Tracos['cabecalho'], (p: { cena: Cena }) => ReactElement> = {
+  vinheta: CenaVinheta,
+  paisagem: CenaPaisagem,
+};
+
+/**
+ * A vinheta em TRAÇO — a língua do Papel: linha fina sobre folha, sem massa.
+ */
+function CenaVinheta({ cena }: { cena: Cena }) {
   const { color, palette, traco } = useTheme();
   const { width } = useWindowDimensions();
 

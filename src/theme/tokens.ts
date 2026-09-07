@@ -420,6 +420,26 @@ export const hues: Record<Hue, { brand: string; skyTop: string; skyBottom: strin
 };
 
 /**
+ * A mesma cor, à noite — e não um cinza no lugar dela.
+ *
+ * No escuro a paisagem pintava `sunken` sobre `surface` sobre `paper`: três
+ * cinzas separados por dezoito unidades de brilho. O desenho existia e não se
+ * via — o dono abriu o aplicativo e mandou a foto de uma caixa preta com um sol
+ * dentro, que é exatamente o que estava lá.
+ *
+ * A regra do tema ("escuro é cinza neutro, cor só de acento") vale para
+ * SUPERFÍCIE, não para cena: uma colina não é fundo de cartão, é a figura. Aqui
+ * a matiz escolhida continua, escurecida — que é o que uma colina faz à noite.
+ */
+export function noturno(hex: string, fator: number): string {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = Math.round(((n >> 16) & 255) * fator);
+  const g = Math.round(((n >> 8) & 255) * fator);
+  const b = Math.round((n & 255) * fator);
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
+
+/**
  * A MEDIDA da página: até onde a coluna de conteúdo cresce, em dp.
  *
  * O aplicativo inteiro não tinha nenhuma — zero `useWindowDimensions`, um único
@@ -493,6 +513,24 @@ export type Tracos = {
    */
   genero: 'pagina' | 'superficie';
   /**
+   * Como esta pele DESENHA o cabeçalho vivo de uma tela.
+   *
+   * `'vinheta'` — traço solto na folha: linha fina, sem fundo, sem massa. A cena é
+   * um desenho na margem de uma página impressa.
+   * `'paisagem'` — céu, duas colinas e o assunto como SILHUETA cheia no horizonte.
+   * É o mesmo vocabulário do herói da capa, e é o que faz o cabeçalho pertencer à
+   * pele em vez de visitá-la.
+   *
+   * **Este traço existe por uma correção do dono, em 7 de setembro:** *"o cabeçalho
+   * animado pegou as animações do tema do Papel. pelo visto vc esqueceu de fazer
+   * para o orgânico."* Ele estava certo, e o defeito era pior que esquecimento — a
+   * cena lia cor e espessura da pele e desenhava **uma geometria só**, que é
+   * exatamente o *"o Orgânico é o Papel com outro desenho"* que este projeto já
+   * tinha recusado uma vez na capa. A capa foi consertada movendo a peça para
+   * `src/home/capas/`; as dezoito cenas de cabeçalho ficaram para trás.
+   */
+  cabecalho: 'vinheta' | 'paisagem';
+  /**
    * De onde sai a tinta de um botão cheio.
    *
    * `'marca'` — a cor do aplicativo, igual em toda tela: numa folha de contato o
@@ -534,6 +572,7 @@ export const skins: Record<
     titleFamily: 'serif' as const,
     radius: { sm: 4, md: 6, lg: 8, xl: 10, pill: 999, controle: 4 },
     tracos: {
+      cabecalho: 'vinheta',
       genero: 'pagina',
       tintaCheia: 'marca',
       marcaVemDoTom: false,
@@ -557,6 +596,7 @@ export const skins: Record<
     titleFamily: undefined,
     radius: { sm: 12, md: 18, lg: 22, xl: 28, pill: 999, controle: 999 },
     tracos: {
+      cabecalho: 'paisagem',
       genero: 'superficie',
       tintaCheia: 'area',
       marcaVemDoTom: true,
