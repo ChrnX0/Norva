@@ -6953,3 +6953,27 @@ confiança por agentes, as duas erradas: `puxar` e `empurrar` têm chamador (a c
 desce quando a Conta abre), e **nenhum dos dois lados exige nome único de gente** (o servidor
 tem índice, não restrição), então homônimo não travava fila alguma. O que a grade precisava
 não era unicidade: era busca. Achado de agente é hipótese até passar pelo `grep`.
+
+## O fornecedor tem duas formas, e só uma viaja — a armadilha que espera o item que ainda não existe
+
+Varredura de tabelas do servidor sem escritor, 8 de setembro. Das 28, seis não atravessam:
+quatro por bom motivo (`companies` e `memberships` nascem por função do servidor;
+`item_costs` e `item_cost_history` são derivadas e o servidor é o dono delas) e duas por
+outro: `devices` — que tem fronteira escrita, esperando matrícula de aparelho — e
+**`suppliers`**, que está no esquema desde a `0002` com zero escritores e zero leitores.
+
+O achado não é *"tabela morta"*, que já estava documentado em dois docblocks. É o que ela faz
+com um item que **ainda não foi construído**: as compras inteligentes dependem do **prazo
+observado por fornecedor**, e o fornecedor que existe de verdade é um NOME digitado
+(`purchases.supplier_name`). Agrupar por nome faz *"Distribuidora Silva"* e *"distribuidora
+silva"* virarem dois fornecedores com metade das entregas cada — e o prazo sai pela metade,
+plausível, sem nada acusando.
+
+**É a mesma armadilha que a transportadora evitou por acidente feliz:** `carriers` nasceu com
+índice único por `lower(trim(name))` porque eu estava olhando para `suppliers` na hora de
+decidir, e o que me fez olhar foi a regra da casa de não copiar molde sem chamador. Um passo
+adiante e eu teria copiado a forma que cria o problema.
+
+A consequência é uma linha no plano, ao lado do item que ela vai morder — não código, porque
+o item espera o mundo. **Achado que muda um documento é achado; achado que vira código antes
+da hora é a doença que este repositório documenta em quatro lugares.**
