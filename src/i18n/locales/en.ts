@@ -285,6 +285,17 @@ export const en: Dictionary = {
       findLabel: 'Lot code',
       findHint: 'Type the code on the box — the same one printed under the square.',
       findAction: 'Open the label',
+      /* The camera: a shortcut to the same place, not a parallel path. */
+      scanAction: 'Read with the camera',
+      scanTitle: 'Point at the label',
+      scanHint: 'The square on the box. Nothing is photographed or stored — the camera only reads the code.',
+      scanAsk: 'To read the label, the app needs the camera.',
+      scanAllow: 'Allow the camera',
+      scanDenied:
+        'The camera is blocked for this app. You can allow it in the device settings, or type the '
+        + 'eleven characters printed under the square.',
+      scanClose: 'Close',
+      scanUnknown: 'That code does not belong to a lot of this factory.',
       why: 'The code appears twice on purpose: when the label freezes or peels, somebody types the eleven characters and the check goes on.',
       reverse: 'Correct this run',
       reverseTitle: 'Correct run {{code}}?',

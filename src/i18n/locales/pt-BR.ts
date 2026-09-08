@@ -382,6 +382,17 @@ export const ptBR = {
       findLabel: 'Código do lote',
       findHint: 'Digite o código que está na caixa — o mesmo que aparece embaixo do quadrado.',
       findAction: 'Abrir a etiqueta',
+      /* A câmera: um atalho para o mesmo lugar, não um caminho paralelo. */
+      scanAction: 'Ler com a câmera',
+      scanTitle: 'Aponte para a etiqueta',
+      scanHint: 'O quadrado da caixa. Nada é fotografado nem guardado — a câmera só lê o código.',
+      scanAsk: 'Para ler a etiqueta, o aplicativo precisa da câmera.',
+      scanAllow: 'Permitir a câmera',
+      scanDenied:
+        'A câmera está bloqueada para este aplicativo. Você pode liberar nos ajustes do aparelho, '
+        + 'ou digitar os onze caracteres que estão embaixo do quadrado.',
+      scanClose: 'Fechar',
+      scanUnknown: 'Esse código não é de um lote desta fábrica.',
       why: 'O código aparece duas vezes de propósito: quando a etiqueta congela ou descasca, alguém digita os onze caracteres e a conferência segue.',
       // O conserto do livro-razão, dito sem a palavra "estorno" - que é
       // vocabulário de contador, e quem lança a corrida é quem estava no tacho.

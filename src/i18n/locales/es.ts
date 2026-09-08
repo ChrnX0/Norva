@@ -290,6 +290,17 @@ export const es: Dictionary = {
       findLabel: 'Código del lote',
       findHint: 'Escribe el código de la caja — el mismo que aparece debajo del cuadrado.',
       findAction: 'Abrir la etiqueta',
+      /* La cámara: un atajo al mismo lugar, no un camino paralelo. */
+      scanAction: 'Leer con la cámara',
+      scanTitle: 'Apunte a la etiqueta',
+      scanHint: 'El cuadrado de la caja. Nada se fotografía ni se guarda — la cámara solo lee el código.',
+      scanAsk: 'Para leer la etiqueta, la aplicación necesita la cámara.',
+      scanAllow: 'Permitir la cámara',
+      scanDenied:
+        'La cámara está bloqueada para esta aplicación. Puede permitirla en los ajustes del aparato, '
+        + 'o escribir los once caracteres que están debajo del cuadrado.',
+      scanClose: 'Cerrar',
+      scanUnknown: 'Ese código no es de un lote de esta fábrica.',
       why: 'El código aparece dos veces a propósito: cuando la etiqueta se congela o se despega, alguien escribe los once caracteres y la verificación sigue.',
       reverse: 'Corregir esta corrida',
       reverseTitle: '¿Corregir la corrida {{code}}?',

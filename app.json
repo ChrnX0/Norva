@@ -34,6 +34,13 @@
       "expo-sqlite",
       "expo-notifications",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "A câmera lê a etiqueta do lote. Nada é fotografado nem guardado.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#FAF7F2",

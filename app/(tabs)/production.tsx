@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { CameraView } from 'expo-camera';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { CountUp } from '@/components/CountUp';
@@ -101,6 +102,23 @@ function ProductionDay() {
 
   /** O código digitado de uma caixa que não é de hoje. */
   const [codigo, setCodigo] = useState('');
+  /** Se este aparelho tem câmera. Nulo enquanto não se sabe — e nulo não oferece. */
+  const [temCamera, setTemCamera] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    void CameraView.isAvailableAsync()
+      .then((tem) => {
+        if (vivo) setTemCamera(tem);
+      })
+      .catch(() => {
+        // Aparelho que nem sabe responder não tem: o botão fica fora, e o campo
+        // de digitar continua ali fazendo o mesmo trabalho.
+        if (vivo) setTemCamera(false);
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   const { data, loading } = useQuery<Loaded>(async () => {
     const hoje = dayWindow(nowIso(), locale.timeZone);
@@ -500,6 +518,19 @@ function ProductionDay() {
             onPress={() => router.push(`/lots/${codigo.trim()}`)}
             style={{ marginTop: space.md }}
           />
+          {/* A câmera aparece SÓ onde ela existe.
+              `isAvailableAsync` responde pelo aparelho de verdade — num navegador
+              headless não há câmera, num tablet sem traseira também não. Oferecer o
+              que não se pode cumprir é a Lei 5 quebrada, e um toque que não faz nada
+              lê como aplicativo travado. */}
+          {temCamera ? (
+            <Button
+              label={t.app.lotLabel.scanAction}
+              variant="ghost"
+              onPress={() => router.push('/scan' as never)}
+              style={{ marginTop: space.sm }}
+            />
+          ) : null}
         </Card>
       </Reveal>
     </CollapsingHeader>

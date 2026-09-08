@@ -36,7 +36,7 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 
 | | | como conferir |
 |---|---|---|
-| telas | **32** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
+| telas | **33** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **26** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **28** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
 | migrações do servidor | **45** | `ls supabase/migrations \| wc -l` |
@@ -1395,11 +1395,15 @@ de uma caixa procura HORAS depois*. Três dias depois, não havia caminho.
 Sem exigir formato: o `lotCode` diz por escrito que `AAAAMMDD-NN` é o padrão e não a
 única forma, e a fábrica que já tem código próprio vai poder usá-lo.
 
-**O que falta:** a **câmera** (dependência nativa, e esta sessão não tem como fotografar
-uma leitura de câmera para provar), e a **leitura engradado a engradado na doca** — que é
-o que a seção `scan` do dicionário descreve (`{{done}} de {{total}}`, "esse engradado já
-foi bipado") e que pertence ao mesmo bloco dos itens 4 e 5: ela é a conferência da carga
-saindo, e depende da mesma decisão.
+**A câmera entrou em 8 de setembro** (`app/scan.tsx`, `expo-camera`), e ela é um
+ATALHO para a tela que já existia: quem digita os onze caracteres abre a etiqueta do
+lote, e quem aponta a câmera abre a mesma. Dois caminhos que fazem a mesma coisa
+envelhecem em velocidades diferentes — então não há caminho paralelo, há uma porta a
+mais. O botão só aparece onde há câmera (`isAvailableAsync`), a permissão é pedida com
+a frase que diz para quê, e a recusa não é beco: a tela lembra que o código está
+impresso embaixo do quadrado. **Nível de evidência: E1 para a leitura** — este
+container não tem câmera e o navegador headless também não; quem prova é o tablet do
+dono, apontando para uma etiqueta impressa
 
 **2.** ~~**Lojas e clientes com ficha de acordo.**~~ **JÁ EXISTE — conferido em 6 de
 setembro, e o roadmap estava errado.** A linha dizia "falta a tela" e a tela está
