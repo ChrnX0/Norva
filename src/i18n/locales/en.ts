@@ -571,6 +571,11 @@ export const en: Dictionary = {
     },
 
     settings: {
+      unidade: {
+        label: "This device's unit",
+        hint: 'Where this phone lives. What you record goes into this unit\u2019s stock.',
+        note: 'From now on. What was already recorded stays where it is.',
+      },
       title: 'Settings',
       stored: 'What is stored',
       checking: 'Checking…',

@@ -222,11 +222,21 @@ function Places() {
    * `movement_kind` tem `sale` e `movements.unit_price_rate` existem desde a
    * fundação sem um escritor. Esta linha é a primeira das três.
    *
-   * Duas ficam de fora, com motivo: `factory` nasce sozinha (`ensureLocation`) e não
-   * se cadastra; `vehicle` é a viagem com linha do tempo, que o dono adiou em 6 de
+   * **`factory` entrou em 8 de setembro, e era esta linha que segurava o item.** Ela
+   * ficava de fora com a justificativa de que *"nasce sozinha (`ensureLocation`) e não
+   * se cadastra"* — verdade para a PRIMEIRA unidade e só para ela. O dono levantou em
+   * 7 de setembro que podem existir mais de uma, e o esquema já aguentava nos dois
+   * lados: `locations` não tem restrição de espécie, `movements.location_id` é NOT NULL
+   * desde a `0001`, e `stock_balances` já agrupa por lugar. Faltava a porta.
+   *
+   * A primeira continua nascendo sozinha e continua com o id da empresa — isso é
+   * permanente, porque é o carimbo de todo movimento já gravado e o razão não se
+   * recarimba. As seguintes nascem daqui, com uuid próprio.
+   *
+   * `vehicle` continua fora: é a viagem com linha do tempo, que o dono adiou em 6 de
    * setembro ao decidir que a carga é UM evento.
    */
-  const KINDS = ['own_store', 'customer', 'cold_room', 'store_room'] as const;
+  const KINDS = ['own_store', 'customer', 'cold_room', 'store_room', 'factory'] as const;
 
   /** Nada entrou em lugar nenhum ainda: desenho, uma frase, e a ação embaixo. */
   const semNada = (data?.stock.length ?? 0) === 0;

@@ -25,7 +25,6 @@ import {
   canSeeMoney,
   dailyOutflowOf,
   purchaseSafetyDays,
-  defaultLocationId,
   deliveriesOf,
   findItem,
   listPlaces,
@@ -44,6 +43,7 @@ import {
   type Delivery,
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
+import { unidadeDaqui } from '@/data/unidade';
 import { judgePriceChange, observedLeadTimeDays, reorderPoint } from '@/domain/cost';
 import type { LossReason } from '@/domain/ledger';
 import { parseTyped } from '@/domain/number';
@@ -320,7 +320,7 @@ function InputDetail() {
     salaAberta ??
     (spread.length > 1
       ? null
-      : (spread[0]?.locationId ?? defaultLocationId(empresaDaqui())));
+      : (spread[0]?.locationId ?? unidadeDaqui()));
 
   const lastCount = (data?.movements ?? []).find((m) => m.kind === 'adjustment');
   const lastCounted = lastCount

@@ -20,11 +20,11 @@ import {
   type LotOfDay,
   type OpenRun,
   type ProducedInWindow,
-  defaultLocationId,
   runningOut,
   type Running,
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
+import { unidadeDaqui } from '@/data/unidade';
 import { nowIso } from '@/data/db';
 import { useQuery } from '@/data/useQuery';
 import { diasAteProduzir } from '@/domain/ledger';
@@ -164,7 +164,7 @@ function ProductionDay() {
       // "produza" é o que SAI DAQUI, e ele existe mesmo quando o destino é uma
       // loja da própria empresa — porque a fábrica precisa repor de qualquer
       // jeito.
-      runningOut(empresaDaqui(), semana.from, hoje.to, 7, 14, defaultLocationId(empresaDaqui()), [
+      runningOut(empresaDaqui(), semana.from, hoje.to, 7, 14, unidadeDaqui(), [
         'product',
       ]),
     ]);

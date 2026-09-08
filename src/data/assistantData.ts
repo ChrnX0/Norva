@@ -1,4 +1,5 @@
 import type { AssistantData } from '@/assistant/types';
+import { unidadeDaqui } from './unidade';
 import { nowIso } from '@/data/db';
 import { localDate } from '@/domain/day';
 import {
@@ -18,7 +19,6 @@ import {
   recordTransfer,
   saveItem,
   stockByPlace,
-  defaultLocationId,
 } from './repository';
 
 /**
@@ -48,10 +48,10 @@ export function liveData(companyId: string, timeZone: string): AssistantData {
     // O local é exigido aqui, e não com padrão lá dentro, por isso mesmo: a
     // decisão de onde gravar mora em quem sabe fazer a pergunta.
     recordCount: (input) =>
-      recordCount(companyId, { ...input, locationId: defaultLocationId(companyId) }),
+      recordCount(companyId, { ...input, locationId: unidadeDaqui() }),
     listPlaces: () => listPlaces(companyId),
     stockByPlace: () => stockByPlace(companyId),
-    defaultPlaceId: () => defaultLocationId(companyId),
+    defaultPlaceId: () => unidadeDaqui(),
     // A produção sai no lugar padrão, pelo mesmo motivo da contagem: enquanto
     // há uma fábrica só, perguntar qual é pedir o que o sistema já sabe.
     //
@@ -62,11 +62,11 @@ export function liveData(companyId: string, timeZone: string): AssistantData {
     recordProduction: (input) =>
       recordProduction(companyId, {
         ...input,
-        locationId: defaultLocationId(companyId),
+        locationId: unidadeDaqui(),
         producedOn: localDate(nowIso(), timeZone),
       }),
     recordTransfer: (input) =>
-      recordTransfer(companyId, { ...input, fromLocationId: defaultLocationId(companyId) }),
+      recordTransfer(companyId, { ...input, fromLocationId: unidadeDaqui() }),
     saveItem: (input) =>
       saveItem(companyId, { ...input, packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }] } }),
   };

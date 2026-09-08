@@ -1011,8 +1011,11 @@ test('the crossing guard bites the real risk, and leaves the tests alone', () =>
  * espécie ao servidor descobre no vermelho que a tela não a oferece.
  */
 const ESPECIE_FORA_DO_CADASTRO: Record<string, string> = {
-  factory:
-    'nasce sozinha com a empresa (`ensureLocation`), com o id da própria empresa — não há o que cadastrar',
+  // `factory` esteve aqui até 8 de setembro, com a razão *"nasce sozinha com a
+  // empresa e não há o que cadastrar"* — verdadeira para a PRIMEIRA unidade e só
+  // para ela. O dono levantou que podem existir mais, e a segunda não nasce de
+  // nada: nasce do formulário. A primeira continua nascendo sozinha, com o id da
+  // empresa, e isso é permanente — é o carimbo de todo movimento já gravado.
   vehicle:
     'é a viagem com linha do tempo, adiada por decisão do dono em 6 de setembro: a carga é UM evento, e o veículo só passa a existir quando houver entregador que não é quem carregou',
 };
@@ -1297,5 +1300,49 @@ test('the camera-API guard bites the real scar, and leaves the fix alone', () =>
       "import { Platform } from 'react-native';\nif (Platform.OS === 'web') void CameraView.isAvailableAsync();",
     ),
     'perguntar a plataforma é a licença — se ela não vale, a guarda vira proibição',
+  );
+});
+
+/**
+ * Nenhuma tela pergunta "qual é o lugar padrão" — telas perguntam "onde eu estou".
+ *
+ * As duas devolvem o mesmo id enquanto a fábrica tem uma unidade só, e param de
+ * devolver no dia em que ela tiver duas. `defaultLocationId` é o id da PRIMEIRA
+ * unidade, e ele é permanente por um motivo que não se contorna: é o carimbo de
+ * todo movimento já gravado, e `movements_are_immutable` é `before update or
+ * delete` — `location_id` de linha que já subiu não se corrige nunca, nem por
+ * migração, nem por estorno. Então a primeira unidade guarda o id da empresa
+ * para sempre e as seguintes nascem com uuid.
+ *
+ * Daí a regra: **nenhum código lê significado no id de um lugar.** Uma tela que
+ * usa o lugar padrão para dizer "aqui" está certa hoje e errada na segunda
+ * unidade — gravando a produção de uma cidade no saldo da outra, calada, porque
+ * as duas somam na mesma empresa. Quem quer saber onde o aparelho está pergunta
+ * a `unidadeDaqui()`; quem quer saber quais são as fábricas pergunta pela
+ * ESPÉCIE, nunca pelo id.
+ */
+test('no screen asks for the default place when it means "here"', () => {
+  const culpados: string[] = [];
+  for (const arquivo of sourcesUnder('app')) {
+    const texto = code(readFileSync(arquivo, 'utf8'));
+    if (/\bdefaultLocationId\s*\(/.test(texto)) culpados.push(arquivo);
+  }
+  assert.deepEqual(
+    culpados,
+    [],
+    'estas telas usam o lugar padrão como se fosse "aqui" — na segunda unidade elas gravam ' +
+      'na fábrica errada, sem nada acusar:\n  ' + culpados.join('\n  '),
+  );
+});
+
+test('the here guard bites the real scar, and leaves the fix alone', () => {
+  const morde = (texto: string) => /\bdefaultLocationId\s*\(/.test(code(texto));
+  // O caso verdadeiro: a linha exata que estava em quatro telas até 8 de setembro.
+  assert.ok(morde('const fabrica = defaultLocationId(empresaDaqui());'), 'não pega a linha que existia');
+  // E os falsos: o conserto, e a MENÇÃO ao nome num comentário, que não é chamada.
+  assert.ok(!morde('const fabrica = unidadeDaqui();'), 'o conserto não pode reprovar');
+  assert.ok(
+    !morde('// ver defaultLocationId(companyId), que devolve o id da primeira unidade'),
+    'comentário não é chamada — a guarda que não distingue os dois vira proibição de falar',
   );
 });

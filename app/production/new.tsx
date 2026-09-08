@@ -18,7 +18,6 @@ import {
   cancelProductionRun,
   closeProductionRun,
   type OpenRun,
-  defaultLocationId,
   labels as loadLabels,
   listItems,
   listProducts,
@@ -32,6 +31,7 @@ import {
 import { nowIso } from '@/data/db';
 import { localDate } from '@/domain/day';
 import { empresaDaqui } from '@/data/empresa';
+import { unidadeDaqui } from '@/data/unidade';
 import { useQuery } from '@/data/useQuery';
 import { INTERNAL_PLACE_KINDS } from '@/domain/ledger';
 import { explodeRequirements, type Recipe } from '@/domain/recipe';
@@ -130,7 +130,7 @@ function Production() {
     const [products, graph, items, names, runs, stock] = await Promise.all([
       listProducts(empresaDaqui()),
       loadRecipeGraph(empresaDaqui()),
-      listItems(empresaDaqui(), undefined, false, defaultLocationId(empresaDaqui())),
+      listItems(empresaDaqui(), undefined, false, unidadeDaqui()),
       loadLabels(empresaDaqui()),
       openProductionRuns(empresaDaqui()),
       stockByPlace(empresaDaqui()),
@@ -209,7 +209,7 @@ function Production() {
     // câmara fria a três metros de distância. A frase que diz ONDE está é a
     // diferença entre um erro e uma instrução — e é só a sala nossa que conta:
     // o que já foi entregue numa loja não volta para o tacho.
-    const salaDoTacho = defaultLocationId(empresaDaqui());
+    const salaDoTacho = unidadeDaqui();
     const nossasSalas = data.stock.filter(
       (place) =>
         place.locationId !== salaDoTacho &&
@@ -345,7 +345,7 @@ function Production() {
       } else {
         await recordProduction(empresaDaqui(), {
           productId: selected.id,
-          locationId: defaultLocationId(empresaDaqui()),
+          locationId: unidadeDaqui(),
           batches: consumedBatches,
           unitsProduced: units,
           // O dia da FÁBRICA, não o do relógio universal: um tacho fechado às

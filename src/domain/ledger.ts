@@ -100,6 +100,26 @@ export type ControlPost = 'picked' | 'loaded' | 'delivered' | 'checked';
 export const INTERNAL_PLACE_KINDS = ['factory', 'cold_room', 'store_room'] as const;
 
 /**
+ * A espécie de lugar que é uma UNIDADE de fábrica — e a única régua para isso.
+ *
+ * Existe porque a pergunta *"quais são as fábricas"* tinha uma resposta errada
+ * espalhada por quinze pontos: comparar o id do lugar com o id da empresa. Isso
+ * acerta enquanto a fábrica tem uma unidade só e erra na segunda — a primeira
+ * guarda o id da empresa para sempre (é o carimbo de todo movimento já gravado,
+ * e o razão não se recarimba) e as seguintes nascem com uuid próprio. Um id não
+ * diz o que a coisa é; a espécie diz.
+ *
+ * Uma espécie só, e a lista existe mesmo assim: `INTERNAL_PLACE_KINDS` também
+ * nasceu de um predicado escrito três vezes, e o que ele custou foi divergência.
+ */
+export const UNIT_PLACE_KIND = 'factory';
+
+/** Este lugar é uma unidade de fábrica? Pergunta-se à espécie, nunca ao id. */
+export function ehUnidade(kind: string): boolean {
+  return kind === UNIT_PLACE_KIND;
+}
+
+/**
  * Quem RECEBE carga: loja própria e cliente. O resto é sala interna ou caminho.
  *
  * Lista antes de predicado porque o SQL não importa função: o Espelho da Loja

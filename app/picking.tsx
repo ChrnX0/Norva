@@ -11,7 +11,6 @@ import { Reveal } from '@/components/Reveal';
 import { UnitStepper } from '@/components/UnitStepper';
 import { nowIso } from '@/data/db';
 import {
-  defaultLocationId,
   listItems,
   listPlaces,
   ordersCoveredToday,
@@ -28,6 +27,7 @@ import {
   type Place,
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
+import { unidadeDaqui } from '@/data/unidade';
 import { useQuery } from '@/data/useQuery';
 import { dayWindow, localDate } from '@/domain/day';
 import { fill, formatQuantity, plural } from '@/i18n';
@@ -84,7 +84,7 @@ function Carrinho() {
   const router = useRouter();
   const words = t.app.picking;
 
-  const fabrica = defaultLocationId(empresaDaqui());
+  const fabrica = unidadeDaqui();
   const [lojaId, setLojaId] = useState<string | null>(null);
   /**
    * Quem leva esta carga. Nulo é o carro da fábrica, e é o padrão.

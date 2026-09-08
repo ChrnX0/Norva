@@ -20,7 +20,6 @@ import { Field } from '@/components/Field';
 import { GlyphBox, GlyphStore, GlyphVehicle } from '@/components/Glyph';
 import { Reveal } from '@/components/Reveal';
 import {
-  defaultLocationId,
   lastSentBaseUnits,
   pickingFor,
   type PickLine,
@@ -40,6 +39,7 @@ import { nowIso } from '@/data/db';
 import { dayWindow, localDate } from '@/domain/day';
 import { freeToShip, pickSuggestion } from '@/domain/picking';
 import { empresaDaqui } from '@/data/empresa';
+import { unidadeDaqui } from '@/data/unidade';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatCalendarDate, formatQuantity, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -135,7 +135,7 @@ function Transfer() {
    * pessoa, e o relatório da loja herdando o palpite.
    */
   const [motivo, setMotivo] = useState<ReturnReason | null>(null);
-  const fabrica = defaultLocationId(empresaDaqui());
+  const fabrica = unidadeDaqui();
   const [toId, setToId] = useState<string | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
   const [amountText, setAmountText] = useState('');

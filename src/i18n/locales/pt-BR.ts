@@ -740,6 +740,11 @@ export const ptBR = {
     },
 
     settings: {
+      unidade: {
+        label: 'A unidade deste aparelho',
+        hint: 'Onde este celular fica. O que você registrar entra no estoque desta unidade.',
+        note: 'Vale daqui para a frente. O que já foi registrado fica onde está.',
+      },
       title: 'Ajustes',
       stored: 'O que está guardado',
       checking: 'Conferindo…',

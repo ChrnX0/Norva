@@ -13,6 +13,7 @@ import {
   GlyphCatalog,
   GlyphCount,
   GlyphCustomer,
+  GlyphFactory,
   GlyphLoss,
   GlyphOrder,
   GlyphPurchase,
@@ -30,6 +31,7 @@ import {
   briefingHidden,
   briefingOrder,
   countForErase,
+  listPlaces,
   eraseArea,
   floorSignIn,
   namesWhoRecorded,
@@ -46,7 +48,9 @@ import {
   setEraseGraceDays,
   setPurchaseSafetyDays,
 } from '@/data/repository';
+import { escolherUnidade, unidadeDaqui } from '@/data/unidade';
 import { agreedOn, toggleDay } from '@/domain/agreement';
+import { ehUnidade } from '@/domain/ledger';
 import { parseTyped } from '@/domain/number';
 import type { AlertKind, AlertSettings } from '@/domain/alerts';
 import { useAppearance } from '@/theme/Appearance';
@@ -231,6 +235,16 @@ function Settings() {
    * celular. Guardar as duas juntas faria a preferência de um virar decisão do
    * outro na primeira sincronização.
    */
+  /**
+   * As unidades de fábrica desta empresa, e em qual delas este aparelho fica.
+   *
+   * A lista vem da ESPÉCIE, nunca do id: `defaultLocationId` devolve o id da
+   * empresa porque a PRIMEIRA unidade carimba assim desde sempre, e as seguintes
+   * nascem com uuid próprio. Quem eleger "a fábrica" por id acerta hoje e erra na
+   * segunda.
+   */
+  const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
+  const [unidadeAqui, setUnidadeAqui] = useState<string>(() => unidadeDaqui());
   const [ordem, setOrdem] = useState<BriefingWidget[]>(() => briefingLayout([], []));
   const [escondidos, setEscondidos] = useState<string[]>([]);
   /** Quais a casa quer em meia coluna. Da EMPRESA, como a ordem — não do aparelho. */
@@ -297,6 +311,22 @@ function Settings() {
     await setBriefingHidden(nova);
   };
   const { locale, t, setLanguage, setCurrency } = useLocaleChoice();
+
+  useEffect(() => {
+    let vivo = true;
+    void listPlaces(empresaDaqui()).then((lugares) => {
+      if (!vivo) return;
+      setUnidades(
+        lugares
+          .filter((l) => ehUnidade(l.kind))
+          .map((l) => ({ id: l.id, nome: l.name.trim() || t.app.places.factory })),
+      );
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [t]);
+
   const confirm = useConfirm();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -803,6 +833,45 @@ function Settings() {
           pergunta separada do idioma: espanhol escreve 1.234,56 na Espanha e
           1,234.56 no México. Número de dinheiro lido ao contrário é a pior classe
           de erro que este aplicativo pode cometer. */}
+      {/* Em qual unidade este aparelho fica — e ele só aparece quando há mais de uma.
+          Lei 1: nunca peça o que o sistema pode deduzir. Fábrica de uma unidade
+          nunca vê esta pergunta, exatamente como fábrica sem transportadora nunca
+          vê a escolha de quem levou.
+
+          E ela é do APARELHO, não da empresa: o celular da unidade de Marília fica
+          em Marília e não muda de prédio no meio do turno. Perguntar a cada
+          movimento seria a Lei 1 quebrada duzentas vezes por dia para confirmar um
+          fato que não muda — e a resposta errada mistura o estoque de duas cidades
+          num saldo só, calada, porque as duas somam na mesma empresa. */}
+      {unidades.length > 1 ? (
+        <Reveal index={2}>
+          <Card
+            hue={palette.mist}
+            icon={(c) => <GlyphFactory size={26} color={c} weight={traco} />}
+            title={t.app.settings.unidade.label}
+          >
+            <Text style={[type.caption, { color: color.inkMuted }]}>
+              {t.app.settings.unidade.hint}
+            </Text>
+            <View style={{ gap: space.sm, marginTop: space.sm }}>
+              {unidades.map((u) => (
+                <Button
+                  key={u.id}
+                  label={u.nome}
+                  variant={u.id === unidadeAqui ? 'primary' : 'ghost'}
+                  onPress={() => {
+                    void escolherUnidade(u.id).then(() => setUnidadeAqui(u.id));
+                  }}
+                />
+              ))}
+            </View>
+            <Text style={[type.caption, { color: color.inkFaint, marginTop: space.sm }]}>
+              {t.app.settings.unidade.note}
+            </Text>
+          </Card>
+        </Reveal>
+      ) : null}
+
       <Reveal index={2}>
         <Card
           hue={palette.mist}

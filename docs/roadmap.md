@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **510** testes |
+| `npm test` | **516** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **52** checagens num navegador de verdade |
 | `npm run db:verify` | **21** garantias contra um Postgres descartável, sob RLS |
@@ -389,9 +389,9 @@ aparelho no escuro fica para quando ele estiver recém-subido e sozinho na máqu
 Orgânico ainda não foi olhado sob essa régua, e a hierarquia escrita manda o Papel
 primeiro.
 
-### 0b-bis. Mais de uma unidade de tudo — levantado pelo dono em 7 de setembro
+### 0b-bis. ~~Mais de uma unidade de tudo~~ — a FÁBRICA plural FEITA em 8 de setembro
 
-<!-- medida: ausente app/places.tsx :: 'factory' -->
+<!-- medida: presente app/places.tsx :: 'factory' -->
 
 *"a gente não considerou que de repente possam existir mais de 1 unidade da
 fábrica… assim como vários funcionários produzindo e várias transportadoras assim
@@ -430,10 +430,56 @@ literalmente *"quem administra duas lê as duas"*). A `stock_balances` já agrup
 `location_id`. O aparelho idem: `locations` sem restrição de espécie, e o índice de
 saldo já é `(company_id, item_id, location_id, occurred_at)`.
 
-**O portão é UMA linha de tela.** `app/places.tsx` oferece quatro espécies e não
-inclui `factory`, com a justificativa escrita de que *"`factory` nasce sozinha
-(`ensureLocation`) e não se cadastra"*. Enquanto essa linha não muda, ninguém cria a
-segunda unidade — e é só isso que segura o item.
+~~**O portão é UMA linha de tela.**~~ **ABERTO em 8 de setembro.** `app/places.tsx:229`
+oferece `factory`, e a justificativa que a segurava — *"nasce sozinha (`ensureLocation`)
+e não se cadastra"* — era verdadeira para a PRIMEIRA unidade e só para ela. A guarda
+`the place form offers every kind the ledger knows` pegou o registro virando mentira no
+mesmo commit, que é o trabalho dela.
+
+**O que entrou junto, porque sem isso a porta abria para um defeito calado:**
+
+- **`src/data/unidade.ts` — o aparelho pertence a uma unidade**, como já pertence a uma
+  empresa, e pelo mesmo motivo: o celular da unidade de Marília fica em Marília e não
+  muda de prédio no meio do turno. Perguntar a cada movimento seria a Lei 1 quebrada
+  duzentas vezes por dia para confirmar um fato que não muda. Lido no boot, junto da
+  empresa, antes da primeira tela.
+- **Onze pontos deixaram de eleger "a fábrica" pelo id** e passaram a perguntar
+  `unidadeDaqui()`: `app/transfer.tsx`, `app/picking.tsx`, `app/production/new.tsx`
+  (duas), `app/(tabs)/production.tsx`, `app/inputs/[id].tsx` e as quatro de
+  `src/data/assistantData.ts`. A guarda `no screen asks for the default place when it
+  means "here"` recusa a volta.
+- **`ehUnidade(kind)` em `src/domain/ledger.ts`** — a única régua para *"quais são as
+  fábricas"*, no molde de `INTERNAL_PLACE_KINDS`, que nasceu do mesmo defeito de
+  predicado escrito três vezes.
+- **A escolha em `app/settings.tsx` só existe com mais de uma unidade.** Fábrica de uma
+  nunca vê a pergunta.
+- **O teste que prova onde o movimento cai** (`src/data/unidade.test.ts`) mede pelo
+  saldo POR LUGAR, que é função que não sabe que o módulo existe — e fixa a
+  pré-condição de 40 kg na primeira unidade, sem a qual a asserção compararia zero com
+  zero e passaria por acidente.
+
+**O que continua aberto, e é a parte grande — as consultas que somam a empresa
+inteira.** Dez funções de `src/data/repository.ts` somam movimento por empresa+item sem
+recortar o lugar, e com duas unidades elas passam a misturar estoque de cidades
+diferentes. Em ordem de dano, medida em 8 de setembro:
+
+| função | por que dói | quem lê |
+|---|---|---|
+| `stockAgainstOrders` (`:5868`) | **a pior**: soma `l.kind IN ('factory','cold_room','store_room')` sem parâmetro de sala nenhum — o pedido da unidade A aparece coberto pelo freezer da B | `app/orders/new.tsx:192`, capa, `src/notify/facts.ts:40` |
+| `listItems` (`:165`) / `findItem` (`:4555`) | é o saldo que quase toda tela mostra; `locationId` é opcional e treze chamadores não passam | capa, relatórios, compra, separação, assistente (dez pontos) |
+| `runningOut` (`:4818`) / `dailyOutflowOf` (`:4782`) | pior que somar junto: no modo empresa a linha `:4869` DESCARTA transferência como saída, então mandar insumo de A para B deixa de contar como consumo de A e a cobertura de A fica infinita | capa (duas), relatórios, avisos |
+| `expiringSoon` (`:3773`) | o parâmetro existe e **nenhum** chamador usa: a validade da unidade A soa na B | capa, avisos |
+| `itemMovements` (`:1424`) | só o caminho do assistente | `skills.ts:508` |
+| `recentRuns` (`:3705`) / `lotsOn` (`:3471`) / `findLot` (`:3936`) | não somam errado — param de dizer ONDE. `lotsOn` e o `runningOut` da MESMA tela já divergem hoje | produção, relatórios, capa |
+
+E duas que **não** mudam, por decisão de 1 de setembro: as médias móveis de custo
+(`:412` e `:2033`) continuam da empresa, porque *"o mesmo grama de açúcar não custa uma
+coisa na câmara e outra no almoxarifado"*.
+
+**E um defeito que o mapa achou de passagem, ativo HOJE com uma unidade só:**
+`app/inputs/[id].tsx:370` grava perda sem passar `locationId`, então ela cai no lugar
+padrão mesmo com a tela aberta em `?sala=<câmara fria>` — o saldo da câmara não se
+mexe e o do almoxarifado se mexe sozinho.
 
 **Mas ele continua P3, e por um motivo melhor que o que eu tinha escrito.** Não é a
 migração: é que `movements_are_immutable` é `before update or delete`, então

@@ -9,6 +9,7 @@ import { Crash } from '@/components/Crash';
 import { WhatsNew } from '@/components/WhatsNew';
 import { Alerts } from '@/notify/Alerts';
 import { carregarEmpresa } from '@/data/empresa';
+import { carregarUnidade } from '@/data/unidade';
 import { ensureStarterData } from '@/data/seed';
 import { floorSignIn, namesWhoRecorded, setCurrentOperator } from '@/data/repository';
 import { LocaleProvider } from '@/i18n/Locale';
@@ -140,6 +141,10 @@ export default function RootLayout() {
     // um fato lido do disco. Semear primeiro e ler depois carimbaria o exemplo
     // com a semente num aparelho que já tem empresa.
     carregarEmpresa()
+      // A unidade vem junto da empresa e pelo mesmo motivo: as duas carimbam o
+      // que se grava, e as duas são lidas do disco antes da primeira tela. A
+      // unidade DEPOIS da empresa porque o padrão dela deriva da empresa.
+      .then(() => carregarUnidade())
       .then(() => ensureStarterData())
       .then(
       () => {

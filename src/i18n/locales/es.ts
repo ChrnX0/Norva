@@ -576,6 +576,11 @@ export const es: Dictionary = {
     },
 
     settings: {
+      unidade: {
+        label: 'La unidad de este aparato',
+        hint: 'Dónde queda este celular. Lo que registres entra en el stock de esta unidad.',
+        note: 'Vale de aquí en adelante. Lo ya registrado se queda donde está.',
+      },
       title: 'Ajustes',
       stored: 'Lo que está guardado',
       checking: 'Comprobando…',
