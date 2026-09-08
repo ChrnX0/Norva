@@ -403,7 +403,7 @@ como as várias unidades de loja e clientes."*
 |---|---|---|
 | lojas e clientes, várias | **já funciona, sem limite** | `locations` aceita quantas linhas quiser e `app/places.tsx` oferece as duas espécies |
 | vários funcionários produzindo | **já funciona, desde 6 de setembro** | tabela `people` com PIN, e os sete `INSERT INTO movements` carimbam `operator_id` |
-| **várias fábricas** | **o esquema suporta, o app não deixa** | `factory` é a PRIMEIRA espécie de `location_kind` na `0001`; `app/places.tsx:185` oferece quatro e não a inclui |
+| **várias fábricas** | **o esquema suporta, o app não deixa** | `factory` é a PRIMEIRA espécie de `location_kind` na `0001`; `app/places.tsx:229` oferece quatro e não a inclui |
 | **transportadoras** | ~~não existe~~ **FEITA em 7 de setembro** | tabela `carriers` (migração 0044 e V24), tela `app/carriers.tsx`, escolha na separação e o nome de quem levou no cartão do destino — o leitor no mesmo commit, para não repetir `suppliers` |
 
 **As duas que faltam têm pesos opostos, e isso decide a ordem.**
@@ -421,11 +421,57 @@ transportadora cadastrada (fábrica que entrega no carro dela nunca vê a pergun
 cartão do destino **cala** quando o dia teve carga de dois jeitos, em vez de nomear a
 primeira — meia verdade num cartão é pior que silêncio.
 
-A **segunda fábrica é cara, e o motivo é um atalho registrado**: `defaultLocationId`
-devolve o próprio `company_id` — *"enquanto há um lugar só, o id dele é o da própria
-empresa, foi assim que todo movimento já gravado foi carimbado"*. No dia em que são
-duas, a fábrica deixa de ser "a empresa" e vira um lugar entre vários. É o caminho de
-escrita de `movements`: **P3**.
+A **segunda fábrica**: medida em 8 de setembro, e o custo não estava onde eu escrevi.
+
+**Não falta migração — em nenhum dos dois lados.** O servidor modela N lugares por
+empresa desde a `0001` (`locations_company_idx` não é único, e o único `unique` que
+existe é `(id, company_id)`, alvo de chave estrangeira composta — a `0019:34` diz
+literalmente *"quem administra duas lê as duas"*). A `stock_balances` já agrupa por
+`location_id`. O aparelho idem: `locations` sem restrição de espécie, e o índice de
+saldo já é `(company_id, item_id, location_id, occurred_at)`.
+
+**O portão é UMA linha de tela.** `app/places.tsx` oferece quatro espécies e não
+inclui `factory`, com a justificativa escrita de que *"`factory` nasce sozinha
+(`ensureLocation`) e não se cadastra"*. Enquanto essa linha não muda, ninguém cria a
+segunda unidade — e é só isso que segura o item.
+
+**Mas ele continua P3, e por um motivo melhor que o que eu tinha escrito.** Não é a
+migração: é que `movements_are_immutable` é `before update or delete`, então
+`location_id` de um movimento que já subiu **não se corrige nunca** — nem por
+migração, nem por estorno (o estorno cria linha nova; a antiga fica carimbada). A
+maquinaria de repontar de `src/data/adocao.ts` só funciona antes da primeira subida, e
+recusa com `jaSubiu` depois dela.
+
+Daí a forma, e ela é forçada em vez de escolhida:
+
+1. **A primeira unidade guarda o id da empresa para sempre.** `defaultLocationId`
+   devolver `company_id` não é dívida a pagar: é o carimbo de todo movimento já
+   gravado, e ele é permanente. Dar-lhe um id próprio depois de subir é impossível.
+2. **As unidades seguintes nascem com uuid.** A assimetria é definitiva, e a
+   consequência é a regra: **nenhum código lê significado no id de um lugar.** Quem
+   compara `id === company_id` para dizer *"esta é a fábrica"* está errado no dia da
+   segunda — e são quinze pontos hoje (`app/transfer.tsx:138`, `app/picking.tsx:87`,
+   `app/production/new.tsx:212`, `app/(tabs)/production.tsx:149`,
+   `app/inputs/[id].tsx:323`, `src/data/assistantData.ts:51,54,65,69`,
+   `src/assistant/skills.ts:740,745,797,941`).
+3. **A espécie é que responde "quais são as fábricas"**, não o id — uma peça só, do
+   lado do domínio, no molde de `INTERNAL_PLACE_KINDS`.
+4. **A escolha só aparece quando há mais de uma** (Lei 1: nunca peça o que o sistema
+   pode deduzir). Fábrica de uma unidade nunca vê a pergunta, exatamente como fábrica
+   sem transportadora nunca vê a escolha de quem levou.
+5. **`recordPurchase` é o único escritor que não aceita sala** — toda compra cai no
+   lugar padrão, sempre (`repository.ts:441`). Com duas unidades, a compra de uma
+   entra na outra, calada.
+6. **O nome vazio vira problema de tela na hora**: `nomeDoLugar` desenha "Fábrica" para
+   o lugar sem nome, em seis telas. Duas unidades, e a primeira continua "Fábrica"
+   enquanto a segunda tem nome — o operador vê duas linhas e uma delas não se
+   identifica.
+
+**E o que NÃO muda, que é a parte que eu ia errar de novo:** as duas médias móveis
+(`repository.ts:412` e `:2033`) continuam somando a empresa inteira, por decisão de 1
+de setembro — *"o mesmo grama de açúcar não custa uma coisa na câmara e outra no
+almoxarifado"*. Generalizar as três consultas do mesmo jeito quebraria o custo para
+consertar o saldo.
 
 **E ela arrasta a pergunta da sala do tacho, um andar acima:** uma corrida consome de
 qualquer lugar nosso ou só da sala em que roda? Com duas unidades a resposta errada
