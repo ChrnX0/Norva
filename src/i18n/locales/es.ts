@@ -595,6 +595,20 @@ export const es: Dictionary = {
       registroBody:
         'Lo que la fábrica registró es la suma de cada asiento — de ahí salen el stock, el costo y el margen. Borrar no deshace los asientos: los saca del mundo. Ninguna reversión alcanza lo que ya no existe, y este aparato es el único lugar donde están.',
       registroConfirm: 'Borrar igual',
+      /* El plazo del Reset en el servidor — los tres casos que el dueño nombró. */
+      graceTitle: 'Después de borrar, en el servidor',
+      graceHint:
+        'En este aparato el borrado es inmediato. En el servidor el libro queda guardado este '
+        + 'tiempo antes de ser destruido — y hasta entonces se puede desistir.',
+      graceDays: '{{days}} días',
+      graceNow: 'destruir junto',
+      graceNever: 'guardar para siempre',
+      registroServerWait:
+        'En el servidor, el libro queda guardado {{days}} días y después es destruido. Hasta entonces, puede desistir.',
+      registroServerNow: 'En el servidor, es destruido junto — no hay plazo para desistir.',
+      registroServerNever:
+        'En el servidor, el libro sigue guardado: este Reset vale solo en este aparato.',
+      registroOnlyHere: 'Este aparato es el único lugar donde existen.',
       eraseTitle: '¿Borrar {{area}}?',
       eraseAllTitle: '¿Borrar todo?',
       erase: 'Borrar',

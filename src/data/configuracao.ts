@@ -37,10 +37,12 @@
  */
 import { readMeta, writeMeta } from './meta';
 import {
+  eraseGraceDays,
   floorSignIn,
   namesWhoRecorded,
   ordersNeedApproval,
   purchaseSafetyDays,
+  setEraseGraceDays,
   setFloorSignIn,
   setNamesWhoRecorded,
   setOrdersNeedApproval,
@@ -54,6 +56,8 @@ export type ConfiguracaoDaEmpresa = {
   floor_sign_in: FloorSignIn;
   orders_need_approval: boolean;
   purchase_safety_days: number;
+  /** Nulo é "nunca destrói no servidor", e é uma das três respostas. */
+  erase_grace_days: number | null;
 };
 
 /**
@@ -117,7 +121,9 @@ async function daCasa(): Promise<Casa | null> {
     ler: async () => {
       const { data, error } = await cliente
         .from('companies')
-        .select('names_who_recorded, floor_sign_in, orders_need_approval, purchase_safety_days')
+        .select(
+          'names_who_recorded, floor_sign_in, orders_need_approval, purchase_safety_days, erase_grace_days',
+        )
         .limit(1);
       if (error || !data?.[0]) return null;
       return data[0] as Partial<ConfiguracaoDaEmpresa>;
@@ -127,17 +133,19 @@ async function daCasa(): Promise<Casa | null> {
 
 /** O que este aparelho tem guardado. */
 export async function daqui(): Promise<ConfiguracaoDaEmpresa> {
-  const [nomes, entrada, aprovacao, folga] = await Promise.all([
+  const [nomes, entrada, aprovacao, folga, prazo] = await Promise.all([
     namesWhoRecorded(),
     floorSignIn(),
     ordersNeedApproval(),
     purchaseSafetyDays(),
+    eraseGraceDays(),
   ]);
   return {
     names_who_recorded: nomes,
     floor_sign_in: entrada,
     orders_need_approval: aprovacao,
     purchase_safety_days: folga,
+    erase_grace_days: prazo,
   };
 }
 
@@ -159,6 +167,17 @@ export async function guardarAqui(vinda: Partial<ConfiguracaoDaEmpresa>): Promis
     // que é a classe de defeito mais cara deste projeto: o número plausível.
     setPurchaseSafetyDays(
       typeof vinda.purchase_safety_days === 'number' ? vinda.purchase_safety_days : 2,
+    ),
+    // Nulo aqui é RESPOSTA — "nunca destrói no servidor" —, e é por isso que a
+    // leitura distingue nulo de ausente: `undefined` cai no padrão de dez, `null`
+    // atravessa. Tratar os dois igual apagaria a escolha mais conservadora que a
+    // empresa pode fazer.
+    setEraseGraceDays(
+      vinda.erase_grace_days === undefined
+        ? 10
+        : vinda.erase_grace_days === null
+          ? null
+          : Number(vinda.erase_grace_days),
     ),
   ]);
 }

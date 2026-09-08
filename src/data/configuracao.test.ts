@@ -80,6 +80,8 @@ test('o que a casa combinou desce e vale neste aparelho', async () => {
       floor_sign_in: 'shared',
       orders_need_approval: true,
       purchase_safety_days: 5,
+      // Nulo é a escolha mais conservadora: "nunca destrói no servidor".
+      erase_grace_days: null,
     },
   });
   assert.equal(await puxar(casa), true);
@@ -88,6 +90,7 @@ test('o que a casa combinou desce e vale neste aparelho', async () => {
     floor_sign_in: 'shared',
     orders_need_approval: true,
     purchase_safety_days: 5,
+    erase_grace_days: null,
   });
 });
 
@@ -122,6 +125,7 @@ test('interruptor mexido SEM REDE não volta sozinho na próxima descida', async
       floor_sign_in: 'personal',
       orders_need_approval: false,
       purchase_safety_days: 6,
+      erase_grace_days: 10,
     },
     'a casa tem de ter recebido o que estava pendente, antes de qualquer descida',
   );

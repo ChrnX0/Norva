@@ -590,6 +590,20 @@ export const en: Dictionary = {
       registroBody:
         'What the factory recorded is the sum of every entry — stock, cost and margin all come from it. Erasing does not undo the entries: it takes them out of the world. No reversal reaches what no longer exists, and this device is the only place they live.',
       registroConfirm: 'Erase anyway',
+      /* The server-side grace of a Reset — the three cases the owner named. */
+      graceTitle: 'After erasing, on the server',
+      graceHint:
+        'On this device erasing is immediate. On the server the ledger is kept for this long '
+        + 'before being destroyed — and until then you can change your mind.',
+      graceDays: '{{days}} days',
+      graceNow: 'destroy with it',
+      graceNever: 'keep forever',
+      registroServerWait:
+        'On the server, the ledger is kept for {{days}} days and then destroyed. Until then, you can change your mind.',
+      registroServerNow: 'On the server, it is destroyed along with it — no window to change your mind.',
+      registroServerNever:
+        'On the server, the ledger stays: this Reset applies to this device only.',
+      registroOnlyHere: 'This device is the only place they exist.',
       eraseTitle: 'Erase {{area}}?',
       eraseAllTitle: 'Erase everything?',
       erase: 'Erase',

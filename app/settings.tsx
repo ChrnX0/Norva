@@ -34,6 +34,7 @@ import {
   floorSignIn,
   namesWhoRecorded,
   ordersNeedApproval,
+  eraseGraceDays,
   purchaseSafetyDays,
   setBriefingHalf,
   setBriefingHidden,
@@ -42,6 +43,7 @@ import {
   setFloorSignIn,
   setNamesWhoRecorded,
   setOrdersNeedApproval,
+  setEraseGraceDays,
   setPurchaseSafetyDays,
 } from '@/data/repository';
 import { agreedOn, toggleDay } from '@/domain/agreement';
@@ -69,7 +71,7 @@ import {
   type EraseTally,
 } from '@/data/erase';
 import { exampleStillHere, restoreStarterData } from '@/data/seed';
-import { empresaDaqui } from '@/data/empresa';
+import { empresaAdotada, empresaDaqui } from '@/data/empresa';
 import { HORIZONTE_DE_TESTE, simulateHistory } from '@/data/simulate';
 import { empurrar } from '@/data/configuracao';
 import { useQuery } from '@/data/useQuery';
@@ -137,6 +139,27 @@ const AREAS: { area: Exclude<EraseArea, 'all'> }[] = [
 ];
 
 /** Puts the blocker into words - the reason and the count, in one sentence. */
+/**
+ * O que acontece NO SERVIDOR quando alguém apaga — dito com o número.
+ *
+ * Quatro estados, e cada um é uma frase diferente porque cada um é um fato
+ * diferente. Enquanto este aparelho não está ligado a uma empresa de verdade, o
+ * livro está só aqui e é isso que a frase diz; a partir daí, quem manda é o prazo
+ * que a empresa escolheu: dez dias de padrão, zero destrói junto, e nulo é *"nunca
+ * destrói no servidor"* — o Reset vale só neste aparelho.
+ *
+ * A frase antiga era fixa e dizia *"este aparelho é o único lugar onde eles estão"*.
+ * Verdadeira em 7 de setembro de manhã, falsa na primeira sincronização — e é a
+ * segunda confirmação de um apagamento irrecuperável, que é o pior lugar do
+ * aplicativo para uma frase que envelheceu.
+ */
+function dizOServidor(prazo: number | null, t: Dictionary): string {
+  if (!empresaAdotada()) return t.app.settings.registroOnlyHere;
+  if (prazo === null) return t.app.settings.registroServerNever;
+  if (prazo === 0) return t.app.settings.registroServerNow;
+  return fill(t.app.settings.registroServerWait, { days: String(prazo) });
+}
+
 function sayBlocker(blocker: EraseBlocker, t: Dictionary): string {
   const words = t.app.settings;
 
@@ -278,6 +301,7 @@ function Settings() {
    */
   const { data: approval, refresh: refreshApproval } = useQuery<boolean>(() => ordersNeedApproval());
   const { data: folga, refresh: refreshFolga } = useQuery<number>(() => purchaseSafetyDays());
+  const { data: prazo, refresh: refreshPrazo } = useQuery<number | null>(() => eraseGraceDays());
   const { data: nomeia, refresh: refreshNomeia } = useQuery<boolean>(() => namesWhoRecorded());
   const { data: entrada, refresh: refreshEntrada } = useQuery(() => floorSignIn());
 
@@ -337,7 +361,11 @@ function Settings() {
       // primeira conta o que sai, esta explica o que o registro é.
       segunda: {
         title: t.app.settings.registroTitle,
-        message: t.app.settings.registroBody,
+        // A confirmação diz o que VAI ACONTECER, com o número por extenso — e o que
+        // acontece depende de haver servidor e do prazo que a empresa escolheu. A
+        // frase fixa dizia "este aparelho é o único lugar onde eles estão", e ela
+        // deixa de ser verdade no dia em que a fila sobe.
+        message: `${t.app.settings.registroBody}\n\n${dizOServidor(prazo ?? null, t)}`,
         confirmLabel: t.app.settings.registroConfirm,
       },
     });
@@ -1180,6 +1208,54 @@ function Settings() {
                 />
               </Pressable>
             ))}
+          </View>
+        </Card>
+      </Reveal>
+
+      {/* O prazo do Reset no servidor — e por que ele mora aqui, ao lado do apagar.
+
+          Decisão do dono: dez dias corridos de padrão, e os dois extremos existem
+          como configuração. O que ele decide é o que a SEGUNDA confirmação vai
+          dizer: com prazo, "o livro fica guardado por dez dias e até lá dá para
+          desistir"; com zero, "é destruído junto"; com nunca, "o Reset vale só
+          neste aparelho". Escolher aqui é escolher a frase que aparece na hora do
+          susto.
+
+          Cinco escolhas em vez de campo livre, como a folga de compra: quem está
+          de luva não digita, e a diferença entre 9 e 11 dias não decide nada. */}
+      <Reveal index={7}>
+        <Card
+          hue={palette.mist}
+          icon={(c) => <GlyphSettings size={26} color={c} weight={traco} />}
+          title={t.app.settings.graceTitle}
+        >
+          <Text style={[type.caption, { color: color.inkMuted, marginBottom: space.md }]}>
+            {t.app.settings.graceHint}
+          </Text>
+          <View style={[styles.row, { gap: space.sm, flexWrap: 'wrap' }]}>
+            {([0, 10, 30, 90, null] as const).map((dias) => {
+              const rotulo =
+                dias === null
+                  ? t.app.settings.graceNever
+                  : dias === 0
+                    ? t.app.settings.graceNow
+                    : fill(t.app.settings.graceDays, { days: String(dias) });
+              return (
+                <Pressable
+                  key={String(dias)}
+                  onPress={async () => {
+                    await setEraseGraceDays(dias);
+                    void empurrar();
+                    refreshPrazo();
+                  }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: (prazo ?? null) === dias }}
+                  accessibilityLabel={rotulo}
+                >
+                  <Chip signal={(prazo ?? null) === dias ? 'ok' : 'neutral'} label={rotulo} />
+                </Pressable>
+              );
+            })}
           </View>
         </Card>
       </Reveal>

@@ -3134,9 +3134,33 @@ check('a carrier is registered, chosen on the load, and named on the day', async
   await page.getByText('Salvar lugar', { exact: true }).first().click();
   await page.waitForTimeout(1500);
 
+  /**
+   * O PEDIDO vem antes, e sem ele esta checagem passaria pelo motivo errado.
+   *
+   * A lista da separação só existe quando há pedido aberto para a loja — sem
+   * pedido, a tela diz "nada para separar" e a pergunta "quem leva" não está lá
+   * **por outro motivo**. A primeira versão afirmava a ausência dela nesse estado e
+   * passava verde sem provar nada; foi a metade POSITIVA que reprovou e me contou.
+   */
+  await page.goto(`http://localhost:${PORT}/orders/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel('Quantidade').fill('600');
+  await page.waitForTimeout(400);
+  await page.getByText('Adicionar ao pedido', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+  await page.getByText('Anotar pedido', { exact: true }).last().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Anotar', { exact: true }).last().click();
+  await page.waitForTimeout(2500);
+
   await page.goto(`http://localhost:${PORT}/picking`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
   const semTransportadora = await screen(page);
+  assert.match(
+    semTransportadora,
+    /0 de 1 itens contados/,
+    'a separação tem de estar mostrando a lista — senão a ausência da pergunta não prova nada',
+  );
   assert.doesNotMatch(
     semTransportadora,
     /QUEM LEVA|Quem leva/,

@@ -760,8 +760,23 @@ export const ptBR = {
       // Decisão do dono, 7 de setembro.
       registroTitle: 'O registro não se refaz',
       registroBody:
-        'O que a fábrica registrou é a soma de cada lançamento — é dela que saem o estoque, o custo e a margem. Apagar não desfaz os lançamentos: tira-os do mundo. Nenhum estorno alcança o que não existe mais, e este aparelho é o único lugar onde eles estão.',
+        'O que a fábrica registrou é a soma de cada lançamento — é dela que saem o estoque, o custo e a margem. Apagar não desfaz os lançamentos: tira-os do mundo. Nenhum estorno alcança o que não existe mais.',
       registroConfirm: 'Apagar mesmo assim',
+      /* O prazo do Reset no servidor — os três casos que o dono nomeou. */
+      graceTitle: 'Depois de apagar, no servidor',
+      graceHint:
+        'Neste aparelho o apagamento é na hora. No servidor o livro fica guardado por este '
+        + 'tempo antes de ser destruído — e até lá dá para desistir.',
+      graceDays: '{{days}} dias',
+      graceNow: 'destruir junto',
+      graceNever: 'guardar para sempre',
+      /* A frase que a segunda confirmação acrescenta, e ela DIZ o que vai acontecer. */
+      registroServerWait:
+        'No servidor, o livro fica guardado por {{days}} dias e depois é destruído. Até lá, você pode desistir.',
+      registroServerNow: 'No servidor, ele é destruído junto — não há prazo para desistir.',
+      registroServerNever:
+        'No servidor, o livro continua guardado: este Reset vale só neste aparelho.',
+      registroOnlyHere: 'Este aparelho é o único lugar onde eles estão.',
       eraseTitle: 'Apagar {{area}}?',
       eraseAllTitle: 'Apagar tudo?',
       erase: 'Apagar',

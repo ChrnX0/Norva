@@ -5606,6 +5606,36 @@ export async function setPurchaseSafetyDays(dias: number): Promise<void> {
   await writeMeta(SAFETY_KEY, String(Math.max(0, Math.min(60, Math.round(dias)))));
 }
 
+const ERASE_GRACE_KEY = 'company.eraseGraceDays';
+
+/**
+ * Quantos dias o servidor guarda o livro depois de um Reset — e os três casos.
+ *
+ * **Decisão do dono, 7 de setembro:** *"podem ser 10 dias corridos."* O padrão é
+ * dez; zero destrói no ato; e **nulo é "nunca destrói no servidor"** — o livro fica
+ * fechado para sempre, que é o extremo oposto do zero e não uma ausência de
+ * resposta.
+ *
+ * No aparelho o apagamento é imediato nos três casos. O prazo é do servidor, e a
+ * coluna que manda de verdade é a de lá (`companies.erase_grace_days`): isto aqui é
+ * a cópia que a tela lê para poder DIZER o que vai acontecer, com o número, na
+ * segunda confirmação.
+ */
+export async function eraseGraceDays(): Promise<number | null> {
+  const lido = await readMeta(ERASE_GRACE_KEY);
+  if (lido === null || lido === '') return 10;
+  if (lido === 'nunca') return null;
+  const n = Number(lido);
+  return Number.isFinite(n) && n >= 0 && n <= 365 ? Math.round(n) : 10;
+}
+
+export async function setEraseGraceDays(dias: number | null): Promise<void> {
+  await writeMeta(
+    ERASE_GRACE_KEY,
+    dias === null ? 'nunca' : String(Math.max(0, Math.min(365, Math.round(dias)))),
+  );
+}
+
 const APPROVAL_KEY = 'orders.needApproval';
 
 /**
