@@ -861,6 +861,13 @@ export const ptBR = {
         people: { one: '1 pessoa cadastrada', other: '{{n}} pessoas cadastradas' },
         lots: { one: '1 lote', other: '{{n}} lotes' },
         orders: { one: '1 pedido', other: '{{n}} pedidos' },
+        // As quatro que somiam sem número — dívida registrada em 7 de setembro,
+        // paga em 8. A grade é UM número: a pessoa monta a grade, não cadastra
+        // "um tipo".
+        readings: { one: '1 leitura da câmara', other: '{{n}} leituras da câmara' },
+        grid: { one: '1 item da grade do catálogo', other: '{{n}} itens da grade do catálogo' },
+        salePrices: { one: '1 preço de venda no histórico', other: '{{n}} preços de venda no histórico' },
+        agreedPrices: { one: '1 preço combinado com loja', other: '{{n}} preços combinados com lojas' },
       },
       back: 'Voltar',
       /**

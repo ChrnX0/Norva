@@ -4324,6 +4324,13 @@ export async function countForErase(companyId: string): Promise<EraseCounts> {
        (SELECT COUNT(*) FROM purchases WHERE company_id = ?1) AS purchases,
        (SELECT COUNT(*) FROM people    WHERE company_id = ?1) AS people,
        (SELECT COUNT(*) FROM carriers  WHERE company_id = ?1) AS carriers,
+       (SELECT COUNT(*) FROM readings  WHERE company_id = ?1) AS readings,
+       -- A grade é um número só: linha, tipo e sabor são três tabelas e uma coisa.
+       (SELECT (SELECT COUNT(*) FROM product_lines WHERE company_id = ?1)
+             + (SELECT COUNT(*) FROM product_types WHERE company_id = ?1)
+             + (SELECT COUNT(*) FROM flavors       WHERE company_id = ?1)) AS grid,
+       (SELECT COUNT(*) FROM sale_price_history WHERE company_id = ?1) AS salePrices,
+       (SELECT COUNT(*) FROM location_prices    WHERE company_id = ?1) AS agreedPrices,
        (SELECT COUNT(*) FROM lots      WHERE company_id = ?1) AS lots,
        (SELECT COUNT(*) FROM orders    WHERE company_id = ?1) AS orders,
        (SELECT COUNT(*) FROM recipe_lines WHERE company_id = ?1

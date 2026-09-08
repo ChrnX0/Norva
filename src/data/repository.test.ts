@@ -26,6 +26,9 @@ import {
   salePricesFor,
   listCarriers,
   saveCarrier,
+  saveFlavor,
+  saveLine,
+  saveType,
   savePerson,
   saveSalePrice,
   recordProduction,
@@ -5579,4 +5582,63 @@ test('a carrier leaves use without leaving the record, and only an admin registe
     'celular emprestado não cadastra transportadora — o servidor recusaria e a fila travaria',
   );
   await setCurrentOperator(null);
+});
+
+test('a conta do apagar enxerga as quatro coisas que sumiam sem número', async () => {
+  /**
+   * **Este teste existe por um buraco que eu abri e a suíte não viu.** Ao desfazer
+   * uma mordida com `git checkout`, apaguei junto o SQL que conta a série da câmara,
+   * a grade, o histórico de preço e os preços combinados — e os 503 testes ficaram
+   * verdes. Contagem sem quem a confira é um número que ninguém garante.
+   *
+   * A asserção é igualdade contra outra fonte: o que a fábrica criou, contado à mão
+   * aqui, contra o que a consulta devolve. A grade entra como UM número somando as
+   * três tabelas — e é por isso que ela vale 3 com uma linha, um tipo e um sabor.
+   */
+  await ensureStarterData(CO);
+  const [produto] = await listProductsForLedger(CO);
+  const loja = await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' });
+
+  const linha = await saveLine(CO, { name: 'Picolé' });
+  const tipo = await saveType(CO, { lineId: linha, name: 'Tradicional' });
+  const sabor = await saveFlavor(CO, { name: 'Uva' });
+  assert.ok(linha && tipo && sabor, 'a grade foi criada');
+
+  await recordReading(CO, {
+    locationId: defaultLocationId(CO),
+    kind: 'temperature',
+    value: -18,
+    unit: '°C',
+  });
+
+  // Dois preços de venda para o mesmo item: a tabela é append-only, então o
+  // histórico fica com duas linhas e o combinado com uma.
+  await saveSalePrice(CO, { itemId: produto.itemId, placeId: null, rate: rate(2.5, 1) });
+  await saveSalePrice(CO, { itemId: produto.itemId, placeId: loja.id, rate: rate(2.2, 1) });
+
+  const conta = await countForErase(CO);
+
+  const naMao = async (sql: string) =>
+    (await live.getFirstAsync<{ n: number }>(sql, [CO]))?.n ?? 0;
+
+  assert.equal(conta.readings, await naMao(`SELECT COUNT(*) AS n FROM readings WHERE company_id = ?`));
+  assert.ok(conta.readings > 0, 'a leitura entrou — senão a igualdade acima seria 0 = 0');
+
+  const grade =
+    (await naMao(`SELECT COUNT(*) AS n FROM product_lines WHERE company_id = ?`)) +
+    (await naMao(`SELECT COUNT(*) AS n FROM product_types WHERE company_id = ?`)) +
+    (await naMao(`SELECT COUNT(*) AS n FROM flavors WHERE company_id = ?`));
+  assert.equal(conta.grid, grade, 'a grade é a soma das três tabelas, e some inteira');
+  assert.ok(grade >= 3, 'linha, tipo e sabor existem — senão a soma não prova a soma');
+
+  assert.equal(
+    conta.salePrices,
+    await naMao(`SELECT COUNT(*) AS n FROM sale_price_history WHERE company_id = ?`),
+  );
+  assert.ok(conta.salePrices >= 2, 'o histórico guardou os dois preços');
+  assert.equal(
+    conta.agreedPrices,
+    await naMao(`SELECT COUNT(*) AS n FROM location_prices WHERE company_id = ?`),
+  );
+  assert.ok(conta.agreedPrices >= 1, 'e o combinado com a loja está lá');
 });

@@ -681,6 +681,10 @@ export const en: Dictionary = {
         people: { one: '1 registered person', other: '{{n}} registered people' },
         lots: { one: '1 batch', other: '{{n}} batches' },
         orders: { one: '1 order', other: '{{n}} orders' },
+        readings: { one: '1 cold-room reading', other: '{{n}} cold-room readings' },
+        grid: { one: '1 catalogue grid entry', other: '{{n}} catalogue grid entries' },
+        salePrices: { one: '1 sale price in the history', other: '{{n}} sale prices in the history' },
+        agreedPrices: { one: '1 price agreed with a store', other: '{{n}} prices agreed with stores' },
       },
       back: 'Back',
       language: {

@@ -79,6 +79,20 @@ export type ErasableTable =
 /** What the screen counts up so the confirmation can speak in real numbers. */
 export type EraseCounts = {
   inputs: number;
+  /**
+   * As seis que somiam sem número — registradas como DÍVIDA em 7 de setembro e
+   * pagas em 8.
+   *
+   * A grade do catálogo é UM número somando linha, tipo e sabor: a pessoa não
+   * cadastra "um tipo", ela monta a grade, e três números para uma coisa só é
+   * ruído numa folha que já tem sete linhas. Os outros três são coisas que ela
+   * reconhece pelo nome: a série da câmara, o histórico de quanto se vendia, e o
+   * que está combinado com cada loja.
+   */
+  readings: number;
+  grid: number;
+  salePrices: number;
+  agreedPrices: number;
   /** As transportadoras cadastradas. Só "apagar tudo" as leva. */
   carriers: number;
   /**
@@ -153,6 +167,10 @@ export type EraseCounts = {
 
 export const emptyCounts: EraseCounts = {
   inputs: 0,
+  readings: 0,
+  grid: 0,
+  salePrices: 0,
+  agreedPrices: 0,
   carriers: 0,
   movements: 0,
   movementsOfProducts: 0,
@@ -320,6 +338,11 @@ export class EraseBlockedError extends Error {
  */
 export type EraseTally = {
   inputs: number;
+  /** Só "apagar tudo" leva estas quatro; nenhuma área menor é dona delas. */
+  readings: number;
+  grid: number;
+  salePrices: number;
+  agreedPrices: number;
   /** As transportadoras: coisa que a pessoa cadastrou e reconhece pelo nome. */
   carriers: number;
   /** Movimentos do livro-razão. Ver `EraseCounts.movements`. */
@@ -338,6 +361,10 @@ export type EraseTally = {
 export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
   const nothing: EraseTally = {
     inputs: 0,
+    readings: 0,
+    grid: 0,
+    salePrices: 0,
+    agreedPrices: 0,
     carriers: 0,
     movements: 0,
     recipes: 0,
@@ -381,6 +408,10 @@ export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
         lots: counts.lots,
         orders: counts.orders,
         carriers: counts.carriers,
+        readings: counts.readings,
+        grid: counts.grid,
+        salePrices: counts.salePrices,
+        agreedPrices: counts.agreedPrices,
       };
   }
 }

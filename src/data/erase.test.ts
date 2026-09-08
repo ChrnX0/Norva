@@ -234,6 +234,10 @@ test('erasing everything is never blocked - that is the point of it', () => {
   const tangled: EraseCounts = {
     inputs: 6,
     carriers: 0,
+    readings: 0,
+    grid: 0,
+    salePrices: 0,
+    agreedPrices: 0,
     movements: 0,
     movementsOfProducts: 0,
     people: 0,
@@ -277,6 +281,11 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     // E a transportadora, com número diferente de zero pelo mesmo motivo das
     // outras: zero satisfaz a asserção com ou sem o campo ser carregado.
     carriers: 2,
+    // As quatro que somiam sem número, idem.
+    readings: 48,
+    grid: 7,
+    salePrices: 5,
+    agreedPrices: 3,
   };
 
   assert.deepEqual(tallyFor('all', counts), {
@@ -290,6 +299,10 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     lots: 9,
     orders: 4,
     carriers: 2,
+    readings: 48,
+    grid: 7,
+    salePrices: 5,
+    agreedPrices: 3,
   });
 
   // One area takes only its own with it. Places are the sharpest case: a store
@@ -311,6 +324,11 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     orders: 0,
     // Nenhuma área menor leva transportadora: ela é da empresa, como o lugar.
     carriers: 0,
+    // Nem a série da câmara, nem a grade, nem os dois preços: só "apagar tudo".
+    readings: 0,
+    grid: 0,
+    salePrices: 0,
+    agreedPrices: 0,
   });
   assert.deepEqual(tallyFor('inputs', counts), {
     inputs: 6,
@@ -324,6 +342,11 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     orders: 0,
     // Nenhuma área menor leva transportadora: ela é da empresa, como o lugar.
     carriers: 0,
+    // Nem a série da câmara, nem a grade, nem os dois preços: só "apagar tudo".
+    readings: 0,
+    grid: 0,
+    salePrices: 0,
+    agreedPrices: 0,
   });
 
   // Só "apagar tudo" leva GENTE. Nenhuma área menor pode dizer que leva — e
@@ -403,12 +426,9 @@ const NAO_CONTADA: Record<string, string> = {
   // As quatro abaixo são coisas que a pessoa RECONHECE e que hoje somem sem
   // número. Ficam registradas com a dívida escrita em vez de com uma desculpa —
   // a razão aqui não é "não precisa contar", é "ainda não conta".
-  readings: 'DÍVIDA: o histórico da câmara some sem número. Contar junto com a próxima rodada',
-  product_types: 'DÍVIDA: a grade do catálogo (linha, tipo, sabor) some sem número',
-  product_lines: 'DÍVIDA: idem',
-  flavors: 'DÍVIDA: idem',
-  sale_price_history: 'DÍVIDA: o histórico de preço de venda some sem número',
-  location_prices: 'DÍVIDA: os preços combinados com cada loja somem sem número',
+  product_types: 'contados junto com `product_lines` e `flavors` como a GRADE, que é um número só: a pessoa monta a grade, não cadastra "um tipo"',
+  product_lines: 'idem — a grade é uma coisa com três tabelas',
+  flavors: 'idem',
 };
 
 /** Que campo da contagem representa cada tabela apagada. */
@@ -421,6 +441,9 @@ const CONTADA: Record<string, keyof EraseTally> = {
   orders: 'orders',
   people: 'people',
   carriers: 'carriers',
+  readings: 'readings',
+  sale_price_history: 'salePrices',
+  location_prices: 'agreedPrices',
 };
 
 test('toda tabela que uma área apaga é contada, ou tem razão escrita para não ser', () => {

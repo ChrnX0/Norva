@@ -198,6 +198,12 @@ function sayTally(area: EraseArea, tally: EraseTally, t: Dictionary): string {
   add(tally.products, 'products');
   add(tally.places, 'places');
   add(tally.purchases, 'purchases');
+  // As quatro que somiam sem número. Vêm por último de propósito: são as que a
+  // pessoa reconhece menos rápido, e a folha se lê de cima para baixo.
+  add(tally.readings, 'readings');
+  add(tally.grid, 'grid');
+  add(tally.salePrices, 'salePrices');
+  add(tally.agreedPrices, 'agreedPrices');
 
   const what = joinList(parts, t.common.and);
   const sentence =

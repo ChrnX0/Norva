@@ -686,6 +686,10 @@ export const es: Dictionary = {
         people: { one: '1 persona registrada', other: '{{n}} personas registradas' },
         lots: { one: '1 lote', other: '{{n}} lotes' },
         orders: { one: '1 pedido', other: '{{n}} pedidos' },
+        readings: { one: '1 lectura de la cámara', other: '{{n}} lecturas de la cámara' },
+        grid: { one: '1 elemento de la grilla', other: '{{n}} elementos de la grilla' },
+        salePrices: { one: '1 precio de venta en el historial', other: '{{n}} precios de venta en el historial' },
+        agreedPrices: { one: '1 precio acordado con tienda', other: '{{n}} precios acordados con tiendas' },
       },
       back: 'Volver',
       language: {
