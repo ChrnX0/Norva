@@ -2047,6 +2047,87 @@ test('a kettle is refused when the sugar is in the store, not in the factory', a
   assert.equal(depois?.onHandBaseUnits ?? 0, 0);
 });
 
+/**
+ * O tacho alcança a câmara fria da própria unidade — e a tela já dizia que sim.
+ *
+ * **A cicatriz é de 8 de setembro e é minha.** No dia em que o saldo passou a ter
+ * escopo de unidade, `app/production/new.tsx` passou a ler
+ * `listItems(..., { unidade: unidadeDaqui() })` — o piso da unidade INTEIRA, câmara
+ * fria e almoxarifado incluídos — e a guarda de `recordProduction` continuou
+ * conferindo `m.location_id = input.locationId`, que é UMA sala. A guarda de camadas
+ * exigia um quarto argumento e ele estava lá, então nada acusou.
+ *
+ * O resultado é o defeito que a guarda irmã existe para impedir, uma casa mais
+ * estreito: com a polpa na câmara fria, que é onde polpa mora numa fábrica de
+ * picolés, a tela libera o botão e a escrita recusa com erro de programador em
+ * inglês. E ele é PIOR que o original, porque agora a tela ainda diz em que sala a
+ * polpa está — ou seja, ela sabe onde está e mesmo assim não deixa rodar.
+ *
+ * Duas coisas são provadas aqui, e a segunda é a que o livro-razão precisa: o tacho
+ * roda, e o consumo sai **da sala onde o insumo estava de verdade**. Debitar tudo do
+ * piso da unidade deixaria o piso negativo e a câmara cheia — soma certa por
+ * unidade, mentira por sala, e é a sala que alguém confere com os olhos.
+ */
+test('a kettle reaches the cold room of its own unit, and the consumption leaves the room that had it', async () => {
+  await ensureStarterData(EMPRESA_SEMENTE);
+  const [product] = (await listProductsForLedger(EMPRESA_SEMENTE)).filter((p) => p.recipeId);
+  const unidade = defaultLocationId(EMPRESA_SEMENTE);
+
+  // A câmara fria DENTRO da unidade, que é o que `0046` passou a permitir dizer.
+  const { id: camara } = await savePlace(EMPRESA_SEMENTE, {
+    name: 'Câmara fria',
+    kind: 'cold_room',
+    parentLocationId: unidade,
+  });
+
+  const insumos = (await listItems(EMPRESA_SEMENTE)).filter((i) => i.onHandBaseUnits > 0);
+  assert.ok(insumos.length > 0, 'o exemplo semeado tem insumo com saldo');
+  for (const insumo of insumos) {
+    await recordTransfer(EMPRESA_SEMENTE, {
+      itemId: insumo.id,
+      baseUnits: insumo.onHandBaseUnits,
+      fromLocationId: unidade,
+      toLocationId: camara,
+    });
+  }
+
+  // O que a TELA lê: o piso da unidade, e ele continua cheio — a câmara é dentro.
+  const naUnidade = await listItems(EMPRESA_SEMENTE, undefined, false, { unidade });
+  for (const antes of insumos) {
+    const agora = naUnidade.find((i) => i.id === antes.id);
+    assert.equal(
+      agora?.onHandBaseUnits,
+      antes.onHandBaseUnits,
+      'mudar de sala dentro da unidade não muda o piso da unidade',
+    );
+  }
+
+  // Então o tacho roda. Antes desta correção, aqui vinha `NotEnoughStockError`.
+  const feito = await recordProduction(EMPRESA_SEMENTE, {
+    productId: product.id,
+    locationId: unidade,
+    batches: 1,
+    unitsProduced: 400,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+  assert.equal(feito.unitsProduced, 400);
+
+  // E o consumo saiu DA CÂMARA, não do piso da unidade. Esta é a asserção que
+  // separa "a soma fecha" de "cada sala diz a verdade": um insumo que estava na
+  // câmara e some do piso da unidade deixaria a unidade negativa e a câmara cheia.
+  const consumido = insumos[0];
+  const naCamara = await listItems(EMPRESA_SEMENTE, undefined, false, { sala: camara });
+  const noPiso = await listItems(EMPRESA_SEMENTE, undefined, false, { sala: unidade });
+  const sobrouNaCamara = naCamara.find((i) => i.id === consumido.id)?.onHandBaseUnits ?? 0;
+  const sobrouNoPiso = noPiso.find((i) => i.id === consumido.id)?.onHandBaseUnits ?? 0;
+
+  assert.ok(
+    sobrouNaCamara < consumido.onHandBaseUnits,
+    `a câmara tinha ${consumido.onHandBaseUnits} e continua com ${sobrouNaCamara}: o consumo saiu de outro lugar`,
+  );
+  assert.equal(sobrouNoPiso, 0, 'o piso da unidade não tinha este insumo, e não pode ficar negativo');
+});
+
 test('the week the home screen draws carries the runs, and only the runs', async () => {
   await ensureStarterData(EMPRESA_SEMENTE);
   const [product] = (await listProductsForLedger(EMPRESA_SEMENTE)).filter((p) => p.recipeId);

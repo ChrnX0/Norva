@@ -436,9 +436,36 @@ test('the rooms guard still bites a list that is neither ruler', () => {
 });
 
 /**
- * A tela que produz lê o piso da sala em que o tacho roda.
+ * O escopo que a ESCRITA confere, lido de `repository.ts` em vez de escrito aqui.
  *
- * **A cicatriz.** `recordProduction` confere o piso da SALA e tem a razão escrita
+ * Isto existe por causa da regra desta casa que já se pagou duas vezes: *uma guarda
+ * que compara duas coisas escritas pela mesma mão não guarda nada*. A versão
+ * anterior conferia a ARIDADE de `listItems` — "tem quarto argumento?" — e a tela
+ * consertada tinha. Em 8 de setembro o quarto argumento passou a ser
+ * `{ unidade: ... }` enquanto a escrita continuava conferindo UMA sala, e a guarda
+ * não viu nada porque ela nunca soube o que a escrita confere. Aridade não é escopo.
+ *
+ * Agora a resposta vem do corpo de `recordProduction`, entre a assinatura dela e o
+ * `NotEnoughStockError` que ela levanta — o trecho onde o piso é conferido, e o
+ * único lugar onde essa verdade mora.
+ */
+export function escopoQueAEscritaConfere(fonte: string): 'sala' | 'unidade' | 'empresa' | null {
+  const inicio = fonte.indexOf('export async function recordProduction');
+  if (inicio < 0) return null;
+  const fim = fonte.indexOf('NotEnoughStockError(', inicio);
+  if (fim < 0) return null;
+  const corpo = fonte.slice(inicio, fim);
+  const recorte = corpo.match(/noEscopo\(\s*'m?\.?location_id'\s*,\s*\{\s*(sala|unidade)\b/);
+  if (recorte) return recorte[1] as 'sala' | 'unidade';
+  // Sem recorte nomeado sobram os dois extremos, e a igualdade crua distingue:
+  // `location_id = ?` é uma sala, e a ausência dela é a empresa inteira.
+  return /location_id\s*=\s*\?/.test(corpo) ? 'sala' : 'empresa';
+}
+
+/**
+ * A tela que produz lê o piso que a ESCRITA vai conferir — o mesmo, não outro.
+ *
+ * **A primeira cicatriz.** `recordProduction` confere um piso e tem a razão escrita
  * ao lado: a guarda somava o saldo de todos os lugares e escrevia o consumo num,
  * então bastava mandar um saco de açúcar para a loja para autorizar um tacho com o
  * açúcar que está a dez quilômetros. A tela, porém, continuou lendo
@@ -447,18 +474,33 @@ test('the rooms guard still bites a list that is neither ruler', () => {
  * a tela dizia que havia polpa, liberava o botão, e **toda** corrida batia no piso
  * do livro-razão com um erro de programador em inglês.
  *
+ * **A segunda, que esta guarda deixou passar.** Em 8 de setembro a tela passou a ler
+ * `{ unidade: unidadeDaqui() }` e a escrita continuou conferindo UMA sala. O mesmo
+ * defeito, uma casa mais estreito, e desta vez PIOR: a tela já dizia em que sala a
+ * polpa estava, ou seja, sabia onde estava e não deixava rodar. A guarda contou
+ * quatro argumentos, achou quatro, e passou.
+ *
  * É a mesma forma do defeito da contagem, e por isso a mesma forma de guarda: o
  * defeito não está em função nenhuma, está em duas leituras diferentes da mesma
- * pergunta dentro de uma tela.
+ * pergunta — e o que a guarda tem de comparar é o ESCOPO das duas, nunca a forma
+ * de uma delas.
  */
-export function pisoDeOutraSala(texto: string): string[] {
+export function pisoDeOutraSala(texto: string, escopoDaEscrita: 'sala' | 'unidade' | 'empresa'): string[] {
   if (!/recordProduction\(/.test(texto)) return [];
   const achados: string[] = [];
   for (const m of texto.matchAll(/listItems\(/g)) {
     const args = argumentos(texto, (m.index ?? 0) + 'listItems('.length);
     if (args === null) continue;
-    // companyId, tipo, inativos, sala — sem o quarto, o saldo é o da empresa.
-    if (args.length < 4) achados.push(`listItems(${args.join(', ')})`);
+    const chamada = `listItems(${args.join(', ')})`;
+    // companyId, tipo, inativos, escopo — sem o quarto, o saldo é o da empresa.
+    if (args.length < 4) {
+      if (escopoDaEscrita !== 'empresa') achados.push(chamada);
+      continue;
+    }
+    const diz = args[3].match(/\b(sala|unidade)\s*:/);
+    // Escopo que não se lê na chamada é escopo que ninguém confere. A tela que
+    // produz é uma, e ela pode dizer inteiro o que está perguntando.
+    if (!diz || diz[1] !== escopoDaEscrita) achados.push(chamada);
   }
   return achados;
 }
@@ -498,22 +540,27 @@ function argumentos(texto: string, comeco: number): string[] | null {
   return null;
 }
 
-test('a screen that produces reads the floor of the room the kettle is in', () => {
+test('a screen that produces reads the same floor the write will check', () => {
   const telas = sourcesUnder('app');
   assert.ok(telas.length > 10, 'a varredura de telas veio vazia — a comparação seria de graça');
 
+  // A segunda fonte, e ela não passou por esta mão: o escopo sai do corpo de
+  // `recordProduction`. Se alguém estreitar ou alargar o piso lá, este teste
+  // passa a exigir a mesma coisa das telas no mesmo commit.
+  const escopo = escopoQueAEscritaConfere(readFileSync('src/data/repository.ts', 'utf8'));
+  assert.ok(escopo, 'não achei o piso dentro de recordProduction — a guarda ficaria de graça');
+
   const cegas: string[] = [];
   for (const f of telas) {
-    for (const chamada of pisoDeOutraSala(readFileSync(f, 'utf8'))) cegas.push(`${f}: ${chamada}`);
+    for (const chamada of pisoDeOutraSala(readFileSync(f, 'utf8'), escopo)) cegas.push(`${f}: ${chamada}`);
   }
 
   assert.deepEqual(
     cegas,
     [],
-    `estas telas de produção leem o saldo da empresa:\n  ${cegas.join('\n  ')}\n` +
-      'O piso que o livro-razão confere é o da sala em que o tacho roda, com razão escrita. ' +
-      'Ler o total aqui libera um botão que a escrita vai recusar — e a Lei 5 diz que o erro ' +
-      'impede, não reclama.',
+    `estas telas de produção leem um piso que não é o da escrita (que confere \`${escopo}\`):\n  ${cegas.join('\n  ')}\n` +
+      'Ler um escopo mais largo aqui libera um botão que a escrita vai recusar, e ler um mais ' +
+      'estreito esconde um tacho que rodaria — a Lei 5 diz que o erro impede, não reclama.',
   );
 });
 
@@ -611,38 +658,75 @@ test('the expiry guard bites the surviving mutation, and leaves the room screens
   );
 });
 
-test('the production floor guard bites the real scar, and leaves the fix alone', () => {
+test('the production floor guard bites both scars, and leaves the fix alone', () => {
   const comProducao = (corpo: string) => `await recordProduction(EMPRESA_SEMENTE, {});\n${corpo}`;
 
+  // Primeira cicatriz: nenhum escopo, o saldo é o da empresa.
   assert.deepEqual(
-    pisoDeOutraSala(comProducao('listItems(EMPRESA_SEMENTE),')),
+    pisoDeOutraSala(comProducao('listItems(EMPRESA_SEMENTE),'), 'unidade'),
     ['listItems(EMPRESA_SEMENTE)'],
-    'a cicatriz tem que reprovar',
+    'a cicatriz da empresa tem que reprovar',
   );
+  // Segunda cicatriz, a que a versão de aridade deixou passar: escopo LEGÍVEL,
+  // quatro argumentos, e o escopo errado.
   assert.deepEqual(
-    pisoDeOutraSala(
-      comProducao('listItems(EMPRESA_SEMENTE, undefined, false, defaultLocationId(EMPRESA_SEMENTE)),'),
-    ),
+    pisoDeOutraSala(comProducao('listItems(co, undefined, false, { unidade: unidadeDaqui() }),'), 'sala'),
+    ['listItems(co, undefined, false, { unidade: unidadeDaqui() })'],
+    'unidade na tela com sala na escrita é o defeito de 8 de setembro, e tem que reprovar',
+  );
+  // E o inverso, porque somar de menos é o mais silencioso dos dois: sala na tela
+  // com unidade na escrita esconde um tacho que rodaria.
+  assert.deepEqual(
+    pisoDeOutraSala(comProducao('listItems(co, undefined, false, { sala: aqui }),'), 'unidade'),
+    ['listItems(co, undefined, false, { sala: aqui })'],
+    'sala na tela com unidade na escrita esconde estoque que existe',
+  );
+  // O conserto passa: os dois lados dizem a mesma palavra.
+  assert.deepEqual(
+    pisoDeOutraSala(comProducao('listItems(empresaDaqui(), undefined, false, { unidade: unidadeDaqui() }),'), 'unidade'),
     [],
     'o conserto passa',
   );
-  // O caso que derrubou a versão anterior: o argumento é uma PERGUNTA, e o
+  // O caso que derrubou uma versão anterior: o argumento é uma PERGUNTA, e o
   // parêntese dela fechava a conta antes da vírgula.
   assert.deepEqual(
     pisoDeOutraSala(
-      comProducao('listItems(empresaDaqui(), undefined, false, defaultLocationId(empresaDaqui())),'),
+      comProducao('listItems(empresaDaqui(), undefined, false, { unidade: unidadeDaqui() }),'),
+      'unidade',
     ),
     [],
     'a tela consertada continua passando quando a empresa é lida em vez de constante',
   );
-  assert.deepEqual(
-    pisoDeOutraSala(comProducao('listItems(empresaDaqui()),')),
-    ['listItems(empresaDaqui())'],
-    'e a cicatriz continua reprovando com a mesma leitura',
-  );
   // E a régua não fala com quem não produz: a lista do almoxarifado lê a empresa
   // inteira de propósito, e está certa.
-  assert.deepEqual(pisoDeOutraSala('listItems(EMPRESA_SEMENTE),'), []);
+  assert.deepEqual(pisoDeOutraSala('listItems(EMPRESA_SEMENTE),', 'unidade'), []);
+});
+
+test('the derivation of the write scope reads the write, and says which of the three it is', () => {
+  // Positivo e negativo do DETECTOR, não da regra: uma régua que responde a
+  // mesma coisa para as três formas não distingue nada, e é assim que um número
+  // inventado entra num documento.
+  const comRecorte = (chave: string) =>
+    `export async function recordProduction(a) {\n  const r = noEscopo('m.location_id', { ${chave}: x });\n  throw new NotEnoughStockError([]);\n}`;
+  assert.equal(escopoQueAEscritaConfere(comRecorte('unidade')), 'unidade');
+  assert.equal(escopoQueAEscritaConfere(comRecorte('sala')), 'sala');
+  assert.equal(
+    escopoQueAEscritaConfere(
+      'export async function recordProduction(a) {\n  WHERE m.company_id = ? AND m.location_id = ?\n  throw new NotEnoughStockError([]);\n}',
+    ),
+    'sala',
+    'igualdade crua é uma sala — é a forma exata do defeito de 8 de setembro',
+  );
+  assert.equal(
+    escopoQueAEscritaConfere(
+      'export async function recordProduction(a) {\n  WHERE m.company_id = ?\n  throw new NotEnoughStockError([]);\n}',
+    ),
+    'empresa',
+    'sem lugar nenhum na condição, o piso é a empresa inteira',
+  );
+  // E ela não inventa resposta para um arquivo que não tem a função: nulo faz o
+  // teste de cima falhar em voz alta em vez de comparar contra o vazio.
+  assert.equal(escopoQueAEscritaConfere('export async function recordPurchase() {}'), null);
 });
 
 /**

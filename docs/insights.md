@@ -7229,3 +7229,56 @@ E a de operação, que custou uma rodada: **`npm run mutate | tail` mente duas v
 corta a lista dos sobreviventes (que é o que se precisa ler) e troca o código de saída pelo
 do `tail` — o script sai 1 quando há sobrevivente, e eu li 0 e segui em frente. Relatório
 longo se guarda em arquivo e se lê com `grep`, nunca se canaliza por `tail`.
+
+## Guarda que confere a ARIDADE não confere o escopo — e a minha passou verde no dia em que o argumento trocou de significado
+
+8 de setembro, achado por uma pergunta do dono. Ele perguntou o que era "sala do tacho" —
+um termo que eu inventei e que não existe em lugar nenhum do repositório — e ao ir conferir
+o que o código de fato faz, o defeito apareceu.
+
+`recordProduction` confere o piso ANTES de escrever, e tem quatro parágrafos de razão ao
+lado explicando por que o piso não pode ser o da empresa. `app/production/new.tsx` tem uma
+guarda dedicada em `src/layers.test.ts` para impedir que a tela leia um piso diferente do
+que a escrita confere — a cicatriz está escrita: *"a tela dizia que havia polpa, liberava o
+botão, e toda corrida batia no piso do livro-razão com um erro de programador em inglês"*.
+
+No dia em que o saldo ganhou escopo de unidade, eu troquei a tela de
+`listItems(co, undefined, false, sala)` para `{ unidade: unidadeDaqui() }` e **não toquei na
+escrita**, que continuou conferindo `m.location_id = ?` — uma sala. Com a polpa na câmara
+fria, que é onde polpa mora numa fábrica de picolés, o botão liberava e a escrita recusava.
+O defeito exato que a guarda existe para impedir, uma casa mais estreito — e **pior** que o
+original, porque a tela já mostrava em que sala a polpa estava: sabia onde, e não deixava
+rodar.
+
+A guarda não viu porque ela contava argumentos: *"tem o quarto?"*. Tinha. Ela nunca soube o
+que a escrita confere, então não tinha como comparar. **Aridade não é escopo** — e uma
+guarda que mede a FORMA de um lado nunca guarda um acordo entre dois lados.
+
+O que ficou:
+
+1. O piso passou a ser o da **unidade**, que é a régua que responde *"dá para ir buscar a
+   pé"* — a câmara fica a três metros, a loja a dez quilômetros, a outra fábrica em outra
+   cidade. É a mesma régua da `0046`, agora dos dois lados.
+2. O consumo passou a sair **da sala que tinha o insumo**, uma linha por (insumo, sala).
+   Debitar tudo do piso do tacho fecharia a soma por unidade e mentiria por sala — e é a
+   sala que alguém confere com os olhos na segunda-feira.
+3. **A alocação virou a checagem.** O que falta é o que a alocação não conseguiu tirar de
+   sala nenhuma; não existe segundo número para divergir do primeiro. O defeito nasceu de
+   duas leituras da mesma pergunta, e o conserto foi apagar a segunda leitura.
+4. A guarda passou a **derivar o escopo do corpo de `recordProduction`** em vez de conferir
+   a forma da chamada, com positivo e negativo para as três respostas possíveis (sala,
+   unidade, empresa). Se alguém estreitar ou alargar o piso lá, o teste passa a exigir a
+   mesma palavra das telas no mesmo commit.
+
+**E a régua de leitura que sai daqui, que é maior que o defeito:** quando uma guarda existe
+para casar duas leituras, ela tem de ler as DUAS. A regra irmã já estava escrita neste
+arquivo — *"uma guarda que compara duas coisas escritas pela mesma mão não guarda nada"* — e
+esta é a variação dela que faltava: uma guarda que compara duas coisas mas só LÊ uma delas
+não guarda nada, e é ainda mais convincente, porque ela tem o nome certo, a cicatriz certa
+escrita no docblock, e passa verde.
+
+**E o menor dos achados, que é do tom de voz:** eu levei uma pergunta ao dono usando um
+termo que eu mesmo inventei ("a sala do tacho"), sobre uma decisão que o código já tinha
+tomado em dois lugares diferentes e contraditórios. A pergunta certa não era qual é o
+padrão: era conferir o que o sistema faz antes de perguntar. O `CLAUDE.md` já manda medir a
+afirmação do item contra o código antes de construir — vale igual antes de **perguntar**.

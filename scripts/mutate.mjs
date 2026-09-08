@@ -502,12 +502,24 @@ const DEFECTS = [
       'produto sem prazo cadastrado passa a vencer no dia em que foi feito, e a camara fria descarta mercadoria boa',
   },
 
+  // O piso do tacho, e as DUAS direcoes de errar nele. A mutacao anterior apontava
+  // para o SQL cru que conferia uma sala so; ele deixou de existir em 8 de setembro,
+  // quando o piso virou o da unidade e o consumo passou a sair da sala que tinha o
+  // insumo. Regra que mudou de forma leva a mutacao com ela — senao ela nao acha o
+  // alvo, e o relatorio conta isso como sobrevivente, com razao.
   {
     file: 'src/data/repository.ts',
-    from: '      WHERE m.company_id = ? AND m.location_id = ?\n      GROUP BY m.item_id, i.name`,',
-    to: '      WHERE m.company_id = ?\n      GROUP BY m.item_id, i.name`,',
+    from: "  const recorte = noEscopo('m.location_id', { unidade: unidadeDoTacho });",
+    to: "  const recorte = noEscopo('m.location_id', undefined);",
     hurts:
       'o tacho passa a ser autorizado pelo açúcar que está na loja, a dez quilômetros dali, e o consumo entra na fábrica deixando a sala negativa',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: "      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate, null, line.locationId);",
+    to: "      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate, null);",
+    hurts:
+      'o consumo passa a sair todo do piso do tacho: a soma da unidade continua certa, o piso fica negativo e a camara fria continua cheia — e é a camara que alguem confere com os olhos',
   },
   {
     file: 'src/domain/day.ts',

@@ -232,6 +232,29 @@ function noEscopo(
   };
 }
 
+/**
+ * A unidade em que uma sala fica — e, para uma unidade, ela mesma.
+ *
+ * Espelha o WHERE do backfill da `0046` pelo mesmo motivo que `noEscopo` espelha:
+ * sala interna sem pai pertence à primeira unidade, que é a que tem o id da
+ * empresa. Loja, cliente e veículo não ficam dentro de unidade nenhuma e respondem
+ * por si — quem pergunta pela unidade de uma loja está perguntando pelo pátio dela,
+ * e a resposta certa é a loja.
+ *
+ * Sem linha em `locations` a resposta é o próprio id: é o aparelho novo, cujo lugar
+ * padrão nasce dentro da transação mais abaixo, e ali o saldo é zero de qualquer
+ * jeito.
+ */
+async function unidadeDaSala(conn: Db, companyId: string, locationId: string): Promise<string> {
+  const linha = await conn.getFirstAsync<{ parent: string | null; kind: string }>(
+    `SELECT parent_location_id AS parent, kind FROM locations WHERE company_id = ? AND id = ?`,
+    [companyId, locationId],
+  );
+  if (!linha) return locationId;
+  if (linha.parent) return linha.parent;
+  return ehSalaDeUnidade(linha.kind) ? companyId : locationId;
+}
+
 // --- items -----------------------------------------------------------------
 
 /**
@@ -2035,50 +2058,109 @@ export async function recordProduction(
   // É a mesma forma da fundação de permissão deste projeto: a checagem roda
   // ANTES da escrita, então não existe linha errada para alguém corrigir depois.
   //
-  // E o piso é o da SALA em que o tacho está, não o da empresa.
+  // **E o piso é o da UNIDADE.** Ele já foi as duas coisas erradas, em ordem, e
+  // cada uma deixou cicatriz:
   //
-  // A guarda somava o saldo de todos os lugares e escrevia o consumo em
-  // `input.locationId` - duas perguntas diferentes respondidas pela mesma
-  // consulta. Basta a fábrica mandar um saco de açúcar para a loja, que o
-  // aplicativo já faz pela tela de transferência, para a conta autorizar um
-  // tacho com o açúcar que está a dez quilômetros dali: a produção passa, o
-  // consumo entra na fábrica, e a fábrica fica negativa - o exato estado que
-  // esta guarda existe para impedir.
+  //   1. Somava a EMPRESA e escrevia numa sala — duas perguntas diferentes
+  //      respondidas pela mesma consulta. Bastava a fábrica mandar um saco de
+  //      açúcar para a loja, que a tela de transferência já faz, para a conta
+  //      autorizar um tacho com o açúcar que está a dez quilômetros dali.
+  //   2. Passou a conferir UMA sala — e em 8 de setembro a tela passou a ler a
+  //      unidade. Com a polpa na câmara fria, que é onde polpa mora numa fábrica
+  //      de picolés, a tela liberava o botão e a escrita recusava com erro de
+  //      programador em inglês. É PIOR que o defeito original, porque a tela
+  //      ainda dizia em que sala a polpa estava: sabia onde, e não deixava rodar.
+  //      A guarda de camadas exigia um quarto argumento em `listItems` e ele
+  //      estava lá, então nada acusou — guarda que confere a ARIDADE não confere
+  //      o escopo.
   //
-  // É a mesma correção que a contagem já tinha ("contar a prateleira compara
-  // com aquela prateleira, não com a empresa inteira") e que a perda herdou.
-  // Enquanto houver um lugar só as duas contas dão igual, e é por isso que isto
-  // atravessou até aqui sem quebrar nada.
-  const held = await conn.getAllAsync<{ item_id: string; name: string; on_hand: number }>(
-    `SELECT m.item_id, i.name, COALESCE(SUM(m.quantity_base_units), 0) AS on_hand
+  // A unidade é a régua certa porque é ela que responde *"dá para ir buscar a
+  // pé"*: a câmara fria fica a três metros, a loja fica a dez quilômetros, e a
+  // fábrica da outra cidade não é uma caminhada. É a mesma régua da `0046`.
+  //
+  // **E o consumo sai da sala que TINHA o insumo.** Debitar tudo do piso do tacho
+  // deixaria o piso negativo e a câmara cheia — soma certa por unidade, mentira
+  // por sala, e é a sala que alguém confere com os olhos na segunda-feira. A
+  // ordem é a sala do tacho primeiro e depois as outras por nome: primeiro o que
+  // está à mão, e determinística para o mesmo ato produzir as mesmas linhas duas
+  // vezes.
+  //
+  // **A alocação É a checagem**, e isso não é economia de linhas: o defeito 2
+  // existiu porque a mesma pergunta era lida em dois lugares. Aqui o que falta é
+  // o que a alocação não conseguiu tirar de sala nenhuma, então não há segundo
+  // número para divergir do primeiro.
+  const unidadeDoTacho = await unidadeDaSala(conn, companyId, input.locationId);
+  const recorte = noEscopo('m.location_id', { unidade: unidadeDoTacho });
+  const porSala = await conn.getAllAsync<{
+    item_id: string;
+    name: string;
+    location_id: string;
+    location_name: string;
+    on_hand: number;
+  }>(
+    `SELECT m.item_id, i.name, m.location_id, COALESCE(l.name, '') AS location_name,
+            COALESCE(SUM(m.quantity_base_units), 0) AS on_hand
        FROM movements m
        JOIN items i ON i.id = m.item_id
-      WHERE m.company_id = ? AND m.location_id = ?
-      GROUP BY m.item_id, i.name`,
-    [companyId, input.locationId],
+       LEFT JOIN locations l ON l.id = m.location_id AND l.company_id = m.company_id
+      WHERE m.company_id = ? AND ${recorte.sql}
+      GROUP BY m.item_id, i.name, m.location_id, l.name
+     HAVING SUM(m.quantity_base_units) > 0`,
+    [companyId, ...recorte.params],
   );
-  const onHand = new Map(held.map((h) => [h.item_id, h.on_hand]));
 
-  const missing = consumed
-    .map((line) => ({
-      itemId: line.itemId,
-      name: held.find((h) => h.item_id === line.itemId)?.name ?? line.itemId,
-      needed: line.baseUnits,
-      held: onHand.get(line.itemId) ?? 0,
-    }))
-    .filter((line) => line.held < line.needed);
+  // Só sala com saldo POSITIVO fornece, e é o `HAVING` acima que garante. Uma sala
+  // negativa entraria na soma da unidade como se tivesse a dever ao tacho, e a
+  // alocação não teria de onde tirar o que ela "tem" — o piso passaria e a escrita
+  // recusaria de novo, que é exatamente o defeito 2 com outra roupa.
+  const nomeDaSala = new Map(porSala.map((l) => [l.location_id, l.location_name]));
+  const salas = [...nomeDaSala.keys()].sort((a, b) => {
+    if (a === b) return 0;
+    if (a === input.locationId) return -1;
+    if (b === input.locationId) return 1;
+    return (nomeDaSala.get(a) ?? '').localeCompare(nomeDaSala.get(b) ?? '') || a.localeCompare(b);
+  });
+
+  const disponivel = new Map(porSala.map((l) => [`${l.item_id}@${l.location_id}`, l.on_hand]));
+  const nomeDoItem = new Map(porSala.map((l) => [l.item_id, l.name]));
+
+  const consumoPorSala: { itemId: string; locationId: string; baseUnits: number; rate: Rate }[] = [];
+  const missing: { itemId: string; name: string; needed: number; held: number }[] = [];
+  for (const linha of consumed) {
+    let falta = linha.baseUnits;
+    for (const sala of salas) {
+      if (falta <= 0) break;
+      const tem = disponivel.get(`${linha.itemId}@${sala}`) ?? 0;
+      if (tem <= 0) continue;
+      const tira = Math.min(tem, falta);
+      consumoPorSala.push({
+        itemId: linha.itemId,
+        locationId: sala,
+        baseUnits: tira,
+        rate: linha.rate,
+      });
+      falta -= tira;
+    }
+    if (falta > 0) {
+      missing.push({
+        itemId: linha.itemId,
+        name: nomeDoItem.get(linha.itemId) ?? linha.itemId,
+        needed: linha.baseUnits,
+        held: linha.baseUnits - falta,
+      });
+    }
+  }
 
   if (missing.length > 0) {
     // O nome vem do catálogo, e a consulta extra só acontece no caminho que já
-    // vai falhar. Com o piso agora sendo o da sala, o insumo que falta pode ter
-    // ZERO linha em `movements` ali - some da consulta de saldo, e a tela diria
+    // vai falhar. Com o piso sendo o da unidade, o insumo que falta pode ter ZERO
+    // linha em `movements` em toda ela - some da consulta de saldo, e a tela diria
     // ao operador o uuid do item em vez de "Polpa de morango".
     const catalog = await labels(companyId);
     throw new NotEnoughStockError(
       missing.map((line) => ({ ...line, name: catalog[line.itemId] ?? line.name })),
     );
   }
-
   // A embalagem entra aqui, e não entrar era um defeito silencioso.
   //
   // Sete telas cotam o custo de uma unidade como `costPerProductUnit`, que soma
@@ -2136,6 +2218,11 @@ export async function recordProduction(
     await enqueue(conn, [{ table: 'lots', rowId: lotId }]);
     lotCodeWritten = code;
 
+    /**
+     * `onde` tem valor padrão porque a linha de PRODUÇÃO nasce onde o tacho está —
+     * é lá que o picolé passa a existir. Só o consumo escolhe sala, e escolhe a que
+     * tinha o insumo.
+     */
     const write = async (
       id: string,
       kind: 'production' | 'consumption',
@@ -2143,6 +2230,7 @@ export async function recordProduction(
       quantity: number,
       rate: number,
       lot: string | null,
+      onde: string = input.locationId,
     ) => {
       await conn.runAsync(
         `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
@@ -2158,7 +2246,7 @@ export async function recordProduction(
           at,
           itemId,
           quantity,
-          input.locationId,
+          onde,
           rate || null,
           groupId,
           lot,
@@ -2221,8 +2309,12 @@ export async function recordProduction(
     // que a polpa pertence ao picolé, e o recall passaria a recolher o saco de
     // açúcar. Consumo por lote é PEPS de insumo, que é trabalho da Fase 3.
     await write(productionId, 'production', product.itemId, input.unitsProduced, unitCostRate, lotId);
-    for (const line of consumed) {
-      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate, null);
+    // Uma linha por (insumo, sala), e não uma por insumo: o razão passa a contar
+    // *"seis quilos saíram da câmara e dois do piso"*, que é o que aconteceu. Quem
+    // soma por unidade vê o mesmo total de antes; quem confere a câmara com os
+    // olhos passa a ver o número que ele encontra na prateleira.
+    for (const line of consumoPorSala) {
+      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate, null, line.locationId);
     }
   });
 
