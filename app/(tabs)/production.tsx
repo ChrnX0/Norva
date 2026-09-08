@@ -1,6 +1,6 @@
 import { CameraView } from 'expo-camera';
 import { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { CountUp } from '@/components/CountUp';
 import { Button } from '@/components/Button';
@@ -102,16 +102,34 @@ function ProductionDay() {
 
   /** O código digitado de uma caixa que não é de hoje. */
   const [codigo, setCodigo] = useState('');
-  /** Se este aparelho tem câmera. Nulo enquanto não se sabe — e nulo não oferece. */
-  const [temCamera, setTemCamera] = useState(false);
+  /**
+   * Se este aparelho tem câmera — e a resposta vem de onde ela existe.
+   *
+   * **Cicatriz de 8 de setembro, e do tipo caro: o botão nunca apareceu.**
+   * `CameraView.isAvailableAsync()` é implementado no expo-camera **da web** e não
+   * no módulo Android — `CameraViewModule.kt` declara `requestCameraPermissions`,
+   * `scanFromURL`, `launchScanner` e mais dez, e nenhuma `isAvailableAsync`. No
+   * Android o JS lança `UnavailabilityError`, o `.catch` abaixo lia isso como
+   * *"não tem câmera"*, e a leitura de etiqueta que eu tinha acabado de construir
+   * ficou inalcançável no único sistema que importa. Compilou, passou na barra
+   * inteira, e não existia.
+   *
+   * Então a pergunta muda de lugar: na WEB ela é honesta e é respondida (navegador
+   * sem câmera é comum e o pacote sabe dizer). No aparelho, câmera é hardware que
+   * telefone e tablet têm, e quem responde por ausência ou recusa é a tela do
+   * leitor — que já precisa fazer isso de qualquer jeito, porque permissão negada
+   * não é o mesmo que aparelho sem câmera e as duas terminam ali.
+   */
+  const [temCamera, setTemCamera] = useState(Platform.OS !== 'web');
   useEffect(() => {
+    if (Platform.OS !== 'web') return;
     let vivo = true;
     void CameraView.isAvailableAsync()
       .then((tem) => {
         if (vivo) setTemCamera(tem);
       })
       .catch(() => {
-        // Aparelho que nem sabe responder não tem: o botão fica fora, e o campo
+        // Navegador que nem sabe responder não tem: o botão fica fora, e o campo
         // de digitar continua ali fazendo o mesmo trabalho.
         if (vivo) setTemCamera(false);
       });
@@ -518,11 +536,10 @@ function ProductionDay() {
             onPress={() => router.push(`/lots/${codigo.trim()}`)}
             style={{ marginTop: space.md }}
           />
-          {/* A câmera aparece SÓ onde ela existe.
-              `isAvailableAsync` responde pelo aparelho de verdade — num navegador
-              headless não há câmera, num tablet sem traseira também não. Oferecer o
-              que não se pode cumprir é a Lei 5 quebrada, e um toque que não faz nada
-              lê como aplicativo travado. */}
+          {/* A câmera aparece SÓ onde ela existe — e "onde" aqui é o navegador,
+              que é o lugar em que a ausência é comum e o pacote sabe responder.
+              Ver o docblock de `temCamera`: perguntar isso ao Android respondia
+              "não tem" em todo aparelho, e o botão não existia em nenhum. */}
           {temCamera ? (
             <Button
               label={t.app.lotLabel.scanAction}

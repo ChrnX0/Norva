@@ -108,13 +108,19 @@ test('the version can always produce a build number that grows', () => {
  * ganha um pouco na instalação; quem recebe o APK paga o triplo. Numa fábrica que
  * instala o aplicativo por link, quem paga é o dono.
  *
- * **E o encolhimento de RECURSOS está fora de propósito, medido.** Ele rendeu
- * 0,29 MB de 27 — um por cento —, e o que ele remove são recursos que o AGP não
- * viu ninguém referenciar. Recurso buscado por nome em runtime (`getIdentifier`)
- * é invisível para ele, e o modo de falha é o pior que existe aqui: some calado,
- * compila, instala, e quebra numa tela. A minificação de CÓDIGO ficou porque
- * paga 12,6 MB — quarenta vezes mais, pelo mesmo tipo de risco. Se alguém for
- * religar o de recursos, o preço a bater é esse.
+ * **E o encolhimento de RECURSOS está fora de propósito, e o motivo é melhor que
+ * o que eu escrevi primeiro.** Eu tinha medido 0,29 MB de diferença em `res/` e
+ * na tabela de recursos entre o APK com e sem R8, e creditado ao encolhimento —
+ * dois builds que diferiam em DUAS coisas, e eu atribuí o delta a uma. O relatório
+ * do próprio shrinker desmente: `outputs/mapping/release/resources.txt` abre com
+ * `Resources#getIdentifier present: true` e não tem uma linha de recurso removido.
+ * Ele viu busca de recurso por nome, entrou em modo conservador e **não removeu
+ * nada**. Os 0,29 MB são do R8 encurtando NOME de recurso, que acontece de
+ * qualquer jeito.
+ *
+ * Ou seja: ligado, ele paga zero e mantém aberta a porta de remover calado um
+ * recurso buscado por nome no dia em que o modo conservador não disparar. A
+ * minificação de CÓDIGO fica porque paga 12,6 MB, medidos no dex do mesmo build.
  */
 test('the build settings that survive a prebuild live in app.json', () => {
   const build = ajusteDoPlugin('expo-build-properties');

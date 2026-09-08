@@ -1216,3 +1216,86 @@ test('a guarda do atalho distingue navegar de consultar', () => {
     'e uma rota sem o código não conta como abrir o lote',
   );
 });
+
+/**
+ * O que o pacote promete em JS e o módulo Android não cumpre.
+ *
+ * **Cicatriz de 8 de setembro, e ela passou por tudo.** `app/(tabs)/production.tsx`
+ * chamava `CameraView.isAvailableAsync()` para só oferecer a leitura de etiqueta em
+ * aparelho com câmera — intenção certa, Lei 5. Só que essa função é implementada no
+ * expo-camera **da web**; `CameraViewModule.kt` não a declara. No Android o JS lança
+ * `UnavailabilityError`, o `.catch` lia isso como *"não tem câmera"*, e o botão **nunca
+ * apareceu em nenhum aparelho**. Typecheck verde (o tipo existe), 508 testes verdes,
+ * portão verde, e a funcionalidade não existia.
+ *
+ * A régua lê a lista do KOTLIN, não uma lista escrita aqui: guarda que compara duas
+ * coisas escritas pela mesma mão não guarda nada. A fonte é
+ * `CameraViewModule.kt`, que é quem o aparelho executa.
+ *
+ * A licença é `Platform.OS`: chamar uma função que só a web tem é legítimo desde que
+ * o arquivo pergunte em que plataforma está. Grosso de propósito — a guarda não lê
+ * fluxo, e uma que tentasse ler daria falso negativo na primeira reescrita.
+ */
+test('no screen calls an expo-camera function the Android module does not have', () => {
+  const kotlin = readFileSync(
+    'node_modules/expo-camera/android/src/main/java/expo/modules/camera/CameraViewModule.kt',
+    'utf8',
+  );
+  const noAndroid = new Set(
+    [...kotlin.matchAll(/\b(?:Async)?Function\("([A-Za-z0-9_]+)"/g)].map((m) => m[1]),
+  );
+  assert.ok(
+    noAndroid.has('getCameraPermissionsAsync'),
+    'a leitura do Kotlin não achou nem a função que sabemos existir — a régua quebrou, não o app',
+  );
+
+  const faltando: string[] = [];
+  for (const arquivo of [...sourcesUnder('app'), ...sourcesUnder('src')]) {
+    const texto = readFileSync(arquivo, 'utf8');
+    if (!texto.includes('expo-camera')) continue;
+    for (const m of texto.matchAll(/\bCameraView\.([A-Za-z0-9_]+)\(/g)) {
+      if (noAndroid.has(m[1])) continue;
+      if (texto.includes('Platform.OS')) continue;
+      faltando.push(`${arquivo}: CameraView.${m[1]}()`);
+    }
+  }
+  assert.deepEqual(
+    faltando,
+    [],
+    'estas chamadas não existem no módulo Android do expo-camera, e o aparelho vai lançar ' +
+      'UnavailabilityError em runtime — sem nada ficar vermelho antes:\n  ' +
+      faltando.join('\n  '),
+  );
+});
+
+test('the camera-API guard bites the real scar, and leaves the fix alone', () => {
+  const kotlin = readFileSync(
+    'node_modules/expo-camera/android/src/main/java/expo/modules/camera/CameraViewModule.kt',
+    'utf8',
+  );
+  const noAndroid = new Set(
+    [...kotlin.matchAll(/\b(?:Async)?Function\("([A-Za-z0-9_]+)"/g)].map((m) => m[1]),
+  );
+  const morde = (texto: string) =>
+    [...texto.matchAll(/\bCameraView\.([A-Za-z0-9_]+)\(/g)].some(
+      (m) => !noAndroid.has(m[1]) && !texto.includes('Platform.OS'),
+    );
+
+  // O caso verdadeiro: o código exato que foi para o aparelho e não funcionou.
+  assert.ok(
+    morde("import { CameraView } from 'expo-camera';\nvoid CameraView.isAvailableAsync()"),
+    'a guarda não pega a chamada que quebrou de verdade',
+  );
+  // E os dois falsos, que separam "guarda" de "proibição": uma função que o Android
+  // tem, e a mesma chamada de antes agora perguntando em que plataforma está.
+  assert.ok(
+    !morde("import { CameraView } from 'expo-camera';\nvoid CameraView.getCameraPermissionsAsync()"),
+    'uma função que o Android tem não pode reprovar',
+  );
+  assert.ok(
+    !morde(
+      "import { Platform } from 'react-native';\nif (Platform.OS === 'web') void CameraView.isAvailableAsync();",
+    ),
+    'perguntar a plataforma é a licença — se ela não vale, a guarda vira proibição',
+  );
+});
