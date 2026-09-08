@@ -763,6 +763,22 @@ export const ptBR = {
         'O que a fábrica registrou é a soma de cada lançamento — é dela que saem o estoque, o custo e a margem. Apagar não desfaz os lançamentos: tira-os do mundo. Nenhum estorno alcança o que não existe mais.',
       registroConfirm: 'Apagar mesmo assim',
       /* O prazo do Reset no servidor — os três casos que o dono nomeou. */
+      /* A sincronia, e ela é um TOQUE — nunca sozinha. */
+      syncTitle: 'Enviar para o servidor',
+      syncHint:
+        'A fábrica funciona inteira sem isto. Enviar guarda no servidor o que este aparelho '
+        + 'gravou, para abrir noutro celular e para não depender de um aparelho só.',
+      syncNothing: 'Nada esperando. Tudo o que este aparelho gravou já está no servidor.',
+      syncWaiting: '{{count}} esperando para subir',
+      syncAction: 'Enviar agora',
+      syncSending: 'Enviando…',
+      syncSent: 'Subiram {{sent}}. Ainda esperando: {{left}}.',
+      syncDone: 'Subiu tudo: {{sent}}.',
+      syncNoCompany:
+        'Este aparelho ainda não está ligado a uma empresa. Ligue na tela da Conta e volte — '
+        + 'o que está gravado aqui passa a ser dela, e aí tem para onde subir.',
+      syncNoServer: 'Sem servidor configurado. Só o aparelho, por enquanto.',
+      syncStopped: 'Parou no meio: {{reason}}. O que não subiu continua na fila, inteiro.',
       graceTitle: 'Depois de apagar, no servidor',
       graceHint:
         'Neste aparelho o apagamento é na hora. No servidor o livro fica guardado por este '

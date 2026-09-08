@@ -48,7 +48,7 @@ import { ensureStarterData } from '@/data/seed';
 import { empresaDaqui } from '@/data/empresa';
 import { adotarEmpresa } from '@/data/adocao';
 import { fromDecimal, rate} from '@/domain/money';
-import { sendableTables, serialize, type SyncActor } from '@/sync/serialize';
+import { APENAS_INSERE, sendableTables, serialize, type SyncActor } from '@/sync/serialize';
 
 /** Stands in for whoever is signed in when the phone finally finds a tower. */
 const ACTOR: SyncActor = { userId: '00000000-0000-4000-8000-000000000001' };
@@ -380,12 +380,10 @@ async function main() {
     // `do update` pede um privilégio que ela nunca vai ter — e o erro não fala de
     // política, fala de permissão numa tabela que ninguém tocou. Por quanto se
     // vendia em março não se corrige: combina-se de novo, e isso é uma linha nova.
-    // `erase_requests` entra aqui: pedido é FATO, e a política do servidor recusa
-    // update e delete. Sem isto a fila sobe com `on conflict do update`, que pede
-    // permissão de UPDATE — e o Postgres responde "permission denied" sem dizer
-    // qual das duas falta, que foi exatamente o que me custou uma execução.
-    const APPEND_ONLY = ['movements', 'readings', 'sale_price_history', 'erase_requests'];
-    const appendOnly = APPEND_ONLY.includes(write.table);
+    // A lista mora no `serialize`, que é quem sabe o que atravessa. Escrita à mão
+    // aqui, ela era a segunda verdade da mesma regra — e a primeira divergência
+    // apareceria como `permission denied` sem dizer qual permissão falta.
+    const appendOnly = (APENAS_INSERE as readonly string[]).includes(write.table);
 
     const onConflict = appendOnly
       ? 'do nothing'

@@ -591,6 +591,22 @@ export const en: Dictionary = {
         'What the factory recorded is the sum of every entry — stock, cost and margin all come from it. Erasing does not undo the entries: it takes them out of the world. No reversal reaches what no longer exists, and this device is the only place they live.',
       registroConfirm: 'Erase anyway',
       /* The server-side grace of a Reset — the three cases the owner named. */
+      /* Syncing, and it is a TAP — never on its own. */
+      syncTitle: 'Send to the server',
+      syncHint:
+        'The factory works entirely without this. Sending stores on the server what this device '
+        + 'recorded, so it opens on another phone and does not depend on one device.',
+      syncNothing: 'Nothing waiting. Everything this device recorded is already on the server.',
+      syncWaiting: '{{count}} waiting to go up',
+      syncAction: 'Send now',
+      syncSending: 'Sending…',
+      syncSent: '{{sent}} went up. Still waiting: {{left}}.',
+      syncDone: 'All up: {{sent}}.',
+      syncNoCompany:
+        'This device is not bound to a company yet. Bind it on the Account screen and come back — '
+        + 'what is recorded here becomes theirs, and then it has somewhere to go.',
+      syncNoServer: 'No server configured. Just the device, for now.',
+      syncStopped: 'Stopped midway: {{reason}}. What did not go up is still in the queue, whole.',
       graceTitle: 'After erasing, on the server',
       graceHint:
         'On this device erasing is immediate. On the server the ledger is kept for this long '

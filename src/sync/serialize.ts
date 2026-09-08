@@ -484,6 +484,27 @@ const CROSSINGS: Record<
   },
 };
 
+/**
+ * As tabelas que o servidor NÃO deixa corrigir — sobem uma vez e só.
+ *
+ * **Ela mora aqui porque quem sabe o que atravessa é este arquivo.** A mesma lista
+ * estava escrita à mão dentro do `scripts/device-session.ts`, e duas listas da
+ * mesma regra são duas verdades esperando divergir: a primeira vez que uma tabela
+ * append-only nova entrasse na travessia sem entrar lá, a fila subiria com `on
+ * conflict do update` e o Postgres responderia `permission denied` sem dizer qual
+ * das duas permissões falta. Isso já me custou uma execução da barra.
+ *
+ * O critério não é gosto: é a política do servidor. Onde não há `for update`, o que
+ * corrige uma linha errada é outra linha — o razão por estorno, a leitura de sensor
+ * medindo de novo, o preço combinando de novo, e o pedido de Reset por outro pedido.
+ */
+export const APENAS_INSERE: readonly ServerTable[] = [
+  'movements',
+  'readings',
+  'sale_price_history',
+  'erase_requests',
+];
+
 /** Every table this device knows how to send, for tests and for guards. */
 export const sendableTables = Object.keys(CROSSINGS) as ServerTable[];
 

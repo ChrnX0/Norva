@@ -596,6 +596,22 @@ export const es: Dictionary = {
         'Lo que la fábrica registró es la suma de cada asiento — de ahí salen el stock, el costo y el margen. Borrar no deshace los asientos: los saca del mundo. Ninguna reversión alcanza lo que ya no existe, y este aparato es el único lugar donde están.',
       registroConfirm: 'Borrar igual',
       /* El plazo del Reset en el servidor — los tres casos que el dueño nombró. */
+      /* La sincronía, y es un TOQUE — nunca sola. */
+      syncTitle: 'Enviar al servidor',
+      syncHint:
+        'La fábrica funciona entera sin esto. Enviar guarda en el servidor lo que este aparato '
+        + 'registró, para abrir en otro celular y no depender de un solo aparato.',
+      syncNothing: 'Nada esperando. Todo lo que este aparato registró ya está en el servidor.',
+      syncWaiting: '{{count}} esperando para subir',
+      syncAction: 'Enviar ahora',
+      syncSending: 'Enviando…',
+      syncSent: 'Subieron {{sent}}. Todavía esperando: {{left}}.',
+      syncDone: 'Subió todo: {{sent}}.',
+      syncNoCompany:
+        'Este aparato aún no está ligado a una empresa. Lígalo en la pantalla de Cuenta y vuelve — '
+        + 'lo que está aquí pasa a ser de ella, y entonces tiene a dónde subir.',
+      syncNoServer: 'Sin servidor configurado. Solo el aparato, por ahora.',
+      syncStopped: 'Se detuvo a medias: {{reason}}. Lo que no subió sigue en la fila, entero.',
       graceTitle: 'Después de borrar, en el servidor',
       graceHint:
         'En este aparato el borrado es inmediato. En el servidor el libro queda guardado este '

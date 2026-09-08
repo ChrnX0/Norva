@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **496** testes |
+| `npm test` | **503** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **52** checagens num navegador de verdade |
 | `npm run db:verify` | **21** garantias contra um Postgres descartável, sob RLS |
@@ -617,19 +617,32 @@ celular **não tem signatário** — então ele assina *este aparelho, este oper
 esta data*. Documento para terceiro é do servidor, onde a política impõe quem
 escreveu e o `UPDATE` levanta exceção.
 
-### 2. O caminho de escrita para o servidor
+### 2. ~~O caminho de escrita para o servidor~~ — CONSTRUÍDO em 8 de setembro
 
-<!-- medida: ausente app :: drain\( -->
+<!-- medida: presente app :: drain\( -->
 
-A camada de conta existe (`src/sync/conta.ts`, `app/account.tsx`) e a fila existe
-(`src/data/outbox.ts`, `src/sync/serialize.ts`) — **o que não existe é o transporte
-entre as duas.** Com o 0 feito, isto para de ser urgência de sobrevivência e volta a
-ser o que sempre foi: a diferença entre um caderno e um sistema, e a única peça que
-não funciona offline (o prazo do entregador, em `docs/estudo-entrada.md`).
+`src/sync/transporte.ts` é a implementação de `Transport` que faltava, e Ajustes a
+chama. O que estava atrás dela existia há dias — o motor com as três regras, a fila
+append-only, o tradutor de colunas, a conta, e (desde 7 de setembro) a empresa
+adotada.
 
-Continua travado no que o item 2b já diz: **E1**. Nada foi exercitado contra o
-servidor porque entrar de verdade cria uma conta de autenticação no projeto do dono,
-e essa é decisão dele.
+**Três decisões de desenho, e as três têm razão escrita no arquivo:**
+
+- **uma linha por vez, na ordem em que a fábrica gravou.** A fila é escrita em ordem
+  de dependência; agrupar por tabela para mandar em lote reordenaria tudo e o
+  servidor recusaria por chave estrangeira, com a fila presa atrás. O motor já manda
+  em fatias de cem — dentro da fatia, a ordem é sagrada;
+- **para no primeiro erro**, que é regra do motor: continuar depois de uma recusa
+  mandaria linhas cujos pais o servidor não tem, e transformaria uma recusa em muitas;
+- **enviar é um TOQUE, nunca automático.** *"Usar com sabedoria"* é decisão escrita do
+  dono: o servidor é pago, a fábrica funciona inteira sem ele, e sincronia automática
+  é dado saindo do aparelho sem ninguém ter decidido que saísse.
+
+**E o nível de evidência é honesto: E3 para a forma, E1 para a viagem.** Cada coluna
+que atravessa é exercitada contra um Postgres de verdade sob RLS pela checagem 6 do
+`db:verify` — 84 escritas, entrando como a conta e não como superusuário. O que nunca
+aconteceu é a chamada HTTP contra o servidor do dono: apontar para o projeto dele é
+ato dele, num toque, e a tela diz isso antes.
 
 ### 2b. ~~O que trava o transporte, e é decisão de dono~~ — **DECIDIDO em 7 de setembro: existe Reset, e ele apaga**
 

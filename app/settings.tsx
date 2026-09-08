@@ -72,6 +72,10 @@ import {
 } from '@/data/erase';
 import { exampleStillHere, restoreStarterData } from '@/data/seed';
 import { empresaAdotada, empresaDaqui } from '@/data/empresa';
+import { pendingCount } from '@/data/outbox';
+import { contaAtual } from '@/sync/conta';
+import { drain } from '@/sync/engine';
+import { transporte } from '@/sync/transporte';
 import { HORIZONTE_DE_TESTE, simulateHistory } from '@/data/simulate';
 import { empurrar } from '@/data/configuracao';
 import { useQuery } from '@/data/useQuery';
@@ -302,6 +306,9 @@ function Settings() {
   const { data: approval, refresh: refreshApproval } = useQuery<boolean>(() => ordersNeedApproval());
   const { data: folga, refresh: refreshFolga } = useQuery<number>(() => purchaseSafetyDays());
   const { data: prazo, refresh: refreshPrazo } = useQuery<number | null>(() => eraseGraceDays());
+  const { data: naFila, refresh: refreshFila } = useQuery<number>(() => pendingCount());
+  const [enviando, setEnviando] = useState(false);
+  const [oQueSubiu, setOQueSubiu] = useState<string | null>(null);
   const { data: nomeia, refresh: refreshNomeia } = useQuery<boolean>(() => namesWhoRecorded());
   const { data: entrada, refresh: refreshEntrada } = useQuery(() => floorSignIn());
 
@@ -490,6 +497,50 @@ function Settings() {
     (counts?.products ?? 0) +
     (counts?.purchases ?? 0) +
     (counts?.places ?? 0);
+
+  /**
+   * Enviar é um TOQUE, e nunca acontece sozinho.
+   *
+   * **Decisão do dono, escrita no `CLAUDE.md`:** *"usar com sabedoria"* — o servidor
+   * é pago e a fábrica funciona inteira sem ele. Sincronia automática num aplicativo
+   * que grava dezenas de linhas por dia é conta que ninguém pediu, e pior: é dado
+   * saindo do aparelho sem ninguém ter decidido que saísse.
+   *
+   * As duas recusas aparecem como FRASE e não como falha: sem servidor configurado,
+   * e sem empresa adotada — que é a que importa, porque o carimbo das linhas seria a
+   * semente e o servidor recusaria a fila inteira sem explicar nada.
+   */
+  const enviar = async () => {
+    const quem = await contaAtual();
+    if (!quem) {
+      setOQueSubiu(t.app.settings.syncNoServer);
+      return;
+    }
+    if (!empresaAdotada()) {
+      setOQueSubiu(t.app.settings.syncNoCompany);
+      return;
+    }
+    setEnviando(true);
+    setOQueSubiu(null);
+    try {
+      const relatorio = await drain(transporte({ userId: quem.id }));
+      if (relatorio.recusa === 'semEmpresa') setOQueSubiu(t.app.settings.syncNoCompany);
+      else if (relatorio.error)
+        setOQueSubiu(fill(t.app.settings.syncStopped, { reason: relatorio.error }));
+      else if (relatorio.remaining === 0)
+        setOQueSubiu(fill(t.app.settings.syncDone, { sent: String(relatorio.sent) }));
+      else
+        setOQueSubiu(
+          fill(t.app.settings.syncSent, {
+            sent: String(relatorio.sent),
+            left: String(relatorio.remaining),
+          }),
+        );
+    } finally {
+      setEnviando(false);
+      refreshFila();
+    }
+  };
 
   return (
     <CollapsingHeader
@@ -1212,6 +1263,41 @@ function Settings() {
         </Card>
       </Reveal>
 
+      {/* Enviar para o servidor — e o cartão diz o número antes de o dedo tocar.
+
+          A Lei 3: o número nunca aparece sozinho. "12 esperando para subir" é o que
+          decide se vale gastar rede; "Enviar" sozinho é um botão que ninguém sabe
+          se precisa. E quando não há nada esperando, a frase é positiva — "tudo o
+          que este aparelho gravou já está no servidor" —, porque está tudo bem é um
+          estado válido e bonito. */}
+      <Reveal index={7}>
+        <Card
+          hue={palette.mist}
+          icon={(c) => <GlyphSettings size={26} color={c} weight={traco} />}
+          title={t.app.settings.syncTitle}
+        >
+          <Text style={[type.caption, { color: color.inkMuted }]}>
+            {t.app.settings.syncHint}
+          </Text>
+          <Text style={[type.body, { color: color.ink, marginTop: space.sm }]}>
+            {(naFila ?? 0) === 0
+              ? t.app.settings.syncNothing
+              : fill(t.app.settings.syncWaiting, { count: String(naFila) })}
+          </Text>
+          {(naFila ?? 0) > 0 ? (
+            <Button
+              label={enviando ? t.app.settings.syncSending : t.app.settings.syncAction}
+              onPress={() => void enviar()}
+              disabled={enviando}
+              style={{ marginTop: space.md }}
+            />
+          ) : null}
+          {oQueSubiu ? (
+            <Text style={[type.body, { color: color.ink, marginTop: space.sm }]}>{oQueSubiu}</Text>
+          ) : null}
+        </Card>
+      </Reveal>
+
       {/* O prazo do Reset no servidor — e por que ele mora aqui, ao lado do apagar.
 
           Decisão do dono: dez dias corridos de padrão, e os dois extremos existem
@@ -1223,7 +1309,7 @@ function Settings() {
 
           Cinco escolhas em vez de campo livre, como a folga de compra: quem está
           de luva não digita, e a diferença entre 9 e 11 dias não decide nada. */}
-      <Reveal index={7}>
+      <Reveal index={8}>
         <Card
           hue={palette.mist}
           icon={(c) => <GlyphSettings size={26} color={c} weight={traco} />}

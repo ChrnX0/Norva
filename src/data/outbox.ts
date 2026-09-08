@@ -227,3 +227,35 @@ export async function forgetOrphans(conn: Db): Promise<number> {
 
   return esquecidas;
 }
+
+/**
+ * A linha que uma entrada da fila nomeia, lida CRUA.
+ *
+ * **Ela mora aqui por duas guardas que se cruzam.** Uma proíbe qualquer coisa fora
+ * de `src/data` de escrever SQL — consulta escrita noutro lugar é a segunda
+ * implementação de uma regra que já existe aqui. A outra proíbe a travessia de ler
+ * pelo repositório, porque toda leitura de repositório filtra, arredonda ou esconde
+ * algo para uma tela, inclusive o portão do dinheiro: o que atravessa não pode
+ * depender de quem estava com o aparelho na hora de sincronizar.
+ *
+ * O encontro das duas é exatamente isto — uma leitura sem portão, sem filtro e sem
+ * frase, que devolve a linha como ela está gravada. Nenhuma tela a chama.
+ *
+ * O nome da tabela vem da fila deste aplicativo e mesmo assim é conferido: *"a fila
+ * é escrita por este aplicativo, então não devia acontecer"* é o argumento que a
+ * travessia inteira existe para recusar.
+ */
+export async function linhaDaFila(
+  entry: Pick<OutboxEntry, 'table' | 'rowId'>,
+): Promise<Record<string, unknown> | null> {
+  // O comando de apagar não nomeia linha nenhuma: ele É o pedido.
+  if (entry.table === 'erase') return null;
+  if (!/^[a-z_][a-z0-9_]*$/.test(entry.table)) {
+    throw new Error(`fila: nome de tabela que eu não escrevo em SQL: ${entry.table}`);
+  }
+  const conn = await db();
+  return await conn.getFirstAsync<Record<string, unknown>>(
+    `SELECT * FROM ${entry.table} WHERE id = ?`, // proofgate-allow
+    [entry.rowId],
+  );
+}

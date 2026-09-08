@@ -766,10 +766,11 @@ const SEM_CHAMADOR: Record<string, string> = {
     'gancho de teste: troca a conexão do banco. Chamado só por *.test.ts, e o `__` diz que é assim',
   __setOpener:
     'gancho de teste, e o sublinhado duplo diz isso na assinatura: ele troca quem ABRE o banco, para a suíte rodar contra o SQLite do node em vez do do aparelho. Par de `__setDb`, que a suíte usa em todo arquivo de dado',
-  drain:
-    'o motor de sincronia, e ele não tem chamador porque o servidor não subiu — decisão escrita do dono, *"o servidor sobe o mais tarde possível"*. A regra existe, é exercitada contra Postgres pelo `db:verify`, e o chamador é a tela de conta, que é o item 2b do roadmap',
-  serialize:
-    'mesma fronteira: é ela que transforma a linha do aparelho no que o servidor aceita, com a travessia de colunas guardada por teste. Sem caminho de escrita não há quem a chame, e inventar um chamador agora seria construir a metade que não fecha',
+  // `drain` e `serialize` estiveram aqui por dias, com a razão certa: *"sem caminho
+  // de escrita não há quem os chame, e inventar um chamador agora seria construir a
+  // metade que não fecha"*. Em 8 de setembro a metade fechou — `src/sync/transporte.ts`
+  // existe e Ajustes o chama —, então as duas linhas saíram. Quem tirou não foi
+  // atenção: foi a outra metade desta guarda, que reprova registro que virou mentira.
 };
 
 test('every exported function has a caller in production, or a written reason', () => {
@@ -1115,5 +1116,56 @@ test('a docblock naming a test file names exactly one', () => {
     `estes docblocks apontam para um guarda por um nome que existe em mais de um lugar:\n  ${soltos.join('\n  ')}\n` +
       'Quem for conferir a promessa vai abrir o arquivo errado, não achar nada, e concluir ' +
       'que a rede não existe — que foi exatamente o que aconteceu. Escreva o caminho inteiro.',
+  );
+});
+
+/**
+ * Módulo que importa o cliente do servidor no TOPO não pode ser testado.
+ *
+ * **A cicatriz apareceu duas vezes no mesmo dia, e a segunda foi meia hora depois da
+ * primeira.** `src/data/configuracao.ts` ficou dias sem uma linha de teste — sendo um
+ * arquivo inteiro sobre comportamento de rede — porque importar `@/sync/supabase` no
+ * topo arrasta o `@supabase/supabase-js` e, por baixo dele, o React Native, que o
+ * transformador da suíte não atravessa: o teste morre em `Unexpected "typeof"` antes
+ * de rodar a primeira asserção. Meia hora depois eu escrevi `src/sync/transporte.ts`
+ * com o mesmo import no topo e caí no mesmo erro.
+ *
+ * O conserto é o mesmo nos dois: o import vira `await import(...)` dentro da função
+ * que precisa do cliente. Quem chama passa a casa por parâmetro nos testes, e a
+ * produção deixa o padrão acontecer.
+ *
+ * A guarda olha só o TOPO do arquivo — `import ... from` estático. O `await import`
+ * dentro de função é exatamente o que ela existe para permitir.
+ */
+test('nenhum módulo importa o cliente do servidor no topo — senão ele não tem teste', () => {
+  const suspeitos = [...sourcesUnder('src/sync'), ...sourcesUnder('src/data')].filter((f) => {
+    if (f.endsWith('src/sync/supabase.ts')) return false;
+    return /^\s*import\s[^;]*from\s+'(\.\/supabase|@\/sync\/supabase)'/m.test(
+      readFileSync(f, 'utf8'),
+    );
+  });
+
+  assert.deepEqual(
+    suspeitos,
+    [],
+    `estes módulos importam o cliente do servidor no topo:\n  ${suspeitos.join('\n  ')}\n` +
+      'O cliente arrasta o React Native, que não atravessa o transformador da suíte — o ' +
+      'arquivo inteiro fica sem teste possível, e são justamente os arquivos de rede. ' +
+      'Use `await import()` dentro da função e aceite a casa por parâmetro.',
+  );
+});
+
+test('a guarda do cliente distingue o import do topo do import preguiçoso', () => {
+  // O caso que ela DEVE pegar, e o que ela deve deixar passar — escritos como texto,
+  // porque uma guarda de posição sem os dois casos é uma guarda que ninguém conferiu.
+  const noTopo = /^\s*import\s[^;]*from\s+'(\.\/supabase|@\/sync\/supabase)'/m;
+  assert.ok(noTopo.test("import { supabase } from './supabase';"), 'o import do topo reprova');
+  assert.ok(
+    noTopo.test("import { supabase } from '@/sync/supabase';"),
+    'inclusive pelo caminho absoluto',
+  );
+  assert.ok(
+    !noTopo.test("  const { supabase } = await import('./supabase');"),
+    'o import preguiçoso passa — é ele que torna o arquivo testável',
   );
 });

@@ -1,4 +1,19 @@
-import { supabase } from './supabase';
+/**
+ * O cliente, buscado quando alguém precisa dele — e não no topo do arquivo.
+ *
+ * `./supabase` arrasta o `@supabase/supabase-js` e, por baixo dele, o React Native,
+ * que o transformador da suíte não atravessa: com o import estático aqui, **este
+ * arquivo inteiro não podia ser exercitado por teste nenhum** — e ele é a camada de
+ * conta, onde moram entrar, criar empresa, aprovar quem pediu e recusar. Ficou assim
+ * por dias, e o que apontou foi a guarda que nasceu do mesmo defeito em
+ * `configuracao.ts` e `transporte.ts`.
+ *
+ * Nulo continua sendo estado legítimo: o aplicativo funciona inteiro sem servidor.
+ */
+async function cliente() {
+  const { supabase } = await import('./supabase');
+  return supabase;
+}
 
 /**
  * A conta da empresa — entrar, criar, e criar a empresa.
@@ -72,15 +87,17 @@ function semServidor<T>(): Resultado<T> {
 
 /** A sessão guardada neste aparelho. Nulo é estado normal, não erro. */
 export async function contaAtual(): Promise<Conta | null> {
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getSession();
+  const sb = await cliente();
+  if (!sb) return null;
+  const { data } = await sb.auth.getSession();
   const usuario = data.session?.user;
   return usuario ? { id: usuario.id, email: usuario.email ?? null } : null;
 }
 
 export async function entrar(email: string, senha: string): Promise<Resultado<Conta>> {
-  if (!supabase) return semServidor();
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const sb = await cliente();
+  if (!sb) return semServidor();
+  const { data, error } = await sb.auth.signInWithPassword({
     email: email.trim(),
     password: senha,
   });
@@ -102,8 +119,9 @@ export async function criarConta(
   email: string,
   senha: string,
 ): Promise<Resultado<{ conta: Conta | null; sessao: boolean }>> {
-  if (!supabase) return semServidor();
-  const { data, error } = await supabase.auth.signUp({ email: email.trim(), password: senha });
+  const sb = await cliente();
+  if (!sb) return semServidor();
+  const { data, error } = await sb.auth.signUp({ email: email.trim(), password: senha });
   if (error) return { ok: false, motivo: motivoDe(error.message), cru: error.message };
   const usuario = data.user;
   return {
@@ -116,8 +134,9 @@ export async function criarConta(
 }
 
 export async function sair(): Promise<void> {
-  if (!supabase) return;
-  await supabase.auth.signOut();
+  const sb = await cliente();
+  if (!sb) return;
+  await sb.auth.signOut();
 }
 
 /** A empresa desta conta, ou nulo quando ela ainda não criou nenhuma. */
@@ -147,8 +166,9 @@ export type Pedido = { id: string; nome: string; quando: string };
  * um filtro depois dela.
  */
 export async function minhaEmpresa(): Promise<Resultado<Empresa | null>> {
-  if (!supabase) return semServidor();
-  const { data, error } = await supabase.from('companies').select('id, name, join_code').limit(1);
+  const sb = await cliente();
+  if (!sb) return semServidor();
+  const { data, error } = await sb.from('companies').select('id, name, join_code').limit(1);
   if (error) return { ok: false, motivo: motivoDe(error.message), cru: error.message };
   const linha = data?.[0];
   return {
@@ -177,8 +197,9 @@ export async function minhaEmpresa(): Promise<Resultado<Empresa | null>> {
  * empresa dele, do outro lado.
  */
 export async function pedirAssociacao(codigo: string): Promise<Resultado<string>> {
-  if (!supabase) return semServidor();
-  const { data, error } = await supabase.rpc('request_to_join', { code: codigo.trim() });
+  const sb = await cliente();
+  if (!sb) return semServidor();
+  const { data, error } = await sb.rpc('request_to_join', { code: codigo.trim() });
   if (error) {
     // "Código não confere" vem da função e não é falha de rede nem de senha: é a
     // única resposta desta chamada que a pessoa consegue consertar sozinha.
@@ -199,8 +220,9 @@ export async function pedirAssociacao(codigo: string): Promise<Resultado<string>
  * linha de outra empresa para vazar.
  */
 export async function pedidos(): Promise<Resultado<Pedido[]>> {
-  if (!supabase) return semServidor();
-  const { data, error } = await supabase
+  const sb = await cliente();
+  if (!sb) return semServidor();
+  const { data, error } = await sb
     .from('memberships')
     .select('id, display_name, created_at')
     .eq('state', 'pending')
@@ -228,8 +250,9 @@ export async function pedidos(): Promise<Resultado<Pedido[]>> {
  * fazer.
  */
 export async function aprovar(idDaAssociacao: string, capacidades: string[]): Promise<Resultado<true>> {
-  if (!supabase) return semServidor();
-  const { error } = await supabase
+  const sb = await cliente();
+  if (!sb) return semServidor();
+  const { error } = await sb
     .from('memberships')
     .update({ state: 'active', capabilities: capacidades })
     .eq('id', idDaAssociacao);
@@ -239,8 +262,9 @@ export async function aprovar(idDaAssociacao: string, capacidades: string[]): Pr
 
 /** Dizer não. A linha fica, revogada, porque quem pediu uma vez pode pedir de novo. */
 export async function recusar(idDaAssociacao: string): Promise<Resultado<true>> {
-  if (!supabase) return semServidor();
-  const { error } = await supabase
+  const sb = await cliente();
+  if (!sb) return semServidor();
+  const { error } = await sb
     .from('memberships')
     .update({ state: 'revoked' })
     .eq('id', idDaAssociacao);
@@ -259,8 +283,9 @@ export async function recusar(idDaAssociacao: string): Promise<Resultado<true>> 
  * Ou nasce empresa com dono, ou não nasce.
  */
 export async function criarEmpresa(nome: string): Promise<Resultado<string>> {
-  if (!supabase) return semServidor();
-  const { data, error } = await supabase.rpc('create_company_for_me', { company_name: nome.trim() });
+  const sb = await cliente();
+  if (!sb) return semServidor();
+  const { data, error } = await sb.rpc('create_company_for_me', { company_name: nome.trim() });
   if (error) return { ok: false, motivo: motivoDe(error.message), cru: error.message };
   return { ok: true, valor: data as string };
 }
