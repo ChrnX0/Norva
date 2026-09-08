@@ -7381,3 +7381,40 @@ quem a mata é o código.** Eu perguntei *"qual é o padrão da sala do tacho?"*
 coisa que o repositório já decidia — de dois jeitos contraditórios, em dois arquivos que
 não se olhavam. Medir a afirmação contra o código antes de construir já era regra aqui;
 vale igual, e é mais barato, antes de **perguntar**.
+
+## Duas guardas discordando é o relatório de defeito mais barato que existe
+
+8 de setembro, à noite. Acrescentei uma renúncia (`NAO_E_DICIONARIO`) para um texto que o
+`e2e` **usa**, e a guarda irmã — a que exige que toda renúncia continue em uso — reprovou
+dizendo *"está na lista e o e2e não o usa mais"*.
+
+As duas não podiam estar certas. A errada era a que eu não estava olhando: o extrator de
+literais lia `getByText('X', { exact: true })` e `getByLabel('X')` — e **não**
+`getByLabel('X', { exact: true })`. O `{ exact: true }` era obrigatório numa forma e
+proibido na outra, sem razão nenhuma, e ninguém tinha usado a combinação que faltava até
+hoje.
+
+O buraco importa mais do que parece, e a razão é a semântica do Playwright:
+`getByLabel` **sem** `exact` casa por substring. Ou seja, o dia em que alguém precisa de
+exatidão num rótulo é justamente o dia em que dois rótulos se parecem — e é nesse dia que
+o seletor sai do alcance da guarda. Ela ficava cega exatamente onde faria mais falta.
+
+Consertado o extrator, **cinco literais que escapavam desde sempre apareceram**:
+`Palito de picolé`, `Glucose 38DE`, `Galpão 2`, `R$ 1.552,50` e o rótulo novo. Nenhum era
+defeito — são dado do exemplo semeado, nome que a própria checagem digita e um número que
+a tela calcula. O que mudou é que agora estão **ditos**, com motivo, em vez de invisíveis.
+
+**A régua que fica, e ela é maior que este extrator:** toda guarda tem um detector dentro,
+e detector que não sabe ler uma forma **não reporta nada** para ela — o que é
+indistinguível de "não há nada". Este projeto já exige positivo e negativo para todo guard;
+o que faltava era a variação: **quando duas guardas discordam, uma delas está quebrada, e a
+discussão entre elas é o relatório de defeito mais barato que se vai receber.** Não obedeça
+à que está falando; descubra qual das duas mente.
+
+**E o navegador achou o que nenhum teste de módulo acharia**, na mesma rodada: com a câmara
+fria na lista das nossas salas E na lista de destinos, *"Câmara 1"* virou o rótulo de dois
+botões na mesma tela. O `e2e` clicou no primeiro e escolheu a origem quando queria o
+destino — e quem usa TalkBack ouviria exatamente isso: dois botões com o mesmo nome, sem
+dizer o que cada um decide. O rótulo passou a carregar a pergunta que responde. **A
+ambiguidade de acessibilidade e a ambiguidade de seletor são o mesmo defeito**, e é por
+isso que o navegador a encontra: ele escolhe alvo do mesmo jeito que um leitor de tela.
