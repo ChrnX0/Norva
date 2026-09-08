@@ -155,3 +155,42 @@ test('the plugin reader does not find what is not there', () => {
   assert.equal(ajusteDoPlugin('expo-router'), undefined);
   assert.equal(ajusteDoPlugin('plugin-que-nao-existe'), undefined);
 });
+
+/**
+ * O canal da atualização, declarado no `app.json` porque este APK não vem do EAS.
+ *
+ * **Cicatriz de 8 de setembro, e ela seria muda.** O manifesto gerado já tinha
+ * `EXPO_UPDATE_URL` e `EXPO_UPDATES_CHECK_ON_LAUNCH=ALWAYS`: o aparelho pergunta
+ * por atualização em toda abertura. O que faltava era o CANAL, que o `eas build`
+ * injeta a partir do `eas.json` e que um `gradlew assembleRelease` daqui não
+ * injeta — decisão do dono é compilar neste container e não gastar crédito de
+ * runner. Sem canal o servidor não sabe qual ramo mandar, responde que não há
+ * nada, e o aplicativo fica para sempre na versão instalada **sem nenhum erro**.
+ *
+ * `requestHeaders` é o jeito documentado de dizer o canal fora do EAS. Vale para
+ * qualquer binário, inclusive um do EAS — ali o cabeçalho do build ganha, então
+ * declarar aqui não atrapalha aquele caminho.
+ */
+test('the update channel is declared in the app config, not left to the build service', () => {
+  const updates = (APP.expo as { updates?: { requestHeaders?: Record<string, unknown> } }).updates;
+  assert.ok(updates, 'sem bloco de updates não há atualização nenhuma');
+  assert.equal(
+    updates.requestHeaders?.['expo-channel-name'],
+    'preview',
+    'o APK compilado aqui não recebe canal do EAS: sem este cabeçalho ele pergunta por ' +
+      'atualização a cada abertura, ouve "não há", e nunca mais atualiza — calado',
+  );
+});
+
+test('the channel guard bites a config that leans on the build service', () => {
+  // Os dois casos, como dado e não como fé: a forma que temos passa, e as duas
+  // formas que o EAS teria de completar reprovam.
+  const morde = (updates: { requestHeaders?: Record<string, unknown> }) =>
+    updates.requestHeaders?.['expo-channel-name'] !== 'preview';
+  assert.ok(!morde({ requestHeaders: { 'expo-channel-name': 'preview' } }));
+  assert.ok(morde({}), 'config sem cabeçalho nenhum tinha de reprovar');
+  assert.ok(
+    morde({ requestHeaders: { 'expo-runtime-version': '1' } }),
+    'cabeçalho de outra coisa não é canal',
+  );
+});

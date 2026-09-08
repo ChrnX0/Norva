@@ -308,6 +308,20 @@ export const en: Dictionary = {
     },
 
     backup: {
+      drive: {
+        title: 'The copy goes up on its own',
+        lead: 'Turn it on once and the copy goes to your Google Drive every day, with nothing to remember.',
+        aviso: 'The file is the whole factory record — cost, supplier and margin inside. Anyone who gets into your Google account reads all of it.',
+        privado: 'It sits in a folder only this app can see. No other app lists it, and you will not delete it by accident tidying up Drive.',
+        ligar: 'Turn on Drive',
+        ligando: 'Opening Google…',
+        ligado: 'On. The next copy goes up on its own.',
+        desligar: 'Turn off',
+        desistiu: 'You closed it before authorising. Nothing changed.',
+        semCliente: 'The app still needs to be set up in Google. Meanwhile, keep the copy with the button above.',
+        ultima: 'The last one went up {{quando}}, at {{tamanho}}.',
+        nenhuma: 'Nothing has gone up yet.',
+      },
       title: 'Backup',
       overline: 'what stays if the device does not',
       lead: 'Everything the factory recorded lives on this device. Keep a copy.',

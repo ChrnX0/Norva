@@ -417,6 +417,20 @@ export const ptBR = {
      * por extenso, porque restaurar é o ato mais destrutivo do aplicativo.
      */
     backup: {
+      drive: {
+        title: 'A cópia sobe sozinha',
+        lead: 'Ligue uma vez e a cópia vai para o seu Google Drive todo dia, sem você lembrar.',
+        aviso: 'O arquivo é o registro inteiro da fábrica — custo, fornecedor e margem dentro. Quem entrar na sua conta Google lê tudo isso.',
+        privado: 'Ele fica numa pasta que só este aplicativo vê. Nenhum outro aplicativo lista, e você não apaga por engano limpando o Drive.',
+        ligar: 'Ligar o Drive',
+        ligando: 'Abrindo o Google…',
+        ligado: 'Ligado. A próxima cópia sobe sozinha.',
+        desligar: 'Desligar',
+        desistiu: 'Você fechou antes de autorizar. Nada mudou.',
+        semCliente: 'Falta configurar o aplicativo no Google. Enquanto isso, guarde a cópia pelo botão de cima.',
+        ultima: 'A última subiu {{quando}}, com {{tamanho}}.',
+        nenhuma: 'Nada subiu ainda.',
+      },
       title: 'Cópia de segurança',
       overline: 'o que fica se o aparelho não ficar',
       lead: 'Tudo o que a fábrica registrou mora neste aparelho. Guarde uma cópia.',

@@ -17,6 +17,7 @@ import {
   type UltimaCopia,
 } from '@/data/backup';
 import { escolherCopia, guardarCopia, partilharCopia, trazerDeVolta } from '@/data/copia';
+import { copiasGuardadas, esquecerDrive, ligarDrive, temDestino } from '@/nuvem/aparelho';
 import { countMovements } from '@/data/repository';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatDayMonth, plural } from '@/i18n';
@@ -99,6 +100,43 @@ export default function BackupScreen() {
   const [recusa, setRecusa] = useState<MotivoDaCopia | 'naoDeuParaGuardar' | null>(null);
   const [ondeFicou, setOndeFicou] = useState<string | null>(null);
 
+  /**
+   * O Drive: ligado ou não, e o que já está lá.
+   *
+   * Duas coisas e não uma porque "ligado" não informa nada — Lei 3 desta casa,
+   * nenhum número aparece sozinho. O que responde à pergunta de quem abre a tela
+   * é *"a última subiu quinta, com 320 kB"*.
+   *
+   * Lido pelo `useQuery` como todo o resto desta casa, e não por estado à mão com
+   * efeito: o `useQuery` já resolve o que a regra do React cobra — nada de estado
+   * escrito durante render, e a resposta anterior fica na tela até a nova chegar,
+   * em vez de piscar vazio.
+   */
+  const [ligando, setLigando] = useState(false);
+  const [recadoDoDrive, setRecadoDoDrive] = useState<string | null>(null);
+  const [voltas, setVoltas] = useState(0);
+
+  const oDrive = useQuery(
+    useCallback(async () => {
+      if (!(await temDestino())) return { ligado: false as const, ultima: null };
+      try {
+        const la = await copiasGuardadas();
+        return {
+          ligado: true as const,
+          ultima: la[0] ? { quando: la[0].modificadoEm, bytes: la[0].bytes } : null,
+        };
+      } catch {
+        // Lista que não veio não é erro de tela: o cartão continua dizendo
+        // "ligado" e CALA sobre a última. Meia verdade num cartão é pior que
+        // silêncio — é a mesma regra do cartão do destino com carga de dois jeitos.
+        return { ligado: true as const, ultima: null };
+      }
+    }, []),
+    `drive:${voltas}`,
+  );
+  const noDrive = oDrive.data?.ligado ? 'sim' : 'nao';
+  const ultimaLa = oDrive.data?.ultima ?? null;
+
   const estado = useQuery(
     useCallback(
       async () => ({
@@ -108,6 +146,27 @@ export default function BackupScreen() {
       [],
     ),
   );
+
+  const ligar = useCallback(async () => {
+    setLigando(true);
+    setRecadoDoDrive(null);
+    const fim = await ligarDrive();
+    setLigando(false);
+    setRecadoDoDrive(
+      fim === 'ligado'
+        ? t.app.backup.drive.ligado
+        : fim === 'semCliente'
+          ? t.app.backup.drive.semCliente
+          : t.app.backup.drive.desistiu,
+    );
+    setVoltas((n) => n + 1);
+  }, [t]);
+
+  const desligar = useCallback(async () => {
+    await esquecerDrive();
+    setRecadoDoDrive(null);
+    setVoltas((n) => n + 1);
+  }, []);
 
   const guardar = useCallback(async () => {
     setRecusa(null);
@@ -295,9 +354,68 @@ export default function BackupScreen() {
         </Card>
       </Reveal>
 
+      {/* O DRIVE, e o aviso vem ANTES do botão — decisão escrita.
+          O arquivo é o razão inteiro com custo, fornecedor e margem dentro. Dizer
+          isso depois de ligar seria contar o preço depois da compra; dizer antes é
+          o que faz a decisão ser dele. E a segunda linha existe porque o aviso
+          sozinho assusta sem informar: a pasta é privada ao aplicativo, e isso é
+          tão verdade quanto o risco.
+
+          A ordem da página é a ordem da probabilidade — o automático fica DEPOIS
+          do "guardar agora" porque quem abre esta tela hoje quer o arquivo na mão,
+          e antes da restauração porque restaurar é o caso raro. */}
+      <Reveal index={2}>
+        <Card icon={(c) => <GlyphArchive size={26} color={c} weight={traco} />}>
+          <Text style={[type.secondary, { color: color.ink }]}>{words.drive.title}</Text>
+          <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
+            {words.drive.lead}
+          </Text>
+
+          {noDrive === 'sim' ? (
+            <>
+              <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
+                {ultimaLa
+                  ? fill(words.drive.ultima, {
+                      quando: formatDayMonth(localDate(ultimaLa.quando, locale.timeZone), locale),
+                      tamanho: tamanho(ultimaLa.bytes, locale),
+                    })
+                  : words.drive.nenhuma}
+              </Text>
+              <Button
+                label={words.drive.desligar}
+                onPress={() => void desligar()}
+                variant="ghost"
+                style={{ marginTop: space.md }}
+              />
+            </>
+          ) : (
+            <>
+              <Text style={[type.caption, { color: color.ink, marginTop: space.sm }]}>
+                {words.drive.aviso}
+              </Text>
+              <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
+                {words.drive.privado}
+              </Text>
+              <Button
+                label={ligando ? words.drive.ligando : words.drive.ligar}
+                onPress={() => void ligar()}
+                disabled={ligando}
+                style={{ marginTop: space.md }}
+              />
+            </>
+          )}
+
+          {recadoDoDrive ? (
+            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
+              {recadoDoDrive}
+            </Text>
+          ) : null}
+        </Card>
+      </Reveal>
+
       {/* A VOLTA. Fica embaixo porque é o caso raro, e a ordem da página é a
           ordem da probabilidade. */}
-      <Reveal index={2}>
+      <Reveal index={3}>
         {/* A MESMA gaveta do cartão de cima, de propósito: guardar e trazer de
             volta são o mesmo assunto visto dos dois lados, e repetir o desenho é
             o que faz o par ser lido como par. A lista de conferência que estava
@@ -326,7 +444,7 @@ export default function BackupScreen() {
       {/* Erro que IMPEDE, e ele diz o que fazer. "Atualize o aplicativo" é uma
           saída; "cópia inválida" é uma reclamação. */}
       {recusa ? (
-        <Reveal index={3}>
+        <Reveal index={4}>
           <Card hue={color.danger}>
             <Text style={[type.body, { color: color.ink }]}>{fill(words[recusa], { app: brand.name })}</Text>
           </Card>
@@ -334,7 +452,7 @@ export default function BackupScreen() {
       ) : null}
 
       {ondeFicou ? (
-        <Reveal index={4}>
+        <Reveal index={5}>
           <Card hue={color.warning}>
             <Text style={[type.caption, { color: color.ink }]}>
               {fill(words.semPartilha, { path: ondeFicou })}

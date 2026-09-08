@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **516** testes |
+| `npm test` | **536** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **52** checagens num navegador de verdade |
 | `npm run db:verify` | **21** garantias contra um Postgres descartável, sob RLS |
@@ -610,9 +610,61 @@ lugares e a suíte mordeu nos quatro.
 É **P3** — carimbo de `movements` —, então a forma é mostrada antes de rodar. E é **antes do
 item 2** (o transporte): tudo que subir antes disto sobe carimbado errado.
 
-### 0. O backup — 0a e 0b FEITOS em 6 de setembro; falta o 0c (Drive)
+### 0. ~~O backup~~ — 0a e 0b em 6 de setembro, **0c (Drive) em 8 de setembro**
 
-<!-- medida: ausente src :: googleapis -->
+<!-- medida: presente src/nuvem/drive.ts :: appDataFolder -->
+
+**E o automático virou a regra dos três — decisão do dono, 8 de setembro:** *"os
+backups e sincronizações devem ser automáticos, ok. assim como as atualizações
+ota."* As três estavam construídas e as três dependiam de alguém lembrar: a fila só
+subia por um botão em Ajustes, a cópia só por um toque, e a atualização chegava um
+lançamento atrasada. Coisa que depende de lembrança é coisa que não acontece na
+fábrica — e a que não acontece aqui é justamente a que só se descobre no dia em que
+o celular morreu.
+
+`src/nuvem/sozinho.ts` é a regra: **fila, cópia, atualização, nessa ordem**, e
+inverter as duas primeiras custa dado (uma cópia feita antes da subida guarda um
+estado que o servidor ainda não conhece, e restaurar depois ressuscita linhas que já
+estavam a caminho). Nenhuma peça que falha derruba a rodada nem impede as de baixo —
+quem chama é o boot, e exceção ali é tela branca na mão de quem só queria abrir o
+aplicativo. Roda no boot e na volta ao primeiro plano (`app/_layout.tsx`), porque o
+celular da fábrica não é reiniciado: fica semanas aberto, e automático que só roda no
+boot roda uma vez por mês.
+
+A cópia sobe **uma vez por dia e só se o razão cresceu** — cópia idêntica à de ontem
+não protege nada e consome o dado de quem está no 3G da estrada. A atualização é
+baixada e **não é aplicada**: quem aplica é a próxima abertura. Reiniciar no meio de
+uma contagem na câmara fria trocaria dado por novidade, e quem perde a contagem uma
+vez não conta de novo.
+
+**O que o Drive é, em uma linha:** `drive.appdata` — a pasta privada deste
+aplicativo, que nenhum outro lista e que o dono não apaga limpando o Drive. Escopo
+mínimo: não lê um arquivo dele, não lista o Drive dele, não apaga nada.
+
+**A cicatriz que este item pagou, e ela seria muda:** o manifesto gerado já tinha
+`EXPO_UPDATE_URL` e `CHECK_ON_LAUNCH=ALWAYS` — o aparelho perguntava por atualização
+em toda abertura. Faltava o **canal**, que o `eas build` injeta do `eas.json` e que
+um `gradlew assembleRelease` daqui não injeta. Sem canal o servidor responde que não
+há nada, e o aplicativo fica para sempre na versão instalada **sem nenhum erro**.
+Agora o canal está no `app.json` (`updates.requestHeaders`), com guarda em
+`src/release.test.ts`.
+
+**O que falta é seu, e é uma coisa só: criar o cliente OAuth no Google.** O app.json
+tem os dois campos vazios (`extra.driveClientId`, `extra.driveRedirect`) e, vazios,
+o backup automático **pula** a cópia com motivo `semDestino` — nada quebra, e o
+botão de guardar à mão continua funcionando. No console do Google: um projeto, a API
+do Drive ligada, e um cliente OAuth de aplicativo instalado para o pacote
+`app.norva.mobile`. A impressão digital SHA-1 do APK que você tem hoje é
+`5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25` — chave de depuração,
+que muda quando o app for publicado na loja; nesse dia o cliente ganha a segunda
+impressão em vez de trocar.
+
+**Nível de evidência, honesto:** **E3** para tudo o que não precisa de navegador —
+a forma do pedido, a troca do código, a renovação, o multipart com os bytes
+intactos, o 401 que vira uma segunda tentativa e não um laço, e a ordem da rodada
+automática (16 provas em `src/nuvem/drive.test.ts`, `sozinho.test.ts` e
+`pkce.test.ts`). **E1** para a tela de consentimento do Google e a volta dela ao
+aplicativo: isso é navegador de verdade em aparelho de verdade, e quem prova é você.
 
 Hoje o razão inteiro mora em `norva.db` no aparelho. **Aparelho quebrado, roubado
 ou formatado = a fábrica sem histórico**, e não existe estorno para isso. Todas as

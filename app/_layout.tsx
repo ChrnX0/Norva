@@ -2,6 +2,7 @@ import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { BarraDoSistema } from '@/components/BarraDoSistema';
 import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ConfirmProvider } from '@/components/Confirm';
@@ -10,6 +11,7 @@ import { WhatsNew } from '@/components/WhatsNew';
 import { Alerts } from '@/notify/Alerts';
 import { carregarEmpresa } from '@/data/empresa';
 import { carregarUnidade } from '@/data/unidade';
+import { rodadaAutomatica } from '@/nuvem/aparelho';
 import { ensureStarterData } from '@/data/seed';
 import { floorSignIn, namesWhoRecorded, setCurrentOperator } from '@/data/repository';
 import { LocaleProvider } from '@/i18n/Locale';
@@ -53,6 +55,28 @@ function AberturaSai() {
   useEffect(() => {
     if (ready) SplashScreen.hide();
   }, [ready]);
+  return null;
+}
+
+/**
+ * O que acontece sozinho, também quando o aplicativo volta do bolso.
+ *
+ * Decisão do dono, 8 de setembro: backup, sincronia e atualização são
+ * automáticos. O boot já dispara uma rodada; esta peça existe porque o celular da
+ * fábrica **não é reiniciado** — ele fica semanas aberto em segundo plano, e um
+ * automático que só roda no boot é um automático que roda uma vez por mês.
+ *
+ * Só na volta ao primeiro plano, e nunca ao sair: quem está indo embora não
+ * espera. E a rodada se recusa a rodar duas vezes ao mesmo tempo, então voltar
+ * duas vezes rápido não faz duas cópias.
+ */
+function OQueAconteceSozinho() {
+  useEffect(() => {
+    const inscricao = AppState.addEventListener('change', (estado) => {
+      if (estado === 'active') void rodadaAutomatica();
+    });
+    return () => inscricao.remove();
+  }, []);
   return null;
 }
 
@@ -146,6 +170,13 @@ export default function RootLayout() {
       // unidade DEPOIS da empresa porque o padrão dela deriva da empresa.
       .then(() => carregarUnidade())
       .then(() => ensureStarterData())
+      // O automático dispara e NÃO é esperado: subir fila, copiar e buscar
+      // atualização não podem atrasar a primeira tela em um milissegundo. Decisão
+      // do dono, 8 de setembro — as três acontecem sozinhas. `rodadaAutomatica`
+      // não levanta exceção por desenho, então o `void` aqui não engole nada.
+      .then(() => {
+        void rodadaAutomatica();
+      })
       .then(
       () => {
         if (alive) setState({ ready: true, error: null });
@@ -207,6 +238,7 @@ export default function RootLayout() {
                 <BarraDoSistema />
                 <Stack screenOptions={{ headerShown: false }} />
                 <QuemEstaComOAparelho />
+                <OQueAconteceSozinho />
                 {/* Sits above every screen: the update may land on any of them. */}
                 <WhatsNew />
                 {/* Reagenda os avisos a cada abertura. Não desenha nada; existe

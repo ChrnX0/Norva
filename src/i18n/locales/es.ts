@@ -313,6 +313,20 @@ export const es: Dictionary = {
     },
 
     backup: {
+      drive: {
+        title: 'La copia sube sola',
+        lead: 'Actívalo una vez y la copia va a tu Google Drive todos los días, sin que tengas que acordarte.',
+        aviso: 'El archivo es el registro entero de la fábrica — costo, proveedor y margen dentro. Quien entre en tu cuenta de Google lee todo eso.',
+        privado: 'Queda en una carpeta que solo esta aplicación ve. Ninguna otra la lista, y no la borras por error limpiando el Drive.',
+        ligar: 'Activar el Drive',
+        ligando: 'Abriendo Google…',
+        ligado: 'Activado. La próxima copia sube sola.',
+        desligar: 'Desactivar',
+        desistiu: 'Cerraste antes de autorizar. Nada cambió.',
+        semCliente: 'Falta configurar la aplicación en Google. Mientras tanto, guarda la copia con el botón de arriba.',
+        ultima: 'La última subió {{quando}}, con {{tamanho}}.',
+        nenhuma: 'Todavía no subió nada.',
+      },
       title: 'Copia de seguridad',
       overline: 'lo que queda si el aparato no queda',
       lead: 'Todo lo que la fábrica registró vive en este aparato. Guarde una copia.',
