@@ -7347,3 +7347,37 @@ QUEM — quase nunca sobre a coluna. Antes de escrever a primeira linha de um `k
 nunca foi escrito, leia a política de `insert` dele e pergunte se quem vai escrever
 agora é quem ela imaginava. E escreva a garantia antes do conserto: uma garantia que
 nasce verde não prova que fecha o buraco, prova que o buraco talvez nunca tenha existido.
+
+## Decidir sob defeito é decidir — e fecha metade da regra, nunca ela inteira
+
+8 de setembro. O roadmap tinha uma seção inteira oferecendo dois mundos legítimos para
+de onde a produção consome — "sala estrita" e "salas somadas" — e chamando a escolha de
+decisão de padrão do dono, travada no portão P3.
+
+Ao consertar o defeito do dia descobri que **não havia dois mundos: havia um quebrado.**
+A tela lia o piso da unidade e a escrita conferia uma sala, então com a polpa na câmara
+fria nenhuma corrida rodava. A "sala estrita" que a seção dava como *o comportamento de
+hoje* nunca funcionou de verdade — ela funcionava só para quem tinha uma sala só, que é
+o caso em que as duas opções são a mesma.
+
+Consertar exigia escolher, e eu escolhi: o padrão passou a ser a unidade. Foi a escolha
+certa (a outra obrigaria a lançar transferência antes de cada corrida, e a própria seção
+já dizia que *"nenhuma fábrica de seis pessoas faz isso"*), e ela foi minha, não do dono.
+
+**O erro não foi decidir — foi dizer que a pergunta tinha morrido.** A regra da casa não
+é *"escolha um padrão"*: é *"os dois caminhos existem, e o que se decide é o padrão"*. Ao
+fixar o padrão eu fechei **metade** da regra e declarei o item encerrado. A sala estrita
+continua sem existir como configuração, e uma fábrica que queira saldo por sala sempre
+declarado não tem como pedir.
+
+**A régua que fica:** quando um defeito força a mão, o padrão é meu e se diz em voz alta;
+o item **não** fecha — ele muda de forma, de *"qual é o padrão?"* para *"falta o outro
+caminho"*, e a medida do plano muda junto (`espera` vira `ausente`, apontando para a peça
+que ainda não existe). Item que fecha porque o padrão foi escolhido é a regra da
+configuração morrendo em silêncio, com o commit verde.
+
+E a irmã disso, do mesmo dia: **a pergunta que eu levo ao dono pode já estar morta, e
+quem a mata é o código.** Eu perguntei *"qual é o padrão da sala do tacho?"* sobre uma
+coisa que o repositório já decidia — de dois jeitos contraditórios, em dois arquivos que
+não se olhavam. Medir a afirmação contra o código antes de construir já era regra aqui;
+vale igual, e é mais barato, antes de **perguntar**.

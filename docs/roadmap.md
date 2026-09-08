@@ -196,8 +196,10 @@ Fechados, na ordem em que caíram: **1** (item e local de outra empresa, migraç
 `0029`), **3** (custo médio depois do estorno), **6** (a contagem que prometia um
 número e gravava outro), **4** (o aviso de validade segue o lote, e a conta de
 prometer passou a somar todas as nossas salas) e **5** (a produção com insumo na
-câmara: a tela lê o piso da sala do tacho, impede em vez de reclamar, diz onde o
-insumo está, e o erro do livro-razão virou frase de tela nos três idiomas) e **8** (a
+câmara: a tela lê o piso da UNIDADE — piso, câmara e almoxarifado —, impede em vez de
+reclamar, diz onde o insumo está, e o erro do livro-razão virou frase de tela nos três
+idiomas; o recorte por unidade e o consumo saindo da sala que tinha o insumo entraram
+em 8 de setembro, ver *"De onde a produção consome"*) e **8** (a
 órfã que a fila guardava depois de apagar uma área) e **9** (o backup do Android, que
 levava o livro-razão para a conta Google de quem estivesse no aparelho) — este último
 junto com o `versionCode` que colidia, que era um dos médios e o mais barato deles. E
@@ -213,11 +215,13 @@ médios, e o que ela declarou não ter conseguido olhar: a segunda lente adversa
 teste de carga real, as duas vulnerabilidades que o `npm audit` não alcança deste
 ambiente, e **nada visto numa fábrica** — que é a lacuna que nenhum teste fecha.
 
-**O 5 deixou uma pergunta, e ela é do dono** — está escrita em "A sala do tacho",
-adiante. A tela parou de mentir, mas **registrar o trajeto câmara → almoxarifado
-ainda não existe**: enquanto não existir, uma fábrica que guarda a polpa no freezer
-teria de lançar transferência antes de cada tacho, e nenhuma fábrica de seis pessoas
-faz isso.
+**O 5 deixou uma pergunta, e ela caiu em 8 de setembro** — não por resposta do dono,
+mas porque o mundo que ela oferecia não existia: a tela lia a unidade e a escrita
+conferia uma sala, então **nenhuma corrida rodava** com a polpa na câmara. O padrão
+passou a ser a unidade inteira, com o consumo saindo da sala que tinha o insumo. O que
+ficou aberto é a outra metade — a "sala estrita" como configuração, e o trajeto
+câmara → almoxarifado, que a tela de transferir ainda não faz. Ver *"De onde a produção
+consome"*.
 
 ### O que a revisão das quatro caras fechou — e o que ela deixou de pé
 
@@ -307,7 +311,7 @@ fica vermelha até este parágrafo mudar.
 | **o cliente OAuth do Google** (0c) | **você**, para o backup subir sozinho. O 0a e o 0b estão feitos: o razão sai do aparelho por cópia manual hoje. |
 | **ligar o `pg_cron`** no projeto do servidor | **você, um clique no painel.** A `0045` já deixou o agendamento escrito e guardado; sem a extensão os pedidos de Reset acumulam e nada é destruído — o lado seguro de errar. Medido em 8 de setembro: a extensão está disponível e não instalada. |
 | **cinco minutos de TalkBack** (3) | **você, com o tablet.** A guarda prova que todo alvo se anuncia; ninguém nunca ouviu. |
-| **a sala do tacho** (5) | **decisão sua de PADRÃO**, não de qual — os dois caminhos existem como configuração. P3. |
+| ~~a sala do tacho~~ **de onde a produção consome** (5) | **padrão decidido em 8/9 sob defeito** — a unidade inteira, porque com a polpa na câmara nenhuma corrida rodava. Falta a "sala estrita" como configuração. |
 | **compras inteligentes** (6) | **tempo.** O mecanismo está construído e lido em duas telas; falta entrega observada de fábrica de verdade para calibrar. **E uma armadilha medida em 8 de setembro, escrita aqui para quem construir:** o fornecedor é um NOME digitado (`purchases.supplier_name`), e a tabela `suppliers` do servidor — com `promised_lead_days` e tudo — tem **zero escritores e zero leitores** desde a `0002`. Agrupar prazo observado por nome faz *"Distribuidora Silva"* e *"distribuidora silva"* serem dois fornecedores, cada um com metade das entregas: o prazo sai pela metade e ninguém percebe, porque o número é plausível. É a mesma armadilha que a transportadora evitou nascendo com índice único por `lower(trim(name))` — e ela quase me pegou, porque eu ia copiar o molde de `suppliers`. |
 
 **Fora dessas seis, não há item de código aberto na fila.** É por isso que a rodada de
@@ -540,10 +544,11 @@ de setembro — *"o mesmo grama de açúcar não custa uma coisa na câmara e ou
 almoxarifado"*. Generalizar as três consultas do mesmo jeito quebraria o custo para
 consertar o saldo.
 
-**E ela arrasta a pergunta da sala do tacho, um andar acima:** uma corrida consome de
-qualquer lugar nosso ou só da sala em que roda? Com duas unidades a resposta errada
-autoriza um tacho de uma cidade a consumir a polpa da outra. Não é pergunta de qual —
-é qual é o **padrão**, e os dois caminhos existem como configuração.
+**E ela arrastou a pergunta de onde a produção consome, um andar acima** — respondida
+em 8 de setembro: a corrida consome da **unidade**, nunca da empresa. Com duas unidades
+a resposta errada autoriza uma corrida de uma cidade a consumir a polpa da outra, e o
+recorte por unidade é o que fecha isso nos dois lados. Falta a "sala estrita" como
+configuração; ver *"De onde a produção consome"*.
 
 **O estudo que o dono pediu — 7 de setembro: três das quatro quebras não eram porte.**
 Doze agentes, cada resposta atacada por três, e cada afirmação que sobrou conferida por
@@ -1117,7 +1122,7 @@ abaixo respeita duas decisões escritas dele — *"termina o layout, nada pela m
 | **3c** | ~~**Os acentos do Orgânico abaixo da régua**~~ **— FECHADO em 7 de setembro, e não por decisão: por consequência.** <!-- medida: ausente src/theme/contrast.test.ts :: ABAIXO_DA_REGUA = new Set<string>\(\[$ --> | Eram oito, não seis, e a lista de exceções hoje está **vazia**. Não foram consertados por escolha de cor: o chão do Orgânico precisou escurecer (o cartão branco só existia pela sombra), e a régua de 4,5:1 desceu os onze acentos junto, matiz e saturação intactas. Medido depois: o pior fica em **4,61:1**, e a paleta não tem folga — mexer no chão de novo derruba os onze de uma vez, e é o `contrast.test.ts` que avisa. |
 | **3d** | ~~**As quatro peças da capa que NAVEGAM em vez de abrir**~~ **— FEITO em 6 de setembro** | virou a `Porta` (`src/home/Capa.tsx`): o toque e o aviso do toque são a mesma peça, então não dá para acrescentar uma quinta porta sem o rótulo.  <!-- medida: presente src/home/Capa.tsx :: function Porta --> |
 | **4** | ~~**Os sete médios**~~ **— ACABARAM em 6 de setembro** <!-- medida: presente src/data/configuracao.ts :: orders_need_approval --> | `unchecked` foi removida, `lastCostMove` ganhou tela na capa, e a aprovação de pedido — a única que não era trabalho e sim bloqueio — destravou quando a linha de `companies` passou a existir: `src/data/configuracao.ts` faz as quatro configurações da empresa atravessarem. Não sobrou nenhum. |
-| **5** | **A sala do tacho** | pergunta de PADRÃO para o dono, não de qual; e trava no P3 porque muda onde o consumo é gravado. Fica para a câmara fria da F2.  <!-- medida: espera :: qual é o PADRÃO, decisão do dono, e o P3 do caminho de escrita de movements --> |
+| **5** | **De onde a produção consome** | ~~pergunta de PADRÃO para o dono~~ — o padrão foi decidido em 8/9 **sob defeito**: a tela lia a unidade, a escrita conferia uma sala, e nenhuma corrida rodava com a polpa na câmara. Hoje é a unidade, com o consumo saindo da sala que tinha o insumo. Continua aberto pela outra metade — a "sala estrita" como configuração da empresa, que é o que a regra da casa exige e ainda não existe.  <!-- medida: ausente src/data/repository.ts :: escopoDoConsumo --> |
 | **6** | **Compras inteligentes** | mesma classe do 3 — construir agora, calibrar depois. ~~O primeiro passo era a data do pedido, porque `ordered_at` não tinha escritor~~ — **ele tem, desde 6 de setembro** (`app/purchase.tsx:578`), e com um desenho honesto: sem resposta nada é gravado, porque lacuna vazia é mais honesta que palpite. O que falta agora não é código, é **tempo**: `observedLeadTimeDays` precisa de entregas observadas, e isso é a linha *"calibração das compras"* da espera.  <!-- medida: espera :: entregas observadas numa fábrica de verdade para calibrar o prazo --> |
 | — | **O fiscal** | fora, e o único que trava por algo que nenhum dado resolve: certificado A1 e homologação na SEFAZ. |
 
@@ -1204,29 +1209,49 @@ De pé, nesta ordem e por este motivo:
    R$ 0,00 desde que a lista existe. Só apareceu porque a mudança de tipo obrigou a
    olhar as duas.
 
-### A sala do tacho — a decisão que a F2 precisa, e ela é do dono
+### De onde a produção consome — o padrão MUDOU em 8 de setembro, e a metade que falta
 
-<!-- medida: espera :: qual é o PADRÃO, decisão do dono; e o P3, porque muda onde o consumo é gravado -->
+<!-- medida: ausente src/data/repository.ts :: escopoDoConsumo -->
 
-O piso da produção conta a sala em que o tacho roda, e isso está certo: somar todos
-os lugares autorizaria um tacho com o açúcar que está a dez quilômetros, numa loja.
-Mas polpa mora no freezer. Então uma fábrica que guarda insumo na câmara fria vive um
-de dois mundos, e os dois são legítimos:
+**Esta seção se chamava "A sala do tacho" e descrevia o comportamento errado como se
+fosse o de hoje.** Duas coisas a derrubaram no mesmo dia, e as duas vieram do dono:
 
-- **Sala estrita** (hoje): o insumo entra no almoxarifado, e tirar da câmara é uma
-  transferência lançada. Saldo por sala sempre exato; um lançamento a mais por tacho.
-- **Salas nossas somadas**: o tacho consome de qualquer sala da fábrica, e o sistema
-  decide de qual debitar (a mais velha primeiro, como o lote já faz). Nada a lançar;
-  o saldo de uma sala isolada passa a ser deduzido, não declarado.
+1. **A palavra saiu.** *"Que droga é essa de tacho?!"* — o termo é de indústria de
+   sorvete e o aplicativo vai para as duas lojas. O nome da seção era jargão, e a
+   pergunta que eu fiz a ele usando o termo era pior: ela pedia decisão sobre uma coisa
+   que o código já decidia, de dois jeitos contraditórios.
 
-Pela regra da casa isto **não é pergunta de qual, é pergunta de qual é o padrão** — os
-dois caminhos existem como configuração da empresa. O que trava é o portão P3: a
-segunda opção muda **onde o consumo é gravado**, que é o caminho de escrita de
-`movements`, e forma de livro-razão não se corrige com um commit. Fica aqui escrito,
-com as duas formas, para entrar junto com a câmara fria da F2 — e o que falta antes de
-qualquer uma é o trajeto interno: **transferência entre salas nossas**, que a tela de
-transferir não faz (ela sai sempre da fábrica, e o caminho de volta grava
-`return`, que é notícia sobre a loja, não sobre a nossa câmara).
+2. **Não havia dois mundos legítimos: havia um mundo quebrado.** A tela lia o piso da
+   UNIDADE (câmara fria e almoxarifado incluídos) e `recordProduction` conferia UMA
+   sala. Com a polpa na câmara — que é onde polpa mora — a tela liberava o botão e a
+   escrita recusava os seis insumos com erro de programador em inglês. **Nenhuma corrida
+   rodava**, e a tela ainda dizia em que sala a polpa estava.
+
+**O padrão passou a ser "salas da unidade somadas"**, e a régua é *"dá para ir buscar a
+pé"*: a câmara fica a três metros e conta, a loja fica a dez quilômetros e não conta, a
+fábrica da outra cidade não é uma caminhada. O consumo sai da sala que **tinha** o
+insumo — uma linha por (insumo, sala), a sala da corrida primeiro e depois as outras por
+nome —, então o saldo de cada sala continua sendo o que alguém encontra na prateleira.
+
+**Isto foi decisão minha, tomada sob um defeito, e está dito em vez de escondido.** A
+alternativa era estreitar a tela para uma sala, e esta mesma seção já escrevia por que
+ela não serve: obrigaria a lançar transferência antes de cada corrida, e *"nenhuma
+fábrica de seis pessoas"* faz isso. Fixar o padrão sem perguntar é o que a casa manda
+quando não há escolha real; **o que a casa também manda é que os dois caminhos
+existam**, e é aí que este item continua aberto.
+
+**O que falta, e por isso o item não fechou:**
+
+- **A "sala estrita" como CONFIGURAÇÃO.** Quem quiser saldo por sala sempre declarado —
+  e aceitar o lançamento a mais — não tem como pedir isso hoje. É uma configuração de
+  empresa lendo o mesmo `escopoDoConsumo`, e sem ela metade da regra da casa está no
+  papel.
+- **A transferência entre salas nossas**, que a tela de transferir ainda não faz: ela
+  sai sempre da unidade, e o caminho de volta grava `return`, que é notícia sobre a
+  loja e não sobre a nossa câmara. Sem ela a sala estrita é inviável na prática.
+- **A ordem de debitar por VALIDADE**, não por proximidade. Hoje é a sala da corrida
+  primeiro; o certo, quando o insumo tem lote, é o mais velho primeiro — que é o que o
+  lote do produto já faz. É PEPS de insumo, e continua sendo trabalho da F3.
 
 ## A entrada — estudada em 6 de setembro, com o desenho decidido
 
