@@ -2761,22 +2761,55 @@ test('the short history is runs, not days, and expiry only warns about what is s
 
   // Na FÁBRICA ele não está mais, e é essa a pergunta da capa: o que vence
   // primeiro do que está aqui.
-  const naFabrica = await expiringSoon(
-    EMPRESA_SEMENTE,
-    '2027-01-01',
-    5,
-    defaultLocationId(EMPRESA_SEMENTE),
-  );
+  const naFabrica = await expiringSoon(EMPRESA_SEMENTE, '2027-01-01', 5, {
+    sala: defaultLocationId(EMPRESA_SEMENTE),
+  });
   assert.ok(
     !naFabrica.some((l) => l.lotId === primeiro.lotId),
     'lote que saiu da fábrica não avisa mais na fábrica',
   );
 
   // E chegou na loja com o lote: sem isso o recall pararia na porta da fábrica.
-  const naLoja = await expiringSoon(EMPRESA_SEMENTE, '2027-01-01', 5, centro.id);
+  const naLoja = await expiringSoon(EMPRESA_SEMENTE, '2027-01-01', 5, { sala: centro.id });
   assert.ok(
     naLoja.some((l) => l.lotId === primeiro.lotId),
     'o lote chegou na loja identificado',
+  );
+
+  // --- e a UNIDADE, que é a granularidade que a capa passou a usar em 8 de setembro.
+  //
+  // As duas metades acima são as duas falhas que estavam documentadas e em
+  // contradição: a SALA emudece o aviso quando o lote sai do pátio, a EMPRESA avisa
+  // sobre lote que já foi entregue. Este pedaço prende a forma que serve às duas.
+  const camara = await savePlace(EMPRESA_SEMENTE, {
+    name: 'Câmara da unidade',
+    kind: 'cold_room',
+    parentLocationId: defaultLocationId(EMPRESA_SEMENTE),
+  });
+  const segundo = longe[1];
+  await recordTransfer(EMPRESA_SEMENTE, {
+    itemId: produto.itemId,
+    fromLocationId: defaultLocationId(EMPRESA_SEMENTE),
+    toLocationId: camara.id,
+    baseUnits: segundo.baseUnits,
+    occurredAt: '2026-03-03T09:00:00.000Z',
+    lotId: segundo.lotId,
+  });
+
+  const daUnidade = await expiringSoon(EMPRESA_SEMENTE, '2027-01-01', 10, {
+    unidade: defaultLocationId(EMPRESA_SEMENTE),
+  });
+  // O que foi para a câmara DA unidade continua avisando — e pela sala sozinha ele
+  // teria emudecido, que é o defeito que a capa nomeou por escrito.
+  assert.ok(
+    daUnidade.some((l) => l.lotId === segundo.lotId),
+    'o lote na câmara fria da própria unidade continua avisando',
+  );
+  // E o que foi ENTREGUE não avisa mais — pela empresa ele avisaria, que é o defeito
+  // que o docblock da consulta nomeou por escrito.
+  assert.ok(
+    !daUnidade.some((l) => l.lotId === primeiro.lotId),
+    'lote entregue na loja não avisa mais na unidade — avisar dele ensina a ignorar alerta',
   );
 });
 
@@ -3828,7 +3861,7 @@ test('a lot warns about expiry from wherever it is, not only from the storeroom'
 
   // E a pergunta por sala continua respondendo por sala, para o conserto não ter
   // sido "tirar o filtro e esquecer que ele serve para alguma coisa".
-  const soNoAlmoxarifado = await expiringSoon(EMPRESA_SEMENTE, trintaDias, 5, fabrica);
+  const soNoAlmoxarifado = await expiringSoon(EMPRESA_SEMENTE, trintaDias, 5, { sala: fabrica });
   assert.ok(
     !soNoAlmoxarifado.some((l) => l.code === corrida.lot.code),
     'perguntando pelo almoxarifado, o lote que saiu não está lá — o filtro continua servindo',

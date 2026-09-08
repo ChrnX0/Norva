@@ -2,7 +2,7 @@ import { applyCostEvent, blendRate, type StockCostState } from '@/domain/cost';
 import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
 import { isValidHierarchy } from '@/domain/units';
 import { DEFAULT_ALERTS, type AlertSettings } from '@/domain/alerts';
-import { UNIT_PLACE_KIND, daysOfCover, ehSalaDeUnidade } from '@/domain/ledger';
+import { UNIT_ROOM_KINDS, daysOfCover, ehSalaDeUnidade } from '@/domain/ledger';
 import { ROLES, capabilitiesFor, type Capability, type Role } from '@/domain/access';
 import { expiresOn, lotCode } from '@/domain/lot';
 import type { LossReason, MovementKind, ReturnReason } from '@/domain/ledger';
@@ -209,8 +209,19 @@ function noEscopo(
                  WHERE esc.id = ${coluna}
                    AND (esc.id = ?
                         OR esc.parent_location_id = ?
+                        -- O atalho de compatibilidade, e ele ESPELHA o WHERE do
+                        -- backfill da migração 0046, exatamente. Sala interna sem
+                        -- pai é da primeira unidade porque foi isso que o backfill
+                        -- afirmou; loja, cliente, veículo e outra UNIDADE não
+                        -- entram, porque o backfill não os tocou.
+                        --
+                        -- Duas vezes eu escrevi este atalho largo e duas vezes um
+                        -- teste o pegou: primeiro a segunda unidade caindo dentro da
+                        -- primeira, depois a loja do cliente. Atalho de
+                        -- compatibilidade que não espelha o backfill inventa
+                        -- pertencimento — e inventa para os dois lados.
                         OR (esc.parent_location_id IS NULL
-                            AND esc.kind <> '${UNIT_PLACE_KIND}'
+                            AND esc.kind IN (${UNIT_ROOM_KINDS.map((k) => `'${k}'`).join(', ')})
                             AND esc.company_id = ?))))`,
     params: [sala, sala, unidade, unidade, unidade, unidade],
   };
@@ -3901,17 +3912,31 @@ export type Expiring = {
  * que já foi embora, que é o alerta que ensina a ignorar alerta. Somando a sala,
  * a pergunta passa a ser a que decide: o que vence primeiro DO QUE ESTÁ AQUI.
  *
- * Sem `locationId`, a soma é da empresa — que é a pergunta certa para quem quer
- * saber o que a fábrica tem em algum lugar, e é o padrão histórico das outras
- * consultas daqui.
+ * **E a UNIDADE é o que resolve uma contradição que estava escrita em dois lugares
+ * — achada em 8 de setembro.** Este docblock dizia que somar a empresa está errado
+ * (*"a fábrica continua sendo avisada de um lote que já foi embora"*) e que somar a
+ * SALA é o certo. O chamador na capa dizia o contrário, com razão igual: filtrar
+ * pelo almoxarifado **silenciava** o aviso no dia em que o picolé ia para a câmara
+ * fria, que é o dia seguinte ao de produzi-lo — *"dali em diante este cartão nunca
+ * mais avisava de nada, e o produto vencia dentro dela"*.
+ *
+ * Os dois estavam certos sobre a falha do outro, e nenhum dos dois tinha a forma:
+ * a granularidade que serve não é sala nem empresa, é **a unidade e as salas dentro
+ * dela**. O lote que foi para a câmara fria continua aqui; o que foi entregue numa
+ * loja não está mais, e avisar sobre ele é o alerta que ensina a ignorar alerta.
+ *
+ * Sem escopo, a soma continua sendo da empresa — o que serve para uma tela que
+ * pergunta pela empresa, e não é o caso de nenhuma hoje.
  */
 export async function expiringSoon(
   companyId: string,
   throughDate: string,
   limit = 5,
-  locationId?: string,
+  /** De onde é a pergunta: sala, unidade, ou a empresa inteira. Ver `Escopo`. */
+  onde?: Escopo,
 ): Promise<Expiring[]> {
   const conn = await db();
+  const recorte = noEscopo('m.location_id', onde);
   const rows = await conn.getAllAsync<{
     id: string;
     code: string;
@@ -3927,12 +3952,12 @@ export async function expiringSoon(
       WHERE l.company_id = ?
         AND l.expires_on IS NOT NULL
         AND l.expires_on <= ?
-        AND (? IS NULL OR m.location_id = ?)
+        AND ${recorte.sql}
       GROUP BY l.id, l.code, i.name, l.expires_on
      HAVING SUM(m.quantity_base_units) > 0
       ORDER BY l.expires_on ASC
       LIMIT ?`,
-    [companyId, throughDate, locationId ?? null, locationId ?? null, limit],
+    [companyId, throughDate, ...recorte.params, limit],
   );
 
   return rows.map((r) => ({

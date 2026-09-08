@@ -518,7 +518,18 @@ test('a screen that produces reads the floor of the room the kettle is in', () =
 });
 
 /**
- * O aviso de validade da capa pergunta pela EMPRESA, não por uma sala.
+ * O aviso de validade da capa nunca pergunta por uma SALA.
+ *
+ * **Ele perguntava pela empresa, e passou a perguntar pela UNIDADE em 8 de
+ * setembro** — a granularidade que resolve a contradição que estava escrita em dois
+ * lugares do repositório. O docblock de `expiringSoon` dizia que somar a empresa
+ * avisa sobre lote que já foi ENTREGUE (*"o alerta que ensina a ignorar"*); o
+ * comentário da capa dizia que filtrar por sala EMUDECE o aviso quando o picolé vai
+ * para a câmara fria. Os dois certos sobre a falha do outro. A câmara fria está
+ * dentro da unidade; a loja do cliente não.
+ *
+ * O que esta guarda protege continua sendo o mesmo e é o que a mutação achou: **a
+ * SALA**. Unidade passa, sala reprova.
  *
  * **A mutação que sobreviveu à suíte inteira.** Trocar
  * `expiringSoon(empresa, trintaDias, 5)` por
@@ -540,13 +551,17 @@ export function validadeDeUmaSalaSo(texto: string): string[] {
   for (const m of texto.matchAll(/expiringSoon\(/g)) {
     const args = argumentos(texto, (m.index ?? 0) + 'expiringSoon('.length);
     if (args === null) continue;
-    // empresa, data, quantos, sala — o quarto é o filtro, e a capa não o quer.
-    if (args.length > 3) achados.push(`expiringSoon(${args.join(', ')})`);
+    // empresa, data, quantos, escopo — o quarto é o recorte. `{ unidade }` é o que
+    // a capa quer; qualquer outra coisa ali é sala, e sala emudece o aviso.
+    const escopo = args[3];
+    if (escopo !== undefined && !/\bunidade\s*:/.test(escopo)) {
+      achados.push(`expiringSoon(${args.join(', ')})`);
+    }
   }
   return achados;
 }
 
-test('the home expiry card asks the company, never one room', () => {
+test('the home expiry card never asks one room', () => {
   const capa = 'app/(tabs)/index.tsx';
   const fonte = readFileSync(capa, 'utf8');
   assert.match(fonte, /expiringSoon\(/, 'a capa tem de continuar perguntando validade');
@@ -566,11 +581,25 @@ test('the expiry guard bites the surviving mutation, and leaves the room screens
     ['expiringSoon(empresaDaqui(), trintaDias, 5, empresaDaqui())'],
     'a mutação que atravessou a suíte tem de reprovar aqui',
   );
-  // E a forma da capa passa.
+  // E as duas formas legítimas passam: a da empresa, e a da unidade que a capa usa.
   assert.deepEqual(
     validadeDeUmaSalaSo('      expiringSoon(empresaDaqui(), trintaDias, 5),'),
     [],
     'a pergunta da empresa passa',
+  );
+  assert.deepEqual(
+    validadeDeUmaSalaSo(
+      '      expiringSoon(empresaDaqui(), trintaDias, 5, { unidade: unidadeDaqui() }),',
+    ),
+    [],
+    'a pergunta da unidade é a da capa desde 8 de setembro, e ela não pode reprovar',
+  );
+  // E a sala escrita na forma nova continua reprovando — senão a guarda teria sido
+  // afrouxada junto com o conserto, que é como guarda morre sem ninguém notar.
+  assert.deepEqual(
+    validadeDeUmaSalaSo('      expiringSoon(empresaDaqui(), trintaDias, 5, { sala: aberta }),'),
+    ['expiringSoon(empresaDaqui(), trintaDias, 5, { sala: aberta })'],
+    'a sala na forma nova é o mesmo defeito com outra roupa',
   );
   // A tela de UMA SALA continua livre para perguntar da sala dela: a guarda olha
   // a capa, não o arquivo que contém a palavra.

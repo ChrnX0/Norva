@@ -183,7 +183,13 @@ function Briefing() {
       // fria ou para a loja dá zero no almoxarifado, e o `HAVING > 0` o descarta.
       // Uma fábrica de picolés manda picolé para a câmara: dali em diante este
       // cartão nunca mais avisava de nada, e o produto vencia dentro dela.
-      expiringSoon(empresaDaqui(), trintaDias, 5),
+      // Da UNIDADE, e isto resolve a contradição que estava escrita em dois
+      // lugares. Este comentário dizia, com razão, que filtrar pelo almoxarifado
+      // silenciava o aviso quando o picolé ia para a câmara fria; o docblock da
+      // consulta dizia, com razão igual, que somar a empresa avisa sobre lote que
+      // já foi ENTREGUE. A unidade é a granularidade que serve às duas: a câmara
+      // está dentro dela, a loja do cliente não.
+      expiringSoon(empresaDaqui(), trintaDias, 5, { unidade: unidadeDaqui() }),
       lossesOn(empresaDaqui(), mes.from, today.to),
       lossesOn(empresaDaqui(), mesAnterior.de.from, mesAnterior.ate.to),
       listPlaces(empresaDaqui()),

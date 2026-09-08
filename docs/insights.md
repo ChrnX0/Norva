@@ -7162,3 +7162,42 @@ de quem instala e cadastra as salas antes de lançar nota. Linha criada por preg
 (*lazy*) é linha que existe **depois** de alguém precisar dela, e quem a referencia tem de
 garanti-la primeiro. O padrão está no repositório desde a fundação; o que faltava era
 alguém apontar para ele de um lugar novo.
+
+## O atalho de compatibilidade tem de espelhar o `WHERE` do backfill — exatamente
+
+8 de setembro, recortando as consultas de saldo por unidade de fábrica. A migração 0046
+acrescentou `parent_location_id` e fez um backfill: **sala interna existente passa a
+apontar para a unidade que tem o id da empresa** — sem isso, recortar por unidade
+excluiria a câmara fria de quem já tem o aplicativo instalado, e o saldo cairia calado.
+
+Para o SQL não depender de o backfill ter rodado, escrevi um atalho:
+`COALESCE(parent_location_id, company_id) = <a unidade>` — *"sala sem pai pertence à
+primeira unidade"*. Ele diz o que o backfill afirma, e é uma linha.
+
+**Ele estava largo, e dois testes o pegaram, um por vez.**
+
+1. Uma **segunda unidade** não tem pai (uma fábrica não fica dentro de outra), então o
+   atalho a punha dentro da primeira: o freezer de Marília aparecia como estoque de
+   Bauru. Corrigi excluindo a espécie `factory`.
+2. Uma **loja** também não tem pai, e caiu no mesmo lugar: o lote já entregue continuava
+   avisando de validade, que é justamente o alerta que este projeto documenta como o que
+   ensina a ignorar alerta.
+
+Duas correções da mesma linha em vinte minutos, cada uma achada por uma asserção
+diferente. E a segunda mostrou qual era o defeito de raciocínio: eu estava escrevendo o
+atalho a partir do que ele **deveria significar** ("sem pai é daqui"), corrigindo por
+exceção conforme os contra-exemplos apareciam. Exceção acumulada é a forma que erra na
+terceira.
+
+**A regra é derivar, não descrever:** o atalho existe para cobrir as linhas que o
+backfill tocaria, então a condição dele é o `WHERE` do backfill, copiado. O backfill diz
+`kind in ('cold_room','store_room')`; o atalho passou a dizer a mesma coisa, lendo a
+lista da mesma constante do domínio. Fábrica, loja, cliente e veículo ficam de fora
+porque o backfill não os tocou — e isso deixa de ser exceção lembrada para ser
+consequência.
+
+**O que isso vale além daqui:** toda coluna nova com backfill tem um par — a leitura que
+tolera a ausência do valor. Os dois são a mesma afirmação escrita duas vezes, num
+arquivo de migração e numa consulta, e a segunda não se escreve de memória. Se elas
+divergirem, o número muda para quem instalou antes e não muda para quem instalou depois,
+que é a classe de defeito mais difícil de reproduzir que existe.

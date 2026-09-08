@@ -54,7 +54,11 @@ export async function factsForAlerts(timeZone: string): Promise<AlertFacts> {
     // Sem local, pela mesma razão da capa: o alarme é sobre o lote, não sobre a
     // prateleira. Filtrar pelo almoxarifado emudecia o aviso no dia em que o
     // picolé ia para a câmara fria — que é o dia seguinte ao de produzi-lo.
-    expiringSoon(empresaDaqui(), trinta, 10),
+    // Da unidade: a câmara fria está dentro dela (então mandar o picolé para lá
+    // não emudece o aviso, que era o defeito de filtrar por sala), e a loja do
+    // cliente está fora (então lote entregue não avisa, que era o defeito de somar
+    // a empresa).
+    expiringSoon(empresaDaqui(), trinta, 10, { unidade: unidadeDaqui() }),
     // Da unidade: a régua de pote cheio é física — o pote está num prédio, e o
     // aviso é para quem entra nele.
     listItems(empresaDaqui(), undefined, false, { unidade: unidadeDaqui() }),
