@@ -36,8 +36,8 @@ const DEFECTS = [
   // produzi-lo, numa fábrica de picolés.
   {
     file: 'app/(tabs)/index.tsx',
-    from: '      expiringSoon(empresaDaqui(), trintaDias, 5),',
-    to: '      expiringSoon(empresaDaqui(), trintaDias, 5, empresaDaqui()),',
+    from: '      expiringSoon(empresaDaqui(), trintaDias, 5, { unidade: unidadeDaqui() }),',
+    to: '      expiringSoon(empresaDaqui(), trintaDias, 5, { sala: unidadeDaqui() }),',
     hurts:
       'o cartao de validade da capa volta a olhar so o almoxarifado, e emudece no dia em que o lote vai para a camara fria ou para a loja - o produto vence longe dos olhos e o aviso nunca toca',
   },
@@ -447,9 +447,13 @@ const DEFECTS = [
 
   {
     file: 'src/data/repository.ts',
+    // A troca preserva a aridade: `${recorte.sql}` vale seis `?`, e apagá-los faria o
+    // SQLite recusar por parâmetro sobrando — a mutação apareceria "pega" por erro de
+    // ligação, medindo o ligador em vez do recorte.
     from: `                         AND m.quantity_base_units < 0
-                         AND (? IS NULL OR m.location_id = ?)`,
-    to: `                         AND m.quantity_base_units < 0`,
+                         AND \${recorte.sql}`,
+    to: `                         AND m.quantity_base_units < 0
+                         AND (? IS NULL OR ? IS NOT NULL OR ? IS NULL OR ? IS NULL OR ? IS NULL OR ? IS NULL)`,
     hurts:
       'o que dorme parado numa loja passa a ter data de acabar por causa do consumo da fabrica, e a tela manda comprar o que ninguem esta usando',
   },
@@ -946,8 +950,8 @@ const DEFECTS = [
   // ao de produzir, que e quando o picole esta na camara.
   {
     file: 'src/data/repository.ts',
-    from: "                AND l.kind IN ('factory', 'cold_room', 'store_room')\n                -- A unidade e o que está DENTRO dela.",
-    to: "                AND l.kind IN ('factory', 'store_room')\n                -- A unidade e o que está DENTRO dela.",
+    from: "                AND l.kind IN ('factory', 'cold_room', 'store_room')\n                -- A unidade e o que está DENTRO dela, pela peça de noEscopo.",
+    to: "                AND l.kind IN ('factory', 'store_room')\n                -- A unidade e o que está DENTRO dela, pela peça de noEscopo.",
     hurts:
       'o que esta na camara fria para de contar como prometivel: a tela de anotar pedido nao avisa excesso nenhum com o freezer cheio, e a capa manda produzir o que ja existe',
   },
