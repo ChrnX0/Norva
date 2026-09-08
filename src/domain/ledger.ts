@@ -203,6 +203,69 @@ export function receivesCargo(kind: string): boolean {
   return (CARGO_PLACE_KINDS as readonly string[]).includes(kind);
 }
 
+/**
+ * Onde o consumidor final compra — e é isto que separa *"mudou de sala"* de
+ * *"vendeu"*.
+ *
+ * **A falta que esta régua fecha.** `movement_kind` tem `sale` desde a `0001`, com a
+ * intenção escrita ao lado (*"sold to a customer (revenue + margin)"*), e passou
+ * quarenta e seis migrações **sem um único escritor**. Sem o fato da venda o razão
+ * tem o custo congelado e o preço combinado, e não tem o que fica entre os dois: a
+ * margem não existe, e o Espelho da Loja não tem contra o que calibrar.
+ *
+ * **Só `own_store`, e a ausência de `customer` é a decisão, não o esquecimento.** A
+ * loja própria é o balcão: a carga chega por transferência (o `moveBetween` diz por
+ * escrito que *"loja própria é transferência e não venda"*, e está certo — o picolé
+ * continua sendo nosso), e quem compra é o consumidor, que não é um lugar no razão.
+ * Então a venda ali é o que SAIU da prateleira, e é a contagem que a descobre. Na
+ * loja de um cliente a venda já aconteceu na entrega: o dono do lugar é outro, a
+ * prateleira não é nossa, e ninguém da fábrica vai contá-la. As duas são vendas e
+ * são descobertas por caminhos diferentes; misturá-las numa lista faria a contagem
+ * ir procurar a prateleira do Mercado do Zé.
+ *
+ * Lista antes de predicado pela mesma razão que `CARGO_PLACE_KINDS`: o SQL não
+ * importa função, e a pergunta *"quanto esta loja vendeu"* precisa filtrar espécie
+ * dentro de uma consulta.
+ */
+export const RETAIL_PLACE_KINDS = ['own_store'] as const;
+
+/**
+ * As espécies de movimento que provam que alguém ANDOU até a prateleira.
+ *
+ * `adjustment` sempre foi essa prova. `sale` entrou em 8 de setembro porque numa loja
+ * própria a contagem VIRA uma venda: a falta encontrada foi comprada por alguém, e o
+ * razão guarda o fato, não o gesto.
+ *
+ * **A régua existe porque o mesmo `if` já estava em dois lugares que não se olham** — a
+ * ficha do insumo e o assistente —, e eu consertei um e não o outro. A ficha passou a
+ * dizer *"conferido em"* certo enquanto o assistente respondia *"ninguém conferiu
+ * ainda"* para a mesma prateleira contada no mesmo dia: duas verdades sobre um fato,
+ * que é o defeito que este repositório já pagou em saldo e em custo.
+ *
+ * **E a fronteira, dita em vez de subentendida:** isto vale porque hoje toda venda nasce
+ * de uma contagem. Uma venda de ponto de venda não prova que alguém andou até lá, e o
+ * item do PDV em `docs/roadmap.md` carrega a obrigação de trazer um marcador de origem
+ * no movimento. Sem ele, o *"conferido em"* de toda loja passa a mentir para cima —
+ * dizendo que se conferiu hoje o que ninguém olha há um mês, que é pior que não dizer
+ * nada, porque desliga a única pergunta que manda alguém contar.
+ */
+export const COUNT_KINDS = ['adjustment', 'sale'] as const;
+
+/** Esta linha do razão prova que alguém conferiu a prateleira? */
+export function ehConferencia(kind: string): boolean {
+  return (COUNT_KINDS as readonly string[]).includes(kind);
+}
+
+/**
+ * Nesta espécie de lugar, o que sai da prateleira foi VENDIDO?
+ *
+ * O nome diz o que a resposta DECIDE, não qual tela pergunta — regra desta casa
+ * paga em `ehPapel`, que compilava e devolvia o mesmo defeito na pele seguinte.
+ */
+export function vendeAoConsumidor(kind: string): boolean {
+  return (RETAIL_PLACE_KINDS as readonly string[]).includes(kind);
+}
+
 export type Movement = {
   /** Client-generated UUID: makes the append idempotent across retries. */
   id: string;

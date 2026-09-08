@@ -1402,6 +1402,91 @@ DENTRO=$(psql -d "$DB" -At -c "select parent_location_id from locations where id
 
 echo "    a sala entra na unidade da própria empresa, nunca na da vizinha, nunca em si mesma, e o backfill alcança a que já existia"
 
+
+echo "==> check 23: quem CONTA pode gravar a venda que a contagem dele descobriu"
+
+# A venda ganhou escritor em 8 de setembro: numa loja própria, o que a contagem
+# encontra de FALTA foi comprado por alguém. Isso põe uma pergunta nova para o
+# servidor, e ela é do tipo que o SQLite não sabe fazer — QUEM pode escrever uma
+# venda.
+#
+# **A `0001` respondeu `dispatch`, e respondeu certo para o mundo dela:** a única
+# venda imaginável era carregar mercadoria para um cliente, e quem carrega despacha.
+# Com a contagem escrevendo venda, a mesma linha passa a ter duas origens, e a
+# segunda é autorizada por outra capacidade: quem conta tem `adjust_stock`.
+#
+# O Conferente da check 5 é exatamente esse caso — `['check_receipt','adjust_stock']`,
+# sem `dispatch`. Sem esta garantia o defeito é do pior tipo que este repositório
+# conhece: a contagem é aceita no celular, a linha entra na fila, o servidor a recusa
+# por permissão, e **tudo o que a fábrica gravar depois fica preso atrás dela**. E
+# nada disso aparece em teste do aparelho, porque o SQLite não tem política.
+V=dddd0000-0000-4000-8000-0000000000
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
+  insert into locations (id, company_id, kind, name) values
+    ('${V}a1', '${M}c1', 'own_store', 'Loja do balcao');" >/dev/null  # proofgate-allow
+
+# 1. O Conferente conta a loja e a falta entra como VENDA, com o preço congelado.
+as_user "$CHECKER" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
+  item_id, quantity_base_units, location_id, unit_cost_rate, unit_price_rate) values
+  ('${V}d1','${M}c1','sale',now(),'$CHECKER','${M}b1',-340,'${V}a1',0.64,2.2);" >/dev/null 2>&1 || true  # proofgate-allow
+vendeu=$(rows "select count(*) from movements where id = '${V}d1';")  # proofgate-allow
+[ "$vendeu" = "1" ] || fail "quem conta não conseguiu gravar a venda que a contagem dele descobriu: a fila trava aqui"
+
+# 2. E a relaxação ficou ESTREITA. Quem não conta nem despacha continua sem vender —
+#    senão a garantia acima teria comprado o buraco em vez de fechar a porta certa.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<'SQL'
+insert into auth.users (id) values ('00000000-0000-4000-8000-000000000009');
+insert into memberships (company_id, user_id, display_name, capabilities)
+  values ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-000000000009',
+          'Só pede', array['place_order']::capability[]);
+SQL
+SOPEDE=00000000-0000-4000-8000-000000000009
+as_user "$SOPEDE" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
+  item_id, quantity_base_units, location_id, unit_price_rate) values
+  ('${V}d2','${M}c1','sale',now(),'$SOPEDE','${M}b1',-10,'${V}a1',2.2);" >/dev/null 2>&1 || true  # proofgate-allow
+colou=$(rows "select count(*) from movements where id = '${V}d2';")  # proofgate-allow
+[ "$colou" = "0" ] || fail "quem só faz pedido gravou uma venda: a porta abriu demais"
+
+# 3. O portão da LEITURA continua sendo outro, e é aqui que a fundação se prova: o
+#    Conferente congelou um preço que ele NÃO PODE VER. Permissão mora na consulta,
+#    então não existe número para vazar — e o fato não depende de quem segurou o
+#    celular. Se o portão estivesse no caminho da escrita, a contagem do operador
+#    gravaria venda sem preço e a receita do mês sairia menor para quem conta e
+#    maior para quem administra, as duas sem uma reclamação.
+# Quem PODE ver preço é quem tem `view_sale_price`, e a Dona da check 3 não tem — ela
+# tem `view_cost`. As duas capacidades são separadas de propósito: o gerente de uma
+# loja precisa do preço e não do custo, e o comprador precisa dos dois. Ler com o
+# ator errado aqui provaria o contrário do que a garantia afirma.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<'SQL'
+insert into auth.users (id) values ('00000000-0000-4000-8000-000000000008');
+insert into memberships (company_id, user_id, display_name, capabilities)
+  values ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-000000000008',
+          'Gerente da loja', array['view_sale_price','adjust_stock']::capability[]);
+SQL
+GERENTE=00000000-0000-4000-8000-000000000008
+
+gerente_preco=$(as_user "$GERENTE" "select unit_price_rate from movements_visible where id = '${V}d1';")  # proofgate-allow
+[ "$gerente_preco" = "2.2" ] || fail "o preço congelado não chegou a quem pode vê-lo: '$gerente_preco'"
+
+# E a assimetria com o custo, que é o que prova que são duas perguntas: o mesmo
+# gerente NÃO vê o custo, e a Dona vê o custo e não vê o preço. Uma capacidade só
+# respondendo as duas seria o defeito que este projeto já pagou noutra coluna.
+gerente_custo=$(as_user "$GERENTE" "select coalesce(unit_cost_rate::text, 'null') from movements_visible where id = '${V}d1';")  # proofgate-allow
+[ "$gerente_custo" = "null" ] || fail "quem vê preço passou a ver custo: '$gerente_custo'"
+
+dona_preco=$(as_user "$OWNER" "select coalesce(unit_price_rate::text, 'null') from movements_visible where id = '${V}d1';")  # proofgate-allow
+[ "$dona_preco" = "null" ] || fail "quem tem view_cost e não view_sale_price leu o preço: '$dona_preco'"
+
+conf_preco=$(as_user "$CHECKER" "select coalesce(unit_price_rate::text, 'null') from movements_visible where id = '${V}d1';")  # proofgate-allow
+[ "$conf_preco" = "null" ] || fail "quem não tem view_sale_price leu o preço: '$conf_preco'"
+
+# E a linha NÃO está escondida: a quantidade chega, só o dinheiro não. Esconder a
+# linha inteira faria o saldo da loja divergir entre duas pessoas da mesma empresa.
+conf_qtd=$(as_user "$CHECKER" "select quantity_base_units from movements_visible where id = '${V}d1';")  # proofgate-allow
+[ "$conf_qtd" = "-340" ] || fail "a venda desapareceu para quem não vê preço: o saldo passa a depender de quem pergunta"
+
+echo "    quem conta grava a venda, quem só pede não, e o preço congelado não chega a quem não pode vê-lo"
+
 echo
-echo "OK - migrations apply and all twenty-two guarantees hold."
+echo "OK - migrations apply and all twenty-three guarantees hold."
 

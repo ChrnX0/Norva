@@ -75,9 +75,9 @@ export function plural(
    * de quanto — "Picolé de morango · unidades". Compilou, passou na suíte, e só
    * o navegador viu.
    *
-   * `batchCount` é o contrário: `{one: 'um tacho', other: '{{n}} tachos'}`. O
+   * `batchCount` é o contrário: `{one: 'uma vez', other: '{{n}} vezes'}`. O
    * singular escreve o número por extenso DE PROPÓSITO, e prefixar ali produziu
-   * "em 1 um tacho" na confirmação de produção — o e2e pegou na mesma rodada.
+   * "em 1 uma vez" na confirmação de produção — o e2e pegou na mesma rodada.
    *
    * Então a regra olha a ENTRADA inteira, não a forma escolhida: quando nenhuma
    * das duas tem onde receber o número, ele vai na frente; quando alguma tem, a

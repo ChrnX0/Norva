@@ -152,13 +152,13 @@ export const ptBR = {
       capaLead: 'Hoje a fábrica',
       capaMade: 'fez {{amount}}',
       capaQuiet: 'ainda não produziu',
-      capaLegend: 'A linha inteira — do tacho à caixa que saiu.',
+      capaLegend: 'A linha inteira — da produção à caixa que saiu.',
       // A cena tem três peças que só existem quando o dia as produz: a fumaça
-      // (tacho aberto), o picolé enchendo (o que se fez) e a caixa (o que saiu).
+      // (produção aberta), o picolé enchendo (o que se fez) e a caixa (o que saiu).
       // Num dia parado some a metade do desenho, e o dono leu isso como app
       // quebrado — *"faltam cores e principalmente animações"*. A ausência era
       // dado, e dado que ninguém consegue ler não é dado. Então ela vira frase.
-      capaLegendStill: 'Parada agora: sem tacho aberto, nada feito e nada saiu hoje.',
+      capaLegendStill: 'Parada agora: nada em produção, nada feito e nada saiu hoje.',
       boxYesterday: 'Ontem',
       boxLastWeek: '{{weekday}}, há uma semana',
       todayUnits: '{{unit}} · hoje',
@@ -395,7 +395,7 @@ export const ptBR = {
       scanUnknown: 'Esse código não é de um lote desta fábrica.',
       why: 'O código aparece duas vezes de propósito: quando a etiqueta congela ou descasca, alguém digita os onze caracteres e a conferência segue.',
       // O conserto do livro-razão, dito sem a palavra "estorno" - que é
-      // vocabulário de contador, e quem lança a corrida é quem estava no tacho.
+      // vocabulário de contador, e quem lança a corrida é quem estava na produção.
       reverse: 'Corrigir esta corrida',
       reverseTitle: 'Corrigir a corrida {{code}}?',
       reverseBody: 'Sai do estoque {{out}}. Volta para o almoxarifado {{back}}. Os dois lançamentos ficam no histórico — nada é apagado.',
@@ -1235,6 +1235,19 @@ export const ptBR = {
         'Você contou {{counted}}. O sistema esperava {{expected}}. Estão faltando {{diff}}. A diferença fica registrada e nada é apagado.',
       countConfirmOverNoMoney:
         'Você contou {{counted}}. O sistema esperava {{expected}}. Estão sobrando {{diff}}. A diferença fica registrada e nada é apagado.',
+      /**
+       * A contagem numa loja própria: o que saiu da prateleira foi VENDIDO.
+       *
+       * A última frase não é enfeite e não fiscaliza: ela diz a ordem certa. Perda
+       * lançada antes da contagem já saiu do saldo esperado, e então o que a
+       * contagem encontra de falta é o que alguém comprou. Sem ela o aplicativo
+       * teria de adivinhar a diferença entre venda e derretimento, e adivinhar
+       * receita é o erro que infla a margem para cima.
+       */
+      countConfirmSold:
+        'Você contou {{counted}}. O sistema esperava {{expected}}. Então {{diff}} saíram da prateleira e entram como venda de {{money}}. Derreteu alguma parte? Lance a perda antes de contar.',
+      countConfirmSoldNoPrice:
+        'Você contou {{counted}}. O sistema esperava {{expected}}. Então {{diff}} saíram da prateleira e entram como venda. A receita entra pelo preço combinado desta loja, quando houver um. Derreteu alguma parte? Lance a perda antes de contar.',
       lastCounted: 'conferido em {{date}}',
       history: 'Histórico de preço',
       historyHint: 'Ninguém escreveu isto. Cada linha nasceu de uma nota lançada.',
@@ -1388,7 +1401,7 @@ export const ptBR = {
     capabilities: {
       view_cost: { label: 'Ver custo', hint: 'Quanto custa fazer, e quanto vale o que está parado.' },
       view_sale_price: { label: 'Ver preço de venda', hint: 'Por quanto a mercadoria sai para a loja ou para o cliente.' },
-      record_production: { label: 'Registrar produção', hint: 'Lançar o que saiu do tacho, baixando o insumo.' },
+      record_production: { label: 'Registrar produção', hint: 'Lançar o que saiu da produção, baixando o insumo.' },
       dispatch: { label: 'Despachar carga', hint: 'Mandar mercadoria da fábrica para uma loja.' },
       check_receipt: { label: 'Conferir chegada', hint: 'Abrir a caixa na loja e dizer o que veio.' },
       record_loss: { label: 'Registrar perda', hint: 'Anotar o que derreteu, quebrou ou passou da validade.' },
@@ -1523,7 +1536,7 @@ export const ptBR = {
       title: 'Produção',
       overline: 'o que saiu hoje',
       formTitle: 'Lançar produção',
-      formOverline: 'o que saiu do tacho agora',
+      formOverline: 'o que acabou de sair',
       pick: 'O que você produziu',
       noRecipes: 'Nenhum produto tem ficha técnica ainda. Cadastre a receita primeiro.',
       batches: 'Quantas vezes a receita rodou',

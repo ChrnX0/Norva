@@ -5966,3 +5966,202 @@ test('a conta do apagar enxerga as quatro coisas que sumiam sem número', async 
   );
   assert.ok(conta.agreedPrices >= 1, 'e o combinado com a loja está lá');
 });
+
+/**
+ * A VENDA — o fato que faltava para a margem existir, e quem o descobre.
+ *
+ * `movement_kind` tem `sale` desde a `0001`, com a intenção escrita ao lado
+ * (*"sold to a customer (revenue + margin)"*), e atravessou quarenta e seis migrações
+ * **sem um único escritor**. O razão sabia o que a fábrica produziu e para que loja
+ * mandou, e perdia o picolé de vista ali: vendido, derretido ou no freezer, o
+ * aplicativo não tinha como saber. Com o custo congelado de um lado e o preço
+ * combinado do outro, o que faltava entre os dois era este.
+ *
+ * Quem o descobre é a CONTAGEM, e não um ponto de venda — decisão de padrão, com o
+ * ponto de venda ficando como configuração de quem o quiser. Os dois números que
+ * importam neste bloco são conferidos à mão: 340 × 220 centavos = 74.800, e a taxa
+ * não arredonda em lugar nenhum do caminho.
+ */
+async function umaLojaComPicole(): Promise<{ loja: string; produto: string; itemId: string }> {
+  await ensureStarterData(CO);
+  const [produto] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
+  const fabrica = defaultLocationId(CO);
+  const loja = (await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' })).id;
+
+  await recordProduction(CO, {
+    productId: produto.id,
+    locationId: fabrica,
+    batches: 1,
+    unitsProduced: 400,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+  await recordTransfer(CO, {
+    itemId: produto.itemId,
+    baseUnits: 400,
+    fromLocationId: fabrica,
+    toLocationId: loja,
+  });
+  return { loja, produto: produto.id, itemId: produto.itemId };
+}
+
+test('a count at our own store books what left the shelf as a SALE, at the agreed price', async () => {
+  const { loja, itemId } = await umaLojaComPicole();
+
+  // Tabela 2,50 e o combinado com esta loja 2,20. O combinado tem de vencer: sem
+  // isso a loja que negociou faturaria pelo catálogo e a margem dela sairia inflada
+  // em treze por cento — para CIMA, que é o lado perigoso de errar dinheiro.
+  await saveSalePrice(CO, { itemId, placeId: null, rate: rate(2.5, 1) });
+  await saveSalePrice(CO, { itemId, placeId: loja, rate: rate(2.2, 1) });
+
+  const r = await recordCount(CO, { itemId, countedBaseUnits: 60, locationId: loja });
+
+  assert.equal(r.expectedBaseUnits, 400);
+  assert.equal(r.deltaBaseUnits, -340);
+  assert.ok(r.sold, 'a falta numa loja própria é venda, e o resultado tem de dizer isso');
+  assert.equal(r.sold.baseUnits, 340);
+  // A régua independente: 340 unidades a 220 centavos são 74.800 centavos. O número
+  // não vem de nenhuma função do sistema — está multiplicado à mão aqui.
+  assert.equal(r.sold.revenueCents, 74_800, 'R$ 748,00 — 340 × R$ 2,20, feito na mão');
+
+  const linha = await live.getFirstAsync<{
+    kind: string;
+    quantity_base_units: number;
+    unit_price_rate: number | null;
+    unit_cost_rate: number | null;
+  }>(
+    `SELECT kind, quantity_base_units, unit_price_rate, unit_cost_rate
+       FROM movements WHERE company_id = ? AND item_id = ? AND location_id = ? AND kind = 'sale'`,
+    [CO, itemId, loja],
+  );
+  assert.ok(linha, 'e o razão guarda a venda, não uma correção');
+  assert.equal(linha.quantity_base_units, -340);
+  assert.ok(
+    linha.unit_price_rate !== null && Math.abs(linha.unit_price_rate - 220) < 1e-9,
+    `o preço fica congelado na linha: ${linha.unit_price_rate}`,
+  );
+  // O custo congelado continua ali, e é o que faz a margem ser uma subtração dentro
+  // de uma linha em vez de uma junção com uma tabela que pode ser renegociada amanhã.
+  assert.ok(
+    linha.unit_cost_rate !== null && linha.unit_cost_rate > 0,
+    'sem o custo na mesma linha, renegociar o preço em março reescreveria a margem de fevereiro',
+  );
+});
+
+test('a count in our own cold room is an adjustment, and carries no price', async () => {
+  await ensureStarterData(CO);
+  const camara = (
+    await savePlace(CO, {
+      name: 'Câmara fria',
+      kind: 'cold_room',
+      parentLocationId: defaultLocationId(CO),
+    })
+  ).id;
+  const insumo = (await listItems(CO)).find((i) => i.onHandBaseUnits > 0);
+  assert.ok(insumo, 'o exemplo semeado tem insumo com saldo');
+  await recordTransfer(CO, {
+    itemId: insumo.id,
+    baseUnits: insumo.onHandBaseUnits,
+    fromLocationId: defaultLocationId(CO),
+    toLocationId: camara,
+  });
+
+  const r = await recordCount(CO, {
+    itemId: insumo.id,
+    countedBaseUnits: insumo.onHandBaseUnits - 500,
+    locationId: camara,
+  });
+
+  assert.equal(r.deltaBaseUnits, -500);
+  assert.equal(r.sold, null, 'ninguém compra polpa da nossa câmara fria: falta é falta');
+  const linha = await live.getFirstAsync<{ kind: string; unit_price_rate: number | null }>(
+    `SELECT kind, unit_price_rate FROM movements
+      WHERE company_id = ? AND item_id = ? AND location_id = ? AND quantity_base_units = -500`,
+    [CO, insumo.id, camara],
+  );
+  assert.equal(linha?.kind, 'adjustment', 'o nome certo para "o mundo discordou do livro"');
+  assert.equal(linha?.unit_price_rate, null, 'e uma correção não tem preço de venda');
+});
+
+test('more than expected at the store is an adjustment — nobody un-sells a popsicle', async () => {
+  const { loja, itemId } = await umaLojaComPicole();
+  await saveSalePrice(CO, { itemId, placeId: loja, rate: rate(2.2, 1) });
+
+  const r = await recordCount(CO, { itemId, countedBaseUnits: 430, locationId: loja });
+
+  assert.equal(r.deltaBaseUnits, 30);
+  assert.equal(r.sold, null, 'achar MAIS do que o livro diz é erro de contagem, nunca receita');
+  const linha = await live.getFirstAsync<{ kind: string }>(
+    `SELECT kind FROM movements
+      WHERE company_id = ? AND item_id = ? AND location_id = ? AND quantity_base_units = 30`,
+    [CO, itemId, loja],
+  );
+  assert.equal(linha?.kind, 'adjustment', 'venda negativa poria receita inventada no razão');
+});
+
+test('with no price agreed the sale is still recorded, and the revenue is null instead of zero', async () => {
+  const { loja, itemId } = await umaLojaComPicole();
+  // Nenhum `saveSalePrice`: a fábrica nunca cadastrou preço deste produto.
+
+  const r = await recordCount(CO, { itemId, countedBaseUnits: 100, locationId: loja });
+
+  assert.ok(r.sold, 'a quantidade vendida é fato mesmo sem preço');
+  assert.equal(r.sold.baseUnits, 300);
+  assert.equal(r.sold.priceRate, null);
+  assert.equal(
+    r.sold.revenueCents,
+    null,
+    'zero diria "vendido de graça", que é uma afirmação sobre o mundo; nulo diz "ninguém disse por quanto"',
+  );
+  // E a contagem ACONTECEU: recusá-la por falta de preço seria deixar de proteger o
+  // saldo por causa de um número que ninguém precisou digitar ainda.
+  const saldo = (await listItems(CO, undefined, false, { sala: loja })).find((i) => i.id === itemId);
+  assert.equal(saldo?.onHandBaseUnits, 100);
+});
+
+test('the loss goes in first and the count sells what is left — the order is the rule', async () => {
+  const { loja, itemId } = await umaLojaComPicole();
+  await saveSalePrice(CO, { itemId, placeId: loja, rate: rate(2.2, 1) });
+
+  // Quarenta derreteram no freezer da loja, e isso tem tela própria e motivo
+  // obrigatório. Lançado ANTES, ele já sai do saldo esperado.
+  await recordLoss(CO, { itemId, baseUnits: 40, reason: 'melted', locationId: loja });
+
+  const r = await recordCount(CO, { itemId, countedBaseUnits: 60, locationId: loja });
+
+  // 400 - 40 = 360 esperados; 60 na prateleira; 300 vendidos. Se a perda não tivesse
+  // sido lançada, o sistema chamaria os 340 de venda e a receita sairia 8.800
+  // centavos a mais — inflada, que é a direção perigosa.
+  assert.equal(r.expectedBaseUnits, 360, 'a perda já saiu do que o livro esperava');
+  assert.ok(r.sold);
+  assert.equal(r.sold.baseUnits, 300);
+  assert.equal(r.sold.revenueCents, 66_000, 'R$ 660,00 — 300 × R$ 2,20, feito na mão');
+
+  // E cada fato mantém o nome dele: a perda continua perda, com motivo.
+  const perda = await live.getFirstAsync<{ kind: string; loss_reason: string | null }>(
+    `SELECT kind, loss_reason FROM movements
+      WHERE company_id = ? AND item_id = ? AND location_id = ? AND quantity_base_units = -40`,
+    [CO, itemId, loja],
+  );
+  assert.equal(perda?.kind, 'loss');
+  assert.equal(perda?.loss_reason, 'melted');
+});
+
+test('undoing a sale gives the shelf back, because a sale is a movement like any other', async () => {
+  const { loja, itemId } = await umaLojaComPicole();
+  await saveSalePrice(CO, { itemId, placeId: loja, rate: rate(2.2, 1) });
+  await recordCount(CO, { itemId, countedBaseUnits: 60, locationId: loja });
+
+  const venda = await live.getFirstAsync<{ movement_group_id: string }>(
+    `SELECT movement_group_id FROM movements
+      WHERE company_id = ? AND item_id = ? AND kind = 'sale'`,
+    [CO, itemId],
+  );
+  assert.ok(venda?.movement_group_id, 'uma contagem é o próprio grupo, senão ela não se desfaz');
+
+  const plano = await planReversal(CO, venda.movement_group_id);
+  assert.equal(plano.blocked.length, 0, 'devolver picolé à prateleira não tira nada de ninguém');
+  await reverseGroup(CO, { groupId: venda.movement_group_id });
+
+  const saldo = (await listItems(CO, undefined, false, { sala: loja })).find((i) => i.id === itemId);
+  assert.equal(saldo?.onHandBaseUnits, 400, 'o estorno é uma linha nova que nega a anterior');
+});

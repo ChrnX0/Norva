@@ -1584,3 +1584,71 @@ test('the unit-on-create guard tells creating from updating', () => {
     'atualizar não é criar — cobrar a unidade aqui faria a tela repetir o que já está gravado',
   );
 });
+
+/**
+ * *"Quando foi conferido?"* tem UMA régua, e ela mora no domínio.
+ *
+ * **A cicatriz é de 8 de setembro e é de dez minutos depois da anterior.** Ao dar
+ * escritor a `sale`, a contagem de uma loja própria passou a gravar venda em vez de
+ * correção — e o *"conferido em"* da ficha do insumo, que procurava `adjustment`,
+ * congelaria no dia em que a loja bateu exato. Eu consertei a ficha, e **não o
+ * assistente**, que tinha o mesmo `if` escrito com outras palavras: a ficha passou a
+ * dizer *"conferido em 8/9"* enquanto o assistente respondia *"ninguém conferiu ainda"*
+ * para a mesma prateleira, no mesmo dia.
+ *
+ * Duas verdades sobre um fato é o defeito que este repositório já pagou em saldo, em
+ * custo e em piso de produção. A regra que ele já tinha escrita — *"conserto de pele não
+ * termina no arquivo que o mostrou"* — vale igual para régua de razão, e esta guarda é
+ * o `grep` daquela regra virando teste.
+ */
+export function conferenciaEscritaAMao(texto: string): string[] {
+  const achados: string[] = [];
+  for (const m of texto.matchAll(/\bkind\s*===?\s*'(adjustment|sale)'/g)) {
+    achados.push(m[0]);
+  }
+  return achados;
+}
+
+test('nothing outside the domain decides for itself what proves a shelf was counted', () => {
+  const fontes = [...sourcesUnder('app'), ...sourcesUnder('src')].filter(
+    (f) => !f.endsWith('/ledger.ts') && !/\.test\.tsx?$/.test(f),
+  );
+  assert.ok(fontes.length > 50, 'a varredura veio vazia — a comparação seria de graça');
+
+  const soltos: string[] = [];
+  for (const f of fontes) {
+    for (const achado of conferenciaEscritaAMao(readFileSync(f, 'utf8'))) soltos.push(`${f}: ${achado}`);
+  }
+
+  assert.deepEqual(
+    soltos,
+    [],
+    `estes lugares decidem sozinhos o que é uma conferência:\n  ${soltos.join('\n  ')}\n` +
+      'A régua é `ehConferencia` em `src/domain/ledger.ts`, e ela é uma porque no dia em ' +
+      'que o ponto de venda chegar a resposta muda — e tem de mudar em todos os leitores ' +
+      'no mesmo commit, não no que alguém lembrar.',
+  );
+});
+
+test('the counted-kind guard bites a hand-written check and spares the ruler being used', () => {
+  // Positivo: as duas formas que o defeito teve, e a de igualdade frouxa.
+  assert.deepEqual(conferenciaEscritaAMao("movements.find((m) => m.kind === 'adjustment')"), [
+    "kind === 'adjustment'",
+  ]);
+  assert.deepEqual(
+    conferenciaEscritaAMao("(m) => m.kind === 'adjustment' || m.kind === 'sale'"),
+    ["kind === 'adjustment'", "kind === 'sale'"],
+    'o conserto pela metade — a régua copiada para dentro da tela — também reprova',
+  );
+  assert.deepEqual(conferenciaEscritaAMao("if (mv.kind == 'sale') {"), ["kind == 'sale'"]);
+
+  // Negativos: quem PERGUNTA à régua passa, e as outras espécies não são assunto desta
+  // guarda — uma perda é uma perda, e comparar com ela não decide conferência nenhuma.
+  assert.deepEqual(conferenciaEscritaAMao('movements.find((m) => ehConferencia(m.kind))'), []);
+  assert.deepEqual(conferenciaEscritaAMao("if (m.kind === 'loss') return null;"), []);
+  assert.deepEqual(
+    conferenciaEscritaAMao("t.movement[ato.reversesKind ?? 'adjustment']"),
+    [],
+    'um rótulo com valor padrão não está decidindo o que prova uma conferência',
+  );
+});

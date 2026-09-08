@@ -7282,3 +7282,68 @@ termo que eu mesmo inventei ("a sala do tacho"), sobre uma decisão que o códig
 tomado em dois lugares diferentes e contraditórios. A pergunta certa não era qual é o
 padrão: era conferir o que o sistema faz antes de perguntar. O `CLAUDE.md` já manda medir a
 afirmação do item contra o código antes de construir — vale igual antes de **perguntar**.
+
+## Vocabulário chumbado é regra chumbada, e compila
+
+8 de setembro. Eu levei ao dono uma pergunta usando *"a sala do tacho"*, e a resposta
+dele foi *"que droga é essa de tacho?!"*. O termo era invenção minha para a pergunta —
+mas ao conferir, o repositório **inteiro** falava assim, e não só nos comentários:
+quatro frases de tela em português (*"do tacho à caixa"*, *"sem tacho aberto"*, *"o que
+saiu do tacho"*), três em inglês (*vat*, *the pot*) e seis em espanhol (*paila*).
+
+O `CLAUDE.md` já dizia, na primeira linha: *"nada de regra chumbada de sorvete"*. Eu li
+isso durante meses como uma regra sobre **lógica** — não codificar prazo de validade de
+picolé, não presumir câmara fria. **É também uma regra sobre PALAVRA**, e a versão em
+palavra é mais difícil de ver porque ela compila, passa em 554 testes e fica bonita na
+foto: *tacho* é a panela em que se cozinha a mistura, existe numa fábrica de picolés, e
+não existe em metade das fábricas que vão instalar isto. Quem faz sabonete, ração ou
+pão de queijo abre a capa e lê o nome de um equipamento que não tem.
+
+É a mesma família das três árvores e dois pássaros que ele recusou no cabeçalho de
+Ajustes, e a régua que sai é a mesma virada para o texto: **diga o que ACONTECE, nunca
+em que equipamento aconteceu.** "Produção em curso" serve para as duas fábricas;
+"Tachos abertos" serve para uma.
+
+**O que mudou:** as treze frases nos três idiomas, e um guard em `src/dictionary.test.ts`
+que reprova a volta de qualquer nome de equipamento em qualquer idioma — com positivo e
+negativo, porque `\b` contra substring é o que separa a régua de um alarme que acusa
+*private*, *innovative* e *spot*. É o par de conteúdo do que o `Widen<T>` já faz pela
+forma: chave nova quebra a compilação, palavra proibida quebra a suíte. Correção sem
+guard dura uma sessão.
+
+**E a régua de leitura, que é maior que a palavra:** quando o dono recusa um termo, a
+pergunta não é *"troco onde ele viu?"* — é *`grep` pelo termo no repositório inteiro*.
+Ele viu num lugar; eu tinha escrito em treze. Essa regra já estava escrita aqui para
+PELE (*"conserto de pele não termina no arquivo que o mostrou"*), e vale igual para
+vocabulário.
+
+## O SQLite não tem política — e por isso a venda nova travaria a fila inteira
+
+8 de setembro, achado pelo `db:verify` e por nada mais.
+
+Ao dar escritor a `movement_kind = 'sale'` (a contagem de uma loja própria deduz a
+venda), eu escrevi a garantia 23 ANTES do conserto, para ver o que o Postgres diria. Ela
+falhou com a frase certa: **quem conta não conseguiu gravar a venda que a contagem dele
+descobriu.**
+
+A causa é uma decisão de 2024 que estava certa quando foi tomada. A `0001` gateou
+`sale` em `dispatch`, porque a única venda imaginável era carregar mercadoria para um
+cliente — e quem carrega despacha. A `0008` reescreveu a política inteira por outro
+motivo e manteve a linha, corretamente: nada tinha mudado sobre a venda. Mudou agora: a
+mesma linha do razão passou a ter **duas origens**, e a segunda é autorizada por outra
+capacidade — quem conta a prateleira tem `adjust_stock`. O Conferente
+(`check_receipt` + `adjust_stock`, sem `dispatch`) é exatamente o perfil de quem fica no
+balcão.
+
+**E o defeito é do pior tipo que este repositório conhece**, o mesmo que já apareceu
+quatro vezes: a contagem é aceita no celular, a linha entra na fila, o servidor a recusa
+por permissão, e tudo o que a fábrica gravar depois fica preso atrás dela. Os 554 testes
+do aparelho passariam para sempre — **o SQLite não tem política, não tem papel e não tem
+capacidade**, então lá a linha entra.
+
+**A régua que fica:** dar escritor a uma coluna ou a uma espécie que existia sem escritor
+não é "usar o que já estava lá". É uma pergunta nova para o servidor, e ela é sobre
+QUEM — quase nunca sobre a coluna. Antes de escrever a primeira linha de um `kind` que
+nunca foi escrito, leia a política de `insert` dele e pergunte se quem vai escrever
+agora é quem ela imaginava. E escreva a garantia antes do conserto: uma garantia que
+nasce verde não prova que fecha o buraco, prova que o buraco talvez nunca tenha existido.

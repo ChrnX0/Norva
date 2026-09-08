@@ -39,8 +39,8 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | telas | **33** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **26** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **28** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **46** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V25** | último `const V` em `src/data/db.ts` |
+| migrações do servidor | **47** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V26** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
 | linhas de código | **~80.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -49,10 +49,10 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **546** testes |
-| `npm run mutate` | **114** defeitos plantados, 112 pegos e 2 equivalentes |
+| `npm test` | **559** testes |
+| `npm run mutate` | **120** defeitos plantados; o comando diz quantos sobreviveram |
 | `npm run e2e:fast` | **52** checagens num navegador de verdade |
-| `npm run db:verify` | **22** garantias contra um Postgres descartável, sob RLS |
+| `npm run db:verify` | **23** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade, com
@@ -303,7 +303,7 @@ fica vermelha até este parágrafo mudar.
 | o que | espera |
 |---|---|
 | **o `erase` não tem para onde ir** (2b) | **decisão sua.** Duas saídas escritas; a recomendação é B, o marcador. É P3 — migração, e o lado errado destrói dado num servidor. **Ela trava o item 2**, que é o transporte para o servidor. |
-| **quem registra a venda** (`sale` sem escritor) | **decisão sua.** Decide se o Espelho da Loja pode existir de verdade ou continua sendo contagem cega. |
+| ~~**quem registra a venda**~~ | **FEITO em 8 de setembro.** O padrão é a contagem deduzir; o PDV entra depois como configuração. Ver *"`sale` TEM escritor"*. |
 | **o cliente OAuth do Google** (0c) | **você**, para o backup subir sozinho. O 0a e o 0b estão feitos: o razão sai do aparelho por cópia manual hoje. |
 | **ligar o `pg_cron`** no projeto do servidor | **você, um clique no painel.** A `0045` já deixou o agendamento escrito e guardado; sem a extensão os pedidos de Reset acumulam e nada é destruído — o lado seguro de errar. Medido em 8 de setembro: a extensão está disponível e não instalada. |
 | **cinco minutos de TalkBack** (3) | **você, com o tablet.** A guarda prova que todo alvo se anuncia; ninguém nunca ouviu. |
@@ -1014,31 +1014,51 @@ mudaria isto se eu visse ___"*. Isso não é trabalho, é espera, e carregar esp
 junto com serviço **faz a lista mentir sobre quanto dela é acionável**. Vão para uma
 seção própria, **"espera aparelho"**, e o que ficar na fila é tudo fazível hoje.
 
-### A pergunta que mais decide o que o app consegue afirmar — `sale` sem escritor
+### ~~A pergunta que mais decide o que o app consegue afirmar~~ — `sale` TEM escritor, desde 8 de setembro
 
-<!-- medida: ausente src/data/repository.ts :: 'sale' -->
+<!-- medida: presente src/data/repository.ts :: 'sale' -->
 
-**Achada em 7 de setembro construindo o "produza até".** O tipo `sale` existe no
-razão desde a fundação e **nenhuma tela o escreve**. O aplicativo sabe o que saiu da
-FÁBRICA e não sabe o que saiu para o CONSUMIDOR — a carga sai, chega na loja, e ali o
-razão para.
+**Achada em 7 de setembro construindo o "produza até", fechada em 8.** O tipo `sale`
+existia no razão desde a fundação e **nenhuma tela o escrevia**: o aplicativo sabia o
+que saiu da FÁBRICA e não sabia o que saiu para o CONSUMIDOR. A carga saía, chegava na
+loja, e ali o razão parava.
 
-Três coisas dependem disso: o Espelho da Loja não tem como calibrar (sem venda, o que
-ficou na prateleira e o que vendeu são a mesma coisa para ele), a cobertura da empresa
-é infinita para produto, e **margem não existe** — o custo congelado o razão tem, o
-preço combinado também, e o que falta entre os dois é o fato da venda.
+Três coisas dependiam disso: o Espelho da Loja não tinha como calibrar (sem venda, o
+que ficou na prateleira e o que vendeu eram a mesma coisa para ele), a cobertura da
+empresa era infinita para produto, e **margem não existia** — o custo congelado o razão
+tem, o preço combinado também, e o que faltava entre os dois era o fato da venda.
 
-**E a pergunta é de produto, não de código, por isso está aqui e não na fila.** Duas
-respostas possíveis, e elas são produtos diferentes:
+**Quem escreve é a CONTAGEM, e isto é o padrão, não o único caminho.** Duas respostas
+eram possíveis, e elas são produtos diferentes:
 
 | caminho | o que custa | o que dá |
 |---|---|---|
 | **A loja registra cada venda** | um PDV — aparelho, tela de venda, pessoa treinada | a venda no instante em que acontece |
-| **A contagem periódica deduz** | quase nada: a contagem cega **já existe** e já vira movimento | a venda do período, com a diferença explicada |
+| **A contagem periódica deduz** ← **o padrão** | quase nada: a contagem cega **já existia** e já virava movimento | a venda do período, com a diferença explicada |
 
-O segundo cabe no que já foi construído e é o que uma fábrica de seis pessoas
-aguenta. O primeiro é outro produto. **A escolha é sua**, e ela decide se o Espelho
-da Loja tem como existir de verdade.
+O padrão é o segundo porque é o que uma fábrica de seis pessoas aguenta e porque cabe
+inteiro no que já estava de pé. O primeiro entra depois como configuração de quem o
+quiser, com a contagem seguindo como conferência em cima dele — é a regra da casa:
+*"depende de quem usa"* vira configuração, e o que se decide é o padrão.
+
+**Como funciona, em uma frase:** numa loja própria (`RETAIL_PLACE_KINDS`), o que a
+contagem encontra de FALTA foi comprado por alguém — entra como `sale`, com o preço
+combinado daquela loja congelado em `movements.unit_price_rate` ao lado do custo. Sobra
+positiva continua `adjustment`: não se desvende picolé. E a ordem na loja é *lança a
+perda primeiro, conta depois* — a perda tem tela própria e motivo obrigatório, e o que
+resta de falta é a venda, sem o aplicativo ter de adivinhar a diferença.
+
+O que entrou: `RETAIL_PLACE_KINDS`/`vendeAoConsumidor` (`src/domain/ledger.ts`), a
+coluna `unit_price_rate` no aparelho (`V26`; o servidor a tem desde a `0008`) e na fila
+(`src/sync/serialize.ts`), `recordCount` decidindo a espécie pela do lugar, e a
+confirmação da contagem falando de receita em vez de custo nos três idiomas.
+
+**O que o PDV vai ter de carregar quando chegar** — dito aqui para não virar defeito
+silencioso: hoje `app/inputs/[id].tsx` responde *"conferido em"* aceitando `adjustment`
+**ou** `sale`, o que é verdade porque toda venda nasce de uma contagem. Uma venda de
+PDV não prova que alguém andou até a prateleira, então o item do PDV entra junto com um
+marcador de origem no movimento. Sem ele, o *"conferido em"* de toda loja passa a
+mentir para cima.
 
 ### Espera aparelho — o que NÃO é serviço, e por isso sai da fila
 

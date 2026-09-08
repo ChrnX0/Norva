@@ -2,7 +2,7 @@ import { applyCostEvent, blendRate, type StockCostState } from '@/domain/cost';
 import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
 import { isValidHierarchy } from '@/domain/units';
 import { DEFAULT_ALERTS, type AlertSettings } from '@/domain/alerts';
-import { UNIT_ROOM_KINDS, daysOfCover, ehSalaDeUnidade } from '@/domain/ledger';
+import { UNIT_ROOM_KINDS, daysOfCover, ehSalaDeUnidade, vendeAoConsumidor } from '@/domain/ledger';
 import { ROLES, capabilitiesFor, type Capability, type Role } from '@/domain/access';
 import { expiresOn, lotCode } from '@/domain/lot';
 import type { LossReason, MovementKind, ReturnReason } from '@/domain/ledger';
@@ -678,6 +678,26 @@ export type CountResult = {
   deltaBaseUnits: number;
   /** What that difference is worth, at the item's average cost. */
   deltaCents: Cents;
+  /**
+   * O que a falta significa quando a prateleira é um BALCÃO: foi vendido.
+   *
+   * Nulo em toda sala nossa — câmara fria, almoxarifado, piso da fábrica —, porque
+   * ali a falta é falta e o razão a chama de `adjustment`, que é o nome certo para
+   * *"o mundo discordou do livro"*. Numa loja própria a falta tem nome: o que saiu
+   * da prateleira foi comprado por alguém, e é este o fato que faltava para a margem
+   * existir.
+   *
+   * `revenueCents` é nulo, e não zero, quando não há preço combinado nem de tabela.
+   * Zero significaria *"vendido de graça"*, que é uma afirmação sobre o mundo; nulo
+   * significa *"ninguém disse por quanto"*, que é a verdade. A quantidade vendida é
+   * fato de qualquer jeito e vai para o razão — recusar a contagem por falta de preço
+   * seria deixar de proteger o saldo por causa de um número que ninguém precisou.
+   */
+  sold: null | {
+    baseUnits: number;
+    priceRate: Rate | null;
+    revenueCents: Cents | null;
+  };
 };
 
 export type MovementRow = {
@@ -1538,6 +1558,60 @@ export async function recordCount(
   const averageRate = (cost?.average_rate ?? 0) as Rate;
   const delta = counted - expected;
 
+  /**
+   * O que a falta SIGNIFICA depende da espécie da prateleira — e é a espécie que
+   * responde, nunca o id.
+   *
+   * **Esta é a peça que faltava para a margem existir, e ela não é um campo novo.**
+   * `movement_kind` tem `sale` desde a `0001` com a intenção escrita ao lado, e
+   * atravessou quarenta e seis migrações sem um único escritor. O razão sabia o que a
+   * fábrica produziu e para que loja mandou, e perdia o picolé de vista ali: se ele
+   * foi vendido, derreteu ou está no freezer, o aplicativo não tinha como saber. Sem
+   * esse fato o custo congelado e o preço combinado existem, e o que fica entre os
+   * dois não.
+   *
+   * **A contagem é o caminho mais barato para descobri-lo, e ele já estava
+   * construído.** A alternativa é um ponto de venda na loja: um aparelho, uma tela e
+   * uma pessoa tocando nela enquanto atende o cliente. Ele dá a venda no instante em
+   * que acontece, e é o que uma rede grande quer. Numa fábrica de seis pessoas o que
+   * acontece de verdade é a contagem — que já existe, já vira movimento e já é
+   * perguntada toda vez. Então o padrão é este, e o ponto de venda entra depois como
+   * configuração de quem o quiser, com a contagem seguindo como conferência em cima
+   * dele. É a regra desta casa: *"depende de quem usa"* vira configuração, e o que se
+   * decide é o PADRÃO.
+   *
+   * **E a ordem certa na loja é: lança a perda primeiro, conta depois.** O que
+   * derreteu tem tela própria e motivo obrigatório; lançado antes, ele já saiu do
+   * saldo esperado, e o que a contagem encontra de falta é o que foi comprado por
+   * alguém. Assim o aplicativo não tem de adivinhar a diferença entre venda e perda —
+   * quem estava lá já disse, e cada fato mantém o nome dele no razão.
+   *
+   * Sobra positiva continua sendo `adjustment`, e isso não é descuido: não se
+   * desvende. Achar MAIS do que o livro diz é erro de contagem ou chegada não
+   * lançada, e chamar isso de venda negativa poria receita inventada no razão.
+   */
+  const lugar = await conn.getFirstAsync<{ kind: string }>(
+    `SELECT kind FROM locations WHERE company_id = ? AND id = ?`,
+    [companyId, input.locationId],
+  );
+  const vendeu = delta < 0 && lugar !== null && vendeAoConsumidor(lugar.kind);
+
+  /**
+   * O preço vem SEM portão de permissão, e é a mesma decisão do custo na produção.
+   *
+   * `salePricesFor` é gateada por `manage_company` porque é uma LEITURA: quem não
+   * pode ver o acordo não recebe o número. Aqui não se está mostrando nada — está-se
+   * congelando um fato no livro-razão, e o fato não depende de quem estava com o
+   * celular. Com o portão no caminho, a contagem feita pelo operador gravaria a venda
+   * com preço nulo, a receita do mês sairia menor para quem conta e maior para quem
+   * administra, e as duas passariam sem uma reclamação. É exatamente o defeito que
+   * quase entrou em `recordProduction` com o custo, e a refutação que o pegou está
+   * escrita lá.
+   */
+  const priceRate = vendeu
+    ? await precoPraticado(conn, companyId, input.itemId, input.locationId)
+    : null;
+
   const id = newId();
 
   await conn.withTransactionAsync(async () => {
@@ -1548,18 +1622,30 @@ export async function recordCount(
     await conn.runAsync(
       `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                               quantity_base_units, location_id, unit_cost_rate,
+                              unit_price_rate,
                               movement_group_id, note, assistant_phrase,
                               operator_id)
-       VALUES (?, ?, 'adjustment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         companyId,
+        // A espécie é o que muda entre "o mundo discordou do livro" e "alguém
+        // comprou". As duas linhas são idênticas em quantidade e sinal, e é só o
+        // nome que faz uma virar receita — por isso ele é decidido acima, com a
+        // razão escrita, e não aqui no meio dos parâmetros.
+        vendeu ? 'sale' : 'adjustment',
         input.occurredAt ?? at,
         at,
         input.itemId,
         delta,
         locationId,
         averageRate || null,
+        // O custo congelado responde "quanto isto me custou" e o preço responde
+        // "por quanto saiu". Guardar os dois na mesma linha é o que torna a margem
+        // uma subtração em vez de uma junção entre o razão e uma tabela que pode
+        // ser renegociada amanhã — e renegociar preço em março não pode reescrever
+        // o que fevereiro faturou.
+        priceRate ?? null,
         // O grupo é a própria linha. Uma contagem é um ato de uma perna, e sem
         // grupo ela não tem como ser DESFEITA: `planReversal` procura pelo grupo,
         // e o que não tem grupo não existe para ele. A fundação diz que se corrige
@@ -1579,7 +1665,49 @@ export async function recordCount(
     countedBaseUnits: counted,
     deltaBaseUnits: delta,
     deltaCents: amountOf(averageRate, delta),
+    sold: vendeu
+      ? {
+          baseUnits: -delta,
+          priceRate,
+          // Arredonda aqui, uma vez, e só o valor final: a taxa continua fracionária
+          // na coluna. `amountOf` é o único ponto de arredondamento do sistema.
+          revenueCents: priceRate === null ? null : amountOf(priceRate, -delta),
+        }
+      : null,
   };
+}
+
+/**
+ * Por quanto este lugar vende este item — o combinado, e a tabela quando não houver.
+ *
+ * Duas fontes e uma ordem, e a ordem é a que a `0037` decidiu: o acordo por lugar
+ * VENCE o preço de tabela. Sem isso a loja da esquina que negociou R$ 2,00 faturaria
+ * pelos R$ 2,20 do catálogo, e a margem dela sairia inflada em dez por cento — para
+ * cima, que é o lado perigoso de errar dinheiro.
+ *
+ * Nulo é resposta: uma fábrica que nunca cadastrou preço nenhum continua podendo
+ * contar a prateleira, e a venda entra sem receita. A tela diz isso; o razão não
+ * inventa um número.
+ */
+async function precoPraticado(
+  conn: Db,
+  companyId: string,
+  itemId: string,
+  locationId: string,
+): Promise<Rate | null> {
+  const acordo = await conn.getFirstAsync<{ price_rate: number }>(
+    `SELECT price_rate FROM location_prices
+      WHERE company_id = ? AND location_id = ? AND item_id = ?`,
+    [companyId, locationId, itemId],
+  );
+  if (acordo) return acordo.price_rate as Rate;
+
+  const tabela = await conn.getFirstAsync<{ sale_price_rate: number | null }>(
+    `SELECT sale_price_rate FROM items WHERE company_id = ? AND id = ?`,
+    [companyId, itemId],
+  );
+  const daTabela = tabela?.sale_price_rate;
+  return daTabela === null || daTabela === undefined ? null : (daTabela as Rate);
 }
 
 /**
@@ -1974,7 +2102,7 @@ export async function recordProduction(
   const product = (await listProductsForLedger(companyId)).find((p) => p.id === input.productId);
   if (!product) throw new Error(`produto ${input.productId} não existe`);
   if (!product.recipeId) throw new Error(`${product.name} é revenda: não se produz`);
-  if (input.batches <= 0) throw new Error('uma corrida tem pelo menos um tacho');
+  if (input.batches <= 0) throw new Error('uma corrida roda a receita pelo menos uma vez');
   if (input.unitsProduced <= 0) throw new Error('uma corrida que não rendeu nada é um erro, não um fato');
 
   const graph = await loadRecipeGraph(companyId);
@@ -3329,7 +3457,7 @@ export async function openProductionRun(
   input: { productId: string; batches: number },
 ): Promise<OpenRun> {
   if (!(input.batches > 0) || !Number.isFinite(input.batches)) {
-    throw new Error('um tacho tem de ser mais que zero');
+    throw new Error('a receita tem de rodar mais que zero vezes');
   }
 
   const product = (await listProductsForLedger(companyId)).find((p) => p.id === input.productId);

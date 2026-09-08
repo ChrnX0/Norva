@@ -93,8 +93,8 @@ export const en: Dictionary = {
       capaLead: 'Today the factory',
       capaMade: 'made {{amount}}',
       capaQuiet: 'has not produced yet',
-      capaLegend: 'The whole line — from the vat to the crate that left.',
-      capaLegendStill: 'Still right now: no vat open, nothing made and nothing shipped today.',
+      capaLegend: 'The whole line — from production to the crate that left.',
+      capaLegendStill: 'Still right now: nothing in production, nothing made and nothing shipped today.',
       boxYesterday: 'Yesterday',
       boxLastWeek: '{{weekday}}, a week ago',
       todayUnits: '{{unit}} · today',
@@ -990,6 +990,11 @@ export const en: Dictionary = {
         'You counted {{counted}}. The system expected {{expected}}. That leaves {{diff}} missing. The difference is recorded and nothing is erased.',
       countConfirmOverNoMoney:
         'You counted {{counted}}. The system expected {{expected}}. That is {{diff}} over. The difference is recorded and nothing is erased.',
+      /** A count at our own store: what left the shelf was SOLD. See pt-BR. */
+      countConfirmSold:
+        'You counted {{counted}}. The ledger expected {{expected}}. So {{diff}} left the shelf and go in as a sale of {{money}}. Did any of it melt? Record the loss before counting.',
+      countConfirmSoldNoPrice:
+        'You counted {{counted}}. The ledger expected {{expected}}. So {{diff}} left the shelf and go in as a sale. The revenue comes from this store\u2019s agreed price, once there is one. Did any of it melt? Record the loss before counting.',
       lastCounted: 'checked on {{date}}',
       history: 'Price history',
       historyHint: 'Nobody wrote this. Every line came from an invoice.',
@@ -1116,7 +1121,7 @@ export const en: Dictionary = {
     capabilities: {
       view_cost: { label: 'See cost', hint: 'What it costs to make, and what the stock is worth.' },
       view_sale_price: { label: 'See sale price', hint: 'What the goods go out for, to a store or a customer.' },
-      record_production: { label: 'Record production', hint: 'Enter what came out of the pot, drawing down the inputs.' },
+      record_production: { label: 'Record production', hint: 'Enter what came out of production, drawing down the inputs.' },
       dispatch: { label: 'Send a load', hint: 'Move goods from the factory to a store.' },
       check_receipt: { label: 'Check arrivals', hint: 'Open the box at the store and say what came.' },
       record_loss: { label: 'Record a loss', hint: 'Note what melted, broke or went past its date.' },

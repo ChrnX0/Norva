@@ -1,5 +1,6 @@
 import { nowIso } from '@/data/db';
 import { dayWindow } from '@/domain/day';
+import { ehConferencia } from '@/domain/ledger';
 import { packSize } from '@/domain/measure';
 import { purchaseToBaseUnits } from '@/data/repository';
 import { fromDecimal } from '@/domain/money';
@@ -206,7 +207,7 @@ const producedToday: Skill = {
 
     if (total === 0) {
       // Nada saiu ainda é resposta, e não falha. A tela da capa diz o mesmo.
-      return { text: 'Nada saiu do tacho hoje ainda.', route: '/production' };
+      return { text: 'Nada saiu da produção hoje ainda.', route: '/production' };
     }
 
     const diferenca = total - entao;
@@ -506,7 +507,7 @@ const stockOfInput: Skill = {
 
     const held = `${formatQuantity(item.onHandBaseUnits, ctx.locale)} ${item.baseUnit}`;
     const movements = await ctx.data.itemMovements(item.id, 20);
-    const counted = movements.find((mv) => mv.kind === 'adjustment');
+    const counted = movements.find((mv) => ehConferencia(mv.kind));
 
     const detail = [{ label: 'Em estoque', value: held }];
 
@@ -835,7 +836,10 @@ const registerProduction: Skill = {
   requires: 'record_production',
   match: (q) =>
     normalize(q).match(
-      /(?:produzi|fiz|fabriquei|sairam|rodei)\s+([\d.,]+)\s+(?:\w+\s+)??(?:de\s+)?(.+?)(?:\s+em\s+([\d.,]+)\s+tachos?)?$/,
+      // `tachos?` continua aqui, e continuar é a decisão: quem DIZ "tacho" tem de ser
+      // entendido. O que mudou em 8 de setembro é que o aplicativo não FALA a palavra —
+      // aceitar vocabulário de quem usa é o contrário de impor o de uma indústria.
+      /(?:produzi|fiz|fabriquei|sairam|rodei)\s+([\d.,]+)\s+(?:\w+\s+)??(?:de\s+)?(.+?)(?:\s+em\s+([\d.,]+)\s+(?:tachos?|vezes|bateladas|receitas))?$/, // entrada, não fala
     ),
   run: async (m, ctx) => {
     const units = parseNumber(m[1]);
@@ -853,7 +857,7 @@ const registerProduction: Skill = {
 
     const declarados = m[3] ? parseNumber(m[3]) : null;
     if (m[3] && (declarados === null || declarados <= 0)) {
-      return { text: 'Não entendi quantos tachos foram.' };
+      return { text: 'Não entendi quantas vezes a receita rodou.' };
     }
 
     const graph = await ctx.data.loadRecipeGraph();
@@ -881,7 +885,7 @@ const registerProduction: Skill = {
 
     const detail = [
       { label: 'Produto', value: product.name },
-      { label: 'Tachos', value: m[3] ? String(batches) : `${batches.toFixed(2)} (pelo que saiu)` },
+      { label: 'Vezes', value: m[3] ? String(batches) : `${batches.toFixed(2)} (pelo que saiu)` },
       { label: 'Saíram', value: `${formatQuantity(units, ctx.locale)} un` },
     ];
     if (planned > 0) {
@@ -893,7 +897,7 @@ const registerProduction: Skill = {
 
     const assumed = m[3]
       ? ''
-      : ' Contei os insumos pelo que saiu; se rodou tacho cheio, diga "em 2 tachos" que eu refaço.';
+      : ' Contei os insumos pelo que saiu; se rodou a receita inteira, diga "em 2 vezes" que eu refaço.';
 
     return {
       text: 'Preparei a produção. Confira antes de eu gravar.' + assumed,
@@ -902,7 +906,7 @@ const registerProduction: Skill = {
         kind: 'production',
         summary:
           `Registrar ${formatQuantity(units, ctx.locale)} unidades de ${product.name}, ` +
-          `em ${batches === 1 ? 'um tacho' : `${Number(batches.toFixed(2))} tachos`}. ` +
+          `em ${batches === 1 ? 'uma vez' : `${Number(batches.toFixed(2))} vezes`}. ` +
           'Os insumos saem do almoxarifado e o custo por unidade fica congelado nesta corrida.',
         apply: async () => {
           await ctx.data.recordProduction({
@@ -1013,7 +1017,7 @@ const registerTransfer: Skill = {
  */
 const whatToBuy: Skill = {
   id: 'what_to_buy',
-  example: 'o que falta para 3 tachos de cada',
+  example: 'o que falta para 3 receitas de cada',
   /**
    * `view_cost` aqui NÃO é sobre os números da resposta — é sobre o ato.
    *
@@ -1033,12 +1037,12 @@ const whatToBuy: Skill = {
   requires: 'view_cost',
   match: (q) =>
     normalize(q).match(
-      /(?:o que|quanto|do que)\s+(?:eu\s+)?(?:falta|preciso|precisa|tenho que|tem que)\s*(?:comprar)?[^\d]*([\d.,]+)\s*tachos?\s*(?:de\s+(.+))?$/,
+      /(?:o que|quanto|do que)\s+(?:eu\s+)?(?:falta|preciso|precisa|tenho que|tem que)\s*(?:comprar)?[^\d]*([\d.,]+)\s*(?:tachos?|vezes|bateladas|receitas)\s*(?:de\s+(.+))?$/, // entrada, não fala
     ),
   run: async (m, ctx) => {
     const batches = parseNumber(m[1]);
     if (batches === null || batches <= 0) {
-      return { text: 'Não entendi quantos tachos. Pode repetir com o número?' };
+      return { text: 'Não entendi quantas vezes. Pode repetir com o número?' };
     }
 
     const products = (await ctx.data.listProducts()).filter((p) => p.recipeId);

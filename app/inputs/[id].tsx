@@ -34,6 +34,7 @@ import {
   recipesUsingItem,
   reverseGroup,
   recordCount,
+  salePricesFor,
   setItemActive,
   type ItemWithCost,
   type LocationBalance,
@@ -45,7 +46,8 @@ import {
 import { empresaDaqui } from '@/data/empresa';
 import { unidadeDaqui } from '@/data/unidade';
 import { judgePriceChange, observedLeadTimeDays, reorderPoint } from '@/domain/cost';
-import type { LossReason } from '@/domain/ledger';
+import { amountOf } from '@/domain/money';
+import { ehConferencia, vendeAoConsumidor, type LossReason } from '@/domain/ledger';
 import { parseTyped } from '@/domain/number';
 import { useQuery } from '@/data/useQuery';
 import {
@@ -333,7 +335,21 @@ function InputDetail() {
       ? null
       : (spread[0]?.locationId ?? unidadeDaqui()));
 
-  const lastCount = (data?.movements ?? []).find((m) => m.kind === 'adjustment');
+  /**
+   * Quando alguém conferiu esta prateleira pela última vez.
+   *
+   * `sale` entra na lista porque numa loja própria a contagem VIRA uma venda: se o
+   * leitor olhasse só `adjustment`, o *"conferido em"* de toda loja congelaria no dia
+   * em que ela bateu exato, e uma prateleira contada ontem pareceria não conferida há
+   * meses — que é pior que não dizer nada, porque manda contar de novo.
+   *
+   * **E a fronteira, dita em vez de subentendida:** isto vale porque HOJE toda venda
+   * nasce de uma contagem. No dia em que existir ponto de venda na loja, uma venda
+   * deixa de provar que alguém andou até a prateleira, e este leitor passa a precisar
+   * de um marcador de origem no movimento. O item do ponto de venda em
+   * `docs/roadmap.md` carrega essa obrigação escrita.
+   */
+  const lastCount = (data?.movements ?? []).find((m) => ehConferencia(m.kind));
   const lastCounted = lastCount
     ? fill(t.app.inputDetail.lastCounted, { date: formatDayMonth(lastCount.occurredAt, locale) })
     : null;
@@ -412,27 +428,70 @@ function InputDetail() {
 
     const expected = item.onHandBaseUnits;
     const delta = Math.round(counted) - expected;
+
+    /**
+     * Numa loja própria a falta não é falta: é venda — e a confirmação tem de dizer
+     * isso ANTES de gravar, porque é o que vai para o razão.
+     *
+     * A pergunta é à ESPÉCIE do lugar e nunca ao id, com a régua do domínio
+     * respondendo, para a tela e `recordCount` não decidirem por caminhos diferentes
+     * o que a mesma linha significa. Foi assim que a produção liberou um botão que a
+     * escrita recusava, no mesmo dia.
+     */
+    const lugarContado = (data?.places ?? []).find((p) => p.id === contarEm);
+    const vendeu = delta < 0 && lugarContado !== undefined && vendeAoConsumidor(lugarContado.kind);
+
+    /**
+     * O preço só é buscado no toque, e só quando há venda.
+     *
+     * Não vem na consulta da tela porque a sala da contagem é deduzida DEPOIS dela —
+     * ela depende de em quantos lugares o item está —, e porque uma ficha de insumo
+     * aberta cem vezes por dia não deve pedir a tabela de preços de uma loja que
+     * ninguém vai contar. `salePricesFor` traz o portão consigo (`manage_company`):
+     * quem não pode ver o acordo recebe lista vazia, cai na frase sem cifra, e o
+     * razão continua congelando o preço certo — o portão é da LEITURA, nunca do fato.
+     */
+    let receita: number | null = null;
+    if (vendeu) {
+      const acordo = (await salePricesFor(empresaDaqui(), contarEm)).find(
+        (linha) => linha.itemId === item.id,
+      );
+      const taxa = acordo?.agreedRate ?? acordo?.listRate ?? null;
+      // `amountOf` e não `Math.round` aqui, e a diferença não é estética: é ele que
+      // `recordCount` usa para gravar a receita. Duas aritméticas para o mesmo número
+      // é a forma que produz divergência, e aqui a divergência seria a confirmação
+      // prometendo um valor que o razão não guarda — a Lei 3 virada do avesso.
+      if (taxa !== null) receita = Math.abs(amountOf(taxa, delta));
+    }
+
     const worth = Math.abs(Math.round((item.averageRate ?? 0) * delta));
 
     const shown = {
       counted: `${formatQuantity(Math.round(counted), locale)} ${item.baseUnit}`,
       expected: `${formatQuantity(expected, locale)} ${item.baseUnit}`,
       diff: `${formatQuantity(Math.abs(delta), locale)} ${item.baseUnit}`,
-      money: formatMoney(worth, locale),
+      // Na venda o dinheiro é a RECEITA, não o custo. Trocar um pelo outro aqui
+      // mostraria o que a fábrica gastou numa frase que fala do que ela ganhou —
+      // e quem lê acharia que a margem é zero.
+      money: formatMoney(receita ?? worth, locale),
     };
 
     const go = await confirm({
       title: t.app.inputDetail.countConfirmTitle,
       message: fill(
-        delta === 0
-          ? t.app.inputDetail.countConfirmExact
-          : delta < 0
-            ? dinheiro
-              ? t.app.inputDetail.countConfirmShort
-              : t.app.inputDetail.countConfirmShortNoMoney
-            : dinheiro
-              ? t.app.inputDetail.countConfirmOver
-              : t.app.inputDetail.countConfirmOverNoMoney,
+        vendeu
+          ? receita !== null
+            ? t.app.inputDetail.countConfirmSold
+            : t.app.inputDetail.countConfirmSoldNoPrice
+          : delta === 0
+            ? t.app.inputDetail.countConfirmExact
+            : delta < 0
+              ? dinheiro
+                ? t.app.inputDetail.countConfirmShort
+                : t.app.inputDetail.countConfirmShortNoMoney
+              : dinheiro
+                ? t.app.inputDetail.countConfirmOver
+                : t.app.inputDetail.countConfirmOverNoMoney,
         shown,
       ),
       confirmLabel: t.app.inputDetail.countConfirmAction,

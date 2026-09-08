@@ -932,9 +932,34 @@ UPDATE locations
    AND EXISTS (SELECT 1 FROM locations u WHERE u.id = locations.company_id);
 `;
 
+/**
+ * O preço por que uma coisa saiu — a coluna que faltava para a margem existir.
+ *
+ * `movements.unit_price_rate` existe no servidor desde a `0008`, gateada por
+ * `view_sale_price` na view, e ficou **quarenta e seis migrações sem escritor**. O
+ * aparelho nunca teve a coluna, então até hoje ele não tinha onde guardar o número
+ * mesmo que quisesse: o custo congelado ele tem (`unit_cost_rate`), o preço
+ * combinado ele tem (`location_prices`), e o que fica entre os dois — a margem — não
+ * existia porque o fato da venda não era gravado em lugar nenhum.
+ *
+ * `REAL` e não inteiro, pelo mesmo motivo que `unit_cost_rate`: é uma TAXA por
+ * unidade-base, não dinheiro. Picolé a R$ 2,20 é 220 centavos por unidade e a conta
+ * fecha, mas a régua da casa é que taxa não arredonda nunca e só o valor final
+ * arredonda, uma vez — e o dia em que um item for vendido a granel ("R$ 12,40 o
+ * quilo" é 1,24 centavo por grama) a coluna inteira perderia um quinto antes da
+ * primeira multiplicação. Foi um bug real deste projeto, com nome e data.
+ *
+ * O nome é o do servidor, letra por letra: a fila manda a linha com os nomes que ela
+ * tem, e um `unitPriceRate` aqui seria recusado lá — em silêncio, porque a coluna
+ * é opcional dos dois lados.
+ */
+const V26 = `
+ALTER TABLE movements ADD COLUMN unit_price_rate REAL;
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
-  V19, V20, V21, V22, V23, V24, V25,
+  V19, V20, V21, V22, V23, V24, V25, V26,
 ];
 
 export type SqlParam = string | number | null;

@@ -531,13 +531,13 @@ test('a word that reaches the whole grid elects nobody', () => {
 });
 
 test('the assistant answers what the briefing shows, and says when there is nothing', async () => {
-  // A capa passou a dizer o que saiu do tacho hoje, e o assistente respondia
+  // A capa passou a dizer o que saiu da produção hoje, e o assistente respondia
   // "ainda não sei". Duas verdades no mesmo app, e quem perde é o assistente:
   // a pessoa pergunta uma vez, ouve que ele não sabe, e não pergunta de novo.
   PRODUZIDO = [];
   PEDIDOS = 0;
   const vazio = await ask('quanto saiu hoje', context());
-  assert.match(vazio.text, /Nada saiu do tacho hoje/);
+  assert.match(vazio.text, /Nada saiu da produção hoje/);
 
   // Com produção, ele diz o número E a comparação - a mesma Lei 3 que a tela
   // obedece. Um número sozinho não ensina nada.
@@ -709,7 +709,18 @@ test('producing by talking counts the inputs by what came out, and says so', asy
   const told = await ask('produzi 900 picolés de morango em 2 tachos', context('record_production'));
   assert.ok(told.draft);
   assert.ok(!/pelo que saiu/.test(told.text));
-  assert.match(told.draft.summary, /em 2 tachos/);
+  // **Aceitar não é falar, e as duas metades são a correção do dono de 8 de setembro.**
+  // A pergunta acima diz "tachos" e é obedecida ao pé da letra — recusar o vocabulário
+  // de quem usa seria o contrário do que ele pediu. A resposta não devolve a palavra:
+  // o aplicativo vai para as duas lojas, e metade das fábricas que o instalarem não tem
+  // tacho nenhum. Sem esta linha a correção vira metade dela.
+  assert.match(told.draft.summary, /em 2 vezes/);
+  assert.ok(!/tacho/i.test(told.draft.summary), 'entendeu a palavra; não a repete');
+
+  // E a palavra neutra entra pela mesma porta, para quem nunca disse "tacho".
+  const neutro = await ask('produzi 900 picolés de morango em 2 vezes', context('record_production'));
+  assert.ok(neutro.draft, 'quem diz "em 2 vezes" tem de ser entendido igual');
+  assert.match(neutro.draft.summary, /em 2 vezes/);
 
   await told.draft.apply();
   assert.deepEqual(recorded, [
@@ -790,4 +801,51 @@ test('who cannot see cost cannot ask what was lost', async () => {
   PERDAS = [perda('caixa', 'Picolé de morango', 'melted', 4000)];
   const r = await ask('quanto a gente perdeu esse mês', context('record_production'));
   assert.ok(!/R\$/.test(r.text), 'o valor não pode sair para quem não vê custo');
+});
+
+/**
+ * *"Quando foi conferido?"* responde igual na tela e na voz — e por pouco não.
+ *
+ * Em 8 de setembro a contagem de uma loja própria passou a gravar `sale` em vez de
+ * `adjustment`: o que sai da prateleira de um balcão foi comprado por alguém. A ficha do
+ * insumo aprendeu isso na mesma hora e **o assistente não**, porque o mesmo `if` estava
+ * escrito com outras palavras num arquivo que ninguém olhou junto.
+ *
+ * O sintoma seria duas verdades sobre um fato: a ficha dizendo *"conferido em 8/9"* e a
+ * voz respondendo *"ninguém conferiu ainda"* para a mesma prateleira, no mesmo dia — e a
+ * segunda manda alguém contar de novo o que acabou de ser contado, que é como se ensina
+ * uma equipe a ignorar o aplicativo.
+ *
+ * Este teste é o chamador de produção da régua `ehConferencia`. Sem ele a régua teria
+ * teste nenhum e a mutação que a estreita passaria verde.
+ */
+test('the voice says a store shelf was checked when the count booked a sale', async () => {
+  const vendido: MovementRow & { itemId: string } = {
+    itemId: 'sugar',
+    id: 'venda-1',
+    kind: 'sale',
+    baseUnits: -340,
+    unitCostRate: 0.472 as Rate,
+    note: null,
+    occurredAt: '2026-09-08T11:00:00Z',
+    groupId: 'venda-1',
+    reversed: false,
+  };
+
+  const dados = {
+    ...data,
+    // Só a venda: sem nenhuma correção na lista, um leitor que procure `adjustment`
+    // responde "ninguém conferiu ainda" — que é exatamente o defeito.
+    itemMovements: async () => [vendido],
+  };
+
+  const r = await ask('quantos tem de açúcar', { ...context('view_cost'), data: dados });
+  const conferencia = r.detail?.find((d) => d.label === 'Última conferência');
+  assert.ok(conferencia, 'a resposta traz quando foi conferido');
+  assert.notEqual(
+    conferencia.value,
+    'ninguém conferiu ainda',
+    'a contagem que virou venda continua sendo uma contagem, e a voz tem de dizer isso',
+  );
+  assert.match(conferencia.value, /8/, 'e diz a data em que alguém andou até a prateleira');
 });

@@ -482,8 +482,8 @@ const DEFECTS = [
   },
   {
     file: 'src/data/repository.ts',
-    from: "      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate, null);",
-    to: "      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate, lotId);",
+    from: "      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate, null, line.locationId);",
+    to: "      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate, lotId, line.locationId);",
     hurts:
       'o lote do picole passa a carimbar a saida da polpa, e um recall de picole manda recolher o saco de acucar',
   },
@@ -798,8 +798,8 @@ const DEFECTS = [
   },
   {
     file: 'src/data/repository.ts',
-    from: "      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate, null);",
-    to: "      await write(newId(), 'consumption', line.itemId, line.baseUnits, line.rate, null);",
+    from: "      await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate, null, line.locationId);",
+    to: "      await write(newId(), 'consumption', line.itemId, line.baseUnits, line.rate, null, line.locationId);",
     hurts: 'produzir passa a AUMENTAR o estoque de insumo, e o almoxarifado enche sozinho a cada tacho',
   },
   {
@@ -953,6 +953,55 @@ const DEFECTS = [
     to: '      listItems(empresaDaqui()),',
     hurts:
       'a tela de producao volta a ler o saldo da empresa e a liberar o botao com o insumo noutra sala: cada toque devolve o erro de programador do piso, e nenhuma corrida entra',
+  },
+
+  // --- a venda, o fato que faltava para a margem existir, 8 de setembro -------
+  //
+  // `movement_kind` tem `sale` desde a 0001 e atravessou 46 migracoes sem escritor.
+  // Quem o escreve e a contagem numa loja propria: o que saiu da prateleira foi
+  // comprado por alguem. Cada uma destas cinco troca uma das decisoes dessa regra,
+  // e as cinco produzem numero de dinheiro errado em silencio.
+  {
+    file: 'src/data/repository.ts',
+    from: "        vendeu ? 'sale' : 'adjustment',",
+    to: "        'adjustment',",
+    hurts:
+      'a contagem na loja volta a gravar correcao em vez de venda: o razao para de saber que houve receita, e a margem deixa de existir sem nenhuma tela mudar',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: '  const vendeu = delta < 0 && lugar !== null && vendeAoConsumidor(lugar.kind);',
+    to: '  const vendeu = lugar !== null && vendeAoConsumidor(lugar.kind);',
+    hurts:
+      'contar MAIS do que o livro diz passa a gravar uma venda negativa: receita inventada no razao, e ela some da soma do mes como se alguem tivesse desvendido picole',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: '  if (acordo) return acordo.price_rate as Rate;',
+    to: '',
+    hurts:
+      'o preco combinado com a loja deixa de valer e todo mundo fatura pelo catalogo: a margem da loja que negociou sai inflada para cima, que e o lado perigoso de errar dinheiro',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: '          revenueCents: priceRate === null ? null : amountOf(priceRate, -delta),',
+    to: '          revenueCents: amountOf(priceRate ?? (0 as Rate), -delta),',
+    hurts:
+      'venda sem preco combinado passa a valer zero em vez de "ninguem disse por quanto": a tela afirma que a mercadoria saiu de graca, e a margem do mes fica negativa por falta de cadastro',
+  },
+  {
+    file: 'src/domain/ledger.ts',
+    from: "export const COUNT_KINDS = ['adjustment', 'sale'] as const;",
+    to: "export const COUNT_KINDS = ['adjustment'] as const;",
+    hurts:
+      'a contagem que virou venda deixa de provar que alguem andou ate a prateleira: o "conferido em" de toda loja propria congela no dia em que ela bateu exato, e o app manda contar de novo o que foi contado hoje de manha',
+  },
+  {
+    file: 'src/domain/ledger.ts',
+    from: "export const RETAIL_PLACE_KINDS = ['own_store'] as const;",
+    to: "export const RETAIL_PLACE_KINDS = ['own_store', 'cold_room'] as const;",
+    hurts:
+      'contar a camara fria passa a faturar: a polpa que faltou na conferencia entra como receita, e o mes fecha com venda de insumo que ninguem vendeu',
   },
 
   // --- o freezer cheio que a conta nao via, 4 de setembro --------------------

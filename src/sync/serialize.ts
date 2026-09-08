@@ -446,6 +446,13 @@ const CROSSINGS: Record<
       'post',
       'loss_reason',
       'unit_cost_rate',
+      // Por quanto saiu, quando saiu vendido. Nulo em tudo que não é venda, e nulo
+      // é resposta: uma transferência para a loja própria não fatura nada, e um
+      // consumo não tem preço. A coluna existe no servidor desde a `0008` e é
+      // opcional, então sem esta linha a venda subiria SEM o preço — a fila seria
+      // aceita, o razão do servidor teria a quantidade e não a receita, e a margem
+      // divergiria entre o celular e o servidor sem uma reclamação.
+      'unit_price_rate',
       // Nulo até o aparelho saber qual aparelho ele é.
       //
       // A coluna existe no servidor e é opcional, então nada quebra e nada
