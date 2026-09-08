@@ -1366,12 +1366,12 @@ test('the shelf a screen shows is the shelf a count is compared against', async 
   // E a câmara conferida não faz a fábrica parecer conferida. "Conferido em 2/9"
   // ao lado do saldo da fábrica seria dizer que alguém olhou uma prateleira que
   // ninguém olhou.
-  const daCamara = await itemMovements(EMPRESA_SEMENTE, acucar.id, 20, camara.id);
+  const daCamara = await itemMovements(EMPRESA_SEMENTE, acucar.id, 20, { sala: camara.id });
   assert.ok(
     daCamara.some((m) => m.kind === 'adjustment'),
     'a conferência da câmara aparece na câmara',
   );
-  const daFabrica = await itemMovements(EMPRESA_SEMENTE, acucar.id, 20, fabrica);
+  const daFabrica = await itemMovements(EMPRESA_SEMENTE, acucar.id, 20, { sala: fabrica });
   assert.ok(
     !daFabrica.some((m) => m.kind === 'adjustment'),
     'e não aparece na fábrica, que ninguém conferiu',

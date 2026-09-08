@@ -473,7 +473,7 @@ muda o que o dono vê. Fica registrado em vez de decidido sozinho:
 | ~~`listItems` / `findItem`~~ **FEITAS em 8 de setembro** | o parâmetro passou a ser `{ sala }` OU `{ unidade }`, e são duas perguntas diferentes: a sala é a prateleira exata, a unidade é ela **mais as salas dentro dela**. Um campo só faria a unidade somar apenas o pátio e deixar a câmara fria de fora — o defeito de somar de MENOS, que é o mais calado porque um número menor parece prudente. Capa, ficha de insumo, produção, insumos e avisos passaram a pedir a unidade; **a compra continua da empresa**, por decisão escrita de 1 de setembro — é ela que alimenta a média móvel do custo, e o mesmo grama de açúcar não custa uma coisa em cada sala |
 | `runningOut` (`:4818`) / `dailyOutflowOf` (`:4782`) | pior que somar junto: no modo empresa a linha `:4869` DESCARTA transferência como saída, então mandar insumo de A para B deixa de contar como consumo de A e a cobertura de A fica infinita | capa (duas), relatórios, avisos |
 | `expiringSoon` (`:3773`) | o parâmetro existe e **nenhum** chamador usa: a validade da unidade A soa na B | capa, avisos |
-| `itemMovements` (`:1424`) | só o caminho do assistente | `skills.ts:508` |
+| ~~`itemMovements`~~ **FEITA em 8 de setembro** | mesma forma `{ sala } \| { unidade }`. O caminho do assistente é o pior dos dois: ele responde por FRASE, e frase afirmativa não tem como dizer de onde veio — *"conferido em 3/9"* com a conferência da outra cidade passa como fato |
 | `recentRuns` (`:3705`) / `lotsOn` (`:3471`) / `findLot` (`:3936`) | não somam errado — param de dizer ONDE. `lotsOn` e o `runningOut` da MESMA tela já divergem hoje | produção, relatórios, capa |
 
 E duas que **não** mudam, por decisão de 1 de setembro: as médias móveis de custo

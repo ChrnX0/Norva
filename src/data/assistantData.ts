@@ -38,7 +38,11 @@ export function liveData(companyId: string, timeZone: string): AssistantData {
     itemCosts: () => itemCosts(companyId),
     labels: () => labels(companyId),
     recentCostChanges: (limit) => recentCostChanges(companyId, limit),
-    itemMovements: (itemId, limit) => itemMovements(companyId, itemId, limit),
+    // Da UNIDADE deste aparelho: o assistente responde por frase, e uma frase
+    // afirmativa não tem como dizer de onde veio. "Conferido em 3/9" com a
+    // conferência da outra cidade é pior aqui que numa tela.
+    itemMovements: (itemId, limit) =>
+      itemMovements(companyId, itemId, limit, { unidade: unidadeDaqui() }),
     productionOn: (from, to) => productionOn(companyId, from, to),
     lossesOn: (from, to) => lossesOn(companyId, from, to),
     recordPurchase: (input) => recordPurchase(companyId, input),

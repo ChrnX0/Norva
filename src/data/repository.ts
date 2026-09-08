@@ -1499,8 +1499,13 @@ export async function itemMovements(
    * Sem ela a lista é da empresa — e uma tela que mostra o saldo de uma sala
    * dizendo "conferido em 3/9" com a conferência de OUTRA sala está afirmando
    * que a prateleira daqui foi olhada quando ninguém a olhou.
+   *
+   * `{ unidade }` é a mesma frase um andar acima: o assistente, respondendo
+   * *"quando o açúcar foi conferido?"* sem escopo, contaria a conferência da outra
+   * cidade — e é pior que na tela, porque a resposta chega como uma frase afirmativa
+   * sem nada dizendo de onde ela veio.
    */
-  locationId?: string,
+  onde?: { sala: string } | { unidade: string },
 ): Promise<MovementRow[]> {
   const conn = await db();
   /**
@@ -1513,6 +1518,8 @@ export async function itemMovements(
    * literalmente o que este campo é — o vazamento nasceria pronto.
    */
   const dinheiro = (await canSeeMoney(companyId)) ? 1 : 0;
+  const sala = onde && 'sala' in onde ? onde.sala : null;
+  const unidade = onde && 'unidade' in onde ? onde.unidade : null;
   const rows = await conn.getAllAsync<{
     id: string;
     kind: string;
@@ -1536,9 +1543,13 @@ export async function itemMovements(
        FROM movements m
       WHERE m.company_id = ? AND m.item_id = ?
         AND (? IS NULL OR m.location_id = ?)
+        AND (? IS NULL OR EXISTS (
+              SELECT 1 FROM locations l
+               WHERE l.id = m.location_id
+                 AND (l.id = ? OR COALESCE(l.parent_location_id, l.company_id) = ?)))
       ORDER BY m.occurred_at DESC, m.rowid DESC
       LIMIT ?`,
-    [dinheiro, companyId, itemId, locationId ?? null, locationId ?? null, limit],
+    [dinheiro, companyId, itemId, sala, sala, unidade, unidade, unidade, limit],
   );
 
   return rows.map((r) => ({

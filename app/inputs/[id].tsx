@@ -186,7 +186,7 @@ function InputDetail() {
       findItem(empresaDaqui(), id, room ? { sala: room } : { unidade: unidadeDaqui() }),
       itemHistory(empresaDaqui(), id),
       recipesUsingItem(empresaDaqui(), id),
-      itemMovements(empresaDaqui(), id, 20, room),
+      itemMovements(empresaDaqui(), id, 20, room ? { sala: room } : { unidade: unidadeDaqui() }),
       balanceByLocation(empresaDaqui(), id),
       // As notas que dizem quanto o fornecedor demorou. Sem portão: são dias, não
       // dinheiro — e é o operador que fica sem insumo quando o prazo estica.
