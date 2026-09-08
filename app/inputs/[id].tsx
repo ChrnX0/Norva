@@ -199,7 +199,14 @@ function InputDetail() {
       // Sem ela a tela dividia o saldo de UMA sala pelo consumo de TODAS, e o
       // resultado é o número que decide compra: abrindo a câmara fria, "acaba
       // em" saía menor do que é e o aviso de recompra disparava cedo.
-      dailyOutflowOf(empresaDaqui(), id, semanaAtras.from, hoje.to, 7, room),
+      dailyOutflowOf(
+        empresaDaqui(),
+        id,
+        semanaAtras.from,
+        hoje.to,
+        7,
+        room ? { sala: room } : { unidade: unidadeDaqui() },
+      ),
     ]);
     return {
       item, history, recipes, movements, spread, places, entregas, dinheiro, saiPorDia,

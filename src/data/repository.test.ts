@@ -3092,14 +3092,14 @@ test('what is running out answers for the room you are looking at, and for the k
 
   // Na loja o mesmo açúcar está parado: tem saldo, não tem saída. Uma data de
   // acabar aqui seria inventada, e é exatamente a que a fábrica aprende a ignorar.
-  const naLoja = await runningOut(EMPRESA_SEMENTE, de, ate, 7, 3650, centro.id);
+  const naLoja = await runningOut(EMPRESA_SEMENTE, de, ate, 7, 3650, { sala: centro.id });
   assert.ok(
     !naLoja.some((r) => r.itemId === acucar.id),
     'o que não sai daquela sala não acaba naquela sala',
   );
 
   // E a fábrica, que é de onde ele saiu, continua respondendo.
-  const naFabrica = await runningOut(EMPRESA_SEMENTE, de, ate, 7, 3650, fabrica);
+  const naFabrica = await runningOut(EMPRESA_SEMENTE, de, ate, 7, 3650, { sala: fabrica });
   const laFora = naFabrica.find((r) => r.itemId === acucar.id);
   const total = empresa.find((r) => r.itemId === acucar.id);
   assert.ok(laFora && total, 'o açúcar acaba nos dois recortes');
@@ -3126,13 +3126,13 @@ test('what is running out answers for the room you are looking at, and for the k
     occurredAt: '2026-03-02T09:00:00.000Z',
   });
 
-  const soEmbalagem = await runningOut(EMPRESA_SEMENTE, de, ate, 7, 3650, fabrica, ['packaging']);
+  const soEmbalagem = await runningOut(EMPRESA_SEMENTE, de, ate, 7, 3650, { sala: fabrica }, ['packaging']);
   assert.deepEqual(
     soEmbalagem.map((r) => r.itemId),
     [palito.id],
     'pedindo embalagem, só volta embalagem',
   );
-  const soInsumo = await runningOut(EMPRESA_SEMENTE, de, ate, 7, 3650, fabrica, ['input']);
+  const soInsumo = await runningOut(EMPRESA_SEMENTE, de, ate, 7, 3650, { sala: fabrica }, ['input']);
   assert.ok(soInsumo.length > 0, 'sete dias de produção consomem insumo');
   assert.ok(
     !soInsumo.some((r) => r.itemId === palito.id),
@@ -3194,6 +3194,66 @@ test('an order is demand, and demand moves nothing', async () => {
  * com o freezer cheio - e a tela de anotar pedido não avisava excesso nenhum
  * justamente quando a conta mais decide.
  */
+test('moving inside the unit is not consumption; leaving it is', async () => {
+  // A regra que substituiu "transferência nunca conta quando a pergunta é da
+  // empresa". Aquela era grosseira e certa com uma unidade só: com duas, mandar
+  // polpa de Bauru para Marília deixaria de contar como saída de Bauru, e a
+  // cobertura de lá ficaria INFINITA com a câmara vazia — o pior conselho
+  // possível, porque ele cala exatamente onde falta.
+  const camaraDaqui = await savePlace(CO, {
+    name: 'Câmara daqui',
+    kind: 'cold_room',
+    parentLocationId: defaultLocationId(CO),
+  });
+  const outraUnidade = await savePlace(CO, { name: 'Marília', kind: 'factory' });
+  const acucar = await anInput('Açúcar da unidade', 1000);
+
+  const de = '2026-09-01T00:00:00.000Z';
+  const ate = '2026-09-08T00:00:00.000Z';
+  await recordCount(CO, {
+    locationId: defaultLocationId(CO),
+    itemId: acucar,
+    countedBaseUnits: 100_000,
+    occurredAt: '2026-09-01T09:00:00.000Z',
+  });
+
+  // 1. Dentro da unidade: do pátio para a câmara da própria unidade.
+  await recordTransfer(CO, {
+    itemId: acucar,
+    fromLocationId: defaultLocationId(CO),
+    toLocationId: camaraDaqui.id,
+    baseUnits: 30_000,
+    occurredAt: '2026-09-02T09:00:00.000Z',
+  });
+  const soInterno = await dailyOutflowOf(CO, acucar, de, ate, 7, {
+    unidade: defaultLocationId(CO),
+  });
+  assert.equal(
+    soInterno,
+    0,
+    'andar de sala para sala DENTRO da unidade não é consumo — e contar isso inverte o conselho',
+  );
+
+  // 2. Saindo da unidade: para a outra unidade da mesma empresa.
+  await recordTransfer(CO, {
+    itemId: acucar,
+    fromLocationId: defaultLocationId(CO),
+    toLocationId: outraUnidade.id,
+    baseUnits: 14_000,
+    occurredAt: '2026-09-03T09:00:00.000Z',
+  });
+  const comSaida = await dailyOutflowOf(CO, acucar, de, ate, 7, {
+    unidade: defaultLocationId(CO),
+  });
+  assert.equal(comSaida, 2_000, 'a carga que deixou a unidade saiu mesmo: 14 mil em sete dias');
+
+  // 3. E a empresa inteira continua vendo zero, porque nada saiu DELA — que é o
+  // comportamento de antes, preservado. Se este número mudasse, o conserto teria
+  // trocado o defeito de lugar em vez de resolvê-lo.
+  const daEmpresa = await dailyOutflowOf(CO, acucar, de, ate, 7);
+  assert.equal(daEmpresa, 0, 'da empresa nada saiu: as duas transferências foram internas a ela');
+});
+
 test('the balance of a unit is the unit plus the rooms inside it', async () => {
   // O caminho `{ unidade }` de `listItems`, que é o que quase toda tela passou a
   // usar quando pergunta "quanto eu tenho AQUI". Ele soma a unidade E as salas
@@ -4829,14 +4889,14 @@ test('mudar de sala não é consumir, e perguntar de uma sala não mistura o con
 
   // Da FÁBRICA saíram os dois: sete mil consumidos e catorze mil mandados.
   assert.equal(
-    await dailyOutflowOf(CO, acucar, de, ate, 7, fabrica),
+    await dailyOutflowOf(CO, acucar, de, ate, 7, { sala: fabrica }),
     3_000,
     'da sala, a carga que saiu dali saiu mesmo',
   );
 
   // E da LOJA não saiu nada: ela só recebeu.
   assert.equal(
-    await dailyOutflowOf(CO, acucar, de, ate, 7, loja),
+    await dailyOutflowOf(CO, acucar, de, ate, 7, { sala: loja }),
     0,
     'quem só recebeu não consumiu',
   );
@@ -5328,7 +5388,7 @@ test('moving stock between your own rooms is not consumption, but leaving a room
 
   // A FÁBRICA perde: dali saíram 400 de verdade, e quem pergunta de um lugar quer
   // saber o que saiu dali.
-  const daFabrica = await runningOut(CO, semana.from, hoje.to, 7, 9999, fabrica, ['product']);
+  const daFabrica = await runningOut(CO, semana.from, hoje.to, 7, 9999, { sala: fabrica }, ['product']);
   const linha = daFabrica.find((r) => r.itemId === product.itemId);
   assert.ok(linha, 'a fábrica vê a saída dela');
   assert.ok(

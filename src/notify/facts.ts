@@ -37,7 +37,11 @@ export async function factsForAlerts(timeZone: string): Promise<AlertFacts> {
   const hoje = localDate(nowIso(), timeZone);
 
   const [cover, demand, orders, expiring, items, places, readings] = await Promise.all([
-    runningOut(empresaDaqui(), lastWeek.from, today.to, 7, Number.POSITIVE_INFINITY),
+    // Da unidade, como o listItems logo abaixo: o aviso de acabar é para quem
+    // entra NESTE prédio, e o insumo da outra cidade não o socorre.
+    runningOut(empresaDaqui(), lastWeek.from, today.to, 7, Number.POSITIVE_INFINITY, {
+      unidade: unidadeDaqui(),
+    }),
     // A unidade deste aparelho, e não a empresa: o aviso "quatro lojas esperando" é
     // sobre o que ESTA unidade tem para carregar. Somar o freezer da outra cidade
     // faria o aviso calar justamente onde falta produto.

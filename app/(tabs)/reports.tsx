@@ -26,6 +26,7 @@ import {
   type PlaceStock,
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
+import { unidadeDaqui } from '@/data/unidade';
 import { useQuery } from '@/data/useQuery';
 import { dayWindow } from '@/domain/day';
 import type { Cents } from '@/domain/money';
@@ -84,7 +85,11 @@ function ReportIndex() {
 
     const [lugares, cobertura, corridas, mes, mesAnterior, dinheiro] = await Promise.all([
       stockByPlace(empresaDaqui()),
-      runningOut(empresaDaqui(), semanaAtras.from, hoje.to, 7, Number.POSITIVE_INFINITY),
+      // Da UNIDADE: a régua de acabar é sobre o que esta unidade consome, e a
+      // cobertura da outra cidade não diz nada a quem lê este relatório aqui.
+      runningOut(empresaDaqui(), semanaAtras.from, hoje.to, 7, Number.POSITIVE_INFINITY, {
+        unidade: unidadeDaqui(),
+      }),
       recentRuns(empresaDaqui(), 8),
       lossesOn(empresaDaqui(), trintaDias.from, hoje.to),
       lossesOn(empresaDaqui(), anterior.de.from, anterior.ate.to),

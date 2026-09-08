@@ -164,7 +164,7 @@ function ProductionDay() {
       // "produza" é o que SAI DAQUI, e ele existe mesmo quando o destino é uma
       // loja da própria empresa — porque a fábrica precisa repor de qualquer
       // jeito.
-      runningOut(empresaDaqui(), semana.from, hoje.to, 7, 14, unidadeDaqui(), [
+      runningOut(empresaDaqui(), semana.from, hoje.to, 7, 14, { unidade: unidadeDaqui() }, [
         'product',
       ]),
     ]);

@@ -138,7 +138,7 @@ function InputsList() {
       today.to,
       7,
       Number.POSITIVE_INFINITY,
-      place ?? undefined,
+      place ? { sala: place } : { unidade: unidadeDaqui() },
       [kind],
     );
   }, `${kind}:${place ?? ''}`);

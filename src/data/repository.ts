@@ -2,7 +2,7 @@ import { applyCostEvent, blendRate, type StockCostState } from '@/domain/cost';
 import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
 import { isValidHierarchy } from '@/domain/units';
 import { DEFAULT_ALERTS, type AlertSettings } from '@/domain/alerts';
-import { daysOfCover, ehSalaDeUnidade } from '@/domain/ledger';
+import { UNIT_PLACE_KIND, daysOfCover, ehSalaDeUnidade } from '@/domain/ledger';
 import { ROLES, capabilitiesFor, type Capability, type Role } from '@/domain/access';
 import { expiresOn, lotCode } from '@/domain/lot';
 import type { LossReason, MovementKind, ReturnReason } from '@/domain/ledger';
@@ -144,6 +144,78 @@ function parsePackagingItems(
   return out;
 }
 
+// --- o recorte de lugar, numa grafia só -------------------------------------
+
+/**
+ * De onde é a pergunta: de uma SALA, de uma UNIDADE, ou da empresa inteira.
+ *
+ * Três respostas e não duas, porque são três perguntas de verdade. A sala é a
+ * prateleira exata — o que a tela de um insumo mostra quando alguém abre a câmara
+ * fria. A unidade é ela **mais as salas dentro dela**, que é o que "quanto eu tenho
+ * aqui" quer dizer para quem está com o aparelho. E ausente é a empresa, que é a
+ * resposta certa para catálogo, relatório e para o custo médio.
+ *
+ * Não é um campo só por um motivo medido: passar uma unidade num parâmetro que
+ * significa "aquela prateleira" somaria apenas o pátio e deixaria a câmara fria de
+ * fora. **Somar de menos é o erro mais silencioso dos dois** — um número menor lê
+ * como prudência, e ninguém desconfia de um sistema que diz ter menos do que tem.
+ */
+export type Escopo = { sala: string } | { unidade: string };
+
+/**
+ * As colunas de lugar que o recorte aceita — e a lista é o que valida a
+ * interpolação.
+ *
+ * O texto vai para dentro do SQL, então ele não pode vir de fora. Aqui quem
+ * garante não é uma checagem em tempo de execução: é o TIPO, que só admite estes
+ * quatro nomes escritos neste arquivo. Um nome novo não compila, e é isso que faz
+ * a interpolação ser segura em vez de parecer segura.
+ */
+type ColunaDeLugar =
+  | 'm.location_id'
+  | 'm.counterpart_location_id'
+  | 'location_id'
+  | 'counterpart_location_id';
+
+/**
+ * O recorte como texto de SQL e os parâmetros dele — escrito UMA vez.
+ *
+ * Ele nasceu depois de a mesma condição aparecer em quatro consultas em algumas
+ * horas, e a regra da casa sobre isso já estava paga duas vezes: predicado escrito
+ * três vezes é a forma que produz divergência, e aqui a divergência é saldo.
+ *
+ * `COALESCE(parent_location_id, company_id)` é a parte que protege quem já usa, e
+ * ela diz o que o backfill da migração 0046 afirma: **sala sem pai pertence à
+ * primeira unidade**, que é a que tem o id da empresa. Sem isso, uma câmara fria
+ * que nunca ganhou pai — vinda de um aparelho com versão antiga, ou criada antes da
+ * migração — sairia do saldo em silêncio.
+ *
+ * Devolve condição sempre verdadeira quando não há escopo, porque é isso que a
+ * empresa inteira é. Os cinco parâmetros saem sempre, na ordem, mesmo nulos: o que
+ * muda é o valor, nunca a aridade — comando com número de `?` variável é comando
+ * que o ligador recusa numa das pontas.
+ */
+function noEscopo(
+  coluna: ColunaDeLugar,
+  onde?: Escopo,
+): { sql: string; params: (string | null)[] } {
+  const sala = onde && 'sala' in onde ? onde.sala : null;
+  const unidade = onde && 'unidade' in onde ? onde.unidade : null;
+  return {
+    // proofgate-allow: `coluna` é do tipo `ColunaDeLugar` — quatro nomes literais deste arquivo, nunca entrada
+    sql: `(? IS NULL OR ${coluna} = ?)
+          AND (? IS NULL OR EXISTS (
+                SELECT 1 FROM locations esc
+                 WHERE esc.id = ${coluna}
+                   AND (esc.id = ?
+                        OR esc.parent_location_id = ?
+                        OR (esc.parent_location_id IS NULL
+                            AND esc.kind <> '${UNIT_PLACE_KIND}'
+                            AND esc.company_id = ?))))`,
+    params: [sala, sala, unidade, unidade, unidade, unidade],
+  };
+}
+
 // --- items -----------------------------------------------------------------
 
 /**
@@ -196,8 +268,7 @@ export async function listItems(
    * número para vazar"*.
    */
   const dinheiro = (await canSeeMoney(companyId)) ? 1 : 0;
-  const sala = onde && 'sala' in onde ? onde.sala : null;
-  const unidade = onde && 'unidade' in onde ? onde.unidade : null;
+  const recorte = noEscopo('m.location_id', onde);
   const rows = await conn.getAllAsync<{
     id: string;
     kind: ItemKind;
@@ -216,13 +287,7 @@ export async function listItems(
             i.active, i.full_level, c.average_rate, c.last_rate,
             (SELECT COALESCE(SUM(m.quantity_base_units), 0) FROM movements m
               WHERE m.company_id = i.company_id AND m.item_id = i.id
-                AND (? IS NULL OR m.location_id = ?)
-                -- A unidade e o que está dentro dela. O COALESCE diz o que o
-                -- backfill da 0046 afirma: sala sem pai é da primeira unidade.
-                AND (? IS NULL OR EXISTS (
-                      SELECT 1 FROM locations l
-                       WHERE l.id = m.location_id
-                         AND (l.id = ? OR COALESCE(l.parent_location_id, l.company_id) = ?))))
+                AND ${recorte.sql})
               AS on_hand_base_units
        FROM items i
        LEFT JOIN item_costs c ON c.item_id = i.id AND ? = 1
@@ -231,11 +296,7 @@ export async function listItems(
         AND (? IS NULL OR i.kind = ?)
       ORDER BY i.name COLLATE NOCASE`,
     [
-      sala,
-      sala,
-      unidade,
-      unidade,
-      unidade,
+      ...recorte.params,
       dinheiro,
       companyId,
       includeInactive ? 1 : 0,
@@ -1518,8 +1579,7 @@ export async function itemMovements(
    * literalmente o que este campo é — o vazamento nasceria pronto.
    */
   const dinheiro = (await canSeeMoney(companyId)) ? 1 : 0;
-  const sala = onde && 'sala' in onde ? onde.sala : null;
-  const unidade = onde && 'unidade' in onde ? onde.unidade : null;
+  const recorte = noEscopo('m.location_id', onde);
   const rows = await conn.getAllAsync<{
     id: string;
     kind: string;
@@ -1542,14 +1602,10 @@ export async function itemMovements(
                      WHERE r.reverses_movement_id = m.id AND r.company_id = m.company_id) AS reversed
        FROM movements m
       WHERE m.company_id = ? AND m.item_id = ?
-        AND (? IS NULL OR m.location_id = ?)
-        AND (? IS NULL OR EXISTS (
-              SELECT 1 FROM locations l
-               WHERE l.id = m.location_id
-                 AND (l.id = ? OR COALESCE(l.parent_location_id, l.company_id) = ?)))
+        AND ${recorte.sql}
       ORDER BY m.occurred_at DESC, m.rowid DESC
       LIMIT ?`,
-    [dinheiro, companyId, itemId, sala, sala, unidade, unidade, unidade, limit],
+    [dinheiro, companyId, itemId, ...recorte.params, limit],
   );
 
   return rows.map((r) => ({
@@ -4864,16 +4920,18 @@ export async function dailyOutflowOf(
   fromIso: string,
   toIso: string,
   days: number,
-  /** A sala. Sem ela, a conta é da empresa inteira — como no `runningOut`. */
-  locationId?: string,
+  /** De onde é a conta: sala, unidade, ou a empresa inteira. Ver `Escopo`. */
+  onde?: Escopo,
 ): Promise<number> {
   const conn = await db();
+  const recorte = noEscopo('location_id', onde);
+  const parNoEscopo = noEscopo('counterpart_location_id', onde);
   const linha = await conn.getFirstAsync<{ out_units: number }>(
     `SELECT COALESCE(-SUM(quantity_base_units), 0) AS out_units
        FROM movements
       WHERE company_id = ? AND item_id = ?
         AND quantity_base_units < 0
-        AND (? IS NULL OR location_id = ?)
+        AND ${recorte.sql}
         -- Mudar de sala não é consumir, e sem esta linha era.
         --
         -- A regra é a MESMA do runningOut, e ela estava só lá. Esta função
@@ -4884,11 +4942,24 @@ export async function dailyOutflowOf(
         -- quinhentas. A perna negativa entra como saída e a positiva não
         -- compensa, porque a soma só olha o que é negativo.
         --
-        -- Só quando a pergunta é da EMPRESA. Perguntando de uma sala, a carga que
-        -- saiu dali saiu mesmo, e conta.
-        AND (? IS NOT NULL OR kind NOT IN ('transfer', 'return'))
+        -- E o que decide não é mais o TIPO sozinho: é para onde a carga foi.
+        --
+        -- Antes esta linha era "se a pergunta é da empresa, transferência não
+        -- conta" — grosseira e certa enquanto havia uma unidade. Com duas, mandar
+        -- polpa de Bauru para Marília deixaria de contar como saída de Bauru, e a
+        -- cobertura de lá ficaria infinita com a câmara vazia.
+        --
+        -- O par do movimento já é gravado nas duas pernas (moveBetween), então
+        -- "saiu do escopo" é DADO: transferência cujo par está dentro é interna e
+        -- não conta; a que vai para loja, cliente ou outra unidade conta.
+        --
+        -- A lista de tipos FICA, e isso é medida, não gosto: discrepancy (a
+        -- diferença achada num posto de controle) também carrega par, e caixa que
+        -- saiu e não chegou é perda de verdade. Uma regra só de par a faria parar
+        -- de contar como saída, calada.
+        AND NOT (kind IN ('transfer', 'return') AND ${parNoEscopo.sql})
         AND occurred_at >= ? AND occurred_at < ?`,
-    [companyId, itemId, locationId ?? null, locationId ?? null, locationId ?? null, fromIso, toIso],
+    [companyId, itemId, ...recorte.params, ...parNoEscopo.params, fromIso, toIso],
   );
   const saiu = linha?.out_units ?? 0;
   return days > 0 ? saiu / days : 0;
@@ -4900,8 +4971,8 @@ export async function runningOut(
   toIso: string,
   days: number,
   horizon = 7,
-  /** A sala. Sem ela, a conta é da empresa inteira — como na capa. */
-  locationId?: string,
+  /** De onde é a conta: sala, unidade, ou a empresa inteira. Ver `Escopo`. */
+  onde?: Escopo,
   /**
    * Que tipo de item entra na conta.
    *
@@ -4912,6 +4983,8 @@ export async function runningOut(
   kinds: readonly ItemKind[] = ['input', 'packaging'],
 ): Promise<Running[]> {
   const conn = await db();
+  const recorte = noEscopo('m.location_id', onde);
+  const parNoEscopo = noEscopo('m.counterpart_location_id', onde);
   const rows = await conn.getAllAsync<{
     item_id: string;
     name: string;
@@ -4922,41 +4995,39 @@ export async function runningOut(
     `SELECT i.id AS item_id, i.name, i.base_unit,
             COALESCE((SELECT SUM(m.quantity_base_units) FROM movements m
                        WHERE m.company_id = i.company_id AND m.item_id = i.id
-                         AND (? IS NULL OR m.location_id = ?)), 0) AS on_hand,
+                         AND ${recorte.sql}), 0) AS on_hand,
             COALESCE((SELECT -SUM(m.quantity_base_units) FROM movements m
                        WHERE m.company_id = i.company_id AND m.item_id = i.id
                          AND m.quantity_base_units < 0
-                         AND (? IS NULL OR m.location_id = ?)
-                         -- Mudar de sala não é consumir, e sem esta linha era.
+                         AND ${recorte.sql}
+                         -- Mudar de lugar não é consumir, e o que decide não é o
+                         -- TIPO sozinho: é para onde a carga foi. O par do
+                         -- movimento é gravado nas duas pernas, então "saiu do
+                         -- escopo" é dado.
                          --
-                         -- Medido em 7 de setembro: antes de qualquer carga, o
-                         -- picolé não aparecia acabando; depois de mandar 400 para
-                         -- a PRÓPRIA loja, a régua dizia "saída de 57 por dia,
-                         -- dura 8,8 dias" — com a empresa tendo exatamente as
-                         -- mesmas quinhentas unidades. A perna negativa da
-                         -- transferência na fábrica entrava como saída e a
-                         -- positiva na loja não compensava, porque a soma só olha
-                         -- o que é negativo.
+                         -- Medido em 7 de setembro, antes de existir unidade:
+                         -- depois de mandar 400 unidades para a PRÓPRIA loja, a
+                         -- régua dizia "saída de 57 por dia, dura 8,8 dias" com a
+                         -- empresa tendo exatamente as mesmas quinhentas. A perna
+                         -- negativa entrava como saída e a positiva não compensava,
+                         -- porque a soma só olha o que é negativo. O conselho saía
+                         -- invertido: produza mais porque você moveu estoque de uma
+                         -- sala sua para outra.
                          --
-                         -- O conselho saía invertido: "produza mais" porque você
-                         -- moveu estoque de uma sala sua para outra. Para insumo o
-                         -- defeito existia e era raro; para PRODUTO, mandar para a
-                         -- própria loja é o fluxo normal da fábrica.
-                         --
-                         -- Só quando a pergunta é da EMPRESA. Perguntando de uma
-                         -- sala, a carga que saiu dali saiu mesmo, e conta.
-                         AND (? IS NOT NULL OR m.kind NOT IN ('transfer', 'return'))
+                         -- E a lista de tipos FICA: discrepancy (a diferença de um
+                         -- posto de controle) também carrega par, e caixa que saiu
+                         -- e não chegou é perda. Uma regra só de par a faria parar
+                         -- de contar, calada.
+                         AND NOT (m.kind IN ('transfer', 'return') AND ${parNoEscopo.sql})
                          AND m.occurred_at >= ? AND m.occurred_at < ?), 0) AS out_units
        FROM items i
       WHERE i.company_id = ? AND i.active = 1
         AND i.kind IN (${kinds.map(() => '?').join(', ')})`,
     [
-      // Dois pares de sala: um para o saldo, outro para a saída.
-      locationId ?? null,
-      locationId ?? null,
-      locationId ?? null,
-      locationId ?? null,
-      locationId ?? null,
+      // Três recortes: o do saldo, o da saída, e o do PAR da saída.
+      ...recorte.params,
+      ...recorte.params,
+      ...parNoEscopo.params,
       fromIso,
       toIso,
       companyId,
@@ -5968,6 +6039,7 @@ export async function stockAgainstOrders(
   unitId: string,
 ): Promise<Demand[]> {
   const conn = await db();
+  const recorte = noEscopo('m.location_id', { unidade: unitId });
   const rows = await conn.getAllAsync<{
     item_id: string;
     name: string;
@@ -5984,17 +6056,10 @@ export async function stockAgainstOrders(
               WHERE m.company_id = p.company_id
                 AND m.item_id = p.item_id
                 AND l.kind IN ('factory', 'cold_room', 'store_room')
-                -- A unidade e o que está DENTRO dela. Sem esta linha o freezer da
-                -- outra cidade entra na conta do que dá para prometer aqui.
-                --
-                -- O COALESCE é a parte que protege quem já usa, e ele diz o que o
-                -- backfill da 0046 afirma: **sala sem pai pertence à primeira
-                -- unidade**, que é a que tem o id da empresa. Sem ele, uma câmara
-                -- fria que nunca ganhou pai — por ter vindo de um aparelho com
-                -- versão antiga, ou por ter sido criada antes da migração — sairia
-                -- do saldo em silêncio, e o pedido deixaria de contar o freezer.
-                -- Foi exatamente o que um teste desta suíte acusou: 20 no lugar de 170.
-                AND (l.id = ? OR COALESCE(l.parent_location_id, l.company_id) = ?)) AS on_hand
+                -- A unidade e o que está DENTRO dela, pela peça de noEscopo.
+                -- Sem esta linha o freezer da outra cidade entra na conta do que
+                -- dá para prometer aqui.
+                AND ${recorte.sql}) AS on_hand
        FROM products p
        JOIN items i ON i.id = p.item_id
        LEFT JOIN order_lines ol ON ol.item_id = p.item_id
@@ -6007,8 +6072,8 @@ export async function stockAgainstOrders(
       GROUP BY p.item_id, i.name
       ORDER BY i.name COLLATE NOCASE`,
     // A ordem dos parâmetros segue a ordem no texto: a subconsulta do saldo vem
-    // ANTES do LEFT JOIN e do WHERE, então a unidade vem antes da data.
-    [unitId, unitId, throughDate, companyId],
+    // ANTES do LEFT JOIN e do WHERE, então o recorte vem antes da data.
+    [...recorte.params, throughDate, companyId],
   );
 
   return rows.map((r) => ({

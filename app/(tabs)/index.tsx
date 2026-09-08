@@ -166,14 +166,16 @@ function Briefing() {
       shipmentsOn(empresaDaqui(), today.from, today.to),
       shipmentsOn(empresaDaqui(), yesterday.from, yesterday.to),
       openProductionRuns(empresaDaqui()),
-      runningOut(empresaDaqui(), lastWeek.from, today.to, 7),
+      runningOut(empresaDaqui(), lastWeek.from, today.to, 7, 7, { unidade: unidadeDaqui() }),
       stockAgainstOrders(empresaDaqui(), through, unidadeDaqui()),
       productionBetween(empresaDaqui(), weekAgo.from, today.to),
       recentRuns(empresaDaqui(), 6),
       // Sem horizonte: aqui a pergunta não é "o que acaba esta semana" (isso é o
       // cartão de insumo) e sim "quanto tempo o estoque dura", que é o normal
       // contra o qual a semana se compara.
-      runningOut(empresaDaqui(), lastWeek.from, today.to, 7, Number.POSITIVE_INFINITY),
+      runningOut(empresaDaqui(), lastWeek.from, today.to, 7, Number.POSITIVE_INFINITY, {
+        unidade: unidadeDaqui(),
+      }),
       // SEM local: o aviso de validade é sobre o lote, onde quer que ele esteja.
       //
       // Ele filtrava pelo almoxarifado, e o filtro silenciava o aviso EXATAMENTE
