@@ -13,8 +13,18 @@ import { test } from 'node:test';
  * é o que instala no celular.
  */
 const APP = JSON.parse(readFileSync('app.json', 'utf8')) as {
-  expo: { version: string; android: { allowBackup?: boolean } };
+  expo: {
+    version: string;
+    android: { allowBackup?: boolean };
+    plugins: (string | [string, Record<string, unknown>])[];
+  };
 };
+
+/** O ajuste de um plugin do `app.json`, ou `undefined` se ele não estiver lá. */
+function ajusteDoPlugin(nome: string): Record<string, unknown> | undefined {
+  const achado = APP.expo.plugins.find((p) => Array.isArray(p) && p[0] === nome);
+  return Array.isArray(achado) ? achado[1] : undefined;
+}
 
 test('the ledger does not leave the phone through the Android backup', () => {
   // `allowBackup` é `true` por padrão no Android, e nesse estado o sistema copia
@@ -81,4 +91,47 @@ test('the version can always produce a build number that grows', () => {
     codigo(APP.expo.version) > codigo(ULTIMO_PUBLICADO),
     `${APP.expo.version} não passa de ${ULTIMO_PUBLICADO}: o Android não veria isso como atualização`,
   );
+});
+
+/**
+ * O que o `prebuild` apaga toda vez, e por isso não pode morar em `android/`.
+ *
+ * Em 8 de setembro o APK saiu com 57,4 MB e não coube no canal de entrega, que
+ * aceita 30. Eu culpei a câmera — o `expo-camera` de fato empacota os modelos do
+ * ML Kit — e a conta fechava com o número errado: a câmera custou ~5,5 MB, e os
+ * outros ~15 eram `expo.useLegacyPackaging`, que eu tinha ajustado à mão em
+ * `android/gradle.properties` dois dias antes. `android/` é SAÍDA do `expo
+ * prebuild`, ignorada pelo git: o ajuste foi reescrito pelo padrão e nada acusou.
+ *
+ * Sem compressão, cada biblioteca nativa ocupa no arquivo o tamanho que ocupa na
+ * memória — `libreactnative.so` sozinha vai de 2,2 MB para 6,7 MB. O aparelho
+ * ganha um pouco na instalação; quem recebe o APK paga o triplo. Numa fábrica que
+ * instala o aplicativo por link, quem paga é o dono.
+ */
+test('the build settings that survive a prebuild live in app.json', () => {
+  const build = ajusteDoPlugin('expo-build-properties');
+  assert.ok(
+    build,
+    'o `expo-build-properties` saiu do app.json: todo ajuste de compilação volta ao padrão no próximo prebuild',
+  );
+  const android = build.android as Record<string, unknown> | undefined;
+  assert.equal(
+    android?.useLegacyPackaging,
+    true,
+    'as bibliotecas nativas voltaram a ser guardadas sem compressão: o APK enviado triplica de tamanho',
+  );
+  assert.equal(
+    android?.enableMinifyInReleaseBuilds,
+    true,
+    'o R8 está desligado: o dex sai inteiro, com todas as classes que ninguém chama',
+  );
+});
+
+test('the plugin reader does not find what is not there', () => {
+  // A metade negativa, que é o que separa leitor de otimista: um plugin que só
+  // aparece como string simples (`"expo-router"`) não tem ajuste, e um nome que
+  // não existe também não. Se as duas devolvessem objeto, o teste de cima
+  // passaria por qualquer motivo.
+  assert.equal(ajusteDoPlugin('expo-router'), undefined);
+  assert.equal(ajusteDoPlugin('plugin-que-nao-existe'), undefined);
 });

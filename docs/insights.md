@@ -6977,3 +6977,34 @@ adiante e eu teria copiado a forma que cria o problema.
 A consequência é uma linha no plano, ao lado do item que ela vai morder — não código, porque
 o item espera o mundo. **Achado que muda um documento é achado; achado que vira código antes
 da hora é a doença que este repositório documenta em quatro lugares.**
+
+## A régua do `unzip -l` mede o cru — eu culpei a câmera por quinze megabytes que eram um ajuste apagado
+
+O APK com câmera saiu com 57,4 MB e não coube no canal de entrega, que aceita 30. Medi a
+composição com `unzip -l | awk` e li: dex de 15,6 MB para 55,6 MB. Diagnóstico pronto —
+o `expo-camera` empacota os modelos do ML Kit, e a conta fecha.
+
+**Fechava com o número errado.** `unzip -l` imprime o tamanho **descompactado**; o que não
+cabe no canal é o arquivo, e o arquivo é o compactado. Medindo `compress_size`, a conta é
+outra: `lib/arm64-v8a` foi de 7,6 para **27,4 MB** e o dex de 6,3 para 20,0 MB. E dentro do
+`lib` a assinatura do defeito estava à vista — `compress_size == file_size` em toda
+biblioteca nativa, ou seja **guardadas sem compressão**. Só `libreactnative.so` passou de
+2,2 MB para 6,7 MB sendo exatamente o mesmo arquivo.
+
+A causa é `expo.useLegacyPackaging=false`, o padrão do Expo, que o `expo prebuild` reescreveu
+em `android/gradle.properties` — pasta gerada, ignorada pelo git, onde eu tinha ajustado à
+mão dois dias antes. A câmera custou de fato ~5,5 MB (`libbarhopper_v3.so` e os modelos);
+os outros ~15 eram um ajuste meu que o `prebuild` apagou porque **ele não morava em lugar
+nenhum que sobrevivesse**.
+
+Duas regras saem disso, e a segunda vale mais que a primeira:
+
+1. **Ajuste de compilação que não está no `app.json` não existe.** `android/` é saída, não
+   fonte. O que precisa durar entra por `expo-build-properties` — que é onde
+   `useLegacyPackaging`, `enableMinifyInReleaseBuilds` e `enableShrinkResources...` passaram
+   a morar.
+2. **Toda régua descartável responde a uma pergunta específica, e a pergunta aqui era "quantos
+   bytes eu envio".** `unzip -l` responde outra ("quantos bytes o aparelho carrega na
+   memória"), e as duas são legítimas — o erro foi não perguntar qual delas eu queria. É a
+   mesma família do `assert.ok(> 0)`: a medida rodou, deu número, e o número não era do que
+   eu estava perguntando. **Antes de crer numa medida, diga em voz alta a unidade dela.**
