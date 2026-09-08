@@ -60,7 +60,7 @@ function testes(dir: string, into: string[] = []): string[] {
 const POR_EXTENSO = [
   'zero', 'uma', 'duas', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito',
   'nove', 'dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis',
-  'dezessete', 'dezoito', 'dezenove', 'vinte',
+  'dezessete', 'dezoito', 'dezenove', 'vinte', 'vinte e uma',
 ];
 /** As outras grafias certas do mesmo número. Português tem mais de uma. */
 const SINONIMOS: Record<string, readonly string[]> = {
@@ -73,7 +73,7 @@ const SINONIMOS: Record<string, readonly string[]> = {
 const IN_WORDS = [
   'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight',
   'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen',
-  'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty',
+  'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty', 'twenty-one',
 ];
 
 const GARANTIAS = conta(SCRIPT, /^echo "==> check /gm);
@@ -91,7 +91,7 @@ test('the database checks are numbered without a gap', () => {
 });
 
 test('the script says how many guarantees it actually has', () => {
-  const dito = SCRIPT.match(/all (\w+) guarantees hold/);
+  const dito = SCRIPT.match(/all ([\w-]+) guarantees hold/);
   assert.ok(dito, 'a frase final do db:verify sumiu — é ela que anuncia o veredito');
   assert.equal(
     dito[1],
@@ -102,7 +102,7 @@ test('the script says how many guarantees it actually has', () => {
 });
 
 test('CLAUDE.md states the number of guarantees the script really has', () => {
-  const dito = CLAUDE.match(/Postgres descartável, (\w+) garantias/);
+  const dito = CLAUDE.match(/Postgres descartável, ([\wà-ú ]+?) garantias/);
   assert.ok(
     dito,
     'o bloco de comandos do CLAUDE.md deixou de nomear as garantias do db:verify — ' +

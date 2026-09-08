@@ -145,18 +145,37 @@ test('a queued row that has gone missing is loud', () => {
   assert.throws(() => serialize(queued('items'), null, ACTOR), /gone from the device/);
 });
 
-test('the erase command carries its area, not a row', () => {
+test('o apagamento sobe como PEDIDO, com quem pediu e sem o prazo', () => {
+  /**
+   * **Mudou em 7 de setembro, quando o servidor passou a ter para onde receber.**
+   * Antes isto devolvia um comando solto — a única coisa na fila que MANDAVA em vez
+   * de contar. Agora é linha em `erase_requests`, e a fila volta a carregar só fato.
+   *
+   * Duas coisas que a asserção fixa de propósito: `requested_by` vem do ator
+   * autenticado (uma conta não pede em nome de outra, e a política do servidor
+   * recusa se tentar), e **o prazo NÃO vai** — quem o calcula é o gatilho do
+   * servidor, porque um aparelho com a data adiantada destruiria no ato o que a
+   * empresa combinou guardar por dez dias.
+   */
   const entry: OutboxEntry = {
     id: 'q9',
     table: 'erase',
     rowId: 'all',
     op: 'delete',
-    payload: { area: 'all' },
+    payload: { area: 'all', companyId: 'c0' },
     queuedAt: '2026-09-01T10:00:00Z',
   };
 
   const write = serialize(entry, null, ACTOR);
-  assert.deepEqual(write, { kind: 'erase', area: 'all' });
+  assert.deepEqual(write, {
+    kind: 'upsert',
+    table: 'erase_requests',
+    row: { id: 'q9', company_id: 'c0', area: 'all', requested_by: ACTOR.userId },
+  });
+  assert.ok(
+    write.kind === 'upsert' && !('effective_at' in write.row) && !('done_at' in write.row),
+    'o prazo e o "feito" são do servidor: mandá-los daqui deixaria o aparelho decidir quando o livro dele morre',
+  );
 });
 
 test('an area the product does not have is refused at the boundary, not passed along', () => {
@@ -179,13 +198,17 @@ test('an area the product does not have is refused at the boundary, not passed a
     table: 'erase',
     rowId: String(area),
     op: 'delete',
-    payload: { area },
+    payload: { area, companyId: 'c0' },
     queuedAt: '2026-09-07T12:00:00.000Z',
   });
 
   // As cinco de verdade atravessam, e cada uma sai com o próprio nome.
   for (const area of ERASE_AREAS) {
-    assert.deepEqual(serialize(comando(area), null, ACTOR), { kind: 'erase', area });
+    assert.deepEqual(serialize(comando(area), null, ACTOR), {
+      kind: 'upsert',
+      table: 'erase_requests',
+      row: { id: 'e1', company_id: 'c0', area, requested_by: ACTOR.userId },
+    });
   }
 
   // E qualquer outra coisa para aqui, com o nome no erro.
@@ -193,6 +216,26 @@ test('an area the product does not have is refused at the boundary, not passed a
   assert.throws(() => serialize(comando(''), null, ACTOR), UnknownAreaError);
   assert.throws(() => serialize(comando(42), null, ACTOR), UnknownAreaError);
   assert.throws(() => serialize(comando(null), null, ACTOR), UnknownAreaError);
+
+  // E o pedido SEM EMPRESA também para aqui. Ele subiria e o servidor o recusaria
+  // pela política, sem dizer por quê — a fila travada atrás de um apagamento é o
+  // pior lugar para descobrir isso.
+  assert.throws(
+    () =>
+      serialize(
+        {
+          id: 'e2',
+          table: 'erase',
+          rowId: 'all',
+          op: 'delete',
+          payload: { area: 'all' },
+          queuedAt: '2026-09-07T12:00:00.000Z',
+        },
+        null,
+        ACTOR,
+      ),
+    /sem empresa/,
+  );
 
   // A régua é régua: uma área válida escrita com maiúscula não é a mesma área.
   assert.throws(() => serialize(comando('ALL'), null, ACTOR), UnknownAreaError);

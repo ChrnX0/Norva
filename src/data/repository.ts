@@ -4422,7 +4422,15 @@ export async function eraseArea(companyId: string, area: EraseArea): Promise<voi
     //
     // The area is the unit rather than the row: a wipe is one decision, and
     // replaying it row by row would describe something the person never did.
-    await enqueue(conn, [{ table: 'erase', rowId: area, op: 'delete', payload: { area } }]);
+    // A empresa vai no payload, e é a única linha da fila que precisa disso.
+    //
+    // Toda outra entrada nomeia uma LINHA, e a linha carrega o `company_id`. O
+    // apagamento não tem linha atrás dele: o pedido que sobe é montado pelo
+    // `serialize`, e sem isto ele subiria sem empresa — recusado pela política do
+    // servidor, que pergunta a capacidade DAQUELA empresa.
+    await enqueue(conn, [
+      { table: 'erase', rowId: area, op: 'delete', payload: { area, companyId } },
+    ]);
   });
 }
 

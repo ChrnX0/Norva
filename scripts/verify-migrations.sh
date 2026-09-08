@@ -499,6 +499,9 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
   -- corrige o telefone dela offline precisa que a correção alcance o servidor. A
   -- política continua exigindo manage_company por cima disto.
   grant insert, update on carriers to app_user;
+  -- O pedido de Reset entra só com INSERT, como o razão e a história de preço: a
+  -- política já recusa update e delete, e o grant não contradiz a política.
+  grant insert on erase_requests to app_user;
   -- O acordo comercial: a linha corrente sobe com UPDATE, como qualquer cadastro
   -- que se corrige offline. A HISTÓRIA entra só com INSERT, pelo mesmo motivo do
   -- livro-razão e da leitura de sensor — por quanto se vendia em março não se
@@ -1228,6 +1231,125 @@ AINDA=$(psql -d "$DB" -At -c "
 
 echo "    código errado é recusado, o certo entra pendente e sem capacidade, e pedir de novo não desfaz nada"
 
+echo "==> check 20: o pedido de Reset é fato, o prazo é do servidor, e nada morre antes de vencer"
+
+# A empresa e a conta do dono desta checagem. Uma segunda empresa entra junto: o Reset
+# tem de destruir SÓ quem pediu, e provar isolamento com uma empresa só é provar nada.
+R=00000000-0000-4dd0-8000-0000000000
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<SQL
+insert into auth.users (id) values ('${R}91'), ('${R}92');
+insert into companies (id, name) values ('${R}01', 'Reset Co'), ('${R}02', 'Vizinha Co');
+insert into memberships (company_id, user_id, display_name, capabilities)
+  values ('${R}01', '${R}91', 'Dona do Reset', enum_range(null::capability)),
+         ('${R}02', '${R}92', 'Dona da vizinha', enum_range(null::capability));
+insert into locations (id, company_id, kind, name)
+  values ('${R}a1', '${R}01', 'factory', 'Fábrica'),
+         ('${R}a2', '${R}02', 'factory', 'Fábrica');
+insert into items (id, company_id, kind, name, purchase_unit, purchase_to_base)
+  values ('${R}b1', '${R}01', 'input', 'Polpa', 'balde', 10000),
+         ('${R}b2', '${R}02', 'input', 'Polpa', 'balde', 10000);
+insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id,
+                       quantity_base_units, location_id)
+  values ('${R}d1', '${R}01', 'purchase', now(), '${R}91', '${R}b1', 5000, '${R}a1'),
+         ('${R}d2', '${R}02', 'purchase', now(), '${R}92', '${R}b2', 7000, '${R}a2');
+SQL
+
+# 1. Quem NÃO administra não pede. O `app_user` é o papel do aplicativo, e a conta é a
+#    da empresa: sem a capacidade, a política recusa antes de qualquer coisa.
+psql -d "$DB" -q -c "
+  insert into memberships (company_id, user_id, display_name, capabilities)
+    values ('${R}01', '${R}92', 'Operadora', array['record_production']::capability[]);" >/dev/null
+#
+#    E isto roda numa STRING só, não num heredoc: `set local` vale dentro de
+#    transação, e o psql manda uma string como UM lote — que é uma transação. Num
+#    heredoc cada linha é a sua, o `set local` se perde, e a checagem passa a
+#    exercitar uma sessão sem identidade nenhuma. Foi o que me custou a primeira
+#    execução: ela acusou o servidor de aceitar o que ele tinha recusado.
+if psql -d "$DB" -q -c "
+  set role app_user;
+  set local test.uid = '${R}92';
+  insert into erase_requests (id, company_id, area, requested_by)
+    values ('${R}e9', '${R}01', 'all', '${R}92');" >/dev/null 2>&1; then
+  fail "quem não administra a empresa conseguiu pedir o Reset dela"
+fi
+
+# 2. O dono pede, e o PRAZO é do servidor: o pedido manda uma data no passado e o
+#    servidor a sobrescreve com os dez dias da empresa. Um aparelho com a data adiantada
+#    destruiria no ato o que a empresa combinou guardar.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
+  set role app_user;
+  set local test.uid = '${R}91';
+  insert into erase_requests (id, company_id, area, requested_by, effective_at)
+    values ('${R}e1', '${R}01', 'all', '${R}91', now() - interval '30 days');" >/dev/null
+FOLGA=$(psql -d "$DB" -At -c "
+  select round(extract(epoch from (effective_at - requested_at)) / 86400)
+    from erase_requests where id = '${R}e1';")
+[ "$FOLGA" = "10" ] ||
+  fail "o prazo do pedido ficou em '$FOLGA' dias e o padrão da empresa é 10: quem manda no prazo é o servidor"
+
+# 3. Pedido é fato: sem update e sem delete, nem para quem pediu.
+if psql -d "$DB" -q -c "
+  set role app_user;
+  set local test.uid = '${R}91';
+  update erase_requests set area = 'inputs' where id = '${R}e1';" >/dev/null 2>&1; then
+  fail "o pedido de Reset foi reescrito — pedido não se reescreve, desistir é outro pedido"
+fi
+if psql -d "$DB" -q -c "
+  set role app_user;
+  set local test.uid = '${R}91';
+  delete from erase_requests where id = '${R}e1';" >/dev/null 2>&1; then
+  fail "o pedido de Reset foi apagado — ele é fato, e fato não se apaga"
+fi
+
+# 4. E nada morre antes de vencer.
+VENCIDOS=$(psql -d "$DB" -At -c "select private.run_due_erases();")
+[ "$VENCIDOS" = "0" ] || fail "o Reset executou $VENCIDOS pedido(s) que ainda não venceram"
+AINDA=$(psql -d "$DB" -At -c "select count(*) from movements where company_id = '${R}01';")
+[ "$AINDA" = "1" ] || fail "o razão da empresa perdeu linha antes do prazo: sobrou $AINDA"
+
+echo "    quem não administra não pede, o prazo é do servidor, o pedido não se reescreve, e nada morre antes"
+
+echo "==> check 21: vencido, o Reset destrói só quem pediu — e a porta fecha atrás dele"
+
+# A empresa escolhe destruir no ato, que é um dos três casos que o dono nomeou.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
+  update companies set erase_grace_days = 0 where id = '${R}01';" >/dev/null
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
+  set role app_user;
+  set local test.uid = '${R}91';
+  insert into erase_requests (id, company_id, area, requested_by)
+    values ('${R}e2', '${R}01', 'all', '${R}91');" >/dev/null
+
+FEITOS=$(psql -d "$DB" -At -c "select private.run_due_erases();")
+[ "$FEITOS" = "1" ] || fail "o Reset vencido executou $FEITOS pedido(s), e devia ser 1"
+
+SOBROU=$(psql -d "$DB" -At -c "select count(*) from movements where company_id = '${R}01';")
+[ "$SOBROU" = "0" ] || fail "o Reset deixou $SOBROU linha(s) do razão da empresa que pediu"
+
+VIZINHA=$(psql -d "$DB" -At -c "select count(*) from movements where company_id = '${R}02';")
+[ "$VIZINHA" = "1" ] ||
+  fail "o Reset de uma empresa mexeu no razão da vizinha: sobraram $VIZINHA de 1"
+
+MARCADO=$(psql -d "$DB" -At -c "
+  select count(*) from erase_requests where id = '${R}e2' and done_at is not null;")
+[ "$MARCADO" = "1" ] || fail "o pedido executado não ficou marcado como feito — a próxima execução o repetiria"
+
+# E a porta FECHA: um delete comum no razão continua sendo recusado, inclusive para o
+# dono do banco, que é o que a checagem 1 prova no começo. Sem isto, a migração do Reset
+# teria trocado a tranca do livro-razão por um bilhete.
+if psql -d "$DB" -q -c "delete from movements where company_id = '${R}02';" >/dev/null 2>&1; then
+  fail "depois do Reset o razão aceitou um DELETE comum — a porta do apagamento ficou aberta"
+fi
+# Nem pondo a bandeira à mão como a conta do aplicativo: ela não é dona da tabela.
+if psql -d "$DB" -q -c "
+  set role app_user;
+  select set_config('private.erasing', 'sim', false);
+  delete from movements where company_id = '${R}02';" >/dev/null 2>&1; then
+  fail "a conta do aplicativo abriu o razão só pondo a bandeira — o par tem de exigir o dono da tabela"
+fi
+
+echo "    destrói quem pediu, não toca a vizinha, marca o pedido, e o razão volta a ser intocável"
+
 echo
-echo "OK - migrations apply and all nineteen guarantees hold."
+echo "OK - migrations apply and all twenty-one guarantees hold."
 

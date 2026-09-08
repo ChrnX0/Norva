@@ -227,3 +227,36 @@ test('nothing waits on the clock for work whose length depends on the machine', 
       'ela envelhece sozinha.',
   );
 });
+
+/**
+ * Checagem registrada DEPOIS do corredor não existe — e o silêncio dela é total.
+ *
+ * **A cicatriz é de 7 de setembro, à noite.** Acrescentei a checagem da
+ * transportadora no fim do `e2e/flow.mjs` e ela nunca rodou: o corredor é um bloco
+ * `try` que fica ANTES do fim do arquivo, então `check()` chamado depois dele
+ * registra numa lista que já foi percorrida. A suíte imprimiu `51/51` e ninguém
+ * notou a 52ª faltando; com `--only` ela devolveu `0/0 passaram`, que é a guarda do
+ * próprio arquivo falando — e foi ela que me contou.
+ *
+ * Aqui a régua é de POSIÇÃO: toda chamada de `check(` tem de estar antes da linha
+ * onde o corredor começa. É a única forma de o arquivo não voltar a aceitar uma
+ * checagem que não é checagem.
+ */
+test('nenhuma checagem do e2e é registrada depois do corredor', () => {
+  const fonte = readFileSync('e2e/flow.mjs', 'utf8');
+  const linhas = fonte.split('\n');
+  const corredor = linhas.findIndex((l) => l.startsWith('try {'));
+  assert.ok(corredor > 0, 'o corredor do e2e mudou de forma — a guarda deixou de olhar para ele');
+
+  const tardias = linhas
+    .map((linha, i) => ({ linha, i }))
+    .filter(({ linha, i }) => i > corredor && /^check\(/.test(linha))
+    .map(({ i }) => `e2e/flow.mjs:${i + 1}`);
+
+  assert.deepEqual(
+    tardias,
+    [],
+    `estas checagens são registradas depois do corredor e NUNCA rodam:\n  ${tardias.join('\n  ')}\n` +
+      'A lista já foi percorrida quando elas chegam. Mova a chamada para antes do `try {`.',
+  );
+});

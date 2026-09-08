@@ -40,7 +40,16 @@ export type SyncActor = {
 
 export type ServerWrite =
   | { kind: 'upsert'; table: ServerTable; row: Record<string, unknown> }
-  /** Not a row: a command saying an area was cleared on the device. */
+  /**
+   * Not a row: a command saying an area was cleared on the device.
+   *
+   * **Ele continua existindo, e agora tem para onde ir.** Até 7 de setembro o
+   * servidor não tinha nada que o recebesse; a `0045` criou `erase_requests`, e é
+   * ela que o `upsert` abaixo escreve. Este ramo fica porque quem consome a fila
+   * ainda pode querer saber que a linha É um apagamento — e porque apagar a forma
+   * antes de existir transporte seria trocar uma fronteira registrada por uma
+   * suposição.
+   */
   | { kind: 'erase'; area: string }
   /**
    * Deliberately not sent.
@@ -60,6 +69,7 @@ export type ServerWrite =
   | { kind: 'derived'; table: string };
 
 export type ServerTable =
+  | 'erase_requests'
   | 'carriers'
   | 'locations'
   | 'profiles'
@@ -193,6 +203,13 @@ const CROSSINGS: Record<
     // conseguir se identificar num deles. Ele é atribuição e não senha — o
     // raciocínio inteiro está na `0036` e em `docs/estudo-entrada.md`.
     take: ['id', 'company_id', 'name', 'profile_id', 'active', 'created_at', 'pin'],
+  },
+
+  erase_requests: {
+    // O pedido de Reset. `company_id` entra como em toda linha; `effective_at` e
+    // `done_at` são do servidor e por isso NÃO estão aqui — mandar o prazo daqui
+    // seria deixar o aparelho decidir quando o livro dele morre.
+    take: ['id', 'company_id', 'area', 'requested_by'],
   },
 
   carriers: {
@@ -503,7 +520,37 @@ export function serialize(
      */
     const area = entry.payload?.area ?? entry.rowId;
     if (!isEraseArea(area)) throw new UnknownAreaError(String(area));
-    return { kind: 'erase', area };
+
+    /**
+     * O apagamento sobe como PEDIDO, não como comando.
+     *
+     * A fila carrega fato — é a fundação dela, e é por isso que ela é
+     * append-only. Um comando solto seria a única coisa nela que manda em vez de
+     * contar, e o servidor teria de confiar num verbo que chegou pela rede.
+     *
+     * O pedido é linha em `erase_requests` (`0045`): quem pediu, o que pediu, e
+     * quando. **O PRAZO não vai** — o gatilho `erase_requests_deadline` o calcula
+     * do lado de lá, porque um aparelho com a data adiantada destruiria no ato o
+     * que a empresa combinou guardar por dez dias. E `requested_by` vai do ator
+     * autenticado, como `recorded_by` do razão: uma conta não pede em nome de
+     * outra, e a política do servidor recusa se tentar.
+     */
+    // A empresa vem do payload da fila, conferida como a área: este arquivo não
+    // pergunta nada ao aparelho, e uma empresa vazia seria um pedido que o
+    // servidor recusa sem dizer por quê.
+    const empresa = entry.payload?.companyId;
+    if (typeof empresa !== 'string' || !empresa) throw new UnknownAreaError(`${area} sem empresa`);
+
+    return {
+      kind: 'upsert',
+      table: 'erase_requests',
+      row: {
+        id: entry.id,
+        company_id: empresa,
+        area,
+        requested_by: actor.userId,
+      },
+    };
   }
 
   const crossing = CROSSINGS[entry.table as ServerTable];

@@ -28,6 +28,7 @@ import {
   recordProduction,
   recordReturn,
   recordReading,
+  eraseArea,
   recordTransfer,
   saveCarrier,
   recordPurchase,
@@ -117,6 +118,18 @@ async function main() {
    * continua sendo outra, e a shell LÊ daqui qual empresa semear.
    */
   await adotarEmpresa('c4b1f7a8-9e02-4d31-8b55-000000000f01');
+
+  /**
+   * Um pedido de Reset, no banco AINDA VAZIO — e a ordem aqui não é gosto.
+   *
+   * A guarda de completude no fim deste arquivo exige que toda tabela que atravessa
+   * seja exercitada, e `erase_requests` atravessa desde a `0045`. Mas apagar uma área
+   * no fim da sessão destruiria o dia que ela acabou de construir — e mais: levaria a
+   * própria FILA, porque `tablesFor('all')` inclui a `outbox`. Então o pedido entra
+   * agora, sobre o vazio: ele não destrói nada, e a linha que ele enfileira é o que a
+   * checagem 6 precisa para provar que o servidor a aceita sob a política.
+   */
+  await eraseArea(empresaDaqui(), 'recipes');
 
   // A day in the factory, in the order it really happens.
   await ensureStarterData(empresaDaqui());
@@ -320,17 +333,20 @@ async function main() {
   out.push('');
 
   for (const entry of queue) {
-    if (entry.table === 'erase') {
-      out.push(`-- erase ${entry.rowId}: comando, não linha; o servidor ainda não o recebe`);
-      continue;
-    }
+    // O apagamento não tem linha atrás dele — ele É o pedido, e o `serialize` o
+    // transforma em linha de `erase_requests`. Até a `0045` este ramo saía com um
+    // comentário dizendo "o servidor ainda não o recebe"; agora recebe, e a checagem
+    // 6 prova que recebe sob a política.
+    const semLinha = entry.table === 'erase';
 
     // The table name comes from the device's own outbox, and the row from the
     // database this script just built in memory, and `ident` refuses anything
     // that is not a plain identifier.
-    const row = raw
-      .prepare(`SELECT * FROM ${ident(entry.table)} WHERE id = ?`) // proofgate-allow: ident() above
-      .get(entry.rowId) as Record<string, unknown> | undefined;
+    const row = semLinha
+      ? undefined
+      : (raw
+          .prepare(`SELECT * FROM ${ident(entry.table)} WHERE id = ?`) // proofgate-allow: ident() above
+          .get(entry.rowId) as Record<string, unknown> | undefined);
 
     const write = serialize(entry, row ?? null, ACTOR);
     if (write.kind === 'derived') {
@@ -364,7 +380,11 @@ async function main() {
     // `do update` pede um privilégio que ela nunca vai ter — e o erro não fala de
     // política, fala de permissão numa tabela que ninguém tocou. Por quanto se
     // vendia em março não se corrige: combina-se de novo, e isso é uma linha nova.
-    const APPEND_ONLY = ['movements', 'readings', 'sale_price_history'];
+    // `erase_requests` entra aqui: pedido é FATO, e a política do servidor recusa
+    // update e delete. Sem isto a fila sobe com `on conflict do update`, que pede
+    // permissão de UPDATE — e o Postgres responde "permission denied" sem dizer
+    // qual das duas falta, que foi exatamente o que me custou uma execução.
+    const APPEND_ONLY = ['movements', 'readings', 'sale_price_history', 'erase_requests'];
     const appendOnly = APPEND_ONLY.includes(write.table);
 
     const onConflict = appendOnly

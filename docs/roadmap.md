@@ -38,8 +38,8 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 |---|---|---|
 | telas | **32** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **26** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
-| tabelas no servidor (Postgres) | **27** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **44** | `ls supabase/migrations \| wc -l` |
+| tabelas no servidor (Postgres) | **28** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
+| migrações do servidor | **45** | `ls supabase/migrations \| wc -l` |
 | migrações do aparelho | **V24** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
@@ -49,10 +49,10 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **495** testes |
+| `npm test` | **497** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **52** checagens num navegador de verdade |
-| `npm run db:verify` | **19** garantias contra um Postgres descartável, sob RLS |
+| `npm run db:verify` | **21** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade, com
@@ -632,7 +632,7 @@ e essa é decisão dele.
 
 ### 2b. ~~O que trava o transporte, e é decisão de dono~~ — **DECIDIDO em 7 de setembro: existe Reset, e ele apaga**
 
-<!-- medida: ausente supabase/migrations :: erase -->
+<!-- medida: presente supabase/migrations :: create table erase_requests -->
 
 **A resposta do dono não foi nenhuma das duas que eu ofereci.** Eu tinha posto uma
 escolha entre *(A) limpar é só no telefone* e *(B) o servidor esquece sem apagar*, e ele
@@ -700,8 +700,17 @@ confirma na segunda confirmação, com os números por extenso. "Empresa inteira
 na data da decisão, não na data do problema"*. Enquanto o pedido não venceu, o dono vê
 quanto falta e pode pedir o contrário.
 
-<!-- medida: espera :: o lado servidor do Reset é a próxima construção; a forma está escrita
-aqui e o que falta é a migração com as três peças e as garantias novas no db:verify -->
+**FEITO na mesma noite** — a `0045` traz as três peças e o `db:verify` ganhou duas
+garantias que as exercitam contra um Postgres de verdade: o pedido é fato (sem `update` e
+sem `delete`, e quem não administra não pede), o prazo é do servidor (um pedido que chega
+com data no passado sai com os dez dias da empresa), e vencido ele destrói **só quem
+pediu** — a vizinha fica intacta, o pedido fica marcado, e a porta fecha atrás: um
+`delete` comum no razão volta a ser recusado, inclusive para o dono do banco, e a conta
+do aplicativo não abre nada só pondo a bandeira.
+
+E a fila deixou de carregar um comando: o apagamento sobe como **linha** em
+`erase_requests`, com quem pediu e sem o prazo. Era a única coisa na fila que mandava em
+vez de contar.
 
 **E zerar antes do lançamento é outro ato, que não depende disto.** Provado contra um
 Postgres com as 43 migrações: `DELETE` e `UPDATE` em `movements` são recusados até para
