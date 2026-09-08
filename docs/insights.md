@@ -7073,3 +7073,34 @@ lê a lista de funções direto do `CameraViewModule.kt` e reprova qualquer cham
 Ela é derivada da fonte que não passou pela minha mão — a regra irmã, já escrita aqui,
 diz por que isso importa: guarda que compara duas coisas escritas pela mesma mão não
 guarda nada.
+
+
+## Duas medidas erradas seguidas sobre a mesma coisa, e a segunda foi pior que a primeira
+
+8 de setembro, decidindo se o encolhimento de recursos do Android valia o risco.
+
+**Primeira medida:** comparei o APK com R8 e encolhimento contra o APK sem nenhum dos
+dois, vi 0,29 MB de diferença em `res/` e creditei ao encolhimento. Dois builds que
+diferiam em **duas** coisas, e eu atribuí o delta a uma.
+
+**Segunda medida, que eu escrevi como CORREÇÃO da primeira:** rodei um `grep` por
+*"Removed unused resource"* no `resources.txt` que o próprio shrinker deixa, ele voltou
+zero, e eu li zero como *"não removeu nada"* — e reescrevi o docblock, o commit e a
+mensagem ao dono dizendo que o encolhimento pagava zero.
+
+Aquele arquivo não é registro de remoção: é o modelo de uso que o shrinker monta. O
+padrão nunca ia casar. **Padrão que não casa não prova ausência — prova que ninguém
+conferiu o padrão.** É exatamente a família do `assert.ok(valor > 0)` já registrada
+aqui: a régua rodou, deu um número, e o número não respondia a pergunta feita.
+
+O que decidiu foi a comparação que isola **uma** variável: com R8 e sem encolher, `res/`
+tem os mesmos 1005 arquivos e a mesma tabela de 1,70 MB do build sem R8 nenhum. Com o
+encolhimento, 911 arquivos e 1,44 MB. O R8 não toca em recurso; quem tira é o
+encolhimento, e tirou 94. A primeira medida estava certa pelo motivo errado.
+
+**E a parte que mais importa, porque não é sobre Android:** a segunda medida veio de um
+relatório de subagente que eu tinha pedido justamente para verificar. Ele afirmou "risco
+eliminado, zero recursos removidos", eu confirmei com um `grep` meu que concordava, e as
+duas coisas erradas concordando pareceram prova. Verificação que consulta a mesma
+evidência frágil não é segunda opinião — é a primeira, repetida. O que quebrou o empate
+foi construir o caso de controle: um build que difere em uma variável só.

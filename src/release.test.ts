@@ -108,19 +108,25 @@ test('the version can always produce a build number that grows', () => {
  * ganha um pouco na instalação; quem recebe o APK paga o triplo. Numa fábrica que
  * instala o aplicativo por link, quem paga é o dono.
  *
- * **E o encolhimento de RECURSOS está fora de propósito, e o motivo é melhor que
- * o que eu escrevi primeiro.** Eu tinha medido 0,29 MB de diferença em `res/` e
- * na tabela de recursos entre o APK com e sem R8, e creditado ao encolhimento —
- * dois builds que diferiam em DUAS coisas, e eu atribuí o delta a uma. O relatório
- * do próprio shrinker desmente: `outputs/mapping/release/resources.txt` abre com
- * `Resources#getIdentifier present: true` e não tem uma linha de recurso removido.
- * Ele viu busca de recurso por nome, entrou em modo conservador e **não removeu
- * nada**. Os 0,29 MB são do R8 encurtando NOME de recurso, que acontece de
- * qualquer jeito.
+ * **E o encolhimento de RECURSOS está fora, medido — depois de eu errar duas vezes
+ * a mesma medida.** Ele paga 0,30 MB de 28: tira 94 arquivos de `res/` e 0,26 MB da
+ * tabela de recursos. A minificação de CÓDIGO, no mesmo build, paga 12,6 MB. Um por
+ * cento não compra o risco: o que ele remove são recursos que o compilador não viu
+ * ninguém referenciar, recurso buscado por nome em runtime é invisível para ele, e o
+ * modo de falha é o pior desta casa — some calado, compila, instala, quebra numa tela.
  *
- * Ou seja: ligado, ele paga zero e mantém aberta a porta de remover calado um
- * recurso buscado por nome no dia em que o modo conservador não disparar. A
- * minificação de CÓDIGO fica porque paga 12,6 MB, medidos no dex do mesmo build.
+ * **As duas medidas erradas, porque a lição é a régua e não o número.** A primeira
+ * comparou o APK com R8 e encolhimento contra o APK com nenhum dos dois: dois builds
+ * diferindo em DUAS coisas, e eu creditei o delta a uma. A segunda foi pior — eu
+ * "corrigi" a primeira com um `grep` por *"Removed unused resource"* no `resources.txt`
+ * do shrinker, ele voltou zero, e eu li zero como *"não removeu nada"*. Aquele arquivo
+ * não é registro de remoção; é o modelo de uso. **Padrão que não casa nunca não prova
+ * ausência — prova que ninguém conferiu o padrão**, e é a mesma família do
+ * `assert.ok(x > 0)`.
+ *
+ * O que decidiu foi a comparação que isola UMA variável: com R8 e sem encolher, `res/`
+ * tem os mesmos 1005 arquivos e a mesma tabela de 1,70 MB do build sem R8 nenhum. O R8
+ * não toca em recurso. Quem tira é o encolhimento, e tirou 94.
  */
 test('the build settings that survive a prebuild live in app.json', () => {
   const build = ajusteDoPlugin('expo-build-properties');
