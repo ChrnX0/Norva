@@ -1169,3 +1169,50 @@ test('a guarda do cliente distingue o import do topo do import preguiçoso', () 
     'o import preguiçoso passa — é ele que torna o arquivo testável',
   );
 });
+
+/**
+ * A câmera é um ATALHO para a etiqueta, não um segundo caminho até ela.
+ *
+ * **A afirmação está no commit e precisa de quem a cobre.** Quem digita os onze
+ * caracteres do código abre `/lots/<código>`; quem aponta a câmera abre a MESMA
+ * rota. Dois caminhos que fazem a mesma coisa envelhecem em velocidades diferentes
+ * — o dia em que a etiqueta ganhar uma checagem nova, um dos dois fica sem ela, e é
+ * sempre o menos usado, que aqui é a câmera.
+ *
+ * Então a guarda tem duas metades: a tela do leitor **vai** para a rota do lote, e
+ * ela **não** consulta o repositório. Uma busca própria ali seria a segunda
+ * implementação de *"esse lote existe?"* — e a etiqueta já sabe dizer *"esse lote
+ * não está mais aqui"*, com a porta de volta.
+ */
+test('a câmera abre a mesma rota que o código digitado, e não consulta nada por fora', () => {
+  const leitor = readFileSync('app/scan.tsx', 'utf8');
+  const producao = readFileSync('app/(tabs)/production.tsx', 'utf8');
+
+  assert.match(
+    leitor,
+    /router\.replace\(`\/lots\/\$\{[^}]+\}`/,
+    'o leitor tem de abrir a rota do lote — se ele parar de navegar, a câmera lê e não faz nada',
+  );
+  assert.match(
+    producao,
+    /router\.push\(`\/lots\/\$\{[^}]+\}`\)/,
+    'e o campo de digitar tem de continuar abrindo a mesma',
+  );
+  assert.doesNotMatch(
+    leitor,
+    /from '@\/data\/repository'/,
+    'o leitor não consulta o repositório: "esse lote existe?" é pergunta da etiqueta, e ' +
+      'duplicá-la aqui é a segunda implementação que envelhece sozinha',
+  );
+});
+
+test('a guarda do atalho distingue navegar de consultar', () => {
+  // Os dois casos, escritos como texto — guarda sem caso falso é guarda que
+  // ninguém conferiu.
+  const naRota = /router\.replace\(`\/lots\/\$\{[^}]+\}`/;
+  assert.ok(naRota.test('router.replace(`/lots/${codigo}` as never);'), 'navegar reprova nada');
+  assert.ok(
+    !naRota.test('router.replace(`/lots` as never);'),
+    'e uma rota sem o código não conta como abrir o lote',
+  );
+});
