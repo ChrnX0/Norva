@@ -1445,11 +1445,18 @@ Sem exigir formato: o `lotCode` diz por escrito que `AAAAMMDD-NN` é o padrão e
 ATALHO para a tela que já existia: quem digita os onze caracteres abre a etiqueta do
 lote, e quem aponta a câmera abre a mesma. Dois caminhos que fazem a mesma coisa
 envelhecem em velocidades diferentes — então não há caminho paralelo, há uma porta a
-mais. O botão só aparece onde há câmera (`isAvailableAsync`), a permissão é pedida com
-a frase que diz para quê, e a recusa não é beco: a tela lembra que o código está
-impresso embaixo do quadrado. **Nível de evidência: E1 para a leitura** — este
-container não tem câmera e o navegador headless também não; quem prova é o tablet do
-dono, apontando para uma etiqueta impressa
+mais. A permissão é pedida com a frase que diz para quê, e a recusa não é beco: a tela
+lembra que o código está impresso embaixo do quadrado.
+
+**E o botão não apareceu em aparelho nenhum até o conserto do mesmo dia.** Esta linha
+dizia *"o botão só aparece onde há câmera (`isAvailableAsync`)"*, e `isAvailableAsync`
+não existe no módulo Android — o JS lança, o `catch` lia como "não tem", e a porta que
+o item inteiro descreve ficou fechada. Hoje a pergunta só é feita na web, e uma guarda
+em `src/layers.test.ts` lê a lista de funções do `CameraViewModule.kt` para que uma
+chamada sem dono do lado nativo não passe de novo.
+
+**Nível de evidência: E1 para a leitura** — este container não tem câmera e o navegador
+headless também não; quem prova é o tablet do dono, apontando para uma etiqueta impressa
 
 **2.** ~~**Lojas e clientes com ficha de acordo.**~~ **JÁ EXISTE — conferido em 6 de
 setembro, e o roadmap estava errado.** A linha dizia "falta a tela" e a tela está

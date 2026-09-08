@@ -7036,3 +7036,40 @@ Três coisas ficam:
    a uma mudança, a mudança é a suspeita mais barata e não a mais provável. Antes de
    acusá-la, **pergunte se a ferramenta que mediu está viva** — é a mesma família do
    `wm density` preso em 240 dpi, onde o instrumento mentia e a foto não avisava.
+
+## O tipo existia, a implementação não — e o typecheck garante a forma, nunca a plataforma
+
+8 de setembro. A leitura de etiqueta por câmera ficou pronta, passou por typecheck, 508
+testes, mutação, navegador e portão, e **não existia no aparelho**: o botão que leva a
+ela nunca apareceu.
+
+`app/(tabs)/production.tsx` perguntava `CameraView.isAvailableAsync()` para só oferecer a
+câmera onde há câmera — que é a Lei 5 desta casa aplicada certo, e é justamente por
+parecer certo que atravessou. A função é implementada no expo-camera **da web**;
+`CameraViewModule.kt` declara quinze funções e nenhuma com esse nome. No Android o JS
+lança `UnavailabilityError`, o `.catch` — escrito para o caso *"aparelho que nem sabe
+responder não tem"* — lia a exceção como resposta negativa, e desligava o botão em todo
+telefone e todo tablet.
+
+**A lição não é sobre câmera.** É sobre o que cada rede pega:
+
+- **O typecheck viu um tipo, e o tipo estava lá.** `expo-camera` declara
+  `isAvailableAsync` no `.d.ts` porque a API é a mesma nas três plataformas; o que muda
+  é qual delas tem alguém do outro lado. Tipagem descreve **forma**, e a existência de
+  uma implementação nativa não é forma.
+- **O teste unitário não abre pacote nativo**, o navegador do `e2e` roda justamente a
+  plataforma onde a função EXISTE, e a foto do emulador — que é a régua desta casa para
+  tela — não tinha sido tirada ainda, porque o APK não coubera no canal de entrega.
+  Quatro redes, e o buraco delas se alinhou.
+- **E o `catch` genérico foi o cúmplice.** Ele tratava "não sei responder" como "não
+  tem", que é a leitura conservadora e parece prudente. Mas um `catch` que converte
+  falha de mecanismo em resposta de negócio apaga a diferença entre *"não há câmera"* e
+  *"esta pergunta não existe aqui"* — e a segunda é defeito de código, não fato do
+  mundo.
+
+O que mudou: a pergunta passou a ser feita só na web, e uma guarda em `src/layers.test.ts`
+lê a lista de funções direto do `CameraViewModule.kt` e reprova qualquer chamada de
+`CameraView` que o Android não tenha, salvo quando o arquivo pergunta `Platform.OS`.
+Ela é derivada da fonte que não passou pela minha mão — a regra irmã, já escrita aqui,
+diz por que isso importa: guarda que compara duas coisas escritas pela mesma mão não
+guarda nada.
