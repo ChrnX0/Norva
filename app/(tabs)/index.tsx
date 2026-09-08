@@ -169,7 +169,7 @@ function Briefing() {
       runningOut(empresaDaqui(), lastWeek.from, today.to, 7, 7, { unidade: unidadeDaqui() }),
       stockAgainstOrders(empresaDaqui(), through, unidadeDaqui()),
       productionBetween(empresaDaqui(), weekAgo.from, today.to),
-      recentRuns(empresaDaqui(), 6),
+      recentRuns(empresaDaqui(), 6, { unidade: unidadeDaqui() }),
       // Sem horizonte: aqui a pergunta não é "o que acaba esta semana" (isso é o
       // cartão de insumo) e sim "quanto tempo o estoque dura", que é o normal
       // contra o qual a semana se compara.

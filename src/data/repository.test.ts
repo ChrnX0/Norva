@@ -3227,6 +3227,69 @@ test('an order is demand, and demand moves nothing', async () => {
  * com o freezer cheio - e a tela de anotar pedido não avisava excesso nenhum
  * justamente quando a conta mais decide.
  */
+test('the day\u2019s lots and the recent runs say WHICH unit produced them', async () => {
+  // Estas duas não somavam errado: paravam de dizer ONDE. Com duas unidades, "os
+  // lotes de hoje" e "as últimas corridas" misturam duas fábricas numa lista sem
+  // coluna de lugar, e quem lê conclui que a própria unidade produziu o que a outra
+  // produziu. Meia verdade num cartão, que esta casa já decidiu ser pior que
+  // silêncio.
+  //
+  // E na aba de Produção isso era incoerência da própria tela: a régua de acabar já
+  // se recortava pela unidade enquanto a lista de lotes era da empresa.
+  await ensureStarterData(CO);
+  const marilia = await savePlace(CO, { name: 'Marília', kind: 'factory' });
+  const [produto] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
+  const hoje = localDate(nowIso(), 'America/Sao_Paulo');
+
+  await recordProduction(CO, {
+    productId: produto.id,
+    locationId: defaultLocationId(CO),
+    batches: 1,
+    unitsProduced: 100,
+    producedOn: hoje,
+  });
+  // Marília precisa ter o insumo DELA: produção lê o piso da sala onde roda, que é
+  // a regra escrita do razão. Contar em Marília é o caminho honesto — é o que uma
+  // unidade nova faz no primeiro dia.
+  for (const insumo of (await listItems(CO)).filter(
+    (i) => i.kind === 'input' || i.kind === 'packaging',
+  )) {
+    await recordCount(CO, {
+      locationId: marilia.id,
+      itemId: insumo.id,
+      countedBaseUnits: 1_000_000,
+    });
+  }
+  await recordProduction(CO, {
+    productId: produto.id,
+    locationId: marilia.id,
+    batches: 1,
+    unitsProduced: 700,
+    producedOn: hoje,
+  });
+
+  const janela = dayWindow(nowIso(), 'America/Sao_Paulo');
+
+  const daqui = await lotsOn(CO, janela.from, janela.to, { unidade: defaultLocationId(CO) });
+  const deMarilia = await lotsOn(CO, janela.from, janela.to, { unidade: marilia.id });
+  const daEmpresa = await lotsOn(CO, janela.from, janela.to);
+
+  // As três respostas têm de ser DIFERENTES — se fossem iguais, o recorte não faria
+  // nada e o teste passaria por acidente.
+  assert.equal(daqui.length, 1, 'a unidade daqui produziu um lote hoje');
+  assert.equal(daqui[0].baseUnits, 100, 'e ele é o de 100, não o de 700');
+  assert.equal(deMarilia.length, 1, 'Marília produziu o dela');
+  assert.equal(deMarilia[0].baseUnits, 700);
+  assert.equal(daEmpresa.length, 2, 'a empresa produziu os dois');
+
+  // O mesmo para as corridas recentes.
+  const corridasDaqui = await recentRuns(CO, 10, { unidade: defaultLocationId(CO) });
+  const corridasDaEmpresa = await recentRuns(CO, 10);
+  assert.equal(corridasDaqui.length, 1, 'a lista de corridas daqui traz só a daqui');
+  assert.equal(corridasDaqui[0].baseUnits, 100);
+  assert.equal(corridasDaEmpresa.length, 2, 'e a da empresa traz as duas');
+});
+
 test('moving inside the unit is not consumption; leaving it is', async () => {
   // A regra que substituiu "transferência nunca conta quando a pergunta é da
   // empresa". Aquela era grosseira e certa com uma unidade só: com duas, mandar

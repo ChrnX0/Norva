@@ -90,7 +90,7 @@ function ReportIndex() {
       runningOut(empresaDaqui(), semanaAtras.from, hoje.to, 7, Number.POSITIVE_INFINITY, {
         unidade: unidadeDaqui(),
       }),
-      recentRuns(empresaDaqui(), 8),
+      recentRuns(empresaDaqui(), 8, { unidade: unidadeDaqui() }),
       lossesOn(empresaDaqui(), trintaDias.from, hoje.to),
       lossesOn(empresaDaqui(), anterior.de.from, anterior.ate.to),
       canSeeMoney(empresaDaqui()),

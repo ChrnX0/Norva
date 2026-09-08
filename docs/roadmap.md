@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **543** testes |
+| `npm test` | **544** testes |
 | `npm run mutate` | **112** defeitos plantados, 110 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **52** checagens num navegador de verdade |
 | `npm run db:verify` | **22** garantias contra um Postgres descartável, sob RLS |
@@ -458,23 +458,31 @@ mesmo commit, que é o trabalho dela.
   pré-condição de 40 kg na primeira unidade, sem a qual a asserção compararia zero com
   zero e passaria por acidente.
 
-**O que continua aberto — as consultas que somam a empresa inteira.** Eram dez; a pior
-fechou em 8 de setembro, junto com a peça que faltava embaixo dela (a migração 0046: uma
-sala passa a ficar DENTRO de uma unidade, sem o que nenhum recorte é possível sem
-derrubar o número de quem já usa). As restantes, em ordem de dano — e duas delas não são aritmética, são **decisão de
-produto**: um lote já ENTREGUE numa loja deve continuar avisando de validade? A decisão
-escrita de hoje é sobre filtrar por SALA (que emudecia o aviso quando o picolé ia para a
-câmara), e recortar por unidade é outra coisa — mas ela arrasta a loja para fora, e isso
-muda o que o dono vê. Fica registrado em vez de decidido sozinho:
+~~**O que continua aberto — as consultas que somam a empresa inteira.**~~ **AS DEZ
+FECHARAM em 8 de setembro**, junto com a peça que faltava embaixo delas (a migração 0046:
+uma sala passa a ficar DENTRO de uma unidade, sem o que nenhum recorte é possível sem
+derrubar o número de quem já usa).
+
+**E duas coisas que eu tinha registrado como decisão de produto não eram.** Eu ia
+perguntar ao dono se um lote já entregue numa loja deve continuar avisando de validade, e
+se transferir entre unidades conta como consumo. As duas respostas já estavam no
+repositório: a primeira em dois comentários que se contradiziam (cada um certo sobre a
+falha do outro), a segunda numa coluna que já era escrita e ninguém lia
+(`counterpart_location_id`). **Pergunta que o código já responde é rodada do dono
+gasta** — e a régua para separar uma da outra é a mesma de sempre: medir antes de
+perguntar, não só antes de construir.
+
+O que ficou, com o que cada uma custou:
 
 | função | por que dói | quem lê |
 |---|---|---|
-| ~~`stockAgainstOrders`~~ **FEITA em 8 de setembro** | era a pior. A unidade agora é parâmetro **obrigatório** — leitor de saldo com lugar opcional é leitor que erra calado, a mesma lição do `recordLoss`. Conta a unidade e o que está DENTRO dela, e `COALESCE(parent_location_id, company_id)` faz sala sem pai pertencer à primeira unidade, que é o que o backfill afirma: sem isso um teste desta suíte viu **20 no lugar de 170** | os três chamadores passam `unidadeDaqui()` |
+| ~~`stockAgainstOrders`~~ **FEITA em 8 de setembro** | era a pior. A unidade agora é parâmetro **obrigatório** — leitor de saldo com lugar opcional é leitor que erra calado, a mesma lição do `recordLoss`. Conta a unidade e o que está DENTRO dela, e o atalho de compatibilidade faz sala INTERNA sem pai pertencer à primeira unidade, espelhando o `WHERE` do backfill: sem isso um teste desta suíte viu **20 no lugar de 170** | os três chamadores passam `unidadeDaqui()` |
 | ~~`listItems` / `findItem`~~ **FEITAS em 8 de setembro** | o parâmetro passou a ser `{ sala }` OU `{ unidade }`, e são duas perguntas diferentes: a sala é a prateleira exata, a unidade é ela **mais as salas dentro dela**. Um campo só faria a unidade somar apenas o pátio e deixar a câmara fria de fora — o defeito de somar de MENOS, que é o mais calado porque um número menor parece prudente. Capa, ficha de insumo, produção, insumos e avisos passaram a pedir a unidade; **a compra continua da empresa**, por decisão escrita de 1 de setembro — é ela que alimenta a média móvel do custo, e o mesmo grama de açúcar não custa uma coisa em cada sala |
 | `runningOut` (`:4818`) / `dailyOutflowOf` (`:4782`) | pior que somar junto: no modo empresa a linha `:4869` DESCARTA transferência como saída, então mandar insumo de A para B deixa de contar como consumo de A e a cobertura de A fica infinita | capa (duas), relatórios, avisos |
-| `expiringSoon` (`:3773`) | o parâmetro existe e **nenhum** chamador usa: a validade da unidade A soa na B | capa, avisos |
+| ~~`expiringSoon`~~ **FEITA em 8 de setembro** | e ela resolveu uma **contradição escrita em dois lugares**: o docblock da consulta dizia que somar a empresa avisa sobre lote já ENTREGUE, o comentário da capa dizia que filtrar por sala EMUDECE o aviso quando o picolé vai para a câmara. Os dois certos sobre a falha do outro — a unidade é a granularidade que serve às duas |
 | ~~`itemMovements`~~ **FEITA em 8 de setembro** | mesma forma `{ sala } \| { unidade }`. O caminho do assistente é o pior dos dois: ele responde por FRASE, e frase afirmativa não tem como dizer de onde veio — *"conferido em 3/9"* com a conferência da outra cidade passa como fato |
-| `recentRuns` (`:3705`) / `lotsOn` (`:3471`) / `findLot` (`:3936`) | não somam errado — param de dizer ONDE. `lotsOn` e o `runningOut` da MESMA tela já divergem hoje | produção, relatórios, capa |
+| ~~`recentRuns` / `lotsOn`~~ **FEITAS em 8 de setembro** | recortadas pela PRODUÇÃO, que é onde o lote tem lugar. E a aba de Produção era incoerente com ela mesma: a régua de acabar já se recortava pela unidade enquanto a lista de lotes era da empresa |
+| ~~`findLot`~~ **não era isto** | o docblock da tela diz que ela responde *"quanto rendeu"*, e a consulta soma exatamente `kind = 'production'`. Rendimento não tem lugar — o número está certo. A regra de procurar a decisão antes de acusar, pagando de novo |
 
 E duas que **não** mudam, por decisão de 1 de setembro: as médias móveis de custo
 (`:412` e `:2033`) continuam da empresa, porque *"o mesmo grama de açúcar não custa uma

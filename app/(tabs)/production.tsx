@@ -149,7 +149,10 @@ function ProductionDay() {
       productionOn(empresaDaqui(), hoje.from, hoje.to),
       productionOn(empresaDaqui(), ontem.from, ontem.to),
       openProductionRuns(empresaDaqui()),
-      lotsOn(empresaDaqui(), hoje.from, hoje.to),
+      // Da UNIDADE, e isto conserta uma incoerência da PRÓPRIA tela: a régua de
+      // acabar logo abaixo já se recortava pela unidade enquanto esta lista era da
+      // empresa. Dois cartões falando de fábricas diferentes na mesma rolagem.
+      lotsOn(empresaDaqui(), hoje.from, hoje.to, { unidade: unidadeDaqui() }),
       // `runningOut` já sabia responder por PRODUTO — o parâmetro existia com o
       // padrão em insumo e embalagem, e nenhuma tela o passava.
       //

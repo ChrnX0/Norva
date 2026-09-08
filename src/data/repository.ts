@@ -202,11 +202,16 @@ function noEscopo(
   const sala = onde && 'sala' in onde ? onde.sala : null;
   const unidade = onde && 'unidade' in onde ? onde.unidade : null;
   return {
-    // proofgate-allow: `coluna` é do tipo `ColunaDeLugar` — quatro nomes literais deste arquivo, nunca entrada
-    sql: `(? IS NULL OR ${coluna} = ?)
+    // O nome da coluna entra no texto do comando, e quem garante que ele é seguro
+    // não é checagem em tempo de execução: é o TIPO `ColunaDeLugar`, que só admite
+    // quatro nomes literais escritos neste arquivo. Nome novo não compila. Os
+    // marcadores abaixo ficam NA LINHA de cada interpolação porque é só ali que
+    // eles suprimem — marcador no comentário de cima não suprime nada e lê como se
+    // suprimisse, que é o defeito que a própria proofgate chama de `dead-allow`.
+    sql: `(? IS NULL OR ${coluna} = ?) -- proofgate-allow: coluna é do tipo ColunaDeLugar, nunca entrada
           AND (? IS NULL OR EXISTS (
                 SELECT 1 FROM locations esc
-                 WHERE esc.id = ${coluna}
+                 WHERE esc.id = ${coluna} -- proofgate-allow: idem, ColunaDeLugar
                    AND (esc.id = ?
                         OR esc.parent_location_id = ?
                         -- O atalho de compatibilidade, e ele ESPELHA o WHERE do
@@ -221,7 +226,7 @@ function noEscopo(
                         -- compatibilidade que não espelha o backfill inventa
                         -- pertencimento — e inventa para os dois lados.
                         OR (esc.parent_location_id IS NULL
-                            AND esc.kind IN (${UNIT_ROOM_KINDS.map((k) => `'${k}'`).join(', ')})
+                            AND esc.kind IN (${UNIT_ROOM_KINDS.map((k) => `'${k}'`).join(', ')}) -- proofgate-allow: lista de espécies do domínio, nunca entrada
                             AND esc.company_id = ?))))`,
     params: [sala, sala, unidade, unidade, unidade, unidade],
   };
@@ -3618,8 +3623,19 @@ export async function lotsOn(
   companyId: string,
   fromIso: string,
   toIso: string,
+  /**
+   * De qual unidade são os lotes — e ela recorta pela PRODUÇÃO, não pelo saldo.
+   *
+   * O lote não tem lugar: quem tem é o movimento que o criou. Então "os lotes de
+   * hoje aqui" é "os lotes cuja produção aconteceu aqui", e é isso que este recorte
+   * lê. Sem ele a aba de Produção de Marília lista os lotes de Bauru — e na MESMA
+   * tela a régua de acabar já se recorta pela unidade, o que faz o cartão de cima e
+   * o de baixo falarem de fábricas diferentes.
+   */
+  onde?: Escopo,
 ): Promise<LotOfDay[]> {
   const conn = await db();
+  const recorte = noEscopo('m.location_id', onde);
   const rows = await conn.getAllAsync<{
     id: string;
     code: string;
@@ -3635,10 +3651,11 @@ export async function lotsOn(
       WHERE l.company_id = ?
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
+        AND ${recorte.sql}
         AND ${NAO_ESTORNADO}
       GROUP BY l.id, l.code, i.name, l.expires_on
       ORDER BY l.code DESC`,
-    [companyId, fromIso, toIso],
+    [companyId, fromIso, toIso, ...recorte.params],
   );
 
   return rows.map((r) => ({
@@ -3848,8 +3865,22 @@ export type Run = {
  * Uma linha por movimento de produção, e não por lote: o lote é a identidade, o
  * movimento é o fato — e é o fato que tem hora e taxa congelada.
  */
-export async function recentRuns(companyId: string, limit = 6): Promise<Run[]> {
+export async function recentRuns(
+  companyId: string,
+  limit = 6,
+  /**
+   * De qual unidade são as corridas. Sem recorte, da empresa inteira.
+   *
+   * A lista não SOMA errado sem isto — ela para de dizer QUEM produziu. Com duas
+   * unidades, "as últimas seis corridas" mistura duas fábricas numa lista sem
+   * coluna de lugar, e quem lê conclui que a própria unidade produziu o que a outra
+   * produziu. É meia verdade num cartão, que este projeto já decidiu ser pior que
+   * silêncio.
+   */
+  onde?: Escopo,
+): Promise<Run[]> {
   const conn = await db();
+  const recorte = noEscopo('m.location_id', onde);
   /**
    * O único campo de dinheiro do app que já nascia podendo ser nulo — e as duas
    * telas que o leem já filtram por `!== null` antes de desenhar
@@ -3871,10 +3902,11 @@ export async function recentRuns(companyId: string, limit = 6): Promise<Run[]> {
        JOIN items i ON i.id = m.item_id
        LEFT JOIN lots l ON l.id = m.lot_id
       WHERE m.company_id = ? AND m.kind = 'production' AND m.quantity_base_units > 0
+        AND ${recorte.sql}
         AND ${NAO_ESTORNADO}
       ORDER BY m.occurred_at DESC
       LIMIT ?`,
-    [companyId, limit],
+    [companyId, ...recorte.params, limit],
   );
 
   return rows.map((r) => ({
