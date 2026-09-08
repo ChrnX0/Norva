@@ -305,6 +305,7 @@ fica vermelha até este parágrafo mudar.
 | **o `erase` não tem para onde ir** (2b) | **decisão sua.** Duas saídas escritas; a recomendação é B, o marcador. É P3 — migração, e o lado errado destrói dado num servidor. **Ela trava o item 2**, que é o transporte para o servidor. |
 | **quem registra a venda** (`sale` sem escritor) | **decisão sua.** Decide se o Espelho da Loja pode existir de verdade ou continua sendo contagem cega. |
 | **o cliente OAuth do Google** (0c) | **você**, para o backup subir sozinho. O 0a e o 0b estão feitos: o razão sai do aparelho por cópia manual hoje. |
+| **ligar o `pg_cron`** no projeto do servidor | **você, um clique no painel.** A `0045` já deixou o agendamento escrito e guardado; sem a extensão os pedidos de Reset acumulam e nada é destruído — o lado seguro de errar. Medido em 8 de setembro: a extensão está disponível e não instalada. |
 | **cinco minutos de TalkBack** (3) | **você, com o tablet.** A guarda prova que todo alvo se anuncia; ninguém nunca ouviu. |
 | **a sala do tacho** (5) | **decisão sua de PADRÃO**, não de qual — os dois caminhos existem como configuração. P3. |
 | **compras inteligentes** (6) | **tempo.** O mecanismo está construído e lido em duas telas; falta entrega observada de fábrica de verdade para calibrar. |

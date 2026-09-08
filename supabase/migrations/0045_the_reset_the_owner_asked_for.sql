@@ -248,3 +248,33 @@ begin
   end if;
 end
 $$;
+
+-- 6. O gatilho de TEMPO — o único passo desta migração que precisa da mão do dono.
+--
+-- **Sem ele o Reset nunca executa.** A função existe, o pedido vence, e nada
+-- acontece: é o portão P1 deste projeto do lado do servidor, e eu só vi o buraco
+-- relendo o que tinha escrito. `execute` está revogado de `anon` e `authenticated`
+-- de propósito — o aplicativo NÃO pode disparar a destruição, senão o prazo de dez
+-- dias seria uma sugestão —, então quem chama tem de ser o próprio banco.
+--
+-- `pg_cron` está disponível no projeto e **não instalado** (medido em 8 de setembro
+-- pelo painel). Instalar é ato do dono num projeto que ele paga, não meu. Então o
+-- agendamento entra guardado: no dia em que ele ligar a extensão, esta migração já
+-- deixou o trabalho pronto; enquanto não ligar, os pedidos acumulam e **nada é
+-- destruído** — que é o lado seguro de errar.
+--
+-- A hora não é meia-noite de propósito: todo agendador do mundo roda à meia-noite,
+-- e um minuto que não é `00` também evita a fila de todos os outros.
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    -- `cron.schedule` com nome substitui o trabalho de mesmo nome desde a 1.4, então
+    -- rodar a migração duas vezes não cria dois agendamentos.
+    perform cron.schedule('norva-reset-vencido', '17 3 * * *', 'select private.run_due_erases();');
+  end if;
+end
+$$;
+
+comment on function private.run_due_erases() is
+  'Executa os pedidos de Reset vencidos. Chamada pelo agendador do banco, nunca pelo '
+  'aplicativo: o prazo que a empresa escolheu não pode ser encurtado por um toque.';
