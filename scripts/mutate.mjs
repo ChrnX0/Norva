@@ -824,10 +824,10 @@ const DEFECTS = [
   },
   {
     file: 'src/assistant/skills.ts',
-    from: "      : ' Contei os insumos pelo que saiu; se rodou tacho cheio, diga \"em 2 tachos\" que eu refaço.';",
+    from: "      : ' Contei os insumos pelo que saiu; se rodou a receita inteira, diga \"em 2 vezes\" que eu refaço.';",
     to: "      : '';",
     hurts:
-      'o assistente conta os insumos pelo que saiu e nao diz, e quem rodou tacho cheio nao sabe que precisa corrigir',
+      'o assistente conta os insumos pelo que saiu e nao diz, e quem rodou a receita inteira nao sabe que precisa corrigir',
   },
   {
     file: 'src/assistant/skills.ts',
