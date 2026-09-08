@@ -60,7 +60,8 @@ function testes(dir: string, into: string[] = []): string[] {
 const POR_EXTENSO = [
   'zero', 'uma', 'duas', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito',
   'nove', 'dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis',
-  'dezessete', 'dezoito', 'dezenove', 'vinte', 'vinte e uma',
+  'dezessete', 'dezoito', 'dezenove', 'vinte', 'vinte e uma', 'vinte e duas',
+  'vinte e três', 'vinte e quatro', 'vinte e cinco',
 ];
 /** As outras grafias certas do mesmo número. Português tem mais de uma. */
 const SINONIMOS: Record<string, readonly string[]> = {
@@ -74,6 +75,7 @@ const IN_WORDS = [
   'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight',
   'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen',
   'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty', 'twenty-one',
+  'twenty-two', 'twenty-three', 'twenty-four', 'twenty-five',
 ];
 
 const GARANTIAS = conta(SCRIPT, /^echo "==> check /gm);
@@ -112,10 +114,22 @@ test('CLAUDE.md states the number of guarantees the script really has', () => {
   // "quatorze" estão as duas no dicionário, e um guarda que aceita só uma manda
   // consertar o que não está errado — o tipo de aviso que ensina a ignorar
   // aviso. O que ele guarda é o NÚMERO.
+  // E a tabela por extenso tem fim: ela foi escrita até o número de então, e no dia
+  // em que a garantia 22 entrou ela não sabia escrever 22 — reprovou dizendo que os
+  // dois números CONCORDAVAM, porque a mensagem imprimia o algarismo e a grafia sem
+  // dizer que a grafia esperada não existia. Uma guarda que mente na recusa custa a
+  // rodada de quem a lê: eu fui procurar defeito na mudança, não na régua.
+  assert.ok(
+    POR_EXTENSO[GARANTIAS] !== undefined,
+    `o db:verify tem ${GARANTIAS} garantias e esta guarda só sabe escrever até ` +
+      `${POR_EXTENSO.length - 1}. Acrescente a grafia em POR_EXTENSO e em IN_WORDS — ` +
+      'o defeito é aqui, não no script.',
+  );
   const grafias = [POR_EXTENSO[GARANTIAS], ...(SINONIMOS[POR_EXTENSO[GARANTIAS]] ?? [])];
   assert.ok(
     grafias.includes(dito[1]),
-    `o db:verify tem ${GARANTIAS} garantias e o CLAUDE.md diz "${dito[1]}". ` +
+    `o db:verify tem ${GARANTIAS} garantias e o CLAUDE.md diz "${dito[1]}", ` +
+      `quando devia dizer "${POR_EXTENSO[GARANTIAS]}". ` +
       'Não é história datada, é referência: quem ler começa a sessão com o número errado na cabeça.',
   );
 });

@@ -7104,3 +7104,29 @@ eliminado, zero recursos removidos", eu confirmei com um `grep` meu que concorda
 duas coisas erradas concordando pareceram prova. Verificação que consulta a mesma
 evidência frágil não é segunda opinião — é a primeira, repetida. O que quebrou o empate
 foi construir o caso de controle: um build que difere em uma variável só.
+
+## A guarda reprovou dizendo que os dois números concordavam
+
+8 de setembro, ao acrescentar a 22ª garantia do `db:verify`. Duas guardas do
+`src/bar.test.ts` ficaram vermelhas, e a mensagem de uma delas dizia: *"o db:verify tem
+22 garantias e o CLAUDE.md diz 'vinte e duas'"* — os dois certos, e reprovando.
+
+O defeito era da régua: a tabela `POR_EXTENSO` tinha sido escrita até `'vinte e uma'`,
+que era o número do dia em que ela nasceu. Com 22 garantias, `POR_EXTENSO[22]` é
+`undefined`, a lista de grafias aceitas fica `[undefined]`, e nada casa. A mensagem
+imprimia o algarismo e a grafia encontrada **sem dizer que a grafia esperada não
+existia** — então ela descrevia uma discordância que não era a real.
+
+Custou uma rodada procurando defeito na mudança em vez de na régua. E é a família do
+`grep` que não casa: **a asserção rodou, deu vermelho, e o vermelho apontava para o
+lugar errado.** Uma guarda que não sabe distinguir *"os dois discordam"* de *"eu não sei
+avaliar isto"* transforma um conserto de uma linha numa investigação.
+
+O que mudou: a guarda agora falha primeiro com *"só sei escrever até 21, acrescente a
+grafia — o defeito é aqui, não no script"*, e a segunda mensagem passou a dizer qual
+grafia ela esperava. A tabela ganhou até 25, que é folga e não conserto — o conserto é a
+mensagem.
+
+**A regra que sai daqui, e ela vale para toda guarda desta casa:** a mensagem de recusa
+tem de distinguir *o alvo está errado* de *eu não consigo julgar o alvo*. As duas são
+vermelhas e mandam a pessoa para lados opostos.

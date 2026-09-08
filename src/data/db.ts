@@ -898,9 +898,43 @@ CREATE UNIQUE INDEX IF NOT EXISTS carriers_name_idx
 ALTER TABLE movements ADD COLUMN carrier_id TEXT REFERENCES carriers(id);
 `;
 
+/**
+ * Uma sala fica DENTRO de uma unidade — e o backfill é a metade que protege quem já usa.
+ *
+ * `locations` não tinha pai: uma câmara fria pertencia à empresa, não à fábrica. Com uma
+ * unidade isso nunca custou nada, porque toda sala interna era da única. Com duas, a
+ * pergunta *"dá para prometer este pedido?"* passa a contar o freezer da outra cidade.
+ *
+ * **E o conserto ingênuo é pior que o defeito:** recortar por `location_id = <a unidade>`
+ * excluiria a câmara fria de quem já tem o aplicativo instalado, porque hoje ela não
+ * aponta para unidade nenhuma. O saldo cairia, calado, para todo mundo. Então a sala
+ * interna existente passa a apontar para a unidade que tem o id da empresa — a primeira,
+ * e a única de hoje. É verdade sobre o mundo: quem tem uma fábrica tem a câmara dentro
+ * dela.
+ *
+ * Loja própria e cliente ficam de fora: não ficam dentro de uma fábrica, ficam no mundo.
+ *
+ * O SQLite não tem chave composta, então a integridade que o servidor impõe pela
+ * `(parent_location_id, company_id)` da migração 0046 mora aqui na forma que o aparelho
+ * consegue — uma referência simples — e o resto é o `db:verify`, que roda contra Postgres.
+ */
+const V25 = `
+ALTER TABLE locations ADD COLUMN parent_location_id TEXT REFERENCES locations(id);
+
+CREATE INDEX IF NOT EXISTS locations_parent_idx
+  ON locations (company_id, parent_location_id);
+
+UPDATE locations
+   SET parent_location_id = company_id
+ WHERE kind IN ('cold_room', 'store_room')
+   AND parent_location_id IS NULL
+   AND id <> company_id
+   AND EXISTS (SELECT 1 FROM locations u WHERE u.id = locations.company_id);
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
-  V19, V20, V21, V22, V23, V24,
+  V19, V20, V21, V22, V23, V24, V25,
 ];
 
 export type SqlParam = string | number | null;

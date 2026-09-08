@@ -232,6 +232,11 @@ const CROSSINGS: Record<
       'contact_phone',
       'delivery_days',
       'agreement_note',
+      // A unidade em que a sala fica. Atravessa porque é ela que decide de qual
+      // saldo a sala faz parte — uma câmara fria sem pai no servidor volta a ser
+      // "da empresa" na primeira restauração, e o pedido passa a ser prometido
+      // contra o freezer da outra cidade. Ver a migração 0046.
+      'parent_location_id',
     ],
     // A faixa dos sensores é `jsonb` do outro lado e texto aqui, como a lista de
     // embalagem: mandada crua, o Postgres guarda uma string entre aspas onde

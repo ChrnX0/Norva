@@ -1350,6 +1350,58 @@ fi
 
 echo "    destrói quem pediu, não toca a vizinha, marca o pedido, e o razão volta a ser intocável"
 
+echo "==> check 22: uma sala fica dentro de UMA unidade, e nunca dentro da vizinha"
+
+# Duas empresas, cada uma com a sua unidade. A `U` é o prefixo desta checagem.
+U=cccc0000-0000-4000-8000-0000000000
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
+  insert into companies (id, name, join_code) values
+    ('${U}01', 'Fabrica A', 'UNIDA1'),
+    ('${U}02', 'Fabrica B', 'UNIDB2');
+  insert into locations (id, company_id, kind, name) values
+    ('${U}01', '${U}01', 'factory', 'A matriz'),
+    ('${U}02', '${U}02', 'factory', 'B matriz'),
+    ('${U}11', '${U}01', 'cold_room', 'Camara de A');" >/dev/null
+
+# 1. A câmara de A entra na unidade de A. Este é o caminho normal.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
+  update locations set parent_location_id = '${U}01' where id = '${U}11';" >/dev/null
+
+# 2. E ela NÃO entra na unidade da vizinha. Sem a chave composta isto passaria, e o
+#    saldo de uma fábrica passaria a somar a sala de um concorrente.
+if psql -d "$DB" -q -c "
+  update locations set parent_location_id = '${U}02' where id = '${U}11';" >/dev/null 2>&1; then
+  fail "uma sala aceitou ficar dentro da unidade de OUTRA empresa"
+fi
+
+# 3. Uma sala não é a própria unidade.
+if psql -d "$DB" -q -c "
+  update locations set parent_location_id = '${U}11' where id = '${U}11';" >/dev/null 2>&1; then
+  fail "uma sala aceitou ser o próprio pai"
+fi
+
+# 4. E apagar a unidade não leva a sala embora — `restrict` e não `cascade`, porque
+#    sala apagada em cascata levaria o location_id de movimento com ela.
+if psql -d "$DB" -q -c "
+  delete from locations where id = '${U}01';" >/dev/null 2>&1; then
+  fail "apagar a unidade levou a sala junto: o restrict virou cascade"
+fi
+
+# 5. O backfill: a câmara que existia ANTES da 0046 ficou dentro da unidade padrão.
+#    Sem isto o recorte por unidade excluiria a câmara de quem já usa o aplicativo,
+#    e o saldo cairia calado.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
+  insert into locations (id, company_id, kind, name, parent_location_id) values
+    ('${U}12', '${U}02', 'store_room', 'Almoxarifado de B', null);
+  update locations sala set parent_location_id = sala.company_id
+   where sala.kind in ('cold_room','store_room') and sala.parent_location_id is null
+     and sala.id <> sala.company_id
+     and exists (select 1 from locations u where u.id = sala.company_id and u.company_id = sala.company_id);" >/dev/null
+DENTRO=$(psql -d "$DB" -At -c "select parent_location_id from locations where id = '${U}12';")
+[ "$DENTRO" = "${U}02" ] || fail "o backfill não pôs a sala interna dentro da unidade: veio '$DENTRO'"
+
+echo "    a sala entra na unidade da própria empresa, nunca na da vizinha, nunca em si mesma, e o backfill alcança a que já existia"
+
 echo
-echo "OK - migrations apply and all twenty-one guarantees hold."
+echo "OK - migrations apply and all twenty-two guarantees hold."
 
