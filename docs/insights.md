@@ -7008,3 +7008,31 @@ Duas regras saem disso, e a segunda vale mais que a primeira:
    memória"), e as duas são legítimas — o erro foi não perguntar qual delas eu queria. É a
    mesma família do `assert.ok(> 0)`: a medida rodou, deu número, e o número não era do que
    eu estava perguntando. **Antes de crer numa medida, diga em voz alta a unidade dela.**
+
+## O emulador morre calado e o sintoma acusa o artefato que está sendo testado
+
+8 de setembro, minutos depois de ligar o R8. A instalação do APK minificado falhou com
+`Failure calling service package: Broken pipe (32)`, e a leitura óbvia era a que eu
+estava justamente procurando: *a minificação quebrou o pacote*. Eu tinha acabado de
+mexer no empacotamento, tinha o número do dex caindo de 20 MB para 7,4, e um erro de
+instalação na mão — três coisas alinhadas para a conclusão errada.
+
+`adb shell pm list packages` respondeu `Can't find service: package`. O serviço não
+recusou o APK: **ele não existia**. O `system_server` do emulador havia morrido durante
+os quinze minutos em que a compilação ocupou os quatro núcleos — o mesmo emulador que
+`adb devices` continuava listando como `device`, porque o `adbd` sobrevive à morte do
+framework e responde por um aparelho que não tem mais Android em cima.
+
+Três coisas ficam:
+
+1. **`adb devices` dizendo `device` não é prova de aparelho vivo.** O que prova é
+   `getprop sys.boot_completed` valer `1` **e** um serviço do framework responder
+   (`pm list packages`, `wm density`). Duas perguntas, porque a primeira já voltou
+   vazia com o aparelho listado.
+2. **Não compile e emule ao mesmo tempo numa máquina de quatro núcleos.** O `CLAUDE.md`
+   já registra o custo disso em disputa de CPU; o que ele não dizia é que o emulador
+   não sobrevive — ele não fica lento, ele morre.
+3. **E a regra de leitura, que é a que vale:** quando um erro aparece no minuto seguinte
+   a uma mudança, a mudança é a suspeita mais barata e não a mais provável. Antes de
+   acusá-la, **pergunte se a ferramenta que mediu está viva** — é a mesma família do
+   `wm density` preso em 240 dpi, onde o instrumento mentia e a foto não avisava.
