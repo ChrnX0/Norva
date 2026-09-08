@@ -51,7 +51,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 |---|---|
 | `npm test` | **559** testes |
 | `npm run mutate` | **120** defeitos plantados, 118 pegos, 2 equivalentes, **0 sobreviventes** |
-| `npm run e2e:fast` | **52** checagens num navegador de verdade |
+| `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **23** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
@@ -219,9 +219,9 @@ ambiente, e **nada visto numa fábrica** — que é a lacuna que nenhum teste fe
 mas porque o mundo que ela oferecia não existia: a tela lia a unidade e a escrita
 conferia uma sala, então **nenhuma corrida rodava** com a polpa na câmara. O padrão
 passou a ser a unidade inteira, com o consumo saindo da sala que tinha o insumo. O que
-ficou aberto é a outra metade — a "sala estrita" como configuração, e o trajeto
-câmara → almoxarifado, que a tela de transferir ainda não faz. Ver *"De onde a produção
-consome"*.
+ficou aberto é a outra metade — a "sala estrita" como configuração. O trajeto
+câmara → almoxarifado, que era o bloqueio prático dela, **passou a existir** na mesma
+noite. Ver *"De onde a produção consome"*.
 
 ### O que a revisão das quatro caras fechou — e o que ela deixou de pé
 
@@ -1246,9 +1246,13 @@ existam**, e é aí que este item continua aberto.
   e aceitar o lançamento a mais — não tem como pedir isso hoje. É uma configuração de
   empresa lendo o mesmo `escopoDoConsumo`, e sem ela metade da regra da casa está no
   papel.
-- **A transferência entre salas nossas**, que a tela de transferir ainda não faz: ela
-  sai sempre da unidade, e o caminho de volta grava `return`, que é notícia sobre a
-  loja e não sobre a nossa câmara. Sem ela a sala estrita é inviável na prática.
+- ~~**A transferência entre salas nossas**~~ — **FEITA em 8 de setembro.** E a nota
+  anterior estava meio errada, o que só apareceu ao medir: a câmara fria já podia
+  **receber** (ela sempre esteve na lista de destinos). O que faltava era **sair** dela
+  sem que isso virasse `return` — notícia sobre uma loja, não sobre a nossa câmara. A
+  ponta nossa deixou de ser a unidade constante e virou escolha entre
+  `INTERNAL_PLACE_KINDS`, com a pergunta aparecendo só quando existe mais de uma sala
+  (Lei 1). Com isso a sala estrita deixou de ser inviável na prática.
 - **A ordem de debitar por VALIDADE**, não por proximidade. Hoje é a sala da corrida
   primeiro; o certo, quando o insumo tem lote, é o mais velho primeiro — que é o que o
   lote do produto já faz. É PEPS de insumo, e continua sendo trabalho da F3.

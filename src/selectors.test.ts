@@ -90,6 +90,20 @@ const NAO_E_DICIONARIO: Record<string, string> = {
   Coco:
     'o sabor da checagem do preço de tabela — ela precisa de classificação PRÓPRIA, porque o índice único da grade é `nulls not distinct` e o exemplo semeado já ocupa a casa vazia',
   'Picolé de Uva': 'nome composto pela grade — linha, tipo e sabor — e não escrito em lugar nenhum',
+  // As cinco abaixo escapavam da guarda até 8 de setembro: o extrator não enxergava
+  // `getByLabel('X', { exact: true })`. Nenhuma é defeito — são dado do exemplo semeado,
+  // nome que a própria checagem digita, e um número que a tela calcula. O que muda é que
+  // agora elas estão DITAS, em vez de invisíveis.
+  'Palito de picolé': 'nome de insumo do exemplo semeado, não frase de tela',
+  'Glucose 38DE': 'nome de insumo do exemplo semeado, não frase de tela',
+  'Galpão 2':
+    'o nome que a checagem do renomear digita na sala padrão — nome de lugar é dado da fábrica, não frase de tela',
+  'R$ 1.552,50':
+    'valor CALCULADO pela tela a partir do razão. O dicionário tem o formato do dinheiro, nunca o número: uma frase que dissesse "R$ 1.552,50" seria um total chumbado, que é o defeito oposto',
+  'De qual sala sai: Câmara 1':
+    'rótulo de acessibilidade montado pela tela: a pergunta do dicionário mais o nome da sala. Ele existe justamente porque o nome sozinho aparecia DUAS vezes na mesma tela — na lista das nossas salas e na de destinos — e quem usa TalkBack ouviria dois botões idênticos sem saber o que cada um decide',
+  'Câmara 1':
+    'nome de sala que a própria checagem cadastra antes de tocar nele — nome de lugar é dado da fábrica, não frase de tela, pelo mesmo motivo que Loja Centro',
   máxima: 'metade de um rótulo composto na tela do lugar',
   mínima: 'metade de um rótulo composto na tela do lugar',
   '^\\d{8}-\\d{2}$': 'o formato do código do lote, gerado pelo domínio e não traduzido',
@@ -105,10 +119,21 @@ const NAO_E_DICIONARIO: Record<string, string> = {
     'nome de idioma escrito NA língua dele, de propósito: quem procura o próprio idioma numa lista o reconhece escrito como ele se escreve, e não precisa saber ler o idioma atual para achar o seu. Por isso não passa pelo dicionário — traduzir "English" para "Inglês" esconderia a palavra de quem só lê inglês',
 };
 
-/** Os seletores literais: o texto tem que existir igual. */
+/**
+ * Os seletores literais: o texto tem que existir igual.
+ *
+ * **O `{ exact: true }` é opcional nas DUAS formas, e não era.** A versão anterior lia
+ * `getByText('X', { exact: true })` e `getByLabel('X')`, e nada mais — então
+ * `getByLabel('X', { exact: true })` passava invisível. Achado em 8 de setembro pela
+ * guarda irmã: eu acrescentei uma renúncia para um texto que o `e2e` usa nessa forma, e
+ * a guarda das renúncias disse que ninguém o usava. Uma delas estava errada, e era esta.
+ *
+ * O buraco importa porque `getByLabel` **sem** `exact` casa por substring: o dia em que
+ * alguém precisar de exatidão num rótulo — que é justamente o dia em que dois rótulos se
+ * parecem — o seletor sai do alcance da guarda, que é quando ela mais faria falta.
+ */
 const LITERAIS = [
-  ...FONTE.matchAll(/getByText\('((?:[^'\\]|\\.)+)', \{ exact: true \}\)/g),
-  ...FONTE.matchAll(/getByLabel\('((?:[^'\\]|\\.)+)'\)/g),
+  ...FONTE.matchAll(/getBy(?:Text|Label)\('((?:[^'\\]|\\.)+)'(?:, \{ exact: true \})?\)/g),
 ].map((m) => m[1].replace(/\\'/g, "'"));
 
 /** Os seletores por expressão: alguma frase do dicionário tem que casar. */

@@ -17,7 +17,7 @@ import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
 import { Field } from '@/components/Field';
-import { GlyphBox, GlyphStore, GlyphVehicle } from '@/components/Glyph';
+import { GlyphBox, GlyphFactory, GlyphStore, GlyphVehicle } from '@/components/Glyph';
 import { Reveal } from '@/components/Reveal';
 import {
   lastSentBaseUnits,
@@ -136,6 +136,20 @@ function Transfer() {
    */
   const [motivo, setMotivo] = useState<ReturnReason | null>(null);
   const fabrica = unidadeDaqui();
+  /**
+   * Qual sala NOSSA está na ponta deste movimento.
+   *
+   * **Era a unidade e só ela, e isso deixava um trajeto real sem tela.** A câmara
+   * fria já podia RECEBER (ela entra na lista de destinos), e não podia MANDAR: o
+   * único jeito de tirar alguma coisa dela era marcar devolução, que grava `return`
+   * — notícia sobre uma loja, não sobre a nossa câmara. Uma fábrica que guarda a
+   * polpa no freezer não tinha como registrar polpa saindo dele.
+   *
+   * Nulo é o padrão e quer dizer *"a unidade deste aparelho"*, que é a resposta
+   * certa para quem tem uma sala só — e quem tem uma sala só não vê pergunta
+   * nenhuma, porque a Lei 1 proíbe pedir o que o sistema deduz.
+   */
+  const [nossaId, setNossaId] = useState<string | null>(null);
   const [toId, setToId] = useState<string | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
   const [amountText, setAmountText] = useState('');
@@ -148,15 +162,29 @@ function Transfer() {
     return place?.name.trim() || t.app.places.factory;
   };
 
-  const destinations = (data?.places ?? []).filter((p) => p.id !== fabrica);
+  /**
+   * As nossas salas, e a ponta escolhida entre elas.
+   *
+   * A lista vem da régua do domínio e não de uma lista à mão: `INTERNAL_PLACE_KINDS`
+   * é a mesma que o SQL de saldo usa, e escrever a quarta grafia dela aqui é o
+   * defeito que ela existe para não repetir.
+   */
+  const nossasSalas = (data?.places ?? []).filter((p) =>
+    (INTERNAL_PLACE_KINDS as readonly string[]).includes(p.kind),
+  );
+  const nossa = nossasSalas.find((p) => p.id === nossaId)?.id ?? fabrica;
+
+  // O outro lado nunca é a ponta nossa — mandar de uma sala para ela mesma é um
+  // movimento que se anula, e ele nem deve aparecer para escolher.
+  const destinations = (data?.places ?? []).filter((p) => p.id !== nossa);
   const outra = destinations.find((p) => p.id === toId) ?? destinations[0] ?? null;
 
   // Quem manda e quem recebe trocam de lado na devolução.
-  const from = devolucao ? (outra?.id ?? fabrica) : fabrica;
+  const from = devolucao ? (outra?.id ?? nossa) : nossa;
   // Só o id importa daqui para baixo, e ele é uma string: comparar string em
   // dependência de efeito é estável, comparar objeto recriado a cada render não
   // é. Foi o que o compilador reclamou quando isto era `{ id: fabrica }`.
-  const toId2 = devolucao ? fabrica : (outra?.id ?? null);
+  const toId2 = devolucao ? nossa : (outra?.id ?? null);
   const to = toId2 ? { id: toId2 } : null;
 
   const here = data?.stock.find((p) => p.locationId === from);
@@ -192,7 +220,7 @@ function Transfer() {
    */
   const { data: frente } = useQuery<Frente>(async () => {
     if (!itemId) return null;
-    const origem = devolucao ? (toId ?? fabrica) : fabrica;
+    const origem = devolucao ? (toId ?? nossa) : nossa;
     const lotes = await lotsInStock(empresaDaqui(), itemId, origem);
     return lotes[0] ?? null;
   }, `${itemId ?? ''}:${devolucao ? 'v' : 'i'}:${toId ?? ''}`);
@@ -502,11 +530,68 @@ function Transfer() {
         </Card>
       </Reveal>
 
+      {/* De qual sala NOSSA — e só quando existe mais de uma.
+          Com uma sala só a resposta é dedutível e a Lei 1 proíbe perguntar; a
+          pergunta nasce no dia em que a fábrica cadastra a câmara fria, que é o
+          dia em que ela passa a ter duas respostas possíveis. O título vira
+          "para qual sala nossa" na devolução, porque ali esta ponta RECEBE: o
+          picolé que a loja devolve volta para o freezer, não para o pátio. */}
+      {nossasSalas.length > 1 ? (
+        <Reveal index={1}>
+          <Card
+            hue={palette.lilac}
+            icon={(c) => <GlyphFactory size={26} color={c} weight={traco} />}
+            title={devolucao ? words.ourRoomIn : words.ourRoomOut}
+          >
+            {nossasSalas.map((place) => {
+              const ativo = place.id === nossa;
+              return (
+                <Pressable
+                  key={place.id}
+                  onPress={() => {
+                    setNossaId(place.id);
+                    // A quantidade digitada era do saldo da outra sala. Mantê-la
+                    // seria oferecer um número que talvez não exista aqui, e a
+                    // Lei 5 manda impedir em vez de reclamar depois.
+                    setTyped(false);
+                    setAmountText('');
+                  }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: ativo }}
+                  /**
+                   * O rótulo diz QUAL PERGUNTA ele responde, e não só o nome da sala.
+                   *
+                   * Achado pelo navegador ao escrever a checagem: com a câmara na lista
+                   * das nossas salas E na lista de destinos, "Câmara 1" existe duas vezes
+                   * na mesma tela. O `e2e` clicou na primeira e escolheu a origem quando
+                   * queria o destino — e quem usa TalkBack ouviria exatamente o mesmo:
+                   * dois botões com o mesmo nome, sem dizer o que cada um decide.
+                   */
+                  accessibilityLabel={`${devolucao ? words.ourRoomIn : words.ourRoomOut}: ${place.name.trim() || t.app.places.factory}`}
+                  style={[styles.row, { paddingVertical: space.md }]}
+                >
+                  <Text
+                    style={[
+                      type.body,
+                      styles.grow,
+                      { color: ativo ? color.ink : color.inkMuted, fontWeight: ativo ? '600' : '400' },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {place.name.trim() || t.app.places.factory}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </Card>
+        </Reveal>
+      ) : null}
+
       {/* Qual loja. A pergunta é sempre sobre a LOJA — na devolução ela é a
           origem, e é por isso que o título muda de lado junto com o sentido.
           A marca da escolha é a tinta e o peso da palavra: caixa desenhada à mão
           aqui era o que não tinha como virar Papel. */}
-      <Reveal index={1}>
+      <Reveal index={2}>
         <Card
           hue={palette.lilac}
           icon={(c) => <GlyphStore size={26} color={c} weight={traco} />}
@@ -592,7 +677,7 @@ function Transfer() {
           cartões cinzas, e a separação obrigava a olhar para cima para saber de
           que item era aquele número. A caixa amarela é a carga que não cabe, não
           só os dígitos: o cartão inteiro avisa. */}
-      <Reveal index={2}>
+      <Reveal index={3}>
         <Card
           hue={over ? color.warning : palette.lilac}
           icon={(c) => <GlyphBox size={26} color={c} weight={traco} />}
@@ -761,7 +846,7 @@ function Transfer() {
       {/* A ação provável, embaixo e ao alcance do polegar. Uma só, primária, com
           a marca do assunto dentro: `weighty` porque despachar carga mexe no
           livro-razão, e o toque curto é a confirmação de que o dedo pegou. */}
-      <Reveal index={3}>
+      <Reveal index={4}>
         <Button
           // Em devolução, o que se grava é `return` — outro fato, e o commit que
           // os separou existe por isso. A confirmação que este botão abre já

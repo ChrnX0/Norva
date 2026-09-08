@@ -1184,6 +1184,9 @@ export const es: Dictionary = {
       wrong_item: 'Vino equivocado',
       returnMelted: 'Se derritió en el camino',
       returnExpired: 'Pasó la fecha',
+      /** De qué sala nuestra sale la carga, y a cuál vuelve. Ver pt-BR. */
+      ourRoomOut: 'De qué sala sale',
+      ourRoomIn: 'A qué sala vuelve',
       returnOverline: 'lo que vuelve a la fábrica',
       notASale: 'Tienda propia es transferencia, no venta: aquí no hay facturación ni margen. El valor solo cambia de sala.',
       noPlaces: 'Todavía no registraste adónde mandar.',

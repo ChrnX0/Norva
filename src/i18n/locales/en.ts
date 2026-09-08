@@ -1179,6 +1179,9 @@ export const en: Dictionary = {
       wrong_item: 'Wrong item',
       returnMelted: 'Melted on the way',
       returnExpired: 'Past its date',
+      /** Which of our rooms the load leaves from, and comes back to. See pt-BR. */
+      ourRoomOut: 'Which room it leaves',
+      ourRoomIn: 'Which room it returns to',
       returnOverline: 'what comes back to the factory',
       notASale: 'An own store is a transfer, not a sale: there is no revenue and no margin here. The value just changes rooms.',
       noPlaces: 'You have not set up anywhere to send to yet.',

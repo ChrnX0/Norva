@@ -1471,6 +1471,15 @@ export const ptBR = {
       wrong_item: 'Veio errado',
       returnMelted: 'Derreteu no caminho',
       returnExpired: 'Passou da validade',
+      /**
+       * De qual sala nossa sai a carga — e para qual ela volta.
+       *
+       * Duas chaves e não uma porque a mesma ponta troca de papel com o sentido, e
+       * uma frase só teria de valer para os dois — que é como nasce texto que não
+       * diz nada. Só aparecem quando a empresa tem mais de uma sala interna.
+       */
+      ourRoomOut: 'De qual sala sai',
+      ourRoomIn: 'Para qual sala volta',
       returnOverline: 'o que volta para a fábrica',
       notASale: 'Loja própria é transferência, não venda: não há faturamento nem margem aqui. O valor só muda de sala.',
       noPlaces: 'Você ainda não cadastrou para onde mandar.',

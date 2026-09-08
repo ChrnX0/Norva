@@ -1510,6 +1510,95 @@ check('the default room can be given a real name, and keeps being the factory', 
   assert.doesNotMatch(depois, /Galpão 2[^|]*\| *Fábrica/, 'a palavra padrão sai quando há nome de verdade');
 });
 
+check('what is in the cold room can leave it, and leaving is a transfer and not a return', async (page) => {
+  /**
+   * O trajeto interno que não tinha tela — e a metade que faltava era a de SAIR.
+   *
+   * A câmara fria já podia RECEBER: ela entra na lista de destinos desde sempre. Sair
+   * dela só existia marcando devolução, que grava `return` — notícia sobre uma loja,
+   * não sobre a nossa câmara. Uma fábrica que guarda a polpa no freezer não tinha como
+   * registrar polpa saindo dele, e é exatamente essa fábrica que o produto atende.
+   *
+   * A checagem é do navegador e não de módulo porque o que faltava era **a tela**: o
+   * `recordTransfer` sempre aceitou as duas pontas. Regra da casa, com cinco cicatrizes:
+   * mudança no que uma tela mostra por padrão é mudança de que o `e2e` faz parte.
+   */
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Como se chama').fill('Câmara 1');
+  await page.getByLabel('Câmara fria').first().click();
+  await page.waitForTimeout(300);
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  // Com DUAS salas nossas a pergunta nasce. Com uma só ela não existia, e não
+  // existir era certo: a Lei 1 proíbe pedir o que o sistema deduz.
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  const comCamara = await screen(page);
+  assert.match(comCamara, /De qual sala sai/, 'a pergunta aparece quando há mais de uma sala nossa');
+
+  // Primeiro o açúcar entra na câmara — este caminho já existia.
+  await page.getByLabel('Câmara 1', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Açúcar cristal').first().click();
+  await page.waitForTimeout(400);
+  await page.getByLabel('Quanto vai').fill('5000');
+  await page.waitForTimeout(500);
+  await page.getByText('Registrar a transferência', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Mandar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  // Agora o que não existia: SAIR da câmara. A ponta nossa passa a ser ela.
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel('De qual sala sai: Câmara 1').first().click();
+  await page.waitForTimeout(700);
+
+  const daCamara = await screen(page);
+  assert.match(daCamara, /Açúcar cristal/, 'a lista passa a ser o estoque DA CÂMARA');
+
+  // A câmara não se oferece como destino de si mesma — e a pergunta é feita ao
+  // RÓTULO, não ao texto da tela. A primeira versão procurava "Câmara 1" seguido de
+  // "Para onde vai" dentro de oitenta caracteres: isso mede ORDEM no texto, não
+  // pertencimento à lista, e o nome continua na tela de qualquer jeito porque ele é a
+  // origem escolhida. Régua que não distingue o caso verdadeiro do falso não responde
+  // nada — a opção de destino tem o nome puro por rótulo, e é isso que se conta.
+  const comoDestino = await page.getByLabel('Câmara 1', { exact: true }).count();
+  assert.equal(comoDestino, 0, 'mandar de uma sala para ela mesma é um movimento que se anula');
+
+  await page.getByLabel('Açúcar cristal').first().click();
+  await page.waitForTimeout(400);
+  await page.getByLabel('Quanto vai').fill('2000');
+  await page.waitForTimeout(500);
+  await page.getByText('Registrar a transferência', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+
+  const perguntando = await screen(page);
+  assert.match(perguntando, /de Câmara 1 para/, 'a confirmação diz que sai DA câmara');
+
+  await page.getByText('Mandar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  // **A asserção que separa esta checagem de uma que só clica:** o razão guarda
+  // TRANSFERÊNCIA. Se a única saída da câmara fosse a devolução, aqui estaria escrito
+  // "devolução" — e o Espelho da Loja passaria a receber notícia sobre uma loja que
+  // não participou de nada.
+  await page.goto(`http://localhost:${PORT}/extrato`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  const razao = await screen(page);
+  assert.match(razao, /Câmara 1/, 'o extrato conhece a câmara');
+  assert.doesNotMatch(
+    razao,
+    /Devolução[\s\S]{0,120}Câmara 1/,
+    'sair da nossa câmara não é devolução: devolução é notícia sobre uma loja',
+  );
+});
+
 check('a store is created, loaded, and the company still has the same sugar', async (page) => {
   await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
