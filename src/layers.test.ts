@@ -1411,3 +1411,63 @@ test('the room guard bites the real scar, and reads a nested call correctly', ()
     'chamada aninhada com vírgula não pode esconder a sala do leitor',
   );
 });
+
+/**
+ * Quem CRIA uma sala diz em que unidade ela fica.
+ *
+ * A sala nasce sem pai se ninguém disser, e sala sem pai fica fora do saldo da
+ * unidade: o pedido deixa de contar o que está no freezer, e nada acusa. É a mesma
+ * família de `recordLoss` sem sala — o padrão decidindo por quem esqueceu.
+ *
+ * **Só a criação, e é essa a fronteira.** Atualizar um lugar (renomear, gravar
+ * acordo, gravar faixa de sensor) não fala de unidade de propósito: `savePlace`
+ * trata ausente como "não mexa" e preserva o pai que já estava. Cobrar
+ * `parentLocationId` numa atualização faria a tela repetir um fato que ela não
+ * precisa saber — e foi justamente ao escrever isto que apareceu que o `ON
+ * CONFLICT` apagaria o pai num rename.
+ *
+ * A criação se reconhece por NÃO passar `id`, que é o que `savePlace` usa para
+ * decidir entre inserir e atualizar.
+ */
+test('every screen that creates a room says which unit', () => {
+  const mudos: string[] = [];
+  for (const arquivo of sourcesUnder('app')) {
+    const texto = code(readFileSync(arquivo, 'utf8'));
+    for (const m of texto.matchAll(/\bsavePlace\s*\(/g)) {
+      const args = argumentos(texto, m.index + m[0].length);
+      if (!args) continue;
+      const corpo = args.join(' , ');
+      const cria = !/\bid\s*:/.test(corpo);
+      if (cria && !/parentLocationId/.test(corpo)) mudos.push(`${arquivo}: savePlace()`);
+    }
+  }
+  assert.deepEqual(
+    mudos,
+    [],
+    'estas telas criam sala sem dizer a unidade — a sala nasce sem pai e sai do saldo:\n  ' +
+      mudos.join('\n  '),
+  );
+});
+
+test('the unit-on-create guard tells creating from updating', () => {
+  const morde = (texto: string) => {
+    const m = /\bsavePlace\s*\(/.exec(code(texto));
+    if (!m) return false;
+    const args = argumentos(code(texto), m.index + m[0].length);
+    const corpo = (args ?? []).join(' , ');
+    return !/\bid\s*:/.test(corpo) && !/parentLocationId/.test(corpo);
+  };
+  // O caso verdadeiro: a criação como ela estava antes de 8 de setembro.
+  assert.ok(morde('await savePlace(empresaDaqui(), { name, kind });'), 'não pega a criação muda');
+  // O conserto.
+  assert.ok(
+    !morde('await savePlace(empresaDaqui(), { name, kind, parentLocationId: unidadeDaqui() });'),
+    'o conserto não pode reprovar',
+  );
+  // E a metade que separa esta guarda de uma proibição: ATUALIZAR não precisa dizer
+  // a unidade, porque ausente é "não mexa" e o pai que já estava é preservado.
+  assert.ok(
+    !morde('await savePlace(empresaDaqui(), { id: place.id, name: nome, kind: place.kind });'),
+    'atualizar não é criar — cobrar a unidade aqui faria a tela repetir o que já está gravado',
+  );
+});

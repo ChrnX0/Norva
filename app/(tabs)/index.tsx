@@ -21,6 +21,7 @@ import {
 } from '@/data/repository';
 import { ultimaCopia } from '@/data/backup';
 import { empresaDaqui } from '@/data/empresa';
+import { unidadeDaqui } from '@/data/unidade';
 import { reading, type Forecast } from '@/weather';
 import { forecastForScreen } from '@/weather/live';
 import { useQuery } from '@/data/useQuery';
@@ -166,7 +167,7 @@ function Briefing() {
       shipmentsOn(empresaDaqui(), yesterday.from, yesterday.to),
       openProductionRuns(empresaDaqui()),
       runningOut(empresaDaqui(), lastWeek.from, today.to, 7),
-      stockAgainstOrders(empresaDaqui(), through),
+      stockAgainstOrders(empresaDaqui(), through, unidadeDaqui()),
       productionBetween(empresaDaqui(), weekAgo.from, today.to),
       recentRuns(empresaDaqui(), 6),
       // Sem horizonte: aqui a pergunta não é "o que acaba esta semana" (isso é o

@@ -3194,6 +3194,48 @@ test('an order is demand, and demand moves nothing', async () => {
  * com o freezer cheio - e a tela de anotar pedido não avisava excesso nenhum
  * justamente quando a conta mais decide.
  */
+test('the freezer of one unit does not promise for the other', async () => {
+  // O defeito que este teste existe para impedir: `stockAgainstOrders` somava
+  // `kind in ('factory','cold_room','store_room')` sem recorte de lugar, e com uma
+  // unidade acertava — todas as salas internas eram da única. Com duas, a pergunta
+  // "dá para prometer este pedido?" contava o freezer da outra cidade. O cliente
+  // ouve sim e a caixa não sai.
+  const marilia = await savePlace(CO, { name: 'Unidade Marília', kind: 'factory' });
+  const camaraDeMarilia = await savePlace(CO, {
+    name: 'Câmara de Marília',
+    kind: 'cold_room',
+    parentLocationId: marilia.id,
+  });
+  const { itemId } = await saveProduct(CO, {
+    name: 'Picolé de coco',
+    kind: 'product',
+    recipeId: null,
+    yieldPerUnit: null,
+    unitPackagingRate: rate(0, 1),
+    packaging: loose,
+  });
+
+  // Cem na primeira unidade; quatrocentos na câmara da segunda.
+  await recordCount(CO, { locationId: defaultLocationId(CO), itemId, countedBaseUnits: 100 });
+  await recordCount(CO, { locationId: camaraDeMarilia.id, itemId, countedBaseUnits: 400 });
+
+  const daPrimeira = (await stockAgainstOrders(CO, '2026-09-10', defaultLocationId(CO))).find(
+    (d) => d.itemId === itemId,
+  );
+  const deMarilia = (await stockAgainstOrders(CO, '2026-09-10', marilia.id)).find(
+    (d) => d.itemId === itemId,
+  );
+
+  // As duas metades, e a primeira é a que pega o defeito: sem o recorte ela veria
+  // 500. A segunda garante que o recorte não emudeceu a unidade nova.
+  assert.equal(daPrimeira?.onHand, 100, 'a primeira unidade prometeu com o freezer da outra');
+  assert.equal(deMarilia?.onHand, 400, 'a segunda unidade não vê o próprio freezer');
+
+  // E a soma das duas é o total da empresa, que é a prova de que nada se perdeu no
+  // caminho — um recorte que esquece uma sala dá dois números menores e ninguém nota.
+  assert.equal((daPrimeira?.onHand ?? 0) + (deMarilia?.onHand ?? 0), 500);
+});
+
 test('what can be promised counts every room of ours, and no store', async () => {
   const camara = await savePlace(CO, { name: 'Câmara fria', kind: 'cold_room' });
   const centro = await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' });
@@ -3222,7 +3264,7 @@ test('what can be promised counts every room of ours, and no store', async () =>
     baseUnits: 30,
   });
 
-  const linha = (await stockAgainstOrders(CO, '2026-09-10')).find((d) => d.itemId === itemId);
+  const linha = (await stockAgainstOrders(CO, '2026-09-10', defaultLocationId(CO))).find((d) => d.itemId === itemId);
   assert.equal(
     linha?.onHand,
     170,
@@ -3257,7 +3299,7 @@ test('what was ordered is measured against the factory shelf, not the company to
     lines: [{ itemId, baseUnits: 300 }],
   });
 
-  const [demand] = await stockAgainstOrders(CO, '2026-09-10');
+  const [demand] = await stockAgainstOrders(CO, '2026-09-10', defaultLocationId(CO));
   assert.equal(demand.requested, 300);
   assert.equal(
     demand.onHand,
@@ -3272,7 +3314,7 @@ test('what was ordered is measured against the factory shelf, not the company to
     requestedFor: '2026-10-20',
     lines: [{ itemId, baseUnits: 999 }],
   });
-  const [ainda] = await stockAgainstOrders(CO, '2026-09-10');
+  const [ainda] = await stockAgainstOrders(CO, '2026-09-10', defaultLocationId(CO));
   assert.equal(ainda.requested, 300, 'a janela é a da decisão, não a da lista inteira');
 
   // Entregue sai da conta: o compromisso acabou.
@@ -3284,13 +3326,13 @@ test('what was ordered is measured against the factory shelf, not the company to
   // dia, que é quando a conta mais decide.
   const [aberto] = await listOrders(CO);
   await setOrderStatus(CO, aberto.id, 'delivered');
-  const [depois] = await stockAgainstOrders(CO, '2026-09-10');
+  const [depois] = await stockAgainstOrders(CO, '2026-09-10', defaultLocationId(CO));
   assert.equal(depois.requested, 0, 'pedido entregue não é mais demanda');
   assert.equal(depois.onHand, 50, 'e o saldo continua sendo o da fábrica');
 
   // Quem lê isto para achar FALTA continua certo de graça: as duas telas
   // filtram por `requested - onHand > 0`, e a linha de zero nunca satisfaz.
-  const faltando = (await stockAgainstOrders(CO, '2026-09-10')).filter(
+  const faltando = (await stockAgainstOrders(CO, '2026-09-10', defaultLocationId(CO))).filter(
     (d) => d.requested - d.onHand > 0,
   );
   assert.equal(faltando.length, 0, 'produto sem pedido não vira "produza para os pedidos"');
@@ -3319,7 +3361,7 @@ test('approval is the company’s choice, and it decides where an order is born'
 
   // E pendente já conta como compromisso: quem espera aprovação para começar a
   // produzir descobre na sexta que devia ter começado na quarta.
-  const [demand] = await stockAgainstOrders(CO, '2026-09-10');
+  const [demand] = await stockAgainstOrders(CO, '2026-09-10', defaultLocationId(CO));
   assert.equal(demand.requested, 40);
 
   await setOrderStatus(CO, pedido.id, 'open');

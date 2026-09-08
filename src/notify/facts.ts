@@ -9,6 +9,7 @@ import {
   runningOut,
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
+import { unidadeDaqui } from '@/data/unidade';
 import { nowIso } from '@/data/db';
 import { dayWindow, localDate } from '@/domain/day';
 import { observedLeadTimeDays } from '@/domain/cost';
@@ -37,7 +38,10 @@ export async function factsForAlerts(timeZone: string): Promise<AlertFacts> {
 
   const [cover, demand, orders, expiring, items, places, readings] = await Promise.all([
     runningOut(empresaDaqui(), lastWeek.from, today.to, 7, Number.POSITIVE_INFINITY),
-    stockAgainstOrders(empresaDaqui(), through),
+    // A unidade deste aparelho, e não a empresa: o aviso "quatro lojas esperando" é
+    // sobre o que ESTA unidade tem para carregar. Somar o freezer da outra cidade
+    // faria o aviso calar justamente onde falta produto.
+    stockAgainstOrders(empresaDaqui(), through, unidadeDaqui()),
     // Os pedidos em aberto vêm além da demanda somada, e não é redundância: a
     // demanda agrupa por ITEM e o aviso conta LOJAS. Sem esta consulta eu estava
     // usando o id do item como id de loja — o aviso diria "quatro lojas

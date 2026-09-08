@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **538** testes |
+| `npm test` | **541** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **52** checagens num navegador de verdade |
 | `npm run db:verify` | **22** garantias contra um Postgres descartável, sob RLS |
@@ -458,14 +458,14 @@ mesmo commit, que é o trabalho dela.
   pré-condição de 40 kg na primeira unidade, sem a qual a asserção compararia zero com
   zero e passaria por acidente.
 
-**O que continua aberto, e é a parte grande — as consultas que somam a empresa
-inteira.** Dez funções de `src/data/repository.ts` somam movimento por empresa+item sem
-recortar o lugar, e com duas unidades elas passam a misturar estoque de cidades
-diferentes. Em ordem de dano, medida em 8 de setembro:
+**O que continua aberto — as consultas que somam a empresa inteira.** Eram dez; a pior
+fechou em 8 de setembro, junto com a peça que faltava embaixo dela (a migração 0046: uma
+sala passa a ficar DENTRO de uma unidade, sem o que nenhum recorte é possível sem
+derrubar o número de quem já usa). As nove restantes, em ordem de dano:
 
 | função | por que dói | quem lê |
 |---|---|---|
-| `stockAgainstOrders` (`:5868`) | **a pior**: soma `l.kind IN ('factory','cold_room','store_room')` sem parâmetro de sala nenhum — o pedido da unidade A aparece coberto pelo freezer da B | `app/orders/new.tsx:192`, capa, `src/notify/facts.ts:40` |
+| ~~`stockAgainstOrders`~~ **FEITA em 8 de setembro** | era a pior. A unidade agora é parâmetro **obrigatório** — leitor de saldo com lugar opcional é leitor que erra calado, a mesma lição do `recordLoss`. Conta a unidade e o que está DENTRO dela, e `COALESCE(parent_location_id, company_id)` faz sala sem pai pertencer à primeira unidade, que é o que o backfill afirma: sem isso um teste desta suíte viu **20 no lugar de 170** | os três chamadores passam `unidadeDaqui()` |
 | `listItems` (`:165`) / `findItem` (`:4555`) | é o saldo que quase toda tela mostra; `locationId` é opcional e treze chamadores não passam | capa, relatórios, compra, separação, assistente (dez pontos) |
 | `runningOut` (`:4818`) / `dailyOutflowOf` (`:4782`) | pior que somar junto: no modo empresa a linha `:4869` DESCARTA transferência como saída, então mandar insumo de A para B deixa de contar como consumo de A e a cobertura de A fica infinita | capa (duas), relatórios, avisos |
 | `expiringSoon` (`:3773`) | o parâmetro existe e **nenhum** chamador usa: a validade da unidade A soa na B | capa, avisos |

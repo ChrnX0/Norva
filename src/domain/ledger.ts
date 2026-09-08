@@ -120,6 +120,25 @@ export function ehUnidade(kind: string): boolean {
 }
 
 /**
+ * As espécies que ficam DENTRO de uma unidade — e as que não ficam.
+ *
+ * Câmara fria e almoxarifado são partes de um prédio. Loja própria e cliente não:
+ * ficam no mundo, e pôr uma delas dentro de uma unidade a tiraria do lugar certo
+ * em toda consulta de carga. `vehicle` idem — caminhão é caminho.
+ *
+ * A régua existe porque a pergunta aparece em dois lugares que não se olham: o
+ * `savePlace`, que decide se grava o pai, e o backfill das migrações 0046/V25,
+ * que decidiu quais salas já existentes ganhavam um. Duas grafias de uma regra é
+ * a forma que produz divergência, e aqui a divergência é saldo.
+ */
+export const UNIT_ROOM_KINDS = ['cold_room', 'store_room'] as const;
+
+/** Esta espécie fica dentro de uma unidade? */
+export function ehSalaDeUnidade(kind: string): boolean {
+  return (UNIT_ROOM_KINDS as readonly string[]).includes(kind);
+}
+
+/**
  * Quem RECEBE carga: loja própria e cliente. O resto é sala interna ou caminho.
  *
  * Lista antes de predicado porque o SQL não importa função: o Espelho da Loja

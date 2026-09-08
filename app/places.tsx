@@ -37,6 +37,7 @@ import { dayWindow, localDate } from '@/domain/day';
 import { rate } from '@/domain/money';
 import { nomeDoLugar, receivesCargo } from '@/domain/ledger';
 import { empresaDaqui } from '@/data/empresa';
+import { unidadeDaqui } from '@/data/unidade';
 import { useQuery } from '@/data/useQuery';
 import { agreedOn, daysUntilNextDelivery, toggleDay } from '@/domain/agreement';
 import { formatTyped, parseTyped } from '@/domain/number';
@@ -197,7 +198,16 @@ function Places() {
     if (!name.trim() || saving) return;
     setSaving(true);
     try {
-      await savePlace(empresaDaqui(), { name, kind });
+      await savePlace(empresaDaqui(), {
+        name,
+        kind,
+        // A unidade em que a sala nasce é a deste aparelho — Lei 1, não se pergunta
+        // o que o sistema pode deduzir. Quem cadastra a câmara fria está nela.
+        // Sem isto a sala nasce sem pai e fica FORA do saldo da unidade: o pedido
+        // deixa de contar o que está no freezer, e nada acusa. O `savePlace`
+        // ignora este campo para loja e cliente, que ficam no mundo.
+        parentLocationId: unidadeDaqui(),
+      });
       setName('');
       setAdding(false);
       refresh();

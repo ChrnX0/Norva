@@ -2,7 +2,7 @@ import { applyCostEvent, blendRate, type StockCostState } from '@/domain/cost';
 import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
 import { isValidHierarchy } from '@/domain/units';
 import { DEFAULT_ALERTS, type AlertSettings } from '@/domain/alerts';
-import { daysOfCover } from '@/domain/ledger';
+import { daysOfCover, ehSalaDeUnidade } from '@/domain/ledger';
 import { ROLES, capabilitiesFor, type Capability, type Role } from '@/domain/access';
 import { expiresOn, lotCode } from '@/domain/lot';
 import type { LossReason, MovementKind, ReturnReason } from '@/domain/ledger';
@@ -1009,6 +1009,16 @@ export async function savePlace(
     agreementNote?: string;
     /** A faixa de cada grandeza. Ausente é "não mexa"; objeto vazio apaga. */
     sensorRanges?: Record<string, SensorRange>;
+    /**
+     * Em que unidade de fábrica esta sala fica. Nulo é o nível da empresa.
+     *
+     * Vem de fora e não é deduzido aqui porque quem sabe onde o aparelho está é
+     * `src/data/unidade.ts`, e esta camada não pode importá-lo — ele importa
+     * daqui. A tela passa; a guarda `every screen that creates a room says which
+     * unit` recusa quem esquecer, e esquecer é o defeito calado: sala sem pai fica
+     * fora do saldo da unidade, e o número cai sem nada acusar.
+     */
+    parentLocationId?: string | null;
   },
 ): Promise<Place> {
   /**
@@ -1052,8 +1062,9 @@ export async function savePlace(
         delivery_days: number | null;
         agreement_note: string | null;
         sensor_ranges: string | null;
+        parent_location_id: string | null;
       }>(
-        `SELECT contact_phone, delivery_days, agreement_note, sensor_ranges
+        `SELECT contact_phone, delivery_days, agreement_note, sensor_ranges, parent_location_id
            FROM locations WHERE id = ?`,
         [id],
       )
@@ -1067,20 +1078,45 @@ export async function savePlace(
       ? (anterior?.sensor_ranges ?? '{}')
       : JSON.stringify(input.sensorRanges);
 
+  /**
+   * O pai só existe para sala INTERNA, e nunca é a própria linha.
+   *
+   * Loja própria e cliente não ficam dentro de uma fábrica — ficam no mundo —, e
+   * uma unidade não fica dentro de outra. Filtrar aqui em vez de confiar em quem
+   * chama é o que impede um `own_store` de virar filho de uma unidade e sair do
+   * lugar certo em toda consulta de carga.
+   */
+  /**
+   * E ausente é "não mexa", como o telefone e a nota logo acima.
+   *
+   * **Sem esta linha o conserto viraria defeito:** três das quatro chamadas desta
+   * tela ATUALIZAM um lugar — renomear, gravar acordo, gravar faixa de sensor — e
+   * nenhuma delas fala de unidade. Com o `ON CONFLICT DO UPDATE` escrevendo o pai,
+   * renomear uma câmara fria a tiraria da unidade, e o saldo dela sumiria do
+   * pedido. Calado, e no ato mais inofensivo que a tela tem.
+   */
+  const paiPedido =
+    input.parentLocationId === undefined
+      ? (anterior?.parent_location_id ?? null)
+      : input.parentLocationId;
+  const pai =
+    paiPedido && paiPedido !== id && ehSalaDeUnidade(input.kind) ? paiPedido : null;
+
   await conn.withTransactionAsync(async () => {
     await conn.runAsync(
       `INSERT INTO locations
          (id, company_id, name, kind, created_at, contact_phone, delivery_days, agreement_note,
-          sensor_ranges)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          sensor_ranges, parent_location_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          name = excluded.name,
          kind = excluded.kind,
          contact_phone = excluded.contact_phone,
          delivery_days = excluded.delivery_days,
          agreement_note = excluded.agreement_note,
-         sensor_ranges = excluded.sensor_ranges`,
-      [id, companyId, name, input.kind, nowIso(), phone, deliveryDays, note, ranges],
+         sensor_ranges = excluded.sensor_ranges,
+         parent_location_id = excluded.parent_location_id`,
+      [id, companyId, name, input.kind, nowIso(), phone, deliveryDays, note, ranges, pai],
     );
     await enqueue(conn, [{ table: 'locations', rowId: id }]);
   });
@@ -5868,6 +5904,25 @@ export type Demand = {
 export async function stockAgainstOrders(
   companyId: string,
   throughDate: string,
+  /**
+   * De qual unidade de fábrica é o saldo — e é OBRIGATÓRIO de propósito.
+   *
+   * Esta consulta somava `kind in ('factory','cold_room','store_room')` sem
+   * parâmetro de lugar nenhum, e com uma unidade ela acertava: todas as salas
+   * internas eram da única. Com duas, ela responde *"dá para prometer este
+   * pedido?"* contando o freezer da outra cidade — e o pedido é aceito contra
+   * estoque que não pode ser carregado. O cliente ouve sim e a caixa não sai.
+   *
+   * Obrigatório e não opcional porque a lição de 8 de setembro é essa: leitor de
+   * saldo com lugar opcional é leitor que erra calado, exatamente como
+   * `recordLoss` errava com a sala opcional. Quem chama diz de onde, ou não
+   * compila.
+   *
+   * A unidade conta a si mesma e as salas DENTRO dela (`parent_location_id`), que
+   * é o que a migração 0046 passou a permitir e o backfill dela garantiu para
+   * quem já tinha o aplicativo.
+   */
+  unitId: string,
 ): Promise<Demand[]> {
   const conn = await db();
   const rows = await conn.getAllAsync<{
@@ -5885,7 +5940,18 @@ export async function stockAgainstOrders(
                JOIN locations l ON l.id = m.location_id
               WHERE m.company_id = p.company_id
                 AND m.item_id = p.item_id
-                AND l.kind IN ('factory', 'cold_room', 'store_room')) AS on_hand
+                AND l.kind IN ('factory', 'cold_room', 'store_room')
+                -- A unidade e o que está DENTRO dela. Sem esta linha o freezer da
+                -- outra cidade entra na conta do que dá para prometer aqui.
+                --
+                -- O COALESCE é a parte que protege quem já usa, e ele diz o que o
+                -- backfill da 0046 afirma: **sala sem pai pertence à primeira
+                -- unidade**, que é a que tem o id da empresa. Sem ele, uma câmara
+                -- fria que nunca ganhou pai — por ter vindo de um aparelho com
+                -- versão antiga, ou por ter sido criada antes da migração — sairia
+                -- do saldo em silêncio, e o pedido deixaria de contar o freezer.
+                -- Foi exatamente o que um teste desta suíte acusou: 20 no lugar de 170.
+                AND (l.id = ? OR COALESCE(l.parent_location_id, l.company_id) = ?)) AS on_hand
        FROM products p
        JOIN items i ON i.id = p.item_id
        LEFT JOIN order_lines ol ON ol.item_id = p.item_id
@@ -5897,7 +5963,9 @@ export async function stockAgainstOrders(
       WHERE p.company_id = ?
       GROUP BY p.item_id, i.name
       ORDER BY i.name COLLATE NOCASE`,
-    [throughDate, companyId],
+    // A ordem dos parâmetros segue a ordem no texto: a subconsulta do saldo vem
+    // ANTES do LEFT JOIN e do WHERE, então a unidade vem antes da data.
+    [unitId, unitId, throughDate, companyId],
   );
 
   return rows.map((r) => ({

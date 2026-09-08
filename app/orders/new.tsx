@@ -19,6 +19,7 @@ import {
   type Product,
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
+import { unidadeDaqui } from '@/data/unidade';
 import { daysUntilNextDelivery } from '@/domain/agreement';
 import { nowIso } from '@/data/db';
 import { useQuery } from '@/data/useQuery';
@@ -189,7 +190,7 @@ function NewOrder() {
    * devolve. As duas são SQLite local, e a segunda repete quando a data muda.
    */
   const { data: demanda } = useQuery<Demand[]>(
-    () => stockAgainstOrders(empresaDaqui(), requestedFor),
+    () => stockAgainstOrders(empresaDaqui(), requestedFor, unidadeDaqui()),
     requestedFor,
   );
 
