@@ -359,10 +359,8 @@ const DEFECTS = [
     // apagar mudaria a ARIDADE do comando (dois `?` a menos) e o SQLite recusaria
     // por parâmetro sobrando. A mutação seria "pega" por um erro de ligação, que
     // não prova nada sobre a regra — mede o binder, não o filtro.
-    from: `                AND (? IS NULL OR m.location_id = ?)
-                -- A unidade e o que está dentro dela.`,
-    to: `                AND (? IS NULL OR ? IS NOT NULL)
-                -- A unidade e o que está dentro dela.`,
+    from: 'sql: `(? IS NULL OR ${coluna} = ?)',
+    to: 'sql: `(? IS NULL OR ? IS NOT NULL)',
     hurts:
       'o almoxarifado volta a somar a empresa inteira mesmo quando perguntam por uma sala, e quem esta no tacho ve 34 kg de polpa que estao na camara fria',
   },
@@ -961,20 +959,29 @@ const DEFECTS = [
   // apareceria "pega" por erro de ligação, e o que ficaria medido é o binder.
   {
     file: 'src/data/repository.ts',
-    from: `                AND (? IS NULL OR EXISTS (
-                      SELECT 1 FROM locations l
-                       WHERE l.id = m.location_id
-                         AND (l.id = ? OR COALESCE(l.parent_location_id, l.company_id) = ?))))`,
-    to: `                AND (? IS NULL OR ? IS NOT NULL OR ? IS NULL))`,
+    from: `          AND (? IS NULL OR EXISTS (
+                SELECT 1 FROM locations esc`,
+    to: `          AND (? IS NULL OR ? IS NOT NULL OR ? IS NULL OR ? IS NULL OR 1 = 1) AND (0 = 1 OR EXISTS (
+                SELECT 1 FROM locations esc`,
     hurts:
       'o saldo de "aqui" volta a ser da empresa: quem esta na unidade de Marilia ve o almoxarifado de Bauru somado ao dele, e decide producao com um numero que nao existe em lugar nenhum',
   },
   {
     file: 'src/data/repository.ts',
-    from: "                AND (l.id = ? OR COALESCE(l.parent_location_id, l.company_id) = ?)) AS on_hand",
-    to: "                AND (? IS NOT NULL OR ? IS NULL)) AS on_hand",
+    from: "                            AND esc.kind IN (${UNIT_ROOM_KINDS.map((k) => `'${k}'`).join(', ')})",
+    to: "                            AND 1 = 1",
     hurts:
-      'a promessa de um pedido volta a contar o freezer da outra cidade: o cliente ouve sim e a caixa nao sai, porque o estoque prometido esta a duzentos quilometros',
+      'o atalho de compatibilidade volta a ser largo: a segunda unidade cai dentro da primeira e a loja do cliente tambem, entao o freezer de outra cidade prometa pedido daqui e o lote entregue volta a avisar de validade',
+  },
+  // A regra do PAR, que substituiu "transferência nunca conta quando a pergunta é da
+  // empresa" em 8 de setembro. Sem esta mutação ela é uma afirmação com teste verde
+  // ao lado: o teste existe, mas nada garante que ele morde a troca.
+  {
+    file: 'src/data/repository.ts',
+    from: "                         AND NOT (m.kind IN ('transfer', 'return') AND ${parNoEscopo.sql})",
+    to: "                         AND NOT (m.kind IN ('transfer', 'return') AND (? IS NULL OR ? IS NOT NULL OR ? IS NULL OR ? IS NULL OR ? IS NULL OR ? IS NULL))",
+    hurts:
+      'a cobertura volta a ignorar QUALQUER transferencia: mandar polpa de Bauru para Marilia deixa de contar como saida de Bauru, e a regua de la fica infinita com a camara vazia — o conselho cala exatamente onde falta',
   },
   {
     file: 'app/inputs/[id].tsx',

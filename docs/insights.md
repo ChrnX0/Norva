@@ -7201,3 +7201,31 @@ tolera a ausência do valor. Os dois são a mesma afirmação escrita duas vezes
 arquivo de migração e numa consulta, e a segunda não se escreve de memória. Se elas
 divergirem, o número muda para quem instalou antes e não muda para quem instalou depois,
 que é a classe de defeito mais difícil de reproduzir que existe.
+
+## Mutação que aponta para uma cópia envelhece toda vez que a cópia muda
+
+8 de setembro, três vezes no mesmo dia. Toda vez que uma consulta mudou, mutações do
+`scripts/mutate.mjs` deixaram de encontrar o trecho que elas trocam — e o script conta
+isso como **sobrevivente**, com razão: régua que não acha o alvo não prova nada, e um
+relatório que diz "pego" sem ter aplicado a troca é verde por construção.
+
+O primeiro reflexo foi errado: eu consertava o texto de cada mutação para o texto novo. Na
+terceira vez ficou visível o que estava acontecendo — **as mutações apontavam para cópias
+da mesma regra.** Cinco consultas tinham o mesmo recorte de lugar escrito cinco vezes, e
+cada cópia precisava da sua mutação. Isso não é problema do `mutate`: é o mesmo defeito que
+este repositório já documenta em prosa (*"predicado escrito três vezes é a forma que produz
+divergência"*), aparecendo do lado de fora.
+
+Quando as cinco passaram a ler de uma peça só (`noEscopo`), **uma mutação passou a cobrir
+as cinco** — e ela é mais forte que as cinco anteriores juntas, porque a regra agora só
+existe num lugar e a troca alcança todos os leitores.
+
+**A régua que fica:** quando duas mutações precisam do mesmo defeito escrito de dois jeitos,
+o defeito não está no arquivo de mutações. Está no código, e o `mutate.mjs` acabou de
+apontar para ele — do mesmo jeito que um teste difícil de escrever costuma estar dizendo
+que o desenho está errado.
+
+E a de operação, que custou uma rodada: **`npm run mutate | tail` mente duas vezes.** O cano
+corta a lista dos sobreviventes (que é o que se precisa ler) e troca o código de saída pelo
+do `tail` — o script sai 1 quando há sobrevivente, e eu li 0 e segui em frente. Relatório
+longo se guarda em arquivo e se lê com `grep`, nunca se canaliza por `tail`.
