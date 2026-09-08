@@ -1346,3 +1346,68 @@ test('the here guard bites the real scar, and leaves the fix alone', () => {
     'comentário não é chamada — a guarda que não distingue os dois vira proibição de falar',
   );
 });
+
+/**
+ * Quem grava num lugar diz QUAL lugar — a sala não se herda de um padrão.
+ *
+ * **Cicatriz de 8 de setembro, e ela estava ativa com uma unidade só.**
+ * `recordLoss` tem `locationId` opcional e cai em `ensureLocation` quando ele
+ * falta (`repository.ts:2711`). `app/inputs/[id].tsx` não o passava. Com a tela
+ * aberta em `?sala=<câmara fria>` o número mostrado é o da câmara — `findItem`
+ * recebe a sala —, a perda saía do almoxarifado, e os DOIS saldos ficavam errados
+ * de uma vez: o da câmara alto, o do almoxarifado baixo, e **a soma da empresa
+ * certa**. É essa última parte que faz ninguém notar.
+ *
+ * A régua é a forma, não a linha: escritor de razão com sala opcional é escritor
+ * que erra calado. Quem chama de tela diz onde, ou o número de dois lugares
+ * mente junto.
+ */
+const ESCRITORES_COM_SALA = ['recordLoss', 'recordCount', 'recordProduction'] as const;
+
+test('every screen that writes to a room names the room', () => {
+  const mudos: string[] = [];
+  for (const arquivo of sourcesUnder('app')) {
+    const texto = code(readFileSync(arquivo, 'utf8'));
+    for (const escritor of ESCRITORES_COM_SALA) {
+      const re = new RegExp(`\\b${escritor}\\s*\\(`, 'g');
+      for (const m of texto.matchAll(re)) {
+        const args = argumentos(texto, m.index + m[0].length);
+        if (!args) continue;
+        if (!args.some((a) => /locationId/.test(a))) {
+          mudos.push(`${arquivo}: ${escritor}()`);
+        }
+      }
+    }
+  }
+  assert.deepEqual(
+    mudos,
+    [],
+    'estas telas gravam no razão sem dizer em que lugar, e o padrão vai decidir por elas:\n  ' +
+      mudos.join('\n  '),
+  );
+});
+
+test('the room guard bites the real scar, and reads a nested call correctly', () => {
+  const morde = (texto: string) => {
+    const m = /\brecordLoss\s*\(/.exec(code(texto));
+    if (!m) return false;
+    const args = argumentos(code(texto), m.index + m[0].length);
+    return !args?.some((a) => /locationId/.test(a));
+  };
+  // O caso verdadeiro: a chamada exata que estava na tela.
+  assert.ok(
+    morde('await recordLoss(empresaDaqui(), { itemId: item.id, baseUnits: 3, reason });'),
+    'não pega a chamada que estava errada',
+  );
+  // O conserto passa.
+  assert.ok(
+    !morde('await recordLoss(empresaDaqui(), { locationId: contarEm ?? undefined, itemId: i });'),
+    'o conserto não pode reprovar',
+  );
+  // E a metade que separa contador de parênteses de `indexOf(',')`: a sala vem
+  // dentro de um objeto aninhado, depois de uma chamada com vírgula dentro.
+  assert.ok(
+    !morde('await recordLoss(empresaDaqui(), { itemId: f(a, b), locationId: salaDe(x, y) });'),
+    'chamada aninhada com vírgula não pode esconder a sala do leitor',
+  );
+});

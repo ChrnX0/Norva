@@ -367,6 +367,14 @@ function InputDetail() {
 
     try {
       await recordLoss(empresaDaqui(), {
+        // A sala vai junto, e é a MESMA da contagem — cicatriz de 8 de setembro.
+        // `recordLoss` tem a sala como opcional e cai no lugar padrão quando ela
+        // falta (`repository.ts:2711`), e esta tela não a passava. Com a tela
+        // aberta em `?sala=<câmara fria>` o número mostrado é o da câmara
+        // (`findItem` recebe a sala), a perda saía do almoxarifado, e os dois
+        // saldos ficavam errados de uma vez — o da câmara alto, o do almoxarifado
+        // baixo, e a soma da empresa certa, que é o que faz ninguém notar.
+        locationId: contarEm ?? undefined,
         itemId: item.id,
         baseUnits: Math.round(lost),
         reason,
@@ -805,7 +813,17 @@ function InputDetail() {
             {t.app.inputDetail.lossHint}
           </Text>
 
-          {losing ? (
+          {contarEm === null ? (
+            /* Mesma regra da contagem, pelo mesmo motivo: só se perde o número que
+               está na tela. Com o item em mais de um lugar e nenhum escolhido, o
+               número é o da empresa, e tirar dele contra UM lugar é a mesma mentira
+               aritmética. A saída é a de cima — cada lugar leva ao seu. */
+            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
+              {fill(t.app.inputDetail.lossSpread, {
+                count: formatQuantity(spread.length, locale),
+              })}
+            </Text>
+          ) : losing ? (
             <View style={{ marginTop: space.md, gap: space.md }}>
               <Field
                 label={t.app.inputDetail.lossAmount}

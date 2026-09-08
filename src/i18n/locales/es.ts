@@ -946,6 +946,7 @@ export const es: Dictionary = {
       lossTitle: '¿Se perdió algo?',
       lossHint: 'Regístralo con el motivo. El motivo es lo que hace que el informe sirva para decidir.',
       lossStart: 'Registrar pérdida',
+      lossSpread: 'Este insumo está en {{count}} lugares. Abre el lugar de donde salió la pérdida — la lista está arriba.',
       lossAmount: 'Cuánto se perdió',
       lossWhy: 'Qué pasó',
       lossConfirm: 'Registrar la pérdida',

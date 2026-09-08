@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **536** testes |
+| `npm test` | **538** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **52** checagens num navegador de verdade |
 | `npm run db:verify` | **21** garantias contra um Postgres descartável, sob RLS |
@@ -476,10 +476,19 @@ E duas que **não** mudam, por decisão de 1 de setembro: as médias móveis de 
 (`:412` e `:2033`) continuam da empresa, porque *"o mesmo grama de açúcar não custa uma
 coisa na câmara e outra no almoxarifado"*.
 
-**E um defeito que o mapa achou de passagem, ativo HOJE com uma unidade só:**
-`app/inputs/[id].tsx:370` grava perda sem passar `locationId`, então ela cai no lugar
-padrão mesmo com a tela aberta em `?sala=<câmara fria>` — o saldo da câmara não se
-mexe e o do almoxarifado se mexe sozinho.
+~~**E um defeito que o mapa achou de passagem, ativo HOJE com uma unidade só**~~ —
+**CONSERTADO em 8 de setembro.** `app/inputs/[id].tsx` gravava perda sem passar
+`locationId`, então ela caía no lugar padrão mesmo com a tela aberta em
+`?sala=<câmara fria>`. O número mostrado é o da câmara (`findItem` recebe a sala), a
+perda saía do almoxarifado, e os **dois** saldos ficavam errados de uma vez: o da
+câmara alto, o do almoxarifado baixo, e **a soma da empresa certa** — que é a parte
+que faz ninguém notar.
+
+A perda passou a usar a mesma sala da contagem, e a não ser oferecida onde a contagem
+também não é: só se perde o número que está na tela. E a guarda `every screen that
+writes to a room names the room` cobre a FORMA, não a linha — escritor de razão com
+sala opcional é escritor que erra calado, e ela vale para `recordLoss`,
+`recordCount` e `recordProduction`.
 
 **Mas ele continua P3, e por um motivo melhor que o que eu tinha escrito.** Não é a
 migração: é que `movements_are_immutable` é `before update or delete`, então

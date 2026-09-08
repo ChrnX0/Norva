@@ -941,6 +941,7 @@ export const en: Dictionary = {
       lossTitle: 'Did something get lost?',
       lossHint: 'Record it with the reason. The reason is what makes the report worth reading.',
       lossStart: 'Record a loss',
+      lossSpread: 'This input sits in {{count}} places. Open the one the loss came from — the list is above.',
       lossAmount: 'How much was lost',
       lossWhy: 'What happened',
       lossConfirm: 'Record the loss',

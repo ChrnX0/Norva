@@ -1173,6 +1173,7 @@ export const ptBR = {
       lossTitle: 'Perdeu alguma coisa?',
       lossHint: 'Registre com o motivo. É o motivo que faz o relatório servir para decidir.',
       lossStart: 'Registrar perda',
+      lossSpread: 'Este insumo está em {{count}} lugares. Abra o lugar de onde a perda saiu — a lista está acima.',
       lossAmount: 'Quanto se perdeu',
       lossWhy: 'O que aconteceu',
       lossConfirm: 'Registrar a perda',
