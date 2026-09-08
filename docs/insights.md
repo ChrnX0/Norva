@@ -7130,3 +7130,35 @@ mensagem.
 **A regra que sai daqui, e ela vale para toda guarda desta casa:** a mensagem de recusa
 tem de distinguir *o alvo está errado* de *eu não consigo julgar o alvo*. As duas são
 vermelhas e mandam a pessoa para lados opostos.
+
+## Somar de menos é mais silencioso que somar de mais — e foi por isso que o parâmetro virou dois
+
+8 de setembro, recortando as consultas de saldo por unidade de fábrica. O defeito de
+partida era somar de MAIS: com duas unidades, *"dá para prometer este pedido?"* contava o
+freezer da outra cidade. Óbvio de contar e óbvio de consertar.
+
+O que apareceu no caminho foi o defeito espelho, e ele é pior. `listItems` tinha um
+`locationId` opcional que respondia UMA pergunta — o saldo daquela prateleira exata. Se
+eu passasse a unidade nesse mesmo parâmetro, a soma sairia só do pátio da fábrica e
+**deixaria a câmara fria de fora**. Uma fábrica de picolés guarda o picolé na câmara: o
+número certo é 210 e sairia 10.
+
+**Os dois erros têm a mesma causa e visibilidades opostas.** Somar de mais produz um
+número grande, e número grande contra a memória de quem trabalha ali salta aos olhos:
+*"não tenho tudo isso"*. Somar de menos produz um número pequeno, e número pequeno lê
+como **prudência** — ninguém desconfia de um sistema que diz ter menos do que tem. A
+consequência é uma fábrica que produz o que já tinha, ou que recusa um pedido que dava
+para atender.
+
+Daí a forma: o parâmetro deixou de ser um id e passou a ser `{ sala }` **ou**
+`{ unidade }`, com o tipo impedindo passar um pelo outro. Não é elegância — é que as duas
+perguntas são diferentes o suficiente para um mesmo campo responder a errada em silêncio.
+
+**E a linha-irmã, achada por um teste no minuto seguinte:** a unidade padrão de uma
+empresa **nasce no primeiro movimento** (`ensureLocation`), não na instalação. Então
+qualquer coisa que aponte para ela antes disso quebra — cadastrar uma câmara fria num
+aparelho novo derrubava a tela com `FOREIGN KEY constraint failed`, que é o caminho normal
+de quem instala e cadastra as salas antes de lançar nota. Linha criada por preguiça
+(*lazy*) é linha que existe **depois** de alguém precisar dela, e quem a referencia tem de
+garanti-la primeiro. O padrão está no repositório desde a fundação; o que faltava era
+alguém apontar para ele de um lugar novo.
