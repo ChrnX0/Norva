@@ -355,9 +355,14 @@ const DEFECTS = [
 
   {
     file: 'src/data/repository.ts',
-    from: `              WHERE m.company_id = i.company_id AND m.item_id = i.id
-                AND (? IS NULL OR m.location_id = ?))`,
-    to: `              WHERE m.company_id = i.company_id AND m.item_id = i.id)`,
+    // A troca é sempre-verdadeira em vez de apagar a linha, e é de propósito:
+    // apagar mudaria a ARIDADE do comando (dois `?` a menos) e o SQLite recusaria
+    // por parâmetro sobrando. A mutação seria "pega" por um erro de ligação, que
+    // não prova nada sobre a regra — mede o binder, não o filtro.
+    from: `                AND (? IS NULL OR m.location_id = ?)
+                -- A unidade e o que está dentro dela.`,
+    to: `                AND (? IS NULL OR ? IS NOT NULL)
+                -- A unidade e o que está dentro dela.`,
     hurts:
       'o almoxarifado volta a somar a empresa inteira mesmo quando perguntam por uma sala, e quem esta no tacho ve 34 kg de polpa que estao na camara fria',
   },
@@ -627,11 +632,9 @@ const DEFECTS = [
   {
     file: 'src/data/repository.ts',
     from: `(SELECT COALESCE(SUM(m.quantity_base_units), 0) FROM movements m
-              WHERE m.company_id = i.company_id AND m.item_id = i.id
-                AND (? IS NULL OR m.location_id = ?))`,
+              WHERE m.company_id = i.company_id AND m.item_id = i.id`,
     to: `(SELECT COALESCE(COUNT(m.quantity_base_units), 0) FROM movements m
-              WHERE m.company_id = i.company_id AND m.item_id = i.id
-                AND (? IS NULL OR m.location_id = ?))`,
+              WHERE m.company_id = i.company_id AND m.item_id = i.id`,
     hurts: 'o estoque passa a contar movimentos em vez de somar quantidade',
   },
   {
@@ -827,7 +830,7 @@ const DEFECTS = [
   // FABRICA a diferenca entre as duas salas. Contagem nao se apaga, se estorna.
   {
     file: 'src/data/repository.ts',
-    from: '  const all = await listItems(companyId, undefined, true, locationId);',
+    from: '  const all = await listItems(companyId, undefined, true, onde);',
     to: '  const all = await listItems(companyId, undefined, true);',
     hurts:
       'findItem volta a responder o total da empresa mesmo quando a pergunta e de uma sala: a tela da camara fria mostra o saldo da fabrica somado ao dela, e a diferenca da contagem sai desse numero',
@@ -932,7 +935,7 @@ const DEFECTS = [
   // a tela liberava o botao e TODA corrida batia num erro em ingles.
   {
     file: 'app/production/new.tsx',
-    from: '      listItems(empresaDaqui(), undefined, false, defaultLocationId(empresaDaqui())),',
+    from: '      listItems(empresaDaqui(), undefined, false, { unidade: unidadeDaqui() }),',
     to: '      listItems(empresaDaqui()),',
     hurts:
       'a tela de producao volta a ler o saldo da empresa e a liberar o botao com o insumo noutra sala: cada toque devolve o erro de programador do piso, e nenhuma corrida entra',
@@ -945,10 +948,33 @@ const DEFECTS = [
   // ao de produzir, que e quando o picole esta na camara.
   {
     file: 'src/data/repository.ts',
-    from: "                AND l.kind IN ('factory', 'cold_room', 'store_room')) AS on_hand",
-    to: "                AND l.kind IN ('factory', 'store_room')) AS on_hand",
+    from: "                AND l.kind IN ('factory', 'cold_room', 'store_room')\n                -- A unidade e o que está DENTRO dela.",
+    to: "                AND l.kind IN ('factory', 'store_room')\n                -- A unidade e o que está DENTRO dela.",
     hurts:
       'o que esta na camara fria para de contar como prometivel: a tela de anotar pedido nao avisa excesso nenhum com o freezer cheio, e a capa manda produzir o que ja existe',
+  },
+  // --- a unidade de fábrica, 8 de setembro -----------------------------------
+  //
+  // As duas regras que nasceram hoje, e sem mutação elas seriam duas afirmações.
+  // As trocas são sempre-verdadeiras em vez de apagar a linha porque apagar mudaria
+  // a aridade do comando: o SQLite recusaria por parâmetro sobrando, a mutação
+  // apareceria "pega" por erro de ligação, e o que ficaria medido é o binder.
+  {
+    file: 'src/data/repository.ts',
+    from: `                AND (? IS NULL OR EXISTS (
+                      SELECT 1 FROM locations l
+                       WHERE l.id = m.location_id
+                         AND (l.id = ? OR COALESCE(l.parent_location_id, l.company_id) = ?))))`,
+    to: `                AND (? IS NULL OR ? IS NOT NULL OR ? IS NULL))`,
+    hurts:
+      'o saldo de "aqui" volta a ser da empresa: quem esta na unidade de Marilia ve o almoxarifado de Bauru somado ao dele, e decide producao com um numero que nao existe em lugar nenhum',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: "                AND (l.id = ? OR COALESCE(l.parent_location_id, l.company_id) = ?)) AS on_hand",
+    to: "                AND (? IS NOT NULL OR ? IS NULL)) AS on_hand",
+    hurts:
+      'a promessa de um pedido volta a contar o freezer da outra cidade: o cliente ouve sim e a caixa nao sai, porque o estoque prometido esta a duzentos quilometros',
   },
   {
     file: 'app/inputs/[id].tsx',
