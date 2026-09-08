@@ -107,6 +107,14 @@ test('the version can always produce a build number that grows', () => {
  * memória — `libreactnative.so` sozinha vai de 2,2 MB para 6,7 MB. O aparelho
  * ganha um pouco na instalação; quem recebe o APK paga o triplo. Numa fábrica que
  * instala o aplicativo por link, quem paga é o dono.
+ *
+ * **E o encolhimento de RECURSOS está fora de propósito, medido.** Ele rendeu
+ * 0,29 MB de 27 — um por cento —, e o que ele remove são recursos que o AGP não
+ * viu ninguém referenciar. Recurso buscado por nome em runtime (`getIdentifier`)
+ * é invisível para ele, e o modo de falha é o pior que existe aqui: some calado,
+ * compila, instala, e quebra numa tela. A minificação de CÓDIGO ficou porque
+ * paga 12,6 MB — quarenta vezes mais, pelo mesmo tipo de risco. Se alguém for
+ * religar o de recursos, o preço a bater é esse.
  */
 test('the build settings that survive a prebuild live in app.json', () => {
   const build = ajusteDoPlugin('expo-build-properties');

@@ -34,8 +34,7 @@
         {
           "android": {
             "useLegacyPackaging": true,
-            "enableMinifyInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true
+            "enableMinifyInReleaseBuilds": true
           }
         }
       ],
