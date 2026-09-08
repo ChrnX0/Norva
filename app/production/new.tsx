@@ -130,7 +130,7 @@ function Production() {
     const [products, graph, items, names, runs, stock] = await Promise.all([
       listProducts(empresaDaqui()),
       loadRecipeGraph(empresaDaqui()),
-      listItems(empresaDaqui(), undefined, false, unidadeDaqui()),
+      listItems(empresaDaqui(), undefined, false, { unidade: unidadeDaqui() }),
       loadLabels(empresaDaqui()),
       openProductionRuns(empresaDaqui()),
       stockByPlace(empresaDaqui()),

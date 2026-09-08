@@ -106,6 +106,11 @@ function PurchaseForm() {
    * depois na tela".
    */
   const { data, loading, refresh } = useQuery(() =>
+    // **Da EMPRESA de propósito, e não da unidade.** Este saldo alimenta a média
+    // móvel do custo, e a decisão de 1 de setembro é escrita: *"o mesmo grama de
+    // açúcar não custa uma coisa na câmara e outra no almoxarifado"*. Recortar por
+    // unidade aqui daria dois custos para o mesmo insumo e quebraria a margem para
+    // consertar um saldo que esta tela não mostra.
     listItems(empresaDaqui()).then((all) => ({
       compraveis: all.filter((i) => i.purchaseToBase !== null),
       cadastrados: all.length,

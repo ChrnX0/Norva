@@ -43,13 +43,13 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | migrações do aparelho | **V25** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
-| linhas de código | **~72.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
+| linhas de código | **~80.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
 
 E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **541** testes |
+| `npm test` | **542** testes |
 | `npm run mutate` | **110** defeitos plantados, 108 pegos e 2 equivalentes |
 | `npm run e2e:fast` | **52** checagens num navegador de verdade |
 | `npm run db:verify` | **22** garantias contra um Postgres descartável, sob RLS |
@@ -461,12 +461,16 @@ mesmo commit, que é o trabalho dela.
 **O que continua aberto — as consultas que somam a empresa inteira.** Eram dez; a pior
 fechou em 8 de setembro, junto com a peça que faltava embaixo dela (a migração 0046: uma
 sala passa a ficar DENTRO de uma unidade, sem o que nenhum recorte é possível sem
-derrubar o número de quem já usa). As nove restantes, em ordem de dano:
+derrubar o número de quem já usa). As restantes, em ordem de dano — e duas delas não são aritmética, são **decisão de
+produto**: um lote já ENTREGUE numa loja deve continuar avisando de validade? A decisão
+escrita de hoje é sobre filtrar por SALA (que emudecia o aviso quando o picolé ia para a
+câmara), e recortar por unidade é outra coisa — mas ela arrasta a loja para fora, e isso
+muda o que o dono vê. Fica registrado em vez de decidido sozinho:
 
 | função | por que dói | quem lê |
 |---|---|---|
 | ~~`stockAgainstOrders`~~ **FEITA em 8 de setembro** | era a pior. A unidade agora é parâmetro **obrigatório** — leitor de saldo com lugar opcional é leitor que erra calado, a mesma lição do `recordLoss`. Conta a unidade e o que está DENTRO dela, e `COALESCE(parent_location_id, company_id)` faz sala sem pai pertencer à primeira unidade, que é o que o backfill afirma: sem isso um teste desta suíte viu **20 no lugar de 170** | os três chamadores passam `unidadeDaqui()` |
-| `listItems` (`:165`) / `findItem` (`:4555`) | é o saldo que quase toda tela mostra; `locationId` é opcional e treze chamadores não passam | capa, relatórios, compra, separação, assistente (dez pontos) |
+| ~~`listItems` / `findItem`~~ **FEITAS em 8 de setembro** | o parâmetro passou a ser `{ sala }` OU `{ unidade }`, e são duas perguntas diferentes: a sala é a prateleira exata, a unidade é ela **mais as salas dentro dela**. Um campo só faria a unidade somar apenas o pátio e deixar a câmara fria de fora — o defeito de somar de MENOS, que é o mais calado porque um número menor parece prudente. Capa, ficha de insumo, produção, insumos e avisos passaram a pedir a unidade; **a compra continua da empresa**, por decisão escrita de 1 de setembro — é ela que alimenta a média móvel do custo, e o mesmo grama de açúcar não custa uma coisa em cada sala |
 | `runningOut` (`:4818`) / `dailyOutflowOf` (`:4782`) | pior que somar junto: no modo empresa a linha `:4869` DESCARTA transferência como saída, então mandar insumo de A para B deixa de contar como consumo de A e a cobertura de A fica infinita | capa (duas), relatórios, avisos |
 | `expiringSoon` (`:3773`) | o parâmetro existe e **nenhum** chamador usa: a validade da unidade A soa na B | capa, avisos |
 | `itemMovements` (`:1424`) | só o caminho do assistente | `skills.ts:508` |

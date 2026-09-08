@@ -167,8 +167,23 @@ export async function listItems(
   kind?: ItemKind,
   /** Deactivated items are excluded unless a screen is explicitly showing them. */
   includeInactive = false,
-  /** A sala. Sem ela, a soma é da empresa inteira. */
-  locationId?: string,
+  /**
+   * Onde somar — e são DUAS perguntas diferentes, por isso não é um campo só.
+   *
+   * `{ sala }` é o saldo daquela prateleira exata: é o que a tela de um insumo
+   * mostra quando alguém abre a câmara fria. `{ unidade }` é o saldo da unidade de
+   * fábrica INTEIRA — ela e as salas dentro dela —, que é o que "quanto eu tenho
+   * aqui" quer dizer para quem está com o aparelho.
+   *
+   * Um campo só faria as duas colidirem: passar a unidade num parâmetro de sala
+   * somaria apenas o pátio da unidade e deixaria a câmara fria de fora, que é
+   * exatamente o defeito de somar de menos — o mais calado dos dois, porque um
+   * número menor parece prudente.
+   *
+   * Ausente continua sendo a empresa inteira, e isso é resposta certa para tela de
+   * catálogo e de relatório, onde a pergunta é sobre o que a EMPRESA tem.
+   */
+  onde?: { sala: string } | { unidade: string },
 ): Promise<ItemWithCost[]> {
   const conn = await db();
   /**
@@ -181,6 +196,8 @@ export async function listItems(
    * número para vazar"*.
    */
   const dinheiro = (await canSeeMoney(companyId)) ? 1 : 0;
+  const sala = onde && 'sala' in onde ? onde.sala : null;
+  const unidade = onde && 'unidade' in onde ? onde.unidade : null;
   const rows = await conn.getAllAsync<{
     id: string;
     kind: ItemKind;
@@ -199,7 +216,13 @@ export async function listItems(
             i.active, i.full_level, c.average_rate, c.last_rate,
             (SELECT COALESCE(SUM(m.quantity_base_units), 0) FROM movements m
               WHERE m.company_id = i.company_id AND m.item_id = i.id
-                AND (? IS NULL OR m.location_id = ?))
+                AND (? IS NULL OR m.location_id = ?)
+                -- A unidade e o que está dentro dela. O COALESCE diz o que o
+                -- backfill da 0046 afirma: sala sem pai é da primeira unidade.
+                AND (? IS NULL OR EXISTS (
+                      SELECT 1 FROM locations l
+                       WHERE l.id = m.location_id
+                         AND (l.id = ? OR COALESCE(l.parent_location_id, l.company_id) = ?))))
               AS on_hand_base_units
        FROM items i
        LEFT JOIN item_costs c ON c.item_id = i.id AND ? = 1
@@ -208,8 +231,11 @@ export async function listItems(
         AND (? IS NULL OR i.kind = ?)
       ORDER BY i.name COLLATE NOCASE`,
     [
-      locationId ?? null,
-      locationId ?? null,
+      sala,
+      sala,
+      unidade,
+      unidade,
+      unidade,
       dinheiro,
       companyId,
       includeInactive ? 1 : 0,
@@ -1103,6 +1129,12 @@ export async function savePlace(
     paiPedido && paiPedido !== id && ehSalaDeUnidade(input.kind) ? paiPedido : null;
 
   await conn.withTransactionAsync(async () => {
+    // A unidade padrão pode ainda NÃO EXISTIR — ela nasce no primeiro movimento, e
+    // cadastrar uma câmara fria antes de qualquer movimento é o caminho normal de
+    // um aparelho novo. Sem esta linha a chave estrangeira recusa e a tela cai com
+    // "FOREIGN KEY constraint failed", que não é frase para ninguém. Foi um teste
+    // desta suíte que achou, no minuto seguinte a eu escrever o pai.
+    if (pai === defaultLocationId(companyId)) await ensureLocation(conn, companyId);
     await conn.runAsync(
       `INSERT INTO locations
          (id, company_id, name, kind, created_at, contact_phone, delivery_days, agreement_note,
@@ -2237,7 +2269,7 @@ async function moveBetween(
    * tela a mais amanhã não pode reabrir o buraco. `NotEnoughStockError` é o
    * mesmo erro, com os mesmos números, para a tela escrever a mesma frase.
    */
-  const origem = await findItem(companyId, input.itemId, input.fromLocationId);
+  const origem = await findItem(companyId, input.itemId, { sala: input.fromLocationId });
   if (!origem) throw new Error('o item desta transferência não existe');
   if (origem.onHandBaseUnits < input.baseUnits) {
     throw new NotEnoughStockError([
@@ -4600,11 +4632,11 @@ export async function findItem(
    * prateleira TELEPORTAVA estoque: a diferença saía de um número maior e era
    * gravada num lugar menor, com o operador tendo feito tudo certo.
    */
-  locationId?: string,
+  onde?: { sala: string } | { unidade: string },
 ): Promise<ItemWithCost | null> {
   // Includes the inactive: the screen that offers to reactivate an item has to
   // be able to open it.
-  const all = await listItems(companyId, undefined, true, locationId);
+  const all = await listItems(companyId, undefined, true, onde);
   return all.find((item) => item.id === itemId) ?? null;
 }
 

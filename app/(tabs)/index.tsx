@@ -185,7 +185,10 @@ function Briefing() {
       lossesOn(empresaDaqui(), mes.from, today.to),
       lossesOn(empresaDaqui(), mesAnterior.de.from, mesAnterior.ate.to),
       listPlaces(empresaDaqui()),
-      listItems(empresaDaqui()),
+      // Da UNIDADE, não da empresa: o cartão do que está guardado responde "quanto
+      // vale o que eu tenho aqui", e somar o almoxarifado da outra cidade daria um
+      // número que quem está com o aparelho não consegue usar para decidir nada.
+      listItems(empresaDaqui(), undefined, false, { unidade: unidadeDaqui() }),
     ]);
 
     /**

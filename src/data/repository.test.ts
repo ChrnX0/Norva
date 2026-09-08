@@ -1347,8 +1347,8 @@ test('the shelf a screen shows is the shelf a count is compared against', async 
   // Três perguntas diferentes, três respostas diferentes - e é a diferença entre
   // elas que a tela precisava saber que existe.
   assert.equal((await findItem(EMPRESA_SEMENTE, acucar.id))?.onHandBaseUnits, 50000);
-  assert.equal((await findItem(EMPRESA_SEMENTE, acucar.id, fabrica))?.onHandBaseUnits, 44000);
-  const naCamara = await findItem(EMPRESA_SEMENTE, acucar.id, camara.id);
+  assert.equal((await findItem(EMPRESA_SEMENTE, acucar.id, { sala: fabrica }))?.onHandBaseUnits, 44000);
+  const naCamara = await findItem(EMPRESA_SEMENTE, acucar.id, { sala: camara.id });
   assert.equal(naCamara?.onHandBaseUnits, 6000);
 
   // Contando exatamente o que a tela da câmara mostrou, a diferença é zero.
@@ -1361,7 +1361,7 @@ test('the shelf a screen shows is the shelf a count is compared against', async 
   });
   assert.equal(bateu.expectedBaseUnits, 6000, 'o esperado é o da sala, não o da empresa');
   assert.equal(bateu.deltaBaseUnits, 0);
-  assert.equal((await findItem(EMPRESA_SEMENTE, acucar.id, fabrica))?.onHandBaseUnits, 44000);
+  assert.equal((await findItem(EMPRESA_SEMENTE, acucar.id, { sala: fabrica }))?.onHandBaseUnits, 44000);
 
   // E a câmara conferida não faz a fábrica parecer conferida. "Conferido em 2/9"
   // ao lado do saldo da fábrica seria dizer que alguém olhou uma prateleira que
@@ -1725,10 +1725,10 @@ test('the storeroom answers for one room when asked, and for the company when no
   // Com sala, a resposta é daquela sala. Era isto que faltava: com a polpa
   // dividida, o almoxarifado dizia 34 kg enquanto quem estava no tacho tinha 20
   // na mão. O número não estava errado - estava respondendo outra pergunta.
-  const naFabrica = (await listItems(EMPRESA_SEMENTE, undefined, false, fabrica)).find(
+  const naFabrica = (await listItems(EMPRESA_SEMENTE, undefined, false, { sala: fabrica })).find(
     (i) => i.id === insumo.id,
   );
-  const naFria = (await listItems(EMPRESA_SEMENTE, undefined, false, fria)).find(
+  const naFria = (await listItems(EMPRESA_SEMENTE, undefined, false, { sala: fria })).find(
     (i) => i.id === insumo.id,
   );
   assert.equal(naFria?.onHandBaseUnits, metade);
@@ -3194,6 +3194,51 @@ test('an order is demand, and demand moves nothing', async () => {
  * com o freezer cheio - e a tela de anotar pedido não avisava excesso nenhum
  * justamente quando a conta mais decide.
  */
+test('the balance of a unit is the unit plus the rooms inside it', async () => {
+  // O caminho `{ unidade }` de `listItems`, que é o que quase toda tela passou a
+  // usar quando pergunta "quanto eu tenho AQUI". Ele soma a unidade E as salas
+  // dentro dela — somar só o pátio seria o defeito de somar de MENOS, que é o mais
+  // calado dos dois porque um número menor parece prudente.
+  const camaraDaqui = await savePlace(CO, {
+    name: 'Câmara daqui',
+    kind: 'cold_room',
+    parentLocationId: defaultLocationId(CO),
+  });
+  const outra = await savePlace(CO, { name: 'Unidade de fora', kind: 'factory' });
+  const camaraDeFora = await savePlace(CO, {
+    name: 'Câmara de fora',
+    kind: 'cold_room',
+    parentLocationId: outra.id,
+  });
+  const { itemId } = await saveProduct(CO, {
+    name: 'Picolé de uva',
+    kind: 'product',
+    recipeId: null,
+    yieldPerUnit: null,
+    unitPackagingRate: rate(0, 1),
+    packaging: loose,
+  });
+
+  await recordCount(CO, { locationId: defaultLocationId(CO), itemId, countedBaseUnits: 10 });
+  await recordCount(CO, { locationId: camaraDaqui.id, itemId, countedBaseUnits: 200 });
+  await recordCount(CO, { locationId: camaraDeFora.id, itemId, countedBaseUnits: 3000 });
+
+  const aqui = (await listItems(CO, undefined, false, { unidade: defaultLocationId(CO) })).find(
+    (i) => i.id === itemId,
+  );
+  const naSalaSo = (await listItems(CO, undefined, false, { sala: defaultLocationId(CO) })).find(
+    (i) => i.id === itemId,
+  );
+  const daEmpresa = (await listItems(CO)).find((i) => i.id === itemId);
+
+  // Três números diferentes, e é a diferença entre eles que prova a peça: a
+  // unidade soma o pátio e a câmara dela (210), a SALA soma só o pátio (10), e a
+  // empresa soma tudo (3210). Se os três fossem iguais, o parâmetro não faria nada.
+  assert.equal(aqui?.onHandBaseUnits, 210, 'a unidade tem de somar as salas dentro dela');
+  assert.equal(naSalaSo?.onHandBaseUnits, 10, 'sala é sala: não pode arrastar a câmara');
+  assert.equal(daEmpresa?.onHandBaseUnits, 3210, 'sem escopo continua sendo a empresa inteira');
+});
+
 test('the freezer of one unit does not promise for the other', async () => {
   // O defeito que este teste existe para impedir: `stockAgainstOrders` somava
   // `kind in ('factory','cold_room','store_room')` sem recorte de lugar, e com uma
@@ -5498,12 +5543,12 @@ test('mandar mais do que a sala tem é recusado antes de escrever — pela camad
     'oitenta mil não saem de uma sala que tem cinquenta mil',
   );
   // E nada foi escrito: o saldo da fábrica é o que era.
-  assert.equal((await findItem(CO, acucar, fabrica))?.onHandBaseUnits, 50_000, 'a recusa não mexe no razão');
+  assert.equal((await findItem(CO, acucar, { sala: fabrica }))?.onHandBaseUnits, 50_000, 'a recusa não mexe no razão');
 
   // O caso verdadeiro passa, e o saldo desce exatamente o que saiu.
   await recordTransfer(CO, { itemId: acucar, baseUnits: 30_000, fromLocationId: fabrica, toLocationId: loja });
-  assert.equal((await findItem(CO, acucar, fabrica))?.onHandBaseUnits, 20_000);
-  assert.equal((await findItem(CO, acucar, loja))?.onHandBaseUnits, 30_000);
+  assert.equal((await findItem(CO, acucar, { sala: fabrica }))?.onHandBaseUnits, 20_000);
+  assert.equal((await findItem(CO, acucar, { sala: loja }))?.onHandBaseUnits, 30_000);
 });
 
 test('apagar tudo solta o aparelho de quem estava com ele — senão ele tranca sem volta', async () => {

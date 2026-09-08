@@ -179,7 +179,11 @@ function InputDetail() {
     const hoje = dayWindow(nowIso(), locale.timeZone);
     const semanaAtras = dayWindow(nowIso(), locale.timeZone, -7);
     const [item, history, recipes, movements, spread, entregas, dinheiro, saiPorDia] = await Promise.all([
-      findItem(empresaDaqui(), id, room),
+      // `room` é a sala aberta na rota, quando há uma. Sem sala, o saldo é da
+      // UNIDADE deste aparelho e não da empresa: quem abre a ficha de um insumo
+      // quer saber quanto tem aqui, e somar a outra cidade daria um número que
+      // ninguém consegue usar para decidir produção.
+      findItem(empresaDaqui(), id, room ? { sala: room } : { unidade: unidadeDaqui() }),
       itemHistory(empresaDaqui(), id),
       recipesUsingItem(empresaDaqui(), id),
       itemMovements(empresaDaqui(), id, 20, room),

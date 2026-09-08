@@ -20,6 +20,7 @@ import {
   type ItemWithCost,
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
+import { unidadeDaqui } from '@/data/unidade';
 import { useQuery } from '@/data/useQuery';
 import type { Cents } from '@/domain/money';
 import { volumeBand } from '@/domain/alerts';
@@ -108,7 +109,7 @@ function InputsList() {
    */
   const { data: carregado, loading } = useQuery(
     async () => ({
-      itens: await listItems(empresaDaqui(), undefined, false, place ?? undefined),
+      itens: await listItems(empresaDaqui(), undefined, false, place ? { sala: place } : { unidade: unidadeDaqui() }),
       dinheiro: await canSeeMoney(empresaDaqui()),
     }),
     place ?? '',

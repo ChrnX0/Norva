@@ -51,7 +51,9 @@ export async function factsForAlerts(timeZone: string): Promise<AlertFacts> {
     // prateleira. Filtrar pelo almoxarifado emudecia o aviso no dia em que o
     // picolé ia para a câmara fria — que é o dia seguinte ao de produzi-lo.
     expiringSoon(empresaDaqui(), trinta, 10),
-    listItems(empresaDaqui()),
+    // Da unidade: a régua de pote cheio é física — o pote está num prédio, e o
+    // aviso é para quem entra nele.
+    listItems(empresaDaqui(), undefined, false, { unidade: unidadeDaqui() }),
     listPlaces(empresaDaqui()),
     lastReadings(empresaDaqui()),
   ]);
