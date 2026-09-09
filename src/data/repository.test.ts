@@ -7163,3 +7163,53 @@ test('the yield a version was saved with survives the next version', async () =>
   );
   assert.equal(receita?.a, 12, 'a receita é a de hoje; a versão é a de quando foi salva');
 });
+
+/**
+ * Contar a câmara fria não fatura — e nada provava isso até 9 de setembro.
+ *
+ * O `mutate` acrescentou `'cold_room'` a `RETAIL_PLACE_KINDS` e **a suíte inteira
+ * continuou verde**. Com essa linha, a polpa que falta numa conferência da câmara entra
+ * no razão como `sale`: o mês fecha com venda de insumo que ninguém vendeu, e a margem
+ * passa a ter receita inventada.
+ *
+ * O irmão deste caso — a espécie do ITEM — ganhou guarda na mesma rodada. Faltava a do
+ * LUGAR, e são as duas metades da mesma frase: *"falta em lugar que vende, de coisa que
+ * se vende"*. Guardar uma metade e não a outra deixa a regra sustentada por metade.
+ */
+test('counting a cold room is a difference, because a cold room sells to nobody', async () => {
+  await ensureStarterData(CO);
+  const [produto] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
+  const fabrica = defaultLocationId(CO);
+  const camara = (await savePlace(CO, { name: 'Câmara fria', kind: 'cold_room' })).id;
+
+  await recordProduction(CO, {
+    productId: produto.id,
+    locationId: fabrica,
+    batches: 1,
+    unitsProduced: 400,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+  await recordTransfer(CO, {
+    itemId: produto.itemId,
+    baseUnits: 400,
+    fromLocationId: fabrica,
+    toLocationId: camara,
+  });
+
+  // Faltam 50 na câmara. É diferença de contagem — a câmara não tem balcão.
+  const r = await recordCount(CO, { itemId: produto.itemId, countedBaseUnits: 350, locationId: camara });
+
+  assert.equal(
+    r.sold,
+    null,
+    'a câmara fria não vende a ninguém: o que falta lá é diferença, e chamar de venda ' +
+      'fecha o mês com receita que nunca existiu',
+  );
+
+  const linha = await live.getFirstAsync<{ kind: string }>(
+    `SELECT kind FROM movements
+      WHERE company_id = ? AND item_id = ? AND location_id = ? AND quantity_base_units = -50`,
+    [CO, produto.itemId, camara],
+  );
+  assert.equal(linha?.kind, 'adjustment', 'e o razão guarda a diferença com o nome dela');
+});

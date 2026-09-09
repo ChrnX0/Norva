@@ -256,11 +256,14 @@ const DEFECTS = [
   },
   {
     file: 'src/data/repository.ts',
-    from: `    const mediaNova = blendRate(antes, {
-      baseUnits: input.unitsProduced,
-      rate: unitCostRate,
-    });`,
-    to: `    const mediaNova = antes.averageRate;`,
+    // Âncora refeita em 9 de setembro: o cálculo virou laço de recomposição, e o
+    // literal antigo não existia mais — mutação com âncora cega não testa nada e ainda
+    // entra na conta como defeito que atravessou.
+    from: `        averageRate: blendRate(estado, {
+          baseUnits: l.quantity_base_units,
+          rate: l.unit_cost_rate as Rate,
+        }),`,
+    to: `        averageRate: estado.averageRate,`,
     hurts:
       'o produto fabricado volta a valer o que valia antes da corrida - zero, na primeira - e o dinheiro evapora do balanco a cada tacho',
   },
@@ -274,8 +277,11 @@ const DEFECTS = [
 
   {
     file: 'src/domain/picking.ts',
-    from: '      order.lines.every((line) => (sent.get(line.itemId) ?? 0) >= line.baseUnits),',
-    to: '      order.lines.some((line) => (sent.get(line.itemId) ?? 0) >= line.baseUnits),',
+    // Âncora refeita em 9 de setembro: a expressão de várias linhas virou um `if`
+    // de uma, e o literal antigo deixou de existir. A troca continua a mesma —
+    // `every` por `some` faz carga parcial fechar o pedido inteiro.
+    from: '    if (!order.lines.every((line) => (sobra.get(line.itemId) ?? 0) >= line.baseUnits)) continue;',
+    to: '    if (!order.lines.some((line) => (sobra.get(line.itemId) ?? 0) >= line.baseUnits)) continue;',
     hurts:
       'carga parcial passa a fechar o pedido inteiro: a loja fica sem quarenta caixas e o sistema diz que entregou',
   },
@@ -932,7 +938,7 @@ const DEFECTS = [
   // linhas apagadas, e orfa nao e recusa: e excecao que repete.
   {
     file: 'src/data/repository.ts',
-    from: '    await forgetOrphans(conn);',
+    from: '    // e tudo o que a fábrica gravar depois fica preso atrás dela para sempre.\n    await forgetOrphans(conn);',
     to: '',
     hurts:
       'apagar as compras de exemplo volta a deixar a fila apontando para movimentos que nao existem: o serializador levanta excecao, o motor para no primeiro buraco, e tudo o que a fabrica gravar depois fica preso atras dela',
@@ -1020,8 +1026,11 @@ const DEFECTS = [
   },
   {
     file: 'src/data/repository.ts',
-    from: '  const vendeu = delta < 0 && lugar !== null && vendeAoConsumidor(lugar.kind);',
-    to: '  const vendeu = lugar !== null && vendeAoConsumidor(lugar.kind);',
+    // A âncora ficou cega em 9 de setembro, quando `vendeu` ganhou a segunda pergunta
+    // (a espécie do ITEM). O que a mutação testa continua o mesmo: tirar o `delta < 0`
+    // faz sobra positiva virar venda negativa.
+    from: '    delta < 0 &&\n    lugar !== null &&',
+    to: '    lugar !== null &&',
     hurts:
       'contar MAIS do que o livro diz passa a gravar uma venda negativa: receita inventada no razao, e ela some da soma do mes como se alguem tivesse desvendido picole',
   },
