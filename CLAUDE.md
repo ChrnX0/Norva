@@ -110,7 +110,7 @@ Nada foi apagado. O que mudou é **quando** cada coisa roda:
 
 | O que mudou | O que roda antes de dizer que está pronto |
 |---|---|
-| Ambiente, script, documentação, design | **nada** — o que prova é a coisa funcionar |
+| Ambiente, script, documentação, design | **nada** — o que prova é a coisa funcionar. *Uma exceção, medida em 9 de setembro: ver abaixo.* |
 | Tela ou componente | compila + **a foto no emulador** |
 | Domínio, dados — onde mora dinheiro e saldo | `typecheck` + `npm test` |
 | **Migração** (`supabase/migrations/` ou o `MIGRATIONS` do aparelho) | `typecheck` + `npm test` + **`npm run db:verify`** |
@@ -128,6 +128,21 @@ npm run db:verify    # Postgres descartável, vinte e sete garantias — inclui 
                      # do aparelho reproduzida contra o servidor de verdade
 bash .proofgate/verify.sh
 ```
+
+**A exceção da linha "nada", e ela me pegou no dia em que eu a li — 9 de setembro.**
+Empurrei um script novo (`scripts/prancha.mjs`, cem linhas) sem rodar a suíte, exatamente
+como a primeira linha da tabela autoriza. O CI ficou vermelho: `src/bar.test.ts` mede o
+**tamanho do repositório inteiro** contra o número escrito no `docs/roadmap.md`, com folga
+de 10% — e cem linhas foram o que faltava para cruzá-la.
+
+A linha da tabela continua certa no espírito: script não precisa de mutação, de navegador
+nem de banco. O que ela esquece é que **este repositório tem guardas que medem o próprio
+repositório** — contagem de linhas, contagem de testes, contagem de garantias. Qualquer
+arquivo acrescentado mexe nelas, inclusive um `.md`.
+
+Então a regra fica: **arquivo novo, de qualquer tipo, roda `npm test` antes do push.**
+Edição dentro de um arquivo que já existe segue a tabela. É barato — nove segundos — e o
+que ele pega não é o script: é o documento que envelheceu por causa dele.
 
 ### O layout se adapta — não existe "o aparelho"
 

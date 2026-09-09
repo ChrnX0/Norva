@@ -8417,3 +8417,35 @@ recorta alguma coisa.
 repetidos se contam; ritmos repetidos — duas curvas, dois vãos, dois tempos de animação —
 passam por composição. E ao consertar, pergunte que parte do que vai sair é o DEFEITO e
 que parte é a assinatura: elas moram na mesma linha com frequência.
+
+---
+
+## 9 de setembro — a barra dizia "nada" para script, e o repositório se mede a si mesmo
+
+**O que apareceu:** a tabela da barra de verificação abre com *"Ambiente, script,
+documentação, design → **nada** — o que prova é a coisa funcionar"*. Eu segui essa linha
+ao pé da letra: acrescentei `scripts/prancha.mjs` (cem linhas), rodei o script, vi a foto
+que ele produz, e empurrei sem rodar a suíte. O CI ficou vermelho.
+
+**Por que:** `src/bar.test.ts` mede o **tamanho do repositório inteiro** contra o número
+escrito no `docs/roadmap.md`, com folga de 10%. Cem linhas foram o que faltava para
+cruzá-la. O teste está certo e a linha da tabela está errada — não sobre o script, sobre
+o repositório.
+
+**A parte que vale mais que o conserto:** este projeto tem uma família inteira de guardas
+que medem o PRÓPRIO repositório — contagem de linhas, contagem de testes, contagem de
+garantias do Postgres, a tabela *"medido, não afirmado"*. Elas existem para que o
+documento não envelheça sozinho, e a consequência é que **nenhum arquivo é neutro**: um
+`.md` novo mexe na contagem igual a um `.ts`. A tabela da barra foi escrita pensando em
+"o que este arquivo pode quebrar", e a resposta certa é "o que a EXISTÊNCIA deste arquivo
+pode quebrar".
+
+**A régua que fica:** quando um projeto se mede, a pergunta "preciso rodar a suíte para
+isto?" muda de forma. Não é mais sobre o que o arquivo faz — é sobre se ele **conta**. E
+aqui tudo conta. A tabela ganhou a exceção por escrito: arquivo novo, de qualquer tipo,
+roda `npm test` antes do push; edição dentro de arquivo existente segue a tabela.
+
+**E há uma ironia que não é ironia:** o commit que quebrou o CI foi o que criou uma
+ferramenta cuja razão de existir é *não precisar do ciclo caro para ver uma coisa
+pequena*. Atalho novo tende a ser usado antes de se saber onde ele não vale — e o preço
+da primeira vez é justamente descobrir isso.
