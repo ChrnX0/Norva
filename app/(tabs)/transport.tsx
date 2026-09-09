@@ -191,8 +191,8 @@ function WhereItWent() {
       {places.map((place, i) => (
         <Reveal key={place.locationId} index={i + 1}>
           <Touchable
+            // Sem rótulo: o cartão já diz o lugar, o que chegou e se foi conferido.
             onPress={() => (place.checked ? router.push('/places') : void ask(place))}
-            accessibilityLabel={place.locationName}
           >
             <Card
               hue={place.checked ? palette.lilac : color.warning}

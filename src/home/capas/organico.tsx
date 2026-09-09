@@ -177,7 +177,7 @@ function HeroiOrganico({ data, sky, estado, go }: PecaDaCapa) {
   const diaDaSemanaPassada = formatWeekdayAbbrev(localDate(nowIso(), locale.timeZone, -7), locale);
 
   return (
-    <Touchable onPress={() => go('/production')} accessibilityLabel={t.app.home.capaLead}>
+    <Touchable onPress={() => go('/production')}>
       <View>
         {/* A cena por baixo de tudo, sem canto: ela é o topo da TELA, e um raio
             aqui deixaria dois triângulos da cor da página nos cantos de cima. */}
@@ -362,7 +362,7 @@ function SemanaOrganico({ data, go, Casca }: PecaDaCapa) {
 
   return (
     <Casca>
-      <Touchable onPress={() => go('/reports')} accessibilityLabel={t.app.home.weekTitle}>
+      <Touchable onPress={() => go('/reports')}>
         <View>
           <View
             style={{

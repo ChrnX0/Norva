@@ -91,7 +91,7 @@ export function Porta({
 }) {
   const { type, space, accent } = useTheme();
   return (
-    <Touchable onPress={aoTocar} accessibilityLabel={etiqueta}>
+    <Touchable onPress={aoTocar}>
       <View>
         {children}
         <Text style={[type.caption, { color: accent, marginTop: space.sm }]}>

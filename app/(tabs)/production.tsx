@@ -436,8 +436,9 @@ function ProductionDay() {
                 // caixa na mão e precisa do quadrado para colar nela.
                 <Touchable
                   key={lot.id}
+                  // Sem rótulo: a linha do lote traz o código, a quantidade e a
+                  // validade, e é isso que quem ouve precisa para decidir.
                   onPress={() => router.push(`/lots/${lot.id}`)}
-                  accessibilityLabel={`${t.app.lotLabel.title}: ${lot.code}`}
                   style={
                     i === 0
                       ? { paddingVertical: space.sm }

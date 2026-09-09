@@ -1196,9 +1196,15 @@ function Settings() {
                         }
                         accessibilityRole="switch"
                         accessibilityState={{ checked: ligado }}
-                        accessibilityLabel={`${t.app.settings.alerts.kinds[kind]}: ${
-                          ligado ? t.app.settings.alerts.off : t.app.settings.alerts.on
-                        }`}
+                        // O rótulo diz só o NOME; o estado é `accessibilityState`, e
+                        // ele é a única fonte. Aqui o rótulo repetia o estado e o
+                        // repetia INVERTIDO — "Validade: Desligado" com o interruptor
+                        // ligado, e o chip ao lado dizendo o contrário. `on`/`off` no
+                        // dicionário são estados, não verbos, então não era "o que o
+                        // toque faz": era uma afirmação falsa. Duas fontes para a
+                        // mesma coisa é como duas verdades nascem, e é o que os
+                        // outros três interruptores desta tela já evitam.
+                        accessibilityLabel={t.app.settings.alerts.kinds[kind]}
                       >
                         <Chip
                           signal={ligado ? 'ok' : 'neutral'}
@@ -1221,11 +1227,9 @@ function Settings() {
                         }
                         accessibilityRole="switch"
                         accessibilityState={{ checked: alerts.bands.notifyFull }}
-                        accessibilityLabel={`${t.app.settings.alerts.notifyFull}: ${
-                          alerts.bands.notifyFull
-                            ? t.app.settings.alerts.on
-                            : t.app.settings.alerts.off
-                        }`}
+                        // O nome, e o estado só no `accessibilityState` — a mesma
+                        // forma dos irmãos. Este dizia certo, mas por DUAS fontes.
+                        accessibilityLabel={t.app.settings.alerts.notifyFull}
                         style={styles.left}
                       >
                         <Chip

@@ -246,7 +246,7 @@ function ReportIndex() {
           grandeza, e o que interessa é se subiu. */}
       {comCusto.length > 0 ? (
         <Reveal index={1}>
-          <Touchable onPress={() => router.push('/recipes')} accessibilityLabel={t.app.reports.rows.cost.label}>
+          <Touchable onPress={() => router.push('/recipes')}>
             <Card
               hue={palette.sky}
               icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
@@ -277,7 +277,7 @@ function ReportIndex() {
           ignorar alerta, e um zero em vermelho é um alerta inventado. */}
       {perdido > 0 ? (
         <Reveal index={2}>
-          <Touchable onPress={() => router.push('/losses')} accessibilityLabel={t.app.reports.rows.losses.label}>
+          <Touchable onPress={() => router.push('/losses')}>
             <Card
               hue={color.danger}
               icon={(c) => <GlyphLoss size={26} color={c} weight={traco} />}

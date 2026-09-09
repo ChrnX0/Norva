@@ -127,7 +127,7 @@ export function Peca({
   if (!mais) return corpo;
 
   return (
-    <Touchable onPress={onToggle} accessibilityLabel={title ?? ''}>
+    <Touchable onPress={onToggle}>
       {corpo}
     </Touchable>
   );

@@ -91,8 +91,9 @@ function Espelho() {
         linhas.map((loja, i) => (
           <Reveal key={loja.placeId} index={i + 1}>
             <Touchable
+              // Sem rótulo: o cartão diz a loja, quanto chegou, quanto voltou e a
+              // fração — um resumo de duas palavras apagaria os três números.
               onPress={() => router.push('/places' as never)}
-              accessibilityLabel={loja.placeName}
             >
               <Card
                 hue={palette.rose}

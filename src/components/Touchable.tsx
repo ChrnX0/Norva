@@ -45,7 +45,21 @@ export function Touchable({
    * projeto já prova que se anuncia inteira (`src/acessivel.test.ts`).
    */
   longPressLabel?: string;
-  accessibilityLabel: string;
+  /**
+   * O nome do alvo, quando ele PRECISA de um — e ele quase nunca precisa.
+   *
+   * Opcional desde 9 de setembro, e a mudança é de acessibilidade e não de estilo:
+   * `accessibilityLabel` SUBSTITUI o texto que o leitor de tela montaria a partir dos
+   * filhos. Num chip ou numa opção de lista, onde o filho é a própria palavra, isso
+   * não custa nada. Num CARTÃO — a linha de Relatórios, o Espelho da Loja, a peça da
+   * capa — custa tudo: o número, a comparação e o convite desapareciam, e quem usa
+   * TalkBack ouvia "Custo por unidade, botão" numa tela que dizia "Custo por unidade
+   * · R$ 0,64 · +3 centavos que a semana passada · Abrir a tela".
+   *
+   * Então: nome curto quando o alvo não tem texto próprio; ausente quando o conteúdo
+   * já se anuncia melhor do que qualquer resumo.
+   */
+  accessibilityLabel?: string;
   children: ReactNode;
   style?: ViewStyle;
 }) {
