@@ -8183,3 +8183,38 @@ conferência que não é idempotente", e eu passei a primeira meia hora medindo 
 `discrepancy`, o posto de controle da doca, e não `adjustment`. **Medi a função errada
 porque li o rótulo em vez do vocabulário**, e só achei o defeito quando fui atrás de onde
 a palavra vive no código.
+
+---
+
+## 9 de setembro — o aplicativo tratava a mesma pessoa de dois jeitos, e a auditoria contou três
+
+**O que apareceu:** o espanhol misturava `tú` e `usted`. Não por tela: **dentro da mesma
+frase**. A confirmação de cadastro de insumo abre com *"**Vas** a dar de alta..."* (tú) e
+fecha com *"si aún no lo **compró**, **registre** la factura"* (usted). Na ficha do item
+eram cinco frases em `usted` e uma em `tú`, lado a lado.
+
+**A auditoria disse três segundas pessoas. São duas.** `vos` e `vosotros` não aparecem em
+lugar nenhum do arquivo. Corrigi o número em vez de repeti-lo — e vale registrar porque um
+número de auditoria carregado sem medir é a mesma doença de um item de plano carregado sem
+medir, que este arquivo já registra: *"a lista é a entrada de um laço automático e ninguém
+mede o que ela afirma"*.
+
+**Por que importa:** os outros dois idiomas da MESMA tela dizem "você" e "you". `usted`
+põe distância onde o resto do aplicativo não põe, e a régua de tom desta casa pede o
+contrário — *"frase curta, verbo na frente, segunda pessoa"*, orientando em vez de
+fiscalizar. Um cliente hispanofalante não vê uma escolha de registro: vê um aplicativo que
+não sabe com quem está falando.
+
+**E a régua da guarda foi o trabalho de verdade.** Contar `usted` é fácil; separar
+imperativo formal de subjuntivo não é, porque as formas são idênticas — *"a quien lo
+**tenga**"* e *"hace que cada persona **vea**"* são espanhol correto nos dois tratamentos,
+e estão no arquivo. Uma guarda que os acusasse mandaria consertar o que está certo, que é
+o alerta inventado virado para o texto. Então ela pega as duas formas em que `usted` é
+inequívoco — a palavra, e o imperativo em COMEÇO de frase, onde subjuntivo nunca aparece —
+e a fronteira está escrita no docblock em vez de subentendida.
+
+**A régua que fica, e ela já se pagou duas vezes hoje:** minha varredura manual dos
+trinta e quatro `Pressable` perdeu um, e minha leitura manual do dicionário perdeu dois
+(*"Guarde una copia"*, em duas telas). **Onde a guarda é escrita, ela acha o que o olho
+perdeu na mesma passada** — e é por isso que ela vem antes de eu declarar o item fechado,
+não depois.

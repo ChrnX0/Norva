@@ -321,3 +321,72 @@ test('the file scanner bites a spoken name and leaves the comment that explains 
   // Negativo 4: código sem aspas nenhuma, e a palavra que só CONTÉM a proibida.
   assert.deepEqual(falaEquipamento("const potenciaDoVat = private.has_capability(x);"), []);
 });
+
+/**
+ * O espanhol trata a MESMA pessoa de um jeito só — e tratava de dois.
+ *
+ * A auditoria de 9 de setembro anotou "três segundas pessoas na mesma tela". Medido,
+ * eram **duas**: `tú` e `usted`. `vos` e `vosotros` não aparecem em lugar nenhum, e o
+ * número foi corrigido em vez de repetido.
+ *
+ * Duas bastam, e a prova estava numa frase só — a confirmação de cadastro de insumo
+ * começava em `tú` (*"**Vas** a dar de alta..."*) e terminava em `usted` (*"si aún no
+ * lo **compró**, **registre** la factura"*). Na ficha do item eram cinco frases em
+ * `usted` e uma em `tú`, na mesma tela.
+ *
+ * O registro escolhido é `tú`, por três razões e nenhuma delas é gosto: é o par do
+ * `você` do português e do `you` do inglês, que são os outros dois idiomas desta mesma
+ * tela; é o que a regra de tom desta casa pede (*"frase curta, verbo na frente, segunda
+ * pessoa"*, orientando em vez de fiscalizar, e `usted` põe distância onde o resto do
+ * aplicativo não põe); e era já a maioria do arquivo, então unificar no outro sentido
+ * seria reescrever o dicionário inteiro para ficar mais formal que o português.
+ *
+ * **O que esta guarda pega, e o que ela NÃO pega — dito, não subentendido.** Ela pega
+ * as duas formas em que `usted` é inequívoco: a palavra em si, e o imperativo formal em
+ * começo de frase. Ela NÃO pega o imperativo formal no meio de uma frase, porque ali
+ * ele é indistinguível do subjuntivo, que é legítimo e está no arquivo — *"a quien lo
+ * **tenga**"*, *"hace que cada persona **vea**"*. Uma guarda que acusasse esses mandaria
+ * consertar o que está certo, que é o defeito do alerta inventado virado para o texto.
+ */
+const IMPERATIVO_DE_USTED = [
+  'Haga', 'Ponga', 'Elija', 'Cuente', 'Registre', 'Escriba', 'Vea', 'Tenga',
+  'Toque', 'Use', 'Ingrese', 'Traiga', 'Vuelva', 'Borre', 'Guarde', 'Anote', 'Deje',
+];
+
+export function tratamentosMisturados(fonte: string): string[] {
+  const achados: string[] = [];
+  for (const linha of fonte.split('\n')) {
+    if (/\busted\b/i.test(linha)) achados.push(`usted: ${linha.trim().slice(0, 70)}`);
+    for (const verbo of IMPERATIVO_DE_USTED) {
+      // Começo de frase: depois da aspa que abre o texto, de um ponto, de um travessão
+      // ou de uma interrogação. É onde o subjuntivo nunca aparece.
+      const re = new RegExp(`(^|['"\`]|\\. |— |\\? |\\+ ')${verbo}\\b`);
+      if (re.test(linha)) achados.push(`${verbo}: ${linha.trim().slice(0, 70)}`);
+    }
+  }
+  return achados;
+}
+
+test('the Spanish speaks to one person, in one way', () => {
+  const es = readFileSync('src/i18n/locales/es.ts', 'utf8');
+  assert.deepEqual(
+    tratamentosMisturados(es),
+    [],
+    'o espanhol voltou a tratar por "usted" em algum lugar. O aplicativo inteiro fala\n' +
+      'por "tú" — é o par do "você" e do "you" das outras duas telas do mesmo dicionário.',
+  );
+});
+
+test('the register ruler tells an order from a subjunctive', () => {
+  // Os casos verdadeiros: a palavra, e o imperativo abrindo a frase.
+  assert.equal(tratamentosMisturados(`      a: 'Esperando por usted',`).length, 1);
+  assert.equal(tratamentosMisturados(`      a: 'Escriba las primeras letras.',`).length, 1);
+  assert.equal(tratamentosMisturados(`      a: 'Falta algo. Traiga la carga de vuelta.',`).length, 1);
+
+  // Os casos falsos, e eles estão no arquivo de verdade: subjuntivo depois de
+  // "quien" e de "hace que" é espanhol correto nos dois tratamentos.
+  assert.deepEqual(tratamentosMisturados(`      a: 'Pídelo a quien lo tenga.',`), []);
+  assert.deepEqual(tratamentosMisturados(`      a: 'hace que cada persona vea solo su perfil',`), []);
+  // E o registro certo não pode ser acusado.
+  assert.deepEqual(tratamentosMisturados(`      a: 'Escribe las primeras letras.',`), []);
+});

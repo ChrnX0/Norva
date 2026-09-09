@@ -117,7 +117,7 @@ export const es: Dictionary = {
       mathNoBase: 'primer día con producción registrada',
       firstDayBody: 'La portada se llena sola conforme la fábrica trabaja: lo que salió hoy, lo que se está acabando, lo que pidieron los clientes.',
       firstDayAction: 'Registrar la primera producción',
-      copyNeverTitle: 'Guarde una copia',
+      copyNeverTitle: 'Guarda una copia',
       copyNeverBody: 'Todo lo que la fábrica registró vive en este aparato. Si se rompe, se va con él.',
       copyOldTitle: 'Su copia tiene {{days}} días',
       copyOldBody: 'Entraron {{movements}} después de ella — eso es lo que se pierde si el aparato desaparece.',
@@ -131,7 +131,7 @@ export const es: Dictionary = {
         },
         estoque: {
           title: 'Cuántos días faltan',
-          body: 'Cuándo se acaba cada insumo, contando el plazo del proveedor y el margen que usted elija.',
+          body: 'Cuándo se acaba cada insumo, contando el plazo del proveedor y el margen que elijas.',
         },
         entregas: {
           title: 'Quién recibe hoy',
@@ -234,7 +234,7 @@ export const es: Dictionary = {
     who: {
       /* La búsqueda, que solo existe cuando la cuadrícula se alarga. */
       search: 'Buscar por el nombre',
-      searchHint: 'Escriba las primeras letras. Con o sin acento, da igual.',
+      searchHint: 'Escribe las primeras letras. Con o sin acento, da igual.',
       searchNone: 'Ningún nombre con eso. Revise las letras.',
       searchOf: '{{shown}} de {{total}} nombres',
       title: 'Quién tiene el aparato',
@@ -259,7 +259,7 @@ export const es: Dictionary = {
       empty: 'Esa tienda no tiene pedido abierto.',
       emptyHint: 'Sin pedido, la carga es reposición — y la pantalla de transferir se encarga.',
       noPlacesTitle: 'Todavía no hay a dónde mandar',
-      noPlacesHint: 'Separar carga necesita un destino. Registre la primera tienda o cliente — lleva un minuto, y después solo se elige aquí.',
+      noPlacesHint: 'Separar carga necesita un destino. Registra la primera tienda o cliente — lleva un minuto, y después solo se elige aquí.',
       noPlacesAction: 'Registrar tienda o cliente',
       ordered: 'pedido {{amount}}',
       alreadySent: 'ya fueron {{amount}} hoy',
@@ -314,7 +314,7 @@ export const es: Dictionary = {
       reverseConfirm: 'Corregir',
       reverseBlocked: 'No se puede corregir: {{items}} ya salió de aquí.',
       reverseBlockedItem: '{{name}} — hay {{held}}, haría falta {{needed}}',
-      reverseBlockedHint: 'Traiga la carga de vuelta primero, y la corrección pasa a valer.',
+      reverseBlockedHint: 'Trae la carga de vuelta primero, y la corrección pasa a valer.',
       reverseAlready: 'Esta corrida ya fue corregida.',
     },
 
@@ -335,9 +335,9 @@ export const es: Dictionary = {
       },
       title: 'Copia de seguridad',
       overline: 'lo que queda si el aparato no queda',
-      lead: 'Todo lo que la fábrica registró vive en este aparato. Guarde una copia.',
+      lead: 'Todo lo que la fábrica registró vive en este aparato. Guarda una copia.',
       never: 'Todavía no ha guardado ninguna copia.',
-      neverHint: 'Una copia es un archivo. Guárdelo donde ya guarda lo que importa — su propio chat, correo, nube.',
+      neverHint: 'Una copia es un archivo. Guárdalo donde ya guardas lo que importa — tu propio chat, correo, nube.',
       lastOne: 'Última copia: {{when}}',
       today: 'hoy',
       yesterday: 'ayer',
@@ -349,14 +349,14 @@ export const es: Dictionary = {
       make: 'Guardar una copia ahora',
       making: 'Preparando la copia…',
       madeTitle: 'Copia lista',
-      madeBody: 'La copia guarda {{movements}} y pesa {{size}}. Ahora elija dónde guardarla.',
+      madeBody: 'La copia guarda {{movements}} y pesa {{size}}. Ahora elige dónde guardarla.',
       share: 'Elegir dónde guardarla',
       inside: 'Lo que va dentro',
       insideBody: 'La copia lleva el libro mayor completo — lo que entró, lo que salió, costos y proveedores. Quien abra el archivo lee todo eso: hoy son {{movements}}.',
       insideBodyEmpty: 'La copia lleva el libro mayor completo — lo que entró, lo que salió, costos y proveedores. Quien abra el archivo lee todo eso.',
       insidePrefs: 'Sus elecciones vienen junto: ciudad del clima, orden de la portada, cómo se entra. En un aparato nuevo es eso lo que lo hace parecer el antiguo.',
       restoreTitle: 'Traer una copia de vuelta',
-      restoreLead: 'Aparato nuevo, o aparato formateado. Elija el archivo de la copia.',
+      restoreLead: 'Aparato nuevo, o aparato formateado. Elige el archivo de la copia.',
       pick: 'Elegir el archivo',
       reading: 'Leyendo la copia…',
       confirmTitle: '¿Traer esta copia de vuelta?',
@@ -481,23 +481,23 @@ export const es: Dictionary = {
       signUp: 'Crear cuenta',
       switchToSignUp: 'Todavía no tengo cuenta',
       switchToSignIn: 'Ya tengo cuenta',
-      checkEmail: 'Cuenta creada. Confírmela con el enlace que llegó a su correo y vuelva aquí para entrar.',
+      checkEmail: 'Cuenta creada. Confírmala con el enlace que llegó a tu correo y vuelve aquí para entrar.',
       companyTitle: 'Su empresa',
       companyBody: 'Falta ponerle nombre. Es el que aparece arriba en la app y en los informes.',
       companyName: 'Nombre de la empresa',
       createCompany: 'Crear la empresa',
       signedInAs: 'Entró como',
       companyIs: 'Empresa',
-      codeTitle: 'El código de su empresa',
+      codeTitle: 'El código de tu empresa',
       codeBody:
         'Dicte estas seis letras a quien vaya a usar la aplicación. Solas no dan acceso a nada: '
-        + 'crean un pedido, y usted decide.',
+        + 'crean un pedido, y tú decides.',
       joinTitle: 'Entrar en una empresa que ya existe',
       joinBody: 'Pida el código de seis letras a quien la administra.',
       joinCode: 'Código',
       joinAsk: 'Pedir entrar',
       joinSent: 'Pedido enviado a {{company}}. Espere que alguien de allí lo apruebe.',
-      waitingTitle: 'Esperando por usted',
+      waitingTitle: 'Esperando por ti',
       waitingNone: 'Nadie pidió entrar.',
       approve: 'Aprobar',
       refuse: 'Rechazar',
@@ -505,7 +505,7 @@ export const es: Dictionary = {
       signOut: 'Salir de la cuenta',
       signOutHint: 'Lo que está guardado en este aparato sigue aquí.',
       /* Ligar el aparato a la empresa: el sello de lo que ya está aquí. */
-      adoptTitle: 'Ligar este aparato a su empresa',
+      adoptTitle: 'Ligar este aparato a tu empresa',
       adoptBody:
         'Lo que ya está en este aparato se anotó antes de que la empresa existiera. '
         + 'Ligar lo pasa todo a {{company}} — los movimientos, los artículos, la gente, los lugares.',
@@ -520,8 +520,8 @@ export const es: Dictionary = {
           + 'Hable conmigo antes de seguir: lo correcto aquí es empezar de nuevo en este aparato.',
         exemploAqui:
           'Este aparato todavía tiene los datos de ejemplo. Nacieron de facturas inventadas, y una '
-          + 'factura inventada no entra en el libro de su fábrica. En Ajustes, borre lo que está aquí '
-          + 'y vuelva — esa pantalla dice exactamente qué sale.',
+          + 'factura inventada no entra en el libro de tu fábrica. En Ajustes, borra lo que está aquí '
+          + 'y vuelve — esa pantalla dice exactamente qué sale.',
         idOcupado:
           'Ya hay algo aquí con el mismo número de esta empresa. Eso pasa cuando se restauró una '
           + 'copia de otro aparato. Hable conmigo antes de seguir.',
@@ -532,7 +532,7 @@ export const es: Dictionary = {
         semRede: 'No se alcanzó el servidor. Revise la conexión e intente de nuevo.',
         credenciais: 'El correo o la contraseña no coinciden.',
         emailEmUso: 'Ya existe una cuenta con este correo. Entre en vez de crear.',
-        senhaFraca: 'La contraseña es muy corta. Use al menos 6 letras o números.',
+        senhaFraca: 'La contraseña es muy corta. Usa al menos 6 letras o números.',
         emailNaoConfirmado: 'Falta confirmar el correo. Busque el enlace que mandó el servidor.',
         codigoNaoConfere: 'Ese código no pertenece a ninguna empresa. Revise las seis letras.',
         desconhecido: 'No funcionó, y el motivo no es uno de los conocidos.',
@@ -574,7 +574,7 @@ export const es: Dictionary = {
     more: {
       title: 'Más',
       overline: 'lo que se abre una vez al mes',
-      ask: { label: 'Pregunte', hint: 'escriba lo que quiere saber' },
+      ask: { label: 'Pregunta', hint: 'escribe lo que quieres saber' },
       groups: {
         registers: 'Registros',
         entries: 'Movimientos',
@@ -772,7 +772,7 @@ export const es: Dictionary = {
       safety: {
         label: 'Cuánta holgura antes de comprar',
         hint:
-          'La app suma esta holgura al plazo que su proveedor tarda de verdad, y avisa ese día. '
+          'La app suma esta holgura al plazo que tu proveedor tarda de verdad, y avisa ese día. '
           + 'Cero sirve para quien compra a la vuelta.',
         none: 'Sin holgura',
         days: { one: '1 día', other: '{{n}} días' },
@@ -926,7 +926,7 @@ export const es: Dictionary = {
       saving: 'Guardando…',
       confirmTitle: '¿Confirmas?',
       confirmNew:
-        'Vas a dar de alta {{name}}, comprado en {{pack}} con {{factor}} {{unit}} por empaque, costando {{price}}. Entra 1 {{pack}} al stock ahora, como la primera factura — si aún no lo compró, registre la factura después en vez de dar de alta con precio.',
+        'Vas a dar de alta {{name}}, comprado en {{pack}} con {{factor}} {{unit}} por empaque, costando {{price}}. Entra 1 {{pack}} al stock ahora, como la primera factura — si aún no lo compraste, registra la factura después en vez de dar de alta con precio.',
       confirmEdit:
         '{{name}} pasa a comprarse en {{pack}}, con {{factor}} {{unit}} por empaque. El costo promedio y el historial de compras no cambian.',
       failedToSave: 'No se pudo guardar',
@@ -954,7 +954,7 @@ export const es: Dictionary = {
       buyNow: 'Compre hoy',
       buyBy: 'Compre hasta {{weekday}}',
       buyWhy:
-        'Quedan {{cover}} de existencia y el proveedor tarda {{lead}}, con {{slack}} de holgura que usted eligió.',
+        'Quedan {{cover}} de existencia y el proveedor tarda {{lead}}, con {{slack}} de holgura que elegiste.',
       buyCalm: 'Todavía no hace falta comprar',
       buyCalmWhy: 'Quedan {{cover}} de existencia, y la cuenta ya considera el plazo del proveedor.',
       leadTimeUnknown:
@@ -980,15 +980,15 @@ export const es: Dictionary = {
       lossFailed: 'No se pudo registrar la pérdida',
       countTitle: 'Verificar el stock',
       countHint:
-        'Cuente lo que hay en el estante y escríbalo aquí. El número que el sistema espera queda oculto hasta que termine: con él en la pantalla, verificar se vuelve copiar.',
+        'Cuenta lo que hay en el estante y escríbelo aquí. El número que el sistema espera queda oculto hasta que termines: con él en la pantalla, verificar se vuelve copiar.',
       countLabel: 'Cuánto hay de verdad',
       countStart: 'Verificar stock',
       countCancel: 'Dejar para después',
       countConfirm: 'Registrar el conteo',
       countConfirmAction: 'Registrar',
-      countHidden: 'oculto mientras usted cuenta',
+      countHidden: 'oculto mientras cuentas',
       entries: 'Últimos registros',
-      entriesHint: 'Toque un registro para deshacerlo. Nada se borra: la corrección entra como línea nueva, y las dos quedan.',
+      entriesHint: 'Toca un registro para deshacerlo. Nada se borra: la corrección entra como línea nueva, y las dos quedan.',
       undone: 'ya corregido',
       undoTitle: '¿Deshacer esta {{what}}?',
       undoBody:
@@ -1000,25 +1000,25 @@ export const es: Dictionary = {
       undoDoneBody: 'Su corrección ya está registrada. No se corrige dos veces.',
       undoBlocked: 'Falta qué devolver',
       undoBlockedBody:
-        'Deshacer esto sacaría del inventario más de lo que hay: {{items}}. Traiga la mercancía de vuelta primero, o registre el recuento de lo que existe.',
+        'Deshacer esto sacaría del inventario más de lo que hay: {{items}}. Trae la mercancía de vuelta primero, o registra el recuento de lo que existe.',
       undoBlockedLine: '{{name}} necesita {{needed}} y tiene {{held}}',
       undoFailed: 'No se pudo deshacer',
       /** Quien tiene el aparato no puede deshacer — la salida es otra persona. Ver pt-BR. */
       undoNotYours: 'Deshacer es de quien administra el stock. Pídelo a quien lo tenga.',
       countRoom: 'Este es el saldo de {{room}}. El recuento es de esa sala.',
       countSpread:
-        'Este artículo está en {{count}} lugares. Se cuenta un lugar por vez — toque el lugar para contar allí.',
+        'Este artículo está en {{count}} lugares. Se cuenta un lugar por vez — toca el lugar para contar allí.',
       countConfirmTitle: '¿Registrar el conteo?',
       countConfirmShort:
-        'Usted contó {{counted}}. El sistema esperaba {{expected}}. Faltan {{diff}}, que valen {{money}}. La diferencia queda registrada y nada se borra.',
+        'Contaste {{counted}}. El sistema esperaba {{expected}}. Faltan {{diff}}, que valen {{money}}. La diferencia queda registrada y nada se borra.',
       countConfirmOver:
-        'Usted contó {{counted}}. El sistema esperaba {{expected}}. Sobran {{diff}}, que valen {{money}}. La diferencia queda registrada y nada se borra.',
+        'Contaste {{counted}}. El sistema esperaba {{expected}}. Sobran {{diff}}, que valen {{money}}. La diferencia queda registrada y nada se borra.',
       countConfirmExact:
-        'Usted contó {{counted}}, exactamente lo que el sistema esperaba. Queda registrado que usted verificó.',
+        'Contaste {{counted}}, exactamente lo que el sistema esperaba. Queda registrado que verificaste.',
       countConfirmShortNoMoney:
-        'Usted contó {{counted}}. El sistema esperaba {{expected}}. Faltan {{diff}}. La diferencia queda registrada y nada se borra.',
+        'Contaste {{counted}}. El sistema esperaba {{expected}}. Faltan {{diff}}. La diferencia queda registrada y nada se borra.',
       countConfirmOverNoMoney:
-        'Usted contó {{counted}}. El sistema esperaba {{expected}}. Sobran {{diff}}. La diferencia queda registrada y nada se borra.',
+        'Contaste {{counted}}. El sistema esperaba {{expected}}. Sobran {{diff}}. La diferencia queda registrada y nada se borra.',
       /** Un recuento en nuestra propia tienda: lo que sali\u00f3 del estante se VENDI\u00d3. Ver pt-BR. */
       countConfirmSold:
         'Contaste {{counted}}. El sistema esperaba {{expected}}. Entonces {{diff}} salieron del estante y entran como venta de {{money}}. \u00bfSe derriti\u00f3 una parte? Registra la p\u00e9rdida antes de contar.',
@@ -1081,7 +1081,7 @@ export const es: Dictionary = {
       inRange: 'dentro del rango',
       editAgreement: 'Acordar entrega',
       rename: 'Renombrar',
-      renameHint: 'El nombre que su equipo usa para este lugar.',
+      renameHint: 'El nombre que tu equipo usa para este lugar.',
       keep: 'Dejar como está',
       onlyAdminEdits: 'Registrar y renombrar lugares es de quien administra la empresa.',
       deliversToday: 'hoy es día de entrega',
