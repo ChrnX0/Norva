@@ -160,15 +160,18 @@ function Briefing() {
       stockItems,
     ] = await Promise.all([
       recentCostChanges(empresaDaqui(), 12),
-      productionOn(empresaDaqui(), today.from, today.to),
-      productionOn(empresaDaqui(), then.from, then.to),
-      productionOn(empresaDaqui(), yesterday.from, yesterday.to),
-      shipmentsOn(empresaDaqui(), today.from, today.to),
-      shipmentsOn(empresaDaqui(), yesterday.from, yesterday.to),
-      openProductionRuns(empresaDaqui()),
+      // A MESMA unidade das vizinhas logo abaixo. Sem isto a manchete contava as
+      // duas cidades e o conselho contava uma, lado a lado na mesma tela — e a régua
+      // mudava no meio sem ninguém dizer.
+      productionOn(empresaDaqui(), today.from, today.to, { unidade: unidadeDaqui() }),
+      productionOn(empresaDaqui(), then.from, then.to, { unidade: unidadeDaqui() }),
+      productionOn(empresaDaqui(), yesterday.from, yesterday.to, { unidade: unidadeDaqui() }),
+      shipmentsOn(empresaDaqui(), today.from, today.to, { unidade: unidadeDaqui() }),
+      shipmentsOn(empresaDaqui(), yesterday.from, yesterday.to, { unidade: unidadeDaqui() }),
+      openProductionRuns(empresaDaqui(), { unidade: unidadeDaqui() }),
       runningOut(empresaDaqui(), lastWeek.from, today.to, 7, 7, { unidade: unidadeDaqui() }),
       stockAgainstOrders(empresaDaqui(), through, unidadeDaqui()),
-      productionBetween(empresaDaqui(), weekAgo.from, today.to),
+      productionBetween(empresaDaqui(), weekAgo.from, today.to, { unidade: unidadeDaqui() }),
       recentRuns(empresaDaqui(), 6, { unidade: unidadeDaqui() }),
       // Sem horizonte: aqui a pergunta não é "o que acaba esta semana" (isso é o
       // cartão de insumo) e sim "quanto tempo o estoque dura", que é o normal
@@ -190,8 +193,8 @@ function Briefing() {
       // já foi ENTREGUE. A unidade é a granularidade que serve às duas: a câmara
       // está dentro dela, a loja do cliente não.
       expiringSoon(empresaDaqui(), trintaDias, 5, { unidade: unidadeDaqui() }),
-      lossesOn(empresaDaqui(), mes.from, today.to),
-      lossesOn(empresaDaqui(), mesAnterior.de.from, mesAnterior.ate.to),
+      lossesOn(empresaDaqui(), mes.from, today.to, { unidade: unidadeDaqui() }),
+      lossesOn(empresaDaqui(), mesAnterior.de.from, mesAnterior.ate.to, { unidade: unidadeDaqui() }),
       listPlaces(empresaDaqui()),
       // Da UNIDADE, não da empresa: o cartão do que está guardado responde "quanto
       // vale o que eu tenho aqui", e somar o almoxarifado da outra cidade daria um

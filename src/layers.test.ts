@@ -1702,3 +1702,131 @@ test('the counted-kind guard bites a hand-written check and spares the ruler bei
     'um rótulo com valor padrão não está decidindo o que prova uma conferência',
   );
 });
+
+/**
+ * Uma tela que recorta uma consulta recorta as IRMÃS dela.
+ *
+ * **A cicatriz é de 9 de setembro e ela sobreviveu a um recorte inteiro.** Em 8 de
+ * setembro dez consultas ganharam escopo, uma a uma, e o trabalho foi conferido
+ * consulta a consulta. No dia seguinte, ao medir se a lista ainda valia, o defeito
+ * apareceu num bloco só de `app/(tabs)/index.tsx`: `runningOut`, `stockAgainstOrders` e
+ * `recentRuns` pediam `{ unidade }`, e `productionOn`, `shipmentsOn`, `productionBetween`
+ * e `openProductionRuns` — vizinhas no mesmo `Promise.all` — não pediam nada.
+ *
+ * Com duas unidades **a manchete da capa contava as duas cidades e o conselho embaixo
+ * dela contava uma**, lado a lado, sem ninguém dizer que a régua mudou no meio. É a mesma
+ * incoerência que a aba de Produção já teve, e ela sobreviveu porque o recorte foi feito
+ * CONSULTA a consulta em vez de TELA a tela.
+ *
+ * A lista das consultas que aceitam escopo é **derivada de `repository.ts`**, e não
+ * escrita aqui: guarda que compara duas coisas escritas pela mesma mão não guarda nada, e
+ * o dia em que a décima primeira nascer ela entra sozinha.
+ */
+export function consultasComEscopo(fonte: string): string[] {
+  const nomes: string[] = [];
+  for (const m of fonte.matchAll(/export async function (\w+)\(/g)) {
+    const i = m.index ?? 0;
+    const j = fonte.indexOf('):', i);
+    if (j > i && fonte.slice(i, j).includes('onde?: Escopo')) nomes.push(m[1]);
+  }
+  return nomes;
+}
+
+/**
+ * O código sem a prosa — porque comentário não é chamada, e a guarda já caiu nisso.
+ *
+ * Na primeira execução ela acusou `app/(tabs)/index.tsx` por `productionOn()` e
+ * `shipmentsOn()` que estavam num DOCBLOCK explicando a tela, com as duas já
+ * recortadas dez linhas abaixo. Guarda que acusa quem obedeceu ensina a desligá-la — e
+ * é o terceiro detector desta casa a tropeçar na mesma pedra em dois dias.
+ */
+function semProsa(texto: string): string {
+  return texto.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+}
+
+/** As chamadas desta tela que NÃO dizem de onde, quando as irmãs dizem. */
+export function granularidadeMisturada(fonte: string, comEscopo: string[]): string[] {
+  const texto = semProsa(fonte);
+  const chamadas: { nome: string; diz: boolean }[] = [];
+  for (const nome of comEscopo) {
+    for (const m of texto.matchAll(new RegExp(`\\b${nome}\\(`, 'g'))) {
+      const args = argumentos(texto, (m.index ?? 0) + nome.length + 1);
+      if (args === null) continue;
+      chamadas.push({ nome, diz: args.some((a) => /\b(sala|unidade)\b/.test(a)) });
+    }
+  }
+  // Uma tela que não recorta NADA está noutro assunto — a lista do almoxarifado lê a
+  // empresa de propósito, e cobrar escopo dela seria inventar defeito. O que esta
+  // guarda pega é a MISTURA: metade recortada, metade não, na mesma tela.
+  if (!chamadas.some((c) => c.diz)) return [];
+  return chamadas.filter((c) => !c.diz).map((c) => `${c.nome}(...)`);
+}
+
+test('a screen that scopes one query scopes its siblings too', () => {
+  const comEscopo = consultasComEscopo(readFileSync('src/data/repository.ts', 'utf8'));
+  assert.ok(comEscopo.length >= 8, `a derivação achou ${comEscopo.length} consultas com escopo`);
+
+  const misturadas: string[] = [];
+  for (const f of sourcesUnder('app')) {
+    for (const chamada of granularidadeMisturada(readFileSync(f, 'utf8'), comEscopo)) {
+      misturadas.push(`${f}: ${chamada}`);
+    }
+  }
+
+  assert.deepEqual(
+    misturadas,
+    [],
+    `estas telas recortam parte das consultas e a outra parte não:\n  ${misturadas.join('\n  ')}\n` +
+      'A manchete passa a contar as duas cidades enquanto o conselho embaixo dela conta ' +
+      'uma — lado a lado, e sem ninguém dizer que a régua mudou no meio.',
+  );
+});
+
+test('the mixed-granularity guard bites a half-scoped screen and leaves the other two alone', () => {
+  const lista = ['runningOut', 'productionOn'];
+
+  // Positivo: metade recortada, metade não. É o defeito exato de 9 de setembro.
+  assert.deepEqual(
+    granularidadeMisturada(
+      'runningOut(co, a, b, 7, 7, { unidade: u });\nproductionOn(co, a, b);',
+      lista,
+    ),
+    ['productionOn(...)'],
+    'a irmã sem escopo tem que reprovar',
+  );
+
+  // Negativo 1: as duas recortadas — o conserto passa.
+  assert.deepEqual(
+    granularidadeMisturada(
+      'runningOut(co, a, b, 7, 7, { unidade: u });\nproductionOn(co, a, b, { unidade: u });',
+      lista,
+    ),
+    [],
+  );
+
+  // Negativo 2, e é ele que impede a guarda de inventar defeito: uma tela que não
+  // recorta NADA está noutro assunto. A lista do almoxarifado lê a empresa de
+  // propósito, e cobrar escopo dela seria alerta inventado — o que ensina a ignorar.
+  assert.deepEqual(granularidadeMisturada('productionOn(co, a, b);', lista), []);
+
+  // Negativo 3: a PROSA. Um docblock que cita as duas não é chamada de nenhuma — e foi
+  // exatamente assim que esta guarda acusou a tela consertada na primeira execução.
+  assert.deepEqual(
+    granularidadeMisturada(
+      '/**\n * Ela junta `productionOn()` e `shipmentsOn()`.\n */\nrunningOut(co, a, b, 7, 7, { unidade: u });',
+      [...lista, 'shipmentsOn'],
+    ),
+    [],
+    'comentário não é chamada',
+  );
+
+  // Negativo 4: a forma condicional, que é como as telas de sala escrevem. Sem isto a
+  // guarda acusaria a ficha do insumo, que está certa.
+  assert.deepEqual(
+    granularidadeMisturada(
+      'runningOut(co, a, b, 7, 7, { unidade: u });\nproductionOn(co, a, b, sala ? { sala } : { unidade: u });',
+      lista,
+    ),
+    [],
+  );
+});

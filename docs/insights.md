@@ -7418,3 +7418,60 @@ destino — e quem usa TalkBack ouviria exatamente isso: dois botões com o mesm
 dizer o que cada um decide. O rótulo passou a carregar a pergunta que responde. **A
 ambiguidade de acessibilidade e a ambiguidade de seletor são o mesmo defeito**, e é por
 isso que o navegador a encontra: ele escolhe alvo do mesmo jeito que um leitor de tela.
+
+## Recorte feito consulta a consulta deixa a TELA incoerente
+
+9 de setembro, achado ao conferir se uma linha do plano ainda valia — não construindo.
+
+Em 8 de setembro dez consultas ganharam escopo de unidade, uma a uma, e cada uma foi
+conferida contra os chamadores dela. O trabalho estava certo e o resultado, não: num
+bloco só de `app/(tabs)/index.tsx`, `runningOut`, `stockAgainstOrders` e `recentRuns`
+pediam `{ unidade }` e as vizinhas do mesmo `Promise.all` — `productionOn`,
+`shipmentsOn`, `productionBetween`, `openProductionRuns` — não pediam nada.
+
+Com duas unidades isso é **a manchete da capa contando duas cidades e o conselho embaixo
+dela contando uma**, lado a lado, sem ninguém dizer que a régua mudou no meio. Nenhum
+número está errado sozinho; o que está errado é a tela.
+
+**A unidade de conferência não é a consulta: é a tela.** Uma consulta se conserta
+olhando os chamadores dela; uma tela se conserta olhando as IRMÃS no mesmo carregamento.
+Isso virou guarda (`granularidadeMisturada`), com a lista de consultas que aceitam escopo
+**derivada de `repository.ts`** — a décima primeira entra sozinha no dia em que nascer.
+
+**E a medição achou o que a prosa não achava:** uma varredura pelas funções que somam
+`movements` sem recorte devolveu catorze, contra as "seis" que o plano afirmava. Doze
+eram legítimas — as médias de custo por decisão escrita, e as que agrupam POR lugar,
+onde o recorte seria redundante. Duas eram o defeito. **Número em documento é cópia, e
+cópia envelhece**; a varredura custou dez segundos.
+
+**A armadilha que quase entrou junto, e ela é a melhor lição desta rodada:**
+`shipmentsOn` seleciona a perna POSITIVA da transferência — a que chega, e ela está na
+LOJA. Recortar `m.location_id` por unidade, como em todas as irmãs, pediria *"cargas cujo
+destino é a nossa unidade"*, que é o conjunto vazio: a capa de Marília mostraria zero
+entregas no dia em que ela entregou trinta. O recorte certo é
+`m.counterpart_location_id`, que `moveBetween` grava nas duas pernas justamente para
+esta pergunta. **Copiar a forma da consulta irmã é o reflexo, e aqui ele daria tela vazia
+com teste verde** — nenhum teste afirma "a capa mostra alguma entrega".
+
+E duas chamadas ficaram na empresa **de propósito**, com a razão escrita ao lado:
+`ordersCoveredToday` (uma loja pode ser servida por qualquer unidade — recortar
+esconderia a carga da outra cidade e mandaria carregar de novo) e a busca por id dentro
+de `closeProductionRun`. Fronteira dita em voz alta continua sendo fronteira, e a regra
+desta casa é fechar o buraco ou corrigir a promessa; aqui a promessa é que elas são da
+empresa, e é verdade.
+
+## Três detectores tropeçaram na mesma pedra em dois dias: comentário não é código
+
+8 e 9 de setembro. A guarda do vocabulário acusou o docblock que a explicava. A do
+seletor acusou um comentário de JSX cujas linhas seguintes começam em texto puro. A da
+granularidade acusou um docblock que citava `productionOn()` e `shipmentsOn()` com as
+duas já recortadas dez linhas abaixo.
+
+Nas três o sintoma foi o pior possível: **a guarda reprovou quem obedeceu.** Guarda que
+grita no lugar errado não é rigor — é a que se desliga, e uma guarda desligada protege
+menos que nenhuma, porque ainda parece que protege.
+
+A régua que sai é chata e é curta: **todo detector que varre FONTE tira a prosa antes de
+contar.** Comentário existe para explicar por que a palavra saiu, e uma régua que não
+distingue os dois transforma a explicação em defeito. Está escrito nas três; a próxima
+que nascer já começa com o negativo da prosa entre os testes.

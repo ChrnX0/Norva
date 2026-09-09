@@ -43,8 +43,11 @@ export function liveData(companyId: string, timeZone: string): AssistantData {
     // conferência da outra cidade é pior aqui que numa tela.
     itemMovements: (itemId, limit) =>
       itemMovements(companyId, itemId, limit, { unidade: unidadeDaqui() }),
-    productionOn: (from, to) => productionOn(companyId, from, to),
-    lossesOn: (from, to) => lossesOn(companyId, from, to),
+    // A unidade deste aparelho, como as telas. O assistente responde por FRASE, e
+    // frase afirmativa não tem como dizer de onde o número veio: *"a fábrica fez 900
+    // hoje"* com as duas cidades somadas passa como fato, e quem ouve decide com ele.
+    productionOn: (from, to) => productionOn(companyId, from, to, { unidade: unidadeDaqui() }),
+    lossesOn: (from, to) => lossesOn(companyId, from, to, { unidade: unidadeDaqui() }),
     recordPurchase: (input) => recordPurchase(companyId, input),
     // O assistente conta a prateleira do lugar padrão, e a habilidade só chega
     // aqui depois de conferir que o item está num lugar só - com o item em duas

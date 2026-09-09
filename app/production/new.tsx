@@ -144,7 +144,7 @@ function Production() {
         ),
       ),
       loadLabels(empresaDaqui()),
-      openProductionRuns(empresaDaqui()),
+      openProductionRuns(empresaDaqui(), { unidade: unidadeDaqui() }),
       stockByPlace(empresaDaqui()),
     ]);
     return { products: products.filter((p) => p.recipeId), graph, items, names, runs, stock };

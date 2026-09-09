@@ -91,8 +91,8 @@ function ReportIndex() {
         unidade: unidadeDaqui(),
       }),
       recentRuns(empresaDaqui(), 8, { unidade: unidadeDaqui() }),
-      lossesOn(empresaDaqui(), trintaDias.from, hoje.to),
-      lossesOn(empresaDaqui(), anterior.de.from, anterior.ate.to),
+      lossesOn(empresaDaqui(), trintaDias.from, hoje.to, { unidade: unidadeDaqui() }),
+      lossesOn(empresaDaqui(), anterior.de.from, anterior.ate.to, { unidade: unidadeDaqui() }),
       canSeeMoney(empresaDaqui()),
     ]);
     return { lugares, cobertura, corridas, mes, mesAnterior, dinheiro };

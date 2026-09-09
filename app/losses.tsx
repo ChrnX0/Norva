@@ -10,6 +10,7 @@ import { Reveal } from '@/components/Reveal';
 import { nowIso } from '@/data/db';
 import { canSeeMoney, lossesOn, type LossRow } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
+import { unidadeDaqui } from '@/data/unidade';
 import { useQuery } from '@/data/useQuery';
 import type { Cents } from '@/domain/money';
 import { dayWindow } from '@/domain/day';
@@ -78,8 +79,8 @@ function WhatWasLost() {
     const antesInicio = dayWindow(nowIso(), locale.timeZone, -59);
     const antesFim = dayWindow(nowIso(), locale.timeZone, -30);
     const [agora, antes] = await Promise.all([
-      lossesOn(empresaDaqui(), inicio.from, hoje.to),
-      lossesOn(empresaDaqui(), antesInicio.from, antesFim.to),
+      lossesOn(empresaDaqui(), inicio.from, hoje.to, { unidade: unidadeDaqui() }),
+      lossesOn(empresaDaqui(), antesInicio.from, antesFim.to, { unidade: unidadeDaqui() }),
     ]);
     return { agora, antes, dinheiro: await canSeeMoney(empresaDaqui()) };
   });

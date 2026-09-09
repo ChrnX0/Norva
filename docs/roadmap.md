@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **560** testes |
+| `npm test` | **562** testes |
 | `npm run mutate` | **121** defeitos plantados; 2 equivalentes conhecidos |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **23** garantias contra um Postgres descartável, sob RLS |
@@ -482,7 +482,7 @@ O que ficou, com o que cada uma custou:
 |---|---|---|
 | ~~`stockAgainstOrders`~~ **FEITA em 8 de setembro** | era a pior. A unidade agora é parâmetro **obrigatório** — leitor de saldo com lugar opcional é leitor que erra calado, a mesma lição do `recordLoss`. Conta a unidade e o que está DENTRO dela, e o atalho de compatibilidade faz sala INTERNA sem pai pertencer à primeira unidade, espelhando o `WHERE` do backfill: sem isso um teste desta suíte viu **20 no lugar de 170** | os três chamadores passam `unidadeDaqui()` |
 | ~~`listItems` / `findItem`~~ **FEITAS em 8 de setembro** | o parâmetro passou a ser `{ sala }` OU `{ unidade }`, e são duas perguntas diferentes: a sala é a prateleira exata, a unidade é ela **mais as salas dentro dela**. Um campo só faria a unidade somar apenas o pátio e deixar a câmara fria de fora — o defeito de somar de MENOS, que é o mais calado porque um número menor parece prudente. Capa, ficha de insumo, produção, insumos e avisos passaram a pedir a unidade; **a compra continua da empresa**, por decisão escrita de 1 de setembro — é ela que alimenta a média móvel do custo, e o mesmo grama de açúcar não custa uma coisa em cada sala |
-| `runningOut` (`:4818`) / `dailyOutflowOf` (`:4782`) | pior que somar junto: no modo empresa a linha `:4869` DESCARTA transferência como saída, então mandar insumo de A para B deixa de contar como consumo de A e a cobertura de A fica infinita | capa (duas), relatórios, avisos |
+| ~~`runningOut` / `dailyOutflowOf`~~ **FEITAS em 8 de setembro** | eram piores que somar junto: no modo empresa a regra DESCARTA transferência como saída, então mandar insumo de A para B deixava de contar como consumo de A e a cobertura de A ficava infinita. Hoje a regra é *"o par está DENTRO do escopo?"* — transferência interna não conta, a que sai conta —, e as **sete** chamadas passam `{ sala }` ou `{ unidade }`. Conferido chamada por chamada em 9 de setembro, porque esta linha continuou dando o item como aberto depois de ele fechar |
 | ~~`expiringSoon`~~ **FEITA em 8 de setembro** | e ela resolveu uma **contradição escrita em dois lugares**: o docblock da consulta dizia que somar a empresa avisa sobre lote já ENTREGUE, o comentário da capa dizia que filtrar por sala EMUDECE o aviso quando o picolé vai para a câmara. Os dois certos sobre a falha do outro — a unidade é a granularidade que serve às duas |
 | ~~`itemMovements`~~ **FEITA em 8 de setembro** | mesma forma `{ sala } \| { unidade }`. O caminho do assistente é o pior dos dois: ele responde por FRASE, e frase afirmativa não tem como dizer de onde veio — *"conferido em 3/9"* com a conferência da outra cidade passa como fato |
 | ~~`recentRuns` / `lotsOn`~~ **FEITAS em 8 de setembro** | recortadas pela PRODUÇÃO, que é onde o lote tem lugar. E a aba de Produção era incoerente com ela mesma: a régua de acabar já se recortava pela unidade enquanto a lista de lotes era da empresa |
@@ -491,6 +491,32 @@ O que ficou, com o que cada uma custou:
 E duas que **não** mudam, por decisão de 1 de setembro: as médias móveis de custo
 (`:412` e `:2033`) continuam da empresa, porque *"o mesmo grama de açúcar não custa uma
 coisa na câmara e outra no almoxarifado"*.
+
+### ~~A capa mistura duas granularidades na mesma tela~~ — achada e FECHADA em 9 de setembro
+
+<!-- medida: presente app/(tabs)/index.tsx :: today\.to, \{ unidade -->
+
+**Achado ao conferir se a linha acima ainda valia.** Uma varredura pelas consultas que
+somam `movements` sem recorte de lugar devolveu **catorze** funções; a maioria é
+legítima (as médias de custo por decisão escrita, e as que agrupam POR lugar, onde o
+recorte seria redundante). Sobraram cinco que respondem *"o que aconteceu aqui"* e
+somam a empresa: `productionOn`, `productionBetween`, `shipmentsOn`,
+`openProductionRuns` e `lossesOn`.
+
+O sintoma está num bloco só, e dá para ver a olho em `app/(tabs)/index.tsx:160-178`:
+`runningOut`, `stockAgainstOrders` e `recentRuns` pedem `{ unidade: unidadeDaqui() }`,
+e as vizinhas na mesma lista não pedem nada. **Com duas unidades a manchete da capa
+conta as duas cidades e o conselho embaixo dela conta uma** — lado a lado, sem
+ninguém dizer que a régua mudou no meio.
+
+É a mesma incoerência que a aba de Produção já teve (a régua de acabar recortada pela
+unidade enquanto a lista de lotes era da empresa), e ela sobreviveu porque o recorte
+foi feito consulta a consulta em vez de TELA a tela. A régua que sai: quando uma tela
+ganha escopo, o que se confere depois não é a consulta consertada — é a **lista de
+irmãs no mesmo `Promise.all`**.
+
+Rendimento continua sem lugar (é do lote, e o `findLot` já foi absolvido por isso);
+*"o que esta fábrica fez hoje"* tem lugar, e é o da unidade.
 
 ~~**E um defeito que o mapa achou de passagem, ativo HOJE com uma unidade só**~~ —
 **CONSERTADO em 8 de setembro.** `app/inputs/[id].tsx` gravava perda sem passar

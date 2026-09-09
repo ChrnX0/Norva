@@ -175,7 +175,18 @@ type ColunaDeLugar =
   | 'm.location_id'
   | 'm.counterpart_location_id'
   | 'location_id'
-  | 'counterpart_location_id';
+  | 'counterpart_location_id'
+  /**
+   * `production_runs r` — e ela entra na LISTA em vez de um `replace` no texto pronto.
+   *
+   * A primeira versão fazia `recorte.sql.replace(/location_id/g, 'r.location_id')`, o
+   * que compila e produz SQL inválido: o texto de `noEscopo` também contém
+   * `esc.parent_location_id`, que viraria `esc.parent_r.location_id`. O typecheck não
+   * vê — é uma string — e a consulta só quebra no aparelho, na tela que ela alimenta.
+   *
+   * Nome novo aqui compila ou não compila, que é o ponto inteiro deste tipo.
+   */
+  | 'r.location_id';
 
 /**
  * O recorte como texto de SQL e os parâmetros dele — escrito UMA vez.
@@ -3381,8 +3392,11 @@ export async function lossesOn(
   companyId: string,
   fromIso: string,
   toIso: string,
+  /** Onde a perda aconteceu. Sem escopo, a empresa — e a tela de perdas é da unidade. */
+  onde?: Escopo,
 ): Promise<LossRow[]> {
   const conn = await db();
+  const recorteDaPerda = noEscopo('m.location_id', onde);
   /**
    * A ORDEM continua saindo do dinheiro, e isso é de propósito.
    *
@@ -3412,9 +3426,10 @@ export async function lossesOn(
         AND m.kind = 'loss'
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
+        AND ${recorteDaPerda.sql}
         AND ${NAO_ESTORNADO}
       ORDER BY ABS(m.quantity_base_units * COALESCE(m.unit_cost_rate, 0)) DESC`,
-    [companyId, fromIso, toIso],
+    [companyId, fromIso, toIso, ...recorteDaPerda.params],
   );
 
   return rows.map((r) => ({
@@ -3507,8 +3522,19 @@ export async function openProductionRun(
 }
 
 /** Os tachos rodando agora. Vazio é o estado normal de uma fábrica parada. */
-export async function openProductionRuns(companyId: string): Promise<OpenRun[]> {
+export async function openProductionRuns(
+  companyId: string,
+  /**
+   * Qual unidade tem corrida aberta — e o `ColunaDeLugar` sem prefixo é para esta.
+   *
+   * A tabela é `production_runs` e não `movements`, mas a pergunta é a mesma e a régua
+   * também: um tacho aberto em Bauru não é notícia na capa de Marília, e a fumaça da
+   * cena subiria na cidade errada.
+   */
+  onde?: Escopo,
+): Promise<OpenRun[]> {
   const conn = await db();
+  const recorte = noEscopo('r.location_id', onde);
   const rows = await conn.getAllAsync<{
     id: string;
     product_id: string;
@@ -3525,8 +3551,9 @@ export async function openProductionRuns(companyId: string): Promise<OpenRun[]> 
        JOIN products p ON p.id = r.product_id
        JOIN items i ON i.id = p.item_id
       WHERE r.company_id = ?
+        AND ${recorte.sql}
       ORDER BY r.opened_at`,
-    [companyId],
+    [companyId, ...recorte.params],
   );
 
   return rows.map((r) => ({
@@ -3582,6 +3609,9 @@ export async function closeProductionRun(
     assistantPhrase?: string;
   },
 ): Promise<ProductionResult> {
+  // SEM unidade: isto é busca por id, não listagem. A corrida chega pelo id que a tela
+  // já obteve de uma lista recortada; recortar de novo aqui só criaria um caminho em
+  // que fechar uma corrida falha por o aparelho ter trocado de unidade no meio.
   const run = (await openProductionRuns(companyId)).find((r) => r.id === input.runId);
   if (!run) throw new RunGoneError(input.runId);
 
@@ -3751,8 +3781,19 @@ export async function productionOn(
   companyId: string,
   fromIso: string,
   toIso: string,
+  /**
+   * De onde é a pergunta. Sem escopo, a empresa inteira — e é isso que estava errado.
+   *
+   * *"O que esta fábrica fez hoje"* TEM lugar, e o lugar é a unidade. Com duas
+   * unidades a manchete da capa contava as duas cidades enquanto o conselho logo
+   * abaixo dela contava uma só, lado a lado, sem ninguém dizer que a régua mudou no
+   * meio. Rendimento é que não tem lugar — mas rendimento é do lote, e é outra
+   * pergunta.
+   */
+  onde?: Escopo,
 ): Promise<ProducedInWindow[]> {
   const conn = await db();
+  const recorte = noEscopo('m.location_id', onde);
   const rows = await conn.getAllAsync<{ item_id: string; name: string; total: number }>(
     `SELECT m.item_id, i.name, SUM(m.quantity_base_units) AS total
        FROM movements m
@@ -3761,11 +3802,12 @@ export async function productionOn(
         AND m.kind = 'production'
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
+        AND ${recorte.sql}
         AND ${NAO_ESTORNADO}
       GROUP BY m.item_id, i.name
       HAVING total > 0
       ORDER BY total DESC`,
-    [companyId, fromIso, toIso],
+    [companyId, fromIso, toIso, ...recorte.params],
   );
 
   return rows.map((r) => ({ itemId: r.item_id, name: r.name, baseUnits: r.total }));
@@ -3787,8 +3829,11 @@ export async function productionBetween(
   companyId: string,
   fromIso: string,
   toIso: string,
+  /** A mesma pergunta de `productionOn`, e por isso o mesmo escopo. */
+  onde?: Escopo,
 ): Promise<{ occurredAt: string; baseUnits: number }[]> {
   const conn = await db();
+  const recorte = noEscopo('m.location_id', onde);
   const rows = await conn.getAllAsync<{ occurred_at: string; quantity_base_units: number }>(
     `SELECT occurred_at, quantity_base_units
        FROM movements m
@@ -3796,9 +3841,10 @@ export async function productionBetween(
         AND kind = 'production'
         AND occurred_at >= ?
         AND occurred_at < ?
+        AND ${recorte.sql}
         AND ${NAO_ESTORNADO}
       ORDER BY occurred_at`,
-    [companyId, fromIso, toIso],
+    [companyId, fromIso, toIso, ...recorte.params],
   );
 
   return rows.map((r) => ({ occurredAt: r.occurred_at, baseUnits: r.quantity_base_units }));
@@ -4586,8 +4632,23 @@ export async function shipmentsOn(
   companyId: string,
   fromIso: string,
   toIso: string,
+  /**
+   * De qual unidade saiu a carga — e o recorte é na CONTRAPARTE, não em `location_id`.
+   *
+   * **Isto é o oposto de todas as outras desta família, e recortar pela coluna de
+   * sempre devolveria tela vazia.** A consulta escolhe a perna POSITIVA
+   * (`quantity_base_units > 0`), que é a que chega — e ela está na LOJA. Quem responde
+   * *"de onde isto saiu"* é `counterpart_location_id`, que `moveBetween` grava nas duas
+   * pernas justamente para esta pergunta.
+   *
+   * Sem esta distinção o recorte por unidade pediria "cargas cujo destino é a nossa
+   * unidade", que é o conjunto vazio: a capa da fábrica de Marília mostraria zero
+   * entregas no dia em que ela entregou trinta.
+   */
+  onde?: Escopo,
 ): Promise<Shipment[]> {
   const conn = await db();
+  const deOndeSaiu = noEscopo('m.counterpart_location_id', onde);
   const rows = await conn.getAllAsync<{
     location_id: string;
     location_name: string;
@@ -4623,12 +4684,13 @@ export async function shipmentsOn(
         AND m.quantity_base_units > 0
         AND m.occurred_at >= ?
         AND m.occurred_at < ?
+        AND ${deOndeSaiu.sql}
         AND ${NAO_ESTORNADO}
       GROUP BY m.movement_group_id, m.location_id, l.name, l.kind, m.item_id, i.name, i.base_unit,
                i.packaging, t.name
       HAVING total > 0
       ORDER BY l.name, total DESC`,
-    [companyId, fromIso, toIso],
+    [companyId, fromIso, toIso, ...deOndeSaiu.params],
   );
 
   const byPlace = new Map<string, Shipment>();
@@ -6280,6 +6342,10 @@ export async function ordersCoveredToday(
   const daLoja = abertos.filter((o) => o.placeId === placeId);
   if (daLoja.length === 0) return [];
 
+  // SEM unidade, e é decisão e não esquecimento: a pergunta é *"esta loja já recebeu
+  // hoje?"*, e uma loja pode ser servida por qualquer unidade. Recortar por unidade
+  // esconderia a carga que saiu da outra cidade e mandaria carregar de novo — o
+  // defeito de somar de MENOS, que aqui vira mercadoria duplicada na prateleira.
   const remessas = await shipmentsOn(companyId, dayFromIso, dayToIso);
   const enviadoHoje = new Map<string, number>();
   for (const destino of remessas.filter((r) => r.locationId === placeId)) {

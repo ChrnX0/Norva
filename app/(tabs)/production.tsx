@@ -146,9 +146,9 @@ function ProductionDay() {
     // mesma doença de avisar tarde — ensina a ignorar.
     const semana = dayWindow(nowIso(), locale.timeZone, -6);
     const [today, yesterday, runs, lots, acabando] = await Promise.all([
-      productionOn(empresaDaqui(), hoje.from, hoje.to),
-      productionOn(empresaDaqui(), ontem.from, ontem.to),
-      openProductionRuns(empresaDaqui()),
+      productionOn(empresaDaqui(), hoje.from, hoje.to, { unidade: unidadeDaqui() }),
+      productionOn(empresaDaqui(), ontem.from, ontem.to, { unidade: unidadeDaqui() }),
+      openProductionRuns(empresaDaqui(), { unidade: unidadeDaqui() }),
       // Da UNIDADE, e isto conserta uma incoerência da PRÓPRIA tela: a régua de
       // acabar logo abaixo já se recortava pela unidade enquanto esta lista era da
       // empresa. Dois cartões falando de fábricas diferentes na mesma rolagem.
