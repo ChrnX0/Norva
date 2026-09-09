@@ -1798,8 +1798,21 @@ test('a screen that scopes one query scopes its siblings too', () => {
   const comEscopo = consultasComEscopo(readFileSync('src/data/repository.ts', 'utf8'));
   assert.ok(comEscopo.length >= 8, `a derivação achou ${comEscopo.length} consultas com escopo`);
 
+  // **`src/` também, e é onde a mistura viva estava.**
+  //
+  // A varredura olhava só `app/`, e a ligação do assistente (`src/data/assistantData.ts`)
+  // é um chamador como qualquer tela — só que sem tela. Ela recortava `itemMovements`,
+  // `productionOn` e `lossesOn` pela unidade e deixava `listItems` na empresa: o
+  // assistente respondia 50.000 g onde a tela irmã dizia 20.000, e a contagem falada
+  // comparava com esse total e gravava a diferença numa sala. A guarda existia, a
+  // regra estava escrita, e o arquivo não era lido.
   const misturadas: string[] = [];
-  for (const f of sourcesUnder('app')) {
+  for (const f of [...sourcesUnder('app'), ...sourcesUnder('src')]) {
+    // O arquivo onde as consultas MORAM não é chamador delas: ele as declara, as
+    // chama entre si, e o recorte de cada uma é o assunto dele. Cobrar coerência de
+    // escopo aqui é acusar quem obedeceu — o mesmo defeito que a prosa já causou
+    // nesta guarda uma vez.
+    if (f.endsWith('src/data/repository.ts')) continue;
     for (const chamada of granularidadeMisturada(readFileSync(f, 'utf8'), comEscopo)) {
       misturadas.push(`${f}: ${chamada}`);
     }

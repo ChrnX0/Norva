@@ -92,6 +92,17 @@ export type AssistantData = {
   recordCount(input: {
     itemId: string;
     countedBaseUnits: number;
+    /**
+     * QUAL sala foi contada — e ela vem de quem fez a pergunta.
+     *
+     * A ligação injetava a unidade do aparelho e a habilidade comparava com o saldo
+     * da EMPRESA: com o açúcar só na câmara fria, o rascunho prometia *"faltam 25.000
+     * g"* e o razão recebia um ajuste que SOMAVA — porque o esperado no lugar onde a
+     * escrita olha era zero. A confirmação e o livro falavam de lugares diferentes.
+     *
+     * Nulo cai no padrão, que é o caso da fábrica de uma sala só.
+     */
+    locationId?: string | null;
     assistantPhrase?: string;
   }): Promise<unknown>;
   /** Creates an input from a conversation. Same function the cadastro screen calls. */

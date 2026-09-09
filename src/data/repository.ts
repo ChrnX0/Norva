@@ -311,7 +311,7 @@ export async function listItems(
    * Ausente continua sendo a empresa inteira, e isso é resposta certa para tela de
    * catálogo e de relatório, onde a pergunta é sobre o que a EMPRESA tem.
    */
-  onde?: { sala: string } | { unidade: string },
+  onde?: Escopo,
 ): Promise<ItemWithCost[]> {
   const conn = await db();
   /**
@@ -1800,7 +1800,7 @@ export async function itemMovements(
    * cidade — e é pior que na tela, porque a resposta chega como uma frase afirmativa
    * sem nada dizendo de onde ela veio.
    */
-  onde?: { sala: string } | { unidade: string },
+  onde?: Escopo,
 ): Promise<MovementRow[]> {
   const conn = await db();
   /**
@@ -5237,7 +5237,7 @@ export async function findItem(
    * prateleira TELEPORTAVA estoque: a diferença saía de um número maior e era
    * gravada num lugar menor, com o operador tendo feito tudo certo.
    */
-  onde?: { sala: string } | { unidade: string },
+  onde?: Escopo,
 ): Promise<ItemWithCost | null> {
   // Includes the inactive: the screen that offers to reactivate an item has to
   // be able to open it.

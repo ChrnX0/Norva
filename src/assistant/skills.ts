@@ -592,7 +592,24 @@ const registerCount: Skill = {
 
     const factor = item.purchaseToBase ?? 1;
     const countedBaseUnits = Math.round(packs * factor);
-    const expected = item.onHandBaseUnits;
+
+    /**
+     * O esperado sai do LUGAR que vai ser contado, não do total do item.
+     *
+     * Vinha de `item.onHandBaseUnits`, e a escrita comparava com o saldo da sala:
+     * com o açúcar só na câmara fria, o rascunho prometia *"faltam 25.000 g"* e o
+     * razão recebia um ajuste que SOMAVA 25.000, porque o esperado onde a escrita
+     * olha era zero. A confirmação e o livro falavam de lugares diferentes — e a
+     * pessoa disse sim para a frase, não para a linha.
+     *
+     * Com o item num lugar só, esse lugar é a resposta: comparar e gravar ali faz a
+     * promessa e o razão serem a mesma conta. Sem lugar nenhum (item novo, saldo
+     * zero) fica o padrão, onde a diferença parte de zero de qualquer jeito.
+     */
+    const onde = holding.length === 1 ? holding[0] : null;
+    const expected = onde
+      ? (onde.lines.find((line) => line.itemId === item.id)?.baseUnits ?? 0)
+      : item.onHandBaseUnits;
     const delta = countedBaseUnits - expected;
 
     const asWords = (n: number) => `${formatQuantity(n, ctx.locale)} ${item.baseUnit}`;
@@ -622,6 +639,7 @@ const registerCount: Skill = {
         apply: async () => {
           await ctx.data.recordCount({
             itemId: item.id,
+            locationId: onde?.locationId ?? null,
             countedBaseUnits,
             assistantPhrase: ctx.question,
           });

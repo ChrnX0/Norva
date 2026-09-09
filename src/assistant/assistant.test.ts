@@ -452,6 +452,14 @@ test('counting by talking fills a form and stops, whatever the difference', asyn
   assert.deepEqual(recorded, [
     {
       itemId: 'pulp',
+      // **O LUGAR vai junto agora, e aqui ele é nulo — que é uma resposta.**
+      //
+      // Este mundo de teste não lista a polpa em prateleira nenhuma, então a
+      // habilidade não tem sala para nomear e deixa a ligação cair no padrão. O caso
+      // que importa — insumo numa sala que NÃO é a do aparelho — é o teste seguinte,
+      // e ele não existia: o dublê punha o açúcar em dois lugares (só o galho do
+      // "conte um lugar por vez" era exercitado) e a polpa em nenhum.
+      locationId: null,
       countedBaseUnits: 30_000,
       // A count corrected by talking carries the words that corrected it. The
       // difference the ledger keeps is only defensible if somebody can see
@@ -459,6 +467,74 @@ test('counting by talking fills a form and stops, whatever the difference', asyn
       assistantPhrase: 'contei 3 baldes de polpa de morango',
     },
   ]);
+});
+
+/**
+ * O insumo que mora numa sala que NÃO é a do aparelho.
+ *
+ * Este é o caso que a suíte não tinha: o dublê punha o açúcar em dois lugares (só o
+ * galho do "conte um lugar por vez" era exercitado) e a polpa numa sala igual à do
+ * aparelho, onde o defeito não aparece. Com a polpa na câmara fria, comparar pelo
+ * total do item e gravar contra a unidade dava um ajuste do tamanho da sala inteira,
+ * com o sinal invertido.
+ *
+ * A asserção é o par: o número do rascunho e o lugar da escrita saem do MESMO lugar.
+ */
+test('contar falando compara e grava no lugar onde o insumo está, não onde o aparelho está', async () => {
+  recorded = [];
+
+  const camara: PlaceStock = {
+    locationId: 'cold',
+    locationName: 'Câmara fria',
+    kind: 'cold_room',
+    valueCents: 0 as Cents,
+    lines: [
+      {
+        itemId: 'pulp',
+        name: 'Polpa de morango',
+        kind: 'input',
+        // **25.000 e não 40.000, de propósito.** O total do item no dublê é 40.000;
+        // se a sala tivesse o mesmo número, as duas fontes concordariam e o teste
+        // não saberia dizer de qual delas o rascunho leu — que é a cicatriz escrita
+        // nesta casa sobre segunda fonte derivada da primeira.
+        baseUnits: 25_000,
+        baseUnit: 'g',
+        valueCents: 0 as Cents,
+      },
+    ],
+  };
+
+  const mundo: AssistantData = {
+    ...data,
+    stockByPlace: async () => [camara],
+  };
+
+  const r = await ask('contei 3 baldes de polpa de morango', {
+    ...context('adjust_stock'),
+    data: mundo,
+  });
+  assert.ok(r.draft, 'um insumo num lugar só continua contável falando');
+  // Contou 30.000. A câmara tem 25.000, então SOBRAM 5.000. Pelo total do item
+  // (40.000) faltariam 10.000 — sinal trocado e tamanho diferente, que é o defeito.
+  assert.match(
+    r.draft.summary,
+    /Estão sobrando 5\.000 g/,
+    'a diferença é contra a câmara, que é onde a polpa está',
+  );
+
+  await r.draft.apply();
+  assert.deepEqual(
+    recorded,
+    [
+      {
+        itemId: 'pulp',
+        locationId: 'cold',
+        countedBaseUnits: 30_000,
+        assistantPhrase: 'contei 3 baldes de polpa de morango',
+      },
+    ],
+    'e a escrita vai para a MESMA sala com que o rascunho comparou',
+  );
 });
 
 test('an item split between two rooms is not counted by talking, it is located', async () => {
