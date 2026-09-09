@@ -33,6 +33,7 @@ import {
   itemHistory,
   itemMovements,
   planReversal,
+  recipeThatMakes,
   recipesUsingItem,
   reverseGroup,
   SemPermissaoError,
@@ -99,6 +100,21 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * almoxarifado — o cabeçalho e o botão agora concordam com a lista de onde esta
  * tela é aberta.
  */
+/**
+ * A área é MINT mesmo quando o item é um picolé — e isso é decisão do aplicativo,
+ * não descuido.
+ *
+ * Esta tela é a página de ESTOQUE de um item: saldo, contagem, perda, histórico.
+ * O `docs/linguagem.md` e o `AREA_DO_GLIFO` já dizem que estoque é verde, e o
+ * picolé pronto não é exceção — `GlyphStick` está listado em `mint` junto com o
+ * saco e o balde. Eu cheguei a pintar esta tela de laranja quando ela passou a
+ * receber produto, e o guarda da assinatura recusou com o argumento certo: **o
+ * desenho carrega o tom do ASSUNTO, não o da tela em que mora.** Contar picolé é
+ * estoque, venha a pessoa da lista de produtos ou da de insumos.
+ *
+ * O que muda com a espécie é o CONTEÚDO, e ele vem do dado: um produto feito
+ * aqui não tem fornecedor, então "Como você compra" dá lugar a "Como é feito".
+ */
 export default function InputDetailScreen() {
   return (
     <AreaProvider area="mint">
@@ -111,6 +127,8 @@ type Loaded = {
   item: ItemWithCost | null;
   history: PriceMoveRow[];
   recipes: { id: string; name: string; quantity: number }[];
+  /** A ficha que FAZ este item, quando ele é produto feito aqui. */
+  fichaQueFaz: { id: string; name: string } | null;
   movements: MovementRow[];
   /** Onde este item está, sala por sala. Vazio é "não está em lugar nenhum". */
   spread: LocationBalance[];
@@ -164,8 +182,8 @@ function InputDetail() {
   const { data, loading, refresh } = useQuery<Loaded>(async () => {
     if (!id)
       return {
-        item: null, history: [], recipes: [], movements: [], spread: [], places: [],
-        entregas: [], dinheiro: false, saiPorDia: 0, agora: '',
+        item: null, history: [], recipes: [], fichaQueFaz: null, movements: [],
+        spread: [], places: [], entregas: [], dinheiro: false, saiPorDia: 0, agora: '',
       };
 
     // Os lugares vêm primeiro porque a sala da rota tem de ser conferida contra
@@ -183,7 +201,7 @@ function InputDetail() {
     // diferentes para o mesmo insumo.
     const hoje = dayWindow(nowIso(), locale.timeZone);
     const semanaAtras = dayWindow(nowIso(), locale.timeZone, -7);
-    const [item, history, recipes, movements, spread, entregas, dinheiro, saiPorDia] = await Promise.all([
+    const [item, history, recipes, fichaQueFaz, movements, spread, entregas, dinheiro, saiPorDia] = await Promise.all([
       // `room` é a sala aberta na rota, quando há uma. Sem sala, o saldo é da
       // UNIDADE deste aparelho e não da empresa: quem abre a ficha de um insumo
       // quer saber quanto tem aqui, e somar a outra cidade daria um número que
@@ -191,6 +209,9 @@ function InputDetail() {
       findItem(empresaDaqui(), id, room ? { sala: room } : { unidade: unidadeDaqui() }),
       itemHistory(empresaDaqui(), id),
       recipesUsingItem(empresaDaqui(), id),
+      // A pergunta espelhada: quem FAZ isto. Nula para insumo e para revenda, e
+      // é ela que decide se a tela oferece a ficha ou a compra.
+      recipeThatMakes(empresaDaqui(), id),
       itemMovements(empresaDaqui(), id, 20, room ? { sala: room } : { unidade: unidadeDaqui() }),
       balanceByLocation(empresaDaqui(), id),
       // As notas que dizem quanto o fornecedor demorou. Sem portão: são dias, não
@@ -214,8 +235,8 @@ function InputDetail() {
       ),
     ]);
     return {
-      item, history, recipes, movements, spread, places, entregas, dinheiro, saiPorDia,
-      agora: hoje.from,
+      item, history, recipes, fichaQueFaz, movements, spread, places, entregas,
+      dinheiro, saiPorDia, agora: hoje.from,
     };
   }, `${id ?? ''}|${sala ?? ''}`);
 
@@ -227,6 +248,9 @@ function InputDetail() {
   const { data: folga } = useQuery<number>(() => purchaseSafetyDays());
 
   const item = data?.item ?? null;
+
+  /** Feito aqui dentro — e é a ficha que responde, não a espécie. Revenda se compra. */
+  const fichaQueFaz = data?.fichaQueFaz ?? null;
 
   if (loading || !item) {
     return (
@@ -684,12 +708,20 @@ function InputDetail() {
               {temCusto ? formatMoney(perThousand, locale) : '—'}
             </Text>
           ) : null}
+          {/* Sem custo ainda, e o MOTIVO muda com quem é o item.
+              *"ainda sem nota lançada"* manda lançar a nota — orientação certa para
+              um insumo e impossível para um picolé, que a própria fábrica faz e
+              que não tem fornecedor. A foto pegou a frase inteira debaixo de um
+              travessão, na tela de um produto: a Lei 5 diz que erro se impede, e
+              mandar alguém procurar uma nota que não existe é o contrário disso. */}
           <Text style={[type.caption, { color: color.inkMuted }]}>
             {!dinheiro
               ? t.common.moneyHidden
               : temCusto
                 ? fill(t.app.inputDetail.averageOf, { unit: item.baseUnit })
-                : t.app.inputDetail.noInvoiceYet}
+                : fichaQueFaz
+                  ? t.app.inputDetail.noRunYet
+                  : t.app.inputDetail.noInvoiceYet}
           </Text>
 
           {latestChange !== null && Math.abs(latestChange) >= 0.001 ? (
@@ -710,9 +742,43 @@ function InputDetail() {
         </Card>
       </Reveal>
 
+      {/* Como é feito — e este cartão é a razão de a lista de produtos poder
+          mandar para cá.
+          Antes, a linha de um picolé na lista de produtos abria a RECEITA, e o
+          picolé em si não tinha tela: nem saldo, nem contagem, nem perda, com
+          três dos cinco motivos de perda (derreteu, quebrou, cortesia) existindo
+          só para ele. Agora a lista abre o item e a ficha fica a um toque daqui,
+          que é a ordem certa — quem pensa no picolé pensa em quantos tem, e só
+          depois em como ele é feito. */}
+      {fichaQueFaz ? (
+        <Reveal index={2}>
+          <Card
+            hue={palette.apricot}
+            icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}
+            title={t.app.inputDetail.madeBy}
+          >
+            <Text style={[type.secondary, { color: color.inkMuted }]}>
+              {t.app.inputDetail.madeByHint}
+            </Text>
+            <View style={{ marginTop: space.sm }}>
+              <ListRow
+                label={fichaQueFaz.name}
+                onPress={() => router.push(`/recipes/${fichaQueFaz.id}`)}
+              />
+            </View>
+          </Card>
+        </Reveal>
+      ) : null}
+
       {/* Como o item entra: a embalagem, o que vem dentro e o que a embalagem
           custa. É o que faz a régua do número de cima ser conferível — "por
-          quilo" só quer dizer alguma coisa ao lado de "o saco tem 25 kg". */}
+          quilo" só quer dizer alguma coisa ao lado de "o saco tem 25 kg".
+
+          Não existe para o que é FEITO aqui: um picolé não tem fornecedor, não
+          tem saco de 25 kg e não tem prazo de entrega. Mostrar "Como você compra"
+          com três travessões para um produto da própria fábrica é a tela fazendo
+          uma pergunta que não é dali. Revenda continua vendo — ela se compra. */}
+      {fichaQueFaz ? null : (
       <Reveal index={2}>
         <Card
           hue={palette.mint}
@@ -804,6 +870,7 @@ function InputDetail() {
           )}
         </Card>
       </Reveal>
+      )}
 
       {/* O saldo e a conferência dele, no mesmo cartão porque são a mesma
           pergunta: quanto o sistema acha que tem, e quanto tem de verdade. O

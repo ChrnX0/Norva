@@ -2399,3 +2399,69 @@ test('a régua do desbotamento distingue quem apaga o rótulo de quem desbota a 
     'desbotar só o preenchimento é o jeito certo e não pode ser acusado',
   );
 });
+
+/**
+ * TODA espécie de item tem uma porta de toque — e faltava uma.
+ *
+ * `recordLoss` e `recordCount` têm um chamador de tela cada, `app/inputs/[id].tsx`,
+ * e por muito tempo a única porta para lá foi a lista do almoxarifado, cujas abas
+ * são insumo, embalagem e material de loja. **Produto acabado e revenda não
+ * tinham porta nenhuma**: a linha da lista de produtos abria a RECEITA — o como se
+ * faz, não o quanto tem — e a de revenda não abria nada. Três dos cinco motivos de
+ * perda (derreteu, quebrou, cortesia) existem só para o picolé pronto, e não havia
+ * por onde lançá-los. O dicionário e a lista de permissões descreviam uma tela que
+ * ninguém alcançava.
+ *
+ * A guarda deriva as espécies de DUAS fontes que não são esta edição: a união
+ * `ItemKind` do `repository.ts` e as abas declaradas na lista do almoxarifado. Se
+ * amanhã nascer uma sexta espécie, ela fica vermelha até alguém dizer por onde se
+ * chega nela.
+ */
+function especiesDoTipo(): string[] {
+  const fonte = readFileSync('src/data/repository.ts', 'utf8');
+  const m = fonte.match(/export type ItemKind =([^;]+);/);
+  assert.ok(m, 'a união ItemKind mudou de forma — a derivação precisa acompanhar');
+  return [...m![1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]);
+}
+
+function especiesDoAlmoxarifado(): string[] {
+  const fonte = readFileSync('app/inputs/index.tsx', 'utf8');
+  const m = fonte.match(/const TABS:[\s\S]*?\n\];/);
+  assert.ok(m, 'as abas do almoxarifado mudaram de forma');
+  return [...m![0].matchAll(/kind: '([a-z_]+)'/g)].map((x) => x[1]);
+}
+
+test('toda espécie de item tem por onde ser contada e ter perda lançada', () => {
+  const todas = especiesDoTipo();
+  const noAlmoxarifado = especiesDoAlmoxarifado();
+  // O que sobra tem de ser exatamente o que a lista de PRODUTOS cobre.
+  const sobra = todas.filter((k) => !noAlmoxarifado.includes(k));
+  assert.deepEqual(
+    sobra.sort(),
+    ['product', 'resale'],
+    'espécie sem lista: ela não aparece no almoxarifado nem em produtos, então\n' +
+      'ninguém consegue contá-la nem lançar perda dela.',
+  );
+
+  // E as duas listas abrem a MESMA tela, que é a que grava.
+  for (const arquivo of ['app/inputs/index.tsx', 'app/products/index.tsx']) {
+    assert.match(
+      semProsa(readFileSync(arquivo, 'utf8')),
+      /router\.push\(\s*`\/inputs\/\$\{/,
+      `${arquivo} tem de abrir a ficha do item — é lá que a contagem e a perda são gravadas`,
+    );
+  }
+
+  const tela = readFileSync('app/inputs/[id].tsx', 'utf8');
+  assert.match(tela, /await recordCount\(/, 'a ficha do item grava a contagem');
+  assert.match(tela, /await recordLoss\(/, 'a ficha do item grava a perda');
+});
+
+test('a régua da cobertura lê as duas fontes e não uma lista escrita à mão', () => {
+  // Caso verdadeiro: as cinco espécies do tipo aparecem, e três vêm das abas.
+  assert.deepEqual(especiesDoTipo().sort(), ['input', 'packaging', 'product', 'resale', 'store_supply']);
+  assert.deepEqual(especiesDoAlmoxarifado().sort(), ['input', 'packaging', 'store_supply']);
+  // Caso falso: as duas derivações não podem devolver a mesma coisa, senão a
+  // subtração acima seria vazia e o teste passaria sem medir nada.
+  assert.notDeepEqual(especiesDoTipo().sort(), especiesDoAlmoxarifado().sort());
+});

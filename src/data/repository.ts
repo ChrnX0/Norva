@@ -5246,6 +5246,35 @@ export async function recipesUsingItem(
   );
 }
 
+/**
+ * A ficha que FAZ este produto — a pergunta espelhada de `recipesUsingItem`.
+ *
+ * A de cima responde "quem usa isto"; esta responde "de onde isto vem", e são
+ * perguntas de lados opostos do razão. Um insumo é usado por fichas; um produto
+ * acabado É FEITO por uma. Sem ela a tela de um picolé não tinha como oferecer a
+ * ficha dele, e a lista de produtos mandava direto para a receita — o que deixava
+ * o próprio picolé sem tela nenhuma, e com ele a contagem e a perda.
+ *
+ * Nulo é resposta e tem dois motivos: o item não é produto, ou é produto de
+ * REVENDA — que se compra, não se faz. A tela trata os dois igual, porque nos
+ * dois casos não há ficha para abrir.
+ */
+export async function recipeThatMakes(
+  companyId: string,
+  itemId: string,
+): Promise<{ id: string; name: string } | null> {
+  const conn = await db();
+  const linha = await conn.getFirstAsync<{ id: string; name: string }>(
+    `SELECT r.id, r.name
+       FROM products p
+       JOIN recipes r ON r.id = p.recipe_id
+      WHERE p.company_id = ? AND p.item_id = ? AND p.active = 1
+      LIMIT 1`,
+    [companyId, itemId],
+  );
+  return linha ?? null;
+}
+
 export async function findItem(
   companyId: string,
   itemId: string,

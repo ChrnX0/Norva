@@ -7786,6 +7786,16 @@ tela em branco, estava esperando um app que ninguém tinha mandado desenhar — 
 por largura, quarenta na volta inteira. Quem acorda a tela é o próprio `am start` da rota,
 então a rota passou a vir logo depois da troca de largura, e a espera passou a ser uma só.
 
+**E o instrumento novo trombou com uma exigência do produto, o que vale registrar.** Ler
+o texto da tela é `uiautomator dump`, e ele **recusa tela que se mexe**: responde *"could
+not get idle state"* e volta vazio. Este aplicativo tem animação em toda tela por decisão
+escrita do dono, então a leitura falha de vez em quando — não sempre, porque o dump
+costuma pegar uma brecha entre ciclos da cena. O conserto não é desligar animação: é o
+laço voltar para o contador de quadros depois de três leituras mudas, e a conferência das
+cinco larguras ignorar título vazio em vez de reprovar por ele. Instrumento que exige
+imobilidade num produto que exige movimento precisa de um segundo caminho, não de uma
+exceção no produto.
+
 **A régua que fica:** ferramenta de prova também é afirmação, e envelhece igual. Antes de
 confiar numa medida que você não escreveu hoje, **rode-a onde a resposta é conhecida** —
 aqui bastava fotografar duas telas diferentes e comparar. Instrumento que devolve sempre
@@ -7886,3 +7896,45 @@ custa um emulador. As mesmas `d=` do componente, jogadas num SVG e rasterizadas
 depois lado a lado. Uma foto do aparelho continua sendo a prova final, porque é ela que
 inclui pele, fonte e escala; o desenho vetorial é o que evita gastar uma compilação para
 descobrir que duas curvas não se encontram.
+
+---
+
+## 9 de setembro — inventei uma regra que o aplicativo já respondia, e um guarda me devolveu o argumento
+
+**O que apareceu:** o item A da auditoria diz que contar picolé pronto não tem caminho de
+toque, e termina assim: *"a porta certa não é uma quarta aba no almoxarifado — o assunto
+não é almoxarifado. É a lista de produtos."* Li isso como uma frase sobre COR e construí
+em cima: a espécie do item passou a viajar na rota, o casco da tela passou a se pintar de
+laranja para produto, a sobrancelha e a cena mudaram junto, seis chaves novas de
+dicionário nos três idiomas, e um guarda próprio para nenhum chamador esquecer o
+parâmetro. Cerca de cento e vinte linhas.
+
+`src/theme/assinatura.test.ts` reprovou, e o texto do erro é o argumento inteiro: *"o
+desenho carrega o tom do ASSUNTO, não o da tela em que mora"*. O `AREA_DO_GLIFO` lista
+`GlyphStick` — o picolé — em **mint**, junto com o saco e o balde, porque a tela de um
+item é a página de ESTOQUE dele: saldo, contagem, perda. Contar picolé é estoque, venha a
+pessoa de onde vier. O `docs/linguagem.md` já dizia; eu não abri.
+
+**Por que importa:** a frase do plano era sobre a PORTA — de onde se chega — e eu a
+apliquei ao DESTINO. É a mesma família do "vizinho da propriedade" que este arquivo já
+registra três vezes em guardas que medem a coisa ao lado da que deviam medir; a novidade
+é que desta vez o vizinho estava na minha LEITURA, não na régua. Prosa de plano fala de
+uma coisa, e a coisa ao lado dela parece incluída.
+
+E o custo teve número: cento e vinte linhas construídas, testadas e desfeitas, incluindo
+seis chaves de dicionário que teriam ficado sem leitor — a doença que o portão P1 deste
+projeto existe para pegar.
+
+**O que mudou:** ficou só o que era defeito de verdade e vem do dado — a lista de produtos
+abre o ITEM (com contagem e perda), a ficha fica a um toque de dentro, e o cartão "Como
+você compra" dá lugar a "Como é feito" quando o produto é feito aqui, porque picolé da
+própria fábrica não tem fornecedor nem saco de 25 kg. A cor não mudou. Um guarda novo,
+derivado da união `ItemKind` e das abas do almoxarifado — duas fontes que não passaram
+pela minha mão nesta edição —, fica vermelho no dia em que nascer uma sexta espécie sem
+porta.
+
+**A régua que fica:** antes de construir a consequência VISUAL de uma frase do plano,
+procure se o aplicativo já respondeu essa pergunta noutro lugar — `docs/linguagem.md`, o
+mapa de glifos, os guardas de assinatura. E o corolário, que é o mais barato de todos:
+**rode os guardas antes de escrever cento e vinte linhas, não depois.** O que me custou a
+rodada não foi o erro; foi a ordem em que descobri o erro.

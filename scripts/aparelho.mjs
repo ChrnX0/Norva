@@ -377,12 +377,36 @@ async function esperarDesenho(minutos = 8, pacote = PACOTE) {
  */
 async function esperarTelaParar(minutos = 4) {
   let anterior = null;
+  let mudas = 0;
   const limite = Date.now() + minutos * 60_000;
   while (Date.now() < limite) {
     await dormir(5000);
     const diz = oQueDizATela();
     const agora = diz.join('\u0001');
-    if (agora && agora === anterior) {
+
+    // **O leitor de acessibilidade recusa tela que se mexe** — e neste aplicativo
+    // toda tela se mexe, por exigência escrita do dono ("quero animação em todas
+    // as telas"). O `uiautomator dump` responde *"could not get idle state"* e
+    // volta vazio enquanto a cena do cabeçalho estiver no meio do ciclo dela.
+    //
+    // Isso não torna o instrumento inútil: em quase toda tela o dump pega uma
+    // brecha entre ciclos. Mas quando não pega, esperar o texto assentar é
+    // esperar para sempre — então depois de três leituras mudas o laço volta para
+    // o contador de quadros, que é grosseiro e sempre responde. A foto sai; o que
+    // se perde é a legenda dizendo QUE tela é, e a conferência das cinco larguras
+    // passa a ignorar essa (ela filtra título vazio de propósito).
+    if (!agora) {
+      mudas += 1;
+      if (mudas >= 3) {
+        dizer('  a tela não fica quieta para ser lida (animação) — medindo por quadros');
+        const desenhou = await esperarDesenho(Math.max(1, Math.round(minutos / 2)));
+        return { parou: desenhou, diz: [] };
+      }
+      continue;
+    }
+    mudas = 0;
+
+    if (agora === anterior) {
       await dormir(4000);
       return { parou: true, diz };
     }

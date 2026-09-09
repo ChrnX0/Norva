@@ -59,8 +59,9 @@ export default function ProductsListScreen() {
 
 type Row = {
   id: string;
+  /** O ITEM por trás do produto — é ele que tem saldo, contagem e perda. */
+  itemId: string;
   name: string;
-  recipeId: string | null;
   unitCents: number | null;
   detail: string;
 };
@@ -93,8 +94,8 @@ function ProductsList() {
       if (!product.recipeId || !product.yieldPerUnit) {
         return {
           id: product.id,
+          itemId: product.itemId,
           name: product.name,
-          recipeId: null,
           unitCents: null,
           detail: t.app.products.resale,
         };
@@ -109,8 +110,8 @@ function ProductsList() {
 
       return {
         id: product.id,
+        itemId: product.itemId,
         name: product.name,
-        recipeId: product.recipeId,
         /**
          * Nulo já era o estado "não dá para custear" desta linha, e a tela já o
          * desenha como travessão — então o portão fechado entra pelo caminho que
@@ -209,9 +210,24 @@ function ProductsList() {
                 detail={row.detail}
                 trailing={row.unitCents === null ? '—' : formatMoney(row.unitCents, locale)}
                 trailingTone={row.unitCents === null ? 'muted' : 'ink'}
-                onPress={
-                  row.recipeId ? () => router.push(`/recipes/${row.recipeId}`) : undefined
-                }
+                /**
+                 * A linha abre o PRODUTO, não a receita — e isso fecha um buraco
+                 * que a auditoria achou: contar picolé pronto e lançar perda dele
+                 * não tinha caminho de toque nenhum.
+                 *
+                 * `recordLoss` e `recordCount` só eram alcançados pela lista do
+                 * almoxarifado, cujas abas são insumo, embalagem e material de
+                 * loja. Produto não tinha aba, e a linha daqui mandava para a
+                 * ficha — que é o COMO SE FAZ, não o quanto tem. Três dos cinco
+                 * motivos de perda (derreteu, quebrou, cortesia) existiam só para
+                 * o picolé pronto e não tinham por onde ser lançados.
+                 *
+                 * A ficha continua a um toque, de dentro da tela do produto, que
+                 * é a ordem em que a pergunta aparece: primeiro quantos tem,
+                 * depois como é feito. E a revenda — que antes não abria nada —
+                 * ganha a mesma porta.
+                 */
+                onPress={() => router.push(`/inputs/${row.itemId}`)}
               />
             ))}
             {/* Uma vez, embaixo da coluna que ela explica: sem isto a coluna de

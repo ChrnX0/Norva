@@ -1173,6 +1173,8 @@ export const ptBR = {
     inputDetail: {
       overline: 'almoxarifado',
       retiredOverline: 'almoxarifado · fora de circulação',
+      madeBy: 'Como é feito',
+      madeByHint: 'A ficha diz o que entra e quanto rende uma vez. O custo desta unidade sai dela.',
       opening: 'Abrindo…',
       gone: 'Esse item não está mais cadastrado.',
       retiredTitle: 'Fora de circulação',
@@ -1181,6 +1183,7 @@ export const ptBR = {
       currentCost: 'CUSTO ATUAL',
       averageOf: 'a cada 1.000 {{unit}} · média das compras',
       noInvoiceYet: 'ainda sem nota lançada',
+      noRunYet: 'o custo aparece depois da primeira corrida — é ela que congela o preço do dia',
       wentUp: 'Subiu {{percent}} na última compra',
       wentDown: 'Caiu {{percent}} na última compra',
       /**
