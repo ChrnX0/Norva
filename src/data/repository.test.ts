@@ -6502,6 +6502,33 @@ test('a count at our own store books what left the shelf as a SALE, at the agree
     linha.unit_cost_rate !== null && linha.unit_cost_rate > 0,
     'sem o custo na mesma linha, renegociar o preço em março reescreveria a margem de fevereiro',
   );
+
+  /**
+   * **E o EXTRATO diz o mesmo número que a confirmação prometeu.**
+   *
+   * Ele valorizava todo ato pelo custo congelado, inclusive as linhas de venda que a
+   * contagem numa loja própria passou a gravar: a confirmação dizia R$ 748,00 e o
+   * extrato mostrava o que aquilo custou para fazer, debaixo do rótulo "Venda".
+   * Dois números para o mesmo ato, e o de baixo com a palavra do de cima.
+   *
+   * `unit_price_rate` tinha escritor e ZERO leitores no aplicativo inteiro.
+   *
+   * A régua é independente das duas: 74.800 está multiplicado à mão acima, e a
+   * asserção compara o extrato com ELE, não com o que `recordCount` devolveu.
+   */
+  const extrato = await ledgerExtract(CO, {});
+  const aVenda = extrato.find((a) => a.kind === 'sale');
+  assert.ok(aVenda, 'a venda é um ato do extrato');
+  assert.equal(
+    aVenda.valueCents,
+    74_800,
+    'o extrato mostra o que a venda valeu, não o que ela custou para fazer',
+  );
+  assert.notEqual(
+    aVenda.valueCents,
+    Math.round((linha.unit_cost_rate ?? 0) * 340),
+    'as duas réguas dão números diferentes — é por isso que escolher a errada aparecia',
+  );
 });
 
 test('a count in our own cold room is an adjustment, and carries no price', async () => {

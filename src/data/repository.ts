@@ -7,6 +7,7 @@ import {
   daysOfCover,
   ehSalaDeUnidade,
   podeEscrever,
+  valePeloPreco,
   vendeAoConsumidor,
 } from '@/domain/ledger';
 import { ROLES, capabilitiesFor, type Capability, type Role } from '@/domain/access';
@@ -6062,6 +6063,10 @@ export async function ledgerExtract(
 ): Promise<ExtractAct[]> {
   const conn = await db();
   const dinheiro = (await canSeeMoney(companyId)) ? 1 : 0;
+  // **Duas capacidades, duas colunas** — a mesma separação que a `movements_visible`
+  // da 0008 faz no servidor. Custo é `view_cost`; preço de venda é
+  // `view_sale_price`, e quem tem um não tem necessariamente o outro.
+  const preco = (await canSeePrice(companyId)) ? 1 : 0;
   const limite = opts.limit ?? 30;
 
   // Primeiro os ATOS da janela, e só depois as linhas deles. Paginar por linha
@@ -6094,6 +6099,7 @@ export async function ledgerExtract(
     kind: string;
     quantity_base_units: number;
     unit_cost_rate: number | null;
+    unit_price_rate: number | null;
     occurred_at: string;
     note: string | null;
     item_name: string | null;
@@ -6105,6 +6111,7 @@ export async function ledgerExtract(
     `SELECT COALESCE(m.movement_group_id, m.id) AS g, m.id, m.kind,
             m.quantity_base_units,
             CASE WHEN ? = 1 THEN m.unit_cost_rate END AS unit_cost_rate,
+            CASE WHEN ? = 1 THEN m.unit_price_rate END AS unit_price_rate,
             m.occurred_at, m.note,
             i.name AS item_name, l.name AS place_name,
             m.reverses_movement_id AS reverses,
@@ -6118,7 +6125,7 @@ export async function ledgerExtract(
        LEFT JOIN movements o ON o.id = m.reverses_movement_id
       WHERE m.company_id = ? AND COALESCE(m.movement_group_id, m.id) IN (${marcas})
       ORDER BY m.rowid ASC`,
-    [dinheiro, companyId, ...atos.map((a) => a.g)],
+    [dinheiro, preco, companyId, ...atos.map((a) => a.g)],
   );
 
   /**
@@ -6143,10 +6150,29 @@ export async function ledgerExtract(
   const lados = new Map<string, { entra: number; sai: number; temDinheiro: boolean }>();
   for (const l of linhas) {
     const ja = porAto.get(l.g);
-    const valor =
-      dinheiro === 1 && l.unit_cost_rate !== null
-        ? amountOf(l.unit_cost_rate as Rate, Math.abs(l.quantity_base_units))
-        : null;
+    /**
+     * A régua do ato — e a VENDA tem outra.
+     *
+     * O extrato valorizava tudo pelo custo congelado, inclusive as linhas de espécie
+     * `sale` que a contagem numa loja própria passou a gravar em 8 de setembro. A
+     * confirmação prometia "R$ 660,00 de venda" e o extrato mostrava R$ 239,99 — o
+     * que aquilo custou para fazer — debaixo do rótulo "Venda". Dois números para o
+     * mesmo ato, e o de baixo com a palavra do de cima.
+     *
+     * `unit_price_rate` tinha escritor e nenhum leitor no aplicativo inteiro.
+     *
+     * Nulo continua sendo nulo, nunca zero: sem preço combinado, "ninguém disse por
+     * quanto" é a verdade, e zero seria afirmar que foi dado de graça.
+     */
+    const taxa =
+      valePeloPreco(l.kind)
+        ? l.unit_price_rate !== null
+          ? (l.unit_price_rate as Rate)
+          : null
+        : dinheiro === 1 && l.unit_cost_rate !== null
+          ? (l.unit_cost_rate as Rate)
+          : null;
+    const valor = taxa === null ? null : amountOf(taxa, Math.abs(l.quantity_base_units));
     if (valor !== null) {
       const lado = lados.get(l.g) ?? { entra: 0, sai: 0, temDinheiro: false };
       if (l.quantity_base_units >= 0) lado.entra += valor;

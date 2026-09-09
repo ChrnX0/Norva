@@ -305,6 +305,29 @@ export function ehConferencia(kind: string): boolean {
 }
 
 /**
+ * As espécies cujo dinheiro é o PREÇO DE VENDA, não o custo congelado.
+ *
+ * Toda linha do razão carrega os dois — `unit_cost_rate` e `unit_price_rate` — e é
+ * essa dupla que faz a margem ser uma subtração dentro da linha em vez de uma junção
+ * com uma tabela que pode ser renegociada amanhã. Mas quando alguém pergunta *"quanto
+ * valeu este ato"*, cada espécie responde por uma régua só, e a venda responde pelo
+ * preço.
+ *
+ * O extrato valorizava tudo pelo custo: a confirmação prometia R$ 748,00 e a lista
+ * mostrava o que aquilo custou para FAZER, debaixo do rótulo "Venda". Dois números
+ * para o mesmo ato, com a palavra de um sobre o número do outro.
+ *
+ * Mora aqui e não no repositório pelo mesmo motivo de `ehConferencia`: no dia em que
+ * o ponto de venda chegar, a resposta muda — e tem de mudar em todos os leitores no
+ * mesmo commit, não no que alguém lembrar.
+ */
+export const PRICED_KINDS = ['sale'] as const;
+
+export function valePeloPreco(kind: string): boolean {
+  return (PRICED_KINDS as readonly string[]).includes(kind);
+}
+
+/**
  * Nesta espécie de lugar, o que sai da prateleira foi VENDIDO?
  *
  * O nome diz o que a resposta DECIDE, não qual tela pergunta — regra desta casa
