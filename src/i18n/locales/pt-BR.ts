@@ -1377,6 +1377,8 @@ export const ptBR = {
       placeName: 'Como se chama',
       placeNameHint: 'O nome que a equipe usa. Dá para trocar depois sem mexer em saldo.',
       placeKind: 'Que tipo de lugar',
+      servedBy: 'Quem produz para ela',
+      servedByHint: 'A caixa sai desta unidade, e é ela que vê o pedido desta loja na produção do dia.',
       save: 'Salvar lugar',
       saved: 'Lugar salvo.',
       kinds: {

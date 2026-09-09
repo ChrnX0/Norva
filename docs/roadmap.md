@@ -39,8 +39,8 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | telas | **34** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **26** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **28** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **49** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V26** | último `const V` em `src/data/db.ts` |
+| migrações do servidor | **50** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V27** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
 | linhas de código | **~80.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -49,10 +49,10 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **610** testes |
+| `npm test` | **613** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
-| `npm run db:verify` | **26** garantias contra um Postgres descartável, sob RLS |
+| `npm run db:verify` | **27** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade, com
@@ -109,7 +109,7 @@ independentes — dez de lógica, oito de código, seis de design —, cada uma 
 adversário próprio tentando derrubar os achados dela antes de virarem afirmação. Os
 números abaixo saem do diário da execução, não de contagem à mão.
 
-**42 fechados na mesma sessão.** O que sobra está aqui, por peso. Cada item traz a
+**44 fechados na mesma sessão.** O que sobra está aqui, por peso. Cada item traz a
 medida ao lado, como a regra deste arquivo exige: item aberto prova que a coisa NÃO
 existe, e a suíte fica vermelha no dia em que alguém a construir sem riscar a linha.
 
@@ -128,17 +128,7 @@ o rastro só existe para quem abre o banco.
 Depende de um caminho de LEITURA do servidor, que ainda não existe — a sincronia é fila
 de subida. Então isto entra atrás dele, não na frente.
 
-### B. A demanda é da empresa e o estoque é da unidade
-<!-- medida: ausente supabase/migrations :: orders add column served_by -->
-
-`stockAgainstOrders` recorta o saldo pela unidade e conta o pedido de toda a empresa: com
-duas fábricas, as duas mandam produzir o mesmo picolé.
-
-A saída não é pergunta ao dono — *qual unidade atende qual loja* é "depende da fábrica",
-então vira configuração da empresa, com o padrão sendo "a única unidade" e nenhuma
-pergunta para quem tem uma só.
-
-### C. Restaurar uma cópia antiga não roda as migrações de DADO
+### B. Restaurar uma cópia antiga não roda as migrações de DADO
 <!-- medida: ausente src/data/db.ts :: REPAROS -->
 
 `restaurar` repõe as linhas e nunca toca `PRAGMA user_version`. Quatro migrações do
@@ -146,7 +136,7 @@ aparelho carregam backfill de dado — o lugar padrão da V3, a taxa de embalage
 espécie da unidade da V23, o pai da sala da V25 — e nenhuma roda numa restauração. O
 docblock promete que rodam.
 
-### D. Os 27 médios e baixos
+### C. Os 27 médios e baixos
 <!-- medida: ausente src/components/Chip.tsx :: minHeight: 48 -->
 
 Alvos de toque de 28–30 dp contra o piso de 48 que este projeto escreveu · a régua fina

@@ -147,7 +147,13 @@ const MOVEMENTS: (MovementRow & { itemId: string })[] = [
  * comparar o total da empresa com a prateleira de uma sala sem nenhum teste
  * reclamar.
  */
-const SEM_ACORDO = { contactPhone: '', deliveryDays: 0, agreementNote: '', sensorRanges: {} };
+const SEM_ACORDO = {
+  contactPhone: '',
+  deliveryDays: 0,
+  agreementNote: '',
+  sensorRanges: {},
+  servedByLocationId: null,
+};
 
 const PLACES: Place[] = [
   { id: 'factory', name: '', kind: 'store_room', isDefault: true, ...SEM_ACORDO },

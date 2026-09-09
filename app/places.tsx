@@ -35,7 +35,7 @@ import {
 } from '@/data/repository';
 import { dayWindow, localDate } from '@/domain/day';
 import { rate } from '@/domain/money';
-import { nomeDoLugar, receivesCargo } from '@/domain/ledger';
+import { ehUnidade, nomeDoLugar, receivesCargo } from '@/domain/ledger';
 import { empresaDaqui } from '@/data/empresa';
 import { unidadeDaqui } from '@/data/unidade';
 import { useQuery } from '@/data/useQuery';
@@ -134,6 +134,15 @@ function Places() {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [kind, setKind] = useState('own_store');
+  /**
+   * Qual unidade produz para a loja que está nascendo.
+   *
+   * Nasce na unidade DESTE aparelho — Lei 1, não se pergunta o que o sistema pode
+   * deduzir: quem cadastra a loja está numa fábrica, e é dela que a caixa vai sair.
+   * A pergunta só aparece quando existe mais de uma unidade, que é a mesma régua do
+   * filtro de sala no almoxarifado.
+   */
+  const [atendePor, setAtendePor] = useState(() => unidadeDaqui());
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   /**
@@ -207,6 +216,12 @@ function Places() {
         // deixa de contar o que está no freezer, e nada acusa. O `savePlace`
         // ignora este campo para loja e cliente, que ficam no mundo.
         parentLocationId: unidadeDaqui(),
+        // E quem ATENDE, que é outra relação e outra coluna: a sala fica DENTRO da
+        // unidade, a loja é atendida por ela. Sem esta linha a loja nasce sem
+        // resposta e, com duas fábricas, as duas leem o mesmo pedido — as duas
+        // produzem, e a fábrica faz o dobro do que alguém pediu. O `savePlace`
+        // ignora este campo para sala e caminhão, que não são atendidos por ninguém.
+        servedByLocationId: atendePor,
       });
       setName('');
       setAdding(false);
@@ -251,6 +266,8 @@ function Places() {
   /** Nada entrou em lugar nenhum ainda: desenho, uma frase, e a ação embaixo. */
   const semNada = (data?.stock.length ?? 0) === 0;
   const lugares = data?.places ?? [];
+  /** As unidades de fábrica — a pergunta de quem atende só existe se houver mais de uma. */
+  const unidades = lugares.filter((p) => ehUnidade(p.kind));
   /** A cascata não pula número: o primeiro lugar entra depois do cartão vazio. */
   const primeiroLugar = semNada ? 1 : 0;
   const depoisDosLugares = primeiroLugar + lugares.length;
@@ -515,6 +532,39 @@ function Places() {
                   ))}
                 </View>
               </View>
+
+              {/* Quem produz para esta loja — e a pergunta SÓ existe onde há mais de
+                  uma unidade. Com uma fábrica ela é o que o sistema já sabe, e
+                  perguntar seria pedir o que se pode deduzir; com duas ela decide de
+                  quem é o pedido, e sem resposta as duas produzem o mesmo. É a mesma
+                  régua do filtro de sala no almoxarifado, e a resposta já vem com a
+                  unidade deste aparelho escolhida. */}
+              {unidades.length > 1 && receivesCargo(kind) ? (
+                <View style={{ gap: space.sm }}>
+                  <Text style={[type.overline, { color: color.inkFaint }]}>
+                    {words.servedBy.toUpperCase()}
+                  </Text>
+                  <View style={[styles.wrap, { gap: space.sm }]}>
+                    {unidades.map((u) => (
+                      <Touchable
+                        key={u.id}
+                        accessibilityLabel={nomeDoLugar(u.name, words.factory)}
+                        onPress={() => setAtendePor(u.id)}
+                        style={{ minHeight: 48, justifyContent: 'center' }}
+                      >
+                        <Chip
+                          signal={u.id === atendePor ? 'ok' : 'neutral'}
+                          label={nomeDoLugar(u.name, words.factory)}
+                        />
+                      </Touchable>
+                    ))}
+                  </View>
+                  <Text style={[type.caption, { color: color.inkMuted }]}>
+                    {words.servedByHint}
+                  </Text>
+                </View>
+              ) : null}
+
               <Button label={words.save} onPress={onSave} disabled={!name.trim() || saving} />
             </View>
           </Card>

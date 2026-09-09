@@ -7999,3 +7999,45 @@ era a única.
 **A régua que fica:** dentro de heredoc não citado, prosa não usa crase — e quando uma
 saída verde traz uma linha de erro no meio, **a linha de erro é o achado**, não ruído.
 Verde é o veredito do último comando, não do caminho até ele.
+
+---
+
+## 9 de setembro — recortar um lado de uma comparação deixa o outro lado mentindo
+
+**O que apareceu:** em 8 de setembro o saldo passou a ser da UNIDADE — `stockAgainstOrders`
+ganhou o parâmetro obrigatório, o teste *"o freezer de uma unidade não promete para a
+outra"* entrou junto, e o defeito foi dado como fechado. Ele não estava. A mesma função
+compara duas coisas — **quanto tem** e **quanto foi pedido** — e só a primeira foi
+recortada. O pedido continuou sendo o da empresa inteira, então com duas fábricas as duas
+leem *"faltam 300"* para o mesmo pedido, as duas produzem, e a fábrica faz o dobro do que
+alguém pediu.
+
+**Por que importa:** o conserto de 8 de setembro estava certo e era metade. E a metade que
+faltou é invisível pelo caminho por onde a primeira foi achada: quem procura *"esta
+consulta soma o lugar errado?"* olha a subconsulta do saldo, acha, conserta, e o `LEFT
+JOIN` do pedido — trinta linhas abaixo, na mesma função — não parece parte da pergunta. O
+teste que entrou junto também só olhou o saldo, então a suíte ficou verde afirmando a
+metade certa.
+
+**A régua que fica:** quando um número é a comparação de dois outros, **recortar um dos
+dois obriga a perguntar do outro na mesma frase**. Não é revisão de vizinhança: é que uma
+comparação com os lados em escopos diferentes é sempre falsa, e o resultado tem cara de
+número bom.
+
+**E a armadilha do conserto, que quase entrou:** `locations` já tinha
+`parent_location_id`, e reusá-lo para dizer quem atende a loja teria compilado no mesmo
+minuto. Seria um defeito calado — `noEscopo(coluna, { unidade })` soma o lugar **e os
+filhos dele**, então uma loja "dentro" da fábrica jogaria mil picolés de prateleira de
+loja no saldo dela, e o número que decide produção subiria sem nada acusar. São duas
+relações — *"fica dentro de"* e *"é atendida por"* — que **desenham igual num diagrama e
+somam diferente numa consulta**. Duas colunas, com o porquê escrito nas duas pontas, e o
+domínio já tinha a régua pronta (`UNIT_ROOM_KINDS` diz, desde 8 de setembro, que loja e
+cliente não ficam dentro de unidade nenhuma).
+
+**O que mudou:** `served_by_location_id` no aparelho (V27) e no servidor (`0050`), com
+backfill dos dois lados para o padrão ser invisível a quem tem uma fábrica só; a demanda
+recortada pela loja que a unidade atende, com a régua escrita uma vez porque a pergunta
+aparece duas na mesma consulta; a coluna atravessando a fila; a tela perguntando **só**
+onde há mais de uma unidade; uma guarda irmã da que cobra a unidade da sala; e a garantia
+27 contra Postgres, que é onde a chave composta — a que impede uma loja de ser atendida
+pela unidade de um concorrente — existe de verdade.

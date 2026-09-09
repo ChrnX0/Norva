@@ -2465,3 +2465,72 @@ test('a régua da cobertura lê as duas fontes e não uma lista escrita à mão'
   // subtração acima seria vazia e o teste passaria sem medir nada.
   assert.notDeepEqual(especiesDoTipo().sort(), especiesDoAlmoxarifado().sort());
 });
+
+/**
+ * Quem CRIA uma loja diz que unidade a atende.
+ *
+ * Irmã da guarda "every screen that creates a room says which unit", e nasceu do
+ * mesmo defeito visto do outro lado: a sala sem pai sai do SALDO da unidade; a loja
+ * sem quem a atenda entra na DEMANDA de todas elas. Com duas fábricas, as duas leem
+ * "faltam 300" para o mesmo pedido, as duas produzem, e a fábrica faz o dobro.
+ *
+ * As duas relações são diferentes e por isso são duas colunas — a sala fica DENTRO
+ * da unidade, a loja é ATENDIDA por ela — e por isso são duas guardas: uma tela que
+ * passa `parentLocationId` e esquece `servedByLocationId` cria uma loja muda com o
+ * compilador verde, porque `savePlace` aceita os dois como opcionais e trata ausente
+ * como "não mexa".
+ *
+ * A fronteira é a mesma da irmã: só a CRIAÇÃO, reconhecida por não passar `id`.
+ * Renomear uma loja não pode exigir repetir de quem ela vem — e não pode apagar a
+ * resposta, que é o que o `ON CONFLICT` faria se `savePlace` não tratasse ausente
+ * como preservação.
+ */
+export function criamLojaSemQuemAtende(
+  fontes: readonly { arquivo: string; texto: string }[],
+): string[] {
+  const mudos: string[] = [];
+  for (const f of fontes) {
+    const texto = code(f.texto);
+    for (const m of texto.matchAll(/\bsavePlace\s*\(/g)) {
+      const args = argumentos(texto, m.index + m[0].length);
+      if (!args) continue;
+      const corpo = args.join(' , ');
+      const cria = !/\bid\s*:/.test(corpo);
+      if (cria && !/servedByLocationId/.test(corpo)) mudos.push(`${f.arquivo}: savePlace()`);
+    }
+  }
+  return mudos;
+}
+
+test('every screen that creates a store says which unit serves it', () => {
+  const fontes = sourcesUnder('app').map((arquivo) => ({
+    arquivo,
+    texto: readFileSync(arquivo, 'utf8'),
+  }));
+  assert.deepEqual(
+    criamLojaSemQuemAtende(fontes),
+    [],
+    'estas telas criam lugar sem dizer quem o atende — com duas unidades, as duas leem\n' +
+      'o mesmo pedido e as duas produzem.',
+  );
+});
+
+test('the served-by guard tells creating from updating', () => {
+  // O caso verdadeiro: a criação como ela estava antes da 0050.
+  assert.deepEqual(
+    criamLojaSemQuemAtende([
+      { arquivo: 'app/x.tsx', texto: 'await savePlace(empresaDaqui(), { name, kind, parentLocationId: unidadeDaqui() });' },
+    ]),
+    ['app/x.tsx: savePlace()'],
+    'a criação muda tem de ser pega mesmo com o pai declarado',
+  );
+  // E os dois que não podem ser acusados: o conserto, e a ATUALIZAÇÃO.
+  assert.deepEqual(
+    criamLojaSemQuemAtende([
+      { arquivo: 'app/y.tsx', texto: 'await savePlace(co, { name, kind, parentLocationId: u, servedByLocationId: a });' },
+      { arquivo: 'app/z.tsx', texto: 'await savePlace(co, { id: place.id, name, kind });' },
+    ]),
+    [],
+    'o conserto e a atualização não podem reprovar',
+  );
+});

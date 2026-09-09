@@ -1085,6 +1085,8 @@ export const en: Dictionary = {
       placeName: 'What it is called',
       placeNameHint: 'The name the team uses. It can change later without touching a balance.',
       placeKind: 'What kind of place',
+      servedBy: 'Who makes for it',
+      servedByHint: 'The box leaves from this unit, and it is the one that sees this store in the day plan.',
       save: 'Save place',
       saved: 'Place saved.',
       kinds: {

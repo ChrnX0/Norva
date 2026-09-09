@@ -6,6 +6,7 @@ import {
   OUR_UNPARENTED_PLACE_KINDS,
   UNIT_ROOM_KINDS,
   daysOfCover,
+  ehAtendidoPorUnidade,
   ehSalaDeUnidade,
   podeEscrever,
   valePeloPreco,
@@ -847,6 +848,15 @@ export type Place = {
    * porque é o número comum de freezer seria inventar o que ele não mediu.
    */
   sensorRanges: Record<string, SensorRange>;
+  /**
+   * A unidade de fábrica que atende este lugar — nulo para quem não é atendido.
+   *
+   * Só loja e cliente têm resposta: sala fica DENTRO de uma unidade (`parent`), o
+   * caminhão é caminho, e uma unidade não atende outra. Nulo numa loja é a
+   * pergunta ainda não feita, e com uma unidade só ela nunca é feita — o backfill
+   * da V27 já apontou toda loja existente para a única.
+   */
+  servedByLocationId: string | null;
 };
 
 /**
@@ -960,8 +970,10 @@ export async function listPlaces(companyId: string): Promise<Place[]> {
     delivery_days: number | null;
     agreement_note: string | null;
     sensor_ranges: string;
+    served_by_location_id: string | null;
   }>(
-    `SELECT id, name, kind, contact_phone, delivery_days, agreement_note, sensor_ranges
+    `SELECT id, name, kind, contact_phone, delivery_days, agreement_note, sensor_ranges,
+            served_by_location_id
        FROM locations WHERE company_id = ? ORDER BY kind, name`,
     [companyId],
   );
@@ -972,6 +984,7 @@ export async function listPlaces(companyId: string): Promise<Place[]> {
     isDefault: r.id === defaultLocationId(companyId),
     contactPhone: r.contact_phone ?? '',
     deliveryDays: r.delivery_days ?? 0,
+    servedByLocationId: r.served_by_location_id,
     agreementNote: r.agreement_note ?? '',
     sensorRanges: parseSensorRanges(r.sensor_ranges),
   }));
@@ -1212,6 +1225,18 @@ export async function savePlace(
      * fora do saldo da unidade, e o número cai sem nada acusar.
      */
     parentLocationId?: string | null;
+    /**
+     * Qual UNIDADE atende esta loja. Nulo é "ainda não se disse".
+     *
+     * Outra relação que o pai, e por isso outra coluna: loja não fica DENTRO de
+     * uma fábrica — `noEscopo` somaria o estoque dela no saldo da unidade —, mas
+     * alguém produz para ela. Sem a resposta, com duas unidades as duas leem o
+     * mesmo pedido e as duas produzem.
+     *
+     * Ausente é "não mexa", como o pai e o telefone: renomear uma loja não pode
+     * tirá-la da unidade que a atende.
+     */
+    servedByLocationId?: string | null;
   },
 ): Promise<Place> {
   /**
@@ -1254,8 +1279,10 @@ export async function savePlace(
         agreement_note: string | null;
         sensor_ranges: string | null;
         parent_location_id: string | null;
+        served_by_location_id: string | null;
       }>(
-        `SELECT contact_phone, delivery_days, agreement_note, sensor_ranges, parent_location_id
+        `SELECT contact_phone, delivery_days, agreement_note, sensor_ranges,
+                parent_location_id, served_by_location_id
            FROM locations WHERE id = ?`,
         [id],
       )
@@ -1293,18 +1320,30 @@ export async function savePlace(
   const pai =
     paiPedido && paiPedido !== id && ehSalaDeUnidade(input.kind) ? paiPedido : null;
 
+  /** Quem atende — mesma regra do pai, outra espécie e outra coluna. */
+  const atendePedido =
+    input.servedByLocationId === undefined
+      ? (anterior?.served_by_location_id ?? null)
+      : input.servedByLocationId;
+  const atende =
+    atendePedido && atendePedido !== id && ehAtendidoPorUnidade(input.kind)
+      ? atendePedido
+      : null;
+
   await conn.withTransactionAsync(async () => {
     // A unidade padrão pode ainda NÃO EXISTIR — ela nasce no primeiro movimento, e
     // cadastrar uma câmara fria antes de qualquer movimento é o caminho normal de
     // um aparelho novo. Sem esta linha a chave estrangeira recusa e a tela cai com
     // "FOREIGN KEY constraint failed", que não é frase para ninguém. Foi um teste
     // desta suíte que achou, no minuto seguinte a eu escrever o pai.
-    if (pai === defaultLocationId(companyId)) await ensureLocation(conn, companyId);
+    if (pai === defaultLocationId(companyId) || atende === defaultLocationId(companyId)) {
+      await ensureLocation(conn, companyId);
+    }
     await conn.runAsync(
       `INSERT INTO locations
          (id, company_id, name, kind, created_at, contact_phone, delivery_days, agreement_note,
-          sensor_ranges, parent_location_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          sensor_ranges, parent_location_id, served_by_location_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          name = excluded.name,
          kind = excluded.kind,
@@ -1312,8 +1351,9 @@ export async function savePlace(
          delivery_days = excluded.delivery_days,
          agreement_note = excluded.agreement_note,
          sensor_ranges = excluded.sensor_ranges,
-         parent_location_id = excluded.parent_location_id`,
-      [id, companyId, name, input.kind, nowIso(), phone, deliveryDays, note, ranges, pai],
+         parent_location_id = excluded.parent_location_id,
+         served_by_location_id = excluded.served_by_location_id`,
+      [id, companyId, name, input.kind, nowIso(), phone, deliveryDays, note, ranges, pai, atende],
     );
     await enqueue(conn, [{ table: 'locations', rowId: id }]);
   });
@@ -1327,6 +1367,7 @@ export async function savePlace(
     deliveryDays,
     agreementNote: note,
     sensorRanges: parseSensorRanges(ranges),
+    servedByLocationId: atende,
   };
 }
 
@@ -6724,6 +6765,28 @@ export type Demand = {
  * escreve "falta produzir 300" é a tela, porque a frase é português e esta
  * camada não fala português.
  */
+/**
+ * "Esta unidade atende este lugar?" — em SQL, e num lugar só.
+ *
+ * Escrita como função porque a mesma pergunta aparece DUAS vezes na consulta de
+ * demanda (no que já saiu hoje e no que foi pedido), e este repositório já pagou
+ * caro por duas grafias da mesma regra. O parâmetro é o apelido da tabela de
+ * lugares na consulta de quem chama.
+ *
+ * O nulo é a metade que importa: um lugar sem resposta é atendido pela unidade que
+ * carrega o id da empresa — a primeira, e a única de quem tem uma fábrica só. É a
+ * mesma verdade sobre o mundo que o backfill da V27 escreveu, dita aqui para o dia
+ * em que uma loja nascer antes de alguém responder a pergunta. Sem esta metade, uma
+ * loja sem resposta sumiria da demanda das duas unidades e ninguém produziria para
+ * ela — que é o defeito oposto, e pior, porque é silencioso.
+ */
+const ATENDIDO_POR = (lugar: string) =>
+  `(${lugar}.served_by_location_id = ?
+     OR (${lugar}.served_by_location_id IS NULL AND ? = ${lugar}.company_id))`;
+
+/** Os dois parâmetros que `ATENDIDO_POR` come, na ordem — e são a mesma unidade. */
+const atendidoPor = (unitId: string) => [unitId, unitId];
+
 export async function stockAgainstOrders(
   companyId: string,
   throughDate: string,
@@ -6783,8 +6846,10 @@ export async function stockAgainstOrders(
                 AND ${naoEstornado('m3')}
                 AND m3.location_id IN (
                       SELECT o2.place_id FROM orders o2
+                       JOIN locations lo2 ON lo2.id = o2.place_id
                        WHERE o2.company_id = p.company_id
-                         AND o2.status IN ('pending', 'open'))) AS sent_today,
+                         AND o2.status IN ('pending', 'open')
+                         AND ${ATENDIDO_POR('lo2')})) AS sent_today,
             (SELECT COALESCE(SUM(m.quantity_base_units), 0) FROM movements m
                JOIN locations l ON l.id = m.location_id
               WHERE m.company_id = p.company_id
@@ -6799,15 +6864,27 @@ export async function stockAgainstOrders(
        LEFT JOIN order_lines ol ON ol.item_id = p.item_id
         AND ol.company_id = p.company_id
         AND EXISTS (SELECT 1 FROM orders o
+                     JOIN locations lo ON lo.id = o.place_id
                      WHERE o.id = ol.order_id
                        AND o.status IN ('pending', 'open')
+                       -- A loja que ESTA unidade atende, e não a empresa inteira.
+                       AND ${ATENDIDO_POR('lo')}
                        AND (o.requested_for IS NULL OR o.requested_for <= ?))
       WHERE p.company_id = ?
       GROUP BY p.item_id, i.name
       ORDER BY i.name COLLATE NOCASE`,
-    // A ordem dos parâmetros segue a ordem no texto: a subconsulta do saldo vem
-    // ANTES do LEFT JOIN e do WHERE, então o recorte vem antes da data.
-    [dia?.from ?? '', dia?.to ?? '', ...recorte.params, throughDate, companyId],
+    // A ordem dos parâmetros segue a ordem no texto: a janela do dia, a unidade que
+    // atende (dentro do `sent_today`), o recorte do saldo, a unidade que atende de
+    // novo (no LEFT JOIN), a data e a empresa.
+    [
+      dia?.from ?? '',
+      dia?.to ?? '',
+      ...atendidoPor(unitId),
+      ...recorte.params,
+      ...atendidoPor(unitId),
+      throughDate,
+      companyId,
+    ],
   );
 
   return rows.map((r) => ({

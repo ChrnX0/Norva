@@ -957,9 +957,46 @@ const V26 = `
 ALTER TABLE movements ADD COLUMN unit_price_rate REAL;
 `;
 
+/**
+ * Quem ATENDE esta loja — e por que não é o mesmo que estar DENTRO de uma unidade.
+ *
+ * O saldo já é da unidade desde a V25. A demanda não era: `stockAgainstOrders`
+ * recortava o estoque por unidade e somava o pedido da EMPRESA inteira, então com
+ * duas fábricas as duas liam "faltam 300" para o mesmo pedido, as duas produziam, e
+ * a fábrica fazia o dobro do que alguém pediu. É a segunda metade de um defeito cuja
+ * primeira metade foi consertada em 8 de setembro — e ela sobreviveu porque o
+ * conserto de lá olhou uma consulta, e esta pergunta mora em duas.
+ *
+ * **Coluna nova, e reusar `parent_location_id` seria um defeito calado.** A régua do
+ * domínio diz, com todas as letras, que loja e cliente NÃO ficam dentro de uma
+ * unidade: `noEscopo(coluna, { unidade })` soma o lugar e os filhos dele, então pôr
+ * uma loja como filha da fábrica jogaria mil picolés de prateleira de loja dentro do
+ * saldo da fábrica. Duas relações diferentes — "fica dentro de" e "é atendida por" —
+ * precisam de duas colunas, por mais parecidas que as duas pareçam num diagrama.
+ *
+ * **O backfill é o que faz o padrão ser invisível.** Quem tem uma unidade só nunca vê
+ * a pergunta: toda loja que já existe passa a apontar para a unidade que carrega o id
+ * da empresa — a primeira, e a única de hoje. Sem isso a demanda cairia para zero em
+ * todo aplicativo instalado, calada, que é exatamente o erro que a V25 evitou fazendo
+ * o mesmo.
+ */
+const V27 = `
+ALTER TABLE locations ADD COLUMN served_by_location_id TEXT REFERENCES locations(id);
+
+CREATE INDEX IF NOT EXISTS locations_served_by_idx
+  ON locations (company_id, served_by_location_id);
+
+UPDATE locations
+   SET served_by_location_id = company_id
+ WHERE kind IN ('own_store', 'customer')
+   AND served_by_location_id IS NULL
+   AND id <> company_id
+   AND EXISTS (SELECT 1 FROM locations u WHERE u.id = locations.company_id);
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
-  V19, V20, V21, V22, V23, V24, V25, V26,
+  V19, V20, V21, V22, V23, V24, V25, V26, V27,
 ];
 
 export type SqlParam = string | number | null;

@@ -3924,6 +3924,56 @@ test('the freezer of one unit does not promise for the other', async () => {
   assert.equal((daPrimeira?.onHand ?? 0) + (deMarilia?.onHand ?? 0), 500);
 });
 
+test('a demanda de uma unidade é a das lojas que ELA atende', async () => {
+  // A outra metade do defeito de cima, e ela sobreviveu ao conserto dele: o SALDO
+  // passou a ser da unidade e o PEDIDO continuou sendo da empresa inteira. Com duas
+  // fábricas, as duas leem "faltam 300" para o mesmo pedido, as duas produzem, e a
+  // fábrica faz o dobro do que alguém pediu.
+  //
+  // Quem atende quem é configuração — a loja diz de que unidade ela vem —, e o
+  // padrão para quem tem uma unidade só é invisível: a única atende todas.
+  const marilia = await savePlace(CO, { name: 'Unidade Marília', kind: 'factory' });
+  const daqui = await savePlace(CO, {
+    name: 'Loja daqui',
+    kind: 'own_store',
+    servedByLocationId: defaultLocationId(CO),
+  });
+  const deLa = await savePlace(CO, {
+    name: 'Loja de lá',
+    kind: 'own_store',
+    servedByLocationId: marilia.id,
+  });
+  const { itemId } = await saveProduct(CO, {
+    name: 'Picolé de uva',
+    kind: 'product',
+    recipeId: null,
+    yieldPerUnit: null,
+    unitPackagingRate: rate(0, 1),
+    packaging: loose,
+  });
+
+  await saveOrder(CO, { placeId: daqui.id, lines: [{ itemId, baseUnits: 300 }] });
+  await saveOrder(CO, { placeId: deLa.id, lines: [{ itemId, baseUnits: 500 }] });
+
+  const aqui = (await stockAgainstOrders(CO, '2026-09-10', defaultLocationId(CO))).find(
+    (d) => d.itemId === itemId,
+  );
+  const la = (await stockAgainstOrders(CO, '2026-09-10', marilia.id)).find(
+    (d) => d.itemId === itemId,
+  );
+
+  // Números DIFERENTES e desiguais de propósito: com 300 e 300 o defeito antigo
+  // (somar tudo) daria 600 nos dois lados e um teste de igualdade não distinguiria
+  // "somou os dois" de "somou o próprio".
+  assert.equal(aqui?.requested, 300, 'a unidade daqui recebeu o pedido da loja de lá');
+  assert.equal(la?.requested, 500, 'a unidade de lá não vê o pedido que ela atende');
+  assert.equal(
+    (aqui?.requested ?? 0) + (la?.requested ?? 0),
+    800,
+    'a soma das duas tem de ser o pedido da empresa: um recorte que perde uma loja dá dois números menores e ninguém nota',
+  );
+});
+
 test('what can be promised counts every room of ours, and no store', async () => {
   const camara = await savePlace(CO, { name: 'Câmara fria', kind: 'cold_room' });
   const centro = await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' });

@@ -1090,6 +1090,8 @@ export const es: Dictionary = {
       placeName: 'Cómo se llama',
       placeNameHint: 'El nombre que usa el equipo. Se puede cambiar después sin tocar saldos.',
       placeKind: 'Qué tipo de lugar',
+      servedBy: 'Quién produce para ella',
+      servedByHint: 'La caja sale de esta unidad, y es ella la que ve el pedido de esta tienda en la producción del día.',
       save: 'Guardar lugar',
       saved: 'Lugar guardado.',
       kinds: {

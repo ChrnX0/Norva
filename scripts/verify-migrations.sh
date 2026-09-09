@@ -1669,6 +1669,80 @@ passou_receita=$(rows "select count(*) from recipes where company_id = '${ISO}a3
 
 echo "    o que falha anota o motivo e sai da frente; quem vem atrás é atendido na mesma volta"
 
+
+echo "==> check 27: uma loja é atendida por UMA unidade, e nunca pela da vizinha"
+
+# A `0050` deu à loja a unidade que produz para ela, e é uma relação DIFERENTE de estar
+# dentro: `parent_location_id` soma no saldo, `served_by_location_id` não soma nada — ele
+# só diz de quem é o pedido. Reusar o pai teria compilado e jogado o estoque de prateleira
+# de loja dentro do saldo da fábrica.
+#
+# O que só o Postgres prova: a chave é COMPOSTA. Sem a empresa junto, a loja de uma
+# fábrica apontaria para a unidade de um concorrente e a demanda de uma empresa passaria a
+# somar o pedido da outra. O SQLite do aparelho não tem chave composta — é aqui, e só
+# aqui, que essa metade existe.
+SRV=cccc0000-0000-4000-8000-0000000002
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<SQL >/dev/null
+insert into companies (id, name) values ('${SRV}a1', 'Serve Co'), ('${SRV}a2', 'Vizinha Co');
+insert into locations (id, company_id, kind, name) values
+  ('${SRV}b1','${SRV}a1','factory','Unidade um'),
+  ('${SRV}b2','${SRV}a1','factory','Unidade dois'),
+  ('${SRV}b3','${SRV}a2','factory','Unidade da vizinha');
+insert into locations (id, company_id, kind, name) values ('${SRV}c1','${SRV}a1','own_store','Loja daqui');
+SQL
+
+# 1. A loja entra apontando para uma unidade da PRÓPRIA empresa.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "update locations set served_by_location_id = '${SRV}b2' where id = '${SRV}c1';" >/dev/null  # proofgate-allow
+atende=$(rows "select served_by_location_id from locations where id = '${SRV}c1';")  # proofgate-allow
+[ "$atende" = "${SRV}b2" ] || fail "a loja não conseguiu dizer que unidade a atende: '$atende'"
+
+# 2. E NUNCA para a unidade da vizinha — é a chave composta que recusa.
+psql -d "$DB" -q -c "update locations set served_by_location_id = '${SRV}b3' where id = '${SRV}c1';" >/dev/null 2>&1 || true  # proofgate-allow
+vizinha=$(rows "select served_by_location_id from locations where id = '${SRV}c1';")  # proofgate-allow
+[ "$vizinha" = "${SRV}b2" ] || fail "a loja passou a ser atendida pela unidade de OUTRA empresa: '$vizinha'"
+
+# 3. Nem por si mesma, que é a volta que a auto-referência deixa aberta.
+psql -d "$DB" -q -c "update locations set served_by_location_id = '${SRV}c1' where id = '${SRV}c1';" >/dev/null 2>&1 || true  # proofgate-allow
+propria=$(rows "select served_by_location_id from locations where id = '${SRV}c1';")  # proofgate-allow
+[ "$propria" = "${SRV}b2" ] || fail "a loja passou a atender a si mesma: '$propria'"
+
+# 4. O BACKFILL, replicado — e a cópia é conferida contra o arquivo.
+#
+# As migrações já rodaram quando as checagens começam, então toda linha criada aqui é
+# posterior ao backfill. A saída (a mesma da check 22) é reexecutar a instrução; o risco
+# dela é a cópia envelhecer e a checagem passar a provar um backfill que não existe mais.
+# Então a cópia é conferida contra o arquivo antes de valer — que é a metade que faltava
+# na check 22.
+BACKFILL="where loja.kind in ('own_store', 'customer')"
+grep -qF "$BACKFILL" supabase/migrations/0050_who_serves_this_store.sql ||
+  fail "o backfill da 0050 mudou de forma e esta checagem ficou provando uma cópia velha"
+
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<SQL >/dev/null
+insert into companies (id, name) values ('${SRV}a3', 'Antiga Co');
+-- A unidade padrao: a que carrega o id da empresa, como ensureLocation cria.
+insert into locations (id, company_id, kind, name) values ('${SRV}a3','${SRV}a3','factory','Fabrica');
+insert into locations (id, company_id, kind, name) values
+  ('${SRV}d1','${SRV}a3','own_store','Loja de antes'),
+  ('${SRV}d2','${SRV}a3','cold_room','Camara de antes');
+update locations loja
+   set served_by_location_id = loja.company_id
+ where loja.kind in ('own_store', 'customer')
+   and loja.served_by_location_id is null
+   and loja.id <> loja.company_id
+   and exists (select 1 from locations u
+                where u.id = loja.company_id and u.company_id = loja.company_id);
+SQL
+antiga=$(rows "select coalesce(served_by_location_id::text,'null') from locations where id = '${SRV}d1';")  # proofgate-allow
+[ "$antiga" = "${SRV}a3" ] || fail "o backfill não deu à loja existente a unidade que a atende: '$antiga'"
+
+# 5. E a sala interna NÃO ganhou: ela fica DENTRO de uma unidade, não é atendida por uma.
+#    Sem esta metade o backfill teria misturado as duas relações, que é o defeito que a
+#    coluna separada existe para não ter — e uma checagem que só olha a loja não veria.
+sala=$(rows "select coalesce(served_by_location_id::text,'null') from locations where id = '${SRV}d2';")  # proofgate-allow
+[ "$sala" = "null" ] || fail "uma sala interna foi marcada como ATENDIDA: as duas relações se misturaram"
+
+echo "    a loja diz que unidade a atende, nunca a da vizinha nem a si mesma, e o backfill não toca sala"
+
 echo
-echo "OK - migrations apply and all twenty-six guarantees hold."
+echo "OK - migrations apply and all twenty-seven guarantees hold."
 

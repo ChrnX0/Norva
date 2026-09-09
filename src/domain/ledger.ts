@@ -150,6 +150,30 @@ export function ehSalaDeUnidade(kind: string): boolean {
  */
 export const CARGO_PLACE_KINDS = ['own_store', 'customer'] as const;
 
+/**
+ * As espécies que uma UNIDADE atende — e a relação é outra que a de estar dentro.
+ *
+ * Loja e cliente ficam no mundo, nunca dentro de uma fábrica: é o que
+ * `UNIT_ROOM_KINDS` diz logo acima, e é por isso que `noEscopo(coluna, { unidade })`
+ * pode somar o lugar com os filhos dele sem arrastar mil picolés de prateleira de
+ * loja para dentro do saldo da fábrica.
+ *
+ * Mas alguém precisa produzir para eles, e com duas fábricas a pergunta *"quem
+ * atende esta loja"* passa a ter duas respostas possíveis. Sem ela a demanda é da
+ * empresa e o estoque é da unidade: as duas fábricas leem o mesmo pedido e as duas
+ * produzem. Então a loja aponta para a unidade que a atende — por
+ * `served_by_location_id`, que é uma coluna DIFERENTE do pai, de propósito.
+ *
+ * Reusar o pai teria compilado e seria o defeito calado: "está dentro de" e "é
+ * atendida por" desenham igual e somam diferente.
+ */
+export const SERVED_PLACE_KINDS = CARGO_PLACE_KINDS;
+
+/** Esta espécie é atendida por uma unidade? Loja e cliente sim; sala e caminhão não. */
+export function ehAtendidoPorUnidade(kind: string): boolean {
+  return (SERVED_PLACE_KINDS as readonly string[]).includes(kind);
+}
+
 /** Quem RECEBE carga: loja própria e cliente. O resto é sala interna ou caminho. */
 /**
  * A ordem em que o estoque de um lugar se oferece para carregar.

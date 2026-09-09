@@ -252,6 +252,11 @@ const CROSSINGS: Record<
       // "da empresa" na primeira restauração, e o pedido passa a ser prometido
       // contra o freezer da outra cidade. Ver a migração 0046.
       'parent_location_id',
+      // E quem ATENDE, que é outra relação: a sala fica DENTRO da unidade, a loja é
+      // atendida por ela. Sem esta linha a resposta ficaria só no aparelho, e na
+      // primeira restauração as duas unidades voltariam a ler o mesmo pedido — o
+      // defeito da 0050 de volta, silencioso, num banco que já tinha a coluna.
+      'served_by_location_id',
     ],
     // A faixa dos sensores é `jsonb` do outro lado e texto aqui, como a lista de
     // embalagem: mandada crua, o Postgres guarda uma string entre aspas onde
