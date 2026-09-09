@@ -303,6 +303,17 @@ Duas regras de operação, ambas cicatriz:
   máquina de quatro núcleos, roubando CPU da auditoria e produzindo fatias vermelhas
   no `e2e` que eu diagnostiquei como disputa — o que era verdade, e não era a causa.
   Sintaxe se confere com `node --check arquivo.mjs`, que valida e não executa.
+- **Nunca canalize a saída de uma verificação por `tail`, `head` ou `grep` na primeira
+  leitura.** Cicatriz de 9 de setembro, e ela é a irmã da regra do `&&`: aquela é sobre o
+  **veredito** (o último cano decide o código de saída), esta é sobre a **prova**. Rodei
+  `npm run e2e:fast | tail -25`, o relatório disse *"51/53, 2 fatias vermelhas"*, e as
+  linhas `FAIL` que diziam QUAIS estavam entre as que eu tinha jogado fora. Passei a
+  rodada seguinte melhorando a ferramenta por um diagnóstico errado — "o corredor esconde
+  fatia vermelha" — quando quem escondia era o meu comando. A segunda execução, inteira,
+  deu 53/53, e aí não dá para dizer nem que foi instabilidade nem que era defeito: **a
+  prova não existe mais.** Redirecione para arquivo (`> log 2>&1`) e filtre o arquivo
+  depois, quantas vezes quiser.
+
 - **A proofgate lê `base..HEAD`, não a árvore de trabalho.** Marcador de
   justificativa em arquivo sem commit não existe para ela. Commit primeiro,
   depois confira.

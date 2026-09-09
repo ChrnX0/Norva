@@ -8482,3 +8482,34 @@ aplicativo cuja Lei 7 diz que "está tudo bem" é um estado.
 linhas empurrava o número dele para baixo dos outros dois. Três números em alturas
 diferentes leem como desalinho, não como "este rótulo é mais comprido" — as colunas
 passaram a esticar e a contagem desce até o pé.
+
+---
+
+## 9 de setembro — o `tail` que apagou a prova, e a hora que eu gastei atrás dela
+
+**O que apareceu:** rodei `npm run e2e:fast 2>&1 | tail -25`. O relatório disse *"51/53
+passaram, 2 fatia(s) terminaram vermelhas"*. Fui procurar quais e não achei nenhuma linha
+`FAIL` — então concluí que o corredor **esconde** o que uma fatia vermelha disse, e passei
+a rodada seguinte melhorando o corredor.
+
+**O corredor estava certo.** Ele imprime as linhas `FAIL` e a explicação indentada; elas
+estavam na saída, e o meu `tail -25` as jogou fora — 22 linhas guardadas de 51. Eu
+diagnostiquei a ferramenta por uma ausência que eu mesmo tinha produzido.
+
+**Por que importa mais do que parece:** este arquivo já tem a regra do `&&` (*"quem decide
+o `&&` é o último cano, não o veredito"*), e ela é sobre o **código de saída**. Esta é a
+mesma forma aplicada à **prova**: um cano no fim de uma verificação não muda só o
+veredito, ele apaga a evidência. E a evidência apagada não volta — a segunda execução,
+inteira, deu **53/53**, e agora não dá para dizer se as duas de antes eram instabilidade
+ou defeito. As duas respostas continuam possíveis e nenhuma é verificável.
+
+**A régua que fica:** verificação escreve em arquivo, e o arquivo se filtra depois. `>
+log 2>&1` custa nada e o log fica lá para a quinta pergunta que só ocorre depois da
+quarta resposta.
+
+**E o que sobrou de bom:** a melhoria do corredor vale mesmo tendo nascido de diagnóstico
+errado — uma fatia que morre ANTES de qualquer checagem (porta ocupada, exportação
+quebrada, navegador que não abre) realmente não imprime nenhuma das três linhas que ele
+repassa, e para essa continuava mudo. Ferramenta consertada pelo motivo errado ainda é
+ferramenta consertada; o que não se pode é deixar o motivo errado escrito como se fosse a
+história.
