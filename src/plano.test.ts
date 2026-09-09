@@ -184,7 +184,21 @@ test('toda medida escrita no plano ainda vale contra o código', () => {
  * o fim da tabela *"A ORDEM"*, todo item carrega uma medida.
  */
 const INICIO_DA_FILA = LINHAS.findIndex((l) => l.startsWith('## A FILA DE AGORA'));
-const FIM_DA_FILA = LINHAS.findIndex((l) => l.startsWith('## A entrada'));
+/**
+ * A fila é UMA seção, e a janela termina no próximo `##`.
+ *
+ * Ela terminava num cabeçalho nomeado (`## A entrada`), o que valia enquanto havia uma
+ * fila só. Com a fila da auditoria de 9 de setembro entrando acima da anterior, a
+ * janela passou a engolir a seção fechada do meio e a cobrar medida de item riscado —
+ * guarda que acusa quem obedeceu, que é o defeito que esta casa já pagou três vezes.
+ *
+ * Terminar no próximo `##` é o que a frase "a fila de agora" quer dizer: o que vem
+ * depois é outro assunto, seja ele qual for.
+ */
+const FIM_DA_FILA = (() => {
+  const proxima = LINHAS.findIndex((l, i) => i > INICIO_DA_FILA && l.startsWith('## '));
+  return proxima === -1 ? LINHAS.length : proxima;
+})();
 
 test('todo item da fila carrega uma medida', () => {
   assert.ok(INICIO_DA_FILA > 0 && FIM_DA_FILA > INICIO_DA_FILA, 'a fila mudou de nome — a guarda deixou de olhar para ela');

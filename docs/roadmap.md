@@ -102,6 +102,83 @@ decidido pelo dono é **F2 + F3**, e o resto tem data de começo, não de entreg
 
 ---
 
+## A FILA DE AGORA — 9 de setembro, a auditoria de 24 fatias
+
+**145 achados julgados, 127 de pé, 18 derrubados.** Vinte e quatro fatias
+independentes — dez de lógica, oito de código, seis de design —, cada uma com um
+adversário próprio tentando derrubar os achados dela antes de virarem afirmação. Os
+números abaixo saem do diário da execução, não de contagem à mão.
+
+**41 fechados na mesma sessão.** O que sobra está aqui, por peso. Cada item traz a
+medida ao lado, como a regra deste arquivo exige: item aberto prova que a coisa NÃO
+existe, e a suíte fica vermelha no dia em que alguém a construir sem riscar a linha.
+
+### A. Contar e lançar perda de PRODUTO ACABADO não tem caminho de toque
+<!-- medida: ausente app/inputs/index.tsx :: kind: 'product' -->
+
+`recordLoss` e `recordCount` têm um chamador de tela cada — `app/inputs/[id].tsx` — e a
+única porta para lá é a lista do almoxarifado, cujas abas são insumo, embalagem e
+material de loja. Produto e revenda não têm aba, então nenhum picolé pronto ganha linha
+tocável.
+
+O que prova que o assunto era esse: três dos cinco motivos de perda (`melted`, `broken`,
+`courtesy`) só fazem sentido para picolé pronto, e a descrição da capacidade
+`record_loss` diz *"Anotar o que derreteu, quebrou ou passou da validade"*. O dicionário
+e a lista de permissões descrevem uma tela que não existe.
+
+A porta certa não é uma quarta aba no almoxarifado — o assunto não é almoxarifado. É a
+lista de produtos, onde a pessoa já está quando pensa em picolé.
+
+### B. O Reset do servidor apaga o que não prometeu, e um pedido que falha trava todos
+<!-- medida: ausente supabase/migrations :: kind in ('input','packaging','store_supply') -->
+
+Duas coisas na `0045`. No ramo `inputs`, o `delete from public.items` não filtra espécie:
+ele leva o catálogo de PRODUTOS junto — ou levanta chave estrangeira e não apaga nada. E
+o laço de `private.run_due_erases()` não isola cada pedido: um que falhe derruba a
+transação inteira e trava o Reset de TODAS as empresas do banco, sem caminho de retirada.
+
+É migração nova, então a forma vai para a mesa antes de rodar.
+
+### C. A demanda é da empresa e o estoque é da unidade
+<!-- medida: ausente supabase/migrations :: orders add column served_by -->
+
+`stockAgainstOrders` recorta o saldo pela unidade e conta o pedido de toda a empresa: com
+duas fábricas, as duas mandam produzir o mesmo picolé.
+
+A saída não é pergunta ao dono — *qual unidade atende qual loja* é "depende da fábrica",
+então vira configuração da empresa, com o padrão sendo "a única unidade" e nenhuma
+pergunta para quem tem uma só.
+
+### D. Restaurar uma cópia antiga não roda as migrações de DADO
+<!-- medida: ausente src/data/db.ts :: REPAROS -->
+
+`restaurar` repõe as linhas e nunca toca `PRAGMA user_version`. Quatro migrações do
+aparelho carregam backfill de dado — o lugar padrão da V3, a taxa de embalagem da V18, a
+espécie da unidade da V23, o pai da sala da V25 — e nenhuma roda numa restauração. O
+docblock promete que rodam.
+
+### E. Os 27 médios e baixos
+<!-- medida: ausente src/components/Chip.tsx :: minHeight: 48 -->
+
+Alvos de toque de 28–30 dp contra o piso de 48 que este projeto escreveu · a régua fina
+do Papel que não separa nada · o remate em onda do Orgânico · a ordem alfabética das
+palavras INGLESAS do esquema na lista de Lugares · o espanhol com três segundas pessoas
+na mesma tela · 39 chaves de dicionário sem leitor · `PickLine.available` sem leitor de
+produção · a conferência que não é idempotente.
+
+### Esperando decisão do dono
+<!-- medida: espera três decisões do dono: yield na versão da ficha (migração), sale só para item vendível (semântica de movement_kind), e a capa com nove peças -->
+
+- **`yield` na versão da ficha** — hoje corrigir o rendimento reescreve o que a versão de
+  janeiro dizia. É migração (P3), e a janela é agora.
+- **`sale` só para item vendível** — numa loja própria a falta de QUALQUER item vira
+  venda, e copinho entra no razão como venda de preço nulo. Toca a semântica de
+  `movement_kind`.
+- **A capa com nove peças** — "Produza para os pedidos" está fora do padrão, contra o
+  critério escrito do próprio padrão.
+
+---
+
 ## Agora — o que está aberto
 
 **Nada dos quatro. Os quatro foram fechados em `1fcbadc`**, e a lista de trabalho
