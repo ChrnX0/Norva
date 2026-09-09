@@ -1004,6 +1004,38 @@ ${REPARO_QUEM_ATENDE}
 `;
 
 /**
+ * O rendimento passa a ser da VERSÃO da ficha — o espelho da `0052`.
+ *
+ * As linhas da ficha já eram versionadas e o lote já carimbava de que versão saiu. Os
+ * RENDIMENTOS escaparam das duas: `recipes.yield_amount` (quanto uma batelada rende de
+ * massa) e `products.yield_per_unit` (quantas unidades saem dela) são campo único, e
+ * `saveRecipeVersion` sobrescreve o primeiro a cada salvamento. Salvar a versão 3 com
+ * rendimento novo faz as versões 1 e 2 passarem a afirmar o número de hoje.
+ *
+ * **Entra sem leitor, e é o único caso em que a janela ganha do portão P1.** Nenhuma tela
+ * lê uma versão antiga: o editor mostra a atual, e o histórico de fichas não existe. Mas o
+ * rendimento de uma versão passada, depois que alguém produzir, não está em lugar nenhum
+ * para ser reconstruído — não é migração cara, é impossível. Quem vai ler é a tela de
+ * histórico da ficha; até lá isto guarda sem ser lido, e está dito.
+ */
+const REPARO_RENDIMENTO_DA_VERSAO = `UPDATE recipe_versions
+   SET yield_amount = (SELECT r.yield_amount FROM recipes r WHERE r.id = recipe_versions.recipe_id),
+       yield_unit   = (SELECT r.yield_unit   FROM recipes r WHERE r.id = recipe_versions.recipe_id)
+ WHERE yield_amount IS NULL;
+UPDATE recipe_versions
+   SET yield_per_unit = (SELECT p.yield_per_unit FROM products p
+                          WHERE p.recipe_id = recipe_versions.recipe_id AND p.active = 1)
+ WHERE yield_per_unit IS NULL;`;
+
+const V28 = `
+ALTER TABLE recipe_versions ADD COLUMN yield_amount REAL;
+ALTER TABLE recipe_versions ADD COLUMN yield_unit TEXT;
+ALTER TABLE recipe_versions ADD COLUMN yield_per_unit REAL;
+
+${REPARO_RENDIMENTO_DA_VERSAO}
+`;
+
+/**
  * Os REPAROS — os backfills de dado, reexecutáveis, para quando a escada não roda.
  *
  * **A restauração de uma cópia não sobe a escada, e não deveria mesmo.** `restaurar`
@@ -1041,11 +1073,12 @@ export const REPAROS: readonly string[] = [
   REPARO_ESPECIE_DA_UNIDADE,
   REPARO_PAI_DA_SALA,
   REPARO_QUEM_ATENDE,
+  REPARO_RENDIMENTO_DA_VERSAO,
 ];
 
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
-  V19, V20, V21, V22, V23, V24, V25, V26, V27,
+  V19, V20, V21, V22, V23, V24, V25, V26, V27, V28,
 ];
 
 export type SqlParam = string | number | null;

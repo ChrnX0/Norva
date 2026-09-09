@@ -417,6 +417,31 @@ export function vendeAoConsumidor(kind: string): boolean {
   return (RETAIL_PLACE_KINDS as readonly string[]).includes(kind);
 }
 
+/**
+ * Isto é coisa que a fábrica VENDE?
+ *
+ * **A falta que esta régua fecha — decisão do dono, 9 de setembro.** A contagem numa loja
+ * própria decidia a espécie do movimento só pelo LUGAR: falta em lugar que vende ao
+ * consumidor virava `sale`. Mas quem conta a prateleira conta tudo o que está nela, e
+ * numa loja há copinho, guardanapo e saco — que somem por uso, não por compra. Cada
+ * sumiço desses entrava no razão como **venda de preço nulo**, e o faturamento passava a
+ * contar embalagem perdida como receita.
+ *
+ * São duas perguntas e não uma: *"este lugar vende?"* e *"isto se vende?"*. A primeira é
+ * `vendeAoConsumidor`; esta é a segunda, e só as duas juntas fazem uma falta virar venda.
+ *
+ * `resale` entra porque revenda é justamente o que se compra pronto para vender. Ficam de
+ * fora insumo, embalagem e material de loja — o que some deles é diferença de contagem, e
+ * o razão guarda a diferença sem chamar ninguém de comprador. **Não é perda**: perda tem
+ * tela própria e motivo obrigatório, e adivinhar o motivo aqui seria o aplicativo
+ * acusando em vez de registrar.
+ */
+export const SELLABLE_ITEM_KINDS = ['product', 'resale'] as const;
+
+export function seVende(itemKind: string): boolean {
+  return (SELLABLE_ITEM_KINDS as readonly string[]).includes(itemKind);
+}
+
 export type Movement = {
   /** Client-generated UUID: makes the append idempotent across retries. */
   id: string;

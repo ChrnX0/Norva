@@ -7029,3 +7029,137 @@ test('an ordered item the room does not hold comes back with zero available', as
     'e o ausente não tem linha nenhuma pelo eixo do lugar — o buraco que `available` tapa',
   );
 });
+
+/**
+ * O copinho que some da loja não é venda — decisão do dono, 9 de setembro.
+ *
+ * A contagem numa loja própria decidia a espécie pelo LUGAR e só por ele: falta em lugar
+ * que vende ao consumidor virava `sale`. Só que quem conta a prateleira conta tudo o que
+ * está nela, e numa loja há copinho, guardanapo e saco — que somem por USO, não por
+ * compra. Cada um desses entrava no razão como venda de preço nulo, e o faturamento
+ * passava a contar embalagem perdida como receita.
+ *
+ * As duas metades são medidas aqui contra a MESMA contagem, na mesma loja, no mesmo
+ * momento: o picolé vira venda e o copinho vira diferença. Uma metade só provaria que a
+ * regra existe; as duas provam que ela separa.
+ */
+test('a shortfall of what the factory does not sell is a difference, never a sale', async () => {
+  const { loja, itemId } = await umaLojaComPicole();
+
+  // O copinho: material de loja, mandado para a mesma prateleira.
+  const copinho = await saveItem(CO, {
+    name: 'Copinho de 60ml',
+    kind: 'store_supply',
+    purchaseUnit: 'pacote',
+    purchaseToBase: 100,
+    baseUnit: 'un',
+    packaging: loose,
+  });
+  await recordPurchase(CO, {
+    itemId: copinho,
+    purchaseQuantity: 5,
+    baseUnits: 500,
+    totalCents: fromDecimal(50),
+  });
+  await recordTransfer(CO, {
+    itemId: copinho,
+    baseUnits: 500,
+    fromLocationId: defaultLocationId(CO),
+    toLocationId: loja,
+  });
+
+  // A mesma contagem, na mesma loja: faltam 300 picolés e faltam 120 copinhos.
+  const picole = await recordCount(CO, { itemId, countedBaseUnits: 100, locationId: loja });
+  const copo = await recordCount(CO, { itemId: copinho, countedBaseUnits: 380, locationId: loja });
+
+  assert.ok(picole.sold, 'o picolé que sumiu da loja foi comprado por alguém');
+  assert.equal(picole.sold.baseUnits, 300);
+
+  assert.equal(
+    copo.sold,
+    null,
+    'o copinho que sumiu não foi comprado: some por uso, e chamar isso de venda põe ' +
+      'embalagem perdida dentro do faturamento',
+  );
+
+  // E o razão guarda os dois com o nome certo — é aqui que a régua vira fato, porque o
+  // que a tela devolve pode estar certo com a linha gravada errada.
+  const nomes = await live.getAllAsync<{ item_id: string; kind: string }>(
+    `SELECT item_id, kind FROM movements
+      WHERE company_id = ? AND location_id = ? AND quantity_base_units < 0
+        AND kind IN ('sale', 'adjustment')`,
+    [CO, loja],
+  );
+  assert.equal(nomes.find((n) => n.item_id === itemId)?.kind, 'sale');
+  assert.equal(
+    nomes.find((n) => n.item_id === copinho)?.kind,
+    'adjustment',
+    'a falta do que não se vende é diferença de contagem, e o razão a guarda como tal',
+  );
+
+  // E o saldo desce igual nos dois: a espécie muda o NOME do fato, nunca a aritmética.
+  const naLoja = await listItems(CO, undefined, false, { sala: loja });
+  assert.equal(naLoja.find((i) => i.id === itemId)?.onHandBaseUnits, 100);
+  assert.equal(naLoja.find((i) => i.id === copinho)?.onHandBaseUnits, 380);
+});
+
+/**
+ * Corrigir o rendimento não pode reescrever o que a versão de janeiro dizia.
+ *
+ * As linhas da ficha já eram versionadas e o lote já carimbava de que versão saiu. Os
+ * RENDIMENTOS escapavam das duas: `recipes.yield_amount` é gravada com `on conflict do
+ * update`, então salvar a versão 2 com um número novo fazia a versão 1 passar a afirmar
+ * o número de hoje.
+ *
+ * A asserção que importa é a da versão ANTIGA depois do segundo salvamento — e ela é
+ * contra o valor que foi escrito na primeira vez, não contra o que a receita diz agora.
+ */
+test('the yield a version was saved with survives the next version', async () => {
+  await ensureStarterData(CO);
+
+  const v1 = await saveRecipeVersion(CO, {
+    name: 'Base de teste',
+    yieldAmount: 10,
+    yieldUnit: 'L',
+    lossFraction: 0.05,
+    lines: [],
+  });
+
+  const daVersao = (recipeId: string, version: number) =>
+    live.getFirstAsync<{ a: number | null; u: string | null }>(
+      `SELECT yield_amount AS a, yield_unit AS u FROM recipe_versions
+        WHERE recipe_id = ? AND version = ?`,
+      [recipeId, version],
+    );
+
+  const antes = await daVersao(v1.recipeId, v1.version);
+  assert.equal(antes?.a, 10, 'a versão nasce com o rendimento com que foi salva');
+  assert.equal(antes?.u, 'L');
+
+  // A fábrica descobre que a batelada rende 12, não 10, e salva de novo.
+  const v2 = await saveRecipeVersion(CO, {
+    recipeId: v1.recipeId,
+    name: 'Base de teste',
+    yieldAmount: 12,
+    yieldUnit: 'L',
+    lossFraction: 0.05,
+    lines: [],
+  });
+
+  const depois = await daVersao(v1.recipeId, v1.version);
+  assert.equal(
+    depois?.a,
+    10,
+    'a versão 1 continua dizendo 10 — era o que a fábrica acreditava quando produziu com ela',
+  );
+
+  const nova = await daVersao(v2.recipeId, v2.version);
+  assert.equal(nova?.a, 12, 'e a versão 2 diz 12, que é o que se sabe hoje');
+
+  // E a RECEITA diz o de hoje, que também está certo: ela é a de hoje.
+  const receita = await live.getFirstAsync<{ a: number }>(
+    `SELECT yield_amount AS a FROM recipes WHERE id = ?`,
+    [v1.recipeId],
+  );
+  assert.equal(receita?.a, 12, 'a receita é a de hoje; a versão é a de quando foi salva');
+});

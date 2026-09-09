@@ -108,9 +108,18 @@ export type BriefingWidget = (typeof BRIEFING_WIDGETS)[number];
  * Ajustes nunca descobriria que tem lote vencendo. Cortar um aviso para chegar
  * num número redondo seria servir a minha frase em vez de servir a tela.
  *
- * Saem oito, e todas por serem RELATÓRIO: histórico, insumos, pedidos, expedição,
- * perdas, custo, preços e o que está parado. Nenhuma delas muda o que se faz hoje
- * de manhã, e todas continuam a um toque em Ajustes.
+ * Saem sete, e todas por serem RELATÓRIO: histórico, insumos, expedição, perdas,
+ * custo, preços e o que está parado. Nenhuma delas muda o que se faz hoje de manhã, e
+ * todas continuam a um toque em Ajustes.
+ *
+ * **`pedidos` subiu para o padrão em 9 de setembro, e o critério acima é que a trouxe.**
+ * Ela estava aqui embaixo com as outras sete, e não é relatório: ela mostra o que as
+ * lojas pediram e **o que falta para atender**, item por item. "Produza para os pedidos"
+ * é o aplicativo dizendo o que fazer amanhã — a coisa mais "decide" que existe nesta
+ * tela. O critério mandava ligá-la desde que foi escrito; a lista a deixou de fora.
+ *
+ * São NOVE, e o número redondo perdeu para a Lei outra vez — como quando os "~5" que eu
+ * propus viraram oito. Decisão do dono, 9 de setembro.
  *
  * Fora do padrão não é fora do produto — é a mesma forma da F7: os dois caminhos
  * existem, e o que se escolhe aqui é só o PADRÃO.
@@ -118,7 +127,6 @@ export type BriefingWidget = (typeof BRIEFING_WIDGETS)[number];
 const DEFAULT_OFF = new Set<BriefingWidget>([
   'historico',
   'insumos',
-  'pedidos',
   'expedicao',
   'perdas',
   'custo',

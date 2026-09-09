@@ -11,6 +11,7 @@ import {
   ordemDoLugar,
   podeEscrever,
   valePeloPreco,
+  seVende,
   vendeAoConsumidor,
 } from '@/domain/ledger';
 import { ROLES, capabilitiesFor, type Capability, type Role } from '@/domain/access';
@@ -1735,7 +1736,28 @@ export async function recordCount(
     `SELECT kind FROM locations WHERE company_id = ? AND id = ?`,
     [companyId, input.locationId],
   );
-  const vendeu = delta < 0 && lugar !== null && vendeAoConsumidor(lugar.kind);
+
+  /**
+   * São DUAS perguntas, e por um dia isto fez só a primeira.
+   *
+   * "Este lugar vende ao consumidor?" não basta: quem conta a prateleira de uma loja
+   * conta tudo o que está nela, e numa loja há copinho, guardanapo e saco. Eles somem
+   * por USO, não por compra — e cada sumiço desses entrava no razão como `sale` de preço
+   * nulo, pondo embalagem perdida dentro do faturamento.
+   *
+   * A segunda pergunta é sobre o ITEM, e ela mora no domínio junto da primeira porque as
+   * duas mudam no mesmo dia: quando o ponto de venda chegar, as duas respostas mudam.
+   */
+  const item = await conn.getFirstAsync<{ kind: string }>(
+    `SELECT kind FROM items WHERE company_id = ? AND id = ?`,
+    [companyId, input.itemId],
+  );
+  const vendeu =
+    delta < 0 &&
+    lugar !== null &&
+    vendeAoConsumidor(lugar.kind) &&
+    item !== null &&
+    seVende(item.kind);
 
   /**
    * O preço vem SEM portão de permissão, e é a mesma decisão do custo na produção.
@@ -2064,10 +2086,28 @@ export async function saveRecipeVersion(
     );
     version = (previous?.v ?? 0) + 1;
 
+    /**
+     * O rendimento entra NA VERSÃO, e não só na receita.
+     *
+     * `recipes` acima é gravada com `on conflict do update set yield_amount = excluded.…`
+     * — o que é certo, porque a receita É a de hoje. O que estava errado é isso ser o
+     * único lugar: salvar a versão 3 com rendimento novo fazia as versões 1 e 2 passarem
+     * a afirmar o número de hoje, e a ficha de janeiro mentia em silêncio.
+     *
+     * `yield_per_unit` vem do produto porque é lá que ele mora e é lá que a tela o edita.
+     * Nulo é legítimo: sub-receita não vira unidade de venda.
+     */
+    const doProduto = await conn.getFirstAsync<{ y: number | null }>(
+      `SELECT yield_per_unit AS y FROM products
+        WHERE company_id = ? AND recipe_id = ? AND active = 1 LIMIT 1`,
+      [companyId, recipeId],
+    );
+
     await conn.runAsync(
       `INSERT INTO recipe_versions (id, company_id, recipe_id, version, effective_from,
-                                    loss_fraction, note, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                                    loss_fraction, yield_amount, yield_unit, yield_per_unit,
+                                    note, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         versionId,
         companyId,
@@ -2075,6 +2115,9 @@ export async function saveRecipeVersion(
         version,
         at.slice(0, 10),
         input.lossFraction,
+        input.yieldAmount,
+        input.yieldUnit,
+        doProduto?.y ?? null,
         input.note ?? null,
         at,
       ],

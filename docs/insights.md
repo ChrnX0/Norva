@@ -8513,3 +8513,38 @@ quebrada, navegador que não abre) realmente não imprime nenhuma das três linh
 repassa, e para essa continuava mudo. Ferramenta consertada pelo motivo errado ainda é
 ferramenta consertada; o que não se pode é deixar o motivo errado escrito como se fosse a
 história.
+
+---
+
+## 9 de setembro — o item dizia UM rendimento, e eram dois
+
+**O que apareceu:** o roadmap pedia `yield` na versão da ficha, e a frase era *"hoje
+corrigir o rendimento reescreve o que a versão de janeiro dizia"*. Ao medir antes de
+construir, o quadro ficou melhor **e** pior do que o item afirmava.
+
+Melhor: três camadas já protegiam o passado. As linhas da ficha são versionadas, o lote
+carimba de que versão saiu (com o motivo escrito na `0002`, palavra por palavra o mesmo
+raciocínio), e o custo unitário congela no próprio movimento.
+
+Pior: **eram dois rendimentos, não um.** `recipes.yield_amount` (quanto uma batelada rende
+de massa) e `products.yield_per_unit` (quantas unidades saem dela). Os dois são campo
+único, e `saveRecipeVersion` grava a receita com `on conflict do update set yield_amount =
+excluded.…` — então salvar a versão 3 faz as versões 1 e 2 passarem a afirmar o número de
+hoje. Três camadas contra o mesmo defeito, e ele escapou pela porta que ninguém olhou.
+
+**A régua que fica:** quando um item nomeia UM campo, procure os irmãos dele antes de
+mexer. `yield_per_unit` estava no item; `yield_amount` estava na mesma frase do mesmo
+código, na tabela ao lado, com o mesmo defeito e nenhum nome. Item de lista é um exemplo
+do problema, quase nunca o inventário dele.
+
+**E o conflito de portões, resolvido com nome:** o P1 diz *"sem chamador, não entra"*, e
+nenhuma tela lê hoje uma versão antiga — o editor mostra a atual, e o histórico de fichas
+não existe. O P3 diz que forma de esquema se adivinha de graça enquanto há zero linhas. Os
+dois se aplicam e apontam para lados opostos.
+
+O que desempata não é a ordem dos portões: é **o que se perde por esperar**. Uma coluna sem
+leitor que se pode acrescentar depois obedece o P1 e espera. Esta não: o rendimento de uma
+versão passada, depois que a primeira fábrica produzir, **não está em lugar nenhum para ser
+reconstruído**. Não é migração cara — é migração impossível. O P1 protege contra peça
+inútil; ele não foi escrito para o caso em que esperar destrói a informação. A fronteira
+fica escrita nos dois arquivos de migração, com o nome de quem vai ler.

@@ -328,6 +328,12 @@ const CROSSINGS: Record<
       'version',
       'effective_from',
       'loss_fraction',
+      // Os rendimentos da VERSÃO (0052 / V28). Eles atravessam porque a pergunta que
+      // respondem — "quanto esta ficha rendia quando foi usada?" — é do servidor tanto
+      // quanto do aparelho: o lote carimba a versão, e o lote sobe.
+      'yield_amount',
+      'yield_unit',
+      'yield_per_unit',
       'note',
       'created_at',
     ],

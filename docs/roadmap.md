@@ -39,8 +39,8 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | telas | **34** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **26** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **28** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **51** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V27** | último `const V` em `src/data/db.ts` |
+| migrações do servidor | **52** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V28** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
 | linhas de código | **~89.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **633** testes |
+| `npm test` | **635** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **28** garantias contra um Postgres descartável, sob RLS |
@@ -276,16 +276,31 @@ conferiu fica sabendo na hora, ou na próxima vez que abre a tela? Os três exis
 que a pessoa vê na doca.
 
 
-### Esperando decisão do dono
-<!-- medida: espera três decisões do dono: yield na versão da ficha (migração), sale só para item vendível (semântica de movement_kind), e a capa com nove peças -->
+### ~~Esperando decisão do dono~~ — as três DECIDIDAS em 9 de setembro
+<!-- medida: presente src/domain/briefing.ts :: subiu para o padrão em 9 de setembro -->
 
-- **`yield` na versão da ficha** — hoje corrigir o rendimento reescreve o que a versão de
-  janeiro dizia. É migração (P3), e a janela é agora.
-- **`sale` só para item vendível** — numa loja própria a falta de QUALQUER item vira
-  venda, e copinho entra no razão como venda de preço nulo. Toca a semântica de
-  `movement_kind`.
-- **A capa com nove peças** — "Produza para os pedidos" está fora do padrão, contra o
-  critério escrito do próprio padrão.
+O dono mandou fazer as três recomendações. O que saiu de cada uma:
+
+- **~~`yield` na versão da ficha~~** — feito, e **medir mudou a forma do item**. Eram
+  DOIS rendimentos fora da versão, não um: `recipes.yield_amount` (quanto uma batelada
+  rende de massa, sobrescrita por `on conflict do update` a cada salvamento) e
+  `products.yield_per_unit` (quantas unidades saem dela). As linhas da ficha já eram
+  versionadas, o lote já carimbava a versão e o custo já congelava no movimento — os
+  rendimentos escapavam das três. `0052` no servidor, `V28` no aparelho, gravados a cada
+  versão, e a guarda prova o que importa: a versão 1 continua dizendo 10 depois de a 2
+  dizer 12. **Entrou sem leitor**, e é o único caso em que a janela do P3 ganha do P1: o
+  rendimento de uma versão passada, depois que alguém produzir, não está em lugar nenhum
+  para ser reconstruído. Quem vai ler é a tela de histórico da ficha, que não existe — e
+  isso está escrito nos dois arquivos de migração.
+- **~~`sale` só para item vendível~~** — feito. `seVende` no domínio, ao lado de
+  `vendeAoConsumidor`, porque são duas perguntas e as duas mudam no dia em que o ponto de
+  venda chegar. A guarda mede as duas metades na MESMA contagem, na mesma loja: o picolé
+  vira `sale`, o copinho vira `adjustment`, e o saldo desce igual nos dois — a espécie
+  muda o nome do fato, nunca a aritmética.
+- **~~A capa com nove peças~~** — feito. `pedidos` saiu do `DEFAULT_OFF`. O critério
+  escrito é *"o padrão leva o que avisa e o que decide"*, e "Produza para os pedidos" é o
+  aplicativo dizendo o que fazer amanhã. São nove, e o número redondo perdeu para a Lei
+  outra vez — como quando os "~5" que eu propus viraram oito.
 
 ---
 
