@@ -210,3 +210,28 @@ export function freeToShip(input: {
     short: Math.max(0, promised - (input.onHand - input.amount)),
   };
 }
+
+/**
+ * Quanto ainda FALTA produzir para cobrir o que foi pedido — a régua única.
+ *
+ * Estava escrita à mão em três lugares (a capa, o aviso do celular e a tela de
+ * anotar pedido), e as três faziam `requested - onHand` sobre um `requested` bruto.
+ * O `onHand` cai quando a carga sai da sala; o pedido não descia junto, então a
+ * diferença crescia exatamente pelo tanto que o caminhão levou de manhã: a capa
+ * mandava produzir o que acabou de sair, e o aviso repetia no celular.
+ *
+ * O que já chegou nas lojas hoje é FATO e vem ao lado — a mesma forma que o irmão
+ * `pickingFor` adotou em 6 de setembro. Aqui é o único lugar que subtrai, e por
+ * isso é o único que o `mutate` precisa morder.
+ *
+ * Nunca negativo: quem entregou mais do que foi pedido não tem falta, tem sobra, e
+ * sobra é outra pergunta.
+ */
+export function faltaProduzir(demanda: {
+  requested: number;
+  sentToday: number;
+  onHand: number;
+}): number {
+  const aindaPrometido = Math.max(0, demanda.requested - demanda.sentToday);
+  return Math.max(0, aindaPrometido - demanda.onHand);
+}

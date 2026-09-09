@@ -1,3 +1,4 @@
+import { faltaProduzir } from '@/domain/picking';
 import {
   expiringSoon,
   lastReadings,
@@ -45,7 +46,7 @@ export async function factsForAlerts(timeZone: string): Promise<AlertFacts> {
     // A unidade deste aparelho, e não a empresa: o aviso "quatro lojas esperando" é
     // sobre o que ESTA unidade tem para carregar. Somar o freezer da outra cidade
     // faria o aviso calar justamente onde falta produto.
-    stockAgainstOrders(empresaDaqui(), through, unidadeDaqui()),
+    stockAgainstOrders(empresaDaqui(), through, unidadeDaqui(), { from: today.from, to: today.to }),
     // Os pedidos em aberto vêm além da demanda somada, e não é redundância: a
     // demanda agrupa por ITEM e o aviso conta LOJAS. Sem esta consulta eu estava
     // usando o id do item como id de loja — o aviso diria "quatro lojas
@@ -84,7 +85,7 @@ export async function factsForAlerts(timeZone: string): Promise<AlertFacts> {
     // loja é quem está esperando por ela. É o que permite o aviso contar lojas
     // sem inventar rateio: se falta picolé, toda loja que pediu picolé espera.
     orders: demand.flatMap((d) => {
-      const missing = Math.max(0, d.requested - d.onHand);
+      const missing = faltaProduzir(d);
       if (missing <= 0) return [];
       const esperando = orders.filter((o) => o.lines.some((l) => l.itemId === d.itemId));
       return esperando.map((o) => ({

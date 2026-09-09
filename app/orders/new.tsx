@@ -212,7 +212,10 @@ function NewOrder() {
       const noRascunho = lines
         .filter((l) => l.itemId === itemId)
         .reduce((n, l) => n + l.baseUnits, 0);
-      return linha.onHand - linha.requested - noRascunho;
+      // O que já chegou nas lojas hoje deixa de ser promessa: sem descontá-lo, esta
+      // tela avisava "faltam 200" contra uma carga que saiu de manhã.
+      const aindaPrometido = Math.max(0, linha.requested - linha.sentToday);
+      return linha.onHand - aindaPrometido - noRascunho;
     },
     [demanda, lines],
   );

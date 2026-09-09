@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { freeToShip, ordersCoveredBy, pickSuggestion } from './picking';
+import { faltaProduzir, freeToShip, ordersCoveredBy, pickSuggestion } from './picking';
 
 test('the order beats the habit, and the habit beats nothing', () => {
   // As duas fontes DISCORDANDO é o único caso que prova a ordem: com uma delas
@@ -285,4 +285,38 @@ test('an order for five weeks out does not fight over today truck', () => {
     through: '2026-10-15',
   });
   assert.equal(noDia.promised, 850);
+});
+
+/**
+ * A carga que saiu de manhã deixava de ser promessa — e não deixava.
+ *
+ * `requested` é a soma bruta das linhas dos pedidos abertos, e a conta que a capa
+ * fazia era `requested - onHand`. O `onHand` CAI quando a carga sai da sala; o
+ * pedido não descia junto. Então depois de entregar 300 de 500 a diferença crescia
+ * em 300 — a capa mandava produzir exatamente o que o caminhão levou, o aviso no
+ * celular repetia, e a tela de anotar pedido avisava contra um estoque que já
+ * tinha ido.
+ *
+ * A régua é uma só, aqui, e a conta é feita à mão em cada asserção.
+ */
+test('o que já chegou na loja hoje sai da conta do que falta produzir', () => {
+  // Pediram 500, já foram 300, e a fábrica tem 100. Falta produzir 100: dos 500
+  // prometidos sobram 200, e 100 já estão na câmara.
+  assert.equal(faltaProduzir({ requested: 500, sentToday: 300, onHand: 100 }), 100);
+
+  // O caso que o defeito produzia: entregou tudo, e a fábrica ficou sem nada. Sem
+  // descontar, a conta dava 500 — "produza quinhentos" no dia em que os quinhentos
+  // saíram pela porta.
+  assert.equal(faltaProduzir({ requested: 500, sentToday: 500, onHand: 0 }), 0);
+
+  // Nada entregue: a conta antiga e a nova concordam, e é isso que impede a régua
+  // de trocar um defeito por outro.
+  assert.equal(faltaProduzir({ requested: 500, sentToday: 0, onHand: 200 }), 300);
+
+  // Entregou MAIS do que foi pedido: não é falta negativa, é zero. Sobra é outra
+  // pergunta, e um número negativo aqui viraria "produza menos que nada" na tela.
+  assert.equal(faltaProduzir({ requested: 500, sentToday: 700, onHand: 0 }), 0);
+
+  // E estoque de sobra também não vira falta negativa.
+  assert.equal(faltaProduzir({ requested: 100, sentToday: 0, onHand: 900 }), 0);
 });

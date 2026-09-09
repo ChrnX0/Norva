@@ -6596,8 +6596,25 @@ export async function ordersCoveredToday(
 export type Demand = {
   itemId: string;
   name: string;
-  /** Quanto foi pedido e ainda não foi entregue, na unidade base do item. */
+  /**
+   * Quanto foi pedido, em BRUTO — a soma das linhas dos pedidos abertos.
+   *
+   * **O contrato dizia "e ainda não foi entregue", e não descontava nada.** Depois
+   * de uma carga parcial o `onHand` da mesma consulta cai (a mercadoria saiu da
+   * sala) e este número não, então `requested - onHand` crescia exatamente pelo
+   * tanto que acabou de sair: a capa mandava produzir o que o caminhão levou de
+   * manhã, e o aviso no celular repetia. É a mesma frase de contrato que o irmão
+   * `PickLine.ordered` já teve, e o conserto é o mesmo: o fato vem AO LADO, e quem
+   * subtrai é uma régua só.
+   */
   requested: number;
+  /**
+   * Quanto já chegou HOJE nas lojas que estão pedindo — a janela que fecha pedido.
+   *
+   * Positivo o que a transferência levou, negativo o que a devolução trouxe: o
+   * líquido é o que a loja recebeu de fato.
+   */
+  sentToday: number;
   /** Quanto existe na fábrica agora. O que já está numa loja não conta. */
   onHand: number;
 };
@@ -6654,6 +6671,15 @@ export async function stockAgainstOrders(
    * quem já tinha o aplicativo.
    */
   unitId: string,
+  /**
+   * A janela do DIA — a mesma que fecha pedido.
+   *
+   * Ela existe porque `requested` é bruto e o que já chegou nas lojas hoje tem de
+   * vir ao lado, e não descontado: quem subtrai é uma régua só, no domínio, onde o
+   * `mutate` alcança. Ausente, o fato vem zero — que é a resposta certa para quem
+   * não está perguntando sobre o dia.
+   */
+  dia?: { from: string; to: string },
 ): Promise<Demand[]> {
   const conn = await db();
   const recorte = noEscopo('m.location_id', { unidade: unitId });
@@ -6661,6 +6687,7 @@ export async function stockAgainstOrders(
     item_id: string;
     name: string;
     requested: number;
+    sent_today: number;
     on_hand: number;
   }>(
     // O filtro do pedido vive no ON, e não no WHERE, senão o LEFT JOIN vira
@@ -6668,6 +6695,21 @@ export async function stockAgainstOrders(
     // consulta passou a existir para trazer.
     `SELECT p.item_id, i.name,
             COALESCE(SUM(ol.base_units), 0) AS requested,
+            -- O que já chegou HOJE nas lojas que estão pedindo, líquido. A mesma
+            -- pergunta que pickingFor faz para uma loja, feita para todas as que
+            -- têm pedido aberto — e a mesma janela que fecha pedido, senão nascem
+            -- duas verdades sobre o mesmo dia.
+            (SELECT COALESCE(SUM(m3.quantity_base_units), 0) FROM movements m3
+              WHERE m3.company_id = p.company_id
+                AND m3.item_id = p.item_id
+                AND m3.kind IN ('transfer', 'return')
+                AND m3.occurred_at >= ?
+                AND m3.occurred_at < ?
+                AND ${naoEstornado('m3')}
+                AND m3.location_id IN (
+                      SELECT o2.place_id FROM orders o2
+                       WHERE o2.company_id = p.company_id
+                         AND o2.status IN ('pending', 'open'))) AS sent_today,
             (SELECT COALESCE(SUM(m.quantity_base_units), 0) FROM movements m
                JOIN locations l ON l.id = m.location_id
               WHERE m.company_id = p.company_id
@@ -6690,13 +6732,14 @@ export async function stockAgainstOrders(
       ORDER BY i.name COLLATE NOCASE`,
     // A ordem dos parâmetros segue a ordem no texto: a subconsulta do saldo vem
     // ANTES do LEFT JOIN e do WHERE, então o recorte vem antes da data.
-    [...recorte.params, throughDate, companyId],
+    [dia?.from ?? '', dia?.to ?? '', ...recorte.params, throughDate, companyId],
   );
 
   return rows.map((r) => ({
     itemId: r.item_id,
     name: r.name,
     requested: r.requested,
+    sentToday: r.sent_today,
     onHand: r.on_hand,
   }));
 }

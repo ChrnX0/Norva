@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { faltaProduzir } from '@/domain/picking';
 import {
   countMovements,
   expiringSoon,
@@ -170,7 +171,7 @@ function Briefing() {
       shipmentsOn(empresaDaqui(), yesterday.from, yesterday.to, { unidade: unidadeDaqui() }),
       openProductionRuns(empresaDaqui(), { unidade: unidadeDaqui() }),
       runningOut(empresaDaqui(), lastWeek.from, today.to, 7, 7, { unidade: unidadeDaqui() }),
-      stockAgainstOrders(empresaDaqui(), through, unidadeDaqui()),
+      stockAgainstOrders(empresaDaqui(), through, unidadeDaqui(), { from: today.from, to: today.to }),
       productionBetween(empresaDaqui(), weekAgo.from, today.to, { unidade: unidadeDaqui() }),
       recentRuns(empresaDaqui(), 6, { unidade: unidadeDaqui() }),
       // Sem horizonte: aqui a pergunta não é "o que acaba esta semana" (isso é o
@@ -371,7 +372,7 @@ function Briefing() {
    * ensina a ignorar alerta.
    */
   const shortForOrders = (data?.demand ?? [])
-    .map((d) => ({ ...d, missing: d.requested - d.onHand }))
+    .map((d) => ({ ...d, missing: faltaProduzir(d) }))
     .filter((d) => d.missing > 0)
     .sort((a, b) => b.missing - a.missing);
 
