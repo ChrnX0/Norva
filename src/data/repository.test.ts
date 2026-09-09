@@ -29,6 +29,7 @@ import {
   saveFlavor,
   saveLine,
   saveType,
+  SemPermissaoError,
   savePerson,
   saveSalePrice,
   recordProduction,
@@ -6224,4 +6225,85 @@ test('undoing a sale gives the shelf back, because a sale is a movement like any
 
   const saldo = (await listItems(CO, undefined, false, { sala: loja })).find((i) => i.id === itemId);
   assert.equal(saldo?.onHandBaseUnits, 400, 'o estorno é uma linha nova que nega a anterior');
+});
+
+/**
+ * O entregador não trava a fila do celular inteiro com um toque.
+ *
+ * **Achado em 9 de setembro, e estava vivo.** Nenhuma das sete escritas conferia
+ * capacidade, e o botão de desfazer do extrato não tinha portão nenhum. O SQLite aceita
+ * qualquer linha — não tem política, papel nem capacidade —, o servidor tem
+ * `movements_append` e recusa, e `drain` **para na primeira linha recusada**. Parar está
+ * certo para uma lacuna de dependência, que a tentativa seguinte resolve; é fatal para
+ * uma recusa por permissão, que nenhuma resolve.
+ *
+ * `driver` é `['dispatch','check_receipt','record_loss']` — sem `adjust_stock`. Um toque
+ * em "Desfazer" e aquele celular nunca mais sincronizava, **sem erro na tela**, porque
+ * no aparelho a linha entrava. A fábrica descobriria semanas depois, com tudo o que ela
+ * gravou preso atrás de uma linha.
+ *
+ * As duas metades importam e as duas estão aqui: o que ele NÃO alcança é recusado antes
+ * de nascer, e o que ele alcança continua passando — um portão que recusa tudo protege a
+ * fila e mata o aplicativo.
+ */
+test('a driver cannot jam the queue with a row the server will refuse', async () => {
+  await ensureStarterData(CO);
+  const perfis = await listProfiles(CO);
+  const entregador = perfis.find((p) => p.templateRole === 'driver')!;
+  const zeca = await savePerson(CO, { name: 'Zeca', profileId: entregador.id });
+
+  const [produto] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
+  const fabrica = defaultLocationId(CO);
+  const loja = (await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' })).id;
+  await recordProduction(CO, {
+    productId: produto.id,
+    locationId: fabrica,
+    batches: 1,
+    unitsProduced: 400,
+    producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+  });
+  const carga = await recordTransfer(CO, {
+    itemId: produto.itemId,
+    baseUnits: 100,
+    fromLocationId: fabrica,
+    toLocationId: loja,
+  });
+
+  // Agora quem está com o celular é o entregador.
+  await setCurrentOperator(zeca.id);
+
+  // Desfazer escreve `reversal`, que o servidor dá a quem tem `adjust_stock`.
+  await assert.rejects(
+    () => reverseGroup(CO, { groupId: carga.groupId }),
+    (e: unknown) => {
+      assert.ok(e instanceof SemPermissaoError, `veio ${(e as Error)?.name}`);
+      assert.equal(e.kind, 'reversal', 'a tela precisa da espécie para dizer o que não deu');
+      return true;
+    },
+  );
+
+  // Contar também: `adjustment` pede a mesma capacidade.
+  await assert.rejects(
+    () => recordCount(CO, { itemId: produto.itemId, countedBaseUnits: 10, locationId: loja }),
+    (e: unknown) => e instanceof SemPermissaoError,
+  );
+
+  // E a outra metade, que é a que impede o portão de virar uma parede: o que o
+  // entregador ALCANÇA continua passando. Ele tem `dispatch`, então carregar é dele.
+  const outra = await recordTransfer(CO, {
+    itemId: produto.itemId,
+    baseUnits: 50,
+    fromLocationId: fabrica,
+    toLocationId: loja,
+  });
+  assert.ok(outra.groupId, 'quem entrega continua entregando');
+
+  // E `record_loss` também é dele: a caixa quebrada no caminhão é notícia que ele dá.
+  const perdeu = await recordLoss(CO, {
+    itemId: produto.itemId,
+    baseUnits: 10,
+    reason: 'broken',
+    locationId: loja,
+  });
+  assert.equal(perdeu.baseUnits, 10);
 });

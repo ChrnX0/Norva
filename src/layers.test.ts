@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { CARGO_PLACE_KINDS, INTERNAL_PLACE_KINDS } from './domain/ledger';
+import { CARGO_PLACE_KINDS, INTERNAL_PLACE_KINDS, QUEM_ESCREVE } from './domain/ledger';
 
 /**
  * Where SQL is allowed to live, pinned.
@@ -1828,5 +1828,123 @@ test('the mixed-granularity guard bites a half-scoped screen and leaves the othe
       lista,
     ),
     [],
+  );
+});
+
+/**
+ * A tabela de quem escreve o quê é a MESMA dos dois lados — e o servidor manda.
+ *
+ * **Achado em 9 de setembro, e ele estava vivo.** Nenhuma das sete escritas do
+ * `repository.ts` confere capacidade, e o botão de desfazer do extrato não tem portão
+ * nenhum. O SQLite aceita qualquer linha — não tem política, não tem papel, não tem
+ * capacidade —, o servidor recusa, e `drain` **para na primeira linha recusada**.
+ * Parar é deliberado e certo para uma lacuna de dependência, que a próxima tentativa
+ * resolve; é fatal para uma recusa por permissão, que nenhuma tentativa resolve.
+ * `storeManager` e `driver` não têm `adjust_stock`: um toque em "Desfazer" e aquele
+ * celular nunca mais sincroniza, sem erro na tela, porque no aparelho a linha entrou.
+ *
+ * A guarda lê o `case kind` da política **na migração** e compara com `QUEM_ESCREVE`.
+ * Duas fontes, e a que manda não passou pela minha mão — que é a única forma de esta
+ * tabela não envelhecer no dia em que a política mudar.
+ */
+export function politicaDoServidor(sql: string): Record<string, string[]> | null {
+  /**
+   * A prosa sai ANTES de qualquer coisa — e o motivo aqui é bom demais para resumir.
+   *
+   * A primeira versão procurava o fim do `case` com `indexOf('end')`, sobre o SQL com
+   * comentários. A `0047` explica as duas origens da venda num comentário entre os
+   * casos, e **`indexOf('end')` casou com o miolo de "v-end-a"**: o leitor parou dentro
+   * da palavra `venda`, no comentário que explica a venda. Ele leu quatro espécies, deu
+   * as outras seis como ausentes do servidor, e acusou a tabela CERTA de divergir de
+   * uma política que ele não tinha terminado de ler.
+   *
+   * Duas coisas consertam, e as duas são a mesma lição: comentário não é código, e
+   * palavra-chave se procura como PALAVRA. É a quarta régua desta casa a tropeçar em
+   * prosa em dois dias.
+   */
+  const limpo = sql.replace(/^\s*--.*$/gm, '');
+  const caso = limpo.lastIndexOf('and case kind');
+  if (caso < 0) return null;
+  const depois = limpo.slice(caso);
+  const fecha = depois.match(/\bend\b/);
+  if (!fecha) return null;
+  const corpo = depois.slice(0, fecha.index);
+  const pedacos = corpo.split(/when '/).slice(1);
+  const mapa: Record<string, string[]> = {};
+  for (const pedaco of pedacos) {
+    const nome = pedaco.match(/^(\w+)'/);
+    if (!nome) continue;
+    const caps = [...pedaco.matchAll(/has_capability\(company_id, '(\w+)'\)/g)].map((c) => c[1]);
+    if (caps.length > 0) mapa[nome[1]] = caps;
+  }
+  return Object.keys(mapa).length > 0 ? mapa : null;
+}
+
+test('the device knows exactly which capability the server demands for each kind', () => {
+  // A migração mais nova que define a política — e não a 0001, que já foi reescrita
+  // duas vezes. Ler a antiga daria uma tabela que o servidor não usa mais.
+  const migracoes = readdirSync('supabase/migrations')
+    .filter((f) => f.endsWith('.sql'))
+    .sort()
+    .reverse();
+  const comPolitica = migracoes.find((f) =>
+    readFileSync(join('supabase/migrations', f), 'utf8').includes('create policy movements_append'),
+  );
+  assert.ok(comPolitica, 'nenhuma migração define movements_append — a comparação seria de graça');
+
+  const doServidor = politicaDoServidor(
+    readFileSync(join('supabase/migrations', comPolitica), 'utf8'),
+  );
+  assert.ok(doServidor, `não consegui ler o case kind de ${comPolitica}`);
+
+  const divergem: string[] = [];
+  for (const [kind, caps] of Object.entries(doServidor)) {
+    const nossa = (QUEM_ESCREVE as Record<string, readonly string[]>)[kind];
+    if (!nossa) {
+      divergem.push(`${kind}: o servidor exige ${caps.join(' ou ')} e o aparelho não sabe`);
+      continue;
+    }
+    const a = [...caps].sort().join(',');
+    const b = [...nossa].sort().join(',');
+    if (a !== b) divergem.push(`${kind}: servidor ${a}, aparelho ${b}`);
+  }
+  for (const kind of Object.keys(QUEM_ESCREVE)) {
+    if (!doServidor[kind]) divergem.push(`${kind}: o aparelho tem regra e o servidor não`);
+  }
+
+  assert.deepEqual(
+    divergem,
+    [],
+    `a tabela do aparelho discorda da política do servidor (${comPolitica}):\n  ${divergem.join('\n  ')}\n` +
+      'Quem manda é o servidor: uma linha que ele recusa fica pendente para sempre, e ' +
+      '`drain` para na primeira — tudo o que a fábrica gravar depois fica preso atrás dela.',
+  );
+});
+
+test('the policy reader tells a real case from prose that mentions one', () => {
+  const politica = `
+create policy movements_append on movements
+  for insert with check (
+    recorded_by = auth.uid()
+    and case kind
+      when 'purchase'    then private.has_capability(company_id, 'check_receipt')
+      -- As duas origens de uma venda.
+      when 'sale'        then private.has_capability(company_id, 'dispatch')
+                           or private.has_capability(company_id, 'adjust_stock')
+      when 'adjustment'  then private.has_capability(company_id, 'adjust_stock')
+    end
+  );`;
+  assert.deepEqual(politicaDoServidor(politica), {
+    purchase: ['check_receipt'],
+    sale: ['dispatch', 'adjust_stock'],
+    adjustment: ['adjust_stock'],
+  });
+
+  // Negativos: um arquivo sem política nenhuma, e um que só FALA dela num comentário.
+  assert.equal(politicaDoServidor('alter table movements add column x int;'), null);
+  assert.equal(
+    politicaDoServidor("-- a política diz when 'sale' then has_capability(company_id, 'dispatch')"),
+    null,
+    'comentário citando a política não é a política — o terceiro detector desta casa a tropeçar nisso',
   );
 });

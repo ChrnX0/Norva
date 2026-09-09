@@ -386,6 +386,8 @@ export const en: Dictionary = {
       blocked: 'Cannot undo right now: {{items}} has already left.',
       blockedItem: '{{name}} — has {{held}}, would need {{needed}}',
       undoFailed: 'Could not undo right now. Nothing was changed.',
+      /** See pt-BR. */
+      undoNotYours: 'Undoing belongs to whoever manages stock. Ask someone who has it.',
       more: 'Show more — {{n}} so far',
       allOfIt: 'That is all of it: {{n}}.',
       recordCount: { one: '1 record', other: '{{n}} records' },
@@ -985,6 +987,8 @@ export const en: Dictionary = {
         'Undoing this would take out more than there is: {{items}}. Bring the goods back first, or record a count of what is there.',
       undoBlockedLine: '{{name}} needs {{needed}} and has {{held}}',
       undoFailed: 'Could not undo',
+      /** Whoever holds the device cannot undo — the way out is another person. See pt-BR. */
+      undoNotYours: 'Undoing belongs to whoever manages stock. Ask someone who has it.',
       countRoom: 'This is the {{room}} balance. The count is for that room.',
       countSpread:
         'This item sits in {{count}} places. A count covers one place — tap a place to count there.',

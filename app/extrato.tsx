@@ -21,6 +21,7 @@ import { Touchable } from '@/components/Touchable';
 import {
   CannotReverseError,
   ledgerExtract,
+  SemPermissaoError,
   planReversal,
   reverseGroup,
   type ExtractAct,
@@ -187,7 +188,17 @@ export default function ExtratoScreen() {
         await reverseGroup(empresaDaqui(), { groupId: ato.groupId });
         dados.refresh();
       } catch (e) {
-        setRecusa(e instanceof CannotReverseError ? words.alreadyUndone : words.undoFailed);
+        // Três recusas diferentes, três frases — e a do meio é a que faltava. Sem
+        // ela, quem não alcança desfazer lia "não deu para desfazer" e tentava de
+        // novo: a Lei 5 quer que o erro impeça e diga a saída, e a saída aqui é
+        // outra pessoa, não outra tentativa.
+        setRecusa(
+          e instanceof CannotReverseError
+            ? words.alreadyUndone
+            : e instanceof SemPermissaoError
+              ? words.undoNotYours
+              : words.undoFailed,
+        );
       }
     },
     [confirm, dados, locale, t, words],

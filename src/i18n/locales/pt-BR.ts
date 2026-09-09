@@ -516,6 +516,14 @@ export const ptBR = {
       blocked: 'Não dá para desfazer agora: {{items}} já saiu daqui.',
       blockedItem: '{{name}} — tem {{held}}, precisaria de {{needed}}',
       undoFailed: 'Não deu para desfazer agora. Nada foi mudado.',
+      /**
+       * Quem está com o aparelho não alcança desfazer — e a saída é outra PESSOA.
+       *
+       * Não culpa e não manda tentar de novo: o servidor recusaria a linha, e linha
+       * recusada por permissão trava a fila do celular inteiro. "Não deu" aqui
+       * convidaria ao segundo toque, que é o mesmo defeito com outra roupa.
+       */
+      undoNotYours: 'Desfazer é de quem administra o estoque. Peça a quem tem essa permissão.',
       more: 'Ver mais — {{n}} até aqui',
       allOfIt: 'Isto é tudo: {{n}}.',
       recordCount: { one: '1 registro', other: '{{n}} registros' },
@@ -1235,6 +1243,14 @@ export const ptBR = {
         'Desfazer isto tiraria do estoque mais do que tem: {{items}}. Traga a mercadoria de volta primeiro, ou registre a contagem do que existe.',
       undoBlockedLine: '{{name}} precisa de {{needed}} e tem {{held}}',
       undoFailed: 'Não deu para desfazer',
+      /**
+       * Quem está com o aparelho não alcança desfazer — e a saída é outra PESSOA.
+       *
+       * A frase não culpa e não manda tentar de novo: o servidor recusaria a linha, e
+       * uma linha recusada por permissão trava a fila do celular inteiro. Dizer "não
+       * deu" aqui convidaria ao segundo toque, que é o defeito com outra roupa.
+       */
+      undoNotYours: 'Desfazer é de quem administra o estoque. Peça a quem tem essa permissão.',
       /** Qual sala este saldo é. Sem isso o número da sala parece o da empresa. */
       countRoom: 'Este é o saldo da {{room}}. A contagem é dessa sala.',
       /** Mais de um lugar e nenhum escolhido: contar aqui gravaria em lugar errado. */

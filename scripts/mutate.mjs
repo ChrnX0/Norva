@@ -955,6 +955,27 @@ const DEFECTS = [
       'a tela de producao volta a ler o saldo da empresa e a liberar o botao com o insumo noutra sala: cada toque devolve o erro de programador do piso, e nenhuma corrida entra',
   },
 
+  // --- o portao de escrita que protege a FILA, 9 de setembro -----------------
+  //
+  // Nenhuma das sete escritas conferia capacidade, e o botao de desfazer nao tinha
+  // portao nenhum. O SQLite aceita qualquer linha; o servidor recusa; e `drain` PARA
+  // na primeira recusada. Um toque do entregador travava a fila daquele celular para
+  // sempre, sem nada na tela.
+  {
+    file: 'src/data/repository.ts',
+    from: "  await podeGravar(companyId, 'reversal');",
+    to: '',
+    hurts:
+      'o entregador volta a poder desfazer: a linha entra no aparelho, o servidor a recusa por permissao, e a fila daquele celular nunca mais anda — com tudo o que a fabrica gravar depois preso atras dela',
+  },
+  {
+    file: 'src/domain/ledger.ts',
+    from: "  return QUEM_ESCREVE[kind].some((c) => tem.has(c));",
+    to: '  return true;',
+    hurts:
+      'o portao de escrita passa a deixar tudo passar: a tabela existe, o teste da paridade continua verde, e a fila volta a travar na primeira linha que o servidor recusar',
+  },
+
   // --- os dois mundos de onde a corrida consome, 8 de setembro ---------------
   //
   // O padrao foi decidido sob defeito e a configuracao e a outra metade da regra da

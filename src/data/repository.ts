@@ -2,7 +2,13 @@ import { applyCostEvent, blendRate, type StockCostState } from '@/domain/cost';
 import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
 import { isValidHierarchy } from '@/domain/units';
 import { DEFAULT_ALERTS, type AlertSettings } from '@/domain/alerts';
-import { UNIT_ROOM_KINDS, daysOfCover, ehSalaDeUnidade, vendeAoConsumidor } from '@/domain/ledger';
+import {
+  UNIT_ROOM_KINDS,
+  daysOfCover,
+  ehSalaDeUnidade,
+  podeEscrever,
+  vendeAoConsumidor,
+} from '@/domain/ledger';
 import { ROLES, capabilitiesFor, type Capability, type Role } from '@/domain/access';
 import { expiresOn, lotCode } from '@/domain/lot';
 import type { LossReason, MovementKind, ReturnReason } from '@/domain/ledger';
@@ -532,6 +538,8 @@ export async function recordPurchase(
     assistantPhrase?: string;
   },
 ): Promise<{ previousRate: Rate | null; newRate: Rate }> {
+  // Receber nota é conferir recebimento, e é essa a capacidade dos dois lados.
+  await podeGravar(companyId, 'purchase');
   const conn = await db();
   const at = nowIso();
   const occurred = input.occurredAt ?? at;
@@ -1551,6 +1559,9 @@ export async function recordCount(
     locationId: string;
   },
 ): Promise<CountResult> {
+  // A contagem escreve `adjustment` OU `sale`, e as duas pedem `adjust_stock` — a
+  // venda por causa da 0047, que abriu essa porta de propósito para quem conta.
+  await podeGravar(companyId, 'adjustment');
   const conn = await db();
   const at = nowIso();
 
@@ -2055,6 +2066,45 @@ export type ProductionResult = {
  * atravessa a fila.
  */
 /**
+ * Quem está com o aparelho não alcança escrever esta espécie de movimento.
+ *
+ * **Isto protege a FILA, e não o dado — e a diferença é o motivo de existir.** O
+ * SQLite aceita qualquer linha: não tem política, não tem papel, não tem capacidade.
+ * O servidor tem `movements_append` e recusa. E `drain` **para na primeira linha
+ * recusada** — parar está certo para uma lacuna de dependência, que a tentativa
+ * seguinte resolve, e é fatal para uma recusa por permissão, que nenhuma tentativa
+ * resolve: a linha fica pendente e tudo o que a fábrica gravar depois fica preso
+ * atrás dela.
+ *
+ * O caso medido em 9 de setembro: `storeManager` e `driver` não têm `adjust_stock`,
+ * e o botão de desfazer do extrato não tinha portão nenhum. Um toque do entregador e
+ * aquele celular nunca mais sincronizava — **sem erro na tela**, porque no aparelho a
+ * linha entrava.
+ *
+ * A espécie vai dentro para a tela poder dizer o que não deu, em vez de "não foi
+ * possível": a Lei 5 quer que o erro impeça e mostre a saída no mesmo gesto.
+ */
+export class SemPermissaoError extends Error {
+  constructor(readonly kind: MovementKind) {
+    super(`sem permissão para escrever ${kind}`);
+    this.name = 'SemPermissaoError';
+  }
+}
+
+/**
+ * O portão de escrita, e ele roda ANTES de qualquer linha nascer.
+ *
+ * Mesma forma da fundação de permissão desta casa, virada para a escrita: a checagem
+ * vem antes, então não existe linha errada para alguém consertar depois — e aqui
+ * "depois" seria uma fila que não anda mais.
+ */
+async function podeGravar(companyId: string, kind: MovementKind): Promise<void> {
+  if (!podeEscrever(kind, await currentCapabilities(companyId))) {
+    throw new SemPermissaoError(kind);
+  }
+}
+
+/**
  * O que faltava quando alguém tentou produzir mais do que dá.
  *
  * Nomeado e com os itens dentro, porque a tela precisa dizer QUAIS faltaram -
@@ -2107,6 +2157,7 @@ export async function recordProduction(
     assistantPhrase?: string;
   },
 ): Promise<ProductionResult> {
+  await podeGravar(companyId, 'production');
   const conn = await db();
   const at = nowIso();
 
@@ -2554,6 +2605,10 @@ async function moveBetween(
   input: MoveInput,
   kind: 'transfer' | 'return',
 ): Promise<TransferResult> {
+  // A espécie decide a capacidade: carga pede `dispatch`, devolução pede
+  // `check_receipt`. Quem só entrega não confere o que voltou, e quem só confere não
+  // carrega — as duas pontas do mesmo movimento têm dono diferente no servidor.
+  await podeGravar(companyId, kind);
   if (input.fromLocationId === input.toLocationId) {
     throw new Error('origem e destino são o mesmo lugar');
   }
@@ -3093,6 +3148,7 @@ export async function recordLoss(
   },
 ): Promise<{ baseUnits: number; rate: Rate }> {
   if (!(input.baseUnits > 0)) throw new Error('uma perda de nada não é uma perda');
+  await podeGravar(companyId, 'loss');
 
   const conn = await db();
   const at = nowIso();
@@ -3685,6 +3741,8 @@ export async function recordCheck(
     assistantPhrase?: string;
   },
 ): Promise<CheckResult> {
+  // A conferência da doca escreve `discrepancy`, que o servidor dá a quem confere.
+  await podeGravar(companyId, 'discrepancy');
   const conn = await db();
   const at = nowIso();
   const occurred = input.occurredAt ?? at;
@@ -6743,6 +6801,11 @@ export async function reverseGroup(
   companyId: string,
   input: { groupId: string; occurredAt?: string; note?: string },
 ): Promise<{ groupId: string; legs: ReversalLeg[] }> {
+  // **Este é o caso que abriu a investigação toda.** O botão de desfazer do extrato não
+  // tinha portão nenhum, e um estorno pede `adjust_stock` no servidor: o entregador
+  // tocava, a linha entrava no aparelho, o servidor recusava, e a fila daquele celular
+  // parava para sempre — sem nada na tela.
+  await podeGravar(companyId, 'reversal');
   const conn = await db();
   const plan = await planReversal(companyId, input.groupId);
   if (plan.alreadyReversed || plan.blocked.length > 0) throw new CannotReverseError(plan);

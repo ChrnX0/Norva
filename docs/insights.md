@@ -7475,3 +7475,54 @@ A régua que sai é chata e é curta: **todo detector que varre FONTE tira a pro
 contar.** Comentário existe para explicar por que a palavra saiu, e uma régua que não
 distingue os dois transforma a explicação em defeito. Está escrito nas três; a próxima
 que nascer já começa com o negativo da prosa entre os testes.
+
+## O aparelho não sabia o que o servidor recusaria — e uma recusa por permissão trava a fila para sempre
+
+9 de setembro, procurado e não encontrado por acaso: a ORDEM do plano estava fechada em
+tudo que não espera fábrica ou decisão do dono, então o que sobrava era caçar defeito no
+filão que já tinha pagado duas vezes no mesmo dia — *o que o aparelho grava contra o que
+o servidor aceitaria*.
+
+**Nenhuma das sete escritas de `repository.ts` conferia capacidade.** E o botão de
+desfazer do extrato não tinha portão nenhum — nem na tela, nem na camada de dados.
+
+A soma disso com duas coisas que já existiam é o defeito:
+
+1. O SQLite **não tem política, não tem papel e não tem capacidade**. Ele aceita
+   qualquer linha, de qualquer um.
+2. `drain` **para na primeira linha recusada**, e o comentário ao lado diz por quê:
+   *"continuing would send rows whose parents the server does not have, and turn one
+   rejection into many"*. Está certo — para uma lacuna de DEPENDÊNCIA, que a próxima
+   tentativa resolve.
+
+**Uma recusa por PERMISSÃO nenhuma tentativa resolve.** A linha fica pendente para
+sempre, e tudo o que a fábrica gravar depois fica preso atrás dela. `driver` é
+`['dispatch','check_receipt','record_loss']` — sem `adjust_stock`, que é o que o servidor
+exige para um estorno. Um toque do entregador em "Desfazer" e aquele celular nunca mais
+sincronizava, **sem nada na tela**, porque no aparelho a linha entrava normalmente. A
+fábrica descobriria semanas depois.
+
+O conserto tem três peças e a terceira é a que impede a tabela de envelhecer:
+
+- `QUEM_ESCREVE` no domínio: qual capacidade cada espécie pede.
+- `podeGravar` nas sete escritas, ANTES de a linha nascer — a mesma forma da fundação de
+  permissão desta casa, virada para a escrita.
+- Uma guarda que **lê o `case kind` da política na migração** e compara. Duas fontes, e a
+  que manda não passou pela minha mão.
+
+**E o leitor da política parou dentro da palavra `venda`.** `indexOf('end')` casou com o
+miolo de *"v-end-a"*, num comentário que explica a venda: ele leu quatro espécies, deu as
+outras seis como ausentes do servidor, e **acusou a tabela certa** de divergir de uma
+política que não tinha terminado de ler. Duas linhas consertam — tirar a prosa antes, e
+procurar `end` como PALAVRA — e as duas são a mesma lição da régua irmã escrita hoje de
+manhã. É o quarto detector desta casa a tropeçar em prosa em dois dias, e o primeiro a
+tropeçar dentro de uma palavra.
+
+**A régua que fica:** um portão que só existe do outro lado da rede não é um portão para
+quem escreve offline — é um adiamento, e o preço dele não é a linha recusada: é a fila.
+Onde o servidor recusa por permissão, o aparelho tem de recusar antes, com a mesma
+tabela, **derivada dele**.
+
+E a metade que impede o conserto de virar parede está no teste junto: o que o entregador
+NÃO alcança é recusado, e o que ele alcança continua passando. Portão que recusa tudo
+protege a fila e mata o aplicativo.

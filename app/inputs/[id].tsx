@@ -33,6 +33,7 @@ import {
   planReversal,
   recipesUsingItem,
   reverseGroup,
+  SemPermissaoError,
   recordCount,
   salePricesFor,
   setItemActive,
@@ -590,7 +591,16 @@ function InputDetail() {
     } catch (e) {
       await confirm({
         title: t.app.inputDetail.undoFailed,
-        message: e instanceof Error ? e.message : String(e),
+        // `e.message` é frase de programador, e ela chegava inteira à tela: *"sem
+        // permissão para escrever reversal"*. É a mesma cicatriz do
+        // `NotEnoughStockError`, que esta casa já pagou — quem lê está de luva na
+        // câmara fria, não lendo o código.
+        message:
+          e instanceof SemPermissaoError
+            ? t.app.inputDetail.undoNotYours
+            : e instanceof Error
+              ? e.message
+              : String(e),
         acknowledge: true,
         confirmLabel: t.app.confirm.understood,
       });

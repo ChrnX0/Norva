@@ -391,6 +391,8 @@ export const es: Dictionary = {
       blocked: 'No se puede deshacer ahora: {{items}} ya salió de aquí.',
       blockedItem: '{{name}} — tiene {{held}}, necesitaría {{needed}}',
       undoFailed: 'No se pudo deshacer ahora. Nada fue cambiado.',
+      /** See pt-BR. */
+      undoNotYours: 'Deshacer es de quien administra el stock. Pídelo a quien lo tenga.',
       more: 'Ver más — {{n}} hasta aquí',
       allOfIt: 'Esto es todo: {{n}}.',
       recordCount: { one: '1 registro', other: '{{n}} registros' },
@@ -990,6 +992,8 @@ export const es: Dictionary = {
         'Deshacer esto sacaría del inventario más de lo que hay: {{items}}. Traiga la mercancía de vuelta primero, o registre el recuento de lo que existe.',
       undoBlockedLine: '{{name}} necesita {{needed}} y tiene {{held}}',
       undoFailed: 'No se pudo deshacer',
+      /** Quien tiene el aparato no puede deshacer — la salida es otra persona. Ver pt-BR. */
+      undoNotYours: 'Deshacer es de quien administra el stock. Pídelo a quien lo tenga.',
       countRoom: 'Este es el saldo de {{room}}. El recuento es de esa sala.',
       countSpread:
         'Este artículo está en {{count}} lugares. Se cuenta un lugar por vez — toque el lugar para contar allí.',

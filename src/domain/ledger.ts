@@ -15,6 +15,7 @@
  */
 
 import type { Rate } from './money';
+import type { Capability } from './access';
 
 export type MovementKind =
   | 'purchase' // arrived from a supplier against an invoice
@@ -250,6 +251,53 @@ export const RETAIL_PLACE_KINDS = ['own_store'] as const;
  * nada, porque desliga a única pergunta que manda alguém contar.
  */
 export const COUNT_KINDS = ['adjustment', 'sale'] as const;
+
+/**
+ * Qual capacidade o SERVIDOR exige para escrever cada espécie de movimento.
+ *
+ * **Esta tabela existe porque o aparelho não sabia, e não saber trava a fila para
+ * sempre.** O SQLite não tem política, não tem papel e não tem capacidade: ele aceita
+ * qualquer linha. O servidor tem `movements_append`, e ela recusa. E `drain` **para na
+ * primeira linha recusada** — parar é deliberado e está certo para uma lacuna de
+ * dependência (filho antes do pai, que a próxima tentativa resolve), e é fatal para uma
+ * recusa por PERMISSÃO, que nenhuma tentativa resolve: a linha fica pendente, e tudo o
+ * que a fábrica gravar depois fica preso atrás dela.
+ *
+ * O caso concreto, medido em 9 de setembro: `storeManager` e `driver` não têm
+ * `adjust_stock`, e o botão de desfazer do extrato **não tem portão nenhum**. Um toque
+ * do entregador e aquele celular nunca mais sincroniza — sem erro na tela, porque no
+ * aparelho a linha entrou.
+ *
+ * **A tabela é derivada, não copiada.** `src/layers.test.ts` lê o `case kind` da
+ * migração que define a política e compara com esta lista: duas fontes, e a que manda
+ * não passou pela minha mão. Guarda que compara duas coisas escritas pela mesma mão não
+ * guarda nada — regra desta casa, paga três vezes.
+ *
+ * A venda tem DUAS: despachar para um cliente, e contar a prateleira de uma loja
+ * própria. É a `0047`, e a razão está escrita lá.
+ */
+export const QUEM_ESCREVE: Record<MovementKind, readonly Capability[]> = {
+  purchase: ['check_receipt'],
+  production: ['record_production'],
+  consumption: ['record_production'],
+  transfer: ['dispatch'],
+  sale: ['dispatch', 'adjust_stock'],
+  loss: ['record_loss'],
+  return: ['check_receipt'],
+  discrepancy: ['check_receipt'],
+  adjustment: ['adjust_stock'],
+  reversal: ['adjust_stock'],
+};
+
+/**
+ * Este conjunto de capacidades alcança escrever esta espécie?
+ *
+ * QUALQUER uma das listadas basta — é `or` na política do servidor, e trocar por `and`
+ * recusaria a venda de quem conta, que é o caso que a `0047` abriu de propósito.
+ */
+export function podeEscrever(kind: MovementKind, tem: ReadonlySet<string>): boolean {
+  return QUEM_ESCREVE[kind].some((c) => tem.has(c));
+}
 
 /** Esta linha do razão prova que alguém conferiu a prateleira? */
 export function ehConferencia(kind: string): boolean {
