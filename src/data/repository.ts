@@ -565,12 +565,18 @@ export async function recordPurchase(
   };
 
   // The same function the tests cover and the assistant will call.
+  //
+  // Ela continua sendo quem decide a TAXA DA LINHA (`lineRate`), que é o dinheiro
+  // congelado desta nota. A média guardada quem escreve é `recomputeItemCost`, e o
+  // que esta tela anuncia é o que ficou gravado — anunciar a dobra local e gravar
+  // outra coisa era o defeito irmão do que a auditoria achou na produção.
   const after = applyCostEvent(before, {
     kind: 'purchase',
     baseUnits: input.baseUnits,
     totalCents: input.totalCents,
     at,
   });
+  let mediaGravada = after.averageRate;
 
   // Five rows describe one event, so they land together or not at all. A
   // purchase that recorded its invoice and not its cost would leave a price
@@ -644,21 +650,17 @@ export async function recordPurchase(
       ],
     );
 
-    await conn.runAsync(
-      `INSERT INTO item_costs (item_id, company_id, average_rate, last_rate, updated_at)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(item_id) DO UPDATE SET
-         average_rate = excluded.average_rate,
-         last_rate = excluded.last_rate,
-         updated_at = excluded.updated_at`,
-      [input.itemId, companyId, after.averageRate, lineRate, at],
-    );
-
-    await conn.runAsync(
-      `INSERT INTO item_cost_history (id, company_id, item_id, previous_rate, new_rate, observed_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [newId(), companyId, input.itemId, before.averageRate || null, after.averageRate, occurred],
-    );
+    // **Um autor só para `item_costs`, e ele é o que replaya o razão.**
+    //
+    // Havia dois — este e a perna de produto de `recordProduction` —, os dois dobrando
+    // por conta própria por cima do valor guardado, mais o `recomputeItemCost` que
+    // refaz o caminho inteiro no estorno. Duas contas para o mesmo razão discordam:
+    // medido em 5 dos 10 itens que o próprio exemplo semeia, com 28,6% de diferença.
+    // A dobra incremental é mais barata e essa economia não existe numa fábrica — a
+    // réplica de um item são dezenas de linhas, e o estorno já paga esse preço hoje.
+    //
+    // A data do histórico continua sendo a do FATO (`occurred`), não a da digitação.
+    mediaGravada = await recomputeItemCost(companyId, input.itemId, occurred);
 
     // The line matters as much as its header, and for a reason beyond
     // completeness: the server's `apply_purchase_to_cost` trigger fires on an
@@ -683,7 +685,7 @@ export async function recordPurchase(
 
   return {
     previousRate: before.averageRate > 0 ? before.averageRate : null,
-    newRate: after.averageRate,
+    newRate: mediaGravada,
   };
 }
 
@@ -1354,6 +1356,46 @@ const naoEstornado = (alias: string) =>
   `NOT EXISTS (SELECT 1 FROM movements rev WHERE rev.reverses_movement_id = ${alias}.id AND rev.company_id = ${alias}.company_id)`; // proofgate-allow: `alias` é literal deste arquivo, nunca entrada
 
 const NAO_ESTORNADO = naoEstornado('m');
+
+/**
+ * "Isto é saída de verdade" — o predicado de toda média de consumo, num lugar só.
+ *
+ * Ele estava escrito DUAS vezes, em dois SQL, com o comentário admitindo a cópia
+ * (*"a regra é a MESMA do runningOut, e ela estava só lá"*). Duas cópias erram
+ * juntas, e erraram: nenhuma das duas descartava o estorno, então desfazer uma nota
+ * lançada errada fabricava o alerta *"acaba em 0,7 dia"* na capa — a peça cuja única
+ * função é dizer o que produzir amanhã.
+ *
+ * **São DUAS condições e não uma, e isto foi medido.** `NAO_ESTORNADO` sozinho tira o
+ * movimento ORIGINAL, que é positivo e que a soma de saída nem olha; a perna que
+ * DESFAZ nasce negativa, é da espécie `reversal` — nem transferência nem devolução —
+ * e nada aponta para ela, então ela atravessava o filtro e virava consumo. Só o par
+ * zera as duas pontas.
+ *
+ * O que NÃO entra aqui: o saldo. Saldo é soma pura de todas as linhas, e é assim que
+ * o estorno o conserta — filtrar lá deixaria a prateleira mentindo.
+ */
+const saidaDeVerdade = (parNoEscopoSql: string): string =>
+  [
+    // Mudar de lugar não é consumir, e o que decide não é o TIPO sozinho: é para
+    // onde a carga foi. O par do movimento é gravado nas duas pernas (moveBetween),
+    // então "saiu do escopo" é DADO — transferência cujo par está dentro é interna;
+    // a que vai para loja, cliente ou outra unidade conta.
+    //
+    // Medido em 7 de setembro: depois de mandar 400 unidades para a PRÓPRIA loja, a
+    // régua dizia "saída de 57 por dia, dura 8,8 dias" com a empresa tendo as mesmas
+    // quinhentas — a perna negativa entrava e a positiva não compensava, porque a
+    // soma só olha o que é negativo. O conselho saía invertido.
+    //
+    // A lista de tipos FICA, e isso é medida, não gosto: `discrepancy` (a diferença
+    // achada num posto de controle) também carrega par, e caixa que saiu e não
+    // chegou é perda de verdade.
+    `NOT (m.kind IN ('transfer', 'return') AND ${parNoEscopoSql})`,
+    // A perna que desfaz não é consumo.
+    `m.reverses_movement_id IS NULL`,
+    // E o que foi desfeito não aconteceu.
+    NAO_ESTORNADO,
+  ].join('\n        AND ');
 
 export type PlaceStock = {
   locationId: string;
@@ -2540,43 +2582,6 @@ export async function recordProduction(
     // entrada existir, senão a corrida entraria na média de si mesma. E o
     // valor é o consumo desta corrida, arredondado uma vez — a taxa que sai
     // daqui continua fracionária.
-    const custoAtual = await conn.getFirstAsync<{ average_rate: number }>(
-      `SELECT average_rate FROM item_costs WHERE item_id = ?`,
-      [product.itemId],
-    );
-    const emMaos = await conn.getFirstAsync<{ base_units: number }>(
-      `SELECT COALESCE(SUM(quantity_base_units), 0) AS base_units
-         FROM movements WHERE company_id = ? AND item_id = ?`,
-      [companyId, product.itemId],
-    );
-    const antes: StockCostState = {
-      baseUnits: emMaos?.base_units ?? 0,
-      averageRate: (custoAtual?.average_rate ?? 0) as Rate,
-    };
-    // A taxa CONGELADA entra na média, não a soma dos consumos: ela já carrega
-    // a embalagem por unidade (`unitPackagingRate`), que é dinheiro do produto
-    // e não sai de movimento nenhum. E entra como taxa, sem virar centavo
-    // inteiro no caminho — `blendRate` existe por causa desses oito décimos de
-    // milésimo.
-    const mediaNova = blendRate(antes, {
-      baseUnits: input.unitsProduced,
-      rate: unitCostRate,
-    });
-
-    await conn.runAsync(
-      `INSERT INTO item_costs (item_id, company_id, average_rate, last_rate, updated_at)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(item_id) DO UPDATE SET
-         average_rate = excluded.average_rate,
-         last_rate = excluded.last_rate,
-         updated_at = excluded.updated_at`,
-      [product.itemId, companyId, mediaNova, unitCostRate, at],
-    );
-    await conn.runAsync(
-      `INSERT INTO item_cost_history (id, company_id, item_id, previous_rate, new_rate, observed_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [newId(), companyId, product.itemId, antes.averageRate || null, mediaNova, occurred],
-    );
 
     // Só a linha de PRODUÇÃO aponta para o lote novo.
     //
@@ -2592,6 +2597,21 @@ export async function recordProduction(
     for (const line of consumoPorSala) {
       await write(newId(), 'consumption', line.itemId, -line.baseUnits, line.rate, null, line.locationId);
     }
+
+    // **O segundo autor de `item_costs` — e agora não há segundo.**
+    //
+    // A taxa CONGELADA da corrida (`unitCostRate`) continua sendo o que a linha do
+    // razão guarda: ela já carrega a embalagem por unidade, que é dinheiro do produto
+    // e não sai de movimento nenhum. O que mudou é quem escreve a MÉDIA: era uma dobra
+    // local, por cima do valor guardado, e agora é o replay do razão — o mesmo que o
+    // estorno já usava. Duas contas para o mesmo razão discordavam em 5 dos 10 itens
+    // do exemplo semeado, com 28,6% de diferença.
+    //
+    // **Depois das escritas, e isto não é detalhe:** posto antes, o replay não enxerga
+    // a linha da corrida e a média do produto sai zero. Eu escrevi este bloco acima
+    // primeiro, afirmando no comentário que a linha já existia, e cinco testes
+    // acusaram — o comentário estava errado e o código também.
+    await recomputeItemCost(companyId, product.itemId, occurred);
   });
 
   return {
@@ -3441,13 +3461,14 @@ export async function storeMirror(
        FROM movements m
        JOIN locations l ON l.id = m.location_id
        JOIN items i ON i.id = m.item_id
-       -- LEFT, e é a diferença entre mostrar quem levou e esconder a carga: a
-       -- maioria das entregas é com o carro da fábrica, e um JOIN comum apagaria
-       -- todas elas da tela.
-       LEFT JOIN carriers t ON t.id = m.carrier_id
       WHERE m.company_id = ?
         AND l.kind IN ('own_store', 'customer')
         AND m.occurred_at >= ?
+        -- A carga desfeita não chegou. Sem esta linha a perna de estorno (espécie
+        -- 'reversal', que por isso não entra em nenhum dos dois ramos abaixo) deixava
+        -- a carga no DENOMINADOR para sempre: uma devolução de 33% virava 3%, medido.
+        -- A irmã que faz a mesma pergunta, shipmentsOn, já filtra desde que nasceu.
+        AND ${NAO_ESTORNADO}
         AND ((m.kind = 'transfer' AND m.quantity_base_units > 0)
           OR (m.kind = 'return'   AND m.quantity_base_units < 0))
       GROUP BY m.location_id, l.name, m.item_id, i.name, i.base_unit, m.kind,
@@ -5414,41 +5435,19 @@ export async function dailyOutflowOf(
   onde?: Escopo,
 ): Promise<number> {
   const conn = await db();
-  const recorte = noEscopo('location_id', onde);
-  const parNoEscopo = noEscopo('counterpart_location_id', onde);
+  // A tabela tem apelido porque o predicado compartilhado o exige: `naoEstornado`
+  // correlaciona a subconsulta pelo apelido, e sem ele o SQL sai com `m.id` numa
+  // consulta que não tem `m` — inválido, e invisível ao typecheck, que só vê texto.
+  const recorte = noEscopo('m.location_id', onde);
+  const parNoEscopo = noEscopo('m.counterpart_location_id', onde);
   const linha = await conn.getFirstAsync<{ out_units: number }>(
-    `SELECT COALESCE(-SUM(quantity_base_units), 0) AS out_units
-       FROM movements
-      WHERE company_id = ? AND item_id = ?
-        AND quantity_base_units < 0
+    `SELECT COALESCE(-SUM(m.quantity_base_units), 0) AS out_units
+       FROM movements m
+      WHERE m.company_id = ? AND m.item_id = ?
+        AND m.quantity_base_units < 0
         AND ${recorte.sql}
-        -- Mudar de sala não é consumir, e sem esta linha era.
-        --
-        -- A regra é a MESMA do runningOut, e ela estava só lá. Esta função
-        -- nasceu ao lado dele para responder por um item só, e não herdou nem o
-        -- escopo de sala nem a correção da perna de transferência — que foi
-        -- medida em 7 de setembro: depois de mandar 400 unidades para a PRÓPRIA
-        -- loja, a régua dizia "saída de 57 por dia" com a empresa tendo as mesmas
-        -- quinhentas. A perna negativa entra como saída e a positiva não
-        -- compensa, porque a soma só olha o que é negativo.
-        --
-        -- E o que decide não é mais o TIPO sozinho: é para onde a carga foi.
-        --
-        -- Antes esta linha era "se a pergunta é da empresa, transferência não
-        -- conta" — grosseira e certa enquanto havia uma unidade. Com duas, mandar
-        -- polpa de Bauru para Marília deixaria de contar como saída de Bauru, e a
-        -- cobertura de lá ficaria infinita com a câmara vazia.
-        --
-        -- O par do movimento já é gravado nas duas pernas (moveBetween), então
-        -- "saiu do escopo" é DADO: transferência cujo par está dentro é interna e
-        -- não conta; a que vai para loja, cliente ou outra unidade conta.
-        --
-        -- A lista de tipos FICA, e isso é medida, não gosto: discrepancy (a
-        -- diferença achada num posto de controle) também carrega par, e caixa que
-        -- saiu e não chegou é perda de verdade. Uma regra só de par a faria parar
-        -- de contar como saída, calada.
-        AND NOT (kind IN ('transfer', 'return') AND ${parNoEscopo.sql})
-        AND occurred_at >= ? AND occurred_at < ?`,
+        AND ${saidaDeVerdade(parNoEscopo.sql)}
+        AND m.occurred_at >= ? AND m.occurred_at < ?`,
     [companyId, itemId, ...recorte.params, ...parNoEscopo.params, fromIso, toIso],
   );
   const saiu = linha?.out_units ?? 0;
@@ -5490,25 +5489,7 @@ export async function runningOut(
                        WHERE m.company_id = i.company_id AND m.item_id = i.id
                          AND m.quantity_base_units < 0
                          AND ${recorte.sql}
-                         -- Mudar de lugar não é consumir, e o que decide não é o
-                         -- TIPO sozinho: é para onde a carga foi. O par do
-                         -- movimento é gravado nas duas pernas, então "saiu do
-                         -- escopo" é dado.
-                         --
-                         -- Medido em 7 de setembro, antes de existir unidade:
-                         -- depois de mandar 400 unidades para a PRÓPRIA loja, a
-                         -- régua dizia "saída de 57 por dia, dura 8,8 dias" com a
-                         -- empresa tendo exatamente as mesmas quinhentas. A perna
-                         -- negativa entrava como saída e a positiva não compensava,
-                         -- porque a soma só olha o que é negativo. O conselho saía
-                         -- invertido: produza mais porque você moveu estoque de uma
-                         -- sala sua para outra.
-                         --
-                         -- E a lista de tipos FICA: discrepancy (a diferença de um
-                         -- posto de controle) também carrega par, e caixa que saiu
-                         -- e não chegou é perda. Uma regra só de par a faria parar
-                         -- de contar, calada.
-                         AND NOT (m.kind IN ('transfer', 'return') AND ${parNoEscopo.sql})
+                         AND ${saidaDeVerdade(parNoEscopo.sql)}
                          AND m.occurred_at >= ? AND m.occurred_at < ?), 0) AS out_units
        FROM items i
       WHERE i.company_id = ? AND i.active = 1
@@ -6816,7 +6797,19 @@ export async function planReversal(companyId: string, groupId: string): Promise<
  * calada de custo é a pior: ela reaparece semanas depois como margem errada, sem
  * nada que a explique.
  */
-export async function recomputeItemCost(companyId: string, itemId: string): Promise<Rate> {
+export async function recomputeItemCost(
+  companyId: string,
+  itemId: string,
+  /**
+   * Quando o fato que mexeu no custo aconteceu — não quando a linha foi escrita.
+   *
+   * O histórico de custo alimenta o aviso de preço da capa, e ele fala da DATA DA
+   * DECISÃO: nota de terça digitada na quinta é alta de terça. Quem estorna não passa
+   * nada e cai no instante de agora, que é o certo lá — o estorno acontece quando
+   * alguém toca no botão.
+   */
+  observedAt?: string,
+): Promise<Rate> {
   const conn = await db();
 
   const antes = await conn.getFirstAsync<{ average_rate: number }>(
@@ -6842,8 +6835,23 @@ export async function recomputeItemCost(companyId: string, itemId: string): Prom
   // A ordem desempata pelo instante em que o aparelho soube: duas entradas no
   // mesmo momento têm que dobrar sempre igual, senão a média depende de qual
   // linha o SQLite devolveu primeiro.
-  const linhas = await conn.getAllAsync<{ quantity_base_units: number; unit_cost_rate: number | null }>(
-    `SELECT m.quantity_base_units, m.unit_cost_rate
+  //
+  // **E QUEM autora a média são dois, não qualquer entrada.** A dobra mistura só o
+  // que o servidor mistura, e lá isso é lei escrita em gatilho: a `0009` dobra na
+  // linha de compra e a `0025` dobra na produção, com `if new.kind <> 'production'
+  // or new.quantity_base_units <= 0 ... return new`. No aparelho a peneira não
+  // existia, e quatro pernas positivas carregam taxa congelada sem nunca terem
+  // autorado média nenhuma — a entrada de uma transferência ou de uma devolução (a
+  // taxa vem do `item_costs` cru), a sobra de uma contagem, e a diferença de um
+  // posto de controle. Todas elas MOVEM quantidade sem dizer quanto custou; misturar
+  // a taxa delas é dobrar o mesmo dinheiro duas vezes. Medido no estorno: 64,3% de
+  // erro quando havia transferência no meio.
+  const linhas = await conn.getAllAsync<{
+    kind: string;
+    quantity_base_units: number;
+    unit_cost_rate: number | null;
+  }>(
+    `SELECT m.kind, m.quantity_base_units, m.unit_cost_rate
        FROM movements m
       WHERE m.company_id = ? AND m.item_id = ?
         AND m.kind <> 'reversal'
@@ -6855,7 +6863,13 @@ export async function recomputeItemCost(companyId: string, itemId: string): Prom
   let estado: StockCostState = { baseUnits: 0, averageRate: 0 as Rate };
   let ultima: Rate | null = null;
   for (const l of linhas) {
-    if (l.quantity_base_units > 0 && l.unit_cost_rate !== null) {
+    // `last_rate` acompanha os MESMOS dois e não só a compra: a `0025` escreve
+    // `last_rate` na perna de produção, e restringir isto à compra faria o produto
+    // fabricado perder o último preço na primeira recomposição — a coluna é nulável
+    // no aparelho, então o silêncio não apareceria em lugar nenhum.
+    const autoraMedia =
+      l.kind === 'purchase' || (l.kind === 'production' && l.quantity_base_units > 0);
+    if (autoraMedia && l.quantity_base_units > 0 && l.unit_cost_rate !== null) {
       estado = {
         baseUnits: estado.baseUnits + l.quantity_base_units,
         averageRate: blendRate(estado, {
@@ -6885,7 +6899,7 @@ export async function recomputeItemCost(companyId: string, itemId: string): Prom
     await conn.runAsync(
       `INSERT INTO item_cost_history (id, company_id, item_id, previous_rate, new_rate, observed_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [newId(), companyId, itemId, anterior || null, estado.averageRate, at],
+      [newId(), companyId, itemId, anterior || null, estado.averageRate, observedAt ?? at],
     );
   }
 

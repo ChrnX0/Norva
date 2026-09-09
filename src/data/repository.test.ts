@@ -2771,6 +2771,60 @@ test('half a kettle takes half the ingredients, so recording only what came out 
   assert.ok(saldoDepois < saldoAntes, 'o insumo tem que ter baixado');
 });
 
+/**
+ * O que foi DESFEITO não é consumo — e desfazer fabricava o alerta.
+ *
+ * `runningOut` e `dailyOutflowOf` somavam qualquer linha negativa que não fosse
+ * transferência interna. A perna que ESTORNA nasce negativa, é da espécie `reversal`
+ * e está datada de hoje: desfazer uma nota lançada errada punha 500 kg de "saída" na
+ * janela e a capa passava a dizer *"acaba em 0,7 dia"* — a peça cuja única função é
+ * dizer o que produzir amanhã.
+ *
+ * **Duas condições, não uma, e o teste prova as duas juntas.** Descartar só o
+ * movimento estornado não bastaria: o original é POSITIVO e a soma de saída nem olha
+ * para ele. Quem entra na soma é a perna que desfaz, e nada aponta para ela.
+ *
+ * A asserção é IGUALDADE contra um cenário de controle — a mesma janela sem a nota e
+ * sem o estorno — porque "maior que zero" é satisfeito por qualquer soma.
+ */
+test('desfazer uma nota não conta como saída, nem a nota nem a perna que a desfaz', async () => {
+  await ensureStarterData(EMPRESA_SEMENTE);
+  const [acucar] = (await listItems(EMPRESA_SEMENTE)).filter((i) => /ú?car/i.test(i.name));
+  const de = '2026-03-01T00:00:00.000Z';
+  const ate = '2026-03-08T00:00:00.000Z';
+
+  // O controle: a janela sem nenhuma nota e sem nenhum estorno.
+  const controle = await dailyOutflowOf(EMPRESA_SEMENTE, acucar.id, de, ate, 7);
+  const controleLista = await runningOut(EMPRESA_SEMENTE, de, ate, 7, 3650);
+
+  await recordPurchase(EMPRESA_SEMENTE, {
+    itemId: acucar.id,
+    purchaseQuantity: 1,
+    baseUnits: 500_000,
+    totalCents: fromDecimal(1000),
+    occurredAt: '2026-03-02T08:00:00.000Z',
+  });
+  const nota = (await itemMovements(EMPRESA_SEMENTE, acucar.id)).find(
+    (m) => m.kind === 'purchase' && m.occurredAt === '2026-03-02T08:00:00.000Z',
+  );
+  assert.ok(nota?.groupId, 'a compra carrega o ato de que faz parte');
+  await reverseGroup(EMPRESA_SEMENTE, {
+    groupId: nota.groupId,
+    occurredAt: '2026-03-03T08:00:00.000Z',
+  });
+
+  assert.equal(
+    await dailyOutflowOf(EMPRESA_SEMENTE, acucar.id, de, ate, 7),
+    controle,
+    'a nota desfeita e a perna que a desfaz somam zero de saída, como se nada tivesse acontecido',
+  );
+  assert.deepEqual(
+    await runningOut(EMPRESA_SEMENTE, de, ate, 7, 3650),
+    controleLista,
+    'e a lista de quem está acabando é idêntica à do cenário sem nota nenhuma',
+  );
+});
+
 test('what is running out comes from what actually left, and a still input never alarms', async () => {
   await ensureStarterData(EMPRESA_SEMENTE);
   const [product] = (await listProductsForLedger(EMPRESA_SEMENTE)).filter((p) => p.recipeId);
@@ -4876,6 +4930,21 @@ test('the mirror says how much of what a store received came back, against last 
 
   const espelho = await storeMirror(EMPRESA_SEMENTE, 30, agora);
   assert.equal(espelho.length, 2, 'as duas lojas, e nenhuma sala nossa');
+
+  // **A carga desfeita não chegou.** A perna do estorno é da espécie `reversal`, então
+  // ela não é subtraída de `received` nem somada a `returned` — sem descartar a carga
+  // original, a mercadoria que voltou para a fábrica ficava no DENOMINADOR para
+  // sempre. Medido: uma devolução de um terço virava 3%.
+  //
+  // A asserção é IGUALDADE contra este espelho, que é o cenário de controle: mesma
+  // janela, mesma loja, sem a carga que foi desfeita.
+  const engano = await carga(centro.id, 500, dentro);
+  await reverseGroup(EMPRESA_SEMENTE, { groupId: engano.groupId, occurredAt: agora });
+  assert.deepEqual(
+    await storeMirror(EMPRESA_SEMENTE, 30, agora),
+    espelho,
+    'uma carga lançada errada e desfeita deixa o Espelho exatamente como estava',
+  );
 
   // A ordem serve para decidir: quem tem o item que mais devolve vem primeiro.
   assert.equal(espelho[0].placeName, 'Loja Centro');
