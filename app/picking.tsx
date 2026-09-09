@@ -25,6 +25,7 @@ import {
   type PickLine,
   type Carrier,
   type Place,
+  lotsInStock,
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
 import { unidadeDaqui } from '@/data/unidade';
@@ -156,11 +157,24 @@ function Carrinho() {
       // próprio grupo — igual a quem carrega o caminhão em duas viagens. O que
       // costura as duas coisas é o fechamento, que conta o DIA.
       for (const [itemId, baseUnits] of itens) {
+        // **De qual lote a carga sai — deduzido aqui como a transferência já deduz.**
+        //
+        // Quem despacha não escolhe lote: despacha o que está na frente, e o que está
+        // na frente é o que vence primeiro. A tela de transferência faz essa dedução
+        // desde 3 de setembro; a separação nasceu depois, é a porta que a aba de
+        // transporte oferece PRIMEIRO, e mandava `lotId` nulo. O efeito é o saldo de
+        // lote da fábrica só subindo — um lote que já viajou continua parecendo estar
+        // aqui —, e a carga seguinte estampando o código errado na etiqueta. Num
+        // recall isso é a diferença entre saber qual loja recebeu e não saber.
+        //
+        // Nulo continua sendo caso normal e frequente: açúcar e palito não têm lote.
+        const lotes = await lotsInStock(empresaDaqui(), itemId, fabrica);
         await recordTransfer(empresaDaqui(), {
           itemId,
           fromLocationId: fabrica,
           toLocationId: loja.id,
           baseUnits,
+          lotId: lotes[0]?.lotId ?? null,
           carrierId: quemLeva,
         });
       }

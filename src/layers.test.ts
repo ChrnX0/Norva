@@ -2233,3 +2233,97 @@ test('a régua da frase crua distingue mostrar de registrar', () => {
     [],
   );
 });
+
+/**
+ * Toda carga diz de QUAL LOTE ela sai.
+ *
+ * A transferência deduzia o lote desde 3 de setembro — quem despacha não escolhe,
+ * despacha o que vence primeiro — e a separação, que nasceu depois e é a porta que a
+ * aba de transporte oferece primeiro, mandava nulo. O saldo de lote da fábrica então
+ * só sobe: um lote que já viajou continua parecendo estar aqui, e a carga seguinte
+ * estampa o código errado na etiqueta. Num recall isso é a diferença entre saber
+ * qual loja recebeu e não saber.
+ *
+ * Nulo continua sendo resposta válida e frequente — açúcar e palito não têm lote —,
+ * então o que a guarda cobra é a PERGUNTA, não um valor.
+ */
+export function cargaSemLote(fontes: readonly { arquivo: string; texto: string }[]): string[] {
+  const achados: string[] = [];
+  for (const f of fontes) {
+    const texto = semProsa(f.texto);
+    for (const m of texto.matchAll(/\brecordTransfer\(/g)) {
+      const args = argumentos(texto, (m.index ?? 0) + 'recordTransfer('.length);
+      if (args === null) continue;
+      if (args.some((a) => /\blotId\b/.test(a))) continue;
+
+      // O objeto pode chegar por VARIÁVEL — é o que a tela de transferência faz, e
+      // exigir o literal acusaria quem obedeceu. Então segue-se o nome: se ele é
+      // montado neste arquivo e a montagem diz `lotId`, a pergunta foi feita.
+      const nome = args[args.length - 1]?.trim();
+      if (nome && /^[A-Za-z_$][\w$]*$/.test(nome)) {
+        const montagem = new RegExp(`\\b(?:const|let|var)\\s+${nome}\\s*=\\s*\\{[^}]*\\blotId\\b`, 's');
+        if (montagem.test(texto)) continue;
+      }
+      achados.push(f.arquivo);
+    }
+  }
+  return achados;
+}
+
+test('nenhuma tela manda carga sem dizer de qual lote', () => {
+  const fontes = sourcesUnder('app').map((arquivo) => ({
+    arquivo,
+    texto: readFileSync(arquivo, 'utf8'),
+  }));
+
+  assert.deepEqual(
+    cargaSemLote(fontes),
+    [],
+    'estas telas despacham sem lote, e o saldo de lote da fábrica passa a só subir',
+  );
+});
+
+test('a régua do lote distingue quem pergunta de quem não pergunta', () => {
+  assert.deepEqual(
+    cargaSemLote([
+      { arquivo: 'app/picking.tsx', texto: 'recordTransfer(co, { itemId, baseUnits, carrierId })' },
+    ]),
+    ['app/picking.tsx'],
+  );
+  assert.deepEqual(
+    cargaSemLote([
+      {
+        arquivo: 'app/picking.tsx',
+        texto: 'recordTransfer(co, { itemId, baseUnits, lotId: lotes[0]?.lotId ?? null })',
+      },
+    ]),
+    [],
+    'nulo é resposta — o que se cobra é a pergunta',
+  );
+  assert.deepEqual(
+    cargaSemLote([{ arquivo: 'app/x.tsx', texto: '// recordTransfer(co, { itemId })' }]),
+    [],
+    'comentário não é chamada',
+  );
+
+  // E a forma por VARIÁVEL, que é como a tela de transferência escreve. Sem isto a
+  // guarda acusaria quem obedeceu — o defeito que já ensinou esta casa a desligar
+  // guarda uma vez.
+  assert.deepEqual(
+    cargaSemLote([
+      {
+        arquivo: 'app/transfer.tsx',
+        texto: 'const comum = { itemId, lotId: frente?.lotId ?? null };\nrecordTransfer(co, comum);',
+      },
+    ]),
+    [],
+    'o objeto montado com lotId conta, venha ele por literal ou por nome',
+  );
+  assert.deepEqual(
+    cargaSemLote([
+      { arquivo: 'app/transfer.tsx', texto: 'const comum = { itemId };\nrecordTransfer(co, comum);' },
+    ]),
+    ['app/transfer.tsx'],
+    'e a variável SEM lote continua sendo achado',
+  );
+});
