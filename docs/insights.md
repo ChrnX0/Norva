@@ -7655,3 +7655,94 @@ casos em dois dias (aridade em vez de escopo, gesto em vez de efeito, presença 
 obrigatoriedade, e agora arquivo em vez de posição). Ela merece ser a primeira pergunta ao
 ler qualquer guarda deste repositório — e a segunda é a que quase me pegou: **a régua que
 você usou para medir a guarda também é uma régua.**
+
+---
+
+## 9 de setembro — a crase é delimitador E pontuação, e isso cega réguas
+
+**O que apareceu:** a guarda que impede o aplicativo de nomear equipamento lia `'aspas
+simples'` e `"aspas duplas"`, e não a crase. O texto que o assistente FALA é montado em
+template literal, então ela contava **zero** onde havia **três** — e a palavra que este
+projeto tirou de treze lugares em três idiomas continuava saindo da boca do aplicativo,
+na frase que a pessoa lê.
+
+**Por que importa:** no mesmo dia a crase me quebrou o código **três vezes**, sempre do
+mesmo jeito — um comentário SQL dentro de um template literal citando `` `um nome` `` em
+crase fecha o literal e o TypeScript acusa `',' expected` numa linha que parece SQL. As
+três quebraram na hora e eu consertei em segundos. A da guarda **não quebrou nada**: ela
+ficou verde afirmando que estava tudo limpo.
+
+**A régua que fica:** neste repositório a crase tem dois papéis — delimitar código e
+citar um nome dentro de prosa. Todo detector que lê "texto entre aspas" precisa das
+**três** aspas, e todo comentário dentro de template literal precisa não ter nenhuma.
+O primeiro caso falha em silêncio, que é o caro.
+
+**O que mudou:** `src/dictionary.test.ts` passou a ler a crase (e achou as três frases
+na hora); as três frases do assistente foram reescritas.
+
+---
+
+## 9 de setembro — quando uma conta vira a ÚNICA autora, o desempate dela passa a mandar
+
+**O que apareceu:** `recomputeItemCost` replaya o razão em ordem, e o último desempate
+era `m.id` — um uuid. Enquanto ela só rodava no ESTORNO isso quase nunca aparecia. No
+mesmo dia ela virou a única autora de `item_costs` (havia três escritores dando números
+diferentes para o mesmo razão), e o desempate passou a decidir o `last_rate` de **toda
+compra**. Um teste de dinheiro começou a falhar **uma vez a cada tantas**.
+
+**Por que importa:** o conserto estava certo — três autores para um dado é como três
+verdades nascem. O que ele mudou sem ninguém notar foi o **peso** de uma linha que já
+estava lá: um desempate aceitável num caminho raro virou load-bearing num caminho
+constante. E o sintoma foi o mais fácil de descartar que existe: um teste que passa em
+cinco execuções e falha na sexta parece flake, e "flake" não é causa raiz.
+
+**A régua que fica:** ao unificar escritores, pergunte o que a peça sobrevivente decidia
+por acaso. Ordem, empate, arredondamento e ordenação são as quatro que costumam estar
+ali. E: **um teste de dinheiro que oscila nunca é flake até se provar que é.**
+
+**O que mudou:** o replay desempata por `rowid` (a ordem em que as linhas entraram no
+aparelho, que é o que "a última" quer dizer), com uma guarda que roda vinte sorteios.
+
+---
+
+## 9 de setembro — a refutação adversarial paga no CONSERTO, não só no achado
+
+**O que apareceu:** uma auditoria de 24 fatias, cada uma com um adversário próprio. O
+adversário não só derrubou 18 achados de 145 — ele **corrigiu o conserto** de um que
+sobreviveu: o auditor propôs `AND NAO_ESTORNADO` para tirar o estorno da média de
+consumo, e o refutador mediu e mostrou que aquilo **não conserta** o caso principal. A
+cláusula tira o movimento ORIGINAL, que é positivo e que a soma de saída nem olha; quem
+entra na soma é a perna que DESFAZ, que nasce negativa e para a qual nada aponta. Só o
+par zera as duas pontas.
+
+**Por que importa:** a régua desta casa era "todo achado passa por verificação
+adversarial antes de virar afirmação". O achado estava certo. Aplicar o conserto que
+veio com ele teria deixado o defeito de pé com a suíte verde — e com um commit dizendo
+que estava resolvido, que é pior que não ter mexido.
+
+**A régua que fica:** o adversário mede o CONSERTO também, não só o defeito. Um conserto
+proposto é uma afirmação sobre o mundo como qualquer outra.
+
+---
+
+## 9 de setembro — duas fontes que concordam por acaso não medem nada, e o acaso é fácil
+
+**O que apareceu:** três guardas novas escritas nesta sessão não morderam quando eu tirei
+o conserto para testá-las. As três pelo mesmo motivo, e nenhum era o motivo que este
+arquivo já registra:
+
+- a contagem falada na câmara fria: o dublê tinha **40.000 no lugar e 40.000 no total do
+  item**, então comparar pelo lugar ou pelo total dava o mesmo número;
+- "quanto saiu ontem": no dublê **nada saía hoje**, então a resposta errada ("Nada saiu
+  da produção hoje") era indistinguível da certa;
+- a ordenação do custo: o defeito é probabilístico, e **uma volta não é medida**.
+
+**Por que importa:** o arquivo já dizia *"a segunda fonte tem de ser INDEPENDENTE da
+primeira"*, e eu li isso como uma regra sobre a ARITMÉTICA da asserção. Não é só isso: é
+sobre o MUNDO do teste. Um cenário em que as duas leituras coincidem é um cenário que
+não distingue nada, por mais certa que a asserção esteja.
+
+**A régua que fica:** depois de escrever a guarda, **remova o conserto e veja-a ficar
+vermelha**. Isso pegou três de três nesta sessão — e cada uma tinha passado no meu olho.
+Quando não morder, a primeira hipótese não é "o conserto não era necessário": é que o
+cenário não separa os dois mundos.
