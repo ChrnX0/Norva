@@ -1743,6 +1743,62 @@ sala=$(rows "select coalesce(served_by_location_id::text,'null') from locations 
 
 echo "    a loja diz que unidade a atende, nunca a da vizinha nem a si mesma, e o backfill não toca sala"
 
+echo "==> check 28: a segunda conferência da mesma remessa é recusada, e a terceira passa"
+
+# A `0051` põe no servidor a regra que o aparelho ganhou em 9 de setembro. Ela é a metade
+# que só o Postgres tem: dois celulares offline na mesma doca conferem a mesma carga, os
+# dois aceitam localmente, e é aqui — na chegada — que a segunda tem de morrer.
+#
+# O que esta checagem prova, e cada metade já foi um defeito possível:
+#   1. a primeira conferência entra;
+#   2. a perna IRMÃ, do mesmo ato e de OUTRO item, entra — sem isto a regra recusaria a
+#      própria conferência que existe para proteger, a partir do segundo item;
+#   3. a segunda do MESMO par (grupo, item) é recusada;
+#   4. depois do estorno, conferir de novo passa — o caminho legítimo que um índice único
+#      teria fechado junto, e a razão de a regra ser gatilho e não índice.
+#
+# Reusa a empresa e o usuário das checagens acima: usuário novo pede linha em `users`, e
+# `recorded_by` é chave estrangeira para lá.
+CHK=dddd0000-0000-4000-8000-0000000003
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<SQL >/dev/null
+insert into items (id, company_id, kind, name, base_unit) values
+  ('${CHK}c2','${M}c1','product','Picole da conferencia','un');
+-- A carga: duas pernas de ENTRADA na loja, um grupo so.
+insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id,
+                       quantity_base_units, location_id, counterpart_location_id,
+                       movement_group_id)
+values
+  ('${CHK}d1','${M}c1','transfer', now(), '$CHECKER', '${M}b1',  40, '${V}a1','${M}a1','${CHK}e1'),
+  ('${CHK}d2','${M}c1','transfer', now(), '$CHECKER', '${CHK}c2', 25, '${V}a1','${M}a1','${CHK}e1');
+SQL
+
+confere() { # $1 = id da linha, $2 = item — sai 0 se a linha entrou
+  psql -d "$DB" -q -c "insert into movements (id, company_id, kind, occurred_at, recorded_by,
+      item_id, quantity_base_units, location_id, counterpart_location_id, movement_group_id, post)
+    values ('$1','${M}c1','discrepancy', now(), '$CHECKER', '$2', -3, '${V}a1','${M}a1','${CHK}e1','checked');" \
+    >/dev/null 2>&1  # proofgate-allow
+  [ "$(rows "select count(*) from movements where id = '$1';")" = "1" ]  # proofgate-allow
+}
+
+# 1. A primeira entra.
+confere "${CHK}f1" "${M}b1" || fail "a primeira conferência da remessa foi recusada"
+
+# 2. A perna IRMÃ, outro item do mesmo ato, entra — a regra é por (grupo, item).
+confere "${CHK}f2" "${CHK}c2" || fail "a segunda PERNA do mesmo ato foi recusada: a regra virou por grupo"
+
+# 3. A segunda conferência do mesmo par morre aqui.
+confere "${CHK}f3" "${M}b1" && fail "a segunda conferência do mesmo item passou: o saldo dobra"
+
+# 4. Desfeita a primeira, conferir de novo passa. Um índice único teria fechado isto.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "insert into movements (id, company_id, kind, occurred_at,
+    recorded_by, item_id, quantity_base_units, location_id, counterpart_location_id,
+    movement_group_id, reverses_movement_id)
+  values ('${CHK}f4','${M}c1','reversal', now(), '$CHECKER', '${M}b1', 3, '${V}a1','${M}a1','${CHK}e1',
+          '${CHK}f1');" >/dev/null  # proofgate-allow
+confere "${CHK}f5" "${M}b1" || fail "depois do estorno a remessa não pôde ser conferida de novo"
+
+echo "    uma conferência de pé por remessa e item, com o caminho de desfazer aberto"
+
 echo
-echo "OK - migrations apply and all twenty-seven guarantees hold."
+echo "OK - migrations apply and all twenty-eight guarantees hold."
 

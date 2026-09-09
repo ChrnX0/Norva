@@ -39,7 +39,7 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | telas | **34** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **26** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **28** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **50** | `ls supabase/migrations \| wc -l` |
+| migrações do servidor | **51** | `ls supabase/migrations \| wc -l` |
 | migrações do aparelho | **V27** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
@@ -52,7 +52,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 | `npm test` | **633** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
-| `npm run db:verify` | **27** garantias contra um Postgres descartável, sob RLS |
+| `npm run db:verify` | **28** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade, com
@@ -252,6 +252,28 @@ distinguir "a segunda" de "a segunda depois de a primeira ser estornada", e isso
 `reverses_movement_id`, que não cabe num índice.
 
 É P3, e o alcance é o razão: entra com a forma na mesa antes de rodar.
+
+**A forma está na mesa — 9 de setembro.** `supabase/migrations/0051` existe, é gatilho e
+não índice, e a garantia 28 do `db:verify` a exercita nas quatro metades (a primeira entra,
+a perna irmã do mesmo ato entra, a segunda do mesmo par morre, e depois do estorno passa).
+Sem a migração a garantia fica vermelha dizendo *"a segunda conferência do mesmo item
+passou: o saldo dobra"*.
+
+**E ela não pode ser aplicada sozinha, o que só apareceu ao medir o outro lado.** A fila do
+aparelho não sabe o que fazer com uma recusa permanente: `pushOnce` não marca a linha, tenta
+de novo, e tudo o que vier atrás fica preso — o defeito que a `0048` chama de o mais caro
+deste projeto. Aqui ele tem cara nova, e é o que trava o item: a recusa da `0048` era
+ERRADA e o conserto era deixar a linha passar; **esta recusa é CERTA**, e "tentar de novo
+para sempre" é a resposta errada para uma resposta certa.
+
+Falta um caminho que a fila não tem: reconhecer *"esta linha não entra nunca, e está tudo
+bem"*, tirá-la da frente, e contar isso a quem conferiu.
+<!-- medida: espera decisão do dono: o segundo celular tem no razão dele uma conferência que o servidor recusou -->
+
+**A pergunta é de dono e não de engenharia:** o segundo celular tem uma conferência no razão
+dele que o servidor recusou. Ela se desfaz sozinha? Fica marcada como não aplicada? Quem
+conferiu fica sabendo na hora, ou na próxima vez que abre a tela? Os três existem e mudam o
+que a pessoa vê na doca.
 
 
 ### Esperando decisão do dono
