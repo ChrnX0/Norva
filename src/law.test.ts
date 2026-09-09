@@ -144,6 +144,45 @@ function codigo(fonte: string): string {
   return fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 }
 
+/**
+ * A mesma limpeza, guardando as LINHAS — porque a posição é o que se vai conferir.
+ *
+ * `codigo` apaga o comentário inteiro e encurta o arquivo; aqui ele vira espaço em
+ * branco do mesmo tamanho. As duas existem porque respondem a perguntas diferentes:
+ * uma conta quantos números há, a outra diz ONDE cada um está.
+ */
+function codigoComLinhas(fonte: string): string {
+  return fonte
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+    .replace(/^\s*\/\/.*$/gm, '');
+}
+
+/**
+ * A janela em que a comparação do número `i` tem de aparecer.
+ *
+ * **O docblock desta guarda prometia posição e o código conferia o arquivo inteiro.**
+ * *"Dez números, dez respostas. Na ordem em que aparecem no arquivo"* — a ordem estava
+ * escrita e nada a cobrava: uma comparação declarada para a figura 3 era aceita por
+ * existir em qualquer lugar do arquivo, inclusive ao lado da figura 1. Com dez números
+ * numa tela, nove poderiam ficar nus e a suíte continuaria verde.
+ *
+ * A regra desta casa sobre isso não tem terceira saída: se a promessa é boa, fecha-se o
+ * buraco; se não é, corrige-se a promessa. Uma varredura de 9 de setembro mediu que ela
+ * é boa — **as 21 comparações declaradas estão, hoje, na vizinhança do número delas** —,
+ * então o que faltava era a guarda cobrar o que o comentário já afirmava.
+ *
+ * A vizinhança vai até o meio do caminho para o número vizinho, dos dois lados. Não é
+ * um número mágico de linhas: é o único corte que não precisa ser calibrado, e ele
+ * degenera no arquivo inteiro quando há um número só — que é exatamente o
+ * comportamento antigo para as onze telas de um número.
+ */
+function vizinhanca(linhas: string[], figuras: number[], i: number): string {
+  const aqui = figuras[i];
+  const ini = i === 0 ? 0 : Math.floor((figuras[i - 1] + aqui) / 2);
+  const fim = i === figuras.length - 1 ? linhas.length : Math.floor((aqui + figuras[i + 1]) / 2);
+  return linhas.slice(ini, fim).join('\n');
+}
+
 /** Quantos números grandes a tela mostra de verdade, sem contar comentário. */
 function quantidadeDeNumeros(fonte: string): number {
   return codigo(fonte).split(NUMERO_GRANDE).length - 1;
@@ -182,13 +221,29 @@ test('every headline number says what it is being compared against', () => {
         'Cada número responde por si: acrescente a linha do que falta, dizendo com o que ele ' +
         'se compara ou por que não há o que comparar.',
     );
-    for (const item of lista) {
+    const linhas = codigoComLinhas(fonte).split('\n');
+    const figuras: number[] = [];
+    linhas.forEach((l, n) => {
+      if (l.includes(NUMERO_GRANDE)) figuras.push(n);
+    });
+    assert.equal(figuras.length, quantos, `${caminho}: a contagem e as posições discordam`);
+
+    lista.forEach((item, i) => {
       if ('compara' in item) {
-        assert.match(fonte, item.compara, `${caminho} declarou que compara, e a comparação sumiu do arquivo`);
+        // **Na VIZINHANÇA do número, não em qualquer lugar do arquivo.** Uma comparação
+        // que existe no topo e um número nu embaixo satisfazia a guarda antiga, e é
+        // isso que o docblock sempre prometeu não aceitar.
+        assert.match(
+          vizinhanca(linhas, figuras, i),
+          item.compara,
+          `${caminho}: o número ${i + 1} (linha ${figuras[i] + 1}) declarou que compara, e a ` +
+            'comparação não está perto dele. Ou ela sumiu, ou a declaração está na ordem errada — ' +
+            'as declarações seguem a ordem em que os números aparecem no arquivo.',
+        );
       } else {
         assert.ok(item.sozinho.length > 40, `${caminho}: o motivo tem que ser um motivo`);
       }
-    }
+    });
   }
 });
 
@@ -201,4 +256,38 @@ test('the registry does not outlive the screens', () => {
         'senão o registro vira lista de telas que não existem mais.',
     );
   }
+});
+
+test('the neighbourhood is the ground between the number and its siblings', () => {
+  const linhas = 'a\nb\nc\nd\ne\nf\ng\nh\ni'.split('\n');
+
+  // Um número só: a vizinhança é o arquivo inteiro — que é o comportamento antigo, e
+  // é o certo para as onze telas de um número. Fechar a janela ali seria apertar sem
+  // ganhar nada.
+  assert.equal(vizinhanca(linhas, [4], 0), linhas.join('\n'));
+
+  // Três números: cada um fica com o chão até o meio do caminho para o vizinho. O
+  // primeiro pega do começo, o último pega até o fim, e o do meio é o único cercado
+  // dos dois lados.
+  assert.equal(vizinhanca(linhas, [1, 4, 7], 0), 'a\nb');
+  assert.equal(vizinhanca(linhas, [1, 4, 7], 1), 'c\nd\ne');
+  assert.equal(vizinhanca(linhas, [1, 4, 7], 2), 'f\ng\nh\ni');
+
+  // E o negativo que dá sentido a tudo: o que está na vizinhança do PRIMEIRO não está
+  // na do terceiro. Sem isso a régua devolveria o arquivo inteiro três vezes, e a
+  // guarda voltaria a aceitar uma comparação em qualquer lugar — que é exatamente o
+  // buraco que ela existe para fechar.
+  assert.ok(!vizinhanca(linhas, [1, 4, 7], 2).includes('a'));
+  assert.ok(!vizinhanca(linhas, [1, 4, 7], 0).includes('i'));
+});
+
+test('the line-preserving cleaner blanks the prose without moving anything', () => {
+  const fonte = ['const a = 1;', '/* type.figure', '   ainda comentário */', 'const b = type.figure;'].join('\n');
+  const limpo = codigoComLinhas(fonte);
+
+  // O número de linhas não muda — é isso que faz a posição continuar valendo.
+  assert.equal(limpo.split('\n').length, 4);
+  // E o `type.figure` do comentário sumiu; o do código ficou.
+  assert.equal(limpo.split(NUMERO_GRANDE).length - 1, 1);
+  assert.ok(limpo.split('\n')[3].includes(NUMERO_GRANDE), 'a figura de verdade continua na linha dela');
 });

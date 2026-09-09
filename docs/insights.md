@@ -7617,3 +7617,41 @@ acordo?"*. Se ela existe, a guarda está no gesto. Aqui a menor mudança era uma
 E o corolário operacional: **guarda nova entra com uma mutação junto.** As duas guardas
 que nasceram hoje sem mutação passaram a ter uma; a que nasceu com, foi a única que não
 precisou deste insight.
+
+## Promessa boa que ninguém cobra é buraco — e a régua que a mede pode ser a errada
+
+9 de setembro, caçando com a pergunta que tinha rendido três vezes na noite: *alguma
+guarda promete mais do que confere?*
+
+`src/law.test.ts` guarda a Lei 3 (*nenhum número aparece sozinho*), e o docblock dela diz,
+com estas palavras: *"Dez números, dez respostas. **Na ordem em que aparecem no
+arquivo**"*. O código conferia outra coisa: que a expressão declarada casasse **em
+qualquer lugar** do arquivo. Numa tela de dez números, nove poderiam ficar nus com a
+suíte verde — bastava a comparação do primeiro existir.
+
+**Antes de consertar, medi. E a primeira medição estava errada — a minha.** O script
+contou `type.figure` dentro de comentários e acusou uma comparação fora de posição no
+`Capa.tsx`. Fui olhar: as duas ocorrências eram de um docblock que explica por que aquele
+número usa `type.figure`. **A guarda já limpava a prosa; quem não limpava era eu.** Quase
+reportei como defeito do código o defeito do meu próprio detector — a régua que este
+arquivo manda rodar contra um caso verdadeiro e um falso, e que eu não rodei.
+
+Refeita com a mesma limpeza da guarda: **as 21 comparações declaradas estão, hoje, na
+vizinhança do número delas.** Zero fora de posição. Então não havia defeito — havia uma
+promessa verdadeira que nada sustentava, e a regra desta casa não dá terceira saída: *se
+a promessa é boa, feche o buraco; se não é, corrija a promessa.*
+
+A vizinhança vai até o meio do caminho para o número vizinho, dos dois lados. Não é
+número mágico de linhas: é o único corte que não precisa de calibração, e ele degenera no
+arquivo inteiro quando há um número só — o comportamento antigo, preservado para as onze
+telas de um número.
+
+Provada por mordida, e a mordida é o ponto: **trocando a ORDEM de duas declarações** — as
+duas continuam existindo no arquivo, e a guarda antiga aceitava — a nova acusa. Era
+exatamente esse o buraco.
+
+**A régua que fica:** a pergunta *"esta guarda promete mais do que confere?"* achou quatro
+casos em dois dias (aridade em vez de escopo, gesto em vez de efeito, presença em vez de
+obrigatoriedade, e agora arquivo em vez de posição). Ela merece ser a primeira pergunta ao
+ler qualquer guarda deste repositório — e a segunda é a que quase me pegou: **a régua que
+você usou para medir a guarda também é uma régua.**
