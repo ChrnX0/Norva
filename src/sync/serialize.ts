@@ -36,6 +36,21 @@ import { isEraseArea } from '@/data/erase';
 export type SyncActor = {
   /** The authenticated user's id, for the columns the server requires. */
   userId: string;
+  /**
+   * Qual empresa este aparelho é, AGORA — não a que estava carimbada quando a
+   * linha entrou na fila.
+   *
+   * O pedido de Reset era a única entrada que carregava o `company_id` congelado
+   * dentro do próprio corpo, e por isso era a única que a adoção de empresa não
+   * alcançava: o aparelho trocava de empresa, o pedido continuava dizendo a
+   * empresa-semente, e o servidor — que nunca ouviu falar dela — recusava a linha
+   * por chave estrangeira. Recusa por chave estrangeira é permanente, então a fila
+   * daquele celular parava na PRIMEIRA sincronização, para sempre, calada.
+   *
+   * A empresa é conhecida na hora de enviar, exatamente como o `recorded_by`. Vinda
+   * daqui, nenhum id de empresa volta a viajar congelado num payload.
+   */
+  companyId: string;
 };
 
 export type ServerWrite =
@@ -568,11 +583,14 @@ export function serialize(
      * autenticado, como `recorded_by` do razão: uma conta não pede em nome de
      * outra, e a política do servidor recusa se tentar.
      */
-    // A empresa vem do payload da fila, conferida como a área: este arquivo não
-    // pergunta nada ao aparelho, e uma empresa vazia seria um pedido que o
-    // servidor recusa sem dizer por quê.
-    const empresa = entry.payload?.companyId;
-    if (typeof empresa !== 'string' || !empresa) throw new UnknownAreaError(`${area} sem empresa`);
+    // A empresa vem do ATOR, não do payload — a mesma fonte do `requested_by`.
+    //
+    // Vinha do corpo da entrada, congelado no instante em que alguém tocou em
+    // apagar. Entre esse instante e o envio cabe a adoção de empresa, que é o
+    // caminho normal de toda instalação nova: o aparelho passa a ser outra empresa
+    // e o pedido continua nomeando a semente, que o servidor não conhece.
+    const empresa = actor.companyId;
+    if (!empresa) throw new UnknownAreaError(`${area} sem empresa`);
 
     return {
       kind: 'upsert',

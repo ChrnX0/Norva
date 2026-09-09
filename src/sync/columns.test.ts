@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { EMPRESA_SEMENTE } from '@/data/empresa';
 import { DatabaseSync } from 'node:sqlite';
 import { test, before } from 'node:test';
 import { __setDb, migrate, type Db, type SqlParam } from '@/data/db';
@@ -108,7 +109,7 @@ test('every device column either crosses to the server or says why it stays', as
     // O `build` acrescenta colunas convertidas ou estampadas, e o jeito honesto de
     // saber QUAIS é chamá-lo: uma lista escrita à mão ao lado dele seria a mesma
     // lista à mão que já deixou uma pasta fora da checagem de camadas.
-    for (const nome of Object.keys(crossing.build?.({}, { userId: 'x' }) ?? {})) {
+    for (const nome of Object.keys(crossing.build?.({}, { userId: 'x' , companyId: EMPRESA_SEMENTE }) ?? {})) {
       enviadas.add(nome);
     }
 

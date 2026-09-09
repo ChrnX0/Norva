@@ -240,10 +240,17 @@ test('a queue longer than one batch goes up in order, batch after batch', async 
   await ensureStarterData(CO);
   const server = acceptingServer();
 
-  const report = await drain(server, { batchSize: 3, maxAttempts: 50 });
+  // **Sem `maxAttempts` inflado, e é isso que o teste passou a medir.**
+  //
+  // Ele carregava `maxAttempts: 50` para conseguir esvaziar uma fila de mais de três
+  // fatias — um contorno que escondia o defeito em vez de mostrá-lo: o orçamento de
+  // TENTATIVA era o contador de RODADA, então com o padrão de três, uma fila longa
+  // parava depois de três fatias, sem erro nenhum e sem nada na tela. Com o
+  // orçamento contando falha, o padrão esvazia a fila inteira.
+  const report = await drain(server, { batchSize: 3 });
 
-  assert.equal(report.remaining, 0);
-  assert.ok(server.received.length > 1, 'it really did take several batches');
+  assert.equal(report.remaining, 0, 'a fila esvazia com as opções padrão, sem contorno');
+  assert.ok(server.received.length > 3, 'e foram mais fatias que o orçamento de tentativa');
 
   const flat = server.received.flat().map((e) => e.id);
   assert.equal(new Set(flat).size, flat.length, 'no entry was sent twice');

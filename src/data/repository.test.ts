@@ -3232,7 +3232,7 @@ test('a reading is a fact with a place, an hour and a unit — typed today, sens
     `SELECT * FROM readings WHERE id = ?`,
     [linha.rowId],
   );
-  const escrita = serialize(linha, bruta ?? null, { userId: 'quem-mediu' });
+  const escrita = serialize(linha, bruta ?? null, { userId: 'quem-mediu' , companyId: EMPRESA_SEMENTE });
   assert.equal(escrita.kind, 'upsert');
   if (escrita.kind === 'upsert') {
     assert.equal(escrita.row.recorded_by, 'quem-mediu', 'leitura sem autor não existe');
@@ -3282,7 +3282,7 @@ test('the agreement sheet is kept, corrected and queued for the server', async (
     `SELECT * FROM locations WHERE id = ?`,
     [loja.id],
   );
-  const escrita = serialize(daLoja, linha ?? null, { userId: 'quem' });
+  const escrita = serialize(daLoja, linha ?? null, { userId: 'quem' , companyId: EMPRESA_SEMENTE });
   assert.equal(escrita.kind, 'upsert');
   if (escrita.kind === 'upsert') {
     assert.equal(escrita.row.contact_phone, '11 98888-7777');
@@ -4410,7 +4410,7 @@ test('a movement written on a shared phone says who was holding it, all the way 
     `SELECT * FROM movements WHERE id = ?`,
     [linha.rowId],
   );
-  const escrita = serialize(linha, bruta ?? null, { userId: 'a-conta-da-empresa' });
+  const escrita = serialize(linha, bruta ?? null, { userId: 'a-conta-da-empresa' , companyId: EMPRESA_SEMENTE });
   assert.equal(escrita.kind, 'upsert');
   if (escrita.kind === 'upsert') {
     // A conta que escreveu e a pessoa que operava são duas perguntas, e é por

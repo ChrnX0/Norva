@@ -17,6 +17,7 @@
  */
 
 import { DatabaseSync } from 'node:sqlite';
+import { EMPRESA_SEMENTE } from '../src/data/empresa';
 import { __setDb, migrate, type Db, type SqlParam } from '@/data/db';
 import { pendingEntries } from '@/data/outbox';
 import {
@@ -51,7 +52,7 @@ import { fromDecimal, rate} from '@/domain/money';
 import { APENAS_INSERE, sendableTables, serialize, type SyncActor } from '@/sync/serialize';
 
 /** Stands in for whoever is signed in when the phone finally finds a tower. */
-const ACTOR: SyncActor = { userId: '00000000-0000-4000-8000-000000000001' };
+const ACTOR: SyncActor = { userId: '00000000-0000-4000-8000-000000000001' , companyId: EMPRESA_SEMENTE };
 
 /**
  * An identifier on its way into SQL, checked instead of trusted.

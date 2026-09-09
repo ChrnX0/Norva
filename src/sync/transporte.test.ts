@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { beforeEach, test } from 'node:test';
 import { __setDb, migrate, type Db, type SqlParam } from '@/data/db';
-import { CHAVE_DA_EMPRESA, carregarEmpresa } from '@/data/empresa';
+import { CHAVE_DA_EMPRESA, EMPRESA_SEMENTE, carregarEmpresa } from '@/data/empresa';
 import { writeMeta } from '@/data/meta';
 import { pendingCount, pendingEntries } from '@/data/outbox';
 import { fromDecimal } from '@/domain/money';
@@ -111,7 +111,7 @@ test('a fila sobe na ordem em que a fábrica gravou, e o razão sobe como inser�
   assert.ok(antes.length >= 3, `a fila desta fábrica tem de ter linhas: ${antes.length}`);
 
   const casa = casaDeMentira();
-  const relatorio = await drain(transporte({ userId: 'conta-1' }, casa));
+  const relatorio = await drain(transporte({ userId: 'conta-1' , companyId: EMPRESA_SEMENTE }, casa));
 
   assert.equal(relatorio.remaining, 0, 'tudo subiu');
   assert.equal(relatorio.sent, antes.length);
@@ -145,7 +145,7 @@ test('uma recusa para a fila ali, e o que não subiu fica inteiro', async () => 
 
   // Recusa na SEGUNDA linha: a primeira sobe, a segunda para, e o resto nem tenta.
   const casa = casaDeMentira(1);
-  const relatorio = await drain(transporte({ userId: 'conta-1' }, casa), { maxAttempts: 1 });
+  const relatorio = await drain(transporte({ userId: 'conta-1' , companyId: EMPRESA_SEMENTE }, casa), { maxAttempts: 1 });
 
   assert.equal(casa.recebido.length, 1, 'só a primeira foi guardada');
   assert.equal(
@@ -171,7 +171,7 @@ test('sem empresa adotada nada sai, mesmo com casa e com fila cheia', async () =
   await carregarEmpresa();
 
   const casa = casaDeMentira();
-  const relatorio = await drain(transporte({ userId: 'conta-1' }, casa));
+  const relatorio = await drain(transporte({ userId: 'conta-1' , companyId: EMPRESA_SEMENTE }, casa));
 
   assert.equal(casa.recebido.length, 0, 'nem uma linha: o carimbo delas é a semente');
   assert.equal(relatorio.recusa, 'semEmpresa');
@@ -181,7 +181,7 @@ test('sem empresa adotada nada sai, mesmo com casa e com fila cheia', async () =
 test('sem casa nenhuma o transporte não aceita nada — e não perde nada', async () => {
   await umDiaDeFabrica();
   const antes = await pendingCount();
-  const relatorio = await drain(transporte({ userId: 'conta-1' }, null), { maxAttempts: 1 });
+  const relatorio = await drain(transporte({ userId: 'conta-1' , companyId: EMPRESA_SEMENTE }, null), { maxAttempts: 1 });
   assert.equal(relatorio.sent, 0);
   assert.equal(await pendingCount(), antes);
 });
@@ -203,8 +203,51 @@ test('a trava da empresa é do transporte também, e não só do motor', async (
   await carregarEmpresa();
 
   const casa = casaDeMentira();
-  const resultado = await transporte({ userId: 'conta-1' }, casa).push(fila);
+  const resultado = await transporte({ userId: 'conta-1' , companyId: EMPRESA_SEMENTE }, casa).push(fila);
 
   assert.deepEqual(resultado.acceptedIds, [], 'sem empresa adotada ele não aceita nada');
   assert.equal(casa.chamadas, 0, 'e não fala com o servidor nem uma vez');
+});
+
+/**
+ * Exceção no meio da fatia não apaga o que o servidor já guardou.
+ *
+ * `linhaDaFila` lança quando a linha sumiu do aparelho — apagada por um Reset, por
+ * uma restauração, por uma faxina. Sem `try`, a exceção sobe até o `catch` do motor,
+ * que não marca NADA: tudo o que o servidor acabou de aceitar volta a parecer
+ * pendente, e a corrida seguinte bate na mesma parede no mesmo lugar, com a mensagem
+ * do programador chegando em inglês à tela do dono.
+ *
+ * A asserção é o par: o que passou antes do buraco volta aceito, e nada depois dele
+ * foi mandado.
+ */
+test('a linha que sumiu para a fatia, e o que já subiu continua subido', async () => {
+  await umDiaDeFabrica();
+  const fila = await pendingEntries(100);
+  assert.ok(fila.length >= 2, `a fila precisa ter antes e depois: ${fila.length}`);
+
+  // Uma entrada que `serialize` recusa, no MEIO da fatia: tabela que este aplicativo
+  // não conhece é o que uma fila escrita por uma versão mais nova produz.
+  const podre = {
+    id: 'entrada-podre',
+    table: 'tabela_que_nao_existe',
+    rowId: 'x1',
+    op: 'upsert' as const,
+    payload: {},
+    queuedAt: '2026-09-09T10:00:00.000Z',
+  };
+
+  const casa = casaDeMentira();
+  const r = await transporte({ userId: 'conta-1', companyId: EMPRESA_SEMENTE }, casa).push([
+    fila[0],
+    podre,
+    ...fila.slice(1),
+  ]);
+
+  assert.deepEqual(
+    r.acceptedIds,
+    [fila[0].id],
+    'o que passou antes do buraco volta aceito, e nada depois dele foi mandado',
+  );
+  assert.equal(casa.recebido.length, 1, 'e o servidor recebeu exatamente uma linha');
 });

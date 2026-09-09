@@ -14,6 +14,7 @@
  */
 
 import Constants from 'expo-constants';
+import { empresaDaqui } from '@/data/empresa';
 import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
 import { File } from 'expo-file-system';
@@ -215,7 +216,7 @@ async function buscarAtualizacao(): Promise<boolean> {
 async function subirFila(): Promise<number> {
   const quem = await contaAtual();
   if (!quem) return 0;
-  const relatorio = await drain(transporte({ userId: quem.id }));
+  const relatorio = await drain(transporte({ userId: quem.id, companyId: empresaDaqui() }));
   // `recusa` é "nem tentei" e `error` é "o servidor recusou" — a rodada precisa
   // saber a diferença, senão uma fila que nunca sobe parece uma fila vazia.
   if (relatorio.recusa) throw Object.assign(new Error('fila recusada'), { motivo: relatorio.recusa });

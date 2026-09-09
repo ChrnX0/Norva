@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { EMPRESA_SEMENTE } from '@/data/empresa';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -102,7 +103,7 @@ function enumValues(sql: string, name: string): Set<string> {
   return values;
 }
 
-const ACTOR: SyncActor = { userId: '00000000-0000-4000-8000-000000000001' };
+const ACTOR: SyncActor = { userId: '00000000-0000-4000-8000-000000000001' , companyId: EMPRESA_SEMENTE };
 
 function entry(table: string): OutboxEntry {
   return { id: 'q', table, rowId: 'r', op: 'upsert', payload: {}, queuedAt: '2026-09-01T00:00:00Z' };

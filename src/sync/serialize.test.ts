@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { EMPRESA_SEMENTE } from '@/data/empresa';
 import { test } from 'node:test';
 import type { OutboxEntry } from '@/data/outbox';
 import { serialize, sendableTables, UnknownAreaError, UnknownTableError, type SyncActor } from './serialize';
@@ -13,7 +14,7 @@ import { ERASE_AREAS } from '@/data/erase';
  * being typed rather than at the end of a suite.
  */
 
-const ACTOR: SyncActor = { userId: '00000000-0000-4000-8000-000000000009' };
+const ACTOR: SyncActor = { userId: '00000000-0000-4000-8000-000000000009' , companyId: EMPRESA_SEMENTE };
 
 function queued(table: string, rowId = 'r1'): OutboxEntry {
   return { id: 'q1', table, rowId, op: 'upsert', payload: {}, queuedAt: '2026-09-01T10:00:00Z' };
@@ -151,11 +152,23 @@ test('o apagamento sobe como PEDIDO, com quem pediu e sem o prazo', () => {
    * Antes isto devolvia um comando solto — a única coisa na fila que MANDAVA em vez
    * de contar. Agora é linha em `erase_requests`, e a fila volta a carregar só fato.
    *
-   * Duas coisas que a asserção fixa de propósito: `requested_by` vem do ator
+   * TRÊS coisas que a asserção fixa de propósito: `requested_by` vem do ator
    * autenticado (uma conta não pede em nome de outra, e a política do servidor
-   * recusa se tentar), e **o prazo NÃO vai** — quem o calcula é o gatilho do
+   * recusa se tentar); **o prazo NÃO vai** — quem o calcula é o gatilho do
    * servidor, porque um aparelho com a data adiantada destruiria no ato o que a
-   * empresa combinou guardar por dez dias.
+   * empresa combinou guardar por dez dias; e a EMPRESA vem do ator também, não do
+   * payload.
+   *
+   * A terceira é cicatriz de 9 de setembro. O `company_id` vinha congelado no corpo
+   * da entrada, gravado no instante em que alguém tocou em apagar — e entre esse
+   * instante e o envio cabe a adoção de empresa, que é o caminho normal de toda
+   * instalação nova. O aparelho passava a ser outra empresa e o pedido continuava
+   * nomeando a semente, que o servidor nunca conheceu: recusa por chave estrangeira,
+   * que é permanente, na PRIMEIRA sincronização. A fila daquele celular parava ali
+   * para sempre, calada.
+   *
+   * O payload abaixo continua trazendo a empresa velha DE PROPÓSITO: é o que uma
+   * fila de verdade teria, e é a diferença entre as duas fontes que este teste mede.
    */
   const entry: OutboxEntry = {
     id: 'q9',
@@ -170,8 +183,13 @@ test('o apagamento sobe como PEDIDO, com quem pediu e sem o prazo', () => {
   assert.deepEqual(write, {
     kind: 'upsert',
     table: 'erase_requests',
-    row: { id: 'q9', company_id: 'c0', area: 'all', requested_by: ACTOR.userId },
+    row: { id: 'q9', company_id: ACTOR.companyId, area: 'all', requested_by: ACTOR.userId },
   });
+  assert.notEqual(
+    ACTOR.companyId,
+    'c0',
+    'o teste só mede alguma coisa se as duas fontes discordarem',
+  );
   assert.ok(
     write.kind === 'upsert' && !('effective_at' in write.row) && !('done_at' in write.row),
     'o prazo e o "feito" são do servidor: mandá-los daqui deixaria o aparelho decidir quando o livro dele morre',
@@ -207,7 +225,7 @@ test('an area the product does not have is refused at the boundary, not passed a
     assert.deepEqual(serialize(comando(area), null, ACTOR), {
       kind: 'upsert',
       table: 'erase_requests',
-      row: { id: 'e1', company_id: 'c0', area, requested_by: ACTOR.userId },
+      row: { id: 'e1', company_id: ACTOR.companyId, area, requested_by: ACTOR.userId },
     });
   }
 
@@ -217,9 +235,13 @@ test('an area the product does not have is refused at the boundary, not passed a
   assert.throws(() => serialize(comando(42), null, ACTOR), UnknownAreaError);
   assert.throws(() => serialize(comando(null), null, ACTOR), UnknownAreaError);
 
-  // E o pedido SEM EMPRESA também para aqui. Ele subiria e o servidor o recusaria
-  // pela política, sem dizer por quê — a fila travada atrás de um apagamento é o
-  // pior lugar para descobrir isso.
+  // E o pedido de um ATOR SEM EMPRESA também para aqui. Ele subiria e o servidor o
+  // recusaria pela política, sem dizer por quê — a fila travada atrás de um
+  // apagamento é o pior lugar para descobrir isso.
+  //
+  // A empresa deixou de vir do payload em 9 de setembro, então quem pode faltar
+  // agora é o ator; o payload sem empresa passa a atravessar, e isso é o conserto
+  // funcionando: uma entrada gravada antes da adoção sobe com a empresa de agora.
   assert.throws(
     () =>
       serialize(
@@ -232,7 +254,7 @@ test('an area the product does not have is refused at the boundary, not passed a
           queuedAt: '2026-09-07T12:00:00.000Z',
         },
         null,
-        ACTOR,
+        { userId: ACTOR.userId, companyId: '' },
       ),
     /sem empresa/,
   );

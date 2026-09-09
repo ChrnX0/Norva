@@ -82,8 +82,27 @@ export function transporte(actor: SyncActor, casa?: Casa | null): Transport {
 
       const aceitos: string[] = [];
       for (const entry of entries) {
-        const linha = await linhaDaFila(entry);
-        const write = serialize(entry, linha, actor);
+        // **Exceção no meio da fatia não pode apagar o que o servidor já guardou.**
+        //
+        // `linhaDaFila` lança quando a linha sumiu do aparelho e `serialize` lança
+        // quando a área ou a tabela não é conhecida. Sem este `try`, a exceção sobe
+        // até o `catch` do motor, que não marca NADA — e as noventa e nove entradas
+        // que o servidor acabou de aceitar voltam a parecer pendentes. Na corrida
+        // seguinte elas sobem de novo: o servidor as reescreve (upsert), então não há
+        // dano de dado, mas há a mesma parede na centésima entrada, para sempre, e a
+        // mensagem que chega à tela do dono é a do programador, em inglês.
+        //
+        // Parar é o certo — o buraco continua sendo buraco, e mandar o que vem depois
+        // transformaria uma recusa em muitas. O que muda é que o que passou volta
+        // como aceito, e o motor então vê `confirmed < batch.length` e para pela
+        // regra que ele já tem.
+        let write;
+        try {
+          const linha = await linhaDaFila(entry);
+          write = serialize(entry, linha, actor);
+        } catch {
+          break;
+        }
 
         // Valor derivado tem um dono só, e é o servidor: a entrada sai da fila sem
         // viajar, senão ela fica presa para sempre esperando uma viagem que não existe.

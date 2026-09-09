@@ -126,7 +126,22 @@ export async function drain(
   let attempts = 0;
   let error: string | undefined;
 
-  while (attempts < maxAttempts) {
+  /**
+   * **O orçamento de tentativa conta FALHA, não rodada.**
+   *
+   * `attempts` era o contador do laço e o orçamento ao mesmo tempo, e as duas coisas
+   * são diferentes: com `maxAttempts` no padrão de três e `batchSize` em cem, uma
+   * fila de mil linhas subia trezentas e parava — sem erro nenhum, com `error`
+   * indefinido e novecentas linhas pendentes. Nada na tela dizia que faltou; a
+   * corrida seguinte pegava mais trezentas. Uma fila que só anda em múltiplos de
+   * trezentos por chamada é uma fila que nunca esvazia num aparelho movimentado.
+   *
+   * Falha volta a zero depois de uma fatia aceita inteira, que é o que "três
+   * tentativas" quer dizer: três seguidas sem progresso, não três fatias na vida.
+   */
+  let falhas = 0;
+
+  while (falhas < maxAttempts) {
     const batch = await pendingEntries(batchSize);
     if (batch.length === 0) break;
 
@@ -137,8 +152,9 @@ export async function drain(
       result = await transport.push(batch);
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
+      falhas += 1;
       // Nothing is marked: the whole batch is still exactly where it was.
-      if (attempts < maxAttempts) await sleep(backoffMs(attempts));
+      if (falhas < maxAttempts) await sleep(backoffMs(falhas));
       continue;
     }
 
@@ -153,10 +169,14 @@ export async function drain(
       // A gap. Stopping here is deliberate: continuing would send rows whose
       // parents the server does not have, and turn one rejection into many.
       error = `O servidor aceitou ${confirmed.length} de ${batch.length} registros.`;
-      if (attempts < maxAttempts) await sleep(backoffMs(attempts));
+      falhas += 1;
+      if (falhas < maxAttempts) await sleep(backoffMs(falhas));
       continue;
     }
 
+    // Fatia inteira aceita: o orçamento de tentativa recomeça. Sem isto, uma falha
+    // no começo de uma fila longa condenaria a corrida inteira duas fatias depois.
+    falhas = 0;
     error = undefined;
     if (batch.length < batchSize) break;
   }

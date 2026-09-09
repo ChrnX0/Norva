@@ -574,7 +574,7 @@ function Settings() {
     setEnviando(true);
     setOQueSubiu(null);
     try {
-      const relatorio = await drain(transporte({ userId: quem.id }));
+      const relatorio = await drain(transporte({ userId: quem.id, companyId: empresaDaqui() }));
       if (relatorio.recusa === 'semEmpresa') setOQueSubiu(t.app.settings.syncNoCompany);
       else if (relatorio.error)
         setOQueSubiu(fill(t.app.settings.syncStopped, { reason: relatorio.error }));
