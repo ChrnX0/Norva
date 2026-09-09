@@ -55,8 +55,10 @@ const DEFECTS = [
   },
   {
     file: 'src/data/repository.ts',
-    from: "        AND m.kind <> 'reversal'\n        AND ${NAO_ESTORNADO}\n      ORDER BY m.occurred_at, m.recorded_at, m.id",
-    to: "      ORDER BY m.occurred_at, m.recorded_at, m.id",
+    // Âncora refeita em 9 de setembro: a ordenação passou a desempatar por `m.rowid`
+    // em vez de `m.id`, e o literal antigo deixou de existir.
+    from: "        AND m.kind <> 'reversal'\n        AND ${NAO_ESTORNADO}\n      ORDER BY m.occurred_at, m.recorded_at, m.rowid",
+    to: "      ORDER BY m.occurred_at, m.recorded_at, m.rowid",
     hurts:
       'a recomposicao do custo passa a contar a corrida errada E a perna do estorno, entao a media fica no valor envenenado com a quantidade certa - o estorno vira maquiagem',
   },
@@ -1102,8 +1104,11 @@ const DEFECTS = [
   // ao lado: o teste existe, mas nada garante que ele morde a troca.
   {
     file: 'src/data/repository.ts',
-    from: "                         AND NOT (m.kind IN ('transfer', 'return') AND ${parNoEscopo.sql})",
-    to: "                         AND NOT (m.kind IN ('transfer', 'return') AND (? IS NULL OR ? IS NOT NULL OR ? IS NULL OR ? IS NULL OR ? IS NULL OR ? IS NULL))",
+    // Âncora refeita em 9 de setembro: o predicado saiu da consulta e virou a ajudante
+    // `saidaDeVerdade`, que é onde ele mora agora. A troca continua a mesma — o par
+    // deixa de ser consultado e TODA transferência volta a ser ignorada.
+    from: "    `NOT (m.kind IN ('transfer', 'return') AND ${parNoEscopoSql})`,",
+    to: "    `NOT (m.kind IN ('transfer', 'return') AND 1 = 1)`,",
     hurts:
       'a cobertura volta a ignorar QUALQUER transferencia: mandar polpa de Bauru para Marilia deixa de contar como saida de Bauru, e a regua de la fica infinita com a camara vazia — o conselho cala exatamente onde falta',
   },
