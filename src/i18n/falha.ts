@@ -28,9 +28,10 @@ export function avisoDeFalha(
     semAcesso?: new (...args: never[]) => Error;
     semPermissao?: new (...args: never[]) => Error;
     semEstoque?: new (...args: never[]) => Error & { missing: readonly { name: string }[] };
+    jaConferida?: new (...args: never[]) => Error;
   } = {},
 ): { title: string; message: string } {
-  const { semAcesso, semPermissao, semEstoque } = classes;
+  const { semAcesso, semPermissao, semEstoque, jaConferida } = classes;
 
   if (semEstoque && e instanceof semEstoque) {
     return {
@@ -39,6 +40,14 @@ export function avisoDeFalha(
         items: e.missing.map((m) => m.name).join(', '),
       }),
     };
+  }
+
+  // Recusa que IMPEDE tem de dizer a saída, senão ela só reclama noutro tom. Aqui a
+  // saída não é tentar de novo — é desfazer a conferência, que é como esta casa
+  // corrige tudo. Sem esta frase a recusa caía no genérico "tente de novo em um
+  // instante", que manda a pessoa repetir exatamente o que acabou de ser recusado.
+  if (jaConferida && e instanceof jaConferida) {
+    return { title: t.common.failureTitle, message: t.common.failureAlreadyChecked };
   }
 
   if ((semAcesso && e instanceof semAcesso) || (semPermissao && e instanceof semPermissao)) {

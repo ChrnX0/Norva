@@ -17,6 +17,8 @@ export const en: Dictionary = {
     failureNotYours: 'That is not part of your access. Ask whoever runs the company.',
     failureMissing: 'There is not enough {{items}} to record this.',
     failureUnknown: 'Could not save just now. Try again in a moment.',
+    failureAlreadyChecked:
+      'This delivery was already checked. To change what was counted, undo the check in the ledger and check it again.',
     moneyHidden: 'Cost stays with whoever handles the money.',
     moneyHiddenWay: 'If this phone is yours, switch the name under Who has this phone.',
   },

@@ -35,6 +35,8 @@ export const ptBR = {
     failureNotYours: 'Isso não faz parte do seu acesso. Peça a quem administra a empresa.',
     failureMissing: 'Falta {{items}} para gravar isso.',
     failureUnknown: 'Não deu para gravar agora. Tente de novo em um instante.',
+    failureAlreadyChecked:
+      'Esta remessa já foi conferida. Para trocar o que foi contado, desfaça a conferência no extrato e confira de novo.',
     /**
      * Quando o dinheiro não é desta pessoa para ver.
      *

@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **619** testes |
+| `npm test` | **620** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **27** garantias contra um Postgres descartável, sob RLS |
@@ -139,7 +139,22 @@ desenho — e sete controles miúdos passaram a declará-lo. A guarda
 O que sobra: a régua fina do Papel que não separa nada · o remate em onda do Orgânico ·
 a ordem alfabética das palavras INGLESAS do esquema na lista de Lugares · o espanhol com
 três segundas pessoas na mesma tela · 39 chaves de dicionário sem leitor ·
-`PickLine.available` sem leitor de produção · a conferência que não é idempotente.
+`PickLine.available` sem leitor de produção.
+
+### B. Duas pessoas conferindo a mesma remessa ainda dobram o saldo NO SERVIDOR
+<!-- medida: ausente supabase/migrations :: discrepancy_once_per_group -->
+
+O aparelho passou a recusar a segunda conferência (`JaConferidaError`, 9 de setembro), e
+o servidor não tem a regra. Dois celulares na mesma doca, os dois offline, conferem a
+mesma carga: os dois aceitam, os dois sobem, e a correção é aplicada duas vezes.
+
+**Não é um índice único.** `(company_id, movement_group_id, item_id)` para `discrepancy`
+bloquearia junto o caminho legítimo de correção — desfazer a conferência e conferir de
+novo —, e um conserto que fecha a porta certa é pior que o defeito. A forma precisa
+distinguir "a segunda" de "a segunda depois de a primeira ser estornada", e isso é
+`reverses_movement_id`, que não cabe num índice.
+
+É P3, e o alcance é o razão: entra com a forma na mesa antes de rodar.
 
 
 ### Esperando decisão do dono

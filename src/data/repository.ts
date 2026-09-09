@@ -3910,6 +3910,19 @@ export type CheckResult = {
  * faltou foi a mercadoria que embarcou, ao custo com que embarcou. Ler o custo
  * atual avaliaria a falta de setembro ao preço de outubro.
  */
+/**
+ * Esta remessa já foi conferida — e conferir de novo não é conferir, é dobrar.
+ *
+ * Um erro nomeado e não uma frase: quem escreve português é a tela, nos três idiomas,
+ * e um `Error` genérico chegaria à doca em português de programador.
+ */
+export class JaConferidaError extends Error {
+  constructor(public readonly groupId: string) {
+    super(`jaConferida: a remessa ${groupId} já tem conferência`);
+    this.name = 'JaConferidaError';
+  }
+}
+
 export async function recordCheck(
   companyId: string,
   input: {
@@ -3936,8 +3949,44 @@ export async function recordCheck(
   const at = nowIso();
   const occurred = input.occurredAt ?? at;
 
-  // A remessa, lida pelas pernas de entrada: elas dizem o destino, a origem, o
-  // que foi mandado e a que custo.
+  /**
+   * Conferir DUAS VEZES não confere duas vezes — e sem esta recusa o saldo dobrava.
+   *
+   * A segunda chamada lia as pernas positivas da remessa de novo, recalculava a
+   * mesma diferença e gravava outra linha: com 6.000 mandados e 5.500 contados, a
+   * prateleira fica com 5.500 e o livro passa a dizer 5.000. Um toque repetido na
+   * doca — que é onde o dedo está de luva e a tela está molhada — corrompia o saldo
+   * sem nada acusar.
+   *
+   * A recusa IMPEDE em vez de reclamar, e o caminho para corrigir uma conferência é
+   * o mesmo de todo o resto desta casa: estorno, que `reverseGroup` já sabe fazer
+   * pelo grupo. Sobrescrever seria a única coisa que a fundação não permite.
+   */
+  const jaConferida = await conn.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM movements
+      WHERE company_id = ? AND movement_group_id = ? AND kind = 'discrepancy'
+        AND ${naoEstornado('movements')}`,
+    [companyId, input.groupId],
+  );
+  if ((jaConferida?.n ?? 0) > 0) throw new JaConferidaError(input.groupId);
+
+  /**
+   * A remessa, lida pelas pernas de ENTRADA da própria remessa.
+   *
+   * `kind = 'transfer'` e não só `quantity > 0`, e a razão é o que uma perna É: a
+   * linha de conferência carrega o MESMO `movement_group_id`, e uma SOBRA — a loja
+   * achou mais do que veio — é positiva. Era assim que a segunda conferência lia uma
+   * carga fantasma, antes da recusa acima.
+   *
+   * **Dito com honestidade: com a recusa no lugar, este filtro deixou de ser o que
+   * segura o defeito.** Ele não está aqui por precaução vaga — está porque a consulta
+   * afirma "as pernas de uma remessa", e uma diferença não é uma perna. Consulta que
+   * acerta por coincidência de sinal é consulta que erra na próxima espécie positiva
+   * que alguém acrescentar ao grupo.
+   *
+   * E `naoEstornado` junto: remessa desfeita não se confere, e a perna estornada
+   * continua no livro porque nada se apaga aqui.
+   */
   const legs = await conn.getAllAsync<{
     item_id: string;
     quantity: number;
@@ -3948,7 +3997,8 @@ export async function recordCheck(
     `SELECT item_id, quantity_base_units AS quantity, location_id,
             counterpart_location_id AS counterpart, unit_cost_rate AS rate
        FROM movements
-      WHERE company_id = ? AND movement_group_id = ? AND quantity_base_units > 0`,
+      WHERE company_id = ? AND movement_group_id = ? AND quantity_base_units > 0
+        AND kind = 'transfer' AND ${naoEstornado('movements')}`,
     [companyId, input.groupId],
   );
 
@@ -4822,6 +4872,16 @@ export type Shipment = {
    * segunda caixa não está conferindo a primeira.
    */
   groupIds: string[];
+  /**
+   * Os grupos que AINDA NÃO foram conferidos — e é por eles que a tela confere.
+   *
+   * `groupIds` são as remessas do dia; estas são as que faltam. A diferença nasceu
+   * quando conferir duas vezes passou a ser recusado: uma loja que recebeu duas
+   * cargas e teve a primeira conferida ficaria com a segunda presa atrás da recusa
+   * da primeira, e o toque não conferiria nada. Um conserto que cria o defeito
+   * oposto não é conserto.
+   */
+  pendentes: string[];
   locationId: string;
   locationName: string;
   /** Mesmo tipo que `Place.kind`: texto, como o resto do repositório o trata. */
@@ -4946,6 +5006,7 @@ export async function shipmentsOn(
   for (const r of rows) {
     const place = byPlace.get(r.location_id) ?? {
       groupIds: [],
+      pendentes: [],
       locationId: r.location_id,
       locationName: r.location_name,
       kind: r.kind,
@@ -4968,7 +5029,10 @@ export async function shipmentsOn(
     // "conferido" que ignora a carga da tarde é pior que nenhum.
     if (!place.groupIds.includes(r.group_id)) {
       place.groupIds.push(r.group_id);
-      if (r.checked !== 1) place.checked = false;
+      if (r.checked !== 1) {
+        place.checked = false;
+        place.pendentes.push(r.group_id);
+      }
     }
     const existing = place.items.find((i) => i.itemId === r.item_id);
     if (existing) existing.baseUnits += r.total;

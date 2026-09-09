@@ -130,7 +130,10 @@ function WhereItWent() {
     // não conferia nada e nada aparecia. Para na primeira: conferir metade das
     // remessas e dizer que deu certo é pior que não conferir nenhuma.
     try {
-      for (const groupId of place.groupIds) {
+      // As PENDENTES, e não as do dia: conferir duas vezes é recusado desde 9 de
+      // setembro, e uma loja que recebeu duas cargas com a primeira já conferida
+      // ficaria com a segunda presa atrás da recusa da primeira.
+      for (const groupId of place.pendentes) {
         await recordCheck(empresaDaqui(), { groupId });
       }
     } catch (e) {

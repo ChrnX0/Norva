@@ -22,6 +22,8 @@ export const es: Dictionary = {
     failureNotYours: 'Eso no forma parte de tu acceso. Pídelo a quien administra la empresa.',
     failureMissing: 'Falta {{items}} para registrar esto.',
     failureUnknown: 'No se pudo guardar ahora. Inténtalo de nuevo en un momento.',
+    failureAlreadyChecked:
+      'Este envío ya fue verificado. Para cambiar lo contado, deshaz la verificación en el extracto y verifica de nuevo.',
     moneyHidden: 'El costo queda con quien cuida del dinero.',
     moneyHiddenWay: 'Si este teléfono es tuyo, cambiá el nombre en Quién tiene el teléfono.',
   },

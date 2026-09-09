@@ -8145,3 +8145,41 @@ lugar dele. E a régua que sobra: **um item nascido de uma foto passa pela busca
 antes de virar item** — `grep` no componente, no `insights.md` e nas decisões do
 `CLAUDE.md`. Foi o guarda do plano que me pegou, não eu; sem a medida obrigatória ao lado
 de cada item, o achado inventado teria virado trabalho para a próxima sessão.
+
+---
+
+## 9 de setembro — o conserto criou o defeito oposto, e só olhar QUEM CHAMA mostrou
+
+**O que apareceu:** `recordCheck` não impedia conferir a mesma remessa duas vezes. A
+segunda chamada lia as pernas positivas do grupo de novo, recalculava a mesma diferença e
+gravava outra linha: com 6.000 mandados e 5.500 contados, a prateleira fica com 5.500 e o
+livro passa a dizer 5.000. Um toque repetido na doca — que é onde o dedo está de luva e a
+tela está molhada — corrompia o saldo sem nada acusar.
+
+O conserto é o da casa: recusa nomeada, e a correção pelo estorno, porque a fundação diz
+que se corrige por estorno e nunca por sobrescrita.
+
+**E a recusa criou um defeito novo, na tela.** A tela de transporte confere percorrendo as
+remessas do DIA — uma loja pode receber duas cargas. Com a recusa, a carga da tarde ficava
+presa atrás da recusa da carga da manhã: o toque não conferia nada e a tela dizia "não deu
+para gravar". Antes o mesmo toque conferia a segunda e estragava a primeira; depois, não
+conferia nenhuma. **Um conserto que cria o defeito oposto não é conserto.**
+
+Nada disso aparece na camada de dados. A função passou a estar certa sozinha, com o teste
+verde, e a tela passou a estar errada — e o que mostrou foi ir ler o chamador antes de
+fechar. `shipmentsOn` ganhou `pendentes`, e a tela percorre o que FALTA em vez do que
+aconteceu.
+
+**A régua que fica:** quando uma escrita passa a RECUSAR o que antes aceitava, o trabalho
+não acaba na função. **Vá ler quem chama, e pergunte o que ele fazia com a chamada que
+agora falha** — em laço, então quem vem depois dela para; num `Promise.all`, então o
+resultado inteiro cai; num caminho de retentativa, então ele repete para sempre. Recusa
+nova é mudança de contrato, e contrato se lê dos dois lados.
+
+**E uma correção ao próprio achado, que vale mais que ele.** A auditoria dizia "a
+conferência que não é idempotente", e eu passei a primeira meia hora medindo `recordCount`
+— a contagem de prateleira — que é idempotente no saldo: contar 100 duas vezes escreve
++10 e depois 0, e o saldo dá 100 nas duas. A palavra "conferência" neste repositório é
+`discrepancy`, o posto de controle da doca, e não `adjustment`. **Medi a função errada
+porque li o rótulo em vez do vocabulário**, e só achei o defeito quando fui atrás de onde
+a palavra vive no código.

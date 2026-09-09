@@ -1,4 +1,9 @@
-import { NotEnoughStockError, SemAcessoError, SemPermissaoError } from './repository';
+import {
+  JaConferidaError,
+  NotEnoughStockError,
+  SemAcessoError,
+  SemPermissaoError,
+} from './repository';
 
 /**
  * As recusas que a TELA sabe traduzir, num pacote só.
@@ -12,4 +17,5 @@ export const ERROS = {
   semEstoque: NotEnoughStockError,
   semAcesso: SemAcessoError,
   semPermissao: SemPermissaoError,
+  jaConferida: JaConferidaError,
 } as const;

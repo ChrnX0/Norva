@@ -1671,6 +1671,46 @@ test('the shelf a screen shows is the shelf a count is compared against', async 
   assert.ok((await itemMovements(EMPRESA_SEMENTE, acucar.id)).some((m) => m.kind === 'adjustment'));
 });
 
+test('a second delivery is still checkable after the first one was', async () => {
+  // O defeito que a RECUSA quase criou, e que só apareceu ao olhar quem chama: a tela
+  // conferia percorrendo as remessas do DIA, e a recusa de conferir duas vezes faria a
+  // carga da tarde ficar presa atrás da recusa da carga da manhã. O toque não
+  // conferiria nada, e a tela diria que não deu para gravar.
+  //
+  // Um conserto que cria o defeito oposto não é conserto. O que a tela percorre passou
+  // a ser o que FALTA, e é isto que prova a diferença entre as duas listas.
+  await ensureStarterData(EMPRESA_SEMENTE);
+  const loja = await savePlace(EMPRESA_SEMENTE, { name: 'Loja da tarde', kind: 'own_store' });
+  const fabrica = defaultLocationId(EMPRESA_SEMENTE);
+  const acucar = (await listItems(EMPRESA_SEMENTE)).find((i) => i.name.includes('Açúcar'));
+  assert.ok(acucar);
+
+  const manha = await recordTransfer(EMPRESA_SEMENTE, {
+    itemId: acucar.id, fromLocationId: fabrica, toLocationId: loja.id,
+    baseUnits: 1000, occurredAt: '2026-09-02T09:00:00.000Z',
+  });
+  const tarde = await recordTransfer(EMPRESA_SEMENTE, {
+    itemId: acucar.id, fromLocationId: fabrica, toLocationId: loja.id,
+    baseUnits: 2000, occurredAt: '2026-09-02T15:00:00.000Z',
+  });
+
+  await recordCheck(EMPRESA_SEMENTE, { groupId: manha.groupId, occurredAt: '2026-09-02T10:00:00.000Z' });
+
+  const dia = await shipmentsOn(EMPRESA_SEMENTE, '2026-09-02T00:00:00.000Z', '2026-09-03T00:00:00.000Z');
+  const aqui = dia.find((d) => d.locationId === loja.id);
+  assert.ok(aqui, 'o destino sumiu da lista do dia');
+  assert.equal(aqui.groupIds.length, 2, 'as duas cargas do dia continuam listadas');
+  assert.deepEqual(aqui.pendentes, [tarde.groupId], 'só a carga da tarde está pendente');
+  assert.equal(aqui.checked, false, 'com uma carga por conferir o destino não está conferido');
+
+  // E conferir o que falta funciona, sem esbarrar na que já foi.
+  const conferida = await recordCheck(EMPRESA_SEMENTE, {
+    groupId: aqui.pendentes[0],
+    occurredAt: '2026-09-02T16:00:00.000Z',
+  });
+  assert.deepEqual(conferida.differences, [{ itemId: acucar.id, baseUnits: 0 }]);
+});
+
 test('what is missing at the door leaves the store balance short, by exactly what was missing', async () => {
   await ensureStarterData(EMPRESA_SEMENTE);
   const centro = await savePlace(EMPRESA_SEMENTE, { name: 'Loja Centro', kind: 'own_store' });
@@ -1690,6 +1730,29 @@ test('what is missing at the door leaves the store balance short, by exactly wha
     occurredAt: '2026-09-01T18:00:00.000Z',
   });
   assert.deepEqual(conferido.differences, [{ itemId: acucar.id, baseUnits: -500 }]);
+
+  // **Conferir DUAS VEZES não confere duas vezes.** Sem esta recusa, a segunda
+  // chamada lê as pernas positivas da remessa de novo, recalcula 5.500 - 6.000 e
+  // grava outros -500: a prateleira tem 5.500 e o livro passa a dizer 5.000. Um
+  // toque repetido na doca — que é onde o dedo está de luva — corrompe o saldo sem
+  // nada acusar.
+  //
+  // E o pior não é a repetição: é que a consulta das pernas pega
+  // `quantity_base_units > 0` do MESMO grupo, e uma sobra (a loja achou mais do que
+  // veio) é positiva. Ela viraria perna de remessa na conferência seguinte, como se
+  // uma carga fantasma tivesse chegado.
+  //
+  // O caminho para corrigir uma conferência é o mesmo de todo o resto desta casa:
+  // estorno. A fundação diz que se corrige por estorno, nunca por sobrescrita.
+  await assert.rejects(
+    recordCheck(EMPRESA_SEMENTE, {
+      groupId: remessa.groupId,
+      counted: [{ itemId: acucar.id, baseUnits: 5500 }],
+      occurredAt: '2026-09-01T19:00:00.000Z',
+    }),
+    /jaConferida/,
+    'conferir a mesma remessa duas vezes gravou a diferença de novo',
+  );
 
   // A loja fica com o que ela realmente tem, e a empresa perde os 500 - que é o
   // fato. Nada foi apagado: a remessa continua dizendo que 6.000 saíram.
