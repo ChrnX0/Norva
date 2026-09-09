@@ -183,7 +183,16 @@ test('no screen names a piece of equipment the owner does not use', async () => 
  * ser escrita de propósito.
  */
 export function falaEquipamento(fonte: string): { linha: number; trecho: string }[] {
-  const emAspas = /'[^'\n]*'|"[^"\n]*"/g;
+  // **A crase entra na régua, e faltava.**
+  //
+  // A guarda lia aspas simples e duplas, e o texto que o assistente FALA é montado
+  // em template literal: `${n} tachos de ${nome}`. Ela achava zero e havia três — a
+  // palavra que este projeto tirou de treze lugares em três idiomas continuava
+  // saindo da boca do aplicativo, na resposta que a pessoa lê.
+  //
+  // É a terceira vez nesta casa que uma régua tropeça na crase; a diferença é que
+  // as outras duas quebravam o código e esta ficava calada.
+  const emAspas = /'[^'\n]*'|"[^"\n]*"|`[^`\n]*`/g;
   const achados: { linha: number; trecho: string }[] = [];
   let emBloco = false;
   for (const [n, linha] of fonte.split('\n').entries()) {

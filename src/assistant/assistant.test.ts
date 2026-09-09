@@ -925,3 +925,57 @@ test('the voice says a store shelf was checked when the count booked a sale', as
   );
   assert.match(conferencia.value, /8/, 'e diz a data em que alguém andou até a prateleira');
 });
+
+/**
+ * "Quanto saiu ontem" era respondido com o número de HOJE.
+ *
+ * O casador terminava em `(?:hoje)?` — opcional —, então qualquer pergunta sobre
+ * produção casava e a resposta vinha com a janela de hoje, na frase *"Saíram N
+ * unidades hoje"*. Quem pergunta lê o número e ignora a palavra: é o pior formato de
+ * resposta errada, porque ela está certa sobre outra coisa.
+ *
+ * Recusar é melhor que responder torto, e o "ainda não sei" já lista o que ele sabe.
+ */
+test('perguntas sobre outro dia caem no "ainda não sei", em vez de virem com o de hoje', async () => {
+  // **O dublê precisa ter produção HOJE.** Com a fábrica parada, a resposta errada
+  // ("Nada saiu da produção hoje ainda") é indistinguível da certa, e a guarda
+  // mediria nada — foi o que aconteceu na primeira versão deste teste.
+  const comProducao = {
+    ...data,
+    productionOn: async () => [{ itemId: 'p1', name: 'Picolé de morango', baseUnits: 900 }],
+  };
+  const mundo = { ...context(), data: comProducao };
+
+  const hoje = await ask('quanto saiu hoje', mundo);
+  assert.match(hoje.text, /Saíram 900/, 'hoje é respondido, e com o número');
+
+  for (const pergunta of [
+    'quanto saiu ontem',
+    'quanto produzimos anteontem',
+    'quanto saiu na semana passada',
+  ]) {
+    const r = await ask(pergunta, mundo);
+    assert.doesNotMatch(
+      r.text,
+      /Saíram 900/,
+      `"${pergunta}" veio com o número de hoje: ${r.text}`,
+    );
+  }
+});
+
+/**
+ * O rascunho da produção falada dizia "em 395.26 vezes".
+ *
+ * Ponto decimal cru, em português, na folha que a pessoa confirma antes de o razão
+ * receber a linha — um número que a máquina escreveu para si mesma.
+ */
+test('o rascunho da produção diz o número no separador do idioma', async () => {
+  const r = await ask('produzi 480 picolés de morango', context('record_production'));
+  const vezes = r.detail?.find((d) => d.label === 'Vezes');
+  assert.ok(vezes, 'o rascunho diz quantas vezes a receita rodou');
+  assert.doesNotMatch(
+    vezes.value,
+    /\d\.\d/,
+    `o ponto decimal cru chegou à folha: ${vezes.value}`,
+  );
+});

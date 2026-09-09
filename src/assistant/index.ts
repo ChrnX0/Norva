@@ -66,6 +66,32 @@ export function knownSkills(capabilities: ReadonlySet<Capability>): Skill[] {
  * skill and its slots. It never reaches the data, and it never produces a
  * number.
  */
+/**
+ * O que se diz quando a habilidade não é desta pessoa — uma frase por capacidade.
+ *
+ * O padrão está escrito no resto do aplicativo: *"Este pedido espera aprovação, e
+ * aprovar não faz parte do seu acesso."* Diz o que se pediu, diz que não é seu, e
+ * diz para quem é — sem culpar ninguém, que é o tom desta casa.
+ *
+ * Fica aqui, e não no dicionário, pela mesma razão que o resto do assistente: ele
+ * responde em português por congelamento registrado no topo deste módulo, até o modo
+ * áudio existir. Quando o dicionário alcançá-lo, este mapa vira uma seção dele.
+ */
+const RECUSA: Record<Capability, string> = {
+  view_cost: 'Esse número não faz parte do seu acesso. Quem cuida do financeiro consegue ver.',
+  view_sale_price: 'O preço de venda não faz parte do seu acesso. Quem cuida do comercial consegue ver.',
+  view_finance: 'O financeiro não faz parte do seu acesso.',
+  record_production: 'Lançar produção não faz parte do seu acesso. Quem opera a fábrica consegue.',
+  adjust_stock: 'Ajustar estoque não faz parte do seu acesso. Quem conta a prateleira consegue.',
+  dispatch: 'Despachar carga não faz parte do seu acesso. Quem carrega consegue.',
+  check_receipt: 'Conferir recebimento não faz parte do seu acesso.',
+  record_loss: 'Lançar perda não faz parte do seu acesso.',
+  place_order: 'Anotar pedido não faz parte do seu acesso. Quem compra consegue.',
+  approve_order: 'Aprovar pedido não faz parte do seu acesso.',
+  manage_company: 'Isso é de quem administra a empresa.',
+  issue_invoice: 'Emitir nota não faz parte do seu acesso.',
+};
+
 export async function ask(question: string, context: SkillContext): Promise<Answer> {
   const trimmed = question.trim();
   if (!trimmed) return { text: 'Pode perguntar.' };
@@ -77,9 +103,14 @@ export async function ask(question: string, context: SkillContext): Promise<Answ
     if (skill.requires && !context.capabilities.has(skill.requires)) {
       // Said plainly and without embarrassment: this is a boundary of the role,
       // not a failure of the person.
-      return {
-        text: 'Esse número não faz parte do seu acesso. Quem cuida do financeiro consegue ver.',
-      };
+      //
+      // **A frase vem da CAPACIDADE barrada, e era uma só.** Ela dizia *"Esse número
+      // não faz parte do seu acesso. Quem cuida do financeiro consegue ver"* para
+      // todas — inclusive para lançar produção, contar prateleira, anotar pedido e
+      // cadastrar insumo, que não são número nem financeiro. Quem ouve isso depois
+      // de pedir para registrar um tacho entende que o app está quebrado, não que
+      // aquilo não é dele.
+      return { text: RECUSA[skill.requires] };
     }
 
     // The words that reached here travel with the context, so a skill that

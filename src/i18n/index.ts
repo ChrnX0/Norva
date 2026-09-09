@@ -160,6 +160,22 @@ export function formatQuantity(value: number, locale: LocaleSettings): string {
   }).format(value);
 }
 
+/**
+ * Um número COM casas decimais, no separador do idioma.
+ *
+ * `formatQuantity` arredonda para inteiro — é o certo para caixa e unidade, e é o
+ * errado para uma fração de receita. O rascunho da produção falada dizia *"em 395.26
+ * vezes"*: ponto decimal cru, em português, na folha que a pessoa confirma antes de
+ * o razão receber a linha. Um número que a máquina escreveu para si mesma.
+ *
+ * `formatQuantity` também não serve como substituto: ela transformaria 0,2 em "0".
+ */
+export function formatDecimal(value: number, locale: LocaleSettings, digits = 2): string {
+  return new Intl.NumberFormat(locale.formatting, {
+    maximumFractionDigits: digits,
+  }).format(value);
+}
+
 
 /**
  * The day, as the header of the briefing says it: "segunda, 1 de set".

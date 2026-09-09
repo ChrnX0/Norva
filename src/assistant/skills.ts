@@ -10,7 +10,7 @@ import {
   packagingRatePerUnit,
   shoppingList,
 } from '@/domain/recipe';
-import { formatDayMonth, formatMoney, formatUnitRate, formatPercent, formatQuantity } from '@/i18n';
+import { formatDayMonth, formatDecimal, formatMoney, formatUnitRate, formatPercent, formatQuantity } from '@/i18n';
 import { findByName, movePhrase, namesakes, normalize, parseNumber } from './text';
 import type { Answer, Skill, SkillContext } from './types';
 
@@ -189,10 +189,28 @@ const whatMoved: Skill = {
 const producedToday: Skill = {
   id: 'produced_today',
   example: 'quanto saiu hoje',
-  match: (q) =>
-    normalize(q).match(
+  /**
+   * Só HOJE — e a pergunta sobre outro dia cai no "ainda não sei responder".
+   *
+   * O `(?:hoje)?` no fim é opcional, então *"quanto saiu ontem"* casava e a resposta
+   * vinha com o número de hoje, na frase *"Saíram 900 unidades hoje"*. Quem pergunta
+   * lê o número e ignora a palavra: é o pior formato de resposta errada, porque ela
+   * está certa sobre outra coisa.
+   *
+   * Recusar é melhor que responder torto: o "ainda não sei" já lista o que ele sabe,
+   * e a pessoa vai para a tela onde a janela se escolhe. Habilidade nova está
+   * congelada até o modo áudio existir (decisão de 6 de setembro no topo deste
+   * módulo), então a saída certa hoje é não casar.
+   */
+  match: (q) => {
+    const texto = normalize(q);
+    if (/\b(ontem|anteontem|semana passada|mes passado|m[eê]s passado|ano passado)\b/.test(texto)) {
+      return null;
+    }
+    return texto.match(
       /(?:quanto|quantos|o que).*(?:saiu|sa[ií]ram|produz(?:i|iu|imos)).*(?:hoje)?|produ[cç][aã]o de hoje/,
-    ),
+    );
+  },
   run: async (_m, ctx) => {
     const hoje = dayWindow(nowIso(), ctx.locale.timeZone);
     const antes = dayWindow(nowIso(), ctx.locale.timeZone, -7);
@@ -896,14 +914,19 @@ const registerProduction: Skill = {
      */
     const batches = declarados ?? (porTacho > 0 ? units / porTacho : 0);
     if (batches <= 0) {
-      return { text: `A ficha de ${product.name} não diz quanto rende um tacho.` };
+      return { text: `A ficha de ${product.name} não diz quanto ela rende por vez.` };
     }
 
     const planned = Math.floor(porTacho * batches);
 
     const detail = [
       { label: 'Produto', value: product.name },
-      { label: 'Vezes', value: m[3] ? String(batches) : `${batches.toFixed(2)} (pelo que saiu)` },
+      {
+        label: 'Vezes',
+        value: m[3]
+          ? formatDecimal(batches, ctx.locale)
+          : `${formatDecimal(batches, ctx.locale)} (pelo que saiu)`,
+      },
       { label: 'Saíram', value: `${formatQuantity(units, ctx.locale)} un` },
     ];
     if (planned > 0) {
@@ -1098,9 +1121,14 @@ const whatToBuy: Skill = {
     );
 
     const faltando = lista.filter((l) => l.missing > 0);
+    // "vezes", nunca o nome da panela: o aplicativo vai para as lojas e uma fábrica
+    // de conserva não tem tacho. E o singular concorda — "1 vezes" é a marca de uma
+    // frase montada por máquina, e ela some justamente onde a pessoa mais lê.
+    const quantas = formatQuantity(batches, ctx.locale);
+    const vezes = batches === 1 ? `${quantas} vez` : `${quantas} vezes`;
     const dizPlano = todos
-      ? `${formatQuantity(batches, ctx.locale)} tachos de cada um dos ${plano.length} produtos`
-      : `${formatQuantity(batches, ctx.locale)} tachos de ${plano[0].name}`;
+      ? `${vezes} de cada um dos ${plano.length} produtos`
+      : `${vezes} de ${plano[0].name}`;
 
     // "Está tudo bem" é estado válido: uma lista de compras vazia é a melhor
     // resposta possível, e ela é dita como resposta, não como silêncio.
