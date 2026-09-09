@@ -7589,3 +7589,31 @@ sabe se morde.
 fonte de uma varredura é exportada como função — e várias são, para não congelar o
 objeto —, o erro de esquecer o `()` não aparece em lugar nenhum. Nem no tipo, nem no
 resultado, nem na cor do teste. **Só a contagem denuncia.**
+
+## Guarda que confere o GESTO passa; o que protege é conferir o EFEITO
+
+9 de setembro, achado pelo `mutate` — e é o primeiro sobrevivente de verdade em quatro
+rodadas, depois de doze âncoras cegas que não provavam nada.
+
+Quando o escopo do consumo virou configuração, escrevi uma guarda para o acordo entre a
+tela e a escrita. Como a resposta passou a ser dado, ela deixou de comparar a PALAVRA dos
+dois lados e passou a exigir a FONTE comum: *"a tela chama `consumoDaProducao()`?"*.
+
+O defeito plantado deixou a chamada no lugar e trocou o **argumento** de `listItems` por
+`undefined`. A tela voltava a ler a empresa inteira — botão liberado sobre estoque que a
+escrita recusa, que é exatamente o defeito de ontem — com a pergunta feita e a resposta
+jogada fora. **569 asserções continuaram verdes**, e a guarda escrita para isso também.
+
+É a irmã da que conferia a ARIDADE de `listItems` em vez do escopo, duas semanas de
+código depois e com a mesma forma: **medi o gesto que o conserto produziu, não a
+propriedade que ele tinha de garantir.** Chamar a régua é o gesto; o escopo chegar na
+consulta é o efeito.
+
+**A régua que fica, e ela vale para toda guarda de acordo entre duas peças:** depois de
+escrever a guarda, pergunte *"qual é a menor mudança que a mantém verde e quebra o
+acordo?"*. Se ela existe, a guarda está no gesto. Aqui a menor mudança era uma palavra —
+`undefined` — e o `mutate` a encontrou porque é literalmente o que ele faz.
+
+E o corolário operacional: **guarda nova entra com uma mutação junto.** As duas guardas
+que nasceram hoje sem mutação passaram a ter uma; a que nasceu com, foi a única que não
+precisou deste insight.

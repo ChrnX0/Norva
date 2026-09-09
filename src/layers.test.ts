@@ -502,9 +502,27 @@ export function pisoDeOutraSala(texto: string, escopoDaEscrita: EscopoDaEscrita)
   // Comparar palavra aqui seria exigir que a tela chumbasse um dos dois mundos, que é o
   // oposto do que a configuração existe para permitir.
   if (escopoDaEscrita === 'configurado') {
-    return /consumoDaProducao\(/.test(texto)
-      ? []
-      : ['a escrita pergunta `consumoDaProducao()` e esta tela decide sozinha'];
+    // **Perguntar não é usar, e a mutação provou que eu estava conferindo só a
+    // pergunta.** A primeira versão exigia só a chamada a `consumoDaProducao(`, e um
+    // defeito plantado trocou o ARGUMENTO de `listItems` por `undefined` deixando a
+    // chamada no lugar: a tela voltava a ler a empresa inteira, o botão liberava o que
+    // a escrita recusa, e as 569 asserções continuaram verdes. Guarda que confere o
+    // gesto e não o efeito é a irmã da que conferia a aridade em vez do escopo — o
+    // mesmo defeito, duas semanas de código depois.
+    const achados: string[] = [];
+    if (!/consumoDaProducao\(/.test(texto)) {
+      achados.push('a escrita pergunta `consumoDaProducao()` e esta tela decide sozinha');
+    }
+    for (const m of texto.matchAll(/listItems\(/g)) {
+      const args = argumentos(texto, (m.index ?? 0) + 'listItems('.length);
+      if (args === null) continue;
+      // O quarto argumento tem de CARREGAR a resposta. `undefined` ali é a empresa
+      // inteira com a pergunta feita e jogada fora.
+      if (args.length < 4 || !/\b(sala|unidade)\b/.test(args[3])) {
+        achados.push(`listItems(${args.join(', ')})`);
+      }
+    }
+    return achados;
   }
   const achados: string[] = [];
   for (const m of texto.matchAll(/listItems\(/g)) {
@@ -738,6 +756,19 @@ test('the production floor guard bites both scars, and leaves the fix alone', ()
     ),
     [],
     'a tela que pergunta à mesma função passa',
+  );
+
+  // **E perguntar não basta: a resposta tem de chegar na consulta.** Este é o defeito
+  // que a mutação achou vivo — a chamada a `consumoDaProducao()` fica no lugar e o
+  // argumento de `listItems` vira `undefined`, então a tela lê a empresa inteira com a
+  // pergunta feita e jogada fora. A guarda anterior passava.
+  assert.deepEqual(
+    pisoDeOutraSala(
+      comProducao('const de = await consumoDaProducao();\nlistItems(co, undefined, false, undefined),'),
+      'configurado',
+    ),
+    ['listItems(co, undefined, false, undefined)'],
+    'perguntar e ignorar a resposta é ler a empresa inteira com um álibi',
   );
 });
 
