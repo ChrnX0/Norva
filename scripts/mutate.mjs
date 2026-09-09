@@ -951,6 +951,26 @@ const DEFECTS = [
       'a tela de producao volta a ler o saldo da empresa e a liberar o botao com o insumo noutra sala: cada toque devolve o erro de programador do piso, e nenhuma corrida entra',
   },
 
+  // --- as duas guardas preventivas da costura, 9 de setembro -----------------
+  //
+  // Elas nasceram sem defeito para consertar: as listas ja concordavam. Entram aqui
+  // porque a regra que eu mesmo escrevi nesta noite manda — guarda nova entra com uma
+  // mutacao junto, senao ninguem sabe se ela morde.
+  {
+    file: 'src/sync/serialize.ts',
+    from: "  'movements',\n  'readings',",
+    to: "  'readings',",
+    hurts:
+      'a fila volta a mandar `on conflict do update` para movements, que nao tem politica de UPDATE: o reenvio de um lote parcial e recusado por politica e o motor para na primeira recusa, com tudo o que a fabrica gravar depois preso atras',
+  },
+  {
+    file: 'src/data/db.ts',
+    from: '  quantity_base_units  INTEGER NOT NULL,',
+    to: '  quantity_base_units  INTEGER,',
+    hurts:
+      'o aparelho passa a aceitar movimento sem quantidade e o servidor recusa por restricao: a linha entra aqui, a fila manda, e o motor para — o defeito nao aparece em tela nenhuma deste lado',
+  },
+
   // --- o portao de escrita que protege a FILA, 9 de setembro -----------------
   //
   // Nenhuma das sete escritas conferia capacidade, e o botao de desfazer nao tinha
