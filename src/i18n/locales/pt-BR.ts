@@ -754,6 +754,22 @@ export const ptBR = {
     },
 
     settings: {
+      /**
+       * De onde a corrida tira o insumo. Só aparece com mais de uma sala nossa.
+       *
+       * As duas frases do rodapé dizem o CUSTO de cada escolha, não a virtude dela:
+       * quem liga `sala` ganha saldo declarado e paga um lançamento a mais; quem fica
+       * em `unidade` não lança nada e passa a deduzir o saldo de cada prateleira. Sem
+       * o custo dito, a escolha vira aposta.
+       */
+      consumo: {
+        label: 'De onde a produção tira o insumo',
+        hint: 'Sua fábrica tem mais de uma sala. Quando uma corrida roda, o insumo pode vir de qualquer uma delas ou só da sala onde ela acontece.',
+        unidade: 'De qualquer sala da unidade',
+        sala: 'Só da sala onde a corrida roda',
+        noteUnidade: 'A polpa na câmara fria conta para a corrida. Nada a lançar — e o saldo de cada sala é deduzido, não declarado.',
+        noteSala: 'Cada sala tem o saldo que alguém declarou. Tirar da câmara passa a ser uma transferência lançada antes da corrida.',
+      },
       unidade: {
         label: 'A unidade deste aparelho',
         hint: 'Onde este celular fica. O que você registrar entra no estoque desta unidade.',

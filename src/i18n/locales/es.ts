@@ -590,6 +590,15 @@ export const es: Dictionary = {
     },
 
     settings: {
+      /** De dónde saca los insumos una corrida. Solo con más de una sala. Ver pt-BR. */
+      consumo: {
+        label: 'De dónde saca los insumos la producción',
+        hint: 'Tu fábrica tiene más de una sala. Cuando corre una producción, los insumos pueden venir de cualquiera de ellas o solo de la sala donde ocurre.',
+        unidade: 'De cualquier sala de la unidad',
+        sala: 'Solo de la sala donde corre',
+        noteUnidade: 'La pulpa en la cámara fría cuenta para la corrida. Nada que registrar — y el saldo de cada sala se deduce, no se declara.',
+        noteSala: 'Cada sala tiene el saldo que alguien declaró. Sacar de la cámara pasa a ser una transferencia registrada antes de la corrida.',
+      },
       unidade: {
         label: 'La unidad de este aparato',
         hint: 'Dónde queda este celular. Lo que registres entra en el stock de esta unidad.',

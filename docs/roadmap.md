@@ -49,8 +49,8 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **559** testes |
-| `npm run mutate` | **120** defeitos plantados, 118 pegos, 2 equivalentes, **0 sobreviventes** |
+| `npm test` | **560** testes |
+| `npm run mutate` | **121** defeitos plantados; 2 equivalentes conhecidos |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **23** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
@@ -1122,7 +1122,7 @@ abaixo respeita duas decisões escritas dele — *"termina o layout, nada pela m
 | **3c** | ~~**Os acentos do Orgânico abaixo da régua**~~ **— FECHADO em 7 de setembro, e não por decisão: por consequência.** <!-- medida: ausente src/theme/contrast.test.ts :: ABAIXO_DA_REGUA = new Set<string>\(\[$ --> | Eram oito, não seis, e a lista de exceções hoje está **vazia**. Não foram consertados por escolha de cor: o chão do Orgânico precisou escurecer (o cartão branco só existia pela sombra), e a régua de 4,5:1 desceu os onze acentos junto, matiz e saturação intactas. Medido depois: o pior fica em **4,61:1**, e a paleta não tem folga — mexer no chão de novo derruba os onze de uma vez, e é o `contrast.test.ts` que avisa. |
 | **3d** | ~~**As quatro peças da capa que NAVEGAM em vez de abrir**~~ **— FEITO em 6 de setembro** | virou a `Porta` (`src/home/Capa.tsx`): o toque e o aviso do toque são a mesma peça, então não dá para acrescentar uma quinta porta sem o rótulo.  <!-- medida: presente src/home/Capa.tsx :: function Porta --> |
 | **4** | ~~**Os sete médios**~~ **— ACABARAM em 6 de setembro** <!-- medida: presente src/data/configuracao.ts :: orders_need_approval --> | `unchecked` foi removida, `lastCostMove` ganhou tela na capa, e a aprovação de pedido — a única que não era trabalho e sim bloqueio — destravou quando a linha de `companies` passou a existir: `src/data/configuracao.ts` faz as quatro configurações da empresa atravessarem. Não sobrou nenhum. |
-| **5** | **De onde a produção consome** | ~~pergunta de PADRÃO para o dono~~ — o padrão foi decidido em 8/9 **sob defeito**: a tela lia a unidade, a escrita conferia uma sala, e nenhuma corrida rodava com a polpa na câmara. Hoje é a unidade, com o consumo saindo da sala que tinha o insumo. Continua aberto pela outra metade — a "sala estrita" como configuração da empresa, que é o que a regra da casa exige e ainda não existe.  <!-- medida: ausente src/data/repository.ts :: escopoDoConsumo --> |
+| **5** | ~~**De onde a produção consome**~~ | **FECHADO em 8 de setembro, e nas duas metades.** O padrão foi decidido sob defeito — a tela lia a unidade, a escrita conferia uma sala, e nenhuma corrida rodava com a polpa na câmara — e é a unidade, com o consumo saindo da sala que tinha o insumo. A outra metade, que é o que a regra da casa exige, entrou junto: `consumoDaProducao` é configuração da empresa, a escrita e a tela perguntam à MESMA função, e a guarda passou a exigir a fonte comum em vez da palavra.  <!-- medida: presente src/data/repository.ts :: escopoDoConsumo --> |
 | **6** | **Compras inteligentes** | mesma classe do 3 — construir agora, calibrar depois. ~~O primeiro passo era a data do pedido, porque `ordered_at` não tinha escritor~~ — **ele tem, desde 6 de setembro** (`app/purchase.tsx:578`), e com um desenho honesto: sem resposta nada é gravado, porque lacuna vazia é mais honesta que palpite. O que falta agora não é código, é **tempo**: `observedLeadTimeDays` precisa de entregas observadas, e isso é a linha *"calibração das compras"* da espera.  <!-- medida: espera :: entregas observadas numa fábrica de verdade para calibrar o prazo --> |
 | — | **O fiscal** | fora, e o único que trava por algo que nenhum dado resolve: certificado A1 e homologação na SEFAZ. |
 
@@ -1209,9 +1209,9 @@ De pé, nesta ordem e por este motivo:
    R$ 0,00 desde que a lista existe. Só apareceu porque a mudança de tipo obrigou a
    olhar as duas.
 
-### De onde a produção consome — o padrão MUDOU em 8 de setembro, e a metade que falta
+### De onde a produção consome — FECHADO em 8 de setembro, nas duas metades
 
-<!-- medida: ausente src/data/repository.ts :: escopoDoConsumo -->
+<!-- medida: presente src/data/repository.ts :: escopoDoConsumo -->
 
 **Esta seção se chamava "A sala do tacho" e descrevia o comportamento errado como se
 fosse o de hoje.** Duas coisas a derrubaram no mesmo dia, e as duas vieram do dono:
@@ -1242,10 +1242,17 @@ existam**, e é aí que este item continua aberto.
 
 **O que falta, e por isso o item não fechou:**
 
-- **A "sala estrita" como CONFIGURAÇÃO.** Quem quiser saldo por sala sempre declarado —
-  e aceitar o lançamento a mais — não tem como pedir isso hoje. É uma configuração de
-  empresa lendo o mesmo `escopoDoConsumo`, e sem ela metade da regra da casa está no
-  papel.
+- ~~**A "sala estrita" como CONFIGURAÇÃO.**~~ **FEITA na mesma noite.**
+  `consumoDaProducao` é a régua, e as duas pontas perguntam a ela: `recordProduction`
+  monta o `escopoDoConsumo` com a resposta, e `app/production/new.tsx` lê a mesma coisa
+  para decidir o que mostrar. O cartão em Ajustes só aparece com mais de uma sala nossa
+  — com uma só os dois mundos dão o mesmo resultado, e a Lei 1 proíbe perguntar.
+
+  **E a guarda mudou de forma junto com a regra.** Ela comparava a PALAVRA dos dois
+  lados; com a resposta virando dado, a palavra literal saiu do corpo da escrita e ela
+  passou a acusar a tela consertada — o pior jeito de uma guarda falhar. Agora ela
+  reconhece o caso configurado e exige a FONTE comum: quem produz tem de perguntar à
+  mesma função que a escrita pergunta.
 - ~~**A transferência entre salas nossas**~~ — **FEITA em 8 de setembro.** E a nota
   anterior estava meio errada, o que só apareceu ao medir: a câmara fria já podia
   **receber** (ela sempre esteve na lista de destinos). O que faltava era **sair** dela

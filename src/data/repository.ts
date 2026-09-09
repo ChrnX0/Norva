@@ -2218,7 +2218,14 @@ export async function recordProduction(
   // o que a alocação não conseguiu tirar de sala nenhuma, então não há segundo
   // número para divergir do primeiro.
   const unidadeDoTacho = await unidadeDaSala(conn, companyId, input.locationId);
-  const recorte = noEscopo('m.location_id', { unidade: unidadeDoTacho });
+  // A régua vem da configuração da empresa, e a MESMA função responde à tela — é
+  // isso que impede os dois lados de decidirem por caminhos diferentes o que a
+  // mesma linha significa, que é o defeito que esta função já teve duas vezes.
+  const escopoDoConsumo =
+    (await consumoDaProducao()) === 'sala'
+      ? ({ sala: input.locationId } as Escopo)
+      : ({ unidade: unidadeDoTacho } as Escopo);
+  const recorte = noEscopo('m.location_id', escopoDoConsumo);
   const porSala = await conn.getAllAsync<{
     item_id: string;
     name: string;
@@ -6013,6 +6020,37 @@ export async function floorSignIn(): Promise<FloorSignIn> {
 
 export async function setFloorSignIn(how: FloorSignIn): Promise<void> {
   await writeMeta(SIGN_IN_KEY, how);
+}
+
+const CONSUMO_KEY = 'production.consumeFrom';
+
+/**
+ * De onde uma corrida tira o insumo — e os dois caminhos existem, que é o ponto.
+ *
+ * **`unidade` é o padrão, e ele foi decidido sob defeito em 8 de setembro.** A tela
+ * lia o piso da unidade e a escrita conferia uma sala; com a polpa na câmara fria,
+ * que é onde polpa mora, nenhuma corrida rodava. Escolher a unidade foi a única saída
+ * que não obrigava a lançar transferência antes de cada corrida — e a régua é *"dá
+ * para ir buscar a pé"*: a câmara fica a três metros, a loja a dez quilômetros, a
+ * fábrica da outra cidade não é caminhada.
+ *
+ * **`sala` é o outro mundo, e ele é legítimo.** Quem quer o saldo de cada prateleira
+ * sempre DECLARADO, e não deduzido, aceita o lançamento a mais: o insumo entra no
+ * almoxarifado e tirar da câmara é uma transferência registrada. O trajeto interno
+ * que faltava para isso ser viável passou a existir na mesma noite.
+ *
+ * Fixar o padrão sem construir o outro caminho fecharia METADE da regra da casa —
+ * *"depende de quem usa vira configuração, e o que se decide é o padrão"* — e foi
+ * exatamente a dívida que este par de funções paga.
+ */
+export type ConsumoDaProducao = 'unidade' | 'sala';
+
+export async function consumoDaProducao(): Promise<ConsumoDaProducao> {
+  return (await readMeta(CONSUMO_KEY)) === 'sala' ? 'sala' : 'unidade';
+}
+
+export async function setConsumoDaProducao(de: ConsumoDaProducao): Promise<void> {
+  await writeMeta(CONSUMO_KEY, de);
 }
 
 const SAFETY_KEY = 'purchase.safetyDays';

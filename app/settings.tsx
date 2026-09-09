@@ -33,8 +33,10 @@ import {
   countForErase,
   listPlaces,
   eraseArea,
+  consumoDaProducao,
   floorSignIn,
   namesWhoRecorded,
+  setConsumoDaProducao,
   ordersNeedApproval,
   eraseGraceDays,
   purchaseSafetyDays,
@@ -50,7 +52,7 @@ import {
 } from '@/data/repository';
 import { escolherUnidade, unidadeDaqui } from '@/data/unidade';
 import { agreedOn, toggleDay } from '@/domain/agreement';
-import { ehUnidade } from '@/domain/ledger';
+import { INTERNAL_PLACE_KINDS, ehUnidade } from '@/domain/ledger';
 import { parseTyped } from '@/domain/number';
 import type { AlertKind, AlertSettings } from '@/domain/alerts';
 import { useAppearance } from '@/theme/Appearance';
@@ -244,6 +246,15 @@ function Settings() {
    * segunda.
    */
   const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
+  /**
+   * Quantas salas NOSSAS a empresa tem — piso, câmara e almoxarifado.
+   *
+   * É esta contagem, e não a de unidades, que decide se a pergunta de onde a corrida
+   * consome existe: com uma sala só os dois mundos dão o mesmo resultado, e a Lei 1
+   * proíbe perguntar o que o sistema deduz. Uma fábrica com duas UNIDADES e uma sala
+   * em cada continua sem ver a pergunta, que é o certo.
+   */
+  const [salasNossas, setSalasNossas] = useState(0);
   const [unidadeAqui, setUnidadeAqui] = useState<string>(() => unidadeDaqui());
   const [ordem, setOrdem] = useState<BriefingWidget[]>(() => briefingLayout([], []));
   const [escondidos, setEscondidos] = useState<string[]>([]);
@@ -321,6 +332,9 @@ function Settings() {
           .filter((l) => ehUnidade(l.kind))
           .map((l) => ({ id: l.id, nome: l.name.trim() || t.app.places.factory })),
       );
+      setSalasNossas(
+        lugares.filter((l) => (INTERNAL_PLACE_KINDS as readonly string[]).includes(l.kind)).length,
+      );
     });
     return () => {
       vivo = false;
@@ -347,6 +361,7 @@ function Settings() {
   const [oQueSubiu, setOQueSubiu] = useState<string | null>(null);
   const { data: nomeia, refresh: refreshNomeia } = useQuery<boolean>(() => namesWhoRecorded());
   const { data: entrada, refresh: refreshEntrada } = useQuery(() => floorSignIn());
+  const { data: consumo, refresh: refreshConsumo } = useQuery(() => consumoDaProducao());
 
   /**
    * Os avisos, e o que a casa escolheu sobre cada um.
@@ -843,6 +858,48 @@ function Settings() {
           movimento seria a Lei 1 quebrada duzentas vezes por dia para confirmar um
           fato que não muda — e a resposta errada mistura o estoque de duas cidades
           num saldo só, calada, porque as duas somam na mesma empresa. */}
+      {/* De onde a corrida tira o insumo — e a pergunta só nasce com mais de uma sala.
+          Com uma sala só os dois mundos dão o MESMO resultado, e perguntar seria a
+          Lei 1 quebrada para confirmar um fato que não muda.
+
+          **O padrão é `unidade`, e ele foi decidido sob defeito em 8 de setembro:** a
+          tela lia o piso da unidade e a escrita conferia uma sala, então com a polpa
+          na câmara fria nenhuma corrida rodava. Escolher a unidade foi a única saída
+          que não obrigava a lançar transferência antes de cada corrida.
+
+          Fixar o padrão, porém, fecha METADE da regra da casa. Este cartão é a outra:
+          quem quer o saldo de cada prateleira sempre DECLARADO — e aceita o lançamento
+          a mais — liga `sala`, e o trajeto interno que isso exige passou a existir na
+          mesma noite. */}
+      {salasNossas > 1 ? (
+        <Reveal index={2}>
+          <Card
+            hue={palette.mist}
+            icon={(c) => <GlyphFactory size={26} color={c} weight={traco} />}
+            title={t.app.settings.consumo.label}
+          >
+            <Text style={[type.caption, { color: color.inkMuted }]}>
+              {t.app.settings.consumo.hint}
+            </Text>
+            <View style={{ gap: space.sm, marginTop: space.sm }}>
+              {(['unidade', 'sala'] as const).map((qual) => (
+                <Button
+                  key={qual}
+                  label={t.app.settings.consumo[qual]}
+                  variant={consumo === qual ? 'primary' : 'ghost'}
+                  onPress={() => {
+                    void setConsumoDaProducao(qual).then(refreshConsumo);
+                  }}
+                />
+              ))}
+            </View>
+            <Text style={[type.caption, { color: color.inkFaint, marginTop: space.sm }]}>
+              {consumo === 'sala' ? t.app.settings.consumo.noteSala : t.app.settings.consumo.noteUnidade}
+            </Text>
+          </Card>
+        </Reveal>
+      ) : null}
+
       {unidades.length > 1 ? (
         <Reveal index={2}>
           <Card

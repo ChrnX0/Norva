@@ -585,6 +585,15 @@ export const en: Dictionary = {
     },
 
     settings: {
+      /** Where a run draws its inputs from. Only shown with more than one room. See pt-BR. */
+      consumo: {
+        label: 'Where production draws from',
+        hint: 'Your factory has more than one room. When a run happens, the inputs can come from any of them, or only from the room the run is in.',
+        unidade: 'Any room in the unit',
+        sala: 'Only the room the run is in',
+        noteUnidade: 'Pulp in the cold room counts for the run. Nothing to record — and each room\u2019s balance is deduced, not declared.',
+        noteSala: 'Each room holds what somebody declared. Taking it out of the cold room becomes a transfer recorded before the run.',
+      },
       unidade: {
         label: "This device's unit",
         hint: 'Where this phone lives. What you record goes into this unit\u2019s stock.',

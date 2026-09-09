@@ -449,12 +449,21 @@ test('the rooms guard still bites a list that is neither ruler', () => {
  * `NotEnoughStockError` que ela levanta — o trecho onde o piso é conferido, e o
  * único lugar onde essa verdade mora.
  */
-export function escopoQueAEscritaConfere(fonte: string): 'sala' | 'unidade' | 'empresa' | null {
+export type EscopoDaEscrita = 'sala' | 'unidade' | 'empresa' | 'configurado';
+
+export function escopoQueAEscritaConfere(fonte: string): EscopoDaEscrita | null {
   const inicio = fonte.indexOf('export async function recordProduction');
   if (inicio < 0) return null;
   const fim = fonte.indexOf('NotEnoughStockError(', inicio);
   if (fim < 0) return null;
   const corpo = fonte.slice(inicio, fim);
+  // **`configurado` vem primeiro, e a ordem é a regra.** No dia em que a empresa passou
+  // a escolher de onde a corrida consome, a palavra literal saiu do corpo da escrita — e
+  // a versão anterior, que procurava `{ unidade`, caiu no ramo da igualdade crua e
+  // respondeu `empresa`. Ela então acusou a tela CONSERTADA, que é o pior jeito de uma
+  // guarda falhar: ela reprova quem obedeceu. Quando a resposta é dado, o que as duas
+  // pontas têm de combinar não é a palavra — é a FONTE.
+  if (/consumoDaProducao\(/.test(corpo)) return 'configurado';
   const recorte = corpo.match(/noEscopo\(\s*'m?\.?location_id'\s*,\s*\{\s*(sala|unidade)\b/);
   if (recorte) return recorte[1] as 'sala' | 'unidade';
   // Sem recorte nomeado sobram os dois extremos, e a igualdade crua distingue:
@@ -485,8 +494,17 @@ export function escopoQueAEscritaConfere(fonte: string): 'sala' | 'unidade' | 'e
  * pergunta — e o que a guarda tem de comparar é o ESCOPO das duas, nunca a forma
  * de uma delas.
  */
-export function pisoDeOutraSala(texto: string, escopoDaEscrita: 'sala' | 'unidade' | 'empresa'): string[] {
+export function pisoDeOutraSala(texto: string, escopoDaEscrita: EscopoDaEscrita): string[] {
   if (!/recordProduction\(/.test(texto)) return [];
+  // Com a resposta virando dado, o acordo deixa de ser sobre a PALAVRA e passa a ser
+  // sobre a FONTE: a tela tem de perguntar à mesma função que a escrita pergunta.
+  // Comparar palavra aqui seria exigir que a tela chumbasse um dos dois mundos, que é o
+  // oposto do que a configuração existe para permitir.
+  if (escopoDaEscrita === 'configurado') {
+    return /consumoDaProducao\(/.test(texto)
+      ? []
+      : ['a escrita pergunta `consumoDaProducao()` e esta tela decide sozinha'];
+  }
   const achados: string[] = [];
   for (const m of texto.matchAll(/listItems\(/g)) {
     const args = argumentos(texto, (m.index ?? 0) + 'listItems('.length);
@@ -560,7 +578,7 @@ test('a screen that produces reads the same floor the write will check', () => {
     [],
     `estas telas de produção leem um piso que não é o da escrita (que confere \`${escopo}\`):\n  ${cegas.join('\n  ')}\n` +
       'Ler um escopo mais largo aqui libera um botão que a escrita vai recusar, e ler um mais ' +
-      'estreito esconde um tacho que rodaria — a Lei 5 diz que o erro impede, não reclama.',
+      'estreito esconde uma corrida que rodaria — a Lei 5 diz que o erro impede, não reclama.',
   );
 });
 
@@ -700,6 +718,26 @@ test('the production floor guard bites both scars, and leaves the fix alone', ()
   // E a régua não fala com quem não produz: a lista do almoxarifado lê a empresa
   // inteira de propósito, e está certa.
   assert.deepEqual(pisoDeOutraSala('listItems(EMPRESA_SEMENTE),', 'unidade'), []);
+
+  // O caso configurado: o acordo deixa de ser sobre a palavra e passa a ser sobre a
+  // FONTE. Uma tela que decide sozinha reprova mesmo escrevendo a palavra "certa" —
+  // porque no dia em que a empresa virar a chave ela continuaria mostrando o mundo
+  // antigo, com o botão liberando o que a escrita vai recusar.
+  assert.deepEqual(
+    pisoDeOutraSala(comProducao('listItems(co, undefined, false, { unidade: unidadeDaqui() }),'), 'configurado'),
+    ['a escrita pergunta `consumoDaProducao()` e esta tela decide sozinha'],
+    'palavra chumbada não serve quando a resposta é configuração',
+  );
+  assert.deepEqual(
+    pisoDeOutraSala(
+      comProducao(
+        'const de = await consumoDaProducao();\nlistItems(co, undefined, false, de === "sala" ? { sala: x } : { unidade: y }),',
+      ),
+      'configurado',
+    ),
+    [],
+    'a tela que pergunta à mesma função passa',
+  );
 });
 
 test('the derivation of the write scope reads the write, and says which of the three it is', () => {
@@ -723,6 +761,18 @@ test('the derivation of the write scope reads the write, and says which of the t
     ),
     'empresa',
     'sem lugar nenhum na condição, o piso é a empresa inteira',
+  );
+
+  // E a quarta resposta, que nasceu no dia em que a empresa passou a escolher: a
+  // escrita pergunta a uma FUNÇÃO, e aí não há palavra literal para comparar. Ela vem
+  // ANTES das outras três de propósito — a versão sem ela caía no ramo da igualdade
+  // crua, respondia `empresa`, e acusava a tela consertada.
+  assert.equal(
+    escopoQueAEscritaConfere(
+      "export async function recordProduction(a) {\n  const de = await consumoDaProducao();\n  const r = noEscopo('m.location_id', escopo);\n  throw new NotEnoughStockError([]);\n}",
+    ),
+    'configurado',
+    'resposta que é dado não se compara por palavra',
   );
   // E ela não inventa resposta para um arquivo que não tem a função: nulo faz o
   // teste de cima falhar em voz alta em vez de comparar contra o vazio.

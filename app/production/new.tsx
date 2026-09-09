@@ -19,6 +19,7 @@ import {
   closeProductionRun,
   type OpenRun,
   labels as loadLabels,
+  consumoDaProducao,
   listItems,
   listProducts,
   loadRecipeGraph,
@@ -130,7 +131,18 @@ function Production() {
     const [products, graph, items, names, runs, stock] = await Promise.all([
       listProducts(empresaDaqui()),
       loadRecipeGraph(empresaDaqui()),
-      listItems(empresaDaqui(), undefined, false, { unidade: unidadeDaqui() }),
+      // A MESMA pergunta que a escrita faz. Ler um escopo mais largo aqui libera um
+      // botão que `recordProduction` vai recusar; ler um mais estreito esconde uma
+      // corrida que rodaria. As duas metades já aconteceram neste arquivo, e é por
+      // isso que a régua é uma função e não uma palavra escrita dos dois lados.
+      consumoDaProducao().then((de) =>
+        listItems(
+          empresaDaqui(),
+          undefined,
+          false,
+          de === 'sala' ? { sala: unidadeDaqui() } : { unidade: unidadeDaqui() },
+        ),
+      ),
       loadLabels(empresaDaqui()),
       openProductionRuns(empresaDaqui()),
       stockByPlace(empresaDaqui()),

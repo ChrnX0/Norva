@@ -955,6 +955,19 @@ const DEFECTS = [
       'a tela de producao volta a ler o saldo da empresa e a liberar o botao com o insumo noutra sala: cada toque devolve o erro de programador do piso, e nenhuma corrida entra',
   },
 
+  // --- os dois mundos de onde a corrida consome, 8 de setembro ---------------
+  //
+  // O padrao foi decidido sob defeito e a configuracao e a outra metade da regra da
+  // casa. Uma configuracao que da o mesmo resultado nos dois valores nao e
+  // configuracao: e decoracao com teste verde.
+  {
+    file: 'src/data/repository.ts',
+    from: "    (await consumoDaProducao()) === 'sala'",
+    to: '    false',
+    hurts:
+      'a fabrica que pediu saldo DECLARADO por sala volta a consumir de qualquer sala calada: a configuracao existe na tela, nao muda nada no razao, e o dono descobre no dia em que conferir a camara com os olhos',
+  },
+
   // --- a venda, o fato que faltava para a margem existir, 8 de setembro -------
   //
   // `movement_kind` tem `sale` desde a 0001 e atravessou 46 migracoes sem escritor.

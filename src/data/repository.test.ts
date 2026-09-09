@@ -44,7 +44,9 @@ import {
   closeProductionRun,
   RunGoneError,
   NotEnoughStockError,
+  consumoDaProducao,
   savePlace,
+  setConsumoDaProducao,
   listPlaces,
   recentRuns,
   expiringSoon,
@@ -6003,6 +6005,64 @@ async function umaLojaComPicole(): Promise<{ loja: string; produto: string; item
   });
   return { loja, produto: produto.id, itemId: produto.itemId };
 }
+
+/**
+ * Os DOIS mundos de onde a corrida consome — e é a existência dos dois que fecha a regra.
+ *
+ * O padrão (`unidade`) foi decidido sob defeito em 8 de setembro: a tela lia o piso da
+ * unidade e a escrita conferia uma sala, então com a polpa na câmara fria nenhuma corrida
+ * rodava. A saída era escolher, e escolher foi meu — a outra opção obrigaria a lançar
+ * transferência antes de cada corrida.
+ *
+ * **Fixar o padrão fecha METADE da regra da casa.** *"Depende de quem usa"* vira
+ * configuração, e o que se decide é o padrão, nunca o único. Este teste é o par: prova que
+ * o mundo estrito existe de verdade e que ele muda a resposta — uma configuração que dá o
+ * mesmo resultado nos dois valores não é configuração, é decoração com teste verde.
+ */
+test('the two worlds of where a run draws from both exist, and the setting is what picks', async () => {
+  await ensureStarterData(EMPRESA_SEMENTE);
+  const [product] = (await listProductsForLedger(EMPRESA_SEMENTE)).filter((p) => p.recipeId);
+  const unidade = defaultLocationId(EMPRESA_SEMENTE);
+  const { id: camara } = await savePlace(EMPRESA_SEMENTE, {
+    name: 'Câmara fria',
+    kind: 'cold_room',
+    parentLocationId: unidade,
+  });
+
+  const insumos = (await listItems(EMPRESA_SEMENTE)).filter((i) => i.onHandBaseUnits > 0);
+  for (const insumo of insumos) {
+    await recordTransfer(EMPRESA_SEMENTE, {
+      itemId: insumo.id,
+      baseUnits: insumo.onHandBaseUnits,
+      fromLocationId: unidade,
+      toLocationId: camara,
+    });
+  }
+
+  const rodar = () =>
+    recordProduction(EMPRESA_SEMENTE, {
+      productId: product.id,
+      locationId: unidade,
+      batches: 1,
+      unitsProduced: 400,
+      producedOn: localDate(nowIso(), 'America/Sao_Paulo'),
+    });
+
+  // Mundo estrito: o piso é a sala em que a corrida roda, e a polpa está na câmara.
+  // A recusa aqui não é defeito — é a fábrica que quer saldo DECLARADO sendo atendida,
+  // e o conserto dela é a transferência, que a tela passou a saber fazer.
+  await setConsumoDaProducao('sala');
+  await assert.rejects(rodar, (e: unknown) => e instanceof NotEnoughStockError);
+
+  // Mundo padrão: a câmara fica a três metros e conta.
+  await setConsumoDaProducao('unidade');
+  const feito = await rodar();
+  assert.equal(feito.unitsProduced, 400);
+
+  // E a configuração é do APARELHO enquanto a sincronia for de mão única — está escrito
+  // em `docs/roadmap.md` como dívida estrutural, e não se finge aqui que ela desce.
+  assert.equal(await consumoDaProducao(), 'unidade');
+});
 
 test('a count at our own store books what left the shelf as a SALE, at the agreed price', async () => {
   const { loja, itemId } = await umaLojaComPicole();
