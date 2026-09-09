@@ -50,7 +50,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 | | |
 |---|---|
 | `npm test` | **569** testes |
-| `npm run mutate` | **123** defeitos plantados, 120 pegos, 2 equivalentes, **0 sobreviventes** |
+| `npm run mutate` | **123** defeitos plantados, 121 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **23** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
