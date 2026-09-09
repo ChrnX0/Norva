@@ -76,3 +76,27 @@ export function noTrilho(de: number, ate: number, ciclo: number): number {
   'worklet';
   return de + (ate - de) * ciclo;
 }
+
+/**
+ * Quanto o cabeçalho reserva para a cena, numa largura de tela.
+ *
+ * Fora do componente porque é a única coisa aqui que se pode PROVAR sem montar
+ * nada — e porque nada provava. Havia três lugares fazendo esta conta e os três
+ * liam a largura da JANELA, enquanto o desenho vive dentro de uma coluna que trava
+ * em `maxWidth`. Acima de 600 dp a reserva continuava crescendo e o desenho não:
+ * a diferença virava banda vazia, centralizada, com cor de página aparecendo acima
+ * do céu — até 75 dp num tablet deitado, mais que a altura do próprio desenho.
+ *
+ * A vinheta perde o padding da página; a paisagem o recupera sangrando para as
+ * bordas. É essa a única diferença entre as duas.
+ */
+export function alturaDaCena(entrada: {
+  larguraDaTela: number;
+  medidaDaColuna: number;
+  padding: number;
+  cabecalho: 'paisagem' | 'vinheta';
+}): number {
+  const coluna = Math.min(entrada.larguraDaTela, entrada.medidaDaColuna);
+  const cena = entrada.cabecalho === 'paisagem' ? coluna : coluna - entrada.padding * 2;
+  return (cena / PRANCHA_DO_CABECALHO.largura) * PRANCHA_DO_CABECALHO.altura;
+}

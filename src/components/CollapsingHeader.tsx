@@ -15,7 +15,7 @@ import type { Cena } from './cenas/prancha';
 import { alternando, distribuir } from './colunas';
 import { Mark } from './Mark';
 import { MEDIDA_DA_PAGINA, MEDIDA_EM_PARES, PARES_A_PARTIR_DE } from '@/theme/tokens';
-import { PRANCHA_DO_CABECALHO } from './cenas/prancha';
+import { alturaDaCena as calcularAlturaDaCena } from './cenas/prancha';
 import { useTheme } from '@/theme/ThemeProvider';
 
 const EXPANDED = 34;
@@ -88,10 +88,37 @@ export function CollapsingHeader({
   // Em dp, que é o que o layout enxerga — nunca pixel.
   const { width: larguraDaTela } = useWindowDimensions();
   const emPares = pares && larguraDaTela >= PARES_A_PARTIR_DE;
-  // A cena guarda a proporção da prancheta, então a altura sai da largura útil.
-  const alturaDaCena =
-    ((larguraDaTela - space.lg * 2) / PRANCHA_DO_CABECALHO.largura) * PRANCHA_DO_CABECALHO.altura;
   const medida = emPares ? MEDIDA_EM_PARES : MEDIDA_DA_PAGINA;
+
+  /**
+   * A altura reservada para a cena — e ela sai da largura do CONTÊINER, não da tela.
+   *
+   * **Eram duas contas diferentes para a mesma coisa, e as duas liam a janela.**
+   * Aqui se reservava `(larguraDaTela - padding) × proporção` para uma fatia com
+   * `overflow: hidden`; lá dentro a cena pedia `larguraDaTela × proporção`. Dois
+   * erros independentes saíam disso:
+   *
+   * - **Corte de 6,33 dp em toda largura, no Orgânico.** A paisagem sangra
+   *   (`marginHorizontal: -space.lg`), devolvendo os 32 dp que esta conta tinha
+   *   descontado — então o desenho era sempre 32 × 72/364 mais alto que a fatia que o
+   *   recorta, e o pé da cena era comido em todo aparelho.
+   * - **Vão crescente a partir de 600 dp.** Acima disso a coluna trava em `maxWidth`
+   *   e o desenho para de crescer, enquanto a reserva continuava seguindo a janela:
+   *   a 800 dp sobravam ~40 dp de banda vazia, a 900 dp ~59, e num tablet deitado em
+   *   pares ~75 — mais que a altura do próprio desenho, com cor de página aparecendo
+   *   acima do céu.
+   *
+   * O conserto é uma fonte só: a largura que a peça de fato recebe. A coluna limita
+   * pelo `maxWidth`; a vinheta perde o padding e a paisagem o recupera sangrando. A
+   * cena lá dentro deixou de fazer conta nenhuma — ela usa `aspectRatio` e herda a
+   * largura real —, então aqui basta reservar o que ela vai ocupar.
+   */
+  const alturaDaCena = calcularAlturaDaCena({
+    larguraDaTela,
+    medidaDaColuna: medida,
+    padding: space.lg,
+    cabecalho: tracos.cabecalho === 'paisagem' ? 'paisagem' : 'vinheta',
+  });
   const coluna = { width: '100%' as const, maxWidth: medida, alignSelf: 'center' as const };
   const largo = larguraDaTela >= MEDIDA_DA_PAGINA;
 

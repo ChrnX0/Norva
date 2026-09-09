@@ -1,5 +1,5 @@
-import { useMemo, type ReactElement } from 'react';
-import { useWindowDimensions, View } from 'react-native';
+import type { ReactElement } from 'react';
+import { View } from 'react-native';
 import Animated, { useAnimatedProps } from 'react-native-reanimated';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 import type { Tracos } from '@/theme/tokens';
@@ -77,16 +77,26 @@ const LINGUAS: Record<Tracos['cabecalho'], (p: { cena: Cena }) => ReactElement> 
  */
 function CenaVinheta({ cena }: { cena: Cena }) {
   const { color, palette, traco } = useTheme();
-  const { width } = useWindowDimensions();
 
   const Desenho = DESENHOS[cena];
-  const altura = useMemo(
-    () => (width / PRANCHA_DO_CABECALHO.largura) * PRANCHA_DO_CABECALHO.altura,
-    [width],
-  );
 
   return (
-    <View style={{ width: '100%', height: altura }} pointerEvents="none" accessibilityRole="image">
+    // **A altura segue a largura REAL, não a da janela.**
+    //
+    // Era `useWindowDimensions()` — e o que decide a largura aqui é o `maxWidth` da
+    // coluna do `CollapsingHeader` (600 dp na página, 900 em pares) mais a sangria
+    // da paisagem. Num tablet de 800 dp a janela dizia 800 e o desenho tinha 600: o
+    // que sobrava virava banda vazia, centralizada pelo `xMidYMid meet`, com cor de
+    // página aparecendo acima do céu. `aspectRatio` faz a conta com a largura que a
+    // peça de fato recebeu, sem perguntar nada à tela.
+    <View
+      style={{
+        width: '100%',
+        aspectRatio: PRANCHA_DO_CABECALHO.largura / PRANCHA_DO_CABECALHO.altura,
+      }}
+      pointerEvents="none"
+      accessibilityRole="image"
+    >
       <Svg
         viewBox={`0 0 ${PRANCHA_DO_CABECALHO.largura} ${PRANCHA_DO_CABECALHO.altura}`}
         width="100%"

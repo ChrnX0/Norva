@@ -1,6 +1,5 @@
 import type { ReactElement } from 'react';
-import { useMemo } from 'react';
-import { useWindowDimensions, View } from 'react-native';
+import { View } from 'react-native';
 import Animated, { useAnimatedProps } from 'react-native-reanimated';
 import Svg, { Circle, Defs, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { useAppearance } from '@/theme/Appearance';
@@ -44,11 +43,6 @@ export function CenaPaisagem({ cena }: { cena: Cena }) {
   const { hue } = useAppearance();
   const paleta = hues[hue];
   const noite = scheme === 'dark';
-  const { width } = useWindowDimensions();
-  const altura = useMemo(
-    () => (width / PRANCHA_DO_CABECALHO.largura) * PRANCHA_DO_CABECALHO.altura,
-    [width],
-  );
 
   // A colina de trás anda devagar e a da frente um pouco mais, na direção
   // contrária: paralaxe é o que dá profundidade sem desenhar nada a mais. Vinte e
@@ -89,7 +83,22 @@ export function CenaPaisagem({ cena }: { cena: Cena }) {
   };
 
   return (
-    <View style={{ width: '100%', height: altura }} pointerEvents="none" accessibilityRole="image">
+    // **A altura segue a largura REAL, não a da janela.**
+    //
+    // Era `useWindowDimensions()` — e o que decide a largura aqui é o `maxWidth` da
+    // coluna do `CollapsingHeader` (600 dp na página, 900 em pares) mais a sangria
+    // da paisagem. Num tablet de 800 dp a janela dizia 800 e o desenho tinha 600: o
+    // que sobrava virava banda vazia, centralizada pelo `xMidYMid meet`, com cor de
+    // página aparecendo acima do céu. `aspectRatio` faz a conta com a largura que a
+    // peça de fato recebeu, sem perguntar nada à tela.
+    <View
+      style={{
+        width: '100%',
+        aspectRatio: PRANCHA_DO_CABECALHO.largura / PRANCHA_DO_CABECALHO.altura,
+      }}
+      pointerEvents="none"
+      accessibilityRole="image"
+    >
       {/* Uma camada só, e sem `preserveAspectRatio="none"`: a altura sai da largura
           pela proporção da prancheta, então o encaixe é exato e nada estica. No
           herói da capa a altura é fixa e por isso lá o horizonte precisa esticar
