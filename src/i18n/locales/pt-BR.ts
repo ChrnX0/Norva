@@ -19,9 +19,7 @@ export const ptBR = {
     adjust: 'Ajustar',
     cancel: 'Cancelar',
     why: 'por quê?',
-    seeScreens: 'Ver telas',
     ask: 'Pergunte alguma coisa…',
-    allClear: 'Hoje está tudo em ordem.',
     /**
      * O que a tela diz quando a gravação não acontece — e por que ela é uma só.
      *
@@ -100,15 +98,11 @@ export const ptBR = {
       ordersShort: 'Produza para os pedidos',
       ordersCovered: 'Os pedidos estão cobertos',
       ordersCoveredDetail: 'O que foi pedido até {{date}} cabe no que já tem na fábrica.',
-      ordersWhy: 'Pelo que foi pedido até {{date}}, contra o que tem na fábrica. Toque para ver os pedidos.',
       orderCount: { one: '1 pedido', other: '{{n}} pedidos' },
-      runningOutWhy: 'Pela saída dos últimos sete dias. Toque para ver o almoxarifado.',
       levelFull: 'cheio',
       levelLasts: 'dura {{days}} pelo consumo da semana',
       levelEndsIn: 'acaba em {{days}}',
       inputsFine: 'Insumos em dia',
-      inputsFineDetail: 'Pelo consumo das últimas semanas, nada acaba nos próximos sete dias.',
-      each: 'cada um',
       // O verbo concorda com a contagem: "1 caixa saíram hoje" foi o que
       // apareceu na tela do dono. O substantivo já era plural e o verbo era
       // string fixa - meia concordância é pior que nenhuma, porque só quebra
@@ -117,7 +111,6 @@ export const ptBR = {
       boxesTitle: 'Saiu para as lojas',
       noBoxesYesterday: 'Ontem não saiu carga.',
       running: 'produzindo agora',
-      runningSince: 'aberto desde {{time}}',
       boxCount: { one: '1 caixa', other: '{{n}} caixas' },
       alsoSent: 'e mais {{items}}',
       alsoSentItem: '{{amount}} de {{name}}',
@@ -130,7 +123,6 @@ export const ptBR = {
       organico: {
         producedToday: '{{unit}} produzidas hoje',
         quietToday: 'ainda não produziu hoje',
-        yesterdayPill: 'ontem',
         /**
          * "da semana passada", e não "na {{weekday}} passada" — por gênero.
          *
@@ -211,7 +203,6 @@ export const ptBR = {
         },
       },
       liveTitle: 'Produção ao vivo',
-      liveNothing: 'Nada saiu ainda hoje.',
       runCount: { one: 'uma produção', other: '{{n}} produções' },
       liveRuns: '{{count}} em curso agora',
       liveOpened: 'aberto às {{time}}',
@@ -224,20 +215,15 @@ export const ptBR = {
       coverTightest: 'o mais curto é {{item}}',
       coverUnknown: 'sem saída registrada — ninguém sabe quanto dura',
       dueTitle: 'Quem recebe hoje',
-      dueNobody: 'nenhuma entrega combinada para hoje',
       duePending: '{{name}} espera carga',
       dueDone: '{{name}} já recebeu',
       expiryTitle: 'Vence primeiro',
-      expiryNone: 'nada vencendo nos próximos 30 dias',
       expiryLot: '{{code}} vence {{date}}',
-      expiryDays: 'em {{days}}',
       lossTitle: 'Perdas do mês',
-      lossNone: 'nenhuma perda registrada no mês',
       lossVsBefore: 'no mês anterior foram {{amount}}',
       lossFirst: 'primeiro mês com perda registrada',
       lossWorst: 'o que mais pesou: {{reason}}',
       costTitle: 'Custo por unidade',
-      costFrozen: '{{amount}} na última corrida',
       costBefore: 'na anterior foi {{amount}}',
       costOnlyOne: 'primeira corrida registrada',
       heldTitle: 'Dinheiro parado',
@@ -248,13 +234,9 @@ export const ptBR = {
       stableAlways: 'nenhuma mudança de preço registrada',
       record: 'Lançar produção',
       unitCost: 'custo por unidade · calculado da receita e das notas de compra',
-      costWas: 'custava {{before}} antes das últimas compras',
       changed: 'Mudou desde a última vez',
-      steady: 'Nada mudou de preço',
-      steadyDetail: 'Os custos estão estáveis. Não há nada para decidir hoje.',
       checking: 'Conferindo…',
       allSteady: 'Tudo estável',
-      whereTo: 'Onde você quer ir',
       nav: {
         ask: { label: 'Pergunte', hint: 'escreva o que quer saber' },
         inputs: { label: 'Insumos', hint: 'o que você compra' },
@@ -663,7 +645,6 @@ export const ptBR = {
       companyName: 'Nome da empresa',
       createCompany: 'Criar a empresa',
       signedInAs: 'Entrou como',
-      companyIs: 'Empresa',
       /* O convite — o segundo caminho de entrada que o dono decidiu. */
       codeTitle: 'O código da sua empresa',
       codeBody:
@@ -675,7 +656,6 @@ export const ptBR = {
       joinAsk: 'Pedir para entrar',
       joinSent: 'Pedido enviado para {{company}}. Espere alguém de lá aprovar.',
       waitingTitle: 'Esperando você',
-      waitingNone: 'Ninguém pediu para entrar.',
       approve: 'Aprovar',
       refuse: 'Recusar',
       approveAs: 'entra como operador — produz, despacha e confere, sem ver dinheiro',
@@ -689,7 +669,6 @@ export const ptBR = {
       adoptAction: 'Ligar à {{company}}',
       adoptAsk:
         'Tudo o que está neste aparelho passa a ser da {{company}}. Nada é apagado, e isto vale uma vez.',
-      adoptDone: 'Este aparelho é da {{company}}.',
       adoptRefuse: {
         idVazio: 'A empresa voltou sem identificação do servidor. Entre e saia da conta e tente de novo.',
         jaSubiu:
@@ -719,13 +698,14 @@ export const ptBR = {
     weather: {
       overline: 'clima em {{city}}',
       today: 'máxima de hoje',
-      low: 'mínima de {{degrees}}',
       rain: '{{percent}}% de chance de chuva',
-      warmer: 'Amanhã esquenta {{degrees}}.',
-      cooler: 'Amanhã esfria {{degrees}}.',
       same: 'Amanhã, temperatura parecida.',
       // O cartão do clima da capa aprovada fala curto: a cidade, o número, e o
-      // que muda amanhã. As frases longas continuam existindo para a peça aberta.
+      // que muda amanhã. As frases longas — a mínima por extenso, "amanhã esquenta"
+      // — foram apagadas em 9 de setembro: esta linha as guardava "para a peça
+      // aberta", e a peça aberta é o seletor de cidade, que não fala de temperatura.
+      // Promessa de leitor futuro é como seção morta ganha idade. Quando a peça
+      // existir, ela escreve as frases dela nos três idiomas, no commit que a cria.
       nowAt: '{{city}} · agora',
       lowShort: 'mín {{degrees}}',
       tomorrowDelta: 'amanhã {{delta}}',
@@ -1235,7 +1215,6 @@ export const ptBR = {
        * zerá-la é mentir na tela que grava.
        */
       lossBodyNoMoney: 'Você vai baixar {{amount}} de {{item}}: {{reason}}. Fica no histórico.',
-      lossDone: 'Perda registrada.',
       lossFailed: 'Não deu para registrar a perda',
       countTitle: 'Conferir o estoque',
       countHint:
@@ -1425,8 +1404,6 @@ export const ptBR = {
       notChecked: '{{place}} ainda não conferiu o que chegou.',
       check: 'Conferir chegada',
       checkTitle: 'O que chegou em {{place}}?',
-      checkedOk: 'Conferido, bateu.',
-      checkedShort: 'Conferido: faltaram {{amount}}.',
     },
     /**
      * Os sete papéis do produto, que são MODELOS e não a lista fechada.
@@ -1481,7 +1458,6 @@ export const ptBR = {
       readOnly: 'Só quem administra a empresa muda quem trabalha nela.',
       awayHint: 'Ela sai da lista e o histórico continua apontando para ela — nada é apagado.',
       profilesTitle: 'Perfis',
-      profilesOverline: 'o que cada um pode fazer',
       wearers: { one: '1 pessoa', other: '{{n}} pessoas' },
       nobody: 'ninguém ainda',
       canDo: { one: '1 permissão', other: '{{n}} permissões' },
@@ -1875,9 +1851,6 @@ export const ptBR = {
       shelfLife: 'Validade, em dias',
       shelfLifeHint:
         'Quantos dias o produto dura depois de feito. Deixe vazio se não vence — o lote continua existindo.',
-      lotIs: 'Lote {{code}}',
-      lotExpires: 'vence em {{date}}',
-      lotForever: 'sem validade',
       perCrate: 'Caixas por engradado',
       looseOnly: 'Só unidade solta, sem caixa nem engradado.',
       unitCost: 'CUSTO POR UNIDADE',
@@ -1920,9 +1893,7 @@ export const ptBR = {
 
   signals: {
     checked: 'Conferido',
-    expiringIn: 'Vence em {{days}} dias',
     missing: 'Faltaram {{count}} caixas',
-    awaitingRoute: 'Aguardando rota',
   },
 
   /**

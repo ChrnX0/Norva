@@ -24,11 +24,25 @@ import { ptBR } from './i18n/locales/pt-BR';
  * dizem. Três ficaram, porque são escopo escrito e não esquecimento — e é isso que
  * a lista abaixo registra.
  *
- * **O que este teste NÃO confere**, dito em vez de omitido: ele mede SEÇÃO, não
- * chave. Uma varredura por chave acusou 44 folhas sem leitor aparente, e boa parte
- * é falso positivo do detector (leitura por índice dinâmico, chave montada). A
- * seção é a unidade em que a doença apareceu quatro vezes, e é a que dá para medir
- * sem inventar alarme.
+ * **E o buraco que este docblock admitia em voz alta foi fechado em 9 de setembro.**
+ * A frase que estava aqui dizia: *"ele mede SEÇÃO, não chave; uma varredura por chave
+ * acusou 44 folhas sem leitor aparente, e boa parte é falso positivo do detector"*.
+ * Honestidade em comentário documenta o buraco para quem lê o teste; quem lê a
+ * promessa lê que o dicionário tem leitor. O `CLAUDE.md` não deixa terceira saída:
+ * *"se a promessa é boa, feche o buraco; se não é, corrija a promessa"*.
+ *
+ * O buraco fechou porque o falso positivo tinha causa nomeável, não porque eu
+ * aceitei o alarme: o detector antigo não sabia de **índice dinâmico**. `words[recusa]`
+ * em `app/backup.tsx` lê três chaves sem escrever o nome de nenhuma, e `words` é um
+ * apelido de `t.app.backup` criado três linhas acima. O leitor de chave abaixo resolve
+ * apelido por arquivo e trata todo caminho indexado como lido inteiro — e com isso as
+ * 44 viraram **39 de verdade**, das quais 35 eram sobra e duas eram tela calada.
+ *
+ * As duas telas caladas, para o registro: `app.catalog.typeFromAnotherLine` — a tela
+ * imprimia `String(e)`, então a recusa chegava como inglês de programador enquanto a
+ * frase existia nos três idiomas — e `app.lotLabel.scanUnknown`, que ninguém dizia
+ * porque a etiqueta respondia *"esse lote não está mais aqui"* a quem tinha apontado
+ * a câmera para um quadrado que nunca foi lote nenhum.
  */
 
 /**
@@ -389,4 +403,147 @@ test('the register ruler tells an order from a subjunctive', () => {
   assert.deepEqual(tratamentosMisturados(`      a: 'hace que cada persona vea solo su perfil',`), []);
   // E o registro certo não pode ser acusado.
   assert.deepEqual(tratamentosMisturados(`      a: 'Escribe las primeras letras.',`), []);
+});
+
+/**
+ * **E agora por CHAVE, não por seção.**
+ *
+ * A seção era a unidade em que a doença apareceu quatro vezes, e ela deixa passar a
+ * forma mais comum: uma seção viva com folhas mortas dentro. A varredura de 9 de
+ * setembro achou 39 — dezesseis sobras da capa que emagreceu de quinze peças para
+ * sete, três frases longas de clima guardadas "para a peça aberta" que é o seletor de
+ * cidade, e um trio de lote duplicando o que `app/lots/[id].tsx` já diz com outras
+ * chaves. Nenhuma delas é visível de dentro da seção: `app.home` tem leitor, `weather`
+ * tem leitor, `app.productForm` tem leitor.
+ *
+ * **O detector precisa saber de índice dinâmico, senão ele fabrica alarme.** Três
+ * formas de ler uma chave sem escrever o nome dela existem no aplicativo hoje:
+ *
+ * - direto — `t.app.backup.refuse[motivo]`
+ * - por apelido — `const words = t.app.backup;` e depois `words.refuse[motivo]`
+ * - por desestruturação — `const { lotIs } = t.app.productForm;`
+ *
+ * Então todo caminho indexado conta como lido **inteiro**, do ponto do índice para
+ * baixo: quem escreve `words[x]` pode alcançar qualquer folha ali dentro, e o detector
+ * não tem como saber quais. É perda de precisão deliberada, e ela erra para o lado
+ * seguro — deixa chave morta passar, nunca acusa chave viva. O contrário ensinaria a
+ * ignorar o teste, que é o defeito do alerta inventado aplicado a uma guarda.
+ *
+ * Teste morto não conta como leitor: uma frase que só o `node:test` lê é frase que
+ * ninguém na fábrica vê. Por isso a varredura pula `*.test.*`.
+ */
+function folhasDo(no: unknown, caminho: string[] = []): string[][] {
+  if (typeof no === 'string') return [caminho];
+  if (!no || typeof no !== 'object') return [];
+  return Object.entries(no).flatMap(([k, v]) => folhasDo(v, [...caminho, k]));
+}
+
+/** Os caminhos que alguém lê por índice — e por isso contam como lidos inteiros. */
+function caminhosIndexados(textos: readonly string[]): Set<string> {
+  const fora = new Set<string>();
+  for (const texto of textos) {
+    // O apelido é POR ARQUIVO: `words` é `t.app.backup` aqui e `t.app.transport` ali,
+    // e juntar os arquivos num texto só faria um apelido cobrir a seção do outro.
+    const apelido = new Map<string, string>();
+    for (const m of texto.matchAll(
+      /\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(t(?:\.[A-Za-z_$][\w$]*)+)\s*;/g,
+    )) {
+      apelido.set(m[1], m[2].slice(2));
+    }
+    for (const m of texto.matchAll(/\b([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*\[/g)) {
+      const alvo = m[1];
+      if (alvo.startsWith('t.')) fora.add(alvo.slice(2));
+      const [raiz, ...resto] = alvo.split('.');
+      const base = apelido.get(raiz);
+      if (base) fora.add([base, ...resto].join('.'));
+    }
+  }
+  return fora;
+}
+
+/** As folhas do dicionário que nenhuma tela alcança. Exportada só para provar a régua. */
+export function folhasSemLeitor(dicionario: unknown, textos: readonly string[]): string[] {
+  const codigo = textos.join('\n');
+  const indexados = caminhosIndexados(textos);
+
+  return folhasDo(dicionario)
+    .filter((caminho) => {
+      const folha = caminho[caminho.length - 1];
+      if (new RegExp(`\\.${folha}\\b`).test(codigo)) return false;
+      if (new RegExp(`\\{[^}]*\\b${folha}\\b[^}]*\\}\\s*=`).test(codigo)) return false;
+      const pais = caminho.slice(0, -1);
+      for (let i = 1; i <= pais.length; i += 1) {
+        if (indexados.has(pais.slice(0, i).join('.'))) return false;
+      }
+      return true;
+    })
+    .map((caminho) => caminho.join('.'));
+}
+
+/** Os arquivos que uma pessoa vê rodando — sem dicionário e sem teste. */
+function telas(dir: string, into: string[] = []): string[] {
+  for (const entrada of readdirSync(dir)) {
+    const caminho = join(dir, entrada);
+    if (statSync(caminho).isDirectory()) telas(caminho, into);
+    else if (/\.(ts|tsx)$/.test(entrada) && !caminho.includes('locales') && !/\.test\./.test(entrada))
+      into.push(caminho);
+  }
+  return into;
+}
+
+test('every dictionary KEY has a reader, or lives in a written frontier', () => {
+  const textos = [...telas('app'), ...telas('src')].map((f) => readFileSync(f, 'utf8'));
+  assert.ok(textos.length > 50, 'a varredura não achou telas — a comparação abaixo seria de graça');
+
+  const orfas = folhasSemLeitor(ptBR, textos).filter(
+    (chave) => !ESCRITAS_ADIANTADO[chave.split('.')[0]],
+  );
+
+  assert.deepEqual(
+    orfas,
+    [],
+    `estas chaves do dicionário não têm leitor: ${orfas.join(' · ')}. ` +
+      'Frase morta é pior que frase ausente: quem for reescrever o texto acha primeiro a ' +
+      'cópia que ninguém lê. Traga a tela no mesmo commit, apague a chave nos três ' +
+      'idiomas, ou registre a seção em ESCRITAS_ADIANTADO dizendo quem vai lê-la.',
+  );
+});
+
+/**
+ * A régua provada nas duas direções, que é o que o `CLAUDE.md` exige de todo detector
+ * novo: *"antes de dizer um número, rode a régua contra um caso que você sabe que ela
+ * deve pegar e um que ela não deve"*.
+ *
+ * Os falsos aqui não são inventados: são as três formas de leitura que existem no
+ * aplicativo de verdade, e a do apelido é exatamente a que fez a varredura anterior
+ * contar 44 em vez de 39.
+ */
+test('the key ruler catches a dead phrase and spares all three ways of reading one', () => {
+  const dicionario = {
+    viva: { direta: 'a', porIndice: { sim: 'b', nao: 'c' }, porApelido: { um: 'd' } },
+    morta: { ninguem: 'e' },
+    destruturada: { solta: 'f' },
+  };
+  const tela = [
+    'const w = t.viva.porApelido;',
+    'const { solta } = t.destruturada;',
+    'return [t.viva.direta, t.viva.porIndice[k], w[j], solta];',
+  ].join('\n');
+
+  assert.deepEqual(
+    folhasSemLeitor(dicionario, [tela]),
+    ['morta.ninguem'],
+    'a régua tem de pegar a folha que ninguém lê e poupar as lidas por nome, por ' +
+      'índice, por apelido e por desestruturação',
+  );
+
+  // E o negativo do negativo: sem o apelido na mesma FILE, `w[j]` não cobre nada —
+  // é isso que impede um `const w = t.outra.coisa` de outro arquivo de dar alta a uma
+  // seção inteira por acidente.
+  assert.ok(
+    folhasSemLeitor(dicionario, ['return [t.viva.direta, t.viva.porIndice[k], w[j]];']).includes(
+      'viva.porApelido.um',
+    ),
+    'sem a declaração do apelido no arquivo, o índice não pode cobrir a seção',
+  );
 });

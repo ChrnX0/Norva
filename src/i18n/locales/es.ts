@@ -15,9 +15,7 @@ export const es: Dictionary = {
     adjust: 'Ajustar',
     cancel: 'Cancelar',
     why: '¿por qué?',
-    seeScreens: 'Ver pantallas',
     ask: 'Pregunte algo…',
-    allClear: 'Hoy está todo en orden.',
     failureTitle: 'No se pudo guardar',
     failureNotYours: 'Eso no forma parte de tu acceso. Pídelo a quien administra la empresa.',
     failureMissing: 'Falta {{items}} para registrar esto.',
@@ -64,20 +62,15 @@ export const es: Dictionary = {
       ordersShort: 'Produce para los pedidos',
       ordersCovered: 'Los pedidos están cubiertos',
       ordersCoveredDetail: 'Lo pedido hasta el {{date}} cabe en lo que ya hay en la fábrica.',
-      ordersWhy: 'Por lo pedido hasta el {{date}}, contra lo que hay en la fábrica. Toca para ver los pedidos.',
       orderCount: { one: '1 pedido', other: '{{n}} pedidos' },
-      runningOutWhy: 'Por la salida de los últimos siete días. Toca para ver el almacén.',
       levelFull: 'lleno',
       levelLasts: 'dura {{days}} al ritmo de la semana',
       levelEndsIn: 'se acaba en {{days}}',
       inputsFine: 'Insumos al día',
-      inputsFineDetail: 'Por el consumo de las últimas semanas, nada se acaba en los próximos siete días.',
-      each: 'cada uno',
       boxesSent: { one: 'salió hoy', other: 'salieron hoy' },
       boxesTitle: 'Salió a las tiendas',
       noBoxesYesterday: 'Ayer no salió carga.',
       running: 'produciendo ahora',
-      runningSince: 'abierta desde {{time}}',
       boxCount: { one: '1 caja', other: '{{n}} cajas' },
       alsoSent: 'y además {{items}}',
       alsoSentItem: '{{amount}} de {{name}}',
@@ -89,7 +82,6 @@ export const es: Dictionary = {
       organico: {
         producedToday: '{{unit}} producidas hoy',
         quietToday: 'todavía no produjo hoy',
-        yesterdayPill: 'ayer',
         vsWeekdayPill: 'que el {{weekday}} pasado',
         sameAsWeekdayPill: 'igual que el {{weekday}} pasado',
         weekBest: 'hoy es el mejor día',
@@ -143,7 +135,6 @@ export const es: Dictionary = {
         },
       },
       liveTitle: 'Producción en vivo',
-      liveNothing: 'Todavía no salió nada hoy.',
       runCount: { one: 'una producción', other: '{{n}} producciones' },
       liveRuns: '{{count}} en curso ahora',
       liveOpened: 'abierto a las {{time}}',
@@ -156,20 +147,15 @@ export const es: Dictionary = {
       coverTightest: 'el más corto es {{item}}',
       coverUnknown: 'sin salida registrada — nadie sabe cuánto dura',
       dueTitle: 'Quién recibe hoy',
-      dueNobody: 'ninguna entrega acordada para hoy',
       duePending: '{{name}} espera carga',
       dueDone: '{{name}} ya recibió',
       expiryTitle: 'Vence primero',
-      expiryNone: 'nada vence en los próximos 30 días',
       expiryLot: '{{code}} vence {{date}}',
-      expiryDays: 'en {{days}}',
       lossTitle: 'Pérdidas del mes',
-      lossNone: 'ninguna pérdida registrada en el mes',
       lossVsBefore: 'el mes anterior fueron {{amount}}',
       lossFirst: 'primer mes con pérdida registrada',
       lossWorst: 'lo que más pesó: {{reason}}',
       costTitle: 'Costo por unidad',
-      costFrozen: '{{amount}} en la última corrida',
       costBefore: 'en la anterior fue {{amount}}',
       costOnlyOne: 'primera corrida registrada',
       heldTitle: 'Dinero detenido',
@@ -180,13 +166,9 @@ export const es: Dictionary = {
       stableAlways: 'ningún cambio de precio registrado',
       record: 'Registrar producción',
       unitCost: 'costo por unidad · calculado de la receta y de las facturas de compra',
-      costWas: 'costaba {{before}} antes de las últimas compras',
       changed: 'Cambió desde la última vez',
-      steady: 'Ningún precio cambió',
-      steadyDetail: 'Los costos están estables. No hay nada que decidir hoy.',
       checking: 'Comprobando…',
       allSteady: 'Todo estable',
-      whereTo: 'A dónde quieres ir',
       nav: {
         ask: { label: 'Pregunta', hint: 'escribe lo que quieres saber' },
         inputs: { label: 'Insumos', hint: 'lo que compras' },
@@ -487,7 +469,6 @@ export const es: Dictionary = {
       companyName: 'Nombre de la empresa',
       createCompany: 'Crear la empresa',
       signedInAs: 'Entró como',
-      companyIs: 'Empresa',
       codeTitle: 'El código de tu empresa',
       codeBody:
         'Dicte estas seis letras a quien vaya a usar la aplicación. Solas no dan acceso a nada: '
@@ -498,7 +479,6 @@ export const es: Dictionary = {
       joinAsk: 'Pedir entrar',
       joinSent: 'Pedido enviado a {{company}}. Espere que alguien de allí lo apruebe.',
       waitingTitle: 'Esperando por ti',
-      waitingNone: 'Nadie pidió entrar.',
       approve: 'Aprobar',
       refuse: 'Rechazar',
       approveAs: 'entra como operador — produce, despacha y verifica, sin ver dinero',
@@ -512,7 +492,6 @@ export const es: Dictionary = {
       adoptAction: 'Ligar a {{company}}',
       adoptAsk:
         'Todo lo que está en este aparato pasa a ser de {{company}}. Nada se borra, y esto vale una vez.',
-      adoptDone: 'Este aparato es de {{company}}.',
       adoptRefuse: {
         idVazio: 'La empresa volvió sin identificación del servidor. Salga y entre en la cuenta otra vez.',
         jaSubiu:
@@ -541,13 +520,14 @@ export const es: Dictionary = {
     weather: {
       overline: 'clima en {{city}}',
       today: 'máxima de hoy',
-      low: 'mínima de {{degrees}}',
       rain: '{{percent}}% de probabilidad de lluvia',
-      warmer: 'Mañana sube {{degrees}}.',
-      cooler: 'Mañana baja {{degrees}}.',
       same: 'Mañana, temperatura parecida.',
       // La tarjeta del clima de la portada aprobada habla corto: la ciudad, el
-      // número y lo que cambia mañana. Las frases largas quedan para la pieza abierta.
+      // número y lo que cambia mañana. Las frases largas — la mínima con todas las
+      // palabras, "mañana sube" — se borraron el 9 de septiembre: esta línea las
+      // guardaba "para la pieza abierta", y la pieza abierta es el selector de
+      // ciudad, que no habla de temperatura. Prometer un lector futuro es como una
+      // sección muerta envejece. Cuando la pieza exista, escribe sus tres idiomas.
       nowAt: '{{city}} · ahora',
       lowShort: 'mín {{degrees}}',
       tomorrowDelta: 'mañana {{delta}}',
@@ -976,7 +956,6 @@ export const es: Dictionary = {
       lossAsk: '¿Registrar esta pérdida?',
       lossBody: 'Esto baja {{amount}} de {{item}}: {{reason}}. Vale {{money}}, y queda en el historial.',
       lossBodyNoMoney: 'Esto baja {{amount}} de {{item}}: {{reason}}. Queda en el historial.',
-      lossDone: 'Pérdida registrada.',
       lossFailed: 'No se pudo registrar la pérdida',
       countTitle: 'Verificar el stock',
       countHint:
@@ -1136,8 +1115,6 @@ export const es: Dictionary = {
       notChecked: '{{place}} todavía no revisó lo que llegó.',
       check: 'Revisar la llegada',
       checkTitle: '¿Qué llegó a {{place}}?',
-      checkedOk: 'Revisado, coincidió.',
-      checkedShort: 'Revisado: faltaron {{amount}}.'
     },
     roles: {
       owner: 'Dueño',
@@ -1178,7 +1155,6 @@ export const es: Dictionary = {
       readOnly: 'Solo quien administra la empresa cambia quién trabaja en ella.',
       awayHint: 'Sale de la lista y el historial sigue apuntando a ella — nada se borra.',
       profilesTitle: 'Perfiles',
-      profilesOverline: 'qué puede hacer cada uno',
       wearers: { one: '1 persona', other: '{{n}} personas' },
       nobody: 'nadie todavía',
       canDo: { one: '1 permiso', other: '{{n}} permisos' },
@@ -1488,9 +1464,6 @@ export const es: Dictionary = {
       shelfLife: 'Caducidad, en días',
       shelfLifeHint:
         'Cuántos días dura el producto después de hecho. Déjalo vacío si no caduca — el lote sigue existiendo.',
-      lotIs: 'Lote {{code}}',
-      lotExpires: 'caduca el {{date}}',
-      lotForever: 'sin caducidad',
       perCrate: 'Cajas por cajón',
       looseOnly: 'Solo unidad suelta, sin caja ni cajón.',
       unitCost: 'COSTO POR UNIDAD',
@@ -1532,9 +1505,7 @@ export const es: Dictionary = {
 
   signals: {
     checked: 'Verificado',
-    expiringIn: 'Vence en {{days}} días',
     missing: 'Faltaron {{count}} cajas',
-    awaitingRoute: 'Esperando ruta',
   },
 
   whySheet: {

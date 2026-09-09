@@ -81,7 +81,7 @@ export default function LotLabel() {
 type Loaded = { lot: LotOfDay | null; plan: ReversalPlan | null };
 
 function Label() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, lido } = useLocalSearchParams<{ id: string; lido?: string }>();
   const { color, type, space, radius, palette, traco } = useTheme();
   const { locale, t } = useLocale();
   const router = useRouter();
@@ -173,13 +173,31 @@ function Label() {
    * inteiro -, então uma tela que só diz "não está mais aqui" deixa a pessoa
    * sem porta. A porta é de onde ela veio: a produção do dia, que é a única
    * tela que abre um lote.
+   *
+   * **E "não achei" são DOIS fatos, não um — cicatriz de 9 de setembro.** Quem
+   * toca um lote numa lista que o aplicativo acabou de desenhar tinha um lote:
+   * ele existia e o estorno o levou, então "não está mais aqui" é verdade. Quem
+   * apontou a câmera para um quadrado de refrigerante, ou digitou um código de
+   * outra fábrica, nunca teve lote nenhum — e responder "não está mais aqui" ali
+   * é o aplicativo afirmando um passado que não houve. A frase certa existia nos
+   * três idiomas (`scanUnknown`) e ninguém a dizia.
+   *
+   * **O que separa os dois é o CAMINHO, nunca o formato do código.** `lotCode`
+   * diz por escrito que `AAAAMMDD-NN` é o padrão e não a única forma — a fábrica
+   * com código próprio vai usá-lo, e recusar por forma aqui chamaria o código
+   * legítimo dela de estranho. Já quem chegou por câmera ou por digitação passa
+   * `lido`, e isso é fato do chamador, não adivinhação nossa. A checagem continua
+   * num lugar só, que é o que o docblock da produção e o do `scan` pedem: eles não
+   * consultam nada, só dizem de onde vieram.
    */
   if (!loading && !lote) {
     return (
       <CollapsingHeader cena="lotes" title={t.app.lotLabel.title} overline={t.app.lotLabel.overline}>
         <Reveal index={0}>
           <Card hue={palette.apricot} icon={etiqueta}>
-            <Text style={[type.body, { color: color.ink }]}>{t.app.lotLabel.gone}</Text>
+            <Text style={[type.body, { color: color.ink }]}>
+              {lido ? t.app.lotLabel.scanUnknown : t.app.lotLabel.gone}
+            </Text>
             <Button
               label={t.app.tabs.production}
               variant="ghost"

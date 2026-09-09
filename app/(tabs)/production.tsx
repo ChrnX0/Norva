@@ -514,9 +514,14 @@ function ProductionDay() {
           endereço que o aplicativo não sabia abrir, embora a própria etiqueta
           prometa que "alguém digita os onze caracteres e a conferência segue".
 
-          Sem conferir antes de navegar: a etiqueta já sabe dizer "esse lote não
-          está mais aqui", com a porta de volta. Duplicar a checagem aqui seria
+          Sem conferir antes de navegar: a etiqueta já sabe responder por um código
+          que ela não acha, com a porta de volta. Duplicar a checagem aqui seria
           dois lugares dizendo a mesma coisa e um deles envelhecendo.
+
+          O que vai junto é `lido`, e não é checagem: é de onde se veio. Código
+          digitado pode ser de outra fábrica, e aí a etiqueta diz "não é de um lote
+          desta fábrica" em vez de "não está mais aqui" — que seria o aplicativo
+          afirmando um passado que não houve.
 
           E sem exigir formato. `AAAAMMDD-NN` é o PADRÃO, não a única forma — o
           `lotCode` diz isso por escrito, e a fábrica que já tem código próprio
@@ -537,7 +542,7 @@ function ProductionDay() {
             label={t.app.lotLabel.findAction}
             variant="ghost"
             disabled={codigo.trim().length === 0}
-            onPress={() => router.push(`/lots/${codigo.trim()}`)}
+            onPress={() => router.push(`/lots/${codigo.trim()}?lido=1`)}
             style={{ marginTop: space.md }}
           />
           {/* A câmera aparece SÓ onde ela existe — e "onde" aqui é o navegador,

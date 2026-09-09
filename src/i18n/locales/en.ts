@@ -10,9 +10,7 @@ export const en: Dictionary = {
     adjust: 'Adjust',
     cancel: 'Cancel',
     why: 'why?',
-    seeScreens: 'See screens',
     ask: 'Ask something…',
-    allClear: 'Everything is in order today.',
     failureTitle: 'Could not save',
     failureNotYours: 'That is not part of your access. Ask whoever runs the company.',
     failureMissing: 'There is not enough {{items}} to record this.',
@@ -59,20 +57,15 @@ export const en: Dictionary = {
       ordersShort: 'Make these for the orders',
       ordersCovered: 'The orders are covered',
       ordersCoveredDetail: 'What was asked for by {{date}} fits in what the factory already holds.',
-      ordersWhy: 'From what was ordered through {{date}}, against what the factory holds. Tap to see the orders.',
       orderCount: { one: '1 order', other: '{{n}} orders' },
-      runningOutWhy: 'From the last seven days of usage. Tap to see the storeroom.',
       levelFull: 'full',
       levelLasts: 'lasts {{days}} at this week\u2019s pace',
       levelEndsIn: 'runs out in {{days}}',
       inputsFine: 'Inputs are fine',
-      inputsFineDetail: 'At the last few weeks of usage, nothing runs out in the next seven days.',
-      each: 'each',
       boxesSent: { one: 'went out today', other: 'went out today' },
       boxesTitle: 'Out to the stores',
       noBoxesYesterday: 'Nothing went out yesterday.',
       running: 'producing now',
-      runningSince: 'open since {{time}}',
       boxCount: { one: '1 box', other: '{{n}} boxes' },
       alsoSent: 'plus {{items}}',
       alsoSentItem: '{{amount}} of {{name}}',
@@ -84,7 +77,6 @@ export const en: Dictionary = {
       organico: {
         producedToday: '{{unit}} made today',
         quietToday: 'nothing made yet today',
-        yesterdayPill: 'yesterday',
         vsWeekdayPill: 'vs last {{weekday}}',
         sameAsWeekdayPill: 'same as last {{weekday}}',
         weekBest: 'today is the best day',
@@ -138,7 +130,6 @@ export const en: Dictionary = {
         },
       },
       liveTitle: 'Production, live',
-      liveNothing: 'Nothing out yet today.',
       runCount: { one: 'one production', other: '{{n}} productions' },
       liveRuns: '{{count}} under way now',
       liveOpened: 'opened at {{time}}',
@@ -151,20 +142,15 @@ export const en: Dictionary = {
       coverTightest: 'the tightest is {{item}}',
       coverUnknown: 'no usage on the books — nobody knows how long',
       dueTitle: 'Who receives today',
-      dueNobody: 'no delivery agreed for today',
       duePending: '{{name}} is waiting for a load',
       dueDone: '{{name}} already received',
       expiryTitle: 'Expires first',
-      expiryNone: 'nothing expiring in the next 30 days',
       expiryLot: '{{code}} expires {{date}}',
-      expiryDays: 'in {{days}}',
       lossTitle: 'Losses this month',
-      lossNone: 'no loss on the books this month',
       lossVsBefore: 'the month before was {{amount}}',
       lossFirst: 'first month with any loss',
       lossWorst: 'heaviest: {{reason}}',
       costTitle: 'Cost per unit',
-      costFrozen: '{{amount}} on the last run',
       costBefore: 'the one before was {{amount}}',
       costOnlyOne: 'first run on the books',
       heldTitle: 'Money sitting still',
@@ -175,13 +161,9 @@ export const en: Dictionary = {
       stableAlways: 'no price change on record',
       record: 'Record production',
       unitCost: 'cost per unit · worked out from the recipe and the invoices',
-      costWas: 'it was {{before}} before the recent invoices',
       changed: 'Changed since last time',
-      steady: 'No price moved',
-      steadyDetail: 'Costs are steady. There is nothing to decide today.',
       checking: 'Checking…',
       allSteady: 'All steady',
-      whereTo: 'Where do you want to go',
       nav: {
         ask: { label: 'Ask', hint: 'type what you want to know' },
         inputs: { label: 'Inputs', hint: 'what you buy' },
@@ -482,7 +464,6 @@ export const en: Dictionary = {
       companyName: 'Company name',
       createCompany: 'Create the company',
       signedInAs: 'Signed in as',
-      companyIs: 'Company',
       codeTitle: "Your company's code",
       codeBody:
         'Read these six letters to whoever will use the app. They grant nothing on their own: '
@@ -493,7 +474,6 @@ export const en: Dictionary = {
       joinAsk: 'Ask to join',
       joinSent: 'Request sent to {{company}}. Wait for someone there to approve it.',
       waitingTitle: 'Waiting on you',
-      waitingNone: 'Nobody has asked to join.',
       approve: 'Approve',
       refuse: 'Decline',
       approveAs: 'joins as operator — makes, ships and counts, without seeing money',
@@ -507,7 +487,6 @@ export const en: Dictionary = {
       adoptAction: 'Bind to {{company}}',
       adoptAsk:
         'Everything on this device becomes {{company}}. Nothing is deleted, and this happens once.',
-      adoptDone: 'This device belongs to {{company}}.',
       adoptRefuse: {
         idVazio: 'The company came back with no id from the server. Sign out, sign in, and try again.',
         jaSubiu:
@@ -536,13 +515,14 @@ export const en: Dictionary = {
     weather: {
       overline: 'weather in {{city}}',
       today: "today's high",
-      low: 'low of {{degrees}}',
       rain: '{{percent}}% chance of rain',
-      warmer: 'Tomorrow warms up {{degrees}}.',
-      cooler: 'Tomorrow cools down {{degrees}}.',
       same: 'Tomorrow, much the same.',
       // The approved cover's weather card speaks short: the city, the number,
-      // and what changes tomorrow. The long sentences stay for the open piece.
+      // and what changes tomorrow. The long sentences — the spelled-out low,
+      // "tomorrow warms up" — were deleted on 9 September: this line held them
+      // "for the open piece", and the open piece is the city picker, which says
+      // nothing about temperature. A promised future reader is how a dead section
+      // grows old. When the piece exists, it writes its own three languages.
       nowAt: '{{city}} · now',
       lowShort: 'low {{degrees}}',
       tomorrowDelta: 'tomorrow {{delta}}',
@@ -971,7 +951,6 @@ export const en: Dictionary = {
       lossAsk: 'Record this loss?',
       lossBody: 'This takes {{amount}} of {{item}} off the shelf: {{reason}}. It is worth {{money}}, and it stays on the record.',
       lossBodyNoMoney: 'This takes {{amount}} of {{item}} off the shelf: {{reason}}. It stays on the record.',
-      lossDone: 'Loss recorded.',
       lossFailed: 'Could not record the loss',
       countTitle: 'Check the stock',
       countHint:
@@ -1131,8 +1110,6 @@ export const en: Dictionary = {
       notChecked: '{{place}} has not checked what arrived yet.',
       check: 'Check the delivery',
       checkTitle: 'What arrived at {{place}}?',
-      checkedOk: 'Checked, it matched.',
-      checkedShort: 'Checked: {{amount}} missing.',
     },
     roles: {
       owner: 'Owner',
@@ -1173,7 +1150,6 @@ export const en: Dictionary = {
       readOnly: 'Only whoever runs the company changes who works in it.',
       awayHint: 'They leave the list and the history still points at them — nothing is deleted.',
       profilesTitle: 'Profiles',
-      profilesOverline: 'what each one may do',
       wearers: { one: '1 person', other: '{{n}} people' },
       nobody: 'nobody yet',
       canDo: { one: '1 permission', other: '{{n}} permissions' },
@@ -1482,9 +1458,6 @@ export const en: Dictionary = {
       shelfLife: 'Shelf life, in days',
       shelfLifeHint:
         'How many days the product lasts once made. Leave empty if it does not expire — the lot still exists.',
-      lotIs: 'Lot {{code}}',
-      lotExpires: 'expires on {{date}}',
-      lotForever: 'no expiry',
       perCrate: 'Boxes per crate',
       looseOnly: 'Loose units only, no box and no crate.',
       unitCost: 'COST PER UNIT',
@@ -1526,9 +1499,7 @@ export const en: Dictionary = {
 
   signals: {
     checked: 'Checked',
-    expiringIn: 'Expires in {{days}} days',
     missing: '{{count}} boxes missing',
-    awaitingRoute: 'Awaiting route',
   },
 
   whySheet: {

@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **625** testes |
+| `npm test` | **627** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **27** garantias contra um Postgres descartável, sob RLS |
@@ -148,8 +148,34 @@ setembro**: `ORDER BY kind` ordenava pela palavra do esquema, e em português a 
 da própria fábrica depois dos clientes. A ordem passou a ser de significado
 (`ORDEM_DOS_LUGARES`), e a guarda a compara com o enum `location_kind` do Postgres.
 
+~~39 chaves de dicionário sem leitor~~ **fechadas em 9 de setembro, e a doença ganhou
+guarda.** É a única das quatro que crescia sozinha, e o `CLAUDE.md` a nomeia ao explicar
+por que o portão é por item: *"quatro seções de dicionário nos três idiomas sem uma
+tela"*. O teste que existia media **seção**, e admitia isso num docblock — `app.home`,
+`weather` e `app.productForm` têm leitor, e tinham 22 folhas mortas dentro.
+
+Trinta e cinco eram sobra e saíram nos três idiomas: dezesseis da capa que emagreceu de
+quinze peças para sete, três frases longas de clima guardadas *"para a peça aberta"* que é
+o seletor de cidade, um trio de lote que `app/lots/[id].tsx` já diz com outras chaves, e
+oito frases cujo silêncio é decisão escrita no próprio arquivo que as deixou de dizer (o
+transporte confere sempre com *"chegou tudo"*; o cartão de *"ninguém pediu para entrar"* é
+cartão que ensina a ignorar cartão).
+
+**Duas eram tela calada, e a segunda é a que importa.** `app.catalog.typeFromAnotherLine`
+chegava como `String(e)` — inglês de programador. E `app.lotLabel.scanUnknown` não era dita
+por ninguém porque a etiqueta responde *"esse lote não está mais aqui"* a quem apontou a
+câmera para um quadrado de refrigerante: o aplicativo afirmando um passado que não houve. O
+que separa os dois fatos não é o formato do código — `lotCode` diz por escrito que
+`AAAAMMDD-NN` é o padrão e não a única forma — é o **caminho**, e agora a câmera e o campo
+de digitar passam `lido`.
+
+A guarda nova mede chave e sabe de índice dinâmico, que era a causa do falso positivo:
+`words[recusa]` lê três chaves sem escrever o nome de nenhuma. Ela erra de propósito para o
+lado seguro — deixa chave morta passar, nunca acusa chave viva.
+<!-- medida: presente src/dictionary.test.ts :: every dictionary KEY has a reader -->
+
 O que sobra: a régua fina do Papel que não separa nada · o remate em onda do Orgânico ·
-39 chaves de dicionário sem leitor · `PickLine.available` sem leitor de produção.
+`PickLine.available` sem leitor de produção.
 
 ### B. Duas pessoas conferindo a mesma remessa ainda dobram o saldo NO SERVIDOR
 <!-- medida: ausente supabase/migrations :: discrepancy_once_per_group -->

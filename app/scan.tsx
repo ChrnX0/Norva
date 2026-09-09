@@ -99,10 +99,16 @@ function Leitor() {
           const codigo = data.trim();
           if (!codigo) return;
           setLido(true);
-          // A etiqueta já sabe dizer "esse lote não está mais aqui", com a porta de
-          // volta — conferir aqui seria dois lugares dizendo a mesma coisa, e um
-          // deles envelhecendo. É a mesma razão escrita no campo de digitar.
-          router.replace(`/lots/${codigo}` as never);
+          // A etiqueta já sabe responder por código que ela não acha, com a porta
+          // de volta — conferir aqui seria dois lugares dizendo a mesma coisa, e
+          // um deles envelhecendo. É a mesma razão escrita no campo de digitar.
+          //
+          // `lido` é o único fato que ela não tem como deduzir: quem chegou por
+          // câmera pode ter lido um quadrado que não é etiqueta nenhuma, e aí a
+          // resposta é "esse código não é de um lote desta fábrica" em vez de
+          // "esse lote não está mais aqui" — que afirmaria um passado que não
+          // houve. Ver o docblock do vazio em `app/lots/[id].tsx`.
+          router.replace(`/lots/${codigo}?lido=1` as never);
         }}
       />
       {/* O véu existe para o texto ter fundo: sobre vídeo, qualquer cor de letra

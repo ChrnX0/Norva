@@ -14,6 +14,7 @@ import {
   saveFlavor,
   saveLine,
   saveType,
+  TypeIsFromAnotherLineError,
   type Flavor,
   type ProductLine,
   type ProductType,
@@ -96,7 +97,20 @@ function Catalog() {
       // Nome repetido é o erro que acontece de verdade, e ele já vem do banco:
       // o índice ignora caixa e espaço, então "morango" e "Morango " batem no
       // mesmo. A tela diz o que fazer em vez de repetir a mensagem do SQLite.
-      setErro(e instanceof Error && /unique/i.test(e.message) ? t.app.catalog.duplicate : String(e));
+      //
+      // **E o `String(e)` que estava aqui era a doença que `avisoDeFalha` existe para
+      // curar, viva neste arquivo.** `saveType` recusa um tipo de outra linha com
+      // `TypeIsFromAnotherLineError`, a frase para isso já estava escrita nos três
+      // idiomas — e chegava à tela como `Error: type ... is from another line`, em
+      // inglês, para quem está cadastrando sabor de picolé. Chave de dicionário sem
+      // leitor e erro sem frase eram o mesmo defeito visto de dois lados.
+      setErro(
+        e instanceof TypeIsFromAnotherLineError
+          ? t.app.catalog.typeFromAnotherLine
+          : e instanceof Error && /unique/i.test(e.message)
+            ? t.app.catalog.duplicate
+            : t.common.failureUnknown,
+      );
     }
   };
 

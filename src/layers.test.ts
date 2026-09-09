@@ -1385,22 +1385,34 @@ test('a guarda do cliente distingue o import do topo do import preguiçoso', () 
  *
  * Então a guarda tem duas metades: a tela do leitor **vai** para a rota do lote, e
  * ela **não** consulta o repositório. Uma busca própria ali seria a segunda
- * implementação de *"esse lote existe?"* — e a etiqueta já sabe dizer *"esse lote
- * não está mais aqui"*, com a porta de volta.
+ * implementação de *"esse lote existe?"* — e a etiqueta já sabe responder por um
+ * código que ela não acha, com a porta de volta.
+ *
+ * **E a mesma rota inclui o `lido` — 9 de setembro.** A etiqueta responde duas coisas
+ * diferentes ao mesmo "não achei": *"não está mais aqui"* para quem tocou um lote numa
+ * lista que o aplicativo desenhou, e *"esse código não é de um lote desta fábrica"*
+ * para quem leu um número de um quadrado ou de uma etiqueta descascada. O que separa
+ * os dois é o caminho, e por isso os DOIS caminhos que uma pessoa lê — a câmera e o
+ * campo de digitar — passam `lido`. Se um passar e o outro não, a mesma etiqueta
+ * ilegível responde uma coisa quando a câmera funciona e outra quando alguém digita, o
+ * que é a assimetria que esta guarda existe para impedir, agora com um sintoma novo.
  */
+const ROTA_DO_LOTE = /router\.(?:replace|push)\(`\/lots\/\$\{[^}]+\}\?lido=1`/;
+
 test('a câmera abre a mesma rota que o código digitado, e não consulta nada por fora', () => {
   const leitor = readFileSync('app/scan.tsx', 'utf8');
   const producao = readFileSync('app/(tabs)/production.tsx', 'utf8');
 
   assert.match(
     leitor,
-    /router\.replace\(`\/lots\/\$\{[^}]+\}`/,
+    ROTA_DO_LOTE,
     'o leitor tem de abrir a rota do lote — se ele parar de navegar, a câmera lê e não faz nada',
   );
   assert.match(
     producao,
-    /router\.push\(`\/lots\/\$\{[^}]+\}`\)/,
-    'e o campo de digitar tem de continuar abrindo a mesma',
+    ROTA_DO_LOTE,
+    'e o campo de digitar tem de continuar abrindo a mesma, com o mesmo `lido`: sem ele a ' +
+      'etiqueta diz "não está mais aqui" de um lote que nunca existiu',
   );
   assert.doesNotMatch(
     leitor,
@@ -1411,13 +1423,21 @@ test('a câmera abre a mesma rota que o código digitado, e não consulta nada p
 });
 
 test('a guarda do atalho distingue navegar de consultar', () => {
-  // Os dois casos, escritos como texto — guarda sem caso falso é guarda que
-  // ninguém conferiu.
-  const naRota = /router\.replace\(`\/lots\/\$\{[^}]+\}`/;
-  assert.ok(naRota.test('router.replace(`/lots/${codigo}` as never);'), 'navegar reprova nada');
+  // Os casos, escritos como texto — guarda sem caso falso é guarda que ninguém conferiu.
   assert.ok(
-    !naRota.test('router.replace(`/lots` as never);'),
+    ROTA_DO_LOTE.test('router.replace(`/lots/${codigo}?lido=1` as never);'),
+    'navegar com o caminho declarado reprova nada',
+  );
+  assert.ok(
+    !ROTA_DO_LOTE.test('router.replace(`/lots` as never);'),
     'e uma rota sem o código não conta como abrir o lote',
+  );
+  // O caso falso que a versão anterior desta guarda deixava passar: navegar para o lote
+  // certo SEM dizer de onde se veio, que é o que faz a etiqueta afirmar um passado que
+  // não houve.
+  assert.ok(
+    !ROTA_DO_LOTE.test('router.push(`/lots/${codigo.trim()}`)'),
+    'e abrir sem o `lido` não conta: a etiqueta perde como distinguir "sumiu" de "nunca foi"',
   );
 });
 

@@ -8248,3 +8248,55 @@ idioma aquela coluna está — e se a resposta for "no do banco", a ordem é aci
 A ordem virou lista do domínio, e a guarda a compara com o enum `location_kind` do
 Postgres — a fonte que não passou pela mão de quem escreveu a lista, que é a regra desta
 casa para toda derivação.
+
+---
+
+## 9 de setembro — o detector honesto documenta o buraco; a promessa continua inteira
+
+**O que apareceu:** o teste que garante leitor para o dicionário media **seção**, e dizia
+isso de si mesmo num docblock: *"o que este teste NÃO confere, dito em vez de omitido: ele
+mede SEÇÃO, não chave"*. A frase é honesta e o teste é bom. E o dicionário tinha **39
+folhas mortas** dentro de seções vivas — `app.home` tem leitor, `weather` tem leitor,
+`app.productForm` tem leitor, e as três somavam 22 frases que nenhuma tela diz.
+
+**Por que importa:** honestidade em comentário protege quem lê o teste. Quem lê a promessa
+— o `CLAUDE.md`, o roadmap, o próximo eu numa sessão nova — lê que o dicionário tem leitor.
+O projeto já tinha a regra escrita (*"se a promessa é boa, feche o buraco; se não é,
+corrija a promessa"*) e ela nasceu de uma guarda de capacidades com o mesmo formato: o
+docblock admitindo dez de treze enquanto o documento prometia todas. **Duas vezes, o mesmo
+molde** — e é isso que o torna uma régua e não um caso.
+
+**A parte que quase me fez desistir da medida.** A varredura por chave acusou 44 e o
+docblock dizia, com razão, que *"boa parte é falso positivo do detector"*. Falso positivo
+tem causa nomeável ou não é falso positivo: aqui era **índice dinâmico** —
+`words[recusa]` em `app/backup.tsx` lê três chaves sem escrever o nome de nenhuma, e
+`words` é um apelido de `t.app.backup` criado três linhas acima. Ensinar isso ao detector
+levou vinte linhas e derrubou o número para 39 de verdade. O caminho errado era o
+disponível: aceitar o docblock, chamar 44 de ruído, e a doença que o `CLAUDE.md` nomeia
+segue crescendo por mais um mês.
+
+**E a régua fica com perda de precisão de propósito**, porque a direção do erro importa:
+todo caminho indexado conta como lido **inteiro**, do ponto do índice para baixo. Isso
+deixa chave morta passar e nunca acusa chave viva. Guarda que acusa o vivo é alerta
+inventado com outro nome — e ensina exatamente o mesmo: a ignorar.
+
+**O achado dentro do achado:** das 39, **35 eram sobra e duas eram tela calada** — e a
+segunda é a que paga a varredura. `app.lotLabel.scanUnknown` diz *"esse código não é de um
+lote desta fábrica"*, e ninguém a dizia porque a etiqueta responde *"esse lote não está
+mais aqui"* a **todo** código que ela não acha. Quem aponta a câmera para um quadrado de
+refrigerante na doca recebe o aplicativo afirmando um passado que não houve. Não é
+enfeite: é a casa que escreveu *"nunca culpa pessoa"* e *"a confirmação diz o que vai
+acontecer"* mentindo sobre um fato, na tela onde alguém está de luva com pressa.
+
+**E o conserto ensinou onde NÃO procurar a diferença.** O reflexo é validar o formato:
+`AAAAMMDD-NN`, onze caracteres, dá para checar. `src/domain/lot.ts` diz por escrito que
+esse é *"o padrão, não a única forma"* — a fábrica com código próprio vai usar o dela, e
+recusar por forma chamaria o código legítimo dela de estranho. O que separa *"sumiu"* de
+*"nunca foi"* não está no código: está em **quem trouxe**. Lista que o aplicativo acabou
+de desenhar → o lote existia. Câmera ou dedo digitando → pode nunca ter existido. É fato
+que o chamador já tem, e passá-lo custa um parâmetro.
+
+**A régua que fica:** quando um detector se declara impreciso, pergunte de que forma de
+leitura ele não sabe — não quantos falsos ele produz. E quando duas frases parecem dizer o
+mesmo em tons diferentes, o que as separa quase nunca é o dado; é o caminho por onde
+alguém chegou.
