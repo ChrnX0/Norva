@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { CARGO_PLACE_KINDS, INTERNAL_PLACE_KINDS, QUEM_ESCREVE } from './domain/ledger';
+import {
+  CARGO_PLACE_KINDS,
+  INTERNAL_PLACE_KINDS,
+  ORDEM_DOS_LUGARES,
+  QUEM_ESCREVE,
+} from './domain/ledger';
 import { APENAS_INSERE, sendableTables } from './sync/serialize';
 import { REPAROS } from './data/db';
 
@@ -2752,5 +2757,57 @@ test('the touch-floor ruler tells a small control from a row', () => {
   assert.ok(
     !morde('<Touchable onPress={() => f()}><Chip label="x" /></Touchable>'),
     'quem usa Touchable herda o piso e não declara nada',
+  );
+});
+
+/**
+ * A ordem dos lugares cobre TODA espécie que existe — e a lista das espécies não é minha.
+ *
+ * `ORDEM_DOS_LUGARES` decide em que ordem a lista de Lugares aparece, e uma espécie que
+ * faltasse nela cairia no fim, calada. Comparar a lista com outra lista escrita pela
+ * mesma mão não guardaria nada — este arquivo já tem essa cicatriz por escrito —, então
+ * a fonte é o enum `location_kind` da migração `0001`, que é o mesmo que o servidor
+ * impõe e que ninguém pode contrariar do lado do aparelho.
+ *
+ * As duas direções importam: espécie do enum que falta na ordem some para o fim da tela;
+ * espécie na ordem que não existe no enum é ordem para um lugar que o banco recusa.
+ */
+function especiesDoEnum(): string[] {
+  const fonte = readFileSync('supabase/migrations/0001_foundation.sql', 'utf8');
+  const m = fonte.match(/create type location_kind as enum \(([^)]*)\)/);
+  assert.ok(m, 'o enum location_kind mudou de forma — a derivação precisa acompanhar');
+  return [...m![1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]);
+}
+
+test('the order of places covers every kind the database allows', () => {
+  const doEnum = especiesDoEnum();
+  assert.ok(doEnum.length > 3, `o enum foi lido com ${doEnum.length} espécies — a comparação seria de graça`);
+  assert.deepEqual(
+    [...ORDEM_DOS_LUGARES].sort(),
+    [...doEnum].sort(),
+    'a ordem da lista de Lugares e o enum do banco discordam. Espécie que falta na ordem\n' +
+      'cai no fim da tela sem ninguém decidir; espécie a mais é ordem para um lugar que o\n' +
+      'banco recusa.',
+  );
+
+  // E a ordem é de SIGNIFICADO: a fábrica primeiro, porque é onde a pessoa está. Sem
+  // esta linha a guarda aceitaria a lista em ordem alfabética inglesa — que é
+  // exatamente o defeito que ela existe para não deixar voltar.
+  assert.equal(ORDEM_DOS_LUGARES[0], 'factory', 'a unidade vem primeiro: é onde quem olha está');
+  assert.equal(
+    ORDEM_DOS_LUGARES[ORDEM_DOS_LUGARES.length - 1],
+    'vehicle',
+    'o caminho vem por último: ele não é destino nem sala',
+  );
+});
+
+test('the place order ruler reads the enum, not a copy of the list', () => {
+  // O caso verdadeiro: a derivação lê seis espécies do arquivo de verdade.
+  assert.equal(especiesDoEnum().length, 6);
+  // E o falso: se ela lesse o próprio domínio, qualquer lista passaria. A prova de que
+  // não lê é o caminho do arquivo — uma migração, não um módulo TypeScript.
+  assert.ok(
+    !especiesDoEnum().includes('nao_existe'),
+    'a derivação inventou uma espécie: ela não está lendo o enum',
   );
 });

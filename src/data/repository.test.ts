@@ -1671,6 +1671,29 @@ test('the shelf a screen shows is the shelf a count is compared against', async 
   assert.ok((await itemMovements(EMPRESA_SEMENTE, acucar.id)).some((m) => m.kind === 'adjustment'));
 });
 
+test('places come out in the order somebody thinks about them, not in English', async () => {
+  // `ORDER BY kind` ordenava pela palavra do ESQUEMA, que é inglesa. Em português a
+  // lista saía "Câmara fria, Cliente, Fábrica, Loja própria, Almoxarifado, Veículo" —
+  // com o almoxarifado da própria fábrica depois dos clientes, e sem nenhuma ordem
+  // que alguém reconheça. Em espanhol sairia numa terceira ordem, pelo mesmo acidente.
+  //
+  // Os nomes são escolhidos ao contrário da ordem esperada de propósito: com nomes em
+  // ordem alfabética o teste passaria mesmo se a ordenação fosse por nome, e não
+  // distinguiria as duas coisas.
+  await ensureStarterData(EMPRESA_SEMENTE);
+  await savePlace(EMPRESA_SEMENTE, { name: 'Zulu cliente', kind: 'customer' });
+  await savePlace(EMPRESA_SEMENTE, { name: 'Alfa loja', kind: 'own_store' });
+  await savePlace(EMPRESA_SEMENTE, { name: 'Mike câmara', kind: 'cold_room' });
+  await savePlace(EMPRESA_SEMENTE, { name: 'Bravo almoxarifado', kind: 'store_room' });
+
+  const kinds = (await listPlaces(EMPRESA_SEMENTE)).map((p) => p.kind);
+  assert.deepEqual(
+    kinds,
+    ['factory', 'cold_room', 'store_room', 'own_store', 'customer'],
+    'a unidade primeiro, as salas dentro dela, depois quem recebe carga',
+  );
+});
+
 test('a second delivery is still checkable after the first one was', async () => {
   // O defeito que a RECUSA quase criou, e que só apareceu ao olhar quem chama: a tela
   // conferia percorrendo as remessas do DIA, e a recusa de conferir duas vezes faria a

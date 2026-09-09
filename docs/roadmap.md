@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **622** testes |
+| `npm test` | **625** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **27** garantias contra um Postgres descartável, sob RLS |
@@ -109,7 +109,7 @@ independentes — dez de lógica, oito de código, seis de design —, cada uma 
 adversário próprio tentando derrubar os achados dela antes de virarem afirmação. Os
 números abaixo saem do diário da execução, não de contagem à mão.
 
-**47 fechados na mesma sessão.** O que sobra está aqui, por peso. Cada item traz a
+**48 fechados na mesma sessão.** O que sobra está aqui, por peso. Cada item traz a
 medida ao lado, como a regra deste arquivo exige: item aberto prova que a coisa NÃO
 existe, e a suíte fica vermelha no dia em que alguém a construir sem riscar a linha.
 
@@ -142,9 +142,14 @@ apareciam, e numa frase só — a confirmação de cadastro de insumo começava 
 terminava em `usted`. Unificado em `tú`, que é o par do "você" e do "you" das outras duas
 telas do mesmo dicionário, com a guarda `the Spanish speaks to one person, in one way`.
 
+~~A ordem alfabética das palavras INGLESAS na lista de Lugares~~ **fechada em 9 de
+setembro**: `ORDER BY kind` ordenava pela palavra do esquema, e em português a lista saía
+*Câmara fria, Cliente, Fábrica, Loja própria, Almoxarifado, Veículo* — com o almoxarifado
+da própria fábrica depois dos clientes. A ordem passou a ser de significado
+(`ORDEM_DOS_LUGARES`), e a guarda a compara com o enum `location_kind` do Postgres.
+
 O que sobra: a régua fina do Papel que não separa nada · o remate em onda do Orgânico ·
-a ordem alfabética das palavras INGLESAS do esquema na lista de Lugares · 39 chaves de
-dicionário sem leitor · `PickLine.available` sem leitor de produção.
+39 chaves de dicionário sem leitor · `PickLine.available` sem leitor de produção.
 
 ### B. Duas pessoas conferindo a mesma remessa ainda dobram o saldo NO SERVIDOR
 <!-- medida: ausente supabase/migrations :: discrepancy_once_per_group -->

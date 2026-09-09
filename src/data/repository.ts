@@ -8,6 +8,7 @@ import {
   daysOfCover,
   ehAtendidoPorUnidade,
   ehSalaDeUnidade,
+  ordemDoLugar,
   podeEscrever,
   valePeloPreco,
   vendeAoConsumidor,
@@ -974,10 +975,21 @@ export async function listPlaces(companyId: string): Promise<Place[]> {
   }>(
     `SELECT id, name, kind, contact_phone, delivery_days, agreement_note, sensor_ranges,
             served_by_location_id
-       FROM locations WHERE company_id = ? ORDER BY kind, name`,
+       FROM locations WHERE company_id = ? ORDER BY name`,
     [companyId],
   );
-  return rows.map((r) => ({
+  // A ordem é de SIGNIFICADO e vem do domínio: a fábrica primeiro, as salas dentro
+  // dela, quem recebe carga, e o caminho por último. O `ORDER BY kind` que estava aqui
+  // ordenava pela palavra do ESQUEMA, em inglês — e a lista saía embaralhada em
+  // português, com o almoxarifado da própria fábrica depois dos clientes.
+  //
+  // Ordenado aqui e não no SQL porque a ordem é uma LISTA do domínio: um `CASE WHEN`
+  // interpolado seria a mesma regra escrita numa segunda linguagem, e este repositório
+  // já pagou caro por duas grafias da mesma regra.
+  return rows
+    .slice()
+    .sort((a, b) => ordemDoLugar(a.kind) - ordemDoLugar(b.kind))
+    .map((r) => ({
     id: r.id,
     name: r.name,
     kind: r.kind,

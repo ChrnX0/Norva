@@ -8218,3 +8218,33 @@ trinta e quatro `Pressable` perdeu um, e minha leitura manual do dicionário per
 (*"Guarde una copia"*, em duas telas). **Onde a guarda é escrita, ela acha o que o olho
 perdeu na mesma passada** — e é por isso que ela vem antes de eu declarar o item fechado,
 não depois.
+
+---
+
+## 9 de setembro — a lista ordenava pela palavra do esquema, e o esquema fala inglês
+
+**O que apareceu:** a lista de Lugares usava `ORDER BY kind`. `kind` é a coluna do
+esquema, e o esquema fala inglês: `cold_room, customer, factory, own_store, store_room,
+vehicle`. Em português a tela mostrava *Câmara fria, Cliente, Fábrica, Loja própria,
+Almoxarifado, Veículo* — o almoxarifado da própria fábrica em quinto, depois dos clientes.
+Nem alfabético, nem nada. Em espanhol sairia numa terceira ordem, pelo mesmo acidente.
+
+**Por que importa:** é uma fronteira de idioma escondida numa cláusula que ninguém lê como
+texto. Este projeto tem a regra *"nenhuma tela guarda uma palavra"* e a cumpre com rigor —
+e aqui a palavra não estava na tela, estava na ORDEM dela. A tradução some do diff, o
+`Widen<T>` não alcança, e o defeito só existe para quem lê a lista num idioma que não é o
+do banco.
+
+**E o conserto óbvio era outro acidente.** Ordenar alfabeticamente no idioma da vez trocaria
+uma ordem sem sentido por outra que muda de idioma para idioma. A Lei pede que a tela
+responda **o que é normal ali** — e o normal é a fábrica primeiro, porque é onde a pessoa
+está; depois as salas dentro dela; depois quem recebe carga; e o caminho por último. Essa
+ordem é a mesma nos três idiomas porque não é sobre letras, é sobre o negócio.
+
+**A régua que fica:** `ORDER BY` de uma coluna de ENUM é uma decisão de apresentação
+disfarçada de detalhe de consulta. Quando a lista aparece para alguém, pergunte em que
+idioma aquela coluna está — e se a resposta for "no do banco", a ordem é acidente.
+
+A ordem virou lista do domínio, e a guarda a compara com o enum `location_kind` do
+Postgres — a fonte que não passou pela mão de quem escreveu a lista, que é a regra desta
+casa para toda derivação.

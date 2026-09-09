@@ -169,6 +169,40 @@ export const CARGO_PLACE_KINDS = ['own_store', 'customer'] as const;
  */
 export const SERVED_PLACE_KINDS = CARGO_PLACE_KINDS;
 
+/**
+ * A ordem em que os lugares aparecem numa lista — e ela é de SIGNIFICADO, não de letra.
+ *
+ * A consulta ordenava por `kind`, que é a palavra do ESQUEMA, em inglês. O efeito só
+ * aparece na tela e em português: `cold_room, customer, factory, own_store, store_room,
+ * vehicle` vira *Câmara fria, Cliente, Fábrica, Loja própria, Almoxarifado, Veículo* —
+ * nem alfabético, nem nada. O almoxarifado da própria fábrica cai em quinto, depois dos
+ * clientes. Em espanhol a ordem sairia diferente, pelo mesmo acidente.
+ *
+ * Ordenar alfabeticamente no idioma da vez seria trocar um acidente por outro: a Lei
+ * pede que a tela responda **o que é normal ali**, e o que é normal é a fábrica primeiro
+ * — é onde a pessoa está —, depois as salas dentro dela, depois quem recebe carga, e o
+ * caminho por último. É a ordem em que alguém pensa no próprio negócio, e ela é a mesma
+ * nos três idiomas.
+ *
+ * A lista é a fonte única: `listPlaces` ordena por ela, e a guarda de camadas cobra que
+ * ela tenha exatamente as espécies do enum `location_kind` do Postgres — a fonte que não
+ * passou pela mão de quem escreveu esta linha.
+ */
+export const ORDEM_DOS_LUGARES = [
+  'factory',
+  'cold_room',
+  'store_room',
+  'own_store',
+  'customer',
+  'vehicle',
+] as const;
+
+/** Em que posição desta ordem uma espécie cai. Desconhecida vai para o fim, nunca some. */
+export function ordemDoLugar(kind: string): number {
+  const i = (ORDEM_DOS_LUGARES as readonly string[]).indexOf(kind);
+  return i === -1 ? ORDEM_DOS_LUGARES.length : i;
+}
+
 /** Esta espécie é atendida por uma unidade? Loja e cliente sim; sala e caminhão não. */
 export function ehAtendidoPorUnidade(kind: string): boolean {
   return (SERVED_PLACE_KINDS as readonly string[]).includes(kind);
