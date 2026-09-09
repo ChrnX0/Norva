@@ -8343,3 +8343,45 @@ mesmo molde nesta semana (o `indexOf('>')` do piso de toque, o `^UPDATE` do back
 agora este): **guarda que procura um nome perto do lugar certo casa com o lugar errado.**
 A prova nunca é o exemplo que eu escrevo — é rodar contra o código anterior e ver
 vermelho.
+
+---
+
+## 9 de setembro — a régua que mede legibilidade só olhava para o texto
+
+**O que apareceu:** `src/theme/contrast.test.ts` é rigorosa e cara: mede tinta sobre
+papel, acento sobre fundo, palavra de botão, hierarquia entre as três camadas de tinta,
+e lê o arquivo de tokens em vez de importar para que cor nova entre na medição sozinha.
+Ela não media **separador**. E o separador é o que carrega a estrutura no Papel — uma
+pele que, por decisão de desenho, **não tem caixa**: sem a régua, não há bloco.
+
+Medido pela primeira vez: `organicoClaro.line` dava **1,06:1** contra o papel dele.
+
+**Por que importa:** 1,06 não é uma linha fraca. A diferença que o olho distingue entre
+duas áreas planas grandes fica por volta de 1,2:1 — abaixo disso as duas cores são uma
+cor só. O divisor do dia do Orgânico existia no código e não existia na tela, e nenhum
+teste podia acusar, porque nenhum teste olhava para ali.
+
+**A régua que fica, e ela é sobre RÉGUAS:** uma guarda cobre exatamente o vocabulário
+que ela nomeia. Esta se chamava "o texto pequeno tem de ser legível" e cumpria isso
+inteiro — o buraco não era descuido, era **escopo**, e escopo não aparece quando se lê
+o teste passando. A pergunta que acha esse tipo de buraco não é *"este teste está
+certo?"* e sim *"o que ele NÃO nomeia?"*. Aqui: tudo que é desenhado e não é letra.
+
+**E o piso de uma guarda nova é o problema todo.** Escolher "3:1, que é a WCAG
+não-textual" teria transformado uma régua de página em borda — outra pele, não esta.
+Escolher por gosto é o que este projeto proíbe. A saída estava escrita duas vezes: o
+`PASSO` da tinta derivou o piso dos temas escuros *"que estavam prontos"*, e o dono
+decidiu que *"o Papel é o produto e o Orgânico é a opção"*. Então a pele que ele vê todo
+dia é o piso, e as cores saem de `mistura(ink, paper, α)` — a régua de cada pele na
+tinta dela, em vez de um cinza emprestado.
+
+**Com uma metade absoluta, e essa metade é a parte que eu quase não escrevi.** Um piso
+lido do mesmo arquivo que a guarda mede é a guarda que compara duas coisas escritas pela
+mesma mão — o projeto já pagou por uma, na tabela de capacidades que foi *escrita a
+partir* da guarda. Sem a metade absoluta, baixar a referência faz tudo passar, e o
+verde fica lindo.
+
+**E a guarda cobrou o próprio Papel na primeira execução:** as duas réguas dele estavam
+a 1,32× de distância, abaixo do passo de 1,35 que o teste da tinta já exigia para não
+ter *"três nomes para um cinza"*. Guarda nova que só acusa a pele dos outros é guarda
+escrita para passar.
