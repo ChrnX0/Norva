@@ -573,17 +573,19 @@ check('an order is written, and the briefing turns it into what to make', async 
   // produziu, então os 300 pedidos são 300 que faltam - e o cartão diz isso
   // sem que ninguém tenha somado nada na mão.
   //
-  // **A peça é LIGADA antes de a frase ser cobrada**, e isso é conserto de uma
-  // afirmação que envelheceu — a mesma que já tinha sido feita para "Preços que
-  // mexeram" e não foi feita para as irmãs dela. A checagem nasceu quando a capa
-  // trazia quinze peças por padrão; ela emagreceu para sete por decisão do dono, e
-  // aí o que esta linha media deixou de ser "a capa sabe transformar pedido em
-  // produção" e passou a ser "esta peça vem ligada de fábrica" — que é outra coisa,
-  // e não é a que o comentário acima promete.
-  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(2500);
-  await page.getByLabel(/^Colocar na capa: Pedidos dos clientes$/).first().click();
-  await page.waitForTimeout(1200);
+  // **A peça NÃO é mais ligada aqui, e a história dessa linha é a lição.**
+  //
+  // Ela nasceu quando a capa trazia quinze peças por padrão e não precisava ligar nada.
+  // A capa emagreceu para oito, esta checagem passou a medir "a peça vem ligada de
+  // fábrica" em vez do que promete, e o conserto foi ligar a peça antes de cobrar a
+  // frase. Em 9 de setembro o dono mandou `pedidos` para o padrão — e o CONSERTO
+  // envelheceu junto: com a peça já ligada, "Colocar na capa" não existe, e a checagem
+  // ficou trinta segundos esperando um botão que virou "Tirar da capa".
+  //
+  // Duas vezes o mesmo defeito na mesma linha, em direções opostas. O que sobra é a
+  // forma que não depende do padrão de hoje: a checagem cobra a FRASE na capa e mais
+  // nada. Se `pedidos` sair do padrão amanhã, ela fica vermelha — e estará certa, porque
+  // aí a promessa "a capa diz o que fazer com o pedido" deixou de valer de fábrica.
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(3000);
   const capa = await screen(page);
