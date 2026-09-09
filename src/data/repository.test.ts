@@ -1641,6 +1641,67 @@ test('what is missing at the door leaves the store balance short, by exactly wha
   assert.equal(daEmpresa?.onHandBaseUnits, 49500, 'os 500 que sumiram no caminho sumiram do total');
 });
 
+/**
+ * Uma carga conferida com FALTA podia ser desfeita — e não podia.
+ *
+ * `planReversal` comparava cada perna negativa com o saldo do lugar, ISOLADAMENTE.
+ * Uma carga que a loja conferiu e achou falta tem três linhas no grupo: sai N da
+ * fábrica, entra N na loja, e a diferença negativa fica na loja. O estorno devolve
+ * −N e +diferença NO MESMO lugar — mas, olhando só a perna negativa, ele parecia
+ * pedir mais do que a loja tem, e a tela bloqueava mandando *"traga de volta 6.000"*
+ * sobre uma mercadoria que está lá inteira.
+ *
+ * Uma carga lançada errada que já foi conferida não tinha conserto nenhum, e o
+ * livro-razão desta casa promete que existe conserto: corrige-se por estorno.
+ *
+ * Os dois lados: a carga conferida com falta DESTRAVA, e o caso que o bloqueio
+ * existe para pegar continua pego.
+ */
+test('uma carga conferida com falta pode ser desfeita, e a que já foi repassada não', async () => {
+  await ensureStarterData(EMPRESA_SEMENTE);
+  const centro = await savePlace(EMPRESA_SEMENTE, { name: 'Loja Centro', kind: 'own_store' });
+  const norte = await savePlace(EMPRESA_SEMENTE, { name: 'Loja Norte', kind: 'own_store' });
+  const fabrica = defaultLocationId(EMPRESA_SEMENTE);
+  const acucar = (await listItems(EMPRESA_SEMENTE)).find((i) => i.name.includes('Açúcar'));
+  assert.ok(acucar);
+
+  const remessa = await recordTransfer(EMPRESA_SEMENTE, {
+    itemId: acucar.id, fromLocationId: fabrica, toLocationId: centro.id,
+    baseUnits: 6000, occurredAt: '2026-09-01T14:00:00.000Z',
+  });
+  await recordCheck(EMPRESA_SEMENTE, {
+    groupId: remessa.groupId,
+    counted: [{ itemId: acucar.id, baseUnits: 5500 }],
+    occurredAt: '2026-09-01T18:00:00.000Z',
+  });
+
+  const plano = await planReversal(EMPRESA_SEMENTE, remessa.groupId);
+  assert.deepEqual(
+    plano.blocked,
+    [],
+    'a loja tem 5.500 e o estorno pede 6.000 de volta devolvendo 500 no mesmo ato — a soma fecha',
+  );
+  await reverseGroup(EMPRESA_SEMENTE, { groupId: remessa.groupId });
+  const naLoja = (await balanceByLocation(EMPRESA_SEMENTE, acucar.id)).find(
+    (b) => b.locationId === centro.id,
+  );
+  assert.equal(naLoja?.baseUnits ?? 0, 0, 'a loja volta a zero, que é o que ela tinha antes');
+
+  // E o caso VERDADEIRO do bloqueio: a loja repassou o que recebeu. Aí não há o que
+  // trazer de volta, e a tela tem de dizer isso antes de o dedo tocar.
+  const segunda = await recordTransfer(EMPRESA_SEMENTE, {
+    itemId: acucar.id, fromLocationId: fabrica, toLocationId: centro.id,
+    baseUnits: 4000, occurredAt: '2026-09-02T14:00:00.000Z',
+  });
+  await recordTransfer(EMPRESA_SEMENTE, {
+    itemId: acucar.id, fromLocationId: centro.id, toLocationId: norte.id,
+    baseUnits: 4000, occurredAt: '2026-09-02T16:00:00.000Z',
+  });
+  const travado = await planReversal(EMPRESA_SEMENTE, segunda.groupId);
+  assert.equal(travado.blocked.length, 1, 'o que já saiu da loja não volta dela');
+  assert.equal(travado.blocked[0].itemId, acucar.id);
+});
+
 test('a return on the same day does not quietly shrink what the store received', async () => {
   await ensureStarterData(EMPRESA_SEMENTE);
   const centro = await savePlace(EMPRESA_SEMENTE, { name: 'Loja Centro', kind: 'own_store' });

@@ -6810,15 +6810,40 @@ export async function planReversal(companyId: string, groupId: string): Promise<
   );
   const held = new Map(saldos.map((s) => [`${s.item_id}@${s.location_id}`, s.held]));
 
+  /**
+   * As pernas do estorno SOMADAS por item e lugar, antes de comparar com o saldo.
+   *
+   * Perna a perna, a conta erra num caso que acontece toda semana: uma carga que a
+   * loja conferiu e achou FALTA tem três linhas no grupo — sai N da fábrica, entra N
+   * na loja, e a diferença negativa fica na loja. O estorno devolve −N e +diferença
+   * NO MESMO lugar; olhando só a perna negativa, ele parece pedir mais do que a loja
+   * tem, e a tela bloqueava com *"traga de volta 1.000"* sobre uma mercadoria que
+   * está lá inteira. Uma carga conferida com falta não podia ser desfeita nunca.
+   *
+   * Somando, o número que se compara é o efeito real no lugar. E o caso que o
+   * bloqueio existe para pegar continua pego: quando a loja já repassou a
+   * mercadoria, a soma no lugar continua negativa contra saldo zero.
+   *
+   * Agrupar por item além do lugar é o que impede a mistura numa corrida de
+   * produção, onde as pernas de consumo e a do produto são itens diferentes.
+   */
+  const pedido = new Map<string, { leg: (typeof plan.legs)[number]; soma: number }>();
   for (const leg of plan.legs) {
-    if (leg.baseUnits >= 0) continue;
-    const tem = held.get(`${leg.itemId}@${leg.locationId}`) ?? 0;
-    if (tem + leg.baseUnits < 0) {
+    const chave = `${leg.itemId}@${leg.locationId}`;
+    const atual = pedido.get(chave);
+    if (atual) atual.soma += leg.baseUnits;
+    else pedido.set(chave, { leg, soma: leg.baseUnits });
+  }
+
+  for (const [chave, { leg, soma }] of pedido) {
+    if (soma >= 0) continue;
+    const tem = held.get(chave) ?? 0;
+    if (tem + soma < 0) {
       plan.blocked.push({
         itemId: leg.itemId,
         name: leg.name,
         held: tem,
-        needed: -leg.baseUnits,
+        needed: -soma,
         baseUnit: leg.baseUnit,
       });
     }
