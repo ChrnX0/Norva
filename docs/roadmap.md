@@ -214,8 +214,23 @@ telhado.
 
 O pacote da auditoria fechou.
 
-### Uma peça com cor: existe régua, falta decidir se existe lei
-<!-- medida: espera src/components/cenas/Cena.tsx :: a contagem existe; a regra é conserto, não lei -->
+### ~~Uma peça com cor: existe régua, falta decidir se existe lei~~ — DECIDIDO em 9 de setembro
+<!-- medida: presente CLAUDE.md :: repetição regular lê como padrão de -->
+
+**Decisão do dono: fica conserto de repetição, não vira lei de toda cena.** Nada muda no
+código, e a contagem sai da fila — ela não é pendência.
+
+**E o que decidiu foi a FOTO, não a contagem.** As seis cenas foram fotografadas no
+aparelho e três dos números do meu contador estavam errados sobre o mundo: `Cópia` e
+`Assistente` têm uma peça colorida só (o que ele contava como duas era um objeto e o
+companheiro animado dele), e `Produção` é a regra do dono FUNCIONANDO — três picolés
+iguais num trilho, um vermelho. Sobram `Transporte`, `Perdas` e `Compras`, e nas três as
+duas coisas coloridas são objetos distintos, não uma fileira.
+
+Fica a régua de leitura: **a contagem mede blocos de desenho, o olho mede coisas**, e onde
+as duas discordam quem manda é o olho. Uma guarda em cima do número acusaria justamente a
+gota que cai do picolé — que é o mesmo picolé.
+
 
 O `CLAUDE.md` registra o conserto que o dono deu para a fileira de quatro lojas idênticas:
 *"tamanhos diferentes, vãos desiguais, e uma só peça com cor — cor alternando em todo
