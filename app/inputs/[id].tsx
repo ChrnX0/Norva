@@ -1,4 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { avisoDeFalha } from '@/i18n/falha';
+import { ERROS } from '@/data/erros';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
@@ -413,7 +415,7 @@ function InputDetail() {
     } catch (e) {
       await confirm({
         title: t.app.inputDetail.lossFailed,
-        message: e instanceof Error ? e.message : String(e),
+        message: avisoDeFalha(e, t, ERROS).message,
         acknowledge: true,
         confirmLabel: t.app.confirm.understood,
       });
@@ -499,11 +501,26 @@ function InputDetail() {
     });
     if (!go) return;
 
-    await recordCount(empresaDaqui(), {
-      locationId: contarEm,
-      itemId: item.id,
-      countedBaseUnits: Math.round(counted),
-    });
+    // O portão de escrita pode recusar — contar prateleira pede `adjust_stock` — e
+    // sem `catch` o toque não gravava e a tela ficava igual: a pessoa toca de novo,
+    // depois desiste, e a contagem não acontece. Lei 5, e é a contagem que ela mais
+    // protege.
+    try {
+      await recordCount(empresaDaqui(), {
+        locationId: contarEm,
+        itemId: item.id,
+        countedBaseUnits: Math.round(counted),
+      });
+    } catch (e) {
+      const aviso = avisoDeFalha(e, t, ERROS);
+      await confirm({
+        title: aviso.title,
+        message: aviso.message,
+        acknowledge: true,
+        confirmLabel: t.app.confirm.understood,
+      });
+      return;
+    }
     setCounting(false);
     setTyped('');
     await refresh();

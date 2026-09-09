@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { avisoDeFalha } from '@/i18n/falha';
+import { ERROS } from '@/data/erros';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -395,7 +397,7 @@ function Transfer() {
     } catch (e) {
       await askConfirm({
         title: words.failed,
-        message: e instanceof Error ? e.message : String(e),
+        message: avisoDeFalha(e, t, ERROS).message,
         acknowledge: true,
       });
     } finally {

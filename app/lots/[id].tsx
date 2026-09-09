@@ -1,4 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { avisoDeFalha } from '@/i18n/falha';
+import { ERROS } from '@/data/erros';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card, tint } from '@/components/Card';
@@ -130,7 +132,21 @@ function Label() {
     });
     if (!yes) return;
 
-    await reverseGroup(empresaDaqui(), { groupId: lote.runGroupId });
+    // O terceiro botão de desfazer — e era o único dos três sem `catch`. Estornar
+    // pede `adjust_stock`: com o entregador segurando o aparelho, o toque não fazia
+    // nada e a tela voltava como se tivesse feito.
+    try {
+      await reverseGroup(empresaDaqui(), { groupId: lote.runGroupId });
+    } catch (e) {
+      const aviso = avisoDeFalha(e, t, ERROS);
+      await confirm({
+        title: aviso.title,
+        message: aviso.message,
+        acknowledge: true,
+        confirmLabel: t.app.confirm.understood,
+      });
+      return;
+    }
     refresh();
     router.back();
   };

@@ -1,4 +1,6 @@
 import Constants from 'expo-constants';
+import { avisoDeFalha } from '@/i18n/falha';
+import { ERROS } from '@/data/erros';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -487,7 +489,7 @@ function Settings() {
     } catch (e) {
       await confirm({
         title: t.app.settings.failedToRestore,
-        message: e instanceof Error ? e.message : String(e),
+        message: avisoDeFalha(e, t, ERROS).message,
         acknowledge: true,
         confirmLabel: t.app.confirm.understood,
       });
@@ -544,7 +546,7 @@ function Settings() {
     } catch (e) {
       await confirm({
         title: t.app.settings.failedToSimulate,
-        message: e instanceof Error ? e.message : String(e),
+        message: avisoDeFalha(e, t, ERROS).message,
         acknowledge: true,
         confirmLabel: t.app.confirm.understood,
       });

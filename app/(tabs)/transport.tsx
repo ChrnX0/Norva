@@ -1,4 +1,6 @@
 import { useRouter } from 'expo-router';
+import { avisoDeFalha } from '@/i18n/falha';
+import { ERROS } from '@/data/erros';
 import { StyleSheet, Text, View } from 'react-native';
 import { CountUp } from '@/components/CountUp';
 import { Button } from '@/components/Button';
@@ -124,8 +126,22 @@ function WhereItWent() {
     // conferida contra as próprias pernas. Mandar a soma do destino para cada
     // remessa contaria a mesma mercadoria duas vezes quando a loja recebeu duas
     // cargas no mesmo dia.
-    for (const groupId of place.groupIds) {
-      await recordCheck(empresaDaqui(), { groupId });
+    // Conferir pede `check_receipt`, e a recusa chega aqui — sem `catch` o toque
+    // não conferia nada e nada aparecia. Para na primeira: conferir metade das
+    // remessas e dizer que deu certo é pior que não conferir nenhuma.
+    try {
+      for (const groupId of place.groupIds) {
+        await recordCheck(empresaDaqui(), { groupId });
+      }
+    } catch (e) {
+      const aviso = avisoDeFalha(e, t, ERROS);
+      await confirm({
+        title: aviso.title,
+        message: aviso.message,
+        acknowledge: true,
+        confirmLabel: t.app.confirm.understood,
+      });
+      return;
     }
     refresh();
   };

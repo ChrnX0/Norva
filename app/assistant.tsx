@@ -1,4 +1,6 @@
 import { useRouter } from 'expo-router';
+import { avisoDeFalha } from '@/i18n/falha';
+import { ERROS } from '@/data/erros';
 import { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Button } from '@/components/Button';
@@ -134,7 +136,7 @@ function Conversation() {
             question: asked,
             answer: {
               text: fill(t.app.assistant.trouble, {
-                error: e instanceof Error ? e.message : String(e),
+                error: avisoDeFalha(e, t, ERROS).message,
               }),
             },
             open: false,
@@ -168,7 +170,7 @@ function Conversation() {
     } catch (e) {
       await askConfirm({
         title: t.app.assistant.failed,
-        message: e instanceof Error ? e.message : String(e),
+        message: avisoDeFalha(e, t, ERROS).message,
         acknowledge: true,
         confirmLabel: t.app.confirm.understood,
       });

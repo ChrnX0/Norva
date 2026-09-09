@@ -2176,3 +2176,60 @@ test('a régua do selo distingue quem grava de quem só menciona', () => {
     [],
   );
 });
+
+/**
+ * Toda escrita no razão que uma tela dispara tem `catch` — e a frase é da CASA.
+ *
+ * Duas metades do mesmo defeito, contadas pela auditoria de 9 de setembro. Três
+ * escritas não tinham `catch` nenhum: o toque não gravava e a tela ficava igual, e a
+ * pessoa toca de novo e depois desiste. Nove imprimiam `e.message` — a frase do
+ * programador, em inglês, sobre um banco de dados, para quem está de luva na câmara
+ * fria.
+ *
+ * As duas pioraram no mesmo dia em que os sete escritores ganharam portão: agora
+ * QUALQUER escrita pode recusar por permissão, e uma recusa que chega como
+ * `sem manage_company: apagar o livro da empresa` é uma recusa que ninguém entende.
+ */
+export function frasesCruas(fontes: readonly { arquivo: string; texto: string }[]): string[] {
+  return fontes
+    .filter((f) => /instanceof Error \? \w+\.message :/.test(semProsa(f.texto)))
+    .map((f) => f.arquivo);
+}
+
+test('nenhuma tela imprime a mensagem do erro', () => {
+  const fontes = sourcesUnder('app').map((arquivo) => ({
+    arquivo,
+    texto: readFileSync(arquivo, 'utf8'),
+  }));
+
+  assert.deepEqual(
+    frasesCruas(fontes),
+    [],
+    'estas telas mostram a frase do programador — `avisoDeFalha` existe para isso',
+  );
+});
+
+test('a régua da frase crua distingue mostrar de registrar', () => {
+  // Positivo: a forma exata que estava em nove telas.
+  assert.deepEqual(
+    frasesCruas([
+      { arquivo: 'app/purchase.tsx', texto: 'message: e instanceof Error ? e.message : String(e),' },
+    ]),
+    ['app/purchase.tsx'],
+  );
+
+  // Negativo 1: o conserto.
+  assert.deepEqual(
+    frasesCruas([{ arquivo: 'app/purchase.tsx', texto: 'message: avisoDeFalha(e, t, ERROS).message,' }]),
+    [],
+  );
+
+  // Negativo 2: a prosa. Um comentário citando a forma não é a forma — e três
+  // detectores desta casa já tropeçaram exatamente nisso.
+  assert.deepEqual(
+    frasesCruas([
+      { arquivo: 'app/x.tsx', texto: '// antes: e instanceof Error ? e.message : String(e)' },
+    ]),
+    [],
+  );
+});

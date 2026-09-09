@@ -23,6 +23,19 @@ export const ptBR = {
     ask: 'Pergunte alguma coisa…',
     allClear: 'Hoje está tudo em ordem.',
     /**
+     * O que a tela diz quando a gravação não acontece — e por que ela é uma só.
+     *
+     * Nove telas imprimiam `e.message`: a frase do programador, em inglês, sobre um
+     * banco de dados, para quem está de luva na câmara fria. E três não diziam nada —
+     * o toque não gravava e a tela ficava igual, que é pior que a frase errada.
+     *
+     * A mensagem crua continua existindo: ela é para o registro, nunca para a tela.
+     */
+    failureTitle: 'Não deu para gravar',
+    failureNotYours: 'Isso não faz parte do seu acesso. Peça a quem administra a empresa.',
+    failureMissing: 'Falta {{items}} para gravar isso.',
+    failureUnknown: 'Não deu para gravar agora. Tente de novo em um instante.',
+    /**
      * Quando o dinheiro não é desta pessoa para ver.
      *
      * Diz onde o número MORA em vez de dizer o que a pessoa não pode — é a
