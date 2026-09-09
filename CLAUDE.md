@@ -245,6 +245,13 @@ Duas regras de operação, ambas cicatriz:
   siga trabalhando — a notificação de término chega sozinha. Se precisar mesmo
   esperar uma condição, ela nunca pode ser um `pgrep` cujo padrão está na linha de
   comando que o executa.
+- **O `mutate` é a ÚLTIMA coisa da rodada, nunca a primeira.** Ele copia a árvore no
+  início e ocupa os quatro núcleos por seis minutos. Em 9 de setembro eu o disparei três
+  vezes no meio de uma rodada e segui editando e rodando `npm test` por cima: as três
+  levaram **de 12 a 17 minutos** em vez de seis, duas fatias do `e2e` saíram vermelhas
+  por espera de tempo fixo, e as três mediram uma árvore que eu já tinha mudado — então
+  o resultado chegou velho e as âncoras vieram cegas. Dispare-o quando as edições
+  acabaram e o resto da barra passou; até lá, a máquina é do trabalho.
 - **Servidor de desenvolvimento é processo, e processo esquecido cobra.** Um
   `expo start` ficou **6h38** no ar sem ninguém usar, com o Metro observando o
   disco numa máquina de quatro núcleos, roubando CPU de toda exportação e de toda
