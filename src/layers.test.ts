@@ -3,6 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { CARGO_PLACE_KINDS, INTERNAL_PLACE_KINDS, QUEM_ESCREVE } from './domain/ledger';
+import { APENAS_INSERE, sendableTables } from './sync/serialize';
 
 /**
  * Where SQL is allowed to live, pinned.
@@ -1946,5 +1947,117 @@ create policy movements_append on movements
     politicaDoServidor("-- a política diz when 'sale' then has_capability(company_id, 'dispatch')"),
     null,
     'comentário citando a política não é a política — o terceiro detector desta casa a tropeçar nisso',
+  );
+});
+
+/**
+ * O que o servidor não deixa REESCREVER, a fila não tenta reescrever.
+ *
+ * **A fila sobe com `on conflict do update`, e é isso que torna esta lista obrigatória.**
+ * Onde o servidor tem `for update`, reenviar uma linha corrige — é o que salva a fila de
+ * um envio parcial. Onde ele NÃO tem, o mesmo reenvio é recusado por política, e
+ * `drain` para na primeira recusa: a fila daquele aparelho não anda mais.
+ *
+ * Hoje as duas listas concordam, e foi por isso que este defeito nunca apareceu. O que
+ * faltava é a coisa que impede a próxima: `APENAS_INSERE` é escrita à mão, e uma tabela
+ * append-only nova entra no servidor sem ninguém lembrar dela aqui. O sintoma seria em
+ * produção, meses depois, e a causa estaria a quatro arquivos de distância.
+ *
+ * A lista do servidor é **derivada das migrações**, com `drop policy` respeitado — a
+ * `0008` e a `0047` derrubam e recriam a de `movements`, e um leitor que só somasse
+ * `create` daria por viva uma política revogada.
+ */
+export function reescrevePermitida(sql: string): Set<string> {
+  const limpo = sql.replace(/^\s*--.*$/gm, '');
+  // Ordem importa: create e drop se alternam ao longo das migrações, e quem vale é o
+  // último. Um leitor que só conta `create` acha que a forma da `0001` ainda vale.
+  const eventos: { pos: number; tipo: 'cria' | 'derruba'; nome: string; tabela: string; escreve: boolean }[] = [];
+  for (const m of limpo.matchAll(/create policy\s+(\w+)\s+on\s+(\w+)([\s\S]{0,200}?)(?:using|with check|\()/g)) {
+    const cmd = /\bfor\s+(all|update)\b/.test(m[3]);
+    eventos.push({ pos: m.index ?? 0, tipo: 'cria', nome: m[1], tabela: m[2], escreve: cmd });
+  }
+  for (const m of limpo.matchAll(/drop policy\s+(?:if exists\s+)?(\w+)\s+on\s+(\w+)/g)) {
+    eventos.push({ pos: m.index ?? 0, tipo: 'derruba', nome: m[1], tabela: m[2], escreve: false });
+  }
+  eventos.sort((a, b) => a.pos - b.pos);
+
+  const vivas = new Map<string, { tabela: string; escreve: boolean }>();
+  for (const e of eventos) {
+    if (e.tipo === 'cria') vivas.set(`${e.tabela}.${e.nome}`, { tabela: e.tabela, escreve: e.escreve });
+    else vivas.delete(`${e.tabela}.${e.nome}`);
+  }
+  const podem = new Set<string>();
+  for (const v of vivas.values()) if (v.escreve) podem.add(v.tabela);
+  return podem;
+}
+
+/**
+ * As que a fila trata como append-only e o servidor deixaria reescrever.
+ *
+ * Não é defeito — é o lado seguro de errar, e cada uma precisa da razão escrita. A
+ * lista existe para a exceção ser uma decisão em vez de um esquecimento.
+ */
+const CONSERVADORAS: Record<string, string> = {
+  readings: 'uma medida é um fato num instante: corrigir uma leitura de sensor seria reescrever o que o termômetro disse às 3h. O servidor permite e o aparelho não usa, de propósito',
+};
+
+test('what the server refuses to rewrite, the queue never tries to rewrite', () => {
+  const sql = readdirSync('supabase/migrations')
+    .filter((f) => f.endsWith('.sql'))
+    .sort()
+    .map((f) => readFileSync(join('supabase/migrations', f), 'utf8'))
+    .join('\n');
+  const podemReescrever = reescrevePermitida(sql);
+  assert.ok(podemReescrever.size > 5, `a derivação achou ${podemReescrever.size} tabelas reescrevíveis`);
+
+  const naLista = new Set<string>(APENAS_INSERE as readonly string[]);
+  const problemas: string[] = [];
+
+  for (const tabela of sendableTables) {
+    const reescreve = podemReescrever.has(tabela);
+    if (!reescreve && !naLista.has(tabela)) {
+      problemas.push(
+        `${tabela}: o servidor não tem política de UPDATE e a fila manda \`on conflict do update\` — ` +
+          'o reenvio é recusado, e `drain` para na primeira recusa',
+      );
+    }
+    if (reescreve && naLista.has(tabela) && !CONSERVADORAS[tabela]) {
+      problemas.push(
+        `${tabela}: a fila trata como append-only e o servidor deixaria corrigir — ` +
+          'ou entra em CONSERVADORAS com a razão, ou sai de APENAS_INSERE',
+      );
+    }
+  }
+
+  assert.deepEqual(problemas, [], `a fila e a política do servidor discordam:\n  ${problemas.join('\n  ')}`);
+});
+
+test('the rewrite reader respects drop policy, and does not read a revoked one as live', () => {
+  // Positivo: uma política de update viva.
+  assert.deepEqual(
+    [...reescrevePermitida("create policy p on orders for update using (true);")],
+    ['orders'],
+  );
+  // `for all` também escreve.
+  assert.deepEqual([...reescrevePermitida("create policy p on items for all using (true);")], ['items']);
+
+  // O caso que importa: criada e DERRUBADA depois. Um leitor que só conta `create`
+  // daria por viva a forma da 0001 — e a 0008 e a 0047 derrubam e recriam justamente
+  // a política de `movements`.
+  assert.deepEqual(
+    [
+      ...reescrevePermitida(
+        'create policy p on lots for update using (true);\ndrop policy p on lots;',
+      ),
+    ],
+    [],
+    'política revogada não vale',
+  );
+
+  // E a prosa não conta, pela quarta vez em dois dias.
+  assert.deepEqual(
+    [...reescrevePermitida("-- create policy p on movements for update using (true);")],
+    [],
+    'comentário citando uma política não é a política',
   );
 });

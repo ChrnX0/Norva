@@ -7526,3 +7526,37 @@ tabela, **derivada dele**.
 E a metade que impede o conserto de virar parede está no teste junto: o que o entregador
 NÃO alcança é recusado, e o que ele alcança continua passando. Portão que recusa tudo
 protege a fila e mata o aplicativo.
+
+## A guarda que não achou nada — e por que ela entra assim mesmo
+
+9 de setembro, seguindo o mesmo filão que já tinha pago três vezes na noite: *o que o
+aparelho grava contra o que o servidor aceitaria*. Depois de `movements`, a pergunta
+natural é o resto — a fila empurra **22 tabelas**.
+
+A varredura: três delas não têm política de UPDATE no servidor (`movements`,
+`sale_price_history`, `erase_requests`), e as três são append-only **de propósito**. A
+fila sobe com `on conflict do update`, então reenviar uma linha dessas seria recusado por
+política — e `drain` para na primeira recusa. O aparelho já sabe: `APENAS_INSERE` manda
+`ignoreDuplicates` para exatamente elas.
+
+**As duas listas concordam. Não havia defeito.** E é justamente por isso que vale
+registrar: *"não achei nada"* é resposta válida e precisa ser dita, senão a próxima
+varredura inventa um achado para não voltar de mãos vazias.
+
+O que faltava não era o conserto — era a coisa que impede o próximo. `APENAS_INSERE` é
+escrita à mão, e uma tabela append-only nova entra no servidor sem ninguém lembrar dela
+aqui. O sintoma apareceria em produção, meses depois, com a causa a quatro arquivos de
+distância. Agora uma guarda **deriva das migrações** quais tabelas o servidor deixa
+reescrever e compara — e ela respeita `drop policy`, porque a `0008` e a `0047` derrubam
+e recriam a política de `movements`: um leitor que só somasse `create` daria por viva uma
+forma revogada.
+
+**A régua que fica:** guarda não se escreve só quando há defeito. Onde duas listas
+precisam concordar e uma delas é escrita à mão, a guarda é o preço de a concordância não
+depender de memória — e o momento de escrevê-la é aquele em que se acabou de conferir
+que elas concordam, porque é quando se sabe qual é a comparação certa.
+
+E a exceção ficou nomeada em vez de invisível: `readings` está na lista conservadora e o
+servidor deixaria corrigir. É decisão — uma medida é um fato num instante, e reescrever
+uma leitura seria mudar o que o termômetro disse às três da manhã. A guarda exige a razão
+escrita para aceitar a diferença.
