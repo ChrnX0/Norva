@@ -157,6 +157,11 @@ async function garantirElenco(companyId: string) {
     const acucar = achar('Açúcar cristal');
     const glucose = achar('Glucose 38DE');
     const leite = achar('Leite em pó');
+    // A embalagem que o exemplo semeia, para os produtos novos GASTAREM palito e
+    // saquinho como o produto do exemplo gasta. Ver o bloco de `packagingItems`
+    // abaixo: sem eles a fábrica plantada era impossível.
+    const palito = achar('Palito de picolé');
+    const embalagem = achar('Embalagem plástica');
 
     if (acucar && glucose && leite) {
       const cacau = await saveItem(companyId, {
@@ -227,7 +232,26 @@ async function garantirElenco(companyId: string) {
           kind: 'product',
           recipeId: receita.recipeId,
           yieldPerUnit: 75,
-          unitPackagingRate: rate(0.05, 1),
+          /**
+           * A embalagem entra por CONSUMO, não por taxa — a mesma forma do exemplo.
+           *
+           * Estes dois produtos nasciam com `unitPackagingRate` de cinco centavos e
+           * `packagingItems` vazia: palavra por palavra a combinação que o docblock
+           * do `seed.ts` declara defeito e diz ter consertado. O dinheiro ficava
+           * certo e o ESTOQUE mentia — o palito só subia, porque ninguém o gastava.
+           * Dois dos três produtos da fábrica plantada fabricavam do nada.
+           *
+           * A taxa vai a zero junto, senão a embalagem entraria duas vezes no custo:
+           * uma pelo consumo e outra pela taxa.
+           */
+          packagingItems:
+            palito && embalagem
+              ? [
+                  { itemId: palito, quantityPerUnit: 1 },
+                  { itemId: embalagem, quantityPerUnit: 1 },
+                ]
+              : [],
+          unitPackagingRate: palito && embalagem ? rate(0, 1) : rate(0.05, 1),
           packaging: STACKED,
           lineId: linha,
           typeId: novo.tipo,
@@ -307,8 +331,13 @@ export async function simulateFortnight(
     // acaso fica sem polpa no quarto dia e depois só mostra tela vazia. A nota
     // entrando antes do tacho também importa: nota que chega depois congelaria
     // no custo um preço que a fábrica não pagou naquela manhã.
+    // **Embalagem também se compra.** O filtro era só `input`, e palito e saquinho
+    // são `packaging`: eles nunca eram repostos, e o exemplo plantado morria no dia
+    // 33 — a fábrica parava por falta de palito com a câmara cheia de polpa. O resto
+    // do laço (patamar do razão, tendência, prazo do fornecedor) já funciona para
+    // qualquer item que tenha unidade de compra.
     const inputs = (await listItems(companyId)).filter(
-      (i) => i.kind === 'input' && (i.purchaseToBase ?? 0) > 0,
+      (i) => (i.kind === 'input' || i.kind === 'packaging') && (i.purchaseToBase ?? 0) > 0,
     );
     /**
      * O patamar de preço vem do LIVRO-RAZÃO, não da tela.

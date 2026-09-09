@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
-import { __setDb, migrate, type Db, type SqlParam } from './db';
+import { __setDb, db, migrate, type Db, type SqlParam } from './db';
 import { dayWindow } from '@/domain/day';
 import { listItems, productionOn, shipmentsOn } from './repository';
 import { ensureStarterData } from './seed';
 import { EMPRESA_SEMENTE } from './empresa';
-import { simulateFortnight } from './simulate';
+import { HORIZONTE_DE_TESTE, simulateFortnight } from './simulate';
 
 /**
  * A quinzena simulada, conferida como fato e não como enfeite.
@@ -130,3 +130,60 @@ test('the simulation writes through the front door, so the balance survives it',
   ];
   assert.ok(remessas.length > 0, 'nenhuma remessa nos dois últimos dias');
 });
+
+/**
+ * Os noventa dias — e a fábrica que eles plantavam era impossível.
+ *
+ * `HORIZONTE_DE_TESTE` é o que o botão "plantar três meses" dos Ajustes roda, e é
+ * a fábrica que o dono olha para decidir se o aplicativo serve. Ela tinha dois
+ * defeitos que se somavam:
+ *
+ * - Dois dos três produtos nasciam com `unitPackagingRate` e `packagingItems`
+ *   VAZIA — a combinação que o docblock do `seed.ts` declara defeito e diz ter
+ *   consertado no exemplo. Eles fabricavam sem gastar palito nem embalagem.
+ * - O reabastecimento filtrava só `kind === 'input'`, e palito e saquinho são
+ *   `packaging`: nunca eram comprados. Com o produto do exemplo consumindo os dois
+ *   e ninguém repondo, a fábrica parava no dia 33 — com a câmara cheia de polpa.
+ *
+ * As duas asserções são sobre o MUNDO que a simulação deixa: todo produto que roda
+ * consome embalagem, e a fábrica continua produzindo no fim do trimestre.
+ */
+test('os três meses plantados gastam embalagem e continuam produzindo no fim', async () => {
+  await bancoLimpo();
+  await ensureStarterData(EMPRESA_SEMENTE);
+  await simulateFortnight(EMPRESA_SEMENTE, {
+    days: HORIZONTE_DE_TESTE,
+    timeZone: SP,
+    at: AGORA,
+  });
+
+  // 1. A embalagem foi CONSUMIDA, não só comprada. Sem os `packagingItems` o palito
+  //    só sobe — e "só sobe" é indistinguível de "foi comprado" sem olhar a espécie.
+  const embalagens = (await listItems(EMPRESA_SEMENTE)).filter((i) => i.kind === 'packaging');
+  assert.ok(embalagens.length > 0, 'o exemplo semeia palito e saquinho');
+  for (const item of embalagens) {
+    const gasto = await consumoDe(item.id);
+    assert.ok(gasto > 0, `${item.name} nunca foi gasto em noventa dias de fábrica`);
+  }
+
+  // 2. E a fábrica não morreu no meio: houve produção na última semana da janela.
+  const fim = dayWindow(AGORA, SP);
+  const seteDiasAntes = dayWindow(AGORA, SP, -7);
+  const ultimas = await productionOn(EMPRESA_SEMENTE, seteDiasAntes.from, fim.to);
+  assert.ok(
+    ultimas.length > 0,
+    'a fábrica plantada parou antes do fim do trimestre — era o palito acabando',
+  );
+});
+
+/** Quanto deste item SAIU como consumo, no razão inteiro. */
+async function consumoDe(itemId: string): Promise<number> {
+  const conn = await db();
+  const linha = await conn.getFirstAsync<{ n: number }>(
+    `SELECT COALESCE(-SUM(quantity_base_units), 0) AS n
+       FROM movements
+      WHERE item_id = ? AND kind = 'consumption'`,
+    [itemId],
+  );
+  return linha?.n ?? 0;
+}
