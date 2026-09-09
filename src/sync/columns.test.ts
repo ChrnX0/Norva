@@ -281,3 +281,143 @@ test('every server column with a written rule reaches the device, or says why no
       'só do servidor. Tire a linha: registro que virou mentira é pior que registro nenhum.',
   );
 });
+
+/**
+ * O que o servidor exige preenchido, o aparelho também exige — e as três guardas
+ * acima não cobriam isto.
+ *
+ * Elas cobram **presença**: a coluna existe dos dois lados, e quem não atravessa diz por
+ * quê. Nenhuma cobra a **obrigatoriedade**. Uma coluna que existe nos dois e é nula no
+ * aparelho e `not null` no servidor passa por todas elas — e o defeito que ela produz é
+ * o mais caro que esta costura tem: o aparelho grava a linha, a fila a manda, o servidor
+ * a recusa por restrição, e `drain` **para na primeira recusa**. Nada na tela, e tudo o
+ * que a fábrica gravar depois fica preso atrás dela.
+ *
+ * **Uma varredura de 9 de setembro não achou nenhuma divergência** — o esquema do
+ * aparelho espelha todo `not null` do servidor nas 22 tabelas que a fila empurra. Esta
+ * guarda entra assim mesmo, e a razão é a mesma da irmã escrita hoje: onde dois esquemas
+ * precisam concordar e os dois são escritos à mão, a guarda é o preço de a concordância
+ * não depender de memória. O momento de escrevê-la é aquele em que se acabou de conferir
+ * que eles concordam, porque é quando se sabe qual é a comparação certa.
+ *
+ * **Só as colunas que o aparelho MANDA.** Uma coluna fora da lista de travessia não é
+ * enviada, e aí o `default` do servidor responde por ela — exigir `NOT NULL` no aparelho
+ * ali seria inventar obrigação. É a diferença entre *"mando nulo"* e *"não mando"*, e
+ * só a primeira é recusada.
+ */
+export function obrigatoriasNoServidor(sql: string): Map<string, Set<string>> {
+  // A prosa sai primeiro, pela quinta vez em dois dias: `create table` aparece dentro
+  // de comentário explicando migração, e um leitor que não limpa lê a explicação.
+  const limpo = sql.replace(/^\s*--.*$/gm, '');
+  const porTabela = new Map<string, Set<string>>();
+  for (const m of limpo.matchAll(/create table (?:if not exists )?(\w+)\s*\(([\s\S]*?)\n\);/g)) {
+    const cols = new Set<string>();
+    for (const bruta of m[2].split('\n')) {
+      const linha = bruta.trim().replace(/,$/, '');
+      if (!linha) continue;
+      const inicio = linha.toLowerCase().split(/\s+/)[0];
+      if (['primary', 'unique', 'constraint', 'check', 'foreign', 'exclude'].includes(inicio)) continue;
+      // `default` salva a coluna: o servidor preenche quando ela não vem. O que
+      // recusa é mandar NULO numa coluna sem default.
+      if (/\bnot null\b/i.test(linha) && !/\bdefault\b/i.test(linha)) cols.add(linha.split(/\s+/)[0]);
+    }
+    if (cols.size > 0) porTabela.set(m[1], cols);
+  }
+  for (const m of limpo.matchAll(/alter table (\w+)\s+add column (\w+)([^;]*);/gi)) {
+    if (/\bnot null\b/i.test(m[3]) && !/\bdefault\b/i.test(m[3])) {
+      const s = porTabela.get(m[1]) ?? new Set<string>();
+      s.add(m[2]);
+      porTabela.set(m[1], s);
+    }
+  }
+  return porTabela;
+}
+
+test('a column the server demands filled is not nullable on the device either', async () => {
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const sql = readdirSync('supabase/migrations')
+    .filter((f) => f.endsWith('.sql'))
+    .sort()
+    .map((f) => readFileSync(`supabase/migrations/${f}`, 'utf8'))
+    .join('\n');
+
+  const exigidas = obrigatoriasNoServidor(sql);
+  assert.ok(exigidas.size >= 10, `a derivação achou ${exigidas.size} tabelas com coluna obrigatória`);
+
+  const frouxas: string[] = [];
+  let conferidas = 0;
+  // `CROSSINGS_FOR_TESTS_ONLY` é uma FUNÇÃO, e a primeira versão iterou o objeto dela:
+  // `Object.entries` sobre uma função devolve lista vazia, o laço nunca rodou, e o
+  // teste passou de graça. O typecheck aceita — função é objeto. A asserção de
+  // presença logo abaixo é o que impede isso de voltar, e ela é a mesma régua que este
+  // arquivo já usa três vezes: varredura vazia não é comparação, é silêncio.
+  const cruzamentos = Object.entries(CROSSINGS_FOR_TESTS_ONLY());
+  assert.ok(cruzamentos.length > 15, `a varredura achou ${cruzamentos.length} travessias`);
+  for (const [tabela, cruzamento] of cruzamentos) {
+    const doServidor = exigidas.get(tabela);
+    if (!doServidor) continue;
+    const noAparelho = await conn.getAllAsync<{ name: string; notnull: number }>(
+      `PRAGMA table_info(${tabela})`,
+    );
+    if (noAparelho.length === 0) continue; // tabela que só existe no servidor: outro assunto
+
+    for (const coluna of cruzamento.take) {
+      if (!doServidor.has(coluna)) continue;
+      const dev = noAparelho.find((c) => c.name === coluna);
+      // Coluna que o aparelho não tem já é cobrada pelas guardas de presença.
+      if (!dev) continue;
+      conferidas += 1;
+      if (dev.notnull === 0) {
+        frouxas.push(`${tabela}.${coluna}: servidor \`not null\`, aparelho aceita nulo`);
+      }
+    }
+  }
+
+  assert.ok(
+    conferidas > 20,
+    `só ${conferidas} colunas foram conferidas — a guarda estaria medindo quase nada`,
+  );
+  assert.deepEqual(
+    frouxas,
+    [],
+    `o aparelho aceita nulo onde o servidor exige valor:\n  ${frouxas.join('\n  ')}\n` +
+      'A linha entra aqui, a fila a manda, o servidor a recusa por restrição, e o motor ' +
+      'para na primeira recusa — com tudo o que a fábrica gravar depois preso atrás dela.',
+  );
+});
+
+test('the required-column reader tells a real rule from a default and from prose', () => {
+  // Positivo: `not null` sem default é exigência de verdade.
+  assert.deepEqual(
+    [...(obrigatoriasNoServidor('create table lots (\n  id uuid,\n  code text not null\n);').get('lots') ?? [])],
+    ['code'],
+  );
+
+  // Negativo 1, e é o que separa "mando nulo" de "não mando": com `default`, o servidor
+  // preenche quando a coluna não vem. Exigir NOT NULL no aparelho ali inventaria
+  // obrigação, e a guarda viraria ruído no primeiro `created_at`.
+  assert.equal(
+    obrigatoriasNoServidor("create table lots (\n  created_at timestamptz not null default now()\n);").size,
+    0,
+  );
+
+  // Negativo 2: linhas de restrição não são colunas.
+  assert.equal(
+    obrigatoriasNoServidor('create table lots (\n  primary key (id),\n  unique (code)\n);').size,
+    0,
+  );
+
+  // Negativo 3: a prosa. Um comentário que MOSTRA a forma de uma tabela é explicação,
+  // não esquema — e é o quinto detector desta casa a precisar disto em dois dias.
+  assert.equal(
+    obrigatoriasNoServidor('-- create table velha (\n--   code text not null\n-- );').size,
+    0,
+    'comentário que desenha a tabela não é a tabela',
+  );
+
+  // E o `alter table add column`, que é como quase toda coluna nasce aqui.
+  assert.deepEqual(
+    [...(obrigatoriasNoServidor('alter table lots add column origin text not null;').get('lots') ?? [])],
+    ['origin'],
+  );
+});

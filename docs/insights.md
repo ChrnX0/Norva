@@ -7560,3 +7560,32 @@ E a exceção ficou nomeada em vez de invisível: `readings` está na lista cons
 servidor deixaria corrigir. É decisão — uma medida é um fato num instante, e reescrever
 uma leitura seria mudar o que o termômetro disse às três da manhã. A guarda exige a razão
 escrita para aceitar a diferença.
+
+## `Object.entries` sobre uma FUNÇÃO devolve vazio — e o teste passa de graça
+
+9 de setembro, cometido e pego dez minutos depois, na guarda que eu estava escrevendo
+justamente para não deixar nada passar de graça.
+
+`CROSSINGS_FOR_TESTS_ONLY` é `() => CROSSINGS`. Eu escrevi
+`Object.entries(CROSSINGS_FOR_TESTS_ONLY)` — sem chamar. Função é objeto em JavaScript,
+`Object.entries` devolve as propriedades próprias enumeráveis dela, que são **nenhuma**,
+o laço não rodou uma vez, e o teste passou verde na primeira execução.
+
+**O typecheck aceita**, e não é bug dele: `Object.entries` sobre uma função é legal. E o
+verde é o pior sintoma possível, porque ele parece a resposta que se queria — eu tinha
+acabado de escrever uma guarda nova e ela "já passava".
+
+O que pegou foi o reflexo que este arquivo documenta três vezes: **varredura vazia não é
+comparação, é silêncio.** Toda régua desta casa carrega uma asserção de presença ao lado
+da de ausência — *"a varredura veio vazia, a comparação seria de graça"* — e foi ela que
+faltou por dez minutos.
+
+Duas coisas ficaram no lugar: o laço conta quantas colunas conferiu e exige mais de
+vinte, e a guarda foi provada **por mordida** (afrouxando `movements.quantity_base_units`
+no aparelho, ela acusa com a frase certa). Guarda nova sem mordida é guarda que ninguém
+sabe se morde.
+
+**A régua que fica, e ela é mais estreita e mais útil que "teste o teste":** quando a
+fonte de uma varredura é exportada como função — e várias são, para não congelar o
+objeto —, o erro de esquecer o `()` não aparece em lugar nenhum. Nem no tipo, nem no
+resultado, nem na cor do teste. **Só a contagem denuncia.**
