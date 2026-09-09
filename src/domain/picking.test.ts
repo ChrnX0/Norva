@@ -320,3 +320,52 @@ test('o que já chegou na loja hoje sai da conta do que falta produzir', () => {
   // E estoque de sobra também não vira falta negativa.
   assert.equal(faltaProduzir({ requested: 100, sentToday: 0, onHand: 900 }), 0);
 });
+
+/**
+ * A loja que já recebeu sai da fila — e ela ficava.
+ *
+ * `freeToShip` contava a promessa em BRUTO: uma loja que pediu 200 e recebeu 200 de
+ * manhã continuava esperando 200, e a confirmação — que já é livro-razão — avisava
+ * *"faltarão 200 un"* quando não faltava nada. Quem carrega lê um alarme falso e
+ * passa a ignorar o verdadeiro, que é o defeito que este projeto mais persegue.
+ */
+test('o que já chegou hoje sai da fila da reserva', () => {
+  const pedidos = [
+    { id: 'a', placeId: 'centro', requestedFor: null, lines: [{ itemId: 'picole', baseUnits: 200 }] },
+    { id: 'b', placeId: 'norte', requestedFor: null, lines: [{ itemId: 'picole', baseUnits: 300 }] },
+  ];
+  const base = {
+    itemId: 'picole',
+    toPlaceId: 'sul',
+    through: '2026-09-30',
+    onHand: 400,
+    amount: 300,
+    orders: pedidos,
+  };
+
+  // Sem entrega nenhuma: 500 prometidos contra 100 que sobram — faltam 400.
+  const cru = freeToShip(base);
+  assert.equal(cru.short, 400);
+  assert.equal(cru.queue.length, 2);
+
+  // A loja Centro já recebeu os 200 dela hoje. Ela sai da fila inteira, e o que
+  // falta cai para os 300 do Norte contra os 100 que sobram.
+  const comEntrega = freeToShip({
+    ...base,
+    recebidoHoje: new Map([['centro', 200]]),
+  });
+  assert.equal(comEntrega.queue.length, 1, 'quem já recebeu não espera mais');
+  assert.equal(comEntrega.queue[0].placeId, 'norte');
+  assert.equal(comEntrega.short, 200, '300 prometidos menos os 100 que sobram');
+
+  // Entrega PARCIAL entra pela metade, que é o caso mais comum e o mais fácil de
+  // errar: 120 dos 200 chegaram, sobram 80 de promessa.
+  const meio = freeToShip({ ...base, recebidoHoje: new Map([['centro', 120]]) });
+  assert.equal(meio.queue.length, 2);
+  assert.equal(meio.queue.find((w) => w.placeId === 'centro')?.baseUnits, 80);
+
+  // E o recebido de uma loja não paga o pedido de outra.
+  const trocado = freeToShip({ ...base, recebidoHoje: new Map([['norte', 500]]) });
+  assert.equal(trocado.queue.length, 1, 'o Norte saiu, o Centro ficou');
+  assert.equal(trocado.queue[0].placeId, 'centro');
+});

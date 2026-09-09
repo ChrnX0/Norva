@@ -178,8 +178,22 @@ export function freeToShip(input: {
     requestedFor: string | null;
     lines: readonly { itemId: string; baseUnits: number }[];
   }[];
+  /**
+   * Quanto deste item já chegou HOJE em cada loja — a mesma janela que fecha pedido.
+   *
+   * A promessa era contada em BRUTO: uma loja que pediu 200 e já recebeu 200 de
+   * manhã continuava na fila esperando 200, e a tela avisava *"faltarão 200 un"*
+   * quando não faltava nada — na confirmação que já é livro-razão. Quem carrega lê
+   * um alarme falso e passa a ignorar o verdadeiro.
+   *
+   * Ausente é zero, que é a resposta certa para quem não pergunta sobre o dia.
+   */
+  recebidoHoje?: ReadonlyMap<string, number>;
 }): FreeToShip {
   const queue: Waiting[] = [];
+  // O recebido é por LOJA, e um pedido não pode consumir o que chegou para outra:
+  // a sobra de cada loja se gasta na ordem em que os pedidos dela vêm.
+  const sobra = new Map(input.recebidoHoje ?? []);
   for (const order of input.orders) {
     if (order.placeId === input.toPlaceId) continue;
     if (order.requestedFor !== null && order.requestedFor > input.through) continue;
@@ -187,10 +201,16 @@ export function freeToShip(input: {
       .filter((l) => l.itemId === input.itemId)
       .reduce((n, l) => n + l.baseUnits, 0);
     if (baseUnits <= 0) continue;
+
+    const jaChegou = Math.max(0, sobra.get(order.placeId) ?? 0);
+    const liquido = Math.max(0, baseUnits - jaChegou);
+    sobra.set(order.placeId, jaChegou - Math.min(jaChegou, baseUnits));
+    if (liquido <= 0) continue;
+
     queue.push({
       orderId: order.id,
       placeId: order.placeId,
-      baseUnits,
+      baseUnits: liquido,
       requestedFor: order.requestedFor,
     });
   }

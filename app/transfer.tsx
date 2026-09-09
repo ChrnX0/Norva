@@ -36,6 +36,8 @@ import {
   stockByPlace,
   type Place,
   type PlaceStock,
+  shipmentsOn,
+  type Shipment,
 } from '@/data/repository';
 import { nowIso } from '@/data/db';
 import { dayWindow, localDate } from '@/domain/day';
@@ -93,7 +95,7 @@ export default function TransferScreen() {
   );
 }
 
-type Loaded = { places: Place[]; stock: PlaceStock[]; orders: Order[] };
+type Loaded = { places: Place[]; stock: PlaceStock[]; orders: Order[]; remessas: Shipment[] };
 
 /** O lote que sai primeiro: o mais velho que ainda existe na origem. */
 type Frente = { lotId: string; code: string; expiresOn: string | null; baseUnits: number } | null;
@@ -109,12 +111,19 @@ function Transfer() {
     // Os pedidos em aberto entram na abertura da tela, e não no envio, porque é
     // ANTES de digitar que eles decidem: quem carrega precisa saber que aquelas
     // caixas têm dono enquanto ainda dá para mandar menos.
-    const [places, stock, orders] = await Promise.all([
+    // O que já chegou HOJE em cada loja entra junto, e pelo mesmo motivo que os
+    // pedidos entram: é ANTES de digitar que ele decide. Sem isso a reserva contava
+    // a promessa em bruto — uma loja que pediu 200 e recebeu 200 de manhã continuava
+    // na fila esperando 200, e a confirmação avisava "faltarão 200" quando não
+    // faltava nada. Alarme falso na tela que já é livro-razão.
+    const hoje = dayWindow(nowIso(), locale.timeZone);
+    const [places, stock, orders, remessas] = await Promise.all([
       listPlaces(empresaDaqui()),
       stockByPlace(empresaDaqui()),
       listOrders(empresaDaqui(), ['pending', 'open']),
+      shipmentsOn(empresaDaqui(), hoje.from, hoje.to),
     ]);
-    return { places, stock, orders };
+    return { places, stock, orders, remessas };
   });
 
   /**
@@ -295,6 +304,12 @@ function Transfer() {
           ),
           amount,
           orders: data?.orders ?? [],
+          recebidoHoje: new Map(
+            (data?.remessas ?? []).map((r) => [
+              r.locationId,
+              r.items.find((i) => i.itemId === line.itemId)?.baseUnits ?? 0,
+            ]),
+          ),
         })
       : null;
   const primeiro = compromisso?.queue[0] ?? null;
