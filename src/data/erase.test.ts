@@ -9,6 +9,7 @@ import {
   itemKindsFor,
   tablesFor,
   tallyFor,
+  TALLY_KEYS,
   type EraseArea,
   type EraseCounts,
   type EraseTally,
@@ -477,4 +478,44 @@ test('a régua da contagem é régua: pega a tabela nova e deixa a registrada pa
   assert.ok(!CONTADA['tabela_nova'] && !NAO_CONTADA['tabela_nova'], 'tabela desconhecida não tem resposta');
   assert.ok(CONTADA['people'] === 'people', 'gente é contada, e a guarda enxerga isso');
   assert.ok(NAO_CONTADA['outbox']?.length > 20, 'a fila tem razão escrita, e a razão é uma frase');
+});
+
+/**
+ * A guarda que parava UMA LINHA antes da tela.
+ *
+ * A de cima prova que toda tabela apagada tem um CAMPO no `EraseTally`. Ela estava
+ * verde enquanto a segunda confirmação de "apagar tudo" dizia **"Já está tudo
+ * vazio"** com seis pessoas na grade e quarenta lotes dentro: `isEmpty` somava seis
+ * das catorze chaves e a frase imprimia dez. Ter campo não é ser DITO.
+ *
+ * O docblock da guarda irmã promete que *"três vezes esta tela contou menos do que
+ * destruiu"* não se repete. Esta fecha a terceira volta: todo campo do tally é
+ * percorrido pela lista que a tela imprime, e `isEmpty` olha a lista inteira.
+ */
+test('todo campo contado aparece na lista que a tela percorre', () => {
+  const contados = new Set(Object.values(CONTADA));
+  const impressos = new Set<string>(TALLY_KEYS);
+
+  const mudos = [...contados].filter((k) => !impressos.has(k));
+  assert.deepEqual(
+    mudos,
+    [],
+    `estes campos são contados e a frase nunca os diz:\n  ${mudos.join('\n  ')}`,
+  );
+});
+
+test('vazio quer dizer vazio — todas as catorze chaves, não seis', () => {
+  const zerado = Object.fromEntries(TALLY_KEYS.map((k) => [k, 0])) as EraseTally;
+  assert.equal(isEmpty(zerado), true, 'nada em lugar nenhum é vazio');
+
+  // Uma chave de cada vez: qualquer uma sozinha já torna a área NÃO vazia. Sem
+  // isto a guarda mediria "isEmpty existe" em vez de "isEmpty olha tudo" — e era
+  // exatamente por olhar seis que ela dizia vazio com a grade de nomes cheia.
+  for (const chave of TALLY_KEYS) {
+    assert.equal(
+      isEmpty({ ...zerado, [chave]: 1 }),
+      false,
+      `${chave} sozinha tem de impedir a frase "já está tudo vazio"`,
+    );
+  }
 });

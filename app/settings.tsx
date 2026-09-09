@@ -78,6 +78,7 @@ import {
   type EraseBlocker,
   type EraseCounts,
   type EraseTally,
+  TALLY_KEYS,
 } from '@/data/erase';
 import { exampleStillHere, restoreStarterData } from '@/data/seed';
 import { empresaAdotada, empresaDaqui } from '@/data/empresa';
@@ -195,24 +196,22 @@ function sayTally(area: EraseArea, tally: EraseTally, t: Dictionary): string {
   const words = t.app.settings;
   if (isEmpty(tally)) return area === 'all' ? words.alreadyEmpty : words.nothingToErase;
 
+  // **A frase percorre a MESMA lista que a contagem.**
+  //
+  // Eram dez chamadas escritas à mão para catorze chaves: gente, lotes, pedidos e
+  // transportadoras eram contados pelo repositório, apagados pelo `tablesFor('all')`
+  // — e não apareciam. A segunda confirmação de "apagar tudo", o único lugar onde
+  // alguém lê o que vai perder, omitia a grade de nomes com PIN.
+  //
+  // A ordem de impressão é a de `TALLY_KEYS`: o que dói primeiro (movimento antes
+  // dos cadastros), e por último o que a pessoa reconhece menos rápido — a folha se
+  // lê de cima para baixo. Chave nova sem palavra no dicionário passa a não compilar,
+  // que é o mecanismo do `Widen<T>` desta casa, em vez de sumir em silêncio.
   const parts: string[] = [];
-  const add = (n: number, key: keyof Dictionary['app']['settings']['counted']) => {
+  for (const key of TALLY_KEYS) {
+    const n = tally[key];
     if (n > 0) parts.push(plural(n, words.counted[key]));
-  };
-  add(tally.inputs, 'inputs');
-  // Antes dos cadastros, porque é o que dói: apagar "compras" leva TODO
-  // movimento da fábrica, e a frase dizia só que zerava o custo médio.
-  add(tally.movements, 'movements');
-  add(tally.recipes, 'recipes');
-  add(tally.products, 'products');
-  add(tally.places, 'places');
-  add(tally.purchases, 'purchases');
-  // As quatro que somiam sem número. Vêm por último de propósito: são as que a
-  // pessoa reconhece menos rápido, e a folha se lê de cima para baixo.
-  add(tally.readings, 'readings');
-  add(tally.grid, 'grid');
-  add(tally.salePrices, 'salePrices');
-  add(tally.agreedPrices, 'agreedPrices');
+  }
 
   const what = joinList(parts, t.common.and);
   const sentence =

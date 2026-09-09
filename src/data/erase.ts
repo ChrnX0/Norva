@@ -336,27 +336,42 @@ export class EraseBlockedError extends Error {
  * 1 produto" in whatever language is on screen instead of a number the person
  * has to take on trust.
  */
-export type EraseTally = {
-  inputs: number;
-  /** Só "apagar tudo" leva estas quatro; nenhuma área menor é dona delas. */
-  readings: number;
-  grid: number;
-  salePrices: number;
-  agreedPrices: number;
-  /** As transportadoras: coisa que a pessoa cadastrou e reconhece pelo nome. */
-  carriers: number;
-  /** Movimentos do livro-razão. Ver `EraseCounts.movements`. */
-  movements: number;
-  recipes: number;
-  products: number;
-  purchases: number;
-  /** Só "apagar tudo" leva os lugares; nenhuma área menor é dona deles. */
-  places: number;
-  /** Ver `EraseCounts.people`: a grade de nomes sumia contada como zero. */
-  people: number;
-  lots: number;
-  orders: number;
-};
+/**
+ * O que a contagem de apagar tem — e a LISTA é a fonte, não o tipo.
+ *
+ * Escrita como constante e não como campos de tipo porque duas coisas precisam
+ * PERCORRER estas chaves e as duas as escreviam à mão: `isEmpty`, que somava seis
+ * das catorze, e a frase da tela, que imprimia dez. Gente, lotes, pedidos e
+ * transportadoras eram contados pelo repositório, apagados pelo `tablesFor('all')`,
+ * e não apareciam em nenhum dos dois — então a segunda confirmação de "apagar
+ * tudo", que é o único lugar onde alguém lê o que vai perder, dizia **"Já está
+ * tudo vazio"** com seis pessoas e quarenta lotes dentro.
+ *
+ * Uma confirmação que mente antes de um ato irreversível é o pior defeito que este
+ * arquivo pode ter. Com a lista, quem acrescentar uma tabela nova ao apagar não
+ * consegue esquecer nenhum dos dois lados: o tipo deriva daqui, e a tela percorre
+ * a mesma lista.
+ *
+ * A ordem é a de impressão: o que a pessoa mais reconhece primeiro.
+ */
+export const TALLY_KEYS = [
+  'inputs',
+  'movements',
+  'recipes',
+  'products',
+  'places',
+  'purchases',
+  'people',
+  'lots',
+  'orders',
+  'carriers',
+  'readings',
+  'grid',
+  'salePrices',
+  'agreedPrices',
+] as const;
+
+export type EraseTally = { [K in (typeof TALLY_KEYS)[number]]: number };
 
 export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
   const nothing: EraseTally = {
@@ -416,11 +431,14 @@ export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
   }
 }
 
-/** Whether there is anything at all to erase in this area. */
+/**
+ * Há alguma coisa para apagar nesta área?
+ *
+ * Somava SEIS das catorze chaves. Uma empresa com seis pessoas na grade, quarenta
+ * lotes e pedidos abertos — e nada de insumo, receita ou movimento — respondia
+ * "vazia", e a confirmação dizia isso na cara de quem ia apagar tudo.
+ */
 export function isEmpty(tally: EraseTally): boolean {
-  return (
-    tally.inputs + tally.movements + tally.recipes + tally.products + tally.purchases + tally.places ===
-    0
-  );
+  return TALLY_KEYS.every((k) => tally[k] === 0);
 }
 

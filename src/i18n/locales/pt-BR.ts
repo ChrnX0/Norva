@@ -929,6 +929,7 @@ export const ptBR = {
         people: { one: '1 pessoa cadastrada', other: '{{n}} pessoas cadastradas' },
         lots: { one: '1 lote', other: '{{n}} lotes' },
         orders: { one: '1 pedido', other: '{{n}} pedidos' },
+        carriers: { one: '1 transportadora', other: '{{n}} transportadoras' },
         // As quatro que somiam sem número — dívida registrada em 7 de setembro,
         // paga em 8. A grade é UM número: a pessoa monta a grade, não cadastra
         // "um tipo".
