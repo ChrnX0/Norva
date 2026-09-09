@@ -21,7 +21,7 @@ import { File } from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
 import * as Updates from 'expo-updates';
 import { countMovements } from '@/data/repository';
-import { ultimaCopia } from '@/data/backup';
+import { registrarCopia, ultimaCopia } from '@/data/backup';
 import { guardarCopia, nomeDaCopia } from '@/data/copia';
 import { drain } from '@/sync/engine';
 import { transporte } from '@/sync/transporte';
@@ -192,6 +192,18 @@ async function copiarParaODrive(): Promise<void> {
     { nome: nomeDaCopia(agora), bytes },
     agora,
   );
+
+  // **Só DEPOIS do envio, e é a mesma linha que o toque manual grava.**
+  //
+  // O caminho automático não anotava nada: `rodadaAutomatica` pergunta a
+  // `ultimaCopia()` se está na hora, `horaDeCopiar(null, …)` responde sim quando
+  // nunca houve, e o laço não fechava. O Drive recebia o razão inteiro a cada volta
+  // ao primeiro plano — banda, bateria e cota de conta dele —, e a capa continuava
+  // cobrando um backup que já tinha subido.
+  //
+  // Depois do envio porque só conta como cópia o que SAIU do aparelho: gravar antes
+  // faria uma subida falhada parecer feita, que é a mentira mais cara das duas.
+  await registrarCopia(feita);
 }
 
 /**

@@ -8,13 +8,11 @@ import { useConfirm } from '@/components/Confirm';
 import { GlyphArchive, GlyphPrice } from '@/components/Glyph';
 import { Reveal } from '@/components/Reveal';
 import { nowIso } from '@/data/db';
-import { writeJson } from '@/data/meta';
 import {
   CopiaRecusadaError,
-  ULTIMA_COPIA,
   ultimaCopia,
   type MotivoDaCopia,
-  type UltimaCopia,
+  registrarCopia,
 } from '@/data/backup';
 import { escolherCopia, guardarCopia, partilharCopia, trazerDeVolta } from '@/data/copia';
 import { copiasGuardadas, esquecerDrive, ligarDrive, temDestino } from '@/nuvem/aparelho';
@@ -174,11 +172,7 @@ export default function BackupScreen() {
     setOcupado('guardando');
     try {
       const feita = await guardarCopia(nowIso());
-      await writeJson(ULTIMA_COPIA, {
-        feitoEm: feita.feitoEm,
-        movimentos: feita.movimentos,
-        bytes: feita.bytes,
-      } satisfies UltimaCopia);
+      await registrarCopia(feita);
       estado.refresh();
       // A partilha vem logo depois de gravar, no mesmo toque: uma cópia que fica
       // no cache do aparelho não protege de aparelho perdido, e pedir um segundo
@@ -236,11 +230,11 @@ export default function BackupScreen() {
       // O conserto grava o selo da cópia que acabou de voltar, e isso não é
       // remendo: ela É a última cópia que existe. Quem restaurou não perdeu a
       // rede de segurança — ela é exatamente o arquivo que ele acabou de usar.
-      await writeJson(ULTIMA_COPIA, {
+      await registrarCopia({
         feitoEm: escolha.lida.feitoEm ?? nowIso(),
         movimentos: escolha.lida.movimentos,
         bytes: escolha.lida.bytes,
-      } satisfies UltimaCopia);
+      });
       estado.refresh();
 
       // `acknowledge` porque não há o que confirmar: a fábrica já voltou. Sem

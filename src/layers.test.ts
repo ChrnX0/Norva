@@ -2105,3 +2105,74 @@ test('the rewrite reader respects drop policy, and does not read a revoked one a
     'comentário citando uma política não é a política',
   );
 });
+
+/**
+ * O selo da última cópia tem UM escritor.
+ *
+ * Ele estava escrito à mão em dois lugares da tela e em nenhum lugar do caminho
+ * automático — e é ele que a régua de frequência lê. Sem o selo, `horaDeCopiar`
+ * respondia "sim" para sempre: o Drive recebia o razão inteiro a cada volta ao
+ * primeiro plano — banda, bateria e cota da conta dele — e a capa continuava
+ * cobrando um backup que já tinha subido.
+ *
+ * Três escritores de um dado que tem de ter um só é como duas verdades nascem, e
+ * esta casa já pagou isso no `item_costs`. A guarda tem o positivo junto: o dono
+ * do selo PRECISA escrevê-lo.
+ */
+export function escrevemOSelo(fontes: readonly { arquivo: string; texto: string }[]): string[] {
+  return fontes
+    .filter(
+      (f) =>
+        !f.arquivo.endsWith('data/backup.ts') &&
+        /writeJson\(\s*ULTIMA_COPIA/.test(semProsa(f.texto)),
+    )
+    .map((f) => f.arquivo);
+}
+
+test('só o backup.ts grava o selo da última cópia', () => {
+  const fontes = [...sourcesUnder('app'), ...sourcesUnder('src')].map((arquivo) => ({
+    arquivo,
+    texto: readFileSync(arquivo, 'utf8'),
+  }));
+
+  assert.deepEqual(
+    escrevemOSelo(fontes),
+    [],
+    'estes escrevem o selo por conta própria, e um dado com três autores diverge',
+  );
+
+  // Positivo: o dono continua escrevendo. Se ele parar, o selo deixou de existir e
+  // a régua de frequência volta a responder "sempre" sem ninguém ver.
+  assert.match(
+    readFileSync('src/data/backup.ts', 'utf8'),
+    /writeJson\(ULTIMA_COPIA/,
+    'registrarCopia é quem grava o selo',
+  );
+
+  // E o caminho AUTOMÁTICO tem de anotar: era ele que não anotava.
+  assert.match(
+    readFileSync('src/nuvem/aparelho.ts', 'utf8'),
+    /registrarCopia\(/,
+    'a cópia automática anota que aconteceu',
+  );
+});
+
+test('a régua do selo distingue quem grava de quem só menciona', () => {
+  assert.deepEqual(
+    escrevemOSelo([{ arquivo: 'app/backup.tsx', texto: 'await writeJson(ULTIMA_COPIA, {' }]),
+    ['app/backup.tsx'],
+  );
+  assert.deepEqual(
+    escrevemOSelo([{ arquivo: 'src/data/backup.ts', texto: 'await writeJson(ULTIMA_COPIA, {' }]),
+    [],
+    'o dono do selo não é achado',
+  );
+  // A prosa não é escrita — a mesma pedra em que três detectores desta casa já
+  // tropeçaram, e o comentário sobre `ULTIMA_COPIA` continua vivo em app/backup.tsx.
+  assert.deepEqual(
+    escrevemOSelo([
+      { arquivo: 'app/backup.tsx', texto: '// `ULTIMA_COPIA` mora no aparelho, e writeJson(ULTIMA_COPIA) seria mentira' },
+    ]),
+    [],
+  );
+});

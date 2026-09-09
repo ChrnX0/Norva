@@ -59,7 +59,15 @@ export function horaDeCopiar(
 ): boolean {
   if (!ultima) return true;
   const passou = new Date(agora).getTime() - new Date(ultima.feitoEm).getTime() >= ENTRE_COPIAS_MS;
-  return passou && movimentosAgora > ultima.movimentos;
+  // **DIFERENTE, não maior.**
+  //
+  // "Cresceu" é a pergunta certa quando o razão só cresce, e ele nem sempre só
+  // cresce: depois de um Reset ou de restaurar uma cópia mais antiga, o número
+  // DESCE — e a régua passava a responder "não é hora" para sempre, calada, até a
+  // fábrica gravar mais movimentos do que tinha antes. Um backup que para de
+  // acontecer sem nada na tela é a pior forma de não ter backup, porque a pessoa
+  // acredita que tem.
+  return passou && movimentosAgora !== ultima.movimentos;
 }
 
 /** As peças que a rodada precisa — cada uma substituível por uma de mentira no teste. */

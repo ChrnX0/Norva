@@ -44,7 +44,7 @@
 
 import { carregarEmpresa } from './empresa';
 import { db, schemaVersion, type Db } from './db';
-import { readJson } from './meta';
+import { readJson, writeJson } from './meta';
 
 /**
  * O que o aparelho lembra da última cópia — e mora AQUI, não na tela.
@@ -63,6 +63,26 @@ export type UltimaCopia = { feitoEm: string; movimentos: number; bytes: number }
 
 export async function ultimaCopia(): Promise<UltimaCopia | null> {
   return readJson<UltimaCopia>(ULTIMA_COPIA);
+}
+
+/**
+ * Anota que uma cópia aconteceu — e ela é a MESMA linha para os dois caminhos.
+ *
+ * O selo estava escrito à mão em dois lugares da tela e **em nenhum lugar do
+ * caminho automático**. `rodadaAutomatica` pergunta a `ultimaCopia()` se está na
+ * hora, `horaDeCopiar(null, …)` responde sim quando nunca houve, e nada fechava o
+ * laço: o Drive recebia o razão inteiro a cada volta ao primeiro plano, e a capa
+ * seguia cobrando um backup que já tinha subido.
+ *
+ * Uma função e não três chamadas soltas, pelo motivo que esta casa repete: dado que
+ * tem de ter um autor não pode ter três escritores.
+ */
+export async function registrarCopia(feita: Pick<UltimaCopia, 'feitoEm' | 'movimentos' | 'bytes'>): Promise<void> {
+  await writeJson(ULTIMA_COPIA, {
+    feitoEm: feita.feitoEm,
+    movimentos: feita.movimentos,
+    bytes: feita.bytes,
+  } satisfies UltimaCopia);
 }
 
 /** O que uma cópia diz de si, antes de qualquer restauração. */

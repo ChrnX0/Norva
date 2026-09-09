@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { gatilhoDeData } from './gatilho';
 import { alertsDue, alertsRunToday, nextAlertAt, type Alert } from '@/domain/alerts';
 import { alertSettings } from '@/data/repository';
 import { factsForAlerts } from './facts';
@@ -40,7 +41,7 @@ export type NotScheduled =
   | 'falhou';
 
 /** Um identificador estável, para reagendar sem duplicar. */
-const CANAL = 'norva-avisos';
+
 
 type Notificacoes = typeof import('expo-notifications');
 
@@ -99,9 +100,24 @@ export async function rescheduleAlerts(
     // bandeja que a pessoa limpa sem ler. O mais urgente já vem primeiro do
     // domínio, e os outros continuam na capa, que é onde eles se comparam.
     const { title, body } = phrase(avisos[0]);
+    // **O `type` é o que faz o instante existir — sem ele o aviso sai AGORA.**
+    //
+    // `NotificationTriggerInput` é uma união, e `{ channelId, date }` sem `type` casa
+    // com o membro errado: o `ChannelAwareTriggerInput`, cujo docblock na própria
+    // biblioteca diz *"A trigger that will cause the notification to be delivered
+    // immediately"*. O `date` atravessa o typecheck porque é propriedade conhecida de
+    // OUTRO membro da união, e em execução o parser descarta o que não sabe ler.
+    //
+    // O efeito: toda vez que o aplicativo abre, ele cancela o agendado e dispara o
+    // aviso no mesmo segundo — o alarme das 7h da manhã tocando às 15h porque alguém
+    // abriu o app. Isso é exatamente o alerta que ensina a ignorar alerta, e a Lei 4
+    // (avise na data da DECISÃO) deixa de valer sem nada na tela dizer.
+    //
+    // O enum vem de `lib` porque a biblioteca entra por `await import` — não existe
+    // símbolo dela no topo deste arquivo, por decisão registrada logo acima.
     await lib.scheduleNotificationAsync({
       content: { title, body, data: { kind: avisos[0].kind, subjectId: avisos[0].subjectId } },
-      trigger: { channelId: CANAL, date: quando },
+      trigger: gatilhoDeData(lib, quando),
     });
 
     return { scheduled: true };

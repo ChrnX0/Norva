@@ -142,3 +142,33 @@ test('a atualização é a última, e uma pronta não muda o que as outras duas 
     ['fila:feito', 'copia:feito', 'atualizacao:feito'],
   );
 });
+
+/**
+ * O razão que ENCOLHE — e a régua respondia "não é hora" para sempre.
+ *
+ * `horaDeCopiar` perguntava se o número de movimentos CRESCEU. Ele quase sempre
+ * cresce, e "quase" é o que custa: depois de um Reset, ou de restaurar uma cópia
+ * mais antiga, o número desce abaixo do que a última cópia registrou — e a rodada
+ * automática parava, calada, até a fábrica gravar mais linhas do que tinha antes.
+ *
+ * Um backup que deixa de acontecer sem nada na tela é a pior forma de não ter
+ * backup: a pessoa acredita que tem.
+ */
+test('depois de um Reset o backup volta a acontecer, em vez de emudecer', () => {
+  const ontem = '2026-09-08T10:00:00.000Z';
+  const hoje = '2026-09-09T10:00:00.000Z';
+  const ultima = { feitoEm: ontem, movimentos: 4000 };
+
+  // O caso do defeito: o razão encolheu. Continua sendo mudança, e mudança pede cópia
+  // — a cópia velha descreve uma fábrica que não existe mais.
+  assert.equal(horaDeCopiar(ultima, 0, hoje), true, 'zerado é a maior mudança que existe');
+  assert.equal(horaDeCopiar(ultima, 1200, hoje), true, 'restaurado de uma cópia antiga');
+
+  // E os dois lados que já valiam continuam valendo, senão isto teria trocado um
+  // defeito por outro: cresceu copia, igual não copia.
+  assert.equal(horaDeCopiar(ultima, 4200, hoje), true, 'cresceu');
+  assert.equal(horaDeCopiar(ultima, 4000, hoje), false, 'nada mudou desde a última');
+
+  // O prazo continua mandando: mudança dentro da janela não dispara cópia nenhuma.
+  assert.equal(horaDeCopiar(ultima, 0, ontem), false, 'a janela ainda não passou');
+});
