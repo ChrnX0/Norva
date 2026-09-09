@@ -392,21 +392,42 @@ function Receitas({ tinta, acento, frio }: Pincel) {
         </AnimatedG>
         <Path d="M82 26v38" />
       </G>
-      {/* As colheres de medida, penduradas. */}
+      {/* A FORMA — e ela entrou no lugar de duas colheres que eram enchimento.
+
+          O que havia eram DOIS PARES quase iguais: duas colheres do mesmo tamanho e
+          dois picolés do mesmo tamanho, com a cor alternando dentro de cada par. É a
+          fileira de quatro lojas idênticas que o dono corrigiu com uma palavra —
+          "feio" —, e o conserto está escrito: tamanhos diferentes, vãos desiguais, e
+          UMA só peça com cor. A função logo abaixo desta carrega o mesmo aprendizado no
+          docblock dela, sobre sete picolés iguais num trilho. O caderno foi consertado
+          e o resto da mesma cena ficou para trás — a regra de pele acontecendo dentro
+          de um arquivo só.
+
+          E o conserto do tamanho não bastava, o que só a foto disse: um trapézio que
+          afina para baixo com uma haste saindo do topo é um FUNIL, não uma colher, e as
+          duas penduravam de nada — a haste subia até y=22 e parava no ar. Desenho que
+          não diz o que é vira o alerta inventado virado para a cena: ensina a não olhar.
+
+          A forma é o objeto que fica entre uma ficha técnica e um picolé, e é vocabulário
+          desta fábrica — não de uma cozinha, que é de onde as colheres tinham vindo. A
+          repetição das quatro cavidades é a TEXTURA do objeto, como a pauta é a do
+          caderno: repetição dentro de uma coisa lê como a coisa, e é só a repetição de
+          coisas inteiras que lê como papel de parede. */}
       <G stroke={tinta}>
-        <Path d="M186 22v22" />
-        <Path d="M178 44h16l-3 14h-10z" stroke={acento} />
-        <Path d="M222 22v18" />
-        <Path d="M214 40h16l-3 18h-10z" />
+        <Path d="M176 38h104l-8 26h-88z" />
+        <Path d="M202 38v26M228 38v26M254 38v26" opacity={0.55} />
+        {/* As varetas ENTRAM na cavidade em vez de encostarem na borda: parando em
+            y=38 elas viravam quatro riscos pousados em cima da bandeja, e uma
+            vareta que não entra na forma não está sendo moldada. */}
+        <Path d="M189 26v20M215 26v20M241 26v20M267 26v20" />
       </G>
-      {/* O produto que sai da receita. */}
+      {/* O PRODUTO, e é UM. Eram dois, e dois picolés numa cena de receita dizem a coisa
+          errada além de repetir a forma: uma ficha técnica faz um produto. A cena vira
+          uma frase — o caderno, a forma, o que sai —, e este é o único traço com cor na
+          prancha inteira, que é o que faz a cor querer dizer alguma coisa. */}
       <G stroke={acento}>
-        <Rect x="288" y="26" width="20" height="30" rx="8" />
-        <Path d="M298 56v8" />
-      </G>
-      <G stroke={tinta}>
-        <Rect x="322" y="26" width="20" height="30" rx="8" />
-        <Path d="M332 56v8" />
+        <Rect x="306" y="18" width="28" height="36" rx="12" />
+        <Path d="M320 54v10" />
       </G>
     </>
   );

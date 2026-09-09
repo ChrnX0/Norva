@@ -191,7 +191,35 @@ primeira versão dela passava verde casando o `from` de dentro da própria chama
 mesmo defeito do piso de toque, e por isso a prova é rodar contra o código anterior.
 <!-- medida: presente src/layers.test.ts :: the picking query is keyed by the room -->
 
-O que sobra: a régua fina do Papel que não separa nada · o remate em onda do Orgânico.
+~~A régua fina do Papel que não separa nada~~ **medida e consertada em 9 de setembro** —
+e o número apontava para a outra pele: `papelClaro.line` dá 1,63:1, e a do Orgânico dava
+**1,06:1**, que é a mesma cor do papel. Ver `src/theme/contrast.test.ts`.
+
+O que sobra: o remate em onda do Orgânico.
+
+### Uma peça com cor: existe régua, falta decidir se existe lei
+<!-- medida: espera src/components/cenas/Cena.tsx :: a contagem existe; a regra é conserto, não lei -->
+
+O `CLAUDE.md` registra o conserto que o dono deu para a fileira de quatro lojas idênticas:
+*"tamanhos diferentes, vãos desiguais, e uma só peça com cor — cor alternando em todo
+elemento é cor que não quer dizer nada"*. Não há guarda para a terceira parte.
+
+A contagem existe agora e está certa (validada contra `Produtos`, cujo docblock afirma
+"uma só com cor", e contra `Receitas`, recém-desenhada). A unidade é a **peça de primeiro
+nível**, achada por indentação — duas tentativas de parsear o JSX deram números errados
+antes disso, uma delas contando atributo repetido dentro do mesmo grupo. Ela acha o que o
+olho não acha lendo: peça com acento **dentro de um grupo de tinta** (`Producao` e
+`Perdas` têm uma cada, escondida assim).
+
+Medido hoje, peças com cor por cena: `Perdas` 3 · `Producao`, `Transporte`, `Compras`,
+`Copia`, `Assistente`, `Espelho` 2 · o resto 1 ou 0.
+
+**O que trava é o escopo da regra, não a régua.** "Uma só peça com cor" está escrito como
+o conserto de um defeito específico — repetição regular lendo como papel de parede —, e
+não como lei de toda cena. Uma cena com três objetos diferentes onde dois têm cor pode
+estar certa. Virar guarda sem decidir isso é generalizar uma decisão do dono para além do
+que ela diz, que é o erro simétrico ao de tratar decisão escrita como defeito. Decisão de
+dono: a regra vale para toda cena, ou só onde há repetição?
 
 ### B. Duas pessoas conferindo a mesma remessa ainda dobram o saldo NO SERVIDOR
 <!-- medida: ausente supabase/migrations :: discrepancy_once_per_group -->
