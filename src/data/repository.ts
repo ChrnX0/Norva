@@ -1115,6 +1115,15 @@ export async function saveSalePrice(
         // id, e nada entre os dois. Fica registrado como fronteira em vez de virar
         // uma linha que atravessa e não faz nada — quando o caminho de apagar
         // existir, é aqui que ele entra.
+        //
+        // **Mas a INTENÇÃO de enviar não pode sobreviver à linha.** Combinar um preço
+        // enfileira `location_prices`; tirá-lo apagava a linha e deixava a entrada
+        // pendente apontando para um id que não existe mais. A fila então lê a linha
+        // para montar o corpo, não acha nada, e o motor para — para sempre, calado,
+        // com tudo o que a fábrica gravar depois preso atrás. `forgetOrphans` existe
+        // exatamente para isso e tinha UM chamador, na adoção; a regra é que ele
+        // rode em toda transação que apague linha de tabela enfileirada.
+        await forgetOrphans(conn);
       }
     } else {
       const existente = await conn.getFirstAsync<{ id: string }>(

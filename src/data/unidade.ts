@@ -1,6 +1,7 @@
 import { defaultLocationId } from './repository';
 import { empresaDaqui } from './empresa';
 import { readMeta, writeMeta } from './meta';
+import { db } from './db';
 
 /**
  * Em qual unidade da fábrica este aparelho trabalha.
@@ -60,10 +61,29 @@ export function unidadeDaqui(): string {
  * resposta no padrão em vez de inventar um id — um `location_id` inventado é
  * chave estrangeira recusada na subida, e a mensagem que o servidor devolve não
  * explica nada a ninguém.
+ *
+ * **E a tolerância vale para o id que EXISTIA e deixou de existir**, que é o caso
+ * que de fato ocorre: a adoção da empresa apaga o lugar velho, e uma cópia
+ * restaurada de outro aparelho traz uma unidade que este banco não tem. Nos dois, o
+ * id guardado aponta para nada e toda escrita passa a falhar com `FOREIGN KEY
+ * constraint failed` — texto cru de SQLite, na tela, sem saída. A adoção reponta o
+ * id no mesmo commit; esta checagem é a rede para o resto da família, e ela custa uma
+ * consulta por boot.
  */
 export async function carregarUnidade(): Promise<string> {
   const guardado = await readMeta(CHAVE_DA_UNIDADE);
-  aqui = guardado?.trim() ? guardado.trim() : null;
+  const id = guardado?.trim() ? guardado.trim() : null;
+  if (!id) {
+    aqui = null;
+    return unidadeDaqui();
+  }
+
+  const conn = await db();
+  const existe = await conn.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM locations WHERE id = ? AND company_id = ?`,
+    [id, empresaDaqui()],
+  );
+  aqui = (existe?.n ?? 0) > 0 ? id : null;
   return unidadeDaqui();
 }
 

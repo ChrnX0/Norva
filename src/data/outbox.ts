@@ -1,4 +1,13 @@
 import { db, newId, nowIso, type Db } from './db';
+import { readMeta, writeMeta } from './meta';
+
+/**
+ * Que este aparelho já entregou alguma linha ao servidor — fato, não linha de fila.
+ *
+ * Mora em `app_meta` porque `app_meta` não é varrido por nada: a faxina da fila
+ * apaga o que subiu há mais de sete dias, e era da fila que a adoção lia a resposta.
+ */
+const CHAVE_PRIMEIRA_SUBIDA = 'sync.primeiraSubida';
 
 /**
  * The queue that makes a phone with no signal safe to write to.
@@ -79,9 +88,24 @@ export async function pendingEntries(limit = 100): Promise<OutboxEntry[]> {
     payload: string;
     queued_at: string;
   }>(
+    // **A ordem é a da ESCRITA, não a do relógio.**
+    //
+    // Ordenar por `queued_at` primeiro parece o mesmo e não é: o relógio do aparelho
+    // anda para trás (fuso corrigido, hora automática ligada depois de dias errada,
+    // troca de horário de verão) e aí uma linha gravada DEPOIS carrega um instante
+    // ANTERIOR. A fila então oferece o filho antes do pai, o servidor recusa por
+    // chave estrangeira, e nada resolve isso na tentativa seguinte: a recusa é
+    // permanente e tudo o que vier atrás fica preso.
+    //
+    // `rowid` é o contador implícito do SQLite e cresce a cada inserção. A faxina só
+    // apaga entradas ENVIADAS — que são sempre o prefixo mais antigo —, então não há
+    // reuso de `rowid` que passe à frente de uma pendente.
+    //
+    // `queued_at` continua sendo o que a tela conta ("aquilo de terça subiu?") e o
+    // que a faxina compara. Ele só deixa de decidir a ordem.
     `SELECT id, table_name, row_id, op, payload, queued_at
        FROM outbox WHERE sent_at IS NULL
-      ORDER BY queued_at, rowid
+      ORDER BY rowid
       LIMIT ?`,
     [limit],
   );
@@ -129,6 +153,28 @@ export async function markSent(ids: readonly string[]): Promise<void> {
     `UPDATE outbox SET sent_at = ? WHERE id IN (${marks}) AND sent_at IS NULL`,
     [at, ...ids],
   );
+
+  // **O fato de que este aparelho já falou com o servidor, escrito onde a faxina não
+  // alcança.** A adoção de empresa é irreversível justamente porque uma linha que já
+  // subiu carrega o carimbo velho lá, para sempre — e o guarda que impede adotar
+  // depois disso perguntava à própria fila: `SELECT COUNT(*) FROM outbox WHERE
+  // sent_at IS NOT NULL`. A faxina apaga entradas enviadas há mais de sete dias, e
+  // com a última delas o guarda passava a responder "nunca subiu nada": a janela da
+  // adoção reabria sozinha, uma semana depois, sobre um servidor que já tinha o
+  // carimbo antigo.
+  //
+  // Prova de fato tem de ser durável. `app_meta` não é varrido por nada.
+  await writeMeta(CHAVE_PRIMEIRA_SUBIDA, at);
+}
+
+/**
+ * Este aparelho já entregou alguma linha ao servidor, alguma vez?
+ *
+ * Pergunta durável, e é a que a adoção precisa: a fila responde "o que ainda está
+ * aqui", que é outra coisa — e que a faxina muda por baixo.
+ */
+export async function jaFalouComOServidor(): Promise<boolean> {
+  return (await readMeta(CHAVE_PRIMEIRA_SUBIDA)) !== null;
 }
 
 /**

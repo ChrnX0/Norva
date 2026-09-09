@@ -68,6 +68,12 @@ test('aparelho recém-instalado trabalha na primeira unidade, sem ninguém ter e
 
 test('a unidade guardada no disco vence o padrão, e só depois de ler o disco', async () => {
   const outra = '7c2b91d4-5e60-4a3f-9c81-000000000fed';
+  const conn = await db();
+  await conn.runAsync(
+    `INSERT INTO locations (id, company_id, name, kind, created_at)
+     VALUES (?, ?, 'Marília', 'factory', ?)`,
+    [outra, EMPRESA_SEMENTE, '2026-09-01T00:00:00.000Z'],
+  );
   await writeMeta(CHAVE_DA_UNIDADE, outra);
   assert.equal(
     unidadeDaqui(),
@@ -77,6 +83,26 @@ test('a unidade guardada no disco vence o padrão, e só depois de ler o disco',
 
   assert.equal(await carregarUnidade(), outra);
   assert.equal(unidadeDaqui(), outra);
+});
+
+/**
+ * O id guardado que deixou de existir — e este é o caso que de fato ocorre.
+ *
+ * A adoção da empresa APAGA o lugar velho (`adocao.ts`, passo 3), e uma cópia
+ * restaurada de outro aparelho traz uma unidade que este banco não tem. Nos dois, o
+ * `unit.id` do disco aponta para nada, e toda escrita passa a falhar com `FOREIGN KEY
+ * constraint failed` — texto cru de SQLite na tela de quem acabou de criar a conta.
+ *
+ * A tolerância já existia para chave vazia; ela vale igual para chave que envelheceu.
+ */
+test('unidade que deixou de existir cai no padrão em vez de travar toda escrita', async () => {
+  await writeMeta(CHAVE_DA_UNIDADE, 'e9c1d3b7-0000-4000-8000-000000000bad');
+  assert.equal(
+    await carregarUnidade(),
+    defaultLocationId(EMPRESA_SEMENTE),
+    'id que não existe em locations não carimba nada',
+  );
+  assert.equal(unidadeDaqui(), defaultLocationId(EMPRESA_SEMENTE));
 });
 
 test('chave vazia no disco cai no padrão em vez de carimbar um id inventado', async () => {

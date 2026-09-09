@@ -1,6 +1,8 @@
 import { db, type Db } from './db';
 import { CHAVE_DA_EMPRESA, carregarEmpresa, empresaDaqui } from './empresa';
 import { exampleStillHere } from './seed';
+import { jaFalouComOServidor } from './outbox';
+import { CHAVE_DA_UNIDADE, carregarUnidade } from './unidade';
 
 /**
  * Ligar este aparelho a uma empresa de verdade — e reescrever o carimbo do que
@@ -131,10 +133,14 @@ export async function porQueNaoPodeAdotar(
   const conn = await db();
 
   // 1. Alguma linha já subiu: o carimbo velho está no servidor e não sai mais.
-  const subiu = await conn.getFirstAsync<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM outbox WHERE sent_at IS NOT NULL`,
-  );
-  if ((subiu?.n ?? 0) > 0) return 'jaSubiu';
+  //
+  // A pergunta é DURÁVEL e não é feita à fila. Ela era — `SELECT COUNT(*) FROM outbox
+  // WHERE sent_at IS NOT NULL` —, e a faxina apaga entradas enviadas há mais de sete
+  // dias: com a última delas, o guarda passava a responder "nunca subiu nada" e a
+  // janela da adoção reabria sozinha, uma semana depois, sobre um servidor que já
+  // tinha o carimbo antigo. Prova de fato não pode morar numa linha que outra rotina
+  // apaga.
+  if (await jaFalouComOServidor()) return 'jaSubiu';
 
   // 2. O exemplo semeado ainda está aqui. Ele nasceu para ninguém abrir o app
   //    numa tela vazia, e passa pelos escritores de verdade — então uma nota
@@ -226,7 +232,7 @@ export async function adotarEmpresa(novoId: string): Promise<void> {
       );
     }
 
-    // 5. O id que vive como conteúdo.
+    // 5. O id que vive como conteúdo — e são mais do que dois.
     await conn.runAsync(
       `UPDATE outbox SET row_id = ? WHERE table_name = 'locations' AND row_id = ?`,
       [limpo, velho],
@@ -235,6 +241,31 @@ export async function adotarEmpresa(novoId: string): Promise<void> {
       `picking.${limpo}`,
       `picking.${velho}`,
     ]);
+
+    // A UNIDADE deste aparelho aponta para um lugar, e o passo 3 acabou de apagar
+    // esse lugar. Sem esta linha, `unidadeDaqui()` devolve um id que não existe mais
+    // e TODA escrita do aparelho passa a falhar com `FOREIGN KEY constraint failed` —
+    // texto cru de SQLite na tela de quem acabou de criar a conta da empresa.
+    await conn.runAsync(`UPDATE app_meta SET value = ? WHERE key = ? AND value = ?`, [
+      limpo,
+      CHAVE_DA_UNIDADE,
+      velho,
+    ]);
+
+    // E o pedido de Reset pendente, que carrega a empresa DENTRO do corpo.
+    //
+    // Ele é o único da fila cujo payload guarda o `companyId` congelado: as outras
+    // entradas guardam só a tabela e o id da linha, e o corpo é montado na hora do
+    // envio. Um pedido carimbado com a empresa-semente é recusado pelo servidor por
+    // chave estrangeira — ele nunca soube daquela empresa — e a fila para atrás dele,
+    // na PRIMEIRA sincronização, para sempre.
+    //
+    // Apagar é mais honesto que reescrever: o servidor nunca teve a empresa velha,
+    // então um pedido para apagá-la não descreve nada que exista lá. É o mesmo
+    // raciocínio de `forgetOrphans`.
+    await conn.runAsync(
+      `DELETE FROM outbox WHERE table_name = 'erase' AND sent_at IS NULL`,
+    );
 
     // 6. E o fato, na mesma transação que as linhas.
     await conn.runAsync(
@@ -245,5 +276,10 @@ export async function adotarEmpresa(novoId: string): Promise<void> {
 
   // A memória vem do disco JÁ comitado, e não do argumento: se o commit não
   // aconteceu, a memória não pode dizer que aconteceu.
+  //
+  // As DUAS memórias, e é por isso que elas estão juntas: a empresa e a unidade são
+  // os dois fatos que o aparelho responde de cabeça, e recarregar só um deixava a
+  // unidade em memória apontando para o lugar apagado até o próximo boot.
   await carregarEmpresa();
+  await carregarUnidade();
 }

@@ -29,7 +29,7 @@ import {
   saveSalePrice,
 } from './repository';
 import { ensureStarterData } from './seed';
-import { pendingEntries } from './outbox';
+import { forgetSentBefore, markSent, pendingEntries } from './outbox';
 
 /**
  * A adoção, provada pelo que sobra no banco — não pelo que a função devolve.
@@ -246,12 +246,41 @@ test('o exemplo semeado impede a adoção — e sai do caminho quando o dono lim
 
 test('linha que já subiu tranca a adoção para sempre', async () => {
   await fabricaDeVerdade();
-  const conn = await db();
-  await conn.runAsync(
-    `UPDATE outbox SET sent_at = ? WHERE rowid = (SELECT MIN(rowid) FROM outbox)`,
-    ['2026-09-07T00:00:00.000Z'],
-  );
+  const [primeira] = await pendingEntries(1);
+  assert.ok(primeira, 'a fábrica de verdade deixou fila para subir');
+  await markSent([primeira.id]);
   assert.equal(await porQueNaoPodeAdotar(NOVA), 'jaSubiu');
+});
+
+/**
+ * **"Para sempre" tinha prazo de sete dias.**
+ *
+ * O guarda perguntava à própria fila — `SELECT COUNT(*) FROM outbox WHERE sent_at IS
+ * NOT NULL` — e a faxina apaga o que subiu há mais de sete dias. Com a última entrada
+ * enviada indo embora, o guarda passava a responder "nunca subiu nada" e a janela da
+ * adoção reabria sozinha, sobre um servidor que já tinha o carimbo antigo gravado em
+ * linhas que não saem mais de lá.
+ *
+ * A prova é o mesmo cenário do teste acima, com a faxina no meio.
+ */
+test('a faxina da fila não reabre a janela da adoção', async () => {
+  await fabricaDeVerdade();
+  const [primeira] = await pendingEntries(1);
+  assert.ok(primeira);
+  await markSent([primeira.id]);
+
+  await forgetSentBefore('2099-01-01T00:00:00.000Z');
+  const conn = await db();
+  const sobrou = await conn.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM outbox WHERE sent_at IS NOT NULL`,
+  );
+  assert.equal(sobrou?.n, 0, 'a faxina levou toda linha enviada — é o que ela faz');
+
+  assert.equal(
+    await porQueNaoPodeAdotar(NOVA),
+    'jaSubiu',
+    'e o aparelho continua sabendo que já falou com o servidor',
+  );
 });
 
 test('id já ocupado é recusa, não colisão de índice no meio da transação', async () => {

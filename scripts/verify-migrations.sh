@@ -1487,6 +1487,44 @@ conf_qtd=$(as_user "$CHECKER" "select quantity_base_units from movements_visible
 
 echo "    quem conta grava a venda, quem só pede não, e o preço congelado não chega a quem não pode vê-lo"
 
+
+echo "==> check 24: desfazer uma conferência que BATEU não é recusado pelo banco"
+
+# A restrição `movement_moved_something` (0008, ampliada pela 0017) deixa passar
+# quantidade zero em dois casos — contagem de prateleira e conferência COM posto —
+# e recusava o ESPELHO dos dois. `reverseGroup` grava o contrário de cada linha do
+# ato: o contrário de zero é zero, e o estorno não copia `post`.
+#
+# É o defeito mais caro que este projeto conhece: o SQLite do aparelho não tem a
+# restrição, então a linha entra, a tela diz que desfez, e o servidor recusa. Recusa
+# por restrição não é recuperável, e a fila daquele celular para atrás dela — calada.
+W=eeee0000-0000-4000-8000-0000000000
+
+# 1. A conferência que bateu (a linha legítima que a 0017 abriu).
+as_user "$CHECKER" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
+  item_id, quantity_base_units, location_id, post) values
+  ('${W}f1','${M}c1','discrepancy',now(),'$CHECKER','${M}b1',0,'${V}a1','checked');" >/dev/null 2>&1 || true  # proofgate-allow
+conferiu=$(rows "select count(*) from movements where id = '${W}f1';")  # proofgate-allow
+[ "$conferiu" = "1" ] || fail "a conferência que bateu não entrou: a 0017 quebrou"
+
+# 2. E DESFAZÊ-LA entra também — que é o que faltava.
+as_user "$CHECKER" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
+  item_id, quantity_base_units, location_id, reverses_movement_id) values
+  ('${W}f2','${M}c1','reversal',now(),'$CHECKER','${M}b1',0,'${V}a1','${W}f1');" >/dev/null 2>&1 || true  # proofgate-allow
+desfez=$(rows "select count(*) from movements where id = '${W}f2';")  # proofgate-allow
+[ "$desfez" = "1" ] || fail "desfazer a conferência que bateu foi recusado: a fila do aparelho para aqui, calada"
+
+# 3. E a exceção ficou ESTREITA. Linha de zero que não desfaz nada e não tem posto
+#    continua recusada — senão a garantia acima teria comprado o buraco que a 0008
+#    escreveu para fechar: ruído no livro-razão.
+as_user "$CHECKER" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
+  item_id, quantity_base_units, location_id) values
+  ('${W}f3','${M}c1','transfer',now(),'$CHECKER','${M}b1',0,'${V}a1');" >/dev/null 2>&1 || true  # proofgate-allow
+ruido=$(rows "select count(*) from movements where id = '${W}f3';")  # proofgate-allow
+[ "$ruido" = "0" ] || fail "uma linha que não move nada e não desfaz nada entrou: a porta abriu demais"
+
+echo "    a conferência que bateu entra, desfazê-la entra, e ruído continua recusado"
+
 echo
-echo "OK - migrations apply and all twenty-three guarantees hold."
+echo "OK - migrations apply and all twenty-four guarantees hold."
 

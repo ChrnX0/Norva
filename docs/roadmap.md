@@ -39,7 +39,7 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | telas | **33** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **26** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **28** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **47** | `ls supabase/migrations \| wc -l` |
+| migrações do servidor | **48** | `ls supabase/migrations \| wc -l` |
 | migrações do aparelho | **V26** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
@@ -49,10 +49,10 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **574** testes |
+| `npm test` | **576** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
-| `npm run db:verify` | **23** garantias contra um Postgres descartável, sob RLS |
+| `npm run db:verify` | **24** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade, com
