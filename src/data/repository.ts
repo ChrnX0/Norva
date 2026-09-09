@@ -3641,7 +3641,25 @@ export class RunGoneError extends Error {
  */
 export async function openProductionRun(
   companyId: string,
-  input: { productId: string; batches: number },
+  input: {
+    productId: string;
+    batches: number;
+    /**
+     * Onde o tacho está — a unidade deste aparelho.
+     *
+     * Vinha de `ensureLocation`, que devolve sempre o lugar padrão da empresa: a
+     * corrida nascia na PRIMEIRA unidade, e os três leitores recortam por unidade.
+     * No celular da segunda fábrica, "Começar agora" abria uma corrida que não
+     * aparecia em lugar nenhum — sem cartão, sem Fechar, sem Cancelar — e quem a
+     * fechasse do outro lado punha o picolé no estoque da cidade errada, com o
+     * consumo saindo das salas de lá.
+     *
+     * Ausente continua caindo no padrão, que é o certo para a fábrica de uma
+     * unidade só: o repositório não pode perguntar sozinho, porque
+     * `src/data/unidade.ts` importa daqui.
+     */
+    locationId?: string;
+  },
 ): Promise<OpenRun> {
   if (!(input.batches > 0) || !Number.isFinite(input.batches)) {
     throw new Error('a receita tem de rodar mais que zero vezes');
@@ -3658,7 +3676,7 @@ export async function openProductionRun(
   const conn = await db();
   const at = nowIso();
   const id = newId();
-  const locationId = await ensureLocation(conn, companyId);
+  const locationId = input.locationId ?? (await ensureLocation(conn, companyId));
 
   // O id da VERSÃO na coluna da versão.
   //
@@ -6384,6 +6402,19 @@ export async function saveOrder(
     lines: readonly { itemId: string; baseUnits: number }[];
   },
 ): Promise<Order> {
+  // **O portão que faltava, e a falta dele matava a fila.**
+  //
+  // As sete escritas de `movements` passam por `podeGravar` e cinco portas de
+  // cadastro exigem `manage_company`; anotar pedido não conferia nada. O servidor
+  // confere — `orders_place` exige `place_order` desde a fundação —, então quem
+  // anotasse um pedido num aparelho sem essa capacidade via a tela dizer que deu
+  // certo, e a fila daquele celular parava na linha recusada, calada, com tudo o
+  // que a fábrica gravasse depois preso atrás.
+  //
+  // A capacidade é a do servidor e não uma escolhida aqui: duas listas para a mesma
+  // pergunta é como duas verdades nascem.
+  await exigirCapacidade(companyId, 'place_order', 'anotar pedido');
+
   const lines = input.lines.filter((l) => l.baseUnits > 0);
   if (lines.length === 0) throw new Error('um pedido sem item não é pedido');
 
@@ -6491,6 +6522,24 @@ export async function setOrderStatus(
   status: OrderStatus,
 ): Promise<void> {
   const conn = await db();
+
+  // Mudar o estado de um pedido é DUAS perguntas, e o servidor as separa: tirar do
+  // pendente é aprovar (`approve_order`), e o resto — entregar, cancelar — é quem
+  // despacha ou quem administra. Aprovar o próprio pedido sem ter a capacidade era
+  // o caminho mais curto para furar a configuração que a empresa ligou.
+  const atual = await conn.getFirstAsync<{ status: OrderStatus }>(
+    `SELECT status FROM orders WHERE id = ? AND company_id = ?`,
+    [orderId, companyId],
+  );
+  if (atual?.status === 'pending' && status !== 'pending') {
+    await exigirCapacidade(companyId, 'approve_order', 'aprovar pedido');
+  } else {
+    const podem = await currentCapabilities(companyId);
+    if (!podem.has('dispatch') && !podem.has('approve_order') && !podem.has('manage_company')) {
+      throw new SemAcessoError('dispatch', 'mudar o estado de um pedido');
+    }
+  }
+
   await conn.withTransactionAsync(async () => {
     await conn.runAsync(
       `UPDATE orders SET status = ?, decided_at = ? WHERE id = ? AND company_id = ?`,

@@ -53,14 +53,46 @@ test('only a load that covers the whole order can close it', () => {
   // diz cumprido - e pedido não é livro-razão, então nada desmente depois.
   assert.deepEqual(ordersCoveredBy(pedidos, new Map([['picole', 299]])), []);
 
-  // Mandar a mais fecha: quem mandou 320 entregou os 300 combinados.
+  // Mandar a mais fecha o PRIMEIRO: quem mandou 320 entregou os 300 do pedido A.
+  // O B pede outros 300 e sobraram 20 — a carga é uma só e ela se gasta.
+  //
+  // **Esta linha afirmava `['a', 'b']`, e era o defeito escrito como verdade.** A
+  // função oferecia o mesmo mapa a cada pedido sem consumir nada, então uma carga
+  // de 320 picolés "cobria" 600: a loja recebia metade do que o app deu como
+  // entregue, e pedido é justamente a peça que o livro-razão não desmente.
   assert.deepEqual(
     ordersCoveredBy(pedidos, new Map([['picole', 320], ['pote', 25]])),
+    ['a'],
+  );
+
+  // E com carga para os dois, os dois fecham — senão a guarda estaria medindo
+  // "nunca fecha mais de um" em vez de "a carga se gasta".
+  assert.deepEqual(
+    ordersCoveredBy(pedidos, new Map([['picole', 600], ['pote', 20]])),
     ['a', 'b'],
   );
 
   // E carga de item nenhum não fecha pedido nenhum.
   assert.deepEqual(ordersCoveredBy(pedidos, new Map()), []);
+});
+
+/**
+ * Dois pedidos iguais e uma carga que só dá para um: fecha UM.
+ *
+ * O caso mais simples do defeito, isolado — a loja pede 300 na segunda e 300 na
+ * quarta, o caminhão leva 300, e o app dava os dois por entregues. A ordem em que a
+ * carga se gasta é a que chega (`listOrders` já ordena por data pedida e depois por
+ * criação), que é o que qualquer pessoa da doca faria com o caminhão à frente.
+ */
+test('uma carga que dá para um pedido não fecha dois', () => {
+  const dois = [
+    { id: 'segunda', lines: [{ itemId: 'picole', baseUnits: 300 }] },
+    { id: 'quarta', lines: [{ itemId: 'picole', baseUnits: 300 }] },
+  ];
+
+  assert.deepEqual(ordersCoveredBy(dois, new Map([['picole', 300]])), ['segunda']);
+  assert.deepEqual(ordersCoveredBy(dois, new Map([['picole', 599]])), ['segunda']);
+  assert.deepEqual(ordersCoveredBy(dois, new Map([['picole', 600]])), ['segunda', 'quarta']);
 });
 
 

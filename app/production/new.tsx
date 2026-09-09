@@ -159,7 +159,29 @@ function Production() {
 
   const selected = data?.products.find((p) => p.id === productId) ?? data?.products[0] ?? null;
   const recipe = selected?.recipeId ? data?.graph[selected.recipeId] : undefined;
-  const batches = Math.max(0, (parseTyped(batchText) ?? 0) || 0);
+
+  /**
+   * **Quantas vezes — e quando há corrida aberta, quem responde é ELA.**
+   *
+   * O campo digitado é a resposta só no caminho direto. Ao FECHAR uma corrida, o
+   * número que manda é o que a corrida declarou quando foi aberta: é ele que
+   * `closeProductionRun` passa a `recordProduction`, e é dele que sai o consumo
+   * gravado no razão.
+   *
+   * A tela lia o campo — que nasce vazio, porque abrir volta para o dia e desmonta o
+   * formulário — e caía no ramo proporcional `units / perBatch`. Então a prévia, o
+   * custo por unidade, a confirmação por extenso e o portão do botão falavam de um
+   * número, e o razão gravava outro: no exemplo semeado, 17.075 g de polpa a R$ 0,64
+   * na tela contra 18.000 g a R$ 0,67 no livro — R$ 15,40 por corrida, num custo
+   * congelado que não se corrige, só se estorna.
+   *
+   * E o portão invertia a Lei 5 junto: calculando a falta sobre uma fração de tacho,
+   * `short` saía vazio, o botão ficava liberado, e a escrita recusava com
+   * `NotEnoughStockError`. O erro reclamava em vez de impedir.
+   */
+  const vezesDaCorrida =
+    (data?.runs ?? []).find((r) => r.productId === selected?.id)?.batches ?? null;
+  const batches = vezesDaCorrida ?? Math.max(0, (parseTyped(batchText) ?? 0) || 0);
 
   /**
    * O que a ficha prevê — e por que ela prevê um tacho quando ninguém disse.
@@ -282,7 +304,15 @@ function Production() {
       setShowBatches(true);
       setBatchText(String(quantos));
     }
-    await openProductionRun(empresaDaqui(), { productId: selected.id, batches: quantos });
+    await openProductionRun(empresaDaqui(), {
+      productId: selected.id,
+      batches: quantos,
+      // A unidade DESTE aparelho, como o lançamento direto já manda. Sem ela a
+      // corrida nascia sempre na primeira unidade e ficava invisível no celular
+      // que a abriu: sem cartão, sem "Fechar", sem "Cancelar" — e o picolé
+      // entrava no estoque da outra cidade.
+      locationId: unidadeDaqui(),
+    });
     // E volta para o dia, onde o tacho aberto tem cartão. Quem marca o tacho
     // marca e sai andando; ficar no formulário depois de abrir é ficar parado
     // numa tela que só terá o que dizer quando a corrida acabar.

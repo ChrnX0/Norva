@@ -17,7 +17,6 @@
  */
 
 import { DatabaseSync } from 'node:sqlite';
-import { EMPRESA_SEMENTE } from '../src/data/empresa';
 import { __setDb, migrate, type Db, type SqlParam } from '@/data/db';
 import { pendingEntries } from '@/data/outbox';
 import {
@@ -52,7 +51,20 @@ import { fromDecimal, rate} from '@/domain/money';
 import { APENAS_INSERE, sendableTables, serialize, type SyncActor } from '@/sync/serialize';
 
 /** Stands in for whoever is signed in when the phone finally finds a tower. */
-const ACTOR: SyncActor = { userId: '00000000-0000-4000-8000-000000000001' , companyId: EMPRESA_SEMENTE };
+/**
+ * Quem empurra — e a empresa vem de `empresaDaqui()`, na hora de enviar.
+ *
+ * Não é detalhe de escrita: é a coisa que esta sessão existe para exercitar. O
+ * aparelho ADOTA uma empresa antes de escrever a primeira linha, e o pedido de Reset
+ * é a única entrada da fila cujo corpo carrega um `company_id`. Enquanto ele vinha do
+ * payload, vinha congelado com a empresa-semente — que o servidor nunca conheceu — e
+ * a fila era recusada por política na primeira entrada. Ler aqui, no envio, é o mesmo
+ * que o `recorded_by` já fazia.
+ */
+const ator = (): SyncActor => ({
+  userId: '00000000-0000-4000-8000-000000000001',
+  companyId: empresaDaqui(),
+});
 
 /**
  * An identifier on its way into SQL, checked instead of trusted.
@@ -349,7 +361,7 @@ async function main() {
           .prepare(`SELECT * FROM ${ident(entry.table)} WHERE id = ?`) // proofgate-allow: ident() above
           .get(entry.rowId) as Record<string, unknown> | undefined);
 
-    const write = serialize(entry, row ?? null, ACTOR);
+    const write = serialize(entry, row ?? null, ator());
     if (write.kind === 'derived') {
       out.push(`-- ${write.table} não viaja: valor derivado tem um dono só, e é o servidor`);
       continue;

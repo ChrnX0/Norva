@@ -639,6 +639,105 @@ test('quem o piso rebaixa não mexe nos interruptores da empresa', async () => {
   assert.equal(await ordersNeedApproval(), true, 'quem administra muda');
 });
 
+/**
+ * Anotar pedido não tinha portão no aparelho — e o servidor tem.
+ *
+ * As sete escritas do razão passam por `podeGravar` e cinco portas de cadastro
+ * exigem `manage_company`; `saveOrder` e `setOrderStatus` não conferiam nada. A
+ * política `orders_place` exige `place_order` desde a fundação: quem anotasse um
+ * pedido num aparelho de operador via a tela dizer que deu certo, e a fila daquele
+ * celular parava na linha recusada — calada, com tudo o que a fábrica gravasse
+ * depois preso atrás. É o mesmo formato do estorno que custou a rodada de 9/9.
+ *
+ * A capacidade cobrada é a DO SERVIDOR, não uma escolhida aqui: duas listas para a
+ * mesma pergunta é como duas verdades nascem.
+ */
+test('quem não pode pedir não anota pedido, e quem não aprova não tira do pendente', async () => {
+  await ensureStarterData(CO);
+  const loja = await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' });
+  const [item] = await listItems(CO);
+
+  const operador = (await listProfiles(CO)).find((p) => p.templateRole === 'operator');
+  assert.ok(operador, 'o operador é um dos sete modelos');
+  assert.ok(
+    !operador.capabilities.includes('place_order'),
+    'e a decisão do dono sobre aparelho emprestado é "produção e nada mais"',
+  );
+  const ana = await savePerson(CO, { name: 'Ana', profileId: operador.id });
+  await setCurrentOperator(ana.id);
+
+  await assert.rejects(
+    () =>
+      saveOrder(CO, {
+        placeId: loja.id,
+        lines: [{ itemId: item.id, baseUnits: 100 }],
+      }),
+    /place_order/,
+    'o aparelho recusa ANTES de a linha nascer — depois seria uma fila que não anda',
+  );
+
+  // O caso verdadeiro: quem administra pede, senão a guarda mediria "saveOrder
+  // sempre falha" em vez de "saveOrder confere quem pede".
+  await setCurrentOperator(null);
+  await setOrdersNeedApproval(CO, true);
+  const pedido = await saveOrder(CO, {
+    placeId: loja.id,
+    lines: [{ itemId: item.id, baseUnits: 100 }],
+  });
+  assert.equal(pedido.status, 'pending', 'a empresa pediu aprovação, então ele nasce pendente');
+
+  // E aprovar é a outra pergunta: o operador não tira do pendente.
+  await setCurrentOperator(ana.id);
+  await assert.rejects(
+    () => setOrderStatus(CO, pedido.id, 'open'),
+    /approve_order/,
+    'aprovar o próprio pedido seria furar a configuração que a empresa ligou',
+  );
+
+  await setCurrentOperator(null);
+  await setOrderStatus(CO, pedido.id, 'open');
+  const [depois] = (await listOrders(CO, ['open'])).filter((o) => o.id === pedido.id);
+  assert.ok(depois, 'quem aprova, aprova');
+});
+
+/**
+ * A corrida aberta nasce ONDE O TACHO ESTÁ — e nascia sempre na primeira unidade.
+ *
+ * `openProductionRun` carimbava `ensureLocation`, que devolve o lugar padrão da
+ * empresa. Os três leitores recortam por unidade, então no celular da segunda
+ * fábrica "Começar agora" abria uma corrida invisível: sem cartão no dia, sem
+ * "Fechar", sem "Cancelar". E quem a fechasse do outro lado punha o picolé no
+ * estoque da cidade errada, com o consumo saindo das salas de lá — `location_id`
+ * de linha que já subiu não se corrige, porque o razão é imutável por gatilho.
+ *
+ * Os dois lados: a corrida aparece na unidade que a abriu, e NÃO aparece na outra.
+ */
+test('a corrida aberta nasce na unidade do aparelho, não na primeira da empresa', async () => {
+  await ensureStarterData(CO);
+  const [produto] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
+  const primeira = defaultLocationId(CO);
+  const segunda = await savePlace(CO, { name: 'Fábrica Marília', kind: 'factory' });
+
+  const corrida = await openProductionRun(CO, {
+    productId: produto.id,
+    batches: 1,
+    locationId: segunda.id,
+  });
+  assert.equal(corrida.locationId, segunda.id);
+
+  const emMarilia = await openProductionRuns(CO, { unidade: segunda.id });
+  assert.equal(emMarilia.length, 1, 'o celular que abriu a corrida enxerga a corrida');
+  assert.equal(emMarilia[0].id, corrida.id);
+
+  const naPrimeira = await openProductionRuns(CO, { unidade: primeira });
+  assert.equal(naPrimeira.length, 0, 'e a outra unidade não vê o tacho da vizinha');
+
+  // Sem dizer onde, continua caindo no padrão — que é o certo para a fábrica de
+  // uma unidade só, e é o que impede esta guarda de medir "sempre usa o argumento".
+  const semDizer = await openProductionRun(CO, { productId: produto.id, batches: 1 });
+  assert.equal(semDizer.locationId, primeira);
+});
+
 test('erasing invoices drops the average with them', async () => {
   await ensureStarterData(CO);
 

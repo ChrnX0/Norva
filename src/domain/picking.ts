@@ -63,16 +63,33 @@ export function pickSuggestion(sources: {
  *
  * E ela só SUGERE: quem fecha é a pessoa, no diálogo que diz o que vai
  * acontecer. O aplicativo sugere, nunca decide calado.
+ *
+ * **A carga se GASTA, e é isto que faltava.** A versão anterior oferecia o mesmo
+ * mapa a cada pedido, sem consumir nada: uma carga de 300 caixas fechava dois
+ * pedidos de 300 — cada um perguntava, isoladamente, se o dia cobria as linhas
+ * dele, e a resposta era sim para os dois. A loja recebia metade do que o app deu
+ * como entregue, e o pedido é justamente a peça que o livro-razão não desmente.
+ *
+ * A ordem em que a carga é gasta não é escolha nossa: `listOrders` já devolve por
+ * data pedida e depois por criação, então o mais antigo consome primeiro — que é o
+ * que qualquer pessoa da doca faria com o caminhão à frente.
  */
 export function ordersCoveredBy(
   orders: readonly { id: string; lines: readonly { itemId: string; baseUnits: number }[] }[],
   sent: ReadonlyMap<string, number>,
 ): string[] {
-  return orders
-    .filter((order) =>
-      order.lines.every((line) => (sent.get(line.itemId) ?? 0) >= line.baseUnits),
-    )
-    .map((order) => order.id);
+  const sobra = new Map(sent);
+  const cobertos: string[] = [];
+
+  for (const order of orders) {
+    if (!order.lines.every((line) => (sobra.get(line.itemId) ?? 0) >= line.baseUnits)) continue;
+    for (const line of order.lines) {
+      sobra.set(line.itemId, (sobra.get(line.itemId) ?? 0) - line.baseUnits);
+    }
+    cobertos.push(order.id);
+  }
+
+  return cobertos;
 }
 
 
