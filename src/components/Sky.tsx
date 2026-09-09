@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { AccessibilityInfo, View } from 'react-native';
+import { View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Line, Path, RadialGradient, Stop } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useReduzirMovimento } from './vida';
 import type { Palette, Tracos } from '@/theme/tokens';
 
 /**
@@ -107,21 +108,18 @@ export function SkyMark({
 
   const spin = useSharedValue(0);
   const drift = useSharedValue(0);
+  // Do cache do módulo: `vida.ts` existe para esta resposta não custar uma ida à
+  // ponte por montagem, e onze leituras do pacote a furavam.
+  const reduzir = useReduzirMovimento();
 
   useEffect(() => {
-    let cancelled = false;
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (cancelled || reduced) return;
-      // Uma volta a cada quarenta segundos. É movimento que se percebe se você
-      // olhar, e não se percebe se você estiver trabalhando - que é o único
-      // tipo de animação que pode ficar numa tela o dia inteiro.
-      spin.value = withRepeat(withTiming(1, { duration: 40000, easing: Easing.linear }), -1, false);
-      drift.value = withRepeat(withTiming(1, { duration: 9000, easing: Easing.linear }), -1, false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [spin, drift]);
+    if (reduzir !== false) return;
+    // Uma volta a cada quarenta segundos. É movimento que se percebe se você
+    // olhar, e não se percebe se você estiver trabalhando - que é o único
+    // tipo de animação que pode ficar numa tela o dia inteiro.
+    spin.value = withRepeat(withTiming(1, { duration: 40000, easing: Easing.linear }), -1, false);
+    drift.value = withRepeat(withTiming(1, { duration: 9000, easing: Easing.linear }), -1, false);
+  }, [spin, drift, reduzir]);
 
   const sunTurn = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.value * 360}deg` }] }));
   const cloudDrift = useAnimatedStyle(() => ({
@@ -221,17 +219,19 @@ export function TemperatureRange({
   ink?: string;
 }) {
   const { color, space, palette } = useTheme();
-  const grown = useSharedValue(0);
+  // `null` é "ainda não sei", e nele a faixa nasce INTEIRA: antes ela ficava com
+  // largura zero — a temperatura do dia invisível — até a promessa voltar.
+  const reduzir = useReduzirMovimento();
+  const grown = useSharedValue(reduzir === false ? 0 : 1);
 
   useEffect(() => {
-    let cancelled = false;
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      grown.value = cancelled || reduced ? 1 : withTiming(1, { duration: 900 });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [grown]);
+    if (reduzir !== false) {
+      grown.value = 1;
+      return;
+    }
+    grown.value = 0;
+    grown.value = withTiming(1, { duration: 900 });
+  }, [grown, reduzir]);
 
   // A escala é o dia de uma sorveteria: de zero a quarenta graus. Fixa de
   // propósito - uma régua que se estica para caber no dado faria 18° e 34°

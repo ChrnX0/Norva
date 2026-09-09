@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { AccessibilityInfo, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { tint } from '@/components/Card';
 import { useTheme } from '@/theme/ThemeProvider';
-import { useCiclo } from './vida';
+import { useCiclo, useReduzirMovimento } from './vida';
 
 /**
  * O ritmo da semana, em sete colunas.
@@ -46,7 +46,13 @@ export function Bars({
   height?: number;
 }) {
   const { color, accent, space, type, tracos, scheme } = useTheme();
-  const grown = useSharedValue(0);
+  // Do cache do módulo — `vida.ts` existe para esta resposta não custar uma ida
+  // à ponte por montagem, e onze leituras do pacote o furavam. `null` é "ainda não
+  // sei", e nele o desenho fica no lugar de REPOUSO: quem pediu menos movimento
+  // nunca vê a peça pela metade esperando a promessa voltar.
+  const reduzir = useReduzirMovimento();
+
+  const grown = useSharedValue(reduzir === false ? 0 : 1);
 
   /**
    * As duas caras da mesma semana.
@@ -63,15 +69,13 @@ export function Bars({
   const astro = scheme === 'dark' ? '#F7E6B5' : '#FFD76A';
 
   useEffect(() => {
-    let cancelled = false;
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (cancelled) return;
-      grown.value = reduced ? 1 : withDelay(120, withSpring(1, { damping: 16, stiffness: 120 }));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [grown]);
+    if (reduzir !== false) {
+      grown.value = 1;
+      return;
+    }
+    grown.value = 0;
+    grown.value = withDelay(120, withSpring(1, { damping: 16, stiffness: 120 }));
+  }, [grown, reduzir]);
 
   const peak = Math.max(...series.map((d) => d.total), 1);
 

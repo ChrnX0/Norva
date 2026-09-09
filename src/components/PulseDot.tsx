@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { AccessibilityInfo, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useReduzirMovimento } from './vida';
 
 /**
  * The "this is live" pulse: a slow halo expanding out of a dot.
@@ -48,8 +49,13 @@ export function PulseDot({
   const tint = color ?? accent;
   const progress = useSharedValue(0);
 
+  // Do cache do módulo — `vida.ts` existe para esta resposta não custar uma ida
+  // à ponte por montagem, e onze leituras do pacote o furavam. `null` é "ainda não
+  // sei", e nele o desenho fica no lugar de REPOUSO: quem pediu menos movimento
+  // nunca vê a peça pela metade esperando a promessa voltar.
+  const reduzir = useReduzirMovimento();
+
   useEffect(() => {
-    let cancelled = false;
 
     // Going still has to undo the animation, not just stop starting it: leaving
     // the halo wherever the last frame put it reads as a dot with a permanent
@@ -59,19 +65,13 @@ export function PulseDot({
       return;
     }
 
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (cancelled || reduced) return;
-      progress.value = withRepeat(
-        withTiming(1, { duration: motion.pulseMs, easing: Easing.out(Easing.ease) }),
-        -1,
-        false,
-      );
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [live, motion.pulseMs, progress]);
+    if (reduzir !== false) return;
+    progress.value = withRepeat(
+      withTiming(1, { duration: motion.pulseMs, easing: Easing.out(Easing.ease) }),
+      -1,
+      false,
+    );
+  }, [live, motion.pulseMs, progress, reduzir]);
 
   const halo = useAnimatedStyle(() => ({
     transform: [{ scale: 1 + progress.value * 1.9 }],

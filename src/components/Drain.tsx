@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { AccessibilityInfo, View } from 'react-native';
+import { View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { tint } from '@/components/Card';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useReduzirMovimento } from './vida';
 
 /**
  * Quanto ainda resta, como uma barra que ENCHE até onde deveria estar.
@@ -37,18 +38,22 @@ export function Drain({
   const preso = Math.max(0, Math.min(1, Number.isFinite(share) ? share : 0));
   const cor = preso <= 0.2 ? color.warning : (hue ?? accent);
 
-  const cheia = useSharedValue(0);
+  // Do cache do módulo — `vida.ts` existe para esta resposta não custar uma ida
+  // à ponte por montagem, e onze leituras do pacote o furavam. `null` é "ainda não
+  // sei", e nele o desenho fica no lugar de REPOUSO: quem pediu menos movimento
+  // nunca vê a peça pela metade esperando a promessa voltar.
+  const reduzir = useReduzirMovimento();
+
+  const cheia = useSharedValue(reduzir === false ? 0 : 1);
 
   useEffect(() => {
-    let cancelled = false;
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (cancelled) return;
-      cheia.value = reduced ? 1 : withDelay(90, withSpring(1, motion.settle));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [cheia, motion.settle, preso]);
+    if (reduzir !== false) {
+      cheia.value = 1;
+      return;
+    }
+    cheia.value = 0;
+    cheia.value = withDelay(90, withSpring(1, motion.settle));
+  }, [cheia, motion.settle, preso, reduzir]);
 
   const largura = useAnimatedStyle(() => ({
     width: `${Math.max(2, preso * 100 * cheia.value)}%`,

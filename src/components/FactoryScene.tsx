@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AccessibilityInfo, View } from 'react-native';
+import { View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedProps,
@@ -13,6 +13,7 @@ import Animated, {
 import Svg, { Circle, ClipPath, Defs, G, Path, Rect } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
 import type { CenaDaFabrica } from './cena';
+import { useReduzirMovimento } from './vida';
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
@@ -65,52 +66,50 @@ export function FactoryScene({ running, dayShare, shipped }: CenaDaFabrica) {
   const fumacaA = useSharedValue(0);
   const fumacaB = useSharedValue(0);
   const fumacaC = useSharedValue(0);
+  // Do cache do módulo, e `null` é "ainda não sei": nele a cena aparece INTEIRA.
+  const reduzir = useReduzirMovimento();
+
   const sol = useSharedValue(0);
   const floco = useSharedValue(0);
   const enche = useSharedValue(0);
   const caixa = useSharedValue(0);
 
   useEffect(() => {
-    let cancelado = false;
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduzido) => {
-      if (cancelado) return;
-      if (reduzido) {
-        // Parado, mas COMPLETO: quem desligou movimento vê a mesma cena, com o
-        // picolé no nível certo e a caixa no lugar. Movimento é a forma, nunca
-        // o conteúdo.
-        enche.value = dayShare ?? 0;
-        caixa.value = shipped ? 1 : 0;
-        return;
-      }
-      const puxar = (v: SharedValue<number>, ms: number, atraso = 0) => {
-        v.value = withDelay(atraso, withRepeat(withTiming(1, { duration: ms, easing: Easing.linear }), -1, false));
-      };
-      if (running) {
-        // Três baforadas defasadas de dois segundos: uma coluna contínua, e não
-        // três nuvens piscando juntas.
-        puxar(fumacaA, 6000);
-        puxar(fumacaB, 6000, 2000);
-        puxar(fumacaC, 6000, 4000);
-      } else {
-        fumacaA.value = 0;
-        fumacaB.value = 0;
-        fumacaC.value = 0;
-      }
-      puxar(sol, 30000);
-      puxar(floco, 48000);
-      enche.value = withDelay(
-        600,
-        withTiming(dayShare ?? 0, { duration: 3200, easing: Easing.bezier(0.22, 1, 0.36, 1) }),
-      );
-      caixa.value = withDelay(
-        shipped ? 2400 : 0,
-        withTiming(shipped ? 1 : 0, { duration: 1400, easing: Easing.bezier(0.22, 1, 0.36, 1) }),
-      );
-    });
-    return () => {
-      cancelado = true;
+    if (reduzir !== false) {
+      // Parado, mas COMPLETO: quem desligou movimento vê a mesma cena, com o
+      // picolé no nível certo e a caixa no lugar. Movimento é a forma, nunca
+      // o conteúdo. Vale igual enquanto a resposta não chegou — a cena fica
+      // inteira, e não meio desenhada esperando a promessa.
+      enche.value = dayShare ?? 0;
+      caixa.value = shipped ? 1 : 0;
+      return;
+    }
+    const puxar = (v: SharedValue<number>, ms: number, atraso = 0) => {
+      v.value = withDelay(atraso, withRepeat(withTiming(1, { duration: ms, easing: Easing.linear }), -1, false));
     };
-  }, [running, dayShare, shipped, fumacaA, fumacaB, fumacaC, sol, floco, enche, caixa]);
+    if (running) {
+      // Três baforadas defasadas de dois segundos: uma coluna contínua, e não
+      // três nuvens piscando juntas.
+      puxar(fumacaA, 6000);
+      puxar(fumacaB, 6000, 2000);
+      puxar(fumacaC, 6000, 4000);
+    } else {
+      fumacaA.value = 0;
+      fumacaB.value = 0;
+      fumacaC.value = 0;
+    }
+    puxar(sol, 30000);
+    puxar(floco, 48000);
+    enche.value = 0;
+    enche.value = withDelay(
+      600,
+      withTiming(dayShare ?? 0, { duration: 3200, easing: Easing.bezier(0.22, 1, 0.36, 1) }),
+    );
+    caixa.value = withDelay(
+      shipped ? 2400 : 0,
+      withTiming(shipped ? 1 : 0, { duration: 1400, easing: Easing.bezier(0.22, 1, 0.36, 1) }),
+    );
+  }, [running, dayShare, shipped, fumacaA, fumacaB, fumacaC, sol, floco, enche, caixa, reduzir]);
 
   /** Uma caixa da prancheta traduzida para pixels da tela, na escala medida. */
   const caixaDe = (x: number, y: number, w: number, h: number) => ({

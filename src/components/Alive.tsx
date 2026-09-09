@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
-import { AccessibilityInfo, type ViewStyle } from 'react-native';
+import { type ViewStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -7,6 +7,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useReduzirMovimento } from './vida';
 
 /**
  * O desenho ASSENTA quando chega — e só isso.
@@ -42,22 +43,22 @@ export function Alive({
   style?: ViewStyle;
 }) {
   const { motion } = useTheme();
-  const entrada = useSharedValue(0);
+  // Do cache do módulo — `vida.ts` existe para esta resposta não custar uma ida
+  // à ponte por montagem, e onze leituras do pacote o furavam. `null` é "ainda não
+  // sei", e nele o desenho fica no lugar de REPOUSO: quem pediu menos movimento
+  // nunca vê a peça pela metade esperando a promessa voltar.
+  const reduzir = useReduzirMovimento();
+
+  const entrada = useSharedValue(reduzir === false ? 0 : 1);
 
   useEffect(() => {
-    let cancelado = false;
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduzido) => {
-      if (cancelado) return;
-      if (reduzido) {
-        entrada.value = 1;
-        return;
-      }
-      entrada.value = withDelay(index * motion.staggerMs, withSpring(1, motion.settle));
-    });
-    return () => {
-      cancelado = true;
-    };
-  }, [entrada, index, motion.settle, motion.staggerMs]);
+    if (reduzir !== false) {
+      entrada.value = 1;
+      return;
+    }
+    entrada.value = 0;
+    entrada.value = withDelay(index * motion.staggerMs, withSpring(1, motion.settle));
+  }, [entrada, index, motion.settle, motion.staggerMs, reduzir]);
 
   const animado = useAnimatedStyle(() => ({
     opacity: entrada.value,

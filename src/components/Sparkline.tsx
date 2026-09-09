@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { AccessibilityInfo, View } from 'react-native';
+import { View } from 'react-native';
 import Svg, { Defs, LinearGradient, Path, Stop, Circle } from 'react-native-svg';
 import Animated, {
   useAnimatedProps,
@@ -11,6 +11,7 @@ import Animated, {
 import { tint } from '@/components/Card';
 import { sparkArea, sparkPath, sparkPoints } from '@/domain/spark';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useReduzirMovimento } from './vida';
 
 const APath = Animated.createAnimatedComponent(Path);
 const ACircle = Animated.createAnimatedComponent(Circle);
@@ -71,25 +72,26 @@ export function Sparkline({
   // vezes o número de segmentos.
   const length = Math.ceil(Math.hypot(width, height) * Math.max(1, points.length));
 
-  const drawn = useSharedValue(0);
-  const settled = useSharedValue(0);
+  // Do cache do módulo — `vida.ts` existe para esta resposta não custar uma ida
+  // à ponte por montagem, e onze leituras do pacote o furavam. `null` é "ainda não
+  // sei", e nele o desenho fica no lugar de REPOUSO: quem pediu menos movimento
+  // nunca vê a peça pela metade esperando a promessa voltar.
+  const reduzir = useReduzirMovimento();
+
+  const drawn = useSharedValue(reduzir === false ? 0 : 1);
+  const settled = useSharedValue(reduzir === false ? 0 : 1);
 
   useEffect(() => {
-    let cancelled = false;
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (cancelled) return;
-      if (reduced) {
-        drawn.value = 1;
-        settled.value = 1;
-        return;
-      }
-      drawn.value = withTiming(1, { duration: desenho });
-      settled.value = withDelay(desenho, withSpring(1, { damping: 14, stiffness: 160 }));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [drawn, settled, desenho, line]);
+    if (reduzir !== false) {
+      drawn.value = 1;
+      settled.value = 1;
+      return;
+    }
+    drawn.value = 0;
+    settled.value = 0;
+    drawn.value = withTiming(1, { duration: desenho });
+    settled.value = withDelay(desenho, withSpring(1, { damping: 14, stiffness: 160 }));
+  }, [drawn, settled, desenho, line, reduzir]);
 
   // `risco`, não `traco`: desde que a espessura virou `useTheme().traco`, a
   // palavra tem dono no projeto inteiro, e duas coisas com o mesmo nome no mesmo
