@@ -8300,3 +8300,46 @@ que o chamador já tem, e passá-lo custa um parâmetro.
 leitura ele não sabe — não quantos falsos ele produz. E quando duas frases parecem dizer o
 mesmo em tons diferentes, o que as separa quase nunca é o dado; é o caminho por onde
 alguém chegou.
+
+---
+
+## 9 de setembro — campo sem leitor não é peso morto, é anestesia
+
+**O que apareceu:** `PickLine.available` estava calculado numa subconsulta e lido por
+ninguém. O caminho fácil era apagá-lo — é o que o portão P1 manda fazer com peça sem
+chamador. Antes de apagar, a pergunta: *por que alguém escreveu isto?* O docblock
+respondia — *"de nada adianta saber que a fábrica tem trezentos se eles estão na outra
+câmara"* — e a tela já tinha esse número por outro caminho (`stockByPlace`), o que
+confirmava a duplicata.
+
+**Só que os dois caminhos não alcançam as mesmas linhas.** `stockByPlace` não devolve
+linha de saldo zero, e está certo: *"listá-lo como 0 g enche a tela de coisa que não está
+ali"*. Então o item que a loja pediu e a câmara não tem **desaparece por completo** da
+tela de carga: não está na lista para ser escolhido, não tem `line`, e nenhuma das frases
+fala dele. Quem carrega o caminhão descobre na loja. `available` é o único número que vem
+pelo eixo do PEDIDO — o eixo em que a ausência é visível.
+
+**Por que importa:** a duplicata aparente não era duplicata, era o mesmo cálculo por
+outro eixo, e o eixo era o ponto. Apagar o campo teria fechado o item da auditoria e
+enterrado o defeito junto — com o commit dizendo "removida aritmética duplicada", que é
+uma frase verdadeira sobre um trabalho errado.
+
+**E o achado que paga a rodada apareceu ao LIGAR o leitor.** A chave da `useQuery` da
+separação era só o destino, e `available` é o único campo dela recortado por SALA. A
+sala de origem é estado da tela e um toque. Ou seja: a tela ia dizer *"não há nenhum na
+Câmara fria"* mostrando o saldo do Almoxarifado — e o defeito **nasceu junto com o
+leitor**, sem que o leitor o tivesse causado. Ele estava ali desde que a chave foi
+escrita, dormindo porque o único campo que dependia dele não era lido por ninguém.
+
+**A régua que fica:** campo sem leitor não é só peso — ele **anestesia todo recorte que
+existe só para ele**. Antes de ligar um leitor a um campo dormente, confira o que aquele
+campo recorta e se quem o busca ainda sabe disso. E antes de apagar um campo por não ter
+chamador, pergunte por qual EIXO ele chega ao dado: dois caminhos que dão o mesmo número
+para as linhas que ambos veem podem estar vendo conjuntos de linhas diferentes.
+
+**E a guarda nova não mordia na primeira versão** — procurava `from` no recorte inteiro,
+e `from` está dentro da própria chamada. Verde com a chave errada. É o terceiro caso do
+mesmo molde nesta semana (o `indexOf('>')` do piso de toque, o `^UPDATE` do backfill, e
+agora este): **guarda que procura um nome perto do lugar certo casa com o lugar errado.**
+A prova nunca é o exemplo que eu escrevo — é rodar contra o código anterior e ver
+vermelho.

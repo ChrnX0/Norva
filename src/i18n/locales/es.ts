@@ -1201,6 +1201,21 @@ export const es: Dictionary = {
       available: 'Hay {{amount}} en {{place}}',
       lastTime: 'La última vez mandaste {{amount}}',
       overBalance: 'Eso es más de lo que hay en {{place}}.',
+      /**
+       * El pedido que esta sala no puede atender — y por qué necesitaba frase propia.
+       *
+       * La lista de lo que va es lo que ESTÁ aquí, y un artículo en cero no tiene
+       * línea de existencias. Así que el helado de fresa que la tienda pidió y la
+       * cámara no tiene no aparecía — ni en la lista, ni en ningún aviso. Quien carga
+       * el camión se enteraba en la tienda.
+       *
+       * "Aquí" y no "la fábrica": el saldo es de la SALA de donde sale la carga, y
+       * `pickingFor` dice por escrito que de nada sirve saber que la fábrica tiene
+       * trescientos si están en la otra cámara. Al revés vale igual — decir "no hay"
+       * de algo que está en la sala de al lado manda producir lo que ya existe.
+       */
+      orderedAbsent: '{{place}} pidió {{amount}} de {{item}}, y no hay ninguno en {{from}}.',
+      orderedAbsentMany: 'Y además: {{items}}.',
       promised: '{{amount}} de eso ya tiene dueño: {{place}} espera {{when}}',
       promisedMany: '{{amount}} de eso ya tiene dueño: {{place}} espera {{when}}, y {{rest}} más',
       promisedWhen: 'para {{date}}',

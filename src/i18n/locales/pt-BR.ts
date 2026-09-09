@@ -1523,6 +1523,22 @@ export const ptBR = {
       lastTime: 'Da última vez você mandou {{amount}}',
       overBalance: 'Isso é mais do que tem em {{place}}.',
       /**
+       * O pedido que esta sala não tem como atender — e por que ele precisava de
+       * frase própria.
+       *
+       * A lista do que vai é o que ESTÁ aqui, e item com saldo zero não tem linha
+       * de estoque. Então o picolé de morango que a loja pediu e a câmara não tem
+       * simplesmente não aparecia — nem na lista, nem em aviso nenhum. Quem carrega
+       * o caminhão descobria na loja.
+       *
+       * "Aqui" e não "a fábrica": o saldo é da SALA de onde a carga sai, e o
+       * `pickingFor` diz por escrito que de nada adianta saber que a fábrica tem
+       * trezentos se eles estão na outra câmara. O contrário vale igual — dizer
+       * "não tem" de algo que está na sala ao lado manda produzir o que existe.
+       */
+      orderedAbsent: '{{place}} pediu {{amount}} de {{item}}, e não há nenhum em {{from}}.',
+      orderedAbsentMany: 'E mais: {{items}}.',
+      /**
        * A reserva na hora que ela pode ser perdida.
        *
        * A tela de anotar pedido já descontava o que outros pedidos reservaram, e

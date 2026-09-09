@@ -2831,3 +2831,83 @@ test('the place order ruler reads the enum, not a copy of the list', () => {
     'a derivação inventou uma espécie: ela não está lendo o enum',
   );
 });
+
+/**
+ * O que `useQuery` recebe como chave tem de conter tudo o que a consulta recorta.
+ *
+ * **Cicatriz de 9 de setembro, e ela ficou invisível por um motivo que vale mais que
+ * o defeito.** `pickingFor` recebe a SALA de onde a carga sai e devolve `available`
+ * recortado por ela. A chave da consulta era só o destino. Trocar a sala na tela — que
+ * é estado (`nossaId`) e um toque — deixava a lista inteira velha.
+ *
+ * Nada acusava porque `available` era o único campo por sala e **ninguém o lia**. O
+ * campo morto não é só peso: ele é anestesia. O dia em que o leitor chegou, a tela
+ * passou a dizer *"não há nenhum na Câmara fria"* mostrando o saldo do Almoxarifado —
+ * e o defeito nasceu com o leitor, sem que o leitor o tivesse causado.
+ *
+ * **E a primeira versão desta guarda não mordia**, pelo mesmo motivo que o piso de
+ * toque não mordia na semana passada: ela procurava `from` no recorte inteiro, e
+ * `from` está dentro da própria chamada (`pickingFor(…, from, …)`). Passava verde com
+ * a chave errada. O que se mede é a CHAVE, que é a última linha da chamada — e a prova
+ * é rodar contra o código anterior e ver vermelho, não contra um exemplo escrito por
+ * mim para passar.
+ *
+ * Estreita de propósito: uma guarda que valesse para toda `useQuery` teria de entender
+ * fechamento de escopo, e erraria na primeira reescrita — o que é pior que não existir.
+ */
+
+/** A chave da `useQuery`: a última linha da chamada, onde o segundo argumento mora. */
+function chaveDaConsulta(recorte: string): string {
+  const linhas = recorte.trimEnd().split('\n');
+  return linhas[linhas.length - 1];
+}
+
+test('the picking query is keyed by the room it slices, not only by the destination', () => {
+  const tela = readFileSync('app/transfer.tsx', 'utf8');
+
+  const chamada = tela.indexOf('pickingFor(');
+  assert.ok(chamada > 0, 'a tela de carga chama `pickingFor` — sem isso esta guarda mede o vazio');
+
+  const fim = tela.indexOf('\n  );', chamada);
+  assert.ok(fim > chamada, 'não achei o fim da `useQuery` da separação');
+
+  const recorte = tela.slice(chamada, fim);
+  assert.match(
+    recorte,
+    /pickingFor\(empresaDaqui\(\), to\.id, from,/,
+    'a consulta recorta por destino E por sala de origem — se isso mudar, a exigência abaixo ' +
+      'passa a medir outra coisa e precisa mudar junto',
+  );
+
+  const chave = chaveDaConsulta(recorte);
+  assert.match(
+    chave,
+    /\bfrom\b/,
+    `a chave da consulta é "${chave.trim()}" e precisa mencionar \`from\`: \`available\` é por ` +
+      'SALA, e a sala é estado desta tela. Sem ela, trocar de sala mostra o saldo da sala ' +
+      'anterior com o nome da nova.',
+  );
+});
+
+test('a guarda da chave lê a chave, e não o argumento da consulta que tem o mesmo nome', () => {
+  // O caso FALSO é o código que existia até 9 de setembro — não um exemplo escrito
+  // para reprovar. A primeira versão desta guarda passava nele, porque `from` aparece
+  // na chamada; é isso que este par de casos existe para impedir de voltar.
+  const ruim = [
+    'pickingFor(empresaDaqui(), to.id, from, ateQuando, hoje.from, hoje.to)',
+    '        : Promise.resolve([]),',
+    "    to?.id ?? '',",
+  ].join('\n');
+  const boa = [
+    'pickingFor(empresaDaqui(), to.id, from, ateQuando, hoje.from, hoje.to)',
+    '        : Promise.resolve([]),',
+    '    `${to?.id ?? \'\'}|${from}`,',
+  ].join('\n');
+
+  assert.match(chaveDaConsulta(boa), /\bfrom\b/, 'a chave composta passa');
+  assert.doesNotMatch(
+    chaveDaConsulta(ruim),
+    /\bfrom\b/,
+    'e a chave que só leva o destino reprova, mesmo com `from` na linha da chamada acima',
+  );
+});

@@ -246,14 +246,41 @@ function Transfer() {
   // A mesma que o fechamento de pedido usa quando a carga sai.
   const hoje = dayWindow(nowIso(), locale.timeZone);
 
+  // A origem entra na dependência, e ela não entrava.
+  //
+  // `available` é a única coisa desta lista que é POR SALA — pedido, contagem e
+  // prazo são do pedido, e o recebido é do destino. A sala de onde a carga sai é
+  // estado desta tela (`nossaId`), então trocá-la deixava a lista inteira velha
+  // sem nada acusar. Ficou invisível enquanto ninguém lia `available`: o dia em
+  // que alguém lesse, a tela diria "não há nenhum na Câmara fria" olhando o saldo
+  // do Almoxarifado. Chave composta, como o resto da casa faz.
   const { data: pedido } = useQuery<PickLine[]>(
     () =>
       to
         ? pickingFor(empresaDaqui(), to.id, from, ateQuando, hoje.from, hoje.to)
         : Promise.resolve([]),
-    to?.id ?? '',
+    `${to?.id ?? ''}|${from}`,
   );
   const paraSeparar = pedido?.find((p) => p.itemId === line?.itemId) ?? null;
+
+  /**
+   * O pedido que ESTA sala não tem como atender.
+   *
+   * A lista do que vai é o que está aqui, e `stockByPlace` não devolve linha de
+   * saldo zero — decisão certa, escrita lá: *"listá-lo como 0 g enche a tela de
+   * coisa que não está ali"*. O efeito colateral é que o item pedido e ausente
+   * desaparece por completo: não está na lista, não tem `line`, e nenhuma das
+   * frases da tela fala dele. Quem carrega o caminhão descobre na loja.
+   *
+   * `available` é o único número que alcança esse caso — e por isso ele existia
+   * sem leitor. Não é aritmética nova: é a mesma soma de `stockByPlace` para o
+   * mesmo `location_id`, vinda pelo eixo do PEDIDO em vez do eixo do lugar, que é
+   * o eixo em que a ausência é visível.
+   *
+   * O que ainda é devido, e não o pedido inteiro: mandar 500 hoje de um pedido de
+   * 500 zera a dívida, e avisar depois disso seria alerta inventado.
+   */
+  const semNaSala = (pedido ?? []).filter((p) => p.available === 0 && p.ordered > p.sentToday);
 
   /**
    * O palpite, calculado uma vez e decidido no domínio.
@@ -752,6 +779,36 @@ function Transfer() {
               );
             })
           )}
+
+          {/* O pedido que esta sala não tem, dito ANTES de escolher — porque ele não
+              está na lista para ser escolhido. Fato e não alerta: é legenda como a
+              frase de quem espera, e não muda de cor, porque não é sobre esta carga.
+              A cor fica para o que passa da folga, que é a única coisa aqui que a
+              pessoa pode consertar tocando no número. */}
+          {semNaSala.length > 0 ? (
+            <View style={{ gap: space.sm, marginTop: space.md }}>
+              <Text style={[type.caption, { color: color.inkMuted }]}>
+                {fill(words.orderedAbsent, {
+                  // Quem pediu é o DESTINO, e a lista só existe com destino:
+                  // `pickingFor` devolve vazio sem ele.
+                  place: nameOf(to?.id ?? from),
+                  amount: `${formatQuantity(semNaSala[0].ordered - semNaSala[0].sentToday, locale)} ${semNaSala[0].baseUnit}`,
+                  item: semNaSala[0].name.toLocaleLowerCase(locale.formatting),
+                  from: nameOf(from),
+                })}
+              </Text>
+              {semNaSala.length > 1 ? (
+                <Text style={[type.caption, { color: color.inkFaint }]}>
+                  {fill(words.orderedAbsentMany, {
+                    items: semNaSala
+                      .slice(1)
+                      .map((p) => p.name.toLocaleLowerCase(locale.formatting))
+                      .join(', '),
+                  })}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
 
           {line ? (
             <View style={{ gap: space.md, marginTop: space.md }}>

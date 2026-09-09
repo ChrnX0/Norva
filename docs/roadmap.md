@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **627** testes |
+| `npm test` | **630** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **27** garantias contra um Postgres descartável, sob RLS |
@@ -174,8 +174,24 @@ A guarda nova mede chave e sabe de índice dinâmico, que era a causa do falso p
 lado seguro — deixa chave morta passar, nunca acusa chave viva.
 <!-- medida: presente src/dictionary.test.ts :: every dictionary KEY has a reader -->
 
-O que sobra: a régua fina do Papel que não separa nada · o remate em onda do Orgânico ·
-`PickLine.available` sem leitor de produção.
+~~`PickLine.available` sem leitor de produção~~ **fechado em 9 de setembro, e o campo
+morto era anestesia, não peso.** Ele é a mesma soma de `stockByPlace` para o mesmo
+`location_id`, vinda pelo eixo do PEDIDO — e é o único número que alcança o caso que a
+tela de carga não tinha como dizer: `stockByPlace` não devolve linha de saldo zero
+(decisão certa, escrita lá), então o item que a loja pediu e a câmara não tem
+**desaparecia por completo** — não estava na lista, não tinha linha, e nenhuma frase
+falava dele. Quem carrega o caminhão descobria na loja.
+
+E ao ligar o leitor apareceu o defeito que o silêncio dele escondia: a chave da
+`useQuery` da separação era só o destino, e `available` é o único campo dela que é por
+SALA. Trocar a sala de origem — que é estado da tela e um toque — mostraria o saldo da
+sala anterior com o nome da nova. **O campo sem leitor não é só peso: ele anestesia o
+recorte que depende dele.** A guarda nova lê a CHAVE e não o recorte inteiro, porque a
+primeira versão dela passava verde casando o `from` de dentro da própria chamada — o
+mesmo defeito do piso de toque, e por isso a prova é rodar contra o código anterior.
+<!-- medida: presente src/layers.test.ts :: the picking query is keyed by the room -->
+
+O que sobra: a régua fina do Papel que não separa nada · o remate em onda do Orgânico.
 
 ### B. Duas pessoas conferindo a mesma remessa ainda dobram o saldo NO SERVIDOR
 <!-- medida: ausente supabase/migrations :: discrepancy_once_per_group -->

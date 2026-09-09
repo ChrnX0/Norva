@@ -1196,6 +1196,22 @@ export const en: Dictionary = {
       available: 'There is {{amount}} in {{place}}',
       lastTime: 'Last time you sent {{amount}}',
       overBalance: 'That is more than there is in {{place}}.',
+      /**
+       * An order this room cannot fill — and why it needed a sentence of its own.
+       *
+       * The list of what goes is what IS here, and an item at zero has no stock
+       * line. So the strawberry pop the store ordered and the freezer does not hold
+       * simply did not appear — not in the list, not in any warning. Whoever loads
+       * the truck found out at the store.
+       *
+       * "Here", not "the factory": the balance is the ROOM the load leaves from,
+       * and `pickingFor` says in writing that knowing the factory holds three
+       * hundred is no use when they sit in the other freezer. The reverse holds
+       * too — saying "none" of something in the next room sends someone to make
+       * what already exists.
+       */
+      orderedAbsent: '{{place}} ordered {{amount}} of {{item}}, and {{from}} holds none.',
+      orderedAbsentMany: 'And more: {{items}}.',
       promised: '{{amount}} of that is already spoken for: {{place}} is waiting {{when}}',
       promisedMany: '{{amount}} of that is already spoken for: {{place}} is waiting {{when}}, and {{rest}} more',
       promisedWhen: 'for {{date}}',

@@ -6927,3 +6927,105 @@ test('a driver cannot jam the queue with a row the server will refuse', async ()
   });
   assert.equal(perdeu.baseUnits, 10);
 });
+
+/**
+ * O pedido que a sala não tem — o caso que só `available` alcança.
+ *
+ * `stockByPlace` não devolve linha de saldo zero, e está certo: *"listá-lo como 0 g
+ * enche a tela de coisa que não está ali"*. O preço é que o item pedido e ausente
+ * desaparece da tela de carga por completo — não está na lista, não tem linha, e
+ * nenhuma frase fala dele. `PickLine.available` existia sem leitor exatamente porque
+ * ele é o único número que vem pelo eixo do PEDIDO, que é o eixo em que a ausência
+ * aparece.
+ *
+ * A asserção é igualdade contra uma segunda fonte que não passou pela mesma consulta:
+ * o saldo do mesmo item na MESMA sala lido por `stockByPlace`. Se as duas divergirem,
+ * a tela de carga e a tela do lugar passam a dizer coisas diferentes sobre o mesmo
+ * freezer — que é a doença que o docblock do `stockByPlace` nomeia ("ter duas
+ * aritméticas seria ter duas verdades").
+ */
+test('an ordered item the room does not hold comes back with zero available', async () => {
+  await ensureStarterData(EMPRESA_SEMENTE);
+  const fabrica = defaultLocationId(EMPRESA_SEMENTE);
+  const { id: loja } = await savePlace(EMPRESA_SEMENTE, { name: 'Loja Sul', kind: 'own_store' });
+  const [temos] = (await listProductsForLedger(EMPRESA_SEMENTE)).filter((p) => p.recipeId);
+
+  // O ausente é cadastrado e nunca produzido — que é exatamente o estado da fábrica
+  // que lançou o sabor novo no catálogo e ainda não bateu o primeiro tacho. A loja
+  // pede porque viu na lista; o freezer não tem porque ninguém fez.
+  // O sabor próprio existe porque a classificação é única: linha, tipo e sabor
+  // iguais são "o mesmo produto cadastrado duas vezes", recusado desde a `0018`.
+  const sabor = await saveFlavor(EMPRESA_SEMENTE, { name: 'Jabuticaba' });
+  const { itemId: ausenteId } = await saveProduct(EMPRESA_SEMENTE, {
+    name: 'Picolé de jabuticaba',
+    flavorId: sabor,
+    kind: 'product',
+    recipeId: temos.recipeId,
+    yieldPerUnit: temos.yieldPerUnit,
+    unitPackagingRate: temos.unitPackagingRate,
+    packagingItems: [],
+    packaging: temos.packaging,
+    shelfLifeDays: temos.shelfLifeDays,
+    fullLevel: null,
+  });
+  const naoTemos = (await listProductsForLedger(EMPRESA_SEMENTE)).find(
+    (p) => p.itemId === ausenteId,
+  );
+  assert.ok(naoTemos, 'o produto novo entra no catálogo');
+
+  // Só UM dos dois sai do tacho. O outro é o que a loja vai pedir e a câmara não tem.
+  await recordProduction(EMPRESA_SEMENTE, {
+    productId: temos.id,
+    locationId: fabrica,
+    batches: 1,
+    unitsProduced: 200,
+    producedOn: '2026-09-02',
+  });
+
+  await saveOrder(EMPRESA_SEMENTE, {
+    placeId: loja,
+    requestedFor: '2026-09-04',
+    lines: [
+      { itemId: temos.itemId, baseUnits: 50 },
+      { itemId: naoTemos.itemId, baseUnits: 500 },
+    ],
+  });
+
+  const lista = await pickingFor(
+    EMPRESA_SEMENTE,
+    loja,
+    fabrica,
+    '2026-09-10',
+    '2026-09-02T00:00:00.000Z',
+    '2026-09-03T00:00:00.000Z',
+  );
+
+  const ausente = lista.find((l) => l.itemId === naoTemos.itemId);
+  const presente = lista.find((l) => l.itemId === temos.itemId);
+  assert.ok(ausente && presente, 'os dois itens pedidos entram na lista, tenha ou não saldo');
+  assert.equal(ausente.available, 0, 'o que a sala não tem vem com zero, e não fica de fora');
+  assert.equal(ausente.ordered, 500, 'e o pedido dele continua sendo fato');
+  // A unidade vem da tabela `items`, lida à mão: é a fonte que não passou pela
+  // consulta que está sendo medida. Sem ela a frase da tela diria "pediu 500".
+  const conn = await db();
+  const doItem = await conn.getFirstAsync<{ base_unit: string }>(
+    `SELECT base_unit FROM items WHERE id = ?`,
+    [ausenteId],
+  );
+  assert.equal(ausente.baseUnit, doItem?.base_unit, 'com a unidade, para a frase não dizer "500"');
+  assert.ok(ausente.baseUnit.length > 0, 'e ela não é vazia — senão a igualdade acima é de graça');
+
+  // A segunda fonte: o mesmo saldo lido pelo eixo do LUGAR. É onde a ausência é
+  // invisível — e é por isso que a comparação prova algo em vez de se repetir.
+  const sala = (await stockByPlace(EMPRESA_SEMENTE)).find((p) => p.locationId === fabrica);
+  assert.equal(
+    presente.available,
+    sala?.lines.find((l) => l.itemId === temos.itemId)?.baseUnits,
+    'o disponível da carga é o mesmo número que a tela do lugar mostra',
+  );
+  assert.equal(
+    sala?.lines.some((l) => l.itemId === naoTemos.itemId),
+    false,
+    'e o ausente não tem linha nenhuma pelo eixo do lugar — o buraco que `available` tapa',
+  );
+});

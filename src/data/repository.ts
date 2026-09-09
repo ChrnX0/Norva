@@ -4768,6 +4768,15 @@ export type PickLine = {
   /** Quanto disso a fábrica tem hoje, no lugar de onde a carga sai. */
   available: number;
   /**
+   * A unidade de base do item, para a frase poder dizer "500 un" e não "500".
+   *
+   * Ela vem daqui e não do estoque de propósito: o item que esta sala NÃO tem não
+   * aparece em `stockByPlace` — é justamente essa a linha que faltava —, então
+   * quem quisesse a unidade de lá não a acharia exatamente no caso em que ela
+   * importa.
+   */
+  baseUnit: string;
+  /**
    * Quanto já chegou nessa loja HOJE, deste item — líquido do que voltou.
    *
    * Fica ao lado de `ordered` em vez de descontado dele: a subtração é regra e
@@ -4829,10 +4838,11 @@ export async function pickingFor(
     ordered: number;
     orders: number;
     available: number;
+    base_unit: string;
     sent_today: number;
     due_on: string | null;
   }>(
-    `SELECT ol.item_id, i.name,
+    `SELECT ol.item_id, i.name, i.base_unit,
             SUM(ol.base_units) AS ordered,
             COUNT(DISTINCT o.id) AS orders,
             MIN(o.requested_for) AS due_on,
@@ -4857,7 +4867,7 @@ export async function pickingFor(
         AND o.place_id = ?
         AND o.status IN ('pending', 'open')
         AND (o.requested_for IS NULL OR o.requested_for <= ?)
-      GROUP BY ol.item_id, i.name
+      GROUP BY ol.item_id, i.name, i.base_unit
       HAVING ordered > 0
       ORDER BY due_on, i.name COLLATE NOCASE`,
     [fromLocationId, sinceIso, untilIso, companyId, placeId, through],
@@ -4869,6 +4879,7 @@ export async function pickingFor(
     ordered: r.ordered,
     orders: r.orders,
     available: r.available,
+    baseUnit: r.base_unit,
     sentToday: r.sent_today,
     dueOn: r.due_on,
   }));
