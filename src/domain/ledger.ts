@@ -231,6 +231,28 @@ export function receivesCargo(kind: string): boolean {
 export const RETAIL_PLACE_KINDS = ['own_store'] as const;
 
 /**
+ * As prateleiras NOSSAS que não ficam dentro de unidade nenhuma.
+ *
+ * `savePlace` deixa o pai NULO para loja, cliente e veículo por decisão escrita:
+ * uma loja não fica *dentro* de uma fábrica. A consequência é que todo recorte de
+ * unidade as deixa de fora — o que está certo para saldo (mil picolés na loja não
+ * atendem quem pediu na fábrica) e é errado para PERDA.
+ *
+ * A confirmação da venda manda lançar a perda ali — *"Derreteu alguma parte? Lance
+ * a perda antes de contar"* — e as quatro leituras de perda recortam pela unidade:
+ * o picolé derretido no balcão entrava no razão e a tela dizia "Nenhuma perda
+ * registrada". Um dado que a própria tela pediu e depois some é o jeito mais rápido
+ * de ensinar a não registrar.
+ *
+ * **`customer` fica de fora, e a distinção não é detalhe.** Loja própria e veículo
+ * são prateleiras nossas: o que derrete ali é perda nossa. A prateleira do cliente
+ * é de outro, e o que acontece nela depois da entrega não é perda da fábrica —
+ * enquanto o embarque para cliente for `transfer`, tratá-la como nossa somaria ao
+ * nosso prejuízo o estrago de quem comprou.
+ */
+export const OUR_UNPARENTED_PLACE_KINDS = ['own_store', 'vehicle'] as const;
+
+/**
  * As espécies de movimento que provam que alguém ANDOU até a prateleira.
  *
  * `adjustment` sempre foi essa prova. `sale` entrou em 8 de setembro porque numa loja

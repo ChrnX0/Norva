@@ -1784,7 +1784,11 @@ export function granularidadeMisturada(fonte: string, comEscopo: string[]): stri
     for (const m of texto.matchAll(new RegExp(`\\b${nome}\\(`, 'g'))) {
       const args = argumentos(texto, (m.index ?? 0) + nome.length + 1);
       if (args === null) continue;
-      chamadas.push({ nome, diz: args.some((a) => /\b(sala|unidade)\b/.test(a)) });
+      // A palavra `unidade` como PREFIXO, não como palavra inteira: o recorte pode
+      // vir de uma ajudante nomeada — `unidadeDaqui()`, `unidadeEAsNossasDeFora()` —
+      // e exigir a palavra isolada faria a guarda acusar quem obedeceu com um nome
+      // mais longo. O que ela mede continua sendo "esta chamada DIZ de onde".
+      chamadas.push({ nome, diz: args.some((a) => /\b(sala|unidade)/i.test(a)) });
     }
   }
   // Uma tela que não recorta NADA está noutro assunto — a lista do almoxarifado lê a
@@ -1863,6 +1867,19 @@ test('the mixed-granularity guard bites a half-scoped screen and leaves the othe
     ),
     [],
     'comentário não é chamada',
+  );
+
+  // Negativo 4-bis: o recorte vindo de uma AJUDANTE nomeada. A perda tem recorte
+  // próprio — a unidade mais as prateleiras nossas de fora dela —, e ele mora numa
+  // função para os quatro leitores concordarem. Exigir a palavra isolada acusaria
+  // justamente o conserto.
+  assert.deepEqual(
+    granularidadeMisturada(
+      'runningOut(co, a, b, 7, 7, { unidade: u });\nproductionOn(co, a, b, unidadeEAsNossasDeFora());',
+      lista,
+    ),
+    [],
+    'ajudante que nomeia o recorte diz de onde',
   );
 
   // Negativo 4: a forma condicional, que é como as telas de sala escrevem. Sem isto a

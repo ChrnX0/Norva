@@ -22,7 +22,7 @@ import {
 } from '@/data/repository';
 import { ultimaCopia } from '@/data/backup';
 import { empresaDaqui } from '@/data/empresa';
-import { unidadeDaqui } from '@/data/unidade';
+import { unidadeEAsNossasDeFora, unidadeDaqui } from '@/data/unidade';
 import { reading, type Forecast } from '@/weather';
 import { forecastForScreen } from '@/weather/live';
 import { useQuery } from '@/data/useQuery';
@@ -194,8 +194,8 @@ function Briefing() {
       // já foi ENTREGUE. A unidade é a granularidade que serve às duas: a câmara
       // está dentro dela, a loja do cliente não.
       expiringSoon(empresaDaqui(), trintaDias, 5, { unidade: unidadeDaqui() }),
-      lossesOn(empresaDaqui(), mes.from, today.to, { unidade: unidadeDaqui() }),
-      lossesOn(empresaDaqui(), mesAnterior.de.from, mesAnterior.ate.to, { unidade: unidadeDaqui() }),
+      lossesOn(empresaDaqui(), mes.from, today.to, unidadeEAsNossasDeFora()),
+      lossesOn(empresaDaqui(), mesAnterior.de.from, mesAnterior.ate.to, unidadeEAsNossasDeFora()),
       listPlaces(empresaDaqui()),
       // Da UNIDADE, não da empresa: o cartão do que está guardado responde "quanto
       // vale o que eu tenho aqui", e somar o almoxarifado da outra cidade daria um

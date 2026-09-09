@@ -3,6 +3,7 @@ import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
 import { isValidHierarchy } from '@/domain/units';
 import { DEFAULT_ALERTS, type AlertSettings } from '@/domain/alerts';
 import {
+  OUR_UNPARENTED_PLACE_KINDS,
   UNIT_ROOM_KINDS,
   daysOfCover,
   ehSalaDeUnidade,
@@ -167,7 +168,18 @@ function parsePackagingItems(
  * fora. **Somar de menos é o erro mais silencioso dos dois** — um número menor lê
  * como prudência, e ninguém desconfia de um sistema que diz ter menos do que tem.
  */
-export type Escopo = { sala: string } | { unidade: string };
+export type Escopo =
+  | { sala: string }
+  /**
+   * A unidade, e o que fica DENTRO dela.
+   *
+   * `nossasDeFora` inclui junto as prateleiras nossas que não ficam dentro de
+   * unidade nenhuma — loja própria e veículo, cujo pai é nulo por decisão escrita.
+   * É o recorte honesto da PERDA: a confirmação da venda manda lançar a perda na
+   * loja, e as quatro leituras de perda a escondiam. Não vale para saldo, onde
+   * "está na loja" é justamente o que não conta.
+   */
+  | { unidade: string; nossasDeFora?: boolean };
 
 /**
  * As colunas de lugar que o recorte aceita — e a lista é o que valida a
@@ -219,6 +231,9 @@ function noEscopo(
 ): { sql: string; params: (string | null)[] } {
   const sala = onde && 'sala' in onde ? onde.sala : null;
   const unidade = onde && 'unidade' in onde ? onde.unidade : null;
+  // As prateleiras nossas de pai nulo entram junto quando quem pergunta pede — é o
+  // recorte da PERDA, e não o do saldo. Ver `Escopo`.
+  const deFora = Boolean(onde && 'unidade' in onde && onde.nossasDeFora);
   return {
     // O nome da coluna entra no texto do comando, e quem garante que ele é seguro
     // não é checagem em tempo de execução: é o TIPO `ColunaDeLugar`, que só admite
@@ -245,7 +260,12 @@ function noEscopo(
                         -- pertencimento — e inventa para os dois lados.
                         OR (esc.parent_location_id IS NULL
                             AND esc.kind IN (${UNIT_ROOM_KINDS.map((k) => `'${k}'`).join(', ')}) -- proofgate-allow: lista de espécies do domínio, nunca entrada
-                            AND esc.company_id = ?))))`,
+                            AND esc.company_id = ?)
+                        ${
+                          deFora
+                            ? `OR esc.kind IN (${OUR_UNPARENTED_PLACE_KINDS.map((k) => `'${k}'`).join(', ')})` // proofgate-allow: lista de espécies do domínio, nunca entrada
+                            : ''
+                        })))`,
     params: [sala, sala, unidade, unidade, unidade, unidade],
   };
 }

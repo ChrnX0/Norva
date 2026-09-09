@@ -1,5 +1,5 @@
 import type { AssistantData } from '@/assistant/types';
-import { unidadeDaqui } from './unidade';
+import { unidadeEAsNossasDeFora, unidadeDaqui } from './unidade';
 import { nowIso } from '@/data/db';
 import { localDate } from '@/domain/day';
 import {
@@ -61,7 +61,7 @@ export function liveData(companyId: string, timeZone: string): AssistantData {
     // frase afirmativa não tem como dizer de onde o número veio: *"a fábrica fez 900
     // hoje"* com as duas cidades somadas passa como fato, e quem ouve decide com ele.
     productionOn: (from, to) => productionOn(companyId, from, to, { unidade: unidadeDaqui() }),
-    lossesOn: (from, to) => lossesOn(companyId, from, to, { unidade: unidadeDaqui() }),
+    lossesOn: (from, to) => lossesOn(companyId, from, to, unidadeEAsNossasDeFora()),
     recordPurchase: (input) => recordPurchase(companyId, input),
     // O assistente conta a prateleira do lugar padrão, e a habilidade só chega
     // aqui depois de conferir que o item está num lugar só - com o item em duas

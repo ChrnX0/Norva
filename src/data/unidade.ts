@@ -99,3 +99,23 @@ export async function escolherUnidade(locationId: string): Promise<void> {
   await writeMeta(CHAVE_DA_UNIDADE, id);
   aqui = id;
 }
+
+/**
+ * O recorte da PERDA — a unidade, mais as prateleiras nossas que ficam fora dela.
+ *
+ * Existe como função e não como literal repetido porque são QUATRO leitores e eles
+ * têm de concordar: a página de perdas, a linha de Relatórios, o cartão da capa e o
+ * assistente. Quatro literais é como quatro verdades nascem.
+ *
+ * Por que a perda tem recorte próprio: `savePlace` deixa o pai nulo para loja e
+ * veículo por decisão escrita — uma loja não fica *dentro* de uma fábrica —, e todo
+ * recorte de unidade as deixa de fora. Para SALDO isso é o certo (mil picolés na
+ * loja não atendem quem pediu na fábrica). Para perda é errado, e de um jeito que a
+ * própria tela provocava: a confirmação da venda manda lançar a perda na loja
+ * (*"Derreteu alguma parte? Lance a perda antes de contar"*), e depois nenhuma das
+ * quatro leituras a mostrava. A tela dizia "Nenhuma perda registrada" com o picolé
+ * derretido no razão.
+ */
+export function unidadeEAsNossasDeFora(): { unidade: string; nossasDeFora: true } {
+  return { unidade: unidadeDaqui(), nossasDeFora: true };
+}

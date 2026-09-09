@@ -791,6 +791,67 @@ test('duas notas no mesmo instante deixam a SEGUNDA como último preço, sempre'
   }
 });
 
+/**
+ * A perda lançada NA LOJA aparece — e não aparecia em nenhuma das quatro leituras.
+ *
+ * `savePlace` deixa o pai nulo para loja e veículo por decisão escrita: uma loja não
+ * fica *dentro* de uma fábrica. Todo recorte de unidade as deixa de fora, o que é o
+ * certo para SALDO — mil picolés numa loja não atendem quem pediu na fábrica — e é
+ * errado para perda.
+ *
+ * E a própria tela provocava o dado que depois escondia: a confirmação da venda
+ * termina em *"Derreteu alguma parte? Lance a perda antes de contar"*. A pessoa
+ * lançava, e a página de perdas dizia "Nenhuma perda registrada". Um dado que o app
+ * pediu e depois some é o jeito mais rápido de ensinar a não registrar.
+ *
+ * Os dois lados: a perda da loja entra no recorte da perda, e NÃO entra no recorte
+ * do saldo — senão o conserto teria trocado um defeito por outro.
+ */
+test('a perda lançada na loja entra na conta de perdas, e não na de saldo', async () => {
+  await ensureStarterData(CO);
+  const loja = await savePlace(CO, { name: 'Loja Centro', kind: 'own_store' });
+  const fabrica = defaultLocationId(CO);
+  const [item] = (await listItems(CO)).filter((i) => /ú?car/i.test(i.name));
+
+  await recordTransfer(CO, {
+    itemId: item.id, fromLocationId: fabrica, toLocationId: loja.id,
+    baseUnits: 2000, occurredAt: '2026-09-01T10:00:00.000Z',
+  });
+  await recordLoss(CO, {
+    itemId: item.id,
+    locationId: loja.id,
+    baseUnits: 500,
+    reason: 'melted',
+    occurredAt: '2026-09-01T15:00:00.000Z',
+  });
+
+  const de = '2026-09-01T00:00:00.000Z';
+  const ate = '2026-09-02T00:00:00.000Z';
+
+  const soDaUnidade = await lossesOn(CO, de, ate, { unidade: fabrica });
+  assert.deepEqual(
+    soDaUnidade,
+    [],
+    'o recorte de unidade não alcança a loja — é isso que escondia a perda',
+  );
+
+  const comAsDeFora = await lossesOn(CO, de, ate, { unidade: fabrica, nossasDeFora: true });
+  assert.equal(comAsDeFora.length, 1, 'a perda do balcão aparece');
+  assert.equal(comAsDeFora[0].baseUnits, 500);
+
+  // E o SALDO continua sem a loja: incluí-la aqui faria "quanto dá para prometer"
+  // contar mercadoria que já está a dez quilômetros.
+  const naUnidade = (await listItems(CO, undefined, false, { unidade: fabrica })).find(
+    (i) => i.id === item.id,
+  );
+  const naEmpresa = (await listItems(CO)).find((i) => i.id === item.id);
+  assert.ok(naUnidade && naEmpresa);
+  assert.ok(
+    naUnidade.onHandBaseUnits < naEmpresa.onHandBaseUnits,
+    'o que está na loja não entra no saldo da unidade',
+  );
+});
+
 test('erasing invoices drops the average with them', async () => {
   await ensureStarterData(CO);
 

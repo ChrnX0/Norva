@@ -26,7 +26,7 @@ import {
   type PlaceStock,
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
-import { unidadeDaqui } from '@/data/unidade';
+import { unidadeEAsNossasDeFora, unidadeDaqui } from '@/data/unidade';
 import { useQuery } from '@/data/useQuery';
 import { dayWindow } from '@/domain/day';
 import type { Cents } from '@/domain/money';
@@ -91,8 +91,8 @@ function ReportIndex() {
         unidade: unidadeDaqui(),
       }),
       recentRuns(empresaDaqui(), 8, { unidade: unidadeDaqui() }),
-      lossesOn(empresaDaqui(), trintaDias.from, hoje.to, { unidade: unidadeDaqui() }),
-      lossesOn(empresaDaqui(), anterior.de.from, anterior.ate.to, { unidade: unidadeDaqui() }),
+      lossesOn(empresaDaqui(), trintaDias.from, hoje.to, unidadeEAsNossasDeFora()),
+      lossesOn(empresaDaqui(), anterior.de.from, anterior.ate.to, unidadeEAsNossasDeFora()),
       canSeeMoney(empresaDaqui()),
     ]);
     return { lugares, cobertura, corridas, mes, mesAnterior, dinheiro };
