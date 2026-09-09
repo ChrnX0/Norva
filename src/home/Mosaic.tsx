@@ -175,7 +175,7 @@ export function Mosaic(vista: BriefingView) {
      * semana). São as três perguntas da Lei da Inteligência numa tela só.
      */
     producao: (
-      <Reveal index={0}>
+      <View>
         <View>
           {/* Nada de manchete enquanto a resposta não chegou: `forte` nulo
               deixa a linha de baixo em branco em vez de afirmar. É meio segundo
@@ -252,7 +252,7 @@ export function Mosaic(vista: BriefingView) {
           ) : null}
 
         </View>
-      </Reveal>
+      </View>
     ),
 
     /**
@@ -266,7 +266,7 @@ export function Mosaic(vista: BriefingView) {
      */
     semana:
       data && data.series.length > 0 ? (
-        <Reveal index={1}>
+        <View>
           <View>
             <Versalete>{t.app.home.weekTitle}</Versalete>
             <Bars
@@ -275,7 +275,7 @@ export function Mosaic(vista: BriefingView) {
               labels={data.series.map((d) => formatWeekdayAbbrev(d.date, locale))}
             />
           </View>
-        </Reveal>
+        </View>
       ) : null,
     /**
      * O insumo que está acabando, desenhado como o pote que ele é.
@@ -300,7 +300,7 @@ export function Mosaic(vista: BriefingView) {
      * defeito que não existia enquanto o casco era o nada do Papel.
      */
     insumos: temNivel || temCaixas ? (
-      <Reveal index={1}>
+      <View>
         <View style={{ gap: space.lg }}>
           {data && data.shortly.length > 0 ? (
             <Porta aoTocar={() => go('/inputs')} etiqueta={t.app.home.runningOut} convite={t.app.home.openScreen}>
@@ -370,11 +370,11 @@ export function Mosaic(vista: BriefingView) {
             </Porta>
           ) : null}
         </View>
-      </Reveal>
+      </View>
     ) : null,
     pedidos: (
       temPedido ? (
-        <Reveal index={2}>
+        <View>
           <Touchable
             onPress={() => go('/orders')}
             accessibilityLabel={shortForOrders.length > 0 ? t.app.home.ordersShort : t.app.home.ordersCovered}
@@ -406,12 +406,12 @@ export function Mosaic(vista: BriefingView) {
               )}
             </Card>
           </Touchable>
-        </Reveal>
+        </View>
       ) : null
     ),
     clima: (
       sky ? (
-        <Reveal index={3}>
+        <View>
           {/* O toque abre a SEMANA aqui, e não leva para outra tela.
               Pedido do dono com todas as letras, e ele tem razão sobre o motivo:
               a pergunta "vou vender mais sexta?" se responde olhando sete dias de
@@ -482,7 +482,7 @@ export function Mosaic(vista: BriefingView) {
               ) : null}
             </CartaoClima>
           </Touchable>
-        </Reveal>
+        </View>
       ) : null
     ),
     expedicao: null,
@@ -501,7 +501,7 @@ export function Mosaic(vista: BriefingView) {
        * o defeito que a peça de produção ao vivo já pagou nesta mesma capa.
        */
       moved.length === 0 ? (
-        <Reveal index={6}>
+        <View>
           <Porta aoTocar={() => go('/inputs')} etiqueta={t.app.home.allSteady} convite={t.app.home.openScreen}>
             <Card
               hue={palette.sky}
@@ -520,9 +520,9 @@ export function Mosaic(vista: BriefingView) {
               </Text>
             </Card>
           </Porta>
-        </Reveal>
+        </View>
       ) : (
-        <Reveal index={6}>
+        <View>
           <Porta aoTocar={() => go('/inputs')} etiqueta={t.app.home.changed} convite={t.app.home.openScreen}>
             <Card hue={palette.sky} icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />} title={t.app.home.changed}>
               <View style={{ gap: space.sm }}>
@@ -543,7 +543,7 @@ export function Mosaic(vista: BriefingView) {
               </View>
             </Card>
           </Porta>
-        </Reveal>
+        </View>
       )
     ),
 
@@ -1066,7 +1066,7 @@ export function Mosaic(vista: BriefingView) {
     // No lugar da peça do dia, não no lugar da capa: o que as outras peças
     // souberem dizer continua dito, na ordem que a empresa escolheu.
     pecas.producao = (
-      <Reveal index={0}>
+      <View>
         <View>
           {/* O primeiro dia na mesma tipografia dos outros — e isso importa mais
               do que parece. O que o dono fotografou como "o que você está me
@@ -1129,7 +1129,7 @@ export function Mosaic(vista: BriefingView) {
             </View>
           ))}
         </View>
-      </Reveal>
+      </View>
     );
     // As peças de trabalho vazias somem em vez de empilhar quatro zeros: cada
     // uma já devolve nulo sem dado, e o convite acima responde por todas.
@@ -1165,9 +1165,18 @@ export function Mosaic(vista: BriefingView) {
    * volta a desenhar a própria linha de olho. Uma capa sem a peça de cima não
    * pode ficar sem topo.
    */
-  const heroi = vestimenta.sangra && layout.includes(vestimenta.sangra)
-    ? pecas[vestimenta.sangra]
-    : null;
+  // O herói entra ANTES da primeira fila, e entra sem escala.
+  //
+  // Ele sangra de borda a borda, então `enterScale` mostraria a cor da página nas
+  // laterais e no topo durante a chegada — a única peça da capa em que a escala de
+  // entrada é errada. Sem isto ele aparecia pronto e imóvel no Orgânico, que é a
+  // maior coisa da tela e a primeira que se olha.
+  const heroi =
+    vestimenta.sangra && layout.includes(vestimenta.sangra) && pecas[vestimenta.sangra] ? (
+      <Reveal index={0} escala={false}>
+        {pecas[vestimenta.sangra]}
+      </Reveal>
+    ) : null;
   const miolo = layout.filter((id) => id !== vestimenta.sangra && pecas[id] !== null);
   const vestidasPelaPele = new Set<string>(Object.keys(vestimenta.pecas ?? {}));
 
@@ -1185,9 +1194,23 @@ export function Mosaic(vista: BriefingView) {
             que importa não é de desenho — meia sozinha vira inteira, senão a
             página fica com um dente faltando e a pessoa procura o que sumiu.
             Aqui só se cumpre o que ela decidiu. */}
-        {briefingFilas(miolo, meias).map((fila) => (
-          <View
+        {/* **A entrada mora na FILA, e é uma só para toda pele.**
+
+            Ela morava dentro de cada peça, com dois problemas que só a auditoria
+            de 9 de setembro contou. O primeiro: o laço de `vestimenta.pecas` acima
+            substitui a peça inteira, então a pele levava junto o `Reveal` que
+            embrulhava a versão padrão — no Orgânico o herói, a semana e o clima
+            chegavam prontos e imóveis, e "tela que aparece pronta está errada" é
+            regra escrita. O segundo: o índice era um literal por peça, e a ordem da
+            capa é dinâmica — `semana`, `insumos` e `aoVivo` compartilhavam
+            `index={1}`, e o clima entrava antes de duas peças que vêm acima dele.
+
+            Na fila, o índice É a posição de leitura, e pele nova ganha a cascata
+            sem escrever nada. */}
+        {briefingFilas(miolo, meias).map((fila, posicao) => (
+          <Reveal
             key={fila.join('+')}
+            index={posicao}
             style={fila.length > 1 ? { flexDirection: 'row', gap: space.lg } : undefined}
           >
             {fila.map((id) => (
@@ -1202,7 +1225,7 @@ export function Mosaic(vista: BriefingView) {
                 )}
               </View>
             ))}
-          </View>
+          </Reveal>
         ))}
       </View>
     </vestimenta.Casco>

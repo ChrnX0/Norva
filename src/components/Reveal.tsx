@@ -38,11 +38,21 @@ export function Reveal({
   index = 0,
   children,
   style,
+  escala = true,
 }: {
   /** A posição na pilha. É o que escalona a entrada. */
   index?: number;
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  /**
+   * Se a chegada CRESCE — e há um caso em que ela não pode.
+   *
+   * A peça que sangra de borda a borda (o herói da capa) entrando a 0,965 mostra a
+   * cor da página nas laterais e no topo durante a animação: em vez de subir, ela
+   * parece descolar do fundo. Para tudo o que tem margem, crescer é metade do que
+   * faz a chegada parecer chegada, e o padrão continua sendo sim.
+   */
+  escala?: boolean;
 }) {
   const { motion } = useTheme();
 
@@ -90,7 +100,7 @@ export function Reveal({
     opacity: shown.value,
     transform: [
       { translateY: (1 - shown.value) * motion.riseDp },
-      { scale: motion.enterScale + (1 - motion.enterScale) * shown.value },
+      { scale: escala ? motion.enterScale + (1 - motion.enterScale) * shown.value : 1 },
     ],
   }));
 

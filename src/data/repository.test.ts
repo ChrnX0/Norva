@@ -738,6 +738,59 @@ test('a corrida aberta nasce na unidade do aparelho, não na primeira da empresa
   assert.equal(semDizer.locationId, primeira);
 });
 
+/**
+ * Duas notas no MESMO instante — e a última é a última, sempre.
+ *
+ * `recomputeItemCost` replaya o razão em ordem, e o último desempate era `m.id`: um
+ * uuid. Enquanto ela só rodava no estorno isso quase nunca aparecia; desde que ela
+ * virou a única autora de `item_costs`, ela decide o `last_rate` de toda compra, e
+ * um teste de dinheiro passou a falhar uma vez a cada tantas — que é como um defeito
+ * de ordenação se anuncia, e é a pior forma, porque parece flake.
+ *
+ * Vinte voltas: com o desempate por `rowid` (a ordem em que as linhas entraram neste
+ * aparelho) a resposta é a mesma nas vinte. Com `id`, o sorteio aparece.
+ */
+test('duas notas no mesmo instante deixam a SEGUNDA como último preço, sempre', async () => {
+  await ensureStarterData(CO);
+  const instante = '2026-12-01T09:00:00.000Z';
+
+  // Vinte itens, cada um com duas notas no MESMO instante. Vinte sorteios: com o
+  // desempate por `rowid` a resposta é a segunda nota nas vinte; com `id`, o uuid
+  // decide e a falha aparece uma vez a cada tantas — que é a pior forma de um
+  // defeito de ordenação se anunciar, porque parece flake.
+  for (let volta = 0; volta < 20; volta += 1) {
+    const item = await saveItem(CO, {
+      kind: 'input',
+      name: `Insumo ${volta}`,
+      purchaseUnit: 'saco',
+      purchaseToBase: 10_000,
+      baseUnit: 'g',
+      packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }] },
+    });
+
+    await recordPurchase(CO, {
+      itemId: item,
+      purchaseQuantity: 1,
+      baseUnits: 10_000,
+      totalCents: fromDecimal(100),
+      occurredAt: instante,
+    });
+    await recordPurchase(CO, {
+      itemId: item,
+      purchaseQuantity: 1,
+      baseUnits: 10_000,
+      totalCents: fromDecimal(300),
+      occurredAt: instante,
+    });
+
+    const [linha] = (await listItems(CO)).filter((i) => i.id === item);
+    assert.ok(
+      Math.abs((linha.lastRate ?? 0) - 3) < 1e-9,
+      `volta ${volta}: o último preço veio ${linha.lastRate}, e a segunda nota é 3 centavos por grama`,
+    );
+  }
+});
+
 test('erasing invoices drops the average with them', async () => {
   await ensureStarterData(CO);
 

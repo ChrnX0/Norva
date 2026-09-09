@@ -1,11 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
-import { AccessibilityInfo, Text, View } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import { Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { useReduzirMovimento } from '@/components/vida';
 import { Card } from '@/components/Card';
 import { Touchable } from '@/components/Touchable';
 import { useLocale } from '@/i18n/useLocale';
@@ -73,20 +69,24 @@ export function Peca({
    */
   const aberto = useSharedValue(aberta ? 1 : 0);
 
+  // A resposta vem do CACHE do módulo, não de uma ida à ponte por montagem.
+  //
+  // `vida.ts` existe para isso e o docblock dele diz por quê — *"vinte e seis glifos
+  // perguntando ao sistema, cada um na sua montagem, é vinte e seis idas ao módulo
+  // nativo para responder a mesma coisa"*. Onze leituras no pacote furavam o cache; a
+  // auditoria de 9 de setembro contou. Aqui o `null` é o "ainda não sei", e nele a
+  // gaveta assume o estado final sem gesto — que é o que quem pediu menos movimento
+  // quer de qualquer jeito.
+  const reduzir = useReduzirMovimento();
+
   useEffect(() => {
-    let cancelled = false;
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (cancelled) return;
-      aberto.value = reduced
+    aberto.value =
+      reduzir !== false
         ? aberta
           ? 1
           : 0
         : withSpring(aberta ? 1 : 0, { damping: 18, stiffness: 180 });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [aberta, aberto]);
+  }, [aberta, aberto, reduzir]);
 
   const detalhe = useAnimatedStyle(() => ({
     opacity: aberto.value,
@@ -115,46 +115,21 @@ export function Peca({
     </Card>
   );
 
-  if (!mais) return <Entrada index={index}>{corpo}</Entrada>;
+  // Sem entrada própria: quem escalona é a FILA da capa (`src/home/Mosaic.tsx`), com
+  // o índice sendo a posição de leitura. Havia aqui uma cópia privada do `Reveal`,
+  // parada na amplitude de antes de 6 de setembro — 14 dp contra 26, sem a mola nem
+  // a escala de entrada, com o escalonamento na DURAÇÃO em vez do atraso (todas as
+  // peças partindo juntas e só terminando em tempos diferentes), e perguntando ao
+  // sistema por reduzir-movimento em cada montagem em vez de usar o cache. O pior
+  // dela era o que o próprio `Reveal` documenta ter consertado: pintava o cartão no
+  // lugar de chegada, resolvia a promessa um quadro depois, e só então saltava para
+  // trás para subir. Cinco das oito peças da capa faziam isso.
+  if (!mais) return corpo;
 
   return (
-    <Entrada index={index}>
-      <Touchable onPress={onToggle} accessibilityLabel={title ?? ''}>
-        {corpo}
-      </Touchable>
-    </Entrada>
+    <Touchable onPress={onToggle} accessibilityLabel={title ?? ''}>
+      {corpo}
+    </Touchable>
   );
 }
 
-/**
- * A entrada escalonada da peça na capa.
- *
- * Começa VISÍVEL e sobe para o lugar, nunca em opacidade zero: se o caminho da
- * animação falhar — plugin de worklets fora do babel, biblioteca não carregando
- * no navegador —, o pior caso é a peça aparecer sem o gesto. Uma capa em branco
- * com o banco cheio é o pior defeito possível numa fábrica, e já foi a razão de
- * o `Reveal` nascer assim.
- */
-function Entrada({ index = 0, children }: { index?: number; children: ReactNode }) {
-  const { motion } = useTheme();
-  const chegou = useSharedValue(1);
-
-  useEffect(() => {
-    let cancelled = false;
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (cancelled || reduced) return;
-      chegou.value = 0;
-      chegou.value = withTiming(1, { duration: 320 + index * motion.staggerMs });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [chegou, index, motion.staggerMs]);
-
-  const estilo = useAnimatedStyle(() => ({
-    opacity: 0.2 + chegou.value * 0.8,
-    transform: [{ translateY: (1 - chegou.value) * 14 }],
-  }));
-
-  return <Animated.View style={estilo}>{children}</Animated.View>;
-}

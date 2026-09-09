@@ -6890,9 +6890,18 @@ export async function recomputeItemCost(
   // e quem pergunta "o que aconteceu" não vê nenhuma das duas. A dobra do custo
   // é essa pergunta.
   //
-  // A ordem desempata pelo instante em que o aparelho soube: duas entradas no
-  // mesmo momento têm que dobrar sempre igual, senão a média depende de qual
-  // linha o SQLite devolveu primeiro.
+  // A ordem desempata pelo instante em que o aparelho soube — e depois pela ORDEM
+  // DE ESCRITA, nunca pelo id.
+  //
+  // O último desempate era `m.id`, um uuid: duas notas do mesmo item lançadas no
+  // mesmo instante (a segunda tela, o exemplo semeado, um laço) ficavam com a ordem
+  // decidida por sorteio. Enquanto esta função só rodava no estorno isso quase nunca
+  // aparecia; desde que ela virou a ÚNICA autora de `item_costs`, ela decide o
+  // `last_rate` de toda compra — e um teste de dinheiro passou a falhar uma vez a
+  // cada tantas, que é como um defeito de ordenação se anuncia.
+  //
+  // `rowid` é o contador implícito do SQLite: ele é a ordem em que as linhas
+  // entraram neste aparelho, que é exatamente o que "a última" quer dizer.
   //
   // **E QUEM autora a média são dois, não qualquer entrada.** A dobra mistura só o
   // que o servidor mistura, e lá isso é lei escrita em gatilho: a `0009` dobra na
@@ -6914,7 +6923,7 @@ export async function recomputeItemCost(
       WHERE m.company_id = ? AND m.item_id = ?
         AND m.kind <> 'reversal'
         AND ${NAO_ESTORNADO}
-      ORDER BY m.occurred_at, m.recorded_at, m.id`,
+      ORDER BY m.occurred_at, m.recorded_at, m.rowid`,
     [companyId, itemId],
   );
 
