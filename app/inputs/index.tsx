@@ -188,7 +188,12 @@ function InputsList() {
               existe: quem abre a tela não descobre que compra material de loja.
               Com `flex: 1` as três dividem a largura que houver, o rótulo quebra em
               duas linhas quando precisa, e nada fica escondido em nenhuma largura. */}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+          {/* `stretch` e não `flex-start`: as três colunas ficam da mesma altura, e a
+              contagem de cada uma desce até o pé (`marginTop: 'auto'`). Sem isso, o
+              rótulo que quebra em duas linhas empurra o número dele para baixo dos
+              outros dois, e três números em alturas diferentes leem como desalinho e
+              não como "este rótulo é mais comprido". */}
+          <View style={{ flexDirection: 'row', alignItems: 'stretch' }}>
             {TABS.map((entry, i) => {
                 const active = entry.kind === kind;
                 const count = all.filter((i) => i.kind === entry.kind).length;
@@ -233,16 +238,29 @@ function InputsList() {
                     >
                       {t.app.inputs.tabs[entry.key]}
                     </Text>
-                    {count > 0 ? (
-                      <Text
-                        style={[
-                          type.caption,
-                          { color: active ? palette.mint : color.inkFaint, textAlign: 'center' },
-                        ]}
-                      >
-                        {formatQuantity(count, locale)}
-                      </Text>
-                    ) : null}
+                    {/* O zero APARECE, e escondê-lo era uma guarda sem razão escrita.
+                        A foto do emulador mostrou o custo: "Material de loja" sem número
+                        nenhum ao lado de "Insumos 4" e "Embalagem 2" — e a primeira
+                        leitura, minha, foi "não carregou". Quem escreveu o código leu
+                        assim; quem está de luva na câmara vai ler igual.
+
+                        A contagem existe para responder "tem alguma coisa aqui?" ANTES do
+                        toque. Escondida, ela torna "não tem" indistinguível de "não
+                        carregou", e a pessoa toca para descobrir — que é exatamente o
+                        toque que o número existia para poupar. Zero é estado, e a Lei 7
+                        diz que estado se mostra. */}
+                    <Text
+                      style={[
+                        type.caption,
+                        {
+                          color: active ? palette.mint : color.inkFaint,
+                          textAlign: 'center',
+                          marginTop: 'auto',
+                        },
+                      ]}
+                    >
+                      {formatQuantity(count, locale)}
+                    </Text>
                   </Pressable>
                 );
             })}

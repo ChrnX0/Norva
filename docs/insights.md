@@ -8449,3 +8449,36 @@ roda `npm test` antes do push; edição dentro de arquivo existente segue a tabe
 ferramenta cuja razão de existir é *não precisar do ciclo caro para ver uma coisa
 pequena*. Atalho novo tende a ser usado antes de se saber onde ele não vale — e o preço
 da primeira vez é justamente descobrir isso.
+
+---
+
+## 9 de setembro — a guarda `count > 0` que ninguém examinou, achada pela foto
+
+**O que apareceu:** as abas do Almoxarifado mostram "Insumos 4", "Embalagem 2" e
+"Material de loja" — sem número. Não é corte: há espaço vazio embaixo, e o número
+simplesmente não existe. A causa é uma linha: `{count > 0 ? … : null}`.
+
+**Por que importa, e a prova é o que eu mesmo pensei:** olhei a foto e li *"não
+carregou"*. Eu escrevi o código. Se quem escreveu lê como falha, quem está de luva na
+câmara fria lê igual — e o defeito não é estético: a contagem existe para responder *"tem
+alguma coisa aqui?"* **antes** do toque. Escondida, ela torna "não tem" indistinguível de
+"não carregou", e a pessoa toca para descobrir. Ou seja, esconder o zero destrói
+exatamente o trabalho que o número fazia.
+
+**E não havia razão escrita.** O docblock ao lado explica com cuidado por que o nome e a
+contagem ficam em linhas separadas (o `·` quebrava no fim da linha) e por que são três
+colunas e não um rolamento. Sobre o `count > 0`, nada. É o formato mais comum de defeito
+neste repositório: não a decisão errada, mas **a linha que ninguém decidiu** — escrita por
+reflexo ("zero é feio"), cercada de vizinhas bem pensadas, e por isso lida como se também
+tivesse sido pensada.
+
+**A régua que fica:** num arquivo bem documentado, procure a linha SEM comentário. A
+densidade de explicação em volta faz o silêncio parecer intenção, e a vizinhança boa é
+justamente o que impede a pergunta. E `x > 0 ? … : null` merece a pergunta sempre: esconder
+o zero é afirmar que a ausência não é informação, o que quase nunca é verdade num
+aplicativo cuja Lei 7 diz que "está tudo bem" é um estado.
+
+**A segunda coisa, que veio junto:** com o número de volta, o rótulo que quebra em duas
+linhas empurrava o número dele para baixo dos outros dois. Três números em alturas
+diferentes leem como desalinho, não como "este rótulo é mais comprido" — as colunas
+passaram a esticar e a contagem desce até o pé.
