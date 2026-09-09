@@ -181,6 +181,18 @@ visível de dentro do aparelho: o SQLite não tem política, não tem esquema e 
 papel. **Quem toca migração roda o `db:verify` antes de empurrar**, e ele leva um
 minuto.
 
+**Cena é SVG, e SVG se prova no navegador em segundos — 9 de setembro.** O ciclo para
+olhar um desenho do cabeçalho era compilar (4 min), instalar (1 min) e esperar o app subir
+(1 min no emulador por software). A prancha é geometria pura: extrair os `d=` da função da
+cena, montar um `<svg>` com as três tintas da pele e tirar a foto com o Chromium que já
+está instalado responde a mesma pergunta em **cinco segundos**, e ampliada — foi assim que
+"as colheres viraram funil" apareceu, coisa que a foto do aparelho a 393 dp não mostra.
+
+A borda, para não virar atalho: isso prova **geometria e composição**, e mais nada. Não
+prova cor de tema, não prova o encaixe no cabeçalho, não prova animação, e não substitui a
+foto do aparelho para nada que não seja a prancha. Quem trocar uma pela outra vai acertar o
+desenho e errar a tela.
+
 **E a regra que vale mais que todas elas juntas: verde não prova tela.** O tema
 claro ilegível que chegou ao dono passou por 338 testes verdes e 36 checagens de
 navegador. O que prova tela é a **foto do emulador**, olhada. Isso agora existe:
