@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **613** testes |
+| `npm test` | **617** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **27** garantias contra um Postgres descartável, sob RLS |
@@ -109,7 +109,7 @@ independentes — dez de lógica, oito de código, seis de design —, cada uma 
 adversário próprio tentando derrubar os achados dela antes de virarem afirmação. Os
 números abaixo saem do diário da execução, não de contagem à mão.
 
-**44 fechados na mesma sessão.** O que sobra está aqui, por peso. Cada item traz a
+**45 fechados na mesma sessão.** O que sobra está aqui, por peso. Cada item traz a
 medida ao lado, como a regra deste arquivo exige: item aberto prova que a coisa NÃO
 existe, e a suíte fica vermelha no dia em que alguém a construir sem riscar a linha.
 
@@ -128,15 +128,7 @@ o rastro só existe para quem abre o banco.
 Depende de um caminho de LEITURA do servidor, que ainda não existe — a sincronia é fila
 de subida. Então isto entra atrás dele, não na frente.
 
-### B. Restaurar uma cópia antiga não roda as migrações de DADO
-<!-- medida: ausente src/data/db.ts :: REPAROS -->
-
-`restaurar` repõe as linhas e nunca toca `PRAGMA user_version`. Quatro migrações do
-aparelho carregam backfill de dado — o lugar padrão da V3, a taxa de embalagem da V18, a
-espécie da unidade da V23, o pai da sala da V25 — e nenhuma roda numa restauração. O
-docblock promete que rodam.
-
-### C. Os 27 médios e baixos
+### A. Os 27 médios e baixos
 <!-- medida: ausente src/components/Chip.tsx :: minHeight: 48 -->
 
 Alvos de toque de 28–30 dp contra o piso de 48 que este projeto escreveu · a régua fina

@@ -8041,3 +8041,43 @@ aparece duas na mesma consulta; a coluna atravessando a fila; a tela perguntando
 onde há mais de uma unidade; uma guarda irmã da que cobra a unidade da sala; e a garantia
 27 contra Postgres, que é onde a chave composta — a que impede uma loja de ser atendida
 pela unidade de um concorrente — existe de verdade.
+
+---
+
+## 9 de setembro — a escada não desce, e a restauração devolve a coluna vazia
+
+**O que apareceu:** `restaurar` não copia esquema. Ele apaga as linhas de agora e repõe
+as da cópia dentro do esquema ATUAL, coluna por coluna, usando só as que existem nos dois
+lados. `PRAGMA user_version` fica onde estava, e está certo — as tabelas já são as de
+hoje. O que fica para trás é o **dado**: a coluna que a cópia não tinha entra com o padrão
+dela, e o `UPDATE` que a teria preenchido rodou uma vez, meses atrás.
+
+Uma cópia feita antes da V25 volta com toda câmara fria **sem pai**. Sala sem pai sai do
+saldo da unidade, então o pedido deixa de contar o que está no freezer. O saldo apenas vem
+menor, logo depois de a tela dizer *"restaurado com sucesso"*.
+
+**Por que importa:** é a família de defeito mais cara deste projeto — o número que encolhe
+sem nada acusar — e ela chega pela porta que existe justamente para salvar o dado. E o
+diagnóstico da auditoria estava meio errado, o que vale registrar: ela dizia *"nunca toca
+`PRAGMA user_version`"*, sugerindo que a escada deveria subir de novo. Não deveria; o
+esquema já está no topo. O que falta não é migrar, é **reparar**.
+
+**E "reparo" não é o mesmo que "backfill", que é a metade que quase me pegou.** Um
+backfill roda uma vez, logo depois de a coluna nascer, quando ela está vazia por
+construção. Um reparo roda a qualquer momento e tem de reconhecer o que já está
+preenchido. Três dos quatro já eram condicionais e viraram constante única, usada pela
+migração e pela lista — cópia envelheceria em silêncio. O quarto não: a V18 escreveu
+`SET unit_packaging_rate = unit_packaging_cents` sem condição, e reexecutar isso hoje
+devolveria toda taxa editada desde então ao inteiro velho. Reusá-la teria transformado o
+conserto num destruidor de dado, com o teste da restauração verde.
+
+**E a guarda que escrevi primeiro media a forma, não a regra.** Ela contava `^UPDATE ` no
+arquivo e passou a contar UM depois de eu extrair três para constantes — a arrumação que
+eu tinha acabado de fazer mudou a resposta da régua. Régua que muda de resposta com a
+arrumação do arquivo não é régua. A segunda versão lê o CORPO de cada migração e cobra
+que o `UPDATE` seja interpolado de uma constante ou declarado como exceção com o motivo.
+
+**A régua que fica:** quando um caminho repõe dado dentro de um esquema mais novo,
+pergunte o que foi PREENCHIDO por instrução e não por linha. Coluna vazia com padrão
+válido é a forma mais silenciosa de perda: ela não quebra referência, não levanta exceção,
+e passa por toda checagem que olha a estrutura em vez do conteúdo.

@@ -43,7 +43,7 @@
  */
 
 import { carregarEmpresa } from './empresa';
-import { db, schemaVersion, type Db } from './db';
+import { db, REPAROS, schemaVersion, type Db } from './db';
 import { readJson, writeJson } from './meta';
 
 /**
@@ -335,6 +335,20 @@ export async function restaurar(
         );
         linhas += await contar(conn, 'main', t);
       }
+
+      // Os REPAROS, e sem eles a restauração devolve uma fábrica com números menores.
+      //
+      // A cópia repôs as linhas dentro do esquema de HOJE, e toda coluna que a cópia
+      // não tinha entrou com o padrão dela — nula. O backfill que a teria preenchido
+      // rodou uma vez, meses atrás, e a escada não volta a subir porque o esquema já
+      // é o atual. Uma cópia de antes da V25 volta com toda câmara fria sem pai, e
+      // sala sem pai sai do saldo da unidade: o pedido deixa de contar o freezer, e a
+      // tela acabou de dizer "restaurado".
+      //
+      // Antes do `foreign_key_check` de propósito: o reparo ESCREVE referência (a sala
+      // aponta para a unidade), e a checagem tem de ver o que ele escreveu. Depois
+      // dela, uma referência ruim escaparia justamente da rede que existe para pegá-la.
+      for (const reparo of REPAROS) await conn.runAsync(reparo, []);
 
       const orfaos = await conn.getAllAsync<{ table: string }>('PRAGMA main.foreign_key_check', []);
       if (orfaos.length > 0) {

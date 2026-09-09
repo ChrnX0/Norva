@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { CARGO_PLACE_KINDS, INTERNAL_PLACE_KINDS, QUEM_ESCREVE } from './domain/ledger';
 import { APENAS_INSERE, sendableTables } from './sync/serialize';
+import { REPAROS } from './data/db';
 
 /**
  * Where SQL is allowed to live, pinned.
@@ -2533,4 +2534,106 @@ test('the served-by guard tells creating from updating', () => {
     [],
     'o conserto e a atualização não podem reprovar',
   );
+});
+
+/**
+ * Todo backfill de DADO tem um reparo — senão a restauração devolve números menores.
+ *
+ * `restaurar` repõe as linhas da cópia dentro do esquema de HOJE. A coluna que a cópia
+ * não tinha entra com o padrão dela, e o `UPDATE` da migração que a teria preenchido
+ * rodou uma vez, meses atrás: a escada não volta a subir porque `PRAGMA user_version` já
+ * está no topo, e está certo — as tabelas já são as de hoje. O que fica para trás é o
+ * DADO, e ele fica calado: o saldo apenas vem menor, logo depois de a tela dizer
+ * "restaurado com sucesso".
+ *
+ * A guarda conta os dois lados. Ela NÃO compara texto: três dos reparos são a mesma
+ * constante que a migração usa (então comparar seria comparar uma coisa com ela mesma,
+ * que é a guarda que este arquivo já recusou noutro lugar), e o quarto é outra frase de
+ * propósito — a V18 escreveu um `UPDATE` incondicional, que como reparo devolveria toda
+ * taxa editada ao inteiro velho. O que ela cobra é que ninguém acrescente um backfill
+ * sem acrescentar o reparo dele.
+ */
+/**
+ * Os blocos de migração que carregam um `UPDATE` ESCRITO À MÃO.
+ *
+ * Backfill de dado que mora só dentro da migração é backfill que não roda numa
+ * restauração — e o preço disso é silencioso: a coluna volta vazia, o saldo vem menor,
+ * e a tela acabou de dizer "restaurado com sucesso". Por isso a regra é que o `UPDATE`
+ * seja uma CONSTANTE, usada pela migração e pela lista de reparos, e não uma cópia.
+ *
+ * Esta varredura pega quem escreveu a instrução direto no bloco em vez de interpolar a
+ * constante. Ela existe porque a primeira versão desta guarda contava `^UPDATE ` no
+ * arquivo inteiro e passou a contar UM depois de eu extrair três para constantes: ela
+ * media a FORMA que eu tinha acabado de mudar, não a regra. Régua que muda de resposta
+ * com a arrumação do arquivo não é régua.
+ */
+function migracoesComUpdateEscritoAMao(): string[] {
+  const fonte = readFileSync('src/data/db.ts', 'utf8');
+  const achados: string[] = [];
+  for (const m of fonte.matchAll(/const (V\d+) = `([^`]*)`/g)) {
+    if (/^UPDATE /m.test(m[2])) achados.push(m[1]);
+  }
+  return achados;
+}
+
+/**
+ * As migrações cujo backfill NÃO pode ser reusado como reparo, com o motivo.
+ *
+ * A V18 escreveu `SET unit_packaging_rate = unit_packaging_cents` sem condição. É
+ * correto no instante seguinte ao `ALTER TABLE`, quando a coluna nasceu zerada, e seria
+ * DESTRUTIVO agora: devolveria toda taxa editada desde então ao valor inteiro antigo.
+ * O reparo dela é outra frase, com a condição escrita — e é por isso que ela não pode
+ * ser a mesma constante.
+ *
+ * Exceção escrita, e não silêncio: exceção que não se escreve vira a próxima
+ * divergência.
+ */
+const BACKFILL_SEM_CONSTANTE = ['V18'];
+
+test('every data backfill has a repair, or restoring a copy comes back smaller', () => {
+  assert.deepEqual(
+    migracoesComUpdateEscritoAMao(),
+    BACKFILL_SEM_CONSTANTE,
+    'estas migrações escrevem um UPDATE à mão em vez de interpolar a constante do reparo.\n' +
+      'Backfill que mora só na migração não roda numa restauração: a coluna volta vazia\n' +
+      'e o saldo vem menor sem nada acusar. Declare a constante, ou a exceção com o motivo.',
+  );
+
+  // E a conta fecha dos dois lados: todo reparo ou É o backfill de uma migração
+  // (interpolado) ou é uma exceção declarada acima.
+  const fonte = readFileSync('src/data/db.ts', 'utf8');
+  const interpolados = new Set(
+    [...fonte.matchAll(/const V\d+ = `[^`]*`/g)]
+      .flatMap((m) => [...m[0].matchAll(/\$\{(REPARO_[A-Z_]+)\}/g)])
+      .map((m) => m[1]),
+  );
+  assert.equal(
+    REPAROS.length,
+    interpolados.size + BACKFILL_SEM_CONSTANTE.length,
+    `há ${REPAROS.length} reparos, ${interpolados.size} constantes usadas por migração e ` +
+      `${BACKFILL_SEM_CONSTANTE.length} exceção(ões). Um reparo que não corresponde a nenhum ` +
+      'backfill é um UPDATE que ninguém pediu; um backfill sem reparo some na restauração.',
+  );
+
+  // E a restauração PRECISA rodá-los: sem esta metade a lista poderia crescer para
+  // sempre sem ninguém a executar, com as duas contas acima verdes.
+  assert.match(
+    readFileSync('src/data/backup.ts', 'utf8'),
+    /for \(const reparo of REPAROS\)/,
+    'a restauração deixou de rodar os reparos: a lista existe e ninguém a executa',
+  );
+});
+
+test('the backfill ruler reads migration bodies, not the prose around them', () => {
+  // O caso falso, que é o defeito da primeira versão desta guarda: a palavra dentro de
+  // um comentário, e a instrução dentro de uma CONSTANTE, não são backfill escrito à mão.
+  const varre = (fonte: string) => {
+    const achados: string[] = [];
+    for (const m of fonte.matchAll(/const (V\d+) = `([^`]*)`/g)) {
+      if (/^UPDATE /m.test(m[2])) achados.push(m[1]);
+    }
+    return achados;
+  };
+  assert.deepEqual(varre('const V9 = `\nUPDATE items SET a = 1;\n`;'), ['V9'], 'não pegou o escrito à mão');
+  assert.deepEqual(varre('/* o UPDATE da V18 */\nconst V9 = `\n${REPARO_X}\n`;'), [], 'acusou quem interpola a constante');
 });

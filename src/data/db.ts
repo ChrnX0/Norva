@@ -859,9 +859,12 @@ CREATE INDEX IF NOT EXISTS sale_price_history_idx
  * muda de resposta. E a fila carrega o ID da linha, não uma cópia dela — então o
  * que ainda não subiu sobe já com a espécie certa.
  */
+/** A unidade que nasceu antes de a espécie existir. Condicional, então reexecutável. */
+const REPARO_ESPECIE_DA_UNIDADE = `UPDATE locations SET kind = 'factory'
+ WHERE id = company_id AND kind = 'store_room';`;
+
 const V23 = `
-UPDATE locations SET kind = 'factory'
- WHERE id = company_id AND kind = 'store_room';
+${REPARO_ESPECIE_DA_UNIDADE}
 `;
 
 /**
@@ -918,18 +921,21 @@ ALTER TABLE movements ADD COLUMN carrier_id TEXT REFERENCES carriers(id);
  * `(parent_location_id, company_id)` da migração 0046 mora aqui na forma que o aparelho
  * consegue — uma referência simples — e o resto é o `db:verify`, que roda contra Postgres.
  */
+/** A sala que existia antes de a coluna existir. Condicional, então reexecutável. */
+const REPARO_PAI_DA_SALA = `UPDATE locations
+   SET parent_location_id = company_id
+ WHERE kind IN ('cold_room', 'store_room')
+   AND parent_location_id IS NULL
+   AND id <> company_id
+   AND EXISTS (SELECT 1 FROM locations u WHERE u.id = locations.company_id);`;
+
 const V25 = `
 ALTER TABLE locations ADD COLUMN parent_location_id TEXT REFERENCES locations(id);
 
 CREATE INDEX IF NOT EXISTS locations_parent_idx
   ON locations (company_id, parent_location_id);
 
-UPDATE locations
-   SET parent_location_id = company_id
- WHERE kind IN ('cold_room', 'store_room')
-   AND parent_location_id IS NULL
-   AND id <> company_id
-   AND EXISTS (SELECT 1 FROM locations u WHERE u.id = locations.company_id);
+${REPARO_PAI_DA_SALA}
 `;
 
 /**
@@ -980,19 +986,62 @@ ALTER TABLE movements ADD COLUMN unit_price_rate REAL;
  * todo aplicativo instalado, calada, que é exatamente o erro que a V25 evitou fazendo
  * o mesmo.
  */
+/** A loja que existia antes de a coluna existir. Condicional, então reexecutável. */
+const REPARO_QUEM_ATENDE = `UPDATE locations
+   SET served_by_location_id = company_id
+ WHERE kind IN ('own_store', 'customer')
+   AND served_by_location_id IS NULL
+   AND id <> company_id
+   AND EXISTS (SELECT 1 FROM locations u WHERE u.id = locations.company_id);`;
+
 const V27 = `
 ALTER TABLE locations ADD COLUMN served_by_location_id TEXT REFERENCES locations(id);
 
 CREATE INDEX IF NOT EXISTS locations_served_by_idx
   ON locations (company_id, served_by_location_id);
 
-UPDATE locations
-   SET served_by_location_id = company_id
- WHERE kind IN ('own_store', 'customer')
-   AND served_by_location_id IS NULL
-   AND id <> company_id
-   AND EXISTS (SELECT 1 FROM locations u WHERE u.id = locations.company_id);
+${REPARO_QUEM_ATENDE}
 `;
+
+/**
+ * Os REPAROS — os backfills de dado, reexecutáveis, para quando a escada não roda.
+ *
+ * **A restauração de uma cópia não sobe a escada, e não deveria mesmo.** `restaurar`
+ * não copia esquema: ele apaga as linhas de agora e repõe as da cópia dentro do
+ * esquema ATUAL, coluna por coluna, usando só as colunas que existem nos dois lados.
+ * `PRAGMA user_version` continua onde estava, e está certo — as tabelas já são as de
+ * hoje.
+ *
+ * O que fica para trás é outra coisa: **a coluna que a cópia não tinha entra com o
+ * padrão dela**, e o backfill que a teria preenchido rodou meses atrás, uma vez. Uma
+ * cópia feita antes da V25 volta com toda câmara fria sem pai — e sala sem pai fica
+ * FORA do saldo da unidade, então o pedido deixa de contar o que está no freezer.
+ * Ninguém vê: o número apenas fica menor, num aplicativo que acabou de dizer
+ * "restaurado com sucesso".
+ *
+ * Por isso os backfills condicionais são declarados uma vez e usados em dois lugares
+ * — na migração que os criou e aqui. Uma cópia deles envelheceria em silêncio, que é
+ * a família de defeito que este repositório já registrou três vezes.
+ *
+ * **E "condicional" é o que separa reparo de backfill.** Um backfill roda uma vez,
+ * logo depois de a coluna nascer, quando ela está vazia por construção; um reparo roda
+ * a qualquer momento e tem de reconhecer o que já está preenchido. Os três de cima já
+ * nasceram assim (`IS NULL`, `kind = 'store_room'`). O quarto não: a V18 escreveu
+ * `SET unit_packaging_rate = unit_packaging_cents` sem condição, o que é correto no
+ * instante seguinte ao `ALTER TABLE` e seria DESTRUTIVO agora — devolveria toda taxa
+ * editada desde então ao valor inteiro antigo. Então o reparo dele é outra frase, com
+ * a condição escrita, e é por isso que ele não pode ser a mesma constante.
+ */
+const REPARO_TAXA_DA_EMBALAGEM = `UPDATE products
+   SET unit_packaging_rate = unit_packaging_cents
+ WHERE unit_packaging_rate = 0 AND unit_packaging_cents <> 0;`;
+
+export const REPAROS: readonly string[] = [
+  REPARO_TAXA_DA_EMBALAGEM,
+  REPARO_ESPECIE_DA_UNIDADE,
+  REPARO_PAI_DA_SALA,
+  REPARO_QUEM_ATENDE,
+];
 
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,

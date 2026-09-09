@@ -12,7 +12,7 @@ import {
   CopiaRecusadaError,
   type MotivoDaCopia,
 } from './backup';
-import { countMovements, listItems, recordPurchase, itemMovements } from './repository';
+import { countMovements, listItems, recordPurchase, itemMovements, savePlace } from './repository';
 import { ensureStarterData } from './seed';
 import { EMPRESA_SEMENTE } from './empresa';
 import { fromDecimal } from '@/domain/money';
@@ -147,6 +147,86 @@ test('an old copy climbs the ladder: columns the copy never had take their defau
 
   const linha = vivo.prepare(`SELECT futura FROM items LIMIT 1`).get() as { futura: string | null };
   assert.equal(linha?.futura, 'padrao', 'a coluna nova nasceu com o padrão dela, não nula à força');
+});
+
+test('restoring an old copy re-runs the data backfills, or the balance comes back smaller', async () => {
+  // O defeito: `restaurar` repõe as linhas dentro do esquema de HOJE e a coluna que a
+  // cópia não tinha entra com o padrão dela — nula. O backfill que a teria preenchido
+  // rodou uma vez, meses atrás, e a escada não volta a subir porque o esquema já é o
+  // atual. Uma cópia de antes da V25 volta com toda câmara fria SEM PAI, e sala sem pai
+  // sai do saldo da unidade: o pedido deixa de contar o freezer, e a tela acabou de
+  // dizer "restaurado com sucesso".
+  await ensureStarterData(EMPRESA_SEMENTE);
+  const camara = await savePlace(EMPRESA_SEMENTE, {
+    name: 'Câmara fria',
+    kind: 'cold_room',
+    parentLocationId: EMPRESA_SEMENTE,
+  });
+  const loja = await savePlace(EMPRESA_SEMENTE, {
+    name: 'Loja Centro',
+    kind: 'own_store',
+    servedByLocationId: EMPRESA_SEMENTE,
+  });
+
+  const arquivo = join(pasta, 'antes-da-v25.db');
+  await gravarCopia(arquivo, nowIso());
+
+  // A cópia ANTIGA encenada, e ela é fiel: um arquivo gravado antes da V25 não tem a
+  // coluna, então a linha volta sem valor. Esvaziar as duas colunas na cópia produz
+  // exatamente o que `restaurar` veria.
+  const antiga = new DatabaseSync(arquivo);
+  antiga.exec(`UPDATE locations SET parent_location_id = NULL, served_by_location_id = NULL`);
+  antiga.close();
+
+  await restaurar(arquivo);
+
+  const sala = vivo
+    .prepare(`SELECT parent_location_id AS pai FROM locations WHERE id = ?`)
+    .get(camara.id) as { pai: string | null };
+  assert.equal(
+    sala?.pai,
+    EMPRESA_SEMENTE,
+    'a câmara voltou sem pai: ela sai do saldo da unidade e o pedido deixa de contar o freezer',
+  );
+
+  const atendida = vivo
+    .prepare(`SELECT served_by_location_id AS quem FROM locations WHERE id = ?`)
+    .get(loja.id) as { quem: string | null };
+  assert.equal(
+    atendida?.quem,
+    EMPRESA_SEMENTE,
+    'a loja voltou sem quem a atende: com duas unidades as duas passam a ler o mesmo pedido',
+  );
+});
+
+test('the repairs are conditional: restoring does not overwrite what the factory changed', async () => {
+  // A outra metade, e ela é a que impede o conserto de virar defeito. Um reparo roda a
+  // QUALQUER momento, então ele tem de reconhecer o que já está preenchido — senão a
+  // restauração devolve valores editados ao que eles eram na migração. É por isso que o
+  // reparo da taxa de embalagem NÃO é a frase da V18: aquela é incondicional.
+  await ensureStarterData(EMPRESA_SEMENTE);
+  const arquivo = join(pasta, 'com-taxa.db');
+
+  // Uma taxa editada depois da V18, e o inteiro velho ao lado dela discordando.
+  vivo.exec(`UPDATE products SET unit_packaging_rate = 1.5, unit_packaging_cents = 9`);
+  await gravarCopia(arquivo, nowIso());
+  await restaurar(arquivo);
+
+  const taxa = vivo
+    .prepare(`SELECT unit_packaging_rate AS r FROM products LIMIT 1`)
+    .get() as { r: number };
+  assert.equal(
+    taxa?.r,
+    1.5,
+    'o reparo sobrescreveu a taxa editada com o centavo velho: um reparo incondicional destrói dado',
+  );
+
+  // E a sala que está no NÍVEL DA EMPRESA de propósito continua sem pai — o reparo não
+  // pode inventar hierarquia onde alguém escolheu não ter.
+  const semPai = vivo
+    .prepare(`SELECT COUNT(*) AS n FROM locations WHERE kind = 'own_store' AND parent_location_id IS NOT NULL`)
+    .get() as { n: number };
+  assert.equal(semPai?.n, 0, 'o reparo pôs uma LOJA dentro de uma unidade: as duas relações se misturaram');
 });
 
 test('a copy from a newer app is refused, not half-restored', async () => {
