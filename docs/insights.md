@@ -7938,3 +7938,64 @@ procure se o aplicativo já respondeu essa pergunta noutro lugar — `docs/lingu
 mapa de glifos, os guardas de assinatura. E o corolário, que é o mais barato de todos:
 **rode os guardas antes de escrever cento e vinte linhas, não depois.** O que me custou a
 rodada não foi o erro; foi a ordem em que descobri o erro.
+
+---
+
+## 9 de setembro — quem engole exceção troca um defeito barulhento por um silencioso, e precisa gravar o motivo
+
+**O que apareceu:** o executor do Reset do servidor percorria os pedidos vencidos de todas
+as empresas numa transação só. Uma exceção em qualquer um abortava a função inteira —
+nenhuma empresa atendida, nenhum pedido marcado, e o agendador tentando de novo na noite
+seguinte com o mesmo pedido na frente da fila. É a mesma família da fila do aparelho, que
+este repositório já registrou por escrito: **recusa que nenhuma tentativa resolve tem de
+sair da frente**.
+
+O conserto é dar a cada pedido a própria subtransação. E foi ao escrevê-lo que a segunda
+metade apareceu, na primeira execução: eu tinha declarado as espécies de item como
+`text[]` e `items.kind` é um enum, então toda volta levantava *"operator does not exist:
+item_kind = text"* — e o bloco de tratamento **engolia a exceção**. O Reset simplesmente
+não acontecia. Sem `last_error` gravado, o sintoma seria "o comando devolveu 0" e mais
+nada, todas as noites, para sempre.
+
+**Por que importa:** isolar falhas é certo e tem um preço que não se paga sozinho. Antes,
+o defeito era ruidoso e caro (travava o banco inteiro); depois, ele é barato e **mudo** —
+e mudo é pior de achar. As duas colunas que gravam quando e por quê não são enfeite de
+observabilidade: são o que torna o `exception when others` aceitável. Um `catch` sem
+registro não conserta um defeito, troca a espécie dele.
+
+**O que mudou:** a `0049` grava `failed_at` e `last_error`, a checagem 25 do `db:verify`
+imprime o motivo quando reprova — em vez de dizer só "não executou" e mandar quem lê abrir
+o banco —, e a checagem 26 prova o isolamento com a cena montada para falhar. Ficou também
+o achado que sai daqui: **o aplicativo não lê o estado do pedido de Reset** (só escreve),
+então o rastro existe e ninguém o vê. Entrou na fila com medida, atrás do caminho de
+leitura do servidor, que ainda não existe.
+
+**A régua que fica:** ao trocar "a volta inteira falha" por "este item falha", pergunte
+quem vai ficar sabendo. Se a resposta for "quem abrir o banco", o conserto está pela
+metade — e a metade que falta é justamente a que se descobre tarde.
+
+---
+
+## 9 de setembro — crase é substituição de comando dentro de heredoc, e a prosa não sabe disso
+
+**O que apareceu:** escrevi um comentário SQL dentro de um heredoc não citado do
+`verify-migrations.sh` citando uma coluna entre crases, como este projeto escreve prosa em
+toda parte. O shell **executou** o conteúdo: `scripts/verify-migrations.sh: line 1615:
+recipe_lines.item_id: command not found`. A checagem passou mesmo assim — a substituição
+devolveu vazio e o comentário SQL ficou com um buraco no meio —, então o único sinal foi
+uma linha de erro no meio de uma saída verde.
+
+**Por que importa:** este repositório já tem a cicatriz da crase escrita, de outro
+ângulo: *"crase é ao mesmo tempo delimitador de literal e pontuação de prosa"*, e ela já
+quebrou o TypeScript três vezes e cegou uma guarda. Aqui é a terceira sintaxe onde a mesma
+tecla muda de significado — e nesta ela não quebra a compilação, ela **roda um comando**.
+Num heredoc que já interpola `${VAR}` de propósito, não há como desligar uma coisa sem
+desligar a outra.
+
+**O que mudou:** a crase saiu, com o motivo escrito na linha de baixo para ninguém a
+trazer de volta, e uma varredura de todos os heredocs não citados do script confirmou que
+era a única.
+
+**A régua que fica:** dentro de heredoc não citado, prosa não usa crase — e quando uma
+saída verde traz uma linha de erro no meio, **a linha de erro é o achado**, não ruído.
+Verde é o veredito do último comando, não do caminho até ele.

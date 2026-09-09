@@ -1525,6 +1525,150 @@ ruido=$(rows "select count(*) from movements where id = '${W}f3';")  # proofgate
 
 echo "    a conferência que bateu entra, desfazê-la entra, e ruído continua recusado"
 
+
+echo "==> check 25: apagar os INSUMOS deixa o catálogo de produtos de pé"
+
+# O Reset por área promete apagar uma área. A `0045` apagava `items` sem dizer de que
+# espécie, e `items` guarda as cinco — então "apagar insumos" tinha dois desfechos, os
+# dois errados, e qual deles dependia do dado:
+#
+#   * `products.item_id` referencia `items` com CASCADE: sem lote no caminho, o catálogo
+#     de PRODUTOS ia junto, em silêncio, depois de uma confirmação que contou outra coisa;
+#   * `lots.item_id` referencia `items` com RESTRICT e o ramo não apaga lotes: com
+#     qualquer corrida de produção gravada, o `delete` levantava chave estrangeira e
+#     NADA era apagado.
+#
+# Nada disso é visível de dentro do aparelho: o SQLite tem outra semântica de chave
+# (`movements.item_id` é CASCADE lá e RESTRICT aqui), e o `itemKindsFor` de
+# `src/data/erase.ts` sempre nomeou as três espécies. Era o servidor que divergia.
+RST=cccc0000-0000-4000-8000-0000000000
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<SQL >/dev/null
+insert into auth.users (id) values ('${RST}a0');
+-- Prazo zero: o pedido vence no ato, que é um dos três casos que o dono nomeou.
+insert into companies (id, name, erase_grace_days) values ('${RST}a1', 'Reset Co', 0);
+insert into memberships (company_id, user_id, display_name, capabilities)
+  values ('${RST}a1', '${RST}a0', 'Dona do Reset', enum_range(null::capability));
+insert into locations (id, company_id, kind, name) values ('${RST}a2','${RST}a1','factory','Fábrica');
+
+-- Um insumo, uma embalagem, um material de loja — e um PRODUTO, que é o que não pode ir.
+insert into items (id, company_id, kind, name, base_unit) values
+  ('${RST}b1','${RST}a1','input','Polpa','g'),
+  ('${RST}b2','${RST}a1','packaging','Saquinho','un'),
+  ('${RST}b3','${RST}a1','store_supply','Guardanapo','un'),
+  ('${RST}b4','${RST}a1','product','Picolé','un');
+insert into products (id, company_id, item_id) values ('${RST}c1','${RST}a1','${RST}b4');
+-- O lote é o que fazia o jeito antigo abortar: toda corrida de produção grava um.
+insert into lots (id, company_id, item_id, code) values ('${RST}d1','${RST}a1','${RST}b4','L-1');
+SQL
+
+# --- O CASO FALSO, primeiro: o jeito antigo reprova nesta mesma cena. ---
+#
+# Sem isto a checagem abaixo não distingue o mundo consertado do quebrado, que é a régua
+# que este repositório cobra de todo guarda. Os dois desfechos são demonstrados, cada um
+# dentro de uma transação que volta atrás.
+antigo_fk=$(psql -d "$DB" -Atq -c "begin; delete from public.items where company_id = '${RST}a1'; rollback;" 2>&1 || true)  # proofgate-allow
+case "$antigo_fk" in
+  *"violates foreign key"*) : ;;
+  *) fail "o delete sem espécie NÃO levantou chave estrangeira nesta cena: a checagem não separa os dois mundos" ;;
+esac
+
+antigo_cascata=$(psql -d "$DB" -Atq -c "begin;
+  delete from public.lots where company_id = '${RST}a1';
+  delete from public.items where company_id = '${RST}a1';
+  select count(*) from public.products where company_id = '${RST}a1';
+  rollback;" 2>&1 | tail -1)  # proofgate-allow
+[ "$antigo_cascata" = "0" ] || fail "o delete sem espécie não levou os produtos por cascata (contou '$antigo_cascata'): a cena não reproduz o defeito"
+
+# --- E agora o conserto, na mesma cena. ---
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "insert into erase_requests (id, company_id, area, requested_by)
+  values ('${RST}e1','${RST}a1','inputs','${RST}a0');" >/dev/null  # proofgate-allow
+feitos=$(rows "select private.run_due_erases();")  # proofgate-allow
+# O motivo vem junto: o executor engole a exceção de propósito (é isso que a checagem 26
+# prova), então uma checagem que só diga "não executou" manda quem lê abrir o banco.
+porque=$(rows "select coalesce(last_error, '(sem erro registrado)') from erase_requests where id = '${RST}e1';")  # proofgate-allow
+[ "$feitos" = "1" ] || fail "o Reset de insumos não executou (devolveu '$feitos') — o banco disse: $porque"
+
+sobrou_insumo=$(rows "select count(*) from items where company_id = '${RST}a1' and kind in ('input','packaging','store_supply');")  # proofgate-allow
+[ "$sobrou_insumo" = "0" ] || fail "sobraram $sobrou_insumo insumos: o Reset não fez o que prometeu"
+
+sobrou_produto=$(rows "select count(*) from items where company_id = '${RST}a1' and kind = 'product';")  # proofgate-allow
+[ "$sobrou_produto" = "1" ] || fail "o item do PRODUTO sumiu junto com os insumos: a segunda confirmação mentiu"
+
+catalogo=$(rows "select count(*) from products where company_id = '${RST}a1';")  # proofgate-allow
+[ "$catalogo" = "1" ] || fail "o catálogo de produtos foi apagado por um Reset de insumos"
+
+lote=$(rows "select count(*) from lots where company_id = '${RST}a1';")  # proofgate-allow
+[ "$lote" = "1" ] || fail "o lote sumiu num Reset que não fala de lote"
+
+echo "    o Reset de insumos leva as três espécies de insumo e deixa produto, catálogo e lote"
+
+
+echo "==> check 26: um pedido que falha não trava o Reset das outras empresas"
+
+# `private.run_due_erases()` percorre os pedidos vencidos de TODAS as empresas. Na `0045`
+# o laço era uma transação só: uma exceção em qualquer pedido abortava a função inteira —
+# nenhuma empresa atendida, nenhum pedido marcado, e o agendador tentando de novo na noite
+# seguinte com o mesmo pedido na frente. É a família de defeito que este repositório já
+# conhece da fila do aparelho: **recusa que nenhuma tentativa resolve tem de sair da
+# frente**, e tem de deixar rastro.
+ISO=cccc0000-0000-4000-8000-0000000001
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<SQL >/dev/null
+insert into auth.users (id) values ('${ISO}a0'), ('${ISO}a1');
+
+-- A empresa que VAI FALHAR: uma ficha usa o insumo, e recipe_lines.item_id e RESTRICT.
+-- (sem crase: este heredoc nao e citado, e crase ali dentro o shell EXECUTA.)
+insert into companies (id, name, erase_grace_days) values ('${ISO}a2', 'Trava Co', 0);
+insert into memberships (company_id, user_id, display_name, capabilities)
+  values ('${ISO}a2', '${ISO}a0', 'Dona 1', enum_range(null::capability));
+insert into items (id, company_id, kind, name, base_unit) values ('${ISO}b1','${ISO}a2','input','Açúcar','g');
+insert into recipes (id, company_id, name, yield_amount) values ('${ISO}c1','${ISO}a2','Base', 40000);
+insert into recipe_versions (id, company_id, recipe_id, version) values ('${ISO}d1','${ISO}a2','${ISO}c1', 1);
+insert into recipe_lines (id, company_id, recipe_version_id, item_id, quantity)
+  values ('${ISO}d2','${ISO}a2','${ISO}d1','${ISO}b1', 500);
+
+-- A empresa que VAI PASSAR, e o pedido dela é o segundo da fila.
+insert into companies (id, name, erase_grace_days) values ('${ISO}a3', 'Passa Co', 0);
+insert into memberships (company_id, user_id, display_name, capabilities)
+  values ('${ISO}a3', '${ISO}a1', 'Dona 2', enum_range(null::capability));
+insert into recipes (id, company_id, name, yield_amount) values ('${ISO}c2','${ISO}a3','Outra', 20000);
+SQL
+
+# A ordem do laço é por `requested_at`, então o que falha entra primeiro de propósito:
+# é essa ordem que provava o defeito antigo — o segundo nunca chegava a ser tentado.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "insert into erase_requests (id, company_id, area, requested_by, requested_at)
+  values ('${ISO}e1','${ISO}a2','inputs','${ISO}a0', now() - interval '2 hours');" >/dev/null  # proofgate-allow
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "insert into erase_requests (id, company_id, area, requested_by, requested_at)
+  values ('${ISO}e2','${ISO}a3','recipes','${ISO}a1', now() - interval '1 hour');" >/dev/null  # proofgate-allow
+
+# O CASO FALSO: o pedido da primeira empresa de fato levanta exceção nesta cena. Sem isso
+# a checagem abaixo passaria com uma volta em que nada falhou — medindo nada.
+falha=$(psql -d "$DB" -Atq -c "begin; delete from public.items where company_id = '${ISO}a2' and kind = 'input'; rollback;" 2>&1 || true)  # proofgate-allow
+case "$falha" in
+  *"violates foreign key"*) : ;;
+  *) fail "o pedido que devia falhar não falha nesta cena: a checagem não mede isolamento" ;;
+esac
+
+atendidos=$(rows "select private.run_due_erases();")  # proofgate-allow
+[ "$atendidos" = "1" ] || fail "esperava exatamente um pedido atendido, veio '$atendidos'"
+
+# O que falhou: não marcado como feito, com a data e o motivo escritos.
+travou_feito=$(rows "select coalesce(done_at::text,'null') from erase_requests where id = '${ISO}e1';")  # proofgate-allow
+[ "$travou_feito" = "null" ] || fail "um pedido que falhou foi marcado como feito"
+travou_motivo=$(rows "select case when failed_at is not null and coalesce(last_error,'') <> '' then 'sim' else 'nao' end from erase_requests where id = '${ISO}e1';")  # proofgate-allow
+[ "$travou_motivo" = "sim" ] || fail "a falha não deixou rastro: quem olhar amanhã não sabe por que o Reset não aconteceu"
+
+# E o insumo dele continua lá, porque a subtransação voltou atrás inteira.
+travou_item=$(rows "select count(*) from items where company_id = '${ISO}a2';")  # proofgate-allow
+[ "$travou_item" = "1" ] || fail "o pedido falhou e mesmo assim apagou coisa: a subtransação não voltou atrás"
+
+# O que estava ATRÁS dele na fila foi atendido — que é a coisa inteira.
+passou=$(rows "select coalesce(done_at::text,'null') from erase_requests where id = '${ISO}e2';")  # proofgate-allow
+[ "$passou" != "null" ] || fail "o pedido da segunda empresa ficou preso atrás do que falhou: o Reset trava o banco inteiro"
+passou_receita=$(rows "select count(*) from recipes where company_id = '${ISO}a3';")  # proofgate-allow
+[ "$passou_receita" = "0" ] || fail "o pedido foi marcado como feito e a receita continua lá"
+
+echo "    o que falha anota o motivo e sai da frente; quem vem atrás é atendido na mesma volta"
+
 echo
-echo "OK - migrations apply and all twenty-four guarantees hold."
+echo "OK - migrations apply and all twenty-six guarantees hold."
 

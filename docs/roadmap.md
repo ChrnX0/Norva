@@ -39,7 +39,7 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | telas | **34** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **26** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **28** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **48** | `ls supabase/migrations \| wc -l` |
+| migrações do servidor | **49** | `ls supabase/migrations \| wc -l` |
 | migrações do aparelho | **V26** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
@@ -52,7 +52,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 | `npm test` | **610** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
-| `npm run db:verify` | **24** garantias contra um Postgres descartável, sob RLS |
+| `npm run db:verify` | **26** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade, com
@@ -113,15 +113,20 @@ números abaixo saem do diário da execução, não de contagem à mão.
 medida ao lado, como a regra deste arquivo exige: item aberto prova que a coisa NÃO
 existe, e a suíte fica vermelha no dia em que alguém a construir sem riscar a linha.
 
-### A. O Reset do servidor apaga o que não prometeu, e um pedido que falha trava todos
-<!-- medida: ausente supabase/migrations :: kind in ('input','packaging','store_supply') -->
+### A. O aplicativo não lê o estado do pedido de Reset
+<!-- medida: ausente src/sync :: from('erase_requests') -->
 
-Duas coisas na `0045`. No ramo `inputs`, o `delete from public.items` não filtra espécie:
-ele leva o catálogo de PRODUTOS junto — ou levanta chave estrangeira e não apaga nada. E
-o laço de `private.run_due_erases()` não isola cada pedido: um que falhe derruba a
-transação inteira e trava o Reset de TODAS as empresas do banco, sem caminho de retirada.
+O aparelho ESCREVE o pedido pela fila (`src/sync/serialize.ts:597`) e nunca o lê de
+volta. Ninguém na tela sabe que existe um Reset pendente, quando ele vence, se já
+aconteceu, ou se falhou — e desde a `0049` a falha tem motivo gravado (`last_error`) sem
+ninguém para mostrá-lo. É a única parte do ato que ficou de costas para quem o pediu.
 
-É migração nova, então a forma vai para a mesa antes de rodar.
+Achado ao consertar a `0045`: o executor passou a engolir a exceção de propósito, para um
+pedido não travar os outros, e quem engole exceção precisa de alguém lendo o rastro. Hoje
+o rastro só existe para quem abre o banco.
+
+Depende de um caminho de LEITURA do servidor, que ainda não existe — a sincronia é fila
+de subida. Então isto entra atrás dele, não na frente.
 
 ### B. A demanda é da empresa e o estoque é da unidade
 <!-- medida: ausente supabase/migrations :: orders add column served_by -->
