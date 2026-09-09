@@ -7,7 +7,7 @@ import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
 import { Field } from '@/components/Field';
-import { GlyphRecipe } from '@/components/Glyph';
+import { GlyphKettle, GlyphRecipe } from '@/components/Glyph';
 import { Reveal } from '@/components/Reveal';
 import { Touchable } from '@/components/Touchable';
 import { ERROS } from '@/data/erros';
@@ -116,47 +116,61 @@ function NewRecipe() {
 
   return (
     <CollapsingHeader cena="receitas" title={words.title} overline={words.overline}>
+      {/* Dois cartões, e cada título é a PERGUNTA que o cartão faz — que é como as
+          outras telas de cadastro desta casa falam (`Para quem`, `Quando`, `Como você
+          compra`). A primeira versão repetia o título da página dentro do cartão, e a
+          foto no emulador mostrou "Nova ficha técnica" duas vezes, uma embaixo da
+          outra: o cabeçalho já diz onde a pessoa está, e o cartão gastava a linha
+          dele repetindo em vez de perguntar. */}
       <Reveal index={0}>
         <Card
           hue={palette.apricot}
           icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}
-          title={words.title}
+          title={words.nameTitle}
+        >
+          <Field
+            label={words.name}
+            value={name}
+            onChangeText={setName}
+            placeholder={words.namePlaceholder}
+            autoFocus
+          />
+        </Card>
+      </Reveal>
+
+      <Reveal index={1}>
+        <Card
+          hue={palette.apricot}
+          icon={(c) => <GlyphKettle size={26} color={c} weight={traco} />}
+          title={words.yieldTitle}
         >
           <View style={{ gap: space.lg }}>
+            {/* O rótulo do campo é o do campo, e o título do cartão é a pergunta.
+                Antes os dois estavam empilhados dentro do mesmo cartão — "Quanto rende
+                uma vez" logo acima de "RENDIMENTO" — dois rótulos para uma caixa só. */}
             <Field
-              label={words.name}
-              value={name}
-              onChangeText={setName}
-              placeholder={words.namePlaceholder}
-              autoFocus
+              label={words.yieldField}
+              value={yieldText}
+              onChangeText={setYieldText}
+              placeholder={words.yieldPlaceholder}
+              keyboardType="numeric"
             />
-
-            <View style={{ gap: space.sm }}>
-              <Text style={[type.overline, { color: color.inkFaint }]}>{words.yieldLabel}</Text>
-              <Field
-                label={words.yieldField}
-                value={yieldText}
-                onChangeText={setYieldText}
-                placeholder={words.yieldPlaceholder}
-                keyboardType="numeric"
-              />
-              {/* A régua do rendimento por etiqueta, nunca texto livre: "l" e "L" e
-                  "litro" seriam três unidades diferentes para o mesmo líquido, e o
-                  custo por unidade sairia mil vezes errado sem nada na tela dizer. */}
-              <View style={[styles.wrap, { gap: space.sm }]}>
-                {UNIDADES.map((u) => (
-                  <Touchable
-                    key={u}
-                    accessibilityLabel={words.units[u]}
-                    onPress={() => setUnit(u)}
-                    // 48 dp de alvo, que é o piso desta casa: escolha que se faz de
-                    // luva não cabe em trinta.
-                    style={{ paddingVertical: space.sm, minHeight: 48, justifyContent: 'center' }}
-                  >
-                    <Chip signal={unit === u ? 'ok' : 'neutral'} label={words.units[u]} />
-                  </Touchable>
-                ))}
-              </View>
+            {/* A régua do rendimento por etiqueta, nunca texto livre: "l" e "L" e
+                "litro" seriam três unidades diferentes para o mesmo líquido, e o
+                custo por unidade sairia mil vezes errado sem nada na tela dizer. */}
+            <View style={[styles.wrap, { gap: space.sm }]}>
+              {UNIDADES.map((u) => (
+                <Touchable
+                  key={u}
+                  accessibilityLabel={words.units[u]}
+                  onPress={() => setUnit(u)}
+                  // 48 dp de alvo, que é o piso desta casa: escolha que se faz de
+                  // luva não cabe em trinta.
+                  style={{ paddingVertical: space.sm, minHeight: 48, justifyContent: 'center' }}
+                >
+                  <Chip signal={unit === u ? 'ok' : 'neutral'} label={words.units[u]} />
+                </Touchable>
+              ))}
             </View>
 
             <View style={{ gap: space.sm }}>
@@ -180,7 +194,7 @@ function NewRecipe() {
         </Card>
       </Reveal>
 
-      <Reveal index={1}>
+      <Reveal index={2}>
         <Button
           label={saving ? words.saving : words.save}
           onPress={() => void salvar()}

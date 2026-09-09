@@ -146,10 +146,20 @@ Daí três regras de construção:
    `useWindowDimensions()`. Número mágico de largura é defeito.
 2. **A quebra é por dp, não por aparelho.** Os pontos que importam: 360 (piso do
    Android), ~400 (telefone comum), 600 (tablet pequeno), 840 (tablet).
-3. **A prova é a comparação, não a foto.** `node scripts/aparelho.mjs fotos <rota>`
-   tira a mesma tela em cinco larguras — telefone pequeno, telefone, telefone grande,
-   tablet e tablet deitado — trocando `wm size`/`wm density` sem reiniciar. Uma foto
-   isolada não responde "adapta?"; cinco lado a lado respondem.
+3. **A prova é a comparação, não a foto.** `node scripts/aparelho.mjs fotos <nome>
+   <rota>` tira a mesma tela em cinco larguras — telefone pequeno, telefone, telefone
+   grande, tablet e tablet deitado — trocando `wm size`/`wm density` sem reiniciar. Uma
+   foto isolada não responde "adapta?"; cinco lado a lado respondem.
+
+   **E a ROTA é obrigatória para qualquer tela que não seja a capa — cicatriz de 9 de
+   setembro.** Esta linha prometia isso desde que foi escrita e o comando não fazia:
+   trocar a largura é mudança de configuração, o Android recria a Activity, e o app
+   volta para o início. As cinco fotos saíam da mesma tela — cinco capas — e o comando
+   saía zero. Fotografar `recipes/new` em cinco larguras devolveu cinco vezes a capa
+   sem uma palavra de aviso. Hoje o segundo argumento é a rota, e ela é reaberta por
+   ligação profunda (`norva://<rota>`) DEPOIS de cada troca de largura. Navegar por
+   toque em coordenada não serve aqui: quebra quando o layout muda, que é justamente
+   o que se está medindo.
 
 4. **A ferramenta que troca a largura DEIXA a largura trocada.** `wm density` é
    persistente: em 7 de setembro o emulador estava preso em 240 dpi de um teste

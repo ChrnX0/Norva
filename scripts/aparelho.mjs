@@ -30,8 +30,9 @@
  *   node scripts/aparelho.mjs subir [--avd norva-cheio]
  *   node scripts/aparelho.mjs compilar          — APK que roda sozinho, só x86_64
  *   node scripts/aparelho.mjs instalar [caminho.apk]
+ *   node scripts/aparelho.mjs abrir <rota>    — navega sem toque (norva://<rota>)
  *   node scripts/aparelho.mjs foto <nome>     — uma foto na tela atual
- *   node scripts/aparelho.mjs fotos <nome>    — a mesma tela em cinco larguras
+ *   node scripts/aparelho.mjs fotos <nome> [rota] — a mesma tela em cinco larguras
  *   node scripts/aparelho.mjs tela <medida>   — troca a tela sem reiniciar
  *   node scripts/aparelho.mjs derrubar
  */
@@ -44,6 +45,9 @@ const ADB = join(SDK, 'platform-tools/adb');
 const EMU = join(SDK, 'emulator/emulator');
 const SAIDA = '.shots';
 const AVD = arg('--avd') ?? 'norva-cheio';
+/** O pacote e o esquema do app — os dois vêm do `app.json` e não se adivinham. */
+const PACOTE = 'app.norva.mobile';
+const ESQUEMA = 'norva';
 
 /**
  * As telas em que o app tem de caber — e por que são medidas em dp, não em pixel.
@@ -253,6 +257,71 @@ function tela(nome) {
 }
 
 /**
+ * Abre uma ROTA do app, sem toque nenhum — e é isto que faz o `fotos` valer.
+ *
+ * O `CLAUDE.md` promete que `fotos <rota>` tira "a mesma tela em cinco larguras", e
+ * até 9 de setembro ele não fazia isso para tela nenhuma que não fosse a inicial:
+ * trocar `wm size` é mudança de configuração, o Android recria a Activity, e o app
+ * volta para a capa. As cinco fotos saíam todas da mesma tela — cinco vezes a capa —
+ * e a comparação que elas deveriam provar não existia. Foi assim que a primeira
+ * tentativa de fotografar `recipes/new` em cinco larguras devolveu cinco capas.
+ *
+ * O conserto é a ligação profunda que o `app.json` já declarava (`scheme: norva`) e
+ * ninguém usava. Navegar por toque em coordenada era o outro caminho, e ele é pior
+ * em tudo: quebra quando o layout muda, que é exatamente o que se está medindo.
+ */
+function abrir(rota, { reiniciar = false } = {}) {
+  if (!rota) return;
+  const limpa = String(rota).replace(/^\/+/, '');
+  const alvo = `${ESQUEMA}://${limpa}`;
+  // `am start` SAI ZERO quando o intent não resolve — ele imprime `Error:` e pronto.
+  // É o mesmo modo de falha do `screencap` devolvendo retângulo preto: o comando
+  // passa e a prova não existe. Então quem decide aqui é a saída, não o código.
+  const saida = adb('shell', 'am', 'start', ...(reiniciar ? ['-S'] : []),
+                    '-a', 'android.intent.action.VIEW', '-d', alvo, PACOTE);
+  if (/Error:/.test(saida)) {
+    throw new Error(`${alvo} não abriu:\n${saida}`);
+  }
+  dizer(`abrindo ${alvo}`);
+}
+
+/**
+ * O que a tela DIZ agora — o texto dela, lido do próprio Android.
+ *
+ * Existe porque `am start` responde "ok" para qualquer caminho: o Android entrega a
+ * URL ao app em execução e vai embora, e quem decide se a rota existe é o roteador
+ * lá dentro. Ou seja, a checagem de `Error:` no `abrir` pega esquema errado e pacote
+ * errado — que são falhas reais, e as duas foram exercitadas — e NÃO pega caminho
+ * errado. Este é o instrumento que pega: o texto da tela.
+ *
+ * Vale dizer o que ele não é: não substitui a foto. Ele responde "que tela é esta",
+ * a foto responde "como ela está". As duas perguntas são diferentes e este projeto
+ * já pagou caro por confundi-las.
+ */
+function oQueDizATela() {
+  try {
+    const bruto = adbBin('exec-out', 'uiautomator', 'dump', '/dev/tty').toString();
+    return [...bruto.matchAll(/text="([^"]+)"/g)].map((m) => m[1]).filter((t) => t.trim());
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * As cinco larguras estão na MESMA tela? — e é isto que o comando não sabia responder.
+ *
+ * A falha que motivou: a troca de largura recria a Activity, o app volta para a capa,
+ * e as fotos saem todas da tela inicial com o comando saindo zero. Se a rota valeu em
+ * todas, a primeira linha de texto (a sobrancelha do cabeçalho, ou o título) é a
+ * mesma nas cinco. Se numa delas a navegação não pegou, ela destoa — e é exatamente
+ * essa a assinatura do defeito.
+ */
+function mesmaTelaEmTodas(titulos) {
+  const vistos = [...new Set(titulos.filter(Boolean))];
+  return { igual: vistos.length <= 1, vistos };
+}
+
+/**
  * Espera o app DESENHAR de novo — não um tempo fixo.
  *
  * Trocar o tamanho da tela é mudança de configuração: o Android recria a Activity e o
@@ -263,7 +332,7 @@ function tela(nome) {
  * O fato observável é o contador de quadros do próprio app: se ele subiu depois do
  * relayout, a tela foi redesenhada.
  */
-async function esperarDesenho(pacote = 'app.norva.mobile', minutos = 8) {
+async function esperarDesenho(minutos = 8, pacote = PACOTE) {
   const quadros = () => {
     try {
       const saida = adb('shell', 'dumpsys', 'gfxinfo', pacote);
@@ -289,17 +358,81 @@ async function esperarDesenho(pacote = 'app.norva.mobile', minutos = 8) {
 }
 
 /**
+ * Espera a tela PARAR — e é medida direta, não proxy.
+ *
+ * O contador de quadros do `esperarDesenho` responde "desenhou desde que eu
+ * olhei", e essa é a pergunta errada depois de uma ligação profunda: se o app já
+ * estava na rota pedida, o intent é entregue e nada redesenha, então o proxy
+ * grita "não redesenhou em 4 min — a foto não vale" para uma tela perfeitamente
+ * pronta. Foi o que aconteceu na segunda largura de 9 de setembro.
+ *
+ * A pergunta certa é a que a foto faz: **a tela está desenhada e parada?** E há
+ * instrumento direto para ela — o texto da própria tela. Duas leituras iguais e
+ * não vazias, com cinco segundos entre elas, é tela pronta. Tela em branco nunca
+ * devolve texto e nunca assenta; tela ainda montando muda entre as duas leituras.
+ *
+ * A entrada em cascata mexe a OPACIDADE, não o texto, então o assentamento vem
+ * antes de a animação acabar — daí a pausa curta no fim, que é a mesma do laço
+ * antigo e pela mesma razão.
+ */
+async function esperarTelaParar(minutos = 4) {
+  let anterior = null;
+  const limite = Date.now() + minutos * 60_000;
+  while (Date.now() < limite) {
+    await dormir(5000);
+    const diz = oQueDizATela();
+    const agora = diz.join('\u0001');
+    if (agora && agora === anterior) {
+      await dormir(4000);
+      return { parou: true, diz };
+    }
+    anterior = agora;
+  }
+  dizer(`ATENÇÃO: a tela não assentou em ${minutos} min — a foto abaixo não vale`);
+  return { parou: false, diz: oQueDizATela() };
+}
+
+/**
  * A mesma tela do app em todas as larguras, uma foto cada.
  *
  * É este comando que responde "o layout se adapta?", e nenhuma foto sozinha responde.
  */
-async function fotos(nome) {
-  if (!nome) throw new Error('uso: node scripts/aparelho.mjs fotos <nome-da-rota>');
+async function fotos(nome, rota) {
+  if (!nome) throw new Error('uso: node scripts/aparelho.mjs fotos <nome> [rota]');
   const ruins = [];
+  const titulos = [];
   process.on('exit', () => tela('original'));
   for (const chave of Object.keys(TELAS)) {
     tela(chave);
-    const desenhou = await esperarDesenho();
+    // A rota vem LOGO depois de trocar a largura, e isso é medida, não gosto.
+    //
+    // Trocar `wm size` destrói a Activity e o Android **não a recria sozinha**: o
+    // processo do app continua vivo com ZERO view anexada, e nesse estado o
+    // `dumpsys gfxinfo` nem imprime a linha `Total frames rendered`. Ou seja,
+    // esperar o redesenho antes de navegar é esperar um app que ninguém mandou
+    // desenhar — oito minutos de espera por largura, quarenta na volta inteira,
+    // medidos em 9 de setembro. Quem acorda a tela é o próprio `am start` da rota.
+    //
+    // Sem rota não há o que abrir, e aí a espera continua sendo a única saída: é o
+    // laço antigo, que serve para a capa.
+    let desenhou;
+    if (rota) {
+      // `-S` — partida FRIA, e é o que torna o laço determinístico.
+      //
+      // Depois de `wm size` o Android destrói a Activity e não a recria: o processo
+      // continua vivo, `am start` responde *"delivered to currently running top-most
+      // instance"*, e nada desenha — o `uiautomator dump` volta sem uma linha sequer.
+      // Foi assim que a segunda largura ficou quatro minutos esperando uma tela que
+      // ninguém tinha mandado montar. Parar o app antes de abrir custa a partida fria
+      // e devolve a mesma tela em toda largura, que é o que a comparação exige.
+      abrir(rota, { reiniciar: true });
+      const parou = await esperarTelaParar();
+      desenhou = parou.parou;
+      titulos.push(parou.diz[0] ?? '');
+      dizer(`  a tela diz: ${parou.diz.slice(0, 2).join(' · ') || '(nada legível)'}`);
+    } else {
+      desenhou = await esperarDesenho();
+    }
     try {
       foto(`${nome}--${chave}`);
       if (!desenhou) ruins.push(chave);
@@ -317,6 +450,15 @@ async function fotos(nome) {
       `estas larguras não produziram foto confiável: ${ruins.join(', ')}.\n` +
       'Não use as imagens delas para julgar layout — elas não provam nada.',
     );
+  }
+  if (rota) {
+    const veredito = mesmaTelaEmTodas(titulos);
+    if (!veredito.igual) {
+      throw new Error(
+        'as cinco fotos NÃO são da mesma tela — a comparação não vale.\n' +
+        `o que apareceu: ${veredito.vistos.join(' | ')}`,
+      );
+    }
   }
   dizer(`${Object.keys(TELAS).length} larguras fotografadas em .shots/${nome}--*.png`);
 }
@@ -366,14 +508,34 @@ const acoes = {
   compilar,
   instalar: () => instalar(process.argv[3]?.startsWith('--') ? null : process.argv[3]),
   foto: () => foto(process.argv[3]),
-  fotos: () => fotos(process.argv[3]),
+  fotos: () => fotos(process.argv[3], process.argv[4]),
+  abrir: () => abrir(process.argv[3]),
   tela: () => tela(process.argv[3]),
   derrubar,
+  // A régua descartável também passa por um caso verdadeiro e um falso — este
+  // projeto já teve duas medidas de uma vez erradas por não fazer isso.
+  autoteste: () => {
+    const casos = [
+      [['Receitas', 'Receitas', 'Receitas'], true],
+      [['Receitas', 'Início', 'Receitas'], false],
+      [['Receitas'], true],
+      [[], true],
+    ];
+    let falhou = 0;
+    for (const [entrada, esperado] of casos) {
+      const { igual } = mesmaTelaEmTodas(entrada);
+      const ok = igual === esperado;
+      if (!ok) falhou += 1;
+      console.log(`${ok ? 'ok  ' : 'FALHA'} mesmaTelaEmTodas(${JSON.stringify(entrada)}) = ${igual}`);
+    }
+    if (falhou) process.exit(1);
+  },
 };
 
 if (!acoes[verbo]) {
   console.error(
-    'verbos: subir | compilar | instalar [apk] | foto <nome> | fotos <nome> | tela <medida> | derrubar\n' +
+    'verbos: subir | compilar | instalar [apk] | abrir <rota> | foto <nome> |\n' +
+    '        fotos <nome> [rota] | tela <medida> | derrubar\n' +
     `medidas: ${Object.keys(TELAS).join(' | ')} | original`,
   );
   process.exit(1);

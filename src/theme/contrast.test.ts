@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { TINTA_CLARA, TINTA_ESCURA, contraste, tintaSobre } from './contraste';
+import { TINTA_CLARA, TINTA_ESCURA, contraste, mistura, tintaSobre } from './contraste';
 import { test } from 'node:test';
 
 /**
@@ -343,5 +343,68 @@ test('every accent the app writes text with is legible on every ground it writes
       'A saída é escurecer o tom mantendo o matiz E a saturação, nunca baixar a régua: ' +
       'foi assim que mint, sage e sand voltaram à faixa depois da subida de saturação de ' +
       '6 de setembro, que passou verde aqui porque esta checagem ainda não existia.',
+  );
+});
+
+/**
+ * O botão DESLIGADO também se lê — e a guarda de cima passava sem olhar para ele.
+ *
+ * A régua acima mede a palavra contra cada cor com que um botão é PINTADO. Um
+ * botão desabilitado não é pintado com nenhuma delas: ele era desbotado inteiro
+ * com `opacity: 0.45`, o que compõe preenchimento E rótulo sobre a página. Os
+ * dois caminham juntos na direção do fundo e o contraste entre eles desaba —
+ * enquanto a guarda continua verde, porque mede a cor cheia, que não está na
+ * tela. Mesmo defeito do vizinho da propriedade, mais um andar acima.
+ *
+ * A foto de 9 de setembro mostrou: "Criar ficha" em branco sobre bege claro.
+ *
+ * Aqui se mede o que a tela mostra de verdade. E a asserção vale nos dois
+ * sentidos de propósito: o jeito ANTIGO tem de REPROVAR nesta mesma régua — sem
+ * isso, a guarda não distingue o mundo consertado do mundo quebrado, que é o
+ * defeito que este repositório já registrou por escrito.
+ */
+test('the word on a DISABLED button is legible too, and the old way was not', () => {
+  const AREAS = ['apricot', 'mint', 'lilac', 'sage', 'sky', 'mist', 'danger', 'warning'] as const;
+  const DESBOTADO = 0.35;
+  const ANTIGO = 0.45;
+  const fracas: string[] = [];
+  /** Quantas combinações o jeito antigo reprovaria — o caso falso da régua. */
+  let reprovadasAntes = 0;
+
+  for (const { nome, cores } of paletas()) {
+    const pagina = cores.paper;
+    if (!pagina) continue;
+    for (const area of AREAS) {
+      const cheio = cores[area];
+      if (!cheio) continue;
+
+      // O jeito novo: só o preenchimento desbota, e a tinta é medida depois.
+      const fundo = mistura(cheio, pagina, DESBOTADO);
+      const tinta = tintaSobre(fundo, TINTA_CLARA, TINTA_ESCURA);
+      const razao = contraste(tinta, fundo);
+      if (razao < MINIMO) fracas.push(`${nome}/${area}: ${tinta} sobre ${fundo} dá ${razao.toFixed(2)}:1`);
+
+      // O jeito antigo: a tinta é escolhida contra a cor CHEIA e depois desbotada
+      // junto com ela. É esta composição que a tela mostrava.
+      const tintaAntes = tintaSobre(cheio, TINTA_CLARA, TINTA_ESCURA);
+      const fundoAntes = mistura(cheio, pagina, ANTIGO);
+      const escritaAntes = mistura(tintaAntes, pagina, ANTIGO);
+      if (contraste(escritaAntes, fundoAntes) < MINIMO) reprovadasAntes += 1;
+    }
+  }
+
+  assert.deepEqual(
+    fracas,
+    [],
+    `a palavra do botão desligado reprova a régua de ${MINIMO}:1:
+  ${fracas.join('\n  ')}
+` +
+      'Desligado tem de PARECER desligado; não tem de virar segredo.',
+  );
+
+  assert.ok(
+    reprovadasAntes > 0,
+    'o jeito antigo (desbotar o botão inteiro) passou nesta régua — então a régua não ' +
+      'separa o mundo consertado do mundo quebrado, e o verde acima não quer dizer nada.',
   );
 });

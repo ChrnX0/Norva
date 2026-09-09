@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CountUp } from '@/components/CountUp';
 import { Button } from '@/components/Button';
 import { Alive } from '@/components/Alive';
@@ -83,6 +83,11 @@ const TABS: {
     desenho: (c, w) => <GlyphBucket size={26} color={c} weight={w} />,
   },
 ];
+
+/** A quebra do filtro de sala — declarada aqui porque `flexWrap` é forma, não decisão. */
+const styles = StyleSheet.create({
+  quebra: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
+});
 
 function InputsList() {
   const { color, space, type, palette, traco } = useTheme();
@@ -175,9 +180,15 @@ function InputsList() {
           estou olhando. */}
       <Reveal index={0}>
         <Card>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={{ flexDirection: 'row', gap: space.xl }}>
-              {TABS.map((entry, i) => {
+          {/* Três colunas iguais, e NÃO um rolamento horizontal.
+              A foto no emulador a 393 dp mostrou a terceira aba cortada no meio da
+              palavra — "Material de lo" — sem reticência e sem nenhum sinal de que
+              houvesse mais para o lado. Filtro que a pessoa não vê é filtro que não
+              existe: quem abre a tela não descobre que compra material de loja.
+              Com `flex: 1` as três dividem a largura que houver, o rótulo quebra em
+              duas linhas quando precisa, e nada fica escondido em nenhuma largura. */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+            {TABS.map((entry, i) => {
                 const active = entry.kind === kind;
                 const count = all.filter((i) => i.kind === entry.kind).length;
                 return (
@@ -188,10 +199,12 @@ function InputsList() {
                     accessibilityState={{ selected: active }}
                     accessibilityLabel={t.app.inputs.tabs[entry.key]}
                     style={{
+                      flex: 1,
                       alignItems: 'center',
                       gap: space.xs,
-                      minWidth: 76,
+                      minHeight: 48,
                       paddingVertical: space.sm,
+                      paddingHorizontal: space.xs,
                     }}
                   >
                     {/* O filtro respira como todo desenho do aplicativo: o
@@ -200,24 +213,39 @@ function InputsList() {
                     <Alive index={i}>
                       {entry.desenho(active ? palette.mint : color.inkFaint, traco)}
                     </Alive>
+                    {/* Nome e contagem em linhas SEPARADAS, e não coladas por um
+                        ponto. Com as duas na mesma frase, "Embalagem · 2" quebrava
+                        entre o ponto e o número — o separador terminando a linha e o
+                        número sozinho embaixo, que é lixo tipográfico. Separadas, a
+                        quebra é decisão e não acidente, e a contagem ainda ganha o
+                        peso certo: quem escolhe a aba lê a palavra, não o número. */}
                     <Text
                       style={[
                         type.secondary,
                         {
                           color: active ? palette.mint : color.inkMuted,
                           fontWeight: active ? '600' : '400',
+                          textAlign: 'center',
                         },
                       ]}
-                      numberOfLines={1}
+                      numberOfLines={2}
                     >
                       {t.app.inputs.tabs[entry.key]}
-                      {count > 0 ? ` · ${formatQuantity(count, locale)}` : ''}
                     </Text>
+                    {count > 0 ? (
+                      <Text
+                        style={[
+                          type.caption,
+                          { color: active ? palette.mint : color.inkFaint, textAlign: 'center' },
+                        ]}
+                      >
+                        {formatQuantity(count, locale)}
+                      </Text>
+                    ) : null}
                   </Pressable>
                 );
-              })}
-            </View>
-          </ScrollView>
+            })}
+          </View>
 
           {/* O filtro de sala, e ele só aparece quando há sala para filtrar.
               Com a polpa dividida entre a fábrica e a câmara fria, o total da
@@ -225,12 +253,16 @@ function InputsList() {
               para quem está no tacho: o que importa ali é o que tem NAQUELA
               sala. */}
           {salas.length > 1 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ marginTop: space.sm }}
+            /* Quebra de linha, pelo mesmo motivo das abas acima: sala escondida
+               atrás de um rolamento que ninguém vê é sala que não se filtra. O
+               número de salas é livre — quatro delas viram duas linhas, e duas
+               linhas visíveis valem mais que uma linha com metade fora. */
+            <View
+              style={[
+                styles.quebra,
+                { marginTop: space.sm, columnGap: space.lg, rowGap: space.xs },
+              ]}
             >
-              <View style={{ flexDirection: 'row', gap: space.lg }}>
                 {[null, ...salas.map((p) => p.id)].map((id) => {
                   const active = place === id;
                   const lugar = salas.find((p) => p.id === id);
@@ -260,8 +292,7 @@ function InputsList() {
                     </Pressable>
                   );
                 })}
-              </View>
-            </ScrollView>
+            </View>
           ) : null}
         </Card>
       </Reveal>

@@ -51,3 +51,26 @@ export function contraste(a: string, b: string): number {
 export function tintaSobre(fundo: string, clara: string, escura: string): string {
   return contraste(clara, fundo) >= contraste(escura, fundo) ? clara : escura;
 }
+
+/**
+ * A cor que se VÊ quando uma tinta é posta por cima de outra com alfa.
+ *
+ * Existe porque `opacity` num botão desligado desfaz, calada, a medida logo
+ * acima. O `tintaSobre` escolhe a tinta contra o preenchimento CHEIO; aí o
+ * componente desbota o botão inteiro, e o que aparece na tela é outro fundo —
+ * mais claro, mais perto da página — com a tinta que foi escolhida para o fundo
+ * que não está lá. A foto de 9 de setembro mostrou o resultado: "Criar ficha"
+ * em branco sobre bege claro, ilegível, num botão que estava só desabilitado.
+ *
+ * Com a mistura, quem desbota é o PREENCHIMENTO, e a tinta é medida depois —
+ * então o rótulo de um botão desligado continua sendo lido. Desligado tem de
+ * PARECER desligado; não tem de virar segredo.
+ */
+export function mistura(frente: string, fundo: string, alfa: number): string {
+  const canal = (i: number) => {
+    const a = parseInt(frente.slice(i, i + 2), 16);
+    const b = parseInt(fundo.slice(i, i + 2), 16);
+    return Math.round(a * alfa + b * (1 - alfa));
+  };
+  return `#${[1, 3, 5].map((i) => canal(i).toString(16).padStart(2, '0')).join('')}`;
+}

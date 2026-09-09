@@ -345,14 +345,50 @@ function Insumos({ tinta, acento, frio }: Pincel) {
 /** AS RECEITAS — o caderno aberto, com a página que respira. */
 function Receitas({ tinta, acento, frio }: Pincel) {
   const ciclo = useCiclo(7600, { feitio: 'vaivem', repouso: 0 });
-  const folha = useAnimatedProps(() => ({ transform: [{ translateX: ciclo.value * 7 }] }));
+  /**
+   * A folha ERGUE; ela não desliza para o lado — e a diferença é a de um livro
+   * para dois pedaços de papel soltos.
+   *
+   * A primeira versão empurrava a página direita com `translateX` de até sete
+   * unidades: no meio do ciclo o livro se partia em dois no centro, com a
+   * lombada de um lado e a folha do outro. O dono olhou e disse *"esse caderno
+   * aí está bagunçado"*, e estava.
+   *
+   * O gesto certo em duas dimensões é o encurtamento: uma página que se levanta
+   * fica mais estreita vista de cima, e continua presa à lombada o tempo todo.
+   * Daí `scaleX` — e o par de translações em volta dele é o que fixa o centro da
+   * escala EM x=82, a lombada, sem depender da prop `origin` casar com um
+   * transform que vem animado. Origem errada aqui não desenha um livro torto:
+   * joga a página para fora da prancha.
+   *
+   * Em repouso a escala é 1: o desenho inteiro, no lugar — que é o que "reduzir
+   * movimento" tem de receber.
+   */
+  const folha = useAnimatedProps(() => ({
+    transform: [
+      { translateX: 82 },
+      { scaleX: 1 - ciclo.value * 0.12 },
+      { translateX: -82 },
+    ],
+  }));
   return (
     <>
+      {/* As duas páginas encostam EXATAMENTE na lombada, em (82,26) e (82,64).
+          A versão anterior fechava a direita em (82,68) — quatro unidades abaixo
+          da esquerda e do fim da lombada —, e o que se via era um gancho pendurado
+          sob o centro do livro. Simetria aqui não é capricho: é o que faz duas
+          curvas lerem como um objeto só. */}
       <G stroke={tinta}>
-        <Path d="M20 64V22c22-6 44-6 62 4v38c-18-10-40-10-62 0z" />
-        <AnimatedG animatedProps={folha} origin="82, 26">
-          <Path d="M82 26c18-10 40-10 62-4v42c-22-6-44-6-62 4z" />
-          <Path d="M96 38h34M96 48h34M96 58h20" stroke={frio} />
+        <Path d="M20 22C42 16 64 16 82 26L82 64C64 54 42 54 20 64Z" />
+        {/* A pauta nas DUAS páginas. Com ela só na direita, o caderno lia como
+            desenho pela metade — e uma ficha técnica é justamente o que entra de
+            um lado e o modo de fazer do outro. A terceira linha é curta nas duas,
+            que é como texto escrito termina, e nenhuma delas encosta na borda:
+            a de antes (y=58) cruzava a curva de baixo da página. */}
+        <Path d="M32 36h38M32 44h38M32 52h22" stroke={frio} opacity={0.7} />
+        <AnimatedG animatedProps={folha}>
+          <Path d="M82 26C100 16 122 16 144 22L144 64C122 54 100 54 82 64Z" />
+          <Path d="M94 36h38M94 44h38M94 52h22" stroke={frio} opacity={0.7} />
         </AnimatedG>
         <Path d="M82 26v38" />
       </G>

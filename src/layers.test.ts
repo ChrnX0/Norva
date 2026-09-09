@@ -2344,3 +2344,58 @@ test('a régua do lote distingue quem pergunta de quem não pergunta', () => {
     'e a variável SEM lote continua sendo achado',
   );
 });
+
+/**
+ * Nenhum componente desbota a MASSA e a TINTA juntas — e o botão era o culpado.
+ *
+ * `opacity` num controle preenchido compõe o fundo e o rótulo sobre a página ao
+ * mesmo tempo: os dois caminham na direção da cor de fundo e o contraste entre
+ * eles desaba, enquanto a régua de contraste continua verde porque mede a cor
+ * CHEIA, que não está na tela. A foto de 9 de setembro pegou: "Criar ficha" em
+ * branco sobre bege claro, num botão que só estava desabilitado.
+ *
+ * A régua de `contrast.test.ts` mede a aritmética do conserto e passaria igual
+ * com o `Button` revertido — duas coisas escritas pela mesma mão. Esta amarra as
+ * duas: quem desliga um controle desbota o PREENCHIMENTO (`mistura`) e mede a
+ * tinta depois; ninguém volta a desbotar o conjunto.
+ */
+export function desbotamOConjunto(fontes: readonly { arquivo: string; texto: string }[]): string[] {
+  return fontes
+    .filter((f) => /opacity:\s*disabled/.test(semProsa(f.texto)))
+    .map((f) => f.arquivo);
+}
+
+test('nenhum controle desliga desbotando a massa e a tinta juntas', () => {
+  const fontes = [...sourcesUnder('app'), ...sourcesUnder('src')].map((arquivo) => ({
+    arquivo,
+    texto: readFileSync(arquivo, 'utf8'),
+  }));
+
+  assert.deepEqual(
+    desbotamOConjunto(fontes),
+    [],
+    'estes desbotam o controle inteiro: o rótulo some junto com a cor, e a régua de\n' +
+      'contraste não vê porque mede a cor cheia. Desbote o preenchimento e meça a tinta.',
+  );
+
+  // Positivo: o botão PRECISA continuar medindo a tinta contra o fundo desbotado.
+  // Sem isto, apagar o conserto deixaria a guarda de cima verde por vacuidade.
+  const botao = readFileSync('src/components/Button.tsx', 'utf8');
+  assert.match(botao, /mistura\(preenchimento/, 'o preenchimento desligado é uma mistura');
+  assert.match(botao, /tintaSobre\(fundoDaAcao/, 'a tinta é medida contra o fundo que aparece');
+});
+
+test('a régua do desbotamento distingue quem apaga o rótulo de quem desbota a cor', () => {
+  assert.deepEqual(
+    desbotamOConjunto([{ arquivo: 'src/components/X.tsx', texto: 'style={{ opacity: disabled ? 0.45 : 1 }}' }]),
+    ['src/components/X.tsx'],
+    'desbotar o conjunto tem de ser pego',
+  );
+  assert.deepEqual(
+    desbotamOConjunto([
+      { arquivo: 'src/components/Y.tsx', texto: 'const fundo = disabled ? mistura(cheio, paper, 0.35) : cheio;' },
+    ]),
+    [],
+    'desbotar só o preenchimento é o jeito certo e não pode ser acusado',
+  );
+});

@@ -7746,3 +7746,143 @@ não distingue nada, por mais certa que a asserção esteja.
 vermelha**. Isso pegou três de três nesta sessão — e cada uma tinha passado no meu olho.
 Quando não morder, a primeira hipótese não é "o conserto não era necessário": é que o
 cenário não separa os dois mundos.
+
+---
+
+## 9 de setembro — a ferramenta que prova tela não alcançava a tela
+
+**O que apareceu:** `node scripts/aparelho.mjs fotos <rota>` é a régua que este projeto
+inteiro cita como a prova de layout — o `CLAUDE.md` diz, desde 5 de setembro, que ela
+"tira a mesma tela em cinco larguras". Ao usá-la pela primeira vez numa tela que não é a
+capa, as cinco fotos saíram da **capa**. As cinco. O comando saiu zero e gravou cinco
+PNGs válidos, cada um com variação de cor suficiente para passar na checagem de "foto
+morta" que o próprio script faz.
+
+A causa é banal e é a razão de ninguém ver: trocar `wm size`/`wm density` é mudança de
+configuração, o Android recria a Activity, e o app refaz a partida — na tela inicial. O
+argumento chamado `<rota>` nunca foi rota; era só o nome do arquivo.
+
+**Por que importa:** não é um script com defeito, é uma **fundação apoiada em ar**. A
+barra de verificação deste projeto foi reescrita em torno da frase "verde não prova tela;
+o que prova é a foto do emulador", e a única ferramenta que produz essa prova para telas
+profundas produzia cinco cópias de outra tela. Todo julgamento de adaptação feito por ela
+fora da capa mediu a capa. É o mesmo defeito de *"uma guarda que compara duas coisas
+escritas pela mesma mão"*, um andar acima: aqui o instrumento respondia sempre a mesma
+coisa, e a resposta era plausível.
+
+**O que mudou:** o `app.json` já declarava `scheme: norva` e ninguém usava. Agora
+`abrir <rota>` navega por ligação profunda, `fotos <nome> <rota>` reabre a rota **depois**
+de cada troca de largura, e — porque `am start` responde "ok" para qualquer caminho — o
+comando lê o texto da tela com `uiautomator dump` e **recusa** quando as cinco não são a
+mesma tela. A régua dessa recusa tem autoteste com caso verdadeiro e caso falso
+(`aparelho.mjs autoteste`), que é o que este arquivo exige de toda medida de uma vez. A
+linha do `CLAUDE.md` foi corrigida junto: promessa boa, buraco fechado.
+
+**E a mesma investigação achou o custo escondido do laço.** Trocar `wm size` destrói a
+Activity e o Android **não a recria sozinha**: o processo do app fica vivo com zero view
+anexada, e nesse estado o `dumpsys gfxinfo` nem imprime a linha `Total frames rendered`
+que o script espera. A espera pelo redesenho, que existe justamente para não fotografar
+tela em branco, estava esperando um app que ninguém tinha mandado desenhar — oito minutos
+por largura, quarenta na volta inteira. Quem acorda a tela é o próprio `am start` da rota,
+então a rota passou a vir logo depois da troca de largura, e a espera passou a ser uma só.
+
+**A régua que fica:** ferramenta de prova também é afirmação, e envelhece igual. Antes de
+confiar numa medida que você não escreveu hoje, **rode-a onde a resposta é conhecida** —
+aqui bastava fotografar duas telas diferentes e comparar. Instrumento que devolve sempre
+a mesma resposta é indistinguível de instrumento que funciona, até o dia em que a resposta
+importa.
+
+---
+
+## 9 de setembro — o que parecia corte de layout era o dado
+
+**O que apareceu:** a primeira foto do Almoxarifado a 393 dp mostrou duas palavras
+cortadas — *"Material de lo"* e *"LojaCen"* — e eu anotei as duas como defeito de largura.
+Ampliando a imagem antes de consertar, só uma era: *"Material de lo"* termina exatamente
+na borda do rolamento horizontal; *"LojaCen"* termina **bem dentro do cartão**, com
+espaço sobrando à direita. Não está cortada. É o nome do lugar, e fui eu que o gravei
+assim — `adb shell input text "Loja Centro"` come o espaço e o resto.
+
+**Por que importa:** o conserto que eu ia fazer teria mexido no layout para resolver um
+problema de layout que não existia, e o defeito real — um lugar cadastrado com nome
+errado no aparelho de teste — seguiria lá, agora com um commit dizendo que estava
+resolvido. E o pior: a segunda "prova" teria sido a mesma foto, mostrando o mesmo texto.
+
+**A régua que fica:** antes de chamar palavra cortada de defeito de largura, **ache a
+borda do recipiente e veja onde o texto termina**. Se sobra espaço, não é corte: é o
+dado. E ampliar a foto custa dois segundos — a mesma foto que produziu a leitura errada
+produz a leitura certa, quando alguém olha de perto.
+
+---
+
+## 9 de setembro — a régua de contraste media a cor com que o botão é PINTADO, e o botão desligado não é pintado com nenhuma delas
+
+**O que apareceu:** a foto da tela nova mostrou "Criar ficha" em branco sobre bege claro,
+ilegível — um botão que não estava quebrado, estava só **desabilitado**. E a guarda de
+contraste deste repositório estava verde, como está desde que foi escrita.
+
+Ela não estava errada: estava medindo outra coisa. `Button.tsx` escolhe a tinta do rótulo
+**medindo-a** contra o preenchimento (`tintaSobre`), o que é a doutrina certa e está
+escrita no docblock. Só que, três linhas abaixo, ele desbotava o botão INTEIRO com
+`opacity: 0.45` — e opacidade compõe preenchimento e rótulo sobre a página ao mesmo
+tempo. Os dois caminham juntos na direção da cor de fundo, o contraste entre eles desaba,
+e a medida feita contra a cor cheia passa a descrever uma cor que **não está na tela**.
+
+**Por que importa:** é a terceira vez que este repositório registra a mesma família — a
+guarda mede o vizinho da propriedade. Antes foram as tintas de texto medidas contra os
+fundos de página enquanto o botão escrevia escuro sobre marrom; agora é o botão medido
+cheio enquanto a tela mostra ele desbotado. A assinatura é sempre a mesma: **a régua e o
+defeito estão a um passo um do outro, e o passo é invisível de dentro da régua.**
+
+E o custo é maior do que "um botão feio": botão desabilitado sem rótulo legível não diz o
+que falta. A Lei 5 desta casa manda impedir em vez de reclamar — mas impedir calado, sem
+a pessoa conseguir ler o que o botão faria, é impedir sem dizer o que resolve.
+
+**O que mudou:** `mistura(frente, fundo, alfa)` entrou na régua de contraste, o botão
+desbota só o PREENCHIMENTO e mede a tinta contra o que sobrou, e a guarda passou a medir a
+composição que a tela mostra. Ela traz o caso falso junto, e não como enfeite: a mesma
+asserção exige que o jeito ANTIGO **reprove** na régua — sem isso ela não separa o mundo
+consertado do quebrado. E como essa guarda mede aritmética e não componente, uma segunda,
+em `layers.test.ts`, recusa `opacity: disabled` em qualquer fonte de `app/` e `src/` e
+exige que o `Button` continue medindo — porque régua e conserto escritos pela mesma mão
+concordam sozinhos.
+
+**A régua que fica:** quando um componente **decide uma cor por medida**, procure o que
+mexe nessa cor DEPOIS da medida. Opacidade, sombra, sobreposição e mistura de tema são
+todos passos que acontecem entre a conta e o olho, e nenhum deles aparece no arquivo onde
+a conta está escrita.
+
+---
+
+## 9 de setembro — desenho não tem guarda, e o caderno estava aberto no meio
+
+**O que apareceu:** o dono olhou a cena de Receitas do Papel e disse *"esse caderno aí está
+bagunçado"*. Estava, e não por um defeito: por quatro, todos geométricos e todos invisíveis
+para tudo o que este repositório roda.
+
+- A página direita era empurrada por `translateX` de até sete unidades. No meio do ciclo o
+  livro **se partia em dois** — lombada de um lado, folha do outro.
+- A curva de baixo da página direita fechava em (82,**68**) enquanto a esquerda e a lombada
+  terminavam em (82,**64**): um gancho de quatro unidades pendurado sob o centro.
+- A terceira linha da pauta, em y=58, **cruzava** a borda de baixo da própria página.
+- E a pauta existia só na página da direita, então o caderno lia como desenho pela metade
+  — numa tela cujo assunto é justamente o que entra de um lado e o modo de fazer do outro.
+
+**Por que importa:** `typecheck`, 608 testes, lint e portão passaram por cima dos quatro
+sem tocar em nenhum. **Geometria não tem guarda neste projeto e não vai ter**: a régua de
+um desenho é o olho. O que agrava é que o arquivo já tinha o idioma certo — o par
+`translateX(a) · scale · translateX(-a)`, que fixa o centro da transformação numa
+coordenada — usado em **quatro** outros lugares. A cena do livro era a única com
+`translateX` cru, e ninguém comparou.
+
+**O que mudou:** as duas páginas passaram a encostar exatamente na lombada, a folha ERGUE
+por encurtamento em vez de deslizar (uma página que se levanta fica mais estreita vista de
+cima, e continua presa), a pauta entrou nas duas páginas longe das bordas, e o desenho foi
+conferido no aparelho, na pele onde ele vive.
+
+**A régua que fica:** desenho novo se **renderiza e se olha** antes de entrar — e isso não
+custa um emulador. As mesmas `d=` do componente, jogadas num SVG e rasterizadas
+(`cairosvg`), mostraram os quatro defeitos numa passada, em segundos, com o antes e o
+depois lado a lado. Uma foto do aparelho continua sendo a prova final, porque é ela que
+inclui pele, fonte e escala; o desenho vetorial é o que evita gastar uma compilação para
+descobrir que duas curvas não se encontram.

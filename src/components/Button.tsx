@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { TINTA_CLARA, TINTA_ESCURA, tintaSobre } from '@/theme/contraste';
+import { TINTA_CLARA, TINTA_ESCURA, mistura, tintaSobre } from '@/theme/contraste';
 import { useTheme } from '@/theme/ThemeProvider';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -89,7 +89,22 @@ export function Button({
    * escuro a tinta da paleta é CLARA, e medir entre duas claras é escolher a menos
    * ruim de duas derrotas.
    */
-  const tintaDaAcao = tintaSobre(preenchimento, TINTA_CLARA, TINTA_ESCURA);
+  /**
+   * O preenchimento que a tela MOSTRA — e num botão desligado ele não é este.
+   *
+   * A versão anterior desbotava o botão inteiro (`opacity: 0.45`), o que compõe
+   * fundo E rótulo sobre a página: os dois caminham juntos na direção da cor de
+   * fundo, e o contraste entre eles desaba. A foto de 9 de setembro mostrou
+   * "Criar ficha" em branco sobre bege claro — um botão que só estava
+   * desabilitado e que ninguém conseguia ler.
+   *
+   * Agora quem desbota é só o preenchimento, e a tinta é medida contra o que
+   * sobrou. É a mesma doutrina do bloco acima, levada até o estado desligado:
+   * tinta declarada erra sempre que o fundo muda sem ela.
+   */
+  const DESBOTADO = 0.35;
+  const fundoDaAcao = disabled ? mistura(preenchimento, color.paper, DESBOTADO) : preenchimento;
+  const tintaDaAcao = tintaSobre(fundoDaAcao, TINTA_CLARA, TINTA_ESCURA);
   const [pressed, setPressed] = useState(false);
 
   // The spring is driven by state rather than by writing to a shared value in
@@ -116,11 +131,10 @@ export function Button({
       style={[
         styles.base,
         {
-          backgroundColor: isPrimary ? preenchimento : 'transparent',
+          backgroundColor: isPrimary ? fundoDaAcao : 'transparent',
           borderRadius: radius.controle,
           paddingVertical: space.lg,
           paddingHorizontal: space.xl,
-          opacity: disabled ? 0.45 : 1,
         },
         // A ação secundária no Papel é palavra sublinhada, não bloco.
         //
@@ -147,7 +161,13 @@ export function Button({
       <Text
         style={[
           type.body,
-          { fontWeight: '600', color: isPrimary ? tintaDaAcao : color.inkMuted },
+          {
+            fontWeight: '600',
+            // A secundária não tem massa de cor para desbotar, então o desligado
+            // dela é a tinta mais fraca — que continua sendo tinta de TEXTO
+            // medida contra a página, não um branco sobre nada.
+            color: isPrimary ? tintaDaAcao : disabled ? color.inkFaint : color.inkMuted,
+          },
         ]}
       >
         {label}
