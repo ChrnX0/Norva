@@ -37,16 +37,12 @@
  */
 import { readMeta, writeMeta } from './meta';
 import {
+  aplicarConfigDoServidor,
   eraseGraceDays,
   floorSignIn,
   namesWhoRecorded,
   ordersNeedApproval,
   purchaseSafetyDays,
-  setEraseGraceDays,
-  setFloorSignIn,
-  setNamesWhoRecorded,
-  setOrdersNeedApproval,
-  setPurchaseSafetyDays,
   type FloorSignIn,
 } from './repository';
 
@@ -158,28 +154,26 @@ export async function daqui(): Promise<ConfiguracaoDaEmpresa> {
  * ninguém escolheu.
  */
 export async function guardarAqui(vinda: Partial<ConfiguracaoDaEmpresa>): Promise<void> {
-  await Promise.all([
-    setNamesWhoRecorded(vinda.names_who_recorded === true),
-    setFloorSignIn(vinda.floor_sign_in === 'shared' ? 'shared' : 'personal'),
-    setOrdersNeedApproval(vinda.orders_need_approval === true),
+  await aplicarConfigDoServidor({
+    namesWhoRecorded: vinda.names_who_recorded === true,
+    floorSignIn: vinda.floor_sign_in === 'shared' ? 'shared' : 'personal',
+    ordersNeedApproval: vinda.orders_need_approval === true,
     // Zero é resposta válida, então o padrão só entra quando NÃO É NÚMERO. Um
     // `|| 2` aqui trocaria "a fábrica não quer folga" por "dois dias" em silêncio,
     // que é a classe de defeito mais cara deste projeto: o número plausível.
-    setPurchaseSafetyDays(
+    purchaseSafetyDays:
       typeof vinda.purchase_safety_days === 'number' ? vinda.purchase_safety_days : 2,
-    ),
     // Nulo aqui é RESPOSTA — "nunca destrói no servidor" —, e é por isso que a
     // leitura distingue nulo de ausente: `undefined` cai no padrão de dez, `null`
     // atravessa. Tratar os dois igual apagaria a escolha mais conservadora que a
     // empresa pode fazer.
-    setEraseGraceDays(
+    eraseGraceDays:
       vinda.erase_grace_days === undefined
         ? 10
         : vinda.erase_grace_days === null
           ? null
           : Number(vinda.erase_grace_days),
-    ),
-  ]);
+  });
 }
 
 /**

@@ -888,9 +888,7 @@ export async function saveCarrier(
   companyId: string,
   input: { id?: string; name: string; phone?: string; note?: string; active?: boolean },
 ): Promise<Carrier> {
-  if (!(await currentCapabilities(companyId)).has('manage_company')) {
-    throw new Error('transportadora: quem não administra a empresa não cadastra transportadora');
-  }
+  await exigirCapacidade(companyId, 'manage_company', 'cadastrar transportadora');
   const nome = input.name.trim();
   if (!nome) throw new Error('transportadora: sem nome não é transportadora');
 
@@ -1068,9 +1066,7 @@ export async function saveSalePrice(
   companyId: string,
   input: { itemId: string; placeId: string | null; rate: Rate | null },
 ): Promise<void> {
-  if (!(await currentCapabilities(companyId)).has('manage_company')) {
-    throw new Error('preço: quem não administra a empresa não combina preço');
-  }
+  await exigirCapacidade(companyId, 'manage_company', 'combinar preço');
   // Zero não é preço, e a checagem impede aqui pelo mesmo motivo que o servidor
   // impede lá: mercadoria dada é movimento SEM preço, e um zero guardado viraria
   // "não havia acordo" na primeira leitura.
@@ -1205,9 +1201,7 @@ export async function savePlace(
    * A recusa é a mesma forma do `savePerson`: capacidade conferida na camada de
    * dados, e a tela escrevendo a frase. Erro que IMPEDE, não que reclama.
    */
-  if (!(await currentCapabilities(companyId)).has('manage_company')) {
-    throw new Error('lugar: quem não administra a empresa não cadastra nem renomeia lugar');
-  }
+  await exigirCapacidade(companyId, 'manage_company', 'cadastrar ou renomear lugar');
 
   const name = input.name.trim();
   if (!name) throw new Error('um lugar sem nome não se distingue de outro');
@@ -2088,6 +2082,91 @@ export class SemPermissaoError extends Error {
   constructor(readonly kind: MovementKind) {
     super(`sem permissão para escrever ${kind}`);
     this.name = 'SemPermissaoError';
+  }
+}
+
+/**
+ * A recusa por capacidade que NÃO é escrita de movimento — cadastrar, configurar, apagar.
+ *
+ * `SemPermissaoError` responde pela espécie do movimento e não serve aqui: apagar o
+ * livro, combinar preço e desligar a entrada compartilhada não são linhas do razão.
+ * A capacidade vai dentro pelo mesmo motivo que a espécie vai lá — a tela precisa
+ * dizer o que não deu, e a Lei 5 quer o erro impedindo e mostrando a saída no mesmo
+ * gesto, em vez de "não foi possível".
+ */
+/**
+ * O piso que não teria saída — e por que ele é recusado em vez de avisado.
+ *
+ * O piso de capacidade (`pisoDoAparelho`) só rebaixa quando a entrada é
+ * compartilhada E o aparelho nomeia quem gravou: aí "ninguém escolhido" quer dizer
+ * "ainda não disse quem é", e a saída é tocar o próprio nome na grade. Se não existe
+ * uma única pessoa ativa cujo perfil administre a empresa, essa saída não existe: o
+ * aparelho entra no piso e ninguém consegue tirá-lo de lá, porque desligar o piso
+ * pede justamente a capacidade que o piso tira.
+ *
+ * Instalação nova tem zero pessoas — a semente não cadastra ninguém —, então o
+ * caminho para o tijolo era dois toques em Ajustes. Lei 5: o erro IMPEDE.
+ */
+export class PisoSemSaidaError extends Error {
+  constructor() {
+    super('piso: ligar a entrada compartilhada sem ninguém que administre tranca o aparelho');
+    this.name = 'PisoSemSaidaError';
+  }
+}
+
+export class SemAcessoError extends Error {
+  constructor(
+    readonly capability: Capability,
+    readonly assunto: string,
+  ) {
+    super(`sem ${capability}: ${assunto}`);
+    this.name = 'SemAcessoError';
+  }
+}
+
+/**
+ * O portão de administração, e ele mora num lugar só.
+ *
+ * **Estava copiado em quatro portas e ausente em seis** — medido pela auditoria de 9
+ * de setembro. As quatro que tinham (transportadora, preço combinado, lugar, gente)
+ * escreviam a mesma linha com frases diferentes; as que não tinham incluíam o Reset,
+ * que a decisão do dono de 7 de setembro restringe por nome (*"obviamente q apenas o
+ * adm pode fazer isso"*), e os cinco interruptores da empresa — entre eles os DOIS que
+ * decidem o piso de capacidade do aparelho. Com eles abertos, quem o piso rebaixava
+ * desligava o piso: dois toques devolviam o conjunto do dono, de forma durável e sem
+ * PIN.
+ *
+ * Uma porta só também é o que torna a promessa verificável: `grep exigirCapacidade`
+ * responde quem administra o quê, e comentário que se declara único não é o mesmo que
+ * ser único.
+ */
+/**
+ * Existe alguém que possa administrar esta empresa pela grade de nomes?
+ *
+ * É a pergunta que decide se o piso tem saída. Lê o mesmo par de tabelas que
+ * `operadorDaEmpresa` e filtra a capacidade em JS pelo mesmo motivo que ele:
+ * `capabilities` é texto separado por vírgula, e um `LIKE '%manage_company%'`
+ * casaria dentro de uma capacidade maior no dia em que uma nascer.
+ */
+async function alguemAdministra(companyId: string): Promise<boolean> {
+  const conn = await db();
+  const linhas = await conn.getAllAsync<{ capabilities: string }>(
+    `SELECT p.capabilities
+       FROM people g
+       JOIN profiles p ON p.id = g.profile_id AND p.company_id = g.company_id
+      WHERE g.company_id = ? AND g.active = 1`,
+    [companyId],
+  );
+  return linhas.some((l) => l.capabilities.split(',').includes('manage_company'));
+}
+
+async function exigirCapacidade(
+  companyId: string,
+  capability: Capability,
+  assunto: string,
+): Promise<void> {
+  if (!(await currentCapabilities(companyId)).has(capability)) {
+    throw new SemAcessoError(capability, assunto);
   }
 }
 
@@ -4896,6 +4975,13 @@ export async function countForErase(companyId: string): Promise<EraseCounts> {
  * whose ingredients are gone. Half-erased data is worse than either state.
  */
 export async function eraseArea(companyId: string, area: EraseArea): Promise<void> {
+  // A decisão do dono, 7 de setembro, restringe este ato por nome: *"obviamente q
+  // apenas o adm pode fazer isso"*. Até 9 de setembro nada conferia — o celular
+  // emprestado, que a mesma casa limita a produção e nada mais, apagava o livro
+  // inteiro com dois toques. A checagem vem antes de `countForErase` porque quem não
+  // pode apagar também não precisa saber quanto há para apagar.
+  await exigirCapacidade(companyId, 'manage_company', 'apagar o livro da empresa');
+
   const blocker = blockerFor(area, await countForErase(companyId));
   if (blocker) throw new EraseBlockedError(blocker);
 
@@ -6120,7 +6206,14 @@ export async function namesWhoRecorded(): Promise<boolean> {
   return (await readMeta(NAMES_KEY)) === '1';
 }
 
-export async function setNamesWhoRecorded(on: boolean): Promise<void> {
+export async function setNamesWhoRecorded(companyId: string, on: boolean): Promise<void> {
+  await exigirCapacidade(companyId, 'manage_company', 'mudar como a empresa registra quem gravou');
+  // Esta bandeira é METADE do piso de capacidade: ligada junto com a entrada
+  // compartilhada, ela rebaixa o aparelho a `operator`. Entrar nesse estado sem
+  // ninguém que administre tranca o aparelho para sempre.
+  if (on && (await floorSignIn()) === 'shared' && !(await alguemAdministra(companyId))) {
+    throw new PisoSemSaidaError();
+  }
   await writeMeta(NAMES_KEY, on ? '1' : '0');
 }
 
@@ -6138,7 +6231,12 @@ export async function floorSignIn(): Promise<FloorSignIn> {
   return (await readMeta(SIGN_IN_KEY)) === 'shared' ? 'shared' : 'personal';
 }
 
-export async function setFloorSignIn(how: FloorSignIn): Promise<void> {
+export async function setFloorSignIn(companyId: string, how: FloorSignIn): Promise<void> {
+  await exigirCapacidade(companyId, 'manage_company', 'mudar como se entra no chão de fábrica');
+  // A outra metade do piso. Mesma recusa, mesmo motivo.
+  if (how === 'shared' && (await namesWhoRecorded()) && !(await alguemAdministra(companyId))) {
+    throw new PisoSemSaidaError();
+  }
   await writeMeta(SIGN_IN_KEY, how);
 }
 
@@ -6194,7 +6292,8 @@ export async function purchaseSafetyDays(): Promise<number> {
   return Number.isFinite(n) && n >= 0 && n <= 60 ? Math.round(n) : 2;
 }
 
-export async function setPurchaseSafetyDays(dias: number): Promise<void> {
+export async function setPurchaseSafetyDays(companyId: string, dias: number): Promise<void> {
+  await exigirCapacidade(companyId, 'manage_company', 'mudar a folga de compra da empresa');
   await writeMeta(SAFETY_KEY, String(Math.max(0, Math.min(60, Math.round(dias)))));
 }
 
@@ -6221,11 +6320,50 @@ export async function eraseGraceDays(): Promise<number | null> {
   return Number.isFinite(n) && n >= 0 && n <= 365 ? Math.round(n) : 10;
 }
 
-export async function setEraseGraceDays(dias: number | null): Promise<void> {
+export async function setEraseGraceDays(companyId: string, dias: number | null): Promise<void> {
+  await exigirCapacidade(companyId, 'manage_company', 'mudar o prazo de destruição do servidor');
   await writeMeta(
     ERASE_GRACE_KEY,
     dias === null ? 'nunca' : String(Math.max(0, Math.min(365, Math.round(dias)))),
   );
+}
+
+/**
+ * O SEGUNDO escritor da configuração — o que desce do servidor, e ele não é gateado.
+ *
+ * Os cinco `set*` acima são a porta de QUEM ADMINISTRA e cobram `manage_company`.
+ * Esta é a porta do SERVIDOR: `guardarAqui` copia para o aparelho o que a política
+ * do Postgres já autorizou lá, e cobrar capacidade aqui travaria exatamente o
+ * aparelho de operador — que é quem mais precisa receber o piso correto.
+ *
+ * Dois escritores com dois direitos é a forma que esta casa já usa em
+ * `itemCosts` × `averageRatesForLedger`. O que não pode existir é UMA porta
+ * servindo aos dois, que foi o defeito: quem o piso rebaixava desligava o piso.
+ *
+ * E não há guarda de "piso sem saída" aqui de propósito: o servidor é a autoridade
+ * sobre o que a empresa configurou, e recusar o que ele mandou deixaria os dois
+ * lados divergindo em silêncio — pior que o estado que a guarda evita, porque a
+ * grade de nomes deste aparelho é alimentada pelo mesmo servidor.
+ */
+export async function aplicarConfigDoServidor(v: {
+  namesWhoRecorded: boolean;
+  floorSignIn: FloorSignIn;
+  ordersNeedApproval: boolean;
+  purchaseSafetyDays: number;
+  eraseGraceDays: number | null;
+}): Promise<void> {
+  await Promise.all([
+    writeMeta(NAMES_KEY, v.namesWhoRecorded ? '1' : '0'),
+    writeMeta(SIGN_IN_KEY, v.floorSignIn),
+    writeMeta(APPROVAL_KEY, v.ordersNeedApproval ? '1' : '0'),
+    writeMeta(SAFETY_KEY, String(Math.max(0, Math.min(60, Math.round(v.purchaseSafetyDays))))),
+    writeMeta(
+      ERASE_GRACE_KEY,
+      v.eraseGraceDays === null
+        ? 'nunca'
+        : String(Math.max(0, Math.min(365, Math.round(v.eraseGraceDays)))),
+    ),
+  ]);
 }
 
 const APPROVAL_KEY = 'orders.needApproval';
@@ -6242,7 +6380,8 @@ export async function ordersNeedApproval(): Promise<boolean> {
   return (await readMeta(APPROVAL_KEY)) === '1';
 }
 
-export async function setOrdersNeedApproval(needed: boolean): Promise<void> {
+export async function setOrdersNeedApproval(companyId: string, needed: boolean): Promise<void> {
+  await exigirCapacidade(companyId, 'manage_company', 'mudar se pedido espera aprovação');
   await writeMeta(APPROVAL_KEY, needed ? '1' : '0');
 }
 
@@ -7096,9 +7235,7 @@ export async function savePerson(
    * decoração. A tela também esconde, porque erro que impede é melhor que erro que
    * reclama — mas o que recusa é isto.
    */
-  if (!(await currentCapabilities(companyId)).has('manage_company')) {
-    throw new Error('gente: quem não administra a empresa não mexe em quem trabalha nela');
-  }
+  await exigirCapacidade(companyId, 'manage_company', 'mexer em quem trabalha na empresa');
 
   const conn = await db();
   const id = input.id ?? newId();

@@ -92,6 +92,8 @@ import {
   setOrderStatus,
   stockAgainstOrders,
   ordersNeedApproval,
+  setEraseGraceDays,
+  setPurchaseSafetyDays,
   setOrdersNeedApproval,
 } from './repository';
 import { EraseBlockedError, tallyFor } from './erase';
@@ -562,6 +564,79 @@ test('erasing one area leaves the others standing', async () => {
   assert.deepEqual(await listProductsForLedger(CO), []);
   assert.equal((await listRecipes(CO)).length, 2, 'the recipes are still there');
   assert.equal((await listItems(CO)).length, 6, 'so are the inputs');
+});
+
+/**
+ * O Reset é do dono — e antes de 9 de setembro não era de ninguém.
+ *
+ * A decisão de 7 de setembro restringe este ato por nome: *"obviamente q apenas o adm
+ * pode fazer isso"*. O código não conferia nada, então o celular emprestado — que esta
+ * mesma casa limita a produção e nada mais — apagava o livro inteiro em dois toques.
+ * Três fatias independentes da auditoria acharam isto sozinhas.
+ *
+ * Os dois lados na mesma prova, que é a regra da casa para guarda nova: o operador é
+ * recusado e NADA some; quem administra continua apagando.
+ */
+test('quem não administra a empresa não apaga o livro dela', async () => {
+  await ensureStarterData(CO);
+  const antes = (await listItems(CO)).length;
+  assert.ok(antes > 0, 'o exemplo chega com insumo');
+
+  const operador = (await listProfiles(CO)).find((p) => p.templateRole === 'operator');
+  assert.ok(operador, 'o operador é um dos sete modelos');
+  const ana = await savePerson(CO, { name: 'Ana', profileId: operador.id });
+  await setCurrentOperator(ana.id);
+
+  await assert.rejects(
+    () => eraseArea(CO, 'all'),
+    /sem manage_company/,
+    'o celular emprestado não apaga o livro',
+  );
+  assert.equal(
+    (await listItems(CO)).length,
+    antes,
+    'e a recusa não apagou nada — o portão vem antes da transação',
+  );
+
+  // O caso verdadeiro: quem administra continua apagando, senão a guarda estaria
+  // medindo "eraseArea sempre falha" em vez de "eraseArea confere quem pede".
+  await setCurrentOperator(null);
+  await eraseArea(CO, 'all');
+  assert.equal((await listItems(CO)).length, 0, 'quem administra apaga');
+});
+
+/**
+ * Os cinco interruptores da empresa, e os DOIS que decidem o piso.
+ *
+ * `pisoDoAparelho` rebaixa o aparelho a `operator` quando a entrada é compartilhada e
+ * o app nomeia quem gravou. Os dois interruptores que produzem esse estado não
+ * conferiam nada: quem o piso rebaixava desligava o piso e voltava com o conjunto do
+ * dono — durável, sem PIN e sem rastro. Dois toques.
+ */
+test('quem o piso rebaixa não mexe nos interruptores da empresa', async () => {
+  await ensureStarterData(CO);
+
+  const operador = (await listProfiles(CO)).find((p) => p.templateRole === 'operator');
+  assert.ok(operador);
+  const ana = await savePerson(CO, { name: 'Ana', profileId: operador.id });
+  await setCurrentOperator(ana.id);
+
+  for (const [nome, chamar] of [
+    ['nomeia quem gravou', () => setNamesWhoRecorded(CO, true)],
+    ['entrada do chão de fábrica', () => setFloorSignIn(CO, 'shared')],
+    ['pedido espera aprovação', () => setOrdersNeedApproval(CO, true)],
+    ['folga de compra', () => setPurchaseSafetyDays(CO, 9)],
+    ['prazo de destruição', () => setEraseGraceDays(CO, 0)],
+  ] as const) {
+    await assert.rejects(chamar, /sem manage_company/, nome + ': o operador não muda');
+  }
+  assert.equal(await namesWhoRecorded(), false, 'e nenhuma recusa escreveu');
+  assert.equal(await floorSignIn(), 'personal');
+
+  // O caso verdadeiro, sem o qual a guarda mediria "estes setters sempre falham".
+  await setCurrentOperator(null);
+  await setOrdersNeedApproval(CO, true);
+  assert.equal(await ordersNeedApproval(), true, 'quem administra muda');
 });
 
 test('erasing invoices drops the average with them', async () => {
@@ -3636,7 +3711,7 @@ test('approval is the company’s choice, and it decides where an order is born'
 
   assert.equal(await ordersNeedApproval(), false, 'a fábrica de seis pessoas entrega antes');
 
-  await setOrdersNeedApproval(true);
+  await setOrdersNeedApproval(EMPRESA_SEMENTE, true);
   const pedido = await saveOrder(CO, {
     placeId: centro.id,
     requestedFor: null,
@@ -4193,15 +4268,42 @@ test('the company chooses how the floor signs in, and the default is one phone p
   assert.equal(await floorSignIn(), 'personal');
   assert.equal(await namesWhoRecorded(), false);
 
-  await setFloorSignIn('shared');
-  await setNamesWhoRecorded(true);
+  await setFloorSignIn(EMPRESA_SEMENTE, 'shared');
+
+  // Ligar o piso sem UMA pessoa que administre trancaria o aparelho para sempre: a
+  // saída do piso é tocar o próprio nome na grade, e instalação nova não tem gente
+  // nenhuma — a semente não cadastra ninguém. Lei 5: o erro impede.
+  await assert.rejects(
+    () => setNamesWhoRecorded(EMPRESA_SEMENTE, true),
+    /piso/,
+    'entrar num piso sem saída é recusado, não avisado',
+  );
+  assert.equal(await namesWhoRecorded(), false, 'e a recusa não escreveu nada');
+
+  const dono = (await listProfiles(EMPRESA_SEMENTE)).find((p) =>
+    p.capabilities.includes('manage_company'),
+  );
+  assert.ok(dono, 'a empresa nasce com um perfil que administra');
+  const rita = await savePerson(EMPRESA_SEMENTE, { name: 'Rita', profileId: dono.id });
+
+  await setNamesWhoRecorded(EMPRESA_SEMENTE, true);
   assert.equal(await floorSignIn(), 'shared');
   assert.equal(await namesWhoRecorded(), true);
 
-  // E voltar atrás é uma escolha como qualquer outra: a fábrica que experimentou
-  // nomear e achou fiscalização demais desliga sem perder nada.
-  await setNamesWhoRecorded(false);
+  // E voltar atrás continua sendo uma escolha — de QUEM ADMINISTRA. Com o aparelho
+  // largado o piso é `operator`, e desligar o piso pede a capacidade que o piso
+  // tira: era por aqui que dois toques devolviam o conjunto do dono.
+  await setCurrentOperator(null);
+  await assert.rejects(
+    () => setNamesWhoRecorded(EMPRESA_SEMENTE, false),
+    /manage_company/,
+    'quem o piso rebaixa não desliga o piso',
+  );
+
+  await setCurrentOperator(rita.id);
+  await setNamesWhoRecorded(EMPRESA_SEMENTE, false);
   assert.equal(await namesWhoRecorded(), false);
+  await setCurrentOperator(null);
 });
 
 
@@ -4494,8 +4596,14 @@ test('a shared phone with nobody named is the floor, and a phone that never asks
   assert.ok((await currentCapabilities(CO)).has('view_cost'), 'o padrão de hoje não muda');
 
   // Compartilhado E nomeando: ninguém escolhido é "ainda não disse quem é".
-  await setFloorSignIn('shared');
-  await setNamesWhoRecorded(true);
+  const perfilDono = (await listProfiles(CO)).find((p) =>
+    p.capabilities.includes('manage_company'),
+  );
+  assert.ok(perfilDono);
+  await savePerson(CO, { name: 'Rita', profileId: perfilDono.id });
+
+  await setFloorSignIn(CO, 'shared');
+  await setNamesWhoRecorded(CO, true);
   await setCurrentOperator(null);
   assert.ok(
     !(await currentCapabilities(CO)).has('view_cost'),
@@ -4504,7 +4612,13 @@ test('a shared phone with nobody named is the floor, and a phone that never asks
 
   // Compartilhado e NÃO nomeando: o aparelho nunca pergunta, então não existe
   // estado "ainda não respondeu" — e prender o dono no piso não teria saída.
-  await setNamesWhoRecorded(false);
+  // E desligar de volta é ato de quem administra: no piso ninguém consegue, com a
+  // dona escolhida na grade sim. Antes de 9 de setembro esta linha não pedia nada,
+  // e era o caminho mais curto do aparelho até a margem.
+  const [rita] = await listPeople(CO);
+  await setCurrentOperator(rita.id);
+  await setNamesWhoRecorded(CO, false);
+  await setCurrentOperator(null);
   assert.ok(
     (await currentCapabilities(CO)).has('view_cost'),
     'aparelho que não pergunta não tem como alguém se identificar',
@@ -4632,7 +4746,7 @@ test('zero is not a price, and whoever does not run the company does not set one
   assert.deepEqual(await salePricesFor(CO, loja), [], 'a consulta não devolve acordo de ninguém');
   await assert.rejects(
     () => saveSalePrice(CO, { itemId: produto.itemId, placeId: loja, rate: rate(2, 1) }),
-    /não administra a empresa/,
+    /sem manage_company/,
   );
 });
 
@@ -5669,14 +5783,14 @@ test('quem não administra a empresa não cadastra lugar, e o aparelho recusa an
 
   await assert.rejects(
     () => savePlace(CO, { name: 'Loja Norte', kind: 'own_store' }),
-    /não administra a empresa/,
+    /sem manage_company/,
     'o operador não cadastra lugar',
   );
 
   // E renomear é a mesma porta: `savePlace` faz upsert pelo id.
   await assert.rejects(
     () => savePlace(CO, { id: centro.id, name: 'Loja do Centro', kind: 'own_store' }),
-    /não administra a empresa/,
+    /sem manage_company/,
     'nem renomeia o que já existe',
   );
 

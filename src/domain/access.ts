@@ -101,7 +101,23 @@ export const ROLES: Record<Role, readonly Capability[]> = {
    */
   operator: ['record_production', 'dispatch', 'check_receipt', 'record_loss', 'adjust_stock'],
 
-  storeManager: ['view_sale_price', 'check_receipt', 'record_loss', 'place_order'],
+  /**
+   * `adjust_stock` here for the same reason it is on the operator, and the case
+   * is even plainer: the shelf being counted is *their* shelf.
+   *
+   * Without it the only store-side role the product ships could not count the
+   * store - the one place a count turns a shortfall into a `sale`, which is why
+   * `0047` lets `adjust_stock` book that sale at all. A store manager who cannot
+   * count is a store whose figure is a guess, and the audit of 9 September found
+   * this by walking the job rather than reading the list.
+   */
+  storeManager: [
+    'view_sale_price',
+    'check_receipt',
+    'record_loss',
+    'place_order',
+    'adjust_stock',
+  ],
 
   driver: ['dispatch', 'check_receipt', 'record_loss'],
 

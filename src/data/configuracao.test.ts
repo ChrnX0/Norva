@@ -10,6 +10,7 @@ import {
   type ConfiguracaoDaEmpresa,
 } from './configuracao';
 import { setNamesWhoRecorded, setPurchaseSafetyDays } from './repository';
+import { EMPRESA_SEMENTE } from './empresa';
 
 /**
  * A configuração indo e voltando — e o caminho de perda que ninguém veria.
@@ -96,8 +97,8 @@ test('o que a casa combinou desce e vale neste aparelho', async () => {
 
 test('interruptor mexido SEM REDE não volta sozinho na próxima descida', async () => {
   // O dono liga "nomear quem registrou" e pede seis dias de folga, offline.
-  await setNamesWhoRecorded(true);
-  await setPurchaseSafetyDays(6);
+  await setNamesWhoRecorded(EMPRESA_SEMENTE, true);
+  await setPurchaseSafetyDays(EMPRESA_SEMENTE, 6);
   const semRede = casaDeMentira({ aceita: false, guardado: null });
   assert.equal(await empurrar(semRede), false, 'sem rede a subida falha, e cala');
 
@@ -132,7 +133,7 @@ test('interruptor mexido SEM REDE não volta sozinho na próxima descida', async
 });
 
 test('enquanto a subida não passar, a descida não acontece nem é tentada', async () => {
-  await setPurchaseSafetyDays(9);
+  await setPurchaseSafetyDays(EMPRESA_SEMENTE, 9);
   const semRede = casaDeMentira({ aceita: false, guardado: null });
   await empurrar(semRede);
 
@@ -146,7 +147,7 @@ test('enquanto a subida não passar, a descida não acontece nem é tentada', as
 });
 
 test('subida que passou apaga a marca, e a descida seguinte manda de novo', async () => {
-  await setPurchaseSafetyDays(4);
+  await setPurchaseSafetyDays(EMPRESA_SEMENTE, 4);
   const casa = casaDeMentira({ aceita: true, guardado: { purchase_safety_days: 7 } });
   assert.equal(await empurrar(casa), true);
 
@@ -156,7 +157,7 @@ test('subida que passou apaga a marca, e a descida seguinte manda de novo', asyn
 });
 
 test('sem servidor nenhum, as duas dizem não e não mexem em nada', async () => {
-  await setPurchaseSafetyDays(3);
+  await setPurchaseSafetyDays(EMPRESA_SEMENTE, 3);
   assert.equal(await empurrar(null), false);
   assert.equal(await puxar(null), false);
   assert.equal((await daqui()).purchase_safety_days, 3);

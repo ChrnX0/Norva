@@ -1316,7 +1316,7 @@ function Settings() {
       <Reveal index={5}>
         <Pressable
           onPress={async () => {
-            await setOrdersNeedApproval(!approval);
+            await setOrdersNeedApproval(empresaDaqui(), !approval);
             // E conta para a CASA. Sem isto a aprovação é decoração: o gatilho do
             // servidor lê `companies.orders_need_approval` e reescreve o pedido
             // para `open` na inserção. Silencioso de propósito — a mudança já
@@ -1369,7 +1369,7 @@ function Settings() {
               <Pressable
                 key={dias}
                 onPress={async () => {
-                  await setPurchaseSafetyDays(dias);
+                  await setPurchaseSafetyDays(empresaDaqui(), dias);
                   void empurrar();
                   refreshFolga();
                 }}
@@ -1462,7 +1462,7 @@ function Settings() {
                 <Pressable
                   key={String(dias)}
                   onPress={async () => {
-                    await setEraseGraceDays(dias);
+                    await setEraseGraceDays(empresaDaqui(), dias);
                     void empurrar();
                     refreshPrazo();
                   }}
@@ -1486,7 +1486,7 @@ function Settings() {
       <Reveal index={6}>
         <Pressable
           onPress={async () => {
-            await setNamesWhoRecorded(!nomeia);
+            await setNamesWhoRecorded(empresaDaqui(), !nomeia);
             void empurrar();
             refreshNomeia();
           }}
@@ -1520,7 +1520,7 @@ function Settings() {
         <Reveal index={7}>
           <Pressable
             onPress={async () => {
-              await setFloorSignIn(entrada === 'shared' ? 'personal' : 'shared');
+              await setFloorSignIn(empresaDaqui(), entrada === 'shared' ? 'personal' : 'shared');
               void empurrar();
               refreshEntrada();
             }}
