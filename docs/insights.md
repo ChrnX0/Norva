@@ -8385,3 +8385,35 @@ verde fica lindo.
 a 1,32× de distância, abaixo do passo de 1,35 que o teste da tinta já exigia para não
 ter *"três nomes para um cinza"*. Guarda nova que só acusa a pele dos outros é guarda
 escrita para passar.
+
+---
+
+## 9 de setembro — a repetição na SILHUETA, onde cada curva sozinha está bonita
+
+**O que apareceu:** as duas colinas do Orgânico eram a mesma curva duas vezes. Mesma
+amplitude, mesmo ritmo, cristas no mesmo x, uma onze unidades abaixo da outra. Ninguém
+tinha visto porque **cada curva, sozinha, está bonita** — o defeito só existe no par, e o
+par é a coisa que ninguém olha quando está desenhando uma delas.
+
+**Por que importa:** o dono já deu a régua para isto, com uma palavra — *"feio"* — sobre
+uma fileira de quatro lojas idênticas, e o `CLAUDE.md` a registra como sendo sobre
+OBJETOS: *"repetição regular lê como padrão de papel de parede"*. Ela vale igual para a
+silhueta, e ali é mais difícil: quatro lojas idênticas se contam; duas ondas paralelas se
+leem como "uma paisagem". O resultado é o mesmo — uma faixa grossa com uma listra em vez
+de profundidade.
+
+**E o conserto tinha uma armadilha que o desenho denunciou.** A primeira tentativa
+endireitou a colina de longe: o defeito sumia e a **onda** sumia junto — e a onda é a
+assinatura desta pele. Corrigir um defeito matando a identidade é o mesmo erro que trocar
+correção por aparência, virado do avesso. O que a distância faz de verdade não é
+endireitar, é **achatar**: relevo menor, não relevo nenhum.
+
+**A parte que quase me fez errar:** eu comparei as duas curvas no vazio. O **pátio** —
+silo, galpão, poste — mora ENTRE as camadas, e a candidata que parecia melhor sozinha
+enterrava o galpão até o telhado. Uma silhueta não se julga fora da cena em que ela
+recorta alguma coisa.
+
+**A régua que fica:** procure a repetição também onde ela não tem contorno. Objetos
+repetidos se contam; ritmos repetidos — duas curvas, dois vãos, dois tempos de animação —
+passam por composição. E ao consertar, pergunte que parte do que vai sair é o DEFEITO e
+que parte é a assinatura: elas moram na mesma linha com frequência.

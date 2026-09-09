@@ -43,7 +43,7 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | migrações do aparelho | **V27** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
-| linhas de código | **~80.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
+| linhas de código | **~89.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
 
 E a barra de verificação, que é o que separa "compila" de "funciona":
 
@@ -195,7 +195,24 @@ mesmo defeito do piso de toque, e por isso a prova é rodar contra o código ant
 e o número apontava para a outra pele: `papelClaro.line` dá 1,63:1, e a do Orgânico dava
 **1,06:1**, que é a mesma cor do papel. Ver `src/theme/contrast.test.ts`.
 
-O que sobra: o remate em onda do Orgânico.
+~~O remate em onda do Orgânico~~ **fechado em 9 de setembro, e o defeito era mais fundo
+do que "a onda".** As duas colinas eram a MESMA curva duas vezes — mesma amplitude, mesmo
+ritmo, cristas no mesmo x, uma onze unidades abaixo da outra. O que se via não era
+profundidade: era uma faixa grossa com uma listra. É a regra que o dono deu para a fileira
+de quatro lojas idênticas, acontecendo na silhueta em vez de nos objetos — onde ela é bem
+mais difícil de ver, porque cada curva sozinha está bonita.
+
+O conserto é o que a distância faz: ela achata o relevo. A de longe virou quase uma
+varredura; a de perto ganhou crista própria, num x que não é o de nada atrás dela. A onda
+fica, porque ela é a assinatura da pele — a versão que endireitava a de longe matava a
+identidade junto com o defeito.
+
+E foi julgado com o **pátio no meio**, não com as duas curvas sozinhas: os silos e o galpão
+moram entre as camadas, e a candidata que parecia melhor no vazio enterrava o galpão até o
+telhado.
+<!-- medida: presente src/components/cenas/Paisagem.tsx :: A MESMA ONDA DUAS VEZES -->
+
+O pacote da auditoria fechou.
 
 ### Uma peça com cor: existe régua, falta decidir se existe lei
 <!-- medida: espera src/components/cenas/Cena.tsx :: a contagem existe; a regra é conserto, não lei -->

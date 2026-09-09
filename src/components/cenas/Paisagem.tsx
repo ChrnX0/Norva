@@ -118,9 +118,25 @@ export function CenaPaisagem({ cena }: { cena: Cena }) {
         <Rect width={PRANCHA_DO_CABECALHO.largura} height={PRANCHA_DO_CABECALHO.altura} fill="url(#ceuDaFaixa)" />
 
         <Ceu noite={noite} />
+        {/* AS DUAS COLINAS ERAM A MESMA ONDA DUAS VEZES — corrigido em 9 de setembro.
+            Mesma amplitude, mesmo ritmo, cristas no mesmo x, uma onze unidades abaixo da
+            outra: o que se via não era profundidade, era uma faixa grossa com uma listra.
+            É a regra que o dono deu para a fileira de quatro lojas idênticas — repetição
+            regular lê como padrão de papel de parede — acontecendo na silhueta em vez de
+            nos objetos, que é onde ela é mais difícil de ver, porque cada curva sozinha
+            está bonita.
+
+            O conserto é o que a distância faz de verdade: ela ACHATA o relevo. A colina de
+            longe ficou quase uma varredura, e a de perto ganhou uma crista própria, num x
+            que não é o de nada atrás dela. A onda continua — ela é a assinatura desta pele,
+            e a versão que endireitava a de longe matava isso junto com o defeito.
+
+            Julgado com o PÁTIO no meio, e não com as duas curvas sozinhas: os silos e o
+            galpão moram entre as camadas, então mexer na de perto muda o que fica coberto.
+            Duas curvas comparadas no vazio teriam enterrado o galpão até o telhado. */}
         <AnimatedG animatedProps={arLonge}>
           <Path
-            d="M-16 51c62-14 106 9 182 2s120-17 200-7v34H-16z"
+            d="M-16 47c72-5 118 4 186 1s118-6 194-2v30H-16z"
             fill={noite ? escurecer(paleta.hillFar, 0.42) : paleta.hillFar}
           />
         </AnimatedG>
@@ -136,7 +152,7 @@ export function CenaPaisagem({ cena }: { cena: Cena }) {
         </AnimatedG>
         <AnimatedG animatedProps={arPerto}>
           <Path
-            d="M-16 62c70-11 116 7 182 3s114-14 200-4v27H-16z"
+            d="M-16 63c44-15 78 10 128 5s70-18 116-9 76 16 156 4v21H-16z"
             fill={noite ? escurecer(paleta.hillNear, 0.58) : paleta.hillNear}
           />
         </AnimatedG>
