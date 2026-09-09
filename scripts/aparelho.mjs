@@ -134,12 +134,30 @@ async function subir() {
   throw new Error('o emulador não terminou de subir em 30 minutos');
 }
 
+/**
+ * O que `compilar` produz é o que `instalar` instala — e não era.
+ *
+ * `compilar` roda `assembleRelease` (é o único que empacota o JavaScript; ver o
+ * docblock dele) e `instalar` procurava o `app-debug.apk`. Rodar os dois em sequência
+ * dava "não achei … compile antes", mandando compilar o que tinha acabado de compilar.
+ * Cicatriz de 9 de setembro, e é a mesma família do `fotos` que não alcançava a rota:
+ * ferramenta que promete um par e entrega dois lados diferentes gasta a rodada de quem
+ * confia nela.
+ *
+ * A ordem de procura tem o release na frente, e a mensagem de erro cita o verbo desta
+ * ferramenta em vez de um comando do Gradle — quem chegou aqui já está usando ela.
+ */
+const APKS = [
+  'android/app/build/outputs/apk/release/app-release.apk',
+  'android/app/build/outputs/apk/debug/app-debug.apk',
+];
+
 function instalar(apk) {
-  const caminho = apk ?? 'android/app/build/outputs/apk/debug/app-debug.apk';
+  const caminho = apk ?? APKS.find((c) => existsSync(c)) ?? APKS[0];
   if (!existsSync(caminho)) {
     throw new Error(
       `não achei ${caminho} — compile antes:\n` +
-      '  cd android && ./gradlew :app:assembleDebug -PreactNativeArchitectures=x86_64',
+      '  node scripts/aparelho.mjs compilar',
     );
   }
   const inicio = Date.now();
@@ -190,8 +208,27 @@ function larguraEmDp() {
   }
 }
 
-function foto(nome) {
-  if (!nome) throw new Error('uso: node scripts/aparelho.mjs foto <nome>');
+/**
+ * Uma foto — e a ROTA é opcional aqui pelo mesmo motivo que é obrigatória no plural.
+ *
+ * **Cicatriz de 9 de setembro, e ela é a irmã pequena da de 9 de setembro.** O plural
+ * ganhou rota quando as cinco fotos saíram todas da capa; o singular ficou como estava,
+ * recebendo só o nome. Então `foto caderno recipes` fotografou o LANÇADOR do Android —
+ * o segundo argumento caiu no chão, sem aviso, e o comando saiu zero. O mesmo defeito,
+ * no verbo ao lado, sobrevivendo ao conserto do primeiro porque ninguém perguntou quem
+ * MAIS fazia aquilo. O `CLAUDE.md` tem a regra escrita para peles; ela vale para
+ * ferramenta igual.
+ *
+ * E abrir sem esperar não bastava: a captura logo depois do `am start` pega a tela de
+ * abertura, que é uma marca preta num fundo claro — viva pela régua de variação, e
+ * inútil. Com rota, espera a tela parar, como o plural faz.
+ */
+async function foto(nome, rota) {
+  if (!nome) throw new Error('uso: node scripts/aparelho.mjs foto <nome> [rota]');
+  if (rota) {
+    abrir(rota, { reiniciar: true });
+    esperarTelaParar();
+  }
   mkdirSync(SAIDA, { recursive: true });
   const destino = join(SAIDA, `${nome}.png`);
 
@@ -531,7 +568,7 @@ const acoes = {
   subir,
   compilar,
   instalar: () => instalar(process.argv[3]?.startsWith('--') ? null : process.argv[3]),
-  foto: () => foto(process.argv[3]),
+  foto: () => foto(process.argv[3], process.argv[4]),
   fotos: () => fotos(process.argv[3], process.argv[4]),
   abrir: () => abrir(process.argv[3]),
   tela: () => tela(process.argv[3]),
@@ -558,7 +595,7 @@ const acoes = {
 
 if (!acoes[verbo]) {
   console.error(
-    'verbos: subir | compilar | instalar [apk] | abrir <rota> | foto <nome> |\n' +
+    'verbos: subir | compilar | instalar [apk] | abrir <rota> | foto <nome> [rota] |\n' +
     '        fotos <nome> [rota] | tela <medida> | derrubar\n' +
     `medidas: ${Object.keys(TELAS).join(' | ')} | original`,
   );

@@ -17,11 +17,23 @@ import { test } from 'node:test';
  * grande o bastante para a régua de 3:1 valer — a maior fonte de corpo é 15 px, e
  * as três camadas de tinta são usadas em 11, 13 e 15.
  *
- * **Por que ler o arquivo em vez de importar os tokens.** Importar traria os
- * objetos já montados, e o `Palette` do Papel herda campos do Orgânico por
- * espalhamento: o teste passaria a medir o que a herança produziu, não o que está
- * escrito. Lendo o texto, cada paleta é medida com a cor que alguém digitou ali —
- * e uma cor nova, colada amanhã, entra na medição sem ninguém acrescentar nada.
+ * **Por que ler o arquivo em vez de importar os tokens.** Lendo o texto, cada paleta é
+ * medida com a cor que alguém digitou ali — e uma cor nova, colada amanhã, entra na
+ * medição sem ninguém acrescentar nada. Importar traria os objetos já montados, e uma
+ * paleta que herdasse campos por espalhamento seria medida pelo que a herança produziu
+ * em vez do que está escrito.
+ *
+ * *Este parágrafo dizia que o `Palette` do Papel herda do Orgânico por espalhamento.
+ * Conferido em 9 de setembro: não há um `...` no arquivo inteiro — cada pele é um
+ * literal completo. A razão de ler o texto continua boa; o exemplo dela envelheceu, e
+ * exemplo que envelhece num docblock é o mesmo defeito da decisão registrada que
+ * envelhece, com a diferença de que este é lido por quem vai mexer na guarda.*
+ *
+ * **E `lightPalette`/`darkPalette` não pintam nada.** Elas são a FORMA do tipo
+ * (`Palette = typeof lightPalette`), e o `palettes` que as exporta não tem leitor — o
+ * `ThemeProvider` resolve a paleta pela pele. Continuam medidas de propósito: são os
+ * valores que uma pele nova copia ao nascer, e uma referência errada ali sai de graça
+ * na terceira pele.
  */
 const FONTE = readFileSync('src/theme/tokens.ts', 'utf8');
 
@@ -406,5 +418,113 @@ test('the word on a DISABLED button is legible too, and the old way was not', ()
     reprovadasAntes > 0,
     'o jeito antigo (desbotar o botão inteiro) passou nesta régua — então a régua não ' +
       'separa o mundo consertado do mundo quebrado, e o verde acima não quer dizer nada.',
+  );
+});
+
+/**
+ * A régua que separa tem de ser vista — e nenhuma régua deste projeto media isso.
+ *
+ * **O que este arquivo mede é TEXTO.** Tinta sobre papel, acento sobre fundo, palavra
+ * de botão. O separador — `line` e `lineStrong` — nunca passou por medida nenhuma, e é
+ * ele que carrega a estrutura da tela no Papel, uma pele que **não tem caixa**: o
+ * docblock de `src/home/Capa.tsx` diz que é a régua "que faz a tela parecer uma página
+ * em vez de um painel".
+ *
+ * O que a medida achou, em 9 de setembro:
+ *
+ * | pele | `line` antes | `lineStrong` antes |
+ * |---|---|---|
+ * | organicoClaro | **1,06** | 1,26 |
+ * | organicoEscuro | 1,31 | 1,76 |
+ * | papelClaro | 1,63 | 2,15 |
+ * | papelEscuro | 2,09 | 2,84 |
+ *
+ * **1,06:1 não é uma linha fraca: é a mesma cor do papel.** A diferença que o olho
+ * humano distingue em duas áreas planas grandes fica por volta de 1,2:1 — abaixo disso
+ * não há linha, há a memória de uma linha no código. O divisor do dia do Orgânico
+ * (`organico.tsx`, o vão entre o nível e as caixas) estava desenhando nada.
+ *
+ * **O piso é o PAPEL, e ele não foi escolhido por mim.** Duas razões, e as duas estão
+ * escritas: o dono decidiu que *"o Papel é o produto e o Orgânico é a opção"*, e o
+ * `PASSO` acima já usa exatamente esta forma — os temas escuros, que estavam prontos,
+ * viraram a referência que o claro tinha perdido. Aqui a pele que o dono vê todo dia é
+ * a referência que a outra tinha perdido. Nenhum número novo entra na casa: as cores do
+ * Orgânico e das duas paletas-base foram derivadas de `mistura(ink, paper, α)` com o
+ * menor α que alcança o Papel, então cada pele fica com a régua na SUA tinta.
+ *
+ * **E a referência não pode apodrecer.** Uma guarda cujo piso sai do próprio arquivo
+ * que ela mede é a guarda que compara duas coisas escritas pela mesma mão — este
+ * projeto já pagou por uma. Então a primeira metade não é relativa: nenhum separador
+ * cai abaixo da diferença que o olho distingue, o Papel incluído.
+ *
+ * **O que este teste NÃO afirma:** que a régua cumpre a WCAG. A regra de contraste
+ * não-textual (1.4.11) pede 3:1, e uma régua de página a 3:1 lê como borda — que é
+ * outra pele, não esta. O que se mede aqui é se a linha existe para o olho, não se ela
+ * identifica um controle.
+ */
+const VISIVEL = 1.2;
+
+/** Os dois separadores, do mais fino ao mais forte. */
+const REGUAS = ['line', 'lineStrong'] as const;
+
+test('no skin ships a separator the eye cannot find', () => {
+  const medidas = paletas();
+  const papel = medidas.find((p) => p.nome === 'papelClaro');
+  assert.ok(papel, 'sem o papelClaro não há referência — esta guarda mediria contra nada');
+
+  const invisiveis: string[] = [];
+  for (const { nome, cores } of medidas) {
+    for (const regua of REGUAS) {
+      const razao = contraste(cores[regua], cores.paper);
+      if (razao < VISIVEL) invisiveis.push(`${nome}.${regua}: ${razao.toFixed(2)}:1`);
+    }
+  }
+  assert.deepEqual(
+    invisiveis,
+    [],
+    `estes separadores são a mesma cor do papel deles:\n  ${invisiveis.join('\n  ')}\n` +
+      `Abaixo de ${VISIVEL}:1 duas áreas planas são uma cor só — a linha existe no código ` +
+      'e não na tela. Esta metade é absoluta de propósito: sem ela, baixar a referência ' +
+      'faria a metade de baixo passar por comparar duas coisas escritas pela mesma mão.',
+  );
+});
+
+test('every skin separates at least as well as the product skin does', () => {
+  const medidas = paletas();
+  const papel = medidas.find((p) => p.nome === 'papelClaro');
+  assert.ok(papel, 'sem o papelClaro não há referência');
+
+  const piso = contraste(papel.cores.line, papel.cores.paper);
+  assert.ok(piso >= VISIVEL, `a própria referência sumiu: ${piso.toFixed(2)}:1`);
+
+  const fracas: string[] = [];
+  for (const { nome, cores } of medidas) {
+    const fina = contraste(cores.line, cores.paper);
+    const forte = contraste(cores.lineStrong, cores.paper);
+    // Tolerância de um milésimo: a referência se compara consigo mesma, e ponto
+    // flutuante não devolve exatamente o mesmo número por dois caminhos.
+    if (fina < piso * 0.999) fracas.push(`${nome}.line: ${fina.toFixed(2)}:1 contra ${piso.toFixed(2)}:1 do Papel`);
+    if (forte / fina < PASSO) fracas.push(`${nome}: forte/fina = ${(forte / fina).toFixed(2)}, abaixo de ${PASSO}`);
+  }
+
+  assert.deepEqual(
+    fracas,
+    [],
+    `estes separadores ficam atrás do Papel, que é a pele do produto:\n  ${fracas.join('\n  ')}\n` +
+      'A saída é a mesma que consertou o Orgânico: `mistura(ink, paper, α)` com o menor α ' +
+      'que alcança o piso — assim a régua fica na tinta da própria pele em vez de num ' +
+      'cinza colado de outra.',
+  );
+});
+
+test('the separator ruler tells a visible line from a remembered one', () => {
+  // Os dois casos com as cores de verdade, e o falso é o que estava no arquivo até 9 de
+  // setembro — não um exemplo escrito para reprovar.
+  assert.ok(contraste('#DDE9DF', '#E4EFE7') < VISIVEL, 'a linha antiga do Orgânico é invisível');
+  assert.ok(contraste('#B1BDB5', '#E4EFE7') >= VISIVEL, 'e a derivada da tinta aparece');
+  // E o passo entre as duas réguas distingue hierarquia de "uma é maior que a outra".
+  assert.ok(
+    contraste('#C6D8CA', '#E4EFE7') / contraste('#DDE9DF', '#E4EFE7') < PASSO,
+    'as duas réguas antigas do Orgânico eram a mesma linha com dois nomes',
   );
 });

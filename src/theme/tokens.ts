@@ -78,8 +78,8 @@ const lightPalette = {
   ink: '#23211E',
   inkMuted: '#57534D',
   inkFaint: '#6D6963',
-  line: '#E7E4DE',
-  lineStrong: '#D7D3CA',
+  line: '#C4C3C0',
+  lineStrong: '#A9A7A4',
   onAccent: '#FFFFFF',
 
   sky: '#3F7096',
@@ -109,8 +109,8 @@ const darkPalette: typeof lightPalette = {
   ink: '#EDEBE7',
   inkMuted: '#ADA9A2',
   inkFaint: '#928D88',
-  line: '#333130',
-  lineStrong: '#454240',
+  line: '#3B3B3A',
+  lineStrong: '#4F4E4D',
   onAccent: '#141414',
 
   sky: '#8FB6D8',
@@ -281,7 +281,7 @@ const papelClaro: Palette = {
   inkMuted: '#554D43',
   inkFaint: '#706960',
   line: '#CFC3B0',
-  lineStrong: '#B9A992',
+  lineStrong: '#B5A68F',
   onAccent: '#FFFFFF',
 
   // Tinta e terra, não cor de tela.
@@ -375,8 +375,8 @@ const organicoClaro: Palette = {
   ink: '#16281D',
   inkMuted: '#425249',
   inkFaint: '#58655C',
-  line: '#DDE9DF',
-  lineStrong: '#C6D8CA',
+  line: '#B1BDB5',
+  lineStrong: '#96A39A',
   onAccent: '#FFFFFF',
 
   /**
@@ -413,8 +413,8 @@ const organicoEscuro: Palette = {
   ink: '#EAF5EE',
   inkMuted: '#9DB8A9',
   inkFaint: '#80948A',
-  line: '#1C2F27',
-  lineStrong: '#2A443A',
+  line: '#343D3A',
+  lineStrong: '#48514D',
   onAccent: '#0C1512',
 
   sky: '#7FB6E8',
