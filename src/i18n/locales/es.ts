@@ -608,6 +608,7 @@ export const es: Dictionary = {
       },
       title: 'Ajustes',
       stored: 'Lo que está guardado',
+      onlyAdmin: 'Las decisiones de la empresa son de quien la administra. Lo que está aquí vale para este aparato.',
       checking: 'Comprobando…',
       inputs: 'Insumos',
       recipes: 'Recetas',

@@ -785,6 +785,7 @@ export const ptBR = {
       },
       title: 'Ajustes',
       stored: 'O que está guardado',
+      onlyAdmin: 'As escolhas da empresa são de quem administra. O que está aqui vale para este aparelho.',
       checking: 'Conferindo…',
       inputs: 'Insumos',
       recipes: 'Receitas',

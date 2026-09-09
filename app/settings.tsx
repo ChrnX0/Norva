@@ -38,6 +38,7 @@ import {
   namesWhoRecorded,
   setConsumoDaProducao,
   ordersNeedApproval,
+  currentCapabilities,
   eraseGraceDays,
   purchaseSafetyDays,
   setBriefingHalf,
@@ -364,6 +365,25 @@ function Settings() {
   const { data: consumo, refresh: refreshConsumo } = useQuery(() => consumoDaProducao());
 
   /**
+   * Quem pode mexer no que é da EMPRESA — e o que a tela faz com a resposta.
+   *
+   * A camada de dados passou a recusar em 9 de setembro: o Reset, os dois
+   * interruptores que decidem o piso de capacidade e os dois números da empresa
+   * exigem `manage_company`. Recusar é o que vale — esconder botão é decoração —,
+   * mas deixar o botão desenhado depois disso é a Lei 5 do avesso: o erro passa a
+   * RECLAMAR em vez de impedir, e quem está com o celular emprestado toca, espera, e
+   * recebe uma frase de programador.
+   *
+   * Então os cartões da empresa saem da tela para quem não administra, com a frase
+   * que a casa já usa em Lugares no lugar deles. O que fica é o que é do APARELHO —
+   * aparência, idioma, capa, avisos, enviar —, e isso é de quem estiver com ele.
+   */
+  const { data: administra } = useQuery<boolean>(async () =>
+    (await currentCapabilities(empresaDaqui())).has('manage_company'),
+  );
+  const podeEmpresa = administra !== false;
+
+  /**
    * Os avisos, e o que a casa escolheu sobre cada um.
    *
    * A pergunta do dono foi "dá para configurar quando o alarme avisa?" — e a
@@ -599,12 +619,28 @@ function Settings() {
       title={t.app.settings.title}
       overline={`${brand.name} · ${Constants.expoConfig?.version ?? '—'}`}
     >
+      {/* A ausência DITA, em vez de uma tela que parece menor sem motivo.
+          "Está tudo bem" é estado válido e bonito; "faltam seis cartões e ninguém
+          disse por quê" não é. Uma linha, no lugar deles. */}
+      {podeEmpresa ? null : (
+        <Reveal index={0}>
+          <Text
+            style={[
+              type.caption,
+              { color: color.inkFaint, paddingHorizontal: space.lg, marginBottom: space.md },
+            ]}
+          >
+            {t.app.settings.onlyAdmin}
+          </Text>
+        </Reveal>
+      )}
+
       {/* O que está guardado, e a saída de cada área na mesma linha.
           A contagem à direita é o que torna a linha decidível: "Receitas 2" já
           diz o tamanho do estrago antes do diálogo. Quando a área está travada,
           o motivo substitui a dica e a linha continua tocável — o toque explica
           a ordem certa em vez de não responder. */}
-      {loading || total > 0 ? (
+      {podeEmpresa && (loading || total > 0) ? (
         <Reveal index={0}>
           <Card
             hue={palette.mist}
@@ -1313,38 +1349,40 @@ function Settings() {
       {/* A aprovação de pedido.
           O tom é o do assunto e não o da tela: pedido é sage em todo o
           aplicativo, e quem vê a cor sabe do que a linha fala antes de ler. */}
-      <Reveal index={5}>
-        <Pressable
-          onPress={async () => {
-            await setOrdersNeedApproval(empresaDaqui(), !approval);
-            // E conta para a CASA. Sem isto a aprovação é decoração: o gatilho do
-            // servidor lê `companies.orders_need_approval` e reescreve o pedido
-            // para `open` na inserção. Silencioso de propósito — a mudança já
-            // valeu neste aparelho, e um erro de rede aqui faria parecer que não.
-            void empurrar();
-            refreshApproval();
-          }}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: Boolean(approval) }}
-          accessibilityLabel={t.app.settings.approval.label}
-        >
-          <Card
-            hue={palette.sage}
-            icon={(c) => <GlyphOrder size={26} color={c} weight={traco} />}
-            title={t.app.settings.approval.label}
+      {podeEmpresa ? (
+  <Reveal index={5}>
+          <Pressable
+            onPress={async () => {
+              await setOrdersNeedApproval(empresaDaqui(), !approval);
+              // E conta para a CASA. Sem isto a aprovação é decoração: o gatilho do
+              // servidor lê `companies.orders_need_approval` e reescreve o pedido
+              // para `open` na inserção. Silencioso de propósito — a mudança já
+              // valeu neste aparelho, e um erro de rede aqui faria parecer que não.
+              void empurrar();
+              refreshApproval();
+            }}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: Boolean(approval) }}
+            accessibilityLabel={t.app.settings.approval.label}
           >
-            <View style={[styles.row, { gap: space.md }]}>
-              <Text style={[type.caption, { color: color.inkMuted, flex: 1 }]}>
-                {t.app.settings.approval.hint}
-              </Text>
-              <Chip
-                signal={approval ? 'ok' : 'neutral'}
-                label={approval ? t.app.settings.approval.on : t.app.settings.approval.off}
-              />
-            </View>
-          </Card>
-        </Pressable>
-      </Reveal>
+            <Card
+              hue={palette.sage}
+              icon={(c) => <GlyphOrder size={26} color={c} weight={traco} />}
+              title={t.app.settings.approval.label}
+            >
+              <View style={[styles.row, { gap: space.md }]}>
+                <Text style={[type.caption, { color: color.inkMuted, flex: 1 }]}>
+                  {t.app.settings.approval.hint}
+                </Text>
+                <Chip
+                  signal={approval ? 'ok' : 'neutral'}
+                  label={approval ? t.app.settings.approval.on : t.app.settings.approval.off}
+                />
+              </View>
+            </Card>
+          </Pressable>
+        </Reveal>
+      ) : null}
 
       {/* A folga de compra — o corte que decide "é hora de comprar".
           Ele é configuração e não constante pela F7: a fábrica que compra polpa
@@ -1355,45 +1393,47 @@ function Settings() {
           Sete escolhas e não um campo livre: quem está de luva não digita, e a
           diferença entre 4 e 5 dias de folga não decide nada que 3 ou 7 já não
           decidam. */}
-      <Reveal index={6}>
-        <Card
-          hue={palette.sage}
-          icon={(c) => <GlyphPurchase size={26} color={c} weight={traco} />}
-          title={t.app.settings.safety.label}
-        >
-          <Text style={[type.caption, { color: color.inkMuted, marginBottom: space.md }]}>
-            {t.app.settings.safety.hint}
-          </Text>
-          <View style={[styles.row, { gap: space.sm, flexWrap: 'wrap' }]}>
-            {[0, 1, 2, 3, 5, 7, 14].map((dias) => (
-              <Pressable
-                key={dias}
-                onPress={async () => {
-                  await setPurchaseSafetyDays(empresaDaqui(), dias);
-                  void empurrar();
-                  refreshFolga();
-                }}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: folga === dias }}
-                accessibilityLabel={
-                  dias === 0
-                    ? t.app.settings.safety.none
-                    : plural(dias, t.app.settings.safety.days)
-                }
-              >
-                <Chip
-                  signal={folga === dias ? 'ok' : 'neutral'}
-                  label={
+      {podeEmpresa ? (
+  <Reveal index={6}>
+          <Card
+            hue={palette.sage}
+            icon={(c) => <GlyphPurchase size={26} color={c} weight={traco} />}
+            title={t.app.settings.safety.label}
+          >
+            <Text style={[type.caption, { color: color.inkMuted, marginBottom: space.md }]}>
+              {t.app.settings.safety.hint}
+            </Text>
+            <View style={[styles.row, { gap: space.sm, flexWrap: 'wrap' }]}>
+              {[0, 1, 2, 3, 5, 7, 14].map((dias) => (
+                <Pressable
+                  key={dias}
+                  onPress={async () => {
+                    await setPurchaseSafetyDays(empresaDaqui(), dias);
+                    void empurrar();
+                    refreshFolga();
+                  }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: folga === dias }}
+                  accessibilityLabel={
                     dias === 0
                       ? t.app.settings.safety.none
                       : plural(dias, t.app.settings.safety.days)
                   }
-                />
-              </Pressable>
-            ))}
-          </View>
-        </Card>
-      </Reveal>
+                >
+                  <Chip
+                    signal={folga === dias ? 'ok' : 'neutral'}
+                    label={
+                      dias === 0
+                        ? t.app.settings.safety.none
+                        : plural(dias, t.app.settings.safety.days)
+                    }
+                  />
+                </Pressable>
+              ))}
+            </View>
+          </Card>
+        </Reveal>
+      ) : null}
 
       {/* Enviar para o servidor — e o cartão diz o número antes de o dedo tocar.
 
@@ -1441,109 +1481,74 @@ function Settings() {
 
           Cinco escolhas em vez de campo livre, como a folga de compra: quem está
           de luva não digita, e a diferença entre 9 e 11 dias não decide nada. */}
-      <Reveal index={8}>
-        <Card
-          hue={palette.mist}
-          icon={(c) => <GlyphSettings size={26} color={c} weight={traco} />}
-          title={t.app.settings.graceTitle}
-        >
-          <Text style={[type.caption, { color: color.inkMuted, marginBottom: space.md }]}>
-            {t.app.settings.graceHint}
-          </Text>
-          <View style={[styles.row, { gap: space.sm, flexWrap: 'wrap' }]}>
-            {([0, 10, 30, 90, null] as const).map((dias) => {
-              const rotulo =
-                dias === null
-                  ? t.app.settings.graceNever
-                  : dias === 0
-                    ? t.app.settings.graceNow
-                    : fill(t.app.settings.graceDays, { days: String(dias) });
-              return (
-                <Pressable
-                  key={String(dias)}
-                  onPress={async () => {
-                    await setEraseGraceDays(empresaDaqui(), dias);
-                    void empurrar();
-                    refreshPrazo();
-                  }}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: (prazo ?? null) === dias }}
-                  accessibilityLabel={rotulo}
-                >
-                  <Chip signal={(prazo ?? null) === dias ? 'ok' : 'neutral'} label={rotulo} />
-                </Pressable>
-              );
-            })}
-          </View>
-        </Card>
-      </Reveal>
+      {podeEmpresa ? (
+  <Reveal index={8}>
+          <Card
+            hue={palette.mist}
+            icon={(c) => <GlyphSettings size={26} color={c} weight={traco} />}
+            title={t.app.settings.graceTitle}
+          >
+            <Text style={[type.caption, { color: color.inkMuted, marginBottom: space.md }]}>
+              {t.app.settings.graceHint}
+            </Text>
+            <View style={[styles.row, { gap: space.sm, flexWrap: 'wrap' }]}>
+              {([0, 10, 30, 90, null] as const).map((dias) => {
+                const rotulo =
+                  dias === null
+                    ? t.app.settings.graceNever
+                    : dias === 0
+                      ? t.app.settings.graceNow
+                      : fill(t.app.settings.graceDays, { days: String(dias) });
+                return (
+                  <Pressable
+                    key={String(dias)}
+                    onPress={async () => {
+                      await setEraseGraceDays(empresaDaqui(), dias);
+                      void empurrar();
+                      refreshPrazo();
+                    }}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: (prazo ?? null) === dias }}
+                    accessibilityLabel={rotulo}
+                  >
+                    <Chip signal={(prazo ?? null) === dias ? 'ok' : 'neutral'} label={rotulo} />
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Card>
+        </Reveal>
+      ) : null}
 
       {/* Nomear quem gravou.
           O padrão é DESLIGADO por decisão do dono — "o relatório fala de onde,
           não de quem" —, e a frase diz o que muda em vez de nomear a chave. É a
           diferença entre o app orientar e o app fiscalizar, e essa escolha é da
           empresa, nunca nossa. */}
-      <Reveal index={6}>
-        <Pressable
-          onPress={async () => {
-            await setNamesWhoRecorded(empresaDaqui(), !nomeia);
-            void empurrar();
-            refreshNomeia();
-          }}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: Boolean(nomeia) }}
-          accessibilityLabel={t.app.settings.naming.label}
-        >
-          <Card
-            hue={palette.mist}
-            icon={(c) => <GlyphCustomer size={26} color={c} weight={traco} />}
-            title={t.app.settings.naming.label}
-          >
-            <View style={[styles.row, { gap: space.md }]}>
-              <Text style={[type.caption, { color: color.inkMuted, flex: 1 }]}>
-                {t.app.settings.naming.hint}
-              </Text>
-              <Chip
-                signal={nomeia ? 'ok' : 'neutral'}
-                label={nomeia ? t.app.settings.naming.on : t.app.settings.naming.off}
-              />
-            </View>
-          </Card>
-        </Pressable>
-      </Reveal>
-
-      {/* Como se entra no chão de fábrica.
-          Só aparece quando a empresa nomeia: sem nomear ninguém, escolher entre
-          "um por pessoa" e "compartilhado" é escolher entre dois nadas. Gaveta
-          que abre no vazio é pior que gaveta não desenhada. */}
-      {nomeia ? (
-        <Reveal index={7}>
+      {podeEmpresa ? (
+  <Reveal index={6}>
           <Pressable
             onPress={async () => {
-              await setFloorSignIn(empresaDaqui(), entrada === 'shared' ? 'personal' : 'shared');
+              await setNamesWhoRecorded(empresaDaqui(), !nomeia);
               void empurrar();
-              refreshEntrada();
+              refreshNomeia();
             }}
             accessibilityRole="switch"
-            accessibilityState={{ checked: entrada === 'shared' }}
-            accessibilityLabel={t.app.settings.signIn.label}
+            accessibilityState={{ checked: Boolean(nomeia) }}
+            accessibilityLabel={t.app.settings.naming.label}
           >
             <Card
               hue={palette.mist}
               icon={(c) => <GlyphCustomer size={26} color={c} weight={traco} />}
-              title={t.app.settings.signIn.label}
+              title={t.app.settings.naming.label}
             >
               <View style={[styles.row, { gap: space.md }]}>
                 <Text style={[type.caption, { color: color.inkMuted, flex: 1 }]}>
-                  {t.app.settings.signIn.hint}
+                  {t.app.settings.naming.hint}
                 </Text>
                 <Chip
-                  signal={entrada === 'shared' ? 'ok' : 'neutral'}
-                  label={
-                    entrada === 'shared'
-                      ? t.app.settings.signIn.shared
-                      : t.app.settings.signIn.personal
-                  }
+                  signal={nomeia ? 'ok' : 'neutral'}
+                  label={nomeia ? t.app.settings.naming.on : t.app.settings.naming.off}
                 />
               </View>
             </Card>
@@ -1551,11 +1556,50 @@ function Settings() {
         </Reveal>
       ) : null}
 
+      {/* Como se entra no chão de fábrica.
+          Só aparece quando a empresa nomeia: sem nomear ninguém, escolher entre
+          "um por pessoa" e "compartilhado" é escolher entre dois nadas. Gaveta
+          que abre no vazio é pior que gaveta não desenhada. */}
+      {podeEmpresa && nomeia ? (
+        <Reveal index={7}>
+            <Pressable
+              onPress={async () => {
+                await setFloorSignIn(empresaDaqui(), entrada === 'shared' ? 'personal' : 'shared');
+                void empurrar();
+                refreshEntrada();
+              }}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: entrada === 'shared' }}
+              accessibilityLabel={t.app.settings.signIn.label}
+            >
+              <Card
+                hue={palette.mist}
+                icon={(c) => <GlyphCustomer size={26} color={c} weight={traco} />}
+                title={t.app.settings.signIn.label}
+              >
+                <View style={[styles.row, { gap: space.md }]}>
+                  <Text style={[type.caption, { color: color.inkMuted, flex: 1 }]}>
+                    {t.app.settings.signIn.hint}
+                  </Text>
+                  <Chip
+                    signal={entrada === 'shared' ? 'ok' : 'neutral'}
+                    label={
+                      entrada === 'shared'
+                        ? t.app.settings.signIn.shared
+                        : t.app.settings.signIn.personal
+                    }
+                  />
+                </View>
+              </Card>
+            </Pressable>
+          </Reveal>
+      ) : null}
+
       {/* Começar do zero.
           Fantasma, sempre: botão grande e colorido convida, e ninguém deve ser
           convidado a apagar tudo. E o cartão só existe quando há o que apagar —
           um botão desabilitado é a reclamação que a Lei 5 proíbe. */}
-      {!loading && total > 0 ? (
+      {podeEmpresa && !loading && total > 0 ? (
         <Reveal index={6}>
           <Card
             hue={color.danger}

@@ -603,6 +603,7 @@ export const en: Dictionary = {
       },
       title: 'Settings',
       stored: 'What is stored',
+      onlyAdmin: 'Company choices belong to whoever runs it. What is here applies to this phone.',
       checking: 'Checking…',
       inputs: 'Inputs',
       recipes: 'Recipes',
