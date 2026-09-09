@@ -36,7 +36,7 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 
 | | | como conferir |
 |---|---|---|
-| telas | **33** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
+| telas | **34** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **26** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **28** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
 | migrações do servidor | **48** | `ls supabase/migrations \| wc -l` |

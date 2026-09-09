@@ -1333,7 +1333,27 @@ export const es: Dictionary = {
       failed: 'No se pudo registrar',
     },
 
+    recipeNew: {
+      title: 'Nueva ficha técnica',
+      overline: 'qué entra y cuánto rinde',
+      name: 'Nombre de la ficha',
+      namePlaceholder: 'Masa de frutilla',
+      yieldLabel: 'Cuánto rinde una vez',
+      yieldField: 'Rendimiento',
+      yieldPlaceholder: '40000',
+      units: { ml: 'mililitros', g: 'gramos', un: 'unidades' },
+      loss: 'Pérdida de la ficha (%)',
+      lossHint: 'Lo que se pierde en el camino: lo que no sale, salpicaduras, pruebas.',
+      usable: 'Quedan {{usable}} para volverse producto.',
+      save: 'Crear ficha',
+      saving: 'Creando…',
+      saveTitle: '¿Crear {{name}}?',
+      saveBody:
+        '{{name}} rendirá {{yield}} cada vez, y quedan {{usable}} después de la pérdida. Dices qué entra en ella en la pantalla siguiente.',
+      thenLines: 'Después de crearla, agregas los insumos y ves el costo moverse.',
+    },
     recipes: {
+      addNew: 'Registrar ficha técnica',
       title: 'Recetas',
       overline: 'lo que entra en cada vez',
       costing: 'Calculando los costos…',

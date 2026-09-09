@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
+import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
-import { GlyphRecipe } from '@/components/Glyph';
+import { GlyphPlus, GlyphRecipe } from '@/components/Glyph';
 import { ListRow } from '@/components/ListRow';
 import { IconChevron } from '@/components/icons';
 import { Reveal } from '@/components/Reveal';
@@ -269,6 +270,18 @@ function RecipesList() {
           </Card>
         </Reveal>
       ) : null}
+
+      {/* A porta que faltava, no mesmo lugar em que Produtos e Insumos têm a delas.
+          Três estados vazios mandavam cadastrar uma ficha e nenhuma tela criava —
+          instrução sem destino, que é pior que nenhuma instrução. */}
+      <Reveal index={3}>
+        <Button
+          label={t.app.recipes.addNew}
+          onPress={() => router.push('/recipes/new')}
+          icon={(c) => <GlyphPlus size={22} color={c} weight={traco} />}
+          weighty
+        />
+      </Reveal>
     </CollapsingHeader>
   );
 }

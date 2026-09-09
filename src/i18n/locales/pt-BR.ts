@@ -1699,7 +1699,34 @@ export const ptBR = {
       failed: 'Não deu para lançar',
     },
 
+    /**
+     * Cadastrar uma ficha — a tela que faltava.
+     *
+     * O tom é o da casa: frase curta, verbo na frente, segunda pessoa. E o rótulo do
+     * rendimento fala do que a fábrica faz ("quanto rende uma vez"), nunca do nome
+     * da panela — o aplicativo vai para as lojas, e conserva não tem tacho.
+     */
+    recipeNew: {
+      title: 'Nova ficha técnica',
+      overline: 'o que entra e quanto rende',
+      name: 'Nome da ficha',
+      namePlaceholder: 'Massa de morango',
+      yieldLabel: 'Quanto rende uma vez',
+      yieldField: 'Rendimento',
+      yieldPlaceholder: '40000',
+      units: { ml: 'mililitros', g: 'gramas', un: 'unidades' },
+      loss: 'Perda da ficha (%)',
+      lossHint: 'O que se perde no caminho: o que não sai, respingo, teste.',
+      usable: 'Sobram {{usable}} para virar produto.',
+      save: 'Criar ficha',
+      saving: 'Criando…',
+      saveTitle: 'Criar {{name}}?',
+      saveBody:
+        'A ficha {{name}} vai render {{yield}} de cada vez, e sobram {{usable}} depois da perda. Você diz o que entra nela na tela seguinte.',
+      thenLines: 'Depois de criar, você põe os insumos e vê o custo mudando.',
+    },
     recipes: {
+      addNew: 'Cadastrar ficha técnica',
       title: 'Receitas',
       overline: 'o que entra em cada vez',
       costing: 'Calculando os custos…',

@@ -1328,7 +1328,27 @@ export const en: Dictionary = {
       failed: 'Could not record',
     },
 
+    recipeNew: {
+      title: 'New recipe sheet',
+      overline: 'what goes in and what it yields',
+      name: 'Sheet name',
+      namePlaceholder: 'Strawberry mix',
+      yieldLabel: 'How much one run yields',
+      yieldField: 'Yield',
+      yieldPlaceholder: '40000',
+      units: { ml: 'millilitres', g: 'grams', un: 'units' },
+      loss: 'Sheet loss (%)',
+      lossHint: 'What is lost along the way: what does not come out, splashes, tasting.',
+      usable: '{{usable}} are left to become product.',
+      save: 'Create sheet',
+      saving: 'Creating…',
+      saveTitle: 'Create {{name}}?',
+      saveBody:
+        '{{name}} will yield {{yield}} each run, and {{usable}} are left after the loss. You say what goes in it on the next screen.',
+      thenLines: 'After creating it, you add the inputs and watch the cost move.',
+    },
     recipes: {
+      addNew: 'Add a recipe sheet',
       title: 'Recipes',
       overline: 'what goes in the batch',
       costing: 'Working out the costs…',
