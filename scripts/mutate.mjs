@@ -217,14 +217,10 @@ const DEFECTS = [
   // propósito o que o estorno e a média do produto prometem.
   {
     file: 'src/data/repository.ts',
-    from: `        AND m.kind = 'production'
-        AND m.occurred_at >= ?
-        AND m.occurred_at < ?
+    from: `        AND ${'${recorte.sql}'}
         AND ${'${NAO_ESTORNADO}'}
       GROUP BY m.item_id, i.name`,
-    to: `        AND m.kind = 'production'
-        AND m.occurred_at >= ?
-        AND m.occurred_at < ?
+    to: `        AND ${'${recorte.sql}'}
       GROUP BY m.item_id, i.name`,
     hurts:
       'a corrida corrigida volta a contar como produzida: o almoxarifado fica certo e "produzido hoje" continua dizendo o numero errado',
@@ -509,7 +505,7 @@ const DEFECTS = [
   // alvo, e o relatorio conta isso como sobrevivente, com razao.
   {
     file: 'src/data/repository.ts',
-    from: "  const recorte = noEscopo('m.location_id', { unidade: unidadeDoTacho });",
+    from: "  const recorte = noEscopo('m.location_id', escopoDoConsumo);",
     to: "  const recorte = noEscopo('m.location_id', undefined);",
     hurts:
       'o tacho passa a ser autorizado pelo açúcar que está na loja, a dez quilômetros dali, e o consumo entra na fábrica deixando a sala negativa',
@@ -949,8 +945,8 @@ const DEFECTS = [
   // a tela liberava o botao e TODA corrida batia num erro em ingles.
   {
     file: 'app/production/new.tsx',
-    from: '      listItems(empresaDaqui(), undefined, false, { unidade: unidadeDaqui() }),',
-    to: '      listItems(empresaDaqui()),',
+    from: "          de === 'sala' ? { sala: unidadeDaqui() } : { unidade: unidadeDaqui() },",
+    to: '          undefined,',
     hurts:
       'a tela de producao volta a ler o saldo da empresa e a liberar o botao com o insumo noutra sala: cada toque devolve o erro de programador do piso, e nenhuma corrida entra',
   },
