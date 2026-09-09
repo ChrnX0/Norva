@@ -71,7 +71,8 @@ const resultados = await Promise.all(
 let falhou = 0;
 let passaram = 0;
 let total = 0;
-for (const { saida, code } of resultados) {
+const vermelhas = [];
+for (const { n, saida, code } of resultados) {
   for (const linha of saida.split('\n')) {
     if (linha.startsWith('  ok') || linha.startsWith('  FAIL') || linha.startsWith('       ')) {
       console.log(linha);
@@ -82,11 +83,35 @@ for (const { saida, code } of resultados) {
       total += Number(conta[2]);
     }
   }
-  if (code !== 0) falhou += 1;
+  if (code !== 0) {
+    falhou += 1;
+    vermelhas.push({ n: n + 1, code, saida });
+  }
 }
 
 console.log(`\n${passaram}/${total} passaram, em ${FATIAS} fatias`);
+
+/**
+ * O que uma fatia vermelha DISSE, e não só que ela ficou vermelha.
+ *
+ * **Cicatriz de 9 de setembro.** O laço acima repassa só `  ok`, `  FAIL` e a
+ * explicação indentada — que é o certo enquanto a fatia chega ao fim das checagens.
+ * Uma fatia que MORRE antes disso (porta ocupada, exportação quebrada, navegador que
+ * não abre) não imprime nenhuma das três: o relatório dizia *"2 fatias terminaram
+ * vermelhas"* e mostrava zero linhas sobre elas. Quem lê fica com um número e nenhuma
+ * pista, que é pior que o silêncio total — o silêncio pelo menos não parece um
+ * relatório.
+ *
+ * As últimas quinze linhas bastam: o que mata uma fatia grita no fim.
+ */
+for (const { n, code, saida } of vermelhas) {
+  const linhas = saida.trimEnd().split('\n');
+  const temFalha = linhas.some((l) => l.startsWith('  FAIL'));
+  console.error(`\n── fatia ${n}/${FATIAS} saiu ${code}${temFalha ? '' : ' SEM nenhuma checagem reprovada — ela morreu antes'}`);
+  for (const linha of linhas.slice(-15)) console.error(`   ${linha}`);
+}
+
 if (falhou > 0) {
-  console.error(`${falhou} fatia(s) terminaram vermelhas.`);
+  console.error(`\n${falhou} fatia(s) terminaram vermelhas.`);
   process.exit(1);
 }
