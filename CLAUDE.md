@@ -289,6 +289,16 @@ Duas regras de operação, ambas cicatriz:
   por espera de tempo fixo, e as três mediram uma árvore que eu já tinha mudado — então
   o resultado chegou velho e as âncoras vieram cegas. Dispare-o quando as edições
   acabaram e o resto da barra passou; até lá, a máquina é do trabalho.
+- **O EMULADOR não convive com o `e2e`, e isso foi medido em 9 de setembro.** Ele virou
+  ferramenta de rotina nesta sessão — sobe, instala o APK, fotografa — e come 4,6 GB e
+  núcleos numa máquina de quatro. Rodando junto com as quatro fatias do navegador, uma
+  checagem ficou vermelha com a tela devolvendo **texto vazio** (sinal de queda, não de
+  frase errada), passou **verde sozinha**, e a suíte inteira deu **53/53** assim que o
+  emulador foi derrubado. Três medidas, uma conclusão: é disputa de máquina, não defeito.
+  A ordem que sai disso: **derrube o emulador antes de rodar `e2e:fast` ou `mutate`** —
+  `adb emu kill`, que é o comando dele e não um `pkill` por padrão. E se uma checagem
+  vier vermelha com `Input: ''`, olhe a carga da máquina antes de olhar o código.
+
 - **Servidor de desenvolvimento é processo, e processo esquecido cobra.** Um
   `expo start` ficou **6h38** no ar sem ninguém usar, com o Metro observando o
   disco numa máquina de quatro núcleos, roubando CPU de toda exportação e de toda
