@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import * as Haptics from 'expo-haptics';
 import { Pressable, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { ALVO } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
 
 const Springy = Animated.createAnimatedComponent(Pressable);
@@ -98,7 +99,14 @@ export function Touchable({
       onAccessibilityAction={(evento) => {
         if (evento.nativeEvent.actionName === 'longpress') onLongPress?.();
       }}
-      style={[style, squeeze]}
+      // O PISO do alvo vem antes do estilo de quem chama, então continua sendo
+      // possível dizer outra coisa — e ninguém precisa lembrar de dizer o piso. Era
+      // aqui que faltava: nove etiquetas tocáveis tinham vinte e oito dp de alvo,
+      // porque o `Chip` é um desenho e o toque mora no envoltório.
+      //
+      // `justifyContent` só faz diferença quando o piso de fato estica a caixa; para
+      // um cartão, que já é mais alto que isso, as duas linhas são inertes.
+      style={[{ minHeight: ALVO, justifyContent: 'center' }, style, squeeze]}
     >
       {children}
     </Springy>

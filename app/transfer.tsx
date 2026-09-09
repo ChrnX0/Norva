@@ -47,6 +47,7 @@ import { unidadeDaqui } from '@/data/unidade';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatCalendarDate, formatQuantity, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
+import { ALVO } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -510,7 +511,10 @@ function Transfer() {
                   accessibilityRole="radio"
                   accessibilityState={{ selected: ativo }}
                   accessibilityLabel={rotulo}
-                  style={[styles.option, { gap: space.xs, paddingVertical: space.sm }]}
+                  style={[
+                    styles.option,
+                    { gap: space.xs, paddingVertical: space.sm, minHeight: ALVO },
+                  ]}
                 >
                   {/* Desenho solto numa tela recebe o `Alive` na mão — dentro do
                       cartão é o `Card` que faz isso, aqui não. */}

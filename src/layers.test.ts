@@ -2637,3 +2637,120 @@ test('the backfill ruler reads migration bodies, not the prose around them', () 
   assert.deepEqual(varre('const V9 = `\nUPDATE items SET a = 1;\n`;'), ['V9'], 'não pegou o escrito à mão');
   assert.deepEqual(varre('/* o UPDATE da V18 */\nconst V9 = `\n${REPARO_X}\n`;'), [], 'acusou quem interpola a constante');
 });
+
+/**
+ * Alvo de toque tem PISO, e a régua é estreita de propósito.
+ *
+ * Quarenta e oito dp é o piso do Android, e aqui ele vale por um motivo mais duro que
+ * a diretriz: o aplicativo é usado de luva, a dezoito negativos, com a tela suja. Alvo
+ * de vinte e quatro dp não é apertado nessas condições — é um toque que não pega, e um
+ * toque que não pega é uma contagem que não acontece.
+ *
+ * **O que esta guarda NÃO faz, dito para não virar promessa falsa:** ela não calcula a
+ * altura de nada. Não dá — a altura de um alvo é conteúdo mais preenchimento mais fonte
+ * mais escala do sistema, e nada disso está no arquivo. O que ela pega é a FORMA que
+ * regrediu de verdade: um `Pressable` cujo preenchimento vertical é o menor da escala
+ * (`space.xs` ou `space.sm`) e que não declara o piso. Isso é o desenho de um controle
+ * pequeno, e um controle pequeno sem piso é um alvo pequeno.
+ *
+ * Quem envolve com `Touchable` não precisa dizer nada: o piso mora lá, uma vez.
+ */
+/**
+ * Onde a abertura de uma etiqueta JSX termina — e `indexOf('>')` não responde isso.
+ *
+ * A primeira versão desta varredura procurava o primeiro `>` depois de `<Pressable`, e
+ * a resposta era o `>` da SETA de `onPress={() => ...}`. O corpo lido parava antes do
+ * `style`, então todo controle passava — a guarda ficou verde sobre exatamente o que
+ * existia para pegar, e só apareceu porque eu tirei o conserto para vê-la ficar
+ * vermelha e ela não ficou.
+ *
+ * Este repositório já tem essa cicatriz escrita, com outro sujeito: *"34 alvos de toque
+ * sem rótulo (um `=>` terminando a expressão regular; a resposta real era zero)"*. É a
+ * segunda vez que a mesma seta engana a mesma leitura.
+ *
+ * O fim de verdade é o `>` que está em profundidade zero de chaves e não é precedido
+ * por `=`. Chaves porque todo atributo de valor JSX mora dentro delas; o `=` porque a
+ * seta é a única coisa que se parece com o fim e não é.
+ */
+function fimDaAbertura(texto: string, inicio: number): number {
+  let chaves = 0;
+  for (let i = inicio; i < texto.length; i += 1) {
+    const c = texto[i];
+    if (c === '{') chaves += 1;
+    else if (c === '}') chaves -= 1;
+    else if (c === '>' && chaves === 0 && texto[i - 1] !== '=') return i;
+  }
+  return texto.length;
+}
+
+export function alvosPequenosSemPiso(
+  fontes: readonly { arquivo: string; texto: string }[],
+): string[] {
+  const achados: string[] = [];
+  for (const f of fontes) {
+    const texto = code(f.texto);
+    for (const m of texto.matchAll(/<Pressable\b/g)) {
+      const abertura = texto.slice(m.index, fimDaAbertura(texto, m.index));
+      const miudo = /padding(Vertical)?:\s*space\.(xs|sm)\b/.test(abertura);
+      if (miudo && !/minHeight/.test(abertura)) achados.push(`${f.arquivo}: <Pressable>`);
+    }
+  }
+  return achados;
+}
+
+test('a small control declares the touch floor, or a gloved hand misses it', () => {
+  const fontes = sourcesUnder('app').map((arquivo) => ({
+    arquivo,
+    texto: readFileSync(arquivo, 'utf8'),
+  }));
+  assert.deepEqual(
+    alvosPequenosSemPiso(fontes),
+    [],
+    'estes controles têm o preenchimento mais miúdo da escala e nenhum piso de alvo:\n  ' +
+      alvosPequenosSemPiso(fontes).join('\n  '),
+  );
+
+  // E o piso mora num lugar só, para nenhuma tela precisar lembrar dele: o `Touchable`
+  // o declara, e é ele que carrega as etiquetas tocáveis — que são DESENHO, com o toque
+  // no envoltório.
+  assert.match(
+    readFileSync('src/components/Touchable.tsx', 'utf8'),
+    /minHeight: ALVO/,
+    'o Touchable deixou de declarar o piso: as etiquetas voltam a ter vinte e oito dp de alvo',
+  );
+  assert.match(
+    readFileSync('src/theme/tokens.ts', 'utf8'),
+    /export const ALVO = 48;/,
+    'o piso deixou de ser uma constante: número solto some de vinte telas e fica em três',
+  );
+});
+
+test('the touch-floor ruler tells a small control from a row', () => {
+  const morde = (texto: string) =>
+    alvosPequenosSemPiso([{ arquivo: 'app/x.tsx', texto }]).length > 0;
+
+  // **Os casos fabricados têm a SETA**, que é a forma do código real. Sem ela esta
+  // metade passava enquanto a varredura estava quebrada: `onPress={f}` não tem `>`
+  // no meio, então o caso falso não reproduzia o defeito que ele existia para provar.
+  assert.ok(
+    morde('<Pressable onPress={() => setX(1)} style={{ paddingVertical: space.sm }}>'),
+    'não pegou o miúdo — a seta do onPress voltou a terminar a leitura',
+  );
+  assert.ok(
+    morde('<Pressable onPress={() => f()} style={{ padding: space.xs }}>'),
+    'não pegou o mais miúdo',
+  );
+  // Os três que não podem ser acusados: o conserto, a linha larga, e quem usa Touchable.
+  assert.ok(
+    !morde('<Pressable onPress={() => f()} style={{ paddingVertical: space.sm, minHeight: ALVO }}>'),
+    'o conserto não pode reprovar',
+  );
+  assert.ok(
+    !morde('<Pressable onPress={() => f()} style={{ paddingVertical: space.md }}>'),
+    'linha com preenchimento largo não é controle miúdo',
+  );
+  assert.ok(
+    !morde('<Touchable onPress={() => f()}><Chip label="x" /></Touchable>'),
+    'quem usa Touchable herda o piso e não declara nada',
+  );
+});

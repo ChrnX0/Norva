@@ -34,6 +34,7 @@ import { nowIso } from '@/data/db';
 import { currencySymbol, fill, formatMoney, formatPercent, formatQuantity, plural } from '@/i18n';
 import type { Dictionary, LocaleSettings } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
+import { ALVO } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -302,7 +303,7 @@ function PurchaseForm() {
                       accessibilityRole="button"
                       accessibilityState={{ selected: active }}
                       accessibilityLabel={item.name}
-                      style={{ paddingVertical: space.sm }}
+                      style={{ paddingVertical: space.sm, minHeight: ALVO, justifyContent: 'center' }}
                     >
                       <Text
                         style={[

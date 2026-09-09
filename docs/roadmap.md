@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **617** testes |
+| `npm test` | **619** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **27** garantias contra um Postgres descartável, sob RLS |
@@ -109,7 +109,7 @@ independentes — dez de lógica, oito de código, seis de design —, cada uma 
 adversário próprio tentando derrubar os achados dela antes de virarem afirmação. Os
 números abaixo saem do diário da execução, não de contagem à mão.
 
-**45 fechados na mesma sessão.** O que sobra está aqui, por peso. Cada item traz a
+**46 fechados na mesma sessão.** O que sobra está aqui, por peso. Cada item traz a
 medida ao lado, como a regra deste arquivo exige: item aberto prova que a coisa NÃO
 existe, e a suíte fica vermelha no dia em que alguém a construir sem riscar a linha.
 
@@ -128,14 +128,19 @@ o rastro só existe para quem abre o banco.
 Depende de um caminho de LEITURA do servidor, que ainda não existe — a sincronia é fila
 de subida. Então isto entra atrás dele, não na frente.
 
-### A. Os 27 médios e baixos
-<!-- medida: ausente src/components/Chip.tsx :: minHeight: 48 -->
+### A. Os médios e baixos que sobraram
+<!-- medida: presente src/theme/tokens.ts :: export const ALVO = 48 -->
 
-Alvos de toque de 28–30 dp contra o piso de 48 que este projeto escreveu · a régua fina
-do Papel que não separa nada · o remate em onda do Orgânico · a ordem alfabética das
-palavras INGLESAS do esquema na lista de Lugares · o espanhol com três segundas pessoas
-na mesma tela · 39 chaves de dicionário sem leitor · `PickLine.available` sem leitor de
-produção · a conferência que não é idempotente.
+~~Alvos de toque de 28–30 dp~~ **fechado em 9 de setembro**: o piso virou constante
+(`ALVO`), mora no `Touchable` — que é quem carrega as etiquetas tocáveis, e o `Chip` é
+desenho — e sete controles miúdos passaram a declará-lo. A guarda
+`a small control declares the touch floor` recusa preenchimento miúdo sem piso.
+
+O que sobra: a régua fina do Papel que não separa nada · o remate em onda do Orgânico ·
+a ordem alfabética das palavras INGLESAS do esquema na lista de Lugares · o espanhol com
+três segundas pessoas na mesma tela · 39 chaves de dicionário sem leitor ·
+`PickLine.available` sem leitor de produção · a conferência que não é idempotente.
+
 
 ### Esperando decisão do dono
 <!-- medida: espera três decisões do dono: yield na versão da ficha (migração), sale só para item vendível (semântica de movement_kind), e a capa com nove peças -->

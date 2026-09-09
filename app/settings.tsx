@@ -68,7 +68,7 @@ import {
   widgetsOffCover,
   type BriefingWidget,
 } from '@/domain/briefing';
-import { hues, skins, type Skin } from '@/theme/tokens';
+import { ALVO, hues, skins, type Skin } from '@/theme/tokens';
 import {
   blockerFor,
   EraseBlockedError,
@@ -841,7 +841,7 @@ function Settings() {
                       accessibilityRole="radio"
                       accessibilityState={{ selected: escolhida }}
                       accessibilityLabel={t.app.settings.appearance.hues[qual]}
-                      style={{ flex: 1, alignItems: 'center', gap: space.xs }}
+                      style={{ flex: 1, alignItems: 'center', gap: space.xs, minHeight: ALVO }}
                     >
                       <View
                         style={{
@@ -1085,6 +1085,9 @@ function Settings() {
                     accessibilityLabel={`${t.app.settings.briefing.widgets[widget]}: ${
                       escondido ? t.app.settings.briefing.show : t.app.settings.briefing.hide
                     }`}
+                    // A etiqueta é DESENHO e o toque mora aqui: sem o piso o alvo é a
+                    // altura dela, vinte e oito dp.
+                    style={{ minHeight: ALVO, justifyContent: 'center' }}
                   >
                     <Chip
                       signal={escondido ? 'neutral' : 'ok'}
@@ -1097,7 +1100,14 @@ function Settings() {
                     disabled={i === 0}
                     accessibilityRole="button"
                     accessibilityLabel={`${t.app.settings.briefing.up}: ${t.app.settings.briefing.widgets[widget]}`}
-                    style={{ opacity: i === 0 ? 0.3 : 1, padding: space.xs }}
+                    style={{
+                      opacity: i === 0 ? 0.3 : 1,
+                      padding: space.xs,
+                      // A seta desenhada tem vinte pixels; o alvo dela tinha vinte e
+                      // quatro dp. Reordenar a capa de luva era acertar um selo.
+                      minHeight: ALVO,
+                      justifyContent: 'center',
+                    }}
                   >
                     <View style={styles.up}>
                       <IconChevron size={20} color={color.ink} />
@@ -1108,7 +1118,12 @@ function Settings() {
                     disabled={i === ordem.length - 1}
                     accessibilityRole="button"
                     accessibilityLabel={`${t.app.settings.briefing.down}: ${t.app.settings.briefing.widgets[widget]}`}
-                    style={{ opacity: i === ordem.length - 1 ? 0.3 : 1, padding: space.xs }}
+                    style={{
+                      opacity: i === ordem.length - 1 ? 0.3 : 1,
+                      padding: space.xs,
+                      minHeight: ALVO,
+                      justifyContent: 'center',
+                    }}
                   >
                     <View style={styles.down}>
                       <IconChevron size={20} color={color.ink} />

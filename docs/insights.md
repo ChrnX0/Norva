@@ -8081,3 +8081,67 @@ que o `UPDATE` seja interpolado de uma constante ou declarado como exceção com
 pergunte o que foi PREENCHIDO por instrução e não por linha. Coluna vazia com padrão
 válido é a forma mais silenciosa de perda: ela não quebra referência, não levanta exceção,
 e passa por toda checagem que olha a estrutura em vez do conteúdo.
+
+---
+
+## 9 de setembro — a mesma seta enganou a mesma leitura pela segunda vez
+
+**O que apareceu:** escrevi uma guarda para os alvos de toque abaixo do piso de 48 dp. Ela
+lia a abertura de cada `<Pressable` com `texto.indexOf('>', inicio)` — e o primeiro `>`
+depois de `<Pressable` não é o fim da etiqueta: é o da **seta** de `onPress={() => ...}`.
+O corpo lido parava antes do `style`, então nenhum controle era acusado. A guarda ficou
+verde sobre exatamente o que existia para pegar.
+
+Só apareceu porque tirei o conserto de uma tela para vê-la ficar vermelha, e ela **não
+ficou**. O caso falso que eu tinha escrito ao lado passava: os fixtures fabricados diziam
+`onPress={f}`, sem seta, então não reproduziam o defeito que existiam para provar.
+
+**Por que importa:** este repositório já registra esta cicatriz, com outro sujeito — *"34
+alvos de toque sem rótulo (um `=>` terminando a expressão regular; a resposta real era
+zero)"*. É a mesma seta, na mesma família de leitura, com três dias de diferença. A regra
+escrita não impediu, porque ela estava guardada como uma anedota sobre um número errado e
+não como uma propriedade do JSX: **em JSX, `>` é ao mesmo tempo o fim de uma etiqueta e
+metade de uma seta** — irmã exata da crase, que é delimitador e pontuação de prosa.
+
+**E o caso falso fraco é o segundo achado, e o mais transferível.** Um fixture fabricado
+prova o que ele contém. Se ele não tem a forma que o código real tem, o caso falso passa
+com a régua quebrada e a dupla verificação vira teatro. A régua desta casa era *"remova o
+conserto e veja ficar vermelha"*; o que faltava é que **o caso fabricado tem de se parecer
+com o código real**, e a diferença entre `onPress={f}` e `onPress={() => f()}` foi a
+diferença entre uma guarda e um enfeite.
+
+**O que mudou:** a leitura passou a achar o fim da abertura por profundidade de chaves,
+ignorando `>` precedido de `=`; os fixtures ganharam a seta; e a guarda, consertada, achou
+na primeira execução um alvo em `app/transfer.tsx` que a minha leitura manual dos trinta e
+quatro `Pressable` tinha deixado passar. O piso virou constante (`ALVO`) e mora no
+`Touchable`, que é quem carrega as etiquetas tocáveis — nove delas tinham 28 dp de alvo
+porque o `Chip` é desenho e o toque mora no envoltório.
+
+---
+
+## 9 de setembro — inventei um achado de tablet e o guarda do plano o derrubou em dez segundos
+
+**O que apareceu:** ao fotografar a 720 e a 1080 dp, vi a coluna de conteúdo travada em
+600 dp com banda vazia dos dois lados, lembrei da linha do `CLAUDE.md` — *"uma coluna que
+serve a 393 dp vira tira esticada a 800 dp: lá o certo é refluir em colunas"* — e escrevi
+um item de fila dizendo que a página não reflui. `src/plano.test.ts` reprovou na primeira
+execução: a palavra que eu usei como medida de AUSÊNCIA já existia no arquivo.
+
+Fui ler, e o refluxo existe: `src/components/colunas.ts`, `PARES_A_PARTIR_DE = 840`, duas
+colunas que empacotam em vez de uma grade com buraco. E existe a decisão de QUEM pareia,
+escrita no componente: *"quem pareia é a tela cujo conteúdo é uma lista de peças do mesmo
+tamanho e da mesma importância"* — a capa não, porque é editorial e parti-la destrói a
+ordem que o dono aprovou; formulário não, porque em duas colunas o dedo volta para cima.
+Almoxarifado e Ajustes não pareiam por essa razão, e estão certos.
+
+**Por que importa:** este arquivo já registra três vezes o mesmo erro meu — *"antes de
+chamar algo de defeito, procure a decisão"* — e esta é a quarta. A novidade é o gatilho:
+as três anteriores vieram de eu ler código; esta veio de eu olhar uma **foto**. Uma foto
+não tem docblock. Ela mostra o resultado sem a razão, e é por isso que ela é ótima para
+achar o que está feio e péssima para julgar o que está errado.
+
+**O que mudou:** o item saiu da fila no mesmo commit em que entrou, e fica esta linha no
+lugar dele. E a régua que sobra: **um item nascido de uma foto passa pela busca da decisão
+antes de virar item** — `grep` no componente, no `insights.md` e nas decisões do
+`CLAUDE.md`. Foi o guarda do plano que me pegou, não eu; sem a medida obrigatória ao lado
+de cada item, o achado inventado teria virado trabalho para a próxima sessão.

@@ -162,6 +162,25 @@ export const type = {
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 22, xxl: 32 } as const;
 
+/**
+ * O PISO de um alvo de toque, em dp — e ele não é uma preferência de estilo.
+ *
+ * Quarenta e oito é o piso do Android, e aqui ele vale por um motivo mais duro que a
+ * diretriz: este aplicativo é usado **de luva, a dezoito graus negativos, com a tela
+ * suja e condensada**. Um alvo de vinte e quatro dp não é "apertado" nessas condições:
+ * ele é um toque que não pega, e um toque que não pega é uma contagem que não acontece.
+ * Este arquivo já diz, noutro lugar, que equipe que vê o app como inimigo sabota o
+ * dado — errar o alvo três vezes seguidas é como isso começa.
+ *
+ * **O alvo não é o desenho.** A etiqueta continua com vinte e oito dp de altura visível;
+ * o que cresce é a área que responde ao dedo. Engordar o desenho para caber o alvo seria
+ * trocar a régua pelo sintoma.
+ *
+ * Uma constante e não o número solto porque ele apareceu escrito à mão em três telas e
+ * faltou em vinte — e um piso que cada tela lembra sozinha é um piso que não existe.
+ */
+export const ALVO = 48;
+
 /** Generous corners are the most recognizable part of the One UI signature. */
 export const radius = { sm: 9, md: 14, lg: 19, xl: 24, pill: 999 } as const;
 

@@ -41,6 +41,7 @@ import { parseTyped, formatTyped } from '@/domain/number';
 import { fill, formatMoney, formatUnitRate, formatPercent, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import type { Dictionary, LocaleSettings } from '@/i18n';
+import { ALVO } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -611,7 +612,7 @@ function RecipeEditor() {
                       onPress={() => addItem(item.id)}
                       accessibilityRole="button"
                       accessibilityLabel={`${t.app.recipe.add} ${item.name}`}
-                      style={{ paddingVertical: space.sm }}
+                      style={{ paddingVertical: space.sm, minHeight: ALVO, justifyContent: 'center' }}
                     >
                       <Text
                         style={[type.secondary, { color: palette.mint, fontWeight: '600' }]}

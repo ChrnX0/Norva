@@ -67,6 +67,7 @@ import { nowIso } from '@/data/db';
 import { dayWindow } from '@/domain/day';
 
 import { useLocale } from '@/i18n/useLocale';
+import { ALVO } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -1011,7 +1012,12 @@ function InputDetail() {
                       accessibilityRole="radio"
                       accessibilityState={{ selected: chosen }}
                       accessibilityLabel={t.loss[r]}
-                      style={{ paddingVertical: space.sm, paddingRight: space.md }}
+                      style={{
+                        paddingVertical: space.sm,
+                        paddingRight: space.md,
+                        minHeight: ALVO,
+                        justifyContent: 'center',
+                      }}
                     >
                       <Text
                         style={[
