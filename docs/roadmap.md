@@ -665,6 +665,29 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     é a conta, a guarda e a condição que o dono confirmou (toda tela que rola, nenhuma que
     cabe). Quem fecha é o tablet dele.
 
+36. **A suíte do navegador nunca ROLA a tela** — zero ocorrências de `scroll` nas 53
+    checagens de `e2e/flow.mjs`. <!-- medida: ausente e2e :: mouse.wheel -->
+    Achado em 10 de setembro, ao perguntar por que 53 checagens de navegador não pegaram
+    o tremor que o dono achou em dois minutos de tablet. A resposta não é cobertura: é
+    que **o gesto não existe ali**. A suíte se chama *"o app dirigido como uma pessoa
+    dirige"* e não faz o movimento mais comum que há num telefone.
+
+    Junta com a outra cegueira, e as duas são independentes: o emulador roda a 393 dp,
+    onde o ganho do laço é 2,32 em vez dos 3,27 do tablet — lá o mesmo defeito lê como
+    "um pouco lento". Dois instrumentos cegos apontando para o mesmo ponto morto.
+
+    **A fronteira, escrita antes de alguém construir a coisa errada:** uma checagem de
+    rolagem no navegador **não** guarda o item 35. O laço depende de o dedo ser rastreado
+    DENTRO da lista, e um navegador rola por roda e por barra — o mecanismo é outro. Uma
+    checagem que não consegue falhar pelo motivo que ela alega guardar é pior que
+    nenhuma, e este repositório já pagou por isso com o `mesmaTelaEmTodas` respondendo
+    "iguais" para lista vazia. Quem guarda o 35 é a régua geométrica
+    (`src/components/cabecalho.test.ts`), que é matemática e roda em qualquer lugar.
+
+    O que a rolagem no navegador vale a pena cobrar é outra coisa, e é bastante: conteúdo
+    que some ao rolar, cabeçalho que não volta ao subir, lista que não chega ao fim,
+    rodapé coberto pela barra de abas. Nada disso tem guarda hoje.
+
 **Aberto do que esta caminhada achou:**
 
 22. ~~**Sair do editor com alteração pendente não avisa.**~~ — **fechada** com uma guarda em
