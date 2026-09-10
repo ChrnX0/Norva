@@ -8721,3 +8721,41 @@ vira falha.
 descuido de quem escreveu a capa: com três estados no tipo, `null` só podia virar
 "carregando". Onde houver leitura que pode falhar, o estado "falhou" entra no TIPO — senão
 ele vira silêncio, e silêncio numa tela de gestão é lido como fato.
+
+---
+
+## 10 de setembro — as duas medidas consertaram a TELA e não consertaram o CUSTO
+
+**O que se esperava:** o movimento de ambiente queimava 190% de CPU com a tela parada, e
+a thread de UI saturada era o que fazia as páginas aparecerem pela metade. Duas medidas
+sem mudar nada do que se vê — um relógio só no lugar de trinta e oito animações infinitas,
+e pausa do compasso quando a tela sai de vista — e eu disse que a segunda seria o maior
+ganho, porque o custo multiplicava pelo número de telas visitadas.
+
+**O que a medida devolveu, no aparelho, com o movimento LIGADO:**
+
+| | antes | depois |
+|---|---|---|
+| a capa desenha | esvazia até sobrar a linha de olho | **inteira, 15,35:1 em 20/22 fitas** |
+| CPU com a tela parada | ~190% | ~150% |
+| quadros por segundo | 1,7 | 4,2 |
+
+**O defeito de tela acabou. O custo não.** E a parte que eu errei é a que ensina: eu previa
+que parar as telas fora de vista dominaria, e ela quase não apareceu — porque a medida foi
+feita numa tela só, e ali não há tela fora de vista para pausar. O ganho dessa medida é
+real e é proporcional a **quantas telas a pessoa visitou**, coisa que uma medida de trinta
+segundos numa capa recém-aberta não vê. Medir a coisa certa no cenário errado devolve um
+número honesto que responde outra pergunta.
+
+**O que sobra, e onde ele mora:** o custo restante não é das animações — é das
+**escritas de propriedade de SVG quadro a quadro**. Um relógio ou trinta e oito, o número
+de nós que escrevem props a cada quadro é o mesmo, e são eles que atravessam para a árvore
+nativa. Reduzir isso é reduzir quantas coisas se mexem ao mesmo tempo, o que muda o que se
+vê — decisão do dono, não minha.
+
+**E a fronteira, que é o principal:** este emulador não tem GPU. Cada mudança de prop de
+SVG é rasterizada na CPU aqui, e num aparelho de verdade não é. **Eu não posso concluir
+daqui que 150% é um problema no tablet dele** — posso concluir que o defeito de tela
+acabou e que o que resta tem um dono medível. O portão P2 deste projeto já diz o que fazer
+com isso: *"eu mudaria isto se eu visse ___"* — e quem vê está do outro lado da conversa,
+com um tablet na mão.

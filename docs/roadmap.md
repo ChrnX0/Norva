@@ -178,6 +178,21 @@ A doutrina do movimento em `src/theme/tokens.ts` fala de **duração de ciclo** 
 e não fala de **quantos ciclos correm juntos** nem do que custam. Falta um orçamento: um
 teto de ciclos vivos por tela, ou parar o ambiente do que está fora da vista.
 
+**Duas das três medidas entraram em 10 de setembro, e o resultado partiu em dois.** Um
+relógio só no lugar de trinta e oito animações infinitas, e o compasso parando quando a
+tela sai de vista. **O defeito de TELA acabou** — com o movimento ligado a capa passou a
+desenhar inteira (15,35:1 em 20 de 22 fitas, onde antes esvaziava até a linha de olho), a
+rolagem voltou e os quadros por segundo subiram de 1,7 para 4,2. **O CUSTO não**: a CPU
+com a tela parada caiu de ~190% para ~150%, e o que sobra são as escritas de propriedade
+de SVG quadro a quadro — um relógio ou trinta e oito, o número de nós que escrevem props
+é o mesmo.
+
+A terceira medida é a que resolve isso e é **decisão do dono**, porque muda o que se vê:
+hoje o ícone de cada linha de lista se mexe, e a proposta é manter o movimento onde ele é
+olhado (a cena do cabeçalho, a capa, os sinais que significam alguma coisa) e deixar o
+ícone dentro da linha parado. **Ela não se decide neste emulador**, que não tem GPU e
+rasteriza cada mudança de prop na CPU: quem responde se 150% é problema é o tablet.
+
 **E o custo não é só bateria: a árvore de acessibilidade fica ilegível.** Medido logo
 depois, e este não é número de emulador lento — é uma propriedade de animação infinita.
 Com o movimento no estado normal, `uiautomator dump` falhou três vezes em três, e a
