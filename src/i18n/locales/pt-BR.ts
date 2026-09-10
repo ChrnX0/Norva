@@ -1800,6 +1800,16 @@ export const ptBR = {
       summaryDearer: 'Sobe {{amount}} por unidade em relação à versão {{version}}.',
       summarySame: 'O custo por unidade não muda.',
       keepEditing: 'Continuar editando',
+      /**
+       * Sair do editor descartava o rascunho em silêncio — e o rascunho aqui é
+       * uma ficha inteira: linhas acrescentadas, quantidades ajustadas, perda
+       * mexida, com o custo já recalculado na tela. Perder isso sem uma palavra
+       * é o oposto da Lei 5, que manda impedir em vez de reclamar depois.
+       */
+      leaveTitle: 'Sair sem salvar?',
+      leaveBody:
+        'A versão {{version}} fica como está. O que você mexeu nesta tela se perde.',
+      leaveDiscard: 'Sair assim',
       save: 'Salvar',
       failedToSave: 'Não deu para salvar',
     },

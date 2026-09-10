@@ -170,7 +170,7 @@ por peso, e o que já foi fechado:**
     tela que ninguém olha.
 
 ### A.2 — 10 de setembro: a segunda caminhada, ficha e produto
-<!-- medida: ausente app/recipes/[id].tsx :: descartarRascunho -->
+<!-- medida: presente app/recipes/[id].tsx :: beforeRemove -->
 
 Feita com o aparelho dirigido pela árvore de acessibilidade (o `uiautomator` volta a ler
 com o ambiente parado), e cada achado conferido contra o SQLite do aplicativo antes de
@@ -205,9 +205,10 @@ virar afirmação. **Seis fechados no mesmo dia:**
 
 **Aberto do que esta caminhada achou:**
 
-22. **Sair do editor com alteração pendente não avisa.** O botão de salvar existe e fica no
-    fim da rolagem; o caminho de saída (voltar do Android, o X do cabeçalho) descarta o
-    rascunho sem uma palavra. `app/recipes/[id].tsx` — o rascunho vive em `setDraft`.
+22. ~~**Sair do editor com alteração pendente não avisa.**~~ — **fechada** com uma guarda em
+    `beforeRemove`: sair passa a perguntar, dizendo o que fica e o que se perde. O rascunho
+    aqui é uma ficha inteira, com o custo já recalculado à vista — e foi este defeito que me
+    fez registrar uma linha como "não gravada" quando ela só não tinha sido salva.
 23. ~~**A confirmação da versão termina em vírgula quando não há porção.**~~ — **fechada**
     com `saveBodyPlain`: sem porção não há custo por unidade e não há o que resumir.
     Confirmação truncada ensina a não ler confirmação, que é a Lei 5 perdendo o que ela

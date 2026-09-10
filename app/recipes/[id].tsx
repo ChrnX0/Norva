@@ -1,7 +1,7 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { avisoDeFalha } from '@/i18n/falha';
 import { ERROS } from '@/data/erros';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -349,6 +349,44 @@ function RecipeEditor() {
     );
   }, [stored, lines, yieldAmount, lossPercent]);
 
+  /**
+   * **Sair sem salvar deixa de ser silêncio.**
+   *
+   * O rascunho desta tela é uma ficha inteira — linhas acrescentadas,
+   * quantidades ajustadas, perda mexida —, com o custo já recalculado à vista. O
+   * botão de salvar existe e fica no fim da rolagem; quem sai pelo voltar do
+   * Android ou pelo X do cabeçalho perdia tudo sem uma palavra. Aconteceu comigo
+   * na primeira caminhada, e eu registrei a linha como não gravada antes de
+   * entender que ela só não tinha sido salva.
+   *
+   * `saindo` existe porque `router.back()` do próprio salvamento passa por aqui
+   * com `changed` ainda verdadeiro — o rascunho em memória não muda ao gravar.
+   * Sem essa trava, salvar perguntaria se você quer descartar o que acabou de
+   * salvar.
+   */
+  const navigation = useNavigation();
+  const saindo = useRef(false);
+
+  useEffect(() => {
+    if (!changed) return;
+    const solta = navigation.addListener('beforeRemove', (evento: { preventDefault: () => void; data: { action: Parameters<typeof navigation.dispatch>[0] } }) => {
+      if (saindo.current) return;
+      evento.preventDefault();
+      void (async () => {
+        const sair = await confirm({
+          title: t.app.recipe.leaveTitle,
+          message: fill(t.app.recipe.leaveBody, { version: stored?.version ?? 1 }),
+          confirmLabel: t.app.recipe.leaveDiscard,
+          cancelLabel: t.app.recipe.keepEditing,
+        });
+        if (!sair) return;
+        saindo.current = true;
+        navigation.dispatch(evento.data.action);
+      })();
+    });
+    return solta;
+  }, [navigation, changed, confirm, t, stored?.version]);
+
   const onSave = async () => {
     if (!stored || !lines || !recipeId || computed?.error) return;
 
@@ -380,6 +418,7 @@ function RecipeEditor() {
 
     setSaving(true);
     try {
+      saindo.current = true;
       await saveRecipeVersion(empresaDaqui(), {
         recipeId,
         name: data?.labels[recipeId] ?? 'Receita',
