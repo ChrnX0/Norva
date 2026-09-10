@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **675** testes |
+| `npm test` | **676** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **28** garantias contra um Postgres descartável, sob RLS |
@@ -568,6 +568,35 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     conferência, que é onde a pessoa lê o que vai acontecer. Guarda em
     `src/dictionary.test.ts`, com a MAIÚSCULA de fora por razão escrita: a testeira da
     capa é faixa tipográfica, não gramática.
+
+33. **A âncora de rota conserta o aparelho e QUEBRA a web** — e a decisão é sua, porque
+    muda o que se constrói. Medido em 10 de setembro, com uma variável só: tirando
+    `unstable_settings = { anchor: '(tabs)' }` de `app/_layout.tsx`, a checagem `an invoice
+    warns before it is committed` do navegador passa; pondo de volta, ela estoura o clique
+    em 30 s com a máquina parada (carga 0,12).
+
+    **A causa, medida e não suposta**, depois de três palpites meus errados (o halo do
+    `PulseDot`, o `useNaTela` que supunha foco, e um `.first()` que eu achei que pegava a
+    cópia da capa — todos falsos): a janela tem **412 px** de largura e o elemento está em
+    **x = 607**. Com a âncora, a tela aberta por ligação profunda é montada como o SEGUNDO
+    cartão da pilha, deslocada uma largura para o lado, e nunca desliza para o lugar. Quem
+    abre um link profundo na web vê a capa; a tela pedida existe no DOM, fora da janela.
+
+    **No APARELHO a âncora está certa e provada** (item 6): partida fria em
+    `norva://losses`, voltar cai na capa em vez de sair do aplicativo. São as duas portas
+    que o produto promete — o QR do engradado e o aviso de validade.
+
+    Então é troca, e não conserto: **aparelho certo com web quebrada, ou web certa com o
+    aplicativo expulsando quem entra por link**. O plano diz *"primeiro o app, a web
+    depois"*, o que recomenda ficar com a âncora — mas a suíte do navegador fica vermelha
+    até a web ser consertada, e suíte vermelha escondida é pior que a troca.
+
+    **O que os três palpites errados deixaram de bom**, e fica independente da decisão: a
+    volta própria do `PulseDot` agora para quando a tela sai de vista, e `useNaTela` deixou
+    de SUPOR que está à vista até uma limpeza que numa tela nunca focada jamais roda —
+    passou a perguntar `useIsFocused()`, que responde o estado de agora. As duas cortam CPU
+    de telas que ninguém vê, no aplicativo que este projeto já mediu saturando a thread de
+    UI.
 
 **Aberto do que esta caminhada achou:**
 

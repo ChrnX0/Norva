@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { useIsFocused } from 'expo-router';
 import { AccessibilityInfo } from 'react-native';
 import {
   Easing,
@@ -168,15 +168,35 @@ function pararRelogio(): void {
  * saída existia e nunca era chamado, porque a peça não saía: ela só deixava de
  * ser olhada.
  */
-function useNaTela(): boolean {
-  const [naTela, setNaTela] = useState(true);
-  useFocusEffect(
-    useCallback(() => {
-      setNaTela(true);
-      return () => setNaTela(false);
-    }, []),
-  );
-  return naTela;
+/**
+ * Esta tela está à vista AGORA — e não só "o aplicativo está aberto".
+ *
+ * Exportada em 10 de setembro porque a âncora de rota (`app/_layout.tsx`) passou a
+ * montar a capa DEBAIXO de toda tela aberta por ligação profunda. O relógio da casa
+ * já parava aqui; quem não parava era a única volta própria permitida, o halo do
+ * `PulseDot` — e ele ficou pulsando numa tela que ninguém vê.
+ */
+export function useNaTela(): boolean {
+  /**
+   * **Começava supondo `true`, e a suposição virou falsa em 10 de setembro.**
+   *
+   * A versão anterior era `useState(true)` mais um `useFocusEffect` que só punha
+   * `false` na LIMPEZA. Numa tela que foca e desfoca, isso funciona. Numa tela
+   * MONTADA E NUNCA FOCADA, a limpeza nunca roda e o valor fica `true` para
+   * sempre — e foi exatamente esse caso que a âncora de rota criou: `(tabs)` passou
+   * a ser montada debaixo de toda tela aberta por ligação profunda, sem nunca
+   * receber foco.
+   *
+   * O resultado é a capa inteira animando por baixo de uma tela que ninguém vê. A
+   * prova foi de uma variável só: com a âncora, o clique de uma checagem estourava
+   * 30 s esperando a página ficar estável, com a máquina parada; sem a âncora,
+   * passava. O custo real não é o navegador — é CPU num aparelho que este projeto
+   * já mediu saturando a thread de UI com o movimento ligado.
+   *
+   * `useIsFocused` responde o estado de AGORA e é reativo, então não há suposição
+   * nenhuma para envelhecer.
+   */
+  return useIsFocused();
 }
 
 /** Entra e sai suave nas pontas — o `inOut(quad)` do vai-e-vem, como worklet. */

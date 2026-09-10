@@ -8,7 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useTheme } from '@/theme/ThemeProvider';
-import { useReduzirMovimento } from './vida';
+import { useNaTela, useReduzirMovimento } from './vida';
 
 /**
  * The "this is live" pulse: a slow halo expanding out of a dot.
@@ -54,13 +54,27 @@ export function PulseDot({
   // sei", e nele o desenho fica no lugar de REPOUSO: quem pediu menos movimento
   // nunca vê a peça pela metade esperando a promessa voltar.
   const reduzir = useReduzirMovimento();
+  /**
+   * **E ele para quando a tela sai de vista — cicatriz de 10 de setembro.**
+   *
+   * O motivo escrito da exceção deste arquivo diz que o halo *"só corre quando existe
+   * trabalho vivo para anunciar"*. Isso fala do `live`, não de estar À VISTA — e a
+   * diferença apareceu no dia em que a âncora de rota passou a montar a capa debaixo
+   * de toda tela aberta por ligação profunda: o halo seguia pulsando numa tela que
+   * ninguém vê, e o navegador nunca considerava a página estável.
+   *
+   * A prova é de uma variável só: com a âncora, a checagem da nota estourava o clique
+   * por 30 s com a máquina parada; sem a âncora, passava. O custo real não é o teste —
+   * é CPU num aparelho que este projeto já mediu saturando a thread de UI.
+   */
+  const naTela = useNaTela();
 
   useEffect(() => {
 
     // Going still has to undo the animation, not just stop starting it: leaving
     // the halo wherever the last frame put it reads as a dot with a permanent
     // ring around it, which is the same lie in a different shape.
-    if (!live) {
+    if (!live || !naTela) {
       progress.value = 0;
       return;
     }
@@ -71,7 +85,7 @@ export function PulseDot({
       -1,
       false,
     );
-  }, [live, motion.pulseMs, progress, reduzir]);
+  }, [live, naTela, motion.pulseMs, progress, reduzir]);
 
   const halo = useAnimatedStyle(() => ({
     transform: [{ scale: 1 + progress.value * 1.9 }],

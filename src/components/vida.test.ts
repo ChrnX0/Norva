@@ -151,9 +151,41 @@ test('a régua acha a volta própria quando ela existe', () => {
  */
 test('o ciclo pergunta se a tela está à vista', () => {
   const fonte = readFileSync('src/components/vida.ts', 'utf8');
-  assert.ok(/useFocusEffect\(/.test(fonte), 'nada pausa quando a tela deixa de ser olhada');
+  /**
+   * **Ela cobrava o MECANISMO e não a propriedade — corrigido em 10 de setembro.**
+   *
+   * A linha exigia `useFocusEffect(` no arquivo. Quando `useNaTela` passou a usar
+   * `useIsFocused()` — que responde o estado de AGORA, em vez de supor `true` até uma
+   * limpeza que numa tela nunca focada jamais roda —, a guarda ficou vermelha por uma
+   * troca que a torna MAIS verdadeira. É a mesma classe de defeito que o `CLAUDE.md`
+   * nomeia: perguntar de qual recorte a derivação lê.
+   *
+   * O que ela tem de cobrar é que a decisão de mexer dependa do foco da navegação,
+   * seja qual for o gancho que responde isso.
+   */
+  assert.ok(
+    /useIsFocused\(|useFocusEffect\(/.test(fonte),
+    'nada pausa quando a tela deixa de ser olhada',
+  );
   assert.ok(
     /naTela/.test(fonte) && /reduzido === false && naTela/.test(fonte),
     'estar à vista tem de entrar na decisão de mexer, junto com reduzir movimento',
+  );
+});
+
+/**
+ * E a volta própria permitida PARA junto — cicatriz de 10 de setembro.
+ *
+ * O motivo escrito da exceção do `PulseDot` diz que ele *"só corre quando existe
+ * trabalho vivo para anunciar"*. Isso fala do `live`, e não de estar À VISTA: o halo
+ * seguia pulsando numa tela montada e nunca focada. Quem lê a exceção lê a promessa
+ * de que ela é condicional; a condição que faltava era esta.
+ */
+test('a volta própria permitida também para quando a tela sai de vista', () => {
+  const fonte = readFileSync('src/components/PulseDot.tsx', 'utf8');
+  assert.ok(/useNaTela\(\)/.test(fonte), 'o halo não pergunta se a tela está à vista');
+  assert.ok(
+    /!live \|\| !naTela/.test(fonte),
+    'estar à vista tem de entrar na mesma decisão que o `live`, e não ao lado dela',
   );
 });
