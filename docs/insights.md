@@ -8934,3 +8934,48 @@ menos em vez de responder o que não devia"*. Fechar por omissão ali é decisã
 página de falha teria trocado uma tela que ainda serve por uma que não serve. A regra do
 `CLAUDE.md` — *antes de chamar algo de defeito, procure a decisão* — foi cumprida pelo
 compilador e não por mim.
+
+---
+
+## 10 de setembro — a tela que mostra o defeito nem sempre é a que o tem
+
+**O que apareceu:** a capa de um aplicativo recém-instalado oferece *"Lançar a primeira
+produção"*. O toque abre a tela de produção, que responde *"Nenhum produto tem ficha
+técnica ainda. Cadastre a receita primeiro."* — explica o impedimento e **não oferece a
+porta**. Eu tinha registrado isso como defeito da tela de produção.
+
+**Era decisão, e estava escrita** três linhas acima do estado vazio: *"a saída aqui é a
+receita, que se cadastra noutra tela e não se navega daqui: esta é uma tela empilhada, e o
+caminho de volta é o de sempre"*. Navegação empilhada tem regra, e a regra é boa.
+
+**O defeito estava um passo antes.** Quem errou foi a CAPA, ao sugerir a única coisa que
+ainda não dava para fazer — com o sistema sabendo, porque a cadeia é fixa e ele conta os
+elos: sem insumo não há ficha que custe alguma coisa, sem ficha não há produto, sem
+produto não há corrida. Lei 1 inteira, do lado errado.
+
+**A régua que fica:** quando um caminho termina em parede, a pergunta não é *"por que esta
+tela não tem saída"* — é **quem me mandou aqui, e por quê**. A tela do fim costuma estar
+certa em recusar; quem está errado é quem ofereceu a porta trancada.
+
+---
+
+## 10 de setembro — o conserto que eu li antes de o aparelho ler
+
+**O que apareceu:** consertando o campo que perdia letras, escrevi uma régua com memória —
+o campo ignora do pai qualquer valor que já tenha subido dele, porque o eco atrasado é
+exatamente isso. Passou no `typecheck`, passou nos dois testes que escrevi junto, e estava
+errada.
+
+**O que ela engolia:** `setNome('')` depois de salvar. Um formulário que se esvazia manda
+um valor que JÁ subiu do campo — e com um nome de oito letras ou menos ele ainda estava na
+janela de memória. O campo continuaria mostrando o texto de antes com o pai achando que
+limpou. Eu tinha trocado um defeito silencioso por outro.
+
+**Como apareceu:** relendo o próprio conserto antes de compilar, perguntando de que outras
+formas um valor legítimo do pai poderia parecer eco. Não foi teste, não foi o aparelho, não
+foi o `mutate` — foi a pergunta.
+
+**A régua que ficou não guarda nada:** com o dedo no campo, quem manda é quem digita; fora
+dele, quem manda é o pai. Não há janela para acertar e não há comprimento que mude o
+resultado. **Toda vez que uma regra precisa de uma JANELA para funcionar, vale perguntar o
+que passa por ela indevidamente** — a resposta costuma existir e costuma ser um caso real.
