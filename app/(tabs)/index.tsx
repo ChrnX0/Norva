@@ -112,7 +112,7 @@ function Briefing() {
   const router = useRouter();
   const { locale } = useLocale();
 
-  const { data } = useQuery<Summary | null>(async () => {
+  const { data, error, refresh } = useQuery<Summary | null>(async () => {
     // The factory's day, not the phone's last 24 hours - and the comparison is
     // the same weekday a week back, because a Monday and a Saturday are
     // different businesses and comparing them teaches nothing.
@@ -405,6 +405,8 @@ function Briefing() {
     layout: preferencia?.layout ?? briefingLayout([], []),
     meias: preferencia?.meias ?? [],
     data: data ?? null,
+    erro: error,
+    denovo: refresh,
     sky,
     weather: weather ?? null,
     shortForOrders,

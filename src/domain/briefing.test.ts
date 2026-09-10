@@ -107,6 +107,31 @@ test('an answered query with nothing in it is the first day, not loading', () =>
   assert.equal(coverState(vazio), 'firstDay');
 });
 
+/**
+ * Falhou não é carregando — e a diferença é a frase mais cara da tela.
+ *
+ * Fotografado no aparelho em 9 de setembro: a capa com a linha de olho e mais
+ * NADA, por minutos, sem erro no log e sem uma palavra na tela. A capa é uma
+ * consulta só; quando ela falha o gancho devolve nulo, e nulo virava "carregando"
+ * — a tela esperava para sempre. E antes de esvaziar, com metade da resposta, ela
+ * escreveu "Parada agora: nada em produção, nada feito e nada saiu hoje":
+ * afirmando sobre a fábrica sem ter conseguido lê-la.
+ */
+test('a query that FAILED is not a query that has not arrived', () => {
+  const problema = new Error('database is locked');
+  assert.equal(coverState(null, problema), 'falhou');
+  // E a falha manda mesmo com resposta na mão: meia resposta que falhou continua
+  // sendo falha, e foi meia resposta que produziu a frase errada.
+  assert.equal(coverState(vazio, problema), 'falhou');
+  assert.equal(coverState({ ...vazio, madeToday: 500 }, problema), 'falhou');
+});
+
+test('a régua distingue: sem erro, nada vira falha', () => {
+  assert.equal(coverState(null, null), 'loading');
+  assert.equal(coverState(vazio, null), 'firstDay');
+  assert.equal(coverState({ ...vazio, madeToday: 500 }, null), 'day');
+});
+
 test('any sign of work makes it a day, one at a time', () => {
   const sinais = [
     { madeToday: 1 },

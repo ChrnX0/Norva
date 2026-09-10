@@ -8685,3 +8685,39 @@ execução, porque ele ainda tinha a rede escrita à mão, e isso é a guarda fu
 **A régua que fica:** *guarda de um arquivo protege um arquivo*. Quando o defeito é um
 RACIOCÍNIO repetido, a guarda tem de ser uma varredura — senão ela documenta o conserto
 em vez de garantir a regra, e a próxima cópia entra sem barulho.
+
+---
+
+## 9 de setembro — a capa afirmou sobre a fábrica sem ter conseguido lê-la
+
+**O que apareceu:** caminhando pelo aplicativo, a capa apareceu com a linha de olho e
+mais NADA — nem manchete, nem cena, nem peça —, e ficou assim. Sem exceção no log, sem
+tela de erro, sem uma palavra. Tocar em Início não trouxe nada de volta.
+
+**A causa estava no TIPO.** A capa é uma consulta só. Quando ela falha, `useQuery`
+devolve `data` nulo, e `CoverState` só admitia três valores: `loading`, `firstDay`, `day`.
+Nulo virava `'loading'` — então **uma leitura que falhou era indistinguível de uma que
+ainda não voltou**, e a tela esperava para sempre. A falha não tinha para onde ir.
+
+**E o pior não foi o vazio.** Um quadro antes, com metade da resposta, a capa escreveu
+*"Parada agora: nada em produção, nada feito e nada saiu hoje"* — uma frase sobre a
+fábrica, dita sem ter conseguido ler a fábrica. **Falha que se disfarça de fato é pior que
+falha barulhenta**: o dono lê "nada saiu hoje" e acredita. Este repositório inteiro existe
+para proteger números que alguém vai usar para decidir onde pôr dinheiro, e aqui a tela
+inventou um.
+
+**E é sistêmico, não da capa.** Medido: **52 chamadas de `useQuery` com desestruturação em
+todo o aplicativo, e ZERO pedem o campo `error`** — enquanto o docblock do próprio gancho
+diz, desde que foi escrito, que ele devolve *"os dois estados que uma tela de fato tem de
+desenhar: carregando e falhou"*. O estado "falhou" existe no gancho e não é desenhado em
+lugar nenhum. Toda tela do NORVA, quando a leitura dela falha, mostra um estado vazio.
+
+**O que mudou agora:** `CoverState` ganhou `'falhou'`, o erro atravessa até a capa, e a
+capa diz o que aconteceu com a próxima ação ao lado ("Ler de novo"). O teste cobra a
+distinção nos dois sentidos — com erro é falha mesmo com resposta na mão; sem erro nada
+vira falha.
+
+**A régua que fica:** *um tipo que não tem o estado ruim obriga a tela a mentir*. Não foi
+descuido de quem escreveu a capa: com três estados no tipo, `null` só podia virar
+"carregando". Onde houver leitura que pode falhar, o estado "falhou" entra no TIPO — senão
+ele vira silêncio, e silêncio numa tela de gestão é lido como fato.

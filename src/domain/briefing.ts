@@ -323,7 +323,27 @@ export function moveWidget(
  * Três estados, e a diferença entre os dois últimos é a coisa toda: **não sei**
  * não é **nada**.
  */
-export type CoverState = 'loading' | 'firstDay' | 'day';
+/**
+ * E o quarto estado nasceu de uma foto — 9 de setembro.
+ *
+ * A capa apareceu no aparelho com a linha de olho e mais NADA: nem manchete, nem
+ * cena, nem peça. Sem exceção no log, sem tela de erro, sem nada. A causa estava
+ * neste tipo: a capa é UMA consulta, e quando ela falha o gancho devolve `data`
+ * nulo — que aqui virava `'loading'`. **Uma leitura que falhou era indistinguível
+ * de uma que ainda não voltou**, e a tela esperava para sempre.
+ *
+ * Pior que o vazio foi o que veio antes dele. Com metade da resposta a capa
+ * escreveu *"Parada agora: nada em produção, nada feito e nada saiu hoje"* — uma
+ * frase sobre a fábrica, dita sem ter conseguido ler a fábrica. Falha que se
+ * disfarça de fato é a única coisa pior que falha barulhenta: o dono lê "nada
+ * saiu hoje" e acredita.
+ *
+ * Então a falha ganha nome. Quem chama passa o erro do gancho, e a tela desenha
+ * o que ela é — que é o que o docblock do `useQuery` promete desde sempre ao
+ * dizer que devolve "os dois estados que uma tela de fato tem de desenhar:
+ * carregando e falhou".
+ */
+export type CoverState = 'loading' | 'falhou' | 'firstDay' | 'day';
 
 export function coverState(
   /** Nulo enquanto a consulta não voltou. */
@@ -338,7 +358,10 @@ export function coverState(
     dueToday: readonly unknown[];
     lossesNow: number;
   } | null,
+  /** O que o gancho pegou, quando pegou. A falha vem ANTES do carregando. */
+  erro: Error | null = null,
 ): CoverState {
+  if (erro) return 'falhou';
   if (!data) return 'loading';
   // Comprar insumo não é trabalho da fábrica, é o estoque de partida — por isso
   // a compra não entra nesta conta. O que conta é o que saiu do tacho, o que foi

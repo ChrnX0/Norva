@@ -69,6 +69,15 @@ export type Summary = {
 
 export type BriefingView = {
   data: Summary | null;
+  /**
+   * O que a leitura do dia pegou, quando pegou.
+   *
+   * Sem isto a capa esperava para sempre: `data` nulo virava "carregando", e uma
+   * consulta que falhou é indistinguível de uma que ainda não voltou.
+   */
+  erro?: Error | null;
+  /** Ler de novo. A falha só é honesta se ela oferecer a saída. */
+  denovo?: () => void;
   sky: Reading | null;
   weather: Forecast | null;
   /** Pedido que falta produzir, já ordenado pelo tamanho da falta. */

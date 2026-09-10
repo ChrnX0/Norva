@@ -54,7 +54,7 @@ import type { BriefingView, Summary } from './types';
  * retângulos iguais que o dono recusou.
  */
 export function Mosaic(vista: BriefingView) {
-  const { data, sky, weather, shortForOrders, moved, layout, meias, go } = vista;
+  const { data, erro, denovo, sky, weather, shortForOrders, moved, layout, meias, go } = vista;
   const { color, type, space, palette, accent, traco } = useTheme();
   const { locale, t } = useLocale();
   const vestimenta = useVestimenta();
@@ -114,6 +114,7 @@ export function Mosaic(vista: BriefingView) {
           lossesNow: data.lossesNow,
         }
       : null,
+    erro ?? null,
   );
 
 
@@ -1062,6 +1063,43 @@ export function Mosaic(vista: BriefingView) {
    * entra no lugar das peças de trabalho vazias, e o preço, o dinheiro parado e
    * o tempo continuam dizendo o que sabem.
    */
+  /**
+   * A leitura falhou — e a capa DIZ isso, em vez de esperar para sempre.
+   *
+   * Esta é a tela que o dono abre de manhã. Quando a consulta do dia falha, o que
+   * havia aqui era a linha de olho e mais nada: nem manchete, nem cena, nem peça,
+   * nem uma palavra. E antes de esvaziar, com metade da resposta, ela chegou a
+   * escrever "Parada agora: nada em produção, nada feito e nada saiu hoje" —
+   * afirmando sobre a fábrica sem ter conseguido lê-la.
+   *
+   * A frase segue o tom da casa: diz o que aconteceu, não culpa ninguém, e não
+   * some com o resto da página. E oferece a próxima ação, que aqui é uma só.
+   */
+  if (estado === 'falhou') {
+    pecas.producao = (
+      <View>
+        <Manchete leve={t.app.home.capaLead} forte={t.app.home.readFailed} />
+        <View style={{ marginTop: space.md }}>
+          <FactoryScene running={false} shipped={false} dayShare={null} />
+        </View>
+        <Regua />
+        <Text style={[type.body, { color: color.inkMuted }]}>{t.app.home.readFailedBody}</Text>
+        {denovo ? (
+          <Touchable onPress={denovo} accessibilityLabel={t.app.home.readFailedAction}>
+            <Text style={[type.body, { color: accent, marginTop: space.md, fontWeight: '600' }]}>
+              {t.app.home.readFailedAction} →
+            </Text>
+          </Touchable>
+        ) : null}
+        {erro ? (
+          <Text style={[type.caption, { color: color.inkFaint, marginTop: space.sm }]}>
+            {erro.message}
+          </Text>
+        ) : null}
+      </View>
+    );
+  }
+
   if (estado === 'firstDay') {
     // No lugar da peça do dia, não no lugar da capa: o que as outras peças
     // souberem dizer continua dito, na ordem que a empresa escolheu.
