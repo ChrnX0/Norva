@@ -978,15 +978,24 @@ function Settings() {
             {t.app.settings.language.hint}
           </Text>
 
-          <View style={[styles.top, { gap: space.sm, marginTop: space.md }]}>
+          {/* **"Portugu / ês".** Os três botões dividiam a largura em três fatias
+              iguais (`flex: 1`), e a 360 dp — o piso do Android — a fatia é
+              menor que a palavra, então o nome do idioma quebrava no meio. Nome
+              partido não é nome, e cortar com reticências seria trocar este
+              defeito pelo outro que já está na lista: escolha que depende do
+              nome não pode mostrar meio nome.
+
+              A linha passa a QUEBRAR, e cada botão toma a largura da palavra
+              dele. Sem número mágico de largura: quem decide é o texto, em
+              qualquer dp, e no tablet os três continuam na mesma linha. */}
+          <View style={[styles.wrap, { gap: space.sm, marginTop: space.md }]}>
             {LANGUAGES.map(([qual, nome]) => (
-              <View key={qual} style={{ flex: 1 }}>
-                <Button
-                  label={nome}
-                  variant={locale.language === qual ? 'primary' : 'ghost'}
-                  onPress={() => setLanguage(qual)}
-                />
-              </View>
+              <Button
+                key={qual}
+                label={nome}
+                variant={locale.language === qual ? 'primary' : 'ghost'}
+                onPress={() => setLanguage(qual)}
+              />
             ))}
           </View>
 
