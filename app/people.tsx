@@ -73,7 +73,7 @@ function WhoWorksHere() {
   const { t } = useLocale();
   const words = t.app.people;
 
-  const { data, refresh } = useQuery<Loaded>(async () => {
+  const { data, error, refresh } = useQuery<Loaded>(async () => {
     const [people, profiles, capacidades] = await Promise.all([
       listPeople(empresaDaqui()),
       listProfiles(empresaDaqui()),
@@ -123,7 +123,13 @@ function WhoWorksHere() {
   };
 
   return (
-    <CollapsingHeader cena="gente" title={words.title} overline={words.overline}>
+    <CollapsingHeader
+      cena="gente"
+      title={words.title}
+      overline={words.overline}
+      erro={error}
+      denovo={refresh}
+    >
       <Reveal index={0}>
         {/* Sem título: o cabeçalho já diz "Pessoas" em cima, e repetir a palavra
             num crachá logo abaixo é rótulo inventado — a mesma regra que a tela

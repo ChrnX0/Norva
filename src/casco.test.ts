@@ -45,23 +45,17 @@ const AINDA_ENGOLEM = [
   'app/account.tsx',
   'app/assistant.tsx',
   'app/backup.tsx',
-  'app/carriers.tsx',
   'app/catalog.tsx',
   'app/extrato.tsx',
   'app/inputs/[id].tsx',
   'app/inputs/index.tsx',
   'app/inputs/new.tsx',
-  'app/losses.tsx',
-  'app/mirror.tsx',
-  'app/orders/index.tsx',
   'app/orders/new.tsx',
-  'app/people.tsx',
   'app/products/new.tsx',
   'app/purchase.tsx',
   'app/recipes/[id].tsx',
   'app/settings.tsx',
   'app/weather.tsx',
-  'app/who.tsx',
 ];
 
 function engole(caminho: string): boolean {

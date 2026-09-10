@@ -80,7 +80,7 @@ function Orders() {
    * batido. **Onde um ato rotineiro cai em irrecuperável, o conserto é construir
    * a volta, não a fricção** — e aqui a volta custa uma consulta mais larga.
    */
-  const { data, loading, refresh } = useQuery<Order[]>(() =>
+  const { data, loading, error, refresh } = useQuery<Order[]>(() =>
     listOrders(empresaDaqui(), ['pending', 'open', 'delivered', 'cancelled']),
   );
 
@@ -131,7 +131,13 @@ function Orders() {
   const antesDaLista = loading || pedidos.length === 0 ? 1 : 0;
 
   return (
-    <CollapsingHeader cena="pedidos" title={words.title} overline={words.overline}>
+    <CollapsingHeader
+      cena="pedidos"
+      title={words.title}
+      overline={words.overline}
+      erro={error}
+      denovo={refresh}
+    >
       {loading ? (
         <Reveal index={0}>
           <Card>

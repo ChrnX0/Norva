@@ -64,11 +64,17 @@ function Espelho() {
   const router = useRouter();
   const words = t.app.reports.mirror;
 
-  const { data } = useQuery<MirrorRow[]>(() => storeMirror(empresaDaqui(), DIAS));
+  const { data, error, refresh } = useQuery<MirrorRow[]>(() => storeMirror(empresaDaqui(), DIAS));
   const linhas = data ?? [];
 
   return (
-    <CollapsingHeader cena="espelho" title={words.title} overline={words.overline}>
+    <CollapsingHeader
+      cena="espelho"
+      title={words.title}
+      overline={words.overline}
+      erro={error}
+      denovo={refresh}
+    >
       <Reveal index={0}>
         <Text style={[type.caption, { color: color.inkFaint }]}>
           {fill(words.window, { days: String(DIAS) })}

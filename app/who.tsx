@@ -100,7 +100,7 @@ function Grade() {
   const { width } = useWindowDimensions();
   const colunas = width >= 840 ? 4 : width >= 600 ? 3 : 2;
 
-  const { data, refresh } = useQuery<Carregado>(async () => {
+  const { data, error, refresh } = useQuery<Carregado>(async () => {
     const [pessoas, perfis, atual] = await Promise.all([
       listPeople(empresaDaqui()),
       listProfiles(empresaDaqui()),
@@ -162,7 +162,13 @@ function Grade() {
   };
 
   return (
-    <CollapsingHeader cena="gente" title={words.title} overline={words.overline}>
+    <CollapsingHeader
+      cena="gente"
+      title={words.title}
+      overline={words.overline}
+      erro={error}
+      denovo={refresh}
+    >
       {/* Para que o nome serve, dito uma vez e no começo. O tom de voz aqui é o
           do projeto inteiro: orienta, não fiscaliza — e diz o que a coisa NÃO é,
           porque "seu nome fica gravado" sem essa frase soa a vigilância. */}

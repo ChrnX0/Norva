@@ -52,7 +52,7 @@ function QuemLeva() {
   const words = t.app.transport;
   const confirm = useConfirm();
 
-  const { data, refresh } = useQuery<Loaded>(async () => {
+  const { data, error, refresh } = useQuery<Loaded>(async () => {
     const [carriers, capacidades] = await Promise.all([
       listCarriers(empresaDaqui()),
       currentCapabilities(empresaDaqui()),
@@ -113,7 +113,13 @@ function QuemLeva() {
   };
 
   return (
-    <CollapsingHeader cena="transporte" title={words.carrierTitle} overline={words.carrierHint}>
+    <CollapsingHeader
+      cena="transporte"
+      title={words.carrierTitle}
+      overline={words.carrierHint}
+      erro={error}
+      denovo={refresh}
+    >
       <Reveal index={0}>
         <Card hue={palette.lilac} icon={(c) => <GlyphVehicle size={26} color={c} weight={traco} />}>
           {transportadoras.length === 0 ? (

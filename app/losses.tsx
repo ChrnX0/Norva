@@ -73,7 +73,7 @@ function WhatWasLost() {
    * duração, mesmos motivos, mesmo dinheiro — e é ela que transforma o número
    * em decisão de trocar o freezer ou não.
    */
-  const { data, loading } = useQuery<{ agora: LossRow[]; antes: LossRow[]; dinheiro: boolean }>(async () => {
+  const { data, loading, error, refresh } = useQuery<{ agora: LossRow[]; antes: LossRow[]; dinheiro: boolean }>(async () => {
     const hoje = dayWindow(nowIso(), locale.timeZone);
     const inicio = dayWindow(nowIso(), locale.timeZone, -29);
     const antesInicio = dayWindow(nowIso(), locale.timeZone, -59);
@@ -125,7 +125,13 @@ function WhatWasLost() {
   const indiceLista = mostraMotivos ? 2 : 1;
 
   return (
-    <CollapsingHeader cena="perdas" title={words.title} overline={words.window}>
+    <CollapsingHeader
+      cena="perdas"
+      title={words.title}
+      overline={words.window}
+      erro={error}
+      denovo={refresh}
+    >
       {/* QUANTO. A figura e, ao lado dela, quantas perdas somam esse dinheiro;
           embaixo, a conclusão do que pesou mais e a janela anterior — que é a
           única comparação honesta de uma perda com ela mesma. */}
