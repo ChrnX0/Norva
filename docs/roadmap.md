@@ -824,6 +824,25 @@ para sempre" é a resposta errada para uma resposta certa.
 
 Falta um caminho que a fila não tem: reconhecer *"esta linha não entra nunca, e está tudo
 bem"*, tirá-la da frente, e contar isso a quem conferiu.
+
+**E medido em 10 de setembro, a causa tem uma linha só:** o contrato do transporte é
+`PushResult = { acceptedIds: string[] }` (`src/sync/engine.ts:31`). Ele diz o que ENTROU e
+nada sobre o que ficou de fora — então `drain` não tem como distinguir uma lacuna passageira
+de uma recusa definitiva, e trata as duas do único jeito seguro que lhe resta: parar e tentar
+de novo (`engine.ts:168`, *"A gap. Stopping here is deliberate"*). Depois de três falhas
+seguidas a corrida desiste, **sem marcar nada**, e a mesma linha volta na rodada seguinte
+para sempre.
+
+A metade de engenharia, então, é conhecida e pequena, e vale para qualquer uma das três
+respostas do dono: `PushResult` ganha as REJEITADAS com uma classe (`permanente` contra
+`passageira`), `drain` põe as permanentes de lado em vez de retentar, e a fila anda. O que
+muda com a resposta dele é só o que acontece com a linha posta de lado — desfazer, marcar
+como não aplicada, ou avisar quem conferiu — e isso é tela, não motor.
+
+O que impede de construir a metade de engenharia hoje: quem classifica a recusa é o
+transporte, contra as respostas de um servidor de verdade, e **nenhuma linha subiu para
+servidor nenhum ainda**. Construir o classificador contra um erro que ninguém viu é adivinhar
+a forma do que se está protegendo.
 <!-- medida: espera decisão do dono: o segundo celular tem no razão dele uma conferência que o servidor recusou -->
 
 **A pergunta é de dono e não de engenharia:** o segundo celular tem uma conferência no razão
