@@ -1217,4 +1217,15 @@ function InputDetail() {
 }
 
 /** As cinco palavras que o servidor aceita, na ordem em que a fábrica as usa. */
-const REASONS: LossReason[] = ['expired', 'melted', 'broken', 'courtesy', 'internal_use'];
+// A ordem é a do que acontece mais, não a do enum: vencer e derreter são o dia a
+// dia; erro de produção e qualidade aparecem quando alguém está investigando, e
+// é aí que a lista precisa tê-los.
+const REASONS: LossReason[] = [
+  'expired',
+  'melted',
+  'broken',
+  'production_error',
+  'quality',
+  'courtesy',
+  'internal_use',
+];

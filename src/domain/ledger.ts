@@ -44,7 +44,31 @@ export type MovementKind =
  * because no loss has ever been recorded - which is the only window where a
  * ledger's vocabulary is free to change.
  */
-export type LossReason = 'melted' | 'broken' | 'expired' | 'courtesy' | 'internal_use';
+export type LossReason =
+  | 'melted'
+  | 'broken'
+  | 'expired'
+  | 'courtesy'
+  | 'internal_use'
+  /**
+   * Os dois que faltavam, e o que eles mudam.
+   *
+   * O motivo da perda existe para dizer ONDE mexer, e os cinco de cima cobrem o
+   * que acontece com o produto depois de pronto. "Saiu errado do tacho" caía em
+   * `broken`, e aí o relatório manda procurar no caminhão um problema que nasceu
+   * na dosagem.
+   *
+   *   derreteu          -> o freezer, o caminhão, a porta
+   *   quebrou           -> o transporte e a embalagem
+   *   erro de produção  -> a ficha, a dosagem, quem estava no turno
+   *   qualidade         -> o insumo e o fornecedor
+   *
+   * `production_error` e não `production`: este já é um `movement_kind`, e o
+   * mesmo símbolo para duas coisas no mesmo razão é confusão barata agora e cara
+   * depois.
+   */
+  | 'production_error'
+  | 'quality';
 
 /**
  * Por que a carga voltou — e por que isto NÃO é `LossReason`.

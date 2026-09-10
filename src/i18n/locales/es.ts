@@ -1585,6 +1585,8 @@ export const es: Dictionary = {
     expired: 'Venció',
     courtesy: 'Cortesía',
     internal_use: 'Consumo interno',
+    production_error: 'Error de producción',
+    quality: 'Problema de calidad',
     reasonRequired: 'Diga qué pasó — eso protege el reporte de todos.',
   },
 

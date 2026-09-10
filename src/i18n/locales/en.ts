@@ -1580,6 +1580,8 @@ export const en: Dictionary = {
     expired: 'Expired',
     courtesy: 'Courtesy',
     internal_use: 'Internal use',
+    production_error: 'Production error',
+    quality: 'Quality problem',
     reasonRequired: "Say what happened - it protects everyone's numbers.",
   },
 

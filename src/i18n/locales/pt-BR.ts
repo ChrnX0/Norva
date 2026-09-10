@@ -2031,6 +2031,8 @@ export const ptBR = {
     expired: 'Venceu',
     courtesy: 'Cortesia',
     internal_use: 'Consumo interno',
+    production_error: 'Erro de produção',
+    quality: 'Problema de qualidade',
     reasonRequired: 'Diga o que aconteceu — isso protege o relatório de todo mundo.',
   },
 
