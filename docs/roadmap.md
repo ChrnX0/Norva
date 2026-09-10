@@ -130,8 +130,10 @@ por peso, e o que já foi fechado:**
    movimento" ligado, tudo desenha, a rolagem funciona e a CPU cai de 190% para 41%. **A
    caminhada inteira teve de ser feita com o ambiente parado**, senão o aplicativo não se
    deixa dirigir. Isto é o item de baixo, e ele deixou de ser sobre bateria.
-5. **`norva://settings` não navega com o aplicativo aberto** — `norva://inputs` navega. Em
-   partida fria os dois funcionam. Importa para QR e notificação.
+5. **`norva://settings` não navega com o aplicativo aberto** — e isto foi reconferido
+   depois do conserto da renderização, com a capa desenhando perfeita e sendo a tela
+   errada: o intent é entregue e ignorado. `inputs`, `recipes`, `extrato` e `purchase`
+   navegam. Em partida fria todos funcionam. Importa para QR e notificação.
 6. **Quem entra por link direto numa tela interna não tem volta**: o botão voltar sai do
    aplicativo, porque não há pilha atrás.
 7. **A primeira ação que a capa oferece num aplicativo vazio é impossível.** *"Lançar a
