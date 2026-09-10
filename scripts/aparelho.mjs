@@ -975,6 +975,22 @@ const acoes = {
   fotos: () => fotos(process.argv[3], process.argv[4]),
   abrir: () => abrir(process.argv[3]),
   tela: () => tela(process.argv[3]),
+  // `tela` TROCA a largura; `ler` conta o que está escrito. Os dois nomes são
+  // parecidos e fazem coisas opostas — em 10 de setembro eu escrevi um roteiro de
+  // prova chamando `tela` para ler, e ele teria morrido com "tela desconhecida:
+  // undefined" depois de sete minutos de boot pagos. A leitura já existia aqui
+  // dentro, sem porta para fora.
+  ler: () => {
+    const linhas = oQueDizATela();
+    // Lista vazia é o `uiautomator` não tendo lido, e não tela sem texto — a
+    // diferença importa e o `try/catch` de `oQueDizATela` a apaga. Quem chama
+    // precisa saber qual dos dois aconteceu.
+    if (!linhas.length) {
+      console.error('a árvore veio vazia — o uiautomator não leu (janela nunca ociosa?)');
+      process.exit(2);
+    }
+    console.log(linhas.join('\n'));
+  },
   derrubar,
   // A régua descartável também passa por um caso verdadeiro e um falso — este
   // projeto já teve duas medidas de uma vez erradas por não fazer isso.
