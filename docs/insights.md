@@ -8900,3 +8900,37 @@ que ela não deve.
 **E o pedido do dono já estava construído.** Isso é a terceira vez nesta semana que a
 resposta para *"dá para fazer X?"* é *"X existe e alguma coisa depois o desfaz"*. O reflexo
 certo diante de um pedido não é ir construir: é medir o que já existe.
+
+---
+
+## 10 de setembro — a leitura que falha desenha igual a um fato, e isso é a pior classe de defeito daqui
+
+**O que apareceu:** ao ligar o estado de falha da capa eu escrevi que *"as outras 51 telas
+continuam engolindo o erro"*. Era estimativa. Medido: **32 telas chamam `useQuery` e UMA
+destrinchava o `error`.**
+
+**Por que importa mais do que um erro comum:** neste aplicativo vazio é uma AFIRMAÇÃO.
+"Não saiu nada hoje", "não há saldo", "não há ficha cadastrada" — as três dizem alguma
+coisa sobre a fábrica de alguém, e uma consulta que quebrou produz exatamente a mesma
+tela. O aplicativo inteiro existe para o número ser confiável; um defeito que não erra o
+número e sim o FATO é pior que um que erra a conta, porque a conta errada alguém confere.
+
+**O que mudou:** o casco por onde as 32 passam (`CollapsingHeader`) aprendeu a desenhar a
+falha. A razão está escrita nele desde antes, sobre a entrada em cascata — *"fazer isso
+tela por tela seria trinta arquivos e trinta chances de esquecer uma"* — e vale igual
+aqui, com uma diferença que decidiu a forma: entrada é COMPORTAMENTO e mora só no casco;
+o erro é DADO, e dado a tela precisa entregar. Então o casco desenha e uma guarda cobra a
+entrega.
+
+**A guarda entrou com dívida, e a dívida encolheu até zero na mesma rodada** — 31, 24, 18,
+12, 5, 0. Isso é o oposto de guarda que espera o trabalho acabar para entrar: ela entrou
+primeiro, com os nomes de fora escritos, e cada lote empurrou a lista para baixo com um
+segundo teste recusando nome já pago.
+
+**E o que sobrou não é dívida, é fronteira — a diferença me pegou no meio.** Liguei o
+assistente junto com os outros cinco e o `typecheck` recusou por escopo. Fui ver por quê e
+achei o docblock de `useCapacidades`: *"se este `useQuery` falhar, o assistente responde
+menos em vez de responder o que não devia"*. Fechar por omissão ali é decisão, e uma
+página de falha teria trocado uma tela que ainda serve por uma que não serve. A regra do
+`CLAUDE.md` — *antes de chamar algo de defeito, procure a decisão* — foi cumprida pelo
+compilador e não por mim.

@@ -121,13 +121,13 @@ por peso, e o que já foi fechado:**
 
 1. ~~A entrada congelada em seis componentes~~ — **fechada**, com a rede compartilhada e a
    varredura que a cobra (`src/components/chegada.ts`).
-2. ~~A capa afirmando "nada saiu hoje" sem ter lido~~ — **fechada** para a capa
-   (`CoverState` ganhou `'falhou'`). **E o resto agora tem número, medido em 10 de
-   setembro: 32 telas chamam `useQuery` e UMA destrincha o `error`** — a capa. Nas
-   outras 31, uma leitura que falha desenha exatamente como um estado vazio, e neste
-   aplicativo vazio quer dizer "não saiu nada hoje", "não há saldo", "não há ficha". O
-   conserto certo não é editar 31 telas: é a casca que já recebe `{loading, error}`
-   saber desenhar a falha, como a capa aprendeu a fazer.
+2. ~~A capa afirmando "nada saiu hoje" sem ter lido~~ — **fechada, e as outras 31 junto,
+   em 10 de setembro.** O número era estimativa ("as outras 51") e virou medida: 32 telas
+   chamavam `useQuery` e UMA destrinchava o `error`. Numa leitura que falha o desenho é
+   igual ao de um estado vazio, e vazio aqui é uma AFIRMAÇÃO — "não saiu nada hoje", "não
+   há saldo", "não há ficha". O `CollapsingHeader` passou a desenhar a falha e cada tela
+   entrega o erro; `src/casco.test.ts` cobra a entrega, com a lista de dívida em zero e
+   uma fronteira escrita de um nome só (o assistente, que fecha por omissão de propósito).
 3. ~~Os dois números de Receitas que não fechavam~~ — **fechada**.
 4. **O ambiente satura a thread de UI e o aplicativo passa a renderizar errado.** Provado
    ligando e desligando: com movimento, a capa esvazia, o Almoxarifado vem sem a lista, os
