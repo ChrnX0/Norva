@@ -8,6 +8,10 @@ import type { Dictionary } from './pt-BR';
  */
 export const es: Dictionary = {
   common: {
+    readFailed: 'No se pudo leer esta pantalla',
+    readFailedBody:
+      'No se perdió nada: todo lo que registraste sigue en el aparato. Prueba de nuevo; si sigue fallando, cierra y abre la aplicación.',
+    readFailedAction: 'Leer de nuevo',
     amountOf: '{{amount}} de {{name}}',
     /** Joins the last two items of a spoken list: "a, b y c". */
     and: 'y',

@@ -10,6 +10,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Reveal } from '@/components/Reveal';
+import { Card } from './Card';
+import { Touchable } from './Touchable';
+import { useLocale } from '@/i18n/useLocale';
 import { CenaDoCabecalho } from './cenas/Cena';
 import type { Cena } from './cenas/prancha';
 import { alternando, distribuir } from './colunas';
@@ -17,6 +20,39 @@ import { Mark } from './Mark';
 import { MEDIDA_DA_PAGINA, MEDIDA_EM_PARES, PARES_A_PARTIR_DE } from '@/theme/tokens';
 import { alturaDaCena as calcularAlturaDaCena } from './cenas/prancha';
 import { useTheme } from '@/theme/ThemeProvider';
+
+/**
+ * O que a página desenha quando a leitura dela falhou.
+ *
+ * Diz três coisas, nesta ordem, porque é nesta ordem que a pessoa precisa
+ * delas: que não deu para ler, que nada se perdeu, e como tentar de novo. A
+ * mensagem crua do erro fica por último, em corpo de legenda — ela não serve
+ * para quem opera, serve para quem for perguntar o que aconteceu.
+ *
+ * O tom segue o da casa: orienta, não fiscaliza, e não culpa ninguém. "Não deu
+ * para ler esta tela" é o aplicativo falando de si.
+ */
+function PaginaQueNaoLeu({ erro, denovo }: { erro: Error; denovo?: () => void }) {
+  const { color, type, space, palette } = useTheme();
+  const { t } = useLocale();
+  return (
+    <Reveal index={0}>
+      <Card hue={palette.apricot} title={t.common.readFailed}>
+        <Text style={[type.body, { color: color.inkMuted }]}>{t.common.readFailedBody}</Text>
+        {denovo ? (
+          <Touchable onPress={denovo} accessibilityLabel={t.common.readFailedAction}>
+            <Text style={[type.body, { color: color.ink, marginTop: space.md, fontWeight: '600' }]}>
+              {t.common.readFailedAction} →
+            </Text>
+          </Touchable>
+        ) : null}
+        <Text style={[type.caption, { color: color.inkFaint, marginTop: space.sm }]}>
+          {erro.message}
+        </Text>
+      </Card>
+    </Reveal>
+  );
+}
 
 const EXPANDED = 34;
 const COLLAPSED = 22;
@@ -50,10 +86,31 @@ export function CollapsingHeader({
   overline,
   cena,
   pares = false,
+  erro,
+  denovo,
   children,
 }: {
   title: string;
   overline?: string;
+  /**
+   * A leitura desta tela falhou, e é isto que a página desenha em vez do
+   * conteúdo.
+   *
+   * **Existe porque falha calada vira fato.** Uma consulta que quebrou deixa a
+   * tela com o mesmo desenho de um estado vazio — e vazio, neste aplicativo, é
+   * uma AFIRMAÇÃO: "não saiu nada hoje", "não há saldo", "não há ficha". Medido
+   * em 10 de setembro: 32 telas chamavam `useQuery` e UMA olhava o `error`.
+   *
+   * Mora no casco pelo mesmo motivo que a entrada em cascata mora — e o
+   * comentário que justifica aquela, poucas linhas abaixo, serve palavra por
+   * palavra aqui: *"fazer isso tela por tela seria trinta arquivos e trinta
+   * chances de esquecer uma"*. A diferença é que isto é DADO e não
+   * comportamento, então a tela precisa entregá-lo; quem cobra a entrega é
+   * `src/casco.test.ts`, que recusa tela com `useQuery` e sem `erro`.
+   */
+  erro?: Error | null;
+  /** Ler de novo. Sem ela a página de falha informa e não oferece saída. */
+  denovo?: () => void;
   /**
    * O desenho vivo desta tela.
    *
@@ -270,7 +327,9 @@ export function CollapsingHeader({
             nulos que as telas devolvem quando um cartão não se aplica - sem
             isso, um cartão ausente contaria como posição e abriria um buraco de
             quarenta milissegundos no meio da sequência. */}
-        {emPares
+        {erro ? (
+          <PaginaQueNaoLeu erro={erro} denovo={denovo} />
+        ) : emPares
           ? emColunas(Children.toArray(children), space.md)
           : Children.toArray(children).map((filho, i) =>
               // Quem JÁ é uma entrada não ganha outra por cima.

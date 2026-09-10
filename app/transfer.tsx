@@ -108,7 +108,7 @@ function Transfer() {
   const router = useRouter();
   const words = t.app.transfer;
 
-  const { data, refresh } = useQuery<Loaded>(async () => {
+  const { data, error, refresh } = useQuery<Loaded>(async () => {
     // Os pedidos em aberto entram na abertura da tela, e não no envio, porque é
     // ANTES de digitar que eles decidem: quem carrega precisa saber que aquelas
     // caixas têm dono enquanto ainda dá para mandar menos.
@@ -457,7 +457,13 @@ function Transfer() {
    */
   if (destinations.length === 0) {
     return (
-      <CollapsingHeader cena="separacao" title={words.title} overline={words.overline}>
+      <CollapsingHeader
+        cena="separacao"
+        title={words.title}
+        overline={words.overline}
+        erro={error}
+        denovo={refresh}
+      >
         <Reveal index={0}>
           <Card
             hue={palette.lilac}

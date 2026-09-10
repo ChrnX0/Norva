@@ -102,7 +102,7 @@ function Carrinho() {
   const lojas = (lugares ?? []).filter((p) => p.id !== fabrica);
   const loja = lojas.find((p) => p.id === lojaId) ?? lojas[0] ?? null;
 
-  const { data, refresh } = useQuery<Carregado | null>(async () => {
+  const { data, error, refresh } = useQuery<Carregado | null>(async () => {
     if (!loja) return null;
     const hoje = dayWindow(nowIso(), locale.timeZone);
     const [places, carriers, linhas, itens, carrinho] = await Promise.all([
@@ -215,7 +215,13 @@ function Carrinho() {
   };
 
   return (
-    <CollapsingHeader cena="separacao" title={words.title} overline={words.overline}>
+    <CollapsingHeader
+      cena="separacao"
+      title={words.title}
+      overline={words.overline}
+      erro={error}
+      denovo={refresh}
+    >
       {/* Para qual loja. Mesma lista da transferência, e a escolha marca com a
           tinta e o peso da palavra — caixa desenhada à mão aqui era o que não
           tinha como virar Papel. */}

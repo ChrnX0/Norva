@@ -122,7 +122,7 @@ function Production() {
   const askConfirm = useConfirm();
   const words = t.app.production;
 
-  const { data, loading, refresh } = useQuery<Loaded>(async () => {
+  const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
     // O saldo lido é o da SALA em que o tacho roda — a mesma que a corrida grava,
     // logo abaixo. Ler o total da empresa aqui era a Lei 5 ao contrário: a tela
     // dizia que havia polpa, liberava o botão, e o piso do livro-razão (que conta
@@ -434,7 +434,13 @@ function Production() {
 
   if (!loading && (!data || data.products.length === 0)) {
     return (
-      <CollapsingHeader cena="producao" title={words.formTitle} overline={words.formOverline}>
+      <CollapsingHeader
+        cena="producao"
+        title={words.formTitle}
+        overline={words.formOverline}
+        erro={error}
+        denovo={refresh}
+      >
         {/* Estado vazio é desenho, uma frase e a saída — e a saída aqui é a
             receita, que se cadastra noutra tela e não se navega daqui: esta é
             uma tela empilhada, e o caminho de volta é o de sempre. */}

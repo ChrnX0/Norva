@@ -121,7 +121,7 @@ function Places() {
   const router = useRouter();
   const words = t.app.places;
 
-  const { data, refresh } = useQuery<Loaded>(async () => {
+  const { data, error, refresh } = useQuery<Loaded>(async () => {
     const [places, stock, readings, capacidades] = await Promise.all([
       listPlaces(empresaDaqui()),
       stockByPlace(empresaDaqui()),
@@ -273,7 +273,13 @@ function Places() {
   const depoisDosLugares = primeiroLugar + lugares.length;
 
   return (
-    <CollapsingHeader cena="lojas" title={words.title} overline={words.overline}>
+    <CollapsingHeader
+      cena="lojas"
+      title={words.title}
+      overline={words.overline}
+      erro={error}
+      denovo={refresh}
+    >
       {semNada ? (
         <Reveal index={0}>
           <Card hue={palette.mint} icon={(c) => <GlyphFactory size={26} color={c} weight={traco} />}>

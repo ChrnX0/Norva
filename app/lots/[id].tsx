@@ -92,7 +92,7 @@ function Label() {
   // A Lei 5 pede que o erro impeça em vez de reclamar: se a carga já saiu, a
   // tela diz isso antes, com o item pelo nome, em vez de deixar a pessoa tocar
   // e receber "não foi possível".
-  const { data, loading, refresh } = useQuery<Loaded>(async () => {
+  const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
     const lot = await findLot(empresaDaqui(), id);
     if (!lot?.runGroupId) return { lot, plan: null };
     return { lot, plan: await planReversal(empresaDaqui(), lot.runGroupId) };
@@ -192,7 +192,13 @@ function Label() {
    */
   if (!loading && !lote) {
     return (
-      <CollapsingHeader cena="lotes" title={t.app.lotLabel.title} overline={t.app.lotLabel.overline}>
+      <CollapsingHeader
+        cena="lotes"
+        title={t.app.lotLabel.title}
+        overline={t.app.lotLabel.overline}
+        erro={error}
+        denovo={refresh}
+      >
         <Reveal index={0}>
           <Card hue={palette.apricot} icon={etiqueta}>
             <Text style={[type.body, { color: color.ink }]}>

@@ -71,7 +71,7 @@ function ProductsList() {
   const router = useRouter();
   const { locale, t } = useLocale();
 
-  const { data, loading } = useQuery<{ rows: Row[]; dinheiro: boolean }>(async () => {
+  const { data, loading, error, refresh } = useQuery<{ rows: Row[]; dinheiro: boolean }>(async () => {
     const [products, graph, custos, names] = await Promise.all([
       listProducts(empresaDaqui()),
       loadRecipeGraph(empresaDaqui()),
@@ -165,7 +165,13 @@ function ProductsList() {
   );
 
   return (
-    <CollapsingHeader cena="produtos" title={t.app.products.title} overline={t.app.products.overline}>
+    <CollapsingHeader
+      cena="produtos"
+      title={t.app.products.title}
+      overline={t.app.products.overline}
+      erro={error}
+      denovo={refresh}
+    >
       {loading ? (
         <Reveal index={0}>
           <Card>

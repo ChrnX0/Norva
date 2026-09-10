@@ -3,6 +3,10 @@ import type { Dictionary } from './pt-BR';
 /** English. */
 export const en: Dictionary = {
   common: {
+    readFailed: 'This screen did not load',
+    readFailedBody:
+      'Nothing was lost — everything you recorded is still on the device. Try again; if it keeps failing, close and reopen the app.',
+    readFailedAction: 'Read again',
     amountOf: '{{amount}} of {{name}}',
     /** Joins the last two items of a spoken list: "a, b and c". */
     and: 'and',

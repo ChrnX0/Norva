@@ -12,6 +12,17 @@
  */
 export const ptBR = {
   common: {
+    /**
+     * **A leitura que falha desenha igual a um estado vazio, e vazio aqui é um
+     * FATO.** "Não saiu nada hoje", "não há saldo", "não há ficha cadastrada" —
+     * as três são afirmações sobre a fábrica, e uma consulta que quebrou produz
+     * exatamente a mesma tela. Medido em 10 de setembro: 32 telas chamam
+     * `useQuery` e uma destrinchava o erro.
+     */
+    readFailed: 'Não deu para ler esta tela',
+    readFailedBody:
+      'Nada se perdeu — tudo o que você lançou continua gravado no aparelho. Tente de novo; se insistir, feche e abra o aplicativo.',
+    readFailedAction: 'Ler de novo',
     amountOf: '{{amount}} de {{name}}',
     /** Joins the last two items of a spoken list: "a, b e c". */
     and: 'e',
