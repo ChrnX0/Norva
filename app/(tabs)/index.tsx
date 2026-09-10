@@ -4,6 +4,7 @@ import {
   countMovements,
   expiringSoon,
   listItems,
+  listRecipes,
   listPlaces,
   lossesOn,
   openProductionRuns,
@@ -159,6 +160,7 @@ function Briefing() {
       lossesBefore,
       places,
       stockItems,
+      fichas,
     ] = await Promise.all([
       recentCostChanges(empresaDaqui(), 12),
       // A MESMA unidade das vizinhas logo abaixo. Sem isto a manchete contava as
@@ -201,6 +203,9 @@ function Briefing() {
       // vale o que eu tenho aqui", e somar o almoxarifado da outra cidade daria um
       // número que quem está com o aparelho não consegue usar para decidir nada.
       listItems(empresaDaqui(), undefined, false, { unidade: unidadeDaqui() }),
+      // Da EMPRESA e não da unidade: a pergunta que isto responde é "esta fábrica
+      // já tem ficha técnica", e uma ficha cadastrada na outra cidade conta.
+      listRecipes(empresaDaqui()),
     ]);
 
     /**
@@ -309,6 +314,11 @@ function Briefing() {
       everMade: madeToday.length > 0 || madeThen.length > 0 || semana.some((d) => d.total > 0),
       boxes,
       boxesYesterday,
+      preparo: {
+        insumos: stockItems.filter((i) => i.kind === 'input' || i.kind === 'packaging').length,
+        fichas: fichas.length,
+        produtos: stockItems.filter((i) => i.kind === 'product' || i.kind === 'resale').length,
+      },
       loose,
       running: running.map((r) => ({
         id: r.id,

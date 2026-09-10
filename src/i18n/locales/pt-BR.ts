@@ -188,6 +188,14 @@ export const ptBR = {
       mathNoBase: 'primeiro dia com produção registrada',
       firstDayBody: 'A capa se enche sozinha conforme a fábrica trabalha: o que saiu hoje, o que está acabando, o que os clientes pediram.',
       firstDayAction: 'Lançar a primeira produção',
+      /**
+       * A cadeia antes da primeira corrida. A capa oferecia produzir num
+       * aplicativo sem ficha nenhuma, e o toque batia numa tela que explicava o
+       * impedimento sem oferecer a porta.
+       */
+      firstStepInput: 'Cadastrar o que você compra',
+      firstStepRecipe: 'Cadastrar a ficha técnica',
+      firstStepProduct: 'Cadastrar o produto',
       readFailed: 'não deu para ler o dia',
       readFailedBody: 'A capa não conseguiu montar as contas de hoje. Nada se perdeu — tudo o que foi lançado continua gravado no aparelho.',
       readFailedAction: 'Ler de novo',

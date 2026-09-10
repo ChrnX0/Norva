@@ -410,3 +410,33 @@ export function todayRank(series: readonly { total: number }[]): number | null {
   if (hoje === 0) return null;
   return 1 + series.slice(0, -1).filter((d) => d.total > hoje).length;
 }
+
+/**
+ * O que a fábrica precisa fazer ANTES de conseguir produzir — e por que a capa
+ * do primeiro dia oferecia uma porta trancada.
+ *
+ * Num aplicativo recém-instalado a capa dizia *"Lançar a primeira produção"*, o
+ * toque abria a tela de produção e ela respondia *"Nenhum produto tem ficha
+ * técnica ainda. Cadastre a receita primeiro."* — explicando o impedimento e
+ * **sem oferecer a porta**. A primeira ação que o produto sugere a um dono novo
+ * não pode ser a única que ele ainda não tem como fazer.
+ *
+ * A cadeia é fixa e o sistema já sabe onde ela parou: sem insumo não há ficha
+ * que custe alguma coisa; sem ficha não há produto; sem produto não há corrida.
+ * Lei 1 — não se pergunta o que dá para deduzir — e "a próxima ação PROVÁVEL",
+ * que num aplicativo vazio é cadastrar o que se compra, não produzir.
+ *
+ * Devolve FATO e não frase: quem escreve português é a tela.
+ */
+export type PrimeiroPasso = 'insumo' | 'ficha' | 'produto' | 'producao';
+
+export function primeiroPasso(preparo: {
+  insumos: number;
+  fichas: number;
+  produtos: number;
+}): PrimeiroPasso {
+  if (preparo.insumos === 0) return 'insumo';
+  if (preparo.fichas === 0) return 'ficha';
+  if (preparo.produtos === 0) return 'produto';
+  return 'producao';
+}

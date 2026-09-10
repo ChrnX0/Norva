@@ -145,6 +145,24 @@ export function Field({
           secureTextEntry={segredo}
           autoCapitalize={caixaAutomatica}
           autoCorrect={!segredo}
+          /**
+           * **O teclado não pode comer a dica.**
+           *
+           * Deitado — e o dono tem tablet —, o Android troca a tela inteira pelo
+           * "editor extraído": uma caixa de texto no topo e branco embaixo. É o
+           * padrão da plataforma e faz sentido para um campo de busca; aqui ele
+           * apaga exatamente a metade que justifica este componente existir. O
+           * docblock lá em cima diz qual: *"`hint` é onde a inteligência
+           * aparece: o campo explica o que o sistema já deduziu do que foi
+           * digitado"* — R$ 4,72 por quilo virando 0,472 centavo por grama,
+           * "faltam 3 letras", "sobram 12.000 g de 12.000".
+           *
+           * Sem a dica o campo vira uma caixa vazia pedindo um número, que é o
+           * tipo de formulário que este aplicativo existe para não ser. Eu vi
+           * essa tela uma vez numa foto do emulador; o que decide não é a foto, é
+           * que o custo dela é perder a conta enquanto se digita.
+           */
+          disableFullscreenUI
           textContentType={segredo ? 'password' : 'none'}
           accessibilityLabel={label}
           selectionColor={accent}

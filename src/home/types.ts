@@ -38,6 +38,15 @@ export type Summary = {
   /** Os sete últimos dias, para a capa dizer o que é NORMAL e não só o que foi hoje. */
   series: { date: string; total: number }[];
   everMade: boolean;
+  /**
+   * Onde a cadeia de cadastro parou: quantos insumos, fichas e produtos existem.
+   *
+   * A capa do primeiro dia oferecia "Lançar a primeira produção" num aplicativo
+   * sem ficha nenhuma, e o toque batia numa tela que explicava o impedimento sem
+   * oferecer a porta. Com isto ela sabe qual é a próxima ação PROVÁVEL — que num
+   * aplicativo vazio é cadastrar o que se compra.
+   */
+  preparo: { insumos: number; fichas: number; produtos: number };
   /** O que acaba dentro de uma semana, pelo consumo que o livro-razão viu. */
   shortly: Running[];
   /** Volumes que saíram hoje, e o que saiu sem caber em volume nenhum. */

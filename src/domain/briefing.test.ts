@@ -4,6 +4,7 @@ import {
   avisoDaCopia,
   DIAS_ATE_A_COPIA_ENVELHECER,
   addWidget,
+  primeiroPasso,
   briefingFilas,
   BRIEFING_WIDGETS,
   briefingLayout,
@@ -246,4 +247,24 @@ test('the copy warning shows up when it should, and stays quiet when it should n
   // E uma cópia velha continua velha mesmo numa fábrica parada: o razão que já
   // existe é o que se perde, e ele não deixa de existir porque hoje foi quieto.
   assert.equal(avisoDaCopia({ diasAtras: 30 }, false), 'velha');
+});
+
+test('a primeira ação da capa é o passo que a fábrica ainda não deu', () => {
+  // A cadeia inteira, na ordem em que ela trava.
+  assert.equal(primeiroPasso({ insumos: 0, fichas: 0, produtos: 0 }), 'insumo');
+  assert.equal(primeiroPasso({ insumos: 3, fichas: 0, produtos: 0 }), 'ficha');
+  assert.equal(primeiroPasso({ insumos: 3, fichas: 1, produtos: 0 }), 'produto');
+  assert.equal(primeiroPasso({ insumos: 3, fichas: 1, produtos: 1 }), 'producao');
+});
+
+test('o passo olha o que FALTA, não o que já existe depois dele', () => {
+  // O caso que separa esta régua de uma contagem qualquer: quem tem produto mas
+  // perdeu o insumo continua tendo de produzir — o buraco está atrás, e voltar
+  // para o cadastro de insumo por causa dele seria mandar refazer o feito.
+  //
+  // Esta é a fronteira e ela é deliberada: a régua responde "por onde começar",
+  // e começar é sempre pelo elo que falta primeiro. Quem chega aqui com produto
+  // e sem insumo não é fábrica nova — é fábrica que apagou o almoxarifado.
+  assert.equal(primeiroPasso({ insumos: 0, fichas: 1, produtos: 1 }), 'insumo');
+  assert.notEqual(primeiroPasso({ insumos: 1, fichas: 1, produtos: 1 }), 'insumo');
 });

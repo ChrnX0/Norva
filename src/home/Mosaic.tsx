@@ -27,7 +27,14 @@ import type { Dictionary, LocaleSettings } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
 import { nowIso } from '@/data/db';
-import { avisoDaCopia, briefingFilas, coverState, type BriefingWidget } from '@/domain/briefing';
+import {
+  avisoDaCopia,
+  briefingFilas,
+  coverState,
+  primeiroPasso,
+  type BriefingWidget,
+  type PrimeiroPasso,
+} from '@/domain/briefing';
 import { daysBetween, localDate } from '@/domain/day';
 import type { Cents } from '@/domain/money';
 import { brand } from '@/config/brand';
@@ -1100,6 +1107,10 @@ export function Mosaic(vista: BriefingView) {
     );
   }
 
+  // Sem dado ainda não há passo a sugerir, e o estado 'firstDay' só existe com
+  // dado na mão — o zero aqui nunca chega à tela, é o piso do tipo.
+  const passo = primeiroPasso(data?.preparo ?? { insumos: 0, fichas: 0, produtos: 0 });
+
   if (estado === 'firstDay') {
     // No lugar da peça do dia, não no lugar da capa: o que as outras peças
     // souberem dizer continua dito, na ordem que a empresa escolheu.
@@ -1118,12 +1129,15 @@ export function Mosaic(vista: BriefingView) {
           <Legenda>{t.app.home.capaLegend}</Legenda>
           <Regua />
           <Text style={[type.body, { color: color.inkMuted }]}>{t.app.home.firstDayBody}</Text>
-          <Touchable
-            onPress={() => go('/production/new')}
-            accessibilityLabel={t.app.home.firstDayAction}
-          >
+          {/* A primeira ação é o passo que a fábrica ainda NÃO deu, e não a
+              corrida de produção sempre. A capa oferecia produzir num aplicativo
+              sem ficha nenhuma; o toque abria a tela de produção e ela respondia
+              "cadastre a receita primeiro" — explicando o impedimento e sem
+              oferecer a porta. Quem decide é `primeiroPasso`, no domínio, que
+              devolve fato; a frase e a rota são desta tela. */}
+          <Touchable onPress={() => go(PASSO[passo].rota)} accessibilityLabel={PASSO[passo].frase(t)}>
             <Text style={[type.body, { color: accent, marginTop: space.md, fontWeight: '600' }]}>
-              {t.app.home.firstDayAction} →
+              {PASSO[passo].frase(t)} →
             </Text>
           </Touchable>
 
@@ -1283,6 +1297,18 @@ const styles = StyleSheet.create({
  * Zero não vira "+0" — dia igual é dia igual, e um sinal ali sugere movimento
  * que não houve.
  */
+/**
+ * Cada passo da cadeia com a porta dele. A tabela mora fora do componente porque
+ * é dado, e porque `primeiroPasso` já garante que os quatro casos existem — um
+ * `switch` aqui repetiria a decisão que o domínio tomou.
+ */
+const PASSO: Record<PrimeiroPasso, { rota: string; frase: (t: Dictionary) => string }> = {
+  insumo: { rota: '/inputs/new', frase: (t) => t.app.home.firstStepInput },
+  ficha: { rota: '/recipes/new', frase: (t) => t.app.home.firstStepRecipe },
+  produto: { rota: '/products/new', frase: (t) => t.app.home.firstStepProduct },
+  producao: { rota: '/production/new', frase: (t) => t.app.home.firstDayAction },
+};
+
 function sinal(diferenca: number, locale: LocaleSettings): string | null {
   if (diferenca === 0) return null;
   const corpo = formatQuantity(Math.abs(diferenca), locale);
