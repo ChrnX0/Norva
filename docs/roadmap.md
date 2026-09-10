@@ -135,10 +135,25 @@ por peso, e o que já foi fechado:**
    movimento" ligado, tudo desenha, a rolagem funciona e a CPU cai de 190% para 41%. **A
    caminhada inteira teve de ser feita com o ambiente parado**, senão o aplicativo não se
    deixa dirigir. Isto é o item de baixo, e ele deixou de ser sobre bateria.
-5. **`norva://settings` não navega com o aplicativo aberto** — e isto foi reconferido
-   depois do conserto da renderização, com a capa desenhando perfeita e sendo a tela
-   errada: o intent é entregue e ignorado. `inputs`, `recipes`, `extrato` e `purchase`
-   navegam. Em partida fria todos funcionam. Importa para QR e notificação.
+5. ~~**`norva://settings` não navega com o aplicativo aberto**~~ — **não era defeito: era
+    a minha régua lendo cedo demais, e ela sobreviveu a duas conferências.** Medido em 10 de
+    setembro com a ferramenta consertada: `norva://losses` leva até 42 s para trocar a tela
+    neste emulador e `norva://settings` até 63 s — Ajustes roda meia dúzia de `COUNT(*)`
+    antes de desenhar. Eu lia a árvore de acessibilidade 6 ou 7 segundos depois do intent e
+    recebia a tela ANTERIOR, o que se lê exatamente como "o intent foi entregue e ignorado".
+
+    A assimetria que parecia prova era o mesmo artefato: `recipes`, `extrato` e `purchase`
+    "navegavam" porque são telas leves que cabiam na espera, e `settings` não. E a leitura
+    chegou a andar **uma tela atrás** por várias rodadas seguidas, confirmando o diagnóstico
+    errado a cada repetição — que é o que fez o item durar.
+
+    **O conserto é na ferramenta, não no aplicativo.** `abrir` (`scripts/aparelho.mjs`)
+    deixou de voltar na hora: lê o texto da tela antes, dispara o intent, e espera até o
+    texto mudar, dizendo em quantos segundos mudou. Se não mudar dentro do teto, ele FALHA —
+    "a tela não mudou" é a afirmação que se quer provar e não pode passar por omissão. O
+    número sai como *"em até"*, porque cada volta do laço paga a leitura da árvore e essa
+    parte é o instrumento, não o aplicativo.
+
 6. **Quem entra por link direto numa tela interna não tem volta**: o botão voltar sai do
    aplicativo, porque não há pilha atrás.
 7. ~~**A primeira ação que a capa oferece num aplicativo vazio é impossível.**~~ —

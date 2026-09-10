@@ -445,7 +445,7 @@ const PISO_DE_TEXTO = 4.5;
 async function foto(nome, rota) {
   if (!nome) throw new Error('uso: node scripts/aparelho.mjs foto <nome> [rota]');
   if (rota) {
-    abrir(rota, { reiniciar: true });
+    await abrir(rota, { reiniciar: true, esperar: false });
     await esperarTelaParar();
     await esperarPaginaComTinta();
   }
@@ -569,10 +569,33 @@ function tela(nome) {
  * ninguém usava. Navegar por toque em coordenada era o outro caminho, e ele é pior
  * em tudo: quebra quando o layout muda, que é exatamente o que se está medindo.
  */
-function abrir(rota, { reiniciar = false } = {}) {
+/**
+ * Abre uma rota por ligação profunda — e ESPERA a tela mudar, medindo quanto levou.
+ *
+ * **Ele voltava na hora, e isso fabricou um item de defeito que sobreviveu a duas
+ * conferências — 10 de setembro.** Quem chamasse tinha de adivinhar o tempo de
+ * espera, e a adivinhação era 6 ou 7 segundos. Neste emulador sem KVM uma navegação
+ * leva de dez a vinte, e as telas pesadas passam disso: Ajustes roda meia dúzia de
+ * `COUNT(*)` antes de desenhar.
+ *
+ * O resultado é a armadilha mais convincente que este projeto já produziu, porque
+ * ela não parece erro de medida — parece o app ignorando o intent. Lendo a árvore
+ * cedo demais você recebe a tela ANTERIOR, e `norva://settings` "não navegava"
+ * enquanto `norva://recipes` "navegava": a diferença não era a rota, era o tempo de
+ * desenho de cada uma. A leitura chegava a andar uma tela atrás por várias rodadas
+ * seguidas, o que confirma o diagnóstico errado a cada repetição.
+ *
+ * Então a espera deixa de ser adivinhada: o comando lê o texto da tela ANTES, dispara
+ * o intent, e volta a ler até o texto mudar — dizendo em quantos segundos mudou, que
+ * é um número que ninguém tinha. Se não mudar dentro do teto, ele FALHA em vez de
+ * seguir calado, porque "a tela não mudou" é exatamente a afirmação que se quer
+ * provar e ela não pode passar por omissão.
+ */
+async function abrir(rota, { reiniciar = false, esperar = true } = {}) {
   if (!rota) return;
   const limpa = String(rota).replace(/^\/+/, '');
   const alvo = `${ESQUEMA}://${limpa}`;
+  const antes = esperar ? oQueDizATela().join('\n') : null;
   // `am start` SAI ZERO quando o intent não resolve — ele imprime `Error:` e pronto.
   // É o mesmo modo de falha do `screencap` devolvendo retângulo preto: o comando
   // passa e a prova não existe. Então quem decide aqui é a saída, não o código.
@@ -581,7 +604,30 @@ function abrir(rota, { reiniciar = false } = {}) {
   if (/Error:/.test(saida)) {
     throw new Error(`${alvo} não abriu:\n${saida}`);
   }
-  dizer(`abrindo ${alvo}`);
+  if (!esperar) {
+    dizer(`abrindo ${alvo}`);
+    return;
+  }
+  const inicio = Date.now();
+  const TETO = 150_000;
+  while (Date.now() - inicio < TETO) {
+    await dormir(2000);
+    const agora = oQueDizATela().join('\n');
+    // Lista vazia é o `uiautomator` não tendo lido, não é tela nova. Tratá-la como
+    // mudança faria a espera terminar exatamente quando o instrumento falhou.
+    if (agora && agora !== antes) {
+      // **"em ATÉ", e não "em".** Cada volta do laço custa a leitura da árvore, que
+      // neste emulador leva dezenas de segundos — então o número inclui o
+      // instrumento. Dizer "a tela mudou em 42s" seria vender a granularidade da
+      // sonda como tempo do app, que é o mesmo defeito que trouxe a gente aqui.
+      dizer(`abrindo ${alvo} — a tela mudou em até ${Math.round((Date.now() - inicio) / 1000)}s`);
+      return;
+    }
+  }
+  throw new Error(
+    `${alvo}: a tela não mudou em ${TETO / 1000}s. Ou a rota não navega, ou este ` +
+    'aparelho está mais lento que isso — e as duas coisas precisam ser ditas, não supostas.',
+  );
 }
 
 /**
@@ -777,7 +823,7 @@ async function fotos(nome, rota) {
       // Foi assim que a segunda largura ficou quatro minutos esperando uma tela que
       // ninguém tinha mandado montar. Parar o app antes de abrir custa a partida fria
       // e devolve a mesma tela em toda largura, que é o que a comparação exige.
-      abrir(rota, { reiniciar: true });
+      await abrir(rota, { reiniciar: true, esperar: false });
       const parou = await esperarTelaParar();
       desenhou = parou.parou;
       titulos.push(parou.diz[0] ?? '');
