@@ -109,13 +109,28 @@ async function subir() {
   // instantâneo salvo na saída faz as seguintes custarem segundos. Três núcleos e não
   // quatro: o quarto fica para o Metro e o resto, senão o System UI leva ANR.
   //
-  // **Quatro gigas e não três — medido em 10 de setembro.** Com 3072 a instalação
-  // do APK de 29 MB MATAVA o `system_server`: o serviço `package` respondia seis
-  // checagens seguidas antes, e depois da tentativa `pidof system_server` não
-  // devolvia nada. O erro que chega ao terminal é `Failure calling service
-  // package: Broken pipe (32)` — que parece problema de canal e é o servidor do
-  // outro lado morrendo no meio. O que come a memória é o `dex2oat` do install
-  // numa CPU emulada por software. O hospedeiro tem quinze gigas.
+  // **Quatro gigas e não três, e a razão honesta é "não custa" — 10 de setembro.**
+  //
+  // O que se sabe, medido: a instalação do APK de 29 MB deixou de funcionar no
+  // meio do dia. O erro é `Failure calling service package: Broken pipe (32)` ou
+  // `Can't find service: package`, e o `system_server` some junto — o serviço
+  // respondia seis checagens seguidas antes da tentativa e nenhuma depois.
+  //
+  // O que se sabe que NÃO é, cada um derrubado por medida e não por opinião:
+  //
+  //   instantâneo degradado  -> boot com `-no-snapshot-load` falha igual
+  //   memória do aparelho    -> subiu para 4096 e falha igual
+  //   disco do hospedeiro    -> `dd` de 300 MB dentro do aparelho escreve liso
+  //   APK corrompido         -> `unzip -t` sem erro, assinatura no lugar
+  //
+  // E o que o log mostra e explica o resto: `StartPackageManagerService took to
+  // complete: 80126ms`. O emulador não está quebrado, está GLACIAL — oitenta
+  // segundos para o serviço de pacotes subir —, e todo caminho de instalação
+  // estoura antes disso.
+  //
+  // Então os 4096 ficam porque o hospedeiro tem quinze gigas e não custa nada,
+  // **não porque foi provado que resolvem** — não foram. Quem retomar isto
+  // começa por um AVD novo, que é a única coisa que ainda não foi tentada.
   const filho = spawn(
     EMU,
     ['-avd', AVD, '-no-window', '-no-audio', '-no-boot-anim',

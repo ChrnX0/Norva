@@ -221,6 +221,16 @@ virar afirmação. **Seis fechados no mesmo dia:**
     por uma caixa de texto no topo com branco embaixo, apagando a dica que devolve a conta
     a cada tecla, que é a metade pela qual o `Field` existe.
 
+26. **O emulador deixou de instalar o APK, e não é defeito do aplicativo.** A partir das
+    13h30 de 10 de setembro toda instalação falha com `Failure calling service package:
+    Broken pipe (32)` ou `Can't find service: package`. Quatro hipóteses derrubadas por
+    medida — instantâneo degradado (boot frio falha igual), memória do aparelho (3072 →
+    4096, igual), disco do hospedeiro (`dd` de 300 MB escreve liso), APK corrompido
+    (`unzip -t` limpo, assinado). O que o log mostra: `StartPackageManagerService took to
+    complete: 80126ms`. Ele não quebrou, ficou glacial. **Próximo passo: AVD novo** — a
+    única coisa ainda não tentada. Enquanto isso, mudança de tela fica sem a foto que a
+    barra exige, e isso tem de ser dito em vez de omitido.
+
 **Aberto do que esta caminhada achou:**
 
 22. ~~**Sair do editor com alteração pendente não avisa.**~~ — **fechada** com uma guarda em
