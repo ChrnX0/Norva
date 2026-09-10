@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **671** testes |
+| `npm test` | **672** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **28** garantias contra um Postgres descartável, sob RLS |
@@ -371,6 +371,47 @@ virar afirmação. **Seis fechados no mesmo dia:**
     (`src/i18n/locales/pt-BR.ts:1976`). O `CLAUDE.md` usa essa frase como exemplo canônico
     de como o aplicativo fala; hoje quem diz a falta é a tela de contagem, com outras
     palavras. Ou a frase ganha o leitor que a decisão indica, ou ela sai dos três idiomas.
+
+30. ~~**A mesma tela chamava um picolé de "almoxarifado"**~~ — **fechado.** A página de
+    estoque de um item serve o que se compra e o que se vende com o mesmo desenho, e a
+    sobrancelha dizia sempre a primeira: um produto aparecia sob a palavra que neste
+    aplicativo tem três abas, e nenhuma delas é produto. Quarta aparição do defeito do item
+    12. Passa a decidir pela ESPÉCIE (`product`/`resale` contra os três do almoxarifado), e
+    não por ter ficha — revenda também se vende e não tem ficha.
+
+31. ~~**"média das compras" no custo de um picolé**~~ — **fechado**, e é a regra
+    *"conserto de pele não termina no arquivo que o mostrou"* aplicada a texto. A mesma
+    distinção já existia DUAS LINHAS ABAIXO, com a cicatriz escrita: o ramo "sem custo
+    ainda" aprendeu em 9 de setembro a não mandar procurar nota fiscal de um picolé, e o
+    ramo irmão — o que TEM custo — continuou dizendo que a média era das compras. Quem a
+    fábrica faz não tem compra: agora diz "média das produções".
+
+29. ~~**A guarda de chaves do dicionário casa pelo NOME da folha, em qualquer objeto**~~ —
+    **fechado.** Ela perguntava se `\.<folha>\b` aparecia em algum lugar do código, sem o
+    caminho: `signals.missing` passava por lida porque `d.missing` e `e.missing` existem em
+    objetos de domínio sem relação nenhuma com dicionário. Agora ela junta os CAMINHOS que
+    o código lê e compara caminho com caminho, nas cinco formas que este repositório usa —
+    caminho escrito, apelido por arquivo, desestruturação, índice, e o objeto passado
+    inteiro (`labels={t.stepper}`).
+
+    **O que ela achou ao entrar: 31 folhas mortas por idioma, 93 no total.** O `nav` da capa
+    antiga inteiro — nove entradas, dezoito folhas, substituído pelo Mosaico — mais treze
+    folhas soltas cujo nome vivia sob outro pai (`t.app.recipe.why` mantinha `common.why`
+    de pé; `t.app.assistant.recorded` mantinha `app.production.recorded`). O `typecheck`
+    prova a remoção: se alguma tela as lesse, o tipo não compilaria depois.
+
+    **E ela quase apagou dezesseis chaves VIVAS**, o que é o defeito pior, virado do
+    avesso. Três armadilhas, todas achadas conferindo uma amostra à mão contra o código:
+    `t.x.y.toUpperCase()` é um casamento só e guardar apenas o caminho inteiro perde a
+    chave; leitura por índice via apelido (`const o = t.…ordinals; o[i]`) não tem ponto
+    antes do colchete; e seção passada inteira não escreve folha nenhuma. As quatro estão
+    no teste como caso de prova, com a história de cada uma.
+
+    **A fronteira também ficou mais honesta.** `stepper` entrou na lista de escrita
+    adiantada citando o `CLAUDE.md` — e a guarda irmã recusou, porque `app/picking.tsx:366`
+    passa `t.stepper` inteiro há tempo. O parágrafo do `CLAUDE.md` que dá o `UnitStepper`
+    como componente sem uso envelheceu, e foi corrigido no mesmo commit. Duas guardas se
+    conferindo é o que este arquivo pede.
 
 30. ~~**A mesma tela chamava um picolé de "almoxarifado"**~~ — **fechado.** A página de
     estoque de um item serve o que se compra e o que se vende com o mesmo desenho, e a

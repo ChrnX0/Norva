@@ -461,22 +461,107 @@ function caminhosIndexados(textos: readonly string[]): Set<string> {
   return fora;
 }
 
-/** As folhas do dicionário que nenhuma tela alcança. Exportada só para provar a régua. */
+/**
+ * As folhas do dicionário que nenhuma tela alcança. Exportada só para provar a régua.
+ *
+ * **Ela media o NOME da folha, e por isso deixou passar uma frase morta que o
+ * `CLAUDE.md` usa de exemplo — 10 de setembro.** A pergunta antiga era se
+ * `\.<folha>\b` aparecia em algum lugar do código. Para `signals.missing` isso casa
+ * com `d.missing` e `e.missing` — propriedades de objetos de domínio, sem relação
+ * nenhuma com dicionário —, então *"Faltaram {{count}} caixas"* passava por lida
+ * nos três idiomas sem um leitor.
+ *
+ * Agora ela junta os CAMINHOS que o código realmente lê e compara caminho com
+ * caminho. Quatro formas de leitura, e as quatro existem neste repositório:
+ *
+ *   `t.app.x.y`                    caminho escrito inteiro
+ *   `const w = t.app.x;  w.y`      apelido, resolvido POR ARQUIVO
+ *   `const { y } = t.app.x`        desestruturação
+ *   `w[recusa]` / `t.movement[k]`  índice — lê o pai inteiro (`caminhosIndexados`)
+ *
+ * E a quinta, que não é leitura de folha: o objeto de PLURAL vai inteiro para o
+ * `plural()`, e `.one` nunca aparece escrito. Folha de plural pergunta pelo pai.
+ *
+ * **O que ela achou ao entrar:** o `nav` inteiro da capa antiga — nove entradas,
+ * dezoito folhas, nos três idiomas — mais nove folhas soltas cujo nome vivia sob
+ * outro pai (`t.app.recipe.why` mantinha `common.why` de pé). Vinte e sete folhas
+ * por idioma, e o `typecheck` provou que nada as lia: se alguma tela as lesse, o
+ * tipo não compilaria depois da remoção.
+ */
 export function folhasSemLeitor(dicionario: unknown, textos: readonly string[]): string[] {
-  const codigo = textos.join('\n');
   const indexados = caminhosIndexados(textos);
 
-  return folhasDo(dicionario)
-    .filter((caminho) => {
-      const folha = caminho[caminho.length - 1];
-      if (new RegExp(`\\.${folha}\\b`).test(codigo)) return false;
-      if (new RegExp(`\\{[^}]*\\b${folha}\\b[^}]*\\}\\s*=`).test(codigo)) return false;
-      const pais = caminho.slice(0, -1);
-      for (let i = 1; i <= pais.length; i += 1) {
-        if (indexados.has(pais.slice(0, i).join('.'))) return false;
+  /** Todo caminho de dicionário que o código ATRAVESSA, sem o `t.` da frente. */
+  const leituras = new Set<string>();
+  /**
+   * E os que ele passa INTEIROS — a quinta forma, achada por uma guarda irmã.
+   *
+   * `labels={t.stepper}` entrega o objeto todo a um componente, e nenhuma folha
+   * dele aparece escrita em lugar nenhum. Quem recebe lê `labels.increase`, e o
+   * nome do parâmetro não tem relação com o caminho. Então caminho passado inteiro
+   * dá alta a tudo que está debaixo dele.
+   *
+   * **A declaração de APELIDO fica de fora, de propósito.** `const w = t.app.x;` é
+   * a mesma forma sintática e significa outra coisa: o arquivo vai ler folhas
+   * daquela seção uma a uma, e cada uma se prova sozinha logo abaixo. Contá-la
+   * como "passou inteira" absolveria a seção inteira por causa de uma linha.
+   */
+  const inteiros = new Set<string>();
+  for (const texto of textos) {
+    // O apelido é POR ARQUIVO, pela mesma razão que em `caminhosIndexados`.
+    const apelido = new Map<string, string>();
+    const daDeclaracao = new Set<number>();
+    for (const m of texto.matchAll(
+      /\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(t(?:\.[A-Za-z_$][\w$]*)+)\s*;/g,
+    )) {
+      apelido.set(m[1], m[2].slice(2));
+      daDeclaracao.add(m.index + m[0].indexOf(m[2]));
+    }
+    const guardar = (partes: string[], terminal: boolean) => {
+      for (let i = 1; i <= partes.length; i += 1) leituras.add(partes.slice(0, i).join('.'));
+      if (terminal) inteiros.add(partes.join('.'));
+    };
+    for (const m of texto.matchAll(/\b([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+)\b/g)) {
+      const alvo = m[1];
+      const declarado = daDeclaracao.has(m.index);
+      /**
+       * Todo PREFIXO conta, e não só o caminho inteiro.
+       *
+       * `t.app.account.signedInAs.toUpperCase()` é UM casamento, e guardar só ele
+       * registraria a leitura de `app.account.signedInAs.toUpperCase` — que não é
+       * chave nenhuma — enquanto a chave de verdade ficava por morta. Dezesseis
+       * chaves vivas foram acusadas assim antes desta linha existir, e a conferência
+       * à mão de uma amostra é que pegou.
+       */
+      if (alvo.startsWith('t.')) guardar(alvo.split('.').slice(1), !declarado);
+      const [raiz, ...resto] = alvo.split('.');
+      const base = apelido.get(raiz);
+      if (base && resto.length > 0) guardar([...base.split('.'), ...resto], true);
+    }
+    for (const m of texto.matchAll(/\{([^}]*)\}\s*=\s*(t(?:\.[A-Za-z_$][\w$]*)+)/g)) {
+      const base = m[2].slice(2);
+      for (const bruto of m[1].split(',')) {
+        const nome = bruto.trim().split(':')[0].trim();
+        if (nome) leituras.add(`${base}.${nome}`);
       }
-      return true;
-    })
+    }
+  }
+
+  const PLURAL = new Set(['zero', 'one', 'two', 'few', 'many', 'other']);
+  const lido = (caminho: readonly string[]): boolean => {
+    if (caminho.length > 1 && PLURAL.has(caminho[caminho.length - 1])) {
+      return lido(caminho.slice(0, -1));
+    }
+    if (leituras.has(caminho.join('.'))) return true;
+    for (let i = 1; i <= caminho.length; i += 1) {
+      const ancestral = caminho.slice(0, i).join('.');
+      if (indexados.has(ancestral) || inteiros.has(ancestral)) return true;
+    }
+    return false;
+  };
+
+  return folhasDo(dicionario)
+    .filter((caminho) => !lido(caminho))
     .map((caminho) => caminho.join('.'));
 }
 
@@ -545,6 +630,59 @@ test('the key ruler catches a dead phrase and spares all three ways of reading o
       'viva.porApelido.um',
     ),
     'sem a declaração do apelido no arquivo, o índice não pode cobrir a seção',
+  );
+});
+
+/**
+ * As quatro armadilhas que a régua caiu antes de entrar — cada uma um caso de prova.
+ *
+ * Nenhuma delas é hipotética: as quatro aconteceram construindo esta guarda em 10 de
+ * setembro, e três só apareceram porque uma amostra foi conferida à mão contra o
+ * código de verdade. Detector que não distingue o caso verdadeiro do falso não entra,
+ * e este quase entrou três vezes.
+ */
+test('the key ruler is not fooled by a name, a suffix, a whole object or an alias', () => {
+  const dicionario = {
+    colide: { missing: 'a' },
+    sufixo: { gritada: 'b' },
+    inteira: { uma: 'c', outra: 'd' },
+    apelidada: { lida: 'e', naoLida: 'f' },
+  };
+
+  // 1. COLISÃO DE NOME — a que deixou "Faltaram {{count}} caixas" passar por viva.
+  //    `d.missing` é propriedade de um objeto de domínio, não leitura de dicionário.
+  assert.ok(
+    folhasSemLeitor(dicionario, ['const falta = d.missing + e.missing;']).includes('colide.missing'),
+    'o nome da folha num objeto qualquer não pode dar alta à chave',
+  );
+
+  // 2. SUFIXO — `t.x.y.toUpperCase()` é um casamento só, e guardar apenas o caminho
+  //    inteiro acusaria dezesseis chaves vivas de mortas. Todo prefixo conta.
+  assert.ok(
+    !folhasSemLeitor(dicionario, ['return t.sufixo.gritada.toUpperCase();']).includes(
+      'sufixo.gritada',
+    ),
+    'chave seguida de método continua lida',
+  );
+
+  // 3. OBJETO INTEIRO — `labels={t.stepper}` entrega tudo a um componente, e nenhuma
+  //    folha aparece escrita. Quem recebe chama o parâmetro de outro nome.
+  assert.deepEqual(
+    folhasSemLeitor(dicionario, ['return <S labels={t.inteira} />;']).filter((c) =>
+      c.startsWith('inteira.'),
+    ),
+    [],
+    'seção passada inteira dá alta a tudo que está debaixo dela',
+  );
+
+  // 4. E o apelido NÃO é isso: `const w = t.apelidada;` promete ler folha a folha, e
+  //    cada uma se prova sozinha. Absolver a seção por causa da declaração esconderia
+  //    exatamente o que esta guarda existe para achar.
+  assert.ok(
+    folhasSemLeitor(dicionario, ['const w = t.apelidada;', 'return w.lida;']).includes(
+      'apelidada.naoLida',
+    ),
+    'declarar o apelido não dá alta às folhas que ninguém lê',
   );
 });
 

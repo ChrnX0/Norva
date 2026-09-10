@@ -26,11 +26,7 @@ export const ptBR = {
     amountOf: '{{amount}} de {{name}}',
     /** Joins the last two items of a spoken list: "a, b e c". */
     and: 'e',
-    confirm: 'Confirmar',
-    adjust: 'Ajustar',
     cancel: 'Cancelar',
-    why: 'por quê?',
-    ask: 'Pergunte alguma coisa…',
     /**
      * O que a tela diz quando a gravação não acontece — e por que ela é uma só.
      *
@@ -99,17 +95,14 @@ export const ptBR = {
       cancel: 'Cancelar',
       adjust: 'Ajustar',
       understood: 'Entendi',
-      close: 'Fechar',
     },
 
     home: {
       yesterdayWas: 'Ontem foram {{amount}}.',
-      noYesterday: 'Ontem não houve produção.',
       runningOut: 'Compre esta semana',
       ordersShort: 'Produza para os pedidos',
       ordersCovered: 'Os pedidos estão cobertos',
       ordersCoveredDetail: 'O que foi pedido até {{date}} cabe no que já tem na fábrica.',
-      orderCount: { one: '1 pedido', other: '{{n}} pedidos' },
       levelFull: 'cheio',
       levelLasts: 'dura {{days}} pelo consumo da semana',
       levelEndsIn: 'acaba em {{days}}',
@@ -121,11 +114,9 @@ export const ptBR = {
       boxesSent: { one: 'saiu hoje', other: 'saíram hoje' },
       boxesTitle: 'Saiu para as lojas',
       noBoxesYesterday: 'Ontem não saiu carga.',
-      running: 'produzindo agora',
       boxCount: { one: '1 caixa', other: '{{n}} caixas' },
       alsoSent: 'e mais {{items}}',
       alsoSentItem: '{{amount}} de {{name}}',
-      why: 'por quê?',
       stableFor: 'estável há {{days}}',
       more: 'toque para ver mais',
       less: 'toque para fechar',
@@ -254,22 +245,8 @@ export const ptBR = {
       placeCount: { one: 'uma loja', other: '{{n}} lojas' },
       dayCount: { one: '1 dia', other: '{{n}} dias' },
       stableAlways: 'nenhuma mudança de preço registrada',
-      record: 'Lançar produção',
-      unitCost: 'custo por unidade · calculado da receita e das notas de compra',
       changed: 'Mudou desde a última vez',
-      checking: 'Conferindo…',
       allSteady: 'Tudo estável',
-      nav: {
-        ask: { label: 'Pergunte', hint: 'escreva o que quer saber' },
-        inputs: { label: 'Insumos', hint: 'o que você compra' },
-        recipes: { label: 'Receitas', hint: 'o que entra em cada uma' },
-        products: { label: 'Produtos', hint: 'o que sai para vender' },
-        production: { label: 'Produção', hint: 'o que saiu hoje' },
-        places: { label: 'Estoque', hint: 'onde está cada coisa' },
-        transfer: { label: 'Transferir', hint: 'o que vai para a loja' },
-        purchases: { label: 'Compras', hint: 'a nota que move o custo' },
-        settings: { label: 'Ajustes', hint: 'limpar dados e recomeçar' },
-      },
     },
     tabs: {
       home: 'Início',
@@ -718,8 +695,6 @@ export const ptBR = {
       },
     },
     weather: {
-      overline: 'clima em {{city}}',
-      today: 'máxima de hoje',
       rain: '{{percent}}% de chance de chuva',
       same: 'Amanhã, temperatura parecida.',
       // O cartão do clima da capa aprovada fala curto: a cidade, o número, e o
@@ -1393,7 +1368,6 @@ export const ptBR = {
       servedBy: 'Quem produz para ela',
       servedByHint: 'A caixa sai desta unidade, e é ela que vê o pedido desta loja na produção do dia.',
       save: 'Salvar lugar',
-      saved: 'Lugar salvo.',
       kinds: {
         store_room: 'Almoxarifado',
         cold_room: 'Câmara fria',
@@ -1432,7 +1406,6 @@ export const ptBR = {
       emptyHint: 'O que sair para uma loja ou cliente aparece aqui, por destino.',
       destinations: { one: '1 destino', other: '{{n}} destinos' },
       send: 'Registrar uma saída',
-      returned: 'devolvido para cá',
       notChecked: '{{place}} ainda não conferiu o que chegou.',
       check: 'Conferir chegada',
       checkTitle: 'O que chegou em {{place}}?',
@@ -1485,7 +1458,6 @@ export const ptBR = {
       name: 'Como se chama',
       profile: 'O que faz aqui',
       save: 'Salvar pessoa',
-      saved: 'Pessoa salva',
       away: 'Não trabalha mais aqui',
       readOnly: 'Só quem administra a empresa muda quem trabalha nela.',
       awayHint: 'Ela sai da lista e o histórico continua apontando para ela — nada é apagado.',
@@ -1655,7 +1627,6 @@ export const ptBR = {
         'Você produziu {{units}} de {{product}}, rodando a receita {{batches}}. Isso baixa {{lines}} do estoque.',
       confirmBodyNoBatchNoCost:
         'Você produziu {{units}} de {{product}}. Isso baixa {{lines}} do estoque.',
-      recorded: 'Produção registrada.',
       open: 'Começar agora',
       openHint: 'Marque que começou e feche quando sair, ou registre tudo de uma vez.',
       close: 'Fechar a produção',
@@ -1893,7 +1864,6 @@ export const ptBR = {
       composed: '{{line}} {{type}} de {{flavor}}',
       composedNoType: '{{line}} de {{flavor}}',
       composedNoFlavor: '{{line}} {{type}}',
-      saved: '{{name}} cadastrado.',
       typeFromAnotherLine: 'Esse tipo é de outra linha. Escolha a linha dele ou um tipo desta.',
     },
 
@@ -1983,7 +1953,6 @@ export const ptBR = {
 
   signals: {
     checked: 'Conferido',
-    missing: 'Faltaram {{count}} caixas',
   },
 
   /**

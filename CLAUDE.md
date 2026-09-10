@@ -840,7 +840,10 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
 
 **Antes de chamar algo de defeito, procure a decisão.** Três vezes numa sessão eu
 apontei "violação de fundação" no que era fronteira registrada: o `UnitStepper`
-sem uso (é componente da Fase 2), o `[por quê?]` ausente na home (a conta abre
+sem uso (era componente da Fase 2 — **e desde então ganhou tela: `app/picking.tsx:366`
+passa `t.stepper` inteiro. A linha fica porque a lição é a mesma, e porque ela mostra
+o outro lado: registro de decisão envelhece, e em 10 de setembro este aqui mandou uma
+guarda dar por adiantado o que já estava em uso**), o `[por quê?]` ausente na home (a conta abre
 num toque, na receita), e o assistente monolíngue — que tem o raciocínio inteiro
 escrito no topo do `src/assistant/index.ts`, inclusive quando deixa de valer.
 

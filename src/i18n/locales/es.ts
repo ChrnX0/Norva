@@ -15,11 +15,7 @@ export const es: Dictionary = {
     amountOf: '{{amount}} de {{name}}',
     /** Joins the last two items of a spoken list: "a, b y c". */
     and: 'y',
-    confirm: 'Confirmar',
-    adjust: 'Ajustar',
     cancel: 'Cancelar',
-    why: '¿por qué?',
-    ask: 'Pregunte algo…',
     failureTitle: 'No se pudo guardar',
     failureNotYours: 'Eso no forma parte de tu acceso. Pídelo a quien administra la empresa.',
     failureMissing: 'Falta {{items}} para registrar esto.',
@@ -56,17 +52,14 @@ export const es: Dictionary = {
       cancel: 'Cancelar',
       adjust: 'Ajustar',
       understood: 'Entendido',
-      close: 'Cerrar',
     },
 
     home: {
       yesterdayWas: 'Ayer fueron {{amount}}.',
-      noYesterday: 'Ayer no hubo producción.',
       runningOut: 'Compra esta semana',
       ordersShort: 'Produce para los pedidos',
       ordersCovered: 'Los pedidos están cubiertos',
       ordersCoveredDetail: 'Lo pedido hasta el {{date}} cabe en lo que ya hay en la fábrica.',
-      orderCount: { one: '1 pedido', other: '{{n}} pedidos' },
       levelFull: 'lleno',
       levelLasts: 'dura {{days}} al ritmo de la semana',
       levelEndsIn: 'se acaba en {{days}}',
@@ -74,11 +67,9 @@ export const es: Dictionary = {
       boxesSent: { one: 'salió hoy', other: 'salieron hoy' },
       boxesTitle: 'Salió a las tiendas',
       noBoxesYesterday: 'Ayer no salió carga.',
-      running: 'produciendo ahora',
       boxCount: { one: '1 caja', other: '{{n}} cajas' },
       alsoSent: 'y además {{items}}',
       alsoSentItem: '{{amount}} de {{name}}',
-      why: '¿por qué?',
       stableFor: 'estable hace {{days}}',
       more: 'toca para ver más',
       less: 'toca para cerrar',
@@ -174,22 +165,8 @@ export const es: Dictionary = {
       placeCount: { one: 'una tienda', other: '{{n}} tiendas' },
       dayCount: { one: '1 día', other: '{{n}} días' },
       stableAlways: 'ningún cambio de precio registrado',
-      record: 'Registrar producción',
-      unitCost: 'costo por unidad · calculado de la receta y de las facturas de compra',
       changed: 'Cambió desde la última vez',
-      checking: 'Comprobando…',
       allSteady: 'Todo estable',
-      nav: {
-        ask: { label: 'Pregunta', hint: 'escribe lo que quieres saber' },
-        inputs: { label: 'Insumos', hint: 'lo que compras' },
-        recipes: { label: 'Recetas', hint: 'lo que entra en cada una' },
-        products: { label: 'Productos', hint: 'lo que sale para vender' },
-        production: { label: 'Producción', hint: 'lo que salió hoy' },
-        places: { label: 'Existencias', hint: 'dónde está cada cosa' },
-        transfer: { label: 'Transferir', hint: 'lo que va a la tienda' },
-        purchases: { label: 'Compras', hint: 'la factura que mueve el costo' },
-        settings: { label: 'Ajustes', hint: 'limpiar datos y empezar de nuevo' },
-      },
     },
     tabs: {
       home: 'Inicio',
@@ -528,8 +505,6 @@ export const es: Dictionary = {
       },
     },
     weather: {
-      overline: 'clima en {{city}}',
-      today: 'máxima de hoy',
       rain: '{{percent}}% de probabilidad de lluvia',
       same: 'Mañana, temperatura parecida.',
       // La tarjeta del clima de la portada aprobada habla corto: la ciudad, el
@@ -1087,7 +1062,6 @@ export const es: Dictionary = {
       servedBy: 'Quién produce para ella',
       servedByHint: 'La caja sale de esta unidad, y es ella la que ve el pedido de esta tienda en la producción del día.',
       save: 'Guardar lugar',
-      saved: 'Lugar guardado.',
       kinds: {
         store_room: 'Almacén',
         cold_room: 'Cámara fría',
@@ -1124,7 +1098,6 @@ export const es: Dictionary = {
       emptyHint: 'Lo que salga a una tienda o a un cliente aparece aquí, por destino.',
       destinations: { one: '1 destino', other: '{{n}} destinos' },
       send: 'Registrar una salida',
-      returned: 'devuelto aquí',
       notChecked: '{{place}} todavía no revisó lo que llegó.',
       check: 'Revisar la llegada',
       checkTitle: '¿Qué llegó a {{place}}?',
@@ -1163,7 +1136,6 @@ export const es: Dictionary = {
       name: 'Cómo se llama',
       profile: 'Qué hace aquí',
       save: 'Guardar persona',
-      saved: 'Persona guardada',
       away: 'Ya no trabaja aquí',
       readOnly: 'Solo quien administra la empresa cambia quién trabaja en ella.',
       awayHint: 'Sale de la lista y el historial sigue apuntando a ella — nada se borra.',
@@ -1292,7 +1264,6 @@ export const es: Dictionary = {
       confirmBodyNoCost:
         'Produjiste {{units}} de {{product}}, en {{batches}}. Esto descuenta {{lines}} del stock.',
       confirmBodyNoBatchNoCost: 'Produjiste {{units}} de {{product}}. Eso descuenta {{lines}} del stock.',
-      recorded: 'Producción registrada.',
       open: 'Empezar ahora',
       openHint: 'Márcala ahora y ciérrala cuando salga, o registra todo de una vez.',
       close: 'Cerrar la producción',
@@ -1472,7 +1443,6 @@ export const es: Dictionary = {
       composed: '{{line}} {{type}} de {{flavor}}',
       composedNoType: '{{line}} de {{flavor}}',
       composedNoFlavor: '{{line}} {{type}}',
-      saved: '{{name}} registrado.',
       typeFromAnotherLine: 'Ese tipo es de otra línea. Elige su línea o un tipo de esta.',
     },
 
@@ -1550,7 +1520,6 @@ export const es: Dictionary = {
 
   signals: {
     checked: 'Verificado',
-    missing: 'Faltaron {{count}} cajas',
   },
 
   whySheet: {

@@ -10,11 +10,7 @@ export const en: Dictionary = {
     amountOf: '{{amount}} of {{name}}',
     /** Joins the last two items of a spoken list: "a, b and c". */
     and: 'and',
-    confirm: 'Confirm',
-    adjust: 'Adjust',
     cancel: 'Cancel',
-    why: 'why?',
-    ask: 'Ask something…',
     failureTitle: 'Could not save',
     failureNotYours: 'That is not part of your access. Ask whoever runs the company.',
     failureMissing: 'There is not enough {{items}} to record this.',
@@ -51,17 +47,14 @@ export const en: Dictionary = {
       cancel: 'Cancel',
       adjust: 'Adjust',
       understood: 'Got it',
-      close: 'Close',
     },
 
     home: {
       yesterdayWas: 'Yesterday it was {{amount}}.',
-      noYesterday: 'Nothing was made yesterday.',
       runningOut: 'Buy this week',
       ordersShort: 'Make these for the orders',
       ordersCovered: 'The orders are covered',
       ordersCoveredDetail: 'What was asked for by {{date}} fits in what the factory already holds.',
-      orderCount: { one: '1 order', other: '{{n}} orders' },
       levelFull: 'full',
       levelLasts: 'lasts {{days}} at this week\u2019s pace',
       levelEndsIn: 'runs out in {{days}}',
@@ -69,11 +62,9 @@ export const en: Dictionary = {
       boxesSent: { one: 'went out today', other: 'went out today' },
       boxesTitle: 'Out to the stores',
       noBoxesYesterday: 'Nothing went out yesterday.',
-      running: 'producing now',
       boxCount: { one: '1 box', other: '{{n}} boxes' },
       alsoSent: 'plus {{items}}',
       alsoSentItem: '{{amount}} of {{name}}',
-      why: 'why?',
       stableFor: 'steady for {{days}}',
       more: 'tap for more',
       less: 'tap to close',
@@ -169,22 +160,8 @@ export const en: Dictionary = {
       placeCount: { one: 'one store', other: '{{n}} stores' },
       dayCount: { one: '1 day', other: '{{n}} days' },
       stableAlways: 'no price change on record',
-      record: 'Record production',
-      unitCost: 'cost per unit · worked out from the recipe and the invoices',
       changed: 'Changed since last time',
-      checking: 'Checking…',
       allSteady: 'All steady',
-      nav: {
-        ask: { label: 'Ask', hint: 'type what you want to know' },
-        inputs: { label: 'Inputs', hint: 'what you buy' },
-        recipes: { label: 'Recipes', hint: 'what goes in the batch' },
-        products: { label: 'Products', hint: 'what goes out to sell' },
-        production: { label: 'Production', hint: 'what came out today' },
-        places: { label: 'Stock', hint: 'where each thing is' },
-        transfer: { label: 'Transfer', hint: 'what goes to the store' },
-        purchases: { label: 'Purchases', hint: 'the invoice that moves the cost' },
-        settings: { label: 'Settings', hint: 'clear data and start over' },
-      },
     },
     tabs: {
       home: 'Home',
@@ -523,8 +500,6 @@ export const en: Dictionary = {
       },
     },
     weather: {
-      overline: 'weather in {{city}}',
-      today: "today's high",
       rain: '{{percent}}% chance of rain',
       same: 'Tomorrow, much the same.',
       // The approved cover's weather card speaks short: the city, the number,
@@ -1082,7 +1057,6 @@ export const en: Dictionary = {
       servedBy: 'Who makes for it',
       servedByHint: 'The box leaves from this unit, and it is the one that sees this store in the day plan.',
       save: 'Save place',
-      saved: 'Place saved.',
       kinds: {
         store_room: 'Storeroom',
         cold_room: 'Cold room',
@@ -1119,7 +1093,6 @@ export const en: Dictionary = {
       emptyHint: 'Whatever goes to a store or a customer shows up here, by destination.',
       destinations: { one: '1 destination', other: '{{n}} destinations' },
       send: 'Record a delivery',
-      returned: 'returned here',
       notChecked: '{{place}} has not checked what arrived yet.',
       check: 'Check the delivery',
       checkTitle: 'What arrived at {{place}}?',
@@ -1158,7 +1131,6 @@ export const en: Dictionary = {
       name: 'What is their name',
       profile: 'What they do here',
       save: 'Save person',
-      saved: 'Person saved',
       away: 'No longer works here',
       readOnly: 'Only whoever runs the company changes who works in it.',
       awayHint: 'They leave the list and the history still points at them — nothing is deleted.',
@@ -1288,7 +1260,6 @@ export const en: Dictionary = {
       confirmBodyNoCost:
         'You made {{units}} of {{product}}, in {{batches}}. This takes {{lines}} out of stock.',
       confirmBodyNoBatchNoCost: 'You made {{units}} of {{product}}. That takes {{lines}} out of stock.',
-      recorded: 'Production recorded.',
       open: 'Start now',
       openHint: 'Mark it now and close it when it comes out, or record it all at once.',
       close: 'Close the production',
@@ -1467,7 +1438,6 @@ export const en: Dictionary = {
       composed: '{{flavor}} {{line}} {{type}}',
       composedNoType: '{{flavor}} {{line}}',
       composedNoFlavor: '{{line}} {{type}}',
-      saved: '{{name}} registered.',
       typeFromAnotherLine: 'That type belongs to another line. Pick its line, or a type from this one.',
     },
 
@@ -1545,7 +1515,6 @@ export const en: Dictionary = {
 
   signals: {
     checked: 'Checked',
-    missing: '{{count}} boxes missing',
   },
 
   whySheet: {
