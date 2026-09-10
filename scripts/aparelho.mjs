@@ -229,7 +229,7 @@ const APKS = [
   'android/app/build/outputs/apk/debug/app-debug.apk',
 ];
 
-function instalar(apk) {
+async function instalar(apk) {
   const caminho = apk ?? APKS.find((c) => existsSync(c)) ?? APKS[0];
   if (!existsSync(caminho)) {
     throw new Error(
@@ -240,26 +240,55 @@ function instalar(apk) {
   const inicio = Date.now();
   dizer(`instalando ${caminho}`);
   /**
-   * EMPURRA e depois instala do arquivo local — nunca `adb install` direto.
+   * ESPERA o aparelho assentar antes de instalar — e o empurrão é a sonda.
    *
-   * **Foi isto que destravou o emulador em 10 de setembro, depois de oito hipóteses
-   * derrubadas.** `adb install` TRANSMITE o APK pela sessão do instalador, e essa
-   * escrita longa bloqueia um handler do `system_server` por mais tempo do que o
-   * Watchdog dele tolera. O rastro é literal: `watchdog: Blocked in handler on
-   * foreground thread (android.fg)` e, sessenta segundos depois,
-   * `DeadSystemException: The system died`. O que chegava ao terminal era
-   * `Failure calling service package: Broken pipe (32)` ou `Can't find service:
-   * package` — dois sintomas da mesma morte, e nenhum deles diz o que aconteceu.
+   * **A instalação não morre pelo MÉTODO, morre por CARGA — e eu afirmei o contrário
+   * antes de medir direito, em 10 de setembro.** A história inteira, porque ela é a
+   * cicatriz mais cara deste arquivo:
    *
-   * Num emulador sem KVM, com o `system_server` desta imagem queimando um núcleo
-   * inteiro parado (medido: 106% com o aparelho ocioso), não há folga para a
-   * escrita transmitida. `adb push` é escrita de ARQUIVO — não passa pelo serviço
-   * de pacotes —, e o `pm install` seguinte lê do disco do próprio aparelho, num
-   * caminho que o Watchdog aguenta. Mesmo APK, mesma máquina, mesma imagem:
-   * transmitido morre, empurrado responde `Success`.
+   * A instalação parou de funcionar no meio do dia com `Failure calling service
+   * package: Broken pipe (32)` e `Can't find service: package`. O rastro real está no
+   * log do convidado: `watchdog: Blocked in handler on foreground thread (android.fg)`
+   * e, sessenta segundos depois, `DeadSystemException: The system died`. O `system_server`
+   * desta imagem queima um núcleo inteiro com o aparelho PARADO (medido: 106%), então a
+   * escrita da sessão de instalação não cabe na janela do Watchdog quando há mais
+   * qualquer coisa acontecendo.
+   *
+   * Eu troquei `adb install` por `adb push` + `pm install`, deu `Success`, e escrevi aqui
+   * que transmitido morre e empurrado vive. **Estava errado**: eu tinha mudado duas
+   * variáveis — o método E o tempo de sossego do aparelho — e creditei a errada. Rodando
+   * as duas com o aparelho assentado, as DUAS respondem `Success`; rodando o empurrado com
+   * o aparelho ocupado, ele morre igual.
+   *
+   * O que ficou, então, é a medida que separa os casos, e ela vem de graça: **a velocidade
+   * do próprio empurrão**. Três pontos medidos — 0,8 MB/s falhou, 3,6 MB/s passou, 23 MB/s
+   * passou. O piso abaixo é calibrado nesses três, não é lei: é o melhor palpite honesto,
+   * e ele fica escrito para quem tiver um quarto ponto poder corrigi-lo.
+   *
+   * `adb push` é escrita de arquivo e não passa pelo serviço de pacotes, então ele mede
+   * sem arriscar nada — que é a única razão de o empurrão ter ficado.
    */
   const noAparelho = '/data/local/tmp/norva-instalar.apk';
-  adb('push', caminho, noAparelho);
+  const megas = statSync(caminho).size / 1024 / 1024;
+  /** MB/s abaixo dos quais o aparelho não tem folga para instalar. Ver o docblock. */
+  const PISO = 2;
+  let taxa = 0;
+  for (let tentativa = 1; tentativa <= 6; tentativa += 1) {
+    const antes = Date.now();
+    adb('push', caminho, noAparelho);
+    taxa = megas / ((Date.now() - antes) / 1000);
+    if (taxa >= PISO) break;
+    dizer(`o aparelho está a ${taxa.toFixed(1)} MB/s — abaixo do piso de ${PISO}. Esperando assentar (${tentativa}/6)`);
+    await dormir(60_000);
+  }
+  if (taxa < PISO) {
+    throw new Error(
+      `o aparelho não assentou: ${taxa.toFixed(1)} MB/s depois de seis minutos. Instalar ` +
+      'assim mata o `system_server` no Watchdog, e o erro que chega é `Broken pipe`, que ' +
+      'não diz nada sobre a causa. Espere ele sossegar em vez de repetir a tentativa.',
+    );
+  }
+  dizer(`aparelho a ${taxa.toFixed(1)} MB/s — instalando`);
   const dito = adb('shell', 'pm', 'install', '-r', noAparelho);
   console.log(dito);
   // `pm install` SAI ZERO dizendo `Failure` — o veredito é a palavra, não o código.

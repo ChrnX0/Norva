@@ -375,15 +375,25 @@ virar afirmação. **Seis fechados no mesmo dia:**
       preto), então o pipeline não está congelado; o que falta ali é o conteúdo do
       aplicativo.
 
-      **A saída foi voltar à imagem `default` e consertar a INSTALAÇÃO.** `adb install`
-      transmite o APK pela sessão do instalador, e essa escrita longa bloqueia um handler
-      do `system_server` por mais tempo do que o Watchdog dele tolera — daí `Broken pipe`
-      e `Can't find service: package`, que são dois sintomas da mesma morte. `adb push` é
-      escrita de arquivo e não passa pelo serviço de pacotes; o `pm install` seguinte lê do
-      disco do aparelho, num caminho que o Watchdog aguenta. Mesmo APK, mesma máquina,
-      mesma imagem: **transmitido morre, empurrado responde `Success`**. O verbo `instalar`
-      do `scripts/aparelho.mjs` passou a fazer isso, e a checagem é a palavra `Success` e
-      não o código de saída, porque `pm install` sai zero dizendo `Failure`.
+      **A saída foi voltar à imagem `default` e entender a INSTALAÇÃO — e a primeira
+      explicação que eu escrevi aqui estava errada.** O rastro real é `watchdog: Blocked in
+      handler on foreground thread (android.fg)` e, sessenta segundos depois,
+      `DeadSystemException: The system died`. `Broken pipe` e `Can't find service: package`
+      são dois sintomas dessa mesma morte, e nenhum deles diz a causa.
+
+      Eu troquei `adb install` por `adb push` + `pm install`, deu `Success`, e registrei que
+      *"transmitido morre, empurrado responde Success"*. **Falso, e pelo motivo mais banal:
+      eu mudei duas variáveis** — o método E o tempo de sossego do aparelho — e creditei a
+      errada. Medido depois, com o aparelho assentado, as DUAS formas respondem `Success`; e
+      o empurrado morre igual quando o aparelho está ocupado.
+
+      **O que manda é a CARGA**, e a medida que separa os casos vem de graça: a velocidade do
+      próprio empurrão. Três pontos: **0,8 MB/s falhou · 3,6 MB/s passou · 23 MB/s passou**.
+      O verbo `instalar` do `scripts/aparelho.mjs` passou a empurrar, medir, e **esperar** o
+      aparelho subir do piso antes de instalar — e a falha dele diz que é carga, em vez de
+      devolver um `Broken pipe` que não explica nada. `adb push` ficou porque é escrita de
+      arquivo: ele mede sem arriscar o serviço de pacotes. A checagem final é a palavra
+      `Success`, não o código de saída, porque `pm install` sai zero dizendo `Failure`.
 
       **E a foto voltou com a régua junto**, que é o que prova que veio do framebuffer do
       convidado e não do atalho do console: `.shots/default-capa.png — 170 KB, tinta
