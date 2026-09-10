@@ -746,6 +746,34 @@ com a tela parada caiu de ~190% para ~150%, e o que sobra são as escritas de pr
 de SVG quadro a quadro — um relógio ou trinta e oito, o número de nós que escrevem props
 é o mesmo.
 
+**E há um segundo suspeito que este item nunca nomeou, achado em 10 de setembro ao caçar
+o tremor da rolagem: `useAnimatedStyle` animando propriedade de LAYOUT.** Escrever um
+atributo de SVG quadro a quadro é caro; escrever `height` ou `width` é outra ordem de
+coisa, porque obriga o Yoga a refazer o layout do nó, dos irmãos e dos ancestrais — e a
+tela inteira reflui. São cinco sítios, e três deles correm **para sempre**, não só na
+rolagem:
+
+| onde | o que anima | quando |
+|---|---|---|
+| `src/components/Bars.tsx:203,212` | `height` de cada barra, com `respiro` | para sempre |
+| `src/home/Capa.tsx:654` | `height` em `%`, com `ciclo` | para sempre |
+| `src/components/Sky.tsx:243` | `width` em `%`, com `grown` | na entrada |
+| `src/components/Drain.tsx:63` | `width` em `%`, com `cheia` | na entrada |
+| `src/components/CollapsingHeader.tsx` | `fontSize` e `height` | em toda rolagem |
+
+**Isto é hipótese com endereço, não medida** — nada foi cronometrado separando as duas
+causas, e a honestidade aqui importa porque a causa escrita acima (props de SVG) foi
+medida e esta não. O que a torna digna de nota é que ela explica o resíduo: o relógio
+único derrubou o número de *animações*, e os ~150% que sobraram são compatíveis com um
+custo que não depende de quantos ciclos correm, e sim de quantos NÓS reflui por quadro.
+
+A separação é barata de fazer e resolve a dúvida: trocar `height` por `transform:
+scaleY` no `Bars` — as barras vivem em fatias de largura fixa, então a caixa não precisa
+encolher de verdade — e medir de novo. Se os 150% caírem, a causa é layout e o conserto
+das outras quatro segue o mesmo caminho. O `CollapsingHeader` é o único que não aceita
+`transform`, porque ali o espaço tem de sumir mesmo; aquele é o conserto de raiz do item
+35 (cabeçalho fora do fluxo).
+
 A terceira medida é a que resolve isso e é **decisão do dono**, porque muda o que se vê:
 hoje o ícone de cada linha de lista se mexe, e a proposta é manter o movimento onde ele é
 olhado (a cena do cabeçalho, a capa, os sinais que significam alguma coisa) e deixar o
