@@ -624,6 +624,47 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     CPU de telas que ninguém vê, no aplicativo que este projeto já mediu saturando a thread
     de UI.
 
+35. ~~**A tela treme ao rolar, em todo aparelho, e pior nos grandes**~~ — **fechado em 10
+    de setembro, achado pelo DONO no tablet dele.**
+    <!-- medida: presente src/components/cabecalho.ts :: export function faixaDeColapso -->
+    *"A tela fica tremendo muito rápido para cima e para baixo quando eu tento rolar."*
+    Passou por 683 testes, 53 checagens de navegador, quatro sessões de emulador e por mim
+    lendo o arquivo.
+
+    **É realimentação, não lentidão.** O cabeçalho é IRMÃO da lista de rolagem e os dois
+    dividem a altura (`flex: 1`). Rolar encolhe o cabeçalho → a janela da lista cresce na
+    mesma medida → a borda de cima da lista sobe → o dedo, parado no vidro, passa a estar
+    mais embaixo DENTRO da lista → o Android lê isso como rolagem para trás → o cabeçalho
+    cresce → e recomeça. Realimentação negativa com ganho acima de 1 oscila na frequência
+    do quadro.
+
+    O ganho é `dAltura/dRolagem`, e a faixa de colapso era a constante `72` enquanto a
+    cena mede 65 a 112 dp conforme a largura:
+
+    | largura | cena | ganho |
+    |---|---|---|
+    | 360 dp | 64,9 dp | 2,17 |
+    | 393 dp (o do emulador) | 71,4 dp | 2,32 |
+    | 800 dp (o tablet do dono) | 112,4 dp | **3,27** |
+
+    **Ele PIORA com a tela**, e é por isso que o emulador a 393 dp nunca gritou: lá o
+    tremor lê como "um pouco lento".
+
+    O conserto é a faixa sair da altura que se quer remover, com teto de ganho em 0,8. A
+    aparência não muda — a cena continua saindo antes do título nas mesmas frações. A
+    geometria foi para fora do React e `src/components/cabecalho.test.ts` cobra o teto em
+    dez larguras e nas duas peles, medindo a derivada por REMONTAGEM das rampas em vez de
+    perguntar a mesma álgebra ao contrário.
+
+    **O que fica aberto disto, e é maior:** o conserto definitivo é tirar o cabeçalho do
+    fluxo — sobreposto, `paddingTop` fixo na lista, só `translateY`. Aquilo mata o laço
+    pela raiz E o recálculo de layout por quadro, e é o item A (orçamento de movimento)
+    encontrando este aqui. Este conserto é uma linha de geometria e resolve o que treme.
+
+    **E ainda não foi visto rodando:** o emulador nunca reproduziu o tremor. O que sustenta
+    é a conta, a guarda e a condição que o dono confirmou (toda tela que rola, nenhuma que
+    cabe). Quem fecha é o tablet dele.
+
 **Aberto do que esta caminhada achou:**
 
 22. ~~**Sair do editor com alteração pendente não avisa.**~~ — **fechada** com uma guarda em
