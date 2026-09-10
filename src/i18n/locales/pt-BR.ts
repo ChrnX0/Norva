@@ -784,7 +784,7 @@ export const ptBR = {
       products: 'Produtos',
       purchases: 'Compras lançadas',
       hasExample: 'Inclui os dados de exemplo',
-      placesRow: 'Lojas e clientes',
+      placesRow: 'Onde fica o estoque',
       placesHint: 'saem só com "começar do zero"',
       emptyNoExample: 'Vazio, sem exemplo',
       clearByArea: 'Limpar por área',

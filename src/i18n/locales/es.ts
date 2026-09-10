@@ -586,7 +586,7 @@ export const es: Dictionary = {
       products: 'Productos',
       purchases: 'Compras registradas',
       hasExample: 'Incluye los datos de ejemplo',
-      placesRow: 'Tiendas y clientes',
+      placesRow: 'Dónde está el stock',
       placesHint: 'solo salen con "empezar de cero"',
       emptyNoExample: 'Vacío, sin ejemplo',
       clearByArea: 'Limpiar por área',
