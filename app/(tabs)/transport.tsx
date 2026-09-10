@@ -61,7 +61,7 @@ function WhereItWent() {
 
   const confirm = useConfirm();
 
-  const { data, loading, refresh } = useQuery<{ hoje: Shipment[]; ontem: Shipment[] }>(async () => {
+  const { data, loading, error, refresh } = useQuery<{ hoje: Shipment[]; ontem: Shipment[] }>(async () => {
     const today = dayWindow(nowIso(), locale.timeZone);
     const yesterday = dayWindow(nowIso(), locale.timeZone, -1);
     const [hoje, ontem] = await Promise.all([
@@ -173,6 +173,8 @@ function WhereItWent() {
       // a Lei diz que nenhum campo nasce vazio: um vazio aqui é um campo vazio
       // do tamanho de uma linha.
       overline={places.length > 0 ? fill(t.app.transport.today, { summary }) : t.app.transport.subtitle}
+      erro={error}
+      denovo={refresh}
     >
       {/* O dia, e a Lei 3 no mesmo cartão: o número grande com a contagem por
           extenso embaixo e ontem embaixo dela. A comparação NÃO cabe no overline

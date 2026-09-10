@@ -178,7 +178,11 @@ function Conversation() {
   };
 
   return (
-    <CollapsingHeader cena="assistente" title={t.app.assistant.title} overline={t.app.assistant.overline}>
+    <CollapsingHeader
+      cena="assistente"
+      title={t.app.assistant.title}
+      overline={t.app.assistant.overline}
+    >
       {/* PERGUNTAR. O balão de fala é o crachá do assunto e o único desenho da
           tela: ele diz "aqui se fala" antes de qualquer palavra ser lida. Sem
           título no cartão — o cabeçalho já diz "Pergunte", e repetir a palavra

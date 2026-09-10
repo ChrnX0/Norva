@@ -108,7 +108,7 @@ function PurchaseForm() {
    * quando não consegue ler o tamanho da embalagem e diz "dá para completar
    * depois na tela".
    */
-  const { data, loading, refresh } = useQuery(() =>
+  const { data, loading, error, refresh } = useQuery(() =>
     // **Da EMPRESA de propósito, e não da unidade.** Este saldo alimenta a média
     // móvel do custo, e a decisão de 1 de setembro é escrita: *"o mesmo grama de
     // açúcar não custa uma coisa na câmara e outra no almoxarifado"*. Recortar por
@@ -265,7 +265,13 @@ function PurchaseForm() {
 
   if (loading) {
     return (
-      <CollapsingHeader cena="compras" title={t.app.purchase.title} overline={t.app.purchase.overline}>
+      <CollapsingHeader
+        cena="compras"
+        title={t.app.purchase.title}
+        overline={t.app.purchase.overline}
+        erro={error}
+        denovo={refresh}
+      >
         <Reveal index={0}>
           <Card hue={palette.mint} icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}>
             <Text style={[type.secondary, { color: color.inkMuted }]}>

@@ -137,7 +137,7 @@ function ProductForm() {
   const router = useRouter();
   const { locale, t } = useLocale();
 
-  const { data, loading } = useQuery<Loaded>(async () => {
+  const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
     const [recipes, graph, costs, labels, lines, types, flavors, items, products] =
       await Promise.all([
       listRecipes(empresaDaqui()),
@@ -479,7 +479,13 @@ function ProductForm() {
   const iAcao = ordem++;
 
   return (
-    <CollapsingHeader cena="produtos" title={t.app.productForm.title} overline={t.app.productForm.overline}>
+    <CollapsingHeader
+      cena="produtos"
+      title={t.app.productForm.title}
+      overline={t.app.productForm.overline}
+      erro={error}
+      denovo={refresh}
+    >
       {/* A grade, que é o que escreve o nome.
           Ela vem primeiro porque é a única parte da tela que o sistema usa para
           preencher outra: tocada a linha, o tipo e o sabor, o campo de nome

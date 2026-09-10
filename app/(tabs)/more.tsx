@@ -101,7 +101,7 @@ function Drawers() {
    * abre no vazio é pior que gaveta não desenhada — foi por isso que "Pessoas"
    * ficou fora desta tela até ter tabela atrás.
    */
-  const { data: nomeia } = useQuery<boolean>(() => namesWhoRecorded());
+  const { data: nomeia, error, refresh } = useQuery<boolean>(() => namesWhoRecorded());
 
   const glifo =
     (G: (p: { size?: number; color: string; weight?: number }) => ReactNode) => (c: string) =>
@@ -194,7 +194,14 @@ function Drawers() {
     // contato: o título dela nasce numa altura diferente de todas as outras.
     // A gaveta é uma grade de grupos: cada um é uma caixa fechada com as portas
     // dele dentro, e dois grupos lado a lado continuam sendo dois grupos.
-    <CollapsingHeader cena="mais" title={t.app.more.title} overline={t.app.more.overline} pares>
+    <CollapsingHeader
+      cena="mais"
+      title={t.app.more.title}
+      overline={t.app.more.overline}
+      erro={error}
+      denovo={refresh}
+      pares
+    >
       {/* Cada seção carrega a cor da ÁREA que ela abre, e não um cinza só.
           O dono apontou a tela: *"esses ícones devem seguir o padrão de todo o
           tema. falta um pouco de cor aí"*. As quatro seções estavam pintadas com

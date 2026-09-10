@@ -138,7 +138,7 @@ function ProductionDay() {
     };
   }, []);
 
-  const { data, loading } = useQuery<Loaded>(async () => {
+  const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
     const hoje = dayWindow(nowIso(), locale.timeZone);
     const ontem = dayWindow(nowIso(), locale.timeZone, -1);
     // Uma semana de saída para estimar o consumo, e catorze dias de horizonte: o
@@ -240,6 +240,8 @@ function ProductionDay() {
       title={t.app.production.title}
       overline={t.app.production.overline}
       cena="producao"
+      erro={error}
+      denovo={refresh}
     >
       {/* A PRÓXIMA AÇÃO, antes do relato do dia — e a ordem é a decisão.
           Esta aba respondia duas das três perguntas da Lei (o que é normal, o que

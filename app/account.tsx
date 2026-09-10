@@ -65,7 +65,7 @@ export default function AccountScreen() {
    * `useQuery` faz a mesma coisa com uma chave e uma releitura explícita.
    */
   const confirm = useConfirm();
-  const { data: estado, refresh } = useQuery<{
+  const { data: estado, error, refresh } = useQuery<{
     conta: Conta | null;
     empresa: Empresa | null;
     fila: Pedido[];
@@ -206,7 +206,13 @@ export default function AccountScreen() {
 
   return (
     <AreaProvider area="sky">
-      <CollapsingHeader cena="gente" title={t.app.account.title} overline={t.app.account.overline}>
+      <CollapsingHeader
+        cena="gente"
+        title={t.app.account.title}
+        overline={t.app.account.overline}
+        erro={error}
+        denovo={refresh}
+      >
         {carregando ? (
           <Reveal index={0}>
             <Text style={[type.body, { color: color.inkMuted }]}>{t.app.account.working}</Text>

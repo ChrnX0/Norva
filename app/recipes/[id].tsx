@@ -187,7 +187,7 @@ function RecipeEditor() {
   const { locale, t } = useLocale();
   const params = useLocalSearchParams<{ id?: string }>();
 
-  const { data, loading } = useQuery<Loaded>(async () => {
+  const { data, loading, error: erroDeLeitura, refresh } = useQuery<Loaded>(async () => {
     const [recipes, costs, labels, items, products] = await Promise.all([
       loadRecipeGraph(empresaDaqui()),
       itemCosts(empresaDaqui()),
@@ -473,7 +473,13 @@ function RecipeEditor() {
    */
   if (loading || !data || !stored || !lines) {
     return (
-      <CollapsingHeader cena="receitas" title={t.app.recipe.fallbackTitle} overline={t.app.recipe.overline}>
+      <CollapsingHeader
+        cena="receitas"
+        title={t.app.recipe.fallbackTitle}
+        overline={t.app.recipe.overline}
+        erro={erroDeLeitura}
+        denovo={refresh}
+      >
         <Reveal index={0}>
           <Card hue={palette.apricot} icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}>
             <Text style={[type.body, { color: color.inkMuted }]}>
@@ -503,6 +509,8 @@ function RecipeEditor() {
       cena="receitas"
       title={title}
       overline={fill(t.app.recipe.overlineVersion, { version: stored.version })}
+      erro={erroDeLeitura}
+      denovo={refresh}
     >
       {/* Falta um dado, e o erro IMPEDE em vez de reclamar: sem rendimento não
           há custo, então o cartão do custo não aparece dizendo zero - este toma

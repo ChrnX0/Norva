@@ -113,7 +113,7 @@ function InputsList() {
    * existe um instante em que a tela já tem os números e ainda não sabe se pode
    * mostrá-los. Piscar a cifra e apagar depois é vazar devagar.
    */
-  const { data: carregado, loading } = useQuery(
+  const { data: carregado, loading, error, refresh } = useQuery(
     async () => ({
       itens: await listItems(empresaDaqui(), undefined, false, place ? { sala: place } : { unidade: unidadeDaqui() }),
       dinheiro: await canSeeMoney(empresaDaqui()),
@@ -174,7 +174,13 @@ function InputsList() {
   const salas = places ?? [];
 
   return (
-    <CollapsingHeader cena="insumos" title={t.app.inputs.title} overline={t.app.inputs.overline}>
+    <CollapsingHeader
+      cena="insumos"
+      title={t.app.inputs.title}
+      overline={t.app.inputs.overline}
+      erro={error}
+      denovo={refresh}
+    >
       {/* O recorte, e ele vem antes de tudo porque é ele que muda todo número
           abaixo: que tipo de coisa, e de que sala. As duas perguntas moram no
           mesmo bloco porque são a mesma pergunta — qual pedaço do almoxarifado

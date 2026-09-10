@@ -74,7 +74,7 @@ function ReportIndex() {
   const { locale, t } = useLocale();
   const router = useRouter();
 
-  const { data } = useQuery<Loaded>(async () => {
+  const { data, error, refresh } = useQuery<Loaded>(async () => {
     const hoje = dayWindow(nowIso(), locale.timeZone);
     const trintaDias = dayWindow(nowIso(), locale.timeZone, -29);
     const anterior = {
@@ -194,6 +194,8 @@ function ReportIndex() {
       title={t.app.reports.title}
       overline={t.app.reports.subtitle}
       cena="relatorios"
+      erro={error}
+      denovo={refresh}
       pares
     >
       {/* Estoque: o dinheiro que está parado, e por quantos dias ele dura. Duas

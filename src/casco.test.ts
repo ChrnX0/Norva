@@ -37,20 +37,15 @@ function telas(dir: string, into: string[] = []): string[] {
  * que falha continua desenhando como "não há nada". Não é fronteira permanente
  * como as do dicionário: é dívida com endereço.
  */
-const AINDA_ENGOLEM = [
-  'app/(tabs)/more.tsx',
-  'app/(tabs)/production.tsx',
-  'app/(tabs)/reports.tsx',
-  'app/(tabs)/transport.tsx',
-  'app/account.tsx',
-  'app/assistant.tsx',
-  'app/inputs/index.tsx',
-  'app/inputs/new.tsx',
-  'app/products/new.tsx',
-  'app/purchase.tsx',
-  'app/recipes/[id].tsx',
-  'app/settings.tsx',
-];
+const POR_DECISAO: Record<string, string> = {
+  'app/assistant.tsx':
+    'fecha por OMISSÃO de propósito, e está escrito no docblock de `useCapacidades`: ' +
+    '"se este useQuery falhar, o assistente responde menos em vez de responder o que não ' +
+    'devia". Uma página de falha aqui trocaria uma tela que ainda serve por uma que não ' +
+    'serve, e a permissão é justamente o que não pode falhar para o lado aberto.',
+};
+
+const AINDA_ENGOLEM: string[] = [];
 
 function engole(caminho: string): boolean {
   const fonte = readFileSync(caminho, 'utf8');
@@ -60,7 +55,7 @@ function engole(caminho: string): boolean {
 
 test('toda tela que lê do banco sabe dizer que a leitura falhou', () => {
   const engolindo = telas('app').filter(engole).sort();
-  const novas = engolindo.filter((t) => !AINDA_ENGOLEM.includes(t));
+  const novas = engolindo.filter((t) => !AINDA_ENGOLEM.includes(t) && !(t in POR_DECISAO));
 
   assert.deepEqual(
     novas,
@@ -72,6 +67,11 @@ test('toda tela que lê do banco sabe dizer que a leitura falhou', () => {
 test('a lista de dívida só guarda tela que de fato ainda engole', () => {
   const engolindo = telas('app').filter(engole);
   const pagas = AINDA_ENGOLEM.filter((t) => !engolindo.includes(t));
+  assert.deepEqual(
+    Object.keys(POR_DECISAO).filter((t) => !engolindo.includes(t)),
+    [],
+    'esta tela deixou de engolir — a fronteira escrita virou dívida paga, tire-a de POR_DECISAO',
+  );
 
   assert.deepEqual(
     pagas,
@@ -84,7 +84,7 @@ test('a régua separa a tela que engole da que já avisa, e ignora quem não lê
   // Verdadeiro e falso do detector, contra as telas de verdade: a que acabou de
   // ser ligada não pode aparecer, e uma da lista tem de aparecer.
   assert.equal(engole('app/production/new.tsx'), false, 'esta já entrega o erro');
-  assert.equal(engole('app/settings.tsx'), true, 'esta ainda engole');
+  assert.equal(engole('app/assistant.tsx'), true, 'esta fecha por omissão, de propósito');
   // E uma tela sem consulta nenhuma não é assunto desta guarda.
   assert.equal(engole('app/_layout.tsx'), false);
 });

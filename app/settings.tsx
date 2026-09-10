@@ -399,7 +399,7 @@ function Settings() {
     refreshAlerts();
   };
 
-  const { data, loading, refresh } = useQuery(
+  const { data, loading, error, refresh } = useQuery(
     async () => ({
       counts: await countForErase(empresaDaqui()),
       // A PRESENÇA do exemplo, não o histórico dele: a marca `seeded` nunca é
@@ -619,6 +619,8 @@ function Settings() {
       cena="ajustes"
       title={t.app.settings.title}
       overline={`${brand.name} · ${Constants.expoConfig?.version ?? '—'}`}
+      erro={error}
+      denovo={refresh}
     >
       {/* A ausência DITA, em vez de uma tela que parece menor sem motivo.
           "Está tudo bem" é estado válido e bonito; "faltam seis cartões e ninguém

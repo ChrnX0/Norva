@@ -112,7 +112,7 @@ function InputForm() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const editing = Boolean(id);
 
-  const { data: existing } = useQuery(
+  const { data: existing, error, refresh } = useQuery(
     async () => (id ? findItem(empresaDaqui(), id) : null),
     id ?? '',
   );
@@ -370,6 +370,8 @@ function InputForm() {
       cena="insumos"
       title={editing ? name || words.fallbackTitle : words.newTitle}
       overline={editing ? words.editOverline : words.newOverline}
+      erro={error}
+      denovo={refresh}
     >
       {/* O que é: o nome e para que serve. Um assunto só, porque é uma pergunta
           só — e o título do cartão é a resposta que está dada agora, que muda no
