@@ -347,6 +347,56 @@ virar afirmação. **Seis fechados no mesmo dia:**
     o saldo dele. Fronteira escrita em `PORTA_DIFERENTE_DA_TELA`
     (`src/dictionary.test.ts`), que é o que impede o achado de sumir.
 
+28. **A conferência da doca só sabe dizer "chegou tudo"** — e isso contraria uma decisão
+    escrita do dono. Achado dirigindo o aplicativo em 10 de setembro: o toque em *"Loja
+    Centro ainda não conferiu o que chegou"* abre uma folha com UM botão, *"Conferir
+    chegada"*, e grava. Não há onde dizer que faltaram três caixas.
+
+    O `CLAUDE.md` decide o contrário, com estas palavras: *"contagem é perguntada toda
+    vez, e é gravada como diferença que o livro-razão guarda, nunca como valor que
+    sobrescreve"*. E a seção de tom usa como exemplo canônico de como o aplicativo fala
+    uma frase que ele **não consegue produzir**: *"Faltaram 3 caixas na conferência"*.
+
+    O que existe e o que falta, medido:
+    - `recordCheck` (`src/data/repository.ts:3981`) **aceita** `counted?: {itemId,
+      baseUnits}[]` — o caminho de escrita está construído e provado.
+    - `app/(tabs)/transport.tsx:137` chama `recordCheck(empresaDaqui(), { groupId })`,
+      sem `counted`, sempre. O comentário acima justifica a omissão com um problema real
+      mas ESTREITO (somar o destino contaria duas cargas do mesmo dia duas vezes) — e a
+      consequência é muito maior que a razão: a diferença nunca entra no razão.
+    - `t.signals.missing` — *"Faltaram {{count}} caixas"*, nos três idiomas — **não tem
+      leitor nenhum** (`src/i18n/locales/pt-BR.ts:1976`).
+
+    Consequência de negócio: o Espelho da Loja mede o que cada loja devolve, e a captura
+    dele depende desta diferença. Sem ela, a falta some entre a fábrica e a prateleira.
+
+29. **A guarda de chaves do dicionário casa pelo NOME da folha, em qualquer objeto** — e
+    foi ela que escondeu o item 28. `folhasSemLeitor` (`src/dictionary.test.ts:464`)
+    pergunta se `\.<folha>\b` aparece em algum lugar do código. Para `signals.missing`
+    isso casa com `d.missing` e `e.missing`, que são propriedades de objetos de domínio
+    sem relação nenhuma com dicionário — então a chave passa por lida.
+
+    Provado nos dois sentidos: `signals.checked` aparece no código como
+    `t.signals.checked` (`app/(tabs)/transport.tsx:240`) e é lida de verdade;
+    `signals.missing` não aparece com o pai em lugar nenhum.
+
+    **Pelo menos cinco chaves mortas passam hoje**, cada uma conferida na mão:
+    `signals.missing`, `common.why`, `common.confirm`, `common.ask` e `app.home.running`
+    — as três de `common` porque `.why`, `.confirm` e `.ask` existem sob OUTROS pais
+    (`t.app.recipe.why`, `t.app.assistant.why`, `t.app.lotLabel.why`).
+
+    **E o número maior ainda não existe, de propósito.** Uma régua estrita que exige o pai
+    antes da folha acusou 610 de 1.386 — e ela está errada, porque não modela nem o objeto
+    de plural (`plural(n, t.app.home.orderCount)` nunca escreve `.one`) nem a leitura por
+    índice, que a guarda atual já trata. Dizer 610 seria repetir a cicatriz do detector que
+    não passa no caso falso. O conserto é a régua saber a forma da leitura; o número sai
+    depois dela, não antes.
+
+    E o docblock do arquivo promete que este buraco foi fechado em 9 de setembro (*"as 44
+    viraram 39 de verdade"*) — fechou o buraco do índice dinâmico, não o da colisão de
+    nome. Fronteira dita em voz alta continua sendo fronteira: ou fecha, ou a promessa se
+    corrige.
+
 **Aberto do que esta caminhada achou:**
 
 22. ~~**Sair do editor com alteração pendente não avisa.**~~ — **fechada** com uma guarda em
