@@ -9010,3 +9010,40 @@ em vez do nome da folha (`src/dictionary.test.ts`), e uma guarda nova cobra que 
 "Mais" diga o nome da tela que ela abre. As duas medem exatamente a distância entre o que a
 tela mostra e a palavra que sobrou — que é onde este tipo de defeito mora. A segunda achou
 o item 27 sozinha, no commit em que nasceu.
+
+---
+
+## 10 de setembro — a régua tem de ser mais fina que o fenômeno, e as minhas não eram
+
+**O que apareceu:** três medidas minhas erraram no mesmo dia, e eu tratei as três como
+achados separados até ver que são a mesma coisa.
+
+| a régua | o fenômeno | por que ela não pegava |
+|---|---|---|
+| `dd` de 300 MB dentro do aparelho | o emulador pede **7,37 GB** para criar a partição | media a grandeza errada |
+| ler a árvore 6 s depois do intent | a navegação leva **até 63 s** ali | mais rápida que o fenômeno |
+| `\.<folha>\b` em qualquer lugar do código | a chave é um **caminho**, não um nome | mais grossa que o fenômeno |
+
+**Por que importa:** as três produziram afirmação, não silêncio. O disco "estava sobrando",
+a rota "era ignorada", a chave "tinha leitor" — e as três afirmações eram confortáveis, o
+que é o pior de tudo: nenhuma delas me fez desconfiar. Uma régua cega não devolve erro,
+devolve o resultado que você esperava.
+
+**E o custo é composto, porque medida errada vira registro.** A do disco virou uma linha na
+tabela de hipóteses derrubadas do `docs/roadmap.md` e travou o emulador por horas. A da tela
+virou um item de defeito que sobreviveu a **duas** conferências, porque cada repetição
+confirmava o mesmo artefato. A do dicionário deixou passar uma frase que o `CLAUDE.md` usa
+como exemplo de como o aplicativo deve falar.
+
+**O que mudou por causa disso, e é o que separa isto de lamento:** `abrir`
+(`scripts/aparelho.mjs`) não volta mais na hora — ele lê a tela antes, dispara, espera o
+texto mudar e **falha** se não mudar; `folhasSemLeitor` (`src/dictionary.test.ts`) compara
+caminho com caminho, com as cinco formas de leitura que este repositório usa; e a cicatriz
+do disco no docblock do `subir` foi corrigida para dizer o que o emulador PEDE, não o que o
+convidado consegue gravar.
+
+**A pergunta que fica, e ela é barata:** antes de acreditar num número, *a minha régua é mais
+fina que a coisa que ela mede?* Nas três, responder isso custava uma medição a mais e teria
+poupado o dia. E a irmã dela, que este arquivo já exigia e eu cumpri tarde: **régua nova passa
+num caso verdadeiro e num falso antes de dizer qualquer número** — foi conferindo uma amostra
+à mão que eu descobri que a terceira régua estava prestes a apagar dezesseis chaves vivas.
