@@ -152,6 +152,17 @@ por peso, e o que já foi fechado:**
     dado.
 12. **A mesma palavra conta coisas diferentes**: Ajustes diz *"Insumos 6"* e o Almoxarifado
     diz *"Insumos 4 · Embalagem 2"*.
+13. **O editor da ficha técnica abre com o cabeçalho vazio.** `app/recipes/[id].tsx` deixa
+    uma faixa de ~170 dp de papel puro no topo — sem sobrancelha, sem título, sem cena —,
+    e ela não é transição: sobrevive a rolagem para baixo e para cima. O `CollapsingHeader`
+    recebe `title`, `overline` e `cena="receitas"`, então não é falta de dado. Papel puro
+    também é o que opacidade zero produz, então a suspeita é a entrada travada em 0 — o
+    caso extremo do defeito que a rede conserta, e que aqui não foi coberto.
+14. **`Criar {{name}}?`** ~~o marcador do dicionário na confirmação da ficha~~ — **fechado**,
+    com a varredura que o pega (`marcadoresSoltos`).
+15. **O `accessibilityLabel` do Extrato lia a frase crua** ~~"Ver mais — {{n}} até aqui"~~ —
+    **fechado** pela mesma varredura, e ele é o tipo de defeito que só existe na metade da
+    tela que ninguém olha.
 
 **O que a caminhada CONFIRMOU funcionando**, para o relatório não ser só defeito: o Reset
 com as duas confirmações, exatamente como a decisão pede — a primeira com os números por
