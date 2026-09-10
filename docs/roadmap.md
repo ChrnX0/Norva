@@ -158,7 +158,11 @@ por peso, e o que já foi fechado:**
     nasce cortada.
 11. **`expo-updates` tenta baixar atualização a cada ~70 s** e falha, cada tentativa com
     handshake TLS e rastro de pilha inteiro no log. No celular da fábrica isso é bateria e
-    dado.
+    dado. **Reconfirmado com hora em 10 de setembro**, no log do aparelho: 21 linhas de
+    `checkError={message=Failed to download remote update}` numa janela de log, com
+    `lastCheckForUpdateTime` andando 08:40:14 → 08:41:07 → 08:47:02 → 08:48:07. O canal
+    `preview` do `app.json` não tem nada publicado, e o aplicativo bate na porta dele para
+    sempre.
 12. **A mesma palavra conta coisas diferentes**: Ajustes diz *"Insumos 6"* e o Almoxarifado
     diz *"Insumos 4 · Embalagem 2"*.
 13. ~~**O editor da ficha técnica abre com o cabeçalho vazio.**~~ — **fechado**: era a

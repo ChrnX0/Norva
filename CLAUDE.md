@@ -326,20 +326,36 @@ Duas regras de operação, ambas cicatriz:
   `adb emu kill`, que é o comando dele e não um `pkill` por padrão. E se uma checagem
   vier vermelha com `Input: ''`, olhe a carga da máquina antes de olhar o código.
 
-  **E a recíproca é mais dura, medida em 10 de setembro: DIRIGIR o emulador precisa da
-  máquina inteira, e a barra leve já é demais.** Não é só `e2e` e `mutate`. Rodando
-  `npm test` (16 s), `npm run lint` e o portão da proofgate em paralelo enquanto um
-  roteiro tocava a tela, o aplicativo levou **dois ANR** — *"NORVA não está
-  respondendo"*, com `Reason: Input dispatching timed out` — e um `uiautomator dump` ficou
-  tão lento que o roteiro estourou o tempo e **perdeu a saída inteira**. As duas vezes o
-  formulário que estava preenchido zerou junto.
+  **E DIRIGIR o emulador por toque tem um teto próprio, que não é disputa de CPU — 10 de
+  setembro, e eu escrevi a causa errada antes de ler o rastro.** Um roteiro que preenche
+  um formulário longo levou **três ANR** em duas horas. Os dois primeiros aconteceram com
+  `npm test`, lint e o portão rodando junto, e eu registrei aqui que a causa era essa. **O
+  terceiro aconteceu com a máquina livre**, e o rastro diz outra coisa:
 
-  Isso muda o laço de trabalho, não só a ordem: enquanto o aparelho estiver sendo
-  DIRIGIDO — toque, digitação, `uiautomator` —, a máquina é dele. Trabalho de código que
-  não pede CPU (ler, editar, escrever documento) continua valendo em paralelo; qualquer
-  coisa que rode a suíte, o lint ou o portão espera o roteiro terminar. E roteiro de
-  aparelho escreve com `appendFileSync` num arquivo, nunca só `console.log`: morto por
-  tempo, o `stdout` do Node se perde e a rodada inteira vira zero linha.
+  ```
+  Reason: Input dispatching timed out (... does not have a focused window)
+    111% system_server: 26% user + 85% kernel
+     36% app.norva.mobile: 18% user + 18% kernel
+  ```
+
+  O aplicativo está em 36%. Quem queima é o **gerenciador de janelas do emulador**, a
+  111% e quase todo em kernel — a fila de eventos de entrada não é atendida porque o
+  `system_server` não dá conta, num emulador sem KVM e com GPU por software. Não é a
+  thread de JS, não é a barra rodando junto, e **não é defeito do aplicativo**: as três
+  vezes o formulário preenchido zerou e a rodada foi perdida.
+
+  Duas consequências práticas, e a segunda é a que economiza tempo de verdade:
+
+  - **Não rode a barra enquanto o roteiro toca a tela.** Continua valendo — o ANR chega
+    mais rápido com a máquina ocupada, e o `uiautomator dump` fica tão lento que o roteiro
+    estoura o tempo. Só deixou de ser a causa.
+  - **Encurte a rolagem em vez de aguentá-la.** Um formulário de dezesseis telas a 393 dp
+    cabe em duas ou três a 720 dp, e `wm density` troca isso em segundos. Menos evento de
+    entrada é menos chance de ANR — e de quebra exercita a largura de tablet, que este
+    projeto exige medir de qualquer jeito. Lembre do `wm density reset` ao terminar.
+
+  E roteiro de aparelho escreve com `appendFileSync` num arquivo, nunca só `console.log`:
+  morto por tempo, o `stdout` do Node se perde e a rodada inteira vira zero linha.
 
 - **Use o verbo do script, não o comando cru por baixo dele — 9 de setembro.** Para
   conferir um conserto de tela eu disparei `./gradlew assembleRelease` direto, e ele foi
