@@ -754,3 +754,55 @@ test('a régua da unidade separa a que decide da que só cita', () => {
   assert.ok(!MEDIDAS_CHUMBADAS.test('Sobram {{net}} {{unit}} de {{gross}}.'));
   assert.ok(!MEDIDAS_CHUMBADAS.test('{{name}} mlado'), 'palavra que só COMEÇA com a medida não conta');
 });
+
+/**
+ * **E a régua de cima tinha um buraco que a tela seguinte mostrou.**
+ *
+ * `MEDIDAS_CHUMBADAS` pega a medida colada num marcador — `'{{net}} ml de
+ * {{gross}}'` —, e por isso não viu a frase que estava logo ao lado na lista de
+ * Receitas: *"por litro de massa · usada dentro de outras receitas"*. Ali não há
+ * marcador nenhum: a frase inteira É a régua, chumbada. A ficha de pão pesada em
+ * grama aparecia cotada por litro, com o número certo e a grandeza errada.
+ *
+ * Então a segunda régua olha o CONTRÁRIO: nas seções que falam de ficha e de
+ * produto, qualquer palavra de medida solta é suspeita, com marcador ou sem. As
+ * exceções são as três em que a medida é o ASSUNTO e não a afirmação — os
+ * rótulos do seletor de unidade, o mapa que traduz cada régua, e o sufixo de
+ * preço por unidade, que é dinheiro e não massa.
+ */
+const AREAS_DE_MEDIDA = ['app.recipe', 'app.recipes', 'app.recipeNew', 'app.productForm', 'app.production', 'whySheet'];
+const MEDIDA_SOLTA = /(?<![a-zA-ZÀ-ÿ])(ml|kg|un|litros?|quilos?|gramas?|mililitros?)(?![a-zA-ZÀ-ÿ])/i;
+const A_MEDIDA_E_O_ASSUNTO = ['app.recipeNew.units.', 'app.recipes.bulkMeasures.', 'app.productForm.perUnitShort'];
+
+function medidaSolta(onde: string, texto: string): boolean {
+  if (!AREAS_DE_MEDIDA.some((a) => onde.startsWith(`${a}.`))) return false;
+  if (A_MEDIDA_E_O_ASSUNTO.some((e) => onde.startsWith(e))) return false;
+  return MEDIDA_SOLTA.test(texto);
+}
+
+test('nenhuma frase de ficha ou produto escolhe a medida no lugar do dono', () => {
+  const presas = frasesDoDicionario(ptBR)
+    .filter(({ onde, texto }) => medidaSolta(onde, texto))
+    .map(({ onde, texto }) => `${onde}: ${JSON.stringify(texto)}`);
+
+  assert.deepEqual(
+    presas,
+    [],
+    'a régua vem da ficha — passe {{unit}} ou escolha a frase pelo mapa de medidas',
+  );
+});
+
+test('a segunda régua separa a frase que afirma da que traduz a medida', () => {
+  // Verdadeiro: a lista dizia isto sobre TODA ficha, inclusive as pesadas em grama.
+  assert.ok(medidaSolta('app.recipes.perBulk', 'por litro de massa · usada dentro de outras receitas'));
+  assert.ok(medidaSolta('app.production.confirmBody', 'Saíram 40 litros do tacho'));
+
+  // Falso, nos três sentidos que importam: a medida como assunto, a medida já
+  // vinda por marcador, e a mesma palavra fora das áreas que falam de ficha.
+  assert.ok(!medidaSolta('app.recipeNew.units.ml', 'mililitros'));
+  assert.ok(!medidaSolta('app.recipes.bulkMeasures.g', 'por quilo de massa'));
+  assert.ok(!medidaSolta('app.productForm.perUnitShort', '/ un'));
+  assert.ok(!medidaSolta('app.recipes.perBulk', '{{measure}} · usada dentro de outras receitas'));
+  assert.ok(!medidaSolta('app.inputForm.useUnitHint', 'A menor medida com que a receita trabalha: g, ml, un.'));
+  assert.ok(!medidaSolta('app.recipe.whatGoesIn', 'O que entra de cada vez'), 'palavra sem medida passa');
+});

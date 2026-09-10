@@ -100,6 +100,8 @@ function contaDaReceita(
   cost: RecipeCost,
   locale: LocaleSettings,
   t: Dictionary,
+  /** A régua que a ficha escolheu — ml, g ou un. Sem ela a folha diz "mil" e cala de quê. */
+  unit: string,
 ): Conta {
   const linhas = [...cost.lines].sort((a, b) => b.share - a.share);
   return {
@@ -126,6 +128,10 @@ function contaDaReceita(
         valor: fill(t.whySheet.perAmount, {
           money: formatMoney(Math.round(cost.perYieldUnit * 1000), locale),
           amount: formatQuantity(1000, locale),
+          // "R$ 1,03 / 1.000" — mil de quê? A Lei 3 pede a comparação junto, e
+          // sem a régua o número não decide nada: mil gramas e mil mililitros
+          // são coisas diferentes na mesma folha.
+          unit,
         }),
         forte: true,
       },
@@ -729,7 +735,7 @@ function RecipeEditor() {
         <WhySheet
           visible={whyOpen}
           onClose={() => setWhyOpen(false)}
-          conta={contaDaReceita(computed.cost, locale, t)}
+          conta={contaDaReceita(computed.cost, locale, t, stored.yieldUnit)}
           title={title}
         />
       ) : null}

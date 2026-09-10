@@ -1358,7 +1358,8 @@ export const en: Dictionary = {
       empty: 'No recipe yet. Register the inputs first, then the recipe that uses them.',
       perUnitOf: 'per unit of {{product}} · batch of {{batch}}',
       perUnitOfNoCost: 'per unit of {{product}}',
-      perLitre: 'per litre of mix · used inside other recipes',
+      bulkMeasures: { ml: 'per litre of mix', g: 'per kilo of mix', un: 'per thousand units' },
+      perBulk: '{{measure}} · used inside other recipes',
       cycle: 'This recipe contains itself — open it to fix that.',
       missingPrice: 'Some input has no price yet.',
       orderedByBatch: 'In order of what a batch costs — dearest first, which is where a change pays most.',
@@ -1538,7 +1539,7 @@ export const en: Dictionary = {
     expectedLoss: 'Expected loss ({{percent}})',
     remains: '{{amount}} left',
     perMassUnit: 'Cost per unit of mass',
-    perAmount: '{{money}} / {{amount}}',
+    perAmount: '{{money}} / {{amount}} {{unit}}',
     lossNote:
       'Loss makes the rest dearer: the batch is paid for whole, but only part of it reaches the customer.',
   },

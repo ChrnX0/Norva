@@ -1736,7 +1736,15 @@ export const ptBR = {
       empty: 'Nenhuma ficha técnica ainda. Cadastre os insumos primeiro, depois a receita que os usa.',
       perUnitOf: 'por unidade de {{product}} · lote de {{batch}}',
       perUnitOfNoCost: 'por unidade de {{product}}',
-      perLitre: 'por litro de massa · usada dentro de outras receitas',
+      /**
+       * A figura ao lado é o custo de MIL unidades-base do que a ficha rende, e
+       * mil unidades-base não são um litro em toda ficha: são um litro em
+       * mililitro, um quilo em grama e mil unidades em unidade. A frase dizia
+       * litro nos três casos, e uma massa de pão pesada em grama aparecia
+       * cotada "por litro".
+       */
+      bulkMeasures: { ml: 'por litro de massa', g: 'por quilo de massa', un: 'por mil unidades' },
+      perBulk: '{{measure}} · usada dentro de outras receitas',
       cycle: 'Esta receita contém a si mesma — abra para corrigir.',
       missingPrice: 'Falta preço em algum insumo.',
       orderedByBatch: 'Em ordem de quanto custa o lote — a mais cara primeiro, que é onde mexer rende mais.',
@@ -1942,7 +1950,7 @@ export const ptBR = {
     expectedLoss: 'Perda prevista ({{percent}})',
     remains: 'sobram {{amount}}',
     perMassUnit: 'Custo por unidade de massa',
-    perAmount: '{{money}} / {{amount}}',
+    perAmount: '{{money}} / {{amount}} {{unit}}',
     lossNote:
       'A perda encarece o que sobra: o lote é pago inteiro, mas só parte dele chega ao cliente.',
   },

@@ -1362,7 +1362,8 @@ export const es: Dictionary = {
       empty: 'Ninguna ficha técnica todavía. Carga los insumos primero, después la receta que los usa.',
       perUnitOf: 'por unidad de {{product}} · lote de {{batch}}',
       perUnitOfNoCost: 'por unidad de {{product}}',
-      perLitre: 'por litro de mezcla · usada dentro de otras recetas',
+      bulkMeasures: { ml: 'por litro de mezcla', g: 'por kilo de mezcla', un: 'por mil unidades' },
+      perBulk: '{{measure}} · usada dentro de otras recetas',
       cycle: 'Esta receta se contiene a sí misma — ábrela para corregirla.',
       missingPrice: 'Falta el precio de algún insumo.',
       orderedByBatch: 'En orden de cuánto cuesta el lote — la más cara primero, que es donde mover rinde más.',
@@ -1543,7 +1544,7 @@ export const es: Dictionary = {
     expectedLoss: 'Pérdida prevista ({{percent}})',
     remains: 'quedan {{amount}}',
     perMassUnit: 'Costo por unidad de masa',
-    perAmount: '{{money}} / {{amount}}',
+    perAmount: '{{money}} / {{amount}} {{unit}}',
     lossNote:
       'La pérdida encarece lo que queda: el lote se paga entero, pero sólo una parte llega al cliente.',
   },

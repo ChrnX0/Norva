@@ -151,7 +151,15 @@ function RecipesList() {
                 locale,
               ),
             })
-          : t.app.recipes.perLitre;
+          : fill(t.app.recipes.perBulk, {
+              // Mil unidades-base do que a ficha rende: um litro em mililitro,
+              // um quilo em grama, mil unidades em unidade. A frase única dizia
+              // litro nos três, e a massa de pão saía cotada por litro.
+              measure:
+                t.app.recipes.bulkMeasures[
+                  recipe.yieldUnit as keyof typeof t.app.recipes.bulkMeasures
+                ] ?? t.app.recipes.bulkMeasures.ml,
+            });
 
         return {
           id: recipe.id,
