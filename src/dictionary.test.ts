@@ -1026,3 +1026,60 @@ test('the door ruler bites a renamed door and spares the one with a written reas
   assert.ok(!bate('Clima', undefined, 'weather'));
   assert.ok(!bate('Trocar de pessoa', 'Quem está com o aparelho', 'who'));
 });
+
+/**
+ * O nome que o dono digitou não se dobra para caber numa frase nossa.
+ *
+ * **Achado dirigindo o aparelho em 10 de setembro:** a confirmação da conferência
+ * dizia *"1 engradado picole"* — e o produto se chama `Picole`. Três telas faziam
+ * `item.name.toLocaleLowerCase(...)` para encaixar o nome no meio de uma frase.
+ *
+ * A distinção que importa, e ela não é sutil: minusculizar uma palavra do
+ * DICIONÁRIO é nosso direito, porque a palavra é nossa — `t.loss[reason]` vira
+ * *"derreteu"* no meio de uma frase e está certo. Minusculizar o NOME de um item,
+ * de um lugar ou de uma pessoa é decidir sobre uma palavra que não é nossa. Nome
+ * próprio mantém a maiúscula no meio da frase, em português como em espanhol, e
+ * uma marca com maiúscula interna — *"Açaí Premium"* — perde o desenho dela.
+ *
+ * Onde dói mais: a confirmação de um ato irreversível, que é onde a pessoa confere
+ * o que vai acontecer. Este arquivo já diz que confirmação truncada ensina a não ler
+ * confirmação; nome amassado é a mesma erosão, mais devagar.
+ *
+ * **A MAIÚSCULA fica de fora, e com razão escrita.** `brand.name.toUpperCase()` na
+ * testeira da capa é escolha tipográfica de uma FAIXA — a mesma que as sobrancelhas
+ * usam —, aplicada uniformemente e sem fingir gramática. O que a régua proíbe é
+ * dobrar para BAIXO, que só existe para empurrar um nome próprio para dentro de uma
+ * oração como se fosse substantivo comum.
+ */
+const DOBRA_NOME = /\.\s*name\s*\.\s*(?:toLocaleLowerCase|toLowerCase)\s*\(/;
+
+function dobraNome(codigo: string): boolean {
+  return DOBRA_NOME.test(codigo);
+}
+
+test('no screen folds the case of a name its owner typed', () => {
+  const arquivos = telas('app').concat(telas('src'));
+  assert.ok(arquivos.length > 50, 'a varredura não achou telas — a comparação seria de graça');
+
+  const presos = arquivos.filter((f) => dobraNome(readFileSync(f, 'utf8')));
+
+  assert.deepEqual(
+    presos,
+    [],
+    'estas telas minusculizam um nome do dono para encaixá-lo numa frase. A frase é ' +
+      'nossa e se reescreve; o nome é dele e fica como ele escreveu.',
+  );
+});
+
+test('the name ruler tells a typed name from a word of ours', () => {
+  // Verdadeiro: as três formas que existiam no repositório.
+  assert.ok(dobraNome('`${naUnidade(i)} ${i.name.toLocaleLowerCase(locale.formatting)}`'));
+  assert.ok(dobraNome('item: semNaSala[0].name.toLocaleLowerCase(locale.formatting),'));
+  assert.ok(dobraNome('nomes.map((p) => p.name.toLowerCase())'));
+
+  // Falso, nos três sentidos: palavra do dicionário, faixa em maiúscula, e o nome
+  // usado inteiro — que é o conserto.
+  assert.ok(!dobraNome('reason: t.loss[row.reason].toLocaleLowerCase(locale.formatting),'));
+  assert.ok(!dobraNome('{brand.name.toUpperCase()}'));
+  assert.ok(!dobraNome('`${naUnidade(i)} ${i.name}`'));
+});

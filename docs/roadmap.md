@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **672** testes |
+| `npm test` | **674** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **28** garantias contra um Postgres descartável, sob RLS |
@@ -514,6 +514,17 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
   por decisão escrita, e o que ele mostra hoje é honesto.
 - **E confirmou o item 27 ao vivo:** a porta do Mais diz *"Lojas e clientes"* e a tela que
   ela abre se chama *"Estoque por lugar"*.
+
+32. ~~**A confirmação dizia "1 engradado picole"**~~ — **fechado.** Três telas faziam
+    `item.name.toLocaleLowerCase(...)` para encaixar o nome do dono no meio de uma frase
+    nossa (`app/(tabs)/transport.tsx`, e duas vezes em `app/transfer.tsx`). Minusculizar
+    palavra do DICIONÁRIO é direito nosso — `t.loss[reason]` vira *"derreteu"* e está
+    certo. Minusculizar o NOME de um item é decidir sobre uma palavra que não é nossa:
+    nome próprio mantém a maiúscula no meio da frase, e uma marca com maiúscula interna
+    (*"Açaí Premium"*) perde o desenho dela. Onde doía mais era a confirmação da
+    conferência, que é onde a pessoa lê o que vai acontecer. Guarda em
+    `src/dictionary.test.ts`, com a MAIÚSCULA de fora por razão escrita: a testeira da
+    capa é faixa tipográfica, não gramática.
 
 **Aberto do que esta caminhada achou:**
 

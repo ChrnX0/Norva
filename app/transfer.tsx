@@ -799,7 +799,8 @@ function Transfer() {
                   // `pickingFor` devolve vazio sem ele.
                   place: nameOf(to?.id ?? from),
                   amount: `${formatQuantity(semNaSala[0].ordered - semNaSala[0].sentToday, locale)} ${semNaSala[0].baseUnit}`,
-                  item: semNaSala[0].name.toLocaleLowerCase(locale.formatting),
+                  // O nome é do dono, não nosso: ver `transport.tsx`.
+                  item: semNaSala[0].name,
                   from: nameOf(from),
                 })}
               </Text>
@@ -808,7 +809,7 @@ function Transfer() {
                   {fill(words.orderedAbsentMany, {
                     items: semNaSala
                       .slice(1)
-                      .map((p) => p.name.toLocaleLowerCase(locale.formatting))
+                      .map((p) => p.name)
                       .join(', '),
                   })}
                 </Text>

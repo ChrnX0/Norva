@@ -112,7 +112,13 @@ function WhereItWent() {
    */
   const ask = async (place: Shipment) => {
     const said = place.items
-      .map((i) => `${naUnidade(i)} ${i.name.toLocaleLowerCase(locale.formatting)}`)
+      // **O nome que o dono digitou não se dobra.** Minusculizar palavra do
+      // DICIONÁRIO para caber no meio de uma frase é certo — "Derreteu" vira
+      // "derreteu". Fazer o mesmo com o nome de um item é decidir sobre uma
+      // palavra que não é nossa: "Picole" virava "picole", e uma marca como
+      // "Açaí Premium" viraria "açaí premium" na confirmação de um ato
+      // irreversível. Nome próprio mantém a maiúscula no meio da frase.
+      .map((i) => `${naUnidade(i)} ${i.name}`)
       .join(' · ');
 
     const yes = await confirm({
