@@ -20,6 +20,8 @@ import {
   type ProductType,
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
+import { parseTyped } from '@/domain/number';
+import type { PackagingHierarchy } from '@/domain/units';
 import { useQuery } from '@/data/useQuery';
 import { fill } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -71,6 +73,23 @@ function Catalog() {
   const [novoTipo, setNovoTipo] = useState('');
   const [novoSabor, setNovoSabor] = useState('');
   const [erro, setErro] = useState<string | null>(null);
+  /**
+   * Como a família escolhida é embalada — e por que ela mora AQUI.
+   *
+   * A grade existia para compor o nome do produto e nada além disso, então
+   * "quantos cabem numa caixa" era perguntado a cada produto cadastrado, com um
+   * padrão inventado. A resposta depende da família — picolé próprio numa caixa,
+   * picolé de revenda na caixa do fornecedor, pote sem caixa nenhuma —, e
+   * "depende" vira dado nesta casa. Definida uma vez, o cadastro do produto
+   * nasce preenchido.
+   *
+   * Vazio é resposta legítima e quer dizer "esta família não se conta por
+   * caixa": é o caso do pote, e é o que impede a tela de afirmar uma caixa que
+   * não existe.
+   */
+  const [porCaixa, setPorCaixa] = useState('');
+  const [porEngradado, setPorEngradado] = useState('');
+  const [linhaEditada, setLinhaEditada] = useState<string | null>(null);
 
   const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
     const [lines, types, flavors] = await Promise.all([
@@ -85,9 +104,34 @@ function Catalog() {
   // escolhida é a primeira, porque uma fábrica que tem uma linha só nunca
   // deveria ter de escolhê-la.
   const linhaAtiva = data?.lines.find((l) => l.id === lineId) ?? data?.lines[0] ?? null;
+
+  // Trocar de família recarrega os campos com o que ELA guarda — durante a
+  // renderização, que é o padrão do React para estado que depende de uma
+  // propriedade que mudou.
+  if (linhaAtiva && linhaAtiva.id !== linhaEditada) {
+    setLinhaEditada(linhaAtiva.id);
+    const caixa = linhaAtiva.packaging?.tiers.find((x) => x.id === 'box') ?? null;
+    const engradado = linhaAtiva.packaging?.tiers.find((x) => x.id === 'crate') ?? null;
+    setPorCaixa(caixa ? String(caixa.perBaseUnit) : '');
+    setPorEngradado(caixa && engradado ? String(Math.round(engradado.perBaseUnit / caixa.perBaseUnit)) : '');
+  }
+
+  /** O que vai para o banco: sem caixa, a família só tem a unidade. */
+  const embalagemDaFamilia = (): PackagingHierarchy => {
+    const caixa = Math.round(parseTyped(porCaixa) ?? NaN);
+    const engradado = Math.round(parseTyped(porEngradado) ?? NaN);
+    const faixas = [{ id: 'unit', perBaseUnit: 1 }];
+    if (Number.isFinite(caixa) && caixa > 1) faixas.push({ id: 'box', perBaseUnit: caixa });
+    if (Number.isFinite(engradado) && engradado > 1 && faixas.length > 1) {
+      faixas.push({ id: 'crate', perBaseUnit: caixa * engradado });
+    }
+    return { tiers: faixas };
+  };
   const tiposDaLinha = (data?.types ?? []).filter((t) => t.lineId === linhaAtiva?.id);
 
-  const gravar = async (fn: () => Promise<unknown>, limpar: () => void) => {
+  // `limpar` é opcional: guardar a embalagem da família não esvazia campo
+  // nenhum — os dois continuam mostrando o que acabou de ser guardado.
+  const gravar = async (fn: () => Promise<unknown>, limpar: () => void = () => {}) => {
     setErro(null);
     try {
       await fn();
@@ -234,6 +278,44 @@ function Catalog() {
               ))}
             </View>
           )}
+
+          {/* COMO ESTA FAMÍLIA É EMBALADA — e é aqui que a grade deixa de ser só
+              um nome. Definida uma vez, todo produto da linha nasce com ela e a
+              tela de cadastro para de perguntar. Vazio quer dizer "não se conta
+              por caixa", que é o caso do pote. */}
+          {linhaAtiva ? (
+            <View style={{ marginTop: space.lg, gap: space.md }}>
+              <Text style={[type.overline, { color: color.inkFaint }]}>
+                {fill(t.app.catalog.packing, { line: linhaAtiva.name })}
+              </Text>
+              <Field
+                label={t.app.catalog.perBox}
+                value={porCaixa}
+                onChangeText={setPorCaixa}
+                keyboardType="numeric"
+                hint={t.app.catalog.packingHint}
+              />
+              <Field
+                label={t.app.catalog.perCrate}
+                value={porEngradado}
+                onChangeText={setPorEngradado}
+                keyboardType="numeric"
+              />
+              <Button
+                label={t.app.catalog.savePacking}
+                variant="ghost"
+                onPress={() =>
+                  gravar(() =>
+                    saveLine(empresaDaqui(), {
+                      id: linhaAtiva.id,
+                      name: linhaAtiva.name,
+                      packaging: embalagemDaFamilia(),
+                    }),
+                  )
+                }
+              />
+            </View>
+          ) : null}
 
           <View style={{ marginTop: space.lg, gap: space.md }}>
             <Field

@@ -27,6 +27,7 @@ import {
   listCarriers,
   saveCarrier,
   saveFlavor,
+  listLines,
   saveLine,
   saveType,
   SemPermissaoError,
@@ -7212,4 +7213,44 @@ test('counting a cold room is a difference, because a cold room sells to nobody'
     [CO, produto.itemId, camara],
   );
   assert.equal(linha?.kind, 'adjustment', 'e o razão guarda a diferença com o nome dela');
+});
+
+test('a família carrega como ela é embalada, e renomear não apaga a régua', async () => {
+  const linhaId = await saveLine(CO, {
+    name: 'Picolé',
+    packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }, { id: 'box', perBaseUnit: 44 }, { id: 'crate', perBaseUnit: 264 }] },
+  });
+
+  const guardada = (await listLines(CO)).find((l) => l.id === linhaId);
+  assert.deepEqual(
+    guardada?.packaging?.tiers,
+    [{ id: 'unit', perBaseUnit: 1 }, { id: 'box', perBaseUnit: 44 }, { id: 'crate', perBaseUnit: 264 }],
+    'a caixa de 44 e o engradado de 6 voltam como entraram',
+  );
+
+  // **O caso que a primeira versão desta gravação perdia.** A tela que renomeia
+  // a linha não manda embalagem, e o `ON CONFLICT` comparava um parâmetro que
+  // nunca é nulo — trocar o nome apagaria a régua da família inteira, calado.
+  await saveLine(CO, { id: linhaId, name: 'Picolé de fruta' });
+  const depois = (await listLines(CO)).find((l) => l.id === linhaId);
+  assert.equal(depois?.name, 'Picolé de fruta', 'o nome mudou');
+  assert.equal(depois?.packaging?.tiers.length, 3, 'e a embalagem continua lá');
+  assert.equal(depois?.packaging?.tiers[1].perBaseUnit, 44);
+});
+
+test('família sem embalagem não afirma uma caixa que não existe', async () => {
+  // O caso do pote: a família tem só a unidade, e o cadastro do produto tem de
+  // ver VAZIO em vez do padrão inventado. `parsePackaging` devolveria uma faixa
+  // única para qualquer entrada ilegível, e essa distinção é o teste.
+  const semCaixa = await saveLine(CO, { name: 'Pote' });
+  assert.equal((await listLines(CO)).find((l) => l.id === semCaixa)?.packaging, null);
+
+  // E apagar de propósito é diferente de não mexer: o nulo explícito grava nulo.
+  const comCaixa = await saveLine(CO, {
+    name: 'Caixa',
+    packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }, { id: 'box', perBaseUnit: 24 }] },
+  });
+  assert.equal((await listLines(CO)).find((l) => l.id === comCaixa)?.packaging?.tiers.length, 2);
+  await saveLine(CO, { id: comCaixa, name: 'Caixa', packaging: null });
+  assert.equal((await listLines(CO)).find((l) => l.id === comCaixa)?.packaging, null, 'nulo explícito apaga');
 });

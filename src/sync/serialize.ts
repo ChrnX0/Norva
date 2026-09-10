@@ -359,7 +359,14 @@ const CROSSINGS: Record<
   // é enviada da mais velha para a mais nova exatamente por isso.
   product_lines: {
     take: ['id', 'company_id', 'name', 'sort'],
-    build: (row) => ({ active: flag(row.active) }),
+    // A embalagem da família atravessa como ESTRUTURA, pelo mesmo motivo que a
+    // do item: o aparelho guarda texto, o servidor guarda `jsonb`, e mandar o
+    // texto cru faz o Postgres aceitar uma string onde vai uma lista — a escrita
+    // passa, ninguém reclama, e a régua fica inútil do outro lado.
+    //
+    // Nulo continua nulo: família sem embalagem definida não afirma nada, e
+    // `structure` devolve `null` para o que não é texto.
+    build: (row) => ({ active: flag(row.active), packaging: structure(row.packaging) }),
   },
 
   product_types: {

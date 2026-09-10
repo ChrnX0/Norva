@@ -5506,19 +5506,49 @@ export async function setItemActive(
  * pote; amarrá-lo ao tipo faria o dono cadastrar morango uma vez por tipo, e na
  * primeira correção de nome ele teria seis morangos diferentes no relatório.
  */
-export type ProductLine = { id: string; name: string; sort: number };
+export type ProductLine = {
+  id: string;
+  name: string;
+  sort: number;
+  /**
+   * Como esta família é embalada — e nulo é um estado legítimo.
+   *
+   * A grade existia para compor o NOME do produto e nada além disso, então
+   * "quantos cabem numa caixa" era perguntado produto a produto, com um padrão
+   * inventado (cinquenta) que nenhuma fábrica confirmou. A resposta certa depende
+   * da família — picolé próprio numa caixa, picolé de revenda na caixa do
+   * fornecedor, pote sem caixa nenhuma —, e "depende" vira dado nesta casa.
+   *
+   * Nulo: a família não afirma nada e o cadastro pergunta como pergunta hoje.
+   */
+  packaging: PackagingHierarchy | null;
+};
 export type ProductType = { id: string; lineId: string; name: string; sort: number };
 export type Flavor = { id: string; name: string; sort: number };
 
 export async function listLines(companyId: string): Promise<ProductLine[]> {
   const conn = await db();
-  const rows = await conn.getAllAsync<{ id: string; name: string; sort: number }>(
-    `SELECT id, name, sort FROM product_lines
+  const rows = await conn.getAllAsync<{
+    id: string;
+    name: string;
+    sort: number;
+    packaging: string | null;
+  }>(
+    `SELECT id, name, sort, packaging FROM product_lines
       WHERE company_id = ? AND active = 1
       ORDER BY sort, name COLLATE NOCASE`,
     [companyId],
   );
-  return rows.map((r) => ({ id: r.id, name: r.name, sort: r.sort }));
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    sort: r.sort,
+    // `parsePackaging` devolve o padrão quando não consegue ler, e aqui o que
+    // não foi definido tem de continuar VAZIO: uma família sem embalagem não
+    // afirma "uma unidade por caixa", ela não afirma nada. O padrão dele serve
+    // ao item, que sempre tem uma.
+    packaging: r.packaging ? parsePackaging(r.packaging) : null,
+  }));
 }
 
 export async function listTypes(companyId: string, lineId?: string): Promise<ProductType[]> {
@@ -5551,16 +5581,38 @@ export async function listFlavors(companyId: string): Promise<Flavor[]> {
 /** Uma linha nova, ou o nome de uma existente corrigido. */
 export async function saveLine(
   companyId: string,
-  input: { id?: string; name: string; sort?: number },
+  input: {
+    id?: string;
+    name: string;
+    sort?: number;
+    /**
+     * Ausente é "não mexa no que já estava"; `null` apaga.
+     *
+     * A distinção importa porque a tela que RENOMEIA a linha não manda
+     * embalagem, e tratar ausente como nulo faria trocar o nome apagar a régua
+     * da família inteira — o mesmo buraco que o docblock de `saveProduct`
+     * descreve para a embalagem do produto.
+     */
+    packaging?: PackagingHierarchy | null;
+  },
 ): Promise<string> {
   const conn = await db();
   const id = input.id ?? newId();
+  // "Não mexa" e "apague" são decisões diferentes e as duas chegam como valor
+  // nulo no banco, então quem decide é o SQL escolhido aqui — não um parâmetro
+  // testado lá dentro. A primeira versão desta linha comparava `?2`, que é o
+  // `company_id` e nunca é nulo: renomear a linha teria apagado a embalagem da
+  // família inteira, calado.
+  const mexeNaEmbalagem = input.packaging !== undefined;
+  const embalagem = input.packaging ? JSON.stringify(input.packaging.tiers) : null;
   await conn.withTransactionAsync(async () => {
     await conn.runAsync(
-      `INSERT INTO product_lines (id, company_id, name, sort, active)
-       VALUES (?, ?, ?, ?, 1)
-       ON CONFLICT(id) DO UPDATE SET name = excluded.name, sort = excluded.sort`,
-      [id, companyId, input.name.trim(), input.sort ?? 0],
+      `INSERT INTO product_lines (id, company_id, name, sort, active, packaging)
+       VALUES (?, ?, ?, ?, 1, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name,
+         sort = excluded.sort${mexeNaEmbalagem ? ',\n         packaging = excluded.packaging' : ''}`,
+      [id, companyId, input.name.trim(), input.sort ?? 0, embalagem],
     );
     await enqueue(conn, [{ table: 'product_lines', rowId: id }]);
   });

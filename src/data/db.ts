@@ -1076,9 +1076,25 @@ export const REPAROS: readonly string[] = [
   REPARO_RENDIMENTO_DA_VERSAO,
 ];
 
+/**
+ * A grade escrevia o NOME da família e não dizia como ela é contada.
+ *
+ * `product_lines` entrou na `0018` com `name`, `sort` e `active`, e as duas telas
+ * que a leem usam isso para compor o nome do produto — a embalagem continuava
+ * sendo perguntada produto a produto, com um padrão que eu inventei (cinquenta
+ * por caixa) e que nenhuma fábrica confirmou.
+ *
+ * O motivo inteiro está na `supabase/migrations/0053`. O resumo: quantos cabem
+ * numa caixa **depende da família**, e "depende" vira dado nesta casa. Guarda a
+ * mesma forma que `items.packaging` guarda; nulo é legítimo e é o padrão.
+ */
+const V29 = `
+ALTER TABLE product_lines ADD COLUMN packaging TEXT;
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
-  V19, V20, V21, V22, V23, V24, V25, V26, V27, V28,
+  V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29,
 ];
 
 export type SqlParam = string | number | null;

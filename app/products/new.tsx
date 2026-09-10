@@ -200,6 +200,15 @@ function ProductForm() {
   const [wrappings, setWrappings] = useState<{ itemId: string; quantityPerUnit: string }[]>([]);
   const [perBox, setPerBox] = useState('50');
   const [perCrate, setPerCrate] = useState('6');
+  /**
+   * Quem digitou a embalagem manda; a família só preenche o que ninguém tocou.
+   *
+   * Mesma regra do nome logo acima (`nameTyped`): a dedução SUGERE, não
+   * sobrescreve. Sem isto, tocar a linha depois de ajustar a caixa desfaria o
+   * ajuste sem avisar.
+   */
+  const [embalagemDigitada, setEmbalagemDigitada] = useState(false);
+  const [linhaAnterior, setLinhaAnterior] = useState<string | null>(null);
   const [shelfLife, setShelfLife] = useState('');
   /** Quanto é "cheio" deste produto, para a leitura por faixa de cor. */
   const [fullLevel, setFullLevel] = useState('');
@@ -319,6 +328,38 @@ function ProductForm() {
    * dedução sugere, não sobrescreve.
    */
   const linha = data?.lines.find((l) => l.id === lineId) ?? null;
+
+  /**
+   * **A família diz como ela é contada, e o cadastro nasce preenchido.**
+   *
+   * O padrão daqui era `50` por caixa e `6` por engradado — número que eu
+   * inventei e que nenhuma fábrica confirmou. Quantos cabem numa caixa depende da
+   * família: picolé próprio numa caixa, picolé de revenda na caixa do
+   * fornecedor, pote sem caixa nenhuma. "Depende" vira dado, então a linha guarda
+   * a resposta e esta tela para de perguntar de novo.
+   *
+   * Família sem caixa ESVAZIA os dois campos, e isso é o caso do pote: a
+   * hierarquia dela tem só a unidade, e deixar "50" ali seria a tela afirmando
+   * uma caixa que não existe.
+   *
+   * O ajuste roda na renderização e não num efeito — o padrão do React para
+   * "estado que depende de propriedade que mudou", e o que o
+   * `react-hooks/set-state-in-effect` cobra.
+   */
+  if (lineId !== linhaAnterior) {
+    setLinhaAnterior(lineId);
+    const daFamilia = linha?.packaging;
+    if (!embalagemDigitada && daFamilia) {
+      const caixaDaFamilia = daFamilia.tiers.find((t2) => t2.id === 'box') ?? null;
+      const engradadoDaFamilia = daFamilia.tiers.find((t2) => t2.id === 'crate') ?? null;
+      setPerBox(caixaDaFamilia ? String(caixaDaFamilia.perBaseUnit) : '');
+      setPerCrate(
+        caixaDaFamilia && engradadoDaFamilia
+          ? String(Math.round(engradadoDaFamilia.perBaseUnit / caixaDaFamilia.perBaseUnit))
+          : '',
+      );
+    }
+  }
   const tipo = data?.types.find((x) => x.id === typeId) ?? null;
   const sabor = data?.flavors.find((f) => f.id === flavorId) ?? null;
   /** A faixa da caixa, quando ela existe — é ela que dá sentido ao selo. */
@@ -797,13 +838,26 @@ function ProductForm() {
             <Field
               label={t.app.productForm.perBox}
               value={perBox}
-              onChangeText={setPerBox}
+              onChangeText={(texto) => {
+                setEmbalagemDigitada(true);
+                setPerBox(texto);
+              }}
               keyboardType="numeric"
+              // De onde veio o número, dito por extenso. Campo que nasce
+              // preenchido sem dizer de onde é campo que ninguém confere.
+              hint={
+                !embalagemDigitada && linha?.packaging
+                  ? fill(t.app.productForm.fromFamily, { family: linha.name })
+                  : undefined
+              }
             />
             <Field
               label={t.app.productForm.perCrate}
               value={perCrate}
-              onChangeText={setPerCrate}
+              onChangeText={(texto) => {
+                setEmbalagemDigitada(true);
+                setPerCrate(texto);
+              }}
               keyboardType="numeric"
               hint={packagingEcho}
             />

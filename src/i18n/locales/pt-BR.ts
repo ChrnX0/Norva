@@ -1848,6 +1848,17 @@ export const ptBR = {
     catalog: {
       duplicate: 'Esse nome já está cadastrado. Caixa e espaço não contam como diferença.',
       title: 'Linhas, tipos e sabores',
+      /**
+       * A família passa a dizer como ela é contada, e não só como se chama.
+       * Antes, "quantos cabem numa caixa" era perguntado a cada produto, com um
+       * padrão inventado.
+       */
+      packing: 'COMO {{line}} É EMBALADA',
+      packingHint:
+        'Todo produto desta linha nasce com estes números. Vazio quer dizer que esta família não se conta por caixa.',
+      perBox: 'Unidades por caixa',
+      perCrate: 'Caixas por engradado',
+      savePacking: 'Guardar a embalagem da linha',
       overline: 'a grade do que você fabrica',
       intro:
         'Cadastre uma vez e combine à vontade. Picolé tradicional de morango é uma linha, um tipo e um sabor — não um nome digitado inteiro.',
@@ -1914,6 +1925,7 @@ export const ptBR = {
       perUnitOf: 'Quanto de {{item}} por unidade',
       howPacked: 'Como ele é empacotado',
       howPackedHint: 'O estoque conta sempre em unidade; as telas falam na sua embalagem.',
+      fromFamily: 'Vem de {{family}}. Mude aqui se este produto for diferente.',
       perBox: 'Unidades por caixa',
       shelfLife: 'Validade, em dias',
       shelfLifeHint:

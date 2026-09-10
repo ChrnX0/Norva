@@ -1442,6 +1442,12 @@ export const es: Dictionary = {
     catalog: {
       duplicate: 'Ese nombre ya está registrado. Mayúsculas y espacios no cuentan como diferencia.',
       title: 'Líneas, tipos y sabores',
+      packing: 'CÓMO SE EMPACA {{line}}',
+      packingHint:
+        'Todo producto de esta línea nace con estos números. Vacío quiere decir que esta familia no se cuenta por caja.',
+      perBox: 'Unidades por caja',
+      perCrate: 'Cajas por engradado',
+      savePacking: 'Guardar el empaque de la línea',
       overline: 'la grilla de lo que fabricas',
       intro:
         'Registra una vez y combina a voluntad. Paleta tradicional de frutilla es una línea, un tipo y un sabor — no un nombre escrito entero.',
@@ -1494,6 +1500,7 @@ export const es: Dictionary = {
       perUnitOf: 'Cuánto de {{item}} por unidad',
       howPacked: 'Cómo se empaca',
       howPackedHint: 'El inventario cuenta siempre en unidad; las pantallas hablan en tu empaque.',
+      fromFamily: 'Viene de {{family}}. Cámbialo aquí si este producto es distinto.',
       perBox: 'Unidades por caja',
       shelfLife: 'Caducidad, en días',
       shelfLifeHint:

@@ -1437,6 +1437,12 @@ export const en: Dictionary = {
     catalog: {
       duplicate: 'That name is already registered. Case and spacing do not make it different.',
       title: 'Lines, types and flavours',
+      packing: 'HOW {{line}} IS PACKED',
+      packingHint:
+        'Every product in this line starts with these numbers. Empty means this family is not counted by the box.',
+      perBox: 'Units per box',
+      perCrate: 'Boxes per crate',
+      savePacking: 'Save the line packing',
       overline: 'the grid of what you make',
       intro:
         'Register once, combine freely. A traditional strawberry popsicle is a line, a type and a flavour — not a name typed out in full.',
@@ -1489,6 +1495,7 @@ export const en: Dictionary = {
       perUnitOf: 'How much {{item}} per unit',
       howPacked: 'How it is packed',
       howPackedHint: 'Stock always counts in units; the screens speak in your packaging.',
+      fromFamily: 'Comes from {{family}}. Change it here if this product differs.',
       perBox: 'Units per box',
       shelfLife: 'Shelf life, in days',
       shelfLifeHint:
