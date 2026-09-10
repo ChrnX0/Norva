@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type KeyboardTypeOptions } from 'react-native';
-import { ehEcoDoCampo, lembrar } from './campo';
+import { aceitaDoPai } from './campo';
 import { useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -86,27 +86,25 @@ export function Field({
    * assinatura de corrida, não de limite — e o nome do produto é o que aparece em
    * toda tela, etiqueta e relatório dali em diante.
    *
-   * A régua abaixo separa as duas coisas que chegam do pai com a mesma forma: o
-   * ECO do que acabou de subir (que pode chegar velho, e aí é ruído) e uma
-   * DECISÃO dele — o código de convite que vira maiúsculo, um campo esvaziado de
-   * fora. Eco se reconhece porque já passou por aqui.
+   * A régua está em `./campo`, e ela não guarda nada: **com o dedo no campo, quem
+   * manda é quem digita; fora dele, quem manda o pai.** A primeira versão tinha
+   * memória — ignorava o que já tivesse subido — e engolia o formulário que se
+   * esvazia depois de salvar.
    *
-   * **A fronteira, dita por extenso:** um pai que RECUSE uma tecla devolvendo o
-   * valor anterior não será obedecido enquanto o dedo estiver no campo. Nenhum
-   * dos 55 campos faz isso hoje, e o certo para filtro é recusar na confirmação,
-   * não a cada tecla — mas quem escrever um assim precisa saber disto.
+   * **A fronteira, dita por extenso:** o que o pai transforma a cada tecla — o
+   * código de convite que vira maiúsculo em `app/account.tsx` — só aparece ao
+   * sair do campo. Ali isso não muda nada, porque o teclado já entra em maiúscula
+   * por `caixaAutomatica`; e nas quatro telas de valor derivado o que se ganha é
+   * maior: digitar a hora do aviso mostra "9" enquanto se digita, em vez de
+   * "09" com o cursor pulando.
    */
   const [texto, setTexto] = useState(value);
-  const enviados = useRef<string[]>([value]);
 
   useEffect(() => {
-    if (ehEcoDoCampo(value, enviados.current)) return;
-    enviados.current = [value];
-    setTexto(value);
-  }, [value]);
+    if (aceitaDoPai(value, texto, aceso)) setTexto(value);
+  }, [value, texto, aceso]);
 
   const mudou = (proximo: string) => {
-    enviados.current = lembrar(enviados.current, proximo);
     setTexto(proximo);
     onChangeText(proximo);
   };

@@ -1,32 +1,29 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ehEcoDoCampo, lembrar, MEMORIA_DO_CAMPO } from './campo';
+import { aceitaDoPai } from './campo';
 
 /**
- * Provado contra o caso que ela deve pegar e o caso que ela não deve — que é o
- * que o `CLAUDE.md` exige de todo detector antes de ele reportar qualquer coisa.
+ * Provada contra o caso que ela deve pegar e o caso que ela não deve — o que o
+ * `CLAUDE.md` exige de todo detector antes de ele reportar qualquer coisa. E o
+ * caso falso aqui não é hipótese: é o defeito que a PRIMEIRA versão desta régua
+ * tinha, achado lendo o conserto antes de ele chegar ao aparelho.
  */
-test('o eco atrasado do campo é reconhecido e a decisão de quem usa passa', () => {
-  // Verdadeiro: a pessoa digitou até "Pic" e o pai devolveu "Pi", uma
-  // renderização atrasado. Obedecer isso é apagar a letra que ela acabou de pôr.
-  const digitados = ['', 'P', 'Pi', 'Pic'];
-  assert.equal(ehEcoDoCampo('Pi', digitados), true);
-  assert.equal(ehEcoDoCampo('Pic', digitados), true, 'o eco em dia também é eco');
-
-  // Falso: o pai transformou de propósito — o código de convite que vira
-  // maiúsculo em `app/account.tsx` — ou esvaziou o campo de fora. Nada disso
-  // passou por aqui, então é decisão e vale.
-  assert.equal(ehEcoDoCampo('PIC', digitados), false);
-  assert.equal(ehEcoDoCampo('Picolé', digitados), false);
-  assert.equal(ehEcoDoCampo('', ['P', 'Pi']), false, 'esvaziar de fora é decisão');
+test('com o dedo no campo, quem manda é quem digita', () => {
+  // Verdadeiro: o pai devolveu "Pi" enquanto a pessoa já digitou "Pic" — uma
+  // renderização atrasado. Obedecer isso apaga a letra que ela acabou de pôr.
+  assert.equal(aceitaDoPai('Pi', 'Pic', true), false);
+  // E vale mesmo quando o pai transforma de propósito: enquanto o dedo está ali,
+  // nada de fora entra. O que ele decidiu chega ao sair.
+  assert.equal(aceitaDoPai('PIC', 'Pic', true), false);
 });
 
-test('a memória do campo é curta e guarda o fim, não o começo', () => {
-  let memoria: string[] = [''];
-  for (const letra of 'abcdefghijklmno') memoria = lembrar(memoria, letra);
-
-  assert.equal(memoria.length, MEMORIA_DO_CAMPO + 1);
-  assert.equal(memoria.at(-1), 'o', 'a última tecla está sempre lá');
-  assert.equal(ehEcoDoCampo('o', memoria), true);
-  assert.equal(ehEcoDoCampo('a', memoria), false, 'o que é velho demais para atrasar sai');
+test('fora do campo, quem manda é o pai — inclusive para esvaziar', () => {
+  // O caso que a régua com memória engolia: formulário que se limpa ao salvar,
+  // com nome curto o bastante para ainda estar na janela de memória.
+  assert.equal(aceitaDoPai('', 'Loja', false), true);
+  // Transformação vinda do pai entra ao sair do campo.
+  assert.equal(aceitaDoPai('LOJA', 'Loja', false), true);
+  // E o que já está igual não vira renderização à toa.
+  assert.equal(aceitaDoPai('Loja', 'Loja', false), false);
+  assert.equal(aceitaDoPai('Loja', 'Loja', true), false);
 });
