@@ -562,7 +562,7 @@ Consequências que precisam ficar escritas:
 Falha: diálogo de reconhecimento com `failedToSave = 'Não deu para salvar'`, a
 mensagem do erro cru e `confirmLabel = t.app.confirm.understood = 'Entendi'`
 (`app/inputs/new.tsx:296-301`, `src/i18n/locales/pt-BR.ts:587`, `:62`). Sucesso:
-`router.back()` (`:294`).
+`voltar()` (`:294`).
 
 #### 19.3.7 A Lei da Inteligência aqui
 
@@ -1183,7 +1183,7 @@ recebido (`:1980-1991`), e depois a linha de `products` com `active = 1`.
 
 Falha (`app/products/new.tsx:346-359`): diálogo `failed = 'Não deu para
 cadastrar'` (`:1025`), com `fill(gridTaken, { name: e.existing })` quando o erro é
-`GridTakenError`, e a mensagem crua nos outros casos. Sucesso: `router.back()`.
+`GridTakenError`, e a mensagem crua nos outros casos. Sucesso: `voltar()`.
 
 Índices que estão por trás da recusa: no aparelho, `CREATE UNIQUE INDEX
 products_grid_idx ON products (company_id, coalesce(line_id, ''),
@@ -1479,7 +1479,7 @@ linhas nessa ordem (`src/data/repository.ts:1137-1222`).
 
 Falha: `failedToSave = 'Não deu para salvar'` em diálogo de reconhecimento
 (`src/i18n/locales/pt-BR.ts:938`, `app/recipes/[id].tsx:316-321`). Sucesso:
-`router.back()`.
+`voltar()`.
 
 Estado de abertura/vazio (`app/recipes/[id].tsx:350-362`): cartão `sky` com
 `GlyphRecipe` dizendo `opening = 'Abrindo a ficha…'` ou `none = 'Nenhuma receita

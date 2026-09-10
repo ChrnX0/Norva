@@ -1,15 +1,23 @@
 ## 17. Biblioteca de componentes
 
-A pasta `src/components/` tem **27 arquivos**: 26 arquivos de componente (`.tsx`) e um
-arquivo de teste (`confirm.test.ts`), somando 3.621 linhas. Não há `index.ts` de
-barril — toda tela importa pelo caminho completo (`@/components/Card`), e o alias `@/`
-aponta para `src/` (`tsconfig.json`).
+A pasta `src/components/` tem **41 arquivos soltos** mais a subpasta `cenas/` (4
+arquivos), somando **6.359 linhas** nos soltos: 29 componentes (`.tsx`), 6 módulos de
+apoio sem React (`campo.ts`, `cena.ts`, `chegada.ts`, `colunas.ts`, `glifos.ts`,
+`vida.ts`) e 6 arquivos de teste. Não há `index.ts` de barril — toda tela importa pelo
+caminho completo (`@/components/Card`), e o alias `@/` aponta para `src/`
+(`tsconfig.json`).
 
-Nenhum componente desta pasta tem teste unitário próprio. O único `.test.ts` que mora
-aqui (`confirm.test.ts`) não testa um componente: ele varre a pasta `app/` procurando
-por `Alert` do React Native e por telas que escrevem sem perguntar (§17.28). O que
-cobre desenho é `src/domain/spark.ts` e `src/domain/qr.ts` (a geometria vive no
-domínio, fora do React, justamente para poder ser testada) e `src/language.test.ts`
+*Estes números foram remedidos em 10 de setembro. O parágrafo dizia "27 arquivos … 3.621
+linhas" e as duas metades estavam vencidas — ver §17.31 sobre por que isso acontece aqui
+e não acontece no roadmap.*
+
+Nenhum COMPONENTE desta pasta tem teste unitário próprio, e é por desenho: o que dá para
+testar sem React foi empurrado para fora do `.tsx`, e é daí que vêm os seis módulos de
+apoio e os seis testes ao lado deles (`campo`, `cena`, `colunas`, `vida`, `Reveal` e
+`confirm`). O `confirm.test.ts` é o único que não testa vizinho nenhum: ele varre a pasta
+`app/` procurando por `Alert` do React Native e por telas que escrevem sem perguntar
+(§17.28). O que cobre desenho é `src/domain/spark.ts` e `src/domain/qr.ts` (a geometria
+vive no domínio, fora do React, justamente para poder ser testada) e `src/language.test.ts`
 (toda tela precisa importar um desenho e usar `Reveal`).
 
 ---
@@ -25,7 +33,7 @@ domínio, fora do React, justamente para poder ser testada) e `src/language.test
 | `Chip` | `src/components/Chip.tsx` | 96 | `Chip`, `Signal`, `priceSignal`, `bandSignal` | implementado e chamado; o tipo `Signal` só é usado dentro do próprio arquivo |
 | `CollapsingHeader` | `src/components/CollapsingHeader.tsx` | 144 | `CollapsingHeader` | implementado e chamado (todas as telas com cabeçalho) |
 | `Confirm` | `src/components/Confirm.tsx` | 203 | `ConfirmRequest`, `ConfirmProvider`, `useConfirm` | implementado e chamado (13 telas + `app/_layout.tsx`) |
-| `CountUp` | `src/components/CountUp.tsx` | 63 | `CountUp` | implementado e chamado (só `src/home/Mosaic.tsx`) |
+| `CountUp` | `src/components/CountUp.tsx` | 63 | `CountUp` | implementado e chamado (`src/home/Mosaic.tsx`, `src/home/capas/organico.tsx` e 5 telas: perdas, insumos, relatórios, produção, transporte) — era "só o Mosaico", e foi o pedido do dono de *"quero em todas as telas"* que o espalhou |
 | `Crash` | `src/components/Crash.tsx` | 96 | `Crash` | implementado e chamado (`app/_layout.tsx`, 2 pontos) |
 | `Drain` | `src/components/Drain.tsx` | 69 | `Drain` | implementado e chamado (só `src/home/Mosaic.tsx`) |
 | `FactoryScene` | `src/components/FactoryScene.tsx` | 236 | `FactoryScene` | implementado e chamado (só `src/home/Mosaic.tsx`) |
@@ -41,7 +49,7 @@ domínio, fora do React, justamente para poder ser testada) e `src/language.test
 | `Sky` | `src/components/Sky.tsx` | 263 | `temperatureBand`, `skyInk`, `SkyMark`, `TemperatureRange` | `skyInk`/`SkyMark`/`TemperatureRange` chamados por `Mosaic`; **`temperatureBand` só é chamada dentro do próprio arquivo** |
 | `Sparkline` | `src/components/Sparkline.tsx` | 123 | `Sparkline` | implementado e chamado (4 telas) |
 | `Touchable` | `src/components/Touchable.tsx` | 54 | `Touchable` | implementado e chamado (9 telas) |
-| `UnitStepper` | `src/components/UnitStepper.tsx` | 190 | `UnitStepper` | **implementado, SEM CHAMADOR** — componente da Fase 2, fronteira registrada |
+| `UnitStepper` | `src/components/UnitStepper.tsx` | 190 | `UnitStepper` | implementado e chamado (`app/picking.tsx:358`, que lhe passa `t.stepper` inteiro) — **foi "SEM CHAMADOR" e deixou de ser**; a separação em engradados é a tela que o usa |
 | `WhatsNew` | `src/components/WhatsNew.tsx` | 119 | `WhatsNew` | implementado e chamado (`app/_layout.tsx`) |
 | `WhySheet` | `src/components/WhySheet.tsx` | 153 | `WhySheet` | implementado e chamado (`app/recipes/[id].tsx`) |
 | — | `src/components/confirm.test.ts` | 63 | (dois testes) | guarda de `Alert`/`useConfirm` |
@@ -2065,7 +2073,7 @@ levasse"* (`Touchable.tsx:16-18`).
 
 ---
 
-### 17.26 `UnitStepper` — **SEM CHAMADOR**
+### 17.26 `UnitStepper`
 
 **Arquivo:** `src/components/UnitStepper.tsx` (190 linhas). **Estado: implementado, sem
 nenhum chamador em `app/` ou `src/`.**
@@ -2441,3 +2449,77 @@ anybody first"*.
   (que varre `app/`), `src/language.test.ts` (que varre `app/`) e os testes de geometria
   em `src/domain/spark.ts` / `src/domain/qr.ts`. Não há `react-test-renderer` nem
   `@testing-library` nas dependências (`package.json`).
+
+---
+
+### 17.31 Por que os números desta seção venceram — e o roadmap não vence
+
+Em 10 de setembro três afirmações desta seção estavam erradas ao mesmo tempo, e nenhuma
+delas por descuido de quem escreveu: elas eram **verdadeiras no dia em que foram escritas**.
+
+| o que a seção dizia | o que era verdade em 10 de setembro |
+|---|---|
+| "27 arquivos … 3.621 linhas" | 41 arquivos soltos, 6.359 linhas, mais a subpasta `cenas/` |
+| `UnitStepper` **SEM CHAMADOR** | chamado por `app/picking.tsx:358` desde que a separação em engradados existe |
+| `CountUp` "só `src/home/Mosaic.tsx`" | mais `src/home/capas/organico.tsx` e cinco telas |
+
+**A causa é estrutural e vale registrar para quem reconstruir.** Este repositório resolveu
+o problema de documento que envelhece — duas vezes, com dois mecanismos:
+
+- `src/bar.test.ts` deriva do sistema todo número que o projeto afirma sobre si (telas,
+  tabelas, migrações, papéis, testes) e cobra que os documentos digam o mesmo.
+- `src/plano.test.ts` faz o mesmo para a FILA: cada item do roadmap carrega um comentário
+  `<!-- medida: ausente|presente|espera ... -->`, e no dia em que alguém constrói o que a
+  fila dá como aberto, a suíte fica vermelha.
+
+**O dossiê não tem nenhum dos dois.** Ele é escrito à mão, não é gerado (o
+`scripts/dossie.mjs` só COSTURA as seções num arquivo só), e nada o confere. Então ele
+envelhece exatamente na velocidade em que o código muda, e em silêncio — que é a mesma
+doença que os dois mecanismos acima existem para curar, num documento que se propõe a ser
+o que SOBREVIVE ao repositório.
+
+A classe de afirmação mais fácil de conferir por máquina, e a que já falhou aqui, é
+**SEM CHAMADOR**: são 28 delas no dossiê inteiro, cada uma dizendo que um símbolo existe
+e ninguém o usa. É a mesma pergunta do portão P1 (*"quem chama isto no mesmo commit?"*),
+e um `grep` a responde. Está anotada como item aberto no `docs/roadmap.md`.
+
+*Esta subseção existe porque a alternativa era corrigir os três números em silêncio, e aí
+o próximo leitor herdaria a mesma confiança que eu tinha antes de medir.*
+
+---
+
+### 17.32 `src/nav.ts` — a saída do aplicativo, uma vez só
+
+Não é componente e não mora em `src/components/`; está documentado aqui porque é o que as
+seções 19, 20 e 21 chamam toda vez que uma tela termina o que veio fazer.
+
+```ts
+export function voltar(destino: string = '/'): void {
+  if (router.canGoBack()) router.back();
+  else router.replace(destino as never);
+}
+```
+
+**Por que a pergunta.** Quem entra por LIGAÇÃO PROFUNDA — o QR do engradado lido na doca,
+o aviso de validade tocado na notificação — chega numa tela com a pilha vazia atrás, e ali
+`router.back()` não volta: fecha o aplicativo. Medido no aparelho em 10 de setembro,
+partida fria em `norva://losses`, um toque no voltar, `mCurrentFocus` no launcher. São
+exatamente as duas portas que o produto promete.
+
+**O caminho que NÃO se tomou, e por quê.** `unstable_settings = { anchor: '(tabs)' }` é o
+que a documentação do expo-router oferece para este defeito, e ele conserta o aparelho e
+quebra a web: a tela aberta por ligação profunda passa a ser montada como o segundo cartão
+da pilha e fica deslocada uma largura inteira (janela de 412 px, elemento em x = 607), sem
+nunca deslizar para o lugar — quem abre um link vê a capa. Perguntar "há para onde voltar?"
+resolve nos dois lugares e não mexe em como a pilha é montada.
+
+**A guarda é `src/nav.test.ts`**, e ela existe porque o conserto é POR CHAMADA: nenhuma
+tela pode chamar `back`, `goBack`, `dismiss` ou `dismissTo` direto (a varredura ignora
+comentários, senão acusaria o docblock do `app/who.tsx`, que cita o defeito para
+explicá-lo), e a âncora não pode voltar sem alguém medir a web antes.
+
+**A história, porque ela é a lição.** Duas telas — `app/who.tsx` e `app/scan.tsx` — já
+faziam esta pergunta sozinhas, cada uma com o seu destino, e as outras dez chamavam
+`back()` cru. `src/nav.ts` é uma EXTRAÇÃO do que já existia, não uma invenção: quando um
+conserto mora em duas telas e não nas doze, ele não é regra do aplicativo — é coincidência
+com dois exemplares.

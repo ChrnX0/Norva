@@ -1505,7 +1505,7 @@ space.lg`:
 #### 21.3.4 Cartão 2 — voltar
 
 `Reveal index={2}`, `Button label={words.back}` = "Voltar",
-`variant="ghost"`, `onPress={() => router.back()}`. Fantasma e último da pilha:
+`variant="ghost"`, `onPress={() => voltar()}`. Fantasma e último da pilha:
 "ninguém deve ser convidado a sair antes de responder"
 (`app/weather.tsx:191-195`).
 

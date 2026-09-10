@@ -256,8 +256,8 @@ passar.
 **`onOpen` — começar agora** (`:250-265`). `quantos = batches > 0 ? batches : 1`;
 se o campo de tacho estava fechado, ele abre e recebe `String(quantos)`; chama
 `openProductionRun(company, { productId, batches: quantos })` e faz
-`router.back()`. Sem confirmação: nada foi lançado. O comentário justifica o
-`router.back()` — *quem marca o tacho marca e sai andando; ficar no formulário
+`voltar()`. Sem confirmação: nada foi lançado. O comentário justifica o
+`voltar()` — *quem marca o tacho marca e sai andando; ficar no formulário
 depois de abrir é ficar parado numa tela que só terá o que dizer quando a corrida
 acabar.*
 
@@ -663,7 +663,7 @@ reverseConfirm: 'Corrigir'
 `out` são as pernas do plano com `baseUnits < 0` e `back` as com `baseUnits > 0`,
 cada uma escrita `fill(t.common.amountOf, { amount: "{qtd} {unidade}", name })` e
 unidas por ` · ` (`:118-128`). Depois do sim: `reverseGroup(company, { groupId:
-lote.runGroupId })`, `refresh()` e `router.back()`.
+lote.runGroupId })`, `refresh()` e `voltar()`.
 
 A palavra "estorno" **não aparece na tela** — decisão registrada no dicionário
 (`src/i18n/locales/pt-BR.ts:194-196`): *vocabulário de contador, e quem lança a
@@ -1011,7 +1011,7 @@ rótulo da opção escolhida (`hoje`, `amanhã`, `depois de amanhã` ou o nome c
 dia) (`:249-261`).
 
 Depois do sim: `saveOrder(company, { placeId, requestedFor, lines: [{ itemId,
-baseUnits }] })` e `router.back()` (`:267-272`).
+baseUnits }] })` e `voltar()` (`:267-272`).
 
 #### 20.5.9 `saveOrder`
 

@@ -158,11 +158,20 @@ Uma célula vazia significa arquivo sem comentário de abertura.
 
 | Arquivo | Linhas | Primeira linha de comentário |
 |---|---:|---|
+| `acessivel.test.ts` | 103 | Todo alvo de toque se anuncia — para o leitor de tela, e para quem está de luva. |
 | `bar.test.ts` | 175 | Todo número que o projeto afirma sobre si mesmo, conferido contra o sistema. |
+| `casco.test.ts` | 90 | A leitura que falha não pode desenhar como um estado vazio. |
 | `dictionary.test.ts` | 89 | Toda seção do dicionário tem quem a leia — ou um motivo escrito. |
+| `escritor.test.ts` | 211 | Toda coluna que o servidor LÊ para decidir tem alguém que a ESCREVE. |
+| `estoque.test.ts` | 151 | Insumo que se compra e que nada consome é um número que só sobe. |
+| `hooks.test.ts` | 65 | A prova do guarda que me torna imune a esperar. |
 | `language.test.ts` | 145 | A mesma língua visual em todas as telas. |
 | `law.test.ts` | 175 | Lei da Inteligência, item 3: nenhum número aparece sozinho. |
 | `layers.test.ts` | 542 | Where SQL is allowed to live, pinned. |
+| `marca.test.ts` | 121 | Toda superfície que o gerador desenha tem que ser CITADA por alguém. |
+| `nav.test.ts` | 98 | Voltar não pode significar sair do aplicativo. |
+| `nav.ts` | 30 | Voltar — e, quando não há para onde, ir para a capa em vez de sair do aplicativo. |
+| `plano.test.ts` | 282 | O plano dizendo a verdade sobre o código — executado, não prometido. |
 | `release.test.ts` | 55 | O que sai no instalador, conferido aqui em vez de na memória de quem publica. |
 | `selectors.test.ts` | 153 | O e2e procura a tela pelo texto, e o texto vem do dicionário. |
 

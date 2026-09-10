@@ -634,6 +634,33 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     com `saveBodyPlain`: sem porção não há custo por unidade e não há o que resumir.
     Confirmação truncada ensina a não ler confirmação, que é a Lei 5 perdendo o que ela
     existe para comprar.
+34. **O dossiê não tem guarda nenhuma, e é o documento que se propõe a SOBREVIVER ao
+    repositório.** <!-- medida: ausente src :: dossie.test.ts -->
+    Achado em 10 de setembro ao ir consertar o que a extração do `voltar()` deixou velho.
+    O `docs/DOSSIE.md` é derivado (`scripts/dossie.mjs` só COSTURA as seções de
+    `docs/dossie/`, e o arquivo único nem entra no git); as seções são escritas à mão; e
+    **nada as confere**. Quatro afirmações estavam vencidas ao mesmo tempo, e nenhuma por
+    descuido — as quatro eram verdadeiras no dia em que foram escritas:
+
+    | o que o dossiê dizia | o que era verdade |
+    |---|---|
+    | oito telas terminam em `router.back()` | terminam em `voltar()` desde hoje |
+    | `UnitStepper` **SEM CHAMADOR** | chamado por `app/picking.tsx:358` |
+    | `CountUp` "só `src/home/Mosaic.tsx`" | mais o Orgânico e cinco telas |
+    | `src/components/` tem 27 arquivos e 3.621 linhas | 41 soltos, 6.359 linhas, mais `cenas/` |
+
+    As quatro foram corrigidas, e a correção **não é o conserto** — é o sintoma tratado. O
+    conserto é a guarda, porque este repositório já resolveu exatamente isto duas vezes e
+    não aplicou ao dossiê: `src/bar.test.ts` deriva do sistema todo número que o projeto
+    afirma sobre si, e `src/plano.test.ts` cobra a medida escrita de cada item desta fila.
+
+    **A classe mais fácil de conferir por máquina é `SEM CHAMADOR`** — são **28** delas no
+    dossiê, cada uma dizendo que um símbolo existe e ninguém o usa. É a pergunta do portão
+    P1 (*"quem chama isto no mesmo commit?"*), e um `grep` responde. A borda que a guarda
+    precisa respeitar, senão vira a guarda que não pode falhar: só as formas ancoradas
+    (célula de tabela, título de subseção) dão para extrair o símbolo com confiança — as
+    citações em prosa, não. Ela tem de **listar o que não conferiu** em vez de contar
+    silêncio como aprovação.
 
 **O que a segunda caminhada CONFIRMOU funcionando:** as três réguas de rendimento no
 cadastro da ficha; a confirmação da ficha com os números por extenso e a régua escolhida
