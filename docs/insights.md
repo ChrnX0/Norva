@@ -8759,3 +8759,40 @@ daqui que 150% é um problema no tablet dele** — posso concluir que o defeito 
 acabou e que o que resta tem um dono medível. O portão P2 deste projeto já diz o que fazer
 com isso: *"eu mudaria isto se eu visse ___"* — e quem vê está do outro lado da conversa,
 com um tablet na mão.
+
+---
+
+## 10 de setembro — o marcador do dicionário chegou à tela, e a régua que o pega quase não serviu
+
+**O que apareceu:** criando uma ficha técnica no aparelho, a confirmação abriu com o
+título **"Criar {{name}}?"** — o marcador cru, na cara de quem usa. O corpo logo abaixo
+estava certo, porque passava pelo `fill` e o título não. Uma linha esquecida entre duas
+que a fazem, num arquivo cujo comentário ao lado diz *"a confirmação diz o que vai
+acontecer, com os números por extenso"*.
+
+**A varredura achou um segundo, e ele é pior porque é invisível:** no Extrato o texto
+visível passa pelo `fill` e o **`accessibilityLabel` da mesma linha usa a frase crua**.
+Quem lê a tela com os olhos vê "Ver mais — 1 até aqui"; quem depende do leitor de tela
+ouve *"Ver mais — {{n}} até aqui"*. O defeito só existe na metade que ninguém olha.
+
+**E a régua quase entrou errada, três vezes:**
+
+1. **Casando por nome de folha** (`.title`, `.more`, `.overline`) ela acusou duzentas
+   linhas inocentes — nomes de folha se repetem entre seções. Passou a resolver o
+   CAMINHO da chave, com o apelido por arquivo que a régua irmã já sabia fazer.
+2. **Contando linhas** para achar o `fill` em volta, ela acusou sete frases legítimas: a
+   confirmação da contagem escolhe entre elas num encadeamento de ternários e o `fill(`
+   abre onze linhas acima. Passou a contar PARÊNTESES — anda para trás fechando o que se
+   abriu, e quando sai de um, olha quem o abriu.
+3. **Sem enxergar o padrão "escolhe agora, enche depois"**, ela acusou mais três telas
+   onde a frase é guardada numa variável e enchida em seguida. Passou a seguir a
+   declaração local até o `fill`.
+
+Só depois disso ela ficou limpa nas 241 chaves com marcador — e, retiradas as duas
+correções, aponta exatamente as duas linhas.
+
+**A régua que fica:** *toda régua nova erra pelo lado de acusar demais, e o número de
+falsos positivos é a medida de quanto ela ainda não entende do código.* Duzentos, sete,
+três, zero — cada rodada foi uma coisa que o repositório faz e que eu não tinha lido.
+Detector que acusa muito não é rigoroso: é ignorante, e a diferença aparece quando alguém
+tenta usá-lo.

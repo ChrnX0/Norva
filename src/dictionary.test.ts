@@ -547,3 +547,157 @@ test('the key ruler catches a dead phrase and spares all three ways of reading o
     'sem a declaração do apelido no arquivo, o índice não pode cobrir a seção',
   );
 });
+
+/**
+ * Texto com marcador não chega à tela sem passar pelo `fill`.
+ *
+ * Achado usando o aplicativo, em 10 de setembro: criar uma ficha técnica abriu a
+ * confirmação com o título **"Criar {{name}}?"** — o marcador cru, na cara de
+ * quem usa. O corpo logo abaixo estava certo, porque ele passava pelo `fill` e o
+ * título não. Uma linha esquecida entre duas que a fazem.
+ *
+ * A régua olha o CAMINHO da chave, não o nome da folha. A primeira versão casava
+ * por folha (`.title`, `.more`, `.overline`) e acusou duzentas linhas inocentes,
+ * porque nomes de folha se repetem entre seções — detector que não separa os dois
+ * casos não entra, e este quase entrou.
+ */
+function textoDe(no: unknown, caminho: readonly string[]): string | null {
+  let atual: unknown = no;
+  for (const passo of caminho) {
+    if (!atual || typeof atual !== 'object') return null;
+    atual = (atual as Record<string, unknown>)[passo];
+  }
+  return typeof atual === 'string' ? atual : null;
+}
+
+/**
+ * A frase é ESCOLHIDA aqui e enchida três linhas abaixo?
+ *
+ * O padrão aparece em três telas e é o certo: um encadeamento de ternários
+ * escolhe qual frase serve, guarda numa variável, e o `fill` vem depois com os
+ * dados. Acusar isso seria acusar a escolha de frase, que é justamente o que a
+ * casa manda fazer quando o texto depende do caso.
+ */
+function viraLocalQueEnche(texto: string, posicao: number): boolean {
+  const antes = texto.slice(0, posicao);
+  const decl = [...antes.matchAll(/\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]*)?=/g)].pop();
+  if (!decl) return false;
+  const nome = decl[1];
+  return new RegExp(`fill\\(\\s*${nome}\\b`).test(texto);
+}
+
+/** A linha inteira onde a leitura acontece. */
+function linhaEm(texto: string, posicao: number): string {
+  const inicio = texto.lastIndexOf('\n', posicao) + 1;
+  const fim = texto.indexOf('\n', posicao);
+  return texto.slice(inicio, fim === -1 ? undefined : fim);
+}
+
+/**
+ * Quem recebe a frase por parâmetro e enche lá dentro.
+ *
+ * Uma régua estática não segue um argumento até dentro da função, então estes
+ * ficam nomeados — com o motivo, como as outras exceções deste repositório. Quem
+ * acrescentar um nome aqui está dizendo que leu a função e que ela chama `fill`.
+ */
+const ENTREGUE_A_QUEM_ENCHE = [
+  // `describe(item, inStock, formatting, ofFull)` — `app/inputs/index.tsx:474`,
+  // que enche as duas frases com a quantidade e a porcentagem do cheio.
+  /\bdescribe\(/,
+  /^\s*t\.app\.inputs\.(inStock|ofFull),\s*$/,
+];
+
+/**
+ * Esta leitura está DENTRO de um `fill(...)`?
+ *
+ * Contar linhas não serve, e isso foi medido: a confirmação da contagem escolhe
+ * entre sete frases num encadeamento de ternários e o `fill(` abre onze linhas
+ * acima da última. Uma janela de linhas acusa as sete, todas inocentes. O que
+ * responde a pergunta é o parêntese: anda-se para trás fechando o que se abriu, e
+ * quando se sai de um parêntese olha-se quem o abriu.
+ */
+function dentroDeFill(texto: string, posicao: number): boolean {
+  let profundidade = 0;
+  for (let i = posicao - 1; i >= 0; i -= 1) {
+    const c = texto[i];
+    if (c === ')') profundidade += 1;
+    else if (c === '(') {
+      if (profundidade > 0) profundidade -= 1;
+      else if (/fill\s*$/.test(texto.slice(Math.max(0, i - 8), i))) return true;
+    }
+  }
+  return false;
+}
+
+/** Onde um texto com marcador é lido sem `fill` em volta. Exportada para provar a régua. */
+export function marcadoresSoltos(
+  dicionario: unknown,
+  arquivos: readonly { caminho: string; texto: string }[],
+): string[] {
+  const comMarcador = new Set(
+    folhasDo(dicionario)
+      .filter((c) => (textoDe(dicionario, c) ?? '').includes('{{'))
+      .map((c) => c.join('.')),
+  );
+  const soltos: string[] = [];
+
+  for (const { caminho, texto } of arquivos) {
+    // O apelido é POR ARQUIVO, pela mesma razão da régua de cima.
+    const apelido = new Map<string, string>();
+    for (const m of texto.matchAll(
+      /\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(t(?:\.[A-Za-z_$][\w$]*)+)\s*;/g,
+    )) {
+      apelido.set(m[1], m[2].slice(2));
+    }
+
+    for (const m of texto.matchAll(/\b([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+)\b/g)) {
+      const alvo = m[1];
+      const [raiz, ...resto] = alvo.split('.');
+      const cheio =
+        raiz === 't'
+          ? resto.join('.')
+          : apelido.has(raiz)
+            ? [apelido.get(raiz), ...resto].join('.')
+            : null;
+      if (!cheio || !comMarcador.has(cheio)) continue;
+      if (dentroDeFill(texto, m.index ?? 0)) continue;
+      if (viraLocalQueEnche(texto, m.index ?? 0)) continue;
+      if (ENTREGUE_A_QUEM_ENCHE.some((r) => r.test(linhaEm(texto, m.index ?? 0)))) continue;
+      const linha = texto.slice(0, m.index).split('\n').length;
+      soltos.push(`${caminho}:${linha}  ${cheio}`);
+    }
+  }
+  return soltos;
+}
+
+test('nenhum texto com marcador chega à tela sem o fill', () => {
+  const arquivos = [...telas('app'), ...telas('src')].map((caminho) => ({
+    caminho,
+    texto: readFileSync(caminho, 'utf8'),
+  }));
+  assert.deepEqual(
+    marcadoresSoltos(ptBR, arquivos),
+    [],
+    'estes lugares põem na tela um texto com {{marcador}} sem passar pelo fill — ' +
+      'foi assim que a confirmação da ficha técnica apareceu como "Criar {{name}}?"',
+  );
+});
+
+test('a régua do marcador distingue o esquecido do preenchido', () => {
+  const dicionario = { app: { x: { comMarca: 'Criar {{name}}?', semMarca: 'Criar' } } };
+  const esquecido = [
+    { caminho: 'f.tsx', texto: 'const words = t.app.x;\nconfirm({ title: words.comMarca });' },
+  ];
+  const preenchido = [
+    {
+      caminho: 'f.tsx',
+      texto: 'const words = t.app.x;\nconfirm({ title: fill(words.comMarca, { name }) });',
+    },
+  ];
+  const semMarcador = [
+    { caminho: 'f.tsx', texto: 'const words = t.app.x;\nconfirm({ title: words.semMarca });' },
+  ];
+  assert.equal(marcadoresSoltos(dicionario, esquecido).length, 1, 'não acusa quem devia acusar');
+  assert.equal(marcadoresSoltos(dicionario, preenchido).length, 0, 'acusa quem já usa o fill');
+  assert.equal(marcadoresSoltos(dicionario, semMarcador).length, 0, 'acusa texto sem marcador');
+});

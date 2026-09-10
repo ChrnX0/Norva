@@ -303,7 +303,7 @@ export default function ExtratoScreen() {
           {podeHaverMais ? (
             <Touchable
               onPress={() => setQuantos((n) => n + PAGINA)}
-              accessibilityLabel={words.more}
+              accessibilityLabel={fill(words.more, { n: String(atos.length) })}
             >
               <Text
                 style={[

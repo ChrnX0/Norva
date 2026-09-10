@@ -75,7 +75,7 @@ function NewRecipe() {
     // Lei 5 e o tom da casa: a confirmação diz o que vai acontecer, com os números
     // por extenso, antes de qualquer linha nascer.
     const go = await confirm({
-      title: words.saveTitle,
+      title: fill(words.saveTitle, { name: name.trim() }),
       message: fill(words.saveBody, {
         name: name.trim(),
         yield: `${formatQuantity(rende, locale)} ${unit}`,
