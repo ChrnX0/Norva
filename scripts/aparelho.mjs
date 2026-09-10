@@ -239,7 +239,32 @@ function instalar(apk) {
   }
   const inicio = Date.now();
   dizer(`instalando ${caminho}`);
-  console.log(adb('install', '-r', caminho));
+  /**
+   * EMPURRA e depois instala do arquivo local — nunca `adb install` direto.
+   *
+   * **Foi isto que destravou o emulador em 10 de setembro, depois de oito hipóteses
+   * derrubadas.** `adb install` TRANSMITE o APK pela sessão do instalador, e essa
+   * escrita longa bloqueia um handler do `system_server` por mais tempo do que o
+   * Watchdog dele tolera. O rastro é literal: `watchdog: Blocked in handler on
+   * foreground thread (android.fg)` e, sessenta segundos depois,
+   * `DeadSystemException: The system died`. O que chegava ao terminal era
+   * `Failure calling service package: Broken pipe (32)` ou `Can't find service:
+   * package` — dois sintomas da mesma morte, e nenhum deles diz o que aconteceu.
+   *
+   * Num emulador sem KVM, com o `system_server` desta imagem queimando um núcleo
+   * inteiro parado (medido: 106% com o aparelho ocioso), não há folga para a
+   * escrita transmitida. `adb push` é escrita de ARQUIVO — não passa pelo serviço
+   * de pacotes —, e o `pm install` seguinte lê do disco do próprio aparelho, num
+   * caminho que o Watchdog aguenta. Mesmo APK, mesma máquina, mesma imagem:
+   * transmitido morre, empurrado responde `Success`.
+   */
+  const noAparelho = '/data/local/tmp/norva-instalar.apk';
+  adb('push', caminho, noAparelho);
+  const dito = adb('shell', 'pm', 'install', '-r', noAparelho);
+  console.log(dito);
+  // `pm install` SAI ZERO dizendo `Failure` — o veredito é a palavra, não o código.
+  if (!/Success/.test(dito)) throw new Error(`a instalação não disse Success:\n${dito}`);
+  adb('shell', 'rm', '-f', noAparelho);
   dizer(`instalou em ${Math.round((Date.now() - inicio) / 1000)}s`);
 }
 

@@ -359,14 +359,36 @@ virar afirmação. **Seis fechados no mesmo dia:**
       byte a byte não é foto: é a prova de que a captura está congelada, e sem a árvore ao
       lado ela teria passado por "o app não abriu".
 
-      **Quatro abordagens derrubadas até agora, todas medidas:** `-gpu
-      swiftshader_indirect` sem janela, `-gpu guest` sem janela, o comando `emu
-      screenrecord screenshot` do console (que é o que o script já usa), e o emulador
-      **com janela** dentro de um `Xvfb` — instalado e funcionando, sem FATAL. Nas quatro
-      o quadro capturado é a splash enquanto o `uiautomator` lê a capa desenhada no mesmo
-      instante. O que sobra por tentar é a imagem `default`, onde a captura funcionava até
-      13h30 — e onde a instalação morre no Watchdog. Ou seja: hoje a foto e a instalação
-      não vivem na mesma imagem, e isso é a medida, não a conclusão.
+      **FECHADO às 19h50, e a saída era a instalação, não a captura.** Quatro abordagens
+      foram derrubadas na imagem ATD, todas medidas: `-gpu swiftshader_indirect` sem
+      janela, `-gpu guest` sem janela, o comando `emu screenrecord screenshot` do console,
+      e o emulador **com janela** dentro de um `Xvfb`. Nas quatro o quadro é a splash
+      enquanto o `uiautomator` lê a capa desenhada no mesmo instante — a superfície do
+      React Native simplesmente não entra no quadro composto dessa imagem. Uma quinta
+      medida fechou a questão: mudando `wm size`, o quadro capturado MUDOU (foi para
+      preto), então o pipeline não está congelado; o que falta ali é o conteúdo do
+      aplicativo.
+
+      **A saída foi voltar à imagem `default` e consertar a INSTALAÇÃO.** `adb install`
+      transmite o APK pela sessão do instalador, e essa escrita longa bloqueia um handler
+      do `system_server` por mais tempo do que o Watchdog dele tolera — daí `Broken pipe`
+      e `Can't find service: package`, que são dois sintomas da mesma morte. `adb push` é
+      escrita de arquivo e não passa pelo serviço de pacotes; o `pm install` seguinte lê do
+      disco do aparelho, num caminho que o Watchdog aguenta. Mesmo APK, mesma máquina,
+      mesma imagem: **transmitido morre, empurrado responde `Success`**. O verbo `instalar`
+      do `scripts/aparelho.mjs` passou a fazer isso, e a checagem é a palavra `Success` e
+      não o código de saída, porque `pm install` sai zero dizendo `Failure`.
+
+      **E a foto voltou com a régua junto**, que é o que prova que veio do framebuffer do
+      convidado e não do atalho do console: `.shots/default-capa.png — 170 KB, tinta
+      16,98:1 em 22/22 fitas`. A capa desenha certa, com a cena da fábrica inteira.
+
+      **A ressalva, dita porque ela aparece na própria foto:** essa imagem tem o
+      `system_server` a **106% com o aparelho parado** (medido nove minutos depois do
+      boot, carga 13,4), e a primeira foto pegou um diálogo *"System UI isn't responding"*
+      por cima da capa. É o item 4 desta mesma lista, fotografado sem querer. Então o
+      arranjo de hoje é: `default` para instalar e fotografar, sabendo que ela cambaleia; a
+      ATD continua melhor para DIRIGIR o aplicativo pela árvore, que é estável lá.
 
       **E o recorte do que ela congela tem nome, medido às 16h37:** a captura mostra a
       SPLASH — que é fundo de janela do próprio Android — e nunca a capa, que é superfície
