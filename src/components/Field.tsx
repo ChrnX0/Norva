@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type KeyboardTypeOptions } from 'react-native';
+import { ehEcoDoCampo, lembrar } from './campo';
 import { useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -68,6 +69,48 @@ export function Field({
   // pilha de traços iguais.
   const [aceso, setAceso] = useState(false);
 
+  /**
+   * **O campo desenha o que a pessoa digitou, e o pai só manda quando discorda
+   * de propósito.**
+   *
+   * `TextInput` controlado no Android repõe o texto nativo sempre que o `value`
+   * que volta do JS difere do que está na caixa. Com o valor DERIVADO — o nome do
+   * produto sai de `composed`, que junta linha, tipo e sabor quando ninguém
+   * digitou — esse valor volta uma renderização atrasada, e o que foi digitado no
+   * meio some.
+   *
+   * Medido no aparelho, mesma chamada e as mesmas dezessete letras: o campo do
+   * nome da FICHA (`value={name}`, eco puro) ficou com "Picole de morango"
+   * inteiro; o campo do nome do PRODUTO ficou com "Picole de moran", depois
+   * "Picole de mor", depois "Picole ". Comprimento diferente a cada vez é
+   * assinatura de corrida, não de limite — e o nome do produto é o que aparece em
+   * toda tela, etiqueta e relatório dali em diante.
+   *
+   * A régua abaixo separa as duas coisas que chegam do pai com a mesma forma: o
+   * ECO do que acabou de subir (que pode chegar velho, e aí é ruído) e uma
+   * DECISÃO dele — o código de convite que vira maiúsculo, um campo esvaziado de
+   * fora. Eco se reconhece porque já passou por aqui.
+   *
+   * **A fronteira, dita por extenso:** um pai que RECUSE uma tecla devolvendo o
+   * valor anterior não será obedecido enquanto o dedo estiver no campo. Nenhum
+   * dos 55 campos faz isso hoje, e o certo para filtro é recusar na confirmação,
+   * não a cada tecla — mas quem escrever um assim precisa saber disto.
+   */
+  const [texto, setTexto] = useState(value);
+  const enviados = useRef<string[]>([value]);
+
+  useEffect(() => {
+    if (ehEcoDoCampo(value, enviados.current)) return;
+    enviados.current = [value];
+    setTexto(value);
+  }, [value]);
+
+  const mudou = (proximo: string) => {
+    enviados.current = lembrar(enviados.current, proximo);
+    setTexto(proximo);
+    onChangeText(proximo);
+  };
+
   return (
     <View style={{ gap: space.xs }}>
       <Text style={[type.overline, { color: color.inkFaint }]}>{label.toUpperCase()}</Text>
@@ -95,8 +138,8 @@ export function Field({
         ]}
       >
         <TextInput
-          value={value}
-          onChangeText={onChangeText}
+          value={texto}
+          onChangeText={mudou}
           placeholder={placeholder}
           placeholderTextColor={color.inkFaint}
           keyboardType={keyboardType}

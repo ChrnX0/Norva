@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **657** testes |
+| `npm test` | **659** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **28** garantias contra um Postgres descartável, sob RLS |
@@ -195,6 +195,13 @@ virar afirmação. **Seis fechados no mesmo dia:**
     não diz o que falta é a Lei 5 ao contrário.
 21. ~~**"por litro de massa" para uma ficha pesada em grama.**~~ — **fechada**. A figura é o
     custo de MIL unidades-base: um litro em ml, um quilo em g, mil unidades em un.
+
+24. ~~**O campo do nome do produto perde letras enquanto se digita.**~~ — **fechada** no
+    `Field`, que é de 55 campos. `TextInput` controlado no Android repõe o texto nativo
+    quando o `value` que volta do JS difere da caixa, e o nome do produto vem de um valor
+    DERIVADO (`composed`), que volta atrasado. Medido com contraste: as mesmas 17 letras,
+    a mesma chamada — o nome da FICHA ficou inteiro, o do PRODUTO ficou "Picole de moran",
+    depois "Picole de mor", depois "Picole ". Comprimento diferente a cada vez é corrida.
 
 **Aberto do que esta caminhada achou:**
 
