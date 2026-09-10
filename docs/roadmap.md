@@ -154,19 +154,15 @@ por peso, e o que já foi fechado:**
     número sai como *"em até"*, porque cada volta do laço paga a leitura da árvore e essa
     parte é o instrumento, não o aplicativo.
 
-6. **Quem entra por link direto numa tela interna não tem volta** — **confirmado no
-    aparelho e consertado, esperando a prova.** Medido em 10 de setembro com espera de
-    verdade: partida fria em `norva://losses`, um toque no voltar, e
-    `mCurrentFocus` passa para o launcher — o aplicativo **sai**. Sem âncora o roteador
-    monta a pilha com uma tela só, e voltar da única tela é sair.
+6. ~~**Quem entra por link direto numa tela interna não tem volta**~~ — **fechado e
+    PROVADO no aparelho, com o mesmo teste que achou o defeito.** Antes: partida fria em
+    `norva://losses`, um toque no voltar, e `mCurrentFocus` ia para
+    `com.android.fakesystemapp` — o aplicativo saía. Depois de `unstable_settings = {
+    anchor: '(tabs)' }` em `app/_layout.tsx`: o foco fica em
+    `app.norva.mobile/.MainActivity` e a tela é a **capa**.
 
-    Importa porque são exatamente as duas portas que o produto promete: o QR do engradado
-    na doca e a notificação de validade. As duas abrem tela interna num celular que estava
-    no bolso, e nas duas a pessoa aperta voltar esperando o aplicativo.
-
-    O conserto é `unstable_settings = { anchor: '(tabs)' }` em `app/_layout.tsx` — o
-    mecanismo que o `expo-router` tem para isso (`getRoutesCore.js:655`). **Falta a prova
-    no aparelho**: o APK está compilando, e o teste é o mesmo que achou o defeito.
+    Importava porque são as duas portas que o produto promete — o QR do engradado na doca e
+    o aviso de validade abrem tela interna num celular que estava no bolso.
 
 7. ~~**A primeira ação que a capa oferece num aplicativo vazio é impossível.**~~ —
    **fechada em 10 de setembro.** A tela de produção tem razão escrita para não navegar
@@ -174,14 +170,16 @@ por peso, e o que já foi fechado:**
    sugerindo a única coisa que ainda não dava para fazer. `primeiroPasso` no domínio
    devolve onde a cadeia parou — insumo, ficha, produto ou produção — e a capa oferece a
    porta que falta.
-8. **Nomes cortados onde a escolha depende deles** — **consertado, esperando a prova.**
-    `numberOfLines={1}` no rótulo da peça, em `app/settings.tsx`, nas DUAS listas: a das
-    peças que estão na capa e a das que estão fora. É a mesma cicatriz do botão de idioma
-    (*"Portugu / ês"*, item 9) noutro lugar: a linha economiza uma altura de texto e gasta
-    a decisão, porque é ali que a pessoa escolhe a peça. O rótulo passa a quebrar — sem
-    número mágico, servindo de 360 dp ao tablet — e a fileira alinha pelo topo para os
-    controles não dançarem quando o nome ocupa duas linhas. **Falta a foto**, que é o que
-    prova tela.
+8. ~~**Nomes cortados onde a escolha depende deles**~~ — **fechado e PROVADO**, e a prova
+    não é foto: é a string. `numberOfLines={1}` saiu do rótulo da peça nas duas listas de
+    `app/settings.tsx` — a das peças na capa e a das que estão fora —, e a fileira passou a
+    alinhar pelo topo para os controles não dançarem quando o nome ocupa duas linhas. Lido
+    da árvore de acessibilidade no aparelho: *"Produção do dia"*, *"Produção ao vivo"*,
+    *"Quanto tempo o estoque dura"*, *"Quem recebe hoje"* — inteiros —, e **zero** caracteres
+    de reticência na tela. Antes eram *"Produção a…"*, *"Quem rece…"*, *"Vence prim…"*.
+
+    Para este defeito a árvore é o instrumento MELHOR que a foto: ela devolve a string
+    exata, e reticência é uma diferença de texto, não de pixel.
 
 9. ~~**A palavra quebrada no meio**: o botão de idioma escreve *"Portugu / ês"*.~~ —
    **fechada.** Os três botões dividiam a largura em três fatias iguais e a 360 dp a fatia
@@ -360,6 +358,15 @@ virar afirmação. **Seis fechados no mesmo dia:**
       enquanto a árvore de acessibilidade já mostrava a capa desenhada. Foto que repete
       byte a byte não é foto: é a prova de que a captura está congelada, e sem a árvore ao
       lado ela teria passado por "o app não abriu".
+
+      **Quatro abordagens derrubadas até agora, todas medidas:** `-gpu
+      swiftshader_indirect` sem janela, `-gpu guest` sem janela, o comando `emu
+      screenrecord screenshot` do console (que é o que o script já usa), e o emulador
+      **com janela** dentro de um `Xvfb` — instalado e funcionando, sem FATAL. Nas quatro
+      o quadro capturado é a splash enquanto o `uiautomator` lê a capa desenhada no mesmo
+      instante. O que sobra por tentar é a imagem `default`, onde a captura funcionava até
+      13h30 — e onde a instalação morre no Watchdog. Ou seja: hoje a foto e a instalação
+      não vivem na mesma imagem, e isso é a medida, não a conclusão.
 
       **E o recorte do que ela congela tem nome, medido às 16h37:** a captura mostra a
       SPLASH — que é fundo de janela do próprio Android — e nunca a capa, que é superfície
