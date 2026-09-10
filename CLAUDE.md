@@ -313,6 +313,18 @@ Duas regras de operação, ambas cicatriz:
   `adb emu kill`, que é o comando dele e não um `pkill` por padrão. E se uma checagem
   vier vermelha com `Input: ''`, olhe a carga da máquina antes de olhar o código.
 
+- **Use o verbo do script, não o comando cru por baixo dele — 9 de setembro.** Para
+  conferir um conserto de tela eu disparei `./gradlew assembleRelease` direto, e ele foi
+  compilar o nativo para as quatro arquiteturas. Passou de meia hora, e o emulador roda
+  uma. O `scripts/aparelho.mjs` **já tinha** o verbo `compilar`, que passa
+  `-PreactNativeArchitectures=x86_64`, e o docblock dele já contava esta mesma história
+  com o número medido — 8 GB de objeto nativo de arquitetura que este emulador nunca vai
+  executar.
+
+  Então a lição não é a bandeira: é que a ferramenta do repositório carrega as cicatrizes
+  que o comando cru não tem. Antes de digitar `gradlew`, `adb` ou `expo` na mão, olhe se
+  o script já tem o verbo — ele existe justamente porque alguém já pagou por fazer na mão.
+
 - **Servidor de desenvolvimento é processo, e processo esquecido cobra.** Um
   `expo start` ficou **6h38** no ar sem ninguém usar, com o Metro observando o
   disco numa máquina de quatro núcleos, roubando CPU de toda exportação e de toda
