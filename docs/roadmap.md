@@ -155,7 +155,16 @@ por peso, e o que já foi fechado:**
    é menor que a palavra. A linha passa a quebrar e cada botão toma a largura da palavra
    dele — sem número mágico, e no tablet os três continuam na mesma linha.
 10. **A última linha de uma lista fica sob a barra de abas** — em Mais, a linha *"Ajustes"*
-    nasce cortada.
+    nasce cortada. **Medido contra o código em 10 de setembro, e o código contradiz o
+    item:** tudo o que a tela desenha está dentro do `CollapsingHeader`
+    (`app/(tabs)/more.tsx:197`), que já reserva `insets.bottom + space.xxl + tabBar`
+    (`src/components/CollapsingHeader.tsx:314`) lendo a altura real da barra pelo
+    `BottomTabBarHeightContext` — e a barra declara `58 + space.lg + insets.bottom`
+    (`app/(tabs)/_layout.tsx:137`), que é a altura com a faixa do sistema somada, cicatriz
+    já paga. Ou seja: a folga existe e é generosa. Então ou o corte é da ENTRADA (`Reveal
+    index={3}` desloca o último cartão enquanto anima) ou o item viu a lista simplesmente
+    mais alta que a tela, que é rolagem e não defeito. **Não se reconstrói o que já
+    existe** — este fica esperando a foto para dizer qual dos dois é.
 11. **`expo-updates` perguntava DUAS vezes por abertura** — metade fechada, metade é
     decisão do dono. O item dizia *"a cada ~70 s"*, e medir a afirmação contra o código
     corrigiu isso: não há temporizador. O `app.json` trazia `checkAutomatically: "ON_LOAD"`,
