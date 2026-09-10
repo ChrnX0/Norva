@@ -8831,3 +8831,72 @@ rede embaixo do efeito ajuda; tirar o conteúdo de baixo dele resolve. E o docbl
 próprio `Reveal` já dizia a prioridade certa desde o começo — *"o pior caso é a tela
 aparecer sem a entrada, e nunca uma tela em branco"* —, só que a conclusão tirada dele foi
 a errada: que a opacidade precisava entrar junto.
+
+---
+
+## 10 de setembro — a árvore de acessibilidade volta a ler, e é ela que destrava a caminhada
+
+**O que apareceu:** `uiautomator dump` respondia *"ERROR: could not get idle state"* em
+toda tela do aplicativo, e eu tinha registrado isso como consequência da saturação da
+thread de UI. Depois dos consertos do ambiente ele continuou recusando — mas com
+`transition_animation_scale 0`, que é o que o aplicativo lê como "reduzir movimento", ele
+lê a tela inteira em segundos.
+
+**Por que importa mais do que parece:** com a árvore lida, o aparelho deixa de ser
+dirigido por coordenada e passa a ser dirigido por TEXTO. Toque em `"Salvar como versão
+2"` em vez de toque em `(540, 2053)`. Coordenada quebra quando o layout muda — que é
+exatamente o que este projeto mede em cinco larguras — e mente quando alguma coisa está
+por cima.
+
+**E ela mentiu, na primeira meia hora.** Dois toques em "Salvar" viraram um `0` no campo
+de rendimento, com o comando saindo zero das duas vezes: **o teclado é outra janela**, e a
+árvore de acessibilidade do aplicativo não sabe que ele está por cima. O `dumpsys
+input_method` sabe (`mInputShown`), e agora nada se toca sem fechar o teclado antes.
+
+**A régua que fica:** o ambiente parado não é só uma condição para o aplicativo desenhar —
+é a condição para ele ser **dirigível**. E toda leitura de tela precisa saber o que há
+entre ela e o dedo.
+
+---
+
+## 10 de setembro — o SQLite do aparelho é a segunda fonte que faltava
+
+**O que apareceu:** o emulador roda uma imagem `userdebug`, então `adb root` funciona e o
+banco do aplicativo (`/data/data/app.norva.mobile/files/SQLite/norva.db`) abre com o
+`sqlite3` que já vem no sistema.
+
+**Por que importa:** até aqui, conferir um número da tela era refazer a conta na mão — o
+que o `CLAUDE.md` exige, e que pega erro de aritmética. Não pega **erro de gravação**. A
+tela dizia *"1.000 g · 100% do lote · R$ 12,40"* com a `recipe_lines` vazia; dizia
+*"571 unidades de cada vez"* com `yield_per_unit` nulo; dizia *"12.000 g"* e gravava `ml`.
+Nenhum dos três se vê refazendo a conta, porque a conta está certa — o que está errado é o
+que sobra depois.
+
+**A régua que fica:** onde a tela AFIRMA que guardou alguma coisa, a prova não é a tela
+seguinte — é a linha no banco. Duas telas concordando podem estar lendo o mesmo rascunho
+em memória.
+
+---
+
+## 10 de setembro — a unidade era do dono, e três frases decidiam por ele
+
+**O que apareceu:** o dono perguntou se dá para escolher a unidade da receita. Dá — o
+cadastro oferece mililitro, grama e unidade desde que existe, e grava a escolha certa.
+Quem a desfazia eram as FRASES e uma linha de salvamento:
+
+- `app/recipes/[id].tsx` gravava `yieldUnit: 'ml'` literal. Doze mil gramas voltavam do
+  salvamento como doze mil mililitros.
+- dois campos e a dica da perda diziam `ml` chumbado, com a ficha em grama na tela.
+- a confirmação do produto dizia *"75 ml por unidade"*.
+- a lista dizia *"por litro de massa"* — e o número por trás nunca foi um litro: é o custo
+  de MIL unidades-base, que é um litro em ml, um quilo em g e mil unidades em un.
+
+**A régua que fica, e ela tem duas metades porque uma varredura só não pegava as duas
+formas:** medida colada num marcador (`'{{net}} ml de {{gross}}'`) é uma; frase inteira que
+É a régua (`'por litro de massa'`) é outra, e a primeira varredura passou por ela sem ver.
+As duas estão em `src/dictionary.test.ts`, cada uma com o caso que ela deve pegar e o caso
+que ela não deve.
+
+**E o pedido do dono já estava construído.** Isso é a terceira vez nesta semana que a
+resposta para *"dá para fazer X?"* é *"X existe e alguma coisa depois o desfaz"*. O reflexo
+certo diante de um pedido não é ir construir: é medir o que já existe.
