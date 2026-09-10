@@ -8979,3 +8979,34 @@ foi o `mutate` — foi a pergunta.
 dele, quem manda é o pai. Não há janela para acertar e não há comprimento que mude o
 resultado. **Toda vez que uma regra precisa de uma JANELA para funcionar, vale perguntar o
 que passa por ela indevidamente** — a resposta costuma existir e costuma ser um caso real.
+
+---
+
+## 10 de setembro — o defeito mora onde o produto mudou de forma, não onde o código é velho
+
+**O que apareceu:** a caminhada de hoje fechou o caminho inteiro — insumo, ficha, produto,
+produção, transferência, conferência, contagem e relatórios — e os defeitos não se
+espalharam por igual. As telas construídas por ÚLTIMO (contagem cega, relatórios) não
+tinham nenhum: a contagem esconde o número esperado *"senão a conferência vira cópia"*,
+abre a conta por extenso, nomeia a consequência (*"5 un saíram da prateleira e entram como
+venda"*) e ainda oferece a saída (*"Derreteu alguma parte? Lance a perda antes de contar"*).
+As telas antigas concentraram tudo.
+
+**E o que elas concentram tem uma forma só:** vocabulário que sobreviveu a uma mudança de
+produto. `Insumos` contando três espécies em Ajustes e uma no Almoxarifado. A sobrancelha
+`almoxarifado` sobre um picolé, porque a página de estoque passou a servir o que se vende.
+A porta *"Lojas e clientes"* abrindo *"Estoque por lugar"*, porque a tabela ganhou veículo e
+câmara fria depois do nome. E o `nav` inteiro da capa antiga — dezoito folhas nos três
+idiomas — que morreu no dia em que o Mosaico nasceu e ficou.
+
+**Por que importa:** a leitura fácil é *"código velho apodrece"*, e ela manda reescrever o
+que é antigo. A leitura certa é outra: o código estava certo quando foi escrito, e o
+PRODUTO mudou de forma por baixo dele. Onde uma tela passou a mostrar mais coisas do que
+mostrava, ou uma tabela ganhou uma espécie, o nome ficou para trás — e nome errado não
+quebra teste nenhum, porque cada frase, sozinha, continua bem escrita.
+
+**O que mudou por causa disso:** a guarda de chaves passou a comparar CAMINHO com caminho
+em vez do nome da folha (`src/dictionary.test.ts`), e uma guarda nova cobra que a linha do
+"Mais" diga o nome da tela que ela abre. As duas medem exatamente a distância entre o que a
+tela mostra e a palavra que sobrou — que é onde este tipo de defeito mora. A segunda achou
+o item 27 sozinha, no commit em que nasceu.

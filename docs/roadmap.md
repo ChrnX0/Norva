@@ -454,6 +454,34 @@ virar afirmação. **Seis fechados no mesmo dia:**
     nome. Fronteira dita em voz alta continua sendo fronteira: ou fecha, ou a promessa se
     corrige.
 
+### A.3 — 10 de setembro, tarde: a caminhada FECHOU
+<!-- medida: presente app/inputs/[id].tsx :: recordCount -->
+
+Conferência, contagem e relatórios exercidos no aparelho, com cada número conferido na mão
+contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
+
+- **A conferência da doca** gravou `discrepancy 0 · post=checked` na remessa pendente, e a
+  linha do destino passou de *"ainda não conferiu"* para *"Conferido"*.
+- **A contagem cega** é a tela mais bem resolvida do aplicativo. Ela ESCONDE o saldo
+  enquanto se conta — *"se ele estiver na tela, a conferência vira cópia"* —, e a
+  confirmação abre a conta inteira por extenso: *"Você contou 295 un. O sistema esperava
+  300 un. Então 5 un saíram da prateleira e entram como venda. A receita entra pelo preço
+  combinado desta loja, quando houver um. Derreteu alguma parte? Lance a perda antes de
+  contar."* Quatro leis numa frase só, e nenhuma acusação a ninguém.
+- **O razão, lido do banco do aparelho, é append-only de ponta a ponta:**
+  `consumption −1000 @ 1,24` · `production +533 @ 7,326454033771107` · `transfer +300 /
+  −300` na mesma taxa · `discrepancy 0 post=checked` · `sale −5` na mesma taxa. **Nada foi
+  sobrescrito**: os 300 continuam no livro, e a diferença é um movimento novo.
+- **A aritmética fecha na mão em toda tela:** 233 un = R$ 17,07 · 9.000 g = R$ 111,60 ·
+  Fábrica R$ 128,67 · Loja Centro 295 un = R$ 21,61 · total R$ 150,28 — que é exatamente
+  R$ 150,65 (antes da contagem) menos 5 × 7,326454 ¢.
+- **Os quatro relatórios abrem**, e os dois vazios dizem por que estão vazios em vez de
+  mostrar zero: *"Nenhuma perda registrada nos últimos 30 dias — é o motivo que faz esta
+  tela servir"* e *"Nada voltou de 1 produto"*. O Espelho continua fora do escopo do mês
+  por decisão escrita, e o que ele mostra hoje é honesto.
+- **E confirmou o item 27 ao vivo:** a porta do Mais diz *"Lojas e clientes"* e a tela que
+  ela abre se chama *"Estoque por lugar"*.
+
 **Aberto do que esta caminhada achou:**
 
 22. ~~**Sair do editor com alteração pendente não avisa.**~~ — **fechada** com uma guarda em
