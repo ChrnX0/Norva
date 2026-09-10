@@ -216,6 +216,15 @@ async function copiarParaODrive(): Promise<void> {
  * Em desenvolvimento não há canal nenhum, e `Updates.isEnabled` é falso: pedir
  * assim mesmo levanta exceção, e uma exceção no boot é tela branca.
  *
+ * **E hoje ela não pergunta nada — decisão do dono, 10 de setembro.** `app.json` traz
+ * `updates.enabled: false`, então `Updates.isEnabled` é falso e esta função devolve na
+ * primeira linha sem tocar a rede. O canal `preview` não tem nada publicado, e uma
+ * pergunta que não pode dar certo é bateria e dado gastos por nada. A URL e o canal ficam
+ * declarados: religar é apagar uma linha, não redescobrir qual era o canal. A guarda com a
+ * razão inteira está em `src/release.test.ts`.
+ *
+ * O que vem abaixo continua valendo para o dia em que ela voltar a perguntar.
+ *
  * **E esta é a ÚNICA pergunta por abertura — cicatriz de 10 de setembro.** O
  * `app.json` trazia `checkAutomatically: "ON_LOAD"`, então o `expo-updates` nativo
  * perguntava sozinho antes de a primeira tela existir e esta função perguntava de

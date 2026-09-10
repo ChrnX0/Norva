@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **674** testes |
+| `npm test` | **675** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **28** garantias contra um Postgres descartável, sob RLS |
@@ -210,9 +210,15 @@ por peso, e o que já foi fechado:**
     `buscarAtualizacao` já prometia. A diferença é que a falha daqui vira `Tentativa`, e a
     de lá virava rastro de pilha. Guarda em `src/release.test.ts`.
 
-    **Aberto, e é do dono:** o canal `preview` não tem nada publicado, então a pergunta que
-    sobrou continua falhando uma vez por abertura. Publicar ali — ou tirar a URL até haver
-    o que publicar — é decisão dele, e o `EXPO_TOKEN` vazado está no meio dessa conta.
+    **A outra metade fechou no mesmo dia, por decisão do dono:** o canal `preview` não tem
+    nada publicado, então a pergunta que sobrou também sai. `updates.enabled: false` desliga
+    os dois lados de uma vez — o nativo para de checar e `Updates.isEnabled` fica falso, então
+    `buscarAtualizacao` devolve na primeira linha sem tocar a rede. A URL e o cabeçalho do
+    canal ficam declarados de propósito: religar é apagar uma linha, não redescobrir o canal,
+    que é a cicatriz de 8 de setembro. E a decisão de que atualização é automática continua de
+    pé — o que mudou é que não há o que buscar, e buscar assim mesmo não é automatismo, é
+    ruído. Guarda com a razão em `src/release.test.ts`, e ela fica **vermelha** no dia em que
+    alguém religar sem publicar.
 12. ~~**A mesma palavra conta coisas diferentes**: Ajustes diz *"Insumos 6"* e o Almoxarifado
     diz *"Insumos 4 · Embalagem 2"*.~~ — **fechado**, e a conta estava certa: `countForErase`
     soma `input`, `packaging` e `store_supply` porque é isso que a área apaga (migração
@@ -399,15 +405,13 @@ virar afirmação. **Seis fechados no mesmo dia:**
       Então **a caminhada continua pela árvore de acessibilidade**, que é como a de 10 de
       setembro já foi feita, e a foto de pixel fica devendo até isto ter saída.
 
-27. **A porta "Lojas e clientes" abre a tela "Estoque por lugar"** — o mesmo defeito do item
-    12 numa segunda palavra, e foi a guarda nova dele que o achou. A tabela guarda cinco
-    espécies — `own_store`, `customer`, `vehicle`, `cold_room` e a própria fábrica
-    (`app/places.tsx:110`) —, o menu promete duas delas (`src/i18n/locales/pt-BR.ts:766`), o
-    cabeçalho da tela diz uma terceira coisa (`src/i18n/locales/pt-BR.ts:1324`) e a
-    confirmação de apagar conta *"lugares"* (`t.app.settings.counted.places`). Qual nome
-    vence é decisão de produto e não troca de rótulo: a mesma tela cadastra o lugar e mostra
-    o saldo dele. Fronteira escrita em `PORTA_DIFERENTE_DA_TELA`
-    (`src/dictionary.test.ts`), que é o que impede o achado de sumir.
+27. ~~**A porta "Lojas e clientes" abre a tela "Estoque por lugar"**~~ — **fechado por
+    decisão do dono, 10 de setembro.** Eram três nomes para a mesma coisa, e a tabela guarda
+    cinco espécies — loja própria, cliente, veículo, câmara fria e a própria fábrica
+    (`app/places.tsx:110`) —, então a porta prometia duas das cinco. Os dois lados passam a
+    dizer **"Onde fica o estoque"**: nomeia o que se vai fazer ali, e cobre veículo e câmara
+    sem mentir. `PORTA_DIFERENTE_DA_TELA` perdeu a linha do `places` — e foi a guarda que
+    cobrou isso sozinha, no mesmo commit, que é para o que ela serve.
 
 28. ~~**A conferência da doca só sabe dizer "chegou tudo"**~~ — **eu superestimei o
     achado, e a correção é minha.** A tela realmente só grava "chegou tudo": o toque abre

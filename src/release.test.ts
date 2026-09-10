@@ -237,3 +237,40 @@ test('the double-ask guard tells the native check from the ones that stay quiet'
   assert.ok(!morde('NEVER'));
   assert.ok(!morde(undefined), 'sem a chave o padrão do EAS decide, e isso é outro item');
 });
+
+/**
+ * O aparelho não bate numa porta que não tem ninguém atrás — decisão do dono, 10 de setembro.
+ *
+ * O canal `preview` não tem nada publicado. Enquanto for assim, cada pergunta por
+ * atualização é um aperto de mão TLS e um download que falha, na bateria e no dado de
+ * um celular de fábrica — e nenhuma delas pode dar certo. Medido no aparelho: 21 falhas
+ * numa janela de log.
+ *
+ * `enabled: false` desliga a pergunta dos DOIS lados de uma vez: o `expo-updates` nativo
+ * para de checar, e `Updates.isEnabled` fica falso, então `buscarAtualizacao`
+ * (`src/nuvem/aparelho.ts`) devolve `false` na primeira linha sem tocar a rede. A decisão
+ * do dono de 8 de setembro — *"backup, sincronia e atualização são automáticos"* — continua
+ * de pé: o que mudou é que não há o que buscar, e buscar assim mesmo não é automatismo, é
+ * ruído.
+ *
+ * **A URL e o canal FICAM declarados de propósito.** Religar é apagar esta linha, e não
+ * redescobrir qual era o canal — que é a cicatriz de 8 de setembro logo acima: sem o
+ * cabeçalho do canal o servidor responde "não há nada" para sempre, calado.
+ *
+ * E este teste é a fronteira escrita: no dia em que houver versão publicada, ele fica
+ * vermelho e obriga quem religar a corrigir a razão aqui em vez de deixá-la envelhecer.
+ */
+test('the phone does not knock on a channel with nobody behind it', () => {
+  const updates = (APP.expo as { updates?: { enabled?: boolean; url?: string } }).updates;
+  assert.ok(updates, 'sem bloco de updates não há atualização nenhuma');
+  assert.equal(
+    updates.enabled,
+    false,
+    'enquanto o canal estiver vazio, perguntar é bateria e dado gastos numa resposta que ' +
+      'não existe. Ligou de volta? Então publique antes, e corrija a razão escrita aqui.',
+  );
+  assert.ok(
+    updates.url,
+    'a URL fica declarada mesmo desligada: religar é apagar uma linha, não redescobrir o canal',
+  );
+});

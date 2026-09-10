@@ -545,7 +545,7 @@ export const en: Dictionary = {
         inputs: 'Storeroom',
         recipes: 'Recipes',
         products: 'Products',
-        places: 'Stores and customers',
+        places: 'Where the stock is',
         people: 'People',
         purchases: 'Purchases',
         orders: 'Orders',
@@ -1006,7 +1006,7 @@ export const en: Dictionary = {
     },
 
     places: {
-      title: 'Stock by place',
+      title: 'Where the stock is',
       overline: 'where what you have is',
       factory: 'Factory',
       empty: 'Nothing has arrived anywhere yet. Enter an invoice or record a production run.',

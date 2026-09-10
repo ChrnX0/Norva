@@ -741,7 +741,7 @@ export const ptBR = {
         inputs: 'Almoxarifado',
         recipes: 'Receitas',
         products: 'Produtos',
-        places: 'Lojas e clientes',
+        places: 'Onde fica o estoque',
         people: 'Pessoas',
         purchases: 'Compras',
         orders: 'Pedidos',
@@ -1306,7 +1306,7 @@ export const ptBR = {
     },
 
     places: {
-      title: 'Estoque por lugar',
+      title: 'Onde fica o estoque',
       overline: 'onde está o que você tem',
       factory: 'Fábrica',
       empty: 'Nada entrou em lugar nenhum ainda. Lance uma compra ou registre uma produção.',

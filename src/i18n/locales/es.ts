@@ -550,7 +550,7 @@ export const es: Dictionary = {
         inputs: 'Almacén',
         recipes: 'Recetas',
         products: 'Productos',
-        places: 'Tiendas y clientes',
+        places: 'Dónde está el stock',
         people: 'Personas',
         purchases: 'Compras',
         orders: 'Pedidos',
@@ -1011,7 +1011,7 @@ export const es: Dictionary = {
     },
 
     places: {
-      title: 'Existencias por lugar',
+      title: 'Dónde está el stock',
       overline: 'dónde está lo que tienes',
       factory: 'Fábrica',
       empty: 'Todavía no entró nada en ningún lugar. Registra una compra o una producción.',

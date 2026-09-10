@@ -974,7 +974,6 @@ const PORTA_DIFERENTE_DA_TELA: Record<string, string> = {
   who: 'a porta é um VERBO ("Trocar de pessoa") e a tela é um estado ("Quem está com o aparelho"). Porta de ação não deve prometer o substantivo.',
   purchases: 'mesma coisa: tocar ali COMEÇA uma compra ("Nova compra"), não abre a lista das que existem.',
   weather: 'a tela do clima não tem `title` no dicionário — ela se abre pela sobrancelha, e não há o que comparar.',
-  places: 'ACHADO ABERTO — a porta diz "Lojas e clientes", a tela diz "Estoque por lugar", e a tabela guarda também veículo, câmara fria e a própria fábrica. É o MESMO defeito dos insumos numa segunda palavra, e escolher qual das três vence é decisão de produto, não troca de rótulo. Está em `docs/roadmap.md`.',
 };
 
 /** A porta e a tela, quando as duas existem no dicionário. */
