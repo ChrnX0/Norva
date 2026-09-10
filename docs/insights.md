@@ -8548,3 +8548,49 @@ versão passada, depois que a primeira fábrica produzir, **não está em lugar 
 reconstruído**. Não é migração cara — é migração impossível. O P1 protege contra peça
 inútil; ele não foi escrito para o caso em que esperar destrói a informação. A fronteira
 fica escrita nos dois arquivos de migração, com o nome de quem vai ler.
+
+---
+
+## 9 de setembro — o enfeite comeu a página, e a rede que faltava era do enfeite
+
+**O que apareceu:** a capa do primeiro dia, fotografada no emulador, mediu **1,56:1** de
+contraste — num piso de 4,5:1 — enquanto a barra de abas da MESMA foto media 15,35:1 e as
+outras telas da MESMA instalação mediam 15,5:1. Parecia tinta clara, e não era.
+
+**O que a conta dos pixels disse, antes de eu abrir um arquivo:** um alfa só (0,215)
+explica os três canais de todas as cores da página — a manchete, o texto do corpo, o azul
+do link. Cor errada não faz isso; **opacidade** faz. E a geometria fechou por outro
+caminho: as réguas da página mediram 922 px onde a coluna sem escala tem 948, e
+`enterScale` (0,965) com a chegada em 0,217 dá exatamente 922. Duas medidas
+independentes, o mesmo número: era a **animação de entrada congelada a 22% do caminho**,
+com a página 20 dp abaixo do lugar. Ficou assim por minutos, atravessando rolagem e
+navegação.
+
+**A causa estava fora da peça.** O aparelho parado na capa queimava **190% de CPU** e
+alocava 130 mil objetos a cada 39 segundos, com a thread de JavaScript a 0,4% — ou seja,
+não era laço de renderização: era a thread de UI, que é onde as trinta e oito animações de
+ambiente desenham atributos de SVG quadro a quadro. A mola da entrada corre nessa mesma
+thread. Ligar "reduzir movimento" no aparelho e reabrir devolveu os dois números de uma
+vez: **CPU de 190% para 22,6%**, e a mesma capa com tinta cheia (33,30,26) e a régua de
+volta aos 948 px.
+
+**Por que isso é achado e não conserto de bug:** o `Reveal` documenta, desde antes, que
+começa visível *"porque se o caminho da animação falhar, o pior caso é a tela aparecer sem
+a entrada, e nunca uma tela em branco com o banco cheio de dado"*. A promessa valia para o
+valor inicial e morria duas linhas depois, onde a opacidade vai a zero e a volta fica por
+conta da mola. **Enfeite que falha tinha permissão de levar o conteúdo junto** — e levou.
+Agora a entrada tem teto: passado o dobro do assentamento da mola, a página aparece,
+tenha a animação chegado ou não.
+
+**A régua que fica, e ela é maior que esta tela:** *movimento e conteúdo não podem
+compartilhar um destino*. Toda vez que um enfeite decide se um texto é legível — opacidade,
+escala, altura animada —, existe um caminho em que o texto some por um motivo que não tem
+nada a ver com ele. A pergunta a fazer em cada um: **se esta animação nunca chegar, o que a
+pessoa vê?** Se a resposta não for "a tela inteira, parada", falta uma rede.
+
+**E uma fronteira dita em voz alta, para não virar promessa falsa:** os 190% são de um
+emulador por software, sem GPU e sem KVM. Não afirmo que o número se repete no tablet do
+dono — afirmo que a thread de UI é o recurso disputado, que o custo do ambiente é o maior
+do app, e que **nada no repositório mede isso hoje**. A doutrina do movimento fala de
+duração de ciclo (4 a 12 s) e não fala de quantos ciclos correm juntos nem do que custam.
+O teste no aparelho dele é o que responde.

@@ -6,6 +6,7 @@ import Animated, {
   withDelay,
   withSpring,
 } from 'react-native-reanimated';
+import { assentamentoMs } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useReduzirMovimento } from './vida';
 
@@ -90,6 +91,38 @@ export function Reveal({
     }
     shown.value = 0;
     shown.value = withDelay(index * motion.staggerMs, withSpring(1, motion.settle));
+
+    // A rede embaixo da entrada — e ela existe porque o pior caso ACONTECEU.
+    //
+    // O comentário acima promete que uma falha no caminho da animação deixa "a
+    // tela aparecer sem a entrada, e nunca uma tela em branco com o banco cheio
+    // de dado". A promessa valia para o valor INICIAL e parava ali: duas linhas
+    // depois a opacidade vai a zero e a volta fica por conta da mola. Se a mola
+    // não chega, ninguém traz.
+    //
+    // E não chegou. Em 9 de setembro a capa do primeiro dia foi fotografada no
+    // emulador com a página inteira em **22% de opacidade** — contraste de
+    // 1,56:1 onde o piso da casa é 4,5:1 —, parada ali por minutos, atravessando
+    // navegação e rolagem. A conta fecha nos dois sentidos: a régua da página
+    // mediu 922 px onde a coluna sem escala tem 948, e `enterScale` (0,965) com
+    // a mola em 0,217 dá exatamente 922. Era a chegada congelada no meio, não
+    // tinta clara.
+    //
+    // A causa estava fora daqui — as trinta e oito animações de ambiente saturam
+    // a thread de UI, que é a mesma que move esta mola —, e é por isso que a rede
+    // mora aqui e não lá: a entrada não pode depender de quem mais está
+    // desenhando. Movimento é enfeite; o texto da página não é.
+    //
+    // O teto é o dobro do assentamento da mola, então numa entrada saudável ele
+    // chega depois de a mola ter terminado e não corta nada: atribuir 1 a quem já
+    // vale 1 não se vê.
+    const teto = setTimeout(
+      () => {
+        shown.value = 1;
+      },
+      index * motion.staggerMs + assentamentoMs(motion.settle) * 2,
+    );
+    return () => clearTimeout(teto);
   }, [index, motion.settle, motion.staggerMs, reduzido, shown]);
 
   // Sobe, cresce e aparece. As três juntas porque uma só não é chegada: subir sem

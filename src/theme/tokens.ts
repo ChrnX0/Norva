@@ -239,6 +239,53 @@ export const motion = {
   countMs: 1250,
 } as const;
 
+/**
+ * Em quanto tempo a mola de chegada assenta, em milissegundos.
+ *
+ * Não é enfeite de precisão: é a medida de que a rede do `Reveal` precisa para
+ * saber quando pode agir sem cortar uma entrada saudável. Chumbar "mil e
+ * duzentos" aqui envelheceria no dia em que alguém mexesse em `motion.settle` —
+ * e mexer na mola é exatamente o tipo de ajuste de desenho que se faz sem olhar
+ * para este arquivo.
+ *
+ * "Assentou" aqui é **faltar menos de um por cento** para o destino.
+ *
+ * A conta é a do decaimento do oscilador amortecido, e a primeira versão dela
+ * estava errada de um jeito que só a mola integrada passo a passo pegou: eu
+ * escrevi que a distância cabe dentro de `e^(-ζωt)`, e ela não cabe — o envelope
+ * tem amplitude `1/√(1-ζ²)`, que numa mola de 0,82 de amortecimento vale 1,7.
+ * Setenta por cento de folga que a fórmula ignorava, e o teto saía cedo demais.
+ *
+ * Daí os dois regimes:
+ *
+ * - **Abaixo do amortecimento crítico** (as duas molas da casa, 0,61 e 0,65) ela
+ *   oscila em torno do destino dentro daquele envelope, e o tempo para sobrar 1%
+ *   é `ln(100/√(1-ζ²)) / (ζω)` — cerca de 640 ms na mola de chegada.
+ * - **No crítico ou acima** ela não oscila: a distância só cai, como
+ *   `(1+rt)·e^(-rt)` com `r` sendo a raiz lenta. O cruzamento de 1% está em
+ *   `rt ≈ 6,638`, e usar isso no supercrítico sobra tempo em vez de faltar, que
+ *   é o lado certo para errar numa rede de segurança.
+ */
+export function assentamentoMs({
+  damping,
+  stiffness,
+  mass,
+}: {
+  damping: number;
+  stiffness: number;
+  mass: number;
+}): number {
+  const omega = Math.sqrt(stiffness / mass);
+  const zeta = damping / (2 * Math.sqrt(stiffness * mass));
+  if (zeta < 1) {
+    return (Math.log(100 / Math.sqrt(1 - zeta * zeta)) / (zeta * omega)) * 1000;
+  }
+  /** Onde `(1+u)·e^(-u)` cruza um por cento. */
+  const CRUZAMENTO = 6.6384;
+  return (CRUZAMENTO / (omega * (zeta - Math.sqrt(zeta * zeta - 1)))) * 1000;
+}
+
+
 /** The rail that carries an area's color on a card. */
 export const RAIL_WIDTH = 3;
 

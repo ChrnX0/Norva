@@ -223,6 +223,83 @@ function larguraEmDp() {
  * abertura, que é uma marca preta num fundo claro — viva pela régua de variação, e
  * inútil. Com rota, espera a tela parar, como o plural faz.
  */
+/**
+ * Metade da página tem tinta de verdade? — lido do framebuffer CRU, sem
+ * decodificar PNG e sem dependência nova.
+ *
+ * Isto existe por causa de 9 de setembro. A capa do primeiro dia foi fotografada
+ * com a página inteira a 22% de opacidade — contraste de 1,56:1 num piso de
+ * 4,5:1 — e a foto passou por `pareceViva` sem um pio, porque ela só olha
+ * variedade de bytes: uma página desbotada tem tantas cores quanto uma legível.
+ *
+ * **A primeira versão desta régua não servia, e ela foi provada errada antes de
+ * entrar.** Ela pegava o pixel mais escuro do miolo, e o mais escuro da tela
+ * velada era a BARRA DE ABAS, que o aplicativo desenha com tinta cheia — a mesma
+ * armadilha em que a minha primeira medição à mão caiu. A foto velada saía
+ * 7,79:1 e passava.
+ *
+ * O que serve é a **mediana das faixas**: a tela é cortada em fitas de cem
+ * pixels, cada fita rende o contraste da sua tinta mais escura contra o papel
+ * mais claro da tela, e o veredito é a fita do meio. Uma barra de abas com tinta
+ * cheia é uma fita; um véu são vinte. E o espaço em branco legítimo — uma lista
+ * curta com meia tela vazia — continua passando, porque a metade de cima tem
+ * tinta.
+ *
+ * O limiar é o piso de texto que a casa já tinha, não um número escolhido para
+ * caber nos exemplos. Medido em doze fotos: as duas veladas em 1,55, e as dez
+ * sãs de 5,91 (uma lista curta) a 15,35.
+ *
+ * O que ela NÃO é: uma auditoria de acessibilidade. Ela responde uma pergunta só
+ * — *tem tinta de verdade nesta página?* Quem mede o contraste de um texto
+ * específico é `src/theme/contrast.test.ts`, sobre as cores da paleta.
+ */
+function tintaDaPagina() {
+  const cru = adbBin('exec-out', 'screencap');
+  const largura = cru.readUInt32LE(0);
+  const altura = cru.readUInt32LE(4);
+  if (!largura || !altura) return null;
+  // O cabeçalho tem 12 bytes (largura, altura, formato) e ganhou um quarto campo
+  // com o espaço de cor no Android 10. Qual dos dois é a conta que fecha.
+  const inicio = cru.length - largura * altura * 4 === 16 ? 16 : 12;
+  if (cru.length - inicio !== largura * altura * 4) return null;
+
+  const luz = (v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const luminancia = (x, y) => {
+    const i = inicio + (y * largura + x) * 4;
+    return 0.2126 * luz(cru[i]) + 0.7152 * luz(cru[i + 1]) + 0.0722 * luz(cru[i + 2]);
+  };
+
+  // Um décimo em cima e um décimo embaixo ficam de fora: as barras do sistema
+  // (relógio, bateria, botões de navegação) são desenhadas pelo Android com
+  // tinta cheia e não dizem nada sobre a página.
+  const topo = Math.floor(altura * 0.05);
+  const fim = Math.floor(altura * 0.95);
+  let papel = 0;
+  for (let y = topo; y < fim; y += 4) {
+    for (let x = 0; x < largura; x += 4) papel = Math.max(papel, luminancia(x, y));
+  }
+
+  const fitas = [];
+  for (let alto = topo; alto < fim; alto += 100) {
+    const baixo = Math.min(alto + 100, fim);
+    let tinta = 1;
+    for (let y = alto; y < baixo; y += 2) {
+      for (let x = 0; x < largura; x += 2) tinta = Math.min(tinta, luminancia(x, y));
+    }
+    fitas.push((papel + 0.05) / (tinta + 0.05));
+  }
+  if (fitas.length === 0) return null;
+  fitas.sort((a, b) => a - b);
+  const meio = Math.floor(fitas.length / 2);
+  return fitas.length % 2 ? fitas[meio] : (fitas[meio - 1] + fitas[meio]) / 2;
+}
+
+/** O piso de texto da casa, o mesmo de `src/theme/contrast.test.ts`. */
+const PISO_DE_TEXTO = 4.5;
+
 async function foto(nome, rota) {
   if (!nome) throw new Error('uso: node scripts/aparelho.mjs foto <nome> [rota]');
   if (rota) {
@@ -262,9 +339,19 @@ async function foto(nome, rota) {
   const emQue = largura
     ? ` — ${largura.dp} dp (${largura.px} px a ${largura.dpi} dpi)${largura.dp >= 600 ? ' ⚠ TABLET' : ''}`
     : '';
+  const contraste = tintaDaPagina();
+  const emTinta = contraste === null ? '' : `, tinta ${contraste.toFixed(2)}:1`;
   console.log(
-    `${destino} — ${(veredito.bytes / 1024).toFixed(0)} KB, variação ${veredito.variacao}${emQue}`,
+    `${destino} — ${(veredito.bytes / 1024).toFixed(0)} KB, variação ${veredito.variacao}${emTinta}${emQue}`,
   );
+  if (contraste !== null && contraste < PISO_DE_TEXTO) {
+    dizer(
+      `ATENÇÃO: metade da página está abaixo de ${contraste.toFixed(2)}:1, e o piso de texto ` +
+        `da casa é ${PISO_DE_TEXTO}:1.\n` +
+        'A página inteira pode estar sob um véu — foi assim que a capa do primeiro dia\n' +
+        'passou minutos a 22% de opacidade com a foto saindo bonita no arquivo.',
+    );
+  }
   if (!veredito.viva) {
     throw new Error(
       'a foto saiu morta (cor única). Isso NÃO é sucesso: o comando sairia zero e a tela\n' +

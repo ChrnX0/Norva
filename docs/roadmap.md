@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **636** testes |
+| `npm test` | **640** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **28** garantias contra um Postgres descartável, sob RLS |
@@ -112,6 +112,31 @@ números abaixo saem do diário da execução, não de contagem à mão.
 **48 fechados na mesma sessão.** O que sobra está aqui, por peso. Cada item traz a
 medida ao lado, como a regra deste arquivo exige: item aberto prova que a coisa NÃO
 existe, e a suíte fica vermelha no dia em que alguém a construir sem riscar a linha.
+
+### A. Nada mede o que o movimento de ambiente custa — e ele já comeu uma tela
+<!-- medida: ausente src/components :: orcamento de movimento -->
+
+Medido no emulador em 9 de setembro, com o aplicativo **parado** numa tela: **190% de
+CPU**, 130 mil objetos alocados a cada 39 segundos, e a tela real desenhando a 1,7
+quadro por segundo. A thread de JavaScript estava a **0,4%** — não é laço de
+renderização: é a thread de UI, onde as trinta e oito chamadas de `useCiclo` desenham
+atributos de SVG (`useAnimatedProps`, 52 usos) quadro a quadro, para sempre, em toda
+tela. Ligar "reduzir movimento" no aparelho derrubou o número para **22,6%**.
+
+E não foi só custo: a mola de entrada do `Reveal` corre nessa mesma thread e **nunca
+chegava**. A capa do primeiro dia ficou a 22% de opacidade — 1,56:1 de contraste num
+piso de 4,5:1 — por minutos, atravessando rolagem e navegação. Isso está consertado
+(`src/components/Reveal.tsx`, a rede embaixo da entrada), mas o conserto protege o
+conteúdo, não a bateria.
+
+A doutrina do movimento em `src/theme/tokens.ts` fala de **duração de ciclo** (4 a 12 s)
+e não fala de **quantos ciclos correm juntos** nem do que custam. Falta um orçamento: um
+teto de ciclos vivos por tela, ou parar o ambiente do que está fora da vista.
+
+**A fronteira, para o item não afirmar mais do que mediu:** os 190% são de um emulador
+por software, sem GPU e sem KVM. Não afirmo o número no tablet do dono — afirmo que a
+thread de UI é o recurso disputado e que hoje ninguém a mede. O teste no aparelho dele é
+o que fecha ou reabre este item.
 
 ### A. O aplicativo não lê o estado do pedido de Reset
 <!-- medida: ausente src/sync :: from('erase_requests') -->

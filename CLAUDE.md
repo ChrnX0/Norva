@@ -214,6 +214,20 @@ navegador. O que prova tela é a **foto do emulador**, olhada. Isso agora existe
 `bash scripts/ambiente.sh` prepara a máquina e `node scripts/aparelho.mjs` sobe,
 instala e fotografa.
 
+**E a foto agora MEDE, porque olhada não bastou — 9 de setembro.** A capa do primeiro
+dia foi fotografada com a página inteira a **22% de opacidade** (contraste de 1,56:1 num
+piso de 4,5:1), e eu olhei essa foto sem ver: desbotado uniforme parece escolha de
+desenho, e a miniatura no terminal não denuncia. O que denunciou foi medir pixel na mão,
+e o que se acha na mão uma vez não se acha na próxima. Então toda foto agora sai com a
+tinta da página ao lado do tamanho — `tinta 15,35:1` —, lida do framebuffer cru, e o
+comando grita quando metade da página cai abaixo do piso de texto.
+
+A régua é a **mediana das fitas de cem pixels**, não o pixel mais escuro: a primeira
+versão pegava o mais escuro e foi enganada pela BARRA DE ABAS, que tem tinta cheia
+enquanto a página está velada — a mesma armadilha da minha primeira medição. Ela foi
+provada em doze fotos antes de entrar: as duas veladas em 1,55, as dez sãs de 5,91 a
+15,35. **Detector que não distingue os dois casos não entra**, e este quase entrou.
+
 A CI segue a mesma divisão: rápido (tipos, lint, teste, pacote) em todo push;
 pesado (mutação, navegador, banco, portão) só indo para `main` ou pelo botão.
 
