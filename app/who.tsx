@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { router, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { voltar } from '@/nav';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
@@ -63,8 +64,9 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * checagem de navegador que abre `/who` direto e toca num nome é o que o prova.
  */
 function sairDaGrade() {
-  if (router.canGoBack()) router.back();
-  else router.replace('/' as never);
+  // Esta tela e o leitor de QR foram os dois primeiros a perguntar isto, cada um por
+  // conta própria. A regra virou `src/nav.ts` e passou a valer para as catorze saídas.
+  voltar();
 }
 
 export default function Who() {

@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { voltar } from '@/nav';
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
@@ -134,7 +134,6 @@ type Loaded = {
 function ProductForm() {
   const { color, type, space, palette, traco } = useTheme();
   const confirm = useConfirm();
-  const router = useRouter();
   const { locale, t } = useLocale();
 
   const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
@@ -470,7 +469,7 @@ function ProductForm() {
           rate: rate(num(salePrice) || 0, 1),
         });
       }
-      router.back();
+      voltar();
     } catch (e) {
       await confirm({
         title: t.app.productForm.failed,

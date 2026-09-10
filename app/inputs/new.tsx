@@ -1,4 +1,5 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { voltar } from '@/nav';
 import { avisoDeFalha } from '@/i18n/falha';
 import { ERROS } from '@/data/erros';
 import { useState } from 'react';
@@ -98,7 +99,6 @@ const KINDS: {
 function InputForm() {
   const { color, type, space, palette, traco } = useTheme();
   const confirm = useConfirm();
-  const router = useRouter();
   const { locale, t } = useLocale();
   const words = t.app.inputForm;
 
@@ -308,7 +308,7 @@ function InputForm() {
     setSaving(true);
     try {
       await save();
-      router.back();
+      voltar();
     } catch (e) {
       await confirm({
         title: words.failedToSave,

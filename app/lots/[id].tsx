@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { voltar } from '@/nav';
 import { avisoDeFalha } from '@/i18n/falha';
 import { ERROS } from '@/data/erros';
 import { StyleSheet, Text, View } from 'react-native';
@@ -148,7 +149,7 @@ function Label() {
       return;
     }
     refresh();
-    router.back();
+    voltar();
   };
 
   /** O crachá da etiqueta, o assunto desta tela. */

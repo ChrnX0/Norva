@@ -38,25 +38,6 @@ import { ThemeProvider } from '@/theme/ThemeProvider';
  * estão prontas — o banco e a escolha da cara. Do carvão para o carvão, sem
  * costura.
  */
-/**
- * Quem entra por LIGAÇÃO PROFUNDA tem para onde voltar.
- *
- * **Medido no aparelho em 10 de setembro:** partida fria em `norva://losses`, um toque
- * no botão voltar, e o foco vai para o launcher — o aplicativo SAI. Sem âncora o
- * roteador monta a pilha com uma tela só, e "voltar" da única tela é sair.
- *
- * Isso importa porque as duas portas que este produto promete são exatamente essas:
- * o QR do engradado na doca e a notificação de validade. As duas abrem uma tela
- * interna num celular que estava no bolso, e nas duas a pessoa vai apertar voltar
- * esperando o aplicativo, não a tela inicial do Android.
- *
- * A âncora diz ao roteador o que fica DEBAIXO da tela aberta por link. `(tabs)` é a
- * capa, que é para onde voltar significa alguma coisa: dali a barra de abas leva a
- * qualquer lugar. Não muda nada para quem entra abrindo o aplicativo — a capa já é a
- * primeira tela — e é por isso que a linha é barata.
- */
-export const unstable_settings = { anchor: '(tabs)' };
-
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 /** Cento e sessenta milissegundos: o mesmo assentar do resto do aplicativo. */

@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { avisoDeFalha } from '@/i18n/falha';
 import { ERROS } from '@/data/erros';
-import { useRouter } from 'expo-router';
+import { voltar } from '@/nav';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
@@ -344,7 +344,6 @@ function Settings() {
   }, [t]);
 
   const confirm = useConfirm();
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
 
   /**
@@ -1714,7 +1713,7 @@ function Settings() {
       ) : null}
 
       <Reveal index={9}>
-        <Button label={t.app.settings.back} variant="ghost" onPress={() => router.back()} />
+        <Button label={t.app.settings.back} variant="ghost" onPress={() => voltar()} />
       </Reveal>
     </CollapsingHeader>
   );

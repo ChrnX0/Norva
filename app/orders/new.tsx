@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { voltar } from '@/nav';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
@@ -272,7 +273,7 @@ function NewOrder() {
         requestedFor,
         lines: lines.map((l) => ({ itemId: l.itemId, baseUnits: l.baseUnits })),
       });
-      router.back();
+      voltar();
     } finally {
       setSaving(false);
     }
@@ -495,7 +496,7 @@ function NewOrder() {
       {/* Voltar é fantasma e é a última coisa da pilha: ninguém deve ser
           convidado a sair antes de responder. */}
       <Reveal index={iAcao + 1}>
-        <Button label={words.back} variant="ghost" onPress={() => router.back()} />
+        <Button label={words.back} variant="ghost" onPress={() => voltar()} />
       </Reveal>
     </CollapsingHeader>
   );

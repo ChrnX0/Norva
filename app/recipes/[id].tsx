@@ -1,4 +1,5 @@
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { voltar } from '@/nav';
 import { avisoDeFalha } from '@/i18n/falha';
 import { ERROS } from '@/data/erros';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -183,7 +184,6 @@ type Draft = {
 function RecipeEditor() {
   const { color, type, space, palette, traco } = useTheme();
   const confirm = useConfirm();
-  const router = useRouter();
   const { locale, t } = useLocale();
   const params = useLocalSearchParams<{ id?: string }>();
 
@@ -359,7 +359,7 @@ function RecipeEditor() {
    * na primeira caminhada, e eu registrei a linha como não gravada antes de
    * entender que ela só não tinha sido salva.
    *
-   * `saindo` existe porque `router.back()` do próprio salvamento passa por aqui
+   * `saindo` existe porque `voltar()` do próprio salvamento passa por aqui
    * com `changed` ainda verdadeiro — o rascunho em memória não muda ao gravar.
    * Sem essa trava, salvar perguntaria se você quer descartar o que acabou de
    * salvar.
@@ -435,7 +435,7 @@ function RecipeEditor() {
         lossFraction: num(lossPercent) / 100,
         lines,
       });
-      router.back();
+      voltar();
     } catch (e) {
       await confirm({
         title: t.app.recipe.failedToSave,

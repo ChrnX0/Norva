@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { voltar } from '@/nav';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
@@ -57,7 +57,6 @@ export default function WeatherPlaceScreen() {
 function PickCity() {
   const { color, type, space, palette, traco } = useTheme();
   const { t } = useLocale();
-  const router = useRouter();
   const words = t.app.weatherPlace;
 
   const { data: current, error, refresh } = useQuery<WeatherPlace | null>(() => readPlace());
@@ -196,7 +195,7 @@ function PickCity() {
       {/* Voltar é fantasma, e é a última coisa da pilha: ninguém deve ser
           convidado a sair antes de responder. */}
       <Reveal index={2}>
-        <Button label={words.back} variant="ghost" onPress={() => router.back()} />
+        <Button label={words.back} variant="ghost" onPress={() => voltar()} />
       </Reveal>
     </CollapsingHeader>
   );

@@ -43,13 +43,13 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | migrações do aparelho | **V29** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
-| linhas de código | **~89.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
+| linhas de código | **~92.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
 
 E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **676** testes |
+| `npm test` | **679** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **28** garantias contra um Postgres descartável, sob RLS |
@@ -154,15 +154,22 @@ por peso, e o que já foi fechado:**
     número sai como *"em até"*, porque cada volta do laço paga a leitura da árvore e essa
     parte é o instrumento, não o aplicativo.
 
-6. ~~**Quem entra por link direto numa tela interna não tem volta**~~ — **fechado e
-    PROVADO no aparelho, com o mesmo teste que achou o defeito.** Antes: partida fria em
-    `norva://losses`, um toque no voltar, e `mCurrentFocus` ia para
-    `com.android.fakesystemapp` — o aplicativo saía. Depois de `unstable_settings = {
-    anchor: '(tabs)' }` em `app/_layout.tsx`: o foco fica em
-    `app.norva.mobile/.MainActivity` e a tela é a **capa**.
+6. ~~**Quem entra por link direto numa tela interna não tem volta**~~ — **fechado, e o
+    MECANISMO mudou depois da prova.** Antes: partida fria em `norva://losses`, um toque no
+    voltar, e `mCurrentFocus` ia para `com.android.fakesystemapp` — o aplicativo saía. Essa
+    é a medida do defeito, e ela vale: foi tirada antes de qualquer conserto.
 
     Importava porque são as duas portas que o produto promete — o QR do engradado na doca e
     o aviso de validade abrem tela interna num celular que estava no bolso.
+
+    **O conserto hoje é `voltar()` (`src/nav.ts`), não a âncora de rota** — o item 33 conta
+    por quê, e a razão é que a âncora quebra a web. E aqui fica dito o que ainda não foi
+    medido, porque o contrário seria herdar uma prova que não é desta versão: **a foto do
+    aparelho com o foco na capa foi tirada COM a âncora.** Com `voltar()` no lugar dela, o
+    que está provado é o navegador (53/53, com a checagem que a âncora derrubava passando de
+    novo) e a leitura — `canGoBack()` é a mesma pergunta que `app/who.tsx` e `app/scan.tsx`
+    já respondiam certo. Falta repetir a partida fria em `norva://losses` no aparelho; é a
+    próxima coisa desta fila, e ela sobe aqui com o número quando acontecer.
 
 7. ~~**A primeira ação que a capa oferece num aplicativo vazio é impossível.**~~ —
    **fechada em 10 de setembro.** A tela de produção tem razão escrita para não navegar
@@ -569,34 +576,53 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     `src/dictionary.test.ts`, com a MAIÚSCULA de fora por razão escrita: a testeira da
     capa é faixa tipográfica, não gramática.
 
-33. **A âncora de rota conserta o aparelho e QUEBRA a web** — e a decisão é sua, porque
-    muda o que se constrói. Medido em 10 de setembro, com uma variável só: tirando
-    `unstable_settings = { anchor: '(tabs)' }` de `app/_layout.tsx`, a checagem `an invoice
-    warns before it is committed` do navegador passa; pondo de volta, ela estoura o clique
-    em 30 s com a máquina parada (carga 0,12).
+33. ~~**A âncora de rota conserta o aparelho e QUEBRA a web**~~ — **fechado em 10 de
+    setembro, e não escolhendo um lado da troca: a troca não existia.**
+    <!-- medida: presente src/nav.ts :: export function voltar -->
 
-    **A causa, medida e não suposta**, depois de três palpites meus errados (o halo do
-    `PulseDot`, o `useNaTela` que supunha foco, e um `.first()` que eu achei que pegava a
-    cópia da capa — todos falsos): a janela tem **412 px** de largura e o elemento está em
-    **x = 607**. Com a âncora, a tela aberta por ligação profunda é montada como o SEGUNDO
-    cartão da pilha, deslocada uma largura para o lado, e nunca desliza para o lugar. Quem
-    abre um link profundo na web vê a capa; a tela pedida existe no DOM, fora da janela.
+    **O defeito é real e está medido.** Quem entra por LIGAÇÃO PROFUNDA — o QR do
+    engradado na doca, o aviso de validade na notificação — chega numa tela com a pilha
+    vazia atrás, e ali `router.back()` não volta: fecha o aplicativo. Partida fria em
+    `norva://losses`, um toque no voltar, `mCurrentFocus` no launcher. São exatamente as
+    duas portas que este produto promete.
 
-    **No APARELHO a âncora está certa e provada** (item 6): partida fria em
-    `norva://losses`, voltar cai na capa em vez de sair do aplicativo. São as duas portas
-    que o produto promete — o QR do engradado e o aviso de validade.
+    **A âncora era a resposta da documentação, e ela cobra na outra ponta.** Medido com
+    uma variável só: com `unstable_settings = { anchor: '(tabs)' }` em `app/_layout.tsx`, a
+    checagem `an invoice warns before it is committed` estoura o clique em 30 s com a
+    máquina parada (carga 0,12); sem ela, passa. A causa, depois de três palpites meus
+    errados (o halo do `PulseDot`, o `useNaTela` que supunha foco, e um `.first()` que eu
+    achei que pegava a cópia da capa — todos falsos): a janela tem **412 px** e o elemento
+    está em **x = 607**. Com a âncora, a tela aberta por ligação profunda é montada como o
+    SEGUNDO cartão da pilha, deslocada uma largura inteira, e nunca desliza para o lugar.
+    Quem abre um link profundo na web vê a capa.
 
-    Então é troca, e não conserto: **aparelho certo com web quebrada, ou web certa com o
-    aplicativo expulsando quem entra por link**. O plano diz *"primeiro o app, a web
-    depois"*, o que recomenda ficar com a âncora — mas a suíte do navegador fica vermelha
-    até a web ser consertada, e suíte vermelha escondida é pior que a troca.
+    **E aí eu ia trazer a troca para você decidir — o que teria sido devolver trabalho
+    embrulhado como consulta.** Antes de fazer a pergunta fui checar se a escolha existia
+    mesmo, e ela não existia: `app/who.tsx` e `app/scan.tsx` **já** perguntavam
+    `canGoBack()` antes de voltar, cada um com o seu destino, e o `who.tsx` carrega o
+    registro de como aquilo foi achado — *"por leitura (E1), numa análise de olhos novos"*.
+    O padrão, a razão e a prova estavam neste repositório o tempo todo. A âncora foi eu
+    resolver com ferramenta pesada um problema que a casa já sabia resolver.
 
-    **O que os três palpites errados deixaram de bom**, e fica independente da decisão: a
-    volta própria do `PulseDot` agora para quando a tela sai de vista, e `useNaTela` deixou
-    de SUPOR que está à vista até uma limpeza que numa tela nunca focada jamais roda —
-    passou a perguntar `useIsFocused()`, que responde o estado de agora. As duas cortam CPU
-    de telas que ninguém vê, no aplicativo que este projeto já mediu saturando a thread de
-    UI.
+    Então virou extração e não invenção: `src/nav.ts` exporta `voltar(destino = '/')`, e
+    as **doze** saídas do aplicativo passaram a chamá-la — as duas que já faziam certo
+    incluídas, porque regra que vale para doze e não para duas volta a divergir. `voltar()`
+    responde nos dois lugares e não mexe em como a pilha é montada.
+
+    **A guarda é `src/nav.test.ts`**, e ela existe porque o conserto é POR CHAMADA: a
+    décima quinta saída que alguém escrever amanhã chamaria `back()` cru de novo — é o que
+    a documentação ensina, e está certo em qualquer aplicativo cuja única entrada seja a
+    capa. Ela varre `app/` ignorando comentário (senão acusaria o docblock do `who.tsx`,
+    que cita o defeito para explicá-lo), recusa a volta da âncora com a medida escrita ao
+    lado, e foi provada nos dois sentidos: plantando `router.back()` numa tela ela fica
+    vermelha nomeando o arquivo, plantando a âncora ela fica vermelha na outra linha.
+
+    **O que os três palpites errados deixaram de bom**, e não dependia da decisão nenhuma:
+    a volta própria do `PulseDot` agora para quando a tela sai de vista, e `useNaTela`
+    deixou de SUPOR que está à vista até uma limpeza que numa tela nunca focada jamais roda
+    — passou a perguntar `useIsFocused()`, que responde o estado de agora. As duas cortam
+    CPU de telas que ninguém vê, no aplicativo que este projeto já mediu saturando a thread
+    de UI.
 
 **Aberto do que esta caminhada achou:**
 

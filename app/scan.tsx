@@ -1,5 +1,6 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
+import { voltar } from '@/nav';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
@@ -51,10 +52,8 @@ function Leitor() {
     if (permissao && !permissao.granted && permissao.canAskAgain) void pedirPermissao();
   }, [permissao, pedirPermissao]);
 
-  const fechar = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace('/production' as never);
-  };
+  // A regra é de todo mundo agora — ver `src/nav.ts`.
+  const fechar = () => voltar('/production');
 
   if (!permissao || !permissao.granted) {
     const podePedir = permissao?.canAskAgain !== false;

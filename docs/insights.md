@@ -9047,3 +9047,53 @@ fina que a coisa que ela mede?* Nas três, responder isso custava uma medição 
 poupado o dia. E a irmã dela, que este arquivo já exigia e eu cumpri tarde: **régua nova passa
 num caso verdadeiro e num falso antes de dizer qualquer número** — foi conferindo uma amostra
 à mão que eu descobri que a terceira régua estava prestes a apagar dezesseis chaves vivas.
+
+## 10 de setembro — antes de trazer uma troca para o dono, veja se a escolha existe
+
+**O que apareceu:** eu tinha uma troca redonda na mão e ia levá-la para ele decidir. O
+`unstable_settings = { anchor: '(tabs)' }` conserta a volta de quem entra por ligação
+profunda no APARELHO — medido, partida fria em `norva://losses`, o foco passando do launcher
+para a capa — e **quebra a web** — medido com uma variável só, a tela montada como segundo
+cartão da pilha, deslocada uma largura inteira (janela de 412 px, elemento em x = 607). Os
+dois lados provados, os dois custosos: aparelho certo com a suíte do navegador vermelha, ou
+web certa com o aplicativo expulsando quem entra por link. Escrevi o item no roadmap com a
+medida de cada lado e a recomendação, que é a forma certa de fazer uma pergunta de dono.
+
+**O que me fez parar:** o `CLAUDE.md` diz que a pergunta se faz em três casos, e o primeiro é
+*"a resposta muda o que é construído"*. Isso é uma afirmação sobre o mundo, e afirmação se
+confere. Fui checar se a escolha existia mesmo — e ela não existia. `app/who.tsx` e
+`app/scan.tsx` **já** perguntavam `canGoBack()` antes de voltar, cada um com o seu destino, e
+o `who.tsx` carrega até o registro de como aquilo foi achado: *"por leitura (E1), numa análise
+de olhos novos"*. O padrão, a razão e a prova estavam aqui dentro o tempo todo.
+
+**Por que importa:** a âncora era eu resolvendo com ferramenta pesada — uma opção global que
+muda como a pilha inteira é montada — um problema que este repositório já resolvia com uma
+pergunta de três palavras no lugar da chamada. A troca não era do produto: era do meu
+instrumento. E ela ia consumir uma rodada do dono para escolher entre dois lados de um dilema
+que não existe.
+
+**E há um agravante que este arquivo já conhece por outro nome.** A regra da casa diz que
+*"conserto de pele não termina no arquivo que o mostrou"*, e aqui a forma é a mesma virada do
+avesso: **duas telas já tinham o conserto e as outras doze não**, porque cada uma resolveu por
+conta própria e ninguém perguntou quem mais fazia aquilo. Solução que mora em duas telas não é
+regra do aplicativo — é coincidência com dois exemplares.
+
+**O que mudou por causa disso:** `src/nav.ts` exporta `voltar(destino = '/')`, extraído das
+duas que já acertavam, e as **doze** saídas do aplicativo passaram a chamá-lo — as duas
+originais incluídas, senão volta a divergir. A âncora saiu do `app/_layout.tsx`, e a checagem
+`an invoice warns before it is committed` voltou a passar. `src/nav.test.ts` guarda as duas
+metades: nenhuma tela chama `back()` cru (varrendo `app/` sem os comentários, senão acusaria o
+docblock do `who.tsx` que explica o defeito) e a âncora não volta sem alguém medir a web
+antes. As duas provadas plantando a quebra e vendo vermelho.
+
+**E a guarda pegou o autor dela no mesmo dia.** Eu tinha escrito "catorze saídas" em quatro
+lugares — o docblock, a guarda, o roadmap e este arquivo — e as saídas são **doze**. Os dois
+sobrando eram `router.back()` citado em PROSA de docblock, contado como se fosse chamada: exatamente
+o caso que o `semComentario` da guarda existe para separar, e que eu tinha acabado de provar
+plantando quebra. A régua que eu escrevi para o código não estava valendo para mim: contei com
+`grep` cru o que a guarda conta sem comentário. **Número publicado é afirmação, e afirmação se
+mede com a mesma régua que se cobra do repositório.**
+
+**A pergunta que fica:** quando uma decisão de dono se formar na minha cabeça, *o repositório
+já respondeu isto em algum canto?* Custa um `grep` pelo comportamento — não pelo nome, que eu
+não sabia — e neste caso ele devolveu a resposta com o docblock explicando por quê.

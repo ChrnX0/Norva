@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { voltar } from '@/nav';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
@@ -316,7 +316,7 @@ function Production() {
     // E volta para o dia, onde o tacho aberto tem cartão. Quem marca o tacho
     // marca e sai andando; ficar no formulário depois de abrir é ficar parado
     // numa tela que só terá o que dizer quando a corrida acabar.
-    router.back();
+    voltar();
   };
 
   const onCancel = async () => {
@@ -400,7 +400,7 @@ function Production() {
       // nela fazia sentido; agora ela é um formulário, e ficar num formulário
       // já gravado deixa a pessoa sem barra de abas e sem ver o total do dia
       // se mexer por causa do que ela acabou de lançar.
-      router.back();
+      voltar();
     } catch (e) {
       // A frase é da tela, não do erro.
       //
