@@ -152,7 +152,12 @@ por peso, e o que já foi fechado:**
     dado.
 12. **A mesma palavra conta coisas diferentes**: Ajustes diz *"Insumos 6"* e o Almoxarifado
     diz *"Insumos 4 · Embalagem 2"*.
-13. **O editor da ficha técnica abre com o cabeçalho vazio.** `app/recipes/[id].tsx` deixa
+13. ~~**O editor da ficha técnica abre com o cabeçalho vazio.**~~ — **fechado**: era a
+    entrada travada em opacidade zero, e a opacidade saiu da entrada inteira. Provado no
+    aparelho com movimento LIGADO (`tinta 11,56:1 em 20/22 fitas`). O texto abaixo fica
+    como estava porque a suspeita que ele registra foi a que acertou.
+
+    **O editor da ficha técnica abre com o cabeçalho vazio.** `app/recipes/[id].tsx` deixa
     uma faixa de ~170 dp de papel puro no topo — sem sobrancelha, sem título, sem cena —,
     e ela não é transição: sobrevive a rolagem para baixo e para cima. O `CollapsingHeader`
     recebe `title`, `overline` e `cena="receitas"`, então não é falta de dado. Papel puro
@@ -163,6 +168,49 @@ por peso, e o que já foi fechado:**
 15. **O `accessibilityLabel` do Extrato lia a frase crua** ~~"Ver mais — {{n}} até aqui"~~ —
     **fechado** pela mesma varredura, e ele é o tipo de defeito que só existe na metade da
     tela que ninguém olha.
+
+### A.2 — 10 de setembro: a segunda caminhada, ficha e produto
+<!-- medida: ausente app/recipes/[id].tsx :: descartarRascunho -->
+
+Feita com o aparelho dirigido pela árvore de acessibilidade (o `uiautomator` volta a ler
+com o ambiente parado), e cada achado conferido contra o SQLite do aplicativo antes de
+virar afirmação. **Seis fechados no mesmo dia:**
+
+16. ~~**A unidade da ficha morre na primeira edição.**~~ — **fechada**. O cadastro oferece
+    mililitro, grama e unidade, e gravava certo; `app/recipes/[id].tsx` salvava
+    `yieldUnit: 'ml'` literal. Provado no banco do aparelho: `Massa de pao` versão 1 em
+    `g`, versão 2 em `ml`, mesmo número. Achado pelo dono.
+17. ~~**"▲ R$ 0,02 por unidade contra a versão 1 (0,0%)"**~~ — **fechada**. `compareVersions`
+    devolvia `0` quando a versão anterior não tinha custo. Zero é um fato — "não mudou" —, e
+    usá-lo para dizer "não sei" põe as duas afirmações na mesma frase.
+18. ~~**"Caixa fechada: R$ 3,50" numa caixa de R$ 3,66.**~~ — **fechada**. O custo da
+    unidade é `Cents` inteiro; multiplicar por cinquenta arredonda duas vezes e come 4,5%
+    do número que dá preço de caixa. `costPerPack` multiplica antes e arredonda uma vez.
+19. ~~**"Vai em cada unidade" pede para ser preenchido e não guarda nada.**~~ — **fechada**
+    pela verdade e não pela gravação: a porção mora no PRODUTO, e uma ficha pode alimentar
+    dois produtos de tamanhos diferentes. O campo continua sendo a simulação que a tela
+    precisa, e agora se apresenta como tal.
+20. ~~**"Criar ficha" não responde ao toque.**~~ — **fechada**. O rendimento nascia vazio: o
+    40000 era placeholder, e o docblock da tela já prometia o contrário. Botão desligado que
+    não diz o que falta é a Lei 5 ao contrário.
+21. ~~**"por litro de massa" para uma ficha pesada em grama.**~~ — **fechada**. A figura é o
+    custo de MIL unidades-base: um litro em ml, um quilo em g, mil unidades em un.
+
+**Aberto do que esta caminhada achou:**
+
+22. **Sair do editor com alteração pendente não avisa.** O botão de salvar existe e fica no
+    fim da rolagem; o caminho de saída (voltar do Android, o X do cabeçalho) descarta o
+    rascunho sem uma palavra. `app/recipes/[id].tsx` — o rascunho vive em `setDraft`.
+23. **A confirmação da versão termina em vírgula quando não há porção.** *"A versão 1
+    continua guardada — as produções antigas mantêm o custo delas. "* — `summary` vazio
+    deixa a frase pendurada. `t.app.recipe.saveBody`.
+
+**O que a segunda caminhada CONFIRMOU funcionando:** as três réguas de rendimento no
+cadastro da ficha; a confirmação da ficha com os números por extenso e a régua escolhida
+(*"vai render 12.000 g de cada vez"*); a aritmética do custo em toda tela conferida na mão
+(1.000 g × 1,24 ¢/g = R$ 12,40; 40.000 ml ÷ 70 = 571 unidades; 1.240 ¢ ÷ 571 = R$ 0,02;
+50 × 6 = 300 unidades por engradado); e a tela de produto, que é a mais bem resolvida do
+aplicativo — nenhum campo nasce vazio e cada número traz a conta ao lado.
 
 **O que a caminhada CONFIRMOU funcionando**, para o relatório não ser só defeito: o Reset
 com as duas confirmações, exatamente como a decisão pede — a primeira com os números por
