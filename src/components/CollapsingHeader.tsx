@@ -19,6 +19,7 @@ import { alternando, distribuir } from './colunas';
 import { Mark } from './Mark';
 import { MEDIDA_DA_PAGINA, MEDIDA_EM_PARES, PARES_A_PARTIR_DE } from '@/theme/tokens';
 import { alturaDaCena as calcularAlturaDaCena } from './cenas/prancha';
+import { faixaDeColapso, FRACAO_CENA, FRACAO_OLHO } from './cabecalho';
 import { useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -56,7 +57,9 @@ function PaginaQueNaoLeu({ erro, denovo }: { erro: Error; denovo?: () => void })
 
 const EXPANDED = 34;
 const COLLAPSED = 22;
-const RANGE = 72;
+
+/** A altura da linha de olho, que some junto com a cena. */
+const OLHO = 18;
 
 
 /**
@@ -192,20 +195,44 @@ export function CollapsingHeader({
     scrollY.value = event.contentOffset.y;
   });
 
+  /**
+   * Quanto de rolagem o cabeçalho leva para encolher — calculado, não escolhido.
+   *
+   * Era a constante `72`, e ela é a causa do tremor que o dono achou no tablet dele:
+   * cabeçalho e lista dividem a altura, então encolher um cresce o outro e isso
+   * realimenta a rolagem. Com 72 fixos e uma cena de 112 dp, o cabeçalho encolhia mais
+   * de três vezes mais rápido que a rolagem que o encolhia — e realimentação com ganho
+   * acima de 1 oscila em vez de acomodar. `src/components/cabecalho.ts` tem a conta e
+   * a tabela por largura; `cabecalho.test.ts` cobra o teto em dez larguras.
+   *
+   * **Sem cena o colapso é outro**, e por isso ela entra como zero: reservar faixa para
+   * uma peça que não está na tela alongaria a rolagem à toa nas telas sem ilustração.
+   */
+  const faixa = faixaDeColapso({
+    alturaDaCena: cena ? alturaDaCena : 0,
+    olho: overline ? OLHO : 0,
+    titulo: EXPANDED - COLLAPSED,
+  });
+
   const titleStyle = useAnimatedStyle(() => ({
-    fontSize: interpolate(scrollY.value, [0, RANGE], [EXPANDED, COLLAPSED], Extrapolation.CLAMP),
+    fontSize: interpolate(scrollY.value, [0, faixa], [EXPANDED, COLLAPSED], Extrapolation.CLAMP),
   }));
 
   const overlineStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, RANGE / 2], [1, 0], Extrapolation.CLAMP),
-    height: interpolate(scrollY.value, [0, RANGE / 2], [18, 0], Extrapolation.CLAMP),
+    opacity: interpolate(scrollY.value, [0, faixa * FRACAO_OLHO], [1, 0], Extrapolation.CLAMP),
+    height: interpolate(scrollY.value, [0, faixa * FRACAO_OLHO], [OLHO, 0], Extrapolation.CLAMP),
   }));
 
   // A cena sai antes do título e mais depressa que ele: quem rolou já decidiu
   // que quer o conteúdo, e a ilustração é a boa-vinda, não a matéria.
   const cenaStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, RANGE * 0.6], [1, 0], Extrapolation.CLAMP),
-    height: interpolate(scrollY.value, [0, RANGE * 0.6], [alturaDaCena, 0], Extrapolation.CLAMP),
+    opacity: interpolate(scrollY.value, [0, faixa * FRACAO_CENA], [1, 0], Extrapolation.CLAMP),
+    height: interpolate(
+      scrollY.value,
+      [0, faixa * FRACAO_CENA],
+      [alturaDaCena, 0],
+      Extrapolation.CLAMP,
+    ),
   }));
 
   return (
