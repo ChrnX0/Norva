@@ -10,6 +10,8 @@ import Animated, {
 import { tint } from '@/components/Card';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useCiclo, useReduzirMovimento } from './vida';
+import { redeDaEntrada } from './chegada';
+import { assentamentoMs } from '@/theme/tokens';
 
 /**
  * O ritmo da semana, em sete colunas.
@@ -75,6 +77,13 @@ export function Bars({
     }
     grown.value = 0;
     grown.value = withDelay(120, withSpring(1, { damping: 16, stiffness: 120 }));
+    return redeDaEntrada(
+      () => {
+        grown.value = 1;
+      },
+      120,
+      assentamentoMs({ damping: 16, stiffness: 120, mass: 1 }),
+    );
   }, [grown, reduzir]);
 
   const peak = Math.max(...series.map((d) => d.total), 1);

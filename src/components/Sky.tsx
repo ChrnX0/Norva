@@ -11,6 +11,7 @@ import Svg, { Circle, Defs, Line, Path, RadialGradient, Stop } from 'react-nativ
 import { useTheme } from '@/theme/ThemeProvider';
 import { useReduzirMovimento } from './vida';
 import type { Palette, Tracos } from '@/theme/tokens';
+import { redeDaEntrada } from './chegada';
 
 /**
  * O dia, desenhado — e por que ele deixou de ser um bloco.
@@ -231,6 +232,13 @@ export function TemperatureRange({
     }
     grown.value = 0;
     grown.value = withTiming(1, { duration: 900 });
+    return redeDaEntrada(
+      () => {
+        grown.value = 1;
+      },
+      0,
+      900,
+    );
   }, [grown, reduzir]);
 
   // A escala é o dia de uma sorveteria: de zero a quarenta graus. Fixa de

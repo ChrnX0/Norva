@@ -12,6 +12,8 @@ import { tint } from '@/components/Card';
 import { sparkArea, sparkPath, sparkPoints } from '@/domain/spark';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useReduzirMovimento } from './vida';
+import { redeDaEntrada } from './chegada';
+import { assentamentoMs } from '@/theme/tokens';
 
 const APath = Animated.createAnimatedComponent(Path);
 const ACircle = Animated.createAnimatedComponent(Circle);
@@ -91,6 +93,14 @@ export function Sparkline({
     settled.value = 0;
     drawn.value = withTiming(1, { duration: desenho });
     settled.value = withDelay(desenho, withSpring(1, { damping: 14, stiffness: 160 }));
+    return redeDaEntrada(
+      () => {
+        drawn.value = 1;
+        settled.value = 1;
+      },
+      desenho,
+      assentamentoMs({ damping: 14, stiffness: 160, mass: 1 }),
+    );
   }, [drawn, settled, desenho, line, reduzir]);
 
   // `risco`, não `traco`: desde que a espessura virou `useTheme().traco`, a

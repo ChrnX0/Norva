@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useReduzirMovimento } from './vida';
+import { redeDaEntrada } from './chegada';
 
 /**
  * O desenho ASSENTA quando chega — e só isso.
@@ -58,6 +59,9 @@ export function Alive({
     }
     entrada.value = 0;
     entrada.value = withDelay(index * motion.staggerMs, withSpring(1, motion.settle));
+    return redeDaEntrada(() => {
+      entrada.value = 1;
+    }, index * motion.staggerMs);
   }, [entrada, index, motion.settle, motion.staggerMs, reduzir]);
 
   const animado = useAnimatedStyle(() => ({

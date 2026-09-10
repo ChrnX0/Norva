@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { assentamentoMs, motion } from '@/theme/tokens';
 
@@ -88,12 +89,52 @@ test('a régua acompanha a mola, e vale para as molas que a casa não usa hoje',
   );
 });
 
-test('a entrada que zera a opacidade tem rede que a traz de volta', () => {
-  const fonte = readFileSync('src/components/Reveal.tsx', 'utf8');
-  assert.ok(/shown\.value = 0;/.test(fonte), 'o caso a proteger sumiu do arquivo');
-  assert.ok(
-    /setTimeout\([\s\S]*?shown\.value = 1;/.test(fonte),
-    'a entrada zera a opacidade e nada a traz de volta se a animação não chegar',
+/**
+ * TODA peça que entra tem rede — e a varredura é o ponto, não o arquivo.
+ *
+ * O primeiro conserto foi só no `Reveal`. Provei no aparelho, dei por fechado, e
+ * meia hora depois a tela de Produção apareceu com o cartão e o botão desbotados:
+ * `Alive` tinha as mesmas cinco linhas. E mais quatro atrás dele. A regra deste
+ * projeto já dizia — *"conserto de pele não termina no arquivo que o mostrou"* —
+ * e o que a faz valer não é lembrar dela: é uma guarda que olha todos.
+ */
+function entradasSemRede(): string[] {
+  const suspeitos: string[] = [];
+  const pastas = ['src/components', 'src/home'];
+  for (const pasta of pastas) {
+    for (const nome of readdirSync(pasta)) {
+      if (!/\.tsx?$/.test(nome) || /\.test\.tsx?$/.test(nome)) continue;
+      const caminho = join(pasta, nome);
+      const fonte = readFileSync(caminho, 'utf8');
+      // Quem entra é quem começa PARADO NO PONTO DE PARTIDA por causa do
+      // movimento — `useSharedValue(reduzir === false ? 0 : 1)` — ou quem zera um
+      // valor compartilhado para deixar a animação trazê-lo de volta.
+      const entra =
+        /useSharedValue\(\s*reduzi\w* === false \? 0 : 1\s*\)/.test(fonte) ||
+        /withSpring\(\s*(aberta \? 1 : 0|destino)/.test(fonte);
+      if (!entra) continue;
+      if (!/redeDaEntrada\(/.test(fonte)) suspeitos.push(caminho);
+    }
+  }
+  return suspeitos;
+}
+
+test('toda peça que entra tem a rede embaixo dela', () => {
+  assert.deepEqual(
+    entradasSemRede(),
+    [],
+    'estas peças zeram um valor e entregam a volta à animação, sem nada que as traga ' +
+      'se ela não chegar — foi assim que a capa passou minutos a 22% de opacidade',
   );
-  assert.ok(/clearTimeout\(/.test(fonte), 'a rede fica viva depois de a peça sair da tela');
+});
+
+test('a régua acha a peça sem rede quando ela existe', () => {
+  // O caso falso: uma fonte com a entrada e SEM a rede tem de ser apontada.
+  const comEntradaSemRede = 'const x = useSharedValue(reduzir === false ? 0 : 1);';
+  const comEntradaComRede = comEntradaSemRede + '\nredeDaEntrada(() => {});';
+  const entra = (fonte: string) =>
+    /useSharedValue\(\s*reduzi\w* === false \? 0 : 1\s*\)/.test(fonte) &&
+    !/redeDaEntrada\(/.test(fonte);
+  assert.equal(entra(comEntradaSemRede), true, 'não acusa quem devia acusar');
+  assert.equal(entra(comEntradaComRede), false, 'acusa quem já tem rede');
 });

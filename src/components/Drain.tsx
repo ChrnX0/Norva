@@ -9,6 +9,7 @@ import Animated, {
 import { tint } from '@/components/Card';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useReduzirMovimento } from './vida';
+import { redeDaEntrada } from './chegada';
 
 /**
  * Quanto ainda resta, como uma barra que ENCHE até onde deveria estar.
@@ -53,6 +54,9 @@ export function Drain({
     }
     cheia.value = 0;
     cheia.value = withDelay(90, withSpring(1, motion.settle));
+    return redeDaEntrada(() => {
+      cheia.value = 1;
+    }, 90);
   }, [cheia, motion.settle, preso, reduzir]);
 
   const largura = useAnimatedStyle(() => ({

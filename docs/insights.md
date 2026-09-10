@@ -8646,3 +8646,42 @@ aplicativo tem 13 ou mais. O sinal já estava calculado e era jogado fora.
 **A régua que fica:** *duas medidas de instantes diferentes não descrevem o mesmo fato*.
 Onde um número acompanha uma prova, ele tem de sair da mesma captura que a prova — senão
 ele é uma segunda afirmação disfarçada de legenda.
+
+---
+
+## 9 de setembro — consertei um arquivo, provei no aparelho, e havia mais cinco
+
+**O que apareceu:** meia hora depois de fechar a rede da entrada no `Reveal` — com a
+foto do aparelho provando a capa em 15,35:1 onde media 1,56:1 —, a tela de Produção
+apareceu com o cartão inteiro e o botão *"Adicionar produção"* desbotados. `Alive` tem as
+mesmas cinco linhas do `Reveal`: zera a opacidade e entrega a volta à mola. E atrás dele
+`Sparkline`, `Bars`, `Drain`, `Sky` e a peça da capa.
+
+**Seis cópias do mesmo raciocínio, e eu tinha olhado uma.** A regra deste projeto já
+existe e está escrita há dias — *"conserto de pele não termina no arquivo que o mostrou…
+a rodada só fecha depois de `grep` pelo que MAIS desenha aquilo"*. Eu a citei nesta mesma
+sessão, para outra coisa, e não a apliquei aqui.
+
+**E o que cada uma esconde não é a mesma coisa** — por isso nenhuma é enfeite:
+
+| quem | o que some quando a mola não chega |
+|---|---|
+| `Reveal` | a fila inteira da capa |
+| `Alive` | o cartão e o botão da tela |
+| `Sparkline` | a curva |
+| `Bars` | a altura das colunas — o gráfico passa a MOSTRAR outro número |
+| `Drain` | o quanto falta no tanque |
+| `Peca` | o detalhe que a pessoa acabou de abrir |
+
+O `Bars` é o pior dos seis e é o que menos parece: uma coluna parada no chão não *some*,
+ela **afirma zero**. Enfeite que falha calado vira dado errado.
+
+**O que mudou:** a rede virou uma função só (`src/components/chegada.ts`) e as seis a
+chamam. E — o que importa mais — a guarda deixou de olhar um arquivo e passou a
+**varrer** `src/components` e `src/home`: qualquer peça que comece parada no ponto de
+partida e não chame a rede fica vermelha. Ela apontou o próprio `Reveal` na primeira
+execução, porque ele ainda tinha a rede escrita à mão, e isso é a guarda funcionando.
+
+**A régua que fica:** *guarda de um arquivo protege um arquivo*. Quando o defeito é um
+RACIOCÍNIO repetido, a guarda tem de ser uma varredura — senão ela documenta o conserto
+em vez de garantir a regra, e a próxima cópia entra sem barulho.

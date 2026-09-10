@@ -6,6 +6,8 @@ import { Card } from '@/components/Card';
 import { Touchable } from '@/components/Touchable';
 import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
+import { redeDaEntrada } from '@/components/chegada';
+import { assentamentoMs } from '@/theme/tokens';
 
 /**
  * Um widget da capa que abre no lugar.
@@ -80,12 +82,19 @@ export function Peca({
   const reduzir = useReduzirMovimento();
 
   useEffect(() => {
-    aberto.value =
-      reduzir !== false
-        ? aberta
-          ? 1
-          : 0
-        : withSpring(aberta ? 1 : 0, { damping: 18, stiffness: 180 });
+    const destino = aberta ? 1 : 0;
+    if (reduzir !== false) {
+      aberto.value = destino;
+      return;
+    }
+    aberto.value = withSpring(destino, { damping: 18, stiffness: 180 });
+    return redeDaEntrada(
+      () => {
+        aberto.value = destino;
+      },
+      0,
+      assentamentoMs({ damping: 18, stiffness: 180, mass: 1 }),
+    );
   }, [aberta, aberto, reduzir]);
 
   const detalhe = useAnimatedStyle(() => ({
