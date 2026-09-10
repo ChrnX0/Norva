@@ -215,6 +215,14 @@ async function copiarParaODrive(): Promise<void> {
  *
  * Em desenvolvimento não há canal nenhum, e `Updates.isEnabled` é falso: pedir
  * assim mesmo levanta exceção, e uma exceção no boot é tela branca.
+ *
+ * **E esta é a ÚNICA pergunta por abertura — cicatriz de 10 de setembro.** O
+ * `app.json` trazia `checkAutomatically: "ON_LOAD"`, então o `expo-updates` nativo
+ * perguntava sozinho antes de a primeira tela existir e esta função perguntava de
+ * novo: duas viagens por abertura, as duas falhando enquanto o canal `preview`
+ * estiver vazio, cada uma com aperto de mão TLS e rastro de pilha no log. No log do
+ * aparelho foram 21 falhas numa janela só. Quem saiu foi a nativa, porque a falha
+ * dela vira rastro e a daqui vira `Tentativa` — dado que a tela sabe contar.
  */
 async function buscarAtualizacao(): Promise<boolean> {
   if (!Updates.isEnabled) return false;

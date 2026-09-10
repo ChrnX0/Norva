@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **669** testes |
+| `npm test` | **671** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **28** garantias contra um Postgres descartável, sob RLS |
@@ -156,13 +156,23 @@ por peso, e o que já foi fechado:**
    dele — sem número mágico, e no tablet os três continuam na mesma linha.
 10. **A última linha de uma lista fica sob a barra de abas** — em Mais, a linha *"Ajustes"*
     nasce cortada.
-11. **`expo-updates` tenta baixar atualização a cada ~70 s** e falha, cada tentativa com
-    handshake TLS e rastro de pilha inteiro no log. No celular da fábrica isso é bateria e
-    dado. **Reconfirmado com hora em 10 de setembro**, no log do aparelho: 21 linhas de
-    `checkError={message=Failed to download remote update}` numa janela de log, com
-    `lastCheckForUpdateTime` andando 08:40:14 → 08:41:07 → 08:47:02 → 08:48:07. O canal
-    `preview` do `app.json` não tem nada publicado, e o aplicativo bate na porta dele para
-    sempre.
+11. **`expo-updates` perguntava DUAS vezes por abertura** — metade fechada, metade é
+    decisão do dono. O item dizia *"a cada ~70 s"*, e medir a afirmação contra o código
+    corrigiu isso: não há temporizador. O `app.json` trazia `checkAutomatically: "ON_LOAD"`,
+    que faz o nativo perguntar sozinho a cada abertura, e `rodadaAutomatica`
+    (`app/_layout.tsx:76` e `:178`) pergunta de novo no boot e a cada volta ao primeiro
+    plano — esta segunda por decisão escrita do dono, 8 de setembro. Os intervalos do log
+    (08:40:14 → 08:41:07 → 08:47:02 → 08:48:07: 53 s, 355 s, 65 s) são irregulares porque
+    são idas ao primeiro plano, não relógio.
+
+    **Fechado:** a pergunta nativa saiu (`ON_ERROR_RECOVERY`), e o comportamento visível
+    não muda — a nossa baixa e a próxima abertura aplica, que é o que o docblock de
+    `buscarAtualizacao` já prometia. A diferença é que a falha daqui vira `Tentativa`, e a
+    de lá virava rastro de pilha. Guarda em `src/release.test.ts`.
+
+    **Aberto, e é do dono:** o canal `preview` não tem nada publicado, então a pergunta que
+    sobrou continua falhando uma vez por abertura. Publicar ali — ou tirar a URL até haver
+    o que publicar — é decisão dele, e o `EXPO_TOKEN` vazado está no meio dessa conta.
 12. ~~**A mesma palavra conta coisas diferentes**: Ajustes diz *"Insumos 6"* e o Almoxarifado
     diz *"Insumos 4 · Embalagem 2"*.~~ — **fechado**, e a conta estava certa: `countForErase`
     soma `input`, `packaging` e `store_supply` porque é isso que a área apaga (migração

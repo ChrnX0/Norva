@@ -194,3 +194,46 @@ test('the channel guard bites a config that leans on the build service', () => {
     'cabeçalho de outra coisa não é canal',
   );
 });
+
+/**
+ * Quem pergunta por atualização é o aplicativo, uma vez — não o nativo por baixo dele.
+ *
+ * **Medido no aparelho em 10 de setembro:** 21 linhas de `checkError={message=Failed
+ * to download remote update}` numa janela de log, com `lastCheckForUpdateTime`
+ * andando 08:40:14 → 08:41:07 → 08:47:02 → 08:48:07. Cada tentativa carrega aperto
+ * de mão TLS e rastro de pilha inteiro. No celular da fábrica isso é bateria e dado
+ * de plano, e o canal `preview` não tem nada publicado — então toda pergunta falha.
+ *
+ * A causa é que a pergunta acontecia DUAS vezes por abertura. O `expo-updates`
+ * nativo checa sozinho com `checkAutomatically: "ON_LOAD"`, e `rodadaAutomatica`
+ * (`src/nuvem/aparelho.ts`) checa de novo no boot e a cada volta ao primeiro plano —
+ * esta segunda por decisão escrita do dono, 8 de setembro, e é a que trata a falha
+ * como `Tentativa` em vez de rastro no log.
+ *
+ * Então quem sai é a nativa, não a nossa: `ON_ERROR_RECOVERY` deixa o nativo checar
+ * só depois de uma queda, e o comportamento visível continua o mesmo — a nossa baixa
+ * a atualização e a próxima abertura aplica, que é o que o docblock de
+ * `buscarAtualizacao` já promete.
+ *
+ * **O que este teste NÃO resolve, para a promessa não crescer sozinha:** o canal
+ * continua vazio, e enquanto estiver, uma pergunta por abertura continua falhando.
+ * Publicar ali é decisão do dono — está em `docs/roadmap.md`.
+ */
+test('the phone asks for an update once per opening, not twice', () => {
+  const updates = (APP.expo as { updates?: { checkAutomatically?: string } }).updates;
+  assert.ok(updates, 'sem bloco de updates não há atualização nenhuma');
+  assert.notEqual(
+    updates.checkAutomatically,
+    'ON_LOAD',
+    'o nativo passa a checar por conta própria e a rodada do aplicativo checa de novo: ' +
+      'duas perguntas por abertura, as duas falhando enquanto o canal estiver vazio',
+  );
+});
+
+test('the double-ask guard tells the native check from the ones that stay quiet', () => {
+  const morde = (c?: string) => c === 'ON_LOAD';
+  assert.ok(morde('ON_LOAD'), 'é exatamente a forma que estava no app.json');
+  assert.ok(!morde('ON_ERROR_RECOVERY'));
+  assert.ok(!morde('NEVER'));
+  assert.ok(!morde(undefined), 'sem a chave o padrão do EAS decide, e isso é outro item');
+});
