@@ -92,3 +92,68 @@ test('a régua distingue quem pergunta de quem não pergunta', () => {
     [],
   );
 });
+
+/**
+ * O relógio é UM — e a guarda existe porque o nome não bastou.
+ *
+ * Este módulo se chama "o relógio compartilhado dos desenhos vivos" desde que
+ * nasceu, e por semanas cada `useCiclo` criou a própria animação infinita. O
+ * nome prometia o compasso e o código entregava a permissão. Medido no aparelho
+ * em 9 de setembro: trinta e oito voltas infinitas, 190% de CPU com a tela
+ * parada, e a thread de UI tão ocupada que a ENTRADA das telas não chegava —
+ * páginas pela metade, listas que não rolam, e o `uiautomator` recusando ler a
+ * tela com `could not get idle state`.
+ *
+ * A régua olha o repositório inteiro, e não este arquivo: o defeito é um
+ * raciocínio que se copia. Um caso é permitido e está nomeado — quem tiver outro
+ * acrescenta o nome aqui com o motivo, ou usa o relógio.
+ */
+const RELOGIOS_PROPRIOS_PERMITIDOS = [
+  // O halo do ponto vivo tem a curva `out(ease)`, que não é nenhum dos dois
+  // feitios da casa, e ele só corre quando existe trabalho vivo para anunciar —
+  // uma animação condicional, não um ambiente permanente.
+  'src/components/PulseDot.tsx',
+];
+
+test('só o relógio da casa dá a volta infinita', () => {
+  const suspeitos: string[] = [];
+  const pastas = ['src/components', 'src/home'];
+  for (const pasta of pastas) {
+    for (const nome of readdirSync(pasta)) {
+      if (!/\.tsx?$/.test(nome) || /\.test\.tsx?$/.test(nome)) continue;
+      const caminho = join(pasta, nome);
+      if (caminho === 'src/components/vida.ts') continue;
+      if (RELOGIOS_PROPRIOS_PERMITIDOS.includes(caminho)) continue;
+      if (/withRepeat\(/.test(readFileSync(caminho, 'utf8'))) suspeitos.push(caminho);
+    }
+  }
+  assert.deepEqual(
+    suspeitos,
+    [],
+    'estes desenhos abrem a própria volta infinita em vez de derivar do relógio ' +
+      'da casa — foi assim que trinta e oito voltas chegaram a 190% de CPU com a tela parada',
+  );
+});
+
+test('a régua acha a volta própria quando ela existe', () => {
+  const acusa = (fonte: string) => /withRepeat\(/.test(fonte);
+  assert.equal(acusa('x.value = withRepeat(withTiming(1), -1);'), true, 'não acusa quem devia');
+  assert.equal(acusa('const t = useCiclo(6000);'), false, 'acusa quem já usa o relógio');
+});
+
+/**
+ * O compasso PARA quando a tela sai de vista.
+ *
+ * Numa navegação por abas as telas ficam montadas depois de visitadas, então o
+ * `cancelAnimation` da saída nunca era chamado: a capa continuava animando
+ * enquanto a pessoa estava em Relatórios, e toda tela já aberta continuava
+ * desenhando para sempre. O custo multiplicava pelo número de telas visitadas.
+ */
+test('o ciclo pergunta se a tela está à vista', () => {
+  const fonte = readFileSync('src/components/vida.ts', 'utf8');
+  assert.ok(/useFocusEffect\(/.test(fonte), 'nada pausa quando a tela deixa de ser olhada');
+  assert.ok(
+    /naTela/.test(fonte) && /reduzido === false && naTela/.test(fonte),
+    'estar à vista tem de entrar na decisão de mexer, junto com reduzir movimento',
+  );
+});

@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { AccessibilityInfo } from 'react-native';
 import {
   Easing,
   cancelAnimation,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
+  makeMutable,
+  useDerivedValue,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
@@ -120,42 +119,122 @@ export type Feitio =
  *   INTEIRO, no lugar dele — foi por não ter este parâmetro que a primeira versão
  *   deixava a etiqueta permanentemente torta.
  */
+/**
+ * O relógio de verdade — UM, para o aplicativo inteiro.
+ *
+ * Este módulo se chama "o relógio compartilhado dos desenhos vivos" desde que
+ * nasceu, e até 9 de setembro ele não compartilhava relógio nenhum: cada
+ * `useCiclo` criava o próprio valor e a própria animação infinita. O que ele
+ * compartilhava era a RESPOSTA de "reduzir movimento" — que é útil e é outra
+ * coisa. O nome prometia o compasso; o código entregava a permissão.
+ *
+ * O preço apareceu ao usar o aplicativo: com a tela parada, 190% de CPU, 1,7
+ * quadro por segundo desenhado, e a thread de UI tão ocupada que a animação de
+ * ENTRADA das telas não chegava — páginas apareciam pela metade, listas não
+ * rolavam, e o `uiautomator` recusava ler a tela com `could not get idle state`.
+ * Trinta e oito animações infinitas, cada uma pedindo quadro por conta própria.
+ *
+ * Agora é uma só: um tempo linear que sobe por onze dias sem voltar, e cada
+ * desenho calcula a fase dele em cima dela. Sem volta não há salto — um relógio
+ * que reinicia faria todos os desenhos pularem juntos na virada.
+ */
+const relogio = makeMutable(0);
+
+/** Onze dias e meio de tempo linear. Ninguém deixa uma tela aberta tanto tempo. */
+const HORIZONTE_MS = 1_000_000_000;
+
+/** Quantos desenhos estão pedindo compasso agora. Zero para o relógio. */
+let pedindo = 0;
+
+function ligarRelogio(): void {
+  if (pedindo > 0) return;
+  relogio.value = 0;
+  relogio.value = withTiming(HORIZONTE_MS, {
+    duration: HORIZONTE_MS,
+    easing: Easing.linear,
+  });
+}
+
+function pararRelogio(): void {
+  cancelAnimation(relogio);
+}
+
+/**
+ * Esta tela está à vista?
+ *
+ * Numa navegação por abas as telas ficam MONTADAS depois de visitadas — então,
+ * sem isto, a capa continuava animando enquanto a pessoa estava em Relatórios, e
+ * toda tela já aberta continuava desenhando para sempre. O `cancelAnimation` da
+ * saída existia e nunca era chamado, porque a peça não saía: ela só deixava de
+ * ser olhada.
+ */
+function useNaTela(): boolean {
+  const [naTela, setNaTela] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setNaTela(true);
+      return () => setNaTela(false);
+    }, []),
+  );
+  return naTela;
+}
+
+/** Entra e sai suave nas pontas — o `inOut(quad)` do vai-e-vem, como worklet. */
+function suave(u: number): number {
+  'worklet';
+  return u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u);
+}
+
+/**
+ * Um ciclo de zero a um, no compasso da casa.
+ *
+ * @param duracaoMs uma volta inteira. Três segundos é o piso; abaixo disso o
+ *   movimento deixa de ser ambiente e passa a chamar atenção.
+ * @param feitio 'volta' recomeça do zero (giro, fumaça); 'vaivem' volta pelo
+ *   mesmo caminho (respiração, balanço).
+ * @param atrasoMs para escalonar irmãos — as três baforadas da chaminé são o
+ *   mesmo ciclo defasado de dois segundos. Hoje isso é FASE, não espera: o
+ *   desenho já nasce no ponto certo da volta em vez de ficar parado no zero
+ *   durante o primeiro ciclo inteiro.
+ * @param ligado o movimento tem MOTIVO agora? A fumaça da chaminé só sobe com o
+ *   tacho ligado — e um gancho não pode entrar e sair conforme o dado, então
+ *   quem decide isso é este interruptor, não um `if` antes da chamada. Desligado
+ *   o desenho fica no `repouso` e não pede quadro nenhum.
+ * @param repouso onde o ciclo ESTACIONA quando o movimento não corre — porque o
+ *   aparelho pediu para reduzir, ou porque esta tela não está à vista. Zero não
+ *   serve para todo mundo: a fumaça em zero está invisível e a coluna em zero
+ *   está no fundo. Quem desliga movimento tem de ver o desenho INTEIRO, no lugar
+ *   dele — foi por não ter este parâmetro que a primeira versão deixava a
+ *   etiqueta permanentemente torta.
+ */
 export function useCiclo(
   duracaoMs: number,
   {
     feitio = 'volta',
     atrasoMs = 0,
     repouso = 0,
-  }: { feitio?: Feitio; atrasoMs?: number; repouso?: number } = {},
+    ligado = true,
+  }: { feitio?: Feitio; atrasoMs?: number; repouso?: number; ligado?: boolean } = {},
 ): SharedValue<number> {
-  const ciclo = useSharedValue(0);
   const reduzido = useReduzirMovimento();
+  const naTela = useNaTela();
+  // Ainda não sei se posso mexer: fico no repouso, que é o desenho inteiro e no
+  // lugar. Um desenho que aparece pela metade e depois se completa pisca.
+  const mexendo = reduzido === false && naTela && ligado;
 
   useEffect(() => {
-    // Ainda não sei se posso mexer: fico no repouso, que é o desenho inteiro e no
-    // lugar. Um desenho que aparece pela metade e depois se completa pisca.
-    if (reduzido === null || reduzido) {
-      ciclo.value = repouso;
-      return;
-    }
-
-    const volta =
-      feitio === 'volta'
-        ? withTiming(1, { duration: duracaoMs, easing: Easing.linear })
-        : withSequence(
-            withTiming(1, { duration: duracaoMs / 2, easing: Easing.inOut(Easing.quad) }),
-            withTiming(0, { duration: duracaoMs / 2, easing: Easing.inOut(Easing.quad) }),
-          );
-
-    ciclo.value = withDelay(atrasoMs, withRepeat(volta, -1, false));
-
+    if (!mexendo) return;
+    ligarRelogio();
+    pedindo += 1;
     return () => {
-      // Laço infinito que ninguém para continua na thread de UI depois de a tela
-      // sair. Com trinta telas de navegação isso vira calor no bolso de quem
-      // trabalha, sem nada na tela para justificar.
-      cancelAnimation(ciclo);
+      pedindo -= 1;
+      if (pedindo === 0) pararRelogio();
     };
-  }, [ciclo, duracaoMs, feitio, atrasoMs, repouso, reduzido]);
+  }, [mexendo]);
 
-  return ciclo;
+  return useDerivedValue(() => {
+    if (!mexendo) return repouso;
+    const t = ((relogio.value + atrasoMs) % duracaoMs) / duracaoMs;
+    return feitio === 'volta' ? t : t < 0.5 ? suave(t * 2) : 1 - suave(t * 2 - 1);
+  }, [mexendo, duracaoMs, atrasoMs, repouso, feitio]);
 }

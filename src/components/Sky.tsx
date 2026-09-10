@@ -1,15 +1,13 @@
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import Animated, {
-  Easing,
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Line, Path, RadialGradient, Stop } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
-import { useReduzirMovimento } from './vida';
+import { useCiclo, useReduzirMovimento } from './vida';
 import type { Palette, Tracos } from '@/theme/tokens';
 import { redeDaEntrada } from './chegada';
 
@@ -107,20 +105,12 @@ export function SkyMark({
   const papel = tracos.genero === 'pagina';
   const tinta = skyInk(maxC, { palette, brand, tracos });
 
-  const spin = useSharedValue(0);
-  const drift = useSharedValue(0);
-  // Do cache do módulo: `vida.ts` existe para esta resposta não custar uma ida à
-  // ponte por montagem, e onze leituras do pacote a furavam.
-  const reduzir = useReduzirMovimento();
-
-  useEffect(() => {
-    if (reduzir !== false) return;
-    // Uma volta a cada quarenta segundos. É movimento que se percebe se você
-    // olhar, e não se percebe se você estiver trabalhando - que é o único
-    // tipo de animação que pode ficar numa tela o dia inteiro.
-    spin.value = withRepeat(withTiming(1, { duration: 40000, easing: Easing.linear }), -1, false);
-    drift.value = withRepeat(withTiming(1, { duration: 9000, easing: Easing.linear }), -1, false);
-  }, [spin, drift, reduzir]);
+  // Uma volta a cada quarenta segundos. É movimento que se percebe se você
+  // olhar, e não se percebe se você estiver trabalhando — que é o único tipo de
+  // animação que pode ficar numa tela o dia inteiro. As duas vêm do relógio da
+  // casa: até 9 de setembro cada uma era uma animação infinita própria.
+  const spin = useCiclo(40000);
+  const drift = useCiclo(9000);
 
   const sunTurn = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.value * 360}deg` }] }));
   const cloudDrift = useAnimatedStyle(() => ({
