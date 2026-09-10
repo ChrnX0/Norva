@@ -326,6 +326,14 @@ Duas regras de operação, ambas cicatriz:
   `adb emu kill`, que é o comando dele e não um `pkill` por padrão. E se uma checagem
   vier vermelha com `Input: ''`, olhe a carga da máquina antes de olhar o código.
 
+  **E `adb emu kill` RETORNA ANTES de o qemu sair — 10 de setembro.** Derrubei o emulador
+  e disparei o `e2e:fast` no mesmo comando: duas fatias vermelhas, três checagens com
+  `Input: ''`, e as três passaram **sozinhas** logo depois (`npm run e2e -- --only`). O
+  processo levava dezenas de segundos para morrer enquanto quatro fatias já disputavam os
+  quatro núcleos com ele. Espere o processo sumir de fato — `ps` pelo PID que você anotou
+  — e só então comece. E note a forma da prova: "foi instabilidade" não vale dito, vale
+  **medido**, uma checagem por vez.
+
   **E DIRIGIR o emulador por toque tem um teto próprio, que não é disputa de CPU — 10 de
   setembro, e eu escrevi a causa errada antes de ler o rastro.** Um roteiro que preenche
   um formulário longo levou **três ANR** em duas horas. Os dois primeiros aconteceram com
