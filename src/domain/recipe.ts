@@ -260,6 +260,34 @@ export function unitsPerBatch(recipeCost: RecipeCost, yieldPerUnit: number): num
 }
 
 /**
+ * O que a batelada inteira custa — a massa MAIS a embalagem que ela consome.
+ *
+ * Existe porque a tela de Receitas mostrava dois números que não fechavam, e o
+ * docblock dela prometia o contrário: *"o número dela em figura e a conta aberta
+ * ao lado (por unidade de qual produto, e quanto custa o lote inteiro)"*. A
+ * figura era o custo por unidade COM embalagem (R$ 0,64 no picolé de morango) e
+ * o lote ao lado era `batchCents`, que é só a massa (R$ 299,99). Quem fizesse a
+ * conta na mão — e a regra da casa manda fazer — achava 0,59 e concluía que uma
+ * das duas estava errada. Nenhuma estava: eram contas de coisas diferentes com
+ * nomes que prometiam ser a mesma.
+ *
+ * O conserto certo é este e não abaixar a figura: quem paga a batelada paga o
+ * palito e o saco junto, então o número maior é também o verdadeiro. E ele
+ * reconcilia — 325,29 dividido por 506 dá 0,6429, que é a figura na tela.
+ *
+ * As unidades são as do `unitsPerBatch`, que arredonda para baixo: meia unidade
+ * não recebe embalagem porque meia unidade não sai da fábrica.
+ */
+export function batchWithPackaging(
+  recipeCost: RecipeCost,
+  yieldPerUnit: number,
+  unitPackaging: { typedRate?: Rate; itemsRate?: number } = {},
+): Cents {
+  const porUnidade = (unitPackaging.itemsRate ?? 0) + (unitPackaging.typedRate ?? 0);
+  return cents(Math.round(recipeCost.batchCents + porUnidade * unitsPerBatch(recipeCost, yieldPerUnit)));
+}
+
+/**
  * Compares two versions of the same recipe so the app can say what changed in
  * plain language: "v4 came out R$ 0.03 cheaper per unit than v3". The user sees
  * the effect of their own decision, with a number attached.

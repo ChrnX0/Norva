@@ -17,7 +17,13 @@ import {
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
-import { costPerProductUnit, packagingRatePerUnit, costRecipe, RecipeCycleError } from '@/domain/recipe';
+import {
+  batchWithPackaging,
+  costPerProductUnit,
+  packagingRatePerUnit,
+  costRecipe,
+  RecipeCycleError,
+} from '@/domain/recipe';
 import { fill, formatMoney, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -121,21 +127,29 @@ function RecipesList() {
 
         // A recipe that becomes a product is judged per unit; one that only
         // feeds other recipes has no unit, so it is judged per litre of mix.
+        //
+        // A embalagem entra nas DUAS pontas, e é isso que conserta 9 de setembro:
+        // a figura sempre a somou, o lote ao lado não, e quem dividia um pelo
+        // outro achava outro número. Agora as duas contas leem a mesma embalagem
+        // da mesma variável — não há como uma envelhecer sem a outra.
+        const embalagem = product
+          ? {
+              typedRate: product.unitPackagingRate ?? undefined,
+              itemsRate: packagingRatePerUnit(product.packagingItems, costs),
+            }
+          : {};
         const figure =
           product?.yieldPerUnit
-            ? formatMoney(
-                costPerProductUnit(cost, product.yieldPerUnit, {
-                  typedRate: product.unitPackagingRate ?? undefined,
-                  itemsRate: packagingRatePerUnit(product.packagingItems, costs),
-                }),
-                locale,
-              )
+            ? formatMoney(costPerProductUnit(cost, product.yieldPerUnit, embalagem), locale)
             : formatMoney(Math.round(cost.perYieldUnit * 1_000), locale);
 
         const detail = product?.yieldPerUnit
           ? fill(t.app.recipes.perUnitOf, {
               product: product.name,
-              batch: formatMoney(cost.batchCents, locale),
+              batch: formatMoney(
+                batchWithPackaging(cost, product.yieldPerUnit, embalagem),
+                locale,
+              ),
             })
           : t.app.recipes.perLitre;
 

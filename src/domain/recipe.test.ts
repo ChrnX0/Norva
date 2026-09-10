@@ -12,6 +12,7 @@ import {
   packagingRatePerUnit,
   RecipeCycleError,
   unitsPerBatch,
+  batchWithPackaging,
   type ItemCosts,
   type Recipe,
 } from './recipe';
@@ -536,4 +537,41 @@ test('packaging under half a cent is charged, not rounded away', () => {
   const soMassa = costPerProductUnit(cost, 75);
   const juntos = costPerProductUnit(cost, 75, { typedRate: rotulo, itemsRate: 0.5 });
   assert.equal(juntos - soMassa, 1, 'nove décimos arredondam para um centavo, uma vez');
+});
+
+test('os dois números da tela de Receitas fecham entre si', () => {
+  // A tela mostra uma figura por unidade e, ao lado, o que o lote inteiro custa.
+  // O docblock dela promete que a segunda é a conta que formou a primeira. Até
+  // 9 de setembro não era: o lote saía só com a massa, e dividir um pelo outro
+  // dava um número diferente do que estava escrito ao lado.
+  const cost = costRecipe('strawberry', recipes, itemCosts);
+  const embalagem = { typedRate: (itemCosts.stick + itemCosts.wrapper) as Rate };
+  const porUnidade = costPerProductUnit(cost, 75, embalagem);
+  const unidades = unitsPerBatch(cost, 75);
+  const lote = batchWithPackaging(cost, 75, embalagem);
+
+  assert.equal(
+    Math.round(lote / unidades),
+    porUnidade,
+    `o lote de ${lote} dividido por ${unidades} unidades não devolve os ${porUnidade} ` +
+      'centavos que a tela mostra na figura',
+  );
+
+  // E a régua distingue: o número ANTIGO (só a massa) não fecha.
+  assert.notEqual(
+    Math.round(cost.batchCents / unidades),
+    porUnidade,
+    'se a massa sozinha também fechasse, este teste não estaria medindo nada',
+  );
+});
+
+test('o lote com embalagem é a massa mais a embalagem de cada unidade', () => {
+  const cost = costRecipe('strawberry', recipes, itemCosts);
+  const unidades = unitsPerBatch(cost, 75);
+  assert.equal(batchWithPackaging(cost, 75), cost.batchCents, 'sem embalagem, é a massa');
+  assert.equal(
+    batchWithPackaging(cost, 75, { itemsRate: 2 }) - cost.batchCents,
+    2 * unidades,
+    'dois centavos por unidade custam dois centavos vezes as unidades da batelada',
+  );
 });
