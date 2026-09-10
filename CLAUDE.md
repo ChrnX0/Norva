@@ -805,6 +805,22 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   ele não dispara gatilho de linha. Então zerar pelo console do Supabase é `truncate`,
   nunca `delete`, e quem digitar `delete from movements` lá vai achar que o app quebrou.
 
+- **O `Lotify` é ESTUDO, e nada dele entra sem autorização — decisão do dono, 10 de
+  setembro.** *"quero apenas q estude o lotify, nao importa nada pro norva sem antes eu
+  permitir"*. É a tentativa anterior dele, com a mesma ideia, e ele já disse por que não
+  quer o código: *"o projeto é garden de mais. vai atrapalhar aqui enchendo o normal com
+  coisa q nao precisa"*.
+
+  Então a fronteira é dura e vale para tudo, não só para código: **nem arquivo, nem
+  esquema, nem migração, nem texto de tela, nem nome de campo** atravessa sem ele
+  autorizar aquele item. O que a leitura produz é RELATO — o que existe lá, o que aquilo
+  sugere, e a pergunta se vale trazer. Ele decide item por item.
+
+  O que a leitura procura, quando ela acontecer, é o que o NORVA não consegue inventar
+  sozinho: fato de fábrica de verdade — unidades usadas, tamanho de lote, hierarquia de
+  embalagem, validade, vocabulário. Arquitetura de protótipo é passivo dentro de um
+  sistema com livro-razão append-only e `Cents`/`Rate`.
+
 - **O operador confere a prateleira.** Numa fábrica de seis pessoas quem anda
   até a prateleira é quem trabalha lá, não o dono. Negar a permissão não deixa o
   número mais seguro — deixa a contagem sem acontecer, e saldo que ninguém
