@@ -326,6 +326,21 @@ Duas regras de operação, ambas cicatriz:
   `adb emu kill`, que é o comando dele e não um `pkill` por padrão. E se uma checagem
   vier vermelha com `Input: ''`, olhe a carga da máquina antes de olhar o código.
 
+  **E a recíproca é mais dura, medida em 10 de setembro: DIRIGIR o emulador precisa da
+  máquina inteira, e a barra leve já é demais.** Não é só `e2e` e `mutate`. Rodando
+  `npm test` (16 s), `npm run lint` e o portão da proofgate em paralelo enquanto um
+  roteiro tocava a tela, o aplicativo levou **dois ANR** — *"NORVA não está
+  respondendo"*, com `Reason: Input dispatching timed out` — e um `uiautomator dump` ficou
+  tão lento que o roteiro estourou o tempo e **perdeu a saída inteira**. As duas vezes o
+  formulário que estava preenchido zerou junto.
+
+  Isso muda o laço de trabalho, não só a ordem: enquanto o aparelho estiver sendo
+  DIRIGIDO — toque, digitação, `uiautomator` —, a máquina é dele. Trabalho de código que
+  não pede CPU (ler, editar, escrever documento) continua valendo em paralelo; qualquer
+  coisa que rode a suíte, o lint ou o portão espera o roteiro terminar. E roteiro de
+  aparelho escreve com `appendFileSync` num arquivo, nunca só `console.log`: morto por
+  tempo, o `stdout` do Node se perde e a rodada inteira vira zero linha.
+
 - **Use o verbo do script, não o comando cru por baixo dele — 9 de setembro.** Para
   conferir um conserto de tela eu disparei `./gradlew assembleRelease` direto, e ele foi
   compilar o nativo para as quatro arquiteturas. Passou de meia hora, e o emulador roda
