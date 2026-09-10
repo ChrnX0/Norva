@@ -8796,3 +8796,38 @@ falsos positivos é a medida de quanto ela ainda não entende do código.* Duzen
 três, zero — cada rodada foi uma coisa que o repositório faz e que eu não tinha lido.
 Detector que acusa muito não é rigoroso: é ignorante, e a diferença aparece quando alguém
 tenta usá-lo.
+
+---
+
+## 10 de setembro — a rede não bastava, porque o defeito era o texto depender da animação
+
+**O que apareceu:** com a rede da entrada já no lugar, o relógio já compartilhado e a
+capa já provada inteira, o editor da ficha técnica abriu com **170 dp de papel puro** onde
+mora o cabeçalho — sem sobrancelha, sem título, sem cena. Não era transição: sobreviveu a
+rolar para baixo e para cima. Medido, o vão é papel exato, sem tinta fantasma. E ligar
+"reduzir movimento" trouxe o cabeçalho inteiro de volta.
+
+**Isso prova a causa e mostra o tamanho dela.** A mola tinha ficado em **zero** — o caso
+extremo —, e opacidade zero é o mesmo pixel que "não desenhado". A rede, que deveria
+puxá-la para 1, não pegou naquela tela.
+
+**E aqui eu tomei a decisão que estava adiando.** Perseguir por que a rede falha numa tela
+específica é perseguir sintoma. A causa está uma camada acima: **a legibilidade do texto
+estava pendurada no sucesso de uma animação** — e animação é a coisa menos confiável da
+tela, porque depende de uma thread que o próprio aplicativo disputa.
+
+Então a entrada deixou de dirigir opacidade. Ela sobe e cresce, e mais nada. A pior falha
+possível passou de "página em branco com o banco cheio de dado" para "cartão vinte e seis
+dp fora do lugar, a 96,5% do tamanho, e legível".
+
+**O que se perde, dito por extenso:** o esmaecer da chegada. O que fica é subir e crescer,
+que é o que o olho lê como *isto chegou agora* — e continua acontecendo quando tudo vai
+bem.
+
+**A régua que fica:** *não pendure a existência do conteúdo num efeito que pode não
+acontecer.* Vale para opacidade, para altura animada, para qualquer coisa que decida entre
+"visível" e "invisível" a partir de um valor que uma thread ocupada precisa entregar. Uma
+rede embaixo do efeito ajuda; tirar o conteúdo de baixo dele resolve. E o docblock do
+próprio `Reveal` já dizia a prioridade certa desde o começo — *"o pior caso é a tela
+aparecer sem a entrada, e nunca uma tela em branco"* —, só que a conclusão tirada dele foi
+a errada: que a opacidade precisava entrar junto.

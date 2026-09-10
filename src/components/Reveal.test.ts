@@ -138,3 +138,61 @@ test('a régua acha a peça sem rede quando ela existe', () => {
   assert.equal(entra(comEntradaSemRede), true, 'não acusa quem devia acusar');
   assert.equal(entra(comEntradaComRede), false, 'acusa quem já tem rede');
 });
+
+/**
+ * Entrada não dirige OPACIDADE — o conteúdo não depende da animação para existir.
+ *
+ * A rede embaixo da entrada não bastou. Em 10 de setembro, com ela no lugar e o
+ * relógio já compartilhado, o editor da ficha técnica abriu com 170 dp de papel
+ * puro onde mora o cabeçalho — a mola tinha ficado em ZERO, e opacidade zero é o
+ * mesmo pixel que "não desenhado". Ligar "reduzir movimento" trouxe tudo de volta,
+ * o que prova a causa e mostra o tamanho do problema: qualquer entrada que dirija
+ * opacidade pode apagar o texto de uma tela.
+ *
+ * Então a entrada passa a mexer só o que é FORMA — subir e crescer. A pior falha
+ * possível vira um cartão torto e legível, em vez de uma página em branco com o
+ * banco cheio de dado.
+ *
+ * A régua olha o repositório inteiro pelo mesmo motivo da irmã dela: o defeito é
+ * um raciocínio que se copia.
+ */
+test('nenhuma entrada dirige opacidade', () => {
+  const suspeitos: string[] = [];
+  for (const pasta of ['src/components', 'src/home']) {
+    for (const nome of readdirSync(pasta)) {
+      if (!/\.tsx?$/.test(nome) || /\.test\.tsx?$/.test(nome)) continue;
+      const caminho = join(pasta, nome);
+      const fonte = readFileSync(caminho, 'utf8');
+      const entra = /useSharedValue\(\s*reduzi\w* === false \? 0 : 1\s*\)/.test(fonte);
+      if (!entra) continue;
+      // O valor da entrada é o que nasce em zero; se ele aparecer numa linha de
+      // `opacity:`, a legibilidade da tela está pendurada na animação.
+      const nomeDoValor = fonte.match(
+        /const\s+([A-Za-z_$][\w$]*)\s*=\s*useSharedValue\(\s*reduzi\w* === false \? 0 : 1\s*\)/,
+      )?.[1];
+      if (!nomeDoValor) continue;
+      if (new RegExp(`opacity:\\s*[^,\n]*\\b${nomeDoValor}\\b`).test(fonte)) suspeitos.push(caminho);
+    }
+  }
+  assert.deepEqual(
+    suspeitos,
+    [],
+    'estas peças ligam a opacidade ao valor da entrada — se a animação não chegar, ' +
+      'o conteúdo some, e foi assim que o cabeçalho da ficha técnica virou papel puro',
+  );
+});
+
+test('a régua acha a opacidade pendurada na entrada quando ela existe', () => {
+  const comOpacidade =
+    'const shown = useSharedValue(reduzido === false ? 0 : 1);\nstyle(() => ({ opacity: shown.value }));';
+  const semOpacidade =
+    'const shown = useSharedValue(reduzido === false ? 0 : 1);\nstyle(() => ({ transform: [{ scale: shown.value }] }));';
+  const pega = (fonte: string) => {
+    const nome = fonte.match(
+      /const\s+([A-Za-z_$][\w$]*)\s*=\s*useSharedValue\(\s*reduzi\w* === false \? 0 : 1\s*\)/,
+    )?.[1];
+    return nome ? new RegExp(`opacity:\\s*[^,\n]*\\b${nome}\\b`).test(fonte) : false;
+  };
+  assert.equal(pega(comOpacidade), true, 'não acusa quem devia acusar');
+  assert.equal(pega(semOpacidade), false, 'acusa quem só mexe a forma');
+});

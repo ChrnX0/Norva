@@ -64,8 +64,9 @@ export function Alive({
     }, index * motion.staggerMs);
   }, [entrada, index, motion.settle, motion.staggerMs, reduzir]);
 
+  // Sem opacidade, pelo mesmo motivo escrito em `Reveal`: entrada que falha não
+  // pode levar o conteúdo junto. Resta a escala, que é chegada de sobra.
   const animado = useAnimatedStyle(() => ({
-    opacity: entrada.value,
     transform: [{ scale: 0.84 + entrada.value * 0.16 }],
   }));
 

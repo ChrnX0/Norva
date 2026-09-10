@@ -110,8 +110,29 @@ export function Reveal({
   // crescer lê como rolagem, crescer sem subir lê como estouro, e a opacidade
   // sozinha é o cartão nascendo já no lugar — que é exatamente o "aparece pronto
   // e imóvel" que o dono recusou.
+  // A chegada é MOVIMENTO, não opacidade — e essa linha custou duas rodadas.
+  //
+  // O comentário abaixo dizia que "a opacidade sozinha é o cartão nascendo já no
+  // lugar", e a conclusão que se tirou dele foi errada: que a opacidade PRECISA
+  // entrar junto. O que ela faz, quando entra, é ligar a legibilidade do texto ao
+  // sucesso de uma animação — e animação é a coisa menos confiável da tela.
+  //
+  // Em 10 de setembro, com a rede já no lugar e o relógio já compartilhado, o
+  // editor da ficha técnica abriu com uma faixa de 170 dp de papel puro onde mora
+  // o cabeçalho: sem sobrancelha, sem título, sem cena. Opacidade zero e "não
+  // desenhado" são o mesmo pixel. Ligar "reduzir movimento" trouxe o cabeçalho de
+  // volta inteiro — a mola tinha ficado em ZERO, o caso extremo, e a rede que
+  // deveria pegá-lo não pegou.
+  //
+  // Perseguir o motivo de a rede falhar naquela tela é perseguir um sintoma. A
+  // causa está em o texto depender da animação para existir. Sem opacidade, a
+  // pior falha possível passa a ser um cartão vinte e seis dp fora do lugar e a
+  // 96,5% do tamanho — torto, e LEGÍVEL.
+  //
+  // O que se perde é o esmaecer da chegada. O que fica é subir e crescer, que é
+  // o que o olho lê como "isto chegou agora" — e é o que continua acontecendo
+  // quando tudo vai bem.
   const entrance = useAnimatedStyle(() => ({
-    opacity: shown.value,
     transform: [
       { translateY: (1 - shown.value) * motion.riseDp },
       { scale: escala ? motion.enterScale + (1 - motion.enterScale) * shown.value : 1 },
