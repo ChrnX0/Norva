@@ -9097,3 +9097,55 @@ mede com a mesma régua que se cobra do repositório.**
 **A pergunta que fica:** quando uma decisão de dono se formar na minha cabeça, *o repositório
 já respondeu isto em algum canto?* Custa um `grep` pelo comportamento — não pelo nome, que eu
 não sabia — e neste caso ele devolveu a resposta com o docblock explicando por quê.
+
+## 10 de setembro — a constante que estava certa numa largura era defeito na outra
+
+**O que apareceu:** o dono achou no tablet dele um defeito que passou por 683 testes, 53
+checagens de navegador, quatro sessões de emulador e por mim olhando o arquivo — *"a tela
+fica tremendo muito rápido para cima e para baixo quando eu tento rolar"*.
+
+A causa é um número: `RANGE = 72`, a faixa de rolagem em que o cabeçalho encolhe. O
+cabeçalho é irmão da lista e os dois dividem a altura, então encolher um cresce o outro, a
+borda de cima da lista sobe, e o dedo — parado no vidro — passa a estar mais embaixo DENTRO
+da lista. O Android lê isso como rolagem para trás. É realimentação, e o que decide se ela
+se acomoda ou oscila é `dAltura/dRolagem`.
+
+| largura | cena | ganho |
+|---|---|---|
+| 360 dp | 64,9 dp | 2,17 |
+| 393 dp | 71,4 dp | 2,32 |
+| 800 dp | 112,4 dp | **3,27** |
+
+**Por que importa, e é a parte que este arquivo já sabia por outro nome.** O `CLAUDE.md`
+diz desde 5 de setembro que *"não existe o aparelho"* e que **nenhuma medida de tela é
+pixel fixo**. A regra foi escrita sobre LARGURA — coluna que serve a 393 dp virando tira a
+800. O 72 não é largura: é uma faixa de ROLAGEM, e por isso não parecia violar nada. Só que
+ele é comparado com uma altura que cresce com a largura, e uma constante comparada com algo
+que varia é a mesma doença noutra dimensão. **A regra não era sobre largura; era sobre
+qualquer número fixo que entra numa conta com um número que a tela decide.**
+
+E repare no que isso faz com o diagnóstico: o defeito **piora com o tamanho da tela**. No
+emulador a 393 dp o ganho é 2,32 e treme; no tablet é 3,27 e treme muito. Quem só olha o
+telefone lê "está um pouco lento".
+
+**A correção veio dele, e ela trocou o diagnóstico.** Eu tinha escrito, com mecanismo e
+tudo, que o tremor era o GRAMPEAMENTO do deslocamento máximo — o que só age perto do fim da
+rolagem. Ele respondeu: *"parece q só nao aconteceu nas q o conteudo cabe na tela (na tela
+de produção tb aconteceu)"*. Isso é incompatível com grampeamento, que precisa do fim, e
+compatível com ganho, que age o tempo todo. Uma frase de observação derrubou uma explicação
+que eu tinha construído inteira e que era plausível o suficiente para eu já ter mandado
+para ele.
+
+**O que mudou por causa disso:** a faixa saiu de constante e passou a ser calculada da
+altura que se quer remover, com teto de ganho em 0,8 (`src/components/cabecalho.ts`, fora
+do React para poder ser testada). `cabecalho.test.ts` cobra o teto em dez larguras e nas
+duas peles, e mede a derivada **remontando as três rampas do jeito que a tela as desenha**
+em vez de perguntar a mesma álgebra ao contrário — a regra desta casa sobre segunda fonte
+independente, que eu quase quebrei: a primeira versão da guarda exportava um
+`ganhoDoColapso` que era o `faixaDeColapso` invertido, e o portão P1 a pegou por outro
+motivo (função exportada sem chamador), o que me obrigou a escrever a régua de verdade.
+
+**A pergunta que fica:** *este número fixo entra numa conta com algum número que a tela
+decide?* Onde a resposta for sim, ele não é constante — é defeito esperando a tela certa. E
+a forma de achar os outros é mecânica: `grep` por constante numérica que aparece do mesmo
+lado de uma conta com `useWindowDimensions`, `alturaDaCena`, `medida` ou `insets`.
