@@ -59,13 +59,16 @@ export function PulseDot({
    *
    * O motivo escrito da exceção deste arquivo diz que o halo *"só corre quando existe
    * trabalho vivo para anunciar"*. Isso fala do `live`, não de estar À VISTA — e a
-   * diferença apareceu no dia em que a âncora de rota passou a montar a capa debaixo
-   * de toda tela aberta por ligação profunda: o halo seguia pulsando numa tela que
-   * ninguém vê, e o navegador nunca considerava a página estável.
+   * diferença apareceu no dia de uma âncora de rota que montava a capa debaixo de toda
+   * tela aberta por ligação profunda: o halo seguia pulsando numa tela que ninguém vê,
+   * e o navegador nunca considerava a página estável. A medida foi de uma variável só:
+   * com a âncora, a checagem da nota estourava o clique por 30 s com a máquina parada;
+   * sem a âncora, passava.
    *
-   * A prova é de uma variável só: com a âncora, a checagem da nota estourava o clique
-   * por 30 s com a máquina parada; sem a âncora, passava. O custo real não é o teste —
-   * é CPU num aparelho que este projeto já mediu saturando a thread de UI.
+   * **A âncora não existe mais** (item 33 do `docs/roadmap.md`) e esta parada fica,
+   * porque a navegação por abas deixa tela montada e sem foco sem precisar de âncora
+   * nenhuma. O custo real nunca foi o teste — é CPU num aparelho que este projeto já
+   * mediu saturando a thread de UI.
    */
   const naTela = useNaTela();
 

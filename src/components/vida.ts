@@ -171,10 +171,14 @@ function pararRelogio(): void {
 /**
  * Esta tela está à vista AGORA — e não só "o aplicativo está aberto".
  *
- * Exportada em 10 de setembro porque a âncora de rota (`app/_layout.tsx`) passou a
- * montar a capa DEBAIXO de toda tela aberta por ligação profunda. O relógio da casa
- * já parava aqui; quem não parava era a única volta própria permitida, o halo do
- * `PulseDot` — e ele ficou pulsando numa tela que ninguém vê.
+ * Exportada em 10 de setembro. Quem a expôs foi uma âncora de rota que montava a capa
+ * DEBAIXO de toda tela aberta por ligação profunda — **essa âncora não existe mais**
+ * (`docs/roadmap.md`, item 33; hoje quem volta é `src/nav.ts`), e a necessidade não foi
+ * embora com ela: a navegação por ABAS deixa tela montada e sem foco o tempo todo, que
+ * é o parágrafo logo acima. A âncora só tornou o caso constante e visível.
+ *
+ * O relógio da casa já parava aqui; quem não parava era a única volta própria
+ * permitida, o halo do `PulseDot` — e ele ficou pulsando numa tela que ninguém vê.
  */
 export function useNaTela(): boolean {
   /**
@@ -183,15 +187,17 @@ export function useNaTela(): boolean {
    * A versão anterior era `useState(true)` mais um `useFocusEffect` que só punha
    * `false` na LIMPEZA. Numa tela que foca e desfoca, isso funciona. Numa tela
    * MONTADA E NUNCA FOCADA, a limpeza nunca roda e o valor fica `true` para
-   * sempre — e foi exatamente esse caso que a âncora de rota criou: `(tabs)` passou
-   * a ser montada debaixo de toda tela aberta por ligação profunda, sem nunca
-   * receber foco.
+   * sempre. O caso extremo veio da âncora de rota que existiu por algumas horas —
+   * `(tabs)` montada debaixo de toda tela aberta por ligação profunda, sem nunca
+   * receber foco — e a medida daquele dia foi de uma variável só: com a âncora, o
+   * clique de uma checagem estourava 30 s esperando a página ficar estável, com a
+   * máquina parada; sem a âncora, passava.
    *
-   * O resultado é a capa inteira animando por baixo de uma tela que ninguém vê. A
-   * prova foi de uma variável só: com a âncora, o clique de uma checagem estourava
-   * 30 s esperando a página ficar estável, com a máquina parada; sem a âncora,
-   * passava. O custo real não é o navegador — é CPU num aparelho que este projeto
-   * já mediu saturando a thread de UI com o movimento ligado.
+   * **A âncora saiu** (item 33 do `docs/roadmap.md`) e esta linha continua sendo a
+   * certa, porque a suposição era falsa antes dela e seguiria falsa depois: montada
+   * e nunca focada é o estado de qualquer tela empilhada atrás de outra. O custo real
+   * nunca foi o navegador — é CPU num aparelho que este projeto já mediu saturando a
+   * thread de UI com o movimento ligado.
    *
    * `useIsFocused` responde o estado de AGORA e é reativo, então não há suposição
    * nenhuma para envelhecer.
