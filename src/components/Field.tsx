@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type KeyboardTypeOptions } from 'react-native';
 import { aceitaDoPai } from './campo';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -99,10 +99,18 @@ export function Field({
    * "09" com o cursor pulando.
    */
   const [texto, setTexto] = useState(value);
+  const [anterior, setAnterior] = useState(value);
 
-  useEffect(() => {
+  // O ajuste acontece DURANTE a renderização e não num efeito. É o padrão que o
+  // React documenta para "estado que depende de uma propriedade que mudou", e o
+  // `react-hooks/set-state-in-effect` cobra: efeito que chama `setState` renderiza
+  // a árvore duas vezes por tecla, o que num campo é exatamente o lugar onde não
+  // se pode pagar renderização à toa — foi a lentidão da thread de JS que fez as
+  // letras sumirem em primeiro lugar.
+  if (value !== anterior) {
+    setAnterior(value);
     if (aceitaDoPai(value, texto, aceso)) setTexto(value);
-  }, [value, texto, aceso]);
+  }
 
   const mudou = (proximo: string) => {
     setTexto(proximo);
@@ -167,7 +175,13 @@ export function Field({
           accessibilityLabel={label}
           selectionColor={accent}
           onFocus={() => setAceso(true)}
-          onBlur={() => setAceso(false)}
+          // Sair do campo é quando o pai volta a mandar: o que ele decidiu
+          // enquanto o dedo estava aqui — a maiúscula do código de convite, um
+          // campo esvaziado de fora — entra agora.
+          onBlur={() => {
+            setAceso(false);
+            if (aceitaDoPai(value, texto, false)) setTexto(value);
+          }}
           style={[
             type.body,
             styles.input,
