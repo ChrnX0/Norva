@@ -223,13 +223,29 @@ virar afirmação. **Seis fechados no mesmo dia:**
 
 26. **O emulador deixou de instalar o APK, e não é defeito do aplicativo.** A partir das
     13h30 de 10 de setembro toda instalação falha com `Failure calling service package:
-    Broken pipe (32)` ou `Can't find service: package`. Quatro hipóteses derrubadas por
-    medida — instantâneo degradado (boot frio falha igual), memória do aparelho (3072 →
-    4096, igual), disco do hospedeiro (`dd` de 300 MB escreve liso), APK corrompido
-    (`unzip -t` limpo, assinado). O que o log mostra: `StartPackageManagerService took to
-    complete: 80126ms`. Ele não quebrou, ficou glacial. **Próximo passo: AVD novo** — a
-    única coisa ainda não tentada. Enquanto isso, mudança de tela fica sem a foto que a
-    barra exige, e isso tem de ser dito em vez de omitido.
+    Broken pipe (32)` ou `Can't find service: package`, e o serviço `package` cai junto —
+    ele responde antes da tentativa e não responde depois. **Oito hipóteses derrubadas,
+    cada uma por medida e não por opinião:**
+
+    | hipótese | como caiu |
+    |---|---|
+    | instantâneo degradado | boot com `-no-snapshot-load` falha igual |
+    | memória do aparelho | 3072 → 4096 MB, falha igual |
+    | disco do hospedeiro | `dd` de 300 MB dentro do aparelho escreve liso; 7,9 GB livres |
+    | APK corrompido | `unzip -t` sem erro, 119 entradas de assinatura |
+    | `adbd` em modo root | falha nos dois modos |
+    | AVD corrompido | AVD **novo**, criado do zero, falha igual |
+    | servidor do `adb` | `kill-server`/`start-server`, falha igual |
+    | `dex2oat` do install | `pm.dexopt.install=skip`, falha igual |
+
+    O que o log entrega: `StartPackageManagerService took to complete: 80126ms`. Ele não
+    quebrou — ficou glacial, e todo caminho de instalação estoura antes.
+
+    **Consequência que não se omite:** desde as 13h30 nenhuma mudança de tela tem a foto
+    que a barra exige. O que foi entregue depois disso está provado por teste, tipo, lint,
+    `db:verify` e portão — e **não** pelo aparelho. Quem retomar tem oito becos já
+    fechados e pode começar pelo que sobrou: outra imagem de sistema (a `android-30
+    default` é a única instalada), ou o APK de depuração, que é menor.
 
 **Aberto do que esta caminhada achou:**
 
