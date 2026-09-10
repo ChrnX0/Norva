@@ -6522,7 +6522,7 @@ test('a conta do apagar enxerga as quatro coisas que sumiam sem número', async 
 
   const linha = await saveLine(CO, { name: 'Picolé' });
   const tipo = await saveType(CO, { lineId: linha, name: 'Tradicional' });
-  const sabor = await saveFlavor(CO, { name: 'Uva' });
+  const sabor = await saveFlavor(CO, { typeId: tipo, name: 'Uva' });
   assert.ok(linha && tipo && sabor, 'a grade foi criada');
 
   await recordReading(CO, {
@@ -6956,7 +6956,11 @@ test('an ordered item the room does not hold comes back with zero available', as
   // pede porque viu na lista; o freezer não tem porque ninguém fez.
   // O sabor próprio existe porque a classificação é única: linha, tipo e sabor
   // iguais são "o mesmo produto cadastrado duas vezes", recusado desde a `0018`.
-  const sabor = await saveFlavor(EMPRESA_SEMENTE, { name: 'Jabuticaba' });
+  // A variação é do tipo desde a `V30`, então o teste cria a grade que ela exige em
+  // vez de fingir que sabor é da casa — que era justamente o que confundia o cadastro.
+  const linhaSemente = await saveLine(EMPRESA_SEMENTE, { name: 'Picolé' });
+  const tipoSemente = await saveType(EMPRESA_SEMENTE, { lineId: linhaSemente, name: 'Fruta' });
+  const sabor = await saveFlavor(EMPRESA_SEMENTE, { typeId: tipoSemente, name: 'Jabuticaba' });
   const { itemId: ausenteId } = await saveProduct(EMPRESA_SEMENTE, {
     name: 'Picolé de jabuticaba',
     flavorId: sabor,

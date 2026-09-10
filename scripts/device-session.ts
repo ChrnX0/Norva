@@ -153,12 +153,12 @@ async function main() {
   if (!sugar || !pulp) throw new Error('the starter data did not arrive');
 
   // A grade do que a fábrica faz, cadastrada como o dono cadastra: a linha
-  // primeiro, o tipo dentro dela, o sabor solto. A ordem importa e é a mesma
+  // primeiro, o tipo dentro dela, a variação dentro do tipo. A ordem importa e é a mesma
   // que vai para o servidor - tipo antes da linha seria chave estrangeira
   // quebrada do outro lado, e a fila é enviada na ordem em que foi escrita.
   const linha = await saveLine(empresaDaqui(), { name: 'Picolé' });
   const tipo = await saveType(empresaDaqui(), { lineId: linha, name: 'Tradicional' });
-  const sabor = await saveFlavor(empresaDaqui(), { name: 'Morango' });
+  const sabor = await saveFlavor(empresaDaqui(), { typeId: tipo, name: 'Morango' });
 
   // E um produto que a usa, porque uma grade que não chega presa a um produto
   // atravessa sem provar que as três colunas novas atravessam.

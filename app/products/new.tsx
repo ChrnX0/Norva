@@ -490,6 +490,17 @@ function ProductForm() {
   };
 
   const tiposDaLinha = (data?.types ?? []).filter((x) => x.lineId === lineId);
+  /**
+   * As variações do TIPO escolhido — não as da casa inteira.
+   *
+   * Antes esta tela oferecia todo sabor cadastrado, e era possível montar "Picolé de
+   * Água de chocolate" com um chocolate que só existe no de leite. O dono nomeou o
+   * custo disso: *"confunde na hora de registrar"*. O sabor sem tipo (linha velha)
+   * continua aparecendo, porque esconder o dado de alguém é pior que mostrá-lo.
+   */
+  const saboresDoTipo = (data?.flavors ?? []).filter(
+    (x) => x.typeId === typeId || x.typeId === null,
+  );
 
   /** As embalagens escolhidas, na ordem do almoxarifado e não na de toque. */
   const escolhidas = (data?.wrappings ?? []).filter((item) =>
@@ -586,13 +597,13 @@ function ProductForm() {
                 </View>
               ) : null}
 
-              {(data?.flavors ?? []).length > 0 ? (
+              {saboresDoTipo.length > 0 ? (
                 <View style={{ gap: space.sm }}>
                   <Text style={[type.overline, { color: color.inkFaint }]}>
                     {t.app.catalog.flavors.toUpperCase()}
                   </Text>
                   <View style={[styles.wrap, { gap: space.sm }]}>
-                    {(data?.flavors ?? []).map((f) => (
+                    {saboresDoTipo.map((f) => (
                       <Touchable
                         key={f.id}
                         accessibilityLabel={f.name}

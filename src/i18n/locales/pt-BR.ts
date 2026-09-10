@@ -1829,7 +1829,7 @@ export const ptBR = {
 
     catalog: {
       duplicate: 'Esse nome já está cadastrado. Caixa e espaço não contam como diferença.',
-      title: 'Linhas, tipos e sabores',
+      title: 'Linhas, tipos e variações',
       /**
        * A família passa a dizer como ela é contada, e não só como se chama.
        * Antes, "quantos cabem numa caixa" era perguntado a cada produto, com um
@@ -1845,22 +1845,23 @@ export const ptBR = {
       intro:
         'Cadastre uma vez e combine à vontade. Picolé tradicional de morango é uma linha, um tipo e um sabor — não um nome digitado inteiro.',
       lines: 'Linhas',
-      linesHint: 'o que você fabrica: Picolé, Pote de sorvete',
+      linesHint: 'a família mais larga do seu catálogo — o que você fabrica',
       types: 'Tipos de {{line}}',
       /** Sem linha, o cartão não tem formulário: o título nomeia o assunto, não a ação ausente. */
       typesTitle: 'Tipos',
-      typesHint: 'o que divide a linha: Tradicional, Skimó, Top — ou 240 ml, 500 ml, 1 litro',
-      flavors: 'Sabores',
-      flavorsHint: 'valem para todas as linhas: morango, chocolate, coco branco',
+      typesHint: 'o que divide a linha — e é dele que a variação depende',
+      flavors: 'Variações de {{type}}',
+      flavorsHint: 'o que muda dentro do tipo: sabor, cor, aroma. Cada tipo tem as suas.',
       addLine: 'Nova linha',
       addType: 'Novo tipo',
-      addFlavor: 'Novo sabor',
+      addFlavor: 'Nova variação',
       namePlaceholder: 'Nome',
       /** O estado é "não existe linha", e não "existe e nenhuma foi escolhida": a tela escolhe a primeira sozinha. */
       noLineYet: 'Cadastre uma linha primeiro — o tipo é dela.',
+      noTypeYet: 'Escolha um tipo primeiro — a variação é dele.',
       noLines: 'Nenhuma linha ainda. Comece pela mais óbvia: o que você fabrica todo dia?',
-      noTypes: 'Nenhum tipo nesta linha. Sem tipo também funciona — o produto fica só linha e sabor.',
-      noFlavors: 'Nenhum sabor ainda.',
+      noTypes: 'Nenhum tipo nesta linha. Cadastre um: a variação é do tipo, não da linha.',
+      noFlavors: 'Nenhuma variação neste tipo ainda.',
       /** Como o nome do produto se monta a partir da grade. */
       composed: '{{line}} {{type}} de {{flavor}}',
       composedNoType: '{{line}} de {{flavor}}',

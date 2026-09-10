@@ -1271,9 +1271,16 @@ check('a listed stick leaves the storeroom when the run is recorded', async (pag
   await page.waitForTimeout(300);
   await page.getByText('Nova linha', { exact: true }).first().click();
   await page.waitForTimeout(1500);
-  await page.getByLabel('Novo sabor').first().fill('Uva');
+  // O TIPO entra no meio desde a `V30`: a variação é dele, e não da casa. O dono deu
+  // o motivo com o exemplo — "morango leite" e "morango água" são coisas diferentes e
+  // usam receitas diferentes, e com o nome único por empresa os dois nem cabiam.
+  await page.getByLabel('Novo tipo').first().fill('Tradicional');
   await page.waitForTimeout(300);
-  await page.getByText('Novo sabor', { exact: true }).first().click();
+  await page.getByText('Novo tipo', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+  await page.getByLabel('Nova variação').first().fill('Uva');
+  await page.waitForTimeout(300);
+  await page.getByText('Nova variação', { exact: true }).first().click();
   await page.waitForTimeout(1500);
 
   // Um produto que declara o palito: um por unidade, escolhido na lista.
@@ -3202,9 +3209,13 @@ check('a product is registered with what it sells for, and the list says so', as
   await page.waitForTimeout(300);
   await page.getByText('Nova linha', { exact: true }).first().click();
   await page.waitForTimeout(1500);
-  await page.getByLabel('Novo sabor').first().fill('Coco');
+  await page.getByLabel('Novo tipo').first().fill('Tradicional');
   await page.waitForTimeout(300);
-  await page.getByText('Novo sabor', { exact: true }).first().click();
+  await page.getByText('Novo tipo', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+  await page.getByLabel('Nova variação').first().fill('Coco');
+  await page.waitForTimeout(300);
+  await page.getByText('Nova variação', { exact: true }).first().click();
   await page.waitForTimeout(1500);
 
   await page.goto(`http://localhost:${PORT}/products/new`, { waitUntil: 'networkidle' });

@@ -1092,9 +1092,28 @@ const V29 = `
 ALTER TABLE product_lines ADD COLUMN packaging TEXT;
 `;
 
+/**
+ * O sabor passa a ser do TIPO, e não da empresa.
+ *
+ * Espelha a `0055` do servidor. A ordem que o dono descreveu é Produto → Tipo → Sabor,
+ * e o morango do picolé de leite não é o morango do de água: receitas diferentes, e com
+ * o nome único por empresa cadastrar os dois era impossível, não só confuso.
+ *
+ * O SQLite não aceita chave estrangeira composta em `ALTER TABLE ADD COLUMN`, então a
+ * garantia de que o tipo é da mesma empresa mora na escrita (`saveFlavor`), como já
+ * acontece com a checagem de que o tipo é da linha certa — a cicatriz está escrita lá.
+ */
+const V30 = `
+ALTER TABLE flavors ADD COLUMN type_id TEXT REFERENCES product_types(id) ON DELETE CASCADE;
+DROP INDEX IF EXISTS flavors_name_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS flavors_name_idx
+  ON flavors (company_id, COALESCE(type_id, ''), lower(trim(name)));
+CREATE INDEX IF NOT EXISTS flavors_type_idx ON flavors (company_id, type_id);
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
-  V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29,
+  V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30,
 ];
 
 export type SqlParam = string | number | null;

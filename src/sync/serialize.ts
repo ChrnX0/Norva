@@ -375,7 +375,7 @@ const CROSSINGS: Record<
   },
 
   flavors: {
-    take: ['id', 'company_id', 'name', 'sort'],
+    take: ['id', 'company_id', 'type_id', 'name', 'sort'],
     build: (row) => ({ active: flag(row.active) }),
   },
 

@@ -5524,7 +5524,15 @@ export type ProductLine = {
   packaging: PackagingHierarchy | null;
 };
 export type ProductType = { id: string; lineId: string; name: string; sort: number };
-export type Flavor = { id: string; name: string; sort: number };
+/**
+ * Um sabor, e o tipo a que ele pertence.
+ *
+ * `typeId` pode ser nulo por causa da linha velha — sabor cadastrado quando sabor era
+ * da empresa. Quem grava hoje não consegue mais criar um assim (`saveFlavor` recusa), e
+ * a tela mostra os órfãos em vez de escondê-los: sumir com o dado de alguém é pior que
+ * mostrá-lo fora de lugar.
+ */
+export type Flavor = { id: string; typeId: string | null; name: string; sort: number };
 
 export async function listLines(companyId: string): Promise<ProductLine[]> {
   const conn = await db();
@@ -5569,13 +5577,18 @@ export async function listTypes(companyId: string, lineId?: string): Promise<Pro
 
 export async function listFlavors(companyId: string): Promise<Flavor[]> {
   const conn = await db();
-  const rows = await conn.getAllAsync<{ id: string; name: string; sort: number }>(
-    `SELECT id, name, sort FROM flavors
+  const rows = await conn.getAllAsync<{
+    id: string;
+    type_id: string | null;
+    name: string;
+    sort: number;
+  }>(
+    `SELECT id, type_id, name, sort FROM flavors
       WHERE company_id = ? AND active = 1
       ORDER BY sort, name COLLATE NOCASE`,
     [companyId],
   );
-  return rows.map((r) => ({ id: r.id, name: r.name, sort: r.sort }));
+  return rows.map((r) => ({ id: r.id, typeId: r.type_id, name: r.name, sort: r.sort }));
 }
 
 /** Uma linha nova, ou o nome de uma existente corrigido. */
@@ -5637,18 +5650,47 @@ export async function saveType(
   return id;
 }
 
+/**
+ * O sabor é do TIPO, e quem impede sabor solto é esta função.
+ *
+ * A coluna `type_id` entrou anulável na `V30` porque NOT NULL numa tabela com linhas
+ * exige um valor de origem que não existe — não há tipo certo para um sabor cadastrado
+ * quando tipo não era pergunta. A fronteira, então, é esta: **escrita nova exige tipo**,
+ * e a linha velha continua legível.
+ *
+ * A checagem de que o tipo é da mesma empresa mora aqui pelo mesmo motivo que a de
+ * `assertTypeBelongsToLine`: o SQLite não aceita chave composta em `ALTER TABLE ADD
+ * COLUMN`, e a tela é decoração — o assistente e a sincronia gravam por este caminho
+ * sem passar por ela.
+ */
+export class FlavorNeedsATypeError extends Error {
+  constructor() {
+    super('a flavour belongs to a type');
+    this.name = 'FlavorNeedsATypeError';
+  }
+}
+
 export async function saveFlavor(
   companyId: string,
-  input: { id?: string; name: string; sort?: number },
+  input: { id?: string; typeId: string; name: string; sort?: number },
 ): Promise<string> {
+  if (!input.typeId) throw new FlavorNeedsATypeError();
   const conn = await db();
+  const dono = await conn.getFirstAsync<{ id: string }>(
+    'SELECT id FROM product_types WHERE id = ? AND company_id = ?',
+    [input.typeId, companyId],
+  );
+  // Reusa o erro do vizinho de propósito: `assertTypeBelongsToLine` já trata
+  // "não achei este tipo nesta empresa" com ele, e dois nomes para a mesma recusa
+  // fariam a tela ter de conhecer os dois.
+  if (!dono) throw new TypeIsFromAnotherLineError(input.typeId);
   const id = input.id ?? newId();
   await conn.withTransactionAsync(async () => {
     await conn.runAsync(
-      `INSERT INTO flavors (id, company_id, name, sort, active)
-       VALUES (?, ?, ?, ?, 1)
+      `INSERT INTO flavors (id, company_id, type_id, name, sort, active)
+       VALUES (?, ?, ?, ?, ?, 1)
        ON CONFLICT(id) DO UPDATE SET name = excluded.name, sort = excluded.sort`,
-      [id, companyId, input.name.trim(), input.sort ?? 0],
+      [id, companyId, input.typeId, input.name.trim(), input.sort ?? 0],
     );
     await enqueue(conn, [{ table: 'flavors', rowId: id }]);
   });

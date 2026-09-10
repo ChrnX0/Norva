@@ -255,7 +255,7 @@ async function garantirElenco(companyId: string) {
           packaging: STACKED,
           lineId: linha,
           typeId: novo.tipo,
-          flavorId: await saveFlavor(companyId, { name: novo.sabor }),
+          flavorId: await saveFlavor(companyId, { typeId: novo.tipo, name: novo.sabor }),
           // Cento e vinte dias: um lote feito no começo do trimestre passa a
           // vencer DENTRO da janela de trinta dias que a capa olha. Sem
           // validade nenhuma, o aviso de vencimento nunca teria o que dizer, e
@@ -280,7 +280,7 @@ async function garantirElenco(companyId: string) {
           shelfLifeDays: 120,
           lineId: linha,
           typeId: agua,
-          flavorId: await saveFlavor(companyId, { name: 'Morango' }),
+          flavorId: await saveFlavor(companyId, { typeId: agua, name: 'Morango' }),
         });
       }
 

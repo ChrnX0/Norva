@@ -39,8 +39,8 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | telas | **34** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **26** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **28** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **54** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V29** | último `const V` em `src/data/db.ts` |
+| migrações do servidor | **55** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V30** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
 | linhas de código | **~92.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -52,7 +52,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 | `npm test` | **689** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **54** checagens num navegador de verdade |
-| `npm run db:verify` | **28** garantias contra um Postgres descartável, sob RLS |
+| `npm run db:verify` | **29** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade, com

@@ -69,6 +69,7 @@ function Catalog() {
   const { t } = useLocale();
 
   const [lineId, setLineId] = useState<string | null>(null);
+  const [typeId, setTypeId] = useState<string | null>(null);
   const [novaLinha, setNovaLinha] = useState('');
   const [novoTipo, setNovoTipo] = useState('');
   const [novoSabor, setNovoSabor] = useState('');
@@ -128,6 +129,19 @@ function Catalog() {
     return { tiers: faixas };
   };
   const tiposDaLinha = (data?.types ?? []).filter((t) => t.lineId === linhaAtiva?.id);
+  /**
+   * O tipo que está valendo — e ele nunca fica apontando para fora da linha.
+   *
+   * Trocar de linha sem isto deixaria `typeId` preso ao tipo da linha anterior, e o
+   * cartão de baixo cadastraria sabor no lugar errado sem uma palavra. Nenhum campo
+   * nasce vazio: com uma linha escolhida e um tipo só, ele já vem escolhido.
+   */
+  const tipoAtivo =
+    tiposDaLinha.find((t) => t.id === typeId) ?? (tiposDaLinha.length === 1 ? tiposDaLinha[0] : null);
+  /** Os sabores DESTE tipo, mais os órfãos da regra antiga, que não somem calados. */
+  const saboresDoTipo = (data?.flavors ?? []).filter(
+    (s) => s.typeId === tipoAtivo?.id || s.typeId === null,
+  );
 
   // `limpar` é opcional: guardar a embalagem da família não esvazia campo
   // nenhum — os dois continuam mostrando o que acabou de ser guardado.
@@ -377,7 +391,23 @@ function Catalog() {
                   {t.app.catalog.noTypes}
                 </Text>
               ) : (
-                etiquetas(tiposDaLinha)
+                <View style={[styles.wrap, { gap: space.sm, marginTop: space.md }]}>
+                  {/* O tipo passou a ser ESCOLHA e não etiqueta, porque o sabor é
+                      dele: "morango" do picolé de leite não é o "morango" do de água,
+                      e o dono nomeou o motivo — sem travar, confunde na hora de
+                      registrar. Mesmo papel de rádio da linha aqui em cima. */}
+                  {tiposDaLinha.map((tp) => (
+                    <Pressable
+                      key={tp.id}
+                      onPress={() => setTypeId(tp.id)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: tp.id === tipoAtivo?.id }}
+                      accessibilityLabel={tp.name}
+                    >
+                      <Chip signal={tp.id === tipoAtivo?.id ? 'ok' : 'neutral'} label={tp.name} />
+                    </Pressable>
+                  ))}
+                </View>
               )}
 
               <View style={{ marginTop: space.lg, gap: space.md }}>
@@ -410,16 +440,24 @@ function Catalog() {
         <Card
           hue={palette.sand}
           icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}
-          title={t.app.catalog.flavors}
+          title={
+            tipoAtivo
+              ? fill(t.app.catalog.flavors, { type: tipoAtivo.name })
+              : fill(t.app.catalog.flavors, { type: '' }).replace(/\s+de\s*$/i, '').trim()
+          }
         >
           <Text style={[type.caption, { color: color.inkMuted }]}>{t.app.catalog.flavorsHint}</Text>
 
-          {loading ? null : (data?.flavors ?? []).length === 0 ? (
+          {loading ? null : !tipoAtivo ? (
+            <Text style={[type.body, { color: color.inkMuted, marginTop: space.md }]}>
+              {t.app.catalog.noTypeYet}
+            </Text>
+          ) : saboresDoTipo.length === 0 ? (
             <Text style={[type.body, { color: color.inkMuted, marginTop: space.md }]}>
               {t.app.catalog.noFlavors}
             </Text>
           ) : (
-            etiquetas(data?.flavors ?? [])
+            etiquetas(saboresDoTipo)
           )}
 
           <View style={{ marginTop: space.lg, gap: space.md }}>
@@ -432,10 +470,10 @@ function Catalog() {
             <Button
               label={t.app.catalog.addFlavor}
               variant="ghost"
-              disabled={novoSabor.trim().length === 0}
+              disabled={novoSabor.trim().length === 0 || !tipoAtivo}
               onPress={() =>
                 gravar(
-                  () => saveFlavor(empresaDaqui(), { name: novoSabor }),
+                  () => saveFlavor(empresaDaqui(), { typeId: tipoAtivo!.id, name: novoSabor }),
                   () => setNovoSabor(''),
                 )
               }

@@ -1799,6 +1799,51 @@ confere "${CHK}f5" "${M}b1" || fail "depois do estorno a remessa não pôde ser 
 
 echo "    uma conferência de pé por remessa e item, com o caminho de desfazer aberto"
 
+echo "==> check 29: a variação é do TIPO — o mesmo nome cabe duas vezes, e nunca na empresa vizinha"
+
+# A `0055` move o sabor da empresa para o tipo, e o motivo veio do dono descrevendo a
+# fábrica do pai: *"morango leite e morango agua ... usam receitas diferentes"*. Com o nome
+# único por empresa, cadastrar os dois morangos era IMPOSSÍVEL — não confuso, impossível.
+#
+# Três metades, e cada uma já foi um defeito possível:
+#   1. o mesmo nome em DOIS tipos entra — sem isto a migração não resolve nada;
+#   2. o mesmo nome no MESMO tipo morre — sem isto a grade aceita duplicata e o índice
+#      único de produto (linha, tipo, sabor) passa a apontar para dois sabores iguais;
+#   3. a variação NÃO pode apontar para o tipo da empresa vizinha — é a fundação
+#      multi-empresa, e é a metade que só existe no Postgres: no SQLite do aparelho não
+#      há chave composta em `ALTER TABLE ADD COLUMN`, e a garantia mora na escrita.
+SAB=eeee0000-0000-4000-8000-0000000001
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<SQL >/dev/null
+insert into product_lines (id, company_id, name) values ('${SAB}a1','${M}c1','Picole da 29');
+insert into product_types (id, company_id, line_id, name) values
+  ('${SAB}b1','${M}c1','${SAB}a1','Leite da 29'),
+  ('${SAB}b2','${M}c1','${SAB}a1','Agua da 29');
+SQL
+
+sabor() { # $1 = id, $2 = tipo, $3 = nome — sai 0 se entrou
+  psql -d "$DB" -q -c "insert into flavors (id, company_id, type_id, name)
+    values ('$1','${M}c1','$2','$3');" >/dev/null 2>&1  # proofgate-allow
+  [ "$(rows "select count(*) from flavors where id = '$1';")" = "1" ]  # proofgate-allow
+}
+
+# 1. Morango no leite e morango na água: dois registros, o mesmo nome.
+sabor "${SAB}c1" "${SAB}b1" 'Morango' || fail "morango do leite foi recusado"
+sabor "${SAB}c2" "${SAB}b2" 'Morango' || fail "morango da agua foi recusado: o nome ainda e unico na empresa"
+
+# 2. Morango de novo no MESMO tipo morre.
+sabor "${SAB}c3" "${SAB}b1" 'Morango' && fail "morango repetido no mesmo tipo passou"
+
+# 3. E o tipo da vizinha é recusado pela chave composta, não pela tela.
+# O `|| true` não é frouxidão: esta inserção TEM de falhar, e sem ele o `set -e` derruba
+# o script exatamente quando a garantia está sendo cumprida — foi o que aconteceu na
+# primeira escrita desta checagem, e ela morreu sem imprimir uma palavra.
+psql -d "$DB" -q -c "insert into flavors (id, company_id, type_id, name)
+  values ('${SAB}c4','${M}c2','${SAB}b1','Roubado');" >/dev/null 2>&1 || true  # proofgate-allow
+[ "$(rows "select count(*) from flavors where id = '${SAB}c4';")" = "0" ] \
+  || fail "uma variacao apontou para o tipo de OUTRA empresa"
+
+echo "    o mesmo nome cabe em dois tipos, morre repetido no mesmo, e nao cruza a empresa"
+
 echo
-echo "OK - migrations apply and all twenty-eight guarantees hold."
+echo "OK - migrations apply and all twenty-nine guarantees hold."
 
