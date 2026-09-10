@@ -47,8 +47,16 @@ function semComentario(fonte: string): string {
   return fonte.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
 }
 
-/** Uma saída crua: `back()` chamado direto, com ou sem o `router.` na frente. */
-const SAIDA_CRUA = /(?:^|[^.\w])(?:router|navigation)\s*\.\s*back\s*\(/;
+/**
+ * Uma saída crua: a tela decidindo voltar sozinha.
+ *
+ * As quatro formas estão aqui porque a promessa desta guarda é *"nenhuma tela volta por
+ * conta própria"*, e uma régua que só enxerga `back()` deixa `goBack()` — o nome do React
+ * Navigation, que funciona igual por baixo do expo-router — entrar amanhã sem uma palavra.
+ * Buraco admitido em comentário é buraco: ou a promessa encolhe, ou ele fecha.
+ */
+const SAIDA_CRUA =
+  /(?:^|[^.\w])(?:router|navigation|nav)\s*\.\s*(?:back|goBack|dismiss|dismissAll|dismissTo)\s*\(/;
 
 function saiSozinha(caminho: string): boolean {
   return SAIDA_CRUA.test(semComentario(readFileSync(caminho, 'utf8')));
@@ -80,7 +88,10 @@ test('a régua vê a chamada e ignora a prosa que a explica', () => {
   assert.equal(saiSozinha('app/who.tsx'), false, 'aqui `router.back()` é prosa de docblock');
   assert.equal(SAIDA_CRUA.test('const fechar = () => router.back();'), true);
   assert.equal(SAIDA_CRUA.test('navigation.back()'), true);
-  // E o que a régua não pode confundir com uma saída crua.
+  assert.equal(SAIDA_CRUA.test('navigation.goBack()'), true, 'o nome do React Navigation');
+  assert.equal(SAIDA_CRUA.test('router.dismissAll()'), true);
+  // E o que a régua não pode confundir com uma saída crua. `canGoBack` é a PERGUNTA que
+  // o voltar() faz — se ela casasse, a guarda acusaria o próprio conserto.
   assert.equal(SAIDA_CRUA.test('if (router.canGoBack()) voltar();'), false);
   assert.equal(SAIDA_CRUA.test('const anterior = fila.back();'), false);
   assert.equal(semComentario('/** router.back() */ voltar();').includes('back('), false);
