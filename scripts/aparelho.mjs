@@ -226,6 +226,23 @@ function larguraEmDp() {
  * inútil. Com rota, espera a tela parar, como o plural faz.
  */
 /**
+ * O quadro que o aparelho está mostrando agora, cru.
+ *
+ * Uma captura só, devolvida inteira, para quem quiser gravá-la E medi-la sem
+ * tirar uma segunda — que é o defeito que este arquivo já pagou uma vez.
+ */
+function quadroCru() {
+  const cru = adbBin('exec-out', 'screencap');
+  const largura = cru.readUInt32LE(0);
+  const altura = cru.readUInt32LE(4);
+  if (!largura || !altura) return null;
+  // O cabeçalho tem 12 bytes (largura, altura, formato) e ganhou um quarto campo
+  // com o espaço de cor no Android 10. Qual dos dois é a conta que fecha.
+  const inicio = cru.length - largura * altura * 4 === 16 ? 16 : 12;
+  return cru.length - inicio === largura * altura * 4 ? { cru, largura, altura, inicio } : null;
+}
+
+/**
  * O quadro cru virado PNG — para a foto e a medida serem a MESMA captura.
  *
  * Antes eram duas: `screencap -p` gravava o arquivo e a régua tirava um segundo
@@ -310,7 +327,7 @@ function pngDoQuadro(cru, largura, altura, inicio) {
  * — *tem tinta de verdade nesta página?* Quem mede o contraste de um texto
  * específico é `src/theme/contrast.test.ts`, sobre as cores da paleta.
  */
-function tintaDaPagina(cru, largura, altura, inicio) {
+function tintaDaPagina({ cru, largura, altura, inicio }) {
   const luz = (v) => {
     const c = v / 255;
     return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
@@ -354,7 +371,8 @@ async function foto(nome, rota) {
   if (!nome) throw new Error('uso: node scripts/aparelho.mjs foto <nome> [rota]');
   if (rota) {
     abrir(rota, { reiniciar: true });
-    esperarTelaParar();
+    await esperarTelaParar();
+    await esperarPaginaComTinta();
   }
   mkdirSync(SAIDA, { recursive: true });
   const destino = join(SAIDA, `${nome}.png`);
@@ -371,13 +389,10 @@ async function foto(nome, rota) {
   let veredito;
   let tinta = null;
   try {
-    const cru = adbBin('exec-out', 'screencap');
-    const largura = cru.readUInt32LE(0);
-    const altura = cru.readUInt32LE(4);
-    const inicio = cru.length - largura * altura * 4 === 16 ? 16 : 12;
-    if (largura && altura && cru.length - inicio === largura * altura * 4) {
-      writeFileSync(destino, pngDoQuadro(cru, largura, altura, inicio));
-      tinta = tintaDaPagina(cru, largura, altura, inicio);
+    const quadro = quadroCru();
+    if (quadro) {
+      writeFileSync(destino, pngDoQuadro(quadro.cru, quadro.largura, quadro.altura, quadro.inicio));
+      tinta = tintaDaPagina(quadro);
     } else {
       writeFileSync(destino, adbBin('exec-out', 'screencap', '-p'));
     }
@@ -396,6 +411,10 @@ async function foto(nome, rota) {
     if (arquivo) {
       copyFileSync(join(tmp, arquivo), destino);
       veredito = pareceViva(destino);
+      // O arquivo passou a ser OUTRO quadro, tirado pelo console. A medida que
+      // eu tenho descreve o quadro do convidado, que foi descartado — então ela
+      // deixa de existir em vez de virar legenda de uma imagem que não é a dela.
+      tinta = null;
     }
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -417,7 +436,10 @@ async function foto(nome, rota) {
   // Sai de graça, não depende de janela ociosa — e o `uiautomator`, que responderia
   // a mesma pergunta melhor, leva até dois minutos nesta tela e às vezes devolve
   // `null root node`, porque a animação de ambiente nunca deixa a janela parar.
-  const emTinta = tinta === null ? '' : `, tinta ${tinta.mediana.toFixed(2)}:1 em ${tinta.comTinta}/${tinta.fitas} fitas`;
+  const emTinta =
+    tinta === null
+      ? ', SEM medida (o quadro veio do console do emulador)'
+      : `, tinta ${tinta.mediana.toFixed(2)}:1 em ${tinta.comTinta}/${tinta.fitas} fitas`;
   console.log(
     `${destino} — ${(veredito.bytes / 1024).toFixed(0)} KB, variação ${veredito.variacao}${emTinta}${emQue}`,
   );
@@ -577,6 +599,35 @@ async function esperarDesenho(minutos = 8, pacote = PACOTE) {
  * antes de a animação acabar — daí a pausa curta no fim, que é a mesma do laço
  * antigo e pela mesma razão.
  */
+/**
+ * Espera a PÁGINA aparecer — não o app abrir, não um quadro sair.
+ *
+ * `abrir` reinicia o aplicativo (`am start -S`), e neste emulador por software a
+ * partida leva perto de um minuto. Nesse minuto a tela mostra a marca sobre papel:
+ * um quadro legítimo, parado, com tinta cheia. Toda medida que eu tinha dava ela
+ * por boa — o contador de quadros sobe, a mediana de contraste passa —, e foi assim
+ * que duas fotos seguidas saíram da tela de abertura com o comando dizendo
+ * `tinta 15,35:1` e saindo zero.
+ *
+ * O que separa as duas é a EXTENSÃO da tinta, não a força dela: a abertura tem três
+ * fitas de vinte e duas, e a tela mais vazia do aplicativo tem treze. Abaixo de
+ * cinco não é página, é marca.
+ *
+ * Ela não substitui `esperarTelaParar`: aquela espera parar de mudar, esta espera
+ * ter conteúdo. As duas em sequência é o que faz a foto valer.
+ */
+async function esperarPaginaComTinta(minutos = 3) {
+  const limite = Date.now() + minutos * 60_000;
+  while (Date.now() < limite) {
+    const quadro = quadroCru();
+    const tinta = quadro && tintaDaPagina(quadro);
+    if (tinta && tinta.comTinta > 4) return true;
+    await dormir(4000);
+  }
+  dizer(`ATENÇÃO: em ${minutos} min a tela nunca passou de marca para página.`);
+  return false;
+}
+
 async function esperarTelaParar(minutos = 4) {
   let anterior = null;
   let mudas = 0;
