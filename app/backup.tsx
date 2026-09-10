@@ -268,7 +268,13 @@ export default function BackupScreen() {
   };
 
   return (
-    <CollapsingHeader cena="copia" title={words.title} overline={words.overline}>
+    <CollapsingHeader
+      cena="copia"
+      title={words.title}
+      overline={words.overline}
+      erro={estado.error}
+      denovo={estado.refresh}
+    >
       {/* O ESTADO. Nenhum campo nasce vazio e nenhum número aparece sozinho: a
           data da última cópia vem com o que ela guarda, e a ausência de cópia é
           um fato dito por extenso — não um espaço em branco. */}

@@ -107,7 +107,7 @@ function NewOrder() {
   const askConfirm = useConfirm();
   const words = t.app.newOrder;
 
-  const { data } = useQuery<Loaded>(async () => {
+  const { data, error, refresh } = useQuery<Loaded>(async () => {
     const [places, products] = await Promise.all([
       listPlaces(empresaDaqui()),
       listProducts(empresaDaqui()),
@@ -317,7 +317,13 @@ function NewOrder() {
   const iAcao = iErro + (erro ? 1 : 0);
 
   return (
-    <CollapsingHeader cena="pedidos" title={words.title} overline={words.overline}>
+    <CollapsingHeader
+      cena="pedidos"
+      title={words.title}
+      overline={words.overline}
+      erro={error}
+      denovo={refresh}
+    >
       {/* PARA QUEM. Uma linha por cliente, e cada uma já traz o acordo dele —
           que é o que faz a data de baixo nascer preenchida. A escolhida leva a
           faixa; as outras, nada, porque presença de traço se lê sem cor. */}

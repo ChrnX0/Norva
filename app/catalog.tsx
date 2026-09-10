@@ -72,7 +72,7 @@ function Catalog() {
   const [novoSabor, setNovoSabor] = useState('');
   const [erro, setErro] = useState<string | null>(null);
 
-  const { data, loading, refresh } = useQuery<Loaded>(async () => {
+  const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
     const [lines, types, flavors] = await Promise.all([
       listLines(empresaDaqui()),
       listTypes(empresaDaqui()),
@@ -163,7 +163,13 @@ function Catalog() {
   );
 
   return (
-    <CollapsingHeader cena="produtos" title={t.app.catalog.title} overline={t.app.catalog.overline}>
+    <CollapsingHeader
+      cena="produtos"
+      title={t.app.catalog.title}
+      overline={t.app.catalog.overline}
+      erro={error}
+      denovo={refresh}
+    >
       {/* O aviso vem antes de tudo, e o índice dele é fixo.
           Índice corrido renumeraria os cartões de baixo no instante em que um
           nome repetido aparece, e a tela inteira reentraria — o erro tem que

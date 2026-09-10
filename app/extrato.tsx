@@ -212,6 +212,8 @@ export default function ExtratoScreen() {
       // de uma loja precisa ver DE QUEM ele é antes de qualquer número, senão o
       // documento não serve para o que ele existe.
       overline={nome ? fill(words.ofPlace, { place: nome }) : words.overline}
+      erro={dados.error}
+      denovo={dados.refresh}
     >
       {recusa ? (
         <Reveal index={0}>

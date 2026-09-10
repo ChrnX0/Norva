@@ -44,18 +44,12 @@ const AINDA_ENGOLEM = [
   'app/(tabs)/transport.tsx',
   'app/account.tsx',
   'app/assistant.tsx',
-  'app/backup.tsx',
-  'app/catalog.tsx',
-  'app/extrato.tsx',
-  'app/inputs/[id].tsx',
   'app/inputs/index.tsx',
   'app/inputs/new.tsx',
-  'app/orders/new.tsx',
   'app/products/new.tsx',
   'app/purchase.tsx',
   'app/recipes/[id].tsx',
   'app/settings.tsx',
-  'app/weather.tsx',
 ];
 
 function engole(caminho: string): boolean {
@@ -90,7 +84,7 @@ test('a régua separa a tela que engole da que já avisa, e ignora quem não lê
   // Verdadeiro e falso do detector, contra as telas de verdade: a que acabou de
   // ser ligada não pode aparecer, e uma da lista tem de aparecer.
   assert.equal(engole('app/production/new.tsx'), false, 'esta já entrega o erro');
-  assert.equal(engole('app/extrato.tsx'), true, 'esta ainda engole');
+  assert.equal(engole('app/settings.tsx'), true, 'esta ainda engole');
   // E uma tela sem consulta nenhuma não é assunto desta guarda.
   assert.equal(engole('app/_layout.tsx'), false);
 });

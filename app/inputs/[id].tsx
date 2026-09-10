@@ -180,7 +180,7 @@ function InputDetail() {
   const [lostText, setLostText] = useState('');
   const [reason, setReason] = useState<LossReason>('expired');
 
-  const { data, loading, refresh } = useQuery<Loaded>(async () => {
+  const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
     if (!id)
       return {
         item: null, history: [], recipes: [], fichaQueFaz: null, movements: [],
@@ -255,7 +255,13 @@ function InputDetail() {
 
   if (loading || !item) {
     return (
-      <CollapsingHeader cena="insumos" title={t.app.inputForm.fallbackTitle} overline={t.app.inputDetail.overline}>
+      <CollapsingHeader
+        cena="insumos"
+        title={t.app.inputForm.fallbackTitle}
+        overline={t.app.inputDetail.overline}
+        erro={error}
+        denovo={refresh}
+      >
         <Reveal index={0}>
           <Card hue={palette.mint} icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}>
             <Text style={[type.body, { color: color.inkMuted }]}>

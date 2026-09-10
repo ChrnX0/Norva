@@ -60,7 +60,7 @@ function PickCity() {
   const router = useRouter();
   const words = t.app.weatherPlace;
 
-  const { data: current, refresh } = useQuery<WeatherPlace | null>(() => readPlace());
+  const { data: current, error, refresh } = useQuery<WeatherPlace | null>(() => readPlace());
 
   const [term, setTerm] = useState('');
   const [found, setFound] = useState<WeatherPlace[] | null>(null);
@@ -93,7 +93,13 @@ function PickCity() {
   const curta = (place: WeatherPlace) => `${place.latitude},${place.longitude}`;
 
   return (
-    <CollapsingHeader cena="clima" title={words.title} overline={words.overline}>
+    <CollapsingHeader
+      cena="clima"
+      title={words.title}
+      overline={words.overline}
+      erro={error}
+      denovo={refresh}
+    >
       {/* A cidade que está valendo, dita como título e não como parágrafo.
           É o que a tela responde, então é a primeira coisa grande do olho: o
           crachá diz que o assunto é o clima, o nome diz de onde, e a frase
