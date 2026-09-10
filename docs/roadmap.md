@@ -269,11 +269,73 @@ virar afirmação. **Seis fechados no mesmo dia:**
     O que o log entrega: `StartPackageManagerService took to complete: 80126ms`. Ele não
     quebrou — ficou glacial, e todo caminho de instalação estoura antes.
 
-    **Consequência que não se omite:** desde as 13h30 nenhuma mudança de tela tem a foto
-    que a barra exige. O que foi entregue depois disso está provado por teste, tipo, lint,
-    `db:verify` e portão — e **não** pelo aparelho. Quem retomar tem oito becos já
-    fechados e pode começar pelo que sobrou: outra imagem de sistema (a `android-30
-    default` é a única instalada), ou o APK de depuração, que é menor.
+    ### FECHADO às 16h20 do mesmo dia, e duas linhas da tabela acima estavam erradas
+
+    **A imagem `aosp_atd` instala de primeira** (`Success`), e ela era a alavanca que o
+    plano de 6 de setembro já tinha nomeado — *"feitas para CI headless, sem launcher, sem
+    papel de parede, sem apps de sistema"* — e que nunca foi instalada. O AVD `norva-atd`
+    sobe inteiro em ~7 min contra ~12 da `default`, e o `UpdatePackagesIfNeeded` deixa de
+    mastigar 82 s. O aplicativo instala, abre e **desenha**: a árvore de acessibilidade traz
+    a capa do primeiro dia inteira.
+
+    **As duas linhas erradas, e as duas erraram do mesmo jeito — medindo outra coisa:**
+
+    - *"disco do hospedeiro | `dd` de 300 MB dentro do aparelho escreve liso; 7,9 GB
+      livres"*. O `dd` responde se o convidado grava; não responde o que o **emulador
+      pede**, que é 7,37 GB para criar a partição de dados do zero. Liberando 3,5 GB de
+      cache derivado do Gradle, o erro **mudou** — de `Broken pipe` para o rastro inteiro
+      de um `NullPointerException`, que foi o que finalmente nomeou a causa.
+    - *"AVD corrompido | AVD novo, criado do zero, falha igual"*. Duas das três tentativas
+      com o `norva-limpo` morreram em `FATAL | Not enough space to create userdata
+      partition. Available: 6551.58 MB … need 7372.80 MB` — ou seja, **o AVD novo não
+      chegou a bootar**. A linha foi escrita sobre uma partida que não aconteceu.
+
+    **A causa, agora nomeada, e são DUAS em série:**
+
+    1. Instalar antes de `sys.boot_completed` dá
+       `NullPointerException: … PackageManagerInternal.freeStorage(…) on a null object` em
+       `StorageManagerService.allocateBytes`. O `StorageManagerService` só pega o
+       `PackageManagerInternal` na fase BOOT_COMPLETED, e ela chega **doze minutos** depois
+       de `service check package` e `service check window` responderem `found`. O
+       `scripts/aparelho.mjs` parava nos dois serviços — por causa da cicatriz certa de que
+       `sys.boot_completed` mente depois de instantâneo — e por isso instalava cedo demais.
+       Hoje ele exige as **três** coisas, e num instantâneo restaurado as três são
+       verdadeiras juntas, então a cicatriz velha continua paga.
+    2. Com o aparelho realmente pronto, a instalação passa do NPE e o **Watchdog mata o
+       `system_server`**: `watchdog: Blocked in handler on foreground thread (android.fg)`
+       às 15:49:44, `DeadSystemException: The system died` às 15:50:39 — os 60 s do
+       temporizador. É isso que chegava ao terminal como `Broken pipe (32)` e como `Can't
+       find service: package`. Numa `default` sem KVM, escrever 29 MB na sessão de
+       instalação não cabe na janela do Watchdog; numa ATD, cabe.
+
+    **Mais três medidas que não resolveram**, para ninguém repetir: partida fria com
+    `-wipe-data` (falha igual), `pm.dexopt.install=skip` num aparelho **realmente** bootado
+    (falha igual — a medida antiga foi feita num que nunca terminou de subir), e
+    `verifier_verify_adb_installs=0` (falha igual).
+
+    **E duas coisas que a ATD trouxe de brinde, as duas defeito de ferramenta:**
+
+    - **`-prop persist.sys.locale=pt-BR` é RECUSADO pelo emulador** (`unexpected '-prop'
+      value … only 'qemu.*' properties are supported`), e o docblock do `subir` prometia
+      que essa bandeira decide o idioma da foto. A capa saiu em inglês — *"Today the
+      factory has not produced yet"* —, que é exatamente a mentira que a bandeira existia
+      para impedir. O caminho que funciona é `adb shell setprop persist.sys.locale pt-BR`
+      como root, com o arcabouço reiniciado depois.
+    - **`screencap` do convidado devolve quadro preto** na ATD com
+      `-gpu swiftshader_indirect`, e o atalho pelo console do emulador devolve o quadro
+      **velho** (a splash), com o mesmo tamanho e a mesma variação em três fotos seguidas
+      enquanto a árvore de acessibilidade já mostrava a capa desenhada. Foto que repete
+      byte a byte não é foto: é a prova de que a captura está congelada, e sem a árvore ao
+      lado ela teria passado por "o app não abriu".
+
+      **E o recorte do que ela congela tem nome, medido às 16h37:** a captura mostra a
+      SPLASH — que é fundo de janela do próprio Android — e nunca a capa, que é superfície
+      acelerada do React Native. Com `-gpu guest` o `screencap` do convidado sai preto
+      (15.197 bytes, cor única) e o `screenrecord` grava 3 KB de nada, enquanto o
+      `uiautomator` lê a capa inteira em português no mesmo instante. Ou seja: sem janela de
+      hospedeiro, a superfície do RN não entra no quadro capturado — janela comum entra.
+      Então **a caminhada continua pela árvore de acessibilidade**, que é como a de 10 de
+      setembro já foi feita, e a foto de pixel fica devendo até isto ter saída.
 
 27. **A porta "Lojas e clientes" abre a tela "Estoque por lugar"** — o mesmo defeito do item
     12 numa segunda palavra, e foi a guarda nova dele que o achou. A tabela guarda cinco

@@ -128,9 +128,17 @@ async function subir() {
   // segundos para o serviço de pacotes subir —, e todo caminho de instalação
   // estoura antes disso.
   //
-  // Então os 4096 ficam porque o hospedeiro tem quinze gigas e não custa nada,
-  // **não porque foi provado que resolvem** — não foram. Quem retomar isto
-  // começa por um AVD novo, que é a única coisa que ainda não foi tentada.
+  // Então os 4096 ficam porque a máquina tem quinze gigas de MEMÓRIA e não custa
+  // nada, **não porque foi provado que resolvem** — não foram.
+  //
+  // **E a linha do disco acima estava medindo a coisa errada — corrigido à tarde.**
+  // "`dd` de 300 MB dentro do aparelho escreve liso" responde se o convidado grava;
+  // não responde o que o emulador PEDE, que é 7,37 GB para criar a partição de dados
+  // do zero. Com 7,4 GB livres no hospedeiro, um AVD novo morria antes de bootar
+  // (`FATAL | Not enough space to create userdata partition`) — então "AVD novo
+  // falha igual" foi escrito sobre uma partida que não aconteceu. Liberando 3,5 GB
+  // de cache derivado o erro MUDOU de `Broken pipe` para o rastro inteiro do NPE
+  // acima, que foi o que finalmente nomeou a causa.
   const filho = spawn(
     EMU,
     ['-avd', AVD, '-no-window', '-no-audio', '-no-boot-anim',
@@ -164,12 +172,35 @@ async function subir() {
        * `window` alguns segundos depois, com o mesmo PID de `system_server` —
        * ou seja, não é queda em laço, é registro que se arrasta num emulador
        * sem KVM.
+       *
+       * **E os dois serviços NÃO bastam — 10 de setembro, à tarde.** Numa partida
+       * fria com os dados apagados, `package` e `window` responderam `found` e o
+       * `adb install` seguinte devolveu isto:
+       *
+       * ```
+       * NullPointerException: ... PackageManagerInternal.freeStorage(...) on a null
+       *   at com.android.server.StorageManagerService.allocateBytes(...:3901)
+       * ```
+       *
+       * O `StorageManagerService` só pega o `PackageManagerInternal` na fase
+       * BOOT_COMPLETED do `system_server`, e ela chega **minutos** depois dos dois
+       * serviços registrarem — aqui foram doze minutos, com o `dexopt` do sistema
+       * inteiro no meio (`UpdatePackagesIfNeeded took to complete: 82284ms`).
+       * Instalar nessa janela não é cedo demais por pouco: é instalar num sistema
+       * que ainda não terminou de nascer.
+       *
+       * Então a condição é a **conjunção das três**, e a cicatriz de cima continua
+       * valendo inteira: `sys.boot_completed` sozinho mente depois de restaurar
+       * instantâneo, mas num instantâneo restaurado os três são verdadeiros juntos
+       * — o estado salvo É um estado pronto. A propriedade só atrasa quem sobe a
+       * frio, que é exatamente quem precisa esperar.
        */
       const respondendo = (nome) => {
         const dito = adb('shell', 'service', 'check', nome);
         return dito.includes('found') && !dito.includes('not found');
       };
-      if (respondendo('package') && respondendo('window')) {
+      const bootou = () => adb('shell', 'getprop', 'sys.boot_completed') === '1';
+      if (respondendo('package') && respondendo('window') && bootou()) {
         dizer(`de pé em ${Math.round((Date.now() - inicio) / 1000)}s`);
         return;
       }
