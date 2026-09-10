@@ -113,6 +113,51 @@ números abaixo saem do diário da execução, não de contagem à mão.
 medida ao lado, como a regra deste arquivo exige: item aberto prova que a coisa NÃO
 existe, e a suíte fica vermelha no dia em que alguém a construir sem riscar a linha.
 
+### A. A caminhada de 9 de setembro — o que apareceu usando o aplicativo
+<!-- medida: espera o dono usar o APK no tablet dele: o custo do ambiente é de emulador por software, e só o aparelho real diz se a margem existe lá -->
+
+Feita com o aplicativo instalado, tela por tela, começando pelo Reset. **O que ela achou,
+por peso, e o que já foi fechado:**
+
+1. ~~A entrada congelada em seis componentes~~ — **fechada**, com a rede compartilhada e a
+   varredura que a cobra (`src/components/chegada.ts`).
+2. ~~A capa afirmando "nada saiu hoje" sem ter lido~~ — **fechada** para a capa
+   (`CoverState` ganhou `'falhou'`). **As outras 51 telas continuam engolindo o erro.**
+3. ~~Os dois números de Receitas que não fechavam~~ — **fechada**.
+4. **O ambiente satura a thread de UI e o aplicativo passa a renderizar errado.** Provado
+   ligando e desligando: com movimento, a capa esvazia, o Almoxarifado vem sem a lista, os
+   cartões vêm pálidos, a rolagem morre e o `uiautomator` não lê a tela; com "reduzir
+   movimento" ligado, tudo desenha, a rolagem funciona e a CPU cai de 190% para 41%. **A
+   caminhada inteira teve de ser feita com o ambiente parado**, senão o aplicativo não se
+   deixa dirigir. Isto é o item de baixo, e ele deixou de ser sobre bateria.
+5. **`norva://settings` não navega com o aplicativo aberto** — `norva://inputs` navega. Em
+   partida fria os dois funcionam. Importa para QR e notificação.
+6. **Quem entra por link direto numa tela interna não tem volta**: o botão voltar sai do
+   aplicativo, porque não há pilha atrás.
+7. **A primeira ação que a capa oferece num aplicativo vazio é impossível.** *"Lançar a
+   primeira produção"* leva a *"Nenhum produto tem ficha técnica ainda. Cadastre a receita
+   primeiro."* — a tela explica e **não oferece a porta**: não há link para a receita. A Lei
+   pede a próxima ação PROVÁVEL, e num aplicativo recém-apagado ela é cadastrar o que se
+   compra, não produzir.
+8. **Nomes cortados onde a escolha depende deles**: na configuração das peças da capa
+   metade dos rótulos vem com reticências (*"Produção a…"*, *"Quem rece…"*, *"Vence
+   prim…"*), então não dá para saber qual peça se está escondendo.
+9. **A palavra quebrada no meio**: o botão de idioma escreve *"Portugu / ês"*.
+10. **A última linha de uma lista fica sob a barra de abas** — em Mais, a linha *"Ajustes"*
+    nasce cortada.
+11. **`expo-updates` tenta baixar atualização a cada ~70 s** e falha, cada tentativa com
+    handshake TLS e rastro de pilha inteiro no log. No celular da fábrica isso é bateria e
+    dado.
+12. **A mesma palavra conta coisas diferentes**: Ajustes diz *"Insumos 6"* e o Almoxarifado
+    diz *"Insumos 4 · Embalagem 2"*.
+
+**O que a caminhada CONFIRMOU funcionando**, para o relatório não ser só defeito: o Reset
+com as duas confirmações, exatamente como a decisão pede — a primeira com os números por
+extenso (*"6 insumos, 6 movimentos do livro-razão, 2 receitas, 1 produto e 6 compras"*), a
+segunda explicando o que o registro é (*"Apagar não desfaz os lançamentos: tira-os do
+mundo"*); o prazo de 10 dias no lugar; as áreas que não podem ser apagadas cinzas **com o
+motivo escrito**; e o estado voltando para *"Vazio, sem exemplo"* depois do apagamento.
+
 ### A. Nada mede o que o movimento de ambiente custa — e ele já comeu uma tela
 <!-- medida: ausente src/components :: orcamento de movimento -->
 
