@@ -141,15 +141,19 @@ por peso, e o que já foi fechado:**
    navegam. Em partida fria todos funcionam. Importa para QR e notificação.
 6. **Quem entra por link direto numa tela interna não tem volta**: o botão voltar sai do
    aplicativo, porque não há pilha atrás.
-7. **A primeira ação que a capa oferece num aplicativo vazio é impossível.** *"Lançar a
-   primeira produção"* leva a *"Nenhum produto tem ficha técnica ainda. Cadastre a receita
-   primeiro."* — a tela explica e **não oferece a porta**: não há link para a receita. A Lei
-   pede a próxima ação PROVÁVEL, e num aplicativo recém-apagado ela é cadastrar o que se
-   compra, não produzir.
+7. ~~**A primeira ação que a capa oferece num aplicativo vazio é impossível.**~~ —
+   **fechada em 10 de setembro.** A tela de produção tem razão escrita para não navegar
+   dali (é empilhada, e o caminho de volta é o de sempre); o defeito estava antes, na capa
+   sugerindo a única coisa que ainda não dava para fazer. `primeiroPasso` no domínio
+   devolve onde a cadeia parou — insumo, ficha, produto ou produção — e a capa oferece a
+   porta que falta.
 8. **Nomes cortados onde a escolha depende deles**: na configuração das peças da capa
    metade dos rótulos vem com reticências (*"Produção a…"*, *"Quem rece…"*, *"Vence
    prim…"*), então não dá para saber qual peça se está escondendo.
-9. **A palavra quebrada no meio**: o botão de idioma escreve *"Portugu / ês"*.
+9. ~~**A palavra quebrada no meio**: o botão de idioma escreve *"Portugu / ês"*.~~ —
+   **fechada.** Os três botões dividiam a largura em três fatias iguais e a 360 dp a fatia
+   é menor que a palavra. A linha passa a quebrar e cada botão toma a largura da palavra
+   dele — sem número mágico, e no tablet os três continuam na mesma linha.
 10. **A última linha de uma lista fica sob a barra de abas** — em Mais, a linha *"Ajustes"*
     nasce cortada.
 11. **`expo-updates` tenta baixar atualização a cada ~70 s** e falha, cada tentativa com
@@ -207,6 +211,11 @@ virar afirmação. **Seis fechados no mesmo dia:**
     DERIVADO (`composed`), que volta atrasado. Medido com contraste: as mesmas 17 letras,
     a mesma chamada — o nome da FICHA ficou inteiro, o do PRODUTO ficou "Picole de moran",
     depois "Picole de mor", depois "Picole ". Comprimento diferente a cada vez é corrida.
+
+25. ~~**O campo perde a dica para o editor em tela cheia do teclado.**~~ — **fechada** com
+    `disableFullscreenUI`. Deitado — e o dono tem tablet — o Android troca a tela inteira
+    por uma caixa de texto no topo com branco embaixo, apagando a dica que devolve a conta
+    a cada tecla, que é a metade pela qual o `Field` existe.
 
 **Aberto do que esta caminhada achou:**
 
