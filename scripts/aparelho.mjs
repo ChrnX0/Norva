@@ -912,9 +912,21 @@ function derrubar() {
  * enchem o disco de objeto nativo que ele nunca vai executar — 8 GB medidos, e foi
  * o que derrubou duas compilações com o `cmake` saindo 1 por falta de espaço.
  */
-function compilar() {
-  dizer('compilando o APK de entrega (x86_64 apenas) — release, porque debug não traz o bundle');
-  execFileSync('./gradlew', ['assembleRelease', '-PreactNativeArchitectures=x86_64'], {
+function compilar(arquitetura = 'x86_64') {
+  /**
+   * **E a arquitetura é ARGUMENTO, porque o padrão daqui não serve para o dono.**
+   *
+   * Em 10 de setembro eu mandei para ele o APK compilado por este verbo dizendo que
+   * era para testar no tablet. Ele carrega `lib/x86_64/` e mais nada — não instala
+   * num aparelho ARM, que é todo tablet Android. O padrão está certo para o
+   * emulador e errado para qualquer outra pessoa, e um padrão certo que ninguém
+   * pode mudar é uma armadilha com uma cara boa.
+   *
+   *   node scripts/aparelho.mjs compilar              → emulador (x86_64)
+   *   node scripts/aparelho.mjs compilar arm64-v8a    → tablet e celular de verdade
+   */
+  dizer(`compilando o APK de entrega (${arquitetura}) — release, porque debug não traz o bundle`);
+  execFileSync('./gradlew', ['assembleRelease', `-PreactNativeArchitectures=${arquitetura}`], {
     cwd: 'android',
     stdio: 'inherit',
     env: { ...process.env, ANDROID_HOME: SDK },
@@ -928,7 +940,7 @@ function compilar() {
 const verbo = process.argv[2];
 const acoes = {
   subir,
-  compilar,
+  compilar: () => compilar(process.argv[3]),
   instalar: () => instalar(process.argv[3]?.startsWith('--') ? null : process.argv[3]),
   foto: () => foto(process.argv[3], process.argv[4]),
   fotos: () => fotos(process.argv[3], process.argv[4]),
