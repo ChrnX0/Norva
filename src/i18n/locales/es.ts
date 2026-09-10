@@ -925,6 +925,8 @@ export const es: Dictionary = {
     inputDetail: {
       overline: 'almacén',
       retiredOverline: 'almacén · fuera de circulación',
+      overlineSold: 'producto',
+      retiredOverlineSold: 'producto · fuera de circulación',
       madeBy: 'Cómo se hace',
       madeByHint: 'La ficha dice qué entra y cuánto rinde una vez. El costo de esta unidad sale de ella.',
       opening: 'Abriendo…',
@@ -934,6 +936,7 @@ export const es: Dictionary = {
         'Ya no aparece cuando eliges un ítem, y todo lo que pasó por él sigue como estaba.',
       currentCost: 'COSTO ACTUAL',
       averageOf: 'por cada 1.000 {{unit}} · promedio de las compras',
+      averageOfRuns: 'por cada 1.000 {{unit}} · promedio de las producciones',
       noInvoiceYet: 'todavía sin factura registrada',
       noRunYet: 'el costo aparece después de la primera corrida — es ella la que congela el precio del día',
       wentUp: 'Subió {{percent}} en la última compra',

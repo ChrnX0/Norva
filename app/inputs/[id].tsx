@@ -40,6 +40,7 @@ import {
   recordCount,
   salePricesFor,
   setItemActive,
+  type ItemKind,
   type ItemWithCost,
   type LocationBalance,
   type MovementRow,
@@ -63,12 +64,31 @@ import {
   formatWeekdayShort,
   plural,
 } from '@/i18n';
+import type { Dictionary } from '@/i18n';
 import { nowIso } from '@/data/db';
 import { dayWindow } from '@/domain/day';
 
 import { useLocale } from '@/i18n/useLocale';
 import { ALVO } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
+
+/**
+ * A palavra que nomeia o que esta tela está mostrando.
+ *
+ * Ela serve o que se COMPRA e o que se VENDE com o mesmo desenho — é a página de
+ * ESTOQUE de um item, e estoque é a mesma pergunta para os dois. O que não é o
+ * mesmo é o nome: `almoxarifado` tem três abas neste aplicativo — insumo,
+ * embalagem e material de loja — e um picolé não é nenhuma delas. A sobrancelha
+ * dizia `almoxarifado` para todos, e a foto pegou isso na tela de um produto.
+ *
+ * Decide pela ESPÉCIE do item e não por ter ficha: revenda também se vende e não
+ * tem ficha nenhuma.
+ */
+function sobrancelha(kind: ItemKind, ativo: boolean, t: Dictionary): string {
+  const vendido = kind === 'product' || kind === 'resale';
+  if (vendido) return ativo ? t.app.inputDetail.overlineSold : t.app.inputDetail.retiredOverlineSold;
+  return ativo ? t.app.inputDetail.overline : t.app.inputDetail.retiredOverline;
+}
 
 /**
  * One input, and everything the ledger already knows about it.
@@ -677,7 +697,7 @@ function InputDetail() {
     <CollapsingHeader
       cena="insumos"
       title={item.name}
-      overline={item.active ? t.app.inputDetail.overline : t.app.inputDetail.retiredOverline}
+      overline={sobrancelha(item.kind, item.active, t)}
     >
       {/* Fora de circulação, dito antes de tudo — é o que muda o significado de
           todo número abaixo. Em âmbar, e não em vermelho: nada está errado,
@@ -725,7 +745,13 @@ function InputDetail() {
             {!dinheiro
               ? t.common.moneyHidden
               : temCusto
-                ? fill(t.app.inputDetail.averageOf, { unit: item.baseUnit })
+                ? fill(
+                    // A MESMA distinção da linha de baixo, que estava só nela: quem a
+                    // fábrica faz não tem compra para tirar média. O conserto de 9 de
+                    // setembro entrou no ramo "sem custo" e o irmão ficou para trás.
+                    fichaQueFaz ? t.app.inputDetail.averageOfRuns : t.app.inputDetail.averageOf,
+                    { unit: item.baseUnit },
+                  )
                 : fichaQueFaz
                   ? t.app.inputDetail.noRunYet
                   : t.app.inputDetail.noInvoiceYet}

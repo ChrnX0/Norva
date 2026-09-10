@@ -920,6 +920,8 @@ export const en: Dictionary = {
     inputDetail: {
       overline: 'storeroom',
       retiredOverline: 'storeroom · out of circulation',
+      overlineSold: 'product',
+      retiredOverlineSold: 'product · out of circulation',
       madeBy: 'How it is made',
       madeByHint: 'The sheet says what goes in and what one run yields. This unit cost comes from it.',
       opening: 'Opening…',
@@ -929,6 +931,7 @@ export const en: Dictionary = {
         'It no longer appears when you pick an item, and everything that went through it stays as it was.',
       currentCost: 'CURRENT COST',
       averageOf: 'per 1,000 {{unit}} · average of the invoices',
+      averageOfRuns: 'per 1,000 {{unit}} · average of the runs',
       noInvoiceYet: 'no invoice recorded yet',
       noRunYet: 'the cost shows up after the first run — that is what freezes the price of the day',
       wentUp: 'Up {{percent}} on the last purchase',

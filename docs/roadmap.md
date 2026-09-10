@@ -347,28 +347,44 @@ virar afirmação. **Seis fechados no mesmo dia:**
     o saldo dele. Fronteira escrita em `PORTA_DIFERENTE_DA_TELA`
     (`src/dictionary.test.ts`), que é o que impede o achado de sumir.
 
-28. **A conferência da doca só sabe dizer "chegou tudo"** — e isso contraria uma decisão
-    escrita do dono. Achado dirigindo o aplicativo em 10 de setembro: o toque em *"Loja
-    Centro ainda não conferiu o que chegou"* abre uma folha com UM botão, *"Conferir
-    chegada"*, e grava. Não há onde dizer que faltaram três caixas.
+28. ~~**A conferência da doca só sabe dizer "chegou tudo"**~~ — **eu superestimei o
+    achado, e a correção é minha.** A tela realmente só grava "chegou tudo": o toque abre
+    uma folha com um botão e `app/(tabs)/transport.tsx:137` chama `recordCheck` sem
+    `counted`. O que eu não li foi o docblock quatro linhas ACIMA do comentário que eu
+    citei (`:104`), e ele decide isso por escrito, com razão e com saída: *"um formulário
+    de contagem por item, no celular, na doca, ninguém preenche. Quem achou diferença
+    corrige na tela do lugar, que já sabe registrar contagem cega."*
 
-    O `CLAUDE.md` decide o contrário, com estas palavras: *"contagem é perguntada toda
-    vez, e é gravada como diferença que o livro-razão guarda, nunca como valor que
-    sobrescreve"*. E a seção de tom usa como exemplo canônico de como o aplicativo fala
-    uma frase que ele **não consegue produzir**: *"Faltaram 3 caixas na conferência"*.
+    **E a saída existe e foi exercida no aparelho em 10 de setembro.** Produtos → Picole
+    abre a página de estoque do item, que diz *"Este item está em 2 lugares. Conta-se um
+    lugar por vez — toque no lugar para conferir ali"*, com `Fábrica 233 un` e `Loja Centro
+    300 un` — e a conta bate na mão: 533 produzidos menos 1 engradado de 300 transferido.
+    Contar ali grava a diferença no razão, que é exatamente o que a decisão do dono pede.
 
-    O que existe e o que falta, medido:
-    - `recordCheck` (`src/data/repository.ts:3981`) **aceita** `counted?: {itemId,
-      baseUnits}[]` — o caminho de escrita está construído e provado.
-    - `app/(tabs)/transport.tsx:137` chama `recordCheck(empresaDaqui(), { groupId })`,
-      sem `counted`, sempre. O comentário acima justifica a omissão com um problema real
-      mas ESTREITO (somar o destino contaria duas cargas do mesmo dia duas vezes) — e a
-      consequência é muito maior que a razão: a diferença nunca entra no razão.
-    - `t.signals.missing` — *"Faltaram {{count}} caixas"*, nos três idiomas — **não tem
-      leitor nenhum** (`src/i18n/locales/pt-BR.ts:1976`).
+    Fica a lição, que é a regra deste arquivo me pegando: **procure a decisão ANTES de
+    chamar de defeito** — e procure no docblock inteiro, não no comentário mais próximo da
+    linha. Eu tinha feito `grep` no repositório e li o comentário de `:125`, que explica
+    uma coisa estreita; a decisão estava vinte linhas acima.
 
-    Consequência de negócio: o Espelho da Loja mede o que cada loja devolve, e a captura
-    dele depende desta diferença. Sem ela, a falta some entre a fábrica e a prateleira.
+    **O que sobra de verdade é uma frase morta**, e ela vai para o item 29: `t.signals.missing`
+    — *"Faltaram {{count}} caixas"*, nos três idiomas — não tem leitor
+    (`src/i18n/locales/pt-BR.ts:1976`). O `CLAUDE.md` usa essa frase como exemplo canônico
+    de como o aplicativo fala; hoje quem diz a falta é a tela de contagem, com outras
+    palavras. Ou a frase ganha o leitor que a decisão indica, ou ela sai dos três idiomas.
+
+30. ~~**A mesma tela chamava um picolé de "almoxarifado"**~~ — **fechado.** A página de
+    estoque de um item serve o que se compra e o que se vende com o mesmo desenho, e a
+    sobrancelha dizia sempre a primeira: um produto aparecia sob a palavra que neste
+    aplicativo tem três abas, e nenhuma delas é produto. Quarta aparição do defeito do item
+    12. Passa a decidir pela ESPÉCIE (`product`/`resale` contra os três do almoxarifado), e
+    não por ter ficha — revenda também se vende e não tem ficha.
+
+31. ~~**"média das compras" no custo de um picolé**~~ — **fechado**, e é a regra
+    *"conserto de pele não termina no arquivo que o mostrou"* aplicada a texto. A mesma
+    distinção já existia DUAS LINHAS ABAIXO, com a cicatriz escrita: o ramo "sem custo
+    ainda" aprendeu em 9 de setembro a não mandar procurar nota fiscal de um picolé, e o
+    ramo irmão — o que TEM custo — continuou dizendo que a média era das compras. Quem a
+    fábrica faz não tem compra: agora diz "média das produções".
 
 29. **A guarda de chaves do dicionário casa pelo NOME da folha, em qualquer objeto** — e
     foi ela que escondeu o item 28. `folhasSemLeitor` (`src/dictionary.test.ts:464`)

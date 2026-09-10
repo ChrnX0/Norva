@@ -1177,6 +1177,14 @@ export const ptBR = {
     inputDetail: {
       overline: 'almoxarifado',
       retiredOverline: 'almoxarifado · fora de circulação',
+      /**
+       * A mesma tela serve o que se COMPRA e o que se VENDE, e a sobrancelha dizia
+       * sempre a primeira. Um picolé aparecia sob a palavra 'almoxarifado', que neste
+       * aplicativo tem três abas — insumo, embalagem e material de loja — e nenhuma
+       * delas é produto. Achado dirigindo a tela em 10 de setembro.
+       */
+      overlineSold: 'produto',
+      retiredOverlineSold: 'produto · fora de circulação',
       madeBy: 'Como é feito',
       madeByHint: 'A ficha diz o que entra e quanto rende uma vez. O custo desta unidade sai dela.',
       opening: 'Abrindo…',
@@ -1186,6 +1194,8 @@ export const ptBR = {
         'Ele não aparece mais quando você escolhe um item, e tudo o que já passou por ele continua como estava.',
       currentCost: 'CUSTO ATUAL',
       averageOf: 'a cada 1.000 {{unit}} · média das compras',
+      /** O que a própria fábrica faz não tem compra: o custo vem das corridas. */
+      averageOfRuns: 'a cada 1.000 {{unit}} · média das produções',
       noInvoiceYet: 'ainda sem nota lançada',
       noRunYet: 'o custo aparece depois da primeira corrida — é ela que congela o preço do dia',
       wentUp: 'Subiu {{percent}} na última compra',
