@@ -154,17 +154,35 @@ por peso, e o que já foi fechado:**
     número sai como *"em até"*, porque cada volta do laço paga a leitura da árvore e essa
     parte é o instrumento, não o aplicativo.
 
-6. **Quem entra por link direto numa tela interna não tem volta**: o botão voltar sai do
-   aplicativo, porque não há pilha atrás.
+6. **Quem entra por link direto numa tela interna não tem volta** — **confirmado no
+    aparelho e consertado, esperando a prova.** Medido em 10 de setembro com espera de
+    verdade: partida fria em `norva://losses`, um toque no voltar, e
+    `mCurrentFocus` passa para o launcher — o aplicativo **sai**. Sem âncora o roteador
+    monta a pilha com uma tela só, e voltar da única tela é sair.
+
+    Importa porque são exatamente as duas portas que o produto promete: o QR do engradado
+    na doca e a notificação de validade. As duas abrem tela interna num celular que estava
+    no bolso, e nas duas a pessoa aperta voltar esperando o aplicativo.
+
+    O conserto é `unstable_settings = { anchor: '(tabs)' }` em `app/_layout.tsx` — o
+    mecanismo que o `expo-router` tem para isso (`getRoutesCore.js:655`). **Falta a prova
+    no aparelho**: o APK está compilando, e o teste é o mesmo que achou o defeito.
+
 7. ~~**A primeira ação que a capa oferece num aplicativo vazio é impossível.**~~ —
    **fechada em 10 de setembro.** A tela de produção tem razão escrita para não navegar
    dali (é empilhada, e o caminho de volta é o de sempre); o defeito estava antes, na capa
    sugerindo a única coisa que ainda não dava para fazer. `primeiroPasso` no domínio
    devolve onde a cadeia parou — insumo, ficha, produto ou produção — e a capa oferece a
    porta que falta.
-8. **Nomes cortados onde a escolha depende deles**: na configuração das peças da capa
-   metade dos rótulos vem com reticências (*"Produção a…"*, *"Quem rece…"*, *"Vence
-   prim…"*), então não dá para saber qual peça se está escondendo.
+8. **Nomes cortados onde a escolha depende deles** — **consertado, esperando a prova.**
+    `numberOfLines={1}` no rótulo da peça, em `app/settings.tsx`, nas DUAS listas: a das
+    peças que estão na capa e a das que estão fora. É a mesma cicatriz do botão de idioma
+    (*"Portugu / ês"*, item 9) noutro lugar: a linha economiza uma altura de texto e gasta
+    a decisão, porque é ali que a pessoa escolhe a peça. O rótulo passa a quebrar — sem
+    número mágico, servindo de 360 dp ao tablet — e a fileira alinha pelo topo para os
+    controles não dançarem quando o nome ocupa duas linhas. **Falta a foto**, que é o que
+    prova tela.
+
 9. ~~**A palavra quebrada no meio**: o botão de idioma escreve *"Portugu / ês"*.~~ —
    **fechada.** Os três botões dividiam a largura em três fatias iguais e a 360 dp a fatia
    é menor que a palavra. A linha passa a quebrar e cada botão toma a largura da palavra

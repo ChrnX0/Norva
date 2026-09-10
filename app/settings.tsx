@@ -1056,10 +1056,16 @@ function Settings() {
             {ordem.map((widget, i) => {
               const escondido = escondidos.includes(widget);
               return (
-                <View key={widget} style={[styles.row, { gap: space.sm, paddingVertical: space.xs }]}>
+                <View key={widget} style={[styles.top, { gap: space.sm, paddingVertical: space.xs }]}>
+                  {/* **O nome NÃO se corta aqui, e é a mesma cicatriz do botão de
+                      idioma.** Esta linha é onde a pessoa ESCOLHE a peça, e a foto
+                      pegou metade dos rótulos em reticências — "Produção a…", "Quem
+                      rece…", "Vence prim…" —, ou seja, escolher entre coisas que não
+                      dá para ler. `numberOfLines={1}` economiza uma linha e gasta a
+                      decisão. Deixar quebrar não pede número mágico nenhum e serve
+                      de 360 dp ao tablet. */}
                   <Text
                     style={[type.body, { color: escondido ? color.inkFaint : color.ink, flex: 1 }]}
-                    numberOfLines={1}
                   >
                     {t.app.settings.briefing.widgets[widget]}
                     {escondido ? ` · ${t.app.settings.briefing.hidden}` : ''}
@@ -1155,8 +1161,13 @@ function Settings() {
                 {t.app.settings.briefing.offCover}
               </Text>
               {fora.map((widget) => (
-                <View key={widget} style={[styles.row, { gap: space.sm, paddingVertical: space.xs }]}>
-                  <Text style={[type.body, { color: color.inkMuted, flex: 1 }]} numberOfLines={1}>
+                <View key={widget} style={[styles.top, { gap: space.sm, paddingVertical: space.xs }]}>
+                  {/* A lista de fora é a MESMA escolha com o sinal trocado: quem lê
+                      aqui está decidindo o que trazer de volta. Cortar o nome nos dois
+                      lugares seria consertar metade — a regra da casa é que conserto de
+                      forma não termina no arquivo que o mostrou, e aqui nem de arquivo
+                      ele muda. */}
+                  <Text style={[type.body, { color: color.inkMuted, flex: 1 }]}>
                     {t.app.settings.briefing.widgets[widget]}
                   </Text>
                   <Pressable
