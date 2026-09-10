@@ -352,6 +352,41 @@ check('the recipe list opens on a deep link and shows the seeded sheets', async 
   assert.doesNotMatch(text, /Nada cadastrado ainda/);
 });
 
+check('a new sheet can use an existing sheet as an ingredient', async (page) => {
+  // O caso da fábrica, dito pelo dono em 10 de setembro: o picolé de morango leva
+  // "calda base de leite", e o pote de sorvete de ameixa leva a MESMA calda. O banco
+  // guarda receita-dentro-de-receita desde a `0018` e o domínio explode a sub-receita
+  // pelo rendimento líquido — o que não existia era a tela oferecer.
+  //
+  // Esta checagem anda o caminho inteiro dele: cria a ficha, e usa a que já existe
+  // dentro dela. Sem ela, "a tela deixa aninhar" é afirmação sobre código que ninguém
+  // tocou.
+  const nome = `Massa de ameixa ${Date.now()}`;
+
+  await page.goto(`http://localhost:${PORT}/recipes/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  await page.getByRole('textbox', { name: 'Nome da ficha' }).fill(nome);
+  await page.getByRole('textbox', { name: 'Rendimento' }).fill('40000');
+  await page.getByRole('button', { name: 'Criar ficha' }).click();
+  await page.waitForTimeout(1200);
+  // A confirmação diz o que vai acontecer antes de acontecer — é a Lei 5 desta casa,
+  // e por isso o salvamento tem dois toques e não um.
+  await page.getByRole('button', { name: 'Criar ficha' }).last().click();
+  await page.waitForTimeout(3000);
+
+  const ficha = await screen(page);
+  assert.match(ficha, new RegExp(nome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), 'abriu na ficha nova');
+  assert.match(ficha, /USAR UMA RECEITA/, 'a ficha nova pode usar outra ficha');
+  assert.match(ficha, /Base de creme/, 'a calda que já existe é oferecida');
+
+  await page.getByRole('button', { name: 'USAR UMA RECEITA Base de creme' }).click();
+  await page.waitForTimeout(2000);
+
+  const comCalda = await screen(page);
+  assert.match(comCalda, /Base de creme.*sub-receita/s, 'a calda entrou como sub-receita');
+});
+
 check('the five tabs are there, and the old addresses still answer', async (page) => {
   // The screens moved into `app/(tabs)/`, a group whose name is in parentheses
   // and therefore NOT in the URL. This check is what proves that: twenty-six

@@ -1373,6 +1373,7 @@ export const en: Dictionary = {
       moreTen: '+10%',
       remove: 'remove',
       add: 'ADD',
+      addRecipe: 'USE A RECIPE',
       batchYield: 'Batch yield',
       expectedLoss: 'Expected loss',
       lossHint:

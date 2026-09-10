@@ -467,3 +467,34 @@ export function shoppingList(
     })
     .sort((a, b) => b.missing - a.missing);
 }
+
+/**
+ * Would using `child` inside `parent` create a loop?
+ *
+ * `explodeRequirements` already refuses a cycle — it throws `RecipeCycleError`
+ * when the stack repeats. That is the right net and the wrong moment: by then
+ * the person has already saved a recipe that cannot be costed, and the screen
+ * has to explain a failure instead of never offering the option. This project's
+ * fifth law says an error PREVENTS rather than complains, and prevention needs
+ * the question asked before the choice is shown, not after it is made.
+ *
+ * The walk is over the child's own subtree: if the parent is reachable from the
+ * child, adding the child to the parent closes the loop. `seen` makes it safe on
+ * a graph that is already broken — a cycle among OTHER recipes must not hang the
+ * screen that is trying to avoid making a new one.
+ */
+export function wouldCycle(
+  parentId: string,
+  childId: string,
+  recipes: Record<string, Recipe>,
+  seen: Set<string> = new Set(),
+): boolean {
+  if (childId === parentId) return true;
+  if (seen.has(childId)) return false;
+  seen.add(childId);
+  const child = recipes[childId];
+  if (!child) return false;
+  return child.lines.some(
+    (line) => line.kind === 'recipe' && wouldCycle(parentId, line.recipeId, recipes, seen),
+  );
+}

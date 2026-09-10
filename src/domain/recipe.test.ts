@@ -13,6 +13,7 @@ import {
   RecipeCycleError,
   unitsPerBatch,
   batchWithPackaging,
+  wouldCycle,
   type ItemCosts,
   type Recipe,
 } from './recipe';
@@ -574,4 +575,76 @@ test('o lote com embalagem é a massa mais a embalagem de cada unidade', () => {
     2 * unidades,
     'dois centavos por unidade custam dois centavos vezes as unidades da batelada',
   );
+});
+
+/**
+ * A calda base do dono, e a única coisa que pode dar errado ao aninhar receita.
+ *
+ * O caso real veio dele em 10 de setembro: o picolé de morango usa a "calda base de
+ * leite" como ingrediente, e o pote de sorvete de ameixa usa a mesma calda. Aninhar é o
+ * normal da fábrica, não a exceção — o que não pode existir é o laço.
+ */
+const cozinha: Record<string, Recipe> = {
+  calda: {
+    id: 'calda',
+    versionId: 'calda-v',
+    version: 1,
+    effectiveFrom: '2026-01-01',
+    yieldAmount: 50_000,
+    yieldUnit: 'ml',
+    lossFraction: 0,
+    lines: [{ kind: 'item', itemId: 'leite', quantity: 40_000 }],
+  },
+  morango: {
+    id: 'morango',
+    versionId: 'morango-v',
+    version: 1,
+    effectiveFrom: '2026-01-01',
+    yieldAmount: 264,
+    yieldUnit: 'un',
+    lossFraction: 0,
+    lines: [
+      { kind: 'recipe', recipeId: 'calda', quantity: 20_000 },
+      { kind: 'item', itemId: 'polpa', quantity: 5_000 },
+    ],
+  },
+  ameixa: {
+    id: 'ameixa',
+    versionId: 'ameixa-v',
+    version: 1,
+    effectiveFrom: '2026-01-01',
+    yieldAmount: 200,
+    yieldUnit: 'un',
+    lossFraction: 0,
+    lines: [{ kind: 'recipe', recipeId: 'calda', quantity: 30_000 }],
+  },
+};
+
+test('a mesma calda serve duas receitas, e isso não é ciclo', () => {
+  // O caso que a tela precisa OFERECER: aninhar de verdade tem de ser permitido,
+  // senão a guarda vira "nunca deixa" e a fábrica não cadastra nada.
+  assert.equal(wouldCycle('morango', 'calda', cozinha), false);
+  assert.equal(wouldCycle('ameixa', 'calda', cozinha), false);
+});
+
+test('a receita não pode usar a si mesma, nem fechar laço por um caminho longo', () => {
+  assert.equal(wouldCycle('calda', 'calda', cozinha), true, 'ela mesma');
+  // A calda usando o morango fecharia calda → morango → calda. É o laço que a tela
+  // tem de esconder ANTES de a pessoa escolher, não estourar depois de salvar.
+  assert.equal(wouldCycle('calda', 'morango', cozinha), true, 'laço de dois passos');
+});
+
+test('grafo já quebrado não trava a tela que tenta não quebrá-lo mais', () => {
+  // `seen` existe para isto: se duas OUTRAS receitas já estão em laço, perguntar
+  // "posso usar esta?" tem de responder, não pendurar.
+  const quebrado: Record<string, Recipe> = {
+    ...cozinha,
+    x: { ...cozinha.calda, id: 'x', lines: [{ kind: 'recipe', recipeId: 'y', quantity: 1 }] },
+    y: { ...cozinha.calda, id: 'y', lines: [{ kind: 'recipe', recipeId: 'x', quantity: 1 }] },
+  };
+  assert.equal(wouldCycle('morango', 'x', quebrado), false);
+});
+
+test('receita que não existe no grafo não é ciclo, é ausência', () => {
+  assert.equal(wouldCycle('morango', 'fantasma', cozinha), false);
 });

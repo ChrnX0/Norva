@@ -1777,6 +1777,7 @@ export const ptBR = {
       moreTen: '+10%',
       remove: 'tirar',
       add: 'ACRESCENTAR',
+      addRecipe: 'USAR UMA RECEITA',
       batchYield: 'Quanto rende de cada vez',
       expectedLoss: 'Perda esperada',
       lossHint:

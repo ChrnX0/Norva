@@ -1377,6 +1377,7 @@ export const es: Dictionary = {
       moreTen: '+10%',
       remove: 'quitar',
       add: 'AGREGAR',
+      addRecipe: 'USAR UNA RECETA',
       batchYield: 'Cuánto rinde cada vez',
       expectedLoss: 'Merma esperada',
       lossHint:

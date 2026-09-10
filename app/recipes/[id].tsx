@@ -32,6 +32,7 @@ import {
   packagingRatePerUnit,
   RecipeCycleError,
   unitsPerBatch,
+  wouldCycle,
   type ItemCosts,
   type Recipe,
   type RecipeCost,
@@ -460,6 +461,16 @@ function RecipeEditor() {
   const addItem = (itemId: string) =>
     edit({ lines: [...(lines ?? []), { kind: 'item', itemId, quantity: 1_000 }] });
 
+  /**
+   * Acrescentar uma RECEITA como ingrediente — a calda base dentro do picolé.
+   *
+   * A quantidade nasce em 1.000 da unidade de rendimento da sub-receita, e não em 1:
+   * calda se mede em mililitros, e um mililitro de calda num lote é um número que a
+   * pessoa teria de corrigir toda vez. Mesmo motivo do `addItem` aqui do lado.
+   */
+  const addRecipe = (id: string) =>
+    edit({ lines: [...(lines ?? []), { kind: 'recipe', recipeId: id, quantity: 1_000 }] });
+
   const title =
     recipeId && data ? (data.labels[recipeId] ?? t.app.recipe.fallbackTitle) : t.app.recipe.fallbackTitle;
 
@@ -493,6 +504,26 @@ function RecipeEditor() {
 
   const inRecipe = new Set(lines.map((l) => (l.kind === 'item' ? l.itemId : l.recipeId)));
   const available = data.items.filter((i) => !inRecipe.has(i.id));
+
+  /**
+   * As receitas que esta pode usar como ingrediente.
+   *
+   * O caso é o da fábrica: o picolé de morango leva "calda base de leite", e o pote de
+   * sorvete de ameixa leva a mesma calda. Aninhar é o normal, não a exceção — o banco
+   * guarda isso desde a `0018` e o domínio explode a sub-receita nos ingredientes dela
+   * pelo rendimento líquido. **O que não existia era esta lista.**
+   *
+   * O que fica de fora, e é a Lei 5 (erro IMPEDE, não reclama): o que fecharia laço não
+   * é oferecido. `explodeRequirements` já recusa ciclo, mas só na hora de custear — aí a
+   * pessoa já salvou uma ficha que não tem custo, e a tela teria de explicar uma falha
+   * em vez de nunca ter mostrado a opção.
+   */
+  const availableRecipes = recipeId
+    ? Object.keys(data.recipes)
+        .filter((id) => !inRecipe.has(id) && !wouldCycle(recipeId, id, data.recipes))
+        .map((id) => ({ id, name: data.labels[id] ?? id, unit: data.recipes[id]?.yieldUnit ?? '' }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    : [];
 
   /**
    * A cascata não pula número.
@@ -674,6 +705,38 @@ function RecipeEditor() {
           {/* O que ainda não está na ficha, em texto e sem caixa - a mesma forma
               que o almoxarifado usa para escolher, e a que sobrevive nas duas
               caras porque não desenha nada. */}
+          {availableRecipes.length > 0 ? (
+            <>
+              {/* As receitas vêm ANTES dos insumos na hora de acrescentar, e é
+                  deliberado: quem monta um picolé pensa primeiro "leva calda base" e
+                  só depois nos ingredientes soltos. A cor separa as duas naturezas —
+                  o tom de insumo é o do almoxarifado, e sub-receita não é insumo. */}
+              <Text style={[type.overline, { color: color.inkFaint, marginTop: space.md }]}>
+                {t.app.recipe.addRecipe}
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={{ flexDirection: 'row', gap: space.lg }}>
+                  {availableRecipes.map((sub) => (
+                    <Pressable
+                      key={sub.id}
+                      onPress={() => addRecipe(sub.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t.app.recipe.addRecipe} ${sub.name}`}
+                      style={{ paddingVertical: space.sm, minHeight: ALVO, justifyContent: 'center' }}
+                    >
+                      <Text
+                        style={[type.secondary, { color: palette.apricot, fontWeight: '600' }]}
+                        numberOfLines={1}
+                      >
+                        {sub.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+            </>
+          ) : null}
+
           {available.length > 0 ? (
             <>
               <Text style={[type.overline, { color: color.inkFaint, marginTop: space.md }]}>
