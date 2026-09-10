@@ -176,6 +176,19 @@ Daí três regras de construção:
    toque em coordenada não serve aqui: quebra quando o layout muda, que é justamente
    o que se está medindo.
 
+   **E a metade que CONFERE isso está cega — medido em 9 de setembro, horas depois.**
+   Quem deveria pegar "a rota não pegou numa das cinco" é `mesmaTelaEmTodas`, comparando
+   o texto da tela lido por `uiautomator`. Só que com o movimento de ambiente rodando —
+   que é o estado normal do aplicativo — o `uiautomator` não lê nada: falhou três vezes
+   em três, e uma delas disse por quê, `ERROR: could not get idle state`. A janela nunca
+   fica ociosa. O `try/catch` de `oQueDizATela()` transforma isso em lista vazia, e
+   `mesmaTelaEmTodas([])` responde "iguais" — **a guarda não pode falhar**, que é
+   exatamente o defeito que este arquivo proíbe duas seções abaixo.
+
+   Então, até o item do orçamento de movimento fechar (`docs/roadmap.md`): a rota
+   continua obrigatória e a reabertura por ligação profunda continua funcionando — o que
+   NÃO existe é a conferência automática de que ela pegou. Confira olhando as cinco.
+
 4. **A ferramenta que troca a largura DEIXA a largura trocada.** `wm density` é
    persistente: em 7 de setembro o emulador estava preso em 240 dpi de um teste
    antigo, e eu passei a sessão inteira lendo **720 dp — tablets** — como se fossem

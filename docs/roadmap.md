@@ -133,10 +133,30 @@ A doutrina do movimento em `src/theme/tokens.ts` fala de **duração de ciclo** 
 e não fala de **quantos ciclos correm juntos** nem do que custam. Falta um orçamento: um
 teto de ciclos vivos por tela, ou parar o ambiente do que está fora da vista.
 
+**E o custo não é só bateria: a árvore de acessibilidade fica ilegível.** Medido logo
+depois, e este não é número de emulador lento — é uma propriedade de animação infinita.
+Com o movimento no estado normal, `uiautomator dump` falhou três vezes em três, e a
+terceira disse a causa com todas as letras: **`ERROR: could not get idle state`**. A
+janela nunca fica ociosa. Com "reduzir movimento" ligado, o mesmo comando devolveu 128
+nós e 18 textos em 15 segundos.
+
+Duas consequências dentro do repositório, e a segunda é pior:
+
+1. `oQueDizATela()` (`scripts/aparelho.mjs`) devolve lista vazia em operação normal, e
+   o `try/catch` engole a falha em silêncio.
+2. Por causa disso, `mesmaTelaEmTodas` — a guarda que o `CLAUDE.md` descreve como o que
+   pega "a navegação não pegou numa das cinco larguras" — compara listas vazias e
+   **nunca pode falhar**. Uma guarda que não distingue os dois casos, exatamente o que
+   este projeto proíbe.
+
+E a pergunta que fica de pé, porque um leitor de tela usa esse mesmo cano: se o
+`uiautomator` não consegue ler a tela, o TalkBack consegue? Não meço isso daqui — o
+aparelho do dono responde.
+
 **A fronteira, para o item não afirmar mais do que mediu:** os 190% são de um emulador
 por software, sem GPU e sem KVM. Não afirmo o número no tablet do dono — afirmo que a
-thread de UI é o recurso disputado e que hoje ninguém a mede. O teste no aparelho dele é
-o que fecha ou reabre este item.
+thread de UI é o recurso disputado e que hoje ninguém a mede. O `could not get idle
+state`, esse, não depende da máquina.
 
 ### A. O aplicativo não lê o estado do pedido de Reset
 <!-- medida: ausente src/sync :: from('erase_requests') -->

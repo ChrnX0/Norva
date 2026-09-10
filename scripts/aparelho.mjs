@@ -37,6 +37,8 @@
  *   node scripts/aparelho.mjs derrubar
  */
 import { execFileSync, spawn } from 'node:child_process';
+import { Buffer } from 'node:buffer';
+import { deflateSync } from 'node:zlib';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -224,6 +226,61 @@ function larguraEmDp() {
  * inútil. Com rota, espera a tela parar, como o plural faz.
  */
 /**
+ * O quadro cru virado PNG — para a foto e a medida serem a MESMA captura.
+ *
+ * Antes eram duas: `screencap -p` gravava o arquivo e a régua tirava um segundo
+ * quadro, segundos depois. Elas discordaram na primeira vez em que importou — o
+ * PNG saiu com a tela de abertura e a medida veio da capa que já tinha aparecido,
+ * e eu reportei `tinta 15,35:1` para uma imagem que não tinha aquela tinta.
+ * Número que não descreve a imagem ao lado é pior que número nenhum: ele passa a
+ * prova sem prová-la.
+ *
+ * Escrever PNG à mão parece exagero e é o contrário: são três blocos e um CRC, sem
+ * dependência nova, e resolve a raiz em vez de tentar sincronizar duas capturas.
+ */
+function pngDoQuadro(cru, largura, altura, inicio) {
+  const crcTabela = new Int32Array(256);
+  for (let n = 0; n < 256; n += 1) {
+    let c = n;
+    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    crcTabela[n] = c;
+  }
+  const crc = (buf) => {
+    let c = -1;
+    for (const b of buf) c = crcTabela[(c ^ b) & 0xff] ^ (c >>> 8);
+    return (c ^ -1) >>> 0;
+  };
+  const bloco = (tipo, dados) => {
+    const t = Buffer.from(tipo, 'ascii');
+    const tamanho = Buffer.alloc(4);
+    tamanho.writeUInt32BE(dados.length);
+    const soma = Buffer.alloc(4);
+    soma.writeUInt32BE(crc(Buffer.concat([t, dados])));
+    return Buffer.concat([tamanho, t, dados, soma]);
+  };
+
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(largura, 0);
+  ihdr.writeUInt32BE(altura, 4);
+  ihdr[8] = 8; // bits por canal
+  ihdr[9] = 6; // RGBA
+  // Cada linha leva um byte de filtro na frente; zero é "sem filtro", que é o
+  // suficiente — quem comprime é o deflate logo abaixo.
+  const linhas = Buffer.alloc(altura * (1 + largura * 4));
+  for (let y = 0; y < altura; y += 1) {
+    const destino = y * (1 + largura * 4);
+    linhas[destino] = 0;
+    cru.copy(linhas, destino + 1, inicio + y * largura * 4, inicio + (y + 1) * largura * 4);
+  }
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    bloco('IHDR', ihdr),
+    bloco('IDAT', deflateSync(linhas, { level: 6 })),
+    bloco('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+/**
  * Metade da página tem tinta de verdade? — lido do framebuffer CRU, sem
  * decodificar PNG e sem dependência nova.
  *
@@ -253,16 +310,7 @@ function larguraEmDp() {
  * — *tem tinta de verdade nesta página?* Quem mede o contraste de um texto
  * específico é `src/theme/contrast.test.ts`, sobre as cores da paleta.
  */
-function tintaDaPagina() {
-  const cru = adbBin('exec-out', 'screencap');
-  const largura = cru.readUInt32LE(0);
-  const altura = cru.readUInt32LE(4);
-  if (!largura || !altura) return null;
-  // O cabeçalho tem 12 bytes (largura, altura, formato) e ganhou um quarto campo
-  // com o espaço de cor no Android 10. Qual dos dois é a conta que fecha.
-  const inicio = cru.length - largura * altura * 4 === 16 ? 16 : 12;
-  if (cru.length - inicio !== largura * altura * 4) return null;
-
+function tintaDaPagina(cru, largura, altura, inicio) {
   const luz = (v) => {
     const c = v / 255;
     return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
@@ -292,9 +340,11 @@ function tintaDaPagina() {
     fitas.push((papel + 0.05) / (tinta + 0.05));
   }
   if (fitas.length === 0) return null;
+  const comTinta = fitas.filter((c) => c >= PISO_DE_TEXTO).length;
   fitas.sort((a, b) => a - b);
   const meio = Math.floor(fitas.length / 2);
-  return fitas.length % 2 ? fitas[meio] : (fitas[meio - 1] + fitas[meio]) / 2;
+  const mediana = fitas.length % 2 ? fitas[meio] : (fitas[meio - 1] + fitas[meio]) / 2;
+  return { mediana, comTinta, fitas: fitas.length };
 }
 
 /** O piso de texto da casa, o mesmo de `src/theme/contrast.test.ts`. */
@@ -309,13 +359,28 @@ async function foto(nome, rota) {
   mkdirSync(SAIDA, { recursive: true });
   const destino = join(SAIDA, `${nome}.png`);
 
-  // Primeiro pelo convidado. Se a composição estiver do lado do host, isto devolve
-  // um retângulo morto — e aí a segunda tentativa, pelo console do emulador, pega
-  // o quadro onde ele realmente está.
+  // UMA captura, crua, que vira o arquivo E a medida.
+  //
+  // Eram duas — `screencap -p` para o arquivo e um segundo quadro para a régua —,
+  // e elas discordaram na primeira vez em que importou: o PNG saiu com a tela de
+  // abertura e a medida veio da capa que já tinha aparecido no meio do caminho.
+  // Duas capturas nunca descrevem a mesma tela; esta descreve.
+  //
+  // Se a composição estiver do lado do host, o quadro vem morto — e aí a segunda
+  // tentativa, pelo console do emulador, pega onde ele realmente está.
   let veredito;
+  let tinta = null;
   try {
-    const png = adbBin('exec-out', 'screencap', '-p');
-    writeFileSync(destino, png);
+    const cru = adbBin('exec-out', 'screencap');
+    const largura = cru.readUInt32LE(0);
+    const altura = cru.readUInt32LE(4);
+    const inicio = cru.length - largura * altura * 4 === 16 ? 16 : 12;
+    if (largura && altura && cru.length - inicio === largura * altura * 4) {
+      writeFileSync(destino, pngDoQuadro(cru, largura, altura, inicio));
+      tinta = tintaDaPagina(cru, largura, altura, inicio);
+    } else {
+      writeFileSync(destino, adbBin('exec-out', 'screencap', '-p'));
+    }
     veredito = pareceViva(destino);
   } catch {
     veredito = { bytes: 0, variacao: 0, viva: false };
@@ -339,14 +404,27 @@ async function foto(nome, rota) {
   const emQue = largura
     ? ` — ${largura.dp} dp (${largura.px} px a ${largura.dpi} dpi)${largura.dp >= 600 ? ' ⚠ TABLET' : ''}`
     : '';
-  const contraste = tintaDaPagina();
-  const emTinta = contraste === null ? '' : `, tinta ${contraste.toFixed(2)}:1`;
+  // A tinta E a extensão dela, porque o número sozinho não diz QUE tela é esta.
+  //
+  // Cicatriz da mesma hora: fotografei a capa para provar um conserto, li
+  // `tinta 15,35:1`, e era a TELA DE ABERTURA — a marca do aplicativo, tinta cheia
+  // sobre papel, que satisfaz a régua com duas fitas de vinte e duas. A mediana
+  // responde "tem tinta"; ela nunca respondeu "é a página certa", e eu li como se
+  // respondesse.
+  //
+  // O sinal que separa as duas já estava calculado e jogado fora: quantas fitas têm
+  // tinta. A abertura tem duas; qualquer tela do aplicativo tem quinze ou mais.
+  // Sai de graça, não depende de janela ociosa — e o `uiautomator`, que responderia
+  // a mesma pergunta melhor, leva até dois minutos nesta tela e às vezes devolve
+  // `null root node`, porque a animação de ambiente nunca deixa a janela parar.
+  const emTinta = tinta === null ? '' : `, tinta ${tinta.mediana.toFixed(2)}:1 em ${tinta.comTinta}/${tinta.fitas} fitas`;
   console.log(
     `${destino} — ${(veredito.bytes / 1024).toFixed(0)} KB, variação ${veredito.variacao}${emTinta}${emQue}`,
   );
-  if (contraste !== null && contraste < PISO_DE_TEXTO) {
+
+  if (tinta !== null && tinta.mediana < PISO_DE_TEXTO) {
     dizer(
-      `ATENÇÃO: metade da página está abaixo de ${contraste.toFixed(2)}:1, e o piso de texto ` +
+      `ATENÇÃO: metade da página está abaixo de ${tinta.mediana.toFixed(2)}:1, e o piso de texto ` +
         `da casa é ${PISO_DE_TEXTO}:1.\n` +
         'A página inteira pode estar sob um véu — foi assim que a capa do primeiro dia\n' +
         'passou minutos a 22% de opacidade com a foto saindo bonita no arquivo.',

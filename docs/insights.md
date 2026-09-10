@@ -8594,3 +8594,55 @@ dono — afirmo que a thread de UI é o recurso disputado, que o custo do ambien
 do app, e que **nada no repositório mede isso hoje**. A doutrina do movimento fala de
 duração de ciclo (4 a 12 s) e não fala de quantos ciclos correm juntos nem do que custam.
 O teste no aparelho dele é o que responde.
+
+---
+
+## 9 de setembro — a janela que nunca para deixa a tela ilegível para quem não tem olhos
+
+**O que apareceu:** indo confirmar QUE tela eu tinha fotografado, o `uiautomator dump`
+falhou três vezes em três, e a terceira nomeou a causa: **`ERROR: could not get idle
+state`**. Com "reduzir movimento" ligado e o app reiniciado, o mesmo comando devolveu 128
+nós e 18 textos em quinze segundos — a capa inteira, palavra por palavra.
+
+**Por que importa mais do que a ferramenta:** as trinta e oito animações de ambiente
+mantêm a janela permanentemente ocupada, e o `uiautomator` espera ociosidade. Isso não é
+lentidão de emulador: é o que animação infinita significa. E o cano que ele usa é o mesmo
+da acessibilidade. Não meço TalkBack daqui, então não afirmo que ele quebra — mas a
+pergunta ficou de pé e escrita, e o aparelho do dono responde.
+
+**O que mudou por causa disso, dentro do repositório:** `oQueDizATela()` devolve lista
+vazia em operação normal, e o `try/catch` engolia. Então `mesmaTelaEmTodas` — a guarda que
+existe para pegar "a navegação não pegou numa das cinco larguras" — vinha comparando
+listas vazias e **não podia falhar**. O `CLAUDE.md` a descreve como funcionando.
+
+**E a régua que fica:** *guarda cujo insumo pode vir vazio precisa distinguir vazio de
+falha.* O `catch` que devolve `[]` transforma "não consegui ler" em "li e não havia nada",
+e as duas levam a conclusões opostas. Foi assim que uma guarda escrita, documentada e
+elogiada passou semanas sem poder acusar coisa alguma.
+
+---
+
+## 9 de setembro — o número que não descrevia a imagem ao lado dele
+
+**O que apareceu:** fotografei a capa para provar um conserto, o comando disse `tinta
+15,35:1`, e a imagem no arquivo era a **tela de abertura** — o app tinha acabado de ser
+instalado e ainda subia.
+
+**A causa não era a régua estar errada; eram duas capturas.** `screencap -p` gravava o
+arquivo, e a régua tirava um SEGUNDO quadro, segundos depois. Entre os dois, o app saiu da
+abertura e desenhou a capa. Cada metade estava certa sobre a tela que viu; juntas,
+mentiam. E mentiam do jeito pior: o número passa a prova sem prová-la, porque quem lê
+supõe que ele descreve a imagem ao lado.
+
+**O que mudou:** uma captura só, crua, que vira o arquivo E a medida — com um codificador
+de PNG de quarenta linhas em vez de tentar sincronizar duas capturas. Três blocos e um
+CRC, sem dependência nova.
+
+**E a régua ganhou o que faltava junto:** ela agora diz também **em quantas fitas há
+tinta**. A mediana responde *"tem tinta nesta página"*; ela nunca respondeu *"é a página
+certa"*, e eu li como se respondesse. A abertura tem 3 fitas de 22; qualquer tela do
+aplicativo tem 13 ou mais. O sinal já estava calculado e era jogado fora.
+
+**A régua que fica:** *duas medidas de instantes diferentes não descrevem o mesmo fato*.
+Onde um número acompanha uma prova, ele tem de sair da mesma captura que a prova — senão
+ele é uma segunda afirmação disfarçada de legenda.
