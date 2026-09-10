@@ -1403,6 +1403,8 @@ export const en: Dictionary = {
       saveTitle: 'Save version {{version}}?',
       saveBody:
         'Version {{previous}} stays as it is — old production runs keep their cost. {{summary}}',
+      saveBodyPlain:
+        'Version {{previous}} stays as it is — old production runs keep their cost.',
       summaryCheaper: 'It comes out {{amount}} per unit cheaper than version {{version}}.',
       summaryDearer: 'It goes up {{amount}} per unit against version {{version}}.',
       summarySame: 'The cost per unit does not change.',

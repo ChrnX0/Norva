@@ -367,7 +367,12 @@ function RecipeEditor() {
     // Law 5: the confirmation spells out what is about to happen, in words.
     const go = await confirm({
       title: fill(t.app.recipe.saveTitle, { version: stored.version + 1 }),
-      message: fill(t.app.recipe.saveBody, { previous: stored.version, summary }),
+      // Sem porção não há custo por unidade e não há resumo: a frase terminava
+      // num ponto e um espaço solto. Confirmação truncada ensina a não ler
+      // confirmação, que é a Lei 5 perdendo o que ela existe para comprar.
+      message: summary
+        ? fill(t.app.recipe.saveBody, { previous: stored.version, summary })
+        : fill(t.app.recipe.saveBodyPlain, { previous: stored.version }),
       confirmLabel: t.app.recipe.save,
       cancelLabel: t.app.recipe.keepEditing,
     });

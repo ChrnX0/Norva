@@ -208,9 +208,10 @@ virar afirmação. **Seis fechados no mesmo dia:**
 22. **Sair do editor com alteração pendente não avisa.** O botão de salvar existe e fica no
     fim da rolagem; o caminho de saída (voltar do Android, o X do cabeçalho) descarta o
     rascunho sem uma palavra. `app/recipes/[id].tsx` — o rascunho vive em `setDraft`.
-23. **A confirmação da versão termina em vírgula quando não há porção.** *"A versão 1
-    continua guardada — as produções antigas mantêm o custo delas. "* — `summary` vazio
-    deixa a frase pendurada. `t.app.recipe.saveBody`.
+23. ~~**A confirmação da versão termina em vírgula quando não há porção.**~~ — **fechada**
+    com `saveBodyPlain`: sem porção não há custo por unidade e não há o que resumir.
+    Confirmação truncada ensina a não ler confirmação, que é a Lei 5 perdendo o que ela
+    existe para comprar.
 
 **O que a segunda caminhada CONFIRMOU funcionando:** as três réguas de rendimento no
 cadastro da ficha; a confirmação da ficha com os números por extenso e a régua escolhida

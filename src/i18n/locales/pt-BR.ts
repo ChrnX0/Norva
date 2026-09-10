@@ -1788,6 +1788,14 @@ export const ptBR = {
       saveTitle: 'Salvar versão {{version}}?',
       saveBody:
         'A versão {{previous}} continua guardada — as produções antigas mantêm o custo delas. {{summary}}',
+      /**
+       * Sem porção não há custo por unidade, então não há o que resumir — e a
+       * frase de cima terminava numa vírgula pendurada e um espaço: *"…mantêm o
+       * custo delas. "*. Confirmação que termina no meio ensina a não ler a
+       * confirmação.
+       */
+      saveBodyPlain:
+        'A versão {{previous}} continua guardada — as produções antigas mantêm o custo delas.',
       summaryCheaper: 'Fica {{amount}} por unidade em relação à versão {{version}}.',
       summaryDearer: 'Sobe {{amount}} por unidade em relação à versão {{version}}.',
       summarySame: 'O custo por unidade não muda.',

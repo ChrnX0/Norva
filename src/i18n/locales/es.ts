@@ -1407,6 +1407,8 @@ export const es: Dictionary = {
       saveTitle: '¿Guardar versión {{version}}?',
       saveBody:
         'La versión {{previous}} sigue guardada — las producciones antiguas mantienen su costo. {{summary}}',
+      saveBodyPlain:
+        'La versión {{previous}} sigue guardada — las producciones antiguas mantienen su costo.',
       summaryCheaper: 'Queda {{amount}} por unidad respecto a la versión {{version}}.',
       summaryDearer: 'Sube {{amount}} por unidad respecto a la versión {{version}}.',
       summarySame: 'El costo por unidad no cambia.',
