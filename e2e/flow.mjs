@@ -386,7 +386,7 @@ check('the five tabs are there, and the old addresses still answer', async (page
   await page.waitForTimeout(2000);
   const more = await screen(page);
   assert.match(more, /Cadastros/);
-  assert.match(more, /Lojas e clientes/);
+  assert.match(more, /Onde fica o estoque/);
   // Compra escreve no livro-razão e pedido é livro de pedidos: nenhuma das duas
   // é cadastro, e a palavra promete a classe de risco errada — cadastro se
   // corrige editando, escrita no livro-razão só se corrige por estorno.
@@ -448,7 +448,7 @@ check('settings counts what erasing would take, in Portuguese', async (page) => 
   // The confirmation has to say what disappears with the real count - "confirm
   // deletion?" is what a person clicks through without reading.
   assert.match(text, /O que está guardado/);
-  assert.match(text, /Insumos/);
+  assert.match(text, /Almoxarifado/);
   // A PRESENÇA do exemplo, não o histórico dele: a marca `seeded` nunca é
   // apagada, então esta linha era verdadeira em todo aparelho para sempre —
   // inclusive depois de apagar tudo e cadastrar o primeiro insumo próprio.
@@ -456,7 +456,7 @@ check('settings counts what erasing would take, in Portuguese', async (page) => 
   assert.match(text, /Inclui os dados de exemplo/);
   // E os lugares entram na contagem que decide "está vazio", como já entravam na
   // confirmação de apagar tudo.
-  assert.match(text, /Lojas e clientes/);
+  assert.match(text, /Onde fica o estoque/);
   assert.doesNotMatch(text, /\bDelete\b|\bSettings\b|\bErase\b/, 'no English leaking through');
 });
 
@@ -566,8 +566,18 @@ check('an order is written, and the briefing turns it into what to make', async 
   await page.getByText('Anotar', { exact: true }).last().click();
   await page.waitForTimeout(2000);
 
+  // **Perguntar pela LISTA, em vez de confiar no que `back` faz.**
+  //
+  // Esta linha lia a tela onde `router.back()` deixasse a pessoa, e no navegador
+  // isso era o histórico: o `goto` de `/places` logo acima. Ela passava porque a
+  // tela de lugares mostra "Loja Centro" — não porque o pedido existisse. Com a
+  // âncora de rota (`app/_layout.tsx`), voltar de uma tela aberta por ligação
+  // profunda passou a cair na capa, e a checagem ficou vermelha sem que nada do
+  // que ela mede tivesse mudado. A forma que não depende disso é ir na lista.
+  await page.goto(`http://localhost:${PORT}/orders`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
   const lista = await screen(page);
-  assert.match(lista, /Loja Centro/);
+  assert.match(lista, /Loja Centro/, 'o pedido gravado aparece na lista de pedidos');
 
   // E a capa passa a dizer o que fazer com isso. A fábrica semeada nunca
   // produziu, então os 300 pedidos são 300 que faltam - e o cartão diz isso
@@ -2904,7 +2914,7 @@ check('erasing refuses in an order, and explains the way out', async (page) => {
   await page.waitForTimeout(2500);
 
   const text = await screen(page);
-  assert.match(text, /Não dá para apagar os insumos enquanto 2 receitas usam eles/);
+  assert.match(text, /Não dá para apagar o almoxarifado enquanto 2 receitas usam o que está nele/);
   assert.match(text, /Não dá para apagar as receitas enquanto 1 produto é feito delas/);
 
   // Two rows say "Produtos" - one counts them, one erases them - so this
