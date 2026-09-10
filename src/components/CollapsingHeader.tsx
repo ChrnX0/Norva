@@ -211,11 +211,38 @@ export function CollapsingHeader({
   const faixa = faixaDeColapso({
     alturaDaCena: cena ? alturaDaCena : 0,
     olho: overline ? OLHO : 0,
-    titulo: EXPANDED - COLLAPSED,
   });
 
+  /**
+   * O título encolhe por ESCALA, não por corpo de fonte — e a diferença é um defeito.
+   *
+   * Animar `fontSize` reflui o texto. Um título que ocupa duas linhas a 34 cabe em uma a
+   * 22, e a passagem de duas para uma linha é uma queda de altura DESCONTÍNUA de uma
+   * linha inteira, num único ponto da rolagem. O teto de ganho do `cabecalho.ts` limita
+   * a derivada de rampas contínuas; contra descontinuidade ele não pode nada — ali a
+   * derivada é infinita, e o laço oscila por mais folga que a faixa tenha.
+   *
+   * Foi o que sobrou depois do primeiro conserto, e o dono achou de novo: parou de tremer
+   * em toda tela e continuou tremendo nas de TÍTULO LONGO. São quatro em português —
+   * "Linhas, tipos e sabores", "Quem está com o aparelho", "O que vence antes de sair",
+   * "Alguma coisa travou aqui" —, e a lista muda com o idioma, o que torna isto
+   * impossível de guardar por inspeção de texto.
+   *
+   * `transform` não reflui e não passa pelo Yoga: a caixa do texto fica do tamanho de 34
+   * e o desenho encolhe dentro dela. A origem é a esquerda para o título não escorregar
+   * para o meio enquanto diminui.
+   */
   const titleStyle = useAnimatedStyle(() => ({
-    fontSize: interpolate(scrollY.value, [0, faixa], [EXPANDED, COLLAPSED], Extrapolation.CLAMP),
+    transform: [
+      {
+        scale: interpolate(
+          scrollY.value,
+          [0, faixa],
+          [1, COLLAPSED / EXPANDED],
+          Extrapolation.CLAMP,
+        ),
+      },
+    ],
   }));
 
   const overlineStyle = useAnimatedStyle(() => ({
@@ -293,6 +320,8 @@ export function CollapsingHeader({
                 fontFamily: titleFamily,
                 fontWeight: tracos.titulo.peso,
                 letterSpacing: tracos.titulo.aperto,
+                fontSize: EXPANDED,
+                transformOrigin: 'left center',
               },
               titleStyle,
             ]}

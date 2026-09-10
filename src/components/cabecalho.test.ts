@@ -1,14 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { alturaDaCena } from './cenas/prancha';
-import {
-  ENTRELINHA,
-  FRACAO_CENA,
-  FRACAO_OLHO,
-  faixaDeColapso,
-  GANHO_MAX,
-  type Colapso,
-} from './cabecalho';
+import { readFileSync } from 'node:fs';
+import { FRACAO_CENA, FRACAO_OLHO, faixaDeColapso, GANHO_MAX, type Colapso } from './cabecalho';
 
 /**
  * O cabeçalho não pode encolher mais depressa do que a rolagem que o encolhe.
@@ -37,11 +31,7 @@ import {
 function alturaEm(s: number, c: Colapso, faixa: number): number {
   const rampa = (alto: number, ate: number) =>
     ate <= 0 ? 0 : alto * (1 - Math.min(1, Math.max(0, s / ate)));
-  return (
-    rampa(c.alturaDaCena, faixa * FRACAO_CENA) +
-    rampa(c.olho, faixa * FRACAO_OLHO) +
-    rampa(c.titulo * ENTRELINHA, faixa)
-  );
+  return rampa(c.alturaDaCena, faixa * FRACAO_CENA) + rampa(c.olho, faixa * FRACAO_OLHO);
 }
 
 /** O maior `|dAltura/dRolagem|` que a tela chega a ter, medido por amostragem. */
@@ -69,7 +59,6 @@ function colapsoEm(largura: number, medida = 600): Colapso {
       cabecalho: 'vinheta',
     }),
     olho: 18,
-    titulo: 34 - 22,
   };
 }
 
@@ -99,7 +88,6 @@ test('a paisagem, que é mais alta que a vinheta, também fica abaixo do teto', 
         cabecalho: 'paisagem',
       }),
       olho: 18,
-      titulo: 12,
     };
     const ganho = ganhoMedido(colapso, faixaDeColapso(colapso));
     assert.ok(ganho <= GANHO_MAX + 1e-9, `paisagem a ${largura} dp: ganho ${ganho.toFixed(2)}`);
@@ -128,4 +116,39 @@ test('a faixa cresce com a tela, que é a metade que a constante não fazia', ()
     faixaTablet > faixaTelefone,
     'a cena é mais alta no tablet, então a faixa tem de ser mais longa — era 72 nos dois',
   );
+});
+
+test('o título encolhe por escala, e nunca por corpo de fonte', () => {
+  /**
+   * O segundo mecanismo do tremor, e o que o teto de ganho NÃO pega.
+   *
+   * `fontSize` reflui o texto. Um título de duas linhas a 34 cabe em uma a 22, e a
+   * passagem de duas para uma é uma queda de altura descontínua de uma linha inteira —
+   * derivada infinita num ponto, que nenhuma folga de faixa segura. Quatro títulos em
+   * português caem nessa faixa hoje, e a lista muda a cada idioma e a cada tradução:
+   * é por isso que a guarda mira o MECANISMO e não a lista.
+   */
+  const fonte = readFileSync('src/components/CollapsingHeader.tsx', 'utf8');
+  const semComentario = fonte.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+  const animado = semComentario.slice(semComentario.indexOf('const titleStyle'));
+  const corpo = animado.slice(0, animado.indexOf('const overlineStyle'));
+
+  assert.equal(
+    /fontSize\s*:/.test(corpo),
+    false,
+    'animar fontSize reflui o título e o refluxo é descontínuo — encolha por transform',
+  );
+  assert.ok(/transform\s*:/.test(corpo), 'o título encolhe por transform');
+  assert.ok(
+    /transformOrigin/.test(semComentario),
+    'sem origem à esquerda o título escorrega para o meio enquanto diminui',
+  );
+});
+
+test('a régua do título vê a diferença entre encolher e reflui', () => {
+  const comFonte = 'const titleStyle = x(() => ({ fontSize: i(s) })); const overlineStyle';
+  const corpo = comFonte.slice(0, comFonte.indexOf('const overlineStyle'));
+  assert.equal(/fontSize\s*:/.test(corpo), true, 'o caso verdadeiro tem de ser visto');
+  const comEscala = 'const titleStyle = x(() => ({ transform: [{ scale: i(s) }] })); const overlineStyle';
+  assert.equal(/fontSize\s*:/.test(comEscala.slice(0, comEscala.indexOf('const overlineStyle'))), false);
 });

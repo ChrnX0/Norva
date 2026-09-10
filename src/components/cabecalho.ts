@@ -47,23 +47,23 @@ export const FRACAO_CENA = 0.6;
 /** A linha de olho some no meio da faixa. */
 export const FRACAO_OLHO = 0.5;
 
-/**
- * A entrelinha que o texto ocupa além do corpo da fonte.
- *
- * Encolher o título de 34 para 22 não remove 12 dp de altura: remove 12 vezes a
- * entrelinha, porque a caixa do texto acompanha o corpo. Contar só o corpo subestima
- * o ganho, e subestimar ganho num laço é o erro que não se pode cometer aqui.
- */
-export const ENTRELINHA = 1.25;
-
 export type Colapso = {
   /** Altura da cena do cabeçalho, em dp — ela é quem manda no ganho. */
   alturaDaCena: number;
   /** Altura da linha de olho, em dp. */
   olho: number;
-  /** Quanto o corpo do título encolhe, em dp. */
-  titulo: number;
 };
+
+/**
+ * **O título NÃO entra nesta conta, e a razão é um segundo defeito.**
+ *
+ * Ele encolhia por `fontSize`, e isso reflui o texto: um título de duas linhas a 34
+ * cabe em uma a 22, e a passagem de duas para uma é uma queda de altura descontínua de
+ * uma linha inteira. Um teto de ganho limita a derivada de rampas contínuas e não pode
+ * nada contra descontinuidade — ali ela é infinita. Hoje o título encolhe por `scale`,
+ * que não reflui e não passa pelo Yoga, então ele não muda a altura do cabeçalho e não
+ * pertence ao orçamento.
+ */
 
 /**
  * A faixa de rolagem em que o cabeçalho encolhe, em dp.
@@ -71,8 +71,7 @@ export type Colapso = {
  * Sai da conta do ganho no trecho mais carregado — o começo, onde as três peças
  * encolhem ao mesmo tempo — e não de um número escolhido a olho.
  */
-export function faixaDeColapso({ alturaDaCena, olho, titulo }: Colapso): number {
-  const removidoPorFaixa =
-    alturaDaCena / FRACAO_CENA + olho / FRACAO_OLHO + titulo * ENTRELINHA;
+export function faixaDeColapso({ alturaDaCena, olho }: Colapso): number {
+  const removidoPorFaixa = alturaDaCena / FRACAO_CENA + olho / FRACAO_OLHO;
   return removidoPorFaixa / GANHO_MAX;
 }
