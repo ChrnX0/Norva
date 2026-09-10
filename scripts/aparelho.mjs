@@ -125,7 +125,28 @@ async function subir() {
   for (let i = 0; i < 180; i += 1) {
     await dormir(10_000);
     try {
-      if (adb('shell', 'getprop', 'sys.boot_completed') === '1') {
+      /**
+       * **`sys.boot_completed` MENTE depois de restaurar instantâneo — 10 de
+       * setembro, e custou três instalações quebradas.**
+       *
+       * A propriedade faz parte do estado salvo: ela volta como `1` no instante
+       * em que o instantâneo é carregado, enquanto o Zygote ainda está
+       * pré-carregando recursos e o `system_server` ainda não registrou serviço
+       * nenhum. Este laço dizia "de pé em 497s" e o `adb install` seguinte
+       * respondia `cmd: Can't find service: package` — três vezes, com o
+       * diagnóstico apontando para o lugar errado a cada uma.
+       *
+       * O sinal honesto é o serviço RESPONDER. `package` é quem instala e
+       * `window` é quem desenha; medido aqui, `package` aparece primeiro e
+       * `window` alguns segundos depois, com o mesmo PID de `system_server` —
+       * ou seja, não é queda em laço, é registro que se arrasta num emulador
+       * sem KVM.
+       */
+      const respondendo = (nome) => {
+        const dito = adb('shell', 'service', 'check', nome);
+        return dito.includes('found') && !dito.includes('not found');
+      };
+      if (respondendo('package') && respondendo('window')) {
         dizer(`de pé em ${Math.round((Date.now() - inicio) / 1000)}s`);
         return;
       }
