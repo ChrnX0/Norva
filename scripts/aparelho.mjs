@@ -108,10 +108,18 @@ async function subir() {
   // Sem `-no-snapshot`: a primeira subida é cara (oito minutos a frio), e o
   // instantâneo salvo na saída faz as seguintes custarem segundos. Três núcleos e não
   // quatro: o quarto fica para o Metro e o resto, senão o System UI leva ANR.
+  //
+  // **Quatro gigas e não três — medido em 10 de setembro.** Com 3072 a instalação
+  // do APK de 29 MB MATAVA o `system_server`: o serviço `package` respondia seis
+  // checagens seguidas antes, e depois da tentativa `pidof system_server` não
+  // devolvia nada. O erro que chega ao terminal é `Failure calling service
+  // package: Broken pipe (32)` — que parece problema de canal e é o servidor do
+  // outro lado morrendo no meio. O que come a memória é o `dex2oat` do install
+  // numa CPU emulada por software. O hospedeiro tem quinze gigas.
   const filho = spawn(
     EMU,
     ['-avd', AVD, '-no-window', '-no-audio', '-no-boot-anim',
-     '-accel', 'off', '-gpu', 'swiftshader_indirect', '-memory', '3072', '-cores', '3',
+     '-accel', 'off', '-gpu', 'swiftshader_indirect', '-memory', '4096', '-cores', '3',
      // O idioma do aparelho decide o idioma do app. Sem isto, a foto sai em inglês e
      // mente sobre o produto — foi exatamente o erro cometido antes com o navegador,
      // que fotografou o app em inglês e passou por conferência.
