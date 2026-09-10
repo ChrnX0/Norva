@@ -701,3 +701,56 @@ test('a régua do marcador distingue o esquecido do preenchido', () => {
   assert.equal(marcadoresSoltos(dicionario, preenchido).length, 0, 'acusa quem já usa o fill');
   assert.equal(marcadoresSoltos(dicionario, semMarcador).length, 0, 'acusa texto sem marcador');
 });
+
+/**
+ * **Nenhuma frase manda na régua de quem fala.**
+ *
+ * A ficha técnica deixa o dono escolher em que se mede o que ela rende —
+ * mililitro, grama ou unidade —, e a escolha ia para o banco certa. O que dizia
+ * o contrário eram as FRASES: `'{{net}} ml de {{gross}}'`, `'Informe quantos ml
+ * vão em cada unidade'`, `'{{perUnit}} ml por unidade'`. Uma padaria cadastrava
+ * doze mil gramas e o aplicativo inteiro respondia em mililitro — o editor, a
+ * dica da perda e a confirmação do produto —, três telas afirmando outra
+ * grandeza sobre o mesmo número.
+ *
+ * A forma do defeito é estreita e por isso dá para pegar: **uma palavra de
+ * medida colada logo depois de um marcador**. É diferente de citar as medidas
+ * numa lista (*"a menor medida com que a receita trabalha: g, ml, un"*) ou de dar
+ * exemplo de nome (*"240 ml, 500 ml, 1 litro"*) — nesses a medida não está
+ * decidindo nada sobre um número que a tela calculou.
+ */
+const MEDIDAS_CHUMBADAS = /\{\{[a-zA-Z]+\}\}\s+(ml|kg|g|un|l)\b/;
+
+function frasesDoDicionario(no: unknown, caminho: string[] = []): { onde: string; texto: string }[] {
+  if (typeof no === 'string') return [{ onde: caminho.join('.'), texto: no }];
+  if (!no || typeof no !== 'object') return [];
+  return Object.entries(no as Record<string, unknown>).flatMap(([k, v]) =>
+    frasesDoDicionario(v, [...caminho, k]),
+  );
+}
+
+test('nenhuma frase decide a unidade de um número que a tela calculou', () => {
+  const presas = frasesDoDicionario(ptBR)
+    .filter(({ texto }) => MEDIDAS_CHUMBADAS.test(texto))
+    .map(({ onde, texto }) => `${onde}: ${JSON.stringify(texto)}`);
+
+  assert.deepEqual(
+    presas,
+    [],
+    'a unidade vem da ficha, não da frase — troque a medida por {{unit}} e passe a régua escolhida',
+  );
+});
+
+test('a régua da unidade separa a que decide da que só cita', () => {
+  // O caso verdadeiro: a medida logo depois do número que a tela calculou.
+  assert.ok(MEDIDAS_CHUMBADAS.test('Sobram {{net}} ml de {{gross}}.'));
+  assert.ok(MEDIDAS_CHUMBADAS.test('{{perUnit}} ml por unidade.'));
+  assert.ok(MEDIDAS_CHUMBADAS.test('{{amount}} kg no caminhão'));
+
+  // O caso falso, que é o que faz esta régua valer alguma coisa: citar as
+  // medidas, dar exemplo de nome, ou já receber a régua por marcador.
+  assert.ok(!MEDIDAS_CHUMBADAS.test('A menor medida com que a receita trabalha: g, ml, un.'));
+  assert.ok(!MEDIDAS_CHUMBADAS.test('o que divide a linha: Tradicional, Skimó — ou 240 ml, 500 ml'));
+  assert.ok(!MEDIDAS_CHUMBADAS.test('Sobram {{net}} {{unit}} de {{gross}}.'));
+  assert.ok(!MEDIDAS_CHUMBADAS.test('{{name}} mlado'), 'palavra que só COMEÇA com a medida não conta');
+});

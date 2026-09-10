@@ -58,7 +58,21 @@ function NewRecipe() {
   const confirm = useConfirm();
 
   const [name, setName] = useState('');
-  const [yieldText, setYieldText] = useState('');
+  /**
+   * **O placeholder não é valor, e a tela inteira dependia de ele ser.**
+   * O docblock acima promete Lei 2 nos dois campos — *"o rendimento tem
+   * placeholder com o número que a maioria usa, então ninguém encara campo
+   * vazio"*. Só que `pronto` exige `rende > 0`, e o `rende` vem do ESTADO, que
+   * nascia vazio. Resultado no aparelho: o campo mostra 40000, o formulário
+   * parece preenchido, e "Criar ficha" não responde ao toque — sem uma palavra
+   * dizendo o que falta. Botão desligado que não diz por que está desligado é a
+   * Lei 5 ao contrário: reclama nada e também não impede nada, só emudece.
+   *
+   * O conserto é dar de fato o valor que a tela já anunciava. Ele continua
+   * editável, e a confirmação diz o número por extenso antes de qualquer linha
+   * nascer.
+   */
+  const [yieldText, setYieldText] = useState(() => words.yieldPlaceholder);
   const [unit, setUnit] = useState<UnidadeDeRendimento>('ml');
   const [lossText, setLossText] = useState('0');
   const [saving, setSaving] = useState(false);

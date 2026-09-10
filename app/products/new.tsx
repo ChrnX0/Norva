@@ -42,6 +42,7 @@ import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { rate } from '@/domain/money';
 import {
+  costPerPack,
   costPerProductUnit,
   costRecipe,
   packagingRatePerUnit,
@@ -303,6 +304,8 @@ function ProductForm() {
       packagingRate,
       itemsRate,
       mixOnly: costPerProductUnit(cost, portion),
+      pack: (porEmbalagem: number) =>
+        costPerPack(cost, portion, porEmbalagem, { typedRate: packagingRate, itemsRate }),
     };
   }, [kind, data, chosenRecipe, perUnit, packagingCost, chosenWrappings]);
 
@@ -378,6 +381,9 @@ function ProductForm() {
         name: composed.trim(),
         recipe: data?.recipes.find((r) => r.id === chosenRecipe)?.name ?? '',
         perUnit: formatQuantity(num(perUnit), locale),
+        /* A confirmação dizia "75 ml por unidade" para uma massa pesada em
+           grama. A régua vem da ficha escolhida, como no campo acima. */
+        unit: data?.recipes.find((r) => r.id === chosenRecipe)?.yieldUnit ?? '',
         packaging: packagingEcho,
       },
     );
@@ -653,7 +659,10 @@ function ProductForm() {
                 label={t.app.productForm.perUnit}
                 value={perUnit}
                 onChangeText={setPerUnit}
-                suffix="ml"
+                /* A régua é a que a ficha escolheu — ml, g ou un. Chumbar "ml"
+                   aqui fazia a tela pedir mililitro de uma massa pesada em
+                   grama, e o número digitado ia para o razão assim mesmo. */
+                suffix={data?.recipes.find((r) => r.id === chosenRecipe)?.yieldUnit ?? 'ml'}
                 keyboardType="numeric"
                 hint={
                   costing
@@ -860,8 +869,13 @@ function ProductForm() {
               <View style={{ marginTop: space.md }}>
                 <Chip
                   signal="neutral"
+                  /* `costing.unit` é `Cents` INTEIRO: um picolé de 7,3265
+                     centavos vira 7, e sete vezes cinquenta dá R$ 3,50 numa
+                     caixa que custa R$ 3,66. Quatro e meio por cento sumindo no
+                     número que dá preço de caixa. Quem multiplica agora é o
+                     domínio, com o arredondamento no fim — a regra da casa. */
                   label={fill(t.app.productForm.fullBox, {
-                    amount: formatMoney(costing.unit * caixa.perBaseUnit, locale),
+                    amount: formatMoney(costing.pack(caixa.perBaseUnit), locale),
                   })}
                 />
               </View>

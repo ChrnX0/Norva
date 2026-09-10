@@ -253,6 +253,35 @@ export function costPerProductUnit(
   );
 }
 
+/**
+ * O que uma embalagem FECHADA custa — e por que ela não é o custo da unidade
+ * vezes o número de unidades.
+ *
+ * `costPerProductUnit` devolve `Cents`, que é inteiro: um picolé de 7,3265
+ * centavos vira 7. Multiplicar esse 7 por cinquenta dá R$ 3,50 onde a conta é
+ * R$ 3,66 — quatro e meio por cento de margem evaporados no arredondamento, no
+ * número que o dono usa para dar preço de caixa. Foi assim que a tela de
+ * cadastro de produto mostrou "Caixa fechada: R$ 3,50" para uma caixa de
+ * R$ 3,66.
+ *
+ * A regra da casa já dizia o que fazer: *só o valor final arredonda, uma vez*.
+ * Então a multiplicação entra ANTES do arredondamento, e é por isso que esta
+ * função existe em vez de a tela multiplicar o retorno da outra.
+ */
+export function costPerPack(
+  recipeCost: RecipeCost,
+  yieldPerUnit: number,
+  unitsPerPack: number,
+  unitPackaging: { typedRate?: Rate; itemsRate?: number } = {},
+): Cents {
+  return cents(
+    (recipeCost.perYieldUnit * yieldPerUnit +
+      (unitPackaging.itemsRate ?? 0) +
+      (unitPackaging.typedRate ?? 0)) *
+      unitsPerPack,
+  );
+}
+
 /** How many finished units one batch produces, before rounding to full boxes. */
 export function unitsPerBatch(recipeCost: RecipeCost, yieldPerUnit: number): number {
   if (yieldPerUnit <= 0) return 0;
@@ -296,14 +325,25 @@ export function compareVersions(
   before: RecipeCost,
   after: RecipeCost,
   yieldPerUnit: number,
-): { deltaCents: Cents; cheaper: boolean; percent: number } {
+): { deltaCents: Cents; cheaper: boolean; percent: number | null } {
   const beforeUnit = costPerProductUnit(before, yieldPerUnit);
   const afterUnit = costPerProductUnit(after, yieldPerUnit);
   const delta = cents(afterUnit - beforeUnit);
   return {
     deltaCents: delta,
     cheaper: delta < 0,
-    percent: beforeUnit > 0 ? delta / beforeUnit : 0,
+    /**
+     * **Nulo é "não há com o que comparar", e ele não é zero.** A versão anterior
+     * de uma ficha recém-criada não custa nada — ela nasce sem linha —, e este
+     * campo devolvia `0` nesse caso. A tela imprimia a frase inteira com os dois
+     * números juntos: *"▲ R$ 0,02 por unidade contra a versão 1 (0,0%)"*. Subiu
+     * dois centavos e não mudou nada por cento, na mesma linha.
+     *
+     * Zero é um fato — "não mudou" —, e usá-lo para dizer "não sei" é a camada de
+     * dados devolvendo frase em vez de fato. Quem não tem base devolve nulo, e a
+     * tela escolhe outra frase.
+     */
+    percent: beforeUnit > 0 ? delta / beforeUnit : null,
   };
 }
 

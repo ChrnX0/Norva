@@ -373,7 +373,15 @@ function RecipeEditor() {
         recipeId,
         name: data?.labels[recipeId] ?? 'Receita',
         yieldAmount: num(yieldAmount),
-        yieldUnit: 'ml',
+        /**
+         * **A unidade é do dono, e esta linha a apagava.** Era `'ml'` literal.
+         * O cadastro oferece as três réguas — mililitros, gramas, unidades — e
+         * gravava a escolha certa; a PRIMEIRA edição da ficha a trocava por
+         * mililitro, calada. Provado no aparelho: uma ficha criada com 12.000 g
+         * voltou do salvamento como 12.000 ml, mesmo número, outra grandeza.
+         * A padaria perde a massa dela na segunda vez que abre a ficha.
+         */
+        yieldUnit: stored.yieldUnit,
         lossFraction: num(lossPercent) / 100,
         lines,
       });
@@ -481,7 +489,7 @@ function RecipeEditor() {
               <Text style={[type.secondary, { color: color.inkMuted, flex: 1 }]}>
                 {computed.unitCents === null
                   ? data.dinheiro
-                    ? t.app.recipe.needPortion
+                    ? fill(t.app.recipe.needPortion, { unit: stored.yieldUnit })
                     : t.common.moneyHidden
                   : fill(t.app.recipe.unitsPerBatch, {
                       units: formatQuantity(computed.units, locale),
@@ -504,11 +512,20 @@ function RecipeEditor() {
                 ]}
               >
                 {computed.delta.cheaper ? '▼' : '▲'}{' '}
-                {fill(t.app.recipe.cheaperThan, {
-                  amount: formatMoney(Math.abs(computed.delta.deltaCents), locale),
-                  version: stored.version,
-                  percent: formatPercent(Math.abs(computed.delta.percent), locale),
-                })}
+                {/* Sem base não há por cento: a versão anterior de uma ficha
+                    recém-criada não custa nada, e a frase saía dizendo as duas
+                    coisas ao mesmo tempo — "▲ R$ 0,02 por unidade contra a
+                    versão 1 (0,0%)". Subiu e não mudou, na mesma linha. */}
+                {computed.delta.percent === null
+                  ? fill(t.app.recipe.dearerThanNoBase, {
+                      amount: formatMoney(Math.abs(computed.delta.deltaCents), locale),
+                      version: stored.version,
+                    })
+                  : fill(t.app.recipe.cheaperThan, {
+                      amount: formatMoney(Math.abs(computed.delta.deltaCents), locale),
+                      version: stored.version,
+                      percent: formatPercent(Math.abs(computed.delta.percent), locale),
+                    })}
               </Text>
             ) : null}
 
@@ -641,7 +658,7 @@ function RecipeEditor() {
               label={t.app.recipe.batchYield}
               value={yieldAmount}
               onChangeText={(value) => edit({ yieldAmount: value })}
-              suffix="ml"
+              suffix={stored.yieldUnit}
               keyboardType="numeric"
             />
             <Field
@@ -655,6 +672,7 @@ function RecipeEditor() {
                   ? fill(t.app.recipe.lossHint, {
                       net: formatQuantity(computed.cost.netYield, locale),
                       gross: formatQuantity(num(yieldAmount), locale),
+                      unit: stored.yieldUnit,
                     })
                   : undefined
               }
@@ -663,15 +681,31 @@ function RecipeEditor() {
               label={t.app.recipe.perUnit}
               value={perUnit}
               onChangeText={(value) => edit({ perUnit: value })}
-              suffix="ml"
+              suffix={stored.yieldUnit}
               keyboardType="numeric"
-              hint={
+              /**
+               * **Este campo não é gravado, e por muito tempo ele não dizia.**
+               * `changed` nunca o olhou — de propósito: a porção mora no
+               * PRODUTO (`products.yield_per_unit`), e uma ficha pode alimentar
+               * dois produtos de tamanhos diferentes, então salvá-la daqui
+               * escolheria um dos dois no escuro. O que estava errado não era
+               * isso: era a tela pedir *"informe quantos ml vão em cada
+               * unidade"* como quem manda preencher um formulário, calcular a
+               * figura inteira com a resposta e deixá-la evaporar na saída, sem
+               * uma palavra. Ele fica, porque a pergunta que ele responde — "e
+               * se eu puser 100 em vez de 70?" — é o motivo desta tela existir.
+               * O que muda é que agora ele se apresenta pelo que é.
+               */
+              hint={[
                 data.unitPackagingRate > 0
                   ? fill(t.app.recipe.packagingHint, {
                       amount: formatUnitRate(data.unitPackagingRate, locale, fill(t.app.inputForm.perThousandOf, { unit: t.units.unit.other })),
                     })
-                  : undefined
-              }
+                  : null,
+                fill(t.app.recipe.portionIsWhatIf, { unit: stored.yieldUnit }),
+              ]
+                .filter(Boolean)
+                .join(' ')}
             />
           </View>
         </Card>

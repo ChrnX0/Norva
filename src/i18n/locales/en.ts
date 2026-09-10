@@ -1376,7 +1376,10 @@ export const en: Dictionary = {
       containsItself: 'This recipe contains itself: {{path}}',
       subRecipeMissing: 'Sub-recipe not found: {{id}}',
       unitCost: 'COST PER UNIT',
-      needPortion: 'Say how many ml go into each unit.',
+      needPortion: 'Say how many {{unit}} go into each unit.',
+      portionIsWhatIf:
+        'A what-if: the number of {{unit}} per unit is kept by the product, not here.',
+      dearerThanNoBase: '{{amount}} per unit — version {{version}} had no cost to compare against',
       unitsPerBatch: '{{units}} units per batch · batch of {{batch}}',
       cheaperThan: '{{amount}} per unit against version {{version}} ({{percent}})',
       roundUp: 'Make {{rounded}} to fill whole boxes — {{loose}} would be left loose out of {{units}}.',
@@ -1391,7 +1394,7 @@ export const en: Dictionary = {
       batchYield: 'Batch yield',
       expectedLoss: 'Expected loss',
       lossHint:
-        '{{net}} ml survive out of {{gross}}. The batch is paid for in full, so the loss makes what is left dearer.',
+        '{{net}} {{unit}} survive out of {{gross}}. The batch is paid for in full, so the loss makes what is left dearer.',
       perUnit: 'Goes into each unit',
       packagingHint: 'Plus {{amount}} of stick and wrapper per unit.',
       saveAs: 'Save as version {{version}}',
@@ -1486,7 +1489,8 @@ export const en: Dictionary = {
       save: 'Register product',
       saving: 'Registering…',
       confirmTitle: 'Register this product?',
-      confirmMade: '{{name}}, made from the recipe {{recipe}}, {{perUnit}} ml per unit. {{packaging}}',
+      confirmMade:
+        '{{name}}, made from the recipe {{recipe}}, {{perUnit}} {{unit}} per unit. {{packaging}}',
       confirmResale: '{{name}}, a resale product. {{packaging}}',
       confirmAction: 'Register',
       gridTaken: '{{name}} already has this classification. Give one of the two a line, type or flavour — the catalogue is in Settings.',

@@ -1380,7 +1380,10 @@ export const es: Dictionary = {
       containsItself: 'Esta receta se contiene a sí misma: {{path}}',
       subRecipeMissing: 'Sub-receta no encontrada: {{id}}',
       unitCost: 'COSTO POR UNIDAD',
-      needPortion: 'Indica cuántos ml van en cada unidad.',
+      needPortion: 'Indica cuántos {{unit}} van en cada unidad.',
+      portionIsWhatIf:
+        'Simulación: quien guarda cuántos {{unit}} van en cada unidad es la ficha del producto.',
+      dearerThanNoBase: '{{amount}} por unidad — la versión {{version}} no tenía costo para comparar',
       unitsPerBatch: '{{units}} unidades cada vez · lote de {{batch}}',
       cheaperThan: '{{amount}} por unidad contra la versión {{version}} ({{percent}})',
       roundUp: 'Produce {{rounded}} para cerrar caja llena — sobran {{loose}} sueltas en {{units}}.',
@@ -1395,7 +1398,7 @@ export const es: Dictionary = {
       batchYield: 'Cuánto rinde cada vez',
       expectedLoss: 'Merma esperada',
       lossHint:
-        'Sobran {{net}} ml de {{gross}}. El lote se paga entero, así que la merma encarece lo que queda.',
+        'Sobran {{net}} {{unit}} de {{gross}}. El lote se paga entero, así que la merma encarece lo que queda.',
       perUnit: 'Va en cada unidad',
       packagingHint: 'Más {{amount}} de palito y empaque por unidad.',
       saveAs: 'Guardar como versión {{version}}',
@@ -1491,7 +1494,8 @@ export const es: Dictionary = {
       save: 'Cargar producto',
       saving: 'Cargando…',
       confirmTitle: '¿Cargar este producto?',
-      confirmMade: '{{name}}, hecho con la receta {{recipe}}, {{perUnit}} ml por unidad. {{packaging}}',
+      confirmMade:
+        '{{name}}, hecho con la receta {{recipe}}, {{perUnit}} {{unit}} por unidad. {{packaging}}',
       confirmResale: '{{name}}, producto de reventa. {{packaging}}',
       confirmAction: 'Cargar',
       gridTaken: 'Ya existe {{name}} con esa clasificación. Dale línea, tipo o sabor a uno de los dos — el catálogo está en Ajustes.',

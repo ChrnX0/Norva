@@ -127,7 +127,32 @@ test('a version comparison answers "did my change help" in cents per unit', () =
 
   assert.equal(delta.cheaper, true);
   assert.ok(delta.deltaCents < 0);
-  assert.ok(delta.percent < 0);
+  // `< 0` diria só "é negativo", que o sinal acima já disse. A régua é a
+  // igualdade contra a conta feita fora daqui: a queda por cento é a queda em
+  // centavos sobre o custo que a versão anterior tinha por unidade.
+  const antes = costPerProductUnit(before, 75);
+  assert.notEqual(delta.percent, null);
+  assert.ok(Math.abs((delta.percent as number) - delta.deltaCents / antes) < 1e-12);
+});
+
+test('sem custo anterior não há por cento, e nulo não é zero', () => {
+  // O caso verdadeiro: uma ficha recém-criada não tem linha, então a versão
+  // anterior custa nada. Zero ali fazia a tela escrever "▲ R$ 0,02 por unidade
+  // contra a versão 1 (0,0%)" — subiu e não mudou, na mesma frase.
+  const vazia: Record<string, Recipe> = {
+    ...recipes,
+    popsicle: { ...recipes.popsicle, version: 1, lines: [] },
+  };
+  const semBase = compareVersions(costRecipe('popsicle', vazia, costs), costRecipe('popsicle', recipes, costs), 75);
+  assert.equal(semBase.percent, null, 'sem base, o por cento não existe');
+  assert.ok(semBase.deltaCents > 0, 'e mesmo assim o dinheiro subiu');
+
+  // O caso falso, que é o que separa esta régua de um `?? null` preguiçoso:
+  // havendo base, o por cento continua saindo — inclusive quando é zero de
+  // verdade, que é uma afirmação e não uma ausência.
+  const igual = compareVersions(costRecipe('popsicle', recipes, costs), costRecipe('popsicle', recipes, costs), 75);
+  assert.equal(igual.percent, 0, 'com base e sem mudança, zero é o fato');
+  assert.equal(igual.deltaCents, 0);
 });
 
 test('an item with no purchase yet costs nothing rather than crashing a screen', () => {

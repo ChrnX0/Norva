@@ -1754,7 +1754,10 @@ export const ptBR = {
       containsItself: 'Essa receita contém a si mesma: {{path}}',
       subRecipeMissing: 'Sub-receita não encontrada: {{id}}',
       unitCost: 'CUSTO POR UNIDADE',
-      needPortion: 'Informe quantos ml vão em cada unidade.',
+      needPortion: 'Informe quantos {{unit}} vão em cada unidade.',
+      portionIsWhatIf:
+        'Simulação: quem guarda quantos {{unit}} vão em cada unidade é o cadastro do produto.',
+      dearerThanNoBase: '{{amount}} por unidade — a versão {{version}} não tinha custo para comparar',
       unitsPerBatch: '{{units}} unidades de cada vez · lote de {{batch}}',
       cheaperThan: '{{amount}} por unidade contra a versão {{version}} ({{percent}})',
       roundUp: 'Produza {{rounded}} para fechar caixa cheia — sobram {{loose}} soltas em {{units}}.',
@@ -1769,7 +1772,7 @@ export const ptBR = {
       batchYield: 'Quanto rende de cada vez',
       expectedLoss: 'Perda esperada',
       lossHint:
-        'Sobram {{net}} ml de {{gross}}. O lote é pago inteiro, então a perda encarece o que sobra.',
+        'Sobram {{net}} {{unit}} de {{gross}}. O lote é pago inteiro, então a perda encarece o que sobra.',
       perUnit: 'Vai em cada unidade',
       packagingHint: 'Mais {{amount}} de palito e embalagem por unidade.',
       saveAs: 'Salvar como versão {{version}}',
@@ -1879,7 +1882,8 @@ export const ptBR = {
       save: 'Cadastrar produto',
       saving: 'Cadastrando…',
       confirmTitle: 'Cadastrar este produto?',
-      confirmMade: '{{name}}, feito da receita {{recipe}}, {{perUnit}} ml por unidade. {{packaging}}',
+      confirmMade:
+        '{{name}}, feito da receita {{recipe}}, {{perUnit}} {{unit}} por unidade. {{packaging}}',
       confirmResale: '{{name}}, produto de revenda. {{packaging}}',
       confirmAction: 'Cadastrar',
       gridTaken: 'Já existe {{name}} com essa classificação. Dê linha, tipo ou sabor a um dos dois — o catálogo fica em Ajustes.',
