@@ -65,7 +65,7 @@ export const en: Dictionary = {
       levelFull: 'full',
       levelLasts: 'lasts {{days}} at this week\u2019s pace',
       levelEndsIn: 'runs out in {{days}}',
-      inputsFine: 'Inputs are fine',
+      inputsFine: 'Inputs and packaging are fine',
       boxesSent: { one: 'went out today', other: 'went out today' },
       boxesTitle: 'Out to the stores',
       noBoxesYesterday: 'Nothing went out yesterday.',
@@ -86,7 +86,7 @@ export const en: Dictionary = {
         weekBest: 'today is the best day',
         weekRank: 'today is the {{rank}} best day',
         ordinals: ['second', 'third', 'fourth', 'fifth', 'sixth', 'seventh'],
-        shortestInput: 'is the shortest input in the house',
+        shortestInput: 'is what runs out first in the house',
         runsOutIn: 'until it runs out',
         shipmentToday: "today's dispatch",
         movedSince: '{{count}}, since yesterday',
@@ -567,7 +567,7 @@ export const en: Dictionary = {
       },
       rows: {
         who: 'Switch person',
-        inputs: 'Inputs',
+        inputs: 'Storeroom',
         recipes: 'Recipes',
         products: 'Products',
         places: 'Stores and customers',
@@ -601,7 +601,7 @@ export const en: Dictionary = {
       stored: 'What is stored',
       onlyAdmin: 'Company choices belong to whoever runs it. What is here applies to this phone.',
       checking: 'Checking…',
-      inputs: 'Inputs',
+      inputs: 'Storeroom',
       recipes: 'Recipes',
       products: 'Products',
       purchases: 'Invoices recorded',
@@ -615,7 +615,7 @@ export const en: Dictionary = {
         purchases: 'recorded invoices, average cost and price history',
         recipes: 'recipes and every version of them',
         products: 'what goes out to sell',
-        inputs: 'storeroom, packaging and store supplies',
+        inputs: 'inputs, packaging and store supplies',
       },
       startOver: 'Start over',
       startOverHint:
@@ -687,12 +687,12 @@ export const en: Dictionary = {
       failedToRestore: 'Could not restore',
       blocked: {
         recipesUseInputs: {
-          one: 'The inputs cannot go while 1 recipe uses them. Erase the recipes first.',
-          other: 'The inputs cannot go while {{n}} recipes use them. Erase the recipes first.',
+          one: 'The storeroom cannot go while 1 recipe uses what is in it. Erase the recipes first.',
+          other: 'The storeroom cannot go while {{n}} recipes use what is in it. Erase the recipes first.',
         },
         purchasesUseInputs: {
-          one: 'The inputs cannot go while 1 recorded purchase points at them. Erase the purchases first.',
-          other: 'The inputs cannot go while {{n}} recorded purchases point at them. Erase the purchases first.',
+          one: 'The storeroom cannot go while 1 recorded purchase points at it. Erase the purchases first.',
+          other: 'The storeroom cannot go while {{n}} recorded purchases point at it. Erase the purchases first.',
         },
         productsUseRecipes: {
           one: 'The recipes cannot go while 1 product is made from them. Erase the products first.',
@@ -710,7 +710,7 @@ export const en: Dictionary = {
       alsoInputs: 'This erases {{what}}, along with their average cost and price history.',
       alsoAll: 'This erases {{what}}. The app opens empty again, and the example data does not come back on its own.',
       counted: {
-        inputs: { one: '1 input', other: '{{n}} inputs' },
+        inputs: { one: '1 storeroom item', other: '{{n}} storeroom items' },
         movements: { one: '1 ledger movement', other: '{{n}} ledger movements' },
         recipes: { one: '1 recipe', other: '{{n}} recipes' },
         products: { one: '1 product', other: '{{n}} products' },

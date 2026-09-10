@@ -113,7 +113,7 @@ export const ptBR = {
       levelFull: 'cheio',
       levelLasts: 'dura {{days}} pelo consumo da semana',
       levelEndsIn: 'acaba em {{days}}',
-      inputsFine: 'Insumos em dia',
+      inputsFine: 'Insumos e embalagem em dia',
       // O verbo concorda com a contagem: "1 caixa saíram hoje" foi o que
       // apareceu na tela do dono. O substantivo já era plural e o verbo era
       // string fixa - meia concordância é pior que nenhuma, porque só quebra
@@ -160,7 +160,7 @@ export const ptBR = {
         weekRank: 'hoje é o {{rank}} melhor dia',
         /** Os ordinais que a frase da semana usa, do segundo ao sétimo. */
         ordinals: ['segundo', 'terceiro', 'quarto', 'quinto', 'sexto', 'sétimo'],
-        shortestInput: 'é o insumo mais curto da casa',
+        shortestInput: 'é o que acaba primeiro na casa',
         runsOutIn: 'até acabar',
         shipmentToday: 'expedição de hoje',
         movedSince: '{{count}}, desde ontem',
@@ -763,7 +763,7 @@ export const ptBR = {
       },
       rows: {
         who: 'Trocar de pessoa',
-        inputs: 'Insumos',
+        inputs: 'Almoxarifado',
         recipes: 'Receitas',
         products: 'Produtos',
         places: 'Lojas e clientes',
@@ -804,7 +804,7 @@ export const ptBR = {
       stored: 'O que está guardado',
       onlyAdmin: 'As escolhas da empresa são de quem administra. O que está aqui vale para este aparelho.',
       checking: 'Conferindo…',
-      inputs: 'Insumos',
+      inputs: 'Almoxarifado',
       recipes: 'Receitas',
       products: 'Produtos',
       purchases: 'Compras lançadas',
@@ -818,7 +818,7 @@ export const ptBR = {
         purchases: 'notas lançadas, custo médio e histórico de preço',
         recipes: 'fichas técnicas e todas as versões',
         products: 'o que sai para vender',
-        inputs: 'almoxarifado, embalagem e material de loja',
+        inputs: 'insumos, embalagem e material de loja',
       },
       startOver: 'Começar do zero',
       startOverHint:
@@ -899,12 +899,12 @@ export const ptBR = {
       failedToRestore: 'Não deu para restaurar',
       blocked: {
         recipesUseInputs: {
-          one: 'Não dá para apagar os insumos enquanto 1 receita usa eles. Apague as receitas primeiro.',
-          other: 'Não dá para apagar os insumos enquanto {{n}} receitas usam eles. Apague as receitas primeiro.',
+          one: 'Não dá para apagar o almoxarifado enquanto 1 receita usa o que está nele. Apague as receitas primeiro.',
+          other: 'Não dá para apagar o almoxarifado enquanto {{n}} receitas usam o que está nele. Apague as receitas primeiro.',
         },
         purchasesUseInputs: {
-          one: 'Não dá para apagar os insumos enquanto 1 compra lançada aponta para eles. Apague as compras primeiro.',
-          other: 'Não dá para apagar os insumos enquanto {{n}} compras lançadas apontam para eles. Apague as compras primeiro.',
+          one: 'Não dá para apagar o almoxarifado enquanto 1 compra lançada aponta para ele. Apague as compras primeiro.',
+          other: 'Não dá para apagar o almoxarifado enquanto {{n}} compras lançadas apontam para ele. Apague as compras primeiro.',
         },
         productsUseRecipes: {
           one: 'Não dá para apagar as receitas enquanto 1 produto é feito delas. Apague os produtos primeiro.',
@@ -922,7 +922,7 @@ export const ptBR = {
       alsoInputs: 'Isso apaga {{what}}, junto com o custo médio e o histórico de preço deles.',
       alsoAll: 'Isso apaga {{what}}. O aplicativo volta a abrir vazio, e os dados de exemplo não voltam sozinhos.',
       counted: {
-        inputs: { one: '1 insumo', other: '{{n}} insumos' },
+        inputs: { one: '1 item do almoxarifado', other: '{{n}} itens do almoxarifado' },
         movements: { one: '1 movimento do livro-razão', other: '{{n}} movimentos do livro-razão' },
         recipes: { one: '1 receita', other: '{{n}} receitas' },
         products: { one: '1 produto', other: '{{n}} produtos' },

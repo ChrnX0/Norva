@@ -806,3 +806,85 @@ test('a segunda régua separa a frase que afirma da que traduz a medida', () => 
   assert.ok(!medidaSolta('app.inputForm.useUnitHint', 'A menor medida com que a receita trabalha: g, ml, un.'));
   assert.ok(!medidaSolta('app.recipe.whatGoesIn', 'O que entra de cada vez'), 'palavra sem medida passa');
 });
+
+/**
+ * A etiqueta da porta é o título da tela que ela abre.
+ *
+ * **O defeito que fez esta guarda existir:** o "Mais" oferecia *"Insumos"*, e o
+ * toque abria uma tela chamada **Almoxarifado**, com três abas — Insumos,
+ * Embalagem e Material de loja. Ajustes usava a MESMA palavra para contar as três
+ * (`countForErase` soma `input`, `packaging` e `store_supply`), então a tela dizia
+ * *"Insumos 6"* enquanto o Almoxarifado, ao lado, dizia *"Insumos 4 · Embalagem
+ * 2"*. Uma palavra, três conjuntos, e nenhum teste vermelho — porque cada frase,
+ * sozinha, está bem escrita.
+ *
+ * O que uma régua consegue pegar disto não é a ambiguidade (nenhum script sabe
+ * quantos tipos uma palavra abrange); é a **porta que promete outro nome**. Se a
+ * linha do menu e o cabeçalho da tela dizem a mesma coisa, a pessoa não tem onde
+ * comparar dois conjuntos com um nome só — e no dia em que alguém renomear um dos
+ * dois lados, isto fica vermelho antes de chegar à foto.
+ *
+ * **A régua conta o que COMPAROU, nunca o que leu.** Duas versões descartáveis
+ * dela erraram antes desta, e as duas devolveram número em vez de erro: a primeira
+ * leu o recorte errado do dicionário e disse *zero fora* — que se lê como "está
+ * tudo certo" —, e a segunda pulou em silêncio toda tela cujo `title` não é a
+ * primeira chave do bloco, inclusive a que eu tinha escolhido como caso de prova.
+ * Por isso o piso abaixo é uma asserção, e por isso nenhuma porta é pulada em
+ * silêncio: ou o título bate, ou o motivo está escrito.
+ */
+const PORTA_DIFERENTE_DA_TELA: Record<string, string> = {
+  who: 'a porta é um VERBO ("Trocar de pessoa") e a tela é um estado ("Quem está com o aparelho"). Porta de ação não deve prometer o substantivo.',
+  purchases: 'mesma coisa: tocar ali COMEÇA uma compra ("Nova compra"), não abre a lista das que existem.',
+  weather: 'a tela do clima não tem `title` no dicionário — ela se abre pela sobrancelha, e não há o que comparar.',
+  places: 'ACHADO ABERTO — a porta diz "Lojas e clientes", a tela diz "Estoque por lugar", e a tabela guarda também veículo, câmara fria e a própria fábrica. É o MESMO defeito dos insumos numa segunda palavra, e escolher qual das três vence é decisão de produto, não troca de rótulo. Está em `docs/roadmap.md`.',
+};
+
+/** A porta e a tela, quando as duas existem no dicionário. */
+function portasDoMais(): { chave: string; porta: string; tela: string | undefined }[] {
+  const app = ptBR.app as unknown as Record<string, { title?: string } | undefined>;
+  const rows = (ptBR.app as unknown as { more: { rows: Record<string, string> } }).more.rows;
+  return Object.entries(rows).map(([chave, porta]) => ({ chave, porta, tela: app[chave]?.title }));
+}
+
+test('a door in Mais is named after the screen it opens', () => {
+  const portas = portasDoMais();
+
+  const comparadas = portas.filter((p) => p.tela !== undefined && !(p.chave in PORTA_DIFERENTE_DA_TELA));
+  assert.ok(
+    comparadas.length >= 8,
+    `a régua comparou ${comparadas.length} portas — abaixo do piso, então ela deixou de medir em vez de passar`,
+  );
+
+  const fora = comparadas
+    .filter((p) => p.porta !== p.tela)
+    .map((p) => `${p.chave}: a porta diz ${JSON.stringify(p.porta)} e a tela ${JSON.stringify(p.tela)}`);
+
+  assert.deepEqual(fora, [], 'porta e tela dizem nomes diferentes — ou iguale os dois, ou escreva o motivo');
+});
+
+test('the frontier of doors only holds the ones that really differ', () => {
+  const portas = new Map(portasDoMais().map((p) => [p.chave, p]));
+
+  for (const chave of Object.keys(PORTA_DIFERENTE_DA_TELA)) {
+    const porta = portas.get(chave);
+    assert.ok(porta, `${chave} não é porta do Mais — a fronteira envelheceu`);
+    assert.ok(
+      porta.tela !== porta.porta,
+      `${chave} já diz o mesmo nome nos dois lados — tire da fronteira`,
+    );
+  }
+});
+
+test('the door ruler bites a renamed door and spares the one with a written reason', () => {
+  const bate = (porta: string, tela: string | undefined, chave: string) =>
+    tela !== undefined && !(chave in PORTA_DIFERENTE_DA_TELA) && porta !== tela;
+
+  // Verdadeiro: é exatamente o caso que existia — a porta dizendo uma das abas.
+  assert.ok(bate('Insumos', 'Almoxarifado', 'inputs'));
+  assert.ok(bate('Fichas', 'Receitas', 'recipes'));
+
+  // Falso, nos três sentidos: nomes iguais, tela sem título, e motivo escrito.
+  assert.ok(!bate('Almoxarifado', 'Almoxarifado', 'inputs'));
+  assert.ok(!bate('Clima', undefined, 'weather'));
+  assert.ok(!bate('Trocar de pessoa', 'Quem está com o aparelho', 'who'));
+});

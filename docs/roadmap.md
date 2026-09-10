@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **666** testes |
+| `npm test` | **669** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **53** checagens num navegador de verdade |
 | `npm run db:verify` | **28** garantias contra um Postgres descartável, sob RLS |
@@ -163,8 +163,17 @@ por peso, e o que já foi fechado:**
     `lastCheckForUpdateTime` andando 08:40:14 → 08:41:07 → 08:47:02 → 08:48:07. O canal
     `preview` do `app.json` não tem nada publicado, e o aplicativo bate na porta dele para
     sempre.
-12. **A mesma palavra conta coisas diferentes**: Ajustes diz *"Insumos 6"* e o Almoxarifado
-    diz *"Insumos 4 · Embalagem 2"*.
+12. ~~**A mesma palavra conta coisas diferentes**: Ajustes diz *"Insumos 6"* e o Almoxarifado
+    diz *"Insumos 4 · Embalagem 2"*.~~ — **fechado**, e a conta estava certa: `countForErase`
+    soma `input`, `packaging` e `store_supply` porque é isso que a área apaga (migração
+    `0049`). O defeito era de **palavra** — uma servindo a três conjuntos. Ajustes passa a
+    chamar a área pelo nome da tela (*Almoxarifado*), a linha debaixo passa a nomear os três
+    (*insumos, embalagem e material de loja*), a confirmação conta *"6 itens do
+    almoxarifado"*, e a capa deixa de dizer *"Insumos em dia"* sobre uma conta que também
+    olha embalagem (`runningOut` tem `['input','packaging']` de padrão, com razão escrita).
+    A guarda que impede a volta é a porta: `src/dictionary.test.ts` cobra que a linha do
+    Mais diga o nome da tela que ela abre, com fronteira escrita para as que diferem de
+    propósito.
 13. ~~**O editor da ficha técnica abre com o cabeçalho vazio.**~~ — **fechado**: era a
     entrada travada em opacidade zero, e a opacidade saiu da entrada inteira. Provado no
     aparelho com movimento LIGADO (`tinta 11,56:1 em 20/22 fitas`). O texto abaixo fica
@@ -246,6 +255,16 @@ virar afirmação. **Seis fechados no mesmo dia:**
     `db:verify` e portão — e **não** pelo aparelho. Quem retomar tem oito becos já
     fechados e pode começar pelo que sobrou: outra imagem de sistema (a `android-30
     default` é a única instalada), ou o APK de depuração, que é menor.
+
+27. **A porta "Lojas e clientes" abre a tela "Estoque por lugar"** — o mesmo defeito do item
+    12 numa segunda palavra, e foi a guarda nova dele que o achou. A tabela guarda cinco
+    espécies — `own_store`, `customer`, `vehicle`, `cold_room` e a própria fábrica
+    (`app/places.tsx:110`) —, o menu promete duas delas (`src/i18n/locales/pt-BR.ts:766`), o
+    cabeçalho da tela diz uma terceira coisa (`src/i18n/locales/pt-BR.ts:1324`) e a
+    confirmação de apagar conta *"lugares"* (`t.app.settings.counted.places`). Qual nome
+    vence é decisão de produto e não troca de rótulo: a mesma tela cadastra o lugar e mostra
+    o saldo dele. Fronteira escrita em `PORTA_DIFERENTE_DA_TELA`
+    (`src/dictionary.test.ts`), que é o que impede o achado de sumir.
 
 **Aberto do que esta caminhada achou:**
 

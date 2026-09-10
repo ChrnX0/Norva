@@ -70,7 +70,7 @@ export const es: Dictionary = {
       levelFull: 'lleno',
       levelLasts: 'dura {{days}} al ritmo de la semana',
       levelEndsIn: 'se acaba en {{days}}',
-      inputsFine: 'Insumos al día',
+      inputsFine: 'Insumos y empaque al día',
       boxesSent: { one: 'salió hoy', other: 'salieron hoy' },
       boxesTitle: 'Salió a las tiendas',
       noBoxesYesterday: 'Ayer no salió carga.',
@@ -91,7 +91,7 @@ export const es: Dictionary = {
         weekBest: 'hoy es el mejor día',
         weekRank: 'hoy es el {{rank}} mejor día',
         ordinals: ['segundo', 'tercer', 'cuarto', 'quinto', 'sexto', 'séptimo'],
-        shortestInput: 'es el insumo más corto de la casa',
+        shortestInput: 'es lo que se acaba primero en la casa',
         runsOutIn: 'hasta acabarse',
         shipmentToday: 'despacho de hoy',
         movedSince: '{{count}}, desde ayer',
@@ -572,7 +572,7 @@ export const es: Dictionary = {
       },
       rows: {
         who: 'Cambiar de persona',
-        inputs: 'Insumos',
+        inputs: 'Almacén',
         recipes: 'Recetas',
         products: 'Productos',
         places: 'Tiendas y clientes',
@@ -606,7 +606,7 @@ export const es: Dictionary = {
       stored: 'Lo que está guardado',
       onlyAdmin: 'Las decisiones de la empresa son de quien la administra. Lo que está aquí vale para este aparato.',
       checking: 'Comprobando…',
-      inputs: 'Insumos',
+      inputs: 'Almacén',
       recipes: 'Recetas',
       products: 'Productos',
       purchases: 'Compras registradas',
@@ -620,7 +620,7 @@ export const es: Dictionary = {
         purchases: 'facturas registradas, costo promedio e historial de precio',
         recipes: 'fichas técnicas y todas las versiones',
         products: 'lo que sale para vender',
-        inputs: 'almacén, empaque y material de tienda',
+        inputs: 'insumos, empaque y material de tienda',
       },
       startOver: 'Empezar de cero',
       startOverHint:
@@ -692,12 +692,12 @@ export const es: Dictionary = {
       failedToRestore: 'No se pudo restaurar',
       blocked: {
         recipesUseInputs: {
-          one: 'No se pueden borrar los insumos mientras 1 receta los usa. Borra las recetas primero.',
-          other: 'No se pueden borrar los insumos mientras {{n}} recetas los usan. Borra las recetas primero.',
+          one: 'No se puede borrar el almacén mientras 1 receta usa lo que hay en él. Borra las recetas primero.',
+          other: 'No se puede borrar el almacén mientras {{n}} recetas usan lo que hay en él. Borra las recetas primero.',
         },
         purchasesUseInputs: {
-          one: 'No se pueden borrar los insumos mientras 1 compra registrada apunta a ellos. Borra las compras primero.',
-          other: 'No se pueden borrar los insumos mientras {{n}} compras registradas apuntan a ellos. Borra las compras primero.',
+          one: 'No se puede borrar el almacén mientras 1 compra registrada apunta a él. Borra las compras primero.',
+          other: 'No se puede borrar el almacén mientras {{n}} compras registradas apuntan a él. Borra las compras primero.',
         },
         productsUseRecipes: {
           one: 'No se pueden borrar las recetas mientras 1 producto se hace con ellas. Borra los productos primero.',
@@ -715,7 +715,7 @@ export const es: Dictionary = {
       alsoInputs: 'Esto borra {{what}}, junto con su costo promedio y su historial de precio.',
       alsoAll: 'Esto borra {{what}}. La aplicación vuelve a abrir vacía, y los datos de ejemplo no vuelven solos.',
       counted: {
-        inputs: { one: '1 insumo', other: '{{n}} insumos' },
+        inputs: { one: '1 artículo del almacén', other: '{{n}} artículos del almacén' },
         movements: { one: '1 movimiento del libro mayor', other: '{{n}} movimientos del libro mayor' },
         recipes: { one: '1 receta', other: '{{n}} recetas' },
         products: { one: '1 producto', other: '{{n}} productos' },
