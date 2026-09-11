@@ -157,7 +157,7 @@ function Production() {
   const [showBatches, setShowBatches] = useState(false);
   const [unitsText, setUnitsText] = useState('');
   /** Onde a pessoa está na grade: a linha e o tipo escolhidos até agora. */
-  const [naGrade, setNaGrade] = useState<Escolha>({ lineId: null, typeId: null });
+  const [naGrade, setNaGrade] = useState<Escolha>({ lineId: null, categoryId: null, typeId: null });
   const [unitsTyped, setUnitsTyped] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -502,6 +502,7 @@ function Production() {
                 id: p.id,
                 name: p.name,
                 lineId: p.lineId,
+                categoryId: p.categoryId,
                 typeId: p.typeId,
                 flavorId: p.flavorId,
               }))}

@@ -1844,6 +1844,74 @@ psql -d "$DB" -q -c "insert into flavors (id, company_id, type_id, name)
 
 echo "    o mesmo nome cabe em dois tipos, morre repetido no mesmo, e nao cruza a empresa"
 
+echo "==> check 30: a categoria entra entre o produto e o tipo, e nada é obrigatório"
+
+# A `0057` acrescenta o quarto nivel, e o dono disse a regra junto: *"o produto nao
+# necessariamente requeira todas as subclasses"*. Entao as quatro metades sao:
+#   1. o mesmo nome de tipo em DUAS categorias do mesmo produto entra;
+#   2. o mesmo nome na MESMA categoria morre;
+#   3. tipo SEM categoria continua entrando — e e o caso comum, o da fabrica do dono;
+#   4. a grade de quatro colunas recusa o mesmo produto duas vezes, INCLUSIVE quando
+#      nenhum nivel foi preenchido (a fabrica de um doce so, que e quem o `nulls not
+#      distinct` protege).
+CAT=dddd0000-0000-4000-8000-0000000001
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<SQL >/dev/null
+insert into product_lines (id, company_id, name) values ('${CAT}a1','${M}c1','Picole da 30');
+insert into product_categories (id, company_id, line_id, name) values
+  ('${CAT}b1','${M}c1','${CAT}a1','Sem lactose'),
+  ('${CAT}b2','${M}c1','${CAT}a1','Tradicional da 30');
+SQL
+
+tipo() { # $1 = id, $2 = categoria (ou vazio), $3 = nome — sai 0 se entrou
+  if [ -n "$2" ]; then
+    psql -d "$DB" -q -c "insert into product_types (id, company_id, line_id, category_id, name)
+      values ('$1','${M}c1','${CAT}a1','$2','$3');" >/dev/null 2>&1  # proofgate-allow
+  else
+    psql -d "$DB" -q -c "insert into product_types (id, company_id, line_id, name)
+      values ('$1','${M}c1','${CAT}a1','$3');" >/dev/null 2>&1  # proofgate-allow
+  fi
+  [ "$(rows "select count(*) from product_types where id = '$1';")" = "1" ]  # proofgate-allow
+}
+
+# 1. "500 ml" na categoria sem lactose E na tradicional: dois registros, o mesmo nome.
+tipo "${CAT}c1" "${CAT}b1" '500 ml' || fail "o tipo da primeira categoria foi recusado"
+tipo "${CAT}c2" "${CAT}b2" '500 ml' || fail "o mesmo nome na OUTRA categoria foi recusado: a categoria nao esta no indice"
+
+# 2. "500 ml" de novo na MESMA categoria morre.
+tipo "${CAT}c3" "${CAT}b1" '500 ml' && fail "tipo repetido na mesma categoria passou"
+
+# 3. E o caso comum: tipo SEM categoria. E o que a fabrica do dono usa, e o que a
+#    decisao dele exige — nenhuma subclasse e obrigatoria.
+tipo "${CAT}c4" "" 'Leite da 30' || fail "tipo sem categoria foi recusado: a decisao do dono diz o contrario"
+tipo "${CAT}c5" "" 'Leite da 30' && fail "tipo sem categoria repetido passou: o coalesce do indice nao pegou"
+
+# 4. A grade de quatro colunas, com os niveis de baixo VAZIOS — que e o caso que so o
+#    `nulls not distinct` protege: no padrao do Postgres dois nulos nao colidem, entao a
+#    fabrica que classifica pouco ficaria sem guarda justamente por classificar pouco.
+#
+#    O produto leva a linha que esta checagem criou, e nada abaixo. Sem a linha, o caso
+#    e o do produto totalmente sem nivel — e esse JA EXISTE nas fixtures, entao tentar
+#    inserir o primeiro aqui falha por colidir com ele. Amarrar a garantia ao estado de
+#    outra checagem e frageis; este caso se basta.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<SQL >/dev/null
+insert into items (id, company_id, kind, name, base_unit) values ('${CAT}d1','${M}c1','product','Doce unico da 30','unit');
+insert into products (id, company_id, item_id, line_id) values ('${CAT}e1','${M}c1','${CAT}d1','${CAT}a1');
+SQL
+# Esta TEM de falhar, e o `|| true` nao e frouxidao: sem ele o `set -e` derruba o
+# script exatamente quando a garantia esta sendo cumprida.
+psql -d "$DB" -q -c "insert into products (id, company_id, item_id)
+  values ('${CAT}e2','${M}c1','${CAT}d1');" >/dev/null 2>&1 || true  # proofgate-allow
+[ "$(rows "select count(*) from products where id = '${CAT}e2';")" = "0" ] \
+  || fail "o produto sem nivel nenhum entrou duas vezes: a fabrica de um doce so ficou sem guarda"
+
+# E a categoria da empresa VIZINHA e recusada pela chave composta, nao pela tela.
+psql -d "$DB" -q -c "insert into product_types (id, company_id, line_id, category_id, name)
+  values ('${CAT}c9','${M}c2','${CAT}a1','${CAT}b1','Roubado');" >/dev/null 2>&1 || true  # proofgate-allow
+[ "$(rows "select count(*) from product_types where id = '${CAT}c9';")" = "0" ] \
+  || fail "um tipo apontou para a categoria de OUTRA empresa"
+
+echo "    o mesmo nome cabe em duas categorias, morre repetido na mesma, e sem categoria tambem vale"
+
 echo
-echo "OK - migrations apply and all twenty-nine guarantees hold."
+echo "OK - migrations apply and all thirty guarantees hold."
 

@@ -124,7 +124,7 @@ npm run lint
 npm test
 npm run mutate       # quebra o código de propósito: a suíte morde mesmo?
 npm run e2e:fast     # o app dirigido num navegador de verdade, em quatro fatias
-npm run db:verify    # Postgres descartável, vinte e nove garantias — inclui a fila
+npm run db:verify    # Postgres descartável, trinta garantias — inclui a fila
                      # do aparelho reproduzida contra o servidor de verdade
 bash .proofgate/verify.sh
 ```
@@ -920,6 +920,73 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   sozinho: fato de fábrica de verdade — unidades usadas, tamanho de lote, hierarquia de
   embalagem, validade, vocabulário. Arquitetura de protótipo é passivo dentro de um
   sistema com livro-razão append-only e `Cents`/`Rate`.
+
+- **A cadeia é PRODUTO → CATEGORIA → TIPO → VARIAÇÃO, e nenhum nível de baixo é
+  obrigatório — decisão do dono, 11 de setembro.** *"Produto - Categoria 'a', categoria
+  'b', categoria 'n'… Tipo 'a', tipo 'b', tipo 'n'… - Variação 'a', Variação 'b',
+  Variação 'n'… e tb o produto nao necessariamente requeira todas as 'subclasses'."*
+
+  Isso fecha o item 39 e resolve o que o estudo tinha travado. O problema achado era que
+  **"tipo" carregava duas naturezas**: Leite/Água/Skimo são tipos que têm RECEITA própria,
+  e 250 ml/500 ml são tipos que são só TAMANHO, com a mesma receita. Dois níveis separados
+  resolvem sem obrigar ninguém a usar os dois.
+
+  Na fábrica do pai dele, as duas famílias usam três níveis e deixam um vazio:
+
+  | | Produto | Categoria | Tipo | Variação |
+  |---|---|---|---|---|
+  | picolé | Picolé | — | Leite, Água, Skimo | Morango, Chocolate… |
+  | pote | Pote de sorvete | — | 250 ml, 500 ml | Morango, Chocolate… |
+
+  **Então a Categoria nasce sem exemplo na fábrica dele, e isso é deliberado.** A janela
+  para acertar a forma é agora: este arquivo já diz que *"forma de esquema se adivinha de
+  graça enquanto há zero linhas"*, e não há uma linha gravada em servidor nenhum. Acrescentar
+  o nível depois seria migração sobre dado vivo.
+
+  **E o que torna quatro níveis seguros é a opcionalidade ser de verdade, não promessa.**
+  `degraus()` (`src/components/grade.ts`) já devolve `[]` para um nível com uma opção ou
+  nenhuma — ele não vira pergunta na tela. Um nível que a fábrica não usa **desaparece**,
+  em vez de virar mais um toque. Sem isso, quatro níveis pioram exatamente a queixa que
+  abriu esta rodada (*"o app está complicadíssimo de se usar"*).
+
+  **A colisão de palavra, resolvida por mim e dita aqui:** hoje a tela chama de
+  **"Produtos"** a lista do que se vende (o SKU: *Picolé de Leite Morango*), e o dono usa
+  "Produto" para o TOPO da cadeia — o que hoje se chama "Linha". O topo passa a ser
+  **Produto**; o que se vende é a cadeia inteira dita por extenso, não um segundo
+  substantivo concorrente.
+
+- **Começar pelo fim EXISTE, e o passo a passo continua — decisão do dono, 11 de
+  setembro.** *"parece q pode dar margem para erro. Seguir um passo obrigatório q nao muda
+  é mais seguro, apesar de mais longo. O que eu acho q podemos fazer e partir dos dois
+  lados: inicio e fim, ambos valendo desde que o resultado seja o mesmo. O teu jeito é bom
+  para quem é desatento ou algo assim."*
+
+  Os dois caminhos existem, como manda a fundação do "depende". O passo a passo é o
+  seguro e continua sendo o padrão; começar pelo fim é a porta alternativa.
+
+  **E ele deu a invariante junto, que é o que torna isto verificável:** *"ambos valendo
+  desde que o resultado seja o mesmo"*. Não é conversa — é uma guarda: a mesma produção
+  registrada pelos dois caminhos tem de deixar o livro-razão **idêntico**, movimento por
+  movimento. Um caminho que produz um razão diferente não é um atalho, é outro ato.
+
+- **Conferência duplicada: os dois celulares veem, e o primeiro que aceitar fica —
+  decisão do dono, 11 de setembro.** *"assim q sincronizarem uma mensagem aparece dizendo
+  q tem duplicação de dados, mostra os dados (com a data, horário e local e nome do
+  operador, por exemplo) para os dois celulares e o primeiro q aceitar fica como
+  permanente."*
+
+  Isso encerra a pergunta que estava aberta, e a resposta **não era nenhuma das três** que
+  eu tinha oferecido (desfaz sozinha, fica marcada, avisa depois). É uma quarta: **mostra as
+  duas e deixa uma pessoa decidir.**
+
+  O que a decisão fixa: a duplicação **aparece na sincronia**, não fica em silêncio; a tela
+  mostra o que distingue as duas (data, hora, local, quem operou); os **dois** celulares
+  veem; e a primeira aceitação vira permanente. O que perde é estornado, que é como este
+  livro-razão corrige — nunca exclusão.
+
+  O que ela NÃO decide, porque é engenharia: como o transporte classifica a recusa do
+  servidor (`PushResult` em `src/sync/engine.ts:31` só diz o que ENTROU), e isso continua
+  precisando das formas de erro de um servidor de verdade.
 
 - **O operador confere a prateleira.** Numa fábrica de seis pessoas quem anda
   até a prateleira é quem trabalha lá, não o dono. Negar a permissão não deixa o

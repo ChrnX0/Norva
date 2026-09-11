@@ -216,7 +216,7 @@ function Transfer() {
   const toId2 = devolucao ? nossa : (outra?.id ?? null);
   const to = toId2 ? { id: toId2 } : null;
   /** Onde a pessoa está na grade — a mesma da produção. */
-  const [naGrade, setNaGrade] = useState<Escolha>({ lineId: null, typeId: null });
+  const [naGrade, setNaGrade] = useState<Escolha>({ lineId: null, categoryId: null, typeId: null });
 
   const here = data?.stock.find((p) => p.locationId === from);
   // O provável na frente, deduzido do DESTINO: uma loja vende produto acabado, e
@@ -243,6 +243,7 @@ function Transfer() {
       id: l.itemId,
       name: l.name,
       lineId: produto?.lineId ?? null,
+      categoryId: produto?.categoryId ?? null,
       typeId: produto?.typeId ?? null,
       flavorId: produto?.flavorId ?? null,
     };

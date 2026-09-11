@@ -95,6 +95,7 @@ export type ServerTable =
   | 'recipe_versions'
   | 'recipe_lines'
   | 'product_lines'
+  | 'product_categories'
   | 'product_types'
   | 'flavors'
   | 'products'
@@ -369,8 +370,18 @@ const CROSSINGS: Record<
     build: (row) => ({ active: flag(row.active), packaging: structure(row.packaging) }),
   },
 
-  product_types: {
+  // A categoria entra entre o produto e o tipo (`0057`), e por isso atravessa
+  // DEPOIS da linha e ANTES do tipo — a fila vai da mais velha para a mais nova, e
+  // categoria que chega depois do tipo que a aponta é chave estrangeira quebrada.
+  product_categories: {
     take: ['id', 'company_id', 'line_id', 'name', 'sort'],
+    build: (row) => ({ active: flag(row.active) }),
+  },
+
+  product_types: {
+    // `category_id` é anulável e atravessa mesmo assim: nulo aqui QUER DIZER
+    // alguma coisa — o tipo é do produto direto, que é o caso da fábrica do dono.
+    take: ['id', 'company_id', 'line_id', 'category_id', 'name', 'sort'],
     build: (row) => ({ active: flag(row.active) }),
   },
 
@@ -389,6 +400,7 @@ const CROSSINGS: Record<
       'unit_packaging_rate',
       'shelf_life_days',
       'line_id',
+      'category_id',
       'type_id',
       'flavor_id',
     ],

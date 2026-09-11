@@ -427,8 +427,9 @@ const NAO_CONTADA: Record<string, string> = {
   // As quatro abaixo são coisas que a pessoa RECONHECE e que hoje somem sem
   // número. Ficam registradas com a dívida escrita em vez de com uma desculpa —
   // a razão aqui não é "não precisa contar", é "ainda não conta".
-  product_types: 'contados junto com `product_lines` e `flavors` como a GRADE, que é um número só: a pessoa monta a grade, não cadastra "um tipo"',
-  product_lines: 'idem — a grade é uma coisa com três tabelas',
+  product_types: 'contados junto com `product_lines`, `product_categories` e `flavors` como a GRADE, que é um número só: a pessoa monta a grade, não cadastra "um tipo"',
+  product_lines: 'idem — a grade é uma coisa com QUATRO tabelas desde a `0057`',
+  product_categories: 'idem — o nível que entrou entre o produto e o tipo',
   flavors: 'idem',
 };
 

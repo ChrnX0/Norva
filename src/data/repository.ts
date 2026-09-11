@@ -3031,6 +3031,7 @@ export type Product = {
    * nem sabor, e uma fábrica de um doce só nunca cadastrou nenhum dos três.
    */
   lineId: string | null;
+  categoryId: string | null;
   typeId: string | null;
   flavorId: string | null;
 };
@@ -3086,12 +3087,13 @@ export async function listProductsForLedger(
     packaging_items: string;
     sale_price_rate: number | null;
     line_id: string | null;
+    category_id: string | null;
     type_id: string | null;
     flavor_id: string | null;
   }>(
     `SELECT p.id, p.item_id, i.name, p.recipe_id, p.yield_per_unit,
             p.unit_packaging_rate, p.shelf_life_days, i.packaging, i.sale_price_rate,
-            p.packaging_items, p.line_id, p.type_id, p.flavor_id
+            p.packaging_items, p.line_id, p.category_id, p.type_id, p.flavor_id
        FROM products p
        JOIN items i ON i.id = p.item_id
       WHERE p.company_id = ? AND p.active = 1
@@ -3115,6 +3117,7 @@ export async function listProductsForLedger(
     shelfLifeDays: r.shelf_life_days,
     packaging: parsePackaging(r.packaging),
     lineId: r.line_id,
+    categoryId: r.category_id,
     typeId: r.type_id,
     flavorId: r.flavor_id,
     packagingItems: parsePackagingItems(r.packaging_items, catalogo),
@@ -5523,7 +5526,23 @@ export type ProductLine = {
    */
   packaging: PackagingHierarchy | null;
 };
-export type ProductType = { id: string; lineId: string; name: string; sort: number };
+export type ProductType = {
+  id: string;
+  lineId: string;
+  /**
+   * A categoria que estreita este tipo, quando há uma.
+   *
+   * Nulo QUER DIZER alguma coisa: o tipo é do produto direto. É o caso da fábrica do
+   * dono — picolé tem Leite/Água/Skimo sem categoria no meio — e a decisão dele de 11 de
+   * setembro diz que nenhuma subclasse é obrigatória.
+   */
+  categoryId: string | null;
+  name: string;
+  sort: number;
+};
+
+/** Um nível entre o produto e o tipo. Opcional, como todos os de baixo. */
+export type ProductCategory = { id: string; lineId: string; name: string; sort: number };
 /**
  * Um sabor, e o tipo a que ele pertence.
  *
@@ -5570,10 +5589,37 @@ export async function listTypes(companyId: string, lineId?: string): Promise<Pro
   const rows = await conn.getAllAsync<{
     id: string;
     line_id: string;
+    category_id: string | null;
     name: string;
     sort: number;
   }>(
-    `SELECT id, line_id, name, sort FROM product_types
+    `SELECT id, line_id, category_id, name, sort FROM product_types
+      WHERE company_id = ? AND active = 1${lineId ? ' AND line_id = ?' : ''}
+      ORDER BY sort, name COLLATE NOCASE`,
+    lineId ? [companyId, lineId] : [companyId],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    lineId: r.line_id,
+    categoryId: r.category_id,
+    name: r.name,
+    sort: r.sort,
+  }));
+}
+
+/** As categorias de um produto, ou as da empresa inteira quando não se diz qual. */
+export async function listCategories(
+  companyId: string,
+  lineId?: string,
+): Promise<ProductCategory[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    id: string;
+    line_id: string;
+    name: string;
+    sort: number;
+  }>(
+    `SELECT id, line_id, name, sort FROM product_categories
       WHERE company_id = ? AND active = 1${lineId ? ' AND line_id = ?' : ''}
       ORDER BY sort, name COLLATE NOCASE`,
     lineId ? [companyId, lineId] : [companyId],
@@ -5647,18 +5693,87 @@ export async function saveLine(
 
 export async function saveType(
   companyId: string,
-  input: { id?: string; lineId: string; name: string; sort?: number },
+  input: { id?: string; lineId: string; categoryId?: string | null; name: string; sort?: number },
 ): Promise<string> {
+  // A categoria tem de ser DESTE produto, e quem prova isso é a escrita.
+  //
+  // O SQLite não aceita chave composta em `ALTER TABLE ADD COLUMN` (a `V32` diz isso), e
+  // no servidor a `0057` explica por que a chave é só de mesma-empresa: `match full`
+  // proibiria o caso comum, o tipo SEM categoria. Então a checagem fina mora aqui, pelo
+  // mesmo motivo de `assertTypeBelongsToLine` — a tela é decoração, e o assistente e a
+  // sincronia gravam por este caminho sem passar por ela.
+  await assertCategoryBelongsToLine(companyId, input.lineId, input.categoryId ?? null);
   const conn = await db();
   const id = input.id ?? newId();
   await conn.withTransactionAsync(async () => {
     await conn.runAsync(
-      `INSERT INTO product_types (id, company_id, line_id, name, sort, active)
+      `INSERT INTO product_types (id, company_id, line_id, category_id, name, sort, active)
+       VALUES (?, ?, ?, ?, ?, ?, 1)
+       ON CONFLICT(id) DO UPDATE SET
+         category_id = excluded.category_id,
+         name = excluded.name,
+         sort = excluded.sort`,
+      [id, companyId, input.lineId, input.categoryId ?? null, input.name.trim(), input.sort ?? 0],
+    );
+    await enqueue(conn, [{ table: 'product_types', rowId: id }]);
+  });
+  return id;
+}
+
+/** A categoria aponta para um produto de OUTRA empresa, ou para produto nenhum. */
+export class CategoryIsFromAnotherLineError extends Error {
+  constructor(readonly categoryId: string) {
+    super(`category ${categoryId} belongs to another product`);
+    this.name = 'CategoryIsFromAnotherLineError';
+  }
+}
+
+/**
+ * A categoria é do produto certo? — nada a provar quando não há categoria.
+ *
+ * Sai cedo com `null` porque categoria vazia é o caso COMUM, não a exceção: a decisão do
+ * dono de 11 de setembro diz que nenhuma subclasse é obrigatória, e tratar o nulo como
+ * erro seria a mesma inversão que o `match full` fez no servidor por três semanas.
+ */
+export async function assertCategoryBelongsToLine(
+  companyId: string,
+  lineId: string | null,
+  categoryId: string | null,
+): Promise<void> {
+  if (!categoryId) return;
+  const conn = await db();
+  const row = await conn.getFirstAsync<{ line_id: string }>(
+    'SELECT line_id FROM product_categories WHERE id = ? AND company_id = ?',
+    [categoryId, companyId],
+  );
+  if (!row || row.line_id !== lineId) throw new CategoryIsFromAnotherLineError(categoryId);
+}
+
+/**
+ * Cadastra uma categoria, que é o nível entre o produto e o tipo.
+ *
+ * O produto é obrigatório pelo mesmo motivo que a variação exige linha: categoria solta
+ * não quer dizer nada — "Sem lactose" só significa alguma coisa dentro de "Picolé".
+ */
+export async function saveCategory(
+  companyId: string,
+  input: { id?: string; lineId: string; name: string; sort?: number },
+): Promise<string> {
+  const conn = await db();
+  const dono = await conn.getFirstAsync<{ id: string }>(
+    'SELECT id FROM product_lines WHERE id = ? AND company_id = ?',
+    [input.lineId, companyId],
+  );
+  if (!dono) throw new CategoryIsFromAnotherLineError(input.lineId);
+  const id = input.id ?? newId();
+  await conn.withTransactionAsync(async () => {
+    await conn.runAsync(
+      `INSERT INTO product_categories (id, company_id, line_id, name, sort, active)
        VALUES (?, ?, ?, ?, ?, 1)
        ON CONFLICT(id) DO UPDATE SET name = excluded.name, sort = excluded.sort`,
       [id, companyId, input.lineId, input.name.trim(), input.sort ?? 0],
     );
-    await enqueue(conn, [{ table: 'product_types', rowId: id }]);
+    await enqueue(conn, [{ table: 'product_categories', rowId: id }]);
   });
   return id;
 }

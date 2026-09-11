@@ -61,6 +61,7 @@ export type ErasableTable =
   | 'purchases'
   | 'products'
   | 'product_types'
+  | 'product_categories'
   | 'product_lines'
   | 'flavors'
   | 'recipe_lines'
@@ -237,9 +238,15 @@ export function tablesFor(area: EraseArea): readonly ErasableTable[] {
         'purchase_lines',
         'purchases',
         'products',
-        // A grade vem DEPOIS do produto: `products.line_id`, `type_id` e
-        // `flavor_id` apontam para cá com RESTRICT.
+        // A grade vem DEPOIS do produto: `products.line_id`, `category_id`,
+        // `type_id` e `flavor_id` apontam para cá com RESTRICT.
+        //
+        // E DENTRO da grade a ordem também é de baixo para cima: o tipo aponta
+        // para a categoria (`0057`) e a categoria aponta para o produto. Apagar a
+        // categoria antes do tipo levanta chave estrangeira e a transação inteira
+        // volta atrás — "apagar tudo" passa a não apagar nada.
         'product_types',
+        'product_categories',
         'product_lines',
         'flavors',
         'recipe_lines',

@@ -214,6 +214,7 @@ export const QUEUED_TABLES = [
   'orders',
   'order_lines',
   'product_lines',
+  'product_categories',
   'product_types',
   'flavors',
   'profiles',

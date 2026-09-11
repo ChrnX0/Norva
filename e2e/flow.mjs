@@ -1333,9 +1333,9 @@ check('a listed stick leaves the storeroom when the run is recorded', async (pag
   // é o caminho que o dono percorre no primeiro dia.
   await page.goto(`http://localhost:${PORT}/catalog`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
-  await page.getByLabel('Nova linha').first().fill('Picolé');
+  await page.getByLabel('Novo produto').first().fill('Picolé');
   await page.waitForTimeout(300);
-  await page.getByText('Nova linha', { exact: true }).first().click();
+  await page.getByText('Novo produto', { exact: true }).first().click();
   await page.waitForTimeout(1500);
   // O TIPO entra no meio desde a `V30`: a variação é dele, e não da casa. O dono deu
   // o motivo com o exemplo — "morango leite" e "morango água" são coisas diferentes e
@@ -3280,9 +3280,9 @@ check('a product is registered with what it sells for, and the list says so', as
    */
   await page.goto(`http://localhost:${PORT}/catalog`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
-  await page.getByLabel('Nova linha').first().fill('Picolé');
+  await page.getByLabel('Novo produto').first().fill('Picolé');
   await page.waitForTimeout(300);
-  await page.getByText('Nova linha', { exact: true }).first().click();
+  await page.getByText('Novo produto', { exact: true }).first().click();
   await page.waitForTimeout(1500);
   await page.getByLabel('Novo tipo').first().fill('Tradicional');
   await page.waitForTimeout(300);

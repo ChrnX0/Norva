@@ -67,6 +67,7 @@ const PRODUCTS: Product[] = [
     packagingItems: [],
     packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }] },
     lineId: null,
+    categoryId: null,
     typeId: null,
     flavorId: null,
   },

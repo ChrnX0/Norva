@@ -48,12 +48,30 @@ export function GradeFiltro({
   onEscolha: (proxima: Escolha) => void;
 }) {
   const { space } = useTheme();
-  const { linhas, tipos } = degraus(produtos, escolha, nome);
-  if (linhas.length === 0 && tipos.length === 0) return null;
+  const { linhas, categorias, tipos } = degraus(produtos, escolha, nome);
+  // Nenhum degrau para mostrar quer dizer que não há o que escolher — e aí a fileira
+  // inteira some, em vez de virar uma linha vazia ocupando espaço.
+  if (linhas.length === 0 && categorias.length === 0 && tipos.length === 0) return null;
   return (
     <View style={{ gap: space.md }}>
+      {/* Escolher um degrau de cima ZERA os de baixo: a categoria de "Picolé" não quer
+          dizer nada dentro de "Pote", e manter a escolha velha faria a lista voltar
+          vazia sem dizer por quê. */}
       {linhas.length > 0
-        ? fileiraDeEscolha(linhas, escolha.lineId, (id) => onEscolha({ lineId: id, typeId: null }), space)
+        ? fileiraDeEscolha(
+            linhas,
+            escolha.lineId,
+            (id) => onEscolha({ lineId: id, categoryId: null, typeId: null }),
+            space,
+          )
+        : null}
+      {categorias.length > 0
+        ? fileiraDeEscolha(
+            categorias,
+            escolha.categoryId,
+            (id) => onEscolha({ ...escolha, categoryId: id, typeId: null }),
+            space,
+          )
         : null}
       {tipos.length > 0
         ? fileiraDeEscolha(tipos, escolha.typeId, (id) => onEscolha({ ...escolha, typeId: id }), space)

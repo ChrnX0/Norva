@@ -1127,9 +1127,62 @@ CREATE UNIQUE INDEX IF NOT EXISTS flavors_name_idx
 CREATE INDEX IF NOT EXISTS flavors_line_idx ON flavors (company_id, line_id);
 `;
 
+/**
+ * A CATEGORIA entra entre o produto e o tipo. Espelha a `0057`.
+ *
+ * Decisão do dono, 11 de setembro: *"Produto - Categoria… Tipo… Variação… e tb o produto
+ * nao necessariamente requeira todas as 'subclasses'."*
+ *
+ * O que ela resolve: **"tipo" carregava duas naturezas.** Leite/Água/Skimo têm receita
+ * própria; 250 e 500 ml são só tamanho, com a mesma ficha. Uma palavra para as duas é o
+ * que fazia a tela parecer arbitrária.
+ *
+ * A `0018` tinha recusado um quarto nível por escrito — *"deixaria o picolé com uma coluna
+ * sempre vazia e a tela com uma pergunta que não se aplica"*. A objeção era certa e hoje
+ * tem resposta: `degraus()` devolve lista VAZIA para nível com uma opção ou nenhuma, então
+ * a coluna vazia não vira toque. A `0018` não estava errada; a condição dela passou a
+ * existir.
+ *
+ * O SQLite não aceita chave estrangeira composta em `ALTER TABLE ADD COLUMN`, então a
+ * garantia de que a categoria é do mesmo produto mora na escrita — a mesma divisão que a
+ * `V30`/`V31` deram à variação, e a cicatriz está escrita lá.
+ */
+const V32 = `
+CREATE TABLE IF NOT EXISTS product_categories (
+  id         TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  line_id    TEXT NOT NULL REFERENCES product_lines(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  sort       INTEGER NOT NULL DEFAULT 0,
+  active     INTEGER NOT NULL DEFAULT 1
+);
+CREATE UNIQUE INDEX IF NOT EXISTS product_categories_name_idx
+  ON product_categories (company_id, line_id, lower(trim(name)));
+CREATE INDEX IF NOT EXISTS product_categories_line_idx
+  ON product_categories (company_id, line_id);
+
+ALTER TABLE product_types ADD COLUMN category_id TEXT REFERENCES product_categories(id) ON DELETE CASCADE;
+DROP INDEX IF EXISTS product_types_name_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS product_types_name_idx
+  ON product_types (company_id, line_id, COALESCE(category_id, ''), lower(trim(name)));
+CREATE INDEX IF NOT EXISTS product_types_category_idx
+  ON product_types (company_id, category_id);
+
+ALTER TABLE products ADD COLUMN category_id TEXT REFERENCES product_categories(id) ON DELETE RESTRICT;
+
+-- A grade que impede cadastrar o mesmo produto duas vezes passa a ter quatro colunas.
+-- O \`coalesce\` faz aqui o que o \`nulls not distinct\` faz no Postgres: sem ele, a
+-- fábrica que não preenche nível nenhum poderia cadastrar o mesmo produto infinitas
+-- vezes — é justamente quem tem um doce só que ficaria sem guarda.
+DROP INDEX IF EXISTS products_grid_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS products_grid_idx
+  ON products (company_id, coalesce(line_id, ''), coalesce(category_id, ''), coalesce(type_id, ''), coalesce(flavor_id, ''))
+  WHERE active = 1;
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
-  V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31,
+  V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32,
 ];
 
 export type SqlParam = string | number | null;

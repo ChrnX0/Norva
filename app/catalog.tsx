@@ -8,15 +8,19 @@ import { Field } from '@/components/Field';
 import { GlyphCatalog, GlyphLabel } from '@/components/Glyph';
 import { Reveal } from '@/components/Reveal';
 import {
+  listCategories,
   listFlavors,
   listLines,
   listTypes,
+  saveCategory,
   saveFlavor,
   saveLine,
   saveType,
   NomeJaCadastradoError,
+  CategoryIsFromAnotherLineError,
   TypeIsFromAnotherLineError,
   type Flavor,
+  type ProductCategory,
   type ProductLine,
   type ProductType,
 } from '@/data/repository';
@@ -63,14 +67,28 @@ export default function CatalogScreen() {
   );
 }
 
-type Loaded = { lines: ProductLine[]; types: ProductType[]; flavors: Flavor[] };
+type Loaded = {
+  lines: ProductLine[];
+  categories: ProductCategory[];
+  types: ProductType[];
+  flavors: Flavor[];
+};
 
 function Catalog() {
   const { color, type, space, palette, traco } = useTheme();
   const { t } = useLocale();
 
   const [lineId, setLineId] = useState<string | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
   const [typeId, setTypeId] = useState<string | null>(null);
+  const [novaCategoria, setNovaCategoria] = useState('');
+  /**
+   * O tipo novo é da CATEGORIA escolhida, ou do produto inteiro?
+   *
+   * Só aparece quando existe categoria — sem ela não há duas respostas, e uma pergunta
+   * com uma resposta só é um toque cobrado por nada. Mesmo desenho que `saborNaLinha`.
+   */
+  const [tipoNoProduto, setTipoNoProduto] = useState(false);
   const [novaLinha, setNovaLinha] = useState('');
   const [novoTipo, setNovoTipo] = useState('');
   const [novoSabor, setNovoSabor] = useState('');
@@ -108,12 +126,13 @@ function Catalog() {
   const [linhaEditada, setLinhaEditada] = useState<string | null>(null);
 
   const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
-    const [lines, types, flavors] = await Promise.all([
+    const [lines, categories, types, flavors] = await Promise.all([
       listLines(empresaDaqui()),
+      listCategories(empresaDaqui()),
       listTypes(empresaDaqui()),
       listFlavors(empresaDaqui()),
     ]);
-    return { lines, types, flavors };
+    return { lines, categories, types, flavors };
   });
 
   // Nenhum campo nasce vazio, e nenhuma pergunta nasce sem contexto: a linha
@@ -150,7 +169,29 @@ function Catalog() {
    */
   const embalagemDaFamilia = (): PackagingHierarchy =>
     tiersFromCounts(parseTyped(porCaixa) ?? NaN, parseTyped(porEngradado) ?? NaN);
-  const tiposDaLinha = (data?.types ?? []).filter((t) => t.lineId === linhaAtiva?.id);
+  const categoriasDaLinha = (data?.categories ?? []).filter((c) => c.lineId === linhaAtiva?.id);
+  /**
+   * A categoria que está valendo — e VAZIA é o caso comum, não um estado pela metade.
+   *
+   * A decisão do dono de 11 de setembro diz que nenhuma subclasse é obrigatória, e a
+   * fábrica dele não usa categoria nenhuma. Com uma categoria só ela já vem escolhida,
+   * pela mesma razão do tipo: nenhuma pergunta com resposta única.
+   */
+  const categoriaAtiva =
+    categoriasDaLinha.find((c) => c.id === categoryId) ??
+    (categoriasDaLinha.length === 1 ? categoriasDaLinha[0] : null);
+  /**
+   * Os tipos que valem aqui: os da categoria escolhida MAIS os do produto inteiro.
+   *
+   * Tipo sem categoria não é tipo mal cadastrado — é tipo que vale em todo o produto,
+   * que é o que a fábrica do dono tem. Escondê-lo quando há uma categoria faria a lista
+   * voltar vazia para quem nunca usou o nível.
+   */
+  const tiposDaLinha = (data?.types ?? []).filter(
+    (t) =>
+      t.lineId === linhaAtiva?.id &&
+      (t.categoryId === null || t.categoryId === categoriaAtiva?.id),
+  );
   /**
    * O tipo que está valendo — e ele nunca fica apontando para fora da linha.
    *
@@ -195,6 +236,8 @@ function Catalog() {
       setErro(
         e instanceof TypeIsFromAnotherLineError
           ? t.app.catalog.typeFromAnotherLine
+          : e instanceof CategoryIsFromAnotherLineError
+            ? t.app.catalog.categoryFromAnotherLine
           : e instanceof NomeJaCadastradoError ||
               (e instanceof Error && /unique/i.test(e.message))
             ? t.app.catalog.duplicate
@@ -385,12 +428,92 @@ function Catalog() {
         </Card>
       </Reveal>
 
+      {/* Categoria: o corte OPCIONAL entre o produto e o tipo.
+          Ela existe porque "tipo" carregava duas naturezas — Leite/Água/Skimo têm
+          receita própria, 250 e 500 ml são só tamanho — e uma palavra para as duas
+          fazia a tela parecer arbitrária. Decisão do dono, 11 de setembro.
+
+          O cartão fica de pé mesmo vazio, como o de tipo: sumir com ele esconderia o
+          caminho de quem PRECISA do nível. Quem não precisa lê a frase e segue — e na
+          hora de PRODUZIR o nível some sozinho, que é o que `degraus()` garante. */}
+      <Reveal index={3}>
+        <Card
+          hue={palette.sand}
+          icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}
+          title={
+            linhaAtiva
+              ? fill(t.app.catalog.categories, { line: linhaAtiva.name })
+              : t.app.catalog.categoriesTitle
+          }
+        >
+          {loading ? null : (
+            <Text style={[type.caption, { color: color.inkMuted }]}>
+              {linhaAtiva ? t.app.catalog.categoriesHint : t.app.catalog.noLineYet}
+            </Text>
+          )}
+
+          {linhaAtiva ? (
+            <>
+              {categoriasDaLinha.length === 0 ? (
+                <Text style={[type.body, { color: color.inkMuted, marginTop: space.md }]}>
+                  {t.app.catalog.noCategories}
+                </Text>
+              ) : (
+                <View style={[styles.wrap, { gap: space.sm, marginTop: space.md }]}>
+                  {categoriasDaLinha.map((c) => (
+                    <Pressable
+                      key={c.id}
+                      onPress={() => {
+                        setCategoryId(c.id);
+                        // Trocar de categoria solta o tipo: o tipo da categoria
+                        // anterior não vale nesta, e mantê-lo escolhido cadastraria
+                        // variação no lugar errado sem uma palavra.
+                        setTypeId(null);
+                      }}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: c.id === categoriaAtiva?.id }}
+                      accessibilityLabel={c.name}
+                    >
+                      <Chip signal={c.id === categoriaAtiva?.id ? 'ok' : 'neutral'} label={c.name} />
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+
+              <View style={{ marginTop: space.lg, gap: space.md }}>
+                <Field
+                  label={t.app.catalog.addCategory}
+                  value={novaCategoria}
+                  onChangeText={setNovaCategoria}
+                  placeholder={t.app.catalog.namePlaceholder}
+                />
+                <Button
+                  label={t.app.catalog.addCategory}
+                  variant="ghost"
+                  disabled={novaCategoria.trim().length === 0}
+                  onPress={() =>
+                    gravar(
+                      () =>
+                        saveCategory(empresaDaqui(), {
+                          lineId: linhaAtiva.id,
+                          name: novaCategoria,
+                        }),
+                      () => setNovaCategoria(''),
+                    )
+                  }
+                />
+              </View>
+            </>
+          ) : null}
+        </Card>
+      </Reveal>
+
       {/* Tipo: o que divide a linha escolhida.
           Sem linha nenhuma não há tipo para cadastrar — o banco não aceitaria —
           mas o cartão fica de pé dizendo o que fazer primeiro. Sumir com ele
           esconderia o caminho, que é o erro que a tela de relatórios já
           cometeu. */}
-      <Reveal index={3}>
+      <Reveal index={4}>
         <Card
           hue={palette.sand}
           icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}
@@ -452,13 +575,49 @@ function Catalog() {
                   onChangeText={setNovoTipo}
                   placeholder={t.app.catalog.namePlaceholder}
                 />
+                {/* O alcance só é pergunta quando há categoria para estreitar — que é o
+                    espelho exato do que a variação faz com o tipo logo abaixo. Sem
+                    categoria não há duas respostas, e onde não há escolha não se
+                    pergunta: é o que mantém quatro níveis em três toques para quem usa
+                    três. */}
+                {categoriaAtiva ? (
+                  <View style={[styles.wrap, { gap: space.sm }]}>
+                    {[false, true].map((noProduto) => (
+                      <Pressable
+                        key={noProduto ? 'produto' : 'categoria'}
+                        onPress={() => setTipoNoProduto(noProduto)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: tipoNoProduto === noProduto }}
+                        accessibilityLabel={
+                          noProduto
+                            ? fill(t.app.catalog.scopeWholeLine, { line: linhaAtiva.name })
+                            : fill(t.app.catalog.scopeCategory, { category: categoriaAtiva.name })
+                        }
+                      >
+                        <Chip
+                          signal={tipoNoProduto === noProduto ? 'ok' : 'neutral'}
+                          label={
+                            noProduto
+                              ? fill(t.app.catalog.scopeWholeLine, { line: linhaAtiva.name })
+                              : fill(t.app.catalog.scopeCategory, { category: categoriaAtiva.name })
+                          }
+                        />
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
                 <Button
                   label={t.app.catalog.addType}
                   variant="ghost"
                   disabled={novoTipo.trim().length === 0}
                   onPress={() =>
                     gravar(
-                      () => saveType(empresaDaqui(), { lineId: linhaAtiva.id, name: novoTipo }),
+                      () =>
+                        saveType(empresaDaqui(), {
+                          lineId: linhaAtiva.id,
+                          categoryId: categoriaAtiva && !tipoNoProduto ? categoriaAtiva.id : null,
+                          name: novoTipo,
+                        }),
                       () => setNovoTipo(''),
                     )
                   }
@@ -471,7 +630,7 @@ function Catalog() {
 
       {/* Sabor: atravessa as linhas todas, e é por isso que ele não depende de
           escolha nenhuma acima. */}
-      <Reveal index={4}>
+      <Reveal index={5}>
         <Card
           hue={palette.sand}
           icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}

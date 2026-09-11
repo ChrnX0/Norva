@@ -1832,7 +1832,7 @@ export const ptBR = {
 
     catalog: {
       duplicate: 'Esse nome já está cadastrado. Caixa e espaço não contam como diferença.',
-      title: 'Linhas, tipos e variações',
+      title: 'Produtos e subclasses',
       /**
        * A família passa a dizer como ela é contada, e não só como se chama.
        * Antes, "quantos cabem numa caixa" era perguntado a cada produto, com um
@@ -1840,38 +1840,48 @@ export const ptBR = {
        */
       packing: 'COMO {{line}} É EMBALADA',
       packingHint:
-        'Todo produto desta linha nasce com estes números. Vazio quer dizer que esta família não se conta por caixa.',
+        'Tudo deste produto nasce com estes números. Vazio quer dizer que esta família não se conta por caixa.',
       perBox: 'Unidades por caixa',
       perCrate: 'Caixas por engradado',
       perCrateNoBox: 'Unidades por engradado',
       scopeType: 'só em {{type}}',
-      scopeLine: 'em toda a linha {{line}}',
-      savePacking: 'Guardar a embalagem da linha',
+      scopeLine: 'em todo {{line}}',
+      scopeCategory: 'só em {{category}}',
+      scopeWholeLine: 'em todo {{line}}',
+      savePacking: 'Guardar a embalagem do produto',
       overline: 'a grade do que você fabrica',
       intro:
-        'Cadastre uma vez e combine à vontade. Picolé tradicional de morango é uma linha, um tipo e um sabor — não um nome digitado inteiro.',
-      lines: 'Linhas',
-      linesHint: 'a família mais larga do seu catálogo — o que você fabrica',
+        'Cadastre uma vez e combine à vontade. Picolé de leite de morango é um produto, um tipo e uma variação — não um nome digitado inteiro. Nenhuma subclasse é obrigatória: o que a sua fábrica não usa não aparece.',
+      lines: 'Produtos',
+      linesHint: 'o que você fabrica — a família mais larga do seu catálogo',
+      categories: 'Categorias de {{line}}',
+      categoriesTitle: 'Categorias',
+      categoriesHint:
+        'um corte a mais, quando o produto precisa — sem lactose, linha premium. A maioria das fábricas não usa, e aí ela some.',
       types: 'Tipos de {{line}}',
       /** Sem linha, o cartão não tem formulário: o título nomeia o assunto, não a ação ausente. */
       typesTitle: 'Tipos',
-      typesHint: 'o que divide a linha — e é dele que a variação depende',
+      typesHint: 'o que divide o produto — e é dele que a variação depende',
       flavors: 'Variações de {{type}}',
       flavorsHint: 'o que muda dentro do tipo: sabor, cor, aroma. Cada tipo tem as suas.',
-      addLine: 'Nova linha',
+      addLine: 'Novo produto',
+      addCategory: 'Nova categoria',
       addType: 'Novo tipo',
       addFlavor: 'Nova variação',
       namePlaceholder: 'Nome',
       /** O estado é "não existe linha", e não "existe e nenhuma foi escolhida": a tela escolhe a primeira sozinha. */
-      noLineYet: 'Cadastre uma linha primeiro — o tipo é dela.',
-      noLines: 'Nenhuma linha ainda. Comece pela mais óbvia: o que você fabrica todo dia?',
-      noTypes: 'Nenhum tipo nesta linha. Cadastre um: a variação é do tipo, não da linha.',
+      noLineYet: 'Cadastre um produto primeiro — o resto é dele.',
+      noLines: 'Nenhum produto ainda. Comece pelo mais óbvio: o que você fabrica todo dia?',
+      noCategories:
+        'Nenhuma categoria aqui — e tudo bem. Ela só existe para quem precisa de um corte a mais entre o produto e o tipo.',
+      noTypes: 'Nenhum tipo neste produto. Cadastre um: a variação é do tipo.',
       noFlavors: 'Nenhuma variação neste tipo ainda.',
       /** Como o nome do produto se monta a partir da grade. */
       composed: '{{line}} {{type}} de {{flavor}}',
       composedNoType: '{{line}} de {{flavor}}',
       composedNoFlavor: '{{line}} {{type}}',
-      typeFromAnotherLine: 'Esse tipo é de outra linha. Escolha a linha dele ou um tipo desta.',
+      typeFromAnotherLine: 'Esse tipo é de outro produto. Escolha o produto dele ou um tipo deste.',
+      categoryFromAnotherLine: 'Essa categoria é de outro produto. Escolha o produto dela ou uma categoria deste.',
     },
 
     productForm: {
