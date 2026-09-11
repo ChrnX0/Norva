@@ -88,6 +88,24 @@ export const ptBR = {
       title: 'Novidades',
       subtitle: 'O aplicativo se atualizou sozinho. Isto é o que mudou.',
       dismiss: 'Entendi',
+      /**
+       * O que mudou, na língua de quem lê — e elas moravam em português cravado.
+       *
+       * `src/config/releases.ts` guardava as três linhas como texto, e o `WhatsNew` as
+       * desenhava direto. O título, o subtítulo e o botão vinham daqui; as três linhas do
+       * meio, não. Uma fábrica no México abria o aplicativo depois de uma atualização
+       * automática e via *"Novedades / La aplicación se actualizó sola"*, três parágrafos
+       * em português, e *"Entendido"* embaixo — na primeira tela que qualquer pessoa vê
+       * depois de o app se atualizar sozinho.
+       *
+       * O arquivo de release continua guardando a VERSÃO do aviso, que é o que decide se
+       * ele aparece. O que ele deixou de guardar é a palavra.
+       */
+      lines: [
+        'O custo de cada produto agora se recalcula sozinho quando você lança uma nota de compra.',
+        'Você pode perguntar em português: toque em "Pergunte" e escreva o que quer saber.',
+        'Em Ajustes dá para apagar os dados de exemplo, por área ou de uma vez.',
+      ],
     },
 
     confirm: {

@@ -40,6 +40,11 @@ export const en: Dictionary = {
       title: "What's new",
       subtitle: 'The app updated itself. Here is what changed.',
       dismiss: 'Got it',
+      lines: [
+        'Each product cost now recalculates itself when you enter a purchase invoice.',
+        'You can ask in plain words: tap "Ask" and write what you want to know.',
+        'In Settings you can erase the example data, by area or all at once.',
+      ],
     },
 
     confirm: {

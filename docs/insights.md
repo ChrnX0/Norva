@@ -10112,3 +10112,58 @@ reconstruir seis coisas que já existiam. Ela pergunta pelo ALVO. Falta pergunta
 *E a consequência já está no código e não só aqui: `foto` diz que o quadro morto é o estado
 normal do ATD e manda usar `ler`; `subir` tem o ATD como padrão; e o item 4 carrega agora um
 marcador `espera o tablet do dono` em vez de afirmar um defeito que ninguém viu.*
+
+---
+
+## 11 de setembro — a régua de frase é cega exatamente onde a tela FALA
+
+**O achado.** A guarda `no screen writes a sentence of its own` exige, para chamar um
+literal de frase, **espaço e palavra funcional** (`de`, `no`, `para`, `que`…). As três
+condições estão certas e cada uma nasceu de um alarme falso real — sem elas a guarda
+acusaria `'flex-start'` e o nome de toda constante.
+
+Só que isso a cega para uma classe inteira de texto, e é a classe que mais precisa de
+tradução: **o rótulo de acessibilidade**, que costuma ser uma palavra só. O caso concreto
+estava de pé no `WhatsNew`: `accessibilityLabel="Fechar"` no fundo que fecha a folha — a
+única saída que o leitor de tela anuncia ali. Um operador de baixa visão com o aplicativo
+em espanhol ouvia "Fechar". A chave existia nos três idiomas, a duas portas, usada pela
+folha irmã (`WhySheet`) para o mesmo gesto.
+
+**Por que importa.** A fundação de i18n diz *"nenhuma tela guarda uma palavra"*, e a
+guarda que a defende media "parece frase". Palavra única não parece frase, então a
+fundação valia para o texto que se LÊ e não para o que se OUVE — e quem depende do que se
+ouve é justamente quem não pode conferir olhando.
+
+**O que mudou.** `src/layers.test.ts` ganhou uma régua sem "parece": literal em
+`accessibilityLabel` ou `accessibilityHint` é sempre defeito, porque as duas propriedades
+existem para ser lidas em voz alta. `accessibilityHint` entra sem violação nenhuma hoje,
+por uma palavra a mais no padrão. E `screenLayers()` passou a incluir `src/config`, porque
+as três frases do aviso de "Novidades" moravam **uma pasta ao lado** de quem as desenhava.
+
+### E a metade do método, que é o achado maior: a prova vazia
+
+Para fechar isto eu tinha de mostrar a guarda mordendo. Ela ficou **verde duas vezes** e as
+duas eu quase escrevi como "a régua não morde":
+
+1. A primeira injeção usou `str.replace` num alvo que não existia — o tipo `Release` é
+   multilinha, o `replace` não achou nada e devolveu o arquivo intacto. O comando saiu 0.
+2. A segunda injetou de verdade uma frase minha — *"Agora a conferência mostra as duas
+   leituras."* — que **não contém nenhuma** das dez palavras funcionais da régua. Verde
+   correto, sobre um caso que não é o caso.
+
+Só a terceira, com a frase real que morava no arquivo e com `grep` confirmando a injeção
+**antes** de ler o resultado, deu vermelho.
+
+O projeto já exige *"detector novo não reporta nada antes de passar num caso verdadeiro e
+num falso"*. Faltava a linha de baixo, e ela é onde eu escorreguei: **o caso verdadeiro
+tem de ser confirmado no disco, não no comando que tentou escrevê-lo.** Injetor que falha
+em silêncio produz um verde indistinguível do verde de uma guarda que funciona — e a
+conclusão errada é a pior das duas, porque ela manda mexer numa régua que estava certa.
+
+**E a terceira coisa, achada pela própria prova:** a guarda apontava `WhatsNew.tsx:52`
+para um defeito que estava na **68**. `code()` apaga o bloco `/* … */` inteiro, e com ele
+as quebras de linha de dentro — um docblock de dezesseis linhas somia antes da contagem.
+Quem só procura no texto não se importa; quem diz ONDE, sim. Agora existe
+`semComentarioContandoLinhas`, que troca o corpo do comentário por vazio e mantém as
+quebras, com as duas direções provadas no próprio arquivo: a linha 68 acusada, e a 65 —
+que contém o mesmo texto, dentro do comentário que EXPLICA a cicatriz — em paz.

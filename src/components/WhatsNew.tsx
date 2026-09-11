@@ -61,7 +61,11 @@ export function WhatsNew() {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={dismiss}>
-      <Pressable style={styles.backdrop} onPress={dismiss} accessibilityLabel="Fechar" />
+      {/* O rótulo vem do dicionário, e é a MESMA chave da folha irmã (`WhySheet`), para o
+          mesmo gesto: o fundo que fecha. Aqui estava `accessibilityLabel="Fechar"` cravado —
+          a única saída que o leitor de tela anuncia para este alvo, em português, numa
+          interface que pode estar em espanhol. */}
+      <Pressable style={styles.backdrop} onPress={dismiss} accessibilityLabel={t.whySheet.close} />
 
       <View
         style={{
@@ -81,7 +85,7 @@ export function WhatsNew() {
         </Text>
 
         <View style={{ marginTop: space.lg, gap: space.md }}>
-          {releaseLines().map((line) => (
+          {releaseLines(t.app.whatsNew.lines).map((line) => (
             <View key={line} style={styles.line}>
               <View style={[styles.bullet, { backgroundColor: accent }]} />
               <Text style={[type.body, { color: color.ink, flex: 1 }]}>{line}</Text>

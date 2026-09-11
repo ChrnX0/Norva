@@ -33,6 +33,23 @@ function code(source: string): string {
 }
 
 /**
+ * O mesmo apagamento, mas CONTANDO as linhas — para quem reporta `arquivo:linha`.
+ *
+ * `code()` apaga o bloco `/* … *\/` inteiro, e com ele as quebras de linha que estavam
+ * dentro dele. Quem só procura no texto não se importa; quem diz ONDE, sim: a primeira
+ * versão da guarda de rótulo acusou `WhatsNew.tsx:52` para um defeito que estava na 68,
+ * porque um docblock de dezesseis linhas tinha desaparecido antes da contagem.
+ *
+ * Guarda que aponta a linha errada gasta a confiança de quem a lê uma vez, e depois
+ * ninguém lê. Aqui o corpo do comentário é trocado por vazio e as quebras ficam.
+ */
+function semComentarioContandoLinhas(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, (bloco) => bloco.replace(/[^\n]/g, ' '))
+    .replace(/^(\s*)\/\/.*$/gm, '$1');
+}
+
+/**
  * Os arquivos de teste, que o `sourcesUnder` descarta de propósito.
  *
  * Duas varreduras diferentes porque as perguntas são diferentes: quase toda
@@ -196,13 +213,100 @@ function pareceFrase(linha: string): boolean {
   });
 }
 
-/** As pastas que desenham. `src/data` semeia exemplo, e exemplo é dado. */
+/**
+ * As pastas que desenham. `src/data` semeia exemplo, e exemplo é dado.
+ *
+ * **`src/config` entrou em 11 de setembro, e a falta dele custou a primeira tela pós-
+ * atualização.** As três linhas do aviso de "Novidades" moravam em `src/config/releases.ts`
+ * como texto cravado em português, desenhadas pelo `WhatsNew` — que fica em
+ * `src/components`, varrido. A frase estava UMA PASTA ao lado de quem a desenha, e a guarda
+ * olhava só a pasta de quem desenha.
+ *
+ * É o "vizinho da propriedade" que este mesmo arquivo já nomeia noutro caso: o defeito não
+ * muda de natureza por mudar de pasta, mas a guarda sim.
+ */
 function screenLayers(): string[] {
   const inSrc = readdirSync('src')
-    .filter((entry) => ['components', 'home', 'notify'].includes(entry))
+    .filter((entry) => ['components', 'home', 'notify', 'config'].includes(entry))
     .map((entry) => join('src', entry));
   return ['app', ...inSrc];
 }
+
+/**
+ * Todo RÓTULO DE ACESSIBILIDADE vem do dicionário — mesmo com uma palavra só.
+ *
+ * A régua de frase exige espaço e palavra funcional, e está certa: sem isso ela acusaria
+ * `'flex-start'` e o nome de toda constante. Mas isso a cega para exatamente a classe de
+ * texto que mais precisa de tradução — o rótulo que o leitor de tela ANUNCIA, que costuma
+ * ser uma palavra só.
+ *
+ * O caso real, achado em 11 de setembro: `accessibilityLabel="Fechar"` no `WhatsNew`, a
+ * única saída que o leitor anuncia para o fundo daquela folha. Um operador de baixa visão
+ * com o aplicativo em espanhol ouvia "Fechar". A chave existia nos três idiomas, a duas
+ * portas, usada pela folha irmã para o mesmo gesto.
+ *
+ * Aqui não há régua de "parece frase": literal em `accessibilityLabel` ou
+ * `accessibilityHint` é sempre defeito, porque as duas propriedades existem para ser lidas
+ * em voz alta.
+ */
+/**
+ * `accessibilityLabel="..."` ou `accessibilityLabel={'...'}` — literal cru.
+ * `accessibilityLabel={t.x.y}` e `{fill(t.x.y, …)}` não casam, que é o certo.
+ */
+const ROTULO_CRAVADO =
+  /accessibility(Label|Hint)\s*=\s*(["'][^"']+["']|\{\s*["'][^"']+["']\s*\})/;
+
+test('todo rótulo de acessibilidade vem do dicionário, mesmo com uma palavra só', () => {
+  const cravados: string[] = [];
+  let olhados = 0;
+  for (const dir of screenLayers()) {
+    for (const file of sourcesUnder(dir)) {
+      olhados += 1;
+      const source = semComentarioContandoLinhas(readFileSync(file, 'utf8'));
+      source.split('\n').forEach((linha, i) => {
+        // `accessibilityLabel="..."` ou `accessibilityLabel={'...'}` — literal cru.
+        // `accessibilityLabel={t.x.y}` e `{fill(t.x.y, …)}` não casam, que é o certo.
+        if (ROTULO_CRAVADO.test(linha)) {
+          cravados.push(`${file}:${i + 1}`);
+        }
+      });
+    }
+  }
+  assert.ok(olhados > 30, `a busca achou só ${olhados} arquivos — ela não está olhando`);
+  assert.deepEqual(
+    cravados,
+    [],
+    `estes rótulos de leitor de tela são texto cravado: ${cravados.join(', ')}. ` +
+      'A propriedade existe para ser lida em voz alta, então ela é sempre frase — e uma ' +
+      'palavra só não a torna menos frase, torna a régua de frase cega para ela.',
+  );
+});
+
+test('a régua de rótulo pega a cicatriz e deixa o dicionário em paz', () => {
+  // A cicatriz, nas duas formas que o JSX aceita.
+  assert.ok(ROTULO_CRAVADO.test('<Pressable accessibilityLabel="Fechar" />'), 'a cicatriz tem que reprovar');
+  assert.ok(ROTULO_CRAVADO.test("<Pressable accessibilityLabel={'Fechar'} />"));
+
+  // O conserto, e a forma composta que também é conserto.
+  assert.ok(!ROTULO_CRAVADO.test('<Pressable accessibilityLabel={t.whySheet.close} />'));
+  assert.ok(!ROTULO_CRAVADO.test('<View accessibilityLabel={fill(t.home.cover, { n })} />'));
+
+  // `accessibilityHint` é da mesma natureza e hoje não tem uma violação no repositório.
+  // Ele entra porque a régua não custa uma linha a mais, e porque a dica é justamente o
+  // que o leitor de tela diz DEPOIS do rótulo — em voz alta, no idioma de quem ouve.
+  assert.ok(ROTULO_CRAVADO.test('<Pressable accessibilityHint="Abre a conta do lote" />'));
+  assert.ok(!ROTULO_CRAVADO.test('<Pressable accessibilityHint={t.whySheet.hint} />'));
+
+  // E a contagem de linha, que é a outra metade: o docblock desaparecia antes da conta,
+  // então a guarda apontava dezesseis linhas acima do defeito.
+  const comBloco = ['/* um', 'bloco de', 'três linhas */', 'const x = 1;'].join('\n');
+  assert.equal(semComentarioContandoLinhas(comBloco).split('\n').length, 4);
+  assert.equal(semComentarioContandoLinhas(comBloco).split('\n')[3], 'const x = 1;');
+
+  // E o texto do comentário sai de verdade — senão a guarda acusaria o docblock que
+  // EXPLICA a cicatriz, que é exatamente o alarme falso que este arquivo proíbe.
+  assert.ok(!ROTULO_CRAVADO.test(semComentarioContandoLinhas('// era accessibilityLabel="Fechar" aqui')));
+});
 
 test('no screen writes a sentence of its own', () => {
   const offenders: string[] = [];

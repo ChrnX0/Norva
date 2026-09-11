@@ -45,6 +45,11 @@ export const es: Dictionary = {
       title: 'Novedades',
       subtitle: 'La aplicación se actualizó sola. Esto es lo que cambió.',
       dismiss: 'Entendido',
+      lines: [
+        'El costo de cada producto ahora se recalcula solo cuando cargas una factura de compra.',
+        'Puedes preguntar con tus palabras: toca "Pregunta" y escribe lo que quieres saber.',
+        'En Ajustes puedes borrar los datos de ejemplo, por área o de una vez.',
+      ],
     },
 
     confirm: {

@@ -1299,6 +1299,23 @@ todo guard do repositório; a exigência vale igual para a medida de uma vez. **
 de dizer um número, rode a régua contra um caso que você sabe que ela deve pegar e
 um que ela não deve** — se ela não distinguir os dois, o número não existe.
 
+**E o caso verdadeiro se confere NO DISCO, não no comando que tentou escrevê-lo — 11 de
+setembro.** A regra de cima manda provar o detector nos dois sentidos, e eu a cumpri ao pé
+da letra duas vezes seguidas medindo nada. Para mostrar uma guarda de i18n mordendo, devolvi
+a frase cravada ao arquivo: na primeira, o `str.replace` procurava um alvo de uma linha num
+tipo que é multilinha — não achou nada, devolveu o arquivo intacto e **saiu 0**; na segunda,
+a frase que eu inventei não continha nenhuma das dez palavras funcionais que a régua exige,
+então o verde estava certo sobre um caso que não era o caso. As duas vezes eu li o verde como
+*"a régua não morde"* — e essa conclusão manda consertar uma guarda que estava boa.
+
+**Injetor que falha em silêncio produz um verde idêntico ao de uma guarda que funciona.**
+Então a injeção é conferida antes de a medida ser lida — `grep` pelo defeito no arquivo, e a
+contagem esperada —, e o caso verdadeiro é o **caso real**, não um parecido escrito por mim:
+a frase que estava lá, com as palavras que estavam nela. A prova negativa tem o mesmo dever:
+depois de restaurar, `grep` de novo, porque defeito esquecido no disco é pior que prova
+ausente.
+
+
 **Guarda que deriva do escopo errado FABRICA o número que o documento repete.** Em 7
 de setembro a tabela *"medido, não afirmado"* dizia 18 capacidades e a guarda derivava
 18 — do arquivo inteiro do `access.ts`, onde moram as **doze** capacidades e os sete
