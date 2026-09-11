@@ -376,8 +376,14 @@ virar afirmação. **Seis fechados no mesmo dia:**
     plano de 6 de setembro já tinha nomeado — *"feitas para CI headless, sem launcher, sem
     papel de parede, sem apps de sistema"* — e que nunca foi instalada. O AVD `norva-atd`
     sobe inteiro em ~7 min contra ~12 da `default`, e o `UpdatePackagesIfNeeded` deixa de
-    mastigar 82 s. O aplicativo instala, abre e **desenha**: a árvore de acessibilidade traz
-    a capa do primeiro dia inteira.
+    mastigar 82 s. O aplicativo instala, abre e **monta a árvore inteira**: a leitura de
+    acessibilidade traz a capa do primeiro dia.
+
+    *Esta linha dizia "desenha", e a régua dela não alcança isso — corrigido em 11 de
+    setembro. Árvore de acessibilidade prova que o React montou; quem responde se um quadro
+    foi para a tela é `dumpsys gfxinfo`, e no mesmo AVD ele responde `Total frames rendered:
+    0` com o buffer alocado em 1080x2340. As duas medidas são compatíveis: monta e não
+    desenha. A palavra era mais larga que a prova.*
 
     **As duas linhas erradas, e as duas erraram do mesmo jeito — medindo outra coisa:**
 

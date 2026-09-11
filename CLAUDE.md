@@ -319,8 +319,18 @@ Três consequências práticas:
    prova o que pode: que a tela monta, que o dicionário tem as chaves, que o fluxo anda.
    O que ele não alcança continua na lista de baixo, e continua sendo do aparelho do dono.
 
-**E o contorno FOI tentado no mesmo dia, com resultado parcial e uma separação que vale
-mais que ele.** A imagem ATD (`norva-atd`, `aosp_atd`):
+**E o contorno JÁ ESTAVA ACHADO, fechado no roadmap desde 10 de setembro — e o padrão do
+script nunca mudou.** Eu o escrevi acima como "hipótese não tentada", gastei uma compilação,
+um boot e uma instalação redescobrindo-o, e o item 26 do `docs/roadmap.md` já dizia *"a
+imagem `aosp_atd` instala de primeira"* com oito hipóteses derrubadas ao lado.
+
+É a regra desta casa virada contra ela mesma: **achado sem consequência é achado que não
+aconteceu** — a mesma frase que este arquivo usa para o `transition_animation_scale` que
+aparecia "uma vez no repositório inteiro, em prosa, em ferramenta nenhuma". A conclusão
+estava escrita, e `scripts/aparelho.mjs` continuava com `norva-cheio` no padrão. Hoje o
+padrão é o ATD, que é o que fecha o laço.
+
+A medida de hoje, que vale como repetição independente:
 
 | | `norva-cheio` | `norva-atd` |
 |---|---|---|
@@ -348,6 +358,13 @@ não é consequência da queda.
 
 **Causa ainda não estabelecida**, e fica dito assim em vez de uma hipótese vestida de
 conclusão. O que se sabe é onde ela NÃO está.
+
+**E o item 26 afirma *"o aplicativo instala, abre e DESENHA"* com prova de árvore de
+acessibilidade** — que prova que a árvore React montou, não que um quadro foi para a tela. A
+medida de hoje, no mesmo AVD, separa as duas: a árvore monta (a `MainActivity` fica em
+primeiro plano, o buffer é alocado no tamanho certo) e `Total frames rendered` é **0**. As
+duas afirmações são compatíveis; a palavra "desenha" é que era mais larga que a régua dela.
+Mais uma da mesma família, e esta eu não tinha escrito — herdei.
 
 *E uma ironia que se paga escrever: o rastro da partida do ATD, que teria a linha do
 renderizador escolhido, foi apagado por mim — a segunda partida truncou o arquivo de nome

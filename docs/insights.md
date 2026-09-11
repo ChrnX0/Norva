@@ -9905,11 +9905,24 @@ ao lado.*
 
 ---
 
-## O contorno funcionou e a hipótese caiu no mesmo comando — 11 de setembro, à noite
+## O achado já estava na lista, fechado, e o padrão do script não tinha mudado — 11 de setembro
 
-A imagem ATD entrou na lista como *"contorno não tentado"* por um raciocínio: menos processo
-de sistema, menos contenção, o processo persistente da rede responde dentro do prazo do ANR,
-o `system_server` para de cair, e a instalação passa. **Isso estava certo inteiro:**
+**Primeiro a correção, porque ela é o achado maior.** Eu escrevi que a imagem ATD era um
+*"contorno não tentado"*, gastei uma compilação, um boot e uma instalação medindo-a, e o
+**item 26 do `docs/roadmap.md` já estava fechado desde 10 de setembro** dizendo *"a imagem
+`aosp_atd` instala de primeira"*, com oito hipóteses derrubadas ao lado.
+
+O que faltava não era a medida: era a **consequência**. `scripts/aparelho.mjs` continuou com
+`norva-cheio` no padrão, então toda sessão seguinte voltava a bater no AVD que não instala. É
+literalmente a frase que o `CLAUDE.md` usa para outro caso — *"achado sem consequência é
+achado que não aconteceu"* — e ela se aplicou a um achado do dia anterior, com a régua certa e
+o conserto não feito.
+
+A regra que sai disso e que eu violei duas vezes hoje: **antes de investigar um ambiente,
+`grep` na lista pelo sintoma.** Eu fiz isso para código (é o portão "meça a afirmação do item
+contra o código") e não para ferramenta. Custou uma compilação de cinco minutos e dois boots.
+
+E o que a medida de hoje acrescentou de verdade, como repetição independente:
 
 | | `norva-cheio` | `norva-atd` |
 |---|---|---|
@@ -9926,6 +9939,13 @@ fica em primeiro plano, o `SurfaceFlinger` aloca a camada dele em `1080 x 2340, 
 lista de inocentes provados — a troca de largura, o "reduzir movimento", a queda do sistema, e
 a superfície ausente. Quatro eliminações medidas valem mais que uma hipótese nova, porque
 eliminação não envelhece: ela continua verdadeira na próxima sessão, e a hipótese não.
+
+**E uma terceira afirmação larga, esta herdada e não minha:** o item 26 diz *"o aplicativo
+instala, abre e **desenha**"*, e a prova ao lado é a árvore de acessibilidade — que prova que
+o React montou, não que um quadro foi para a tela. A medida de hoje separa as duas no mesmo
+AVD: monta (buffer alocado em 1080x2340, `MainActivity` em primeiro plano) e **não desenha**
+(`Total frames rendered: 0`). As duas são compatíveis; a palavra era mais larga que a régua.
+Corrigida no item.
 
 **A pergunta que fica, e ela é sobre método:** ao testar um contorno, escreva o que ele
 resolveria E o que ele deixaria de pé. Eu escrevi só a primeira metade, e por isso o
