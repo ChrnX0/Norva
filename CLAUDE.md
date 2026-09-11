@@ -406,6 +406,18 @@ Duas regras de operação, ambas cicatriz:
   `adb emu kill`, que é o comando dele e não um `pkill` por padrão. E se uma checagem
   vier vermelha com `Input: ''`, olhe a carga da máquina antes de olhar o código.
 
+  **Mas a disputa NÃO tem uma assinatura só — 11 de setembro.** Duas execuções da mesma
+  suíte na mesma noite deram vermelhas diferentes, e as duas passaram sozinhas: uma com
+  `Input: ''` (tela vazia, o sinal que esta seção já descrevia) e outra com uma asserção
+  específica falhando — *"a escolha da identidade está nos ajustes"* —, que **tem cara de
+  defeito de verdade**. Sob disputa a tela às vezes não fica vazia: ela desenha PELA
+  METADE, e aí falta o elemento que a checagem procura.
+
+  Então a régua não é a forma da falha, é a **repetição isolada**: `npm run e2e -- --only
+  "<trecho>"`, uma vez. Passou sozinha, era disputa; falhou de novo, é código. Julgar pela
+  assinatura manda procurar defeito onde não tem — e foi o que quase aconteceu aqui, porque
+  a segunda vermelha não parecia disputa nenhuma.
+
   **E `adb emu kill` RETORNA ANTES de o qemu sair — 10 de setembro.** Derrubei o emulador
   e disparei o `e2e:fast` no mesmo comando: duas fatias vermelhas, três checagens com
   `Input: ''`, e as três passaram **sozinhas** logo depois (`npm run e2e -- --only`). O
