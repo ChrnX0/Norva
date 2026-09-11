@@ -66,12 +66,19 @@ contexto, o relatório passou a separar "atravessou a suíte" (notícia sobre os
 que multiplica ANTES de arredondar — ganhou mutação própria, porque ele existia sem
 nenhuma.*
 
+***Resultado da última execução, 11 de setembro: 124 pegos, 2 equivalentes, 0
+sobreviventes, 0 não medidas.*** *Os dois equivalentes são as duas checagens em camadas do
+estorno em `src/data/repository.ts` — tirar uma deixa a outra pegando, com o mesmo erro e o
+mesmo plano, e só concorrência real as separaria. Ficam na lista porque apagá-las esconderia
+a redundância que as torna assim.*
+
 ***E a mutação nova sobreviveu na primeira execução.*** *Embrulhar a soma em `cents(...)`
 antes de multiplicar por `unitsPerPack` passou pela suíte inteira: `costPerPack` tinha **um
 chamador** (`app/products/new.tsx:316`) e **zero testes**, com o defeito que ela conserta
 escrito no docblock dela — "a tela de cadastro mostrou Caixa fechada: R$ 3,50 para uma caixa
 de R$ 3,66". A guarda entrou com os números do defeito de verdade (7,3265 centavos × 50), e
-foi provada mordendo: com o defeito plantado à mão, ela reprova; sem ele, passa.*
+foi provada mordendo: com o defeito plantado à mão, ela reprova; sem ele, passa. Na
+execução seguinte, com a guarda no lugar, a mutação morreu junto com as outras 123.*
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade, com
 as 21 telas fotografadas nas **quatro caras de verdade** (Papel e Orgânico × claro e
