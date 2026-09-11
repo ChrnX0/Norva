@@ -767,6 +767,48 @@ function dentroDeFill(texto: string, posicao: number): boolean {
   return false;
 }
 
+/**
+ * O comentário fala do dicionário à vontade — e a régua acusava o comentário.
+ *
+ * Achado em 11 de setembro: ao consertar o `{{TYPE}}` cru do cadastro de produto, escrevi
+ * acima da linha um comentário citando `t.app.catalog.flavors` para explicar a cicatriz. A
+ * régua leu o arquivo CRU e acusou o comentário — o mesmo alarme falso que a régua de
+ * opacidade teve no mesmo dia, e a mesma correção: apagar o comentário mantendo as quebras,
+ * porque quem reporta `arquivo:linha` precisa da contagem.
+ *
+ * Alarme falso num guard é pior que guard ausente: ensina a ignorar a saída dele.
+ */
+function semComentario(texto: string): string {
+  return texto
+    .replace(/\/\*[\s\S]*?\*\//g, (bloco) => bloco.replace(/[^\n]/g, ' '))
+    .replace(/^(\s*)\/\/.*$/gm, '$1');
+}
+
+/**
+ * O caminho mais CURTO que é uma folha do dicionário — e é isto que a régua não fazia.
+ *
+ * **O defeito que ela deixou passar por sete dias.** `app/products/new.tsx` fazia
+ * `t.app.catalog.flavors.toUpperCase()`, e a chave é `'Variações de {{type}}'`: a tela de
+ * cadastrar o primeiro produto mostrava **`VARIAÇÕES DE {{TYPE}}`** ao dono. A régua não
+ * acusou porque o padrão dela casa o caminho pontuado INTEIRO — `app.catalog.flavors
+ * .toUpperCase` —, que não é chave de nada, e a busca no conjunto falhava.
+ *
+ * Ou seja: **ela era cega exatamente quando a tela TRANSFORMA o molde**, que é o caso com mais
+ * chance de ser engano. `.toUpperCase()`, `.trim()`, `.replace(...)` — qualquer método escapava.
+ *
+ * Cortar de trás para frente resolve e não abre falso positivo: só string tem `{{`, e string é
+ * folha, então nenhum caminho com marcador tem filhos. Um caminho mais longo que termina numa
+ * folha com marcador só pode ser um método chamado em cima dela.
+ */
+function folhaComMarcador(alvo: string, comMarcador: ReadonlySet<string>): string | null {
+  const partes = alvo.split('.');
+  for (let n = partes.length; n >= 1; n -= 1) {
+    const tentativa = partes.slice(0, n).join('.');
+    if (comMarcador.has(tentativa)) return tentativa;
+  }
+  return null;
+}
+
 /** Onde um texto com marcador é lido sem `fill` em volta. Exportada para provar a régua. */
 export function marcadoresSoltos(
   dicionario: unknown,
@@ -779,7 +821,8 @@ export function marcadoresSoltos(
   );
   const soltos: string[] = [];
 
-  for (const { caminho, texto } of arquivos) {
+  for (const { caminho, texto: cru } of arquivos) {
+    const texto = semComentario(cru);
     // O apelido é POR ARQUIVO, pela mesma razão da régua de cima.
     const apelido = new Map<string, string>();
     for (const m of texto.matchAll(
@@ -791,13 +834,15 @@ export function marcadoresSoltos(
     for (const m of texto.matchAll(/\b([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+)\b/g)) {
       const alvo = m[1];
       const [raiz, ...resto] = alvo.split('.');
-      const cheio =
+      const bruto =
         raiz === 't'
           ? resto.join('.')
           : apelido.has(raiz)
             ? [apelido.get(raiz), ...resto].join('.')
             : null;
-      if (!cheio || !comMarcador.has(cheio)) continue;
+      // A folha, e não o caminho como ele foi escrito: `.toUpperCase()` fazia a busca falhar.
+      const cheio = bruto === null ? null : folhaComMarcador(bruto, comMarcador);
+      if (!cheio) continue;
       if (dentroDeFill(texto, m.index ?? 0)) continue;
       if (viraLocalQueEnche(texto, m.index ?? 0)) continue;
       if (ENTREGUE_A_QUEM_ENCHE.some((r) => r.test(linhaEm(texto, m.index ?? 0)))) continue;
@@ -1081,4 +1126,72 @@ test('the name ruler tells a typed name from a word of ours', () => {
   assert.ok(!dobraNome('reason: t.loss[row.reason].toLocaleLowerCase(locale.formatting),'));
   assert.ok(!dobraNome('{brand.name.toUpperCase()}'));
   assert.ok(!dobraNome('`${naUnidade(i)} ${i.name}`'));
+});
+
+/**
+ * A tela não CONSERTA gramática de tradução — e este defeito funcionava em dois idiomas de três.
+ *
+ * **O caso real, de 11 de setembro.** `app/catalog.tsx` montava o cabeçalho sem tipo escolhido
+ * assim: `fill(t.app.catalog.flavors, { type: '' }).replace(/\s+de\s*$/i, '').trim()` — enchia o
+ * molde com vazio e apagava o " de" pendurado.
+ *
+ * Funciona em português (*"Variações de"* → *"Variações"*) e em espanhol, por coincidência de
+ * preposição. **Em inglês a chave é `'Variations of {{type}}'`**, e a régua procura "de": a tela
+ * mostrava *"VARIATIONS OF"*, com a preposição pendurada, para quem lê em inglês.
+ *
+ * É a pior forma de defeito de i18n que este projeto encontrou: **verde em dois terços dos
+ * idiomas**. Nenhum teste de português falha, nenhuma tela brasileira mostra nada errado, e o
+ * defeito só existe na língua que ninguém abre para conferir.
+ *
+ * O conserto não é uma régua melhor: é **outra chave**. `flavorsAll` existe nos três idiomas e
+ * cada tradutor escreve a dele — porque a frase de cada língua é da língua, não uma fórmula com
+ * um pedaço removível.
+ *
+ * Esta guarda entra com ZERO violações hoje, de propósito: o único caso foi consertado ao
+ * escrevê-la. Ela custa uma expressão e o que impede é a classe voltar por outra porta —
+ * `.slice`, `.substring` e `.split` fazem a mesma cirurgia com outro nome.
+ */
+const CIRURGIA_EM_TRADUCAO =
+  /(?:\bt\.[A-Za-z_$][\w$.]*|\bfill\s*\([^;]*?\))\s*\.\s*(replace|slice|substring|split)\s*\(/;
+
+test('nenhuma tela opera com bisturi o texto que veio do dicionário', () => {
+  const operados: string[] = [];
+  let olhados = 0;
+
+  for (const dir of ['app', 'src']) {
+    for (const caminho of telas(dir)) {
+      // O dicionário fala de si mesmo nos docblocks; ele não é tela.
+      if (caminho.startsWith(join('src', 'i18n'))) continue;
+      olhados += 1;
+      const texto = semComentario(readFileSync(caminho, 'utf8'));
+      texto.split('\n').forEach((linha, i) => {
+        if (CIRURGIA_EM_TRADUCAO.test(linha)) operados.push(`${caminho}:${i + 1}`);
+      });
+    }
+  }
+
+  assert.ok(olhados > 60, `a busca achou só ${olhados} arquivos — ela não está olhando`);
+  assert.deepEqual(
+    operados,
+    [],
+    `estes recortam texto traduzido: ${operados.join(', ')}. A frase de cada idioma é da língua, ` +
+      'não uma fórmula com um pedaço removível — a régua que apaga " de" deixa "of" pendurado ' +
+      'em inglês, e o defeito fica verde em dois idiomas de três. Use outra chave.',
+  );
+});
+
+test('a régua do bisturi pega a cicatriz e deixa o resto em paz', () => {
+  // A cicatriz, nas duas formas: no molde cheio e na chave direta.
+  assert.ok(
+    CIRURGIA_EM_TRADUCAO.test("fill(t.app.catalog.flavors, { type: '' }).replace(/\\s+de\\s*$/i, '')"),
+    'a cicatriz tem que reprovar',
+  );
+  assert.ok(CIRURGIA_EM_TRADUCAO.test('t.app.catalog.flavors.replace(/ de$/, "")'));
+  assert.ok(CIRURGIA_EM_TRADUCAO.test('const curto = t.app.more.title.slice(0, 10);'));
+
+  // E o que NÃO é cirurgia: maiúscula é caixa, não gramática — a palavra continua inteira.
+  assert.ok(!CIRURGIA_EM_TRADUCAO.test('{t.app.catalog.flavorsAll.toUpperCase()}'));
+  assert.ok(!CIRURGIA_EM_TRADUCAO.test('fill(t.app.catalog.flavors, { type: nome })'));
+  // Recortar o que a PESSOA digitou é outra coisa, e é legítimo.
+  assert.ok(!CIRURGIA_EM_TRADUCAO.test('const limpo = supplier.trim().replace(/\\s+/g, " ");'));
 });

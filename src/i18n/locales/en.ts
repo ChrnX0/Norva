@@ -1488,6 +1488,7 @@ export const en: Dictionary = {
       typesHint:
         'Changes the SIZE or the SHAPE, with the same recipe. 250 ml, 500 ml, single unit.',
       flavors: 'Variations of {{type}}',
+      flavorsAll: 'Variations',
       flavorsHint:
         'Changes the FLAVOUR, the colour, the scent — same recipe, same size. Each one applies where you say.',
       addLine: 'New product',

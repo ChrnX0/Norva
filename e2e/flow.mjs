@@ -212,15 +212,44 @@ const leia = async (page) =>
  * leitura e a asserção reprova com a mensagem dela, que é melhor diagnóstico do
  * que um estouro de tempo genérico.
  */
+/**
+ * Nenhuma tela mostra `{{marcador}}` — conferido em TODA leitura, não numa asserção.
+ *
+ * **Acrescentado em 11 de setembro, quando um marcador cru chegou à tela do dono.**
+ * `app/products/new.tsx` desenhava `t.app.catalog.flavors.toUpperCase()` e a chave é
+ * `'Variações de {{type}}'`: a tela de cadastrar o primeiro produto mostrava
+ * `VARIAÇÕES DE {{TYPE}}` desde 4 de setembro. Havia guarda para isso na suíte de unidade, e
+ * ela era cega a `.toUpperCase()` — consertada no mesmo commit.
+ *
+ * Isto entra aqui porque é o lugar onde a checagem não precisa ser lembrada: as 58 checagens
+ * desta suíte já leem a tela, então todas passam a conferir de graça. Uma asserção nova numa
+ * checagem só cobriria a tela dela — e foi exatamente assim que este defeito atravessou uma
+ * semana com a suíte verde: ninguém tinha escrito a asserção naquela tela.
+ *
+ * Ela reprova a LEITURA, e não a checagem, para a mensagem dizer o que aconteceu de verdade:
+ * quem lê "a tela mostra um molde não preenchido" não vai procurar defeito no fluxo.
+ */
+const semMarcadorCru = (texto, page) => {
+  const achado = /\{\{\s*\w+\s*\}\}/i.exec(texto);
+  if (achado) {
+    throw new Error(
+      `a tela mostra um molde de i18n não preenchido — "${achado[0]}" em ${page.url()}. ` +
+        'Alguma tela desenhou uma chave do dicionário sem passar por `fill(...)`. ' +
+        'A pessoa que usa o aplicativo vê o marcador literal.',
+    );
+  }
+  return texto;
+};
+
 const screen = async (page, { passo = 250, teto = 8_000 } = {}) => {
   let anterior = await leia(page);
   for (let esperou = 0; esperou < teto; esperou += passo) {
     await page.waitForTimeout(passo);
     const agora = await leia(page);
-    if (agora === anterior) return agora;
+    if (agora === anterior) return semMarcadorCru(agora, page);
     anterior = agora;
   }
-  return anterior;
+  return semMarcadorCru(anterior, page);
 };
 
 check('what is typed into a field is not text on the screen', async (page) => {

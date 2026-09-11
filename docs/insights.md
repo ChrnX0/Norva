@@ -10502,3 +10502,73 @@ continua sendo a repetição isolada, e só ela.
 
 *O que isso NÃO autoriza: chamar de disputa sem medir. As duas execuções isoladas custaram três
 minutos cada e são a diferença entre saber e achar.*
+
+---
+
+## 11 de setembro — a guarda do marcador era cega exatamente onde a tela TRANSFORMA o molde
+
+**O achado, e ele chegou pela suíte de navegador.** `app/products/new.tsx` fazia
+`t.app.catalog.flavors.toUpperCase()`, e essa chave é `'Variações de {{type}}'`. A tela de
+cadastrar o primeiro produto — a que o dono disse que não conseguia usar — mostrava
+**`VARIAÇÕES DE {{TYPE}}`**, desde 4 de setembro. O irmão a duas portas (`app/catalog.tsx`)
+preenchia certo.
+
+**E existia guarda para isso.** `nenhum texto com marcador chega à tela sem o fill`, em
+`src/dictionary.test.ts`, é boa: resolve o caminho inteiro contra o dicionário de verdade, trata
+apelido por arquivo (`const words = t.app.extract`) e anda de trás para frente pelos parênteses
+para saber se a leitura está dentro de um `fill(` — com a razão medida escrita ao lado, porque
+uma janela de LINHAS acusava sete frases inocentes num encadeamento de ternários.
+
+Ela não pegou por um detalhe do padrão: ele casa o caminho pontuado **inteiro**, então
+`t.app.catalog.flavors.toUpperCase` resolvia para `app.catalog.flavors.toUpperCase`, que não é
+chave de nada, e a busca no conjunto falhava em silêncio.
+
+**Ou seja: a régua era cega justamente quando a tela TRANSFORMA o molde** — e transformar é o
+caso com mais chance de ser engano, porque quem chama `.toUpperCase()` está pensando em caixa,
+não em interpolação. `.trim()`, `.slice()` e `.replace()` escapavam igual.
+
+O conserto é cortar de trás para frente até achar uma folha, e ele **não abre falso positivo**:
+só string tem `{{`, string é folha, então nenhum caminho com marcador tem filhos. Um caminho
+mais longo terminando numa folha com marcador só pode ser um método chamado em cima dela.
+
+**E a mesma régua acusou o meu comentário.** Ela lê o arquivo cru, e eu escrevi acima do conserto
+um comentário citando `t.app.catalog.flavors` para explicar a cicatriz. É o alarme falso que a
+régua de opacidade teve no mesmo dia, pelo mesmo motivo, e com a mesma correção — apagar o
+comentário mantendo as quebras, porque quem reporta `arquivo:linha` precisa da contagem.
+
+*Duas réguas deste repositório precisaram de `semComentario` no mesmo dia. A terceira que nascer
+já devia começar com ele.*
+
+### E o defeito VIZINHO, que é o pior de i18n que este projeto achou: verde em dois idiomas de três
+
+Ao consertar o cabeçalho sem tipo escolhido, apareceu o que `app/catalog.tsx` fazia:
+
+```ts
+fill(t.app.catalog.flavors, { type: '' }).replace(/\s+de\s*$/i, '').trim()
+```
+
+Enche o molde com vazio e apaga o `" de"` pendurado. Funciona em português (*"Variações de"* →
+*"Variações"*) e em espanhol, **por coincidência de preposição**. Em inglês a chave é
+`'Variations of {{type}}'` e a régua procura "de": a tela mostrava *"VARIATIONS OF"*.
+
+**Nenhum teste de português falha, nenhuma tela brasileira mostra nada errado, e o defeito só
+existe na língua que ninguém abre para conferir.** É a forma mais barata de sobreviver a uma
+suíte: estar certo no idioma em que ela foi escrita.
+
+O conserto não é uma régua melhor de recorte — é **outra chave**. `flavorsAll` existe nos três
+idiomas e cada tradutor escreve a dele, porque a frase de cada língua é da língua e não uma
+fórmula com um pedaço removível. E entrou guarda para a classe: **nenhuma tela opera com bisturi
+o texto que veio do dicionário** (`.replace`, `.slice`, `.substring`, `.split`), com zero
+violações hoje e a cicatriz provada nos dois sentidos — `.toUpperCase()` de propósito **fora** da
+régua, porque caixa não é gramática e a palavra continua inteira.
+
+### O que eu ia fazer errado, e a medida impediu
+
+Eu comecei escrevendo uma guarda NOVA para o marcador cru, sem procurar a que existia. Ela deu
+**~40 falsos positivos** (ternário escolhendo o molde com o `fill(` abrindo linhas acima) e
+duplicava uma régua melhor. Saiu inteira.
+
+A regra deste arquivo — *"antes de chamar algo de defeito, procure a decisão"* — tem uma irmã que
+eu acabo de pagar: **antes de escrever uma guarda, procure a guarda.** Achar a que existe e
+consertar o buraco dela custou menos que a minha, cobre mais, e deixa uma régua no lugar de duas
+que discordam.

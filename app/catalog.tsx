@@ -711,9 +711,7 @@ function Catalog() {
           hue={palette.sand}
           icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}
           title={
-            tipoAtivo
-              ? fill(t.app.catalog.flavors, { type: tipoAtivo.name })
-              : fill(t.app.catalog.flavors, { type: '' }).replace(/\s+de\s*$/i, '').trim()
+            tipoAtivo ? fill(t.app.catalog.flavors, { type: tipoAtivo.name }) : t.app.catalog.flavorsAll
           }
         >
           <Text style={[type.caption, { color: color.inkMuted }]}>{t.app.catalog.flavorsHint}</Text>

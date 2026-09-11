@@ -556,6 +556,9 @@ function ProductForm() {
    * leite não aparece no de água (variação do tipo). Os órfãos da regra antiga entram
    * porque esconder dado de alguém é pior que mostrá-lo fora de lugar.
    */
+  /** De qual tipo são os sabores listados — para o cabeçalho dizer o nome em vez do molde. */
+  const tipoDoSabor = (data?.types ?? []).find((x) => x.id === tipoValendo) ?? null;
+
   const saboresDoTipo = (data?.flavors ?? []).filter(
     (x) =>
       (x.lineId === null && x.typeId === null) ||
@@ -690,7 +693,13 @@ function ProductForm() {
               {saboresDoTipo.length > 0 ? (
                 <View style={{ gap: space.sm }}>
                   <Text style={[type.overline, { color: color.inkFaint }]}>
-                    {t.app.catalog.flavors.toUpperCase()}
+                    {/* Preenchido, e não o molde cru: até 11 de setembro esta linha desenhava
+                        `t.app.catalog.flavors` direto e a tela mostrava "VARIAÇÕES DE {{TYPE}}"
+                        para quem estava cadastrando o primeiro produto. */}
+                    {(tipoDoSabor
+                      ? fill(t.app.catalog.flavors, { type: tipoDoSabor.name })
+                      : t.app.catalog.flavorsAll
+                    ).toUpperCase()}
                   </Text>
                   <View style={[styles.wrap, { gap: space.sm }]}>
                     {saboresDoTipo.map((f) => (

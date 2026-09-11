@@ -1961,6 +1961,20 @@ export const ptBR = {
       typesHint:
         'Muda o TAMANHO ou o FORMATO, com a mesma receita. 250 ml, 500 ml, unidade.',
       flavors: 'Variações de {{type}}',
+      /**
+       * O MESMO cabeçalho quando não há tipo escolhido — e ele existe porque a tela estava
+       * consertando gramática de tradução.
+       *
+       * `app/catalog.tsx` fazia `fill(flavors, { type: '' }).replace(/\s+de\s*$/i, '')`: apagava
+       * o " de" pendurado. Funciona em português e em espanhol por coincidência de preposição, e
+       * **falha em inglês** — `'Variations of {{type}}'` ficava "VARIATIONS OF", com o "of"
+       * pendurado na tela de quem lê em inglês.
+       *
+       * Cirurgia de texto traduzido não atravessa idioma: a frase de cada língua é da língua,
+       * não uma fórmula com um pedaço removível. Duas chaves resolvem, e cada tradutor escreve
+       * a dele.
+       */
+      flavorsAll: 'Variações',
       flavorsHint:
         'Muda o SABOR, a cor, o aroma — mesma receita, mesmo tamanho. Cada uma vale onde você disser.',
       addLine: 'Novo produto',
