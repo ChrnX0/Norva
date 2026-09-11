@@ -50,10 +50,18 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 | | |
 |---|---|
 | `npm test` | **729** testes |
-| `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
+| `npm run mutate` | **126** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **55** checagens num navegador de verdade |
 | `npm run db:verify` | **29** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **14** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
+
+
+*Última execução do `mutate`: **11 de setembro**, medindo em voo enquanto esta linha era
+escrita. A anterior fechou com uma âncora ambígua contada como sobrevivente — o `from`
+passou a casar com duas linhas de `src/domain/recipe.ts` e a mutação deixou de ser
+aplicada. Corrigidos os dois lados: a âncora ganhou contexto, o segundo caminho (`packCost`,
+que multiplica antes de arredondar) ganhou mutação própria, e o relatório passou a separar
+"atravessou a suíte" de "não foi medida" — que são notícias sobre coisas diferentes.*
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade, com
 as 21 telas fotografadas nas **quatro caras de verdade** (Papel e Orgânico × claro e

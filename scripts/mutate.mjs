@@ -377,12 +377,40 @@ const DEFECTS = [
       'o palito passa a ser gasto por TACHO em vez de por unidade, e a corrida de 500 picoles baixa um palito do almoxarifado',
   },
 
+  // **A âncora ganhou contexto em 11 de setembro, e a irmã dela nasceu junto.**
+  //
+  // O `from` era só `(unitPackaging.itemsRate ?? 0) +`, e o trecho passou a aparecer DUAS
+  // vezes no arquivo — `unitCost` e `packCost`. A mutação deixou de ser aplicada, e o
+  // relatório a contou como "atravessou a suíte", que é notícia sobre os testes quando o
+  // serviço era aqui. Duas consequências: a âncora leva a linha de cima (que difere pelo
+  // parêntese), e o segundo caminho ganhou mutação própria — ele existia sem nenhuma,
+  // que é a razão de o trecho ter ficado ambíguo em primeiro lugar.
   {
     file: 'src/domain/recipe.ts',
-    from: `      (unitPackaging.itemsRate ?? 0) +`,
-    to: `      0 * (unitPackaging.itemsRate ?? 0) +`,
+    from: `    recipeCost.perYieldUnit * yieldPerUnit +
+      (unitPackaging.itemsRate ?? 0) +`,
+    to: `    recipeCost.perYieldUnit * yieldPerUnit +
+      0 * (unitPackaging.itemsRate ?? 0) +`,
     hurts:
       'as telas cotam o custo sem a embalagem que sai do estoque, e a producao congela um numero maior que o que sete telas prometeram',
+  },
+
+  // A embalagem FECHADA é o outro caminho, e ele guarda a doutrina do arredondamento:
+  // `packCost` multiplica ANTES de arredondar, em vez de multiplicar centavo já
+  // arredondado. Trocar a ordem é o defeito clássico deste repositório — perder um
+  // quinto antes da primeira multiplicação — e ele não tinha mutação nenhuma.
+  {
+    file: 'src/domain/recipe.ts',
+    from: `    (recipeCost.perYieldUnit * yieldPerUnit +
+      (unitPackaging.itemsRate ?? 0) +
+      (unitPackaging.typedRate ?? 0)) *
+      unitsPerPack,`,
+    to: `    cents(recipeCost.perYieldUnit * yieldPerUnit +
+      (unitPackaging.itemsRate ?? 0) +
+      (unitPackaging.typedRate ?? 0)) *
+      unitsPerPack,`,
+    hurts:
+      'a caixa fechada passa a custar centavo arredondado vezes o numero de unidades: o erro de arredondamento multiplica, e a cotacao de um engradado de 264 picoles sai errada para mais ou para menos sem ninguem ver',
   },
 
   {
@@ -1379,38 +1407,56 @@ await Promise.all(
   }),
 );
 
-let survivors = 0;
+/**
+ * **Três desfechos ruins, e eles NÃO são a mesma notícia — medido em 11 de setembro.**
+ *
+ * Este relatório somava tudo num contador só e fechava dizendo *"N defeito(s) atravessaram
+ * a suíte inteira"*. Numa execução em que a única pendência era uma âncora ambígua — o
+ * trecho do `from` passou a aparecer duas vezes no arquivo, então a mutação **não foi
+ * aplicada** —, a frase mandava procurar fraqueza na suíte. Nada atravessou: nada foi
+ * plantado.
+ *
+ * Falhar continua certo (guarda que não roda não guarda). O que estava errado era a
+ * frase, e ela custa a rodada de quem a lê: quem procura teste fraco não encontra, porque
+ * o serviço é consertar a âncora.
+ *
+ * `sobreviveram` = a mutação ENTROU e a suíte ficou verde. É a notícia sobre a suíte.
+ * `naoMedidos`   = a mutação não entrou (trecho mudou, ambíguo, ou a suíte não rodou).
+ *                  É notícia sobre o arquivo de mutações, não sobre a suíte.
+ */
+let sobreviveram = 0;
+let naoMedidos = 0;
 const equivalentes = [];
 
 for (const veredito of vereditos) {
   const { defect } = veredito;
   if (veredito.estado === 'obsoleta') {
-    survivors += 1;
+    naoMedidos += 1;
     console.log(`?  ${defect.file}: o trecho mudou — atualize esta mutação`);
     console.log(`   ${defect.hurts}\n`);
   } else if (veredito.estado === 'ambigua') {
-    survivors += 1;
+    naoMedidos += 1;
     console.log(`?  ${defect.file}: o trecho aparece ${veredito.hits} vezes`);
     console.log(`   a troca pega só a primeira — dê contexto ao \`from\` até ele ser único`);
     console.log(`   ${defect.hurts}\n`);
   } else if (veredito.estado === 'equivalente') {
     equivalentes.push(defect);
   } else if (veredito.estado === 'inconclusivo') {
-    survivors += 1;
+    naoMedidos += 1;
     console.log(`\nNÃO MEDIDO  ${defect.file}`);
     console.log('   a suíte não chegou a imprimir resumo, duas vezes — máquina disputada,');
     console.log('   memória, ou o `npx` que não subiu. Não é proteção e não é buraco: é');
     console.log('   medida que não houve. Rode de novo com a máquina livre.');
     console.log(`   ${defect.hurts}\n`);
   } else if (veredito.estado === 'marcador-errado') {
-    survivors += 1;
+    sobreviveram += 1;
     console.log(`\nMARCADOR ERRADO  ${defect.file}`);
     console.log(`   marcada como equivalente e a suíte PEGOU: ${defect.equivalente}`);
     console.log('   tire o marcador — a regra ganhou teste desde que ele foi escrito\n');
   } else if (veredito.estado === 'pego') {
     console.log(`ok ${defect.hurts}`);
   } else {
-    survivors += 1;
+    sobreviveram += 1;
     console.log(`\nPASSOU DESPERCEBIDO  ${defect.file}`);
     console.log(`   ${defect.from.slice(0, 90)}`);
     console.log(`   vira ${defect.to.slice(0, 90)}`);
@@ -1419,11 +1465,17 @@ for (const veredito of vereditos) {
 }
 
 console.log();
-if (survivors > 0) {
-  console.log(`${survivors} defeito(s) atravessaram a suíte inteira.`);
+if (sobreviveram > 0) {
+  console.log(`${sobreviveram} defeito(s) atravessaram a suíte inteira.`);
   console.log('Verde não quer dizer protegido — quer dizer que os exemplos não exercitam a regra.');
-  process.exit(1);
 }
+if (naoMedidos > 0) {
+  console.log(`${naoMedidos} mutação(ões) NÃO foram medidas — e isto não é notícia sobre a suíte.`);
+  console.log('Elas não chegaram a ser plantadas: o trecho do `from` mudou, ficou ambíguo,');
+  console.log('ou a execução não fechou. O serviço é no arquivo de mutações, não nos testes —');
+  console.log('e enquanto não for feito, a regra que cada uma protege está SEM guarda.');
+}
+if (sobreviveram > 0 || naoMedidos > 0) process.exit(1);
 const pegos = DEFECTS.length - equivalentes.length;
 console.log(`Os ${pegos} defeitos foram pegos. A suíte morde onde promete morder.`);
 if (equivalentes.length > 0) {
