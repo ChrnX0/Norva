@@ -1165,6 +1165,26 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   servidor (`PushResult` em `src/sync/engine.ts:31` só diz o que ENTROU), e isso continua
   precisando das formas de erro de um servidor de verdade.
 
+- **Sentry entra depois — decisão do dono, 11 de setembro: *"Farei depois."*** O conector
+  está ligado na conta dele e desligado nesta conversa, e ligá-lo é botão dele, não meu.
+
+  Registrado para não virar pergunta repetida, com o que a medida disse junto: o aplicativo
+  JÁ detecta e mostra a quebra (`src/components/Crash.tsx`), e o docblock de lá nomeia o
+  buraco — *"é a única descrição da falha que vai existir, porque ninguém vai reproduzir isto
+  num celular numa câmara fria"*. O que falta não é detecção, é **entrega**: hoje essa
+  descrição morre no toque de "Tentar de novo".
+
+  E as três coisas que ele precisa decidir junto, porque nenhuma é padrão:
+
+  1. **O que sai do aparelho.** Relatório de erro carrega rastro, tela e — se for descuidado
+     — nome de item, preço, custo e fornecedor. A fundação desta casa é que o dado da fábrica
+     é do dono, então a limpeza (`beforeSend` cortando dinheiro, nome e carga, com teste
+     provando que corta) se decide ANTES de mandar a primeira linha.
+  2. **Desligado por padrão.** Sem DSN configurada o app não manda nada — senão todo cliente
+     futuro vira cobaia por um arquivo de ambiente esquecido.
+  3. **Ele não fecha o buraco do tablet.** Sentry pega ERRO. Feio, lento e confuso continuam
+     precisando dos olhos do dono, e isso não muda.
+
 - **O operador confere a prateleira.** Numa fábrica de seis pessoas quem anda
   até a prateleira é quem trabalha lá, não o dono. Negar a permissão não deixa o
   número mais seguro — deixa a contagem sem acontecer, e saldo que ninguém

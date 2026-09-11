@@ -66,8 +66,9 @@ contexto, o relatório passou a separar "atravessou a suíte" (notícia sobre os
 que multiplica ANTES de arredondar — ganhou mutação própria, porque ele existia sem
 nenhuma.*
 
-***Resultado da última execução, 11 de setembro: 128 pegos, 2 equivalentes, 0
-sobreviventes, 0 não medidas.***
+***Resultado da última execução, 11 de setembro: 130 pegos, 2 equivalentes, 0
+sobreviventes, 0 não medidas.*** *As duas últimas a entrar guardam as linhas que podem PERDER
+dado — o padrão de `classeDaRecusa` e a condição do motor —, e as duas foram pegas.*
 
 *E a execução ANTERIOR desta mesma noite, com as quatro mutações novas das regras aprovadas,
 teve **um sobrevivente de verdade**: a sobreposição de alcance da variação tinha prova numa

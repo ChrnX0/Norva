@@ -173,6 +173,17 @@ export async function rejectedCount(): Promise<number> {
  *
  * Quem decide se a recusa é definitiva é `classeDaRecusa` (`src/sync/recusa.ts`), e o padrão
  * dela é "passageira". Aqui não há decisão: só o carimbo.
+ *
+ * **E a fronteira, dita antes de alguém achar que é defeito: o que sai de lado NÃO volta.**
+ * A `0051` preserva um caminho legítimo — *"desfaça a conferência anterior antes de conferir
+ * de novo"* —, e no dia em que alguém desfizer a primeira, a linha que este carimbo pôs de
+ * lado no segundo aparelho continua de lado, para sempre. O livro-razão fica certo mesmo
+ * assim: quem desfez confere de novo no aparelho dele, e isso gera entrada nova na fila
+ * dele. A linha velha vira lápide de um ato que foi superado, não dado perdido.
+ *
+ * Ressuscitar automaticamente seria pior: o aparelho teria de adivinhar que a recusa de
+ * ontem deixou de valer, e adivinhar errado é mandar de novo a conferência que o dono já
+ * decidiu descartar.
  */
 export async function markRejected(id: string, codigo: string | null): Promise<void> {
   const conn = await db();
