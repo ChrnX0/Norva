@@ -8,10 +8,11 @@ import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
 import { Field } from '@/components/Field';
 import { UnitStepper } from '@/components/UnitStepper';
+import { ProductPicker } from '@/components/ProductPicker';
+import type { Escolha } from '@/components/grade';
 import { GlyphKettle, GlyphProduction, GlyphSack } from '@/components/Glyph';
 import { ListRow } from '@/components/ListRow';
 import { Reveal } from '@/components/Reveal';
-import { Touchable } from '@/components/Touchable';
 import {
   NotEnoughStockError,
   openProductionRun,
@@ -155,6 +156,8 @@ function Production() {
   const [batchText, setBatchText] = useState('');
   const [showBatches, setShowBatches] = useState(false);
   const [unitsText, setUnitsText] = useState('');
+  /** Onde a pessoa está na grade: a linha e o tipo escolhidos até agora. */
+  const [naGrade, setNaGrade] = useState<Escolha>({ lineId: null, typeId: null });
   const [unitsTyped, setUnitsTyped] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -485,21 +488,29 @@ function Production() {
           title={words.pick}
         >
           <View style={{ gap: space.lg }}>
-            <View style={[styles.wrap, { gap: space.sm }]}>
-              {(data?.products ?? []).map((p) => (
-                <Touchable
-                  key={p.id}
-                  accessibilityLabel={p.name}
-                  onPress={() => setProductId(p.id)}
-                  // O alvo cresce sem virar caixa: de luva, quatro pixels de
-                  // folga em volta da etiqueta são a diferença entre pegar o
-                  // sabor de primeira e pegar o de baixo.
-                  style={{ paddingVertical: space.xs }}
-                >
-                  <Chip signal={p.id === selected?.id ? 'ok' : 'neutral'} label={p.name} />
-                </Touchable>
-              ))}
-            </View>
+            {/* A GRADE, e não uma fileira. O aplicativo obriga a montar linha, tipo e
+                variação no cadastro e entregava tudo achatado aqui: numa fábrica de
+                três tipos de picolé, dois volumes de pote e um revendido, isso é
+                dezenas de etiquetas lado a lado. A mesma peça serve o transporte, que
+                é o pedido de coerência do dono — "a diferença é que numa entra e na
+                outra sai".
+
+                Ela some sozinha onde não há o que escolher: com uma linha só, ou com o
+                exemplo semeado que não tem grade nenhuma, sobra a fileira de sempre. */}
+            <ProductPicker
+              produtos={(data?.products ?? []).map((p) => ({
+                id: p.id,
+                name: p.name,
+                lineId: p.lineId,
+                typeId: p.typeId,
+                flavorId: p.flavorId,
+              }))}
+              nome={(id) => data?.names[id] ?? id}
+              escolha={naGrade}
+              onEscolha={setNaGrade}
+              escolhido={selected?.id ?? null}
+              onEscolher={setProductId}
+            />
 
             {/* O fato primeiro. Este é o número que a pessoa acabou de contar, e
                 é o único campo obrigatório da tela.
