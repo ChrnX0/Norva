@@ -138,3 +138,32 @@ test('resposta que não é número vira "não sei", nunca um palpite', () => {
   // caso real: o instrumento tem de dizer que não sabe, e não inventar "tem movimento".
   assert.equal(interpretarMovimento(["cmd: Can't find service: settings", '1', '1']), null);
 });
+
+/**
+ * A conferência das cinco larguras só confere se a tela puder ser LIDA — e medido em
+ * 11 de setembro, com uma variável só e a mesma tela:
+ *
+ * | movimento | leituras |
+ * |---|---|
+ * | desligado | 3 de 3, 13–14 s |
+ * | ligado | **0 de 3**, desistindo em 21–23 s |
+ *
+ * Por isso o `fotos` desliga o movimento de propósito. Estas linhas prendem as duas
+ * metades que, separadas, não valem nada: desligar sem devolver envenena a próxima
+ * sessão (já aconteceu, e por um dia inteiro), e devolver sem desligar deixa a
+ * conferência cega de novo.
+ */
+test('o comando das cinco larguras desliga o movimento para poder ler', () => {
+  const fonte = readFileSync('scripts/aparelho.mjs', 'utf8');
+  assert.match(fonte, /semMovimento\(\(\) => fotosEm\(/, 'o fotos com rota deixou de desligar o movimento');
+});
+
+test('quem desliga o movimento devolve num finally, não no caminho feliz', () => {
+  const fonte = readFileSync('scripts/aparelho.mjs', 'utf8');
+  const corpo = fonte.slice(fonte.indexOf('async function semMovimento'));
+  const ate = corpo.slice(0, corpo.indexOf('\n}\n'));
+  assert.match(ate, /finally\s*\{/, 'sem finally, uma exceção no meio deixa o aparelho em "reduzir movimento"');
+  // E o que se devolve tem de ser o que estava, não um chute — com o padrão do
+  // sistema como saída quando não deu para ler.
+  assert.match(ate, /antes\?\.\[i\]/, 'deixou de devolver o valor que estava antes');
+});

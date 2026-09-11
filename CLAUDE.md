@@ -185,12 +185,30 @@ Daí três regras de construção:
    vazia, e `mesmaTelaEmTodas([])` respondia **"iguais"** — a guarda não podia falhar, que
    é exatamente o defeito que este arquivo proíbe duas seções abaixo.
 
-   **A correção não foi achar um jeito de ler: foi parar de responder o que não se sabe.**
-   Ler a tela com o movimento ligado continua em aberto, e depende do orçamento de
-   movimento, que é decisão do dono. O que não dependia de decisão nenhuma é a diferença
-   entre *"são iguais"* e *"não consegui olhar"* — hoje o veredito tem TRÊS respostas
+   **E o conserto veio em duas etapas no mesmo dia, porque a primeira parou cedo.**
+   A primeira foi parar de responder o que não se sabe: o veredito ganhou TRÊS respostas
    (`scripts/leitura.mjs`), e `nao-sei` sai como aviso alto dizendo quantas das cinco
-   foram lidas, sem derrubar o comando: as fotos são o que se veio buscar e elas saíram.
+   foram lidas, sem derrubar o comando — as fotos são o que se veio buscar e elas saíram.
+   Isso foi escrito acreditando que LER era impossível até o orçamento de movimento
+   fechar, que é decisão do dono.
+
+   A segunda foi medir essa crença, e ela estava meia errada. Uma variável só, a mesma
+   tela, a mesma sessão:
+
+   | movimento | leituras da tela |
+   |---|---|
+   | desligado | **3 de 3**, 13–14 s cada |
+   | ligado | **0 de 3**, desistindo em 21–23 s |
+
+   Então a leitura não depende de decisão nenhuma: depende de o comando **desligar o
+   movimento de propósito** e devolver. É o que uma sessão de 10 de setembro já tinha
+   achado na mão e escrito no `docs/insights.md` — e `transition_animation_scale`
+   aparecia **uma vez no repositório inteiro, em prosa**, em ferramenta nenhuma. Achado
+   sem consequência é achado que não aconteceu.
+
+   Hoje `fotos <nome> <rota>` desliga, lê, confere e devolve (`semMovimento`, com
+   `finally`), e diz na tela que fez isso. O `foto` singular **não** mexe em nada: ele é o
+   verbo de "como esta tela está", e para isso o aplicativo tem de estar vivo.
 
    E a resposta do meio é a que faz a diferença valer: **quatro larguras lidas e iguais,
    uma ilegível, não é "iguais"** — a ilegível pode ser justamente a que não navegou, e é

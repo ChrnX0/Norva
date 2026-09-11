@@ -168,7 +168,7 @@ Uma célula vazia significa arquivo sem comentário de abertura.
 | `language.test.ts` | 145 | A mesma língua visual em todas as telas. |
 | `law.test.ts` | 175 | Lei da Inteligência, item 3: nenhum número aparece sozinho. |
 | `layers.test.ts` | 542 | Where SQL is allowed to live, pinned. |
-| `leitura.test.ts` | 119 | A guarda das cinco larguras não pode responder o que não conseguiu medir. |
+| `leitura.test.ts` | 169 | A guarda das cinco larguras não pode responder o que não conseguiu medir. |
 | `marca.test.ts` | 121 | Toda superfície que o gerador desenha tem que ser CITADA por alguém. |
 | `nav.test.ts` | 98 | Voltar não pode significar sair do aplicativo. |
 | `nav.ts` | 37 | Voltar — e, quando não há para onde, ir para a capa em vez de sair do aplicativo. |

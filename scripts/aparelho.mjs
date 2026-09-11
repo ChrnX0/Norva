@@ -899,8 +899,69 @@ async function esperarTelaParar(minutos = 4) {
  *
  * É este comando que responde "o layout se adapta?", e nenhuma foto sozinha responde.
  */
+/**
+ * Roda `fn` com o aparelho em "reduzir movimento", e DEVOLVE o que estava antes.
+ *
+ * **Medido em 11 de setembro, uma variável só, a capa nas duas condições:**
+ *
+ * | movimento | leituras da tela |
+ * |---|---|
+ * | desligado | **3 de 3**, 13–14 s cada |
+ * | ligado | **0 de 3**, desistindo em 21–23 s |
+ *
+ * Ou seja: com o movimento ligado o `uiautomator` não tem janela ociosa e não lê nada —
+ * a afirmação que o `CLAUDE.md` carregava desde 9 de setembro está certa. E com ele
+ * desligado lê rápido e sempre, que é o que uma sessão de 10 de setembro achou na mão,
+ * escreveu no `docs/insights.md` e nunca ligou em ferramenta nenhuma: a string
+ * `transition_animation_scale` aparecia UMA vez no repositório inteiro, em prosa.
+ *
+ * Por isso o `fotos` desliga de propósito. Ele não é o verbo que prova que o aplicativo
+ * está vivo — é o que compara LARGURAS, e para isso precisa saber que rota caiu em cada
+ * uma. Sem leitura não há conferência, e sem conferência as cinco fotos podem ser cinco
+ * capas, que foi o defeito original.
+ *
+ * O `finally` não é zelo: `wm density` já envenenou uma sessão inteira por ficar trocado,
+ * e as escalas de animação envenenaram um DIA inteiro pelo mesmo motivo — com o agravante
+ * de que elas desligam o aplicativo, não só o Android. Quem troca, devolve.
+ */
+async function semMovimento(fn) {
+  let antes = null;
+  try {
+    antes = ESCALAS_DE_MOVIMENTO.map((k) =>
+      adbBin('shell', 'settings', 'get', 'global', k).toString().trim(),
+    );
+  } catch {
+    antes = null;
+  }
+  try {
+    for (const k of ESCALAS_DE_MOVIMENTO) adb('shell', 'settings', 'put', 'global', k, '0');
+    return await fn();
+  } finally {
+    // Sem leitura anterior, devolve o PADRÃO do sistema (1) em vez de deixar em zero:
+    // deixar em zero é reproduzir o defeito que este bloco existe para não repetir. E
+    // `null` do `settings get` é "nunca foi mexido", que também vale 1.
+    ESCALAS_DE_MOVIMENTO.forEach((k, i) => {
+      const valor = antes?.[i];
+      const devolver = !valor || valor === 'null' ? '1' : valor;
+      try {
+        adb('shell', 'settings', 'put', 'global', k, devolver);
+      } catch {
+        /* aparelho sumiu no meio: não há o que devolver */
+      }
+    });
+  }
+}
+
 async function fotos(nome, rota) {
   if (!nome) throw new Error('uso: node scripts/aparelho.mjs fotos <nome> [rota]');
+  // Sem rota não há conferência a fazer, e aí não há razão para mexer no movimento do
+  // aparelho: o embrulho só entra onde ele paga por si. Ver `semMovimento`.
+  if (!rota) return fotosEm(nome, rota);
+  dizer('desligando o movimento para poder LER a tela — devolvido no fim (ver semMovimento)');
+  return semMovimento(() => fotosEm(nome, rota));
+}
+
+async function fotosEm(nome, rota) {
   const ruins = [];
   const titulos = [];
   process.on('exit', () => tela('original'));

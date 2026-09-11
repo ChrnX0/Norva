@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **726** testes |
+| `npm test` | **728** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **55** checagens num navegador de verdade |
 | `npm run db:verify` | **29** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **14** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -1081,7 +1081,15 @@ Duas consequências dentro do repositório, e a segunda é pior:
 
    Sete casos em `src/leitura.test.ts`, incluindo o que fabricava o verde e o que
    derruba mesmo com leitura parcial (duas lidas e diferentes é fato).
-   <!-- medida: presente scripts/leitura.mjs :: veredito: 'nao-sei' -->
+
+   **E a segunda etapa, medida no mesmo dia: a conferência passou a CONFERIR.** A
+   primeira parou em "não respondo o que não sei" acreditando que ler era impossível até
+   o orçamento de movimento fechar. Medido — uma variável, a mesma tela, a mesma sessão —
+   com o movimento desligado a tela lê **3 de 3 em 13–14 s**, e com ele ligado **0 de 3**,
+   desistindo em 21–23 s. Então `fotos <nome> <rota>` desliga o movimento de propósito,
+   lê, confere e devolve (`semMovimento`, com `finally`). O `foto` singular não mexe em
+   nada — é o verbo de "como esta tela está", e para isso o aplicativo tem de estar vivo.
+   <!-- medida: presente scripts/aparelho.mjs :: async function semMovimento -->
 
 E a pergunta que fica de pé, porque um leitor de tela usa esse mesmo cano: se o
 `uiautomator` não consegue ler a tela, o TalkBack consegue? Não meço isso daqui — o

@@ -9454,3 +9454,56 @@ fechado.
 **A pergunta que fica, e ela troca uma contagem por uma leitura:** diante de um caso de
 teste, não pergunte *"tem caso verdadeiro e falso?"* — pergunte **"o que este caso diz que
 deve acontecer, e é isso mesmo?"**. `[[], true]` responde em uma linha, para quem olhar.
+
+## 11 de setembro — o achado estava escrito, e por isso ninguém foi buscá-lo
+
+**O que apareceu:** consertada a guarda das cinco larguras para dizer *"não consegui
+olhar"* em vez de *"são iguais"*, sobrou a pergunta que eu tinha dado como travada: por
+que não dá para LER? A resposta estava no `docs/insights.md`, escrita em **10 de
+setembro**, um dia antes:
+
+> *"Depois dos consertos do ambiente ele continuou recusando — mas com
+> `transition_animation_scale 0`, que é o que o aplicativo lê como 'reduzir movimento',
+> ele lê a tela inteira em segundos."*
+
+`grep` por `transition_animation_scale` no repositório inteiro: **uma ocorrência**. Essa.
+Em prosa. Não estava em `scripts/aparelho.mjs`, não estava no `CLAUDE.md`, não estava em
+roteiro nenhum — e o `CLAUDE.md` continuava dizendo, a toda sessão que o lesse, que a
+conferência automática *"não existe"* e que só o orçamento de movimento a destravaria.
+
+**Medido antes de ligar, porque a noite inteira foi sobre isso** — uma variável, a mesma
+tela, a mesma sessão:
+
+| movimento | leituras da tela |
+|---|---|
+| desligado | **3 de 3**, 13–14 s cada |
+| ligado | **0 de 3**, desistindo em 21–23 s |
+
+As duas afirmações estavam certas e nunca tinham sido postas lado a lado: o `CLAUDE.md`
+acertava que com movimento não se lê, o `insights.md` acertava que sem movimento se lê, e
+faltava alguém somar as duas.
+
+**Por que importa:** a diretriz desta casa diz que *todo insight vira uma linha no
+`docs/insights.md`*, e que *achado sem consequência não entra*. A linha foi escrita. A
+regra foi cumprida na letra — e o achado continuou não acontecendo por um dia, porque o
+conteúdo dele não era uma lição: era uma **técnica**. Lição muda o que a próxima sessão
+pensa, e para isso um parágrafo basta. Técnica muda o que a ferramenta FAZ, e um parágrafo
+não faz nada: quem vai usá-la precisa tropeçar nela, e ninguém tropeça num arquivo de
+9.400 linhas.
+
+Pior: o registro escrito *parece* consequência. Ele fecha a sensação de dívida — o achado
+está guardado, está documentado — e é exatamente por isso que ninguém volta.
+
+**O que mudou por causa disso:** `fotos <nome> <rota>` desliga o movimento de propósito,
+lê, confere e devolve (`semMovimento`, com `finally` — porque desligar sem devolver é o
+defeito que envenenou este emulador por um dia). O `foto` singular não mexe em nada: é o
+verbo de *"como esta tela está"*, e para isso o aplicativo tem de estar vivo. Duas réguas
+em `src/leitura.test.ts` prendem as metades que sozinhas não valem nada — desligar sem
+devolver, e devolver sem desligar. E o `CLAUDE.md` deixou de dizer que a conferência é
+impossível.
+
+**A pergunta que fica, e ela corrige a diretriz sem enfraquecê-la:** quando escrever um
+insight, pergunte **de que tipo é o conteúdo**. Se é uma lição, o arquivo certo é este. Se
+é uma técnica — um comando, uma bandeira, um jeito de fazer a máquina responder —, o
+arquivo certo é a **ferramenta**, e este aqui só registra que ela mudou. Insight cujo
+único vestígio é a própria entrada não teve consequência: teve anotação.
