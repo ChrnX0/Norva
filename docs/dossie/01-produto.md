@@ -676,7 +676,7 @@ usa) e **[PLANEJADO]** (só escrito).
 | Preço de venda | **NÃO IMPLEMENTADO** | capacidade `view_sale_price` existe; "Não existe preço de venda neste aplicativo" (`app/(tabs)/more.tsx:36`) |
 | Financeiro | **NÃO IMPLEMENTADO** | capacidade `view_finance` e área `sand → finance` existem; nenhuma tela |
 | Nota fiscal eletrônica | **fora de escopo** | capacidade `issue_invoice` existe; ver 1.15 |
-| `UnitStepper` (contador de caixas com luva) | **[SEM CHAMADOR]** | fronteira registrada em `src/dictionary.test.ts:44-45` e `CLAUDE.md`; entra com a tela de separação (`docs/roadmap.md:270-272`) |
+| `UnitStepper` (contador de caixas com luva) | **implementado e chamado** | a tela de separação chegou (`app/picking.tsx:358`), e em 11 de setembro a produção e a compra passaram a usá-lo também. Era "[SEM CHAMADOR]" com fronteira registrada, e a fronteira foi paga |
 
 O vocabulário completo de capacidades tem **12 valores**, idênticos no cliente e no
 servidor: `view_cost`, `view_sale_price`, `record_production`, `dispatch`,

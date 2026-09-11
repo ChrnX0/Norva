@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **700** testes |
+| `npm test` | **704** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **55** checagens num navegador de verdade |
 | `npm run db:verify` | **29** garantias contra um Postgres descartável, sob RLS |
@@ -858,8 +858,8 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     com `saveBodyPlain`: sem porção não há custo por unidade e não há o que resumir.
     Confirmação truncada ensina a não ler confirmação, que é a Lei 5 perdendo o que ela
     existe para comprar.
-34. **O dossiê não tem guarda nenhuma, e é o documento que se propõe a SOBREVIVER ao
-    repositório.** <!-- medida: ausente src :: dossie.test.ts -->
+34. ~~**O dossiê não tem guarda nenhuma**~~ — **a primeira entrou em 11 de setembro, e achou
+    duas espécies de mentira na estreia.** <!-- medida: presente src :: do dossiê está errada -->
     Achado em 10 de setembro ao ir consertar o que a extração do `voltar()` deixou velho.
     O `docs/DOSSIE.md` é derivado (`scripts/dossie.mjs` só COSTURA as seções de
     `docs/dossie/`, e o arquivo único nem entra no git); as seções são escritas à mão; e
@@ -878,13 +878,28 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     não aplicou ao dossiê: `src/bar.test.ts` deriva do sistema todo número que o projeto
     afirma sobre si, e `src/plano.test.ts` cobra a medida escrita de cada item desta fila.
 
-    **A classe mais fácil de conferir por máquina é `SEM CHAMADOR`** — são **28** delas no
-    dossiê, cada uma dizendo que um símbolo existe e ninguém o usa. É a pergunta do portão
-    P1 (*"quem chama isto no mesmo commit?"*), e um `grep` responde. A borda que a guarda
-    precisa respeitar, senão vira a guarda que não pode falhar: só as formas ancoradas
-    (célula de tabela, título de subseção) dão para extrair o símbolo com confiança — as
-    citações em prosa, não. Ela tem de **listar o que não conferiu** em vez de contar
-    silêncio como aprovação.
+    **A classe escolhida foi `SEM CHAMADOR`**, que é a pergunta do portão P1 e um `grep`
+    responde. `src/dossie.test.ts` confere as formas ancoradas (célula de tabela, título de
+    subseção) e **diz quantas não conferiu** — 21 em prosa, onde o símbolo não dá para
+    extrair —, porque contar silêncio como aprovação seria a guarda que não pode falhar.
+
+    **O que ela achou na estreia, e são duas espécies diferentes:**
+
+    1. **Afirmação vencida:** `01-produto.md` dizia que o `UnitStepper` não tinha chamador e
+       que ele *"entra com a tela de separação"*. A tela chegou, e hoje são três chamadores.
+       Eu tinha consertado a ocorrência de `17-componentes.md` à mão no dia anterior e não
+       perguntei quem MAIS afirmava aquilo — a regra da casa que eu já tinha quebrado duas
+       vezes na mesma semana.
+    2. **Afirmação sobre código APAGADO:** três linhas descreviam `IconStock`, `IconCost` e
+       `IconLoss` como implementados sem chamador. Eles saíram do código em 6 de setembro.
+       Isso é pior que vencido — manda quem lê procurar o que não está lá. Passaram a dizer
+       REMOVIDO, com o motivo.
+
+    **E a guarda quase acusou o próprio conserto, duas vezes.** A tabela que corrige uma
+    afirmação CITA a frase antiga, e citar não é afirmar — o mesmo defeito do gancho da
+    sessão lendo heredoc como comando. Duas regras separam: na afirmação o "SEM CHAMADOR"
+    está numa célula DEPOIS da do símbolo, e a citação vai entre ASPAS. As duas têm caso
+    verdadeiro e falso ao lado.
 
 **O que a segunda caminhada CONFIRMOU funcionando:** as três réguas de rendimento no
 cadastro da ficha; a confirmação da ficha com os números por extenso e a régua escolhida

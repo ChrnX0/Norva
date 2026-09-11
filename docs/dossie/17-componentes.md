@@ -1324,10 +1324,10 @@ makes an icon set look borrowed from three places"* (`icons.tsx:37-43`).
 | `IconTransport` (`:73`) | um caminhão | `M2 7.5h11v9H2z` · `M13 11h4l3.5 3.5v2H13z` · rodas `Circle cx6.5 cy18.5 r1.9` e `cx16.5 cy18.5 r1.9` | `app/(tabs)/_layout.tsx` (área `lilac`) |
 | `IconReports` (`:85`) | barras numa linha de base | `M4 20h16` · `M6.5 20v-6` · `M12 20V5` · `M17.5 20v-9` | `app/(tabs)/_layout.tsx` (área `sand`) |
 | `IconMore` (`:97`) | grade 2×2 — *"the drawers"* | quatro `Rect` 7×7 `rx2` em (3.5,3.5), (13.5,3.5), (3.5,13.5), (13.5,13.5) | `app/(tabs)/_layout.tsx` (área `mist`) |
-| `IconStock` (`:109`) | um cubo | `M12 3l8 4.5v9L12 21l-8-4.5v-9z` · `M4 7.5l8 4.5 8-4.5` · `M12 12v9` | **SEM CHAMADOR** |
-| `IconCost` (`:120`) | cifrão | `M12 3v18` · `M16 7.5a3.5 3.5 0 0 0-3.5-2.5h-1a3.5 3.5 0 0 0 0 7h1a3.5 3.5 0 0 1 0 7h-1A3.5 3.5 0 0 1 8 16.5` | **SEM CHAMADOR** |
+| `IconStock` (`:109`) | um cubo | `M12 3l8 4.5v9L12 21l-8-4.5v-9z` · `M4 7.5l8 4.5 8-4.5` · `M12 12v9` | **REMOVIDO** — saiu de `src/components/icons.tsx` em 6 de setembro, junto com as linhas de relatório que desenhavam com ele; a família que a pele escolhe é `Glyph.tsx`, e dois desenhos da mesma coisa é a doença das duas grafias em forma de traço |
+| `IconCost` (`:120`) | cifrão | `M12 3v18` · `M16 7.5a3.5 3.5 0 0 0-3.5-2.5h-1a3.5 3.5 0 0 0 0 7h1a3.5 3.5 0 0 1 0 7h-1A3.5 3.5 0 0 1 8 16.5` | **REMOVIDO** — saiu de `src/components/icons.tsx` em 6 de setembro, junto com as linhas de relatório que desenhavam com ele; a família que a pele escolhe é `Glyph.tsx`, e dois desenhos da mesma coisa é a doença das duas grafias em forma de traço |
 | `IconChevron` (`:130`) | seta de abrir | `M9.5 5l7 7-7 7` | `app/(tabs)/more.tsx`, `app/(tabs)/production.tsx`, `app/(tabs)/reports.tsx`, `app/(tabs)/transport.tsx`, `app/products/index.tsx`, `app/recipes/index.tsx`, `app/settings.tsx` |
-| `IconLoss` (`:139`) | triângulo com exclamação | `M12 3.5l9 16H3z` · `M12 9.5v5` · `M12 17.2v.1` | **SEM CHAMADOR** |
+| `IconLoss` (`:139`) | triângulo com exclamação | `M12 3.5l9 16H3z` · `M12 9.5v5` · `M12 17.2v.1` | **REMOVIDO** — saiu de `src/components/icons.tsx` em 6 de setembro, junto com as linhas de relatório que desenhavam com ele; a família que a pele escolhe é `Glyph.tsx`, e dois desenhos da mesma coisa é a doença das duas grafias em forma de traço |
 
 #### Comentários desatualizados
 
