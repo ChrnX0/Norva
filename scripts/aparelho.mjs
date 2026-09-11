@@ -55,8 +55,14 @@ const AVD = arg('--avd') ?? 'norva-cheio';
  * Fica em `/tmp` e não na árvore: é saída de ferramenta, não artefato do projeto, e a
  * árvore suja aborta verificação. O descritor é aberto uma vez, na carga, porque
  * `spawn` precisa de descritor e não de caminho.
+ *
+ * **E o nome leva o AVD, porque a primeira versão levava nome fixo e isso me pegou na hora
+ * de provar o conserto.** Eu subi o ATD e, para exercitar o caminho de morte, disparei um
+ * segundo `subir` com um AVD inexistente: ele abriu o MESMO arquivo em modo `w` e truncou o
+ * rastro da partida que estava em curso. Um arquivo de prova que a próxima execução apaga é
+ * prova que não existe — a mesma doença do `tail` na primeira leitura, com outro rosto.
  */
-const CAMINHO_DO_RASTRO = '/tmp/norva-emulador.log';
+const CAMINHO_DO_RASTRO = `/tmp/norva-emulador-${AVD}.log`;
 let RASTRO = 'ignore';
 try {
   RASTRO = openSync(CAMINHO_DO_RASTRO, 'w');
