@@ -850,8 +850,38 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     rodar ponta a ponta seria trocar o que se lê antes de saber o que se faz.
 
 40. **O app pede sete cadastros antes de dizer qualquer coisa — e devia deixar começar
-    pelo fim.** <!-- medida: espera decisão do dono: é mudança de desenho do produto, proposta em 11 de setembro e não pedida -->
-    Proposta minha, não pedido dele, e por isso entra como proposta e não como trabalho.
+    pelo fim.** — **DECIDIDO em 11 de setembro: os dois caminhos existem.**
+    <!-- medida: espera decisão do dono: o desenho do caminho de trás, agora que ele não economiza cadastro -->
+
+    Decisão do dono: *"parece q pode dar margem para erro. Seguir um passo obrigatório q
+    nao muda é mais seguro, apesar de mais longo. O que eu acho q podemos fazer e partir
+    dos dois lados: inicio e fim, ambos valendo desde que o resultado seja o mesmo. O teu
+    jeito é bom para quem é desatento ou algo assim."*
+
+    O passo a passo continua sendo o padrão e o seguro; o de trás é a porta alternativa. E
+    ele deu a **invariante** junto, que é o que torna isto verificável em vez de opinião:
+    *"ambos valendo desde que o resultado seja o mesmo"* — a mesma produção registrada
+    pelos dois caminhos deixa o livro-razão **idêntico**, movimento por movimento. Um
+    caminho que produz um razão diferente não é atalho, é outro ato.
+
+    **E a medida de 11 de setembro mudou o que este item promete.** `recordProduction`
+    recusa produto sem ficha (`src/data/repository.ts` — *"é revenda: não se produz"*), e o
+    custo congelado da corrida depende dos ingredientes. Ou seja: **começar pelo fim NÃO
+    economiza cadastro. Ele reordena.** A pessoa diz o que fez, e o aplicativo vai buscando
+    para trás o que falta, na ordem em que ela pensa — mas coleta exatamente as mesmas
+    coisas, porque sem elas não há número.
+
+    Isso não enfraquece o item: explica por que a invariante do dono é alcançável (é o
+    mesmo dado, logo o mesmo razão) e dá razão à cautela dele. O que muda é a promessa —
+    de *"sete cadastros viram um"* para *"os sete acontecem na ordem de quem faz, começando
+    pelo que acabou de sair do tacho"*.
+
+    **O que falta decidir é o desenho**, e é dele: a tela de produção tem razão escrita
+    para NÃO navegar dali (é empilhada; item 7). Criar ali dentro respeita isso e dá a
+    porta — mas é uma tela que cresce. A alternativa é um caminho próprio, que começa em
+    *"o que você fez?"*.
+
+    Proposta minha, não pedido dele, e por isso entrou como proposta e não como trabalho.
 
     O que a caminhada de 10 e 11 de setembro fez foi tornar cada passo CORRETO — a receita
     usa outra receita, a variação trava no lugar certo, a contagem sai em engradado. O que
