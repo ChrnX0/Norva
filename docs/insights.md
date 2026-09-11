@@ -9860,3 +9860,45 @@ contra são"; se o são já estiver quebrado, ele mede nada e diz tudo.
 
 **A pergunta que fica:** o seu detector consegue distinguir "achei" de "não consegui
 olhar"? Se as duas saídas dele são iguais, ele não é detector — é um gerador de verde.
+
+---
+
+## O emulador não estava lento: ele estava morrendo, a cada quatro minutos — 11 de setembro
+
+O item aberto desde ontem era *"o `fotos` não produz imagem neste emulador, causa não
+estabelecida"*, com uma hipótese derrubada (o `wm size`) e sintomas sem dono: `DRAW_PENDING`
+repetido, `Screen frozen for +3s`, ~80 mil objetos coletados por meio segundo com a tela
+parada.
+
+Fui instalar o APK desta rodada e a causa apareceu inteira, em três linhas do `logcat`:
+
+```
+ANR of com.android.networkstack.process in 17621ms, latency 76340ms
+  -> Process com.android.networkstack.process has died: pers PER
+  -> FATAL EXCEPTION IN SYSTEM PROCESS: IllegalStateException: Lost network stack
+```
+
+Um processo **persistente** do sistema levou 76 segundos para responder; o Android o matou
+por ANR; e o `system_server` se mata de propósito quando perde o módulo de rede. Às 16:23:50,
+16:28:33 e 16:32:12 — **três de três**, de quatro em quatro minutos, com 9 GB livres no
+hospedeiro.
+
+**Por que ninguém tinha visto:** cada sintoma isolado tem uma explicação plausível e errada.
+Quadro preto parece ferramenta de foto quebrada. `DRAW_PENDING` parece GPU por software. A
+coleta de lixo contínua parece vazamento do aplicativo. E `sys.boot_completed` respondendo
+`1` **com zero serviços registrados** parece paradoxo — é o que é: a propriedade sobrevive à
+morte do `system_server` que a escreveu.
+
+Três sintomas, três hipóteses razoáveis, uma causa só. O que os une não está em nenhum
+deles: está no buffer `crash`, que nenhuma das investigações anteriores leu.
+
+**A pergunta que fica:** quando houver três sintomas sem dono no mesmo ambiente, a hipótese
+mais provável não é três defeitos — é um, num andar mais baixo do que qualquer um deles.
+Antes de explicar o sintoma, pergunte o que está morrendo. `logcat -b crash` é uma linha de
+comando e responde isso.
+
+*E o que mudou por causa disso, além do registro: a prova de tela neste container passou a ser
+o NAVEGADOR — duas checagens novas dirigem `app/fiz.tsx` de verdade (monta, aceita a frase,
+mostra a escada certa), que é mais do que uma foto provaria e não depende de um sistema que
+não termina de nascer. E o `subir` ganhou a capacidade de falhar, que é o assunto do commit
+ao lado.*

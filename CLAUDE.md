@@ -285,6 +285,44 @@ prova cor de tema, não prova o encaixe no cabeçalho, não prova animação, e 
 foto do aparelho para nada que não seja a prancha. Quem trocar uma pela outra vai acertar o
 desenho e errar a tela.
 
+**E a causa das fotos pretas FICOU ESTABELECIDA — 11 de setembro, e ela é pior que uma
+ferramenta quebrada: o emulador deste container se mata a cada ~4 minutos.** A cadeia,
+medida inteira e três vezes em três:
+
+```
+ANR of com.android.networkstack.process in 17621ms, latency 76340ms
+  -> Process com.android.networkstack.process has died: pers PER
+  -> FATAL EXCEPTION IN SYSTEM PROCESS: java.lang.IllegalStateException: Lost network stack
+  -> tudo reinicia
+```
+
+Um processo PERSISTENTE do sistema levou **76 segundos** para responder, o Android o matou
+por ANR, e o `system_server` se mata de propósito quando perde o módulo de rede. Às 16:23:50,
+16:28:33 e 16:32:12 — de quatro em quatro minutos, com **9 GB livres no hospedeiro**, então
+não é memória.
+
+É o mesmo emulador glacial que a seção do ANR acima já descreve (*"o gerenciador de janelas
+a 111% e quase todo em kernel, num emulador sem KVM e com GPU por software"*), e agora o
+efeito tem nome. E isso explica o que estava aberto sem causa: `DRAW_PENDING` repetido,
+`Screen frozen for +3s`, ~80 mil objetos coletados por meio segundo e quadro preto **não são
+defeito do aplicativo nem da ferramenta de foto** — é um sistema que nunca termina de nascer.
+
+Três consequências práticas:
+
+1. **`sys.boot_completed` = 1 com ZERO serviços é estado normal aqui**, não paradoxo: a
+   propriedade sobrevive à morte do `system_server`. Medido: `getprop` devolvia 1 e
+   `service check package|window|activity` devolvia `not found` nos três.
+2. **O `instalar` falha com `Broken pipe (32)` ou `Can't find service: package` por isso**, e
+   a cicatriz escrita no `subir` (*"o emulador não está quebrado, está GLACIAL"*) estava
+   certa e incompleta — não é só lento, é lento o bastante para o próprio Android desistir.
+3. **Então a prova de tela neste container é o NAVEGADOR até isto ser contornado**, e ele
+   prova o que pode: que a tela monta, que o dicionário tem as chaves, que o fluxo anda.
+   O que ele não alcança continua na lista de baixo, e continua sendo do aparelho do dono.
+
+*O contorno que ainda não foi tentado: a imagem ATD (`norva-atd`), que tem menos processo de
+sistema e por isso talvez responda dentro do prazo do ANR. Fica escrito como hipótese não
+medida — que é o que ela é.*
+
 **E a regra que vale mais que todas elas juntas: verde não prova tela.** O tema
 claro ilegível que chegou ao dono passou por 338 testes verdes e 36 checagens de
 navegador. O que prova tela é a **foto do emulador**, olhada. Isso agora existe:

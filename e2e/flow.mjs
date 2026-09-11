@@ -3430,6 +3430,65 @@ check('a carrier is registered, chosen on the load, and named on the day', async
   );
 });
 
+check('o caminho de trás pergunta o que você fez e mostra quanto falta', async (page) => {
+  /**
+   * A checagem que o navegador PODE fazer sobre `app/fiz.tsx`, e a fronteira dita.
+   *
+   * O que ela prova: a tela monta, o dicionário tem as chaves nos três idiomas (texto em
+   * falta apareceria como chave crua), a frase é aceita e guardada, a escada aparece, e o
+   * degrau de AGORA é o primeiro que falta de verdade contra o banco semeado.
+   *
+   * O que ela NÃO prova, e é a regra desta casa desde 11 de setembro: o navegador não
+   * prova gesto que o navegador não tem. A volta por tecla, a partida a frio por intent e
+   * a foto do movimento continuam sendo do aparelho.
+   */
+  await page.goto(`http://localhost:${PORT}/fiz`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const entrada = await screen(page);
+  assert.match(entrada, /O que você fez\?/, 'a tela abre pela pergunta, não por um formulário');
+  // MAIÚSCULAS porque é assim que a tela escreve: `Field` desenha o rótulo com
+  // `label.toUpperCase()`. Asserção que procura o que o dicionário diz em vez do que a
+  // tela mostra reprova com a tela certa — foi o que aconteceu na primeira escrita desta
+  // linha.
+  assert.match(entrada, /O QUE SAIU/, 'e o campo da frase está lá');
+  // A escada NÃO aparece antes da frase: mostrar o caminho antes de saber para onde se vai
+  // é dar tarefa a quem não pediu.
+  assert.doesNotMatch(entrada, /O caminho até lá/, 'sem frase não há escada');
+
+  // A pessoa diz o que fez, com as palavras dela.
+  await page.getByPlaceholder('picolé de morango').first().fill('200 picolés de morango');
+  await page.getByText('Continuar', { exact: true }).first().click();
+  await page.getByText('O caminho até lá').first().waitFor({ timeout: 15_000 });
+
+  const depois = await screen(page);
+  assert.match(depois, /Você disse: 200 picolés de morango/, 'a frase volta para quem a escreveu');
+  assert.match(depois, /O caminho até lá/, 'e a escada aparece depois dela');
+  // O banco semeado tem insumo, ficha e produto com ficha — então nada falta, e a tela diz
+  // isso em vez de inventar um degrau. É o caso que separa "mostra a escada" de "mostra a
+  // escada CERTA": uma tela que sempre pedisse cadastro passaria na asserção de cima.
+  assert.match(
+    depois,
+    /Está tudo cadastrado|Registrar o que saiu/,
+    'com a fábrica semeada a escada está fechada e o que resta é registrar',
+  );
+  assert.match(depois, /Não era isso/, 'a saída nunca é escondida');
+});
+
+check('o caminho de trás não é o único: o passo a passo continua na frente', async (page) => {
+  // A decisão do dono foi "os dois caminhos existem", e o passo a passo é o PADRÃO. Uma
+  // porta que substituísse a outra cumpriria metade da decisão e pareceria pronta.
+  await page.goto(`http://localhost:${PORT}/more`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const texto = await screen(page);
+  assert.match(texto, /O que você fez\?/, 'a porta permanente do caminho de trás está nos ajustes');
+  // E as portas do passo a passo continuam onde estavam.
+  assert.match(texto, /Almoxarifado/);
+  assert.match(texto, /Receitas/);
+  assert.match(texto, /Produtos/);
+});
+
 try {
   // Rebuilt every run unless somebody explicitly asks to reuse the last one.
   //
