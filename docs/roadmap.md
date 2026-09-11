@@ -167,12 +167,38 @@ por peso, e o que já foi fechado:**
    entrega o erro; `src/casco.test.ts` cobra a entrega, com a lista de dívida em zero e
    uma fronteira escrita de um nome só (o assistente, que fecha por omissão de propósito).
 3. ~~Os dois números de Receitas que não fechavam~~ — **fechada**.
-4. **O ambiente satura a thread de UI e o aplicativo passa a renderizar errado.** Provado
-   ligando e desligando: com movimento, a capa esvazia, o Almoxarifado vem sem a lista, os
-   cartões vêm pálidos, a rolagem morre e o `uiautomator` não lê a tela; com "reduzir
-   movimento" ligado, tudo desenha, a rolagem funciona e a CPU cai de 190% para 41%. **A
-   caminhada inteira teve de ser feita com o ambiente parado**, senão o aplicativo não se
-   deixa dirigir. Isto é o item de baixo, e ele deixou de ser sobre bateria.
+4. **O ambiente satura a thread de UI — e "o aplicativo renderiza errado" NÃO estava
+   medido.** Corrigido em 11 de setembro, remedindo a afirmação central deste item.
+
+   O texto dizia: *"com movimento, a capa esvazia, o Almoxarifado vem sem a lista, os cartões
+   vêm pálidos, a rolagem morre e o `uiautomator` não lê a tela; com 'reduzir movimento'
+   ligado, tudo desenha"*. **Todas as observações do primeiro lado vieram pelo `uiautomator`**
+   — e a última delas diz que ele não lê. Um instrumento que não lê devolve tela vazia, e tela
+   vazia se parece exatamente com "a capa esvazia".
+
+   Remedido no ATD, uma variável por vez, mesma rota (`norva://inputs`), com `force-stop`
+   entre as condições porque `vida.ts` guarda a resposta no arranque:
+
+   | movimento do app | o que o `uiautomator` devolve |
+   |---|---|
+   | ligado | **intermitente**: 1 leitura de 3, e a que passou tinha 7 nós e **zero texto**; três leituras tardias escreveram **arquivo vazio** |
+   | desligado | **completa e certa**: `O QUE VOCÊ COMPRA`, `Almoxarifado`, as abas, `R$ 111,60`, `nada aqui acaba antes de um mês` |
+
+   **E o aplicativo navega com movimento ligado:** `abrir inputs` detectou a tela mudar em até
+   69 s com as escalas em 1 — ou seja, ele foi para a tela certa. O que falhou depois foi a
+   LEITURA, não a navegação. Some-se a isso que o navegador dirige o aplicativo inteiro com as
+   animações ligadas, 58 de 58.
+
+   **O que sobra de pé, e continua valendo:** o movimento custa caro nesta máquina (a medida
+   original de 190% para 41% de CPU é sobre custo e não sobre correção), e **dirigir ou ler a
+   tela com ele ligado é pouco confiável** — é por isso que a caminhada teve de ser feita com
+   o ambiente parado, e isso não muda.
+
+   **O que cai:** *"o aplicativo passa a renderizar errado"*. Não há aqui instrumento que veja
+   pixel — esta imagem monta e nunca rasteriza (`Total frames rendered: 0` nas três condições,
+   ver `CLAUDE.md`) —, então a frase nunca foi medida. Ela não está provada nem refutada: está
+   **sem medida**, e quem pode medi-la é o tablet do dono.
+   <!-- medida: espera o tablet do dono: se o aplicativo desenha errado sob saturação, que é o que este container não consegue ver -->
 5. ~~**`norva://settings` não navega com o aplicativo aberto**~~ — **não era defeito: era
     a minha régua lendo cedo demais, e ela sobreviveu a duas conferências.** Medido em 10 de
     setembro com a ferramenta consertada: `norva://losses` leva até 42 s para trocar a tela

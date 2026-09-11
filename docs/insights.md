@@ -10035,3 +10035,42 @@ dois comandos e nenhum pixel. O item passou a dizer isso.
 bem-formada. Duas entradas com o mesmo número, uma seção sem título, um item fora de ordem —
 nada disso é conteúdo errado, e tudo isso muda o que o laço lê. Antes de confiar numa lista
 como entrada de automação, guarde a forma dela, não só o que ela afirma.
+
+---
+
+## O instrumento que não lê devolve "tela vazia", e tela vazia parece defeito — 11 de setembro
+
+O último item aberto da fila de agora dizia, desde 9 de setembro: *"o ambiente satura a
+thread de UI e **o aplicativo passa a renderizar errado**"*, com evidência ao lado — *"a capa
+esvazia, o Almoxarifado vem sem a lista, os cartões vêm pálidos, a rolagem morre e o
+`uiautomator` não lê a tela"*.
+
+Cinco observações, e a quinta é a chave: **o instrumento das quatro primeiras é o mesmo que a
+quinta diz que não funciona.** Um `uiautomator` que não lê devolve árvore vazia, e árvore
+vazia se parece exatamente com "a capa esvazia".
+
+Remedido com uma variável por vez, no ATD, mesma rota:
+
+| movimento do app | o que a leitura devolve |
+|---|---|
+| ligado | intermitente — 1 de 3, e a que passou tinha 7 nós e **zero texto**; três leituras tardias escreveram **arquivo vazio** |
+| desligado | completa e certa, com os números e as frases da tela |
+
+E o que decide contra a interpretação antiga: **com o movimento LIGADO o aplicativo navega**.
+`abrir inputs` viu a tela mudar em até 69 s com as escalas em 1 — foi para a tela certa; o que
+falhou depois foi a leitura. Mais: o navegador dirige o aplicativo inteiro com as animações
+ligadas, 58 de 58.
+
+**Por que isto passou dois dias de pé:** a frase não é falsa por descuido, é *não-medida por
+construção*. Quem escreveu tinha quatro observações consistentes entre si — e elas seriam
+consistentes de qualquer jeito, porque vinham todas do mesmo instrumento cego. Consistência
+entre leituras do mesmo aparelho quebrado não é confirmação; é a mesma leitura repetida.
+
+**O que mudou:** o item passou a dizer o que sobra (o movimento custa caro e dirigir/ler sob
+ele é pouco confiável — isso continua inteiro) e o que cai (*"renderiza errado"*, que fica
+**sem medida**, esperando o tablet do dono, porque aqui não há instrumento que veja pixel).
+
+**A pergunta que fica:** quando um item listar várias evidências, pergunte quantos
+INSTRUMENTOS existem ali dentro. Quatro observações e um instrumento é uma observação. E se
+uma das evidências for "o instrumento falhou", ela não é mais um sintoma na lista — ela é a
+explicação das outras, e devia ser lida primeiro.
