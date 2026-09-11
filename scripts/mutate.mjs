@@ -1192,6 +1192,25 @@ const DEFECTS = [
   },
   // --- a fila que sai da frente, 11 de setembro -------------------------------
   //
+  // A nota que some no arredondamento: o aparelho aceitava, o servidor recusa para
+  // sempre com `23514`, e `23514` é passageira de propósito — então a fila tentaria de
+  // novo eternamente com tudo atrás preso. O conserto é na origem, e estas duas o
+  // quebram nos dois lugares onde ele mora.
+  {
+    file: 'src/data/repository.ts',
+    from: "  if (!(input.baseUnits > 0)) {\n    throw new Error('essa quantidade some no arredondamento: a nota não move nada');",
+    to: "  if (false) {\n    throw new Error('essa quantidade some no arredondamento: a nota não move nada');",
+    hurts:
+      'uma nota de ZERO unidade entra no razao do aparelho e o Postgres a recusa para sempre (base_units > 0 e movement_moved_something), com `23514` classificado como passageiro: a fila tenta de novo eternamente e tudo o que o aparelho gravar depois fica preso atras, calado',
+  },
+  {
+    file: 'app/purchase.tsx',
+    from: '    if (baseUnits <= 0) return null;',
+    to: '    if (false) return null;',
+    hurts:
+      'a tela volta a oferecer o botao de lancar para uma nota que nao move nada, e a linha embaixo do campo mostra a conversao "0 g" como se fosse resultado valido em vez de mandar aumentar a quantidade',
+  },
+
   // O conserto da conferência duplicada abriu um caminho que PERDE DADO se a
   // classificação errar para o lado errado. As duas abaixo quebram os dois lados.
   {
