@@ -262,6 +262,12 @@ export default function ExtratoScreen() {
                 ? fill(words.undoOf, { what: t.movement[ato.reversesKind ?? 'adjustment'] })
                 : t.movement[ato.kind]}
               {ato.placeName ? ` — ${ato.placeName}` : ''}
+              {/* QUEM, depois de ONDE, e só quando a empresa pediu para nomear.
+                  A camada de dados devolve nulo com a chave desligada, então a tela
+                  não pergunta nada: ela desenha o que veio. Nomeava-se ninguém desde
+                  6 de setembro — a chave fazia o aparelho perguntar e gravar, e o
+                  relatório continuava falando só de onde. */}
+              {ato.operatorName ? ` · ${fill(words.recordedBy, { name: ato.operatorName })}` : ''}
             </Text>
 
             <View

@@ -2867,11 +2867,80 @@ check('the shared phone asks who is holding it, and only when the company names 
   await page.waitForTimeout(2500);
   assert.match(await screen(page), /Agora é Ana/, 'a grade passa a dizer quem está com ele');
 
+  /**
+   * E AGORA o degrau que faltava: o relatório diz o nome.
+   *
+   * A chave promete, com estas palavras nos três idiomas: *"Desligado, o relatório fala
+   * de onde — 'faltaram 3 caixas na conferência'. Ligado, o aparelho pergunta quem está
+   * com ele e cada linha guarda o nome."* Até 11 de setembro ela cumpria a primeira
+   * metade e a segunda não existia: sete `INSERT INTO movements` carimbavam
+   * `operator_id`, `app/who.tsx` perguntava, o PIN atribuía — e nenhuma consulta lia a
+   * coluna de volta. A pergunta era feita para ninguém.
+   *
+   * Esta checagem existe porque o caminho atravessa QUATRO telas e nenhuma delas sabe
+   * das outras: ajustes liga, gente cadastra, a grade escolhe, o razão grava, o extrato
+   * lê. Um teste de unidade prova a consulta; só andar o caminho prova que a chave que
+   * uma pessoa toca chega no texto que ela depois lê.
+   */
+  await page.goto(`http://localhost:${PORT}/inputs`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  await page.getByText('Açúcar cristal').first().click();
+  await assentar(page);
+  await page.getByText('Registrar perda', { exact: true }).first().click();
+  await page.waitForTimeout(600);
+  await page.getByLabel('Quanto se perdeu').fill('3000');
+  await page.getByText('Venceu', { exact: true }).first().click();
+  await page.waitForTimeout(400);
+  await page.getByText('Registrar a perda', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Registrar a perda', { exact: true }).last().click();
+  await assentar(page);
+
+  await page.goto(`http://localhost:${PORT}/extrato`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  assert.match(
+    await screen(page),
+    /por Ana/,
+    'ligada a chave, o extrato nomeia quem estava com o aparelho — era esta metade que ' +
+      'não existia, com a coluna sendo gravada desde 6 de setembro',
+  );
+
   // E dá para largar: sem isso o nome de quem saiu do turno carimba as caixas de
-  // quem entrou, que é pior que não nomear ninguém.
+  // quem entrou, que é pior que não nomear ninguém. (De volta à grade: o bloco acima
+  // deixou a página no extrato, e o botão de largar mora aqui.)
+  await page.goto(`http://localhost:${PORT}/who`, { waitUntil: 'networkidle' });
+  await assentar(page);
   await page.getByText('Largar o aparelho', { exact: true }).first().click();
   await page.waitForTimeout(1500);
   assert.match(await screen(page), /Ninguém ainda/, 'largar o aparelho volta ao anônimo');
+
+  // E largar não apaga o que ela fez: o razão continua dizendo quem era. É por isso que
+  // a coluna existe — o turno acaba, o registro não.
+  await page.goto(`http://localhost:${PORT}/extrato`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  assert.match(await screen(page), /por Ana/, 'o turno acabou e o razão continua sabendo');
+
+  /**
+   * O outro sentido, e ele só cabe AQUI — o que a primeira tentativa me ensinou.
+   *
+   * Eu tinha posto este bloco logo depois do extrato, com a Ana ainda com o aparelho, e a
+   * checagem reprovou com `getByLabel('Nomear quem gravou')` estourando o tempo. Não era
+   * defeito: quem não tem `manage_company` **não vê os cartões da empresa**, por decisão
+   * de 9 de setembro — a chave não está na tela para ser desligada. Largar o aparelho
+   * devolve o alcance, e é depois disso que o sentido inverso existe.
+   *
+   * Sem ele a checagem mediria "o extrato diz por Ana", que uma frase cravada satisfaria.
+   * Com ele ela mede o que importa: o extrato OBEDECE à chave.
+   */
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  await page.getByLabel('Nomear quem gravou').click();
+  await page.waitForTimeout(1200);
+  await page.goto(`http://localhost:${PORT}/extrato`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  const semNome = await screen(page);
+  assert.doesNotMatch(semNome, /por Ana/, 'desligada, o relatório volta a falar só de ONDE');
+  assert.match(semNome, /Perda/, 'e o ato continua no razão — a chave é de leitura, não de escrita');
 });
 
 check('a load that covers the order offers to close it, and closing it changes the list', async (page) => {

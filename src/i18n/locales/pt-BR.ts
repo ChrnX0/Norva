@@ -519,6 +519,15 @@ export const ptBR = {
       ofPlaceAction: 'Ver o extrato desta loja',
       empty: 'Nada foi registrado ainda.',
       emptyHint: 'Cada compra, produção, carga e conferência aparece aqui — com o caminho de volta ao lado.',
+      /**
+       * QUEM estava com o aparelho — e a preposição é deliberada.
+       *
+       * O nome sozinho depois do lugar lê como acusação ("Conferência — Câmara fria ·
+       * Ana"), e a casa proíbe: *"nunca culpa pessoa"*. Com a preposição a linha volta a
+       * ser registro do que aconteceu, que é o que ela é. Só aparece quando a empresa
+       * liga "Nomear quem gravou" — o padrão continua sendo falar de ONDE.
+       */
+      recordedBy: 'por {{name}}',
       lineCount: { one: '1 linha', other: '{{n}} linhas' },
       undo: 'Desfazer',
       undone: 'Desfeito',

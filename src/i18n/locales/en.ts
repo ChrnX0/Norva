@@ -355,6 +355,7 @@ export const en: Dictionary = {
       ofPlaceAction: 'See this shop\u2019s ledger',
       empty: 'Nothing has been recorded yet.',
       emptyHint: 'Every purchase, run, load and count shows up here — with the way back beside it.',
+      recordedBy: 'by {{name}}',
       lineCount: { one: '1 line', other: '{{n}} lines' },
       undo: 'Undo',
       undone: 'Undone',

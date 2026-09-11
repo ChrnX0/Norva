@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **763** testes |
+| `npm test` | **764** testes |
 | `npm run mutate` | **132** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **58** checagens num navegador de verdade |
 | `npm run db:verify` | **31** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **16** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -3265,9 +3265,31 @@ de gente e permissão**, não a tela de entrega:
    (`app/who.tsx`, com `app/_layout.tsx` mandando para lá quando a empresa liga o
    compartilhado); pessoal entra uma vez e fica. Os dois caminhos existem, escolha da
    empresa — decisão de 1 de setembro.
-4. ~~**O operador no movimento.**~~ **FEITO.** Os sete `INSERT INTO movements` gravam
-   `operator_id`, e `src/layers.test.ts` reprova o oitavo que não gravar. A tela só
-   pergunta quando a empresa liga `names_who_recorded`.
+4. ~~**O operador no movimento.**~~ **FEITO — e ficou dez dias FECHADO com metade dele de
+   pé.** Os sete `INSERT INTO movements` gravam `operator_id`, e `src/layers.test.ts`
+   reprova o oitavo que não gravar. A tela só pergunta quando a empresa liga
+   `names_who_recorded`. <!-- medida: presente src/data/repository.ts :: operatorName -->
+
+   **O que faltava, fechado em 11 de setembro:** ninguém LIA a coluna. Sete escritores,
+   zero leitores — a doença que o portão P1 persegue, aqui com o item marcado como pronto
+   porque ele se chamava *"o operador no movimento"* e a medida olhou o `INSERT`. A frase
+   que a chave mostra ao dono, nos três idiomas, promete o outro lado: *"Desligado, o
+   relatório fala de onde… Ligado, o aparelho pergunta quem está com ele e cada linha
+   guarda o nome."* Ligar fazia o aparelho perguntar e gravar, e o relatório continuava
+   falando só de onde: a pergunta era feita para ninguém.
+
+   O extrato passou a nomear (`ExtractAct.operatorName`, com a chave entrando na consulta
+   como as duas do dinheiro — nome não sai do banco com ela desligada), `app/extrato.tsx`
+   desenha `por {{nome}}` com preposição porque o nome sozinho depois do lugar lê como
+   acusação, e a checagem do navegador que já ligava a chave e escolhia a pessoa ganhou o
+   último degrau: registra a perda, lê o extrato, larga o aparelho — o razão continua
+   sabendo — e desliga a chave, e o relatório volta a falar só de onde.
+
+   **E a lição da medida, que vale para os outros itens desta lista:** *"FEITO"* respondia
+   *o esquema tem a coluna e alguém escreve nela*. A pergunta do P1 é outra — **quem
+   LÊ isto no mesmo commit** —, e uma coluna cujo único leitor é a sincronia é uma coluna
+   que só o servidor vê. Item que nomeia um lado (`INSERT`, tabela, migração) e não o
+   outro fecha por metade, e a metade que falta é sempre a que a pessoa olha.
 
 ~~**O nó de esquema, e ele se desfaz de graça hoje:**~~ **DESFEITO — e este parágrafo
 ficou no presente depois de a coisa ter acontecido, que é a forma mais cara de erro

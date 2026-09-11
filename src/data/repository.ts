@@ -6533,6 +6533,28 @@ export type ExtractAct = {
   /** Os nomes que ele mexeu, para a linha falar sem a tela adivinhar. */
   items: string[];
   placeName: string | null;
+  /**
+   * QUEM estava com o aparelho — e só quando a empresa pediu para nomear.
+   *
+   * **Esta é a metade que faltava de `operator_id`, e ela faltou por dez dias com o
+   * item fechado como FEITO.** Sete `INSERT INTO movements` carimbam a coluna desde 6
+   * de setembro, `app/who.tsx` pergunta quem é, o PIN atribui — e nenhuma consulta do
+   * aplicativo lia a coluna de volta. Sete escritores, zero leitores: a doença que o
+   * portão P1 persegue, fechada como pronta porque o item se chamava *"o operador no
+   * movimento"* e a medida olhou o `INSERT`.
+   *
+   * O que torna isto defeito e não escolha é a frase que está na tela do dono, nos
+   * três idiomas: *"Desligado, o relatório fala de onde — 'faltaram 3 caixas na
+   * conferência'. Ligado, o aparelho pergunta quem está com ele e cada linha guarda o
+   * nome."* Ligar a chave fazia o aparelho perguntar e gravar, e o relatório continuava
+   * falando só de onde. A pergunta era feita para ninguém.
+   *
+   * **Nulo tem TRÊS causas e a tela não as distingue, de propósito:** a empresa não
+   * nomeia, ninguém se identificou naquele ato, ou a pessoa saiu do cadastro depois. As
+   * três dizem a mesma coisa a quem lê — *não há nome para esta linha* — e inventar
+   * palavra diferente para cada uma seria explicar o esquema a quem quer ler o razão.
+   */
+  operatorName: string | null;
   note: string | null;
 };
 
@@ -6614,6 +6636,16 @@ export async function ledgerExtract(
   // da 0008 faz no servidor. Custo é `view_cost`; preço de venda é
   // `view_sale_price`, e quem tem um não tem necessariamente o outro.
   const preco = (await canSeePrice(companyId)) ? 1 : 0;
+  /**
+   * Nomear é escolha da EMPRESA, e ela entra na consulta como as duas do dinheiro.
+   *
+   * Não é permissão — quem lê o extrato pode ler o extrato —, mas a forma é a mesma de
+   * propósito: com a chave desligada o nome **não sai do banco**, em vez de sair e a
+   * tela não desenhar. A fundação diz que a checagem roda antes da consulta para não
+   * existir número a vazar; aqui o motivo é o vizinho disso, e vale igual: um nome que
+   * chega até a tela é um nome que a próxima tela pode mostrar sem perguntar a ninguém.
+   */
+  const nomeia = (await namesWhoRecorded()) ? 1 : 0;
   const limite = opts.limit ?? 30;
 
   // Primeiro os ATOS da janela, e só depois as linhas deles. Paginar por linha
@@ -6654,11 +6686,13 @@ export async function ledgerExtract(
     reverses: string | null;
     reverses_kind: string | null;
     reversed: number;
+    operator_name: string | null;
   }>(
     `SELECT COALESCE(m.movement_group_id, m.id) AS g, m.id, m.kind,
             m.quantity_base_units,
             CASE WHEN ? = 1 THEN m.unit_cost_rate END AS unit_cost_rate,
             CASE WHEN ? = 1 THEN m.unit_price_rate END AS unit_price_rate,
+            CASE WHEN ? = 1 THEN pe.name END AS operator_name,
             m.occurred_at, m.note,
             i.name AS item_name, l.name AS place_name,
             m.reverses_movement_id AS reverses,
@@ -6670,9 +6704,12 @@ export async function ledgerExtract(
        LEFT JOIN locations l ON l.id = m.location_id
        -- A perna de origem, para o estorno poder dizer correção DE QUÊ.
        LEFT JOIN movements o ON o.id = m.reverses_movement_id
+       -- LEFT, e a empresa ainda pode ter apagado a pessoa: nome nulo é nome nulo,
+       -- nunca um ato que desaparece do razão por causa de um cadastro.
+       LEFT JOIN people pe ON pe.id = m.operator_id AND pe.company_id = m.company_id
       WHERE m.company_id = ? AND COALESCE(m.movement_group_id, m.id) IN (${marcas})
       ORDER BY m.rowid ASC`,
-    [dinheiro, preco, companyId, ...atos.map((a) => a.g)],
+    [dinheiro, preco, nomeia, companyId, ...atos.map((a) => a.g)],
   );
 
   /**
@@ -6739,6 +6776,7 @@ export async function ledgerExtract(
         reversesKind: (l.reverses_kind as MovementKind | null) ?? null,
         items: l.item_name ? [l.item_name] : [],
         placeName: l.place_name,
+        operatorName: l.operator_name,
         note: l.note,
       });
       continue;
@@ -6750,6 +6788,10 @@ export async function ledgerExtract(
     if (!ja.reversesKind && l.reverses_kind) ja.reversesKind = l.reverses_kind as MovementKind;
     if (l.item_name && !ja.items.includes(l.item_name)) ja.items.push(l.item_name);
     if (!ja.placeName) ja.placeName = l.place_name;
+    // As pernas de um ato nascem na mesma transação, com o mesmo operador — mas um ato
+    // ANTIGO pode ter pernas sem nome e pernas com, porque a chave foi ligada no meio.
+    // Então a primeira que tiver nome vale, do mesmo jeito que vale para o lugar.
+    if (!ja.operatorName) ja.operatorName = l.operator_name;
     if (!ja.note) ja.note = l.note;
   }
 

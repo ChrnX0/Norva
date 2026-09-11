@@ -360,6 +360,7 @@ export const es: Dictionary = {
       ofPlaceAction: 'Ver el extracto de esta tienda',
       empty: 'Todavía no se registró nada.',
       emptyHint: 'Cada compra, producción, carga y conteo aparece aquí — con el camino de vuelta al lado.',
+      recordedBy: 'por {{name}}',
       lineCount: { one: '1 línea', other: '{{n}} líneas' },
       undo: 'Deshacer',
       undone: 'Deshecho',

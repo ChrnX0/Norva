@@ -10167,3 +10167,49 @@ Quem só procura no texto não se importa; quem diz ONDE, sim. Agora existe
 `semComentarioContandoLinhas`, que troca o corpo do comentário por vazio e mantém as
 quebras, com as duas direções provadas no próprio arquivo: a linha 68 acusada, e a 65 —
 que contém o mesmo texto, dentro do comentário que EXPLICA a cicatriz — em paz.
+
+---
+
+## 11 de setembro — "FEITO" respondia a pergunta errada do portão P1
+
+**O achado.** `movements.operator_id` tinha **sete escritores e zero leitores** do dia 6 ao
+dia 11. Os sete `INSERT INTO movements` carimbam a coluna, `app/who.tsx` pergunta quem está
+com o aparelho, o PIN atribui, `src/layers.test.ts` reprova o oitavo `INSERT` que não gravar
+— e nenhuma consulta do aplicativo lia a coluna de volta. O item do plano estava riscado
+como **FEITO**.
+
+**Por que passou.** O item se chamava *"o operador no movimento"*, e a medida ao lado dele
+provava exatamente isso: o movimento carrega o operador. A pergunta do portão P1 é outra —
+**quem chama isto no mesmo commit** — e para uma coluna ela se lê *quem LÊ*. A única leitora
+era `src/sync/serialize.ts`, que manda a coluna para o servidor: ou seja, o dado existia para
+o servidor e não para a pessoa.
+
+**O que torna isto defeito e não escolha registrada.** A frase está na tela do dono, nos três
+idiomas: *"Desligado, o relatório fala de onde — 'faltaram 3 caixas na conferência'. Ligado,
+o aparelho pergunta quem está com ele e cada linha guarda o nome."* Ligar a chave fazia o
+aparelho perguntar, a grade abrir, o PIN atribuir e o razão gravar — e o relatório continuava
+falando só de onde. **A pergunta era feita para ninguém**, e quem a responde é o operador de
+luva, a cada turno.
+
+**O que mudou.** `ExtractAct.operatorName`, com a chave da empresa entrando na consulta do
+mesmo jeito que as duas do dinheiro — com ela desligada o nome não sai do banco, em vez de
+sair e a tela não desenhar. `app/extrato.tsx` escreve `por {{nome}}` com preposição, porque
+o nome cru depois do lugar (*"Conferência — Câmara fria · Ana"*) lê como acusação e a casa
+proíbe culpar pessoa. O item do roadmap deixou de dizer só FEITO.
+
+### As duas coisas que a construção ensinou, e nenhuma era o plano
+
+**A primeira: o teste de navegador não cabia onde eu o pus, e a falha era o sistema
+acertando.** Eu tinha posto o sentido inverso — desligar a chave e conferir que o extrato
+cala — logo depois da asserção do nome, com a Ana ainda com o aparelho. Reprovou com
+`getByLabel('Nomear quem gravou')` estourando trinta segundos. Não era defeito: quem não tem
+`manage_company` **não vê os cartões da empresa**, por decisão de 9 de setembro. A chave não
+estava na tela para ser desligada. O lugar do bloco é depois de largar o aparelho — e ali ele
+prova de graça uma terceira coisa que eu não ia testar: **largar não apaga o que ela fez.** O
+turno acaba, o registro não, que é a razão de a coluna existir.
+
+**A segunda: um acento grave dentro de um template literal fecha a string.** O comentário SQL
+que eu escrevi dentro da consulta dizia `` `LEFT`, e a empresa ainda pode ter apagado a
+pessoa`` — e o `tsc` acusou `',' expected` numa linha de comentário, quarenta linhas abaixo do
+que eu havia editado. Prosa com marcação de Markdown dentro de SQL dentro de JavaScript tem
+um caractere proibido, e não é nenhum dos que se pensa.

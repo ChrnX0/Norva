@@ -5806,6 +5806,90 @@ test('a reversal is dated today, so a closed month stays closed', async () => {
 });
 
 /**
+ * Ligar "Nomear quem gravou" fazia o aparelho PERGUNTAR e o relatório continuar calado.
+ *
+ * **Sete escritores, zero leitores, e o item fechado como FEITO por dez dias.** Os sete
+ * `INSERT INTO movements` carimbam `operator_id` desde 6 de setembro, `app/who.tsx`
+ * pergunta quem está com o aparelho, o PIN atribui — e nenhuma consulta do aplicativo
+ * lia a coluna de volta. O item do plano se chamava *"o operador no movimento"* e a
+ * medida dele olhou o `INSERT`: a metade que escreve estava provada e a que lê não
+ * existia.
+ *
+ * O que torna isto defeito e não escolha é a frase que está na tela do dono, nos três
+ * idiomas: *"Desligado, o relatório fala de onde — 'faltaram 3 caixas na conferência'.
+ * Ligado, o aparelho pergunta quem está com ele e cada linha guarda o nome."* A pergunta
+ * era feita para ninguém.
+ *
+ * Os dois sentidos na mesma prova, porque um só não distingue nada: com a chave ligada o
+ * extrato nomeia, com ela desligada o mesmo ato volta sem nome — e o `operator_id`
+ * continua gravado embaixo, que é a diferença entre "não mostramos" e "não perguntamos".
+ */
+test('com "nomear quem gravou" ligado o extrato diz QUEM, e desligado volta a dizer só ONDE', async () => {
+  await ensureStarterData(CO);
+  // A chave é da empresa e exige `manage_company`, então ela vira antes de alguém estar
+  // com o aparelho — depois de `setCurrentOperator` o próprio ato de ligar seria recusado.
+  await setNamesWhoRecorded(CO, true);
+
+  const operador = (await listProfiles(CO)).find((p) => p.templateRole === 'operator');
+  assert.ok(operador, 'o operador é um dos sete modelos');
+  const ana = await savePerson(CO, { name: 'Ana', profileId: operador.id });
+
+  const polpa = await anInput('Polpa de graviola', 10_000);
+  await recordPurchase(CO, {
+    itemId: polpa,
+    purchaseQuantity: 1,
+    baseUnits: 10_000,
+    totalCents: fromDecimal(80),
+  });
+
+  await setCurrentOperator(ana.id);
+  await recordLoss(CO, { itemId: polpa, baseUnits: 2_000, reason: 'expired' });
+  await setCurrentOperator(null);
+
+  // `recordLoss` devolve o saldo, não o ato — então o ato se acha pela espécie, que é
+  // única nesta empresa de teste (a compra acima é `purchase`).
+  const daPerda = (atos: { kind: string }[]) => atos.findIndex((a) => a.kind === 'loss');
+  const primeiro = await ledgerExtract(CO);
+  const iPerda = daPerda(primeiro);
+  assert.ok(iPerda >= 0, 'a perda aparece no extrato');
+  const grupoDaPerda = primeiro[iPerda].groupId;
+
+  const comNome = primeiro.find((a) => a.groupId === grupoDaPerda);
+  assert.ok(comNome, 'a perda aparece no extrato');
+  assert.equal(
+    comNome.operatorName,
+    'Ana',
+    'com a chave ligada o extrato nomeia quem estava com o aparelho — era esta metade que ' +
+      'não existia, com os sete INSERT gravando a coluna desde 6 de setembro',
+  );
+
+  // O outro sentido: a mesma linha, a mesma coluna gravada, a chave desligada.
+  await setNamesWhoRecorded(CO, false);
+  const semNome = (await ledgerExtract(CO)).find((a) => a.groupId === grupoDaPerda);
+  assert.ok(semNome, 'o ato continua no razão — desligar a chave não some com nada');
+  assert.equal(
+    semNome.operatorName,
+    null,
+    'desligada, o relatório volta a falar de ONDE: o nome não sai do banco, em vez de sair ' +
+      'e a tela não desenhar',
+  );
+
+  // E a diferença entre "não mostramos" e "não perguntamos" está no disco: a coluna
+  // continua gravada com a chave desligada. Sem isto, ligar a chave amanhã não
+  // recuperaria o nome de hoje — e o teste de cima passaria do mesmo jeito.
+  const conn = await db();
+  const linha = await conn.getFirstAsync<{ operator_id: string | null }>(
+    'SELECT operator_id FROM movements WHERE movement_group_id = ? LIMIT 1',
+    [grupoDaPerda],
+  );
+  assert.equal(
+    linha?.operator_id,
+    ana.id,
+    'a coluna guarda quem era, independente de a tela mostrar — o portão é de leitura',
+  );
+});
+
+/**
  * O extrato existe porque o caminho de volta estava inalcançável.
  *
  * Nove funções escrevem no razão a partir de tela e o botão de desfazer existia em
