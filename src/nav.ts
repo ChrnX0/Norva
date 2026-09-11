@@ -23,6 +23,13 @@ import { router } from 'expo-router';
  * (janela de 412 px, elemento em x = 607), e nunca desliza para o lugar. Quem abre um
  * link na web vê a capa. Perguntar "há para onde voltar?" resolve nos dois lugares e não
  * mexe em como a pilha é montada.
+ *
+ * **E isto atende a SETA DO CABEÇALHO, não a tecla do aparelho — medido em 11 de
+ * setembro.** Repetindo a partida fria que mediu o defeito, agora com `voltar()` no
+ * lugar da âncora, o foco foi para o launcher OUTRA VEZ: a tecla do aparelho não passa
+ * por aqui, ela vai para o padrão da navegação. A outra metade da regra mora em
+ * `src/volta.ts`, e as duas juntas é que fecham o item 6. Quem mexer numa olhe a outra:
+ * a checagem de navegador clica na seta, então ela fica verde com a tecla quebrada.
  */
 export function voltar(destino: string = '/'): void {
   if (router.canGoBack()) router.back();

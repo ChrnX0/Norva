@@ -227,6 +227,22 @@ navegador. O que prova tela é a **foto do emulador**, olhada. Isso agora existe
 `bash scripts/ambiente.sh` prepara a máquina e `node scripts/aparelho.mjs` sobe,
 instala e fotografa.
 
+**E o NAVEGADOR não prova gesto que o navegador não tem — 11 de setembro, e custou um
+item fechado por engano.** O item 6 (*"quem entra por link direto não tem volta"*) foi
+fechado com `voltar()`, doze saídas convertidas e uma checagem de navegador nova, verde.
+No aparelho o defeito estava inteiro de pé: a medida original foi tirada com `input
+keyevent 4` — a **tecla do aparelho** —, e `voltar()` atende a **seta do cabeçalho**. Duas
+entradas para o mesmo gesto, a mesma palavra em português, e a checagem ficava verde para
+sempre porque `page.click` só alcança a seta.
+
+Então, escrito para ninguém fechar item com verde de navegador outra vez, **o que ele
+estruturalmente não alcança**: a tecla ou gesto de voltar do Android · a partida a frio
+por intent (`norva://…` com o processo morto) · a rotação · o diálogo de permissão do
+sistema · a volta do segundo plano depois de o sistema matar o processo. Item cujo caminho
+passa por uma dessas fecha com medida de aparelho, e a medida diz **com que comando** foi
+tirada. E a checagem barata, quando medida e conserto usam a mesma palavra: pergunte qual
+ENTRADA foi medida, e confira se o conserto está no caminho daquele comando.
+
 **E a foto agora MEDE, porque olhada não bastou — 9 de setembro.** A capa do primeiro
 dia foi fotografada com a página inteira a **22% de opacidade** (contraste de 1,56:1 num
 piso de 4,5:1), e eu olhei essa foto sem ver: desbotado uniforme parece escolha de

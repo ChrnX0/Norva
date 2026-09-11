@@ -170,10 +170,12 @@ Uma célula vazia significa arquivo sem comentário de abertura.
 | `layers.test.ts` | 542 | Where SQL is allowed to live, pinned. |
 | `marca.test.ts` | 121 | Toda superfície que o gerador desenha tem que ser CITADA por alguém. |
 | `nav.test.ts` | 98 | Voltar não pode significar sair do aplicativo. |
-| `nav.ts` | 30 | Voltar — e, quando não há para onde, ir para a capa em vez de sair do aplicativo. |
+| `nav.ts` | 37 | Voltar — e, quando não há para onde, ir para a capa em vez de sair do aplicativo. |
 | `plano.test.ts` | 282 | O plano dizendo a verdade sobre o código — executado, não prometido. |
 | `release.test.ts` | 55 | O que sai no instalador, conferido aqui em vez de na memória de quem publica. |
 | `selectors.test.ts` | 153 | O e2e procura a tela pelo texto, e o texto vem do dicionário. |
+| `volta.test.ts` | 82 | A tecla voltar do aparelho tem três casos e só um deles é defeito. |
+| `volta.ts` | 96 | O que a TECLA VOLTAR DO APARELHO deve fazer — e por que ela não é o mesmo botão que o `voltar()` atende. |
 
 ### `src/assistant/`
 

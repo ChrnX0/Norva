@@ -65,7 +65,8 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  */
 function sairDaGrade() {
   // Esta tela e o leitor de QR foram os dois primeiros a perguntar isto, cada um por
-  // conta própria. A regra virou `src/nav.ts` e passou a valer para as catorze saídas.
+  // conta própria. A regra virou `src/nav.ts` e passou a valer para as doze saídas —
+  // e ela atende a SETA, não a tecla do aparelho: essa mora em `src/volta.ts`.
   voltar();
 }
 

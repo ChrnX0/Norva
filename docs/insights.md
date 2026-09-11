@@ -9228,3 +9228,68 @@ navegador passou a cobrar o ECO: 600 unidades dizem "2 engradados" antes de grav
 campo que não existe, uma tela que não tem o dado —, a promessa não é dívida técnica: é
 uma peça que não serve, e dizer isso hoje custa uma linha. `grep` por docblock que cita
 uma tela pelo nome sem que a tela importe o arquivo é uma régua possível.
+
+## 11 de setembro — o conserto foi aplicado a um botão que não era o que quebrou
+
+**O que apareceu:** o item 6 do roadmap — *"quem entra por link direto numa tela interna
+não tem volta"* — estava fechado com `src/nav.ts`, doze saídas convertidas, uma checagem
+de navegador nova e uma ressalva honesta escrita ao lado: *"a foto do aparelho com o foco
+na capa foi tirada COM a âncora"*. Fui repetir a partida fria no aparelho para tirar a
+ressalva. O foco foi para o launcher **outra vez**:
+
+```
+norva://losses  -> mCurrentFocus=app.norva.mobile/.MainActivity   (a tela de Perdas)
+input keyevent 4 -> mCurrentFocus=com.android.fakesystemapp/...EmptyHomeActivity
+```
+
+E a causa não é o `canGoBack()` responder errado. É que **a tecla do aparelho nunca chega
+ao `voltar()`**: ela é atendida pelo padrão da navegação, que numa pilha de um cartão
+encerra a Activity. Não havia um `BackHandler` em lugar nenhum do projeto — `grep` por
+`BackHandler|hardwareBackPress` devolvia zero linhas em `src/` e `app/`.
+
+O `voltar()` atende a **seta do cabeçalho**. São duas entradas para o mesmo gesto, e o
+trabalho inteiro serviu a que não estava quebrada.
+
+**Por que aconteceu, e é uma palavra:** a medida do defeito diz *"um toque no voltar"*. O
+conserto serve *"o voltar"*. A frase é a mesma para a tecla do aparelho e para a seta
+desenhada na tela, então a prosa juntou duas coisas que o Android trata por caminhos
+diferentes, e ninguém perguntou qual das duas. O docblock do `src/nav.ts` carrega a medida
+feita com a tecla (`mCurrentFocus` passa para o launcher) como justificativa de um
+conserto que mexe na seta — as duas metades escritas no mesmo parágrafo, sem ninguém notar
+que eram duas.
+
+**E o agravante muda a lição da sessão, não a repete.** Hoje mesmo escrevi aqui que
+capacidade se prova com uma checagem de navegador que **anda o caminho tocando**, não com
+teste de unidade. A checagem existe, ela toca, e ficou verde: **ela clica na seta**, porque
+no navegador não existe tecla de aparelho. Então o corolário que faltava é este — *uma
+checagem de navegador não prova gesto que o navegador não tem.* Ela não erra por
+descuido; erra por estrutura, e por isso fica verde para sempre.
+
+O que o navegador estruturalmente não alcança, escrito para ninguém fechar item com verde
+de novo: a **tecla/gesto de voltar do Android**, a **partida a frio por intent**, a
+**rotação**, o **diálogo de permissão do sistema** e a **volta do segundo plano depois de
+o sistema matar o processo**. Cada uma dessas é caminho de quem usa, e nenhuma tem como
+acontecer num `page.click`.
+
+**O que mudou por causa disso:** `src/volta.ts` decide o que a tecla faz, fora do React e
+com teste — e a decisão tem três casos, não um. O que ela protege de verdade é o caso do
+meio: consertar com *"voltar sempre vai para a capa"* abriria a grade de nomes
+(`app/who.tsx`, aberta por `replace` na abertura do aparelho compartilhado), e o
+`app/_layout.tsx` recusa isso por escrito — com o piso de capacidades, chegar à capa sem
+dizer quem é deixa operar sem nome. Um teste que só cobrisse o defeito aprovaria esse
+conserto. A separação é por **procedência** (`Linking.getInitialURL()`), não por lista de
+telas: as três telas que chegam sem pilha atrás são estruturalmente idênticas, e listar
+nome envelhece no primeiro `replace` novo. O casco registra o ouvinte uma vez, e
+`src/nav.ts` e `app/who.tsx` passaram a apontar para a outra metade da regra.
+
+**E a régua nova pegou o próprio autor antes de reportar nada.** `porFora('https://norva.app/')`
+respondia `true`: em `norva://losses` a rota vem na posição de **host**, e num `https://`
+essa posição é o **domínio**. Lido com uma régua só, abrir o aplicativo pela raiz da web
+contaria como ligação profunda e a pessoa ficaria presa na capa apertando voltar — *o
+outro defeito, com a mesma cara de conserto*. Quem pegou foi o caso FALSO do teste, que
+esta casa exige de todo detector novo, escrito na mesma hora que o verdadeiro.
+
+**A pergunta que fica:** quando uma medida e um conserto usam a mesma palavra, *qual
+entrada exatamente foi medida?* Aqui a palavra era "voltar" e as entradas eram duas. A
+checagem barata é perguntar com que comando a medida foi tirada — `input keyevent 4` é a
+tecla, `page.click` é a seta — e conferir se o conserto está no caminho daquele comando.

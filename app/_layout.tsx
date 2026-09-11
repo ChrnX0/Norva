@@ -1,8 +1,9 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { BarraDoSistema } from '@/components/BarraDoSistema';
 import { useEffect, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, BackHandler } from 'react-native';
+import * as Linking from 'expo-linking';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ConfirmProvider } from '@/components/Confirm';
@@ -14,6 +15,7 @@ import { carregarUnidade } from '@/data/unidade';
 import { rodadaAutomatica } from '@/nuvem/aparelho';
 import { ensureStarterData } from '@/data/seed';
 import { floorSignIn, namesWhoRecorded, setCurrentOperator } from '@/data/repository';
+import { decidirVolta, porFora } from '@/volta';
 import { LocaleProvider } from '@/i18n/Locale';
 import { AppearanceProvider, useAppearance } from '@/theme/Appearance';
 import { ThemeProvider } from '@/theme/ThemeProvider';
@@ -77,6 +79,60 @@ function OQueAconteceSozinho() {
     });
     return () => inscricao.remove();
   }, []);
+  return null;
+}
+
+/** Para onde a tecla leva quem não tem nada atrás: a capa. */
+const DESTINO = '/';
+
+/**
+ * A TECLA voltar do aparelho — a outra entrada do mesmo gesto, e a que estava solta.
+ *
+ * O `voltar()` (`src/nav.ts`) atende a SETA DO CABEÇALHO. A tecla do aparelho nunca
+ * passava por ele: ela ia para o padrão da navegação, que numa pilha de um cartão
+ * encerra a Activity. Medido em 11 de setembro, partida fria em `norva://losses` com
+ * `voltar()` já no lugar — o foco foi para o launcher do mesmo jeito.
+ *
+ * Por que o casco e não cada tela: a regra é uma e não depende de qual tela recebeu a
+ * ligação. Vinte telas registrando o mesmo ouvinte é a divergência esperando a vez.
+ *
+ * A decisão mora em `src/volta.ts`, fora do React, porque ela tem três casos e um
+ * deles protege uma decisão escrita — a grade de nomes tem de SAIR, não ir para a
+ * capa. Aqui fica só a ligação com o aparelho.
+ */
+function TeclaVoltar() {
+  const router = useRouter();
+  const caminho = usePathname();
+  const [veioDeFora, setVeioDeFora] = useState(false);
+
+  // Lida uma vez: a ligação que ABRIU esta sessão não muda enquanto ela dura.
+  useEffect(() => {
+    let vivo = true;
+    void Linking.getInitialURL().then((url) => {
+      if (vivo) setVeioDeFora(porFora(url));
+    });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const inscricao = BackHandler.addEventListener('hardwareBackPress', () => {
+      const decisao = decidirVolta({
+        podeVoltar: router.canGoBack(),
+        noDestino: caminho === DESTINO,
+        porFora: veioDeFora,
+      });
+      // `false` devolve a tecla para quem a atendia — voltar na pilha ou sair do
+      // aplicativo. Só `true` engole, e engolir sem levar a algum lugar seria
+      // prender a pessoa.
+      if (decisao === 'padrao') return false;
+      router.replace(DESTINO as never);
+      return true;
+    });
+    return () => inscricao.remove();
+  }, [router, caminho, veioDeFora]);
+
   return null;
 }
 
@@ -237,6 +293,7 @@ export default function RootLayout() {
               <ConfirmProvider>
                 <BarraDoSistema />
                 <Stack screenOptions={{ headerShown: false }} />
+                <TeclaVoltar />
                 <QuemEstaComOAparelho />
                 <OQueAconteceSozinho />
                 {/* Sits above every screen: the update may land on any of them. */}

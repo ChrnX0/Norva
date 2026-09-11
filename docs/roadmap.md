@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **704** testes |
+| `npm test` | **710** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **55** checagens num navegador de verdade |
 | `npm run db:verify` | **29** garantias contra um Postgres descartável, sob RLS |
@@ -154,22 +154,42 @@ por peso, e o que já foi fechado:**
     número sai como *"em até"*, porque cada volta do laço paga a leitura da árvore e essa
     parte é o instrumento, não o aplicativo.
 
-6. ~~**Quem entra por link direto numa tela interna não tem volta**~~ — **fechado, e o
-    MECANISMO mudou depois da prova.** Antes: partida fria em `norva://losses`, um toque no
+6. ~~**Quem entra por link direto numa tela interna não tem volta**~~ — **fechado no
+    APARELHO em 11 de setembro, depois de a prova reabrir o item.** Antes: partida fria em `norva://losses`, um toque no
     voltar, e `mCurrentFocus` ia para `com.android.fakesystemapp` — o aplicativo saía. Essa
     é a medida do defeito, e ela vale: foi tirada antes de qualquer conserto.
 
     Importava porque são as duas portas que o produto promete — o QR do engradado na doca e
     o aviso de validade abrem tela interna num celular que estava no bolso.
 
-    **O conserto hoje é `voltar()` (`src/nav.ts`), não a âncora de rota** — o item 33 conta
-    por quê, e a razão é que a âncora quebra a web. E aqui fica dito o que ainda não foi
-    medido, porque o contrário seria herdar uma prova que não é desta versão: **a foto do
-    aparelho com o foco na capa foi tirada COM a âncora.** Com `voltar()` no lugar dela, o
-    que está provado é o navegador (53/53, com a checagem que a âncora derrubava passando de
-    novo) e a leitura — `canGoBack()` é a mesma pergunta que `app/who.tsx` e `app/scan.tsx`
-    já respondiam certo. Falta repetir a partida fria em `norva://losses` no aparelho; é a
-    próxima coisa desta fila, e ela sobe aqui com o número quando acontecer.
+    **E a repetição da partida fria REABRIU o item — 11 de setembro.** A ressalva escrita
+    aqui (*"a foto do foco na capa foi tirada COM a âncora"*) foi cobrada, e o aparelho
+    respondeu o contrário do esperado: com `voltar()` no lugar, `norva://losses` a frio mais
+    um `input keyevent 4` levou o foco para `com.android.fakesystemapp` **de novo**.
+
+    A causa não é o `canGoBack()` errar: **a tecla do aparelho nunca chegava ao `voltar()`**.
+    O `voltar()` é o que a SETA DO CABEÇALHO chama; a tecla ia para o padrão da navegação,
+    que numa pilha de um cartão encerra a Activity — e `grep` por `BackHandler` devolvia zero
+    linha no projeto inteiro. A palavra "voltar" serve as duas entradas em português, e a
+    checagem de navegador ficou verde porque `page.click` só alcança a seta. O corolário está
+    no `CLAUDE.md` e no `docs/insights.md`: navegador não prova gesto que o navegador não tem.
+
+    **Fechado agora com as duas metades, e medido com os dois toques** (`src/volta.ts` decide,
+    `app/_layout.tsx` registra o ouvinte uma vez):
+
+    | toque | foco | tela |
+    |---|---|---|
+    | `norva://losses` a frio | `app.norva.mobile/.MainActivity` | Perdas |
+    | 1º voltar | **ficou**, em até 5 s | a capa (*"Hoje a fábrica fez 533 unidades"*) |
+    | 2º voltar | **saiu**, em até 5 s | launcher |
+
+    O segundo toque é o caso negativo e não é zelo: sem ele, *"não sai nunca"* passaria por
+    conserto, e é ele que responde que `usePathname()` devolve `/` na capa. A separação é por
+    PROCEDÊNCIA (`Linking.getInitialURL()`) e não por lista de telas, porque as três telas que
+    chegam sem pilha atrás são estruturalmente idênticas — e uma delas, a grade de nomes, tem
+    de SAIR por decisão escrita: com o piso de capacidades, chegar à capa sem dizer quem é
+    deixa operar sem nome.
+    <!-- medida: presente src/volta.ts :: export function decidirVolta -->
 
 7. ~~**A primeira ação que a capa oferece num aplicativo vazio é impossível.**~~ —
    **fechada em 10 de setembro.** A tela de produção tem razão escrita para não navegar

@@ -2506,6 +2506,13 @@ o aviso de validade tocado na notificação — chega numa tela com a pilha vazi
 partida fria em `norva://losses`, um toque no voltar, `mCurrentFocus` no launcher. São
 exatamente as duas portas que o produto promete.
 
+**E esta seção apresentou essa medida como prova deste conserto por um dia — ela não é.**
+A medida foi tirada com `input keyevent 4`, a TECLA do aparelho; `voltar()` é o que a SETA
+DO CABEÇALHO chama. Repetindo a partida fria em 11 de setembro, com `voltar()` já no lugar
+da âncora, o foco foi para `com.android.fakesystemapp` outra vez. A tecla não passa por
+aqui — quem a atende é `src/volta.ts` (§17.33), e as duas juntas é que fecham o item 6.
+A palavra "voltar" serve as duas entradas em português, e foi por isso que ninguém viu.
+
 **O caminho que NÃO se tomou, e por quê.** `unstable_settings = { anchor: '(tabs)' }` é o
 que a documentação do expo-router oferece para este defeito, e ele conserta o aparelho e
 quebra a web: a tela aberta por ligação profunda passa a ser montada como o segundo cartão
@@ -2523,3 +2530,55 @@ faziam esta pergunta sozinhas, cada uma com o seu destino, e as outras dez chama
 `back()` cru. `src/nav.ts` é uma EXTRAÇÃO do que já existia, não uma invenção: quando um
 conserto mora em duas telas e não nas doze, ele não é regra do aplicativo — é coincidência
 com dois exemplares.
+
+### 17.33 `src/volta.ts` — a TECLA do aparelho, que é outra entrada do mesmo gesto
+
+A metade que faltava do §17.32, e ela nasceu de uma medida que reabriu um item fechado.
+
+```ts
+export function decidirVolta({ podeVoltar, noDestino, porFora }: Volta): Decisao {
+  if (podeVoltar) return 'padrao';
+  if (noDestino) return 'padrao';
+  if (!porFora) return 'padrao';
+  return 'destino';
+}
+```
+
+**O achado.** Com `voltar()` já no lugar da âncora, a partida fria em `norva://losses`
+seguida de `input keyevent 4` mandou o foco para `com.android.fakesystemapp` de novo. A
+tecla do aparelho não passa pelo `voltar()`: ela é atendida pelo padrão da navegação, que
+numa pilha de um cartão encerra a Activity. `grep -rn "BackHandler|hardwareBackPress"` em
+`src/` e `app/` devolvia **zero linhas**.
+
+**Por que procedência e não lista de telas.** Três telas chegam com a pilha vazia atrás e
+só uma tem defeito:
+
+| tela | pilha atrás | o que a tecla deve fazer | por quê |
+|---|---|---|---|
+| a capa | vazia | **sair** | é a tela inicial; é o que o Android manda |
+| a grade de nomes (`app/who.tsx`) | vazia (chega por `replace`) | **sair** | ir para a capa deixaria operar sem dizer quem é — com o piso de capacidades, isso é operar de verdade (`app/_layout.tsx`, `QuemEstaComOAparelho`) |
+| aberta por ligação de fora | vazia | **ir para a capa** | é o defeito: o QR do engradado e o aviso de validade são as duas portas que o produto promete |
+
+Estruturalmente as três são idênticas. O que as separa é de onde veio a abertura, e é
+isso que `Linking.getInitialURL()` responde. Lista de nome de tela envelheceria no
+primeiro `replace` novo; a pergunta não.
+
+**As três condições, e a do meio não é zelo.** Sem `noDestino`, quem entrou por fora seria
+levado à capa e apertaria voltar para sempre sem sair — trocar *"o app fecha sozinho"* por
+*"o app não fecha nunca"* é trocar de defeito. É o caso NEGATIVO da prova de aparelho, e
+foi ele que confirmou que `usePathname()` devolve `/` na capa.
+
+**A régua pegou o próprio autor antes de reportar nada.** `porFora('https://norva.app/')`
+respondia `true`: em `norva://losses` a rota vem na posição de **host**, e num `https://`
+essa posição é o **domínio**. Uma régua só para as duas formas fazia a raiz da web contar
+como ligação profunda. Quem pegou foi o caso falso do teste, escrito na mesma hora que o
+verdadeiro, como esta casa exige de todo detector novo.
+
+**A prova, medida no aparelho em 11 de setembro** (`src/volta.test.ts` cobre a decisão e
+cobra a ligação no casco; o resto é medida, porque navegador não tem tecla de aparelho):
+
+| toque | foco | tela |
+|---|---|---|
+| `norva://losses` a frio | `app.norva.mobile/.MainActivity` | Perdas |
+| 1º voltar | **ficou**, em até 5 s | a capa (*"Hoje a fábrica fez 533 unidades"*) |
+| 2º voltar | **saiu**, em até 5 s | launcher |
