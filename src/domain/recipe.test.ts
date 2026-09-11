@@ -4,6 +4,7 @@ import { applyCostEvent, emptyStock, reorderPoint } from './cost';
 import { amountOf, cents, fromDecimal, rate, type Rate } from './money';
 import {
   compareVersions,
+  costPerPack,
   costPerProductUnit,
   costRecipe,
   explodeRequirements,
@@ -647,4 +648,54 @@ test('grafo já quebrado não trava a tela que tenta não quebrá-lo mais', () =
 
 test('receita que não existe no grafo não é ciclo, é ausência', () => {
   assert.equal(wouldCycle('morango', 'fantasma', cozinha), false);
+});
+
+/**
+ * A caixa fechada arredonda UMA vez, no fim — e nada guardava isso.
+ *
+ * Achado pelo `mutate` em 11 de setembro, na primeira execução depois de a mutação existir:
+ * embrulhar a soma em `cents(...)` ANTES de multiplicar por `unitsPerPack` passou pela
+ * suíte inteira. `costPerPack` tinha **um chamador** (`app/products/new.tsx:316`) e **zero
+ * testes**, com o defeito que ela conserta escrito no docblock dela.
+ *
+ * Os números aqui são os do defeito de verdade, copiados de lá: um picolé de **7,3265
+ * centavos** numa caixa de **cinquenta**. Arredondando no fim dá R$ 3,66; arredondando
+ * antes, o picolé vira 7 centavos inteiros e a caixa sai R$ 3,50 — *quatro e meio por
+ * cento de margem evaporados no número que o dono usa para dar preço de caixa*, e foi
+ * exatamente isso que a tela de cadastro de produto mostrou.
+ *
+ * A asserção é igualdade contra a conta feita à mão, não contra a função: comparar
+ * `costPerPack` com qualquer coisa derivada dele seria verdadeiro para qualquer ordem de
+ * arredondamento, que é o buraco que esta casa já documentou duas vezes.
+ */
+test('a caixa fechada arredonda uma vez, no fim — e não cinquenta vezes', () => {
+  const custo = {
+    recipeId: 'r1',
+    version: 1,
+    batchCents: cents(73_265),
+    netYield: 10_000,
+    // 7,3265 centavos por unidade de rendimento, com a unidade valendo um picolé.
+    // Direto, e não por `rate()`: aquela função é preço-por-compra dividido por
+    // unidades-por-compra, e chamá-la com um argumento só devolve NaN — o que este
+    // teste acusou na primeira execução, antes de acusar qualquer coisa do código.
+    perYieldUnit: 7.3265 as Rate,
+    lines: [],
+    lossFraction: 0,
+  };
+
+  // 7,3265 x 50 = 366,325 centavos -> 366, que é R$ 3,66.
+  assert.equal(costPerPack(custo, 1, 50), 366, 'a caixa de cinquenta deixou de valer R$ 3,66');
+
+  // E o que o defeito fazia: 7,3265 vira 7 e 7 x 50 = 350. Se um dia a função voltar a
+  // arredondar antes, é ESTE número que ela devolve — a linha existe para nomeá-lo.
+  assert.notEqual(costPerPack(custo, 1, 50), 350, 'voltou a arredondar o picolé antes de multiplicar: R$ 3,50 por uma caixa de R$ 3,66');
+
+  // A embalagem da unidade entra antes da multiplicação pelo mesmo motivo: meio centavo
+  // de palito por picolé é vinte e cinco centavos numa caixa de cinquenta, e some inteiro
+  // se cada picolé arredondar sozinho.
+  assert.equal(
+    costPerPack(custo, 1, 50, { itemsRate: 0.5 }),
+    391,
+    'o palito de meio centavo sumiu na caixa: (7,3265 + 0,5) x 50 = 391,325',
+  );
 });
