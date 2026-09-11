@@ -1423,6 +1423,8 @@ export const es: Dictionary = {
       perBox: 'Unidades por caja',
       perCrate: 'Cajas por engradado',
       perCrateNoBox: 'Unidades por engradado',
+      scopeType: 'sólo en {{type}}',
+      scopeLine: 'en toda la línea {{line}}',
       savePacking: 'Guardar el empaque de la línea',
       overline: 'la grilla de lo que fabricas',
       intro:
@@ -1439,7 +1441,6 @@ export const es: Dictionary = {
       addFlavor: 'Nueva variación',
       namePlaceholder: 'Nombre',
       noLineYet: 'Da de alta una línea primero — el tipo es de ella.',
-      noTypeYet: 'Elige un tipo primero — la variación es de él.',
       noLines: 'Ninguna línea todavía. Empieza por la más obvia: ¿qué fabricas todos los días?',
       noTypes: 'Ningún tipo en esta línea. Agrega uno: la variación es del tipo, no de la línea.',
       noFlavors: 'Ninguna variación en este tipo todavía.',

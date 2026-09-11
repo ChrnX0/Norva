@@ -1418,6 +1418,8 @@ export const en: Dictionary = {
       perBox: 'Units per box',
       perCrate: 'Boxes per crate',
       perCrateNoBox: 'Units per crate',
+      scopeType: 'only in {{type}}',
+      scopeLine: 'across the whole {{line}} line',
       savePacking: 'Save the line packing',
       overline: 'the grid of what you make',
       intro:
@@ -1434,7 +1436,6 @@ export const en: Dictionary = {
       addFlavor: 'New variation',
       namePlaceholder: 'Name',
       noLineYet: 'Add a line first — the type belongs to it.',
-      noTypeYet: 'Pick a type first — a variation belongs to it.',
       noLines: 'No lines yet. Start with the obvious one: what do you make every day?',
       noTypes: 'No types in this line. Add one: a variation belongs to a type, not to a line.',
       noFlavors: 'No variations in this type yet.',

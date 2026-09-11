@@ -14,6 +14,7 @@ import {
   saveFlavor,
   saveLine,
   saveType,
+  NomeJaCadastradoError,
   TypeIsFromAnotherLineError,
   type Flavor,
   type ProductLine,
@@ -73,6 +74,20 @@ function Catalog() {
   const [novaLinha, setNovaLinha] = useState('');
   const [novoTipo, setNovoTipo] = useState('');
   const [novoSabor, setNovoSabor] = useState('');
+  /**
+   * Onde a variação nova vale: só no tipo escolhido, ou na linha inteira.
+   *
+   * As duas existem porque as duas fábricas existem, e o dono nomeou as duas no mesmo
+   * dia. O picolé de leite tem morango que o de água não tem — variação DO TIPO. O pote
+   * de sorvete de ameixa sai em 250 e em 500 ml com a MESMA ficha — variação da LINHA,
+   * cadastrada uma vez. E há quem não use tipo nenhum: *"nao tem para mim, mas pode ter
+   * para outras fabricas"*. Escolher um lado seria decidir por eles.
+   *
+   * O padrão é o tipo quando há tipo, porque é o mais estreito: errar para o estreito
+   * mostra menos do que deveria e a pessoa corrige; errar para o largo oferece morango
+   * de água no de leite, que é o que ele pediu para travar.
+   */
+  const [saborNaLinha, setSaborNaLinha] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   /**
    * Como a família escolhida é embalada — e por que ela mora AQUI.
@@ -145,9 +160,17 @@ function Catalog() {
    */
   const tipoAtivo =
     tiposDaLinha.find((t) => t.id === typeId) ?? (tiposDaLinha.length === 1 ? tiposDaLinha[0] : null);
-  /** Os sabores DESTE tipo, mais os órfãos da regra antiga, que não somem calados. */
+  /**
+   * O que vale aqui: as variações da LINHA inteira mais as do tipo escolhido.
+   *
+   * Os órfãos da regra antiga (sem linha e sem tipo) continuam aparecendo, porque sumir
+   * com o dado de alguém é pior que mostrá-lo fora de lugar — e quem grava hoje não
+   * consegue mais criar um assim.
+   */
   const saboresDoTipo = (data?.flavors ?? []).filter(
-    (s) => s.typeId === tipoAtivo?.id || s.typeId === null,
+    (s) =>
+      (s.lineId === null && s.typeId === null) ||
+      (s.lineId === linhaAtiva?.id && (s.typeId === null || s.typeId === tipoAtivo?.id)),
   );
 
   // `limpar` é opcional: guardar a embalagem da família não esvazia campo
@@ -172,7 +195,8 @@ function Catalog() {
       setErro(
         e instanceof TypeIsFromAnotherLineError
           ? t.app.catalog.typeFromAnotherLine
-          : e instanceof Error && /unique/i.test(e.message)
+          : e instanceof NomeJaCadastradoError ||
+              (e instanceof Error && /unique/i.test(e.message))
             ? t.app.catalog.duplicate
             : t.common.failureUnknown,
       );
@@ -459,9 +483,9 @@ function Catalog() {
         >
           <Text style={[type.caption, { color: color.inkMuted }]}>{t.app.catalog.flavorsHint}</Text>
 
-          {loading ? null : !tipoAtivo ? (
+          {loading ? null : !linhaAtiva ? (
             <Text style={[type.body, { color: color.inkMuted, marginTop: space.md }]}>
-              {t.app.catalog.noTypeYet}
+              {t.app.catalog.noLineYet}
             </Text>
           ) : saboresDoTipo.length === 0 ? (
             <Text style={[type.body, { color: color.inkMuted, marginTop: space.md }]}>
@@ -478,13 +502,47 @@ function Catalog() {
               onChangeText={setNovoSabor}
               placeholder={t.app.catalog.namePlaceholder}
             />
+            {/* O alcance só é pergunta quando há tipo para estreitar. Sem tipo, a
+                variação é da linha e não há escolha — e onde não há escolha, não se
+                pergunta. */}
+            {tipoAtivo ? (
+              <View style={[styles.wrap, { gap: space.sm }]}>
+                {[false, true].map((naLinha) => (
+                  <Pressable
+                    key={naLinha ? 'linha' : 'tipo'}
+                    onPress={() => setSaborNaLinha(naLinha)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: saborNaLinha === naLinha }}
+                    accessibilityLabel={
+                      naLinha
+                        ? fill(t.app.catalog.scopeLine, { line: linhaAtiva?.name ?? '' })
+                        : fill(t.app.catalog.scopeType, { type: tipoAtivo.name })
+                    }
+                  >
+                    <Chip
+                      signal={saborNaLinha === naLinha ? 'ok' : 'neutral'}
+                      label={
+                        naLinha
+                          ? fill(t.app.catalog.scopeLine, { line: linhaAtiva?.name ?? '' })
+                          : fill(t.app.catalog.scopeType, { type: tipoAtivo.name })
+                      }
+                    />
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
             <Button
               label={t.app.catalog.addFlavor}
               variant="ghost"
-              disabled={novoSabor.trim().length === 0 || !tipoAtivo}
+              disabled={novoSabor.trim().length === 0 || !linhaAtiva}
               onPress={() =>
                 gravar(
-                  () => saveFlavor(empresaDaqui(), { typeId: tipoAtivo!.id, name: novoSabor }),
+                  () =>
+                    saveFlavor(empresaDaqui(), {
+                      lineId: linhaAtiva!.id,
+                      typeId: tipoAtivo && !saborNaLinha ? tipoAtivo.id : null,
+                      name: novoSabor,
+                    }),
                   () => setNovoSabor(''),
                 )
               }

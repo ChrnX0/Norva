@@ -1111,9 +1111,25 @@ CREATE UNIQUE INDEX IF NOT EXISTS flavors_name_idx
 CREATE INDEX IF NOT EXISTS flavors_type_idx ON flavors (company_id, type_id);
 `;
 
+/**
+ * A variação é da LINHA, e o tipo a estreita. Espelha a `0056`.
+ *
+ * A `V30` prendeu a variação ao tipo e o dono mostrou os dois casos que aquilo quebrava:
+ * fábrica sem tipo nenhum ("pode ter para outras fábricas"), e o pote de sorvete, onde
+ * 250 e 500 ml são tipos e a ameixa é a MESMA — prender ao tipo obrigava a cadastrá-la
+ * duas vezes. Variação sem tipo vale para a linha inteira; com tipo, só nele.
+ */
+const V31 = `
+ALTER TABLE flavors ADD COLUMN line_id TEXT REFERENCES product_lines(id) ON DELETE CASCADE;
+DROP INDEX IF EXISTS flavors_name_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS flavors_name_idx
+  ON flavors (company_id, COALESCE(line_id, ''), COALESCE(type_id, ''), lower(trim(name)));
+CREATE INDEX IF NOT EXISTS flavors_line_idx ON flavors (company_id, line_id);
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
-  V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30,
+  V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31,
 ];
 
 export type SqlParam = string | number | null;

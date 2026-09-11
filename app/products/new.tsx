@@ -508,8 +508,17 @@ function ProductForm() {
    * apareceu.
    */
   const tipoValendo = typeId ?? (tiposDaLinha.length === 1 ? tiposDaLinha[0].id : null);
+  /**
+   * As variações que servem a esta combinação: as da LINHA inteira mais as do tipo.
+   *
+   * A ameixa do pote vale para 250 e 500 ml (variação da linha); o morango do picolé de
+   * leite não aparece no de água (variação do tipo). Os órfãos da regra antiga entram
+   * porque esconder dado de alguém é pior que mostrá-lo fora de lugar.
+   */
   const saboresDoTipo = (data?.flavors ?? []).filter(
-    (x) => x.typeId === tipoValendo || x.typeId === null,
+    (x) =>
+      (x.lineId === null && x.typeId === null) ||
+      (x.lineId === lineId && (x.typeId === null || x.typeId === tipoValendo)),
   );
 
   /** As embalagens escolhidas, na ordem do almoxarifado e não na de toque. */

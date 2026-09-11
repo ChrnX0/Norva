@@ -158,7 +158,7 @@ async function main() {
   // quebrada do outro lado, e a fila é enviada na ordem em que foi escrita.
   const linha = await saveLine(empresaDaqui(), { name: 'Picolé' });
   const tipo = await saveType(empresaDaqui(), { lineId: linha, name: 'Tradicional' });
-  const sabor = await saveFlavor(empresaDaqui(), { typeId: tipo, name: 'Morango' });
+  const sabor = await saveFlavor(empresaDaqui(), { lineId: linha, typeId: tipo, name: 'Morango' });
 
   // E um produto que a usa, porque uma grade que não chega presa a um produto
   // atravessa sem provar que as três colunas novas atravessam.

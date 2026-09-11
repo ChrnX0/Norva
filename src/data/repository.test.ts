@@ -27,6 +27,8 @@ import {
   listCarriers,
   saveCarrier,
   saveFlavor,
+  listFlavors,
+  NomeJaCadastradoError,
   listLines,
   saveLine,
   saveType,
@@ -6522,7 +6524,7 @@ test('a conta do apagar enxerga as quatro coisas que sumiam sem número', async 
 
   const linha = await saveLine(CO, { name: 'Picolé' });
   const tipo = await saveType(CO, { lineId: linha, name: 'Tradicional' });
-  const sabor = await saveFlavor(CO, { typeId: tipo, name: 'Uva' });
+  const sabor = await saveFlavor(CO, { lineId: linha, typeId: tipo, name: 'Uva' });
   assert.ok(linha && tipo && sabor, 'a grade foi criada');
 
   await recordReading(CO, {
@@ -6960,7 +6962,7 @@ test('an ordered item the room does not hold comes back with zero available', as
   // vez de fingir que sabor é da casa — que era justamente o que confundia o cadastro.
   const linhaSemente = await saveLine(EMPRESA_SEMENTE, { name: 'Picolé' });
   const tipoSemente = await saveType(EMPRESA_SEMENTE, { lineId: linhaSemente, name: 'Fruta' });
-  const sabor = await saveFlavor(EMPRESA_SEMENTE, { typeId: tipoSemente, name: 'Jabuticaba' });
+  const sabor = await saveFlavor(EMPRESA_SEMENTE, { lineId: linhaSemente, typeId: tipoSemente, name: 'Jabuticaba' });
   const { itemId: ausenteId } = await saveProduct(EMPRESA_SEMENTE, {
     name: 'Picolé de jabuticaba',
     flavorId: sabor,
@@ -7257,4 +7259,61 @@ test('família sem embalagem não afirma uma caixa que não existe', async () =>
   assert.equal((await listLines(CO)).find((l) => l.id === comCaixa)?.packaging?.tiers.length, 2);
   await saveLine(CO, { id: comCaixa, name: 'Caixa', packaging: null });
   assert.equal((await listLines(CO)).find((l) => l.id === comCaixa)?.packaging, null, 'nulo explícito apaga');
+});
+
+test('a variação vale na linha ou num tipo dela, e o mesmo nome não aparece duas vezes', async () => {
+  /**
+   * As duas fábricas que o dono descreveu no mesmo dia, e por que as duas precisam caber.
+   *
+   * O picolé: morango do LEITE não é o morango da ÁGUA — receitas diferentes, e ele pediu
+   * para travar porque "confunde na hora de registrar". Variação do TIPO.
+   *
+   * O pote: ameixa sai em 250 e em 500 ml com a MESMA ficha técnica. Variação da LINHA,
+   * cadastrada uma vez — prender ao tipo obrigava a cadastrar duas.
+   *
+   * E a terceira, que é dele também: "nao tem para mim, mas pode ter para outras
+   * fabricas" — linha sem tipo nenhum. Escolher um lado seria decidir pelo cliente.
+   */
+  await ensureStarterData(EMPRESA_SEMENTE);
+  const picole = await saveLine(EMPRESA_SEMENTE, { name: 'Picolé da variação' });
+  const leite = await saveType(EMPRESA_SEMENTE, { lineId: picole, name: 'Leite' });
+  const agua = await saveType(EMPRESA_SEMENTE, { lineId: picole, name: 'Água' });
+
+  // O mesmo nome em dois tipos da mesma linha: são coisas diferentes e as duas entram.
+  const morangoLeite = await saveFlavor(EMPRESA_SEMENTE, {
+    lineId: picole,
+    typeId: leite,
+    name: 'Morango',
+  });
+  const morangoAgua = await saveFlavor(EMPRESA_SEMENTE, {
+    lineId: picole,
+    typeId: agua,
+    name: 'Morango',
+  });
+  assert.notEqual(morangoLeite, morangoAgua, 'morango de leite e de água são dois registros');
+
+  // A variação da LINHA inteira: o caso do pote, cadastrada uma vez só.
+  const pote = await saveLine(EMPRESA_SEMENTE, { name: 'Pote de sorvete' });
+  await saveType(EMPRESA_SEMENTE, { lineId: pote, name: '250 ml' });
+  await saveType(EMPRESA_SEMENTE, { lineId: pote, name: '500 ml' });
+  const ameixa = await saveFlavor(EMPRESA_SEMENTE, { lineId: pote, name: 'Ameixa' });
+
+  const todas = await listFlavors(EMPRESA_SEMENTE);
+  const daAmeixa = todas.find((x) => x.id === ameixa);
+  assert.equal(daAmeixa?.typeId, null, 'a da linha não tem tipo: ela vale para os dois volumes');
+  assert.equal(daAmeixa?.lineId, pote);
+
+  // E o nome não pode aparecer duas vezes na MESMA lista. A tela de produto mostra as da
+  // linha mais as do tipo, então "Morango" na linha colidiria com o do tipo Leite — coisa
+  // que o índice do banco não pega, porque para ele são pares diferentes.
+  await assert.rejects(
+    () => saveFlavor(EMPRESA_SEMENTE, { lineId: picole, name: 'Morango' }),
+    NomeJaCadastradoError,
+    'morango na linha colide com o morango que já existe num tipo dela',
+  );
+  await assert.rejects(
+    () => saveFlavor(EMPRESA_SEMENTE, { lineId: pote, typeId: null, name: 'ameixa  ' }),
+    NomeJaCadastradoError,
+    'caixa e espaço não contam como diferença',
+  );
 });

@@ -1841,6 +1841,8 @@ export const ptBR = {
       perBox: 'Unidades por caixa',
       perCrate: 'Caixas por engradado',
       perCrateNoBox: 'Unidades por engradado',
+      scopeType: 'só em {{type}}',
+      scopeLine: 'em toda a linha {{line}}',
       savePacking: 'Guardar a embalagem da linha',
       overline: 'a grade do que você fabrica',
       intro:
@@ -1859,7 +1861,6 @@ export const ptBR = {
       namePlaceholder: 'Nome',
       /** O estado é "não existe linha", e não "existe e nenhuma foi escolhida": a tela escolhe a primeira sozinha. */
       noLineYet: 'Cadastre uma linha primeiro — o tipo é dela.',
-      noTypeYet: 'Escolha um tipo primeiro — a variação é dele.',
       noLines: 'Nenhuma linha ainda. Comece pela mais óbvia: o que você fabrica todo dia?',
       noTypes: 'Nenhum tipo nesta linha. Cadastre um: a variação é do tipo, não da linha.',
       noFlavors: 'Nenhuma variação neste tipo ainda.',

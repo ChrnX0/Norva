@@ -5532,7 +5532,13 @@ export type ProductType = { id: string; lineId: string; name: string; sort: numb
  * a tela mostra os órfãos em vez de escondê-los: sumir com o dado de alguém é pior que
  * mostrá-lo fora de lugar.
  */
-export type Flavor = { id: string; typeId: string | null; name: string; sort: number };
+export type Flavor = {
+  id: string;
+  lineId: string | null;
+  typeId: string | null;
+  name: string;
+  sort: number;
+};
 
 export async function listLines(companyId: string): Promise<ProductLine[]> {
   const conn = await db();
@@ -5579,16 +5585,23 @@ export async function listFlavors(companyId: string): Promise<Flavor[]> {
   const conn = await db();
   const rows = await conn.getAllAsync<{
     id: string;
+    line_id: string | null;
     type_id: string | null;
     name: string;
     sort: number;
   }>(
-    `SELECT id, type_id, name, sort FROM flavors
+    `SELECT id, line_id, type_id, name, sort FROM flavors
       WHERE company_id = ? AND active = 1
       ORDER BY sort, name COLLATE NOCASE`,
     [companyId],
   );
-  return rows.map((r) => ({ id: r.id, typeId: r.type_id, name: r.name, sort: r.sort }));
+  return rows.map((r) => ({
+    id: r.id,
+    lineId: r.line_id,
+    typeId: r.type_id,
+    name: r.name,
+    sort: r.sort,
+  }));
 }
 
 /** Uma linha nova, ou o nome de uma existente corrigido. */
@@ -5663,34 +5676,73 @@ export async function saveType(
  * COLUMN`, e a tela é decoração — o assistente e a sincronia gravam por este caminho
  * sem passar por ela.
  */
-export class FlavorNeedsATypeError extends Error {
+/**
+ * O nome já existe onde esta lista o mostraria.
+ *
+ * Classe própria em vez de deixar o índice do banco estourar, porque o banco só pega o
+ * par exato (linha, tipo, nome) e a colisão que importa é mais larga: "Morango" na linha
+ * colide com "Morango" em qualquer tipo dela, porque a tela de produto mostra as duas
+ * listas juntas. A tela lia `/unique/i` da mensagem crua do SQLite — o que funcionava e
+ * era frágil: depende do texto de erro de um driver.
+ */
+export class NomeJaCadastradoError extends Error {
+  constructor(readonly nome: string) {
+    super(`name ${nome} already exists in this line`);
+    this.name = 'NomeJaCadastradoError';
+  }
+}
+
+export class FlavorNeedsALineError extends Error {
   constructor() {
-    super('a flavour belongs to a type');
-    this.name = 'FlavorNeedsATypeError';
+    super('a flavour belongs to a line');
+    this.name = 'FlavorNeedsALineError';
   }
 }
 
 export async function saveFlavor(
   companyId: string,
-  input: { id?: string; typeId: string; name: string; sort?: number },
+  input: { id?: string; lineId: string; typeId?: string | null; name: string; sort?: number },
 ): Promise<string> {
-  if (!input.typeId) throw new FlavorNeedsATypeError();
+  if (!input.lineId) throw new FlavorNeedsALineError();
   const conn = await db();
-  const dono = await conn.getFirstAsync<{ id: string }>(
-    'SELECT id FROM product_types WHERE id = ? AND company_id = ?',
-    [input.typeId, companyId],
+  const linha = await conn.getFirstAsync<{ id: string }>(
+    'SELECT id FROM product_lines WHERE id = ? AND company_id = ?',
+    [input.lineId, companyId],
   );
-  // Reusa o erro do vizinho de propósito: `assertTypeBelongsToLine` já trata
-  // "não achei este tipo nesta empresa" com ele, e dois nomes para a mesma recusa
-  // fariam a tela ter de conhecer os dois.
-  if (!dono) throw new TypeIsFromAnotherLineError(input.typeId);
+  if (!linha) throw new FlavorNeedsALineError();
+  // Tipo é opcional — sem ele a variação vale para a linha inteira —, mas quando vem,
+  // tem de ser um tipo DESTA linha. A função ao lado já sabe recusar isso, e reusá-la
+  // é o que impede a regra de divergir em dois lugares.
+  await assertTypeBelongsToLine(companyId, input.lineId, input.typeId ?? null);
+  /**
+   * O mesmo nome não pode aparecer DUAS VEZES na mesma lista.
+   *
+   * O índice único do banco guarda (linha, tipo, nome), então "Morango" na linha e
+   * "Morango" no tipo Leite são linhas diferentes e passam — e a tela de produto, que
+   * mostra as da linha MAIS as do tipo, listaria Morango duas vezes. É exatamente o
+   * "confunde na hora de registrar" que esta mudança existe para acabar.
+   *
+   * **Fronteira dita, porque ela é real:** isto mora na escrita e não no banco. Um
+   * índice único não alcança "existe em qualquer tipo desta linha", e a alternativa
+   * seria gatilho. Enquanto não houver, o servidor aceita o que este caminho recusa —
+   * e o caminho é um só: tela, assistente e sincronia gravam por aqui.
+   */
+  const conflito = await conn.getFirstAsync<{ id: string }>(
+    `SELECT id FROM flavors
+      WHERE company_id = ? AND line_id = ? AND active = 1
+        AND lower(trim(name)) = lower(trim(?))
+        AND id <> ?
+        AND (type_id IS NULL OR ? IS NULL OR type_id = ?)`,
+    [companyId, input.lineId, input.name, input.id ?? '', input.typeId ?? null, input.typeId ?? null],
+  );
+  if (conflito) throw new NomeJaCadastradoError(input.name.trim());
   const id = input.id ?? newId();
   await conn.withTransactionAsync(async () => {
     await conn.runAsync(
-      `INSERT INTO flavors (id, company_id, type_id, name, sort, active)
-       VALUES (?, ?, ?, ?, ?, 1)
+      `INSERT INTO flavors (id, company_id, line_id, type_id, name, sort, active)
+       VALUES (?, ?, ?, ?, ?, ?, 1)
        ON CONFLICT(id) DO UPDATE SET name = excluded.name, sort = excluded.sort`,
-      [id, companyId, input.typeId, input.name.trim(), input.sort ?? 0],
+      [id, companyId, input.lineId, input.typeId ?? null, input.name.trim(), input.sort ?? 0],
     );
     await enqueue(conn, [{ table: 'flavors', rowId: id }]);
   });
