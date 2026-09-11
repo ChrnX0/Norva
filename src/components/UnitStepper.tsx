@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { formatQuantity, type LocaleSettings } from '@/i18n';
 import { breakdown, toBaseUnits, type PackagingHierarchy, type PackagingTier } from '@/domain/units';
@@ -27,6 +27,8 @@ export function UnitStepper({
   onChange,
   labels,
   initialTierId,
+  digitavel = false,
+  rotulo,
 }: {
   hierarchy: PackagingHierarchy;
   locale: LocaleSettings;
@@ -37,6 +39,15 @@ export function UnitStepper({
   onChange: (baseUnits: number) => void;
   labels: { decrease: string; increase: string };
   /**
+   * Como o campo digitável se anuncia — para o leitor de tela, e para quem dirige o
+   * aplicativo por papel em vez de por coordenada.
+   *
+   * Sem ele o campo herdaria o rótulo do botão "mais", que é mentira: um leitor de tela
+   * anunciaria "mais, campo de texto" no meio de uma contagem. Obrigatório quando
+   * `digitavel`, e é por isso que os dois andam juntos na assinatura.
+   */
+  rotulo?: string;
+  /**
    * Which layer the stepper starts on. Defaults to the largest, because that is
    * how a cold room thinks - twelve crates, not three thousand six hundred
    * popsicles.
@@ -46,8 +57,29 @@ export function UnitStepper({
    * that screen starts on the base unit and the echo does the packing.
    */
   initialTierId?: string;
+  /**
+   * O número no meio aceita TECLADO, além dos dois botões.
+   *
+   * Nasce desligado porque a separação na câmara fria é o caso que criou esta peça, e
+   * lá o teclado é o inimigo: mão de luva, −18 °C, e o alvo grande é o que faz a
+   * contagem acontecer. Ligar por padrão trocaria um gesto provado por um pior.
+   *
+   * A produção é o outro caso, e o docblock lá em cima já o previa — *"o tacho rendeu
+   * 250 unidades, e os engradados são a consequência"*. Só que o passo anda ±1 no
+   * degrau escolhido: 250 unidades seriam 250 toques. A previsão estava certa e a peça
+   * não alcançava, então ela ganha teclado em vez de nascer uma segunda ao lado.
+   */
+  digitavel?: boolean;
 }) {
   const { color, radius, space, type, accent } = useTheme();
+  /**
+   * O que está sendo digitado, enquanto está sendo digitado.
+   *
+   * Sem isto, apagar o campo para trocar "44" por "250" faria o valor virar zero e o
+   * componente reescrever "0" por cima do que a pessoa está escrevendo. `null` quer
+   * dizer "ninguém está digitando, mostre o número de verdade".
+   */
+  const [digitando, setDigitando] = useState<string | null>(null);
   const [tier, setTier] = useState<PackagingTier>(
     () =>
       (initialTierId ? hierarchy.tiers.find((t) => t.id === initialTierId) : undefined) ??
@@ -136,12 +168,28 @@ export function UnitStepper({
 
       <View style={[styles.row, { gap: space.md }]}>
         <StepButton label={labels.decrease} symbol="−" onPress={() => step(-1)} />
-        <Text
-          style={[type.hero, styles.value, { color: color.ink }]}
-          accessibilityLiveRegion="polite"
-        >
-          {formatQuantity(countInTier, locale)}
-        </Text>
+        {digitavel ? (
+          <TextInput
+            style={[type.hero, styles.value, { color: color.ink }]}
+            value={digitando ?? String(countInTier)}
+            onChangeText={(texto) => {
+              setDigitando(texto);
+              const n = Number(texto.replace(/[^\d]/g, ''));
+              onChange(toBaseUnits(Number.isFinite(n) ? n : 0, tier));
+            }}
+            onBlur={() => setDigitando(null)}
+            keyboardType="numeric"
+            accessibilityLabel={rotulo}
+            selectTextOnFocus
+          />
+        ) : (
+          <Text
+            style={[type.hero, styles.value, { color: color.ink }]}
+            accessibilityLiveRegion="polite"
+          >
+            {formatQuantity(countInTier, locale)}
+          </Text>
+        )}
         <StepButton label={labels.increase} symbol="+" onPress={() => step(1)} />
       </View>
 

@@ -7,6 +7,7 @@ import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
 import { Field } from '@/components/Field';
+import { UnitStepper } from '@/components/UnitStepper';
 import { GlyphKettle, GlyphProduction, GlyphSack } from '@/components/Glyph';
 import { ListRow } from '@/components/ListRow';
 import { Reveal } from '@/components/Reveal';
@@ -501,21 +502,40 @@ function Production() {
             </View>
 
             {/* O fato primeiro. Este é o número que a pessoa acabou de contar, e
-                é o único campo obrigatório da tela. */}
-            <Field
-              label={words.units}
-              value={unitsTyped ? unitsText : planned > 0 ? String(planned) : ''}
-              onChangeText={(next) => {
+                é o único campo obrigatório da tela.
+
+                **E ele se conta na embalagem da fábrica, não só em unidade solta.**
+                O dono descreveu a conta da casa dele — 44 picolés por caixa, 6 caixas
+                por engradado, 264 no total — e pediu que a pessoa escolha em que
+                camada digita. A peça que faz isso existe desde sempre (`UnitStepper`)
+                e o docblock dela já previa ESTA tela: "o tacho rendeu 250 unidades, e
+                os engradados são a consequência, ecoada embaixo". Ela só nunca tinha
+                sido chamada aqui, e o teclado que a produção precisa foi acrescentado
+                nela em vez de virar uma segunda peça ao lado.
+
+                Começa na unidade de propósito: quem acabou de bater um tacho conta o
+                que saiu, e a caixa é consequência. Na separação é o contrário, e lá a
+                mesma peça começa no maior. */}
+            <Text style={[type.overline, { color: color.inkFaint }]}>{words.units}</Text>
+            <UnitStepper
+              hierarchy={selected?.packaging ?? { tiers: [{ id: 'unit', perBaseUnit: 1 }] }}
+              locale={locale}
+              tierLabel={(id, n) => plural(n, t.units[id as keyof typeof t.units] ?? t.units.unit)}
+              value={units}
+              onChange={(n) => {
                 setUnitsTyped(true);
-                setUnitsText(next);
+                setUnitsText(String(n));
               }}
-              keyboardType="numeric"
-              hint={
-                planned > 0
-                  ? fill(words.expected, { units: formatQuantity(planned, locale) })
-                  : words.unitsHint
-              }
+              labels={t.stepper}
+              initialTierId="unit"
+              digitavel
+              rotulo={words.units}
             />
+            <Text style={[type.caption, { color: color.inkMuted }]}>
+              {planned > 0
+                ? fill(words.expected, { units: formatQuantity(planned, locale) })
+                : words.unitsHint}
+            </Text>
 
             {/* A conta do meio, atrás de um toque. Quem trabalha por tacho abre
                 uma vez e ganha o pré-preenchido da ficha; quem conta caixa nunca

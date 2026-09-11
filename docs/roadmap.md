@@ -688,6 +688,37 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     que some ao rolar, cabeçalho que não volta ao subir, lista que não chega ao fim,
     rodapé coberto pela barra de abas. Nada disso tem guarda hoje.
 
+37. ~~**A produção só contava em unidade solta**~~ — **fechado em 11 de setembro, e pela
+    QUARTA vez o padrão foi o mesmo: a peça existia e a tela não a chamava.**
+    <!-- medida: presente app/production/new.tsx :: UnitStepper -->
+    O dono descreveu a conta da fábrica do pai — 44 picolés por caixa, 6 caixas por
+    engradado, 264 no total — e pediu que a pessoa escolha em que camada digita.
+
+    `UnitStepper` faz exatamente isso desde que foi construída, e o docblock dela já
+    nomeava ESTA tela: *"o tacho rendeu 250 unidades, e os engradados são a
+    CONSEQUÊNCIA, ecoada embaixo. Então essa tela começa na unidade-base"*. A previsão
+    estava escrita e o chamador nunca veio.
+
+    **O que faltava de verdade era uma coisa só, e ela explica por que nunca veio:** o
+    passo anda ±1 no degrau escolhido, então 250 unidades seriam 250 toques. A peça
+    servia a câmara fria (mão de luva, alvo grande, teclado é inimigo) e não servia a
+    produção. Ela ganhou teclado **opcional** (`digitavel`) em vez de nascer uma segunda
+    ao lado — e o campo digitável carrega rótulo próprio, senão o leitor de tela
+    anunciaria "mais, campo de texto" no meio de uma contagem.
+
+    Provado no navegador: 600 unidades ecoam **"2 engradados"** antes de gravar, com o
+    produto semeado (engradado de 300).
+
+38. ~~**A família de embalagem exigia caixa antes de aceitar engradado**~~ — **fechado.**
+    <!-- medida: presente src/domain/units.ts :: export function tiersFromCounts -->
+    O picolé vai unidade → caixa de 44 → engradado de 6 caixas. O pote vai *"em
+    engradados ou unidades mesmo"* — dois degraus. A tela descartava o engradado do pote
+    **calado**, por um `faixas.length > 1` que presumia três degraus. A conta saiu de
+    dentro da tela para `tiersFromCounts`, com teste para as duas formas reais, e o
+    segundo campo troca de rótulo conforme o primeiro: "Caixas por engradado" quando há
+    caixa, "Unidades por engradado" quando não há — um campo que quer dizer duas coisas
+    sob o mesmo rótulo só aparece quando o estoque de alguém sai errado.
+
 **Aberto do que esta caminhada achou:**
 
 22. ~~**Sair do editor com alteração pendente não avisa.**~~ — **fechada** com uma guarda em

@@ -9191,3 +9191,40 @@ a entrada desta capacidade?* Se não dá para escrever a sequência, a capacidad
 para quem usa — por mais chamadores que ela tenha. E o jeito de responder não é ler o
 código: é a checagem de navegador fazer os toques, que é o que separa "tem caminho" de
 "eu consigo imaginar um caminho".
+
+## 11 de setembro — a peça previa o chamador, e o chamador não vinha por um detalhe de gesto
+
+**O que apareceu:** quarta vez no mesmo dia em que a capacidade existia e a tela não a
+usava — e desta vez com um agravante que muda o diagnóstico. O `UnitStepper` conta em
+unidade, caixa e engradado, e o docblock dele **nomeava a tela que faltava**:
+
+> *"Production is the exception… the kettle put out 250 units, and the crates are the
+> CONSEQUENCE, echoed underneath. So that screen starts on the base unit."*
+
+A previsão estava escrita, com o `initialTierId` construído para servi-la. E o chamador
+nunca veio. Nas três vezes anteriores a explicação era simples — ninguém tinha feito o
+trabalho de tela. Aqui não: **a peça não servia**. O passo anda ±1 no degrau escolhido, e
+250 unidades seriam 250 toques. Quem tentasse ligar teria desistido em dois minutos.
+
+**Por que importa:** um docblock que promete um chamador futuro é uma dívida sem cobrador.
+Ele parece o contrário de código morto — tem intenção escrita, tem parâmetro pronto — e é
+pior, porque a intenção escrita **impede a pergunta**: quem lê "a produção vai usar isto"
+para de se perguntar se a produção CONSEGUE usar. O parâmetro `initialTierId` existia há
+semanas, sem um único chamador, e a suíte nunca reclamou porque ele é opcional.
+
+E o defeito que isso escondeu não era de código, era de **gesto**: a peça foi desenhada
+para a câmara fria (mão de luva, −18 °C, alvo grande, teclado é inimigo) e a produção
+digita um número que acabou de contar. Duas ergonomias, uma peça, e ninguém tinha medido a
+distância entre elas.
+
+**O que mudou por causa disso:** o teclado entrou na peça existente, **opcional**
+(`digitavel`), em vez de nascer uma segunda ao lado — a separação continua com o gesto
+provado e a produção ganha o dela. O campo digitável carrega rótulo próprio, senão um
+leitor de tela anunciaria "mais, campo de texto" no meio de uma contagem. E a checagem de
+navegador passou a cobrar o ECO: 600 unidades dizem "2 engradados" antes de gravar.
+
+**A pergunta que fica, e ela é barata:** quando um docblock prometer um chamador futuro,
+*escreva a sequência de toques desse chamador agora*. Se ela não fecha — 250 toques, um
+campo que não existe, uma tela que não tem o dado —, a promessa não é dívida técnica: é
+uma peça que não serve, e dizer isso hoje custa uma linha. `grep` por docblock que cita
+uma tela pelo nome sem que a tela importe o arquivo é uma régua possível.

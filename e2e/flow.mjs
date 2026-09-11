@@ -2359,6 +2359,15 @@ check('a return says why it came back, and the button does not obey until it doe
   await assentar(page);
   await page.getByLabel(/Quantas unidades/).fill('600');
   await page.waitForTimeout(600);
+
+  // A EQUIVALÊNCIA à vista, que é o que o dono pediu ao descrever a fábrica do pai:
+  // "o app sabe que em cada engradado cabem N unidades por causa dessa equivalência".
+  // O produto semeado vai em engradado de 300, então 600 são dois engradados exatos —
+  // e o eco tem de dizer isso ANTES de a pessoa gravar, que é onde erro de contagem
+  // morre. Sem esta linha, "a tela conta em engradado" é afirmação sobre código.
+  const comEco = await screen(page);
+  assert.match(comEco, /2 engradados/i, 'a tela ecoa 600 unidades como 2 engradados');
+
   await page.getByText('Registrar produção', { exact: true }).first().click();
   await page.waitForTimeout(900);
   await page.getByText('Registrar', { exact: true }).first().click();
