@@ -21,7 +21,7 @@ import {
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
 import { parseTyped } from '@/domain/number';
-import type { PackagingHierarchy } from '@/domain/units';
+import { tiersFromCounts, type PackagingHierarchy } from '@/domain/units';
 import { useQuery } from '@/data/useQuery';
 import { fill } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -118,16 +118,23 @@ function Catalog() {
   }
 
   /** O que vai para o banco: sem caixa, a família só tem a unidade. */
-  const embalagemDaFamilia = (): PackagingHierarchy => {
-    const caixa = Math.round(parseTyped(porCaixa) ?? NaN);
-    const engradado = Math.round(parseTyped(porEngradado) ?? NaN);
-    const faixas = [{ id: 'unit', perBaseUnit: 1 }];
-    if (Number.isFinite(caixa) && caixa > 1) faixas.push({ id: 'box', perBaseUnit: caixa });
-    if (Number.isFinite(engradado) && engradado > 1 && faixas.length > 1) {
-      faixas.push({ id: 'crate', perBaseUnit: caixa * engradado });
-    }
-    return { tiers: faixas };
-  };
+  /**
+   * Os degraus de embalagem da família — e o do meio é OPCIONAL.
+   *
+   * A versão anterior só criava engradado se houvesse caixa (`faixas.length > 1`), e isso
+   * é a suposição de que toda família tem três degraus. O dono descreveu a fábrica do pai
+   * e ela tem duas formas diferentes: o picolé vai unidade → caixa de 44 → engradado de 6
+   * caixas (264), e o pote vai *"em engradados ou unidades mesmo"* — dois degraus, sem
+   * caixa no meio. Com a regra velha, o engradado do pote era silenciosamente descartado.
+   *
+   * **E o segundo campo muda de significado conforme o primeiro**, que é por que o rótulo
+   * dele também muda: com caixa, "por engradado" são CAIXAS por engradado (e o total é a
+   * multiplicação); sem caixa, são UNIDADES por engradado. Um campo que quer dizer duas
+   * coisas com o mesmo rótulo é o tipo de armadilha que só aparece quando o número sai
+   * errado no estoque de alguém.
+   */
+  const embalagemDaFamilia = (): PackagingHierarchy =>
+    tiersFromCounts(parseTyped(porCaixa) ?? NaN, parseTyped(porEngradado) ?? NaN);
   const tiposDaLinha = (data?.types ?? []).filter((t) => t.lineId === linhaAtiva?.id);
   /**
    * O tipo que está valendo — e ele nunca fica apontando para fora da linha.
@@ -310,7 +317,11 @@ function Catalog() {
                 hint={t.app.catalog.packingHint}
               />
               <Field
-                label={t.app.catalog.perCrate}
+                label={
+                  (parseTyped(porCaixa) ?? 0) > 1
+                    ? t.app.catalog.perCrate
+                    : t.app.catalog.perCrateNoBox
+                }
                 value={porEngradado}
                 onChangeText={setPorEngradado}
                 keyboardType="numeric"

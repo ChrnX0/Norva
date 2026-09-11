@@ -1840,6 +1840,7 @@ export const ptBR = {
         'Todo produto desta linha nasce com estes números. Vazio quer dizer que esta família não se conta por caixa.',
       perBox: 'Unidades por caixa',
       perCrate: 'Caixas por engradado',
+      perCrateNoBox: 'Unidades por engradado',
       savePacking: 'Guardar a embalagem da linha',
       overline: 'a grade do que você fabrica',
       intro:

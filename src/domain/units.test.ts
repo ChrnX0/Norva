@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { isValidHierarchy, type PackagingHierarchy, boxesOf } from './units';
+import {
+  isValidHierarchy,
+  type PackagingHierarchy,
+  boxesOf,
+  tiersFromCounts,
+  toBaseUnits,
+} from './units';
 
 /**
  * The packaging invariant, which was written down and never run.
@@ -84,4 +90,49 @@ test('a box is an object, and something with no box is never counted as one', ()
 
   // Menos que um volume: zero caixas e tudo solto, nunca "1 caixa" arredondada.
   assert.deepEqual(boxesOf(430, comCaixa), { boxes: 0, loose: 430 });
+});
+
+test('a família com três degraus é a do picolé: unidade, caixa de 44, engradado de 264', () => {
+  // Os números são os da fábrica que o dono descreveu, e a conta é dele: 6 caixas de 44.
+  const h = tiersFromCounts(44, 6);
+  assert.deepEqual(
+    h.tiers,
+    [
+      { id: 'unit', perBaseUnit: 1 },
+      { id: 'box', perBaseUnit: 44 },
+      { id: 'crate', perBaseUnit: 264 },
+    ],
+    'o engradado é caixas × unidades por caixa quando existe caixa',
+  );
+  assert.ok(isValidHierarchy(h));
+});
+
+test('a família com DOIS degraus é a do pote: unidade e engradado, sem caixa no meio', () => {
+  // O caso que a tela descartava calada. Sem caixa, o segundo número é unidades por
+  // engradado — não caixas —, e é por isso que o rótulo do campo muda junto.
+  const h = tiersFromCounts(NaN, 20);
+  assert.deepEqual(h.tiers, [
+    { id: 'unit', perBaseUnit: 1 },
+    { id: 'crate', perBaseUnit: 20 },
+  ]);
+  assert.ok(isValidHierarchy(h));
+  // E a conversão passa a valer: 200 potes viram 10 engradados.
+  assert.equal(toBaseUnits(10, h.tiers[1]), 200);
+});
+
+test('quem vende solto digita nada e recebe um degrau só, que é o certo para ele', () => {
+  const h = tiersFromCounts(NaN, NaN);
+  assert.deepEqual(h.tiers, [{ id: 'unit', perBaseUnit: 1 }]);
+  assert.ok(isValidHierarchy(h), 'um degrau só continua sendo hierarquia válida');
+});
+
+test('degrau que não sobe não entra, senão a hierarquia nasce inválida', () => {
+  // Uma "caixa de 1" não é degrau: ela empataria com a unidade, e `isValidHierarchy`
+  // exige estritamente crescente. Recusar na entrada é melhor que gravar e quebrar.
+  assert.deepEqual(tiersFromCounts(1, 6).tiers, [
+    { id: 'unit', perBaseUnit: 1 },
+    { id: 'crate', perBaseUnit: 6 },
+  ]);
+  assert.ok(isValidHierarchy(tiersFromCounts(1, 6)));
+  assert.ok(isValidHierarchy(tiersFromCounts(0, 0)));
 });

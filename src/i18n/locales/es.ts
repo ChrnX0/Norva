@@ -1422,6 +1422,7 @@ export const es: Dictionary = {
         'Todo producto de esta línea nace con estos números. Vacío quiere decir que esta familia no se cuenta por caja.',
       perBox: 'Unidades por caja',
       perCrate: 'Cajas por engradado',
+      perCrateNoBox: 'Unidades por engradado',
       savePacking: 'Guardar el empaque de la línea',
       overline: 'la grilla de lo que fabricas',
       intro:

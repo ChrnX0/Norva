@@ -1417,6 +1417,7 @@ export const en: Dictionary = {
         'Every product in this line starts with these numbers. Empty means this family is not counted by the box.',
       perBox: 'Units per box',
       perCrate: 'Boxes per crate',
+      perCrateNoBox: 'Units per crate',
       savePacking: 'Save the line packing',
       overline: 'the grid of what you make',
       intro:

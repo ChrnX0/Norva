@@ -498,8 +498,18 @@ function ProductForm() {
    * custo disso: *"confunde na hora de registrar"*. O sabor sem tipo (linha velha)
    * continua aparecendo, porque esconder o dado de alguém é pior que mostrá-lo.
    */
+  /**
+   * O tipo que está VALENDO, que não é o mesmo que o tipo escolhido.
+   *
+   * Com um tipo só na linha, o seletor acima nem aparece — e é a decisão certa, porque
+   * escolher entre uma coisa não é escolha. Mas `typeId` continuava nulo, e aí a lista de
+   * variações filtrava por nulo e vinha VAZIA: a tela escondia a pergunta e punia quem
+   * não respondeu. Pegou na checagem de navegador, que tentou clicar num sabor que nunca
+   * apareceu.
+   */
+  const tipoValendo = typeId ?? (tiposDaLinha.length === 1 ? tiposDaLinha[0].id : null);
   const saboresDoTipo = (data?.flavors ?? []).filter(
-    (x) => x.typeId === typeId || x.typeId === null,
+    (x) => x.typeId === tipoValendo || x.typeId === null,
   );
 
   /** As embalagens escolhidas, na ordem do almoxarifado e não na de toque. */

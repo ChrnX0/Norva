@@ -107,3 +107,36 @@ export function boxesOf(
   const boxes = Math.floor(Math.max(0, baseUnits) / above.perBaseUnit);
   return { boxes, loose: Math.max(0, baseUnits) - boxes * above.perBaseUnit };
 }
+
+/**
+ * The hierarchy a factory types in: how many fit in the middle box, and how many of
+ * those fit in the crate — with the middle one optional.
+ *
+ * Two shapes came from one real factory, described by the owner on 10 September, and
+ * the screen only knew the first: popsicles go unit → box of 44 → crate of 6 boxes
+ * (264), and tubs go *"in crates or loose units"* — two steps, no box in between. The
+ * old code required a box before it would accept a crate, so the tub's crate was
+ * dropped without a word.
+ *
+ * **The second number means different things depending on the first, and that is the
+ * trap this function exists to name.** With a box, `perCrate` counts BOXES per crate and
+ * the total multiplies. Without one, it counts UNITS per crate directly. The screen
+ * changes the field's label for the same reason; a field that means two things under one
+ * label only shows up when somebody's stock count comes out wrong.
+ *
+ * Anything not a finite number above one is "not a step" rather than an error: a factory
+ * that sells loose units types nothing, and gets the one-step hierarchy that is correct
+ * for it. Empty is an answer here, not a missing answer.
+ */
+export function tiersFromCounts(perBox: number, perCrate: number): PackagingHierarchy {
+  const passo = (n: number) => Number.isFinite(n) && n > 1;
+  const tiers: PackagingTier[] = [{ id: 'unit', perBaseUnit: 1 }];
+  if (passo(perBox)) tiers.push({ id: 'box', perBaseUnit: Math.round(perBox) });
+  if (passo(perCrate)) {
+    tiers.push({
+      id: 'crate',
+      perBaseUnit: passo(perBox) ? Math.round(perBox) * Math.round(perCrate) : Math.round(perCrate),
+    });
+  }
+  return { tiers };
+}

@@ -9149,3 +9149,45 @@ motivo (função exportada sem chamador), o que me obrigou a escrever a régua d
 decide?* Onde a resposta for sim, ele não é constante — é defeito esperando a tela certa. E
 a forma de achar os outros é mecânica: `grep` por constante numérica que aparece do mesmo
 lado de uma conta com `useWindowDimensions`, `alturaDaCena`, `medida` ou `insets`.
+
+## 10 de setembro — o portão P1 pergunta quem CHAMA, e devia perguntar quem ALCANÇA
+
+**O que apareceu:** o dono disse *"o app está complicadíssimo de se usar… eu não consigo
+fazer absolutamente nada"*, e depois descreveu a fábrica do pai dele em detalhe. Fui medir
+cada peça da descrição contra o código, e o resultado foi o mesmo três vezes seguidas:
+
+| o que ele precisa | banco | domínio | teste | TELA |
+|---|---|---|---|---|
+| receita usando outra receita (a calda base dentro do picolé) | desde a `0018` | `explodeRequirements`, recursivo, com trava de ciclo | sim | **não oferecia** |
+| contar em caixa e engradado, com equivalência | `packaging.tiers` | `toBaseUnits`, `breakdown`, hierarquia de tamanho livre | sim | **não oferece** |
+| família com dois degraus (pote vai direto para engradado) | aceita | aceita | aceita | **descartava calado** |
+
+Três para três: **o motor estava pronto e os pedais não existiam.** E o pior caso é o
+terceiro, porque ali a tela não só deixava de oferecer — ela recebia o número do dono e
+jogava fora sem uma palavra, por causa de um `faixas.length > 1` que presumia que toda
+família tem caixa no meio.
+
+**Por que o portão não pegou.** O P1 deste projeto pergunta *"quem chama isto no mesmo
+commit?"* e é uma boa pergunta — foi ela que matou o `assistant_phrase`, o `Draft.kind` e
+as quatro seções de dicionário sem tela. Só que ela é satisfeita por **qualquer** chamador:
+`explodeRequirements` é chamado por `costRecipe`, que é chamado pela tela da receita. A
+cadeia existe inteira. O que não existe é um caminho em que uma PESSOA, tocando na tela,
+consiga produzir a entrada que aquela capacidade consome. A função tem chamador e não tem
+porta.
+
+E isso não é um detalhe de redação da regra: é a diferença entre um teste verde e um dono
+que não consegue cadastrar o primeiro produto da fábrica dele. A suíte tinha 689 casos e
+todos passavam.
+
+**O que mudou por causa disso:** a tela da receita passou a oferecer receitas como
+ingrediente, com a trava de ciclo virando pergunta ANTES da escolha (`wouldCycle`); a
+conta dos degraus saiu de dentro da tela para `tiersFromCounts` no domínio, com teste para
+as duas formas reais da fábrica — três degraus no picolé (44 e 6 → 264) e dois no pote; e
+a checagem de navegador passou a ANDAR o caminho dele: cria a ficha, usa a calda dentro
+dela, e fica vermelha quando a oferta some.
+
+**A pergunta que fica, e ela é o P1 corrigido:** *qual é a sequência de toques que produz
+a entrada desta capacidade?* Se não dá para escrever a sequência, a capacidade não existe
+para quem usa — por mais chamadores que ela tenha. E o jeito de responder não é ler o
+código: é a checagem de navegador fazer os toques, que é o que separa "tem caminho" de
+"eu consigo imaginar um caminho".
