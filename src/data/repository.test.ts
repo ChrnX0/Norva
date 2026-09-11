@@ -5807,6 +5807,86 @@ test('a reversal is dated today, so a closed month stays closed', async () => {
 });
 
 /**
+ * Uma nota que some no arredondamento travaria a fila para sempre, calada.
+ *
+ * **O caminho é da tela, não hipótese.** `purchaseToBaseUnits` faz `Math.round(quantidade ×
+ * fator)`, e `app/purchase.tsx` exige PACOTE maior que zero — nunca unidade-base maior que
+ * zero. Num item comprado na própria unidade-base (fator 1), digitar `0,4` dá **zero**, e
+ * `recordPurchase` não tinha guarda nenhuma: as três irmãs têm (*"uma perda de nada não é uma
+ * perda"*, *"uma transferência move alguma coisa"*, *"uma corrida roda a receita pelo menos uma
+ * vez"*), e esta ficou de fora.
+ *
+ * **O que custa não é a linha errada: é o silêncio depois dela.** O Postgres tem as quatro
+ * recusas que o SQLite não tem — `purchase_quantity > 0`, `base_units > 0`, `total_cents >= 0`
+ * e `movement_moved_something`. Todas voltam como `23514`, e `classeDaRecusa` trata `23514`
+ * como PASSAGEIRA **de propósito**: um CHECK novo pode recusar hoje o que uma migração seguinte
+ * aceita, e promovê-lo seria aceitar perda de dado por palpite. Então a fila tentaria de novo
+ * para sempre, com tudo o que o aparelho gravasse depois preso atrás — o defeito mais caro que
+ * este projeto conhece, e o conserto certo é na ORIGEM: a nota de nada não nasce.
+ *
+ * Os dois sentidos, porque só o vermelho não distingue nada: a quantidade que arredonda para
+ * zero é recusada, e **um grama continua entrando** — uma guarda escrita larga recusaria a
+ * compra pequena legítima, que é exatamente o tipo de conserto que piora a tela.
+ */
+test('uma compra que arredonda para zero é recusada, e um grama continua entrando', async () => {
+  await ensureStarterData(CO);
+  // Fator 1: comprado na própria unidade-base, que é o caso em que o arredondamento morde.
+  const corante = await anInput('Corante de urucum', 1);
+
+  // O caminho da tela, com os números que ela produz: 0,4 pacote × fator 1 = 0 unidade-base.
+  assert.equal(
+    purchaseToBaseUnits((await listItems(CO)).find((i) => i.id === corante)!, 0.4),
+    0,
+    'a conversão da tela arredonda 0,4 para zero — é daqui que a linha inválida nasceria',
+  );
+
+  await assert.rejects(
+    () =>
+      recordPurchase(CO, {
+        itemId: corante,
+        purchaseQuantity: 0.4,
+        baseUnits: 0,
+        totalCents: fromDecimal(12),
+      }),
+    /some no arredondamento/,
+    'a nota de zero unidade é recusada aqui, e não pelo servidor daqui a uma semana',
+  );
+
+  // E a recusa não gravou meia coisa: a transação nem abriu.
+  const conn = await db();
+  const nada = await conn.getFirstAsync<{ n: number }>(
+    'SELECT COUNT(*) AS n FROM movements WHERE item_id = ?',
+    [corante],
+  );
+  assert.equal(nada?.n, 0, 'a recusa vem antes da escrita — nada de linha órfã no razão');
+
+  // O outro sentido, e ele é o que dá valor ao de cima: UM grama entra.
+  await recordPurchase(CO, {
+    itemId: corante,
+    purchaseQuantity: 1,
+    baseUnits: 1,
+    totalCents: fromDecimal(12),
+  });
+  const um = await conn.getFirstAsync<{ n: number }>(
+    'SELECT COUNT(*) AS n FROM movements WHERE item_id = ?',
+    [corante],
+  );
+  assert.equal(um?.n, 1, 'a compra pequena legítima continua entrando — a guarda não foi escrita larga');
+
+  // E as outras duas recusas do servidor, que o aparelho também não tinha.
+  await assert.rejects(
+    () => recordPurchase(CO, { itemId: corante, purchaseQuantity: 0, baseUnits: 5, totalCents: fromDecimal(1) }),
+    /uma nota de nada/,
+    'pacote zero é recusado: o servidor tem check (purchase_quantity > 0) desde a 0002',
+  );
+  await assert.rejects(
+    () => recordPurchase(CO, { itemId: corante, purchaseQuantity: 1, baseUnits: 5, totalCents: -1 as never }),
+    /menos que nada/,
+    'total negativo é recusado: o servidor tem check (total_cents >= 0)',
+  );
+});
+
+/**
  * O aplicativo escrevia a resposta e reperguntava na visita seguinte.
  *
  * **Duas colunas com escritor e nenhum leitor, e as duas guardavam exatamente o que a tela

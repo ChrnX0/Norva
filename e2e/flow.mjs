@@ -789,6 +789,37 @@ check('an invoice warns before it is committed, then moves everything', async (p
   // O fornecedor é digitado UMA vez aqui, e é o que a asserção do fim cobra de volta: a
   // nota seguinte do mesmo insumo não pergunta de novo.
   await page.getByLabel('Fornecedor').fill('Distribuidora Aurora');
+
+  /**
+   * A quantidade que SOME no arredondamento, antes da nota de verdade.
+   *
+   * `purchaseToBaseUnits` faz `Math.round(quantidade × fator)`, e a tela exigia PACOTE maior
+   * que zero — nunca unidade-base maior que zero. O balde é de 10.000 g, então `0,00001` balde
+   * é 0,1 g e arredonda para **zero**: a nota entrava, e o Postgres recusava a linha e o
+   * movimento para sempre com `23514`, que a fila trata como recusa passageira. Ela tentaria
+   * de novo eternamente, com tudo o que viesse atrás preso, calado.
+   *
+   * As duas metades da Lei 5 aqui: o botão IMPEDE (fica desabilitado, porque o rascunho volta
+   * nulo) e a linha DIZ o que fazer. Impedir calado seria a pessoa tocar e nada acontecer.
+   *
+   * **O TOTAL vai primeiro, e essa ordem é a asserção.** Escrita ao contrário, esta checagem
+   * passou com o conserto REMOVIDO: sem a nota digitada o rascunho já é nulo e o botão já está
+   * desabilitado, então ela media "falta o total" achando que media "some no arredondamento".
+   * Com a nota preenchida, a única coisa que pode desabilitar o botão é a quantidade.
+   */
+  await page.getByLabel('Total da nota').fill('700');
+  await page.getByLabel(/Quantidade, em/).fill('0,00001');
+  await page.waitForTimeout(800);
+  assert.match(
+    await screen(page),
+    /Aumente a quantidade/,
+    'a tela diz o que fazer, em vez de só não reagir',
+  );
+  assert.ok(
+    await page.getByText('Lançar compra').first().isDisabled(),
+    'e o botão impede, com a nota já digitada — Lei 5: o erro impede, não reclama',
+  );
+
   await page.getByLabel(/Quantidade, em/).fill('4');
   await page.getByLabel('Total da nota').fill('700');
   await page.waitForTimeout(800);

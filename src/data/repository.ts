@@ -564,6 +564,38 @@ export async function recordPurchase(
 ): Promise<{ previousRate: Rate | null; newRate: Rate }> {
   // Receber nota é conferir recebimento, e é essa a capacidade dos dois lados.
   await podeGravar(companyId, 'purchase');
+
+  /**
+   * As três recusas que o SERVIDOR já tem e o aparelho não tinha — e a de baixo trava a fila.
+   *
+   * `purchase_lines` no Postgres carrega `check (purchase_quantity > 0)`, `check (base_units >
+   * 0)` e `check (total_cents >= 0)` desde a `0002`, e o movimento da chegada carrega
+   * `movement_moved_something` (`quantity_base_units <> 0`, com exceção só para `adjustment` e
+   * para a conferência num posto). O SQLite do aparelho não tem nenhuma delas, e esta função
+   * não tinha guarda: as irmãs têm — *"uma perda de nada não é uma perda"*, *"uma transferência
+   * move alguma coisa"*, *"uma corrida roda a receita pelo menos uma vez"*.
+   *
+   * **E o caminho é alcançável, não hipótese.** `purchaseToBaseUnits` faz `Math.round(quantidade
+   * × fator)`, e a tela exige PACOTE maior que zero, nunca unidade-base maior que zero. Num item
+   * comprado na própria unidade-base (fator 1), digitar `0,4` dá **zero**: a nota entra no
+   * aparelho, e o servidor recusa a linha e o movimento **para sempre**.
+   *
+   * O preço de não ter isto é o defeito mais caro que este projeto conhece. A recusa volta como
+   * `23514`, `classeDaRecusa` a trata como PASSAGEIRA de propósito (um CHECK novo pode recusar
+   * hoje o que uma migração seguinte aceita), e a fila tenta de novo para sempre — com tudo o
+   * que vier atrás preso, calado. Promover `23514` seria pagar risco de perda por um caso que a
+   * ORIGEM resolve: uma nota de nada não é uma nota, e ela não nasce.
+   */
+  if (!(input.purchaseQuantity > 0)) {
+    throw new Error('uma nota de nada não é uma nota: diga quanto veio');
+  }
+  if (!(input.baseUnits > 0)) {
+    throw new Error('essa quantidade some no arredondamento: a nota não move nada');
+  }
+  if (!(input.totalCents >= 0)) {
+    throw new Error('uma nota não custa menos que nada');
+  }
+
   const conn = await db();
   const at = nowIso();
   const occurred = input.occurredAt ?? at;

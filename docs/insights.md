@@ -10289,3 +10289,54 @@ E a consequência de método, que vale para toda checagem de navegador daqui par
 **plantar o defeito que a asserção NOMEIA, não um parecido.** Uma asserção que sobrevive ao
 próprio defeito não é fraca — ela é uma promessa falsa, e promessa falsa em teste é pior que
 teste ausente, porque alguém vai confiar nela para mexer no código que ela cobre.
+
+---
+
+## 11 de setembro — uma nota que some no arredondamento travaria a fila para sempre
+
+**O achado.** `purchaseToBaseUnits` faz `Math.round(quantidade × fator)`, e `app/purchase.tsx`
+exigia **pacote** maior que zero — nunca **unidade-base** maior que zero. Num item comprado na
+própria unidade-base, ou com um fator pequeno, digitar `0,4` dá **zero**. E `recordPurchase` não
+tinha guarda nenhuma, quando as três irmãs têm: *"uma perda de nada não é uma perda"*, *"uma
+transferência move alguma coisa"*, *"uma corrida roda a receita pelo menos uma vez"*.
+
+**Por que importa, e não é a linha errada.** O Postgres tem as quatro recusas que o SQLite do
+aparelho não tem — `purchase_quantity > 0`, `base_units > 0`, `total_cents >= 0` (`0002`) e
+`movement_moved_something` (`0008`/`0017`). Todas voltam como `23514`, e `classeDaRecusa` trata
+`23514` como **passageira de propósito**, com a razão escrita no docblock: um CHECK novo pode
+recusar hoje o que uma migração seguinte aceita, e promovê-lo seria aceitar perda de dado por
+palpite. Então a fila tentaria de novo **para sempre**, com tudo o que o aparelho gravasse depois
+preso atrás — o defeito mais caro que este projeto conhece, e o `mutate` desta mesma noite o
+nomeia numa mutação pega: *"a fila volta a travar exatamente onde este conserto existe para
+destravar"*.
+
+**Por isso o conserto é na ORIGEM e não no classificador.** Promover `23514` trocaria uma fila
+travada por dado perdido. A nota de nada simplesmente não nasce: a camada de dados recusa as
+quatro condições com a frase que a casa usa, e a tela deixa o botão inerte **e diz o que fazer**
+(*"Aumente a quantidade: isso dá menos de 1 g e some no arredondamento"*) — impedir calado é o
+outro extremo da Lei 5.
+
+### A varredura, com os dois resultados ditos como são
+
+Isto saiu de perguntar o que a linha *"o que o aparelho grava contra o que o servidor aceitaria"*
+manda perguntar. Duas ramificações fecharam **sem achado**, e isso é resposta:
+
+- **Nenhum outro caminho de escrita produz movimento de quantidade zero.** `moveBetween`,
+  `recordLoss` e `recordProduction` guardam; `recordCount` grava `adjustment`, que a `0008`
+  isenta de propósito (*"uma contagem que fechou é um fato"*); `recordCheck` grava
+  `post = 'checked'` chumbado, que é exatamente a exceção que a `0017` abriu.
+- **Nenhuma coluna `not null` do servidor fica sem valor.** `recorded_by` não está no `take` de
+  `movements`, e por desenho: `build: (_row, actor) => ({ recorded_by: actor.userId })` a carimba
+  no envio.
+
+### E a checagem de navegador passou com o conserto REMOVIDO — a segunda vez na mesma noite
+
+Escrita na ordem errada, ela enchia a quantidade **antes** do total. Sem a nota digitada o
+rascunho já é nulo e o botão já está desabilitado, então ela media *"falta o total"* acreditando
+medir *"some no arredondamento"*. Trocar a ordem — total primeiro — conserta, e aí a única coisa
+que pode desabilitar o botão é a quantidade.
+
+É a mesma lição da fatia anterior, e ela aparece com dois rostos diferentes em uma noite: lá a
+asserção não distinguia `??` de `||`; aqui ela não distinguia dois motivos para o mesmo botão
+cinza. A regra do `CLAUDE.md` — **plante o defeito que a asserção NOMEIA** — pegou as duas, e é
+por isso que ela vale mais que a asserção.

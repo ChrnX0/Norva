@@ -1292,6 +1292,7 @@ export const en: Dictionary = {
         'No input has a pack and how much is inside yet. Complete the record so the invoice can become stock.',
       supplier: 'Supplier',
       supplierPlaceholder: 'who sold it',
+      roundsToNothing: 'Raise the amount: this comes to less than 1 {{unit}} and rounds away.',
       fromLastInvoice: 'From the last invoice. Change it if it changed.',
       orderedWhen: 'When you ordered',
       orderedWhenHint:

@@ -249,6 +249,19 @@ function PurchaseForm() {
   );
   const supplier = doFornecedor.valor;
   const quantity = daQuantidade.valor;
+  /**
+   * A quantidade digitada some no arredondamento — e a tela DIZ, em vez de só não fazer nada.
+   *
+   * O `draft` já devolve nulo nesse caso, então o botão não dispara: é a Lei 5, o erro
+   * IMPEDINDO. Mas impedir calado é o outro extremo — a pessoa digita `0,4`, toca, e nada
+   * acontece. Então a linha embaixo do campo diz o que fazer.
+   */
+  const someNoArredondamento = (() => {
+    if (!selected) return false;
+    const pacotes = num(quantity);
+    return Number.isFinite(pacotes) && pacotes > 0 && purchaseToBaseUnits(selected, pacotes) <= 0;
+  })();
+
   const sugeriuFornecedor = doFornecedor.ehSugestao;
   const sugeriuQuantidade = daQuantidade.ehSugestao;
 
@@ -280,6 +293,10 @@ function PurchaseForm() {
     // to nobody: two implementations that agree today and diverge the first
     // time one of them is corrected, with nothing to say which is right.
     const baseUnits = purchaseToBaseUnits(selected, packs);
+    // Pacote maior que zero não garante unidade-base maior que zero: `purchaseToBaseUnits`
+    // arredonda, e num item comprado na própria unidade-base `0,4` dá ZERO. Sem esta linha a
+    // nota entrava aqui e o servidor a recusava para sempre, travando a fila calada.
+    if (baseUnits <= 0) return null;
     const totalCents = fromDecimal(paid);
     // Guardado em centavos, e não recalculado na tela: o arredondamento acontece uma vez,
     // aqui, como em todo o resto deste aplicativo.
@@ -551,9 +568,11 @@ function PurchaseForm() {
                           baseUnits: formatQuantity(draft.baseUnits, locale),
                           unit: selected.baseUnit,
                         })
-                      : // A conversão só existe com a nota digitada; até lá o que a linha
-                        // tem a dizer é de onde veio o número que já está no campo.
-                        sugeriuQuantidade
+                      : someNoArredondamento
+                        ? fill(t.app.purchase.roundsToNothing, { unit: selected.baseUnit })
+                        : // A conversão só existe com a nota digitada; até lá o que a linha
+                          // tem a dizer é de onde veio o número que já está no campo.
+                          sugeriuQuantidade
                         ? t.app.purchase.fromLastInvoice
                         : undefined
                   }

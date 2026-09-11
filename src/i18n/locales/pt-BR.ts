@@ -1712,6 +1712,14 @@ export const ptBR = {
       supplier: 'Fornecedor',
       supplierPlaceholder: 'quem vendeu',
       /**
+       * A quantidade digitada some no arredondamento — e a linha diz o que FAZER.
+       *
+       * O botão já não dispara (o rascunho volta nulo), que é a Lei 5: o erro impede. Mas
+       * impedir calado é o outro extremo — a pessoa digita `0,4`, toca, e nada acontece.
+       * Verbo na frente, e o número por extenso: a casa não fala em "inválido".
+       */
+      roundsToNothing: 'Aumente a quantidade: isso dá menos de 1 {{unit}} e some no arredondamento.',
+      /**
        * De onde veio o que já está no campo — e ela existe porque sugerir calado é decidir.
        *
        * Curta de propósito: ela fica embaixo de um campo já preenchido, e a pessoa precisa
