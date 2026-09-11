@@ -938,6 +938,19 @@ das outras quatro segue o mesmo caminho. O `CollapsingHeader` é o único que n�
 `transform`, porque ali o espaço tem de sumir mesmo; aquele é o conserto de raiz do item
 35 (cabeçalho fora do fluxo).
 
+**E há uma evidência nova, de 11 de setembro, que não é do emulador.** A checagem `a loss
+is recorded with its reason` caiu DUAS vezes em execução de quatro fatias e passou sozinha
+nas duas — e a segunda vez sem eu rodar nada por cima, então disputa que eu mesmo causei
+está descartada. O que ela espera é `getByLabel('Quanto se perdeu')`, um campo que devia
+aparecer na hora, e ela estoura em 30 s.
+
+Isso é candidato ao mesmo fundo deste item — a tela custa caro para montar —, e a régua
+disponível é estreita: um navegador em quatro processos num hospedeiro de quatro núcleos é
+ambiente apertado, e nenhuma outra checagem cai. **Fica anotado como sinal, não como
+conclusão**, porque "foi instabilidade" não é causa raiz e este arquivo proíbe tratar como
+tal. A medida que decidiria é cronometrar a montagem daquela tela sozinha, com e sem
+movimento — e ela não foi feita.
+
 A terceira medida é a que resolve isso e é **decisão do dono**, porque muda o que se vê:
 hoje o ícone de cada linha de lista se mexe, e a proposta é manter o movimento onde ele é
 olhado (a cena do cabeçalho, a capa, os sinais que significam alguma coisa) e deixar o
