@@ -16,6 +16,8 @@ import { Alive } from '@/components/Alive';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
+import { GradeFiltro } from '@/components/ProductPicker';
+import { degraus, type Escolha } from '@/components/grade';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
 import { Field } from '@/components/Field';
@@ -25,6 +27,8 @@ import {
   lastSentBaseUnits,
   pickingFor,
   type PickLine,
+  listProducts,
+  labels as loadLabels,
   listPlaces,
   listOrders,
   ordersCoveredToday,
@@ -35,6 +39,7 @@ import {
   setOrderStatus,
   stockByPlace,
   type Place,
+  type Product,
   type PlaceStock,
   shipmentsOn,
   type Shipment,
@@ -96,7 +101,14 @@ export default function TransferScreen() {
   );
 }
 
-type Loaded = { places: Place[]; stock: PlaceStock[]; orders: Order[]; remessas: Shipment[] };
+type Loaded = {
+  places: Place[];
+  stock: PlaceStock[];
+  orders: Order[];
+  remessas: Shipment[];
+  products: Product[];
+  names: Record<string, string>;
+};
 
 /** O lote que sai primeiro: o mais velho que ainda existe na origem. */
 type Frente = { lotId: string; code: string; expiresOn: string | null; baseUnits: number } | null;
@@ -118,13 +130,18 @@ function Transfer() {
     // na fila esperando 200, e a confirmação avisava "faltarão 200" quando não
     // faltava nada. Alarme falso na tela que já é livro-razão.
     const hoje = dayWindow(nowIso(), locale.timeZone);
-    const [places, stock, orders, remessas] = await Promise.all([
+    const [places, stock, orders, remessas, products, names] = await Promise.all([
       listPlaces(empresaDaqui()),
       stockByPlace(empresaDaqui()),
       listOrders(empresaDaqui(), ['pending', 'open']),
       shipmentsOn(empresaDaqui(), hoje.from, hoje.to),
+      // A grade do que sai, para a tela poder filtrar por linha e tipo como a produção
+      // faz. `stockByPlace` devolve item, e a classificação mora no produto — juntar as
+      // duas aqui é mais barato que alargar uma consulta que quatro telas usam.
+      listProducts(empresaDaqui()),
+      loadLabels(empresaDaqui()),
     ]);
-    return { places, stock, orders, remessas };
+    return { places, stock, orders, remessas, products, names };
   });
 
   /**
@@ -198,12 +215,42 @@ function Transfer() {
   // é. Foi o que o compilador reclamou quando isto era `{ id: fabrica }`.
   const toId2 = devolucao ? nossa : (outra?.id ?? null);
   const to = toId2 ? { id: toId2 } : null;
+  /** Onde a pessoa está na grade — a mesma da produção. */
+  const [naGrade, setNaGrade] = useState<Escolha>({ lineId: null, typeId: null });
 
   const here = data?.stock.find((p) => p.locationId === from);
   // O provável na frente, deduzido do DESTINO: uma loja vende produto acabado, e
   // era açúcar que vinha escolhido por ser o primeiro em ordem alfabética. Quem
   // decide é `ordemDeCarga`, no domínio, onde o teste alcança.
-  const lines = ordemDeCarga(here?.lines ?? [], receivesCargo(outra?.kind ?? ''));
+  const todasAsLinhas = ordemDeCarga(here?.lines ?? [], receivesCargo(outra?.kind ?? ''));
+
+  /**
+   * A MESMA grade da produção, com o sinal trocado — o pedido de coerência do dono.
+   *
+   * *"A tela de transporte é [igual], a diferença é que na de produção entra e na de
+   * transporte sai da câmara fria."* Então o gesto até chegar no item é o mesmo: linha,
+   * depois tipo. O que muda é o que a lista final mostra (aqui, nome E quantidade, que é
+   * o que esta tela existe para dizer) e o sentido do movimento.
+   *
+   * A classificação vem do PRODUTO, não do item: `stockByPlace` devolve item, e um
+   * insumo — açúcar, palito — não tem linha nenhuma. Esses caem no caso "sem grade" que a
+   * peça já trata, e continuam na lista: quem carrega açúcar para a outra sala precisa
+   * achá-lo.
+   */
+  const gradeDoQueSai = (here?.lines ?? []).map((l) => {
+    const produto = data?.products.find((p) => p.itemId === l.itemId);
+    return {
+      id: l.itemId,
+      name: l.name,
+      lineId: produto?.lineId ?? null,
+      typeId: produto?.typeId ?? null,
+      flavorId: produto?.flavorId ?? null,
+    };
+  });
+  const cabemNaEscolha = new Set(
+    degraus(gradeDoQueSai, naGrade, (id) => data?.names[id] ?? id).restantes.map((p) => p.id),
+  );
+  const lines = todasAsLinhas.filter((l) => cabemNaEscolha.has(l.itemId));
   const line = lines.find((l) => l.itemId === itemId) ?? lines[0] ?? null;
 
   // Lei 1 e Lei 2 juntas: o palpite vem do que já aconteceu, não de um zero.
@@ -737,6 +784,15 @@ function Transfer() {
           icon={(c) => <GlyphBox size={26} color={c} weight={traco} />}
           title={words.pick}
         >
+          {/* Os degraus de cima da grade, iguais aos da produção. Somem sozinhos onde
+              não há o que escolher — uma linha só, ou só insumo na sala. */}
+          <GradeFiltro
+            produtos={gradeDoQueSai}
+            nome={(id) => data?.names[id] ?? id}
+            escolha={naGrade}
+            onEscolha={setNaGrade}
+          />
+
           {lines.length === 0 ? (
             <Text style={[type.body, { color: color.inkMuted }]}>
               {fill(words.nothingHere, { place: nameOf(from) })}
