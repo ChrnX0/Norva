@@ -782,6 +782,40 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     **Por que é decisão dele e não minha:** muda o que se constrói, e muda a ordem em que
     a fábrica aprende o produto. É o tipo de coisa que este arquivo manda perguntar.
 
+41. **Um produto de REVENDA pode ser cadastrado e nunca comprado.**
+    <!-- medida: ausente app/purchase.tsx :: resale -->
+    Achado em 11 de setembro, indo conferir a última peça da descrição do dono — o picolé
+    "Top", que a fábrica do pai dele compra pronto para revender. Ele mesmo tinha marcado
+    a dúvida: *"um detalhe seria o picolé top que é um produto que a gente revende. Aqui a
+    gente tem q pensar como fazer"*.
+
+    O rastro tem três passos e nenhum é opinião:
+
+    1. `app/products/new.tsx` cadastra `product` **ou** `resale` — o Top entra aqui, com
+       linha, tipo e variação;
+    2. `saveProduct` grava o item com **`purchaseToBase: null` chumbado**
+       (`src/data/repository.ts:3243`), para os dois casos igual;
+    3. `app/purchase.tsx` oferece **só** item com `purchaseToBase !== null`.
+
+    Então o Top fica na grade e não aparece na tela de compra. Sem nota, sem custo, sem
+    entrar em estoque. E não há caminho alternativo: `app/inputs/new.tsx` cadastra apenas
+    `input`, `packaging` e `store_supply` — revenda não passa por lá.
+
+    **Não é fronteira registrada**, e isso foi conferido antes de chamar de defeito: o
+    único comentário próximo fala de ordem de animação, e o tipo `Product` diz o
+    CONTRÁRIO — *"null for resale: a resale product has no recipe, only a purchase cost"*.
+    A intenção estava escrita e o caminho nunca existiu.
+
+    **O desenho que eu proponho usa o que já está lá**, e é por isso que ele cabe em pouco:
+    o produto de revenda **já declara a embalagem dele**. A compra não precisa reperguntar
+    quantas unidades vêm dentro — ela oferece o Top e conta nos degraus que ele tem, com a
+    mesma peça que a produção passou a usar hoje. Três engradados de 264 são 792 unidades, e
+    o custo por unidade cai da nota.
+
+    **O que espera o dono, e é pouco:** em que camada ele compra (engradado, caixa ou
+    unidade), e se o custo do Top é só a nota ou tem frete por fora — hoje o aplicativo soma
+    só a nota, o que está certo para insumo e pode estar errado para revenda.
+
 **Aberto do que esta caminhada achou:**
 
 22. ~~**Sair do editor com alteração pendente não avisa.**~~ — **fechada** com uma guarda em
