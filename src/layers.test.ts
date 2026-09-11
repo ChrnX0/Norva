@@ -308,6 +308,81 @@ test('a régua de rótulo pega a cicatriz e deixa o dicionário em paz', () => {
   assert.ok(!ROTULO_CRAVADO.test(semComentarioContandoLinhas('// era accessibilityLabel="Fechar" aqui')));
 });
 
+/**
+ * Quem converte pacote em unidade-base tem de RECUSAR zero — os dois, e o próximo.
+ *
+ * **Esta guarda existe porque a oficina achou um sobrevivente meu.** A tela da compra ganhou
+ * `if (baseUnits <= 0) return null;` em 11 de setembro, provado no navegador de verdade; o
+ * `npm run mutate` trocou a linha por `if (false)` e **a suíte inteira ficou verde**, porque
+ * `mutate` roda a suíte de unidade e a unidade não renderiza tela. A regra estava protegida
+ * por fora e desprotegida por dentro, que é a forma de conserto que envelhece sozinha.
+ *
+ * E ao escrevê-la o SEGUNDO chamador apareceu: `src/assistant/skills.ts` também converte, e
+ * também não recusava — ele guardava `packs <= 0`, que é o que a PESSOA disse, não o que o
+ * sistema calculou. Duas perguntas diferentes escondidas numa. O assistente montava o
+ * rascunho com "0,4 × unidade = 0 g" e a recusa vinha no `apply`, depois do toque.
+ *
+ * Por isso ela não é "a linha que eu escrevi existe": é a invariante do par. Uma tela nova
+ * que comece a converter entra na regra sem ninguém lembrar — e `purchaseToBaseUnits`
+ * arredonda, então pacote maior que zero **nunca** garante unidade-base maior que zero.
+ *
+ * O que acontece sem a recusa: a linha entra no razão do aparelho, o Postgres a recusa para
+ * sempre (`base_units > 0` e `movement_moved_something`) com `23514`, que `classeDaRecusa`
+ * trata como passageira de propósito — e a fila tenta de novo eternamente com tudo atrás
+ * preso, calado.
+ */
+test('quem converte pacote em unidade-base recusa o resultado zero', () => {
+  /**
+   * Por CHAMADA, e não por arquivo — e essa diferença é a régua inteira.
+   *
+   * A primeira versão perguntava "este arquivo compara a conversão contra zero em algum
+   * lugar?", e ela **não pegava o sobrevivente**: `app/purchase.tsx` converte duas vezes —
+   * uma para a dica embaixo do campo, outra para montar o lançamento —, então a comparação
+   * da dica satisfazia a régua enquanto a que IMPEDE era removida. Régua satisfeita pelo
+   * vizinho da linha errada é régua que aprova o defeito.
+   */
+  const COMPARA_COM_ZERO = /purchaseToBaseUnits\([^)]*\)\s*(<=|<|>|===|!==)\s*0/;
+  const semRecusa: string[] = [];
+  let chamadas = 0;
+
+  for (const dir of ['app', 'src']) {
+    for (const file of sourcesUnder(dir)) {
+      // `repository.ts` DEFINE a conversão; ele não é chamador dela.
+      if (file.endsWith(join('src', 'data', 'repository.ts'))) continue;
+      const fonte = semComentarioContandoLinhas(readFileSync(file, 'utf8'));
+
+      fonte.split('\n').forEach((linha, i) => {
+        if (!/purchaseToBaseUnits\s*\(/.test(linha)) return;
+        if (/^\s*(import|export)\b/.test(linha) || /^\s*purchaseToBaseUnits,\s*$/.test(linha)) return;
+        chamadas += 1;
+
+        // Comparada na hora: `purchaseToBaseUnits(...) <= 0`.
+        // `===` e `!==` contam: recusar zero com igualdade é tão válido quanto com `<=`, e
+        // uma régua que só aceita a forma que EU escrevi dá alarme falso em código correto —
+        // e alarme falso num guard é pior que guard ausente, porque ensina a ignorar a saída.
+        if (COMPARA_COM_ZERO.test(linha)) return;
+
+        // Ou guardada num nome, e o nome comparado em algum lugar do arquivo.
+        const nome = /(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*purchaseToBaseUnits\s*\(/.exec(linha)?.[1];
+        if (nome && new RegExp(`\\b${nome}\\b\\s*(<=|<|>|===|!==)\\s*0`).test(fonte)) return;
+
+        semRecusa.push(`${file}:${i + 1}`);
+      });
+    }
+  }
+
+  assert.ok(chamadas >= 3, `a busca achou ${chamadas} chamada(s) — ela não está olhando`);
+  assert.deepEqual(
+    semRecusa,
+    [],
+    `estas conversões de pacote em unidade-base não recusam zero: ${semRecusa.join(', ')}. ` +
+      '`purchaseToBaseUnits` arredonda, então "0,4" de um item comprado na própria unidade-base ' +
+      'é ZERO — e uma linha de zero unidade é recusada pelo servidor para sempre, com `23514` ' +
+      'classificado como passageiro: a fila tenta de novo eternamente e tudo o que vier atrás ' +
+      'fica preso, calado.',
+  );
+});
+
 test('no screen writes a sentence of its own', () => {
   const offenders: string[] = [];
 

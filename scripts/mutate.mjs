@@ -1210,6 +1210,16 @@ const DEFECTS = [
     hurts:
       'a tela volta a oferecer o botao de lancar para uma nota que nao move nada, e a linha embaixo do campo mostra a conversao "0 g" como se fosse resultado valido em vez de mandar aumentar a quantidade',
   },
+  // Esta sobreviveu à oficina na primeira execução, e é por isso que a guarda de FONTE
+  // existe: `mutate` roda a suíte de unidade, e a unidade não renderiza tela. A régua que
+  // a pega agora é `src/layers.test.ts`, por CHAMADA de `purchaseToBaseUnits`.
+  {
+    file: 'src/assistant/skills.ts',
+    from: '    if (baseUnits <= 0) {',
+    to: '    if (false) {',
+    hurts:
+      'o assistente volta a montar o rascunho de uma compra que nao move nada, mostrando "= 0 g" como confirmacao legitima, e a recusa passa a vir no apply - erro reclamando depois do toque em vez de impedindo antes',
+  },
 
   // O conserto da conferência duplicada abriu um caminho que PERDE DADO se a
   // classificação errar para o lado errado. As duas abaixo quebram os dois lados.

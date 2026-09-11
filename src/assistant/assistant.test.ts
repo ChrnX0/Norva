@@ -321,6 +321,36 @@ test('registering by talking produces a draft, never a write', async () => {
   });
 });
 
+/**
+ * A quantidade que some no arredondamento é recusada ANTES do rascunho.
+ *
+ * O assistente guardava `packs <= 0` — o que a PESSOA disse — e não o resultado da conversão,
+ * que é o que vai para o razão. `purchaseToBaseUnits` arredonda, então uma fração pequena de
+ * um balde de 10 kg é ZERO unidade-base.
+ *
+ * Antes disto ele montava o rascunho, mostrava "= 0 g" como se fosse confirmação legítima, e a
+ * recusa vinha no `apply` — erro RECLAMANDO depois do toque, quando a Lei 5 manda impedir
+ * antes. E antes da guarda da camada de dados (11 de setembro) nem reclamava: gravava a linha,
+ * o servidor a recusava para sempre com `23514`, e a fila travava calada.
+ *
+ * Os dois sentidos: a fração recusada sem rascunho, e a compra de verdade continuando a
+ * produzir rascunho — uma guarda escrita larga recusaria a nota legítima, que é o conserto que
+ * piora a tela.
+ */
+test('o assistente recusa a quantidade que some no arredondamento, antes de montar o rascunho', async () => {
+  recorded = [];
+  const some = await ask('comprei 0,000001 baldes de polpa de morango por 12', context('place_order'));
+
+  assert.equal(some.draft, undefined, 'não há rascunho para uma nota que não move nada');
+  assert.equal(recorded.length, 0, 'e nada foi gravado');
+  assert.match(some.text, /some no arredondamento/, 'ele diz o que aconteceu');
+  assert.match(some.text, /Diga uma quantidade maior/, 'e o que fazer — orienta, não fiscaliza');
+
+  // O outro sentido: a nota de verdade continua produzindo rascunho.
+  const boa = await ask('comprei 4 baldes de polpa de morango por 496', context('place_order'));
+  assert.ok(boa.draft, 'a compra legítima segue sendo aceita');
+});
+
 test('"nothing changed" is said plainly instead of dressed up as an alert', async () => {
   const quiet: AssistantData = { ...data, recentCostChanges: async () => [] };
   const answer = await ask('o que mudou de preço', { ...context('view_cost'), data: quiet });

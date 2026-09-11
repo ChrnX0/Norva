@@ -10340,3 +10340,165 @@ que pode desabilitar o botão é a quantidade.
 asserção não distinguia `??` de `||`; aqui ela não distinguia dois motivos para o mesmo botão
 cinza. A regra do `CLAUDE.md` — **plante o defeito que a asserção NOMEIA** — pegou as duas, e é
 por isso que ela vale mais que a asserção.
+
+---
+
+## 11 de setembro — o terceiro fato de uma corrente morava DENTRO da guarda que a protegia
+
+**O achado.** Três fatos ligam a `0051` à fila do aparelho, e a segurança de não travar a fila
+depende dos três:
+
+1. a migração escolhe `errcode = 'unique_violation'`;
+2. o Postgres traduz `unique_violation` em `23505`;
+3. o aparelho trata `23505` como recusa permanente.
+
+O **1** era medido — `src/sync/recusa.test.ts` lê o SQL e exige que cada código promovido
+apareça por nome numa migração nossa, com o docblock dizendo por que: *"duas coisas escritas
+pela mesma mão não guardam nada"*. O **3** era medido pelos testes do classificador. O **2**
+era esta linha, dentro do próprio teste:
+
+```ts
+const NOME_DO_CODIGO: Record<string, string> = { '23505': 'unique_violation' };
+```
+
+Uma constante escrita por mim, no arquivo que existe para guardar a corrente. A guarda evitou
+com cuidado a mão dupla no fato 1 e **a reintroduziu no fato 2**, uma linha acima.
+
+**Por que importa.** Se essa tradução estivesse errada, nada ficaria vermelho — e o efeito seria
+o defeito mais caro que este projeto conhece: a recusa CERTA voltaria classificada como
+passageira, a fila tentaria de novo para sempre, e tudo o que o aparelho gravasse depois ficaria
+preso atrás, calado. É exatamente o que a `0051` diz no topo dela que não pode acontecer.
+
+**E o instrumento que vê isso já existia e estava olhando para o outro lado.** A garantia 28 do
+`db:verify` **dispara este erro** contra um Postgres de verdade e joga o código no lixo
+(`2>&1 >/dev/null`), porque ela pergunta outra coisa: se a linha entrou. A resposta estava
+passando pela mesma linha de comando e sendo descartada.
+
+**O que mudou.** A garantia 32 dispara a recusa, lê `sqlstate` de **dentro** do Postgres (num
+bloco com `exception`, não da mensagem do `psql` — formato de texto de cliente muda de versão,
+`sqlstate` é o valor) e confere contra a lista lida do arquivo do aparelho. Duas mãos de
+verdade: o código vem do servidor, a lista vem do TypeScript, e nenhuma passou pela outra.
+
+### A mutação que isola o fato 2, e por que ela é a única que serve
+
+Duas tentativas minhas de provar a guarda **não provaram nada**, e as duas por serem pegas por
+outras réguas:
+
+| mutação | quem pegou |
+|---|---|
+| `23505` → `23999` na lista | a guarda de TypeScript (o novo código não tem migração que o nomeie) |
+| a lista VAZIA | os testes do classificador |
+
+A que isola o fato 2 tem de manter todo o resto **consistente**: trocar o `errcode` da migração
+para outro nome de condição REAL (`check_violation`) *e* acertar o mapa do teste para
+acompanhar — o cenário exato da constante escrita à mão. Resultado medido: **TypeScript 4/4
+verde**, e a garantia 32 reprovando com *"o servidor recusa com SQLSTATE 23514, e o aparelho só
+trata [23505] como permanente"*.
+
+É a forma geral da regra deste arquivo sobre plantar o defeito que a asserção NOMEIA: quando a
+corrente tem três elos e duas réguas, a mutação que mede a régua nova é a que deixa as outras
+duas satisfeitas. Qualquer outra mede as antigas.
+
+### E a régua nova tinha um defeito próprio, achado ao prová-la
+
+A extração da lista fazia uma pergunta só, e por isso confundia dois casos: **lista vazia** e
+**linha não encontrada** davam a mesma resposta vazia, e a mensagem saía *"não deu para ler"* —
+mandando consertar a régua quando o defeito era o conteúdo. Viraram duas perguntas: a linha
+existe, e o que tem nela.
+
+*Detector que não distingue os dois casos não entra* — a frase já estava escrita neste
+repositório, para o medidor de tinta das fotos. Ela se aplicou igual a um `sed` de nove
+caracteres.
+
+### As três afirmações que caíram com isto
+
+- **O topo da `0051`** dizia "NÃO PODE SER APLICADA SOZINHA" dois dias depois de a razão deixar
+  de valer, e é a primeira coisa que alguém lê antes de rodar. Metade do aviso caiu; a outra
+  metade fica e **não trava**: o segundo celular mantém no razão local uma conferência que o
+  servidor recusou, até o estorno do degrau 3 existir. A comparação é o que decide — sem a
+  migração o servidor aplica a correção DUAS vezes, o número autoritativo fica errado em
+  silêncio, e o razão é append-only, então o erro vira histórico.
+- **A medida do item no roadmap não podia ficar vermelha.** Ela procurava
+  `discrepancy_once_per_group`, nome que não existe em lugar nenhum do repositório — a função é
+  `one_standing_check_per_shipment`. Medida que procura o que nunca existiu prova a ausência de
+  graça, e continuaria provando no dia em que alguém construísse a coisa. É a mesma família do
+  `mesmaTelaEmTodas([])` que respondia "iguais" tendo lido nada: **guarda que não pode falhar.**
+- **O docblock de `pendingCount`** dizia que quem conta as recusadas é `rejectedEntries` — a
+  função que o portão P1 recusou por não ter chamador, escrita e apagada no mesmo commit. Quem
+  conta é `rejectedCount`, logo abaixo. Comentário que sobrevive à função que ele cita é a
+  versão pequena de tudo o que está escrito acima.
+
+---
+
+## 11 de setembro — a oficina achou um sobrevivente MEU, e a causa era a régua estar do lado de fora
+
+**O achado.** A guarda que a tela da compra ganhou horas antes — `if (baseUnits <= 0) return
+null;` — **atravessou a suíte inteira** no `npm run mutate`. Trocada por `if (false)`, nada
+reprovou.
+
+E eu tinha provado essa guarda. No navegador, de verdade, plantando o defeito: a checagem
+reprovou dizendo *"a tela diz o que fazer, em vez de só não reagir"*. A prova estava certa e
+estava **no lugar errado para quem mede**: `mutate` roda a suíte de unidade, e a unidade não
+renderiza tela.
+
+**Por que isso importa mais que o defeito.** Uma regra protegida só pelo navegador é uma regra
+que o `mutate` reporta como desprotegida para sempre — então ou o relatório mente, ou o
+conserto está pela metade. E a `e2e` não roda em todo push (por decisão de 5 de setembro, a
+pesada só vai para `main`), então na prática a regra ficaria semanas sem ninguém.
+
+**O que mudou.** `src/layers.test.ts` ganhou a invariante, e ela não é "a linha que eu escrevi
+existe": **toda CHAMADA de `purchaseToBaseUnits` tem de recusar o resultado zero.** É o padrão
+que este repositório já usa para regra de tela que a unidade não alcança — a mesma casa onde
+mora a régua da porcentagem montada à mão.
+
+### E ao escrevê-la o SEGUNDO chamador apareceu
+
+`src/assistant/skills.ts:376` também converte, e também não recusava: ele guardava `packs <= 0`
+— o que a **pessoa** disse — e não o resultado da conversão, que é o que vai para o razão. Duas
+perguntas diferentes escondidas numa.
+
+O efeito: o assistente montava o rascunho, mostrava *"0,4 × unidade = 0 g"* como confirmação
+legítima, e a recusa vinha no `apply` — erro RECLAMANDO depois do toque, quando a Lei 5 manda
+impedir antes. E antes da guarda da camada de dados, nem reclamava: gravava.
+
+*Uma varredura por "quem mais chama isto" custa dez segundos e este repositório já tem a regra
+escrita — "conserto de pele não termina no arquivo que o mostrou". Ela vale para aritmética
+igual.*
+
+### A régua por ARQUIVO aprovava o defeito; a régua por CHAMADA o pega
+
+A primeira versão perguntava *"este arquivo compara a conversão contra zero em algum lugar?"* —
+e **não pegava o sobrevivente.** `app/purchase.tsx` converte duas vezes: uma para a dica embaixo
+do campo, outra para montar o lançamento. A comparação da dica satisfazia a régua enquanto a que
+IMPEDE era removida.
+
+**Régua satisfeita pelo vizinho da linha errada é régua que aprova o defeito** — e ela é
+indistinguível de uma régua boa enquanto ninguém planta o defeito exato. Provada agora nas três
+direções: o sobrevivente pego pela linha (`app/purchase.tsx:295`), o assistente pego pela dele
+(`skills.ts:376`), e `=== 0` **não** virando alarme falso, porque régua que só aceita a forma
+que eu escrevi ensina a ignorar a saída.
+
+---
+
+## 11 de setembro — `e2e:fast` disputa consigo mesmo, e a vítima não é aleatória
+
+**O achado.** A mesma checagem — *"a listed stick leaves the storeroom when the run is
+recorded"* — reprovou em **duas** execuções da suíte inteira, com a máquina livre nas duas, e
+passou **isolada** nas duas vezes que eu a rodei sozinha.
+
+Pelo texto que este arquivo já tinha, isso era ambíguo: *"a régua não é a forma da falha, é a
+repetição isolada… passou sozinha, era disputa; falhou de novo, é código"*. Ela passou sozinha,
+então era disputa — mas "a mesma checagem duas vezes" me parecia sinal de defeito, e eu quase
+fui procurar um.
+
+**O que faltava na régua.** `e2e:fast` roda **quatro fatias em paralelo, numa máquina de quatro
+núcleos, por desenho** — ele existe justamente para isso (7 min → 2 min 40). Então ele disputa
+**consigo mesmo**, sempre, mesmo sem emulador e sem barra rodando junto. E disputa não é
+uniforme: a checagem mais pesada da fatia é a primeira a estourar o tempo.
+
+Daí a consequência: **"a mesma checagem falhou duas vezes" não é evidência de defeito sob
+`e2e:fast`** — é evidência de que ela é a maior da fatia dela. O que separa os dois casos
+continua sendo a repetição isolada, e só ela.
+
+*O que isso NÃO autoriza: chamar de disputa sem medir. As duas execuções isoladas custaram três
+minutos cada e são a diferença entre saber e achar.*

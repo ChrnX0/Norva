@@ -374,6 +374,26 @@ const registerPurchase: Skill = {
     // assistant answers a different number than the screen for the same
     // invoice - which is exactly the credibility this product cannot spend.
     const baseUnits = purchaseToBaseUnits(item, packs);
+    /**
+     * A conversão pode virar ZERO com pacote maior que zero, e aí não há nota.
+     *
+     * `purchaseToBaseUnits` arredonda, então num item comprado na própria unidade-base
+     * "0,4 saco" é 0. A checagem uma linha acima olha o que a PESSOA disse (`packs`), não o
+     * que o sistema calculou — e eram duas perguntas diferentes escondidas numa.
+     *
+     * Sem isto o assistente montava o rascunho, mostrava "0,4 × unidade = 0 g" como se fosse
+     * confirmação legítima, e `recordPurchase` recusava no `apply` — erro RECLAMANDO depois
+     * do toque, quando a Lei 5 manda impedir antes. A tela da compra faz o mesmo: o botão
+     * não dispara e a linha embaixo do campo diz o que fazer.
+     */
+    if (baseUnits <= 0) {
+      return {
+        text:
+          `${formatQuantity(packs, ctx.locale)} ${item.purchaseUnit ?? 'unidade'} de ` +
+          `${item.name} dá menos de 1 ${item.baseUnit} e some no arredondamento. ` +
+          'Diga uma quantidade maior.',
+      };
+    }
     const totalCents = fromDecimal(paid);
 
     return {
