@@ -9686,3 +9686,56 @@ o defeito plantado à mão ela reprova, com a árvore limpa ela passa.
 aconteceu, `grep` pelo teste que o prende. Se não houver, o conserto está apoiado em quem
 leu o parágrafo — e parágrafo não roda na CI. A busca é de dez segundos e o que ela acha é
 sempre o mesmo tipo de coisa: a regra mais bem explicada do arquivo, sem ninguém atrás.
+
+## 11 de setembro — a garantia do nível NOVO auditou a promessa VELHA, e ela era falsa há três semanas
+
+**O que apareceu:** escrevendo a garantia 30 do `db:verify` para provar a decisão do dono
+de que *"o produto nao necessariamente requeira todas as subclasses"*, a primeira inserção
+de um produto com PRODUTO preenchido e TIPO vazio devolveu:
+
+```
+ERROR:  insert or update on table "products" violates foreign key constraint
+        "product_type_belongs_to_its_line"
+DETAIL: MATCH FULL does not allow mixing of null and nonnull key values.
+```
+
+A `0018` afirma, **no mesmo arquivo que cria essa restrição**:
+
+> *"Os três níveis são OPCIONAIS, e isso é a fundação do 'depende vira dado': uma fábrica
+> que faz um doce só não deve ser obrigada a inventar uma linha e um tipo para cadastrá-lo.
+> **Quem tem um nível só preenche um nível só.**"*
+
+E `match full` torna isso impossível: ele exige o par inteiro ou inteiramente nulo, então
+`(linha = X, tipo = nulo)` — que é literalmente "um nível só" — é recusado pelo banco.
+
+**O arquivo se contradiz, em prosa e em SQL, e ninguém viu por três semanas.**
+
+**Por que ninguém viu, e é a parte que transfere:** nenhum teste jamais inseriu um produto
+classificado só pelo nível de cima. Não por descuido — por **falta de motivo**. Quem
+escreve teste de produto cadastra um produto completo, porque é o caso que a tela produz.
+A combinação que quebrava era a que ninguém tinha razão para tentar.
+
+Foi preciso um NÍVEL NOVO para alguém ter motivo. A garantia 30 existe para provar que a
+categoria é opcional, e para isso ela precisa inserir combinações incompletas de propósito
+— e ao fazer isso auditou de graça uma promessa de três semanas atrás.
+
+**A lição, então, não é sobre `match full`:** é que **a prova de uma capacidade nova é a
+auditoria mais barata das promessas antigas**, porque ela exercita combinações que o
+código existente nunca teve razão para produzir. Uma suíte madura testa o que o produto
+faz; ela não testa o que o produto *permite*. A diferença só aparece quando alguém amplia
+o que é permitido.
+
+E o raciocínio da `0018` estava **meio certo**, o que é o que o tornou invisível. Ela queria
+impedir `(linha = nulo, tipo = Y)` — um tipo pendurado em nada, que `match simple` deixaria
+passar. Isso é um perigo real. O que ela não viu é que `match full` paga esse preço
+proibindo junto o caso comum. Erro de meia-verdade não parece erro: parece rigor.
+
+**O que mudou por causa disso:** a `0058` separa as duas regras, cada uma com a ferramenta
+certa — a CHAVE (em `match simple`) prova que o par existe quando os dois estão
+preenchidos, que é a única hora em que há o que provar; o CHECK diz a direção, "nível de
+baixo exige o de cima, nunca o contrário". E a garantia 30 fica cobrando as duas.
+
+**A pergunta que fica:** ao construir um nível, um campo ou um estado NOVO, escreva a prova
+dele com as combinações INCOMPLETAS de propósito — e quando uma falhar, leia se o que
+falhou é a coisa nova ou uma promessa velha que ninguém tinha exercitado. Aqui foi a
+segunda, e ela custava a fundação inteira do "depende vira dado".
