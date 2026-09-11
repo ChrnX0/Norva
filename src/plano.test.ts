@@ -280,3 +280,61 @@ test('toda linha da tabela A ORDEM carrega uma medida', () => {
       'Foi uma delas que disse TRAVADO por um dia inteiro com a migração 0035 já no disco.',
   );
 });
+
+test('nenhum item do plano aparece DUAS vezes na mesma seção', () => {
+  /**
+   * **A cicatriz é de 11 de setembro e ela é a irmã exata da que abre este arquivo.**
+   *
+   * A fila tinha os itens 29, 30 e 31 **duas vezes** dentro da mesma seção: as versões
+   * fechadas escritas por cima, e o bloco antigo intacto quarenta linhas abaixo. As cópias
+   * de 30 e 31 eram byte-a-byte idênticas — inócuas e confusas. A de 29 era o texto ORIGINAL
+   * e estava **aberta**, num item que o código tinha fechado no dia anterior: as cinco
+   * chaves mortas que ela nomeia não existem mais, e `folhasSemLeitor` já compara caminho
+   * com caminho.
+   *
+   * Isso é pior que documentação velha, e é por isso que vale uma guarda em vez de atenção:
+   * a fila é **a entrada de um laço automático** ("nunca ocioso: pegue a próxima da lista"),
+   * então um item fantasma aberto manda reconstruir o que existe — que é a doença que este
+   * arquivo inteiro existe para curar, e ela voltou por um caminho que nenhuma das guardas
+   * de medida alcançava. O marcador de medida do item fechado estava certo; o fantasma
+   * simplesmente não tinha marcador nenhum, e a guarda de "todo item carrega uma medida"
+   * não pergunta se o NÚMERO já foi usado.
+   */
+  const secoes = new Map<string, Map<string, number[]>>();
+  let secao = '(antes da primeira seção)';
+  PLANO.split('\n').forEach((linha, i) => {
+    if (/^#{2,4} /.test(linha)) {
+      secao = `${i + 1}: ${linha.trim()}`;
+      return;
+    }
+    const item = /^(\d+)\.\s/.exec(linha);
+    if (!item) return;
+    if (!secoes.has(secao)) secoes.set(secao, new Map());
+    const daSecao = secoes.get(secao)!;
+    daSecao.set(item[1], [...(daSecao.get(item[1]) ?? []), i + 1]);
+  });
+
+  const repetidos: string[] = [];
+  for (const [nome, itens] of secoes) {
+    for (const [numero, linhas] of itens) {
+      if (linhas.length > 1) {
+        repetidos.push(`"${nome}" tem o item ${numero} nas linhas ${linhas.join(' e ')}`);
+      }
+    }
+  }
+  assert.deepEqual(
+    repetidos,
+    [],
+    `o docs/roadmap.md repete item na mesma seção:\n  ${repetidos.join('\n  ')}\n` +
+      'Duas entradas com o mesmo número são duas verdades sobre a mesma coisa, e a fila é a ' +
+      'entrada de um laço automático: a cópia velha manda reconstruir o que já existe. ' +
+      'Apague a antiga — a regra 1 do plano diz que item fechado sai no mesmo commit.',
+  );
+
+  // A régua se confere: sem isto, um arquivo que ela não soubesse ler passaria vazio.
+  const totalDeItens = [...secoes.values()].reduce(
+    (soma, itens) => soma + [...itens.values()].reduce((s, l) => s + l.length, 0),
+    0,
+  );
+  assert.ok(totalDeItens > 30, `a leitura achou só ${totalDeItens} itens no plano — ela não está lendo`);
+});

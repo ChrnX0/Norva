@@ -10000,3 +10000,38 @@ hoje com a imagem ATD, achada ontem e sem consequência no padrão do script.
 quebrado no que eu estou medindo?" — é **"o meu instrumento mede isto aqui?"**. Três sintomas
 sem dono e uma tabela de três condições custaram menos que uma hipótese nova, porque a
 pergunta certa era sobre a régua.
+
+---
+
+## A fila tinha um item FANTASMA, aberto, de uma coisa já feita — 11 de setembro
+
+Peguei a próxima da lista, item 29 (*"a guarda de chaves do dicionário casa pelo NOME da
+folha"*), e fui medir a afirmação dele contra o código antes de construir. Ela estava
+**fechada desde o dia anterior**: `folhasSemLeitor` compara caminho com caminho, e as cinco
+chaves mortas que o item nomeia não existem mais — conferido perguntando ao dicionário pelos
+cinco caminhos exatos, e os cinco responderam `NAO EXISTE`.
+
+O item estava na lista **duas vezes**: a versão fechada, escrita por cima, e o texto original
+quarenta linhas abaixo, aberto. E não era só ele — 29, 30 e 31 apareciam em dobro na mesma
+seção, as duas cópias de 30 e 31 byte-a-byte idênticas.
+
+**Por que isto é pior que documentação velha:** a fila é a **entrada de um laço automático** —
+*"nunca ocioso: pegue a próxima da lista escrita"*. Um item fantasma aberto não confunde um
+leitor humano, que vê a versão fechada logo acima; ele manda **reconstruir o que existe**, que
+é exatamente a doença de sete rodadas que `src/plano.test.ts` inteiro existe para curar. E ela
+voltou por um caminho que nenhuma guarda de medida alcançava: o marcador do item fechado
+estava certo, e o fantasma simplesmente **não tinha marcador** — a guarda de "todo item
+carrega uma medida" não pergunta se o NÚMERO já foi usado.
+
+**O que mudou:** as cópias saíram, e `plano.test.ts` ganhou a guarda que recusa item repetido
+por seção, provada nos dois sentidos (com o fantasma devolvido, ela fica vermelha).
+
+**E uma segunda coisa saiu da mesma leitura:** o item 10 esperava *"a foto"* para decidir se a
+última linha de Mais é corte ou rolagem. Prova de imagem não existe neste container, então ele
+esperava para sempre. O instrumento que responde é a árvore, que traz `bounds` de cada nó —
+dois comandos e nenhum pixel. O item passou a dizer isso.
+
+**A pergunta que fica:** guarda que confere o CONTEÚDO de cada item não pergunta se a LISTA é
+bem-formada. Duas entradas com o mesmo número, uma seção sem título, um item fora de ordem —
+nada disso é conteúdo errado, e tudo isso muda o que o laço lê. Antes de confiar numa lista
+como entrada de automação, guarde a forma dela, não só o que ela afirma.

@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **754** testes |
+| `npm test` | **755** testes |
 | `npm run mutate` | **130** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **58** checagens num navegador de verdade |
 | `npm run db:verify` | **31** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **16** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -259,7 +259,15 @@ por peso, e o que já foi fechado:**
     já paga. Ou seja: a folga existe e é generosa. Então ou o corte é da ENTRADA (`Reveal
     index={3}` desloca o último cartão enquanto anima) ou o item viu a lista simplesmente
     mais alta que a tela, que é rolagem e não defeito. **Não se reconstrói o que já
-    existe** — este fica esperando a foto para dizer qual dos dois é.
+    existe.**
+
+    **E ele deixou de esperar a FOTO — 11 de setembro.** Prova de imagem não existe neste
+    container (o `aosp_atd` monta e nunca rasteriza; a medida está no `CLAUDE.md`), então um
+    item que espera foto espera para sempre. O instrumento que responde isto é a **árvore**,
+    que traz `bounds` de cada nó: abrir `norva://more`, ler a árvore e comparar o `bounds`
+    da última linha com a altura de `wm size`. Se ela termina acima da barra, o item é
+    rolagem; se ultrapassa, é corte. Uma medida, dois comandos — e nenhuma delas precisa de
+    pixel.
 11. **`expo-updates` perguntava DUAS vezes por abertura** — metade fechada, metade é
     decisão do dono. O item dizia *"a cada ~70 s"*, e medir a afirmação contra o código
     corrigiu isso: não há temporizador. O `app.json` trazia `checkAutomatically: "ON_LOAD"`,
@@ -558,47 +566,6 @@ virar afirmação. **Seis fechados no mesmo dia:**
     passa `t.stepper` inteiro há tempo. O parágrafo do `CLAUDE.md` que dá o `UnitStepper`
     como componente sem uso envelheceu, e foi corrigido no mesmo commit. Duas guardas se
     conferindo é o que este arquivo pede.
-
-30. ~~**A mesma tela chamava um picolé de "almoxarifado"**~~ — **fechado.** A página de
-    estoque de um item serve o que se compra e o que se vende com o mesmo desenho, e a
-    sobrancelha dizia sempre a primeira: um produto aparecia sob a palavra que neste
-    aplicativo tem três abas, e nenhuma delas é produto. Quarta aparição do defeito do item
-    12. Passa a decidir pela ESPÉCIE (`product`/`resale` contra os três do almoxarifado), e
-    não por ter ficha — revenda também se vende e não tem ficha.
-
-31. ~~**"média das compras" no custo de um picolé**~~ — **fechado**, e é a regra
-    *"conserto de pele não termina no arquivo que o mostrou"* aplicada a texto. A mesma
-    distinção já existia DUAS LINHAS ABAIXO, com a cicatriz escrita: o ramo "sem custo
-    ainda" aprendeu em 9 de setembro a não mandar procurar nota fiscal de um picolé, e o
-    ramo irmão — o que TEM custo — continuou dizendo que a média era das compras. Quem a
-    fábrica faz não tem compra: agora diz "média das produções".
-
-29. **A guarda de chaves do dicionário casa pelo NOME da folha, em qualquer objeto** — e
-    foi ela que escondeu o item 28. `folhasSemLeitor` (`src/dictionary.test.ts:464`)
-    pergunta se `\.<folha>\b` aparece em algum lugar do código. Para `signals.missing`
-    isso casa com `d.missing` e `e.missing`, que são propriedades de objetos de domínio
-    sem relação nenhuma com dicionário — então a chave passa por lida.
-
-    Provado nos dois sentidos: `signals.checked` aparece no código como
-    `t.signals.checked` (`app/(tabs)/transport.tsx:240`) e é lida de verdade;
-    `signals.missing` não aparece com o pai em lugar nenhum.
-
-    **Pelo menos cinco chaves mortas passam hoje**, cada uma conferida na mão:
-    `signals.missing`, `common.why`, `common.confirm`, `common.ask` e `app.home.running`
-    — as três de `common` porque `.why`, `.confirm` e `.ask` existem sob OUTROS pais
-    (`t.app.recipe.why`, `t.app.assistant.why`, `t.app.lotLabel.why`).
-
-    **E o número maior ainda não existe, de propósito.** Uma régua estrita que exige o pai
-    antes da folha acusou 610 de 1.386 — e ela está errada, porque não modela nem o objeto
-    de plural (`plural(n, t.app.home.orderCount)` nunca escreve `.one`) nem a leitura por
-    índice, que a guarda atual já trata. Dizer 610 seria repetir a cicatriz do detector que
-    não passa no caso falso. O conserto é a régua saber a forma da leitura; o número sai
-    depois dela, não antes.
-
-    E o docblock do arquivo promete que este buraco foi fechado em 9 de setembro (*"as 44
-    viraram 39 de verdade"*) — fechou o buraco do índice dinâmico, não o da colisão de
-    nome. Fronteira dita em voz alta continua sendo fronteira: ou fecha, ou a promessa se
-    corrige.
 
 ### A.3 — 10 de setembro, tarde: a caminhada FECHOU
 <!-- medida: presente app/inputs/[id].tsx :: recordCount -->
