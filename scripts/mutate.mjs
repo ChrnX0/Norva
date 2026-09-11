@@ -1154,6 +1154,42 @@ const DEFECTS = [
     hurts:
       'o assistente volta a preparar contagem de item que esta em duas salas comparando com o total da empresa, e a gravar a diferenca no almoxarifado - a mesma teleportacao que a tela tinha, agora por voz',
   },
+  // --- a regra aprovada dos niveis, 11 de setembro -----------------------------
+  //
+  // O dono aprovou o que cada nivel MUDA: categoria muda a receita, tipo muda
+  // tamanho, variacao muda o sabor. Com Leite virando CATEGORIA, "morango so no
+  // leite" passou a depender de `flavors.category_id` (`0059`). As quatro abaixo
+  // quebram as quatro regras que a aprovacao criou.
+  {
+    file: 'src/data/repository.ts',
+    from: "        AND (category_id IS NULL OR ? IS NULL OR category_id = ?)",
+    to: "        AND (category_id = ? OR ? IS NULL)",
+    hurts:
+      'a sobreposicao de alcance deixa de ser sobreposicao: morango do produto inteiro para de colidir com o morango que ja vale numa categoria dele, e a tela de produto lista Morango duas vezes - o "confunde na hora de registrar" que o dono mandou travar',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: "        AND COALESCE(p.category_id, '') = COALESCE(?, '')",
+    to: "        AND COALESCE(p.category_id, '') = COALESCE(p.category_id, ?)",
+    hurts:
+      'a grade ocupada volta a ter tres colunas contra as quatro do indice: dois produtos que diferem SO na categoria sao recusados por "classificacao ocupada", e o picole de leite e o de agua nao cabem juntos - frase certa sobre fato falso',
+  },
+  {
+    file: 'src/components/grade.ts',
+    from: '  return [categoria, tipo]',
+    to: '  return [tipo, categoria]',
+    hurts:
+      'a etiqueta impressa passa a dizer "60 ml Leite" em vez de "Leite 60 ml": sai gramaticalmente aceitavel e semanticamente invertido, e ninguem nota olhando uma etiqueta',
+  },
+
+  // --- o caminho de trás, 11 de setembro ---------------------------------------
+  {
+    file: 'src/intencao.ts',
+    from: '  if (entao > hoje) return false;',
+    to: '  if (entao > hoje) return true;',
+    hurts:
+      'relogio do aparelho andando para tras - fuso trocado, hora corrigida na mao, aparelho sem bateria - apaga a frase que a pessoa acabou de escrever, e ela perde o caminho por um defeito que nao e dela',
+  },
 ];
 
 /**
