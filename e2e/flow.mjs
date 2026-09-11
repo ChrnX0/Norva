@@ -387,6 +387,72 @@ check('a new sheet can use an existing sheet as an ingredient', async (page) => 
   assert.match(comCalda, /Base de creme.*sub-receita/s, 'a calda entrou como sub-receita');
 });
 
+check('a long screen can be scrolled to its end, and the header comes back', async (page) => {
+  // **A suíte nunca rolou.** Zero ocorrências de `scroll` em 54 checagens, numa suíte que se
+  // chama "o app dirigido como uma pessoa dirige" — e rolar é o gesto mais comum que existe
+  // num telefone. Foi por isso que o defeito que o dono achou no tablet dele em 11 de
+  // setembro não tinha como aparecer aqui.
+  //
+  // **A fronteira, escrita antes que alguém confie demais nisto:** esta checagem NÃO guarda
+  // o tremor do item 35. Aquele laço depende de o dedo ser rastreado DENTRO da lista, e um
+  // navegador rola por roda e por barra — mecanismo diferente. Quem guarda o tremor é a
+  // régua geométrica (`src/components/cabecalho.test.ts`), que é matemática e roda em
+  // qualquer lugar. O que ESTA cobra é outra coisa, e ninguém cobrava: que o fim da tela
+  // seja alcançável, e que o cabeçalho volte quando se sobe.
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const titulo = page.getByText('Ajustes', { exact: true }).first();
+  await titulo.waitFor({ timeout: 10_000 });
+
+  // **A roda precisa estar EM CIMA da lista.** `page.mouse.wheel` despacha na posição
+  // atual do ponteiro, que começa em (0,0) — fora da área rolável. A primeira versão desta
+  // checagem rolou 7.200 px e o fim da tela continuou em y=5195: nada tinha rolado, e a
+  // asserção de então (`isVisible`) respondia "sim" mesmo assim. Duas cegueiras somadas
+  // davam uma checagem verde que não tocava no assunto.
+  const janela = page.viewportSize();
+  await page.mouse.move(janela.width / 2, janela.height / 2);
+
+  // Em passos, como um dedo: um salto único não dispara os mesmos eventos de rolagem e
+  // mediria uma coisa que ninguém faz.
+  for (let i = 0; i < 12; i += 1) {
+    await page.mouse.wheel(0, 600);
+    await page.waitForTimeout(120);
+  }
+
+  // O último bloco da tela tem de estar ALCANÇÁVEL — e alcançável é estar DENTRO da
+  // janela, não existir no DOM.
+  //
+  // A primeira versão desta linha usava `isVisible()`, e ela passou com o fim da tela a
+  // **y = 5195 numa janela de 915**: no Playwright, "visível" quer dizer que o elemento
+  // tem caixa e não está oculto — não que dê para vê-lo. A checagem passava antes mesmo
+  // de rolar, o que a tornava uma guarda que não pode falhar, que é o defeito que este
+  // repositório proíbe em toda parte. Quem decide aqui é a caixa contra a altura da
+  // janela.
+  const fim = page.getByText('Voltar', { exact: true }).last();
+  await fim.waitFor({ timeout: 15_000 });
+  const caixa = await fim.boundingBox();
+  assert.ok(caixa, 'o fim da tela existe');
+  assert.ok(
+    caixa.y >= 0 && caixa.y + caixa.height <= janela.height,
+    `o fim da tela é alcançável rolando — ele parou em y=${Math.round(caixa.y)} ` +
+      `numa janela de ${janela.height}`,
+  );
+
+  // E subir devolve o cabeçalho. Ele encolhe na descida de propósito; sumir para sempre
+  // seria a tela perder o nome dela.
+  for (let i = 0; i < 14; i += 1) {
+    await page.mouse.wheel(0, -600);
+    await page.waitForTimeout(120);
+  }
+  await page.waitForTimeout(800);
+  const doTitulo = await titulo.boundingBox();
+  assert.ok(
+    doTitulo && doTitulo.y >= 0 && doTitulo.y < janela.height,
+    'o cabeçalho volta para a janela quando se sobe',
+  );
+});
+
 check('the five tabs are there, and the old addresses still answer', async (page) => {
   // The screens moved into `app/(tabs)/`, a group whose name is in parentheses
   // and therefore NOT in the URL. This check is what proves that: twenty-six

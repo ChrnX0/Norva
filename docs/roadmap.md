@@ -51,7 +51,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 |---|---|
 | `npm test` | **700** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
-| `npm run e2e:fast` | **54** checagens num navegador de verdade |
+| `npm run e2e:fast` | **55** checagens num navegador de verdade |
 | `npm run db:verify` | **29** garantias contra um Postgres descartável, sob RLS |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
@@ -665,8 +665,9 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     é a conta, a guarda e a condição que o dono confirmou (toda tela que rola, nenhuma que
     cabe). Quem fecha é o tablet dele.
 
-36. **A suíte do navegador nunca ROLA a tela** — zero ocorrências de `scroll` nas 53
-    checagens de `e2e/flow.mjs`. <!-- medida: ausente e2e :: mouse.wheel -->
+36. ~~**A suíte do navegador nunca ROLA a tela**~~ — **fechado em 11 de setembro, e as duas
+    tentativas erradas antes dele valem mais que a checagem.**
+    <!-- medida: presente e2e :: mouse.wheel -->
     Achado em 10 de setembro, ao perguntar por que 53 checagens de navegador não pegaram
     o tremor que o dono achou em dois minutos de tablet. A resposta não é cobertura: é
     que **o gesto não existe ali**. A suíte se chama *"o app dirigido como uma pessoa
@@ -684,9 +685,27 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     "iguais" para lista vazia. Quem guarda o 35 é a régua geométrica
     (`src/components/cabecalho.test.ts`), que é matemática e roda em qualquer lugar.
 
-    O que a rolagem no navegador vale a pena cobrar é outra coisa, e é bastante: conteúdo
-    que some ao rolar, cabeçalho que não volta ao subir, lista que não chega ao fim,
-    rodapé coberto pela barra de abas. Nada disso tem guarda hoje.
+    O que entrou cobra duas coisas que ninguém cobrava: que o fim de uma tela longa seja
+    ALCANÇÁVEL rolando, e que o cabeçalho volte quando se sobe.
+
+    **E ela nasceu verde pelo motivo errado, duas vezes.** Vale registrar porque as duas são
+    armadilhas de quem for escrever a próxima:
+
+    1. `page.mouse.wheel` despacha na posição do ponteiro, que começa em **(0,0)** — fora da
+       área rolável. A checagem rolava 7.200 px e nada se movia. Conserto: `mouse.move` para
+       o meio da janela antes.
+    2. `isVisible()` do Playwright quer dizer *"tem caixa e não está oculto"*, e **não**
+       *"está na janela"*. O fim da tela respondia visível a **y = 5195 numa janela de 915** —
+       a asserção passava antes mesmo de rolar.
+
+    Somadas, davam uma checagem verde que não tocava no assunto: uma guarda que não pode
+    falhar, que é o defeito que este arquivo proíbe em toda parte. Hoje quem decide é a caixa
+    contra a altura da janela, e ela foi provada plantando a quebra — com o último bloco
+    comprimido, reprova dizendo `y=895 numa janela de 915`.
+
+    **A fronteira continua de pé:** isto NÃO guarda o tremor do item 35 — aquele laço depende
+    de o dedo ser rastreado dentro da lista, e a roda do navegador é outro mecanismo. O que
+    falta de rolagem ainda: rodapé coberto pela barra de abas, e conteúdo que some ao rolar.
 
 37. ~~**A produção só contava em unidade solta**~~ — **fechado em 11 de setembro, e pela
     QUARTA vez o padrão foi o mesmo: a peça existia e a tela não a chamava.**
