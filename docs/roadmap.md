@@ -944,12 +944,31 @@ nas duas — e a segunda vez sem eu rodar nada por cima, então disputa que eu m
 está descartada. O que ela espera é `getByLabel('Quanto se perdeu')`, um campo que devia
 aparecer na hora, e ela estoura em 30 s.
 
-Isso é candidato ao mesmo fundo deste item — a tela custa caro para montar —, e a régua
-disponível é estreita: um navegador em quatro processos num hospedeiro de quatro núcleos é
-ambiente apertado, e nenhuma outra checagem cai. **Fica anotado como sinal, não como
-conclusão**, porque "foi instabilidade" não é causa raiz e este arquivo proíbe tratar como
-tal. A medida que decidiria é cronometrar a montagem daquela tela sozinha, com e sem
-movimento — e ela não foi feita.
+**E a medida foi feita, na mesma noite.** Quatro voltas por linha, máquina livre, navegador
+sozinho, comparando movimento normal com `prefers-reduced-motion: reduce`:
+
+| | abrir a lista | **abrir a ficha** | abrir a folha |
+|---|---|---|---|
+| movimento normal | 2565 ms | **1574 ms** | 99 ms |
+| movimento reduzido | 2514 ms | **158 ms** | 81 ms |
+
+**Abrir a ficha do insumo custa dez vezes mais com movimento ligado** — 1,4 segundo de
+diferença, e ele não está na folha (99 contra 81 ms) nem na lista (2,5 s nas duas, porque
+ali manda o SQLite em WebAssembly subir).
+
+**E a leitura honesta disso não é "defeito": é orçamento.** Os 1,4 s são a cascata de
+entrada do `Reveal` — oito cartões vezes o escalonamento —, e ela é pedido escrito do dono:
+*"quero em todas as telas"*. O que este item sempre disse é que ninguém MEDE o que ela
+custa, e agora há número: **cada abertura de tela paga 1,4 s de coreografia antes de a
+pessoa poder tocar.** Numa fábrica isso é a diferença entre anotar a perda e desistir.
+
+O que essa medida NÃO prova: que foi ela que derrubou a checagem em quatro fatias. 1,4 s
+está longe dos 30 s do tempo limite, e o que aconteceu lá foi disputa por cima disso. O que
+ela prova é o custo por abertura, que era a pergunta em aberto deste item.
+
+*A primeira versão desta régua apontou para `/losses` e devolveu -1 quatro vezes — o campo
+não está lá, ele abre na ficha do insumo. Ela falhou no caso que eu sabia que funcionava, e
+foi só por isso que não virou número publicado.*
 
 A terceira medida é a que resolve isso e é **decisão do dono**, porque muda o que se vê:
 hoje o ícone de cada linha de lista se mexe, e a proposta é manter o movimento onde ele é
