@@ -6699,11 +6699,48 @@ test('a count at our own store books what left the shelf as a SALE, at the agree
     linha.unit_price_rate !== null && Math.abs(linha.unit_price_rate - 220) < 1e-9,
     `o preço fica congelado na linha: ${linha.unit_price_rate}`,
   );
-  // O custo congelado continua ali, e é o que faz a margem ser uma subtração dentro
-  // de uma linha em vez de uma junção com uma tabela que pode ser renegociada amanhã.
+  /**
+   * O custo congelado continua ali, e é o que faz a margem ser uma subtração dentro
+   * de uma linha em vez de uma junção com uma tabela que pode ser renegociada amanhã.
+   *
+   * **E a régua é IGUALDADE contra outra fonte, não `> 0` — cicatriz de 11 de setembro.**
+   * Estava `unit_cost_rate > 0` com esta mensagem ao lado, e a mensagem afirma uma regra
+   * específica que qualquer número positivo satisfaz. O valor errado que passava tem nome:
+   * a taxa da POLPA por grama, uns 0,0124 — ler a média do item errado. Com ela na linha, a
+   * margem das 340 unidades sai R$ 743,78 em vez de uns R$ 476,67, e o `notEqual` logo
+   * abaixo também passa, porque 0,0124 x 340 arredonda para 4, que não é 74.800.
+   *
+   * A segunda fonte é `custoDe`, que lê `item_costs` — outro caminho, escrito por
+   * `recomputeItemCost`. Ela é o mesmo par que provou os R$ 323,84 do extrato.
+   */
+  assert.ok(linha.unit_cost_rate !== null, 'o custo está na linha da venda');
+  /**
+   * A segunda fonte é a linha da PRODUÇÃO, e a escolha dela é o ponto.
+   *
+   * `custoDe` leria `item_costs` — a mesma tabela que `recordCount` consulta para congelar o
+   * custo. Pegaria o caso do item errado e nada além disso: é a "segunda fonte que deriva da
+   * primeira" contra a qual este projeto já tem regra escrita.
+   *
+   * A linha de `production` é outra linha, escrita por outra função, de outro cálculo —
+   * `consumedValue / unitsProduced + unitPackagingRate`, dentro de `recordProduction`. E a
+   * regra que se quer provar é exatamente essa igualdade: **o que a venda diz que custou é o
+   * que custou para fazer.**
+   */
+  const daProducao = await live.getFirstAsync<{ unit_cost_rate: number | null }>(
+    `SELECT unit_cost_rate FROM movements
+      WHERE company_id = ? AND item_id = ? AND kind = 'production'`,
+    [CO, itemId],
+  );
   assert.ok(
-    linha.unit_cost_rate !== null && linha.unit_cost_rate > 0,
-    'sem o custo na mesma linha, renegociar o preço em março reescreveria a margem de fevereiro',
+    daProducao?.unit_cost_rate,
+    'a corrida congelou um custo — senão a comparação abaixo é de graça',
+  );
+  assert.ok(
+    Math.abs((linha.unit_cost_rate ?? 0) - (daProducao?.unit_cost_rate ?? 0)) < 1e-9,
+    `o custo da venda é o custo de FAZER: a venda diz ${linha.unit_cost_rate}, a corrida ` +
+      `congelou ${daProducao?.unit_cost_rate}. Estava \`> 0\` aqui, e qualquer positivo ` +
+      'passava — inclusive a taxa da polpa por grama, uns 0,0124, que daria margem de ' +
+      'R$ 743,78 no lugar de uns R$ 476,67 sem nada reprovar.',
   );
 
   /**

@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, beforeEach, test } from 'node:test';
-import { __setDb, migrate, nowIso, schemaVersion, type Db, type SqlParam } from './db';
+import { __setDb, db, migrate, nowIso, schemaVersion, type Db, type SqlParam } from './db';
 import {
   gravarCopia,
   lerCopia,
@@ -267,7 +267,16 @@ test('the copy says when it was made, because the file date does not survive the
 
   const lida = await lerCopia(arquivo);
   assert.equal(lida.feitoEm, quando, 'o selo viaja dentro da cópia — WhatsApp e Drive reescrevem a data do arquivo');
-  assert.ok(lida.itens > 0, 'a leitura conta os itens sem restaurar nada');
+  // Igualdade contra o aparelho vivo, pelo mesmo motivo da linha lá embaixo: `> 0` deixa
+  // passar uma leitura que enxergue 1 item de 7, e a mensagem afirma que ela CONTA os itens.
+  const noAparelho =
+    (await (await db()).getFirstAsync<{ c: number }>(`SELECT count(*) c FROM items`))?.c ?? 0;
+  assert.ok(noAparelho > 0, 'a fábrica de partida tem itens — senão a comparação é de graça');
+  assert.equal(
+    lida.itens,
+    noAparelho,
+    `a leitura da cópia conta ${lida.itens} itens e o aparelho tem ${noAparelho}`,
+  );
   assert.ok(lida.tabelasEmComum > 10, 'a cópia e o aplicativo falam da mesma fábrica');
 });
 
@@ -295,6 +304,9 @@ test('no table is forgotten: everything the schema has is either restored or emp
   // Uma tabela que existe AQUI e não na cópia. Ela tem de ficar VAZIA e não
   // intacta: sobrar um pedaço do estado antigo grudado na fábrica restaurada é o
   // pior resultado possível, porque parece certo.
+  // A contagem de partida, tirada antes de qualquer coisa mexer: é ela que dá o número
+  // contra o qual a volta se compara.
+  const antesDeRestaurar = (vivo.prepare(`SELECT count(*) c FROM items`).get() as { c: number }).c;
   vivo.exec(`CREATE TABLE recem_criada (id TEXT PRIMARY KEY)`);
   vivo.exec(`INSERT INTO recem_criada (id) VALUES ('do estado antigo')`);
 
@@ -307,8 +319,25 @@ test('no table is forgotten: everything the schema has is either restored or emp
     'tabela que a cópia não conhece fica vazia, nunca intacta — restauração é volta, não mistura',
   );
 
+  /**
+   * **Igualdade contra o que havia ANTES, não `> 0` — cicatriz de 11 de setembro.**
+   *
+   * Estava `assert.ok(naVolta.c > 0, 'e o que a cópia conhece voltou')`, e a mensagem afirma
+   * que o conteúdo VOLTOU. Uma restauração que trouxesse 1 item de 7 passava verde — e este
+   * arquivo já tinha consertado exatamente isso duzentas linhas acima, na contagem de
+   * movimentos, com a razão escrita: *"uma cópia que levasse um movimento de mil passaria
+   * verde"*. O conserto passou ao lado da linha irmã.
+   *
+   * A segunda fonte é a contagem tirada ANTES de restaurar: outro instante, mesma pergunta.
+   */
   const naVolta = vivo.prepare(`SELECT count(*) c FROM items`).get() as { c: number };
-  assert.ok(naVolta.c > 0, 'e o que a cópia conhece voltou');
+  assert.ok(antesDeRestaurar > 0, 'a fábrica de partida tem itens — senão a volta é de graça');
+  assert.equal(
+    naVolta.c,
+    antesDeRestaurar,
+    `a cópia devolveu ${naVolta.c} itens e o aparelho tinha ${antesDeRestaurar}: ` +
+      'restauração é volta INTEIRA, e trazer parte passaria por "voltou"',
+  );
 });
 
 /**

@@ -219,20 +219,39 @@ test('the channel guard bites a config that leans on the build service', () => {
  * continua vazio, e enquanto estiver, uma pergunta por abertura continua falhando.
  * Publicar ali é decisão do dono — está em `docs/roadmap.md`.
  */
+/**
+ * Os valores em que o NATIVO pergunta sozinho na abertura, e por que são dois.
+ *
+ * **Estava `notEqual('ON_LOAD')`, e a regra é outra — cicatriz de 11 de setembro.** A
+ * afirmação é *"o nativo não pergunta por conta própria"*, e `checkAutomatically` tem quatro
+ * valores (`ON_ERROR_RECOVERY | ON_LOAD | WIFI_ONLY | NEVER`). `WIFI_ONLY` também pergunta na
+ * abertura — só que apenas no Wi-Fi, que é a condição NORMAL do celular da fábrica. Com ele
+ * no `app.json` as duas perguntas por abertura voltavam inteiras e o teste ficava verde.
+ *
+ * Um `notEqual` contra um valor onde a regra é uma lista é a forma errada de escrever a
+ * afirmação: ela proíbe um caso e libera os outros três sem dizer.
+ */
+const PERGUNTAM_SOZINHOS = ['ON_LOAD', 'WIFI_ONLY'];
+
 test('the phone asks for an update once per opening, not twice', () => {
   const updates = (APP.expo as { updates?: { checkAutomatically?: string } }).updates;
   assert.ok(updates, 'sem bloco de updates não há atualização nenhuma');
-  assert.notEqual(
-    updates.checkAutomatically,
-    'ON_LOAD',
-    'o nativo passa a checar por conta própria e a rodada do aplicativo checa de novo: ' +
+  assert.ok(
+    !PERGUNTAM_SOZINHOS.includes(updates.checkAutomatically ?? ''),
+    `\`checkAutomatically\` está em "${updates.checkAutomatically}", e o nativo passa a ` +
+      'checar por conta própria na abertura enquanto a rodada do aplicativo checa de novo: ' +
       'duas perguntas por abertura, as duas falhando enquanto o canal estiver vazio',
   );
 });
 
 test('the double-ask guard tells the native check from the ones that stay quiet', () => {
-  const morde = (c?: string) => c === 'ON_LOAD';
+  const morde = (c?: string) => PERGUNTAM_SOZINHOS.includes(c ?? '');
   assert.ok(morde('ON_LOAD'), 'é exatamente a forma que estava no app.json');
+  assert.ok(
+    morde('WIFI_ONLY'),
+    'e este é o que a régua antiga deixava passar: pergunta sozinho no Wi-Fi, que é onde ' +
+      'o celular da fábrica vive',
+  );
   assert.ok(!morde('ON_ERROR_RECOVERY'));
   assert.ok(!morde('NEVER'));
   assert.ok(!morde(undefined), 'sem a chave o padrão do EAS decide, e isso é outro item');
