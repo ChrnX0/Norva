@@ -1105,9 +1105,36 @@ Duas consequências dentro do repositório, e a segunda é pior:
    | ler a tela e conferir a rota | **funciona** — duas larguras leram `ÚLTIMOS 30 DIAS · Perdas` antes de o comando cair |
    | produzir as cinco fotos | **não funciona** — quadro morto, e o comando recusa em vez de fingir |
 
-   Isso é instrumento, não aplicativo: o app desenhou (a árvore de acessibilidade leu o
-   texto certo). É a captura que morre. Fica aberto, e é o que trava o `fotos` para a fase
-   de layout.
+   **E a causa NÃO é a troca de largura, que era a minha hipótese.** Medido com uma
+   variável — mesma tela, duas capturas: em resolução natural a captura vem **morta**, e
+   com `wm size`/`wm density` trocados vem **morta** também, as duas com `Total frames
+   rendered: 0`. A captura do console do emulador, que é o caminho que já produziu imagem
+   de verdade hoje, também volta morta.
+
+   O que o `logcat` diz, e é o dado que vale:
+
+   ```
+   V/WindowManager: Orientation start waiting for draw, mDrawState=DRAW_PENDING  (repetido)
+   I/WindowManager: Screen frozen for +3s401ms ... +2s905ms
+   I/app.norva.mobile: NativeAlloc GC freed 154416 (5722KB) ... total 2.985s
+   I/app.norva.mobile: ... freed 80265 objects ...   (repetindo a cada ~450 ms)
+   ```
+
+   O aplicativo **não completa um desenho**, e está num ciclo contínuo de coleta de lixo —
+   cerca de **80 mil objetos liberados a cada meio segundo**, 9 MB num heap de 17 MB,
+   parado numa tela. A captura preta é consequência disso, não a doença.
+
+   **O que NÃO está estabelecido:** a causa da coleta. O candidato óbvio é o movimento de
+   ambiente, mas ele não fecha — a execução do `fotos` rodou com o movimento DESLIGADO e
+   as fotos saíram pretas do mesmo jeito. Pode ser o emulador por software não dar conta,
+   pode ser o aplicativo alocando demais, e escolher agora seria inventar. Fica aberto com
+   a medida ao lado.
+
+   **E isto interessa além da ferramenta.** Oitenta mil objetos por meio segundo numa tela
+   parada não é feitio de emulador: é feitio de código. Num tablet de verdade isso é
+   bateria e engasgo, e liga direto na pergunta do orçamento de movimento que já está na
+   mesa do dono. O que falta é medir num aparelho de verdade — o dele — em vez de num
+   emulador sem KVM.
 
    **E o restauro do movimento falhou CALADO na mesma execução.** As três escalas ficaram
    em zero depois da queda. O padrão `try/finally` foi testado em isolamento e devolve

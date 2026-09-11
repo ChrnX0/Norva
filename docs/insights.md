@@ -9549,3 +9549,51 @@ outro.
 estornar), pergunte como alguém saberia que não aconteceu. Se a resposta for "olhando o
 estado depois, em outra sessão", o desfazer precisa falar. Silêncio é a ausência de
 notícia, e num desfazer a ausência de notícia é indistinguível do sucesso.
+
+## 11 de setembro — a foto preta não era da câmera, e a hipótese bonita estava errada
+
+**O que apareceu:** o `fotos` produz imagens pretas. Minha hipótese era limpa e encaixava:
+a foto que funcionou hoje saiu **sem** troca de largura, e as cinco pretas todas **depois**
+de `wm size` — logo, o override de largura quebra a composição.
+
+Medido com uma variável só, mesma tela, duas capturas:
+
+| condição | captura | quadros desenhados |
+|---|---|---|
+| resolução natural | **morta** | 0 |
+| com `wm size` + `wm density` | **morta** | 0 |
+
+A hipótese caiu. E o furo do meu primeiro experimento apareceu junto: eu tinha comparado só
+a captura do CONVIDADO nas duas condições, quando quem produz imagem de verdade às vezes é
+o console do emulador. Fechada a outra metade: o console também volta morto.
+
+**O que o `logcat` respondeu, e é outra coisa:**
+
+```
+V/WindowManager: Orientation start waiting for draw, mDrawState=DRAW_PENDING  (repetido)
+I/WindowManager: Screen frozen for +3s401ms ... +2s905ms
+I/app.norva.mobile: NativeAlloc GC freed 154416 (5722KB) ... total 2.985s
+I/app.norva.mobile: ... freed 80265 objects ...   (a cada ~450 ms)
+```
+
+O aplicativo **não completa um desenho**, e está coletando lixo sem parar: ~80 mil objetos
+a cada meio segundo, parado numa tela. A foto preta é sintoma, não doença — e o `Total
+frames rendered: 0` estava disponível o tempo todo, escrito na própria mensagem de erro da
+ferramenta (*"Confira se o app desenhou"*), que eu li três vezes hoje sem seguir.
+
+**O que NÃO está estabelecido, e fica dito:** a causa da coleta. O candidato óbvio é o
+movimento de ambiente, e ele **não fecha** — a execução do `fotos` rodou com o movimento
+desligado e as fotos saíram pretas igual. Pode ser o emulador por software; pode ser o
+aplicativo alocando demais. Escolher agora seria repetir o erro que esta entrada registra.
+
+**Por que importa mais do que a ferramenta:** oitenta mil objetos por meio segundo numa
+tela parada não é feitio de emulador, é feitio de código. Num tablet de verdade isso é
+bateria e engasgo — e liga direto no orçamento de movimento que já está na mesa do dono,
+que até agora era uma pergunta de 1.574 ms contra 158 ms numa tela, medida no navegador.
+Este número é de outra natureza: não é o custo de abrir, é o custo de **ficar aberto**.
+
+**A pergunta que fica:** quando a hipótese for elegante — *"a foto quebrou depois de X,
+logo é X"* —, a primeira coisa a medir é o caso SEM X. Custa uma execução, e aqui ela
+derrubou a explicação inteira antes de eu construir um conserto em cima dela. E quando a
+ferramenta disser na mensagem de erro o que conferir, confira isso primeiro: o
+`Total frames rendered: 0` teria começado a investigação onde ela terminou.
