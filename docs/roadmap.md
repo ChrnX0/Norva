@@ -1459,16 +1459,41 @@ raise exception using
 — então **a classe da recusa é nossa, não do servidor**: `23505` numa fila que sobe por
 `on conflict` é permanente por construção, e isso se sabe sem ninguém ter subido nada.
 
-O que continua precisando de um push de verdade é outra coisa, e é mais estreita: **qual
-LINHA da fatia foi recusada.** Um lote entra como uma instrução, e uma instrução falha
-inteira — então a fila recebe "a fatia morreu" e não "a terceira linha morreu". Isso não é
-questão de forma de erro: é de isolar dentro do lote, e **não depende de servidor nenhum para
-ser construído**, porque só depende de um lote poder falhar.
+**E o primeiro degrau que eu tinha escrito aqui não existe — corrigido lendo o transporte,
+11 de setembro.** Eu havia escrito que *"um lote entra como uma instrução e falha inteiro,
+então a fila recebe 'a fatia morreu' e não 'a terceira linha morreu'"*. É falso:
+`src/sync/transporte.ts:84-122` percorre as entradas **uma por uma**, chama `escrever` por
+linha, e `break` na primeira que devolve problema. **O aplicativo já sabe quem é a culpada.**
 
-Então a fila do item passa a ser: (1) isolar a linha culpada dentro de uma fatia que falhou —
-construível hoje; (2) classificar pela `errcode` — construível hoje, com a nossa própria
-lista; (3) o que a TELA faz com a linha posta de lado — decisão do dono, já tomada (os dois
-celulares veem, o primeiro que aceitar fica).
+O que falta é ele ter ONDE DIZER. `PushResult` tem um campo só — `acceptedIds` — e nenhum
+para *"esta foi recusada, e por isto"* (`src/sync/engine.ts:31`). O nome da culpada é
+conhecido e descartado no `break`, e o motor recebe apenas "entraram menos do que mandei",
+que ele trata como lacuna passageira: espera, tenta de novo, desiste em três, **não marca
+nada** (`engine.ts:168`). Na rodada seguinte, a mesma parede — e tudo o que o aparelho
+gravou DEPOIS fica preso atrás dela.
+
+E o segundo degrau também encolheu: a classe da recusa chega ao transporte e é **jogada fora
+uma linha antes de poder ser usada**. `Casa.escrever` devolve `Promise<string | null>` e a
+implementação faz `return error ? error.message : null` (`transporte.ts:33` e `:62`) — o
+objeto de erro do Supabase carrega `code` (o SQLSTATE, `23505` no caso da `0051`), `details`
+e `hint`, e só a frase sobrevive. Devolver o código em vez da frase é a mudança inteira.
+
+Então a fila do item é:
+
+1. **`PushResult` ganha as recusadas** — `{ acceptedIds, rejeitadas: { id, classe }[] }` —, e
+   `drain` põe as permanentes de lado em vez de retentar. A culpada já é conhecida; o que
+   entra é o canal.
+2. **`Casa.escrever` devolve o CÓDIGO e não só a frase**, e a classificação passa a ser uma
+   comparação contra a nossa própria lista. Nada disso depende de um servidor que ninguém
+   exercitou: o `23505` da `0051` foi escolhido por nós.
+3. **O que a TELA faz com a linha posta de lado** — decisão do dono, já tomada: os dois
+   celulares veem a duplicação com data, hora, local e operador, e o primeiro que aceitar
+   fica.
+
+*O que continua sem medida é o catálogo de erros de um servidor de verdade — quais outros
+códigos aparecem e quais deles são permanentes. Mas a lista não precisa nascer completa: o
+padrão é "passageira", que é o comportamento de hoje, e cada código promovido a permanente
+entra com a medida ao lado.*
 
 *O parágrafo abaixo continua valendo para o que ele de fato cobre — inventar um catálogo de
 erros de um servidor que ninguém exercitou:*
