@@ -1699,6 +1699,7 @@ export const ptBR = {
       recording: 'Lançando…',
       confirmTitle: 'Lançar esta compra?',
       confirmBody: '{{packs}} × {{pack}} de {{name}}, por {{total}}.',
+      confirmBodyFreight: '{{packs}} × {{pack}} de {{name}}, por {{total}} — {{invoice}} da nota mais {{freight}} de frete.',
       confirmAction: 'Lançar',
       failed: 'Não deu para lançar',
     },

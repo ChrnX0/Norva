@@ -1313,6 +1313,7 @@ export const es: Dictionary = {
       recording: 'Registrando…',
       confirmTitle: '¿Registrar esta compra?',
       confirmBody: '{{packs}} × {{pack}} de {{name}}, por {{total}}.',
+      confirmBodyFreight: '{{packs}} × {{pack}} de {{name}}, por {{total}} — {{invoice}} de la factura más {{freight}} de flete.',
       confirmAction: 'Registrar',
       failed: 'No se pudo registrar',
     },

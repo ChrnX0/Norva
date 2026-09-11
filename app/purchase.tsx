@@ -206,6 +206,9 @@ function PurchaseForm() {
     // time one of them is corrected, with nothing to say which is right.
     const baseUnits = purchaseToBaseUnits(selected, packs);
     const totalCents = fromDecimal(paid);
+    // Guardado em centavos, e não recalculado na tela: o arredondamento acontece uma vez,
+    // aqui, como em todo o resto deste aplicativo.
+    const freteCents = fromDecimal(paid) - fromDecimal(nota);
 
     // What this invoice alone costs per base unit, and where it lands the
     // average once it blends with what is already on hand.
@@ -237,6 +240,7 @@ function PurchaseForm() {
       factor: selected.purchaseToBase ?? 1,
       baseUnits,
       totalCents,
+      freteCents,
       thisRate,
       after,
       previous,
@@ -259,12 +263,21 @@ function PurchaseForm() {
 
     const go = await confirm({
       title: t.app.purchase.confirmTitle,
-      message: fill(t.app.purchase.confirmBody, {
-        packs: formatQuantity(draft.packs, locale),
-        pack: selected.purchaseUnit ?? t.units.unit.one,
-        name: selected.name,
-        total: formatMoney(draft.totalCents, locale),
-      }),
+      // A conta ABRE quando há frete, porque R$ 230 é conclusão de 200 + 30 e a Lei 6
+      // desta casa diz que toda conclusão abre a conta. Sem isto a pessoa digita dois
+      // números e a confirmação mostra um terceiro, sem dizer de onde ele veio — que é
+      // exatamente o tipo de silêncio que faz alguém parar de ler confirmação.
+      message: fill(
+        draft.freteCents > 0 ? t.app.purchase.confirmBodyFreight : t.app.purchase.confirmBody,
+        {
+          packs: formatQuantity(draft.packs, locale),
+          pack: selected.purchaseUnit ?? t.units.unit.one,
+          name: selected.name,
+          total: formatMoney(draft.totalCents, locale),
+          invoice: formatMoney(draft.totalCents - draft.freteCents, locale),
+          freight: formatMoney(draft.freteCents, locale),
+        },
+      ),
       confirmLabel: t.app.purchase.confirmAction,
       cancelLabel: t.app.confirm.adjust,
     });

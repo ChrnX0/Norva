@@ -1309,6 +1309,7 @@ export const en: Dictionary = {
       recording: 'Recording…',
       confirmTitle: 'Record this purchase?',
       confirmBody: '{{packs}} × {{pack}} of {{name}}, for {{total}}.',
+      confirmBodyFreight: '{{packs}} × {{pack}} of {{name}}, for {{total}} — {{invoice}} on the invoice plus {{freight}} freight.',
       confirmAction: 'Record',
       failed: 'Could not record',
     },
