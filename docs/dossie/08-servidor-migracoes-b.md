@@ -511,6 +511,15 @@ Duas regras de produto que o esquema impõe:
 - **Os três níveis são opcionais** — "uma fábrica que faz um doce só não deve ser
   obrigada a inventar uma linha e um tipo para cadastrá-lo. Quem tem um nível só
   preenche um nível só" (`:22-24`).
+
+  > **E isso era FALSO no próprio arquivo até 11 de setembro.** A `match full` da
+  > §8.7.4, criada nesta mesma migração, recusa o par `(linha preenchida, tipo
+  > vazio)` — que é literalmente "quem tem um nível só preenche um nível só". A
+  > promessa em prosa e a restrição em SQL se contradiziam por três semanas, e
+  > ninguém viu porque **nenhum teste jamais inseriu um produto classificado só pelo
+  > nível de cima**: não por descuido, por falta de motivo — quem testa produto
+  > cadastra produto completo, que é o que a tela produz. Achado pela garantia 30 do
+  > `db:verify`, escrita para provar o nível NOVO da `0057`. Corrigido na `0058`.
 - **O sabor é da empresa, não do tipo** — "Morango é o mesmo morango no picolé e no
   pote; amarrá-lo ao tipo faria o dono cadastrar 'morango' uma vez por tipo, e na
   primeira mudança de nome ele teria seis morangos diferentes no relatório"
@@ -600,6 +609,21 @@ estado normal aqui — os três níveis são opcionais. Com o padrão, um produt
 linha nula aceitaria qualquer `type_id`, inclusive um que não existe em lugar
 nenhum. `match full` exige que o par esteja inteiro ou inteiramente nulo, que é
 exatamente a regra: ou você não classificou, ou classificou os dois" (`:97-102`).
+
+> **Esta explicação está meio certa, e a metade errada custou três semanas —
+> corrigida pela `0058` em 11 de setembro.** O perigo que ela nomeia é real:
+> `match simple` deixaria passar `(linha nula, tipo Y)`, um tipo pendurado em nada. O
+> que ela não viu é que `match full` paga esse preço **proibindo junto o caso comum**,
+> `(linha X, tipo nulo)` — que a mesma migração promete quatro parágrafos acima.
+>
+> "Ou você não classificou, ou classificou os dois" não é a regra: a regra é
+> *classificar de cima para baixo*, e parar onde quiser. As duas se separam com
+> ferramentas diferentes, e é o que a `0058` faz — a CHAVE (em `match simple`) prova o
+> par quando os dois existem, que é a única hora em que há o que provar; o CHECK diz a
+> direção, "nível de baixo exige o de cima, nunca o contrário".
+>
+> Erro de meia-verdade não parece erro: parece rigor. É por isso que ele sobreviveu a
+> uma auditoria adversarial e a uma revisão de quatro caras.
 
 #### 8.7.5 A grade única — `nulls not distinct`
 

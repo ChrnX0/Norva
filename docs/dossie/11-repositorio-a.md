@@ -1177,7 +1177,14 @@ motivo: ninguém pediu dois palitos por picolé, alguém tocou duas vezes."*
 lançam se não acharem — `'produto X não existe'` (`:1352`, `:2269`) ou
 `'X é revenda: não se produz'` (`:1353`, `:2270`).
 
-#### `listLines`, `listTypes`, `listFlavors` — a grade em três níveis opcionais
+#### `listLines`, `listCategories`, `listTypes`, `listFlavors` — a grade em QUATRO níveis opcionais
+
+> **Eram três até 11 de setembro.** A categoria entrou entre o produto e o tipo por
+> decisão do dono (*"Produto - Categoria… Tipo… Variação… e tb o produto nao
+> necessariamente requeira todas as subclasses"*), porque "tipo" carregava duas
+> naturezas: Leite/Água/Skimo têm receita própria, 250 e 500 ml são só tamanho. Ver
+> `0057`, e a `0058` ao lado — a opcionalidade que este título afirma era falsa no
+> banco desde a `0018`.
 
 ```ts
 export type ProductLine = { id: string; name: string; sort: number };
