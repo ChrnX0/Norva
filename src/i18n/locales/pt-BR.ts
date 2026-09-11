@@ -1683,6 +1683,8 @@ export const ptBR = {
       howMany: 'Quantidade, em {{pack}}',
       conversion: '{{packs}} × {{factor}} = {{baseUnits}} {{unit}} entrando no estoque.',
       total: 'Total da nota',
+      freight: 'Frete (se houver)',
+      freightHint: 'Entra no custo por unidade. Vazio quer dizer que não teve.',
       perPack: '{{price}} por {{pack}}',
       beforeClosing: 'ANTES DE FECHAR',
       firstPurchase: 'Primeira compra deste item. A próxima já vem com a comparação.',

@@ -1297,6 +1297,8 @@ export const es: Dictionary = {
       howMany: 'Cantidad, en {{pack}}',
       conversion: '{{packs}} × {{factor}} = {{baseUnits}} {{unit}} entrando al almacén.',
       total: 'Total de la factura',
+      freight: 'Flete (si hubo)',
+      freightHint: 'Entra en el costo por unidad. Vacío quiere decir que no hubo.',
       perPack: '{{price}} por {{pack}}',
       beforeClosing: 'ANTES DE CERRAR',
       firstPurchase: 'Primera compra de este ítem. La próxima ya trae la comparación.',

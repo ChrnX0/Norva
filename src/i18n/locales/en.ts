@@ -1293,6 +1293,8 @@ export const en: Dictionary = {
       howMany: 'Quantity, in {{pack}}',
       conversion: '{{packs}} × {{factor}} = {{baseUnits}} {{unit}} going into stock.',
       total: 'Invoice total',
+      freight: 'Freight (if any)',
+      freightHint: 'It goes into the cost per unit. Empty means there was none.',
       perPack: '{{price}} per {{pack}}',
       beforeClosing: 'BEFORE YOU CLOSE',
       firstPurchase: 'First purchase of this item. The next one comes with the comparison.',

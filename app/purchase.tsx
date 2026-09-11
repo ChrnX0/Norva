@@ -8,6 +8,7 @@ import { Card } from '@/components/Card';
 import { Chip, priceSignal } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
+import { UnitStepper } from '@/components/UnitStepper';
 import { Field } from '@/components/Field';
 import { GlyphPrice, GlyphPurchase, GlyphSack } from '@/components/Glyph';
 import { ListRow } from '@/components/ListRow';
@@ -115,7 +116,22 @@ function PurchaseForm() {
     // unidade aqui daria dois custos para o mesmo insumo e quebraria a margem para
     // consertar um saldo que esta tela não mostra.
     listItems(empresaDaqui()).then((all) => ({
-      compraveis: all.filter((i) => i.purchaseToBase !== null),
+      /**
+       * O que dá para comprar — e a REVENDA entra, que é o buraco achado em 11 de
+       * setembro indo conferir o picolé "Top" da fábrica do pai do dono.
+       *
+       * Um produto de revenda podia ser cadastrado e nunca comprado: `saveProduct` grava
+       * o item com `purchaseToBase: null` chumbado, e esta lista só oferecia quem tinha
+       * aquele campo. O Top ficava na grade e não aparecia aqui — sem nota, sem custo,
+       * sem entrar em estoque. E não havia porta lateral: o almoxarifado cadastra só
+       * insumo, embalagem e material de loja.
+       *
+       * Não precisa de `purchaseToBase`: `purchaseToBaseUnits` usa `?? 1`, e a conversão
+       * de verdade vem dos DEGRAUS que o produto já declara — 44 por caixa, e o dono
+       * compra *"caixa ou unidade mesmo"*. Repetir o número num segundo campo seria
+       * convidar os dois a divergirem.
+       */
+      compraveis: all.filter((i) => i.purchaseToBase !== null || i.kind === 'resale'),
       cadastrados: all.length,
     })),
   );
@@ -135,6 +151,23 @@ function PurchaseForm() {
   const [pedidoHaDias, setPedidoHaDias] = useState<number | null>(null);
   const [quantity, setQuantity] = useState('1');
   const [total, setTotal] = useState('');
+  /**
+   * O frete, e ele é OPCIONAL porque o dono disse que os dois jeitos valem.
+   *
+   * Perguntado em 11 de setembro se o custo da revenda é só a nota ou tem entrega por
+   * fora: *"pode ser dos dois jeitos q vc falou"*. A regra desta casa manda construir os
+   * dois caminhos em vez de escolher — e aqui os dois não viram configuração da empresa,
+   * porque frete varia por ENTREGA e não por fábrica: uma semana o fornecedor traz, na
+   * outra você busca. Campo vazio é a resposta "só a nota", e é uma resposta, não uma
+   * lacuna.
+   *
+   * O que ele muda é o CUSTO POR UNIDADE, que é o número que decide preço e margem: um
+   * engradado de Top a R$ 200 com R$ 30 de frete custa R$ 230, e chamar isso de R$ 200
+   * faz a margem parecer maior do que é. O livro-razão guarda um valor só — o que foi
+   * pago —, que é o certo: frete não é outro movimento, é parte do que aquele item custou
+   * para estar aqui.
+   */
+  const [frete, setFrete] = useState('');
   const [saving, setSaving] = useState(false);
   const [impact, setImpact] = useState<Impact[] | null>(null);
 
@@ -144,13 +177,28 @@ function PurchaseForm() {
 
   const num = (s: string) => parseTyped(s) ?? NaN;
 
+  /**
+   * Contar pelos DEGRAUS do produto, e não pela embalagem de compra.
+   *
+   * Quem tem `purchaseToBase` declarou uma embalagem de compra — "saco de 25 kg" — e a
+   * pergunta certa é "quantos sacos". Quem não tem, mas tem mais de um degrau, é produto
+   * de revenda: a caixa não é como ele é comprado, é como ele é contado, e é a mesma
+   * peça que a produção e a separação usam.
+   */
+  const porDegraus =
+    !!selected && selected.purchaseToBase === null && selected.packaging.tiers.length > 1;
+
   const draft = useMemo(() => {
     if (!selected) return null;
 
     const packs = num(quantity);
-    const paid = num(total);
+    const nota = num(total);
     if (!Number.isFinite(packs) || packs <= 0) return null;
-    if (!Number.isFinite(paid) || paid <= 0) return null;
+    if (!Number.isFinite(nota) || nota <= 0) return null;
+    // Vazio é "só a nota", e não zero digitado: `parseTyped` devolve nulo para vazio, e
+    // somar `NaN` apagaria o total inteiro em silêncio.
+    const entrega = num(frete);
+    const paid = nota + (Number.isFinite(entrega) && entrega > 0 ? entrega : 0);
 
     // The conversion lives in one place. This screen used to do its own
     // `Math.round(packs * factor)` while the repository exported the same rule
@@ -194,7 +242,7 @@ function PurchaseForm() {
       previous,
       change,
     };
-  }, [selected, quantity, total]);
+  }, [selected, quantity, total, frete]);
 
   // How this price should be read, decided in one place that has a test rather
   // than by three copies of the same threshold inside the markup below.
@@ -236,6 +284,7 @@ function PurchaseForm() {
         ),
       );
       setTotal('');
+      setFrete('');
       setQuantity('1');
       refresh();
     } catch (e) {
@@ -371,23 +420,57 @@ function PurchaseForm() {
                   {t.app.purchase.orderedWhenHint}
                 </Text>
               </View>
+              {/* Quem tem degraus conta neles; quem tem embalagem de compra conta na
+                  embalagem. São duas perguntas diferentes e por isso duas peças:
+                  "quantos sacos de 25 kg" é o insumo, e o saco é a unidade de COMPRA;
+                  "quantas caixas de 44" é a revenda, e a caixa é um degrau do próprio
+                  produto. O dono compra o Top em "caixa ou unidade mesmo". */}
+              {porDegraus ? (
+                <>
+                  <Text style={[type.overline, { color: color.inkFaint }]}>
+                    {fill(t.app.purchase.howMany, { pack: t.units.unit.other })}
+                  </Text>
+                  <UnitStepper
+                    hierarchy={selected.packaging}
+                    locale={locale}
+                    tierLabel={(id, n) =>
+                      plural(n, t.units[id as keyof typeof t.units] ?? t.units.unit)
+                    }
+                    value={num(quantity) || 0}
+                    onChange={(n) => setQuantity(String(n))}
+                    labels={t.stepper}
+                    digitavel
+                    rotulo={fill(t.app.purchase.howMany, { pack: t.units.unit.other })}
+                  />
+                </>
+              ) : (
+                <Field
+                  label={fill(t.app.purchase.howMany, {
+                    pack: selected.purchaseUnit ?? t.units.unit.other,
+                  })}
+                  value={quantity}
+                  onChangeText={setQuantity}
+                  keyboardType="numeric"
+                  hint={
+                    draft
+                      ? fill(t.app.purchase.conversion, {
+                          packs: formatQuantity(draft.packs, locale),
+                          factor: formatQuantity(draft.factor, locale),
+                          baseUnits: formatQuantity(draft.baseUnits, locale),
+                          unit: selected.baseUnit,
+                        })
+                      : undefined
+                  }
+                />
+              )}
               <Field
-                label={fill(t.app.purchase.howMany, {
-                  pack: selected.purchaseUnit ?? t.units.unit.other,
-                })}
-                value={quantity}
-                onChangeText={setQuantity}
+                label={t.app.purchase.freight}
+                value={frete}
+                onChangeText={setFrete}
+                placeholder="0,00"
+                suffix={currencySymbol(locale)}
                 keyboardType="numeric"
-                hint={
-                  draft
-                    ? fill(t.app.purchase.conversion, {
-                        packs: formatQuantity(draft.packs, locale),
-                        factor: formatQuantity(draft.factor, locale),
-                        baseUnits: formatQuantity(draft.baseUnits, locale),
-                        unit: selected.baseUnit,
-                      })
-                    : undefined
-                }
+                hint={t.app.purchase.freightHint}
               />
               <Field
                 label={t.app.purchase.total}

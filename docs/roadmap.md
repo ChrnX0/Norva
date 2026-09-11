@@ -782,8 +782,9 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     **Por que é decisão dele e não minha:** muda o que se constrói, e muda a ordem em que
     a fábrica aprende o produto. É o tipo de coisa que este arquivo manda perguntar.
 
-41. **Um produto de REVENDA pode ser cadastrado e nunca comprado.**
-    <!-- medida: ausente app/purchase.tsx :: resale -->
+41. ~~**Um produto de REVENDA pode ser cadastrado e nunca comprado**~~ — **fechado em 11
+    de setembro, com as duas metades que o dono respondeu.**
+    <!-- medida: presente app/purchase.tsx :: i.kind === 'resale' -->
     Achado em 11 de setembro, indo conferir a última peça da descrição do dono — o picolé
     "Top", que a fábrica do pai dele compra pronto para revender. Ele mesmo tinha marcado
     a dúvida: *"um detalhe seria o picolé top que é um produto que a gente revende. Aqui a
@@ -812,9 +813,21 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     mesma peça que a produção passou a usar hoje. Três engradados de 264 são 792 unidades, e
     o custo por unidade cai da nota.
 
-    **O que espera o dono, e é pouco:** em que camada ele compra (engradado, caixa ou
-    unidade), e se o custo do Top é só a nota ou tem frete por fora — hoje o aplicativo soma
-    só a nota, o que está certo para insumo e pode estar errado para revenda.
+    **O que ele respondeu, e as duas viraram código na mesma rodada:**
+
+    *"na minha loja hj a gente lança a quantidade que pode ser caixa ou unidade mesmo"* — a
+    compra passa a contar pelos DEGRAUS do produto quando ele não tem embalagem de compra
+    declarada, com a mesma peça que a produção e a separação usam. Não precisou de
+    `purchaseToBase`: `purchaseToBaseUnits` usa `?? 1`, e repetir o 44 num segundo campo
+    seria convidar os dois números a divergirem.
+
+    *"sobre o custo, pode ser dos dois jeitos q vc falou"* — então os dois existem, que é a
+    regra desta casa. E aqui eles NÃO viram configuração da empresa: frete varia por
+    ENTREGA e não por fábrica — uma semana o fornecedor traz, na outra você busca. Virou
+    campo opcional na nota, e vazio é a resposta "só a nota", não uma lacuna. O livro-razão
+    continua guardando um valor só, o que foi pago, porque frete não é outro movimento: é
+    parte do que aquele item custou para estar ali. Um engradado a R$ 200 com R$ 30 de
+    frete custa R$ 230, e chamar isso de R$ 200 faz a margem parecer maior do que é.
 
 **Aberto do que esta caminhada achou:**
 
