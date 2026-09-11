@@ -9642,3 +9642,47 @@ multiplicação, e num engradado de 264 picolés isso chega na cotação. Ganhou
 **A pergunta que fica:** quando um relatório somar estados diferentes num contador, pergunte
 **para onde a frase manda quem a lê**. Um número certo com uma frase que aponta para o lado
 errado custa mais que um número errado — porque ele parece acionável, e a pessoa age.
+
+## 11 de setembro — o defeito chegou à tela, foi consertado, virou parágrafo, e a regra ficou sem ninguém
+
+**O que apareceu:** consertada a ferramenta de mutação, a primeira execução com a mutação
+nova devolveu **um sobrevivente de verdade** — e era a que eu tinha acabado de escrever.
+Embrulhar a soma de `costPerPack` em `cents(...)` antes de multiplicar por `unitsPerPack`
+passou por **730 testes verdes**.
+
+O docblock da função conta o defeito inteiro, com números:
+
+> *"um picolé de 7,3265 centavos vira 7. Multiplicar esse 7 por cinquenta dá R$ 3,50 onde a
+> conta é R$ 3,66 — quatro e meio por cento de margem evaporados no número que o dono usa
+> para dar preço de caixa. Foi assim que a tela de cadastro de produto mostrou 'Caixa
+> fechada: R$ 3,50' para uma caixa de R$ 3,66."*
+
+Então a sequência foi: o defeito **aconteceu**, chegou à tela do dono, foi **consertado**, e
+o conserto virou **parágrafo**. Um chamador (`app/products/new.tsx:316`), zero testes.
+
+**Por que isso é diferente de código sem teste:** um trecho qualquer sem teste é dívida
+conhecida. Aqui existe uma função criada **especificamente** para impedir um erro que já
+custou caro, com a história escrita por cima — e é justamente esse parágrafo que fecha a
+pergunta. Quem lê o arquivo vê a explicação, entende o porquê, e não pergunta *"e o que
+impede isto de voltar?"*. **O docblock ocupa o lugar da guarda sem fazer o trabalho dela.**
+
+É a irmã de uma regra que este repositório já tem — *"comentário que se declara único não é
+o mesmo que ser único"* —, e a diferença é o sujeito: lá o comentário AFIRMA uma propriedade
+que não é verdade; aqui ele NARRA um conserto que é verdade, e o leitor conclui sozinho que
+está protegido.
+
+E o custo aqui multiplica, o que torna o caminho pior que a média: errar a ordem de
+arredondamento numa unidade é um centavo; numa caixa de cinquenta é `50 × o erro`; num
+engradado de 264, é o que aparece na cotação.
+
+**O que mudou por causa disso:** `costPerPack` ganhou guarda, com os números do defeito de
+verdade copiados do docblock e comparados contra a conta feita à mão — não contra nada
+derivado da função, que seria verdadeiro para qualquer ordem de arredondamento. Cobre também
+a embalagem da unidade: meio centavo de palito por picolé é vinte e cinco centavos numa
+caixa de cinquenta, e some inteiro se cada picolé arredondar sozinho. Provada mordendo: com
+o defeito plantado à mão ela reprova, com a árvore limpa ela passa.
+
+**A pergunta que fica, e ela é barata:** quando um docblock contar um defeito que já
+aconteceu, `grep` pelo teste que o prende. Se não houver, o conserto está apoiado em quem
+leu o parágrafo — e parágrafo não roda na CI. A busca é de dez segundos e o que ela acha é
+sempre o mesmo tipo de coisa: a regra mais bem explicada do arquivo, sem ninguém atrás.
