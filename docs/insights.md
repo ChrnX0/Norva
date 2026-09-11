@@ -9597,3 +9597,48 @@ logo é X"* —, a primeira coisa a medir é o caso SEM X. Custa uma execução,
 derrubou a explicação inteira antes de eu construir um conserto em cima dela. E quando a
 ferramenta disser na mensagem de erro o que conferir, confira isso primeiro: o
 `Total frames rendered: 0` teria começado a investigação onde ela terminou.
+
+## 11 de setembro — a ferramenta que prova que verde não basta relatava mais do que media
+
+**O que apareceu:** o `mutate` fechou a virada com *"1 defeito(s) atravessaram a suíte
+inteira"*. Fui procurar qual teste estava fraco. Nenhum estava: **a mutação não chegou a ser
+plantada.** O trecho do `from` — `(unitPackaging.itemsRate ?? 0) +` — passou a casar com
+duas linhas de `src/domain/recipe.ts`, e a ferramenta recusa aplicar quando é ambíguo, com
+razão, porque pegaria só a primeira.
+
+O relatório somava **quatro estados** num contador chamado `survivors`:
+
+| estado | o que aconteceu | de quem é o serviço |
+|---|---|---|
+| `obsoleta` | o trecho mudou, não foi plantada | do arquivo de mutações |
+| `ambigua` | o trecho casa N vezes, não foi plantada | do arquivo de mutações |
+| `inconclusivo` | a execução não fechou | da máquina |
+| passou despercebido | **foi plantada e a suíte ficou verde** | dos testes |
+
+Falhar está certo nos quatro — guarda que não roda não guarda. A **frase** é que estava
+errada, e ela não é detalhe de estilo: ela manda a pessoa para o lugar errado. Quem lê
+"atravessou a suíte" vai ler teste; o serviço era consertar uma âncora de três linhas.
+
+**Por que isto é o achado e não o bug:** é a sexta vez na mesma noite que a afirmação é mais
+larga que a medida — e a mais irônica das seis. O `mutate` existe exatamente para provar que
+*"verde não quer dizer protegido"*, e o relatório dele afirmava proteção medida onde não
+houve medida nenhuma. A ferramenta do ceticismo com o mesmo defeito que ela caça.
+
+E ele durou porque o número dessa linha **não é derivado de nada**: a tabela do plano dizia
+*"125 plantados, 123 pegos, 2 equivalentes, 0 sobreviventes"*, e só o 125 sai do arquivo. O
+resto era prosa escrita uma vez. O `0 sobreviventes` já estava falso.
+
+**O que mudou por causa disso:** dois contadores e duas frases, porque são duas notícias —
+*"atravessou a suíte"* fala dos testes, *"não foi medida"* fala do arquivo de mutações e diz
+que a regra daquela mutação está SEM guarda até alguém mexer. A linha do plano passou a
+trazer só o número derivado, com o resultado embaixo e **com data**.
+
+E a âncora ambígua abriu um buraco de verdade junto: o trecho ficou ambíguo porque nasceu um
+SEGUNDO caminho com a mesma forma — `packCost` —, e ele não tinha mutação nenhuma. Não é
+caminho qualquer: é o que sustenta a doutrina desta casa de arredondar uma vez só, porque
+ele multiplica antes de virar centavo. Errar a ordem ali perde um quinto antes da primeira
+multiplicação, e num engradado de 264 picolés isso chega na cotação. Ganhou mutação própria.
+
+**A pergunta que fica:** quando um relatório somar estados diferentes num contador, pergunte
+**para onde a frase manda quem a lê**. Um número certo com uma frase que aponta para o lado
+errado custa mais que um número errado — porque ele parece acionável, e a pessoa age.
