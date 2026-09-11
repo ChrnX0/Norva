@@ -47,7 +47,18 @@ const SDK = process.env.ANDROID_HOME ?? '/opt/android-sdk';
 const ADB = join(SDK, 'platform-tools/adb');
 const EMU = join(SDK, 'emulator/emulator');
 const SAIDA = '.shots';
-const AVD = arg('--avd') ?? 'norva-cheio';
+/**
+ * O AVD padrão é o ATD, e a troca é medida — 11 de setembro.
+ *
+ * Era `norva-cheio`, a imagem completa, e nela o `adb install` do APK de 29 MB é RECUSADO:
+ * o `system_server` cai a cada quatro minutos (ANR de um processo persistente da rede, com
+ * latência de 76 s), e toda instalação estoura no meio. O ATD sobe em 233 s contra 396,
+ * instalou em 164 s, e ficou vinte minutos sem uma única queda.
+ *
+ * O que a troca NÃO resolve: `Total frames rendered` continua 0 nos dois. O quadro preto é
+ * outro problema, e a seção do `CLAUDE.md` lista o que já foi eliminado por medida.
+ */
+const AVD = arg('--avd') ?? 'norva-atd';
 
 /**
  * O rastro do emulador, num arquivo — porque a causa da morte dele cabe numa linha.

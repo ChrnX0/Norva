@@ -9902,3 +9902,37 @@ o NAVEGADOR — duas checagens novas dirigem `app/fiz.tsx` de verdade (monta, ac
 mostra a escada certa), que é mais do que uma foto provaria e não depende de um sistema que
 não termina de nascer. E o `subir` ganhou a capacidade de falhar, que é o assunto do commit
 ao lado.*
+
+---
+
+## O contorno funcionou e a hipótese caiu no mesmo comando — 11 de setembro, à noite
+
+A imagem ATD entrou na lista como *"contorno não tentado"* por um raciocínio: menos processo
+de sistema, menos contenção, o processo persistente da rede responde dentro do prazo do ANR,
+o `system_server` para de cair, e a instalação passa. **Isso estava certo inteiro:**
+
+| | `norva-cheio` | `norva-atd` |
+|---|---|---|
+| boot | 396 s | 233 s |
+| quedas do `system_server` | 3 em 9 min | **0 em 20 min** |
+| `adb install` de 29 MB | recusado | **Success, 164 s** |
+
+E na mesma execução a hipótese IMPLÍCITA caiu: eu estava tratando o quadro preto como
+consequência da queda. Num sistema sem uma única queda, o aplicativo sobe, a `MainActivity`
+fica em primeiro plano, o `SurfaceFlinger` aloca a camada dele em `1080 x 2340, 9871 KiB`, e
+**`Total frames rendered` continua 0.**
+
+**Por que isso é ganho e não decepção:** a caçada deixou de ter um suspeito e passou a ter uma
+lista de inocentes provados — a troca de largura, o "reduzir movimento", a queda do sistema, e
+a superfície ausente. Quatro eliminações medidas valem mais que uma hipótese nova, porque
+eliminação não envelhece: ela continua verdadeira na próxima sessão, e a hipótese não.
+
+**A pergunta que fica, e ela é sobre método:** ao testar um contorno, escreva o que ele
+resolveria E o que ele deixaria de pé. Eu escrevi só a primeira metade, e por isso o
+resultado parcial chegou como surpresa em vez de como medida — a instalação funcionando e o
+quadro continuando preto eram duas respostas diferentes que eu tinha empacotado numa.
+
+*E uma ironia que se paga escrever: o rastro da partida do ATD, que teria a linha do
+renderizador escolhido, foi apagado por mim — a segunda partida truncou o arquivo de nome
+fixo, que é exatamente o defeito que eu consertei uma hora depois. A prova morreu pela coisa
+que o conserto existe para impedir.*

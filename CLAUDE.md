@@ -319,9 +319,40 @@ Três consequências práticas:
    prova o que pode: que a tela monta, que o dicionário tem as chaves, que o fluxo anda.
    O que ele não alcança continua na lista de baixo, e continua sendo do aparelho do dono.
 
-*O contorno que ainda não foi tentado: a imagem ATD (`norva-atd`), que tem menos processo de
-sistema e por isso talvez responda dentro do prazo do ANR. Fica escrito como hipótese não
-medida — que é o que ela é.*
+**E o contorno FOI tentado no mesmo dia, com resultado parcial e uma separação que vale
+mais que ele.** A imagem ATD (`norva-atd`, `aosp_atd`):
+
+| | `norva-cheio` | `norva-atd` |
+|---|---|---|
+| boot | 396 s | **233 s** |
+| quedas do `system_server` | **3 em 9 min** | **0 em 20 min** |
+| `adb install` do APK de 29 MB | recusado (`Broken pipe`, `Can't find service`) | **Success, em 164 s** |
+| `Total frames rendered` | 0 | **0** |
+
+Então o ATD **resolve a instalação** e é o AVD a usar daqui em diante. E a última linha é a
+que importa para o pensamento: **o quadro preto NÃO era efeito da queda.** Num sistema
+estável, sem uma única queda, o aplicativo sobe, a `MainActivity` fica em primeiro plano,
+o `SurfaceFlinger` aloca a camada dele no tamanho certo — `1080 x 2340, 9871 KiB` — e
+**nenhum quadro é desenhado**. A superfície existe e nunca é preenchida.
+
+O que já foi ELIMINADO por medida, e é o valor real desta caçada:
+
+1. a troca de largura (`wm size`) — as duas condições mortas, 10 de setembro;
+2. o "reduzir movimento" — as fotos saíram pretas com ele desligado;
+3. **a queda do `system_server`** — mesmo sintoma num sistema sem quedas;
+4. superfície ausente ou de tamanho zero — o buffer está alocado e correto.
+
+E o que sobra medido junto: o processo do aplicativo coleta **~125 mil objetos a cada nove
+segundos**, para sempre, desenhando nada. Isso acontece num sistema estável, então também
+não é consequência da queda.
+
+**Causa ainda não estabelecida**, e fica dito assim em vez de uma hipótese vestida de
+conclusão. O que se sabe é onde ela NÃO está.
+
+*E uma ironia que se paga escrever: o rastro da partida do ATD, que teria a linha do
+renderizador escolhido, foi apagado por mim — a segunda partida truncou o arquivo de nome
+fixo, que é exatamente o defeito que eu consertei uma hora depois. A prova morreu por causa
+da coisa que o conserto existe para impedir.*
 
 **E a regra que vale mais que todas elas juntas: verde não prova tela.** O tema
 claro ilegível que chegou ao dono passou por 338 testes verdes e 36 checagens de
