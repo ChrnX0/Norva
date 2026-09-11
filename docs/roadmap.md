@@ -783,9 +783,34 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     caixa, "Unidades por engradado" quando não há — um campo que quer dizer duas coisas
     sob o mesmo rótulo só aparece quando o estoque de alguém sai errado.
 
-39. **As palavras dos três níveis são de sorveteria, e o conceito por trás delas é outro.**
-    <!-- medida: espera decisão do dono: as palavras são do produto, e ele pediu estudo antes de trocar -->
-    Hoje: **Linha → Tipo → Variação**. "Sabores" saiu em 10 de setembro, quando o dono
+39. ~~**As palavras dos três níveis são de sorveteria**~~ — **as PALAVRAS fecharam em 11
+    de setembro; a ATRIBUIÇÃO continua aberta, e é meia pergunta só.**
+    <!-- medida: espera decisão do dono: qual natureza fica em qual nível — as palavras já foram decididas e construídas -->
+
+    **Decidido e no ar:** **Produto → Categoria → Tipo → Variação**, com nenhum nível de
+    baixo obrigatório (`0057`, `V32`, `degraus()`, catálogo e dicionário nos três idiomas).
+    "Linha" saiu; "Produto" é o topo, que é a palavra do dono.
+
+    **O que ficou aberto, e é a metade que vale:** a tabela das duas naturezas continua
+    abaixo, e a decisão dele **não diz qual natureza vai para qual nível**. Na forma como
+    está construída, as duas continuam em "Tipo" e a Categoria nasce vazia nas duas
+    famílias da fábrica dele — ou seja, o nível novo ainda não fez o trabalho para o qual
+    existe. A proposta que está com ele:
+
+    | nível | o que ele muda | picolé | pote |
+    |---|---|---|---|
+    | Categoria | a RECEITA | Leite, Água, Skimo | *(vazio)* |
+    | Tipo | tamanho ou formato, mesma receita | *(vazio)* | 250 ml, 500 ml |
+    | Variação | sabor, cor, aroma | Morango… | Morango… |
+
+    Com isso cada família usa três dos quatro, deixando níveis DIFERENTES vazios — que é a
+    opcionalidade fazendo trabalho em vez de ser só permissão. E vira uma regra que alguém
+    aplica sem adivinhar: sem ela, a mesma coisa vai para níveis diferentes em produtos
+    diferentes e o relatório fica incoerente sem ninguém ver.
+
+    O registro de então, que continua valendo como leitura:
+
+    Hoje: ~~Linha → Tipo → Variação~~. "Sabores" saiu em 10 de setembro, quando o dono
     apontou que aquilo era vocabulário de sorveteria num aplicativo que vai para qualquer
     fábrica. Ele aceitou as palavras de agora como provisórias e pediu estudo: *"vamos
     estudar palavras mais genéricas que representem o conceito"*.
