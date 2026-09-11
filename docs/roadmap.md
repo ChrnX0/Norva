@@ -1445,9 +1445,35 @@ respostas do dono: `PushResult` ganha as REJEITADAS com uma classe (`permanente`
 muda com a resposta dele é só o que acontece com a linha posta de lado — desfazer, marcar
 como não aplicada, ou avisar quem conferiu — e isso é tela, não motor.
 
-O que impede de construir a metade de engenharia hoje: quem classifica a recusa é o
-transporte, contra as respostas de um servidor de verdade, e **nenhuma linha subiu para
-servidor nenhum ainda**. Construir o classificador contra um erro que ninguém viu é adivinhar
+**E o que trava é MENOS do que estava escrito — medido em 11 de setembro, lendo a própria
+`0051`.** O bloqueio dizia que a classificação precisa das respostas de um servidor de
+verdade. Metade disso é falso: a `0051` escolhe o erro dela com as nossas palavras —
+
+```sql
+raise exception using
+  errcode = 'unique_violation',
+  message = 'esta remessa já foi conferida',
+  hint    = 'desfaça a conferência anterior antes de conferir de novo';
+```
+
+— então **a classe da recusa é nossa, não do servidor**: `23505` numa fila que sobe por
+`on conflict` é permanente por construção, e isso se sabe sem ninguém ter subido nada.
+
+O que continua precisando de um push de verdade é outra coisa, e é mais estreita: **qual
+LINHA da fatia foi recusada.** Um lote entra como uma instrução, e uma instrução falha
+inteira — então a fila recebe "a fatia morreu" e não "a terceira linha morreu". Isso não é
+questão de forma de erro: é de isolar dentro do lote, e **não depende de servidor nenhum para
+ser construído**, porque só depende de um lote poder falhar.
+
+Então a fila do item passa a ser: (1) isolar a linha culpada dentro de uma fatia que falhou —
+construível hoje; (2) classificar pela `errcode` — construível hoje, com a nossa própria
+lista; (3) o que a TELA faz com a linha posta de lado — decisão do dono, já tomada (os dois
+celulares veem, o primeiro que aceitar fica).
+
+*O parágrafo abaixo continua valendo para o que ele de fato cobre — inventar um catálogo de
+erros de um servidor que ninguém exercitou:*
+
+Construir o classificador contra um erro que ninguém viu é adivinhar
 a forma do que se está protegendo.
 <!-- medida: espera decisão do dono: o segundo celular tem no razão dele uma conferência que o servidor recusou -->
 
