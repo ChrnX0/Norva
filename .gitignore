@@ -54,3 +54,6 @@ yarn-error.*
 
 # Derivado das seções de docs/dossie/ — monta-se com `node scripts/dossie.mjs`.
 docs/DOSSIE.md
+
+# A marca que o corredor do e2e deixa enquanto roda — estado de máquina, não de projeto.
+.e2e-rodando

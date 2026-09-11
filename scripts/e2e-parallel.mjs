@@ -21,6 +21,7 @@
  * veredito só, e "três de quatro fatias passaram" não é um veredito.
  */
 import { spawn, spawnSync } from 'node:child_process';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { marcarExportado, precisaLimpar } from './manifesto.mjs';
 
@@ -48,6 +49,37 @@ if (build.status !== 0) {
 // A marca só depois do sucesso: um export que morreu no meio não provou nada
 // sobre o manifesto que está em `dist`.
 marcarExportado();
+
+/**
+ * O corredor anota o PID dele, e o gancho da sessão lê essa marca.
+ *
+ * **Por que existe.** O `CLAUDE.md` diz desde 9 de setembro que a barra não roda junto
+ * com o navegador: quatro fatias ocupam os quatro núcleos, e uma checagem que perde a
+ * corrida devolve `Input: ''` — queda, não frase errada. Em 11 de setembro eu quebrei
+ * essa regra QUATRO vezes na mesma sessão, sabendo dela: rodei `npm test`, o portão do
+ * plano e o typecheck por cima de execuções em andamento, e três delas voltaram com
+ * vermelha que passou sozinha depois. Cada uma custou a execução inteira mais a
+ * remedição.
+ *
+ * Atenção não conserta isso — é a mesma conclusão que criou este gancho e a proofgate.
+ * O que conserta é a coisa não rodar.
+ *
+ * **E a marca é um ARQUIVO com PID, não um padrão de processo.** Procurar
+ * `pgrep -f flow.mjs` é o defeito que este repositório já pagou duas vezes: o padrão casa
+ * com a linha de comando de quem procura. PID anotado por quem começou é o idioma que o
+ * `CLAUDE.md` manda usar, e quem lê confere se ele está vivo — então marca velha de uma
+ * execução morta não bloqueia nada.
+ */
+const MARCA = '.e2e-rodando';
+writeFileSync(MARCA, String(process.pid));
+const largarMarca = () => {
+  try {
+    if (readFileSync(MARCA, 'utf8').trim() === String(process.pid)) rmSync(MARCA);
+  } catch {
+    // Sumiu, ou é de outra execução: não é nosso para apagar.
+  }
+};
+process.on('exit', largarMarca);
 
 console.log(`\n› rodando as checagens em ${FATIAS} fatias\n`);
 

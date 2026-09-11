@@ -130,4 +130,33 @@ if printf '%s' "$sem_aspas" | grep -Eq 'verify\.sh|npm (run )?(test|typecheck|li
   exit 2
 fi
 
+# 6. A barra POR CIMA do navegador: quatro fatias já ocupam os quatro núcleos.
+#
+# O `CLAUDE.md` diz isto desde 9 de setembro, com a medida ao lado: uma checagem que perde
+# a corrida devolve `Input: ''` — sinal de queda, não de frase errada — e passa verde
+# sozinha depois. Em 11 de setembro eu quebrei a regra QUATRO vezes na mesma sessão,
+# sabendo dela, e três execuções voltaram com vermelha que não era defeito. Cada uma custou
+# a execução inteira (seis a nove minutos) mais a remedição de uma checagem por vez.
+#
+# Atenção não conserta: é a mesma conclusão que criou este gancho.
+#
+# A marca é o PID que o corredor anotou (`scripts/e2e-parallel.mjs`), e não um `pgrep -f`
+# por padrão — aquele casa com a linha de comando de quem procura, defeito que este
+# repositório já pagou duas vezes. Marca de execução morta não bloqueia: a liveness do PID
+# é conferida aqui.
+if printf '%s' "$sem_aspas" | grep -Eq 'npm (run )?(test|typecheck|lint|mutate|db:verify)|npx tsx --test|tsc --noEmit'; then
+  marca=".e2e-rodando"
+  if [ -f "$marca" ]; then
+    dono=$(tr -d '[:space:]' < "$marca" 2>/dev/null || true)
+    if [ -n "$dono" ] && kill -0 "$dono" 2>/dev/null; then
+      printf '%s\n' "✗ o navegador está rodando (PID $dono) e a barra disputaria os quatro núcleos." >&2
+      printf '%s\n' "  Checagem que perde a corrida devolve \`Input: ''\` e passa sozinha depois — a" >&2
+      printf '%s\n' "  execução inteira se perde, e a remedição custa mais que a espera." >&2
+      printf '%s\n' "  → Espere a notificação de término e rode depois." >&2
+      printf '%s\n' "     (NORVA_ESPERA_OFF=1 desliga.)" >&2
+      exit 2
+    fi
+  fi
+fi
+
 exit 0
