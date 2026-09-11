@@ -719,6 +719,34 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     caixa, "Unidades por engradado" quando não há — um campo que quer dizer duas coisas
     sob o mesmo rótulo só aparece quando o estoque de alguém sai errado.
 
+39. **As palavras dos três níveis são de sorveteria, e o conceito por trás delas é outro.**
+    <!-- medida: espera decisão do dono: as palavras são do produto, e ele pediu estudo antes de trocar -->
+    Hoje: **Linha → Tipo → Variação**. "Sabores" saiu em 10 de setembro, quando o dono
+    apontou que aquilo era vocabulário de sorveteria num aplicativo que vai para qualquer
+    fábrica. Ele aceitou as palavras de agora como provisórias e pediu estudo: *"vamos
+    estudar palavras mais genéricas que representem o conceito"*.
+
+    **E deu o conceito, que é a parte que vale.** *"A ideia em um produto X que é o FINAL
+    de uma cadeia de DEPENDÊNCIAS."* Isso não é sinônimo do que está escrito — é uma
+    leitura diferente do modelo inteiro, e ela junta duas coisas que o aplicativo hoje
+    trata como separadas:
+
+    - a cadeia de FABRICAÇÃO: insumo → receita → sub-receita → receita → produto;
+    - a cadeia de CLASSIFICAÇÃO: linha → tipo → variação → produto.
+
+    As duas terminam no mesmo lugar, e o produto vendável é o nó final das duas. Hoje o
+    aplicativo tem duas telas e dois vocabulários para isso (a ficha técnica e o
+    catálogo), e uma pessoa que pensa "cadeia de dependências" precisa aprender os dois
+    para descrever uma coisa só.
+
+    O que este item NÃO é: uma troca de palavras. Trocar "Variação" por "Versão" não muda
+    nada. O que está em aberto é se os dois vocabulários deviam ser um, e como um nível
+    se chama quando o que ele significa é *"do que este produto depende, um degrau acima"*.
+
+    **Por que fica em espera e não vira trabalho agora:** é decisão de dono (é a língua do
+    produto, e ele vai vender isto), e mexer nas palavras antes de a fábrica do pai dele
+    rodar ponta a ponta seria trocar o que se lê antes de saber o que se faz.
+
 **Aberto do que esta caminhada achou:**
 
 22. ~~**Sair do editor com alteração pendente não avisa.**~~ — **fechada** com uma guarda em
