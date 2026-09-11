@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **719** testes |
+| `npm test` | **726** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **55** checagens num navegador de verdade |
 | `npm run db:verify` | **29** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **14** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -934,6 +934,32 @@ extenso (*"6 insumos, 6 movimentos do livro-razão, 2 receitas, 1 produto e 6 co
 segunda explicando o que o registro é (*"Apagar não desfaz os lançamentos: tira-os do
 mundo"*); o prazo de 10 dias no lugar; as áreas que não podem ser apagadas cinzas **com o
 motivo escrito**; e o estado voltando para *"Vazio, sem exemplo"* depois do apagamento.
+
+### ~~O emulador estava em "reduzir movimento", e nenhuma foto dizia isso~~ — FECHADO em 11 de setembro
+<!-- medida: presente scripts/leitura.mjs :: appAnima -->
+
+As três escalas de animação do emulador estavam em **0**, e o `settings_global.xml` diz
+quem fez: `value="0" package="root" defaultValue="1.0"`. A imagem ATD **não** vem assim —
+alguém escreveu em tempo de execução (a sessão de 10 de setembro, que precisou ler a
+árvore de acessibilidade), não devolveu, e o instantâneo guardou.
+
+**O custo não é a animação do Android.** `transition_animation_scale = 0` é o que o React
+Native devolve como `isReduceMotionEnabled()` — conferido na fonte no disco,
+`AccessibilityInfoModule.kt:100-115` — e **doze** componentes leem esse sinal para parar
+(`Reveal`, `Alive`, `Vivo`, `FactoryScene`, `Sky`, `Bars`, `Drain`, `PulseDot`, `CountUp`,
+`Sparkline`, `Capa`, `Peca`). Ou seja, toda foto tirada desde então mostra **o aplicativo
+com o sistema de movimento desligado** — exatamente o requisito que o dono mais cobra.
+
+E nada denunciava: um quadro parado de um app que se mexe é idêntico a um quadro de um app
+que não se mexe, do mesmo jeito que 1080 px não diz se são 393 dp ou 720 dp.
+
+**O conserto é reportar, não restaurar** — restaurar o que não se sabe quem mudou é
+adivinhar. Toda foto passa a trazer o estado na legenda, ao lado do dp, e só grita no caso
+anormal. A régua separa as duas perguntas, porque elas têm donos diferentes: `appAnima`
+(só a primeira escala) responde *"o aplicativo está vivo nesta foto?"*, que é do dono do
+produto; `sistemaAnima` (as três) responde *"a janela vai ficar ociosa para o uiautomator
+ler?"*, que é do instrumento. A primeira versão tratava as três como iguais e teria dito
+"o app está parado" com o app animando.
 
 ### A. Nada mede o que o movimento de ambiente custa — e ele já comeu uma tela
 <!-- medida: ausente src/components :: orcamento de movimento -->

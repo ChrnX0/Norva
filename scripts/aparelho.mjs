@@ -41,7 +41,7 @@ import { Buffer } from 'node:buffer';
 import { deflateSync } from 'node:zlib';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { mesmaTelaEmTodas } from './leitura.mjs';
+import { interpretarMovimento, mesmaTelaEmTodas } from './leitura.mjs';
 
 const SDK = process.env.ANDROID_HOME ?? '/opt/android-sdk';
 const ADB = join(SDK, 'platform-tools/adb');
@@ -340,6 +340,53 @@ function larguraEmDp() {
   }
 }
 
+/** As três escalas que decidem se o Android — e o aplicativo — se mexem. */
+const ESCALAS_DE_MOVIMENTO = [
+  'transition_animation_scale',
+  'window_animation_scale',
+  'animator_duration_scale',
+];
+
+/**
+ * O aparelho está com MOVIMENTO ligado? — e por que toda foto passa a dizer isso.
+ *
+ * **Medido em 11 de setembro, e é a cicatriz da densidade noutra variável.** O emulador
+ * estava com as três escalas em `0`, e o `settings_global.xml` diz quem fez:
+ *
+ * ```
+ * <setting name="transition_animation_scale" value="0" package="root" defaultValue="1.0" ... />
+ * ```
+ *
+ * `defaultValue="1.0"` — a imagem NÃO vem assim; `package="root"` — alguém escreveu em
+ * tempo de execução. Foi uma sessão que precisou ler a árvore de acessibilidade, ligou
+ * "reduzir movimento" na mão e não devolveu; o instantâneo guardou, e ficou.
+ *
+ * O custo é o mesmo da densidade e é pior: `transition_animation_scale = 0` é o que o
+ * React Native devolve como `AccessibilityInfo.isReduceMotionEnabled()`, que
+ * `src/components/vida.ts` lê para PARAR as animações. Ou seja, o aparelho não estava só
+ * sem animação de sistema — **o aplicativo fotografado era o aplicativo desligado**, e o
+ * dono exige o contrário, com todas as letras: *"vc já viu organismo vivo MORTO?"*.
+ *
+ * E a foto não denuncia: um quadro parado de um app que se mexe e um quadro parado de um
+ * app que não se mexe são o mesmo quadro. Vale a frase que já está no `larguraEmDp`:
+ * regra escrita não impede, o que impede é o número estar na frente de quem olha.
+ *
+ * A ferramenta devolve o que a ferramenta troca — `wm size` e `wm density` são devolvidos
+ * em `tela('original')`. Ninguém devolve o que uma sessão troca na mão, e é por isso que
+ * o conserto aqui é REPORTAR em vez de restaurar: restaurar o que não se sabe quem
+ * mudou é adivinhar.
+ */
+function movimentoDoAparelho() {
+  try {
+    const ditos = ESCALAS_DE_MOVIMENTO.map((k) =>
+      adbBin('shell', 'settings', 'get', 'global', k).toString().trim(),
+    );
+    return interpretarMovimento(ditos);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Uma foto — e a ROTA é opcional aqui pelo mesmo motivo que é obrigatória no plural.
  *
@@ -553,6 +600,22 @@ async function foto(nome, rota) {
   const emQue = largura
     ? ` — ${largura.dp} dp (${largura.px} px a ${largura.dpi} dpi)${largura.dp >= 600 ? ' ⚠ TABLET' : ''}`
     : '';
+  // O estado de MOVIMENTO ao lado da densidade, e pelo mesmo motivo: as duas são
+  // persistentes, nenhuma aparece no retrato, e as duas já enganaram uma sessão
+  // inteira. Só o caso anormal ganha aviso — dizer "com movimento" em toda linha
+  // vira ruído, e ruído ensina a não ler.
+  const movimento = movimentoDoAparelho();
+  const emMovimento =
+    movimento === null
+      ? ' ⚠ não sei dizer se há movimento'
+      : !movimento.appAnima
+        ? ' ⚠ SEM MOVIMENTO (o app lê "reduzir movimento": esta foto é do aplicativo parado)'
+        : movimento.sistemaAnima
+          ? ''
+          // O app anima e o Android não: a foto vale para julgar o aplicativo, e é o
+          // instrumento que está noutro estado. Dizer "sem movimento" aqui seria mentir
+          // sobre o app; calar seria esconder que a janela não vai ficar ociosa.
+          : ' (o app anima; a animação do Android está desligada)';
   // A tinta E a extensão dela, porque o número sozinho não diz QUE tela é esta.
   //
   // Cicatriz da mesma hora: fotografei a capa para provar um conserto, li
@@ -571,7 +634,7 @@ async function foto(nome, rota) {
       ? ', SEM medida (o quadro veio do console do emulador)'
       : `, tinta ${tinta.mediana.toFixed(2)}:1 em ${tinta.comTinta}/${tinta.fitas} fitas`;
   console.log(
-    `${destino} — ${(veredito.bytes / 1024).toFixed(0)} KB, variação ${veredito.variacao}${emTinta}${emQue}`,
+    `${destino} — ${(veredito.bytes / 1024).toFixed(0)} KB, variação ${veredito.variacao}${emTinta}${emQue}${emMovimento}`,
   );
 
   if (tinta !== null && tinta.mediana < PISO_DE_TEXTO) {

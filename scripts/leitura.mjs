@@ -52,3 +52,42 @@ export function mesmaTelaEmTodas(titulos) {
   if (legiveis.length < de) return { veredito: 'nao-sei', vistos, lidas: legiveis.length, de };
   return { veredito: 'iguais', vistos, lidas: legiveis.length, de };
 }
+
+/**
+ * O que as três escalas de animação querem dizer — e elas NÃO querem dizer a mesma coisa.
+ *
+ * A leitura do aparelho fica no `aparelho.mjs`; a INTERPRETAÇÃO fica aqui, porque é ela
+ * que erra em silêncio. Dois modos de errar, e os dois foram medidos em 11 de setembro:
+ *
+ * **1. `"null"` não é zero.** `settings get` responde a string `"null"` quando a chave
+ * nunca foi mexida, e isso é o PADRÃO do sistema, que é 1. Lido como zero, o aviso sai
+ * invertido — e aviso invertido é pior que nenhum, porque ensina a ignorar.
+ *
+ * **2. Só UMA das três chega ao aplicativo, e a primeira versão disto tratava as três
+ * como iguais.** Conferido na fonte do React Native que está no disco
+ * (`AccessibilityInfoModule.kt:100-115`): `isReduceMotionEnabled()` lê
+ * `Settings.Global.TRANSITION_ANIMATION_SCALE` e mais nada — e devolve `false` quando ela
+ * é nula. As outras duas param animação do ANDROID (transição de janela, duração de
+ * animador) e não tocam no que `src/components/vida.ts` pergunta.
+ *
+ * A diferença importa porque as duas perguntas têm donos diferentes: *"o aplicativo está
+ * vivo nesta foto?"* é do dono do produto, e responde só a `transition_animation_scale`;
+ * *"a janela vai parar para o uiautomator ler?"* é do instrumento, e depende das três.
+ * Uma função que devolvesse um booleano só estaria respondendo a pergunta errada para
+ * uma das duas.
+ */
+export function interpretarMovimento(ditos) {
+  const valores = ditos.map((d) => {
+    const t = String(d ?? '').trim();
+    if (t === 'null' || t === '') return 1;
+    return Number(t);
+  });
+  if (valores.some((v) => Number.isNaN(v))) return null;
+  return {
+    /** O APLICATIVO anima? É o que `isReduceMotionEnabled()` responde, e é só a primeira. */
+    appAnima: valores[0] > 0,
+    /** O ANDROID anima? As três juntas — é isto que decide se a janela fica ociosa. */
+    sistemaAnima: valores.every((v) => v > 0),
+    valores,
+  };
+}

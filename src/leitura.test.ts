@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
-import { mesmaTelaEmTodas } from '../scripts/leitura.mjs';
+import { interpretarMovimento, mesmaTelaEmTodas } from '../scripts/leitura.mjs';
 
 /**
  * A guarda das cinco larguras não pode responder o que não conseguiu medir.
@@ -77,4 +77,64 @@ test('o comando das cinco larguras trata as três respostas', () => {
       `o comando não trata a resposta '${resposta}' — a guarda voltou a ter duas saídas`,
     );
   }
+});
+
+/**
+ * O estado de movimento do aparelho, lido de três escalas — e `"null"` não é zero.
+ *
+ * O emulador deste projeto estava com as três em `0` e ninguém sabia: `0` em
+ * `transition_animation_scale` é o que o React Native devolve como
+ * `isReduceMotionEnabled()`, que `src/components/vida.ts` lê para PARAR as animações. As
+ * fotos eram do aplicativo desligado, e o dono exige o contrário.
+ *
+ * O caso que engana é `"null"`: `settings get` responde isso quando a chave nunca foi
+ * mexida, e o padrão do sistema é **1**. Lido como zero, o aviso sairia invertido — e um
+ * aviso invertido é pior que nenhum, porque ensina a ignorar.
+ */
+test('"null" é "nunca mexido", e o padrão do sistema é movimento LIGADO', () => {
+  const r = interpretarMovimento(['null', 'null', 'null']);
+  assert.equal(r?.appAnima, true, 'chave nunca mexida virou "sem movimento" — o aviso sai invertido');
+  assert.equal(r?.sistemaAnima, true);
+});
+
+test('as três em zero são o aparelho em "reduzir movimento"', () => {
+  const r = interpretarMovimento(['0', '0', '0']);
+  assert.equal(r?.appAnima, false);
+  assert.equal(r?.sistemaAnima, false);
+});
+
+test('as três em um são o aparelho como o dono recebe', () => {
+  const r = interpretarMovimento(['1', '1', '1']);
+  assert.equal(r?.appAnima, true);
+  assert.equal(r?.sistemaAnima, true);
+});
+
+/**
+ * A que separa as duas perguntas — e a primeira versão desta régua errava aqui.
+ *
+ * Conferido na fonte que está no disco (`AccessibilityInfoModule.kt:100-115`): o React
+ * Native lê SÓ `TRANSITION_ANIMATION_SCALE` para `isReduceMotionEnabled()`. Então
+ * `window_animation_scale = 0` para a transição do ANDROID e não toca no aplicativo:
+ * dizer "esta foto é do aplicativo parado" aí seria mentira.
+ */
+test('só a PRIMEIRA escala chega ao aplicativo — as outras são do Android', () => {
+  const r = interpretarMovimento(['1', '0', '1']);
+  assert.equal(r?.appAnima, true, 'a foto continua sendo do aplicativo vivo');
+  assert.equal(r?.sistemaAnima, false, 'mas a janela do Android não vai ficar ociosa');
+});
+
+test('a primeira em zero é o aplicativo parado, mesmo com as outras ligadas', () => {
+  const r = interpretarMovimento(['0', '1', '1']);
+  assert.equal(r?.appAnima, false);
+  assert.equal(r?.sistemaAnima, false, 'sistemaAnima exige as três');
+});
+
+test('fração é movimento, e mais lento não é parado', () => {
+  assert.equal(interpretarMovimento(['0.5', '1', '1'])?.appAnima, true);
+});
+
+test('resposta que não é número vira "não sei", nunca um palpite', () => {
+  // `settings` respondendo `cmd: Can't find service: settings` durante a partida é o
+  // caso real: o instrumento tem de dizer que não sabe, e não inventar "tem movimento".
+  assert.equal(interpretarMovimento(["cmd: Can't find service: settings", '1', '1']), null);
 });

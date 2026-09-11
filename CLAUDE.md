@@ -210,6 +210,40 @@ Daí três regras de construção:
    shell wm density` e a conta** — e `wm density reset` ao terminar de comparar
    larguras, sempre, porque quem esquecer envenena a próxima sessão inteira.
 
+5. **E a IRMÃ da densidade, medida em 11 de setembro: o MOVIMENTO também é
+   persistente, e ele decide qual aplicativo aparece na foto.** O emulador estava com
+   `transition_animation_scale`, `window_animation_scale` e `animator_duration_scale`
+   todas em **0**, e o `settings_global.xml` diz quem fez: `value="0" package="root"
+   defaultValue="1.0"`. Ou seja, a imagem **não** vem assim — uma sessão ligou "reduzir
+   movimento" na mão para conseguir ler a árvore de acessibilidade, não devolveu, e o
+   instantâneo guardou.
+
+   O custo é maior que o da densidade. `transition_animation_scale = 0` é exatamente o
+   que o React Native devolve como `AccessibilityInfo.isReduceMotionEnabled()`, que
+   `src/components/vida.ts` lê para **parar as animações** — conferido na fonte que está
+   no disco, `AccessibilityInfoModule.kt:100-115`, e ela lê **só** essa chave (as outras
+   duas param o Android e não chegam ao aplicativo; a régua que não separasse as duas
+   diria "o app está parado" quando não está). Então não era só o Android
+   sem transição: **o aplicativo fotografado era o aplicativo desligado** — e o requisito
+   do dono é o oposto, com todas as letras (*"vc já viu organismo vivo MORTO?"*). São
+   **doze** componentes que leem esse sinal — `Reveal`, `Alive`, `Vivo`, `FactoryScene`,
+   `Sky`, `Bars`, `Drain`, `PulseDot`, `CountUp`, `Sparkline`, `Capa`, `Peca` —, ou seja,
+   o sistema de movimento inteiro.
+
+   **E o que explica ninguém ter notado é que nada denuncia.** Um quadro parado de um
+   app que se mexe é idêntico a um quadro de um app que não se mexe, e o estado não
+   aparece no retrato — do mesmo jeito que 1080 px não diz se são 393 dp ou 720 dp. As
+   fotos continuaram certas sobre LAYOUT e mudas sobre VIDA, que é o requisito que o dono
+   mais cobra; e quem olha uma foto não tem como saber qual das duas coisas está vendo.
+
+   A ferramenta devolve o que a ferramenta troca — `wm size` e `wm density` voltam em
+   `tela('original')`. **Ninguém devolve o que uma sessão troca na mão**, e é por isso
+   que o conserto não é restaurar (restaurar o que não se sabe quem mudou é adivinhar):
+   toda foto passa a trazer o estado do movimento na legenda, ao lado do dp, e só grita
+   no caso anormal — `⚠ SEM MOVIMENTO (o app está em "reduzir movimento")`. Vale a mesma
+   frase da regra 4: regra escrita não impede, o que impede é o aviso estar na frente de
+   quem olha.
+
 **E migração não se prova com teste — cicatriz de 7 de setembro.** A linha da tabela
 dizia *"domínio, dados, migração → typecheck + npm test"*, e uma migração de vinte
 linhas passou por 491 testes verdes e pelo portão carregando **três** defeitos que só
