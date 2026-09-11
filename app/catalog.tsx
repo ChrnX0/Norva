@@ -25,6 +25,7 @@ import {
   type ProductType,
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
+import { meioDaGrade } from '@/components/grade';
 import { parseTyped } from '@/domain/number';
 import { tiersFromCounts, type PackagingHierarchy } from '@/domain/units';
 import { useQuery } from '@/data/useQuery';
@@ -105,7 +106,19 @@ function Catalog() {
    * mostra menos do que deveria e a pessoa corrige; errar para o largo oferece morango
    * de água no de leite, que é o que ele pediu para travar.
    */
-  const [saborNaLinha, setSaborNaLinha] = useState(false);
+  const [alcanceDoSabor, setAlcanceDoSabor] = useState<'tipo' | 'categoria' | 'produto'>('tipo');
+  /**
+   * O cartão da categoria ABERTO na mão — e o padrão é fechado.
+   *
+   * Decisão do dono, 11 de setembro, sobre um cartão que na fábrica dele lia "nenhuma
+   * categoria aqui — e tudo bem" para sempre: um cartão inteiro a explicar um nível que
+   * a maioria não usa é o mesmo defeito do alerta inventado, ensinando a não olhar. Com
+   * ele fechado, quem não usa nunca vê; quem precisa paga um toque para descobrir.
+   *
+   * É grudento de propósito: quem abriu está em modo "quero categoria", e trocar de
+   * produto não o tira desse modo. Fechar sozinho faria o toque ser cobrado de novo.
+   */
+  const [categoriaAberta, setCategoriaAberta] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   /**
    * Como a família escolhida é embalada — e por que ela mora AQUI.
@@ -181,6 +194,14 @@ function Catalog() {
     categoriasDaLinha.find((c) => c.id === categoryId) ??
     (categoriasDaLinha.length === 1 ? categoriasDaLinha[0] : null);
   /**
+   * O cartão da categoria aparece se houver categoria, ou se alguém pedir.
+   *
+   * Categoria cadastrada manda: dado que existe não se esconde atrás de um convite, e um
+   * cartão que se fechasse sozinho sobre o que a fábrica já usa seria a tela escondendo o
+   * trabalho dela.
+   */
+  const mostrarCategoria = categoriasDaLinha.length > 0 || categoriaAberta;
+  /**
    * Os tipos que valem aqui: os da categoria escolhida MAIS os do produto inteiro.
    *
    * Tipo sem categoria não é tipo mal cadastrado — é tipo que vale em todo o produto,
@@ -211,8 +232,37 @@ function Catalog() {
   const saboresDoTipo = (data?.flavors ?? []).filter(
     (s) =>
       (s.lineId === null && s.typeId === null) ||
-      (s.lineId === linhaAtiva?.id && (s.typeId === null || s.typeId === tipoAtivo?.id)),
+      (s.lineId === linhaAtiva?.id &&
+        (s.typeId === null || s.typeId === tipoAtivo?.id) &&
+        (s.categoryId === null || s.categoryId === categoriaAtiva?.id)),
   );
+  /**
+   * Os alcances que a variação nova PODE ter aqui, e nada além deles.
+   *
+   * Onde não há escolha não se pergunta: sem categoria e sem tipo escolhidos, a variação
+   * é do produto inteiro e não há pergunta nenhuma. Com um dos dois, são duas opções;
+   * com os dois, três. A ordem é a da cadeia — do mais estreito para o mais largo —,
+   * porque errar para o estreito mostra menos do que deveria e a pessoa corrige; errar
+   * para o largo oferece morango de água no de leite, que é o que o dono mandou travar.
+   */
+  const alcances: ('tipo' | 'categoria' | 'produto')[] = [
+    ...(tipoAtivo ? (['tipo'] as const) : []),
+    ...(categoriaAtiva ? (['categoria'] as const) : []),
+    'produto',
+  ];
+  /**
+   * O alcance que vale — e ele nunca fica apontando para um nível que sumiu.
+   *
+   * Trocar de produto ou de categoria pode tirar o tipo da tela; sem isto, `alcanceDoSabor`
+   * continuaria em `'tipo'` e a gravação estreitaria num tipo que ninguém escolheu.
+   */
+  const alcanceValendo = alcances.includes(alcanceDoSabor) ? alcanceDoSabor : alcances[0];
+  const nomeDoAlcance = (a: 'tipo' | 'categoria' | 'produto') =>
+    a === 'tipo'
+      ? fill(t.app.catalog.scopeType, { type: tipoAtivo?.name ?? '' })
+      : a === 'categoria'
+        ? fill(t.app.catalog.scopeCategory, { category: categoriaAtiva?.name ?? '' })
+        : fill(t.app.catalog.scopeLine, { line: linhaAtiva?.name ?? '' });
 
   // `limpar` é opcional: guardar a embalagem da família não esvazia campo
   // nenhum — os dois continuam mostrando o que acabou de ser guardado.
@@ -257,12 +307,21 @@ function Catalog() {
    */
   const primeiroTipo = tiposDaLinha[0] ?? null;
   const primeiroSabor = data?.flavors[0] ?? null;
+  /**
+   * Os níveis do meio do exemplo, pela MESMA função que a tela de gravar usa.
+   *
+   * Antes eram duas cópias da regra de composição, e o docblock de lá dizia por que elas
+   * tinham de bater. Cópia que tem de bater é cópia que diverge: `meioDaGrade` faz a
+   * conta uma vez, e é ela que deixa a categoria aparecer no nome sem multiplicar o
+   * molde do dicionário por oito.
+   */
+  const meioDoExemplo = meioDaGrade(categoriasDaLinha[0]?.name ?? null, primeiroTipo?.name ?? null);
   const exemplo = !linhaAtiva
     ? null
-    : primeiroTipo && primeiroSabor
+    : meioDoExemplo && primeiroSabor
       ? fill(t.app.catalog.composed, {
           line: linhaAtiva.name,
-          type: primeiroTipo.name,
+          type: meioDoExemplo,
           flavor: primeiroSabor.name,
         })
       : primeiroSabor
@@ -270,10 +329,10 @@ function Catalog() {
             line: linhaAtiva.name,
             flavor: primeiroSabor.name,
           })
-        : primeiroTipo
+        : meioDoExemplo
           ? fill(t.app.catalog.composedNoFlavor, {
               line: linhaAtiva.name,
-              type: primeiroTipo.name,
+              type: meioDoExemplo,
             })
           : linhaAtiva.name;
 
@@ -428,14 +487,30 @@ function Catalog() {
         </Card>
       </Reveal>
 
-      {/* Categoria: o corte OPCIONAL entre o produto e o tipo.
-          Ela existe porque "tipo" carregava duas naturezas — Leite/Água/Skimo têm
-          receita própria, 250 e 500 ml são só tamanho — e uma palavra para as duas
-          fazia a tela parecer arbitrária. Decisão do dono, 11 de setembro.
+      {/* Categoria: o corte OPCIONAL entre o produto e o tipo, e ela NASCE FECHADA.
+          Ela existe porque "tipo" carregava duas naturezas — Leite/Água/Skimo mudam a
+          RECEITA, 250 e 500 ml mudam só o TAMANHO — e uma palavra para as duas fazia a
+          tela parecer arbitrária. Decisão do dono, 11 de setembro, nas duas metades: a
+          cadeia primeiro, o significado de cada nível depois.
 
-          O cartão fica de pé mesmo vazio, como o de tipo: sumir com ele esconderia o
-          caminho de quem PRECISA do nível. Quem não precisa lê a frase e segue — e na
-          hora de PRODUZIR o nível some sozinho, que é o que `degraus()` garante. */}
+          **E o cartão fechado é a segunda decisão dele do mesmo dia.** A versão anterior
+          ficava de pé mesmo vazio, pelo argumento de não esconder o caminho de quem
+          precisa do nível — e na fábrica dele isso era um cartão inteiro dizendo "nenhuma
+          categoria aqui" para sempre. Um convite de uma linha não esconde caminho nenhum:
+          ele o cobra por um toque, de quem de fato vai andar nele.
+
+          Com categoria cadastrada não há convite: não se fecha o que já tem dado dentro. */}
+      {!mostrarCategoria ? (
+        <Reveal index={3}>
+          <View style={{ alignItems: 'flex-start' }}>
+            <Button
+              label={t.app.catalog.categoriesInvite}
+              variant="ghost"
+              onPress={() => setCategoriaAberta(true)}
+            />
+          </View>
+        </Reveal>
+      ) : (
       <Reveal index={3}>
         <Card
           hue={palette.sand}
@@ -507,6 +582,7 @@ function Catalog() {
           ) : null}
         </Card>
       </Reveal>
+      )}
 
       {/* Tipo: o que divide a linha escolhida.
           Sem linha nenhuma não há tipo para cadastrar — o banco não aceitaria —
@@ -661,30 +737,27 @@ function Catalog() {
               onChangeText={setNovoSabor}
               placeholder={t.app.catalog.namePlaceholder}
             />
-            {/* O alcance só é pergunta quando há tipo para estreitar. Sem tipo, a
-                variação é da linha e não há escolha — e onde não há escolha, não se
-                pergunta. */}
-            {tipoAtivo ? (
+            {/* O alcance só é pergunta quando há NÍVEL para estreitar — e agora são
+                dois: a categoria e o tipo. Com nenhum dos dois escolhido a variação é do
+                produto inteiro e não há escolha; onde não há escolha, não se pergunta.
+
+                A categoria entrou aqui porque a regra aprovada em 11 de setembro a
+                transformou no nível da receita: Leite sai de "tipo" e vem para cá, e sem
+                este chip "morango só no leite" deixaria de existir — morango viraria
+                variação do produto inteiro e voltaria a ser oferecido no de água. */}
+            {alcances.length > 1 ? (
               <View style={[styles.wrap, { gap: space.sm }]}>
-                {[false, true].map((naLinha) => (
+                {alcances.map((a) => (
                   <Pressable
-                    key={naLinha ? 'linha' : 'tipo'}
-                    onPress={() => setSaborNaLinha(naLinha)}
+                    key={a}
+                    onPress={() => setAlcanceDoSabor(a)}
                     accessibilityRole="radio"
-                    accessibilityState={{ selected: saborNaLinha === naLinha }}
-                    accessibilityLabel={
-                      naLinha
-                        ? fill(t.app.catalog.scopeLine, { line: linhaAtiva?.name ?? '' })
-                        : fill(t.app.catalog.scopeType, { type: tipoAtivo.name })
-                    }
+                    accessibilityState={{ selected: alcanceValendo === a }}
+                    accessibilityLabel={nomeDoAlcance(a)}
                   >
                     <Chip
-                      signal={saborNaLinha === naLinha ? 'ok' : 'neutral'}
-                      label={
-                        naLinha
-                          ? fill(t.app.catalog.scopeLine, { line: linhaAtiva?.name ?? '' })
-                          : fill(t.app.catalog.scopeType, { type: tipoAtivo.name })
-                      }
+                      signal={alcanceValendo === a ? 'ok' : 'neutral'}
+                      label={nomeDoAlcance(a)}
                     />
                   </Pressable>
                 ))}
@@ -699,7 +772,8 @@ function Catalog() {
                   () =>
                     saveFlavor(empresaDaqui(), {
                       lineId: linhaAtiva!.id,
-                      typeId: tipoAtivo && !saborNaLinha ? tipoAtivo.id : null,
+                      categoryId: alcanceValendo === 'categoria' ? categoriaAtiva!.id : null,
+                      typeId: alcanceValendo === 'tipo' ? tipoAtivo!.id : null,
                       name: novoSabor,
                     }),
                   () => setNovoSabor(''),

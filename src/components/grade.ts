@@ -85,3 +85,28 @@ export function degraus(
     restantes,
   };
 }
+
+/**
+ * Os níveis do MEIO, juntos, para o nome que a grade monta.
+ *
+ * Duas telas compõem esse nome — a que ensina (`app/catalog.tsx`) e a que grava
+ * (`app/products/new.tsx`) — e o docblock de lá diz por que elas têm de compor igual:
+ * *"se a tela que ensina compusesse o nome por uma regra diferente da tela que grava, o
+ * ensino estaria mentindo"*. Duas cópias da mesma regra é exatamente o que este projeto
+ * chama de dívida; aqui ela passa a existir uma vez.
+ *
+ * **E o que ela resolve de verdade é a explosão de frase de dicionário.** O nome tinha
+ * três moldes (`composed`, `composedNoType`, `composedNoFlavor`) para dois níveis do
+ * meio; com a categoria aprovada em 11 de setembro seriam oito, em três idiomas. Juntando
+ * categoria e tipo num só `{{type}}`, os três moldes continuam servindo e a ordem da
+ * cadeia é respeitada: Picolé **Leite 60 ml** de Morango.
+ *
+ * Vazio é resposta legítima e comum — a fábrica que não usa nível do meio nenhum devolve
+ * string vazia, e quem chama cai no molde sem tipo.
+ */
+export function meioDaGrade(categoria: string | null, tipo: string | null): string {
+  return [categoria, tipo]
+    .map((x) => (x ?? '').trim())
+    .filter((x) => x.length > 0)
+    .join(' ');
+}

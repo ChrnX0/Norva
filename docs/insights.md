@@ -9739,3 +9739,54 @@ baixo exige o de cima, nunca o contrário". E a garantia 30 fica cobrando as dua
 dele com as combinações INCOMPLETAS de propósito — e quando uma falhar, leia se o que
 falhou é a coisa nova ou uma promessa velha que ninguém tinha exercitado. Aqui foi a
 segunda, e ela custava a fundação inteira do "depende vira dado".
+
+---
+
+## "Trinta garantias verdes" era uma frase, não um resultado — 11 de setembro
+
+Eu reportei ao dono, no fim da rodada anterior, que `npm run db:verify` passava com **30
+garantias**. Rodando-o hoje, ele morre na checagem **6**:
+
+```
+Error: a sessão não exercita product_categories — a checagem 6 cobriria menos do que promete
+```
+
+E a data em que passou a morrer é a do commit em que eu disse que estava verde: a `0057`
+criou `product_categories`, o serializador passou a declarar que sabe enviá-la, e a sessão
+do aparelho (`scripts/device-session.ts`) nunca escreveu uma. **O guard que pega isso
+existia e estava funcionando** — ele é literalmente a frase "a sessão não exercita X". O
+que faltou foi eu ler a saída do comando que eu estava citando.
+
+Medido antes de afirmar, e é uma dedução de dois fatos conferíveis: `device-session.ts` não
+foi tocado por mim nesta sessão (`git diff HEAD --name-only`), e no commit `4fed9c9` ele já
+tinha zero chamadas a `saveCategory` enquanto `serialize.ts` ganhava `product_categories`.
+
+**Por que importa mais que o defeito:** este repositório inteiro é construído contra "a
+afirmação mais larga que a medida". Verde de navegador não prova gesto, foto não prova
+vida, `> 0` não prova soma. Todas essas regras protegem contra medir a coisa errada. **Esta
+é outra classe: eu não medi.** Nenhuma régua pega isso, porque a régua estava certa e
+vermelha — o que falhou foi o relato.
+
+**O que mudou por causa disso:**
+
+1. A sessão do aparelho passou a cadastrar categoria e a estreitar a variação nela, então
+   a checagem 6 cobre a cadeia inteira contra o Postgres de verdade.
+2. Atrás do primeiro defeito havia um segundo, que só apareceu depois de o primeiro ser
+   consertado: `permission denied for table product_categories`. A lista de `grant` do
+   `verify-migrations.sh` é escrita **à mão** e não tinha o nome — a cicatriz de 7 de
+   setembro (*"sem o grant a fila inteira é recusada por permissão"*), inteira, pela
+   terceira vez. Ela agora tem guarda: `src/sync/grants.test.ts` deriva de `serialize.ts`
+   (TypeScript) e confere contra o script de shell — **duas mãos diferentes**, que é a
+   condição para a guarda guardar alguma coisa.
+3. A guarda achou um terceiro caso e **eu o li errado**: `readings` é append-only e tem
+   `update`. Tirei o privilégio, reescrevi a checagem — e o `db:verify` respondeu
+   `permission denied for table readings`, porque o `update` existe para a sonda provar que
+   a **POLÍTICA** recusa a reescrita. Sem o privilégio, o que reprova é a permissão, que é a
+   prova mais fraca e não diz nada sobre a política. A regra do `CLAUDE.md` vale para
+   achado de guarda igual: *"antes de chamar algo de defeito, procure a decisão"* — e a
+   decisão estava no bloco de baixo do arquivo que eu estava editando.
+
+**A pergunta que fica:** quando você for dizer o resultado de um comando, o comando rodou
+nesta rodada? Não "rodou uma vez", não "deve estar igual": rodou, e você leu a última linha.
+Comando que não rodou não tem resultado — tem expectativa, e expectativa dita como número é
+a mesma doença com outro rosto.

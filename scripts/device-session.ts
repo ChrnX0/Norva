@@ -36,6 +36,7 @@ import {
   savePerson,
   listProfiles,
   saveOrder,
+  saveCategory,
   saveFlavor,
   saveLine,
   saveProduct,
@@ -152,13 +153,33 @@ async function main() {
   const pulp = items.find((i) => i.name.startsWith('Polpa'));
   if (!sugar || !pulp) throw new Error('the starter data did not arrive');
 
-  // A grade do que a fábrica faz, cadastrada como o dono cadastra: a linha
-  // primeiro, o tipo dentro dela, a variação dentro do tipo. A ordem importa e é a mesma
-  // que vai para o servidor - tipo antes da linha seria chave estrangeira
-  // quebrada do outro lado, e a fila é enviada na ordem em que foi escrita.
+  // A grade do que a fábrica faz, cadastrada como o dono cadastra: o produto primeiro, a
+  // categoria dentro dele, o tipo dentro da categoria, a variação dentro do tipo. A ordem
+  // importa e é a mesma que vai para o servidor - tipo antes da linha seria chave
+  // estrangeira quebrada do outro lado, e a fila é enviada na ordem em que foi escrita.
+  //
+  // **A categoria entrou aqui tarde, e a demora tem nome.** A `0057` a criou e o
+  // serializador passou a declarar que sabe enviá-la — e esta sessão nunca a escreveu.
+  // O guard de baixo existe exatamente para isso ("a sessão não exercita X") e ele
+  // ficou VERMELHO desde aquele commit, enquanto eu reportava trinta garantias verdes.
+  // A lição não é sobre a tabela: é que dizer o resultado de um comando sem ler a saída
+  // dele é a mesma doença que este repositório persegue em toda outra forma.
   const linha = await saveLine(empresaDaqui(), { name: 'Picolé' });
-  const tipo = await saveType(empresaDaqui(), { lineId: linha, name: 'Tradicional' });
-  const sabor = await saveFlavor(empresaDaqui(), { lineId: linha, typeId: tipo, name: 'Morango' });
+  const categoria = await saveCategory(empresaDaqui(), { lineId: linha, name: 'Leite' });
+  const tipo = await saveType(empresaDaqui(), {
+    lineId: linha,
+    categoryId: categoria,
+    name: 'Tradicional',
+  });
+  // A variação estreita na CATEGORIA (`0059`), que é o caso que a regra aprovada em 11 de
+  // setembro criou: com Leite sendo categoria, "morango só no leite" mora aqui. Mandá-la
+  // presa ao tipo deixaria a coluna nova atravessar sempre nula — e coluna que só
+  // atravessa nula é coluna que ninguém sabe se atravessa.
+  const sabor = await saveFlavor(empresaDaqui(), {
+    lineId: linha,
+    categoryId: categoria,
+    name: 'Morango',
+  });
 
   // E um produto que a usa, porque uma grade que não chega presa a um produto
   // atravessa sem provar que as três colunas novas atravessam.
@@ -179,6 +200,10 @@ async function main() {
     packagingItems: [{ itemId: palito.id, quantityPerUnit: 1 }],
     packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }] },
     lineId: linha,
+    // A categoria do PRODUTO também atravessa — e ela tinha coluna, índice e leitor sem
+    // escritor até esta rodada. Sem ela aqui, `products.category_id` chegaria sempre nula
+    // ao servidor e a checagem 6 não saberia dizer se a coluna funciona.
+    categoryId: categoria,
     typeId: tipo,
     flavorId: sabor,
   });

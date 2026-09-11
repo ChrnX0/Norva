@@ -480,7 +480,7 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
   -- responde apenas 'permission denied', sem dizer qual dos dois falta.
   grant insert, update on items, locations, products, lots, purchases, purchase_lines,
         recipes, recipe_versions, recipe_lines,
-        product_lines, product_types, flavors,
+        product_lines, product_categories, product_types, flavors,
         orders, order_lines to app_user;
   -- Gente e perfil sobem com UPDATE pelo mesmo motivo que os cadastros: quem
   -- corrige o nome de alguém offline precisa que a correção alcance o servidor.
@@ -869,14 +869,29 @@ echo "==> check 12: a leitura da câmara sobe duas vezes, e a segunda não reesc
 
 # QUINTA aparição da fila travada, e a primeira achada procurando a família.
 #
-# `readings` nasceu na 0024 com política de leitura e de insert, e mais nada — sem
-# update, o `on conflict (id) do update` da fila é recusado mesmo com a linha
-# idêntica, e o motor para no primeiro buraco. E a leitura é a escrita com MAIOR
-# chance de subir duas vezes em todo o aplicativo: ela é anotada dentro da câmara,
-# a -18 °C, onde o sinal não chega.
+# `readings` nasceu na 0024 com política de leitura e de insert, e mais nada — e a
+# leitura é a escrita com MAIOR chance de subir duas vezes em todo o aplicativo: ela é
+# anotada dentro da câmara, a -18 °C, onde o sinal não chega. Sem o reenvio passar, o
+# motor para no primeiro buraco.
 #
-# A checagem 9 replica um `orders` e só. Esta replica a leitura, que é o que
-# faltava para a família ficar coberta.
+# **E o `update` aqui é DELIBERADO, contra a aparência — lido em 11 de setembro, depois de
+# eu tê-lo tirado por engano.** A guarda nova dos grants (`src/sync/grants.test.ts`)
+# apontou que `readings` está em `APENAS_INSERE` e ganhava `update`, e a leitura rápida
+# disso é "privilégio a mais numa tabela append-only". Ela está errada, e o que a corrige é
+# a sonda de baixo: o `on conflict do update` existe para provar que a **POLÍTICA** recusa
+# a reescrita — e para a política ser exercitada, o privilégio tem de deixar a instrução
+# CHEGAR nela. Sem o grant, o que reprova é `permission denied`, que é a prova mais fraca
+# e não diz nada sobre a política. É a mesma lição que a checagem 11 tem escrita três
+# blocos acima: *"o conserto virou permissão nova em vez de escrituração"*.
+#
+# Então a checagem tem DUAS sondas, e elas provam coisas diferentes:
+#   1. o `do nothing` — o que o aparelho manda de verdade: o reenvio ENTRA e não muda nada;
+#   2. o `do update` — o que um cliente com defeito mandaria: a política o neutraliza.
+# Tirar a segunda deixaria o servidor defendido pelo cliente, que é defesa nenhuma.
+#
+# A razão acima está registrada em `UPDATE_DE_PROPOSITO` (`src/sync/grants.test.ts`), e a
+# guarda cobra as duas pontas: grant sem razão escrita reprova, e razão escrita sem grant
+# reprova também — desculpa que perdeu o objeto libera o privilégio de graça amanhã.
 psql -d "$DB" -q -c "grant insert, update on readings to app_user;" >/dev/null
 
 # A operadora do turno tem `adjust_stock`, que é a capacidade da contagem — a
@@ -885,9 +900,18 @@ LEITURA="insert into readings (id, company_id, location_id, kind, value, unit, t
 as_user "${P}95" "$LEITURA" >/dev/null ||
   fail "a operadora não conseguiu anotar a temperatura da câmara"
 
-RELEITURA="insert into readings (id, company_id, location_id, kind, value, unit, taken_at, recorded_by) values ('${P}71','${P}03','${P}03','temperature',-18.4,'C', now(), '${P}95') on conflict (id) do update set kind = excluded.kind, value = excluded.value, unit = excluded.unit, taken_at = excluded.taken_at, location_id = excluded.location_id, recorded_by = excluded.recorded_by;"  # proofgate-allow
+# O reenvio como o aparelho o manda: `do nothing`, que é o que `APENAS_INSERE` decide.
+# O valor vem DIFERENTE de propósito — se o servidor sobrescrevesse, a série deixaria de
+# ser prova, e esta linha é a única que separa "aceitou o reenvio" de "aceitou a reescrita".
+RELEITURA="insert into readings (id, company_id, location_id, kind, value, unit, taken_at, recorded_by) values ('${P}71','${P}03','${P}03','temperature',-99.9,'C', now(), '${P}95') on conflict (id) do nothing;"  # proofgate-allow
 as_user "${P}95" "$RELEITURA" >/dev/null ||
   fail "o reenvio da leitura foi recusado: a fila do aparelho trava aqui, e é a escrita que mais reenvia porque acontece onde não há sinal"
+# A comparação é NUMÉRICA dentro do banco, e não de texto aqui: `value` é
+# `numeric(14,4)`, então o valor certo volta como `-18.4000` e uma igualdade de string
+# reprova a garantia estando ela cumprida — foi o que aconteceu na primeira escrita desta
+# linha, e o script acusou o servidor de sobrescrever o que ele tinha preservado.
+[ "$(rows "select value = -18.4 from readings where id = '${P}71';")" = "t" ] \
+  || fail "o reenvio SOBRESCREVEU a leitura: uma série que aceita reescrita não é prova de nada"
 
 # E o reenvio não reescreve o que foi visto. Uma leitura diferente é outra
 # leitura, e outra leitura é outra linha.
@@ -1912,6 +1936,81 @@ psql -d "$DB" -q -c "insert into product_types (id, company_id, line_id, categor
 
 echo "    o mesmo nome cabe em duas categorias, morre repetido na mesma, e sem categoria tambem vale"
 
+echo "==> check 31: a variacao estreita na CATEGORIA, e o nivel de baixo nao existe sem o de cima"
+
+# A `0059` existe porque a segunda aprovacao do dono de 11 de setembro abriu um buraco na
+# primeira. Ele fixou a cadeia (Produto -> Categoria -> Tipo -> Variacao) e depois aprovou
+# o que cada nivel SIGNIFICA: categoria muda a RECEITA, tipo muda tamanho, variacao muda o
+# sabor. Pela regra nova Leite/Agua saem de "tipo" e vem para "categoria" — e a variacao so
+# sabia estreitar em linha ou em tipo. Com o tipo vazio no picole, "morango so no leite"
+# ficava inexpressavel: morango virava variacao do produto inteiro e voltava a ser
+# oferecido no de agua, que e o que ele mandou travar quando a `0055` nasceu.
+#
+# Quatro metades, e cada uma ja foi um defeito possivel:
+#   1. o mesmo nome de variacao em DUAS categorias do mesmo produto entra;
+#   2. o mesmo nome na MESMA categoria morre — senao o indice nao ganhou a coluna;
+#   3. variacao SEM categoria continua entrando, e repetida morre — e o caso comum, a
+#      fabrica que nunca usou o nivel;
+#   4. categoria preenchida com a LINHA vazia e recusada pelo CHECK — o nivel de baixo
+#      nao existe sem o de cima.
+#
+# E a quinta, que e a fundacao: a categoria da empresa vizinha nao classifica nada aqui.
+VAR=cccc0000-0000-4000-8000-0000000001
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<SQL >/dev/null
+insert into product_lines (id, company_id, name) values ('${VAR}a1','${M}c1','Picole da 31');
+insert into product_categories (id, company_id, line_id, name) values
+  ('${VAR}b1','${M}c1','${VAR}a1','Leite da 31'),
+  ('${VAR}b2','${M}c1','${VAR}a1','Agua da 31');
+SQL
+
+variacao() { # $1 = id, $2 = categoria (ou vazio), $3 = nome — sai 0 se entrou
+  if [ -n "$2" ]; then
+    psql -d "$DB" -q -c "insert into flavors (id, company_id, line_id, category_id, name)
+      values ('$1','${M}c1','${VAR}a1','$2','$3');" >/dev/null 2>&1  # proofgate-allow
+  else
+    psql -d "$DB" -q -c "insert into flavors (id, company_id, line_id, name)
+      values ('$1','${M}c1','${VAR}a1','$3');" >/dev/null 2>&1  # proofgate-allow
+  fi
+  [ "$(rows "select count(*) from flavors where id = '$1';")" = "1" ]  # proofgate-allow
+}
+
+# 1. Morango no leite E na agua: dois registros, o mesmo nome. E a trava inteira.
+variacao "${VAR}c1" "${VAR}b1" 'Morango' || fail "o morango da primeira categoria foi recusado"
+variacao "${VAR}c2" "${VAR}b2" 'Morango' || fail "o mesmo nome na OUTRA categoria foi recusado: a categoria nao esta no indice"
+
+# 2. Morango de novo na MESMA categoria morre.
+variacao "${VAR}c3" "${VAR}b1" 'Morango' && fail "variacao repetida na mesma categoria passou"
+
+# 3. E o caso comum: variacao do produto inteiro, sem categoria.
+variacao "${VAR}c4" "" 'Coco da 31' || fail "variacao sem categoria foi recusada: nenhum nivel e obrigatorio"
+variacao "${VAR}c5" "" 'Coco da 31' && fail "variacao sem categoria repetida passou: o coalesce do indice nao pegou"
+
+# 4. O CHECK da direcao: categoria preenchida com a linha vazia nao entra. Esta TEM de
+#    falhar, e o `|| true` nao e frouxidao — sem ele o `set -e` derruba o script
+#    exatamente quando a garantia esta sendo cumprida.
+psql -d "$DB" -q -c "insert into flavors (id, company_id, category_id, name)
+  values ('${VAR}c6','${M}c1','${VAR}b1','Sem linha');" >/dev/null 2>&1 || true  # proofgate-allow
+[ "$(rows "select count(*) from flavors where id = '${VAR}c6';")" = "0" ] \
+  || fail "uma variacao nomeou a categoria sem nomear o produto: o CHECK da direcao nao pegou"
+
+# 4b. O caso FALSO do mesmo CHECK, e ele e o que da valor ao de cima: a variacao orfa da
+#     regra da `0055` — sem linha e com TIPO — continua entrando. Um CHECK escrito largo
+#     recusaria dado que ja existe e que a tela mostra de proposito.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<SQL >/dev/null
+insert into product_types (id, company_id, line_id, name) values ('${VAR}d1','${M}c1','${VAR}a1','Tipo da 31');
+insert into flavors (id, company_id, type_id, name) values ('${VAR}c7','${M}c1','${VAR}d1','Orfa da 31');
+SQL
+[ "$(rows "select count(*) from flavors where id = '${VAR}c7';")" = "1" ] \
+  || fail "o CHECK novo recusou a variacao orfa que a 0055 deixou: ele foi escrito largo demais"
+
+# 5. E a categoria da empresa VIZINHA e recusada pela chave composta.
+psql -d "$DB" -q -c "insert into flavors (id, company_id, line_id, category_id, name)
+  values ('${VAR}c8','${M}c2','${VAR}a1','${VAR}b1','Roubado');" >/dev/null 2>&1 || true  # proofgate-allow
+[ "$(rows "select count(*) from flavors where id = '${VAR}c8';")" = "0" ] \
+  || fail "uma variacao apontou para a categoria de OUTRA empresa"
+
+echo "    morango cabe em duas categorias, morre repetido na mesma, e nao existe sem produto"
+
 echo
-echo "OK - migrations apply and all thirty guarantees hold."
+echo "OK - migrations apply and all thirty-one guarantees hold."
 

@@ -1180,9 +1180,33 @@ CREATE UNIQUE INDEX IF NOT EXISTS products_grid_idx
   WHERE active = 1;
 `;
 
+/**
+ * A variação estreita na CATEGORIA também. Espelha a `0059`.
+ *
+ * A aprovação do SIGNIFICADO dos níveis (11 de setembro: categoria muda a receita, tipo
+ * muda tamanho, variação muda o sabor) tira Leite/Água/Skimo de "tipo" e os põe em
+ * "categoria" — e aí a trava que a `V30` existia para dar deixa de alcançar: com o tipo
+ * vazio no picolé, "Morango só no leite" não teria onde ser dito, e morango voltaria a
+ * ser oferecido no de água.
+ *
+ * A regra de aplicação é uma só: **a variação vale num produto quando todos os níveis que
+ * ela NOMEIA batem.** O que ela deixa nulo, ela não exige.
+ *
+ * Chave estrangeira composta não entra em `ALTER TABLE ADD COLUMN` no SQLite, então "a
+ * categoria é da mesma empresa e do mesmo produto" continua morando na escrita
+ * (`saveFlavor`), como na `V30`, `V31` e `V32`.
+ */
+const V33 = `
+ALTER TABLE flavors ADD COLUMN category_id TEXT REFERENCES product_categories(id) ON DELETE CASCADE;
+DROP INDEX IF EXISTS flavors_name_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS flavors_name_idx
+  ON flavors (company_id, COALESCE(line_id, ''), COALESCE(category_id, ''), COALESCE(type_id, ''), lower(trim(name)));
+CREATE INDEX IF NOT EXISTS flavors_category_idx ON flavors (company_id, category_id);
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
-  V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32,
+  V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33,
 ];
 
 export type SqlParam = string | number | null;

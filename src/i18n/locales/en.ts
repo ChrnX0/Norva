@@ -1415,9 +1415,12 @@ export const en: Dictionary = {
     catalog: {
       categories: '{{line}} categories',
       categoriesTitle: 'Categories',
-      categoriesHint: 'one more cut, when the product needs it — lactose free, premium line. Most factories do not use it, and then it disappears.',
+      categoriesHint:
+        'Changes the RECIPE: something goes in or out of the product. Lactose free, no sugar, wholemeal. Most factories do not use it, and then it disappears.',
+      categoriesInvite: 'need one more cut?',
       addCategory: 'New category',
-      noCategories: 'No category here — and that is fine. It only exists for whoever needs one more cut between the product and the type.',
+      noCategories:
+        'No category here — and that is fine. Register one when the SAME product has different recipes; for size and shape the step is the type.',
       scopeCategory: 'only in {{category}}',
       scopeWholeLine: 'across all of {{line}}',
       categoryFromAnotherLine: 'That category belongs to another product. Pick its product, or a category of this one.',
@@ -1434,14 +1437,16 @@ export const en: Dictionary = {
       savePacking: 'Save the line packing',
       overline: 'the grid of what you make',
       intro:
-        'Register once, combine freely. A traditional strawberry popsicle is a line, a type and a flavour — not a name typed out in full.',
+        'Register once, combine freely. A milk strawberry popsicle is a product, a category and a variation — not a name typed out in full. Each subclass answers one question: what changes? The recipe, the size, or the flavour. None is required: what your factory does not use does not show up.',
       lines: 'Products',
       linesHint: 'the widest family in your catalogue — what you make',
       types: '{{line}} types',
       typesTitle: 'Types',
-      typesHint: 'what splits the line — and what a variation belongs to',
+      typesHint:
+        'Changes the SIZE or the SHAPE, with the same recipe. 250 ml, 500 ml, single unit.',
       flavors: 'Variations of {{type}}',
-      flavorsHint: 'what changes inside the type: flavour, colour, scent. Each type has its own.',
+      flavorsHint:
+        'Changes the FLAVOUR, the colour, the scent — same recipe, same size. Each one applies where you say.',
       addLine: 'New product',
       addType: 'New type',
       addFlavor: 'New variation',

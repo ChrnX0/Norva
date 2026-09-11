@@ -386,7 +386,11 @@ const CROSSINGS: Record<
   },
 
   flavors: {
-    take: ['id', 'company_id', 'line_id', 'type_id', 'name', 'sort'],
+    // `category_id` (`0059`) atravessa pela mesma razão do `product_types`: nulo aqui
+    // QUER DIZER alguma coisa — a variação vale no produto inteiro, ou no tipo, e não
+    // naquela categoria. Perdê-lo no caminho faria o servidor oferecer morango de água
+    // no de leite, que é exatamente a trava que a coluna existe para dar.
+    take: ['id', 'company_id', 'line_id', 'category_id', 'type_id', 'name', 'sort'],
     build: (row) => ({ active: flag(row.active) }),
   },
 

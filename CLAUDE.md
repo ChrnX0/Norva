@@ -124,7 +124,7 @@ npm run lint
 npm test
 npm run mutate       # quebra o código de propósito: a suíte morde mesmo?
 npm run e2e:fast     # o app dirigido num navegador de verdade, em quatro fatias
-npm run db:verify    # Postgres descartável, trinta garantias — inclui a fila
+npm run db:verify    # Postgres descartável, trinta e uma garantias — inclui a fila
                      # do aparelho reproduzida contra o servidor de verdade
 bash .proofgate/verify.sh
 ```
@@ -954,6 +954,48 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   "Produto" para o TOPO da cadeia — o que hoje se chama "Linha". O topo passa a ser
   **Produto**; o que se vende é a cadeia inteira dita por extenso, não um segundo
   substantivo concorrente.
+
+- **O que cada nível SIGNIFICA, aprovado em 11 de setembro: Categoria muda a RECEITA,
+  Tipo muda TAMANHO ou FORMATO, Variação muda o SABOR.** É a metade que faltava da decisão
+  da cadeia, e sem ela o nível novo não fazia o trabalho para o qual existe: as duas
+  naturezas continuavam em "Tipo" e a Categoria nascia vazia nas duas famílias da fábrica
+  dele.
+
+  Com a regra, cada família usa três dos quatro deixando níveis DIFERENTES vazios:
+
+  | | Produto | Categoria *(receita)* | Tipo *(tamanho)* | Variação *(sabor)* |
+  |---|---|---|---|---|
+  | picolé | Picolé | Leite, Água, Skimo | — | Morango… |
+  | pote | Pote de sorvete | — | 250 ml, 500 ml | Morango… |
+  | o dia do 60/80 | Picolé | Leite, Água, Skimo | 60 ml, 80 ml | Morango… |
+
+  **O ganho não é organizar melhor hoje: é caber amanhã.** A terceira linha é o dia em que
+  o picolé de leite sair em dois tamanhos — hoje isso obrigaria a cadastrar "Leite 60ml" e
+  "Leite 80ml" como tipos, que é o nome digitado inteiro que a grade existe para não ter.
+
+  **E a aprovação abriu um buraco na aprovação anterior, medido no mesmo dia.** Com Leite
+  virando CATEGORIA, "morango só no leite" ficou inexpressável: a variação só sabia
+  estreitar em linha ou em tipo (`0056`), e com o tipo vazio no picolé o morango voltaria a
+  ser oferecido no de água — a trava que a `0055` nasceu para dar. Conserto: `0059` dá
+  `category_id` à variação, e a regra de aplicação é uma só — **a variação vale num produto
+  quando todos os níveis que ela NOMEIA batem; o que ela deixa nulo, ela não exige.**
+
+  **E o segundo buraco era meu, da rodada anterior:** `products.category_id` tinha coluna,
+  índice único e leitor (`listProducts`) e **nenhum escritor**. A doença que o portão P1
+  existe para pegar, de pé porque o nível nasce vazio na fábrica do dono — quem não usa
+  categoria não nota que ela não grava. Ficou bloqueante no instante da aprovação: sem
+  escritor, "Picolé de Leite Morango" não tinha como ser gravado.
+
+- **A categoria nasce FECHADA no cadastro — decisão do dono, 11 de setembro.** O cartão
+  ficava de pé mesmo vazio, pelo argumento de não esconder o caminho de quem precisa do
+  nível, e na fábrica dele isso era um cartão inteiro lendo *"nenhuma categoria aqui — e
+  tudo bem"* para sempre. Um convite de uma linha (*"precisa de um corte a mais?"*) não
+  esconde caminho: ele o cobra por um toque, de quem de fato vai andar nele. Com categoria
+  cadastrada não há convite — não se fecha o que já tem dado dentro.
+
+  A borda, porque ela custa: quem PRECISA do nível paga um toque para descobrir que ele
+  existe. Por isso a frase é convite (*"precisa de um corte a mais?"*) e não rótulo
+  (*"Categorias"*).
 
 - **Começar pelo fim EXISTE, e o passo a passo continua — decisão do dono, 11 de
   setembro.** *"parece q pode dar margem para erro. Seguir um passo obrigatório q nao muda

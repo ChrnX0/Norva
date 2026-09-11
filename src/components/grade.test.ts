@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { degraus, type NaGrade } from './grade';
+import { degraus, type NaGrade, meioDaGrade } from './grade';
 
 /**
  * A grade só pergunta o que é pergunta.
@@ -157,4 +157,30 @@ test('um produto SEM categoria não some quando outra categoria está escolhida'
   // categoria junto com os da escolhida, porque tipo sem categoria vale no produto
   // inteiro. Aqui o filtro é do que se PRODUZ, e ali o de o que se CADASTRA — são duas
   // perguntas, e confundi-las foi o que fez a variação sumir uma vez.
+});
+
+test('o nome composto junta os níveis do meio na ordem da cadeia', () => {
+  // A regra aprovada em 11 de setembro põe a receita em Categoria e o tamanho em Tipo —
+  // então "Picolé Leite 60 ml de Morango" tem DOIS níveis entre o produto e a variação, e
+  // a ordem é a da cadeia: categoria antes de tipo. Invertê-los sai gramaticalmente certo
+  // e semanticamente errado, e ninguém nota olhando uma etiqueta.
+  assert.equal(meioDaGrade('Leite', '60 ml'), 'Leite 60 ml');
+  assert.equal(meioDaGrade('Leite', null), 'Leite', 'a família do picolé: categoria sem tipo');
+  assert.equal(meioDaGrade(null, '250 ml'), '250 ml', 'a família do pote: tipo sem categoria');
+});
+
+test('sem nível do meio nenhum o nome cai no molde SEM tipo', () => {
+  // A fábrica de um doce só não preenche nível do meio nenhum, e o que ela precisa é que
+  // o molde com `{{type}}` NÃO seja escolhido — senão o nome sai com espaço duplo no
+  // meio, que é o defeito que um molde por combinação existiria para evitar.
+  assert.equal(meioDaGrade(null, null), '', 'vazio é resposta legítima, e é a comum');
+  assert.equal(meioDaGrade('', ''), '', 'string vazia vale o mesmo que nulo');
+  assert.equal(meioDaGrade('  ', null), '', 'espaço não é nome');
+});
+
+test('o nome do meio não carrega o espaço do nome digitado', () => {
+  // Nome com espaço nas pontas chega do banco porque o índice único ignora espaço — quem
+  // digitou "Leite " tem uma linha válida. Sem o `trim`, o nome composto sairia com dois
+  // espaços e a etiqueta impressa mostraria isso.
+  assert.equal(meioDaGrade(' Leite ', ' 60 ml '), 'Leite 60 ml');
 });

@@ -3191,12 +3191,26 @@ export async function saveProduct(
     fullLevel?: number | null;
     lineId?: string | null;
     typeId?: string | null;
+    /**
+     * A CATEGORIA do produto — e ela tinha coluna, índice e leitor sem um único escritor.
+     *
+     * A `0057` criou `products.category_id`, `listProducts` a lê e `products_grid_idx` a
+     * inclui; nada a gravava. É a doença que o portão P1 deste projeto existe para pegar,
+     * e ela ficou de pé porque o nível nasceu vazio na fábrica do dono — quem não usa
+     * categoria não nota que ela não grava.
+     *
+     * O que a tornou bloqueante foi a aprovação do SIGNIFICADO dos níveis, 11 de
+     * setembro: com "muda a receita" em Categoria, Leite sai de tipo e entra aqui — e sem
+     * escritor, "Picolé de Leite Morango" não tinha como ser gravado.
+     */
+    categoryId?: string | null;
     flavorId?: string | null;
   },
 ): Promise<{ productId: string; itemId: string }> {
   // Antes de abrir a transação, porque recusar depois de gravar o item deixaria
   // um item órfão para trás - e a checagem lê, não escreve.
   await assertTypeBelongsToLine(companyId, input.lineId ?? null, input.typeId ?? null);
+  await assertCategoryBelongsToLine(companyId, input.lineId ?? null, input.categoryId ?? null);
   const conn = await db();
   let itemId = '';
   let productId = '';
@@ -3225,14 +3239,16 @@ export async function saveProduct(
     `SELECT i.name FROM products p
        JOIN items i ON i.id = p.item_id
       WHERE p.company_id = ? AND p.active = 1 AND p.id <> ?
-        AND COALESCE(p.line_id, '') = COALESCE(?, '')
-        AND COALESCE(p.type_id, '') = COALESCE(?, '')
-        AND COALESCE(p.flavor_id, '') = COALESCE(?, '')
+        AND COALESCE(p.line_id, '')     = COALESCE(?, '')
+        AND COALESCE(p.category_id, '') = COALESCE(?, '')
+        AND COALESCE(p.type_id, '')     = COALESCE(?, '')
+        AND COALESCE(p.flavor_id, '')   = COALESCE(?, '')
       LIMIT 1`,
     [
       companyId,
       input.id ?? '',
       input.lineId ?? null,
+      input.categoryId ?? null,
       input.typeId ?? null,
       input.flavorId ?? null,
     ],
@@ -3257,8 +3273,8 @@ export async function saveProduct(
     await conn.runAsync(
       `INSERT INTO products (id, company_id, item_id, recipe_id, yield_per_unit,
                              unit_packaging_rate, packaging_items, shelf_life_days, active,
-                             line_id, type_id, flavor_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+                             line_id, category_id, type_id, flavor_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          recipe_id = excluded.recipe_id,
          yield_per_unit = excluded.yield_per_unit,
@@ -3266,6 +3282,7 @@ export async function saveProduct(
          packaging_items = excluded.packaging_items,
          shelf_life_days = excluded.shelf_life_days,
          line_id = excluded.line_id,
+         category_id = excluded.category_id,
          type_id = excluded.type_id,
          flavor_id = excluded.flavor_id`,
       [
@@ -3278,6 +3295,7 @@ export async function saveProduct(
         packagingItems,
         input.shelfLifeDays ?? null,
         input.lineId ?? null,
+        input.categoryId ?? null,
         input.typeId ?? null,
         input.flavorId ?? null,
       ],
@@ -5554,6 +5572,16 @@ export type ProductCategory = { id: string; lineId: string; name: string; sort: 
 export type Flavor = {
   id: string;
   lineId: string | null;
+  /**
+   * Onde ela estreita, quando estreita — e a REGRA é uma só para os dois níveis.
+   *
+   * Uma variação vale num produto quando todos os níveis que ela NOMEIA batem com os
+   * dele. O que ela deixa nulo, ela não exige. Sem isto, a aprovação do significado dos
+   * níveis (categoria muda a receita) apagaria a trava que a `0055` existia para dar:
+   * com Leite virando categoria e o tipo ficando vazio, "morango só no leite" não teria
+   * onde ser dito.
+   */
+  categoryId: string | null;
   typeId: string | null;
   name: string;
   sort: number;
@@ -5632,11 +5660,12 @@ export async function listFlavors(companyId: string): Promise<Flavor[]> {
   const rows = await conn.getAllAsync<{
     id: string;
     line_id: string | null;
+    category_id: string | null;
     type_id: string | null;
     name: string;
     sort: number;
   }>(
-    `SELECT id, line_id, type_id, name, sort FROM flavors
+    `SELECT id, line_id, category_id, type_id, name, sort FROM flavors
       WHERE company_id = ? AND active = 1
       ORDER BY sort, name COLLATE NOCASE`,
     [companyId],
@@ -5644,6 +5673,7 @@ export async function listFlavors(companyId: string): Promise<Flavor[]> {
   return rows.map((r) => ({
     id: r.id,
     lineId: r.line_id,
+    categoryId: r.category_id,
     typeId: r.type_id,
     name: r.name,
     sort: r.sort,
@@ -5816,7 +5846,22 @@ export class FlavorNeedsALineError extends Error {
 
 export async function saveFlavor(
   companyId: string,
-  input: { id?: string; lineId: string; typeId?: string | null; name: string; sort?: number },
+  input: {
+    id?: string;
+    lineId: string;
+    /**
+     * Onde a variação estreita, e os dois níveis são opcionais e independentes.
+     *
+     * Nulo nos dois quer dizer "vale no produto inteiro", que continua sendo o caso
+     * comum. A tela oferece um alcance por vez porque mais de um é pergunta sem
+     * resposta útil; o banco aceita os dois porque a regra de aplicação não precisa
+     * de exclusividade — a variação vale onde todos os níveis que ela nomeia batem.
+     */
+    categoryId?: string | null;
+    typeId?: string | null;
+    name: string;
+    sort?: number;
+  },
 ): Promise<string> {
   if (!input.lineId) throw new FlavorNeedsALineError();
   const conn = await db();
@@ -5829,6 +5874,9 @@ export async function saveFlavor(
   // tem de ser um tipo DESTA linha. A função ao lado já sabe recusar isso, e reusá-la
   // é o que impede a regra de divergir em dois lugares.
   await assertTypeBelongsToLine(companyId, input.lineId, input.typeId ?? null);
+  // Mesma frase, um nível acima: categoria é opcional, e quando vem tem de ser deste
+  // produto. Reusar a ajudante é o que impede a regra de existir em duas versões.
+  await assertCategoryBelongsToLine(companyId, input.lineId, input.categoryId ?? null);
   /**
    * O mesmo nome não pode aparecer DUAS VEZES na mesma lista.
    *
@@ -5847,17 +5895,35 @@ export async function saveFlavor(
       WHERE company_id = ? AND line_id = ? AND active = 1
         AND lower(trim(name)) = lower(trim(?))
         AND id <> ?
-        AND (type_id IS NULL OR ? IS NULL OR type_id = ?)`,
-    [companyId, input.lineId, input.name, input.id ?? '', input.typeId ?? null, input.typeId ?? null],
+        AND (type_id     IS NULL OR ? IS NULL OR type_id     = ?)
+        AND (category_id IS NULL OR ? IS NULL OR category_id = ?)`,
+    [
+      companyId,
+      input.lineId,
+      input.name,
+      input.id ?? '',
+      input.typeId ?? null,
+      input.typeId ?? null,
+      input.categoryId ?? null,
+      input.categoryId ?? null,
+    ],
   );
   if (conflito) throw new NomeJaCadastradoError(input.name.trim());
   const id = input.id ?? newId();
   await conn.withTransactionAsync(async () => {
     await conn.runAsync(
-      `INSERT INTO flavors (id, company_id, line_id, type_id, name, sort, active)
-       VALUES (?, ?, ?, ?, ?, ?, 1)
+      `INSERT INTO flavors (id, company_id, line_id, category_id, type_id, name, sort, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1)
        ON CONFLICT(id) DO UPDATE SET name = excluded.name, sort = excluded.sort`,
-      [id, companyId, input.lineId, input.typeId ?? null, input.name.trim(), input.sort ?? 0],
+      [
+        id,
+        companyId,
+        input.lineId,
+        input.categoryId ?? null,
+        input.typeId ?? null,
+        input.name.trim(),
+        input.sort ?? 0,
+      ],
     );
     await enqueue(conn, [{ table: 'flavors', rowId: id }]);
   });

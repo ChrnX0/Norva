@@ -1851,19 +1851,22 @@ export const ptBR = {
       savePacking: 'Guardar a embalagem do produto',
       overline: 'a grade do que você fabrica',
       intro:
-        'Cadastre uma vez e combine à vontade. Picolé de leite de morango é um produto, um tipo e uma variação — não um nome digitado inteiro. Nenhuma subclasse é obrigatória: o que a sua fábrica não usa não aparece.',
+        'Cadastre uma vez e combine à vontade. Picolé de leite de morango é um produto, uma categoria e uma variação — não um nome digitado inteiro. Cada subclasse responde uma pergunta só: o que muda? A receita, o tamanho, ou o sabor. Nenhuma é obrigatória: o que a sua fábrica não usa não aparece.',
       lines: 'Produtos',
       linesHint: 'o que você fabrica — a família mais larga do seu catálogo',
       categories: 'Categorias de {{line}}',
       categoriesTitle: 'Categorias',
       categoriesHint:
-        'um corte a mais, quando o produto precisa — sem lactose, linha premium. A maioria das fábricas não usa, e aí ela some.',
+        'Muda a RECEITA: entra ou sai coisa do produto. Sem lactose, zero açúcar, integral. A maioria das fábricas não usa, e aí ela some.',
+      categoriesInvite: 'precisa de um corte a mais?',
       types: 'Tipos de {{line}}',
       /** Sem linha, o cartão não tem formulário: o título nomeia o assunto, não a ação ausente. */
       typesTitle: 'Tipos',
-      typesHint: 'o que divide o produto — e é dele que a variação depende',
+      typesHint:
+        'Muda o TAMANHO ou o FORMATO, com a mesma receita. 250 ml, 500 ml, unidade.',
       flavors: 'Variações de {{type}}',
-      flavorsHint: 'o que muda dentro do tipo: sabor, cor, aroma. Cada tipo tem as suas.',
+      flavorsHint:
+        'Muda o SABOR, a cor, o aroma — mesma receita, mesmo tamanho. Cada uma vale onde você disser.',
       addLine: 'Novo produto',
       addCategory: 'Nova categoria',
       addType: 'Novo tipo',
@@ -1873,7 +1876,7 @@ export const ptBR = {
       noLineYet: 'Cadastre um produto primeiro — o resto é dele.',
       noLines: 'Nenhum produto ainda. Comece pelo mais óbvio: o que você fabrica todo dia?',
       noCategories:
-        'Nenhuma categoria aqui — e tudo bem. Ela só existe para quem precisa de um corte a mais entre o produto e o tipo.',
+        'Nenhuma categoria aqui — e tudo bem. Cadastre uma quando o MESMO produto tiver receitas diferentes; para tamanho e formato o degrau é o tipo.',
       noTypes: 'Nenhum tipo neste produto. Cadastre um: a variação é do tipo.',
       noFlavors: 'Nenhuma variação neste tipo ainda.',
       /** Como o nome do produto se monta a partir da grade. */

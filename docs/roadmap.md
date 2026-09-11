@@ -39,8 +39,8 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | telas | **34** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **27** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **29** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **58** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V32** | último `const V` em `src/data/db.ts` |
+| migrações do servidor | **59** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V33** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
 | linhas de código | **~92.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -49,10 +49,10 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **734** testes |
+| `npm test` | **742** testes |
 | `npm run mutate` | **126** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **55** checagens num navegador de verdade |
-| `npm run db:verify` | **30** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **15** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
+| `npm run db:verify` | **31** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **16** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 
@@ -783,30 +783,46 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     caixa, "Unidades por engradado" quando não há — um campo que quer dizer duas coisas
     sob o mesmo rótulo só aparece quando o estoque de alguém sai errado.
 
-39. ~~**As palavras dos três níveis são de sorveteria**~~ — **as PALAVRAS fecharam em 11
-    de setembro; a ATRIBUIÇÃO continua aberta, e é meia pergunta só.**
-    <!-- medida: espera decisão do dono: qual natureza fica em qual nível — as palavras já foram decididas e construídas -->
+39. ~~**As palavras dos três níveis são de sorveteria**~~ — **fechado em 11 de setembro,
+    nas duas metades: as palavras e a ATRIBUIÇÃO.**
+    <!-- medida: presente src/i18n/locales/pt-BR.ts :: Muda a RECEITA -->
 
     **Decidido e no ar:** **Produto → Categoria → Tipo → Variação**, com nenhum nível de
     baixo obrigatório (`0057`, `V32`, `degraus()`, catálogo e dicionário nos três idiomas).
     "Linha" saiu; "Produto" é o topo, que é a palavra do dono.
 
-    **O que ficou aberto, e é a metade que vale:** a tabela das duas naturezas continua
-    abaixo, e a decisão dele **não diz qual natureza vai para qual nível**. Na forma como
-    está construída, as duas continuam em "Tipo" e a Categoria nasce vazia nas duas
-    famílias da fábrica dele — ou seja, o nível novo ainda não fez o trabalho para o qual
-    existe. A proposta que está com ele:
+    **E a segunda metade, aprovada no mesmo dia — o que cada nível MUDA:**
 
-    | nível | o que ele muda | picolé | pote |
-    |---|---|---|---|
-    | Categoria | a RECEITA | Leite, Água, Skimo | *(vazio)* |
-    | Tipo | tamanho ou formato, mesma receita | *(vazio)* | 250 ml, 500 ml |
-    | Variação | sabor, cor, aroma | Morango… | Morango… |
+    | nível | o que ele muda | picolé | pote | o dia do 60/80 |
+    |---|---|---|---|---|
+    | Categoria | a RECEITA | Leite, Água, Skimo | *(vazio)* | Leite, Água, Skimo |
+    | Tipo | tamanho ou formato, mesma receita | *(vazio)* | 250 ml, 500 ml | 60 ml, 80 ml |
+    | Variação | sabor, cor, aroma | Morango… | Morango… | Morango… |
 
-    Com isso cada família usa três dos quatro, deixando níveis DIFERENTES vazios — que é a
-    opcionalidade fazendo trabalho em vez de ser só permissão. E vira uma regra que alguém
-    aplica sem adivinhar: sem ela, a mesma coisa vai para níveis diferentes em produtos
-    diferentes e o relatório fica incoerente sem ninguém ver.
+    Cada família usa três dos quatro deixando níveis DIFERENTES vazios — a opcionalidade
+    fazendo trabalho em vez de ser só permissão. E o ganho não é organizar melhor hoje: é a
+    terceira coluna, o dia em que o picolé de leite sair em dois tamanhos. Hoje isso
+    obrigaria a cadastrar "Leite 60ml" como tipo, que é o nome digitado inteiro que a grade
+    existe para não ter.
+
+    **Construído:** a regra está dita no ponto de decisão, nos três idiomas, nas três
+    dicas com a mesma forma (*"Muda a RECEITA"*, *"Muda o TAMANHO ou o FORMATO"*, *"Muda o
+    SABOR"*), e o exemplo da tela passou a compor "Picolé **de Leite** Morango" pela
+    categoria.
+
+    **E a aprovação abriu DOIS buracos, os dois medidos e fechados no mesmo dia:**
+
+    1. *"Morango só no leite" ficou inexpressável.* Com Leite virando categoria e o tipo
+       vazio, a variação só sabia estreitar em linha ou tipo (`0056`) — morango virava
+       variação do produto inteiro e voltava a ser oferecido no de água, a trava que a
+       `0055` nasceu para dar. `0059` / `V33` dão `category_id` à variação, e a regra de
+       aplicação é uma só: **vale onde todos os níveis que ela NOMEIA batem.**
+    2. *`products.category_id` não tinha escritor.* Coluna, índice único e leitor
+       (`listProducts`) desde a `0057`, e `saveProduct` nunca a gravava — a doença do
+       portão P1, de pé porque o nível nasce vazio na fábrica do dono. Sem escritor,
+       "Picolé de Leite Morango" não tinha como ser gravado. A checagem de grade ocupada
+       tinha três colunas contra as quatro do índice, então dois produtos que diferiam só
+       na categoria eram recusados por "classificação ocupada".
 
     O registro de então, que continua valendo como leitura:
 

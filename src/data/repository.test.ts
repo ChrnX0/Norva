@@ -27,6 +27,9 @@ import {
   listCarriers,
   saveCarrier,
   saveFlavor,
+  saveCategory,
+  CategoryIsFromAnotherLineError,
+  GridTakenError,
   listFlavors,
   NomeJaCadastradoError,
   listLines,
@@ -7315,5 +7318,118 @@ test('a variação vale na linha ou num tipo dela, e o mesmo nome não aparece d
     () => saveFlavor(EMPRESA_SEMENTE, { lineId: pote, typeId: null, name: 'ameixa  ' }),
     NomeJaCadastradoError,
     'caixa e espaço não contam como diferença',
+  );
+});
+
+test('a regra aprovada dos níveis é expressável: morango só no leite, com leite sendo CATEGORIA', async () => {
+  /**
+   * A medida que obrigou a `0059` a existir.
+   *
+   * O dono aprovou em 11 de setembro o que cada nível significa: **categoria muda a
+   * receita, tipo muda tamanho ou formato, variação muda o sabor.** Pela regra, Leite /
+   * Água / Skimo saem de "tipo" e passam a ser CATEGORIA — é o nível da receita.
+   *
+   * E aí a trava que a `0055` existia para dar deixava de alcançar: a variação só sabia
+   * estreitar em LINHA ou em TIPO, e com o tipo vazio no picolé o morango viraria variação
+   * do produto inteiro — oferecido no de água, que é o que ele mandou travar.
+   *
+   * Este caso é o positivo e o negativo juntos: o morango do leite ENTRA, o do água entra
+   * separado, e o morango do produto inteiro é RECUSADO por colidir com os dois.
+   */
+  await ensureStarterData(EMPRESA_SEMENTE);
+  const picole = await saveLine(EMPRESA_SEMENTE, { name: 'Picolé da regra aprovada' });
+  const leite = await saveCategory(EMPRESA_SEMENTE, { lineId: picole, name: 'Leite' });
+  const agua = await saveCategory(EMPRESA_SEMENTE, { lineId: picole, name: 'Água' });
+
+  const morangoLeite = await saveFlavor(EMPRESA_SEMENTE, {
+    lineId: picole,
+    categoryId: leite,
+    name: 'Morango',
+  });
+  const morangoAgua = await saveFlavor(EMPRESA_SEMENTE, {
+    lineId: picole,
+    categoryId: agua,
+    name: 'Morango',
+  });
+  assert.notEqual(morangoLeite, morangoAgua, 'morango de leite e de água são dois registros');
+
+  const todas = await listFlavors(EMPRESA_SEMENTE);
+  assert.equal(
+    todas.find((x) => x.id === morangoLeite)?.categoryId,
+    leite,
+    'a variação guarda em qual categoria ela vale — sem isto a trava não existe',
+  );
+  assert.equal(todas.find((x) => x.id === morangoLeite)?.typeId, null, 'e sem tipo nenhum');
+
+  // O caso FALSO, que é o que dá valor ao verdadeiro: a variação do produto inteiro
+  // colide com as duas, porque a tela mostra as da categoria MAIS as do produto — e
+  // "Morango" duas vezes na mesma lista é o "confunde na hora de registrar" dele.
+  await assert.rejects(
+    () => saveFlavor(EMPRESA_SEMENTE, { lineId: picole, name: 'Morango' }),
+    NomeJaCadastradoError,
+    'morango do produto inteiro colide com o morango que já vale numa categoria dele',
+  );
+
+  // E categoria de OUTRO produto é recusada, pela mesma ajudante que o tipo usa.
+  const pote = await saveLine(EMPRESA_SEMENTE, { name: 'Pote da regra aprovada' });
+  await assert.rejects(
+    () => saveFlavor(EMPRESA_SEMENTE, { lineId: pote, categoryId: leite, name: 'Ameixa' }),
+    CategoryIsFromAnotherLineError,
+    'a categoria do picolé não classifica variação do pote',
+  );
+});
+
+test('o produto GRAVA a categoria, e a grade conta com ela para achar duplicata', async () => {
+  /**
+   * O defeito que a aprovação do significado dos níveis tornou bloqueante.
+   *
+   * `products.category_id` nasceu na `0057` com índice único e leitor (`listProducts`) e
+   * **nenhum escritor**: era a doença que o portão P1 deste projeto existe para pegar, e
+   * ela passou porque o nível nasce vazio na fábrica do dono — quem não usa categoria não
+   * nota que ela não grava. Com "muda a receita" em Categoria, Leite vem para cá e
+   * "Picolé de Leite Morango" não tinha como ser gravado.
+   *
+   * A segunda metade é a que a tela não pega: a checagem de grade ocupada tinha TRÊS
+   * colunas e o índice do banco tem QUATRO. Sem a categoria na checagem, dois produtos
+   * que diferem só nela eram recusados por "classificação ocupada" — uma frase certa
+   * sobre um fato falso.
+   */
+  await ensureStarterData(EMPRESA_SEMENTE);
+  const linha = await saveLine(EMPRESA_SEMENTE, { name: 'Picolé do produto com categoria' });
+  const leite = await saveCategory(EMPRESA_SEMENTE, { lineId: linha, name: 'Leite' });
+  const agua = await saveCategory(EMPRESA_SEMENTE, { lineId: linha, name: 'Água' });
+
+  const comum = {
+    kind: 'product' as const,
+    recipeId: null,
+    yieldPerUnit: null,
+    unitPackagingRate: 0 as Rate,
+    packaging: { tiers: [{ id: 'unit' as const, perBaseUnit: 1 }] },
+    lineId: linha,
+  };
+  const doLeite = await saveProduct(EMPRESA_SEMENTE, {
+    ...comum,
+    name: 'Picolé Leite',
+    categoryId: leite,
+  });
+  const daAgua = await saveProduct(EMPRESA_SEMENTE, {
+    ...comum,
+    name: 'Picolé Água',
+    categoryId: agua,
+  });
+  assert.notEqual(doLeite.productId, daAgua.productId, 'duas categorias, dois produtos');
+
+  const lidos = await listProducts(EMPRESA_SEMENTE);
+  assert.equal(
+    lidos.find((p) => p.id === doLeite.productId)?.categoryId,
+    leite,
+    'a categoria atravessou a gravação — antes desta rodada ela era sempre nula',
+  );
+
+  // O caso falso: a MESMA categoria duas vezes continua sendo a mesma grade.
+  await assert.rejects(
+    () => saveProduct(EMPRESA_SEMENTE, { ...comum, name: 'Outro nome', categoryId: leite }),
+    GridTakenError,
+    'mesma linha e mesma categoria é a mesma classificação, com outro nome ou não',
   );
 });

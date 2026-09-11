@@ -1420,9 +1420,12 @@ export const es: Dictionary = {
     catalog: {
       categories: 'Categorías de {{line}}',
       categoriesTitle: 'Categorías',
-      categoriesHint: 'un corte más, cuando el producto lo necesita — sin lactosa, línea premium. La mayoría de las fábricas no lo usa, y entonces desaparece.',
+      categoriesHint:
+        'Cambia la RECETA: entra o sale algo del producto. Sin lactosa, sin azúcar, integral. La mayoría de las fábricas no lo usa, y entonces desaparece.',
+      categoriesInvite: '¿necesitas un corte más?',
       addCategory: 'Nueva categoría',
-      noCategories: 'Ninguna categoría aquí — y está bien. Solo existe para quien necesita un corte más entre el producto y el tipo.',
+      noCategories:
+        'Ninguna categoría aquí — y está bien. Registra una cuando el MISMO producto tenga recetas distintas; para tamaño y forma el escalón es el tipo.',
       scopeCategory: 'solo en {{category}}',
       scopeWholeLine: 'en todo {{line}}',
       categoryFromAnotherLine: 'Esa categoría es de otro producto. Elige su producto, o una categoría de este.',
@@ -1439,14 +1442,16 @@ export const es: Dictionary = {
       savePacking: 'Guardar el empaque de la línea',
       overline: 'la grilla de lo que fabricas',
       intro:
-        'Registra una vez y combina a voluntad. Paleta tradicional de frutilla es una línea, un tipo y un sabor — no un nombre escrito entero.',
+        'Registra una vez y combina a voluntad. Paleta de leche de frutilla es un producto, una categoría y una variación — no un nombre escrito entero. Cada subclase responde una sola pregunta: ¿qué cambia? La receta, el tamaño o el sabor. Ninguna es obligatoria: lo que tu fábrica no usa no aparece.',
       lines: 'Productos',
       linesHint: 'la familia más amplia de tu catálogo — lo que fabricas',
       types: 'Tipos de {{line}}',
       typesTitle: 'Tipos',
-      typesHint: 'lo que divide la línea — y de lo que depende la variación',
+      typesHint:
+        'Cambia el TAMAÑO o la FORMA, con la misma receta. 250 ml, 500 ml, unidad.',
       flavors: 'Variaciones de {{type}}',
-      flavorsHint: 'lo que cambia dentro del tipo: sabor, color, aroma. Cada tipo tiene los suyos.',
+      flavorsHint:
+        'Cambia el SABOR, el color, el aroma — misma receta, mismo tamaño. Cada una vale donde tú digas.',
       addLine: 'Nuevo producto',
       addType: 'Nuevo tipo',
       addFlavor: 'Nueva variación',

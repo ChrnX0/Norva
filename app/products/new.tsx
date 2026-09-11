@@ -27,10 +27,12 @@ import {
   listRecipes,
   loadRecipeGraph,
   listLines,
+  listCategories,
   listTypes,
   listFlavors,
   type Flavor,
   type ProductLine,
+  type ProductCategory,
   type ProductType,
   type ItemWithCost,
   type Product,
@@ -51,6 +53,7 @@ import {
   type Recipe,
 } from '@/domain/recipe';
 import { type PackagingHierarchy } from '@/domain/units';
+import { meioDaGrade } from '@/components/grade';
 import { parseTyped } from '@/domain/number';
 import { currencySymbol, fill, formatMoney, formatUnitRate, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -127,6 +130,7 @@ type Loaded = {
   /** O que já existe, para a tela impedir a classificação ocupada em vez de reclamar. */
   products: Product[];
   lines: ProductLine[];
+  categories: ProductCategory[];
   types: ProductType[];
   flavors: Flavor[];
 };
@@ -137,13 +141,14 @@ function ProductForm() {
   const { locale, t } = useLocale();
 
   const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
-    const [recipes, graph, costs, labels, lines, types, flavors, items, products] =
+    const [recipes, graph, costs, labels, lines, categories, types, flavors, items, products] =
       await Promise.all([
       listRecipes(empresaDaqui()),
       loadRecipeGraph(empresaDaqui()),
       itemCosts(empresaDaqui()),
       loadLabels(empresaDaqui()),
       listLines(empresaDaqui()),
+      listCategories(empresaDaqui()),
       listTypes(empresaDaqui()),
       listFlavors(empresaDaqui()),
       listItems(empresaDaqui()),
@@ -159,6 +164,7 @@ function ProductForm() {
       costs: costs ?? {},
       labels,
       lines,
+      categories,
       types,
       flavors,
       wrappings,
@@ -170,6 +176,7 @@ function ProductForm() {
   const [name, setName] = useState('');
   const [nameTyped, setNameTyped] = useState(false);
   const [lineId, setLineId] = useState<string | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
   const [typeId, setTypeId] = useState<string | null>(null);
   const [flavorId, setFlavorId] = useState<string | null>(null);
   const [recipeId, setRecipeId] = useState<string | null>(null);
@@ -347,6 +354,10 @@ function ProductForm() {
    */
   if (lineId !== linhaAnterior) {
     setLinhaAnterior(lineId);
+    // A categoria e o tipo são DA linha: mantidos na troca, ficariam apontando para
+    // fora dela e a grade gravaria a classificação de outro produto sem uma palavra.
+    setCategoryId(null);
+    setTypeId(null);
     const daFamilia = linha?.packaging;
     if (!embalagemDigitada && daFamilia) {
       const caixaDaFamilia = daFamilia.tiers.find((t2) => t2.id === 'box') ?? null;
@@ -360,7 +371,16 @@ function ProductForm() {
     }
   }
   const tipo = data?.types.find((x) => x.id === typeId) ?? null;
+  const categoria = data?.categories.find((c) => c.id === categoryId) ?? null;
   const sabor = data?.flavors.find((f) => f.id === flavorId) ?? null;
+  /**
+   * Os níveis do meio, juntos — e é por isso que o molde do nome não se multiplicou.
+   *
+   * Com a categoria aprovada, "Picolé de Leite Morango" tem DOIS níveis entre o produto e
+   * a variação. Um molde por combinação seriam oito frases em três idiomas; `meioDaGrade`
+   * os junta na posição que o `{{type}}` já ocupava.
+   */
+  const meio = meioDaGrade(categoria?.name ?? null, tipo?.name ?? null);
   /** A faixa da caixa, quando ela existe — é ela que dá sentido ao selo. */
   const caixa = hierarchy.tiers.find((t2) => t2.id === 'box') ?? null;
 
@@ -368,15 +388,15 @@ function ProductForm() {
     if (nameTyped && name.trim()) return name;
     if (!linha) return name;
     const chave =
-      tipo && sabor
+      meio && sabor
         ? t.app.catalog.composed
         : sabor
           ? t.app.catalog.composedNoType
-          : tipo
+          : meio
             ? t.app.catalog.composedNoFlavor
             : '';
     if (!chave) return linha.name;
-    return fill(chave, { line: linha.name, type: tipo?.name ?? '', flavor: sabor?.name ?? '' });
+    return fill(chave, { line: linha.name, type: meio, flavor: sabor?.name ?? '' });
   })();
 
   /**
@@ -390,6 +410,7 @@ function ProductForm() {
   const ocupada = (data?.products ?? []).find(
     (p) =>
       (p.lineId ?? '') === (lineId ?? '') &&
+      (p.categoryId ?? '') === (categoryId ?? '') &&
       (p.typeId ?? '') === (typeId ?? '') &&
       (p.flavorId ?? '') === (flavorId ?? ''),
   );
@@ -441,6 +462,7 @@ function ProductForm() {
       const salvo = await saveProduct(empresaDaqui(), {
         name: composed.trim(),
         lineId,
+        categoryId,
         typeId,
         flavorId,
         kind,
@@ -489,7 +511,26 @@ function ProductForm() {
     }
   };
 
-  const tiposDaLinha = (data?.types ?? []).filter((x) => x.lineId === lineId);
+  const categoriasDaLinha = (data?.categories ?? []).filter((c) => c.lineId === lineId);
+  /**
+   * A categoria que está VALENDO — mesma regra do `tipoValendo` logo abaixo.
+   *
+   * Com uma categoria só o seletor não aparece (escolher entre uma coisa não é escolha),
+   * e sem isto `categoryId` ficaria nulo: o produto gravaria sem a categoria que a
+   * fábrica tem, e o nome composto sairia sem ela.
+   */
+  const categoriaValendo =
+    categoryId ?? (categoriasDaLinha.length === 1 ? categoriasDaLinha[0].id : null);
+  /**
+   * Os tipos que valem: os DA categoria escolhida mais os do produto inteiro.
+   *
+   * Tipo sem categoria vale em todo o produto — é o que a fábrica que nunca usou o nível
+   * tem —, e escondê-lo quando há categoria deixaria a lista vazia para ela.
+   */
+  const tiposDaLinha = (data?.types ?? []).filter(
+    (x) =>
+      x.lineId === lineId && (x.categoryId === null || x.categoryId === categoriaValendo),
+  );
   /**
    * As variações do TIPO escolhido — não as da casa inteira.
    *
@@ -518,7 +559,9 @@ function ProductForm() {
   const saboresDoTipo = (data?.flavors ?? []).filter(
     (x) =>
       (x.lineId === null && x.typeId === null) ||
-      (x.lineId === lineId && (x.typeId === null || x.typeId === tipoValendo)),
+      (x.lineId === lineId &&
+        (x.typeId === null || x.typeId === tipoValendo) &&
+        (x.categoryId === null || x.categoryId === categoriaValendo)),
   );
 
   /** As embalagens escolhidas, na ordem do almoxarifado e não na de toque. */
@@ -595,6 +638,34 @@ function ProductForm() {
                   ))}
                 </View>
               </View>
+
+              {/* A categoria, entre o produto e o tipo — e ela só aparece com mais de
+                  uma, pela mesma régua do tipo. A fábrica que não usa o nível nunca
+                  vê esta fila. */}
+              {categoriasDaLinha.length > 1 ? (
+                <View style={{ gap: space.sm }}>
+                  <Text style={[type.overline, { color: color.inkFaint }]}>
+                    {t.app.catalog.categoriesTitle.toUpperCase()}
+                  </Text>
+                  <View style={[styles.wrap, { gap: space.sm }]}>
+                    {categoriasDaLinha.map((c) => (
+                      <Touchable
+                        key={c.id}
+                        accessibilityLabel={c.name}
+                        onPress={() => {
+                          setCategoryId(c.id === categoryId ? null : c.id);
+                          // O tipo é DA categoria: mantido na troca, classificaria o
+                          // produto numa combinação que não existe.
+                          setTypeId(null);
+                        }}
+                        style={{ paddingVertical: space.xs }}
+                      >
+                        <Chip signal={c.id === categoryId ? 'ok' : 'neutral'} label={c.name} />
+                      </Touchable>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
 
               {tiposDaLinha.length > 1 ? (
                 <View style={{ gap: space.sm }}>
