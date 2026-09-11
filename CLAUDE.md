@@ -1246,6 +1246,26 @@ do cartão só existia no Orgânico: ela nasce de borda grossa de um lado com ca
 arredondado, e o Papel não tem canto nem caixa. Olhar a pele padrão e concluir "está
 bom" é olhar exatamente a metade onde o defeito não cabe.
 
+**E antes de medir o ALVO, meça a RÉGUA — 11 de setembro, três itens numa noite.** A regra
+de baixo pergunta se a coisa já existe. Falta a pergunta gêmea, e ela destravou três itens
+sem uma linha de aplicativo mudar:
+
+| item | o que dizia travar | o que travava de verdade |
+|---|---|---|
+| o emulador não instala | oito hipóteses derrubadas | **já resolvido no dia anterior**, e o padrão do script nunca mudou |
+| a última linha sob a barra de abas | *"esperando a foto"* | a foto não existe aqui; a árvore respondeu — 360 px de folga |
+| o app renderiza errado sob saturação | cinco evidências | **quatro vieram do instrumento que a quinta diz que falha** |
+
+Duas perguntas, então, ao pegar um item:
+
+1. **A prova que este item pede ainda é possível neste ambiente?** Item que espera um
+   instrumento que o ambiente perdeu espera para sempre, e ninguém reabre um item para
+   perguntar isso.
+2. **Quantos INSTRUMENTOS existem por trás das evidências dele?** Quatro observações do
+   mesmo instrumento cego são **uma** observação — e a repetição não confirma nada, porque
+   é a mesma leitura repetida. Se uma das evidências for *"o instrumento falhou"*, ela não é
+   mais um sintoma da lista: é a explicação das outras, e devia ser lida primeiro.
+
 **Antes de construir o próximo item da lista, meça a afirmação dele contra o código.**
 Em 7 de setembro peguei a próxima coisa da fila **seis vezes**, e nas seis o código já
 tinha a coisa pronta: o estorno alcançável de qualquer ato, as três configurações de

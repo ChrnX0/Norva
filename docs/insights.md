@@ -10074,3 +10074,41 @@ ele é pouco confiável — isso continua inteiro) e o que cai (*"renderiza erra
 INSTRUMENTOS existem ali dentro. Quatro observações e um instrumento é uma observação. E se
 uma das evidências for "o instrumento falhou", ela não é mais um sintoma na lista — ela é a
 explicação das outras, e devia ser lida primeiro.
+
+---
+
+## Três itens travados, três réguas erradas — e nenhum deles estava travado por trabalho
+
+Em uma noite, três itens da fila foram destravados sem que uma linha de aplicativo mudasse
+por causa deles. Nos três, o que travava era o **instrumento**, escolhido uma vez e herdado
+sem pergunta:
+
+| item | o que dizia travar | o que travava de verdade |
+|---|---|---|
+| 26 — o emulador não instala | oito hipóteses derrubadas, causa glacial | **já estava resolvido** (imagem ATD, fechado no dia anterior) e o padrão do script nunca mudou |
+| 10 — a última linha fica sob a barra | *"esperando a foto"* | a foto **não existe** aqui; a árvore responde melhor, e respondeu: 360 px de folga |
+| 4 — o app renderiza errado sob saturação | cinco evidências | **quatro delas vieram do instrumento que a quinta diz que falha** |
+
+Três formas diferentes do mesmo erro, e vale separá-las porque se parecem:
+
+1. **A régua certa existia e não virou padrão.** Achado sem consequência — o repositório já
+   tem essa frase escrita para outro caso, e ela se aplicou a um achado de vinte e quatro
+   horas antes.
+2. **A régua nomeada não existe mais.** O item esperava um instrumento que o ambiente deixou
+   de ter, e esperar por ele é esperar para sempre. Ninguém reabre um item para perguntar se
+   a prova que ele pede ainda é possível.
+3. **A régua cega foi lida como sintoma.** A mais cara das três: o instrumento que não lê
+   devolve vazio, vazio parece defeito, e a repetição confirma — porque é a mesma leitura
+   repetida, não uma segunda opinião.
+
+**O que isso muda no método, e é uma pergunta a mais no portão de pegar um item da fila.**
+O projeto já manda *"meça a afirmação do item contra o código"*, e essa regra nasceu de
+reconstruir seis coisas que já existiam. Ela pergunta pelo ALVO. Falta perguntar pela RÉGUA:
+
+- a prova que este item pede ainda é possível neste ambiente?
+- e quantos instrumentos existem por trás das evidências dele — porque quatro observações do
+  mesmo instrumento cego são **uma** observação, e ela pode ser falsa.
+
+*E a consequência já está no código e não só aqui: `foto` diz que o quadro morto é o estado
+normal do ATD e manda usar `ler`; `subir` tem o ATD como padrão; e o item 4 carrega agora um
+marcador `espera o tablet do dono` em vez de afirmar um defeito que ninguém viu.*
