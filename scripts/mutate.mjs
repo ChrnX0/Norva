@@ -1190,6 +1190,24 @@ const DEFECTS = [
     hurts:
       'relogio do aparelho andando para tras - fuso trocado, hora corrigida na mao, aparelho sem bateria - apaga a frase que a pessoa acabou de escrever, e ela perde o caminho por um defeito que nao e dela',
   },
+  // --- a fila que sai da frente, 11 de setembro -------------------------------
+  //
+  // O conserto da conferência duplicada abriu um caminho que PERDE DADO se a
+  // classificação errar para o lado errado. As duas abaixo quebram os dois lados.
+  {
+    file: 'src/sync/recusa.ts',
+    from: "  return PERMANENTES.has(codigo.trim()) ? 'permanente' : 'passageira';",
+    to: "  return PERMANENTES.has(codigo.trim()) ? 'passageira' : 'permanente';",
+    hurts:
+      'toda recusa desconhecida passa a sair da frente da fila: falta de rede, permissao faltando, servidor ocupado - tudo vira "nao sobe nunca" e o dado nunca chega ao servidor, em silencio, que e o pior resultado que esta fila tem',
+  },
+  {
+    file: 'src/sync/engine.ts',
+    from: "      if (classeDaRecusa(recusada.codigo) !== 'permanente') continue;",
+    to: "      if (classeDaRecusa(recusada.codigo) === 'permanente') continue;",
+    hurts:
+      'a fila volta a travar exatamente onde este conserto existe para destravar - a conferencia duplicada fica pendente para sempre e tudo o que o aparelho gravou depois fica preso atras dela',
+  },
 ];
 
 /**
