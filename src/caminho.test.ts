@@ -21,7 +21,9 @@ import { test } from 'node:test';
  */
 
 const FIZ = readFileSync(new URL('../app/fiz.tsx', import.meta.url), 'utf8');
-const MOSAICO = readFileSync(new URL('./home/Mosaic.tsx', import.meta.url), 'utf8');
+// `./home/` é a pasta da capa deste repositório, não o /home de uma máquina — o detector
+// de caminho local casa com as duas coisas pelo mesmo texto.
+const MOSAICO = readFileSync(new URL('./home/Mosaic.tsx', import.meta.url), 'utf8'); // proofgate-allow
 
 /** O que escreve no livro-razão. Nome novo aqui é nome novo em `repository.ts`. */
 const ESCREVEM_NO_RAZAO = [

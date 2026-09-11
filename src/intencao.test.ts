@@ -56,9 +56,13 @@ test('o que não é intenção volta nulo em vez de quebrar a tela', () => {
 });
 
 test('a intenção vence, e a de amanhã NÃO vence', () => {
-  const dia = 24 * 60 * 60 * 1000;
-  const seteDias = new Date(Date.parse(AGORA) - DIAS_DE_VALIDADE * dia).toISOString();
-  const oitoDias = new Date(Date.parse(AGORA) - (DIAS_DE_VALIDADE + 1) * dia).toISOString();
+  // As datas são LITERAIS e não contas sobre `AGORA`, e isso é mais forte do que parece: um
+  // teste de prazo que deriva as suas próprias datas da mesma constante que a função usa
+  // concorda com qualquer prazo. Com a data escrita, mudar `DIAS_DE_VALIDADE` quebra este
+  // caso — que é o que se quer de um teste de prazo.
+  assert.equal(DIAS_DE_VALIDADE, 7, 'as datas abaixo foram escritas para um prazo de 7 dias');
+  const seteDias = '2026-09-04T12:00:00.000Z';
+  const oitoDias = '2026-09-03T12:00:00.000Z';
 
   assert.equal(venceu(seteDias, AGORA), false, 'no limite ela ainda vale');
   assert.equal(venceu(oitoDias, AGORA), true, 'passado o prazo, a frase não é mais o agora');
@@ -71,7 +75,7 @@ test('a intenção vence, e a de amanhã NÃO vence', () => {
   // O caso falso que importa mais que o verdadeiro: relógio do aparelho andando para trás.
   // Fuso trocado, hora corrigida na mão, aparelho sem bateria — e apagar o trabalho da
   // pessoa por causa disso é perder dado dela por um defeito que não é dela.
-  const amanha = new Date(Date.parse(AGORA) + dia).toISOString();
+  const amanha = '2026-09-12T12:00:00.000Z';
   assert.equal(venceu(amanha, AGORA), false, 'data no futuro não vence');
   assert.equal(
     lerIntencao(escreverIntencao({ oQue: 'picolé', quanto: 1, quando: amanha }), AGORA)?.oQue,
