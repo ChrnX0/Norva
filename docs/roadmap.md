@@ -743,9 +743,44 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     nada. O que está em aberto é se os dois vocabulários deviam ser um, e como um nível
     se chama quando o que ele significa é *"do que este produto depende, um degrau acima"*.
 
+    **E o enquadramento dele já expôs uma coisa concreta: "tipo" carrega DUAS naturezas.**
+
+    | tipo | exemplo | o que ele muda |
+    |---|---|---|
+    | de receita | Leite / Água / Skimo | a DEPENDÊNCIA — entra outra coisa no produto |
+    | de embalagem | 250 ml / 500 ml | nada da cadeia; só o recipiente |
+
+    Foi essa colisão que obrigou a variação-na-linha a existir: sem ela, ameixa teria de
+    ser cadastrada em 250 e em 500 por causa de uma distinção que não é de receita. A
+    solução de hoje funciona e contorna o sintoma. Se as palavras forem trocadas um dia, é
+    aqui que a troca compra alguma coisa — e o teste é a frase do dono: num caso o degrau
+    acima muda a dependência, no outro não muda.
+
     **Por que fica em espera e não vira trabalho agora:** é decisão de dono (é a língua do
     produto, e ele vai vender isto), e mexer nas palavras antes de a fábrica do pai dele
     rodar ponta a ponta seria trocar o que se lê antes de saber o que se faz.
+
+40. **O app pede sete cadastros antes de dizer qualquer coisa — e devia deixar começar
+    pelo fim.** <!-- medida: espera decisão do dono: é mudança de desenho do produto, proposta em 11 de setembro e não pedida -->
+    Proposta minha, não pedido dele, e por isso entra como proposta e não como trabalho.
+
+    O que a caminhada de 10 e 11 de setembro fez foi tornar cada passo CORRETO — a receita
+    usa outra receita, a variação trava no lugar certo, a contagem sai em engradado. O que
+    ela não fez foi encurtar a corrente: insumo → ficha → sub-ficha → linha → tipo →
+    variação → produto → produzir. **Sete cadastros antes do primeiro número útil**, e foi
+    exatamente disso que ele reclamou: *"eu não consigo fazer absolutamente nada"*.
+
+    O inverso: a pessoa abre e escreve o que ACONTECEU — *"produzi 200 picolés de morango"*
+    — e o aplicativo pergunta só o que falta, na hora em que falta, criando linha, tipo e
+    variação no caminho. O cadastro completo continua existindo para quem quer organizar;
+    deixa de ser pedágio.
+
+    As duas leis da casa que isso cumpre já estão escritas e hoje são letra morta aqui:
+    *"nunca peça o que o sistema pode deduzir"* e *"nenhum campo nasce vazio"*. Hoje o
+    aplicativo pede tudo antes e deduz nada.
+
+    **Por que é decisão dele e não minha:** muda o que se constrói, e muda a ordem em que
+    a fábrica aprende o produto. É o tipo de coisa que este arquivo manda perguntar.
 
 **Aberto do que esta caminhada achou:**
 
