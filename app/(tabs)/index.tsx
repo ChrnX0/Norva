@@ -4,6 +4,7 @@ import {
   countMovements,
   expiringSoon,
   listItems,
+  listProducts,
   listRecipes,
   listPlaces,
   lossesOn,
@@ -161,6 +162,7 @@ function Briefing() {
       places,
       stockItems,
       fichas,
+      produtos,
     ] = await Promise.all([
       recentCostChanges(empresaDaqui(), 12),
       // A MESMA unidade das vizinhas logo abaixo. Sem isto a manchete contava as
@@ -206,6 +208,10 @@ function Briefing() {
       // Da EMPRESA e não da unidade: a pergunta que isto responde é "esta fábrica
       // já tem ficha técnica", e uma ficha cadastrada na outra cidade conta.
       listRecipes(empresaDaqui()),
+      // Da EMPRESA pela mesma razão, e é ela que diz se há produto que se PRODUZ: os
+      // itens de estoque não carregam a ficha, e sem ela a corrente de cadastro dá por
+      // pronta uma fábrica que só revende.
+      listProducts(empresaDaqui()),
     ]);
 
     /**
@@ -317,7 +323,21 @@ function Briefing() {
       preparo: {
         insumos: stockItems.filter((i) => i.kind === 'input' || i.kind === 'packaging').length,
         fichas: fichas.length,
-        produtos: stockItems.filter((i) => i.kind === 'product' || i.kind === 'resale').length,
+        /**
+         * Produto que dá para PRODUZIR — não produto cadastrado.
+         *
+         * A conta contava revenda junto, e aí a corrente dizia "está pronto" para uma
+         * fábrica que só revende: `recordProduction` recusa produto sem ficha (*"é revenda:
+         * não se produz"*), então o toque abria a produção e ela respondia "nenhum produto
+         * tem ficha técnica ainda". É o MESMO defeito que `primeiroPasso` nasceu para
+         * consertar — *"a capa oferecia produzir num aplicativo sem ficha nenhuma"* —,
+         * sobrevivendo num caso mais estreito, e achado ao construir o caminho de trás,
+         * que faz a mesma pergunta e precisava da mesma resposta.
+         *
+         * `recipeId` e não `kind`: um produto pode nascer com `kind: 'product'` e ficha
+         * nula, e o que a produção exige é a ficha.
+         */
+        produtos: produtos.filter((p) => p.recipeId).length,
       },
       loose,
       running: running.map((r) => ({

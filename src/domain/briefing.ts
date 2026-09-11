@@ -430,13 +430,49 @@ export function todayRank(series: readonly { total: number }[]): number | null {
  */
 export type PrimeiroPasso = 'insumo' | 'ficha' | 'produto' | 'producao';
 
+/** A corrente, de baixo para cima. Acrescentar um degrau é acrescentar um nome aqui. */
+const CORRENTE = ['insumo', 'ficha', 'produto'] as const;
+
+/**
+ * Os degraus que FALTAM, na ordem em que se sobe — e não só o próximo.
+ *
+ * Nasceu para o caminho de trás (*"o que você fez?"*), que é a porta alternativa que o
+ * dono aprovou em 11 de setembro. A diferença entre esta função e `primeiroPasso` é o que
+ * a tela pode dizer: com o próximo, ela manda a pessoa a um lugar; com a lista, ela mostra
+ * ONDE a pessoa está na corrente e quanto falta. *"Sete cadastros antes do primeiro número
+ * útil"* foi a queixa, e metade do peso dela é não saber quantos são.
+ *
+ * Devolve FATO e não frase, como tudo neste arquivo: quem escreve português é a tela.
+ */
+export function degrausQueFaltam(preparo: {
+  insumos: number;
+  fichas: number;
+  produtos: number;
+}): PrimeiroPasso[] {
+  const conta: Record<(typeof CORRENTE)[number], number> = {
+    insumo: preparo.insumos,
+    ficha: preparo.fichas,
+    produto: preparo.produtos,
+  };
+  return CORRENTE.filter((degrau) => conta[degrau] === 0);
+}
+
+/**
+ * O próximo degrau, que é o primeiro que falta — e `producao` quando não falta nenhum.
+ *
+ * Sem insumo não há custo, e produção sem custo é registro que não responde a pergunta
+ * que custe alguma coisa; sem ficha não há produto; sem produto não há corrida.
+ * Lei 1 — não se pergunta o que dá para deduzir — e "a próxima ação PROVÁVEL",
+ * que num aplicativo vazio é cadastrar o que se compra, não produzir.
+ *
+ * Deriva de `degrausQueFaltam` de propósito: a ordem da corrente existia escrita duas
+ * vezes no instante em que a lista nasceu, e ordem repetida diverge no dia em que alguém
+ * mexe numa só.
+ */
 export function primeiroPasso(preparo: {
   insumos: number;
   fichas: number;
   produtos: number;
 }): PrimeiroPasso {
-  if (preparo.insumos === 0) return 'insumo';
-  if (preparo.fichas === 0) return 'ficha';
-  if (preparo.produtos === 0) return 'produto';
-  return 'producao';
+  return degrausQueFaltam(preparo)[0] ?? 'producao';
 }

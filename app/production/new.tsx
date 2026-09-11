@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { voltar } from '@/nav';
@@ -155,10 +156,27 @@ function Production() {
   const [productId, setProductId] = useState<string | null>(null);
   const [batchText, setBatchText] = useState('');
   const [showBatches, setShowBatches] = useState(false);
-  const [unitsText, setUnitsText] = useState('');
+  /**
+   * Quantas unidades saíram — e o caminho de trás pode ter dito isto antes.
+   *
+   * `?quanto=` chega de `app/fiz.tsx`, a porta alternativa que o dono aprovou em 11 de
+   * setembro: lá a pessoa disse *"produzi 200 picolés de morango"* antes de o cadastro
+   * existir, e perguntar o número de novo aqui seria pedir o que o sistema já tem — Lei 1,
+   * e a queixa que abriu aquele caminho.
+   *
+   * O número viaja por PARÂMETRO e não por armazenamento compartilhado: fazer esta tela
+   * ler o rascunho da outra acoplaria a tela do dia a dia a um caminho que a maioria nunca
+   * usa. Ausente é o caso normal, e aí nada muda aqui.
+   */
+  const { quanto } = useLocalSearchParams<{ quanto?: string }>();
+  const doCaminho = quanto ? Math.max(0, Math.trunc(Number(quanto)) || 0) : 0;
+  const [unitsText, setUnitsText] = useState(doCaminho > 0 ? String(doCaminho) : '');
   /** Onde a pessoa está na grade: a linha e o tipo escolhidos até agora. */
   const [naGrade, setNaGrade] = useState<Escolha>({ lineId: null, categoryId: null, typeId: null });
-  const [unitsTyped, setUnitsTyped] = useState(false);
+  // Vindo do caminho de trás o número JÁ foi dito, então ele manda — igual ao digitado.
+  // Sem isto o campo mostraria 200 e a conta usaria o rendimento previsto da ficha, que é
+  // a pior combinação possível: a tela afirma um número e grava outro.
+  const [unitsTyped, setUnitsTyped] = useState(doCaminho > 0);
   const [saving, setSaving] = useState(false);
 
   const selected = data?.products.find((p) => p.id === productId) ?? data?.products[0] ?? null;

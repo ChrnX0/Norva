@@ -4,6 +4,7 @@ import {
   avisoDaCopia,
   DIAS_ATE_A_COPIA_ENVELHECER,
   addWidget,
+  degrausQueFaltam,
   primeiroPasso,
   briefingFilas,
   BRIEFING_WIDGETS,
@@ -267,4 +268,47 @@ test('o passo olha o que FALTA, não o que já existe depois dele', () => {
   // e sem insumo não é fábrica nova — é fábrica que apagou o almoxarifado.
   assert.equal(primeiroPasso({ insumos: 0, fichas: 1, produtos: 1 }), 'insumo');
   assert.notEqual(primeiroPasso({ insumos: 1, fichas: 1, produtos: 1 }), 'insumo');
+});
+
+test('a corrente diz quantos degraus faltam, não só qual é o próximo', () => {
+  // O caminho de trás (*"o que você fez?"*) mostra ONDE a pessoa está, e para isso a lista
+  // inteira importa: metade do peso de *"sete cadastros antes do primeiro número útil"* é
+  // não saber quantos são. Com o próximo só, a tela manda a pessoa a um lugar sem dizer
+  // que ainda vêm dois.
+  assert.deepEqual(degrausQueFaltam({ insumos: 0, fichas: 0, produtos: 0 }), [
+    'insumo',
+    'ficha',
+    'produto',
+  ]);
+  assert.deepEqual(degrausQueFaltam({ insumos: 3, fichas: 0, produtos: 0 }), ['ficha', 'produto']);
+  assert.deepEqual(degrausQueFaltam({ insumos: 3, fichas: 1, produtos: 0 }), ['produto']);
+  assert.deepEqual(degrausQueFaltam({ insumos: 3, fichas: 1, produtos: 2 }), [], 'nada falta');
+});
+
+test('a corrente pula o degrau que já existe, sem reordenar os outros', () => {
+  // O caso que uma leitura "para no primeiro zero" erra: quem cadastrou produto antes da
+  // ficha — possível, porque a tela de produto aceita revenda sem receita. A lista tem de
+  // dizer que a FICHA falta, e na posição dela, não empurrar tudo para baixo.
+  assert.deepEqual(degrausQueFaltam({ insumos: 2, fichas: 0, produtos: 5 }), ['ficha']);
+  assert.deepEqual(degrausQueFaltam({ insumos: 0, fichas: 4, produtos: 5 }), ['insumo']);
+  assert.deepEqual(degrausQueFaltam({ insumos: 0, fichas: 0, produtos: 5 }), ['insumo', 'ficha']);
+});
+
+test('o próximo passo é o primeiro que falta, e as duas funções nunca discordam', () => {
+  // A guarda que impede a ordem da corrente de existir escrita duas vezes. Ela morde de
+  // verdade: antes de `primeiroPasso` derivar da lista, eram dois `if` encadeados e uma
+  // lista literal, e mexer numa só deixava a tela mandando a pessoa a um degrau que a
+  // própria tela dava como pronto.
+  for (const insumos of [0, 3]) {
+    for (const fichas of [0, 2]) {
+      for (const produtos of [0, 5]) {
+        const preparo = { insumos, fichas, produtos };
+        assert.equal(
+          primeiroPasso(preparo),
+          degrausQueFaltam(preparo)[0] ?? 'producao',
+          `discordam em ${JSON.stringify(preparo)}`,
+        );
+      }
+    }
+  }
 });

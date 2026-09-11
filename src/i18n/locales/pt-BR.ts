@@ -741,6 +741,7 @@ export const ptBR = {
         inputs: 'Almoxarifado',
         recipes: 'Receitas',
         products: 'Produtos',
+        fiz: 'O que você fez?',
         places: 'Onde fica o estoque',
         people: 'Pessoas',
         purchases: 'Compras',
@@ -1711,6 +1712,50 @@ export const ptBR = {
      * rendimento fala do que a fábrica faz ("quanto rende uma vez"), nunca do nome
      * da panela — o aplicativo vai para as lojas, e conserva não tem tacho.
      */
+    /**
+     * O caminho de trás: a pessoa diz o que fez, e o aplicativo busca o que falta.
+     *
+     * Decisão do dono, 11 de setembro — os dois caminhos existem, e este é o alternativo.
+     * O passo a passo continua sendo o padrão.
+     */
+    fiz: {
+      title: 'O que você fez?',
+      overline: 'comece pelo fim',
+      intro:
+        'Diga o que saiu, com as suas palavras. O aplicativo vai atrás do que falta para registrar isso — na ordem em que você pensa, e não na ordem do cadastro.',
+      what: 'O que saiu',
+      whatPlaceholder: 'picolé de morango',
+      howMany: 'Quantas unidades',
+      howManyHint: 'Pode deixar em branco e dizer na hora de registrar.',
+      start: 'Continuar',
+      /** O que a pessoa disse, repetido de volta: ela precisa saber que o app guardou. */
+      doing: 'Você disse: {{what}}',
+      doingWithCount: 'Você disse: {{what}} — {{count}}',
+      /** A escada. Cada degrau diz o que é, e o de agora diz o que fazer. */
+      chainTitle: 'O caminho até lá',
+      stepInput: 'O que você compra',
+      stepRecipe: 'A ficha de como se faz',
+      stepProduct: 'O produto que sai',
+      stepProduction: 'Registrar o que saiu',
+      /** A régua de onde a pessoa está, sem número mágico na tela. */
+      missing: 'Falta {{done}} de {{total}}',
+      nothingMissing: 'Está tudo cadastrado. Falta só registrar.',
+      /** O degrau de agora. */
+      go: 'Fazer isto agora',
+      done: 'pronto',
+      now: 'agora',
+      next: 'depois',
+      /** A saída, que nunca é escondida: intenção não é compromisso. */
+      forget: 'Não era isso',
+      forgetConfirm: 'Apagar o que você disse?',
+      forgetBody:
+        'A frase é só um lembrete do caminho. Nada que você já cadastrou é apagado — insumo, ficha e produto ficam.',
+      forgetYes: 'Apagar a frase',
+      /** O convite, na capa e nos ajustes. */
+      invite: 'Ou diga o que você fez',
+      inviteWithChain: 'Diga o que você fez, e eu busco o que falta',
+    },
+
     recipeNew: {
       title: 'Nova ficha técnica',
       overline: 'o que entra e quanto rende',

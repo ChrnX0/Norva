@@ -36,7 +36,7 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 
 | | | como conferir |
 |---|---|---|
-| telas | **34** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
+| telas | **35** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **27** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **29** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
 | migrações do servidor | **59** | `ls supabase/migrations \| wc -l` |
@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **742** testes |
+| `npm test` | **754** testes |
 | `npm run mutate` | **126** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **55** checagens num navegador de verdade |
 | `npm run db:verify` | **31** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **16** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -865,9 +865,10 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     produto, e ele vai vender isto), e mexer nas palavras antes de a fábrica do pai dele
     rodar ponta a ponta seria trocar o que se lê antes de saber o que se faz.
 
-40. **O app pede sete cadastros antes de dizer qualquer coisa — e devia deixar começar
-    pelo fim.** — **DECIDIDO em 11 de setembro: os dois caminhos existem.**
-    <!-- medida: espera decisão do dono: o desenho do caminho de trás, agora que ele não economiza cadastro -->
+40. ~~**O app pede sete cadastros antes de dizer qualquer coisa — e devia deixar começar
+    pelo fim**~~ — **fechado em 11 de setembro: os dois caminhos existem, e o de trás está
+    construído.**
+    <!-- medida: presente app/fiz.tsx :: degrausQueFaltam -->
 
     Decisão do dono: *"parece q pode dar margem para erro. Seguir um passo obrigatório q
     nao muda é mais seguro, apesar de mais longo. O que eu acho q podemos fazer e partir
@@ -892,12 +893,38 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     de *"sete cadastros viram um"* para *"os sete acontecem na ordem de quem faz, começando
     pelo que acabou de sair do tacho"*.
 
-    **O que falta decidir é o desenho**, e é dele: a tela de produção tem razão escrita
-    para NÃO navegar dali (é empilhada; item 7). Criar ali dentro respeita isso e dá a
-    porta — mas é uma tela que cresce. A alternativa é um caminho próprio, que começa em
-    *"o que você fez?"*.
+    **O DESENHO foi decidido no mesmo dia: caminho próprio, com a alternativa viva.**
+    *"vamos tentar a 'B', mas não descarta a 'A' ainda."*
 
-    Proposta minha, não pedido dele, e por isso entrou como proposta e não como trabalho.
+    As duas que estavam na mesa: **A** criava os cadastros dentro da tela de produção —
+    respeita a razão escrita dela de não navegar (item 7), e engorda permanentemente a tela
+    que a fábrica usa TODO DIA para resolver um problema que acontece uma vez por fábrica.
+    **B** é `app/fiz.tsx`: aparece quando serve e desaparece quando não serve, a mesma regra
+    da categoria e do `degraus()`.
+
+    **Construído:** `app/fiz.tsx` (a frase, a escada com o degrau de agora, a saída),
+    `degrausQueFaltam` no domínio (e `primeiroPasso` passou a derivar dela, em vez de a
+    ordem da corrente existir escrita duas vezes), `src/intencao.ts` puro com prazo de sete
+    dias, duas portas — permanente nos ajustes e contextual na capa, ao lado do passo a
+    passo, que continua sendo o padrão —, e `?quanto=` chegando à produção para não
+    perguntar de novo o que a pessoa já disse.
+
+    **A invariante é estrutura, não exemplo:** o caminho de trás não tem como gravar. Quem
+    escreve no razão é a mesma `app/production/new.tsx` chamando a mesma `recordProduction`.
+    `src/caminho.test.ts` cobra nenhuma chamada de gravação em `fiz.tsx` e as quatro portas
+    iguais degrau por degrau nos dois caminhos.
+
+    **E ao construir apareceu o mesmo defeito que `primeiroPasso` nasceu para consertar, num
+    caso mais estreito:** a corrente contava REVENDA como produto, então uma fábrica que só
+    revende ouvia "está pronto, registre a produção" e a tela seguinte respondia "nenhum
+    produto tem ficha técnica ainda". A conta passou a contar produto com ficha
+    (`app/(tabs)/index.tsx`), que é o que `recordProduction` exige.
+
+    **O que fica aberto, e é fronteira dita e não promessa:** a fábrica que SÓ revende nunca
+    fecha a corrente, então o convite da capa fica de pé para ela. A peça é ocultável pelo
+    mecanismo que já existe, e a saída definitiva é a de sempre nesta casa — "depende de quem
+    usa" vira configuração da empresa. Não entra agora porque não há fábrica de revenda pura
+    para medir contra, e inventar a configuração antes disso é adivinhar.
 
     O que a caminhada de 10 e 11 de setembro fez foi tornar cada passo CORRETO — a receita
     usa outra receita, a variação trava no lugar certo, a contagem sai em engradado. O que

@@ -1011,6 +1011,26 @@ Registradas aqui porque decisão esquecida vira pergunta repetida.
   registrada pelos dois caminhos tem de deixar o livro-razão **idêntico**, movimento por
   movimento. Um caminho que produz um razão diferente não é um atalho, é outro ato.
 
+  **O DESENHO foi decidido em 11 de setembro: caminho próprio (`app/fiz.tsx`), com a
+  alternativa não descartada.** *"vamos tentar a 'B', mas não descarta a 'A' ainda."* As
+  duas formas que estavam na mesa: **A** cria os cadastros dentro da própria tela de
+  produção, respeitando a razão escrita dela de não navegar (item 7) e engordando
+  permanentemente a tela que a fábrica usa todo dia; **B** é um caminho próprio que começa
+  em *"o que você fez?"*, aparece quando serve e desaparece quando não serve.
+
+  Como a invariante é garantida, e é estrutura e não teste de exemplo: **o caminho de trás
+  não tem como gravar.** Ele coleta a frase, mostra a escada e encaminha; quem escreve no
+  razão é a mesma `app/production/new.tsx` chamando a mesma `recordProduction`.
+  `src/caminho.test.ts` cobra as duas metades — nenhuma chamada de gravação em `fiz.tsx`, e
+  as quatro portas dos dois caminhos iguais degrau por degrau. Assim a invariante vale para
+  toda produção possível, e não para as que alguém lembrou de testar.
+
+  **A intenção mora no `AsyncStorage`, não no banco**, e isso é a medida decidindo a forma:
+  intenção não é fato — não tem centavo, não tem saldo, não atravessa para o servidor e não
+  vira movimento. Tabela custaria migração (P3) para guardar uma frase que vive minutos. Ela
+  vence em sete dias, porque frase de dez dias atrás na tela é o alerta inventado com outro
+  rosto.
+
 - **Conferência duplicada: os dois celulares veem, e o primeiro que aceitar fica —
   decisão do dono, 11 de setembro.** *"assim q sincronizarem uma mensagem aparece dizendo
   q tem duplicação de dados, mostra os dados (com a data, horário e local e nome do

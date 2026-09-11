@@ -1141,6 +1141,21 @@ export function Mosaic(vista: BriefingView) {
             </Text>
           </Touchable>
 
+          {/* E a SEGUNDA porta, que é o outro caminho — decisão do dono de 11 de setembro:
+              *"partir dos dois lados: inicio e fim, ambos valendo desde que o resultado
+              seja o mesmo"*.
+
+              Duas linhas aqui não é desordem: são dois caminhos diferentes para a mesma
+              coisa, e a de cima continua sendo o padrão. A de baixo é para quem chega
+              pensando no que acabou de sair do tacho em vez de no formulário que vem
+              primeiro — e ela é a mais fraca visualmente de propósito, porque o passo a
+              passo é o seguro (*"é mais seguro, apesar de mais longo"*). */}
+          <Touchable onPress={() => go('/fiz')} accessibilityLabel={t.app.fiz.inviteWithChain}>
+            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
+              {t.app.fiz.invite} →
+            </Text>
+          </Touchable>
+
           {/* O QUE VAI APARECER AQUI — e isto existe por uma foto.
               O emulador mostrou a capa do primeiro dia com DOIS TERÇOS da tela em
               branco: manchete, cena, uma frase, um link, a semana, e nada. Cada

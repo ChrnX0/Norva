@@ -13,6 +13,7 @@ import {
   GlyphStock,
   GlyphArchive,
   GlyphChart,
+  GlyphKettle,
   GlyphCustomer,
   GlyphStore,
   GlyphThermometer,
@@ -111,6 +112,11 @@ function Drawers() {
     { key: 'inputs', detail: t.app.inputs.overline, route: '/inputs', desenho: glifo(GlyphStock), tom: palette.mint },
     { key: 'recipes', detail: t.app.recipes.overline, route: '/recipes', desenho: glifo(GlyphRecipe), tom: palette.apricot },
     { key: 'products', detail: t.app.products.overline, route: '/products', desenho: glifo(GlyphProduction), tom: palette.apricot },
+    // O caminho de trás mora AQUI, e não só na capa — decisão do dono de 11 de setembro
+    // ("os dois caminhos existem"). A capa o oferece quando ele serve; esta linha o deixa
+    // alcançável sempre, sem cobrar nada de quem nunca vai usá-lo. Oferecer um caminho
+    // alternativo por aviso na frente do aplicativo é o alerta inventado com outro rosto.
+    { key: 'fiz', detail: t.app.fiz.overline, route: '/fiz', desenho: glifo(GlyphKettle), tom: palette.apricot },
     { key: 'places', detail: t.app.places.overline, route: '/places', desenho: glifo(GlyphStore), tom: palette.mint },
     // A porta que a prancha desenhava e o código recusava: ela entra agora
     // porque `people` existe, não porque coube na lista.
