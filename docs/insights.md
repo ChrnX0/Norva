@@ -9790,3 +9790,38 @@ vermelha — o que falhou foi o relato.
 nesta rodada? Não "rodou uma vez", não "deve estar igual": rodou, e você leu a última linha.
 Comando que não rodou não tem resultado — tem expectativa, e expectativa dita como número é
 a mesma doença com outro rosto.
+
+---
+
+## O caminho alternativo não precisa ser confiável: ele precisa ser INCAPAZ — 11 de setembro
+
+O dono pediu dois caminhos para registrar a mesma produção, e deu a invariante junto:
+*"ambos valendo desde que o resultado seja o mesmo"*. A leitura óbvia disso é um teste:
+registra pelos dois lados, compara os dois livros-razão, movimento por movimento.
+
+Esse teste é fraco, e vale dizer por quê: ele prova **os exemplos que alguém escreveu**. Um
+caminho alternativo com gravação própria tem tantas maneiras de divergir quantas combinações
+de produto, ficha, embalagem e sala existirem — e a que ninguém escreveu é justamente a que
+vai aparecer na fábrica.
+
+O que a rodada fez foi outra coisa: **tirar do caminho alternativo a capacidade de gravar.**
+`app/fiz.tsx` coleta a frase, mostra a escada e encaminha; quem escreve no razão continua
+sendo a mesma `app/production/new.tsx` chamando a mesma `recordProduction`. Aí a invariante
+deixa de ser uma propriedade a verificar e passa a ser uma consequência da forma: **não
+existe caminho para dois razões diferentes**, então não há o que comparar.
+
+E o que sobra para a guarda é pequeno e forte, duas linhas de texto (`src/caminho.test.ts`):
+nenhuma chamada de gravação em `fiz.tsx`, e as quatro portas dos dois caminhos iguais degrau
+por degrau — porque mandar a pessoa a outra tela de cadastro coletaria outro dado, e o razão
+divergiria sem ninguém escrever uma linha de gravação.
+
+**A pergunta que fica, e ela é maior que este caminho:** quando aparecer um segundo jeito de
+fazer a mesma coisa — um atalho, um assistente, uma importação, uma tela nova para gente
+apressada —, a pergunta não é *"ele faz certo?"*. É **"ele tem como fazer errado?"**. Se
+tiver, a resposta certa quase nunca é mais teste: é tirar a capacidade e deixar um caminho
+só chegando ao livro.
+
+*Nota de honestidade sobre a guarda:* ela é régua de TEXTO e não executa nada, então não
+pega uma gravação por um caminho indireto que ela não saiba nomear. O que ela pega é o que
+de fato acontece quando uma tela cresce — alguém acrescenta o `saveX` ali porque era mais
+curto. Isso está escrito no topo dela, e não na minha cabeça.
