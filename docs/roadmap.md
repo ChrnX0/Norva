@@ -66,8 +66,20 @@ contexto, o relatório passou a separar "atravessou a suíte" (notícia sobre os
 que multiplica ANTES de arredondar — ganhou mutação própria, porque ele existia sem
 nenhuma.*
 
-***Resultado da última execução, 11 de setembro: 124 pegos, 2 equivalentes, 0
-sobreviventes, 0 não medidas.*** *Os dois equivalentes são as duas checagens em camadas do
+***Resultado da última execução, 11 de setembro: 128 pegos, 2 equivalentes, 0
+sobreviventes, 0 não medidas.***
+
+*E a execução ANTERIOR desta mesma noite, com as quatro mutações novas das regras aprovadas,
+teve **um sobrevivente de verdade**: a sobreposição de alcance da variação tinha prova numa
+direção só — "produto inteiro depois de categoria" e não "categoria depois de produto
+inteiro". É na segunda que a leitura ingênua erra, porque `'leite' = NULL` é NULO e não
+falso. Fechado, e provado nos dois sentidos com a mutação na mão.*
+
+*E uma tentativa antes dessa a oficina se RECUSOU a reportar: eu tinha editado o roadmap
+depois de disparar a execução, a suíte da cópia falhava sem mutação nenhuma, e ela parou com
+a frase que importa — "todo defeito plantado é declarado pego sem a suíte ter sido
+consultada". Um medidor que não distingue "achei" de "não consegui olhar" é um gerador de
+verde, e este distingue.* *Os dois equivalentes são as duas checagens em camadas do
 estorno em `src/data/repository.ts` — tirar uma deixa a outra pegando, com o mesmo erro e o
 mesmo plano, e só concorrência real as separaria. Ficam na lista porque apagá-las esconderia
 a redundância que as torna assim.*
