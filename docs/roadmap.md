@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **711** testes |
+| `npm test` | **719** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **55** checagens num navegador de verdade |
 | `npm run db:verify` | **29** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **14** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -1041,10 +1041,21 @@ Duas consequências dentro do repositório, e a segunda é pior:
 
 1. `oQueDizATela()` (`scripts/aparelho.mjs`) devolve lista vazia em operação normal, e
    o `try/catch` engole a falha em silêncio.
-2. Por causa disso, `mesmaTelaEmTodas` — a guarda que o `CLAUDE.md` descreve como o que
-   pega "a navegação não pegou numa das cinco larguras" — compara listas vazias e
-   **nunca pode falhar**. Uma guarda que não distingue os dois casos, exatamente o que
-   este projeto proíbe.
+2. ~~Por causa disso, `mesmaTelaEmTodas` compara listas vazias e **nunca pode falhar**~~
+   — **fechado em 11 de setembro, e sem esperar o resto deste item.** A guarda respondia
+   "as cinco são a mesma tela" tendo lido nenhuma: as leituras falhadas viravam `''`, o
+   `.filter(Boolean)` as descartava, e `[].length <= 1` era verdadeiro.
+
+   O conserto não é ler com o movimento ligado — isso continua dependendo da decisão
+   abaixo. É **parar de responder o que não se sabe**: o veredito tem três respostas
+   (`scripts/leitura.mjs`), `nao-sei` sai como aviso alto dizendo quantas das cinco foram
+   lidas, e o comando continua entregando as fotos. A resposta do meio é a que faz a
+   diferença valer — quatro lidas e iguais com uma ilegível é `nao-sei`, porque a
+   ilegível pode ser justamente a que não navegou.
+
+   Sete casos em `src/leitura.test.ts`, incluindo o que fabricava o verde e o que
+   derruba mesmo com leitura parcial (duas lidas e diferentes é fato).
+   <!-- medida: presente scripts/leitura.mjs :: veredito: 'nao-sei' -->
 
 E a pergunta que fica de pé, porque um leitor de tela usa esse mesmo cano: se o
 `uiautomator` não consegue ler a tela, o TalkBack consegue? Não meço isso daqui — o

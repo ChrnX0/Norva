@@ -9348,3 +9348,51 @@ documento — a cópia é a única das três que pode mentir sem reprovar nada.
 **A pergunta que fica:** quando um ⚠️ do portão for despachado com *"não é meu"*, isso
 responde de **quem** é a linha, nunca se a **afirmação** dele vale. Aqui a linha não era
 minha e a frase era — e a frase é o que o dono lê.
+
+## 11 de setembro — a guarda dizia "iguais" tendo lido nenhuma, e isso estava escrito
+
+**O que apareceu:** terceira vez no mesmo dia que o defeito é uma FRASE sobre o que um
+instrumento prova, e desta a frase era a saída do próprio instrumento.
+
+`mesmaTelaEmTodas` existe para pegar "a rota não pegou numa das cinco larguras" — a falha
+em que trocar `wm size` recria a Activity, o app volta para a capa, e as cinco fotos saem
+da tela inicial com o comando saindo zero. Ela era quatro linhas:
+
+```js
+titulos.push(parou.diz[0] ?? '');                      // leitura falhada vira ''
+const vistos = [...new Set(titulos.filter(Boolean))];  // e o '' é descartado
+return { igual: vistos.length <= 1 };                  // cinco vazios => "iguais"
+```
+
+Com o movimento de ambiente ligado — que é o estado **normal** deste aplicativo — o
+`uiautomator` responde `could not get idle state`, o `try/catch` devolve lista vazia, e as
+cinco leituras viram `''`. O conjunto fica vazio, `[].length <= 1` é verdadeiro, e o
+comando anuncia *"as cinco são a mesma tela"* **tendo lido nenhuma**.
+
+**E o que torna isto diferente dos outros dois achados de hoje: estava escrito.** O
+`CLAUDE.md` descrevia a cegueira em voz alta — *"a guarda não pode falhar, que é
+exatamente o defeito que este arquivo proíbe duas seções abaixo"* — e parava ali,
+instruindo *"confira olhando as cinco"*. Uma fronteira dita em voz alta, que este mesmo
+arquivo já proíbe em outro parágrafo: *"se a promessa é boa, feche o buraco; se não é,
+corrija a promessa. Não existe terceira saída."* A terceira saída foi tomada mesmo assim,
+e durou dois dias.
+
+**Por que ela pareceu razoável:** o buraco foi lido como *bloqueado* — ler a tela com
+movimento depende do orçamento de movimento, que é decisão do dono — e quem lê "bloqueado"
+para de procurar. Só que o bloqueio vale para **ler**, não para **responder**. A diferença
+entre *"são iguais"* e *"não consegui olhar"* não depende de decisão nenhuma, e é ela que
+separa uma guarda de um carimbo.
+
+**O que mudou por causa disso:** o veredito tem três respostas (`scripts/leitura.mjs`,
+extraído para poder ser exercitado — script não tinha teste nenhum neste repositório).
+`nao-sei` sai como aviso alto dizendo **quantas das cinco** foram lidas, e não derruba o
+comando: as fotos são o que se veio buscar e elas saíram. `diferentes` continua derrubando.
+
+E a resposta do meio é a que faz a correção valer, não as duas pontas: **quatro larguras
+lidas e iguais, com uma ilegível, é `nao-sei`** — a ilegível pode ser justamente a que não
+navegou, e é para ela que a guarda existe. A simetria não vale: duas lidas e DIFERENTES já
+derrubam, porque diferença achada é fato e ausência de diferença entre duas de cinco não é.
+
+**A pergunta que fica:** quando um buraco for registrado como bloqueado, separe o que está
+bloqueado do que só estava junto. Aqui o bloqueio era do sensor e a mentira era do
+relatório — e o relatório sempre dá para consertar hoje.

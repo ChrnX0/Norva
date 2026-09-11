@@ -41,6 +41,7 @@ import { Buffer } from 'node:buffer';
 import { deflateSync } from 'node:zlib';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { mesmaTelaEmTodas } from './leitura.mjs';
 
 const SDK = process.env.ANDROID_HOME ?? '/opt/android-sdk';
 const ADB = join(SDK, 'platform-tools/adb');
@@ -707,20 +708,6 @@ function oQueDizATela() {
 }
 
 /**
- * As cinco larguras estão na MESMA tela? — e é isto que o comando não sabia responder.
- *
- * A falha que motivou: a troca de largura recria a Activity, o app volta para a capa,
- * e as fotos saem todas da tela inicial com o comando saindo zero. Se a rota valeu em
- * todas, a primeira linha de texto (a sobrancelha do cabeçalho, ou o título) é a
- * mesma nas cinco. Se numa delas a navegação não pegou, ela destoa — e é exatamente
- * essa a assinatura do defeito.
- */
-function mesmaTelaEmTodas(titulos) {
-  const vistos = [...new Set(titulos.filter(Boolean))];
-  return { igual: vistos.length <= 1, vistos };
-}
-
-/**
  * Espera o app DESENHAR de novo — não um tempo fixo.
  *
  * Trocar o tamanho da tela é mudança de configuração: o Android recria a Activity e o
@@ -905,12 +892,23 @@ async function fotos(nome, rota) {
   }
   if (rota) {
     const veredito = mesmaTelaEmTodas(titulos);
-    if (!veredito.igual) {
+    if (veredito.veredito === 'diferentes') {
       throw new Error(
         'as cinco fotos NÃO são da mesma tela — a comparação não vale.\n' +
         `o que apareceu: ${veredito.vistos.join(' | ')}`,
       );
     }
+    // `nao-sei` NÃO derruba o comando: as fotos são o que se veio buscar e elas
+    // saíram. O que ele não pode é passar calado, que era o defeito — cinco leituras
+    // falhadas anunciavam "as cinco são a mesma tela". Ver `scripts/leitura.mjs`.
+    if (veredito.veredito === 'nao-sei') {
+      console.error(
+        `  ⚠️  NÃO CONFERI se as cinco são a mesma tela: li ${veredito.lidas} de ${veredito.de}.\n` +
+        '      Com o movimento de ambiente ligado o uiautomator não tem janela ociosa para ler.\n' +
+        '      Olhe as cinco antes de julgar layout — uma delas pode ser a capa.',
+      );
+    }
+    if (veredito.veredito === 'iguais') dizer(`as cinco dizem o mesmo: ${veredito.vistos[0]}`);
   }
   dizer(`${Object.keys(TELAS).length} larguras fotografadas em .shots/${nome}--*.png`);
 }

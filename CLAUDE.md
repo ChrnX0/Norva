@@ -176,18 +176,30 @@ Daí três regras de construção:
    toque em coordenada não serve aqui: quebra quando o layout muda, que é justamente
    o que se está medindo.
 
-   **E a metade que CONFERE isso está cega — medido em 9 de setembro, horas depois.**
-   Quem deveria pegar "a rota não pegou numa das cinco" é `mesmaTelaEmTodas`, comparando
-   o texto da tela lido por `uiautomator`. Só que com o movimento de ambiente rodando —
-   que é o estado normal do aplicativo — o `uiautomator` não lê nada: falhou três vezes
-   em três, e uma delas disse por quê, `ERROR: could not get idle state`. A janela nunca
-   fica ociosa. O `try/catch` de `oQueDizATela()` transforma isso em lista vazia, e
-   `mesmaTelaEmTodas([])` responde "iguais" — **a guarda não pode falhar**, que é
-   exatamente o defeito que este arquivo proíbe duas seções abaixo.
+   **E a metade que CONFERE isso estava cega — medido em 9 de setembro, consertado em
+   11.** Quem deveria pegar "a rota não pegou numa das cinco" é `mesmaTelaEmTodas`,
+   comparando o texto da tela lido por `uiautomator`. Só que com o movimento de ambiente
+   rodando — que é o estado normal do aplicativo — o `uiautomator` não lê nada: falhou
+   três vezes em três, e uma delas disse por quê, `ERROR: could not get idle state`. A
+   janela nunca fica ociosa. O `try/catch` de `oQueDizATela()` transformava isso em lista
+   vazia, e `mesmaTelaEmTodas([])` respondia **"iguais"** — a guarda não podia falhar, que
+   é exatamente o defeito que este arquivo proíbe duas seções abaixo.
 
-   Então, até o item do orçamento de movimento fechar (`docs/roadmap.md`): a rota
-   continua obrigatória e a reabertura por ligação profunda continua funcionando — o que
-   NÃO existe é a conferência automática de que ela pegou. Confira olhando as cinco.
+   **A correção não foi achar um jeito de ler: foi parar de responder o que não se sabe.**
+   Ler a tela com o movimento ligado continua em aberto, e depende do orçamento de
+   movimento, que é decisão do dono. O que não dependia de decisão nenhuma é a diferença
+   entre *"são iguais"* e *"não consegui olhar"* — hoje o veredito tem TRÊS respostas
+   (`scripts/leitura.mjs`), e `nao-sei` sai como aviso alto dizendo quantas das cinco
+   foram lidas, sem derrubar o comando: as fotos são o que se veio buscar e elas saíram.
+
+   E a resposta do meio é a que faz a diferença valer: **quatro larguras lidas e iguais,
+   uma ilegível, não é "iguais"** — a ilegível pode ser justamente a que não navegou, e é
+   para ela que a guarda existe. Duas lidas e DIFERENTES, essas já derrubam: diferença
+   achada é fato, ausência de diferença entre duas de cinco não é.
+
+   Então continua valendo: a rota é obrigatória, a reabertura por ligação profunda
+   funciona, e **a conferência automática ainda não lê** — mas agora ela diz isso em vez
+   de aprovar. Quando o aviso aparecer, confira olhando as cinco.
 
 4. **A ferramenta que troca a largura DEIXA a largura trocada.** `wm density` é
    persistente: em 7 de setembro o emulador estava preso em 240 dpi de um teste
