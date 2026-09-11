@@ -724,10 +724,29 @@ async function foto(nome, rota) {
     );
   }
   if (!veredito.viva) {
+    /**
+     * **E na imagem ATD isto é o ESTADO NORMAL, medido em 11 de setembro.** No `norva-atd`
+     * o aplicativo monta a árvore inteira e correta — `uiautomator` traz o cabeçalho, a
+     * pergunta, os dois campos e o botão, em português — e a captura do convidado devolve um
+     * PNG válido de 1080x2340 com **uma cor só, preto**, com `Total frames rendered: 0`. A
+     * captura funciona; a rasterização não acontece.
+     *
+     * Medido com uma variável por vez, e o movimento NÃO é a causa: com as três escalas em
+     * 1/1/1, com só a do aplicativo em 0, e com as três em 0, foram 0 quadros nas três.
+     *
+     * Então a saída aqui não é "confira se o app desenhou": é trocar de instrumento. Nesta
+     * imagem quem prova é a ÁRVORE — layout, texto, idioma, dado e navegação. Composição,
+     * cor e movimento continuam sendo do aparelho do dono, e isso está escrito no
+     * `CLAUDE.md` em vez de descoberto de novo a cada sessão.
+     */
     throw new Error(
-      'a foto saiu morta (cor única). Isso NÃO é sucesso: o comando sairia zero e a tela\n' +
-      'continuaria sem prova. Confira se o app desenhou:\n' +
-      `  ${ADB} shell dumpsys gfxinfo <pacote> | grep "Total frames rendered"`,
+      'a foto saiu morta (cor única) — e no AVD ATD isso é o estado NORMAL, não um defeito\n' +
+      'do aplicativo: ele monta a árvore inteira e a imagem nunca é rasterizada (medido em\n' +
+      '11 de setembro, com o movimento ligado E desligado).\n' +
+      'O instrumento que funciona aqui é a ÁRVORE, não a foto:\n' +
+      `  node scripts/aparelho.mjs ler\n` +
+      'Ela prova layout, texto, idioma, dado e navegação. Composição, cor e movimento\n' +
+      'continuam sendo do aparelho do dono — não há como provar isto aqui.',
     );
   }
 }

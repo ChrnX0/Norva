@@ -3475,6 +3475,48 @@ check('o caminho de trás pergunta o que você fez e mostra quanto falta', async
   assert.match(depois, /Não era isso/, 'a saída nunca é escondida');
 });
 
+check('a categoria nasce FECHADA, e abre num toque', async (page) => {
+  /**
+   * Decisão do dono, 11 de setembro. O cartão ficava de pé mesmo vazio, e na fábrica dele
+   * isso era um cartão inteiro lendo "nenhuma categoria aqui — e tudo bem" para sempre.
+   *
+   * A metade que só uma checagem pega: **abrir**. Um convite que não abre é pior que o
+   * cartão de antes — ele esconde o caminho em vez de cobrá-lo por um toque, e a diferença
+   * entre os dois é invisível numa foto.
+   */
+  await page.goto(`http://localhost:${PORT}/catalog`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  const fechado = await screen(page);
+  assert.match(fechado, /precisa de um corte a mais\?/, 'o convite de uma linha está lá');
+  // E o cartão inteiro NÃO está: a dica da categoria só existe dentro dele.
+  assert.doesNotMatch(fechado, /Muda a RECEITA/, 'fechado, a dica da categoria não ocupa a tela');
+
+  /**
+   * O produto primeiro, e não é rodeio: o semeado NÃO cria produto nenhum
+   * (`src/data/seed.ts` semeia insumo e ficha), e sem produto o cartão da categoria diz —
+   * com razão — "cadastre um produto primeiro". A primeira escrita desta checagem esperava
+   * a dica da categoria num aplicativo sem produto: a asserção estava errada sobre o
+   * ESTADO, não sobre a tela.
+   */
+  await page.getByPlaceholder('Nome').first().fill('Picolé da checagem');
+  await page.getByRole('button', { name: 'Novo produto' }).first().click();
+  await page.getByText('Picolé da checagem', { exact: false }).first().waitFor({ timeout: 15_000 });
+
+  // Por PAPEL e não por texto: `Button` publica `accessibilityRole="button"` e
+  // `accessibilityLabel`, que na web viram `role` e `aria-label`.
+  await page.getByRole('button', { name: 'precisa de um corte a mais?' }).first().click();
+  await page.getByText('Muda a RECEITA', { exact: false }).first().waitFor({ timeout: 15_000 });
+
+  const aberto = await screen(page);
+  assert.match(aberto, /Muda a RECEITA/, 'aberto, ele diz o que o nível MUDA');
+  assert.match(aberto, /NOVA CATEGORIA/, 'e traz o campo de cadastrar');
+  // A regra aprovada dita nos três níveis, na mesma forma — é ela que impede a mesma coisa
+  // de ir para níveis diferentes em produtos diferentes.
+  assert.match(aberto, /Muda o TAMANHO ou o FORMATO/, 'o tipo diz a natureza dele');
+  assert.match(aberto, /Muda o SABOR/, 'e a variação a dela');
+});
+
 check('o caminho de trás não é o único: o passo a passo continua na frente', async (page) => {
   // A decisão do dono foi "os dois caminhos existem", e o passo a passo é o PADRÃO. Uma
   // porta que substituísse a outra cumpriria metade da decisão e pareceria pronta.

@@ -9956,3 +9956,47 @@ quadro continuando preto eram duas respostas diferentes que eu tinha empacotado 
 renderizador escolhido, foi apagado por mim — a segunda partida truncou o arquivo de nome
 fixo, que é exatamente o defeito que eu consertei uma hora depois. A prova morreu pela coisa
 que o conserto existe para impedir.*
+
+---
+
+## O quadro preto acabou sendo sobre o INSTRUMENTO, e a prova de tela mudou de ferramenta — 11 de setembro
+
+A caçada do quadro preto fechou, e o candidato que parecia óbvio desde o começo caiu. Mesmo
+AVD, mesmo APK, mesma rota, `am force-stop` entre as condições porque `vida.ts` guarda a
+resposta de reduzir-movimento uma vez por sessão:
+
+| | `transition` | `window` | `animator` | quadros |
+|---|---|---|---|---|
+| tudo ligado | 1 | 1 | 1 | **0** |
+| só o APP parado | 0 | 1 | 1 | **0** |
+| tudo parado | 0 | 0 | 0 | **0** |
+
+**O movimento não é a causa.** E o que a mesma sessão mostrou fecha o assunto por outro
+caminho: a **árvore de acessibilidade lê a tela inteira e certa** — `COMECE PELO FIM`,
+`O que você fez?`, `O QUE SAIU`, `Continuar` —, a captura do convidado devolve um **PNG
+válido de 1080×2340**, e o conteúdo dele é **uma cor só, preto**.
+
+Ou seja: nesta imagem o aplicativo **monta e nunca é rasterizado**. A captura não está
+quebrada; a rasterização não acontece. `aosp_atd` é imagem de instrumentação.
+
+**O que isso corrige, e é mais que um item:** este repositório tinha a regra *"o que prova
+tela é a foto do emulador, olhada"* — escrita por um bom motivo, depois de um tema claro
+ilegível chegar ao dono. Mas no ambiente de hoje essa regra é **inexequível**, e uma regra
+inexequível não é rigor: é a porta pela qual "não deu para provar" vira "está provado".
+
+A regra que a substitui não é mais fraca, é mais honesta, e tem duas metades:
+
+- **o que a árvore prova**, e é bastante: layout, texto, idioma, dado, navegação por ligação
+  profunda. Foi assim que `app/fiz.tsx` ficou provado num Android de verdade nesta rodada;
+- **o que ela não alcança**: composição, cor e movimento. Isso não tem instrumento aqui — é o
+  aparelho do dono, e não se finge o contrário.
+
+E a consequência virou código em vez de parágrafo: quando o quadro sai morto, `foto` agora
+diz que no ATD isso é o estado normal e aponta para `ler`. Sem isso, a próxima sessão
+gastaria a mesma compilação redescobrindo a mesma coisa — que é exatamente o que aconteceu
+hoje com a imagem ATD, achada ontem e sem consequência no padrão do script.
+
+**A pergunta que fica:** quando uma prova não sai, a primeira pergunta não é "o que está
+quebrado no que eu estou medindo?" — é **"o meu instrumento mede isto aqui?"**. Três sintomas
+sem dono e uma tabela de três condições custaram menos que uma hipótese nova, porque a
+pergunta certa era sobre a régua.

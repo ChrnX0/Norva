@@ -356,8 +356,37 @@ E o que sobra medido junto: o processo do aplicativo coleta **~125 mil objetos a
 segundos**, para sempre, desenhando nada. Isso acontece num sistema estável, então também
 não é consequência da queda.
 
-**Causa ainda não estabelecida**, e fica dito assim em vez de uma hipótese vestida de
-conclusão. O que se sabe é onde ela NÃO está.
+**E ela FICOU estabelecida na mesma noite, com uma variável por vez.** A tabela, mesmo AVD,
+mesmo APK, mesma rota (`norva://fiz`), com `am force-stop` entre as condições porque
+`vida.ts` guarda a resposta de reduzir-movimento uma vez por sessão:
+
+| | `transition` | `window` | `animator` | quadros |
+|---|---|---|---|---|
+| tudo ligado | 1 | 1 | 1 | **0** |
+| só o APP parado | 0 | 1 | 1 | **0** |
+| tudo parado | 0 | 0 | 0 | **0** |
+
+**O movimento não é a causa** — quinta eliminação, e ela derruba o candidato que parecia
+óbvio desde o começo. E o que a mesma sessão mostrou é o que fecha o assunto:
+
+- a **árvore** lê inteira e certa: `COMECE PELO FIM`, `O que você fez?`, `O QUE SAIU`,
+  `QUANTAS UNIDADES`, `Continuar` — a tela de `app/fiz.tsx`, em português, aberta por
+  ligação profunda;
+- a **captura do convidado funciona**: PNG válido, 1080x2340, 15 KB;
+- e o conteúdo dela é **uma cor só, preto**, com `Total frames rendered: 0`.
+
+Então: **nesta imagem o aplicativo monta e nunca é rasterizado.** A captura não está
+quebrada; a rasterização não acontece. `aosp_atd` é imagem de instrumentação, e prova de
+IMAGEM não existe nela.
+
+**A consequência, e ela muda uma regra deste arquivo:** neste container quem prova tela é a
+**árvore** — layout, texto, idioma, dado e navegação, que é bastante e é verificável. O que
+ela não alcança é **composição, cor e movimento**, e isso não tem instrumento aqui: é o
+aparelho do dono, e não se finge o contrário. `foto` passou a dizer exatamente isso quando o
+quadro sai morto, apontando para `ler` em vez de mandar conferir `gfxinfo`.
+
+*O que continua sem resposta, e é uma pergunta menor: se a imagem completa rasterizaria. Não
+dá para medir hoje — nela o APK não instala.*
 
 **E o item 26 afirma *"o aplicativo instala, abre e DESENHA"* com prova de árvore de
 acessibilidade** — que prova que a árvore React montou, não que um quadro foi para a tela. A
