@@ -109,9 +109,23 @@ export function Sparkline({
   const risco = useAnimatedProps(() => ({
     strokeDashoffset: length * (1 - drawn.value),
   }));
+  /**
+   * O pingo cresce, e NÃO desbota — a entrada mexe forma, nunca opacidade.
+   *
+   * `opacity: settled.value` estava aqui e é a regra que `Reveal.test.ts` existe para
+   * impor, com a razão medida: em 10 de setembro o cabeçalho da ficha técnica abriu
+   * como 170 dp de papel puro porque uma mola ficou em zero, **com a rede da entrada no
+   * lugar**. Opacidade zero é o mesmo pixel que "não desenhado", e a rede não bastou.
+   *
+   * Tirar a opacidade não muda o que se vê: um círculo de raio zero já é invisível, e o
+   * crescimento continua sendo a entrada. O que muda é a pior falha possível — um pingo
+   * pequeno em vez de um pingo ausente.
+   *
+   * A guarda não via isto porque lia só o PRIMEIRO valor de entrada do arquivo, e aqui
+   * são dois (`drawn` e `settled`). Consertada na mesma rodada.
+   */
   const pingo = useAnimatedProps(() => ({
     r: 3.2 * settled.value,
-    opacity: settled.value,
   }));
 
   if (points.length === 0) return null;

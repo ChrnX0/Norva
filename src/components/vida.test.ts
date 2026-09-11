@@ -116,16 +116,30 @@ const RELOGIOS_PROPRIOS_PERMITIDOS = [
 ];
 
 test('só o relógio da casa dá a volta infinita', () => {
+  /**
+   * As pastas INTEIRAS — e sem isto a guarda não tinha o que vigiar, medido em 11 de setembro.
+   *
+   * A varredura era `readdirSync` sem descer um nível, e `withRepeat(` aparece em exatamente
+   * UM arquivo de produção do repositório: `PulseDot.tsx`, que está na lista de permitidos.
+   * Ou seja, o conjunto de candidatos possíveis era **vazio** — a guarda passava por não ter
+   * onde olhar, não por estar tudo certo.
+   *
+   * E o lugar onde animação de ambiente permanente de fato vive é `src/components/cenas/`,
+   * um nível abaixo: a fumaça, o vapor, a onda. Era a única classe de arquivo que ela não
+   * enxergava, e é a classe que criou o defeito — *"trinta e oito voltas infinitas, 190% de
+   * CPU com a tela parada"*.
+   *
+   * A ajudante recursiva existia neste mesmo arquivo, noventa linhas acima, usada pelo teste
+   * vizinho.
+   */
+  const olhados = ['src/components', 'src/home'].flatMap((pasta) => arquivos(pasta));
+  assert.ok(olhados.length > 20, `a busca achou só ${olhados.length} arquivos — ela não olha`);
+
   const suspeitos: string[] = [];
-  const pastas = ['src/components', 'src/home'];
-  for (const pasta of pastas) {
-    for (const nome of readdirSync(pasta)) {
-      if (!/\.tsx?$/.test(nome) || /\.test\.tsx?$/.test(nome)) continue;
-      const caminho = join(pasta, nome);
-      if (caminho === 'src/components/vida.ts') continue;
-      if (RELOGIOS_PROPRIOS_PERMITIDOS.includes(caminho)) continue;
-      if (/withRepeat\(/.test(readFileSync(caminho, 'utf8'))) suspeitos.push(caminho);
-    }
+  for (const caminho of olhados) {
+    if (caminho === 'src/components/vida.ts') continue;
+    if (RELOGIOS_PROPRIOS_PERMITIDOS.includes(caminho)) continue;
+    if (/withRepeat\(/.test(readFileSync(caminho, 'utf8'))) suspeitos.push(caminho);
   }
   assert.deepEqual(
     suspeitos,

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { assentamentoMs, motion } from '@/theme/tokens';
@@ -100,21 +100,17 @@ test('a régua acompanha a mola, e vale para as molas que a casa não usa hoje',
  */
 function entradasSemRede(): string[] {
   const suspeitos: string[] = [];
-  const pastas = ['src/components', 'src/home'];
-  for (const pasta of pastas) {
-    for (const nome of readdirSync(pasta)) {
-      if (!/\.tsx?$/.test(nome) || /\.test\.tsx?$/.test(nome)) continue;
-      const caminho = join(pasta, nome);
-      const fonte = readFileSync(caminho, 'utf8');
-      // Quem entra é quem começa PARADO NO PONTO DE PARTIDA por causa do
-      // movimento — `useSharedValue(reduzir === false ? 0 : 1)` — ou quem zera um
-      // valor compartilhado para deixar a animação trazê-lo de volta.
-      const entra =
-        /useSharedValue\(\s*reduzi\w* === false \? 0 : 1\s*\)/.test(fonte) ||
-        /withSpring\(\s*(aberta \? 1 : 0|destino)/.test(fonte);
-      if (!entra) continue;
-      if (!/redeDaEntrada\(/.test(fonte)) suspeitos.push(caminho);
-    }
+  // As duas pastas INTEIRAS, por `fontesDePeca` — antes era `readdirSync` sem descer, e as
+  // capas das peles e as cenas ficavam de fora justamente por morarem um nível abaixo.
+  for (const { caminho, fonte } of fontesDePeca()) {
+    // Quem entra é quem começa PARADO NO PONTO DE PARTIDA por causa do
+    // movimento — `useSharedValue(reduzir === false ? 0 : 1)` — ou quem zera um
+    // valor compartilhado para deixar a animação trazê-lo de volta.
+    const entra =
+      /useSharedValue\(\s*reduzi\w* === false \? 0 : 1\s*\)/.test(fonte) ||
+      /withSpring\(\s*(aberta \? 1 : 0|destino)/.test(fonte);
+    if (!entra) continue;
+    if (!/redeDaEntrada\(/.test(fonte)) suspeitos.push(caminho);
   }
   return suspeitos;
 }
@@ -156,23 +152,88 @@ test('a régua acha a peça sem rede quando ela existe', () => {
  * A régua olha o repositório inteiro pelo mesmo motivo da irmã dela: o defeito é
  * um raciocínio que se copia.
  */
-test('nenhuma entrada dirige opacidade', () => {
-  const suspeitos: string[] = [];
-  for (const pasta of ['src/components', 'src/home']) {
-    for (const nome of readdirSync(pasta)) {
-      if (!/\.tsx?$/.test(nome) || /\.test\.tsx?$/.test(nome)) continue;
-      const caminho = join(pasta, nome);
-      const fonte = readFileSync(caminho, 'utf8');
-      const entra = /useSharedValue\(\s*reduzi\w* === false \? 0 : 1\s*\)/.test(fonte);
-      if (!entra) continue;
-      // O valor da entrada é o que nasce em zero; se ele aparecer numa linha de
-      // `opacity:`, a legibilidade da tela está pendurada na animação.
-      const nomeDoValor = fonte.match(
-        /const\s+([A-Za-z_$][\w$]*)\s*=\s*useSharedValue\(\s*reduzi\w* === false \? 0 : 1\s*\)/,
-      )?.[1];
-      if (!nomeDoValor) continue;
-      if (new RegExp(`opacity:\\s*[^,\n]*\\b${nomeDoValor}\\b`).test(fonte)) suspeitos.push(caminho);
+/**
+ * As duas pastas, INTEIRAS — e a falta disso deixava a capa de fora.
+ *
+ * As duas varreduras deste arquivo usavam `readdirSync` sem descer um nível, e é exatamente
+ * um nível abaixo que mora o que elas existem para vigiar: `src/home/capas/` (as capas das
+ * peles) e `src/components/cenas/` (as cenas, com mais de uma dúzia de `opacity:` animados).
+ * O defeito que criou este arquivo foi *"a capa do primeiro dia inteira a 22% de opacidade"* —
+ * e a capa mudou de pasta sem a guarda dela seguir.
+ *
+ * A convenção certa já existia a duas portas: `src/home/capas/registro.test.ts` varre estas
+ * mesmas pastas recursivamente E prova que achou arquivo, *"senão ela passa por não olhar"*.
+ */
+/**
+ * Prosa fora, antes de procurar — senão a régua acusa o comentário que a explica.
+ *
+ * Achado na mesma rodada em que a régua foi consertada: ao tirar `opacity: settled.value`
+ * do `Sparkline`, o comentário que conta POR QUE ela saiu cita o trecho — e a guarda
+ * continuou reprovando, agora pelo texto que documenta o conserto. Um detector que lê
+ * prosa como código proíbe explicar o que ele proíbe.
+ *
+ * É a mesma doença que `src/sync/grants.test.ts` encontrou hoje no bloco de `grant`: os
+ * comentários NOMEIAM tabelas, e ler o arquivo cru daria por permitida toda tabela citada
+ * em prosa.
+ */
+function semComentario(fonte: string): string {
+  return fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+}
+
+/**
+ * A régua, UMA vez — e o teste dela usa esta, não uma cópia.
+ *
+ * **A cópia era o defeito mais fundo, achado em 11 de setembro.** O teste que prova a régua
+ * (*"a régua acha a opacidade pendurada quando ela existe"*) reimplementava a expressão
+ * inteira num ajudante local. Duas implementações da mesma promessa: a que roda sobre o
+ * repositório e a que é provada. Elas divergiram — a que roda lia só o primeiro valor de
+ * entrada do arquivo, e a que era provada nunca viu um arquivo com dois.
+ *
+ * Um teste de régua que testa outra régua não testa nada, e é a irmã exata da regra que este
+ * projeto já tem escrita: *"uma guarda que compara duas coisas escritas pela mesma mão não
+ * guarda nada"*.
+ *
+ * Devolve o NOME do valor pendurado, ou nulo. O nome importa: é ele que diz onde olhar num
+ * arquivo com mais de uma entrada.
+ */
+export function opacidadePendurada(fonte: string): string | null {
+  const limpa = semComentario(fonte);
+  const nomes = [
+    ...limpa.matchAll(
+      /const\s+([A-Za-z_$][\w$]*)\s*=\s*useSharedValue\(\s*reduzi\w* === false \? 0 : 1\s*\)/g,
+    ),
+  ].map((m) => m[1]);
+  for (const nome of nomes) {
+    if (new RegExp(`opacity:\\s*[^,\n]*\\b${nome}\\b`).test(limpa)) return nome;
+  }
+  return null;
+}
+
+function fontesDePeca(): { caminho: string; fonte: string }[] {
+  const achados: { caminho: string; fonte: string }[] = [];
+  const descer = (dir: string) => {
+    for (const nome of readdirSync(dir)) {
+      const caminho = join(dir, nome);
+      if (statSync(caminho).isDirectory()) descer(caminho);
+      else if (/\.tsx?$/.test(nome) && !/\.test\.tsx?$/.test(nome)) {
+        achados.push({ caminho, fonte: readFileSync(caminho, 'utf8') });
+      }
     }
+  };
+  for (const pasta of ['src/components', 'src/home']) descer(pasta);
+  return achados;
+}
+
+test('nenhuma entrada dirige opacidade', () => {
+  const fontes = fontesDePeca();
+  // A leitura primeiro: régua que não acha arquivo concorda com qualquer coisa, e é a
+  // asserção que faltava aqui — a varredura antiga passava por não olhar.
+  assert.ok(fontes.length > 20, `a busca achou só ${fontes.length} arquivos — ela não está olhando`);
+
+  const suspeitos: string[] = [];
+  for (const { caminho, fonte } of fontes) {
+    const pendurado = opacidadePendurada(fonte);
+    if (pendurado) suspeitos.push(`${caminho} (${pendurado})`);
   }
   assert.deepEqual(
     suspeitos,
@@ -183,16 +244,49 @@ test('nenhuma entrada dirige opacidade', () => {
 });
 
 test('a régua acha a opacidade pendurada na entrada quando ela existe', () => {
-  const comOpacidade =
-    'const shown = useSharedValue(reduzido === false ? 0 : 1);\nstyle(() => ({ opacity: shown.value }));';
-  const semOpacidade =
-    'const shown = useSharedValue(reduzido === false ? 0 : 1);\nstyle(() => ({ transform: [{ scale: shown.value }] }));';
-  const pega = (fonte: string) => {
-    const nome = fonte.match(
-      /const\s+([A-Za-z_$][\w$]*)\s*=\s*useSharedValue\(\s*reduzi\w* === false \? 0 : 1\s*\)/,
-    )?.[1];
-    return nome ? new RegExp(`opacity:\\s*[^,\n]*\\b${nome}\\b`).test(fonte) : false;
-  };
-  assert.equal(pega(comOpacidade), true, 'não acusa quem devia acusar');
-  assert.equal(pega(semOpacidade), false, 'acusa quem só mexe a forma');
+  const um = 'const shown = useSharedValue(reduzido === false ? 0 : 1);\n';
+  assert.equal(
+    opacidadePendurada(`${um}style(() => ({ opacity: shown.value }));`),
+    'shown',
+    'não acusa quem devia acusar',
+  );
+  assert.equal(
+    opacidadePendurada(`${um}style(() => ({ transform: [{ scale: shown.value }] }));`),
+    null,
+    'acusa quem só mexe a forma',
+  );
+
+  /**
+   * O caso que a régua NÃO tinha, e que era exatamente o buraco — dois valores de entrada.
+   *
+   * O `Sparkline` declara `drawn` e depois `settled`, e pendura a opacidade no SEGUNDO. A
+   * versão antiga lia uma captura só e devolvia "limpo" no único arquivo do repositório onde
+   * havia o que achar.
+   */
+  const dois =
+    'const drawn = useSharedValue(reduzido === false ? 0 : 1);\n' +
+    'const settled = useSharedValue(reduzido === false ? 0 : 1);\n';
+  assert.equal(
+    opacidadePendurada(`${dois}props(() => ({ r: 3.2 * drawn.value, opacity: settled.value }));`),
+    'settled',
+    'a opacidade pendurada no SEGUNDO valor de entrada tem de ser achada',
+  );
+  assert.equal(
+    opacidadePendurada(`${dois}props(() => ({ r: 3.2 * settled.value }));`),
+    null,
+    'e dois valores que só mexem forma continuam limpos',
+  );
+
+  // E prosa não é código: o comentário que EXPLICA por que a opacidade saiu cita o trecho.
+  // Uma régua que lesse isso proibiria explicar o que ela proíbe.
+  assert.equal(
+    opacidadePendurada(`${um}// antes: opacity: shown.value\nprops(() => ({ r: shown.value }));`),
+    null,
+    'comentário citando o defeito não é o defeito',
+  );
+  assert.equal(
+    opacidadePendurada(`${um}/* opacity: shown.value */\nprops(() => ({ r: shown.value }));`),
+    null,
+    'nem em bloco',
+  );
 });
