@@ -1296,6 +1296,7 @@ export const es: Dictionary = {
         'Ningún insumo tiene empaque y cuánto viene dentro todavía. Completa el registro para que la nota se vuelva existencias.',
       supplier: 'Proveedor',
       supplierPlaceholder: 'quién vendió',
+      fromLastInvoice: 'De la última factura. Cámbialo si cambió.',
       orderedWhen: 'Cuándo lo pediste',
       orderedWhenHint:
         'Así la app aprende cuánto tarda tu proveedor, y avisa antes de que falte. Sin eso, no tiene cómo saberlo.',

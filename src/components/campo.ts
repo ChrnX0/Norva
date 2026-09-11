@@ -28,3 +28,36 @@ export function aceitaDoPai(valorDoPai: string, textoNaTela: string, dedoNoCampo
   if (dedoNoCampo) return false;
   return valorDoPai !== textoNaTela;
 }
+
+/**
+ * Campo que nasce com o palpite do sistema, e quem digita manda.
+ *
+ * **Mora aqui, e não na tela, porque o navegador não consegue provar.** A tela da compra
+ * passou a sugerir o fornecedor e a contagem de pacotes da última nota daquele insumo, e a
+ * checagem de navegador que eu escrevi para "apagar o sugerido fica apagado" **passou com o
+ * defeito plantado**: trocando o `??` por `||`, o campo apagado recebe a sugestão de volta,
+ * e a asserção continuou verde. A causa é do `input` controlado — o `value` que o React
+ * calcula é o mesmo antes e depois, então ele não repõe o texto que o Playwright apagou.
+ *
+ * No APARELHO não é assim, e o docblock de cima desta mesma casa já conta por quê: o
+ * `TextInput` do Android repõe o texto nativo quando o valor derivado difere da caixa. O
+ * defeito que o navegador não vê chega ao dedo de quem usa.
+ *
+ * **A régua é uma distinção, e é ela que o `||` apaga:** `undefined` quer dizer *ninguém
+ * digitou neste campo*, e aí vale a sugestão; **string vazia é uma digitação** — quem apagou
+ * o nome quer o campo vazio. As duas são falsas em JavaScript, e é por isso que a diferença
+ * entre `??` e `||` aqui não é estilo: é a tela brigando ou não com quem usa.
+ *
+ * Devolve as duas respostas porque a tela precisa das duas: o valor, e se ele ainda é o
+ * palpite — que é quando a dica "da última nota" tem o que explicar. *"O sistema sugere,
+ * nunca decide calado"*: campo preenchido sem dizer de onde veio é decidir calado.
+ */
+export function campoComSugestao(
+  digitado: string | undefined,
+  sugerido: string | null,
+  padrao = '',
+): { valor: string; ehSugestao: boolean } {
+  if (digitado !== undefined) return { valor: digitado, ehSugestao: false };
+  if (sugerido !== null && sugerido !== '') return { valor: sugerido, ehSugestao: true };
+  return { valor: padrao, ehSugestao: false };
+}

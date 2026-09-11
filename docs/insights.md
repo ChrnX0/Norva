@@ -10213,3 +10213,79 @@ que eu escrevi dentro da consulta dizia `` `LEFT`, e a empresa ainda pode ter ap
 pessoa`` — e o `tsc` acusou `',' expected` numa linha de comentário, quarenta linhas abaixo do
 que eu havia editado. Prosa com marcação de Markdown dentro de SQL dentro de JavaScript tem
 um caractere proibido, e não é nenhum dos que se pensa.
+
+---
+
+## 11 de setembro — o aplicativo escrevia a resposta e reperguntava na semana seguinte
+
+**O achado.** `purchases.supplier_name` e `purchase_lines.purchase_quantity` tinham escritor
+e nenhum leitor. O nome do fornecedor é digitado a cada nota; a contagem de pacotes é `not
+null` desde a `0002`. A única leitora das duas era `src/sync/serialize.ts`, que as manda para
+o servidor — ou seja, o dado existia para o servidor e não para a pessoa.
+
+E do outro lado da mesma tela: `app/purchase.tsx` abria com `useState('')` no fornecedor e
+`useState('1')` na quantidade. A **Lei 1** proíbe pedir o que o sistema pode deduzir e a
+**Lei 2** proíbe campo vazio, e as duas estavam furadas pelo dado do próprio aplicativo.
+
+**Por que importa mais do que parece.** O custo não é o toque. Numa fábrica o mesmo insumo
+vem do mesmo fornecedor quase sempre, e digitar "Distribuidora Aurora" de luva, no celular,
+toda semana, é o atrito que faz **a nota não ser lançada** — e nota não lançada é a média de
+custo errada embaixo de todo número de dinheiro do aplicativo daí para frente. Este arquivo
+já diz a mesma coisa sobre beleza (*"aplicativo feio na câmara fria é pulado"*); a versão
+dela em formulário é campo que nasce vazio tendo resposta.
+
+**O que mudou.** `lastPurchaseOf` devolve o nome e a contagem da última nota daquele insumo —
+e **não** o total, de propósito: o total é o número que decide preço e mora atrás de
+`canSeeMoney` em `itemHistory`. Devolvê-lo aqui abriria uma segunda porta para o mesmo
+dinheiro sem portão, que é um defeito que a ficha do insumo já teve. A tela semeia os dois
+campos **uma vez por insumo** (`ref`), e mostra *"Da última nota. Troque se mudou."* enquanto
+o valor ainda é o sugerido — porque *"o sistema sugere, nunca decide calado"*, e campo
+preenchido sem dizer de onde veio é decidir calado.
+
+### O efeito de lado que vale mais que o conserto
+
+O plano já documentava, desde 8 de setembro, uma armadilha nas compras inteligentes:
+agrupar prazo de entrega por NOME digitado faz *"Distribuidora Silva"* e *"distribuidora
+silva"* serem dois fornecedores, cada um com metade das entregas, e o prazo sai pela metade
+sendo plausível. Sugerir a string exata da última nota **não resolve** as grafias que já
+existem, mas para de fabricar novas: quem aceita a sugestão repete o que já está no banco em
+vez de digitar uma variante. O conserto de ergonomia entrou como conserto de dado.
+
+### E a régua que faltava na ferramenta, não no código
+
+Duas edições desta rodada falharam em silêncio por um motivo novo: **o bloco que eu queria
+trocar aparecia duas vezes no arquivo.** `e2e/flow.mjs` tem duas checagens que lançam a mesma
+nota da mesma polpa com as mesmas quatro linhas, e `str.replace` de um trecho ambíguo ou erra
+o alvo ou acerta o errado. O `assert s.count(a)==1` pegou — mas só porque eu o escrevi;
+`sed -i` na mesma situação teria editado as duas e saído 0.
+
+É a irmã exata da regra que este mesmo dia acrescentou ao `CLAUDE.md` (*"o caso verdadeiro se
+confere no disco"*): **a ferramenta de edição também precisa provar que editou UM lugar, e o
+lugar certo.** Ancorar no que é único — aqui, a linha do `check(` acima — custa uma linha e é
+a diferença entre um commit e um commit que mexeu numa checagem que eu não estava olhando.
+
+### E o achado maior desta fatia: o navegador é CEGO para `??` virar `||`
+
+A checagem de navegador que eu escrevi para prender *"apagar o fornecedor sugerido fica
+apagado"* **passou com o defeito plantado**. Troquei o `??` por `||` — que é exatamente o que
+faz a sugestão voltar por cima do campo vazio — e ela continuou verde.
+
+A causa é do `input` controlado: com `||`, o valor que o React calcula depois de apagar é o
+MESMO de antes ('Distribuidora Aurora'), então ele não repõe o texto que o Playwright tirou
+da caixa. React compara propriedade com propriedade, não propriedade com o DOM.
+
+**No aparelho não é assim, e este repositório já sabia.** O docblock de
+`src/components/campo.ts` conta a mesma armadilha vista do outro lado, com números medidos:
+o `TextInput` do Android repõe o texto nativo quando o valor derivado difere da caixa, e
+dezessete letras digitadas viraram "Picole de moran". Ou seja: **o defeito que o navegador
+não vê é o que chega ao dedo de quem usa.**
+
+Isso amplia a lista do `CLAUDE.md` sobre o que o navegador estruturalmente não alcança —
+que hoje fala de gesto (tecla de voltar, partida a frio, rotação, permissão do sistema). O
+item novo não é gesto: é **campo controlado cujo valor derivado não muda**. A régua saiu da
+tela para `campo.ts` e as cinco respostas viraram teste puro, onde a troca reprova na hora.
+
+E a consequência de método, que vale para toda checagem de navegador daqui para frente:
+**plantar o defeito que a asserção NOMEIA, não um parecido.** Uma asserção que sobrevive ao
+próprio defeito não é fraca — ela é uma promessa falsa, e promessa falsa em teste é pior que
+teste ausente, porque alguém vai confiar nela para mexer no código que ela cobre.

@@ -37,6 +37,7 @@ import {
   saveType,
   SemPermissaoError,
   savePerson,
+  lastPurchaseOf,
   saveSalePrice,
   recordProduction,
   runningOut,
@@ -5802,6 +5803,86 @@ test('a reversal is dated today, so a closed month stays closed', async () => {
     pernaDitada.occurred_at,
     DITADO,
     'quem passa a data explícita continua sendo obedecido — é o caminho da sincronia',
+  );
+});
+
+/**
+ * O aplicativo escrevia a resposta e reperguntava na visita seguinte.
+ *
+ * **Duas colunas com escritor e nenhum leitor, e as duas guardavam exatamente o que a tela
+ * pedia em branco.** `purchases.supplier_name` é digitado a cada nota; `purchase_lines.
+ * purchase_quantity` é `not null` desde a `0002`. Nada lia nenhuma das duas — a única
+ * leitora era a sincronia, que as manda para o servidor. Enquanto isso `app/purchase.tsx`
+ * abria com `useState('')` no fornecedor e `useState('1')` na quantidade.
+ *
+ * A Lei 1 proíbe pedir o que o sistema pode deduzir e a Lei 2 proíbe campo vazio. As duas
+ * violadas pelo dado do próprio aplicativo, e o custo não é o toque: numa fábrica o mesmo
+ * insumo vem do mesmo fornecedor quase sempre, e digitar o nome de luva toda semana é o
+ * atrito que faz a NOTA NÃO SER LANÇADA — com a média de custo errada embaixo de todo
+ * número de dinheiro daí para frente.
+ *
+ * Os dois sentidos: a segunda nota acha a primeira, e a ORDEM importa — o que volta é a
+ * última, não a primeira que aparecer. Sem a segunda metade o teste passaria com um
+ * `LIMIT 1` sem `ORDER BY`, que devolve qualquer uma.
+ */
+test('a próxima nota já sabe de quem veio a anterior, e quantos pacotes', async () => {
+  await ensureStarterData(CO);
+  const acucar = await anInput('Açúcar mascavo', 25_000);
+
+  assert.equal(
+    await lastPurchaseOf(CO, acucar),
+    null,
+    'sem nota nenhuma não há o que deduzir — campo vazio na primeira compra é honesto',
+  );
+
+  await recordPurchase(CO, {
+    itemId: acucar,
+    supplierName: 'Distribuidora Aurora',
+    purchaseQuantity: 4,
+    baseUnits: 100_000,
+    totalCents: fromDecimal(472),
+  });
+
+  const primeira = await lastPurchaseOf(CO, acucar);
+  assert.deepEqual(
+    primeira,
+    { supplierName: 'Distribuidora Aurora', packs: 4 },
+    'a nota seguinte abre com o fornecedor e a contagem da anterior',
+  );
+
+  // O outro sentido: a MAIS RECENTE, não a primeira. Sem ordem, `LIMIT 1` devolve
+  // qualquer uma — e sugerir o fornecedor de quem você trocou é pior que não sugerir.
+  await recordPurchase(CO, {
+    itemId: acucar,
+    supplierName: 'Atacado São Jorge',
+    purchaseQuantity: 6,
+    baseUnits: 150_000,
+    totalCents: fromDecimal(690),
+  });
+  assert.deepEqual(
+    await lastPurchaseOf(CO, acucar),
+    { supplierName: 'Atacado São Jorge', packs: 6 },
+    'trocou de fornecedor, e a sugestão trocou com ele',
+  );
+
+  // E o insumo vizinho não herda a nota deste: a consulta filtra por item, e um filtro
+  // esquecido aqui sugeriria o fornecedor da polpa para o açúcar.
+  const outro = await anInput('Corante natural', 1_000);
+  assert.equal(await lastPurchaseOf(CO, outro), null, 'cada insumo tem a nota dele');
+
+  // Nome vazio é nulo, não string vazia: sugerir "" é sugerir nada, e a tela teria de
+  // saber disso em vez de a camada de dados devolver o fato.
+  const semNome = await anInput('Essência de baunilha', 500);
+  await recordPurchase(CO, {
+    itemId: semNome,
+    purchaseQuantity: 2,
+    baseUnits: 1_000,
+    totalCents: fromDecimal(60),
+  });
+  assert.deepEqual(
+    await lastPurchaseOf(CO, semNome),
+    { supplierName: null, packs: 2 },
+    'nota sem fornecedor devolve nulo no nome e a contagem do mesmo jeito',
   );
 });
 

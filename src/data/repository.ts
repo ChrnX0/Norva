@@ -5383,6 +5383,58 @@ export async function deliveriesOf(
   return rows.map((r) => ({ orderedAt: r.ordered_at, receivedAt: r.received_at }));
 }
 
+/**
+ * A ÚLTIMA nota deste insumo: de quem veio e quantos pacotes.
+ *
+ * **Existe porque duas colunas tinham escritor e nenhum leitor, e as duas guardavam a
+ * resposta da pergunta que a tela fazia em branco.** `purchases.supplier_name` é digitado
+ * a cada nota e nada o lia; `purchase_lines.purchase_quantity` é `not null` desde a
+ * `0002` e nada o lia. Enquanto isso `app/purchase.tsx` abria com `useState('')` no
+ * fornecedor e `useState('1')` na quantidade — ou seja, o aplicativo escrevia a resposta
+ * e reperguntava na visita seguinte.
+ *
+ * Isso é a Lei 1 e a Lei 2 ao mesmo tempo: *"nunca peça o que o sistema pode deduzir"* e
+ * *"nenhum campo nasce vazio"*. Numa fábrica a nota do mesmo insumo vem do mesmo
+ * fornecedor quase sempre, e em pacote do mesmo tamanho — digitar "Distribuidora Aurora"
+ * de luva, no celular, toda semana, é o tipo de atrito que faz a nota não ser lançada.
+ *
+ * **Dinheiro NÃO sai daqui, de propósito.** O total da última nota é o número que decide
+ * preço, e ele mora atrás de `canSeeMoney` em `itemHistory`. Devolvê-lo aqui seria uma
+ * segunda porta para o mesmo dinheiro sem portão — o defeito que a ficha do insumo já
+ * teve uma vez, com a tela dizendo "ainda sem nota lançada" em cima e quatro notas
+ * embaixo. Nome de fornecedor e contagem de pacote não são dinheiro.
+ *
+ * Nulo quando não houve nota, e é o que a tela precisa para não inventar sugestão: campo
+ * vazio na primeira compra é honesto, porque não há o que deduzir.
+ */
+export type UltimaCompra = { supplierName: string | null; packs: number };
+
+export async function lastPurchaseOf(
+  companyId: string,
+  itemId: string,
+): Promise<UltimaCompra | null> {
+  const conn = await db();
+  const linha = await conn.getFirstAsync<{
+    supplier_name: string | null;
+    purchase_quantity: number;
+  }>(
+    `SELECT p.supplier_name, pl.purchase_quantity
+       FROM purchase_lines pl
+       JOIN purchases p ON p.id = pl.purchase_id
+      WHERE pl.company_id = ? AND pl.item_id = ?
+      ORDER BY pl.created_at DESC, pl.rowid DESC
+      LIMIT 1`,
+    [companyId, itemId],
+  );
+  if (!linha) return null;
+  return {
+    // Vazio é nulo: `recordPurchase` grava `undefined` como nulo, mas uma nota antiga
+    // pode ter chegado pela sincronia com string vazia, e sugerir "" é sugerir nada.
+    supplierName: linha.supplier_name && linha.supplier_name.length > 0 ? linha.supplier_name : null,
+    packs: linha.purchase_quantity,
+  };
+}
+
 export async function itemHistory(
   companyId: string,
   itemId: string,

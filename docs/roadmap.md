@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **764** testes |
+| `npm test` | **766** testes |
 | `npm run mutate` | **132** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **58** checagens num navegador de verdade |
 | `npm run db:verify` | **31** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **16** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -1829,7 +1829,7 @@ fica vermelha até este parágrafo mudar.
 | **ligar o `pg_cron`** no projeto do servidor | **você, um clique no painel.** A `0045` já deixou o agendamento escrito e guardado; sem a extensão os pedidos de Reset acumulam e nada é destruído — o lado seguro de errar. Medido em 8 de setembro: a extensão está disponível e não instalada. |
 | **cinco minutos de TalkBack** (3) | **você, com o tablet.** A guarda prova que todo alvo se anuncia; ninguém nunca ouviu. |
 | ~~a sala do tacho~~ **de onde a produção consome** (5) | **padrão decidido em 8/9 sob defeito** — a unidade inteira, porque com a polpa na câmara nenhuma corrida rodava. Falta a "sala estrita" como configuração. |
-| **compras inteligentes** (6) | **tempo.** O mecanismo está construído e lido em duas telas; falta entrega observada de fábrica de verdade para calibrar. **E uma armadilha medida em 8 de setembro, escrita aqui para quem construir:** o fornecedor é um NOME digitado (`purchases.supplier_name`), e a tabela `suppliers` do servidor — com `promised_lead_days` e tudo — tem **zero escritores e zero leitores** desde a `0002`. Agrupar prazo observado por nome faz *"Distribuidora Silva"* e *"distribuidora silva"* serem dois fornecedores, cada um com metade das entregas: o prazo sai pela metade e ninguém percebe, porque o número é plausível. É a mesma armadilha que a transportadora evitou nascendo com índice único por `lower(trim(name))` — e ela quase me pegou, porque eu ia copiar o molde de `suppliers`. |
+| **compras inteligentes** (6) | **tempo.** O mecanismo está construído e lido em duas telas; falta entrega observada de fábrica de verdade para calibrar. **E uma armadilha medida em 8 de setembro, escrita aqui para quem construir:** o fornecedor é um NOME digitado (`purchases.supplier_name`), e a tabela `suppliers` do servidor — com `promised_lead_days` e tudo — tem **zero escritores e zero leitores** desde a `0002`. Agrupar prazo observado por nome faz *"Distribuidora Silva"* e *"distribuidora silva"* serem dois fornecedores, cada um com metade das entregas: o prazo sai pela metade e ninguém percebe, porque o número é plausível. É a mesma armadilha que a transportadora evitou nascendo com índice único por `lower(trim(name))` — e ela quase me pegou, porque eu ia copiar o molde de `suppliers`. **E uma coisa a favor, de 11 de setembro:** a tela da compra passou a sugerir o fornecedor da última nota daquele insumo (`lastPurchaseOf`), então quem aceita a sugestão repete a string EXATA em vez de digitar uma variante. Não resolve a armadilha — duas grafias antigas continuam duas —, mas para de fabricar novas a cada semana, que é de onde a maioria delas vinha. |
 
 **Fora dessas seis, não há item de código aberto na fila.** É por isso que a rodada de
 7 de setembro foi de auditoria e de rede: com a construção travada em decisão, o

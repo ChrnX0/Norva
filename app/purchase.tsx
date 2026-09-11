@@ -10,6 +10,7 @@ import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
 import { UnitStepper } from '@/components/UnitStepper';
 import { Field } from '@/components/Field';
+import { campoComSugestao } from '@/components/campo';
 import { GlyphPrice, GlyphPurchase, GlyphSack } from '@/components/Glyph';
 import { ListRow } from '@/components/ListRow';
 import { Reveal } from '@/components/Reveal';
@@ -22,6 +23,7 @@ import {
   recordPurchase,
   type ItemWithCost,
   purchaseToBaseUnits,
+  lastPurchaseOf,
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
@@ -140,7 +142,26 @@ function PurchaseForm() {
   // what they were already looking at.
   const { itemId } = useLocalSearchParams<{ itemId?: string }>();
   const [selectedId, setSelectedId] = useState<string | null>(itemId ?? null);
-  const [supplier, setSupplier] = useState('');
+  /**
+   * O que foi DIGITADO, por insumo — e o valor do campo é derivado disto.
+   *
+   * A primeira versão semeava os campos num `useEffect` com `setSupplier`, e a régua do
+   * React recusou: *"calling setState synchronously within an effect can trigger cascading
+   * renders"*. Ela está certa por um motivo que vai além de desempenho — sincronizar dois
+   * estados obriga a responder "quem ganha" em cada ordem de chegada, e a resposta sempre
+   * esquece um caso. Aqui era: apagar o fornecedor sugerido e vê-lo voltar.
+   *
+   * Derivado não tem esse problema. `undefined` quer dizer *ninguém digitou nada aqui*, e
+   * aí vale a sugestão; **string vazia é uma digitação** — quem apagou o nome fica com o
+   * campo vazio. E o `id` amarra o rascunho ao insumo: trocar de insumo larga o que foi
+   * digitado para o anterior e pega a sugestão do novo, sem efeito nenhum e sem um
+   * `setState` fora de um toque.
+   */
+  const [digitado, setDigitado] = useState<{
+    id: string;
+    supplier?: string;
+    quantity?: string;
+  }>({ id: '' });
   /**
    * Há quantos dias o pedido foi feito — `null` é "não sei", que é o padrão.
    *
@@ -149,7 +170,7 @@ function PurchaseForm() {
    * para trás, e o que o banco recebe é a data calculada.
    */
   const [pedidoHaDias, setPedidoHaDias] = useState<number | null>(null);
-  const [quantity, setQuantity] = useState('1');
+
   const [total, setTotal] = useState('');
   /**
    * O frete, e ele é OPCIONAL porque o dono disse que os dois jeitos valem.
@@ -176,6 +197,60 @@ function PurchaseForm() {
     items.find((i) => i.id === selectedId) ?? items[0] ?? null;
 
   const num = (s: string) => parseTyped(s) ?? NaN;
+
+  /**
+   * A última nota deste insumo, para os dois campos não nascerem vazios.
+   *
+   * **Duas colunas tinham escritor e nenhum leitor, e as duas guardavam a resposta que
+   * esta tela pedia em branco.** `supplier_name` era digitado a cada nota e
+   * `purchase_quantity` gravado desde a `0002`; aqui o fornecedor abria com `''` e a
+   * quantidade com `'1'`. A Lei 1 proíbe pedir o que o sistema pode deduzir e a Lei 2
+   * proíbe campo vazio — as duas violadas pelo próprio dado do aplicativo.
+   *
+   * Numa fábrica o mesmo insumo vem do mesmo fornecedor quase sempre, em pacote do mesmo
+   * tamanho. Digitar "Distribuidora Aurora" de luva, no celular, toda semana, é o atrito
+   * que faz a nota não ser lançada — e nota não lançada é a média de custo errada embaixo
+   * de todo número de dinheiro do aplicativo.
+   */
+  const { data: ultima, loading: buscandoUltima } = useQuery(
+    () => (selected ? lastPurchaseOf(empresaDaqui(), selected.id) : Promise.resolve(null)),
+    selected?.id ?? '',
+  );
+
+  /**
+   * Enquanto a consulta do insumo novo não voltou, `ultima` ainda é a do ANTERIOR — então
+   * ela não vale. Sugerir o fornecedor do açúcar para a polpa por meio segundo é pior que
+   * não sugerir nada, porque a pessoa já começou a ler.
+   */
+  const idAtual = selected?.id ?? '';
+  const sugestao = buscandoUltima ? null : ultima;
+  const meu = digitado.id === idAtual ? digitado : null;
+
+  const digitar = (campo: 'supplier' | 'quantity') => (valor: string) =>
+    setDigitado({ ...(meu ?? {}), id: idAtual, [campo]: valor });
+
+  /**
+   * A régua mora em `src/components/campo.ts`, e o motivo é uma prova que falhou.
+   *
+   * Escrevi a distinção aqui na tela e uma checagem de navegador para ela — "apagar o
+   * fornecedor sugerido fica apagado". Trocando o `??` por `||`, que é exatamente o defeito
+   * que ela nomeia, **a checagem continuou verde**: o `input` controlado não repõe o texto
+   * apagado quando o valor calculado não muda. No `TextInput` do Android repõe, e o
+   * docblock de `campo.ts` já contava essa história do outro lado.
+   *
+   * Então a régua saiu daqui para onde ela é decidível, com as cinco respostas provadas uma
+   * por uma. A tela ficou com o que é dela: qual pergunta faz a qual campo.
+   */
+  const doFornecedor = campoComSugestao(meu?.supplier, sugestao?.supplierName ?? null);
+  const daQuantidade = campoComSugestao(
+    meu?.quantity,
+    sugestao && sugestao.packs > 0 ? String(sugestao.packs) : null,
+    '1',
+  );
+  const supplier = doFornecedor.valor;
+  const quantity = daQuantidade.valor;
+  const sugeriuFornecedor = doFornecedor.ehSugestao;
+  const sugeriuQuantidade = daQuantidade.ehSugestao;
 
   /**
    * Contar pelos DEGRAUS do produto, e não pela embalagem de compra.
@@ -298,7 +373,10 @@ function PurchaseForm() {
       );
       setTotal('');
       setFrete('');
-      setQuantity('1');
+      // Largar o rascunho em vez de voltar a quantidade para "1": o `refresh` abaixo relê a
+      // última nota, que agora é ESTA — então os dois campos voltam já preenchidos com o que
+      // acabou de ser lançado, que é o palpite certo para a linha seguinte da mesma nota.
+      setDigitado({ id: '' });
       refresh();
     } catch (e) {
       await confirm({
@@ -399,8 +477,9 @@ function PurchaseForm() {
               <Field
                 label={t.app.purchase.supplier}
                 value={supplier}
-                onChangeText={setSupplier}
+                onChangeText={digitar('supplier')}
                 placeholder={t.app.purchase.supplierPlaceholder}
+                hint={sugeriuFornecedor ? t.app.purchase.fromLastInvoice : undefined}
               />
 
               {/* Quando o pedido foi feito.
@@ -450,7 +529,7 @@ function PurchaseForm() {
                       plural(n, t.units[id as keyof typeof t.units] ?? t.units.unit)
                     }
                     value={num(quantity) || 0}
-                    onChange={(n) => setQuantity(String(n))}
+                    onChange={(n) => digitar('quantity')(String(n))}
                     labels={t.stepper}
                     digitavel
                     rotulo={fill(t.app.purchase.howMany, { pack: t.units.unit.other })}
@@ -462,7 +541,7 @@ function PurchaseForm() {
                     pack: selected.purchaseUnit ?? t.units.unit.other,
                   })}
                   value={quantity}
-                  onChangeText={setQuantity}
+                  onChangeText={digitar('quantity')}
                   keyboardType="numeric"
                   hint={
                     draft
@@ -472,7 +551,11 @@ function PurchaseForm() {
                           baseUnits: formatQuantity(draft.baseUnits, locale),
                           unit: selected.baseUnit,
                         })
-                      : undefined
+                      : // A conversão só existe com a nota digitada; até lá o que a linha
+                        // tem a dizer é de onde veio o número que já está no campo.
+                        sugeriuQuantidade
+                        ? t.app.purchase.fromLastInvoice
+                        : undefined
                   }
                 />
               )}

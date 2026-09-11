@@ -1292,6 +1292,7 @@ export const en: Dictionary = {
         'No input has a pack and how much is inside yet. Complete the record so the invoice can become stock.',
       supplier: 'Supplier',
       supplierPlaceholder: 'who sold it',
+      fromLastInvoice: 'From the last invoice. Change it if it changed.',
       orderedWhen: 'When you ordered',
       orderedWhenHint:
         'This is how the app learns how long your supplier takes, and warns you before you run out. Without it, it has no way to know.',

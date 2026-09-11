@@ -1712,6 +1712,13 @@ export const ptBR = {
       supplier: 'Fornecedor',
       supplierPlaceholder: 'quem vendeu',
       /**
+       * De onde veio o que já está no campo — e ela existe porque sugerir calado é decidir.
+       *
+       * Curta de propósito: ela fica embaixo de um campo já preenchido, e a pessoa precisa
+       * de uma coisa só — saber que aquilo é palpite do sistema e pode ser trocado.
+       */
+      fromLastInvoice: 'Da última nota. Troque se mudou.',
+      /**
        * Sem tentar concordar com um nome que a pessoa digitou.
        *
        * "Quantas {{pack}}" saía como "QUANTAS SACO 25 KG": a embalagem é texto

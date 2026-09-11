@@ -786,6 +786,9 @@ check('an invoice warns before it is committed, then moves everything', async (p
   await page.waitForTimeout(2500);
 
   await page.getByText('Polpa de morango', { exact: true }).first().click();
+  // O fornecedor é digitado UMA vez aqui, e é o que a asserção do fim cobra de volta: a
+  // nota seguinte do mesmo insumo não pergunta de novo.
+  await page.getByLabel('Fornecedor').fill('Distribuidora Aurora');
   await page.getByLabel(/Quantidade, em/).fill('4');
   await page.getByLabel('Total da nota').fill('700');
   await page.waitForTimeout(800);
@@ -817,6 +820,76 @@ check('an invoice warns before it is committed, then moves everything', async (p
   const after = await screen(page);
   assert.match(after, /O que essa nota mexeu/);
   assert.match(after, /R\$ 0,64 → R\$ 0,73/);
+
+  /**
+   * A SEGUNDA nota do mesmo insumo abre sabendo de quem veio a primeira.
+   *
+   * Duas colunas tinham escritor e nenhum leitor até 11 de setembro —
+   * `purchases.supplier_name` e `purchase_lines.purchase_quantity` —, e as duas guardavam
+   * exatamente o que esta tela pedia em branco: ela abria com `useState('')` no fornecedor
+   * e `useState('1')` na quantidade. A Lei 1 proíbe pedir o que o sistema pode deduzir, e a
+   * Lei 2 proíbe campo vazio.
+   *
+   * A checagem de unidade prova a consulta. O que só o navegador prova é que o valor chega
+   * ao CAMPO: o formulário tem estado próprio, a consulta é assíncrona, e semear campo
+   * controlado depois de uma resposta que chega tarde é onde este tipo de conserto falha.
+   */
+  await page.goto(`http://localhost:${PORT}/purchase`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  await page.getByText('Polpa de morango', { exact: true }).first().click();
+  await assentar(page);
+  assert.equal(
+    await page.getByLabel('Fornecedor').inputValue(),
+    'Distribuidora Aurora',
+    'a nota seguinte não pergunta de quem veio a anterior — a resposta já estava no razão',
+  );
+  assert.equal(
+    await page.getByLabel(/Quantidade, em/).inputValue(),
+    '4',
+    'e nem quantos pacotes: 4 baldes, como na nota passada — em vez do "1" chumbado',
+  );
+  // E dizendo de onde veio, senão é decidir calado. Campo preenchido sem explicação é o
+  // sistema afirmando um fato que ninguém digitou.
+  assert.match(
+    await screen(page),
+    /Da última nota/,
+    'a sugestão se anuncia como sugestão — o sistema sugere, nunca decide calado',
+  );
+
+  /**
+   * Apagar o sugerido, e o que esta asserção NÃO prova — medido, não suposto.
+   *
+   * Eu escrevi isto para prender "o campo apagado fica apagado", e plantei o defeito que
+   * ela nomeia — `??` trocado por `||`, que faz a sugestão voltar por cima do campo vazio.
+   * **Ela continuou verde.** O `input` controlado não repõe o texto que o Playwright apagou
+   * quando o valor calculado não muda, então o navegador é cego para essa troca. No
+   * `TextInput` do Android ele repõe, e `src/components/campo.ts` já contava essa história
+   * do outro lado.
+   *
+   * A régua saiu daqui para lá por causa disso, e é `campo.test.ts` que prova as cinco
+   * respostas — `undefined` vale a sugestão, vazio é uma digitação, e as outras três. O que
+   * esta asserção prova é o que ela consegue: o campo ACEITA ficar vazio, e a dica embaixo
+   * dele sai com o valor dele. Guardo-a por isso, e não como prova da distinção.
+   */
+  const dicas = (texto) => (texto.match(/Da última nota/g) ?? []).length;
+  const antesDeApagar = dicas(await screen(page));
+  assert.equal(antesDeApagar, 2, 'a dica está embaixo dos DOIS campos sugeridos');
+
+  await page.getByLabel('Fornecedor').fill('');
+  await page.waitForTimeout(600);
+  assert.equal(
+    await page.getByLabel('Fornecedor').inputValue(),
+    '',
+    'o campo aceita ficar vazio (a distinção vazio-vs-não-digitado é provada em campo.test.ts)',
+  );
+  // Contada, e não procurada: a MESMA frase fica embaixo da quantidade, que continua com o
+  // valor sugerido. `doesNotMatch` na tela inteira reprovaria com o código certo — foi o
+  // que aconteceu na primeira escrita desta linha, e a asserção era o defeito.
+  assert.equal(
+    dicas(await screen(page)),
+    1,
+    'a dica do fornecedor sai com o valor dele; a da quantidade fica, porque o valor dela ficou',
+  );
 
   // And the briefing carries the consequence, not just the figure. Until now
   // the first card the owner saw was a bare unit cost - 55 cents, neither good

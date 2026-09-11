@@ -419,7 +419,27 @@ estruturalmente não alcança**: a tecla ou gesto de voltar do Android · a part
 por intent (`norva://…` com o processo morto) · a rotação · o diálogo de permissão do
 sistema · a volta do segundo plano depois de o sistema matar o processo. Item cujo caminho
 passa por uma dessas fecha com medida de aparelho, e a medida diz **com que comando** foi
-tirada. E a checagem barata, quando medida e conserto usam a mesma palavra: pergunte qual
+tirada.
+
+**E um item novo nessa lista, que não é gesto — 11 de setembro: CAMPO CONTROLADO cujo valor
+derivado não muda.** Uma tela passou a sugerir o fornecedor da última nota, e eu escrevi a
+checagem de navegador para prender *"apagar o sugerido fica apagado"*. Plantei o defeito que
+ela nomeia — `??` trocado por `||`, que faz a sugestão voltar por cima do campo vazio — e
+**ela continuou verde**: com `||` o valor que o React calcula depois de apagar é o mesmo de
+antes, então ele não repõe o texto que o Playwright tirou da caixa. React compara propriedade
+com propriedade, nunca propriedade com o DOM.
+
+No aparelho o resultado é o oposto, e este repositório já sabia: o docblock de
+`src/components/campo.ts` conta a mesma armadilha do outro lado, com número medido — o
+`TextInput` do Android repõe o texto nativo quando o valor derivado difere da caixa, e
+dezessete letras digitadas viraram "Picole de moran". **O defeito que o navegador não vê é o
+que chega ao dedo de quem usa.**
+
+A saída é a mesma dos outros casos desta lista: a régua sai da tela para um módulo puro e as
+respostas viram teste de Node, onde a troca reprova na hora. E a regra de método que sai
+daqui vale para toda checagem nova: **plante o defeito que a asserção NOMEIA, não um
+parecido.** Asserção que sobrevive ao próprio defeito não é fraca, é promessa falsa — e
+promessa falsa em teste é pior que teste ausente, porque alguém vai confiar nela. E a checagem barata, quando medida e conserto usam a mesma palavra: pergunte qual
 ENTRADA foi medida, e confira se o conserto está no caminho daquele comando.
 
 **E a foto agora MEDE, porque olhada não bastou — 9 de setembro.** A capa do primeiro
