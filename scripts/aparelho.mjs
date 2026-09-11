@@ -39,7 +39,7 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { Buffer } from 'node:buffer';
 import { deflateSync } from 'node:zlib';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { interpretarMovimento, mesmaTelaEmTodas } from './leitura.mjs';
 
@@ -48,6 +48,42 @@ const ADB = join(SDK, 'platform-tools/adb');
 const EMU = join(SDK, 'emulator/emulator');
 const SAIDA = '.shots';
 const AVD = arg('--avd') ?? 'norva-cheio';
+
+/**
+ * O rastro do emulador, num arquivo — porque a causa da morte dele cabe numa linha.
+ *
+ * Fica em `/tmp` e não na árvore: é saída de ferramenta, não artefato do projeto, e a
+ * árvore suja aborta verificação. O descritor é aberto uma vez, na carga, porque
+ * `spawn` precisa de descritor e não de caminho.
+ */
+const CAMINHO_DO_RASTRO = '/tmp/norva-emulador.log';
+let RASTRO = 'ignore';
+try {
+  RASTRO = openSync(CAMINHO_DO_RASTRO, 'w');
+} catch {
+  // Sem lugar para escrever, o comando continua funcionando como antes — cego, mas de
+  // pé. Um rastro que impede o emulador de subir seria pior que nenhum rastro.
+}
+
+/** O processo ainda existe? `kill(pid, 0)` pergunta e não mata. */
+function vivo(pid) {
+  if (!pid) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** As últimas linhas de um arquivo, para o erro trazer a causa e não o caminho dela. */
+function ultimasLinhas(caminho, quantas) {
+  try {
+    return readFileSync(caminho, 'utf8').trim().split('\n').slice(-quantas);
+  } catch {
+    return ['(o rastro não pôde ser lido)'];
+  }
+}
 /** O pacote e o esquema do app — os dois vêm do `app.json` e não se adivinham. */
 const PACOTE = 'app.norva.mobile';
 const ESQUEMA = 'norva';
@@ -149,13 +185,34 @@ async function subir() {
      // que fotografou o app em inglês e passou por conferência.
      '-prop', 'persist.sys.locale=pt-BR',
      '-timezone', 'America/Sao_Paulo'],
-    { detached: true, stdio: 'ignore' },
+    /**
+     * A saída do emulador vai para ARQUIVO, e não para o lixo — cicatriz de 11 de
+     * setembro, e ela custou oito minutos de um laço que nunca poderia dar certo.
+     *
+     * Aqui estava `stdio: 'ignore'`, e o laço de baixo roda 180 vezes a cada dez
+     * segundos sem perguntar se o processo ainda existe. Com o disco cheio, o emulador
+     * morreu em dois segundos dizendo exatamente o que faltava —
+     * `FATAL | Your device does not have enough disk space to run avd` — e este comando
+     * respondeu meia hora de `adb: no devices/emulators found`, que é a mesma coisa que
+     * uma guarda que não pode falhar: espera que não sabe desistir.
+     *
+     * A causa estava numa linha, e ela foi jogada fora antes de ser lida.
+     */
+    { detached: true, stdio: ['ignore', RASTRO, RASTRO] },
   );
   filho.unref();
 
   const inicio = Date.now();
   for (let i = 0; i < 180; i += 1) {
     await dormir(10_000);
+    // O emulador ainda está de pé? `kill(pid, 0)` não mata nada: ele pergunta. Se o
+    // processo morreu, esperar por ele é esperar para sempre — e a resposta de por que
+    // ele morreu está no rastro, que é a primeira coisa que quem lê precisa ver.
+    if (!vivo(filho.pid)) {
+      dizer('o emulador MORREU na partida. O que ele disse, do fim para o começo:');
+      for (const linha of ultimasLinhas(CAMINHO_DO_RASTRO, 12)) console.log(`   ${linha}`);
+      throw new Error(`o emulador saiu antes de registrar serviço — veja ${CAMINHO_DO_RASTRO}`);
+    }
     try {
       /**
        * **`sys.boot_completed` MENTE depois de restaurar instantâneo — 10 de
