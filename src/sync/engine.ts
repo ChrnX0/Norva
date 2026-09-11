@@ -1,5 +1,13 @@
 import { empresaAdotada } from '@/data/empresa';
-import { forgetSentBefore, markSent, pendingCount, pendingEntries, type OutboxEntry } from '@/data/outbox';
+import {
+  forgetSentBefore,
+  markRejected,
+  markSent,
+  pendingCount,
+  pendingEntries,
+  type OutboxEntry,
+} from '@/data/outbox';
+import { classeDaRecusa } from './recusa';
 
 /**
  * Sending what the phone wrote while it was alone.
@@ -31,6 +39,22 @@ import { forgetSentBefore, markSent, pendingCount, pendingEntries, type OutboxEn
 export type PushResult = {
   /** The ids the server actually stored. Anything absent stays queued. */
   acceptedIds: string[];
+  /**
+   * As que o servidor RECUSOU, com o código dele — e este campo é a metade que faltava.
+   *
+   * Sem ele o motor só sabia "entraram menos do que eu mandei", e tratava as duas recusas
+   * possíveis do único jeito seguro que lhe restava: tentar de novo. Para uma lacuna
+   * passageira isso é certo. Para *"esta remessa já foi conferida"* — que é uma recusa
+   * CERTA, da `0051` — é a resposta errada para a resposta certa: a fila fica presa naquela
+   * linha, e tudo o que o aparelho gravou depois fica preso atrás dela, para sempre.
+   *
+   * O transporte já sabia quem era a culpada: ele manda linha por linha e para na que
+   * falhou. O que faltava era ter onde dizer.
+   *
+   * Opcional de propósito: um transporte que não classifica nada continua válido, e a fila
+   * se comporta como antes. Ausente é "não sei", e "não sei" é passageiro.
+   */
+  rejeitadas?: { id: string; codigo: string | null }[];
 };
 
 export type Transport = {
@@ -54,6 +78,14 @@ export type SyncReport = {
    * para tentar de novo, a outra pede uma decisão de quem está com o aparelho.
    */
   recusa?: 'semEmpresa';
+  /**
+   * Quantas linhas saíram da frente por recusa DEFINITIVA nesta corrida.
+   *
+   * Zero é o caso normal e não vira frase na tela. Diferente de zero é uma pergunta que
+   * alguém vai fazer — *"aquela conferência de terça subiu?"* —, e ela merece resposta em
+   * vez de um número de pendentes que não baixa nunca.
+   */
+  postasDeLado: number;
 };
 
 export type SyncOptions = {
@@ -117,6 +149,7 @@ export async function drain(
       remaining: await pendingCount(),
       batches: 0,
       attempts: 0,
+      postasDeLado: 0,
       recusa: 'semEmpresa',
     };
   }
@@ -124,6 +157,7 @@ export async function drain(
   let sent = 0;
   let batches = 0;
   let attempts = 0;
+  let postasDeLado = 0;
   let error: string | undefined;
 
   /**
@@ -165,7 +199,41 @@ export async function drain(
     sent += confirmed.length;
     batches += 1;
 
-    if (confirmed.length < batch.length) {
+    /**
+     * A recusa DEFINITIVA sai da frente. As outras continuam sendo lacuna.
+     *
+     * Esta é a metade que faltava, e a assimetria de custo manda em cada linha dela:
+     * `classeDaRecusa` devolve `passageira` para todo código que não esteja na lista curta,
+     * então o caminho de tirar da frente só abre para uma certeza — hoje o `23505` que a
+     * nossa própria `0051` escolhe. Um código novo e desconhecido continua travando a fila,
+     * que é ruim e visível; tirar da frente por palpite perderia dado em silêncio.
+     *
+     * O `markRejected` NÃO carimba envio: a linha fica no aparelho, com o código ao lado,
+     * fora da contagem de pendentes e fora da faxina — porque quem conferiu vai perguntar
+     * por que ela não subiu.
+     */
+    let deLadoNestaFatia = 0;
+    for (const recusada of result.rejeitadas ?? []) {
+      if (classeDaRecusa(recusada.codigo) !== 'permanente') continue;
+      // Só o que estava NESTA fatia: um transporte que devolvesse id de fora não pode
+      // tirar da fila uma linha que o motor não ofereceu.
+      if (!batch.some((entry) => entry.id === recusada.id)) continue;
+      await markRejected(recusada.id, recusada.codigo);
+      postasDeLado += 1;
+      deLadoNestaFatia += 1;
+    }
+
+    /**
+     * A linha posta de lado NÃO é lacuna — e é isto que faz a fila voltar a andar.
+     *
+     * Somando-a ao que entrou, uma fatia em que tudo ou entrou ou saiu da frente fecha sem
+     * erro e sem gastar tentativa. A fatia que ainda tem buraco de verdade continua sendo
+     * lacuna, com a razão de sempre: mandar o que vem depois transforma uma recusa em muitas.
+     *
+     * E o que sobrou da fatia não se perde: `pendingEntries` deixa de oferecer a recusada, e
+     * a volta seguinte começa na linha seguinte a ela.
+     */
+    if (confirmed.length + deLadoNestaFatia < batch.length) {
       // A gap. Stopping here is deliberate: continuing would send rows whose
       // parents the server does not have, and turn one rejection into many.
       error = `O servidor aceitou ${confirmed.length} de ${batch.length} registros.`;
@@ -197,5 +265,5 @@ export async function drain(
   const corte = new Date(agora - (options.keepDays ?? 7) * 86_400_000).toISOString();
   await forgetSentBefore(corte);
 
-  return { sent, remaining: await pendingCount(), batches, attempts, error };
+  return { sent, remaining: await pendingCount(), batches, attempts, postasDeLado, error };
 }

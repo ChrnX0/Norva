@@ -59,7 +59,11 @@ function ligar(): Db {
  * `recebido` parava em 1 dos dois jeitos e o teste passava verde sobre um transporte
  * que teimava depois de uma recusa. Foi o teste de mordida que contou.
  */
-function casaDeMentira(recusarNa?: number): Casa & {
+function casaDeMentira(
+  recusarNa?: number,
+  /** O `SQLSTATE` da recusa. Ausente é falha sem código — rede, cliente —, que é passageira. */
+  codigo: string | null = null,
+): Casa & {
   recebido: { tabela: ServerTable; apenasInsere: boolean; id: unknown }[];
   chamadas: number;
 } {
@@ -70,7 +74,7 @@ function casaDeMentira(recusarNa?: number): Casa & {
       const daVez = casa.chamadas;
       casa.chamadas += 1;
       if (recusarNa !== undefined && daVez === recusarNa) {
-        return 'o servidor recusou esta linha';
+        return { codigo, mensagem: 'o servidor recusou esta linha' };
       }
       casa.recebido.push({ tabela, apenasInsere, id: linha.id });
       return null;
@@ -250,4 +254,66 @@ test('a linha que sumiu para a fatia, e o que já subiu continua subido', async 
     'o que passou antes do buraco volta aceito, e nada depois dele foi mandado',
   );
   assert.equal(casa.recebido.length, 1, 'e o servidor recebeu exatamente uma linha');
+});
+
+test('a recusa DEFINITIVA sai da frente, e a fila que travava anda', async () => {
+  /**
+   * A cena inteira, que é a do item da conferência duplicada.
+   *
+   * Dois celulares na mesma doca, os dois offline, conferem a mesma carga. O primeiro sobe e
+   * entra. O segundo sobe e o servidor recusa com `23505` — a `0051`, que existe para o saldo
+   * não dobrar. Antes desta rodada era aqui que tudo parava: o motor via "entraram menos do
+   * que mandei", chamava de lacuna, tentava de novo, desistia, e **não marcava nada**. Na
+   * sincronia seguinte, a mesma parede, com tudo o que o aparelho gravou depois preso atrás.
+   *
+   * O `23505` é o código que a NOSSA migração escolhe, então esta não é uma suposição sobre
+   * um servidor que ninguém exercitou.
+   */
+  await umDiaDeFabrica();
+  const antes = await pendingCount();
+  assert.ok(antes >= 3, `a fila precisa de pelo menos três linhas para este caso (tem ${antes})`);
+
+  const casa = casaDeMentira(1, '23505');
+  const relatorio = await drain(transporte({ userId: 'conta-1', companyId: EMPRESA_SEMENTE }, casa), {
+    maxAttempts: 1,
+  });
+
+  assert.equal(relatorio.postasDeLado, 1, 'a recusada definitiva saiu da frente');
+  assert.equal(relatorio.sent, 1, 'e ela NÃO conta como enviada: o servidor não a tem');
+  assert.equal(
+    relatorio.remaining,
+    antes - 2,
+    'a fila encolheu por duas: uma subiu e a outra saiu da frente — e é isso que a destrava',
+  );
+
+  // A prova que importa: a rodada SEGUINTE não bate na mesma parede.
+  const casa2 = casaDeMentira();
+  const segunda = await drain(transporte({ userId: 'conta-1', companyId: EMPRESA_SEMENTE }, casa2), {
+    maxAttempts: 1,
+  });
+  assert.equal(segunda.remaining, 0, 'o resto da fila subiu inteiro na rodada seguinte');
+  assert.equal(segunda.postasDeLado, 0, 'e nada mais precisou sair da frente');
+});
+
+test('recusa SEM código conhecido continua travando — e isso é de propósito', async () => {
+  /**
+   * O caso falso, e ele vale mais que o verdadeiro: é ele que impede o conserto de virar
+   * perda de dado.
+   *
+   * A assimetria é brutal. Tirar da frente uma recusa passageira é dado que nunca chega ao
+   * servidor, em silêncio. Deixar travada uma recusa permanente é a fila parada, que é ruim
+   * e VISÍVEL. Então todo código desconhecido continua sendo lacuna, e a lista de permanentes
+   * é curta de propósito.
+   */
+  await umDiaDeFabrica();
+  const antes = await pendingCount();
+
+  const casa = casaDeMentira(1, '40001'); // deadlock: passageiro de verdade
+  const relatorio = await drain(transporte({ userId: 'conta-1', companyId: EMPRESA_SEMENTE }, casa), {
+    maxAttempts: 1,
+  });
+
+  assert.equal(relatorio.postasDeLado, 0, 'código desconhecido NÃO sai da frente');
+  assert.equal(relatorio.remaining, antes - 1, 'e a linha recusada continua na fila, inteira');
+  assert.ok(relatorio.error, 'a corrida termina dizendo que parou, como antes');
 });

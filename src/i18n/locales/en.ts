@@ -612,6 +612,8 @@ export const en: Dictionary = {
         + 'recorded, so it opens on another phone and does not depend on one device.',
       syncNothing: 'Nothing waiting. Everything this device recorded is already on the server.',
       syncWaiting: '{{count}} waiting to go up',
+      syncSetAside:
+        '{{count}} will not go up: the server already had that record. They stay here and do not hold the queue.',
       syncAction: 'Send now',
       syncSending: 'Sending…',
       syncSent: '{{sent}} went up. Still waiting: {{left}}.',

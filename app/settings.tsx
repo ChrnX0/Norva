@@ -82,7 +82,7 @@ import {
 } from '@/data/erase';
 import { exampleStillHere, restoreStarterData } from '@/data/seed';
 import { empresaAdotada, empresaDaqui } from '@/data/empresa';
-import { pendingCount } from '@/data/outbox';
+import { pendingCount, rejectedCount } from '@/data/outbox';
 import { contaAtual } from '@/sync/conta';
 import { drain } from '@/sync/engine';
 import { transporte } from '@/sync/transporte';
@@ -358,6 +358,19 @@ function Settings() {
   const { data: folga, refresh: refreshFolga } = useQuery<number>(() => purchaseSafetyDays());
   const { data: prazo, refresh: refreshPrazo } = useQuery<number | null>(() => eraseGraceDays());
   const { data: naFila, refresh: refreshFila } = useQuery<number>(() => pendingCount());
+  /**
+   * O que ficou de LADO, que é outra coisa que o que está na fila.
+   *
+   * Pendente quer dizer "ainda vai subir"; posta de lado quer dizer "não sobe nunca, e está
+   * tudo bem" — a conferência que um segundo celular anotou da mesma carga, recusada pela
+   * `0051`. Antes desta rodada a recusa definitiva ficava pendente para sempre: a tela dizia
+   * "faltam 3" com três linhas que nunca iam faltar menos, e tudo o que o aparelho gravou
+   * depois ficava preso atrás delas.
+   *
+   * Zero é o caso normal e não vira frase nenhuma — "está tudo bem" é estado válido, e
+   * alerta inventado ensina a ignorar alerta.
+   */
+  const { data: deLado, refresh: refreshDeLado } = useQuery<number>(() => rejectedCount());
   const [enviando, setEnviando] = useState(false);
   const [oQueSubiu, setOQueSubiu] = useState<string | null>(null);
   const { data: nomeia, refresh: refreshNomeia } = useQuery<boolean>(() => namesWhoRecorded());
@@ -610,6 +623,7 @@ function Settings() {
     } finally {
       setEnviando(false);
       refreshFila();
+      refreshDeLado();
     }
   };
 
@@ -1507,6 +1521,14 @@ function Settings() {
           ) : null}
           {oQueSubiu ? (
             <Text style={[type.body, { color: color.ink, marginTop: space.sm }]}>{oQueSubiu}</Text>
+          ) : null}
+          {/* O que não sobe nunca, dito com outras palavras que o que ainda vai subir.
+              A frase orienta e não fiscaliza: ela diz o que aconteceu e o que fazer, e não
+              culpa quem conferiu duas vezes — duas pessoas na mesma doca é o normal. */}
+          {(deLado ?? 0) > 0 ? (
+            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
+              {fill(t.app.settings.syncSetAside, { count: String(deLado) })}
+            </Text>
           ) : null}
         </Card>
       </Reveal>

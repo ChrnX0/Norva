@@ -40,7 +40,7 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | tabelas no aparelho (SQLite) | **27** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **29** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
 | migrações do servidor | **59** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V33** | último `const V` em `src/data/db.ts` |
+| migrações do aparelho | **V34** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
 | linhas de código | **~92.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **755** testes |
+| `npm test` | **761** testes |
 | `npm run mutate` | **130** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **58** checagens num navegador de verdade |
 | `npm run db:verify` | **31** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **16** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -1478,7 +1478,35 @@ implementação faz `return error ? error.message : null` (`transporte.ts:33` e 
 objeto de erro do Supabase carrega `code` (o SQLSTATE, `23505` no caso da `0051`), `details`
 e `hint`, e só a frase sobrevive. Devolver o código em vez da frase é a mudança inteira.
 
-Então a fila do item é:
+### CONSTRUÍDO em 11 de setembro — os dois degraus de engenharia
+
+*"Entendi, segue então como vc disse"* — decisão do dono, autorizando a metade que não
+dependia dele. O que entrou:
+
+- `src/sync/recusa.ts`, puro: `classeDaRecusa(codigo)`, com **um** código promovido (`23505`)
+  e o padrão `passageira` para todo o resto. A assimetria de custo está escrita lá e manda em
+  tudo: tirar da frente uma recusa passageira **perde dado em silêncio**; deixar travada uma
+  permanente é a fila parada, que é ruim e **visível**.
+- `Casa.escrever` devolve `{ codigo, mensagem }` em vez de só a frase — o `SQLSTATE` deixou de
+  ser descartado uma linha antes de poder ser usado.
+- `PushResult.rejeitadas` abre o canal, e o transporte relata a culpada que ele já conhecia em
+  vez de perdê-la no `break`.
+- `V34` dá à fila o TERCEIRO estado: `recusada_em` + `recusa_codigo`. Não é `sent_at` — isso
+  seria o aparelho afirmar que o servidor tem a linha, a mentira mais cara desta fila. A
+  recusada sai da contagem de pendentes, sai da faxina de órfãs, e fica com o código ao lado.
+- `app/settings.tsx` conta o que ficou de lado, com palavras diferentes das de "esperando
+  para subir", e zero não vira frase nenhuma.
+
+Provado nos dois sentidos: com `23505` a fila **encolhe por duas** (uma subiu, uma saiu da
+frente) e a rodada seguinte esvazia a fila; com um código desconhecido nada sai da frente e a
+corrida termina dizendo que parou, como antes. Esvaziando a lista de permanentes, o primeiro
+caso fica vermelho.
+
+**O que falta é só o degrau 3, e ele é tela:** mostrar a duplicação com data, hora, local e
+operador nos dois celulares, e o primeiro que aceitar fica. A `0051` pode ser aplicada agora —
+a fila não trava mais nela.
+
+A fila do item era:
 
 1. **`PushResult` ganha as recusadas** — `{ acceptedIds, rejeitadas: { id, classe }[] }` —, e
    `drain` põe as permanentes de lado em vez de retentar. A culpada já é conhecida; o que

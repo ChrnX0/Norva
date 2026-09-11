@@ -28,9 +28,30 @@ import { APENAS_INSERE, serialize, type ServerTable, type SyncActor } from './se
  * tela — inclusive o portão do dinheiro —, e o que atravessa não pode depender de
  * quem estava com o aparelho na hora de sincronizar. Aqui a linha vem crua.
  */
+/**
+ * O que o servidor respondeu quando recusou — e o CÓDIGO é metade disto.
+ *
+ * Antes daqui saía só a frase (`Promise<string | null>`), e o código era descartado uma linha
+ * antes de poder ser usado: `return error ? error.message : null`. O objeto do PostgREST
+ * carrega `code` — o `SQLSTATE` do Postgres —, e é ele que separa "o servidor está ocupado"
+ * de "esta remessa já foi conferida". Sem o código, a fila trata as duas do único jeito
+ * seguro que lhe resta: tentar de novo para sempre, presa na segunda.
+ *
+ * A frase fica porque ela é o que chega à tela; o código entra porque ele é o que decide.
+ */
+export type ProblemaDoServidor = {
+  /** O `SQLSTATE`, quando o servidor manda um. Nulo quando a falha é de rede ou de cliente. */
+  codigo: string | null;
+  mensagem: string;
+};
+
 export type Casa = {
-  /** Escreve uma linha. Devolve a mensagem do servidor, ou nulo quando deu certo. */
-  escrever(tabela: ServerTable, linha: Record<string, unknown>, apenasInsere: boolean): Promise<string | null>;
+  /** Escreve uma linha. Devolve o problema do servidor, ou nulo quando deu certo. */
+  escrever(
+    tabela: ServerTable,
+    linha: Record<string, unknown>,
+    apenasInsere: boolean,
+  ): Promise<ProblemaDoServidor | null>;
 };
 
 /**
@@ -56,7 +77,12 @@ export async function casaDoServidor(): Promise<Casa | null> {
         // update` é pedir uma permissão que a conta não tem — e a resposta é
         // `permission denied` sem dizer qual das duas falta.
         .upsert(linha, { onConflict: 'id', ignoreDuplicates: apenasInsere });
-      return error ? error.message : null;
+      if (!error) return null;
+      // `code` é o `SQLSTATE` quando o erro veio do Postgres, e ausente quando ele veio da
+      // rede ou do cliente — e ausente é exatamente o que `classeDaRecusa` trata como
+      // passageiro. Nada aqui decide: quem decide é a lista, num arquivo puro.
+      const codigo = typeof error.code === 'string' && error.code.length > 0 ? error.code : null;
+      return { codigo, mensagem: error.message };
     },
   };
 }
@@ -81,6 +107,18 @@ export function transporte(actor: SyncActor, casa?: Casa | null): Transport {
       if (!alvo || !empresaAdotada()) return { acceptedIds: [] };
 
       const aceitos: string[] = [];
+      /**
+       * A culpada, com o código do servidor — e ela SEMPRE foi conhecida aqui.
+       *
+       * Este laço manda linha por linha e para na primeira que falha, então o `break` de
+       * baixo sabia exatamente quem era. O que faltava era o contrato ter onde dizer:
+       * `PushResult` tinha um campo só, `acceptedIds`, e o motor recebia apenas "entraram
+       * menos do que eu mandei" — que ele tratava como lacuna passageira, para sempre.
+       *
+       * Quem decide se a recusa é definitiva não é este arquivo: é `classeDaRecusa`, numa
+       * lista curta e num arquivo puro. Aqui só se relata.
+       */
+      const rejeitadas: { id: string; codigo: string | null }[] = [];
       for (const entry of entries) {
         // **Exceção no meio da fatia não pode apagar o que o servidor já guardou.**
         //
@@ -117,11 +155,15 @@ export function transporte(actor: SyncActor, casa?: Casa | null): Transport {
           write.row,
           (APENAS_INSERE as readonly string[]).includes(write.table),
         );
-        // Para no primeiro buraco. O que já foi aceito volta aceito.
-        if (problema !== null) break;
+        // Para no primeiro buraco. O que já foi aceito volta aceito — e agora a culpada
+        // volta com ele, nomeada, em vez de morrer neste `break`.
+        if (problema !== null) {
+          rejeitadas.push({ id: entry.id, codigo: problema.codigo });
+          break;
+        }
         aceitos.push(entry.id);
       }
-      return { acceptedIds: aceitos };
+      return { acceptedIds: aceitos, rejeitadas };
     },
   };
 }

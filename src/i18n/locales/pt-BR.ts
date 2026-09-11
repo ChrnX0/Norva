@@ -818,6 +818,15 @@ export const ptBR = {
         + 'gravou, para abrir noutro celular e para não depender de um aparelho só.',
       syncNothing: 'Nada esperando. Tudo o que este aparelho gravou já está no servidor.',
       syncWaiting: '{{count}} esperando para subir',
+      /**
+       * O que NÃO sobe nunca — e a frase orienta em vez de fiscalizar.
+       *
+       * O caso real é duas pessoas conferindo a mesma carga na doca, as duas sem sinal.
+       * As duas estão certas; o servidor é que só aceita uma. Então nada aqui culpa
+       * ninguém: diz o que ficou, onde ver, e segue.
+       */
+      syncSetAside:
+        '{{count}} não sobem: o servidor já tinha esse registro. Elas ficam guardadas aqui e não seguram a fila.',
       syncAction: 'Enviar agora',
       syncSending: 'Enviando…',
       syncSent: 'Subiram {{sent}}. Ainda esperando: {{left}}.',

@@ -617,6 +617,8 @@ export const es: Dictionary = {
         + 'registró, para abrir en otro celular y no depender de un solo aparato.',
       syncNothing: 'Nada esperando. Todo lo que este aparato registró ya está en el servidor.',
       syncWaiting: '{{count}} esperando para subir',
+      syncSetAside:
+        '{{count}} no suben: el servidor ya tenía ese registro. Quedan guardadas aquí y no frenan la cola.',
       syncAction: 'Enviar ahora',
       syncSending: 'Enviando…',
       syncSent: 'Subieron {{sent}}. Todavía esperando: {{left}}.',

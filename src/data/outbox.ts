@@ -103,8 +103,10 @@ export async function pendingEntries(limit = 100): Promise<OutboxEntry[]> {
     //
     // `queued_at` continua sendo o que a tela conta ("aquilo de terça subiu?") e o
     // que a faxina compara. Ele só deixa de decidir a ordem.
+    // `recusada_em IS NULL` é o que faz o terceiro estado valer alguma coisa: sem ele a
+    // linha posta de lado continuaria a ser oferecida, e a fila continuaria presa nela.
     `SELECT id, table_name, row_id, op, payload, queued_at
-       FROM outbox WHERE sent_at IS NULL
+       FROM outbox WHERE sent_at IS NULL AND recusada_em IS NULL
       ORDER BY rowid
       LIMIT ?`,
     [limit],
@@ -132,15 +134,55 @@ function parsePayload(json: string): Record<string, unknown> {
   }
 }
 
+/**
+ * Quantas ainda VÃO subir — e a recusada definitiva não é uma delas.
+ *
+ * Contá-la aqui seria a mentira simétrica à de carimbá-la como enviada: a tela diria
+ * *"faltam 3"* para sempre, com três linhas que nunca vão faltar menos. Quem conta o que
+ * ficou de lado é `rejectedEntries`, e a tela diz as duas coisas com palavras diferentes.
+ */
 export async function pendingCount(): Promise<number> {
   const conn = await db();
   const row = await conn.getFirstAsync<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM outbox WHERE sent_at IS NULL`,
+    `SELECT COUNT(*) AS n FROM outbox WHERE sent_at IS NULL AND recusada_em IS NULL`,
+  );
+  return row?.n ?? 0;
+}
+
+/** Quantas ficaram de lado por recusa definitiva. Zero é o caso normal. */
+export async function rejectedCount(): Promise<number> {
+  const conn = await db();
+  const row = await conn.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM outbox WHERE recusada_em IS NOT NULL`,
   );
   return row?.n ?? 0;
 }
 
 /** Marks exactly what the server accepted, and nothing else. */
+/**
+ * A linha que o servidor NUNCA vai aceitar sai da frente — e não é marcada como enviada.
+ *
+ * A diferença entre os dois carimbos é a mentira mais cara que esta fila pode contar. `sent_at`
+ * quer dizer *"o servidor tem isto"*, e o razão do dono depende dessa frase ser verdade:
+ * `adocao.ts` proíbe trocar de empresa depois de a primeira linha subir, e a faxina apaga o que
+ * está enviado. Carimbar uma recusa como envio apagaria dado que nunca chegou a lugar nenhum.
+ *
+ * `recusada_em` diz outra coisa: *"esta não entra nunca, e está tudo bem"*. A entrada continua
+ * no aparelho, com o `SQLSTATE` que decidiu ao lado, e a faxina não a toca — quem conferiu vai
+ * querer saber por que ela não subiu, e a resposta tem de estar na linha.
+ *
+ * Quem decide se a recusa é definitiva é `classeDaRecusa` (`src/sync/recusa.ts`), e o padrão
+ * dela é "passageira". Aqui não há decisão: só o carimbo.
+ */
+export async function markRejected(id: string, codigo: string | null): Promise<void> {
+  const conn = await db();
+  await conn.runAsync(
+    `UPDATE outbox SET recusada_em = ?, recusa_codigo = ?
+      WHERE id = ? AND sent_at IS NULL AND recusada_em IS NULL`,
+    [nowIso(), codigo, id],
+  );
+}
+
 export async function markSent(ids: readonly string[]): Promise<void> {
   if (ids.length === 0) return;
 
@@ -257,8 +299,11 @@ export async function forgetOrphans(conn: Db): Promise<number> {
     // O nome vem de `QUEUED_TABLES`, uma lista fechada deste arquivo, então esta
     // interpolação não carrega nada que um chamador escolheu.
     const órfãs = await conn.getAllAsync<{ id: string }>(
+      // A recusada fica FORA da faxina de órfãs: ela é o registro de por que uma linha não
+      // subiu, e quem conferiu vai perguntar. Esquecê-la porque a linha de origem foi
+      // apagada depois trocaria a resposta por silêncio.
       `SELECT o.id FROM outbox o
-        WHERE o.sent_at IS NULL AND o.table_name = ?
+        WHERE o.sent_at IS NULL AND o.recusada_em IS NULL AND o.table_name = ?
           AND NOT EXISTS (SELECT 1 FROM ${table} t WHERE t.id = o.row_id)`, // proofgate-allow
       [table],
     );

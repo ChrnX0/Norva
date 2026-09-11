@@ -1204,9 +1204,36 @@ CREATE UNIQUE INDEX IF NOT EXISTS flavors_name_idx
 CREATE INDEX IF NOT EXISTS flavors_category_idx ON flavors (company_id, category_id);
 `;
 
+/**
+ * A fila ganha onde dizer "esta linha NUNCA entra, e está tudo bem". Sem par no servidor.
+ *
+ * A `outbox` tinha dois estados — pendente (`sent_at` nulo) e enviada — e a recusa definitiva
+ * não cabe em nenhum dos dois. Marcar `sent_at` seria o aparelho afirmar que o servidor tem a
+ * linha, que é a mentira mais cara que esta fila pode contar; deixar pendente é o de hoje, com
+ * a fila presa na mesma parede para sempre e tudo o que vem atrás preso com ela.
+ *
+ * `recusada_em` é o terceiro estado, e `recusa_codigo` guarda o `SQLSTATE` que o decidiu —
+ * porque "por que esta não subiu" é pergunta que alguém vai fazer, e a resposta tem de estar
+ * na linha e não no log de uma sessão que já morreu.
+ *
+ * **Não atravessa para o servidor**, e nem poderia: a `outbox` é a própria fila. O índice de
+ * pendentes é refeito para a recusada sair da frente — sem isso ela continuaria sendo
+ * oferecida, e o terceiro estado não resolveria nada.
+ */
+const V34 = `
+ALTER TABLE outbox ADD COLUMN recusada_em TEXT;
+ALTER TABLE outbox ADD COLUMN recusa_codigo TEXT;
+DROP INDEX IF EXISTS outbox_pending_idx;
+CREATE INDEX IF NOT EXISTS outbox_pending_idx
+  ON outbox (queued_at) WHERE sent_at IS NULL AND recusada_em IS NULL;
+CREATE INDEX IF NOT EXISTS outbox_recusadas_idx
+  ON outbox (recusada_em) WHERE recusada_em IS NOT NULL;
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
   V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33,
+  V34,
 ];
 
 export type SqlParam = string | number | null;
