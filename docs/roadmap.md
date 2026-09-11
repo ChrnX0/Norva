@@ -52,7 +52,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 | `npm test` | **767** testes |
 | `npm run mutate` | **132** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **58** checagens num navegador de verdade |
-| `npm run db:verify` | **31** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **16** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
+| `npm run db:verify` | **32** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **17** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 
@@ -1455,8 +1455,19 @@ estar certa. Virar guarda sem decidir isso é generalizar uma decisão do dono p
 que ela diz, que é o erro simétrico ao de tratar decisão escrita como defeito. Decisão de
 dono: a regra vale para toda cena, ou só onde há repetição?
 
-### B. Duas pessoas conferindo a mesma remessa ainda dobram o saldo NO SERVIDOR
-<!-- medida: ausente supabase/migrations :: discrepancy_once_per_group -->
+### B. ~~Duas pessoas conferindo a mesma remessa ainda dobram o saldo NO SERVIDOR~~ — a REGRA está de pé e provada; o que falta é a tela do degrau 3
+<!-- medida: ausente src/data :: export async function rejectedEntries -->
+
+**E a medida deste item não podia ficar vermelha — achado em 11 de setembro.** Ela dizia
+`ausente supabase/migrations :: discrepancy_once_per_group`, e esse nome **não existe em lugar
+nenhum do repositório**: a `0051` chama a função dela de `one_standing_check_per_shipment` e o
+gatilho de `movements_one_standing_check`. Uma medida que procura o que nunca existiu prova a
+ausência de graça — e continuaria provando no dia em que alguém construísse a coisa, que é
+exatamente o defeito que este arquivo proíbe duas seções acima: *a guarda não podia falhar*.
+
+Hoje ela aponta para `rejectedEntries`, que é a peça que o degrau 3 precisa e que o portão P1
+recusou por não ter chamador (escrita e apagada no mesmo commit). No dia em que a tela nascer, a
+função nasce com ela e a medida fica vermelha pedindo que este item seja riscado.
 
 O aparelho passou a recusar a segunda conferência (`JaConferidaError`, 9 de setembro), e
 o servidor não tem a regra. Dois celulares na mesma doca, os dois offline, conferem a

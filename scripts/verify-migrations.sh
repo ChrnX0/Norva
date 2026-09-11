@@ -2011,6 +2011,66 @@ psql -d "$DB" -q -c "insert into flavors (id, company_id, line_id, category_id, 
 
 echo "    morango cabe em duas categorias, morre repetido na mesma, e nao existe sem produto"
 
+echo "==> check 32: o CÓDIGO da recusa é o que o aparelho trata como permanente"
+
+# **O elo que faltava era uma suposição na minha própria mão.**
+#
+# A `0051` recusa a segunda conferência com `errcode = 'unique_violation'`, e
+# `src/sync/recusa.ts` promove `23505` a recusa PERMANENTE — a fila põe a linha de lado em
+# vez de tentar para sempre. Entre as duas pontas existe um fato que ninguém media: **que o
+# Postgres traduz `unique_violation` em `23505`.** `src/sync/recusa.test.ts` prova que a
+# migração NOMEIA o código, e faz isso bem; a tradução, porém, era uma constante escrita por
+# mim dentro do próprio teste (`{ '23505': 'unique_violation' }`). Duas coisas escritas pela
+# mesma mão não guardam nada, e esta era a mão.
+#
+# Se a tradução estivesse errada, NADA ficaria vermelho e o efeito seria o defeito mais caro
+# que este projeto conhece: a recusa CERTA volta classificada como passageira, a fila tenta de
+# novo para sempre, e tudo o que o aparelho gravou depois fica preso atrás — calado.
+#
+# A garantia 28 dispara exatamente este erro e joga o código no lixo (`2>&1 >/dev/null`),
+# porque ela pergunta outra coisa: se a linha entrou. Esta pergunta o código.
+#
+# Lido de DENTRO do Postgres — `sqlstate` num bloco com `exception` —, e não da mensagem do
+# `psql`: formato de texto de cliente muda de versão, `sqlstate` é o valor.
+#
+# Reusa o estado da 28, como ela mesma reusa a empresa das anteriores: lá a `f5` ficou como a
+# conferência de pé do par (grupo, item), então uma segunda bate na mesma parede.
+CODIGO=$(psql -d "$DB" -Atq -c "
+create or replace function pg_temp.conferir_de_novo() returns text language plpgsql as \$fn\$
+begin
+  insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id,
+      quantity_base_units, location_id, counterpart_location_id, movement_group_id, post)
+  values ('${CHK}fa','${M}c1','discrepancy', now(), '$CHECKER', '${M}b1', -3,
+          '${V}a1','${M}a1','${CHK}e1','checked');
+  return 'ENTROU';
+exception when others then
+  return sqlstate;
+end \$fn\$;
+select pg_temp.conferir_de_novo();")  # proofgate-allow
+
+[ -n "$CODIGO" ] || fail "a medida do código não devolveu nada: a régua não mediu, e régua que não mede concorda com qualquer coisa"
+[ "$CODIGO" != "ENTROU" ] || fail "a segunda conferência da mesma remessa PASSOU: a 0051 não está de pé e o saldo dobra"
+
+# A lista que o APARELHO usa, lida do arquivo dele. Duas mãos: o código vem do Postgres, a
+# lista vem do TypeScript, e nenhuma das duas passou pela outra.
+#
+# **A leitura se separa do CONTEÚDO, e isso saiu de provar a régua.** Esvaziar a lista é a
+# mutação que a guarda de TypeScript aceita de graça — `CODIGOS_PERMANENTES` vazio satisfaz
+# "todo código promovido tem migração" sem esforço —, e é justamente o buraco que esta
+# garantia existe para tapar. Com uma checagem só, lista vazia sairia como "não deu para ler"
+# e a mensagem mandaria consertar a régua em vez do defeito. São duas perguntas: a linha
+# existe, e o que tem nela.
+[ "$(grep -c '^const PERMANENTES' src/sync/recusa.ts)" = "1" ] \
+  || fail "não achei a linha de PERMANENTES em src/sync/recusa.ts: a forma mudou, e esta garantia ficaria verde sem medir nada"
+PERMANENTES=$(sed -n "s/^const PERMANENTES[^(]*(\[\([^]]*\)\]).*/\1/p" src/sync/recusa.ts | tr -d "' " | tr ',' ' ')
+
+case " $PERMANENTES " in
+  *" $CODIGO "*) ;;
+  *) fail "o servidor recusa a conferência duplicada com SQLSTATE $CODIGO, e o aparelho só trata [$PERMANENTES] como permanente: a fila vai tentar de novo para sempre e travar calada, com tudo o que vier atrás preso" ;;
+esac
+
+echo "    o servidor recusa com $CODIGO, e a fila do aparelho sabe pôr esse código de lado"
+
 echo
-echo "OK - migrations apply and all thirty-one guarantees hold."
+echo "OK - migrations apply and all thirty-two guarantees hold."
 

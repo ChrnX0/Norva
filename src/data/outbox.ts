@@ -139,7 +139,10 @@ function parsePayload(json: string): Record<string, unknown> {
  *
  * Contá-la aqui seria a mentira simétrica à de carimbá-la como enviada: a tela diria
  * *"faltam 3"* para sempre, com três linhas que nunca vão faltar menos. Quem conta o que
- * ficou de lado é `rejectedEntries`, e a tela diz as duas coisas com palavras diferentes.
+ * ficou de lado é `rejectedCount`, logo abaixo, e a tela diz as duas coisas com palavras
+ * diferentes. (Esta linha dizia `rejectedEntries` — a função que LISTARIA as recusadas, escrita
+ * e apagada no mesmo commit porque o portão P1 a recusou sem chamador. Ela nasce com o degrau 3
+ * da conferência duplicada, que é a tela que precisa dos dados de cada uma.)
  */
 export async function pendingCount(): Promise<number> {
   const conn = await db();

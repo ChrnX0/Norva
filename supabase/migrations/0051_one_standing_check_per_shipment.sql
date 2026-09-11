@@ -1,24 +1,31 @@
--- ⚠ ESTA MIGRAÇÃO NÃO PODE SER APLICADA SOZINHA — leia antes de rodar.
+-- ⚠ ESTA MIGRAÇÃO NÃO PODIA SER APLICADA SOZINHA. **HOJE PODE** — 11 de setembro.
 --
--- Ela está correta e provada (garantia 28 do `db:verify`, que fica vermelha sem ela). O
--- que falta é do OUTRO lado: a fila do aparelho não sabe o que fazer com uma recusa
--- permanente. `pushOnce` não marca a linha, tenta de novo, e tudo o que vier atrás fica
--- preso — calado. É o defeito que a `0048` chama de o mais caro que este projeto conhece.
+-- O aviso abaixo ficou de pé por dois dias depois de a razão dele deixar de valer, e ele é a
+-- primeira coisa que alguém lê antes de rodar isto. Fica registrado inteiro, porque metade
+-- dele continua verdadeira e a outra metade explica o que foi construído.
 --
--- E aqui ele tem uma cara NOVA, que é o que faz esta migração esperar. A recusa da `0048`
--- era ERRADA: uma linha legítima que o servidor rejeitava, e o conserto era deixá-la
--- passar. Esta recusa é CERTA — a segunda conferência realmente não pode existir —, e por
--- isso "tentar de novo para sempre" é a resposta errada para uma resposta certa. A fila
--- precisa de um caminho que ela não tem: reconhecer "esta linha não vai entrar nunca, e
--- está tudo bem", tirá-la da frente, e dizer isso a quem conferiu.
+-- **O que CAIU.** A fila do aparelho não sabia o que fazer com uma recusa permanente:
+-- `pushOnce` não marcava a linha, tentava de novo, e tudo o que vinha atrás ficava preso,
+-- calado. Isso foi construído: `src/sync/recusa.ts` classifica (só `23505` promovido, o resto
+-- passageiro por padrão), `Casa.escrever` devolve o SQLSTATE em vez de só a frase, `V34` dá à
+-- fila o terceiro estado (`recusada_em` + `recusa_codigo`), e `app/settings.tsx` conta o que
+-- ficou de lado com palavras diferentes das de "esperando para subir".
 --
--- E a pergunta que sobra é de dono, não de engenharia: **o segundo celular tem uma
--- conferência no razão dele que o servidor recusou.** Ela se desfaz sozinha? Fica marcada
--- como não aplicada? Quem confere fica sabendo na hora ou na próxima vez que abre a tela?
--- Os três caminhos existem e mudam o que a pessoa vê na doca.
+-- E o elo que sustenta tudo isso deixou de ser suposição: a **garantia 32** do `db:verify`
+-- dispara esta recusa contra um Postgres de verdade, lê `sqlstate` de dentro dele, e confere
+-- contra a lista que o aparelho usa. Antes dela, "o Postgres traduz `unique_violation` em
+-- `23505`" era uma constante escrita à mão no próprio teste que deveria guardá-la.
 --
--- Até isso ser respondido e construído, aplicar só esta metade troca "o saldo dobra, em
--- silêncio" por "a fila do segundo celular para, em silêncio" — que não é melhor.
+-- **O que FICA, e não trava a aplicação.** O segundo celular continua com uma conferência no
+-- razão local que o servidor recusou, então os dois saldos divergem por aquela correção até o
+-- estorno existir — que é o degrau 3, tela, com decisão do dono já tomada (os dois celulares
+-- veem a duplicação com data, hora, local e operador; o primeiro que aceitar fica).
+--
+-- Isso não é motivo para esperar, e a comparação é o que decide: **sem** esta migração o
+-- servidor aplica a correção DUAS VEZES — o número autoritativo fica errado, em silêncio, e o
+-- razão é append-only, então o erro vira histórico. **Com** ela o número autoritativo está
+-- certo e a divergência é local, visível e explicada na tela. Trocar a segunda pela primeira
+-- para esperar uma tela seria preferir o pior erro que este sistema conhece.
 --
 -- ---
 --
