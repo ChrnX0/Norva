@@ -990,24 +990,22 @@ const acoes = {
     console.log(linhas.join('\n'));
   },
   derrubar,
-  // A régua descartável também passa por um caso verdadeiro e um falso — este
-  // projeto já teve duas medidas de uma vez erradas por não fazer isso.
-  autoteste: () => {
-    const casos = [
-      [['Receitas', 'Receitas', 'Receitas'], true],
-      [['Receitas', 'Início', 'Receitas'], false],
-      [['Receitas'], true],
-      [[], true],
-    ];
-    let falhou = 0;
-    for (const [entrada, esperado] of casos) {
-      const { igual } = mesmaTelaEmTodas(entrada);
-      const ok = igual === esperado;
-      if (!ok) falhou += 1;
-      console.log(`${ok ? 'ok  ' : 'FALHA'} mesmaTelaEmTodas(${JSON.stringify(entrada)}) = ${igual}`);
-    }
-    if (falhou) process.exit(1);
-  },
+  // **O `autoteste` foi REMOVIDO em 11 de setembro, e o motivo é a lição.**
+  //
+  // Ele existia para cumprir a regra desta casa — toda régua passa por um caso
+  // verdadeiro e um falso — e cumpria a forma enquanto afirmava o defeito. O último
+  // caso dele era, literalmente:
+  //
+  //     [[], true],    // nenhuma leitura => "as cinco são a mesma tela"
+  //
+  // Ou seja: a guarda mentia, e o teste dela afirmava a mentira como esperado. Ele
+  // passava verde todas as vezes, e o verde era a prova de que ninguém tinha
+  // perguntado o que aquele caso queria dizer. É o "teste que passa pelo motivo
+  // errado" que este projeto caça — com o agravante de morar ao lado do que testa.
+  //
+  // A régua agora mora em `scripts/leitura.mjs` e quem a exercita é
+  // `src/leitura.test.ts`, com sete casos e rodando no `npm test` — inclusive o que
+  // fabricava o verde. Duas fontes para uma verdade é o defeito de sempre: esta some.
 };
 
 if (!acoes[verbo]) {

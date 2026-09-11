@@ -7778,6 +7778,22 @@ mesma tela. A régua dessa recusa tem autoteste com caso verdadeiro e caso falso
 (`aparelho.mjs autoteste`), que é o que este arquivo exige de toda medida de uma vez. A
 linha do `CLAUDE.md` foi corrigida junto: promessa boa, buraco fechado.
 
+> **Este parágrafo estava errado, e o erro durou dois dias — corrigido em 11 de setembro.**
+> O autoteste tinha a FORMA que esta casa exige e afirmava o defeito. O último caso dele
+> era `[[], true]`: *nenhuma leitura → "as cinco são a mesma tela"*. Com o movimento de
+> ambiente ligado, que é o estado normal do aplicativo, as cinco leituras falhavam, o
+> `.filter(Boolean)` descartava as vazias, e `[].length <= 1` dava verde — então o buraco
+> não estava fechado, estava **carimbado**.
+>
+> Ter caso verdadeiro e caso falso não basta se o caso falso afirma o comportamento
+> errado. A pergunta que faltava não é *"tem os dois casos?"* e sim **"o que este caso diz
+> que deve acontecer, e é isso mesmo?"** — e `[[], true]` responde, em uma linha, que não.
+>
+> Hoje o veredito tem três respostas (`scripts/leitura.mjs`) e quem o exercita é
+> `src/leitura.test.ts`, com sete casos, rodando no `npm test`. O verbo `autoteste` foi
+> removido: duas fontes para uma verdade é o defeito de sempre, e a que ficou é a que a
+> CI roda.
+
 **E a mesma investigação achou o custo escondido do laço.** Trocar `wm size` destrói a
 Activity e o Android **não a recria sozinha**: o processo do app fica vivo com zero view
 anexada, e nesse estado o `dumpsys gfxinfo` nem imprime a linha `Total frames rendered`
@@ -9396,3 +9412,45 @@ derrubam, porque diferença achada é fato e ausência de diferença entre duas 
 **A pergunta que fica:** quando um buraco for registrado como bloqueado, separe o que está
 bloqueado do que só estava junto. Aqui o bloqueio era do sensor e a mentira era do
 relatório — e o relatório sempre dá para consertar hoje.
+
+## 11 de setembro — a guarda tinha teste, e o teste afirmava o defeito
+
+**O que apareceu:** consertada a guarda das cinco larguras, fui ver o que MAIS tocava
+nela — a regra desta casa de que conserto não termina no arquivo que o mostrou. E o que
+tocava era um autoteste, dentro do próprio `aparelho.mjs`, com este comentário por cima:
+
+> *"A régua descartável também passa por um caso verdadeiro e um falso — este projeto já
+> teve duas medidas de uma vez erradas por não fazer isso."*
+
+Quatro casos. O último era:
+
+```js
+[[], true],   // nenhuma leitura => "as cinco são a mesma tela"
+```
+
+**O teste afirmava a mentira como esperado.** Ele passava verde todas as vezes, e o verde
+era a prova de que ninguém tinha perguntado o que aquele caso queria dizer. Um `docs/insights.md`
+de 10 de setembro chegou a registrar que *"a régua dessa recusa tem autoteste com caso
+verdadeiro e caso falso… promessa boa, buraco fechado"* — e o buraco não estava fechado,
+estava **carimbado**.
+
+**Por que importa mais que o defeito que ele escondia:** este repositório tem uma regra
+forte e muito citada — *detector novo não reporta nada antes de passar num caso verdadeiro
+e num falso*. Ela é boa e é **contável**, e por isso vira ritual: dois casos, pronto. O que
+ela não obriga ninguém a fazer é ler o que cada caso AFIRMA. Aqui a forma estava perfeita e
+o conteúdo era o defeito, escrito em oito caracteres.
+
+É irmã da regra que já está no `CLAUDE.md` sobre `assert.ok(valor > 0)` e sobre a segunda
+fonte derivada da primeira: nas três, a linha **parece** uma verificação. A diferença é que
+ali o problema é a asserção não morder; aqui ela morde com força na direção errada.
+
+**O que mudou por causa disso:** o autoteste foi **removido**, não corrigido — a régua
+mora em `scripts/leitura.mjs` e quem a exercita é `src/leitura.test.ts`, com sete casos,
+rodando no `npm test` em vez de num verbo que ninguém digita. Duas fontes para uma verdade
+é o defeito de sempre, e a que ficou é a que a CI roda. O parágrafo de 10 de setembro
+ganhou a correção em cima, com o caso citado, para não continuar afirmando um buraco
+fechado.
+
+**A pergunta que fica, e ela troca uma contagem por uma leitura:** diante de um caso de
+teste, não pergunte *"tem caso verdadeiro e falso?"* — pergunte **"o que este caso diz que
+deve acontecer, e é isso mesmo?"**. `[[], true]` responde em uma linha, para quem olhar.
