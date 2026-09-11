@@ -167,3 +167,31 @@ test('quem desliga o movimento devolve num finally, não no caminho feliz', () =
   // sistema como saída quando não deu para ler.
   assert.match(ate, /antes\?\.\[i\]/, 'deixou de devolver o valor que estava antes');
 });
+
+/**
+ * Aviso deliberado não é aviso — a Lei 7 aplicada à legenda da foto.
+ *
+ * O `fotos` desliga o movimento de propósito, então o aparelho FICA em "reduzir
+ * movimento" durante as cinco fotos. Uma legenda que gritasse `⚠ SEM MOVIMENTO` nas cinco,
+ * toda vez, é alerta inventado: sai sempre, vira ruído, e ensina a ignorar justamente o
+ * caso que importa — o aparelho estar parado **sem ninguém ter pedido**, que foi o defeito
+ * de 10 de setembro e durou um dia.
+ *
+ * Então a legenda distingue os dois. Esta linha existe porque a distinção é fácil de
+ * perder num refactor: apagar o ramo deliberado devolve o ruído, e apagar o outro devolve
+ * o silêncio.
+ */
+test('a legenda separa "desliguei eu" de "estava parado e ninguém pediu"', () => {
+  const fonte = readFileSync('scripts/aparelho.mjs', 'utf8');
+  assert.match(fonte, /desligamosOMovimento/, 'o comando deixou de saber se foi ele quem desligou');
+  assert.match(
+    fonte,
+    /ESTE comando desligou o movimento/,
+    'o caso deliberado perdeu a legenda própria e volta a gritar nas cinco fotos',
+  );
+  assert.match(
+    fonte,
+    /⚠ SEM MOVIMENTO \(o app lê "reduzir movimento" e ninguém pediu/,
+    'o caso que importa — parado sem ninguém pedir — perdeu o grito',
+  );
+});

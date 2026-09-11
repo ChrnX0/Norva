@@ -609,7 +609,11 @@ async function foto(nome, rota) {
     movimento === null
       ? ' ⚠ não sei dizer se há movimento'
       : !movimento.appAnima
-        ? ' ⚠ SEM MOVIMENTO (o app lê "reduzir movimento": esta foto é do aplicativo parado)'
+        ? desligamosOMovimento
+          // Deliberado: quem rodou o comando leu a linha que anuncia o desligamento.
+          // Informa porque a foto é do app parado; não grita porque foi pedido.
+          ? ' (app parado: ESTE comando desligou o movimento para poder ler; devolvido no fim)'
+          : ' ⚠ SEM MOVIMENTO (o app lê "reduzir movimento" e ninguém pediu: esta foto é do aplicativo parado)'
         : movimento.sistemaAnima
           ? ''
           // O app anima e o Android não: a foto vale para julgar o aplicativo, e é o
@@ -923,7 +927,29 @@ async function esperarTelaParar(minutos = 4) {
  * O `finally` não é zelo: `wm density` já envenenou uma sessão inteira por ficar trocado,
  * e as escalas de animação envenenaram um DIA inteiro pelo mesmo motivo — com o agravante
  * de que elas desligam o aplicativo, não só o Android. Quem troca, devolve.
+ *
+ * **E o que faz isto funcionar não é a escala: é a PARTIDA FRIA que vem depois dela.**
+ * `src/components/vida.ts` pergunta `isReduceMotionEnabled()` **uma vez** e guarda a
+ * resposta no módulo (`reduzidoCache`), sem assinar mudança. Trocar a escala com o
+ * aplicativo já aberto não para animação nenhuma — ele continua com a resposta do
+ * arranque. O `fotos` só se beneficia porque reabre a rota com `-S` DENTRO deste
+ * embrulho, e aí o aplicativo nasce já lendo zero.
+ *
+ * Quem embrulhar aqui uma operação que NÃO reinicia o aplicativo não vai ganhar leitura
+ * nenhuma. Falha para o lado seguro — sem leitura o veredito vira `nao-sei` e o comando
+ * diz isso —, mas o tempo é perdido do mesmo jeito, e é por isso que fica escrito.
  */
+/**
+ * Este comando desligou o movimento, ou ele já estava assim?
+ *
+ * A diferença decide se a legenda da foto GRITA ou apenas informa. Estado deliberado
+ * anunciado como alerta é alerta inventado — e a regra desta casa diz o que isso faz:
+ * ensina a ignorar alerta. Nas cinco fotos do `fotos` o aviso sairia sempre, e um aviso
+ * que sai sempre é ruído; o que precisa gritar é o aparelho estar parado sem ninguém ter
+ * pedido, que foi o defeito de 10 de setembro.
+ */
+let desligamosOMovimento = false;
+
 async function semMovimento(fn) {
   let antes = null;
   try {
@@ -935,20 +961,44 @@ async function semMovimento(fn) {
   }
   try {
     for (const k of ESCALAS_DE_MOVIMENTO) adb('shell', 'settings', 'put', 'global', k, '0');
+    desligamosOMovimento = true;
     return await fn();
   } finally {
-    // Sem leitura anterior, devolve o PADRÃO do sistema (1) em vez de deixar em zero:
-    // deixar em zero é reproduzir o defeito que este bloco existe para não repetir. E
-    // `null` do `settings get` é "nunca foi mexido", que também vale 1.
-    ESCALAS_DE_MOVIMENTO.forEach((k, i) => {
+    desligamosOMovimento = false;
+    // **O restauro CONFERE, e diz — porque em 11 de setembro ele falhou calado.**
+    //
+    // A primeira versão devolvia e ia embora. Uma execução que morreu no meio (foto de
+    // cor única na terceira largura) deixou o aparelho em zero, e eu só descobri
+    // perguntando ao aparelho depois — sem uma linha na saída dizendo o que tinha sido
+    // lido e o que tinha sido escrito, não dava para saber se o `finally` não rodou, se
+    // o valor lido já era zero, ou se o `put` falhou.
+    //
+    // Restauro que não se vê é restauro que não se confere, que é exatamente o defeito
+    // que este bloco existe para não repetir — noutra camada.
+    const devolvidos = ESCALAS_DE_MOVIMENTO.map((k, i) => {
       const valor = antes?.[i];
+      // Sem leitura anterior, devolve o PADRÃO do sistema (1) em vez de deixar em zero:
+      // deixar em zero é reproduzir o defeito. `null` do `settings get` é "nunca foi
+      // mexido", que também vale 1.
       const devolver = !valor || valor === 'null' ? '1' : valor;
       try {
         adb('shell', 'settings', 'put', 'global', k, devolver);
-      } catch {
-        /* aparelho sumiu no meio: não há o que devolver */
+        const agora = adb('shell', 'settings', 'get', 'global', k);
+        return { k, devolver, agora, ok: agora === devolver };
+      } catch (e) {
+        return { k, devolver, agora: `(erro: ${String(e).split('\n')[0]})`, ok: false };
       }
     });
+    const ruins = devolvidos.filter((d) => !d.ok);
+    if (ruins.length) {
+      console.error(
+        `  ⚠ NÃO devolvi o movimento do aparelho: ${ruins.map((d) => `${d.k} devia ser ${d.devolver} e está ${d.agora}`).join('; ')}\n` +
+        '    O próximo comando vai fotografar o aplicativo parado sem saber. Devolva na mão:\n' +
+        `    adb shell settings put global transition_animation_scale 1`,
+      );
+    } else {
+      dizer(`movimento devolvido: ${devolvidos.map((d) => `${d.k.replace('_animation_scale', '').replace('_duration_scale', '')}=${d.devolver}`).join(' ')}`);
+    }
   }
 }
 
@@ -1108,7 +1158,20 @@ const acoes = {
     // diferença importa e o `try/catch` de `oQueDizATela` a apaga. Quem chama
     // precisa saber qual dos dois aconteceu.
     if (!linhas.length) {
-      console.error('a árvore veio vazia — o uiautomator não leu (janela nunca ociosa?)');
+      // A causa tem número desde 11 de setembro, e a saída também — então a mensagem
+      // diz as duas em vez de só constatar. Medido na capa, uma variável, a mesma
+      // sessão: com `transition_animation_scale = 1` foram 0 leituras de 3 (o
+      // uiautomator desiste em ~21 s); com ela em 0, 3 de 3 em 13-14 s.
+      console.error(
+        'a árvore veio vazia — o uiautomator não achou janela ociosa para ler.\n' +
+        '  A causa costuma ser o movimento do aplicativo. Medido: com movimento, 0 de 3;\n' +
+        '  sem movimento, 3 de 3 em 13-14 s.\n' +
+        '  Para ler: desligue e REABRA o app (ele lê a escala uma vez, no arranque) —\n' +
+        '    adb shell settings put global transition_animation_scale 0\n' +
+        '    node scripts/aparelho.mjs abrir <rota>\n' +
+        '  E DEVOLVA depois (`... transition_animation_scale 1`), senão a próxima foto\n' +
+        '  sai do aplicativo parado sem ninguém saber. O verbo `fotos` já faz os três.',
+      );
       process.exit(2);
     }
     console.log(linhas.join('\n'));

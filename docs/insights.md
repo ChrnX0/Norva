@@ -9507,3 +9507,45 @@ insight, pergunte **de que tipo é o conteúdo**. Se é uma lição, o arquivo c
 é uma técnica — um comando, uma bandeira, um jeito de fazer a máquina responder —, o
 arquivo certo é a **ferramenta**, e este aqui só registra que ela mudou. Insight cujo
 único vestígio é a própria entrada não teve consequência: teve anotação.
+
+## 11 de setembro — o restauro falhou calado, e eu não sei por quê
+
+**O que apareceu:** escrevi um `semMovimento` que desliga o movimento do aparelho para
+poder ler a tela e devolve num `finally`, com o docblock inteiro explicando que *"quem
+troca, devolve"* — a cicatriz do `wm density`. Rodei o comando de verdade. Ele morreu na
+terceira largura, e as três escalas ficaram **em zero**: o restauro não aconteceu.
+
+**O que eu sei, medido:**
+
+- o padrão `try { ... } finally { restaura }` roda e devolve certo — testado em isolamento,
+  com uma `fn` que rejeita, no mesmo aparelho e com o mesmo comando `adb`;
+- `process.exit()` não existe no caminho do `fotos` (só no verbo `ler` e no uso desconhecido);
+- os dois envoltórios de `adb` são `execFileSync` puro — nenhum engole erro;
+- `wm size` e `wm density` FORAM devolvidos na mesma queda ("tela de volta ao natural").
+
+**O que eu não sei:** por que não devolveu. Ou `antes` já era zero quando o comando
+começou, ou alguma coisa saiu sem passar pelo `finally`. As duas explicações cabem no que
+eu observei, e escolher uma agora seria inventar.
+
+**Por que isso é o achado, e não o bug:** eu escrevi um restauro e não escrevi como saber
+se ele aconteceu. Ele não imprimia nada, não conferia nada, e o sucesso dele era
+indistinguível do fracasso — exatamente a forma de defeito que esta noite inteira tratou,
+uma camada acima: a guarda que respondia "iguais" sem ler, a frase que dizia "sob RLS" para
+provas que não passam por RLS, o autoteste que afirmava a mentira. Aqui fui eu, no mesmo
+dia, escrevendo a quarta.
+
+E tem um agravante próprio: **um restauro é a única operação cujo sucesso ninguém vai
+verificar por conta própria.** Quem roda o comando olha a foto, não o estado do aparelho —
+e o estado errado só cobra na PRÓXIMA sessão, que é quando ninguém mais liga uma coisa à
+outra. Foi assim que este emulador passou um dia inteiro fotografando o aplicativo parado.
+
+**O que mudou por causa disso:** o restauro lê de volta o que escreveu e compara. Quando
+bate, diz o que devolveu numa linha. Quando não bate, **grita** com o valor que devia estar
+e o comando para devolver na mão. A próxima execução responde a pergunta que esta não
+respondeu — e se ela responder "devolvi certo", então `antes` já era zero, e o defeito é
+outro.
+
+**A pergunta que fica:** ao escrever qualquer coisa que DESFAZ (restaurar, limpar, fechar,
+estornar), pergunte como alguém saberia que não aconteceu. Se a resposta for "olhando o
+estado depois, em outra sessão", o desfazer precisa falar. Silêncio é a ausência de
+notícia, e num desfazer a ausência de notícia é indistinguível do sucesso.

@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **728** testes |
+| `npm test` | **729** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **55** checagens num navegador de verdade |
 | `npm run db:verify` | **29** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **14** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -1090,6 +1090,31 @@ Duas consequências dentro do repositório, e a segunda é pior:
    lê, confere e devolve (`semMovimento`, com `finally`). O `foto` singular não mexe em
    nada — é o verbo de "como esta tela está", e para isso o aplicativo tem de estar vivo.
    <!-- medida: presente scripts/aparelho.mjs :: async function semMovimento -->
+
+   **E a prova de ponta a ponta REPROVOU, no mesmo dia — o comando não completa.** Rodado
+   de verdade (`fotos prova-conferencia losses`), ele morreu na TERCEIRA largura, e quem o
+   derrubou foi o guarda do próprio `foto`: *"a foto saiu morta (cor única). Isso NÃO é
+   sucesso"*. Medido nos arquivos que saíram: **4 valores distintos de byte** — são pretas.
+   O `screencap` do convidado vem morto em toda largura (*"tentando pelo console do
+   emulador"*), e o quadro do console também.
+
+   Então a divisão honesta, hoje:
+
+   | metade | estado |
+   |---|---|
+   | ler a tela e conferir a rota | **funciona** — duas larguras leram `ÚLTIMOS 30 DIAS · Perdas` antes de o comando cair |
+   | produzir as cinco fotos | **não funciona** — quadro morto, e o comando recusa em vez de fingir |
+
+   Isso é instrumento, não aplicativo: o app desenhou (a árvore de acessibilidade leu o
+   texto certo). É a captura que morre. Fica aberto, e é o que trava o `fotos` para a fase
+   de layout.
+
+   **E o restauro do movimento falhou CALADO na mesma execução.** As três escalas ficaram
+   em zero depois da queda. O padrão `try/finally` foi testado em isolamento e devolve
+   certo, então ou `antes` já era zero, ou algo saiu sem passar pelo `finally` — **não
+   sei**, e é a resposta honesta. O conserto foi tornar o restauro verificável: ele
+   confere lendo de volta e diz o que devolveu, ou grita quando não devolveu. A próxima
+   execução responde a pergunta que esta não respondeu.
 
 E a pergunta que fica de pé, porque um leitor de tela usa esse mesmo cano: se o
 `uiautomator` não consegue ler a tela, o TalkBack consegue? Não meço isso daqui — o
