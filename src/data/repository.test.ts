@@ -7370,6 +7370,25 @@ test('a regra aprovada dos níveis é expressável: morango só no leite, com le
     'morango do produto inteiro colide com o morango que já vale numa categoria dele',
   );
 
+  // **E a direção CONTRÁRIA, que o `mutate` achou faltando — 11 de setembro.**
+  //
+  // A mutação que trocou a sobreposição por `category_id = ? OR ? IS NULL` sobreviveu à
+  // suíte, e ela sobreviveu porque este caso não existia: eu tinha provado "produto inteiro
+  // depois de categoria" e não "categoria depois de produto inteiro". Na segunda direção o
+  // defeito é o mesmo e a leitura ingênua não pega — `'leite' = NULL` é NULO, não falso,
+  // então uma condição escrita de trás para frente devolve "não há conflito".
+  //
+  // O custo é o do dono: a tela mostra as variações da categoria MAIS as do produto
+  // inteiro, então Morango apareceria duas vezes na mesma lista.
+  const outro = await saveLine(EMPRESA_SEMENTE, { name: 'Picolé da outra direção' });
+  const semLactose = await saveCategory(EMPRESA_SEMENTE, { lineId: outro, name: 'Sem lactose' });
+  await saveFlavor(EMPRESA_SEMENTE, { lineId: outro, name: 'Coco' });
+  await assert.rejects(
+    () => saveFlavor(EMPRESA_SEMENTE, { lineId: outro, categoryId: semLactose, name: 'Coco' }),
+    NomeJaCadastradoError,
+    'coco numa categoria colide com o coco que já vale no produto inteiro — a sobreposição vale nos dois sentidos',
+  );
+
   // E categoria de OUTRO produto é recusada, pela mesma ajudante que o tipo usa.
   const pote = await saveLine(EMPRESA_SEMENTE, { name: 'Pote da regra aprovada' });
   await assert.rejects(
