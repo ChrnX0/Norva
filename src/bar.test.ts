@@ -136,6 +136,62 @@ test('CLAUDE.md states the number of guarantees the script really has', () => {
   );
 });
 
+/**
+ * Quantas garantias exercitam POLÍTICA e quantas provam FORMA — derivado, não lembrado.
+ *
+ * **A frase que este guarda existe para impedir foi escrita por mim em 11 de setembro**,
+ * na tabela do roadmap e no corpo do PR: *"29 garantias contra Postgres, sob RLS"*. São 29
+ * garantias e **não** são 29 sob RLS. O script conecta como dono do banco e troca para
+ * `app_user` só onde imita o cliente (`as_user`); as outras rodam como dono porque o que
+ * elas provam é forma — gatilho, restrição, chave composta, e uma que lê `pg_policies` do
+ * catálogo.
+ *
+ * E as duas metades provam coisas diferentes, o que é o motivo de a frase importar: sob
+ * RLS prova **aceitação** (o servidor deixa esta conta escrever isto?); como dono prova
+ * **impossibilidade** (nem o dono do banco quebra), que é mais forte e é exatamente o que
+ * o razão precisa — `DELETE` em `movements` é recusado até para o dono. Dizer "tudo sob
+ * RLS" troca as duas e enfraquece o que é forte enquanto exagera o que é fraco.
+ *
+ * A régua é heurística — ela lê o texto do bloco — então ela **tem de distinguir**: se
+ * passar a casar com tudo ou com nada, as duas contagens denunciam antes de a frase virar
+ * número. Guarda que não pode falhar é o defeito que este repositório proíbe.
+ */
+function divisaoDoBanco(): { sobRls: number; deForma: number } {
+  const inicios = [...SCRIPT.matchAll(/^echo "==> check \d+:/gm)].map((m) => m.index ?? 0);
+  let sobRls = 0;
+  for (let i = 0; i < inicios.length; i += 1) {
+    const bloco = SCRIPT.slice(inicios[i], inicios[i + 1] ?? SCRIPT.length);
+    if (/as_user|set role app_user|rows_as/.test(bloco)) sobRls += 1;
+  }
+  return { sobRls, deForma: inicios.length - sobRls };
+}
+
+test('the plan says which guarantees run under RLS and which prove shape', () => {
+  const { sobRls, deForma } = divisaoDoBanco();
+  assert.ok(
+    sobRls > 0 && deForma > 0,
+    `a régua da divisão deixou de distinguir: ${sobRls} sob RLS e ${deForma} de forma. ` +
+      'Uma das duas zerada quer dizer que o padrão casa com tudo ou com nada, e aí o ' +
+      'número que ela produz não existe.',
+  );
+  assert.equal(sobRls + deForma, GARANTIAS, 'a divisão não soma as garantias do script');
+
+  const linha = PLANO.match(/\| `npm run db:verify` \| ([^|]+)\|/);
+  assert.ok(linha, 'a linha do db:verify sumiu da tabela "medido, não afirmado"');
+  assert.match(
+    linha[1],
+    new RegExp(`\\*\\*${sobRls}\\*\\*[^|]*RLS`),
+    `${sobRls} garantias rodam sob RLS e a tabela do plano não diz esse número. ` +
+      'A frase anterior dizia que as 29 rodavam sob RLS, e 14 delas rodam como dono do ' +
+      'banco de propósito — são duas provas diferentes e a tabela tem de separá-las.',
+  );
+  assert.match(
+    linha[1],
+    new RegExp(`\\*\\*${deForma}\\*\\*`),
+    `${deForma} garantias provam forma como dono do banco, e a tabela não diz esse número.`,
+  );
+});
+
 // ── a tabela do plano: cada linha, derivada ──────────────────────────────────
 
 /**

@@ -49,10 +49,10 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **710** testes |
+| `npm test` | **711** testes |
 | `npm run mutate` | **125** defeitos plantados, 123 pegos, 2 equivalentes, **0 sobreviventes** |
 | `npm run e2e:fast` | **55** checagens num navegador de verdade |
-| `npm run db:verify` | **29** garantias contra um Postgres descartável, sob RLS |
+| `npm run db:verify` | **29** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **14** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade, com

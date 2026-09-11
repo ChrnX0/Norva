@@ -2376,15 +2376,23 @@ A tabela `TABELA` (`src/bar.test.ts:121-132`), transcrita, com a derivação de 
 | `` `npm run e2e:fast` `` | `^check(` em `e2e/flow.mjs` |
 | `` `npm run db:verify` `` | `^echo "==> check ` em `scripts/verify-migrations.sh` |
 
-Os valores registrados no plano (`docs/roadmap.md:45-49`):
+Os valores registrados no plano ficam **no plano** (`docs/roadmap.md`, a tabela *"onde o
+produto está hoje"*), e não são repetidos aqui de propósito.
 
-| | |
-|---|---|
-| `npm test` | **338** testes |
-| `npm run mutate` | **106** defeitos plantados, 104 pegos e 2 equivalentes |
-| `npm run e2e:fast` | **36** checagens num navegador de verdade |
-| `npm run db:verify` | **13** garantias contra um Postgres descartável, sob RLS |
-| `.proofgate/verify.sh` | **24** guardas de entrega |
+**Esta seção trazia a cópia deles, e ela envelheceu em silêncio até 11 de setembro** —
+dizia 338 testes quando o sistema tinha 711, e 13 garantias quando tinha 29. A guarda
+acima confere o plano contra o código; ninguém confere uma cópia da tabela dentro de outro
+documento, então a cópia é a única das três que pode mentir sem reprovar nada. É a mesma
+regra que o `CLAUDE.md` aplica aos traços da pele: *"não copie os nomes para cá, porque a
+cópia envelhece"*.
+
+**E a cópia carregava um erro que não era só de número:** ela dizia que as garantias do
+`db:verify` rodam *"sob RLS"*, e são duas provas diferentes. Quinze rodam como a conta da
+empresa, sob RLS, e provam **aceitação** — o servidor deixa esta conta escrever isto? As
+outras quatorze rodam como dono do banco e provam **impossibilidade** — nem o dono quebra
+o gatilho, a restrição, a chave composta. A segunda é mais forte que a primeira, e é o que
+o razão precisa: `DELETE` em `movements` é recusado até para o dono do banco. Dizer "tudo
+sob RLS" enfraquece o que é forte e exagera o que é fraco, ao mesmo tempo.
 
 E a fronteira honesta desta guarda, escrita nela (`:113-119`): *"Acrescentar uma linha à
 tabela sem acrescentar uma entrada aqui não quebra nada — e essa é a fronteira honesta

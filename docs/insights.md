@@ -9293,3 +9293,58 @@ esta casa exige de todo detector novo, escrito na mesma hora que o verdadeiro.
 entrada exatamente foi medida?* Aqui a palavra era "voltar" e as entradas eram duas. A
 checagem barata é perguntar com que comando a medida foi tirada — `input keyevent 4` é a
 tecla, `page.click` é a seta — e conferir se o conserto está no caminho daquele comando.
+
+## 11 de setembro — o aviso do portão era verdadeiro e a conclusão dele era falsa
+
+**O que apareceu:** fechando a rodada da tecla de voltar, o `.proofgate/verify.sh` passou
+com sete avisos e eu despachei um deles assim: *"nenhum vem deste commit"*. É verdade, e
+não é justificativa — o `CLAUDE.md` exige que todo ⚠️ ganhe uma por escrito. O aviso era:
+
+> `superuser-verification: 6 added line(s) let a test/verification path connect to Postgres
+> as a superuser. Superusers bypass RLS, so policies are NOT exercised — the run proves
+> shape, not acceptance.`
+
+E no mesmo minuto eu tinha escrito, no corpo do PR e na tabela *"medido, não afirmado"* do
+plano: **"29 garantias contra Postgres, sob RLS"**. As duas frases não podem ser
+verdadeiras juntas.
+
+**Medido, uma a uma:** o script conecta como dono do banco e troca para `app_user`
+(`as_user`) só onde imita o cliente. **Quinze** trocam. **Quatorze** não.
+
+**E a conclusão do aviso está errada para as quatorze** — o que é o achado, e por pouco eu
+não o via porque a primeira régua que escrevi concordava com o aviso. Ela marcou oito
+"afirmam política e rodam como dono", e as duas primeiras que fui ler eram falso positivo:
+
+- a **29** diz *"nunca na empresa vizinha"*, que soa a RLS, e o mecanismo está escrito no
+  próprio bloco — **chave estrangeira composta**. Restrição prende superusuário;
+- a **17** fala de política o tempo todo e **lê `pg_policies` do catálogo**, comparando com
+  o SQL que a fila gera. É metadado, não acesso — e ali o dono do banco é necessário.
+
+Das quatorze, doze citam no próprio texto o mecanismo que as prende: gatilho, restrição,
+índice único, chave, catálogo. **Rodar essas como dono é mais forte, não mais fraco.** É a
+diferença entre provar **aceitação** (o servidor deixa esta conta escrever isto?) e provar
+**impossibilidade** (nem o dono do banco quebra isto), e a segunda é a que o razão precisa
+— este repositório já mediu que `DELETE` em `movements` é recusado **até para o dono**.
+
+**Por que importa:** é a mesma doença da tecla de voltar, do outro lado. Lá, um conserto
+foi aplicado à entrada errada porque a palavra servia as duas. Aqui, uma frase de resumo
+cobriu duas provas diferentes com o nome da mais fraca. Nos dois casos o erro não está no
+que o instrumento faz — está na **frase sobre o que ele prova**, e frase de resumo é
+exatamente o que envelhece sem reprovar nada.
+
+**O que mudou por causa disso:** a tabela do plano passou a dizer os dois números e o que
+cada metade prova. `src/bar.test.ts` ganhou uma guarda que DERIVA a divisão do script e
+reprova se a tabela não a disser — provada vermelha na frase antiga antes de a frase ser
+corrigida, e com a auto-checagem que este repositório exige de régua heurística: se o
+padrão passar a casar com tudo ou com nada, uma das contagens zera e a guarda reprova em
+vez de produzir um número que não existe. Conferida nos dois sentidos: a checagem 4 (*"one
+company cannot see another"*) cai em "sob RLS", a 17 e a 29 caem em "forma".
+
+E a seção do dossiê que repetia a tabela do plano deixou de repeti-la: ela dizia **338**
+testes quando o sistema tinha **711**, e **13** garantias quando tinha **29**. A guarda
+confere o plano contra o código; ninguém confere uma cópia da tabela dentro de outro
+documento — a cópia é a única das três que pode mentir sem reprovar nada.
+
+**A pergunta que fica:** quando um ⚠️ do portão for despachado com *"não é meu"*, isso
+responde de **quem** é a linha, nunca se a **afirmação** dele vale. Aqui a linha não era
+minha e a frase era — e a frase é o que o dono lê.
