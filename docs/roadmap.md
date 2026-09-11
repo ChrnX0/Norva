@@ -276,8 +276,36 @@ por peso, e o que já foi fechado:**
    **fechada.** Os três botões dividiam a largura em três fatias iguais e a 360 dp a fatia
    é menor que a palavra. A linha passa a quebrar e cada botão toma a largura da palavra
    dele — sem número mágico, e no tablet os três continuam na mesma linha.
-10. **A última linha de uma lista fica sob a barra de abas** — em Mais, a linha *"Ajustes"*
-    nasce cortada. **Medido contra o código em 10 de setembro, e o código contradiz o
+10. ~~**A última linha de uma lista fica sob a barra de abas**~~ — **REFUTADO no aparelho em
+    11 de setembro, com a régua que o item esperava.**
+    <!-- medida: presente src/components/CollapsingHeader.tsx :: insets.bottom -->
+
+    O item esperava "a foto" desde 10 de setembro, e prova de imagem não existe neste
+    container. O instrumento que responde é a árvore, que traz `bounds` de cada nó — e ela
+    responde melhor que a foto, pelo mesmo motivo que o item 8 registrou: *"reticência é uma
+    diferença de texto, não de pixel"*. Aqui é uma diferença de coordenada.
+
+    Aberto `norva://more` no ATD a 393 dp, rolado até o fim, lido da árvore:
+
+    | | topo | base |
+    |---|---|---|
+    | a linha **"Ajustes"** (a última da lista) | 1617 | **1802** |
+    | a **barra de abas** (as cinco etiquetas) | **2162** | 2208 |
+
+    **360 px de folga** — uns 82 dp entre o rodapé da última linha e o topo da barra. Ela não
+    nasce cortada, e a leitura do código de 10 de setembro estava certa: o `CollapsingHeader`
+    reserva `insets.bottom + space.xxl + tabBar` lendo a altura real da barra.
+
+    E a lista recém-aberta termina em *"Lançamentos"* (base 2137): "Ajustes" não está cortada
+    na abertura — ela está **abaixo da dobra**, que é rolagem e não defeito. Era a segunda das
+    duas saídas que o item deixou escritas, e é a que a medida escolheu.
+
+    *Fronteira: medido a 393 dp. No tablet o layout reflui em duas colunas e cada uma fica
+    mais curta, então o caso é menos provável lá, não mais — mas isso é raciocínio, não
+    medida.*
+
+    O registro de então, que continua valendo como leitura: **medido contra o código em 10 de
+    setembro, e o código contradiz o
     item:** tudo o que a tela desenha está dentro do `CollapsingHeader`
     (`app/(tabs)/more.tsx:197`), que já reserva `insets.bottom + space.xxl + tabBar`
     (`src/components/CollapsingHeader.tsx:314`) lendo a altura real da barra pelo
