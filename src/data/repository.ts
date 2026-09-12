@@ -2026,11 +2026,19 @@ export async function listRecipes(companyId: string): Promise<RecipeSummary[]> {
  * corte por tempo não acharia versão nenhuma e a produção passaria a ser recusada.
  * `production_runs` já guarda o `recipe_version_id` da abertura — id é exato e não empata.
  *
- * **A fronteira, dita porque ela é a metade que falta.** O que se crava é a receita RAIZ,
- * porque é a única que a corrida anotou. Uma SUB-receita editada entre abrir e fechar
- * continua entrando pela mais nova, e consertar isso pede ou um carimbo por sub-receita na
- * abertura, ou a regra de tempo com os dois furos acima. Fica medido e aberto, em vez de
- * resolvido por uma regra que eu inventaria agora.
+ * **A fronteira, dita porque ela é a metade que falta — e ela tem DINHEIRO dentro.** O que se
+ * crava é a receita RAIZ, porque é a única que a corrida anotou, e eu descrevi isso primeiro
+ * como se o que escorresse fosse só a procedência. Medido em `explodeRequirements`: linha de
+ * ITEM usa `quantity × batches` e o rendimento não entra — então para a ficha PLANA o conserto
+ * acima é completo —, mas linha de SUB-receita usa `sub.yieldAmount * (1 - sub.lossFraction)`
+ * para converter *"preciso de 10.000 ml de base"* em quantas bateladas de base fazer. Editar a
+ * base entre abrir e fechar muda o CONSUMO, e o consumo é a taxa congelada.
+ *
+ * Fechar a outra metade pede um carimbo por sub-receita na abertura — a corrida guarda uma
+ * versão só — ou a regra de tempo com os três furos acima. E a coluna que esse carimbo leria
+ * **já existe**: a `V28` versionou `yield_amount`, `yield_unit` e `yield_per_unit` em
+ * `recipe_versions` dizendo por escrito que entrava *"sem leitor"*, esperando "a tela de
+ * histórico da ficha". O segundo leitor nomeado dela é este.
  */
 export async function loadRecipeGraph(
   companyId: string,
