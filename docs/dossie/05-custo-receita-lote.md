@@ -1646,19 +1646,32 @@ O que fechou, em quatro peças:
 
 **O que continua NÃO IMPLEMENTADO nesta frente, e é verificável:**
 
-- **A versão gravada é a do FECHAMENTO, não a da abertura.** `openProductionRun`
-  guarda `recipe.versionId` em `production_runs`
-  (`src/data/repository.ts:2298-2312`) e devolve `OpenRun.recipeVersionId`
-  (`src/data/repository.ts:2232-2242`). Mas `closeProductionRun` **não repassa esse
-  campo**: chama `recordProduction` com `{ productId, locationId, batches,
-  unitsProduced, occurredAt, producedOn, note, assistantPhrase }`
-  (`src/data/repository.ts:2380-2389`), e `recordProduction` recarrega o grafo com
-  `loadRecipeGraph`, que sempre traz `MAX(version)`
-  (`src/data/repository.ts:1367-1370`, `1085`). Se alguém salvar uma versão nova
-  entre abrir e fechar o tacho, o lote carimba a versão nova. A assinatura de
-  `recordProduction` não tem parâmetro `recipeVersionId`
-  (`src/data/repository.ts:1311-1350`). Não encontrei teste nem decisão escrita
-  sobre esse caminho.
+- ~~**A versão gravada é a do FECHAMENTO, não a da abertura.**~~ — **CONSERTADO em 12 de
+  setembro, e a leitura acima estava certa em cada linha.** `closeProductionRun` não
+  repassava o `recipe_version_id` que a abertura já guardava, e `recordProduction`
+  recarregava o grafo com `MAX(version)`: quem salvasse a fórmula nova entre abrir e fechar
+  fazia o lote carimbar a ficha nova **e congelar a taxa dela**, para um tacho que rodou a
+  antiga. Hoje `recordProduction` aceita `fichaCravada` e `loadRecipeGraph` aceita
+  `fixar: { recipeId, versionId }`; `closeProductionRun` passa `run.recipeVersionId`.
+
+  **A prova está nos dois sentidos, e a conta é de cabeça:** a ficha de abertura gasta
+  1.000 g para 10.000 ml, o produto rende 100 ml por unidade e o açúcar entrou a 0,4 centavo
+  por grama — 4 centavos por picolé. Tirando a linha do conserto, o teste reprova dizendo
+  *"esperava 4 centavos por unidade, veio 8"*, que é a fórmula nova. A asserção do dinheiro
+  vem ANTES da do carimbo de propósito: com o defeito plantado as duas reprovam, e só a
+  primeira é lida.
+
+  **Por que uma versão cravada e não um corte por tempo**, que é o que parecia mais geral:
+  `recipe_versions.effective_from` é gravado como DATA (`at.slice(0, 10)`), então ele não
+  responde "qual fórmula estava em vigor às 23h40"; `created_at` é instante e empata no
+  mesmo milissegundo; e derivar o corte de `occurredAt` quebraria o caminho de *"começar
+  pelo fim"* — registrar hoje a produção de ontem com a ficha cadastrada hoje passaria a ser
+  recusado por não haver versão anterior ao fato. Id é exato e não empata.
+
+  **E a metade que FICA aberta, medida:** o que se crava é a receita RAIZ, porque é a única
+  que a corrida anota. Uma SUB-receita editada entre abrir e fechar continua entrando pela
+  mais nova, e fechar isso pede um carimbo por sub-receita na abertura — ou a regra de tempo
+  com os dois furos acima.
 - **Custear uma versão antiga é impossível pelo caminho existente.**
   `loadRecipeGraph` só carrega a versão mais nova de cada receita
   (`src/data/repository.ts:1081-1085`); não existe carregador por `versionId` nem
@@ -1864,9 +1877,10 @@ Todas verificadas no código, com a linha. Nenhuma é conjectura sobre intençã
    O docblock de `Recipe.version` promete que *"historical cost stays correct
    after the formula changes"* (`src/domain/recipe.ts:42-44`) — a promessa vale
    para linhas e perda, não para rendimento. Ver 5.3.2.
-3. **`closeProductionRun` descarta `run.recipeVersionId`**
-   (`src/data/repository.ts:2380-2389`); o lote carimba a versão mais nova no
-   instante do fechamento. Ver 5.5.
+3. ~~**`closeProductionRun` descarta `run.recipeVersionId`**~~ — **CONSERTADO em 12 de
+   setembro.** Ele passa `fichaCravada: run.recipeVersionId`, e `loadRecipeGraph` aceita a
+   versão escolhida. A raiz está cravada; a sub-receita editada no meio continua entrando
+   pela mais nova, e o porquê está em 5.4.3. Ver 5.5.
 4. **O detalhamento de custo do assistente não fecha quando há embalagem
    listada.** `unit` inclui `itemsRate`, mas o `detail` só lista `Massa`
    (`mix`, sem embalagem) e `Embalagem` (`product.unitPackagingCents`)

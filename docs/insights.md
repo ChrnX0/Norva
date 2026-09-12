@@ -10909,3 +10909,54 @@ Eu o apliquei a `operator_id` (sete escritores, zero leitores) e a `purchases.su
 código de outra semana, e não o apliquei ao que eu tinha acabado de escrever. Código novo é
 exatamente onde a pergunta é mais barata de responder — e o único momento em que apagar não custa
 nada.*
+
+---
+
+## 12 de setembro — o tacho rodava uma ficha e o lote carimbava outra, com o dinheiro junto
+
+**O que se viu.** `production_runs` guarda o `recipe_version_id` da abertura e
+`OpenRun.recipeVersionId` devolve esse campo. `closeProductionRun` **não o repassava**:
+chamava `recordProduction`, que recarrega o grafo com `loadRecipeGraph` — e ele traz sempre
+`MAX(version)`. Quem salvasse a fórmula nova entre abrir e fechar o tacho fazia o lote nascer
+com a ficha NOVA e **o custo congelado dela**.
+
+**Por que importa, e a conta é de cabeça.** O docblock do carimbo do lote diz o contrário com
+todas as letras: *"sem este carimbo, corrigir a fórmula em março reescreve o que janeiro
+custou — a taxa continua certa e a pergunta 'de que ficha veio?' passa a responder a receita
+de hoje."* O carimbo existia e apontava para a ficha errada, o que é **pior que não existir**:
+ele afirma procedência. E o custo congelado é o denominador de toda margem futura — na prova,
+4 centavos por picolé viravam 8, com o lote rodando a fórmula de 4.
+
+**A janela é o caso que o próprio código descreve:** *"uma corrida aberta às 23h de segunda e
+fechada à 1h de terça"*. Basta a fórmula mudar nesse meio.
+
+**O que mudou.** `loadRecipeGraph` aceita `fixar: { recipeId, versionId }`, `recordProduction`
+aceita `fichaCravada`, e `closeProductionRun` passa `run.recipeVersionId`. Provado nos dois
+sentidos, com a asserção do DINHEIRO antes da do carimbo — com o defeito plantado as duas
+reprovam, e só a primeira é lida: *"esperava 4 centavos por unidade, veio 8"* explica o
+prejuízo; *"esperava este uuid"* não.
+
+### E a escolha do mecanismo é o achado que se paga guardar
+
+O conserto que parecia mais geral era cortar por TEMPO — "a versão em vigor quando o tacho
+abriu". Ele tem três furos, e dois só apareceram porque eu fui medir a régua antes de usá-la:
+
+1. **`recipe_versions.effective_from` é gravado como DATA** (`at.slice(0, 10)`), então ele não
+   consegue responder *"qual fórmula estava em vigor às 23h40"* — e o dossiê já registrava que
+   esse campo não tem leitor. Usá-lo como corte seria um defeito **vestindo o nome certo**.
+2. **`created_at` é instante e empata no mesmo milissegundo**, e o empate cai para o lado
+   errado: a versão nova entra.
+3. **Derivar o corte de `occurredAt` quebraria o caminho que o dono decidiu.** Em *"começar
+   pelo fim"* a pessoa registra hoje a produção de ontem, às vezes com a ficha cadastrada
+   hoje: nenhuma versão seria anterior ao fato, o grafo viria sem a receita, e a produção
+   passaria a ser **recusada**. O conserto mais geral teria trocado um número errado por um
+   registro que não acontece.
+
+Id é exato e não empata, e a corrida já o tinha na mão. *A régua: quando há um identificador
+gravado no instante do fato, ele vale mais que qualquer reconstrução por tempo — e antes de
+reconstruir por tempo, olhe a GRANULARIDADE do campo que você ia usar.*
+
+**E a fronteira fica dita porque ela é metade do problema:** o que se crava é a receita RAIZ,
+a única que a corrida anota. Uma sub-receita editada entre abrir e fechar continua entrando
+pela mais nova. Fechar isso pede um carimbo por sub-receita na abertura — e isso é construção,
+não uma linha.

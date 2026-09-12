@@ -1295,6 +1295,26 @@ const DEFECTS = [
       'a conferencia que BATEU passa a ser contada como sobra de zero: a tela diz "sobraram 0 g" onde devia dizer que bateu com o que veio, que e o alerta inventado com outro rosto',
   },
 
+  // --- a ficha que ROUDOU, 12 de setembro -------------------------------------
+  //
+  // O lote carimbava a versão do FECHAMENTO e congelava a taxa dela, para um tacho que
+  // rodou a anterior. A mutação tira a linha do conserto, e o teste reprova pelo dinheiro:
+  // "esperava 4 centavos por unidade, veio 8".
+  {
+    file: 'src/data/repository.ts',
+    from: '    fichaCravada: run.recipeVersionId,',
+    to: '',
+    hurts:
+      'quem salvar a ficha nova entre abrir e fechar o tacho faz o lote nascer com a ficha nova e o custo congelado dela: o denominador de toda margem futura passa a ser de uma formula que aquele lote nao rodou, e o carimbo do lote afirma procedencia errada - pior que nao carimbar, porque parece resposta',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: '    if (escolhida) grafo[escolhida.recipe_id] = monta(escolhida);',
+    to: '    if (!escolhida) grafo[fixar.recipeId] = grafo[fixar.recipeId];',
+    hurts:
+      'a versao cravada chega ao grafo e e descartada em silencio: o parametro existe, o chamador passa, e o custo continua saindo da formula mais nova - a forma de defeito que mais engana, porque o conserto aparece no diff e nao acontece',
+  },
+
   // A nota que some no arredondamento: o aparelho aceitava, o servidor recusa para
   // sempre com `23514`, e `23514` é passageira de propósito — então a fila tentaria de
   // novo eternamente com tudo atrás preso. O conserto é na origem, e estas duas o

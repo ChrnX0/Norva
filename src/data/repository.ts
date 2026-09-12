@@ -2010,8 +2010,33 @@ export async function listRecipes(companyId: string): Promise<RecipeSummary[]> {
  * Loads every recipe at its newest version, keyed by id - the shape
  * `costRecipe` walks. Loading them all at once is what lets a sub-recipe
  * resolve without a second round trip mid-calculation.
+ *
+ * **E `fixar` existe porque "a mais nova" está errada para o tacho que já rodou.**
+ * Uma corrida aberta às 23h de segunda e fechada à 1h de terça é o caso que o próprio
+ * `closeProductionRun` descreve — e se alguém salvar uma versão nova nesse meio, fechar
+ * congelava a taxa da fórmula NOVA e carimbava o lote com ela. O docblock do carimbo do
+ * lote diz o contrário com todas as letras: *"sem este carimbo, corrigir a fórmula em
+ * março reescreve o que janeiro custou"*. O carimbo existia e apontava para a ficha errada.
+ *
+ * **Por que uma versão CRAVADA e não um instante.** Cravar por `created_at <= abertura`
+ * parece mais geral e tem dois furos medidos: `recipe_versions.created_at` é instante, mas
+ * duas gravações no mesmo milissegundo empatam — e o empate cai para o lado errado; e
+ * derivar o corte de `occurredAt` quebraria o caminho que o dono decidiu (*"começar pelo
+ * fim"*), onde a pessoa registra hoje a produção de ontem com a ficha cadastrada hoje: o
+ * corte por tempo não acharia versão nenhuma e a produção passaria a ser recusada.
+ * `production_runs` já guarda o `recipe_version_id` da abertura — id é exato e não empata.
+ *
+ * **A fronteira, dita porque ela é a metade que falta.** O que se crava é a receita RAIZ,
+ * porque é a única que a corrida anotou. Uma SUB-receita editada entre abrir e fechar
+ * continua entrando pela mais nova, e consertar isso pede ou um carimbo por sub-receita na
+ * abertura, ou a regra de tempo com os dois furos acima. Fica medido e aberto, em vez de
+ * resolvido por uma regra que eu inventaria agora.
  */
-export async function loadRecipeGraph(companyId: string): Promise<Record<string, Recipe>> {
+export async function loadRecipeGraph(
+  companyId: string,
+  /** Uma receita que entra numa versão ESCOLHIDA em vez da mais nova. */
+  fixar?: { recipeId: string; versionId: string },
+): Promise<Record<string, Recipe>> {
   const conn = await db();
 
   const versions = await conn.getAllAsync<{
@@ -2056,21 +2081,61 @@ export async function loadRecipeGraph(companyId: string): Promise<Record<string,
     byVersion.set(line.recipe_version_id, list);
   }
 
-  return Object.fromEntries(
-    versions.map((v) => [
-      v.recipe_id,
-      {
-        id: v.recipe_id,
-        versionId: v.id,
-        version: v.version,
-        effectiveFrom: v.effective_from,
-        yieldAmount: v.yield_amount,
-        yieldUnit: v.yield_unit,
-        lossFraction: v.loss_fraction,
-        lines: byVersion.get(v.id) ?? [],
-      } satisfies Recipe,
-    ]),
-  );
+  const monta = (v: {
+    id: string;
+    recipe_id: string;
+    version: number;
+    effective_from: string;
+    loss_fraction: number;
+    yield_amount: number;
+    yield_unit: string;
+  }): Recipe => ({
+    id: v.recipe_id,
+    versionId: v.id,
+    version: v.version,
+    effectiveFrom: v.effective_from,
+    yieldAmount: v.yield_amount,
+    yieldUnit: v.yield_unit,
+    lossFraction: v.loss_fraction,
+    lines: byVersion.get(v.id) ?? [],
+  });
+
+  const grafo = Object.fromEntries(versions.map((v) => [v.recipe_id, monta(v)]));
+
+  /**
+   * A versão cravada entra por cima, e vem numa consulta própria de propósito.
+   *
+   * A consulta de cima só traz `MAX(version)` por receita, então a versão da abertura não
+   * está nela quando alguém salvou outra depois — que é exatamente o caso que este
+   * parâmetro existe para cobrir. As LINHAS dela já estão em `byVersion`: aquela leitura
+   * carrega as linhas de todas as versões, e é por isso que a troca custa uma linha.
+   *
+   * Versão que não existe mais (receita apagada) deixa o grafo como estava, com a mais
+   * nova: perder a corrida por causa de um cadastro apagado seria trocar um número errado
+   * por um registro que não acontece, e o razão prefere o número com o carimbo de hoje a
+   * um tacho que ninguém consegue fechar.
+   */
+  if (fixar) {
+    const escolhida = await conn.getFirstAsync<{
+      id: string;
+      recipe_id: string;
+      version: number;
+      effective_from: string;
+      loss_fraction: number;
+      yield_amount: number;
+      yield_unit: string;
+    }>(
+      `SELECT v.id, v.recipe_id, v.version, v.effective_from, v.loss_fraction, r.yield_amount,
+              r.yield_unit
+         FROM recipe_versions v
+         JOIN recipes r ON r.id = v.recipe_id
+        WHERE v.company_id = ? AND v.id = ? AND v.recipe_id = ?`,
+      [companyId, fixar.versionId, fixar.recipeId],
+    );
+    if (escolhida) grafo[escolhida.recipe_id] = monta(escolhida);
+  }
+
+  return grafo;
 }
 
 /**
@@ -2434,6 +2499,15 @@ export async function recordProduction(
     occurredAt?: string;
     note?: string;
     assistantPhrase?: string;
+    /**
+     * A versão da ficha que RODOU, quando quem chama sabe qual foi.
+     *
+     * Só o fechamento de uma corrida sabe: `production_runs` guarda o `recipe_version_id`
+     * da abertura. O lançamento direto não sabe e não deve adivinhar — ali "agora" é a
+     * resposta certa, e derivar o corte de `occurredAt` quebraria o caminho de registrar
+     * hoje a produção de ontem com a ficha cadastrada hoje.
+     */
+    fichaCravada?: string;
   },
 ): Promise<ProductionResult> {
   await podeGravar(companyId, 'production');
@@ -2446,7 +2520,12 @@ export async function recordProduction(
   if (input.batches <= 0) throw new Error('uma corrida roda a receita pelo menos uma vez');
   if (input.unitsProduced <= 0) throw new Error('uma corrida que não rendeu nada é um erro, não um fato');
 
-  const graph = await loadRecipeGraph(companyId);
+  const graph = await loadRecipeGraph(
+    companyId,
+    // A ficha da ABERTURA, quando quem chama sabe qual foi. Sem ela, fechar um tacho
+    // aberto antes de a fórmula mudar congela a taxa da fórmula nova.
+    input.fichaCravada ? { recipeId: product.recipeId, versionId: input.fichaCravada } : undefined,
+  );
   const recipe = graph[product.recipeId];
   if (!recipe) throw new Error(`a receita de ${product.name} não está no aparelho`);
 
@@ -4150,6 +4229,15 @@ export async function closeProductionRun(
     producedOn: input.producedOn,
     note: input.note,
     assistantPhrase: input.assistantPhrase,
+    /**
+     * A ficha da ABERTURA, e é a linha que conserta o carimbo do lote.
+     *
+     * `OpenRun.recipeVersionId` existia desde que a corrida passou a guardá-lo e não
+     * chegava aqui: fechar recarregava o grafo, que traz sempre `MAX(version)`. Quem
+     * salvasse a fórmula nova entre abrir e fechar fazia o lote nascer com a ficha nova
+     * e o custo congelado da fórmula nova — para um tacho que rodou a antiga.
+     */
+    fichaCravada: run.recipeVersionId,
   });
 
   // Só depois de o razão aceitar. Se a produção falhar por falta de insumo, a

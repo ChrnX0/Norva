@@ -721,6 +721,116 @@ test('quem não pode pedir não anota pedido, e quem não aprova não tira do pe
  *
  * Os dois lados: a corrida aparece na unidade que a abriu, e NÃO aparece na outra.
  */
+/**
+ * O tacho que rodou a ficha de ANTES — e fechar carimbava a de depois.
+ *
+ * A corrida guarda `recipe_version_id` desde que `production_runs` existe, e
+ * `closeProductionRun` não repassava: `recordProduction` recarregava o grafo, que traz
+ * sempre `MAX(version)`. Quem salvasse a fórmula nova entre abrir e fechar o tacho fazia o
+ * lote nascer com a ficha NOVA e o custo congelado dela — para um lote que rodou a antiga.
+ *
+ * O docblock do carimbo do lote diz o contrário, com todas as letras: *"sem este carimbo,
+ * corrigir a fórmula em março reescreve o que janeiro custou"*. O carimbo existia e
+ * apontava para a ficha errada, que é pior que não existir: ele afirma procedência.
+ *
+ * A prova mede as DUAS coisas, e a segunda é a que tem dinheiro: o carimbo e a taxa
+ * congelada. A fórmula nova dobra o açúcar, então as duas respostas são distinguíveis —
+ * com a diferença de zero (a mesma quantidade) a aritmética não separa o conserto do
+ * defeito, que é a cicatriz do estorno parcial desta mesma semana.
+ */
+test('fechar o tacho carimba a ficha da ABERTURA, não a que alguém salvou no meio', async () => {
+  const acucar = await anInput('Açúcar da ficha', 25_000);
+  await recordPurchase(CO, {
+    itemId: acucar,
+    purchaseQuantity: 4,
+    baseUnits: 100_000,
+    totalCents: fromDecimal(400),
+  });
+
+  const ficha = await saveRecipeVersion(CO, {
+    name: 'Massa da ficha',
+    yieldAmount: 10_000,
+    yieldUnit: 'ml',
+    lossFraction: 0,
+    lines: [{ kind: 'item', itemId: acucar, quantity: 1_000 }],
+  });
+  const { productId } = await saveProduct(CO, {
+    name: 'Picolé da ficha',
+    kind: 'product',
+    recipeId: ficha.recipeId,
+    yieldPerUnit: 100,
+    // Zero de propósito: a embalagem entraria no custo congelado e a conta de cabeça
+    // desta prova é sobre a FICHA. Um número a mais aqui misturaria as duas perguntas.
+    unitPackagingRate: rate(0, 1),
+    packaging: loose,
+  });
+
+  // O id da versão vem do grafo e não do retorno de `saveRecipeVersion`, que devolve só
+  // `{ recipeId, version }`. Ler do grafo é ler o que o aplicativo lê.
+  const versaoDeAntes = (await loadRecipeGraph(CO))[ficha.recipeId]?.versionId;
+  assert.ok(versaoDeAntes, 'a ficha salva está no grafo');
+
+  const corrida = await openProductionRun(CO, { productId, batches: 1 });
+  assert.equal(corrida.recipeVersionId, versaoDeAntes, 'a abertura anota a ficha de agora');
+
+  // A fórmula muda NO MEIO: o dobro de açúcar por batelada. O tacho já está rodando a
+  // antiga, e é isso que o fechamento tem de honrar.
+  const nova = await saveRecipeVersion(CO, {
+    recipeId: ficha.recipeId,
+    name: 'Massa da ficha',
+    yieldAmount: 10_000,
+    yieldUnit: 'ml',
+    lossFraction: 0,
+    lines: [{ kind: 'item', itemId: acucar, quantity: 2_000 }],
+  });
+  assert.equal(nova.version, 2, 'e ela é uma versão nova, não uma sobrescrita');
+
+  const fechada = await closeProductionRun(CO, {
+    runId: corrida.id,
+    unitsProduced: 100,
+    producedOn: '2026-09-12',
+  });
+
+  const conn = await db();
+
+  /**
+   * A TAXA congelada PRIMEIRO, porque é ela que tem dinheiro — e a ordem é medida.
+   *
+   * Com o defeito plantado as duas asserções reprovam, e a primeira é a única que alguém
+   * lê: a do carimbo diz "esperava este uuid, veio aquele", e a do custo diz "esperava 4
+   * centavos por unidade, veio 8". A segunda frase é a que explica o prejuízo, então ela
+   * fala antes.
+   *
+   * A conta, de cabeça: a ficha de abertura gasta 1.000 g para 10.000 ml, e o produto rende
+   * 100 ml por unidade — 100 unidades por batelada, 10 g de açúcar por picolé. O açúcar
+   * entrou a R$ 400 por 100.000 g = 0,4 centavo por grama, então cada picolé custa **4
+   * centavos**. Com a fórmula NOVA, que dobra o açúcar, seriam 8 — e é essa a conta que o
+   * defeito escrevia no razão, para um lote que rodou a antiga.
+   */
+  const producao = await conn.getFirstAsync<{ unit_cost_rate: number }>(
+    `SELECT unit_cost_rate FROM movements
+      WHERE company_id = ? AND kind = 'production' AND lot_id = ?`,
+    [CO, fechada.lot.id],
+  );
+  assert.ok(producao, 'a produção foi escrita no razão');
+  assert.ok(
+    Math.abs(producao.unit_cost_rate - 4) < 1e-9,
+    `o custo congelado é o da ficha que rodou: esperava 4 centavos por unidade, veio ${producao.unit_cost_rate}`,
+  );
+
+  // E o carimbo, que é a pergunta "de que ficha veio?" — a taxa certa com o carimbo errado
+  // continuaria mentindo sobre procedência.
+  const lote = await conn.getFirstAsync<{ recipe_version_id: string }>(
+    `SELECT recipe_version_id FROM lots WHERE id = ?`,
+    [fechada.lot.id],
+  );
+  assert.equal(
+    lote?.recipe_version_id,
+    versaoDeAntes,
+    'o lote carimba a ficha que rodou, não a que alguém salvou no meio',
+  );
+});
+
 test('a corrida aberta nasce na unidade do aparelho, não na primeira da empresa', async () => {
   await ensureStarterData(CO);
   const [produto] = (await listProductsForLedger(CO)).filter((p) => p.recipeId);
