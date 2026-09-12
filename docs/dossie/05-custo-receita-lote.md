@@ -1668,10 +1668,19 @@ O que fechou, em quatro peças:
   pelo fim"* — registrar hoje a produção de ontem com a ficha cadastrada hoje passaria a ser
   recusado por não haver versão anterior ao fato. Id é exato e não empata.
 
-  **E a metade que FICA aberta, medida:** o que se crava é a receita RAIZ, porque é a única
-  que a corrida anota. Uma SUB-receita editada entre abrir e fechar continua entrando pela
-  mais nova, e fechar isso pede um carimbo por sub-receita na abertura — ou a regra de tempo
-  com os dois furos acima.
+  **E a metade que FICA aberta, medida — e ela tem dinheiro dentro, ao contrário do que eu
+  escrevi na primeira versão desta nota:** o que se crava é a receita RAIZ, porque é a única
+  que a corrida anota. Para linha de ITEM, `explodeRequirements` usa `quantity × batches` e o
+  rendimento não entra — então para a ficha PLANA o conserto é completo. Para linha de
+  SUB-receita ela usa `sub.yieldAmount * (1 - sub.lossFraction)` para converter *"preciso de
+  10.000 ml de base"* em quantas bateladas de base fazer: editar a base entre abrir e fechar
+  muda o consumo, e o consumo é a taxa congelada.
+
+  Fechar isso pede um carimbo por sub-receita na abertura — a corrida guarda uma versão só —
+  ou a regra de tempo com os três furos acima. E a coluna que esse carimbo leria **já existe**:
+  a `V28` versionou `yield_amount`, `yield_unit` e `yield_per_unit` em `recipe_versions`
+  dizendo por escrito que entrava *"sem leitor"*, esperando a tela de histórico da ficha. O
+  segundo leitor nomeado dela é este.
 - **Custear uma versão antiga é impossível pelo caminho existente.**
   `loadRecipeGraph` só carrega a versão mais nova de cada receita
   (`src/data/repository.ts:1081-1085`); não existe carregador por `versionId` nem
