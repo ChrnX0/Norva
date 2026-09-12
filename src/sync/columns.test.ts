@@ -226,6 +226,16 @@ test('every column the serializer promises to send exists on the device', async 
  * o banco de verdade não tem como errar isso.
  */
 const SO_DO_SERVIDOR: Record<string, Record<string, string>> = {
+  movements: {
+    received_at:
+      'é o CURSOR da descida, e cursor é fato do servidor sobre a chegada — não do fato. `occurred_at` chega fora de ordem de propósito e `recorded_at` vem do aparelho, então nenhum dos dois ordena o que dois celulares mandaram; a `0061` carimba `now()` na entrada para a descida ter por onde pedir o que veio depois. O aparelho guarda o cursor uma vez por TABELA, no `app_meta` (`src/sync/descida.ts`), e não uma vez por linha — replicar a coluna em cada movimento seria guardar vinte mil cópias da mesma informação e, pior, guardar um fato do servidor dentro de uma linha que o aparelho pode ter criado offline, antes de o servidor existir para ela',
+  },
+  readings: {
+    received_at: 'o mesmo cursor da descida — ver movements.received_at',
+  },
+  sale_price_history: {
+    received_at: 'o mesmo cursor da descida — ver movements.received_at',
+  },
   purchase_lines: {
     expected_base_units:
       'o quanto a nota dizia, contra o quanto entrou — é a conciliação de compra, e ela é leitura de duas chaves que já existem (movements.id = purchase_lines.id). Desce no commit que desenhar essa tela; hoje não há nada para comparar porque o aparelho não guarda o esperado',

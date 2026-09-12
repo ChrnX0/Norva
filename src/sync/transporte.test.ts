@@ -79,6 +79,10 @@ function casaDeMentira(
       casa.recebido.push({ tabela, apenasInsere, id: linha.id });
       return null;
     },
+    // Este dublê é da SUBIDA. `ler` existe para satisfazer o tipo e devolve página vazia:
+    // um dublê que jogasse exceção aqui esconderia, atrás de um erro, o fato simples de que
+    // nenhum teste de subida desce coisa nenhuma.
+    ler: async () => ({ linhas: [] }),
   };
   return casa;
 }

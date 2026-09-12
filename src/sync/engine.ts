@@ -8,6 +8,11 @@ import {
   type OutboxEntry,
 } from '@/data/outbox';
 import { classeDaRecusa } from './recusa';
+import type { pedido as montarPedido } from './descida';
+import type { ProblemaDoServidor } from './transporte';
+
+/** O que a descida pede: a forma que `descida.ts` monta e o transporte obedece. */
+export type PedidoDeDescida = ReturnType<typeof montarPedido>;
 
 /**
  * Sending what the phone wrote while it was alone.
@@ -59,6 +64,16 @@ export type PushResult = {
 
 export type Transport = {
   push(entries: readonly OutboxEntry[]): Promise<PushResult>;
+  /**
+   * Lê uma página do servidor — o outro sentido, que não existia até 12 de setembro.
+   *
+   * Opcional no tipo de propósito: os testes que exercitam a SUBIDA montam transportes de
+   * mentira com `push` só, e obrigá-los a inventar um `pull` que ninguém chama seria
+   * escrever cerimônia. Quem desce confere antes de chamar.
+   */
+  pull?(
+    pedido: PedidoDeDescida,
+  ): Promise<{ linhas: Record<string, unknown>[]; erro?: ProblemaDoServidor }>;
 };
 
 export type SyncReport = {

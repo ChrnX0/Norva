@@ -570,6 +570,24 @@ export const APENAS_INSERE: readonly ServerTable[] = [
 export const sendableTables = Object.keys(CROSSINGS) as ServerTable[];
 
 /**
+ * As colunas que esta tabela manda para cima — e é por elas que a DESCIDA lê de volta.
+ *
+ * Exportada em 12 de setembro, quando a sincronia deixou de ser de mão única. A alternativa
+ * era `src/sync/descida.ts` manter a própria lista de colunas por tabela, e essa é a doença
+ * que este repositório já nomeou três vezes num dia: duas listas escritas pela mesma mão
+ * concordam no dia em que nascem e divergem no primeiro `alter table`. Aqui a ida e a volta
+ * são simétricas por CONSTRUÇÃO — uma coluna nova sobe e desce junto, ou não faz nem uma
+ * coisa nem outra.
+ *
+ * O que `build` acrescenta fica de fora de propósito: são campos que o SERVIDOR precisa e o
+ * aparelho não guarda (`recorded_by`, que é a conta que escreveu). Descer o que o aparelho
+ * não tem onde pôr seria inventar coluna.
+ */
+export function colunasQueSobem(tabela: ServerTable): readonly string[] {
+  return CROSSINGS[tabela].take;
+}
+
+/**
  * Turns one queued entry plus the row it names into what the server should get.
  *
  * `row` is null for a command like `erase`, which carries its own payload and

@@ -24,7 +24,7 @@
 
 /** Uma tentativa: o que se tentou, e o que aconteceu. Nunca uma frase. */
 export type Tentativa = {
-  o: 'fila' | 'copia' | 'atualizacao';
+  o: 'fila' | 'descida' | 'copia' | 'atualizacao';
   /** `pulou` não é falha: é "não era hora", e a tela conta isso diferente. */
   fim: 'feito' | 'pulou' | 'falhou';
   /** Por que pulou ou falhou — dado, nunca texto de tela. */
@@ -74,6 +74,16 @@ export function horaDeCopiar(
 export type Pecas = {
   /** Sobe a fila. Devolve quantas linhas foram. */
   subirFila: () => Promise<number>;
+  /**
+   * Desce o que o servidor já sabe. Devolve quantas linhas entraram.
+   *
+   * DEPOIS de subir, e a ordem importa: subir primeiro faz o que este aparelho gravou
+   * offline chegar ao servidor antes de ele pedir de volta o que os outros gravaram. A
+   * ordem inversa desceria a página, subiria a fila, e a próxima rodada desceria a própria
+   * linha que acabou de subir — trabalho dobrado sem erro nenhum, que é o tipo de defeito
+   * que ninguém nota e que enche a conta do servidor.
+   */
+  descer: () => Promise<number>;
   /** Quantos movimentos o aparelho tem agora — a régua do "mudou algo". */
   movimentos: () => Promise<number>;
   /** A última cópia registrada, ou nulo em aparelho novo. */
@@ -113,6 +123,17 @@ export async function umaRodada(pecas: Pecas, agora: string): Promise<Tentativa[
       feito.push({ o: 'fila', fim: linhas > 0 ? 'feito' : 'pulou', porque: linhas > 0 ? undefined : 'filaVazia' });
     } catch (e) {
       feito.push({ o: 'fila', fim: 'falhou', porque: nome(e) });
+    }
+
+    try {
+      const baixadas = await pecas.descer();
+      feito.push({
+        o: 'descida',
+        fim: baixadas > 0 ? 'feito' : 'pulou',
+        porque: baixadas > 0 ? undefined : 'nadaNovo',
+      });
+    } catch (e) {
+      feito.push({ o: 'descida', fim: 'falhou', porque: nome(e) });
     }
 
     try {

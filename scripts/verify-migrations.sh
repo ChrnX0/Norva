@@ -2096,5 +2096,77 @@ esac
 echo "    o servidor recusa com $CODIGO, e a fila do aparelho sabe pôr esse código de lado"
 
 echo
-echo "OK - migrations apply and all thirty-two guarantees hold."
+echo "==> check 33: o que sobe DESCE, e o cursor nao pula linha nem repete"
+
+# A sincronia era de mao unica ate 12 de setembro, e isso fazia a fundacao valer pela metade:
+# o saldo e a soma dos movimentos, e cada aparelho somava so os que ele mesmo gravou. A `0061`
+# acrescentou `received_at default now()`, que e a hora do SERVIDOR e o unico relogio que
+# ordena o que dois celulares mandaram.
+#
+# Esta garantia prova as tres propriedades que um cursor precisa ter, e a terceira e a que
+# nenhum teste de unidade alcanca — ela so existe contra um Postgres de verdade, porque
+# depende de `now()` ser o mesmo dentro de uma transacao:
+#
+#   1. o que entrou aparece depois do cursor de quem ainda nao viu;
+#   2. o que ja foi visto NAO aparece de novo (senao a descida refaz trabalho para sempre);
+#   3. um LOTE inteiro na mesma transacao — mesmo `now()` para todas as linhas — atravessa
+#      inteiro. Sem o desempate pelo `id`, a segunda linha do lote fica do lado errado do
+#      "maior que" e some, calada, para sempre.
+
+DESC=dddd0000-0000-4000-8000-0000000001
+
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<SQL
+insert into locations (id, company_id, name, kind) values ('${DESC}a1','${M}c1','Camara','factory');
+insert into items (id, company_id, kind, name, base_unit, purchase_unit, purchase_to_base)
+  values ('${DESC}b1','${M}c1','input','Acucar da 33','g','saco',50000);
+SQL
+
+# Um LOTE: tres movimentos numa transacao so, entao os tres recebem o MESMO now().
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<SQL
+begin;
+insert into movements (id, company_id, kind, occurred_at, recorded_at, recorded_by, item_id,
+                       quantity_base_units, location_id)
+  values ('${DESC}01','${M}c1','purchase', now(), now(), '$OWNER','${DESC}b1', 1000, '${DESC}a1'),
+         ('${DESC}02','${M}c1','purchase', now(), now(), '$OWNER','${DESC}b1', 2000, '${DESC}a1'),
+         ('${DESC}03','${M}c1','purchase', now(), now(), '$OWNER','${DESC}b1', 4000, '${DESC}a1');
+commit;
+SQL
+
+MESMO=$(rows "select count(distinct received_at) from movements where id::text like '${DESC}0%';")  # proofgate-allow
+[ "$MESMO" = "1" ] || fail "as tres linhas do lote nao compartilharam o relogio ($MESMO valores): esta garantia precisa do empate para provar o desempate"
+
+# A primeira pagina, do jeito que o aparelho pede: ordenada pelo par, sem cursor.
+PRIMEIRA=$(rows "select id from movements where company_id = '${M}c1' and id::text like '${DESC}0%'
+                 order by received_at, id limit 1;")  # proofgate-allow
+[ "$PRIMEIRA" = "${DESC}01" ] || fail "a ordem do par nao devolveu a primeira linha do lote: veio '$PRIMEIRA'"
+
+# Agora o cursor na PRIMEIRA, e o pedido do aparelho: "depois deste ponto".
+CURSOR=$(rows "select received_at from movements where id = '${DESC}01';")  # proofgate-allow
+RESTO=$(rows "select string_agg(id::text, ' ' order by received_at, id) from movements
+              where company_id = '${M}c1' and id::text like '${DESC}0%'
+                and (received_at > '$CURSOR' or (received_at = '$CURSOR' and id > '${DESC}01'));")  # proofgate-allow
+[ "$RESTO" = "${DESC}02 ${DESC}03" ]   || fail "o cursor com desempate por id nao trouxe o resto do lote: veio '$RESTO'. Sem o desempate, um lote inteiro some depois da primeira linha"
+
+# E a propriedade 2: o cursor na ULTIMA nao traz nada de volta.
+DEPOIS=$(rows "select count(*) from movements
+               where company_id = '${M}c1' and id::text like '${DESC}0%'
+                 and (received_at > '$CURSOR' or (received_at = '$CURSOR' and id > '${DESC}03'));")  # proofgate-allow
+[ "$DEPOIS" = "0" ] || fail "o cursor no fim do lote ainda devolve $DEPOIS linha(s): a descida refaria o mesmo trabalho para sempre"
+
+# O saldo que o segundo aparelho teria depois de descer: a soma das tres linhas.
+SALDO=$(rows "select coalesce(sum(quantity_base_units),0) from movements where id::text like '${DESC}0%';")  # proofgate-allow
+[ "$SALDO" = "7000" ] || fail "a soma do que desceria e $SALDO, esperava 7000: os dois aparelhos ficariam com saldos diferentes"
+
+# E a view por onde a descida le carrega o que o aparelho guarda — sem isso o segundo
+# celular receberia um razao mutilado, que e pior que nao descer porque parece completo.
+for COL in movement_group_id operator_id return_reason carrier_id received_at; do
+  TEM=$(rows "select count(*) from information_schema.columns
+              where table_name = 'movements_visible' and column_name = '$COL';")  # proofgate-allow
+  [ "$TEM" = "1" ] || fail "movements_visible nao expoe '$COL': a descida gravaria um razao sem esse campo, calada"
+done
+
+echo "    um lote de tres com o mesmo relogio atravessa inteiro, e o cursor no fim nao repete nada"
+
+echo
+echo "OK - migrations apply and all thirty-three guarantees hold."
 

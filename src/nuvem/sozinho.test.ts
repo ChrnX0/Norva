@@ -21,6 +21,10 @@ function pecas(sobre: Partial<Pecas> = {}): { p: Pecas; ordem: string[] } {
       ordem.push('fila');
       return 3;
     },
+    descer: async () => {
+      ordem.push('descida');
+      return 2;
+    },
     movimentos: async () => 100,
     ultima: async () => null,
     temDestino: async () => true,
@@ -36,13 +40,25 @@ function pecas(sobre: Partial<Pecas> = {}): { p: Pecas; ordem: string[] } {
   return { p, ordem };
 }
 
-test('a ordem é fila, cópia, atualização — e inverter as duas primeiras custa dado', async () => {
+test('a ordem é fila, descida, cópia, atualização — e cada posição custa dado se invertida', async () => {
+  /**
+   * **Subir ANTES de descer**, e não é preferência: o que este aparelho gravou offline tem de
+   * chegar ao servidor antes de ele pedir de volta o que os outros gravaram. Invertido, a
+   * rodada desceria a página, subiria a fila, e a rodada SEGUINTE desceria a própria linha
+   * que acabou de subir — trabalho dobrado, sem erro nenhum à vista, enchendo a conta do
+   * servidor do dono.
+   *
+   * **Descer antes de COPIAR**, pelo mesmo raciocínio que pôs a cópia depois da fila: a
+   * cópia de segurança vale mais quando carrega tudo o que a fábrica sabe, e depois da
+   * descida ela carrega também o que os outros celulares gravaram. Copiar antes é guardar
+   * uma foto que já nasce velha.
+   */
   const { p, ordem } = pecas();
   const feito = await umaRodada(p, AGORA);
-  assert.deepEqual(ordem, ['fila', 'copia', 'atualizacao']);
+  assert.deepEqual(ordem, ['fila', 'descida', 'copia', 'atualizacao']);
   assert.deepEqual(
     feito.map((t) => `${t.o}:${t.fim}`),
-    ['fila:feito', 'copia:feito', 'atualizacao:feito'],
+    ['fila:feito', 'descida:feito', 'copia:feito', 'atualizacao:feito'],
   );
 });
 
@@ -55,10 +71,16 @@ test('nenhuma peça que falha derruba a rodada, nem impede as de baixo', async (
   const feito = await umaRodada(p, AGORA);
   assert.equal(feito[0].fim, 'falhou');
   assert.equal(feito[0].porque, 'Error');
-  // A prova de verdade: a cópia e a atualização aconteceram MESMO ASSIM.
-  assert.deepEqual(ordem, ['copia', 'atualizacao']);
-  assert.equal(feito[1].fim, 'feito');
-  assert.equal(feito[2].fim, 'feito');
+  // A prova de verdade: TUDO o que vem depois aconteceu mesmo assim.
+  assert.deepEqual(ordem, ['descida', 'copia', 'atualizacao']);
+  // Por NOME e não por posição: este teste dizia `feito[1]` e `feito[2]`, e a peça nova
+  // entrando no meio o quebrou sem que nada sobre o que ele afirma tivesse mudado. Asserção
+  // posicional numa lista que cresce é uma asserção sobre a ordem do arquivo, não sobre a
+  // regra.
+  const por = (o: string) => feito.find((t) => t.o === o);
+  assert.equal(por('descida')?.fim, 'feito');
+  assert.equal(por('copia')?.fim, 'feito');
+  assert.equal(por('atualizacao')?.fim, 'feito');
 });
 
 test('uma recusa nomeada chega como motivo, não como mensagem de biblioteca', async () => {
@@ -71,14 +93,19 @@ test('uma recusa nomeada chega como motivo, não como mensagem de biblioteca', a
     },
   });
   const feito = await umaRodada(p, AGORA);
-  assert.equal(feito[1].porque, 'semAutorizacao', 'a tela precisa do motivo para saber o que dizer');
+  assert.equal(
+    feito.find((t) => t.o === 'copia')?.porque,
+    'semAutorizacao',
+    'a tela precisa do motivo para saber o que dizer',
+  );
 });
 
 test('sem destino configurado a cópia PULA, e pular não é falhar', async () => {
   const { p, ordem } = pecas({ temDestino: async () => false });
   const feito = await umaRodada(p, AGORA);
-  assert.equal(feito[1].fim, 'pulou');
-  assert.equal(feito[1].porque, 'semDestino');
+  const copia = feito.find((t) => t.o === 'copia');
+  assert.equal(copia?.fim, 'pulou');
+  assert.equal(copia?.porque, 'semDestino');
   assert.ok(!ordem.includes('copia'), 'copiou para onde?');
 });
 
@@ -139,7 +166,7 @@ test('a atualização é a última, e uma pronta não muda o que as outras duas 
   // uma vez não conta de novo.
   assert.deepEqual(
     feito.map((t) => `${t.o}:${t.fim}`),
-    ['fila:feito', 'copia:feito', 'atualizacao:feito'],
+    ['fila:feito', 'descida:feito', 'copia:feito', 'atualizacao:feito'],
   );
 });
 

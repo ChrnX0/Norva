@@ -38,6 +38,7 @@ import {
   type Http,
   type Tokens,
 } from './drive';
+import { descer } from '@/sync/descer';
 import { umaRodada, type Tentativa } from './sozinho';
 
 /**
@@ -241,6 +242,25 @@ async function buscarAtualizacao(): Promise<boolean> {
   return true;
 }
 
+/**
+ * Desce o que o servidor já sabe. Sem conta, não há de onde descer.
+ *
+ * Espelho do `subirFila` logo abaixo, e as duas travas são as mesmas pelo mesmo motivo: sem
+ * conta aberta não há a quem pedir, e sem servidor configurado não há para onde olhar.
+ * Devolve zero em vez de jogar, porque "não há de onde descer" não é falha — é a fábrica
+ * trabalhando offline, que é o estado normal deste aplicativo.
+ */
+async function baixarDoServidor(): Promise<number> {
+  const quem = await contaAtual();
+  if (!quem) return 0;
+  const relatorio = await descer(
+    transporte({ userId: quem.id, companyId: empresaDaqui() }),
+    empresaDaqui(),
+  );
+  if (relatorio.erro) throw Object.assign(new Error('descida com erro'), { motivo: 'servidorRecusou' });
+  return relatorio.linhas;
+}
+
 /** Sobe a fila com a conta que estiver aberta. Sem conta, não há para onde subir. */
 async function subirFila(): Promise<number> {
   const quem = await contaAtual();
@@ -264,6 +284,7 @@ export async function rodadaAutomatica(): Promise<Tentativa[]> {
   return umaRodada(
     {
       subirFila,
+      descer: baixarDoServidor,
       movimentos: countMovements,
       ultima: async () => {
         const u = await ultimaCopia();

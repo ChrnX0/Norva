@@ -1,6 +1,6 @@
 import { empresaAdotada } from '@/data/empresa';
 import { linhaDaFila, type OutboxEntry } from '@/data/outbox';
-import type { PushResult, Transport } from './engine';
+import type { PedidoDeDescida, PushResult, Transport } from './engine';
 import { APENAS_INSERE, serialize, type ServerTable, type SyncActor } from './serialize';
 
 /**
@@ -52,6 +52,18 @@ export type Casa = {
     linha: Record<string, unknown>,
     apenasInsere: boolean,
   ): Promise<ProblemaDoServidor | null>;
+  /**
+   * Lê uma página, na ordem do cursor. O outro sentido.
+   *
+   * O razão vem pela VIEW e não pela tabela: `movements_visible` põe o portão do dinheiro
+   * do lado de dentro da consulta (`security_invoker` mais `has_capability`), então um
+   * aparelho sem `view_cost` recebe a linha com o custo NULO em vez de recebê-lo e
+   * esconder na tela. Esconder na tela é decoração; a fundação desta casa manda a
+   * permissão morar na consulta.
+   */
+  ler(
+    pedido: PedidoDeDescida,
+  ): Promise<{ linhas: Record<string, unknown>[]; erro?: ProblemaDoServidor }>;
 };
 
 /**
@@ -83,6 +95,33 @@ export async function casaDoServidor(): Promise<Casa | null> {
       // passageiro. Nada aqui decide: quem decide é a lista, num arquivo puro.
       const codigo = typeof error.code === 'string' && error.code.length > 0 ? error.code : null;
       return { codigo, mensagem: error.message };
+    },
+
+    ler: async (p) => {
+      // A view para o razão, a tabela para o resto. `movements` é a única que tem dinheiro
+      // dentro, e é a única cuja leitura precisa passar pelo portão.
+      const de = p.tabela === 'movements' ? 'movements_visible' : p.tabela;
+      let q = cliente
+        .from(de)
+        .select(p.colunas.join(','))
+        .order('received_at', { ascending: true })
+        .order('id', { ascending: true })
+        .limit(p.limite);
+
+      // O par ordenado: "depois deste relógio, ou no mesmo relógio com id maior". Sem a
+      // segunda metade, a segunda linha de um lote que entrou na mesma transação — mesmo
+      // `now()` — fica do lado errado do "maior que" e some para sempre.
+      if (p.depoisDe) {
+        const { recebidoEm, id } = p.depoisDe;
+        q = q.or(`received_at.gt.${recebidoEm},and(received_at.eq.${recebidoEm},id.gt.${id})`);
+      }
+
+      const { data, error } = await q;
+      if (error) {
+        const codigo = typeof error.code === 'string' && error.code.length > 0 ? error.code : null;
+        return { linhas: [], erro: { codigo, mensagem: error.message } };
+      }
+      return { linhas: (data ?? []) as unknown as Record<string, unknown>[] };
     },
   };
 }

@@ -27,10 +27,13 @@ import { useTheme } from '@/theme/ThemeProvider';
  * o primeiro q aceitar fica como permanente."* Os quatro fatos que ela nomeia são os quatro
  * que cada cartão mostra.
  *
- * **E a fronteira, dita para ninguém dar o degrau 3 por fechado:** a conferência que GANHOU
- * está no servidor, e não existe sincronia de entrada para `movements` — então este aparelho
- * mostra a SUA, não as duas. E "o primeiro que aceitar fica" continua esperando a leitura do
- * servidor e a pergunta de esquema que está no item 42 do plano.
+ * **E a fronteira, dita para ninguém dar o degrau 3 por fechado — ela ENCOLHEU em 12 de
+ * setembro e não sumiu.** A descida existe desde a `0061`, então o razão do outro celular
+ * chega aqui e esta tela pode mostrar a conferência que GANHOU. O que ainda falta é o
+ * **aceitar**: a que perdeu não está em `movements` (a `0051` a recusa, e é ela que impede o
+ * saldo dobrar), então ela precisa de um lugar próprio no servidor — a tabela de candidatas
+ * da rodada 14. Até lá esta tela mostra a que este aparelho anotou e, agora, a que o
+ * servidor aceitou; falta o botão que decide entre as duas.
  *
  * **Nada aqui culpa ninguém, e o caso real manda.** Duas pessoas conferindo a mesma carga na
  * doca, as duas sem sinal: as duas estão certas, e o servidor é que só aceita uma. Então a

@@ -11323,3 +11323,57 @@ cravado e o que não está.
 *E a moeda tinha o mesmo defeito, com a consequência pior: quem paga em pesos via "R$" numa
 conta certa. Número certo com o símbolo errado é pior que número errado, porque parece
 confiável.*
+
+## 12 de setembro — as guardas desenharam a descida melhor do que eu
+
+A sincronia deixou de ser de mão única, e o caminho até lá foi guiado por quatro guardas que
+reprovaram o meu primeiro desenho. Nenhuma delas estava reclamando de estilo:
+
+1. **`only the data layer speaks SQL`** pegou `src/sync/descida.ts` construindo `INSERT`.
+   A saída óbvia era pedir exceção — o estudo até previa isso. A saída certa era **mover**:
+   as regras da descida (ordem, cursor, pedido) ficam em `src/sync`, e o SQL foi para
+   `src/data/descida.ts`. A guarda não estava no caminho; ela estava apontando a costura.
+2. **`the crossing reads the stored row, never a repository read`** pegou o motor da
+   descida importando `recomputeItemCost`. A fronteira que ela guarda é o *import*, não a
+   direção — e estava certa mesmo sendo aquilo uma escrita.
+3. **O P1** reprovou `descida.ts` inteiro por exportar sem chamador, antes de eu ligar o
+   motor. Meia rodada não passa.
+4. **`every server column with a written rule reaches the device`** pegou `received_at`: o
+   servidor ganhou a coluna com `comment on column` e o aparelho não a tem. Ela é
+   deliberadamente só do servidor — o cursor mora uma vez por TABELA no `app_meta`, não uma
+   vez por linha — e a guarda exigiu essa frase por escrito, que é exatamente o que ela
+   deveria exigir.
+
+**O que isso ensina sobre guarda boa:** as quatro dispararam num desenho que compilava,
+passava nos testes e funcionava. Elas não mediram o resultado — mediram a **forma**, e a
+forma errada é o que fica caro depois. Uma suíte que só olha resultado aprova qualquer
+arquitetura que dê o número certo hoje.
+
+*E uma quinta, menor, que também vale: o teste da ordem da rodada automática afirmava
+`feito[1]` e `feito[2]`. A peça nova entrando no meio o quebrou sem que nada sobre o que ele
+afirma tivesse mudado — asserção posicional numa lista que cresce é asserção sobre a ordem do
+arquivo, não sobre a regra. Virou busca por nome.*
+
+## 12 de setembro — o cursor que só um Postgres de verdade sabe provar
+
+A descida precisa de um cursor, e a escolha dele é toda sobre relógios: `occurred_at` chega
+fora de ordem de propósito (a nota de terça digitada na quinta) e `recorded_at` vem do
+aparelho — dois celulares com relógios diferentes embaralham a ordem, e um relógio atrasado
+faz linhas nascerem ANTES do cursor de quem já sincronizou, invisíveis para sempre. Daí
+`received_at default now()`, a hora do servidor.
+
+**O que quase escapou foi o desempate.** Uma fila subindo em lote entra numa transação só, e
+dentro de uma transação `now()` é o MESMO para todas as linhas. Com o cursor em
+`received_at > X` apenas, a segunda e a terceira linha do lote ficam do lado errado do "maior
+que" e somem — caladas, para sempre, exatamente nos movimentos mais novos.
+
+Isso não é demonstrável em teste de unidade: depende de o Postgres dar o mesmo `now()` dentro
+da transação. A garantia 33 planta três movimentos num `begin/commit`, **confere que os três
+compartilham o relógio** (senão a garantia estaria provando outra coisa) e então prova que o
+par `(received_at, id)` atravessa o lote inteiro. Plantado o cursor sem desempate, ela
+reprova dizendo *"sem o desempate, um lote inteiro some depois da primeira linha"*.
+
+**A régua que sai: quando a correção depende de uma propriedade do BANCO — mesmo `now()`
+numa transação, ordem de gatilho, tradução de SQLSTATE — a prova tem de rodar contra o banco.
+E a garantia precisa checar primeiro que a propriedade vale**, senão ela passa verde medindo
+um caso que não aconteceu.

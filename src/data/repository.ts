@@ -3222,10 +3222,12 @@ export type LinhaDeLado = {
  * exemplo) para os dois celulares e o primeiro q aceitar fica como permanente."* Esta função dá
  * os quatro fatos que ela nomeia, da conferência QUE ESTE APARELHO anotou.
  *
- * **E a fronteira, dita antes de alguém achar que o degrau 3 fechou:** a conferência que
- * GANHOU está no servidor, e não há sincronia de entrada para `movements` — então este aparelho
- * não tem como mostrar os fatos da outra. O que falta para "o primeiro que aceitar fica" é
- * leitura do servidor mais a pergunta de esquema que está no item 42 e na lista do dono.
+ * **E a fronteira encolheu em 12 de setembro.** A descida existe (`0061`,
+ * `src/sync/descer.ts`): o razão do outro celular chega a este aparelho, então os fatos da
+ * conferência que GANHOU deixaram de ser inalcançáveis. O que falta para *"o primeiro que
+ * aceitar fica"* é o outro lado — a que PERDEU não está em `movements`, porque a `0051` a
+ * recusa, e é ela que impede o saldo dobrar. A perdedora precisa de lugar próprio no
+ * servidor, e é isso que a rodada 14 constrói.
  *
  * **Por que a empresa entra na assinatura se a `outbox` não tem `company_id`.** Porque o
  * livro-razão tem, e é ele que se lê aqui: sem o filtro, um aparelho adotado por outra empresa

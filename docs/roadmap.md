@@ -39,7 +39,7 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | telas | **36** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **27** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **29** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **60** | `ls supabase/migrations \| wc -l` |
+| migrações do servidor | **61** | `ls supabase/migrations \| wc -l` |
 | migrações do aparelho | **V34** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
@@ -52,9 +52,15 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 | `npm test` | **788** testes |
 | `npm run mutate` | **151** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **59** checagens num navegador de verdade |
-| `npm run db:verify` | **32** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **17** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
+| `npm run db:verify` | **33** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **18** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
+
+**E a descida existe desde 12 de setembro à noite** (`0061`, `src/sync/descida.ts`,
+`src/sync/descer.ts`, `src/data/descida.ts`, garantia 33). Dois celulares da mesma fábrica
+passam a somar o mesmo razão — a dívida estrutural que este arquivo chamava de *"a dívida
+verdadeira"* está paga, e o que sobra dela é o **aceitar** da conferência duplicada, que é a
+rodada seguinte.
 
 *Última execução do `mutate`: **12 de setembro à noite, sobre `63c45e9`** — **151 plantadas,
 149 pegas, 2 equivalentes, 0 sobreviventes, 0 não medidas**, com a barra inteira verde ao lado
@@ -3244,15 +3250,39 @@ Então:
   aprenderia o valor do outro. Seria meio conserto com cara de conserto inteiro, que é o
   que este projeto mais paga caro.
 
-**A dívida verdadeira é: a sincronia é de mão única.** Não é uma tabela que falta, é o
-caminho de leitura — e ele não é um `ALTER TABLE`, é uma decisão de desenho (o que o
-servidor manda de volta, quando, e quem vence quando os dois lados mexeram na mesma linha).
+~~**A dívida verdadeira é: a sincronia é de mão única.**~~ — **PAGA em 12 de setembro**
+(`0061`, `src/sync/descida.ts`, `src/sync/descer.ts`, `src/data/descida.ts`).
 
-E o preço dela subiu em 6 de setembro, por minha causa: `floorSignIn` e `namesWhoRecorded`
-passaram a decidir **quem vê dinheiro**. Numa fábrica com dois aparelhos, um esconderia
-custo e o outro não, sem que ninguém tivesse escolhido isso. Enquanto não houver descida, a
-resposta honesta é que **o portão do dinheiro é por aparelho**, e está escrito assim no
-`currentCapabilities`.
+A dívida estava certa sobre a natureza dela: não era uma tabela que faltava, era uma decisão
+de desenho. As três que ela nomeia foram tomadas assim:
+
+* **o que o servidor manda de volta** — cadastro por *upsert* (última palavra vence) e razão
+  por `INSERT OR IGNORE`, porque append-only não se corrige: linha que já existe é a MESMA
+  linha. E o razão desce pela **view**, que põe o portão do dinheiro dentro da consulta;
+* **quando** — depois de subir, na mesma rodada automática. Subir primeiro faz o que este
+  aparelho gravou offline chegar antes de ele pedir de volta o que os outros gravaram; a
+  ordem inversa desceria a própria linha que acabou de subir;
+* **quem vence** — no cadastro, quem escreveu por último; no razão, ninguém, porque não há
+  disputa: o que está lá está lá, e correção é estorno.
+
+O cursor foi a parte que precisou de esquema, e a razão está na `0061`: `occurred_at` chega
+fora de ordem de propósito e `recorded_at` vem do aparelho, então **nenhum dos dois ordena o
+que dois celulares mandaram**. `received_at default now()` é a hora do servidor, e o
+desempate é o `id` — a garantia 33 prova o caso que só existe contra um Postgres de verdade:
+três linhas subindo na mesma transação recebem o MESMO `now()`, e sem o desempate duas delas
+somem, caladas, para sempre.
+
+E o preço dela tinha subido em 6 de setembro, por minha causa: `floorSignIn` e
+`namesWhoRecorded` passaram a decidir **quem vê dinheiro**, e numa fábrica com dois aparelhos
+um esconderia custo e o outro não, sem ninguém ter escolhido isso.
+
+**Com a descida, essa metade mudou de lugar e não sumiu.** O razão desce pela
+`movements_visible`, cujo portão é `has_capability` do lado de dentro da consulta: um aparelho
+cuja CONTA não pode ver custo recebe a linha com o custo **nulo** — não recebe e esconde. Ou
+seja, o portão do dinheiro na descida é da conta, como manda a fundação. O que continua por
+aparelho é o piso local (`currentCapabilities`), e as duas coisas agora podem discordar: o
+aparelho compartilhado escondendo custo de quem, pela conta, poderia ver. Isso é a decisão do
+dono de 6 de setembro funcionando, e não defeito — fica escrito para ninguém "consertar".
 
 ### Dois defeitos que a medição achou
 
