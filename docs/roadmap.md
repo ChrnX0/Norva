@@ -60,8 +60,10 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 bandeira `reversed` do extrato, o quinto predicado que o estorno parcial obrigou a crescer e o
 único sem asserção, porque ela é lida pela TELA. Resultado: **142 plantadas, 139 pegas, 2
 equivalentes, 1 sobrevivente, 0 não medidas**, em **28 min 39 s** na execução anterior de 139.
-Consertado no mesmo commit, com as duas metades da agregação provadas uma por uma; o arquivo passa
-a ter 143.*
+Consertado no mesmo commit, com as duas metades da agregação provadas uma por uma — e a execução
+seguinte, sobre `190adae` e com a árvore parada, fechou **143 plantadas, 141 pegas, 2
+equivalentes, 0 sobreviventes, 0 não medidas**. Os dois equivalentes são as duas checagens em
+camadas do estorno, que só concorrência real separaria.*
 
 *E a execução ANTERIOR desta mesma noite deu a mesma mutação como **PEGA** — ela leu a árvore viva
 enquanto eu editava, que é o que `julgar()` faz. Um falso "pego" sobre um sobrevivente de verdade
