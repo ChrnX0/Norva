@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { amountOf, type Rate, type Cents } from '@/domain/money';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CountUp } from '@/components/CountUp';
@@ -22,7 +23,6 @@ import {
 import { empresaDaqui } from '@/data/empresa';
 import { unidadeDaqui } from '@/data/unidade';
 import { useQuery } from '@/data/useQuery';
-import type { Cents } from '@/domain/money';
 import { volumeBand } from '@/domain/alerts';
 import { nowIso } from '@/data/db';
 import { dayWindow } from '@/domain/day';
@@ -156,7 +156,7 @@ function InputsList() {
    * per base unit, so this is the one place they turn back into an amount.
    */
   const heldCents = dinheiro
-    ? shown.reduce((total, item) => total + Math.round((item.averageRate ?? 0) * item.onHandBaseUnits), 0)
+    ? shown.reduce((total, item) => total + amountOf(item.averageRate ?? (0 as Rate), item.onHandBaseUnits), 0)
     : null;
 
   /**
@@ -437,7 +437,7 @@ function InputsList() {
                 )}
                 trailing={
                   item.averageRate !== null && item.averageRate > 0
-                    ? formatMoney(Math.round(item.averageRate * 1_000), locale)
+                    ? formatMoney(amountOf(item.averageRate, 1_000), locale)
                     : '—'
                 }
                 trailingTone={

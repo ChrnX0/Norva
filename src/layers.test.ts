@@ -1029,6 +1029,85 @@ export function porCentoNaMao(texto: string): string[] {
 }
 
 /**
+ * `Math.round` sobre uma TAXA, fora da camada do dinheiro.
+ *
+ * A terceira irmã, e a que tem dinheiro em cima. `amountOf(taxa, quantidade)` se diz de si
+ * *"the one place rounding happens"*, e o repositório tinha **vinte e sete** lugares
+ * fazendo a conta dela à mão — dezessete multiplicando taxa por quantidade e dez
+ * arredondando uma taxa direto para dinheiro. Nenhum estava errado hoje; o problema é o
+ * que eles tornam possível amanhã, e este projeto já pagou por isso: quando o
+ * arredondamento mora em vinte e sete lugares, o dia em que um deles arredonda antes de
+ * somar em vez de depois não aparece em teste nenhum — aparece num total que ninguém
+ * consegue explicar meses depois.
+ *
+ * A régua mira o NOME: qualquer identificador que termine em `Rate` ou seja `perYieldUnit`
+ * dentro de um `Math.round(`. `src/domain/money.ts` fica de fora porque é a casa da
+ * primitiva, e `src/i18n/` porque `formatUnitRate` decide a escala do que já é dinheiro.
+ *
+ * *Contagem não entra: `Math.round(perBox)` é quantas caixas cabem no engradado, e
+ * arredondar uma contagem é o certo. É por isso que a régua olha o nome e não a forma.*
+ */
+export function taxaArredondadaNaMao(texto: string): string[] {
+  return texto
+    .split('\n')
+    .filter(
+      (linha) =>
+        /Math\.round\([^)]*\b(\w*Rate|perYieldUnit)\b/.test(linha) &&
+        !linha.trimStart().startsWith('*') &&
+        !linha.trimStart().startsWith('//'),
+    )
+    .map((linha) => linha.trim().slice(0, 90));
+}
+
+test('ninguém arredonda uma taxa à mão', () => {
+  const fontes = [...sourcesUnder('app'), ...sourcesUnder('src')].filter(
+    (f) => !f.endsWith('src/domain/money.ts') && !f.includes('src/i18n/'),
+  );
+  assert.ok(fontes.length > 20, 'a varredura de fontes veio vazia — a comparação seria de graça');
+
+  const naMao: string[] = [];
+  for (const f of fontes) {
+    for (const achado of taxaArredondadaNaMao(readFileSync(f, 'utf8'))) naMao.push(`${f}: ${achado}`);
+  }
+
+  assert.deepEqual(
+    naMao,
+    [],
+    `estes lugares arredondam uma taxa à mão:\n  ${naMao.join('\n  ')}\n` +
+      '`amountOf(taxa, quantidade)` é o único lugar onde o arredondamento acontece, e ' +
+      '`cents(taxa)` é o caminho para uma taxa que já é o valor. Fazer a conta na tela ' +
+      'multiplica os pontos de arredondamento, e é assim que um centavo aparece do nada ' +
+      'num total.',
+  );
+});
+
+test('a régua da taxa morde as duas formas reais, e deixa contagem em paz', () => {
+  // Os dois casos verdadeiros, na forma REAL em que estavam no disco.
+  assert.equal(
+    taxaArredondadaNaMao('  const held = Math.round((item.averageRate ?? 0) * item.onHandBaseUnits);').length,
+    1,
+    'taxa vezes quantidade, que é amountOf',
+  );
+  assert.equal(
+    taxaArredondadaNaMao('     amount: formatMoney(Math.round(linha.listRate), locale),').length,
+    1,
+    'taxa virando dinheiro direto, que é cents',
+  );
+
+  // E os casos falsos: contagem, e a prosa que cita o padrão.
+  assert.equal(
+    taxaArredondadaNaMao('    const crate = Math.round(num(perCrate));').length,
+    0,
+    'arredondar quantas caixas cabem no engradado é o certo',
+  );
+  assert.equal(
+    taxaArredondadaNaMao(' * `Math.round(unitRate * quantity)` é o que esta função faz por você').length,
+    0,
+    'linha de comentário não é chamada',
+  );
+});
+
+/**
  * `toFixed` fora da camada que sabe o idioma.
  *
  * Irmã da régua de porcentagem acima, e ela existe porque a porcentagem era só um dos

@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { cents, type Cents } from '@/domain/money';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { CountUp } from '@/components/CountUp';
@@ -29,7 +30,6 @@ import { empresaDaqui } from '@/data/empresa';
 import { unidadeEAsNossasDeFora, unidadeDaqui } from '@/data/unidade';
 import { useQuery } from '@/data/useQuery';
 import { dayWindow } from '@/domain/day';
-import type { Cents } from '@/domain/money';
 import { fill, formatMoney, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -255,7 +255,7 @@ function ReportIndex() {
               title={t.app.reports.rows.cost.label}
             >
               <CountUp
-                value={Math.round(comCusto[0]!.unitCostRate!)}
+                value={cents(comCusto[0]!.unitCostRate!)}
                 format={(v) => formatMoney(v as Cents, locale)}
                 style={{ ...type.figure, color: color.ink }}
               />

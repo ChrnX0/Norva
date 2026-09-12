@@ -11252,3 +11252,25 @@ no disco mais a prosa de docblock que cita o padrão. Ela é irmã da régua de 
 já existia — e é aí que está a lição: **a régua antiga exigia `%` na mesma linha**, de
 propósito e com razão escrita, e isso a cegava para os outros três rostos do mesmo defeito.
 Régua estreita demais não é conservadora: ela é uma promessa de cobertura que não cobre.
+
+## 12 de setembro — o levantamento achou 27; a guarda achou 30
+
+`amountOf` diz de si *"the one place rounding happens"*, e o repositório tinha **trinta**
+lugares fazendo a conta dela à mão: dezessete multiplicando taxa por quantidade, dez
+arredondando uma taxa direto para dinheiro, e três que **o meu levantamento não pegou**.
+
+O levantamento foi um `grep` de `Math.round(` filtrado por palavras que eu achei que
+apareceriam — `rate|custo|cost|preco|price|cents|valor`. Os três que escaparam eram
+`parsed.unitRate` e `cost.perYieldUnit` dentro de `formatMoney(...)`: a linha tem taxa e
+tem dinheiro, e nenhuma das minhas palavras estava nela em minúscula. **A guarda, que mira
+o NOME do identificador (`\w*Rate`, `perYieldUnit`), achou os três em um segundo.**
+
+É a regra da casa sobre detector descartável, com o sinal trocado: ali o perigo é a régua
+de uma vez que erra e fala direto com o dono. Aqui é o oposto e vale escrever — **a régua
+que vai virar guarda encontra o que a varredura à mão perdeu**, porque ela é escrita para
+o conceito e a varredura é escrita para o que a memória lembrou de procurar. Se o plano
+diz "são 25", a guarda é que decide.
+
+Nenhum dos trinta estava errado hoje. O que eles tornam possível amanhã é o defeito: com o
+arredondamento em trinta lugares, o dia em que um deles arredondar antes de somar em vez
+de depois não aparece em teste nenhum — aparece num total que ninguém explica meses depois.

@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { amountOf, type Rate } from '@/domain/money';
 import { faltaProduzir } from '@/domain/picking';
 import {
   countMovements,
@@ -373,7 +374,7 @@ function Briefing() {
        */
       heldCents: stockItems
         .filter((i) => i.kind === 'input' || i.kind === 'packaging')
-        .reduce((n, i) => n + Math.round((i.averageRate ?? 0) * i.onHandBaseUnits), 0),
+        .reduce((n, i) => n + amountOf(i.averageRate ?? (0 as Rate), i.onHandBaseUnits), 0),
     };
   });
 

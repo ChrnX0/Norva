@@ -17,7 +17,7 @@ import { packSize } from '@/domain/measure';
 import { findItem, recordPurchase, saveItem, type ItemKind } from '@/data/repository';
 import { useQuery } from '@/data/useQuery';
 import { empresaDaqui } from '@/data/empresa';
-import { fromDecimal, rate, rateToDecimal, type Rate } from '@/domain/money';
+import { fromDecimal, rate, rateToDecimal, type Rate, amountOf } from '@/domain/money';
 import { parseTyped, formatTyped } from '@/domain/number';
 import { currencySymbol, fill, formatMoney, formatQuantity, formatDecimal } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -226,7 +226,7 @@ function InputForm() {
    */
   const conversionHint = (() => {
     if (!parsed.valid || parsed.unitRate === null) return undefined;
-    const perThousand = formatMoney(Math.round(parsed.unitRate * 1000), locale);
+    const perThousand = formatMoney(amountOf(parsed.unitRate, 1000), locale);
     return fill(words.conversion, {
       paid: formatMoney(fromDecimal(parsed.paid), locale),
       factor: parsed.factor.toLocaleString(locale.formatting),
@@ -502,7 +502,7 @@ function InputForm() {
               {kind === 'store_supply' ? words.costsInStore : words.entersAs}
             </Text>
             <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
-              {formatMoney(Math.round((parsed.unitRate ?? 0) * 1000), locale)}
+              {formatMoney(amountOf(parsed.unitRate ?? (0 as Rate), 1000), locale)}
             </Text>
             <Text style={[type.secondary, { color: color.inkMuted }]}>
               {fill(words.perThousandOf, { unit: baseUnit })}

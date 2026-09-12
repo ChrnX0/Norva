@@ -51,7 +51,7 @@ import {
 import { empresaDaqui } from '@/data/empresa';
 import { unidadeDaqui } from '@/data/unidade';
 import { judgePriceChange, observedLeadTimeDays, reorderPoint } from '@/domain/cost';
-import { amountOf } from '@/domain/money';
+import { amountOf, type Rate } from '@/domain/money';
 import { ehConferencia, vendeAoConsumidor, type LossReason } from '@/domain/ledger';
 import { parseTyped } from '@/domain/number';
 import { useQuery } from '@/data/useQuery';
@@ -342,8 +342,8 @@ function InputDetail() {
       ? Math.floor((item.onHandBaseUnits - gatilho) / saiPorDia)
       : null;
   const temCusto = item.averageRate !== null && item.averageRate > 0;
-  const perThousand = temCusto ? Math.round((item.averageRate ?? 0) * 1_000) : 0;
-  const held = Math.round((item.averageRate ?? 0) * item.onHandBaseUnits);
+  const perThousand = temCusto ? amountOf(item.averageRate ?? (0 as Rate), 1_000) : 0;
+  const held = amountOf(item.averageRate ?? (0 as Rate), item.onHandBaseUnits);
   const moves = (data?.history ?? []).filter((h) => h.previousRate !== null);
 
   // The last real move, which is the only one anybody asks about.
@@ -430,7 +430,7 @@ function InputDetail() {
     const lost = parseTyped(lostText) ?? NaN;
     if (!Number.isFinite(lost) || lost <= 0) return;
 
-    const worth = Math.round((item.averageRate ?? 0) * lost);
+    const worth = amountOf(item.averageRate ?? (0 as Rate), lost);
     const go = await confirm({
       title: t.app.inputDetail.lossAsk,
       // Sem custo, a cláusula do dinheiro SAI da frase em vez de virar
@@ -518,7 +518,7 @@ function InputDetail() {
       if (taxa !== null) receita = Math.abs(amountOf(taxa, delta));
     }
 
-    const worth = Math.abs(Math.round((item.averageRate ?? 0) * delta));
+    const worth = Math.abs(amountOf(item.averageRate ?? (0 as Rate), delta));
 
     const shown = {
       counted: `${formatQuantity(Math.round(counted), locale)} ${item.baseUnit}`,
@@ -833,7 +833,7 @@ function InputDetail() {
             })}
             trailing={
               item.purchaseToBase && temCusto
-                ? formatMoney(Math.round((item.averageRate ?? 0) * item.purchaseToBase), locale)
+                ? formatMoney(amountOf(item.averageRate ?? (0 as Rate), item.purchaseToBase), locale)
                 : '—'
             }
           />
@@ -1122,7 +1122,7 @@ function InputDetail() {
                     key={move.observedAt}
                     label={formatDayMonth(move.observedAt, locale)}
                     detail={`${formatMoney(Math.round(previous * 1_000), locale)} → ${formatMoney(
-                      Math.round(move.newRate * 1_000),
+                      amountOf(move.newRate, 1_000),
                       locale,
                     )}`}
                     trailing={`${change > 0 ? '▲' : '▼'} ${formatPercent(Math.abs(change), locale)}`}

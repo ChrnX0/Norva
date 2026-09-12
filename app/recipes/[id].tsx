@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { amountOf } from '@/domain/money';
 import { voltar } from '@/nav';
 import { avisoDeFalha } from '@/i18n/falha';
 import { ERROS } from '@/data/erros';
@@ -128,7 +129,7 @@ function contaDaReceita(
         // na string é o ponto de milhar do português dentro de uma tela que também
         // abre em inglês, onde o mesmo mil é "1,000".
         valor: fill(t.whySheet.perAmount, {
-          money: formatMoney(Math.round(cost.perYieldUnit * 1000), locale),
+          money: formatMoney(amountOf(cost.perYieldUnit, 1000), locale),
           amount: formatQuantity(1000, locale),
           // "R$ 1,03 / 1.000" — mil de quê? A Lei 3 pede a comparação junto, e
           // sem a régua o número não decide nada: mil gramas e mil mililitros

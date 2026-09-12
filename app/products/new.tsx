@@ -42,7 +42,7 @@ import {
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
-import { rate } from '@/domain/money';
+import { rate, cents } from '@/domain/money';
 import {
   costPerPack,
   costPerProductUnit,
@@ -915,7 +915,7 @@ function ProductForm() {
                   {costing && costing.itemsRate > 0 ? (
                     <Text style={[type.caption, { color: color.inkMuted }]}>
                       {fill(t.app.productForm.fromStockCost, {
-                        amount: formatMoney(Math.round(costing.itemsRate), locale),
+                        amount: formatMoney(cents(costing.itemsRate), locale),
                       })}
                     </Text>
                   ) : null}

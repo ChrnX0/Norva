@@ -34,7 +34,7 @@ import {
   currentCapabilities,
 } from '@/data/repository';
 import { dayWindow, localDate } from '@/domain/day';
-import { rate, rateToDecimal } from '@/domain/money';
+import { rate, rateToDecimal, cents } from '@/domain/money';
 import { ehUnidade, nomeDoLugar, receivesCargo } from '@/domain/ledger';
 import { empresaDaqui } from '@/data/empresa';
 import { unidadeDaqui } from '@/data/unidade';
@@ -1001,12 +1001,12 @@ function Agreement({ place, onDone }: { place: Place; onDone: () => void }) {
                 linha.listRate === null
                   ? words.noListPrice
                   : fill(words.listPrice, {
-                      amount: formatMoney(Math.round(linha.listRate), locale),
+                      amount: formatMoney(cents(linha.listRate), locale),
                     }),
                 fill(words.pricePerUnit, { unit: linha.baseUnit }),
                 linha.previousRate !== null && linha.changedAt !== null
                   ? fill(words.priceWas, {
-                      amount: formatMoney(Math.round(linha.previousRate), locale),
+                      amount: formatMoney(cents(linha.previousRate), locale),
                       date: formatDayMonth(linha.changedAt, locale),
                     })
                   : '',

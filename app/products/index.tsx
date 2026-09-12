@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { cents } from '@/domain/money';
 import { Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -142,7 +143,7 @@ function ProductsList() {
           product.salePriceRate === null
             ? null
             : fill(t.app.products.sellsFor, {
-                amount: formatMoney(Math.round(product.salePriceRate), locale),
+                amount: formatMoney(cents(product.salePriceRate), locale),
               }),
         ]
           .filter(Boolean)

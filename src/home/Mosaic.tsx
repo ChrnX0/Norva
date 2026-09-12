@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState, type ComponentType, type ReactNode } from 'react';
+import { cents, type Cents } from '@/domain/money';
 import { StyleSheet, Text, View } from 'react-native';
 import { Bars } from '@/components/Bars';
 import { Drain } from '@/components/Drain';
@@ -36,7 +37,6 @@ import {
   type PrimeiroPasso,
 } from '@/domain/briefing';
 import { daysBetween, localDate } from '@/domain/day';
-import type { Cents } from '@/domain/money';
 import { brand } from '@/config/brand';
 import {
   CartaoClima,
@@ -921,7 +921,7 @@ export function Mosaic(vista: BriefingView) {
                         {r.code ?? r.name}
                       </Text>
                       <Text style={[type.secondary, styles.number, { color: color.inkMuted }]}>
-                        {formatMoney(Math.round(r.unitCostRate!) as Cents, locale)}
+                        {formatMoney(cents(r.unitCostRate!), locale)}
                       </Text>
                     </View>
                   ))}
@@ -930,7 +930,7 @@ export function Mosaic(vista: BriefingView) {
             }
           >
             <Text style={[type.figure, { color: color.ink }]}>
-              {formatMoney(Math.round(comCusto[0]!.unitCostRate!) as Cents, locale)}
+              {formatMoney(cents(comCusto[0]!.unitCostRate!), locale)}
             </Text>
             {/* O custo congelado corrida a corrida. É a única peça em que a
                 linha SUBINDO é notícia ruim, e por isso ela não muda de cor: a
@@ -945,7 +945,7 @@ export function Mosaic(vista: BriefingView) {
             <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={2}>
               {comCusto.length > 1
                 ? fill(t.app.home.costBefore, {
-                    amount: formatMoney(Math.round(comCusto[1]!.unitCostRate!) as Cents, locale),
+                    amount: formatMoney(cents(comCusto[1]!.unitCostRate!), locale),
                   })
                 : t.app.home.costOnlyOne}
             </Text>

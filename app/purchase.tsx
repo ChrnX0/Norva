@@ -27,7 +27,7 @@ import {
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
-import { fromDecimal, rate, type Rate, rateToDecimal } from '@/domain/money';
+import { fromDecimal, rate, type Rate, rateToDecimal, amountOf } from '@/domain/money';
 import { applyCostEvent, judgePriceChange } from '@/domain/cost';
 import { costPerProductUnit, packagingRatePerUnit, costRecipe } from '@/domain/recipe';
 import { parseTyped } from '@/domain/number';
@@ -680,8 +680,8 @@ function PurchaseForm() {
               <Text style={[type.caption, { color: color.inkMuted, marginTop: space.md }]}>
                 {fill(t.app.purchase.averageMoves, {
                   name: selected.name,
-                  from: formatMoney(Math.round(selected.averageRate * 1_000), locale),
-                  to: formatMoney(Math.round(draft.after.averageRate * 1_000), locale),
+                  from: formatMoney(amountOf(selected.averageRate, 1_000), locale),
+                  to: formatMoney(amountOf(draft.after.averageRate, 1_000), locale),
                   unit: selected.baseUnit,
                 })}
               </Text>

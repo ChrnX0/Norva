@@ -169,7 +169,7 @@ export function costRecipe(
     lines.push({ label, quantity: line.quantity, totalCents: cents(0), share: 0 });
   }
 
-  const batch = cents(Math.round(batchExact));
+  const batch = cents(batchExact);
 
   // The lines shown under the figure add up to it exactly, because a
   // breakdown that disagrees with the number it explains is worse than no
@@ -343,7 +343,7 @@ export function batchWithPackaging(
   unitPackaging: { typedRate?: Rate; itemsRate?: Rate } = {},
 ): Cents {
   const porUnidade = (unitPackaging.itemsRate ?? 0) + (unitPackaging.typedRate ?? 0);
-  return cents(Math.round(recipeCost.batchCents + porUnidade * unitsPerBatch(recipeCost, yieldPerUnit)));
+  return cents(recipeCost.batchCents + porUnidade * unitsPerBatch(recipeCost, yieldPerUnit));
 }
 
 /**

@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { amountOf } from '@/domain/money';
 import { Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -141,7 +142,7 @@ function RecipesList() {
         const figure =
           product?.yieldPerUnit
             ? formatMoney(costPerProductUnit(cost, product.yieldPerUnit, embalagem), locale)
-            : formatMoney(Math.round(cost.perYieldUnit * 1_000), locale);
+            : formatMoney(amountOf(cost.perYieldUnit, 1_000), locale);
 
         const detail = product?.yieldPerUnit
           ? fill(t.app.recipes.perUnitOf, {

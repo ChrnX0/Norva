@@ -1,4 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
+import { cents } from '@/domain/money';
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { voltar } from '@/nav';
@@ -385,7 +386,7 @@ function Production() {
           ),
           t.common.and,
         ),
-          cost: formatMoney(Math.round(draft.unitCostRate ?? 0), locale),
+          cost: formatMoney(cents(draft.unitCostRate ?? 0), locale),
         },
       ),
     });
@@ -714,7 +715,7 @@ function Production() {
                   {words.unitCost.toUpperCase()}
                 </Text>
                 <Text style={[type.figure, { color: color.ink }]}>
-                  {formatMoney(Math.round(draft.unitCostRate), locale)}
+                  {formatMoney(cents(draft.unitCostRate), locale)}
                 </Text>
               </>
             )}

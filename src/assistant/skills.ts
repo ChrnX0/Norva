@@ -3,7 +3,7 @@ import { dayWindow } from '@/domain/day';
 import { ehConferencia } from '@/domain/ledger';
 import { packSize } from '@/domain/measure';
 import { purchaseToBaseUnits } from '@/data/repository';
-import { fromDecimal } from '@/domain/money';
+import { fromDecimal, amountOf, type Rate } from '@/domain/money';
 import {
   costPerProductUnit,
   costRecipe,
@@ -150,7 +150,7 @@ function rateAnswer(
   item: Awaited<ReturnType<SkillContext['data']['listItems']>>[number],
   ctx: SkillContext,
 ): Answer {
-  const perThousand = formatMoney(Math.round((item.averageRate ?? 0) * 1_000), ctx.locale);
+  const perThousand = formatMoney(amountOf(item.averageRate ?? (0 as Rate), 1_000), ctx.locale);
   const detail = [
     { label: 'Custo médio', value: `${perThousand} a cada 1.000 ${item.baseUnit}` },
   ];
@@ -158,13 +158,13 @@ function rateAnswer(
   if (item.lastRate !== null) {
     detail.push({
       label: 'Última compra',
-      value: `${formatMoney(Math.round(item.lastRate * 1_000), ctx.locale)} a cada 1.000 ${item.baseUnit}`,
+      value: `${formatMoney(amountOf(item.lastRate, 1_000), ctx.locale)} a cada 1.000 ${item.baseUnit}`,
     });
   }
   if (item.purchaseUnit && item.purchaseToBase) {
     detail.push({
       label: item.purchaseUnit,
-      value: formatMoney(Math.round((item.averageRate ?? 0) * item.purchaseToBase), ctx.locale),
+      value: formatMoney(amountOf(item.averageRate ?? (0 as Rate), item.purchaseToBase), ctx.locale),
     });
   }
 
@@ -487,7 +487,7 @@ const listInputs: Skill = {
 
     const dinheiro = ctx.capabilities.has('view_cost');
     const held = stock.reduce(
-      (total, item) => total + Math.round((item.averageRate ?? 0) * item.onHandBaseUnits),
+      (total, item) => total + amountOf(item.averageRate ?? (0 as Rate), item.onHandBaseUnits),
       0,
     );
     // `!== null` e não `<= 0`: nulo em JavaScript é MENOR que zero numa comparação
@@ -508,7 +508,7 @@ const listInputs: Skill = {
         label: item.name,
         value: dinheiro
           ? item.averageRate !== null && item.averageRate > 0
-            ? `${formatMoney(Math.round(item.averageRate * 1_000), ctx.locale)} / 1.000 ${item.baseUnit}`
+            ? `${formatMoney(amountOf(item.averageRate, 1_000), ctx.locale)} / 1.000 ${item.baseUnit}`
             : 'sem preço'
           : `${formatQuantity(item.onHandBaseUnits, ctx.locale)} ${item.baseUnit}`,
       })),
@@ -586,7 +586,7 @@ const stockOfInput: Skill = {
     if (ctx.capabilities.has('view_cost')) {
       detail.push({
         label: 'Valor parado',
-        value: formatMoney(Math.round((item.averageRate ?? 0) * item.onHandBaseUnits), ctx.locale),
+        value: formatMoney(amountOf(item.averageRate ?? (0 as Rate), item.onHandBaseUnits), ctx.locale),
       });
     }
 
