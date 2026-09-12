@@ -589,6 +589,8 @@ export const ptBR = {
       overline: 'o servidor já tinha esse registro',
       intro:
         'Estas anotações não sobem. O servidor já tinha o registro da mesma carga, e é o dele que vale. Nada foi apagado aqui, e nada disto segura a fila.',
+      introOther:
+        'Estas anotações não sobem: o servidor as recusou de vez. Nada foi apagado aqui, e nada disto segura a fila.',
       empty: 'Nada ficou de lado.',
       emptyHint: 'Tudo o que você anotou subiu, ou está na fila esperando sinal.',
       /** A conferência: o que se contou, onde, quando e — se a empresa liga — por quem. */

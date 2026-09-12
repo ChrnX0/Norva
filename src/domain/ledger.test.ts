@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { daysOfCover, diasAteProduzir, ordemDeCarga } from './ledger';
+import { daysOfCover, diasAteProduzir, ordemDeCarga, tipoDaDiferenca } from './ledger';
 
 /**
  * A única conta deste módulo que o aplicativo roda.
@@ -91,4 +91,21 @@ test('the production warning lands on the day you can still act, never in the pa
   // numa tela faz a pessoa parar de acreditar no aviso inteiro.
   assert.equal(diasAteProduzir(0), 0);
   assert.equal(diasAteProduzir(-4), 0);
+});
+
+/**
+ * As três respostas da diferença — e a do meio é a que costuma faltar.
+ *
+ * Uma conferência que bate exato é um FATO, não a ausência de uma falta. Sem o caso `exata` a
+ * tela diria "faltaram 0 g", que é o alerta inventado; e sem a igualdade contra os três, a troca
+ * do sinal (`< 0` por `> 0`) passa sem nada reprovar — foi para não repetir a cicatriz de
+ * `app/purchase.tsx` que esta régua saiu da tela.
+ */
+test('a diferença da conferência tem três respostas, e zero é uma delas', () => {
+  assert.equal(tipoDaDiferenca(-500), 'falta', 'contou menos do que veio: é falta');
+  assert.equal(tipoDaDiferenca(500), 'sobra', 'contou mais do que veio: é sobra');
+  assert.equal(tipoDaDiferenca(0), 'exata', 'bateu exato é um FATO, não a ausência de uma falta');
+  // As bordas do sinal, porque é o sinal que a mutação troca.
+  assert.equal(tipoDaDiferenca(-1), 'falta', 'uma unidade a menos ainda é falta');
+  assert.equal(tipoDaDiferenca(1), 'sobra', 'uma unidade a mais ainda é sobra');
 });

@@ -387,6 +387,8 @@ export const es: Dictionary = {
       overline: 'el servidor ya tenía ese registro',
       intro:
         'Estas anotaciones no suben. El servidor ya tenía el registro de la misma carga, y el que vale es el suyo. Nada se borró aquí, y nada de esto frena la cola.',
+      introOther:
+        'Estas anotaciones no suben: el servidor las rechazó de forma definitiva. Nada se borró aquí, y nada de esto frena la cola.',
       empty: 'Nada quedó aparte.',
       emptyHint: 'Todo lo que anotaste subió, o está en la cola esperando señal.',
       checkTitle: 'Conteo de {{item}}',

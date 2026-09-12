@@ -382,6 +382,8 @@ export const en: Dictionary = {
       overline: 'the server already had this record',
       intro:
         'These notes are not going up. The server already had the record for the same load, and that one counts. Nothing here was deleted, and none of it holds up the queue.',
+      introOther:
+        'These notes are not going up: the server refused them for good. Nothing here was deleted, and none of it holds up the queue.',
       empty: 'Nothing was set aside.',
       emptyHint: 'Everything you noted went up, or is in the queue waiting for signal.',
       checkTitle: 'Check of {{item}}',

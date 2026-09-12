@@ -1,13 +1,41 @@
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { CODIGOS_PERMANENTES, classeDaRecusa } from './recusa';
+import { CODIGOS_PERMANENTES, CODIGO_JA_EXISTE, classeDaRecusa, todasJaExistem } from './recusa';
 
 test('o código que a NOSSA migração escolheu é permanente', () => {
   // `23505` é certo porque a fila sobe por `upsert` com `onConflict: 'id'`: um conflito de
   // unicidade não é o id, é outro índice ou um gatilho nosso. Mandar a mesma linha de novo
   // bate na mesma parede.
   assert.equal(classeDaRecusa('23505'), 'permanente');
+});
+
+/**
+ * As DUAS constantes do mesmo código, amarradas pela porta pública.
+ *
+ * `CODIGO_JA_EXISTE` existe para a tela poder perguntar "esta recusa é duplicação?" sem
+ * escrever `'23505'` noutro arquivo; o literal continua repetido dentro de `PERMANENTES`
+ * porque a garantia 32 do `db:verify` parseia AQUELA linha contra um Postgres de verdade. A
+ * duplicação é deliberada e está explicada lá — o que não pode é as duas discordarem.
+ */
+test('o código nomeado para a tela é o mesmo que a fila trata como permanente', () => {
+  assert.equal(classeDaRecusa(CODIGO_JA_EXISTE), 'permanente');
+  assert.ok(CODIGOS_PERMANENTES.includes(CODIGO_JA_EXISTE));
+});
+
+/**
+ * A pergunta que decide a FRASE da tela do que ficou de lado.
+ *
+ * Ela afirma uma causa — *"o servidor já tinha o registro da mesma carga"* — e isso é verdade
+ * só para `23505`. Os três casos que importam: todas duplicadas (a frase vale), alguma de outro
+ * código (não vale), e lista vazia (não há o que afirmar).
+ */
+test('a frase que explica a recusa só vale quando TODAS são "já existe"', () => {
+  assert.equal(todasJaExistem([CODIGO_JA_EXISTE, CODIGO_JA_EXISTE]), true);
+  assert.equal(todasJaExistem([CODIGO_JA_EXISTE, ' 23505 ']), true, 'espaço em volta não muda o fato');
+  assert.equal(todasJaExistem([CODIGO_JA_EXISTE, '23514']), false, 'um CHECK recusado não é duplicação');
+  assert.equal(todasJaExistem([CODIGO_JA_EXISTE, null]), false, 'recusa sem código não é "já existe"');
+  assert.equal(todasJaExistem([]), false, '"todas" de nada não é afirmação sobre o mundo');
 });
 
 test('todo código desconhecido é PASSAGEIRO, e é a assimetria que manda', () => {

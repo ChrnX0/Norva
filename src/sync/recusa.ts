@@ -39,6 +39,24 @@ export type ClasseDaRecusa = 'permanente' | 'passageira';
  * Mandar a MESMA linha de novo bate na mesma parede, sempre. Não é palpite sobre um servidor
  * que ninguém exercitou: o código foi escolhido por nós, na nossa migração.
  */
+/**
+ * O código da NOSSA `0051`, com nome — porque a TELA precisa fazer a pergunta.
+ *
+ * A frase que o aparelho mostra sobre uma linha posta de lado (*"o servidor já tinha o registro
+ * da mesma carga"*) só é verdade para ESTE código. Escrever `'23505'` dentro da tela seria a
+ * mesma constante em duas mãos, em dois arquivos, e é assim que uma promoção futura deixa a
+ * tela afirmando com confiança uma causa que não é a dela.
+ *
+ * **E o literal está repetido na linha de baixo de propósito.** A garantia 32 do `db:verify`
+ * PARSEIA `const PERMANENTES ... new Set([...])` para comparar a lista contra o `sqlstate` que
+ * um Postgres de verdade devolve — trocar o literal por este nome faria aquela guarda ler
+ * `CODIGO_JA_EXISTE` e reprovar dizendo que o aparelho não trata `23505`. A guarda que mede
+ * contra o servidor vale mais que a elegância de uma referência, então a duplicação fica e
+ * `src/sync/recusa.test.ts` amarra as duas pela porta pública: `classeDaRecusa(CODIGO_JA_EXISTE)`
+ * tem de ser `permanente`.
+ */
+export const CODIGO_JA_EXISTE = '23505';
+
 const PERMANENTES: ReadonlySet<string> = new Set(['23505']);
 
 /**
@@ -63,3 +81,25 @@ export function classeDaRecusa(codigo: string | null | undefined): ClasseDaRecus
 
 /** Os códigos promovidos, para a guarda poder conferir a lista contra as migrações. */
 export const CODIGOS_PERMANENTES: readonly string[] = [...PERMANENTES];
+
+/**
+ * Toda linha desta lista foi recusada por "já existe"? — e é a tela do que ficou de lado que
+ * pergunta.
+ *
+ * Ela existe porque a resposta decide uma FRASE, e a frase afirma uma CAUSA. Hoje `23505` é o
+ * único código promovido, então a resposta é sempre `true` e a tela estaria certa por
+ * coincidência do tamanho de uma lista. No dia em que um segundo código for promovido — e o
+ * docblock de `PERMANENTES` diz que isso acontece, com a medida ao lado —, a tela passaria a
+ * explicar TODA recusa como duplicação, que é afirmar com confiança o que não se sabe.
+ *
+ * Lista vazia devolve `false`: não há o que explicar, e "todas" de nada não é afirmação sobre o
+ * mundo. Código nulo também — o servidor recusou sem dizer o quê, e isso não é "já existe".
+ *
+ * Mora aqui e não na tela por duas razões: é este módulo que sabe o que um `SQLSTATE` quer
+ * dizer, e regra de tela em módulo puro é regra que a suíte de unidade alcança — a oficina mede
+ * a unidade, e a unidade não renderiza tela.
+ */
+export function todasJaExistem(codigos: readonly (string | null)[]): boolean {
+  if (codigos.length === 0) return false;
+  return codigos.every((c) => c !== null && c.trim() === CODIGO_JA_EXISTE);
+}

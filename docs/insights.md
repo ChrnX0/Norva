@@ -10841,3 +10841,45 @@ execução anterior — a que leu a árvore viva enquanto eu editava — e sobre
 na rodada anterior que os quatro predicados estavam provados, quando três tinham sido exercidos na
 mão e o quarto só listado. Dois hábitos saem daqui: **veredito de execução que atravessou edição
 não vale**, e **"listei a mutação" não é "provei a mutação"**.
+
+---
+
+## 12 de setembro — a frase da tela afirmava uma CAUSA que só valia por coincidência do tamanho de uma lista
+
+**O que se viu.** Uma hora depois de a tela do que ficou de lado entrar, o portão P1 aplicado ao
+meu próprio commit: `recusa_codigo` sai do banco (`markRejected` grava, `rejectedEntries` lê,
+`LinhaDeLado.codigo` devolve) e **morre na camada de dados** — nenhuma tela o lê.
+
+E o buraco não era o campo sem leitor: era a frase. A tela diz *"o servidor já tinha o registro da
+mesma carga"* sobre TODA linha posta de lado, e isso é verdade só para `23505`. Hoje ele é o único
+código promovido a permanente, então a frase estava certa **por coincidência do tamanho de uma
+lista noutro arquivo** — e o docblock de `PERMANENTES` diz, com todas as letras, que promoção
+acontece, *"cada uma com a medida ao lado"*. No dia da segunda, a tela explicaria como duplicação
+uma recusa que não é.
+
+**O que mudou.** `todasJaExistem` (em `src/sync/recusa.ts`, que é o módulo que sabe o que um
+`SQLSTATE` significa) responde a pergunta, a tela escolhe entre duas frases, e a genérica existe
+nos três idiomas. Zero lista devolve `false`: *"todas" de nada não é afirmação sobre o mundo.*
+
+**E medir a régua antes do alvo economizou a rodada.** O conserto óbvio era trocar
+`new Set(['23505'])` pela constante nomeada — e isso **quebraria a garantia 32**, que parseia
+exatamente aquela linha com `sed` para comparar a lista contra o `sqlstate` que um Postgres de
+verdade devolve. Rodei o parser do verificador contra uma cópia remendada antes de tocar na árvore:
+com o literal no lugar ele continua extraindo `23505`. Então a duplicação do literal **fica**, com
+a razão escrita nos dois lados, e um teste amarra as duas pela porta pública
+(`classeDaRecusa(CODIGO_JA_EXISTE)` tem de ser `permanente`). *Elegância que apaga uma medida
+contra o servidor não é elegância.*
+
+### E a mesma varredura achou uma decisão de SINAL morando dentro da tela
+
+`c.difference < 0 ? falta : sobra` decidia, no componente, a palavra que a pessoa lê. É a forma
+exata do sobrevivente de 11 de setembro (`app/purchase.tsx`): regra de tela que a oficina dá como
+desprotegida para sempre, porque ela mede a unidade e a unidade não renderiza tela. Virou
+`tipoDaDiferenca` no domínio do razão, com **três** respostas — zero é um fato, não a ausência de
+uma falta, e *"faltaram 0 g"* seria o alerta inventado com outro rosto.
+
+Três mutações novas, e as três reprovam pela frase que a asserção escreve. **Duas delas só depois
+de eu dar mensagem às asserções:** `assert.equal(tipoDaDiferenca(-500), 'falta')` reprovava com
+*"Expected values to be strictly equal"*, que não nomeia defeito nenhum. A régua desta casa manda
+plantar o defeito que a asserção NOMEIA — e asserção sem mensagem não nomeia nada, então a
+segunda metade da regra é escrever a mensagem.

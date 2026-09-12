@@ -561,6 +561,13 @@ Duas regras de operação, ambas cicatriz:
   sem a suíte ter sido consultada, que é o defeito de 3 de setembro voltando por outra porta. Os
   documentos (`docs/`, `CLAUDE.md`) são copiados no início, então editá-los no meio é seguro — e é
   exatamente o contrário do que a cicatriz anterior sugeria.
+- **Asserção SEM MENSAGEM não nomeia defeito nenhum — 12 de setembro.** A régua desta casa manda
+  plantar o defeito que a asserção NOMEIA, e eu escrevi
+  `assert.equal(tipoDaDiferenca(-500), 'falta')` sem mensagem: plantada a troca de sinal, a
+  reprovação diz *"Expected values to be strictly equal"*, que manda quem lê abrir o arquivo para
+  descobrir o que quebrou. Com a mensagem ela diz *"contou menos do que veio: é falta"*, e o
+  relatório da oficina — que é lido sem o código ao lado — passa a ser legível. Então a regra tem
+  duas metades: plante o defeito que a asserção nomeia, **e escreva a mensagem que o nomeia**.
 - **Mutação em SQL preserva a CONTAGEM DE PARÂMETROS, ou mede o driver em vez da regra — 12 de
   setembro.** Para provar o portão do nome do operador (`CASE WHEN ? = 1 THEN pe.name END`) eu
   troquei a expressão por `pe.name` — e o teste reprovou com `column index out of range`, do

@@ -4,6 +4,8 @@ import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { GlyphCount } from '@/components/Glyph';
 import { Reveal } from '@/components/Reveal';
 import { checksSetAside, type LinhaDeLado } from '@/data/repository';
+import { todasJaExistem } from '@/sync/recusa';
+import { tipoDaDiferenca } from '@/domain/ledger';
 import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatDayMonth, formatQuantity, formatTime } from '@/i18n';
@@ -45,6 +47,15 @@ export default function DeLadoScreen() {
   const words = t.app.setAside;
   const dados = useQuery<LinhaDeLado[]>(() => checksSetAside(empresaDaqui()));
   const linhas = dados.data ?? [];
+  /**
+   * A frase afirma uma CAUSA, então ela pergunta o código em vez de supor.
+   *
+   * *"O servidor já tinha o registro da mesma carga"* é verdade para `23505`, o código que a
+   * nossa `0051` escolhe, e para mais nenhum. Hoje ele é o único promovido — então sem esta
+   * pergunta a frase estaria certa por coincidência do tamanho de uma lista noutro arquivo, e no
+   * dia em que um segundo código entrasse ela explicaria como duplicação uma recusa que não é.
+   */
+  const duplicadas = todasJaExistem(linhas.map((l) => l.codigo));
 
   /**
    * A diferença dita como notícia, não como número com sinal.
@@ -54,9 +65,12 @@ export default function DeLadoScreen() {
    * lado, e dizer "faltaram 0 g" seria inventar um problema.
    */
   const diferenca = (c: NonNullable<LinhaDeLado['conferencia']>): string => {
+    // A classificação é do domínio (`tipoDaDiferenca`) e a FRASE é daqui. O sinal decidido na
+    // tela era regra que só o navegador alcançava, e a oficina mede a unidade.
+    const tipo = tipoDaDiferenca(c.difference);
+    if (tipo === 'exata') return words.matched;
     const quanto = `${formatQuantity(Math.abs(c.difference), locale)}${c.baseUnit ? ` ${c.baseUnit}` : ''}`;
-    if (c.difference === 0) return words.matched;
-    return fill(c.difference < 0 ? words.shortBy : words.overBy, { amount: quanto });
+    return fill(tipo === 'falta' ? words.shortBy : words.overBy, { amount: quanto });
   };
 
   return (
@@ -82,7 +96,9 @@ export default function DeLadoScreen() {
       {linhas.length > 0 ? (
         <Reveal index={0}>
           <Card>
-            <Text style={[type.body, { color: color.ink }]}>{words.intro}</Text>
+            <Text style={[type.body, { color: color.ink }]}>
+              {duplicadas ? words.intro : words.introOther}
+            </Text>
           </Card>
         </Reveal>
       ) : null}
@@ -132,7 +148,7 @@ export default function DeLadoScreen() {
       ))}
 
       {/* O caminho de volta, uma vez no fim e não em cada cartão: ele é o mesmo para todos. */}
-      {linhas.some((l) => l.conferencia) ? (
+      {duplicadas && linhas.some((l) => l.conferencia) ? (
         <Reveal index={linhas.length + 1}>
           <Card>
             <Text style={[type.body, { color: color.ink }]}>{words.whatNow}</Text>

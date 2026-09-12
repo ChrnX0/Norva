@@ -1269,6 +1269,32 @@ const DEFECTS = [
       'a tela do que ficou de lado passa a mostrar o que AINDA VAI SUBIR: a pessoa le que o servidor ja tinha o registro de coisa que nunca foi oferecida a ele, e a conferencia que espera sinal aparece como perdida',
   },
 
+  // --- a frase que afirma uma CAUSA, e o sinal da diferença, 12 de setembro ------
+  //
+  // As duas réguas saíram da tela para módulo puro pelo mesmo motivo: a oficina mede a unidade,
+  // e a unidade não renderiza tela. Sem isso as três seriam mutações que ninguém pega.
+  {
+    file: 'src/sync/recusa.ts',
+    from: "  return codigos.every((c) => c !== null && c.trim() === CODIGO_JA_EXISTE);",
+    to: "  return codigos.some((c) => c !== null && c.trim() === CODIGO_JA_EXISTE);",
+    hurts:
+      'uma lista com uma duplicada e uma recusa de outro codigo passa a ser explicada INTEIRA como duplicacao: a tela afirma com confianca que o servidor ja tinha o registro de linhas que ele recusou por outro motivo',
+  },
+  {
+    file: 'src/domain/ledger.ts',
+    from: "  return baseUnits < 0 ? 'falta' : 'sobra';",
+    to: "  return baseUnits > 0 ? 'falta' : 'sobra';",
+    hurts:
+      'a tela do que ficou de lado troca falta por sobra: quem conferiu 5.500 de 6.000 le "sobraram 500" e conclui que chegou mais do que veio - o numero certo com a palavra invertida, que e pior que numero errado porque parece certo',
+  },
+  {
+    file: 'src/domain/ledger.ts',
+    from: "  if (baseUnits === 0) return 'exata';",
+    to: '  if (false) return \'exata\';',
+    hurts:
+      'a conferencia que BATEU passa a ser contada como sobra de zero: a tela diz "sobraram 0 g" onde devia dizer que bateu com o que veio, que e o alerta inventado com outro rosto',
+  },
+
   // A nota que some no arredondamento: o aparelho aceitava, o servidor recusa para
   // sempre com `23514`, e `23514` é passageira de propósito — então a fila tentaria de
   // novo eternamente com tudo atrás preso. O conserto é na origem, e estas duas o

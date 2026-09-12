@@ -437,6 +437,28 @@ export function valePeloPreco(kind: string): boolean {
  * O nome diz o que a resposta DECIDE, não qual tela pergunta — regra desta casa
  * paga em `ehPapel`, que compilava e devolvia o mesmo defeito na pele seguinte.
  */
+/**
+ * O que uma diferença de conferência É — falta, sobra, ou bateu.
+ *
+ * Três respostas e não duas, porque **zero não é falta de zero**: uma conferência que bate é um
+ * fato, e dizer *"faltaram 0 g"* é o alerta inventado com outro rosto. A tela do que ficou de
+ * lado tem uma frase para cada uma.
+ *
+ * **Por que isto não mora na tela, onde nasceu.** Lá a decisão era `c.difference < 0 ? falta :
+ * sobra`, e o sinal é exatamente o que uma mutação troca sem nada reprovar: a unidade não
+ * renderiza tela, e a oficina mede a unidade. É a mesma cicatriz de `app/purchase.tsx`, que
+ * atravessou a suíte inteira com o guarda trocado por `if (false)` — a regra protegida só pelo
+ * navegador é regra que o relatório dá como desprotegida.
+ *
+ * Mora no domínio do razão e não em `components` porque a pergunta é sobre um movimento: o sinal
+ * de `quantity_base_units` numa perna de `discrepancy` é o que separa o que faltou do que sobrou.
+ * Quem escreve a frase continua sendo a tela.
+ */
+export function tipoDaDiferenca(baseUnits: number): 'falta' | 'sobra' | 'exata' {
+  if (baseUnits === 0) return 'exata';
+  return baseUnits < 0 ? 'falta' : 'sobra';
+}
+
 export function vendeAoConsumidor(kind: string): boolean {
   return (RETAIL_PLACE_KINDS as readonly string[]).includes(kind);
 }
