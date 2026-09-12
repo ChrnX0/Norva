@@ -10612,6 +10612,25 @@ na forma com que ele manda — mesmo verbo, mesmo `on conflict`, mesmo id na ret
 `insert` cru é medir um cliente que não existe.* O conserto é uma linha (`and m.id <> new.id`,
 migração `0060`) e o quinto caso da 28 fica vermelho sem ela.
 
+### E lendo essa mesma regra apareceu uma divergência latente, dita em voz alta pela própria `0051`
+
+A recusa de conferir duas vezes existe nos dois lados e **não é a mesma frase**: no aparelho
+`recordCheck` conta `discrepancy` de pé no GRUPO; no servidor o gatilho conta no grupo **e item**.
+Hoje as duas concordam porque nada confere item por item — no dia em que a doca contar, o aparelho
+recusa o que o servidor aceitaria.
+
+O que faz disto um registro e não uma acusação é onde a diferença está escrita: a `0051` diz
+**"o predicado é o mesmo do aparelho"** na frase de destaque e, na linha seguinte, *"aqui é a mesma
+frase noutra linguagem, com o item junto"*. É a classe que este arquivo já nomeou — *fronteira dita
+em voz alta continua sendo fronteira*: a honestidade do comentário documenta o buraco para quem lê
+o código, e quem lê a promessa lê que não há buraco.
+
+E a saída boa já aconteceu por acidente: o `comment on function` que a `0060` re-emitiu **não**
+repete a promessa — diz *"uma conferência de pé por remessa e item"* —, então quem consultar o
+banco lê a verdade. O cabeçalho da `0051` fica como está porque migração que já rodou não se
+edita; o que fecha de verdade é a decisão de dono do item 42, que é quem decide se a doca passa a
+contar por item.
+
 ---
 
 ## 12 de setembro — o estorno parcial obrigou TRÊS predicados a crescer, e todos diziam "alguma"
@@ -10660,3 +10679,44 @@ backtick-string fecha a string, e o `tsc` acusa dezenas de linhas abaixo (`',' e
 técnica deste projeto o acento grave é reflexo, e dentro de template literal ele é um
 delimitador. **Comentário SQL dentro de template literal escreve o identificador sem acento
 grave.**
+
+---
+
+## 12 de setembro — a falta na entrega entra no faturamento como VENDA, e a saída documentada é a porta errada
+
+**O que se viu.** Medindo o que sobrou do conserto do `undoCheck` — quem, afinal, grava a falta
+de uma remessa —, a cadeia inteira apareceu, e ela tem três elos:
+
+1. **A doca não tem como gravar falta.** `recordCheck` aceita `counted`, a contagem de verdade
+   item por item, e o único chamador de produção é `app/(tabs)/transport.tsx:143`, que chama
+   **sem** ela. Sem lista, toda perna vira diferença **zero** — a conferência da doca só sabe
+   dizer "chegou tudo", e o próprio docblock decide isso por escrito: *"um formulário de
+   contagem por item, no celular, na doca, ninguém preenche."*
+2. **A saída que a decisão indica é a tela do lugar**, e ali a espécie do movimento é decidida
+   por onde o lugar está: `recordCount` com `delta < 0` numa loja própria
+   (`RETAIL_PLACE_KINDS = ['own_store']`) e um item que se vende grava `kind='sale'` com o preço
+   do acordo **congelado** (`src/data/repository.ts:1831`).
+3. **Nenhum dos sete motivos de perda quer dizer "nunca chegou"** — `melted`, `broken`,
+   `expired`, `courtesy`, `internal_use` (`0001`), `production_error`, `quality` (`0054`).
+
+**Por que importa.** Três caixas que saíram da fábrica e não chegaram na loja entram no
+faturamento como se alguém as tivesse comprado, com receita congelada pelo preço do acordo. É
+receita inventada dentro do número que decide onde o dinheiro vai — e o razão é append-only,
+então o erro não se corrige, vira histórico. A distinção que o projeto faz desde o começo é que
+*"loja própria é transferência, não venda"*: a receita é reconhecida na CONTAGEM, e é
+exatamente por isso que uma falta de transporte contada na prateleira vira faturamento.
+
+**A régua que isto ensina, e ela é sobre como eu li a decisão.** O item 28 do plano já tinha
+passado por aqui e eu o fechei citando a decisão certa. A decisão é real e continua valendo; a
+frase seguinte dela — *"contar ali grava a diferença no razão"* — é verdadeira num almoxarifado
+e falsa numa loja própria, onde a diferença tem nome de venda. Ou seja: **procurei a decisão,
+achei, e não medi o que a saída dela FAZ.** A regra desta casa manda procurar a decisão antes de
+chamar algo de defeito; o que faltava era a metade seguinte — a decisão aponta uma porta, e a
+porta também se mede.
+
+**O que mudou por causa disso.** O item 42 do plano, com a medida `ausente
+app/(tabs)/transport.tsx :: counted` — no dia em que a doca ganhar contagem por item, a guarda
+do plano fica vermelha —, e a pergunta na lista do dono no corpo da PR. **Não virou commit de
+código de propósito:** qual movimento é *"saiu da fábrica e não chegou"* mexe em
+`movement_kind` ou no enum de perda, que é o P3 desta casa — caro e permanente —, e escolher a
+palavra por ele seria decidir calado o que o razão vai repetir para sempre.

@@ -1084,6 +1084,54 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     está numa célula DEPOIS da do símbolo, e a citação vai entre ASPAS. As duas têm caso
     verdadeiro e falso ao lado.
 
+42. **A falta na entrega entra no razão como VENDA, com receita congelada** — e o fechamento
+    do item 28 aponta para essa porta como se ela gravasse "a diferença".
+    <!-- medida: ausente app/(tabs)/transport.tsx :: counted -->
+
+    Três medidas, e a terceira é a que dói:
+
+    1. **A doca não tem como gravar uma falta.** `recordCheck` aceita `counted` — a contagem
+       de verdade, item por item — e o único chamador de produção é
+       `app/(tabs)/transport.tsx:143`, que chama **sem** ela. Sem lista, toda perna vira
+       diferença **zero**: a conferência da doca só sabe dizer "chegou tudo".
+    2. **A saída que o item 28 indica é a tela do lugar**, e ali `recordCount` decide a
+       espécie por onde o lugar está: com `delta < 0` numa loja que vende ao consumidor
+       (`RETAIL_PLACE_KINDS = ['own_store']`) e um item que se vende, a linha sai
+       `kind='sale'` com o preço do acordo congelado (`src/data/repository.ts:1831`).
+    3. **E nenhum dos sete motivos de perda quer dizer "nunca chegou"** — `melted`, `broken`,
+       `expired`, `courtesy`, `internal_use` (`0001`), `production_error`, `quality`
+       (`0054`).
+
+    Então três caixas que saíram da fábrica e não chegaram na loja entram no faturamento como
+    se alguém as tivesse comprado. E o razão é append-only: o erro vira histórico.
+
+    **O fechamento do item 28 está certo na lição e errado na metade que carrega peso.** A
+    decisão que ele achou é real e continua valendo — *"um formulário de contagem por item,
+    no celular, na doca, ninguém preenche"*. A frase seguinte, *"contar ali grava a diferença
+    no razão"*, é verdadeira num almoxarifado e falsa numa loja própria: lá a diferença tem
+    nome de venda. A regra da casa me pegou do outro lado desta vez — procurei a decisão,
+    achei, e **não medi o que a saída dela FAZ**.
+
+    **O que falta é decisão de dono, e é P3:** qual movimento é "saiu da fábrica e não
+    chegou". As três formas que eu vejo — um oitavo motivo de perda, uma espécie nova, ou a
+    doca ganhando a contagem por item que a decisão recusou — mexem em `movement_kind` ou no
+    enum de perda, que é o que o P3 chama de caro e permanente.
+
+    **O que NÃO dependia dele já entrou em 12 de setembro:** a porta de desfazer só a
+    conferência (`undoCheck`), porque até ela existir corrigir uma contagem errada estornava
+    o grupo inteiro e devolvia a carga para a fábrica.
+
+    **E a mesma decisão resolve uma divergência latente entre o aparelho e o servidor.** A
+    recusa de conferir duas vezes é por GRUPO no aparelho (`recordCheck` conta `discrepancy` no
+    grupo) e por grupo **e item** no servidor (`0051`). Hoje as duas concordam porque nada
+    confere item por item — no dia em que a doca contar, o aparelho recusa o que o servidor
+    aceitaria. E a `0051` diz de si *"o predicado é o mesmo do aparelho"* na frase de destaque
+    e admite *"com o item junto"* na seguinte: é a régua mais estreita que a promessa, que este
+    projeto já registrou como classe. O `comment on function` que a `0060` re-emitiu não repete
+    a promessa — diz *"uma conferência de pé por remessa e item"* —, então quem lê o banco lê a
+    verdade; quem lê o cabeçalho da `0051` lê a promessa larga, e migração que já rodou não se
+    edita.
+
 **O que a segunda caminhada CONFIRMOU funcionando:** as três réguas de rendimento no
 cadastro da ficha; a confirmação da ficha com os números por extenso e a régua escolhida
 (*"vai render 12.000 g de cada vez"*); a aritmética do custo em toda tela conferida na mão
