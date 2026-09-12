@@ -1248,7 +1248,12 @@ O prazo mora no **produto**: `products.shelf_life_days`, com
 (`src/data/db.ts:515`). Comentário da coluna, literal: *"Quantos dias o produto
 dura depois de feito. Nulo: não vence."*
 
-#### 5.4.3 `daysUntilExpiry` — implementada, SEM CHAMADOR
+#### 5.4.3 `daysUntilExpiry` — implementada, e chamada pela fila de avisos desde 12 de setembro
+
+*Esta subseção carregou "SEM CHAMADOR" no título por dez dias. Era verdade sobre a
+função e falsa sobre a conta: `src/notify/facts.ts` fazia a mesma subtração à mão, duas
+vezes. Hoje a conta mora em `diasDeCalendario` (`src/domain/day.ts`), `daysUntilExpiry` e
+`daysBetween` delegam a ela, e a fila chama `daysUntilExpiry` para o lote.*
 
 ```ts
 export function daysUntilExpiry(expires: string | null, today: string): number | null {
@@ -1723,7 +1728,7 @@ sem chamador fora de teste; **P** = planejado/comentado apenas.
 | `PlanLine`, `ShoppingLine`, `shoppingList` | `recipe.ts:310-392` | **T** (só assistente) | `src/assistant/skills.ts:1025` |
 | `lotCode` | `lot.ts:33` | **T** | `src/data/repository.ts:1506` |
 | `expiresOn` | `lot.ts:49` | **T** | `src/data/repository.ts:1485` |
-| `daysUntilExpiry` | `lot.ts:64` | **S — sem chamador nenhum** | só `src/domain/lot.test.ts` |
+| `daysUntilExpiry` | `lot.ts:64` | **T** — foi "S, sem chamador" até 12 de setembro | `src/notify/facts.ts` (a fila de avisos) |
 | `qrModules`, `QUIET_ZONE`, `qrPath` | `qr.ts:37-76` | **T** | componente `QrCode` em `app/lots/[id].tsx:209` |
 
 Anotação de fronteira registrada, para não confundir com defeito: o leitor de QR
@@ -1878,9 +1883,13 @@ verdes**.
 
 Todas verificadas no código, com a linha. Nenhuma é conjectura sobre intenção.
 
-1. **`daysUntilExpiry` não tem chamador**, e a conta que ela faz está duplicada à
-   mão em dois lugares (`src/notify/facts.ts:103-108`, `src/home/Mosaic.tsx:660-670`).
-   Ver 5.4.3.
+1. ~~**`daysUntilExpiry` não tem chamador**, e a conta que ela faz está duplicada à
+   mão em dois lugares (`src/notify/facts.ts:103-108`, `src/home/Mosaic.tsx:660-670`).~~
+   — **CONSERTADO em 12 de setembro, e a medida corrigiu o próprio item:** eram CINCO
+   lugares, não dois (`facts.ts` duas vezes, `app/backup.tsx`, `app/(tabs)/index.tsx` e a
+   própria `daysUntilExpiry`), e o `Mosaic.tsx` já não fazia a conta quando este item
+   foi escrito. A aritmética mora em `diasDeCalendario` (`src/domain/day.ts`); as duas
+   telas chamam `daysBetween`, que delega a ela. Ver 5.4.3.
 2. **Rendimento (`yield_amount`) e unidade (`yield_unit`) não são versionados** e
    são sobrescritos a cada `saveRecipeVersion` (`src/data/repository.ts:1162-1165`).
    O docblock de `Recipe.version` promete que *"historical cost stays correct

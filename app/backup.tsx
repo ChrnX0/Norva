@@ -19,7 +19,7 @@ import { copiasGuardadas, esquecerDrive, ligarDrive, temDestino } from '@/nuvem/
 import { countMovements } from '@/data/repository';
 import { useQuery } from '@/data/useQuery';
 import { fill, formatDayMonth, plural } from '@/i18n';
-import { localDate } from '@/domain/day';
+import { daysBetween, localDate } from '@/domain/day';
 import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -75,9 +75,9 @@ import { useTheme } from '@/theme/ThemeProvider';
  * ontem às 23h não é "há 1 hora", é ontem.
  */
 function diasDesde(iso: string, agora: string, timeZone: string): number {
-  const de = Date.parse(`${localDate(iso, timeZone)}T00:00:00Z`);
-  const ate = Date.parse(`${localDate(agora, timeZone)}T00:00:00Z`);
-  return Math.max(0, Math.round((ate - de) / 86_400_000));
+  // O piso em zero é da TELA: cópia feita "no futuro" é relógio errado, e "há -1 dias" não
+  // é frase. A conta em si é do domínio.
+  return Math.max(0, daysBetween(iso, agora, timeZone));
 }
 
 /** Bytes em algo que uma pessoa lê. Cópia de fábrica pequena tem kilobytes. */

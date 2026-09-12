@@ -645,7 +645,7 @@ linhas abaixo têm **uma única ocorrência no código de produção: a própria
 | `src/domain/cost.ts:128` | `priceMove(purchases)` | 4 | **sem chamador** |
 | `src/domain/cost.ts:104` | `foldCostEvents(...)` | 2 | **sem chamador** |
 | `src/domain/cost.ts:193` | `ratesBefore(...)` | 4 | **sem chamador** |
-| `src/domain/lot.ts:64` | `daysUntilExpiry(expires, today)` | 6 | **sem chamador** |
+| `src/domain/lot.ts:64` | `daysUntilExpiry(expires, today)` | 6 | chamada pela fila de avisos desde 12 de setembro — foi "sem chamador" |
 | `src/domain/money.ts:15` | `toDecimal(value: Cents)` → `value / 100` | 2 | **sem chamador** |
 | `src/domain/money.ts:19` | `multiplyCents(value, factor)` → `Math.round(value * factor)` | 5 | **sem chamador** |
 | `src/domain/units.ts:26` | `isValidHierarchy(h)` | 6 | **sem chamador** |

@@ -19,6 +19,8 @@
  * lote ainda serve para rastrear, e uma data inventada seria pior que nenhuma.
  */
 
+import { diasDeCalendario } from './day';
+
 /**
  * O código que a etiqueta vai carregar.
  *
@@ -61,12 +63,14 @@ export function expiresOn(producedOn: string, shelfLifeDays: number | null): str
  * booleano: "venceu ontem" e "vence em três dias" pedem tratamentos diferentes
  * na tela, e quem decide isso é a tela.
  */
+/**
+ * Duas assinaturas, de propósito: quem já tem a data — a lista do que vence primeiro só
+ * traz lote datado — recebe número, e não precisa inventar um `?? 0` para satisfazer o
+ * tipo. Zero como substituto de "não sei" seria dizer "vence hoje" de um lote sem prazo.
+ */
+export function daysUntilExpiry(expires: string, today: string): number;
+export function daysUntilExpiry(expires: string | null, today: string): number | null;
 export function daysUntilExpiry(expires: string | null, today: string): number | null {
   if (!expires) return null;
-
-  const at = (date: string) => {
-    const [y, m, d] = date.split('-').map(Number);
-    return Date.UTC(y, m - 1, d);
-  };
-  return Math.round((at(expires) - at(today)) / 86_400_000);
+  return diasDeCalendario(today, expires);
 }

@@ -146,7 +146,11 @@ test('a guarda diz quantas afirmações ela NÃO consegue conferir', () => {
   // Os números são o recorte de 11 de setembro. Eles não são metas: são o que existe, e
   // mudá-los é o que obriga alguém a olhar de novo — inclusive para BAIXO, quando uma
   // afirmação em prosa virar ancorada ou sair.
-  assert.equal(ancoradas.length, 4, 'afirmações em forma ancorada, que esta guarda confere');
+  //
+  // E baixou em 12 de setembro, de quatro para três, pelo caminho previsto: a afirmação
+  // sobre `daysUntilExpiry` SAIU porque deixou de ser verdade — a fila de avisos passou a
+  // chamá-la. Foi esta linha que obrigou a olhar de novo, como o comentário acima promete.
+  assert.equal(ancoradas.length, 3, 'afirmações em forma ancorada, que esta guarda confere');
   assert.equal(
     semDefinicao.length,
     2, // `expedicao` é literal de texto (uma vaga do briefing), `ready` é palavra genérica.
@@ -171,10 +175,13 @@ test('a régua distingue quem TEM chamador de quem não tem', () => {
     'o UnitStepper ganhou tela em três lugares — a régua tem de ver isso',
   );
 
-  const morto = ondeMora('daysUntilExpiry');
+  // Era `daysUntilExpiry` até 12 de setembro — e ela ganhou chamador (a fila de avisos),
+  // então virou o caso VERDADEIRO. Um exemplo negativo que envelhece para positivo é a
+  // régua provando o contrário do que promete.
+  const morto = ondeMora('multiplyCents');
   assert.ok(morto, 'a função existe');
   assert.deepEqual(
-    chamadores('daysUntilExpiry', morto),
+    chamadores('multiplyCents', morto),
     [],
     'e esta continua sem chamador de produção, que é o caso que a régua não pode inventar',
   );

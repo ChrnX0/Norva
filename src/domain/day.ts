@@ -117,9 +117,37 @@ function offsetMinutes(at: Date, timeZone: string): number {
  * had 23 hours, 24, or 25.
  */
 export function daysBetween(fromIso: string, toIso: string, timeZone: string): number {
-  const from = new Date(dayWindow(fromIso, timeZone).from).getTime();
-  const to = new Date(dayWindow(toIso, timeZone).from).getTime();
-  return Math.round((to - from) / 86_400_000);
+  return diasDeCalendario(localDate(fromIso, timeZone), localDate(toIso, timeZone));
+}
+
+/**
+ * Dias inteiros entre duas DATAS de calendário, `YYYY-MM-DD` — positivo quando `ate` vem
+ * depois de `de`.
+ *
+ * **É a única divisão por um dia que o domínio faz para contar dias**, e ela nasceu em 12
+ * de setembro porque estava escrita à mão em CINCO lugares: `daysUntilExpiry`, a fila de
+ * avisos (duas vezes — o dia pedido do pedido e o vencimento do lote), a tela de cópia e a
+ * capa. O dossiê dizia "dois". Quatro deles davam o mesmo número por coincidência de terem
+ * sido copiados do mesmo lugar; o quinto, `daysBetween` logo acima, dava o mesmo número por
+ * fazer outra conta que coincide — e é o único que tinha teste de dia de troca de horário.
+ *
+ * Por que DATA e não instante: um pedido "para quinta" e um lote que "vence em 3 de
+ * outubro" não têm hora. Reduzi-los a instante para subtrair é o atalho que o `localDate`
+ * já proíbe no docblock dele — em metade dos fusos do mundo a meia-noite local cai no dia
+ * anterior em UTC. Aqui as duas pontas viram meia-noite **UTC** da própria data, então a
+ * diferença é um múltiplo exato de um dia e não existe fuso, nem horário de verão, para
+ * errar. `daysBetween` reduz os instantes a data local primeiro e cai aqui.
+ *
+ * O `Math.round` fica por honestidade: a divisão é exata e ele não muda nada, mas quem
+ * trocar `Date.UTC` por `new Date(y, m, d)` no futuro passa a ter horário de verão na
+ * conta, e aí o arredondamento é o que separa 0,96 de 1.
+ */
+export function diasDeCalendario(de: string, ate: string): number {
+  const meiaNoiteUtc = (data: string) => {
+    const [y, m, d] = data.split('-').map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  return Math.round((meiaNoiteUtc(ate) - meiaNoiteUtc(de)) / 86_400_000);
 }
 
 /**

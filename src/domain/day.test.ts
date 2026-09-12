@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { dailySeries, dayWindow, daysBetween, localDate } from './day';
+import { dailySeries, dayWindow, daysBetween, diasDeCalendario, localDate } from './day';
 
 /** São Paulo has been at UTC-3 with no daylight saving since 2019. */
 const SP = 'America/Sao_Paulo';
@@ -108,4 +108,32 @@ test('a week of days keeps the quiet days and counts by the factory clock', () =
   // O dia parado entra como zero e não some: a semana tem sete colunas porque
   // a fábrica tem sete dias, e o domingo vazio é um fato sobre ela.
   assert.equal(semana.filter((d) => d.total === 0).length, 5);
+});
+
+test('dias de calendário: a conta que estava em cinco lugares, agora em um', () => {
+  assert.equal(diasDeCalendario('2026-09-02', '2026-09-05'), 3, 'vence em três dias');
+  assert.equal(diasDeCalendario('2026-09-02', '2026-09-02'), 0, 'vence hoje é zero, não um');
+  assert.equal(
+    diasDeCalendario('2026-09-05', '2026-09-02'),
+    -3,
+    'venceu há três dias é NEGATIVO — a fila de avisos separa "venceu ontem" de "vence amanhã" pelo sinal',
+  );
+  assert.equal(diasDeCalendario('2026-12-30', '2027-01-02'), 3, 'a virada do ano não conta a mais nem a menos');
+  assert.equal(diasDeCalendario('2028-02-28', '2028-03-01'), 2, '2028 é bissexto: 29 de fevereiro existe');
+  assert.equal(diasDeCalendario('2027-02-28', '2027-03-01'), 1, '2027 não é: de 28 para 1º é um dia');
+});
+
+test('daysBetween e diasDeCalendario são a MESMA conta, inclusive no dia em que o relógio muda', () => {
+  // Manaus não muda o relógio; Santiago muda. Nos dois, dois instantes de dias locais
+  // consecutivos são UM dia — e é a mesma função respondendo pelas duas portas.
+  for (const [tz, de, ate] of [
+    ['America/Manaus', '2026-09-01T23:30:00-04:00', '2026-09-02T00:30:00-04:00'],
+    ['America/Santiago', '2026-09-05T23:30:00-04:00', '2026-09-06T01:30:00-03:00'],
+  ] as const) {
+    assert.equal(
+      daysBetween(de, ate, tz),
+      1,
+      `${tz}: meia hora antes e depois da meia-noite é um dia de diferença, tenha o dia 23, 24 ou 25 horas`,
+    );
+  }
 });

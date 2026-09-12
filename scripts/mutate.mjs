@@ -1281,6 +1281,13 @@ const DEFECTS = [
       'uma lista com uma duplicada e uma recusa de outro codigo passa a ser explicada INTEIRA como duplicacao: a tela afirma com confianca que o servidor ja tinha o registro de linhas que ele recusou por outro motivo',
   },
   {
+    file: 'src/domain/day.ts',
+    from: '  return Math.round((meiaNoiteUtc(ate) - meiaNoiteUtc(de)) / 86_400_000);',
+    to: '  return Math.round((meiaNoiteUtc(de) - meiaNoiteUtc(ate)) / 86_400_000);',
+    hurts:
+      'o sinal de TODA contagem de dias do aplicativo vira: a fila de avisos diz "vence em 3 dias" de um lote que venceu ha tres, o pedido para quinta aparece como atrasado, e a capa conta a copia de seguranca como feita no futuro',
+  },
+  {
     file: 'src/domain/ledger.ts',
     from: "  return baseUnits < 0 ? 'falta' : 'sobra';",
     to: "  return baseUnits > 0 ? 'falta' : 'sobra';",

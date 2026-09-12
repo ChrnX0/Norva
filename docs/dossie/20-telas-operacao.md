@@ -2268,7 +2268,7 @@ Duas colunas que **nenhuma** destas telas preenche em nenhum ato:
 - `saveOrder.note` e `Order.note`: coluna, tipo e parâmetro existem;
   `app/orders/new.tsx` não passa.
 - `recordCheck.counted`: a contagem por item na doca não é oferecida.
-- `daysUntilExpiry` (`src/domain/lot.ts:64-72`): nenhuma das oito telas chama.
+- `daysUntilExpiry` (`src/domain/lot.ts:64-72`): nenhuma das oito telas chama — e desde 12 de setembro a fila de avisos chama (`src/notify/facts.ts`), que é onde a conta de "quantos dias faltam" de fato morava, à mão.
 - `recordLoss`: escritor existe e é completo, mas o chamador está fora desta seção
   (`app/inputs/[id].tsx:256`) — `app/losses.tsx` só lê.
 - `unchecked` (`src/data/repository.ts:2520-2545`): nenhuma das oito telas chama.

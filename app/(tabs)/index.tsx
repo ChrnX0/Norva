@@ -31,7 +31,7 @@ import { useQuery } from '@/data/useQuery';
 import { daysUntilNextDelivery } from '@/domain/agreement';
 import { briefingLayout } from '@/domain/briefing';
 import { nowIso } from '@/data/db';
-import { dailySeries, dayWindow, localDate } from '@/domain/day';
+import { dailySeries, daysBetween, dayWindow, localDate } from '@/domain/day';
 import { boxesOf } from '@/domain/units';
 import { formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -293,10 +293,8 @@ function Briefing() {
       copia: await (async () => {
         const ultima = await ultimaCopia();
         if (!ultima) return null;
-        const de = Date.parse(`${localDate(ultima.feitoEm, locale.timeZone)}T00:00:00Z`);
-        const ate = Date.parse(`${localDate(nowIso(), locale.timeZone)}T00:00:00Z`);
         return {
-          diasAtras: Math.max(0, Math.round((ate - de) / 86_400_000)),
+          diasAtras: Math.max(0, daysBetween(ultima.feitoEm, nowIso(), locale.timeZone)),
           desdeEla: Math.max(0, (await countMovements()) - ultima.movimentos),
         };
       })(),

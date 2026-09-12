@@ -12,7 +12,8 @@ import {
 import { empresaDaqui } from '@/data/empresa';
 import { unidadeDaqui } from '@/data/unidade';
 import { nowIso } from '@/data/db';
-import { dayWindow, localDate } from '@/domain/day';
+import { dayWindow, diasDeCalendario, localDate } from '@/domain/day';
+import { daysUntilExpiry } from '@/domain/lot';
 import { observedLeadTimeDays } from '@/domain/cost';
 import type { AlertFacts } from '@/domain/alerts';
 
@@ -95,13 +96,7 @@ export async function factsForAlerts(timeZone: string): Promise<AlertFacts> {
         // Dias até o dia pedido. Sem dia marcado, é hoje: um pedido sem data é um
         // pedido para agora, e empurrá-lo para o fim da fila é o app decidindo
         // calado o que o cliente não disse.
-        daysUntil: o.requestedFor
-          ? Math.round(
-              (new Date(`${o.requestedFor}T00:00:00.000Z`).getTime() -
-                new Date(`${hoje}T00:00:00.000Z`).getTime()) /
-                86_400_000,
-            )
-          : 0,
+        daysUntil: o.requestedFor ? diasDeCalendario(hoje, o.requestedFor) : 0,
         placeId: o.placeId,
       }));
     }),
@@ -130,11 +125,10 @@ export async function factsForAlerts(timeZone: string): Promise<AlertFacts> {
     expiring: expiring.map((l) => ({
       lotId: l.lotId,
       code: l.code,
-      daysLeft: Math.round(
-        (new Date(`${l.expiresOn}T00:00:00.000Z`).getTime() -
-          new Date(`${hoje}T00:00:00.000Z`).getTime()) /
-          86_400_000,
-      ),
+      // A função do domínio para ESTA pergunta. Ela ficou dois meses listada como "sem
+      // chamador" com a justificativa de que ninguém contava dias — enquanto esta linha
+      // contava, à mão, a mesma conta.
+      daysLeft: daysUntilExpiry(l.expiresOn, hoje),
     })),
     ambient: readings.map((r) => {
       const lugar = places.find((p) => p.id === r.locationId);

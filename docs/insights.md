@@ -11071,3 +11071,26 @@ recurso que a guarda de i18n já usava para achar o `fill(` ao redor de uma leit
 provar UMA condição de uma guarda de três não prova a guarda. As três estão no mesmo `test()`,
 com a mesma cara, escritas na mesma hora pela mesma mão — e duas boas não dizem nada sobre a
 terceira. **A prova é por condição, não por teste.**
+
+## 12 de setembro — "sem chamador" era verdade sobre a função e mentira sobre a conta
+
+`daysUntilExpiry` estava listada em `layers.test.ts` como sem chamador, com a justificativa
+escrita: *"a tela que trata 'venceu ontem' diferente de 'vence em três dias' não existe: hoje
+`expiringSoon` filtra por data e não conta dias"*. A função de fato não tinha chamador. A
+justificativa era falsa: `src/notify/facts.ts` contava dias — **a mesma subtração, à mão, duas
+vezes** — e o limiar do aviso comparava essa contagem. O dossiê dizia que a duplicação estava
+em "dois lugares"; medindo, eram **cinco**, e um dos dois que ele citava (`Mosaic.tsx`) já não
+fazia a conta.
+
+O conserto é uma primitiva de DATA no domínio (`diasDeCalendario`), com `daysUntilExpiry` e
+`daysBetween` delegando a ela e os cinco sítios chamando o domínio. Plantado o sinal invertido,
+**quatro** testes reprovam — dois deles são os antigos do `daysBetween` e do lote, que passaram
+a proteger a função nova sem serem tocados. É o dividendo da delegação: teste velho vigiando
+código novo.
+
+**A lição é sobre a forma da justificativa.** Uma entrada em `SEM_CHAMADOR` afirma duas coisas:
+que ninguém chama a função E que ninguém precisa dela. A guarda mede a primeira e aceita a
+segunda por escrito — e foi a segunda que envelheceu, porque a conta que "ninguém fazia" estava
+sendo feita a dez linhas de distância, sem o nome da função. **Justificativa de ausência se
+mede pelo CONCEITO, não pelo símbolo:** `grep` pela divisão por um dia achou os cinco; `grep`
+pelo nome achava zero e concordava com a mentira.
