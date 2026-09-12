@@ -1152,6 +1152,41 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     verdade; quem lê o cabeçalho da `0051` lê a promessa larga, e migração que já rodou não se
     edita.
 
+43. **A SUB-receita editada no meio do tacho ainda muda o custo congelado** — a outra metade
+    do conserto de 12 de setembro, e ela não é uma linha.
+    <!-- medida: ausente src/data/db.ts :: sub_recipe_version_id -->
+
+    O que já está fechado: `closeProductionRun` passa `fichaCravada: run.recipeVersionId` e
+    `loadRecipeGraph` aceita `fixar`, então a receita RAIZ entra na versão da abertura. Para a
+    ficha **plana** — itens e nada mais — isso é completo, porque `explodeRequirements` usa
+    `quantity × batches` e o rendimento não entra.
+
+    O que sobra tem dinheiro: para linha de SUB-receita ela usa
+    `sub.yieldAmount * (1 - sub.lossFraction)` para converter *"preciso de 10.000 ml de base"*
+    em quantas bateladas de base fazer. A corrida anota **uma** versão, então a base continua
+    entrando pela mais nova — editar a calda entre abrir e fechar muda o consumo, e consumo é
+    taxa congelada.
+
+    **As três formas, medidas, e por que nenhuma é uma linha:**
+
+    | forma | o que ela pede | o que ela custa |
+    |---|---|---|
+    | carimbo por sub-receita na abertura | coluna em `production_runs` (aparelho; a tabela não sincroniza, então sem par de servidor) | resolve só o tacho aberto; a pergunta *"de que versão da calda saiu este lote?"* continua sem resposta depois |
+    | corte por TEMPO | nada de esquema | três furos já medidos: `effective_from` é DATA, `created_at` empata no milissegundo, e derivar de `occurredAt` recusaria a produção registrada depois do fato — o caminho "começar pelo fim" |
+    | **a linha da ficha nomear a VERSÃO da sub-receita** | `recipe_lines.sub_recipe_version_id` (aparelho **e** servidor) e o grafo do domínio deixar de ser uma versão por receita | é a forma certa e é a caríssima: `Record<string, Recipe>` aparece em quatro assinaturas de `src/domain/recipe.ts` e em `loadRecipeGraph`, e re-chavear por versão toca todos os chamadores |
+
+    **A terceira é a que a casa escolheria, e é por isso que ela fica escrita em vez de
+    começada.** Ela é a mesma forma de tudo aqui — o lote carimba a versão que rodou, então a
+    linha deveria carimbar a versão que ela compôs — e o P3 diz que forma de esquema se adivinha
+    de graça enquanto há zero linhas, que é agora. Mas ela é uma rodada dedicada com plano, e
+    *"nada fica pela metade"* é decisão escrita: começá-la no fim de uma rodada é entregar o
+    grafo re-chaveado pela metade.
+
+    **E a coluna que a primeira forma leria já existe desde a `V28`**, que versionou
+    `yield_amount`, `yield_unit` e `yield_per_unit` em `recipe_versions` dizendo por escrito que
+    entrava *"sem leitor"*, esperando a tela de histórico da ficha. Qualquer das três lhe dá o
+    segundo leitor.
+
 **O que a segunda caminhada CONFIRMOU funcionando:** as três réguas de rendimento no
 cadastro da ficha; a confirmação da ficha com os números por extenso e a régua escolhida
 (*"vai render 12.000 g de cada vez"*); a aritmética do custo em toda tela conferida na mão
