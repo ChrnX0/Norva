@@ -10883,3 +10883,29 @@ de eu dar mensagem às asserções:** `assert.equal(tipoDaDiferenca(-500), 'falt
 *"Expected values to be strictly equal"*, que não nomeia defeito nenhum. A régua desta casa manda
 plantar o defeito que a asserção NOMEIA — e asserção sem mensagem não nomeia nada, então a
 segunda metade da regra é escrever a mensagem.
+
+---
+
+## 12 de setembro — o portão P1 aplicado ao meu próprio commit de uma hora antes
+
+**O que se viu.** `checksSetAside` devolvia doze campos e a tela — o **único** consumidor — lia
+dez. `rowId` e o `movement_group_id` da conferência saíam do banco, atravessavam a camada de dados,
+entravam no tipo público e morriam ali.
+
+**Por que importa, e por que não é purismo.** É a doença que o P1 existe para pegar, a mesma de
+`Draft.kind` e de `assistant_phrase` com índice dedicado e nenhuma escrita. O custo não é o byte: é
+que campo devolvido **parece** contrato. Quem ler o tipo daqui a um mês vai supor que alguém
+depende deles, e vai carregá-los para a próxima consulta — foi assim que `operator_id` juntou sete
+escritores e zero leitores.
+
+**O que mudou.** Os dois saíram, e a razão ficou escrita no docblock **onde alguém vai querer
+acrescentá-los de volta**: o grupo seria útil para abrir o ato no extrato, e `ledgerExtract` não
+filtra por grupo — no dia em que filtrar, os dois voltam com o chamador no mesmo commit. O `rowId`
+continua vivo em `RejectedEntry`, onde é lido de verdade para correlacionar a fila com o razão; o
+que saiu foi a re-exposição.
+
+*A régua desta entrada é só a hora do relógio: o portão P1 vale para o commit de uma hora atrás.
+Eu o apliquei a `operator_id` (sete escritores, zero leitores) e a `purchases.supplier_name` no
+código de outra semana, e não o apliquei ao que eu tinha acabado de escrever. Código novo é
+exatamente onde a pergunta é mais barata de responder — e o único momento em que apagar não custa
+nada.*

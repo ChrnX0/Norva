@@ -3053,6 +3053,12 @@ export async function undoCheck(
 /**
  * Uma linha que a fila pôs de lado, com o fato por trás dela quando dá para contá-lo.
  *
+ * **E o que ela NÃO devolve é decisão, não esquecimento.** `rowId` e o `movement_group_id` da
+ * conferência saíram depois de entrarem: o único consumidor não os lia, e campo devolvido sem
+ * leitor é a doença que o portão P1 existe para pegar — a mesma de `Draft.kind`. O grupo seria
+ * útil para abrir o ato no extrato, e `ledgerExtract` não filtra por grupo: no dia em que
+ * filtrar, os dois voltam com o chamador no mesmo commit.
+ *
  * `conferencia` nulo é resposta e não lacuna: a fila pode pôr de lado a linha de qualquer
  * tabela, e hoje só a conferência tem recusa permanente (o `23505` que a `0051` escolhe).
  * Inventar uma descrição para o que não se sabe descrever seria pior que dizer o que se sabe —
@@ -3061,12 +3067,11 @@ export async function undoCheck(
 export type LinhaDeLado = {
   /** A entrada da fila, que é o que a tela usa como chave. */
   entryId: string;
+  /** A tabela da linha — é ela que a tela nomeia quando não sabe descrever o fato. */
   table: string;
-  rowId: string;
   setAsideAt: string;
   codigo: string | null;
   conferencia: {
-    groupId: string | null;
     itemName: string | null;
     placeName: string | null;
     /** Quem estava com o aparelho, se a empresa liga `names_who_recorded`. */
@@ -3117,7 +3122,6 @@ export async function checksSetAside(companyId: string): Promise<LinhaDeLado[]> 
   const fatos = new Map<
     string,
     {
-      groupId: string | null;
       itemName: string | null;
       placeName: string | null;
       operatorName: string | null;
@@ -3131,7 +3135,6 @@ export async function checksSetAside(companyId: string): Promise<LinhaDeLado[]> 
     const marcas = ids.map(() => '?').join(', ');
     const linhas = await conn.getAllAsync<{
       id: string;
-      movement_group_id: string | null;
       item_name: string | null;
       place_name: string | null;
       operator_name: string | null;
@@ -3139,7 +3142,7 @@ export async function checksSetAside(companyId: string): Promise<LinhaDeLado[]> 
       quantity_base_units: number;
       base_unit: string | null;
     }>(
-      `SELECT m.id, m.movement_group_id, m.occurred_at, m.quantity_base_units,
+      `SELECT m.id, m.occurred_at, m.quantity_base_units,
               i.name AS item_name, i.base_unit AS base_unit, l.name AS place_name,
               CASE WHEN ? = 1 THEN pe.name END AS operator_name
          FROM movements m
@@ -3153,7 +3156,6 @@ export async function checksSetAside(companyId: string): Promise<LinhaDeLado[]> 
     );
     for (const l of linhas) {
       fatos.set(l.id, {
-        groupId: l.movement_group_id,
         itemName: l.item_name,
         placeName: l.place_name,
         operatorName: l.operator_name,
@@ -3167,7 +3169,6 @@ export async function checksSetAside(companyId: string): Promise<LinhaDeLado[]> 
   return deLado.map((e) => ({
     entryId: e.id,
     table: e.table,
-    rowId: e.rowId,
     setAsideAt: e.setAsideAt,
     codigo: e.codigo,
     // A entrada continua na lista mesmo sem fato legível — a contagem dos Ajustes conta TODAS,
