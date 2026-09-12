@@ -6,11 +6,28 @@
  * freezer with no signal has to be the same record the server will accept when
  * the phone finds a tower again.
  *
- * Two deliberate differences from `supabase/migrations`:
- *   - no RLS: the device already holds exactly one user's data, and the server
- *     is the boundary that matters
- *   - rates are REAL, amounts are INTEGER cents, matching the same split the
- *     domain enforces - a price per gram is not money and must not be rounded
+ * **As diferenças deliberadas são CINCO, e este cabeçalho disse "duas" por semanas.**
+ * A lista cresceu passo a passo, cada um com a razão escrita no `V` que a criou, e
+ * ninguém voltou aqui — o cabeçalho promete espelho e o corpo tem furos de propósito:
+ *
+ *   - **sem RLS**: o aparelho já guarda o dado de um usuário só, e a fronteira que
+ *     importa é o servidor;
+ *   - **taxas são REAL e valores são INTEGER de centavo**, a mesma separação que o
+ *     domínio impõe — preço por grama não é dinheiro e não pode ser arredondado;
+ *   - **`production_runs` não sobe** (V8): o tacho aberto é estado de trabalho deste
+ *     aparelho, não fato do razão, e sincronizá-lo faria dois celulares disputarem a
+ *     mesma corrida;
+ *   - **`movements.lot_id` sem chave estrangeira** (V11): o lote pode chegar na fila
+ *     depois do movimento que o cita, e uma FK aqui recusaria a ordem que a doca
+ *     produz;
+ *   - **`outbox.recusada_em` e `recusa_codigo`** (V34) e **`app_meta`** não existem no
+ *     servidor: são o estado da fila e do aparelho, e o servidor não tem opinião sobre
+ *     eles;
+ *   - **`item_costs` é chaveada por item** aqui, porque o aparelho tem uma empresa só.
+ *
+ * *Contadas em 12 de setembro. Quem acrescentar a sexta acrescenta a linha aqui — um
+ * cabeçalho que diz "duas" enquanto o corpo tem cinco manda a próxima sessão procurar
+ * um espelho que ninguém prometeu de verdade.*
  */
 
 /**

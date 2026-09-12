@@ -118,8 +118,15 @@ foi provada mordendo: com o defeito plantado à mão, ela reprova; sem ele, pass
 execução seguinte, com a guarda no lugar, a mutação morreu junto com as outras 123.*
 
 **Nível de evidência: E3** — exercitado contra Postgres e navegador de verdade, com
-as 21 telas fotografadas nas **quatro caras de verdade** (Papel e Orgânico × claro e
-escuro, 84 fotos, `npm run shot -- --tudo`). Até 5 de setembro toda foto chamada
+as telas fotografadas nas **quatro caras de verdade** (Papel e Orgânico × claro e
+escuro, `npm run shot -- --tudo`).
+
+*O número saiu daqui em 12 de setembro, e por dois motivos. Ele dizia "21 telas" e
+"84 fotos" enquanto `src/bar.test.ts` deriva **36** telas do próprio repositório — a
+lembrança envelhecendo contra a guarda, no parágrafo que diz "medido". E a frase inteira
+descreve um instrumento que este container perdeu: a imagem do emulador aqui **não
+rasteriza** (item 26), então quem prova tela hoje é a árvore de acessibilidade — layout,
+texto, idioma, dado e navegação — e composição, cor e movimento são do aparelho do dono.* Até 5 de setembro toda foto chamada
 `organico` era Papel, porque a ferramenta herdava a cara em vez de escolhê-la
 (`docs/insights.md`, "padrão não é escolha"); ela passou a escolher sempre e a
 **recusar duas fotos idênticas com nomes diferentes**, então a afirmação acima é
@@ -2694,7 +2701,7 @@ cada um passa. `apricot` de `#E29B52` a `#9D5C1A` — matiz 30 nos dois, satura�
 71% e 72%, luminosidade de 60% para 36%. **É a mesma cor mais escura, e não outra
 cor**, que era a dúvida que travava a decisão.
 
-### 5. ~~O padrão da capa cai para ~5 peças~~ — FEITO, e são OITO
+### 5. ~~O padrão da capa cai para ~5 peças~~ — FEITO, e são NOVE
 
 <!-- medida: presente src/domain/briefing.ts :: DEFAULT_OFF -->
 
@@ -2702,11 +2709,19 @@ O catálogo de dezesseis está certo e fica. Errada era a **porta de entrada**: 
 nova recebia muita coisa, e quinze peças com posição e tamanho é uma tela de ajuste
 que um dono de baixa habilidade técnica não abre.
 
-**Feito, e são oito — não os ~5 que eu propus.** Ao aplicar, o número arredondado
+**Feito, e são nove — não os ~5 que eu propus.** Ao aplicar, o número arredondado
 brigou com a Lei da Inteligência e a Lei ganhou: o padrão leva o que **avisa** e o
 que **decide**, e o que só **conta** espera alguém pedir. Ficam `producao`,
-`semana`, `aoVivo`, `cobertura`, `validade`, `entregaHoje`, `clima` e `copia`. Saem
-oito, e todas por serem relatório.
+`semana`, `aoVivo`, `cobertura`, `pedidos`, `entregaHoje`, `validade`, `clima` e
+`copia`. Saem **sete**, e todas por serem relatório: `historico`, `insumos`,
+`expedicao`, `perdas`, `custo`, `precos` e `parado`.
+
+*E este parágrafo contou errado duas vezes seguidas — "sete", depois "oito" —,
+sempre pela mesma causa: eu listava as que tinha escolhido à mão em vez de derivar do
+`DEFAULT_OFF`. Contado contra o código em 12 de setembro: catálogo de dezesseis, sete
+fora, **nove** ligadas, e `pedidos` era a que faltava na lista das duas vezes. Número
+de plano que não sai de um `grep` é lembrança — e a lembrança errou na terceira casa
+decimal do próprio item que a mediu.*
 
 *Este parágrafo disse "sete" por um dia inteiro contando só as sete que eu tinha
 escolhido à mão: `copia` entrou depois, pelo outro lado da conta — ela não está no
@@ -3306,10 +3321,21 @@ Compilando o APK aqui (a CI não pode: cota), o arquivo saiu com **48 MB**. Abri
 | `lib/arm64-v8a/libreactnative.so` | 7 MB |
 | `assets/index.android.bundle` (o JavaScript) | 4 MB |
 
-O bytecode Java/Kotlin domina, e o motivo é uma linha:
+O bytecode Java/Kotlin domina, e o motivo era uma linha:
 `android/app/build.gradle:69` lê `android.enableMinifyInReleaseBuilds` com **`false`** como
-padrão, e nada no projeto define a propriedade. Ou seja: **todo APK que este projeto já
-publicou saiu sem minificação.**
+padrão, e nada no projeto definia a propriedade. Ou seja: **todo APK que este projeto tinha
+publicado até 9 de setembro saiu sem minificação.**
+
+~~E ele continua saindo.~~ — **LIGADO desde 9 de setembro**
+(`android/gradle.properties:73`), e a causa de ter demorado está escrita ali em cima e vale
+mais que o ganho: alguém já tinha escrito `true`, e a linha estava **colada na seguinte**,
+então o valor lido era a string `trueorg.gradle.caching=true`, que não é `true`. A intenção
+estava no arquivo e o efeito nunca aconteceu — um defeito que nenhuma suíte pega, porque
+não há teste que rode contra o APK encolhido.
+
+**O que resta é do tablet, e está escrito no próprio `gradle.properties`:** R8 remove o que
+só é alcançado por reflexão, e nenhuma prova deste repositório roda contra o pacote
+minificado. Se uma tela sumir **só no release**, é a primeira linha a olhar.
 
 **E o ganho foi medido, não estimado** — eu tinha escrito "costuma cortar metade", que é
 palpite, e aqui se mede:

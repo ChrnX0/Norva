@@ -11173,3 +11173,28 @@ por vinte e cinco linhas. O que impede inline é guarda de fonte, não disponibi
 *E o P1 me pegou no mesmo commit, o que é a régua funcionando: criei `rateToDecimal` e
 `countsFromTiers` e a suíte reprovou com "sem chamador" antes de eu ligá-las. A regra vale
 para quem a escreveu.*
+
+## 12 de setembro — a mesma dívida em três seções, e três leitores a acharam três vezes
+
+O estudo de oito frentes devolveu 145 itens de pé, e ao ordená-los apareceu um padrão que
+não é sobre nenhum deles: **a mesma dívida mora em vários lugares do plano.** O item 42 (a
+falta que entra como venda) está escrito em três seções; a conferência duplicada, em
+quatro; o estado do Reset, em três. Leitores diferentes, lendo frentes diferentes, a
+acharam como se fossem itens distintos — e teriam produzido três consertos da mesma coisa.
+
+**O custo não é a duplicação: é a divergência.** Três cópias envelhecem em três ritmos, e a
+que alguém ler primeiro decide o trabalho. Foi exatamente o que aconteceu nesta rodada com
+números menores: o padrão da capa dizia "oito" em dois parágrafos e o código tem **nove**;
+o topo do plano dizia "21 telas" enquanto a guarda deriva **36**; o cabeçalho do `db.ts`
+prometia "duas diferenças" e o corpo tem **cinco**; o `needsHumanYes` dizia que preço e
+estorno "cannot yet do at all" e os dois existem há dias; o `enviar` dizia "nunca acontece
+sozinho" quatro dias depois de o automático virar regra.
+
+Cinco documentos, cinco mentiras, e **nenhuma delas é descuido**: todas nasceram verdadeiras
+e ficaram para trás quando o código andou. A regra que este projeto já tem para o plano —
+`<!-- medida: -->` que a suíte roda — existe justamente por isso, e não alcança docblock.
+
+A consequência prática, e ela é de método: **número em prosa que não sai de um `grep` é
+lembrança.** Quando um documento afirma uma contagem, ou ele deriva (e aí a guarda o
+protege), ou ele diz de qual dia é a medida. E uma dívida tem um lugar; as outras citações
+apontam para ele.

@@ -602,12 +602,18 @@ function Settings() {
     (counts?.places ?? 0);
 
   /**
-   * Enviar é um TOQUE, e nunca acontece sozinho.
+   * Enviar é o caminho MANUAL — e ele deixou de ser o único em 8 de setembro.
    *
-   * **Decisão do dono, escrita no `CLAUDE.md`:** *"usar com sabedoria"* — o servidor
-   * é pago e a fábrica funciona inteira sem ele. Sincronia automática num aplicativo
-   * que grava dezenas de linhas por dia é conta que ninguém pediu, e pior: é dado
-   * saindo do aparelho sem ninguém ter decidido que saísse.
+   * **Este docblock afirmou "nunca acontece sozinho" por quatro dias depois de deixar
+   * de ser verdade.** `rodadaAutomatica` (`src/nuvem/aparelho.ts`) roda na abertura e a
+   * cada volta ao primeiro plano (`app/_layout.tsx:78`), por decisão do dono: uma fila
+   * que só sobe quando alguém lembra é uma fila que não sobe, e o dado fica num celular
+   * de fábrica até ele cair na câmara fria.
+   *
+   * **O que continua valendo da decisão original** (*"usar com sabedoria"* — o servidor
+   * é pago e a fábrica funciona inteira sem ele): a rodada não acontece sem conta
+   * configurada, não acontece sem servidor, e o botão existe para quem quer subir
+   * AGORA, com a resposta na tela em vez de em silêncio.
    *
    * As duas recusas aparecem como FRASE e não como falha: sem servidor configurado,
    * e sem empresa adotada — que é a que importa, porque o carimbo das linhas seria a

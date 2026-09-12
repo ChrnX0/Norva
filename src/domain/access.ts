@@ -152,10 +152,22 @@ export function capabilitiesFor(role: Role): ReadonlySet<Capability> {
  *
  * The floor is: an inventory adjustment, a price change, a reversal, a
  * financial entry, and issuing an invoice. Only two of those have a capability
- * of their own today (`adjust_stock`, `issue_invoice`); a price change, a
- * reversal and a financial entry are things the app cannot yet do at all, so
- * naming a capability for them now would be inventing vocabulary for absent
- * features.
+ * of their own today (`adjust_stock`, `issue_invoice`).
+ *
+ * **E este parágrafo dizia que os outros três "the app cannot yet do at all" — dois
+ * deles já fazem, medido em 12 de setembro.** A mudança de preço é `saveSalePrice`
+ * (`app/places.tsx:920`) e o estorno é `reverseGroup`, que alcança qualquer ato desde
+ * 7 de setembro. Só o lançamento financeiro continua ausente.
+ *
+ * A ausência de capacidade para elas deixou de ser "vocabulário para funcionalidade
+ * que não existe" e passou a ser outra coisa: **as duas são governadas pela
+ * capacidade do assunto** — quem muda preço precisa do acordo da loja, quem estorna
+ * precisa alcançar o ato — e a regra desta lista é sobre PERGUNTAR, não sobre poder.
+ * Alguém com `adjust_stock` continua sendo perguntado toda vez.
+ *
+ * *E há um buraco medido junto, que é do dono e não meu: o estorno e a contagem
+ * confirmam; `saveSalePrice` salva no toque da ficha, sem confirmação. A promessa de
+ * baixo — "asked every single time" — vale para dois dos três atos que existem.*
  *
  * They are written down anyway, because the floor is a promise made before the
  * features exist: whoever builds them inherits the rule rather than deciding it
