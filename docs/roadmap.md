@@ -56,11 +56,15 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 
-*Última execução do `mutate`: **12 de setembro, sobre `4bb4460`** — **148 plantadas, 146 pegas,
-2 equivalentes, 0 sobreviventes, 0 não medidas**, com a barra inteira verde ao lado (navegador
-59/59, banco 32 garantias). As duas últimas a entrar guardam a ficha cravada do tacho: a que
-tira a linha do conserto e a que a descarta em silêncio, e as duas reprovam pelo DINHEIRO —
-*"esperava 4 centavos por unidade, veio 8"*.*
+*Última execução do `mutate`: **12 de setembro à noite, sobre `63c45e9`** — **151 plantadas,
+149 pegas, 2 equivalentes, 0 sobreviventes, 0 não medidas**, com a barra inteira verde ao lado
+(navegador 59/59 na árvore final, portão passando com avisos idênticos). A última a entrar
+inverte o sinal de `diasDeCalendario`, e ela derruba QUATRO testes — dois deles antigos, do
+`daysBetween` e do lote, que passaram a proteger a função nova por delegação sem serem tocados.*
+
+*Antes dela, a de `4bb4460` — 148 plantadas, 146 pegas, 2 equivalentes — cujas duas últimas
+guardam a ficha cravada do tacho e reprovam pelo DINHEIRO: *"esperava 4 centavos por unidade,
+veio 8"*.*
 
 *Antes dela, a da mesma noite que achou um sobrevivente de verdade — a
 bandeira `reversed` do extrato, o quinto predicado que o estorno parcial obrigou a crescer e o
