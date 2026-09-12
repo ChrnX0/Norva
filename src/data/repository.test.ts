@@ -45,6 +45,7 @@ import {
   productionOn,
   shipmentsOn,
   recordCheck,
+  undoCheck,
   recordLoss,
   openProductionRun,
   openProductionRuns,
@@ -1550,6 +1551,118 @@ test('a run that cannot close stays open, instead of being lost', async () => {
   // E a corrida continua aberta: a pessoa lança a compra que chegou e fecha
   // depois. Perder o registro do tacho que rodou seria o pior dos dois mundos.
   assert.equal((await openProductionRuns(EMPRESA_SEMENTE)).length, 1);
+});
+
+/**
+ * Desfazer a conferência deixa a REMESSA de pé — e o aplicativo mandava fazer isso sem poder.
+ *
+ * A recusa da segunda conferência diz, nos três idiomas: *"Esta remessa já foi conferida. Para
+ * trocar o que foi contado, desfaça a conferência no extrato e confira de novo."* E a dica da
+ * migração 0051 repete no servidor. **Nenhum dos dois era possível.**
+ *
+ * A conferência não tem grupo próprio, e tem de não ter: `recordCheck` reusa o grupo da remessa
+ * porque a chave da trava do servidor é (empresa, grupo, item), e é ela que impede dois
+ * celulares de dobrarem o saldo da mesma carga. Então o único caminho de desfazer — pelo grupo —
+ * estornava as pernas da transferência junto, a remessa saía da doca, e `recordCheck` passava a
+ * responder *"remessa não existe"*: um erro de programador para quem obedeceu à tela.
+ *
+ * Este teste é a instrução da tela virando caminho exercitado, e ele prende as quatro coisas
+ * que faziam falta:
+ *
+ * 1. desfazer a conferência estorna UMA linha, não três;
+ * 2. as pernas da transferência continuam de pé — a carga não desaparece;
+ * 3. a doca volta a dizer "não conferida", que era o que ficava mentindo para sempre;
+ * 4. conferir de novo FUNCIONA, que é a frase inteira que a mensagem promete.
+ */
+test('desfazer a conferência deixa a remessa de pé, e dá para conferir de novo', async () => {
+  await ensureStarterData(EMPRESA_SEMENTE);
+  const loja = await savePlace(EMPRESA_SEMENTE, { name: 'Loja do Desfazer', kind: 'own_store' });
+  const fabrica = defaultLocationId(EMPRESA_SEMENTE);
+  const acucar = (await listItems(EMPRESA_SEMENTE)).find((i) => i.name.includes('Açúcar'));
+  assert.ok(acucar);
+
+  const quando = '2026-09-05T14:00:00.000Z';
+  const janela = ['2026-09-05T00:00:00.000Z', '2026-09-06T00:00:00.000Z'] as const;
+
+  const carga = await recordTransfer(EMPRESA_SEMENTE, {
+    itemId: acucar.id, fromLocationId: fabrica, toLocationId: loja.id,
+    baseUnits: 6000, occurredAt: quando,
+  });
+
+  // A doca fala por DESTINO e confere por REMESSA: `pendentes` são os grupos que faltam, e é
+  // por eles que a tela toca. Ler `pendentes` em vez de `checked` é ler o que a tela usa.
+  const naDoca = async () =>
+    (await shipmentsOn(EMPRESA_SEMENTE, ...janela)).filter((p) => p.groupIds.includes(carga.groupId));
+  const faltaConferir = async () => (await naDoca())[0]?.pendentes.includes(carga.groupId);
+  assert.equal(await faltaConferir(), true, 'nasce não conferida');
+
+  /**
+   * Conferida com FALTA, e a diferença é o que torna o resto mensurável.
+   *
+   * Com "chegou tudo" toda diferença é zero, e um estorno escrito duas vezes soma zero duas
+   * vezes: a aritmética não distingue o conserto do defeito. Faltando 500, cada estorno vale
+   * +500 e o saldo denuncia na hora. (`counted` é o parâmetro que a tela da doca ainda não
+   * passa — o item está parado no portão P2 esperando o dono ver uma doca. Aqui ele é o
+   * instrumento, e é o que faz esta prova valer.)
+   */
+  const naLoja = async () =>
+    (await balanceByLocation(EMPRESA_SEMENTE, acucar.id)).find((l) => l.locationId === loja.id)
+      ?.baseUnits ?? 0;
+  assert.equal(await naLoja(), 6000, 'a carga chegou inteira');
+
+  await recordCheck(EMPRESA_SEMENTE, {
+    groupId: carga.groupId,
+    occurredAt: quando,
+    counted: [{ itemId: acucar.id, baseUnits: 5500 }],
+  });
+  assert.equal(await faltaConferir(), false, 'conferida');
+  assert.equal(await naLoja(), 5500, 'faltaram 500, e o livro sabe');
+
+  // Conferir duas vezes continua recusado — a trava que impede o saldo de dobrar.
+  await assert.rejects(
+    () => recordCheck(EMPRESA_SEMENTE, { groupId: carga.groupId }),
+    (e: Error) => e.name === 'JaConferidaError',
+    'a segunda conferência continua recusada',
+  );
+
+  // 1. Desfazer alcança UMA linha: a diferença, não as duas pernas da carga.
+  const desfeito = await undoCheck(EMPRESA_SEMENTE, { groupId: carga.groupId });
+  assert.equal(desfeito.reversed, 1, 'estornou só a conferência');
+  assert.equal(await naLoja(), 6000, 'a falta voltou, e exatamente uma vez');
+
+  // 2. A carga continua de pé. Sem isto, a remessa desaparecia da doca.
+  const conn = await db();
+  const pernas = await conn.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM movements
+      WHERE movement_group_id = ? AND kind = 'transfer'
+        AND NOT EXISTS (SELECT 1 FROM movements r WHERE r.reverses_movement_id = movements.id)`,
+    [carga.groupId],
+  );
+  assert.equal(pernas?.n, 2, 'as duas pernas da transferência ficaram de pé');
+
+  // 3. A doca volta a dizer a verdade.
+  assert.equal(await faltaConferir(), true, 'a doca volta a oferecer a conferência');
+
+  // 4. E conferir de novo funciona — a frase que a mensagem promete, inteira.
+  const denovo = await recordCheck(EMPRESA_SEMENTE, {
+    groupId: carga.groupId,
+    counted: [{ itemId: acucar.id, baseUnits: 5500 }],
+  });
+  assert.deepEqual(denovo.differences, [{ itemId: acucar.id, baseUnits: -500 }]);
+  assert.equal(await faltaConferir(), false, 'conferida outra vez');
+  assert.equal(await naLoja(), 5500, 'e a falta voltou a valer');
+
+  // E desfazer a CARGA inteira continua possível depois disso — sem esta metade o conserto
+  // trocaria um defeito por outro: `alreadyReversed` era "alguma perna estornada", então a
+  // conferência desfeita trancaria a remessa para sempre.
+  await undoCheck(EMPRESA_SEMENTE, { groupId: carga.groupId });
+  // E o segundo desfazer alcança SÓ a conferência nova: estornar de novo a que já estava
+  // estornada somaria +500 uma segunda vez, e o saldo passaria de 6.000. É a mutação que a
+  // prova de diferença zero não conseguia distinguir.
+  assert.equal(await naLoja(), 6000, 'o segundo desfazer não estornou a conferência já estornada');
+  const plano = await planReversal(EMPRESA_SEMENTE, carga.groupId);
+  assert.equal(plano.alreadyReversed, false, 'a carga continua estornável depois de desfazer a conferência');
+  assert.equal(plano.legs.length, 2, 'e o plano promete mover só as pernas que estão de pé');
 });
 
 test('a store that checked and a store that did not are different facts', async () => {

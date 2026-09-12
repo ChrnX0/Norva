@@ -1821,6 +1821,30 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "insert into movements (id, company_id, k
           '${CHK}f1');" >/dev/null  # proofgate-allow
 confere "${CHK}f5" "${M}b1" || fail "depois do estorno a remessa não pôde ser conferida de novo"
 
+# 5. E a RETENTATIVA da própria linha aceita não é duplicação — a forma com que o aparelho
+#    escreve de verdade, que nenhuma das quatro acima usava.
+#
+#    A fila sobe por `upsert(..., { onConflict: 'id' })`, que em SQL é
+#    `insert ... on conflict (id) do nothing` (`src/sync/transporte.ts`). Gatilho `before
+#    insert` dispara ANTES de o conflito de chave ser detectado, então a mesma linha reenviada
+#    passa pelo gatilho como se fosse nova — e o gatilho encontra ela mesma de pé.
+#
+#    O caminho é o comum, não o raro: o servidor grava, a resposta se perde na doca (que é a
+#    razão de a fila existir), `markSent` não roda, e o `drain` seguinte reenvia a MESMA
+#    entrada. A recusa volta como 23505, `classeDaRecusa` chama de permanente, e a conferência
+#    de um celular sozinho é posta de lado para sempre — contra a fundação escrita da fila,
+#    "mandar a mesma entrada duas vezes é inofensivo", e contra o docblock desta migração.
+#
+#    As quatro checagens acima não podiam pegar: todas usam `insert` cru com id NOVO.
+psql -d "$DB" -q -c "insert into movements (id, company_id, kind, occurred_at, recorded_by,
+    item_id, quantity_base_units, location_id, counterpart_location_id, movement_group_id, post)
+  values ('${CHK}f5','${M}c1','discrepancy', now(), '$CHECKER', '${M}b1', -3, '${V}a1','${M}a1','${CHK}e1','checked')
+  on conflict (id) do nothing;" >/dev/null 2>"$PGDATA/retry.err" || true  # proofgate-allow
+if [ -s "$PGDATA/retry.err" ]; then
+  echo "    $(head -1 "$PGDATA/retry.err")"
+  fail "a RETENTATIVA da própria conferência foi recusada: um celular sozinho, sem duplicação nenhuma, tem a conferência posta de lado para sempre"
+fi
+
 echo "    uma conferência de pé por remessa e item, com o caminho de desfazer aberto"
 
 echo "==> check 29: a variação é do TIPO — o mesmo nome cabe duas vezes, e nunca na empresa vizinha"

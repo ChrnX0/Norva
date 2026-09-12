@@ -1192,6 +1192,41 @@ const DEFECTS = [
   },
   // --- a fila que sai da frente, 11 de setembro -------------------------------
   //
+  // --- o estorno parcial, 12 de setembro -------------------------------------
+  //
+  // A conferência não tem ato próprio (o grupo é o da remessa, e tem de ser: é a chave que
+  // faz a trava do servidor reconhecer a mesma carga conferida por dois celulares). Então
+  // desfazê-la sozinha obrigou três predicados a crescer de "alguma perna estornada" para
+  // "nenhuma de pé". As quatro abaixo quebram cada um deles.
+  {
+    file: 'src/data/repository.ts',
+    from: "    apenas: ['discrepancy'],",
+    to: '',
+    hurts:
+      'desfazer a conferência volta a estornar a CARGA junto: a remessa sai da doca, a mercadoria volta para a fabrica no papel, e conferir de novo responde "remessa nao existe" - que e o erro de programador que a mensagem da tela produzia',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: '    alreadyReversed: dePe.length === 0,',
+    to: '    alreadyReversed: legs.some((l) => l.reversed === 1),',
+    hurts:
+      'a remessa com a conferencia desfeita passa a contar como "ja estornada" e trava para sempre: ninguem mais consegue trazer a carga de volta, e a recusa diz que o grupo ja foi estornado quando a mercadoria esta toda na loja',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: "                 AND ${naoEstornado('c')}",
+    to: '',
+    hurts:
+      'a doca volta a dizer "conferida" para sempre: a conferencia desfeita continua contando, e quem desfez para contar de novo nao tem mais onde tocar',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: '    if (l.reversed === 0) ja.reversed = false;',
+    to: '    if (l.reversed === 1) ja.reversed = true;',
+    hurts:
+      'o extrato passa a marcar o ato inteiro como "Desfeito" depois de desfazer so a conferencia: a etiqueta mente e o botao de trazer a carga de volta desaparece, com a mercadoria ainda na loja',
+  },
+
   // A nota que some no arredondamento: o aparelho aceitava, o servidor recusa para
   // sempre com `23514`, e `23514` é passageira de propósito — então a fila tentaria de
   // novo eternamente com tudo atrás preso. O conserto é na origem, e estas duas o

@@ -530,6 +530,25 @@ export const ptBR = {
       recordedBy: 'por {{name}}',
       lineCount: { one: '1 linha', other: '{{n}} linhas' },
       undo: 'Desfazer',
+      /**
+       * Desfazer SÓ a conferência — a porta que a recusa prometia e o aplicativo não tinha.
+       *
+       * `alreadyChecked` manda desfazer a conferência no extrato e conferir de novo, e a dica
+       * da migração 0051 repete no servidor. Até 12 de setembro isso era impossível: o único
+       * desfazer era por ATO, e a conferência não tem ato próprio — ela mora no grupo da
+       * remessa, de propósito, porque é essa chave que faz a trava do servidor reconhecer a
+       * mesma carga conferida por dois celulares. Desfazer o ato estornava as pernas da
+       * transferência junto: a carga voltava para a fábrica no papel, e conferir de novo
+       * respondia "remessa não existe".
+       *
+       * Duas ações no mesmo ato, e a diferença entre elas é o que o corpo precisa dizer: uma
+       * traz a mercadoria de volta, a outra só apaga a contagem. Por isso o rótulo é longo —
+       * "Desfazer" sozinho, ao lado do outro, seria a pergunta sem a resposta.
+       */
+      undoCheckOnly: 'Desfazer só a conferência',
+      undoCheckTitle: 'Desfazer só a conferência?',
+      undoCheckBody:
+        'A carga fica onde está — o que sai é só a contagem. Os dois lançamentos ficam no histórico, e você pode conferir de novo.',
       undone: 'Desfeito',
       undoOf: 'Correção de {{what}}',
       undoTitle: 'Desfazer {{what}}?',

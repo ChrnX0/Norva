@@ -10572,3 +10572,91 @@ A regra deste arquivo — *"antes de chamar algo de defeito, procure a decisão"
 eu acabo de pagar: **antes de escrever uma guarda, procure a guarda.** Achar a que existe e
 consertar o buraco dela custou menos que a minha, cobre mais, e deixa uma régua no lugar de duas
 que discordam.
+
+---
+
+## 12 de setembro — a `0051` recusava a RETENTATIVA da própria conferência aceita
+
+**O achado, medido contra um Postgres de verdade com a forma exata com que o aparelho escreve:**
+
+```
+insert into movements (...) values (...) on conflict (id) do nothing;
+ERROR:  esta remessa já foi conferida
+```
+
+Um celular sozinho. Nenhuma segunda pessoa, nenhuma segunda doca.
+
+**Por que acontece.** A fila sobe por `upsert(linha, { onConflict: 'id' })`, que em SQL é
+`on conflict (id) do nothing`. Gatilho `before insert` dispara **antes** de o conflito de chave
+primária ser detectado, então a mesma linha reenviada entra no gatilho como se fosse nova — e o
+`exists` da regra encontra **ela mesma** de pé.
+
+**E o caminho é o comum, não o raro.** O servidor grava, a resposta se perde — a zona morta da
+doca, que é a razão de a fila existir. `markSent` não roda, `sent_at` fica nulo, e o `drain`
+seguinte reenvia a MESMA entrada. A recusa volta como `23505`, `classeDaRecusa` a chama de
+permanente **com razão** (é o código que nós mesmos escolhemos ali), e `markRejected` põe a linha
+de lado para sempre — `outbox.ts` diz em prosa que o que sai de lado não volta. A conferência de
+quem estava sozinho na doca desaparece.
+
+Isso contradiz duas coisas escritas, e uma delas é da própria migração: a fundação da fila
+(*"mandar a mesma entrada duas vezes é inofensivo: o servidor resolve por id"*) e o docblock da
+`0051` (*"A fila de um celular subindo sozinha, que é o caso comum, nunca disputa nada"*).
+
+**Por que as duas garantias não pegaram, e é isto que vale guardar.** A 28 e a 32 exercitam a
+regra com `insert` cru e **id novo** — a forma de quem escreve o teste. O aparelho escreve com
+`on conflict (id) do nothing` e, na retentativa, com o **mesmo id**. Duas garantias detalhadas,
+quatro casos entre elas, e nenhuma usava a forma real.
+
+*A régua que sai daqui: quando a coisa protegida é o que o APARELHO manda, a garantia se escreve
+na forma com que ele manda — mesmo verbo, mesmo `on conflict`, mesmo id na retentativa. Escrever
+`insert` cru é medir um cliente que não existe.* O conserto é uma linha (`and m.id <> new.id`,
+migração `0060`) e o quinto caso da 28 fica vermelho sem ela.
+
+---
+
+## 12 de setembro — o estorno parcial obrigou TRÊS predicados a crescer, e todos diziam "alguma"
+
+**O achado.** O aplicativo mandava, nos três idiomas, *"desfaça a conferência no extrato e
+confira de novo"*, e a dica da `0051` repetia no servidor. **Nenhum dos dois era possível.**
+
+A conferência não tem ato próprio: `recordCheck` reusa o grupo da remessa, e **tem de reusar** —
+é essa chave que faz a trava do servidor reconhecer a mesma carga conferida por dois celulares.
+Dar grupo próprio à conferência quebraria a proteção que impede o saldo de dobrar. Então o único
+desfazer era por ato, e ele estornava as pernas da transferência junto: a carga voltava para a
+fábrica no papel, e `recordCheck` passava a responder *"remessa não existe"* — um erro de
+programador para quem obedeceu à instrução da tela.
+
+**O que mudou.** `undoCheck` desfaz só a conferência, com o escopo por espécie descendo até o
+`SELECT` (`planReversal` e `reverseGroup` ganharam `apenas`), e o extrato ganhou a ação estreita
+que a mensagem nomeia — em linha própria, porque duas ações destrutivas encostadas com rótulos
+parecidos são o convite para tocar a errada.
+
+**E aqui está o que este conserto ensinou, que é maior que ele.** Introduzir o primeiro estorno
+PARCIAL do sistema derrubou três predicados de uma vez, e os três estavam escritos da mesma
+maneira errada:
+
+| onde | dizia | tinha de dizer |
+|---|---|---|
+| `planReversal.alreadyReversed` | alguma perna estornada | nenhuma perna de pé |
+| `shipmentsOn.checked` | existe conferência | existe conferência **de pé** |
+| a agregação do extrato | alguma perna estornada | nenhuma perna de pé |
+
+Enquanto o único desfazer era por ato, **"alguma" e "nenhuma de pé" eram a mesma pergunta**: ou
+tudo estava estornado ou nada estava. Os três estavam certos por uma invariante que ninguém
+escreveu e que eu quebrei ao acrescentar uma capacidade.
+
+*A régua: antes de acrescentar um caso parcial a um sistema que só conhecia o caso total, procure
+os predicados que a totalidade tornava equivalentes.* `grep` por `some(` e por `EXISTS` ao redor
+do conceito custa minutos; descobrir pelo terceiro sintoma custa a rodada. E nenhum dos três daria
+teste vermelho sozinho — os três só falham depois de o estorno parcial existir, que é exatamente
+o commit em que eles param de ser equivalentes.
+
+### E a terceira vez do acento grave
+
+`create or replace` de comentário SQL dentro de template literal quebrou a compilação **três
+vezes nesta sessão**, sempre com a mesma cara: `` `algo` `` numa linha `--` dentro de um
+backtick-string fecha a string, e o `tsc` acusa dezenas de linhas abaixo (`',' expected`,
+`Octal literals are not allowed`). Três vezes não é descuido, é armadilha da forma: em prosa
+técnica deste projeto o acento grave é reflexo, e dentro de template literal ele é um
+delimitador. **Comentário SQL dentro de template literal escreve o identificador sem acento
+grave.**

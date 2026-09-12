@@ -1704,6 +1704,63 @@ check('what went out today lands on the transport tab, by destination', async (p
   assert.doesNotMatch(conferido, /ainda não conferiu/, 'o aviso sai quando a caixa é aberta');
   assert.match(conferido, /Loja Centro/);
 
+  /**
+   * E DESFAZER a conferência, que o aplicativo mandava fazer e não dava como fazer.
+   *
+   * A recusa da segunda conferência diz, nos três idiomas, "desfaça a conferência no extrato e
+   * confira de novo", e a dica da migração 0051 repete no servidor. Até 12 de setembro o único
+   * desfazer era por ATO, e a conferência não tem ato próprio — ela mora no grupo da remessa,
+   * de propósito, porque é essa chave que faz a trava do servidor reconhecer a mesma carga
+   * conferida por dois celulares. Desfazer o ato estornava as pernas da transferência junto: a
+   * carga voltava para a fábrica no papel e conferir de novo respondia "remessa não existe".
+   *
+   * Quatro coisas presas aqui, e nenhuma é visível de dentro de um módulo: a ação existe na
+   * tela que a mensagem nomeia; o ato NÃO passa a se chamar "Desfeito" (o extrato dizia
+   * "alguma perna estornada" e passaria a esconder o botão de trazer a carga de volta); a doca
+   * volta a pedir a conferência (o predicado dela ignorava estorno e mentia para sempre); e
+   * conferir de novo funciona, que é a frase inteira que a recusa promete.
+   */
+  await page.goto(`http://localhost:${PORT}/extrato`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  const noExtrato = await screen(page);
+  assert.match(noExtrato, /Desfazer só a conferência/, 'a ação existe na tela que a mensagem nomeia');
+  assert.doesNotMatch(noExtrato, /Desfeito/, 'e o ato ainda não foi desfeito');
+
+  await page.getByRole('button', { name: 'Desfazer só a conferência' }).first().click();
+  await page.waitForTimeout(900);
+  assert.match(await screen(page), /A carga fica onde está/, 'a confirmação diz que a carga não vai embora');
+
+  await page.getByText('Desfazer só a conferência', { exact: true }).last().click();
+  await assentar(page);
+
+  const depois = await screen(page);
+  assert.doesNotMatch(
+    depois,
+    /Desfeito/,
+    'o ato NÃO vira "Desfeito": a carga continua de pé, e o botão de trazê-la de volta continua lá',
+  );
+  assert.doesNotMatch(
+    depois,
+    /Desfazer só a conferência/,
+    'e a ação estreita sai, porque não há mais conferência de pé',
+  );
+
+  // A doca volta a pedir a conferência — era ela que ficava mentindo para sempre.
+  await page.goto(`http://localhost:${PORT}/transport`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  assert.match(
+    await screen(page),
+    /ainda não conferiu/,
+    'a doca volta a dizer que falta conferir',
+  );
+
+  // E conferir de novo funciona — a frase inteira que a recusa promete.
+  await page.getByText(/ainda não conferiu/).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Conferir chegada', { exact: true }).last().click();
+  await assentar(page);
+  assert.doesNotMatch(await screen(page), /ainda não conferiu/, 'conferida outra vez');
+
   // Lei 3 na aba também: "1 destino" não é muito nem pouco até estar ao lado do
   // que foi ontem. Esta aba dizia o número do dia sozinho, e num dia sem ontem
   // ela diz isso em vez de inventar uma variação.

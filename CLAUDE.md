@@ -1328,6 +1328,34 @@ a frase que eu inventei não continha nenhuma das dez palavras funcionais que a 
 então o verde estava certo sobre um caso que não era o caso. As duas vezes eu li o verde como
 *"a régua não morde"* — e essa conclusão manda consertar uma guarda que estava boa.
 
+**E quando a coisa protegida é o que o APARELHO manda, a garantia se escreve na forma com que
+ele manda — 12 de setembro.** A `0051` recusava a RETENTATIVA da própria conferência aceita: a
+fila sobe por `on conflict (id) do nothing`, gatilho `before insert` dispara ANTES de o conflito
+de id ser detectado, e o `exists` da regra encontrava a própria linha de pé. Um celular sozinho,
+sem duplicação nenhuma, tinha a conferência posta de lado **para sempre** — contra a fundação
+escrita da fila (*"mandar a mesma entrada duas vezes é inofensivo"*) e contra o docblock da
+própria migração (*"a fila de um celular subindo sozinha nunca disputa nada"*).
+
+Duas garantias detalhadas cobriam essa regra, com quatro casos entre elas, e **nenhuma pegou**:
+todas usam `insert` cru com id NOVO, que é a forma de quem escreve o teste. O aparelho escreve
+com `upsert` e, na retentativa, com o MESMO id. Escrever a garantia na forma do teste em vez da
+forma do cliente é medir um cliente que não existe.
+
+**E antes de acrescentar um caso PARCIAL a um sistema que só conhecia o total, procure os
+predicados que a totalidade tornava equivalentes.** O primeiro estorno parcial deste projeto
+derrubou três de uma vez — `planReversal.alreadyReversed`, o `checked` da doca e a agregação do
+extrato —, e os três diziam "alguma perna estornada" quando queriam dizer "nenhuma de pé".
+Estavam certos por uma invariante que ninguém escreveu, e nenhum deles daria vermelho sozinho:
+os três só falham depois de o caso parcial existir. `grep` pelo conceito custa minutos;
+descobrir pelo terceiro sintoma custa a rodada.
+
+**E comentário SQL dentro de template literal escreve identificador SEM acento grave.** Isso
+quebrou a compilação três vezes numa sessão, sempre longe da linha editada (`',' expected`,
+`Octal literals are not allowed`): em prosa técnica daqui o acento grave é reflexo, e dentro de
+um backtick-string ele é delimitador. Uma quarta vez foi no shell, por `python3 -c "…"` com
+acento grave dentro de aspas duplas — ali ele é substituição de comando. Prosa com marcação
+atravessa três linguagens neste repositório, e em duas delas o acento grave não é decoração.
+
 **Injetor que falha em silêncio produz um verde idêntico ao de uma guarda que funciona.**
 Então a injeção é conferida antes de a medida ser lida — `grep` pelo defeito no arquivo, e a
 contagem esperada —, e o caso verdadeiro é o **caso real**, não um parecido escrito por mim:

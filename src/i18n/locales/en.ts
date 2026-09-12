@@ -358,6 +358,10 @@ export const en: Dictionary = {
       recordedBy: 'by {{name}}',
       lineCount: { one: '1 line', other: '{{n}} lines' },
       undo: 'Undo',
+      undoCheckOnly: 'Undo just the check',
+      undoCheckTitle: 'Undo just the check?',
+      undoCheckBody:
+        'The delivery stays where it is — only the count comes off. Both entries stay in the history, and you can check it again.',
       undone: 'Undone',
       undoOf: 'Correction of {{what}}',
       undoTitle: 'Undo {{what}}?',

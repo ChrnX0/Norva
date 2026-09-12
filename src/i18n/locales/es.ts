@@ -363,6 +363,10 @@ export const es: Dictionary = {
       recordedBy: 'por {{name}}',
       lineCount: { one: '1 línea', other: '{{n}} líneas' },
       undo: 'Deshacer',
+      undoCheckOnly: 'Deshacer solo el conteo',
+      undoCheckTitle: '¿Deshacer solo el conteo?',
+      undoCheckBody:
+        'La carga se queda donde está — solo sale el conteo. Los dos asientos quedan en el historial, y puedes contar de nuevo.',
       undone: 'Deshecho',
       undoOf: 'Corrección de {{what}}',
       undoTitle: '¿Deshacer {{what}}?',

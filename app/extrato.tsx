@@ -24,6 +24,7 @@ import {
   SemPermissaoError,
   planReversal,
   reverseGroup,
+  undoCheck,
   type ExtractAct,
 } from '@/data/repository';
 import type { MovementKind } from '@/domain/ledger';
@@ -204,6 +205,37 @@ export default function ExtratoScreen() {
     [confirm, dados, locale, t, words],
   );
 
+  /**
+   * Desfazer SÓ a conferência — a ação que a recusa da segunda conferência promete.
+   *
+   * A confirmação não tem o "sai/volta" da outra, e é de propósito: o que sai daqui é a
+   * CONTAGEM, não a mercadoria. Listar quantidades de ida e volta faria a pessoa procurar a
+   * carga na frase e concluir que ela vai embora — que é exactamente o medo que o corpo do
+   * texto existe para desfazer.
+   *
+   * Zero é resposta e não erro: se outro aparelho desfez primeiro, o `refresh` mostra a
+   * verdade nova. Diálogo reclamando de algo que já está certo é a Lei 5 do avesso.
+   */
+  const desfazerSoAConferencia = useCallback(
+    async (ato: ExtractAct) => {
+      const sim = await confirm({
+        title: words.undoCheckTitle,
+        message: words.undoCheckBody,
+        confirmLabel: words.undoCheckOnly,
+      });
+      if (!sim) return;
+      try {
+        await undoCheck(empresaDaqui(), { groupId: ato.groupId });
+        dados.refresh();
+      } catch (e) {
+        setRecusa(
+          e instanceof SemPermissaoError ? words.undoNotYours : words.undoFailed,
+        );
+      }
+    },
+    [confirm, dados, words],
+  );
+
   return (
     <CollapsingHeader
       cena="relatorios"
@@ -299,6 +331,28 @@ export default function ExtratoScreen() {
                 </Touchable>
               )}
             </View>
+
+            {/* **A ação estreita, e ela existe porque o aplicativo a prometia.** A recusa da
+                segunda conferência manda, nos três idiomas, desfazer a conferência AQUI e
+                conferir de novo — e a dica da migração 0051 repete no servidor. Até 12 de
+                setembro não havia como: o único desfazer era por ato, e a conferência não tem
+                ato próprio, então ele estornava as pernas da carga junto.
+
+                Em linha própria e não ao lado do outro: duas ações destrutivas encostadas, com
+                rótulos parecidos, é o convite para tocar a errada. E só onde há conferência de
+                pé — a maioria dos atos não tem nenhuma. */}
+            {ato.temConferencia && !ato.isReversal ? (
+              <View style={{ flexDirection: 'row', marginTop: space.sm }}>
+                <Touchable
+                  onPress={() => desfazerSoAConferencia(ato)}
+                  accessibilityLabel={words.undoCheckOnly}
+                >
+                  <Text style={[type.caption, { color: color.inkMuted, fontWeight: '600' }]}>
+                    {words.undoCheckOnly}
+                  </Text>
+                </Touchable>
+              </View>
+            ) : null}
           </Card>
         </Reveal>
       ))}

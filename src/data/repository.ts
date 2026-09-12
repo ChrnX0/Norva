@@ -3005,6 +3005,51 @@ export async function recordReturn(
   return moveBetween(companyId, input, 'return');
 }
 
+/**
+ * Desfazer SÓ a conferência de uma remessa, deixando a carga de pé.
+ *
+ * **Existe porque o aplicativo mandava fazer isto e não dava como fazer.** A recusa da segunda
+ * conferência diz, nos três idiomas: *"Esta remessa já foi conferida. Para trocar o que foi
+ * contado, desfaça a conferência no extrato e confira de novo."* E o servidor repete na dica da
+ * migração 0051: *"desfaça a conferência anterior antes de conferir de novo."*
+ *
+ * Nenhum dos dois era possível. A conferência não tem grupo próprio — `recordCheck` reusa o
+ * grupo da remessa, e tem de reusar, porque a chave da trava do servidor é (empresa, grupo,
+ * item) e é ela que impede duas pessoas de dobrarem o saldo da mesma carga. Então desfazer
+ * "pelo grupo", que era o único caminho, estornava as pernas da transferência junto: a remessa
+ * saía da doca, e `recordCheck` passava a recusar com *"remessa não existe"* — um erro de
+ * programador, para quem seguiu a instrução da tela.
+ *
+ * Aqui o escopo é a espécie. As pernas de transferência ficam onde estão, a diferença é
+ * estornada, e as três perguntas de "já foi conferida?" voltam a responder não — a do aparelho
+ * (`recordCheck`), a da doca (`shipmentsOn`) e a do servidor (0051), que já usavam o mesmo
+ * predicado de estorno e agora concordam de verdade.
+ *
+ * **Zero é resposta, não erro.** Se outro aparelho desfez primeiro, não há o que desfazer: a
+ * tela relê e mostra a remessa como não conferida, que é a verdade nova. Diálogo de erro para
+ * uma corrida ganha seria reclamar de algo que já está certo.
+ */
+export async function undoCheck(
+  companyId: string,
+  input: { groupId: string; note?: string },
+): Promise<{ reversed: number }> {
+  const conn = await db();
+  const dePe = await conn.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM movements
+      WHERE company_id = ? AND movement_group_id = ? AND kind = 'discrepancy'
+        AND ${naoEstornado('movements')}`,
+    [companyId, input.groupId],
+  );
+  if ((dePe?.n ?? 0) === 0) return { reversed: 0 };
+
+  const feito = await reverseGroup(companyId, {
+    groupId: input.groupId,
+    note: input.note,
+    apenas: ['discrepancy'],
+  });
+  return { reversed: feito.legs.length };
+}
+
 export type Product = {
   id: string;
   itemId: string;
@@ -5097,6 +5142,12 @@ export async function shipmentsOn(
                WHERE c.company_id = m.company_id
                  AND c.movement_group_id = m.movement_group_id
                  AND c.post = 'checked'
+                 -- DE PÉ, e sem isto a remessa ficava conferida para sempre: a conferência
+                 -- desfeita continuava contando aqui, a doca seguia dizendo "conferida", e a
+                 -- pessoa que desfez para contar de novo não tinha mais onde tocar. O
+                 -- predicado é o mesmo que recordCheck usa para recusar a segunda e o mesmo
+                 -- que a migração 0051 usa no servidor — três lugares, uma frase.
+                 AND ${naoEstornado('c')}
             ) AS checked
        FROM movements m
        JOIN locations l ON l.id = m.location_id
@@ -6600,8 +6651,27 @@ export type ExtractAct = {
    * único lugar que faz isso.
    */
   valueCents: Cents | null;
-  /** Já foi desfeito. */
+  /**
+   * Já foi desfeito — e isto passou a significar "não sobrou nada de pé".
+   *
+   * Era `alguma perna estornada`, e enquanto o único desfazer era por ATO as duas leituras
+   * coincidiam. Com `undoCheck` desfazendo SÓ a conferência, "alguma" passaria a marcar o ato
+   * inteiro como desfeito com a carga ainda na loja: o extrato mostraria a etiqueta "Desfeito"
+   * e esconderia o botão de trazer a mercadoria de volta.
+   *
+   * É o terceiro predicado que o estorno parcial obrigou a crescer, com `planReversal` e o
+   * `checked` da doca. Os três diziam "alguma" e queriam dizer "nenhuma de pé".
+   */
   reversed: boolean;
+  /**
+   * Tem uma CONFERÊNCIA de pé dentro deste ato — a que se pode desfazer sozinha.
+   *
+   * A conferência não tem ato próprio: ela mora no grupo da remessa, de propósito, porque é
+   * essa chave que faz a trava do servidor reconhecer a mesma carga conferida por dois
+   * celulares. Então o extrato é o único lugar onde ela aparece, e é daqui que a tela oferece
+   * a ação estreita que a recusa da segunda conferência promete em três idiomas.
+   */
+  temConferencia: boolean;
   /** ELE é o desfazimento de outro. */
   isReversal: boolean;
   /**
@@ -6856,6 +6926,7 @@ export async function ledgerExtract(
         lines: 1,
         valueCents: null,
         reversed: l.reversed === 1,
+        temConferencia: l.kind === 'discrepancy' && l.reversed === 0,
         isReversal: l.reverses !== null,
         reversesKind: (l.reverses_kind as MovementKind | null) ?? null,
         items: l.item_name ? [l.item_name] : [],
@@ -6866,8 +6937,10 @@ export async function ledgerExtract(
       continue;
     }
     ja.lines += 1;
-    // Basta UMA perna estornada: o estorno vem sempre inteiro, e meia é defeito.
-    if (l.reversed === 1) ja.reversed = true;
+    // "Desfeito" é NENHUMA perna de pé, e não "alguma estornada" — ver o docblock do campo.
+    // Uma perna de pé basta para o ato continuar desfazível, e é ela que o botão promete mover.
+    if (l.reversed === 0) ja.reversed = false;
+    if (l.kind === 'discrepancy' && l.reversed === 0) ja.temConferencia = true;
     if (l.reverses !== null) ja.isReversal = true;
     if (!ja.reversesKind && l.reverses_kind) ja.reversesKind = l.reverses_kind as MovementKind;
     if (l.item_name && !ja.items.includes(l.item_name)) ja.items.push(l.item_name);
@@ -7534,8 +7607,30 @@ export class CannotReverseError extends Error {
  * roda de novo dentro da transação de `reverseGroup` — esta aqui é para falar,
  * aquela é para valer.
  */
-export async function planReversal(companyId: string, groupId: string): Promise<ReversalPlan> {
+export async function planReversal(
+  companyId: string,
+  groupId: string,
+  /**
+   * As espécies que este estorno alcança. Ausente é o grupo inteiro, que é o padrão e o que
+   * todos os chamadores de tela usam.
+   *
+   * Existe por causa da CONFERÊNCIA. Ela não tem grupo próprio: `recordCheck` reusa o grupo da
+   * remessa de propósito, porque é isso que faz a regra do servidor (`0051`) reconhecer a
+   * mesma remessa conferida por dois celulares — a chave dela é (empresa, grupo, item). Dar
+   * grupo próprio à conferência quebraria a trava que impede o saldo de dobrar.
+   *
+   * O preço disso era que desfazer a conferência levava a remessa junto: `reverseGroup` no
+   * grupo estorna as pernas da transferência também, e depois `recordCheck` recusa com
+   * "remessa não existe", porque ele exige as pernas de pé. A mensagem que o aplicativo mostra
+   * nos três idiomas mandava fazer exatamente isso — "desfaça a conferência no extrato e
+   * confira de novo" — e quem obedecesse perdia a remessa e não conseguia conferir.
+   */
+  apenas?: readonly MovementKind[],
+): Promise<ReversalPlan> {
   const conn = await db();
+  // Lista literal montada de espécies conhecidas, nunca de entrada: `MovementKind` é união
+  // fechada no tipo, e o portão da proofgate cobra isto de toda consulta.
+  const escopo = apenas && apenas.length > 0 ? `AND m.kind IN (${apenas.map(() => '?').join(', ')})` : '';
   const legs = await conn.getAllAsync<{
     id: string;
     item_id: string;
@@ -7551,15 +7646,41 @@ export async function planReversal(companyId: string, groupId: string): Promise<
        FROM movements m
        JOIN items i ON i.id = m.item_id
       WHERE m.company_id = ? AND m.movement_group_id = ? AND m.kind <> 'reversal'
+        ${escopo}
       ORDER BY m.quantity_base_units DESC`,
-    [companyId, groupId],
+    [companyId, groupId, ...(apenas ?? [])],
   );
 
-  if (legs.length === 0) throw new Error(`grupo ${groupId} não existe`);
+  if (legs.length === 0) {
+    throw new Error(
+      apenas
+        ? `grupo ${groupId} não tem ${apenas.join('/')} para desfazer`
+        : `grupo ${groupId} não existe`,
+    );
+  }
+
+  /**
+   * O estorno opera sobre o que está DE PÉ, e `alreadyReversed` deixou de ser "alguma".
+   *
+   * Enquanto nada desfazia uma perna sozinha, `legs.some(reversed)` e `legs.every(reversed)`
+   * eram a mesma pergunta: `reverseGroup` sempre estornava o grupo inteiro, então ou tudo
+   * estava estornado ou nada estava. A diferença nasce com `undoCheck`, que desfaz **só** a
+   * conferência de uma remessa e deixa as pernas da transferência em pé.
+   *
+   * Com `some`, desfazer a conferência trancaria a remessa para sempre: a carga passaria a
+   * contar como "já estornada" e não haveria mais como trazê-la de volta. Com "não sobrou
+   * nada de pé", as duas coisas continuam possíveis e na ordem que a pessoa quiser — e
+   * desfazer duas vezes continua recusado, que é o que a guarda existe para fazer.
+   *
+   * E `plan.legs` carrega só as de pé porque ele é DUAS coisas ao mesmo tempo: a frase que a
+   * confirmação mostra e a conta que decide o bloqueio por saldo. Prometer mover uma perna
+   * que já foi estornada seria mentir na tela e pedir saldo que ninguém vai tirar.
+   */
+  const dePe = legs.filter((l) => l.reversed === 0);
 
   const plan: ReversalPlan = {
     groupId,
-    legs: legs.map((l) => ({
+    legs: dePe.map((l) => ({
       itemId: l.item_id,
       name: l.name,
       baseUnits: -l.quantity_base_units,
@@ -7567,7 +7688,7 @@ export async function planReversal(companyId: string, groupId: string): Promise<
       locationId: l.location_id,
     })),
     blocked: [],
-    alreadyReversed: legs.some((l) => l.reversed === 1),
+    alreadyReversed: dePe.length === 0,
   };
 
   // O que o estorno TIRA precisa estar lá. Uma corrida cujos picolés já
@@ -7822,7 +7943,13 @@ export async function recomputeItemCost(
  */
 export async function reverseGroup(
   companyId: string,
-  input: { groupId: string; occurredAt?: string; note?: string },
+  input: {
+    groupId: string;
+    occurredAt?: string;
+    note?: string;
+    /** As espécies que este estorno alcança. Ausente é o grupo inteiro — ver `planReversal`. */
+    apenas?: readonly MovementKind[];
+  },
 ): Promise<{ groupId: string; legs: ReversalLeg[] }> {
   // **Este é o caso que abriu a investigação toda.** O botão de desfazer do extrato não
   // tinha portão nenhum, e um estorno pede `adjust_stock` no servidor: o entregador
@@ -7830,18 +7957,23 @@ export async function reverseGroup(
   // parava para sempre — sem nada na tela.
   await podeGravar(companyId, 'reversal');
   const conn = await db();
-  const plan = await planReversal(companyId, input.groupId);
+  const plan = await planReversal(companyId, input.groupId, input.apenas);
   if (plan.alreadyReversed || plan.blocked.length > 0) throw new CannotReverseError(plan);
 
   const at = nowIso();
   const occurred = input.occurredAt ?? at;
   const newGroup = newId();
+  // Montado das espécies pedidas, não de entrada — a mesma forma de `planReversal`.
+  const escopoDoEstorno =
+    input.apenas && input.apenas.length > 0
+      ? `AND kind IN (${input.apenas.map(() => '?').join(', ')})`
+      : '';
 
   await conn.withTransactionAsync(async () => {
     // A checagem de novo, aqui dentro. Entre planejar e gravar cabe uma
     // remessa de outro aparelho, e é exatamente o intervalo em que um saldo
     // deixa de existir.
-    const dentro = await planReversal(companyId, input.groupId);
+    const dentro = await planReversal(companyId, input.groupId, input.apenas);
     if (dentro.alreadyReversed || dentro.blocked.length > 0) throw new CannotReverseError(dentro);
 
     const originais = await conn.getAllAsync<{
@@ -7856,8 +7988,12 @@ export async function reverseGroup(
       `SELECT id, item_id, quantity_base_units, location_id, unit_cost_rate, lot_id,
               counterpart_location_id
          FROM movements
-        WHERE company_id = ? AND movement_group_id = ? AND kind <> 'reversal'`,
-      [companyId, input.groupId],
+        WHERE company_id = ? AND movement_group_id = ? AND kind <> 'reversal'
+          -- De pé, pela mesma razão de planReversal: depois de undoCheck a conferência
+          -- já tem estorno, e escrever um segundo em cima dela dobraria a correção.
+          AND ${naoEstornado('movements')}
+          ${escopoDoEstorno}`,
+      [companyId, input.groupId, ...(input.apenas ?? [])],
     );
 
     for (const o of originais) {
