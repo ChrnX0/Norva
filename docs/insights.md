@@ -11229,3 +11229,26 @@ de escrever o docblock do conserto, rode a conta nos dois caminhos e veja se o n
 com a do servidor. Enquanto houver tolerância, 1e-15 não importa; no dia em que alguém
 comparar por igualdade exata, dois caminhos aritméticos para o mesmo número é como isso
 quebra.*
+
+## 12 de setembro — o conserto que não alcançou o lugar citado pelo próprio conserto
+
+`formatDecimal` existe por um defeito nomeado no docblock dela: o rascunho da produção
+falada dizia *"em 395.26 vezes"* — ponto decimal cru, em português, na folha que a pessoa
+confirma antes de o razão receber a linha. E `src/assistant/skills.ts` continuava escrevendo
+`Number(batches.toFixed(2))` **naquela mesma frase**. A função nasceu para o sítio, foi
+usada em dois vizinhos dele, e o sítio ficou.
+
+Junto vieram duas irmãs, e a primeira é pior que cosmética: a tela da ficha lia a perda com
+`toFixed(2)`, então **2,535% reabria como 2,54%** e salvar sem tocar em tecla nenhuma
+gravava 0,0254 por cima de 0,02535 — a tela corrompendo o cadastro ao abri-lo. O comentário
+três linhas acima conta essa história inteira… para o SEPARADOR, consertado semanas antes.
+O mesmo defeito, o mesmo arquivo, a mesma função, e a segunda metade passou.
+
+**O que `toFixed` tem de especial é que ele faz duas coisas de uma vez** — escreve o ponto
+decimal do JavaScript e TRUNCA —, e um conserto motivado pela primeira não olha a segunda.
+
+A guarda nova (`casasNaMao`) cobre as duas, e foi provada nas três formas REAIS que estavam
+no disco mais a prosa de docblock que cita o padrão. Ela é irmã da régua de porcentagem que
+já existia — e é aí que está a lição: **a régua antiga exigia `%` na mesma linha**, de
+propósito e com razão escrita, e isso a cegava para os outros três rostos do mesmo defeito.
+Régua estreita demais não é conservadora: ela é uma promessa de cobertura que não cobre.

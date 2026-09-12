@@ -246,7 +246,13 @@ function RecipeEditor() {
             // to delete the dot, and a 2,5% loss came back as 25% - with the
             // save button lit and nobody having touched a key. The screen was
             // corrupting the sheet by opening it.
-            lossPercent: formatTyped(Number((stored.lossFraction * 100).toFixed(2)), locale.formatting),
+            // E o mesmo comentário vale para a PRECISÃO, que ficou de fora do conserto
+            // acima: `toFixed(2)` truncava a perda para duas casas, então uma ficha com
+            // 2,535% reabria como 2,54% — e salvar sem tocar em nada gravava 0,0254 por
+            // cima de 0,02535. A tela continuava corrompendo a ficha ao abri-la, agora
+            // pela terceira casa em vez de pelo separador. `formatTyped` já sabe o
+            // idioma; quatro casas é a precisão que o campo aceita de volta.
+            lossPercent: formatTyped(stored.lossFraction * 100, locale.formatting, 4),
             yieldAmount: formatTyped(stored.yieldAmount, locale.formatting),
             perUnit: data?.yieldPerUnit ? formatTyped(data.yieldPerUnit, locale.formatting) : '',
           }

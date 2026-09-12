@@ -994,7 +994,7 @@ const registerProduction: Skill = {
         kind: 'production',
         summary:
           `Registrar ${formatQuantity(units, ctx.locale)} unidades de ${product.name}, ` +
-          `em ${batches === 1 ? 'uma vez' : `${Number(batches.toFixed(2))} vezes`}. ` +
+          `em ${batches === 1 ? 'uma vez' : `${formatDecimal(batches, ctx.locale)} vezes`}. ` +
           'Os insumos saem do almoxarifado e o custo por unidade fica congelado nesta corrida.',
         apply: async () => {
           await ctx.data.recordProduction({

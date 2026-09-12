@@ -1028,6 +1028,75 @@ export function porCentoNaMao(texto: string): string[] {
     .map((linha) => linha.trim().slice(0, 80));
 }
 
+/**
+ * `toFixed` fora da camada que sabe o idioma.
+ *
+ * Irmã da régua de porcentagem acima, e ela existe porque a porcentagem era só um dos
+ * rostos do mesmo defeito. `toFixed` faz duas coisas de uma vez e as duas doem: escreve o
+ * PONTO decimal do JavaScript — "1.2400" onde o Brasil lê "1,2400" — e TRUNCA para um
+ * número fixo de casas. O truncamento é o pior dos dois: a tela da ficha lia a perda com
+ * `toFixed(2)`, então 2,535% reabria como 2,54% e salvar sem tocar em nada gravava o
+ * arredondamento por cima do valor — a tela corrompendo o cadastro ao abri-lo.
+ *
+ * **E o que motivou a régua foi achar o defeito no lugar que o conserto dele cita.** O
+ * docblock de `formatDecimal` (`src/i18n/index.ts`) conta que o rascunho da produção falada
+ * dizia *"em 395.26 vezes"* e que ela nasceu para isso — e `src/assistant/skills.ts`
+ * continuava escrevendo `Number(batches.toFixed(2))` naquela mesma frase. Conserto que não
+ * alcança o sítio que o justifica é a doença que esta casa já nomeou duas vezes.
+ *
+ * `src/i18n/` fica de fora: é onde os formatadores moram, e a prosa dos docblocks deles
+ * cita o padrão para explicá-lo.
+ */
+export function casasNaMao(texto: string): string[] {
+  return texto
+    .split('\n')
+    .filter((linha) => /\.toFixed\s*\(/.test(linha) && !linha.trimStart().startsWith('*'))
+    .map((linha) => linha.trim().slice(0, 80));
+}
+
+test('nenhuma tela escreve casa decimal à mão', () => {
+  const fontes = [...sourcesUnder('app'), ...sourcesUnder('src')].filter(
+    (f) => !f.includes('src/i18n/'),
+  );
+  assert.ok(fontes.length > 20, 'a varredura de fontes veio vazia — a comparação seria de graça');
+
+  const naMao: string[] = [];
+  for (const f of fontes) {
+    for (const achado of casasNaMao(readFileSync(f, 'utf8'))) naMao.push(`${f}: ${achado}`);
+  }
+
+  assert.deepEqual(
+    naMao,
+    [],
+    `estes lugares escrevem casa decimal à mão:\n  ${naMao.join('\n  ')}\n` +
+      '`formatDecimal` e `formatTyped` existem e sabem o idioma. E `toFixed` TRUNCA: ' +
+      'ler um valor gravado com ele e salvar de volta grava o arredondamento por cima ' +
+      'do número — a tela corrompendo o cadastro ao abri-lo.',
+  );
+});
+
+test('a régua das casas morde as três cicatrizes, e deixa a prosa em paz', () => {
+  // Os três casos verdadeiros, na forma REAL em que estavam no disco.
+  assert.equal(
+    casasNaMao('            lossPercent: formatTyped(Number((stored.lossFraction * 100).toFixed(2)), f),').length,
+    1,
+    'a ficha truncando a perda ao reabrir',
+  );
+  assert.equal(casasNaMao('      rate: parsed.unitRate.toFixed(4),').length, 1, 'a dica de conversão');
+  assert.equal(
+    casasNaMao("          `em ${batches === 1 ? 'uma vez' : `${Number(batches.toFixed(2))} vezes`}. ` +").length,
+    1,
+    'o rascunho do assistente, no sítio que o docblock de formatDecimal cita',
+  );
+
+  // E o caso falso: a prosa de um docblock que CITA o padrão para explicá-lo.
+  assert.equal(
+    casasNaMao(' * `formatQuantity` arredonda, e `toFixed(1)`, que é o ponto decimal cru').length,
+    0,
+    'linha de comentário não é chamada',
+  );
+});
+
 test('no screen builds a percentage by hand', () => {
   const fontes = [...sourcesUnder('app'), ...sourcesUnder('src')];
   assert.ok(fontes.length > 20, 'a varredura de fontes veio vazia — a comparação seria de graça');

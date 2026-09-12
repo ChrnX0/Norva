@@ -19,7 +19,7 @@ import { useQuery } from '@/data/useQuery';
 import { empresaDaqui } from '@/data/empresa';
 import { fromDecimal, rate, rateToDecimal, type Rate } from '@/domain/money';
 import { parseTyped, formatTyped } from '@/domain/number';
-import { currencySymbol, fill, formatMoney, formatQuantity } from '@/i18n';
+import { currencySymbol, fill, formatMoney, formatQuantity, formatDecimal } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -231,7 +231,10 @@ function InputForm() {
       paid: formatMoney(fromDecimal(parsed.paid), locale),
       factor: parsed.factor.toLocaleString(locale.formatting),
       perThousand,
-      rate: parsed.unitRate.toFixed(4),
+      // `toFixed` escreve o ponto decimal do JavaScript. Em português a dica saía
+      // "1.2400 por g" onde se lê "1,2400", e trocar por vírgula à mão erraria no
+      // espanhol do México, onde o separador é o ponto.
+      rate: formatDecimal(parsed.unitRate, locale, 4),
       unit: baseUnit,
     });
   })();
