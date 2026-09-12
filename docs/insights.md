@@ -11198,3 +11198,34 @@ A consequência prática, e ela é de método: **número em prosa que não sai d
 lembrança.** Quando um documento afirma uma contagem, ou ele deriva (e aí a guarda o
 protege), ou ele diz de qual dia é a medida. E uma dívida tem um lugar; as outras citações
 apontam para ele.
+
+## 12 de setembro — o estudo disse "defeito de dinheiro" e a medida disse "não"
+
+O estudo de oito frentes apontou `rate(input.totalCents / 100, input.baseUnits)` no escritor
+da compra: dividir por 100 para a função multiplicar de volta, com a taxa **congelada** do
+razão saindo dessa volta. A frase do item era *"a taxa congelada passa a ser a divisão
+exata"* — que sugere que hoje ela não é.
+
+Medi antes de consertar, que é a regra desta casa, e a resposta foi metade: **as duas formas
+diferem em 6,7% de ~314 mil pares** (um a dois mil reais contra onze quantidades reais) — e
+sempre na décima quinta casa decimal, erro relativo de 1e-15. O efeito em dinheiro é
+**zero**: R$ 118,35 por 25 kg dá os mesmos 473.400 centavos por tonelada dos dois jeitos.
+Nenhuma quantidade que uma fábrica movimenta muda um centavo.
+
+Fiz a troca assim mesmo, e é aí que está o achado: **o motivo certo não era o que o item
+dizia.** `rateFromCents(total, quantidade)` é a definição de taxa nesta casa — centavos por
+unidade-base — e `rate(preço, unidades)` recebe REAIS, porque existe para o campo em que
+alguém digita. Passar centavos divididos por 100 para a segunda atravessa a fronteira que os
+dois tipos existem para guardar, e quem lê depois procura uma conversão de moeda que não há.
+
+**A lição é sobre relatório de auditoria, inclusive o meu.** Um item que diz "isto está
+errado" com o arquivo e a linha certos pode estar certo sobre o CHEIRO e errado sobre a
+CONSEQUÊNCIA — e consertar citando a consequência errada planta no repositório uma
+afirmação falsa com cara de medida. Este projeto já passou perto disso uma vez
+(*"quase publiquei um defeito de escala que não existe"*, `formatUnitRate`). A régua: antes
+de escrever o docblock do conserto, rode a conta nos dois caminhos e veja se o número muda.
+
+*E ficou anotado o risco que a medida NÃO descarta: a garantia 6 compara a média do aparelho
+com a do servidor. Enquanto houver tolerância, 1e-15 não importa; no dia em que alguém
+comparar por igualdade exata, dois caminhos aritméticos para o mesmo número é como isso
+quebra.*

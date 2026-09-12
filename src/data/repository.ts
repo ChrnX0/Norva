@@ -1,5 +1,5 @@
 import { applyCostEvent, blendRate, type StockCostState } from '@/domain/cost';
-import { amountOf, cents, rate, type Cents, type Rate } from '@/domain/money';
+import { amountOf, cents, rate, type Cents, type Rate, rateFromCents } from '@/domain/money';
 import { isValidHierarchy } from '@/domain/units';
 import { DEFAULT_ALERTS, type AlertSettings } from '@/domain/alerts';
 import {
@@ -677,7 +677,30 @@ export async function recordPurchase(
       ],
     );
 
-    const lineRate = rate(input.totalCents / 100, input.baseUnits);
+    /**
+     * `rateFromCents` e não `rate(totalCents / 100, ...)` — e o motivo NÃO é dinheiro.
+     *
+     * A forma antiga dividia por 100 para `rate` multiplicar por 100 de volta, então a
+     * taxa congelada saía de uma volta com perda de ponto flutuante. **Medido antes de
+     * chamar de defeito, que é a regra desta casa:** em ~314 mil pares (1 a 2.000 reais
+     * contra onze quantidades reais) as duas formas diferem em 6,7% dos casos — e sempre
+     * na décima quinta casa decimal, erro relativo de 1e-15. O efeito em dinheiro é
+     * **zero**: R$ 118,35 por 25 kg dá os mesmos 473.400 centavos por tonelada das duas
+     * maneiras, e nenhuma quantidade que uma fábrica movimenta muda um centavo.
+     *
+     * Então o que se ganha é outra coisa, e vale escrever para ninguém "otimizar" de
+     * volta: a função diz o que faz. `rateFromCents(total, quantidade)` é a definição de
+     * taxa nesta casa — centavos por unidade-base —, enquanto `rate(preço, unidades)`
+     * recebe REAIS e existe para o campo em que alguém digita. Passar centavos divididos
+     * por 100 para a segunda é atravessar a fronteira que os dois tipos existem para
+     * guardar, e o próximo a ler pensa que há uma conversão de moeda no caminho.
+     *
+     * *E há um risco que a medida não descarta, deixado anotado: a garantia 6 compara a
+     * média do aparelho com a do servidor. Enquanto a comparação tiver tolerância, 1e-15
+     * não importa; no dia em que alguém comparar por igualdade exata, dois caminhos
+     * aritméticos diferentes para o mesmo número é a forma como isso quebra.*
+     */
+    const lineRate = rateFromCents(input.totalCents, input.baseUnits);
 
     // The arrival itself, in the ledger, with what it cost frozen onto it. A
     // sugar price change in March must not rewrite what January cost.
