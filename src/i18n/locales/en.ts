@@ -377,6 +377,26 @@ export const en: Dictionary = {
       allOfIt: 'That is all of it: {{n}}.',
       recordCount: { one: '1 record', other: '{{n}} records' },
     },
+    setAside: {
+      title: 'Set aside',
+      overline: 'the server already had this record',
+      intro:
+        'These notes are not going up. The server already had the record for the same load, and that one counts. Nothing here was deleted, and none of it holds up the queue.',
+      empty: 'Nothing was set aside.',
+      emptyHint: 'Everything you noted went up, or is in the queue waiting for signal.',
+      checkTitle: 'Check of {{item}}',
+      checkTitleNoItem: 'Check',
+      shortBy: '{{amount}} short',
+      overBy: '{{amount}} over',
+      matched: 'matched what arrived',
+      place: 'at {{place}}',
+      recordedBy: 'by {{name}}',
+      setAsideAt: 'left the queue on {{when}}',
+      otherRow: 'a {{table}} row',
+      whatNow:
+        'If this is the right count, whoever checked first undoes the check in the extract on their device, and you check again.',
+    },
+
     losses: {
       title: 'Losses',
       window: 'Last 30 days',

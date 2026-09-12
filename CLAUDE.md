@@ -102,9 +102,20 @@ sabota o dado.
 ## A barra de verificação — proporcional, não obrigatória
 
 **Decisão do dono, 5 de setembro: a bateria inteira estava atrapalhando mais que
-ajudando.** Ela existia por um motivo certo e virou atrito — `mutate` são seis
+ajudando.** Ela existia por um motivo certo e virou atrito — `mutate` era seis
 minutos, o `e2e` mais três, e o portão reclama de coisa que não tem relação com o
 que mudou. Rodadas inteiras foram gastas servindo a barra em vez de servir o app.
+
+**E esses dois números envelheceram, medidos em 12 de setembro: `mutate` é 28 min 39 s e
+`e2e:fast` é 6 min 12 s.** Não é regressão da ferramenta, é aritmética que cresce com o
+projeto: a oficina roda a suíte INTEIRA por mutação, então o custo dela é *(mutações) ×
+(duração da suíte) ÷ (frentes)*, e os dois primeiros fatores só sobem — 139 mutações e uma
+suíte de 773 testes hoje, contra 64 e 338 quando o número de seis minutos foi medido. A suíte
+sozinha continua barata: **11,6 s** com a máquina livre, 19,4 s com a oficina rodando por cima.
+
+Isto importa porque o número é o que alguém usa para decidir se roda. Quem lê "seis minutos"
+dispara a oficina no meio da rodada — que é justamente o que a regra do `mutate` por último
+proíbe, três seções abaixo, e por este motivo.
 
 Nada foi apagado. O que mudou é **quando** cada coisa roda:
 
@@ -524,6 +535,30 @@ Duas regras de operação, ambas cicatriz:
   siga trabalhando — a notificação de término chega sozinha. Se precisar mesmo
   esperar uma condição, ela nunca pode ser um `pgrep` cujo padrão está na linha de
   comando que o executa.
+- **E o `mutate` LÊ a árvore viva enquanto roda — medido em 12 de setembro.** A seção acima
+  diz que ele "nunca mais toca a árvore de trabalho", e isso é verdade sobre ESCREVER: ele
+  copia para `.mutate/` e muta a cópia. O que ela não diz é que `julgar()` lê o `original` de
+  `process.cwd()` **no instante de julgar cada defeito**, não do instantâneo. Então editar um
+  arquivo no meio de uma execução troca o que está sendo medido, defeito por defeito, e sem
+  aviso: âncora que eu mudei sai "o trecho mudou" (medida que não houve), e o resto passa a ser
+  aplicado à minha versão nova. Nesta sessão eu acrescentei uma função a `src/data/repository.ts`
+  com a oficina rodando; o `.mutate/w0` ficou com a minha versão nova contra um `outbox.ts` do
+  instantâneo, sem o `export` que ela importa. **Aqui isso foi inofensivo por sorte de módulo:**
+  sem `"type": "module"` no `package.json` o `tsx` compila para CJS, e import nomeado que não
+  existe vira `undefined` em vez de erro de ligação — medido, não suposto. Em ESM seria erro no
+  carregamento, a suíte inteira falharia sem mutação nenhuma, e **toda** mutação seguinte sairia
+  "pega" sem a suíte ter sido consultada, que é o defeito de 3 de setembro voltando por outra
+  porta. Os documentos (`docs/`, `CLAUDE.md`) são copiados no início, então editá-los no meio é
+  seguro — e é exatamente o contrário do que a cicatriz anterior sugeria.
+- **Mutação em SQL preserva a CONTAGEM DE PARÂMETROS, ou mede o driver em vez da regra — 12 de
+  setembro.** Para provar o portão do nome do operador (`CASE WHEN ? = 1 THEN pe.name END`) eu
+  troquei a expressão por `pe.name` — e o teste reprovou com `column index out of range`, do
+  SQLite, **antes de qualquer portão ser exercitado**. O veredito "pego" estava certo e não
+  queria dizer nada: quem removesse o portão mantendo o `?` — que é o defeito plausível, o de
+  quem "simplifica" a consulta — passaria. A troca certa é `CASE WHEN ? = 1 THEN pe.name ELSE
+  pe.name END`: o marcador fica, o portão vira nada, e aí o teste reprova dizendo *"sem a chave
+  ligada, o nome não sai da consulta"*. É a regra de plantar o defeito que a asserção NOMEIA,
+  aplicada ao lado de dentro — a asserção estava boa, a mutação é que media outra coisa.
 - **O `mutate` é a ÚLTIMA coisa da rodada, nunca a primeira.** Ele copia a árvore no
   início e ocupa os quatro núcleos por seis minutos. Em 9 de setembro eu o disparei três
   vezes no meio de uma rodada e segui editando e rodando `npm test` por cima: as três

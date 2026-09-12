@@ -10720,3 +10720,77 @@ do plano fica vermelha —, e a pergunta na lista do dono no corpo da PR. **Não
 código de propósito:** qual movimento é *"saiu da fábrica e não chegou"* mexe em
 `movement_kind` ou no enum de perda, que é o P3 desta casa — caro e permanente —, e escolher a
 palavra por ele seria decidir calado o que o razão vai repetir para sempre.
+
+---
+
+## 12 de setembro — a frase dizia "onde ver" e não havia onde; e três achados sobre a própria oficina
+
+**O que se viu.** Os Ajustes contavam *"{{count}} não sobem: o servidor já tinha esse
+registro"*, e o docblock daquela frase promete *"diz o que ficou, **onde ver**, e segue"*. O
+"onde ver" não existia: a pessoa lia "3 não sobem" sem ter como saber quais três. É a mesma
+classe do defeito que esta rodada consertou no extrato — texto que manda ir a uma porta que
+não existe —, e apareceu porque fui medir o que sobrou do `undoCheck`.
+
+**O que mudou.** `app/de-lado.tsx` mais `checksSetAside` (`rejectedEntries` no `outbox.ts` e uma
+consulta ao razão) mostram cada conferência posta de lado com os quatro fatos que a decisão do
+dono nomeia — data, hora, lugar e quem operou. Três coisas que a tela faz de propósito:
+
+1. **o portão do nome entra na CONSULTA**, como no extrato: com `names_who_recorded` desligado o
+   nome não sai do banco. Esconder na tela seria decoração;
+2. **a linha que não é conferência continua na lista**, com o fato nulo em vez de descrição
+   inventada — porque `rejectedCount` conta TODAS, e duas telas contando a mesma coisa com
+   números diferentes é defeito que este repositório já pagou;
+3. **a porta só é desenhada quando há algo de lado.** Porta permanente para o que nunca
+   aconteceu é o alerta inventado com outro rosto.
+
+Ela fecha METADE do degrau 3. A conferência que ganhou está no servidor e não há sincronia de
+entrada para `movements`, então mostrar as DUAS e deixar a primeira pessoa aceitar continua
+esperando — e a pergunta de esquema que decide isso é do dono.
+
+### E a oficina, medida enquanto rodava, devolveu três achados
+
+**1. Duas mutações ficaram SEM MEDIDA, e ninguém teria notado.** O commit anterior deu o
+parâmetro `apenas` a `planReversal`/`reverseGroup`, e com isso duas âncoras do
+`scripts/mutate.mjs` deixaram de casar: a da checagem de concorrência de dentro do estorno e a
+que prova que o estorno alcança o consumo junto da produção. O relatório disse *"o trecho
+mudou"* — que é a resposta certa e a única razão de eu saber. **Enquanto uma âncora está velha,
+a regra que ela protege não tem rede**, e o único instrumento que denuncia isso é a execução
+que mede a árvore nova. Consertadas as duas.
+
+**2. A mutação que eu escrevi era pega pelo MOTIVO ERRADO.** Para provar o portão do nome do
+operador troquei `CASE WHEN ? = 1 THEN pe.name END` por `pe.name` — e o teste reprovou com
+`column index out of range`, do SQLite: **o marcador `?` saiu junto, e a consulta morreu antes
+de o portão ser exercitado.** "Pego" estava certo e não queria dizer nada; quem removesse o
+portão mantendo a contagem de parâmetros — o defeito plausível, de quem "simplifica" a consulta
+— passaria. A troca certa mantém o marcador e faz o portão virar nada (`... THEN pe.name ELSE
+pe.name END`), e aí a reprovação diz a frase da asserção: *"sem a chave ligada, o nome não sai
+da consulta"*. *A régua: é a regra de plantar o defeito que a asserção NOMEIA, virada para
+dentro — a asserção estava boa, a mutação é que media outra coisa.*
+
+**3. O `mutate` LÊ a árvore viva enquanto roda.** O `CLAUDE.md` dizia que ele "nunca mais toca
+a árvore de trabalho", e isso é verdade sobre escrever. `julgar()` lê o `original` de
+`process.cwd()` **no instante de julgar cada defeito** — então eu editei `src/data/repository.ts`
+com a oficina rodando e o `.mutate/w0` ficou com a minha versão nova contra um `outbox.ts` do
+instantâneo, sem o `export` que ela importa. Aqui foi inofensivo por sorte de módulo, e isso
+foi **medido e não suposto**: sem `"type": "module"` o `tsx` compila para CJS, e import nomeado
+inexistente vira `undefined` em vez de erro de ligação. Em ESM a suíte da cópia falharia sem
+mutação nenhuma e **toda** mutação seguinte sairia "pega" sem a suíte ter sido consultada — o
+defeito de 3 de setembro voltando por outra porta.
+
+**4. E o custo da barra envelheceu, o que muda uma decisão.** Medido: `mutate` **28 min 39 s**
+(139 mutações), `e2e:fast` **6 min 12 s** (58 checagens), suíte **11,6 s** com a máquina livre e
+19,4 s com a oficina por cima. O `CLAUDE.md` dizia "seis minutos" e "mais três" — números de
+quando eram 64 mutações e 338 testes. Não é regressão: o custo da oficina é *(mutações) ×
+(duração da suíte) ÷ (frentes)*, e os dois primeiros fatores crescem com o projeto. Importa
+porque é esse número que alguém usa para decidir se dispara a oficina no meio da rodada.
+
+**5. E uma correção ao que EU venho dizendo duas vezes por rodada.** Ao fechar cada etapa eu
+relato *"as contagens de aviso do portão idênticas — o SQL novo não acrescentou nenhum"*. A
+segunda metade da frase é mais forte que a medida. O `90-sql-concat` casa quando o VERBO de SQL
+e a interpolação estão na **mesma linha adicionada**, e as consultas desta casa são literais de
+gabarito de muitas linhas: a minha nova termina em `WHERE m.company_id = ? AND m.id IN
+(${marcas})`, sem verbo na linha, então ela não conta — e a contagem ficaria em 55 de qualquer
+jeito. A contagem idêntica prova que **nenhum aviso novo apareceu**, e não que nenhuma
+interpolação nova existe. Não é buraco a caçar: o guard é `WARN` por desenho, e as 55 são a
+população conhecida de falso positivo (`${marcas}` é lista de marcadores, `${naoEstornado(...)}`
+é fragmento constante — nenhuma vem de quem digita). O que muda é a frase que eu escrevo.

@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { router } from 'expo-router';
 import { avisoDeFalha } from '@/i18n/falha';
 import { ERROS } from '@/data/erros';
 import { voltar } from '@/nav';
@@ -1526,9 +1527,23 @@ function Settings() {
               A frase orienta e não fiscaliza: ela diz o que aconteceu e o que fazer, e não
               culpa quem conferiu duas vezes — duas pessoas na mesma doca é o normal. */}
           {(deLado ?? 0) > 0 ? (
-            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
-              {fill(t.app.settings.syncSetAside, { count: String(deLado) })}
-            </Text>
+            <>
+              <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
+                {fill(t.app.settings.syncSetAside, { count: String(deLado) })}
+              </Text>
+              {/* O "onde ver" que a frase acima prometia desde que foi escrita.
+                  Botão e não a própria frase tocável: a frase mora ao lado de "Enviar agora",
+                  e dois alvos de toque com formas diferentes é o que separa "ler" de "abrir". */}
+              <Button
+                label={t.app.setAside.title}
+                variant="ghost"
+                // `as never` como nas outras telas: o mapa de rotas do Expo Router é gerado por
+                // `expo start`, que não roda nesta máquina — o caminho existe, o tipo é que
+                // está velho.
+                onPress={() => router.push('/de-lado' as never)}
+                style={{ marginTop: space.xs }}
+              />
+            </>
           ) : null}
         </Card>
       </Reveal>

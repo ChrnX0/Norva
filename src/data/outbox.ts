@@ -141,8 +141,8 @@ function parsePayload(json: string): Record<string, unknown> {
  * *"faltam 3"* para sempre, com três linhas que nunca vão faltar menos. Quem conta o que
  * ficou de lado é `rejectedCount`, logo abaixo, e a tela diz as duas coisas com palavras
  * diferentes. (Esta linha dizia `rejectedEntries` — a função que LISTARIA as recusadas, escrita
- * e apagada no mesmo commit porque o portão P1 a recusou sem chamador. Ela nasce com o degrau 3
- * da conferência duplicada, que é a tela que precisa dos dados de cada uma.)
+ * e apagada no mesmo commit porque o portão P1 a recusou sem chamador. **Ela nasceu em 12 de
+ * setembro**, com a tela que mostra cada uma: `app/de-lado.tsx`, por `checksSetAside`.)
  */
 export async function pendingCount(): Promise<number> {
   const conn = await db();
@@ -159,6 +159,59 @@ export async function rejectedCount(): Promise<number> {
     `SELECT COUNT(*) AS n FROM outbox WHERE recusada_em IS NOT NULL`,
   );
   return row?.n ?? 0;
+}
+
+/** Uma entrada que a fila pôs de lado: o que era, quando saiu da frente, e o código que decidiu. */
+export type RejectedEntry = {
+  id: string;
+  table: string;
+  rowId: string;
+  /** Quando a FILA pôs de lado — não quando o fato aconteceu no mundo. */
+  setAsideAt: string;
+  /** O `SQLSTATE` que decidiu. Nulo quando o servidor recusou sem código. */
+  codigo: string | null;
+};
+
+/**
+ * As entradas postas de lado, uma por uma — a lista que `rejectedCount` só sabia contar.
+ *
+ * **Por que ela existe agora e não antes.** Escrita e apagada no mesmo commit em 11 de
+ * setembro, porque o portão P1 recusa função sem chamador: contar bastava para a frase dos
+ * Ajustes, e listar não servia a tela nenhuma. Hoje serve — o texto daquela frase promete
+ * *"diz o que ficou, onde ver, e segue"*, e o "onde ver" não existia: a pessoa lia
+ * *"3 não sobem"* sem ter como saber QUAIS três.
+ *
+ * Ela devolve a entrada da fila e mais nada. Quem transforma `row_id` no fato que a doca
+ * conferiu — item, lugar, hora, quem operou — é `checksSetAside` no `repository.ts`, porque
+ * esse é o módulo que sabe ler o livro-razão e aplicar o portão de quem pode ver o quê. A
+ * fila não deve saber o que é uma conferência.
+ *
+ * **Sem empresa no filtro, e é de propósito.** A `outbox` é do APARELHO: ela não tem
+ * `company_id` e nunca teve — a adoção (`src/data/adocao.ts`) proíbe trocar de empresa depois
+ * da primeira linha subir, então toda entrada daqui é da mesma empresa. Filtrar por algo que
+ * a tabela não tem seria inventar uma coluna para parecer cuidadoso.
+ */
+export async function rejectedEntries(): Promise<RejectedEntry[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    id: string;
+    table_name: string;
+    row_id: string;
+    recusada_em: string;
+    recusa_codigo: string | null;
+  }>(
+    // A mais recente primeiro: quem abre esta tela abre por causa do que acabou de acontecer.
+    `SELECT id, table_name, row_id, recusada_em, recusa_codigo
+       FROM outbox WHERE recusada_em IS NOT NULL
+      ORDER BY recusada_em DESC, rowid DESC`,
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    table: r.table_name,
+    rowId: r.row_id,
+    setAsideAt: r.recusada_em,
+    codigo: r.recusa_codigo,
+  }));
 }
 
 /** Marks exactly what the server accepted, and nothing else. */

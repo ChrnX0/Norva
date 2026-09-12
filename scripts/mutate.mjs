@@ -238,11 +238,11 @@ const DEFECTS = [
   },
   {
     file: 'src/data/repository.ts',
-    from: `    const dentro = await planReversal(companyId, input.groupId);
+    from: `    const dentro = await planReversal(companyId, input.groupId, input.apenas);
     if (dentro.alreadyReversed || dentro.blocked.length > 0) throw new CannotReverseError(dentro);`,
     equivalente:
       'o estorno tem DUAS checagens em camadas — a de fora evita abrir transacao, a de dentro fecha a corrida entre dois aparelhos. Tirar uma deixa a outra pegando, com o mesmo erro e o mesmo plano, entao nenhum teste de uma linha de execucao so pode distinguir. So concorrencia real separaria as duas, e a suite nao tem duas conexoes.',
-    to: `    const dentro = await planReversal(companyId, input.groupId);
+    to: `    const dentro = await planReversal(companyId, input.groupId, input.apenas);
     if (dentro.alreadyReversed && false) throw new CannotReverseError(dentro);`,
     hurts:
       'dois aparelhos estornam a mesma corrida no mesmo minuto e a correcao entra duas vezes, dobrada',
@@ -250,8 +250,10 @@ const DEFECTS = [
   {
     file: 'src/data/repository.ts',
     from: `      WHERE m.company_id = ? AND m.movement_group_id = ? AND m.kind <> 'reversal'
+        \${escopo}
       ORDER BY m.quantity_base_units DESC`,
     to: `      WHERE m.company_id = ? AND m.movement_group_id = ? AND m.kind = 'production'
+        \${escopo}
       ORDER BY m.quantity_base_units DESC`,
     hurts:
       'o estorno desfaz so a producao e deixa o consumo de pe: picole que nao consumiu nada, que parece certo e some com o insumo',
@@ -1225,6 +1227,36 @@ const DEFECTS = [
     to: '    if (l.reversed === 1) ja.reversed = true;',
     hurts:
       'o extrato passa a marcar o ato inteiro como "Desfeito" depois de desfazer so a conferencia: a etiqueta mente e o botao de trazer a carga de volta desaparece, com a mercadoria ainda na loja',
+  },
+
+  // --- a tela do que ficou de lado, 12 de setembro ---------------------------
+  //
+  // A frase dos Ajustes prometia "diz o que ficou, ONDE VER, e segue", e o onde ver não
+  // existia. As três abaixo quebram o que a tela nova depende para não mentir.
+  {
+    file: 'src/data/repository.ts',
+    // O `?` FICA, e isto é a diferença entre medir a regra e medir a sintaxe: tirando o
+    // marcador, o SQLite reclama de "column index out of range" antes de qualquer portão ser
+    // exercitado, e a mutação sai "pega" sem ter tocado no assunto. Quem removesse o portão
+    // mantendo a contagem de parâmetros — que é o defeito plausível — passaria.
+    from: "              CASE WHEN ? = 1 THEN pe.name END AS operator_name",
+    to: '              CASE WHEN ? = 1 THEN pe.name ELSE pe.name END AS operator_name',
+    hurts:
+      'o nome de quem operou sai do banco com a chave "nomear quem gravou" DESLIGADA: a empresa que escolheu falar de onde e nao de quem passa a nomear pessoa numa tela de recusa, que e o pior lugar para isso - e esconder na tela seria decoracao, porque o numero ja saiu da consulta',
+  },
+  {
+    file: 'src/data/repository.ts',
+    from: '  return deLado.map((e) => ({\n    entryId: e.id,',
+    to: '  return deLado.filter((e) => fatos.has(e.rowId)).map((e) => ({\n    entryId: e.id,',
+    hurts:
+      'a lista esconde a linha posta de lado que nao e conferencia, e os Ajustes continuam contando todas: a pessoa le "3 nao sobem" e ve dois cartoes, sem nada explicando o terceiro',
+  },
+  {
+    file: 'src/data/outbox.ts',
+    from: "       FROM outbox WHERE recusada_em IS NOT NULL",
+    to: '       FROM outbox WHERE recusada_em IS NULL',
+    hurts:
+      'a tela do que ficou de lado passa a mostrar o que AINDA VAI SUBIR: a pessoa le que o servidor ja tinha o registro de coisa que nunca foi oferecida a ele, e a conferencia que espera sinal aparece como perdida',
   },
 
   // A nota que some no arredondamento: o aparelho aceitava, o servidor recusa para

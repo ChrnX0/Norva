@@ -3790,6 +3790,35 @@ check('o caminho de trás não é o único: o passo a passo continua na frente',
   assert.match(texto, /Produtos/);
 });
 
+check('o que ficou de lado tem tela, e zero não vira frase nenhuma', async (page) => {
+  /**
+   * A metade que o navegador ALCANÇA, e é preciso dizer qual é a outra.
+   *
+   * Os quatro fatos de cada cartão — data, hora, lugar e quem operou — só existem depois de
+   * um servidor recusar uma conferência, e `markRejected` não é alcançável por toque: quem
+   * prova aquilo é a suíte de unidade, contra o livro-razão. O que o navegador prova aqui é o
+   * que só ele prova: que a rota monta, que ela fala o idioma do dicionário, e que a porta
+   * dos Ajustes NÃO aparece quando não há nada de lado.
+   *
+   * A segunda metade é a que tem história: "está tudo bem é estado válido, e alerta
+   * inventado ensina a ignorar alerta". Uma porta permanente chamada "O que ficou de lado"
+   * num aparelho que nunca teve recusa é exatamente o alerta inventado.
+   */
+  await page.goto(`http://localhost:${PORT}/de-lado`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  const tela = await screen(page);
+  assert.match(tela, /O que ficou de lado/, 'a rota monta com o título do dicionário');
+  assert.match(tela, /Nada ficou de lado/, 'e sem recusa ela diz isso, em vez de uma lista vazia');
+
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  const ajustes = await screen(page);
+  assert.ok(
+    !/O que ficou de lado/.test(ajustes),
+    'com a fila limpa a porta não é desenhada — zero não vira frase',
+  );
+});
+
 try {
   // Rebuilt every run unless somebody explicitly asks to reuse the last one.
   //

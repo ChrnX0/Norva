@@ -36,7 +36,7 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 
 | | | como conferir |
 |---|---|---|
-| telas | **35** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
+| telas | **36** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **27** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **29** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
 | migrações do servidor | **60** | `ls supabase/migrations \| wc -l` |
@@ -49,9 +49,9 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **772** testes |
-| `npm run mutate` | **139** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
-| `npm run e2e:fast` | **58** checagens num navegador de verdade |
+| `npm test` | **773** testes |
+| `npm run mutate` | **142** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
+| `npm run e2e:fast` | **59** checagens num navegador de verdade |
 | `npm run db:verify` | **32** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **17** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
@@ -1503,8 +1503,8 @@ estar certa. Virar guarda sem decidir isso é generalizar uma decisão do dono p
 que ela diz, que é o erro simétrico ao de tratar decisão escrita como defeito. Decisão de
 dono: a regra vale para toda cena, ou só onde há repetição?
 
-### B. ~~Duas pessoas conferindo a mesma remessa ainda dobram o saldo NO SERVIDOR~~ — a REGRA está de pé e provada; o que falta é a tela do degrau 3
-<!-- medida: ausente src/data :: export async function rejectedEntries -->
+### B. ~~Duas pessoas conferindo a mesma remessa ainda dobram o saldo NO SERVIDOR~~ — a regra de pé, a tela do degrau 3 CONSTRUÍDA pela metade
+<!-- medida: presente app :: checksSetAside -->
 
 **E a medida deste item não podia ficar vermelha — achado em 11 de setembro.** Ela dizia
 `ausente supabase/migrations :: discrepancy_once_per_group`, e esse nome **não existe em lugar
@@ -1513,9 +1513,20 @@ gatilho de `movements_one_standing_check`. Uma medida que procura o que nunca ex
 ausência de graça — e continuaria provando no dia em que alguém construísse a coisa, que é
 exatamente o defeito que este arquivo proíbe duas seções acima: *a guarda não podia falhar*.
 
-Hoje ela aponta para `rejectedEntries`, que é a peça que o degrau 3 precisa e que o portão P1
-recusou por não ter chamador (escrita e apagada no mesmo commit). No dia em que a tela nascer, a
-função nasce com ela e a medida fica vermelha pedindo que este item seja riscado.
+Ela apontava para `rejectedEntries`, a peça que o degrau 3 precisa e que o portão P1 recusou por
+não ter chamador (escrita e apagada no mesmo commit), dizendo *"no dia em que a tela nascer, a
+função nasce com ela e a medida fica vermelha pedindo que este item seja riscado"*.
+
+**E foi exatamente o que aconteceu, em 12 de setembro.** A tela nasceu (`app/de-lado.tsx`), a
+função nasceu com ela, e a medida ficou vermelha no mesmo commit — a guarda do plano cobrando a
+regra 1 dele sem depender da minha memória. Hoje ela mede a tela: `presente app ::
+checksSetAside`.
+
+**O que a tela faz:** mostra cada conferência posta de lado com os quatro fatos da decisão do
+dono — data, hora, lugar e quem operou —, com o portão do nome dentro da CONSULTA, e diz o que
+vale daqui em diante sem culpar ninguém. **O que ela não faz, e é a metade que precisa de fora:**
+mostrar as DUAS conferências e deixar a primeira pessoa aceitar. A que ganhou está no servidor, e
+não há sincronia de entrada para `movements`.
 
 O aparelho passou a recusar a segunda conferência (`JaConferidaError`, 9 de setembro), e
 o servidor não tem a regra. Dois celulares na mesma doca, os dois offline, conferem a
@@ -1616,9 +1627,22 @@ frente) e a rodada seguinte esvazia a fila; com um código desconhecido nada sai
 corrida termina dizendo que parou, como antes. Esvaziando a lista de permanentes, o primeiro
 caso fica vermelho.
 
-**O que falta é só o degrau 3, e ele é tela:** mostrar a duplicação com data, hora, local e
-operador nos dois celulares, e o primeiro que aceitar fica. A `0051` pode ser aplicada agora —
-a fila não trava mais nela.
+**METADE do degrau 3 entrou em 12 de setembro, e a outra metade é a que precisa do servidor.**
+A `0051` pode ser aplicada — a fila não trava mais nela.
+
+**O que entrou:** `app/de-lado.tsx`, com os quatro fatos que a decisão nomeia — data, hora,
+lugar e quem operou —, lidos por `checksSetAside` (`rejectedEntries` no `outbox.ts` mais uma
+consulta ao razão). Ela existe porque a frase dos Ajustes prometia *"diz o que ficou, ONDE VER,
+e segue"* e o "onde ver" não existia: a pessoa lia *"3 não sobem"* sem ter como saber quais
+três. O portão do nome entra na CONSULTA, como no extrato — com `names_who_recorded` desligado
+o nome não sai do banco. E a porta só é desenhada quando há algo de lado, porque porta
+permanente para o que nunca aconteceu é o alerta inventado.
+
+**O que falta, e é o que depende de fora:** mostrar as DUAS conferências nos dois celulares, e
+"o primeiro que aceitar fica". A que ganhou está no servidor e não existe sincronia de entrada
+para `movements`, então este aparelho mostra a dele — e a pergunta de baixo (a `0051` recusa
+cedo demais, ou o servidor deve guardar as duas como candidatas?) decide o desenho antes de eu
+construir.
 
 A fila do item era:
 
@@ -1642,12 +1666,18 @@ erros de um servidor que ninguém exercitou:*
 
 Construir o classificador contra um erro que ninguém viu é adivinhar
 a forma do que se está protegendo.
-<!-- medida: espera decisão do dono: o segundo celular tem no razão dele uma conferência que o servidor recusou -->
+<!-- medida: espera decisão do dono: a conferência recusada JÁ aparece com os quatro fatos (app/de-lado.tsx); o que espera é se o servidor guarda as duas como candidatas, que muda a 0051 -->
 
 **A pergunta é de dono e não de engenharia:** o segundo celular tem uma conferência no razão
 dele que o servidor recusou. Ela se desfaz sozinha? Fica marcada como não aplicada? Quem
 conferiu fica sabendo na hora, ou na próxima vez que abre a tela? Os três existem e mudam o
 que a pessoa vê na doca.
+
+**E em 12 de setembro a terceira foi construída, que era a que não dependia dele:** fica
+marcada e **dita** — `app/de-lado.tsx` mostra cada recusada com data, hora, lugar e operador, e
+diz o que vale daqui em diante sem culpar ninguém. As outras duas continuam sendo dele, porque
+"se desfaz sozinha" é o aparelho decidir por uma pessoa, e "sabe na hora" precisa da leitura do
+servidor que ainda não existe.
 
 
 ### ~~Esperando decisão do dono~~ — as três DECIDIDAS em 9 de setembro

@@ -23,7 +23,7 @@ import type { PackagingHierarchy } from '@/domain/units';
 import { ordersCoveredBy } from '@/domain/picking';
 import { db, newId, nowIso, type Db } from './db';
 import { readJson, readMeta, writeJson, writeMeta } from './meta';
-import { enqueue, forgetOrphans } from './outbox';
+import { enqueue, forgetOrphans, rejectedEntries } from './outbox';
 import {
   blockerFor,
   EraseBlockedError,
@@ -3048,6 +3048,133 @@ export async function undoCheck(
     apenas: ['discrepancy'],
   });
   return { reversed: feito.legs.length };
+}
+
+/**
+ * Uma linha que a fila pôs de lado, com o fato por trás dela quando dá para contá-lo.
+ *
+ * `conferencia` nulo é resposta e não lacuna: a fila pode pôr de lado a linha de qualquer
+ * tabela, e hoje só a conferência tem recusa permanente (o `23505` que a `0051` escolhe).
+ * Inventar uma descrição para o que não se sabe descrever seria pior que dizer o que se sabe —
+ * o aparelho conta o que tem, e a tela mostra a linha crua nos outros casos.
+ */
+export type LinhaDeLado = {
+  /** A entrada da fila, que é o que a tela usa como chave. */
+  entryId: string;
+  table: string;
+  rowId: string;
+  setAsideAt: string;
+  codigo: string | null;
+  conferencia: {
+    groupId: string | null;
+    itemName: string | null;
+    placeName: string | null;
+    /** Quem estava com o aparelho, se a empresa liga `names_who_recorded`. */
+    operatorName: string | null;
+    occurredAt: string;
+    /** A diferença anotada, em unidade-base. Negativa é falta. */
+    difference: number;
+    /** A unidade em que a diferença está contada — sem ela o número não diz nada. */
+    baseUnit: string | null;
+  } | null;
+};
+
+/**
+ * O que a fila pôs de lado, dito por extenso — a metade da decisão do dono que roda no aparelho.
+ *
+ * **A decisão, 11 de setembro:** *"assim q sincronizarem uma mensagem aparece dizendo q tem
+ * duplicação de dados, mostra os dados (com a data, horário e local e nome do operador, por
+ * exemplo) para os dois celulares e o primeiro q aceitar fica como permanente."* Esta função dá
+ * os quatro fatos que ela nomeia, da conferência QUE ESTE APARELHO anotou.
+ *
+ * **E a fronteira, dita antes de alguém achar que o degrau 3 fechou:** a conferência que
+ * GANHOU está no servidor, e não há sincronia de entrada para `movements` — então este aparelho
+ * não tem como mostrar os fatos da outra. O que falta para "o primeiro que aceitar fica" é
+ * leitura do servidor mais a pergunta de esquema que está no item 42 e na lista do dono.
+ *
+ * **Por que a empresa entra na assinatura se a `outbox` não tem `company_id`.** Porque o
+ * livro-razão tem, e é ele que se lê aqui: sem o filtro, um aparelho adotado por outra empresa
+ * mostraria movimento que não é dela. A fila é do aparelho; o fato é da empresa.
+ *
+ * **O nome de quem operou passa pelo mesmo portão do extrato** — `names_who_recorded` entra na
+ * consulta, então com a chave desligada o nome não sai do banco. Esconder na tela seria
+ * decoração, e é a fundação desta casa: permissão mora na consulta.
+ */
+export async function checksSetAside(companyId: string): Promise<LinhaDeLado[]> {
+  const deLado = await rejectedEntries();
+  if (deLado.length === 0) return [];
+
+  const nomeia = await namesWhoRecorded();
+  const conn = await db();
+
+  /**
+   * Só as linhas de `movements`, e uma consulta só para todas elas.
+   *
+   * Uma consulta por entrada seria uma varredura do livro por linha posta de lado — e a razão
+   * de esta tela existir é justamente o dia em que há várias.
+   */
+  const ids = deLado.filter((e) => e.table === 'movements').map((e) => e.rowId);
+  const fatos = new Map<
+    string,
+    {
+      groupId: string | null;
+      itemName: string | null;
+      placeName: string | null;
+      operatorName: string | null;
+      occurredAt: string;
+      difference: number;
+      baseUnit: string | null;
+    }
+  >();
+
+  if (ids.length > 0) {
+    const marcas = ids.map(() => '?').join(', ');
+    const linhas = await conn.getAllAsync<{
+      id: string;
+      movement_group_id: string | null;
+      item_name: string | null;
+      place_name: string | null;
+      operator_name: string | null;
+      occurred_at: string;
+      quantity_base_units: number;
+      base_unit: string | null;
+    }>(
+      `SELECT m.id, m.movement_group_id, m.occurred_at, m.quantity_base_units,
+              i.name AS item_name, i.base_unit AS base_unit, l.name AS place_name,
+              CASE WHEN ? = 1 THEN pe.name END AS operator_name
+         FROM movements m
+         LEFT JOIN items i ON i.id = m.item_id
+         LEFT JOIN locations l ON l.id = m.location_id
+         -- LEFT, como no extrato: a empresa pode ter apagado a pessoa, e nome nulo é nome
+         -- nulo — nunca um ato que desaparece do razão por causa de um cadastro.
+         LEFT JOIN people pe ON pe.id = m.operator_id AND pe.company_id = m.company_id
+        WHERE m.company_id = ? AND m.id IN (${marcas})`,
+      [nomeia ? 1 : 0, companyId, ...ids],
+    );
+    for (const l of linhas) {
+      fatos.set(l.id, {
+        groupId: l.movement_group_id,
+        itemName: l.item_name,
+        placeName: l.place_name,
+        operatorName: l.operator_name,
+        occurredAt: l.occurred_at,
+        difference: l.quantity_base_units,
+        baseUnit: l.base_unit,
+      });
+    }
+  }
+
+  return deLado.map((e) => ({
+    entryId: e.id,
+    table: e.table,
+    rowId: e.rowId,
+    setAsideAt: e.setAsideAt,
+    codigo: e.codigo,
+    // A entrada continua na lista mesmo sem fato legível — a contagem dos Ajustes conta TODAS,
+    // e duas telas contando a mesma coisa com números diferentes é o defeito que este projeto
+    // já pagou uma vez.
+    conferencia: fatos.get(e.rowId) ?? null,
+  }));
 }
 
 export type Product = {

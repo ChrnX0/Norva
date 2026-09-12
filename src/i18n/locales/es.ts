@@ -382,6 +382,26 @@ export const es: Dictionary = {
       allOfIt: 'Esto es todo: {{n}}.',
       recordCount: { one: '1 registro', other: '{{n}} registros' },
     },
+    setAside: {
+      title: 'Lo que quedó aparte',
+      overline: 'el servidor ya tenía ese registro',
+      intro:
+        'Estas anotaciones no suben. El servidor ya tenía el registro de la misma carga, y el que vale es el suyo. Nada se borró aquí, y nada de esto frena la cola.',
+      empty: 'Nada quedó aparte.',
+      emptyHint: 'Todo lo que anotaste subió, o está en la cola esperando señal.',
+      checkTitle: 'Conteo de {{item}}',
+      checkTitleNoItem: 'Conteo',
+      shortBy: 'faltaron {{amount}}',
+      overBy: 'sobraron {{amount}}',
+      matched: 'coincidió con lo que llegó',
+      place: 'en {{place}}',
+      recordedBy: 'por {{name}}',
+      setAsideAt: 'salió de la cola el {{when}}',
+      otherRow: 'una fila de {{table}}',
+      whatNow:
+        'Si este es el conteo correcto, quien contó primero deshace el conteo en el extracto de su aparato, y vos contás de nuevo.',
+    },
+
     losses: {
       title: 'Pérdidas',
       window: 'Últimos 30 días',

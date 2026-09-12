@@ -570,6 +570,50 @@ export const ptBR = {
       allOfIt: 'Isto é tudo: {{n}}.',
       recordCount: { one: '1 registro', other: '{{n}} registros' },
     },
+    /**
+     * O que a fila pôs de lado — a tela que o texto dos Ajustes prometia e não existia.
+     *
+     * A frase de lá diz *"{{count}} não sobem: o servidor já tinha esse registro"*, e o
+     * docblock dela promete "diz o que ficou, **onde ver**, e segue". O "onde ver" não
+     * existia: a pessoa lia "3 não sobem" sem ter como saber quais três — e é a mesma
+     * classe do defeito que esta rodada consertou no extrato, onde o app mandava desfazer
+     * a conferência e não dava como.
+     *
+     * **Nada aqui culpa ninguém**, e o caso real manda: duas pessoas conferindo a mesma
+     * carga na doca, as duas sem sinal. As duas estão certas; o servidor é que só aceita
+     * uma. Então o texto conta o que aconteceu, mostra os quatro fatos que a decisão do
+     * dono nomeia — data, hora, local e quem operou — e diz o que vale daqui em diante.
+     */
+    setAside: {
+      title: 'O que ficou de lado',
+      overline: 'o servidor já tinha esse registro',
+      intro:
+        'Estas anotações não sobem. O servidor já tinha o registro da mesma carga, e é o dele que vale. Nada foi apagado aqui, e nada disto segura a fila.',
+      empty: 'Nada ficou de lado.',
+      emptyHint: 'Tudo o que você anotou subiu, ou está na fila esperando sinal.',
+      /** A conferência: o que se contou, onde, quando e — se a empresa liga — por quem. */
+      checkTitle: 'Conferência de {{item}}',
+      checkTitleNoItem: 'Conferência',
+      /** A diferença anotada, com o sinal por extenso: falta e sobra não são a mesma notícia. */
+      shortBy: 'faltaram {{amount}}',
+      overBy: 'sobraram {{amount}}',
+      matched: 'bateu com o que veio',
+      place: 'em {{place}}',
+      recordedBy: 'por {{name}}',
+      setAsideAt: 'saiu da fila em {{when}}',
+      /** O que não é conferência, dito sem inventar descrição. */
+      otherRow: 'uma linha de {{table}}',
+      /**
+       * O caminho de volta, e ele passa por OUTRO aparelho — por isso é dito assim.
+       *
+       * Quem tem esta tela na frente não tem como resolver sozinho: a conferência que
+       * ganhou está no servidor, e este aparelho não a lê. Mandar "desfaça no extrato"
+       * aqui seria mandar desfazer a linha errada — a que já está de lado.
+       */
+      whatNow:
+        'Se a contagem certa é esta, quem conferiu primeiro desfaz a conferência no extrato do aparelho dele, e você confere de novo.',
+    },
+
     losses: {
       title: 'Perdas',
       window: 'Últimos 30 dias',

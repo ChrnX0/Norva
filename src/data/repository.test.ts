@@ -14,6 +14,7 @@ import {
   lastSentBaseUnits,
   listPeople,
   setNamesWhoRecorded,
+  checksSetAside,
   namesWhoRecorded,
   setFloorSignIn,
   floorSignIn,
@@ -105,7 +106,7 @@ import {
   setOrdersNeedApproval,
 } from './repository';
 import { EraseBlockedError, tallyFor } from './erase';
-import { markSent, pendingCount, pendingEntries, forgetSentBefore } from './outbox';
+import { markSent, markRejected, pendingCount, pendingEntries, rejectedCount, forgetSentBefore } from './outbox';
 import { serialize } from '../sync/serialize';
 import { ensureStarterData, exampleStillHere, hasSeeded } from './seed';
 import { EMPRESA_SEMENTE } from './empresa';
@@ -1663,6 +1664,99 @@ test('desfazer a conferência deixa a remessa de pé, e dá para conferir de nov
   const plano = await planReversal(EMPRESA_SEMENTE, carga.groupId);
   assert.equal(plano.alreadyReversed, false, 'a carga continua estornável depois de desfazer a conferência');
   assert.equal(plano.legs.length, 2, 'e o plano promete mover só as pernas que estão de pé');
+});
+
+/**
+ * O que ficou de lado, dito por extenso — e os quatro fatos que a decisão do dono nomeia.
+ *
+ * A decisão de 11 de setembro pede *"os dados (com a data, horário e local e nome do operador,
+ * por exemplo)"*, e até 12 de setembro o aplicativo só sabia CONTAR: a tela dizia "3 não sobem"
+ * e não havia como saber quais três. Esta prova cobra as quatro colunas, mais duas coisas que
+ * ninguém pediu e que erradas custam caro:
+ *
+ * 1. **o portão do nome entra na CONSULTA** — com `names_who_recorded` desligado o nome não sai
+ *    do banco, que é a fundação desta casa; e
+ * 2. **a entrada que não é conferência continua na lista** — os Ajustes contam TODAS as postas
+ *    de lado, e duas telas contando a mesma coisa com números diferentes é defeito que este
+ *    repositório já pagou.
+ */
+test('o que a fila pôs de lado é dito com data, hora, lugar e quem operou', async () => {
+  await ensureStarterData(EMPRESA_SEMENTE);
+  const loja = await savePlace(EMPRESA_SEMENTE, { name: 'Loja de Lado', kind: 'own_store' });
+  const fabrica = defaultLocationId(EMPRESA_SEMENTE);
+  const acucar = (await listItems(EMPRESA_SEMENTE)).find((i) => i.name.includes('Açúcar'));
+  assert.ok(acucar);
+
+  const operador = (await listProfiles(EMPRESA_SEMENTE)).find((p) => p.templateRole === 'operator');
+  assert.ok(operador);
+  const ana = await savePerson(EMPRESA_SEMENTE, { name: 'Ana', profileId: operador.id });
+
+  const quando = '2026-09-07T17:35:00.000Z';
+  const carga = await recordTransfer(EMPRESA_SEMENTE, {
+    itemId: acucar.id, fromLocationId: fabrica, toLocationId: loja.id,
+    baseUnits: 6000, occurredAt: quando,
+  });
+
+  // A conferência é escrita COM operador, porque é ele um dos quatro fatos.
+  await setCurrentOperator(ana.id);
+  await recordCheck(EMPRESA_SEMENTE, {
+    groupId: carga.groupId,
+    occurredAt: quando,
+    counted: [{ itemId: acucar.id, baseUnits: 5500 }],
+  });
+  await setCurrentOperator(null);
+
+  // Nada de lado ainda: a fila tem a linha e ela vai subir. Sem esta asserção a prova
+  // seguinte não distinguiria "achou a recusada" de "lista tudo o que está na fila".
+  assert.deepEqual(await checksSetAside(EMPRESA_SEMENTE), [], 'o que espera sinal não está de lado');
+
+  // O servidor recusa a conferência com o código que a `0051` escolhe, e a fila põe de lado.
+  const conn = await db();
+  const linha = await conn.getFirstAsync<{ id: string }>(
+    `SELECT o.id FROM outbox o JOIN movements m ON m.id = o.row_id
+      WHERE o.table_name = 'movements' AND m.kind = 'discrepancy'`,
+  );
+  assert.ok(linha, 'a conferência entrou na fila');
+  await markRejected(linha.id, '23505');
+
+  const comNome = await checksSetAside(EMPRESA_SEMENTE);
+  assert.equal(comNome.length, 1, 'uma posta de lado');
+  assert.equal(await rejectedCount(), comNome.length, 'a lista e a contagem dos Ajustes concordam');
+  const c = comNome[0].conferencia;
+  assert.ok(c, 'a linha de movements é legível como conferência');
+  assert.equal(c.itemName, acucar.name);
+  assert.equal(c.placeName, 'Loja de Lado');
+  assert.equal(c.occurredAt, quando, 'a hora é a do mundo, não a da fila');
+  assert.equal(c.difference, -500, 'faltaram 500, com sinal');
+  assert.equal(c.baseUnit, acucar.baseUnit, 'e a unidade vem junto — número sem unidade não diz nada');
+  assert.equal(comNome[0].codigo, '23505');
+  // O portão desligado: o nome NÃO sai do banco. É a metade que uma tela esconderia.
+  assert.equal(c.operatorName, null, 'sem a chave ligada, o nome não sai da consulta');
+
+  await setNamesWhoRecorded(EMPRESA_SEMENTE, true);
+  const ligado = (await checksSetAside(EMPRESA_SEMENTE))[0]?.conferencia;
+  assert.equal(ligado?.operatorName, 'Ana', 'com a chave ligada, o quarto fato aparece');
+
+  /**
+   * E a entrada que NÃO é conferência continua na lista, sem descrição inventada.
+   *
+   * Ela existe aqui porque a contagem dos Ajustes conta toda linha posta de lado: uma tela que
+   * só soubesse falar de `movements` mostraria dois cartões onde a outra diz três, e o defeito
+   * de duas telas contando a mesma coisa com números diferentes já custou uma rodada.
+   */
+  const outra = await conn.getFirstAsync<{ id: string }>(
+    `SELECT id FROM outbox WHERE table_name <> 'movements' AND recusada_em IS NULL LIMIT 1`,
+  );
+  assert.ok(outra, 'o exemplo semeia linha de outra tabela na fila');
+  await markRejected(outra.id, '23505');
+  const duas = await checksSetAside(EMPRESA_SEMENTE);
+  assert.equal(duas.length, 2, 'a lista não esconde o que não sabe descrever');
+  assert.equal(await rejectedCount(), duas.length, 'e continua concordando com os Ajustes');
+  assert.equal(
+    duas.filter((l) => l.conferencia === null).length,
+    1,
+    'a que não é conferência vem com o fato nulo, que é resposta e não lacuna',
+  );
 });
 
 test('a store that checked and a store that did not are different facts', async () => {
