@@ -761,14 +761,47 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     dez larguras e nas duas peles, medindo a derivada por REMONTAGEM das rampas em vez de
     perguntar a mesma álgebra ao contrário.
 
-    **O que fica aberto disto, e é maior:** o conserto definitivo é tirar o cabeçalho do
-    fluxo — sobreposto, `paddingTop` fixo na lista, só `translateY`. Aquilo mata o laço
-    pela raiz E o recálculo de layout por quadro, e é o item A (orçamento de movimento)
-    encontrando este aqui. Este conserto é uma linha de geometria e resolve o que treme.
+    ~~**O que fica aberto disto, e é maior:** o conserto definitivo é tirar o cabeçalho do
+    fluxo — sobreposto, `paddingTop` fixo na lista, só `translateY`.~~ — **feito em 12 de
+    setembro, e o que o destravou foi o dono voltar do tablet:** *"não chega a travar como
+    antes, mas percebe-se uma chacoalhadazinha."*
 
-    **E ainda não foi visto rodando:** o emulador nunca reproduziu o tremor. O que sustenta
-    é a conta, a guarda e a condição que o dono confirmou (toda tela que rola, nenhuma que
-    cabe). Quem fecha é o tablet dele.
+    O amortecimento estava do lado certo da estabilidade e do lado errado do conforto.
+    **Critério de estabilidade responde SE o laço se acomoda, nunca EM QUANTO TEMPO:**
+    ganho `g` decai como `g^n` por quadro, então 0,8 leva 18 quadros — 300 ms — para sobrar
+    2%, re-excitado a cada quadro em que o dedo anda. Nunca trava e nunca para. Baixar para
+    0,6 deu 8 quadros e custou um terço mais de rolagem, porque é o mesmo botão
+    (`faixa = removido / ganho`) — remendo, não conserto.
+
+    Hoje o cabeçalho é `position: absolute` e a lista carrega um `paddingTop` **constante**
+    do tamanho dele, medido por `onLayout` com estimativa derivada como piso para o
+    primeiro quadro. **O ganho da realimentação é zero**, não pequeno: a janela da lista
+    deixou de depender da altura do cabeçalho, então a borda de cima dela não se move e o
+    dedo continua onde estava. Vai embora o teto, o tempo de acomodação e o recálculo de
+    layout da lista por quadro.
+
+    **E a faixa continua existindo com outro dono, que é o achado desta rodada.** O número
+    que a limita não é mais estabilidade: é **não abrir buraco**. Com o respiro constante, o
+    topo do conteúdo está em `altura - rolagem` e a base do cabeçalho em
+    `altura - removidoAté(rolagem)` — taxa acima de 1 sobe o cabeçalho mais que o conteúdo
+    e abre uma tira de papel vazio entre os dois. `TAXA_MAX = 1` é a borda exata, e ela é
+    **derivada** (geometria) em vez de **escolhida** (0,8 e 0,6 eram margem de engenharia).
+    De quebra a faixa ENCURTOU: 155 dp a 393 dp, contra 194 do primeiro conserto e 258 do
+    segundo.
+
+    <!-- medida: presente src/components/cabecalho.test.ts :: mora FORA do fluxo -->
+    A guarda que impede a volta é de FONTE, porque a unidade não renderiza tela: pôr o
+    cabeçalho de volta como irmão da lista são três linhas de JSX, e a álgebra da faixa
+    seguiria idêntica com as duas guardas antigas verdes. As três condições foram provadas
+    plantando cada defeito — **e a terceira sobreviveu ao próprio defeito na primeira
+    tentativa** (`[^)]*` para no `()` da arrow function, então a régua nunca chegava ao
+    corpo do estilo animado). Consertada com um andador de parênteses e reprovada de novo.
+
+    **E ainda não foi visto rodando:** o emulador nunca reproduziu o tremor, e esta imagem
+    não rasteriza. O que sustenta é a conta, as três guardas e a condição que o dono
+    confirmou duas vezes (travava; depois chacoalhava). Quem fecha é o tablet dele — e a
+    pergunta para lá é binária: **sumiu, ou só diminuiu?** Se só diminuiu, o teto nunca foi
+    a causa única e o alvo passa a ser outro movimento.
 
 36. ~~**A suíte do navegador nunca ROLA a tela**~~ — **fechado em 11 de setembro, e as duas
     tentativas erradas antes dele valem mais que a checagem.**

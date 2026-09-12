@@ -1,6 +1,12 @@
 import { BottomTabBarHeightContext } from 'expo-router/js-tabs';
 import { Children, isValidElement, useCallback, useContext, useState, type ReactNode } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -19,7 +25,7 @@ import { alternando, distribuir } from './colunas';
 import { Mark } from './Mark';
 import { MEDIDA_DA_PAGINA, MEDIDA_EM_PARES, PARES_A_PARTIR_DE } from '@/theme/tokens';
 import { alturaDaCena as calcularAlturaDaCena } from './cenas/prancha';
-import { faixaDeColapso, FRACAO_CENA, FRACAO_OLHO } from './cabecalho';
+import { alturaEstimadaDoCabecalho, faixaDeColapso, FRACAO_CENA, FRACAO_OLHO } from './cabecalho';
 import { useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -214,6 +220,54 @@ export function CollapsingHeader({
   });
 
   /**
+   * **A altura do cabeçalho, medida uma vez — e é ela que tira o laço do circuito.**
+   *
+   * O cabeçalho não é mais irmão da lista: ele está SOBREPOSTO (`position: absolute`) e a
+   * lista carrega um `paddingTop` **constante** do tamanho dele. Isso muda o laço de
+   * lugar, não de grau: antes, encolher o cabeçalho crescia a janela da lista, o dedo
+   * parado passava a estar mais embaixo dentro dela, e o Android lia rolagem para trás —
+   * realimentação. Agora a janela da lista **não muda de tamanho quando o cabeçalho
+   * encolhe**, porque o cabeçalho saiu do fluxo. Ganho zero, não ganho pequeno.
+   *
+   * Por que MEDIR em vez de calcular: a altura depende do título, e título quebra em duas
+   * linhas a 34 dp — quatro títulos em português, e a lista muda a cada idioma. Conta feita
+   * na mão erraria por uma linha inteira exatamente nos casos que importam.
+   *
+   * Por que a estimativa existe ao lado: `onLayout` responde DEPOIS do primeiro layout, e
+   * um quadro com `paddingTop: 0` põe o primeiro cartão debaixo do cabeçalho. A estimativa
+   * sai das mesmas constantes desta tela — não é número mágico — e é piso, nunca teto: a
+   * medida só é usada quando é MAIOR, que é o caso do título de duas linhas.
+   *
+   * E ela guarda a largura junto porque o cabeçalho encolhe: `onLayout` dispara outra vez
+   * com a altura já reduzida, e guardar isso encurtaria o `paddingTop` no meio da rolagem —
+   * que é o buraco que este desenho existe para não ter. Mantém-se o MAIOR visto naquela
+   * largura; largura nova recomeça, porque a cena tem altura própria por largura.
+   */
+  const alturaEstimada = alturaEstimadaDoCabecalho({
+    acimaDoTitulo: insets.top + space.sm,
+    abaixoDaCena: space.md,
+    olho: overline ? OLHO : 0,
+    alturaDaCena: cena ? alturaDaCena : 0,
+    corpoDoTitulo: EXPANDED,
+  });
+  const [medido, setMedido] = useState<{ largura: number; altura: number } | null>(null);
+  const medirCabecalho = useCallback(
+    (evento: LayoutChangeEvent) => {
+      const altura = evento.nativeEvent.layout.height;
+      setMedido((antes) =>
+        antes && antes.largura === larguraDaTela && antes.altura >= altura
+          ? antes
+          : { largura: larguraDaTela, altura },
+      );
+    },
+    [larguraDaTela],
+  );
+  const alturaDoCabecalho = Math.max(
+    alturaEstimada,
+    medido && medido.largura === larguraDaTela ? medido.altura : 0,
+  );
+
+  /**
    * O título encolhe por ESCALA, não por corpo de fonte — e a diferença é um defeito.
    *
    * Animar `fontSize` reflui o texto. Um título que ocupa duas linhas a 34 cabe em uma a
@@ -264,95 +318,108 @@ export function CollapsingHeader({
 
   return (
     <View style={{ flex: 1, backgroundColor: color.paper }}>
+      {/* **O cabeçalho vem PRIMEIRO na árvore e por CIMA na pintura, e as duas coisas são
+          de propósito.** Primeiro na árvore é a ordem em que o leitor de tela anuncia — e
+          cabeçalho anunciado depois do conteúdo é a tela lida de trás para frente. Por cima
+          na pintura é o `zIndex`, porque irmão declarado antes pinta embaixo: sem ele o
+          conteúdo rolaria SOBRE o título em vez de passar debaixo dele.
+
+          A tinta da página vai no casco de fora, de borda a borda, e não na coluna: numa
+          largura de tablet a coluna é centralizada, e uma faixa opaca só no meio deixaria o
+          conteúdo aparecer pelos lados do cabeçalho enquanto sobe. */}
       <View
-        style={[
-          {
-            paddingTop: insets.top + space.sm,
-            paddingHorizontal: space.lg,
-            paddingBottom: space.md,
-            backgroundColor: color.paper,
-          },
-          // O título anda junto com os cartões: cabeçalho colado na borda
-          // esquerda de um tablet, com a coluna centralizada embaixo, lê como
-          // duas telas empilhadas.
-          largo ? coluna : null,
-        ]}
+        onLayout={medirCabecalho}
+        style={[styles.cabecalhoSobreposto, { backgroundColor: color.paper }]}
       >
-        {/* A linha de olho vem ANTES do título, e o título é serifado.
-            É a mesma hierarquia da capa aprovada — "NORVA · sábado, 5 de
-            setembro" e a manchete embaixo —, e ela vale para as vinte telas
-            porque o dono disse "TODO o aplicativo tem q seguir esse padrão".
-            Antes era o contrário: título grande em cima, olho embaixo, e um selo
-            da marca ao lado repetindo em toda tela o nome de quem já abriu o
-            aplicativo. */}
-        {/* O cabeçalho CHEGA, e não estava lá.
-            Ele já respondia à rolagem — o título encolhe, a linha de olho some —
-            e isso é reação, não chegada: aberta a tela, o topo aparecia pronto e
-            imóvel enquanto os cartões debaixo entravam em cascata. A linha de
-            olho e a manchete entram em dois tempos, na ordem em que se lê, e
-            como isto está em vinte e sete das vinte e oito telas, é a mudança de
-            um arquivo só que faz o aplicativo inteiro começar vivo. */}
-        {overline ? (
-          <Reveal index={0}>
-            <Animated.View style={overlineStyle}>
-              <Text
-                style={[type.overline, { color: color.inkFaint, letterSpacing: 2.4 }]}
-                numberOfLines={1}
-              >
-                {overline.toUpperCase()}
-              </Text>
-            </Animated.View>
-          </Reveal>
-        ) : null}
+        <View
+          style={[
+            {
+              paddingTop: insets.top + space.sm,
+              paddingHorizontal: space.lg,
+              paddingBottom: space.md,
+            },
+            // O título anda junto com os cartões: cabeçalho colado na borda
+            // esquerda de um tablet, com a coluna centralizada embaixo, lê como
+            // duas telas empilhadas.
+            largo ? coluna : null,
+          ]}
+        >
+          {/* A linha de olho vem ANTES do título, e o título é serifado.
+              É a mesma hierarquia da capa aprovada — "NORVA · sábado, 5 de
+              setembro" e a manchete embaixo —, e ela vale para as vinte telas
+              porque o dono disse "TODO o aplicativo tem q seguir esse padrão".
+              Antes era o contrário: título grande em cima, olho embaixo, e um selo
+              da marca ao lado repetindo em toda tela o nome de quem já abriu o
+              aplicativo. */}
+          {/* O cabeçalho CHEGA, e não estava lá.
+              Ele já respondia à rolagem — o título encolhe, a linha de olho some —
+              e isso é reação, não chegada: aberta a tela, o topo aparecia pronto e
+              imóvel enquanto os cartões debaixo entravam em cascata. A linha de
+              olho e a manchete entram em dois tempos, na ordem em que se lê, e
+              como isto está em vinte e sete das vinte e oito telas, é a mudança de
+              um arquivo só que faz o aplicativo inteiro começar vivo. */}
+          {overline ? (
+            <Reveal index={0}>
+              <Animated.View style={overlineStyle}>
+                <Text
+                  style={[type.overline, { color: color.inkFaint, letterSpacing: 2.4 }]}
+                  numberOfLines={1}
+                >
+                  {overline.toUpperCase()}
+                </Text>
+              </Animated.View>
+            </Reveal>
+          ) : null}
 
-        <Reveal index={1} style={[styles.titleRow, { gap: space.sm + 1 }]}>
-          {/* O selo só sobra no Orgânico, que é a identidade de curva e cor. No
-              Papel a marca não entra na página: a página é tinta e régua. */}
-          {tracos.genero === 'pagina' ? null : (
-            <View style={[styles.icon, { backgroundColor: `${accent}22`, borderRadius: 9 }]}>
-              <Mark size={15} color={accent} />
-            </View>
-          )}
-          <Animated.Text
-            style={[
-              {
-                color: color.ink,
-                fontFamily: titleFamily,
-                fontWeight: tracos.titulo.peso,
-                letterSpacing: tracos.titulo.aperto,
-                fontSize: EXPANDED,
-                transformOrigin: 'left center',
-              },
-              titleStyle,
-            ]}
-            accessibilityRole="header"
-          >
-            {title}
-          </Animated.Text>
-        </Reveal>
-
-        {cena ? (
-          <Reveal index={2}>
-            {/* A cena SANGRA quando a pele desenha paisagem, e é margem quando ela
-                desenha vinheta — decidido pelo traço, nunca pelo nome da pele.
-
-                Não é gosto: é a diferença entre uma janela e uma foto colada. Na
-                capa do Orgânico a paisagem vai de borda a borda, e nas outras vinte
-                telas ela era um retângulo com margem dos dois lados — o mesmo
-                desenho parecendo um recorte no meio da folha. A vinheta do Papel é o
-                contrário: ela é um desenho NA página impressa, e desenho que
-                encosta na borda do papel é desenho torto. */}
-            <Animated.View
+          <Reveal index={1} style={[styles.titleRow, { gap: space.sm + 1 }]}>
+            {/* O selo só sobra no Orgânico, que é a identidade de curva e cor. No
+                Papel a marca não entra na página: a página é tinta e régua. */}
+            {tracos.genero === 'pagina' ? null : (
+              <View style={[styles.icon, { backgroundColor: `${accent}22`, borderRadius: 9 }]}>
+                <Mark size={15} color={accent} />
+              </View>
+            )}
+            <Animated.Text
               style={[
-                cenaStyle,
-                { overflow: 'hidden' },
-                tracos.cabecalho === 'paisagem' ? { marginHorizontal: -space.lg } : null,
+                {
+                  color: color.ink,
+                  fontFamily: titleFamily,
+                  fontWeight: tracos.titulo.peso,
+                  letterSpacing: tracos.titulo.aperto,
+                  fontSize: EXPANDED,
+                  transformOrigin: 'left center',
+                },
+                titleStyle,
               ]}
+              accessibilityRole="header"
             >
-              <CenaDoCabecalho cena={cena} />
-            </Animated.View>
+              {title}
+            </Animated.Text>
           </Reveal>
-        ) : null}
+
+          {cena ? (
+            <Reveal index={2}>
+              {/* A cena SANGRA quando a pele desenha paisagem, e é margem quando ela
+                  desenha vinheta — decidido pelo traço, nunca pelo nome da pele.
+
+                  Não é gosto: é a diferença entre uma janela e uma foto colada. Na
+                  capa do Orgânico a paisagem vai de borda a borda, e nas outras vinte
+                  telas ela era um retângulo com margem dos dois lados — o mesmo
+                  desenho parecendo um recorte no meio da folha. A vinheta do Papel é o
+                  contrário: ela é um desenho NA página impressa, e desenho que
+                  encosta na borda do papel é desenho torto. */}
+              <Animated.View
+                style={[
+                  cenaStyle,
+                  { overflow: 'hidden' },
+                  tracos.cabecalho === 'paisagem' ? { marginHorizontal: -space.lg } : null,
+                ]}
+              >
+                <CenaDoCabecalho cena={cena} />
+              </Animated.View>
+            </Reveal>
+          ) : null}
+        </View>
       </View>
 
       <Animated.ScrollView
@@ -366,6 +433,10 @@ export function CollapsingHeader({
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           {
+            // Constante, e é ISTO que mata a realimentação: a janela da lista deixa de
+            // depender da altura do cabeçalho. Animar este número trocaria o laço de
+            // roupa e o traria de volta inteiro.
+            paddingTop: alturaDoCabecalho,
             paddingHorizontal: space.lg,
             paddingBottom: insets.bottom + space.xxl + tabBar,
             gap: space.md,
@@ -517,6 +588,14 @@ function Grupo({ pecas, vao }: { pecas: { no: ReactNode; i: number }[]; vao: num
 }
 
 const styles = StyleSheet.create({
+  /**
+   * O cabeçalho fora do fluxo.
+   *
+   * `left`/`right` em zero e não uma largura: a regra da casa proíbe medida de tela em
+   * pixel fixo, e aqui não há nenhuma — o casco toma a largura do pai e a coluna de dentro
+   * é que se limita.
+   */
+  cabecalhoSobreposto: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2 },
   titleRow: { flexDirection: 'row', alignItems: 'center' },
   icon: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
 });

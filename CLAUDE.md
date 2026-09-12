@@ -577,6 +577,53 @@ Duas regras de operação, ambas cicatriz:
   pe.name END`: o marcador fica, o portão vira nada, e aí o teste reprova dizendo *"sem a chave
   ligada, o nome não sai da consulta"*. É a regra de plantar o defeito que a asserção NOMEIA,
   aplicada ao lado de dentro — a asserção estava boa, a mutação é que media outra coisa.
+- **Critério de ESTABILIDADE responde *se*, nunca *em quanto tempo* — 12 de setembro.** O tremor
+  do cabeçalho foi consertado pondo um teto no ganho da realimentação em 0,8, porque abaixo de 1 o
+  laço não diverge. O dono confirmou que o travamento acabou **e** que ficou *"uma
+  chacoalhadazinha"* — as duas coisas verdadeiras ao mesmo tempo. A conta que faltava: ganho `g`
+  decai como `g^n` por quadro, então 0,8 leva 18 quadros (300 ms a 60 Hz) para sobrar 2%, e é
+  re-excitado a cada quadro em que o dedo anda. Nunca trava e nunca para.
+
+  Então, ao fechar qualquer item de movimento com "está estável", falta metade: **o tempo de
+  acomodação**, e ele tem de estar na guarda em vez da cabeça de quem consertou. E quando o
+  conserto de uma oscilação é um teto de ganho, ele é **amortecimento, não conserto** — a pergunta
+  seguinte é o que cria o laço. Aqui era altura de LAYOUT: o cabeçalho fora do fluxo põe o ganho em
+  zero e dispensa o teto inteiro.
+
+  *E o número sobreviveu ao laço, que é o achado mais transferível: com a realimentação em zero a
+  mesma derivada continuou limitada, por GEOMETRIA (taxa acima de 1 abre papel vazio entre o
+  cabeçalho e o conteúdo) em vez de estabilidade. Mesma álgebra, significado trocado —* **então o
+  identificador trocou de nome.** *Quem lesse "ganho máximo" e quisesse mais conforto baixaria o
+  número, e baixar hoje não compra conforto nenhum: abre buraco. É a regra do `tokens.ts` — o nome
+  diz o que o número DECIDE — valendo para uma constante de geometria.*
+
+- **A prova é por CONDIÇÃO, não por teste — 12 de setembro.** A guarda de fonte nova tem três
+  asserções no mesmo `test()`. Plantei os três defeitos que ela nomeia, um por vez: a primeira e a
+  segunda reprovaram na primeira tentativa e **a terceira ficou verde**. Ela era
+  `/useAnimatedStyle\([^)]*paddingTop/`, e `[^)]*` para no primeiro `)` — que é o `()` da arrow
+  function que TODO `useAnimatedStyle` recebe. A régua nunca chegava ao corpo do estilo.
+
+  A regra de cima (*plante o defeito que a asserção NOMEIA*) já existia e eu a cumpri — em duas
+  das três. Duas boas não dizem nada sobre a terceira: mesma cara, mesma hora, mesma mão. Guarda
+  com N condições pede N plantios.
+
+- **`grep -rn --include=* .` lê `node_modules` e `.git` — 12 de setembro, três minutos perdidos.**
+  Filtrar depois com `| grep -v node_modules` não impede a leitura: o primeiro comando já varreu
+  centenas de megabytes, e ele ficou na frente de uma fila com typecheck, lint e suíte atrás. Nomeie
+  as pastas (`grep -rn X src/ app/ docs/ scripts/ e2e/`) em vez de varrer a raiz. E a mesma cicatriz
+  do laço de espera vale para matá-lo: **pelo PID anotado**, nunca por padrão.
+
+- **Ferramenta que não é do projeto não formata o projeto — 12 de setembro.** Rodei
+  `npx prettier --write` em três arquivos para arrumar a indentação de uma edição minha. Este
+  repositório **não tem prettier** — nem dependência, nem config —, então o `npx` baixou um e
+  aplicou os padrões dele: aspas duplas em três arquivos inteiros. A guarda que denunciou foi a de
+  i18n (`/from '@\/components\/(Glyph|icons|...)'/` deixou de casar), o que é sorte, não método.
+  Custou uma execução de suíte para descobrir e uma para reverter.
+
+  É a regra do *"use o verbo do script"* com outro sujeito: antes de `npx <ferramenta>`, confira se
+  a ferramenta está no `package.json`. `npx` de coisa ausente não falha — ele **instala e roda**,
+  que é o pior dos dois mundos.
+
 - **O `mutate` é a ÚLTIMA coisa da rodada, nunca a primeira.** Ele copia a árvore no
   início e ocupa os quatro núcleos por seis minutos. Em 9 de setembro eu o disparei três
   vezes no meio de uma rodada e segui editando e rodando `npm test` por cima: as três

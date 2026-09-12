@@ -2,21 +2,23 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { alturaDaCena } from './cenas/prancha';
 import { readFileSync } from 'node:fs';
-import { FRACAO_CENA, FRACAO_OLHO, faixaDeColapso, GANHO_MAX, type Colapso } from './cabecalho';
+import { FRACAO_CENA, FRACAO_OLHO, faixaDeColapso, TAXA_MAX, type Colapso } from './cabecalho';
 
 /**
  * O cabeçalho não pode encolher mais depressa do que a rolagem que o encolhe.
  *
- * Achado no tablet do dono em 10 de setembro: a tela treme para cima e para baixo em
- * toda tela que rola. A causa está no docblock do `cabecalho.ts` — cabeçalho e lista
- * dividem a altura, encolher um cresce o outro, e isso realimenta a própria rolagem.
- * O que decide se aquilo se acomoda ou oscila é UM número: `dAltura/dRolagem`.
+ * **A frase é a mesma de 10 de setembro e o motivo dela mudou duas vezes** — a história dos
+ * três atos está no docblock do `cabecalho.ts`. Em resumo: ela nasceu medindo
+ * ESTABILIDADE, porque o cabeçalho era irmão da lista e a altura removida realimentava a
+ * própria rolagem; hoje o cabeçalho está fora do fluxo, a realimentação é zero, e a mesma
+ * derivada mede GEOMETRIA — taxa acima de 1 abre uma tira de papel vazio entre a base do
+ * cabeçalho e o topo do conteúdo.
  *
- * Esta guarda existe porque o número que estava lá era uma constante (`72`) e o
- * fenômeno depende da LARGURA da tela — a cena cresce com a coluna e a faixa não
- * crescia junto. Quem escrever a próxima cena, ou mexer numa fração, muda o ganho sem
- * perceber, e o defeito volta calado num aparelho que ninguém tem na mesa.
+ * A guarda continua valendo por onde nasceu: o número que estava lá era uma constante
+ * (`72`) e o fenômeno depende da LARGURA — a cena cresce com a coluna. Quem escrever a
+ * próxima cena, ou mexer numa fração, muda a taxa sem perceber.
  */
+
 
 /**
  * A altura do cabeçalho a uma dada rolagem, REMONTADA a partir do que a tela desenha.
@@ -66,11 +68,11 @@ test('o cabeçalho nunca encolhe mais rápido que a rolagem, em nenhuma largura'
   for (const largura of LARGURAS) {
     for (const medida of [600, 900]) {
       const colapso = colapsoEm(largura, medida);
-      const ganho = ganhoMedido(colapso, faixaDeColapso(colapso));
+      const taxa = ganhoMedido(colapso, faixaDeColapso(colapso));
       assert.ok(
-        ganho <= GANHO_MAX + 1e-9,
-        `a ${largura} dp com coluna de ${medida} o ganho é ${ganho.toFixed(2)} — ` +
-          'acima de 1 a tela treme, e foi assim que ela chegou no tablet do dono',
+        taxa <= TAXA_MAX + 1e-9,
+        `a ${largura} dp com coluna de ${medida} a taxa é ${taxa.toFixed(2)} — ` +
+          'acima de 1 o cabeçalho sobe mais que o conteúdo e abre papel vazio entre os dois',
       );
     }
   }
@@ -90,7 +92,7 @@ test('a paisagem, que é mais alta que a vinheta, também fica abaixo do teto', 
       olho: 18,
     };
     const ganho = ganhoMedido(colapso, faixaDeColapso(colapso));
-    assert.ok(ganho <= GANHO_MAX + 1e-9, `paisagem a ${largura} dp: ganho ${ganho.toFixed(2)}`);
+    assert.ok(ganho <= TAXA_MAX + 1e-9, `paisagem a ${largura} dp: ganho ${ganho.toFixed(2)}`);
   }
 });
 
@@ -153,26 +155,72 @@ test('a régua do título vê a diferença entre encolher e reflui', () => {
   assert.equal(/fontSize\s*:/.test(comEscala.slice(0, comEscala.indexOf('const overlineStyle'))), false);
 });
 
-test('o teto do ganho deixa o laço ACOMODAR, e não só deixar de divergir', () => {
-  /**
-   * O segundo tempo do mesmo defeito, achado pelo dono no tablet em 12 de setembro:
-   * *"não chega a travar como antes, mas percebe-se uma chacoalhadazinha"*.
-   *
-   * Ganho abaixo de 1 garante que a oscilação MORRE; não diz em quanto tempo. Uma
-   * perturbação decai como `ganho^n` por quadro, e a régua aqui é o número de quadros
-   * até ela sobrar 2% — abaixo disso são frações de dp e o olho não pega.
-   */
-  const quadrosParaAcomodar = (ganho: number) => Math.ceil(Math.log(0.02) / Math.log(ganho));
+/**
+ * **A guarda que impede o laço voltar, e ela é de FONTE porque a unidade não renderiza.**
+ *
+ * As duas guardas de cima medem a álgebra da faixa e continuam certas. Nenhuma delas vê a
+ * coisa que de fato matou o tremor: o cabeçalho ter saído do fluxo. Pondo-o de volta como
+ * irmão da lista — três linhas de JSX — a álgebra segue idêntica, as duas passam verdes, e
+ * a realimentação volta inteira com o ganho 1,73 que a taxa de hoje permite (e permite por
+ * estar medindo geometria, não estabilidade).
+ *
+ * É o padrão desta casa para regra de tela que o teste de unidade não alcança, o mesmo do
+ * `purchaseToBaseUnits`: a invariante vira guarda de fonte. As três condições são as três
+ * metades do desenho — sobreposto, `paddingTop` da lista vindo de valor simples, e nada
+ * animando esse `paddingTop`.
+ *
+ * *Provada nos dois sentidos contra a árvore remendada, uma condição por vez, em 12 de
+ * setembro — e a terceira só depois de a régua ser consertada: ver o comentário dela.
+ * Cabeçalho devolvido ao fluxo reprova a primeira (7→6 passando); `paddingTop: 0` reprova a
+ * segunda; um `useAnimatedStyle` devolvendo `paddingTop` reprova a terceira.*
+ */
+test('o cabeçalho mora FORA do fluxo, senão a realimentação volta', () => {
+  const fonte = readFileSync(new URL('./CollapsingHeader.tsx', import.meta.url), 'utf8');
 
-  assert.ok(
-    quadrosParaAcomodar(GANHO_MAX) <= 10,
-    `o tremor tem de sumir em dez quadros (167 ms); com ganho ${GANHO_MAX} ele leva ${quadrosParaAcomodar(GANHO_MAX)}`,
+  assert.match(
+    fonte,
+    /cabecalhoSobreposto:\s*\{[^}]*position:\s*'absolute'/,
+    'o cabeçalho voltou para o fluxo: irmão da lista, encolher um cresce o outro, e o dedo ' +
+      'parado no vidro passa a estar mais embaixo dentro da lista — é o tremor de 10 de setembro',
   );
 
-  // O caso verdadeiro: o teto que estava aqui até hoje. Estável e ainda assim visível —
-  // se esta linha passar, a régua não distingue "não trava" de "não treme".
-  assert.ok(
-    quadrosParaAcomodar(0.8) > 10,
-    'com ganho 0,8 a oscilação durava 18 quadros — a régua precisa ver isso',
+  assert.match(
+    fonte,
+    /paddingTop:\s*alturaDoCabecalho,/,
+    'a lista perdeu o paddingTop do tamanho do cabeçalho: com o cabeçalho sobreposto e sem ' +
+      'esse respiro, o primeiro cartão nasce debaixo do título',
+  );
+
+  /**
+   * **Anda pelos parênteses, e a primeira versão disto media NADA.**
+   *
+   * Ela era `/useAnimatedStyle\([^)]*paddingTop/` — e `[^)]*` para no primeiro `)`, que é o
+   * `()` da arrow function que todo `useAnimatedStyle` recebe. A régua nunca chegava ao
+   * corpo do estilo. Plantado o defeito que ela NOMEIA (um `useAnimatedStyle` devolvendo
+   * `paddingTop`), ela ficou **verde**: 7 passando, zero falhando. As duas irmãs de cima
+   * pegaram os defeitos delas na primeira tentativa; esta sobreviveu ao próprio.
+   */
+  const estilosAnimados = (texto: string): string[] => {
+    const marca = 'useAnimatedStyle(';
+    const trechos: string[] = [];
+    for (let i = texto.indexOf(marca); i !== -1; i = texto.indexOf(marca, i + 1)) {
+      let nivel = 0;
+      let j = i + marca.length - 1;
+      do {
+        if (texto[j] === '(') nivel += 1;
+        else if (texto[j] === ')') nivel -= 1;
+        j += 1;
+      } while (nivel > 0 && j < texto.length);
+      trechos.push(texto.slice(i, j));
+    }
+    return trechos;
+  };
+
+  const animamOPadding = estilosAnimados(fonte).filter((t) => t.includes('paddingTop'));
+  assert.deepEqual(
+    animamOPadding,
+    [],
+    'alguém animou o paddingTop: isso troca o laço de roupa e o traz de volta inteiro — ' +
+      'a janela da lista volta a depender da altura do cabeçalho, quadro por quadro',
   );
 });

@@ -11036,3 +11036,38 @@ Empilhar (nome na linha dele, controles na de baixo à direita, abaixo de 600 dp
 alternativas desaparecerem em vez de escolher entre elas. **Quando duas saídas de um problema
 são as duas ruins, a pergunta certa é quase sempre o que está criando o problema** — aqui,
 uma fila com mais peças do que a largura comporta.
+
+## 12 de setembro — o número sobreviveu ao laço que ele media
+
+O teto de ganho do cabeçalho existia para impedir uma realimentação divergir. Tirando o
+cabeçalho do fluxo, a realimentação virou **zero** — e o teto continuou sendo necessário, por
+um motivo que não tem nada a ver com o anterior: com o `paddingTop` da lista constante, o topo
+do conteúdo está em `altura - rolagem` e a base do cabeçalho em `altura - removidoAté(rolagem)`.
+Taxa acima de 1 sobe o cabeçalho mais depressa que o conteúdo e **abre uma tira de papel vazio
+entre os dois**.
+
+Mesma álgebra, mesma derivada, mesma guarda — significado trocado: era **estabilidade**
+(escolhida: 0,8, depois 0,6, margens de engenharia), virou **geometria** (derivada: 1 é a única
+taxa que encosta os dois sem sobrepor). E o conserto de raiz ENCURTOU a faixa em vez de
+alongá-la: 155 dp a 393 dp, contra 194 do primeiro remendo e 258 do segundo.
+
+**A lição é sobre renomear.** Eu ia deixar `GANHO_MAX` no lugar, porque o valor caberia e as
+guardas passariam. Deixar seria plantar a próxima sessão: quem lesse "ganho máximo" e quisesse
+mais conforto baixaria o número — e baixar hoje não compra conforto nenhum, abre buraco. O nome
+que diz o que o número DECIDE é o mesmo princípio que o `tokens.ts` aplica às peles (`ehPapel`
+compila e devolve o mesmo defeito na pele seguinte), e aqui ele valia para um número.
+
+## 12 de setembro — a terceira régua sobreviveu ao próprio defeito, e as duas irmãs não
+
+A guarda nova tem três condições. Plantei os três defeitos que ela nomeia, um por vez: a
+primeira e a segunda reprovaram na primeira tentativa; **a terceira ficou verde**.
+
+Ela era `/useAnimatedStyle\([^)]*paddingTop/`. `[^)]*` para no primeiro `)` — e o primeiro `)`
+depois de `useAnimatedStyle(` é o `()` da arrow function que TODO `useAnimatedStyle` recebe.
+A régua nunca chegava ao corpo do estilo. Consertada com um andador de parênteses (o mesmo
+recurso que a guarda de i18n já usava para achar o `fill(` ao redor de uma leitura).
+
+**O que isso acrescenta à regra que já existia** (*"plante o defeito que a asserção NOMEIA"*):
+provar UMA condição de uma guarda de três não prova a guarda. As três estão no mesmo `test()`,
+com a mesma cara, escritas na mesma hora pela mesma mão — e duas boas não dizem nada sobre a
+terceira. **A prova é por condição, não por teste.**
