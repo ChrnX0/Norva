@@ -89,7 +89,12 @@ const RECIPES: Record<string, Recipe> = {
   },
 };
 
-const COSTS: ItemCosts = { pulp: rate(12.4, 1_000), sugar: rate(4.72, 1_000) };
+const COSTS: ItemCosts = {
+  pulp: rate(12.4, 1_000),
+  sugar: rate(4.72, 1_000),
+  // Milheiro de palito a R$ 30: 3 centavos por unidade produzida.
+  stick: rate(30, 1_000),
+};
 
 const CHANGES: CostChange[] = [
   {
@@ -286,6 +291,72 @@ test('the number in the answer is the one the engine computed', async () => {
   assert.match(answer.text, /R\$\s*0,55/);
   assert.ok(answer.detail?.some((d) => d.label === 'Massa'));
   assert.equal(answer.route, '/recipes/popsicle');
+});
+
+/**
+ * A conta aberta FECHA — e ela não fechava para quem lista palito.
+ *
+ * `costPerProductUnit` soma três coisas: a massa, a embalagem DIGITADA (o rótulo, a fita — o
+ * que ninguém quis transformar em item) e a embalagem que É ITEM, cotada pelas notas de
+ * compra. O detalhamento do assistente mostrava duas. Quem lista palito via o total subir sem
+ * nenhuma linha explicando, que é a Lei 6 pelo avesso: a conclusão abre uma conta que não
+ * fecha, e conta que não fecha ensina a desconfiar do número inteiro — inclusive dos que estão
+ * certos.
+ *
+ * A aritmética, de cabeça, e é ela que torna isto verificável: 18.000 g × 1,24 + 6.000 g ×
+ * 0,472 = 25.152 centavos de massa, sobre 40.000 ml com 5% de perda = 38.000 ml líquidos →
+ * 0,6619 centavo por ml × 75 ml = **50 centavos de massa**. Mais **5 centavos** de embalagem
+ * digitada e **3 centavos** de palito (milheiro a R$ 30) = **58 centavos**. Sem a linha do
+ * palito, as duas que apareciam somavam 55 e a manchete dizia 58.
+ *
+ * O produto sem palito continua com duas linhas: embalagem de estoque zerada não vira frase,
+ * porque "está tudo bem" é estado.
+ */
+test('a conta aberta do assistente fecha quando a embalagem sai do estoque', async () => {
+  /**
+   * O produto com palito vive AQUI, e não no fixture compartilhado, por uma medida.
+   *
+   * Acrescentá-lo lá quebrou dois testes que não têm nada com isto: o do almoxarifado, que
+   * conta itens, e o da lista de compras — o plano soma todos os produtos, e um segundo
+   * produto na mesma receita dobrava o que falta comprar. Ajustar as expectativas deles para
+   * caber no meu cenário seria mudar o que eles medem para o meu teste passar, que é a pior
+   * troca possível num arquivo de guardas.
+   */
+  const comPalito: Product = {
+    ...PRODUCTS[0],
+    id: 'p2',
+    itemId: 'lemonItem',
+    name: 'Picolé de limão',
+    packagingItems: [{ itemId: 'stick', name: 'Palito de madeira', quantityPerUnit: 1 }],
+  };
+  const comEstoque: SkillContext = {
+    ...context('view_cost'),
+    data: { ...data, listProducts: async () => [comPalito] },
+  };
+
+  const answer = await ask('quanto custa o picolé de limão', comEstoque);
+
+  assert.match(answer.text, /R\$\s*0,58/, 'a manchete soma as três metades');
+
+  // O espaço entre "R$" e o número é INQUEBRÁVEL — é o que o `Intl` produz, e comparar com um
+  // espaço comum reprova com as duas frases idênticas na tela, que é o pior jeito de falhar.
+  const dinheiro = (v: string | undefined) => v?.replace(/\u00A0/g, ' ');
+  const linhas = new Map((answer.detail ?? []).map((d) => [d.label, dinheiro(d.value)]));
+  assert.equal(linhas.get('Massa'), 'R$ 0,50');
+  assert.equal(linhas.get('Embalagem'), 'R$ 0,05', 'a digitada, que é o que ninguém virou item');
+  assert.equal(
+    linhas.get('Embalagem do estoque'),
+    'R$ 0,03',
+    'e a que sai do estoque, sem a qual a conta abre e não fecha',
+  );
+
+  // O produto que NÃO lista embalagem continua sem a linha — e sem esta metade a guarda
+  // mediria "a linha sempre aparece", que é outro defeito com a mesma cara de conserto.
+  const semPalito = await ask('quanto custa o picolé de morango', context('view_cost'));
+  assert.ok(
+    !(semPalito.detail ?? []).some((d) => d.label === 'Embalagem do estoque'),
+    'embalagem de estoque zerada não vira linha',
+  );
 });
 
 test('a role without view_cost cannot get a figure out of it', async () => {

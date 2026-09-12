@@ -10960,3 +10960,41 @@ reconstruir por tempo, olhe a GRANULARIDADE do campo que você ia usar.*
 a única que a corrida anota. Uma sub-receita editada entre abrir e fechar continua entrando
 pela mais nova. Fechar isso pede um carimbo por sub-receita na abertura — e isso é construção,
 não uma linha.
+
+---
+
+## 12 de setembro — a conta aberta do assistente não fechava, e faltava a metade que sai do estoque
+
+**O que se viu.** `costPerProductUnit` soma três coisas: a massa, a embalagem **digitada** (o
+rótulo, a fita — o que ninguém quis transformar em item) e a embalagem que **é item**, cotada
+pelas notas de compra. O `detail` do assistente listava duas. Quem lista palito e saquinho como
+item — o caso da fábrica do dono — via a manchete subir sem nenhuma linha explicando.
+
+**Por que importa mais que o centavo.** É a Lei 6 pelo avesso: a conclusão abre uma conta que
+**não fecha**, e conta que não fecha ensina a desconfiar do número inteiro, inclusive dos que
+estão certos. A aritmética: 50 de massa + 5 de digitada + 3 de palito (milheiro a R$ 30) = 58,
+e a manchete dizia 58 com duas linhas somando 55.
+
+**O que mudou.** A linha *"Embalagem do estoque"*, que nasce só quando existe — zerada não vira
+frase, porque "está tudo bem" é estado. A mesma tela de cadastro de produto já resolvia isto com
+as três componentes nomeadas (`mixPlusBoth`), então o conserto **copia o conteúdo dela** em vez
+de inventar palavra nova.
+
+### E duas coisas que eu ia errar, as duas pegas por medir em vez de supor
+
+**1. Eu ia chamar de defeito a diferença de ESCALA, e ela é decisão.** As linhas de embalagem
+usam `formatUnitRate(..., 'a cada 1.000 unidades')` e a massa usa `formatMoney` — parecia
+incomensurável. Medindo `formatUnitRate`: ela só troca de escala quando a taxa é **abaixo de um
+centavo**, e o docblock da tela diz por quê — embalagem de meio centavo apareceria como R$ 0,00,
+*"a tela dizendo de graça o que o razão já tinha parado de dar de graça"*. Com o palito a 3
+centavos as três linhas saem na mesma escala e somam à vista. Não havia defeito de escala.
+
+**2. O meu cenário quebrou dois testes que não têm nada com ele.** Acrescentar o palito ao
+fixture compartilhado derrubou o teste do almoxarifado (que conta itens) e o da lista de compras
+— o plano soma todos os produtos, e um segundo produto na mesma receita **dobrava** o que falta
+comprar. A saída fácil era ajustar as expectativas dos dois para caber no meu cenário, e isso é
+a pior troca possível num arquivo de guardas: eu mudaria o que eles medem para o meu teste
+passar. O cenário passou a viver **dentro do teste**, com `{ ...data, listProducts }`.
+
+*A régua: quando um fixture compartilhado resiste ao cenário novo, a resistência é informação —
+ele está medindo outra coisa. Isola-se o cenário, não se ajusta a medida alheia.*

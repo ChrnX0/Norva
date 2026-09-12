@@ -1890,12 +1890,19 @@ Todas verificadas no código, com a linha. Nenhuma é conjectura sobre intençã
    setembro.** Ele passa `fichaCravada: run.recipeVersionId`, e `loadRecipeGraph` aceita a
    versão escolhida. A raiz está cravada; a sub-receita editada no meio continua entrando
    pela mais nova, e o porquê está em 5.4.3. Ver 5.5.
-4. **O detalhamento de custo do assistente não fecha quando há embalagem
-   listada.** `unit` inclui `itemsRate`, mas o `detail` só lista `Massa`
-   (`mix`, sem embalagem) e `Embalagem` (`product.unitPackagingCents`)
-   — `src/assistant/skills.ts:63-78`. É a mesma classe de defeito que o e2e
-   fecha na tela de cadastro de produto (`e2e/flow.mjs:1091-1104`), sem guarda
-   equivalente no assistente.
+4. ~~**O detalhamento de custo do assistente não fecha quando há embalagem
+   listada.**~~ — **CONSERTADO em 12 de setembro, e a leitura estava certa.** `unit` somava
+   três coisas e o `detail` listava duas: faltava a embalagem que é ITEM, cotada pelas notas
+   de compra. Hoje `src/assistant/skills.ts` acrescenta a linha *"Embalagem do estoque"*, e
+   ela nasce só quando existe — embalagem de estoque zerada não vira frase.
+
+   A conta que a guarda cobra, de cabeça: 50 centavos de massa + 5 de embalagem digitada + 3
+   de palito (milheiro a R$ 30) = **58 centavos**, e a manchete diz 58. Sem a linha, as duas
+   que apareciam somavam 55. `src/assistant/assistant.test.ts` mede os dois lados, com o
+   cenário do palito **local ao teste**: acrescentá-lo ao fixture compartilhado quebrou o teste
+   do almoxarifado (que conta itens) e o da lista de compras (o plano soma todos os produtos,
+   e um segundo produto na mesma receita dobrava o que falta comprar) — ajustar as
+   expectativas deles para o meu cenário passar seria mudar o que eles medem.
 5. **`compareVersions` compara só a massa**, sem embalagem
    (`src/domain/recipe.ts:263-264`), enquanto a tela que a chama exibe o custo por
    unidade **com** embalagem (`app/recipes/[id].tsx:238-252`). Os dois números da

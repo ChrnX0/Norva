@@ -1295,6 +1295,26 @@ const DEFECTS = [
       'a conferencia que BATEU passa a ser contada como sobra de zero: a tela diz "sobraram 0 g" onde devia dizer que bateu com o que veio, que e o alerta inventado com outro rosto',
   },
 
+  // --- a conta aberta que não fechava, 12 de setembro --------------------------
+  //
+  // `costPerProductUnit` soma massa, embalagem digitada e embalagem que é ITEM; o
+  // detalhamento do assistente mostrava duas. A mutação tira a linha do estoque, e o teste
+  // reprova dizendo "e a que sai do estoque, sem a qual a conta abre e não fecha".
+  {
+    file: 'src/assistant/skills.ts',
+    from: "                  label: 'Embalagem do estoque',",
+    to: "                  label: 'Embalagem',",
+    hurts:
+      'a conta aberta passa a ter DUAS linhas com o mesmo rotulo e valores diferentes: quem lista palito le "Embalagem R$ 0,05" e "Embalagem R$ 0,03" e nao tem como saber qual e qual, o que e pior que a linha faltando porque parece erro de calculo',
+  },
+  {
+    file: 'src/assistant/skills.ts',
+    from: '      const doEstoque = packagingRatePerUnit(product.packagingItems, costs ?? {});',
+    to: '      const doEstoque = 0;',
+    hurts:
+      'a embalagem que sai do estoque volta a entrar no total e a nao aparecer no detalhamento: quem lista palito ve a manchete subir sem nenhuma linha explicando, e conta que nao fecha ensina a desconfiar do numero inteiro - inclusive dos que estao certos',
+  },
+
   // --- a ficha que ROUDOU, 12 de setembro -------------------------------------
   //
   // O lote carimbava a versão do FECHAMENTO e congelava a taxa dela, para um tacho que

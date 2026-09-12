@@ -72,13 +72,40 @@ const costOfProduct: Skill = {
       });
       const mix = costPerProductUnit(cost, product.yieldPerUnit);
 
+      /**
+       * A embalagem do ESTOQUE entrava no total e não no detalhamento.
+       *
+       * `unit` soma três coisas — massa, embalagem digitada e a embalagem que é ITEM,
+       * cotada pelas notas de compra (`itemsRate`) —, e a conta aberta mostrava duas. Quem
+       * lista palito e saquinho como item via o total subir sem nenhuma linha explicando, o
+       * que é a Lei 6 pelo avesso: a conclusão abre uma conta que não fecha, e conta que não
+       * fecha ensina a desconfiar do número inteiro.
+       *
+       * A mesma tela de cadastro de produto já resolve isto com as três componentes
+       * nomeadas (`mixPlusBoth`), e a linha nasce só quando existe — embalagem do estoque
+       * zerada não vira linha, porque "está tudo bem" é estado e não frase.
+       */
+      const doEstoque = packagingRatePerUnit(product.packagingItems, costs ?? {});
+
       return {
         text: `${product.name} custa ${formatMoney(unit, ctx.locale)} por unidade.`,
         detail: [
           { label: 'Massa', value: formatMoney(mix, ctx.locale) },
           // O assistente fala português por decisão escrita (src/assistant/index.ts),
           // então a escala vem escrita aqui como o resto das frases dele.
+          //
+          // E a escala das duas embalagens é `a cada 1.000 unidades` de propósito, como na
+          // tela: são TAXAS, e qualquer embalagem abaixo de meio centavo por unidade
+          // apareceria como R$ 0,00 — a conta dizendo de graça o que o razão parou de dar.
           { label: 'Embalagem', value: formatUnitRate(product.unitPackagingRate ?? 0, ctx.locale, 'a cada 1.000 unidades') },
+          ...(doEstoque > 0
+            ? [
+                {
+                  label: 'Embalagem do estoque',
+                  value: formatUnitRate(doEstoque, ctx.locale, 'a cada 1.000 unidades'),
+                },
+              ]
+            : []),
           { label: 'Custo do lote', value: formatMoney(cost.batchCents, ctx.locale) },
           {
             label: 'Perda prevista',
