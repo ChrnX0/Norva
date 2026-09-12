@@ -1904,7 +1904,14 @@ test('the here guard bites the real scar, and leaves the fix alone', () => {
  * que erra calado. Quem chama de tela diz onde, ou o número de dois lugares
  * mente junto.
  */
-const ESCRITORES_COM_SALA = ['recordLoss', 'recordCount', 'recordProduction'] as const;
+const ESCRITORES_COM_SALA = [
+  'recordLoss',
+  'recordCount',
+  'recordProduction',
+  // A quarta entrou em 12 de setembro. Ela era a única das quatro que não aceitava sala, e
+  // por isso a guarda não a cobrava — a lista e o defeito concordavam.
+  'recordPurchase',
+] as const;
 
 test('every screen that writes to a room names the room', () => {
   const mudos: string[] = [];

@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { unidadeDaqui } from '@/data/unidade';
 import { avisoDeFalha } from '@/i18n/falha';
 import { ERROS } from '@/data/erros';
 import { useMemo, useState } from 'react';
@@ -780,6 +781,7 @@ async function recordAndMeasure(
   const before = costsBefore === null ? [] : unitCost(costsBefore);
 
   await recordPurchase(empresaDaqui(), {
+    locationId: unidadeDaqui(),
     itemId: item.id,
     supplierName: supplier.trim() || undefined,
     purchaseQuantity: packs,

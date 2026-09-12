@@ -62,7 +62,9 @@ export function liveData(companyId: string, timeZone: string): AssistantData {
     // hoje"* com as duas cidades somadas passa como fato, e quem ouve decide com ele.
     productionOn: (from, to) => productionOn(companyId, from, to, { unidade: unidadeDaqui() }),
     lossesOn: (from, to) => lossesOn(companyId, from, to, unidadeEAsNossasDeFora()),
-    recordPurchase: (input) => recordPurchase(companyId, input),
+    // `unidadeDaqui()` como padrão do CHAMADOR: o assistente grava pelo aparelho de quem
+    // está falando, e é esse aparelho que sabe em que unidade ele está.
+    recordPurchase: (input) => recordPurchase(companyId, { locationId: unidadeDaqui(), ...input }),
     // O assistente conta a prateleira do lugar padrão, e a habilidade só chega
     // aqui depois de conferir que o item está num lugar só - com o item em duas
     // salas ela para e diz quais (`src/assistant/skills.ts`, registerCount).

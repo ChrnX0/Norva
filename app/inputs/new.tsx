@@ -1,4 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
+import { unidadeDaqui } from '@/data/unidade';
 import { voltar } from '@/nav';
 import { avisoDeFalha } from '@/i18n/falha';
 import { ERROS } from '@/data/erros';
@@ -345,6 +346,7 @@ function InputForm() {
       if (editing) return;
 
       await recordPurchase(empresaDaqui(), {
+        locationId: unidadeDaqui(),
         itemId,
         purchaseQuantity: 1,
         baseUnits: Math.round(parsed.factor),

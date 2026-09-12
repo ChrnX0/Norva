@@ -114,6 +114,8 @@ export type AssistantData = {
     baseUnit: string;
   }): Promise<string>;
   recordPurchase(input: {
+    /** Em que sala a carga entrou. Nulo cai no almoxarifado padrão da empresa. */
+    locationId?: string;
     itemId: string;
     purchaseQuantity: number;
     baseUnits: number;

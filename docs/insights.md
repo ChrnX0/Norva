@@ -11274,3 +11274,27 @@ diz "são 25", a guarda é que decide.
 Nenhum dos trinta estava errado hoje. O que eles tornam possível amanhã é o defeito: com o
 arredondamento em trinta lugares, o dia em que um deles arredondar antes de somar em vez
 de depois não aparece em teste nenhum — aparece num total que ninguém explica meses depois.
+
+## 12 de setembro — a guarda e o defeito concordavam
+
+`ESCRITORES_COM_SALA` cobra das telas que elas digam em que sala estão gravando no razão. A
+lista tinha três nomes — `recordLoss`, `recordCount`, `recordProduction` — e o quarto
+escritor, `recordPurchase`, ficava de fora. Não por esquecimento: **ele não aceitava sala.**
+A régua não tinha o que cobrar dele, e o verde dela era verdadeiro e completamente vazio
+sobre o caminho que mais importa numa fábrica com duas unidades.
+
+O efeito: toda compra caía em `ensureLocation(companyId)`, o almoxarifado da PRIMEIRA
+unidade. Com uma unidade só — todas até hoje — os dois ids são o mesmo e nada aparece. Na
+segunda, a nota digitada lá dentro some: o saldo cresce a centenas de quilômetros de onde o
+caminhão descarregou, e quem está com o saco na mão conta falta.
+
+**A regra que sai é sobre a forma da lista.** Uma guarda cuja lista é derivada do que o
+código ACEITA não guarda o que o código DEVERIA aceitar — ela vira um espelho, e espelho
+não é régua. A pergunta certa ao escrever uma lista dessas é a do conceito: *quais atos
+escrevem no razão?* São quatro. Se um deles não tem como dizer a sala, isso é o achado, não
+a razão de excluí-lo.
+
+*É a irmã da cicatriz do `daysUntilExpiry` (justificativa de ausência medida pelo símbolo
+em vez do conceito) e da régua de porcentagem cega para três dos quatro rostos do mesmo
+defeito. Três formas diferentes da mesma doença: a régua desenhada a partir do estado atual
+do código em vez do que o código promete.*

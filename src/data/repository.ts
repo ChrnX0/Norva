@@ -539,6 +539,26 @@ export async function recordPurchase(
     totalCents: Cents;
     orderedAt?: string;
     /**
+     * Em que sala a carga entrou — e por que este parâmetro faltava.
+     *
+     * `recordPurchase` era o ÚNICO dos quatro escritores do razão que não aceitava sala:
+     * `recordLoss`, `recordCount` e `recordProduction` já recebiam, e a guarda
+     * `ESCRITORES_COM_SALA` cobrava as telas deles. Aqui a carga caía sempre em
+     * `ensureLocation(companyId)`, que é o almoxarifado da PRIMEIRA unidade.
+     *
+     * Numa fábrica de uma unidade só — todas até hoje — os dois são o mesmo id e nada
+     * aparece. Na segunda unidade, a nota digitada lá dentro some: o saldo cresce a
+     * centenas de quilômetros de onde o caminhão descarregou, e a contagem de quem está
+     * com o saco na mão passa a acusar falta. O defeito nasce inteiro no dia em que a
+     * fábrica cresce, que é exatamente quando ninguém está olhando para isto.
+     *
+     * Nulo continua caindo no padrão, porque quem tem um lugar só não deve ser obrigado a
+     * dizer qual — Lei 1. O padrão mora nos CHAMADORES (`unidadeDaqui()`), não aqui: este
+     * módulo não sabe em que unidade o aparelho está, e importar isso faria a camada de
+     * dados perguntar ao aparelho o que a tela já sabe.
+     */
+    locationId?: string;
+    /**
      * Quando a nota entrou de verdade, se não foi agora.
      *
      * Nota de compra chega atrasada: o caminhão descarrega às sete e alguém
@@ -645,7 +665,7 @@ export async function recordPurchase(
   await conn.withTransactionAsync(async () => {
     // Inside the transaction: a place that exists only because a purchase was
     // attempted, and the purchase then failed, would be a row nobody asked for.
-    const locationId = await ensureLocation(conn, companyId);
+    const locationId = input.locationId ?? (await ensureLocation(conn, companyId));
 
     // `received_at` é `occurred`, e não `at` — a mesma distinção que o razão faz.
     //

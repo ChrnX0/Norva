@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **786** testes |
+| `npm test` | **787** testes |
 | `npm run mutate` | **151** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **59** checagens num navegador de verdade |
 | `npm run db:verify` | **32** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **17** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -2261,9 +2261,21 @@ Daí a forma, e ela é forçada em vez de escolhida:
 4. **A escolha só aparece quando há mais de uma** (Lei 1: nunca peça o que o sistema
    pode deduzir). Fábrica de uma unidade nunca vê a pergunta, exatamente como fábrica
    sem transportadora nunca vê a escolha de quem levou.
-5. **`recordPurchase` é o único escritor que não aceita sala** — toda compra cai no
-   lugar padrão, sempre (`repository.ts:441`). Com duas unidades, a compra de uma
-   entra na outra, calada.
+5. ~~**`recordPurchase` é o único escritor que não aceita sala**~~ — **FEITO em 12 de
+   setembro.** Ele aceita `locationId`, as três telas que gravam compra passam
+   `unidadeDaqui()`, e a guarda `ESCRITORES_COM_SALA` (`src/layers.test.ts`) passou a
+   cobrá-lo junto com os outros três.
+
+   *E o que fazia isto sobreviver era a guarda e o defeito concordarem:* a lista dos
+   escritores que precisam dizer a sala tinha três nomes porque o quarto **não aceitava
+   sala** — então a régua não tinha o que cobrar, e o verde dela era verdadeiro e vazio.
+   Guarda cuja lista é derivada do que o código aceita não guarda o que o código deveria
+   aceitar.
+
+   O caso está preso em teste (`src/data/unidade.test.ts`): com a segunda unidade
+   escolhida, cinco quilos entram nela e o almoxarifado da primeira **não se mexe**.
+   Plantado o defeito de volta, ele reprova dizendo *"os cinco quilos entraram onde o
+   caminhão descarregou"*.
 6. **O nome vazio vira problema de tela na hora**: `nomeDoLugar` desenha "Fábrica" para
    o lugar sem nome, em seis telas. Duas unidades, e a primeira continua "Fábrica"
    enquanto a segunda tem nome — o operador vê duas linhas e uma delas não se

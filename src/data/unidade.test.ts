@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
+import { fromDecimal, type Cents } from '@/domain/money';
 import { DatabaseSync } from 'node:sqlite';
 import { beforeEach, test } from 'node:test';
 import { __setDb, db, migrate, type Db, type SqlParam } from './db';
 import { EMPRESA_SEMENTE, carregarEmpresa, empresaDaqui } from './empresa';
 import { readMeta, writeMeta } from './meta';
-import { defaultLocationId, recordCount, stockByPlace } from './repository';
+import { defaultLocationId, recordCount, stockByPlace, recordPurchase } from './repository';
 import { ensureStarterData } from './seed';
 import {
   CHAVE_DA_UNIDADE,
@@ -176,5 +177,62 @@ test('o que se grava depois de trocar de unidade cai NA outra, e o saldo da prim
     naPrimeiraDepois,
     naPrimeiraAntes,
     'o saldo da primeira unidade não pode ter se mexido — foi contagem na outra',
+  );
+});
+
+test('a nota lançada na segunda unidade entra NA segunda, e não no almoxarifado da primeira', async () => {
+  /**
+   * `recordPurchase` era o único dos quatro escritores do razão que não aceitava sala, e a
+   * guarda `ESCRITORES_COM_SALA` não o cobrava — a lista e o defeito concordavam. A carga
+   * caía sempre em `ensureLocation(companyId)`, o almoxarifado da PRIMEIRA unidade.
+   *
+   * Numa fábrica de uma unidade só os dois ids são o mesmo e nada aparece. Na segunda, a
+   * nota digitada lá dentro some: o saldo cresce a centenas de quilômetros de onde o
+   * caminhão descarregou, e quem está com o saco na mão conta falta.
+   */
+  await ensureStarterData();
+  const conn = await db();
+  const empresa = empresaDaqui();
+  const primeira = defaultLocationId(empresa);
+
+  const segunda = '3f9a0c17-8b24-4d55-9e63-0000000000bb';
+  await conn.runAsync(
+    `INSERT INTO locations (id, company_id, name, kind, created_at)
+     VALUES (?, ?, 'Marília', 'factory', ?)`,
+    [segunda, empresa, new Date().toISOString()],
+  );
+
+  const item = await conn.getFirstAsync<{ id: string }>(
+    `SELECT id FROM items WHERE company_id = ? AND kind = 'input' LIMIT 1`,
+    [empresa],
+  );
+  assert.ok(item, 'o exemplo semeado tem de ter pelo menos um insumo');
+
+  const saldo = async (lugar: string) =>
+    (await stockByPlace(empresa))
+      .find((p) => p.locationId === lugar)
+      ?.lines.find((i) => i.itemId === item.id)?.baseUnits ?? 0;
+
+  const primeiraAntes = await saldo(primeira);
+  const segundaAntes = await saldo(segunda);
+
+  await escolherUnidade(segunda);
+  await recordPurchase(empresa, {
+    itemId: item.id,
+    purchaseQuantity: 1,
+    baseUnits: 5_000,
+    totalCents: fromDecimal(62) as Cents,
+    locationId: unidadeDaqui(),
+  });
+
+  assert.equal(
+    await saldo(segunda),
+    segundaAntes + 5_000,
+    'os cinco quilos entraram onde o caminhão descarregou',
+  );
+  assert.equal(
+    await saldo(primeira),
+    primeiraAntes,
+    'e o almoxarifado da primeira unidade não se mexeu — era para lá que a carga ia antes',
   );
 });
