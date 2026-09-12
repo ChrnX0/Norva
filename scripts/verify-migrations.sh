@@ -337,6 +337,22 @@ grant insert on movements to app_user;
 SQL
 
 CHECKER=00000000-0000-4000-8000-000000000004
+
+# A SEGUNDA pessoa na doca, com a MESMA capacidade da primeira.
+#
+# Ela existe por causa da garantia 34: a decisão do dono é sobre duas pessoas conferindo a
+# mesma carga, e provar "o primeiro que aceitar fica" com contas de capacidades diferentes
+# mede permissão em vez de arbitragem. Foi o que aconteceu na primeira escrita daquela
+# garantia — ela passou verde com o defeito plantado, porque o segundo a aceitar era o `OWNER`,
+# que não tem `adjust_stock`. Duas conferentes iguais deixam `resolution` ser a única variável.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<'SQL'
+insert into auth.users (id) values ('00000000-0000-4000-8000-000000000006');
+insert into memberships (company_id, user_id, display_name, capabilities)
+  values ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-000000000006',
+          'Conferente da tarde', array['check_receipt','adjust_stock']::capability[]);
+SQL
+
+CHECKER2=00000000-0000-4000-8000-000000000006
 M=00000000-0000-4000-8000-0000000000
 rows() { psql -d "$DB" -Atqc "$1"; }
 
@@ -508,6 +524,11 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
   -- corrige, se combina de novo. A política exige manage_company por cima dos dois.
   grant insert, update on location_prices to app_user;
   grant insert on sale_price_history to app_user;
+  -- A candidata da conferência duplicada entra e é DECIDIDA uma vez, então precisa dos dois
+  -- verbos — e é a política da `0062` que faz o `update` valer uma vez só, com
+  -- `using (resolution is null)`. O grant abre a porta; quem diz que ela fecha depois da
+  -- primeira decisão é a política, e é exatamente essa diferença que a garantia 34 mede.
+  grant insert, update on check_candidates to app_user;
   -- Leitura de sensor entra só com INSERT, como o livro-razão: a temperatura de
   -- ontem às três da manhã não se corrige, se mede de novo. Uma série que aceita
   -- UPDATE deixa de ser prova de nada.
@@ -2168,5 +2189,89 @@ done
 echo "    um lote de tres com o mesmo relogio atravessa inteiro, e o cursor no fim nao repete nada"
 
 echo
-echo "OK - migrations apply and all thirty-three guarantees hold."
+echo "==> check 34: o PRIMEIRO que aceitar fica — e quem arbitra e a politica, nao o aplicativo"
+
+# A decisao do dono, de 11 de setembro: *"mostra os dados para os dois celulares e o primeiro
+# q aceitar fica como permanente."*
+#
+# O desenho inicial dizia `update check_candidates set resolution = ...`, e sem condicao DOIS
+# CELULARES aceitando no mesmo minuto gravam os dois — o ultimo vence, que e o contrario exato
+# do que foi pedido: nao fica o primeiro, fica o mais lento. A politica de `update` da `0062`
+# tem `using (resolution is null)`: decidida a linha, ela deixa de ser visivel para escrita,
+# para todo mundo.
+#
+# **Isto so se prova contra um Postgres de verdade.** Nao e uma condicao no aplicativo que um
+# teste de unidade possa exercitar — e a RLS decidindo, e RLS o dono do banco IGNORA. O
+# `as_user` entra como `app_user`, que e o papel que existe neste script justamente para a
+# politica valer.
+
+CAND=eeee0000-0000-4000-8000-0000000001
+
+# A candidata entra: e a conferencia que a 0051 recusou, esperando alguem decidir.
+as_user "$CHECKER" "insert into check_candidates
+  (id, company_id, movement_group_id, item_id, location_id, occurred_at,
+   quantity_base_units, recorded_by, recorded_at)
+  values ('${CAND}a1','${M}c1','${CAND}b1','${M}b1','${M}a1', now(), 500, '$CHECKER', now());" >/dev/null 2>&1 || true  # proofgate-allow
+
+ENTROU=$(rows "select count(*) from check_candidates where id = '${CAND}a1';")  # proofgate-allow
+[ "$ENTROU" = "1" ] || fail "a candidata nao entrou: sem ela a duplicacao nao tem onde esperar uma pessoa"
+
+# O PRIMEIRO aceita. Uma linha muda.
+PRIMEIRO=$(as_user "$CHECKER" "with feito as (
+  update check_candidates set resolution = 'first', resolved_at = now(), resolved_by = '$CHECKER'
+   where id = '${CAND}a1' returning 1) select count(*) from feito;")  # proofgate-allow
+[ "$PRIMEIRO" = "1" ] || fail "a primeira aceitacao nao mudou linha nenhuma (mudou '$PRIMEIRO'): ninguem consegue decidir"
+
+# O SEGUNDO aceita o contrario, no mesmo minuto. ZERO linhas — e isso nao e erro: e a resposta.
+SEGUNDO=$(as_user "$CHECKER2" "with feito as (
+  update check_candidates set resolution = 'second', resolved_at = now(), resolved_by = '$OWNER'
+   where id = '${CAND}a1' returning 1) select count(*) from feito;")  # proofgate-allow
+[ "$SEGUNDO" = "0" ] || fail "a SEGUNDA aceitacao mudou $SEGUNDO linha(s): o ultimo a tocar venceria, e o dono pediu o primeiro"
+
+# E o que ficou gravado e a decisao do primeiro, com o nome dele.
+FICOU=$(rows "select resolution || ' ' || resolved_by from check_candidates where id = '${CAND}a1';")  # proofgate-allow
+[ "$FICOU" = "first $CHECKER" ] || fail "ficou '$FICOU', esperava 'first $CHECKER': a decisao do primeiro foi sobrescrita"
+
+# **O CASO DE CONTROLE, e sem ele as tres linhas acima nao provavam nada.**
+#
+# O segundo a aceitar e outra conta, entao o zero de cima tem DUAS explicacoes possiveis: a
+# linha ja estava decidida, ou aquela conta nao pode escrever nesta tabela. Plantei o defeito
+# que a garantia NOMEIA — tirei `resolution is null` do `using` da politica — e ela continuou
+# verde: o zero vinha da capacidade, nao da arbitragem. A regua media a coisa errada.
+#
+# Uma candidata NOVA, sem decisao, aceita pela MESMA segunda conta: se ela escreve aqui, o
+# zero de cima so pode ter sido a decisao ja tomada.
+as_user "$CHECKER" "insert into check_candidates
+  (id, company_id, movement_group_id, item_id, location_id, occurred_at,
+   quantity_base_units, recorded_by, recorded_at)
+  values ('${CAND}a3','${M}c1','${CAND}b3','${M}b1','${M}a1', now(), 700, '$CHECKER', now());" >/dev/null 2>&1 || true  # proofgate-allow
+
+CONTROLE=$(as_user "$CHECKER2" "with feito as (
+  update check_candidates set resolution = 'second', resolved_at = now(), resolved_by = '$OWNER'
+   where id = '${CAND}a3' returning 1) select count(*) from feito;")  # proofgate-allow
+[ "$CONTROLE" = "1" ] \
+  || fail "a segunda conta nao consegue decidir nem uma candidata LIVRE (mudou '$CONTROLE'): entao o zero da aceitacao anterior era falta de permissao, e esta garantia nao mede a arbitragem"
+
+# A trava de integridade: resolucao sem quem e sem quando e decisao sem dono.
+MEIA=$(as_user "$CHECKER" "insert into check_candidates
+  (id, company_id, movement_group_id, item_id, occurred_at, quantity_base_units,
+   recorded_by, recorded_at, resolution)
+  values ('${CAND}a2','${M}c1','${CAND}b2','${M}b1', now(), 100, '$CHECKER', now(), 'first');" 2>&1 >/dev/null | head -1 || true)
+# O `|| true` não é frouxidão: esta inserção TEM de falhar, e com `set -euo pipefail` o cano
+# que devolve não-zero derruba o script antes de o `fail` poder dizer o que quebrou. É a mesma
+# cicatriz que a garantia 28 já carrega escrita algumas centenas de linhas acima.
+case "$MEIA" in
+  *check_candidates_resolution_complete*) ;;
+  *) fail "uma resolucao SEM quem e sem quando foi aceita: campo que nao e cobrado nao e preenchido, e a decisao fica sem dono" ;;
+esac
+
+# E a candidata desce, senao so quem PERDEU sabe que houve disputa.
+TEM=$(rows "select count(*) from information_schema.columns
+            where table_name = 'check_candidates' and column_name = 'received_at';")  # proofgate-allow
+[ "$TEM" = "1" ] || fail "check_candidates nao tem received_at: a candidata nao desceria, e o celular que GANHOU nunca veria a duplicacao"
+
+echo "    a segunda aceitacao alcanca zero linhas, e a decisao do primeiro fica com o nome dele"
+
+echo
+echo "OK - migrations apply and all thirty-four guarantees hold."
 

@@ -11377,3 +11377,50 @@ reprova dizendo *"sem o desempate, um lote inteiro some depois da primeira linha
 numa transação, ordem de gatilho, tradução de SQLSTATE — a prova tem de rodar contra o banco.
 E a garantia precisa checar primeiro que a propriedade vale**, senão ela passa verde medindo
 um caso que não aconteceu.
+
+## 12 de setembro — a garantia que passava verde porque media permissão, não arbitragem
+
+A decisão do dono é *"o primeiro que aceitar fica"*. A `0062` a impõe onde ela não pode ser
+burlada: a política de `update` tem `using (resolution is null)`, então linha decidida deixa
+de ser visível para escrita — a segunda aceitação não erra, ela alcança **zero linhas**.
+
+Escrevi a garantia 34 para provar isso: primeira conta aceita (1 linha), segunda conta aceita
+(0 linhas), e a decisão da primeira fica gravada com o nome dela. Verde. Então plantei o
+defeito que ela nomeia — tirei `resolution is null` do `using` — e **ela continuou verde**.
+
+A causa é a mais antiga deste caderno com um rosto novo: as duas contas tinham capacidades
+**diferentes**. A segunda era o `OWNER`, que tem `view_cost`, `manage_company` e
+`record_production` — e não tem `adjust_stock`. O zero não vinha da arbitragem; vinha da
+permissão. A régua estava medindo a coisa certa pelo motivo errado, e teria aprovado para
+sempre uma política sem condição nenhuma.
+
+O conserto tem duas partes, e a segunda é a que vale:
+
+1. uma **segunda conferente** com a MESMA capacidade da primeira, para `resolution` ser a
+   única variável entre as duas aceitações;
+2. um **caso de controle**: a segunda conta aceita uma candidata NOVA, sem decisão, e tem de
+   conseguir. Sem ele, "zero linhas" continua tendo duas explicações — e é o caso de controle
+   que denuncia quando a explicação muda.
+
+*E o injetor falhou em silêncio no meio disso, o que dobra a lição:* a primeira tentativa de
+plantar o defeito não plantou nada (aspas aninhadas num `python -c` dentro do shell), e o
+`grep` que eu rodei para conferir contou **a prosa do docblock que cita o padrão** — dois
+verdes seguidos, nenhum medindo nada. A regra desta casa já manda conferir a injeção no
+disco; falta a metade que eu aprendi agora: **confira o que a linha de CÓDIGO diz, não quantas
+vezes o texto aparece no arquivo.**
+
+## 12 de setembro — arbitragem é permissão sobre o tempo
+
+O desenho inicial do *"primeiro que aceitar"* era `update check_candidates set resolution =
+...` no aplicativo. Sem condição, dois celulares aceitando no mesmo minuto gravam os dois e o
+**último** vence — o contrário exato do pedido: não fica o primeiro, fica o mais lento.
+
+Pôr a condição no cliente (`where resolution is null`) conserta o caso honesto e não o caso
+que importa: o cliente está do lado de fora da fronteira. A fundação desta casa já diz que
+**permissão mora na consulta, nunca numa instrução** — e a percepção que faltava é que
+arbitragem é uma forma de permissão: *quem pode escrever esta linha* deixa de depender só de
+QUEM e passa a depender de QUANDO.
+
+`using (resolution is null)` na política diz as duas coisas com a mesma gramática. E o `with
+check` ao lado fecha a outra metade — sem ele, um `update` mudaria `first` para `second`
+dentro da mesma requisição em que a linha ainda parecia livre.
