@@ -116,13 +116,32 @@ function Conversation() {
 
   const capacidades = useCapacidades();
 
+  /**
+   * **O assistente fala português e conta o dia da FÁBRICA — as duas coisas juntas.**
+   *
+   * `locale: defaultLocale` prendia tudo em São Paulo, inclusive o fuso. Isso não é a
+   * decisão do monolíngue: essa é sobre TRADUÇÃO (*"nada de tradução das respostas"* até o
+   * áudio existir), e fuso não é idioma, é fato. O `liveData` logo acima já recebia o fuso
+   * de verdade, então o assistente lia o razão com o dia de Manaus e MONTAVA A FRASE com
+   * o dia de São Paulo — `dayWindow(nowIso(), ctx.locale.timeZone)` em quatro lugares do
+   * `skills.ts`. Às 3h30 UTC os dois discordam sobre que dia é hoje, e o assistente
+   * responde "hoje saíram 400" de um dia diferente do que toda outra tela chama de hoje.
+   *
+   * A moeda vai junto pelo mesmo motivo: quem paga em pesos vê "R$" numa conta certa, o
+   * que é pior que número errado — parece confiável. O que fica cravado é o par
+   * `language`/`formatting`, que é o que o congelamento protege.
+   */
   const context = useMemo(
     () => ({
       data: liveData(empresaDaqui(), locale.timeZone),
       capabilities: capacidades,
-      locale: defaultLocale,
+      locale: {
+        ...defaultLocale,
+        timeZone: locale.timeZone,
+        currency: locale.currency,
+      },
     }),
-    [locale.timeZone, capacidades],
+    [locale.timeZone, locale.currency, capacidades],
   );
 
   const examples = useMemo(() => knownSkills(capacidades).map((s) => s.example), [capacidades]);

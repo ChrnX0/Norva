@@ -11,6 +11,7 @@ import type {
 import { fromDecimal, rate, type Cents, type Rate } from '@/domain/money';
 import type { ItemCosts, Recipe } from '@/domain/recipe';
 import { defaultLocale } from '@/i18n';
+import { localDate } from '@/domain/day';
 import { ask } from './index';
 import { findByName, namesakes, parseNumber } from './text';
 import type { AssistantData, Capability, SkillContext } from './types';
@@ -1085,5 +1086,45 @@ test('o rascunho da produção diz o número no separador do idioma', async () =
     vezes.value,
     /\d\.\d/,
     `o ponto decimal cru chegou à folha: ${vezes.value}`,
+  );
+});
+
+test('o assistente conta o dia da FÁBRICA, não o de São Paulo', async () => {
+  /**
+   * `app/assistant.tsx` montava o contexto com `locale: defaultLocale` — pt-BR e
+   * `America/Sao_Paulo` cravados —, enquanto `liveData` recebia o fuso de verdade. O
+   * assistente lia o razão com o dia de Manaus e MONTAVA A FRASE com o dia de São Paulo:
+   * `dayWindow(nowIso(), ctx.locale.timeZone)` aparece em quatro lugares do `skills.ts`.
+   *
+   * Às 3h30 UTC os dois fusos discordam sobre que dia é hoje — em São Paulo (UTC-3) são
+   * 00h30 de hoje, em Manaus (UTC-4) são 23h30 de ontem. O assistente responderia "hoje
+   * saíram 400" de um dia diferente do que toda outra tela chama de hoje.
+   *
+   * A decisão do monolíngue congela TRADUÇÃO (*"nada de tradução das respostas"*), e fuso
+   * não é idioma: é fato. Esta régua prende a diferença.
+   */
+  const emManaus: SkillContext = {
+    data,
+    capabilities: new Set<Capability>(['record_production']),
+    locale: { ...defaultLocale, timeZone: 'America/Manaus' },
+  };
+
+  assert.equal(
+    emManaus.locale.language,
+    'pt-BR',
+    'o idioma continua cravado: o congelamento do assistente é sobre tradução',
+  );
+  assert.notEqual(
+    emManaus.locale.timeZone,
+    defaultLocale.timeZone,
+    'e o fuso NÃO é cravado — uma fábrica em Manaus conta o dia dela',
+  );
+
+  // E a diferença é de um DIA de calendário, não de horas: é isso que faz a frase mentir.
+  const instante = '2026-09-13T03:30:00.000Z';
+  assert.notEqual(
+    localDate(instante, 'America/Manaus'),
+    localDate(instante, defaultLocale.timeZone),
+    'às 3h30 UTC, São Paulo já virou o dia e Manaus não — o assistente diria "hoje" de dois dias diferentes',
   );
 });

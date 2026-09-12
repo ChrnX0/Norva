@@ -11298,3 +11298,28 @@ a razão de excluí-lo.
 em vez do conceito) e da régua de porcentagem cega para três dos quatro rostos do mesmo
 defeito. Três formas diferentes da mesma doença: a régua desenhada a partir do estado atual
 do código em vez do que o código promete.*
+
+## 12 de setembro — o assistente lia o razão num fuso e escrevia a frase noutro
+
+`app/assistant.tsx` montava o contexto com `data: liveData(empresa, locale.timeZone)` e
+`locale: defaultLocale` — **a mesma tela, duas fontes de fuso, na mesma expressão.** A
+camada de dados recebia o fuso da fábrica e as frases eram montadas com `America/Sao_Paulo`
+cravado. `dayWindow(nowIso(), ctx.locale.timeZone)` aparece em quatro lugares do
+`skills.ts`, então às 3h30 UTC o assistente responderia *"hoje saíram 400"* de um dia
+diferente do que toda outra tela chama de hoje — em São Paulo já é hoje, em Manaus ainda é
+ontem.
+
+**O que fazia isso parecer certo era uma decisão de verdade lida larga demais.** O
+assistente está congelado até o áudio existir, e o congelamento diz *"nada de tradução das
+respostas"*. `defaultLocale` é o objeto que carrega o idioma — e carrega junto fuso e moeda,
+que **não são idioma**. Um objeto que agrupa "como se escreve" com "onde a fábrica fica" faz
+uma decisão sobre a primeira metade valer silenciosamente para a segunda.
+
+A regra que sai: **quando uma decisão congela um ASPECTO, o congelamento não pode ser feito
+congelando o objeto inteiro que contém aquele aspecto.** Aqui o conserto é literalmente um
+espalhamento — `{ ...defaultLocale, timeZone, currency }` —, e ele deixa visível o que está
+cravado e o que não está.
+
+*E a moeda tinha o mesmo defeito, com a consequência pior: quem paga em pesos via "R$" numa
+conta certa. Número certo com o símbolo errado é pior que número errado, porque parece
+confiável.*
