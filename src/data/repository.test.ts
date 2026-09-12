@@ -1664,6 +1664,30 @@ test('desfazer a conferência deixa a remessa de pé, e dá para conferir de nov
   const plano = await planReversal(EMPRESA_SEMENTE, carga.groupId);
   assert.equal(plano.alreadyReversed, false, 'a carga continua estornável depois de desfazer a conferência');
   assert.equal(plano.legs.length, 2, 'e o plano promete mover só as pernas que estão de pé');
+
+  /**
+   * 5. O EXTRATO, que é o quinto predicado — e ele atravessou a oficina sem ninguém.
+   *
+   * A agregação do extrato era `if (l.reversed === 1) ja.reversed = true`, e o estorno parcial
+   * a obrigou a virar `if (l.reversed === 0) ja.reversed = false`. Eu troquei a linha e listei a
+   * mutação, e **não escrevi a asserção**: a bandeira é lida pela TELA (é ela que decide desenhar
+   * "Desfeito" e esconder o desfazer), e a unidade não renderiza tela. A oficina reportou a
+   * mutação como pega numa execução que lia a árvore no meio de uma edição minha, e como
+   * SOBREVIVENTE na execução seguinte, com a árvore parada. A segunda é a verdadeira, e está
+   * reproduzida na mão: 773 testes verdes com o defeito plantado.
+   *
+   * O que o defeito faz na tela: com a conferência desfeita e a carga inteira de pé, o ato
+   * aparece como "Desfeito" e o botão de trazer a mercadoria de volta desaparece — a etiqueta
+   * mente sobre mercadoria que está na loja.
+   */
+  const ato = (await ledgerExtract(EMPRESA_SEMENTE)).find((a) => a.groupId === carga.groupId);
+  assert.ok(ato, 'a remessa aparece no extrato');
+  assert.equal(ato.reversed, false, 'com uma perna de pé o ato NÃO está desfeito');
+  assert.equal(
+    ato.temConferencia,
+    false,
+    'e a porta de desfazer só a conferência sai, porque não há conferência de pé para desfazer',
+  );
 });
 
 /**

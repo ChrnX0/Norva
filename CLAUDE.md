@@ -543,13 +543,24 @@ Duas regras de operação, ambas cicatriz:
   aviso: âncora que eu mudei sai "o trecho mudou" (medida que não houve), e o resto passa a ser
   aplicado à minha versão nova. Nesta sessão eu acrescentei uma função a `src/data/repository.ts`
   com a oficina rodando; o `.mutate/w0` ficou com a minha versão nova contra um `outbox.ts` do
-  instantâneo, sem o `export` que ela importa. **Aqui isso foi inofensivo por sorte de módulo:**
-  sem `"type": "module"` no `package.json` o `tsx` compila para CJS, e import nomeado que não
-  existe vira `undefined` em vez de erro de ligação — medido, não suposto. Em ESM seria erro no
-  carregamento, a suíte inteira falharia sem mutação nenhuma, e **toda** mutação seguinte sairia
-  "pega" sem a suíte ter sido consultada, que é o defeito de 3 de setembro voltando por outra
-  porta. Os documentos (`docs/`, `CLAUDE.md`) são copiados no início, então editá-los no meio é
-  seguro — e é exatamente o contrário do que a cicatriz anterior sugeria.
+  instantâneo, sem o `export` que ela importa.
+
+  **E eu escrevi aqui, duas horas antes, que isso tinha sido "inofensivo por sorte de módulo" —
+  estava errado, e a execução seguinte provou.** O raciocínio era certo sobre o mecanismo que eu
+  examinei (sem `"type": "module"` o `tsx` compila para CJS, e import nomeado inexistente vira
+  `undefined` em vez de erro de ligação — medido). O que ele não cobria é o caso banal: `julgar()`
+  pode ler o arquivo **no meio da minha escrita**. E o efeito apareceu: a mutação do `reversed` do
+  extrato saiu **"pega"** na execução que leu a árvore viva e **SOBREVIVENTE** na seguinte, com a
+  árvore parada — e a segunda é a verdadeira, reproduzida na mão, 773 testes verdes com o defeito
+  plantado. Um falso "pego" sobre um sobrevivente de verdade é o pior resultado que esta
+  ferramenta pode dar, porque ele fecha a caça.
+
+  Então a regra não tem borda: **nada de editar fonte enquanto a oficina roda**, e verdicto de uma
+  execução que atravessou edições minhas não vale — repita com a árvore parada. Em ESM seria pior
+  ainda: a suíte da cópia falharia sem mutação nenhuma e **toda** mutação seguinte sairia "pega"
+  sem a suíte ter sido consultada, que é o defeito de 3 de setembro voltando por outra porta. Os
+  documentos (`docs/`, `CLAUDE.md`) são copiados no início, então editá-los no meio é seguro — e é
+  exatamente o contrário do que a cicatriz anterior sugeria.
 - **Mutação em SQL preserva a CONTAGEM DE PARÂMETROS, ou mede o driver em vez da regra — 12 de
   setembro.** Para provar o portão do nome do operador (`CASE WHEN ? = 1 THEN pe.name END`) eu
   troquei a expressão por `pe.name` — e o teste reprovou com `column index out of range`, do

@@ -10767,7 +10767,8 @@ pe.name END`), e aí a reprovação diz a frase da asserção: *"sem a chave lig
 da consulta"*. *A régua: é a regra de plantar o defeito que a asserção NOMEIA, virada para
 dentro — a asserção estava boa, a mutação é que media outra coisa.*
 
-**3. O `mutate` LÊ a árvore viva enquanto roda.** O `CLAUDE.md` dizia que ele "nunca mais toca
+**3. O `mutate` LÊ a árvore viva enquanto roda — e o custo NÃO foi zero, ao contrário do que eu
+escrevi duas horas antes nesta mesma entrada.** O `CLAUDE.md` dizia que ele "nunca mais toca
 a árvore de trabalho", e isso é verdade sobre escrever. `julgar()` lê o `original` de
 `process.cwd()` **no instante de julgar cada defeito** — então eu editei `src/data/repository.ts`
 com a oficina rodando e o `.mutate/w0` ficou com a minha versão nova contra um `outbox.ts` do
@@ -10776,6 +10777,19 @@ foi **medido e não suposto**: sem `"type": "module"` o `tsx` compila para CJS, 
 inexistente vira `undefined` em vez de erro de ligação. Em ESM a suíte da cópia falharia sem
 mutação nenhuma e **toda** mutação seguinte sairia "pega" sem a suíte ter sido consultada — o
 defeito de 3 de setembro voltando por outra porta.
+
+**E a frase "inofensivo por sorte de módulo" estava errada, medida na execução seguinte.** O
+raciocínio cobria o mecanismo que eu tinha examinado e esquecia o banal: `julgar()` pode ler o
+arquivo **no meio da minha escrita**. O efeito tem nome e endereço — a mutação do `reversed` do
+extrato saiu **"pega"** na execução que leu a árvore viva e **SOBREVIVENTE** na seguinte, com a
+árvore parada. A segunda é a verdadeira, e está reproduzida na mão: `npm test` **773 verdes com o
+defeito plantado**. Um falso "pego" sobre um sobrevivente de verdade é o pior resultado que esta
+ferramenta pode dar, porque ele **fecha a caça** — e eu tinha escrito na rodada anterior que essa
+mutação estava provada, contando quatro mutações onde só três tinham sido exercidas na mão.
+
+*A régua, em duas metades: **nada de editar fonte enquanto a oficina roda**, e **veredito de
+execução que atravessou edição não vale** — repita com a árvore parada. E a irmã dela, que é
+sobre mim: "listei a mutação" não é "provei a mutação".*
 
 **4. E o custo da barra envelheceu, o que muda uma decisão.** Medido: `mutate` **28 min 39 s**
 (139 mutações), `e2e:fast` **6 min 12 s** (58 checagens), suíte **11,6 s** com a máquina livre e
@@ -10794,3 +10808,36 @@ jeito. A contagem idêntica prova que **nenhum aviso novo apareceu**, e não que
 interpolação nova existe. Não é buraco a caçar: o guard é `WARN` por desenho, e as 55 são a
 população conhecida de falso positivo (`${marcas}` é lista de marcadores, `${naoEstornado(...)}`
 é fragmento constante — nenhuma vem de quem digita). O que muda é a frase que eu escrevo.
+
+---
+
+## 12 de setembro — o QUINTO predicado do estorno parcial não tinha asserção, e a oficina o pegou
+
+**O que se viu.** A execução da oficina sobre `5cf788b` fechou com **um sobrevivente**: trocar
+`if (l.reversed === 0) ja.reversed = false` por `if (l.reversed === 1) ja.reversed = true` na
+agregação do extrato atravessa os 773 testes. Reproduzido na mão, com a árvore parada, para não
+depender do relatório: `npm test` verde com o defeito plantado.
+
+**Por que passou.** A entrada de 12 de setembro sobre o estorno parcial conta que três predicados
+tiveram de crescer de *"alguma perna estornada"* para *"nenhuma de pé"*. O terceiro deles é a
+bandeira `reversed` do extrato — e ela é **lida pela TELA**, que decide desenhar "Desfeito" e
+esconder o botão de trazer a carga de volta. A unidade não renderiza tela, então a bandeira nunca
+foi comparada com nada: eu troquei a linha, escrevi a mutação, e **não escrevi a asserção**.
+
+É a mesma forma do sobrevivente de 11 de setembro (`app/purchase.tsx`, `if (baseUnits <= 0)`), e a
+diferença é instrutiva: lá a régua tinha de sair para uma guarda de FONTE, porque a regra morava
+na tela. Aqui não — a bandeira é um **fato devolvido pela camada de dados**, e fato se compara com
+igualdade num teste de Node. O que faltava era só a linha.
+
+**O que mudou.** O teste do estorno parcial ganhou a quinta parte: depois de desfazer só a
+conferência, `ledgerExtract` diz `reversed === false` (a carga está de pé) e `temConferencia ===
+false` (não há conferência de pé para desfazer, então a porta estreita sai). As duas metades da
+mesma agregação agora têm mutação própria, e as duas reprovam **pela frase que a asserção
+escreve** — medido uma por uma, com a injeção conferida no disco antes de eu ler a medida.
+
+**E o achado maior é sobre o instrumento, não sobre o extrato.** Esta mutação saiu **"pega"** na
+execução anterior — a que leu a árvore viva enquanto eu editava — e sobrevivente nesta. O falso
+"pego" é o pior resultado possível de uma oficina, porque ele **fecha a caça**: eu tinha escrito
+na rodada anterior que os quatro predicados estavam provados, quando três tinham sido exercidos na
+mão e o quarto só listado. Dois hábitos saem daqui: **veredito de execução que atravessou edição
+não vale**, e **"listei a mutação" não é "provei a mutação"**.

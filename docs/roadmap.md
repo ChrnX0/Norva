@@ -50,13 +50,25 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 | | |
 |---|---|
 | `npm test` | **773** testes |
-| `npm run mutate` | **142** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
+| `npm run mutate` | **143** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **59** checagens num navegador de verdade |
 | `npm run db:verify` | **32** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **17** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 
-*Última execução do `mutate`: **11 de setembro**, e ela achou um buraco de verdade.*
+*Última execução do `mutate`: **12 de setembro**, e ela achou um sobrevivente de verdade — a
+bandeira `reversed` do extrato, o quinto predicado que o estorno parcial obrigou a crescer e o
+único sem asserção, porque ela é lida pela TELA. Resultado: **142 plantadas, 139 pegas, 2
+equivalentes, 1 sobrevivente, 0 não medidas**, em **28 min 39 s** na execução anterior de 139.
+Consertado no mesmo commit, com as duas metades da agregação provadas uma por uma; o arquivo passa
+a ter 143.*
+
+*E a execução ANTERIOR desta mesma noite deu a mesma mutação como **PEGA** — ela leu a árvore viva
+enquanto eu editava, que é o que `julgar()` faz. Um falso "pego" sobre um sobrevivente de verdade
+fecha a caça, e é a razão de a regra agora ser dura: nada de editar fonte com a oficina rodando, e
+veredito de execução que atravessou edição não vale.*
+
+*Antes dela, a de **11 de setembro**, que também achou um buraco de verdade.*
 
 *A execução anterior fechou com uma âncora ambígua contada como sobrevivente — o `from`
 casava com duas linhas de `src/domain/recipe.ts`, a mutação deixou de ser aplicada, e o

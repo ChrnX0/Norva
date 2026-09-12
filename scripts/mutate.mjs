@@ -1228,6 +1228,16 @@ const DEFECTS = [
     hurts:
       'o extrato passa a marcar o ato inteiro como "Desfeito" depois de desfazer so a conferencia: a etiqueta mente e o botao de trazer a carga de volta desaparece, com a mercadoria ainda na loja',
   },
+  // A OUTRA metade da mesma agregação, e ela decide se a PORTA estreita é desenhada. A de cima
+  // sobreviveu à oficina por falta de asserção — a bandeira é lida pela tela, e a unidade não
+  // renderiza tela. As duas agora têm igualdade no teste do estorno parcial.
+  {
+    file: 'src/data/repository.ts',
+    from: "    if (l.kind === 'discrepancy' && l.reversed === 0) ja.temConferencia = true;",
+    to: "    if (l.kind === 'discrepancy') ja.temConferencia = true;",
+    hurts:
+      'o extrato oferece "Desfazer so a conferencia" numa remessa cuja conferencia JA foi desfeita: o toque nao faz nada e devolve zero, e a pessoa conclui que o aplicativo travou',
+  },
 
   // --- a tela do que ficou de lado, 12 de setembro ---------------------------
   //
