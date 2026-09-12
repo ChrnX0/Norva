@@ -11094,3 +11094,38 @@ segunda por escrito — e foi a segunda que envelheceu, porque a conta que "ning
 sendo feita a dez linhas de distância, sem o nome da função. **Justificativa de ausência se
 mede pelo CONCEITO, não pelo símbolo:** `grep` pela divisão por um dia achou os cinco; `grep`
 pelo nome achava zero e concordava com a mentira.
+
+
+## 12 de setembro — "algumas animações" era plural, e a caça devolveu doze mecanismos
+
+O dono disse *"algumas animações ainda dão uma tremida"* e eu tratei uma hipótese — o
+cabeçalho. Seis frentes de leitura com três céticos por achado devolveram **doze
+mecanismos**, e nenhum era impressão: cada um tem linha, conta e conserto de uma a dez
+linhas. Eles caem em quatro famílias, e as famílias valem mais que a lista:
+
+1. **Troca de ramo dentro da animação.** Quatro cenas de cabeçalho com ciclo 'volta' e
+   opacidade 1 em `t→1`, 0 em `t=0`: um quadro de corte a cada volta, para sempre — o risco
+   dos Pedidos apagava a cada 5 s, o engradado da Separação sumia a cada 5,6 s, a gota da
+   fábrica estalava a cada 2,1 s, a folha da cópia teleportava 204 unidades a cada 2,8 s. O
+   `Espelho`, no mesmo arquivo, fazia certo. E o relógio compartilhado fazia a mesma troca
+   na navegação: `repouso` ↔ fase crua num quadro, na saída e na volta.
+2. **Entrada re-disparada por dependência de dado.** `Reveal`, `Alive` e `Drain` tinham
+   `index`/`preso` nas dependências de um efeito que começa com atribuição CRUA a zero:
+   dado chegando depois teleportava o cartão assentado e o reanimava. `Mosaic` e o
+   assistente faziam o mesmo por outro caminho — chave que muda de valor é remontagem.
+3. **Altura de layout animada.** `Bars` e o pote da capa animavam `height` para sempre; o
+   Yoga arredonda para o pixel físico, então varrido contínuo anda em degraus.
+4. **Duas molas na mesma subárvore.** O `CollapsingHeader` declarava o embrulho duplo
+   defeito e o cometia em dois dos três caminhos.
+
+**O que a leitura ensinou sobre método:** o docblock que NOMEIA o defeito não impede o
+defeito. O `vida.ts` prometia *"sem volta não há salto"* doze linhas acima de
+`relogio.value = 0`; o `CollapsingHeader` chamava o embrulho duplo de defeito e o fazia; a
+`Peca` afirmava que o salto não acontece. Três promessas escritas, três códigos fazendo o
+contrário no mesmo arquivo. Promessa em docblock é o que a guarda deveria medir — e para
+o relógio, a `Peca` e o embrulho não havia guarda nenhuma.
+
+**E uma correção ao meu próprio conserto de duas horas atrás:** a espera de 400 ms que pus
+no `useNaTela` resolvia a SAÍDA e não a VOLTA. A mistura de 350 ms entre repouso e fase
+dentro do `useCiclo` resolve as duas com um mecanismo só, e a espera saiu no mesmo dia em
+que entrou.

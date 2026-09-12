@@ -1296,13 +1296,13 @@ coisa, porque obriga o Yoga a refazer o layout do nó, dos irmãos e dos ancestr
 tela inteira reflui. São cinco sítios, e três deles correm **para sempre**, não só na
 rolagem:
 
-| onde | o que anima | quando |
-|---|---|---|
-| `src/components/Bars.tsx:203,212` | `height` de cada barra, com `respiro` | para sempre |
-| `src/home/Capa.tsx:654` | `height` em `%`, com `ciclo` | para sempre |
-| `src/components/Sky.tsx:243` | `width` em `%`, com `grown` | na entrada |
-| `src/components/Drain.tsx:63` | `width` em `%`, com `cheia` | na entrada |
-| `src/components/CollapsingHeader.tsx` | `fontSize` e `height` | em toda rolagem |
+| onde | o que anima | quando | 12 de setembro |
+|---|---|---|---|
+| `src/components/Bars.tsx:203,212` | ~~`height` de cada barra, com `respiro`~~ | para sempre | **`scaleY` com âncora embaixo** — e o mecanismo do tremor foi nomeado: o Yoga arredonda a altura para o pixel físico, então 2 dp de excursão num tablet são cinco degraus, e o topo da coluna ANDAVA em vez de deslizar |
+| `src/home/Capa.tsx:654` | ~~`height` em `%`, com `ciclo`~~ | para sempre | **estático** — a amplitude era ±0,5 dp, sub-pixel, "ausência" pela régua do próprio `vida.ts`; e subir não é opção porque o nível é dado |
+| `src/components/Sky.tsx:243` | `width` em `%`, com `grown` | na entrada | `left` saiu do estilo animado (era constante escrita por quadro); o `width` na entrada fica — 900 ms, uma vez |
+| `src/components/Drain.tsx:63` | `width` em `%`, com `cheia` | na entrada | fica na entrada; o que saiu foi `preso` das dependências do efeito, que refazia a entrada a cada dado novo |
+| `src/components/CollapsingHeader.tsx` | ~~`fontSize` e `height`~~ | em toda rolagem | **fora do fluxo** (item 35): a altura ainda anima, mas de um nó que não está no layout da lista |
 
 **Isto é hipótese com endereço, não medida** — nada foi cronometrado separando as duas
 causas, e a honestidade aqui importa porque a causa escrita acima (props de SVG) foi

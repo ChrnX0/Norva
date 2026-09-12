@@ -199,8 +199,21 @@ function Column({
   // O piso de três pixels é o que faz um dia parado continuar sendo um dia:
   // sem ele a coluna zerada desaparece e a semana ganha um buraco que ninguém
   // sabe ler.
+  /**
+   * `scaleY` com a âncora embaixo, e NÃO `height` — e o motivo é a grade de pixel.
+   *
+   * `height` é propriedade de layout: o Yoga resolve o valor e o arredonda para o pixel
+   * físico. Um varrido contínuo de 2% numa coluna de 50 dp são 2 dp de excursão — num
+   * tablet a ~2 px/dp, cinco posições discretas — e o topo de cada coluna ANDAVA EM
+   * DEGRAUS, em sete fases diferentes, num desenho que a capa mostra o tempo inteiro. A
+   * mola de entrada (amortecimento 0,73, ~4,5% de ultrapassagem) fazia o mesmo em layout.
+   * Transform não passa pelo Yoga e não é arredondado para a grade: a coluna desliza. O
+   * piso de três pixels continua sendo altura, estática, porque ele é dado (um dia parado
+   * é um dia), não movimento.
+   */
+  const alturaCheia = Math.max(3, share * height);
   const grow = useAnimatedStyle(() => ({
-    height: Math.max(3, share * height * grown.value * (0.98 + 0.04 * respiro.value)),
+    transform: [{ scaleY: grown.value * (0.98 + 0.04 * respiro.value) }],
   }));
 
   // A auréola cresce junto com a coluna, e o gancho dela mora AQUI, incondicional.
@@ -209,7 +222,7 @@ function Column({
   // claro (sem auréola) para o escuro (com) o React perde o alinhamento da lista
   // e o que quebra não é esta coluna: é o estado da tela inteira.
   const auréola = useAnimatedStyle(() => ({
-    height: Math.max(3, share * height * grown.value * (0.98 + 0.04 * respiro.value)) + 8,
+    transform: [{ scaleY: grown.value * (0.98 + 0.04 * respiro.value) }],
   }));
 
   return (
@@ -222,6 +235,8 @@ function Column({
               left: -4,
               right: -4,
               bottom: -4,
+              height: alturaCheia + 8,
+              transformOrigin: 'bottom',
               borderRadius: raio + 4,
               backgroundColor: tint(brilho, 0.22),
             },
@@ -229,7 +244,18 @@ function Column({
           ]}
         />
       ) : null}
-      <Animated.View style={[{ width: '100%', borderRadius: raio, backgroundColor: color }, grow]} />
+      <Animated.View
+        style={[
+          {
+            width: '100%',
+            height: alturaCheia,
+            transformOrigin: 'bottom',
+            borderRadius: raio,
+            backgroundColor: color,
+          },
+          grow,
+        ]}
+      />
     </View>
   );
 }

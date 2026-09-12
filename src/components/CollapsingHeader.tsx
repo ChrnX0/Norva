@@ -1,5 +1,13 @@
 import { BottomTabBarHeightContext } from 'expo-router/js-tabs';
-import { Children, isValidElement, useCallback, useContext, useState, type ReactNode } from 'react';
+import {
+  Children,
+  Fragment,
+  isValidElement,
+  useCallback,
+  useContext,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   StyleSheet,
   Text,
@@ -474,7 +482,7 @@ export function CollapsingHeader({
               // atrapalha". Era verdade na amplitude antiga, e é a forma mais
               // cara de estar certo: a afirmação envelheceu em silêncio no dia em
               // que o número mudou.
-              isValidElement(filho) && filho.type === Reveal ? (
+              jaEntra(filho) ? (
                 filho
               ) : (
                 <Reveal key={i} index={i}>
@@ -510,6 +518,26 @@ export function CollapsingHeader({
  * e a grade recomeça depois dele. O índice do `Reveal` continua sendo a ordem
  * em que a pessoa lê, para o escalonamento da entrada não pular.
  */
+/**
+ * Este filho JÁ é uma entrada?
+ *
+ * Um `Reveal` direto, ou um `Inteiro` cujo único conteúdo é um `Reveal` — que é a forma
+ * que `app/(tabs)/more.tsx` usa. Envolver qualquer um dos dois de novo compõe DUAS molas
+ * defasadas na mesma subárvore: 52 dp de subida em dois tempos, escala passando por
+ * 0,965 × 0,965, e as duas ultrapassagens de 9% chegando em instantes diferentes. O
+ * `translateY` do filho é multiplicado pela escala do pai, que está variando — a
+ * velocidade vertical ganha um termo a mais, e é isso que o olho lê como sacudida.
+ */
+function jaEntra(no: ReactNode): boolean {
+  if (!isValidElement(no)) return false;
+  if (no.type === Reveal) return true;
+  if (no.type === Inteiro) {
+    const dentro = (no.props as { children?: ReactNode }).children;
+    return isValidElement(dentro) && dentro.type === Reveal;
+  }
+  return false;
+}
+
 function emColunas(filhos: ReactNode[], vao: number): ReactNode[] {
   const saida: ReactNode[] = [];
   let grupo: { no: ReactNode; i: number }[] = [];
@@ -523,10 +551,18 @@ function emColunas(filhos: ReactNode[], vao: number): ReactNode[] {
   filhos.forEach((filho, i) => {
     if (isValidElement(filho) && filho.type === Inteiro) {
       fechar(`pares-${i}`);
+      // A mesma guarda do caminho simples, que faltava aqui e no `Grupo`: o docblock lá
+      // embaixo declara o embrulho duplo defeito e o código o cometia em dois dos três
+      // caminhos — e as duas únicas telas que pedem pares (Relatórios e Mais) passam
+      // filhos que JÁ entram.
       saida.push(
-        <Reveal key={i} index={i}>
-          {filho}
-        </Reveal>,
+        jaEntra(filho) ? (
+          <Fragment key={i}>{filho}</Fragment>
+        ) : (
+          <Reveal key={i} index={i}>
+            {filho}
+          </Reveal>
+        ),
       );
       return;
     }
@@ -566,15 +602,41 @@ function Grupo({ pecas, vao }: { pecas: { no: ReactNode; i: number }[]; vao: num
 
   const medidas = pecas.map((p) => alturas[p.i]);
   const todas = medidas.every((h) => typeof h === 'number' && h > 0);
-  const lados = todas
-    ? distribuir(medidas as number[])
-    : alternando(pecas.map(() => 0));
+
+  /**
+   * **O lado é decidido UMA vez por largura, e depois não muda.**
+   *
+   * As duas colunas são dois `View` irmãos, então trocar uma peça de lado é tirá-la da
+   * lista de filhos de um pai e pô-la na de outro — chave igual em pai diferente não
+   * preserva identidade, o React desmonta e remonta, e o `Reveal` de dentro refaz a
+   * entrada do chão. O docblock acima cobre a troca do primeiro quadro (a mola mal saiu
+   * de zero). O que ele não cobria é o caso TARDIO: em Relatórios e em Mais a altura dos
+   * cartões muda quando a consulta responde — contagem, legenda de duas linhas, cartão
+   * condicional —, e `distribuir` podia mandar uma peça assentada há segundos para a
+   * outra coluna. Um cartão caindo 26 dp e reentrando sozinho, fora de qualquer cascata.
+   *
+   * Congelar a distribuição na primeira medida completa fecha isso; largura nova
+   * recomeça, porque rotação refaz a página inteira de qualquer jeito e aí a remontagem
+   * é invisível. Fica escrito o preço: se um cartão crescer muito depois de medido, a
+   * página pode ficar mais torta do que `distribuir` faria — trocado por não sacudir.
+   */
+  const { width: larguraDaTela } = useWindowDimensions();
+  const [decidido, setDecidido] = useState<{ largura: number; lados: number[] } | null>(null);
+  if (todas && (!decidido || decidido.largura !== larguraDaTela)) {
+    setDecidido({ largura: larguraDaTela, lados: distribuir(medidas as number[]) });
+  }
+  const lados =
+    decidido && decidido.largura === larguraDaTela
+      ? decidido.lados
+      : todas
+        ? distribuir(medidas as number[])
+        : alternando(pecas.map(() => 0));
 
   const colunas: ReactNode[][] = [[], []];
   pecas.forEach((peca, k) => {
     colunas[lados[k] ?? 0].push(
       <View key={peca.i} onLayout={(e) => medir(peca.i, e.nativeEvent.layout.height)}>
-        <Reveal index={peca.i}>{peca.no}</Reveal>
+        {jaEntra(peca.no) ? peca.no : <Reveal index={peca.i}>{peca.no}</Reveal>}
       </View>,
     );
   });

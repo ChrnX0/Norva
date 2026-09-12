@@ -101,7 +101,10 @@ export function Sparkline({
       desenho,
       assentamentoMs({ damping: 14, stiffness: 160, mass: 1 }),
     );
-  }, [drawn, settled, desenho, line, reduzir]);
+    // `line` NÃO está aqui: o traço de mão é a chegada, uma vez. Com o caminho nas
+    // dependências, toda atualização da série apagava a curva e a redesenhava da esquerda
+    // para a direita — e a série muda sozinha, quando o `useQuery` revalida ao focar.
+  }, [drawn, settled, desenho, reduzir]);
 
   // `risco`, não `traco`: desde que a espessura virou `useTheme().traco`, a
   // palavra tem dono no projeto inteiro, e duas coisas com o mesmo nome no mesmo

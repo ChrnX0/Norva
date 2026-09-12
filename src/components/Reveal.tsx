@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -84,13 +84,30 @@ export function Reveal({
   // entrada, e nunca uma tela em branco com o banco cheio de dado.
   const shown = useSharedValue(reduzido === false ? 0 : 1);
 
+  /**
+   * A entrada é UMA por montagem — e a posição dela é a do instante em que o cartão nasceu.
+   *
+   * `index` estava na lista de dependências do efeito, e o efeito começa com
+   * `shown.value = 0`, uma atribuição CRUA. Então qualquer recálculo do índice — e ele é
+   * derivado de dado em muitas telas (`primeiroLugar + lugares.length`, `atos.length + 2`,
+   * `2 + linhas.length`) — teleportava um cartão JÁ ASSENTADO de volta para 26 dp abaixo,
+   * o deixava parado `n × 70 ms`, e o subia de novo com uma mola que ultrapassa 9%. Em
+   * Lugares os dois cartões do pé faziam isso no instante em que a consulta respondia: é
+   * uma chacoalhada, e ela acontecia depois de a tela parecer pronta.
+   *
+   * Congelar aqui não muda nada na abertura da tela, que é a única hora em que a cascata
+   * tem sentido: o índice da montagem é o índice da cascata. O que muda é que dado
+   * chegando depois não reanima quem já entrou.
+   */
+  const [posicao] = useState(index);
+
   useEffect(() => {
     if (reduzido !== false) {
       shown.value = 1;
       return;
     }
     shown.value = 0;
-    shown.value = withDelay(index * motion.staggerMs, withSpring(1, motion.settle));
+    shown.value = withDelay(posicao * motion.staggerMs, withSpring(1, motion.settle));
 
     // A rede embaixo da entrada — e ela existe porque o pior caso ACONTECEU.
     //
@@ -103,8 +120,8 @@ export function Reveal({
     // peças que tinham as mesmas cinco linhas.
     return redeDaEntrada(() => {
       shown.value = 1;
-    }, index * motion.staggerMs);
-  }, [index, motion.settle, motion.staggerMs, reduzido, shown]);
+    }, posicao * motion.staggerMs);
+  }, [posicao, motion.settle, motion.staggerMs, reduzido, shown]);
 
   // Sobe, cresce e aparece. As três juntas porque uma só não é chegada: subir sem
   // crescer lê como rolagem, crescer sem subir lê como estouro, e a opacidade

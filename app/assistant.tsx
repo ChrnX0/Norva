@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { avisoDeFalha } from '@/i18n/falha';
 import { ERROS } from '@/data/erros';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -92,7 +92,14 @@ function useCapacidades(): ReadonlySet<Capability> {
 
 const VAZIO: ReadonlySet<Capability> = new Set();
 
-type Turn = { question: string; answer: Answer; open: boolean; applied: boolean };
+/**
+ * `id` existe por causa da chave do cartão. A lista é preenchida PELA FRENTE, então a
+ * chave `pergunta-índice` de todo cartão existente mudava a cada resposta nova — e chave
+ * nova é o React desmontando e remontando a subárvore inteira, com o `Reveal` refazendo a
+ * entrada do chão. Não era um cartão tremendo: era a tela inteira caindo 26 dp e voltando
+ * em cascata a cada pergunta respondida, com atraso crescente conforme a conversa cresce.
+ */
+type Turn = { id: number; question: string; answer: Answer; open: boolean; applied: boolean };
 
 function Conversation() {
   const { color, space, type, palette, traco } = useTheme();
@@ -104,6 +111,7 @@ function Conversation() {
 
   const [question, setQuestion] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);
+  const proximoId = useRef(1);
   const [thinking, setThinking] = useState(false);
 
   const capacidades = useCapacidades();
@@ -128,11 +136,15 @@ function Conversation() {
 
     ask(asked, context)
       .then((answer) =>
-        setTurns((prev) => [{ question: asked, answer, open: false, applied: false }, ...prev]),
+        setTurns((prev) => [
+          { id: proximoId.current++, question: asked, answer, open: false, applied: false },
+          ...prev,
+        ]),
       )
       .catch((e: unknown) =>
         setTurns((prev) => [
           {
+            id: proximoId.current++,
             question: asked,
             answer: {
               text: fill(t.app.assistant.trouble, {
@@ -229,7 +241,7 @@ function Conversation() {
           frase virou rascunho, porque é o único cartão da tela que espera uma
           decisão; azul quando é só resposta. */}
       {turns.map((turn, index) => (
-        <Reveal key={`${turn.question}-${index}`} index={1 + index}>
+        <Reveal key={turn.id} index={1 + index}>
           <Card
             hue={turn.answer.draft ? color.warning : palette.sky}
             icon={(c) => <GlyphAssistant size={26} color={c} weight={traco} />}

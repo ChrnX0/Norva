@@ -1,13 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarHeightContext } from 'expo-router/js-tabs';
 import { useContext } from 'react';
 import { SkyMark } from '@/components/Sky';
 import { Touchable } from '@/components/Touchable';
-import { useCiclo } from '@/components/vida';
 import { MEDIDA_DA_PAGINA } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -649,9 +647,25 @@ export function Nivel({
  * da manhã e menos às nove e meia é um número mentindo devagar.
  */
 function Liquido({ parcela, cor }: { parcela: number; cor: string }) {
-  const ciclo = useCiclo(7000, { feitio: 'vaivem', repouso: 0.5 });
-  const estilo = useAnimatedStyle(() => ({
-    height: `${Math.max(0, Math.min(100, parcela * 100 + (ciclo.value - 0.5) * 1.1))}%`,
-  }));
-  return <Animated.View style={[{ backgroundColor: cor, opacity: 0.22 }, estilo]} />;
+  /**
+   * Parado, de propósito — e o docblock acima já dizia por quê, só não tinha feito a conta.
+   *
+   * O respiro era `(ciclo - 0,5) × 1,1` por cento de um pote de 92 dp: **±0,5 dp**,
+   * exatamente o que `vida.ts` chama de ausência (*"sub-pixel não é sutileza, é
+   * ausência"*). Num telefone o olho não recebia nada e o Yoga refluía o nó a cada quadro
+   * a troco de zero; num tablet de densidade 2 a 3 o meio dp caía em cima de uma fronteira
+   * de pixel e a superfície do líquido pulava entre duas linhas — o que treme e o que não
+   * se vê eram a mesma causa. E subir a amplitude não é opção: o nível é DADO, e um pote
+   * que parece mais cheio às nove e menos às nove e meia é um número mentindo devagar.
+   * Se este pote precisar de vida, ela vai ser outra coisa que não o nível.
+   */
+  return (
+    <View
+      style={{
+        backgroundColor: cor,
+        opacity: 0.22,
+        height: `${Math.max(0, Math.min(100, parcela * 100))}%`,
+      }}
+    />
+  );
 }

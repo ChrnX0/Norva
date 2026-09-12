@@ -608,7 +608,13 @@ function Loja({
 /** OS PEDIDOS — a prancheta, e o risco que se marca. */
 function Pedidos({ tinta, acento, frio }: Pincel) {
   const ciclo = useCiclo(5000, { repouso: 1 });
-  const risco = useAnimatedProps(() => ({ opacity: Math.min(1, ciclo.value * 2.4) }));
+  // A volta é dente de serra: em t→1 o risco está com tinta cheia e em t=0 está em zero, e
+  // entre os dois há UM quadro. Sem rampa de saída o ✓ apagava de uma vez a cada cinco
+  // segundos — o apagão periódico que o `PulseDot` tem um docblock inteiro para proibir. A
+  // segunda parcela fecha a janela do outro lado: some no último sexto da volta.
+  const risco = useAnimatedProps(() => ({
+    opacity: Math.min(ciclo.value * 2.4, (1 - ciclo.value) * 6, 1),
+  }));
   return (
     <>
       <G stroke={tinta}>
@@ -639,8 +645,12 @@ function Pedidos({ tinta, acento, frio }: Pincel) {
 /** A SEPARAÇÃO — o engradado que entra na pilha. */
 function Separacao({ tinta, acento, frio }: Pincel) {
   const ciclo = useCiclo(5600, { repouso: 1 });
+  // Em t→1 o engradado está opaco e parado no lugar; em t=0 está transparente e 34
+  // unidades atrás. A única peça colorida da cena — para onde o olho vai — sumia num
+  // quadro a cada 5,6 s. A saída funde no último sexto; 'vaivem' não serve aqui porque
+  // faria o engradado sair da pilha de ré.
   const entra = useAnimatedProps(() => ({
-    opacity: Math.min(1, ciclo.value * 3),
+    opacity: Math.min(ciclo.value * 3, (1 - ciclo.value) * 6, 1),
     transform: [{ translateX: (1 - Math.min(1, ciclo.value * 1.6)) * 34 }],
   }));
   return (
@@ -715,8 +725,12 @@ function Gota({ x, atrasoMs, cor }: { x: number; atrasoMs: number; cor: string }
   // Some ao TOCAR o chão, e não no meio do ar: a gota desaparecendo a meio
   // caminho lê como falha de desenho. Ela nasce na ponta do palito (y 52) e
   // percorre os doze até a linha do balde.
+  // E NASCE fundindo, não aparecendo: o ternário anterior ia de 0 a 1 entre t=0,0599 e
+  // t=0,06 — troca de ramo dentro da animação, um quadro. Duas gotas defasadas de 2,1 s num
+  // ciclo de 4,2 s davam um estalo a cada dois segundos, para sempre, em quatro rotas. A
+  // rampa de entrada leva os mesmos 252 ms que o corte levava para zerar.
   const props = useAnimatedProps(() => ({
-    opacity: ciclo.value < 0.06 ? 0 : Math.min(1, (1 - ciclo.value) * 3),
+    opacity: Math.min(ciclo.value / 0.06, (1 - ciclo.value) * 3, 1),
     transform: [{ translateY: ciclo.value * 12 }],
   }));
   return (
@@ -958,7 +972,11 @@ function Folha({ cor, atrasoMs }: { cor: string; atrasoMs: number }) {
       { translateX: 92 + ciclo.value * 204 },
       { translateY: -14 * ciclo.value - 8 * Math.sin(Math.PI * ciclo.value) },
     ],
-    opacity: ciclo.value < 0.08 ? ciclo.value / 0.08 : 1,
+    // A folha chega à prateleira com tinta cheia e, no quadro seguinte, está na porta de
+    // novo — 204 unidades numa prancheta de 364, três folhas equidistantes, um teleporte
+    // visível a cada 2,8 s. A janela fecha nas duas pontas, como o `Espelho` já fazia:
+    // ela entra fundindo, sai fundindo, e o salto de posição acontece invisível.
+    opacity: Math.min(ciclo.value / 0.08, (1 - ciclo.value) / 0.08, 1),
   }));
   return (
     <AnimatedG animatedProps={voo} stroke={cor}>

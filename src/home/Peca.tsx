@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, type ReactNode, useState } from 'react';
 import { Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useReduzirMovimento } from '@/components/vida';
@@ -97,6 +97,27 @@ export function Peca({
     );
   }, [aberta, aberto, reduzir]);
 
+  /**
+   * O detalhe continua MONTADO enquanto a mola de fechamento corre.
+   *
+   * `aberta` é booleano do React e `aberto` é mola; quem desmontava o detalhe era a prop,
+   * no mesmo quadro em que a mola começava a levá-lo a zero. A animação de saída existia
+   * no código e nunca foi vista: o detalhe sumia num quadro e o cartão encolhia junto. Agora
+   * abrir monta na hora (ajuste de estado durante o render, o padrão do React para estado
+   * derivado de propriedade) e fechar desmonta DEPOIS de a mola assentar — o olho acompanha
+   * o detalhe indo embora, e só então o cartão encolhe.
+   */
+  const [visivel, setVisivel] = useState(aberta);
+  if (aberta && !visivel) setVisivel(true);
+  useEffect(() => {
+    if (aberta) return;
+    const id = setTimeout(
+      () => setVisivel(false),
+      reduzir === false ? assentamentoMs({ damping: 18, stiffness: 180, mass: 1 }) : 0,
+    );
+    return () => clearTimeout(id);
+  }, [aberta, reduzir]);
+
   const detalhe = useAnimatedStyle(() => ({
     opacity: aberto.value,
     transform: [{ translateY: (1 - aberto.value) * -10 }],
@@ -108,8 +129,13 @@ export function Peca({
   const corpo = (
     <Card hue={hue} tone={tone} icon={icon} title={title}>
       {children}
-      {mais && aberta ? (
-        <Animated.View style={[{ marginTop: space.md, gap: space.sm }, detalhe]}>{mais}</Animated.View>
+      {mais && visivel ? (
+        <Animated.View
+          style={[{ marginTop: space.md, gap: space.sm }, detalhe]}
+          pointerEvents={aberta ? 'auto' : 'none'}
+        >
+          {mais}
+        </Animated.View>
       ) : null}
       {mais ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, marginTop: space.sm }}>

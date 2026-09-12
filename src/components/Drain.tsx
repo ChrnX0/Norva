@@ -57,7 +57,11 @@ export function Drain({
     return redeDaEntrada(() => {
       cheia.value = 1;
     }, 90);
-  }, [cheia, motion.settle, preso, reduzir]);
+    // `preso` NÃO está aqui de propósito: ele é derivado do dado, e com ele na lista toda
+    // atualização de `share` zerava a barra e refazia a entrada inteira — 90 ms parada em
+    // zero e uma mola por cima, num número que só mudou de 41% para 43%. A largura lê
+    // `preso` dentro do estilo animado e acompanha o dado novo sem gesto nenhum.
+  }, [cheia, motion.settle, reduzir]);
 
   const largura = useAnimatedStyle(() => ({
     width: `${Math.max(2, preso * 100 * cheia.value)}%`,

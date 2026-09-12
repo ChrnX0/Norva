@@ -238,8 +238,11 @@ export function TemperatureRange({
   const from = clamp(minC);
   const to = clamp(maxC);
 
+  // Só o que ANIMA fica no estilo animado. `left` é constante, e escrevê-la por quadro
+  // mandava o Yoga resolver duas propriedades de layout no mesmo nó em vez de uma — com o
+  // arredondamento para a grade de pixel valendo para as duas, a ponta esquerda da faixa
+  // podia oscilar um pixel enquanto só a direita deveria andar.
   const bar = useAnimatedStyle(() => ({
-    left: `${from * 100}%`,
     width: `${(to - from) * 100 * grown.value}%`,
   }));
 
@@ -254,7 +257,17 @@ export function TemperatureRange({
       }}
     >
       <Animated.View
-        style={[{ position: 'absolute', top: 0, bottom: 0, borderRadius: 3, backgroundColor: ink ?? palette.apricot }, bar]}
+        style={[
+          {
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: `${from * 100}%`,
+            borderRadius: 3,
+            backgroundColor: ink ?? palette.apricot,
+          },
+          bar,
+        ]}
       />
     </View>
   );

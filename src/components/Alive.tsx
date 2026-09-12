@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { type ViewStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -51,6 +51,10 @@ export function Alive({
   const reduzir = useReduzirMovimento();
 
   const entrada = useSharedValue(reduzir === false ? 0 : 1);
+  // Uma entrada por montagem, na posição em que o desenho nasceu — o mesmo conserto e o
+  // mesmo motivo do `Reveal`: com `index` nas dependências e `entrada.value = 0` cru, todo
+  // recálculo do índice teleportava o glifo para 0,84 de escala e o subia de novo.
+  const [posicao] = useState(index);
 
   useEffect(() => {
     if (reduzir !== false) {
@@ -58,11 +62,11 @@ export function Alive({
       return;
     }
     entrada.value = 0;
-    entrada.value = withDelay(index * motion.staggerMs, withSpring(1, motion.settle));
+    entrada.value = withDelay(posicao * motion.staggerMs, withSpring(1, motion.settle));
     return redeDaEntrada(() => {
       entrada.value = 1;
-    }, index * motion.staggerMs);
-  }, [entrada, index, motion.settle, motion.staggerMs, reduzir]);
+    }, posicao * motion.staggerMs);
+  }, [entrada, posicao, motion.settle, motion.staggerMs, reduzir]);
 
   // Sem opacidade, pelo mesmo motivo escrito em `Reveal`: entrada que falha não
   // pode levar o conteúdo junto. Resta a escala, que é chegada de sobra.

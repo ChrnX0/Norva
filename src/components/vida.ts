@@ -6,6 +6,7 @@ import {
   cancelAnimation,
   makeMutable,
   useDerivedValue,
+  useSharedValue,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
@@ -148,9 +149,14 @@ let pedindo = 0;
 
 function ligarRelogio(): void {
   if (pedindo > 0) return;
-  relogio.value = 0;
+  // De onde PAROU, não do zero — o docblock acima promete exatamente isso (*"um relógio que
+  // reinicia faria todos os desenhos pularem juntos na virada"*) e o código zerava doze
+  // linhas abaixo da promessa. E zerava com frequência: `pararRelogio` roda sempre que a
+  // última tela com movimento perde o foco, e o React roda todas as limpezas de um commit
+  // antes de todas as criações, então TODA troca de aba passava por zero. A taxa continua
+  // um milissegundo por milissegundo: a rampa é linear e o alvo é o mesmo.
   relogio.value = withTiming(HORIZONTE_MS, {
-    duration: HORIZONTE_MS,
+    duration: Math.max(1, HORIZONTE_MS - relogio.value),
     easing: Easing.linear,
   });
 }
@@ -258,9 +264,30 @@ export function useCiclo(
     };
   }, [mexendo]);
 
+  /**
+   * Entrar e sair de cena é GESTO, não teletransporte.
+   *
+   * O valor devolvido era um ternário: `repouso` parado, ou a fase crua do relógio. Trocar
+   * de ramo é um quadro — e ele acontecia em toda navegação, duas vezes. Na SAÍDA,
+   * `useIsFocused` vira falso no instante em que o estado de navegação muda, e a pilha
+   * nativa ainda mantém a tela que sai deslizando por 300 a 400 ms: dezenas de desenhos
+   * pulando juntos para o repouso na frente dos olhos. Na VOLTA (aba que fica montada e
+   * recupera o foco), o relógio é um só e já está nas dezenas de segundos, então cada
+   * desenho saltava do repouso para a fase dele, também num quadro.
+   *
+   * `mistura` é o peso da fase sobre o repouso, e ela ANDA em vez de trocar: 350 ms, o
+   * tempo de uma transição. Com o relógio parado a fase fica congelada e a mistura leva o
+   * desenho ao repouso deslizando; com o relógio correndo ela o traz de volta do mesmo
+   * jeito. Zero e um continuam sendo os únicos valores em que o desenho descansa.
+   */
+  const mistura = useSharedValue(mexendo ? 1 : 0);
+  useEffect(() => {
+    mistura.value = withTiming(mexendo ? 1 : 0, { duration: 350, easing: Easing.inOut(Easing.quad) });
+  }, [mexendo, mistura]);
+
   return useDerivedValue(() => {
-    if (!mexendo) return repouso;
     const t = ((relogio.value + atrasoMs) % duracaoMs) / duracaoMs;
-    return feitio === 'volta' ? t : t < 0.5 ? suave(t * 2) : 1 - suave(t * 2 - 1);
-  }, [mexendo, duracaoMs, atrasoMs, repouso, feitio]);
+    const fase = feitio === 'volta' ? t : t < 0.5 ? suave(t * 2) : 1 - suave(t * 2 - 1);
+    return repouso + (fase - repouso) * mistura.value;
+  }, [duracaoMs, atrasoMs, repouso, feitio, mistura]);
 }

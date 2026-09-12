@@ -597,6 +597,22 @@ Duas regras de operação, ambas cicatriz:
   número, e baixar hoje não compra conforto nenhum: abre buraco. É a regra do `tokens.ts` — o nome
   diz o que o número DECIDE — valendo para uma constante de geometria.*
 
+- **Docblock que NOMEIA o defeito não o impede — 12 de setembro, três vezes num arquivo cada.**
+  `vida.ts` prometia *"sem volta não há salto"* doze linhas acima de `relogio.value = 0`; o
+  `CollapsingHeader` declarava o embrulho duplo de `Reveal` defeito e o cometia em dois dos três
+  caminhos; a `Peca` afirmava que o detalhe não salta e o desmontava no meio da mola. Nenhum dos
+  três tinha guarda. Então, ao ler um docblock que diz "isto não acontece", a pergunta é **quem
+  mede** — e se a resposta for "ninguém", a promessa é hipótese, e o código logo abaixo é o
+  primeiro lugar onde procurar o contrário dela.
+
+- **Ciclo 'volta' com valor diferente nas duas pontas é um corte por volta — 12 de setembro.**
+  Quatro cenas de cabeçalho piscavam para sempre (5 s, 5,6 s, 2,1 s, 2,8 s) porque a opacidade
+  era 1 em `t→1` e 0 em `t=0`. A régua para qualquer desenho movido por `useCiclo` sem
+  'vaivem': **o valor em `t=0` e o valor em `t=1` têm de ser iguais**, e a forma de garantir é a
+  janela que fecha nas duas pontas — `Math.min(t / entrada, (1 - t) / saída, 1)` — que o
+  `Espelho` já usava no mesmo arquivo. Quem escreve um ternário dentro de `useAnimatedProps`
+  está escrevendo uma descontinuidade.
+
 - **A prova é por CONDIÇÃO, não por teste — 12 de setembro.** A guarda de fonte nova tem três
   asserções no mesmo `test()`. Plantei os três defeitos que ela nomeia, um por vez: a primeira e a
   segunda reprovaram na primeira tentativa e **a terceira ficou verde**. Ela era

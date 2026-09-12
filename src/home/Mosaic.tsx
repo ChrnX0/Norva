@@ -1274,9 +1274,16 @@ export function Mosaic(vista: BriefingView) {
 
             Na fila, o índice É a posição de leitura, e pele nova ganha a cascata
             sem escrever nada. */}
+        {/* A chave é a IDENTIDADE da fila, não a composição dela. Com `fila.join('+')`,
+            uma peça que aparece depois de a consulta responder — e quatro nascem nulas e
+            viram não-nulas assim (`insumos`, `aoVivo`, `historico`, `cobertura`) — trocava a
+            chave da fila inteira, e chave nova é remontagem: o `Reveal` voltava a zero e
+            refazia a entrada do chão, no meio da cascata, na tela que o dono abre primeiro.
+            Com a chave na primeira peça, a fila que ganha uma metade continua sendo a mesma
+            fila, e só a peça nova entra. */}
         {briefingFilas(miolo, meias).map((fila, posicao) => (
           <Reveal
-            key={fila.join('+')}
+            key={fila[0]}
             index={posicao}
             style={fila.length > 1 ? { flexDirection: 'row', gap: space.lg } : undefined}
           >

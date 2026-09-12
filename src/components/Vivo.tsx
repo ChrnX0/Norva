@@ -75,7 +75,13 @@ export function Vivo({ vida, children }: { vida: Vida; children: ReactNode }) {
     repouso: vida.como === 'sobe' ? 0.5 : 0,
   });
 
-  const props = useAnimatedProps(() => desenhar(vida, ciclo.value));
+  // A lista de dependências é explícita porque, sem ela, o Reanimated a monta a partir do
+  // FECHAMENTO do worklet — e `vida` é literal de objeto em todos os 22 sítios, novo a cada
+  // renderização. Cada render re-registrava o mapeador na thread de UI, para todo glifo da
+  // tela, na mesma thread do relógio de ambiente e das molas de entrada. A chave é o
+  // conteúdo, que é o que decide o desenho.
+  const chaveDaVida = JSON.stringify(vida);
+  const props = useAnimatedProps(() => desenhar(vida, ciclo.value), [chaveDaVida, ciclo]);
 
   if (vida.como === 'nenhum') return <G>{children}</G>;
   return <GrupoVivo animatedProps={props}>{children}</GrupoVivo>;

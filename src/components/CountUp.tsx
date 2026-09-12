@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Text, type TextStyle } from 'react-native';
+import { StyleSheet, Text, View, type TextStyle } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useReduzirMovimento } from './vida';
 
@@ -68,9 +68,48 @@ export function CountUp({
     };
   }, [value, motion.countMs, reduzir]);
 
+  const pronto = reduzir !== false || shown === value;
+  if (pronto) {
+    return (
+      <Text style={[styles.figura, style]} accessibilityLabel={format(value)}>
+        {format(value)}
+      </Text>
+    );
+  }
+
+  /**
+   * Enquanto conta, a CAIXA é a do valor final.
+   *
+   * `tabular-nums` fixa a largura do dígito, não a QUANTIDADE de dígitos nem o separador
+   * de milhar: "R$ 0,00" → "R$ 1.234,56" ganha três caracteres no caminho, e cada um deles
+   * sujava a medida do nó de texto e refluía os irmãos — em Perdas o vizinho é `flex: 1` e
+   * multilinha, então quando a quebra dele mudava, a altura da linha mudava e tudo embaixo
+   * do cartão pulava. Três vezes durante os 1250 ms em que a cascata do `Reveal` corre.
+   *
+   * O fantasma tem o texto final, invisível, e é ele que dá tamanho; o número que corre
+   * fica por cima, na mesma caixa. Quando chega, sobra só o texto — para o leitor de tela
+   * e para quem procura o número na página, existe um valor, não dois.
+   */
   return (
-    <Text style={[{ fontVariant: ['tabular-nums'] }, style]} accessibilityLabel={format(value)}>
-      {format(reduzir === false ? shown : value)}
-    </Text>
+    <View>
+      <Text
+        style={[styles.figura, style, styles.fantasma]}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        {format(value)}
+      </Text>
+      <Text
+        style={[styles.figura, style, StyleSheet.absoluteFill]}
+        accessibilityLabel={format(value)}
+      >
+        {format(shown)}
+      </Text>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  figura: { fontVariant: ['tabular-nums'] },
+  fantasma: { opacity: 0 },
+});
