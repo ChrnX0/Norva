@@ -4,7 +4,7 @@ import { avisoDeFalha } from '@/i18n/falha';
 import { ERROS } from '@/data/erros';
 import { voltar } from '@/nav';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
@@ -231,6 +231,24 @@ function sayTally(area: EraseArea, tally: EraseTally, t: Dictionary): string {
 
 function Settings() {
   const { color, type, space, palette, skin, traco, tracos } = useTheme();
+  /**
+   * A largura em dp, porque a linha das peças da capa tem CINCO coisas nela.
+   *
+   * **A queixa do dono, com a foto ao lado: *"coisas assim precisam dar uma
+   * melhorada"*.** A linha era uma fila só — nome, etiqueta de largura, etiqueta de
+   * esconder e dois chevrons — com o nome ficando com o que sobrasse. A 393 dp o que
+   * sobra é perto de um terço, e aí "Pedidos dos clientes" quebra em duas linhas,
+   * "Quem recebe hoje" em três, e a lista inteira fica com altura desigual. A versão
+   * anterior tinha trocado reticências por quebra, e isso foi o conserto certo da
+   * decisão (escolher entre nomes ilegíveis é pior); o que faltava era não obrigar a
+   * escolha entre cortar e quebrar.
+   *
+   * O nome ganha a linha dele e os controles descem para a linha de baixo, alinhados à
+   * direita. Não entra número mágico de largura nenhum: a quebra é o ponto de 600 dp
+   * da casa — daí para cima cabe tudo numa fila, e é aí que a fila é a forma certa.
+   */
+  const { width: larguraDaTela } = useWindowDimensions();
+  const empilharPecas = larguraDaTela < 600;
   const { setSkin, hue, setHue, scheme, setScheme } = useAppearance();
 
   /**
@@ -1070,20 +1088,37 @@ function Settings() {
             {ordem.map((widget, i) => {
               const escondido = escondidos.includes(widget);
               return (
-                <View key={widget} style={[styles.top, { gap: space.sm, paddingVertical: space.xs }]}>
+                <View
+                  key={widget}
+                  style={
+                    empilharPecas
+                      ? { paddingVertical: space.xs, gap: space.xs }
+                      : [styles.top, { gap: space.sm, paddingVertical: space.xs }]
+                  }
+                >
                   {/* **O nome NÃO se corta aqui, e é a mesma cicatriz do botão de
                       idioma.** Esta linha é onde a pessoa ESCOLHE a peça, e a foto
                       pegou metade dos rótulos em reticências — "Produção a…", "Quem
                       rece…", "Vence prim…" —, ou seja, escolher entre coisas que não
                       dá para ler. `numberOfLines={1}` economiza uma linha e gasta a
-                      decisão. Deixar quebrar não pede número mágico nenhum e serve
-                      de 360 dp ao tablet. */}
+                      decisão.
+
+                      E não se corta NEM se quebra: empilhado, o nome tem a largura
+                      inteira e cabe numa linha só. `flex: 1` só faz sentido quando ele
+                      divide a fila com os controles, que é o caso de 600 dp para
+                      cima. */}
                   <Text
-                    style={[type.body, { color: escondido ? color.inkFaint : color.ink, flex: 1 }]}
+                    style={[
+                      type.body,
+                      { color: escondido ? color.inkFaint : color.ink },
+                      empilharPecas ? null : { flex: 1 },
+                    ]}
                   >
                     {t.app.settings.briefing.widgets[widget]}
                     {escondido ? ` · ${t.app.settings.briefing.hidden}` : ''}
                   </Text>
+
+                  <View style={[styles.controles, { gap: space.sm }]}>
 
                   {aceitaMeia(widget) ? (
                     <Pressable
@@ -1160,6 +1195,7 @@ function Settings() {
                       <IconChevron size={20} color={color.ink} />
                     </View>
                   </Pressable>
+                  </View>
                 </View>
               );
             })}
@@ -1175,15 +1211,31 @@ function Settings() {
                 {t.app.settings.briefing.offCover}
               </Text>
               {fora.map((widget) => (
-                <View key={widget} style={[styles.top, { gap: space.sm, paddingVertical: space.xs }]}>
+                <View
+                  key={widget}
+                  style={
+                    empilharPecas
+                      ? { paddingVertical: space.xs, gap: space.xs }
+                      : [styles.top, { gap: space.sm, paddingVertical: space.xs }]
+                  }
+                >
                   {/* A lista de fora é a MESMA escolha com o sinal trocado: quem lê
                       aqui está decidindo o que trazer de volta. Cortar o nome nos dois
                       lugares seria consertar metade — a regra da casa é que conserto de
                       forma não termina no arquivo que o mostrou, e aqui nem de arquivo
-                      ele muda. */}
-                  <Text style={[type.body, { color: color.inkMuted, flex: 1 }]}>
+                      ele muda. Vale igual para o empilhamento: "Colocar na capa" é uma
+                      etiqueta comprida, e ao lado dela o nome fica com menos espaço
+                      ainda que na lista de cima. */}
+                  <Text
+                    style={[
+                      type.body,
+                      { color: color.inkMuted },
+                      empilharPecas ? null : { flex: 1 },
+                    ]}
+                  >
                     {t.app.settings.briefing.widgets[widget]}
                   </Text>
+                  <View style={styles.controles}>
                   <Pressable
                     onPress={() => void ligar(widget)}
                     accessibilityRole="button"
@@ -1191,6 +1243,7 @@ function Settings() {
                   >
                     <Chip signal="neutral" label={t.app.settings.briefing.putOnCover} />
                   </Pressable>
+                  </View>
                 </View>
               ))}
             </View>
@@ -1762,6 +1815,14 @@ const styles = StyleSheet.create({
   bottom: { flexDirection: 'row', alignItems: 'flex-end' },
   left: { alignSelf: 'flex-start' },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
+  /**
+   * Os controles de uma linha, juntos.
+   *
+   * Alinhados à direita porque empilhados eles ficam DEBAIXO do nome: à esquerda os
+   * chevrons mudariam de coluna a cada linha, conforme o comprimento do que está ao
+   * lado. À direita eles formam a coluna que a mão procura sem ler.
+   */
+  controles: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
   number: { fontVariant: ['tabular-nums'], fontWeight: '600' },
   /** O chevron da família fina, virado: subir é ele apontando para cima. */
   up: { transform: [{ rotate: '-90deg' }] },

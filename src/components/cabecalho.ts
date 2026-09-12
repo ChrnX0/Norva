@@ -38,8 +38,40 @@
  * este aqui é uma linha de geometria e resolve o que treme hoje.
  */
 
-/** Teto do ganho. Abaixo de 1 é estável; 0,8 deixa margem para o arredondamento. */
-export const GANHO_MAX = 0.8;
+/**
+ * Teto do ganho — e **0,8 estava do lado certo da estabilidade e do lado errado do
+ * conforto**, medido pelo dono em 12 de setembro: *"tem algumas animações que ainda
+ * dão uma tremida. Não chega a travar como antes, mas percebe-se uma
+ * chacoalhadazinha."*
+ *
+ * Abaixo de 1 o laço não diverge — o travamento acabou, e isso é o que ele confirmou.
+ * O que a conta anterior parou de perguntar é **quanto tempo** ele leva para se
+ * acomodar. Realimentação de ganho `g` decai como `g^n` a cada quadro, então:
+ *
+ * | ganho | quadros até sobrar 2% | a 60 Hz |
+ * |---|---|---|
+ * | 0,8 | 18 | **300 ms** |
+ * | 0,6 | 8 | 130 ms |
+ * | 0,5 | 6 | 100 ms |
+ *
+ * Trezentos milissegundos de oscilação decrescente, **re-excitada a cada quadro em que
+ * o dedo anda**, é exatamente uma chacoalhada: nunca chega a travar e nunca para.
+ * Estabilidade era o piso, não o alvo.
+ *
+ * **O preço é o comprimento da faixa, e é o mesmo botão.** `faixa = removido / ganho`:
+ * a 393 dp são 155 dp de altura removida, então 0,8 dava 194 dp de rolagem para o
+ * cabeçalho encolher inteiro e 0,6 dá 258 dp — um terço mais de rolagem, num movimento
+ * que fica mais calmo. Abaixo de 0,5 a faixa passa de 310 dp e o cabeçalho deixa de
+ * encolher em página curta, que é perder a função para ganhar conforto.
+ *
+ * **E isto continua sendo amortecimento, não conserto de raiz.** O laço existe porque a
+ * altura removida é altura de LAYOUT — o cabeçalho é irmão da lista. Tirá-lo do fluxo
+ * (sobreposto, `paddingTop` constante na lista, só `translateY`) põe o ganho em ZERO e
+ * dispensa este teto inteiro. É o item de raiz do `docs/roadmap.md`, e ele mexe em como
+ * as 27 telas empilham: pede o tablet do dono na mesma rodada, porque nenhum
+ * instrumento deste container vê composição.
+ */
+export const GANHO_MAX = 0.6;
 
 /** A cena sai primeiro, e é a fração da faixa em que ela some. */
 export const FRACAO_CENA = 0.6;

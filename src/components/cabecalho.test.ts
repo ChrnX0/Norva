@@ -152,3 +152,27 @@ test('a régua do título vê a diferença entre encolher e reflui', () => {
   const comEscala = 'const titleStyle = x(() => ({ transform: [{ scale: i(s) }] })); const overlineStyle';
   assert.equal(/fontSize\s*:/.test(comEscala.slice(0, comEscala.indexOf('const overlineStyle'))), false);
 });
+
+test('o teto do ganho deixa o laço ACOMODAR, e não só deixar de divergir', () => {
+  /**
+   * O segundo tempo do mesmo defeito, achado pelo dono no tablet em 12 de setembro:
+   * *"não chega a travar como antes, mas percebe-se uma chacoalhadazinha"*.
+   *
+   * Ganho abaixo de 1 garante que a oscilação MORRE; não diz em quanto tempo. Uma
+   * perturbação decai como `ganho^n` por quadro, e a régua aqui é o número de quadros
+   * até ela sobrar 2% — abaixo disso são frações de dp e o olho não pega.
+   */
+  const quadrosParaAcomodar = (ganho: number) => Math.ceil(Math.log(0.02) / Math.log(ganho));
+
+  assert.ok(
+    quadrosParaAcomodar(GANHO_MAX) <= 10,
+    `o tremor tem de sumir em dez quadros (167 ms); com ganho ${GANHO_MAX} ele leva ${quadrosParaAcomodar(GANHO_MAX)}`,
+  );
+
+  // O caso verdadeiro: o teto que estava aqui até hoje. Estável e ainda assim visível —
+  // se esta linha passar, a régua não distingue "não trava" de "não treme".
+  assert.ok(
+    quadrosParaAcomodar(0.8) > 10,
+    'com ganho 0,8 a oscilação durava 18 quadros — a régua precisa ver isso',
+  );
+});

@@ -10998,3 +10998,41 @@ passar. O cenário passou a viver **dentro do teste**, com `{ ...data, listProdu
 
 *A régua: quando um fixture compartilhado resiste ao cenário novo, a resistência é informação —
 ele está medindo outra coisa. Isola-se o cenário, não se ajusta a medida alheia.*
+
+## 12 de setembro — estabilidade era o piso, não o alvo
+
+O tremor do cabeçalho foi consertado em 10 de setembro pondo um TETO no ganho da
+realimentação: 0,8, porque abaixo de 1 o laço não diverge. O dono confirmou no tablet que
+o travamento acabou — e que ficou *"uma chacoalhadazinha"*. As duas coisas são verdadeiras
+ao mesmo tempo, e a conta diz por quê: ganho `g` decai como `g^n` por quadro, então 0,8
+leva **18 quadros (300 ms)** para a oscilação sobrar 2%, e ela é re-excitada a cada quadro
+em que o dedo anda. Nunca trava e nunca para.
+
+O que mudou: `GANHO_MAX` de 0,8 para 0,6 (18 quadros → 8, 300 ms → 130 ms), com o preço
+escrito ao lado — é o mesmo botão que dá o comprimento da faixa, e 0,6 custa um terço mais
+de rolagem para o cabeçalho encolher inteiro. E uma régua nova em `cabecalho.test.ts` que
+reprova o 0,8: sem ela a suíte só sabia distinguir "diverge" de "não diverge".
+
+**A lição de método, que é maior que o número:** um critério de estabilidade responde *se*
+o sistema se acomoda, nunca *em quanto tempo*. Fechar um item de movimento com "está
+estável" é fechar metade — e a metade que falta é justamente a que o olho vê. Quando o
+conserto de uma oscilação é um teto de ganho, a pergunta seguinte é o **tempo de
+acomodação**, e ela tem de estar na guarda, não na cabeça de quem consertou.
+
+*E o conserto de raiz continua de fora:* o laço só existe porque a altura removida é altura
+de LAYOUT. Cabeçalho fora do fluxo põe o ganho em zero e dispensa o teto — mexe nas 27
+telas, e pede o tablet na mesma rodada.
+
+## 12 de setembro — a linha que quebrava o nome não era a linha; era o número de coisas nela
+
+A foto dos Ajustes mostrou "Pedidos dos / clientes" e "Quem / recebe / hoje" em duas e três
+linhas. A rodada anterior já tinha trocado reticências por quebra ali, e estava certa: numa
+lista onde a pessoa ESCOLHE, nome cortado é escolha impossível. O que ninguém perguntou é
+por que a escolha entre cortar e quebrar existia — e ela existia porque a linha era uma fila
+só com **cinco** coisas: nome, etiqueta de largura, etiqueta de esconder e dois chevrons. A
+393 dp o nome fica com cerca de um terço.
+
+Empilhar (nome na linha dele, controles na de baixo à direita, abaixo de 600 dp) faz as duas
+alternativas desaparecerem em vez de escolher entre elas. **Quando duas saídas de um problema
+são as duas ruins, a pergunta certa é quase sempre o que está criando o problema** — aqui,
+uma fila com mais peças do que a largura comporta.
