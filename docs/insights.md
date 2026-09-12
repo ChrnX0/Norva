@@ -11129,3 +11129,47 @@ o relógio, a `Peca` e o embrulho não havia guarda nenhuma.
 no `useNaTela` resolvia a SAÍDA e não a VOLTA. A mistura de 350 ms entre repouso e fase
 dentro do `useCiclo` resolve as duas com um mecanismo só, e a espera saiu no mesmo dia em
 que entrou.
+
+## 12 de setembro — o teste que exigia o defeito
+
+`compareVersions` arredondava duas vezes: `cents(depois) - cents(antes)`, dois erros de meio
+centavo entrando numa subtração. Uma ficha que foi de 7,3265 para 7,0 centavos por unidade —
+três décimos mais barata — saía com delta **zero**, e a tela dizia "não mudou" de uma decisão
+que mudou.
+
+O que torna este achado diferente é a régua: existia um teste, e ele **exigia** o defeito.
+A linha era `assert.ok(Math.abs(percent - deltaCents / antes) < 1e-12)` — o por cento
+comparado com o delta ARREDONDADO, os dois lados vindos do mesmo número. Qualquer
+implementação que arredondasse duas vezes passava; a implementação certa **reprova**. Foi
+o que aconteceu ao consertar: 781 verdes viraram 780 e a falha era o conserto.
+
+É a armadilha que esta casa já pagou uma vez — `taxa` comparada com `(taxa - 0,4) + 0,4` —
+e ela tem a mesma assinatura: `Math.abs`, tolerância, duas variáveis, cara de igualdade de
+verdade. **A pergunta que a desmonta é sempre a mesma: de onde veio o valor comparado?** Se
+veio do valor testado, não há teste — há uma tautologia com tolerância.
+
+E há um segundo ensinamento, sobre ordem: eu descobri isso porque o conserto QUEBROU a
+suíte. Um teste que falha ao consertar um defeito é informação de primeira qualidade, e o
+reflexo errado é ajustar o teste para voltar ao verde. O certo é ler o que ele afirma — e
+ali ele afirmava o defeito, por escrito, com um comentário elogiando a própria régua.
+
+## 12 de setembro — apagar também é conserto: a primitiva que prometia o que não cumpria
+
+`multiplyCents` e `toDecimal` estavam na lista de exportações sem chamador, cada uma com a
+justificativa escrita. Medidas pelo CONCEITO em vez do símbolo, as duas eram falsas — e em
+direções opostas:
+
+- `toDecimal` ("existe para ninguém dividir por 100 na mão") tinha um chamador o tempo todo:
+  `formatMoney`, a função de dinheiro mais chamada do aplicativo, fazia `cents / 100`.
+- `multiplyCents` ("existe para ninguém escrever `Math.round(x * f)` inline") não tinha uso
+  nenhum, e o inline que ela alegava impedir — vinte e cinco ocorrências — é `Rate ×
+  quantidade`, que é trabalho do `amountOf`. Ela protegia uma operação que este código não
+  faz.
+
+A primeira ganhou o chamador; a segunda foi apagada. **A lição é que "primitiva certa
+presente impede a errada de nascer" é falso** — foi escrito como justificativa e desmentido
+por vinte e cinco linhas. O que impede inline é guarda de fonte, não disponibilidade.
+
+*E o P1 me pegou no mesmo commit, o que é a régua funcionando: criei `rateToDecimal` e
+`countsFromTiers` e a suíte reprovou com "sem chamador" antes de eu ligá-las. A regra vale
+para quem a escreveu.*

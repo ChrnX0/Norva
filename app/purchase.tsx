@@ -27,7 +27,7 @@ import {
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
-import { fromDecimal, rate, type Rate } from '@/domain/money';
+import { fromDecimal, rate, type Rate, rateToDecimal } from '@/domain/money';
 import { applyCostEvent, judgePriceChange } from '@/domain/cost';
 import { costPerProductUnit, packagingRatePerUnit, costRecipe } from '@/domain/recipe';
 import { parseTyped } from '@/domain/number';
@@ -347,7 +347,7 @@ function PurchaseForm() {
   const perPackNow = draft ? draft.paid / draft.packs : 0;
   const perPackBefore =
     selected?.lastRate && selected.purchaseToBase
-      ? (selected.lastRate * selected.purchaseToBase) / 100
+      ? rateToDecimal((selected.lastRate * selected.purchaseToBase) as Rate)
       : null;
 
   const onSave = async () => {

@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **781** testes |
+| `npm test` | **782** testes |
 | `npm run mutate` | **151** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **59** checagens num navegador de verdade |
 | `npm run db:verify` | **32** garantias contra um Postgres descartável: **15** sob RLS, como a conta da empresa, e **17** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -3272,9 +3272,22 @@ embalagem**. Agora `saveItem` confere antes de gravar — degrau fora de ordem f
 promessa escrita antes da funcionalidade (`needsHumanYes`), duas são a F4 que o dono
 cortou do mês (`observedLeadTimeDays`, `reorderPoint`), uma implementa regra que o SQL
 não faz (`ratesBefore` — o custo de hoje contra o de antes de uma SEQUÊNCIA, que é o que
-impede uma alta de 9% em dois passos parecer 2%), uma espera tela (`daysUntilExpiry`) e
-duas são primitivas da fundação do dinheiro, presentes para ninguém escrever o
+impede uma alta de 9% em dois passos parecer 2%), ~~uma espera tela (`daysUntilExpiry`)~~
+— **ela tinha chamador desde sempre, e ninguém tinha medido: a fila de avisos fazia a
+mesma conta à mão, e hoje chama a função (12 de setembro)** — e ~~duas são primitivas da
+fundação do dinheiro, presentes para ninguém escrever o
 arredondamento na mão.
+
+**As duas caíram em 12 de setembro, e por caminhos opostos.** `toDecimal` ganhou o
+chamador que sempre lhe faltava — `formatMoney` dividia por 100 à mão, que é exatamente o
+que ela existia para impedir, na função mais chamada do aplicativo. `multiplyCents` foi
+**apagada**: zero chamadores, e a justificativa dela era falsa duas vezes — o inline que de
+fato aconteceu, vinte e cinco vezes, é `Rate × quantidade`, trabalho do `amountOf`, e
+primitiva presente não impede inline nenhum. Quem impede é guarda de fonte.
+
+*A régua que sai das duas: **justificativa de ausência se mede pelo CONCEITO, não pelo
+símbolo.** `grep` pelo nome achava zero e concordava com a promessa; `grep` pela CONTA
+achou os chamadores num caso e a inutilidade no outro.*
 
 **E o guarda entrou**, que era o trabalho de verdade: função nova do domínio sem chamador
 reprova, a menos que a fronteira seja registrada com o motivo — e registro que ganhou

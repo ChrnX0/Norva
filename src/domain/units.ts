@@ -128,6 +128,23 @@ export function boxesOf(
  * that sells loose units types nothing, and gets the one-step hierarchy that is correct
  * for it. Empty is an answer here, not a missing answer.
  */
+/**
+ * A inversa de `tiersFromCounts`: da hierarquia gravada de volta para os dois números que
+ * a fábrica digitou.
+ *
+ * Existe porque duas telas a refaziam na mão para reabrir um cadastro — e refaziam
+ * carregando a armadilha que o docblock acima nomeia: sem caixa, `perCrate` conta UNIDADES
+ * por engradado; com caixa, conta CAIXAS. Quem reconstrói de cabeça divide sempre, e o
+ * engradado do pote (sem caixa) reabria com o número dividido por um degrau que não
+ * existe. A ida e a volta moram juntas para não divergirem.
+ */
+export function countsFromTiers(h: PackagingHierarchy): { perBox: number; perCrate: number } {
+  const caixa = h.tiers.find((t) => t.id === 'box')?.perBaseUnit ?? 0;
+  const engradado = h.tiers.find((t) => t.id === 'crate')?.perBaseUnit ?? 0;
+  if (engradado <= 0) return { perBox: caixa, perCrate: 0 };
+  return { perBox: caixa, perCrate: caixa > 0 ? engradado / caixa : engradado };
+}
+
 export function tiersFromCounts(perBox: number, perCrate: number): PackagingHierarchy {
   const passo = (n: number) => Number.isFinite(n) && n > 1;
   const tiers: PackagingTier[] = [{ id: 'unit', perBaseUnit: 1 }];

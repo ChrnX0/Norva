@@ -10,14 +10,7 @@ import {
   reorderPoint,
 } from './cost';
 import { fromDecimal, rate, type Rate } from './money';
-import {
-  compareVersions,
-  costPerProductUnit,
-  costRecipe,
-  unitsPerBatch,
-  type ItemCosts,
-  type Recipe,
-} from './recipe';
+import { compareVersions, costPerProductUnit, costRecipe, unitsPerBatch, type ItemCosts, type Recipe, taxaPorUnidade } from './recipe';
 
 /**
  * The chain the whole product rests on: an invoice moves the average, the
@@ -125,14 +118,32 @@ test('a version comparison answers "did my change help" in cents per unit', () =
   const after = costRecipe('popsicle', cheaper, costs);
   const delta = compareVersions(before, after, 75);
 
-  assert.equal(delta.cheaper, true);
-  assert.ok(delta.deltaCents < 0);
-  // `< 0` diria só "é negativo", que o sinal acima já disse. A régua é a
-  // igualdade contra a conta feita fora daqui: a queda por cento é a queda em
-  // centavos sobre o custo que a versão anterior tinha por unidade.
-  const antes = costPerProductUnit(before, 75);
-  assert.notEqual(delta.percent, null);
-  assert.ok(Math.abs((delta.percent as number) - delta.deltaCents / antes) < 1e-12);
+  assert.equal(delta.cheaper, true, 'tirar polpa e pôr base barateia a unidade');
+
+  /**
+   * **A régua era derivada do próprio resultado, e por isso aprovava o defeito.**
+   *
+   * Ela afirmava `percent === deltaCents / antes` — o por cento calculado a partir do
+   * delta ARREDONDADO. Qualquer implementação que arredondasse duas vezes satisfazia a
+   * linha, porque os dois lados vinham do mesmo número: é a armadilha que esta casa já
+   * pagou uma vez (`taxa` comparada com `(taxa - 0,4) + 0,4`), com `Math.abs` e
+   * tolerância dando cara de igualdade de verdade.
+   *
+   * Agora os dois são conta feita FORA: as taxas exatas por unidade das duas versões,
+   * calculadas aqui, e o delta arredondado uma vez só.
+   */
+  const antesExato = taxaPorUnidade(before, 75);
+  const depoisExato = taxaPorUnidade(after, 75);
+  assert.equal(
+    delta.deltaCents,
+    Math.round(depoisExato - antesExato),
+    'o delta é a diferença das taxas exatas, arredondada UMA vez — não a diferença de dois arredondados',
+  );
+  assert.notEqual(delta.percent, null, 'há versão anterior com custo, então há com o que comparar');
+  assert.ok(
+    Math.abs((delta.percent as number) - (depoisExato - antesExato) / antesExato) < 1e-12,
+    'a queda por cento sai das taxas exatas: derivá-la do delta arredondado perde a fração que a mudança teve',
+  );
 });
 
 test('sem custo anterior não há por cento, e nulo não é zero', () => {

@@ -148,6 +148,22 @@ export const DEFAULT_ALERTS: AlertSettings = {
  */
 export type VolumeBand = 'zerado' | 'vermelho' | 'amarelo' | 'verde' | 'azul';
 
+/**
+ * Quanto do cheio está ali, em por cento — a conta que a faixa e a frase compartilham.
+ *
+ * Ela estava escrita três vezes: a faixa do alerta, o número que a frase diz, e a linha
+ * embaixo do item no almoxarifado. Três cópias da mesma divisão é como a faixa e a frase
+ * passam a discordar sem ninguém notar — a faixa dizendo vermelho e o texto dizendo 21%,
+ * porque uma arredondou e a outra não.
+ *
+ * Não arredonda: quem precisa de inteiro arredonda no fim, uma vez. A faixa compara
+ * contra os limites com a fração inteira, que é o que evita 20,4% cair em vermelho num
+ * lugar e amarelo no outro.
+ */
+export function parcelaDoCheio(onHand: number, fullLevel: number): number {
+  return fullLevel > 0 ? (onHand / fullLevel) * 100 : 0;
+}
+
 export function volumeBand(
   onHand: number,
   fullLevel: number | null,
@@ -156,7 +172,7 @@ export function volumeBand(
   if (fullLevel === null || !(fullLevel > 0)) return null;
   if (onHand <= 0) return 'zerado';
 
-  const share = (onHand / fullLevel) * 100;
+  const share = parcelaDoCheio(onHand, fullLevel);
   if (share <= bands.red) return 'vermelho';
   if (share <= bands.yellow) return 'amarelo';
   if (share >= bands.blue) return 'azul';
@@ -312,7 +328,7 @@ export function alertsDue(facts: AlertFacts, settings: AlertSettings): Alert[] {
         subject: v.name,
         // A porcentagem, que é o número que a frase vai dizer: "20% do cheio" se
         // lê igual em qualquer item, e o saldo cru não.
-        amount: Math.round((v.onHand / (v.fullLevel as number)) * 100),
+        amount: Math.round(parcelaDoCheio(v.onHand, v.fullLevel as number)),
         band: faixa,
       });
     }

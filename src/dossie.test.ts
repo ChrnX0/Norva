@@ -175,13 +175,16 @@ test('a régua distingue quem TEM chamador de quem não tem', () => {
     'o UnitStepper ganhou tela em três lugares — a régua tem de ver isso',
   );
 
-  // Era `daysUntilExpiry` até 12 de setembro — e ela ganhou chamador (a fila de avisos),
-  // então virou o caso VERDADEIRO. Um exemplo negativo que envelhece para positivo é a
-  // régua provando o contrário do que promete.
-  const morto = ondeMora('multiplyCents');
+  // Era `daysUntilExpiry` e virou `multiplyCents` mais cedo no mesmo dia; a primeira ganhou
+  // chamador e a segunda foi APAGADA por não ter nenhum. Um exemplo negativo que envelhece
+  // — para positivo ou para o nada — é a régua provando o contrário do que promete, e por
+  // isso o escolhido agora é o que só sai da lista com decisão do dono: `needsHumanYes` é
+  // promessa feita antes das funcionalidades existirem, e continuará sem chamador até
+  // alguém construir preço ou lançamento financeiro.
+  const morto = ondeMora('needsHumanYes');
   assert.ok(morto, 'a função existe');
   assert.deepEqual(
-    chamadores('multiplyCents', morto),
+    chamadores('needsHumanYes', morto),
     [],
     'e esta continua sem chamador de produção, que é o caso que a régua não pode inventar',
   );

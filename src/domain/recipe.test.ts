@@ -175,10 +175,10 @@ test('the packaging that leaves stock is inside the quoted unit cost', () => {
   const soMassa = costPerProductUnit(cost, 75);
 
   // Dois centavos de palito são dois centavos no custo da unidade.
-  assert.equal(costPerProductUnit(cost, 75, { itemsRate: 2 }) - soMassa, 2);
+  assert.equal(costPerProductUnit(cost, 75, { itemsRate: 2 as Rate }) - soMassa, 2);
 
   // E as duas metades somam: o que sai do estoque mais o que foi digitado.
-  assert.equal(costPerProductUnit(cost, 75, { itemsRate: 2, typedRate: rate(0.03, 1) }) - soMassa, 5);
+  assert.equal(costPerProductUnit(cost, 75, { itemsRate: 2 as Rate, typedRate: rate(0.03, 1) }) - soMassa, 5);
 
   // A fração não se perde no caminho, e é por isso que a taxa entra fracionária:
   // meio centavo somado dez vezes é cinco centavos, não zero e não dez. Onde
@@ -537,7 +537,7 @@ test('packaging under half a cent is charged, not rounded away', () => {
   // centavo de palito mais quatro décimos de rótulo é quase um centavo inteiro, e
   // nenhum dos dois vira zero no caminho.
   const soMassa = costPerProductUnit(cost, 75);
-  const juntos = costPerProductUnit(cost, 75, { typedRate: rotulo, itemsRate: 0.5 });
+  const juntos = costPerProductUnit(cost, 75, { typedRate: rotulo, itemsRate: 0.5 as Rate });
   assert.equal(juntos - soMassa, 1, 'nove décimos arredondam para um centavo, uma vez');
 });
 
@@ -572,7 +572,7 @@ test('o lote com embalagem é a massa mais a embalagem de cada unidade', () => {
   const unidades = unitsPerBatch(cost, 75);
   assert.equal(batchWithPackaging(cost, 75), cost.batchCents, 'sem embalagem, é a massa');
   assert.equal(
-    batchWithPackaging(cost, 75, { itemsRate: 2 }) - cost.batchCents,
+    batchWithPackaging(cost, 75, { itemsRate: 2 as Rate }) - cost.batchCents,
     2 * unidades,
     'dois centavos por unidade custam dois centavos vezes as unidades da batelada',
   );
@@ -694,7 +694,7 @@ test('a caixa fechada arredonda uma vez, no fim — e não cinquenta vezes', () 
   // de palito por picolé é vinte e cinco centavos numa caixa de cinquenta, e some inteiro
   // se cada picolé arredondar sozinho.
   assert.equal(
-    costPerPack(custo, 1, 50, { itemsRate: 0.5 }),
+    costPerPack(custo, 1, 50, { itemsRate: 0.5 as Rate }),
     391,
     'o palito de meio centavo sumiu na caixa: (7,3265 + 0,5) x 50 = 391,325',
   );

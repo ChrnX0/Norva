@@ -182,7 +182,7 @@ export function costRecipe(
 
   // Loss raises the unit cost: the batch is paid for in full, but less of it
   // reaches a customer.
-  const netYield = recipe.yieldAmount * (1 - recipe.lossFraction);
+  const netYield = netYieldOf(recipe);
   const perYieldUnit = netYield > 0 ? rateFromCents(batch, netYield) : (0 as Rate);
 
   const result: RecipeCost = {
@@ -207,13 +207,29 @@ export function costRecipe(
  * 6 — o mesmo defeito que a polpa a R$ 12,40/kg já custou aqui. Quem arredonda é
  * `costPerProductUnit`, uma vez, no fim.
  */
+/**
+ * O que de fato SAI do tacho, descontada a perda.
+ *
+ * A conta é uma linha e estava escrita em quatro lugares — o custo da ficha, a explosão
+ * das sub-receitas, a previsão de embalagem e a tela do cadastro. Quatro cópias da mesma
+ * multiplicação é a forma como um número diverge em silêncio: quem mexer no significado
+ * de `lossFraction` num lugar deixa os outros três dizendo outra coisa. É a mesma doença
+ * que a conta de dias teve, e o conserto é o mesmo — a aritmética mora no domínio, uma
+ * vez, e quem precisa dela chama.
+ *
+ * A perda SOBE o custo unitário: o tacho é pago inteiro e menos dele chega ao cliente.
+ */
+export function netYieldOf(recipe: { yieldAmount: number; lossFraction: number }): number {
+  return recipe.yieldAmount * (1 - recipe.lossFraction);
+}
+
 export function packagingRatePerUnit(
   items: readonly { itemId: string; quantityPerUnit: number }[],
   rates: Readonly<Record<string, number>>,
-): number {
+): Rate {
   let total = 0;
   for (const linha of items) total += (rates[linha.itemId] ?? 0) * linha.quantityPerUnit;
-  return total;
+  return total as Rate;
 }
 
 /**
@@ -244,13 +260,27 @@ export function packagingRatePerUnit(
 export function costPerProductUnit(
   recipeCost: RecipeCost,
   yieldPerUnit: number,
-  unitPackaging: { typedRate?: Rate; itemsRate?: number } = {},
+  unitPackaging: { typedRate?: Rate; itemsRate?: Rate } = {},
 ): Cents {
-  return cents(
-    recipeCost.perYieldUnit * yieldPerUnit +
-      (unitPackaging.itemsRate ?? 0) +
-      (unitPackaging.typedRate ?? 0),
-  );
+  return cents(taxaPorUnidade(recipeCost, yieldPerUnit, unitPackaging));
+}
+
+/**
+ * O custo de uma unidade ANTES de arredondar — a taxa, em centavos fracionários.
+ *
+ * Existe para quem precisa comparar duas unidades entre si: subtrair dois valores já
+ * arredondados soma dois erros de meio centavo, e uma diferença de três décimos de
+ * centavo desaparece inteira. Quem quer o valor que alguém paga chama
+ * `costPerProductUnit`, que arredonda uma vez; quem quer comparar chama esta.
+ */
+export function taxaPorUnidade(
+  recipeCost: RecipeCost,
+  yieldPerUnit: number,
+  unitPackaging: { typedRate?: Rate; itemsRate?: Rate } = {},
+): Rate {
+  return (recipeCost.perYieldUnit * yieldPerUnit +
+    (unitPackaging.itemsRate ?? 0) +
+    (unitPackaging.typedRate ?? 0)) as Rate;
 }
 
 /**
@@ -272,7 +302,7 @@ export function costPerPack(
   recipeCost: RecipeCost,
   yieldPerUnit: number,
   unitsPerPack: number,
-  unitPackaging: { typedRate?: Rate; itemsRate?: number } = {},
+  unitPackaging: { typedRate?: Rate; itemsRate?: Rate } = {},
 ): Cents {
   return cents(
     (recipeCost.perYieldUnit * yieldPerUnit +
@@ -310,7 +340,7 @@ export function unitsPerBatch(recipeCost: RecipeCost, yieldPerUnit: number): num
 export function batchWithPackaging(
   recipeCost: RecipeCost,
   yieldPerUnit: number,
-  unitPackaging: { typedRate?: Rate; itemsRate?: number } = {},
+  unitPackaging: { typedRate?: Rate; itemsRate?: Rate } = {},
 ): Cents {
   const porUnidade = (unitPackaging.itemsRate ?? 0) + (unitPackaging.typedRate ?? 0);
   return cents(Math.round(recipeCost.batchCents + porUnidade * unitsPerBatch(recipeCost, yieldPerUnit)));
@@ -326,8 +356,22 @@ export function compareVersions(
   after: RecipeCost,
   yieldPerUnit: number,
 ): { deltaCents: Cents; cheaper: boolean; percent: number | null } {
-  const beforeUnit = costPerProductUnit(before, yieldPerUnit);
-  const afterUnit = costPerProductUnit(after, yieldPerUnit);
+  /**
+   * **A diferença sai das TAXAS, e arredonda uma vez.**
+   *
+   * Antes ela era `cents(depois) - cents(antes)`: dois arredondamentos entrando numa
+   * subtração, e o erro de cada um vale meio centavo. Uma ficha que passou de 7,3265 para
+   * 7,0 centavos por unidade — três décimos mais barata — saía com `delta = 0` porque as
+   * duas viravam 7, e a tela dizia "não mudou" de uma mudança real. Pior: o sinal do
+   * `cheaper` e o `percent` herdavam o zero, então a pessoa lia que a decisão dela não
+   * teve efeito nenhum.
+   *
+   * Arredondar a DIFERENÇA em vez da diferença dos arredondados é a mesma regra da capa
+   * deste projeto — só o valor final arredonda, uma vez — aplicada onde o valor final é o
+   * delta, não as parcelas. `cheaper` e `percent` passam a sair da conta exata.
+   */
+  const beforeUnit = taxaPorUnidade(before, yieldPerUnit);
+  const afterUnit = taxaPorUnidade(after, yieldPerUnit);
   const delta = cents(afterUnit - beforeUnit);
   return {
     deltaCents: delta,
@@ -343,7 +387,7 @@ export function compareVersions(
      * dados devolvendo frase em vez de fato. Quem não tem base devolve nulo, e a
      * tela escolhe outra frase.
      */
-    percent: beforeUnit > 0 ? delta / beforeUnit : null,
+    percent: beforeUnit > 0 ? (afterUnit - beforeUnit) / beforeUnit : null,
   };
 }
 
@@ -374,7 +418,7 @@ export function explodeRequirements(
       if (!sub) throw new MissingRecipeError(line.recipeId);
       // The parent asks for `quantity` units of the sub-recipe's *net* yield,
       // so convert that into how many sub-batches must actually be made.
-      const netYield = sub.yieldAmount * (1 - sub.lossFraction);
+      const netYield = netYieldOf(sub);
       const subBatches = netYield > 0 ? (line.quantity * batches) / netYield : 0;
       explodeRequirements(line.recipeId, subBatches, recipes, into, nextStack);
     }
@@ -454,7 +498,7 @@ export function shoppingList(
     // A unidade prevista do tacho: rendimento líquido dividido pelo que cada
     // unidade leva. Meio tacho gasta metade do açúcar, mas 400 unidades gastam
     // 400 palitos — por isso a embalagem conta por unidade e não por tacho.
-    const units = (recipe.yieldAmount * (1 - recipe.lossFraction) * line.batches) / perUnit;
+    const units = (netYieldOf(recipe) * line.batches) / perUnit;
     for (const wrap of line.packaging) {
       needed.set(wrap.itemId, (needed.get(wrap.itemId) ?? 0) + wrap.quantityPerUnit * units);
     }

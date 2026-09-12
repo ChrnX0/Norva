@@ -5,9 +5,9 @@ import {
   amountOf,
   cents,
   fromDecimal,
-  multiplyCents,
   rate,
   rateFromCents,
+  rateToDecimal,
   toDecimal,
   type Cents,
   type Rate,
@@ -105,13 +105,18 @@ test('a Cents value is always whole', () => {
   assert.equal(half, 11, 'cents is an integer type, and the constructor enforces it');
 });
 
-test('multiplying money rounds once, at the end, and never drifts', () => {
-  // The rule the whole project is built on, applied to the other operator: a
-  // third of ten cents is not three and a third cents, because there is no such
-  // coin. Rounding here and rounding again downstream is how a cent appears
-  // from nowhere in a total.
-  assert.equal(multiplyCents(cents(1000), 0.333), 333);
-  assert.equal(multiplyCents(cents(1000), 1 / 3), 333);
-  assert.equal(multiplyCents(cents(5), 0.5), 3, 'half of five cents rounds up, once');
-  assert.equal(multiplyCents(cents(0), 99), 0);
+test('uma taxa volta para o número que a pessoa digita, e Cents e Rate não se misturam', () => {
+  /**
+   * `rateToDecimal` nasceu em 12 de setembro no lugar de `multiplyCents`, que foi apagada
+   * por não ter chamador e por prometer o que não cumpria. Esta é a ida e a volta: a polpa
+   * a R$ 12,40 o quilo é 1,24 centavo por grama, e 1,24 centavo por grama lido de volta é
+   * R$ 0,0124 por grama.
+   */
+  const porGrama = rate(12.4, 1000);
+  assert.equal(porGrama, 1.24, 'R$ 12,40 o quilo é 1,24 centavo por grama');
+  assert.equal(rateToDecimal(porGrama), 0.0124, 'e a taxa lida de volta é R$ 0,0124 por grama');
+
+  // O sub-centavo sobrevive à ida e à volta: é ele que o tipo `Rate` existe para proteger.
+  const rotulo = rate(0.004, 1);
+  assert.equal(rateToDecimal(rotulo), 0.004, 'um rótulo de quatro milésimos não vira zero');
 });

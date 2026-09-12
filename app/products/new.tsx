@@ -52,7 +52,7 @@ import {
   type ItemCosts,
   type Recipe,
 } from '@/domain/recipe';
-import { type PackagingHierarchy } from '@/domain/units';
+import { type PackagingHierarchy, countsFromTiers } from '@/domain/units';
 import { meioDaGrade } from '@/components/grade';
 import { parseTyped } from '@/domain/number';
 import { currencySymbol, fill, formatMoney, formatUnitRate, formatQuantity } from '@/i18n';
@@ -360,13 +360,14 @@ function ProductForm() {
     setTypeId(null);
     const daFamilia = linha?.packaging;
     if (!embalagemDigitada && daFamilia) {
-      const caixaDaFamilia = daFamilia.tiers.find((t2) => t2.id === 'box') ?? null;
-      const engradadoDaFamilia = daFamilia.tiers.find((t2) => t2.id === 'crate') ?? null;
-      setPerBox(caixaDaFamilia ? String(caixaDaFamilia.perBaseUnit) : '');
+      // `countsFromTiers` e não a divisão na mão: sem caixa, o número do engradado conta
+      // UNIDADES e não caixas, e a conta antiga exigia as duas para mostrar qualquer
+      // coisa — o engradado do pote reabria vazio, que é o degrau sendo descartado sem
+      // uma palavra, exatamente o que `tiersFromCounts` foi escrita para não fazer.
+      const daFamiliaContada = countsFromTiers(daFamilia);
+      setPerBox(daFamiliaContada.perBox > 0 ? String(daFamiliaContada.perBox) : '');
       setPerCrate(
-        caixaDaFamilia && engradadoDaFamilia
-          ? String(Math.round(engradadoDaFamilia.perBaseUnit / caixaDaFamilia.perBaseUnit))
-          : '',
+        daFamiliaContada.perCrate > 0 ? String(Math.round(daFamiliaContada.perCrate)) : '',
       );
     }
   }

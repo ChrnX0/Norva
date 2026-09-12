@@ -34,7 +34,7 @@ import {
   currentCapabilities,
 } from '@/data/repository';
 import { dayWindow, localDate } from '@/domain/day';
-import { rate } from '@/domain/money';
+import { rate, rateToDecimal } from '@/domain/money';
 import { ehUnidade, nomeDoLugar, receivesCargo } from '@/domain/ledger';
 import { empresaDaqui } from '@/data/empresa';
 import { unidadeDaqui } from '@/data/unidade';
@@ -987,7 +987,7 @@ function Agreement({ place, onDone }: { place: Place; onDone: () => void }) {
                 digitado[linha.itemId] ??
                 (linha.agreedRate === null
                   ? ''
-                  : formatTyped(linha.agreedRate / 100, locale.formatting, 4, 2))
+                  : formatTyped(rateToDecimal(linha.agreedRate), locale.formatting, 4, 2))
               }
               onChangeText={(texto) =>
                 setDigitado((atual) => ({ ...atual, [linha.itemId]: texto }))

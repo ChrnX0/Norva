@@ -1,12 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import {
-  isValidHierarchy,
-  type PackagingHierarchy,
-  boxesOf,
-  tiersFromCounts,
-  toBaseUnits,
-} from './units';
+import { isValidHierarchy, type PackagingHierarchy, boxesOf, tiersFromCounts, toBaseUnits, countsFromTiers } from './units';
 
 /**
  * The packaging invariant, which was written down and never run.
@@ -135,4 +129,33 @@ test('degrau que não sobe não entra, senão a hierarquia nasce inválida', () 
   ]);
   assert.ok(isValidHierarchy(tiersFromCounts(1, 6)));
   assert.ok(isValidHierarchy(tiersFromCounts(0, 0)));
+});
+
+test('a hierarquia vai e volta, inclusive na família de DOIS degraus', () => {
+  /**
+   * A ida e a volta moram no mesmo arquivo porque a armadilha é a mesma nas duas direções:
+   * o segundo número significa CAIXAS por engradado quando há caixa, e UNIDADES por
+   * engradado quando não há. Duas telas reconstruíam isso na mão exigindo as duas, e o
+   * engradado do pote — a família de dois degraus descrita pelo dono — reabria vazio.
+   */
+  const picole = tiersFromCounts(44, 6);
+  assert.deepEqual(
+    countsFromTiers(picole),
+    { perBox: 44, perCrate: 6 },
+    'picolé: 44 por caixa, 6 caixas por engradado — os dois números voltam como foram digitados',
+  );
+
+  const pote = tiersFromCounts(0, 12);
+  assert.deepEqual(
+    countsFromTiers(pote),
+    { perBox: 0, perCrate: 12 },
+    'pote: sem caixa, o 12 conta UNIDADES por engradado e volta como 12, não dividido por um degrau que não existe',
+  );
+
+  const solto = tiersFromCounts(0, 0);
+  assert.deepEqual(
+    countsFromTiers(solto),
+    { perBox: 0, perCrate: 0 },
+    'quem vende unidade solta digitou nada e recebe nada de volta — vazio é resposta',
+  );
 });

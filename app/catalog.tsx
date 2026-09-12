@@ -27,7 +27,7 @@ import {
 import { empresaDaqui } from '@/data/empresa';
 import { meioDaGrade } from '@/components/grade';
 import { parseTyped } from '@/domain/number';
-import { tiersFromCounts, type PackagingHierarchy } from '@/domain/units';
+import { tiersFromCounts, type PackagingHierarchy, countsFromTiers } from '@/domain/units';
 import { useQuery } from '@/data/useQuery';
 import { fill } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -158,10 +158,12 @@ function Catalog() {
   // propriedade que mudou.
   if (linhaAtiva && linhaAtiva.id !== linhaEditada) {
     setLinhaEditada(linhaAtiva.id);
-    const caixa = linhaAtiva.packaging?.tiers.find((x) => x.id === 'box') ?? null;
-    const engradado = linhaAtiva.packaging?.tiers.find((x) => x.id === 'crate') ?? null;
-    setPorCaixa(caixa ? String(caixa.perBaseUnit) : '');
-    setPorEngradado(caixa && engradado ? String(Math.round(engradado.perBaseUnit / caixa.perBaseUnit)) : '');
+    // A volta da hierarquia é do domínio: sem caixa, o engradado conta unidades, e a
+    // conta na mão exigia as duas para mostrar qualquer número — a família de dois degraus
+    // reabria com o engradado em branco.
+    const contada = countsFromTiers(linhaAtiva.packaging ?? { tiers: [] });
+    setPorCaixa(contada.perBox > 0 ? String(contada.perBox) : '');
+    setPorEngradado(contada.perCrate > 0 ? String(Math.round(contada.perCrate)) : '');
   }
 
   /** O que vai para o banco: sem caixa, a família só tem a unidade. */

@@ -17,7 +17,7 @@ import { packSize } from '@/domain/measure';
 import { findItem, recordPurchase, saveItem, type ItemKind } from '@/data/repository';
 import { useQuery } from '@/data/useQuery';
 import { empresaDaqui } from '@/data/empresa';
-import { fromDecimal, rate } from '@/domain/money';
+import { fromDecimal, rate, rateToDecimal, type Rate } from '@/domain/money';
 import { parseTyped, formatTyped } from '@/domain/number';
 import { currencySymbol, fill, formatMoney, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
@@ -159,7 +159,7 @@ function InputForm() {
           price:
             existing.averageRate !== null && existing.averageRate > 0
               ? formatTyped(
-                  (existing.averageRate * (existing.purchaseToBase ?? 1)) / 100,
+                  rateToDecimal((existing.averageRate * (existing.purchaseToBase ?? 1)) as Rate),
                   locale.formatting,
                   4,
                   // Duas casas porque é DINHEIRO: o campo trazia "118" onde a nota

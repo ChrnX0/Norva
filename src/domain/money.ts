@@ -16,10 +16,6 @@ export function toDecimal(value: Cents): number {
   return value / 100;
 }
 
-export function multiplyCents(value: Cents, factor: number): Cents {
-  return Math.round(value * factor) as Cents;
-}
-
 
 /**
  * A unit rate: fractional cents per base unit.
@@ -44,6 +40,27 @@ export function rate(pricePerPurchaseUnit: number, baseUnitsPerPurchaseUnit: num
 /** Turns a rate and a quantity into an amount - the one place rounding happens. */
 export function amountOf(unitRate: Rate, quantity: number): Cents {
   return Math.round(unitRate * quantity) as Cents;
+}
+
+/**
+ * Uma TAXA em centavos fracionários vira o número que a pessoa digita e lê.
+ *
+ * Par de `toDecimal`, e separado dela de propósito: `toDecimal` recebe `Cents` inteiro — o
+ * valor que alguém paga — e esta recebe `Rate`, que é preço por unidade e nunca é inteiro.
+ * Uma só função para os dois apagaria a distinção que a fundação desta casa existe para
+ * guardar, e o tipo deixaria de reprovar quem trocar um pelo outro.
+ *
+ * Existe porque três telas dividiam por 100 na mão para mostrar a taxa, e dividir por 100
+ * na mão é metade do erro que a capa deste projeto proíbe.
+ *
+ * *No lugar onde morava `multiplyCents`, apagada em 12 de setembro: zero chamadores, e a
+ * justificativa escrita dela ("existe para ninguém escrever `Math.round(x * f)` inline")
+ * era falsa duas vezes — o inline que de fato aconteceu, vinte e cinco vezes, é `Rate ×
+ * quantidade`, que é trabalho do `amountOf`. Primitiva presente não impede inline nenhum;
+ * quem impede é a guarda de fonte.*
+ */
+export function rateToDecimal(value: Rate): number {
+  return value / 100;
 }
 
 export function rateFromCents(total: Cents, quantity: number): Rate {

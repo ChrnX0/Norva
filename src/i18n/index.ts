@@ -1,3 +1,4 @@
+import { toDecimal, type Cents } from '@/domain/money';
 import { en } from './locales/en';
 import { es } from './locales/es';
 import { ptBR, type Dictionary } from './locales/pt-BR';
@@ -94,10 +95,14 @@ export function plural(
  * customer is not internationalisation.
  */
 export function formatMoney(cents: number, locale: LocaleSettings): string {
+  // `toDecimal` e não `/ 100`: a primitiva existe para a divisão morar num lugar só, e
+  // esta era a última função do aplicativo que a repetia à mão. Enquanto ela repetia, a
+  // primitiva ficava listada como "sem chamador" com a justificativa de que existia para
+  // impedir exatamente isto — promessa que a linha de baixo desmentia.
   return new Intl.NumberFormat(locale.formatting, {
     style: 'currency',
     currency: locale.currency,
-  }).format(cents / 100);
+  }).format(toDecimal(cents as Cents));
 }
 
 /**
