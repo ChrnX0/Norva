@@ -3384,3 +3384,128 @@ test('a régua da fonte da descida distingue a tabela da view', () => {
     'a régua acusou a PROSA que explica a decisão — aviso assim ensina a ignorar aviso',
   );
 });
+
+/**
+ * Toda escrita que ATRAVESSA tem portão de capacidade, ou está registrada com a razão.
+ *
+ * **O defeito é a fila travada, e é a sexta vez que ele aparece neste repositório.** Uma linha
+ * que entra na fila sem portão é uma linha que o servidor recusa por política, com `42501`; e
+ * `42501` é PASSAGEIRA por decisão escrita em `src/sync/recusa.ts` — *"consertável do outro
+ * lado: um grant amanhã faz a mesma linha entrar"*, que é verdade para grant que falta e falso
+ * para política que nega. Então a entrada nunca sai da frente, com espera exponencial, e tudo o
+ * que a fábrica gravar depois fica preso atrás dela.
+ *
+ * O conserto não é classificar `42501` como permanente: isso perderia dado no caso do grant.
+ * É o aparelho **recusar o que o servidor recusaria**, antes de a linha nascer — a mesma forma
+ * da fundação de permissão desta casa, virada para a escrita.
+ *
+ * **A régua é o CAMINHO, não a função.** Duas leituras minhas erraram antes desta, nas duas
+ * direções: olhar só quem chama `enqueue` diretamente aponta o ajudante interno (`writeItem`) e
+ * perde a porta pública (`saveItem`); olhar só a porta pública e exigir o portão NELA acusa
+ * `recordTransfer`, que o tem em `podeGravar` uma camada abaixo. O que vale é *existe portão em
+ * todo caminho da porta até a fila*, e é isso que esta régua calcula.
+ */
+const SEM_PORTAO_COM_RAZAO: Record<string, string> = {
+  listPlaces:
+    'é LEITURA. Ela alcança a fila por `ensureLocation`, que semeia o lugar da empresa — e essa semente só enfileira quando a conta pode administrar (ver o docblock dela). Pôr portão numa leitura esconderia a tela de quem tem direito de vê-la.',
+  listProfiles:
+    'é LEITURA, pelo mesmo caminho: `ensureProfiles` semeia os sete modelos e só semeia para quem administra, porque o id do perfil é sorteado e semear sem atravessar deixaria quatorze perfis no aparelho depois da descida.',
+};
+
+test('toda porta que enfileira tem portão de capacidade em todo caminho', () => {
+  const fonte = readFileSync('src/data/repository.ts', 'utf8').split('\n');
+  const inicios = fonte
+    .map((l, i) => [i, l] as const)
+    .filter(([, l]) => /^(export )?(async )?function \w+/.test(l));
+  assert.ok(inicios.length > 50, `a régua achou ${inicios.length} funções — o padrão não casa mais`);
+
+  type Info = { corpo: string; linha: number; exportada: boolean; chama: Set<string> };
+  const info = new Map<string, Info>();
+  const ordem: string[] = [];
+  inicios.forEach(([i, l], k) => {
+    const fim = k + 1 < inicios.length ? inicios[k + 1][0] : fonte.length;
+    const nome = /^(?:export )?(?:async )?function (\w+)/.exec(l)![1];
+    info.set(nome, {
+      corpo: fonte.slice(i, fim).join('\n'),
+      linha: i + 1,
+      exportada: l.startsWith('export'),
+      chama: new Set(),
+    });
+    ordem.push(nome);
+  });
+  for (const nome of ordem) {
+    const eu = info.get(nome)!;
+    for (const outro of ordem) {
+      if (outro !== nome && new RegExp(`\\b${outro}\\s*\\(`).test(eu.corpo)) eu.chama.add(outro);
+    }
+  }
+
+  const enfileira = (n: string) => info.get(n)!.corpo.includes('enqueue(');
+  const temPortao = (n: string) =>
+    info.get(n)!.corpo.includes('exigirCapacidade(') || info.get(n)!.corpo.includes('podeGravar(');
+
+  // Quem alcança a fila, direta ou indiretamente.
+  const alcanca = new Set(ordem.filter(enfileira));
+  for (let volta = 0; volta < ordem.length; volta += 1) {
+    let mudou = false;
+    for (const n of ordem) {
+      if (alcanca.has(n)) continue;
+      for (const m of info.get(n)!.chama) {
+        if (alcanca.has(m)) {
+          alcanca.add(n);
+          mudou = true;
+          break;
+        }
+      }
+    }
+    if (!mudou) break;
+  }
+  assert.ok(alcanca.size > 10, `só ${alcanca.size} funções alcançam a fila — a leitura falhou`);
+
+  // Portão em TODO caminho: quem enfileira sem portão não está protegida, e quem só chama
+  // está protegida se TODAS as chamadas que alcançam a fila estiverem.
+  const protegida = new Map<string, boolean>();
+  for (let volta = 0; volta < ordem.length; volta += 1) {
+    let mudou = false;
+    for (const n of ordem) {
+      if (!alcanca.has(n)) continue;
+      let novo: boolean;
+      if (temPortao(n)) novo = true;
+      else if (enfileira(n)) novo = false;
+      else {
+        const filhos = [...info.get(n)!.chama].filter((m) => alcanca.has(m));
+        novo = filhos.length > 0 && filhos.every((m) => protegida.get(m) === true);
+      }
+      if (protegida.get(n) !== novo) {
+        protegida.set(n, novo);
+        mudou = true;
+      }
+    }
+    if (!mudou) break;
+  }
+
+  const abertas = ordem
+    .filter((n) => alcanca.has(n) && info.get(n)!.exportada && protegida.get(n) !== true)
+    .filter((n) => !SEM_PORTAO_COM_RAZAO[n])
+    .map((n) => `${n} (repository.ts:${info.get(n)!.linha})`);
+
+  assert.deepEqual(
+    abertas,
+    [],
+    `${abertas.join(' · ')}: escreve, enfileira e não pede capacidade nenhuma. O servidor ` +
+      'recusa por política com 42501, que a fila trata como passageira — a entrada nunca sai ' +
+      'da frente e tudo o que a fábrica gravar depois fica preso atrás dela. Ponha ' +
+      '`exigirCapacidade` derivada da política do servidor, ou registre a razão em ' +
+      'SEM_PORTAO_COM_RAZAO.',
+  );
+
+  const registroVelho = Object.keys(SEM_PORTAO_COM_RAZAO).filter(
+    (n) => protegida.get(n) === true || !alcanca.has(n),
+  );
+  assert.deepEqual(
+    registroVelho,
+    [],
+    `${registroVelho.join(' · ')} está registrada como sem portão e hoje tem um (ou não ` +
+      'alcança mais a fila). Tire a linha: registro que virou mentira é pior que registro nenhum.',
+  );
+});

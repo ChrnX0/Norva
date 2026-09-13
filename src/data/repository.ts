@@ -406,6 +406,7 @@ export async function saveItem(
   /** `fullLevel` ausente é "não mexa no que já estava" — como a ficha de acordo. */
   item: Omit<Item, 'id' | 'fullLevel'> & { id?: string; fullLevel?: number | null },
 ): Promise<string> {
+  await exigirCapacidade(companyId, 'manage_company', 'cadastrar item');
   // A hierarquia é conferida ANTES de gravar, e a regra que confere já existia
   // sem ninguém chamar: `isValidHierarchy` estava no domínio desde o começo,
   // exercitada só por teste. Uma hierarquia inválida — o primeiro degrau
@@ -1693,10 +1694,24 @@ async function ensureLocation(conn: Db, companyId: string): Promise<string> {
      VALUES (?, ?, '', 'factory', ?)`,
     [companyId, companyId, nowIso()],
   );
-  // It has to reach the server before the movement that stands on it does, or
-  // the first sync fails a foreign key on a row nobody knew was missing. It
-  // queues once, on the day the first thing moves, and never again.
-  await enqueue(conn, [{ table: 'locations', rowId: companyId }]);
+  /**
+   * Ela tem de chegar ao servidor antes do movimento que se apoia nela, senão a primeira
+   * sincronia falha numa chave estrangeira de uma linha que ninguém sabia que faltava. Entra
+   * na fila uma vez, no dia em que a primeira coisa se move, e nunca mais.
+   *
+   * **E só entra se esta conta puder administrar a empresa.** `locations_manage` (`0001`) exige
+   * `manage_company`, então o celular de quem só produz enfileiraria uma linha que o servidor
+   * recusa com `42501` — e `42501` é PASSAGEIRA por decisão escrita em `src/sync/recusa.ts`
+   * (*"consertável do outro lado: um grant amanhã faz a mesma linha entrar"*). A entrada nunca
+   * sai da frente, e tudo o que aquele aparelho gravar depois fica preso atrás dela.
+   *
+   * A linha local continua nascendo, porque o aparelho precisa dela para escrever offline. O
+   * que ela não faz é viajar: o id é o da EMPRESA, então quando a linha do servidor descer ela
+   * cai exatamente em cima desta, pelo `id`. Duas sementes, um lugar.
+   */
+  if (await podeAdministrar(companyId)) {
+    await enqueue(conn, [{ table: 'locations', rowId: companyId }]);
+  }
 
   return companyId;
 }
@@ -2208,6 +2223,7 @@ export async function saveRecipeVersion(
     note?: string;
   },
 ): Promise<{ recipeId: string; version: number }> {
+  await exigirCapacidade(companyId, 'manage_company', 'salvar versao de ficha');
   const conn = await db();
   const at = nowIso();
   const recipeId = input.recipeId ?? newId();
@@ -2474,6 +2490,17 @@ async function alguemAdministra(companyId: string): Promise<boolean> {
     [companyId],
   );
   return linhas.some((l) => l.capabilities.split(',').includes('manage_company'));
+}
+
+/**
+ * Esta conta pode administrar a empresa? — a pergunta que decide se a semente ATRAVESSA.
+ *
+ * Diferente de `alguemAdministra`, que pergunta se EXISTE alguém na grade de nomes com a
+ * capacidade. Aqui a pergunta é sobre quem está operando agora, e ela existe porque duas
+ * sementes de infraestrutura enfileiram linhas que o servidor só aceita de quem administra.
+ */
+async function podeAdministrar(companyId: string): Promise<boolean> {
+  return (await currentCapabilities(companyId)).has('manage_company');
 }
 
 async function exigirCapacidade(
@@ -3628,6 +3655,7 @@ export async function saveProduct(
     flavorId?: string | null;
   },
 ): Promise<{ productId: string; itemId: string }> {
+  await exigirCapacidade(companyId, 'manage_company', 'cadastrar produto');
   // Antes de abrir a transação, porque recusar depois de gravar o item deixaria
   // um item órfão para trás - e a checagem lê, não escreve.
   await assertTypeBelongsToLine(companyId, input.lineId ?? null, input.typeId ?? null);
@@ -4220,6 +4248,7 @@ export async function openProductionRun(
     locationId?: string;
   },
 ): Promise<OpenRun> {
+  await exigirCapacidade(companyId, 'record_production', 'abrir a corrida de producao');
   if (!(input.batches > 0) || !Number.isFinite(input.batches)) {
     throw new Error('a receita tem de rodar mais que zero vezes');
   }
@@ -4815,6 +4844,7 @@ export async function recordReading(
     source?: string;
   },
 ): Promise<Reading> {
+  await exigirCapacidade(companyId, 'adjust_stock', 'anotar leitura de sensor');
   if (!Number.isFinite(input.value)) throw new Error('uma leitura que não é número não é leitura');
   if (!input.unit.trim()) throw new Error('uma grandeza sem unidade é um número solto');
 
@@ -5994,6 +6024,7 @@ export async function setItemActive(
   itemId: string,
   active: boolean,
 ): Promise<void> {
+  await exigirCapacidade(companyId, 'manage_company', 'tirar item de uso');
   const conn = await db();
   await conn.withTransactionAsync(async () => {
     await conn.runAsync(`UPDATE items SET active = ? WHERE id = ? AND company_id = ?`, [
@@ -6189,6 +6220,7 @@ export async function saveLine(
     packaging?: PackagingHierarchy | null;
   },
 ): Promise<string> {
+  await exigirCapacidade(companyId, 'manage_company', 'cadastrar nivel de produto');
   const conn = await db();
   const id = input.id ?? newId();
   // "Não mexa" e "apague" são decisões diferentes e as duas chegam como valor
@@ -6216,6 +6248,7 @@ export async function saveType(
   companyId: string,
   input: { id?: string; lineId: string; categoryId?: string | null; name: string; sort?: number },
 ): Promise<string> {
+  await exigirCapacidade(companyId, 'manage_company', 'cadastrar tipo');
   // A categoria tem de ser DESTE produto, e quem prova isso é a escrita.
   //
   // O SQLite não aceita chave composta em `ALTER TABLE ADD COLUMN` (a `V32` diz isso), e
@@ -6280,6 +6313,7 @@ export async function saveCategory(
   companyId: string,
   input: { id?: string; lineId: string; name: string; sort?: number },
 ): Promise<string> {
+  await exigirCapacidade(companyId, 'manage_company', 'cadastrar categoria');
   const conn = await db();
   const dono = await conn.getFirstAsync<{ id: string }>(
     'SELECT id FROM product_lines WHERE id = ? AND company_id = ?',
@@ -6354,6 +6388,7 @@ export async function saveFlavor(
     sort?: number;
   },
 ): Promise<string> {
+  await exigirCapacidade(companyId, 'manage_company', 'cadastrar variacao');
   if (!input.lineId) throw new FlavorNeedsALineError();
   const conn = await db();
   const linha = await conn.getFirstAsync<{ id: string }>(
@@ -8481,6 +8516,20 @@ async function ensureProfiles(conn: Db, companyId: string): Promise<void> {
     [companyId],
   );
   if ((existing?.n ?? 0) > 0) return;
+
+  /**
+   * **A semente é de quem ADMINISTRA, e aqui não basta não enfileirar.**
+   *
+   * `profiles_manage` (`0035`) exige `manage_company`, e uma fila com sete linhas que o
+   * servidor recusa por `42501` trava tudo o que vier atrás — `42501` é passageira por decisão
+   * escrita (`src/sync/recusa.ts`).
+   *
+   * E ao contrário do lugar, o id do perfil é SORTEADO: semear localmente sem atravessar faria
+   * o aparelho ficar com sete perfis que o servidor não conhece e, quando os dele descessem,
+   * com quatorze. O celular de quem só produz espera a descida — e a tela mostra o estado
+   * vazio, que é a verdade sobre ele.
+   */
+  if (!(await podeAdministrar(companyId))) return;
 
   const at = nowIso();
   const ids: string[] = [];
