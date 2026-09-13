@@ -4,7 +4,8 @@ import { beforeEach, test } from 'node:test';
 import { __setDb, migrate, type Db, type SqlParam } from '@/data/db';
 import { CHAVE_DA_EMPRESA, EMPRESA_SEMENTE, carregarEmpresa } from '@/data/empresa';
 import { writeMeta } from '@/data/meta';
-import { pendingCount, pendingEntries } from '@/data/outbox';
+import { db } from '@/data/db';
+import { enqueue, pendingCount, pendingEntries, rejectedEntries } from '@/data/outbox';
 import { fromDecimal } from '@/domain/money';
 import { recordPurchase, saveItem } from '@/data/repository';
 import { drain } from './engine';
@@ -320,4 +321,90 @@ test('recusa SEM código conhecido continua travando — e isso é de propósito
   assert.equal(relatorio.postasDeLado, 0, 'código desconhecido NÃO sai da frente');
   assert.equal(relatorio.remaining, antes - 1, 'e a linha recusada continua na fila, inteira');
   assert.ok(relatorio.error, 'a corrida termina dizendo que parou, como antes');
+});
+
+/**
+ * A falha do APARELHO não é recusa do servidor — e chamá-la assim travava a fila para sempre.
+ *
+ * **O defeito, medido em 13 de setembro.** O laço do transporte monta a linha antes de falar
+ * com a rede, e isso pode falhar de duas formas que não têm nada a ver com o servidor: a linha
+ * sumiu do aparelho (um Reset, uma faxina) ou a tabela não tem travessia (defeito de
+ * programação). As duas caíam num `catch { break; }` mudo. O motor recebia "entraram menos do
+ * que eu mandei", lia lacuna do servidor, gastava tentativa, esperava e repetia — e nenhuma
+ * quantidade de retentativa conserta linha que não existe.
+ *
+ * O resultado era a fila daquele celular parada, com tudo o que a fábrica gravasse depois
+ * preso atrás, e a tela dizendo *"o servidor aceitou N de M registros"* sobre uma linha que o
+ * servidor NUNCA VIU. Quem fosse depurar olharia o servidor.
+ *
+ * **Por que estes dois testes e não um.** São duas classes com consequências diferentes para
+ * quem lê a tela: a linha que sumiu é um fato do aparelho e não pede nada de ninguém; a tabela
+ * sem travessia pede ATUALIZAR o aplicativo. Um teste só mediria uma e deixaria a outra com a
+ * mesma promessa falsa de antes.
+ */
+test('a linha que sumiu do aparelho sai da frente, e a fila anda', async () => {
+  await umDiaDeFabrica();
+  const conn = await db();
+  // Uma entrada ÓRFÃ: a fila nomeia uma linha que não está no aparelho. É o estado que
+  // `forgetOrphans` existe para varrer, então ele acontece de verdade. (Apagar uma linha
+  // semeada não serve: chave estrangeira recusa, e o teste mediria o SQLite.)
+  await enqueue(conn, [{ table: 'items', rowId: 'linha-que-nao-existe' }]);
+  const orfa = (await pendingEntries(200)).find((e) => e.rowId === 'linha-que-nao-existe');
+  assert.ok(orfa, 'a entrada órfã está na fila');
+
+  const casa = casaDeMentira();
+  const relatorio = await drain(transporte({ userId: 'conta-1', companyId: EMPRESA_SEMENTE }, casa), {
+    batchSize: 500,
+    maxAttempts: 3,
+    sleep: async () => {},
+  });
+
+  assert.equal(
+    relatorio.attempts,
+    1,
+    'UMA tentativa: antes a falha local virava lacuna e a corrida queimava as três esperando ' +
+      'que o servidor mudasse de ideia sobre uma linha que ele nunca recebeu',
+  );
+  assert.equal(relatorio.postasDeLado, 1, 'a entrada órfã sai da frente');
+  assert.equal(await pendingCount(), 0, 'e a fila anda: nada fica preso atrás dela');
+
+  const deLado = await rejectedEntries();
+  const dela = deLado.find((e) => e.id === orfa.id);
+  assert.ok(dela, 'ela fica no aparelho, visível, em vez de ser apagada');
+  assert.equal(
+    dela.local,
+    'linhaSumiu',
+    'e o registro diz que quem impediu foi o APARELHO: sem isto a tela explicaria "o servidor ' +
+      'já tinha este registro" sobre uma linha que ele nunca viu',
+  );
+  assert.equal(dela.codigo, null, 'sem código, porque não houve Postgres nenhum');
+});
+
+test('a tabela sem travessia sai da frente, e o registro diz que é do aparelho', async () => {
+  await umDiaDeFabrica();
+  const conn = await db();
+  // O que uma versão do aplicativo vê quando alguém acrescenta tabela nova ao aparelho e
+  // esquece a travessia — o que aconteceu de verdade com `check_candidates` na rodada 14.
+  await enqueue(conn, [{ table: 'tabela_que_ninguem_ensinou', rowId: 'linha-1' }]);
+  const nova = (await pendingEntries(200)).find((e) => e.table === 'tabela_que_ninguem_ensinou');
+  assert.ok(nova);
+
+  const casa = casaDeMentira();
+  const relatorio = await drain(transporte({ userId: 'conta-1', companyId: EMPRESA_SEMENTE }, casa), {
+    batchSize: 500,
+    maxAttempts: 3,
+    sleep: async () => {},
+  });
+
+  assert.equal(relatorio.attempts, 1, 'sem queimar as três tentativas num defeito de código');
+  assert.equal(relatorio.postasDeLado, 1, 'sai da frente para o resto da fila andar');
+  assert.equal(await pendingCount(), 0, 'e o resto andou');
+
+  const dela = (await rejectedEntries()).find((e) => e.id === nova.id);
+  assert.ok(dela);
+  assert.equal(
+    dela.local,
+    'tabelaDesconhecida',
+    'esta é a que pede ATUALIZAR o aplicativo, e a tela só sabe dizer isso se a classe chegar',
+  );
 });

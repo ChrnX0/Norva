@@ -266,10 +266,18 @@ async function subirFila(): Promise<number> {
   const quem = await contaAtual();
   if (!quem) return 0;
   const relatorio = await drain(transporte({ userId: quem.id, companyId: empresaDaqui() }));
-  // `recusa` é "nem tentei" e `error` é "o servidor recusou" — a rodada precisa
-  // saber a diferença, senão uma fila que nunca sobe parece uma fila vazia.
+  // `recusa` é "nem tentei" e `error` é "parou no meio" — a rodada precisa saber a diferença,
+  // senão uma fila que nunca sobe parece uma fila vazia.
+  //
+  // **E o motivo vem do RELATÓRIO, não cravado aqui.** Esta linha dizia `'servidorRecusou'`
+  // para toda parada, e o comentário acima dela dizia o mesmo em prosa — enquanto a parada
+  // podia ser falta de sinal, uma linha que sumiu do aparelho ou uma tabela sem travessia. O
+  // painel do dono contava "a fila falhou porque o servidor recusou" sobre coisa que o
+  // servidor nunca viu.
   if (relatorio.recusa) throw Object.assign(new Error('fila recusada'), { motivo: relatorio.recusa });
-  if (relatorio.error) throw Object.assign(new Error('fila com erro'), { motivo: 'servidorRecusou' });
+  if (relatorio.error) {
+    throw Object.assign(new Error('fila parou'), { motivo: relatorio.error.motivo });
+  }
   return relatorio.sent;
 }
 

@@ -11570,3 +11570,60 @@ mesma régua que a certa.
 distinção que interessa é semântica, a régua não decide — ela ESTREITA. Dizer "4 defeitos"
 depois de um filtro sintático seria a mesma promessa falsa que a asserção fraca; o número
 honesto veio de filtrar pelo que o número É, e depois ler as cinco.
+
+## 13 de setembro — a guarda que olha o último elo não vê a frase que entrou dois elos antes
+
+`src/layers.test.ts` tem uma guarda chamada `frasesCruas`: ela recusa tela que imprima
+`e instanceof Error ? e.message : …`. Ela nasceu de nove telas fazendo exatamente isso, e está
+certa. E o motor da fila escrevia, dentro de si:
+
+```ts
+error = e instanceof Error ? e.message : String(e);
+```
+
+Exatamente o padrão que ela nomeia, no arquivo onde ela não olha — e a frase não morria ali:
+ela viajava até `app/settings.tsx` dentro de um campo do relatório e era interpolada crua em
+*"Parou no meio: {{reason}}"*. A guarda estava verde porque a **tela** não tinha o padrão. O
+padrão estava dois elos antes, e a frase chegava ao mesmo lugar.
+
+Do lado de cima do mesmo campo havia a irmã: o motor montava *"O servidor aceitou 3 de 100
+registros."* em português — e AFIRMAVA o servidor. Uma falha do próprio aparelho (linha que
+sumiu, tabela sem travessia) chegava ao dono como recusa de quem nunca foi consultado. Duas
+fundações quebradas na mesma linha: *a camada devolve fato, não frase* e *i18n desde o
+primeiro texto*.
+
+**A régua que sai daqui:** quando uma guarda proíbe um padrão NA SAÍDA, ela tem de perguntar
+também de onde o valor veio. Frase não precisa ser impressa onde nasce para chegar aos olhos de
+quem usa — basta um campo que atravesse. E a forma de fechar isso não é ampliar o `grep`: é o
+TIPO. `SyncReport.error` deixou de ser `string` e virou fato (`motivo`, `aceitos`, `de`,
+`codigo`, `cru`), e aí o compilador achou os três leitores — a tela, o painel do aparelho e
+dois testes — em vez de eu ter de procurá-los.
+
+*E o painel do aparelho era o terceiro defeito, escondido no segundo:* `src/nuvem/aparelho.ts`
+lançava `{ motivo: 'servidorRecusou' }` para TODA parada, com um comentário em prosa dizendo o
+mesmo — enquanto a parada podia ser falta de sinal. Uma constante cravada onde devia haver um
+dado lido, e o comentário ao lado a confirmando. Foi o typecheck que o entregou.
+
+## 13 de setembro — retentativa não conserta o que não é do servidor, e a fila não sabia disso
+
+`src/sync/recusa.ts` decide se uma recusa é para sempre ou para agora, e o padrão dela é
+*"para agora"* — com uma assimetria de custo escrita e certa: classificar passageira como
+permanente perde dado em silêncio; classificar permanente como passageira trava a fila, que é
+ruim e visível.
+
+O que ela não cobria é a falha que acontece **antes** de o servidor ser consultado. O
+transporte monta a linha primeiro, e isso falha de duas formas: a linha sumiu do aparelho, ou a
+tabela não tem travessia. As duas chegavam ao motor sem código nenhum, caíam no padrão
+"passageira", e eram retentadas com espera exponencial **para sempre** — porque nenhuma
+quantidade de retentativa faz existir uma linha que não existe.
+
+A assimetria de custo não se aplica aqui, e é isso que destrava a decisão: pôr de lado **não
+apaga** — a linha fica no aparelho com o motivo ao lado e a tela a mostra. O que se perde é uma
+retentativa que não tinha como funcionar; o que se ganha é a fábrica voltar a sincronizar em vez
+de parar por uma linha.
+
+**E a visibilidade obrigou uma coluna.** Quando a falha local sai da frente, a fatia FECHA — o
+motor não relata parada nenhuma, e é correto. Então o aviso não pode morar no relatório da
+corrida: ele mora no registro do que ficou de lado. Sem uma coluna que diga "foi o aparelho", a
+tela de "o que ficou de lado" explicaria *"o servidor já tinha este registro"* sobre uma linha
+que ele nunca viu — o mesmo defeito de atribuição, uma camada abaixo. Isso é a V36.

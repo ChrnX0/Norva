@@ -545,6 +545,8 @@ export const es: Dictionary = {
         senhaFraca: 'La contraseña es muy corta. Usa al menos 6 letras o números.',
         emailNaoConfirmado: 'Falta confirmar el correo. Busque el enlace que mandó el servidor.',
         codigoNaoConfere: 'Ese código no pertenece a ninguna empresa. Revise las seis letras.',
+        muitasTentativas: 'Demasiados intentos en poco tiempo. Espera un minuto e intenta otra vez.',
+        sessaoVencida: 'Tu entrada venció. Entra de nuevo — nada de lo guardado aquí se perdió.',
         desconhecido: 'No funcionó, y el motivo no es uno de los conocidos.',
       },
     },
@@ -671,7 +673,14 @@ export const es: Dictionary = {
         'Este aparato aún no está ligado a una empresa. Lígalo en la pantalla de Cuenta y vuelve — '
         + 'lo que está aquí pasa a ser de ella, y entonces tiene a dónde subir.',
       syncNoServer: 'Sin servidor configurado. Solo el aparato, por ahora.',
-      syncStopped: 'Se detuvo a medias: {{reason}}. Lo que no subió sigue en la fila, entero.',
+      syncStopped:
+        'Se detuvo a medias. Subieron {{aceitos}} de {{de}} de este lote; el resto sigue en la fila, entero. Intenta de nuevo.',
+      syncStoppedOffline:
+        'No se pudo hablar con el servidor. Nada se perdió: la fila está entera y sube la próxima vez que haya señal.',
+      syncStoppedRowGone:
+        'Una línea de la fila ya no está en este aparato, así que se apartó. Las otras {{aceitos}} de {{de}} subieron. Mira en "Lo que quedó apartado".',
+      syncStoppedNoCrossing:
+        'Una línea de la fila es de un tipo que esta versión no sabe enviar. Se apartó para que el resto avance — {{aceitos}} de {{de}} subieron. Actualiza la aplicación.',
       graceTitle: 'Después de borrar, en el servidor',
       graceHint:
         'En este aparato el borrado es inmediato. En el servidor el libro queda guardado este '

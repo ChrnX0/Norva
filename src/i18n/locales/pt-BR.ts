@@ -804,6 +804,8 @@ export const ptBR = {
         senhaFraca: 'A senha é curta demais. Use pelo menos 6 letras ou números.',
         emailNaoConfirmado: 'Falta confirmar o e-mail. Procure o link que o servidor mandou.',
         codigoNaoConfere: 'Esse código não pertence a nenhuma empresa. Confira as seis letras.',
+        muitasTentativas: 'Tentativas demais em pouco tempo. Espere um minuto e tente outra vez.',
+        sessaoVencida: 'Sua entrada venceu. Entre de novo — nada do que está gravado aqui se perdeu.',
         desconhecido: 'Não deu certo, e o motivo não é um dos conhecidos.',
       },
     },
@@ -948,7 +950,14 @@ export const ptBR = {
         'Este aparelho ainda não está ligado a uma empresa. Ligue na tela da Conta e volte — '
         + 'o que está gravado aqui passa a ser dela, e aí tem para onde subir.',
       syncNoServer: 'Sem servidor configurado. Só o aparelho, por enquanto.',
-      syncStopped: 'Parou no meio: {{reason}}. O que não subiu continua na fila, inteiro.',
+      syncStopped:
+        'Parou no meio. Subiram {{aceitos}} de {{de}} desta remessa; o resto continua na fila, inteiro. Tente de novo.',
+      syncStoppedOffline:
+        'Não deu para falar com o servidor. Nada se perdeu: a fila está inteira e sobe na próxima vez que houver sinal.',
+      syncStoppedRowGone:
+        'Uma linha da fila não está mais neste aparelho, então ela saiu da frente. As outras {{aceitos}} de {{de}} subiram. Veja em "O que ficou de lado".',
+      syncStoppedNoCrossing:
+        'Uma linha da fila é de um tipo que esta versão não sabe enviar. Ela saiu da frente para o resto andar — {{aceitos}} de {{de}} subiram. Atualize o aplicativo.',
       graceTitle: 'Depois de apagar, no servidor',
       graceHint:
         'Neste aparelho o apagamento é na hora. No servidor o livro fica guardado por este '

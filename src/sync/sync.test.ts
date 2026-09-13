@@ -171,7 +171,7 @@ test('the queue goes up in the order it was written', async () => {
   const report = await drain(server, { batchSize: 500 });
 
   assert.equal(report.remaining, 0);
-  assert.ok(report.sent > 0);
+  assert.ok(report.sent > 0, 'a fila desta fábrica não pode subir vazia — senão a ordem abaixo mede nada');
 
   const order = server.received[0].map((e) => e.table);
   // Items before the purchases that reference them, recipes before versions.
@@ -193,9 +193,15 @@ test('only what the server confirmed is marked sent', async () => {
   const report = await drain(half, { batchSize: 500, maxAttempts: 1, sleep: async () => {} });
 
   assert.ok(report.error, 'a partial acceptance is reported, not swallowed');
-  assert.match(report.error, /aceitou/);
+  // O FATO, não a frase. Era `assert.match(report.error, /aceitou/)` — casando uma palavra
+  // portuguesa que o motor montava, e que a tela imprimia crua. A asserção passava por estar
+  // certa sobre o texto e por isso protegia o defeito: quem lesse o verde concluiria que a
+  // parada estava bem relatada.
+  assert.equal(report.error.motivo, 'servidorRecusou', 'o servidor respondeu e disse não');
+  assert.equal(report.error.de, before, 'a fatia oferecida inteira');
+  assert.equal(report.error.aceitos, report.sent, 'e o que dela entrou');
   assert.equal(report.remaining, before - report.sent, 'the rest is still queued, to the row');
-  assert.ok(report.remaining > 0);
+  assert.ok(report.remaining > 0, 'sobrou fila: a aceitação foi parcial de verdade');
 });
 
 test('a server that throws loses nothing and retries with backoff', async () => {
@@ -219,7 +225,10 @@ test('a server that throws loses nothing and retries with backoff', async () => 
   assert.equal(report.sent, 0);
   assert.equal(report.remaining, before, 'nothing was marked, nothing was lost');
   assert.equal(report.attempts, 3);
-  assert.match(report.error ?? '', /sem rede/);
+  // A chamada NÃO VOLTOU, que é outra coisa que o servidor recusar — e a frase da biblioteca
+  // fica no `cru`, guardada para um suporte e nunca mostrada a quem está de luva.
+  assert.equal(report.error?.motivo, 'transporteCaiu', 'ninguém recusou: não deu para falar');
+  assert.match(report.error?.cru ?? '', /sem rede/, 'e a frase do programador fica guardada');
   assert.deepEqual(waits, [1_000, 2_000], 'it waits longer each time, and not after the last');
 });
 
@@ -230,7 +239,7 @@ test('sending the same queue twice is harmless', async () => {
   const first = await drain(server, { batchSize: 500 });
   const second = await drain(server, { batchSize: 500 });
 
-  assert.ok(first.sent > 0);
+  assert.ok(first.sent > 0, 'a primeira corrida subiu algo — senão a segunda não prova nada');
   assert.equal(second.sent, 0, 'the second run finds nothing left to do');
   assert.equal(second.batches, 0);
   assert.equal(second.remaining, 0);

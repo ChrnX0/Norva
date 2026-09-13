@@ -17,9 +17,10 @@ import {
   recordCheck,
   recordTransfer,
   savePlace,
+  undoCheck,
 } from './repository';
 import { ensureStarterData } from './seed';
-import { pendingEntries } from './outbox';
+import { markRejected, pendingEntries } from './outbox';
 import { DESCEM } from '@/sync/descida';
 import { serialize, type SyncActor } from '@/sync/serialize';
 
@@ -338,4 +339,63 @@ test('o estorno local não alcança o que não é conferência, nem o que já te
     'e a segunda vez não escreve: estorno em cima de estorno dobra a correção',
   );
   assert.equal(await naLoja(itemId, lojaId), 6000, 'o saldo prova que só houve um');
+});
+
+/**
+ * Desfazer uma conferência que o servidor RECUSOU não enfileira o estorno — e sem isso a fila
+ * travava por obediência à tela.
+ *
+ * **A cadeia inteira, e cada elo existia.** A `0051` recusa a segunda conferência da mesma
+ * remessa com `23505`; `classeDaRecusa` a chama de permanente, com razão; a entrada sai da
+ * frente e fica no aparelho. A tela então diz, nos três idiomas: *"Esta remessa já foi
+ * conferida. Para trocar o que foi contado, desfaça a conferência no extrato e confira de
+ * novo."* A pessoa obedece. `undoCheck` escreve um `reversal` apontando para a conferência
+ * recusada e o enfileira.
+ *
+ * No servidor essa conferência **não existe**. `reverses_movement_id` viola chave estrangeira,
+ * `23503`, e esse código não está entre os permanentes — o docblock de `src/sync/recusa.ts`
+ * explica por quê, e o argumento é *"filho antes do pai não acontece, porque a fila manda na
+ * ordem de escrita"*. Certo para a ordem, e cego aqui: o pai não vem depois, ele NÃO VEM NUNCA.
+ *
+ * Resultado: a fila retenta para sempre um estorno impossível, e tudo o que a fábrica gravar
+ * depois fica preso atrás. O aparelho parou de sincronizar porque alguém seguiu a instrução.
+ */
+test('desfazer a conferência que o servidor recusou não manda o estorno para o servidor', async () => {
+  const { conferenciaId, grupo, itemId, lojaId } = await cargaConferidaComFalta();
+
+  // A fila põe a conferência de lado, como o `23505` da 0051 faz.
+  const entrada = (await pendingEntries()).find(
+    (e) => e.table === 'movements' && e.rowId === conferenciaId,
+  );
+  assert.ok(entrada, 'a conferência está na fila — senão este teste mede o vazio');
+  await markRejected(entrada.id, '23505');
+
+  const filaAntes = (await pendingEntries()).length;
+
+  // A pessoa obedece à tela e desfaz no extrato.
+  const feito = await undoCheck(EMPRESA_SEMENTE, { groupId: grupo });
+  assert.equal(feito.reversed, 1, 'o estorno foi escrito no razão deste aparelho');
+  assert.equal(await naLoja(itemId, lojaId), 6000, 'e o saldo local volta ao que a carga trouxe');
+
+  assert.equal(
+    (await pendingEntries()).length,
+    filaAntes,
+    'e o estorno NÃO entra na fila: o servidor não tem a linha que ele desfaz, então ele seria ' +
+      'recusado por chave estrangeira e retentado para sempre, com a fila inteira presa atrás',
+  );
+});
+
+test('mas o estorno de uma conferência que SUBIU continua subindo', async () => {
+  // O caso falso, e sem ele o de cima passaria com um `reverseGroup` que nunca enfileira nada —
+  // quebrando toda correção que o servidor precisa saber.
+  const { grupo } = await cargaConferidaComFalta();
+  const filaAntes = (await pendingEntries()).length;
+
+  const feito = await undoCheck(EMPRESA_SEMENTE, { groupId: grupo });
+  assert.equal(feito.reversed, 1);
+  assert.equal(
+    (await pendingEntries()).length,
+    filaAntes + 1,
+    'a conferência não foi recusada, então o servidor tem a linha e o estorno tem de chegar lá',
+  );
 });

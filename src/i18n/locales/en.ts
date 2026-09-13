@@ -540,6 +540,8 @@ export const en: Dictionary = {
         senhaFraca: 'That password is too short. Use at least 6 letters or numbers.',
         emailNaoConfirmado: 'The email is not confirmed yet. Look for the link the server sent.',
         codigoNaoConfere: 'That code does not belong to any company. Check the six letters.',
+        muitasTentativas: 'Too many tries in a short time. Wait a minute and try again.',
+        sessaoVencida: 'Your sign-in expired. Sign in again — nothing saved here was lost.',
         desconhecido: 'It did not work, and the reason is not one of the known ones.',
       },
     },
@@ -666,7 +668,14 @@ export const en: Dictionary = {
         'This device is not bound to a company yet. Bind it on the Account screen and come back — '
         + 'what is recorded here becomes theirs, and then it has somewhere to go.',
       syncNoServer: 'No server configured. Just the device, for now.',
-      syncStopped: 'Stopped midway: {{reason}}. What did not go up is still in the queue, whole.',
+      syncStopped:
+        'Stopped midway. {{aceitos}} of {{de}} in this batch went up; the rest is still queued, whole. Try again.',
+      syncStoppedOffline:
+        'Could not reach the server. Nothing was lost: the queue is whole and goes up next time there is signal.',
+      syncStoppedRowGone:
+        'One queued row is no longer on this device, so it stepped aside. The other {{aceitos}} of {{de}} went up. See "Set aside".',
+      syncStoppedNoCrossing:
+        'One queued row is of a kind this version cannot send. It stepped aside so the rest could move — {{aceitos}} of {{de}} went up. Update the app.',
       graceTitle: 'After erasing, on the server',
       graceHint:
         'On this device erasing is immediate. On the server the ledger is kept for this long '

@@ -1,7 +1,8 @@
 import { empresaAdotada } from '@/data/empresa';
 import { linhaDaFila, type OutboxEntry } from '@/data/outbox';
 import type { PedidoDeDescida, PushResult, Transport } from './engine';
-import { APENAS_INSERE, serialize, type ServerTable, type SyncActor } from './serialize';
+import { APENAS_INSERE, LinhaSumiuError, serialize, type ServerTable, type SyncActor } from './serialize';
+import type { ClasseLocal } from './recusa';
 
 /**
  * O caminho de verdade entre a fila e o servidor — a peça que faltava.
@@ -157,7 +158,7 @@ export function transporte(actor: SyncActor, casa?: Casa | null): Transport {
        * Quem decide se a recusa é definitiva não é este arquivo: é `classeDaRecusa`, numa
        * lista curta e num arquivo puro. Aqui só se relata.
        */
-      const rejeitadas: { id: string; codigo: string | null }[] = [];
+      const rejeitadas: { id: string; codigo: string | null; local?: ClasseLocal }[] = [];
       for (const entry of entries) {
         // **Exceção no meio da fatia não pode apagar o que o servidor já guardou.**
         //
@@ -169,15 +170,29 @@ export function transporte(actor: SyncActor, casa?: Casa | null): Transport {
         // dano de dado, mas há a mesma parede na centésima entrada, para sempre, e a
         // mensagem que chega à tela do dono é a do programador, em inglês.
         //
-        // Parar é o certo — o buraco continua sendo buraco, e mandar o que vem depois
-        // transformaria uma recusa em muitas. O que muda é que o que passou volta
-        // como aceito, e o motor então vê `confirmed < batch.length` e para pela
-        // regra que ele já tem.
+        // **E a falha local volta NOMEADA, em vez de virar lacuna do servidor.**
+        //
+        // Este `catch` era `break` mudo, e o efeito era pior do que parecia. O motor recebia
+        // "entraram menos do que eu mandei", lia isso como lacuna do servidor, gastava
+        // tentativa, esperava e repetia — para sempre, porque retentativa não conserta linha
+        // que sumiu do aparelho nem tabela que ninguém ensinou a atravessar. A fila daquele
+        // celular parava, e a tela dizia *"o servidor aceitou N de M registros"* sobre uma
+        // linha que o servidor NUNCA VIU. Quem fosse depurar olharia o servidor.
+        //
+        // Agora a culpada volta com classe LOCAL — sem código, porque não houve Postgres —,
+        // e `ehDefinitiva` a põe de lado. Parar continua certo (mandar o que vem depois
+        // transformaria uma recusa em muitas), e o que muda é que a fila volta a andar na
+        // rodada seguinte em vez de bater na mesma parede.
         let write;
         try {
           const linha = await linhaDaFila(entry);
           write = serialize(entry, linha, actor);
-        } catch {
+        } catch (e) {
+          rejeitadas.push({
+            id: entry.id,
+            codigo: null,
+            local: e instanceof LinhaSumiuError ? 'linhaSumiu' : 'tabelaDesconhecida',
+          });
           break;
         }
 

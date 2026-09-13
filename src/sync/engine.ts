@@ -8,7 +8,7 @@ import {
   type OutboxEntry,
 } from '@/data/outbox';
 import { candidatarConferencia } from '@/data/candidata';
-import { classeDaRecusa } from './recusa';
+import { ehDefinitiva, type ClasseLocal } from './recusa';
 import type { pedido as montarPedido } from './descida';
 import type { ProblemaDoServidor } from './transporte';
 
@@ -60,7 +60,47 @@ export type PushResult = {
    * Opcional de propósito: um transporte que não classifica nada continua válido, e a fila
    * se comporta como antes. Ausente é "não sei", e "não sei" é passageiro.
    */
-  rejeitadas?: { id: string; codigo: string | null }[];
+  rejeitadas?: { id: string; codigo: string | null; local?: ClasseLocal }[];
+};
+
+/**
+ * Por que a corrida parou — FATO, não frase.
+ *
+ * Era uma cadeia de caracteres montada aqui: `O servidor aceitou 3 de 100 registros.` Duas
+ * coisas erradas nisso, e a segunda é a que dói. A primeira é a fundação desta casa — *a
+ * camada de dados devolve fato, não frase; quem escreve português é a tela* —, e o motor da
+ * fila não é nem camada de dados, é mais fundo. A segunda é que a frase AFIRMAVA o servidor:
+ * `app/settings.tsx` a interpolava crua em *"Parou no meio: {{reason}}"*, e uma falha do
+ * próprio aparelho chegava ao dono como recusa do servidor — em português, dentro de uma
+ * tela que ele pode estar lendo em inglês.
+ *
+ * `aceitos` e `de` são os números da FATIA que parou, não da corrida: `sent` e `remaining` já
+ * contam a corrida, e misturar as duas escalas foi o que fez a frase antiga parecer que a
+ * fila inteira tinha 100 linhas.
+ */
+export type ParouPorque = {
+  /**
+   * Quem impediu.
+   *
+   * `servidorRecusou` — ele respondeu, e disse não. `transporteCaiu` — a chamada não voltou:
+   * sem sinal, ou o cliente quebrou; ninguém recusou nada. As duas de `ClasseLocal` são deste
+   * aparelho, e o servidor nem foi consultado.
+   */
+  motivo: 'servidorRecusou' | 'transporteCaiu' | ClasseLocal;
+  /** Quantas linhas da fatia entraram, de quantas foram oferecidas. */
+  aceitos: number;
+  de: number;
+  /** O `SQLSTATE` do servidor, quando foi ele. Ausente quando a falha é do aparelho. */
+  codigo?: string | null;
+  /**
+   * A frase do programador, guardada e NUNCA mostrada — a mesma forma do `cru` de `Resultado`.
+   *
+   * Ela é o que se pede num suporte (*"manda o que apareceu"*), e o que jamais deve chegar a
+   * quem está de luva na câmara fria: é inglês, é sobre rede ou sobre um cliente HTTP, e não
+   * diz o que fazer. A tela lê `motivo`; isto existe para o relatório e para o dia em que
+   * houver Sentry.
+   */
+  cru?: string;
 };
 
 export type Transport = {
@@ -84,7 +124,7 @@ export type SyncReport = {
   batches: number;
   attempts: number;
   /** Present when the run stopped early. The queue is intact either way. */
-  error?: string;
+  error?: ParouPorque;
   /**
    * Presente quando a fila NEM FOI TENTADA, com o motivo — e é outra coisa que
    * `error`.
@@ -174,7 +214,7 @@ export async function drain(
   let batches = 0;
   let attempts = 0;
   let postasDeLado = 0;
-  let error: string | undefined;
+  let error: ParouPorque | undefined;
 
   /**
    * **O orçamento de tentativa conta FALHA, não rodada.**
@@ -201,7 +241,22 @@ export async function drain(
     try {
       result = await transport.push(batch);
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      /**
+       * A chamada não voltou — e isto NÃO é o servidor recusando.
+       *
+       * Era `error = e.message`: a frase da biblioteca, em inglês, guardada como se fosse o
+       * motivo, e `app/settings.tsx` a interpolava crua em *"Parou no meio: {{reason}}"*.
+       * `src/layers.test.ts` tem uma guarda para exatamente isso (`frasesCruas`) e ela não
+       * alcança: o padrão dela é `instanceof Error ? x.message :` **em telas**, e aqui a
+       * frase nasce no motor e VIAJA até a tela dentro de um campo. Guarda que olha só o
+       * último elo não vê a frase que entrou dois elos antes.
+       */
+      error = {
+        motivo: 'transporteCaiu',
+        aceitos: 0,
+        de: batch.length,
+        cru: e instanceof Error ? e.message : String(e),
+      };
       falhas += 1;
       // Nothing is marked: the whole batch is still exactly where it was.
       if (falhas < maxAttempts) await sleep(backoffMs(falhas));
@@ -230,11 +285,14 @@ export async function drain(
      */
     let deLadoNestaFatia = 0;
     for (const recusada of result.rejeitadas ?? []) {
-      if (classeDaRecusa(recusada.codigo) !== 'permanente') continue;
+      // `ehDefinitiva` e não `classeDaRecusa`: a falha LOCAL não tem código do Postgres — ela
+      // acontece antes de o servidor ser consultado —, e por isso caía no padrão "passageira" e
+      // era retentada para sempre. Ver o docblock de `ehDefinitiva`.
+      if (!ehDefinitiva(recusada)) continue;
       // Só o que estava NESTA fatia: um transporte que devolvesse id de fora não pode
       // tirar da fila uma linha que o motor não ofereceu.
       if (!batch.some((entry) => entry.id === recusada.id)) continue;
-      await markRejected(recusada.id, recusada.codigo);
+      await markRejected(recusada.id, recusada.codigo, recusada.local);
       postasDeLado += 1;
       deLadoNestaFatia += 1;
 
@@ -273,7 +331,17 @@ export async function drain(
     if (confirmed.length + deLadoNestaFatia < batch.length) {
       // A gap. Stopping here is deliberate: continuing would send rows whose
       // parents the server does not have, and turn one rejection into many.
-      error = `O servidor aceitou ${confirmed.length} de ${batch.length} registros.`;
+      // O FATO, não a frase. A tela escreve, nos três idiomas — e ela precisa saber QUEM
+      // impediu: uma recusa do servidor pede tentar de novo, uma falha do aparelho pede outra
+      // coisa. A classe local da primeira recusada desta fatia manda; sem nenhuma, foi o
+      // servidor, que é o caso normal de uma lacuna passageira.
+      const culpa = (result.rejeitadas ?? []).find((r) => r.local);
+      error = {
+        motivo: culpa?.local ?? 'servidorRecusou',
+        aceitos: confirmed.length,
+        de: batch.length,
+        codigo: culpa ? undefined : ((result.rejeitadas ?? [])[0]?.codigo ?? null),
+      };
       falhas += 1;
       if (falhas < maxAttempts) await sleep(backoffMs(falhas));
       continue;

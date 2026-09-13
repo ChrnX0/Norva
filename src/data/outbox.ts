@@ -170,6 +170,13 @@ export type RejectedEntry = {
   setAsideAt: string;
   /** O `SQLSTATE` que decidiu. Nulo quando o servidor recusou sem código. */
   codigo: string | null;
+  /**
+   * Preenchido quando quem impediu foi ESTE APARELHO, e o servidor nem foi consultado.
+   *
+   * Com isto a tela para de atribuir ao servidor o que é do aparelho. Nulo é o caso normal —
+   * o servidor respondeu, e `codigo` diz o que ele disse.
+   */
+  local: string | null;
 };
 
 /**
@@ -199,9 +206,10 @@ export async function rejectedEntries(): Promise<RejectedEntry[]> {
     row_id: string;
     recusada_em: string;
     recusa_codigo: string | null;
+    recusa_local: string | null;
   }>(
     // A mais recente primeiro: quem abre esta tela abre por causa do que acabou de acontecer.
-    `SELECT id, table_name, row_id, recusada_em, recusa_codigo
+    `SELECT id, table_name, row_id, recusada_em, recusa_codigo, recusa_local
        FROM outbox WHERE recusada_em IS NOT NULL
       ORDER BY recusada_em DESC, rowid DESC`,
   );
@@ -211,6 +219,7 @@ export async function rejectedEntries(): Promise<RejectedEntry[]> {
     rowId: r.row_id,
     setAsideAt: r.recusada_em,
     codigo: r.recusa_codigo,
+    local: r.recusa_local,
   }));
 }
 
@@ -241,13 +250,61 @@ export async function rejectedEntries(): Promise<RejectedEntry[]> {
  * ontem deixou de valer, e adivinhar errado é mandar de novo a conferência que o dono já
  * decidiu descartar.
  */
-export async function markRejected(id: string, codigo: string | null): Promise<void> {
+export async function markRejected(
+  id: string,
+  codigo: string | null,
+  /**
+   * A classe LOCAL, quando o servidor nem foi consultado.
+   *
+   * Sem ela a tela de "o que ficou de lado" explicaria *"o servidor já tinha este registro"*
+   * sobre uma linha que ele nunca viu — o mesmo defeito de atribuição uma camada abaixo. Ver
+   * a V36 e `ehDefinitiva`.
+   */
+  local?: string | null,
+): Promise<void> {
   const conn = await db();
   await conn.runAsync(
-    `UPDATE outbox SET recusada_em = ?, recusa_codigo = ?
+    `UPDATE outbox SET recusada_em = ?, recusa_codigo = ?, recusa_local = ?
       WHERE id = ? AND sent_at IS NULL AND recusada_em IS NULL`,
-    [nowIso(), codigo, id],
+    [nowIso(), codigo, local ?? null, id],
   );
+}
+
+/**
+ * Esta linha JÁ foi posta de lado pela fila? — a pergunta que não existia, e sem ela o estorno
+ * de uma conferência recusada travava a fila do aparelho que perdeu.
+ *
+ * **O defeito, e ele é do lado de dentro.** A conferência que o servidor recusou (`23505`, a
+ * `0051`) sai da frente e fica no aparelho. A tela manda desfazê-la — *"desfaça a conferência
+ * no extrato e confira de novo"*, nos três idiomas. Desfazer escreve um `reversal` que aponta
+ * para ela por `reverses_movement_id`, e `reverseGroup` enfileira esse estorno como enfileira
+ * qualquer outro.
+ *
+ * No servidor a linha que ele desfaz **não existe** — ela nunca entrou. `reverses_movement_id`
+ * viola chave estrangeira, `23503`, e esse código NÃO está na lista de permanentes: o docblock
+ * de `src/sync/recusa.ts` explica por quê, e o argumento dele é *"filho antes do pai não
+ * acontece, porque `pendingEntries` manda na ordem de escrita"*. Está certo para a ordem — e
+ * cego para este caso, onde o pai não vem depois: ele **não vem nunca**.
+ *
+ * Então a fila retenta para sempre um estorno cujo pai o servidor jamais terá, e tudo o que a
+ * fábrica gravar depois fica preso atrás. A pessoa obedeceu à tela e o aparelho parou de
+ * sincronizar.
+ *
+ * Quem decide o que fazer com a resposta é `reverseGroup`: estorno de pai posto de lado é
+ * correção LOCAL, e não se enfileira — a mesma regra que `estornarConferenciaLocal` já segue
+ * pelo caminho da disputa.
+ */
+export async function foiRecusada(
+  conn: Db,
+  tabela: string,
+  rowId: string,
+): Promise<boolean> {
+  const linha = await conn.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM outbox
+      WHERE table_name = ? AND row_id = ? AND recusada_em IS NOT NULL`,
+    [tabela, rowId],
+  );
+  return (linha?.n ?? 0) > 0;
 }
 
 export async function markSent(ids: readonly string[]): Promise<void> {

@@ -103,3 +103,38 @@ export function todasJaExistem(codigos: readonly (string | null)[]): boolean {
   if (codigos.length === 0) return false;
   return codigos.every((c) => c !== null && c.trim() === CODIGO_JA_EXISTE);
 }
+
+/**
+ * As duas formas de a fila falhar SEM o servidor ter sido consultado.
+ *
+ * Elas não têm código do Postgres porque não houve Postgres nenhum: a linha sumiu do aparelho
+ * (um Reset, uma faxina) ou a tabela não tem travessia (defeito de programação). O transporte
+ * as conhece — ele monta a linha antes de falar com a rede — e até 13 de setembro as engolia
+ * num `catch { break; }` mudo.
+ */
+export type ClasseLocal = 'linhaSumiu' | 'tabelaDesconhecida';
+
+/**
+ * Esta recusa é definitiva? — e agora a pergunta tem DOIS lados.
+ *
+ * **O que acontecia.** `classeDaRecusa` decide pelo código do servidor, e o padrão dela é
+ * `passageira` — certo, e a assimetria de custo acima explica por quê. Só que a falha LOCAL
+ * chegava ao motor sem código nenhum, então caía nesse padrão: tentar de novo. E retentativa
+ * não conserta linha que não existe nem tabela que ninguém ensinou a atravessar. A fila ficava
+ * presa naquela entrada com espera exponencial, para sempre, e tudo o que o aparelho gravasse
+ * depois ficava preso atrás — exatamente o defeito que este arquivo nasceu para consertar,
+ * entrando pela porta que ele não olhava.
+ *
+ * **Por que definitiva é a resposta certa aqui, e não perda de dado.** A assimetria de cima
+ * diz que promover passageira a permanente perde dado em silêncio. Isto não é o caso: a linha
+ * posta de lado NÃO é apagada — ela fica no aparelho com o motivo ao lado e a tela a mostra.
+ * O que se perde é a retentativa automática, que não tinha como funcionar. E o que se ganha é
+ * a fila inteira voltar a andar em vez de a fábrica parar de sincronizar por uma linha.
+ */
+export function ehDefinitiva(recusada: {
+  codigo: string | null;
+  local?: ClasseLocal;
+}): boolean {
+  if (recusada.local) return true;
+  return classeDaRecusa(recusada.codigo) === 'permanente';
+}

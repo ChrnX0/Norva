@@ -1298,10 +1298,30 @@ CREATE INDEX IF NOT EXISTS check_candidates_pendentes_idx
   ON check_candidates (company_id, movement_group_id, item_id) WHERE resolution IS NULL;
 `;
 
+/**
+ * A fila passa a dizer se quem recusou foi o SERVIDOR ou este aparelho.
+ *
+ * `recusa_codigo` guarda o `SQLSTATE` do Postgres, e ele responde "por que o servidor disse
+ * não". Faltava a outra metade: a entrada pode sair da frente sem o servidor ter sido
+ * consultado — a linha sumiu do aparelho, ou a tabela não tem travessia. Até 13 de setembro
+ * essas duas eram retentadas para sempre; agora saem da frente, e sem esta coluna sairiam
+ * indistinguíveis de uma recusa do servidor na tela de "o que ficou de lado".
+ *
+ * Seria o mesmo defeito uma camada abaixo: a tela explicaria *"o servidor já tinha este
+ * registro"* sobre uma linha que ele nunca viu. Código nulo com motivo local preenchido é a
+ * forma de dizer "não houve Postgres nenhum" sem inventar um código.
+ *
+ * Só do aparelho: a fila não atravessa. `outbox` não está em `sendableTables`, então não há
+ * lado de lá para acompanhar.
+ */
+const V36 = `
+ALTER TABLE outbox ADD COLUMN recusa_local TEXT;
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
   V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33,
-  V34, V35,
+  V34, V35, V36,
 ];
 
 export type SqlParam = string | number | null;

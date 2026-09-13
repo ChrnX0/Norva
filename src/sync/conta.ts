@@ -54,6 +54,10 @@ export type MotivoDaConta =
   | 'emailNaoConfirmado'
   /** O código de convite digitado não pertence a nenhuma empresa. */
   | 'codigoNaoConfere'
+  /** O servidor pediu para esperar: tentativas demais em pouco tempo. */
+  | 'muitasTentativas'
+  /** A sessão guardada neste aparelho não vale mais. Entrar de novo resolve. */
+  | 'sessaoVencida'
   /** Nada acima. A mensagem crua vem junto, para o suporte. */
   | 'desconhecido';
 
@@ -63,15 +67,48 @@ export type Resultado<T> = { ok: true; valor: T } | { ok: false; motivo: MotivoD
 export type Conta = { id: string; email: string | null };
 
 /**
- * Traduz a resposta do servidor num dos motivos.
+ * Traduz a resposta do servidor num dos motivos — pelo CÓDIGO primeiro, e a prosa como reserva.
  *
- * Casa por PEDAÇO da mensagem e em minúsculas, e isso é deliberado: o texto do
- * Supabase muda de versão para versão e casar a frase inteira quebraria em
- * silêncio na próxima atualização — que é a pior forma de quebrar, porque o
- * aplicativo continuaria dizendo "não deu certo" sem dizer por quê.
+ * **O que este docblock dizia, e onde ele parava.** Ele explicava que casar por pedaço da
+ * mensagem era deliberado, porque o texto do Supabase muda de versão para versão e casar a
+ * frase inteira quebraria em silêncio. Os dois fatos estão certos — e a conclusão era a
+ * segunda melhor: a biblioteca instalada JÁ devolve um código estável.
+ *
+ * Medido no disco em 13 de setembro, não suposto: `node_modules/@supabase/auth-js`, arquivo
+ * `dist/module/lib/errors.d.ts:20`, declara `code` em `AuthError`, e `lib/error-codes.d.ts`
+ * traz os sete que interessam aqui — `invalid_credentials`, `email_not_confirmed`,
+ * `user_already_exists`, `weak_password`, `over_request_rate_limit`, `session_expired` e
+ * `session_not_found`.
+ *
+ * Então o código manda, e a prosa continua existindo para o que ele não cobre: um servidor mais
+ * velho que não o preencha, e a falha de REDE — que não é resposta do servidor e por isso não
+ * tem código nenhum. Sem a reserva, "sem sinal" viraria "desconhecido" e a tela pediria para
+ * conferir e-mail e senha a quem está numa câmara fria.
+ *
+ * `PGRST301` é do PostgREST e não do `auth`: é a sessão vencida chegando por uma consulta em
+ * vez de por um login, e ela pede a mesma coisa — entrar de novo.
+ *
+ * *Exportada para a régua, com oito chamadores dentro deste arquivo: cai no balde que a
+ * varredura de órfãos deste projeto chama de "fronteira larga, não defeito". Sem exportá-la, o
+ * único caminho seria fingir um cliente do Supabase inteiro para exercitar uma tabela de
+ * tradução — cerimônia que mede o fingimento.*
  */
-function motivoDe(mensagem: string): MotivoDaConta {
-  const m = mensagem.toLowerCase();
+const PELO_CODIGO: Readonly<Record<string, MotivoDaConta>> = {
+  invalid_credentials: 'credenciais',
+  email_not_confirmed: 'emailNaoConfirmado',
+  user_already_exists: 'emailEmUso',
+  weak_password: 'senhaFraca',
+  over_request_rate_limit: 'muitasTentativas',
+  session_expired: 'sessaoVencida',
+  session_not_found: 'sessaoVencida',
+  PGRST301: 'sessaoVencida',
+};
+
+export function motivoDe(erro: { code?: string; message: string }): MotivoDaConta {
+  const pelo = erro.code ? PELO_CODIGO[erro.code] : undefined;
+  if (pelo) return pelo;
+
+  const m = erro.message.toLowerCase();
   if (m.includes('network') || m.includes('fetch') || m.includes('timeout')) return 'semRede';
   if (m.includes('invalid login') || m.includes('invalid credentials')) return 'credenciais';
   if (m.includes('already registered') || m.includes('already been registered')) return 'emailEmUso';
@@ -101,7 +138,7 @@ export async function entrar(email: string, senha: string): Promise<Resultado<Co
     email: email.trim(),
     password: senha,
   });
-  if (error) return { ok: false, motivo: motivoDe(error.message), cru: error.message };
+  if (error) return { ok: false, motivo: motivoDe(error), cru: error.message };
   const usuario = data.user;
   if (!usuario) return { ok: false, motivo: 'desconhecido' };
   return { ok: true, valor: { id: usuario.id, email: usuario.email ?? null } };
@@ -122,7 +159,7 @@ export async function criarConta(
   const sb = await cliente();
   if (!sb) return semServidor();
   const { data, error } = await sb.auth.signUp({ email: email.trim(), password: senha });
-  if (error) return { ok: false, motivo: motivoDe(error.message), cru: error.message };
+  if (error) return { ok: false, motivo: motivoDe(error), cru: error.message };
   const usuario = data.user;
   return {
     ok: true,
@@ -169,7 +206,7 @@ export async function minhaEmpresa(): Promise<Resultado<Empresa | null>> {
   const sb = await cliente();
   if (!sb) return semServidor();
   const { data, error } = await sb.from('companies').select('id, name, join_code').limit(1);
-  if (error) return { ok: false, motivo: motivoDe(error.message), cru: error.message };
+  if (error) return { ok: false, motivo: motivoDe(error), cru: error.message };
   const linha = data?.[0];
   return {
     ok: true,
@@ -206,7 +243,7 @@ export async function pedirAssociacao(codigo: string): Promise<Resultado<string>
     if (error.message.toLowerCase().includes('confere')) {
       return { ok: false, motivo: 'codigoNaoConfere', cru: error.message };
     }
-    return { ok: false, motivo: motivoDe(error.message), cru: error.message };
+    return { ok: false, motivo: motivoDe(error), cru: error.message };
   }
   return { ok: true, valor: data as string };
 }
@@ -227,7 +264,7 @@ export async function pedidos(): Promise<Resultado<Pedido[]>> {
     .select('id, display_name, created_at')
     .eq('state', 'pending')
     .order('created_at', { ascending: true });
-  if (error) return { ok: false, motivo: motivoDe(error.message), cru: error.message };
+  if (error) return { ok: false, motivo: motivoDe(error), cru: error.message };
   return {
     ok: true,
     valor: (data ?? []).map((linha) => ({
@@ -256,7 +293,7 @@ export async function aprovar(idDaAssociacao: string, capacidades: string[]): Pr
     .from('memberships')
     .update({ state: 'active', capabilities: capacidades })
     .eq('id', idDaAssociacao);
-  if (error) return { ok: false, motivo: motivoDe(error.message), cru: error.message };
+  if (error) return { ok: false, motivo: motivoDe(error), cru: error.message };
   return { ok: true, valor: true };
 }
 
@@ -268,7 +305,7 @@ export async function recusar(idDaAssociacao: string): Promise<Resultado<true>> 
     .from('memberships')
     .update({ state: 'revoked' })
     .eq('id', idDaAssociacao);
-  if (error) return { ok: false, motivo: motivoDe(error.message), cru: error.message };
+  if (error) return { ok: false, motivo: motivoDe(error), cru: error.message };
   return { ok: true, valor: true };
 }
 
@@ -286,6 +323,6 @@ export async function criarEmpresa(nome: string): Promise<Resultado<string>> {
   const sb = await cliente();
   if (!sb) return semServidor();
   const { data, error } = await sb.rpc('create_company_for_me', { company_name: nome.trim() });
-  if (error) return { ok: false, motivo: motivoDe(error.message), cru: error.message };
+  if (error) return { ok: false, motivo: motivoDe(error), cru: error.message };
   return { ok: true, valor: data as string };
 }

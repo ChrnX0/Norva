@@ -116,6 +116,25 @@ export class UnknownTableError extends Error {
   }
 }
 
+/**
+ * A linha que a fila nomeia e o aparelho não tem mais.
+ *
+ * Era um `Error` genérico, e a diferença custava caro: quem apanha a exceção não tinha como
+ * separar *"esta tabela não sabe atravessar"* (defeito de programação) de *"a linha sumiu do
+ * aparelho"* (um Reset, uma faxina), e as duas eram relatadas ao motor da fila como se o
+ * SERVIDOR tivesse recusado. Erro nomeado é a única forma de classificar sem casar texto — e
+ * casar texto de mensagem é o que `motivoDe` já paga em `src/sync/conta.ts`.
+ */
+export class LinhaSumiuError extends Error {
+  constructor(
+    public readonly table: string,
+    public readonly rowId: string,
+  ) {
+    super(`Queued ${table} ${rowId} but the row is gone from the device`);
+    this.name = 'LinhaSumiuError';
+  }
+}
+
 /** Uma área que a fila carrega e o produto não tem. Ver o ramo do `erase`. */
 export class UnknownAreaError extends Error {
   constructor(public readonly area: string) {
@@ -699,9 +718,7 @@ export function serialize(
   const crossing = CROSSINGS[entry.table as ServerTable];
   if (!crossing) throw new UnknownTableError(entry.table);
 
-  if (!row) {
-    throw new Error(`Queued ${entry.table} ${entry.rowId} but the row is gone from the device`);
-  }
+  if (!row) throw new LinhaSumiuError(entry.table, entry.rowId);
 
   const out: Record<string, unknown> = {};
   for (const column of crossing.take) out[column] = nullable(row[column]);

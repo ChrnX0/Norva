@@ -85,7 +85,7 @@ import { exampleStillHere, restoreStarterData } from '@/data/seed';
 import { empresaAdotada, empresaDaqui } from '@/data/empresa';
 import { pendingCount, rejectedCount } from '@/data/outbox';
 import { contaAtual } from '@/sync/conta';
-import { drain } from '@/sync/engine';
+import { drain, type ParouPorque } from '@/sync/engine';
 import { transporte } from '@/sync/transporte';
 import { HORIZONTE_DE_TESTE, simulateHistory } from '@/data/simulate';
 import { empurrar } from '@/data/configuracao';
@@ -619,6 +619,28 @@ function Settings() {
    * e sem empresa adotada — que é a que importa, porque o carimbo das linhas seria a
    * semente e o servidor recusaria a fila inteira sem explicar nada.
    */
+  /**
+   * Por que a fila parou, dito para quem está de luva — e a ESCOLHA mora aqui, não no motor.
+   *
+   * `SyncReport.error` era uma cadeia de caracteres que o motor montava em português
+   * (*"O servidor aceitou 3 de 100 registros."*) e esta tela interpolava crua. Dois defeitos
+   * numa linha: a fundação manda a camada devolver fato e a tela escrever a frase, e a frase
+   * AFIRMAVA o servidor — uma falha do próprio aparelho chegava ao dono como recusa de quem
+   * nunca foi consultado.
+   *
+   * Quatro motivos, quatro frases, e cada uma diz o que fazer: tentar de novo, esperar sinal,
+   * olhar o que ficou de lado, atualizar o aplicativo. `cru` fica guardado e não aparece: é
+   * inglês sobre rede, e não ajuda ninguém na câmara fria.
+   */
+  const porQueParou = (parou: ParouPorque): string => {
+    const numeros = { aceitos: String(parou.aceitos), de: String(parou.de) };
+    if (parou.motivo === 'transporteCaiu') return t.app.settings.syncStoppedOffline;
+    if (parou.motivo === 'linhaSumiu') return fill(t.app.settings.syncStoppedRowGone, numeros);
+    if (parou.motivo === 'tabelaDesconhecida')
+      return fill(t.app.settings.syncStoppedNoCrossing, numeros);
+    return fill(t.app.settings.syncStopped, numeros);
+  };
+
   const enviar = async () => {
     const quem = await contaAtual();
     if (!quem) {
@@ -634,8 +656,7 @@ function Settings() {
     try {
       const relatorio = await drain(transporte({ userId: quem.id, companyId: empresaDaqui() }));
       if (relatorio.recusa === 'semEmpresa') setOQueSubiu(t.app.settings.syncNoCompany);
-      else if (relatorio.error)
-        setOQueSubiu(fill(t.app.settings.syncStopped, { reason: relatorio.error }));
+      else if (relatorio.error) setOQueSubiu(porQueParou(relatorio.error));
       else if (relatorio.remaining === 0)
         setOQueSubiu(fill(t.app.settings.syncDone, { sent: String(relatorio.sent) }));
       else

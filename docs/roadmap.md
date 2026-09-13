@@ -40,7 +40,7 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | tabelas no aparelho (SQLite) | **28** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **30** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
 | migrações do servidor | **63** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V35** | último `const V` em `src/data/db.ts` |
+| migrações do aparelho | **V36** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
 | linhas de código | **~102.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **796** testes |
+| `npm test` | **798** testes |
 | `npm run mutate` | **150** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **59** checagens num navegador de verdade |
 | `npm run db:verify` | **35** garantias contra um Postgres descartável: **17** sob RLS, como a conta da empresa, e **18** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |

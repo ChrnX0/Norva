@@ -23,7 +23,7 @@ import type { PackagingHierarchy } from '@/domain/units';
 import { ordersCoveredBy } from '@/domain/picking';
 import { db, newId, nowIso, type Db } from './db';
 import { readJson, readMeta, writeJson, writeMeta } from './meta';
-import { enqueue, forgetOrphans, rejectedEntries } from './outbox';
+import { enqueue, foiRecusada, forgetOrphans, rejectedEntries } from './outbox';
 import {
   blockerFor,
   EraseBlockedError,
@@ -8378,7 +8378,24 @@ export async function reverseGroup(
           await currentOperatorId(),
         ],
       );
-      await enqueue(conn, [{ table: 'movements', rowId: id }]);
+      /**
+       * O estorno de um pai que o servidor RECUSOU não sobe — e é isso que destrava a fila.
+       *
+       * A conferência que o `23505` da `0051` pôs de lado fica no aparelho, e a tela manda
+       * desfazê-la no extrato para conferir de novo. O estorno aponta para ela, o servidor não
+       * tem a linha apontada, e `23503` (chave estrangeira) não está entre os permanentes —
+       * com razão escrita em `src/sync/recusa.ts`, cujo argumento é *"filho antes do pai não
+       * acontece porque a fila manda na ordem de escrita"*. Certo para a ordem, cego aqui: o
+       * pai não vem depois, ele NÃO VEM NUNCA. A fila retentava para sempre, e tudo o que a
+       * fábrica gravasse depois ficava preso atrás — porque a pessoa obedeceu à tela.
+       *
+       * Correção de linha que só existe aqui é correção local, e não se enfileira. A mesma
+       * regra que `estornarConferenciaLocal` segue pelo caminho da disputa, agora valendo para
+       * o caminho do dedo. O razão local fica certo, e o servidor não tem o que desfazer.
+       */
+      if (!(await foiRecusada(conn, 'movements', o.id))) {
+        await enqueue(conn, [{ table: 'movements', rowId: id }]);
+      }
     }
   });
 
