@@ -12286,3 +12286,49 @@ asserção cobrando isso — uma trava que recusasse tudo seria o conserto que t
 
 *A regra de método: quando três elos razoáveis produzem um defeito, o conserto vai no elo que
 todos atravessam — e o teste também. Consertar a tela deixa a próxima tela reabri-lo.*
+
+## 13 de setembro — cumpri a Lei 2 com um chute, e o chute virou taxa congelada
+
+O cadastro de produto nascia com `perUnit = '75'` e `packagingCost = '0,05'` cravados. A Lei 2
+diz que nenhum campo nasce vazio, e ela estava cumprida — com um número inventado, que é **pior
+que vazio**: campo vazio manda a pessoa pensar, campo com número plausível é assinado sem ser
+lido. E o segundo entra em `unitPackagingRate`, que é a **taxa congelada** de toda corrida
+daquele produto: cinco centavos que ninguém releu ficam no razão para sempre, e taxa congelada
+não se corrige — se estorna.
+
+O palpite certo estava a uma linha: o **irmão** — outro produto da mesma linha, da mesma
+categoria e com a mesma unidade de rendimento — já tem os dois números respondidos por quem
+conhece a fábrica. `listProducts` traz `lineId`, `categoryId`, `yieldPerUnit` e
+`unitPackagingRate` desde sempre; nenhuma tela os lia para isso.
+
+**Três coisas que a implementação ensinou, e as três são de desenho:**
+
+1. **A unidade entra na regra do irmão por MEDIDA, não por cuidado.** `yieldPerUnit` é "quanto
+   do tacho vai em cada unidade": um pote cujo tacho rende em ml não diz nada sobre um picolé
+   cujo tacho rende em g. Sem essa condição o palpite erraria por um fator de mil — plausível e
+   errado, que é a pior forma de errar num campo que vira dinheiro.
+2. **O portão da consulta tem de sobreviver ao palpite.** `unitPackagingRate` chega **nulo**
+   para quem não tem `view_cost` — é a permissão funcionando, não dado faltando. Sugerir o
+   número do irmão sem olhar isso seria vazar custo por uma porta lateral, então quem não pode
+   ver custo cai no padrão, como quem não tem irmão.
+3. **E o defeito que eu mesmo escrevi no caminho, que é o mais instrutivo.** A primeira versão
+   exibia `perUnit || sugestao` e o `onSave` gravava `num(perUnit)`: a tela mostrava 75 ml e o
+   produto nascia com rendimento **zero**. `typecheck`, `lint` e 835 testes passaram, e o
+   navegador também passaria — o `CLAUDE.md` já diz que campo controlado cujo valor derivado não
+   muda é um dos casos que ele estruturalmente não vê.
+
+   O conserto não foi consertar as duas linhas: foi **uma resposta só**, `campoComSugestao`, que
+   já existia como módulo puro com teste de Node justamente para isto. Mais uma da família *"a
+   peça certa já estava no repositório"*.
+
+**E a guarda nova achou um quarto defeito em mim.** A régua de fonte — onde a tela usa o molde,
+o estado cru aparece só no `useState` e no `onChangeText` — acusou quatro linhas, e a quarta era
+o **array de dependências do `useMemo`** lendo `perUnit`: com o irmão mudando (outra categoria
+escolhida), a prévia do custo não recalculava. A tela mostrando um rendimento e a conta usando
+outro, de novo, por outra porta.
+
+*As outras três eram a própria régua: chave de objeto (`perUnit: …`) e caminho de dicionário
+(`t.app.productForm.perUnit`). Neste projeto campo, chave e estado se chamam igual **de
+propósito** — é a mesma coisa dita em três lugares —, então a régua precisou olhar a POSIÇÃO:
+precedido de ponto é acesso a propriedade; seguido de dois-pontos é chave sendo escrita. Régua
+que acusa três falsos e um verdadeiro seria "consertada" apagando o verdadeiro.*

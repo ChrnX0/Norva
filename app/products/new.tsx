@@ -42,7 +42,7 @@ import {
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
-import { rate, cents } from '@/domain/money';
+import { rate, cents, rateToDecimal } from '@/domain/money';
 import {
   costPerPack,
   costPerProductUnit,
@@ -54,10 +54,11 @@ import {
 } from '@/domain/recipe';
 import { type PackagingHierarchy, countsFromTiers } from '@/domain/units';
 import { meioDaGrade } from '@/components/grade';
-import { parseTyped } from '@/domain/number';
+import { parseTyped, formatTyped } from '@/domain/number';
 import { currencySymbol, fill, formatMoney, formatUnitRate, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
+import { campoComSugestao } from '@/components/campo';
 import { useRouter } from 'expo-router';
 
 /**
@@ -182,8 +183,27 @@ function ProductForm() {
   const [typeId, setTypeId] = useState<string | null>(null);
   const [flavorId, setFlavorId] = useState<string | null>(null);
   const [recipeId, setRecipeId] = useState<string | null>(null);
-  const [perUnit, setPerUnit] = useState('75');
-  const [packagingCost, setPackagingCost] = useState('0,05');
+  /**
+   * **Os dois números que nasciam inventados — e um deles é DINHEIRO.**
+   *
+   * Eram `'75'` e `'0,05'` cravados: setenta e cinco mililitros por picolé e cinco centavos
+   * de embalagem por unidade. Lei 2 diz que nenhum campo nasce vazio, e ela foi cumprida com
+   * um chute — que é pior que vazio, porque número plausível na tela não é conferido. E o
+   * segundo entra em `unitPackagingRate`, que vira **taxa congelada** de toda corrida deste
+   * produto: um chute de cinco centavos que ninguém releu fica no razão para sempre.
+   *
+   * O palpite certo estava a uma linha de distância: o IRMÃO — outro produto da mesma linha e
+   * da mesma categoria, medido na mesma unidade de rendimento — já tem os dois números
+   * respondidos por quem conhece a fábrica. `listProducts` traz `lineId`, `categoryId`,
+   * `yieldPerUnit` e `unitPackagingRate` desde sempre, e ninguém os lia aqui.
+   *
+   * Sem irmão, o padrão de hoje fica: é chute, e continua sendo, mas aí ele é a única resposta
+   * possível. Com irmão, a dica diz de onde o número veio — campo que nasce preenchido sem
+   * dizer de onde é campo que ninguém confere, e essa frase já está escrita neste arquivo,
+   * no `fromFamily` da embalagem.
+   */
+  const [perUnit, setPerUnit] = useState<string | undefined>(undefined);
+  const [packagingCost, setPackagingCost] = useState<string | undefined>(undefined);
   /**
    * Por quanto isto sai — e ele mora AQUI, não na ficha de uma loja.
    *
@@ -277,6 +297,71 @@ function ProductForm() {
   // número de gente, e é a mesma que a tela do insumo já usa para a polpa.
   const porMil = fill(t.app.inputForm.perThousandOf, { unit: t.units.unit.other });
 
+  /**
+   * O IRMÃO deste produto: mesma linha, mesma categoria, e a mesma unidade de rendimento.
+   *
+   * A unidade entra na regra por medida, não por cuidado genérico: `yieldPerUnit` é "quanto do
+   * tacho vai em cada unidade", e um pote cujo tacho rende em ml não tem nada a dizer sobre um
+   * picolé cujo tacho rende em g. Sem essa condição o palpite seria plausível e errado por um
+   * fator de mil, que é a pior forma de errar num campo que vira dinheiro.
+   *
+   * A categoria entra porque ela é o nível que MUDA A RECEITA (decisão do dono, 11 de
+   * setembro): dois produtos da mesma categoria saem do mesmo tacho, então o rendimento por
+   * unidade deles é a mesma pergunta. `null` de um lado e `null` do outro batem — é a fábrica
+   * que não usa o nível, e aí a linha basta.
+   */
+  const unidadeDaFicha = data?.recipes.find((r) => r.id === chosenRecipe)?.yieldUnit ?? null;
+  const irmao =
+    (data?.products ?? []).find(
+      (outro) =>
+        outro.lineId === lineId &&
+        outro.categoryId === categoryId &&
+        outro.yieldPerUnit !== null &&
+        data?.recipes.find((r) => r.id === outro.recipeId)?.yieldUnit === unidadeDaFicha,
+    ) ?? null;
+
+  /**
+   * O que a tela mostra enquanto ninguém digitou — e os padrões de antes ficam, com sujeito.
+   *
+   * `75` e `0,05` não saem do produto: eles continuam sendo a resposta quando não há irmão,
+   * porque a Lei 2 não tem exceção e vazio num campo numérico manda a pessoa adivinhar. O que
+   * muda é que agora eles são o ÚLTIMO recurso, e o primeiro é um número que alguém da fábrica
+   * já respondeu.
+   *
+   * O custo passa por `rateToDecimal` porque `unitPackagingRate` é `Rate` — centavo por
+   * unidade, fracionário — e o campo lê dinheiro. Formatar com duas casas é a mesma cicatriz
+   * que o preço da nota teve: `118` onde a nota dizia R$ 118,00.
+   */
+  const sugestaoRendimento = irmao?.yieldPerUnit != null ? String(irmao.yieldPerUnit) : null;
+
+  /**
+   * E o custo do irmão só é sugerido quando ele EXISTE para quem está olhando.
+   *
+   * `unitPackagingRate` chega nulo para quem não tem `view_cost` — é o portão da consulta
+   * funcionando, e não um dado faltando. Então quem não pode ver custo não recebe o número do
+   * irmão por uma porta lateral: cai no padrão, como quem não tem irmão. A dica acompanha, e
+   * é por isso que ela pergunta por `irmaoComCusto` e não por `irmao`.
+   */
+  const irmaoComCusto = irmao?.unitPackagingRate != null ? irmao : null;
+  const sugestaoCusto = irmaoComCusto
+    ? formatTyped(rateToDecimal(irmaoComCusto.unitPackagingRate!), locale.formatting, 2)
+    : null;
+
+  /**
+   * **Uma resposta só, para a tela E para o save.**
+   *
+   * A primeira versão disto tinha o valor exibido (`perUnit || sugestao`) e o valor gravado
+   * (`num(perUnit)`) em expressões DIFERENTES: a tela mostrava 75 e o razão recebia 0. É a
+   * classe de defeito que este repositório mais pagou, e `campoComSugestao` existe exatamente
+   * para ela — módulo puro, com teste de Node, porque o navegador não vê campo controlado cujo
+   * valor derivado não muda (está escrito no `CLAUDE.md`).
+   *
+   * `undefined` é "ninguém digitou" e `''` é "apagou de propósito": sem essa distinção o campo
+   * repõe o palpite por cima do que a pessoa acabou de limpar.
+   */
+  const campoRendimento = campoComSugestao(perUnit, irmao ? sugestaoRendimento : null, '75');
+  const campoCusto = campoComSugestao(packagingCost, sugestaoCusto, '0,05');
+
   const costing = useMemo(() => {
     if (kind === 'resale' || !data || !chosenRecipe) return null;
     /**
@@ -291,7 +376,7 @@ function ProductForm() {
      */
     if (!data.dinheiro) return null;
 
-    const portion = num(perUnit);
+    const portion = num(campoRendimento.valor);
     if (!Number.isFinite(portion) || portion <= 0) return null;
 
     /**
@@ -304,7 +389,7 @@ function ProductForm() {
      * a R$ 12,40/kg. Só o valor final arredonda, e quem arredonda é
      * `costPerProductUnit`, uma vez, no fim.
      */
-    const packagingRate = rate(num(packagingCost) || 0, 1);
+    const packagingRate = rate(num(campoCusto.valor) || 0, 1);
     const cost = costRecipe(chosenRecipe, data.graph, data.costs, data.labels);
 
     // O que a lista de embalagem custa, cotada pelas notas de compra. Some junto
@@ -324,7 +409,10 @@ function ProductForm() {
       pack: (porEmbalagem: number) =>
         costPerPack(cost, portion, porEmbalagem, { typedRate: packagingRate, itemsRate }),
     };
-  }, [kind, data, chosenRecipe, perUnit, packagingCost, chosenWrappings]);
+    // As dependências são a RESPOSTA, não o estado cru: o valor muda também quando o irmão
+    // muda (outra categoria escolhida), e com `perUnit` aqui a prévia do custo ficaria
+    // parada no número de antes — a tela mostrando um rendimento e a conta usando outro.
+  }, [kind, data, chosenRecipe, campoRendimento.valor, campoCusto.valor, chosenWrappings]);
 
   /**
    * O nome que a grade escreve, e quem manda quando os dois existem.
@@ -336,6 +424,7 @@ function ProductForm() {
    * dedução sugere, não sobrescreve.
    */
   const linha = data?.lines.find((l) => l.id === lineId) ?? null;
+
 
   /**
    * **A família diz como ela é contada, e o cadastro nasce preenchido.**
@@ -427,7 +516,7 @@ function ProductForm() {
   const canSave =
     composed.trim().length > 0 &&
     ocupada === undefined &&
-    (kind === 'resale' || (chosenRecipe !== null && num(perUnit) > 0));
+    (kind === 'resale' || (chosenRecipe !== null && num(campoRendimento.valor) > 0));
 
   const onSave = async () => {
     if (!canSave) return;
@@ -444,7 +533,7 @@ function ProductForm() {
         // acontecer por extenso.
         name: composed.trim(),
         recipe: data?.recipes.find((r) => r.id === chosenRecipe)?.name ?? '',
-        perUnit: formatQuantity(num(perUnit), locale),
+        perUnit: formatQuantity(num(campoRendimento.valor), locale),
         /* A confirmação dizia "75 ml por unidade" para uma massa pesada em
            grama. A régua vem da ficha escolhida, como no campo acima. */
         unit: data?.recipes.find((r) => r.id === chosenRecipe)?.yieldUnit ?? '',
@@ -470,8 +559,9 @@ function ProductForm() {
         flavorId,
         kind,
         recipeId: kind === 'product' ? chosenRecipe : null,
-        yieldPerUnit: kind === 'product' ? num(perUnit) : null,
-        unitPackagingRate: rate(num(packagingCost) || 0, 1),
+        // A MESMA resposta que a tela mostra — ver `campoComSugestao` acima.
+        yieldPerUnit: kind === 'product' ? num(campoRendimento.valor) : null,
+        unitPackagingRate: rate(num(campoCusto.valor) || 0, 1),
         packagingItems: chosenWrappings,
         shelfLifeDays: num(shelfLife) || null,
         fullLevel: num(fullLevel) > 0 ? num(fullLevel) : null,
@@ -828,7 +918,7 @@ function ProductForm() {
 
               <Field
                 label={t.app.productForm.perUnit}
-                value={perUnit}
+                value={campoRendimento.valor}
                 onChangeText={setPerUnit}
                 /* A régua é a que a ficha escolheu — ml, g ou un. Chumbar "ml"
                    aqui fazia a tela pedir mililitro de uma massa pesada em
@@ -836,11 +926,13 @@ function ProductForm() {
                 suffix={data?.recipes.find((r) => r.id === chosenRecipe)?.yieldUnit ?? 'ml'}
                 keyboardType="numeric"
                 hint={
-                  costing
-                    ? fill(t.app.productForm.perUnitHint, {
-                        units: formatQuantity(costing.units, locale),
-                      })
-                    : undefined
+                  campoRendimento.ehSugestao && irmao
+                    ? fill(t.app.productForm.fromSibling, { product: irmao.name })
+                    : costing
+                      ? fill(t.app.productForm.perUnitHint, {
+                          units: formatQuantity(costing.units, locale),
+                        })
+                      : undefined
                 }
               />
             </View>
@@ -863,11 +955,15 @@ function ProductForm() {
             <View style={{ gap: space.lg }}>
               <Field
                 label={t.app.productForm.packagingCost}
-                value={packagingCost}
+                value={campoCusto.valor}
                 onChangeText={setPackagingCost}
                 suffix={`${currencySymbol(locale)} ${t.app.productForm.perUnitShort}`}
                 keyboardType="numeric"
-                hint={t.app.productForm.packagingHint}
+                hint={
+                  campoCusto.ehSugestao && irmaoComCusto
+                    ? fill(t.app.productForm.fromSibling, { product: irmaoComCusto.name })
+                    : t.app.productForm.packagingHint
+                }
               />
 
 

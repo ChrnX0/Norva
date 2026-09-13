@@ -1577,6 +1577,8 @@ export const es: Dictionary = {
     },
 
     productForm: {
+      /** De dónde vino el número sugerido: el producto hermano que alguien ya respondió. */
+      fromSibling: 'igual al {{product}} — cámbialo si es diferente',
       /** La puerta del vacío: el producto necesita una ficha, y la ficha se crea allí. */
       noRecipesAction: 'Crear una ficha',
       title: 'Nuevo producto',

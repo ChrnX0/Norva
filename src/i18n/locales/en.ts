@@ -1572,6 +1572,8 @@ export const en: Dictionary = {
     },
 
     productForm: {
+      /** Where the suggested number came from: the sibling product somebody already answered. */
+      fromSibling: 'same as {{product}} — change it if it differs',
       /** The door out of empty: a product needs a sheet, and the sheet lives there. */
       noRecipesAction: 'Add a recipe sheet',
       title: 'New product',

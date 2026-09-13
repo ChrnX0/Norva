@@ -2115,6 +2115,8 @@ export const ptBR = {
     },
 
     productForm: {
+      /** De onde veio o número sugerido: o produto irmão que alguém da fábrica já respondeu. */
+      fromSibling: 'igual ao {{product}} — mude se for diferente',
       /** A porta do vazio: o produto precisa de uma ficha, e ela se cadastra ali. */
       noRecipesAction: 'Cadastrar uma ficha',
       title: 'Novo produto',
