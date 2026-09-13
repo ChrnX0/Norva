@@ -250,6 +250,10 @@ export const ptBR = {
       dueDone: '{{name}} já recebeu',
       expiryTitle: 'Vence primeiro',
       expiryLot: '{{code}} vence {{date}}',
+      /* Vencido é outro fato: "vence 3 de setembro" no dia 10 é futuro sobre
+         passado, e o título "Vence primeiro" manda despachar o que não pode sair. */
+      expiredTitle: 'Venceu',
+      expiredLot: '{{code}} venceu {{date}}',
       lossTitle: 'Perdas do mês',
       lossVsBefore: 'no mês anterior foram {{amount}}',
       lossFirst: 'primeiro mês com perda registrada',
@@ -1149,7 +1153,6 @@ export const ptBR = {
           insumos: 'Insumo acabando',
           pedidos: 'Pedidos dos clientes',
           clima: 'Tempo',
-          expedicao: 'Saiu para as lojas',
           precos: 'Preços que mexeram',
           copia: 'Cópia de segurança',
         },
@@ -2257,10 +2260,23 @@ export const ptBR = {
       body: 'Faltam {{amount}} de {{subject}} para atender.',
     },
     volume: { title: '{{subject}} em {{amount}}%', body: 'Do cheio que você cadastrou.' },
-    validade: { title: 'Lote {{subject}} vence', body: 'Em {{amount}} — mande esse primeiro.' },
+    /* O PRODUTO no título e o código no corpo: na tela de bloqueio "Lote
+       20260903-01" não diz o que é, e o código serve para achar o saco na câmara.
+       E vencido é outro fato, com outra ação — despachar vencido para a loja é a
+       coisa errada, e um aviso que a manda fazer tem a autoridade do sistema. */
+    validade: {
+      title: '{{subject}} vence',
+      body: 'Lote {{code}}, em {{amount}} — mande esse primeiro.',
+      titleExpired: '{{subject}} venceu',
+      expiredBody: 'Lote {{code}}, há {{amount}} — registre a perda.',
+    },
     ambiente: {
       title: '{{subject}} fora da faixa',
-      body: '{{amount}} °{{unit}} agora. Confira a porta e o motor.',
+      /* Dois corpos, um por lado da faixa, e nenhum genérico: o aviso só existe
+         porque um limite foi cruzado, e é ELE que a frase diz — Lei 3, o número
+         com a comparação. Ver `src/notify/phrase.ts`. */
+      aboveMax: '{{amount}} °{{unit}} agora, e o teto é {{limit}}. Confira a porta e o motor.',
+      belowMin: '{{amount}} °{{unit}} agora, e o piso é {{limit}}. Confira a porta e o motor.',
     },
   },
 

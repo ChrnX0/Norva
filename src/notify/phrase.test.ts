@@ -20,7 +20,13 @@ const EXEMPLOS: Record<AlertKind, Alert> = {
     places: 2,
   },
   volume: { kind: 'volume', subjectId: 'v', subject: 'Palito', amount: 12, band: 'vermelho' },
-  validade: { kind: 'validade', subjectId: 'l', subject: '20260903-01', amount: 3 },
+  validade: {
+    kind: 'validade',
+    subjectId: 'l',
+    subject: 'Picolé de morango',
+    code: '20260903-01',
+    amount: 3,
+  },
   ambiente: {
     kind: 'ambiente',
     subjectId: 'c',
@@ -28,8 +34,16 @@ const EXEMPLOS: Record<AlertKind, Alert> = {
     amount: -8.4,
     unit: 'C',
     quantity: 'temperature',
+    min: -22,
+    max: -16,
   },
 };
+
+/** O outro lado da faixa: mesma câmara, congelando além do piso. */
+const CONGELANDO: Alert = { ...EXEMPLOS.ambiente, amount: -27.5 };
+
+/** O mesmo lote, três dias DEPOIS de vencer. */
+const VENCIDO: Alert = { ...EXEMPLOS.validade, amount: -3 };
 
 test('no notification ever ships a hole to the lock screen', () => {
   // `{{subject}}` na tela de bloqueio é um defeito que nenhuma outra rede pega:
@@ -70,6 +84,81 @@ test('each alert carries the number in the unit that alert measures', () => {
   assert.match(camara.body, /-8,4 °C|-8\.4 °C/);
 });
 
+/**
+ * **Lei 3 na notificação: o número vem com a comparação, e com a comparação CERTA.**
+ *
+ * O corpo do ambiente dizia só a medida — *"-8 °C agora"* —, e na tela de bloqueio isso
+ * não decide nada: quem lê não sabe se -8 é a câmara quente ou o balcão normal. O número
+ * da faixa já estava nos fatos (`AlertFacts.ambient.min/max`) e morria ali.
+ *
+ * O limite dito é o CRUZADO, não os dois: aviso de ambiente só existe porque um dos lados
+ * foi ultrapassado, e não há faixa em que o valor esteja abaixo do piso e acima do teto ao
+ * mesmo tempo. Dois limites numa notificação é a conta que sobra para quem lê fazer.
+ */
+test('the range alert names the limit it crossed, on either side', () => {
+  const t = ptBR;
+
+  // Quente: -8,4 num freezer de -22 a -16 passou do TETO.
+  const quente = alertPhrase(EXEMPLOS.ambiente, t).body;
+  assert.match(quente, /teto é -16/, 'o corpo tem de dizer o teto que foi cruzado');
+  assert.doesNotMatch(quente, /piso/, 'dizer o piso aqui é dizer o limite que não foi cruzado');
+
+  // Frio: -27,5 na mesma câmara passou do PISO — e isto é avaria de outro tipo,
+  // não "está tudo bem porque freezer é frio".
+  const frio = alertPhrase(CONGELANDO, t).body;
+  assert.match(frio, /piso é -22/, 'o corpo tem de dizer o piso que foi cruzado');
+  assert.doesNotMatch(frio, /teto/, 'dizer o teto aqui é dizer o limite que não foi cruzado');
+
+  // E o limite nunca sai VAZIO: `{{limit}}` preenchido com nada não é buraco para a
+  // guarda de cima, e é exatamente o mesmo defeito para quem lê — "e o teto é ."
+  for (const [idioma, dic] of Object.entries(IDIOMAS)) {
+    for (const alerta of [EXEMPLOS.ambiente, CONGELANDO]) {
+      const corpo = alertPhrase(alerta, dic).body;
+      assert.match(corpo, /-16|-22/, `${idioma}: o corpo do ambiente ficou sem o limite`);
+    }
+  }
+});
+
+/**
+ * **O aviso que mandava despachar picolé vencido para a loja.**
+ *
+ * O número saía por `Math.max(0, …)`, então `daysLeft = -3` virava zero e a frase era a
+ * mesma de um lote que ainda vai vencer: *"em 0 dias — mande esse primeiro"*. Lote vencido
+ * não se manda primeiro; se registra como perda. Um aviso que manda fazer a coisa errada é
+ * pior que nenhum, porque ele chega com a autoridade do sistema atrás.
+ *
+ * E o produto entrou no lugar do código no título pela mesma razão de leitura: na tela de
+ * bloqueio *"Lote 20260903-01 vence"* não diz o que é, e quem lê não abre o aplicativo para
+ * descobrir. O código continua na frase — é o endereço do saco na câmara.
+ */
+test('an expired lot is a different fact, with a different action', () => {
+  const t = ptBR;
+
+  const vai = alertPhrase(EXEMPLOS.validade, t);
+  assert.match(vai.title, /Picolé de morango vence/, 'o título diz o produto, não o código');
+  assert.match(vai.body, /20260903-01/, 'o código do lote continua na frase');
+  assert.match(vai.body, /3 dias/);
+  assert.match(vai.body, /mande esse primeiro/);
+
+  const passou = alertPhrase(VENCIDO, t);
+  assert.match(passou.title, /venceu/, 'venceu é passado, e a frase tem de dizer isso');
+  assert.match(passou.body, /3 dias/, 'três dias VENCIDO, e não "em 0 dias"');
+  assert.doesNotMatch(
+    passou.body,
+    /mande esse primeiro/,
+    'mandar lote vencido para a loja é a coisa errada, e o app a estava pedindo',
+  );
+  assert.match(passou.body, /registre a perda/, 'o que se faz com lote vencido é registrar');
+
+  // Nos três idiomas, porque a frase nova é frase nova em três lugares.
+  for (const [idioma, dic] of Object.entries(IDIOMAS)) {
+    const { title, body } = alertPhrase(VENCIDO, dic);
+    assert.doesNotMatch(title, /\{\{/, `${idioma}: buraco no título do vencido`);
+    assert.doesNotMatch(body, /\{\{/, `${idioma}: buraco no corpo do vencido`);
+    assert.match(body, /3/, `${idioma}: o corpo do vencido perdeu o número de dias`);
+  }
+});
+
 test('one alert kind cannot be added without its words in three languages', () => {
   // O `Widen<T>` obriga a CHAVE a existir nos três idiomas; ele não obriga um
   // tipo novo de alarme a ter chave nenhuma. Este caso fecha essa fresta: um
@@ -79,7 +168,16 @@ test('one alert kind cannot be added without its words in three languages', () =
     for (const kind of kinds) {
       assert.ok(t.alertText[kind], `falta a frase de ${kind}`);
       assert.ok(t.alertText[kind].title, `falta o título de ${kind}`);
-      assert.ok(t.alertText[kind].body, `falta o corpo de ${kind}`);
+      // O ambiente tem DOIS corpos, um por lado da faixa, e nenhum genérico: um
+      // `body` de ambiente seria texto que nenhum caso alcança, porque todo aviso
+      // de ambiente cruzou um limite. Quem acrescentar um lado sem frase reprova aqui.
+      const corpos =
+        kind === 'ambiente'
+          ? [t.alertText.ambiente.aboveMax, t.alertText.ambiente.belowMin]
+          : kind === 'validade'
+            ? [t.alertText.validade.body, t.alertText.validade.expiredBody]
+            : [t.alertText[kind].body];
+      for (const corpo of corpos) assert.ok(corpo, `falta o corpo de ${kind}`);
     }
   }
 

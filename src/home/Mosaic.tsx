@@ -38,6 +38,7 @@ import {
   type PrimeiroPasso,
 } from '@/domain/briefing';
 import { daysBetween, localDate } from '@/domain/day';
+import { daysUntilExpiry } from '@/domain/lot';
 import { brand } from '@/config/brand';
 import {
   CartaoClima,
@@ -88,6 +89,24 @@ export function Mosaic(vista: BriefingView) {
   const temNivel = !!data && (data.shortly.length > 0 || (data.everMade && data.cover.length > 0));
   /** Saiu carga hoje. */
   const temCaixas = !!data && data.boxes > 0;
+
+  /**
+   * Dias até o lote vencer, pela régua do DOMÍNIO — e negativo quer dizer vencido.
+   *
+   * A peça de validade contava com `daysBetween(nowIso(), `<data>T00:00:00.000Z`, fuso)`, e
+   * isso erra duas coisas de uma vez. A primeira é um DIA: `daysBetween` reduz as duas
+   * pontas à data local, e meia-noite UTC em São Paulo é 21h do dia anterior — então o lote
+   * que vence hoje aparecia como vencido ontem, e a capa discordava da notificação, que
+   * sempre usou esta função (`src/notify/facts.ts`). Validade é um dia combinado, não um
+   * instante: quem compara dia com dia acerta em qualquer fuso.
+   *
+   * A segunda é o SINAL. O docblock de `daysUntilExpiry` diz, com estas palavras, que ele
+   * devolve número e não booleano porque *"'venceu ontem' e 'vence em três dias' pedem
+   * tratamentos diferentes na tela, e quem decide isso é a tela"* — e a tela fazia
+   * `Math.max(0, …)`, jogando fora justamente a distinção que o domínio guardou para ela.
+   */
+  const hojeAqui = localDate(nowIso(), locale.timeZone);
+  const diasDoLote = (expira: string) => daysUntilExpiry(expira, hojeAqui);
 
   /**
    * O que a cena da fábrica mostra do dia — um objeto, não três expressões.
@@ -494,7 +513,6 @@ export function Mosaic(vista: BriefingView) {
         </View>
       ) : null
     ),
-    expedicao: null,
     precos: (
       /**
        * O custo firme é notícia, e era o silêncio da capa.
@@ -810,7 +828,13 @@ export function Mosaic(vista: BriefingView) {
             index={5}
             tone="warning"
             icon={(c) => <GlyphBox size={26} color={c} weight={traco} />}
-            title={t.app.home.expiryTitle}
+            /* Venceu é outro fato, e o título é o que se lê de relance: "Vence
+               primeiro" em cima de um lote vencido manda despachá-lo. */
+            title={
+              diasDoLote(data!.expiring[0].expiresOn) < 0
+                ? t.app.home.expiredTitle
+                : t.app.home.expiryTitle
+            }
             aberta={aberta === 'validade'}
             onToggle={() => abrir('validade')}
             mais={
@@ -821,10 +845,12 @@ export function Mosaic(vista: BriefingView) {
                       {l.name}
                     </Text>
                     <Text style={[type.caption, { color: color.inkMuted }]}>
-                      {fill(t.app.home.expiryLot, {
-                        code: l.code,
-                        date: formatCalendarDate(l.expiresOn, locale),
-                      })}
+                      {fill(
+                        diasDoLote(l.expiresOn) < 0
+                          ? t.app.home.expiredLot
+                          : t.app.home.expiryLot,
+                        { code: l.code, date: formatCalendarDate(l.expiresOn, locale) },
+                      )}
                     </Text>
                   </View>
                 ))}
@@ -835,25 +861,21 @@ export function Mosaic(vista: BriefingView) {
               {data!.expiring[0].name}
             </Text>
             <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={2}>
-              {fill(t.app.home.expiryLot, {
-                code: data!.expiring[0].code,
-                date: formatCalendarDate(data!.expiring[0].expiresOn, locale),
-              })}
+              {fill(
+                diasDoLote(data!.expiring[0].expiresOn) < 0
+                  ? t.app.home.expiredLot
+                  : t.app.home.expiryLot,
+                {
+                  code: data!.expiring[0].code,
+                  date: formatCalendarDate(data!.expiring[0].expiresOn, locale),
+                },
+              )}
             </Text>
             {/* Quanto falta dos trinta dias que a peça olha. Sem o desenho, "12
                 de setembro" pede que a pessoa faça a conta de cabeça. */}
             <View style={{ marginTop: space.sm }}>
               <Drain
-                share={
-                  Math.max(
-                    0,
-                    daysBetween(
-                      nowIso(),
-                      `${data!.expiring[0].expiresOn}T00:00:00.000Z`,
-                      locale.timeZone,
-                    ),
-                  ) / 30
-                }
+                share={Math.max(0, diasDoLote(data!.expiring[0].expiresOn)) / 30}
               />
             </View>
           </Peca>

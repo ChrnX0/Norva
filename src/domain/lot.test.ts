@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { daysBetween, localDate } from './day';
 import { daysUntilExpiry, expiresOn, lotCode } from './lot';
 
 test('the lot code says the day and the run, and sorts by itself', () => {
@@ -39,4 +40,38 @@ test('what is left of a lot is counted in days, and it goes negative', () => {
 
   // Atravessa mês e ano contando dias de verdade, não trinta por mês.
   assert.equal(daysUntilExpiry('2027-03-01', '2026-09-02'), 180);
+});
+
+/**
+ * **Validade é DIA, e transformá-la em instante custa um dia a oeste de Greenwich.**
+ *
+ * A peça de validade da capa contava com
+ * `daysBetween(nowIso(), `${expiresOn}T00:00:00.000Z`, fuso)`, e o número saía um dia
+ * menor em São Paulo: `daysBetween` reduz as duas pontas à data LOCAL, e meia-noite UTC
+ * lida em UTC-3 é 21h do dia ANTERIOR. O lote que vence hoje aparecia vencido ontem —
+ * enquanto a notificação, que sempre usou `daysUntilExpiry`, dizia o número certo. Duas
+ * réguas para a mesma pergunta, discordando por um dia.
+ *
+ * As duas linhas abaixo são a prova nos dois sentidos, e a segunda é o defeito medido —
+ * ela fica no teste de propósito: é ela que explica por que a régua certa é comparar DIA
+ * com DIA. Este repositório já pagou por "o instrumento errado dá um número plausível".
+ */
+test('the expiry ruler compares DAYS, because midnight UTC is the day before out west', () => {
+  const fuso = 'America/Sao_Paulo';
+  const agora = '2026-09-13T15:00:00.000Z';  // meio-dia em São Paulo
+
+  // A régua certa: o lote que vence hoje tem zero dia, e não menos um.
+  assert.equal(
+    daysUntilExpiry('2026-09-13', localDate(agora, fuso)),
+    0,
+    'o lote que vence hoje ainda pode sair hoje',
+  );
+  assert.equal(daysUntilExpiry('2026-09-12', localDate(agora, fuso)), -1, 'venceu ontem');
+
+  // A régua errada, medida: mesma pergunta, um dia a menos.
+  assert.equal(
+    daysBetween(agora, '2026-09-13T00:00:00.000Z', fuso),
+    -1,
+    'meia-noite UTC não é a data do lote em fuso nenhum a oeste — é o dia anterior',
+  );
 });

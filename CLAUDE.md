@@ -109,7 +109,12 @@ que mudou. Rodadas inteiras foram gastas servindo a barra em vez de servir o app
 **E esses dois números envelheceram, medidos em 12 de setembro: `mutate` é 28 min 39 s e
 `e2e:fast` é 6 min 12 s.** *E o segundo envelheceu de novo em 13 de setembro: duas execuções no
 mesmo dia deram **~13 min** e **15 min 35 s**, as duas 59/59 — duas vezes e meia o número
-escrito. O que eu NÃO medi é a causa, e por isso não a escrevo: o que se sabe é que a
+escrito. **E a terceira, no mesmo dia, deu ~33 min com 60/60 — e essa causa eu medi: eu
+trabalhando por cima.** Foram leituras e edições curtas, nada de barra, e ainda assim dobrou:
+a exportação sozinha levou 8 min e as quatro fatias 20. Então a regra do `mutate` ("a máquina
+é do trabalho até as edições acabarem") vale para o navegador com o sinal trocado — ou se
+espera, ou se aceita o dobro, e o que NÃO se pode é ler o número de 15 min e planejar a rodada
+por ele. O que eu NÃO medi é a causa, e por isso não a escrevo: o que se sabe é que a
 **contagem de checagens não mudou** (59 nas duas datas), então não é "mais checagens" — é custo
 por checagem ou é a máquina. Fica o número novo, porque quem lê "seis minutos" no meio de uma
 rodada dispara e depois descobre que perdeu quinze.* Não é regressão da ferramenta, é aritmética que cresce com o

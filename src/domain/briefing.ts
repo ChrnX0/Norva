@@ -43,7 +43,6 @@ export const BRIEFING_WIDGETS = [
   'cobertura',
   'pedidos',
   'entregaHoje',
-  'expedicao',
   'validade',
   'perdas',
   'custo',
@@ -108,8 +107,8 @@ export type BriefingWidget = (typeof BRIEFING_WIDGETS)[number];
  * Ajustes nunca descobriria que tem lote vencendo. Cortar um aviso para chegar
  * num número redondo seria servir a minha frase em vez de servir a tela.
  *
- * Saem sete, e todas por serem RELATÓRIO: histórico, insumos, expedição, perdas,
- * custo, preços e o que está parado. Nenhuma delas muda o que se faz hoje de manhã, e
+ * Saem seis, e todas por serem RELATÓRIO: histórico, insumos, perdas, custo, preços
+ * e o que está parado. Nenhuma delas muda o que se faz hoje de manhã, e
  * todas continuam a um toque em Ajustes.
  *
  * **`pedidos` subiu para o padrão em 9 de setembro, e o critério acima é que a trouxe.**
@@ -127,7 +126,6 @@ export type BriefingWidget = (typeof BRIEFING_WIDGETS)[number];
 const DEFAULT_OFF = new Set<BriefingWidget>([
   'historico',
   'insumos',
-  'expedicao',
   'perdas',
   'custo',
   'precos',
@@ -155,14 +153,20 @@ const DEFAULT_OFF = new Set<BriefingWidget>([
  * **E o que sobra tem de caber em 168 dp**, que é metade do telefone de 360 com
  * as margens. Cabe um número com rótulo — caixas de hoje, perdas do mês, o preço
  * estável. Não cabe uma lista com nome de loja, nem o diagrama da conta. Por isso
- * quem declara é a PEÇA e não a pessoa: oferecer meia coluna para "saiu para as
- * lojas" seria oferecer uma escolha que só produz tela quebrada.
+ * quem declara é a PEÇA e não a pessoa: oferecer meia coluna para uma lista com nome
+ * de loja seria oferecer uma escolha que só produz tela quebrada.
+ *
+ * **E este parágrafo citava "saiu para as lojas" como o exemplo do que não cabe — com a
+ * peça DENTRO do conjunto, três linhas abaixo.** Ela saiu do catálogo em 13 de setembro
+ * por outro motivo (desenhava `null` desde sempre; o que saiu hoje é o segundo assunto da
+ * peça de insumos), e as duas coisas juntas são a mesma lição que o `CLAUDE.md` já escreve
+ * duas vezes: docblock que nomeia o defeito não o impede. A frase virou a categoria em vez
+ * do exemplo, porque o exemplo era falso.
  */
 const ACEITA_MEIA = new Set<BriefingWidget>([
   'aoVivo',
   'cobertura',
   'entregaHoje',
-  'expedicao',
   'validade',
   'perdas',
   'custo',

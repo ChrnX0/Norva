@@ -211,6 +211,25 @@ export type Alert = {
   unit?: string;
   /** Qual grandeza saiu da faixa: `temperature`, `humidity`, o que vier. */
   quantity?: string;
+  /** O código do lote, no aviso de validade — o que está escrito no saco. */
+  code?: string;
+  /**
+   * A faixa que o lugar tem cadastrada, no aviso de ambiente.
+   *
+   * Lei 3 — nenhum número aparece sozinho, sempre com a comparação. `-8 °C` não
+   * decide nada; `-8 °C, e a faixa é de -22 a -16` diz que a porta ficou aberta.
+   * E é a mesma faixa que ORDENA: um freezer a -8 num limite de -16 está oito
+   * graus fora, e a -14 está dois — quem decide primeiro é o de oito.
+   */
+  min?: number | null;
+  max?: number | null;
+  /**
+   * Dias até a data pedida, no aviso de pedido. Negativo é pedido ATRASADO.
+   *
+   * Ele é o que ordena: o `amount` do pedido é quanto falta produzir, e faltar
+   * 50 para amanhã decide antes de faltar 300 para a semana que vem.
+   */
+  daysUntil?: number;
 };
 
 /** Os fatos de onde os avisos saem. Nada aqui fala português. */
@@ -250,8 +269,15 @@ export type AlertFacts = {
     onHand: number;
     fullLevel: number | null;
   }[];
-  /** Lotes com validade, e quantos dias faltam. */
-  expiring: readonly { lotId: string; code: string; daysLeft: number }[];
+  /**
+   * Lotes com validade, e quantos dias faltam. Negativo é lote JÁ VENCIDO.
+   *
+   * O `name` é o do produto, e ele entrou porque a notificação dizia só o código:
+   * *"Lote 20260903-01 vence em 3 dias"* na tela de bloqueio não diz o que é, e
+   * quem lê não vai ao aplicativo descobrir — o código é para o rótulo na câmara,
+   * onde ele está escrito no saco.
+   */
+  expiring: readonly { lotId: string; code: string; name: string; daysLeft: number }[];
   /**
    * A última leitura de cada grandeza medida, contra a faixa do lugar.
    *
@@ -310,6 +336,7 @@ export function alertsDue(facts: AlertFacts, settings: AlertSettings): Alert[] {
         subject: order.name,
         amount: order.missing,
         places: lojas,
+        daysUntil: order.daysUntil,
       });
     }
   }
@@ -337,7 +364,15 @@ export function alertsDue(facts: AlertFacts, settings: AlertSettings): Alert[] {
   if (settings.on.validade) {
     for (const lote of facts.expiring) {
       if (lote.daysLeft > settings.daysAhead.validade) continue;
-      out.push({ kind: 'validade', subjectId: lote.lotId, subject: lote.code, amount: lote.daysLeft });
+      out.push({
+        kind: 'validade',
+        subjectId: lote.lotId,
+        // O PRODUTO é o assunto, e o código é o endereço dele na câmara. Era o
+        // contrário, e a notificação chegava dizendo um número de série.
+        subject: lote.name,
+        code: lote.code,
+        amount: lote.daysLeft,
+      });
     }
   }
 
@@ -353,6 +388,8 @@ export function alertsDue(facts: AlertFacts, settings: AlertSettings): Alert[] {
         amount: leitura.value,
         unit: leitura.unit,
         quantity: leitura.kind,
+        min: leitura.min,
+        max: leitura.max,
       });
     }
   }
@@ -366,7 +403,54 @@ export function alertsDue(facts: AlertFacts, settings: AlertSettings): Alert[] {
     validade: 3,
     volume: 4,
   };
-  return out.sort((a, b) => urgencia[a.kind] - urgencia[b.kind] || a.amount - b.amount);
+  return out.sort((a, b) => {
+    if (urgencia[a.kind] !== urgencia[b.kind]) return urgencia[a.kind] - urgencia[b.kind];
+    const ca = ordemDentroDoTipo(a);
+    const cb = ordemDentroDoTipo(b);
+    return ca[0] - cb[0] || ca[1] - cb[1];
+  });
+}
+
+/**
+ * A chave que ordena dois avisos DO MESMO TIPO — menor decide primeiro.
+ *
+ * Ela existe porque a ordenação usava `amount` para os cinco, e `amount` não é a
+ * mesma grandeza em cinco tipos. Em dois deles a comparação estava invertida, e
+ * as duas erram no aviso que CHEGA — o `index.ts` manda `avisos[0]` e só ele:
+ *
+ *  - **pedido**: `amount` é quanto FALTA produzir, e ordenar por ele crescente
+ *    punha na frente o pedido de que falta menos. Faltar 50 caixas para ontem
+ *    decide hoje; faltar 300 para a semana que vem decide semana que vem. Então
+ *    ordena por `daysUntil` (negativo é atrasado, e atrasado vem primeiro), e o
+ *    desempate é quanto falta, do maior para o menor.
+ *  - **ambiente**: `amount` é a temperatura MEDIDA, e ordenar por ela crescente
+ *    punha o freezer mais frio na frente — o de -25 antes do de -8, quando a
+ *    faixa é -22 a -16. O que decide é a distância PARA FORA da faixa, do maior
+ *    para o menor: oito graus acima do teto é estoque derretendo, dois graus é
+ *    porta mal fechada.
+ *
+ * Nos outros três `amount` já era a régua certa e continua: dias que faltam para
+ * o insumo acabar e para o lote vencer, e parcela do cheio no volume — nos três,
+ * menor é mais apertado.
+ *
+ * A devolução é PAR para o desempate ficar aqui, e não espalhado no `sort`: quem
+ * acrescentar um tipo escreve as duas metades da régua dele num lugar só.
+ */
+export function ordemDentroDoTipo(alert: Alert): readonly [number, number] {
+  if (alert.kind === 'pedido') {
+    // Sem `daysUntil` o pedido não perde a vez: ele cai para o fim do próprio
+    // tipo, que é o que um fato incompleto merece — nunca para a frente do
+    // atrasado de verdade.
+    return [alert.daysUntil ?? Number.POSITIVE_INFINITY, -alert.amount];
+  }
+  if (alert.kind === 'ambiente') {
+    const abaixo = alert.min === null || alert.min === undefined ? 0 : alert.min - alert.amount;
+    const acima = alert.max === null || alert.max === undefined ? 0 : alert.amount - alert.max;
+    // Só um dos dois pode ser positivo — não existe faixa em que o valor esteja
+    // abaixo do piso e acima do teto ao mesmo tempo.
+    return [-Math.max(abaixo, acima), 0];
+  }
+  return [alert.amount, 0];
 }
 
 /**

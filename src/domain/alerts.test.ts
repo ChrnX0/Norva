@@ -122,7 +122,7 @@ test('the most urgent alert comes first, because a notification holds one senten
         { itemId: 'folgado', name: 'Folgado', daysLeft: 3, leadTimeDays: null },
         { itemId: 'apertado', name: 'Apertado', daysLeft: 0, leadTimeDays: null },
       ],
-      expiring: [{ lotId: 'l1', code: '20260903-01', daysLeft: 1 }],
+      expiring: [{ lotId: 'l1', code: '20260903-01', name: 'Picolé de morango', daysLeft: 1 }],
     },
     DEFAULT_ALERTS,
   );
@@ -132,6 +132,71 @@ test('the most urgent alert comes first, because a notification holds one senten
     ['apertado', 'folgado', 'l1'],
     'insumo antes de validade, e dentro de cada um o mais apertado primeiro',
   );
+});
+
+/**
+ * **Dentro do tipo, `amount` não é a mesma grandeza — e em dois tipos ele ordenava ao
+ * contrário.**
+ *
+ * A ordenação era `urgencia[kind] || a.amount - b.amount` para os cinco. Isso é certo em
+ * três (dias que faltam, dias até vencer, parcela do cheio: menor é mais apertado) e
+ * invertido em dois:
+ *
+ *  - **pedido**: `amount` é quanto FALTA produzir. Crescente põe na frente o pedido de que
+ *    falta menos — faltar 20 para a semana que vem antes de faltar 300 para ontem.
+ *  - **ambiente**: `amount` é a temperatura MEDIDA. Crescente põe o freezer mais frio na
+ *    frente — o de -25 antes do de -8, quando a faixa é -22 a -16 e o de -8 é o que está
+ *    derretendo o estoque.
+ *
+ * E isto decide o que CHEGA: `src/notify/index.ts` agenda `avisos[0]` e só ele, porque
+ * bandeja com sete linhas do mesmo aplicativo é bandeja que a pessoa limpa sem ler. Ordem
+ * errada aqui não é ordem feia numa lista — é o aviso errado no bolso, e os outros
+ * calados.
+ */
+test('inside one kind, the order follows what that kind measures', () => {
+  const pedidos = alertsDue(
+    {
+      ...nada,
+      orders: [
+        // Falta pouco, e o dia pedido ainda está à frente (dentro da janela de dois
+        // dias que o padrão avisa — cinco dias não geraria aviso nenhum, e a régua
+        // da ordem nunca seria exercitada).
+        { itemId: 'depois', name: 'Depois', missing: 20, daysUntil: 2, placeId: 'a' },
+        // Falta muito, e era para ANTEONTEM.
+        { itemId: 'atrasado', name: 'Atrasado', missing: 300, daysUntil: -2, placeId: 'b' },
+        // Mesmo dia do atrasado, faltando menos: desempata por quanto falta.
+        { itemId: 'atrasado-menor', name: 'Atrasado menor', missing: 40, daysUntil: -2, placeId: 'c' },
+      ],
+    },
+    { ...DEFAULT_ALERTS, on: { ...DEFAULT_ALERTS.on, pedido: true } },
+  );
+  assert.deepEqual(
+    pedidos.map((a) => a.subjectId),
+    ['atrasado', 'atrasado-menor', 'depois'],
+    'pedido ordena pelo dia pedido, do mais atrasado ao mais folgado, e desempata por quanto falta',
+  );
+
+  const camaras = alertsDue(
+    {
+      ...nada,
+      ambient: [
+        // Dois graus abaixo do piso: porta mal fechada do lado frio.
+        { locationId: 'pouco', place: 'Pouco', kind: 'temperature', value: -24, unit: 'C', min: -22, max: -16, hoursOld: 1 },
+        // Oito graus acima do teto: estoque derretendo.
+        { locationId: 'muito', place: 'Muito', kind: 'temperature', value: -8, unit: 'C', min: -22, max: -16, hoursOld: 1 },
+      ],
+    },
+    { ...DEFAULT_ALERTS, on: { ...DEFAULT_ALERTS.on, ambiente: true } },
+  );
+  assert.deepEqual(
+    camaras.map((a) => a.subjectId),
+    ['muito', 'pouco'],
+    'ambiente ordena pela distância PARA FORA da faixa, não pela temperatura medida',
+  );
+
+  // E a faixa viaja com o aviso, porque é ela que a frase compara e é ela que ordena.
+  assert.equal(camaras[0].max, -16, 'o aviso de ambiente leva o teto');
+  assert.equal(camaras[0].min, -22, 'o aviso de ambiente leva o piso');
 });
 
 test('no chosen weekday means every day, never silence', () => {

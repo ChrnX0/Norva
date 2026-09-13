@@ -125,6 +125,9 @@ export async function factsForAlerts(timeZone: string): Promise<AlertFacts> {
     expiring: expiring.map((l) => ({
       lotId: l.lotId,
       code: l.code,
+      // O nome do produto já vinha da consulta e era jogado fora aqui. A frase
+      // dizia o código do lote e mais nada.
+      name: l.name,
       // A função do domínio para ESTA pergunta. Ela ficou dois meses listada como "sem
       // chamador" com a justificativa de que ninguém contava dias — enquanto esta linha
       // contava, à mão, a mesma conta.
