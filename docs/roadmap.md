@@ -65,12 +65,14 @@ dois celulares, o primeiro que aceitar fica, e aceitar ESTORNA a que perdeu — 
 dentro da transação que ganha a arbitragem, porque no aparelho dois celulares estornariam a
 mesma linha duas vezes.
 
-*Última execução do `mutate`: **12 de setembro à noite, sobre `63c45e9`** — **151 plantadas,
-149 pegas, 2 equivalentes, 0 sobreviventes, 0 não medidas**, com a barra inteira verde ao lado
-(navegador 59/59 na árvore final, portão passando com avisos idênticos). A última a entrar
-inverte o sinal de `diasDeCalendario`, e ela derruba QUATRO testes — dois deles antigos, do
-`daysBetween` e do lote, que passaram a proteger a função nova por delegação sem serem tocados.*
-
+*Última execução do `mutate`: **13 de setembro, sobre `7e2ddb2`** — **150 plantadas, 148 pegas,
+2 equivalentes, 0 sobreviventes, 0 não medidas**, com a barra inteira verde ao lado (796 testes,
+navegador 59/59, `db:verify` 35 garantias, portão passando com sete avisos justificados). A
+execução ANTERIOR, no mesmo dia, deu cinco **não medidas** — cinco regras sem guarda, e nenhuma
+delas notícia sobre a suíte: eram âncoras que as rodadas de dinheiro moveram embaixo delas. Uma
+saiu de vez (`multiplyCents` foi apagada por não ter chamador), três ganharam âncora nova, e a
+da perda foi PARA DENTRO de `netYieldOf` — que é ganho e não empate, porque antes ela media um
+dos três caminhos e agora o sinal trocado atinge os três.*
 *Antes dela, a de `4bb4460` — 148 plantadas, 146 pegas, 2 equivalentes — cujas duas últimas
 guardam a ficha cravada do tacho e reprovam pelo DINHEIRO: *"esperava 4 centavos por unidade,
 veio 8"*.*
