@@ -857,6 +857,7 @@ export const es: Dictionary = {
           validade: 'Lote por vencer',
         },
         daysAhead: '{{days}} de antelación',
+        insumoFloor: '{{days}} de antelación mientras nadie anote la fecha de un pedido. Con plazo anotado, la app usa el plazo del proveedor más tu margen.',
         ambienteHint: 'Compara con el rango que cargues en la cámara. Sin rango no avisa — la app no sabe cuál es la temperatura buena de tu cámara.',
         notifyFull: 'Avisar cuando se llene',
         volumeHint: 'Compara con el rango que cargues en el ítem. Sin rango, no avisa.',

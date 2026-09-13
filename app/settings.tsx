@@ -1338,9 +1338,14 @@ function Settings() {
                             ? t.app.settings.alerts.volumeHint
                             : kind === 'ambiente'
                               ? t.app.settings.alerts.ambienteHint
-                              : fill(t.app.settings.alerts.daysAhead, {
-                                days: plural(dias ?? 0, t.app.home.dayCount),
-                              })}
+                              : fill(
+                                  // O insumo é o único cujo número é PISO: com prazo do
+                                  // fornecedor anotado, quem decide é prazo + folga.
+                                  kind === 'insumo'
+                                    ? t.app.settings.alerts.insumoFloor
+                                    : t.app.settings.alerts.daysAhead,
+                                  { days: plural(dias ?? 0, t.app.home.dayCount) },
+                                )}
                         </Text>
                       </View>
                       <Pressable

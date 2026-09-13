@@ -299,6 +299,38 @@ export type AlertFacts = {
 };
 
 /**
+ * **O dia de comprar — UMA régua, e agora ela é uma função.**
+ *
+ * O dia da decisão é o dia em que a cobertura encosta no prazo do fornecedor mais a folga
+ * da empresa (Lei 4: avise na data da decisão, não na do problema). Sem prazo observado, o
+ * piso configurado — que é a resposta honesta de quem ainda não anotou a data de nenhum
+ * pedido, e não um prazo inventado.
+ *
+ * **Ela virou função porque a capa não a seguia.** O aviso comparava com
+ * `prazo + folga`, a ficha do insumo desenhava o ponto de recompra com a mesma álgebra
+ * (`reorderPoint`, em unidades em vez de dias), e a capa pedia `runningOut(…, 7, 7)` — um
+ * horizonte de sete dias CRAVADO. Com fornecedor de seis dias e folga de dois, a
+ * notificação dizia "compre" e o cartão "Insumo acabando" ficava calado por um dia; com
+ * fornecedor de dez, por cinco dias. Não é o número que estava errado: é o aplicativo
+ * discordando de si mesmo, que é a doença que esta régua nasceu para curar em 6 de
+ * setembro — e ela curou dois dos três lugares.
+ *
+ * A forma é `daysLeft <= limite` e não `<`: o dia da decisão é dia de comprar, não o dia
+ * seguinte a ele.
+ */
+export function precisaComprar(
+  daysLeft: number,
+  leadTimeDays: number | null,
+  settings: AlertSettings,
+): boolean {
+  const limite =
+    leadTimeDays === null
+      ? settings.daysAhead.insumo
+      : leadTimeDays + settings.purchaseSafetyDays;
+  return daysLeft <= limite;
+}
+
+/**
  * O que merece aviso hoje.
  *
  * Ordenado por urgência dentro de cada tipo — o mais apertado primeiro —, porque
@@ -309,15 +341,7 @@ export function alertsDue(facts: AlertFacts, settings: AlertSettings): Alert[] {
 
   if (settings.on.insumo) {
     for (const item of facts.cover) {
-      // UMA régua, a mesma da ficha do insumo: o dia da decisão é o dia em que a
-      // cobertura encosta no prazo do fornecedor mais a folga da empresa. Sem
-      // prazo observado, o piso configurado — que é a resposta honesta de quem
-      // ainda não anotou nenhuma data de pedido.
-      const limite =
-        item.leadTimeDays === null
-          ? settings.daysAhead.insumo
-          : item.leadTimeDays + settings.purchaseSafetyDays;
-      if (item.daysLeft > limite) continue;
+      if (!precisaComprar(item.daysLeft, item.leadTimeDays, settings)) continue;
       out.push({ kind: 'insumo', subjectId: item.itemId, subject: item.name, amount: item.daysLeft });
     }
   }

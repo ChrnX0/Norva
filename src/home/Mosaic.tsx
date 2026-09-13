@@ -771,10 +771,17 @@ export function Mosaic(vista: BriefingView) {
               {fill(t.app.home.coverTightest, { item: data!.cover[0].name })}
             </Text>
             {/* O horizonte é um mês, que é a janela em que uma fábrica compra.
-                A barra vira alerta sozinha embaixo de uma semana - a cor conta o
-                que o número já disse, para quem passa o olho sem ler. */}
+                A cor vem da MESMA régua que decide comprar — se este insumo está na
+                lista do que acabando, a barra fica no tom de alerta. Antes ela
+                pintava sozinha a um quinto de trinta dias, ou seja a seis dias, e
+                discordava do cartão de cima por um dia ou por cinco, conforme o
+                prazo do fornecedor. */}
             <View style={{ marginTop: space.sm }}>
-              <Drain share={Math.min(1, data!.cover[0].daysLeft / 30)} hue={palette.mint} />
+              <Drain
+                share={Math.min(1, data!.cover[0].daysLeft / 30)}
+                hue={palette.mint}
+                avisa={(data?.shortly ?? []).some((s) => s.itemId === data!.cover[0].itemId)}
+              />
             </View>
           </>
         )}

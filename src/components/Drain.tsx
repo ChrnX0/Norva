@@ -24,20 +24,36 @@ import { redeDaEntrada } from './chegada';
  * que a barra continua existindo cheia — sumir com o desenho no estado bom faria
  * o cartão pular de forma quando a fábrica está bem, que é justamente quando
  * ninguém quer susto.
+ *
+ * **E o quinto do horizonte é uma régua de DESENHO, não a decisão** — por isso quem
+ * tem a decisão na mão passa `avisa`. O cartão de cobertura pintava de alerta a um
+ * quinto de trinta dias, ou seja a seis dias de estoque, enquanto o dia de comprar
+ * daquele insumo é o prazo do fornecedor mais a folga da empresa: com fornecedor de
+ * seis dias, o aviso dizia "compre" a oito e a barra só ficava vermelha a seis. Quem
+ * sabe o dia de comprar é o domínio (`precisaComprar`), e a cor passa a dizer a mesma
+ * coisa que o número ao lado em vez de uma terceira régua escondida num componente.
  */
 export function Drain({
   share,
   hue,
   height = 6,
+  avisa,
 }: {
   /** Quanto resta, de zero a um. Fora da faixa é preso na faixa. */
   share: number;
   hue?: string;
   height?: number;
+  /**
+   * Se ISTO é hora de decidir, quando quem chama sabe responder.
+   *
+   * Sem resposta vale o quinto do horizonte, que é a régua de desenho para as
+   * perguntas sem decisão cadastrada (quantos dias faltam para o lote vencer).
+   */
+  avisa?: boolean;
 }) {
   const { accent, color, motion } = useTheme();
   const preso = Math.max(0, Math.min(1, Number.isFinite(share) ? share : 0));
-  const cor = preso <= 0.2 ? color.warning : (hue ?? accent);
+  const cor = (avisa ?? preso <= 0.2) ? color.warning : (hue ?? accent);
 
   // Do cache do módulo — `vida.ts` existe para esta resposta não custar uma ida
   // à ponte por montagem, e onze leituras do pacote o furavam. `null` é "ainda não

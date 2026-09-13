@@ -213,3 +213,76 @@ test('a régua do vazio separa a tela guardada da que afirma, e pelas DUAS forma
     'a régua morde aqui, e é a razão escrita que o dispensa — não a régua',
   );
 });
+
+/**
+ * **A DECISÃO DE COMPRAR é uma só, e ela estava escrita em quatro lugares.**
+ *
+ * Em 6 de setembro esta casa achou duas réguas para a mesma decisão e escreveu a boa: o dia
+ * de comprar é quando a cobertura encosta no prazo do fornecedor mais a folga da empresa
+ * (`precisaComprar`). O aviso passou a usá-la e a ficha do insumo desenha a mesma álgebra
+ * em unidades (`reorderPoint`). **A capa continuou com duas réguas próprias**, e nenhuma
+ * das duas olha prazo de fornecedor:
+ *
+ *  - o cartão "Insumo acabando" pedia `runningOut(…, 7, 7)` — sete dias cravados;
+ *  - a barra da cobertura pintava de alerta a um quinto de trinta dias, ou seja a seis.
+ *
+ * Com fornecedor de seis dias e folga de dois, a notificação dizia *"compre"* a oito dias e
+ * a capa ficava calada por dois. Com fornecedor de dez, por cinco. Não é o número que está
+ * errado em nenhum dos lados — é o aplicativo discordando de si mesmo na mesma manhã, e
+ * quem usa não tem como saber qual dos dois acreditar.
+ *
+ * A régua olha a FONTE porque não há outro jeito: o que ela guarda é a capa continuar
+ * perguntando ao domínio em vez de recriar o limite. Um horizonte numérico no lugar do teto
+ * de candidatos volta a ser régua nova, e é ele que esta guarda procura.
+ */
+test('a capa decide comprar pela régua do domínio, e não por um horizonte próprio', () => {
+  const capa = readFileSync('app/(tabs)/index.tsx', 'utf8');
+
+  assert.match(
+    capa,
+    /precisaComprar\(/,
+    'a capa tem de perguntar ao domínio quando é dia de comprar — o aviso e a ficha já ' +
+      'perguntam, e três réguas para uma decisão é o app discordando de si mesmo',
+  );
+
+  /**
+   * E o horizonte passado à consulta é um TETO de candidatos, não a régua.
+   *
+   * A diferença é medível: o teto tem de ser largo o bastante para não excluir item
+   * nenhum que a régua fosse pegar. Sete dias não é — um fornecedor de dez dias com dois
+   * de folga decide a doze. Então o número mínimo aceitável aqui é uma constante nomeada,
+   * e a guarda cobra o nome: `runningOut` com número cravado no lugar do horizonte é
+   * exatamente a forma que estava errada.
+   */
+  // Sem a PROSA: este arquivo explica o defeito antigo em português, e a explicação
+  // contém a forma que a régua procura. Foi medido — a guarda acusou o próprio comentário
+  // que conta a história, que é a cicatriz do docblock do relógio, escrita no `CLAUDE.md`.
+  // Marcar a prosa ensinaria a espalhar marcador; então a régua lê só o código.
+  const codigo = capa
+    .split('\n')
+    .filter((linha) => !/^(\*|\/\/|\/\*)/.test(linha.trim()))
+    .join('\n');
+  /**
+   * O QUINTO argumento de cada chamada, lido por posição e não por uma expressão regular
+   * que adivinha o quarto.
+   *
+   * A primeira versão procurava `, 7,` para achar o horizonte depois dele — e ela casava
+   * com a PROSA deste arquivo e não com as chamadas, porque `[^)]` não atravessa o `)` de
+   * `empresaDaqui()`. Ou seja: ela acusava o comentário que conta a história e era cega
+   * para o código. Só a asserção de vivacidade logo abaixo mostrou isso — sem ela a guarda
+   * passaria para sempre sem ler nada, que é o defeito que este repositório mais persegue.
+   */
+  const chamadas = codigo
+    .split('\n')
+    .filter((linha) => linha.includes('runningOut('))
+    .map((linha) => linha.slice(linha.indexOf('runningOut(') + 'runningOut('.length))
+    .map((args) => args.split(',')[4]?.trim() ?? '')
+    .filter((horizonte) => horizonte.length > 0);
+  assert.ok(chamadas.length > 0, 'a capa deixou de perguntar o que está acabando');
+  assert.deepEqual(
+    chamadas.filter((horizonte) => /^\d+$/.test(horizonte)),
+    [],
+    'horizonte cravado em número: ou é o teto de candidatos (constante com nome) ou é ' +
+      'infinito (a cobertura inteira) — número solto aqui é a régua de compra renascendo',
+  );
+});

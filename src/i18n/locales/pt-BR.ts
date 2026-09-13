@@ -1175,6 +1175,10 @@ export const ptBR = {
           validade: 'Lote perto de vencer',
         },
         daysAhead: '{{days}} de antecedência',
+        /* O insumo é o único cujo número é PISO, e não a régua: quando existe prazo
+           anotado do fornecedor, quem manda é o prazo mais a folga. Dizer só
+           "3 dias de antecedência" fazia a legenda prometer o que o app não cumpre. */
+        insumoFloor: '{{days}} de antecedência enquanto ninguém anotou a data de um pedido. Com prazo anotado, o app usa o prazo do fornecedor mais a sua folga.',
         ambienteHint: 'Compara com a faixa que você cadastrar na câmara. Sem faixa, ele não avisa — o app não sabe qual é a temperatura boa da sua câmara.',
         notifyFull: 'Avisar quando encher',
         volumeHint: 'Compara com a faixa que você cadastrar no item. Sem faixa, ele não avisa.',

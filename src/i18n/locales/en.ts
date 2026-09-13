@@ -852,6 +852,7 @@ export const en: Dictionary = {
           validade: 'Lot close to expiry',
         },
         daysAhead: '{{days}} of notice',
+        insumoFloor: '{{days}} of notice while nobody has written down an order date. With an observed lead time, the app uses that lead time plus your slack.',
         ambienteHint: 'Compares against the range you set on the room. With no range it stays quiet — the app does not know what temperature your room should hold.',
         notifyFull: 'Warn when it fills up',
         volumeHint: 'Compares against the range you set on the item. With no range, it stays quiet.',

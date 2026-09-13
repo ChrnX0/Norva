@@ -2,7 +2,9 @@ import { useRouter } from 'expo-router';
 import { amountOf, type Rate } from '@/domain/money';
 import { faltaProduzir } from '@/domain/picking';
 import {
+  alertSettings,
   countMovements,
+  deliveriesOf,
   expiringSoon,
   listItems,
   listProducts,
@@ -31,7 +33,10 @@ import { reading, type Forecast } from '@/weather';
 import { forecastForScreen } from '@/weather/live';
 import { useQuery } from '@/data/useQuery';
 import { daysUntilNextDelivery } from '@/domain/agreement';
+import { precisaComprar } from '@/domain/alerts';
+import { observedLeadTimeDays } from '@/domain/cost';
 import { briefingLayout } from '@/domain/briefing';
+
 import { nowIso } from '@/data/db';
 import { dailySeries, daysBetween, dayWindow, localDate } from '@/domain/day';
 import { boxesOf } from '@/domain/units';
@@ -40,6 +45,16 @@ import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider } from '@/theme/ThemeProvider';
 import { Mosaic } from '@/home/Mosaic';
 import type { BriefingView, Summary } from '@/home/types';
+
+/**
+ * Até quantos dias de cobertura um insumo entra na lista de candidatos da capa.
+ *
+ * Não é a régua — quem decide é `precisaComprar`, com o prazo do fornecedor de cada
+ * item. É um TETO, para a capa não pedir o histórico de entrega de todo o almoxarifado:
+ * item que dura mais de um mês não é notícia de hoje por régua nenhuma, e nenhum
+ * fornecedor deste produto leva trinta dias mais a folga.
+ */
+const TETO_DA_COMPRA = 30;
 
 /**
  * Qual desenho da capa está no ar.
@@ -153,7 +168,7 @@ function Briefing() {
       sent,
       sentYesterday,
       running,
-      shortly,
+      shortlyCandidatos,
       demand,
       week,
       runs,
@@ -166,6 +181,7 @@ function Briefing() {
       fichas,
       produtos,
       soRevende,
+      regras,
     ] = await Promise.all([
       recentCostChanges(empresaDaqui(), 12),
       // A MESMA unidade das vizinhas logo abaixo. Sem isto a manchete contava as
@@ -177,7 +193,14 @@ function Briefing() {
       shipmentsOn(empresaDaqui(), today.from, today.to, { unidade: unidadeDaqui() }),
       shipmentsOn(empresaDaqui(), yesterday.from, yesterday.to, { unidade: unidadeDaqui() }),
       openProductionRuns(empresaDaqui(), { unidade: unidadeDaqui() }),
-      runningOut(empresaDaqui(), lastWeek.from, today.to, 7, 7, { unidade: unidadeDaqui() }),
+      // **Os CANDIDATOS a "acabando", e não a resposta.** Quem decide é
+      // `precisaComprar`, com o prazo do fornecedor de cada item — a mesma régua do
+      // aviso e da ficha. Aqui o horizonte é só um teto para não pedir o prazo de
+      // cinquenta itens: nenhum fornecedor deste projeto leva um mês, e o item que
+      // acaba em mais de trinta dias não é notícia de hoje em régua nenhuma.
+      runningOut(empresaDaqui(), lastWeek.from, today.to, 7, TETO_DA_COMPRA, {
+        unidade: unidadeDaqui(),
+      }),
       stockAgainstOrders(empresaDaqui(), through, unidadeDaqui(), { from: today.from, to: today.to }),
       productionBetween(empresaDaqui(), weekAgo.from, today.to, { unidade: unidadeDaqui() }),
       recentRuns(empresaDaqui(), 6, { unidade: unidadeDaqui() }),
@@ -216,6 +239,7 @@ function Briefing() {
       // pronta uma fábrica que só revende.
       listProducts(empresaDaqui()),
       onlyResells(),
+      alertSettings(),
     ]);
 
     /**
@@ -229,6 +253,29 @@ function Briefing() {
       empresaDaqui(),
       stockItems.filter((i) => i.kind === 'input' || i.kind === 'packaging').map((i) => i.id),
     );
+
+    /**
+     * **O que está acabando, pela régua de quem compra — não por sete dias cravados.**
+     *
+     * A capa pedia a consulta com um horizonte de sete dias cravado, sem o prazo do fornecedor e sem
+     * a folga da empresa. O aviso e a ficha do insumo usam `prazo + folga` desde 6 de
+     * setembro, e com fornecedor de seis dias a notificação dizia "compre" enquanto o
+     * cartão "Insumo acabando" ficava calado — o aplicativo discordando de si mesmo na
+     * mesma manhã, que é exatamente o defeito que aquela régua nasceu para curar.
+     *
+     * O prazo é pedido só para os candidatos, que são poucos por construção (o teto
+     * acima), e a ordem continua a do mais apertado primeiro, que é a que a peça mostra.
+     */
+    const candidatos = await Promise.all(
+      shortlyCandidatos.map(async (c) => ({
+        item: c,
+        prazo: observedLeadTimeDays(await deliveriesOf(empresaDaqui(), c.itemId)),
+      })),
+    );
+    const shortly = candidatos
+      .filter(({ item, prazo }) => precisaComprar(item.daysLeft, prazo, regras))
+      .map(({ item }) => item)
+      .sort((a, b) => a.daysLeft - b.daysLeft);
 
     const sum = (rows: { baseUnits: number }[]) => rows.reduce((n, r) => n + r.baseUnits, 0);
 
