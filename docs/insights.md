@@ -11740,3 +11740,42 @@ para uma transformação de texto que depende de "a última ocorrência" a difer
 dono de testar no tablet hoje, e o risco de um APK que só ele instala é menor que o custo de não
 ter a leitura dele. No dia da publicação a ausência de chave passa a ser erro, e o docblock diz
 qual linha muda.*
+
+## 13 de setembro — o estorno devolvia a quantidade e deixava o erro na média, no servidor
+
+O aparelho já fazia certo desde que este defeito foi consertado lá: `reverseGroup` chama
+`recomputeItemCost`, que recompõe a média do razão inteiro ignorando o que tem estorno de pé. O
+servidor não tinha nada equivalente. `item_costs` lá tem dois autores — a `0009` na linha de
+compra e a `0025` na perna de produção — e nenhum dos dois olha para estorno.
+
+**Os dois números, medidos plantando a ausência do gatilho novo:**
+
+```
+aparelho 0,4720   servidor 0,5310
+```
+
+`0,4720` é a primeira nota sozinha (R$ 4,72 o quilo). `0,5310` é a mistura das duas, com a nota
+estornada ainda dentro. **12,5% de erro no custo unitário, permanente**, embaixo de todo número
+de dinheiro que qualquer outro celular lê depois da descida.
+
+E a divergência é pior que o erro sozinho: o aparelho de quem estornou mostra o custo certo, o
+servidor guarda o errado, e quem olhar de outro aparelho vê o errado. Duas verdades para a mesma
+pergunta.
+
+**O que fez o defeito viver:** a garantia 6 do `db:verify` compara as duas médias — é a única
+checagem do projeto que confronta duas implementações independentes da mesma regra — e a sessão
+que ela reproduz **nunca atravessava um estorno**. A comparação estava certa e cega, porque o
+caminho em que os dois lados mais divergem não estava no cenário.
+
+E a razão de ele não estar era um comentário: a lista de espécies que a sessão precisa exercitar
+dizia que *"`sale` e `reversal` não têm escritor ainda"*. Os dois têm — `reverseGroup` e
+`recordCount` quando a falta é de produto numa loja (a `0047`). A lista foi derivada do
+comentário, o comentário envelheceu, e duas capacidades do servidor ficaram sem uma linha de
+prova. **Guarda derivada do que alguém escreveu SOBRE o código não é guarda: é a opinião de
+ontem com cara de medida.**
+
+*E uma decisão de forma que valeu a pena escrever: o gatilho é `after insert`, não `before`. A
+recomposição LÊ o razão, e a perna de estorno precisa estar lá para o `not exists` ver o que ela
+desfez. Num `before` ela ainda não existe, a média sairia idêntica à de antes, e o gatilho
+rodaria sem fazer nada — a aparência do conserto sem o conserto, que é o pior resultado
+disponível.*

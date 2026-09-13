@@ -31,6 +31,7 @@ import {
   eraseArea,
   recordCheck,
   recordTransfer,
+  reverseGroup,
   saveCarrier,
   recordPurchase,
   savePlace,
@@ -337,6 +338,58 @@ async function main() {
   });
 
   /**
+   * O ESTORNO da segunda nota — e a fila nunca tinha atravessado um.
+   *
+   * A checagem 6 promete que os dois lados fecham o mesmo número, e ela nunca exercitou o
+   * caminho em que os dois mais divergem. O aparelho recompõe a média no estorno
+   * (`recomputeItemCost`); o servidor não tinha nada equivalente até a `0064`, e deixava a linha
+   * estornada dentro da média para sempre — o dono corrige o estoque e fica com o custo errado.
+   *
+   * Com o estorno na sessão, a garantia compara a média dos dois lados DEPOIS dele, que é onde o
+   * defeito morava. Sem ele, o gatilho novo poderia estar quebrado e tudo continuaria verde.
+   */
+  // `recordPurchase` devolve as TAXAS (o que a média era e virou), não o grupo do ato — o grupo
+  // sai do razão, que é quem o guarda.
+  const daSegundaNota = await db.getFirstAsync<{ movement_group_id: string }>(
+    `SELECT movement_group_id FROM movements
+      WHERE item_id = ? AND kind = 'purchase' AND movement_group_id IS NOT NULL
+      ORDER BY rowid DESC LIMIT 1`,
+    [sugar.id],
+  );
+  if (!daSegundaNota?.movement_group_id) throw new Error('a segunda nota não deixou grupo no razão');
+  await reverseGroup(empresaDaqui(), {
+    groupId: daSegundaNota.movement_group_id,
+    note: 'a nota foi lançada duas vezes',
+  });
+
+  /**
+   * E uma VENDA, que é a outra política que ninguém exercitava.
+   *
+   * O comentário da guarda de cobertura logo abaixo dizia que `sale` e `reversal` *"não têm
+   * escritor ainda"* — e os dois têm: `reverseGroup` escreve estorno e `recordCount` escreve
+   * venda quando a falta é de produto numa loja que vende ao consumidor (a `0047`, *"quem conta
+   * pode gravar a venda que a contagem dele descobriu"*). A lista derivava do que o comentário
+   * afirmava, e o comentário tinha envelhecido: duas capacidades do servidor sem uma linha de
+   * prova.
+   *
+   * Para a venda existir são três condições, e a sessão precisava das três: produto (não insumo),
+   * numa loja, com a contagem MENOR que o livro.
+   */
+  const feitos = (await listItems(empresaDaqui())).find((i) => i.id === produto.itemId);
+  if (!feitos) throw new Error('a sessão precisa do item do produto para vender');
+  await recordTransfer(empresaDaqui(), {
+    itemId: feitos.id,
+    fromLocationId: defaultLocationId(empresaDaqui()),
+    toLocationId: loja.id,
+    baseUnits: 200,
+  });
+  await recordCount(empresaDaqui(), {
+    locationId: loja.id,
+    itemId: feitos.id,
+    countedBaseUnits: 180,
+  });
+
+  /**
    * A doca confere a carga, e a conferência que PERDE a disputa vira candidata.
    *
    * Duas coisas que a sessão não exercitava e a fila carrega: a `discrepancy`, cuja capacidade
@@ -498,9 +551,15 @@ async function main() {
   // exercitada — que foi exatamente o buraco por onde a devolução entrou hoje.
   //
   // A lista é do que este aplicativo SABE escrever, não do enum inteiro do
-  // servidor: `sale` e `reversal` não têm escritor ainda, e cobrar por eles
-  // seria pedir que a sessão finja um caminho que o app não tem.
-  const kindsQueTemEscritor = ['purchase', 'production', 'consumption', 'transfer', 'return', 'adjustment', 'loss'];
+  // servidor.
+  //
+  // **E ela afirmava, em 13 de setembro, que `sale` e `reversal` "não têm escritor ainda".** Os
+  // dois têm: `reverseGroup` (`repository.ts:8360`) e `recordCount` quando a falta é de produto
+  // numa loja (`:1874`, a `0047`). O comentário envelheceu e a lista foi derivada DELE, então
+  // duas capacidades do servidor — `adjust_stock` no estorno, e o par `dispatch`/`adjust_stock`
+  // da venda — nunca tiveram uma linha de prova. É a doença que este projeto nomeia: guarda que
+  // deriva do que alguém escreveu sobre o código, em vez do código.
+  const kindsQueTemEscritor = ['purchase', 'production', 'consumption', 'transfer', 'return', 'adjustment', 'loss', 'sale', 'reversal'];
   const kindsDeFora = kindsQueTemEscritor.filter((kind) => !kindsNaFila.has(kind));
   if (kindsDeFora.length > 0) {
     throw new Error(
