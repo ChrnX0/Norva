@@ -224,8 +224,14 @@ test('every column the serializer promises to send exists on the device', async 
  * lado de lá, e o defeito dessa direção foi medido em 6 de setembro no estudo do
  * extrato: **`purchase_lines.expected_base_units` tem `comment on column` na
  * `0002_recipes.sql:61` e não existe no aparelho.** Junto com ela, `purchases`
- * está sem `invoice_number` e sem `freight_cents` — essas duas sem comentário, e
- * por isso fora do alcance desta régua.
+ * estava sem `invoice_number` e sem `freight_cents`, e essas duas ficavam fora do
+ * alcance desta régua por um motivo circular: não tinham comentário.
+ *
+ * **As duas fecharam em 13 de setembro, e a ordem importa.** Primeiro elas passaram
+ * a existir no aparelho (V41) e a ser escritas pela tela de compra; só então
+ * ganharam `comment on column` (`0070`). Comentar antes teria posto esta guarda a
+ * cobrar a travessia de uma coluna que ninguém escrevia — a régua reprovando por
+ * uma promessa que o próprio comentário criou.
  *
  * **Por que `comment on column` é o gatilho, e não "toda coluna do servidor".**
  * O servidor tem colunas que legitimamente não descem, e uma régua que cobrasse
@@ -235,10 +241,15 @@ test('every column the serializer promises to send exists on the device', async 
  * forma mais cara do defeito, porque a documentação garante que o próximo leitor
  * vai acreditar que a coisa funciona.
  *
- * **A medida que justifica a régua:** doze colunas do servidor têm
- * `comment on column`; onze estão no aparelho ou em tabela que ele não tem. **Uma
- * sobra.** Guarda que nasce com uma linha registrada é guarda; com cinquenta,
- * seria enfeite.
+ * **A medida que justificou a régua, no dia em que ela nasceu (6 de setembro):** doze
+ * colunas do servidor tinham `comment on column`; onze estavam no aparelho ou em
+ * tabela que ele não tem. **Uma sobrava.** Guarda que nasce com uma linha registrada
+ * é guarda; com cinquenta, seria enfeite.
+ *
+ * *O número de hoje é outro e fica escrito para ninguém ler o de cima como atual:*
+ * **52** colunas comentadas, das quais 22 são o `received_at` da descida (dispensado
+ * em bloco acima, com a razão). A régua continua com uma linha registrada — a mesma —,
+ * então o argumento do tamanho segue de pé; o que envelheceu foi só a contagem.
  *
  * **E as colunas vêm do banco migrado, não de `grep` no `db.ts`.** A primeira
  * versão desta checagem lia o `CREATE TABLE` com expressão regular e disse que

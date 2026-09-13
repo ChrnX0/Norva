@@ -47,3 +47,20 @@ comment on column purchase_lines.freight_cents is
   'sendo o pouso (com frete), entao o que o fornecedor cobrou pela mercadoria e '
   '`total_cents - freight_cents`. Rateado uma vez, no aparelho, porque o gatilho de custo '
   'dispara por linha e a fila pode entregar a primeira antes de a segunda existir.';
+
+-- E as DUAS colunas da nota ganham a regra escrita onde a guarda procura.
+--
+-- `src/sync/columns.test.ts` usa `comment on column` como gatilho da terceira direcao — coluna
+-- do servidor com regra escrita que o aparelho nunca criou — e o docblock dela registra estas
+-- duas como "sem comentario, e por isso fora do alcance desta regua". Elas estao no aparelho
+-- desde a V41 e sao escritas desde hoje; o que faltava era a regra estar onde a regua le, em vez
+-- de so nos docblocks do lado do aparelho.
+comment on column purchases.freight_cents is
+  'O frete da NOTA, em centavos. Zero e resposta e nao ausencia: quem compra na feira nao tem '
+  'frete. A parte que pousou em cada linha fica em purchase_lines.freight_cents, ja rateada na '
+  'origem.';
+
+comment on column purchases.invoice_number is
+  'O numero que alguem escreveu no papel, para achar a nota depois no extrato. Texto livre e '
+  'opcional de proposito: nao e documento validado, e etiqueta de busca — a decisao registrada '
+  'do dono e sem dados fiscais no comeco, porque o aplicativo vai para duas lojas.';
