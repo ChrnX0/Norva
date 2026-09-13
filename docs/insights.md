@@ -11656,3 +11656,50 @@ faltava dado nem cálculo — faltava a pergunta *"quem somar isto chega no núm
 **A régua que sai daqui é a asserção, não a leitura:** a soma das parcelas contra a manchete, que
 é igualdade contra outra fonte. Um `assert.ok(detail.length > 0)` diria que há detalhamento — e
 foi exatamente o que existia, verde, enquanto a conta não fechava.
+
+## 13 de setembro — o manifesto que importa é o MESCLADO, e eu medi o de origem
+
+Fui conferir a queixa de que o APK declarava "32 permissões, 5 usadas". Li
+`android/app/src/main/AndroidManifest.xml`, contei **seis**, e relatei ao dono que o número do
+estudo havia envelhecido. Estava errado: o APK declarava **trinta e uma**.
+
+O manifesto de origem é **entrada** da mesclagem, não a resposta. O gradle junta o que cada
+biblioteca pede, e o que instala no aparelho é a soma: contador no ícone para oito marcas de
+lançador, biometria, partida do sistema, FCM, referência de instalação da Play. Vinte e cinco
+permissões que nenhum arquivo do projeto menciona, e que aparecem na listagem de loja.
+
+A régua certa é `aapt dump badging` **no artefato**. É a mesma família de erro que este projeto
+já registrou três vezes hoje: medir o lugar onde a coisa é escrita em vez do lugar onde ela é
+lida. E a versão desta é pior, porque o repositório parece certo: quem confere o `app.json` vê a
+configuração boa e o aparelho de outra pessoa tem outra.
+
+**O que a medida rendeu:** 31 → 10 permissões, e cada uma das dez com dono nomeado — câmera na
+etiqueta, háptico no botão, agendamento do aviso de validade, sincronia, cópia de segurança. As
+vinte e uma bloqueadas têm ausência de uso MEDIDA, não suposta: nenhum `setBadgeCountAsync`
+("badge" aparece como nome de estilo de um cartão), nenhuma linha de biometria, e nenhum
+`google-services.json` — sem ele o FCM não está configurado.
+
+**E a guarda tem os DOIS lados, o que é o achado de método.** Uma lista de bloqueio cresce por
+higiene, e higiene levaria `RECEIVE_BOOT_COMPLETED` e `WAKE_LOCK` junto — que é o que faz o aviso
+de validade sobreviver ao reinício do tablet e acordar para disparar. O alerta que salva
+mercadoria sumiria sem nada reclamar. Então a guarda afirma o que tem de SAIR e o que tem de
+FICAR, e a segunda metade é a que impede o conserto de virar o defeito seguinte.
+
+## 13 de setembro — o APK saía com o manifesto de cinco dias antes
+
+`android/` é saída do `expo prebuild` e está no `.gitignore`. O `compilar` do
+`scripts/aparelho.mjs` rodava o gradle direto, sobre o que estivesse no disco — e o que estava
+era o resultado de um prebuild de 8 de setembro. Desde então o `app.json` mudou: canal de
+atualização, `allowBackup`, permissão bloqueada, `versionCode`.
+
+Os dois APKs que foram para o tablet do dono carregavam `updates ENABLED=true` e
+`CHECK_ON_LAUNCH=ALWAYS` — o contrário do que o `app.json` diz — e `versionCode 1`, porque a
+fórmula do código vivia só no `build-apk.yml` e o caminho local não passava nada. **Dois APKs com
+o mesmo `versionCode` não são atualização para o Android**: são duas builds com o mesmo nome, e o
+aparelho não sabe qual é a nova.
+
+Hoje `compilar` gera o `android/` antes de compilar, e `conferirAPK` lê o artefato com
+`aapt dump badging` para cobrar quatro coisas que, erradas, só aparecem no aparelho de outra
+pessoa: versão e código, a arquitetura pedida, o bundle dentro, e a ausência das permissões
+bloqueadas. *E o docblock dessa função prometeu as quatro com três implementadas por vinte
+minutos — a doença desta casa, cometida no arquivo escrito para impedir o artefato de mentir.*

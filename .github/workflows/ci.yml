@@ -141,7 +141,7 @@ jobs:
       # binários e não de um serviço rodando.
       - name: Achar os binários do Postgres
         run: echo "PGBIN=$(ls -d /usr/lib/postgresql/*/bin | tail -1)" >> "$GITHUB_ENV"
-      - name: As treze garantias
+      - name: As garantias do banco
         run: npm run db:verify
 
   portao:

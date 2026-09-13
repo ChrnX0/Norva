@@ -15,7 +15,7 @@ import { test } from 'node:test';
 const APP = JSON.parse(readFileSync('app.json', 'utf8')) as {
   expo: {
     version: string;
-    android: { allowBackup?: boolean };
+    android: { allowBackup?: boolean; versionCode?: number; blockedPermissions?: string[] };
     plugins: (string | [string, Record<string, unknown>])[];
   };
 };
@@ -292,4 +292,184 @@ test('the phone does not knock on a channel with nobody behind it', () => {
     updates.url,
     'a URL fica declarada mesmo desligada: religar é apagar uma linha, não redescobrir o canal',
   );
+});
+
+/**
+ * O APK compilado AQUI carrega o mesmo número do compilado pela CI.
+ *
+ * **O defeito, medido em 13 de setembro.** A fórmula do `versionCode` vivia só no
+ * `build-apk.yml`: a CI a calculava e passava ao gradle. O caminho local —
+ * `node scripts/aparelho.mjs compilar`, que é o que produziu os dois APKs que foram para o
+ * tablet do dono — não passava nada, e o `app.json` não declarava `android.versionCode`. O
+ * padrão do Expo nesse caso é **1**.
+ *
+ * Dois APKs com o mesmo `versionCode` não são atualização para o Android: são duas builds com
+ * o mesmo nome, e o aparelho não tem como saber qual é a nova. Quem instalar o segundo por cima
+ * do primeiro depende de sorte de assinatura, e quem olhar "versão" no aparelho vê a mesma
+ * coisa nos dois.
+ *
+ * Com o número no `app.json`, os dois caminhos leem a MESMA fonte — e esta guarda é o que
+ * impede a fonte de divergir da versão outra vez.
+ */
+test('o versionCode do app.json é o que a versão manda', () => {
+  const codigo = (v: string) => {
+    const [x, y, z] = v.split('.').map(Number);
+    return x * 1_000_000 + y * 10_000 + z * 100;
+  };
+  assert.equal(
+    APP.expo.android?.versionCode,
+    codigo(APP.expo.version),
+    'o `versionCode` do app.json tem de sair da versão pela mesma fórmula da CI. Sem ele ' +
+      'declarado, o Expo usa 1 — e o APK compilado aqui deixa de ser atualização de nada',
+  );
+});
+
+/**
+ * A versão é UMA, e os dois manifestos do projeto dizem a mesma.
+ *
+ * `package.json` dizia `0.1.0` enquanto `app.json` dizia `0.12.0` — onze versões de distância.
+ * Nenhuma tela lê o `package.json`, então o número errado não aparecia em lugar nenhum, e é
+ * exatamente por isso que ele ficou: campo sem leitor não é conferido por ninguém. Ele aparece
+ * no `npm pack`, no relatório de dependência e em toda ferramenta que lê o pacote antes de ler
+ * o aplicativo.
+ */
+test('as duas declarações de versão do projeto dizem a mesma coisa', () => {
+  const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string };
+  assert.equal(
+    pkg.version,
+    APP.expo.version,
+    'package.json e app.json têm de dizer a mesma versão — eram 0.1.0 e 0.12.0',
+  );
+});
+
+/**
+ * A permissão que ninguém usa não é declarada.
+ *
+ * `SYSTEM_ALERT_WINDOW` — desenhar sobre outros aplicativos — entrava pelo manifesto de um
+ * pacote e não tem um uso no código: nenhuma linha de `src/` ou `app/` a menciona. Numa listagem
+ * de loja ela é a permissão que mais assusta quem lê, e o dono deste app vai vendê-lo para
+ * outras fábricas.
+ *
+ * As outras cinco ficam e cada uma tem dono, medido: `CAMERA` lê a etiqueta do lote
+ * (`app/scan.tsx`), `VIBRATE` é o háptico do botão (`expo-haptics` em `Button` e
+ * `UnitStepper`), `INTERNET` é a sincronia, e as duas de armazenamento vêm do `expo-sharing`
+ * que a cópia de segurança usa. Bloquear o que se usa seria pior que declarar o que não se usa.
+ */
+test('nenhuma permissão sem uso é declarada', () => {
+  const bloqueadas = new Set(APP.expo.android?.blockedPermissions ?? []);
+
+  /**
+   * **O manifesto que importa é o MESCLADO, e eu medi o errado antes de medir o certo.**
+   *
+   * `android/app/src/main/AndroidManifest.xml` lista SEIS permissões, e eu relatei seis. O APK
+   * declara **trinta e uma**: a mesclagem puxa tudo o que as bibliotecas pedem — contador no
+   * ícone para oito marcas de lançador, biometria, partida do sistema, FCM, referência de
+   * instalação da Play. O manifesto de origem é ENTRADA da mesclagem, não a resposta.
+   *
+   * A régua certa é `aapt dump badging` no artefato, e é o que `conferirAPK` usa.
+   *
+   * Cada bloqueio abaixo tem ausência MEDIDA, não suposta:
+   */
+  for (const semUso of [
+    // Desenhar sobre outros aplicativos: nenhuma linha do projeto o faz, e é a permissão que
+    // mais assusta quem lê uma listagem de loja.
+    'android.permission.SYSTEM_ALERT_WINDOW',
+    // Biometria: não existe `LocalAuthentication` no projeto.
+    'android.permission.USE_BIOMETRIC',
+    'android.permission.USE_FINGERPRINT',
+    // Push: não há `google-services.json`, então FCM não está configurado. As notificações deste
+    // app são locais e agendadas, e não passam por aqui.
+    'com.google.android.c2dm.permission.RECEIVE',
+    // O contador no ícone: `setBadgeCountAsync` não é chamado em lugar nenhum — "badge" aparece
+    // no código como nome de estilo de um cartão. São dezessete permissões de marca de lançador.
+    'android.permission.READ_APP_BADGE',
+    'com.sec.android.provider.badge.permission.WRITE',
+    'me.everything.badger.permission.BADGE_COUNT_READ',
+  ]) {
+    assert.ok(bloqueadas.has(semUso), `${semUso} não tem um uso no código e continua declarada`);
+  }
+
+  /**
+   * E o caso FALSO, que é o que impede esta guarda de virar uma varredura cega.
+   *
+   * Bloquear por higiene o que o aplicativo USA quebra o que o dono mais pediu depois do
+   * movimento: o aviso de validade. `scheduleNotificationAsync` agenda notificação local, e
+   * agendamento precisa sobreviver ao reinício do aparelho (`RECEIVE_BOOT_COMPLETED`) e acordar
+   * para disparar (`WAKE_LOCK`). Uma lista de bloqueio que crescesse "para ficar limpa" levaria
+   * as duas, e o alerta que salva mercadoria sumiria sem nada reclamar.
+   */
+  for (const emUso of [
+    'android.permission.RECEIVE_BOOT_COMPLETED',
+    'android.permission.WAKE_LOCK',
+    'android.permission.POST_NOTIFICATIONS',
+    'android.permission.CAMERA',
+    'android.permission.VIBRATE',
+    'android.permission.INTERNET',
+  ]) {
+    assert.equal(
+      bloqueadas.has(emUso),
+      false,
+      `${emUso} está em uso — bloqueá-la quebra o aplicativo em silêncio`,
+    );
+  }
+});
+
+/**
+ * Nome de passo do CI não carrega CONTAGEM — ela envelhece e ninguém a lê.
+ *
+ * O passo do banco chamava-se *"As treze garantias"* com **trinta e cinco** no script. Ninguém
+ * mente de propósito: o nome foi escrito quando eram treze, e nome de passo não é derivado de
+ * nada, então ele não tem como acompanhar. E o custo é maior que o de um comentário vencido —
+ * quem abre a CI para ver se o banco foi provado lê um número que o desmente, e passa a não
+ * confiar no painel.
+ *
+ * A saída não é acertar o número: é **não ter número**. O que a contagem afirma já é derivado
+ * três vezes nesta suíte (`bar.test.ts` cobra o script, o `CLAUDE.md` e o plano), e lá ela é
+ * conferida contra a fonte. Num nome de passo ela é só decoração que envelhece.
+ */
+/**
+ * Contagem é número + substantivo no PLURAL — e a primeira versão desta régua não sabia disso.
+ *
+ * Ela procurava a palavra do número e nada mais, e acusou *"o app dirigido como uma pessoa
+ * dirige"*: em português `uma` é artigo muito mais vezes do que é contagem. Falso positivo da
+ * própria régua, achado por ela reprovando — que é o único jeito honesto de descobrir.
+ *
+ * O que distingue é o que vem depois: contagem conta COISAS, e coisas no plural. *"treze
+ * garantias"* conta; *"uma pessoa"* não. É uma régua de duas palavras em vez de uma, e ela
+ * separa os dois casos reais deste arquivo.
+ */
+export function contagemNoNome(linha: string): boolean {
+  const nome = linha.replace(/^\s*-?\s*name:\s*/, '');
+  const NUMERO =
+    '(?:uma|duas|dois|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|quatorze|catorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|\\d+)';
+  // O plural em português termina em `s`; `garantias`, `fatias`, `tabelas`. `pessoa` não.
+  return new RegExp(`\\b${NUMERO}\\s+[a-zà-ú]+s\\b`, 'i').test(nome);
+}
+
+test('nenhum nome de passo do CI carrega uma contagem', () => {
+  const ci = readFileSync('.github/workflows/ci.yml', 'utf8');
+  const comNumero = ci
+    .split('\n')
+    .filter((l) => /^\s*-?\s*name:/.test(l))
+    .filter(contagemNoNome);
+  assert.deepEqual(
+    comNumero.map((l) => l.trim()),
+    [],
+    'estes nomes de passo trazem uma contagem, e contagem em nome envelhece sem ninguém notar:\n  ' +
+      comNumero.join('\n  '),
+  );
+});
+
+test('a régua da contagem separa o número que CONTA do artigo', () => {
+  // Os dois casos reais deste repositório, palavra por palavra.
+  assert.equal(contagemNoNome('      - name: As treze garantias'), true, 'o caso que envelheceu');
+  assert.equal(
+    contagemNoNome('      - name: o app dirigido como uma pessoa dirige'),
+    false,
+    '`uma pessoa` é artigo, e acusá-lo obrigaria a renomear um passo que está certo',
+  );
+  // E as bordas que a régua tem de acertar para valer alguma coisa.
+  assert.equal(contagemNoNome('      - name: Tipos, testes e pacote'), false);
+  assert.equal(contagemNoNome('      - name: 4 fatias no navegador'), true, 'dígito também conta');
+  assert.equal(contagemNoNome('      - name: duas fatias'), true);
 });

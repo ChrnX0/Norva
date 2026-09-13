@@ -1219,6 +1219,28 @@ function compilar(arquitetura = 'x86_64') {
    *   node scripts/aparelho.mjs compilar              → emulador (x86_64)
    *   node scripts/aparelho.mjs compilar arm64-v8a    → tablet e celular de verdade
    */
+  /**
+   * **O `android/` é GERADO antes de compilar, e antes não era.**
+   *
+   * `android/` é saída do `expo prebuild` e está no `.gitignore`. O que existia no disco era o
+   * resultado de um prebuild de 8 de setembro, e desde então o `app.json` mudou — `allowBackup`,
+   * a permissão bloqueada, o `versionCode`, o canal de atualização. O gradle compilava o
+   * manifesto VELHO, e o APK que foi para o tablet do dono afirmava coisas que o `app.json`
+   * desmentia.
+   *
+   * É a pior forma de o artefato mentir, porque o repositório está certo: quem conferisse o
+   * `app.json` veria a configuração boa e o aparelho teria outra. Gerar aqui faz do `app.json` a
+   * única fonte — que é o que ele existe para ser.
+   *
+   * `--no-install` porque as dependências já estão no disco e a rede deste container é
+   * atravessada por um procurador; instalar de novo é gastar minutos para chegar ao mesmo lugar.
+   */
+  dizer('gerando android/ a partir do app.json (prebuild) — o manifesto do APK sai daqui');
+  execFileSync('npx', ['expo', 'prebuild', '--platform', 'android', '--no-install'], {
+    stdio: 'inherit',
+    env: { ...process.env, ANDROID_HOME: SDK },
+  });
+
   dizer(`compilando o APK de entrega (${arquitetura}) — release, porque debug não traz o bundle`);
   execFileSync('./gradlew', ['assembleRelease', `-PreactNativeArchitectures=${arquitetura}`], {
     cwd: 'android',
@@ -1228,7 +1250,90 @@ function compilar(arquitetura = 'x86_64') {
   const apk = 'android/app/build/outputs/apk/release/app-release.apk';
   if (!existsSync(apk)) throw new Error(`gradle saiu 0 e o APK não está em ${apk}`);
   dizer(`${apk} — ${(statSync(apk).size / 1024 / 1024).toFixed(1)} MB`);
+  conferirAPK(apk, arquitetura);
   return apk;
+}
+
+/**
+ * O que o APK DIZ de si, conferido contra o que o `app.json` prometeu.
+ *
+ * Sem isto, "gradle saiu 0" era toda a prova — e este projeto já sabe que saída zero não é
+ * veredito. As quatro coisas conferidas são as que, erradas, só aparecem no aparelho de outra
+ * pessoa:
+ *
+ *   versão e versionCode  — dois APKs com o mesmo código não são atualização para o Android;
+ *   a arquitetura pedida  — `lib/x86_64/` num tablet ARM simplesmente não instala, e foi o que
+ *                           aconteceu em 10 de setembro;
+ *   o bundle JavaScript   — um APK release sem `index.android.bundle` abre na tela branca;
+ *   as permissões         — a que o `app.json` bloqueou não pode reaparecer no artefato.
+ *
+ * `aapt` vem do SDK que este container já tem. Se ele não estiver lá, a conferência DIZ que não
+ * conferiu em vez de passar calada: guarda que não pode falhar é o defeito que esta casa
+ * persegue em toda parte.
+ */
+function conferirAPK(apk, arquitetura) {
+  const app = JSON.parse(readFileSync('app.json', 'utf8')).expo;
+  const aapt = [
+    `${SDK}/build-tools`,
+  ].flatMap((dir) => (existsSync(dir) ? readdirSync(dir).sort().reverse().map((v) => `${dir}/${v}/aapt`) : []))
+    .find((c) => existsSync(c));
+
+  if (!aapt) {
+    dizer('⚠ aapt não está no SDK — o APK saiu e NÃO foi conferido. Não é aprovação.');
+    return;
+  }
+
+  const badging = execFileSync(aapt, ['dump', 'badging', apk], { encoding: 'utf8' });
+  const pede = (re, oQue) => {
+    const m = badging.match(re);
+    if (!m) throw new Error(`o APK não declara ${oQue} — aapt dump badging não trouxe o campo`);
+    return m[1];
+  };
+
+  const versao = pede(/versionName='([^']+)'/, 'a versão');
+  const codigo = pede(/versionCode='([^']+)'/, 'o versionCode');
+  if (versao !== app.version) {
+    throw new Error(`o APK diz versão ${versao} e o app.json diz ${app.version}`);
+  }
+  if (Number(codigo) !== app.android.versionCode) {
+    throw new Error(
+      `o APK diz versionCode ${codigo} e o app.json diz ${app.android.versionCode} — ` +
+        'dois APKs com o mesmo código não são atualização para o Android',
+    );
+  }
+
+  if (!badging.includes(`native-code: '${arquitetura}'`) && !badging.includes(`'${arquitetura}'`)) {
+    throw new Error(`o APK não traz lib/${arquitetura}/ — ele não instala no aparelho pedido`);
+  }
+
+  for (const bloqueada of app.android.blockedPermissions ?? []) {
+    if (badging.includes(`uses-permission: name='${bloqueada}'`)) {
+      throw new Error(`o APK declara ${bloqueada}, que o app.json manda bloquear`);
+    }
+  }
+
+  /**
+   * O bundle DENTRO do APK — a quarta conferência, e ela quase ficou só no docblock.
+   *
+   * Escrevi o parágrafo de cima prometendo quatro e implementei três. É a doença que este
+   * repositório persegue em toda parte (*"se a promessa é boa, feche o buraco; se não é, corrija
+   * a promessa"*), e ela apareceu no arquivo que existe para impedir o artefato de mentir.
+   *
+   * O que ela pega: `assembleDebug` não empacota o JavaScript, e um release sem
+   * `index.android.bundle` abre na tela branca sem um erro — o aplicativo instala, o ícone
+   * aparece, e nada acontece. Gradle sai zero nos dois casos.
+   */
+  const dentro = execFileSync(aapt, ['list', apk], { encoding: 'utf8' });
+  if (!dentro.includes('assets/index.android.bundle')) {
+    throw new Error(
+      'o APK não traz assets/index.android.bundle — ele instala e abre na tela branca',
+    );
+  }
+
+  dizer(
+    `conferido: versão ${versao}, código ${codigo}, ${arquitetura}, com o bundle dentro ` +
+      'e sem as permissões bloqueadas',
+  );
 }
 
 const verbo = process.argv[2];
