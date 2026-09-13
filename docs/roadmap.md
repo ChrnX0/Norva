@@ -39,20 +39,20 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | telas | **36** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **30** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **30** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **69** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V41** | último `const V` em `src/data/db.ts` |
+| migrações do servidor | **70** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V42** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
-| linhas de código | **~102.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
+| linhas de código | **~113.500** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
 
 E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **861** testes |
+| `npm test` | **864** testes |
 | `npm run mutate` | **154** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **60** checagens num navegador de verdade |
-| `npm run db:verify` | **41** garantias contra um Postgres descartável: **20** sob RLS, como a conta da empresa, e **21** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
+| `npm run db:verify` | **42** garantias contra um Postgres descartável: **21** sob RLS, como a conta da empresa, e **21** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 
@@ -1138,6 +1138,17 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     continua guardando um valor só, o que foi pago, porque frete não é outro movimento: é
     parte do que aquele item custou para estar ali. Um engradado a R$ 200 com R$ 30 de
     frete custa R$ 230, e chamar isso de R$ 200 faz a margem parecer maior do que é.
+
+    **E em 13 de setembro a metade que faltava entrou: a DIVISÃO dos dois números.** A tela
+    calculava R$ 200 + R$ 30, mostrava na confirmação e gravava só os R$ 230 —
+    `purchases.freight_cents` está no servidor desde a `0002` e nunca foi escrito. O preço
+    disso é um alarme que culpa quem não fez nada: a comparação *"você pagou X na última
+    vez"* existe para dizer ao FORNECEDOR (a frase está no comentário de `item_costs` desde
+    a `0002`), e saindo do número com frete dentro, buscar o saco você mesmo numa semana e
+    pagar entrega na outra fazia o aplicativo anunciar alta de quem não mexeu no preço.
+    Agora a fatia fica na LINHA (`purchase_lines.freight_cents`, `0070` e V42), o pouso
+    continua movendo a média nos dois lados, e a comparação é mercadoria contra mercadoria
+    (`taxaDaMercadoria`, garantia 42).
 
 **Aberto do que esta caminhada achou:**
 

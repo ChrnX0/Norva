@@ -538,6 +538,11 @@ const CROSSINGS: Record<
   purchase_lines: {
     // `created_at` stays behind: it is the device's own bookkeeping, and the
     // server has no column for it.
+    //
+    // `freight_cents` atravessa porque a pergunta que ele responde é da EMPRESA e não deste
+    // celular: o que o fornecedor cobrou pela mercadoria é `total_cents - freight_cents`, e
+    // sem a coluna do outro lado o segundo aparelho compararia pouso com mercadoria — dois
+    // números diferentes para a mesma nota, que é a doença que a descida existe para curar.
     take: [
       'id',
       'company_id',
@@ -546,6 +551,7 @@ const CROSSINGS: Record<
       'purchase_quantity',
       'base_units',
       'total_cents',
+      'freight_cents',
     ],
   },
 

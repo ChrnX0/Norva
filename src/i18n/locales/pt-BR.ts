@@ -536,6 +536,14 @@ export const ptBR = {
        * liga "Nomear quem gravou" — o padrão continua sendo falar de ONDE.
        */
       recordedBy: 'por {{name}}',
+      /**
+       * O número da nota, e ele fecha a linha do ato de compra.
+       *
+       * Minúsculo de propósito: ele entra numa frase corrida depois de onde e de quem,
+       * como um dado a mais, e não como título. Quem procura o papel precisa do número;
+       * quem está lendo o razão passa os olhos por cima dele.
+       */
+      invoice: 'nota {{number}}',
       lineCount: { one: '1 linha', other: '{{n}} linhas' },
       undo: 'Desfazer',
       /**
@@ -1913,6 +1921,10 @@ export const ptBR = {
       confirmBody: '{{packs}} × {{pack}} de {{name}}, por {{total}}.',
       confirmBodyFreight: '{{packs}} × {{pack}} de {{name}}, por {{total}} — {{invoice}} da nota mais {{freight}} de frete.',
       confirmAction: 'Lançar',
+      invoiceNumber: 'Número da nota',
+      invoicePlaceholder: 'se tiver',
+      invoiceHint: 'Para achar esta compra depois no extrato. Na feira não vem nota.',
+      freightOutOfCompare: 'Sem o frete de {{freight}}: ele entra no custo, mas não é preço do fornecedor.',
       failed: 'Não deu para lançar',
     },
 

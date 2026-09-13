@@ -696,6 +696,28 @@ export async function recordPurchase(
   const at = nowIso();
   const occurred = input.occurredAt ?? at;
 
+  /**
+   * **O frete que cabe dentro do total, e o que passa dele é lido como frete nenhum.**
+   *
+   * `total_cents` é o POUSO: a tela soma nota mais entrega antes de chamar, porque frete não é
+   * outro movimento — é parte do que aquele item custou para estar aqui. Então o frete gravado
+   * é sempre uma FATIA desse total, e uma fatia maior que o bolo é nota que não fecha (alguém
+   * digitou o frete no campo do total).
+   *
+   * Recusar seria pior que corrigir: a nota existe, a mercadoria entrou, e travar a gravação
+   * por causa de um número de negociação faria a pessoa não lançar a nota — e nota não lançada
+   * é a média de custo errada embaixo de todo dinheiro do aplicativo. Então o pouso fica
+   * inteiro e o frete fica zero, que é o estado que existia antes desta coluna: a comparação
+   * volta a ser pouso contra pouso, alta mas nunca invertida.
+   *
+   * *E o servidor cobra o mesmo piso pelo outro lado — `check (freight_cents >= 0)` na `0070`.
+   * Negativo aqui subiria e travaria a fila para sempre, calado.*
+   */
+  const freteBruto = input.freightCents ?? 0;
+  const freteDaNota = freteBruto > 0 && freteBruto <= input.totalCents ? freteBruto : 0;
+  // Uma linha por chamada: a parte desta linha é o frete inteiro. Ver o docblock do insert.
+  const freteDaLinha = freteDaNota;
+
   const current = await conn.getFirstAsync<{ average_rate: number }>(
     `SELECT average_rate FROM item_costs WHERE item_id = ?`,
     [input.itemId],
@@ -801,11 +823,11 @@ export async function recordPurchase(
         /**
          * O frete da NOTA, e ele é da nota e não da linha.
          *
-         * Uma nota com quatro itens tem UM frete, e é ele que o rateio distribui pelas
-         * linhas quando a empresa liga o frete no custo. Zero é a resposta de quem compra
-         * na feira — e é resposta, não ausência, então a coluna não aceita nulo.
+         * Uma nota com quatro itens tem UM frete, e a parte de cada linha fica na linha
+         * (`purchase_lines.freight_cents`). Zero é a resposta de quem compra na feira — e é
+         * resposta, não ausência, então a coluna não aceita nulo.
          */
-        input.freightCents ?? 0,
+        freteDaNota,
         input.invoiceNumber?.trim() ? input.invoiceNumber.trim() : null,
         input.orderedAt ?? null,
         occurred,
@@ -813,10 +835,26 @@ export async function recordPurchase(
       ],
     );
 
+    /**
+     * **O frete rateado POUSA na linha, e hoje o rateio tem um destino só.**
+     *
+     * `total_cents` é o pouso — frete incluído —, e é dele que a média sai nos dois lados.
+     * `freight_cents` diz quanto daquele total foi entrega, para a pergunta da NEGOCIAÇÃO ter
+     * resposta: o que o fornecedor cobrou pela mercadoria é a subtração, e é ela que a tela
+     * compara com a nota anterior.
+     *
+     * **`allocateByWeight` não é chamado aqui, e a razão é que não há o que ratear.** Esta
+     * função grava UMA linha por chamada — uma nota de quatro itens hoje são quatro notas —,
+     * então a parte desta linha é o frete inteiro. Chamar o rateio com um peso só seria um
+     * chamador de fachada: ele devolveria `[frete]` sem exercitar a divisão de centavo
+     * nenhuma, e a guarda que o protege ficaria verde medindo nada. No dia em que a nota
+     * ganhar a segunda linha, é ESTE argumento que troca — em um lugar —, e é para isso que a
+     * coluna existe na linha em vez de só na nota.
+     */
     await conn.runAsync(
       `INSERT INTO purchase_lines (id, company_id, purchase_id, item_id, purchase_quantity,
-                                   base_units, total_cents, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                                   base_units, total_cents, freight_cents, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         lineId,
         companyId,
@@ -825,6 +863,7 @@ export async function recordPurchase(
         input.purchaseQuantity,
         input.baseUnits,
         input.totalCents,
+        freteDaLinha,
         at,
       ],
     );
@@ -6257,24 +6296,47 @@ export async function deliveriesOf(
  * Nulo quando não houve nota, e é o que a tela precisa para não inventar sugestão: campo
  * vazio na primeira compra é honesto, porque não há o que deduzir.
  */
-export type UltimaCompra = { supplierName: string | null; packs: number };
+export type UltimaCompra = {
+  supplierName: string | null;
+  packs: number;
+  /**
+   * **A taxa da MERCADORIA daquela nota — sem o frete, e nula sem o portão do dinheiro.**
+   *
+   * É com ela que a tela compara a nota de hoje, porque a comparação existe para a
+   * negociação: o comentário de `item_costs` traz a frase inteira desde a `0002` — *"R$ 118
+   * here; R$ 112 last month at supplier B"* —, e essa frase é dita ao fornecedor.
+   *
+   * `item_costs.last_rate` não serve para isso e é o que estava sendo usado: ele é a taxa do
+   * POUSO, com frete dentro. O campo de frete da tela diz de si mesmo que o valor varia por
+   * ENTREGA, então buscar o saco você mesmo na semana passada e pagar entrega nesta fazia o
+   * aplicativo anunciar *"subiu bem acima do normal"* sobre um preço que não mudou.
+   *
+   * Nula quando quem olha não vê custo — a mesma peneira de `listItems`, dentro da consulta e
+   * não na tela, porque a fundação desta casa é que não exista número para vazar.
+   */
+  goodsRate: Rate | null;
+};
 
 export async function lastPurchaseOf(
   companyId: string,
   itemId: string,
 ): Promise<UltimaCompra | null> {
   const conn = await db();
+  const dinheiro = (await canSeeMoney(companyId)) ? 1 : 0;
   const linha = await conn.getFirstAsync<{
     supplier_name: string | null;
     purchase_quantity: number;
+    goods_cents: number | null;
+    base_units: number;
   }>(
-    `SELECT p.supplier_name, pl.purchase_quantity
+    `SELECT p.supplier_name, pl.purchase_quantity, pl.base_units,
+            CASE WHEN ? = 1 THEN pl.total_cents - pl.freight_cents END AS goods_cents
        FROM purchase_lines pl
        JOIN purchases p ON p.id = pl.purchase_id
       WHERE pl.company_id = ? AND pl.item_id = ?
       ORDER BY pl.created_at DESC, pl.rowid DESC
       LIMIT 1`,
-    [companyId, itemId],
+    [dinheiro, companyId, itemId],
   );
   if (!linha) return null;
   return {
@@ -6282,6 +6344,12 @@ export async function lastPurchaseOf(
     // pode ter chegado pela sincronia com string vazia, e sugerir "" é sugerir nada.
     supplierName: linha.supplier_name && linha.supplier_name.length > 0 ? linha.supplier_name : null,
     packs: linha.purchase_quantity,
+    // A subtração é do SQL e a divisão é daqui: quem converte centavos em taxa é
+    // `rateFromCents`, e um `/` dentro da consulta seria um segundo autor dessa conta.
+    goodsRate:
+      linha.goods_cents === null || !(linha.base_units > 0)
+        ? null
+        : rateFromCents(linha.goods_cents as Cents, linha.base_units),
   };
 }
 
@@ -7558,6 +7626,19 @@ export type ExtractAct = {
    */
   operatorName: string | null;
   note: string | null;
+  /**
+   * **O número que alguém escreveu no papel — para o ato do extrato achar a nota de volta.**
+   *
+   * A coluna está no servidor desde a `0002` e nunca foi escrita nem lida: etiqueta de busca
+   * gravada e inalcançável é a mesma doença que `supplier_id` tinha. O que fecha o laço é que
+   * a busca acontece de fora para dentro — alguém com a nota de papel na mão querendo saber se
+   * ela foi lançada, ou olhando o extrato e querendo achar o papel.
+   *
+   * Nulo em todo ato que não é compra, e também na compra lançada sem número — que é o caso
+   * normal de quem compra na feira. Texto livre e não documento validado: a decisão registrada
+   * do dono é *sem dados fiscais no começo*, porque o aplicativo vai para duas lojas.
+   */
+  invoiceNumber: string | null;
 };
 
 /**
@@ -7689,6 +7770,7 @@ export async function ledgerExtract(
     reverses_kind: string | null;
     reversed: number;
     operator_name: string | null;
+    invoice_number: string | null;
   }>(
     `SELECT COALESCE(m.movement_group_id, m.id) AS g, m.id, m.kind,
             m.quantity_base_units,
@@ -7699,6 +7781,7 @@ export async function ledgerExtract(
             i.name AS item_name, l.name AS place_name,
             m.reverses_movement_id AS reverses,
             o.kind AS reverses_kind,
+            co.invoice_number AS invoice_number,
             EXISTS (SELECT 1 FROM movements r
                      WHERE r.reverses_movement_id = m.id AND r.company_id = m.company_id) AS reversed
        FROM movements m
@@ -7709,6 +7792,13 @@ export async function ledgerExtract(
        -- LEFT, e a empresa ainda pode ter apagado a pessoa: nome nulo é nome nulo,
        -- nunca um ato que desaparece do razão por causa de um cadastro.
        LEFT JOIN people pe ON pe.id = m.operator_id AND pe.company_id = m.company_id
+       -- O NUMERO DA NOTA, e o encaixe e o GRUPO: recordPurchase usa o id da nota como grupo
+       -- do movimento de proposito (o grupo e a NOTA, nao a linha), entao o ato de compra no
+       -- extrato e a nota de compra sao a mesma chave. Sem filtro de especie aqui: nenhum
+       -- outro ato usa id de purchases como grupo, e repetir na condicao o que a chave ja
+       -- garante e como duas verdades nascem.
+       LEFT JOIN purchases co ON co.id = COALESCE(m.movement_group_id, m.id)
+                             AND co.company_id = m.company_id
       WHERE m.company_id = ? AND COALESCE(m.movement_group_id, m.id) IN (${marcas})
       ORDER BY m.rowid ASC`,
     [dinheiro, preco, nomeia, companyId, ...atos.map((a) => a.g)],
@@ -7781,6 +7871,7 @@ export async function ledgerExtract(
         placeName: l.place_name,
         operatorName: l.operator_name,
         note: l.note,
+        invoiceNumber: l.invoice_number,
       });
       continue;
     }

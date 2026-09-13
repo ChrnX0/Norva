@@ -366,6 +366,14 @@ export const es: Dictionary = {
       empty: 'Todavía no se registró nada.',
       emptyHint: 'Cada compra, producción, carga y conteo aparece aquí — con el camino de vuelta al lado.',
       recordedBy: 'por {{name}}',
+      /**
+       * O número da nota, e ele fecha a linha do ato de compra.
+       *
+       * Minúsculo de propósito: ele entra numa frase corrida depois de onde e de quem,
+       * como um dado a mais, e não como título. Quem procura o papel precisa do número;
+       * quem está lendo o razão passa os olhos por cima dele.
+       */
+      invoice: 'factura {{number}}',
       lineCount: { one: '1 línea', other: '{{n}} líneas' },
       undo: 'Deshacer',
       undoCheckOnly: 'Deshacer solo el conteo',
@@ -1423,6 +1431,10 @@ export const es: Dictionary = {
       confirmBody: '{{packs}} × {{pack}} de {{name}}, por {{total}}.',
       confirmBodyFreight: '{{packs}} × {{pack}} de {{name}}, por {{total}} — {{invoice}} de la factura más {{freight}} de flete.',
       confirmAction: 'Registrar',
+      invoiceNumber: 'Número de factura',
+      invoicePlaceholder: 'si la hay',
+      invoiceHint: 'Para encontrar esta compra después en el extracto. En la feria no hay factura.',
+      freightOutOfCompare: 'Sin el flete de {{freight}}: entra en el costo, pero no es precio del proveedor.',
       failed: 'No se pudo registrar',
     },
 

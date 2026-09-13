@@ -361,6 +361,14 @@ export const en: Dictionary = {
       empty: 'Nothing has been recorded yet.',
       emptyHint: 'Every purchase, run, load and count shows up here — with the way back beside it.',
       recordedBy: 'by {{name}}',
+      /**
+       * O número da nota, e ele fecha a linha do ato de compra.
+       *
+       * Minúsculo de propósito: ele entra numa frase corrida depois de onde e de quem,
+       * como um dado a mais, e não como título. Quem procura o papel precisa do número;
+       * quem está lendo o razão passa os olhos por cima dele.
+       */
+      invoice: 'invoice {{number}}',
       lineCount: { one: '1 line', other: '{{n}} lines' },
       undo: 'Undo',
       undoCheckOnly: 'Undo just the check',
@@ -1419,6 +1427,10 @@ export const en: Dictionary = {
       confirmBody: '{{packs}} × {{pack}} of {{name}}, for {{total}}.',
       confirmBodyFreight: '{{packs}} × {{pack}} of {{name}}, for {{total}} — {{invoice}} on the invoice plus {{freight}} freight.',
       confirmAction: 'Record',
+      invoiceNumber: 'Invoice number',
+      invoicePlaceholder: 'if there is one',
+      invoiceHint: 'So you can find this purchase later in the statement. Market stalls give no invoice.',
+      freightOutOfCompare: 'Freight of {{freight}} left out: it goes into the cost, but it is not the supplier price.',
       failed: 'Could not record',
     },
 

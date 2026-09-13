@@ -240,6 +240,37 @@ export function variacaoDoCusto(anterior: Rate | null, agora: Rate): number | nu
 }
 
 /**
+ * **A taxa da MERCADORIA — o que o fornecedor cobrou, sem o frete.**
+ *
+ * Existem duas perguntas de dinheiro numa nota e por muito tempo um número só respondia as
+ * duas. *Quanto este saco me custou para estar aqui* é o POUSO, com frete, e é ele que move a
+ * média, decide margem e sai no extrato — `total_cents` é isso desde a primeira nota. *Quanto
+ * o fornecedor está cobrando* é outra coisa, e é ela que a pessoa leva para a negociação: o
+ * comentário de `item_costs` diz isso desde a `0002`, com a frase inteira — *"R$ 118 here;
+ * R$ 112 last month at supplier B"*.
+ *
+ * Misturar as duas produz um alarme que culpa quem não fez nada. O campo de frete da tela de
+ * compra diz de si mesmo que o valor varia por ENTREGA — *"uma semana o fornecedor traz, na
+ * outra você busca"* —, então buscar o saco você mesmo na semana passada e pagar entrega nesta
+ * fazia o aplicativo anunciar *"subiu bem acima do normal"* sobre um preço que não mudou uma
+ * vírgula. É o alerta inventado com causa real e recorrente.
+ *
+ * **Frete maior que o total é lido como frete nenhum**, e isso é escolha em vez de descuido: a
+ * nota não fecha (alguém digitou o frete no campo do total), e subtrair devolveria taxa
+ * NEGATIVA — a comparação anunciaria que o fornecedor está pagando para entregar, e o sinal
+ * trocado atravessaria daqui para a cor do chip. Cair no pouso é voltar ao número que existia
+ * antes desta função, que é o pior caso aceitável: ele está alto, não invertido.
+ *
+ * Frete IGUAL ao total atravessa, e ali zero é a resposta certa e não um caso de borda: a
+ * mercadoria veio de graça e só a entrega foi paga. O fornecedor cobrou nada, e a comparação
+ * deve dizer isso.
+ */
+export function taxaDaMercadoria(totalCents: Cents, freightCents: Cents, baseUnits: number): Rate {
+  const mercadoria = freightCents > 0 && freightCents <= totalCents ? totalCents - freightCents : totalCents;
+  return rateFromCents(mercadoria as Cents, baseUnits);
+}
+
+/**
  * How a price change should be read. A verdict, not a sentence - the screen
  * owns the words, in three languages.
  */

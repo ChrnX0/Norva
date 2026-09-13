@@ -300,6 +300,11 @@ export default function ExtratoScreen() {
                   6 de setembro — a chave fazia o aparelho perguntar e gravar, e o
                   relatório continuava falando só de onde. */}
               {ato.operatorName ? ` · ${fill(words.recordedBy, { name: ato.operatorName })}` : ''}
+              {/* E o NÚMERO DA NOTA fecha a linha, porque ele é o que liga o ato ao papel na
+                  gaveta. A coluna está no servidor desde a `0002` e nunca foi escrita nem lida:
+                  etiqueta de busca inalcançável é a mesma doença que `supplier_id` tinha. Só
+                  aparece na compra que veio com número — na feira não vem nota. */}
+              {ato.invoiceNumber ? ` · ${fill(words.invoice, { number: ato.invoiceNumber })}` : ''}
             </Text>
 
             <View

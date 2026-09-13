@@ -29,8 +29,8 @@ import {
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
-import { fromDecimal, rate, type Rate, rateToDecimal, amountOf } from '@/domain/money';
-import { variacaoDoCusto, applyCostEvent, judgePriceChange } from '@/domain/cost';
+import { cents, fromDecimal, rate, type Rate, amountOf } from '@/domain/money';
+import { variacaoDoCusto, applyCostEvent, judgePriceChange, taxaDaMercadoria } from '@/domain/cost';
 import { costPerProductUnit, packagingRatePerUnit, costRecipe } from '@/domain/recipe';
 import { parseTyped, formatTyped } from '@/domain/number';
 import { localDate } from '@/domain/day';
@@ -191,6 +191,23 @@ function PurchaseForm() {
    * para estar aqui.
    */
   const [frete, setFrete] = useState('');
+  /**
+   * O número escrito no papel — e ele existe para a busca acontecer de FORA para dentro.
+   *
+   * A coluna está no servidor desde a `0002` e nunca teve campo nem leitor. O que ela compra é
+   * o encontro entre o papel e o aplicativo: alguém com a nota na mão querendo saber se ela foi
+   * lançada, ou olhando o extrato e querendo achar o papel. Hoje o extrato mostra o que a nota
+   * mexeu e nada que ligue o ato ao envelope na gaveta.
+   *
+   * Texto livre e opcional, e as duas coisas são decisão registrada do dono: *sem dados fiscais
+   * no começo*, porque o aplicativo vai para duas lojas. Não é documento validado, é etiqueta.
+   * Vazio é resposta — na feira não vem nota.
+   *
+   * Nasce vazio, e é a única exceção da Lei 2 nesta tela: repetir o número da nota anterior
+   * seria sugerir o número ERRADO com cara de certo, e um número de nota errado é pior que
+   * nenhum — ele faz a busca achar o envelope de outra compra.
+   */
+  const [numeroDaNota, setNumeroDaNota] = useState('');
   const [saving, setSaving] = useState(false);
   const [impact, setImpact] = useState<Impact[] | null>(null);
 
@@ -302,11 +319,24 @@ function PurchaseForm() {
     const totalCents = fromDecimal(paid);
     // Guardado em centavos, e não recalculado na tela: o arredondamento acontece uma vez,
     // aqui, como em todo o resto deste aplicativo.
-    const freteCents = fromDecimal(paid) - fromDecimal(nota);
+    //
+    // `cents()` em volta da subtração porque subtrair dois `Cents` devolve `number` cru — e o
+    // valor atravessa daqui para a camada de dados, onde ele virá a ser uma coluna inteira. O
+    // construtor não arredonda nada aqui (os dois lados já são inteiros); o que ele faz é não
+    // deixar a marca do tipo cair no meio do caminho.
+    const freteCents = cents(fromDecimal(paid) - fromDecimal(nota));
 
     // What this invoice alone costs per base unit, and where it lands the
     // average once it blends with what is already on hand.
     const thisRate = rate(paid, baseUnits);
+    /**
+     * O que o FORNECEDOR está cobrando, que não é a mesma pergunta que o pouso.
+     *
+     * A régua mora no domínio (`taxaDaMercadoria`) e não aqui, pelo motivo de sempre: ela
+     * decide o sinal de um alarme, e regra que decide alarme se prova com teste de Node em
+     * vez de foto de tela.
+     */
+    const mercadoriaRate = taxaDaMercadoria(totalCents, freteCents, baseUnits);
     /**
      * A média de partida — e `?? 0` aqui é a mesma coisa que "insumo sem nota".
      *
@@ -323,12 +353,6 @@ function PurchaseForm() {
       { kind: 'purchase', baseUnits, totalCents, at: new Date().toISOString() },
     );
 
-    // O SÉTIMO sítio. Este já devolvia `null` na base zero — certo, e por escrita própria em vez
-    // de decisão escrita, como a ficha do insumo. A conta passa a vir do domínio para os sete
-    // concordarem por construção, não por coincidência.
-    const previous = selected.lastRate;
-    const change = variacaoDoCusto(previous ?? null, thisRate);
-
     return {
       packs,
       paid,
@@ -339,21 +363,46 @@ function PurchaseForm() {
       totalCents,
       freteCents,
       thisRate,
+      mercadoriaRate,
       after,
-      previous,
-      change,
     };
   }, [selected, quantity, total, frete]);
 
+  /**
+   * **A comparação é MERCADORIA contra MERCADORIA, e antes era pouso contra pouso.**
+   *
+   * A pergunta desta seção é a da negociação — o comentário de `item_costs` traz a frase
+   * inteira desde a `0002`, *"R$ 118 here; R$ 112 last month at supplier B"* —, e ela é dita ao
+   * fornecedor. Com o frete dentro dos dois números, buscar o saco você mesmo na semana passada
+   * e pagar entrega nesta fazia a tela anunciar *"subiu bem acima do normal"* sobre um preço que
+   * não mudou uma vírgula. E não é caso raro: o docblock do campo de frete diz de si mesmo que
+   * o valor varia por ENTREGA.
+   *
+   * O anterior vem da NOTA anterior (`lastPurchaseOf`), e não de `item_costs.last_rate`: a
+   * coluna guarda a taxa do pouso, e não há como tirar dela um frete que não está lá.
+   *
+   * Fora do `useMemo` do rascunho de propósito — ele não depende da última nota, e pôr uma
+   * consulta assíncrona nas dependências dele faria o rascunho recalcular a cada volta da
+   * consulta.
+   */
+  const anteriorMercadoria = sugestao?.goodsRate ?? null;
+  const change = draft ? variacaoDoCusto(anteriorMercadoria, draft.mercadoriaRate) : null;
+
   // How this price should be read, decided in one place that has a test rather
   // than by three copies of the same threshold inside the markup below.
-  const verdict = draft && draft.change !== null ? judgePriceChange(draft.change) : null;
+  const verdict = change !== null ? judgePriceChange(change) : null;
 
-  const perPackNow = draft ? draft.paid / draft.packs : 0;
-  const perPackBefore =
-    selected?.lastRate && selected.purchaseToBase
-      ? rateToDecimal((selected.lastRate * selected.purchaseToBase) as Rate)
-      : null;
+  /**
+   * Dois "por pacote", e eles respondem perguntas diferentes — por isso são dois.
+   *
+   * O POUSO fica embaixo do campo do total, porque ali ele explica o número que a pessoa acabou
+   * de digitar: R$ 230 por saco é o que ela pagou. A MERCADORIA fica na comparação, porque lá a
+   * pergunta é o que o fornecedor cobra. Um número só nos dois lugares foi exatamente o defeito.
+   */
+  const porPacotePousado = draft ? draft.paid / draft.packs : 0;
+  const porPacoteMercadoria = draft ? amountOf(draft.mercadoriaRate, draft.factor) : null;
+  const porPacoteAntes =
+    anteriorMercadoria === null ? null : amountOf(anteriorMercadoria, selected?.purchaseToBase ?? 1);
 
   const onSave = async () => {
     if (!selected || !draft) return;
@@ -389,6 +438,8 @@ function PurchaseForm() {
           draft.baseUnits,
           draft.totalCents,
           supplier,
+          draft.freteCents,
+          numeroDaNota,
           pedidoHaDias,
           locale.timeZone,
         ),
@@ -396,6 +447,7 @@ function PurchaseForm() {
       tatoDeSucesso();
       setTotal('');
       setFrete('');
+      setNumeroDaNota('');
       // Largar o rascunho em vez de voltar a quantidade para "1": o `refresh` abaixo relê a
       // última nota, que agora é ESTA — então os dois campos voltam já preenchidos com o que
       // acabou de ser lançado, que é o palpite certo para a linha seguinte da mesma nota.
@@ -618,11 +670,22 @@ function PurchaseForm() {
                 hint={
                   draft
                     ? fill(t.app.purchase.perPack, {
-                        price: formatMoney(fromDecimal(perPackNow), locale),
+                        price: formatMoney(fromDecimal(porPacotePousado), locale),
                         pack: selected.purchaseUnit ?? t.units.unit.one,
                       })
                     : undefined
                 }
+              />
+              {/* O número da nota fica por ÚLTIMO dos cinco campos, e é o único que nasce
+                  vazio. Ele não muda nada no cálculo — é etiqueta para achar o papel depois —,
+                  então pedi-lo antes do dinheiro empurraria o que decide para baixo do que
+                  arquiva. */}
+              <Field
+                label={t.app.purchase.invoiceNumber}
+                value={numeroDaNota}
+                onChangeText={setNumeroDaNota}
+                placeholder={t.app.purchase.invoicePlaceholder}
+                hint={t.app.purchase.invoiceHint}
               />
             </View>
           </Card>
@@ -658,7 +721,12 @@ function PurchaseForm() {
           anterior, e o crachá diz como ler isso em uma frase. O cartão vira
           âmbar quando subiu bem acima do normal — a cor é o aviso na data da
           decisão, com o fornecedor ainda na porta. */}
-      {draft && selected ? (
+      {/* E o cartão ESPERA a nota anterior em vez de dizer "primeira compra" por meio segundo.
+          A consulta recomeça a cada troca de insumo, e com um total já digitado o cartão
+          apareceria afirmando que nunca se comprou aquilo — a mesma armadilha que o campo do
+          fornecedor já evita três telas acima, e o mesmo conserto: não afirmar o que ainda não
+          se sabe. */}
+      {draft && selected && !buscandoUltima ? (
         <Reveal index={1}>
           <Card
             hue={verdict === 'wellAbove' ? color.warning : palette.sage}
@@ -668,21 +736,31 @@ function PurchaseForm() {
               {t.app.purchase.beforeClosing}
             </Text>
 
-            {draft.change === null || perPackBefore === null ? (
+            {change === null || porPacoteAntes === null || porPacoteMercadoria === null ? (
               <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
                 {t.app.purchase.firstPurchase}
               </Text>
             ) : (
               <>
                 <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
-                  {draft.change >= 0 ? '▲' : '▼'} {formatPercent(Math.abs(draft.change), locale)}
+                  {change >= 0 ? '▲' : '▼'} {formatPercent(Math.abs(change), locale)}
                 </Text>
                 <Text style={[type.secondary, { color: color.inkMuted }]}>
                   {fill(t.app.purchase.nowVsBefore, {
-                    now: formatMoney(fromDecimal(perPackNow), locale),
-                    before: formatMoney(fromDecimal(perPackBefore), locale),
+                    now: formatMoney(porPacoteMercadoria, locale),
+                    before: formatMoney(porPacoteAntes, locale),
                   })}
                 </Text>
+                {/* Lei 6: a conclusão abre a conta. Os dois números acima são MENORES que o que
+                    a pessoa digitou, e sem esta linha ela veria um terceiro valor aparecer sem
+                    explicação — que é o tipo de silêncio que faz alguém parar de ler a tela. */}
+                {draft.freteCents > 0 ? (
+                  <Text style={[type.caption, { color: color.inkFaint, marginTop: space.xs }]}>
+                    {fill(t.app.purchase.freightOutOfCompare, {
+                      freight: formatMoney(draft.freteCents, locale),
+                    })}
+                  </Text>
+                ) : null}
                 <View style={{ marginTop: space.md }}>
                   {/* The verdict names the key; the dictionary writes the words.
                       Three languages, one rule, and the rule is tested. */}
@@ -767,6 +845,17 @@ async function recordAndMeasure(
   baseUnits: number,
   totalCents: ReturnType<typeof fromDecimal>,
   supplier: string,
+  /**
+   * Quanto do total foi ENTREGA — zero quando o campo ficou vazio.
+   *
+   * Ele viaja separado do total porque as duas perguntas são diferentes: o total é o pouso
+   * (o que aquele item custou para estar aqui, e é ele que move a média) e o frete é a fatia
+   * que não é do fornecedor. Sem gravar a fatia, a comparação da próxima nota culparia o
+   * fornecedor pela entrega — ver `taxaDaMercadoria`.
+   */
+  freightCents: ReturnType<typeof fromDecimal>,
+  /** O número escrito no papel, para achar a nota depois. Vazio é vazio. */
+  invoiceNumber: string,
   /** Há quantos dias o pedido foi feito; `null` quando ninguém sabe. */
   pedidoHaDias: number | null,
   timeZone: string,
@@ -807,6 +896,8 @@ async function recordAndMeasure(
     purchaseQuantity: packs,
     baseUnits,
     totalCents,
+    freightCents,
+    invoiceNumber: invoiceNumber.trim() || undefined,
     // Sem resposta, nada é gravado: `ordered_at` continua nulo e `deliveriesOf`
     // ignora a nota. Uma lacuna vazia é mais honesta que um palpite.
     orderedAt:

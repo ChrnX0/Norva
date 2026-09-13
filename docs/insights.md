@@ -12574,3 +12574,58 @@ causa é a mudança E a espera, e consertar a espera é o que impede a próxima.
 para trocar todas de uma vez — algumas esperam uma escrita terminar, e "o texto parou de
 crescer" passaria cedo demais —, então a conversão é caso a caso, na checagem que cair. O
 número fica escrito para a próxima sessão não descobrir isso de novo pelo sintoma.*
+
+## 13 de setembro — o item do estudo pedia uma CONFIGURAÇÃO que criaria dinheiro sem dono
+
+O item 2 da rodada 16 estava escrito por mim assim: *"configuração da empresa 'frete entra no
+custo unitário' (os dois caminhos; padrão assumido e dito: entra, rateado pelas linhas)"*. Ir
+construir devolveu duas coisas, e a primeira derruba o item.
+
+**A decisão já existia, escrita no campo, e ela é a certa.** O docblock do campo de frete de
+`app/purchase.tsx` diz por que os dois caminhos ali NÃO viram configuração da empresa: *"frete
+varia por ENTREGA e não por fábrica: uma semana o fornecedor traz, na outra você busca"* — então
+o par de caminhos é campo preenchido contra campo vazio, e a empresa não tem o que escolher.
+
+E o que a configuração criaria é pior que redundante. Se "frete não entra no custo" existisse, o
+dinheiro do frete estaria gravado numa coluna e refletido em número nenhum: o razão não teria
+movimento para ele, a média não o veria, e a margem sairia maior do que é. Seria custo
+subestimado por configuração — a classe de defeito que este projeto mais persegue, oferecida
+como preferência.
+
+**A segunda coisa é o defeito que estava ali de verdade, e ele é o oposto do item.** O frete
+entrava no custo (certo) e a DIVISÃO era jogada fora: a tela calculava os dois números, mostrava
+na confirmação, e não gravava nenhum. `purchases.freight_cents` está no servidor desde a `0002` e
+nunca foi escrito.
+
+O preço disso é um alarme que culpa quem não fez nada. A comparação *"você pagou X na última
+vez"* existe para a negociação — a frase está no comentário de `item_costs` desde a `0002`,
+*"R$ 118 here; R$ 112 last month at supplier B"*, e ela é dita ao FORNECEDOR. Saindo da taxa do
+pouso, buscar o saco você mesmo numa semana e pagar entrega na outra faz o aplicativo anunciar
+*"subiu bem acima do normal"* sobre um preço que não mudou uma vírgula. Pelo próprio docblock do
+campo, esse é o caso normal.
+
+**A regra de método:** o item do plano era uma hipótese minha sobre o que faltava, e o código
+tinha metade dele pronto com a decisão escrita ao lado. A régua desta casa — *"antes de construir
+o próximo item da lista, meça a afirmação dele contra o código"* — pegou o item pela sétima vez, e
+esta é a primeira em que o item estava **errado em vez de já feito**: a lista não envelheceu, ela
+nasceu com a pergunta trocada. Então a medida não é só *"isso já existe?"* — é também *"a coisa
+que este item propõe é a coisa certa?"*.
+
+## 13 de setembro — o rateio que eu ia ligar não tinha o que ratear, e o chamador seria fachada
+
+O mesmo item mandava dar a `allocateByWeight` o primeiro chamador de produção — ela existe desde
+sempre com um teste e nenhuma tela. Fui ligá-la e não havia divisão para fazer: `recordPurchase`
+grava **uma linha por chamada**, então a parte daquela linha é o frete inteiro.
+
+Chamá-la com um peso só compila, roda e engana: devolve `[frete]` sem exercitar a divisão de
+centavo nenhuma, e a guarda que a protege fica verde medindo nada. É o P1 virado do avesso — não
+"função sem chamador", mas **chamador sem trabalho**, que é pior porque fecha o item e cala a
+pergunta.
+
+O que ficou no lugar: a coluna nasce na LINHA (`purchase_lines.freight_cents`) em vez de só na
+nota, com o argumento escrito no `insert`. Assim o dia em que a nota ganhar a segunda linha troca
+um argumento, em um lugar — e o rateio entra com trabalho de verdade para fazer.
+
+*E é a mesma razão que mantém o gatilho do servidor intocado: ele dispara POR LINHA, e a fila pode
+entregar a primeira antes de a segunda existir. Um rateio lá teria o denominador errado e nada
+denunciaria.*

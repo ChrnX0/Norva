@@ -6394,8 +6394,9 @@ test('a próxima nota já sabe de quem veio a anterior, e quantos pacotes', asyn
   const primeira = await lastPurchaseOf(CO, acucar);
   assert.deepEqual(
     primeira,
-    { supplierName: 'Distribuidora Aurora', packs: 4 },
-    'a nota seguinte abre com o fornecedor e a contagem da anterior',
+    // 472 reais por 100.000 g = 0,472 centavo por grama, e sem frete a mercadoria é o total.
+    { supplierName: 'Distribuidora Aurora', packs: 4, goodsRate: 0.472 },
+    'a nota seguinte abre com o fornecedor, a contagem e o preço da mercadoria da anterior',
   );
 
   // O outro sentido: a MAIS RECENTE, não a primeira. Sem ordem, `LIMIT 1` devolve
@@ -6409,7 +6410,7 @@ test('a próxima nota já sabe de quem veio a anterior, e quantos pacotes', asyn
   });
   assert.deepEqual(
     await lastPurchaseOf(CO, acucar),
-    { supplierName: 'Atacado São Jorge', packs: 6 },
+    { supplierName: 'Atacado São Jorge', packs: 6, goodsRate: 0.46 },
     'trocou de fornecedor, e a sugestão trocou com ele',
   );
 
@@ -6429,8 +6430,86 @@ test('a próxima nota já sabe de quem veio a anterior, e quantos pacotes', asyn
   });
   assert.deepEqual(
     await lastPurchaseOf(CO, semNome),
-    { supplierName: null, packs: 2 },
+    { supplierName: null, packs: 2, goodsRate: 6 },
     'nota sem fornecedor devolve nulo no nome e a contagem do mesmo jeito',
+  );
+});
+
+/**
+ * **A comparação de preço culpava o fornecedor pelo FRETE — e o caso é o normal, não o raro.**
+ *
+ * A tela de compra soma o frete ao total antes de gravar, e isso está certo: o razão guarda o
+ * que aquele item custou para estar aqui. O que estava errado é a comparação *"você pagou
+ * X na última vez"*, que saía da taxa do POUSO — e o docblock do campo de frete diz de si
+ * mesmo que o valor varia por ENTREGA: *"uma semana o fornecedor traz, na outra você busca"*.
+ *
+ * Então buscar o saco você mesmo numa semana e pagar entrega na outra fazia o aplicativo
+ * anunciar alta de um fornecedor que não mexeu no preço. Alerta inventado ensina a ignorar
+ * alerta, e este tinha causa real e recorrente.
+ *
+ * **As duas metades, porque a régua tem de distinguir os dois casos:** com frete a mercadoria
+ * é MENOR que o pouso, e sem frete as duas são iguais. Uma asserção só passaria com um
+ * `total_cents` devolvido cru.
+ */
+test('o preço que a próxima nota compara é o da mercadoria, sem o frete', async () => {
+  await ensureStarterData(CO);
+  const polpa = await anInput('Polpa de manga', 10_000);
+
+  // Mesma mercadoria nas duas notas — 300 reais por 20 kg —, e só a entrega muda.
+  await recordPurchase(CO, {
+    itemId: polpa,
+    supplierName: 'Frutas do Vale',
+    purchaseQuantity: 2,
+    baseUnits: 20_000,
+    // O POUSO: 300 de mercadoria mais 60 de entrega, como a tela grava.
+    totalCents: fromDecimal(360),
+    freightCents: fromDecimal(60),
+  });
+
+  const comFrete = await lastPurchaseOf(CO, polpa);
+  assert.equal(
+    comFrete?.goodsRate,
+    // 300 reais por 20.000 g = 1,5 centavo por grama. O pouso daria 1,8 — 20% de alta
+    // anunciada sobre um preço que não mudou.
+    1.5,
+    'o frete sai da conta: o que se compara com o fornecedor é o que ELE cobrou',
+  );
+
+  // O caso FALSO da mesma régua: sem frete, mercadoria e pouso são o mesmo número. Sem esta
+  // metade a asserção acima passaria com qualquer subtração, inclusive uma constante.
+  const semFrete = await anInput('Palito de madeira', 1);
+  await recordPurchase(CO, {
+    itemId: semFrete,
+    purchaseQuantity: 1_000,
+    baseUnits: 1_000,
+    totalCents: fromDecimal(80),
+  });
+  assert.equal(
+    (await lastPurchaseOf(CO, semFrete))?.goodsRate,
+    8,
+    'sem frete não há o que descontar, e a mercadoria é o total',
+  );
+
+  /**
+   * E o frete MAIOR que o total é lido como frete nenhum, em vez de virar taxa negativa.
+   *
+   * A nota não fecha — alguém digitou o frete no campo do total —, e subtrair devolveria um
+   * preço negativo: a tela anunciaria que o fornecedor está pagando para entregar, com o
+   * sinal trocado atravessando até a cor do crachá. Cair no pouso é o pior caso aceitável:
+   * o número fica alto, nunca invertido.
+   */
+  const torto = await anInput('Fita de embalagem', 1);
+  await recordPurchase(CO, {
+    itemId: torto,
+    purchaseQuantity: 10,
+    baseUnits: 100,
+    totalCents: fromDecimal(50),
+    freightCents: fromDecimal(80),
+  });
+  assert.equal(
+    (await lastPurchaseOf(CO, torto))?.goodsRate,
+    50,
+    'nota que não fecha volta a comparar pouso com pouso, nunca preço negativo',
   );
 });
 

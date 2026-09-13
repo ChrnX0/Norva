@@ -2867,5 +2867,106 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
 
 echo "    caixa e espaco colidem, nome em branco e recusado, empresa vizinha nao colide, e ACENTO ainda e outro fornecedor"
 
-echo "OK - migrations apply and all forty-one guarantees hold."
+echo
+echo "==> check 42: o frete viaja na linha e NAO entra na conta do servidor"
+
+# ## O que esta garantia prende
+#
+# `total_cents` da linha e o POUSO: a tela de compra soma nota mais entrega antes de gravar,
+# porque frete nao e outro movimento - e parte do que aquele item custou para estar aqui. A
+# 0070 acrescenta `freight_cents` para a DIVISAO sobreviver: o que o fornecedor cobrou pela
+# mercadoria e `total_cents - freight_cents`, e e essa a frase que se leva para a negociacao.
+#
+# O risco que isto mede nao e a coluna existir - e o gatilho de custo. `apply_purchase_to_cost`
+# calcula a taxa de `total_cents / base_units`, e o aparelho replica o razao pela taxa congelada
+# do movimento, que e a mesma. Se alguem "melhorar" o gatilho para descontar o frete, as duas
+# medias passam a discordar e a garantia 6 - que compara aparelho com servidor - acusa um
+# desencontro sem dizer a causa. Aqui a causa fica nomeada.
+FRE=eeee1111-0000-4000-8000-0000000000
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<SQL >/dev/null
+insert into auth.users (id) values ('${FRE}01');
+insert into companies (id, name) values ('${FRE}c1', 'Frete Co');
+insert into memberships (company_id, user_id, display_name, capabilities)
+  values ('${FRE}c1', '${FRE}01', 'Dona', enum_range(null::capability));
+insert into locations (id, company_id, kind, name)
+  values ('${FRE}b1', '${FRE}c1', 'store_room', 'Almoxarifado');
+-- Dois itens, e eles existem para a regua distinguir os dois mundos: um com frete e um sem.
+insert into items (id, company_id, kind, name) values ('${FRE}d1', '${FRE}c1', 'input', 'Polpa de manga');
+insert into items (id, company_id, kind, name) values ('${FRE}d2', '${FRE}c1', 'input', 'Palito');
+insert into purchases (id, company_id, ordered_at, received_at, freight_cents, invoice_number, created_by)
+  values ('${FRE}e1', '${FRE}c1', now() - interval '3 days', now(), 6000, 'NF 1234', '${FRE}01');
+SQL
+
+# --- (a) O piso: frete negativo e recusado pelo CHECK. ---
+#
+# Negativo subiria pela fila e a recusa voltaria como 23514, que `classeDaRecusa` trata como
+# PASSAGEIRA de proposito - a fila tentaria de novo para sempre, com tudo atras dela preso e
+# calado. Melhor a origem nunca produzir: o aparelho tem a mesma peneira em `recordPurchase`.
+if psql -d "$DB" -q -c "
+  insert into purchase_lines (id, company_id, purchase_id, item_id, purchase_quantity, base_units,
+                             total_cents, freight_cents)
+    values ('${FRE}f9','${FRE}c1','${FRE}e1','${FRE}d1', 1, 100, 5000, -1);" >/dev/null 2>&1; then  # proofgate-allow
+  fail "frete negativo entrou na linha: a fila subiria isso e o preco da mercadoria sairia MAIOR que o pouso"
+fi
+
+# --- (b) O caso com frete: a media e a do POUSO, nao a da mercadoria. ---
+#
+# 300 reais de manga mais 60 de entrega em 20 kg. A taxa do pouso e 1,8 centavo por grama; a da
+# mercadoria e 1,5. O servidor tem de responder 1,8, porque e isso que o aparelho congelou no
+# movimento - e a mercadoria e leitura, nao conta de custo.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q >/dev/null <<SQL || fail "a linha com frete nao entrou: a coluna da 0070 nao aceita o que a fila manda"
+insert into purchase_lines (id, company_id, purchase_id, item_id, purchase_quantity, base_units,
+                           total_cents, freight_cents)
+  values ('${FRE}f1', '${FRE}c1', '${FRE}e1', '${FRE}d1', 2, 20000, 36000, 6000);
+insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id,
+                       quantity_base_units, location_id, unit_cost_rate)
+  values ('${FRE}f1', '${FRE}c1', 'purchase', now(), '${FRE}01', '${FRE}d1', 20000, '${FRE}b1', 1.8);
+SQL
+
+POUSO=$(rows "select round(average_rate, 4) from item_costs where item_id = '${FRE}d1';")  # proofgate-allow
+[ "$POUSO" = "1.8000" ] || fail "a media do servidor saiu $POUSO e nao 1.8000: o gatilho passou a descontar o frete, e agora ele discorda da taxa congelada do aparelho"
+
+# E a MERCADORIA e recuperavel da mesma linha, que e a razao de a coluna existir.
+MERC=$(rows "select round((total_cents - freight_cents)::numeric / base_units, 4) from purchase_lines where id = '${FRE}f1';")  # proofgate-allow
+[ "$MERC" = "1.5000" ] || fail "o preco da mercadoria saiu $MERC e nao 1.5000: a divisao da nota nao sobreviveu a viagem"
+
+# --- (c) O caso FALSO, e sem ele os dois de cima nao separam nada. ---
+#
+# Sem frete, pouso e mercadoria sao o MESMO numero - entao a assercao de (b) so tem valor porque
+# aqui os dois coincidem. Uma garantia que medisse apenas o caso com frete passaria igual num
+# servidor que devolvesse sempre o total, e passaria igual num que devolvesse sempre a diferenca.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q >/dev/null <<SQL || fail "a linha sem frete nao entrou: o default de zero da 0070 nao esta valendo"
+insert into purchase_lines (id, company_id, purchase_id, item_id, purchase_quantity, base_units,
+                           total_cents, freight_cents)
+  values ('${FRE}f2', '${FRE}c1', '${FRE}e1', '${FRE}d2', 1000, 1000, 8000, 0);
+insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id,
+                       quantity_base_units, location_id, unit_cost_rate)
+  values ('${FRE}f2', '${FRE}c1', 'purchase', now(), '${FRE}01', '${FRE}d2', 1000, '${FRE}b1', 8);
+SQL
+
+SEM_FRETE=$(rows "select round(average_rate, 4) from item_costs where item_id = '${FRE}d2';")  # proofgate-allow
+[ "$SEM_FRETE" = "8.0000" ] || fail "a media do item sem frete saiu $SEM_FRETE e nao 8.0000"
+IGUAIS=$(rows "select case when (total_cents - freight_cents) = total_cents then 1 else 0 end from purchase_lines where id = '${FRE}f2';")  # proofgate-allow
+[ "$IGUAIS" = "1" ] || fail "sem frete a mercadoria deixou de ser o total: o default da coluna nao e zero"
+
+# --- (d) E a coluna nova tem de ser alcancavel por QUEM A MANDA, nao pelo dono do banco. ---
+#
+# A fila escreve como `app_user` sob RLS, nao como superusuario - e o custo de errar isto esta
+# escrito no CLAUDE.md com o numero: uma migracao passou por 491 testes verdes carregando a falta
+# do grant, e sem ele a fila inteira e recusada por permissao. Nenhuma das duas pontas nota: o
+# SQLite do aparelho nao tem papel nenhum.
+#
+# Quem le e a dona da Frete Co, que e a empresa desta garantia - com `$OWNER` a resposta seria
+# zero por RLS e a assercao mediria o isolamento de empresa em vez do alcance da coluna.
+COMO_APP=$(as_user "${FRE}01" "select count(*) from purchase_lines where freight_cents > 0;")  # proofgate-allow
+[ "$COMO_APP" = "1" ] || fail "quem lanca a nota leu $COMO_APP linha(s) com frete: a coluna nova ficou fora do alcance da conta do aplicativo"
+
+# E o FALSO do mesmo par: a empresa vizinha nao ve a linha, entao a leitura de cima passou pela
+# politica em vez de passar por cima dela.
+DE_FORA=$(as_user "$OWNER" "select count(*) from purchase_lines where freight_cents > 0;")  # proofgate-allow
+[ "$DE_FORA" = "0" ] || fail "outra empresa leu $DE_FORA linha(s) de compra da Frete Co: a coluna nova veio sem politica"
+
+echo "    o frete entra na linha, a media continua sendo a do pouso, e a mercadoria e recuperavel"
+
+echo "OK - migrations apply and all forty-two guarantees hold."
 

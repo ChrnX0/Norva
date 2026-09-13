@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { type Rate } from './money';
+import { type Cents, type Rate } from './money';
 import {
   observedLeadTimeDays,
   prazoDoFornecedorAtual,
   blendRate,
+  taxaDaMercadoria,
 } from './cost';
 
 /**
@@ -147,4 +148,63 @@ test('stock in the negative counts as zero, like the purchase event does', () =>
     blendRate({ baseUnits: 0, averageRate: 0 as Rate }, { baseUnits: 500, rate: 1.2 as Rate }),
     1.2,
   );
+});
+
+/**
+ * **A régua que separa o PREÇO DO FORNECEDOR do que a carga custou para estar aqui.**
+ *
+ * Ela existe por um alarme que culpava quem não fez nada. A tela de compra soma o frete ao
+ * total antes de gravar — e isso está certo, o razão guarda o pouso —, mas a comparação *"você
+ * pagou X na última vez"* saía do mesmo número. O campo de frete diz de si mesmo que o valor
+ * varia por ENTREGA (*"uma semana o fornecedor traz, na outra você busca"*), então buscar o
+ * saco você mesmo numa semana e pagar entrega na outra fazia a tela anunciar alta de um
+ * fornecedor que não mexeu no preço.
+ *
+ * A frase que essa tela existe para produzir está escrita no esquema desde a `0002`: *"R$ 118
+ * here; R$ 112 last month at supplier B"*. Ela é dita ao fornecedor, então tem de falar do que
+ * o fornecedor cobra.
+ */
+test('a taxa da mercadoria tira o frete, e o pouso continua sendo o pouso', () => {
+  // 300 reais de manga mais 60 de entrega, em 20 kg: 1,5 centavo por grama de mercadoria.
+  assert.equal(
+    taxaDaMercadoria(36_000 as Cents, 6_000 as Cents, 20_000),
+    1.5,
+    'o frete sai da conta antes da divisão',
+  );
+
+  // O caso FALSO da mesma régua: sem frete a mercadoria É o pouso. Sem esta metade a asserção
+  // acima passaria com uma subtração constante, ou com o total devolvido cru dividido errado.
+  assert.equal(
+    taxaDaMercadoria(30_000 as Cents, 0 as Cents, 20_000),
+    1.5,
+    'sem frete não há o que descontar',
+  );
+  assert.notEqual(
+    taxaDaMercadoria(36_000 as Cents, 0 as Cents, 20_000),
+    1.5,
+    'e o pouso sem frete declarado continua alto — é ele que move a média',
+  );
+});
+
+test('frete maior que o total é lido como frete nenhum, e nunca como preço negativo', () => {
+  /**
+   * A nota não fecha: alguém digitou o frete no campo do total. Subtrair devolveria taxa
+   * NEGATIVA, e a tela anunciaria que o fornecedor está pagando para entregar — com o sinal
+   * trocado atravessando até a cor do crachá. Cair no pouso é o pior caso aceitável: o número
+   * fica alto, nunca invertido.
+   */
+  const taxa = taxaDaMercadoria(5_000 as Cents, 8_000 as Cents, 100);
+  assert.ok(taxa > 0, 'preço de mercadoria nunca é negativo, nem numa nota que não fecha');
+  assert.equal(taxa, 50, 'e o número que sobra é o do pouso, que é o que existia antes desta régua');
+
+  // Frete IGUAL ao total atravessa, e ali zero é a resposta certa: a mercadoria veio de graça
+  // e só a entrega foi paga. O fornecedor cobrou nada, e a comparação deve dizer isso.
+  assert.equal(
+    taxaDaMercadoria(3_000 as Cents, 3_000 as Cents, 100),
+    0,
+    'nota que é só entrega: o fornecedor cobrou nada pela mercadoria',
+  );
+
+  // Quantidade zero não divide: a resposta é zero e não infinito, como em todo o resto da casa.
+  assert.equal(taxaDaMercadoria(3_000 as Cents, 0 as Cents, 0), 0);
 });

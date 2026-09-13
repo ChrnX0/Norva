@@ -1544,10 +1544,43 @@ ALTER TABLE purchases ADD COLUMN freight_cents INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE purchases ADD COLUMN invoice_number TEXT;
 `;
 
+/**
+ * **O frete estava DENTRO do total da linha, e a divisão era jogada fora.**
+ *
+ * A tela de compra soma o frete ao total antes de gravar — `paid = nota + entrega` — e isso
+ * está certo: o livro-razao guarda o que aquele item custou para estar aqui, e frete nao e
+ * outro movimento. O que ela fazia em seguida e que era defeito: calculava a divisao dos dois
+ * numeros, mostrava na confirmacao, e nao gravava nenhum dos dois. `purchases.freight_cents`
+ * ficava zero para sempre.
+ *
+ * **O preco disso e um alarme que culpa quem nao fez nada.** A tela compara esta nota com a
+ * anterior pela taxa gravada, e a taxa gravada e a do POUSO (com frete). O docblock do campo
+ * diz que o frete varia por entrega — *"uma semana o fornecedor traz, na outra voce busca"* —,
+ * ou seja: buscar o saco voce mesmo na semana passada e pagar entrega nesta faz o aplicativo
+ * anunciar *"subiu bem acima do normal"* sobre um fornecedor que nao mexeu no preco. E o
+ * alerta inventado que a fundacao desta casa proibe, com causa real.
+ *
+ * **Por que na LINHA e nao so na nota.** Hoje `recordPurchase` grava uma linha por chamada, e
+ * o frete da nota e o frete da linha. No dia em que uma nota tiver duas linhas, recuperar a
+ * parte de cada uma a partir do total da nota exige repetir o rateio em todo leitor — e o
+ * rateio tem de bater centavo a centavo com o que a media de custo usou, senao os dois numeros
+ * discordam. Guardar a parte JA RATEADA na linha e o que faz a divisao sobreviver: quem le
+ * soma dois inteiros.
+ *
+ * **E e por isso que o gatilho do servidor nao muda.** `apply_purchase_to_cost` calcula a taxa
+ * de `total_cents / base_units` da linha, e `total_cents` continua sendo o pouso — as duas
+ * medias continuam concordando, sem ninguem refazer rateio nenhum do outro lado. Um rateio no
+ * servidor seria pior que redundante: ele dispara POR LINHA, e a fila pode entregar a primeira
+ * linha antes da segunda existir — o denominador sairia errado e ninguem veria.
+ */
+const V42 = `
+ALTER TABLE purchase_lines ADD COLUMN freight_cents INTEGER NOT NULL DEFAULT 0;
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
   V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33,
-  V34, V35, V36, V37, V38, V39, V40, V41,
+  V34, V35, V36, V37, V38, V39, V40, V41, V42,
 ];
 
 export type SqlParam = string | number | null;
