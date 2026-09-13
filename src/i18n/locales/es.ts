@@ -457,6 +457,8 @@ export const es: Dictionary = {
     },
 
     newOrder: {
+      /** De dónde vino la cantidad sugerida: la última carga a esa tienda. */
+      fromLastLoad: 'igual a la última carga a {{place}} — cámbiala si es diferente',
       free: 'libre para esta fecha: {{amount}}',
       freeHint: 'lo que hay en el congelador menos lo ya prometido hasta ese día',
       over: 'Eso promete {{amount}} más de lo que está libre. ¿Da tiempo de producirlo?',

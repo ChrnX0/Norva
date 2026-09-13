@@ -452,6 +452,8 @@ export const en: Dictionary = {
     },
 
     newOrder: {
+      /** Where the suggested amount came from: the last load to that store. */
+      fromLastLoad: 'same as the last load to {{place}} — change it if it differs',
       free: 'free for this date: {{amount}}',
       freeHint: 'what is in the freezer minus what is already promised up to that day',
       over: 'That promises {{amount}} more than is free. Can it be made by then?',

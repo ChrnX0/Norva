@@ -704,6 +704,8 @@ export const ptBR = {
     },
 
     newOrder: {
+      /** De onde veio a quantidade sugerida: a última carga para aquela loja. */
+      fromLastLoad: 'igual à última carga para {{place}} — mude se for diferente',
       free: 'livre para esta data: {{amount}}',
       freeHint: 'o que tem no freezer menos o que já foi prometido até esse dia',
       /** O número é o excesso sobre o LIVRE, não sobre o saldo: livre já desconta as outras promessas. */

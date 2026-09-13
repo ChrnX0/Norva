@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { voltar } from '@/nav';
@@ -18,6 +18,7 @@ import {
   type Demand,
   type Place,
   type Product,
+  lastSentBaseUnits,
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
 import { unidadeDaqui } from '@/data/unidade';
@@ -39,6 +40,7 @@ import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 import { ERROS } from '@/data/erros';
 import { avisoDeFalha } from '@/i18n/falha';
+import { campoComSugestao } from '@/components/campo';
 
 /**
  * Anotar o que um cliente pediu.
@@ -137,14 +139,45 @@ function NewOrder() {
    */
   const [escolhido, setEscolhido] = useState<{ placeId: string | null; days: number } | null>(null);
   const [productId, setProductId] = useState<string | null>(null);
-  const [quantity, setQuantity] = useState('');
+  /**
+   * **A quantidade nasce da ÚLTIMA carga para aquela loja — Lei 1 e Lei 2 juntas.**
+   *
+   * Ela nascia vazia com `placeholder="0"`, e isso é a Lei 2 desligada: quem anota pedido
+   * para a mesma loja toda semana digita o mesmo número toda semana, e o sistema já sabe
+   * qual é. `lastSentBaseUnits` existia e era lida por UMA tela só — a de carga
+   * (`app/transfer.tsx:261`), com o comentário *"o palpite vem do que já aconteceu, não de um
+   * zero"* escrito ao lado.
+   *
+   * `undefined` é "ninguém digitou" e `''` é "apagou de propósito", que é o que
+   * `campoComSugestao` resolve — e a chave da consulta é `loja|produto`, porque o palpite muda
+   * com as duas: a Loja Centro pede 400 do morango e 120 do chocolate.
+   */
+  const [quantity, setQuantity] = useState<string | undefined>(undefined);
   const [lines, setLines] = useState<Draft[]>([]);
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   const place = data?.places.find((p) => p.id === placeId) ?? data?.places[0] ?? null;
   const product = data?.products.find((p) => p.id === productId) ?? data?.products[0] ?? null;
-  const units = Math.max(0, parseTyped(quantity) ?? 0);
+  /**
+   * O palpite vem do que já aconteceu: quanto foi para ESTA loja, deste produto, na última vez.
+   *
+   * `useQuery` com chave composta e não `useEffect`: a primeira versão disto zerava o palpite
+   * no topo do efeito para não mostrar o número da loja anterior, e isso é `setState` síncrono
+   * dentro de efeito — cascata de render, e o lint deste projeto recusa com todas as letras. A
+   * chave `loja|produto` resolve a mesma coisa pela porta certa: trocar qualquer uma das duas
+   * é outra pergunta, então é outra consulta, e o resultado velho não sobrevive à troca.
+   */
+  const { data: ultimaCarga } = useQuery<number | null>(
+    () =>
+      place && product
+        ? lastSentBaseUnits(empresaDaqui(), product.itemId, place.id)
+        : Promise.resolve(null),
+    `${place?.id ?? ''}|${product?.itemId ?? ''}`,
+  );
+
+  const campoQuantidade = campoComSugestao(quantity, ultimaCarga != null ? String(ultimaCarga) : null);
+  const units = Math.max(0, parseTyped(campoQuantidade.valor) ?? 0);
 
   /**
    * O dia que já estava combinado com esta loja.
@@ -435,12 +468,14 @@ function NewOrder() {
           <View style={{ marginTop: space.md, gap: space.xs }}>
             <Field
               label={words.quantity}
-              value={quantity}
+              value={campoQuantidade.valor}
               onChangeText={setQuantity}
               keyboardType="numeric"
               placeholder="0"
               hint={
-                livre === null
+                campoQuantidade.ehSugestao && place
+                  ? fill(words.fromLastLoad, { place: place.name })
+                  : livre === null
                   ? undefined
                   : `${fill(words.free, {
                       amount: `${formatQuantity(Math.max(0, livre), locale)} ${plural(

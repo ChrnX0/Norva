@@ -12332,3 +12332,29 @@ outro, de novo, por outra porta.
 propósito** — é a mesma coisa dita em três lugares —, então a régua precisou olhar a POSIÇÃO:
 precedido de ponto é acesso a propriedade; seguido de dois-pontos é chave sendo escrita. Régua
 que acusa três falsos e um verdadeiro seria "consertada" apagando o verdadeiro.*
+
+## 13 de setembro — alarguei a régua para tirar um falso positivo e comprei um falso NEGATIVO
+
+A guarda de fonte da rodada — *onde a tela usa `campoComSugestao`, o estado cru aparece só no
+`useState` e no `onChangeText`* — acusou a chamada quebrada em três linhas: com
+`campoComSugestao(` numa linha e o argumento `quantity,` na seguinte, a dispensa (que olhava a
+linha) não alcançava o argumento.
+
+O conserto óbvio foi olhar a linha e as duas de cima. Ele **desligou a guarda**: dois plantios
+depois, `const units = parseTyped(quantity)` **duas linhas abaixo** da chamada passou a ser
+absolvido — e é exatamente esse defeito que a régua existe para pegar, o mesmo que nesta rodada
+fez a tela mostrar 75 ml e o produto nascer com rendimento zero.
+
+**Só descobri porque re-provei o plantio depois de mexer na régua.** A regra desta casa manda
+provar detector novo nos dois sentidos; o que faltava escrito é que **mexer numa régua que já
+passou é régua nova** — e a tentação é a pior possível, porque a mudança foi feita para atender
+um falso positivo, ou seja, com a sensação de estar melhorando a medida.
+
+A saída não foi uma régua mais esperta: contar parênteses em JSX é a armadilha que este
+repositório já pagou (`[^)]*` parando no `()` da arrow function). Foi **estreitar a dispensa de
+volta e mudar a escrita**: a chamada fica numa linha só. Se ela não couber, o nome está longo
+demais, e a régua acusando é o aviso — não o defeito.
+
+*A assimetria que decide, e ela já estava escrita para testes: falso positivo custa uma leitura;
+falso negativo é uma promessa falsa, e alguém vai confiar nela. Quando as duas saídas custam,
+escolha a que erra para o lado de acusar.*

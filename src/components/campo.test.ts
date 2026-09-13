@@ -109,7 +109,20 @@ test('onde a tela sugere, o estado cru não é lido fora do useState e do onChan
       const nome = m[1];
       fonte.split('\n').forEach((linha, i) => {
         if (linha.includes('useState<string | undefined>')) return;  // a declaração
-        if (linha.includes('campoComSugestao(')) return;             // a resolução
+        /**
+         * A resolução, e a dispensa é da MESMA linha — de propósito.
+         *
+         * A tentativa de olhar as duas linhas de cima, para tolerar a chamada quebrada em
+         * três, foi medida e **desligou a guarda**: `const units = parseTyped(quantity)` duas
+         * linhas abaixo da chamada passou a ser absolvido, que é exatamente o defeito que
+         * esta régua existe para pegar. Régua alargada para evitar um falso positivo comprou
+         * um falso NEGATIVO, e este repositório já escreveu qual dos dois é pior.
+         *
+         * Então a dispensa continua estreita, e o preço é uma regra de escrita: a chamada de
+         * `campoComSugestao` fica numa linha só. Se ela não couber, o nome está longo demais —
+         * e a régua acusando é o aviso, não o defeito.
+         */
+        if (linha.includes('campoComSugestao(')) return;
         if (linha.trim().startsWith('*') || linha.trim().startsWith('//')) return;  // prosa
         /**
          * O nome CRU, e não o nome em qualquer posição — medido contra três falsos.
