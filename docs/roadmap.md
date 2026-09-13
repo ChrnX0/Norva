@@ -39,8 +39,8 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | telas | **36** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **28** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **30** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **64** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V36** | último `const V` em `src/data/db.ts` |
+| migrações do servidor | **65** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V37** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
 | linhas de código | **~102.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -49,17 +49,27 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **815** testes |
+| `npm test` | **818** testes |
 | `npm run mutate` | **150** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **59** checagens num navegador de verdade |
-| `npm run db:verify` | **35** garantias contra um Postgres descartável: **17** sob RLS, como a conta da empresa, e **18** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
+| `npm run db:verify` | **36** garantias contra um Postgres descartável: **18** sob RLS, como a conta da empresa, e **18** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 
 **E a descida existe desde 12 de setembro à noite** (`0061`, `src/sync/descida.ts`,
 `src/sync/descer.ts`, `src/data/descida.ts`, garantia 33). Dois celulares da mesma fábrica
 passam a somar o mesmo razão — a dívida estrutural que este arquivo chamava de *"a dívida
-verdadeira"* está paga. **E o aceitar da conferência duplicada entrou em 13 de setembro**
+verdadeira"* está paga.
+
+*E ela só ANDOU em 13 de setembro, porque existia e não descia uma linha.* O pedido de toda
+tabela pede `received_at` e a `0061` criou a coluna em quatro das vinte e três; a primeira da
+lista é `carriers`, e `descer()` para a rodada inteira no primeiro erro. A sincronia devolvia
+`column carriers.received_at does not exist` e nada descia — nem cadastro, nem razão, nem
+disputa. A `0065` põe o cursor nas dezenove que faltavam, carimba na ATUALIZAÇÃO (sem isso a
+correção de um nome, e a decisão de uma disputa, ficam atrás do cursor de quem já desceu e
+nunca são relidas) e desfaz a colisão em `purchases`, onde `received_at` significava *quando a
+mercadoria chegou* e fazia o cursor andar para trás. A garantia 36 ANDA o pedido de cada
+tabela, que é a diferença entre conferir a forma do esquema e percorrer o caminho. **E o aceitar da conferência duplicada entrou em 13 de setembro**
 (`0062`, `0063`, `src/data/candidata.ts`, garantias 34 e 35): as duas conferências aparecem nos
 dois celulares, o primeiro que aceitar fica, e aceitar ESTORNA a que perdeu — no servidor,
 dentro da transação que ganha a arbitragem, porque no aparelho dois celulares estornariam a
@@ -67,7 +77,7 @@ mesma linha duas vezes.
 
 *Última execução do `mutate`: **13 de setembro, sobre `7e2ddb2`** — **150 plantadas, 148 pegas,
 2 equivalentes, 0 sobreviventes, 0 não medidas**, com a barra inteira verde ao lado (796 testes,
-navegador 59/59, `db:verify` 35 garantias, portão passando com sete avisos justificados). A
+navegador 59/59, `db:verify` 36 garantias, portão passando com sete avisos justificados). A
 execução ANTERIOR, no mesmo dia, deu cinco **não medidas** — cinco regras sem guarda, e nenhuma
 delas notícia sobre a suíte: eram âncoras que as rodadas de dinheiro moveram embaixo delas. Uma
 saiu de vez (`multiplyCents` foi apagada por não ter chamador), três ganharam âncora nova, e a

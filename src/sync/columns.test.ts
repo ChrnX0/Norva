@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { test, before } from 'node:test';
 import { __setDb, migrate, type Db, type SqlParam } from '@/data/db';
 import { CROSSINGS_FOR_TESTS_ONLY } from './serialize';
+import { DESCEM } from './descida';
 
 /**
  * Toda coluna do aparelho ou atravessa, ou está escrita como sendo só daqui.
@@ -239,17 +240,30 @@ test('every column the serializer promises to send exists on the device', async 
  * este arquivo inteiro documenta três parágrafos acima. `PRAGMA table_info` contra
  * o banco de verdade não tem como errar isso.
  */
+/**
+ * `received_at` é o CURSOR da descida, e ele é do servidor em TODA tabela — uma regra, não
+ * vinte e três exceções.
+ *
+ * Cursor é fato do servidor sobre a chegada, não sobre o fato: `occurred_at` chega fora de
+ * ordem de propósito e `recorded_at` vem do aparelho, então nenhum dos dois ordena o que dois
+ * celulares mandaram. O aparelho guarda o cursor uma vez por TABELA, no `app_meta`
+ * (`src/sync/descida.ts`), e não uma vez por linha: replicá-lo em cada movimento seria guardar
+ * vinte mil cópias da mesma informação e, pior, guardar um fato do servidor dentro de uma linha
+ * que o aparelho pode ter criado offline, antes de o servidor existir para ela.
+ *
+ * **Isto é uma regra escrita uma vez, e não um atalho, porque a palavra passou a ter um
+ * significado só.** Até a `0065` ela tinha dois: em `purchases` era *quando a mercadoria
+ * chegou* — dado de negócio, escrito pelo aparelho — e nas outras era a hora do servidor. A
+ * `0065` renomeou a de negócio para `arrived_at` justamente porque duas perguntas na mesma
+ * palavra faziam o cursor andar para trás. Com um significado só, dizer a razão vinte e três
+ * vezes seria copiar o mesmo parágrafo, e cópia é o que envelhece.
+ *
+ * A borda: a regra vale para tabela que DESCE. Uma coluna chamada `received_at` numa tabela
+ * fora de `DESCEM` não é cursor de nada, e cai na lista de baixo como qualquer outra.
+ */
+const CURSOR_DA_DESCIDA = 'received_at';
+
 const SO_DO_SERVIDOR: Record<string, Record<string, string>> = {
-  movements: {
-    received_at:
-      'é o CURSOR da descida, e cursor é fato do servidor sobre a chegada — não do fato. `occurred_at` chega fora de ordem de propósito e `recorded_at` vem do aparelho, então nenhum dos dois ordena o que dois celulares mandaram; a `0061` carimba `now()` na entrada para a descida ter por onde pedir o que veio depois. O aparelho guarda o cursor uma vez por TABELA, no `app_meta` (`src/sync/descida.ts`), e não uma vez por linha — replicar a coluna em cada movimento seria guardar vinte mil cópias da mesma informação e, pior, guardar um fato do servidor dentro de uma linha que o aparelho pode ter criado offline, antes de o servidor existir para ela',
-  },
-  readings: {
-    received_at: 'o mesmo cursor da descida — ver movements.received_at',
-  },
-  sale_price_history: {
-    received_at: 'o mesmo cursor da descida — ver movements.received_at',
-  },
   purchase_lines: {
     expected_base_units:
       'o quanto a nota dizia, contra o quanto entrou — é a conciliação de compra, e ela é leitura de duas chaves que já existem (movements.id = purchase_lines.id). Desce no commit que desenhar essa tela; hoje não há nada para comparar porque o aparelho não guarda o esperado',
@@ -285,7 +299,11 @@ test('every server column with a written rule reaches the device, or says why no
     if (colunas.length === 0) continue;
 
     const existe = colunas.some((c) => c.name === coluna);
-    const registrada = SO_DO_SERVIDOR[tabela]?.[coluna];
+    const registrada =
+      SO_DO_SERVIDOR[tabela]?.[coluna] ??
+      (coluna === CURSOR_DA_DESCIDA && (DESCEM as readonly string[]).includes(tabela)
+        ? 'o cursor da descida — ver CURSOR_DA_DESCIDA neste arquivo'
+        : undefined);
     if (!existe && !registrada) semAparelho.push(`${alvo} (${arquivo})`);
     if (existe && registrada) registroVelho.push(alvo);
   }

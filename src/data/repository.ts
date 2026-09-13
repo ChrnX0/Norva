@@ -676,7 +676,7 @@ export async function recordPurchase(
     // Agora `deliveriesOf` lê, e o prazo do fornecedor sairia inflado por todo
     // atraso de digitação — que é medir a fábrica em vez de medir o fornecedor.
     await conn.runAsync(
-      `INSERT INTO purchases (id, company_id, supplier_name, ordered_at, received_at, created_at)
+      `INSERT INTO purchases (id, company_id, supplier_name, ordered_at, arrived_at, created_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [purchaseId, companyId, input.supplierName ?? null, input.orderedAt ?? null, occurred, at],
     );
@@ -5802,21 +5802,24 @@ export async function deliveriesOf(
   limit = 8,
 ): Promise<Delivery[]> {
   const conn = await db();
-  const rows = await conn.getAllAsync<{ ordered_at: string; received_at: string }>(
-    `SELECT p.ordered_at, p.received_at
+  const rows = await conn.getAllAsync<{ ordered_at: string; arrived_at: string }>(
+    `SELECT p.ordered_at, p.arrived_at
        FROM purchases p
        JOIN purchase_lines pl ON pl.purchase_id = p.id
       WHERE p.company_id = ?
         AND pl.item_id = ?
         AND p.ordered_at IS NOT NULL
-        AND p.received_at IS NOT NULL
-        AND p.received_at >= p.ordered_at
+        AND p.arrived_at IS NOT NULL
+        AND p.arrived_at >= p.ordered_at
       GROUP BY p.id
-      ORDER BY p.received_at DESC
+      ORDER BY p.arrived_at DESC
       LIMIT ?`,
     [companyId, itemId, limit],
   );
-  return rows.map((r) => ({ orderedAt: r.ordered_at, receivedAt: r.received_at }));
+  // `receivedAt` no domínio, `arrived_at` na coluna: o domínio fala da ENTREGA, e ali a
+  // palavra não disputa com nada. A coluna trocou de nome porque no servidor `received_at` é o
+  // cursor da descida (V37, e a 0065 do servidor).
+  return rows.map((r) => ({ orderedAt: r.ordered_at, receivedAt: r.arrived_at }));
 }
 
 /**

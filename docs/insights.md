@@ -11779,3 +11779,71 @@ recomposição LÊ o razão, e a perna de estorno precisa estar lá para o `not 
 desfez. Num `before` ela ainda não existe, a média sairia idêntica à de antes, e o gatilho
 rodaria sem fazer nada — a aparência do conserto sem o conserto, que é o pior resultado
 disponível.*
+
+## 13 de setembro — a descida existia, tinha garantia, e não descia uma linha
+
+A rodada 13 pôs a mão de volta no ar: cursor, páginas, ordem de chave estrangeira, escrita
+local, garantia 33 no `db:verify`. `typecheck` limpo, 815 testes verdes, a garantia passando.
+**E a sincronia de descida devolvia um erro de Postgres antes da primeira linha.**
+
+`src/sync/descida.ts` monta o pedido de TODA tabela como `[...colunasQueSobem(tabela),
+'received_at']` e `transporte.ts` ordena por `received_at, id`. O servidor tinha a coluna em
+**quatro** das **vinte e três** que descem. A primeira da lista é `carriers`, e `descer()` para
+a rodada inteira no primeiro erro — de propósito, para não gravar referência quebrada. Então o
+que o dono veria é `column carriers.received_at does not exist`, e nem cadastro, nem razão, nem
+disputa de conferência desceria.
+
+**E a fronteira estava DITA, na própria migração que criou a coluna.** A `0061` escreveu de si
+mesma: *"só nas três tabelas append-only que descem. Cadastro desce por outro caminho — upsert,
+última palavra vence — e para isso `updated_at` já serve."* As duas metades são falsas, e a
+segunda é a pior: **`updated_at` não existe em tabela nenhuma deste servidor.** O "outro
+caminho" não era um caminho mais fraco — ele não existia. E `pedido()` nunca teve exceção
+nenhuma: pede a coluna de todas, inclusive das que a migração declarou fora.
+
+Isto é a regra desta casa contra ela mesma, terceira vez escrita e primeira vez com este
+tamanho: **fronteira dita em voz alta continua sendo fronteira.** O que fecha buraco é guarda.
+
+**O que deixou passar tem forma, e é a lição transferível.** A garantia 33 confere que
+`movements_visible` EXPÕE as colunas da descida — e ela estava certa. Forma de esquema não é
+caminho: nenhuma checagem ANDAVA o pedido. A garantia 36 anda, tabela por tabela, com a lista
+de colunas impressa pelo próprio `pedido()` do aparelho — e derrubou o defeito em segundos.
+
+*Quando uma peça nova é um PROTOCOLO entre dois lados, a guarda que serve não pergunta se as
+peças existem: ela executa uma volta completa. Conferir a forma dos dois lados é o que a suíte
+já faz de graça; o que ela não alcança é a combinação — e é lá que a peça nova mora.*
+
+**E duas coisas piores apareceram ao medir, nenhuma delas "a coluna falta":**
+
+**1. O cursor não se movia na correção.** `default now()` carimba no insert e mais nada.
+Cadastro desce por upsert — o item muda de nome — e uma correção que não move `received_at`
+fica para sempre ANTES do cursor de quem já desceu. O caso que dói é `check_candidates`:
+*"o primeiro que aceitar fica"* (decisão do dono, 11 de setembro) é um `update` da coluna
+`resolution` numa linha que o outro celular JÁ desceu. **A decisão nunca chegaria ao outro
+aparelho** — a `0063` escreve o estorno no servidor e o celular que perdeu segue com a
+conferência de pé no razão dele, para sempre, sem nada reclamar. A rodada 14 inteira dependia
+de uma coluna que não se movia.
+
+**2. `purchases.received_at` tinha DOIS significados, e o cursor andava para trás.** Desde a
+`0002` ela é *quando a mercadoria chegou* — dado de negócio, escrito pelo aparelho, lado
+direito do prazo observado do fornecedor. A descida a usava como cursor. A nota de terça
+digitada na quinta nasce com chegada de terça, que já está antes do cursor de quem sincronizou
+na quarta: **a nota nunca desce.** E nota sem data de chegada fica de fora para sempre, porque
+nulo não é maior que nada.
+
+É a mesma lição que `recorded_by` contra `operator_id` já custou uma rodada aqui — **uma coluna
+respondendo duas perguntas é erro, e o sintoma não aparece onde ela é escrita, aparece onde a
+outra pergunta é feita.** A de negócio virou `arrived_at` nos dois lados (V37 no aparelho), e
+`received_at` passou a ter um significado só — que é justamente o que permite a régua do
+`columns.test.ts` dizer a razão dela **uma vez** em vez de vinte e três.
+
+**E o carimbo no INSERT não é redundância com o `default`:** o padrão vale quando o cliente não
+manda a coluna, e mandando ele escolhe o valor. Um cliente que enviasse `received_at` de ontem
+poria a própria linha atrás do cursor de todos os outros aparelhos — invisível para sempre, sem
+erro nenhum. Cursor é fato do servidor, e fato do servidor não se aceita do cliente.
+
+*Cinco plantios, cinco condições: a coluna ausente em `carriers` (`FAIL: a descida de
+'carriers' nao anda`), o carimbo ausente em `items` (a correção não move), em
+`check_candidates` (a decisão não desce), em `purchases` (a nota atrasada nasce atrás do
+cursor) e em `movements` (o cliente escolhe o cursor). Cada um derrubou exatamente a asserção
+que o nomeia — e o primeiro plantio, mal feito, derrubou a MIGRAÇÃO em vez da garantia, porque
+tirar a coluna e deixar o `comment on column` dela é um defeito que não existe.*

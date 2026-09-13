@@ -457,7 +457,7 @@ const CROSSINGS: Record<
   },
 
   purchases: {
-    take: ['id', 'company_id', 'supplier_name', 'ordered_at', 'received_at', 'created_at'],
+    take: ['id', 'company_id', 'supplier_name', 'ordered_at', 'arrived_at', 'created_at'],
     build: (_row, actor) => ({ created_by: actor.userId }),
   },
 

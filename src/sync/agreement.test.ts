@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import type { OutboxEntry } from '@/data/outbox';
 import { capabilities } from '@/domain/access';
 import { sendableTables, serialize, type SyncActor } from './serialize';
+import { DESCEM } from './descida';
 
 /**
  * The two schemas, checked against each other by reading both.
@@ -108,6 +109,22 @@ function serverColumns(sql: string): Map<string, Map<string, Column>> {
 
     for (const m of statement.matchAll(/add column (?:if not exists )?(\w+)([^,]*)/g)) {
       tables.get(table[1])?.set(m[1], rule(m[2]));
+    }
+    /**
+     * `rename column` era invisível para esta régua, e o silêncio dela mentia nos dois
+     * sentidos ao mesmo tempo: o esquema ficava com a coluna VELHA (que já não existe) e sem a
+     * NOVA (que existe). A `0065` renomeou `purchases.received_at` para `arrived_at`, e a
+     * guarda acusou o aparelho de mandar uma coluna que o servidor não tem — mandando a única
+     * que ele tem. Régua que não lê a forma que o banco aceita mede um esquema que não existe,
+     * e esta é a terceira forma que faltava depois de `if not exists` e da restrição multilinha.
+     */
+    for (const m of statement.matchAll(/rename column (\w+) to (\w+)/g)) {
+      const colunas = tables.get(table[1]);
+      const regra = colunas?.get(m[1]);
+      if (colunas && regra) {
+        colunas.delete(m[1]);
+        colunas.set(m[2], regra);
+      }
     }
     for (const m of statement.matchAll(/drop column (?:if exists )?(\w+)/g)) {
       tables.get(table[1])?.delete(m[1]);
@@ -549,4 +566,102 @@ test('the kind of thing the device registers is a kind the server knows', () => 
       `the device can register an item as "${kind}" and the server enum has no such value`,
     );
   }
+});
+
+
+test('every table that descends has the cursor column the device asks for', () => {
+  /**
+   * A descida pede `received_at` de TODA tabela — `src/sync/descida.ts` acrescenta a coluna
+   * à lista e `transporte.ts` ordena por ela —, e o servidor só a tem em quatro.
+   *
+   * A `0061` disse isto de si mesma, com estas palavras: *"só nas três tabelas append-only
+   * que descem. Cadastro desce por outro caminho — upsert, última palavra vence — e para isso
+   * `updated_at` já serve."* A fronteira foi dita em voz alta e nada a impôs: `pedido()` não
+   * tem exceção nenhuma, e `updated_at` não existe em tabela nenhuma deste servidor. Então o
+   * "outro caminho" não é um caminho pior — ele não existe.
+   *
+   * O efeito não é degradação: a primeira tabela de `DESCEM` é `carriers`, que não tem a
+   * coluna, e `descer()` PARA A RODADA INTEIRA no primeiro erro (de propósito, para não
+   * descer movimento antes do item que ele cita). Então a sincronia de descida devolve
+   * `column carriers.received_at does not exist` e o aparelho nunca vê uma linha — nem do
+   * cadastro, nem do razão.
+   */
+  const tabelas = serverColumns(serverSql());
+  const sem: string[] = [];
+  for (const tabela of DESCEM) {
+    const colunas = tabelas.get(tabela);
+    assert.ok(colunas, `${tabela} desce e o servidor não tem a tabela`);
+    if (!colunas.has('received_at')) sem.push(tabela);
+  }
+  assert.deepEqual(
+    sem,
+    [],
+    `${sem.join(' · ')}: a descida ordena por received_at e pede a coluna, e o servidor não ` +
+      'a tem. A rodada morre na primeira tabela sem ela, e nenhuma linha desce.',
+  );
+});
+
+
+test('a table that is corrected bumps the cursor, or the correction never descends', () => {
+  /**
+   * O cursor é *"o que chegou depois do que eu já tenho"*, e `default now()` só carimba no
+   * INSERT. Cadastro desce por upsert — o item muda de nome, o perfil ganha capacidade — e
+   * uma correção que não move `received_at` fica para sempre ANTES do cursor de quem já
+   * desceu: ela nunca é relida.
+   *
+   * O caso que dói é `check_candidates`. A decisão do dono, de 11 de setembro, é *"o primeiro
+   * que aceitar fica"* — e aceitar é um `update` da coluna `resolution` numa linha que o outro
+   * celular já desceu. Sem o carimbo na atualização, a decisão não chega ao outro aparelho: a
+   * `0063` escreve o estorno no servidor e o celular que perdeu continua com a conferência de
+   * pé no razão dele, para sempre, sem nada reclamar.
+   *
+   * A régua é o gatilho, e ela cobra TODA tabela que desce — inclusive as append-only, onde
+   * o `update` é recusado de qualquer jeito. O motivo é a outra metade do carimbo: `default
+   * now()` vale só quando o cliente não manda a coluna, e mandando ele escolhe o valor. Um
+   * cliente que enviasse `received_at` de ontem poria a própria linha ANTES do cursor de todos
+   * os outros aparelhos — invisível para sempre, sem erro nenhum. Cursor é fato do servidor, e
+   * fato do servidor não se aceita do cliente: a mesma regra de `recorded_by = auth.uid()`,
+   * aplicada ao relógio.
+   */
+  const sql = serverSql();
+  const carimbadas = new Set<string>();
+  for (const m of sql.matchAll(
+    /create trigger \w+\s+before insert or update on (?:public\.)?(\w+)\s+for each row\s+execute function private\.carimba_a_chegada\(\)/gi,
+  )) {
+    carimbadas.add(m[1]);
+  }
+  assert.ok(carimbadas.size > 0, 'nenhum gatilho de carimbo encontrado — a régua leria o texto errado');
+
+  const sem = DESCEM.filter((t) => !carimbadas.has(t));
+  assert.deepEqual(
+    sem,
+    [],
+    `${sem.join(' · ')}: desce por upsert e o servidor não carimba received_at na ` +
+      'atualização. A correção — e a decisão de uma disputa — fica antes do cursor de quem ' +
+      'já desceu, e nunca é relida.',
+  );
+});
+
+
+test('the parser follows a column that was renamed', () => {
+  // O caso verdadeiro e o falso, porque régua nova não reporta nada antes dos dois: a coluna
+  // renomeada aparece com o nome NOVO e desaparece com o VELHO, e a regra dela (`not null`)
+  // atravessa a troca — senão a guarda de "nada do que o servidor exige fica para o aparelho
+  // esquecer" perderia a exigência no caminho.
+  const tabelas = serverColumns(`
+create table pedidos (
+  id uuid primary key,
+  quando_chegou timestamptz not null
+);
+alter table pedidos rename column quando_chegou to chegou_em;
+`);
+  const colunas = tabelas.get('pedidos');
+  assert.ok(colunas, 'a régua não achou a tabela do exemplo');
+  assert.ok(colunas.has('chegou_em'), 'a coluna renomeada não apareceu com o nome novo');
+  assert.equal(colunas.has('quando_chegou'), false, 'o nome velho sobreviveu ao rename');
+  assert.equal(
+    colunas.get('chegou_em')?.notNull,
+    true,
+    'o `not null` não atravessou o rename: a régua deixaria de cobrar a coluna do aparelho',
+  );
 });

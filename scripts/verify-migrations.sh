@@ -2424,5 +2424,103 @@ esac
 echo "    aceitar estorna a que perdeu uma vez so, a corrida nao estorna de novo, e o razao recusa a dobra"
 
 echo
-echo "OK - migrations apply and all thirty-five guarantees hold."
+echo "==> check 36: a descida ANDA — toda tabela tem o cursor, e a correcao move o cursor"
+
+# A descida de 13 de setembro nunca desceu uma linha, e a barra inteira estava verde.
+#
+# `src/sync/descida.ts` pede `[...colunasQueSobem(tabela), 'received_at']` de TODA tabela e
+# `transporte.ts` ordena por `received_at, id`. O servidor tinha a coluna em quatro das vinte e
+# tres, e `descer()` para a rodada inteira no primeiro erro — a primeira tabela da lista e
+# `carriers`, que nao a tinha. Entao a sincronia devolvia
+# `column carriers.received_at does not exist` e nem cadastro, nem razao, nem disputa descia.
+#
+# O que deixou isso passar e a forma da prova: a garantia 33 confere que `movements_visible`
+# EXPOE as colunas — forma de esquema —, e nenhuma checagem ANDAVA o pedido. A diferenca entre
+# as duas e esta garantia.
+#
+# A lista de colunas vem do APARELHO, impressa por `scripts/device-session.ts` a partir do
+# proprio `pedido()`. Escreve-la aqui a mao seria a doenca que este repositorio ja nomeou:
+# guarda cuja lista e derivada da mesma mao nao guarda nada.
+ANDOU=0
+while IFS='|' read -r TABELA COLUNAS; do
+  [ -n "$TABELA" ] || continue
+  # A mesma troca que `transporte.ts` faz: o razao desce pela VIEW, que e o portao do dinheiro.
+  FONTE="$TABELA"
+  [ "$TABELA" = "movements" ] && FONTE=movements_visible
+  ERRO=$(as_user "$DEVICE_ACCOUNT" "select $COLUNAS from $FONTE
+          where company_id = '$DEVICE_COMPANY' order by received_at, id limit 500;" 2>&1 >/dev/null || true)  # proofgate-allow
+  [ -z "$ERRO" ] || fail "a descida de '$TABELA' nao anda: $(echo "$ERRO" | head -1)"
+  ANDOU=$((ANDOU + 1))
+done <<EOF
+$(sed -n 's/^-- DESCIDA \([a-z_]*\)=\(.*\)$/\1|\2/p' "$QUEUE")
+EOF
+
+[ "$ANDOU" -ge 20 ] || fail "so $ANDOU tabelas foram andadas: a leitura da lista do aparelho falhou, e esta garantia estaria medindo nada"
+
+# E o cursor tem de ANDAR quando a linha e corrigida, senao a correcao nunca desce.
+#
+# `default now()` carimba no insert e mais nada. Cadastro desce por upsert — o item muda de
+# nome — e uma correcao que nao move `received_at` fica para sempre ANTES do cursor de quem ja
+# desceu: o outro celular chama o item pelo nome velho, calado.
+ITEM=$(rows "select id from items where company_id = '$DEVICE_COMPANY' order by id limit 1;")
+[ -n "$ITEM" ] || fail "a sessao do aparelho nao deixou item nenhum para corrigir"
+ANTES=$(rows "select received_at from items where id = '$ITEM';")  # proofgate-allow
+as_user "$DEVICE_ACCOUNT" "update items set name = name || ' (corrigido)' where id = '$ITEM';" >/dev/null 2>&1 || true  # proofgate-allow
+DEPOIS=$(rows "select received_at from items where id = '$ITEM';")  # proofgate-allow
+ANDOU_CURSOR=$(rows "select case when '$DEPOIS'::timestamptz > '$ANTES'::timestamptz then 'sim' else 'nao' end;")  # proofgate-allow
+[ "$ANDOU_CURSOR" = "sim" ] || fail "corrigir o nome do item nao moveu received_at ('$ANTES' -> '$DEPOIS'): a correcao fica atras do cursor de quem ja desceu e nunca e relida"
+
+# A MESMA propriedade na tabela que carrega a decisao do dono de 11 de setembro.
+#
+# "O primeiro que aceitar fica" e um `update` da coluna `resolution` numa linha que o outro
+# celular JA desceu. Sem o carimbo na atualizacao a decisao nao chega: a `0063` escreve o
+# estorno aqui e o celular que perdeu segue com a conferencia de pe no razao dele, para sempre.
+CUR=ffff0000-0000-4000-8000-0000000001
+as_user "$CHECKER" "insert into check_candidates
+  (id, company_id, movement_group_id, item_id, location_id, occurred_at,
+   quantity_base_units, recorded_by, recorded_at)
+  values ('${CUR}a1','${M}c1','${CUR}b1','${M}b1','${M}a1', now(), -3, '$CHECKER', now());" >/dev/null 2>&1 || true  # proofgate-allow
+CAND_ANTES=$(rows "select received_at from check_candidates where id = '${CUR}a1';")  # proofgate-allow
+[ -n "$CAND_ANTES" ] || fail "a candidata do cursor nao entrou"
+as_user "$CHECKER" "update check_candidates set resolution = 'first', resolved_at = now(),
+  resolved_by = '$CHECKER' where id = '${CUR}a1';" >/dev/null 2>&1 || true  # proofgate-allow
+CAND_DEPOIS=$(rows "select received_at from check_candidates where id = '${CUR}a1';")  # proofgate-allow
+DECISAO_DESCE=$(rows "select case when '$CAND_DEPOIS'::timestamptz > '$CAND_ANTES'::timestamptz then 'sim' else 'nao' end;")  # proofgate-allow
+[ "$DECISAO_DESCE" = "sim" ] || fail "decidir a disputa nao moveu received_at: a decisao nunca desce para o outro celular, e a rodada 14 inteira depende disso"
+
+# O cursor e hora do SERVIDOR, e nao a data de negocio que o aparelho escreve.
+#
+# `purchases.received_at` significava "quando a mercadoria chegou" desde a `0002`, e a descida
+# o usava como cursor. Isso nao e cursor impreciso: e cursor que anda PARA TRAS. A nota de
+# terca digitada na quinta nasce com chegada de terca, que ja esta antes do cursor de quem
+# sincronizou na quarta — e a nota nunca desce.
+NOTA=ffff0000-0000-4000-8000-0000000002
+as_user "$DEVICE_ACCOUNT" "insert into purchases (id, company_id, supplier_name, ordered_at,
+  arrived_at, created_by, received_at)
+  values ('${NOTA}a1','$DEVICE_COMPANY','Fornecedor de ontem', now() - interval '400 days',
+          now() - interval '365 days', '$DEVICE_ACCOUNT', now() - interval '365 days');" >/dev/null 2>&1 || true  # proofgate-allow
+ATRASADA=$(rows "select case when received_at > now() - interval '1 minute' then 'agora' else 'atras' end
+                   from purchases where id = '${NOTA}a1';")  # proofgate-allow
+[ "$ATRASADA" = "agora" ] || fail "a nota com chegada de um ano atras nasceu com o cursor atrasado ('$ATRASADA'): ela ficaria atras do cursor de todo aparelho e nunca desceria"
+CHEGADA=$(rows "select case when arrived_at < now() - interval '300 days' then 'preservada' else 'perdida' end
+                  from purchases where id = '${NOTA}a1';")  # proofgate-allow
+[ "$CHEGADA" = "preservada" ] || fail "o carimbo do cursor comeu a data de chegada da mercadoria: o prazo do fornecedor sairia errado"
+
+# E o cliente nao escolhe o cursor. A linha acima mandou `received_at` de um ano atras de
+# proposito, e o carimbo a ignorou — senao um cliente poria a propria linha antes do cursor de
+# todos os outros aparelhos, invisivel para sempre e sem erro nenhum. Mesma regra de
+# `recorded_by = auth.uid()`, aplicada ao relogio.
+MOV=ffff0000-0000-4000-8000-0000000003
+as_user "$CHECKER" "insert into movements (id, company_id, kind, occurred_at, recorded_by,
+  item_id, quantity_base_units, location_id, received_at) values
+  ('${MOV}a1','${M}c1','adjustment', now(), '$CHECKER', '${M}b1', 0, '${M}a1',
+   '2020-01-01T00:00:00Z');" >/dev/null 2>&1 || true  # proofgate-allow
+CRAVADO=$(rows "select case when received_at > now() - interval '1 minute' then 'do servidor' else 'do cliente' end
+                  from movements where id = '${MOV}a1';")  # proofgate-allow
+[ "$CRAVADO" = "do servidor" ] || fail "o cliente escolheu o proprio received_at: a linha dele nasce atras do cursor de todo mundo e nunca desce"
+
+echo "    as $ANDOU tabelas que descem andam, a correcao e a decisao movem o cursor, e o cliente nao o escolhe"
+
+echo
+echo "OK - migrations apply and all thirty-six guarantees hold."
 

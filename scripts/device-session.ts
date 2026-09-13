@@ -17,6 +17,7 @@
  */
 
 import { DatabaseSync } from 'node:sqlite';
+import { DESCEM, pedido } from '@/sync/descida';
 import { __setDb, migrate, type Db, type SqlParam } from '@/data/db';
 import { pendingEntries } from '@/data/outbox';
 import {
@@ -592,6 +593,23 @@ async function main() {
   out.push(`-- DEVICE_PRODUCT_AVERAGE=${(costs[produto.itemId] ?? 0).toFixed(4)}`); // proofgate-allow
   out.push(`-- DEVICE_COMPANY=${empresaDaqui()}`);
   out.push(`-- DEVICE_QUEUE_LENGTH=${queue.length}`);
+
+  /**
+   * E o PEDIDO da descida, tabela por tabela, para o shell poder ANDAR nele.
+   *
+   * A garantia que confere a descida precisa da lista exata de colunas que o aparelho pede, e
+   * ela só existe aqui: `pedido()` a monta do serializador. Escrevê-la à mão no script seria
+   * a doença que este repositório já nomeou — *"guarda cuja lista é derivada da mesma mão não
+   * guarda nada"* —, e uma coluna nova no serializador deixaria de ser conferida no silêncio.
+   *
+   * É isto que faz a diferença entre conferir a FORMA do esquema e andar o caminho: em 13 de
+   * setembro a descida pedia `received_at` de vinte e três tabelas e o servidor a tinha em
+   * quatro, com `typecheck` limpo e a suíte verde.
+   */
+  for (const tabela of DESCEM) {
+    const p = pedido(tabela, null);
+    out.push(`-- DESCIDA ${tabela}=${p.colunas.join(',')}`);
+  }
 
   process.stdout.write(out.join('\n') + '\n');
 }

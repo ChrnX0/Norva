@@ -1318,10 +1318,31 @@ const V36 = `
 ALTER TABLE outbox ADD COLUMN recusa_local TEXT;
 `;
 
+/**
+ * A data em que a mercadoria CHEGOU deixa de disputar a palavra com o cursor da descida.
+ *
+ * `purchases.received_at` existe desde a V1 e significa uma coisa só aqui: quando a carga
+ * entrou na fábrica — é o lado direito do prazo observado do fornecedor (`deliveriesOf` →
+ * `observedLeadTime`). No servidor a mesma palavra passou a ser o cursor da descida, e as duas
+ * na mesma coluna faziam o cursor andar PARA TRÁS: a nota de terça digitada na quinta nasce
+ * com chegada de terça, que já está antes do cursor de quem sincronizou na quarta, e a nota
+ * nunca desce. Nota sem data de chegada fica de fora para sempre, porque nulo não é maior que
+ * nada.
+ *
+ * A `0065` do servidor renomeia a de negócio para `arrived_at` e cria `received_at` como hora
+ * do servidor. Aqui o aparelho segue o mesmo nome, em vez de a travessia traduzir: duas
+ * grafias para o mesmo fato é a divergência que a próxima `alter table` transforma em defeito.
+ *
+ * `RENAME COLUMN` preserva o dado — nenhuma nota perde a data de chegada.
+ */
+const V37 = `
+ALTER TABLE purchases RENAME COLUMN received_at TO arrived_at;
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
   V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33,
-  V34, V35, V36,
+  V34, V35, V36, V37,
 ];
 
 export type SqlParam = string | number | null;
