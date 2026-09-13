@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **855** testes |
+| `npm test` | **857** testes |
 | `npm run mutate` | **154** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **60** checagens num navegador de verdade |
 | `npm run db:verify` | **39** garantias contra um Postgres descartável: **20** sob RLS, como a conta da empresa, e **19** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -3906,9 +3906,16 @@ Três medidas que mudam o desenho:
   quem estiver disponível entrega a mensagem. É a forma da F7 aplicada a feedback:
   não se escolhe pelo usuário, os caminhos coexistem.
 
-  E a vibração **já está paga**: `expo-haptics` está no `package.json`. Padrão
-  diferente para "gravei" e para "não entendi" sai hoje, sem dependência nova, e é o
-  canal que funciona de luva grossa e no escuro.
+  E a vibração ~~**já está paga**~~ **SAIU em 13 de setembro** (`src/components/tato.ts`):
+  padrão de "gravei" nos cinco caminhos do chão de fábrica — produção, carga, separação,
+  despacho e nota — e padrão de "não deu" na folha por onde toda recusa passa, que é uma
+  só. O cadastro fica de fora por escrito: ali quem salva está olhando o formulário, e
+  tremor em tudo é tremor que não quer dizer nada. `src/tato.test.ts` guarda as duas
+  metades da fronteira.
+  <!-- medida: presente src/components/tato.ts :: export function tatoDeSucesso -->
+
+  O que continua faltando deste item é a VOZ e a cor da piscada — o tato é um dos três
+  canais que o dono pediu, e era o que não custava dependência nova.
 
 - **Microfone Bluetooth, e não só a tecla de volume.** Ideia dele, e ela é melhor do
   que conforto: a −18°C a bateria despenca, então com fone **o telefone fica no bolso

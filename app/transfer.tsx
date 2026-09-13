@@ -15,6 +15,7 @@ import { parseTyped } from '@/domain/number';
 import { Alive } from '@/components/Alive';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { tatoDeSucesso } from '@/components/tato';
 import { Chip } from '@/components/Chip';
 import { GradeFiltro } from '@/components/ProductPicker';
 import { degraus, type Escolha } from '@/components/grade';
@@ -465,6 +466,7 @@ function Transfer() {
       } else {
         await recordTransfer(empresaDaqui(), comum);
       }
+      tatoDeSucesso();
       setTyped(false);
       setAmountText('');
       setMotivo(null);

@@ -3,6 +3,7 @@ import { cents } from '@/domain/money';
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { voltar } from '@/nav';
+import { tatoDeSucesso } from '@/components/tato';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
@@ -420,6 +421,9 @@ function Production() {
           producedOn: localDate(nowIso(), locale.timeZone),
         });
       }
+      // Gravei — e este é o canal que chega a quem está de luva, no frio, sem
+      // olhar a tela. A fronteira de quais telas chamam está em `tato.ts`.
+      tatoDeSucesso();
       // Volta para a aba do dia. Antes esta tela era a própria aba e ficar
       // nela fazia sentido; agora ela é um formulário, e ficar num formulário
       // já gravado deixa a pessoa sem barra de abas e sem ver o total do dia

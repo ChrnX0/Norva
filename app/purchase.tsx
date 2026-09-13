@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { tatoDeSucesso } from '@/components/tato';
 import { Chip, priceSignal } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
@@ -392,6 +393,7 @@ function PurchaseForm() {
           locale.timeZone,
         ),
       );
+      tatoDeSucesso();
       setTotal('');
       setFrete('');
       // Largar o rascunho em vez de voltar a quantidade para "1": o `refresh` abaixo relê a

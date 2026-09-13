@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -17,6 +18,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocale } from "@/i18n/useLocale";
+import { tatoDeFalha } from "./tato";
 import type { Ambient } from "@/theme/tokens";
 import { AreaProvider, useTheme } from "@/theme/ThemeProvider";
 import { Button } from "./Button";
@@ -185,6 +187,25 @@ function ConfirmSurface({
   const insets = useSafeAreaInsets();
 
   const destructive = request.destructive ?? false;
+
+  /**
+   * **O tremor de "não deu", e ele mora AQUI porque toda recusa passa por aqui.**
+   *
+   * Uma folha com `acknowledge` é o aplicativo contando que a gravação não aconteceu:
+   * `avisoDeFalha` monta a frase e a folha a mostra sem botão de cancelar, porque não há o
+   * que escolher. Nove telas fazem isso, e nenhuma delas precisa saber de vibração.
+   *
+   * Pedido do dono: *"cor de confirmação e cor de erro… ou até um aviso sonoro"*, porque
+   * cada canal falha num ambiente diferente — quem está de luva na câmara fria não olha a
+   * tela para descobrir que a carga não foi gravada.
+   *
+   * Uma vez por folha, e por isso o efeito depende da mensagem: a segunda etapa de uma
+   * confirmação destrutiva troca o texto e reusa a mesma folha, e sem a mensagem na lista
+   * de dependências a folha nova entraria calada.
+   */
+  useEffect(() => {
+    if (request.acknowledge) tatoDeFalha();
+  }, [request.acknowledge, request.message]);
 
   const body = (
     <>

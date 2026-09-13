@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { CountUp } from '@/components/CountUp';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { tatoDeSucesso } from '@/components/tato';
 import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
@@ -142,6 +143,8 @@ function WhereItWent() {
       for (const groupId of place.pendentes) {
         await recordCheck(empresaDaqui(), { groupId });
       }
+      // Conferi — e na doca, com o engradado na mão, é o tremor que responde.
+      tatoDeSucesso();
     } catch (e) {
       const aviso = avisoDeFalha(e, t, ERROS);
       await confirm({

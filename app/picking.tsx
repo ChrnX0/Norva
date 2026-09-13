@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { tatoDeSucesso } from '@/components/tato';
 import { Chip } from '@/components/Chip';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
@@ -180,6 +181,7 @@ function Carrinho() {
           carrierId: quemLeva,
         });
       }
+      tatoDeSucesso();
       await setPickingCart(loja.id, {});
 
       const hoje = dayWindow(nowIso(), locale.timeZone);
