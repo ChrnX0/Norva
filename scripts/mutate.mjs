@@ -182,7 +182,7 @@ const DEFECTS = [
   },
   {
     file: 'src/domain/recipe.ts',
-    from: '    const units = (recipe.yieldAmount * (1 - recipe.lossFraction) * line.batches) / perUnit;',
+    from: '    const units = (netYieldOf(recipe) * line.batches) / perUnit;',
     to: '    const units = line.batches;',
     hurts:
       'o palito e o saquinho entram na lista de compras por TACHO em vez de por unidade: um tacho de quinhentos picoles pede um palito',
@@ -389,10 +389,10 @@ const DEFECTS = [
   // que é a razão de o trecho ter ficado ambíguo em primeiro lugar.
   {
     file: 'src/domain/recipe.ts',
-    from: `    recipeCost.perYieldUnit * yieldPerUnit +
-      (unitPackaging.itemsRate ?? 0) +`,
-    to: `    recipeCost.perYieldUnit * yieldPerUnit +
-      0 * (unitPackaging.itemsRate ?? 0) +`,
+    from: `  return (recipeCost.perYieldUnit * yieldPerUnit +
+    (unitPackaging.itemsRate ?? 0) +`,
+    to: `  return (recipeCost.perYieldUnit * yieldPerUnit +
+    0 * (unitPackaging.itemsRate ?? 0) +`,
     hurts:
       'as telas cotam o custo sem a embalagem que sai do estoque, e a producao congela um numero maior que o que sete telas prometeram',
   },
@@ -635,8 +635,11 @@ const DEFECTS = [
   },
   {
     file: 'src/domain/recipe.ts',
-    from: 'const netYield = recipe.yieldAmount * (1 - recipe.lossFraction);',
-    to: 'const netYield = recipe.yieldAmount * (1 + recipe.lossFraction);',
+    // O trecho saiu de três cópias para UMA função (`netYieldOf`), e a mutação seguiu para
+    // dentro dela. Isso é ganho e não empate: antes ela media um dos três caminhos e os
+    // outros dois ficavam sem guarda; agora o sinal trocado atinge os três de uma vez.
+    from: '  return recipe.yieldAmount * (1 - recipe.lossFraction);',
+    to: '  return recipe.yieldAmount * (1 + recipe.lossFraction);',
     hurts: 'a perda barateia o produto em vez de encarecer',
   },
   {
@@ -723,8 +726,18 @@ const DEFECTS = [
   },
   {
     file: 'src/sync/serialize.ts',
-    from: "      'operator_id',",
-    to: "      // 'operator_id',",
+    // Com CONTEXTO, porque `'operator_id',` passou a aparecer duas vezes: a travessia de
+    // `check_candidates` (rodada 14) também manda quem estava com o aparelho. A troca pegaria
+    // só a primeira — a de `check_candidates` —, e a medida sairia sobre a tabela errada.
+    //
+    // E o contexto é o comentário da coluna SEGUINTE, não outra coluna: trocar o alvo para
+    // `return_reason` deixaria o `hurts` abaixo falando de operador enquanto a medida seria de
+    // motivo de devolução. Mensagem que não nomeia o que foi medido é pior que mutação
+    // ausente, porque ela entra na contagem.
+    from: `      'operator_id',
+      // Por que a carga voltou.`,
+    to: `      // 'operator_id',
+      // Por que a carga voltou.`,
     hurts: 'quem estava operando some no caminho, e a empresa que ligou a pergunta não recebe a resposta',
   },
   {
@@ -753,12 +766,18 @@ const DEFECTS = [
     to: 'if (false) return false;',
     hurts: 'hierarquia que começa na caixa passa a valer, e toda quantidade sai multiplicada por cinquenta',
   },
-  {
-    file: 'src/domain/money.ts',
-    from: 'return Math.round(value * factor) as Cents;',
-    to: 'return Math.trunc(value * factor) as Cents;',
-    hurts: 'multiplicar dinheiro passa a cortar em vez de arredondar, sempre para baixo',
-  },
+  // A mutação do `multiplyCents` saiu com a função, como a do `balanceAt` acima.
+  //
+  // Ela prometia que multiplicar dinheiro passaria a cortar em vez de arredondar. A função foi
+  // APAGADA em 12 de setembro por não ter um único chamador de produção — e a justificativa
+  // escrita dela era falsa: dizia existir "para ninguém escrever `Math.round(x * f)` inline",
+  // e um `grep` pela ARITMÉTICA achou cinco sítios que a escreviam inline de qualquer forma.
+  //
+  // Deixar a mutação aqui seria pior que tirá-la: ela entra na contagem de 151, sai como "não
+  // medida" em toda execução, e quem lê o número acha que uma regra ficou sem guarda. A regra
+  // de verdade — só o valor final arredonda, uma vez — continua protegida onde ela mora, no
+  // `Math.round(unitRate * quantity)` do `amountOf`, que tem mutação própria algumas dezenas
+  // de linhas acima. Uma mutação sobre função morta não é proteção: é contagem.
   {
     file: 'src/domain/measure.ts',
     from: 'return Number.isInteger(total) ? total : null;',
