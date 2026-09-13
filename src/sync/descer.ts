@@ -30,6 +30,7 @@
  * cinquenta vezes, com respostas intermediárias erradas no meio.
  */
 import { readMeta, writeMeta } from '@/data/meta';
+import { honrarDecisoes } from '@/data/candidata';
 import { gravarPagina, recomporCustos } from '@/data/descida';
 import type { Transport } from './engine';
 import {
@@ -105,6 +106,19 @@ export async function descer(transporte: Transport, empresa: string): Promise<Re
   // Só depois de tudo: cada uma lê o razão inteiro daquele item, e a resposta certa só
   // existe com todas as páginas no disco.
   await recomporCustos(empresa, itensQueMexeram);
+
+  /**
+   * E a decisão que desceu VIRA razão aqui, não na tela.
+   *
+   * Depois da recomposição de propósito: `honrarDecisoes` escreve estorno, e estorno mexe na
+   * média — ela mesma recompõe o item que tocou. Chamá-la antes faria a recomposição de cima
+   * ler um razão que ia mudar logo em seguida.
+   *
+   * Depois de TODAS as tabelas, também de propósito: a candidata desce por último (ver
+   * `DESCEM`) justamente para o razão já estar no disco quando ela chegar. Honrar no meio
+   * decidiria com meio razão.
+   */
+  await honrarDecisoes(empresa);
 
   return { linhas, tabelas };
 }

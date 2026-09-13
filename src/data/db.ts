@@ -1247,10 +1247,61 @@ CREATE INDEX IF NOT EXISTS outbox_recusadas_idx
   ON outbox (recusada_em) WHERE recusada_em IS NOT NULL;
 `;
 
+/**
+ * A conferência que o servidor recusou, esperando uma pessoa decidir.
+ *
+ * Espelha `check_candidates` do servidor (`0062`). Aqui ela é um espelho de leitura mais uma
+ * fila de saída: o aparelho grava a candidata quando o servidor devolve `23505` numa
+ * `discrepancy`, e a candidata do OUTRO celular chega pela descida.
+ *
+ * `resolution` nulo é "ninguém decidiu". Quem arbitra é a política do servidor — aqui o campo
+ * existe para a tela saber o que já foi decidido e para o aparelho não perguntar de novo.
+ *
+ * *Sem chave estrangeira para `movements`: a conferência que perdeu NÃO está no razão deste
+ * aparelho depois que ela é posta de lado, e a do outro celular pode chegar antes do
+ * movimento que ela disputa. Uma FK aqui recusaria a linha e a duplicação sumiria — que é
+ * exatamente o defeito que esta tabela existe para consertar.*
+ *
+ * **E sem `recorded_by`, pelo mesmo motivo que ele saiu de `movements` na V5.** A primeira
+ * versão desta tabela o tinha `NOT NULL` e `candidatarConferencia` o lia do razão — de uma
+ * coluna que o aparelho não tem desde a V5, porque *"no aparelho ele nunca teve valor"*. O
+ * `SELECT` quebrava, o `try/catch` do motor da fila engolia o erro, e a candidata **nunca
+ * era gravada**: a duplicação sumia em silêncio, que é o defeito que esta tabela existe para
+ * consertar, agora causado por ela. Quem carimba a conta é o serializador, com o usuário da
+ * sessão, como em `movements`.
+ *
+ * **Duas colunas são SÓ do aparelho, e nenhuma sobe.** `confirmado_em` diz que esta linha
+ * veio do servidor — sem ela, `honrarDecisoes` agiria pela decisão que este celular PEDIU
+ * (`decidirDisputa` grava otimista, para a tela responder na hora) em vez da que foi DECIDIDA,
+ * e estornaria o movimento errado quando a arbitragem fosse para o outro lado. `honrado_em`
+ * diz que a consequência já foi tirada no razão local; sem ela, cada descida a refaria — e
+ * correção refeita é correção dobrada.
+ */
+const V35 = `
+CREATE TABLE IF NOT EXISTS check_candidates (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  movement_group_id TEXT NOT NULL,
+  item_id TEXT NOT NULL,
+  location_id TEXT,
+  operator_id TEXT,
+  occurred_at TEXT NOT NULL,
+  quantity_base_units REAL NOT NULL,
+  recorded_at TEXT NOT NULL,
+  resolution TEXT,
+  resolved_at TEXT,
+  resolved_by TEXT,
+  confirmado_em TEXT,
+  honrado_em TEXT
+);
+CREATE INDEX IF NOT EXISTS check_candidates_pendentes_idx
+  ON check_candidates (company_id, movement_group_id, item_id) WHERE resolution IS NULL;
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
   V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33,
-  V34,
+  V34, V35,
 ];
 
 export type SqlParam = string | number | null;

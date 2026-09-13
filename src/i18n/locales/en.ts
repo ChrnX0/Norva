@@ -395,6 +395,18 @@ export const en: Dictionary = {
       recordedBy: 'by {{name}}',
       setAsideAt: 'left the queue on {{when}}',
       otherRow: 'a {{table}} row',
+      disputeTitle: 'Two counts of the same load',
+      disputeIntro:
+        'Two people checked this load. The server kept one; the other is here waiting. Choose which one counts - the first choice is the one that stays.',
+      disputeMine: 'Yours: {{amount}}, on {{when}}',
+      disputeTheirs: 'The one the server kept: {{amount}}, on {{when}}',
+      disputeTheirsUnknown: 'The one the server kept has not reached this device yet.',
+      keepTheirs: 'The stored one counts',
+      keepMine: 'Mine counts',
+      keepMineConfirm:
+        'The stored check will be undone by reversal and yours takes its place: {{amount}}. What was undone stays in the ledger.',
+      keepTheirsConfirm:
+        'Your check of {{amount}} will be undone. The one the server kept goes on counting.',
       whatNow:
         'If this is the right count, whoever checked first undoes the check in the extract on their device, and you check again.',
     },

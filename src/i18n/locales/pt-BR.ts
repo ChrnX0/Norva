@@ -612,6 +612,27 @@ export const ptBR = {
        * ganhou está no servidor, e este aparelho não a lê. Mandar "desfaça no extrato"
        * aqui seria mandar desfazer a linha errada — a que já está de lado.
        */
+      /**
+       * A DISPUTA: as duas conferências, e o botão que decide.
+       *
+       * Decisão do dono, 11 de setembro: *"mostra os dados para os dois celulares e o
+       * primeiro q aceitar fica como permanente."* Nada aqui culpa ninguém — duas pessoas
+       * conferindo a mesma carga na doca, as duas sem sinal, estão as duas certas; o
+       * servidor é que só aceita uma.
+       */
+      disputeTitle: 'Duas contagens da mesma carga',
+      disputeIntro:
+        'Duas pessoas conferiram esta carga. O servidor guardou uma; a outra está aqui esperando. Escolha qual vale — a primeira escolha é a que fica.',
+      disputeMine: 'A sua: {{amount}}, em {{when}}',
+      disputeTheirs: 'A que o servidor guardou: {{amount}}, em {{when}}',
+      disputeTheirsUnknown: 'A que o servidor guardou ainda não chegou neste aparelho.',
+      keepTheirs: 'Vale a que o servidor guardou',
+      keepMine: 'Vale a minha',
+      /** A confirmação diz o que vai acontecer, com o número por extenso. */
+      keepMineConfirm:
+        'A conferência guardada será desfeita por estorno e a sua entra no lugar: {{amount}}. O que foi desfeito continua no extrato.',
+      keepTheirsConfirm:
+        'A sua conferência de {{amount}} será desfeita. A que o servidor guardou continua valendo.',
       whatNow:
         'Se a contagem certa é esta, quem conferiu primeiro desfaz a conferência no extrato do aparelho dele, e você confere de novo.',
     },

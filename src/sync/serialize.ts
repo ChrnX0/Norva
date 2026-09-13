@@ -106,6 +106,7 @@ export type ServerTable =
   | 'order_lines'
   | 'location_prices'
   | 'sale_price_history'
+  | 'check_candidates'
   | 'movements';
 
 export class UnknownTableError extends Error {
@@ -475,6 +476,45 @@ const CROSSINGS: Record<
 
   order_lines: {
     take: ['id', 'company_id', 'order_id', 'item_id', 'base_units'],
+  },
+
+  /**
+   * A conferência que perdeu, e a decisão sobre ela.
+   *
+   * **Esta entrada faltava, e sem ela a fila INTEIRA morria.** `candidatarConferencia`
+   * enfileirava `check_candidates` e `serialize` lança `UnknownTableError` para tabela que
+   * ninguém lhe ensinou — de propósito, porque *"uma escrita que nunca chega em silêncio é o
+   * pior resultado disponível"*. O resultado era pior que o defeito que a rodada consertava:
+   * a primeira duplicação parava a sincronia daquele celular para sempre.
+   *
+   * `recorded_by` NÃO está na lista e vem do `build`, como em `movements`: no aparelho a
+   * coluna não existe (saiu na V5, e o docblock de lá diz por quê), e a conta que escreveu é
+   * a da sessão que sincroniza.
+   *
+   * `honrado_em` também não está, e por outra razão: ele é a anotação deste celular de que a
+   * consequência da decisão já foi tirada no razão LOCAL. Cada aparelho tira a sua uma vez, e
+   * mandar a anotação de um para o outro faria o segundo pular a dele.
+   */
+  check_candidates: {
+    take: [
+      'id',
+      'company_id',
+      'movement_group_id',
+      'item_id',
+      'location_id',
+      'operator_id',
+      'occurred_at',
+      'quantity_base_units',
+      'recorded_at',
+      // A decisão sobe junto porque é ela que o servidor arbitra: a política
+      // `using (resolution is null)` recusa a segunda, e é isso que faz o
+      // PRIMEIRO que aceitar ficar. Sem estas três a aceitação não sairia do
+      // celular — a tela responderia e o servidor nunca saberia.
+      'resolution',
+      'resolved_at',
+      'resolved_by',
+    ],
+    build: (_row, actor) => ({ recorded_by: actor.userId }),
   },
 
   movements: {

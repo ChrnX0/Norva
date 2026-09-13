@@ -10,7 +10,7 @@
  * *A primeira versão deste código pôs o construtor de SQL em `src/sync`, e a guarda pegou
  * antes de eu empurrar. O conserto certo não era pedir exceção: era mover.*
  */
-import { db } from './db';
+import { db, nowIso } from './db';
 import { APENAS_INSERE, type ServerTable } from '@/sync/serialize';
 
 /**
@@ -72,6 +72,26 @@ export async function gravarPagina(
         guardadas.map((c) => (linha[c] ?? null) as string | number | null),
       );
       gravadas += 1;
+      /**
+       * A candidata que desceu ganha a marca de que ESTA linha veio do servidor.
+       *
+       * É a única marca por tabela deste arquivo, e ela existe porque uma decisão local é
+       * OTIMISTA: `decidirDisputa` grava `resolution` na hora para a tela responder, e o
+       * servidor pode recusar (alguém decidiu antes). Sem separar as duas, `honrarDecisoes`
+       * estornaria pela escolha que este celular PEDIU em vez da que foi DECIDIDA — e quando
+       * a decisão de verdade fosse a outra, o movimento estornado seria o que devia ficar de
+       * pé. Corrupção de saldo por otimismo, no celular de quem tocou o botão.
+       *
+       * Dentro da MESMA transação da página, de propósito. Fora dela, uma queda no intervalo
+       * deixaria a linha gravada e o cursor adiantado: a marca nunca viria, e aquela decisão
+       * jamais seria honrada. O cursor honesto é o que faz a marca honesta.
+       */
+      if (tabela === 'check_candidates') {
+        await conn.runAsync(
+          `UPDATE check_candidates SET confirmado_em = ? WHERE id = ?`,
+          [nowIso(), String(linha.id)],
+        );
+      }
     }
   });
   return gravadas;

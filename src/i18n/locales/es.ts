@@ -400,6 +400,18 @@ export const es: Dictionary = {
       recordedBy: 'por {{name}}',
       setAsideAt: 'salió de la cola el {{when}}',
       otherRow: 'una fila de {{table}}',
+      disputeTitle: 'Dos conteos de la misma carga',
+      disputeIntro:
+        'Dos personas revisaron esta carga. El servidor guardó una; la otra está aquí esperando. Elige cuál vale: la primera elección es la que queda.',
+      disputeMine: 'La tuya: {{amount}}, el {{when}}',
+      disputeTheirs: 'La que guardó el servidor: {{amount}}, el {{when}}',
+      disputeTheirsUnknown: 'La que guardó el servidor todavía no llegó a este aparato.',
+      keepTheirs: 'Vale la que guardó el servidor',
+      keepMine: 'Vale la mía',
+      keepMineConfirm:
+        'La revisión guardada se deshará por reverso y la tuya toma su lugar: {{amount}}. Lo deshecho sigue en el libro.',
+      keepTheirsConfirm:
+        'Tu revisión de {{amount}} se deshará. La que guardó el servidor sigue valiendo.',
       whatNow:
         'Si este es el conteo correcto, quien contó primero deshace el conteo en el extracto de su aparato, y vos contás de nuevo.',
     },

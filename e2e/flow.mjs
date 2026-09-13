@@ -22,6 +22,36 @@ import { marcarExportado, precisaLimpar } from '../scripts/manifesto.mjs';
  *   npm run e2e
  */
 
+/**
+ * O fuso da fábrica desta suíte — e a régua que TODA pergunta sobre "que dia é hoje" usa.
+ *
+ * Ele era literal dentro do `newContext` e mais nada, e por isso uma checagem perguntou o
+ * dia da semana ao relógio do NODE — que neste container é UTC. Entre 00h e 03h UTC os dois
+ * discordam: em 13 de setembro, 00h07 UTC, o Node dizia domingo e o navegador (com este fuso)
+ * dizia sábado. A checagem cobrou a frase de domingo de uma capa que, certíssima, contava o
+ * sábado — e o aplicativo tem essa lição escrita no próprio código, em
+ * `app/(tabs)/index.tsx:138`: *"o dia da semana no fuso da FÁBRICA: ler o dia do relógio do
+ * aparelho dá o dia errado"*. A checagem escrita para respeitar o domingo do simulador
+ * quebrava justamente a regra que ela existe para honrar.
+ *
+ * Nomeado aqui para que não haja duas fontes: quem monta o navegador e quem pergunta o dia
+ * leem a mesma palavra.
+ */
+const FUSO_DA_FABRICA = 'America/Sao_Paulo';
+
+/**
+ * Que dia da semana é hoje PARA A FÁBRICA — a mesma conta de `app/(tabs)/index.tsx`.
+ *
+ * `en-CA` devolve a data em `AAAA-MM-DD`, e lê-la de volta à meia-noite Z dá o dia da semana
+ * daquela data de calendário sem a hora do relógio de ninguém no meio. É a forma exata que a
+ * capa usa (`localDate(...)` + `T00:00:00Z` + `getUTCDay`), e é isso que faz as duas
+ * concordarem em todas as vinte e quatro horas em vez de vinte e uma.
+ */
+function diaDaSemanaDaFabrica() {
+  const data = new Date().toLocaleDateString('en-CA', { timeZone: FUSO_DA_FABRICA });
+  return new Date(`${data}T00:00:00Z`).getUTCDay();
+}
+
 const PORT = Number(process.env.E2E_PORT ?? 4178);
 
 /**
@@ -2175,7 +2205,7 @@ check('three months can be planted from Ajustes, and the briefing changes becaus
    * porque o zero de hoje sem "ontem" ao lado é a Lei 3 quebrada justamente no
    * dia em que ela mais importa.
    */
-  const domingo = new Date().getUTCDay() === 0;
+  const domingo = diaDaSemanaDaFabrica() === 0;
   if (domingo) {
     assert.match(capa, /ainda não produziu/, 'no domingo quieto, a capa diz que não produziu');
     // Sem distinguir maiúscula: o rótulo da comparação é desenhado em
@@ -3874,7 +3904,7 @@ try {
     const context = await browser.newContext({
       viewport: { width: 412, height: 915 },
       locale: 'pt-BR',
-      timezoneId: 'America/Sao_Paulo',
+      timezoneId: FUSO_DA_FABRICA,
     });
     const page = await context.newPage();
 

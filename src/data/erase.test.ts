@@ -412,6 +412,12 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
  * nova sem nenhuma das duas reprova aqui — e é isso que impede a quarta vez.
  */
 const NAO_CONTADA: Record<string, string> = {
+  check_candidates:
+    'a conferência duplicada esperando decisão. O FATO que a pessoa reconhece é a conferência, ' +
+    'e ela é contada como movimento — a candidata é a MESMA conferência esperando alguém ' +
+    'escolher qual das duas vale, não um segundo fato. Contá-la faria a confirmação do Reset ' +
+    'dizer um número maior do que o que a fábrica registrou, que é a pior forma de errar numa ' +
+    'tela que existe para a pessoa entender o que vai perder',
   production_runs:
     'escrituração da corrida; o FATO que a pessoa reconhece é o movimento, e ele é contado',
   order_lines: 'as linhas de um pedido; quem a pessoa conta é o pedido',

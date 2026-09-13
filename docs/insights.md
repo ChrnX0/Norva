@@ -11424,3 +11424,99 @@ QUEM e passa a depender de QUANDO.
 `using (resolution is null)` na política diz as duas coisas com a mesma gramática. E o `with
 check` ao lado fecha a outra metade — sem ele, um `update` mudaria `first` para `second`
 dentro da mesma requisição em que a linha ainda parecia livre.
+
+## 13 de setembro — exatamente-uma-vez só existe onde a arbitragem já é exatamente-uma-vez
+
+A rodada anterior deu ao *"primeiro que aceitar"* uma política (`using (resolution is null)`), e
+eu escrevi a metade seguinte no aparelho: quem decide estorna a conferência que perdeu e manda o
+estorno. Fui escrever a guarda e a sequência não fecha, com dois celulares:
+
+1. o celular A aceita a candidata de B e sobe o estorno;
+2. a decisão **desce** para B;
+3. B roda a mesma regra, olha um razão onde o estorno de A ainda não chegou, e estorna a mesma
+   linha de novo.
+
+Duas subtrações da mesma quantidade, as duas linhas legítimas, cada uma apontando para a origem
+certa, e nada reclamando. **Nenhuma quantidade de idempotência no aparelho resolve isso**, e é
+essa parte que vale registrar: a pergunta *"alguém já estornou?"* é respondida por um razão que
+ainda não desceu. Idempotência precisa de um ponto onde a resposta seja definitiva, e num
+sistema que sincroniza esse ponto não está no cliente.
+
+O único lugar onde *uma vez* já é verdade é a transação que ganha o `using (resolution is
+null)` — por construção, exatamente uma passa. Escrever a consequência lá dá as duas coisas de
+graça: a segunda aceitação não alcança linha nenhuma, então ela também não estorna nada. A
+generalização: **não procure onde pôr a trava; procure onde a trava já existe, e pendure a
+consequência nela.**
+
+*E o `security invoker` do gatilho não é detalhe de implementação — é a prova de que ele não é
+uma porta de lado.* Escrevendo com os privilégios de quem aceitou, ele não consegue gravar nada
+que a pessoa não pudesse gravar sozinha. Isso obrigou a fechar `resolved_by`, que a `0062`
+deixava livre: no instante em que um gatilho LÊ uma coluna do cliente para carimbar `recorded_by`
+no razão, aquela coluna deixa de ser dado e passa a ser assinatura.
+
+## 13 de setembro — o escritor sem exercício não é código, é promessa
+
+A metade do aparelho desta mesma rodada foi escrita, compilada, lintada e passou por 788 testes
+verdes carregando **quatro** defeitos, três deles silenciosos no celular de quem usa:
+
+| onde | o defeito | o que aconteceria |
+|---|---|---|
+| `candidata.ts` | `SELECT … recorded_by FROM movements` — coluna que a **V5 removeu** | o `SELECT` quebra, o `try/catch` do motor engole, a candidata **nunca** é gravada |
+| `serialize.ts` | nenhuma travessia para `check_candidates` | `UnknownTableError` derruba a rodada: a primeira duplicação para a sincronia **para sempre** |
+| `descida.ts` | a tabela não estava em `DESCEM` | o segundo celular nunca vê a disputa — metade da decisão do dono |
+| a decisão | nenhuma consequência no razão | aceitar mudava uma coluna e o saldo continuava dobrado |
+
+Os quatro moram em quatro arquivos, e **o único lugar de onde eles se veem juntos é um teste que
+anda o caminho inteiro** — gravar a conferência, candidatá-la, serializar a linha, honrar a
+decisão, e olhar o SALDO no fim. `typecheck` não alcança nenhum: os três primeiros são nomes que
+existem (uma coluna que o SQLite só recusa em tempo de execução, uma tabela que é `string` na
+fila, uma lista que é só um array).
+
+A regra que sai daqui é a irmã do portão P1. P1 pergunta *quem chama isto?* e os quatro tinham
+chamador. A pergunta que faltava é **quem EXERCITA isto?** — e ela se responde com um teste que
+percorre o caminho, não com um que visita as funções.
+
+## 13 de setembro — a régua que lê o esquema tem de ler a forma que o banco aceita
+
+Três guardas de `agreement.test.ts` comparam o que o aparelho manda com o que o servidor exige,
+lendo o SQL das migrações. O padrão era `/create table (\w+) \(/`, e a `0062` criou
+`check_candidates` com `create table **if not exists**` — a forma que migração idempotente usa.
+A tabela ficou **invisível** para as três guardas por um dia inteiro.
+
+Não deu falso verde por sorte de escopo (a travessia dela ainda não existia, então nada havia a
+conferir); no instante em que a travessia foi escrita, a guarda gritou *"o servidor não tem
+check_candidates"* — **falso**, e com cara de achado. A régua que não lê a forma que o banco
+aceita mede um esquema que não existe, e o erro dela chega como acusação contra o código certo.
+
+E o conserto abriu o segundo, da mesma família: pular a linha que começa com `constraint` não
+basta, porque restrição de tabela ocupa **mais de uma linha** — a continuação `or (resolution is
+not null …)` foi lida como uma coluna chamada `or`. A leitura passou a contar parênteses, que é
+a única que não depende de como alguém quebrou a linha.
+
+## 13 de setembro — a checagem mediu o dia num relógio e o aplicativo no outro
+
+Uma checagem de navegador reprovou com *"no domingo quieto, a capa diz que não produziu"*, e a
+capa estava certa. Ela pergunta `new Date().getUTCDay()` — o relógio do **Node** — e dá ao
+navegador `timezoneId: 'America/Sao_Paulo'` três linhas antes. Entre 00h e 03h UTC os dois
+discordam: às 00h07 de 13 de setembro o Node dizia domingo e o aplicativo, certíssimo, contava
+o sábado.
+
+O comentário dessa checagem diz que ela usa *"a MESMA regra do simulador"*, e o simulador lê o
+dia de `dayWindow(hoje, fuso)` — não de `new Date()`. As duas coincidem em vinte e uma das vinte
+e quatro horas, e é por isso que ela sobreviveu: a janela de erro é de três horas por dia, e só
+fica **visível** quando essas três horas atravessam a fronteira de um domingo — seis horas por
+semana.
+
+O aplicativo já tinha a lição escrita, em `app/(tabs)/index.tsx`: *"o dia da semana no fuso da
+FÁBRICA: ler o dia do relógio do aparelho dá o dia errado."* A checagem escrita para honrar o
+domingo do simulador quebrava exatamente a regra que ela existe para honrar. **Quando a checagem
+e o código calculam o mesmo conceito por caminhos diferentes, o intervalo em que eles discordam
+é o tamanho da mentira** — e ele não aparece no verde.
+
+*E a outra metade desse mesmo achado, que é quase bonita:* as duas confirmações da tela já
+prometiam, em três idiomas, exatamente o que faltava — *"a conferência guardada será desfeita
+por estorno e a sua entra no lugar"* e *"a sua conferência de {{amount}} será desfeita"*. O
+texto foi escrito antes do mecanismo e nomeava as duas coisas que não existiam. **A frase da
+confirmação é a especificação mais precisa que este projeto produz**, porque ela é a única que
+alguém tem de escrever pensando no que vai ACONTECER, e não no que vai ser gravado. Quando ela
+mente, o defeito está no código; quando ela é vaga, o desenho ainda não foi decidido.

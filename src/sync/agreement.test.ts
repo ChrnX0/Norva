@@ -56,10 +56,37 @@ function serverColumns(sql: string): Map<string, Map<string, Column>> {
     hasDefault: /\bdefault\b/i.test(line) || /\bprimary key\b/i.test(line),
   });
 
-  for (const m of sql.matchAll(/create table (\w+) \(([\s\S]*?)\n\);/g)) {
+  /**
+   * `if not exists` é opcional para o Postgres e era obrigatório para esta régua.
+   *
+   * A `0062` criou `check_candidates` com `create table if not exists`, que é a forma que
+   * migração idempotente usa, e o padrão exigia `create table <nome> (`. A tabela ficava
+   * INVISÍVEL para as três guardas deste arquivo — e a `0062` esteve assim um dia inteiro. Não
+   * deu falso verde por sorte de escopo: `sendableTables()` ainda não a listava, então a
+   * guarda não tinha por que procurá-la. No instante em que a travessia foi escrita, ela
+   * gritou *"o servidor não tem check_candidates"* — o que era falso, e o defeito era da
+   * leitura. Régua que não lê a forma que o banco aceita mede um esquema que não existe.
+   */
+  for (const m of sql.matchAll(/create table (?:if not exists )?(\w+) \(([\s\S]*?)\n\);/g)) {
     const columns = new Map<string, Column>();
+    /**
+     * A profundidade do parêntese, porque restrição de tabela ocupa MAIS DE UMA LINHA.
+     *
+     * Pular a linha que começa com `constraint` não basta: a
+     * `check_candidates_resolution_complete` da `0062` continua em linhas que começam com
+     * `or (`, e a régua leu **`or` como nome de coluna** — e então disse que o servidor exige
+     * uma coluna chamada `or` que o aparelho nunca manda. Falso, e com cara de achado.
+     *
+     * Contar parênteses é a única leitura que não depende de como a restrição foi quebrada:
+     * definição de coluna mora na profundidade 1 do corpo da tabela, e tudo dentro de uma
+     * restrição está mais fundo. Vale igual para `check (...)` de coluna quebrado em duas.
+     */
+    let fundura = 0;
     for (const raw of m[2].split('\n')) {
       const line = raw.trim();
+      const nivel = fundura;
+      fundura += (line.match(/\(/g) ?? []).length - (line.match(/\)/g) ?? []).length;
+      if (nivel > 0) continue;
       if (!line || line.startsWith('--') || /^(constraint|check|unique|primary|foreign)\b/i.test(line)) {
         continue;
       }
@@ -310,6 +337,25 @@ test('the parser can tell a required column from a defaulted one', () => {
   assert.equal(tables.get('movements')?.get('recorded_by')?.hasDefault, false);
   assert.equal(tables.get('purchases')?.get('freight_cents')?.hasDefault, true);
   assert.equal(tables.get('movements')?.get('note')?.notNull, false);
+
+  /**
+   * E as duas leituras que a régua errava, cada uma com o caso verdadeiro e o falso.
+   *
+   * A tabela criada com `if not exists` é VISTA — antes ela não existia para esta régua, e as
+   * três guardas deste arquivo mediam um esquema sem ela. E a restrição multilinha não vira
+   * coluna: a continuação `or (resolution is not null ...)` da
+   * `check_candidates_resolution_complete` era lida como uma coluna chamada `or`.
+   */
+  const candidata = tables.get('check_candidates');
+  assert.ok(candidata, 'a tabela criada com `if not exists` é vista pela régua');
+  assert.equal(candidata.get('resolution')?.notNull, false, 'a decisão nasce nula');
+  assert.equal(candidata.get('received_at')?.hasDefault, true, 'o cursor da descida é do servidor');
+  assert.equal(candidata.has('or'), false, 'e a continuação de uma restrição não é coluna');
+  assert.equal(
+    candidata.has('resolution is null and resolved_at'.split(/\s+/)[0]),
+    true,
+    'a coluna de verdade continua lá — a régua não ficou cega para achar o `or`',
+  );
 });
 
 /**

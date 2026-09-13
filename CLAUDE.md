@@ -135,7 +135,7 @@ npm run lint
 npm test
 npm run mutate       # quebra o código de propósito: a suíte morde mesmo?
 npm run e2e:fast     # o app dirigido num navegador de verdade, em quatro fatias
-npm run db:verify    # Postgres descartável, trinta e quatro garantias — inclui a fila
+npm run db:verify    # Postgres descartável, trinta e cinco garantias — inclui a fila
                      # do aparelho reproduzida contra o servidor de verdade
 bash .proofgate/verify.sh
 ```
@@ -1580,6 +1580,21 @@ doença provada deste repositório: `assistant_phrase` com índice dedicado e
 nenhuma escrita, `Draft.kind` sem leitor, `balanceAt` e `daysOfCover` chamados só
 por teste, quatro seções de dicionário nos três idiomas sem uma tela. O número da
 fase não pegou nenhuma delas.
+
+**E P1 tem uma metade que eu descobri por fora — 13 de setembro: quem EXERCITA
+isto?** Uma peça pode ter chamador e nunca ter sido percorrida, e aí ela é promessa
+com cara de código. A metade do aparelho da conferência duplicada foi empurrada com
+`typecheck` limpo, `lint` limpo e 788 testes verdes carregando **quatro** defeitos,
+três deles silenciosos na mão de quem usa: um `SELECT` de coluna que a V5 removeu
+(quebra, e o `try/catch` do motor da fila engole), nenhuma travessia para a tabela
+nova (a fila inteira morre na primeira duplicação), a tabela fora da descida (o
+segundo celular nunca vê a disputa), e a decisão sem consequência no razão.
+
+Os quatro tinham chamador. Nenhum é alcançável pelo compilador — coluna que só o
+SQLite recusa em tempo de execução, tabela que é `string` na fila, lista que é só um
+array. E os quatro moram em arquivos diferentes: **o único lugar de onde eles se veem
+juntos é um teste que anda o CAMINHO inteiro** — gravar, candidatar, serializar,
+honrar, e olhar o saldo no fim —, não um que visita as funções uma por uma.
 
 **P2 — Complete: "eu mudaria isto se eu visse ___".** Se a frase sai, o item
 depende de observar alguém. **Mas antes de travar, cheque a F7:** se o que muda

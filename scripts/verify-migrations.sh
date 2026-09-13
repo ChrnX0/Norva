@@ -2223,8 +2223,12 @@ PRIMEIRO=$(as_user "$CHECKER" "with feito as (
 [ "$PRIMEIRO" = "1" ] || fail "a primeira aceitacao nao mudou linha nenhuma (mudou '$PRIMEIRO'): ninguem consegue decidir"
 
 # O SEGUNDO aceita o contrario, no mesmo minuto. ZERO linhas — e isso nao e erro: e a resposta.
+# `resolved_by = '$CHECKER2'` e nao `'$OWNER'`: a `0063` passou a exigir que a coluna diga
+# quem de fato decidiu, porque o gatilho dela escreve no razao por causa desta linha — e nome
+# de conta no razao nunca vem do cliente. O proposito do caso nao muda: a MESMA segunda conta
+# aceitando o contrario no mesmo minuto.
 SEGUNDO=$(as_user "$CHECKER2" "with feito as (
-  update check_candidates set resolution = 'second', resolved_at = now(), resolved_by = '$OWNER'
+  update check_candidates set resolution = 'second', resolved_at = now(), resolved_by = '$CHECKER2'
    where id = '${CAND}a1' returning 1) select count(*) from feito;")  # proofgate-allow
 [ "$SEGUNDO" = "0" ] || fail "a SEGUNDA aceitacao mudou $SEGUNDO linha(s): o ultimo a tocar venceria, e o dono pediu o primeiro"
 
@@ -2247,16 +2251,22 @@ as_user "$CHECKER" "insert into check_candidates
   values ('${CAND}a3','${M}c1','${CAND}b3','${M}b1','${M}a1', now(), 700, '$CHECKER', now());" >/dev/null 2>&1 || true  # proofgate-allow
 
 CONTROLE=$(as_user "$CHECKER2" "with feito as (
-  update check_candidates set resolution = 'second', resolved_at = now(), resolved_by = '$OWNER'
+  update check_candidates set resolution = 'second', resolved_at = now(), resolved_by = '$CHECKER2'
    where id = '${CAND}a3' returning 1) select count(*) from feito;")  # proofgate-allow
 [ "$CONTROLE" = "1" ] \
   || fail "a segunda conta nao consegue decidir nem uma candidata LIVRE (mudou '$CONTROLE'): entao o zero da aceitacao anterior era falta de permissao, e esta garantia nao mede a arbitragem"
 
 # A trava de integridade: resolucao sem quem e sem quando e decisao sem dono.
+# `resolved_by` VAI, e `resolved_at` fica de fora — de propósito, e a razão é uma cicatriz de
+# hoje. A primeira escrita deste caso omitia os dois, e a `0063` passou a exigir
+# `resolved_by = auth.uid()` no append: a linha era recusada pela POLÍTICA antes de a restrição
+# ser consultada, e a garantia reprovava dizendo que a restrição não existia. Ela existia — a
+# régua media a coisa errada, pela segunda vez nesta tabela. Com o nome certo no lugar certo, o
+# único defeito que sobra é o que este caso nomeia: decisão sem QUANDO.
 MEIA=$(as_user "$CHECKER" "insert into check_candidates
   (id, company_id, movement_group_id, item_id, occurred_at, quantity_base_units,
-   recorded_by, recorded_at, resolution)
-  values ('${CAND}a2','${M}c1','${CAND}b2','${M}b1', now(), 100, '$CHECKER', now(), 'first');" 2>&1 >/dev/null | head -1 || true)
+   recorded_by, recorded_at, resolution, resolved_by)
+  values ('${CAND}a2','${M}c1','${CAND}b2','${M}b1', now(), 100, '$CHECKER', now(), 'first', '$CHECKER');" 2>&1 >/dev/null | head -1 || true)
 # O `|| true` não é frouxidão: esta inserção TEM de falhar, e com `set -euo pipefail` o cano
 # que devolve não-zero derruba o script antes de o `fail` poder dizer o que quebrou. É a mesma
 # cicatriz que a garantia 28 já carrega escrita algumas centenas de linhas acima.
@@ -2273,5 +2283,146 @@ TEM=$(rows "select count(*) from information_schema.columns
 echo "    a segunda aceitacao alcanca zero linhas, e a decisao do primeiro fica com o nome dele"
 
 echo
-echo "OK - migrations apply and all thirty-four guarantees hold."
+echo "==> check 35: aceitar a candidata ESTORNA a que estava de pe, exatamente uma vez"
+
+# A metade que faltava da decisao do dono. A `0062` deu a arbitragem; aceitar mudava uma coluna
+# e o razao continuava com a conferencia VENCEDORA de pe, contradizendo a decisao que uma pessoa
+# acabou de tomar na tela.
+#
+# **Por que no servidor, e por que isto so se prova aqui.** O desenho natural — o aparelho que
+# decidiu estorna e manda o estorno — quebra com dois celulares: A aceita a candidata de B,
+# estorna e sobe; a decisao DESCE para B, que roda a mesma regra, olha um razao onde o estorno
+# de A ainda nao chegou, e estorna a MESMA linha de novo. Dois estornos subtraem a quantidade
+# duas vezes e nada reclama. Exatamente-uma-vez so existe onde a arbitragem ja e
+# exatamente-uma-vez, e esse lugar e a transacao que ganha o `using (resolution is null)`.
+
+DEC=dddd0000-0000-4000-8000-0000000001
+
+# Uma remessa de verdade, e a conferencia que vai PERDER a disputa — de pe no razao.
+psql -d "$DB" -q >/dev/null <<SQL
+insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id,
+                       quantity_base_units, location_id, counterpart_location_id,
+                       movement_group_id, post)
+values
+  ('${DEC}d1','${M}c1','transfer', now(), '$CHECKER', '${M}b1', 60, '${V}a1','${M}a1','${DEC}e1', null),
+  ('${DEC}f1','${M}c1','discrepancy', now(), '$CHECKER', '${M}b1', -5, '${V}a1','${M}a1','${DEC}e1','checked');
+SQL
+
+SALDO_ANTES=$(rows "select coalesce(sum(quantity_base_units),0) from movements
+                     where company_id = '${M}c1' and movement_group_id = '${DEC}e1';")  # proofgate-allow
+[ "$SALDO_ANTES" = "55" ] || fail "a remessa conferida devia somar 55 e somou '$SALDO_ANTES': o cenario da garantia esta errado antes de ela medir nada"
+
+# A candidata: a conferencia do OUTRO celular, mesma remessa e mesmo item, que a `0051` recusou.
+as_user "$CHECKER" "insert into check_candidates
+  (id, company_id, movement_group_id, item_id, location_id, occurred_at,
+   quantity_base_units, recorded_by, recorded_at)
+  values ('${DEC}c1','${M}c1','${DEC}e1','${M}b1','${V}a1', now(), -8, '$CHECKER', now());" >/dev/null 2>&1 || true  # proofgate-allow
+
+# **O CONTROLE PRIMEIRO, e ele e o que impede esta garantia de medir o nada.** `first` diz que
+# a que o servidor guardou vale: o razao nao muda. Sem esta linha, um gatilho que estornasse em
+# QUALQUER decisao passaria verde nas medidas de baixo.
+as_user "$CHECKER" "insert into check_candidates
+  (id, company_id, movement_group_id, item_id, location_id, occurred_at,
+   quantity_base_units, recorded_by, recorded_at)
+  values ('${DEC}c9','${M}c1','${DEC}e1','${M}b1','${V}a1', now(), -9, '$CHECKER', now());" >/dev/null 2>&1 || true  # proofgate-allow
+as_user "$CHECKER" "update check_candidates
+   set resolution = 'first', resolved_at = now(), resolved_by = '$CHECKER'
+ where id = '${DEC}c9';" >/dev/null 2>&1 || true  # proofgate-allow
+NADA=$(rows "select count(*) from movements where reverses_movement_id = '${DEC}f1';")  # proofgate-allow
+[ "$NADA" = "0" ] || fail "aceitar a VENCEDORA ('first') escreveu $NADA estorno(s): a conferencia que ja estava de pe continua de pe, e o gatilho esta disparando em qualquer decisao"
+
+# Agora a decisao que TEM consequencia: a candidata vale.
+UM=$(as_user "$CHECKER" "with feito as (
+  update check_candidates set resolution = 'second', resolved_at = now(), resolved_by = '$CHECKER'
+   where id = '${DEC}c1' returning 1) select count(*) from feito;")  # proofgate-allow
+[ "$UM" = "1" ] || fail "a aceitacao nao alcancou a candidata (mudou '$UM'): sem ela nao ha o que medir"
+
+ESTORNOS=$(rows "select count(*) from movements where reverses_movement_id = '${DEC}f1';")  # proofgate-allow
+[ "$ESTORNOS" = "1" ] || fail "esperava UM estorno da conferencia que perdeu e achei $ESTORNOS: aceitar a candidata tem de desfazer a que estava de pe, no mesmo instante em que a decisao e tomada"
+
+# E o estorno desfaz pelo VALOR com que aconteceu, nao por um numero novo.
+VOLTOU=$(rows "select quantity_base_units || ' ' || kind from movements where reverses_movement_id = '${DEC}f1';")  # proofgate-allow
+[ "$VOLTOU" = "5 reversal" ] || fail "o estorno diz '$VOLTOU', esperava '5 reversal': a perna tem de ser o oposto exato da conferencia que ela desfaz"
+
+# Quem responde pela correcao e quem decidiu — e a coluna nao aceita nome de outro.
+QUEM=$(rows "select recorded_by from movements where reverses_movement_id = '${DEC}f1';")  # proofgate-allow
+[ "$QUEM" = "$CHECKER" ] || fail "o estorno foi gravado em nome de '$QUEM': o razao nao aceita assinatura cedida, e o gatilho tem de usar auth.uid()"
+
+# A SEGUNDA aceitacao, correndo. Zero linhas — e por isso zero estorno novo.
+DEPOIS=$(as_user "$CHECKER2" "with feito as (
+  update check_candidates set resolution = 'second', resolved_at = now(), resolved_by = '$CHECKER2'
+   where id = '${DEC}c1' returning 1) select count(*) from feito;")  # proofgate-allow
+[ "$DEPOIS" = "0" ] || fail "a segunda aceitacao alcancou $DEPOIS linha(s): ela estornaria a mesma conferencia de novo"
+AINDA=$(rows "select count(*) from movements where reverses_movement_id = '${DEC}f1';")  # proofgate-allow
+[ "$AINDA" = "1" ] || fail "depois da segunda aceitacao ha $AINDA estornos da mesma linha: a quantidade foi subtraida duas vezes e nada reclamou"
+
+# **E a trava que vale para o razao INTEIRO, nao so para conferencia.** O aplicativo perguntava
+# "alguem ja estornou?" em cinco lugares e nenhum era garantia: duas escritas simultaneas passam
+# as duas, porque cada uma le antes de a outra gravar.
+DOBRA=$(psql -d "$DB" -q -c "insert into movements (id, company_id, kind, occurred_at, recorded_by,
+    item_id, quantity_base_units, location_id, movement_group_id, reverses_movement_id)
+  values ('${DEC}b9','${M}c1','reversal', now(), '$CHECKER', '${M}b1', 5, '${V}a1','${DEC}e9','${DEC}f1');" 2>&1 >/dev/null | head -2 || true)
+case "$DOBRA" in
+  *movements_um_estorno_por_linha*|*duplicate*|*unique*) ;;
+  *) fail "um SEGUNDO estorno da mesma linha foi aceito ('$DOBRA'): estornar duas vezes dobra a correcao em qualquer especie, e cinco perguntas no aplicativo nao sao uma garantia" ;;
+esac
+
+# E uma linha que estorna OUTRA continua entrando: o indice nao pode trancar o estorno normal.
+psql -d "$DB" -q -c "insert into movements (id, company_id, kind, occurred_at, recorded_by,
+    item_id, quantity_base_units, location_id, movement_group_id, reverses_movement_id)
+  values ('${DEC}b8','${M}c1','reversal', now(), '$CHECKER', '${M}b1', -60, '${V}a1','${DEC}e8','${DEC}d1');" >/dev/null 2>&1 || true  # proofgate-allow
+OUTRA=$(rows "select count(*) from movements where reverses_movement_id = '${DEC}d1';")  # proofgate-allow
+[ "$OUTRA" = "1" ] || fail "o estorno de OUTRA linha foi recusado: o indice esta trancando o caminho normal de corrigir, nao a dobra"
+
+# Decidir em nome de outro e recusado — a porta de lado que o gatilho abriria.
+as_user "$CHECKER" "insert into check_candidates
+  (id, company_id, movement_group_id, item_id, location_id, occurred_at,
+   quantity_base_units, recorded_by, recorded_at)
+  values ('${DEC}c7','${M}c1','${DEC}e7','${M}b1','${V}a1', now(), -2, '$CHECKER', now());" >/dev/null 2>&1 || true  # proofgate-allow
+CEDIDA=$(as_user "$CHECKER" "update check_candidates
+   set resolution = 'first', resolved_at = now(), resolved_by = '$CHECKER2'
+ where id = '${DEC}c7';" 2>&1 >/dev/null | head -1 || true)
+case "$CEDIDA" in
+  *policy*|*violates*) ;;
+  *) fail "decidir em nome de outra conta foi aceito ('$CEDIDA'): o gatilho carimbaria o razao com a conta errada, e assinatura cedida e a unica coisa que esta fundacao nao permite" ;;
+esac
+
+# **E a candidata que CHEGA ja decidida.** Um celular offline candidata e decide antes de ver
+# sinal; se a criacao for perdida sem ter subido, a linha chega num `insert` com a decisao
+# dentro. Um gatilho so de `update` nao veria nada, e a decisao viraria coluna sem consequencia —
+# o defeito inteiro que a 0063 fecha, voltando pela porta estreita.
+psql -d "$DB" -q >/dev/null <<SQL
+insert into movements (id, company_id, kind, occurred_at, recorded_by, item_id,
+                       quantity_base_units, location_id, counterpart_location_id,
+                       movement_group_id, post)
+values
+  ('${DEC}d2','${M}c1','transfer', now(), '$CHECKER', '${M}b1', 30, '${V}a1','${M}a1','${DEC}e2', null),
+  ('${DEC}f2','${M}c1','discrepancy', now(), '$CHECKER', '${M}b1', -4, '${V}a1','${M}a1','${DEC}e2','checked');
+SQL
+
+as_user "$CHECKER" "insert into check_candidates
+  (id, company_id, movement_group_id, item_id, location_id, occurred_at,
+   quantity_base_units, recorded_by, recorded_at, resolution, resolved_at, resolved_by)
+  values ('${DEC}c2','${M}c1','${DEC}e2','${M}b1','${V}a1', now(), -6, '$CHECKER', now(),
+          'second', now(), '$CHECKER');" >/dev/null 2>&1 || true  # proofgate-allow
+
+JADECIDIDA=$(rows "select count(*) from movements where reverses_movement_id = '${DEC}f2';")  # proofgate-allow
+[ "$JADECIDIDA" = "1" ] || fail "a candidata que chegou JA DECIDIDA escreveu $JADECIDIDA estorno(s): a decisao virou coluna sem consequencia, que e o defeito que esta migracao existe para fechar"
+
+# E a janela ao lado da porta: inserir uma candidata JA DECIDIDA em nome de outro tambem e
+# recusado. Com o gatilho escutando o insert, `resolved_by` ali vale o mesmo que no update.
+CEDIDA_IN=$(as_user "$CHECKER" "insert into check_candidates
+  (id, company_id, movement_group_id, item_id, location_id, occurred_at,
+   quantity_base_units, recorded_by, recorded_at, resolution, resolved_at, resolved_by)
+  values ('${DEC}c3','${M}c1','${DEC}e3','${M}b1','${V}a1', now(), -1, '$CHECKER', now(),
+          'second', now(), '$CHECKER2');" 2>&1 >/dev/null | head -1 || true)
+case "$CEDIDA_IN" in
+  *policy*|*violates*) ;;
+  *) fail "inserir candidata decidida em nome de outra conta foi aceito ('$CEDIDA_IN'): o gatilho do insert carimbaria o razao por uma decisao que aquela conta nao tomou" ;;
+esac
+
+echo "    aceitar estorna a que perdeu uma vez so, a corrida nao estorna de novo, e o razao recusa a dobra"
+
+echo
+echo "OK - migrations apply and all thirty-five guarantees hold."
 

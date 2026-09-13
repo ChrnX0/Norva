@@ -51,6 +51,20 @@ const SO_DO_APARELHO: Record<string, Record<string, string>> = {
   orders: {
     recorded_by: 'o servidor estampa a partir da sessão',
   },
+  check_candidates: {
+    recorded_by: 'o servidor estampa a partir da sessão; vindo do aparelho seria cedível',
+    // As duas marcas do aparelho, e mandá-las seria pior que esquecê-las.
+    //
+    // `confirmado_em` diz *"esta linha veio do servidor"*, e é ela que impede honrar a
+    // escolha OTIMISTA deste celular — o que estornaria o movimento errado quando a
+    // arbitragem fosse para o outro lado. Subir e descer a marca faria todo celular achar
+    // que a linha dele já foi confirmada.
+    confirmado_em: 'marca local de que a linha desceu; subi-la faria toda escolha parecer confirmada',
+    // `honrado_em` diz *"ESTE celular já tirou a consequência no razão local"*. Cada aparelho
+    // tira a sua uma vez; compartilhar a marca faria o segundo pular a dele e ficar com o
+    // saldo dobrado para sempre.
+    honrado_em: 'cada aparelho tira a consequência no razão DELE; compartilhar faria o outro pular',
+  },
   products: {
     // DORMENTE, e por isso não atravessa: quem manda agora é
     // `unit_packaging_rate`, que é o mesmo número sem o arredondamento que

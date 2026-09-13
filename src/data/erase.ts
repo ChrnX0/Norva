@@ -50,6 +50,7 @@ export function isEraseArea(value: unknown): value is EraseArea {
  * reviewer remembering to look.
  */
 export type ErasableTable =
+  | 'check_candidates'
   | 'movements'
   | 'carriers'
   | 'readings'
@@ -229,6 +230,11 @@ export function tablesFor(area: EraseArea): readonly ErasableTable[] {
       // do SQLite em inglês — num aplicativo que promete três idiomas, e depois
       // do toque em vez de o botão nascer desabilitado com o motivo.
       return [
+        // Primeira, e sem chave estrangeira nenhuma: a candidata da conferência duplicada
+        // não aponta para `movements` de propósito (a que perdeu não está no razão), então
+        // ela não trava nada. Vem no começo porque a ordem desta lista é a do esquema, e
+        // quem lê tem de conseguir seguir filho antes de pai sem procurar.
+        'check_candidates',
         'movements',
         'readings',
         'production_runs',

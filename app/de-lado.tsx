@@ -1,4 +1,8 @@
 import { Text, View } from 'react-native';
+import { Button } from '@/components/Button';
+import { useConfirm } from '@/components/Confirm';
+import { decidirDisputa, disputasAbertas, type Disputa } from '@/data/candidata';
+import { contaAtual } from '@/sync/conta';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { GlyphCount } from '@/components/Glyph';
@@ -59,6 +63,42 @@ export default function DeLadoScreen() {
    * dia em que um segundo código entrasse ela explicaria como duplicação uma recusa que não é.
    */
   const duplicadas = todasJaExistem(linhas.map((l) => l.codigo));
+
+  /**
+   * As disputas abertas: a conferência que o servidor recusou, esperando alguém escolher.
+   *
+   * Consulta própria e não um campo de `checksSetAside` porque as duas respondem perguntas
+   * diferentes: aquela conta o que saiu da fila (inclusive o que não é conferência), e esta
+   * conta o que ainda pode ser decidido. Juntá-las faria a lista de cima crescer com linhas
+   * que já foram resolvidas.
+   */
+  const emDisputa = useQuery<Disputa[]>(() => disputasAbertas(empresaDaqui()));
+  const disputas = emDisputa.data ?? [];
+  const confirm = useConfirm();
+
+  const decidir = async (d: Disputa, escolha: 'first' | 'second') => {
+    /**
+     * As DUAS confirmações falam da conferência DESTE celular, e por isso não há escolha aqui.
+     *
+     * Era um ternário com os dois lados iguais, que lê como defeito e convida um conserto que
+     * seria o defeito de verdade — trocar um lado por `quantoVencedora`. As frases dizem por
+     * que: *"a SUA conferência de {{amount}} será desfeita"* e *"a sua entra no lugar:
+     * {{amount}}"*. Nas duas, o número é o desta pessoa.
+     */
+    const quanto = formatQuantity(Math.abs(d.quantoCandidata), locale);
+    const vai = await confirm({
+      title: escolha === 'second' ? words.keepMine : words.keepTheirs,
+      message: fill(escolha === 'second' ? words.keepMineConfirm : words.keepTheirsConfirm, {
+        amount: quanto,
+      }),
+      confirmLabel: t.app.confirm.confirm,
+    });
+    if (!vai) return;
+    const quem = (await contaAtual())?.id ?? '';
+    await decidirDisputa(d.candidataId, escolha, quem);
+    await emDisputa.refresh();
+    await dados.refresh();
+  };
 
   /**
    * A diferença dita como notícia, não como número com sinal.
@@ -150,8 +190,59 @@ export default function DeLadoScreen() {
         </Reveal>
       ))}
 
-      {/* O caminho de volta, uma vez no fim e não em cada cartão: ele é o mesmo para todos. */}
-      {duplicadas && linhas.some((l) => l.conferencia) ? (
+      {/* **AS DUAS CONTAGENS, e o botão que decide — a decisão do dono de 11 de setembro.**
+
+          Ela pede três coisas, e cada uma está aqui por um motivo:
+
+          *"mostra os dados"* — as duas linhas com quanto e quando, lado a lado. A da pessoa
+          sai do que este aparelho gravou; a outra desce do servidor, e quando ela ainda não
+          chegou a tela DIZ isso em vez de desenhar meia disputa.
+
+          *"para os dois celulares"* — é por isso que a candidata sobe. O aparelho que perdeu
+          já sabia da disputa; o que ganhou não sabia de nada, e agora a mesma linha desce
+          para ele.
+
+          *"o primeiro q aceitar fica"* — quem arbitra é a política do servidor, não este
+          botão. Aqui a escrita é otimista, para a tela responder na hora e offline; se
+          outra pessoa decidiu antes, a descida traz a decisão de verdade por cima. */}
+      {disputas.map((d, i) => (
+        <Reveal key={d.candidataId} index={linhas.length + 1 + i}>
+          <Card hue={color.warning} title={words.disputeTitle}>
+            <Text style={[type.body, { color: color.inkMuted }]}>{words.disputeIntro}</Text>
+
+            <Text style={[type.body, { color: color.ink, marginTop: space.md }]}>
+              {fill(words.disputeMine, {
+                amount: formatQuantity(Math.abs(d.quantoCandidata), locale),
+                when: formatDayMonth(d.quandoCandidata, locale),
+              })}
+            </Text>
+            <Text style={[type.body, { color: color.ink, marginTop: space.xs }]}>
+              {d.vencedoraId && d.quandoVencedora !== null && d.quantoVencedora !== null
+                ? fill(words.disputeTheirs, {
+                    amount: formatQuantity(Math.abs(d.quantoVencedora), locale),
+                    when: formatDayMonth(d.quandoVencedora, locale),
+                  })
+                : words.disputeTheirsUnknown}
+            </Text>
+
+            <View style={{ marginTop: space.md, gap: space.sm }}>
+              <Button
+                label={words.keepTheirs}
+                onPress={() => void decidir(d, 'first')}
+                variant="ghost"
+              />
+              <Button label={words.keepMine} onPress={() => void decidir(d, 'second')} />
+            </View>
+          </Card>
+        </Reveal>
+      ))}
+
+      {/* O caminho de volta, uma vez no fim e não em cada cartão: ele é o mesmo para todos.
+
+          Ele some quando há disputa com botão: mandar "quem conferiu primeiro desfaz no
+          aparelho dele" ao lado de um botão que resolve aqui é dar duas instruções
+          contraditórias para o mesmo problema — e a que pede outra pessoa é a pior das duas. */}
+      {duplicadas && disputas.length === 0 && linhas.some((l) => l.conferencia) ? (
         <Reveal index={linhas.length + 1}>
           <Card>
             <Text style={[type.body, { color: color.ink }]}>{words.whatNow}</Text>

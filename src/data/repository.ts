@@ -3181,6 +3181,90 @@ export async function undoCheck(
 }
 
 /**
+ * Estorna UMA conferência no razão deste aparelho — e de propósito **não enfileira**.
+ *
+ * É a única escrita do projeto que fica em casa, e a razão é o que ela desfaz: a conferência
+ * que o servidor RECUSOU. Ela nunca chegou lá. Mandar o estorno dela adiante pediria ao
+ * servidor que desfizesse uma linha que ele não tem — `reverses_movement_id` apontando para o
+ * nada, recusa por chave estrangeira, e a fila daquele celular com mais uma entrada de lado
+ * para sempre. O erro foi local, então a correção é local.
+ *
+ * **Por que estorno e não exclusão**, embora ninguém fora deste aparelho vá ver: porque o
+ * saldo é a soma dos movimentos, e quem conferiu a carga conferiu de verdade. A linha fica no
+ * extrato dela com o estorno ao lado, e a pessoa vê o que aconteceu com o próprio trabalho —
+ * em vez de ele desaparecer, que é exatamente a queixa que abriu esta rodada.
+ *
+ * **Sem portão de permissão, e isto é decisão.** Os outros escritores chamam `podeGravar`
+ * porque atrás deles há um dedo numa tela. Atrás deste há uma decisão que o servidor já
+ * arbitrou: barrá-la por capacidade deixaria o saldo dobrado para sempre no celular de quem
+ * não pode estornar — castigando quem não fez nada. É a mesma razão pela qual a descida grava
+ * sem perguntar: o que o servidor já decidiu não se re-autoriza no cliente.
+ *
+ * Devolve `false` quando não havia o que estornar — a linha não existe aqui, ou já tem estorno.
+ * Chamá-la duas vezes é inofensivo, e é isso que a torna segura de rodar a cada sincronia.
+ */
+export async function estornarConferenciaLocal(
+  companyId: string,
+  movementId: string,
+): Promise<boolean> {
+  const conn = await db();
+  let itemId: string | null = null;
+
+  await conn.withTransactionAsync(async () => {
+    const origem = await conn.getFirstAsync<{
+      id: string;
+      item_id: string;
+      quantity_base_units: number;
+      location_id: string;
+      unit_cost_rate: number | null;
+      lot_id: string | null;
+      counterpart_location_id: string | null;
+    }>(
+      `SELECT id, item_id, quantity_base_units, location_id, unit_cost_rate, lot_id,
+              counterpart_location_id
+         FROM movements
+        WHERE id = ? AND company_id = ? AND kind = 'discrepancy'
+          AND ${naoEstornado('movements')}`,
+      [movementId, companyId],
+    );
+    if (!origem) return;
+
+    const at = nowIso();
+    await conn.runAsync(
+      `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
+                              quantity_base_units, location_id, unit_cost_rate,
+                              movement_group_id, counterpart_location_id, lot_id,
+                              reverses_movement_id, operator_id)
+       VALUES (?, ?, 'reversal', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        newId(),
+        companyId,
+        at,
+        at,
+        origem.item_id,
+        -origem.quantity_base_units,
+        origem.location_id,
+        origem.unit_cost_rate,
+        // Grupo novo, como toda perna de estorno: pendurá-lo na remessa faria `undoCheck` e
+        // `planReversal` lerem o estorno como mais uma perna a estornar.
+        newId(),
+        origem.counterpart_location_id,
+        origem.lot_id,
+        origem.id,
+        await currentOperatorId(),
+      ],
+    );
+    itemId = origem.item_id;
+  });
+
+  // Fora da transação, pela mesma razão de `reverseGroup`: a recomposição lê o razão inteiro
+  // do item e precisa ver a perna que acabou de entrar. Falhando aqui, o razão já está certo —
+  // e a média é cache, que a próxima entrada daquele item refaz.
+  if (itemId) await recomputeItemCost(companyId, itemId);
+  return itemId !== null;
+}
+
+/**
  * Uma linha que a fila pôs de lado, com o fato por trás dela quando dá para contá-lo.
  *
  * **E o que ela NÃO devolve é decisão, não esquecimento.** `rowId` e o `movement_group_id` da

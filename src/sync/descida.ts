@@ -88,6 +88,12 @@ export const DESCEM: readonly ServerTable[] = [
   'readings',
   'sale_price_history',
   'movements',
+  // DEPOIS de `movements`, e a ordem aqui é o que faz a tela dizer a verdade na primeira
+  // volta: a candidata é a que PERDEU, e `disputasAbertas` mostra a vencedora por um
+  // `left join` no razão. Descendo antes, a primeira volta contaria a disputa sem o outro
+  // lado — honesto, mas meia informação quando a informação inteira caberia na mesma rodada.
+  // Não há FK para `movements` no aparelho (ver V35), então a ordem é escolha, não exigência.
+  'check_candidates',
 ];
 
 /**

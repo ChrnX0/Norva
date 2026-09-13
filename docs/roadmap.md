@@ -37,10 +37,10 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | | | como conferir |
 |---|---|---|
 | telas | **36** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
-| tabelas no aparelho (SQLite) | **27** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
+| tabelas no aparelho (SQLite) | **28** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **30** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **62** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V34** | último `const V` em `src/data/db.ts` |
+| migrações do servidor | **63** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V35** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
 | linhas de código | **~102.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -49,18 +49,21 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **788** testes |
+| `npm test` | **796** testes |
 | `npm run mutate` | **151** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **59** checagens num navegador de verdade |
-| `npm run db:verify` | **34** garantias contra um Postgres descartável: **16** sob RLS, como a conta da empresa, e **18** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
+| `npm run db:verify` | **35** garantias contra um Postgres descartável: **17** sob RLS, como a conta da empresa, e **18** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 
 **E a descida existe desde 12 de setembro à noite** (`0061`, `src/sync/descida.ts`,
 `src/sync/descer.ts`, `src/data/descida.ts`, garantia 33). Dois celulares da mesma fábrica
 passam a somar o mesmo razão — a dívida estrutural que este arquivo chamava de *"a dívida
-verdadeira"* está paga, e o que sobra dela é o **aceitar** da conferência duplicada, que é a
-rodada seguinte.
+verdadeira"* está paga. **E o aceitar da conferência duplicada entrou em 13 de setembro**
+(`0062`, `0063`, `src/data/candidata.ts`, garantias 34 e 35): as duas conferências aparecem nos
+dois celulares, o primeiro que aceitar fica, e aceitar ESTORNA a que perdeu — no servidor,
+dentro da transação que ganha a arbitragem, porque no aparelho dois celulares estornariam a
+mesma linha duas vezes.
 
 *Última execução do `mutate`: **12 de setembro à noite, sobre `63c45e9`** — **151 plantadas,
 149 pegas, 2 equivalentes, 0 sobreviventes, 0 não medidas**, com a barra inteira verde ao lado
@@ -1743,11 +1746,19 @@ três. O portão do nome entra na CONSULTA, como no extrato — com `names_who_r
 o nome não sai do banco. E a porta só é desenhada quando há algo de lado, porque porta
 permanente para o que nunca aconteceu é o alerta inventado.
 
-**O que falta, e é o que depende de fora:** mostrar as DUAS conferências nos dois celulares, e
-"o primeiro que aceitar fica". A que ganhou está no servidor e não existe sincronia de entrada
-para `movements`, então este aparelho mostra a dele — e a pergunta de baixo (a `0051` recusa
-cedo demais, ou o servidor deve guardar as duas como candidatas?) decide o desenho antes de eu
-construir.
+~~**O que falta, e é o que depende de fora:** mostrar as DUAS conferências nos dois celulares~~
+**— FEITO em 13 de setembro**, e a pergunta que travava o desenho tem resposta medida: a `0051`
+**fica** (é ela que impede o saldo dobrar) e o servidor guarda a recusada como CANDIDATA
+(`0062`). A `0063` acrescenta a consequência que faltava — aceitar a candidata estorna a
+conferência que estava de pé, no mesmo `update` que ganha o `using (resolution is null)`.
+
+**E o estorno ficou no servidor por medida, não por gosto.** No aparelho a sequência era: A
+aceita a candidata de B, estorna e sobe; a decisão desce para B, que roda a mesma regra, olha um
+razão onde o estorno de A ainda não chegou, e estorna a MESMA linha de novo. Duas subtrações da
+mesma quantidade, nada reclamando. Exatamente-uma-vez só existe onde a arbitragem já é
+exatamente-uma-vez. O que sobrou para o aparelho é a única coisa que o servidor não alcança: a
+conferência recusada, que nunca subiu, estornada **sem enfileirar**
+(`estornarConferenciaLocal`).
 
 A fila do item era:
 
@@ -1771,7 +1782,7 @@ erros de um servidor que ninguém exercitou:*
 
 Construir o classificador contra um erro que ninguém viu é adivinhar
 a forma do que se está protegendo.
-<!-- medida: espera decisão do dono: a conferência recusada JÁ aparece com os quatro fatos (app/de-lado.tsx); o que espera é se o servidor guarda as duas como candidatas, que muda a 0051 -->
+<!-- medida: presente src/data/candidata.ts :: honrarDecisoes -->
 
 **A pergunta é de dono e não de engenharia:** o segundo celular tem uma conferência no razão
 dele que o servidor recusou. Ela se desfaz sozinha? Fica marcada como não aplicada? Quem

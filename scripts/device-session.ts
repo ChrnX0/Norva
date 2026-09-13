@@ -29,6 +29,7 @@ import {
   recordReturn,
   recordReading,
   eraseArea,
+  recordCheck,
   recordTransfer,
   saveCarrier,
   recordPurchase,
@@ -45,6 +46,7 @@ import {
   saveSalePrice,
   averageRatesForLedger,
 } from '@/data/repository';
+import { candidatarConferencia } from '@/data/candidata';
 import { ensureStarterData } from '@/data/seed';
 import { empresaDaqui } from '@/data/empresa';
 import { adotarEmpresa } from '@/data/adocao';
@@ -326,13 +328,39 @@ async function main() {
   });
 
   // A carga que sai da fábrica para a loja, levada por ela.
-  await recordTransfer(empresaDaqui(), {
+  const carga = await recordTransfer(empresaDaqui(), {
     itemId: pulp.id,
     fromLocationId: defaultLocationId(empresaDaqui()),
     toLocationId: loja.id,
     baseUnits: 2000,
     carrierId: transportadora.id,
   });
+
+  /**
+   * A doca confere a carga, e a conferência que PERDE a disputa vira candidata.
+   *
+   * Duas coisas que a sessão não exercitava e a fila carrega: a `discrepancy`, cuja capacidade
+   * no servidor é `check_receipt` e não `dispatch`; e `check_candidates`, a tabela da decisão
+   * do dono sobre duplicação. A guarda de cobertura logo abaixo pegou a segunda no instante em
+   * que a travessia dela foi escrita — *"a sessão não exercita check_candidates"* —, e é para
+   * isso que ela existe: tabela que atravessa sem ninguém exercitar faz a sexta garantia
+   * cobrir menos do que promete, lendo exatamente igual.
+   *
+   * `counted` com falta, e não "chegou tudo": diferença zero atravessaria sem dizer se o
+   * número sobreviveu à viagem.
+   */
+  await recordCheck(empresaDaqui(), {
+    groupId: carga.groupId,
+    counted: [{ itemId: pulp.id, baseUnits: 1850 }],
+  });
+  const conferencia = await db.getFirstAsync<{ id: string }>(
+    `SELECT id FROM movements WHERE movement_group_id = ? AND kind = 'discrepancy'`,
+    [carga.groupId],
+  );
+  if (!conferencia) throw new Error('a conferência não entrou no razão da sessão');
+  if (!(await candidatarConferencia(conferencia.id))) {
+    throw new Error('a conferência não virou candidata: a duplicação sumiria em silêncio');
+  }
 
   // E uma perda com motivo, que é o tipo com a capacidade mais restrita.
   await recordLoss(empresaDaqui(), {

@@ -7,6 +7,7 @@ import {
   pendingEntries,
   type OutboxEntry,
 } from '@/data/outbox';
+import { candidatarConferencia } from '@/data/candidata';
 import { classeDaRecusa } from './recusa';
 import type { pedido as montarPedido } from './descida';
 import type { ProblemaDoServidor } from './transporte';
@@ -236,6 +237,27 @@ export async function drain(
       await markRejected(recusada.id, recusada.codigo);
       postasDeLado += 1;
       deLadoNestaFatia += 1;
+
+      /**
+       * A conferência recusada vira CANDIDATA em vez de desaparecer.
+       *
+       * Só faz sentido para `movements`, e `candidatarConferencia` devolve `false` para tudo
+       * o que não for uma `discrepancy` de remessa — perguntar para toda recusa permanente é
+       * mais barato que este motor ter de saber o que cada tabela significa.
+       *
+       * **E ela não pode derrubar a rodada.** Se a candidatura falhar, o que já foi feito
+       * continua feito: a linha está de lado com o código ao lado, que é o estado correto e o
+       * que a tela conta hoje. Perder a fila inteira por causa da peça que existe para
+       * EXPLICAR a perda seria o remédio pior que a doença.
+       */
+      const entrada = batch.find((e) => e.id === recusada.id);
+      if (entrada?.table === 'movements') {
+        try {
+          await candidatarConferencia(entrada.rowId);
+        } catch {
+          // Silêncio de propósito: ver o parágrafo acima.
+        }
+      }
     }
 
     /**
