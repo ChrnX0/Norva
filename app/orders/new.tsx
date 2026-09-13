@@ -37,6 +37,8 @@ import {
 } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
+import { ERROS } from '@/data/erros';
+import { avisoDeFalha } from '@/i18n/falha';
 
 /**
  * Anotar o que um cliente pediu.
@@ -274,6 +276,24 @@ function NewOrder() {
         lines: lines.map((l) => ({ itemId: l.itemId, baseUnits: l.baseUnits })),
       });
       voltar();
+    } catch (e) {
+      /**
+       * A recusa MORRIA aqui, e o toque parecia ter funcionado.
+       *
+       * `saveOrder` pede capacidade e o servidor tem política: sem `catch`, uma recusa
+       * de permissão devolvia a pessoa para a tela anterior com o pedido não gravado, sem
+       * uma palavra. Erro que não aparece é pior que erro que reclama — ele ensina a
+       * confiar num ato que não aconteceu, e quem confere no fim do dia procura o pedido
+       * que ninguém anotou.
+       *
+       * `avisoDeFalha` traduz a classe da recusa; o molde é o de `app/recipes/[id].tsx`.
+       */
+      await askConfirm({
+        title: words.failedToSave,
+        message: avisoDeFalha(e, t, ERROS).message,
+        acknowledge: true,
+        confirmLabel: t.app.confirm.understood,
+      });
     } finally {
       setSaving(false);
     }
@@ -490,7 +510,15 @@ function NewOrder() {
       ) : null}
 
       <Reveal index={iAcao}>
-        <Button label={words.save} onPress={save} />
+        {/* **Lei 5: erro se IMPEDE, não se reclama.** O botão obedecia sempre, e `save`
+            devolvia a frase — "Escolha para quem é o pedido", "Adicione pelo menos um
+            produto" — DEPOIS do toque. O toque que não pode dar em nada não é oferecido;
+            o cartão acima já diz o que falta, e `saving` fecha a porta do toque duplo. */}
+        <Button
+          label={words.save}
+          onPress={save}
+          disabled={!place || lines.length === 0 || saving}
+        />
       </Reveal>
 
       {/* Voltar é fantasma e é a última coisa da pilha: ninguém deve ser

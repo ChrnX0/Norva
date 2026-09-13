@@ -58,6 +58,7 @@ import { parseTyped } from '@/domain/number';
 import { currencySymbol, fill, formatMoney, formatUnitRate, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
+import { useRouter } from 'expo-router';
 
 /**
  * Registering a product.
@@ -139,6 +140,7 @@ function ProductForm() {
   const { color, type, space, palette, traco } = useTheme();
   const confirm = useConfirm();
   const { locale, t } = useLocale();
+  const router = useRouter();
 
   const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
     const [recipes, graph, costs, labels, lines, categories, types, flavors, items, products] =
@@ -804,12 +806,24 @@ function ProductForm() {
                   ))}
                 </View>
               ) : (
-                /* Estado vazio com a saída dentro da frase: a ficha técnica se
-                   cadastra noutra tela, e esta é empilhada — o caminho de volta
-                   é o de sempre. */
-                <Text style={[type.secondary, { color: color.inkMuted }]}>
-                  {t.app.productForm.noRecipes}
-                </Text>
+                /* Estado vazio é desenho, uma frase e A SAÍDA. A regra que separa os dois casos NÃO é "tela empilhada".
+                   `app/picking.tsx` também é empilhada e oferece a porta, com a razão medida ao
+                   lado: *"esconder o caminho já deixou duas telas sem entrada"*. O que separa é o
+                   que há para PERDER — aqui não há nada digitado, porque não há nem produto para
+                   escolher; sair não custa formulário nenhum e ficar custa a rodada inteira de quem
+                   não sabe o que fazer. Num formulário meio preenchido a resposta se inverte, e é
+                   essa a razão que estava escrita com o sujeito errado. */
+                <View>
+                  <Text style={[type.secondary, { color: color.inkMuted }]}>
+                    {t.app.productForm.noRecipes}
+                  </Text>
+                  <Button
+                    label={t.app.productForm.noRecipesAction}
+                    variant="ghost"
+                    onPress={() => router.push('/recipes/new')}
+                    style={{ marginTop: space.md }}
+                  />
+                </View>
               )}
 
               <Field

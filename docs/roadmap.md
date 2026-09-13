@@ -325,9 +325,15 @@ por peso, e o que já foi fechado:**
     <!-- medida: presente src/volta.ts :: export function decidirVolta -->
 
 7. ~~**A primeira ação que a capa oferece num aplicativo vazio é impossível.**~~ —
-   **fechada em 10 de setembro.** A tela de produção tem razão escrita para não navegar
-   dali (é empilhada, e o caminho de volta é o de sempre); o defeito estava antes, na capa
-   sugerindo a única coisa que ainda não dava para fazer. `primeiroPasso` no domínio
+   **fechada em 10 de setembro**, e **a razão citada aqui foi derrubada em 13**: a tela de
+   produção tinha razão escrita para não navegar dali *"porque é empilhada, e o caminho de
+   volta é o de sempre"* — e `app/picking.tsx` também é empilhada e oferece a porta, com a
+   razão medida ao lado (*"esconder o caminho já deixou duas telas sem entrada"*). Ou seja,
+   "tela empilhada" não separava os dois casos: era racionalização, não regra. O que separa é
+   o que há para PERDER — no vazio não há nada digitado, e sair não custa formulário nenhum;
+   num formulário meio preenchido a resposta se inverte. As duas telas passaram a oferecer a
+   porta, e os dois comentários dizem a mesma regra. O defeito original continua onde estava,
+   na capa sugerindo a única coisa que ainda não dava para fazer. `primeiroPasso` no domínio
    devolve onde a cadeia parou — insumo, ficha, produto ou produção — e a capa oferece a
    porta que falta.
 8. ~~**Nomes cortados onde a escolha depende deles**~~ — **fechado e PROVADO**, e a prova

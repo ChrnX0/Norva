@@ -15,6 +15,8 @@ import { useQuery } from '@/data/useQuery';
 import { fill, formatCalendarDate, formatQuantity, plural } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
+import { ERROS } from '@/data/erros';
+import { avisoDeFalha } from '@/i18n/falha';
 
 /**
  * O que os clientes pediram e ainda não foi entregue.
@@ -102,7 +104,25 @@ function Orders() {
       });
       if (!yes) return;
     }
-    await setOrderStatus(empresaDaqui(), order.id, status);
+    /**
+     * Aprovar e cancelar pedem capacidade, e a recusa MORRIA aqui.
+     *
+     * `setOrderStatus` é uma escrita como as outras: passa por capacidade no aparelho e
+     * por política no servidor. Sem `catch`, a recusa fazia o `refresh()` não acontecer e
+     * o pedido ficar exatamente como estava — quem tocou lê isso como "não pegou" e toca
+     * de novo. Erro que não aparece ensina a desconfiar do dedo em vez do sistema.
+     */
+    try {
+      await setOrderStatus(empresaDaqui(), order.id, status);
+    } catch (e) {
+      await askConfirm({
+        title: words.failedToDecide,
+        message: avisoDeFalha(e, t, ERROS).message,
+        acknowledge: true,
+        confirmLabel: t.app.confirm.understood,
+      });
+      return;
+    }
     refresh();
   };
 

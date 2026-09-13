@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { cents } from '@/domain/money';
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -123,6 +123,7 @@ function plannedUnits(recipe: Recipe, product: Product, batches: number): number
 function Production() {
   const { color, type, space, palette, traco } = useTheme();
   const { locale, t } = useLocale();
+  const router = useRouter();
   const askConfirm = useConfirm();
   const words = t.app.production;
 
@@ -464,15 +465,26 @@ function Production() {
         erro={error}
         denovo={refresh}
       >
-        {/* Estado vazio é desenho, uma frase e a saída — e a saída aqui é a
-            receita, que se cadastra noutra tela e não se navega daqui: esta é
-            uma tela empilhada, e o caminho de volta é o de sempre. */}
+        {/* Estado vazio é desenho, uma frase e A SAÍDA — e a saída existe.
+            A regra que separa os dois casos NÃO é "tela empilhada".
+            `app/picking.tsx` também é empilhada e oferece a porta, com a razão medida ao
+            lado: *"esconder o caminho já deixou duas telas sem entrada"*. O que separa é o
+            que há para PERDER — aqui não há nada digitado, porque não há nem produto para
+            escolher; sair não custa formulário nenhum e ficar custa a rodada inteira de quem
+            não sabe o que fazer. Num formulário meio preenchido a resposta se inverte, e é
+            essa a razão que estava escrita com o sujeito errado. */}
         <Reveal index={0}>
           <Card
             hue={palette.apricot}
             icon={(c) => <GlyphProduction size={26} color={c} weight={traco} />}
           >
             <Text style={[type.body, { color: color.inkMuted }]}>{words.noRecipes}</Text>
+            <Button
+              label={words.noRecipesAction}
+              variant="ghost"
+              onPress={() => router.push('/recipes/new')}
+              style={{ marginTop: space.md }}
+            />
           </Card>
         </Reveal>
       </CollapsingHeader>

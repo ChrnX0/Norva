@@ -435,6 +435,8 @@ export const es: Dictionary = {
     },
     orders: {
       title: 'Pedidos',
+      /** La negativa de aprobar o cancelar, dicha en vez de morir en el toque. */
+      failedToDecide: 'No se pudo cambiar el pedido',
       overline: 'lo que pidieron los clientes',
       add: 'Anotar pedido',
       decidedToday: 'Decididos hoy',
@@ -475,6 +477,8 @@ export const es: Dictionary = {
       save: 'Anotar pedido',
       back: 'Volver',
       needsCustomer: 'Elige para quién es el pedido.',
+      /** La negativa del servidor o de la capacidad, dicha en vez de morir en el toque. */
+      failedToSave: 'No se pudo anotar el pedido',
       needsLine: 'Agrega al menos un producto al pedido.',
       confirmTitle: '¿Confirmas el pedido?',
       confirmAction: 'Anotar',
@@ -1070,6 +1074,8 @@ export const es: Dictionary = {
 
     places: {
       title: 'Dónde está el stock',
+      /** La negativa de guardar el rango de la cámara, dicha en vez de morir en el toque. */
+      failedToSaveRange: 'No se pudo guardar el rango',
       overline: 'dónde está lo que tienes',
       factory: 'Fábrica',
       empty: 'Todavía no entró nada en ningún lugar. Registra una compra o una producción.',
@@ -1274,6 +1280,8 @@ export const es: Dictionary = {
       failed: 'No se pudo transferir',
     },
     production: {
+      /** La puerta del vacío: sin ficha no hay qué producir, y la ficha se crea allí. */
+      noRecipesAction: 'Crear una ficha',
       byBatch: 'Informar por la receta',
       todayTotal: 'Producido hoy',
       makeTitle: 'Qué producir',
@@ -1563,6 +1571,8 @@ export const es: Dictionary = {
     },
 
     productForm: {
+      /** La puerta del vacío: el producto necesita una ficha, y la ficha se crea allí. */
+      noRecipesAction: 'Crear una ficha',
       title: 'Nuevo producto',
       overline: 'alta',
       name: 'Nombre',

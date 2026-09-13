@@ -53,6 +53,9 @@ import {
 } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
+import { useConfirm } from '@/components/Confirm';
+import { ERROS } from '@/data/erros';
+import { avisoDeFalha } from '@/i18n/falha';
 
 /**
  * Onde está o que você tem.
@@ -413,6 +416,7 @@ function Places() {
                   place={place}
                   last={data?.readings.find((r) => r.locationId === place.id && r.kind === TEMPERATURA)}
                   onSaved={refresh}
+                  administra={podeAdministrar}
                 />
               ) : null}
 
@@ -485,6 +489,11 @@ function Places() {
                         }
                       />
                     ) : null}
+                    {/* Convidar para uma porta fechada é pior que não ter a porta: quem
+                        toca aprende que o sistema recusa sem dizer por quê. `savePlace`
+                        pede `manage_company`, e o portão continua na consulta — isto aqui
+                        só para de oferecer. */}
+                    {podeAdministrar ? (
                     <Button
                       label={words.editAgreement}
                       variant="ghost"
@@ -495,6 +504,7 @@ function Places() {
                         paddingHorizontal: space.lg,
                       }}
                     />
+                    ) : null}
                   </View>
                 )
               ) : null}
@@ -617,14 +627,26 @@ function Ambiente({
   place,
   last,
   onSaved,
+  /**
+   * **Quem não administra não recebe o botão de mudar a faixa da câmara.**
+   *
+   * `savePlace` pede `manage_company`, e a tela oferecia o toque a todo mundo — então o
+   * operador com o celular emprestado tocava, a escrita recusava, e a recusa (que também
+   * não era dita, ver o `catch` abaixo) sumia. Esconder botão é decoração quando o portão
+   * não existe; aqui o portão EXISTE na consulta, e o que a tela faz é parar de convidar
+   * para uma porta fechada.
+   */
+  administra,
 }: {
   place: Place;
   last: Reading | undefined;
   onSaved: () => void;
+  administra: boolean;
 }) {
   const { color, type, space, palette } = useTheme();
   const { locale, t } = useLocale();
   const words = t.app.places;
+  const confirm = useConfirm();
 
   const router = useRouter();
 
@@ -685,6 +707,21 @@ function Ambiente({
       });
       setEditandoFaixa(false);
       onSaved();
+    } catch (e) {
+      /**
+       * A recusa de `savePlace` morria aqui, e a faixa continuava a de antes.
+       *
+       * Sem `catch`, uma recusa de capacidade fechava o editor (não: nem isso — ela pulava
+       * o `setEditandoFaixa(false)`), deixava a faixa velha na tela e não dizia nada. Quem
+       * digitou −20 a −16 sai acreditando que a câmara passou a avisar fora dessa janela, e
+       * o alarme que ela espera nunca vem.
+       */
+      await confirm({
+        title: words.failedToSaveRange,
+        message: avisoDeFalha(e, t, ERROS).message,
+        acknowledge: true,
+        confirmLabel: t.app.confirm.understood,
+      });
     } finally {
       setSalvando(false);
     }
@@ -844,14 +881,14 @@ function Ambiente({
           </View>
           <Button label={words.save} variant="ghost" disabled={salvando} onPress={() => void salvarFaixa()} />
         </View>
-      ) : (
+      ) : administra ? (
         <Button
           label={words.rangeLabel}
           variant="ghost"
           onPress={() => setEditandoFaixa(true)}
           style={{ alignSelf: 'flex-start', paddingVertical: space.sm, paddingHorizontal: space.lg }}
         />
-      )}
+      ) : null}
     </View>
   );
 }

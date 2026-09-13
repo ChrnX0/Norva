@@ -430,6 +430,8 @@ export const en: Dictionary = {
     },
     orders: {
       title: 'Orders',
+      /** The refusal to approve or cancel, said instead of dying on the tap. */
+      failedToDecide: "Couldn't change the order",
       overline: 'what customers asked for',
       add: 'Take an order',
       decidedToday: 'Decided today',
@@ -470,6 +472,8 @@ export const en: Dictionary = {
       save: 'Take the order',
       back: 'Back',
       needsCustomer: 'Choose who the order is for.',
+      /** The server's or the capability's refusal, said instead of dying on the tap. */
+      failedToSave: "Couldn't record the order",
       needsLine: 'Add at least one product to the order.',
       confirmTitle: 'Confirm the order?',
       confirmAction: 'Take it',
@@ -1065,6 +1069,8 @@ export const en: Dictionary = {
 
     places: {
       title: 'Where the stock is',
+      /** The refusal to save the cold-room range, said instead of dying on the tap. */
+      failedToSaveRange: "Couldn't save the range",
       overline: 'where what you have is',
       factory: 'Factory',
       empty: 'Nothing has arrived anywhere yet. Enter an invoice or record a production run.',
@@ -1270,6 +1276,8 @@ export const en: Dictionary = {
       failed: 'Could not transfer',
     },
     production: {
+      /** The door out of empty: no sheet, nothing to make — and the sheet lives there. */
+      noRecipesAction: 'Add a recipe sheet',
       byBatch: 'Enter by the recipe',
       todayTotal: 'Made today',
       makeTitle: 'What to make',
@@ -1558,6 +1566,8 @@ export const en: Dictionary = {
     },
 
     productForm: {
+      /** The door out of empty: a product needs a sheet, and the sheet lives there. */
+      noRecipesAction: 'Add a recipe sheet',
       title: 'New product',
       overline: 'register',
       name: 'Name',

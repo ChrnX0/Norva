@@ -678,6 +678,8 @@ export const ptBR = {
      */
     orders: {
       title: 'Pedidos',
+      /** A recusa de aprovar ou cancelar, dita em vez de morrer no toque. */
+      failedToDecide: 'Não deu para mudar o pedido',
       overline: 'o que os clientes pediram',
       add: 'Anotar pedido',
       // O caminho de volta de um pedido decidido por engano. Ver o docblock da
@@ -724,6 +726,8 @@ export const ptBR = {
       save: 'Anotar pedido',
       back: 'Voltar',
       needsCustomer: 'Escolha para quem é o pedido.',
+      /** A recusa do servidor ou da capacidade, dita em vez de morrer no toque. */
+      failedToSave: 'Não deu para anotar o pedido',
       needsLine: 'Adicione pelo menos um produto ao pedido.',
       confirmTitle: 'Confirma o pedido?',
       confirmAction: 'Anotar',
@@ -1442,6 +1446,8 @@ export const ptBR = {
 
     places: {
       title: 'Onde fica o estoque',
+      /** A recusa de gravar a faixa da câmara, dita em vez de morrer no toque. */
+      failedToSaveRange: 'Não deu para gravar a faixa',
       overline: 'onde está o que você tem',
       factory: 'Fábrica',
       empty: 'Nada entrou em lugar nenhum ainda. Lance uma compra ou registre uma produção.',
@@ -1703,6 +1709,8 @@ export const ptBR = {
       failed: 'Não deu para transferir',
     },
     production: {
+      /** A porta do vazio: sem ficha não há o que produzir, e a ficha se cadastra ali. */
+      noRecipesAction: 'Cadastrar uma ficha',
       byBatch: 'Informar pela receita',
       todayTotal: 'Produzido hoje',
       makeTitle: 'O que produzir',
@@ -2101,6 +2109,8 @@ export const ptBR = {
     },
 
     productForm: {
+      /** A porta do vazio: o produto precisa de uma ficha, e ela se cadastra ali. */
+      noRecipesAction: 'Cadastrar uma ficha',
       title: 'Novo produto',
       overline: 'cadastro',
       name: 'Nome',

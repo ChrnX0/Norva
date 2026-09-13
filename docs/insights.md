@@ -12216,3 +12216,33 @@ de uma âncora velha, num repositório que roda a oficina toda rodada.
 *E a assimetria de custo vale a pena escrever: refatorar move âncora, e mover âncora desliga
 guarda em SILÊNCIO. O refator aparece no diff; a guarda desligada não aparece em lugar nenhum
 até alguém ler a última linha do relatório da oficina.*
+
+## 13 de setembro — "é tela empilhada" não era regra: era racionalização
+
+Duas telas deste aplicativo tratavam o MESMO vazio de formas opostas, e as duas tinham a razão
+escrita ao lado:
+
+- `app/production/new.tsx` e `app/products/new.tsx`: *"a ficha se cadastra noutra tela e **não se
+  navega daqui**: esta é uma tela empilhada, e o caminho de volta é o de sempre"* — e o vazio era
+  uma frase cinza, sem saída.
+- `app/picking.tsx`: *"Erro que IMPEDE diz para onde ir. Sem esta porta a pessoa fica sabendo que
+  falta algo e não sabendo o quê fazer"* — e ela faz `router.push('/places')`.
+
+**`app/picking.tsx` também é empilhada.** Então a razão dada não distinguia os casos: ela
+descrevia uma propriedade que as duas compartilham, e a conclusão só valia num lado. É o formato
+mais convincente de argumento errado — verdadeiro sobre o sujeito, irrelevante para o predicado —
+e ele sobreviveu porque cada comentário foi lido sozinho, na tela dele.
+
+**A regra que de fato separa os dois é o que há para PERDER.** No vazio não há nada digitado
+(não há nem produto para escolher): sair não custa formulário nenhum, e FICAR custa a rodada de
+quem não sabe o que fazer. Num formulário meio preenchido a resposta se inverte, e aí "não
+navegar daqui" é a regra certa — com o sujeito certo. As duas telas passaram a oferecer a porta,
+e os dois comentários passaram a dizer isso.
+
+**E o documento também dizia a versão velha**: o item 7 do `docs/roadmap.md` citava a razão
+derrubada como fechamento de um item. Corrigido lá, porque decisão registrada envelhece — e essa
+é lida em toda sessão.
+
+*A regra de leitura que sai daqui: quando dois lugares tratam o mesmo caso de formas opostas,
+teste a razão de cada um contra o OUTRO caso. Se ela vale para os dois e conclui coisas
+diferentes, ela não é a razão — é a justificativa que alguém escreveu depois de decidir.*
