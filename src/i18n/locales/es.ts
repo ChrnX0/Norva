@@ -1023,6 +1023,8 @@ export const es: Dictionary = {
       buyBy: 'Compre hasta {{weekday}}',
       buyWhy:
         'Quedan {{cover}} de existencia y el proveedor tarda {{lead}}, con {{slack}} de holgura que elegiste.',
+      buyWhyFrom:
+        'Quedan {{cover}} de existencia y {{supplier}} tarda {{lead}}, con {{slack}} de holgura que elegiste.',
       buyCalm: 'Todavía no hace falta comprar',
       buyCalmWhy: 'Quedan {{cover}} de existencia, y la cuenta ya considera el plazo del proveedor.',
       leadTimeUnknown:

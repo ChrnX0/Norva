@@ -314,6 +314,14 @@ function InputDetail() {
    * tela de compra escreve. Este é o primeiro leitor dela em produção.
    */
   const prazo = prazoDoFornecedorAtual(data?.entregas ?? []);
+  /**
+   * De QUEM é o prazo — o cadastro da última nota.
+   *
+   * Nulo quando a última nota é velha (gravada antes de existir cadastro), e aí a frase sem
+   * nome é a única honesta: o número é a média de todas as entregas, e dizer um nome ali
+   * seria atribuir a alguém um prazo que não é só dele.
+   */
+  const deDe = (data?.entregas ?? [])[0]?.supplierName ?? null;
 
   /**
    * O ponto de recompra — a Lei 4 saindo do papel.
@@ -893,14 +901,21 @@ function InputDetail() {
                         t.app.home.dayCount,
                       ),
                     })
-                  : fill(t.app.inputDetail.buyWhy, {
-                      cover: plural(
-                        Math.floor(item.onHandBaseUnits / saiPorDia),
-                        t.app.home.dayCount,
-                      ),
-                      lead: plural(Math.round(prazo ?? 0), t.app.home.dayCount),
-                      slack: plural(folgaDaCompra, t.app.home.dayCount),
-                    })
+                  : // O prazo tem DONO desde que o fornecedor virou cadastro: ele é a média
+                    // das entregas dele, e não a de todos. Sem cadastro — nota velha — a
+                    // frase sem nome continua certa, e é a única honesta ali.
+                    fill(
+                      deDe ? t.app.inputDetail.buyWhyFrom : t.app.inputDetail.buyWhy,
+                      {
+                        cover: plural(
+                          Math.floor(item.onHandBaseUnits / saiPorDia),
+                          t.app.home.dayCount,
+                        ),
+                        lead: plural(Math.round(prazo ?? 0), t.app.home.dayCount),
+                        slack: plural(folgaDaCompra, t.app.home.dayCount),
+                        supplier: deDe ?? '',
+                      },
+                    )
               }
             />
           ) : null}

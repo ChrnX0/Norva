@@ -1018,6 +1018,8 @@ export const en: Dictionary = {
       buyBy: 'Buy by {{weekday}}',
       buyWhy:
         '{{cover}} of stock left and the supplier takes {{lead}}, with the {{slack}} of slack you chose.',
+      buyWhyFrom:
+        '{{cover}} of stock left and {{supplier}} takes {{lead}}, with the {{slack}} of slack you chose.',
       buyCalm: 'No need to buy yet',
       buyCalmWhy: '{{cover}} of stock left, and the sum already counts the supplier lead time.',
       leadTimeUnknown:

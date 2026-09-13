@@ -6185,6 +6185,15 @@ export type Delivery = {
    * média de dois fornecedores que não se parecem. Ver `prazoDoFornecedorAtual`.
    */
   supplierId: string | null;
+  /**
+   * O nome do fornecedor NO CADASTRO — e não o que foi digitado naquela nota.
+   *
+   * A tela usa isto para dizer de quem é o prazo: *"o Atacado São Jorge leva seis dias"* em
+   * vez de *"o fornecedor leva seis dias"*, que é a Lei 3 (nenhum número sozinho) aplicada a
+   * um número que agora pertence a alguém. Vem do cadastro porque é ele que a pessoa corrige
+   * quando erra o nome; a nota velha guarda o texto dela, e as duas coisas são de propósito.
+   */
+  supplierName: string | null;
 };
 
 export async function deliveriesOf(
@@ -6197,10 +6206,12 @@ export async function deliveriesOf(
     ordered_at: string;
     arrived_at: string;
     supplier_id: string | null;
+    supplier_name: string | null;
   }>(
-    `SELECT p.ordered_at, p.arrived_at, p.supplier_id
+    `SELECT p.ordered_at, p.arrived_at, p.supplier_id, s.name AS supplier_name
        FROM purchases p
        JOIN purchase_lines pl ON pl.purchase_id = p.id
+       LEFT JOIN suppliers s ON s.id = p.supplier_id AND s.company_id = p.company_id
       WHERE p.company_id = ?
         AND pl.item_id = ?
         AND p.ordered_at IS NOT NULL
@@ -6218,6 +6229,7 @@ export async function deliveriesOf(
     orderedAt: r.ordered_at,
     receivedAt: r.arrived_at,
     supplierId: r.supplier_id,
+    supplierName: r.supplier_name,
   }));
 }
 

@@ -1380,6 +1380,10 @@ export const ptBR = {
       buyBy: 'Compre até {{weekday}}',
       buyWhy:
         'Sobram {{cover}} de estoque e o fornecedor leva {{lead}}, com {{slack}} de folga que você escolheu.',
+      /* Com o fornecedor CADASTRADO, o prazo tem dono: ele é a média das entregas DELE, e
+         não a de todos. Dizer o nome é a Lei 3 num número que passou a pertencer a alguém. */
+      buyWhyFrom:
+        'Sobram {{cover}} de estoque e {{supplier}} leva {{lead}}, com {{slack}} de folga que você escolheu.',
       buyCalm: 'Não precisa comprar ainda',
       buyCalmWhy: 'Sobram {{cover}} de estoque, e a conta já conta o prazo do fornecedor.',
       leadTimeUnknown:
