@@ -50,7 +50,7 @@ import {
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
 import { unidadeDaqui } from '@/data/unidade';
-import { judgePriceChange, observedLeadTimeDays, reorderPoint } from '@/domain/cost';
+import { judgePriceChange, observedLeadTimeDays, reorderPoint, variacaoDoCusto } from '@/domain/cost';
 import { amountOf, type Rate } from '@/domain/money';
 import { ehConferencia, vendeAoConsumidor, type LossReason } from '@/domain/ledger';
 import { parseTyped } from '@/domain/number';
@@ -348,10 +348,10 @@ function InputDetail() {
 
   // The last real move, which is the only one anybody asks about.
   const latest = moves[0];
-  const latestChange =
-    latest && latest.previousRate
-      ? (latest.newRate - latest.previousRate) / latest.previousRate
-      : null;
+  // A mesma conta das capas e do assistente, do mesmo lugar. Esta era a ÚNICA das cinco que
+  // acertava a base zero — pelo `latest.previousRate` verdadeiro no ternário —, e acertava por
+  // acidente de escrita, não por decisão escrita. Agora a decisão mora em `variacaoDoCusto`.
+  const latestChange = latest ? variacaoDoCusto(latest.previousRate, latest.newRate) : null;
 
   /**
    * Onde o item está de verdade.
@@ -1115,8 +1115,14 @@ function InputDetail() {
 
             <View style={{ marginTop: space.sm }}>
               {moves.map((move) => {
+                // O SEXTO sítio, e a guarda o achou — a minha varredura na mão, não. Ele tinha
+                // a terceira resposta: zero na base zero, que a lista mostrava como "sem
+                // mudança" numa linha cujo custo subiu de nada para algo.
+                //
+                // `previous` continua existindo para o "de X para Y" da linha: LER a taxa
+                // anterior é legítimo e a guarda não o acusa — só a divisão é a conta.
                 const previous = move.previousRate ?? move.newRate;
-                const change = previous > 0 ? (move.newRate - previous) / previous : 0;
+                const change = variacaoDoCusto(move.previousRate, move.newRate);
                 return (
                   <ListRow
                     key={move.observedAt}
@@ -1125,8 +1131,12 @@ function InputDetail() {
                       amountOf(move.newRate, 1_000),
                       locale,
                     )}`}
-                    trailing={`${change > 0 ? '▲' : '▼'} ${formatPercent(Math.abs(change), locale)}`}
-                    trailingTone={change > 0 ? 'warning' : 'ok'}
+                    trailing={
+                      change === null
+                        ? t.app.home.changedNoBase
+                        : `${change > 0 ? '▲' : '▼'} ${formatPercent(Math.abs(change), locale)}`
+                    }
+                    trailingTone={change !== null && change > 0 ? 'warning' : 'ok'}
                   />
                 );
               })}

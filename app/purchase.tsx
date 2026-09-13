@@ -29,7 +29,7 @@ import {
 import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
 import { fromDecimal, rate, type Rate, rateToDecimal, amountOf } from '@/domain/money';
-import { applyCostEvent, judgePriceChange } from '@/domain/cost';
+import { variacaoDoCusto, applyCostEvent, judgePriceChange } from '@/domain/cost';
 import { costPerProductUnit, packagingRatePerUnit, costRecipe } from '@/domain/recipe';
 import { parseTyped } from '@/domain/number';
 import { localDate } from '@/domain/day';
@@ -322,8 +322,11 @@ function PurchaseForm() {
       { kind: 'purchase', baseUnits, totalCents, at: new Date().toISOString() },
     );
 
+    // O SÉTIMO sítio. Este já devolvia `null` na base zero — certo, e por escrita própria em vez
+    // de decisão escrita, como a ficha do insumo. A conta passa a vir do domínio para os sete
+    // concordarem por construção, não por coincidência.
     const previous = selected.lastRate;
-    const change = previous && previous > 0 ? (thisRate - previous) / previous : null;
+    const change = variacaoDoCusto(previous ?? null, thisRate);
 
     return {
       packs,

@@ -171,6 +171,7 @@ export const es: Dictionary = {
       dayCount: { one: '1 día', other: '{{n}} días' },
       stableAlways: 'ningún cambio de precio registrado',
       changed: 'Cambió desde la última vez',
+      changedNoBase: 'nuevo',
       allSteady: 'Todo estable',
     },
     tabs: {

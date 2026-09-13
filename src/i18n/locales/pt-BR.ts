@@ -264,6 +264,7 @@ export const ptBR = {
       dayCount: { one: '1 dia', other: '{{n}} dias' },
       stableAlways: 'nenhuma mudança de preço registrada',
       changed: 'Mudou desde a última vez',
+      changedNoBase: 'novo',
       allSteady: 'Tudo estável',
     },
     tabs: {

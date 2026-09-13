@@ -21,6 +21,7 @@ import {
 import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
 import { nowIso } from '@/data/db';
+import { variacaoDoCusto } from '@/domain/cost';
 import { todayRank } from '@/domain/briefing';
 import { MEDIDA_DA_PAGINA } from '@/theme/tokens';
 import { daysBetween, localDate } from '@/domain/day';
@@ -615,10 +616,12 @@ function PrecosOrganico({ moved, data, go, Casca }: PecaDaCapa) {
 
           <View style={{ flexDirection: 'row', gap: space.sm }}>
             {tres.map((mudanca) => {
-              const antes = mudanca.previousRate ?? mudanca.newRate;
-              const delta = antes > 0 ? (mudanca.newRate - antes) / antes : 0;
-              const subiu = delta > 0;
-              const tinta = subiu ? color.warning : color.ok;
+              // A mesma conta do Papel, e do mesmo lugar: `variacaoDoCusto`. Era
+              // `antes > 0 ? … : 0`, e o zero saía como ▼ 0,0% — queda desenhada onde o custo
+              // subiu de ZERO. `null` é base sem percentual, e aí a peça mostra o nome sem seta.
+              const delta = variacaoDoCusto(mudanca.previousRate, mudanca.newRate);
+              const subiu = (delta ?? 0) > 0;
+              const tinta = delta === null ? color.inkMuted : subiu ? color.warning : color.ok;
               return (
                 <View
                   key={`${mudanca.itemId}-${mudanca.observedAt}`}
@@ -644,7 +647,9 @@ function PrecosOrganico({ moved, data, go, Casca }: PecaDaCapa) {
                       <GlyphPrice size={16} color={palette.sky} weight={traco} />
                     </View>
                     <Text style={[type.secondary, estilos.numero, { color: tinta }]} numberOfLines={1}>
-                      {`${subiu ? '▲' : '▼'} ${formatPercent(Math.abs(delta), locale)}`}
+                      {delta === null
+                        ? t.app.home.changedNoBase
+                        : `${subiu ? '▲' : '▼'} ${formatPercent(Math.abs(delta), locale)}`}
                     </Text>
                   </View>
                   <Text style={[type.caption, { color: color.inkMuted }]} numberOfLines={2}>

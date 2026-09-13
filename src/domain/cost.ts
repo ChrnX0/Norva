@@ -174,6 +174,42 @@ export function ratesBefore(
 }
 
 /**
+ * De quanto o custo mudou — uma conta, num lugar só, com o caso da base ZERO decidido.
+ *
+ * **O que existia: cinco cópias e TRÊS respostas diferentes para a mesma pergunta.** Medido em
+ * 13 de setembro, por `grep` na aritmética e não no nome:
+ *
+ *   `app/inputs/[id].tsx`            ternário exige anterior verdadeiro  ->  null
+ *   `src/assistant/skills.ts` (x4)   `(agora - (ant ?? 0)) / (ant || 1)` ->  o próprio valor
+ *   `src/home/Mosaic.tsx`            `ant > 0 ? … : 0`                   ->  zero
+ *   `src/home/capas/organico.tsx`    idem                                ->  zero
+ *
+ * Nenhuma está *errada* sobre o caso comum: com anterior positivo as quatro dão o mesmo número.
+ * A divergência mora na base ZERO — uma nota de brinde, uma amostra, uma correção —, e o razão
+ * ACEITA isso: `recordPurchase` recusa só valor negativo.
+ *
+ * E o efeito medido é o pior dos três: a capa desenha **▼ 0,0%** para um insumo cujo custo subiu
+ * de zero para alguma coisa. Uma queda afirmada onde houve alta, com a seta e tudo — e a linha
+ * passa o filtro de cima (`previousRate !== newRate`), então ela chega à tela. O assistente, no
+ * mesmo caso, anuncia um percentual igual à própria taxa: 0,55 centavo por grama sai como
+ * *"+55%"*.
+ *
+ * **A decisão, tomada aqui uma vez: base zero não tem percentual, e `null` é a resposta.** Não é
+ * timidez — é aritmética: o que era zero e passou a valer algo não subiu uma fração, subiu de
+ * nada para algo, e nenhum percentual diz isso. `null` é o que a tela precisa para escrever a
+ * frase certa em vez de desenhar uma seta inventada.
+ *
+ * Anterior NULO também é `null`, pela mesma régua: um insumo cuja primeira nota acabou de entrar
+ * não mudou de preço, ele ganhou um. (As telas já filtram esse caso antes de chegar aqui; a
+ * função não depende disso, porque depender de um filtro de chamador é como as cinco cópias
+ * nasceram.)
+ */
+export function variacaoDoCusto(anterior: Rate | null, agora: Rate): number | null {
+  if (anterior === null || anterior === 0) return null;
+  return (agora - anterior) / anterior;
+}
+
+/**
  * How a price change should be read. A verdict, not a sentence - the screen
  * owns the words, in three languages.
  */

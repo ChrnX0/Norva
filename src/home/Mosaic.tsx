@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState, type ComponentType, type ReactNode } from 'react';
+import { variacaoDoCusto } from '@/domain/cost';
 import { cents, type Cents } from '@/domain/money';
 import { StyleSheet, Text, View } from 'react-native';
 import { Bars } from '@/components/Bars';
@@ -535,16 +536,34 @@ export function Mosaic(vista: BriefingView) {
             <Card hue={palette.sky} icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />} title={t.app.home.changed}>
               <View style={{ gap: space.sm }}>
                 {moved.map((change) => {
-                  const previous = change.previousRate ?? change.newRate;
-                  const delta = previous > 0 ? (change.newRate - previous) / previous : 0;
+                  /**
+                   * A conta é UMA, e mora no domínio — e a seta só aparece quando há o que dizer.
+                   *
+                   * Esta linha era `previous > 0 ? (novo - previous) / previous : 0`, e o zero
+                   * do `else` chegava à tela como **▼ 0,0%**: uma queda desenhada, com seta,
+                   * para um insumo cujo custo subiu de ZERO para alguma coisa. O razão aceita
+                   * taxa zero (uma amostra, um brinde, uma correção) e o filtro de cima deixa
+                   * a linha passar, então isso chega ao olho de quem decide compra.
+                   *
+                   * `variacaoDoCusto` devolve `null` para base zero, porque nenhum percentual
+                   * diz "de nada para algo". Aqui `null` vira o nome sem número: a linha conta
+                   * que o item entrou na conversa sem afirmar uma variação que não existe.
+                   */
+                  const delta = variacaoDoCusto(change.previousRate, change.newRate);
                   return (
                     <View key={`${change.itemId}-${change.observedAt}`} style={styles.row}>
                       <Text style={[type.secondary, { color: color.ink, flex: 1 }]} numberOfLines={1}>
                         {change.name}
                       </Text>
-                      <Text style={[type.secondary, styles.number, { color: delta > 0 ? color.warning : color.ok }]}>
-                        {delta > 0 ? '▲' : '▼'} {formatPercent(Math.abs(delta), locale)}
-                      </Text>
+                      {delta === null ? (
+                        <Text style={[type.secondary, styles.number, { color: color.inkMuted }]}>
+                          {t.app.home.changedNoBase}
+                        </Text>
+                      ) : (
+                        <Text style={[type.secondary, styles.number, { color: delta > 0 ? color.warning : color.ok }]}>
+                          {delta > 0 ? '▲' : '▼'} {formatPercent(Math.abs(delta), locale)}
+                        </Text>
+                      )}
                     </View>
                   );
                 })}

@@ -3239,3 +3239,92 @@ test('a guarda da chave lê a chave, e não o argumento da consulta que tem o me
     'e a chave que só leva o destino reprova, mesmo com `from` na linha da chamada acima',
   );
 });
+
+/**
+ * A variação do custo é UMA conta, e ninguém a escreve na mão de novo.
+ *
+ * **Cinco cópias, três respostas.** Medido em 13 de setembro: `app/inputs/[id].tsx` devolvia
+ * `null` na base zero, `src/assistant/skills.ts` devolvia o próprio valor (0,55 centavo por
+ * grama saía como *"+55%"*) e as duas capas devolviam zero — que a tela desenhava como
+ * **▼ 0,0%**, uma queda afirmada para um custo que subiu de nada para algo. As quatro
+ * concordavam no caso comum, e é isso que fez a divergência viver: só a base ZERO as separa, e
+ * o razão aceita taxa zero (`recordPurchase` recusa apenas valor negativo).
+ *
+ * **A régua procura a ARITMÉTICA, não o nome.** É a lição que o `multiplyCents` pagou: `grep`
+ * pelo nome da função devolveu zero chamadores e concordou com a promessa falsa do docblock,
+ * enquanto `grep` pela conta achou cinco sítios. Aqui o padrão é a divisão por uma taxa
+ * anterior, em qualquer das formas que as cinco usavam.
+ */
+export function contaDeVariacaoNaMao(texto: string): string[] {
+  const fora: string[] = [];
+  for (const linha of semProsa(texto).split('\n')) {
+    // `(algo - algo) / algo` onde o divisor menciona uma taxa anterior. As três formas reais:
+    // `/ previous`, `/ (previousRate || 1)`, `/ latest.previousRate`.
+    if (!/\/\s*\(?\s*[\w.]*(?:previous|anterior|antes)\w*/i.test(linha)) continue;
+    if (!/-/.test(linha)) continue;
+    fora.push(linha.trim().slice(0, 90));
+  }
+  return fora;
+}
+
+test('nenhuma tela calcula a variação do custo na mão', () => {
+  const fontes = [...sourcesUnder('app'), ...sourcesUnder('src')].filter(
+    // O domínio é onde a conta MORA; a guarda protege os chamadores dela.
+    (f) => !f.startsWith('src/domain/'),
+  );
+  assert.ok(fontes.length > 20, 'a varredura de fontes veio vazia — a comparação seria de graça');
+
+  const culpados: string[] = [];
+  for (const arquivo of fontes) {
+    for (const linha of contaDeVariacaoNaMao(readFileSync(arquivo, 'utf8'))) {
+      culpados.push(`${arquivo}: ${linha}`);
+    }
+  }
+  assert.deepEqual(
+    culpados,
+    [],
+    'estas linhas dividem por uma taxa anterior em vez de chamar `variacaoDoCusto`:\n  ' +
+      culpados.join('\n  ') +
+      '\nCada cópia decide sozinha o que fazer com a base ZERO, e as três decisões que existiam ' +
+      'discordavam — uma delas desenhando queda onde houve alta.',
+  );
+});
+
+test('a régua da variação distingue a conta na mão da chamada à função', () => {
+  // O caso VERDADEIRO é o real, palavra por palavra, nas três formas que existiam.
+  // Eu afirmei que a régua NÃO pegava esta forma, e ela pega: `antes` está entre as palavras
+  // que o padrão procura. A régua é mais forte do que eu disse — e descobrir isso pelo teste
+  // reprovando é o único jeito honesto: afirmação sobre a própria régua também se mede.
+  assert.equal(
+    contaDeVariacaoNaMao('  const delta = antes > 0 ? (mudanca.newRate - antes) / antes : 0;').length,
+    1,
+    'a forma da capa do Orgânico, que dividia por `antes`',
+  );
+  assert.equal(
+    contaDeVariacaoNaMao('      const da = Math.abs((b.newRate - (b.previousRate ?? 0)) / (b.previousRate || 1));').length,
+    1,
+    'a forma do assistente, que era a que inventava percentual',
+  );
+  assert.equal(
+    contaDeVariacaoNaMao('      ? (latest.newRate - latest.previousRate) / latest.previousRate').length,
+    1,
+    'a forma da ficha do insumo',
+  );
+  assert.equal(
+    contaDeVariacaoNaMao('                  const previous = change.previousRate ?? change.newRate;').length,
+    0,
+    'e LER a taxa anterior não é calcular variação nenhuma — só a divisão é',
+  );
+  // E a chamada à função, que é o que deve substituir as três.
+  assert.equal(
+    contaDeVariacaoNaMao('  const delta = variacaoDoCusto(change.previousRate, change.newRate);').length,
+    0,
+    'a chamada certa não é acusada',
+  );
+  // A prosa que CITA o padrão também não: a cicatriz desta casa, cometida duas vezes hoje.
+  assert.equal(
+    contaDeVariacaoNaMao('   * Eram quatro cópias de `(agora - (ant ?? 0)) / (ant || 1)` neste bloco.').length,
+    0,
+    'falar de uma coisa não é fazê-la',
+  );
+});

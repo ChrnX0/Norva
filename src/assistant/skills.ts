@@ -4,6 +4,7 @@ import { ehConferencia } from '@/domain/ledger';
 import { packSize } from '@/domain/measure';
 import { purchaseToBaseUnits } from '@/data/repository';
 import { fromDecimal, amountOf, type Rate } from '@/domain/money';
+import { variacaoDoCusto } from '@/domain/cost';
 import {
   costPerProductUnit,
   costRecipe,
@@ -190,22 +191,46 @@ const whatMoved: Skill = {
       return { text: 'Nenhum preço mudou desde a última vez. Está tudo estável.' };
     }
 
-    const worst = [...moved].sort((a, b) => {
-      const da = Math.abs((b.newRate - (b.previousRate ?? 0)) / (b.previousRate || 1));
-      const db = Math.abs((a.newRate - (a.previousRate ?? 0)) / (a.previousRate || 1));
-      return da - db;
-    })[0];
+    /**
+     * A conta é UMA, e vem do domínio — e o `|| 1` anunciava um percentual inventado.
+     *
+     * Eram quatro cópias de `(agora - (ant ?? 0)) / (ant || 1)` neste bloco. O filtro de cima
+     * cobre o anterior NULO, e não o anterior ZERO: com base zero o `|| 1` divide por um, e o
+     * assistente anuncia um percentual IGUAL à própria taxa — 0,55 centavo por grama sai como
+     * *"subiu 55%"*. O razão aceita taxa zero (amostra, brinde, correção), então isso é
+     * alcançável, e a resposta falada é a que o dono repete para o fornecedor.
+     *
+     * `variacaoDoCusto` devolve `null` para base zero. Um item sem base não disputa o "maior",
+     * porque não há percentual para comparar; ele continua na lista de baixo, com o rótulo.
+     */
+    const comVariacao = moved
+      .map((c) => ({ c, delta: variacaoDoCusto(c.previousRate, c.newRate) }))
+      .filter((x): x is { c: (typeof moved)[number]; delta: number } => x.delta !== null);
 
-    const change = (worst.newRate - (worst.previousRate ?? 0)) / (worst.previousRate || 1);
+    if (comVariacao.length === 0) {
+      // Todos sem base para percentual: dizer "o maior foi X, que subiu 0%" seria inventar.
+      return {
+        text: `${moved.length} ${moved.length === 1 ? 'item passou' : 'itens passaram'} a ter preço.`,
+        detail: moved.map((c) => ({ label: c.name, value: 'preço novo' })),
+        route: '/purchase',
+      };
+    }
+
+    const pior = [...comVariacao].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))[0];
+    const worst = pior.c;
+    const change = pior.delta;
 
     return {
       text:
         `${moved.length} ${moved.length === 1 ? 'item mudou' : 'itens mudaram'} de preço. ` +
         `O maior foi ${worst.name}, que ${movePhrase(change, ctx.locale)}.`,
-      detail: moved.map((c) => ({
-        label: c.name,
-        value: movePhrase((c.newRate - (c.previousRate ?? 0)) / (c.previousRate || 1), ctx.locale),
-      })),
+      detail: moved.map((c) => {
+        const d = variacaoDoCusto(c.previousRate, c.newRate);
+        return {
+          label: c.name,
+          value: d === null ? 'preço novo' : movePhrase(d, ctx.locale),
+        };
+      }),
       route: '/purchase',
     };
   },
