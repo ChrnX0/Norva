@@ -3328,3 +3328,59 @@ test('a régua da variação distingue a conta na mão da chamada à função', 
     'falar de uma coisa não é fazê-la',
   );
 });
+
+test('o razão desce pela tabela, nunca pela view do portão de dinheiro', () => {
+  /**
+   * A régua de um defeito de dinheiro, e ela guarda uma DECISÃO — não uma preferência.
+   *
+   * A descida escreve o razão local, e `descer.ts` recompõe a média de custo no fim da rodada.
+   * Lendo por `movements_visible`, uma conta sem `view_cost` recebe a taxa congelada NULA, e
+   * `recomputeItemCost` não conta linha sem taxa: a média local vira a média de um razão com
+   * buracos — 0,0000 contra 0,5310 no exemplo medido em `src/sync/descer.test.ts` — e toda
+   * produção que aquele aparelho registrar depois congela custo a partir dela.
+   *
+   * O projeto já respondeu isto duas vezes: a `0047` (*"o Conferente congela um preço que ele
+   * não pode ver"*) e `listProductsForLedger` (*"congelar custo e VER custo são perguntas
+   * diferentes; só a segunda tem portão"*). A view continua certa para quem LÊ como pessoa; o
+   * que ela não pode ser é a fonte da réplica.
+   *
+   * **A régua procura o NOME da view no código, e não o argumento do `.from()`** — porque o
+   * defeito real era `const de = p.tabela === 'movements' ? 'movements_visible' : p.tabela` e
+   * um `.from(de)` logo abaixo. Régua que lê o argumento vê uma variável e aprova. Isto não é
+   * hipótese: a primeira versão desta guarda passou no caso verdadeiro e reprovou no falso, com
+   * o defeito de verdade na mão.
+   *
+   * O texto é a régua porque `transporte.ts` não é importável por teste nenhum — ele arrasta o
+   * cliente do servidor e, por baixo, o React Native inteiro. É a mesma razão pela qual a
+   * guarda do import preguiçoso deste arquivo também lê texto.
+   */
+  const fonte = code(readFileSync('src/sync/transporte.ts', 'utf8'));
+  assert.match(fonte, /\.from\(/, 'a leitura de transporte.ts não achou nenhum .from — o arquivo mudou de forma');
+  const views = [...new Set([...fonte.matchAll(/\b(\w+_visible)\b/g)].map((m) => m[1]))];
+  assert.deepEqual(
+    views,
+    [],
+    `transporte.ts menciona ${views.join(' · ')} no código: a descida escreve o razão local e ` +
+      'recompõe a média a partir dele, então uma conta sem view_cost gravaria um razão sem as ' +
+      'taxas e a média local sairia 0,0000. Congelar custo e VER custo são perguntas diferentes.',
+  );
+});
+
+test('a régua da fonte da descida distingue a tabela da view', () => {
+  // O caso verdadeiro e o falso, e o falso é o defeito COMO ELE ERA: o nome da view numa
+  // variável, longe do `.from`. A primeira versão desta régua lia o argumento do `.from` e
+  // deixava isto passar — o caso falso foi o que a reprovou.
+  const acha = (texto: string) =>
+    [...new Set([...code(texto).matchAll(/\b(\w+_visible)\b/g)].map((m) => m[1]))];
+  assert.deepEqual(acha(`cliente.from(p.tabela).select('*')`), [], 'a régua acusou a tabela crua');
+  assert.deepEqual(
+    acha(`const de = p.tabela === 'movements' ? 'movements_visible' : p.tabela;\ncliente.from(de)`),
+    ['movements_visible'],
+    'a régua não achou a leitura pela view — é exatamente o defeito que ela existe para pegar',
+  );
+  assert.deepEqual(
+    acha(`// a view movements_visible continua certa para quem lê\ncliente.from(p.tabela)`),
+    [],
+    'a régua acusou a PROSA que explica a decisão — aviso assim ensina a ignorar aviso',
+  );
+});

@@ -11847,3 +11847,74 @@ erro nenhum. Cursor é fato do servidor, e fato do servidor não se aceita do cl
 cursor) e em `movements` (o cliente escolhe o cursor). Cada um derrubou exatamente a asserção
 que o nomeia — e o primeiro plantio, mal feito, derrubou a MIGRAÇÃO em vez da garantia, porque
 tirar a coluna e deixar o `comment on column` dela é um defeito que não existe.*
+
+## 13 de setembro — a descida lia pelo portão de leitura, e a média local ia a zero
+
+A rodada 6 do estudo dizia: *"o custo congelado é legível na tabela crua — a view esconde, a
+tabela entrega"*. A premissa estava certa e o conserto proposto estava errado, e as duas coisas
+só apareceram medindo.
+
+**Primeiro o meu erro de régua, porque ele exagerou o problema em dez.** Perguntei ao Postgres
+`has_column_privilege('app_user', tabela, coluna, 'select')` para cada coluna de dinheiro e li o
+resultado como resposta: **quinze colunas legíveis por qualquer membro**. Só que a pergunta "quem
+sem `view_cost` alcança o custo?" tem duas metades — o **grant** e a **política** —, e eu medi
+uma. Dez daquelas quinze estão fechadas por política desde a `0002` e a `0037`: `item_costs`,
+`item_cost_history`, `purchases` e `purchase_lines` pedem `view_cost`; `location_prices` e
+`sale_price_history` pedem `manage_company`.
+
+**Régua que mede a camada errada exagera — e exagero manda consertar o que já está certo.** Eu
+estava a caminho de escrever uma migração de trezentas linhas com seis views novas e seis funções
+`security definer` para fechar dez portas que já estavam fechadas. O que restava de verdade eram
+**cinco** colunas em três tabelas: as duas de dinheiro do razão, `items.sale_price_rate` e as duas
+de embalagem do produto.
+
+**E dessas cinco, quatro NÃO PODEM ser fechadas, porque quem as lê não é uma pessoa — é a
+réplica.** O aparelho precisa da taxa verdadeira para escrever o razão, e este projeto já
+respondeu isso duas vezes, nas duas direções certas: a `0047` escreveu *"o Conferente congela um
+preço que ele não pode ver… com o portão no caminho da escrita, a contagem do operador gravaria
+venda sem preço, e a receita do mês sairia menor para quem conta e maior para quem administra"*, e
+`listProductsForLedger` diz *"congelar custo e VER custo são perguntas diferentes; só a segunda
+tem portão"*.
+
+**E foi aí que o defeito de verdade apareceu, na direção oposta à que eu estava procurando.** A
+descida lia o razão por `movements_visible` — a view do portão — e a docblock de `transporte.ts`
+chamava isso de acerto: *"um aparelho sem `view_cost` recebe a linha com o custo NULO em vez de
+recebê-lo e esconder na tela"*. Soa como a fundação e é o contrário dela: **a descida não é uma
+tela, é o caminho de ESCRITA do razão local**, e `descer.ts` chama `recomporCustos` no fim de cada
+rodada.
+
+`recomputeItemCost` mistura só linha com taxa não nula — nulo não entra como zero, ele **sai da
+conta**. Os dois números, medidos:
+
+```
+razão inteiro 0,5310      pelo portão de leitura 0,0000
+```
+
+Custo **zero** para todo item que desceu. E toda produção que aquele aparelho registrar depois
+congela custo a partir dessa média (`recordProduction` soma `consumedValue` com a embalagem),
+num livro que não se corrige — se estorna.
+
+**A tentativa de fechar mesmo assim tem uma medida, e ela fecha o assunto.** Plantei o que a
+rodada propunha — `revoke select on movements` mais `grant select` nas outras colunas — e o
+`db:verify` reprovou na garantia **4**, com `permission denied for table movements`: uma view
+`security_invoker` confere o privilégio de **coluna** de quem a consulta, então fechar a coluna
+**fecha a view junto**. O portão de leitura desaparece com o buraco. Sem uma função
+`security definer` no meio não existe meio caminho — e com ela a réplica fica sem a taxa.
+
+*A pergunta que fica respondida, e vale para o próximo caso: **gate de servidor não protege um
+número que a mesma conta precisa replicar para escrever.** O aparelho e a pessoa são o mesmo
+principal, e o número já está no SQLite do celular. O portão útil é o das consultas do aplicativo
+— que existe e é onde a fundação o pôs.*
+
+**E um terceiro defeito da descida apareceu ao escrever o primeiro teste dela:** `pedido()` deriva
+as colunas de `colunasQueSobem()`, e o `take` do serializador é uma promessa sobre o **servidor**.
+`movements.device_id` existe lá desde a `0013` e **não existe no aparelho** — registrado como
+fronteira em `PROMETIDA_E_AUSENTE`. Na subida isso é inofensivo (a coluna viaja nula); na descida
+o `INSERT` **nomeia** a coluna, e o SQLite responde `table movements has no column named
+device_id`. Ou seja: mesmo com o cursor resolvido, a página do razão não entrava.
+
+*Três defeitos, um em cima do outro, na mesma peça, e nenhum deles visível pelo compilador. O que
+os revelou não foi releitura: foi escrever o primeiro teste que EXECUTA `descer()` — `descer.ts`,
+`gravarPagina`, `proximoCursor` e `pedido` estavam no ar desde 12 de setembro sem um arquivo de
+teste que os importasse. Peça nova que é PROTOCOLO entre dois lados não se prova conferindo os
+dois lados: prova-se dando uma volta completa.*

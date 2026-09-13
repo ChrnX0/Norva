@@ -50,11 +50,39 @@ export function escritaLocal(
  * sempre. Com ela, ou a página inteira entrou e o cursor anda, ou nada entrou e a próxima
  * rodada pede a mesma página.
  *
- * `received_at` é RETIRADO antes de gravar: ele é o cursor da descida, fato do servidor sobre
- * a chegada, e o aparelho não tem coluna para ele — de propósito (ver `SO_DO_SERVIDOR` em
- * `src/layers.test.ts`). Quem guarda o cursor é o `app_meta`, uma linha por tabela, e não
- * cada linha do razão.
+ * **O que o aparelho não tem, ele não grava — e isto era um defeito, não um cuidado.**
+ *
+ * `pedido()` deriva as colunas de `colunasQueSobem()`, e a razão escrita lá é boa: a ida e a
+ * volta ficam simétricas por construção em vez de por duas listas escritas pela mesma mão. O
+ * que ela não viu é que o `take` do serializador é uma promessa sobre o SERVIDOR, e o aparelho
+ * pode legitimamente não ter uma daquelas colunas — `movements.device_id` existe no servidor
+ * desde a `0013` e não existe aqui, registrado como fronteira em `PROMETIDA_E_AUSENTE`
+ * (`src/sync/columns.test.ts`), esperando a matrícula de aparelho.
+ *
+ * Na SUBIDA isso é inofensivo: a coluna viaja nula. Na DESCIDA o `INSERT` NOMEIA a coluna, e o
+ * SQLite responde `table movements has no column named device_id` — a página do razão não
+ * entrava, e `descer()` para a rodada inteira no primeiro erro. Ou seja: mesmo com o cursor
+ * resolvido, o razão não descia.
+ *
+ * O filtro lê o esquema DE VERDADE (`PRAGMA table_info`), e não uma lista: lista aqui seria a
+ * cópia de `PROMETIDA_E_AUSENTE` divergindo no primeiro passo `V` que criasse a coluna.
+ *
+ * `received_at` sai pelo mesmo caminho, e por ser o cursor: fato do servidor sobre a chegada,
+ * guardado no `app_meta` uma vez por TABELA e não uma vez por linha.
  */
+
+/** As colunas que a tabela local realmente tem, uma leitura por tabela por sessão. */
+const colunasLocais = new Map<string, Set<string>>();
+
+async function temColuna(tabela: ServerTable): Promise<Set<string>> {
+  const guardadas = colunasLocais.get(tabela);
+  if (guardadas) return guardadas;
+  const conn = await db();
+  const linhas = await conn.getAllAsync<{ name: string }>(`PRAGMA table_info(${tabela})`);
+  const nomes = new Set(linhas.map((l) => l.name));
+  colunasLocais.set(tabela, nomes);
+  return nomes;
+}
 export async function gravarPagina(
   tabela: ServerTable,
   colunas: readonly string[],
@@ -62,7 +90,8 @@ export async function gravarPagina(
 ): Promise<number> {
   if (pagina.length === 0) return 0;
   const conn = await db();
-  const guardadas = colunas.filter((c) => c !== 'received_at');
+  const daqui = await temColuna(tabela);
+  const guardadas = colunas.filter((c) => c !== 'received_at' && daqui.has(c));
   const sql = escritaLocal(tabela, guardadas, APENAS_INSERE.includes(tabela));
   let gravadas = 0;
   await conn.withTransactionAsync(async () => {

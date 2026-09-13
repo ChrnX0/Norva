@@ -56,11 +56,29 @@ export type Casa = {
   /**
    * Lê uma página, na ordem do cursor. O outro sentido.
    *
-   * O razão vem pela VIEW e não pela tabela: `movements_visible` põe o portão do dinheiro
-   * do lado de dentro da consulta (`security_invoker` mais `has_capability`), então um
-   * aparelho sem `view_cost` recebe a linha com o custo NULO em vez de recebê-lo e
-   * esconder na tela. Esconder na tela é decoração; a fundação desta casa manda a
-   * permissão morar na consulta.
+   * **O razão vem pela TABELA, e não pela view do portão de dinheiro — e trocar isso foi um
+   * defeito de dinheiro, consertado em 13 de setembro.**
+   *
+   * A primeira versão lia `movements_visible`, que põe `has_capability(company_id,
+   * 'view_cost')` na frente do custo congelado, e a razão escrita aqui era *"um aparelho sem
+   * `view_cost` recebe a linha com o custo NULO em vez de recebê-lo e esconder na tela"*. Soa
+   * como a fundação e é o contrário dela, porque a descida **não é uma tela**: ela ESCREVE o
+   * razão local, e `descer.ts` chama `recomporCustos` no fim da rodada.
+   *
+   * `recomputeItemCost` mistura só as linhas com taxa não nula — nulo não entra como zero,
+   * ele SAI DA CONTA. Medido em `src/sync/descer.test.ts`: duas compras que valem 0,5310 de
+   * média viram **0,0000** quando descem pela view. E aí toda produção que aquele aparelho
+   * registrar depois congela custo a partir dessa média, porque `recordProduction` soma
+   * `consumedValue` com a embalagem — e conteúdo de livro-razão não se corrige, se estorna.
+   *
+   * Este projeto já respondeu esta pergunta duas vezes, nas duas direções certas: a `0047`
+   * escreveu *"o Conferente congela um preço que ele não pode ver… com o portão no caminho da
+   * escrita, a contagem do operador gravaria venda sem preço"*, e `listProductsForLedger` diz
+   * *"congelar custo e VER custo são perguntas diferentes; só a segunda tem portão"*. Congelar
+   * é escrita; a descida é escrita do razão local.
+   *
+   * A view continua existindo e continua certa — ela é o portão de quem LÊ como pessoa (a
+   * metade web, uma consulta de mão). O que ela não pode ser é a fonte do réplica.
    */
   ler(
     pedido: PedidoDeDescida,
@@ -99,11 +117,8 @@ export async function casaDoServidor(): Promise<Casa | null> {
     },
 
     ler: async (p) => {
-      // A view para o razão, a tabela para o resto. `movements` é a única que tem dinheiro
-      // dentro, e é a única cuja leitura precisa passar pelo portão.
-      const de = p.tabela === 'movements' ? 'movements_visible' : p.tabela;
       let q = cliente
-        .from(de)
+        .from(p.tabela)
         .select(p.colunas.join(','))
         .order('received_at', { ascending: true })
         .order('id', { ascending: true })

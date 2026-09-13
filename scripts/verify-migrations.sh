@@ -2178,12 +2178,17 @@ DEPOIS=$(rows "select count(*) from movements
 SALDO=$(rows "select coalesce(sum(quantity_base_units),0) from movements where id::text like '${DESC}0%';")  # proofgate-allow
 [ "$SALDO" = "7000" ] || fail "a soma do que desceria e $SALDO, esperava 7000: os dois aparelhos ficariam com saldos diferentes"
 
-# E a view por onde a descida le carrega o que o aparelho guarda — sem isso o segundo
+# E a TABELA por onde a descida le carrega o que o aparelho guarda — sem isso o segundo
 # celular receberia um razao mutilado, que e pior que nao descer porque parece completo.
-for COL in movement_group_id operator_id return_reason carrier_id received_at; do
+#
+# Era a view que estava aqui, porque a descida lia por ela. Ela le a tabela desde 13 de setembro,
+# e a razao esta na garantia 37: a descida ESCREVE o razao local e recompoe a media a partir
+# dele, entao a taxa congelada nao pode chegar nula. A view continua certa para quem le como
+# pessoa, e a garantia 4 e quem prova o portao dela.
+for COL in movement_group_id operator_id return_reason carrier_id received_at unit_cost_rate; do
   TEM=$(rows "select count(*) from information_schema.columns
-              where table_name = 'movements_visible' and column_name = '$COL';")  # proofgate-allow
-  [ "$TEM" = "1" ] || fail "movements_visible nao expoe '$COL': a descida gravaria um razao sem esse campo, calada"
+              where table_name = 'movements' and column_name = '$COL';")  # proofgate-allow
+  [ "$TEM" = "1" ] || fail "movements nao tem '$COL': a descida gravaria um razao sem esse campo, calada"
 done
 
 echo "    um lote de tres com o mesmo relogio atravessa inteiro, e o cursor no fim nao repete nada"
@@ -2444,9 +2449,10 @@ echo "==> check 36: a descida ANDA — toda tabela tem o cursor, e a correcao mo
 ANDOU=0
 while IFS='|' read -r TABELA COLUNAS; do
   [ -n "$TABELA" ] || continue
-  # A mesma troca que `transporte.ts` faz: o razao desce pela VIEW, que e o portao do dinheiro.
+  # A tabela CRUA, inclusive para o razao: a descida escreve o razao local e recompoe a media a
+  # partir dele, entao ela precisa da taxa VERDADEIRA. A view continua sendo o portao de quem le
+  # como pessoa. Ver a garantia 37 e src/sync/descer.test.ts.
   FONTE="$TABELA"
-  [ "$TABELA" = "movements" ] && FONTE=movements_visible
   # A consulta sai para uma variavel antes de ser feita, e nao por estilo: o marcador de
   # justificativa e por LINHA, e nao existe comentario que caiba dentro de uma string de SQL.
   PAGINA="select $COLUNAS from $FONTE where company_id = '$DEVICE_COMPANY' order by received_at, id limit 500;"  # proofgate-allow
@@ -2524,5 +2530,66 @@ CRAVADO=$(rows "select case when received_at > now() - interval '1 minute' then 
 echo "    as $ANDOU tabelas que descem andam, a correcao e a decisao movem o cursor, e o cliente nao o escolhe"
 
 echo
-echo "OK - migrations apply and all thirty-six guarantees hold."
+echo "==> check 37: onde o dinheiro do servidor ALCANCA quem nao pode ve-lo, e onde nao"
+
+# Esta garantia existe para um numero que eu media errado.
+#
+# A pergunta "quem sem `view_cost` alcanca o custo?" tem DUAS metades no Postgres: o grant
+# (`has_column_privilege`) e a POLITICA. Eu medi a primeira e li o resultado como resposta —
+# quinze colunas de dinheiro "legiveis por qualquer membro" — e dez delas estao fechadas por
+# politica desde a `0002` e a `0037`: `item_costs`, `item_cost_history`, `purchases` e
+# `purchase_lines` pedem `view_cost`; `location_prices` e `sale_price_history` pedem
+# `manage_company`. Regua que mede a camada errada exagera, e exagero manda consertar o que
+# esta certo.
+#
+# Entao a regua certa e esta: LER como a conta, e escrever ao lado por que cada resposta e a
+# desejada. As que ficam abertas nao sao descuido — sao o que a REPLICA precisa para escrever o
+# razao, e o projeto ja decidiu isso duas vezes (a `0047` e `listProductsForLedger`): congelar
+# um numero e ver um numero sao perguntas diferentes, e so a segunda tem portao.
+
+# A conta do operador: produz, e nao ve dinheiro.
+SEM=$(as_user "$OPERATOR" "select count(*) from item_costs;")  # proofgate-allow
+[ "$SEM" = "0" ] || fail "quem nao ve custo leu $SEM linha(s) de item_costs: a media movel e O numero de custo, e a politica da 0002 devia fecha-la"
+
+SEM=$(as_user "$OPERATOR" "select count(*) from item_cost_history;")  # proofgate-allow
+[ "$SEM" = "0" ] || fail "quem nao ve custo leu $SEM linha(s) de item_cost_history: a historia da media conta a media"
+
+SEM=$(as_user "$OPERATOR" "select count(*) from purchase_lines;")  # proofgate-allow
+[ "$SEM" = "0" ] || fail "quem nao ve custo leu $SEM linha(s) de purchase_lines: total_cents e quanto se pagou"
+
+SEM=$(as_user "$OPERATOR" "select count(*) from purchases;")  # proofgate-allow
+[ "$SEM" = "0" ] || fail "quem nao ve custo leu $SEM nota(s) fiscal(is)"
+
+SEM=$(as_user "$OPERATOR" "select count(*) from location_prices;")  # proofgate-allow
+[ "$SEM" = "0" ] || fail "quem nao administra a empresa leu $SEM acordo(s) comercial(is): a 0037 diz por que o escopo e mais estreito que o produto quer"
+
+SEM=$(as_user "$OPERATOR" "select count(*) from sale_price_history;")  # proofgate-allow
+[ "$SEM" = "0" ] || fail "quem nao administra a empresa leu $SEM mudanca(s) de preco"
+
+# E o outro lado, que e DECISAO e nao buraco: a taxa congelada do razao chega verdadeira a quem
+# replica, porque e dela que sai a media local — e da media sai o custo congelado da producao
+# seguinte. Fecha-la aqui faria a media daquele aparelho virar a media de um razao com buracos:
+# 0,0000 contra 0,5310 no exemplo medido em src/sync/descer.test.ts.
+TAXA=$(as_user "$OPERATOR" "select unit_cost_rate from movements where id = '00000000-0000-4000-8000-0000000000d3';")  # proofgate-allow
+[ "$TAXA" = "0.472" ] || fail "a taxa congelada do razao nao chegou a quem replica ('$TAXA'): a media local viraria a de um razao com buracos, e toda producao seguinte congelaria custo a partir dela"
+
+# A MESMA linha pela view, que e o portao de quem le como pessoa: nula.
+#
+# A garantia 4 ja mede esta metade, e medi: plantando a view sem o `case when`, e ELA que
+# reprova primeiro. A linha continua aqui porque o PAR e o que carrega o significado — a mesma
+# linha, a mesma conta, numero pela tabela e nulo pela view e o que separa "congelar" de "ver".
+#
+# E a outra direcao tambem foi medida, porque era o que a rodada 6 propunha: fechar
+# `unit_cost_rate` por coluna (`revoke select on movements` + `grant select (as outras)`) derruba
+# a garantia 4 com `permission denied for table movements`, antes de chegar aqui. Uma view
+# `security_invoker` confere o privilegio de COLUNA de quem a consulta, entao fechar a coluna
+# fecha a view junto — e o portao de leitura desaparece com o buraco. Sem uma funcao
+# `security definer` no meio nao existe meio caminho, e com ela a replica fica sem a taxa.
+PELA_VIEW=$(as_user "$OPERATOR" "select coalesce(unit_cost_rate::text, 'null') from movements_visible where id = '00000000-0000-4000-8000-0000000000d3';")  # proofgate-allow
+[ "$PELA_VIEW" = "null" ] || fail "a view entregou o custo a quem nao pode ve-lo ('$PELA_VIEW'): ela e o portao de quem le"
+
+echo "    dez colunas de dinheiro fechadas por politica, e a taxa do razao verdadeira para quem replica e nula para quem le"
+
+echo
+echo "OK - migrations apply and all thirty-seven guarantees hold."
 
