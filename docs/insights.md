@@ -12388,3 +12388,79 @@ Isso é a irmã da regra já escrita (*a garantia se escreve na forma com que o 
 ela também se escreve com as **permissões** que o aparelho tem. Uma garantia de RLS que falha por
 `grant` ausente reprova pelo motivo errado, e a leitura natural — "o servidor está trancado, ótimo"
 — é a pior possível, porque ela transforma um buraco do provador em prova de segurança.
+
+## 13 de setembro — quatro peças certas, nenhuma ligada: a notificação que nunca chegou
+
+A rodada dos avisos achou cinco defeitos entre o razão e o bolso, e **quatro têm a mesma
+forma**: a peça existe, está correta, e ninguém a chama. O canal do Android era citado no
+gatilho desde o primeiro dia e nunca criado (e o sistema descarta a notificação sem erro). O
+`{kind, subjectId}` era gravado em cada aviso e lido por ninguém. O comportamento em primeiro
+plano nunca foi declarado, então a biblioteca descartava o aviso com o aplicativo aberto. O
+motivo de não ter agendado era devolvido e morria num `.then` de corpo vazio.
+
+Nenhum é alcançável por `typecheck`, `lint` ou teste de função — as funções estavam certas. É
+o P1 na metade difícil (*quem EXERCITA isto?*), e aqui não há navegador nem celular que
+responda: notificação não se lê num teste de navegador.
+
+**E o plano dava o assunto como FEITO, com a prova exata que esta casa desconfia.** A tabela
+dizia *"o tipo existe e o agendador está montado na raiz"* — as duas coisas verdadeiras, e
+nenhuma delas sobre o aviso chegar. O que faltava era tudo o que fica entre elas.
+
+**Pior: dois itens FECHADOS consertaram a volta de uma porta que não existia.** Os itens 6 e
+33 chamam o aviso de validade de *"uma das duas portas que o produto promete"* e resolveram a
+pilha vazia de quem entra por ligação profunda. O conserto valia para o QR do engradado; a
+metade da notificação não tinha chamador — tocar no aviso abria a capa. Então a régua "meça a
+afirmação do item antes de construir" tem uma gêmea: **meça também o que o item fechado
+afirma sobre o MUNDO, não só sobre o código.** Dois itens verdes cobrindo uma porta fechada.
+
+**A armadilha da escolha discreta, e ela está na documentação da própria biblioteca.** O
+comportamento em primeiro plano parecia pedir `shouldPlaySound: false` — aviso sem som é aviso
+educado. O tipo da `expo-notifications` diz, na linha de cima: *"On Android, setting
+`shouldPlaySound: false` will result in the drop-down notification alert **not** showing, no
+matter what the priority is."* Desligar o som desliga o balão junto, e o defeito voltaria por
+outro caminho com a linha parecendo correta. **A régua que sai daqui: quando a opção é do
+sistema operacional, leia a DECLARAÇÃO dela antes de escolher o valor plausível** — foi assim
+que o `type` do gatilho apareceu, e é a terceira vez neste módulo.
+
+## 13 de setembro — a mesma decisão escrita em quatro lugares, e o quarto era uma COR
+
+O dia de comprar (cobertura ≤ prazo do fornecedor + folga) foi unificado em 6 de setembro
+depois de o aplicativo discordar de si mesmo. Hoje, indo ligar a capa à régua, achei que ela
+estava escrita em **quatro** lugares e só dois usavam a boa:
+
+| onde | régua |
+|---|---|
+| o aviso | `prazo + folga` |
+| a ficha do insumo | a mesma álgebra, em unidades (`reorderPoint`) |
+| o cartão "Insumo acabando" | **sete dias cravados** na consulta |
+| a barra da cobertura | **um quinto de trinta dias** — ou seja, seis |
+
+Com fornecedor de seis dias, a notificação dizia *"compre"* a oito dias de cobertura e a capa
+ficava calada por dois. O achado que se leva é o quarto: **uma régua pode estar escondida numa
+COR.** `Drain` pintava de alerta abaixo de 20% do horizonte — decisão de desenho, defensável
+como desenho, e lida como decisão pela legenda que diz *"a cor conta o que o número já
+disse"*. Quem procura réguas duplicadas procura `if`, número e nome de função; ninguém procura
+`color.warning`.
+
+*E o conserto não foi copiar a fórmula para a capa: foi a régua virar função e a cor RECEBER a
+resposta de quem decide. Quatro cópias de uma fórmula são quatro chances de divergir; uma
+função com quatro chamadores é uma.*
+
+## 13 de setembro — a régua que casava só com a PROSA, e o plantio que injetou um `import`
+
+Duas medidas erradas minhas na mesma rodada, e as duas foram pegas pela mesma família de
+guarda-costas:
+
+1. A régua nova (*a capa não recria o horizonte de compra*) usava `[^)]*` para chegar ao quinto
+   argumento, e `[^)]` **não atravessa o `)` de `empresaDaqui()`** — então ela nunca casou com
+   as chamadas. Ela acusou o comentário que conta a história do defeito, em português, e eu
+   quase "consertei" o código por causa disso. Quem salvou foi a asserção de vivacidade
+   (*"a capa deixou de perguntar o que está acabando"*): sem ela a guarda passaria para sempre
+   sem ler nada.
+2. Para provar a régua do tato no sentido falso, injetei `tatoDeSucesso` num cadastro — **só o
+   `import`**. A guarda passou, com razão: import não é chamada. Eu quase escrevi que a régua
+   era fraca; o defeito que a asserção nomeia é a CHAMADA, e com ela a reprovação veio na hora.
+
+As duas são a mesma lição por dois lados: **toda guarda precisa de uma asserção que falhe
+quando ela não lê nada**, e **todo plantio precisa ser conferido no disco pelo que a asserção
+nomeia** — não pelo que eu quis dizer.
