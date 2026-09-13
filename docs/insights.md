@@ -11539,3 +11539,34 @@ a consequência, e escrever a consequência errada num docblock planta uma afirm
 cara de uma medida."* Eu a quebrei na mesma rodada em que a citei — e o que me pegou não foi
 reler o que escrevi: foi **ir construir a coisa vizinha**. A verificação que funciona não é
 olhar de novo o próprio texto; é o texto precisar ser verdade para a peça seguinte funcionar.
+
+## 13 de setembro — canário e asserção fraca são a MESMA sintaxe, e só a semântica separa
+
+Varri os testes procurando `assert.ok(x > 0)` — a cicatriz dos R$ 625,27, em que a asserção
+tinha a explicação certa ao lado e não checava nada. A régua achou 38, e ela estava errada
+duas vezes antes de dizer um número:
+
+1. contou **prosa de docblock** que CITA o padrão para explicá-lo, em dois arquivos. É a
+   cicatriz já escrita neste projeto, cometida de novo: falar de uma coisa não é fazê-la;
+2. não distinguia o **canário** da asserção fraca — `assert.ok(chamada > 0, 'sem isso esta
+   guarda mede o vazio')` não afirma nada sobre dinheiro, ele prova que a medida ABAIXO tem
+   sobre o que medir, e nesse papel "maior que zero" é a pergunta exata.
+
+Refinei por "tem mensagem?", caí de 38 para 4 — **e o refinamento teria perdido a cicatriz que
+originou a regra.** O `assert.ok(valor > 0)` dos R$ 625,27 TINHA mensagem, e certa. Então
+"tem mensagem" separa canário de fraca em alguns casos e mente nos outros.
+
+O que separa de verdade não é sintaxe: é se o número é **calculado** (dinheiro, taxa, saldo,
+parcela) ou **estrutural** (a varredura achou algo? a fila tinha linha?). Filtrando por isso,
+38 viraram 5, e das 5 três são legítimas por construção — *"não é zero"*, *"subiu"*, e um
+canário cuja igualdade de verdade está duas linhas abaixo.
+
+Sobrou **uma**: `src/data/repository.test.ts:227`, `assert.ok(errada.newRate > 0);` nua, num
+teste onde a compra CERTA logo acima é conferida por igualdade contra um número na mão
+(*"R$ 4,72 o quilo"*). A nota errada — dez sacos pelo preço de dez quando chegou um — merece a
+mesma régua que a certa.
+
+**A regra de método que sai daqui, e ela é sobre réguas descartáveis em geral:** quando a
+distinção que interessa é semântica, a régua não decide — ela ESTREITA. Dizer "4 defeitos"
+depois de um filtro sintático seria a mesma promessa falsa que a asserção fraca; o número
+honesto veio de filtrar pelo que o número É, e depois ler as cinco.
