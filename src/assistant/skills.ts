@@ -346,10 +346,24 @@ const whatWasLost: Skill = {
       text:
         `Você perdeu ${formatMoney(total, ctx.locale)} em 30 dias. ` +
         `O que mais pesou foi ${MOTIVO[pior[0]] ?? pior[0]}, com ${formatMoney(pior[1], ctx.locale)}.`,
-      detail: perdas.slice(0, 5).map((p) => ({
-        label: p.name,
-        value: `${formatMoney(p.valueCents ?? 0, ctx.locale)} · ${MOTIVO[p.reason] ?? p.reason}`,
-      })),
+      /**
+       * Por MOTIVO, e é isso que fecha a conta — eram as cinco primeiras perdas, `slice(0, 5)`.
+       *
+       * Duas coisas erradas nesse corte. As cinco linhas não somam a manchete quando houve
+       * doze, e nada dizia que faltavam sete: truncamento silencioso, que este projeto persegue
+       * em toda parte porque ele LÊ como cobertura completa. E o corte respondia outra pergunta
+       * que não a da manchete — ela diz *"o que mais pesou foi derreteu"*, então o detalhamento
+       * que a abre é por motivo, não por item.
+       *
+       * O agrupamento já estava calculado três linhas acima, para achar o pior. Ele só não
+       * estava sendo mostrado.
+       */
+      detail: [...porMotivo.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([motivo, cents]) => ({
+          label: MOTIVO[motivo] ?? motivo,
+          value: formatMoney(cents, ctx.locale),
+        })),
       route: '/losses',
     };
   },
@@ -529,11 +543,24 @@ const listInputs: Skill = {
             ? ` ${unpriced.length} ainda sem preço — lance a nota e o custo aparece sozinho.`
             : '')
         : `Você tem ${stock.length} itens cadastrados.`,
+      /**
+       * A conta ABRE: cada linha é a parcela do total, não o preço por 1.000 unidades.
+       *
+       * A manchete dizia *"R$ X parado no almoxarifado"* e o detalhamento listava o preço
+       * unitário — dois números certos que não se encontram: somar as linhas não chega ao total,
+       * por nenhuma aritmética. A Lei 6 pede que toda conclusão abra a conta, e "abrir" aqui
+       * significa que as parcelas somam a manchete; um detalhamento que não soma é pior que
+       * nenhum, porque ele parece a conta e não é.
+       *
+       * O preço por 1.000 não se perde: ele é a outra pergunta (*"quanto custa o quilo"*), e a
+       * ficha do insumo a responde. Aqui a pergunta é quanto está parado, e cada linha diz
+       * quanto dela está parado.
+       */
       detail: stock.map((item) => ({
         label: item.name,
         value: dinheiro
           ? item.averageRate !== null && item.averageRate > 0
-            ? `${formatMoney(amountOf(item.averageRate, 1_000), ctx.locale)} / 1.000 ${item.baseUnit}`
+            ? formatMoney(amountOf(item.averageRate, item.onHandBaseUnits), ctx.locale)
             : 'sem preço'
           : `${formatQuantity(item.onHandBaseUnits, ctx.locale)} ${item.baseUnit}`,
       })),
@@ -865,12 +892,27 @@ const stockAtPlace: Skill = {
     }
 
     const where = nameOf(place.locationId, place.locationName);
+    /**
+     * Quando há dinheiro, cada linha leva a PARCELA dela — senão o "Valor parado" do fim é um
+     * total sem partes.
+     *
+     * O detalhamento listava quantidade por item e acrescentava uma linha com o valor somado. A
+     * pessoa lia *"Valor parado: R$ 1.240,00"* sem poder saber de quem vinha, e a Lei 6 existe
+     * exatamente para isso: a conclusão tem de ser auditável na própria tela. `valueCents` já
+     * vem por linha do `stockByPlace` — o número estava ali, sem ser mostrado.
+     *
+     * Sem `view_cost` nada muda: a linha diz a quantidade, e o total não existe.
+     */
+    const dinheiro = ctx.capabilities.has('view_cost');
     const detail = place.lines.map((l) => ({
       label: l.name,
-      value: `${formatQuantity(l.baseUnits, ctx.locale)} ${l.baseUnit}`,
+      value:
+        dinheiro && l.valueCents !== null
+          ? `${formatQuantity(l.baseUnits, ctx.locale)} ${l.baseUnit} · ${formatMoney(l.valueCents, ctx.locale)}`
+          : `${formatQuantity(l.baseUnits, ctx.locale)} ${l.baseUnit}`,
     }));
 
-    if (ctx.capabilities.has('view_cost')) {
+    if (dinheiro) {
       detail.push({ label: 'Valor parado', value: formatMoney(place.valueCents ?? 0, ctx.locale) });
     }
 

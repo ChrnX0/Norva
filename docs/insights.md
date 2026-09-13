@@ -11627,3 +11627,32 @@ motor não relata parada nenhuma, e é correto. Então o aviso não pode morar n
 corrida: ele mora no registro do que ficou de lado. Sem uma coluna que diga "foi o aparelho", a
 tela de "o que ficou de lado" explicaria *"o servidor já tinha este registro"* sobre uma linha
 que ele nunca viu — o mesmo defeito de atribuição, uma camada abaixo. Isso é a V36.
+
+## 13 de setembro — detalhamento que não SOMA é pior que detalhamento ausente
+
+A Lei 6 desta casa diz que toda conclusão abre a conta. Três respostas do assistente traziam um
+total e um detalhamento embaixo, e em nenhuma das três as linhas somavam o total:
+
+| resposta | manchete | detalhamento |
+|---|---|---|
+| `listInputs` | soma de taxa × saldo | preço por **1.000 unidades** |
+| `whatWasLost` | total de 30 dias | as **cinco primeiras** perdas |
+| `stockAtPlace` | valor somado no fim | só quantidade, **sem parcela** |
+
+Nenhum dos seis números está errado. O defeito é de **relação**: o detalhamento tem a FORMA da
+conta e não é a conta. Quem confere de cabeça — que é exatamente quem a Lei 6 serve — não fecha,
+tenta duas vezes, desiste, e passa a desconfiar também dos números que estão certos. Um total
+sozinho pede confiança e é honesto sobre isso; um total com parcelas que não somam pede confiança
+fingindo prova.
+
+E o corte das cinco primeiras é a mesma doença com uma agravante que este projeto persegue em
+toda parte: **truncamento silencioso**. Com doze perdas, cinco linhas somavam R$ 26,40 de
+R$ 27,00 e nada dizia que faltava linha.
+
+*O material para consertar as três já estava no lugar, sem ser usado:* `porMotivo` era calculado
+três linhas acima só para achar o pior, e `valueCents` já vinha por linha do `stockByPlace`. Não
+faltava dado nem cálculo — faltava a pergunta *"quem somar isto chega no número de cima?"*
+
+**A régua que sai daqui é a asserção, não a leitura:** a soma das parcelas contra a manchete, que
+é igualdade contra outra fonte. Um `assert.ok(detail.length > 0)` diria que há detalhamento — e
+foi exatamente o que existia, verde, enquanto a conta não fechava.

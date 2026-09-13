@@ -1128,3 +1128,113 @@ test('o assistente conta o dia da FÁBRICA, não o de São Paulo', async () => {
     'às 3h30 UTC, São Paulo já virou o dia e Manaus não — o assistente diria "hoje" de dois dias diferentes',
   );
 });
+
+/**
+ * A conta ABRE, e abrir significa que as parcelas SOMAM a manchete.
+ *
+ * **Três respostas davam um total e um detalhamento que não o alcançava** — medido em 13 de
+ * setembro. Cada uma por um motivo diferente, e nenhuma delas errada sobre o próprio número:
+ *
+ *   `listInputs`    manchete = soma de taxa x saldo | linhas = preço por 1.000 unidades
+ *   `whatWasLost`   manchete = total de 30 dias     | linhas = as CINCO primeiras perdas
+ *   `stockAtPlace`  linha final = valor somado      | linhas = só quantidade, sem parcela
+ *
+ * A Lei 6 pede que toda conclusão abra a conta, e um detalhamento que não soma é **pior que
+ * nenhum**: ele tem a forma da conta e não é a conta. Quem confere de cabeça não fecha, desiste,
+ * e passa a desconfiar também dos números que estão certos.
+ *
+ * A asserção é a soma das parcelas contra a manchete — igualdade contra outra fonte, que é o que
+ * esta casa exige de toda afirmação sobre número calculado. `> 0` diria que a função devolveu
+ * alguma coisa, e o typecheck já dá isso de graça.
+ */
+const centavosDe = (texto: string): number => {
+  const m = texto.match(/R\$\s*([\d.]+),(\d{2})/);
+  if (!m) return NaN;
+  return Number(m[1].replace(/\./g, '')) * 100 + Number(m[2]);
+};
+
+test('a lista de insumos: as parcelas somam o que está parado', async () => {
+  const answer = await ask('quais insumos eu tenho', context('view_cost'));
+
+  const manchete = centavosDe(answer.text);
+  assert.ok(Number.isFinite(manchete), `a manchete tem de trazer o total: ${answer.text}`);
+
+  const parcelas = (answer.detail ?? [])
+    .map((d) => centavosDe(d.value))
+    .filter((n) => Number.isFinite(n));
+  assert.ok(parcelas.length >= 2, 'mais de um insumo, senão a soma é a própria manchete');
+
+  assert.equal(
+    parcelas.reduce((a, b) => a + b, 0),
+    manchete,
+    'a soma das linhas TEM de dar a manchete. Antes as linhas traziam o preço por 1.000 ' +
+      'unidades: dois números certos que não se encontram por nenhuma aritmética',
+  );
+});
+
+test('as perdas: as parcelas por motivo somam o total de trinta dias', async () => {
+  PERDAS = [
+    perda('pulp', 'Polpa de morango', 'melted', 1_200),
+    perda('sugar', 'Açúcar cristal', 'expired', 800),
+    perda('pulp', 'Polpa de morango', 'melted', 400),
+    perda('sugar', 'Açúcar cristal', 'broken', 150),
+    perda('pulp', 'Polpa de morango', 'expired', 90),
+    // A SEXTA é a que denunciava o corte: com `slice(0, 5)` ela ficava de fora e nada dizia.
+    perda('sugar', 'Açúcar cristal', 'courtesy', 60),
+  ];
+  const answer = await ask('o que a gente perdeu esse mês', context('view_cost'));
+  PERDAS = [];
+
+  const manchete = centavosDe(answer.text);
+  assert.equal(manchete, 2_700, 'o total dos seis: 1200+800+400+150+90+60');
+
+  const parcelas = (answer.detail ?? []).map((d) => centavosDe(d.value));
+  assert.equal(
+    parcelas.reduce((a, b) => a + b, 0),
+    2_700,
+    'e as linhas somam o total. Antes eram as CINCO primeiras perdas — R$ 26,40 de R$ 27,00, ' +
+      'com sessenta centavos fora e nada dizendo que faltava linha',
+  );
+  assert.equal(
+    (answer.detail ?? []).length,
+    4,
+    'quatro motivos, não seis perdas: a manchete diz "o que mais pesou" por MOTIVO, e é por ' +
+      'motivo que o detalhamento a abre',
+  );
+});
+
+test('o saldo do lugar: cada linha diz a parcela dela do valor parado', async () => {
+  const answer = await ask('o que tem na loja centro', context('view_cost'));
+
+  const linhas = answer.detail ?? [];
+  const total = linhas.find((d) => d.label === 'Valor parado');
+  assert.ok(total, 'a linha do total existe');
+
+  const parcelas = linhas
+    .filter((d) => d.label !== 'Valor parado')
+    .map((d) => centavosDe(d.value))
+    .filter((n) => Number.isFinite(n));
+  assert.ok(parcelas.length >= 1, 'há linha de item com dinheiro');
+
+  assert.equal(
+    parcelas.reduce((a, b) => a + b, 0),
+    centavosDe(total.value),
+    'o "Valor parado" é a soma do que está acima dele. Antes as linhas traziam só quantidade, ' +
+      'e o total aparecia sem partes — conclusão que a tela não deixa auditar',
+  );
+});
+
+test('sem ver dinheiro, o saldo do lugar não ganha parcela nem total', async () => {
+  // O caso falso, e ele guarda a fundação: quem não pode ver custo não recebe o número. Sem
+  // esta metade, a guarda de cima passaria com uma versão que mostra dinheiro a todos.
+  const answer = await ask('o que tem na loja centro', context());
+  const linhas = answer.detail ?? [];
+  assert.ok(
+    !linhas.some((d) => d.label === 'Valor parado'),
+    'sem `view_cost` não existe total',
+  );
+  assert.ok(
+    !linhas.some((d) => /R\$/.test(d.value)),
+    'e nenhuma linha traz dinheiro — esconder na tela seria decoração, o número não sai da consulta',
+  );
+});
