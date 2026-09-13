@@ -17,6 +17,10 @@ const AGORA = '2026-09-08T12:00:00.000Z';
 function pecas(sobre: Partial<Pecas> = {}): { p: Pecas; ordem: string[] } {
   const ordem: string[] = [];
   const p: Pecas = {
+    combinado: async () => {
+      ordem.push('combinado');
+      return true;
+    },
     subirFila: async () => {
       ordem.push('fila');
       return 3;
@@ -40,8 +44,14 @@ function pecas(sobre: Partial<Pecas> = {}): { p: Pecas; ordem: string[] } {
   return { p, ordem };
 }
 
-test('a ordem é fila, descida, cópia, atualização — e cada posição custa dado se invertida', async () => {
+test('a ordem é combinado, fila, descida, cópia, atualização — e cada posição custa dado se invertida', async () => {
   /**
+   * **O COMBINADO primeiro, e é o mais novo dos quatro porquês.** A configuração da empresa e a
+   * lista de capacidades desta conta decidem o que este aparelho tem o DIREITO de escrever — o
+   * piso de capacidade sai de `floor_sign_in` mais `names_who_recorded`, e no modo pessoal da
+   * associação. Subir a fila antes de aprender isso é subir com a permissão de ontem: o dono
+   * rebaixou o aparelho ontem à noite e ele sobe hoje de manhã a linha que o servidor recusa.
+   *
    * **Subir ANTES de descer**, e não é preferência: o que este aparelho gravou offline tem de
    * chegar ao servidor antes de ele pedir de volta o que os outros gravaram. Invertido, a
    * rodada desceria a página, subiria a fila, e a rodada SEGUINTE desceria a própria linha
@@ -55,10 +65,10 @@ test('a ordem é fila, descida, cópia, atualização — e cada posição custa
    */
   const { p, ordem } = pecas();
   const feito = await umaRodada(p, AGORA);
-  assert.deepEqual(ordem, ['fila', 'descida', 'copia', 'atualizacao']);
+  assert.deepEqual(ordem, ['combinado', 'fila', 'descida', 'copia', 'atualizacao']);
   assert.deepEqual(
     feito.map((t) => `${t.o}:${t.fim}`),
-    ['fila:feito', 'descida:feito', 'copia:feito', 'atualizacao:feito'],
+    ['combinado:feito', 'fila:feito', 'descida:feito', 'copia:feito', 'atualizacao:feito'],
   );
 });
 
@@ -69,10 +79,11 @@ test('nenhuma peça que falha derruba a rodada, nem impede as de baixo', async (
     },
   });
   const feito = await umaRodada(p, AGORA);
-  assert.equal(feito[0].fim, 'falhou');
-  assert.equal(feito[0].porque, 'Error');
+  const fila = feito.find((t) => t.o === 'fila')!;
+  assert.equal(fila.fim, 'falhou');
+  assert.equal(fila.porque, 'Error');
   // A prova de verdade: TUDO o que vem depois aconteceu mesmo assim.
-  assert.deepEqual(ordem, ['descida', 'copia', 'atualizacao']);
+  assert.deepEqual(ordem, ['combinado', 'descida', 'copia', 'atualizacao']);
   // Por NOME e não por posição: este teste dizia `feito[1]` e `feito[2]`, e a peça nova
   // entrando no meio o quebrou sem que nada sobre o que ele afirma tivesse mudado. Asserção
   // posicional numa lista que cresce é uma asserção sobre a ordem do arquivo, não sobre a
@@ -160,13 +171,13 @@ test('a atualização é a última, e uma pronta não muda o que as outras duas 
   assert.equal(ordem[ordem.length - 1], 'atualizacao', 'buscar antes de subir a fila perde a janela');
 
   // A propriedade que importa: uma atualização PRONTA não interrompe a rodada nem
-  // apaga o que veio antes. A rodada devolve as três tentativas e volta — quem
+  // apaga o que veio antes. A rodada devolve todas as tentativas e volta — quem
   // aplica é a próxima abertura do aplicativo. Reiniciar aqui, no meio de uma
   // contagem na câmara fria, trocaria dado por novidade; e quem perde a contagem
   // uma vez não conta de novo.
   assert.deepEqual(
     feito.map((t) => `${t.o}:${t.fim}`),
-    ['fila:feito', 'descida:feito', 'copia:feito', 'atualizacao:feito'],
+    ['combinado:feito', 'fila:feito', 'descida:feito', 'copia:feito', 'atualizacao:feito'],
   );
 });
 

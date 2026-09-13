@@ -14,7 +14,7 @@ import {
   seVende,
   vendeAoConsumidor,
 } from '@/domain/ledger';
-import { ROLES, capabilitiesFor, type Capability, type Role } from '@/domain/access';
+import { ROLES, capabilities, capabilitiesFor, type Capability, type Role } from '@/domain/access';
 import { expiresOn, lotCode } from '@/domain/lot';
 import type { LossReason, MovementKind, ReturnReason } from '@/domain/ledger';
 import { explodeRequirements } from '@/domain/recipe';
@@ -6863,6 +6863,8 @@ export async function setPickingCart(
 
 const OPERATOR_KEY = 'operator.current';
 const NAMES_KEY = 'company.namesWhoRecorded';
+/** O que o SERVIDOR diz que esta conta pode. Vazio é "ele ainda não disse". */
+const CAPACIDADES_DA_CONTA_KEY = 'conta.capacidades';
 const SIGN_IN_KEY = 'company.floorSignIn';
 
 /** Um celular por pessoa, ou um pendurado na câmara que passa de mão. */
@@ -6959,9 +6961,56 @@ async function operadorDaEmpresa(
  * ninguém ter escolhido isso. Não é conserto de tabela: o que falta é o caminho de
  * descida, que é decisão de desenho e está escrita em `docs/roadmap.md`.
  */
+/**
+ * O que o servidor disse que esta conta pode — guardado aqui porque o piso precisa dele offline.
+ *
+ * Lista vazia e ausência são a mesma coisa de propósito: *"o servidor ainda não disse"*. Uma
+ * conta que o servidor diz não poder NADA não existe — associação ativa sem capacidade nenhuma
+ * seria uma linha que ninguém escreve —, então não há terceiro estado a distinguir aqui.
+ *
+ * Só do aparelho: `app_meta` não atravessa a sincronia, e esta lista é a resposta do servidor
+ * PARA ESTA conta. Mandá-la de volta seria o aparelho ensinando ao servidor o que ele acabou de
+ * dizer.
+ */
+export async function setCapacidadesDaConta(lista: readonly string[] | null): Promise<void> {
+  if (lista === null) return;
+  // Filtra pelo vocabulário conhecido, e é a mesma leitura tolerante de `guardarAqui`: isto é
+  // texto que veio pela rede, e uma palavra que este aplicativo não conhece não pode virar
+  // capacidade — nem derrubar a tela.
+  const validas = lista.filter((c): c is Capability => (capabilities as readonly string[]).includes(c));
+  await writeMeta(CAPACIDADES_DA_CONTA_KEY, validas.join(','));
+}
+
+async function capacidadesDaConta(): Promise<ReadonlySet<Capability> | null> {
+  const lido = await readMeta(CAPACIDADES_DA_CONTA_KEY);
+  if (!lido) return null;
+  const lista = lido
+    .split(',')
+    .map((c) => c.trim())
+    .filter((c): c is Capability => (capabilities as readonly string[]).includes(c));
+  return lista.length > 0 ? new Set(lista) : null;
+}
+
 async function pisoDoAparelho(): Promise<ReadonlySet<Capability>> {
   const [entrada, nomeia] = await Promise.all([floorSignIn(), namesWhoRecorded()]);
-  return entrada === 'shared' && nomeia ? capabilitiesFor('operator') : capabilitiesFor('owner');
+  if (entrada === 'shared' && nomeia) return capabilitiesFor('operator');
+
+  /**
+   * **`personal` devolve o que o SERVIDOR disse, e `owner` é só o padrão de quem está sozinho.**
+   *
+   * Esta linha devolvia `capabilitiesFor('owner')` sempre, e a suposição embutida era que a
+   * conta que entrou é a do dono. Verdadeira na fábrica de hoje, falsa no dia em que ele criar
+   * uma conta restrita — que é decisão escrita dele (*"perfil é dado"*) e o caminho normal de
+   * quem compra isto para uma equipe. As duas metades do defeito: aquele aparelho mostraria
+   * custo e preço a quem o servidor não deixa ver, e com o portão de capacidade agora no lugar
+   * ele deixaria nascer a linha que o servidor recusa por `42501` — que é passageira, então a
+   * fila trava para sempre.
+   *
+   * Nulo continua sendo o dono, e é o estado de quem nunca falou com servidor nenhum: a fábrica
+   * inteira num celular, que é como este aplicativo começa e trabalha offline. O piso não
+   * inventa restrição para quem não tem com quem confirmá-la.
+   */
+  return (await capacidadesDaConta()) ?? capabilitiesFor('owner');
 }
 
 /**

@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **827** testes |
+| `npm test` | **828** testes |
 | `npm run mutate` | **150** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **59** checagens num navegador de verdade |
 | `npm run db:verify` | **37** garantias contra um Postgres descartável: **19** sob RLS, como a conta da empresa, e **18** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -2360,10 +2360,20 @@ leitura depois. Uma delas estava errada, e está registrada como errada.
 
 **E a correção do próprio estudo, registrada porque o número foi dito antes de ser
 conferido:** ele afirmou que `puxar` e `empurrar` não têm chamador. Os dois têm —
-`empurrar` quatro vezes em `app/settings.tsx`, `puxar` uma em `app/account.tsx:80`. O que
-sobra é menor e continua sendo dívida: a configuração da casa desce **só quando a tela da
-Conta abre**, nunca no boot, então um aparelho que nunca abre Conta trabalha com a
-configuração dele.
+`empurrar` quatro vezes em `app/settings.tsx`, `puxar` uma em `app/account.tsx:80`.
+
+~~O que sobra é menor e continua sendo dívida: a configuração da casa desce **só quando a
+tela da Conta abre**, nunca no boot.~~ **FECHADO em 13 de setembro**: `combinado` é a
+PRIMEIRA peça de `rodadaAutomatica` (`src/nuvem/aparelho.ts`, `src/nuvem/sozinho.ts`), e ela
+desce a configuração da empresa e a lista de capacidades desta conta antes de a fila subir.
+A ordem é a razão de ela existir ali: as duas decidem o piso de capacidade, e subir antes de
+aprender é subir com a permissão de ontem.
+
+<!-- medida: presente src/nuvem/sozinho.ts :: await pecas.combinado() -->
+
+E a linha acima sobre a grade — *"o que entra agora é espelhar no aparelho a restrição que o
+servidor já tem — hoje o aparelho aceita duas «Maria» e o servidor recusaria a segunda"* —
+**também fechou em 13 de setembro** (V38 e `savePerson`).
 
 ### 0b-ter. ~~A empresa deste aparelho é uma constante compilada~~ — FEITO em 7 de setembro
 

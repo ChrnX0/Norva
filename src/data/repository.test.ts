@@ -22,6 +22,8 @@ import {
   setCurrentOperator,
   currentOperatorId,
   currentCapabilities,
+  setCapacidadesDaConta,
+  SemAcessoError,
   matchPin,
   listProfiles,
   salePricesFor,
@@ -8250,4 +8252,52 @@ test('o passo que cria o índice de nome conserta quem já tinha duas', async ()
   assert.equal(new Set(gente.map((g) => g.name)).size, 3, 'os três nomes ficaram diferentes');
   assert.equal(gente[0].name, 'Ana', 'a primeira mantém o nome — quem chegou depois é que muda');
   assert.match(gente[1].name, /^Ana #\d+$/, 'a segunda ganhou o sufixo do rowid, que é único por construção');
+});
+
+test('o piso do aparelho pessoal é o que o SERVIDOR disse, não o conjunto do dono', async () => {
+  /**
+   * `pisoDoAparelho` devolvia `capabilitiesFor('owner')` no modo `personal` — as doze
+   * capacidades —, e a suposição embutida era que a conta que entrou é a do dono. Verdadeira na
+   * fábrica de hoje e falsa no dia em que ele criar uma conta restrita, que é decisão escrita
+   * dele (*"perfil é dado"*) e o caminho normal de quem compra isto para uma equipe.
+   *
+   * As duas metades do defeito: aquele aparelho mostraria custo e preço a quem o servidor não
+   * deixa ver, e — com o portão de capacidade no lugar — deixaria nascer a linha que o servidor
+   * recusa com `42501`, que é passageira e portanto trava a fila para sempre.
+   */
+  // Sem nada guardado, o piso é o do dono: é o aparelho que nunca falou com servidor nenhum, a
+  // fábrica inteira num celular, e o piso não inventa restrição para quem não tem com quem
+  // confirmá-la.
+  const sozinho = await currentCapabilities(CO);
+  assert.equal(sozinho.has('view_cost'), true, 'aparelho sem servidor continua sendo o do dono');
+  assert.equal(sozinho.has('manage_company'), true, 'idem para administrar');
+
+  // Agora o servidor falou, e ele disse "só produção".
+  await setCapacidadesDaConta(['record_production']);
+  const restrito = await currentCapabilities(CO);
+  assert.deepEqual(
+    [...restrito].sort(),
+    ['record_production'],
+    'o piso passa a ser a lista da associação — e nada além dela',
+  );
+  assert.equal(restrito.has('view_cost'), false, 'custo não aparece para quem o servidor não deixa ver');
+
+  // E o portão de capacidade passa a valer: a escrita que o servidor recusaria não nasce aqui.
+  await assert.rejects(
+    () => saveItem(CO, { kind: 'input', name: 'Insumo proibido', purchaseUnit: 'kg', purchaseToBase: 1000, baseUnit: 'g', packaging: loose }),
+    (e: unknown) => e instanceof SemAcessoError,
+    'sem manage_company o cadastro é recusado AQUI, e não pela política do servidor com 42501',
+  );
+
+  // Palavra que este aplicativo não conhece não vira capacidade — leitura tolerante, como a da
+  // configuração: isto é texto que veio pela rede.
+  await setCapacidadesDaConta(['record_production', 'reinar_sobre_a_fabrica']);
+  const filtrado = await currentCapabilities(CO);
+  assert.deepEqual([...filtrado].sort(), ['record_production'], 'o vocabulário desconhecido cai fora');
+
+  // E nulo NÃO apaga o que já se sabia: "o servidor não respondeu" é diferente de "o servidor
+  // disse que você não pode nada".
+  await setCapacidadesDaConta(null);
+  const depois = await currentCapabilities(CO);
+  assert.deepEqual([...depois].sort(), ['record_production'], 'nulo é ausência de resposta, não resposta vazia');
 });

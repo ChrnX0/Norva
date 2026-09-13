@@ -221,6 +221,58 @@ export async function minhaEmpresa(): Promise<Resultado<Empresa | null>> {
 }
 
 /**
+ * O que ESTA conta pode fazer, dito pelo servidor.
+ *
+ * **O buraco que isto fecha, e ele tem duas metades.** `pisoDoAparelho` devolvia
+ * `capabilitiesFor('owner')` no modo `personal` — as doze capacidades —, e a suposição
+ * embutida é que a conta que entrou é a do dono. Ela é verdadeira na fábrica de hoje e falsa no
+ * dia em que o dono criar uma conta restrita, que é uma decisão escrita dele (*"perfil é dado"*)
+ * e o caminho normal de quem compra o aplicativo para uma equipe.
+ *
+ * A primeira metade é dinheiro na tela: aquele aparelho mostraria custo e preço a quem o
+ * servidor não deixa ver. A segunda é a fila: com o portão de capacidade no lugar (`src/data/
+ * repository.ts`), um piso mais largo que a verdade deixa a linha nascer aqui para o servidor
+ * recusá-la com `42501` — e `42501` é passageira, então a fila trava para sempre. As duas
+ * metades somem quando o piso é a lista de verdade.
+ *
+ * Uma consulta e não um campo: `memberships_read` (`0011`) já filtra por associação ATIVA, e
+ * `user_id = auth.uid()` restringe à própria linha. A checagem roda antes da consulta, como
+ * manda a fundação — não há lista de outra pessoa para filtrar depois.
+ *
+ * Devolve nulo quando não há linha: conta sem associação ativa (o pedido ainda pendente) não
+ * tem capacidade nenhuma a declarar, e nulo é diferente de lista vazia — vazia seria *"o
+ * servidor disse que você não pode nada"*.
+ */
+export async function minhasCapacidades(): Promise<Resultado<string[] | null>> {
+  const sb = await cliente();
+  if (!sb) return semServidor();
+  /**
+   * Sem conta aberta devolve NULO e não um motivo novo, e isso é escolha.
+   *
+   * Um motivo novo obrigaria uma frase nos três idiomas (o `Widen` faz chave nova quebrar a
+   * compilação das outras duas), e nenhuma tela mostraria essa frase — quem chama isto é a
+   * rodada automática. Chave de dicionário sem leitor é a doença que o portão P1 existe para
+   * pegar.
+   *
+   * E as duas respostas pedem a MESMA ação de quem chama: não há lista para guardar, então o
+   * piso do aparelho fica como está. Colapsá-las não perde informação nenhuma.
+   */
+  const eu = await contaAtual();
+  if (!eu) return { ok: true, valor: null };
+  const { data, error } = await sb
+    .from('memberships')
+    .select('capabilities')
+    .eq('user_id', eu.id)
+    .eq('state', 'active')
+    .limit(1);
+  if (error) return { ok: false, motivo: motivoDe(error), cru: error.message };
+  const linha = data?.[0];
+  if (!linha) return { ok: true, valor: null };
+  const lista = linha.capabilities;
+  return { ok: true, valor: Array.isArray(lista) ? lista.map(String) : [] };
+}
+
+/**
  * Pedir associação com o código da empresa.
  *
  * Devolve o NOME da empresa, e isso é o que faz a tela poder dizer "seu pedido

@@ -11918,3 +11918,67 @@ os revelou não foi releitura: foi escrever o primeiro teste que EXECUTA `descer
 `gravarPagina`, `proximoCursor` e `pedido` estavam no ar desde 12 de setembro sem um arquivo de
 teste que os importasse. Peça nova que é PROTOCOLO entre dois lados não se prova conferindo os
 dois lados: prova-se dando uma volta completa.*
+
+## 13 de setembro — o aparelho escrevia com a permissão de ontem, e dez portas não pediam nenhuma
+
+A rodada 7 é sobre uma frase só: **o aparelho recusa o que o servidor recusaria.** O que ela
+achou foram três camadas do mesmo defeito, e nenhuma delas é visível pelo compilador.
+
+**1. Dez portas enfileiravam sem pedir capacidade.** `saveItem`, `saveRecipeVersion`,
+`saveProduct`, `saveLine`, `saveType`, `saveCategory`, `saveFlavor`, `setItemActive`,
+`recordReading`, `openProductionRun`. O servidor recusa cada uma por política, com `42501` — e
+`42501` é PASSAGEIRA por decisão escrita (*"consertável do outro lado: um grant amanhã faz a
+mesma linha entrar"*), o que é verdade para grant que falta e falso para política que nega.
+Sexta aparição da fila travada aqui.
+
+**E as duas SEMENTES de infraestrutura eram o caso escondido, porque elas enfileiram de dentro
+de uma LEITURA.** `ensureLocation` cria o lugar da empresa e `ensureProfiles` semeia os sete
+modelos; as duas são chamadas por `listPlaces` e `listProfiles`, que são consultas. No celular
+de quem só produz, abrir a tela de Lugares punha na fila uma linha que o servidor recusa.
+`ensureLocation` passa a enfileirar só quem administra — a linha local continua nascendo, e o id
+dela é o da empresa, então a do servidor desce em cima. `ensureProfiles` nem semeia: o id do
+perfil é sorteado, e semear sem atravessar deixaria sete perfis desconhecidos e, depois da
+descida, **quatorze**.
+
+**A régua mede o CAMINHO, não a função — e duas leituras minhas erraram antes dela, nas duas
+direções.** Olhar quem chama `enqueue` diretamente aponta o ajudante interno (`writeItem`) e
+perde a porta pública (`saveItem`); exigir o portão NA porta pública acusa `recordTransfer`, que
+o tem em `podeGravar` uma camada abaixo. O que vale é *existe portão em todo caminho da porta
+até a fila*, e é um ponto-fixo sobre o grafo de chamadas. As duas leituras erradas ficaram
+escritas no docblock da guarda.
+
+**2. Cinco CHECKs do servidor viviam só na tela.** `yield_amount > 0`, `loss_fraction < 1`,
+`quantity > 0`, `manufactured_needs_recipe`, `shelf_life_days > 0`. Mesmo mecanismo com outro
+código: `23514`, também passageiro por decisão medida. E ao medir a CLASSE, o número foi para a
+fila do roadmap em vez de virar silêncio: **o servidor tem 43 CHECKs de tabela, o aparelho
+carrega 4 no esquema e 8 em código. Sobram 35.**
+
+*E a régua rápida que os cataloga ERRA: pegar o último `create/alter table` antes do `check`
+atribuiu `movements: kind <> 'loss'` a `products`. Registrei a ressalva junto do item — régua
+imprecisa vira registro de ficção, e registro de ficção é pior que registro nenhum.*
+
+**3. E a raiz: o piso de capacidade era uma SUPOSIÇÃO.** `pisoDoAparelho` devolvia
+`capabilitiesFor('owner')` no modo pessoal — as doze —, e a suposição embutida é que a conta que
+entrou é a do dono. Verdadeira na fábrica de hoje, falsa no dia em que ele criar uma conta
+restrita, que é decisão escrita dele e o caminho normal de quem compra isto para uma equipe.
+
+O defeito tem duas metades e a segunda só existe por causa do item 1: aquele aparelho mostraria
+custo e preço a quem o servidor não deixa ver, **e** deixaria nascer a linha que o servidor
+recusa — ou seja, o portão novo, com um piso mentiroso, trava a fila em vez de protegê-la. Piso
+e portão são a mesma peça vista de dois lados.
+
+Hoje `minhasCapacidades` lê `memberships.capabilities` da própria linha (a política já filtra
+por associação ativa) e o piso devolve essa lista. Nulo continua sendo o dono, porque é o estado
+de quem nunca falou com servidor nenhum — o piso não inventa restrição para quem não tem com
+quem confirmá-la.
+
+**E isso obrigou a ORDEM da rodada automática a mudar, que é o achado mais transferível daqui.**
+A configuração da empresa e a lista de capacidades decidem o que o aparelho tem o DIREITO de
+escrever, e as duas só desciam quando alguém abria a tela de Conta. Subir a fila antes de
+aprender isso é **subir com a permissão de ontem**: o dono rebaixa o aparelho à noite e ele
+manda a linha proibida de manhã. `combinado` é a primeira peça de `rodadaAutomatica`, antes de
+`subirFila`, e a razão está escrita no teste da ordem — ao lado dos outros três porquês que já
+moravam lá.
+
+*A lição de forma: numa rodada automática, a ordem das peças não é estilo — cada inversão custa
+uma coisa diferente, e a peça de PERMISSÃO vem antes de toda peça que ESCREVE.*

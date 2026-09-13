@@ -20,12 +20,13 @@ import * as WebBrowser from 'expo-web-browser';
 import { File } from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
 import * as Updates from 'expo-updates';
-import { countMovements } from '@/data/repository';
+import { countMovements, setCapacidadesDaConta } from '@/data/repository';
 import { registrarCopia, ultimaCopia } from '@/data/backup';
 import { guardarCopia, nomeDaCopia } from '@/data/copia';
 import { drain } from '@/sync/engine';
 import { transporte } from '@/sync/transporte';
-import { contaAtual } from '@/sync/conta';
+import { contaAtual, minhasCapacidades } from '@/sync/conta';
+import { puxar } from '@/data/configuracao';
 import {
   bytesParaUrl,
   copiasNoDrive,
@@ -261,6 +262,23 @@ async function baixarDoServidor(): Promise<number> {
   return relatorio.linhas;
 }
 
+/**
+ * Desce o que a empresa combinou e o que esta conta pode.
+ *
+ * As duas coisas juntas porque são a mesma pergunta — *o que o servidor diz sobre quem está
+ * usando este aparelho* — e porque as duas decidem o piso de capacidade: `floor_sign_in` mais
+ * `names_who_recorded` de um lado, a lista da associação do outro.
+ *
+ * `puxar` já sabe o caso difícil: se este aparelho mexeu num interruptor e ainda não contou, ele
+ * SOBE primeiro e a descida daquela rodada não acontece — senão o interruptor do dono voltaria
+ * sozinho, pela mão do conserto que existe para impedir isso.
+ */
+async function combinado(): Promise<boolean> {
+  const [config, minhas] = await Promise.all([puxar(), minhasCapacidades()]);
+  if (minhas.ok) await setCapacidadesDaConta(minhas.valor);
+  return config || (minhas.ok && minhas.valor !== null);
+}
+
 /** Sobe a fila com a conta que estiver aberta. Sem conta, não há para onde subir. */
 async function subirFila(): Promise<number> {
   const quem = await contaAtual();
@@ -291,6 +309,7 @@ async function subirFila(): Promise<number> {
 export async function rodadaAutomatica(): Promise<Tentativa[]> {
   return umaRodada(
     {
+      combinado,
       subirFila,
       descer: baixarDoServidor,
       movimentos: countMovements,

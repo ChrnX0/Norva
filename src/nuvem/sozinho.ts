@@ -24,7 +24,7 @@
 
 /** Uma tentativa: o que se tentou, e o que aconteceu. Nunca uma frase. */
 export type Tentativa = {
-  o: 'fila' | 'descida' | 'copia' | 'atualizacao';
+  o: 'combinado' | 'fila' | 'descida' | 'copia' | 'atualizacao';
   /** `pulou` não é falha: é "não era hora", e a tela conta isso diferente. */
   fim: 'feito' | 'pulou' | 'falhou';
   /** Por que pulou ou falhou — dado, nunca texto de tela. */
@@ -72,6 +72,19 @@ export function horaDeCopiar(
 
 /** As peças que a rodada precisa — cada uma substituível por uma de mentira no teste. */
 export type Pecas = {
+  /**
+   * O que a EMPRESA combinou e o que esta CONTA pode — a verdade do servidor sobre quem usa.
+   *
+   * Primeira peça da rodada, e a ordem é a razão de ela existir aqui. Até 13 de setembro as
+   * duas só desciam quando alguém abria a tela de Conta, e as duas decidem o que este aparelho
+   * tem o DIREITO de escrever: `floor_sign_in` mais `names_who_recorded` compõem o piso de
+   * capacidade, e a lista da associação é o piso no modo pessoal. Descer isso depois de subir a
+   * fila é subir com a permissão de ontem.
+   *
+   * Devolve se aprendeu algo novo. Falso não é falha: aparelho sem servidor configurado é o
+   * estado normal deste aplicativo.
+   */
+  combinado: () => Promise<boolean>;
   /** Sobe a fila. Devolve quantas linhas foram. */
   subirFila: () => Promise<number>;
   /**
@@ -118,6 +131,13 @@ export async function umaRodada(pecas: Pecas, agora: string): Promise<Tentativa[
   rodando = true;
   const feito: Tentativa[] = [];
   try {
+    try {
+      const aprendeu = await pecas.combinado();
+      feito.push({ o: 'combinado', fim: aprendeu ? 'feito' : 'pulou', porque: aprendeu ? undefined : 'semServidor' });
+    } catch (e) {
+      feito.push({ o: 'combinado', fim: 'falhou', porque: nome(e) });
+    }
+
     try {
       const linhas = await pecas.subirFila();
       feito.push({ o: 'fila', fim: linhas > 0 ? 'feito' : 'pulou', porque: linhas > 0 ? undefined : 'filaVazia' });
