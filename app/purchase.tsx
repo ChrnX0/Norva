@@ -3,7 +3,7 @@ import { unidadeDaqui } from '@/data/unidade';
 import { avisoDeFalha } from '@/i18n/falha';
 import { ERROS } from '@/data/erros';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip, priceSignal } from '@/components/Chip';
@@ -469,36 +469,41 @@ function PurchaseForm() {
             icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}
             title={t.app.purchase.whatYouBought}
           >
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={{ flexDirection: 'row', gap: space.lg }}>
-                {items.map((item) => {
-                  const active = item.id === selected.id;
-                  return (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => setSelectedId(item.id)}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                      accessibilityLabel={item.name}
-                      style={{ paddingVertical: space.sm, minHeight: ALVO, justifyContent: 'center' }}
-                    >
-                      <Text
-                        style={[
-                          type.secondary,
-                          {
-                            color: active ? palette.sky : color.inkMuted,
-                            fontWeight: active ? '600' : '400',
-                          },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {item.name}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </ScrollView>
+            {/**
+             * **A lista QUEBRA em linhas, e não corre para o lado.**
+             *
+             * Era uma fita horizontal com `showsHorizontalScrollIndicator={false}`: numa
+             * fábrica com doze insumos, os que não cabem na largura da tela ficam invisíveis e
+             * **nada diz que existem** — sem barra, sem recorte, sem seta. Quem chega para
+             * lançar a nota do leite em pó vê polpa, açúcar e glucose, e conclui que o leite
+             * não está cadastrado.
+             *
+             * O `?itemId=` pré-selecionado era o caso pior: a tela abria com a escolha certa
+             * feita e **fora do campo de visão**, porque a fita não rola até o item ativo. A
+             * pessoa lia a primeira etiqueta como a escolhida e lançava a nota no insumo
+             * errado — um movimento de compra, que só se corrige por estorno.
+             *
+             * O gesto passa a ser o de `app/inputs/new.tsx`: etiquetas que quebram em linhas,
+             * a escolhida dita por extenso pelo `signal` e não por cor sozinha — que é o que
+             * serve de luva e sob luz ruim — e o alvo do dedo na folga em volta.
+             */}
+            <View style={[styles.wrap, { gap: space.sm }]}>
+              {items.map((item) => (
+                /* `Pressable` e não `Touchable`: é ele que diz `selected` para a árvore
+                   de acessibilidade, e essa é a única coisa que responde "qual está
+                   escolhido" para quem não vê a cor. O `Chip` entra dentro. */
+                <Pressable
+                  key={item.id}
+                  onPress={() => setSelectedId(item.id)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: item.id === selected.id }}
+                  accessibilityLabel={item.name}
+                  style={{ paddingVertical: space.xs, minHeight: ALVO, justifyContent: 'center' }}
+                >
+                  <Chip signal={item.id === selected.id ? 'ok' : 'neutral'} label={item.name} />
+                </Pressable>
+              ))}
+            </View>
 
             {/* Os campos, na ordem em que a nota é lida: de quem, quanto veio,
                 quanto deu. Formulário continua formulário — cada `Field` explica
@@ -831,3 +836,8 @@ function rotuloDoPedido(
     days: plural(dias, t.app.home.dayCount, formatQuantity(dias, locale)),
   });
 }
+
+/** A lista que quebra em linhas em vez de correr para o lado — o molde de `app/inputs/new.tsx`. */
+const styles = StyleSheet.create({
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
+});
