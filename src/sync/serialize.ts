@@ -299,7 +299,26 @@ const CROSSINGS: Record<
     // fábrica com dois celulares na câmara não pode ter metade da equipe sem
     // conseguir se identificar num deles. Ele é atribuição e não senha — o
     // raciocínio inteiro está na `0036` e em `docs/estudo-entrada.md`.
-    take: ['id', 'company_id', 'name', 'profile_id', 'active', 'created_at', 'pin'],
+    take: ['id', 'company_id', 'name', 'profile_id', 'created_at', 'pin'],
+    /**
+     * **`active` saiu do `take` e passou pelas duas conversões — e isso fecha uma dúvida aberta.**
+     *
+     * Ele subia CRU: 0 ou 1 do SQLite numa coluna `boolean` do Postgres. O `db:verify` aceita
+     * (ele imita o PostgREST com `jsonb_populate_record`), mas o cliente de verdade fala HTTP e
+     * não é medido aqui — a dúvida estava registrada como suspeita, não como defeito, porque uma
+     * evidência de um instrumento não responde pelo outro.
+     *
+     * A DESCIDA, porém, é defeito medido e sem dúvida nenhuma: o servidor devolve `true`, e o
+     * driver do SQLite recusa parâmetro booleano — *"Provided value cannot be bound to SQLite
+     * parameter"*. Como `descer()` para a rodada inteira no primeiro erro e `carriers` é a
+     * PRIMEIRA tabela de `DESCEM`, isso derrubava a descida antes de qualquer linha chegar.
+     *
+     * As duas conversões resolvem os dois lados de uma vez: `flag()` na ida entrega booleano de
+     * verdade ao PostgREST, e `inteiro()` na volta entrega 0/1 ao SQLite. É a mesma forma que as
+     * outras oito tabelas com bandeira já usavam.
+     */
+    build: (row) => ({ active: flag(row.active) }),
+    baixa: (linha) => ({ active: inteiro(linha.active) }),
   },
 
   devices: {
@@ -339,7 +358,13 @@ const CROSSINGS: Record<
     // A transportadora atravessa inteira porque ela é cadastro: nome e telefone
     // que só existem num aparelho somem com o aparelho, e o telefone dela é o
     // número que alguém liga quando a carga não chegou.
-    take: ['id', 'company_id', 'name', 'phone', 'note', 'active', 'created_at'],
+    take: ['id', 'company_id', 'name', 'phone', 'note', 'created_at'],
+    // `active` pelas duas conversões, como em `people` e nas outras oito: cru ele sobe como
+    // número numa coluna `boolean` e desce como booleano numa `INTEGER`, e a volta o driver do
+    // SQLite recusa. Doía aqui mais que em qualquer lugar — `carriers` é a PRIMEIRA tabela de
+    // `DESCEM`, e a rodada inteira para no primeiro erro.
+    build: (row) => ({ active: flag(row.active) }),
+    baixa: (linha) => ({ active: inteiro(linha.active) }),
   },
 
   locations: {
@@ -780,26 +805,19 @@ export const APENAS_INSERE: readonly ServerTable[] = [
 export const sendableTables = Object.keys(CROSSINGS) as ServerTable[];
 
 /**
- * As colunas que esta tabela manda para cima — e é por elas que a DESCIDA lê de volta.
+ * **`colunasQueSobem` saiu, e a razão é o portão P1 deste projeto.**
  *
- * Exportada em 12 de setembro, quando a sincronia deixou de ser de mão única. A alternativa
- * era `src/sync/descida.ts` manter a própria lista de colunas por tabela, e essa é a doença
- * que este repositório já nomeou três vezes num dia: duas listas escritas pela mesma mão
- * concordam no dia em que nascem e divergem no primeiro `alter table`. Aqui a ida e a volta
- * são simétricas por CONSTRUÇÃO — uma coluna nova sobe e desce junto, ou não faz nem uma
- * coisa nem outra.
+ * Ela existia para a DESCIDA ler o `take` de volta, e era o único chamador de produção dela — a
+ * subida usa `CROSSINGS` direto, dentro de `serialize()`. Com a descida passando a pedir
+ * `colunasQueDescem`, ela ficou sem ninguém, e a guarda de `src/layers.test.ts` acusou no mesmo
+ * commit: *"estas funções exportadas nenhum código de produção chama"*.
  *
- * **E esta função NÃO serve para a descida, ao contrário do que este docblock afirmava.** A
- * frase que estava aqui era: *"o que `build` acrescenta fica de fora de propósito: são campos que
- * o SERVIDOR precisa e o aparelho não guarda (`recorded_by`)"*. Ela é verdadeira para quatro
- * chaves e falsa para as outras dez — `active`, `packaging`, `packaging_items`, `capabilities` e
- * `sensor_ranges` são CONVERSÕES de colunas que o aparelho guarda, não invenções do servidor. A
- * fronteira foi dita em voz alta e estava errada, e nada a media: a descida pedia só o `take` e
- * essas dez colunas nunca voltavam. Ver `colunasQueDescem`.
+ * O docblock dela merece uma linha de epitáfio, porque ele é a causa do defeito e não uma vítima:
+ * afirmava que *"o que `build` acrescenta fica de fora de propósito: são campos que o SERVIDOR
+ * precisa e o aparelho não guarda (`recorded_by`)"*. Verdadeiro para quatro chaves, falso para as
+ * outras dez — e essas dez eram `packaging`, `packaging_items`, `capabilities`, `sensor_ranges` e
+ * o `active` de oito tabelas, que nunca desciam. Fronteira dita em voz alta que ninguém media.
  */
-export function colunasQueSobem(tabela: ServerTable): readonly string[] {
-  return CROSSINGS[tabela].take;
-}
 
 /**
  * As colunas que a DESCIDA pede — o `take` mais o que `baixa` sabe converter de volta.

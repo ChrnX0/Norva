@@ -717,7 +717,7 @@ function arestasDoAparelho(): Map<string, Set<string>> {
 test('a ordem da descida respeita as chaves estrangeiras do aparelho', () => {
   const arestas = arestasDoAparelho();
   const ordem = new Map(DESCEM.map((t, i) => [String(t), i]));
-  const viajam = new Set(sendableTables().map(String));
+  const viajam = new Set(sendableTables.map(String));
 
   // Liveness: sem isto um grafo lido vazio — uma expressão regular que deixou de casar depois de
   // uma mudança de formatação no `db.ts` — aprovaria qualquer ordem, para sempre.

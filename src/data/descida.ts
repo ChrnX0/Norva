@@ -52,7 +52,7 @@ export function escritaLocal(
  *
  * **O que o aparelho não tem, ele não grava — e isto era um defeito, não um cuidado.**
  *
- * `pedido()` deriva as colunas de `colunasQueSobem()`, e a razão escrita lá é boa: a ida e a
+ * `pedido()` deriva as colunas de `colunasQueDescem()`, e a razão escrita lá é boa: a ida e a
  * volta ficam simétricas por construção em vez de por duas listas escritas pela mesma mão. O
  * que ela não viu é que o `take` do serializador é uma promessa sobre o SERVIDOR, e o aparelho
  * pode legitimamente não ter uma daquelas colunas — `movements.device_id` existe no servidor

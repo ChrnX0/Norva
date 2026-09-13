@@ -273,10 +273,23 @@ test('cada tabela que desce grava uma página na forma que o servidor manda', as
     if (coluna === 'capabilities') return ['view_cost', 'record_production'];
     if (coluna === 'packaging' || coluna === 'packaging_items') return [{ name: 'caixa', factor: 24 }];
     if (coluna === 'sensor_ranges') return { temp: { min: -20, max: -15 } };
-    // As chaves apontam para o que o `before` deste arquivo semeou, senão a FK derruba a linha.
-    if (coluna === 'item_id') return ITEM;
+    // As chaves NÃO são adivinhadas aqui: quem as resolve é `PRAGMA foreign_key_list` no laço
+    // abaixo, que sabe para qual tabela cada coluna aponta. Nulo é o padrão, e ele é legítimo na
+    // maioria delas.
     if (coluna.endsWith('_id')) return null;
-    if (coluna === 'kind') return tabela === 'movements' ? 'purchase' : 'input';
+    /**
+     * As colunas de VOCABULÁRIO, e elas são a única coisa que o gerador não pode inventar.
+     *
+     * `kind`, `status` e `post` carregam `CHECK ... IN (...)` no esquema: qualquer texto fora da
+     * lista é recusado, e a recusa não diz nada sobre a descida. Os valores abaixo são o caso
+     * normal de cada tabela — uma compra, um pedido aberto, uma sala.
+     */
+    if (coluna === 'status') return 'open';
+    if (coluna === 'kind') {
+      if (tabela === 'movements') return 'purchase';
+      if (tabela === 'locations') return 'store_room';
+      return 'input';
+    }
     if (coluna.endsWith('_at') || coluna.endsWith('_on')) return '2026-09-10T10:00:00.000Z';
     if (coluna.includes('cents') || coluna.includes('units') || coluna.includes('quantity')) return 1;
     if (coluna.includes('rate') || coluna.includes('level') || coluna.includes('days')) return null;
@@ -284,10 +297,69 @@ test('cada tabela que desce grava uma página na forma que o servidor manda', as
   };
 
   const vazias: string[] = [];
+  /** O id que esta checagem gravou em cada tabela, para as chaves das seguintes apontarem nele. */
+  const gravados = new Map<string, string>([['items', ITEM], ['locations', CO]]);
+
   for (const [i, tabela] of DESCEM.entries()) {
     const p = pedidoDe(tabela, null);
+    /**
+     * O tipo e a obrigatoriedade vêm do ESQUEMA, não do nome da coluna.
+     *
+     * A primeira escrita adivinhava pelo nome — `*_days` devolvia nulo — e reprovou em
+     * `locations.delivery_days`, que é `NOT NULL`. O defeito era do teste, e a lição vale para
+     * qualquer gerador de linha falsa: **um valor nulo numa coluna obrigatória mede o teste, não
+     * o código**. Perguntar ao `PRAGMA` faz a linha falsa nascer aceitável por construção, e
+     * quando o esquema ganhar uma coluna obrigatória nova ela vem preenchida sem ninguém lembrar.
+     */
+    const esquema = await conn.getAllAsync<{ name: string; type: string; notnull: number }>(
+      `PRAGMA table_info(${tabela})`,
+    );
+    const forma = new Map(esquema.map((c) => [c.name, c]));
+    /**
+     * Para onde cada chave aponta, perguntado ao SQLite em vez de adivinhado pelo nome.
+     *
+     * `movements.counterpart_location_id` aponta para `locations` e `lots.item_id` para `items`:
+     * o sufixo não diz a tabela, e uma chave preenchida com texto qualquer é recusada. Com o
+     * `PRAGMA` a linha falsa aponta para o que a tabela PAI já recebeu nesta mesma volta — que é
+     * possível justamente porque `DESCEM` está na ordem das chaves, que é a outra coisa provada
+     * nesta rodada.
+     */
+    const apontam = new Map<string, string>();
+    for (const fk of await conn.getAllAsync<{ table: string; from: string }>(
+      `PRAGMA foreign_key_list(${tabela})`,
+    )) {
+      apontam.set(fk.from, fk.table);
+    }
+
     const linha: Record<string, unknown> = {};
-    for (const coluna of p.colunas) linha[coluna] = valorDoServidor(String(tabela), coluna, i + 1);
+    for (const coluna of p.colunas) {
+      const pai = apontam.get(coluna);
+      const valor = pai ? (gravados.get(pai) ?? null) : valorDoServidor(String(tabela), coluna, i + 1);
+      const c = forma.get(coluna);
+      if (valor !== null || !c || c.notnull !== 1) {
+        linha[coluna] = valor;
+        continue;
+      }
+      /**
+       * Obrigatória e o gerador não soube: um escalar do tipo dela — e **um, não zero**.
+       *
+       * Zero reprovava em `location_prices.price_rate > 0`, e há mais CHECKs da mesma família no
+       * esquema (`purchase_quantity > 0`, `base_units > 0`, `quantity_base_units <> 0`). Um
+       * satisfaz todos eles e também os `>= 0`, então o preenchimento genérico deixa de esbarrar
+       * em restrição de domínio — que não é o que esta checagem está medindo.
+       */
+      linha[coluna] = c.type === 'TEXT' ? `x${i}` : 1;
+    }
+    /**
+     * O que uma tabela exige além do tipo e da chave — hoje uma só.
+     *
+     * `recipe_lines` carrega `CHECK ((item_id IS NULL) <> (sub_recipe_id IS NULL))` desde a V1: a
+     * linha é um ingrediente OU uma sub-receita, nunca as duas. A linha falsa escolhe ingrediente,
+     * e a exigência fica declarada aqui em vez de o gerador fingir que não existe — do mesmo jeito
+     * que as dispensas de coluna ficam declaradas com o motivo em vez de sumirem numa heurística.
+     */
+    if (String(tabela) === 'recipe_lines') linha.sub_recipe_id = null;
+    if (typeof linha.id === 'string') gravados.set(String(tabela), linha.id);
 
     // Sem `try`: uma recusa aqui é exatamente o defeito que esta checagem existe para pegar, e
     // apanhá-la transformaria a parada da réplica num teste verde — que foi o estado até hoje.
@@ -302,11 +374,19 @@ test('cada tabela que desce grava uma página na forma que o servidor manda', as
       'morre no mesmo ponto em toda tentativa seguinte.',
   );
 
-  // E a prova de que a CONVERSÃO aconteceu, não só o `INSERT`: o booleano do servidor virou 0/1 e
-  // o objeto virou texto. Sem estas duas o teste acima passaria com as colunas nunca pedidas.
+  /**
+   * E a prova de que a CONVERSÃO aconteceu, não só o `INSERT`: o booleano do servidor virou 0/1 e
+   * o objeto virou texto. Sem estas duas o teste acima passaria com as colunas nunca pedidas.
+   *
+   * Pela linha QUE ESTA CHECAGEM DESCEU, pelo id — e não pela primeira que a consulta achar. A
+   * primeira escrita procurava `packaging IS NOT NULL` e trouxe o item semeado no `before`, que
+   * tem a embalagem PADRÃO da coluna: a asserção reprovava comparando a linha errada, e com o
+   * código certo. Régua que não olha a linha que ela plantou mede outra coisa.
+   */
+  const idDoItem = gravados.get('items');
   const item = await conn.getFirstAsync<{ active: number; packaging: string | null }>(
-    `SELECT active, packaging FROM items WHERE company_id = ? AND packaging IS NOT NULL`,
-    [CO],
+    `SELECT active, packaging FROM items WHERE id = ?`,
+    [idDoItem ?? ''],
   );
   assert.ok(item, 'nenhum item desceu com embalagem — a coluna convertida não foi pedida');
   assert.equal(item.active, 1, 'o booleano do servidor tem de chegar como 0 ou 1 no SQLite');
@@ -317,8 +397,8 @@ test('cada tabela que desce grava uma página na forma que o servidor manda', as
   );
 
   const perfil = await conn.getFirstAsync<{ capabilities: string | null }>(
-    `SELECT capabilities FROM profiles WHERE company_id = ?`,
-    [CO],
+    `SELECT capabilities FROM profiles WHERE id = ?`,
+    [gravados.get('profiles') ?? ''],
   );
   assert.equal(
     perfil?.capabilities,

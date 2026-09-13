@@ -2472,7 +2472,7 @@ echo "==> check 36: a descida ANDA — toda tabela tem o cursor, e a correcao mo
 
 # A descida de 13 de setembro nunca desceu uma linha, e a barra inteira estava verde.
 #
-# `src/sync/descida.ts` pede `[...colunasQueSobem(tabela), 'received_at']` de TODA tabela e
+# `src/sync/descida.ts` pede `[...colunasQueDescem(tabela), 'received_at']` de TODA tabela e
 # `transporte.ts` ordena por `received_at, id`. O servidor tinha a coluna em quatro das vinte e
 # tres, e `descer()` para a rodada inteira no primeiro erro — a primeira tabela da lista e
 # `carriers`, que nao a tinha. Entao a sincronia devolvia
