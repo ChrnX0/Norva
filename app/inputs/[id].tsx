@@ -698,7 +698,13 @@ function InputDetail() {
       cena="insumos"
       title={item.name}
       overline={sobrancelha(item.kind, item.active, t)}
+      erro={error}
+      denovo={refresh}
     >
+      {/* Também aqui: `if (loading)` não cobre a falha DEPOIS da carga — ali `loading`
+          já é falso, `data` é undefined, e a tela cai neste caminho desenhando o vazio,
+          que neste aplicativo é uma AFIRMAÇÃO. O casco troca o conteúdo pela página de
+          falha quando `erro` chega. */}
       {/* Fora de circulação, dito antes de tudo — é o que muda o significado de
           todo número abaixo. Em âmbar, e não em vermelho: nada está errado,
           só parado. */}

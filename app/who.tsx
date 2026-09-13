@@ -103,7 +103,7 @@ function Grade() {
   const { width } = useWindowDimensions();
   const colunas = width >= 840 ? 4 : width >= 600 ? 3 : 2;
 
-  const { data, error, refresh } = useQuery<Carregado>(async () => {
+  const { data, loading, error, refresh } = useQuery<Carregado>(async () => {
     const [pessoas, perfis, atual] = await Promise.all([
       listPeople(empresaDaqui()),
       listProfiles(empresaDaqui()),
@@ -197,7 +197,9 @@ function Grade() {
         </Card>
       </Reveal>
 
-      {ativas.length === 0 ? (
+      {/* `!loading` na frente: sem isso o primeiro quadro afirma que não há ninguém
+          cadastrado antes de a consulta responder, e vazio aqui é uma AFIRMAÇÃO. */}
+      {!loading && ativas.length === 0 ? (
         <Reveal index={1}>
           <Card hue={palette.mist} title={words.empty}>
             <Text style={[type.body, { color: color.inkMuted }]}>{words.emptyHint}</Text>

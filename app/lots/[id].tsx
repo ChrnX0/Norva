@@ -218,7 +218,17 @@ function Label() {
   }
 
   return (
-    <CollapsingHeader cena="lotes" title={t.app.lotLabel.title} overline={t.app.lotLabel.overline}>
+    <CollapsingHeader
+      cena="lotes"
+      title={t.app.lotLabel.title}
+      overline={t.app.lotLabel.overline}
+      erro={error}
+      denovo={refresh}
+    >
+      {/* Também aqui: `if (loading)` não cobre a falha DEPOIS da carga — ali `loading`
+          já é falso, `data` é undefined, e a tela cai neste caminho desenhando o vazio,
+          que neste aplicativo é uma AFIRMAÇÃO. O casco troca o conteúdo pela página de
+          falha quando `erro` chega. */}
       {/* A ETIQUETA. O cartão é de produção - quem vê âmbar sabe que o lote saiu
           do tacho antes de ler o nome - e o crachá é a própria etiqueta. Sem
           título: o cabeçalho já diz "Etiqueta do lote", e repetir a palavra num

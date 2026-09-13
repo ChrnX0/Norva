@@ -52,7 +52,7 @@ function QuemLeva() {
   const words = t.app.transport;
   const confirm = useConfirm();
 
-  const { data, error, refresh } = useQuery<Loaded>(async () => {
+  const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
     const [carriers, capacidades] = await Promise.all([
       listCarriers(empresaDaqui()),
       currentCapabilities(empresaDaqui()),
@@ -122,7 +122,9 @@ function QuemLeva() {
     >
       <Reveal index={0}>
         <Card hue={palette.lilac} icon={(c) => <GlyphVehicle size={26} color={c} weight={traco} />}>
-          {transportadoras.length === 0 ? (
+          {/* A carga vem ANTES dos dois ramos: durante ela não é "nenhuma transportadora"
+              nem uma lista — é ainda não se sabe. */}
+          {loading ? null : transportadoras.length === 0 ? (
             <Text style={[type.body, { color: color.inkMuted }]}>{words.carrierNone}</Text>
           ) : (
             transportadoras.map((quem) => (

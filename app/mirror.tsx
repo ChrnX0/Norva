@@ -64,7 +64,9 @@ function Espelho() {
   const router = useRouter();
   const words = t.app.reports.mirror;
 
-  const { data, error, refresh } = useQuery<MirrorRow[]>(() => storeMirror(empresaDaqui(), DIAS));
+  const { data, loading, error, refresh } = useQuery<MirrorRow[]>(() =>
+    storeMirror(empresaDaqui(), DIAS),
+  );
   const linhas = data ?? [];
 
   return (
@@ -81,7 +83,7 @@ function Espelho() {
         </Text>
       </Reveal>
 
-      {linhas.length === 0 ? (
+      {!loading && linhas.length === 0 ? (
         // "Está tudo bem" é estado válido, e "ainda não começou" também: a tela diz
         // o que falta acontecer em vez de parecer defeito.
         <Reveal index={1}>

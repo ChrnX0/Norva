@@ -98,11 +98,13 @@ function Carrinho() {
   const [quemLeva, setQuemLeva] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
-  const { data: lugares } = useQuery<Place[]>(() => listPlaces(empresaDaqui()));
+  const { data: lugares, loading: buscandoLugares } = useQuery<Place[]>(() =>
+    listPlaces(empresaDaqui()),
+  );
   const lojas = (lugares ?? []).filter((p) => p.id !== fabrica);
   const loja = lojas.find((p) => p.id === lojaId) ?? lojas[0] ?? null;
 
-  const { data, error, refresh } = useQuery<Carregado | null>(async () => {
+  const { data, loading, error, refresh } = useQuery<Carregado | null>(async () => {
     if (!loja) return null;
     const hoje = dayWindow(nowIso(), locale.timeZone);
     const [places, carriers, linhas, itens, carrinho] = await Promise.all([
@@ -234,7 +236,7 @@ function Carrinho() {
           nomeou. Duas mentiras pequenas que juntas fazem a tela parecer quebrada
           exatamente na primeira vez em que alguém a abre.
           O ramo de "sem pedido" continua certo — para quando HÁ loja. */}
-      {lojas.length === 0 ? (
+      {!buscandoLugares && lojas.length === 0 ? (
         <Reveal index={0}>
           <Card
             hue={palette.lilac}
@@ -290,7 +292,7 @@ function Carrinho() {
       {/* Sem pedido não há o que separar, e isso é estado válido: a tela diz para
           onde ir em vez de mostrar uma lista vazia. Só vale quando HÁ loja — sem
           loja, quem responde é o cartão acima. */}
-      {lojas.length === 0 ? null : linhas.length === 0 ? (
+      {lojas.length === 0 || loading ? null : linhas.length === 0 ? (
         <Reveal index={1}>
           <Card hue={palette.lilac} title={words.empty}>
             <Text style={[type.body, { color: color.inkMuted }]}>{words.emptyHint}</Text>

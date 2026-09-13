@@ -73,7 +73,7 @@ function WhoWorksHere() {
   const { t } = useLocale();
   const words = t.app.people;
 
-  const { data, error, refresh } = useQuery<Loaded>(async () => {
+  const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
     const [people, profiles, capacidades] = await Promise.all([
       listPeople(empresaDaqui()),
       listProfiles(empresaDaqui()),
@@ -138,7 +138,9 @@ function WhoWorksHere() {
           hue={palette.sky}
           icon={(c) => <GlyphCustomer size={26} color={c} weight={traco} />}
         >
-          {gente.length === 0 ? (
+          {/* A carga vem ANTES dos dois ramos: durante ela não é "ninguém cadastrado"
+              nem uma lista — é ainda não se sabe, e vazio aqui é uma AFIRMAÇÃO. */}
+          {loading ? null : gente.length === 0 ? (
             <Text style={[type.body, { color: color.inkMuted }]}>{words.empty}</Text>
           ) : (
             gente.map((quem) => (
@@ -155,7 +157,7 @@ function WhoWorksHere() {
           {/* O convite explica PARA QUE serve cadastrar, e não só que dá para
               cadastrar: sem a frase, "Pessoas" é uma lista vazia que ninguém sabe
               por que preencher. */}
-          {gente.length === 0 ? (
+          {!loading && gente.length === 0 ? (
             <Text style={[type.caption, { color: color.inkFaint, marginTop: space.sm }]}>
               {words.emptyHint}
             </Text>

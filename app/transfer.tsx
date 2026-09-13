@@ -120,7 +120,7 @@ function Transfer() {
   const router = useRouter();
   const words = t.app.transfer;
 
-  const { data, error, refresh } = useQuery<Loaded>(async () => {
+  const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
     // Os pedidos em aberto entram na abertura da tela, e não no envio, porque é
     // ANTES de digitar que eles decidem: quem carrega precisa saber que aquelas
     // caixas têm dono enquanto ainda dá para mandar menos.
@@ -503,7 +503,9 @@ function Transfer() {
    * ação. A loja é o desenho porque é ela que falta, e o botão é o único caminho
    * que esta tela tem.
    */
-  if (destinations.length === 0) {
+  // `!loading` na frente: sem isso a tela do primeiro dia — "não há para onde mandar" —
+  // aparece em toda abertura, antes de a consulta responder.
+  if (!loading && destinations.length === 0) {
     return (
       <CollapsingHeader
         cena="separacao"
@@ -563,7 +565,12 @@ function Transfer() {
       // mercadoria entra nela, e o livro-razão grava `return`. (No estado vazio
       // acima ela está certa: lá não existe o seletor de sentido.)
       overline={devolucao ? words.returnOverline : words.overline}
+      erro={error}
+      denovo={refresh}
     >
+      {/* Também aqui: o ramo de cima não cobre a falha DEPOIS da carga — ali `data` é
+          undefined e a tela cai neste caminho desenhando o vazio, que neste aplicativo é
+          uma AFIRMAÇÃO. O casco troca o conteúdo pela página de falha quando `erro` chega. */}
       {/* Para que lado. Vem antes de tudo porque muda o resto da tela: a lista de
           itens passa a ser a do estoque da loja, e o que se grava passa a ser
           devolução. O título do cartão é a frase escolhida, então o estado do
@@ -794,7 +801,9 @@ function Transfer() {
             onEscolha={setNaGrade}
           />
 
-          {lines.length === 0 ? (
+          {/* `!loading` na frente: "não há nada em Loja Centro" é afirmação sobre o estoque
+              de outra pessoa, e durante a carga ela é falsa em toda abertura. */}
+          {!loading && lines.length === 0 ? (
             <Text style={[type.body, { color: color.inkMuted }]}>
               {fill(words.nothingHere, { place: nameOf(from) })}
             </Text>

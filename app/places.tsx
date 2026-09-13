@@ -121,7 +121,7 @@ function Places() {
   const router = useRouter();
   const words = t.app.places;
 
-  const { data, error, refresh } = useQuery<Loaded>(async () => {
+  const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
     const [places, stock, readings, capacidades] = await Promise.all([
       listPlaces(empresaDaqui()),
       stockByPlace(empresaDaqui()),
@@ -264,7 +264,10 @@ function Places() {
   const KINDS = ['own_store', 'customer', 'cold_room', 'store_room', 'factory'] as const;
 
   /** Nada entrou em lugar nenhum ainda: desenho, uma frase, e a ação embaixo. */
-  const semNada = (data?.stock.length ?? 0) === 0;
+  // `!loading` entra no predicado, e não no JSX, porque `semNada` também decide o índice
+  // da entrada em cascata logo abaixo: as duas respostas têm de vir da mesma pergunta.
+  // Sem isso o primeiro quadro afirma que a fábrica não tem lugar nenhum.
+  const semNada = !loading && (data?.stock.length ?? 0) === 0;
   const lugares = data?.places ?? [];
   /** As unidades de fábrica — a pergunta de quem atende só existe se houver mais de uma. */
   const unidades = lugares.filter((p) => ehUnidade(p.kind));

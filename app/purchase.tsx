@@ -445,7 +445,17 @@ function PurchaseForm() {
   }
 
   return (
-    <CollapsingHeader cena="compras" title={t.app.purchase.title} overline={t.app.purchase.overline}>
+    <CollapsingHeader
+      cena="compras"
+      title={t.app.purchase.title}
+      overline={t.app.purchase.overline}
+      erro={error}
+      denovo={refresh}
+    >
+      {/* Também aqui: `if (loading)` não cobre a falha DEPOIS da carga — ali `loading`
+          já é falso, `data` é undefined, e a tela cai neste caminho desenhando o vazio,
+          que neste aplicativo é uma AFIRMAÇÃO. O casco troca o conteúdo pela página de
+          falha quando `erro` chega. */}
       {/* O QUE CHEGOU. Um assunto só, num cartão só: qual insumo, quantos e por
           quanto são as três linhas da mesma linha da nota, e separá-las em dois
           cartões fazia a pessoa olhar duas caixas para escrever uma frase.
