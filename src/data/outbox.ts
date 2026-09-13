@@ -389,6 +389,8 @@ export const QUEUED_TABLES = [
   // para onde aponta —, e a entrada órfã dele travaria a fila atrás de uma
   // matrícula que não existe mais.
   'devices',
+  // O fornecedor, pela mesma razão: "apagar tudo" o leva depois das notas.
+  'suppliers',
   // A transportadora entra na varredura mesmo não sendo apagada por área nenhuma
   // menor: "apagar tudo" a leva, e a entrada órfã dela travaria a fila inteira
   // atrás de um cadastro que não existe mais.

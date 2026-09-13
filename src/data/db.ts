@@ -1499,10 +1499,55 @@ CREATE UNIQUE INDEX IF NOT EXISTS devices_name_idx ON devices (company_id, name)
 ALTER TABLE movements ADD COLUMN device_id TEXT REFERENCES devices(id) ON DELETE RESTRICT;
 `;
 
+/**
+ * **O fornecedor vira uma coisa só, e a nota de compra fica inteira.**
+ *
+ * Três colunas do servidor nunca foram escritas — `purchases.supplier_id`, `freight_cents` e
+ * `invoice_number`, todas da `0002` — e a tabela `suppliers` está lá desde então com zero
+ * escritores e zero leitores. A `0044` recusou copiar esse molde com a frase que vale aqui:
+ * *cadastro sem quem leia é a doença que este repositório documentou quatro vezes*.
+ *
+ * **O que mudou é que agora existe quem leia, e o que ele lê decide dinheiro.** Desde 13 de
+ * setembro a capa, o aviso e a ficha do insumo usam o prazo OBSERVADO do fornecedor para dizer
+ * o dia de comprar. Esse prazo agrupa por fornecedor, e com o fornecedor sendo texto livre
+ * "Atacado São Jorge", "atacado sao jorge" e "Atacado São Jorge " são TRÊS fornecedores: três
+ * históricos pela metade e um dia de comprar calculado sobre um terço das notas.
+ *
+ * O índice copia o do servidor EXPRESSÃO POR EXPRESSÃO (`lower(trim(name))`), e a razão está
+ * escrita na V38 para o caso da gente: um índice mais estreito que o do servidor quebra a
+ * DESCIDA — duas linhas que o servidor aceita desceriam e a segunda bateria num índice que só
+ * existe aqui, derrubando a página inteira.
+ *
+ * `supplier_name` FICA, e não é redundância: ele é o que estava escrito na nota — história,
+ * como o `location_id` de um movimento —, e `supplier_id` é o cadastro. Corrigir o cadastro
+ * depois não recarimba a nota antiga.
+ *
+ * `freight_cents` é INTEGER porque `Cents` é inteiro nesta casa, e o frete é dinheiro que
+ * alguém pagou. Ele nasce zero: quem compra na feira não tem frete, e zero é a resposta certa
+ * em vez de nulo.
+ */
+const V41 = `
+CREATE TABLE IF NOT EXISTS suppliers (
+  id                 TEXT PRIMARY KEY,
+  company_id         TEXT NOT NULL,
+  name               TEXT NOT NULL,
+  tax_id             TEXT,
+  promised_lead_days INTEGER,
+  created_at         TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS suppliers_name_idx
+  ON suppliers (company_id, lower(trim(name)));
+
+ALTER TABLE purchases ADD COLUMN supplier_id TEXT REFERENCES suppliers(id) ON DELETE RESTRICT;
+ALTER TABLE purchases ADD COLUMN freight_cents INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE purchases ADD COLUMN invoice_number TEXT;
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
   V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33,
-  V34, V35, V36, V37, V38, V39, V40,
+  V34, V35, V36, V37, V38, V39, V40, V41,
 ];
 
 export type SqlParam = string | number | null;

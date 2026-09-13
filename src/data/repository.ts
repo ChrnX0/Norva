@@ -593,6 +593,21 @@ export async function recordPurchase(
   input: {
     itemId: string;
     supplierName?: string;
+    /**
+     * O frete da NOTA, em centavos. Zero é resposta — quem compra na feira não tem frete.
+     *
+     * Ele é da nota e não da linha: uma nota com quatro itens tem um frete, e é o rateio
+     * que o distribui quando a empresa liga o frete no custo unitário.
+     */
+    freightCents?: Cents;
+    /**
+     * O número que alguém escreveu no papel, para achar a nota depois.
+     *
+     * Texto livre e opcional de propósito: nota fiscal é o Brasil, e a decisão registrada
+     * do dono é *sem dados fiscais no começo* — o app vai para duas lojas. Isto não é
+     * documento validado, é uma etiqueta de busca.
+     */
+    invoiceNumber?: string;
     /** What the buyer typed: 8 sacks. */
     purchaseQuantity: number;
     /** Converted on the way in, so storage only ever sees base units. */
@@ -736,10 +751,66 @@ export async function recordPurchase(
     // discordavam sobre o mesmo fato, e ninguém via porque nada lia esta coluna.
     // Agora `deliveriesOf` lê, e o prazo do fornecedor sairia inflado por todo
     // atraso de digitação — que é medir a fábrica em vez de medir o fornecedor.
+    /**
+     * **O fornecedor vira COISA aqui, e o nome digitado continua na nota.**
+     *
+     * `suppliers` existe no servidor desde a `0002` com zero escritores, e quem vive é o
+     * texto que alguém digita em cada nota. Isso não era só desorganização: desde 13 de
+     * setembro o prazo OBSERVADO do fornecedor é a régua que a capa e o aviso usam para
+     * dizer o dia de comprar, e esse prazo agrupa por fornecedor — com texto livre,
+     * "Atacado São Jorge", "atacado sao jorge" e "Atacado São Jorge " são três históricos
+     * pela metade e um prazo calculado sobre um terço das notas.
+     *
+     * As duas colunas ficam, com papéis diferentes: `supplier_name` é o que estava escrito
+     * NA NOTA (história, como o `location_id` de um movimento) e `supplier_id` é o
+     * cadastro. Corrigir o cadastro depois não recarimba a nota velha.
+     *
+     * **Achar-ou-criar, e a régua é a do índice** (`lower(trim(name))`, no aparelho e no
+     * servidor): a mesma palavra com outra caixa ou com espaço sobrando é o mesmo
+     * fornecedor. Sem nome digitado não se inventa cadastro — nulo é a resposta honesta de
+     * quem comprou na feira e não anotou de quem.
+     */
+    const fornecedor = input.supplierName?.trim() ? input.supplierName.trim() : null;
+    let supplierId: string | null = null;
+    if (fornecedor) {
+      const achado = await conn.getFirstAsync<{ id: string }>(
+        `SELECT id FROM suppliers WHERE company_id = ? AND lower(trim(name)) = lower(?)`,
+        [companyId, fornecedor],
+      );
+      if (achado) {
+        supplierId = achado.id;
+      } else {
+        supplierId = newId();
+        await conn.runAsync(
+          `INSERT INTO suppliers (id, company_id, name, created_at) VALUES (?, ?, ?, ?)`,
+          [supplierId, companyId, fornecedor, at],
+        );
+        await enqueue(conn, [{ table: 'suppliers', rowId: supplierId }]);
+      }
+    }
+
     await conn.runAsync(
-      `INSERT INTO purchases (id, company_id, supplier_name, ordered_at, arrived_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [purchaseId, companyId, input.supplierName ?? null, input.orderedAt ?? null, occurred, at],
+      `INSERT INTO purchases (id, company_id, supplier_name, supplier_id, freight_cents,
+                              invoice_number, ordered_at, arrived_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        purchaseId,
+        companyId,
+        fornecedor,
+        supplierId,
+        /**
+         * O frete da NOTA, e ele é da nota e não da linha.
+         *
+         * Uma nota com quatro itens tem UM frete, e é ele que o rateio distribui pelas
+         * linhas quando a empresa liga o frete no custo. Zero é a resposta de quem compra
+         * na feira — e é resposta, não ausência, então a coluna não aceita nulo.
+         */
+        input.freightCents ?? 0,
+        input.invoiceNumber?.trim() ? input.invoiceNumber.trim() : null,
+        input.orderedAt ?? null,
+        occurred,
+        at,
+      ],
     );
 
     await conn.runAsync(
@@ -5948,6 +6019,7 @@ export async function countForErase(companyId: string): Promise<EraseCounts> {
        (SELECT COUNT(*) FROM people    WHERE company_id = ?1) AS people,
        (SELECT COUNT(*) FROM carriers  WHERE company_id = ?1) AS carriers,
        (SELECT COUNT(*) FROM devices   WHERE company_id = ?1) AS devices,
+       (SELECT COUNT(*) FROM suppliers WHERE company_id = ?1) AS suppliers,
        (SELECT COUNT(*) FROM readings  WHERE company_id = ?1) AS readings,
        -- A grade é um número só: linha, tipo e sabor são três tabelas e uma coisa.
        (SELECT (SELECT COUNT(*) FROM product_lines WHERE company_id = ?1)
@@ -6103,7 +6175,17 @@ export type PriceMoveRow = {
  *
  * Sem portão de dinheiro: aqui não há cifra, só dias.
  */
-export type Delivery = { orderedAt: string; receivedAt: string };
+export type Delivery = {
+  orderedAt: string;
+  receivedAt: string;
+  /**
+   * De quem foi esta entrega — nulo nas notas gravadas antes de existir cadastro.
+   *
+   * É ele que permite o prazo observado ser o do fornecedor de quem se vai comprar, e não a
+   * média de dois fornecedores que não se parecem. Ver `prazoDoFornecedorAtual`.
+   */
+  supplierId: string | null;
+};
 
 export async function deliveriesOf(
   companyId: string,
@@ -6111,8 +6193,12 @@ export async function deliveriesOf(
   limit = 8,
 ): Promise<Delivery[]> {
   const conn = await db();
-  const rows = await conn.getAllAsync<{ ordered_at: string; arrived_at: string }>(
-    `SELECT p.ordered_at, p.arrived_at
+  const rows = await conn.getAllAsync<{
+    ordered_at: string;
+    arrived_at: string;
+    supplier_id: string | null;
+  }>(
+    `SELECT p.ordered_at, p.arrived_at, p.supplier_id
        FROM purchases p
        JOIN purchase_lines pl ON pl.purchase_id = p.id
       WHERE p.company_id = ?
@@ -6128,7 +6214,11 @@ export async function deliveriesOf(
   // `receivedAt` no domínio, `arrived_at` na coluna: o domínio fala da ENTREGA, e ali a
   // palavra não disputa com nada. A coluna trocou de nome porque no servidor `received_at` é o
   // cursor da descida (V37, e a 0065 do servidor).
-  return rows.map((r) => ({ orderedAt: r.ordered_at, receivedAt: r.arrived_at }));
+  return rows.map((r) => ({
+    orderedAt: r.ordered_at,
+    receivedAt: r.arrived_at,
+    supplierId: r.supplier_id,
+  }));
 }
 
 /**
@@ -9236,6 +9326,24 @@ export async function saveDevice(
   const nome = input.name.trim();
   if (!nome) throw new Error('aparelho sem nome');
   const active = input.active === false ? 0 : 1;
+
+  /**
+   * Nome repetido é recusado AQUI, com classe própria, e não pelo índice.
+   *
+   * O índice único do passo `V40` pega o caso e a fila nunca carrega a linha ruim — mas a
+   * frase que chega a quem matriculou seria a genérica de falha, e "não deu" não diz o que
+   * fazer. `savePerson` já faz melhor pela mesma razão, com a régua escrita lá: dois nomes
+   * iguais numa lista são inúteis para quem vai escolher qual é ESTE aparelho.
+   *
+   * Caixa e espaço ignorados, como na grade de gente: `Camara` e ` camara ` são o mesmo
+   * nome para quem lê a lista.
+   */
+  const repetido = await conn.getFirstAsync<{ id: string }>(
+    `SELECT id FROM devices
+      WHERE company_id = ? AND lower(trim(name)) = lower(?) AND id <> ?`,
+    [companyId, nome, id],
+  );
+  if (repetido) throw new NomeJaCadastradoError(nome);
 
   await conn.withTransactionAsync(async () => {
     const existe = await conn.getFirstAsync<{ n: number }>(

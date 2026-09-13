@@ -86,6 +86,7 @@ export type ServerWrite =
 export type ServerTable =
   | 'erase_requests'
   | 'devices'
+  | 'suppliers'
   | 'carriers'
   | 'locations'
   | 'profiles'
@@ -493,8 +494,44 @@ const CROSSINGS: Record<
     ],
   },
 
+  suppliers: {
+    /**
+     * O fornecedor como COISA, e ele sobe antes da nota que o cita.
+     *
+     * `purchases.supplier_id` aponta para cá com RESTRICT (`0002`), e a ordem da fila é a
+     * ordem em que a fábrica gravou: a nota resolve o nome numa entidade ANTES de gravar,
+     * então o cadastro está sempre na frente dela.
+     *
+     * `promised_lead_days` atravessa mesmo sem ninguém decidir por ele: é o que o
+     * fornecedor PROMETE, e a régua da compra usa o observado. Ele viaja para a tela
+     * poder mostrar os dois lado a lado — Lei 3, nenhum número sozinho.
+     */
+    take: ['id', 'company_id', 'name', 'tax_id', 'promised_lead_days', 'created_at'],
+  },
+
   purchases: {
-    take: ['id', 'company_id', 'supplier_name', 'ordered_at', 'arrived_at', 'created_at'],
+    /**
+     * `supplier_name` E `supplier_id` atravessam, e não é redundância.
+     *
+     * O nome é o que estava escrito NA NOTA — história, como o `location_id` de um
+     * movimento —, e o id é o cadastro. Corrigir o cadastro depois não recarimba a nota
+     * velha, e é isso que permite ao prazo observado agrupar por entidade sem reescrever
+     * o passado.
+     *
+     * `freight_cents` é inteiro nos dois lados (`Cents` é inteiro aqui, `bigint` lá) e
+     * `invoice_number` é o número que alguém escreveu no papel, não documento validado.
+     */
+    take: [
+      'id',
+      'company_id',
+      'supplier_name',
+      'supplier_id',
+      'freight_cents',
+      'invoice_number',
+      'ordered_at',
+      'arrived_at',
+      'created_at',
+    ],
     build: (_row, actor) => ({ created_by: actor.userId }),
   },
 

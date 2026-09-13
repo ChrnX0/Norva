@@ -51,7 +51,7 @@ import {
 } from '@/data/repository';
 import { empresaDaqui } from '@/data/empresa';
 import { unidadeDaqui } from '@/data/unidade';
-import { judgePriceChange, observedLeadTimeDays, reorderPoint, variacaoDoCusto } from '@/domain/cost';
+import { judgePriceChange, prazoDoFornecedorAtual, reorderPoint, variacaoDoCusto } from '@/domain/cost';
 import { amountOf, type Rate } from '@/domain/money';
 import { ehConferencia, vendeAoConsumidor, type LossReason } from '@/domain/ledger';
 import { parseTyped } from '@/domain/number';
@@ -313,7 +313,7 @@ function InputDetail() {
    * setembro desmentiu: o que faltava era alguém escrever `ordered_at`, e agora a
    * tela de compra escreve. Este é o primeiro leitor dela em produção.
    */
-  const prazo = observedLeadTimeDays(data?.entregas ?? []);
+  const prazo = prazoDoFornecedorAtual(data?.entregas ?? []);
 
   /**
    * O ponto de recompra — a Lei 4 saindo do papel.

@@ -538,6 +538,10 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
   -- trocar o nome do celular da camara ou o responsavel dele e correcao, nao ato novo.
   -- A politica devices_manage exige manage_company por cima disto, desde a 0013.
   grant insert, update on devices to app_user;
+  -- O fornecedor, com os dois verbos como os outros cadastros: corrigir o nome ou o prazo
+  -- prometido de um fornecedor e correcao, nao ato novo. A politica suppliers_manage exige
+  -- manage_company por cima disto, desde a 0002.
+  grant insert, update on suppliers to app_user;
   -- O pedido de Reset entra só com INSERT, como o razão e a história de preço: a
   -- política já recusa update e delete, e o grant não contradiz a política.
   grant insert on erase_requests to app_user;

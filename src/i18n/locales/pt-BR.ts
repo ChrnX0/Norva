@@ -911,6 +911,7 @@ export const ptBR = {
         by: 'Responsável: {{person}}.',
         none: 'Este aparelho ainda não foi matriculado — o livro registra o lugar, e não o aparelho.',
         failed: 'Não deu para matricular',
+        taken: 'Já existe um aparelho com esse nome. Dois nomes iguais na lista não dizem qual é este.',
       },
       /**
        * De onde a corrida tira o insumo. Só aparece com mais de uma sala nossa.
@@ -1084,6 +1085,7 @@ export const ptBR = {
         orders: { one: '1 pedido', other: '{{n}} pedidos' },
         carriers: { one: '1 transportadora', other: '{{n}} transportadoras' },
         devices: { one: '1 aparelho matriculado', other: '{{n}} aparelhos matriculados' },
+        suppliers: { one: '1 fornecedor', other: '{{n}} fornecedores' },
         // As quatro que somiam sem número — dívida registrada em 7 de setembro,
         // paga em 8. A grade é UM número: a pessoa monta a grade, não cadastra
         // "um tipo".

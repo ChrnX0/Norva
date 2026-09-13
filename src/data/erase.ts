@@ -73,6 +73,7 @@ export type ErasableTable =
   | 'sale_price_history'
   | 'location_prices'
   | 'items'
+  | 'suppliers'
   | 'devices'
   | 'locations'
   | 'people'
@@ -98,6 +99,16 @@ export type EraseCounts = {
   agreedPrices: number;
   /** As transportadoras cadastradas. Só "apagar tudo" as leva. */
   carriers: number;
+  /**
+   * Os fornecedores cadastrados. Só "apagar tudo" os leva.
+   *
+   * Contado como a transportadora, e pela mesma razão: é um cadastro que a pessoa
+   * reconhece pelo nome e construiu ao longo do tempo. E aqui há um agravante — o prazo
+   * observado de cada fornecedor é a régua que decide o dia de comprar, e ele se refaz
+   * das notas. Apagar os fornecedores é apagar essa régua junto, e quem confirma duas
+   * vezes tem de ver o número.
+   */
+  suppliers: number;
   /**
    * Os aparelhos matriculados. Só "apagar tudo" os leva.
    *
@@ -185,6 +196,7 @@ export const emptyCounts: EraseCounts = {
   salePrices: 0,
   agreedPrices: 0,
   carriers: 0,
+  suppliers: 0,
   devices: 0,
   movements: 0,
   movementsOfProducts: 0,
@@ -255,6 +267,10 @@ export function tablesFor(area: EraseArea): readonly ErasableTable[] {
         'lots',
         'purchase_lines',
         'purchases',
+        // O FORNECEDOR depois da nota, que aponta para ele com RESTRICT (`0002`). Fora
+        // desta posição o DELETE levanta chave estrangeira e "apagar tudo" volta a não
+        // apagar nada — a cicatriz escrita no topo desta lista.
+        'suppliers',
         'products',
         // A grade vem DEPOIS do produto: `products.line_id`, `category_id`,
         // `type_id` e `flavor_id` apontam para cá com RESTRICT.
@@ -401,6 +417,7 @@ export const TALLY_KEYS = [
   'lots',
   'orders',
   'carriers',
+  'suppliers',
   'devices',
   'readings',
   'grid',
@@ -418,6 +435,7 @@ export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
     salePrices: 0,
     agreedPrices: 0,
     carriers: 0,
+    suppliers: 0,
     devices: 0,
     movements: 0,
     recipes: 0,
@@ -461,6 +479,7 @@ export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
         lots: counts.lots,
         orders: counts.orders,
         carriers: counts.carriers,
+        suppliers: counts.suppliers,
         devices: counts.devices,
         readings: counts.readings,
         grid: counts.grid,

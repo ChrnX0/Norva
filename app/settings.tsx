@@ -32,6 +32,7 @@ import {
   alertSettings,
   listDevices,
   listPeople,
+  NomeJaCadastradoError,
   saveDevice,
   porQueNaoAgendou,
   briefingHalf,
@@ -491,7 +492,18 @@ function Settings() {
     } catch (e) {
       await confirm({
         title: t.app.settings.device.failed,
-        message: avisoDeFalha(e, t, ERROS).message,
+        /**
+         * O nome repetido tem frase PRÓPRIA, e as outras recusas caem na régua comum.
+         *
+         * `avisoDeFalha` traduz as quatro classes que ela conhece (sem acesso, sem
+         * permissão, sem estoque, já conferida) e devolve a frase geral para o resto —
+         * que é o certo para o que a pessoa não pode resolver. Nome repetido ela resolve
+         * em dois toques, e "não deu" não diz qual é o toque.
+         */
+        message:
+          e instanceof NomeJaCadastradoError
+            ? t.app.settings.device.taken
+            : avisoDeFalha(e, t, ERROS).message,
         acknowledge: true,
         confirmLabel: t.app.confirm.understood,
       });

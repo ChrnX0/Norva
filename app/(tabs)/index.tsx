@@ -34,7 +34,7 @@ import { forecastForScreen } from '@/weather/live';
 import { useQuery } from '@/data/useQuery';
 import { daysUntilNextDelivery } from '@/domain/agreement';
 import { precisaComprar } from '@/domain/alerts';
-import { observedLeadTimeDays } from '@/domain/cost';
+import { prazoDoFornecedorAtual } from '@/domain/cost';
 import { briefingLayout } from '@/domain/briefing';
 
 import { nowIso } from '@/data/db';
@@ -269,7 +269,7 @@ function Briefing() {
     const candidatos = await Promise.all(
       shortlyCandidatos.map(async (c) => ({
         item: c,
-        prazo: observedLeadTimeDays(await deliveriesOf(empresaDaqui(), c.itemId)),
+        prazo: prazoDoFornecedorAtual(await deliveriesOf(empresaDaqui(), c.itemId)),
       })),
     );
     const shortly = candidatos

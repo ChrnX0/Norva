@@ -641,6 +641,7 @@ export const es: Dictionary = {
         by: 'Responsable: {{person}}.',
         none: 'Este aparato todavía no está matriculado — el libro registra el lugar, no el aparato.',
         failed: 'No se pudo matricular',
+        taken: 'Ya existe un aparato con ese nombre. Dos nombres iguales en la lista no dicen cuál es este.',
       },
       /** De dónde saca los insumos una corrida. Solo con más de una sala. Ver pt-BR. */
       consumo: {
@@ -789,6 +790,7 @@ export const es: Dictionary = {
         orders: { one: '1 pedido', other: '{{n}} pedidos' },
         carriers: { one: '1 transportista', other: '{{n}} transportistas' },
         devices: { one: '1 aparato matriculado', other: '{{n}} aparatos matriculados' },
+        suppliers: { one: '1 proveedor', other: '{{n}} proveedores' },
         readings: { one: '1 lectura de la cámara', other: '{{n}} lecturas de la cámara' },
         grid: { one: '1 elemento de la grilla', other: '{{n}} elementos de la grilla' },
         salePrices: { one: '1 precio de venta en el historial', other: '{{n}} precios de venta en el historial' },

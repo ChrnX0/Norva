@@ -236,6 +236,7 @@ test('erasing everything is never blocked - that is the point of it', () => {
     inputs: 6,
     carriers: 0,
     devices: 0,
+    suppliers: 0,
     readings: 0,
     grid: 0,
     salePrices: 0,
@@ -286,6 +287,8 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     // O aparelho matriculado, com três pela mesma razão: zero aqui deixaria passar
     // uma contagem que não carrega o campo, que é a cicatriz escrita no topo.
     devices: 3,
+    // O fornecedor, com quatro pela mesma razão: zero passa com ou sem o campo carregado.
+    suppliers: 4,
     // As quatro que somiam sem número, idem.
     readings: 48,
     grid: 7,
@@ -305,6 +308,7 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     orders: 4,
     carriers: 2,
     devices: 3,
+    suppliers: 4,
     readings: 48,
     grid: 7,
     salePrices: 5,
@@ -333,6 +337,7 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     // completo o desfaz.
     carriers: 0,
     devices: 0,
+    suppliers: 0,
     // Nem a série da câmara, nem a grade, nem os dois preços: só "apagar tudo".
     readings: 0,
     grid: 0,
@@ -354,6 +359,7 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     // completo o desfaz.
     carriers: 0,
     devices: 0,
+    suppliers: 0,
     // Nem a série da câmara, nem a grade, nem os dois preços: só "apagar tudo".
     readings: 0,
     grid: 0,
@@ -461,6 +467,7 @@ const CONTADA: Record<string, keyof EraseTally> = {
   people: 'people',
   carriers: 'carriers',
   devices: 'devices',
+  suppliers: 'suppliers',
   readings: 'readings',
   sale_price_history: 'salePrices',
   location_prices: 'agreedPrices',

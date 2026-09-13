@@ -636,6 +636,7 @@ export const en: Dictionary = {
         by: 'Responsible: {{person}}.',
         none: 'This device is not enrolled yet — the ledger records the place, not the device.',
         failed: 'Could not enrol',
+        taken: 'A device with that name already exists. Two identical names in the list cannot tell which one this is.',
       },
       /** Where a run draws its inputs from. Only shown with more than one room. See pt-BR. */
       consumo: {
@@ -784,6 +785,7 @@ export const en: Dictionary = {
         orders: { one: '1 order', other: '{{n}} orders' },
         carriers: { one: '1 carrier', other: '{{n}} carriers' },
         devices: { one: '1 enrolled device', other: '{{n}} enrolled devices' },
+        suppliers: { one: '1 supplier', other: '{{n}} suppliers' },
         readings: { one: '1 cold-room reading', other: '{{n}} cold-room readings' },
         grid: { one: '1 catalogue grid entry', other: '{{n}} catalogue grid entries' },
         salePrices: { one: '1 sale price in the history', other: '{{n}} sale prices in the history' },

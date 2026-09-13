@@ -121,6 +121,36 @@ export function observedLeadTimeDays(
 }
 
 /**
+ * **O prazo do fornecedor de quem se vai comprar — não a média de todos eles.**
+ *
+ * `observedLeadTimeDays` acima faz a média das entregas que recebe, e por muito tempo quem
+ * chamava passava TODAS as entregas do item. Numa fábrica que compra polpa de dois
+ * fornecedores — um da cidade que entrega em dois dias e um de fora que leva dez — isso dá
+ * seis, um número que não é de nenhum dos dois. E seis é o que a capa, o aviso e a ficha usam
+ * para dizer o dia de comprar: cedo demais para um, tarde demais para o outro.
+ *
+ * O recorte é o fornecedor da ÚLTIMA nota, e isso não é arbitrário: é o mesmo que a tela de
+ * compra sugere no campo (`lastPurchaseOf`). Assim a sugestão e o prazo falam do mesmo
+ * fornecedor — se a tela oferece "Atacado São Jorge", o dia de comprar é o do Atacado São
+ * Jorge. Discordar aí seria o aplicativo discordando de si mesmo, que é a doença que a régua
+ * única de compra veio curar.
+ *
+ * **Entrega sem fornecedor cadastrado não estreita nada.** Nota antiga tem `supplier_id`
+ * nulo, e nulo não é um fornecedor — quando a última nota é dessas, o prazo volta a ser o de
+ * todas, que é a resposta honesta de quem não sabe de quem comprou.
+ *
+ * As entregas chegam da mais nova para a mais velha (é a ordem da consulta), e esta função
+ * depende disso: quem a chamar com outra ordem recebe o prazo de outro fornecedor.
+ */
+export function prazoDoFornecedorAtual(
+  deliveries: readonly { orderedAt: string; receivedAt: string; supplierId?: string | null }[],
+): number | null {
+  const atual = deliveries[0]?.supplierId ?? null;
+  if (atual === null) return observedLeadTimeDays(deliveries);
+  return observedLeadTimeDays(deliveries.filter((d) => d.supplierId === atual));
+}
+
+/**
  * Reorder point, calculated rather than typed. A hand-entered "minimum stock"
  * ages the moment consumption changes and nobody goes back to fix it.
  */

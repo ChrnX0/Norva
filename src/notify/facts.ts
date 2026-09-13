@@ -14,7 +14,7 @@ import { unidadeDaqui } from '@/data/unidade';
 import { nowIso } from '@/data/db';
 import { dayWindow, diasDeCalendario, localDate } from '@/domain/day';
 import { daysUntilExpiry } from '@/domain/lot';
-import { observedLeadTimeDays } from '@/domain/cost';
+import { prazoDoFornecedorAtual } from '@/domain/cost';
 import type { AlertFacts } from '@/domain/alerts';
 
 /**
@@ -79,7 +79,9 @@ export async function factsForAlerts(timeZone: string): Promise<AlertFacts> {
         itemId: c.itemId,
         name: c.name,
         daysLeft: c.daysLeft,
-        leadTimeDays: observedLeadTimeDays(await deliveriesOf(empresaDaqui(), c.itemId)),
+        // O prazo DO FORNECEDOR de quem se vai comprar, e não a média de dois que não se
+        // parecem. A régua é a mesma da capa e da ficha — ver `prazoDoFornecedorAtual`.
+        leadTimeDays: prazoDoFornecedorAtual(await deliveriesOf(empresaDaqui(), c.itemId)),
       })),
     ),
     // Uma linha por (item, loja) em falta: a falta é a da FÁBRICA, do item, e a

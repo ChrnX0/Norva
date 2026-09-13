@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { type Rate } from './money';
 import {
   observedLeadTimeDays,
+  prazoDoFornecedorAtual,
   blendRate,
 } from './cost';
 
@@ -16,6 +17,57 @@ import {
  * with a docblock reads like a capability. Whoever wires them to a screen
  * inherits an answer nobody has ever checked.
  */
+
+/**
+ * **O prazo é de UM fornecedor, e a média de dois é um número de ninguém.**
+ *
+ * Este é o número que a capa, o aviso e a ficha do insumo usam para dizer o dia de comprar
+ * desde 13 de setembro. Numa fábrica que compra polpa de dois fornecedores — um da cidade que
+ * entrega em dois dias, um de fora que leva dez — a média dá seis: cedo demais para um, tarde
+ * demais para o outro, e errado para os dois.
+ *
+ * O recorte é o fornecedor da ÚLTIMA nota porque é o mesmo que a tela de compra sugere no
+ * campo. A tela oferecer um fornecedor e o prazo ser de outro é o aplicativo discordando de si
+ * mesmo — a doença que a régua única de compra veio curar.
+ */
+test('the lead time belongs to the supplier you are about to buy from', () => {
+  const daCidade = 'f-cidade';
+  const deFora = 'f-fora';
+
+  // A última nota é do fornecedor da cidade: dois dias.
+  const entregas = [
+    { orderedAt: '2026-09-10T00:00:00Z', receivedAt: '2026-09-12T00:00:00Z', supplierId: daCidade },
+    { orderedAt: '2026-09-01T00:00:00Z', receivedAt: '2026-09-11T00:00:00Z', supplierId: deFora },
+    { orderedAt: '2026-08-20T00:00:00Z', receivedAt: '2026-08-22T00:00:00Z', supplierId: daCidade },
+  ];
+
+  assert.equal(
+    prazoDoFornecedorAtual(entregas),
+    2,
+    'as duas entregas do fornecedor da cidade dão dois dias — a de fora não entra na conta',
+  );
+
+  // E a média de todas, que é o que o sistema fazia antes, é um número de ninguém.
+  assert.equal(
+    observedLeadTimeDays(entregas),
+    14 / 3,
+    'a média dos dois fornecedores não é o prazo de nenhum deles — é este número que decidia',
+  );
+
+  // Com um fornecedor só, nada muda: a fábrica que compra sempre no mesmo lugar vê o mesmo
+  // número de antes, e é por isso que esta mudança não mexe com quem já usava o app.
+  const umSo = entregas.filter((e) => e.supplierId === daCidade);
+  assert.equal(prazoDoFornecedorAtual(umSo), observedLeadTimeDays(umSo));
+
+  // Nota antiga não tem fornecedor cadastrado, e nulo não é um fornecedor: aí o prazo volta a
+  // ser o de todas as entregas, que é a resposta honesta de quem não sabe de quem comprou.
+  const semCadastro = entregas.map((e) => ({ ...e, supplierId: null }));
+  assert.equal(prazoDoFornecedorAtual(semCadastro), observedLeadTimeDays(semCadastro));
+
+  // Uma entrega nova SEM fornecedor na frente não apaga o recorte das outras: o que manda é
+  // a primeira da lista, e se ela não sabe de quem é, ninguém sabe.
+  assert.equal(prazoDoFornecedorAtual([]), null, 'sem entrega não há prazo, e não há palpite');
+});
 
 test('lead time is what the supplier did, not what they said', () => {
   // Three days promised, six delivered - and the reorder point built on the
