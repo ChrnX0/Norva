@@ -11462,7 +11462,7 @@ verdes carregando **quatro** defeitos, três deles silenciosos no celular de que
 | onde | o defeito | o que aconteceria |
 |---|---|---|
 | `candidata.ts` | `SELECT … recorded_by FROM movements` — coluna que a **V5 removeu** | o `SELECT` quebra, o `try/catch` do motor engole, a candidata **nunca** é gravada |
-| `serialize.ts` | nenhuma travessia para `check_candidates` | `UnknownTableError` derruba a rodada: a primeira duplicação para a sincronia **para sempre** |
+| `serialize.ts` | nenhuma travessia para `check_candidates` | a primeira duplicação **emperra a sincronia daquele celular para sempre** — ver a correção abaixo |
 | `descida.ts` | a tabela não estava em `DESCEM` | o segundo celular nunca vê a disputa — metade da decisão do dono |
 | a decisão | nenhuma consequência no razão | aceitar mudava uma coluna e o saldo continuava dobrado |
 
@@ -11520,3 +11520,22 @@ texto foi escrito antes do mecanismo e nomeava as duas coisas que não existiam.
 confirmação é a especificação mais precisa que este projeto produz**, porque ela é a única que
 alguém tem de escrever pensando no que vai ACONTECER, e não no que vai ser gravado. Quando ela
 mente, o defeito está no código; quando ela é vaga, o desenho ainda não foi decidido.
+
+### Correção, no mesmo dia, e ela é a lição da lição
+
+Escrevi acima que a travessia ausente fazia `UnknownTableError` **derrubar a rodada**. Fui ler
+`src/sync/transporte.ts` para a rodada seguinte e não é isso: o laço embrulha `linhaDaFila` e
+`serialize` num `try` cujo `catch` é um `break` mudo. Então nada é derrubado — a fatia volta com
+menos aceitos, o motor lê `confirmed + deLado < batch.length` como **lacuna do servidor**,
+gasta tentativa, espera, e repete. Para sempre, porque nenhuma quantidade de retentativa
+conserta uma falha que é do aparelho.
+
+O efeito final é o mesmo (aquele celular para de sincronizar) e **a causa relatada é falsa**: a
+tela diz *"o servidor aceitou N de M registros"* quando o servidor não recusou nada — ele nunca
+foi consultado sobre aquela linha. Quem for depurar isso vai olhar o servidor.
+
+Esta casa já tem a regra: *"um item de auditoria pode estar certo sobre o cheiro e errado sobre
+a consequência, e escrever a consequência errada num docblock planta uma afirmação falsa com a
+cara de uma medida."* Eu a quebrei na mesma rodada em que a citei — e o que me pegou não foi
+reler o que escrevi: foi **ir construir a coisa vizinha**. A verificação que funciona não é
+olhar de novo o próprio texto; é o texto precisar ser verdade para a peça seguinte funcionar.
