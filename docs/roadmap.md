@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **830** testes |
+| `npm test` | **831** testes |
 | `npm run mutate` | **154** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **59** checagens num navegador de verdade |
 | `npm run db:verify` | **38** garantias contra um Postgres descartável: **19** sob RLS, como a conta da empresa, e **19** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -75,7 +75,24 @@ dois celulares, o primeiro que aceitar fica, e aceitar ESTORNA a que perdeu — 
 dentro da transação que ganha a arbitragem, porque no aparelho dois celulares estornariam a
 mesma linha duas vezes.
 
-*Última execução do `mutate`: **13 de setembro, sobre `7e2ddb2`** — **150 plantadas, 148 pegas,
+*Última execução do `mutate`: **13 de setembro à noite, sobre `ced48d2`** — **154 plantadas,
+150 pegas, 2 equivalentes, 1 SOBREVIVENTE e 1 não medida**, em 35 min 29 s, com a árvore parada
+e o resto da barra verde ao lado (831 testes, navegador 59/59 em 15 min 35 s, `db:verify` 38
+garantias, portão passando com quatro avisos medidos um a um).*
+
+*E as duas que não saíram limpas foram serviço na mesma hora, porque as duas são regra sem
+guarda.* **O sobrevivente:** `costRecipe` com a ficha da RAIZ ausente devolvia custo zero em vez
+de levantar, e a suíte inteira ficava verde — um semi-acabado apagado faria todo sabor que o
+compõe ficar mais barato, calado, e o número errado vira o denominador de toda margem. O teste
+que existia provava a SUB-receita ausente, que é outra linha; o irmão dele agora prova as duas
+portas de cima (`costRecipe` e `explodeRequirements`), com os dois defeitos plantados um por vez
+e restaurados conferindo o disco. **A não medida:** a âncora da fila citava
+`classeDaRecusa(recusada.codigo)` e a linha virou `ehDefinitiva(recusada)` na rodada da fila —
+re-ancorada, e plantada ela derruba QUATRO testes. Invertida, a fila põe de lado o passageiro
+(falta de rede, permissão faltando) e guarda o definitivo na frente: os dois lados errados de
+uma vez.*
+
+*Antes dela, a de `7e2ddb2` — **150 plantadas, 148 pegas,
 2 equivalentes, 0 sobreviventes, 0 não medidas**, com a barra inteira verde ao lado (796 testes,
 navegador 59/59, `db:verify` 35 garantias (as de então), portão passando com sete avisos justificados). A
 execução ANTERIOR, no mesmo dia, deu cinco **não medidas** — cinco regras sem guarda, e nenhuma

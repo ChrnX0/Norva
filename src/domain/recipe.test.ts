@@ -507,6 +507,40 @@ test('a sub-recipe that is not there stops the costing, and names itself', () =>
   );
 });
 
+/**
+ * E a ficha da RAIZ ausente, que é a outra metade e a oficina achou sozinha.
+ *
+ * O teste acima prova a SUB-receita que não está lá. Este prova a de cima: pedir o custo
+ * de uma ficha que o grafo não tem. A diferença importa porque os dois caminhos são linhas
+ * diferentes (`costRecipe` e `explodeRequirements` cada um com o seu `if (!recipe)`), e o
+ * `mutate` mostrou que a segunda estava sem guarda: trocado o `throw` por um custo ZERO, a
+ * suíte inteira ficou verde.
+ *
+ * O que isso deixa acontecer, e é por isso que a resposta certa é levantar: um semi-acabado
+ * apagado faz todo sabor que o compõe ficar **mais barato**, calado, e o número errado vira
+ * o denominador de toda margem. Devolver zero é pior que quebrar, porque zero parece resposta.
+ *
+ * Alcançável na prática: `products.recipe_id` aponta para a ficha, e a tela pede o custo pelo
+ * id do produto — apagada a ficha, o grafo não a tem e o id continua no produto.
+ */
+test('a ficha que não está no grafo para a conta em vez de custar zero', () => {
+  const vazio = { atual: {}, versoes: {} };
+
+  assert.throws(
+    () => costRecipe('ficha-apagada', vazio, {}),
+    (e: unknown) => e instanceof MissingRecipeError && String(e.message).includes('ficha-apagada'),
+    'pedir o custo de uma ficha ausente levanta e diz qual: zero custo faria todo sabor que a ' +
+      'compõe ficar mais barato sem uma palavra',
+  );
+
+  assert.throws(
+    () => explodeRequirements('ficha-apagada', 1, vazio),
+    (e: unknown) => e instanceof MissingRecipeError && String(e.message).includes('ficha-apagada'),
+    'explodir uma ficha ausente levanta e diz qual: lista de insumos vazia lê como "não precisa ' +
+      'de nada" e libera a produção',
+  );
+});
+
 test('an item with no invoice yet is free, and that is not the same thing', () => {
   const priced: Record<string, Recipe> = {
     base: {

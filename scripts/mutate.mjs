@@ -1444,10 +1444,13 @@ const DEFECTS = [
   },
   {
     file: 'src/sync/engine.ts',
-    from: "      if (classeDaRecusa(recusada.codigo) !== 'permanente') continue;",
-    to: "      if (classeDaRecusa(recusada.codigo) === 'permanente') continue;",
+    // Re-ancorada em 13 de setembro: a linha virou `ehDefinitiva(recusada)` na rodada da fila,
+    // porque a falha LOCAL não tem código do Postgres e caía no padrão "passageira". A âncora
+    // velha citava `classeDaRecusa` e saía NÃO MEDIDA — regra sem guarda, calada.
+    from: "      if (!ehDefinitiva(recusada)) continue;",
+    to: "      if (ehDefinitiva(recusada)) continue;",
     hurts:
-      'a fila volta a travar exatamente onde este conserto existe para destravar - a conferencia duplicada fica pendente para sempre e tudo o que o aparelho gravou depois fica preso atras dela',
+      'invertido, a fila poe de lado o PASSAGEIRO (falta de rede, permissao faltando) e guarda o definitivo na frente: perde o dado que voltaria e trava para sempre no que nunca entra - os dois lados errados de uma vez',
   },
 ];
 

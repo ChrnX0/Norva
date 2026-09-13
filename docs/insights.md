@@ -12178,3 +12178,41 @@ grep "grep -q"` devolve zero.
 *A lição que transfere: quando uma advertência de ferramenta contradiz o que o diff obviamente
 contém, meça a FERRAMENTA antes de justificar a advertência.* Eu ia escrever uma justificativa
 para cada uma — a justificativa seria bem escrita, e as duas seriam mentira.
+
+## 13 de setembro — a oficina só achou o buraco porque a ÂNCORA foi arrumada
+
+O `mutate` desta rodada deu **1 sobrevivente** e **1 não medida**, e as duas apontam para o
+mesmo mecanismo: *mutação que não pousa não mede nada, e ninguém sente falta dela.*
+
+**O sobrevivente era um buraco de dinheiro que existia há tempo.** `costRecipe` com a ficha da
+RAIZ ausente devia levantar; trocado o `throw` por um custo zero, **a suíte inteira ficou
+verde**. O que isso deixa acontecer: um semi-acabado apagado faz todo sabor que o compõe ficar
+**mais barato**, calado — e esse número é o denominador de toda margem. Devolver zero é pior que
+quebrar, porque zero parece resposta.
+
+E havia um teste que parecia cobrir isso: *"a sub-recipe that is not there stops the costing"*.
+Ele prova a **sub**-receita ausente, que é a linha 239. A raiz é a linha 190, outra linha, outro
+`if`. **Duas linhas com o mesmo `if (!recipe) throw` não são uma regra com guarda: são duas
+regras, e só uma tinha.** O mesmo vale para `explodeRequirements`, que tem a terceira cópia — e
+lá o defeito lê pior ainda, porque lista de insumos vazia significa *"não precisa de nada"* e
+libera a produção.
+
+**Por que só apareceu agora:** esta âncora estava velha. A rodada do carimbo re-chaveou o grafo,
+`costRecipe` virou casca de `custoDaVersao`, e o `from` da mutação passou a citar um trecho que
+não existia mais — ela saía **não medida**, e "não medida" é uma linha discreta num relatório de
+154. Arrumada a âncora, a mutação pousou e o buraco apareceu na primeira execução.
+
+**A outra não medida era a gêmea disso, na fila:** a âncora citava
+`classeDaRecusa(recusada.codigo) !== 'permanente'` e a linha virou `!ehDefinitiva(recusada)` na
+rodada da fila — porque a falha LOCAL não tem código do Postgres. Re-ancorada, ela derruba
+**quatro** testes. Ou seja: aquela regra estava bem guardada e a oficina não sabia.
+
+**A regra que sai daqui, e ela é de operação:** *"não medida" merece o mesmo tratamento que
+"sobrevivente"*. As duas dizem que a regra está sem guarda; a diferença é que o sobrevivente
+acusa a SUÍTE e a não medida acusa o ARQUIVO DE MUTAÇÕES. Quem lê o relatório procurando
+vermelho passa batido pela segunda — e foi assim que um buraco de dinheiro ficou escondido atrás
+de uma âncora velha, num repositório que roda a oficina toda rodada.
+
+*E a assimetria de custo vale a pena escrever: refatorar move âncora, e mover âncora desliga
+guarda em SILÊNCIO. O refator aparece no diff; a guarda desligada não aparece em lugar nenhum
+até alguém ler a última linha do relatório da oficina.*
