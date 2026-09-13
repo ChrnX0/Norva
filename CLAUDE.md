@@ -107,7 +107,12 @@ minutos, o `e2e` mais três, e o portão reclama de coisa que não tem relação
 que mudou. Rodadas inteiras foram gastas servindo a barra em vez de servir o app.
 
 **E esses dois números envelheceram, medidos em 12 de setembro: `mutate` é 28 min 39 s e
-`e2e:fast` é 6 min 12 s.** Não é regressão da ferramenta, é aritmética que cresce com o
+`e2e:fast` é 6 min 12 s.** *E o segundo envelheceu de novo em 13 de setembro: duas execuções no
+mesmo dia deram **~13 min** e **15 min 35 s**, as duas 59/59 — duas vezes e meia o número
+escrito. O que eu NÃO medi é a causa, e por isso não a escrevo: o que se sabe é que a
+**contagem de checagens não mudou** (59 nas duas datas), então não é "mais checagens" — é custo
+por checagem ou é a máquina. Fica o número novo, porque quem lê "seis minutos" no meio de uma
+rodada dispara e depois descobre que perdeu quinze.* Não é regressão da ferramenta, é aritmética que cresce com o
 projeto: a oficina roda a suíte INTEIRA por mutação, então o custo dela é *(mutações) ×
 (duração da suíte) ÷ (frentes)*, e os dois primeiros fatores só sobem — 139 mutações e uma
 suíte de 773 testes hoje, contra 64 e 338 quando o número de seis minutos foi medido. A suíte
@@ -134,7 +139,7 @@ npm run typecheck
 npm run lint
 npm test
 npm run mutate       # quebra o código de propósito: a suíte morde mesmo?
-npm run e2e:fast     # o app dirigido num navegador de verdade, em quatro fatias
+npm run e2e:fast     # o app dirigido num navegador de verdade, em quatro fatias (~15 min)
 npm run db:verify    # Postgres descartável, trinta e oito garantias — inclui a fila
                      # do aparelho reproduzida contra o servidor de verdade
 bash .proofgate/verify.sh
