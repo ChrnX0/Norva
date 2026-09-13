@@ -226,7 +226,23 @@ test('an invoice typed wrong can be undone, and takes the average back with it',
     baseUnits: 250_000,
     totalCents: fromDecimal(2360),
   });
-  assert.ok(errada.newRate > 0);
+  /**
+   * A média DEPOIS da nota errada, por igualdade e com a conta na mão.
+   *
+   * Isto era `assert.ok(errada.newRate > 0)`, sem mensagem: qualquer número positivo passava, e
+   * `newRate` é dinheiro calculado — o tipo de asserção que este repositório já pagou para
+   * aprender a não escrever (a corrida de 506 picolés por R$ 625,27 tinha um `> 0` do lado).
+   *
+   * A conta: 100.000 g a 0,472 ¢/g já estavam lá (47.200 ¢), e a nota errada põe 250.000 g por
+   * R$ 2.360 (236.000 ¢). A média móvel é (47.200 + 236.000) ÷ 350.000 = 0,8091… ¢/g — quase o
+   * dobro do certo, que é justamente o veneno que o estorno mais abaixo tem de tirar.
+   */
+  const mediaEnvenenada = (47_200 + 236_000) / 350_000;
+  assert.ok(
+    Math.abs(errada.newRate - mediaEnvenenada) < 1e-9,
+    `a média depois da nota errada devia ser ${mediaEnvenenada.toFixed(4)} ¢/g e veio ` +
+      `${errada.newRate.toFixed(4)}: é ela que fica embaixo de todo número de dinheiro até o estorno`,
+  );
 
   const lancamentos = await itemMovements(CO, acucar);
   const nota = lancamentos.find((m) => m.kind === 'purchase');
@@ -8222,12 +8238,23 @@ test('dois nomes iguais na grade são recusados aqui, e o índice não deixa ent
 test('o passo que cria o índice de nome conserta quem já tinha duas', async () => {
   const conn = inMemoryDb();
 
-  // O banco de pé no passo ANTERIOR ao índice — o estado de quem já instalou e cadastrou duas
-  // pessoas com o mesmo nome, que era possível até hoje.
-  for (const passo of migrationSteps.slice(0, migrationSteps.length - 1)) {
+  /**
+   * O banco de pé no passo ANTERIOR ao índice — o estado de quem já instalou e cadastrou duas
+   * pessoas com o mesmo nome, que era possível até a V38.
+   *
+   * **A âncora é o CONTEÚDO do passo, não a posição dele.** Este teste dizia
+   * `slice(0, migrationSteps.length - 1)`, que quer dizer *"tudo menos o último"* — e o último
+   * deixou de ser o índice de nome no primeiro passo acrescentado depois (a V39, no mesmo dia).
+   * Aí o banco subia COM o índice e os três inserts falhavam: o teste reprovava por existir a
+   * coisa que ele existe para provar. É a família do "número no nome envelhece", numa referência
+   * relativa em vez de num rótulo.
+   */
+  const doIndice = migrationSteps.findIndex((passo) => passo.includes('people_name_idx'));
+  assert.ok(doIndice > 0, 'o passo do índice de nome não está onde esta âncora procura');
+  for (const passo of migrationSteps.slice(0, doIndice)) {
     await conn.execAsync(passo);
   }
-  await conn.execAsync(`PRAGMA user_version = ${migrationSteps.length - 1}`);
+  await conn.execAsync(`PRAGMA user_version = ${doIndice}`);
   await conn.runAsync(
     `INSERT INTO profiles (id, company_id, name, template_role, capabilities, created_at)
      VALUES ('perfil', ?, NULL, 'operator', 'record_production', '2026-01-01T00:00:00.000Z')`,

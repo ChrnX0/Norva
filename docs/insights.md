@@ -11982,3 +11982,48 @@ moravam lá.
 
 *A lição de forma: numa rodada automática, a ordem das peças não é estilo — cada inversão custa
 uma coisa diferente, e a peça de PERMISSÃO vem antes de toda peça que ESCREVE.*
+
+## 13 de setembro — asserção que só pergunta "foi recusado?" é satisfeita pela recusa ERRADA
+
+A garantia 38 tem quatro condições e eu plantei os quatro defeitos que ela nomeia. Três
+morderam. A quarta — *"apagar a versão carimbada é recusado"* — ficou **verde** com o defeito
+plantado, e o defeito era trocar `on delete restrict` por `on delete set null`.
+
+A razão é específica e vale para toda chave composta: **num `set null` de chave composta o
+Postgres zera TODAS as colunas do par**, `sub_recipe_id` inclusive. E `sub_recipe_id` nulo junto
+com `item_id` nulo viola o `one_source` da `0002` (`num_nonnulls(item_id, sub_recipe_id) = 1`).
+Então o `delete` era recusado — por outra regra, por outro motivo, e a asserção que só pergunta
+*"deu erro?"* aplaudia.
+
+O que isso custaria: com `set null`, o estado que a migração existe para impedir — linha de
+sub-receita com carimbo NULO, cujo custo volta a mudar sozinho — seria alcançável apagando uma
+versão, e a garantia diria que está tudo bem.
+
+**A regra, então, tem uma terceira metade.** As duas que este arquivo já tinha são *plante o
+defeito que a asserção NOMEIA* e *escreva a mensagem que o nomeia*. A que faltava:
+**asserção sobre RECUSA nomeia qual recusa** — o nome da restrição, o `SQLSTATE`, a frase. Sem
+isso ela mede "o banco disse não", que é uma afirmação sobre o banco e não sobre a regra.
+
+Hoje a garantia lê a mensagem e exige `recipe_lines_sub_version_is_of_sub` nela; com o plantio,
+ela reprova dizendo *"foi recusado por outra regra, não pela chave do carimbo"* e imprime o
+`one_source` que recusou. A mensagem conta a história inteira para quem só lê o relatório.
+
+*E a irmã disso apareceu no mesmo dia, no primeiro plantio da garantia 36: tirar a coluna do
+cursor e deixar o `comment on column` dela derrubou a MIGRAÇÃO em vez da garantia — o defeito
+plantado não existia, porque ninguém escreve um comentário para uma coluna que não criou. Plantio
+mal feito mede o plantio.*
+
+## 13 de setembro — âncora RELATIVA num teste de migração envelhece no próximo passo
+
+O teste que prova o reparo do nome repetido punha o banco de pé *"no passo anterior ao índice"*
+com `migrationSteps.slice(0, migrationSteps.length - 1)`. Isso quer dizer **"tudo menos o
+último"**, e o último deixou de ser o índice de nome no primeiro passo acrescentado depois — a
+V39, no mesmo dia, uma hora depois.
+
+O efeito é de leitura difícil: o banco subia COM o índice, os três inserts de `Ana` falhavam, e o
+teste reprovava **por existir a coisa que ele existe para provar**. Quem lesse a reprovação iria
+procurar defeito no índice.
+
+A âncora passou a ser o CONTEÚDO: `findIndex((passo) => passo.includes('people_name_idx'))`, com
+uma asserção de que achou. É a mesma família de *"contagem no nome de um passo de CI envelhece"* —
+referência relativa é um número disfarçado, e o disfarce é o que faz ninguém notar.

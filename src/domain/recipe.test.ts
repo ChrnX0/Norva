@@ -226,16 +226,35 @@ test('comparing versions reports the change in plain numbers', () => {
 });
 
 test('exploding a plan reaches raw items through sub-recipes', () => {
+  /**
+   * A conta inteira na mão, porque as duas asserções daqui eram `>` — e `>` não mede a
+   * travessia da sub-receita, mede que ela não deu zero.
+   *
+   * Três bateladas de morango:
+   *   polpa      18.000 × 3                                    = 54.000 g
+   *   açúcar     6.000 × 3 direto                              = 18.000 g
+   *   a base     10.000 ml × 3 = 30.000 ml pedidos de base
+   *   a base rende 20.000 ml sem perda, então são 1,5 bateladas de base
+   *   açúcar     + 3.000 × 1,5 dentro da base                  =  4.500 g
+   *   leite      2.000 × 1,5                                   =  3.000 g
+   *
+   * O açúcar chega pelos DOIS caminhos e a soma é 22.500 g. Com `> 18.000` a asserção passava
+   * com qualquer grão a mais — inclusive com a base entrando uma vez em vez de uma e meia, que
+   * é o defeito plausível de quem arredondar batelada para cima.
+   */
   const needs = explodeRequirements('strawberry', 3, recipes);
 
-  assert.equal(needs.get('strawberryPulp'), 54_000); // 18kg x 3
-  // Sugar arrives twice: directly, and through the cream base.
-  const directSugar = 6_000 * 3;
-  assert.ok(
-    (needs.get('sugar') ?? 0) > directSugar,
-    'sugar inside the cream base must be counted too',
+  assert.equal(needs.get('strawberryPulp'), 54_000, '18.000 g de polpa por batelada, três bateladas');
+  assert.equal(
+    needs.get('sugar'),
+    22_500,
+    'o açúcar chega direto (18.000 g) e DENTRO da base (3.000 × 1,5 = 4.500 g): 22.500 g',
   );
-  assert.ok((needs.get('milkPowder') ?? 0) > 0);
+  assert.equal(
+    needs.get('milkPowder'),
+    3_000,
+    'o leite em pó só existe dentro da base: 2.000 g × 1,5 batelada de base',
+  );
 });
 
 test('the shopping list answers what is missing, not what the recipe asks for', () => {
