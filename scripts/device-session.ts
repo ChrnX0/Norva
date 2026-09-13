@@ -37,6 +37,7 @@ import {
   recordPurchase,
   savePlace,
   savePerson,
+  saveDevice,
   listProfiles,
   saveOrder,
   saveCategory,
@@ -51,6 +52,8 @@ import {
 import { candidatarConferencia } from '@/data/candidata';
 import { ensureStarterData } from '@/data/seed';
 import { empresaDaqui } from '@/data/empresa';
+import { unidadeDaqui } from '@/data/unidade';
+import { assumirAparelho } from '@/data/aparelho';
 import { adotarEmpresa } from '@/data/adocao';
 import { fromDecimal, rate} from '@/domain/money';
 import { APENAS_INSERE, sendableTables, serialize, type SyncActor } from '@/sync/serialize';
@@ -279,7 +282,34 @@ async function main() {
   // gravar depois preso atrás dela.
   const perfis = await listProfiles(empresaDaqui());
   const entregador = perfis.find((p) => p.templateRole === 'driver') ?? perfis[0];
-  await savePerson(empresaDaqui(), { name: 'Zeca da câmara', profileId: entregador.id });
+  const zeca = await savePerson(empresaDaqui(), {
+    name: 'Zeca da câmara',
+    profileId: entregador.id,
+  });
+
+  /**
+   * **A matrícula do aparelho, e ela vem ANTES de qualquer movimento de propósito.**
+   *
+   * O servidor tem `movements.device_id references devices(id) on delete restrict`
+   * (`0013`), então um movimento que chegasse antes da matrícula seria recusado por chave
+   * estrangeira — e recusa de chave estrangeira é permanente: a fila daquele celular
+   * pararia na primeira sincronia, para sempre. A ordem da fila é a ordem em que a
+   * fábrica gravou, e é isso que esta linha exercita: matricular primeiro, gravar depois.
+   *
+   * O responsável é a pessoa cadastrada logo acima — gente, não conta. É a forma que a
+   * `0035` deu às duas colunas, e num celular que entra pela grade de nomes com PIN não
+   * existe `auth.users` para apontar.
+   *
+   * E `assumirAparelho` é o que faz os movimentos abaixo carimbarem: sem ela a sessão
+   * mandaria `devices` e nove movimentos com `device_id` nulo, que é exatamente o estado
+   * que esta rodada veio consertar — e a checagem 6 passaria dizendo que atravessou.
+   */
+  const celular = await saveDevice(empresaDaqui(), {
+    name: 'Celular da câmara',
+    responsibleId: zeca.id,
+    locationId: unidadeDaqui(),
+  });
+  await assumirAparelho(celular.id);
 
   /**
    * O acordo comercial: o preço de tabela, o combinado com a loja, e a história.

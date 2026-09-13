@@ -1247,6 +1247,45 @@ test('every line the ledger gets says who was holding the phone', () => {
   );
 });
 
+/**
+ * **E de qual APARELHO a linha veio — a coluna que atravessava a fila carregando nada.**
+ *
+ * A irmã da guarda acima, e a história dela é pior: `movements.device_id` existe no servidor
+ * desde a `0013`, está na lista de colunas que a fila manda desde que a travessia foi
+ * escrita, e **não existia no banco do celular**. O serializador transformava a chave ausente
+ * em nulo, a linha subia válida, e o servidor guardava nulo para sempre — nada falhava, e a
+ * pergunta *"qual aparelho gravou isto?"* nascia sem resposta.
+ *
+ * A decisão do dono que depende disto está escrita no `CLAUDE.md`: *"o relatório fala de onde,
+ * não de quem — e o aparelho tem responsável"*. Sem a coluna carimbada, a corrente
+ * movimento → aparelho → pessoa não existe, e o que sobra é o relatório sem responsável
+ * nenhum.
+ *
+ * Vale a mesma razão de existir da guarda do operador, e mais forte: quem acrescentar o
+ * décimo tipo de movimento copia um vizinho, e o que ele copiar decide se aquela linha nasce
+ * anônima para sempre. Livro-razão não se corrige por UPDATE.
+ */
+test('every line the ledger gets says which device wrote it', () => {
+  const fonte = readFileSync(join(process.cwd(), 'src/data/repository.ts'), 'utf8');
+
+  const inserts = fonte.split('INSERT INTO movements').slice(1);
+  assert.ok(inserts.length >= 8, `o arquivo tem ${inserts.length} inserts de movimento`);
+
+  const semAparelho = inserts
+    .map((trecho, i) => ({ i, colunas: trecho.slice(0, trecho.indexOf('VALUES')) }))
+    .filter(({ colunas }) => !colunas.includes('device_id'))
+    .map(({ i }) => `o ${i + 1}º INSERT INTO movements`);
+
+  assert.deepEqual(
+    semAparelho,
+    [],
+    `${semAparelho.join(' · ')} não grava \`device_id\`. A linha sobe para o servidor com a ` +
+      'coluna nula, nada falha, e a resposta de qual aparelho gravou aquilo não existe mais — ' +
+      'o razão é append-only. Acrescente a coluna e `aparelhoDaqui()` nos parâmetros, como os ' +
+      'vizinhos.',
+  );
+});
+
 
 /**
  * As funções do domínio que nenhum código de produção chama — e por quê.

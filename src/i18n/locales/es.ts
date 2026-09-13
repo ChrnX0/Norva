@@ -628,6 +628,20 @@ export const es: Dictionary = {
         on: 'solo revende',
         off: 'fabrica',
       },
+      device: {
+        label: 'Este aparato',
+        hint: 'Cada línea del libro empieza a decir de qué aparato vino. Sirve para encontrar lo que pasó sin señalar a nadie: responde el aparato, y el aparato tiene un responsable.',
+        name: 'Cómo le dicen a este aparato',
+        nameHint: 'el celular de la cámara, la tablet de expedición',
+        responsible: 'Quién responde por él',
+        nobody: 'Nadie, por ahora',
+        save: 'Matricular este aparato',
+        update: 'Guardar',
+        enrolled: 'Este aparato es {{name}}.',
+        by: 'Responsable: {{person}}.',
+        none: 'Este aparato todavía no está matriculado — el libro registra el lugar, no el aparato.',
+        failed: 'No se pudo matricular',
+      },
       /** De dónde saca los insumos una corrida. Solo con más de una sala. Ver pt-BR. */
       consumo: {
         label: 'De dónde saca los insumos la producción',
@@ -774,6 +788,7 @@ export const es: Dictionary = {
         lots: { one: '1 lote', other: '{{n}} lotes' },
         orders: { one: '1 pedido', other: '{{n}} pedidos' },
         carriers: { one: '1 transportista', other: '{{n}} transportistas' },
+        devices: { one: '1 aparato matriculado', other: '{{n}} aparatos matriculados' },
         readings: { one: '1 lectura de la cámara', other: '{{n}} lecturas de la cámara' },
         grid: { one: '1 elemento de la grilla', other: '{{n}} elementos de la grilla' },
         salePrices: { one: '1 precio de venta en el historial', other: '{{n}} precios de venta en el historial' },

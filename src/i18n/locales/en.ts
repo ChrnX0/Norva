@@ -623,6 +623,20 @@ export const en: Dictionary = {
         on: 'resells only',
         off: 'manufactures',
       },
+      device: {
+        label: 'This device',
+        hint: 'Every ledger line starts saying which device it came from. It is how you find what happened without pointing at anyone: the device answers for it, and the device has someone responsible.',
+        name: 'What you call this device',
+        nameHint: 'the cold room phone, the shipping tablet',
+        responsible: 'Who answers for it',
+        nobody: 'Nobody yet',
+        save: 'Enrol this device',
+        update: 'Save',
+        enrolled: 'This device is {{name}}.',
+        by: 'Responsible: {{person}}.',
+        none: 'This device is not enrolled yet — the ledger records the place, not the device.',
+        failed: 'Could not enrol',
+      },
       /** Where a run draws its inputs from. Only shown with more than one room. See pt-BR. */
       consumo: {
         label: 'Where production draws from',
@@ -769,6 +783,7 @@ export const en: Dictionary = {
         lots: { one: '1 batch', other: '{{n}} batches' },
         orders: { one: '1 order', other: '{{n}} orders' },
         carriers: { one: '1 carrier', other: '{{n}} carriers' },
+        devices: { one: '1 enrolled device', other: '{{n}} enrolled devices' },
         readings: { one: '1 cold-room reading', other: '{{n}} cold-room readings' },
         grid: { one: '1 catalogue grid entry', other: '{{n}} catalogue grid entries' },
         salePrices: { one: '1 sale price in the history', other: '{{n}} sale prices in the history' },

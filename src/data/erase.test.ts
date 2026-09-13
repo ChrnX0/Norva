@@ -235,6 +235,7 @@ test('erasing everything is never blocked - that is the point of it', () => {
   const tangled: EraseCounts = {
     inputs: 6,
     carriers: 0,
+    devices: 0,
     readings: 0,
     grid: 0,
     salePrices: 0,
@@ -282,6 +283,9 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     // E a transportadora, com número diferente de zero pelo mesmo motivo das
     // outras: zero satisfaz a asserção com ou sem o campo ser carregado.
     carriers: 2,
+    // O aparelho matriculado, com três pela mesma razão: zero aqui deixaria passar
+    // uma contagem que não carrega o campo, que é a cicatriz escrita no topo.
+    devices: 3,
     // As quatro que somiam sem número, idem.
     readings: 48,
     grid: 7,
@@ -300,6 +304,7 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     lots: 9,
     orders: 4,
     carriers: 2,
+    devices: 3,
     readings: 48,
     grid: 7,
     salePrices: 5,
@@ -323,8 +328,11 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     people: 0,
     lots: 0,
     orders: 0,
-    // Nenhuma área menor leva transportadora: ela é da empresa, como o lugar.
+    // Nenhuma área menor leva transportadora: ela é da empresa, como o lugar. Nem
+    // o aparelho matriculado, pela mesma razão — ele é do celular, e só o Reset
+    // completo o desfaz.
     carriers: 0,
+    devices: 0,
     // Nem a série da câmara, nem a grade, nem os dois preços: só "apagar tudo".
     readings: 0,
     grid: 0,
@@ -341,8 +349,11 @@ test('the confirmation is told exactly what disappears, so it can count it', () 
     people: 0,
     lots: 0,
     orders: 0,
-    // Nenhuma área menor leva transportadora: ela é da empresa, como o lugar.
+    // Nenhuma área menor leva transportadora: ela é da empresa, como o lugar. Nem
+    // o aparelho matriculado, pela mesma razão — ele é do celular, e só o Reset
+    // completo o desfaz.
     carriers: 0,
+    devices: 0,
     // Nem a série da câmara, nem a grade, nem os dois preços: só "apagar tudo".
     readings: 0,
     grid: 0,
@@ -449,6 +460,7 @@ const CONTADA: Record<string, keyof EraseTally> = {
   orders: 'orders',
   people: 'people',
   carriers: 'carriers',
+  devices: 'devices',
   readings: 'readings',
   sale_price_history: 'salePrices',
   location_prices: 'agreedPrices',

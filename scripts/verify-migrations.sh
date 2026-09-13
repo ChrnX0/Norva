@@ -534,6 +534,10 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
   -- corrige o telefone dela offline precisa que a correção alcance o servidor. A
   -- política continua exigindo manage_company por cima disto.
   grant insert, update on carriers to app_user;
+  -- O aparelho matriculado, e ele tem os dois verbos pela mesma razao dos cadastros:
+  -- trocar o nome do celular da camara ou o responsavel dele e correcao, nao ato novo.
+  -- A politica devices_manage exige manage_company por cima disto, desde a 0013.
+  grant insert, update on devices to app_user;
   -- O pedido de Reset entra só com INSERT, como o razão e a história de preço: a
   -- política já recusa update e delete, e o grant não contradiz a política.
   grant insert on erase_requests to app_user;
@@ -544,8 +548,8 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
   grant insert, update on location_prices to app_user;
   grant insert on sale_price_history to app_user;
   -- A candidata da conferência duplicada entra e é DECIDIDA uma vez, então precisa dos dois
-  -- verbos — e é a política da `0062` que faz o `update` valer uma vez só, com
-  -- `using (resolution is null)`. O grant abre a porta; quem diz que ela fecha depois da
+  -- verbos — e é a política da 0062 que faz o update valer uma vez só, com
+  -- using (resolution is null). O grant abre a porta; quem diz que ela fecha depois da
   -- primeira decisão é a política, e é exatamente essa diferença que a garantia 34 mede.
   grant insert, update on check_candidates to app_user;
   -- Leitura de sensor entra só com INSERT, como o livro-razão: a temperatura de
@@ -2731,5 +2735,67 @@ VIZINHO=$(rows "select only_resells from companies where id = '${M}c2';")  # pro
 echo "    nasce fabrica, a conta liga o dela, e nao alcanca o da empresa vizinha"
 
 echo
-echo "OK - migrations apply and all thirty-nine guarantees hold."
+echo
+echo "==> check 40: o Reset apaga o APARELHO antes do lugar, e o aparelho matriculado nao trava o Reset"
+
+# A ordem de apagar era latente: `devices.location_id` e RESTRICT desde a 0013, e o Reset
+# `all` apaga `locations`. Com a tabela vazia — que era o caso enquanto nada matriculava
+# aparelho — a ordem nao importava. Com a matricula existindo (13 de setembro), o primeiro
+# Reset de uma empresa com um celular cadastrado levanta chave estrangeira, E O BLOCO DE
+# SUBTRANSACAO DA 0045 ENGOLE A EXCECAO: o Reset que o dono pediu com duas confirmacoes
+# simplesmente nao acontece, e a unica pista e `last_error` numa tabela que ninguem le.
+DEV=dddd0000-0000-4000-8000-0000000001
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<SQL >/dev/null
+insert into auth.users (id) values ('${DEV}a0');
+insert into companies (id, name, erase_grace_days) values ('${DEV}a1', 'Reset com aparelho', 0);
+insert into memberships (company_id, user_id, display_name, capabilities)
+  values ('${DEV}a1', '${DEV}a0', 'Dona', enum_range(null::capability));
+insert into locations (id, company_id, kind, name)
+  values ('${DEV}b1', '${DEV}a1', 'factory', 'Fabrica');
+-- O perfil MODELO nao tem nome: a restricao profiles_named_once (0035) exige exatamente um
+-- dos dois, porque a palavra de um modelo e da tela, em tres idiomas, e nome gravado aqui
+-- seria a quarta copia dela. Errei na primeira escrita desta garantia e o banco recusou -
+-- que e a diferenca entre uma regra no esquema e uma regra na cabeca de quem escreve.
+--
+-- (E sem crase no nome da restricao: este heredoc nao e citado, e a crase ali faz o SHELL
+-- executar a palavra. Saiu um command-not-found no meio de uma garantia VERDE, que e a
+-- setima vez que esta cicatriz aparece neste projeto - a mesma familia do psql -c com
+-- aspas duplas. Prosa com marcacao atravessa tres linguagens aqui, e em duas delas a
+-- crase nao e enfeite.)
+insert into profiles (id, company_id, template_role, capabilities)
+  values ('${DEV}c0', '${DEV}a1', 'operator', array['record_production']::capability[]);
+insert into people (id, company_id, name, profile_id)
+  values ('${DEV}c1', '${DEV}a1', 'Zeca', '${DEV}c0');
+-- O aparelho aponta para o LUGAR (restrict) e para a PESSOA (set null): as duas pontas
+-- que a ordem do Reset tem de respeitar.
+insert into devices (id, company_id, name, responsible_id, location_id)
+  values ('${DEV}d1', '${DEV}a1', 'Celular da camara', '${DEV}c1', '${DEV}b1');
+SQL
+
+# --- O CASO FALSO primeiro: sem apagar o aparelho, o delete do lugar levanta a chave. ---
+#
+# Sem isto a garantia nao separa o mundo consertado do quebrado: ela passaria igual num
+# esquema onde a coluna fosse `set null`, e ai a ordem nao teria nada para provar.
+ANTES=$(psql -d "$DB" -Atq -c "begin; delete from public.locations where company_id = '${DEV}a1'; rollback;" 2>&1 || true)  # proofgate-allow
+case "$ANTES" in
+  *"violates foreign key"*) : ;;
+  *) fail "apagar o lugar com um aparelho matriculado NAO levantou chave estrangeira: a garantia nao separa os dois mundos" ;;
+esac
+
+# --- E o Reset de verdade, que agora apaga na ordem certa. ---
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "insert into erase_requests (id, company_id, area, requested_by)
+  values ('${DEV}e1','${DEV}a1','all','${DEV}a0');" >/dev/null  # proofgate-allow
+FEITO=$(rows "select private.run_due_erases();")  # proofgate-allow
+POR_QUE=$(rows "select coalesce(last_error, '(sem erro registrado)') from erase_requests where id = '${DEV}e1';")  # proofgate-allow
+[ "$FEITO" = "1" ] || fail "o Reset de uma empresa com aparelho matriculado nao executou (devolveu '$FEITO') - o banco disse: $POR_QUE"
+
+SOBROU_DEV=$(rows "select count(*) from devices where company_id = '${DEV}a1';")  # proofgate-allow
+[ "$SOBROU_DEV" = "0" ] || fail "sobraram $SOBROU_DEV aparelhos: a matricula sobreviveu ao Reset e a proxima gravacao aponta para o que nao existe"
+
+SOBROU_LOC=$(rows "select count(*) from locations where company_id = '${DEV}a1';")  # proofgate-allow
+[ "$SOBROU_LOC" = "0" ] || fail "sobraram $SOBROU_LOC lugares: o delete deles foi engolido pela chave do aparelho, e o Reset mentiu para quem confirmou duas vezes"
+
+echo "    o aparelho sai antes do lugar, o Reset executa, e nenhuma das duas tabelas sobrevive"
+
+echo "OK - migrations apply and all forty guarantees hold."
 

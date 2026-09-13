@@ -1453,10 +1453,56 @@ ALTER TABLE recipe_lines ADD COLUMN sub_recipe_version_id TEXT REFERENCES recipe
 ${REPARO_CARIMBO_DA_SUB}
 `;
 
+/**
+ * **O aparelho passa a saber qual aparelho ele é.**
+ *
+ * A decisão do dono está escrita no `CLAUDE.md` desde o começo — *"o relatório fala de onde,
+ * não de quem; a responsabilidade vem do aparelho ser cadastrado com um responsável: o
+ * movimento aponta para o aparelho, o aparelho aponta para uma pessoa"* — e não tinha uma
+ * linha de código deste lado. `movements.device_id` está na lista de colunas que a fila
+ * manda (`src/sync/serialize.ts`) e **não existia no banco do celular**: o `nullable()` do
+ * serializador transformava a chave ausente em nulo, a linha subia válida, e o servidor
+ * guardava nulo para sempre. Nada falhava — a pergunta *"qual aparelho gravou isto?"* apenas
+ * nascia sem resposta. `src/sync/columns.test.ts` registrava essa fronteira com a condição de
+ * saída escrita: *"entra no banco local quando houver matrícula de aparelho"*. É agora.
+ *
+ * **A tabela espelha a do servidor (`0013`, com o `responsible_id` repontado pela `0035`)**, e
+ * as três decisões dela vêm de lá, não daqui:
+ *
+ *  - `responsible_id` aponta para **gente**, não para conta. Quem entra por PIN na grade de
+ *    nomes não tem `auth.users`, e a `0035` consertou isso nas duas colunas de uma vez.
+ *  - `ON DELETE SET NULL` no responsável: quando a pessoa sai da empresa o aparelho continua
+ *    existindo, agora sem dono — que é exatamente a pergunta que o dono precisa ver.
+ *  - `active` em vez de exclusão: aparelho sai da lista e o histórico continua apontando para
+ *    ele. Movimento cuja origem sumiu é movimento que não se explica.
+ *
+ * E `movements.device_id` entra com `RESTRICT` como no servidor: o razão recusa UPDATE por
+ * gatilho, então qualquer cascata que zerasse a coluna seria recusada de qualquer jeito.
+ *
+ * **Nulo continua legítimo nas linhas antigas** e nas de quem nunca se matriculou. Matrícula é
+ * configuração da empresa, não obrigação: uma fábrica com um celular só não precisa dizer
+ * qual é ele.
+ */
+const V40 = `
+CREATE TABLE IF NOT EXISTS devices (
+  id             TEXT PRIMARY KEY,
+  company_id     TEXT NOT NULL,
+  name           TEXT NOT NULL,
+  responsible_id TEXT REFERENCES people(id) ON DELETE SET NULL,
+  location_id    TEXT REFERENCES locations(id) ON DELETE RESTRICT,
+  active         INTEGER NOT NULL DEFAULT 1,
+  created_at     TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS devices_name_idx ON devices (company_id, name);
+
+ALTER TABLE movements ADD COLUMN device_id TEXT REFERENCES devices(id) ON DELETE RESTRICT;
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
   V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33,
-  V34, V35, V36, V37, V38, V39,
+  V34, V35, V36, V37, V38, V39, V40,
 ];
 
 export type SqlParam = string | number | null;

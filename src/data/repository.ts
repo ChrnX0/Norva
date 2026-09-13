@@ -23,6 +23,19 @@ import type { PackagingHierarchy } from '@/domain/units';
 import { ordersCoveredBy } from '@/domain/picking';
 import { db, newId, nowIso, type Db } from './db';
 import { readJson, readMeta, writeJson, writeMeta } from './meta';
+/**
+ * A matrícula deste aparelho, para carimbar de qual celular cada linha do razão veio.
+ *
+ * Import de módulo irmão e não parâmetro, como `empresaDaqui` e `unidadeDaqui`: são nove
+ * escritas no razão, e passar a resposta por nove assinaturas faria a primeira que
+ * esquecesse gravar nulo em silêncio — que é exatamente o defeito que esta rodada conserta.
+ *
+ * (A frase acima não cita o comando de inserção de propósito: `src/layers.test.ts` procura
+ * cada um deles no texto deste arquivo, e prosa que repete o padrão é lida como uma escrita
+ * a mais — sem operador e sem aparelho. É a terceira vez que uma explicação dispara a guarda
+ * que ela explica, e a saída continua sendo reescrever a prosa, nunca marcar exceção nela.)
+ */
+import { aparelhoDaqui } from './aparelho';
 import { enqueue, foiRecusada, forgetOrphans, rejectedEntries } from './outbox';
 import {
   blockerFor,
@@ -776,8 +789,8 @@ export async function recordPurchase(
       `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                               quantity_base_units, location_id, unit_cost_rate,
                               movement_group_id, assistant_phrase,
-                              operator_id)
-       VALUES (?, ?, 'purchase', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              operator_id, device_id)
+       VALUES (?, ?, 'purchase', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         lineId,
         companyId,
@@ -794,6 +807,7 @@ export async function recordPurchase(
         purchaseId,
         input.assistantPhrase ?? null,
         await currentOperatorId(),
+        aparelhoDaqui(),
       ],
     );
 
@@ -1924,8 +1938,8 @@ export async function recordCount(
                               quantity_base_units, location_id, unit_cost_rate,
                               unit_price_rate,
                               movement_group_id, note, assistant_phrase,
-                              operator_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              operator_id, device_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         companyId,
@@ -1955,6 +1969,7 @@ export async function recordCount(
         input.note ?? null,
         input.assistantPhrase ?? null,
         await currentOperatorId(),
+        aparelhoDaqui(),
       ],
     );
     await enqueue(conn, [{ table: 'movements', rowId: id }]);
@@ -3052,8 +3067,8 @@ export async function recordProduction(
         `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                                 quantity_base_units, location_id, unit_cost_rate,
                                 movement_group_id, lot_id, note, assistant_phrase,
-                                operator_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                operator_id, device_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           companyId,
@@ -3069,6 +3084,7 @@ export async function recordProduction(
           input.note ?? null,
           input.assistantPhrase ?? null,
           await currentOperatorId(),
+          aparelhoDaqui(),
         ],
       );
       await enqueue(conn, [{ table: 'movements', rowId: id }]);
@@ -3274,8 +3290,8 @@ async function moveBetween(
                                 unit_cost_rate, movement_group_id, lot_id, note, assistant_phrase,
                                 return_reason,
                                 carrier_id,
-                                operator_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                operator_id, device_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           companyId,
@@ -3300,6 +3316,7 @@ async function moveBetween(
           input.returnReason ?? null,
           input.carrierId ?? null,
           await currentOperatorId(),
+          aparelhoDaqui(),
         ],
       );
       await enqueue(conn, [{ table: 'movements', rowId: id }]);
@@ -3444,8 +3461,8 @@ export async function estornarConferenciaLocal(
       `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                               quantity_base_units, location_id, unit_cost_rate,
                               movement_group_id, counterpart_location_id, lot_id,
-                              reverses_movement_id, operator_id)
-       VALUES (?, ?, 'reversal', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              reverses_movement_id, operator_id, device_id)
+       VALUES (?, ?, 'reversal', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newId(),
         companyId,
@@ -3462,6 +3479,7 @@ export async function estornarConferenciaLocal(
         origem.lot_id,
         origem.id,
         await currentOperatorId(),
+        aparelhoDaqui(),
       ],
     );
     itemId = origem.item_id;
@@ -4100,8 +4118,8 @@ export async function recordLoss(
       `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                               quantity_base_units, location_id, unit_cost_rate, loss_reason,
                               movement_group_id, lot_id, note, assistant_phrase,
-                              operator_id)
-       VALUES (?, ?, 'loss', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              operator_id, device_id)
+       VALUES (?, ?, 'loss', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         companyId,
@@ -4124,6 +4142,7 @@ export async function recordLoss(
         input.note ?? null,
         input.assistantPhrase ?? null,
         await currentOperatorId(),
+        aparelhoDaqui(),
       ],
     );
     await enqueue(conn, [{ table: 'movements', rowId: id }]);
@@ -4766,8 +4785,8 @@ export async function recordCheck(
         `INSERT INTO movements (id, company_id, kind, occurred_at, recorded_at, item_id,
                                 quantity_base_units, location_id, counterpart_location_id,
                                 unit_cost_rate, movement_group_id, post, note, assistant_phrase,
-                                operator_id)
-         VALUES (?, ?, 'discrepancy', ?, ?, ?, ?, ?, ?, ?, ?, 'checked', ?, ?, ?)`,
+                                operator_id, device_id)
+         VALUES (?, ?, 'discrepancy', ?, ?, ?, ?, ?, ?, ?, ?, 'checked', ?, ?, ?, ?)`,
         [
           id,
           companyId,
@@ -4782,6 +4801,7 @@ export async function recordCheck(
           input.note ?? null,
           input.assistantPhrase ?? null,
           await currentOperatorId(),
+          aparelhoDaqui(),
         ],
       );
       await enqueue(conn, [{ table: 'movements', rowId: id }]);
@@ -5085,7 +5105,15 @@ export async function recordReading(
         id,
         companyId,
         input.locationId,
-        input.deviceId ?? null,
+        /**
+         * O aparelho que anotou, e o padrão é a matrícula DESTE celular.
+         *
+         * `undefined` não é nulo aqui: quem passa `null` de propósito está dizendo "foi
+         * digitada por alguém, sem aparelho responsável", que é o caso que a `0024` nomeia.
+         * Quem não passa nada está deixando o aplicativo responder o que ele sabe — e ele
+         * sabe, desde que este celular se matriculou.
+         */
+        input.deviceId === undefined ? aparelhoDaqui() : input.deviceId,
         input.kind,
         input.value,
         input.unit.trim(),
@@ -5919,6 +5947,7 @@ export async function countForErase(companyId: string): Promise<EraseCounts> {
        (SELECT COUNT(*) FROM purchases WHERE company_id = ?1) AS purchases,
        (SELECT COUNT(*) FROM people    WHERE company_id = ?1) AS people,
        (SELECT COUNT(*) FROM carriers  WHERE company_id = ?1) AS carriers,
+       (SELECT COUNT(*) FROM devices   WHERE company_id = ?1) AS devices,
        (SELECT COUNT(*) FROM readings  WHERE company_id = ?1) AS readings,
        -- A grade é um número só: linha, tipo e sabor são três tabelas e uma coisa.
        (SELECT (SELECT COUNT(*) FROM product_lines WHERE company_id = ?1)
@@ -7403,11 +7432,16 @@ export type ExtractAct = {
    * QUEM estava com o aparelho — e só quando a empresa pediu para nomear.
    *
    * **Esta é a metade que faltava de `operator_id`, e ela faltou por dez dias com o
-   * item fechado como FEITO.** Sete `INSERT INTO movements` carimbam a coluna desde 6
-   * de setembro, `app/who.tsx` pergunta quem é, o PIN atribui — e nenhuma consulta do
+   * item fechado como FEITO.** Sete escritas do razão carimbam a coluna desde 6 de
+   * setembro, `app/who.tsx` pergunta quem é, o PIN atribui — e nenhuma consulta do
    * aplicativo lia a coluna de volta. Sete escritores, zero leitores: a doença que o
    * portão P1 persegue, fechada como pronta porque o item se chamava *"o operador no
-   * movimento"* e a medida olhou o `INSERT`.
+   * movimento"* e a medida olhou só quem escreve.
+   *
+   * (A frase acima não repete o comando de inserção: duas guardas de `src/layers.test.ts`
+   * procuram cada um deles no texto deste arquivo, e prosa que cita o padrão é lida como
+   * uma escrita a mais — sem operador e sem aparelho. É a quarta vez num dia que uma
+   * explicação dispara a guarda que ela explica.)
    *
    * O que torna isto defeito e não escolha é a frase que está na tela do dono, nos
    * três idiomas: *"Desligado, o relatório fala de onde — 'faltaram 3 caixas na
@@ -8766,8 +8800,8 @@ export async function reverseGroup(
                                 quantity_base_units, location_id, unit_cost_rate,
                                 movement_group_id, counterpart_location_id, lot_id,
                                 reverses_movement_id, note,
-                                operator_id)
-         VALUES (?, ?, 'reversal', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                operator_id, device_id)
+         VALUES (?, ?, 'reversal', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           companyId,
@@ -8786,6 +8820,7 @@ export async function reverseGroup(
           o.id,
           input.note ?? null,
           await currentOperatorId(),
+          aparelhoDaqui(),
         ],
       );
       /**
@@ -9118,5 +9153,133 @@ export async function savePerson(
     profileId: input.profileId,
     active: active === 1,
     hasPin: (atual?.has_pin ?? 0) === 1,
+  };
+}
+
+/** Um aparelho da empresa: como as pessoas o chamam, e quem responde por ele. */
+export type Device = {
+  id: string;
+  name: string;
+  responsibleId: string | null;
+  responsibleName: string | null;
+  locationId: string | null;
+  active: boolean;
+};
+
+/**
+ * Os aparelhos desta empresa, com o nome de quem responde por cada um.
+ *
+ * O nome do responsável vem da mesma consulta de propósito: uma tela que lista aparelhos e
+ * depois pede o nome de cada pessoa faria N+1 idas ao banco para desenhar cinco linhas — e
+ * pior, poderia mostrar um aparelho cujo responsável já saiu da empresa como se ele tivesse
+ * dono. `LEFT JOIN` responde as duas coisas: quem é, ou que não há ninguém.
+ */
+export async function listDevices(companyId: string): Promise<Device[]> {
+  const conn = await db();
+  const rows = await conn.getAllAsync<{
+    id: string;
+    name: string;
+    responsible_id: string | null;
+    responsible_name: string | null;
+    location_id: string | null;
+    active: number;
+  }>(
+    `SELECT d.id, d.name, d.responsible_id, pe.name AS responsible_name,
+            d.location_id, d.active
+       FROM devices d
+       LEFT JOIN people pe ON pe.id = d.responsible_id AND pe.company_id = d.company_id
+      WHERE d.company_id = ?
+      ORDER BY d.active DESC, d.name`,
+    [companyId],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    responsibleId: r.responsible_id,
+    responsibleName: r.responsible_name,
+    locationId: r.location_id,
+    active: r.active === 1,
+  }));
+}
+
+/**
+ * Cadastra ou edita um aparelho da empresa.
+ *
+ * **O portão é `manage_company`, e ele existe aqui porque é aqui que o servidor o cobra.** A
+ * política `devices_manage` (`0013`) exige a mesma capacidade, e a regra desta casa é que o
+ * aparelho recuse o que o servidor recusaria — senão a linha entra na fila, sobe, volta `403`
+ * (permanente), e a fila daquele celular para para sempre, calada.
+ *
+ * **A unidade entra como `location_id` e não é escolhida na tela.** Onde o aparelho fica é
+ * fato do aparelho, e o aplicativo já sabe qual é (`unidadeDaqui`): perguntar seria quebrar a
+ * Lei 1 para confirmar algo que não muda. Quem matricula o celular da outra unidade estando
+ * nela grava a unidade dela, que é o que se quer.
+ *
+ * O nome é único na empresa, como no servidor (`unique (company_id, name)`): dois "celular da
+ * câmara" numa lista são inúteis para quem vai escolher qual é este. A recusa vem do índice,
+ * e a mensagem que a tela mostra é a do dicionário — não esta.
+ */
+export async function saveDevice(
+  companyId: string,
+  input: {
+    id?: string;
+    name: string;
+    responsibleId?: string | null;
+    locationId?: string | null;
+    active?: boolean;
+  },
+): Promise<Device> {
+  await exigirCapacidade(companyId, 'manage_company', 'matricular aparelho da empresa');
+
+  const conn = await db();
+  const id = input.id ?? newId();
+  const nome = input.name.trim();
+  if (!nome) throw new Error('aparelho sem nome');
+  const active = input.active === false ? 0 : 1;
+
+  await conn.withTransactionAsync(async () => {
+    const existe = await conn.getFirstAsync<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM devices WHERE id = ? AND company_id = ?`,
+      [id, companyId],
+    );
+    if ((existe?.n ?? 0) > 0) {
+      await conn.runAsync(
+        `UPDATE devices
+            SET name = ?, responsible_id = ?, location_id = ?, active = ?
+          WHERE id = ? AND company_id = ?`,
+        [nome, input.responsibleId ?? null, input.locationId ?? null, active, id, companyId],
+      );
+    } else {
+      await conn.runAsync(
+        `INSERT INTO devices (id, company_id, name, responsible_id, location_id, active, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          companyId,
+          nome,
+          input.responsibleId ?? null,
+          input.locationId ?? null,
+          active,
+          nowIso(),
+        ],
+      );
+    }
+    await enqueue(conn, [{ table: 'devices', rowId: id }]);
+  });
+
+  const pessoa = input.responsibleId
+    ? await conn.getFirstAsync<{ name: string }>(
+        `SELECT name FROM people WHERE id = ? AND company_id = ?`,
+        [input.responsibleId, companyId],
+      )
+    : null;
+
+  return {
+    id,
+    name: nome,
+    responsibleId: input.responsibleId ?? null,
+    responsibleName: pessoa?.name ?? null,
+    locationId: input.locationId ?? null,
+    active: active === 1,
   };
 }

@@ -85,6 +85,7 @@ export type ServerWrite =
 
 export type ServerTable =
   | 'erase_requests'
+  | 'devices'
   | 'carriers'
   | 'locations'
   | 'profiles'
@@ -239,6 +240,31 @@ const CROSSINGS: Record<
     // conseguir se identificar num deles. Ele é atribuição e não senha — o
     // raciocínio inteiro está na `0036` e em `docs/estudo-entrada.md`.
     take: ['id', 'company_id', 'name', 'profile_id', 'active', 'created_at', 'pin'],
+  },
+
+  devices: {
+    /**
+     * O aparelho, e ele sobe ANTES do primeiro movimento que o cita.
+     *
+     * O servidor tem `movements.device_id references devices(id) on delete restrict`
+     * (`0013:64`), então um movimento que chegasse primeiro seria recusado por chave
+     * estrangeira. A ordem está garantida pela forma da fila e não por uma lista de
+     * tabelas: ela sobe na ordem em que a fábrica GRAVOU, e a matrícula é gravada antes
+     * de qualquer movimento que a referencie.
+     *
+     * `responsible_id` aponta para gente e não para conta — a `0035` repontou as duas
+     * colunas no mesmo commit, porque quem entra por PIN na grade de nomes não tem
+     * `auth.users`.
+     */
+    take: ['id', 'company_id', 'name', 'responsible_id', 'location_id', 'created_at'],
+    /**
+     * `active` atravessa CONVERTIDO, como nas outras seis tabelas que o têm.
+     *
+     * SQLite não tem booleano — é 0 ou 1 aqui e `true`/`false` no servidor —, e o docblock
+     * no topo deste arquivo diz o que acontece quando alguém esquece: *"Postgres does not
+     * quietly cast one to the other - the insert fails outright"*.
+     */
+    build: (row) => ({ active: flag(row.active) }),
   },
 
   erase_requests: {

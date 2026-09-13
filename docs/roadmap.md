@@ -37,10 +37,10 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | | | como conferir |
 |---|---|---|
 | telas | **36** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
-| tabelas no aparelho (SQLite) | **28** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
+| tabelas no aparelho (SQLite) | **29** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **30** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **67** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V39** | último `const V` em `src/data/db.ts` |
+| migrações do servidor | **68** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V40** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
 | linhas de código | **~102.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -49,10 +49,10 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **857** testes |
+| `npm test` | **860** testes |
 | `npm run mutate` | **154** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **60** checagens num navegador de verdade |
-| `npm run db:verify` | **39** garantias contra um Postgres descartável: **20** sob RLS, como a conta da empresa, e **19** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
+| `npm run db:verify` | **40** garantias contra um Postgres descartável: **20** sob RLS, como a conta da empresa, e **20** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 
@@ -3178,7 +3178,11 @@ ele conclui, curto:
   exige alguém que confira, que hoje não existe: a política olha `auth.uid()`. Não se
   constrói antes do canal.
 - **Revogar não tem solução offline.** O que dá é diminuir o estrago e fazer
-  `devices.active` valer — hoje o servidor **não confere `device_id` em nada**.
+  `devices.active` valer — hoje o servidor **não confere `device_id` em nada**. *(A matrícula
+  passou a existir em 13 de setembro e o razão passa a carimbar de qual aparelho veio; o que
+  esta linha cobra continua aberto e é outra coisa: nenhuma política do servidor OLHA a
+  coluna, então um aparelho desativado ainda grava. Fazer `devices.active` valer é mexer nas
+  políticas de `movements`, que é P3 e rodada própria.)*
 
 **A ordem que saiu do estudo:** grade com PIN → `operator_id` ganha escritor → servidor
 confere aparelho → conta por perfil e código de convite (quando o servidor subir) → chave
@@ -3426,12 +3430,24 @@ dono de 6 de setembro funcionando, e não defeito — fica escrito para ninguém
 
 ### Dois defeitos que a medição achou
 
-**`movements.device_id` atravessa a sincronia e não existe no aparelho** — e agora existe
-guarda para isso. Ela está na lista de colunas que viajam e nenhum `ALTER TABLE` de
-`src/data/db.ts` a cria: viaja como `null`, sempre, e nada falha. O `columns.test.ts` cobrava
-só a direção contrária (coluna do aparelho que não sobe); passou a cobrar as duas, com o
-`device_id` registrado como fronteira até haver matrícula de aparelho — que é a peça que
-precisa do servidor.
+**~~`movements.device_id` atravessa a sincronia e não existe no aparelho~~ — FECHADO em 13
+de setembro, pela condição de saída que a própria fronteira escreveu.** A coluna estava na
+lista de colunas que viajam e nenhum `ALTER TABLE` de `src/data/db.ts` a criava: viajava como
+`null`, sempre, e nada falhava. O `columns.test.ts` passou a cobrar as duas direções, com o
+`device_id` registrado como fronteira *"até haver matrícula de aparelho"*.
+
+A matrícula existe: passo `V40` com a tabela `devices` espelhando a do servidor, a chave do
+aparelho em `app_meta`, o cartão de matrícula nos Ajustes atrás de `manage_company`, e as oito
+escritas do razão carimbando. `src/layers.test.ts` cobra a nona, no molde da guarda do
+operador — e o registro de fronteira do `columns.test.ts` ficou VAZIO, porque registro que
+virou mentira é pior que registro nenhum.
+<!-- medida: presente src/data/aparelho.ts :: export function aparelhoDaqui -->
+
+*E a lição que ficou é de leitura de esquema: eu ia escrever uma migração para repontar
+`devices.responsible_id` de conta para gente, porque a `0013` a declara apontando para
+`memberships` — e a `0035` já tinha feito isso, três linhas depois de fazer o mesmo com
+`operator_id`. Num conjunto append-only a forma atual de uma coluna é a ÚLTIMA frase sobre
+ela, nunca a primeira.*
 
 **~~Três configurações de empresa sem leitor~~ — TÊM leitor, medido em 7 de setembro.**
 `src/data/configuracao.ts:122` lê as quatro do servidor (`names_who_recorded`,

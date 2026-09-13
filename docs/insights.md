@@ -12464,3 +12464,91 @@ guarda-costas:
 As duas são a mesma lição por dois lados: **toda guarda precisa de uma asserção que falhe
 quando ela não lê nada**, e **todo plantio precisa ser conferido no disco pelo que a asserção
 nomeia** — não pelo que eu quis dizer.
+
+## 13 de setembro — o esquema de hoje é a SOMA das migrações, e eu conclui de uma duas vezes
+
+Indo dar escritor à matrícula de aparelho, apontei dois defeitos no servidor. Os dois eram
+leitura errada minha, e as duas leituras erraram da mesma forma:
+
+1. **`devices.responsible_id` aponta para CONTA.** A `0013` declara exatamente isso
+   (`references memberships(id)`), e `memberships.user_id` é `not null references auth.users`
+   — ou seja, só quem tem conta poderia responder por um aparelho, o que contradiz a decisão
+   do dono de que quem entra por PIN não tem conta. Eu já ia escrever a migração que reponta.
+   **A `0035` repontou em 7 de setembro**, três linhas depois de fazer o mesmo com
+   `operator_id`.
+2. **`product_categories` sobrevive ao Reset `all`.** A função que apaga não nomeia a tabela,
+   e ela nasceu depois da função. **Mas `line_id` referencia `product_lines` com
+   `on delete cascade`**, e o `all` apaga `product_lines`: ela cai junto desde sempre.
+
+Num conjunto append-only, **a forma atual de uma coluna é a ÚLTIMA frase sobre ela, nunca a
+primeira** — e a forma atual de uma tabela inclui as AÇÕES das chaves que apontam para ela. As
+duas checagens concretas que faltavam, e que custam segundos:
+
+- coluna que parece errada → `grep` pelo nome dela em TODAS as migrações, não a leitura da que
+  a criou;
+- tabela ausente de uma lista de `delete` → olhe `on delete` das chaves dela antes de chamar
+  de buraco.
+
+*Custo real: zero, porque as duas checagens vieram antes de escrever a migração. Se a ordem
+tivesse sido a inversa seria um `alter table` inútil aplicado no banco do dono — e migração
+não se desfaz.*
+
+## 13 de setembro — acrescentar UMA tabela ao aparelho tem nove obrigações, e nenhuma está numa lista
+
+`devices` entrou no esquema do celular e a suíte reprovou **nove** guardas de uma vez. Nenhuma
+delas é sobre a tabela: todas são sobre o que uma tabela nova OBRIGA, e cada uma nasceu de um
+defeito que já aconteceu:
+
+| a guarda | o que ela cobra | o defeito que a pariu |
+|---|---|---|
+| adoção | a tabela é recarimbada ao trocar de empresa | linha com carimbo velho, invisível |
+| apagar tudo | a tabela entra na ordem certa | RESTRICT levantando chave e "apagar tudo" não apagando nada |
+| contagem do Reset | a confirmação conta o que destrói | três vezes a tela contou menos do que destruiu |
+| varredura de órfãs | a entrada da fila sem linha é esquecida | fila travada no primeiro buraco, para sempre |
+| colunas que viajam | o que o serializador promete existe | `device_id` viajando nulo por um ano |
+| grants | a conta do app tem INSERT e UPDATE | `permission denied` parando a fila INTEIRA |
+| sessão do aparelho | a travessia é exercitada de verdade | a garantia 6 cobrindo nove tabelas de dez |
+| assinatura de cor | o glifo toma o tom do assunto | o mesmo assunto em duas cores em duas telas |
+| contagem do plano | o documento diz o número que o sistema tem | plano que envelhece em silêncio |
+
+**O valor não é a lista: é ela ser DERIVADA.** Nenhuma dessas guardas conhece `devices`; todas
+perguntam ao `sqlite_master`, ao serializador ou ao próprio arquivo. Uma lista escrita à mão
+teria aprovado as nove — e eu teria descoberto cada uma pelo sintoma, meses depois, com a fila
+de alguém parada.
+
+*E a décima obrigação não tinha guarda: a ORDEM do Reset no SERVIDOR. `devices.location_id` é
+RESTRICT lá, e o `all` apaga `locations` — latente enquanto a tabela estava vazia, real no
+instante em que a matrícula ganhou escritor. Entrou na `0068` com a garantia 40 medindo os dois
+mundos, e a categoria da lição é nova: **defeito latente até haver escritor** é defeito que
+nenhuma suíte pega, porque o caminho não existe ainda.*
+
+## 13 de setembro — a prosa que explica a guarda dispara a guarda, quatro vezes num dia
+
+Quatro vezes hoje uma frase minha, escrita para EXPLICAR um defeito, foi lida como o defeito:
+
+- o docblock do relógio citando `new Date().toISOString()`;
+- o comentário da capa citando a consulta com horizonte cravado;
+- o docblock do repositório citando o comando de inserção do razão — duas vezes, uma para a
+  guarda do operador e outra para a do aparelho.
+
+A saída é sempre a mesma e vale escrever de uma vez: **reescreva a prosa, nunca marque exceção
+nela.** Marcador em comentário ensina a espalhar marcador, e a próxima pessoa que quiser
+explicar um defeito vai preferir não explicar.
+
+*A exceção que eu abri, e por que: numa das quatro a régua era NOVA e ainda não tinha passado —
+ali eu a fiz ler só o código, sem os comentários, e re-provei os dois sentidos. Régua que já
+passou não se mexe; régua que está nascendo se acerta.*
+
+## 13 de setembro — a sétima crase, e o perigo era o SUCESSO sujo
+
+`verify-migrations.sh` imprimia `line 551: 0062: command not found` no meio de uma execução
+que termina em `OK - all forty guarantees hold`. Duas mensagens dessas viviam ali desde que a
+garantia 34 foi escrita: crase dentro de uma string de shell é substituição de comando, e num
+heredoc não citado o shell expande o conteúdo inteiro.
+
+**O que torna esta cicatriz a mais teimosa do projeto — sétima ocorrência — é que ela não
+falha.** Ninguém lê uma linha de ruído dentro de um relatório verde. Então ela não vai embora
+com atenção, e a resposta foi a que este arquivo já prescreve para tudo que repete: uma guarda
+(`src/prova-sql.test.ts`) que só olha as regiões onde o shell de fato lê — heredoc sem aspas no
+delimitador e `-c "…"` multilinha —, provada contra o caso verdadeiro e contra o heredoc citado,
+que é o falso.

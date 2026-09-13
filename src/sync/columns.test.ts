@@ -166,12 +166,19 @@ test('every device column either crosses to the server or says why it stays', as
  * não tinha porque o defeito ainda não tinha sido encontrado — e é exatamente por
  * isso que ela entra agora, com o caso conhecido registrado.
  */
-const PROMETIDA_E_AUSENTE: Record<string, Record<string, string>> = {
-  movements: {
-    device_id:
-      'a coluna existe no servidor (0013) e o aparelho ainda não sabe qual aparelho ele é — o comentário do serializador diz isso. Entra no banco local quando houver matrícula de aparelho, que é a peça que precisa do servidor',
-  },
-};
+/**
+ * **Vazio em 13 de setembro, e isso é o registro fechando por onde ele prometeu.**
+ *
+ * A única entrada que existia aqui era `movements.device_id`, com a condição de saída
+ * escrita: *"entra no banco local quando houver matrícula de aparelho"*. A matrícula existe
+ * (passo `V40`), a coluna existe, e a entrada saiu — porque registro que virou mentira é pior
+ * que registro nenhum, e é a asserção logo abaixo que cobra isso em vez de depender de
+ * alguém lembrar.
+ *
+ * Fica vazio, e não apagado: a forma é a que recebe a próxima fronteira do mesmo tipo, e o
+ * caso conhecido está a um `git log` de distância.
+ */
+const PROMETIDA_E_AUSENTE: Record<string, Record<string, string>> = {};
 
 test('every column the serializer promises to send exists on the device', async () => {
   const inventadas: string[] = [];

@@ -385,6 +385,10 @@ export const QUEUED_TABLES = [
   'flavors',
   'profiles',
   'people',
+  // O aparelho matriculado. Ele é apagado pelo "apagar tudo" — junto com o lugar
+  // para onde aponta —, e a entrada órfã dele travaria a fila atrás de uma
+  // matrícula que não existe mais.
+  'devices',
   // A transportadora entra na varredura mesmo não sendo apagada por área nenhuma
   // menor: "apagar tudo" a leva, e a entrada órfã dela travaria a fila inteira
   // atrás de um cadastro que não existe mais.

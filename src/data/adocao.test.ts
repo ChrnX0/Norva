@@ -133,8 +133,8 @@ test('a adoção não deixa uma linha com o carimbo velho, em nenhuma tabela', a
   }
   assert.equal(
     tabelas.length,
-    26,
-    'o esquema do aparelho tem 26 tabelas que carimbam empresa',
+    27,
+    'o esquema do aparelho tem 27 tabelas que carimbam empresa',
   );
 
   await adotarEmpresa(NOVA);

@@ -30,6 +30,9 @@ import { Touchable } from '@/components/Touchable';
 import { brand } from '@/config/brand';
 import {
   alertSettings,
+  listDevices,
+  listPeople,
+  saveDevice,
   porQueNaoAgendou,
   briefingHalf,
   briefingHidden,
@@ -56,8 +59,12 @@ import {
   setPurchaseSafetyDays,
   onlyResells,
   setOnlyResells,
+  type Device,
+  type Person,
 } from '@/data/repository';
 import { escolherUnidade, unidadeDaqui } from '@/data/unidade';
+import { aparelhoDaqui, assumirAparelho } from '@/data/aparelho';
+import { campoComSugestao } from '@/components/campo';
 import { agreedOn, toggleDay } from '@/domain/agreement';
 import { INTERNAL_PLACE_KINDS, ehUnidade } from '@/domain/ledger';
 import { parseTyped } from '@/domain/number';
@@ -428,6 +435,69 @@ function Settings() {
    * têm a mesma necessidade e horas diferentes.
    */
   const { data: alerts, refresh: refreshAlerts } = useQuery<AlertSettings>(() => alertSettings());
+  /**
+   * **A matrícula deste aparelho, e as duas perguntas que ela junta.**
+   *
+   * `esteAparelho` é a linha de `devices` que este celular assumiu — nula enquanto ninguém
+   * matriculou, que é o caso normal e não um erro. `pessoas` é quem pode responder por ele:
+   * gente cadastrada, não conta de e-mail, porque quem entra por PIN na grade de nomes não
+   * tem conta (a `0035` repontou as duas colunas por isso).
+   */
+  const { data: esteAparelho, refresh: refreshAparelho } = useQuery<Device | null>(async () => {
+    const meu = aparelhoDaqui();
+    if (!meu) return null;
+    return (await listDevices(empresaDaqui())).find((d) => d.id === meu) ?? null;
+  });
+  const { data: pessoas } = useQuery<Person[]>(() => listPeople(empresaDaqui()));
+
+  const [nomeDigitado, setNomeDigitado] = useState<string | undefined>(undefined);
+  const [responsavelDigitado, setResponsavelDigitado] = useState<string | null | undefined>(undefined);
+
+  /** O nome MOSTRADO e o nome GRAVADO saem da mesma expressão. */
+  const nomeDoAparelho = campoComSugestao(nomeDigitado, esteAparelho?.name ?? null, '');
+  /**
+   * O responsável escolhido, com o gravado como padrão.
+   *
+   * `undefined` é "não mexi"; `null` é "tirei o responsável" — e os dois são respostas
+   * diferentes, como em `savePerson` com o PIN. Sem essa distinção, quem só troca o nome
+   * apagaria o responsável sem ter pedido isso.
+   */
+  const responsavelEscolhido =
+    responsavelDigitado === undefined ? (esteAparelho?.responsibleId ?? null) : responsavelDigitado;
+  const setResponsavel = (id: string | null) => setResponsavelDigitado(id);
+
+  /**
+   * Matricula ou atualiza, e só então guarda a chave no aparelho.
+   *
+   * A ordem importa: a LINHA primeiro (é ela que a fila manda, e o servidor tem
+   * `movements.device_id references devices(id) on delete restrict`), a chave depois. Se a
+   * escrita falhar, este celular continua sem matrícula em vez de ficar apontando para uma
+   * linha que não existe — que é o estado que faria toda gravação do razão falhar com texto
+   * cru de SQLite na tela.
+   */
+  const matricular = async () => {
+    try {
+      const salvo = await saveDevice(empresaDaqui(), {
+        id: esteAparelho?.id,
+        name: nomeDoAparelho.valor,
+        responsibleId: responsavelEscolhido,
+        locationId: unidadeDaqui(),
+      });
+      await assumirAparelho(salvo.id);
+      setNomeDigitado(undefined);
+      setResponsavelDigitado(undefined);
+      refreshAparelho();
+      void empurrar();
+    } catch (e) {
+      await confirm({
+        title: t.app.settings.device.failed,
+        message: avisoDeFalha(e, t, ERROS).message,
+        acknowledge: true,
+        confirmLabel: t.app.confirm.understood,
+      });
+    }
+  };
+
   /**
    * Por que o último reagendamento não agendou — e ele só chega aqui quando é resolvível.
    *
@@ -1625,6 +1695,94 @@ function Settings() {
               </View>
             </Card>
           </Pressable>
+        </Reveal>
+      ) : null}
+
+      {/**
+       * **A matrícula deste aparelho — a decisão do dono que não tinha código.**
+       *
+       * *"O relatório fala de onde, não de quem — e o aparelho tem responsável."* Com a
+       * matrícula, cada linha do razão passa a dizer de qual celular veio, e a
+       * responsabilidade é do APARELHO: quem responde por ele é uma pessoa cadastrada, e
+       * nenhuma caixa faltando aponta para ninguém.
+       *
+       * Atrás de `manage_company` porque é isso que a política do servidor cobra
+       * (`devices_manage`, `0013`) — e a regra desta casa é o aparelho recusar o que o
+       * servidor recusaria, senão a linha sobe, volta 403 permanente, e a fila para.
+       *
+       * A unidade não é perguntada: onde o aparelho fica é fato que o aplicativo já sabe.
+       */}
+      {podeEmpresa ? (
+        <Reveal index={7}>
+          <Card
+            /* O tom é o da TELA, e quem manda nisso é o registro de assinatura: o glifo
+               da pessoa é "medida" e toma o tom de onde está, em vez de trazer cor
+               própria. Eu tinha posto `lilac` e a guarda recusou com o número do
+               arquivo e a linha — cor de assunto é do assunto, não da minha escolha. */
+            hue={palette.mist}
+            /* O glifo da PESSOA, e não um de aparelho — que não existe no conjunto.
+               Ele é o assunto certo de qualquer jeito: o que a matrícula cria é a
+               corrente do aparelho para alguém, e é a ponta com nome que a tela
+               pergunta. É o mesmo glifo de Pessoas e da grade de identificação. */
+            icon={(c) => <GlyphCustomer size={26} color={c} weight={traco} />}
+            title={t.app.settings.device.label}
+          >
+            <Text style={[type.caption, { color: color.inkMuted }]}>
+              {t.app.settings.device.hint}
+            </Text>
+
+            {/* O estado ANTES do formulário: quem abre os Ajustes quer saber o que já
+                vale, e só depois mexer. Sem matrícula a frase diz o que o livro
+                registra hoje, em vez de deixar a pessoa deduzir do campo vazio. */}
+            <Text style={[type.secondary, { color: color.ink, marginTop: space.sm }]}>
+              {esteAparelho
+                ? `${fill(t.app.settings.device.enrolled, { name: esteAparelho.name })} ${
+                    esteAparelho.responsibleName
+                      ? fill(t.app.settings.device.by, { person: esteAparelho.responsibleName })
+                      : t.app.settings.device.nobody
+                  }`
+                : t.app.settings.device.none}
+            </Text>
+
+            <View style={{ marginTop: space.md }}>
+              <Field
+                label={t.app.settings.device.name}
+                hint={t.app.settings.device.nameHint}
+                value={nomeDoAparelho.valor}
+                onChangeText={setNomeDigitado}
+              />
+            </View>
+
+            <Text style={[type.caption, { color: color.inkFaint, marginTop: space.md }]}>
+              {t.app.settings.device.responsible.toUpperCase()}
+            </Text>
+            <View style={[styles.wrap, { gap: space.xs }]}>
+              {(pessoas ?? []).map((pessoa) => (
+                <Pressable
+                  key={pessoa.id}
+                  onPress={() => setResponsavel(pessoa.id === responsavelEscolhido ? null : pessoa.id)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: pessoa.id === responsavelEscolhido }}
+                  accessibilityLabel={pessoa.name}
+                >
+                  <Chip
+                    signal={pessoa.id === responsavelEscolhido ? 'ok' : 'neutral'}
+                    label={pessoa.name}
+                  />
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={{ marginTop: space.md }}>
+              <Button
+                label={
+                  esteAparelho ? t.app.settings.device.update : t.app.settings.device.save
+                }
+                onPress={() => void matricular()}
+                disabled={nomeDoAparelho.valor.trim().length === 0}
+              />
+            </View>
+          </Card>
         </Reveal>
       ) : null}
 

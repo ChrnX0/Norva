@@ -73,6 +73,7 @@ export type ErasableTable =
   | 'sale_price_history'
   | 'location_prices'
   | 'items'
+  | 'devices'
   | 'locations'
   | 'people'
   | 'profiles'
@@ -97,6 +98,16 @@ export type EraseCounts = {
   agreedPrices: number;
   /** As transportadoras cadastradas. Só "apagar tudo" as leva. */
   carriers: number;
+  /**
+   * Os aparelhos matriculados. Só "apagar tudo" os leva.
+   *
+   * **Contado, e não dispensado como "configuração".** Depois de um Reset completo cada
+   * celular volta a gravar sem dizer qual aparelho é — e quem matriculou três não tem como
+   * descobrir isso olhando a tela: a matrícula simplesmente deixa de existir e nada
+   * reclama. A segunda confirmação existe para dizer o que se perde e não volta, e uma
+   * matrícula que ninguém refaz é uma coluna do razão que morre em silêncio.
+   */
+  devices: number;
   /**
    * Movimentos do livro-razão que a área leva junto.
    *
@@ -174,6 +185,7 @@ export const emptyCounts: EraseCounts = {
   salePrices: 0,
   agreedPrices: 0,
   carriers: 0,
+  devices: 0,
   movements: 0,
   movementsOfProducts: 0,
   places: 0,
@@ -267,6 +279,17 @@ export function tablesFor(area: EraseArea): readonly ErasableTable[] {
         'sale_price_history',
         'location_prices',
         'items',
+        // O APARELHO antes do lugar e depois do razão, e as duas pontas importam:
+        // `movements.device_id` aponta para `devices` com RESTRICT, e
+        // `devices.location_id` aponta para `locations` com RESTRICT. Fora desta
+        // posição o DELETE levanta chave estrangeira e "apagar tudo" volta a não
+        // apagar nada — a cicatriz escrita no topo desta lista, agora com a
+        // tabela que a estreou do outro lado.
+        //
+        // A matrícula deste celular volta a ser nula sozinha: `carregarAparelho`
+        // confere se a linha existe, e a chave que aponta para nada é descartada
+        // no boot seguinte em vez de fazer toda escrita falhar.
+        'devices',
         // Depois de `movements`, que aponta para cá. O lugar padrão é recriado
         // sozinho por `ensureLocation` no primeiro movimento seguinte, então
         // apagar todos é seguro: o que some é o que a pessoa cadastrou.
@@ -378,6 +401,7 @@ export const TALLY_KEYS = [
   'lots',
   'orders',
   'carriers',
+  'devices',
   'readings',
   'grid',
   'salePrices',
@@ -394,6 +418,7 @@ export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
     salePrices: 0,
     agreedPrices: 0,
     carriers: 0,
+    devices: 0,
     movements: 0,
     recipes: 0,
     products: 0,
@@ -436,6 +461,7 @@ export function tallyFor(area: EraseArea, counts: EraseCounts): EraseTally {
         lots: counts.lots,
         orders: counts.orders,
         carriers: counts.carriers,
+        devices: counts.devices,
         readings: counts.readings,
         grid: counts.grid,
         salePrices: counts.salePrices,

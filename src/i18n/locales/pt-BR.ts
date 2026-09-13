@@ -892,6 +892,27 @@ export const ptBR = {
         off: 'fabrica',
       },
       /**
+       * A matrícula DESTE aparelho.
+       *
+       * A frase não fala de vigilância, e não pode: a decisão do dono é que o relatório
+       * fala de ONDE, não de quem. O que a matrícula compra é o aparelho ter um
+       * responsável — "faltaram 3 caixas na conferência" continua sem nome de pessoa.
+       */
+      device: {
+        label: 'Este aparelho',
+        hint: 'Cada linha do livro passa a dizer de qual aparelho veio. Serve para achar o que aconteceu sem apontar para ninguém: quem responde é o aparelho, e o aparelho tem um responsável.',
+        name: 'Como vocês chamam este aparelho',
+        nameHint: 'o celular da câmara, o tablet da expedição',
+        responsible: 'Quem responde por ele',
+        nobody: 'Ninguém, por enquanto',
+        save: 'Matricular este aparelho',
+        update: 'Guardar',
+        enrolled: 'Este aparelho é {{name}}.',
+        by: 'Responsável: {{person}}.',
+        none: 'Este aparelho ainda não foi matriculado — o livro registra o lugar, e não o aparelho.',
+        failed: 'Não deu para matricular',
+      },
+      /**
        * De onde a corrida tira o insumo. Só aparece com mais de uma sala nossa.
        *
        * As duas frases do rodapé dizem o CUSTO de cada escolha, não a virtude dela:
@@ -1062,6 +1083,7 @@ export const ptBR = {
         lots: { one: '1 lote', other: '{{n}} lotes' },
         orders: { one: '1 pedido', other: '{{n}} pedidos' },
         carriers: { one: '1 transportadora', other: '{{n}} transportadoras' },
+        devices: { one: '1 aparelho matriculado', other: '{{n}} aparelhos matriculados' },
         // As quatro que somiam sem número — dívida registrada em 7 de setembro,
         // paga em 8. A grade é UM número: a pessoa monta a grade, não cadastra
         // "um tipo".

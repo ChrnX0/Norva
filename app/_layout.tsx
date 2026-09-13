@@ -12,6 +12,7 @@ import { WhatsNew } from '@/components/WhatsNew';
 import { Alerts } from '@/notify/Alerts';
 import { carregarEmpresa } from '@/data/empresa';
 import { carregarUnidade } from '@/data/unidade';
+import { carregarAparelho } from '@/data/aparelho';
 import { rodadaAutomatica } from '@/nuvem/aparelho';
 import { ensureStarterData } from '@/data/seed';
 import { floorSignIn, namesWhoRecorded, setCurrentOperator } from '@/data/repository';
@@ -225,6 +226,11 @@ export default function RootLayout() {
       // que se grava, e as duas são lidas do disco antes da primeira tela. A
       // unidade DEPOIS da empresa porque o padrão dela deriva da empresa.
       .then(() => carregarUnidade())
+      // E a matrícula do aparelho, que carimba a terceira coluna de todo movimento.
+      // Depois da empresa porque a conferência dela pergunta "este aparelho é desta
+      // empresa?" — e antes do exemplo semeado pela mesma razão que as duas de cima:
+      // o que carimba se lê do disco antes da primeira escrita.
+      .then(() => carregarAparelho())
       .then(() => ensureStarterData())
       // O automático dispara e NÃO é esperado: subir fila, copiar e buscar
       // atualização não podem atrasar a primeira tela em um milissegundo. Decisão
