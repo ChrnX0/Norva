@@ -12134,3 +12134,47 @@ filtro certo (um `Set` dos ids de versão já lidos) essa fábrica faz **zero** 
 `has_column_privilege` desta semana: o predicado compila, roda, devolve booleano, e responde uma
 pergunta que ninguém fez. A asserção que o nomeia é `Object.keys(grafo.versoes)` vazio quando o
 carimbo aponta para a versão corrente — antes ela vinha com uma entrada, e a entrada era cópia.
+
+## 13 de setembro — o portão tem uma guarda contra erro de código de saída, e dois erros de código de saída dentro
+
+Duas das oito advertências do `.proofgate/verify.sh` desta entrega eram **falsas, pela mesma
+causa**, e a causa é literalmente a regra que uma das guardas do próprio portão existe para
+cobrar (`48-pipeline-exit-code`: *"exit codes are read from the command that produced them"*).
+
+O mecanismo, medido:
+
+```bash
+set -uo pipefail
+git diff BASE..HEAD | grep -E '^\+' | grep -Eqi "alter table|migrat"   # → 141
+git diff BASE..HEAD | grep -E '^\+' | grep -Ei  "alter table" >/dev/null # → 0
+```
+
+`grep -q` **sai no primeiro casamento**. O produtor a montante — um `git diff` de 195 mil
+linhas — continua escrevendo num cano que não tem mais leitor, recebe SIGPIPE e morre com
+141. Com `pipefail`, o status do CANO é 141, e o `if` lê isso como "não casou". Quanto mais
+cedo o casamento acontece, mais garantido é o erro: **a guarda falha exatamente nos casos em
+que a evidência é abundante.**
+
+O efeito nas duas:
+
+| guarda | o que ela dizia | a verdade medida |
+|---|---|---|
+| `schema-constraint-no-migration` | *"16 restrições sem NENHUMA migração neste diff"* | **1.243** linhas de evidência de migração — o ramo positivo era inalcançável |
+| `version-bump-no-release` | *"versão subiu, nenhum release à vista"* | **7** linhas de `gh release create/upload/edit` no workflow que publica o APK |
+
+E a assimetria importa. No mesmo arquivo, o mesmo `grep -q` com `|| continue` produz o
+**oposto**: um arquivo que deveria ser conferido é pulado em silêncio — falso negativo, que é
+o pior lado para uma guarda. Os dois estão consertados, e os dois sentidos foram provados:
+com a evidência presente sai ✅; com o padrão trocado por uma palavra que não existe no diff,
+sai ⚠️ e código 2. Uma guarda que passou a não poder avisar seria pior que o aviso falso.
+
+**A varredura, porque conserto de guarda não termina no arquivo que o mostrou:** vinte e cinco
+guardas usam `pipefail` e onze têm `grep -q` num cano. Nove são inofensivas por medida, não por
+sorte — o produtor é `printf '%s' "$content"` de UMA linha ou um `echo` da lista de arquivos,
+muito abaixo dos 64 KiB do cano, então a escrita termina antes de o `grep` sair. **O perigo é
+`git diff` como produtor**, e depois destes consertos não sobra nenhum: `grep -n "git diff" |
+grep "grep -q"` devolve zero.
+
+*A lição que transfere: quando uma advertência de ferramenta contradiz o que o diff obviamente
+contém, meça a FERRAMENTA antes de justificar a advertência.* Eu ia escrever uma justificativa
+para cada uma — a justificativa seria bem escrita, e as duas seriam mentira.

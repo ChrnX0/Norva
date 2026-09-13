@@ -30,7 +30,10 @@ while IFS="$tab" read -r file content; do
   esac
   # A brand-new table is fine: nothing exists yet, so CREATE TABLE carries it.
   # Only an EXISTING table's create block is the trap, and `if not exists` is its tell.
-  git diff "$BASE"..HEAD -- "$file" | grep -Eiq 'create[[:space:]]+table[[:space:]]+if[[:space:]]+not[[:space:]]+exists' || continue
+  # `grep -q` sai no primeiro casamento e o produtor morre de SIGPIPE; com `pipefail`
+  # o status do cano vira 141, e aqui isso PULARIA o arquivo em silêncio. Sem `-q` o
+  # grep lê até o fim e o status é o dele. Medido: 141 com `-q`, 0 sem.
+  git diff "$BASE"..HEAD -- "$file" | grep -Ei 'create[[:space:]]+table[[:space:]]+if[[:space:]]+not[[:space:]]+exists' >/dev/null || continue
   pg_ignored "$(pg_fingerprint schema-constraint-no-migration "$file" "$content")" && continue
   n=$((n + 1))
   case " $files " in *" $file "*) ;; *) files="$files $file" ;; esac
@@ -39,7 +42,11 @@ done < <(pg_added_with_file | pg_match "$CONSTRAINT" -i)
 [ "$n" -gt 0 ] || { echo "✅ schema-constraint-no-migration: no constraint added to an if-not-exists table"; exit 0; }
 
 # It only counts as migrated if the SAME delivery ships the ALTER.
-if git diff "$BASE"..HEAD | grep -E '^\+' | grep -Eiq "$MIGRATION"; then
+# Idem, e aqui o efeito era o oposto e pior: em qualquer diff grande o casamento
+# acontece antes de `git diff` terminar, o cano sai 141 sob `pipefail`, e o ramo
+# positivo ficava INALCANÇÁVEL — o aviso saía mesmo com a migração ao lado. Medido
+# neste repositório: 1.243 linhas de evidência de migração e o aviso saindo.
+if git diff "$BASE"..HEAD | grep -E '^\+' | grep -Ei "$MIGRATION" >/dev/null; then
   echo "✅ schema-constraint-no-migration: $n constraint line(s) ship with a migration"
   exit 0
 fi
