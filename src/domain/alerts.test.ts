@@ -5,6 +5,7 @@ import {
   alertsRunToday,
   DEFAULT_ALERTS,
   nextAlertAt,
+  proximosAvisos,
   volumeBand,
   type AlertFacts,
   type AlertSettings,
@@ -197,6 +198,44 @@ test('inside one kind, the order follows what that kind measures', () => {
   // E a faixa viaja com o aviso, porque é ela que a frase compara e é ela que ordena.
   assert.equal(camaras[0].max, -16, 'o aviso de ambiente leva o teto');
   assert.equal(camaras[0].min, -22, 'o aviso de ambiente leva o piso');
+});
+
+/**
+ * **Um aviso agendado é silêncio a partir do dia seguinte.**
+ *
+ * O adaptador agendava UM e reagendava na próxima abertura do aplicativo. Telefone
+ * deixado na fábrica na sexta à noite: aviso no sábado, e nada no domingo nem na
+ * segunda. E a falha é invisível — ninguém nota a notificação que não chegou.
+ */
+test('several alert instants are scheduled ahead, and they respect the chosen weekdays', () => {
+  // Sexta, 10h. O aviso é às 7h, todos os dias.
+  const sexta = new Date('2026-09-11T13:00:00.000Z');
+  const tres = proximosAvisos(DEFAULT_ALERTS, sexta, 3);
+
+  assert.equal(tres.length, 3, 'três instantes à frente, não um');
+  assert.deepEqual(
+    tres.map((d) => d.getTime()),
+    [...new Set(tres.map((d) => d.getTime()))],
+    'instantes repetidos seriam três notificações no mesmo minuto',
+  );
+  for (let i = 1; i < tres.length; i += 1) {
+    assert.ok(tres[i].getTime() > tres[i - 1].getTime(), 'cada um depois do anterior');
+  }
+  assert.ok(tres[0].getTime() > sexta.getTime(), 'nenhum no passado — agendado para trás não dispara');
+
+  // Só terça e quinta: os três instantes caem nesses dois dias, e em nenhum outro.
+  const soDoisDias = { ...DEFAULT_ALERTS, weekdays: (1 << 2) | (1 << 4) };
+  const escolhidos = proximosAvisos(soDoisDias, sexta, 3);
+  assert.equal(escolhidos.length, 3);
+  for (const dia of escolhidos) {
+    assert.ok(
+      alertsRunToday(soDoisDias, dia.getDay()),
+      `caiu num dia que a empresa não escolheu: ${dia.toISOString()}`,
+    );
+  }
+
+  // E pedir zero devolve zero: quem chama decide quantos, e a função não inventa um.
+  assert.deepEqual(proximosAvisos(DEFAULT_ALERTS, sexta, 0), []);
 });
 
 test('no chosen weekday means every day, never silence', () => {

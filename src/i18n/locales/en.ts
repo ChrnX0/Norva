@@ -1680,6 +1680,7 @@ export const en: Dictionary = {
   },
 
   alertText: {
+    channel: 'Factory alerts',
     insumo: { title: 'Buy {{subject}}', body: 'Runs out in {{amount}} at this week usage.' },
     pedido: { title: '{{places}} waiting for a load', body: '{{amount}} of {{subject}} short.' },
     volume: { title: '{{subject}} at {{amount}}%', body: 'Of the full level you set.' },

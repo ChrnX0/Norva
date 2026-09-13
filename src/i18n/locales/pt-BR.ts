@@ -2254,6 +2254,9 @@ export const ptBR = {
    * estoque" — o dono já sabe conferir, o que ele não sabe é o quê.
    */
   alertText: {
+    /* O nome do canal do Android: é o que a pessoa lê nos ajustes DO SISTEMA quando
+       decide se aceita os avisos, então ele diz de quem eles são. */
+    channel: 'Avisos da fábrica',
     insumo: { title: 'Compre {{subject}}', body: 'Acaba em {{amount}} pelo consumo desta semana.' },
     pedido: {
       title: '{{places}} esperando carga',

@@ -471,6 +471,38 @@ export function alertsRunToday(settings: AlertSettings, weekday: number): boolea
  * quando já passou. Nunca devolve um instante no passado: notificação agendada
  * para trás não dispara, e o aviso desaparece sem ninguém saber.
  */
+/**
+ * Os próximos instantes de aviso — vários, e não um.
+ *
+ * **Um era silêncio a partir do dia seguinte.** O aparelho reagenda quando alguém abre o
+ * aplicativo, então um telefone deixado na fábrica na sexta à noite recebia o aviso de
+ * sábado e mais nada: nem domingo, nem segunda. E ninguém percebe que parou, porque a
+ * ausência de notificação é idêntica a "está tudo bem" — o defeito mais caro que um
+ * sistema de aviso pode ter.
+ *
+ * Cada instante é pedido a partir do ANTERIOR, que é o que faz `nextAlertAt` andar: ele
+ * devolve o primeiro instante depois do que recebe, já pulando os dias que a empresa não
+ * escolheu. Configuração que não alcança mais nenhum dia devolve a lista curta em vez de
+ * inventar data — e vazia quando não alcança nenhum, que é o caso que o adaptador conta
+ * como `sem-dia-alcancavel`.
+ *
+ * Mora aqui, e não no adaptador, porque é REGRA: quantos dias à frente, respeitando os
+ * dias da semana da empresa. Regra dentro do adaptador é regra que o `mutate` não alcança
+ * e que nenhum teste desta máquina carrega — a cicatriz do `pickSuggestion`, escrita no
+ * topo do `src/notify/index.ts`.
+ */
+export function proximosAvisos(settings: AlertSettings, now: Date, quantos: number): Date[] {
+  const out: Date[] = [];
+  let cursor = now;
+  while (out.length < quantos) {
+    const proximo = nextAlertAt(settings, cursor);
+    if (!proximo) break;
+    out.push(proximo);
+    cursor = proximo;
+  }
+  return out;
+}
+
 export function nextAlertAt(
   settings: AlertSettings,
   now: Date,

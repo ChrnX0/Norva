@@ -1685,6 +1685,7 @@ export const es: Dictionary = {
   },
 
   alertText: {
+    channel: 'Avisos de la fábrica',
     insumo: { title: 'Compra {{subject}}', body: 'Se acaba en {{amount}} según el consumo de la semana.' },
     pedido: { title: '{{places}} esperando carga', body: 'Faltan {{amount}} de {{subject}} para atender.' },
     volume: { title: '{{subject}} en {{amount}}%', body: 'De lo lleno que cargaste.' },

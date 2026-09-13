@@ -7879,6 +7879,30 @@ export async function setOnlyResells(companyId: string, revende: boolean): Promi
   await writeMeta(RESALE_ONLY_KEY, revende ? '1' : '0');
 }
 
+const ALERTA_NAO_AGENDADO = 'alerts.notScheduled';
+
+/**
+ * Por que o último reagendamento não agendou — guardado para a TELA poder dizer.
+ *
+ * Lei 5: erro se impede, não se reclama; e o que não se pode nem reclamar é o que
+ * acontece em silêncio. Permissão negada deixava o aplicativo sem nenhum aviso para
+ * sempre, e o único lugar onde isso aparecia era um `.then` de corpo vazio — a pessoa
+ * ligava os alarmes em Ajustes, via os interruptores ligados, e não recebia nada.
+ *
+ * É CÓDIGO e não frase, pela mesma razão de sempre: quem escreve português é a tela.
+ * E é gravado a cada abertura, inclusive quando dá certo (aí some), porque motivo
+ * velho na tela é pior que motivo nenhum — ele acusa uma permissão que já foi
+ * concedida.
+ */
+export async function guardarPorQueNaoAgendou(motivo: string | null): Promise<void> {
+  await writeMeta(ALERTA_NAO_AGENDADO, motivo ?? '');
+}
+
+export async function porQueNaoAgendou(): Promise<string | null> {
+  const guardado = await readMeta(ALERTA_NAO_AGENDADO);
+  return guardado ? guardado : null;
+}
+
 const APPROVAL_KEY = 'orders.needApproval';
 
 /**

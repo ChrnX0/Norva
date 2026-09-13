@@ -30,6 +30,7 @@ import { Touchable } from '@/components/Touchable';
 import { brand } from '@/config/brand';
 import {
   alertSettings,
+  porQueNaoAgendou,
   briefingHalf,
   briefingHidden,
   briefingOrder,
@@ -427,6 +428,15 @@ function Settings() {
    * têm a mesma necessidade e horas diferentes.
    */
   const { data: alerts, refresh: refreshAlerts } = useQuery<AlertSettings>(() => alertSettings());
+  /**
+   * Por que o último reagendamento não agendou — e ele só chega aqui quando é resolvível.
+   *
+   * Sem isto a tela mostrava seis interruptores ligados de um sistema que não manda nada:
+   * a permissão negada morria num `.then` de corpo vazio, e a pessoa só descobria que não
+   * recebe aviso no dia em que precisava dele. Lei 5 — erro impede ou cala; o que ele não
+   * pode é acontecer em silêncio com a tela dizendo o contrário.
+   */
+  const { data: naoAgendou } = useQuery<string | null>(() => porQueNaoAgendou());
 
   const mexerAlerta = async (proximo: AlertSettings) => {
     await setAlertSettings(proximo);
@@ -1296,6 +1306,14 @@ function Settings() {
             icon={(c) => <GlyphThermometer size={26} color={c} weight={traco} />}
             title={t.app.settings.alerts.label}
           >
+            {/* O recado de que o sistema não deixa, ACIMA dos interruptores: quem
+                lê a lista de baixo primeiro conclui que está tudo ligado, e é essa
+                conclusão que a permissão negada torna falsa. */}
+            {naoAgendou === 'sem-permissao' ? (
+              <Text style={[type.secondary, { color: color.warning }]}>
+                {t.app.settings.alerts.never}
+              </Text>
+            ) : null}
             <Text style={[type.caption, { color: color.inkMuted }]}>
               {t.app.settings.alerts.hint}
             </Text>

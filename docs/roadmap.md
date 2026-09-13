@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **843** testes |
+| `npm test` | **852** testes |
 | `npm run mutate` | **154** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **60** checagens num navegador de verdade |
 | `npm run db:verify` | **39** garantias contra um Postgres descartável: **20** sob RLS, como a conta da empresa, e **19** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -3830,7 +3830,7 @@ terceira é duvidosa:**
 | o que a linha pedia | estado medido |
 |---|---|
 | compras — o ponto de recompra | FEITO em 6/9 (`app/inputs/[id].tsx`, folga como configuração) |
-| **o lote que vence** | FEITO — `AlertKind` tem `'validade'` com sete dias de antecedência (`src/domain/alerts.ts:132,324`), e o agendador está montado na raiz (`app/_layout.tsx:10`) |
+| **o lote que vence** | FEITO no razão desde 7/9 e **só CHEGOU ao bolso em 13/9**. A prova de então — *"o tipo existe e o agendador está montado na raiz"* — é exatamente o nível de evidência que este projeto desconfia, e ela estava certa sobre as duas coisas que afirmava. O que faltava era tudo o que fica entre elas: o canal do Android nunca foi criado (o sistema descarta o aviso, sem erro), o comportamento em primeiro plano nunca foi declarado (a biblioteca descarta o aviso), agendava UM dia só, dizia o código do lote no lugar do produto, mandava *"mande esse primeiro"* para lote VENCIDO, e o toque não abria tela nenhuma |
 | **a produção** | FEITO em 7/9 — *"Produza Picolé de leite até 17/09"* na tela de produção |
 | **o dinheiro parado** | **não deve virar aviso.** O número já aparece com a comparação ("17 dias pelo consumo da semana"), e não existe uma DATA de decisão para ele: dinheiro parado não vence. Um aviso sem data de ação é o alerta inventado que este projeto proíbe na Lei 7 |
 

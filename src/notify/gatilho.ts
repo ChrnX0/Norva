@@ -22,6 +22,61 @@ type GatilhoDeData = import('expo-notifications').DateTriggerInput;
 export const CANAL = 'norva-avisos';
 
 /**
+ * O canal, como o Android o quer — e ele tem de EXISTIR antes do primeiro aviso.
+ *
+ * `CANAL` era citado no gatilho desde que o gatilho nasceu, e ninguém nunca o criou.
+ * No Android 8 e acima, notificação de canal inexistente não aparece: o sistema a
+ * descarta e não diz nada a ninguém. Então o aviso agendado pela forma certa, na hora
+ * certa, com a frase certa, chegava a lugar nenhum.
+ *
+ * `importance` é obrigatório no tipo da biblioteca (`NotificationChannelInput` exige
+ * `name` e `importance`) e é o número que decide se o aviso interrompe. Fica `DEFAULT`
+ * e não `HIGH`: o aviso desta fábrica é AGENDADO para a hora que a empresa escolheu —
+ * ele não é uma interrupção, é a pauta da manhã. `HIGH` põe balão na frente do que a
+ * pessoa está fazendo, e quem recebe balão por estoque três dias seguidos desliga o
+ * canal inteiro — e canal desligado pelo usuário o aplicativo não religa.
+ *
+ * O nome entra por parâmetro porque quem fala português é a camada de idioma: este
+ * módulo não sabe dizer "Avisos da fábrica" em três línguas, e o nome é o que a pessoa
+ * lê nos ajustes do sistema quando vai decidir se aceita.
+ */
+export function canalDoAviso(
+  lib: Pick<Notificacoes, 'AndroidImportance'>,
+  nome: string,
+): import('expo-notifications').NotificationChannelInput {
+  return { name: nome, importance: lib.AndroidImportance.DEFAULT };
+}
+
+/**
+ * O que o sistema faz com um aviso que chega com o aplicativo ABERTO.
+ *
+ * Sem isto, `expo-notifications` DESCARTA o aviso em primeiro plano — é o padrão da
+ * biblioteca, e o efeito é o pior possível para quem confia no aparelho: o alarme
+ * das sete da manhã não aparece exatamente para quem está com o aplicativo na mão às
+ * sete da manhã.
+ *
+ * **E `shouldPlaySound: false` NÃO é a escolha calada que parece.** A própria
+ * biblioteca declara, na documentação do tipo: *"On Android, setting
+ * `shouldPlaySound: false` will result in the drop-down notification alert **not**
+ * showing, no matter what the priority is."* Ou seja, desligar o som desliga o balão
+ * junto — o aviso voltaria a não aparecer, agora por outro caminho, e a linha pareceria
+ * correta. Este projeto vai para Android; o som fica ligado, e quem não quiser tem o
+ * canal do sistema para silenciar (que é dele, não nosso).
+ *
+ * `shouldSetBadge` fica falso: contador na bolinha do ícone é número que ninguém
+ * zera — não existe tela que "leia" avisos aqui —, e número que só sobe é o alerta
+ * inventado com outro rosto.
+ */
+export function comportamentoDoAviso(): import('expo-notifications').NotificationBehavior {
+  return {
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  };
+}
+
+/**
  * O gatilho de DATA — e o `type` é o que faz o instante existir.
  *
  * `NotificationTriggerInput` é uma união, e `{ channelId, date }` sem `type` casa com
