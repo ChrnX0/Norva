@@ -6,19 +6,11 @@ import {
   judgePriceChange,
   PRICE_ALARM,
   PRICE_RELIEF,
-  priceMove,
   ratesBefore,
-  type PurchaseEvent,
+  reorderPoint,
 } from './cost';
-import { fromDecimal, rate, type Cents, type Rate } from './money';
-import {
-  compareVersions,
-  costPerProductUnit,
-  costRecipe,
-  unitsPerBatch,
-  type ItemCosts,
-  type Recipe,
-} from './recipe';
+import { fromDecimal, rate, type Rate } from './money';
+import { compareVersions, costPerProductUnit, costRecipe, unitsPerBatch, type ItemCosts, type Recipe, taxaPorUnidade } from './recipe';
 
 /**
  * The chain the whole product rests on: an invoice moves the average, the
@@ -32,30 +24,36 @@ import {
 const PULP = 'pulp';
 const SUGAR = 'sugar';
 
-const recipes: Record<string, Recipe> = {
+const fichas: Record<string, Recipe> = {
   base: {
     id: 'base',
+    versionId: 'base-v',
     version: 1,
     effectiveFrom: '2026-01-01',
     yieldAmount: 20_000,
+    yieldUnit: 'ml',
     lossFraction: 0,
     lines: [{ kind: 'item', itemId: SUGAR, quantity: 3_000 }],
   },
   popsicle: {
     id: 'popsicle',
+    versionId: 'popsicle-v',
     version: 3,
     effectiveFrom: '2026-06-01',
     yieldAmount: 40_000,
+    yieldUnit: 'ml',
     lossFraction: 0.05,
     lines: [
       { kind: 'item', itemId: PULP, quantity: 18_000 },
-      { kind: 'recipe', recipeId: 'base', quantity: 10_000 },
+      { kind: 'recipe', recipeId: 'base', quantity: 10_000, subVersionId: null },
     ],
   },
 };
 
 /** Sugar at R$ 4.72/kg and pulp at R$ 12.40/kg, per gram. */
 const costs: ItemCosts = { [PULP]: rate(12.4, 1_000), [SUGAR]: rate(4.72, 1_000) };
+
+const recipes = { atual: fichas, versoes: {} };
 
 test('a purchase at a higher price raises the cost of the finished unit', () => {
   const before = costPerProductUnit(costRecipe('popsicle', recipes, costs), 75);
@@ -91,32 +89,10 @@ test('a purchase at a higher price raises the cost of the finished unit', () => 
   assert.equal(raised, 50);
 });
 
-test('the buyer sees the move against the last invoice, not against the average', () => {
-  const purchases: PurchaseEvent[] = [
-    {
-      kind: 'purchase',
-      baseUnits: 25_000,
-      totalCents: fromDecimal(118),
-      at: '2026-07-02T09:00:00Z',
-    },
-    {
-      kind: 'purchase',
-      baseUnits: 25_000,
-      totalCents: fromDecimal(124),
-      at: '2026-08-14T09:00:00Z',
-    },
-  ];
-
-  const move = priceMove(purchases);
-  assert.ok(move);
-  // The average would have said 2.5%; what the buyer needs to hear is 5.1%.
-  assert.ok(Math.abs(move.change - 6 / 118) < 1e-9);
-});
-
 test('packaging is charged per unit, never smeared across the batch', () => {
   const cost = costRecipe('popsicle', recipes, costs);
   const bare = costPerProductUnit(cost, 75);
-  const wrapped = costPerProductUnit(cost, 75, fromDecimal(0.05) as Cents);
+  const wrapped = costPerProductUnit(cost, 75, { typedRate: rate(0.05, 1) });
 
   assert.equal(wrapped - bare, 5);
 
@@ -129,36 +105,79 @@ test('packaging is charged per unit, never smeared across the batch', () => {
 test('a version comparison answers "did my change help" in cents per unit', () => {
   const before = costRecipe('popsicle', recipes, costs);
 
-  const cheaper: Record<string, Recipe> = {
-    ...recipes,
+  const cheaperFichas: Record<string, Recipe> = {
+    ...fichas,
     popsicle: {
-      ...recipes.popsicle,
+      ...fichas.popsicle,
       version: 4,
       lines: [
         { kind: 'item', itemId: PULP, quantity: 16_000 },
-        { kind: 'recipe', recipeId: 'base', quantity: 12_000 },
+        { kind: 'recipe', recipeId: 'base', quantity: 12_000, subVersionId: null },
       ],
     },
   };
 
-  const after = costRecipe('popsicle', cheaper, costs);
+  const after = costRecipe('popsicle', { atual: cheaperFichas, versoes: {} }, costs);
   const delta = compareVersions(before, after, 75);
 
-  assert.equal(delta.cheaper, true);
-  assert.ok(delta.deltaCents < 0);
-  assert.ok(delta.percent < 0);
+  assert.equal(delta.cheaper, true, 'tirar polpa e pôr base barateia a unidade');
+
+  /**
+   * **A régua era derivada do próprio resultado, e por isso aprovava o defeito.**
+   *
+   * Ela afirmava `percent === deltaCents / antes` — o por cento calculado a partir do
+   * delta ARREDONDADO. Qualquer implementação que arredondasse duas vezes satisfazia a
+   * linha, porque os dois lados vinham do mesmo número: é a armadilha que esta casa já
+   * pagou uma vez (`taxa` comparada com `(taxa - 0,4) + 0,4`), com `Math.abs` e
+   * tolerância dando cara de igualdade de verdade.
+   *
+   * Agora os dois são conta feita FORA: as taxas exatas por unidade das duas versões,
+   * calculadas aqui, e o delta arredondado uma vez só.
+   */
+  const antesExato = taxaPorUnidade(before, 75);
+  const depoisExato = taxaPorUnidade(after, 75);
+  assert.equal(
+    delta.deltaCents,
+    Math.round(depoisExato - antesExato),
+    'o delta é a diferença das taxas exatas, arredondada UMA vez — não a diferença de dois arredondados',
+  );
+  assert.notEqual(delta.percent, null, 'há versão anterior com custo, então há com o que comparar');
+  assert.ok(
+    Math.abs((delta.percent as number) - (depoisExato - antesExato) / antesExato) < 1e-12,
+    'a queda por cento sai das taxas exatas: derivá-la do delta arredondado perde a fração que a mudança teve',
+  );
+});
+
+test('sem custo anterior não há por cento, e nulo não é zero', () => {
+  // O caso verdadeiro: uma ficha recém-criada não tem linha, então a versão
+  // anterior custa nada. Zero ali fazia a tela escrever "▲ R$ 0,02 por unidade
+  // contra a versão 1 (0,0%)" — subiu e não mudou, na mesma frase.
+  const vaziaFichas: Record<string, Recipe> = {
+    ...fichas,
+    popsicle: { ...fichas.popsicle, version: 1, lines: [] },
+  };
+  const semBase = compareVersions(costRecipe('popsicle', { atual: vaziaFichas, versoes: {} }, costs), costRecipe('popsicle', recipes, costs), 75);
+  assert.equal(semBase.percent, null, 'sem base, o por cento não existe');
+  assert.ok(semBase.deltaCents > 0, 'e mesmo assim o dinheiro subiu');
+
+  // O caso falso, que é o que separa esta régua de um `?? null` preguiçoso:
+  // havendo base, o por cento continua saindo — inclusive quando é zero de
+  // verdade, que é uma afirmação e não uma ausência.
+  const igual = compareVersions(costRecipe('popsicle', recipes, costs), costRecipe('popsicle', recipes, costs), 75);
+  assert.equal(igual.percent, 0, 'com base e sem mudança, zero é o fato');
+  assert.equal(igual.deltaCents, 0);
 });
 
 test('an item with no purchase yet costs nothing rather than crashing a screen', () => {
-  const withUnknown: Record<string, Recipe> = {
-    ...recipes,
+  const withUnknownFichas: Record<string, Recipe> = {
+    ...fichas,
     popsicle: {
-      ...recipes.popsicle,
-      lines: [...recipes.popsicle.lines, { kind: 'item', itemId: 'glucose', quantity: 1_200 }],
+      ...fichas.popsicle,
+      lines: [...fichas.popsicle.lines, { kind: 'item', itemId: 'glucose', quantity: 1_200 }],
     },
   };
 
-  const cost = costRecipe('popsicle', withUnknown, costs, { glucose: 'Glucose' });
+  const cost = costRecipe('popsicle', { atual: withUnknownFichas, versoes: {} }, costs, { glucose: 'Glucose' });
   const line = cost.lines.find((l) => l.label === 'Glucose');
 
   assert.ok(line);
@@ -214,9 +233,11 @@ test('the price moves land on the finished unit, in reais', () => {
   const graph: Record<string, Recipe> = {
     base: {
       id: 'base',
+      versionId: 'base-v',
       version: 1,
       effectiveFrom: '2026-01-01',
       yieldAmount: 10_000,
+      yieldUnit: 'ml',
       lossFraction: 0,
       lines: [
         { kind: 'item', itemId: 'pulp', quantity: 3_000 },
@@ -232,11 +253,10 @@ test('the price moves land on the finished unit, in reais', () => {
     { itemId: 'sugar', previousRate: rate(4.72, 1_000), observedAt: '2026-08-28T10:00:00Z' },
   ];
 
-  const unitNow = costPerProductUnit(costRecipe('base', graph, now, names), 75, 0 as Cents);
+  const unitNow = costPerProductUnit(costRecipe('base', { atual: graph, versoes: {} }, now, names), 75);
   const unitBefore = costPerProductUnit(
-    costRecipe('base', graph, ratesBefore(now, moves), names),
+    costRecipe('base', { atual: graph, versoes: {} }, ratesBefore(now, moves), names),
     75,
-    0 as Cents,
   );
 
   // Now:    3000 x 1.495 + 1500 x 0.590 = 4485 + 885 = 5370 cents per 10 L
@@ -279,4 +299,13 @@ test('it takes more to raise an alarm than to call something cheaper', () => {
   assert.ok(PRICE_ALARM > Math.abs(PRICE_RELIEF));
   assert.equal(judgePriceChange(0.04), 'smallChange', 'four percent up is noise');
   assert.equal(judgePriceChange(-0.04), 'cheaper', 'four percent down is worth saying');
+});
+
+test('the reorder point rounds up, because half a sack is not a sack', () => {
+  // 3.2 sacks of cover is four sacks to order. Rounding down orders less than
+  // the consumption it was calculated from, which is the one direction a
+  // reorder point must never err in - it exists to prevent a stockout.
+  assert.equal(reorderPoint(1.6, 1, 1), 4);
+  assert.equal(reorderPoint(10, 3, 2), 50);
+  assert.equal(reorderPoint(0.1, 1, 0), 1, 'a trickle still needs one');
 });

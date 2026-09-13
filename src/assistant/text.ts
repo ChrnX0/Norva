@@ -7,6 +7,8 @@
  * instantly, which the network version never will.
  */
 
+import { defaultLocale, formatPercent, type LocaleSettings } from '@/i18n';
+
 /** Lowercases and strips accents, so "açúcar" and "acucar" are one word. */
 export function normalize(text: string): string {
   return text
@@ -18,29 +20,14 @@ export function normalize(text: string): string {
 }
 
 /**
- * Reads a number the way it was typed in Portuguese: "1.250,40" and "1250.40"
- * and "1250,4" all mean the same thing, and people use all three.
+ * Reads a number the way it was typed.
+ *
+ * One reader for the whole app, in `@/domain/number`: the screens that take
+ * money used to have three different ones, and the assistant a fourth. Its old
+ * rule read "1.500 picolés" as one and a half - the same ambiguity, answered
+ * differently in the same app.
  */
-export function parseNumber(raw: string): number | null {
-  const cleaned = raw.replace(/[^\d.,-]/g, '');
-  if (!cleaned) return null;
-
-  const lastComma = cleaned.lastIndexOf(',');
-  const lastDot = cleaned.lastIndexOf('.');
-
-  // Whichever separator comes last is the decimal one; the other groups digits.
-  const decimal = lastComma > lastDot ? ',' : lastDot > lastComma ? '.' : null;
-  const normalized =
-    decimal === null
-      ? cleaned.replace(/[.,]/g, '')
-      : cleaned
-          .split(decimal)
-          .map((part, i, all) => (i === all.length - 1 ? part : part.replace(/[.,]/g, '')))
-          .join('.');
-
-  const value = Number(normalized);
-  return Number.isFinite(value) ? value : null;
-}
+export { parseTyped as parseNumber } from '@/domain/number';
 
 /**
  * Finds the thing someone meant by name, tolerating how they actually type.
@@ -62,9 +49,19 @@ export function findByName<T extends { name: string }>(
   const contains = candidates.filter((c) => normalize(c.name).includes(wanted));
   if (contains.length === 1) return contains[0];
   if (contains.length > 1) {
-    // Several match: prefer the shortest name, which is the least specific
-    // registration and usually what a short word meant.
-    return [...contains].sort((a, b) => a.name.length - b.name.length)[0];
+    // Vários batem: nenhum é a resposta.
+    //
+    // Isto devolvia o nome mais curto, com o argumento de que ele é o cadastro
+    // menos específico. O argumento valia enquanto a fábrica tinha um produto
+    // com "morango" no nome. Com a grade — linha × tipo × sabor — "morango"
+    // casa com doze, e o mais curto é sorteio: "Pote 1 litro de morango" ganha
+    // de "Picolé Tradicional de morango" por ter menos letras, e o assistente
+    // gravaria a produção contra a receita errada sem dizer nada a ninguém.
+    //
+    // Devolver nulo aqui é o que faz a tela perguntar em vez de adivinhar. O
+    // sistema sugere e nunca decide calado, e esta era a única linha do
+    // assistente que decidia calada.
+    return null;
   }
 
   // Last resort: any candidate sharing a significant word with the question.
@@ -74,9 +71,37 @@ export function findByName<T extends { name: string }>(
   );
 }
 
-/** Signed percentage as a phrase: "subiu 9,4%" / "caiu 3,1%" / "não mudou". */
-export function movePhrase(change: number): string {
+/**
+ * Signed percentage as a phrase: "subiu 9,4%" / "caiu 3,1%" / "não mudou".
+ *
+ * O número sai do `formatPercent`, e não de `toFixed().replace('.', ',')`: trocar
+ * ponto por vírgula à mão acerta em português e erra em qualquer outro idioma —
+ * inclusive no espanhol do México, que usa ponto. O assistente fala português por
+ * decisão escrita (topo de `src/assistant/index.ts`), e a decisão é sobre as
+ * PALAVRAS dele; número formatado à mão é a família de defeito que este projeto já
+ * pagou caro, e não precisa de exceção nenhuma aqui.
+ */
+export function movePhrase(change: number, locale: LocaleSettings = defaultLocale): string {
   const percent = Math.abs(change * 100);
   if (percent < 0.05) return 'não mudou';
-  return `${change > 0 ? 'subiu' : 'caiu'} ${percent.toFixed(1).replace('.', ',')}%`;
+  return `${change > 0 ? 'subiu' : 'caiu'} ${formatPercent(Math.abs(change), locale)}`;
+}
+
+/**
+ * Os candidatos que um termo alcança, quando ele alcança mais de um.
+ *
+ * `findByName` devolve nulo no empate de propósito - decidir calado entre doze
+ * picolés de morango é escolher a receita errada em silêncio. Mas dizer só "não
+ * existe" para uma coisa que existe doze vezes é a Lei 5 ao contrário: o erro
+ * tem que impedir E dizer o caminho. Esta função é o caminho.
+ */
+export function namesakes<T extends { name: string }>(
+  candidates: readonly T[],
+  term: string,
+): T[] {
+  const wanted = normalize(term);
+  if (!wanted) return [];
+  if (candidates.some((c) => normalize(c.name) === wanted)) return [];
+  const contains = candidates.filter((c) => normalize(c.name).includes(wanted));
+  return contains.length > 1 ? contains : [];
 }

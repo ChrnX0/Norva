@@ -3,7 +3,7 @@
     "name": "NORVA",
     "slug": "norva",
     "scheme": "norva",
-    "version": "0.1.0",
+    "version": "0.12.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -14,8 +14,33 @@
     },
     "android": {
       "package": "app.norva.mobile",
+      "versionCode": 120000,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "com.google.android.c2dm.permission.RECEIVE",
+        "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE",
+        "android.permission.READ_APP_BADGE",
+        "com.anddoes.launcher.permission.UPDATE_COUNT",
+        "com.htc.launcher.permission.READ_SETTINGS",
+        "com.htc.launcher.permission.UPDATE_SHORTCUT",
+        "com.huawei.android.launcher.permission.CHANGE_BADGE",
+        "com.huawei.android.launcher.permission.READ_SETTINGS",
+        "com.huawei.android.launcher.permission.WRITE_SETTINGS",
+        "com.majeur.launcher.permission.UPDATE_BADGE",
+        "com.oppo.launcher.permission.READ_SETTINGS",
+        "com.oppo.launcher.permission.WRITE_SETTINGS",
+        "com.sec.android.provider.badge.permission.READ",
+        "com.sec.android.provider.badge.permission.WRITE",
+        "com.sonyericsson.home.permission.BROADCAST_BADGE",
+        "com.sonymobile.home.permission.PROVIDER_INSERT_BADGE",
+        "me.everything.badger.permission.BADGE_COUNT_READ",
+        "me.everything.badger.permission.BADGE_COUNT_WRITE"
+      ],
+      "allowBackup": false,
       "adaptiveIcon": {
-        "backgroundColor": "#F7F6F3",
+        "backgroundColor": "#FAF7F2",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -28,9 +53,41 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "useLegacyPackaging": true,
+            "enableMinifyInReleaseBuilds": true
+          }
+        }
+      ],
       "expo-router",
       "expo-localization",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-notifications",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "A câmera lê a etiqueta do lote. Nada é fotografado nem guardado.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FAF7F2",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#1B1610",
+            "image": "./assets/splash-icon-dark.png"
+          }
+        }
+      ],
+      "expo-sharing",
+      "./plugins/assinatura-de-entrega"
     ],
     "experiments": {
       "typedRoutes": true
@@ -40,13 +97,22 @@
       "policy": "fingerprint"
     },
     "updates": {
+      "enabled": false,
       "url": "https://u.expo.dev/384e9ec9-b731-4691-a622-d1edc89259a1",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_ERROR_RECOVERY",
+      "requestHeaders": {
+        "expo-channel-name": "preview"
+      }
     },
     "extra": {
       "eas": {
         "projectId": "384e9ec9-b731-4691-a622-d1edc89259a1"
-      }
+      },
+      "supabaseUrl": "https://xnefmqphczgcujzdaere.supabase.co",
+      "supabaseKey": "sb_publishable_vsSW8w4iETpERn3AUZfWnw_g0oLispj",
+      "driveClientId": "",
+      "driveRedirect": "norva://drive"
     }
   }
 }

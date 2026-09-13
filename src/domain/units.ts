@@ -23,10 +23,6 @@ export type PackagingHierarchy = {
   tiers: PackagingTier[];
 };
 
-export function baseUnitTier(): PackagingTier {
-  return { id: 'unit', perBaseUnit: 1 };
-}
-
 export function isValidHierarchy(h: PackagingHierarchy): boolean {
   if (h.tiers.length === 0) return false;
   if (h.tiers[0].perBaseUnit !== 1) return false;
@@ -86,4 +82,78 @@ export function roundUpToFullContainer(
 
   const addedUnits = tier.perBaseUnit - remainder;
   return { rounded: baseUnits + addedUnits, addedUnits, tier };
+}
+
+/**
+ * How many physical boxes a quantity makes, and what will not fit in one.
+ *
+ * A box is an object: eighteen boxes are eighteen things somebody stacks on a
+ * truck, whether they hold fifty popsicles or twenty-four. Summing them across
+ * items of different box sizes is therefore honest - what is NOT honest is
+ * pretending a sack of sugar is a box because the total needed a single unit.
+ *
+ * So the count only includes items that HAVE a layer above the base one, and
+ * everything else comes back untouched, in its own units, for the caller to say
+ * out loud. Hiding it in the total is the invented number this project spends
+ * its whole verification bar trying to prevent.
+ */
+export function boxesOf(
+  baseUnits: number,
+  h: PackagingHierarchy,
+): { boxes: number; loose: number } | null {
+  const above = [...h.tiers].reverse().find((t) => t.perBaseUnit > 1);
+  if (!above) return null;
+
+  const boxes = Math.floor(Math.max(0, baseUnits) / above.perBaseUnit);
+  return { boxes, loose: Math.max(0, baseUnits) - boxes * above.perBaseUnit };
+}
+
+/**
+ * The hierarchy a factory types in: how many fit in the middle box, and how many of
+ * those fit in the crate — with the middle one optional.
+ *
+ * Two shapes came from one real factory, described by the owner on 10 September, and
+ * the screen only knew the first: popsicles go unit → box of 44 → crate of 6 boxes
+ * (264), and tubs go *"in crates or loose units"* — two steps, no box in between. The
+ * old code required a box before it would accept a crate, so the tub's crate was
+ * dropped without a word.
+ *
+ * **The second number means different things depending on the first, and that is the
+ * trap this function exists to name.** With a box, `perCrate` counts BOXES per crate and
+ * the total multiplies. Without one, it counts UNITS per crate directly. The screen
+ * changes the field's label for the same reason; a field that means two things under one
+ * label only shows up when somebody's stock count comes out wrong.
+ *
+ * Anything not a finite number above one is "not a step" rather than an error: a factory
+ * that sells loose units types nothing, and gets the one-step hierarchy that is correct
+ * for it. Empty is an answer here, not a missing answer.
+ */
+/**
+ * A inversa de `tiersFromCounts`: da hierarquia gravada de volta para os dois números que
+ * a fábrica digitou.
+ *
+ * Existe porque duas telas a refaziam na mão para reabrir um cadastro — e refaziam
+ * carregando a armadilha que o docblock acima nomeia: sem caixa, `perCrate` conta UNIDADES
+ * por engradado; com caixa, conta CAIXAS. Quem reconstrói de cabeça divide sempre, e o
+ * engradado do pote (sem caixa) reabria com o número dividido por um degrau que não
+ * existe. A ida e a volta moram juntas para não divergirem.
+ */
+export function countsFromTiers(h: PackagingHierarchy): { perBox: number; perCrate: number } {
+  const caixa = h.tiers.find((t) => t.id === 'box')?.perBaseUnit ?? 0;
+  const engradado = h.tiers.find((t) => t.id === 'crate')?.perBaseUnit ?? 0;
+  if (engradado <= 0) return { perBox: caixa, perCrate: 0 };
+  return { perBox: caixa, perCrate: caixa > 0 ? engradado / caixa : engradado };
+}
+
+export function tiersFromCounts(perBox: number, perCrate: number): PackagingHierarchy {
+  const passo = (n: number) => Number.isFinite(n) && n > 1;
+  const tiers: PackagingTier[] = [{ id: 'unit', perBaseUnit: 1 }];
+  if (passo(perBox)) tiers.push({ id: 'box', perBaseUnit: Math.round(perBox) });
+  if (passo(perCrate)) {
+    tiers.push({
+      id: 'crate',
+      perBaseUnit: passo(perBox) ? Math.round(perBox) * Math.round(perCrate) : Math.round(perCrate),
+    });
+  }
+  return { tiers };
 }

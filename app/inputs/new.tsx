@@ -1,17 +1,26 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { unidadeDaqui } from '@/data/unidade';
+import { voltar } from '@/nav';
+import { avisoDeFalha } from '@/i18n/falha';
+import { ERROS } from '@/data/erros';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
+import { GlyphPlus, GlyphSack } from '@/components/Glyph';
+import { Reveal } from '@/components/Reveal';
+import { Touchable } from '@/components/Touchable';
+import { packSize } from '@/domain/measure';
 import { findItem, recordPurchase, saveItem, type ItemKind } from '@/data/repository';
 import { useQuery } from '@/data/useQuery';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
-import { fromDecimal, rate } from '@/domain/money';
-import { fill, formatMoney } from '@/i18n';
+import { empresaDaqui } from '@/data/empresa';
+import { fromDecimal, rate, rateToDecimal, type Rate, amountOf } from '@/domain/money';
+import { parseTyped, formatTyped } from '@/domain/number';
+import { currencySymbol, fill, formatMoney, formatQuantity, formatDecimal } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -27,10 +36,41 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  * app does the division in front of them, in the hint, as they type. They
  * confirm a number instead of computing one (Law 1: never ask for what the
  * system can work out).
+ *
+ * **O corpo foi reescrito na língua da capa** (`docs/linguagem.md`), e o layout
+ * anterior saiu inteiro em vez de ganhar um caminho ao lado — era ele que fazia
+ * esta tela parecer de outro aplicativo no toque seguinte:
+ *
+ * - eram três `Card tone="area"` sem crachá e sem tom de assunto, ou seja três
+ *   retângulos iguais um embaixo do outro. Agora cada cartão diz do que trata
+ *   antes de ser lido: o cadastro em `mint` com o mais, a compra em `mint` com o
+ *   saco — que é o desenho mais literal do aplicativo inteiro, porque o que se
+ *   compra é um saco de 25 kg — e a conversão em `sky`, que é o tom do dinheiro
+ *   em toda tela;
+ * - o tipo do item eram três `Button`, um deles primário. Botão primário é a
+ *   ação da tela e só existe um: com quatro na página, "salvar" deixava de ser
+ *   o destino óbvio. Escolha se faz tocando a etiqueta, que é o mesmo gesto do
+ *   sabor em `app/production/new.tsx` e do tipo de lugar em `app/places.tsx`, e
+ *   as duas caras saem certas de graça;
+ * - o cabeçalho do cartão de compra era `type.cardTitle` escrito à mão dentro do
+ *   corpo, com o subtítulo abaixo. Título de cartão é do `Card`, junto do
+ *   crachá — escrito à mão ele fica sem desenho no Orgânico e sem régua no
+ *   Papel;
+ * - e o cartão do "preencha a embalagem e o preço" deixou de existir. Cartão que
+ *   não tem número não vira cartão: a frase virou a dica do campo de preço, que
+ *   é onde falta o dado que ela pede. É a mesma frase, na mesma condição — o
+ *   `conversionHint` só é indefinido quando a conta não fecha.
+ *
+ * Nada aqui decide diferente: consulta, conta, confirmação e gravação são as
+ * mesmas linhas de antes.
  */
 export default function InputsScreen() {
+  // Cadastrar insumo é ESTOQUE, não ajuste. Estava declarado na área dos
+  // Ajustes, e o accent pinta a marca do cabeçalho, o campo em foco e o botão
+  // cheio — então a porta de entrada do almoxarifado abria cinza, com o botão
+  // cinza, no meio de um aplicativo em que verde quer dizer estoque.
   return (
-    <AreaProvider area="mist">
+    <AreaProvider area="mint">
       <InputForm />
     </AreaProvider>
   );
@@ -43,6 +83,8 @@ type Draft = {
   purchaseToBase: string;
   baseUnit: string;
   price: string;
+  /** O nível cheio, que é a régua das faixas de cor. Vazio: o item não ganha faixa. */
+  fullLevel: string;
 };
 
 /** Order only; the words are in the dictionary, keyed the same way. */
@@ -56,10 +98,10 @@ const KINDS: {
 ];
 
 function InputForm() {
-  const { color, type, space } = useTheme();
+  const { color, type, space, palette, traco } = useTheme();
   const confirm = useConfirm();
-  const router = useRouter();
   const { locale, t } = useLocale();
+  const words = t.app.inputForm;
 
   /**
    * The same screen registers and corrects.
@@ -71,8 +113,8 @@ function InputForm() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const editing = Boolean(id);
 
-  const { data: existing } = useQuery(
-    async () => (id ? findItem(LOCAL_COMPANY_ID, id) : null),
+  const { data: existing, error, refresh } = useQuery(
+    async () => (id ? findItem(empresaDaqui(), id) : null),
     id ?? '',
   );
 
@@ -85,34 +127,98 @@ function InputForm() {
     purchaseToBase: '',
     baseUnit: 'g',
     price: '',
+    fullLevel: '',
     ...(existing
       ? {
-          kind: (existing.kind === 'input' ||
-          existing.kind === 'packaging' ||
-          existing.kind === 'store_supply'
-            ? existing.kind
-            : 'input') as Draft['kind'],
+          /**
+           * **A espécie do item, e nunca uma coerção.**
+           *
+           * Isto era `existing.kind === 'input' || … ? existing.kind : 'input'`, e a
+           * cauda desse ternário corrompia dado em silêncio: `saveItem` grava
+           * `kind = excluded.kind` no `ON CONFLICT`, então abrir esta tela com o id de um
+           * PICOLÉ (`kind = 'product'`) e salvar **transformava o picolé em insumo**. O
+           * produto saía da lista, `products.item_id` continuava apontando para a linha, e
+           * a classificação do razão passava a discordar do cadastro — sem estorno
+           * possível, porque cadastro não é movimento.
+           *
+           * Dois toques bastavam: *"Corrigir o cadastro"* na página de um produto.
+           *
+           * A coerção era o defeito, não a tela que chamava — então ela sai daqui, e o
+           * caminho inteiro passa a recusar (ver `especieErrada` abaixo). Assim nenhuma
+           * tela futura reabre o buraco só por apontar para `/inputs/new?id=`.
+           */
+          kind: existing.kind as Draft['kind'],
           name: existing.name,
           purchaseUnit: existing.purchaseUnit ?? '',
-          purchaseToBase: existing.purchaseToBase ? String(existing.purchaseToBase) : '',
+          purchaseToBase: existing.purchaseToBase
+            ? formatTyped(existing.purchaseToBase, locale.formatting)
+            : '',
           baseUnit: existing.baseUnit,
+          fullLevel:
+            existing.fullLevel !== null
+              ? formatTyped(existing.fullLevel, locale.formatting)
+              : '',
           // The price is not re-asked when correcting: it belongs to the
           // invoices, and re-entering it here would move the average by accident.
-          price: existing.averageRate > 0 ? String(existing.averageRate * (existing.purchaseToBase ?? 1) / 100) : '',
+          //
+          // And it is written with the locale's separator, because a price per
+          // package is rarely round: `String(12.4)` is "12.4", which the reader
+          // on this screen used to turn into 124.
+          //
+          // Nulo cai no mesmo galho do "ainda não tem preço", e é o certo: quem
+          // não vê custo abre a correção com o campo vazio, exatamente como quem
+          // corrige um insumo que nunca foi comprado. E o campo nem aparece na
+          // correção (`priceNotAsked` abaixo), então não há como gravar por
+          // acidente o vazio em cima da média.
+          price:
+            existing.averageRate !== null && existing.averageRate > 0
+              ? formatTyped(
+                  rateToDecimal((existing.averageRate * (existing.purchaseToBase ?? 1)) as Rate),
+                  locale.formatting,
+                  4,
+                  // Duas casas porque é DINHEIRO: o campo trazia "118" onde a nota
+                  // dizia R$ 118,00. Mesmo defeito que o preço combinado, achado no
+                  // preço combinado, consertado nos dois — deixar um em cada forma
+                  // seria a mesma cifra escrita de dois jeitos no mesmo aplicativo.
+                  2,
+                )
+              : '',
         }
       : {}),
     ...draft,
   };
 
-  const { kind, name, purchaseUnit, purchaseToBase, baseUnit, price } = form;
+  const { kind, name, purchaseUnit, purchaseToBase, baseUnit, price, fullLevel } = form;
   const edit = (change: Partial<Draft>) => setDraft({ ...draft, ...change });
 
   const setKind = (next: Draft['kind']) => edit({ kind: next });
   const setName = (next: string) => edit({ name: next });
-  const setPurchaseUnit = (next: string) => edit({ purchaseUnit: next });
-  const setPurchaseToBase = (next: string) => edit({ purchaseToBase: next });
+  /**
+   * Typing the package fills in how much is inside it - Law 1, in the one place
+   * it was most obviously broken.
+   *
+   * Somebody who buys sugar writes "saco 25 kg", because that is what is printed
+   * on the sack, and the app then asked them for 25000. That is arithmetic the
+   * system can do, and the person who should not have to do it is exactly the
+   * person this product is for.
+   *
+   * Only ever fills a field the person has not touched, and only when the size
+   * can be read with certainty: `packSize` returns null for "balde", for
+   * "6 x 500 ml", and for any unit it does not know. A wrong factor here would
+   * sit under every cost the item ever touches.
+   */
+  const [factorTyped, setFactorTyped] = useState(false);
+  const setPurchaseUnit = (next: string) => {
+    const deduced = factorTyped ? null : packSize(next, baseUnit);
+    edit(deduced === null ? { purchaseUnit: next } : { purchaseUnit: next, purchaseToBase: String(deduced) });
+  };
+  const setPurchaseToBase = (next: string) => {
+    setFactorTyped(true);
+    edit({ purchaseToBase: next });
+  };
   const setBaseUnit = (next: string) => edit({ baseUnit: next });
   const setPrice = (next: string) => edit({ price: next });
+  const setFullLevel = (next: string) => edit({ fullLevel: next });
 
   const [saving, setSaving] = useState(false);
 
@@ -120,7 +226,7 @@ function InputForm() {
   // what stop the React compiler from optimising the component at all.
   const parsed = (() => {
     // Accept both "4,72" and "4.72" - a Brazilian keyboard offers the comma.
-    const num = (s: string) => Number(s.replace(/\./g, '').replace(',', '.'));
+    const num = (s: string) => parseTyped(s) ?? NaN;
     const factor = num(purchaseToBase);
     const paid = num(price);
     const valid = Number.isFinite(factor) && factor > 0 && Number.isFinite(paid) && paid > 0;
@@ -134,14 +240,63 @@ function InputForm() {
    */
   const conversionHint = (() => {
     if (!parsed.valid || parsed.unitRate === null) return undefined;
-    const perThousand = formatMoney(Math.round(parsed.unitRate * 1000), locale);
-    return fill(t.app.inputForm.conversion, {
+    const perThousand = formatMoney(amountOf(parsed.unitRate, 1000), locale);
+    return fill(words.conversion, {
       paid: formatMoney(fromDecimal(parsed.paid), locale),
       factor: parsed.factor.toLocaleString(locale.formatting),
       perThousand,
-      rate: parsed.unitRate.toFixed(4),
+      // `toFixed` escreve o ponto decimal do JavaScript. Em português a dica saía
+      // "1.2400 por g" onde se lê "1,2400", e trocar por vírgula à mão erraria no
+      // espanhol do México, onde o separador é o ponto.
+      rate: formatDecimal(parsed.unitRate, locale, 4),
       unit: baseUnit,
     });
+  })();
+
+  /**
+   * A conferência, que antes era só uma palavra.
+   *
+   * "Conversão confere" acendia sempre que os dois números eram positivos, sem
+   * comparar nada — dava para ver na tela, ao mesmo tempo, EMBALAGEM "saco 25 kg",
+   * QUANTO VEM DENTRO "250 g" e a etiqueta verde afirmando que a conversão
+   * confere. Errado por cem vezes, que é exatamente o erro que esta tela existe
+   * para impedir.
+   *
+   * E o aplicativo já sabia checar: `packSize` é a mesma função que preenche o
+   * campo quando ninguém o digitou. Então agora ou a etiqueta afirma só o que
+   * foi feito (a conta fecha), ou ela compara de verdade — e discordando, mostra
+   * os dois números em vez de travar, porque o nome da embalagem pode estar
+   * abreviado e quem está com o saco na mão é quem sabe.
+   */
+  const conferencia = (() => {
+    const lido = packSize(purchaseUnit, baseUnit);
+    if (lido === null) return { signal: 'ok' as const, label: words.mathCloses };
+    if (Math.abs(lido - parsed.factor) < 0.5) {
+      return { signal: 'ok' as const, label: words.conversionOk };
+    }
+    return {
+      signal: 'warning' as const,
+      label: fill(words.conversionDiffers, {
+        pack: formatQuantity(lido, locale),
+        typed: formatQuantity(parsed.factor, locale),
+        unit: baseUnit,
+      }),
+    };
+  })();
+
+  /**
+   * Qual campo falta, e não os dois nomes de sempre.
+   *
+   * A frase mandava preencher "a embalagem e o preço", e a conta não depende da
+   * embalagem: com EMBALAGEM "balde" e PREÇO "118,00" os dois campos que ela
+   * pedia estavam preenchidos e a frase continuava na tela. O que estava vazio
+   * era QUANTO VEM DENTRO, que ela não mencionava — e a tela sabe qual é.
+   */
+  const oQueFalta = (() => {
+    const temFator = Number.isFinite(parsed.factor) && parsed.factor > 0;
+    const temPreco = Number.isFinite(parsed.paid) && parsed.paid > 0;
+    if (!temFator && !temPreco) return words.fillFirst;
+    return temFator ? words.fillPrice : words.fillInside;
   })();
 
   // Correcting a name does not require re-entering a price: the price lives in
@@ -155,8 +310,8 @@ function InputForm() {
     if (!canSave) return;
 
     const go = await confirm({
-      title: editing ? t.app.inputForm.saveEdit : t.app.inputForm.confirmTitle,
-      message: fill(editing ? t.app.inputForm.confirmEdit : t.app.inputForm.confirmNew, {
+      title: editing ? words.saveEdit : words.confirmTitle,
+      message: fill(editing ? words.confirmEdit : words.confirmNew, {
         name: name.trim(),
         pack: purchaseUnit || t.units.unit.one,
         factor: parsed.factor.toLocaleString(locale.formatting),
@@ -170,11 +325,11 @@ function InputForm() {
     setSaving(true);
     try {
       await save();
-      router.back();
+      voltar();
     } catch (e) {
       await confirm({
-        title: t.app.inputForm.failedToSave,
-        message: e instanceof Error ? e.message : String(e),
+        title: words.failedToSave,
+        message: avisoDeFalha(e, t, ERROS).message,
         acknowledge: true,
         confirmLabel: t.app.confirm.understood,
       });
@@ -188,7 +343,7 @@ function InputForm() {
      * what keeps a single definition of what an item costs.
      */
     async function save() {
-      const itemId = await saveItem(LOCAL_COMPANY_ID, {
+      const itemId = await saveItem(empresaDaqui(), {
         id,
         kind,
         name: name.trim(),
@@ -196,13 +351,15 @@ function InputForm() {
         purchaseToBase: parsed.factor,
         baseUnit: baseUnit.trim() || 'un',
         packaging: { tiers: [{ id: 'unit', perBaseUnit: 1 }] },
+        fullLevel: (parseTyped(fullLevel) ?? 0) > 0 ? (parseTyped(fullLevel) as number) : null,
       });
 
       // Only a new item carries a first invoice. Editing must never move the
       // average - that is what the purchase screen is for.
       if (editing) return;
 
-      await recordPurchase(LOCAL_COMPANY_ID, {
+      await recordPurchase(empresaDaqui(), {
+        locationId: unidadeDaqui(),
         itemId,
         purchaseQuantity: 1,
         baseUnits: Math.round(parsed.factor),
@@ -211,126 +368,231 @@ function InputForm() {
     }
   };
 
+  /** A palavra do tipo escolhido, que é o título do primeiro cartão. */
+  const kindKey = kind === 'input' ? 'input' : kind === 'packaging' ? 'packaging' : 'storeSupply';
+
+  /**
+   * A conversão só aparece quando existe.
+   *
+   * Corrigindo, ela não aparece nunca: o preço não é perguntado nesse caminho,
+   * então não há conta nova para mostrar — e um cartão de custo ao lado de "o
+   * preço não é perguntado aqui" seria a tela se contradizendo em duas frases.
+   */
+  const mostraCusto = parsed.valid && !editing;
+
+  /** A cascata não pula número: sem a conversão, a ação sobe uma posição. */
+  const indiceAcao = mostraCusto ? 3 : 2;
+
+  /**
+   * **Este formulário edita insumo, embalagem e material de loja — e mais nada.**
+   *
+   * Erro que IMPEDE, e não que corrompe: com a espécie fora das três, a tela não desenha
+   * campo nenhum. Ela diz o que é a linha e oferece a volta, em vez de oferecer um
+   * formulário cujo salvar reescreveria a espécie.
+   *
+   * `!existing` não conta: enquanto a consulta corre, `existing` é nulo e a tela é o
+   * formulário de cadastro novo, que é o caminho certo sem id.
+   */
+  const especieErrada =
+    existing !== null &&
+    existing !== undefined &&
+    existing.kind !== 'input' &&
+    existing.kind !== 'packaging' &&
+    existing.kind !== 'store_supply';
+
+  if (especieErrada) {
+    return (
+      <CollapsingHeader
+        cena="insumos"
+        title={existing.name}
+        overline={words.editOverline}
+        erro={error}
+        denovo={refresh}
+      >
+        <Reveal index={0}>
+          {/* sinal — o cartão só existe enquanto a espécie da linha não é editável aqui: ele É o impedimento (Lei 5) */}
+          <Card hue={color.warning} icon={(c) => <GlyphPlus size={26} color={c} weight={traco} />}>
+            <Text style={[type.body, { color: color.ink }]}>{words.notAnInput}</Text>
+            <Button
+              label={words.notAnInputBack}
+              variant="ghost"
+              onPress={() => voltar()}
+              style={{ marginTop: space.md }}
+            />
+          </Card>
+        </Reveal>
+      </CollapsingHeader>
+    );
+  }
+
   return (
     <CollapsingHeader
-      title={editing ? name || t.app.inputForm.fallbackTitle : t.app.inputForm.newTitle}
-      overline={editing ? t.app.inputForm.editOverline : t.app.inputForm.newOverline}
+      cena="insumos"
+      title={editing ? name || words.fallbackTitle : words.newTitle}
+      overline={editing ? words.editOverline : words.newOverline}
+      erro={error}
+      denovo={refresh}
     >
-      <Card tone="area">
-        <Field
-          label={t.app.inputForm.name}
-          value={name}
-          onChangeText={setName}
-          placeholder={t.app.inputForm.namePlaceholder}
-          autoFocus
-        />
-
-        <View style={{ marginTop: space.lg }}>
-          <Text style={[type.overline, { color: color.inkFaint, marginBottom: space.sm }]}>
-            {t.app.inputForm.whatFor}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
-            {KINDS.map((entry) => (
-              <Button
-                key={entry.kind}
-                label={t.app.inputForm.kinds[entry.key]}
-                variant={kind === entry.kind ? 'primary' : 'ghost'}
-                onPress={() => setKind(entry.kind)}
-                style={{ paddingVertical: space.sm, paddingHorizontal: space.md }}
-              />
-            ))}
-          </View>
-          <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
-            {kind === 'input'
-              ? t.app.inputForm.kindHint.input
-              : kind === 'packaging'
-                ? t.app.inputForm.kindHint.packaging
-                : t.app.inputForm.kindHint.storeSupply}
-          </Text>
-        </View>
-      </Card>
-
-      <Card tone="area">
-        <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.xs }]}>
-          {t.app.inputForm.howYouBuy}
-        </Text>
-        <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.md }]}>
-          {t.app.inputForm.howYouBuyHint}
-        </Text>
-
-        <View style={{ gap: space.lg }}>
-          <Field
-            label={t.app.inputForm.pack}
-            value={purchaseUnit}
-            onChangeText={setPurchaseUnit}
-            placeholder={t.app.inputForm.packPlaceholder}
-          />
-          <Field
-            label={t.app.inputForm.perPack}
-            value={purchaseToBase}
-            onChangeText={setPurchaseToBase}
-            placeholder="25000"
-            suffix={baseUnit}
-            keyboardType="numeric"
-          />
-          <Field
-            label={t.app.inputForm.useUnit}
-            value={baseUnit}
-            onChangeText={setBaseUnit}
-            placeholder="g"
-            hint={t.app.inputForm.useUnitHint}
-          />
-          {editing ? (
-            <Text style={[type.caption, { color: color.inkMuted }]}>
-              {t.app.inputForm.priceNotAsked}
-            </Text>
-          ) : (
+      {/* O que é: o nome e para que serve. Um assunto só, porque é uma pergunta
+          só — e o título do cartão é a resposta que está dada agora, que muda no
+          toque da etiqueta. */}
+      <Reveal index={0}>
+        <Card
+          hue={palette.mint}
+          icon={(c) => <GlyphPlus size={26} color={c} weight={traco} />}
+          title={words.kinds[kindKey]}
+        >
+          <View style={{ gap: space.lg }}>
             <Field
-              label={t.app.inputForm.price}
-              value={price}
-              onChangeText={setPrice}
-              placeholder="118,00"
-              suffix="R$"
-              keyboardType="numeric"
-              hint={conversionHint}
+              label={words.name}
+              value={name}
+              onChangeText={setName}
+              placeholder={words.namePlaceholder}
+              autoFocus
             />
-          )}
-        </View>
-      </Card>
 
-      {parsed.valid && !editing ? (
-        <Card tone="area">
-          <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.inputForm.entersAs}</Text>
-          <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
-            {formatMoney(Math.round((parsed.unitRate ?? 0) * 1000), locale)}
-          </Text>
-          <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {fill(t.app.inputForm.perThousandOf, { unit: baseUnit })}
-          </Text>
-          <View style={{ marginTop: space.md }}>
-            <Chip signal="ok" label={t.app.inputForm.conversionOk} />
+            <View style={{ gap: space.sm }}>
+              <Text style={[type.overline, { color: color.inkFaint }]}>{words.whatFor}</Text>
+              {/* A etiqueta acesa é a escolhida, e nunca por cor sozinha: a
+                  palavra continua dita por extenso, que é o que serve de luva e
+                  sob luz ruim. A folga em volta é o alvo do dedo. */}
+              <View style={[styles.wrap, { gap: space.sm }]}>
+                {KINDS.map((entry) => (
+                  <Touchable
+                    key={entry.kind}
+                    accessibilityLabel={words.kinds[entry.key]}
+                    onPress={() => setKind(entry.kind)}
+                    style={{ paddingVertical: space.xs }}
+                  >
+                    <Chip
+                      signal={kind === entry.kind ? 'ok' : 'neutral'}
+                      label={words.kinds[entry.key]}
+                    />
+                  </Touchable>
+                ))}
+              </View>
+              <Text style={[type.caption, { color: color.inkMuted }]}>
+                {words.kindHint[kindKey]}
+              </Text>
+            </View>
           </View>
         </Card>
-      ) : (
-        <Card>
-          <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {t.app.inputForm.fillFirst}
-          </Text>
-        </Card>
-      )}
+      </Reveal>
 
-      <Button
-        label={
-          saving
-            ? t.app.inputForm.saving
-            : editing
-              ? t.app.inputForm.saveEdit
-              : t.app.inputForm.save
-        }
-        onPress={() => void onSave()}
-        disabled={!canSave || saving}
-        weighty
-      />
+      {/* Como você compra: o saco, porque é o saco que existe na nota. Este é o
+          cartão que a tela existe para ter — é aqui que o fator de conversão
+          entra, e é ele que fica embaixo de todo custo que o item tocar. */}
+      <Reveal index={1}>
+        <Card
+          hue={palette.mint}
+          icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}
+          title={words.howYouBuy}
+        >
+          <View style={{ gap: space.lg }}>
+            <Text style={[type.secondary, { color: color.inkMuted }]}>{words.howYouBuyHint}</Text>
+
+            <Field
+              label={words.pack}
+              value={purchaseUnit}
+              onChangeText={setPurchaseUnit}
+              placeholder={words.packPlaceholder}
+            />
+            <Field
+              label={words.perPack}
+              value={purchaseToBase}
+              onChangeText={setPurchaseToBase}
+              placeholder={formatTyped(25_000, locale.formatting, 0)}
+              suffix={baseUnit}
+              keyboardType="numeric"
+            />
+            <Field
+              label={words.useUnit}
+              value={baseUnit}
+              onChangeText={setBaseUnit}
+              placeholder="g"
+              hint={words.useUnitHint}
+            />
+            {/* A régua das faixas de cor, e ela é opcional de propósito.
+                Vazia, o item não ganha cor nem aviso de volume — porque sem
+                referência "20%" seria um número que ninguém pode conferir. */}
+            <Field
+              label={words.fullLevel}
+              value={fullLevel}
+              onChangeText={setFullLevel}
+              placeholder={formatTyped(50_000, locale.formatting, 0)}
+              suffix={baseUnit}
+              keyboardType="numeric"
+              hint={words.fullLevelHint}
+            />
+            {editing ? (
+              <Text style={[type.caption, { color: color.inkMuted }]}>{words.priceNotAsked}</Text>
+            ) : (
+              <Field
+                label={words.price}
+                value={price}
+                onChangeText={setPrice}
+                placeholder={formatTyped(118, locale.formatting, 2)}
+                suffix={currencySymbol(locale)}
+                keyboardType="numeric"
+                // A conta enquanto se digita, e no lugar dela a frase que diz o
+                // que falta para a conta existir. Dica é onde a inteligência
+                // aparece: o campo explica em vez de um cartão cinza abaixo.
+                hint={conversionHint ?? oQueFalta}
+              />
+            )}
+          </View>
+        </Card>
+      </Reveal>
+
+      {/* O que aquilo vira na receita, no tom do dinheiro. É a conclusão do
+          cartão de cima — a conta aberta é a dica do campo de preço (Lei 6), e
+          este número é o que ela soma por unidade de uso. */}
+      {mostraCusto ? (
+        <Reveal index={2}>
+          <Card hue={palette.sky}>
+            {/* O rótulo é do TIPO, não fixo.
+                Com "Material de loja" aceso, a legenda do cartão de cima diz
+                que ele não entra em receita — e o seletor de ingrediente só
+                lista insumo e embalagem, então nunca poderia. A tela afirmava
+                as duas coisas a dois cartões de distância. */}
+            <Text style={[type.overline, { color: color.inkFaint }]}>
+              {kind === 'store_supply' ? words.costsInStore : words.entersAs}
+            </Text>
+            <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
+              {formatMoney(amountOf(parsed.unitRate ?? (0 as Rate), 1000), locale)}
+            </Text>
+            <Text style={[type.secondary, { color: color.inkMuted }]}>
+              {fill(words.perThousandOf, { unit: baseUnit })}
+            </Text>
+            <View style={{ marginTop: space.md }}>
+              <Chip signal={conferencia.signal} label={conferencia.label} />
+            </View>
+          </Card>
+        </Reveal>
+      ) : null}
+
+      {/* A ação, uma só, com o desenho do que ela faz dentro dela: o mais quando
+          se cadastra, o saco quando se corrige o que já existe. Desabilitada
+          enquanto a conta não fecha — Lei 5: o erro se impede, não se reclama. */}
+      <Reveal index={indiceAcao}>
+        <Button
+          label={saving ? words.saving : editing ? words.saveEdit : words.save}
+          icon={(c) =>
+            editing ? (
+              <GlyphSack size={22} color={c} weight={traco} />
+            ) : (
+              <GlyphPlus size={22} color={c} weight={traco} />
+            )
+          }
+          onPress={() => void onSave()}
+          disabled={!canSave || saving}
+          weighty
+        />
+      </Reveal>
     </CollapsingHeader>
   );
 }
+
+const styles = StyleSheet.create({
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
+});

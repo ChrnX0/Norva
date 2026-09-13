@@ -49,7 +49,13 @@ except Exception:
 cfg() {
   local path="$1" f; f="$(_pg_cfg_file)"
   [ -f "$f" ] || return 0
-  if command -v jq >/dev/null 2>&1; then jq -c -r "$path // empty" "$f" 2>/dev/null; return; fi
+  # `$path // empty` engolia o booleano FALSE: em jq o operador `//` trata `false`
+  # como ausente, então `"pushGuard": false` — a saída de emergência que o próprio
+  # push-guard documenta — nunca era lida, e o guard bloqueava para sempre. Aqui a
+  # ausência é testada contra `null`, que é o que "ausente" quer dizer de verdade.
+  if command -v jq >/dev/null 2>&1; then
+    jq -c -r "($path) as \$v | if \$v == null then empty else \$v end" "$f" 2>/dev/null; return
+  fi
   if command -v node >/dev/null 2>&1; then node -e "$_PG_NODE_WALK" "$f" "$path" 2>/dev/null; return; fi
   command -v python3 >/dev/null 2>&1 && python3 -c "$_PG_PY_WALK" "$f" "$path" 2>/dev/null
 }
@@ -131,14 +137,53 @@ pg_added_with_file() {
   '
 }
 
+# pg_match <ERE> [-i] — keep the "<file>\t<line>" records whose CONTENT matches,
+# using ONE grep for the whole stream instead of one grep per line.
+#
+# THE SCAR, measured: on a branch with 31.182 added lines, every diff guard spawned
+# two processes per line and the gate took eight minutes — over a million forks for
+# a run whose actual work is a handful of regex matches. Guards were being charged
+# for process startup, not for scanning.
+#
+# Why not do the matching inside awk, which would need no temp file: the guards'
+# patterns are GNU grep EREs and several use `\b`, which POSIX awk does not know and
+# mawk does not support at all. Translating them would change what a guard matches —
+# and a guard that quietly stops matching is worse than a slow one. So the ERE stays
+# in grep, exactly as written, and only the CONTENT column is fed to it; the line
+# numbers come back and rejoin with the file column, which keeps the "match content,
+# never the path" rule that the per-line loop existed to enforce.
+pg_match() {
+  local pat="$1" ci="${2:-}"
+  local tmp; tmp="$(pg_tmpfile pgmatch)"
+  cat > "$tmp"
+  # `cut -f2-` keeps everything after the FIRST tab: a diff line may contain tabs
+  # of its own, and splitting on all of them would truncate the content.
+  if [ "$ci" = "-i" ]; then
+    cut -f2- "$tmp" | grep -niE -- "$pat" 2>/dev/null | cut -d: -f1 || true
+  else
+    cut -f2- "$tmp" | grep -nE -- "$pat" 2>/dev/null | cut -d: -f1 || true
+  fi | awk 'NR==FNR { keep[$1]; next } FNR in keep' - "$tmp"
+  rm -f "$tmp"
+}
+
+# pg_tmpfile <tag> — a temp file that gets cleaned up even if the guard dies.
+pg_tmpfile() {
+  local f
+  f="$(mktemp "${TMPDIR:-/tmp}/proofgate-$1.XXXXXX" 2>/dev/null)" || f="${TMPDIR:-/tmp}/proofgate-$1.$$"
+  printf '%s' "$f"
+}
+
 # pg_scan <guard-name> <ERE> [extra-pathspecs...] — print the file of each added
 # line matching the pattern, after self-exclusion, proofgate-allow, AND per-finding
 # .proofgateignore suppression. Guards reduce to: count the lines this prints.
 pg_scan() {
   local guard="$1" pat="$2"; shift 2
   local tab; tab="$(printf '\t')"
-  pg_added_with_file "$@" | while IFS="$tab" read -r file content; do
-    printf '%s' "$content" | grep -Eq -- "$pat" || continue     # match CONTENT only, not the path
+  # Um grep para o guard inteiro, não um por linha: com trinta mil linhas no diff,
+  # o laço por linha custava setenta segundos POR GUARD, tudo em partida de
+  # processo. `pg_match` preserva a regra que o laço garantia — casar o conteúdo,
+  # nunca o caminho.
+  pg_added_with_file "$@" | pg_match "$pat" | while IFS="$tab" read -r file content; do
     pg_ignored "$(pg_fingerprint "$guard" "$file" "$content")" && continue
     printf '%s\n' "$file"
   done

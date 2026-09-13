@@ -1,0 +1,267 @@
+<!doctype html><meta charset="utf-8"><title>NORVA — orgânico ilustrado</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:412px;min-height:915px;overflow-x:hidden;-webkit-font-smoothing:antialiased;
+ background:#f4f7f1;color:#1e3128;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+
+/* ---------- a cena ---------- */
+.scene{position:relative;height:328px;overflow:hidden}
+.scene>svg{position:absolute;left:0;top:0}
+.brand{position:absolute;left:26px;top:26px;font-size:12px;letter-spacing:.36em;font-weight:700;color:#2c5c44}
+.date{position:absolute;left:26px;top:46px;font-size:12.5px;color:#527a67}
+.big{position:absolute;left:23px;top:60px;font-size:76px;font-weight:300;letter-spacing:-.05em;line-height:1;color:#0f3325}
+.unit{position:absolute;left:26px;top:140px;font-size:14px;color:#2f5a45}
+.chips{position:absolute;left:26px;top:166px;display:flex;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:5px;background:#fffffff2;border-radius:999px;
+ padding:5px 11px;font-size:11.5px;color:#3c6553;box-shadow:0 4px 12px #16402c14}
+.chip b{font-weight:700;color:#2e8a5d}
+.chip svg{display:block}
+
+/* ---------- o clima, dentro da cena ---------- */
+.wx{position:absolute;left:20px;right:20px;top:216px;height:86px;border-radius:30px;
+ background:#ffffffc7;box-shadow:0 12px 30px #14392816;display:flex;align-items:center;
+ padding:0 18px;gap:15px;backdrop-filter:blur(7px)}
+.wx .place{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#5d8a9d}
+.wx .deg{font-size:38px;font-weight:300;letter-spacing:-.04em;line-height:1.1;color:#17405a}
+.wx .sep{width:1px;align-self:stretch;margin:17px 0;background:#dfe9e4}
+.wx .list{display:flex;flex-direction:column;gap:5px;flex:1}
+.wx .li{display:flex;align-items:center;gap:8px;font-size:12px;color:#43677a}
+.wx .li b{font-weight:700;color:#17405a}
+.wx .li svg{flex:none;display:block}
+
+/* ---------- cartões ---------- */
+.wrap{padding:14px 22px 84px}
+.card{background:#fff;border-radius:32px;box-shadow:0 10px 26px #1b3d2c0f;padding:18px}
+.card+.card{margin-top:10px}
+.ch{display:flex;align-items:baseline;margin-bottom:6px}
+.ch .t{font-size:15.5px;font-weight:600;color:#173a2a}
+.ch .s{font-size:11.5px;color:#87988d;margin-left:auto}
+.days{display:flex;margin-top:2px}
+.days span{flex:1;text-align:center;font-size:10.5px;color:#9aab9f}
+.days span.on{color:#2e8a5d;font-weight:700}
+
+.row{display:flex;align-items:center;gap:13px;padding:9px 0}
+.row+.row{border-top:1px solid #eef2ec}
+.row .h{font-size:15.5px;color:#173a2a}
+.row .s{font-size:12px;color:#87988d;margin-top:1px}
+.row .v{margin-left:auto;text-align:right;font-size:18px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.row .vs{display:block;font-size:10.5px;font-weight:400;color:#9aab9f;letter-spacing:0}
+.row svg{display:block;flex:none}
+
+.strip{display:flex;gap:8px}
+.tile{flex:1;background:#f8faf6;border-radius:20px;padding:10px}
+.tile .l1{display:flex;align-items:center;gap:6px}
+.tile .pc{font-size:13.5px;font-weight:700;letter-spacing:-.02em}
+.tile .nm{font-size:11px;color:#6f8378;line-height:1.25;margin-top:5px}
+.dn{color:#2e8a5d}.up{color:#c26a20}
+
+/* ---------- barra de abas ---------- */
+.tabbar{position:fixed;bottom:0;left:0;right:0;height:78px;display:flex;align-items:center;
+ justify-content:space-around;padding-bottom:14px;font-size:11px;background:#f4f7f1f2;
+ border-top:1px solid #e0e9dd;color:#8ea095;backdrop-filter:blur(10px)}
+.tabbar a{display:flex;flex-direction:column;align-items:center;gap:5px;text-decoration:none}
+.tabbar svg{display:block}
+</style>
+
+<div class="scene">
+  <svg width="412" height="328" viewBox="0 0 412 328">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#f1f9f2"/><stop offset=".5" stop-color="#ddf1e5"/><stop offset="1" stop-color="#c5ead6"/>
+      </linearGradient>
+      <linearGradient id="hf" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#b6e4c8"/><stop offset="1" stop-color="#9bd9b4"/>
+      </linearGradient>
+      <linearGradient id="hn" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#6cbd92"/><stop offset="1" stop-color="#4ba078"/>
+      </linearGradient>
+      <radialGradient id="glow"><stop offset="0" stop-color="#ffe9a5" stop-opacity=".9"/><stop offset="1" stop-color="#ffe9a5" stop-opacity="0"/></radialGradient>
+    </defs>
+
+    <rect width="412" height="328" fill="url(#sky)"/>
+
+    <!-- o sol -->
+    <circle cx="322" cy="78" r="64" fill="url(#glow)"/>
+    <g stroke="#ffd571" stroke-width="3.2" stroke-linecap="round" opacity=".9">
+      <path d="M362 78h10"/><path d="M350 49l7-7"/><path d="M322 36V26"/><path d="M294 49l-7-7"/>
+      <path d="M282 78h-10"/><path d="M294 107l-7 7"/><path d="M322 120v10"/><path d="M350 107l7 7"/>
+    </g>
+    <circle cx="322" cy="78" r="31" fill="#ffe07c"/>
+
+    <!-- a nuvem que cobre o sol -->
+    <g fill="#ffffff" opacity=".95">
+      <ellipse cx="267" cy="128" rx="24" ry="16"/>
+      <ellipse cx="296" cy="119" rx="31" ry="22"/>
+      <ellipse cx="326" cy="130" rx="22" ry="15"/>
+      <rect x="243" y="128" width="106" height="16" rx="8"/>
+    </g>
+    <!-- 47% de chance de chuva -->
+    <g fill="#a3d2ec">
+      <path d="M265 153c-4.2 6-4.2 9.8 0 9.8s4.2-3.8 0-9.8z"/>
+      <path d="M296 160c-4.2 6-4.2 9.8 0 9.8s4.2-3.8 0-9.8z"/>
+      <path d="M326 151c-4.2 6-4.2 9.8 0 9.8s4.2-3.8 0-9.8z"/>
+      <path d="M281 174c-3.2 4.6-3.2 7.5 0 7.5s3.2-2.9 0-7.5z" opacity=".7"/>
+      <path d="M311 176c-3.2 4.6-3.2 7.5 0 7.5s3.2-2.9 0-7.5z" opacity=".7"/>
+    </g>
+
+    <!-- colina de trás -->
+    <path d="M0 232C58 212 128 202 194 212c32 5 62 6 94-6h98c10 0 16-2 22-5v127H0z" fill="url(#hf)"/>
+
+    <!-- a fábrica, ao longe -->
+    <g>
+      <g fill="#63b48d">
+        <rect x="300" y="182" width="60" height="24" rx="2"/>
+        <path d="M300 182l10-13 9 13zM319 182l10-13 9 13zM338 182l10-13 9 13z"/>
+        <rect x="364" y="162" width="9" height="44" rx="2.5"/>
+      </g>
+      <g fill="#2f7a55" opacity=".42">
+        <rect x="305" y="190" width="7" height="8" rx="1.4"/><rect x="317" y="190" width="7" height="8" rx="1.4"/>
+        <rect x="329" y="190" width="7" height="8" rx="1.4"/><rect x="341" y="190" width="7" height="8" rx="1.4"/>
+      </g>
+      <g fill="#ffffff" opacity=".72">
+        <circle cx="377" cy="154" r="4.5"/><circle cx="384" cy="143" r="6"/><circle cx="392" cy="130" r="7.5"/>
+      </g>
+    </g>
+
+    <!-- colina da frente -->
+    <path d="M0 258C68 238 138 270 216 262c74-8 132-26 196-11v77H0z" fill="url(#hn)"/>
+    <path d="M0 284C68 268 130 296 212 288c72-7 130-24 200-10v50H0z" fill="#ffffff" opacity=".14"/>
+
+    <!-- a onda que devolve a página -->
+    <path d="M0 318C80 306 150 330 236 324c62-4 118-12 176-8v12H0z" fill="#f4f7f1"/>
+  </svg>
+
+  <div class="brand">NORVA</div>
+  <div class="date">quarta-feira, 2 de setembro</div>
+  <div class="big">500</div>
+  <div class="unit">unidades produzidas hoje</div>
+  <div class="chips">
+    <span class="chip">ontem <b>478</b></span>
+    <span class="chip">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#2e8a5d" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V3.4"/><path d="M3.6 7.8L8 3.4l4.4 4.4"/></svg>
+      <b>+19</b> que na quarta passada</span>
+  </div>
+
+  <div class="wx">
+    <div>
+      <div class="place">São Paulo</div>
+      <div class="deg">21°</div>
+    </div>
+    <div class="sep"></div>
+    <div class="list">
+      <div class="li">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#5d8a9d" stroke-width="1.7" stroke-linecap="round"><path d="M8.5 11.4V4a1.5 1.5 0 0 1 3 0v7.4"/><circle cx="10" cy="14" r="2.6"/></svg>
+        mínima de <b>13°</b></div>
+      <div class="li">
+        <svg width="16" height="16" viewBox="0 0 20 20"><path d="M10 3c-4.4 6.3-4.4 10.3 0 10.3S14.4 9.3 10 3z" fill="#a3d2ec"/></svg>
+        <b>47%</b> de chance de chuva</div>
+      <div class="li">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#e0a13f" stroke-width="1.7" stroke-linecap="round"><circle cx="10" cy="10" r="3.8"/><path d="M10 2.2v1.5M10 16.3v1.5M2.2 10h1.5M16.3 10h1.5M4.6 4.6l1.1 1.1M14.3 14.3l1.1 1.1M15.4 4.6l-1.1 1.1M5.7 14.3l-1.1 1.1"/></svg>
+        amanhã <b>+4°</b></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="card">
+    <div class="ch"><span class="t">A semana</span><span class="s">hoje é o segundo melhor dia</span></div>
+    <svg width="328" height="78" viewBox="0 0 328 78">
+      <defs>
+        <linearGradient id="today" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#5cb287"/><stop offset="1" stop-color="#2f8a5d"/>
+        </linearGradient>
+      </defs>
+      <path d="M0 62c60 5 110-7 166-4s102 9 162 2v18H0z" fill="#eaf3ea"/>
+      <g fill="#d3e6d8">
+        <rect x="0"   y="34.2" width="40" height="27.8" rx="12"/>
+        <rect x="48"  y="29.8" width="40" height="32.2" rx="12"/>
+        <rect x="96"  y="32"   width="40" height="30"   rx="12"/>
+        <rect x="144" y="55"   width="40" height="7"    rx="3.5"/>
+        <rect x="192" y="2"    width="40" height="60"   rx="12"/>
+        <rect x="240" y="28.3" width="40" height="33.7" rx="12"/>
+      </g>
+      <rect x="288" y="15.1" width="40" height="46.9" rx="12" fill="url(#today)"/>
+      <circle cx="308" cy="6.5" r="6" fill="#ffd571"/>
+    </svg>
+    <div class="days"><span>qui</span><span>sex</span><span>sáb</span><span>dom</span><span>seg</span><span>ter</span><span class="on">qua</span></div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <svg width="44" height="44" viewBox="0 0 54 54">
+        <path d="M27 2c12.5 0 25 6.5 25 21s-9 29-23 29S2 42.5 2 27 14.5 2 27 2z" fill="#fce6cd"/>
+        <path d="M16 21h22l-2.2 18a2 2 0 0 1-2 1.8H20.2a2 2 0 0 1-2-1.8z" fill="#f3b877"/>
+        <path d="M16 21h22l-2.2 18a2 2 0 0 1-2 1.8H20.2a2 2 0 0 1-2-1.8z" fill="none" stroke="#c4741d" stroke-width="2.1" stroke-linejoin="round"/>
+        <path d="M21 21v-3.5a6 6 0 0 1 12 0V21" fill="none" stroke="#c4741d" stroke-width="2.1" stroke-linecap="round"/>
+        <path d="M24 28c2.5 2 4 4 4 6.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".85"/>
+      </svg>
+      <div><div class="h">Polpa de morango</div><div class="s">é o insumo mais curto da casa</div></div>
+      <div class="v" style="color:#c4741d">1 dia<span class="vs">até acabar</span></div>
+    </div>
+    <div class="row">
+      <svg width="44" height="44" viewBox="0 0 54 54">
+        <path d="M27 2c13 0 25 7 25 22s-10 28-24 28S2 43 2 26 14 2 27 2z" fill="#e2eafb"/>
+        <path d="M11 21h17v13H11z" fill="#c3d3f5"/>
+        <path d="M11 21h17v13H11zM28 25h6l5 5v4h-11z" fill="none" stroke="#4d6fbe" stroke-width="2.1" stroke-linejoin="round"/>
+        <circle cx="17" cy="37" r="3.2" fill="#fff" stroke="#4d6fbe" stroke-width="2.1"/>
+        <circle cx="33.5" cy="37" r="3.2" fill="#fff" stroke="#4d6fbe" stroke-width="2.1"/>
+      </svg>
+      <div><div class="h">Saiu para as lojas</div><div class="s">expedição de hoje</div></div>
+      <div class="v" style="color:#4d6fbe">1<span class="vs">caixa</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><span class="t">Preços que mexeram</span><span class="s">três, desde ontem</span></div>
+    <div class="strip">
+      <div class="tile">
+        <div class="l1">
+          <svg width="24" height="24" viewBox="0 0 30 30"><path d="M15 1c7 0 14 3.5 14 11.5S23.5 29 15 29 1 23 1 15 8 1 15 1z" fill="#fde6ea"/>
+            <path d="M15 9.5c3.8 0 6.3 2.8 6.3 6.2S18.4 23.5 15 23.5s-6.3-4.4-6.3-7.8S11.2 9.5 15 9.5z" fill="#e8556f"/>
+            <g fill="#ffd9a0"><circle cx="13" cy="15" r=".9"/><circle cx="17" cy="14.4" r=".9"/><circle cx="15" cy="18.4" r=".9"/><circle cx="18" cy="18" r=".9"/><circle cx="12.2" cy="18.8" r=".9"/></g>
+            <path d="M15 9.5c-.6-2.2.9-3.9 3.2-4.3-.2 2.4-1.3 3.7-3.2 4.3z" fill="#5ea320"/></svg>
+          <span class="pc dn">▼ 0,6%</span>
+        </div>
+        <div class="nm">Polpa de morango</div>
+      </div>
+      <div class="tile">
+        <div class="l1">
+          <svg width="24" height="24" viewBox="0 0 30 30"><path d="M15 1c7.5 0 14 4 14 12s-6 16-14 16S1 23 1 14.5 7.5 1 15 1z" fill="#eef4ea"/>
+            <g fill="#89a874"><rect x="9" y="10" width="4.4" height="4.4" rx="1.2" transform="rotate(-12 11 12)"/><rect x="14.4" y="14.6" width="4.4" height="4.4" rx="1.2" transform="rotate(14 16.6 16.8)"/><rect x="17.6" y="9.2" width="4.4" height="4.4" rx="1.2" transform="rotate(22 19.8 11.4)"/><rect x="9.6" y="16.8" width="4.4" height="4.4" rx="1.2" transform="rotate(-18 11.8 19)"/></g></svg>
+          <span class="pc dn">▼ 2,2%</span>
+        </div>
+        <div class="nm">Açúcar cristal</div>
+      </div>
+      <div class="tile">
+        <div class="l1">
+          <svg width="24" height="24" viewBox="0 0 30 30"><path d="M15 1c8 0 14 4.5 14 12.5S22 29 15 29 1 23.5 1 15.5 7 1 15 1z" fill="#fdf1de"/>
+            <path d="M15 7.5c3.6 4.8 5.6 8 5.6 10.6a5.6 5.6 0 1 1-11.2 0c0-2.6 2-5.8 5.6-10.6z" fill="#e9b55e"/>
+            <path d="M12.6 17.8c0 2 1 3.2 2.6 3.6" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" opacity=".85"/></svg>
+          <span class="pc up">▲ 0,9%</span>
+        </div>
+        <div class="nm">Glucose 38DE</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="tabbar">
+  <a style="color:#2e8a5d">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>
+    <span style="color:#2e8a5d;font-weight:600">Início</span></a>
+  <a style="color:#e0913f">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="6" y="2.5" width="12" height="14" rx="6"/><path d="M12 16.5v5"/></svg>
+    <span style="color:#8ea095">Produção</span></a>
+  <a style="color:#6b93cf">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5h11v9H2z"/><path d="M13 11h4l3.5 3.5v2H13z"/><circle cx="6.5" cy="18.5" r="1.9"/><circle cx="16.5" cy="18.5" r="1.9"/></svg>
+    <span style="color:#8ea095">Transporte</span></a>
+  <a style="color:#78ad63">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 20h16"/><path d="M6.5 20v-6"/><path d="M12 20V5"/><path d="M17.5 20v-9"/></svg>
+    <span style="color:#8ea095">Relatórios</span></a>
+  <a style="color:#a3b0a6">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg>
+    <span style="color:#8ea095">Mais</span></a>
+</div>

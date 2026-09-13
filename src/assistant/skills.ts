@@ -1,7 +1,18 @@
-import { fromDecimal } from '@/domain/money';
-import { costPerProductUnit, costRecipe } from '@/domain/recipe';
-import { formatDayMonth, formatMoney, formatQuantity } from '@/i18n';
-import { findByName, movePhrase, normalize, parseNumber } from './text';
+import { nowIso } from '@/data/db';
+import { dayWindow } from '@/domain/day';
+import { ehConferencia } from '@/domain/ledger';
+import { packSize } from '@/domain/measure';
+import { purchaseToBaseUnits } from '@/data/repository';
+import { fromDecimal, amountOf, type Rate } from '@/domain/money';
+import { variacaoDoCusto } from '@/domain/cost';
+import {
+  costPerProductUnit,
+  costRecipe,
+  packagingRatePerUnit,
+  shoppingList,
+} from '@/domain/recipe';
+import { formatDayMonth, formatDecimal, formatMoney, formatUnitRate, formatPercent, formatQuantity } from '@/i18n';
+import { findByName, movePhrase, namesakes, normalize, parseNumber } from './text';
 import type { Answer, Skill, SkillContext } from './types';
 
 /**
@@ -15,6 +26,21 @@ import type { Answer, Skill, SkillContext } from './types';
  * Every skill here is deterministic: the phrase selects the skill, the engine
  * computes, and the sentence is assembled around what the engine returned.
  */
+
+/**
+ * A resposta quando o termo alcança mais de um cadastro.
+ *
+ * Não é erro e não é "não existe": é a pergunta de volta, com os nomes que o
+ * termo alcançou. Com a grade de linha × tipo × sabor, "morango" passa a
+ * alcançar doze produtos, e escolher um deles calado grava a receita errada.
+ */
+function whichOne<T extends { name: string }>(matches: readonly T[], term: string): Answer {
+  return {
+    text: `"${term.trim()}" alcança ${matches.length} cadastros. Qual deles?`,
+    // As opções da própria pergunta, e não a conta de nada.
+    list: matches.slice(0, 8).map((m) => ({ label: m.name })),
+  };
+}
 
 /** "quanto custa o picolé de morango" - the question the owner opens with. */
 const costOfProduct: Skill = {
@@ -36,19 +62,55 @@ const costOfProduct: Skill = {
 
     const product = findByName(products, term);
     if (product?.recipeId && product.yieldPerUnit) {
-      const cost = costRecipe(product.recipeId, graph, costs, names);
-      const unit = costPerProductUnit(cost, product.yieldPerUnit, product.unitPackagingCents);
+      const cost = costRecipe(product.recipeId, graph, costs ?? {}, names);
+      const unit = costPerProductUnit(cost, product.yieldPerUnit, {
+        // `?? 0` é honesto aqui, e só aqui: esta habilidade declara
+        // `requires: 'view_cost'`, então o portão do repositório está aberto
+        // quando ela roda — nulo só pode querer dizer "não tem embalagem
+        // digitada", que é o que zero já queria dizer antes.
+        typedRate: product.unitPackagingRate ?? undefined,
+        itemsRate: packagingRatePerUnit(product.packagingItems, costs ?? {}),
+      });
       const mix = costPerProductUnit(cost, product.yieldPerUnit);
+
+      /**
+       * A embalagem do ESTOQUE entrava no total e não no detalhamento.
+       *
+       * `unit` soma três coisas — massa, embalagem digitada e a embalagem que é ITEM,
+       * cotada pelas notas de compra (`itemsRate`) —, e a conta aberta mostrava duas. Quem
+       * lista palito e saquinho como item via o total subir sem nenhuma linha explicando, o
+       * que é a Lei 6 pelo avesso: a conclusão abre uma conta que não fecha, e conta que não
+       * fecha ensina a desconfiar do número inteiro.
+       *
+       * A mesma tela de cadastro de produto já resolve isto com as três componentes
+       * nomeadas (`mixPlusBoth`), e a linha nasce só quando existe — embalagem do estoque
+       * zerada não vira linha, porque "está tudo bem" é estado e não frase.
+       */
+      const doEstoque = packagingRatePerUnit(product.packagingItems, costs ?? {});
 
       return {
         text: `${product.name} custa ${formatMoney(unit, ctx.locale)} por unidade.`,
         detail: [
           { label: 'Massa', value: formatMoney(mix, ctx.locale) },
-          { label: 'Embalagem', value: formatMoney(product.unitPackagingCents, ctx.locale) },
+          // O assistente fala português por decisão escrita (src/assistant/index.ts),
+          // então a escala vem escrita aqui como o resto das frases dele.
+          //
+          // E a escala das duas embalagens é `a cada 1.000 unidades` de propósito, como na
+          // tela: são TAXAS, e qualquer embalagem abaixo de meio centavo por unidade
+          // apareceria como R$ 0,00 — a conta dizendo de graça o que o razão parou de dar.
+          { label: 'Embalagem', value: formatUnitRate(product.unitPackagingRate ?? 0, ctx.locale, 'a cada 1.000 unidades') },
+          ...(doEstoque > 0
+            ? [
+                {
+                  label: 'Embalagem do estoque',
+                  value: formatUnitRate(doEstoque, ctx.locale, 'a cada 1.000 unidades'),
+                },
+              ]
+            : []),
           { label: 'Custo do lote', value: formatMoney(cost.batchCents, ctx.locale) },
           {
             label: 'Perda prevista',
-            value: `${(cost.lossFraction * 100).toFixed(1).replace('.', ',')}%`,
+            value: formatPercent(cost.lossFraction, ctx.locale),
           },
         ],
         route: `/recipes/${product.recipeId}`,
@@ -60,6 +122,9 @@ const costOfProduct: Skill = {
     const items = await ctx.data.listItems();
     const item = findByName(items, term);
     if (item) return rateAnswer(item, ctx);
+
+    const ambiguos = [...namesakes(products, term), ...namesakes(items, term)];
+    if (ambiguos.length > 0) return whichOne(ambiguos, term);
 
     return { text: `Não encontrei nada chamado "${term.trim()}" no cadastro.` };
   },
@@ -86,7 +151,7 @@ function rateAnswer(
   item: Awaited<ReturnType<SkillContext['data']['listItems']>>[number],
   ctx: SkillContext,
 ): Answer {
-  const perThousand = formatMoney(Math.round(item.averageRate * 1_000), ctx.locale);
+  const perThousand = formatMoney(amountOf(item.averageRate ?? (0 as Rate), 1_000), ctx.locale);
   const detail = [
     { label: 'Custo médio', value: `${perThousand} a cada 1.000 ${item.baseUnit}` },
   ];
@@ -94,13 +159,13 @@ function rateAnswer(
   if (item.lastRate !== null) {
     detail.push({
       label: 'Última compra',
-      value: `${formatMoney(Math.round(item.lastRate * 1_000), ctx.locale)} a cada 1.000 ${item.baseUnit}`,
+      value: `${formatMoney(amountOf(item.lastRate, 1_000), ctx.locale)} a cada 1.000 ${item.baseUnit}`,
     });
   }
   if (item.purchaseUnit && item.purchaseToBase) {
     detail.push({
       label: item.purchaseUnit,
-      value: formatMoney(Math.round(item.averageRate * item.purchaseToBase), ctx.locale),
+      value: formatMoney(amountOf(item.averageRate ?? (0 as Rate), item.purchaseToBase), ctx.locale),
     });
   }
 
@@ -126,28 +191,184 @@ const whatMoved: Skill = {
       return { text: 'Nenhum preço mudou desde a última vez. Está tudo estável.' };
     }
 
-    const worst = [...moved].sort((a, b) => {
-      const da = Math.abs((b.newRate - (b.previousRate ?? 0)) / (b.previousRate || 1));
-      const db = Math.abs((a.newRate - (a.previousRate ?? 0)) / (a.previousRate || 1));
-      return da - db;
-    })[0];
+    /**
+     * A conta é UMA, e vem do domínio — e o `|| 1` anunciava um percentual inventado.
+     *
+     * Eram quatro cópias de `(agora - (ant ?? 0)) / (ant || 1)` neste bloco. O filtro de cima
+     * cobre o anterior NULO, e não o anterior ZERO: com base zero o `|| 1` divide por um, e o
+     * assistente anuncia um percentual IGUAL à própria taxa — 0,55 centavo por grama sai como
+     * *"subiu 55%"*. O razão aceita taxa zero (amostra, brinde, correção), então isso é
+     * alcançável, e a resposta falada é a que o dono repete para o fornecedor.
+     *
+     * `variacaoDoCusto` devolve `null` para base zero. Um item sem base não disputa o "maior",
+     * porque não há percentual para comparar; ele continua na lista de baixo, com o rótulo.
+     */
+    const comVariacao = moved
+      .map((c) => ({ c, delta: variacaoDoCusto(c.previousRate, c.newRate) }))
+      .filter((x): x is { c: (typeof moved)[number]; delta: number } => x.delta !== null);
 
-    const change = (worst.newRate - (worst.previousRate ?? 0)) / (worst.previousRate || 1);
+    if (comVariacao.length === 0) {
+      // Todos sem base para percentual: dizer "o maior foi X, que subiu 0%" seria inventar.
+      return {
+        text: `${moved.length} ${moved.length === 1 ? 'item passou' : 'itens passaram'} a ter preço.`,
+        detail: moved.map((c) => ({ label: c.name, value: 'preço novo' })),
+        route: '/purchase',
+      };
+    }
+
+    const pior = [...comVariacao].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))[0];
+    const worst = pior.c;
+    const change = pior.delta;
 
     return {
       text:
         `${moved.length} ${moved.length === 1 ? 'item mudou' : 'itens mudaram'} de preço. ` +
-        `O maior foi ${worst.name}, que ${movePhrase(change)}.`,
-      detail: moved.map((c) => ({
-        label: c.name,
-        value: movePhrase((c.newRate - (c.previousRate ?? 0)) / (c.previousRate || 1)),
-      })),
+        `O maior foi ${worst.name}, que ${movePhrase(change, ctx.locale)}.`,
+      detail: moved.map((c) => {
+        const d = variacaoDoCusto(c.previousRate, c.newRate);
+        return {
+          label: c.name,
+          value: d === null ? 'preço novo' : movePhrase(d, ctx.locale),
+        };
+      }),
       route: '/purchase',
     };
   },
 };
 
 /** "o que mais pesa no picolé de morango" - where the money actually goes. */
+/** "quanto saiu hoje" - o que o tacho pôs para fora, e contra o que se compara. */
+const producedToday: Skill = {
+  id: 'produced_today',
+  example: 'quanto saiu hoje',
+  /**
+   * Só HOJE — e a pergunta sobre outro dia cai no "ainda não sei responder".
+   *
+   * O `(?:hoje)?` no fim é opcional, então *"quanto saiu ontem"* casava e a resposta
+   * vinha com o número de hoje, na frase *"Saíram 900 unidades hoje"*. Quem pergunta
+   * lê o número e ignora a palavra: é o pior formato de resposta errada, porque ela
+   * está certa sobre outra coisa.
+   *
+   * Recusar é melhor que responder torto: o "ainda não sei" já lista o que ele sabe,
+   * e a pessoa vai para a tela onde a janela se escolhe. Habilidade nova está
+   * congelada até o modo áudio existir (decisão de 6 de setembro no topo deste
+   * módulo), então a saída certa hoje é não casar.
+   */
+  match: (q) => {
+    const texto = normalize(q);
+    if (/\b(ontem|anteontem|semana passada|mes passado|m[eê]s passado|ano passado)\b/.test(texto)) {
+      return null;
+    }
+    return texto.match(
+      /(?:quanto|quantos|o que).*(?:saiu|sa[ií]ram|produz(?:i|iu|imos)).*(?:hoje)?|produ[cç][aã]o de hoje/,
+    );
+  },
+  run: async (_m, ctx) => {
+    const hoje = dayWindow(nowIso(), ctx.locale.timeZone);
+    const antes = dayWindow(nowIso(), ctx.locale.timeZone, -7);
+
+    const [feito, comparado] = await Promise.all([
+      ctx.data.productionOn(hoje.from, hoje.to),
+      ctx.data.productionOn(antes.from, antes.to),
+    ]);
+
+    const total = feito.reduce((n, r) => n + r.baseUnits, 0);
+    const entao = comparado.reduce((n, r) => n + r.baseUnits, 0);
+
+    if (total === 0) {
+      // Nada saiu ainda é resposta, e não falha. A tela da capa diz o mesmo.
+      return { text: 'Nada saiu da produção hoje ainda.', route: '/production' };
+    }
+
+    const diferenca = total - entao;
+    const comparacao =
+      entao === 0
+        ? 'Não há semana passada para comparar.'
+        : diferenca === 0
+          ? 'O mesmo que no mesmo dia da semana passada.'
+          : `${formatQuantity(Math.abs(diferenca), ctx.locale)} ${diferenca > 0 ? 'a mais' : 'a menos'} que no mesmo dia da semana passada.`;
+
+    return {
+      text: `Saíram ${formatQuantity(total, ctx.locale)} unidades hoje. ${comparacao}`,
+      detail: feito.map((r) => ({
+        label: r.name,
+        value: `${formatQuantity(r.baseUnits, ctx.locale)} unidades`,
+      })),
+      route: '/production',
+    };
+  },
+};
+
+/**
+ * As cinco palavras da perda, em português.
+ *
+ * Cravadas aqui de propósito, e a decisão está no topo de `index.ts`: este
+ * assistente é honestamente monolíngue, porque casar frase por expressão
+ * regular só funciona numa língua. Traduzir as respostas e deixar as perguntas
+ * em português seria meio trabalho disfarçado de internacionalização - as telas
+ * é que falam três idiomas.
+ */
+const MOTIVO: Record<string, string> = {
+  expired: 'coisa vencida',
+  melted: 'coisa derretida',
+  broken: 'coisa quebrada',
+  courtesy: 'cortesia',
+  internal_use: 'consumo interno',
+};
+
+/** "o que a gente perdeu" - onde o dinheiro que some está indo. */
+const whatWasLost: Skill = {
+  id: 'what_was_lost',
+  example: 'o que a gente perdeu esse mês',
+  requires: 'view_cost',
+  match: (q) =>
+    normalize(q).match(/(?:o que|quanto).*(?:perde|perdi|perdeu|perdemos)|perdas?( do| deste| desse)? (?:mes|mês|periodo)/),
+  run: async (_m, ctx) => {
+    const hoje = dayWindow(nowIso(), ctx.locale.timeZone);
+    const inicio = dayWindow(nowIso(), ctx.locale.timeZone, -29);
+    const perdas = await ctx.data.lossesOn(inicio.from, hoje.to);
+
+    if (perdas.length === 0) {
+      // Nada perdido é resposta, e boa. Inventar um alerta aqui ensinaria a
+      // ignorar o alerta de quando houver.
+      return { text: 'Nenhuma perda registrada nos últimos 30 dias.', route: '/losses' };
+    }
+
+    const total = perdas.reduce((n, p) => n + (p.valueCents ?? 0), 0);
+
+    // Por motivo, porque é o motivo que muda a decisão: derreteu manda olhar o
+    // freezer, venceu manda olhar a compra.
+    const porMotivo = new Map<string, number>();
+    for (const p of perdas) porMotivo.set(p.reason, (porMotivo.get(p.reason) ?? 0) + (p.valueCents ?? 0));
+    const pior = [...porMotivo.entries()].sort((a, b) => b[1] - a[1])[0];
+
+    return {
+      text:
+        `Você perdeu ${formatMoney(total, ctx.locale)} em 30 dias. ` +
+        `O que mais pesou foi ${MOTIVO[pior[0]] ?? pior[0]}, com ${formatMoney(pior[1], ctx.locale)}.`,
+      /**
+       * Por MOTIVO, e é isso que fecha a conta — eram as cinco primeiras perdas, `slice(0, 5)`.
+       *
+       * Duas coisas erradas nesse corte. As cinco linhas não somam a manchete quando houve
+       * doze, e nada dizia que faltavam sete: truncamento silencioso, que este projeto persegue
+       * em toda parte porque ele LÊ como cobertura completa. E o corte respondia outra pergunta
+       * que não a da manchete — ela diz *"o que mais pesou foi derreteu"*, então o detalhamento
+       * que a abre é por motivo, não por item.
+       *
+       * O agrupamento já estava calculado três linhas acima, para achar o pior. Ele só não
+       * estava sendo mostrado.
+       */
+      detail: [...porMotivo.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([motivo, cents]) => ({
+          label: MOTIVO[motivo] ?? motivo,
+          value: formatMoney(cents, ctx.locale),
+        })),
+      route: '/losses',
+    };
+  },
+};
+
 const whatDominates: Skill = {
   id: 'what_dominates',
   example: 'o que mais pesa no picolé de morango',
@@ -163,9 +384,15 @@ const whatDominates: Skill = {
     ]);
 
     const product = findByName(products, m[1]);
+    if (!product) {
+      const ambiguos = namesakes(products, m[1]);
+      if (ambiguos.length > 0) return whichOne(ambiguos, m[1]);
+    }
     if (!product?.recipeId) return { text: `Não encontrei a receita de "${m[1].trim()}".` };
 
-    const cost = costRecipe(product.recipeId, graph, costs, names);
+    // `?? {}` porque esta habilidade declara `requires: 'view_cost'`: o portão do
+    // repositório está aberto quando ela roda, e nulo é inalcançável aqui.
+    const cost = costRecipe(product.recipeId, graph, costs ?? {}, names);
     const sorted = [...cost.lines].sort((a, b) => b.share - a.share);
     if (sorted.length === 0) return { text: `${product.name} ainda não tem ingredientes.` };
 
@@ -207,8 +434,32 @@ const registerPurchase: Skill = {
       return { text: 'Não entendi a quantidade ou o valor. Pode repetir com os números?' };
     }
 
-    const factor = item.purchaseToBase ?? 1;
-    const baseUnits = Math.round(packs * factor);
+    // The same conversion the purchase screen calls. It was typed by hand here
+    // as well, which made three copies of one rule: screen, repository, and
+    // assistant. Three copies agree until one is corrected, and then the
+    // assistant answers a different number than the screen for the same
+    // invoice - which is exactly the credibility this product cannot spend.
+    const baseUnits = purchaseToBaseUnits(item, packs);
+    /**
+     * A conversão pode virar ZERO com pacote maior que zero, e aí não há nota.
+     *
+     * `purchaseToBaseUnits` arredonda, então num item comprado na própria unidade-base
+     * "0,4 saco" é 0. A checagem uma linha acima olha o que a PESSOA disse (`packs`), não o
+     * que o sistema calculou — e eram duas perguntas diferentes escondidas numa.
+     *
+     * Sem isto o assistente montava o rascunho, mostrava "0,4 × unidade = 0 g" como se fosse
+     * confirmação legítima, e `recordPurchase` recusava no `apply` — erro RECLAMANDO depois
+     * do toque, quando a Lei 5 manda impedir antes. A tela da compra faz o mesmo: o botão
+     * não dispara e a linha embaixo do campo diz o que fazer.
+     */
+    if (baseUnits <= 0) {
+      return {
+        text:
+          `${formatQuantity(packs, ctx.locale)} ${item.purchaseUnit ?? 'unidade'} de ` +
+          `${item.name} dá menos de 1 ${item.baseUnit} e some no arredondamento. ` +
+          'Diga uma quantidade maior.',
+      };
+    }
     const totalCents = fromDecimal(paid);
 
     return {
@@ -236,6 +487,7 @@ const registerPurchase: Skill = {
             purchaseQuantity: packs,
             baseUnits,
             totalCents,
+            assistantPhrase: ctx.question,
           });
         },
       },
@@ -244,11 +496,22 @@ const registerPurchase: Skill = {
   },
 };
 
-/** "quais insumos eu tenho" - the second question anybody asks. */
+/**
+ * "quais insumos eu tenho" - the second question anybody asks.
+ *
+ * **Ela NÃO exige `view_cost`, e exigia.** A declaração nunca tinha mordido porque
+ * o assistente perguntava a um conjunto chumbado (`capabilitiesFor('owner')`); no
+ * dia em que ele passou a perguntar quem está com o aparelho, a segunda pergunta
+ * que qualquer pessoa faz passou a ser recusada para quem embala — e "quais insumos
+ * eu tenho" é pergunta de quantidade, não de dinheiro.
+ *
+ * O jeito certo já existia duas habilidades acima: ramificar por capacidade DENTRO
+ * da resposta. Quem vê dinheiro recebe o valor parado e o aviso de item sem preço;
+ * quem não vê recebe a lista e o saldo, que é o que a pergunta pediu.
+ */
 const listInputs: Skill = {
   id: 'list_inputs',
   example: 'quais insumos eu tenho',
-  requires: 'view_cost',
   match: (q) =>
     normalize(q).match(
       /(?:quais|quantos|liste?|lista de|meus|minhas)\s+(?:os |as )?(?:insumos|ingredientes|materiais|itens)/,
@@ -261,25 +524,45 @@ const listInputs: Skill = {
       return { text: 'Ainda não há nenhum insumo cadastrado.', route: '/inputs' };
     }
 
+    const dinheiro = ctx.capabilities.has('view_cost');
     const held = stock.reduce(
-      (total, item) => total + Math.round(item.averageRate * item.onHandBaseUnits),
+      (total, item) => total + amountOf(item.averageRate ?? (0 as Rate), item.onHandBaseUnits),
       0,
     );
-    const unpriced = stock.filter((i) => i.averageRate <= 0);
+    // `!== null` e não `<= 0`: nulo em JavaScript é MENOR que zero numa comparação
+    // relacional, então sem isto "ainda sem preço" contaria todo o almoxarifado
+    // para quem só não pode ver preço — orientação falsa, mandando lançar nota que
+    // já existe. É o mesmo defeito que a tela de insumos já corrigiu.
+    const unpriced = stock.filter((i) => i.averageRate !== null && i.averageRate <= 0);
 
     return {
-      text:
-        `Você tem ${stock.length} itens cadastrados, com ${formatMoney(held, ctx.locale)} ` +
-        `parado no almoxarifado.` +
-        (unpriced.length > 0
-          ? ` ${unpriced.length} ainda sem preço — lance a nota e o custo aparece sozinho.`
-          : ''),
+      text: dinheiro
+        ? `Você tem ${stock.length} itens cadastrados, com ${formatMoney(held, ctx.locale)} ` +
+          `parado no almoxarifado.` +
+          (unpriced.length > 0
+            ? ` ${unpriced.length} ainda sem preço — lance a nota e o custo aparece sozinho.`
+            : '')
+        : `Você tem ${stock.length} itens cadastrados.`,
+      /**
+       * A conta ABRE: cada linha é a parcela do total, não o preço por 1.000 unidades.
+       *
+       * A manchete dizia *"R$ X parado no almoxarifado"* e o detalhamento listava o preço
+       * unitário — dois números certos que não se encontram: somar as linhas não chega ao total,
+       * por nenhuma aritmética. A Lei 6 pede que toda conclusão abra a conta, e "abrir" aqui
+       * significa que as parcelas somam a manchete; um detalhamento que não soma é pior que
+       * nenhum, porque ele parece a conta e não é.
+       *
+       * O preço por 1.000 não se perde: ele é a outra pergunta (*"quanto custa o quilo"*), e a
+       * ficha do insumo a responde. Aqui a pergunta é quanto está parado, e cada linha diz
+       * quanto dela está parado.
+       */
       detail: stock.map((item) => ({
         label: item.name,
-        value:
-          item.averageRate > 0
-            ? `${formatMoney(Math.round(item.averageRate * 1_000), ctx.locale)} / 1.000 ${item.baseUnit}`
-            : 'sem preço',
+        value: dinheiro
+          ? item.averageRate !== null && item.averageRate > 0
+            ? formatMoney(amountOf(item.averageRate, item.onHandBaseUnits), ctx.locale)
+            : 'sem preço'
+          : `${formatQuantity(item.onHandBaseUnits, ctx.locale)} ${item.baseUnit}`,
       })),
       route: '/inputs',
     };
@@ -303,7 +586,8 @@ const eraseHelp: Skill = {
     text:
       'Isso fica em Ajustes. Dá para limpar uma área de cada vez ou tudo de uma vez, e antes de ' +
       'apagar o aplicativo conta exatamente quantos insumos, receitas e produtos vão embora.',
-    detail: [
+    // Instrução, não aritmética: fica na tela em vez de esperar um toque.
+    list: [
       { label: 'Uma área', value: 'compras, receitas, produtos ou insumos' },
       { label: 'Tudo', value: 'e o exemplo não volta sozinho depois' },
       { label: 'Voltar atrás', value: 'não tem — por isso a confirmação é por extenso' },
@@ -340,7 +624,7 @@ const stockOfInput: Skill = {
 
     const held = `${formatQuantity(item.onHandBaseUnits, ctx.locale)} ${item.baseUnit}`;
     const movements = await ctx.data.itemMovements(item.id, 20);
-    const counted = movements.find((mv) => mv.kind === 'adjustment');
+    const counted = movements.find((mv) => ehConferencia(mv.kind));
 
     const detail = [{ label: 'Em estoque', value: held }];
 
@@ -354,7 +638,7 @@ const stockOfInput: Skill = {
     if (ctx.capabilities.has('view_cost')) {
       detail.push({
         label: 'Valor parado',
-        value: formatMoney(Math.round(item.averageRate * item.onHandBaseUnits), ctx.locale),
+        value: formatMoney(amountOf(item.averageRate ?? (0 as Rate), item.onHandBaseUnits), ctx.locale),
       });
     }
 
@@ -404,9 +688,45 @@ const registerCount: Skill = {
       return { text: 'Não entendi a quantidade. Pode repetir com o número?' };
     }
 
+    // Em que lugares este item está de verdade.
+    //
+    // A decisão registrada em `src/data/assistantData.ts` dizia que o
+    // assistente conta o lugar padrão "enquanto houver um só, e quando existir
+    // mais de um a habilidade passa a perguntar qual". A condição chegou: as
+    // telas de almoxarifado já filtram por sala. Sem esta checagem o assistente
+    // compara com o total da empresa e grava a diferença no almoxarifado - a
+    // mesma teleportação que a tela de detalhe tinha.
+    const holding = (await ctx.data.stockByPlace()).filter((place) =>
+      place.lines.some((line) => line.itemId === item.id),
+    );
+    if (holding.length > 1) {
+      const nomes = holding.map((place) => place.locationName.trim() || 'Fábrica').join(', ');
+      return {
+        text: `${item.name} está em ${holding.length} lugares: ${nomes}. Conte um lugar por vez - abra o item e escolha o lugar.`,
+        route: `/inputs/${item.id}`,
+      };
+    }
+
     const factor = item.purchaseToBase ?? 1;
     const countedBaseUnits = Math.round(packs * factor);
-    const expected = item.onHandBaseUnits;
+
+    /**
+     * O esperado sai do LUGAR que vai ser contado, não do total do item.
+     *
+     * Vinha de `item.onHandBaseUnits`, e a escrita comparava com o saldo da sala:
+     * com o açúcar só na câmara fria, o rascunho prometia *"faltam 25.000 g"* e o
+     * razão recebia um ajuste que SOMAVA 25.000, porque o esperado onde a escrita
+     * olha era zero. A confirmação e o livro falavam de lugares diferentes — e a
+     * pessoa disse sim para a frase, não para a linha.
+     *
+     * Com o item num lugar só, esse lugar é a resposta: comparar e gravar ali faz a
+     * promessa e o razão serem a mesma conta. Sem lugar nenhum (item novo, saldo
+     * zero) fica o padrão, onde a diferença parte de zero de qualquer jeito.
+     */
+    const onde = holding.length === 1 ? holding[0] : null;
+    const expected = onde
+      ? (onde.lines.find((line) => line.itemId === item.id)?.baseUnits ?? 0)
+      : item.onHandBaseUnits;
     const delta = countedBaseUnits - expected;
 
     const asWords = (n: number) => `${formatQuantity(n, ctx.locale)} ${item.baseUnit}`;
@@ -434,7 +754,12 @@ const registerCount: Skill = {
           `Registrar que você contou ${asWords(countedBaseUnits)} de ${item.name}. ` +
           `${difference} A diferença fica registrada e nada é apagado.`,
         apply: async () => {
-          await ctx.data.recordCount({ itemId: item.id, countedBaseUnits });
+          await ctx.data.recordCount({
+            itemId: item.id,
+            locationId: onde?.locationId ?? null,
+            countedBaseUnits,
+            assistantPhrase: ctx.question,
+          });
         },
       },
       route: `/inputs/${item.id}`,
@@ -442,14 +767,538 @@ const registerCount: Skill = {
   },
 };
 
+/**
+ * "cadastrar polpa de morango, balde 10 kg" - the first thing anybody has to do,
+ * and the thing that stops them.
+ *
+ * Nobody sets up sixty inputs on a form before seeing the app do anything, and
+ * the person this product is for is the least likely to try. The clause this
+ * project set for itself says a module is only finished when the assistant can
+ * both answer about it and fill it in; until now it could only answer.
+ *
+ * The package is read, not asked for: "balde 10 kg" is 10000 g, by the same
+ * function the cadastro screen uses. When it cannot be read with certainty the
+ * item is still created - a named input with no factor is useful and honest,
+ * and the screen it routes to is where the number gets finished.
+ */
+const registerInput: Skill = {
+  id: 'register_input',
+  example: 'cadastrar polpa de morango, balde 10 kg',
+  requires: 'manage_company',
+  /**
+   * Matched on the RAW question, unlike every other skill here, and the reason
+   * is that this one stores what it captures.
+   *
+   * `normalize` strips accents so that "acai" finds "açaí" - exactly right when
+   * the phrase MENTIONS something that already exists. Here the phrase names
+   * something new, and the normalised capture would put "polpa de acai" in the
+   * person's catalogue for good. The verbs carry no accents, so a raw
+   * case-insensitive match costs nothing.
+   */
+  match: (q) => q.match(/(?:cadastrar|cadastre|criar|crie|novo)\s+(?:insumo\s+)?(.+?)\s*,\s*(.+)$/i),
+  run: async (m, ctx) => {
+    const name = m[1].trim();
+    const pack = m[2].trim();
+    if (name.length < 2) return { text: 'Não entendi o nome do insumo.' };
+
+    // Exact match, deliberately - not `findByName`, which falls back to any
+    // shared significant word. That fallback is right when somebody MENTIONS an
+    // item and wrong when deciding a name is taken: "polpa de açaí" shares
+    // "polpa" with "polpa de morango", and a factory has several of them.
+    const items = await ctx.data.listItems();
+    const existing = items.find((i) => normalize(i.name) === normalize(name));
+    if (existing) {
+      return {
+        text: `"${existing.name}" já está cadastrado.`,
+        route: `/inputs/${existing.id}`,
+      };
+    }
+
+    const baseUnit = 'g';
+    const perPack = packSize(pack, baseUnit);
+
+    return {
+      text: perPack
+        ? 'Preparei o cadastro. Confira antes de eu gravar.'
+        : 'Preparei o cadastro. Não consegui ler o tamanho da embalagem — dá para completar depois na tela.',
+      // Os campos do rascunho ficam com o rascunho, abertos: são o que vai ser
+      // gravado, não a conta de uma conclusão.
+      list: [
+        { label: 'Nome', value: name },
+        { label: 'Embalagem', value: pack },
+        {
+          label: 'Quanto vem dentro',
+          value: perPack ? `${formatQuantity(perPack, ctx.locale)} ${baseUnit}` : 'a completar',
+        },
+      ],
+      draft: {
+        kind: 'item',
+        summary:
+          `Cadastrar ${name}, comprado em ${pack}` +
+          (perPack ? `, com ${formatQuantity(perPack, ctx.locale)} ${baseUnit} dentro. ` : '. ') +
+          'O preço não entra aqui: ele vem da primeira nota de compra.',
+        apply: async () => {
+          await ctx.data.saveItem({
+            kind: 'input',
+            name,
+            purchaseUnit: pack,
+            purchaseToBase: perPack,
+            baseUnit,
+          });
+        },
+      },
+      route: '/inputs',
+    };
+  },
+};
+
+
+/**
+ * "o que tem na loja centro" — a pergunta que só existe depois de haver lugares.
+ *
+ * Vem antes de `stockOfInput` no registro, e a ordem não é estética: "quanto
+ * tem na loja centro" casa com as duas, e a que responde certo é esta. Quem
+ * pergunta por um lugar não está perguntando por um item chamado "na loja".
+ */
+const stockAtPlace: Skill = {
+  id: 'stock_at_place',
+  example: 'o que tem na loja centro',
+  match: (q) =>
+    normalize(q).match(/(?:o que|quanto|quantos|que)\s+(?:tem|tenho|ha|resta|restam)\s+(?:na|no|em)\s+(.+)/),
+  run: async (m, ctx) => {
+    const asked = m[1].trim();
+    const places = await ctx.data.stockByPlace();
+    const named = await ctx.data.listPlaces();
+
+    // O padrão nasce sem nome. Quem pergunta pela fábrica está perguntando por
+    // ele, e é aqui que a palavra existe.
+    const nameOf = (id: string, raw: string) =>
+      raw.trim() || (id === ctx.data.defaultPlaceId() ? 'Fábrica' : id);
+
+    const place =
+      places.find((p) => normalize(nameOf(p.locationId, p.locationName)).includes(normalize(asked))) ??
+      (normalize(asked).match(/fabrica|almoxarifado|estoque/)
+        ? places.find((p) => p.locationId === ctx.data.defaultPlaceId())
+        : undefined);
+
+    if (!place) {
+      const exists = named.some((p) => normalize(nameOf(p.id, p.name)).includes(normalize(asked)));
+      return {
+        text: exists
+          ? `Não tem nada em ${asked} agora.`
+          : `Não encontrei um lugar chamado "${asked}".`,
+        route: '/places',
+      };
+    }
+
+    const where = nameOf(place.locationId, place.locationName);
+    /**
+     * Quando há dinheiro, cada linha leva a PARCELA dela — senão o "Valor parado" do fim é um
+     * total sem partes.
+     *
+     * O detalhamento listava quantidade por item e acrescentava uma linha com o valor somado. A
+     * pessoa lia *"Valor parado: R$ 1.240,00"* sem poder saber de quem vinha, e a Lei 6 existe
+     * exatamente para isso: a conclusão tem de ser auditável na própria tela. `valueCents` já
+     * vem por linha do `stockByPlace` — o número estava ali, sem ser mostrado.
+     *
+     * Sem `view_cost` nada muda: a linha diz a quantidade, e o total não existe.
+     */
+    const dinheiro = ctx.capabilities.has('view_cost');
+    const detail = place.lines.map((l) => ({
+      label: l.name,
+      value:
+        dinheiro && l.valueCents !== null
+          ? `${formatQuantity(l.baseUnits, ctx.locale)} ${l.baseUnit} · ${formatMoney(l.valueCents, ctx.locale)}`
+          : `${formatQuantity(l.baseUnits, ctx.locale)} ${l.baseUnit}`,
+    }));
+
+    if (dinheiro) {
+      detail.push({ label: 'Valor parado', value: formatMoney(place.valueCents ?? 0, ctx.locale) });
+    }
+
+    const first = place.lines[0];
+    return {
+      text:
+        place.lines.length === 1 && first
+          ? `Em ${where} tem ${formatQuantity(first.baseUnits, ctx.locale)} ${first.baseUnit} de ${first.name}.`
+          : `Em ${where} tem ${place.lines.length} itens.`,
+      detail,
+      route: '/places',
+    };
+  },
+};
+
+/**
+ * "onde está o açúcar" — o mesmo saldo lido pelo outro eixo.
+ *
+ * Uma consulta só, dois eixos: se esta habilidade tivesse SQL próprio ela
+ * acabaria discordando da tela na semana em que alguém mexesse numa das duas.
+ */
+const whereIsItem: Skill = {
+  id: 'where_is_item',
+  example: 'onde está o açúcar',
+  match: (q) => normalize(q).match(/onde\s+(?:esta|estao|fica|ficam|tem)\s+(?:o |a |os |as )?(.+)/),
+  run: async (m, ctx) => {
+    const items = await ctx.data.listItems();
+    const item = findByName(items, m[1]);
+    if (!item) return { text: `Não encontrei "${m[1].trim()}" no almoxarifado.` };
+
+    const places = await ctx.data.stockByPlace();
+    const nameOf = (id: string, raw: string) =>
+      raw.trim() || (id === ctx.data.defaultPlaceId() ? 'Fábrica' : id);
+
+    const spread = places
+      .map((p) => ({
+        where: nameOf(p.locationId, p.locationName),
+        line: p.lines.find((l) => l.itemId === item.id),
+      }))
+      .filter((r) => r.line != null);
+
+    if (spread.length === 0) {
+      return { text: `Não tem ${item.name} em lugar nenhum agora.`, route: '/places' };
+    }
+
+    const say = (n: number) => `${formatQuantity(n, ctx.locale)} ${item.baseUnit}`;
+    return {
+      text:
+        spread.length === 1
+          ? `Todo o ${item.name} está em ${spread[0].where}: ${say(spread[0].line!.baseUnits)}.`
+          : `O ${item.name} está em ${spread.length} lugares.`,
+      detail: spread.map((r) => ({ label: r.where, value: say(r.line!.baseUnits) })),
+      route: '/places',
+    };
+  },
+};
+
+/**
+ * "produzi 480 picolés de morango" — a corrida do tacho, dita em voz alta.
+ *
+ * O número de tachos não está na frase e não é dedutível dela: 480 unidades
+ * podem ser um tacho que rendeu menos ou dois que renderam muito menos, e a
+ * razão entre os dois **é** o rendimento real, que é metade do valor de
+ * registrar produção. Então o assistente assume um, **diz que assumiu**, e
+ * ensina a frase que corrige — a suposição aparece antes de gravar, nunca
+ * depois. Quem disser "em 2 tachos" é obedecido ao pé da letra.
+ */
+const registerProduction: Skill = {
+  id: 'register_production',
+  example: 'produzi 480 picolés de morango',
+  requires: 'record_production',
+  match: (q) =>
+    normalize(q).match(
+      // `tachos?` continua aqui, e continuar é a decisão: quem DIZ "tacho" tem de ser
+      // entendido. O que mudou em 8 de setembro é que o aplicativo não FALA a palavra —
+      // aceitar vocabulário de quem usa é o contrário de impor o de uma indústria.
+      /(?:produzi|fiz|fabriquei|sairam|rodei)\s+([\d.,]+)\s+(?:\w+\s+)??(?:de\s+)?(.+?)(?:\s+em\s+([\d.,]+)\s+(?:tachos?|vezes|bateladas|receitas))?$/, // entrada, não fala
+    ),
+  run: async (m, ctx) => {
+    const units = parseNumber(m[1]);
+    const products = (await ctx.data.listProducts()).filter((p) => p.recipeId);
+    const product = findByName(products, m[2]);
+
+    if (!product) {
+      const ambiguos = namesakes(products, m[2]);
+      if (ambiguos.length > 0) return whichOne(ambiguos, m[2]);
+      return { text: `Não encontrei um produto chamado "${m[2].trim()}" com ficha técnica.` };
+    }
+    if (units === null || units <= 0) {
+      return { text: 'Não entendi quantas unidades saíram. Pode repetir com o número?' };
+    }
+
+    const declarados = m[3] ? parseNumber(m[3]) : null;
+    if (m[3] && (declarados === null || declarados <= 0)) {
+      return { text: 'Não entendi quantas vezes a receita rodou.' };
+    }
+
+    const graph = await ctx.data.loadRecipeGraph();
+    const recipe = product.recipeId ? graph.atual[product.recipeId] : undefined;
+    if (!recipe) return { text: `A receita de ${product.name} não está neste aparelho.` };
+
+    const perUnit = product.yieldPerUnit ?? 0;
+    const porTacho =
+      perUnit > 0 ? Math.floor((recipe.yieldAmount * (1 - recipe.lossFraction)) / perUnit) : 0;
+
+    /**
+     * Sem tacho dito, o consumo vem do que saiu — não de um tacho suposto.
+     *
+     * Isto assumia `1` calado, e um tacho suposto é polpa debitada que ninguém
+     * declarou: três tachos rodados e um tacho baixado deixa dois tachos de
+     * polpa na prateleira que não existem mais. É a mesma inversão que o dono
+     * apontou na tela, e ela estava aqui também.
+     */
+    const batches = declarados ?? (porTacho > 0 ? units / porTacho : 0);
+    if (batches <= 0) {
+      return { text: `A ficha de ${product.name} não diz quanto ela rende por vez.` };
+    }
+
+    const planned = Math.floor(porTacho * batches);
+
+    const detail = [
+      { label: 'Produto', value: product.name },
+      {
+        label: 'Vezes',
+        value: m[3]
+          ? formatDecimal(batches, ctx.locale)
+          : `${formatDecimal(batches, ctx.locale)} (pelo que saiu)`,
+      },
+      { label: 'Saíram', value: `${formatQuantity(units, ctx.locale)} un` },
+    ];
+    if (planned > 0) {
+      detail.push({
+        label: 'A ficha previa',
+        value: `${formatQuantity(planned, ctx.locale)} un`,
+      });
+    }
+
+    const assumed = m[3]
+      ? ''
+      : ' Contei os insumos pelo que saiu; se rodou a receita inteira, diga "em 2 vezes" que eu refaço.';
+
+    return {
+      text: 'Preparei a produção. Confira antes de eu gravar.' + assumed,
+      detail,
+      draft: {
+        kind: 'production',
+        summary:
+          `Registrar ${formatQuantity(units, ctx.locale)} unidades de ${product.name}, ` +
+          `em ${batches === 1 ? 'uma vez' : `${formatDecimal(batches, ctx.locale)} vezes`}. ` +
+          'Os insumos saem do almoxarifado e o custo por unidade fica congelado nesta corrida.',
+        apply: async () => {
+          await ctx.data.recordProduction({
+            productId: product.id,
+            batches,
+            unitsProduced: units,
+            assistantPhrase: ctx.question,
+          });
+        },
+      },
+      route: '/production',
+    };
+  },
+};
+
+/**
+ * "mandei 6000 de açúcar para a loja centro" — a carga que sai da fábrica.
+ *
+ * Recusa cedo e por escrito: se o lugar não existe, se o item não existe, ou se
+ * não tem tanto lá, nada é preparado. Um rascunho que só falha na hora de
+ * gravar é pior que nenhum, porque a pessoa já confiou nele.
+ */
+const registerTransfer: Skill = {
+  id: 'register_transfer',
+  example: 'mandei 6000 de açúcar para a loja centro',
+  requires: 'dispatch',
+  match: (q) =>
+    normalize(q).match(
+      /(?:mandei|enviei|levei|transferi|mandar)\s+([\d.,]+)\s*(?:\w+\s+)??(?:de\s+)?(.+?)\s+(?:para|pra|pro)\s+(?:a |o |as |os )?(.+)/,
+    ),
+  run: async (m, ctx) => {
+    const amount = parseNumber(m[1]);
+    const items = await ctx.data.listItems();
+    const item = findByName(items, m[2]);
+    const places = await ctx.data.listPlaces();
+    const from = ctx.data.defaultPlaceId();
+
+    const nameOf = (id: string, raw: string) => raw.trim() || (id === from ? 'Fábrica' : id);
+    const to = places
+      .filter((p) => p.id !== from)
+      .find((p) => normalize(nameOf(p.id, p.name)).includes(normalize(m[3])));
+
+    if (!item) return { text: `Não encontrei "${m[2].trim()}" no almoxarifado.` };
+    if (!to) {
+      return {
+        text: `Não encontrei um lugar chamado "${m[3].trim()}". Cadastre ele primeiro.`,
+        route: '/places',
+      };
+    }
+    if (amount === null || amount <= 0) {
+      return { text: 'Não entendi a quantidade. Pode repetir com o número?' };
+    }
+
+    const here = (await ctx.data.stockByPlace()).find((p) => p.locationId === from);
+    const held = here?.lines.find((l) => l.itemId === item.id)?.baseUnits ?? 0;
+    const say = (n: number) => `${formatQuantity(n, ctx.locale)} ${item.baseUnit}`;
+
+    if (amount > held) {
+      return {
+        text: `Tem só ${say(held)} de ${item.name} na fábrica, e você falou em ${say(amount)}.`,
+        route: '/transfer',
+      };
+    }
+
+    return {
+      text: 'Preparei a transferência. Confira antes de eu gravar.',
+      detail: [
+        { label: 'O que vai', value: item.name },
+        { label: 'Quanto', value: say(amount) },
+        { label: 'De onde', value: nameOf(from, '') },
+        { label: 'Para onde', value: nameOf(to.id, to.name) },
+        { label: 'Fica na fábrica', value: say(held - amount) },
+      ],
+      draft: {
+        kind: 'transfer',
+        summary:
+          `Mandar ${say(amount)} de ${item.name} da ${nameOf(from, '')} para ${nameOf(to.id, to.name)}. ` +
+          'Loja própria é transferência, não venda: o saldo muda de sala e a empresa continua com a mesma coisa.',
+        apply: async () => {
+          await ctx.data.recordTransfer({
+            itemId: item.id,
+            toLocationId: to.id,
+            baseUnits: amount,
+            assistantPhrase: ctx.question,
+          });
+        },
+      },
+      route: '/transfer',
+    };
+  },
+};
+
+/**
+ * "o que falta para 3 tachos de cada" — a pergunta de antes de ligar para o
+ * fornecedor.
+ *
+ * O aplicativo já avisava o que está acabando pela cobertura observada, que
+ * responde outra coisa: *quanto tempo dura no ritmo de sempre*. Esta responde
+ * pelo PLANO — vários produtos somados num pedido de compra só — e vira a conta
+ * do avesso: "precisa de 18.000 g de polpa" não decide nada para quem tem
+ * 40.000 na prateleira; "faltam 6.000" decide.
+ *
+ * Ela não escreve no livro-razão e não reserva nada: é simulação sobre o saldo
+ * de agora, e o saldo continua sendo o que os movimentos somam.
+ *
+ * "de cada" é o plano da fábrica inteira. Sem essa palavra, o nome do produto —
+ * porque quem pergunta por um sabor está planejando aquele sabor.
+ */
+const whatToBuy: Skill = {
+  id: 'what_to_buy',
+  example: 'o que falta para 3 receitas de cada',
+  /**
+   * `view_cost` aqui NÃO é sobre os números da resposta — é sobre o ato.
+   *
+   * Eu tirei esta linha e um teste me parou, com a decisão no próprio nome:
+   * *"the shopping list is a decision about buying, not something the borrowed
+   * phone sees"*. Estava certo e eu, errado: a resposta não tem uma cifra dentro,
+   * mas a rota dela é `/purchase`, e comprar é ato de quem cuida do dinheiro —
+   * não existe capacidade própria de compra no vocabulário, e `view_cost` é quem
+   * a representa.
+   *
+   * Fica registrado o atrito, porque ele é real e não é meu para resolver: *"o
+   * que falta para 3 tachos"* também é pergunta de quem produz, e no aparelho
+   * compartilhado ela passa a ser recusada. Se o certo é a mesma conta sem a
+   * lista de compras — "falta polpa para o que você planejou" sem rota de
+   * compra — é decisão de faseamento, e está escrita em `docs/roadmap.md`.
+   */
+  requires: 'view_cost',
+  match: (q) =>
+    normalize(q).match(
+      /(?:o que|quanto|do que)\s+(?:eu\s+)?(?:falta|preciso|precisa|tenho que|tem que)\s*(?:comprar)?[^\d]*([\d.,]+)\s*(?:tachos?|vezes|bateladas|receitas)\s*(?:de\s+(.+))?$/, // entrada, não fala
+    ),
+  run: async (m, ctx) => {
+    const batches = parseNumber(m[1]);
+    if (batches === null || batches <= 0) {
+      return { text: 'Não entendi quantas vezes. Pode repetir com o número?' };
+    }
+
+    const products = (await ctx.data.listProducts()).filter((p) => p.recipeId);
+    if (products.length === 0) {
+      return { text: 'Nenhum produto tem ficha técnica ainda.', route: '/products' };
+    }
+
+    const alvo = (m[2] ?? '').trim();
+    const todos = alvo === '' || /^(cada|todos|todas|tudo|cada um)$/.test(normalize(alvo));
+
+    let plano = products;
+    if (!todos) {
+      const um = findByName(products, alvo);
+      if (!um) {
+        const ambiguos = namesakes(products, alvo);
+        if (ambiguos.length > 0) return whichOne(ambiguos, alvo);
+        return { text: `Não encontrei um produto chamado "${alvo}" com ficha técnica.` };
+      }
+      plano = [um];
+    }
+
+    const [graph, items] = await Promise.all([ctx.data.loadRecipeGraph(), ctx.data.listItems()]);
+    const prateleira = new Map(items.map((i) => [i.id, i.onHandBaseUnits]));
+    const nome = new Map(items.map((i) => [i.id, i]));
+
+    const lista = shoppingList(
+      plano.map((p) => ({
+        recipeId: p.recipeId!,
+        batches,
+        yieldPerUnit: p.yieldPerUnit,
+        packaging: p.packagingItems,
+      })),
+      graph,
+      prateleira,
+    );
+
+    const faltando = lista.filter((l) => l.missing > 0);
+    // "vezes", nunca o nome da panela: o aplicativo vai para as lojas e uma fábrica
+    // de conserva não tem tacho. E o singular concorda — "1 vezes" é a marca de uma
+    // frase montada por máquina, e ela some justamente onde a pessoa mais lê.
+    const quantas = formatQuantity(batches, ctx.locale);
+    const vezes = batches === 1 ? `${quantas} vez` : `${quantas} vezes`;
+    const dizPlano = todos
+      ? `${vezes} de cada um dos ${plano.length} produtos`
+      : `${vezes} de ${plano[0].name}`;
+
+    // "Está tudo bem" é estado válido: uma lista de compras vazia é a melhor
+    // resposta possível, e ela é dita como resposta, não como silêncio.
+    if (faltando.length === 0) {
+      return {
+        text: `Para ${dizPlano}, não falta nada: dá para começar com o que está na prateleira.`,
+        detail: lista.map((line) => ({
+          label: nome.get(line.itemId)?.name ?? line.itemId,
+          value: `precisa ${formatQuantity(Math.round(line.needed), ctx.locale)} de ${formatQuantity(line.held, ctx.locale)} ${nome.get(line.itemId)?.baseUnit ?? ''}`,
+        })),
+        route: '/inputs',
+      };
+    }
+
+    return {
+      text:
+        `Para ${dizPlano}, faltam ${faltando.length} ` +
+        `${faltando.length === 1 ? 'insumo' : 'insumos'}.`,
+      detail: faltando.map((line) => {
+        const item = nome.get(line.itemId);
+        const unidade = item?.baseUnit ?? '';
+        return {
+          label: item?.name ?? line.itemId,
+          value:
+            `faltam ${formatQuantity(Math.round(line.missing), ctx.locale)} ${unidade} ` +
+            `(precisa ${formatQuantity(Math.round(line.needed), ctx.locale)}, tem ${formatQuantity(line.held, ctx.locale)})`,
+        };
+      }),
+      route: '/purchase',
+    };
+  },
+};
+
 export const phase1Skills: Skill[] = [
   registerPurchase,
+  // Before the questions: "cadastrar X, Y" is somebody creating, and no
+  // question in this list starts with that verb.
+  registerInput,
   // Before `stockOfInput`, which also answers to "tem": a phrase carrying a
   // number is somebody counting, not somebody asking.
   registerCount,
+  registerProduction,
+  registerTransfer,
+  // Antes de `stockOfInput`: "quanto tem na loja centro" casa com as duas, e
+  // quem pergunta por um lugar não está perguntando por um item chamado "na
+  // loja". Ordem é semântica aqui, não arrumação.
+  stockAtPlace,
+  whereIsItem,
   stockOfInput,
   eraseHelp,
+  // Antes de `listInputs`: as duas falam de insumo, e quem pergunta o que FALTA
+  // para um plano não está pedindo a lista do almoxarifado.
+  whatToBuy,
   listInputs,
+  producedToday,
+  whatWasLost,
   whatDominates,
   whatMoved,
   costOfProduct,

@@ -1,6 +1,6 @@
-import { useRouter } from 'expo-router';
+import { voltar } from '@/nav';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
@@ -8,21 +8,58 @@ import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { Field } from '@/components/Field';
 import {
+  GlyphBox,
+  GlyphCatalog,
+  GlyphPackaging,
+  GlyphPlus,
+  GlyphPrice,
+  GlyphProduction,
+} from '@/components/Glyph';
+import { Reveal } from '@/components/Reveal';
+import { Touchable } from '@/components/Touchable';
+import {
+  GridTakenError,
   itemCosts,
+  listProducts,
+  currentCapabilities,
   labels as loadLabels,
+  listItems,
   listRecipes,
   loadRecipeGraph,
+  listLines,
+  listCategories,
+  listTypes,
+  listFlavors,
+  type Flavor,
+  type ProductLine,
+  type ProductCategory,
+  type ProductType,
+  type ItemWithCost,
+  type Product,
   saveProduct,
+  saveSalePrice,
   type RecipeSummary,
 } from '@/data/repository';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { empresaDaqui } from '@/data/empresa';
 import { useQuery } from '@/data/useQuery';
-import { fromDecimal } from '@/domain/money';
-import { costPerProductUnit, costRecipe, unitsPerBatch, type ItemCosts, type Recipe } from '@/domain/recipe';
-import { type PackagingHierarchy } from '@/domain/units';
-import { fill, formatMoney, formatQuantity } from '@/i18n';
+import { rate, cents, rateToDecimal } from '@/domain/money';
+import {
+  costPerPack,
+  costPerProductUnit,
+  costRecipe,
+  packagingRatePerUnit,
+  unitsPerBatch,
+  type ItemCosts,
+  type RecipeGraph,
+} from '@/domain/recipe';
+import { type PackagingHierarchy, countsFromTiers } from '@/domain/units';
+import { meioDaGrade } from '@/components/grade';
+import { parseTyped, formatTyped } from '@/domain/number';
+import { currencySymbol, fill, formatMoney, formatUnitRate, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
+import { campoComSugestao } from '@/components/campo';
+import { useRouter } from 'expo-router';
 
 /**
  * Registering a product.
@@ -36,10 +73,37 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  *   - the packaging hierarchy is the customer's, not ours. Unit -> box -> crate
  *     here; the next customer stacks unit -> pack -> bale. So it is typed, not
  *     hardcoded, and the app echoes the arithmetic back in words.
+ *
+ * **O corpo foi reescrito na língua da capa** (`docs/linguagem.md`), e o layout
+ * anterior saiu inteiro em vez de ganhar um caminho ao lado — era ele que fazia
+ * esta tela parecer de outro aplicativo no toque seguinte:
+ *
+ * - a grade tinha DOIS jeitos de escolher desenhados à mão, e nenhum dos dois
+ *   era do tema: um `chip()` local com `borderWidth`, `borderRadius` e
+ *   `backgroundColor` próprios para linha, tipo e sabor, e um `Segment` com
+ *   `borderRadius: 999` e transparência montada na mão para "de onde ele vem" e
+ *   para a receita. Isso é vocabulário do Orgânico chumbado numa tela que
+ *   também abre no Papel, onde caixa nenhuma existe. Agora a escolha é sempre a
+ *   mesma: toca-se a etiqueta, e a acesa é a escolhida — o mesmo gesto do sabor
+ *   em `app/production/new.tsx` e do tipo de item em `app/inputs/new.tsx`;
+ * - a lista da embalagem que sai do estoque marcava a escolha com `●` e `○`
+ *   escritos no código. Bolinha de texto não é desenho do sistema, não muda com
+ *   o tema e não tem tamanho de alvo de dedo com luva;
+ * - a tela não tinha desenho nenhum: seis blocos de parágrafo cinza, sem crachá,
+ *   sem tom por assunto e sem entrada. Cada assunto agora carrega o tom que ele
+ *   tem no aplicativo inteiro — a grade e a receita em âmbar de produção, o que
+ *   desce do almoxarifado em verde de insumo, a caixa em lilás de transporte, o
+ *   custo em azul de dinheiro — porque quem vê a cor sabe do que é antes de ler;
+ * - a área era `mist`, o cinza dos Ajustes, numa tela que se abre a partir da
+ *   lista de produtos, que é âmbar. Cabeçalho e botão discordavam do que estava
+ *   embaixo deles.
+ *
+ * Nada aqui decide diferente: consulta, conta, confirmação e gravação são as
+ * mesmas linhas de antes.
  */
 export default function ProductsScreen() {
   return (
-    <AreaProvider area="mist">
+    <AreaProvider area="apricot">
       <ProductForm />
     </AreaProvider>
   );
@@ -49,37 +113,136 @@ type Kind = 'product' | 'resale';
 
 type Loaded = {
   recipes: RecipeSummary[];
-  graph: Record<string, Recipe>;
+  graph: RecipeGraph;
   costs: ItemCosts;
+  /** Se o custo é desta pessoa para ver — nulo em `itemCosts` é o portão. */
+  dinheiro: boolean;
+  /**
+   * Se esta pessoa DEFINE o preço de tabela.
+   *
+   * Ver e definir são gates diferentes, e a diferença não é rigor: `view_sale_price`
+   * é de quem vende (precisa saber por quanto), e definir quanto a empresa cobra é
+   * decisão da empresa — o mesmo `manage_company` que `saveSalePrice` exige. Um
+   * campo que aparece e recusa ao salvar é pior que campo ausente.
+   */
+  podeCombinar: boolean;
   labels: Record<string, string>;
+  /** Palito, saquinho, caixa: o que pode sair do estoque por unidade. */
+  wrappings: ItemWithCost[];
+  /** O que já existe, para a tela impedir a classificação ocupada em vez de reclamar. */
+  products: Product[];
+  lines: ProductLine[];
+  categories: ProductCategory[];
+  types: ProductType[];
+  flavors: Flavor[];
 };
 
 function ProductForm() {
-  const { color, type, space } = useTheme();
+  const { color, type, space, palette, traco } = useTheme();
   const confirm = useConfirm();
-  const router = useRouter();
   const { locale, t } = useLocale();
+  const router = useRouter();
 
-  const { data, loading } = useQuery<Loaded>(async () => {
-    const [recipes, graph, costs, labels] = await Promise.all([
-      listRecipes(LOCAL_COMPANY_ID),
-      loadRecipeGraph(LOCAL_COMPANY_ID),
-      itemCosts(LOCAL_COMPANY_ID),
-      loadLabels(LOCAL_COMPANY_ID),
+  const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
+    const [recipes, graph, costs, labels, lines, categories, types, flavors, items, products] =
+      await Promise.all([
+      listRecipes(empresaDaqui()),
+      loadRecipeGraph(empresaDaqui()),
+      itemCosts(empresaDaqui()),
+      loadLabels(empresaDaqui()),
+      listLines(empresaDaqui()),
+      listCategories(empresaDaqui()),
+      listTypes(empresaDaqui()),
+      listFlavors(empresaDaqui()),
+      listItems(empresaDaqui()),
+      listProducts(empresaDaqui()),
     ]);
-    return { recipes, graph, costs, labels };
+    const podeCombinar = (await currentCapabilities(empresaDaqui())).has('manage_company');
+    const wrappings = items.filter((i) => i.kind === 'packaging');
+    return {
+      recipes,
+      graph,
+      dinheiro: costs !== null,
+      podeCombinar,
+      costs: costs ?? {},
+      labels,
+      lines,
+      categories,
+      types,
+      flavors,
+      wrappings,
+      products,
+    };
   });
 
   const [kind, setKind] = useState<Kind>('product');
   const [name, setName] = useState('');
+  const [nameTyped, setNameTyped] = useState(false);
+  const [lineId, setLineId] = useState<string | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [typeId, setTypeId] = useState<string | null>(null);
+  const [flavorId, setFlavorId] = useState<string | null>(null);
   const [recipeId, setRecipeId] = useState<string | null>(null);
-  const [perUnit, setPerUnit] = useState('75');
-  const [packagingCost, setPackagingCost] = useState('0,05');
+  /**
+   * **Os dois números que nasciam inventados — e um deles é DINHEIRO.**
+   *
+   * Eram `'75'` e `'0,05'` cravados: setenta e cinco mililitros por picolé e cinco centavos
+   * de embalagem por unidade. Lei 2 diz que nenhum campo nasce vazio, e ela foi cumprida com
+   * um chute — que é pior que vazio, porque número plausível na tela não é conferido. E o
+   * segundo entra em `unitPackagingRate`, que vira **taxa congelada** de toda corrida deste
+   * produto: um chute de cinco centavos que ninguém releu fica no razão para sempre.
+   *
+   * O palpite certo estava a uma linha de distância: o IRMÃO — outro produto da mesma linha e
+   * da mesma categoria, medido na mesma unidade de rendimento — já tem os dois números
+   * respondidos por quem conhece a fábrica. `listProducts` traz `lineId`, `categoryId`,
+   * `yieldPerUnit` e `unitPackagingRate` desde sempre, e ninguém os lia aqui.
+   *
+   * Sem irmão, o padrão de hoje fica: é chute, e continua sendo, mas aí ele é a única resposta
+   * possível. Com irmão, a dica diz de onde o número veio — campo que nasce preenchido sem
+   * dizer de onde é campo que ninguém confere, e essa frase já está escrita neste arquivo,
+   * no `fromFamily` da embalagem.
+   */
+  const [perUnit, setPerUnit] = useState<string | undefined>(undefined);
+  const [packagingCost, setPackagingCost] = useState<string | undefined>(undefined);
+  /**
+   * Por quanto isto sai — e ele mora AQUI, não na ficha de uma loja.
+   *
+   * O preço combinado entrou primeiro e a metade de tabela ficou sem tela: eu tinha
+   * escrito o caminho de gravação e só teste chamava, que é o portão P1 reprovando
+   * um commit meu. O lugar certo nunca foi o cartão de uma loja — o combinado é de
+   * uma parte, o de tabela é da empresa, e perguntar "por quanto você vende" ao lado
+   * de "quanto custa a embalagem" é a pergunta que quem cadastra o produto já está
+   * respondendo.
+   *
+   * Vazio é o caso comum e legítimo: uma fábrica que só abastece as próprias lojas
+   * não vende para ninguém, e não se inventa preço para ela.
+   */
+  const [salePrice, setSalePrice] = useState('');
+  /**
+   * A embalagem que sai do estoque, por unidade.
+   *
+   * Vazia é o padrão e é legítima: quem não quer contar palito digita o valor
+   * acima e segue. Quem lista, vê o palito descer do almoxarifado a cada corrida
+   * — que é o defeito que esta lista existe para consertar.
+   */
+  const [wrappings, setWrappings] = useState<{ itemId: string; quantityPerUnit: string }[]>([]);
   const [perBox, setPerBox] = useState('50');
   const [perCrate, setPerCrate] = useState('6');
+  /**
+   * Quem digitou a embalagem manda; a família só preenche o que ninguém tocou.
+   *
+   * Mesma regra do nome logo acima (`nameTyped`): a dedução SUGERE, não
+   * sobrescreve. Sem isto, tocar a linha depois de ajustar a caixa desfaria o
+   * ajuste sem avisar.
+   */
+  const [embalagemDigitada, setEmbalagemDigitada] = useState(false);
+  const [linhaAnterior, setLinhaAnterior] = useState<string | null>(null);
+  const [shelfLife, setShelfLife] = useState('');
+  /** Quanto é "cheio" deste produto, para a leitura por faixa de cor. */
+  const [fullLevel, setFullLevel] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const num = (s: string) => Number(s.replace(/\./g, '').replace(',', '.'));
+  const num = (s: string) => parseTyped(s) ?? NaN;
 
   const chosenRecipe = recipeId ?? data?.recipes[0]?.id ?? null;
 
@@ -114,22 +277,246 @@ function ProductForm() {
       .join(' = ');
   }, [hierarchy, locale, t]);
 
+  /**
+   * A lista pronta para a conta e para gravar.
+   *
+   * Linha sem número ainda não é linha: quem acabou de tocar em "palito" e não
+   * digitou a quantidade não quer consumir zero palito, quer terminar de
+   * digitar. Deixar a linha fora até ela ter número é o que evita a corrida
+   * gravar consumo de nada.
+   */
+  const chosenWrappings = useMemo(
+    () =>
+      wrappings
+        .map((linha) => ({ itemId: linha.itemId, quantityPerUnit: num(linha.quantityPerUnit) }))
+        .filter((linha) => Number.isFinite(linha.quantityPerUnit) && linha.quantityPerUnit > 0),
+    [wrappings],
+  );
+
+  // "a cada 1.000 unidades": a escala em que um preço abaixo de um centavo vira
+  // número de gente, e é a mesma que a tela do insumo já usa para a polpa.
+  const porMil = fill(t.app.inputForm.perThousandOf, { unit: t.units.unit.other });
+
+  /**
+   * O IRMÃO deste produto: mesma linha, mesma categoria, e a mesma unidade de rendimento.
+   *
+   * A unidade entra na regra por medida, não por cuidado genérico: `yieldPerUnit` é "quanto do
+   * tacho vai em cada unidade", e um pote cujo tacho rende em ml não tem nada a dizer sobre um
+   * picolé cujo tacho rende em g. Sem essa condição o palpite seria plausível e errado por um
+   * fator de mil, que é a pior forma de errar num campo que vira dinheiro.
+   *
+   * A categoria entra porque ela é o nível que MUDA A RECEITA (decisão do dono, 11 de
+   * setembro): dois produtos da mesma categoria saem do mesmo tacho, então o rendimento por
+   * unidade deles é a mesma pergunta. `null` de um lado e `null` do outro batem — é a fábrica
+   * que não usa o nível, e aí a linha basta.
+   */
+  const unidadeDaFicha = data?.recipes.find((r) => r.id === chosenRecipe)?.yieldUnit ?? null;
+  const irmao =
+    (data?.products ?? []).find(
+      (outro) =>
+        outro.lineId === lineId &&
+        outro.categoryId === categoryId &&
+        outro.yieldPerUnit !== null &&
+        data?.recipes.find((r) => r.id === outro.recipeId)?.yieldUnit === unidadeDaFicha,
+    ) ?? null;
+
+  /**
+   * O que a tela mostra enquanto ninguém digitou — e os padrões de antes ficam, com sujeito.
+   *
+   * `75` e `0,05` não saem do produto: eles continuam sendo a resposta quando não há irmão,
+   * porque a Lei 2 não tem exceção e vazio num campo numérico manda a pessoa adivinhar. O que
+   * muda é que agora eles são o ÚLTIMO recurso, e o primeiro é um número que alguém da fábrica
+   * já respondeu.
+   *
+   * O custo passa por `rateToDecimal` porque `unitPackagingRate` é `Rate` — centavo por
+   * unidade, fracionário — e o campo lê dinheiro. Formatar com duas casas é a mesma cicatriz
+   * que o preço da nota teve: `118` onde a nota dizia R$ 118,00.
+   */
+  const sugestaoRendimento = irmao?.yieldPerUnit != null ? String(irmao.yieldPerUnit) : null;
+
+  /**
+   * E o custo do irmão só é sugerido quando ele EXISTE para quem está olhando.
+   *
+   * `unitPackagingRate` chega nulo para quem não tem `view_cost` — é o portão da consulta
+   * funcionando, e não um dado faltando. Então quem não pode ver custo não recebe o número do
+   * irmão por uma porta lateral: cai no padrão, como quem não tem irmão. A dica acompanha, e
+   * é por isso que ela pergunta por `irmaoComCusto` e não por `irmao`.
+   */
+  const irmaoComCusto = irmao?.unitPackagingRate != null ? irmao : null;
+  const sugestaoCusto = irmaoComCusto
+    ? formatTyped(rateToDecimal(irmaoComCusto.unitPackagingRate!), locale.formatting, 2)
+    : null;
+
+  /**
+   * **Uma resposta só, para a tela E para o save.**
+   *
+   * A primeira versão disto tinha o valor exibido (`perUnit || sugestao`) e o valor gravado
+   * (`num(perUnit)`) em expressões DIFERENTES: a tela mostrava 75 e o razão recebia 0. É a
+   * classe de defeito que este repositório mais pagou, e `campoComSugestao` existe exatamente
+   * para ela — módulo puro, com teste de Node, porque o navegador não vê campo controlado cujo
+   * valor derivado não muda (está escrito no `CLAUDE.md`).
+   *
+   * `undefined` é "ninguém digitou" e `''` é "apagou de propósito": sem essa distinção o campo
+   * repõe o palpite por cima do que a pessoa acabou de limpar.
+   */
+  const campoRendimento = campoComSugestao(perUnit, irmao ? sugestaoRendimento : null, '75');
+  const campoCusto = campoComSugestao(packagingCost, sugestaoCusto, '0,05');
+
   const costing = useMemo(() => {
     if (kind === 'resale' || !data || !chosenRecipe) return null;
+    /**
+     * Sem o custo dos insumos, este cartão inteiro sai de cena — e sair é o
+     * certo, não calar pela metade.
+     *
+     * Metade dele é o valor que a pessoa DIGITA (a embalagem) e metade vem das
+     * notas de compra. Com a segunda metade em zero, a figura não desaparece:
+     * **encolhe**, e passa a anunciar como custo por unidade o preço do palito.
+     * A conta que não fecha não vira número, e a Lei 6 fica de pé — cartão que
+     * abre a conta não pode abrir uma conta errada.
+     */
+    if (!data.dinheiro) return null;
 
-    const portion = num(perUnit);
+    const portion = num(campoRendimento.valor);
     if (!Number.isFinite(portion) || portion <= 0) return null;
 
-    const packagingCents = fromDecimal(num(packagingCost) || 0);
+    /**
+     * A embalagem digitada é TAXA, não centavo inteiro.
+     *
+     * Era `fromDecimal(...)`, que arredonda: um rótulo a R$ 0,004 por unidade
+     * virava zero aqui, entrava de graça na conta e ia para o `unit_cost_rate`
+     * congelado de toda corrida — que não se corrige, se estorna. `rate(x, 1)` é
+     * "x reais por UMA unidade produzida", e é a mesma espécie de número da polpa
+     * a R$ 12,40/kg. Só o valor final arredonda, e quem arredonda é
+     * `costPerProductUnit`, uma vez, no fim.
+     */
+    const packagingRate = rate(num(campoCusto.valor) || 0, 1);
     const cost = costRecipe(chosenRecipe, data.graph, data.costs, data.labels);
-    const unit = costPerProductUnit(cost, portion, packagingCents);
+
+    // O que a lista de embalagem custa, cotada pelas notas de compra. Some junto
+    // com o valor digitado porque as duas metades são reais: uma sai do estoque,
+    // a outra é o que ninguém quis transformar em item.
+    const itemsRate = packagingRatePerUnit(chosenWrappings, data.costs);
+    const unit = costPerProductUnit(cost, portion, { typedRate: packagingRate, itemsRate });
     const units = unitsPerBatch(cost, portion);
 
-    return { cost, unit, units, packagingCents, mixOnly: costPerProductUnit(cost, portion) };
-  }, [kind, data, chosenRecipe, perUnit, packagingCost]);
+    return {
+      cost,
+      unit,
+      units,
+      packagingRate,
+      itemsRate,
+      mixOnly: costPerProductUnit(cost, portion),
+      pack: (porEmbalagem: number) =>
+        costPerPack(cost, portion, porEmbalagem, { typedRate: packagingRate, itemsRate }),
+    };
+    // As dependências são a RESPOSTA, não o estado cru: o valor muda também quando o irmão
+    // muda (outra categoria escolhida), e com `perUnit` aqui a prévia do custo ficaria
+    // parada no número de antes — a tela mostrando um rendimento e a conta usando outro.
+  }, [kind, data, chosenRecipe, campoRendimento.valor, campoCusto.valor, chosenWrappings]);
 
+  /**
+   * O nome que a grade escreve, e quem manda quando os dois existem.
+   *
+   * Lei 1: o que o sistema pode deduzir não se pergunta. Escolhida a grade, o
+   * nome sai dela — "Picolé Tradicional de morango" é a linha, o tipo e o sabor
+   * grudados pela frase do dicionário, que é a única parte disto que muda de
+   * idioma. Quem digitou um nome à mão continua com o nome que digitou: a
+   * dedução sugere, não sobrescreve.
+   */
+  const linha = data?.lines.find((l) => l.id === lineId) ?? null;
+
+
+  /**
+   * **A família diz como ela é contada, e o cadastro nasce preenchido.**
+   *
+   * O padrão daqui era `50` por caixa e `6` por engradado — número que eu
+   * inventei e que nenhuma fábrica confirmou. Quantos cabem numa caixa depende da
+   * família: picolé próprio numa caixa, picolé de revenda na caixa do
+   * fornecedor, pote sem caixa nenhuma. "Depende" vira dado, então a linha guarda
+   * a resposta e esta tela para de perguntar de novo.
+   *
+   * Família sem caixa ESVAZIA os dois campos, e isso é o caso do pote: a
+   * hierarquia dela tem só a unidade, e deixar "50" ali seria a tela afirmando
+   * uma caixa que não existe.
+   *
+   * O ajuste roda na renderização e não num efeito — o padrão do React para
+   * "estado que depende de propriedade que mudou", e o que o
+   * `react-hooks/set-state-in-effect` cobra.
+   */
+  if (lineId !== linhaAnterior) {
+    setLinhaAnterior(lineId);
+    // A categoria e o tipo são DA linha: mantidos na troca, ficariam apontando para
+    // fora dela e a grade gravaria a classificação de outro produto sem uma palavra.
+    setCategoryId(null);
+    setTypeId(null);
+    const daFamilia = linha?.packaging;
+    if (!embalagemDigitada && daFamilia) {
+      // `countsFromTiers` e não a divisão na mão: sem caixa, o número do engradado conta
+      // UNIDADES e não caixas, e a conta antiga exigia as duas para mostrar qualquer
+      // coisa — o engradado do pote reabria vazio, que é o degrau sendo descartado sem
+      // uma palavra, exatamente o que `tiersFromCounts` foi escrita para não fazer.
+      const daFamiliaContada = countsFromTiers(daFamilia);
+      setPerBox(daFamiliaContada.perBox > 0 ? String(daFamiliaContada.perBox) : '');
+      setPerCrate(
+        daFamiliaContada.perCrate > 0 ? String(Math.round(daFamiliaContada.perCrate)) : '',
+      );
+    }
+  }
+  const tipo = data?.types.find((x) => x.id === typeId) ?? null;
+  const categoria = data?.categories.find((c) => c.id === categoryId) ?? null;
+  const sabor = data?.flavors.find((f) => f.id === flavorId) ?? null;
+  /**
+   * Os níveis do meio, juntos — e é por isso que o molde do nome não se multiplicou.
+   *
+   * Com a categoria aprovada, "Picolé de Leite Morango" tem DOIS níveis entre o produto e
+   * a variação. Um molde por combinação seriam oito frases em três idiomas; `meioDaGrade`
+   * os junta na posição que o `{{type}}` já ocupava.
+   */
+  const meio = meioDaGrade(categoria?.name ?? null, tipo?.name ?? null);
+  /** A faixa da caixa, quando ela existe — é ela que dá sentido ao selo. */
+  const caixa = hierarchy.tiers.find((t2) => t2.id === 'box') ?? null;
+
+  const composed = (() => {
+    if (nameTyped && name.trim()) return name;
+    if (!linha) return name;
+    const chave =
+      meio && sabor
+        ? t.app.catalog.composed
+        : sabor
+          ? t.app.catalog.composedNoType
+          : meio
+            ? t.app.catalog.composedNoFlavor
+            : '';
+    if (!chave) return linha.name;
+    return fill(chave, { line: linha.name, type: meio, flavor: sabor?.name ?? '' });
+  })();
+
+  /**
+   * O produto que já ocupa esta classificação, se houver.
+   *
+   * Lei 5: o erro impede, não reclama. O banco recusa isto por índice único - e
+   * a recusa dele chega como jargão de driver depois de a pessoa ter digitado
+   * tudo. Saber aqui é o que transforma um diálogo de erro numa frase antes do
+   * gesto. A regra continua no caminho de escrita, porque tela é decoração.
+   */
+  const ocupada = (data?.products ?? []).find(
+    (p) =>
+      (p.lineId ?? '') === (lineId ?? '') &&
+      (p.categoryId ?? '') === (categoryId ?? '') &&
+      (p.typeId ?? '') === (typeId ?? '') &&
+      (p.flavorId ?? '') === (flavorId ?? ''),
+  );
+
+  // O nome que vale é o COMPOSTO, que é o que a tela mostra no campo.
+  //
+  // Olhando o nome digitado, um produto classificado só pela grade - linha,
+  // tipo, sabor, sem ninguém digitar nada - mostrava "Picolé de Uva" no campo e
+  // deixava o botão morto. Botão que não obedece é pior que botão ausente: a
+  // pessoa toca, nada acontece, e não há frase nenhuma para ler.
   const canSave =
-    name.trim().length > 0 && (kind === 'resale' || (chosenRecipe !== null && num(perUnit) > 0));
+    composed.trim().length > 0 &&
+    ocupada === undefined &&
+    (kind === 'resale' || (chosenRecipe !== null && num(campoRendimento.valor) > 0));
 
   const onSave = async () => {
     if (!canSave) return;
@@ -137,9 +524,19 @@ function ProductForm() {
     const words = fill(
       kind === 'product' ? t.app.productForm.confirmMade : t.app.productForm.confirmResale,
       {
-        name: name.trim(),
+        // O nome é o COMPOSTO, que é o que o campo mostra e o que a gravação usa.
+        //
+        // Com `name.trim()` a frase omitia justamente o nome: quem classifica só
+        // pela grade — toca "Picolé", "Uva" e não digita nada — via o campo
+        // escrito "Picolé de Uva" e a confirmação começando em vírgula. É o
+        // caminho que o e2e percorre, e a frase existe para dizer o que vai
+        // acontecer por extenso.
+        name: composed.trim(),
         recipe: data?.recipes.find((r) => r.id === chosenRecipe)?.name ?? '',
-        perUnit: formatQuantity(num(perUnit), locale),
+        perUnit: formatQuantity(num(campoRendimento.valor), locale),
+        /* A confirmação dizia "75 ml por unidade" para uma massa pesada em
+           grama. A régua vem da ficha escolhida, como no campo acima. */
+        unit: data?.recipes.find((r) => r.id === chosenRecipe)?.yieldUnit ?? '',
         packaging: packagingEcho,
       },
     );
@@ -154,19 +551,51 @@ function ProductForm() {
 
     setSaving(true);
     try {
-      await saveProduct(LOCAL_COMPANY_ID, {
-        name: name.trim(),
+      const salvo = await saveProduct(empresaDaqui(), {
+        name: composed.trim(),
+        lineId,
+        categoryId,
+        typeId,
+        flavorId,
         kind,
         recipeId: kind === 'product' ? chosenRecipe : null,
-        yieldPerUnit: kind === 'product' ? num(perUnit) : null,
-        unitPackagingCents: fromDecimal(num(packagingCost) || 0),
+        // A MESMA resposta que a tela mostra — ver `campoComSugestao` acima.
+        yieldPerUnit: kind === 'product' ? num(campoRendimento.valor) : null,
+        unitPackagingRate: rate(num(campoCusto.valor) || 0, 1),
+        packagingItems: chosenWrappings,
+        shelfLifeDays: num(shelfLife) || null,
+        fullLevel: num(fullLevel) > 0 ? num(fullLevel) : null,
         packaging: hierarchy,
       });
-      router.back();
+
+      /**
+       * O preço vai pelo caminho que escreve HISTÓRIA, e não junto com a ficha.
+       *
+       * `saveProduct` grava cadastro; preço é a série de "por quanto isto saía", e
+       * quem a mantém é `saveSalePrice` — que confere se mudou, escreve a linha
+       * anterior e a nova, e enfileira as duas. Passá-lo por `saveProduct` seria um
+       * segundo lugar escrevendo preço, e no dia em que os dois discordassem a série
+       * teria buracos que nada reconstrói.
+       */
+      if (salvo.itemId && salePrice.trim() !== '') {
+        await saveSalePrice(empresaDaqui(), {
+          itemId: salvo.itemId,
+          placeId: null,
+          rate: rate(num(salePrice) || 0, 1),
+        });
+      }
+      voltar();
     } catch (e) {
       await confirm({
         title: t.app.productForm.failed,
-        message: e instanceof Error ? e.message : String(e),
+        // A recusa por classificação ocupada tem frase própria, com a saída
+        // dentro. Sem isto o dono lê "Error finalizing statement" e desiste.
+        message:
+          e instanceof GridTakenError
+            ? fill(t.app.productForm.gridTaken, { name: e.existing })
+            : e instanceof Error
+              ? e.message
+              : String(e),
         acknowledge: true,
         confirmLabel: t.app.confirm.understood,
       });
@@ -175,185 +604,639 @@ function ProductForm() {
     }
   };
 
+  const categoriasDaLinha = (data?.categories ?? []).filter((c) => c.lineId === lineId);
+  /**
+   * A categoria que está VALENDO — mesma regra do `tipoValendo` logo abaixo.
+   *
+   * Com uma categoria só o seletor não aparece (escolher entre uma coisa não é escolha),
+   * e sem isto `categoryId` ficaria nulo: o produto gravaria sem a categoria que a
+   * fábrica tem, e o nome composto sairia sem ela.
+   */
+  const categoriaValendo =
+    categoryId ?? (categoriasDaLinha.length === 1 ? categoriasDaLinha[0].id : null);
+  /**
+   * Os tipos que valem: os DA categoria escolhida mais os do produto inteiro.
+   *
+   * Tipo sem categoria vale em todo o produto — é o que a fábrica que nunca usou o nível
+   * tem —, e escondê-lo quando há categoria deixaria a lista vazia para ela.
+   */
+  const tiposDaLinha = (data?.types ?? []).filter(
+    (x) =>
+      x.lineId === lineId && (x.categoryId === null || x.categoryId === categoriaValendo),
+  );
+  /**
+   * As variações do TIPO escolhido — não as da casa inteira.
+   *
+   * Antes esta tela oferecia todo sabor cadastrado, e era possível montar "Picolé de
+   * Água de chocolate" com um chocolate que só existe no de leite. O dono nomeou o
+   * custo disso: *"confunde na hora de registrar"*. O sabor sem tipo (linha velha)
+   * continua aparecendo, porque esconder o dado de alguém é pior que mostrá-lo.
+   */
+  /**
+   * O tipo que está VALENDO, que não é o mesmo que o tipo escolhido.
+   *
+   * Com um tipo só na linha, o seletor acima nem aparece — e é a decisão certa, porque
+   * escolher entre uma coisa não é escolha. Mas `typeId` continuava nulo, e aí a lista de
+   * variações filtrava por nulo e vinha VAZIA: a tela escondia a pergunta e punia quem
+   * não respondeu. Pegou na checagem de navegador, que tentou clicar num sabor que nunca
+   * apareceu.
+   */
+  const tipoValendo = typeId ?? (tiposDaLinha.length === 1 ? tiposDaLinha[0].id : null);
+  /**
+   * As variações que servem a esta combinação: as da LINHA inteira mais as do tipo.
+   *
+   * A ameixa do pote vale para 250 e 500 ml (variação da linha); o morango do picolé de
+   * leite não aparece no de água (variação do tipo). Os órfãos da regra antiga entram
+   * porque esconder dado de alguém é pior que mostrá-lo fora de lugar.
+   */
+  /** De qual tipo são os sabores listados — para o cabeçalho dizer o nome em vez do molde. */
+  const tipoDoSabor = (data?.types ?? []).find((x) => x.id === tipoValendo) ?? null;
+
+  const saboresDoTipo = (data?.flavors ?? []).filter(
+    (x) =>
+      (x.lineId === null && x.typeId === null) ||
+      (x.lineId === lineId &&
+        (x.typeId === null || x.typeId === tipoValendo) &&
+        (x.categoryId === null || x.categoryId === categoriaValendo)),
+  );
+
+  /** As embalagens escolhidas, na ordem do almoxarifado e não na de toque. */
+  const escolhidas = (data?.wrappings ?? []).filter((item) =>
+    wrappings.some((w) => w.itemId === item.id),
+  );
+
+  const temGrade = (data?.lines ?? []).length > 0;
+  const feito = kind === 'product';
+
+  /**
+   * A cascata não pula número.
+   *
+   * Metade dos blocos daqui é condicional — sem linha cadastrada não há grade,
+   * na revenda não há receita nem embalagem, sem receita que feche não há custo
+   * — e índice fixo abriria um buraco de quarenta milissegundos no meio da fila
+   * a cada bloco que não se aplica.
+   */
+  let ordem = 0;
+  const iGrade = temGrade ? ordem++ : 0;
+  const iProduto = ordem++;
+  const iReceita = feito ? ordem++ : 0;
+  const iEmbalagem = feito ? ordem++ : 0;
+  const iEmpacotado = ordem++;
+  const iCusto = costing ? ordem++ : 0;
+  const iVenda = data?.podeCombinar ? ordem++ : 0;
+  const iTravado = ocupada ? ordem++ : 0;
+  const iAcao = ordem++;
+
   return (
-    <CollapsingHeader title={t.app.productForm.title} overline={t.app.productForm.overline}>
-      <Card tone="area">
-        <Field
-          label={t.app.productForm.name}
-          value={name}
-          onChangeText={setName}
-          placeholder={t.app.productForm.namePlaceholder}
-        />
+    <CollapsingHeader
+      cena="produtos"
+      title={t.app.productForm.title}
+      overline={t.app.productForm.overline}
+      erro={error}
+      denovo={refresh}
+    >
+      {/* A grade, que é o que escreve o nome.
+          Ela vem primeiro porque é a única parte da tela que o sistema usa para
+          preencher outra: tocada a linha, o tipo e o sabor, o campo de nome
+          nasce escrito (Lei 1 e Lei 2). O nível com uma resposta só continua
+          fora — mostrar um tipo único como escolha é pedir o que já se sabe.
 
-        <View style={{ marginTop: space.lg }}>
-          <Text style={[type.overline, { color: color.inkFaint, marginBottom: space.sm }]}>
-            {t.app.productForm.whereFrom}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: space.sm }}>
-            <Segment
-              label={t.app.productForm.made}
-              active={kind === 'product'}
-              onPress={() => setKind('product')}
-            />
-            <Segment
-              label={t.app.productForm.resale}
-              active={kind === 'resale'}
-              onPress={() => setKind('resale')}
-            />
-          </View>
-          <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
-            {kind === 'product' ? t.app.productForm.madeHint : t.app.productForm.resaleHint}
-          </Text>
-        </View>
-      </Card>
-
-      {kind === 'product' ? (
-        <Card tone="area">
-          <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.sm }]}>
-            {t.app.productForm.whichRecipe}
-          </Text>
-
-          {loading ? (
-            <Text style={[type.secondary, { color: color.inkMuted }]}>{t.app.productForm.loading}</Text>
-          ) : data && data.recipes.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={{ flexDirection: 'row', gap: space.sm }}>
-                {data.recipes.map((recipe) => (
-                  <Segment
-                    key={recipe.id}
-                    label={recipe.name}
-                    active={recipe.id === chosenRecipe}
-                    onPress={() => setRecipeId(recipe.id)}
-                  />
-                ))}
+          Sem linha cadastrada não há cartão: uma grade vazia não é escolha, e a
+          tela continua inteira pelo nome digitado à mão. */}
+      {temGrade ? (
+        <Reveal index={iGrade}>
+          <Card
+            hue={palette.apricot}
+            icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}
+            title={t.app.catalog.title}
+          >
+            <View style={{ gap: space.lg }}>
+              <View style={{ gap: space.sm }}>
+                <Text style={[type.overline, { color: color.inkFaint }]}>
+                  {t.app.catalog.lines.toUpperCase()}
+                </Text>
+                {/* A etiqueta acesa é a escolhida, e nunca por cor sozinha: a
+                    palavra continua dita por extenso, que é o que serve de luva
+                    e sob luz ruim. A folga em volta é o alvo do dedo. */}
+                <View style={[styles.wrap, { gap: space.sm }]}>
+                  {(data?.lines ?? []).map((l) => (
+                    <Touchable
+                      key={l.id}
+                      accessibilityLabel={l.name}
+                      onPress={() => {
+                        setLineId(l.id === lineId ? null : l.id);
+                        setTypeId(null);
+                      }}
+                      style={{ paddingVertical: space.xs }}
+                    >
+                      <Chip signal={l.id === lineId ? 'ok' : 'neutral'} label={l.name} />
+                    </Touchable>
+                  ))}
+                </View>
               </View>
-            </ScrollView>
-          ) : (
-            <Text style={[type.secondary, { color: color.inkMuted }]}>
-              {t.app.productForm.noRecipes}
-            </Text>
-          )}
 
-          <View style={{ gap: space.lg, marginTop: space.lg }}>
+              {/* A categoria, entre o produto e o tipo — e ela só aparece com mais de
+                  uma, pela mesma régua do tipo. A fábrica que não usa o nível nunca
+                  vê esta fila. */}
+              {categoriasDaLinha.length > 1 ? (
+                <View style={{ gap: space.sm }}>
+                  <Text style={[type.overline, { color: color.inkFaint }]}>
+                    {t.app.catalog.categoriesTitle.toUpperCase()}
+                  </Text>
+                  <View style={[styles.wrap, { gap: space.sm }]}>
+                    {categoriasDaLinha.map((c) => (
+                      <Touchable
+                        key={c.id}
+                        accessibilityLabel={c.name}
+                        onPress={() => {
+                          setCategoryId(c.id === categoryId ? null : c.id);
+                          // O tipo é DA categoria: mantido na troca, classificaria o
+                          // produto numa combinação que não existe.
+                          setTypeId(null);
+                        }}
+                        style={{ paddingVertical: space.xs }}
+                      >
+                        <Chip signal={c.id === categoryId ? 'ok' : 'neutral'} label={c.name} />
+                      </Touchable>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+
+              {tiposDaLinha.length > 1 ? (
+                <View style={{ gap: space.sm }}>
+                  <Text style={[type.overline, { color: color.inkFaint }]}>
+                    {fill(t.app.catalog.types, { line: linha?.name ?? '' }).toUpperCase()}
+                  </Text>
+                  <View style={[styles.wrap, { gap: space.sm }]}>
+                    {tiposDaLinha.map((x) => (
+                      <Touchable
+                        key={x.id}
+                        accessibilityLabel={x.name}
+                        onPress={() => setTypeId(x.id === typeId ? null : x.id)}
+                        style={{ paddingVertical: space.xs }}
+                      >
+                        <Chip signal={x.id === typeId ? 'ok' : 'neutral'} label={x.name} />
+                      </Touchable>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+
+              {saboresDoTipo.length > 0 ? (
+                <View style={{ gap: space.sm }}>
+                  <Text style={[type.overline, { color: color.inkFaint }]}>
+                    {/* Preenchido, e não o molde cru: até 11 de setembro esta linha desenhava
+                        `t.app.catalog.flavors` direto e a tela mostrava "VARIAÇÕES DE {{TYPE}}"
+                        para quem estava cadastrando o primeiro produto. */}
+                    {(tipoDoSabor
+                      ? fill(t.app.catalog.flavors, { type: tipoDoSabor.name })
+                      : t.app.catalog.flavorsAll
+                    ).toUpperCase()}
+                  </Text>
+                  <View style={[styles.wrap, { gap: space.sm }]}>
+                    {saboresDoTipo.map((f) => (
+                      <Touchable
+                        key={f.id}
+                        accessibilityLabel={f.name}
+                        onPress={() => setFlavorId(f.id === flavorId ? null : f.id)}
+                        style={{ paddingVertical: space.xs }}
+                      >
+                        <Chip signal={f.id === flavorId ? 'ok' : 'neutral'} label={f.name} />
+                      </Touchable>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          </Card>
+        </Reveal>
+      ) : null}
+
+      {/* O que ele é: o nome e de onde ele vem. Uma pergunta só, e o título do
+          cartão é a resposta que está dada agora — ele muda no toque da
+          etiqueta, que é o mesmo gesto da grade de cima. */}
+      <Reveal index={iProduto}>
+        <Card
+          hue={palette.apricot}
+          icon={(c) => <GlyphPlus size={26} color={c} weight={traco} />}
+          title={feito ? t.app.productForm.made : t.app.productForm.resale}
+        >
+          <View style={{ gap: space.lg }}>
             <Field
-              label={t.app.productForm.perUnit}
-              value={perUnit}
-              onChangeText={setPerUnit}
-              suffix="ml"
+              label={t.app.productForm.name}
+              value={composed}
+              onChangeText={(next) => {
+                setNameTyped(true);
+                setName(next);
+              }}
+              placeholder={t.app.productForm.namePlaceholder}
+            />
+
+            <View style={{ gap: space.sm }}>
+              <Text style={[type.overline, { color: color.inkFaint }]}>
+                {t.app.productForm.whereFrom}
+              </Text>
+              <View style={[styles.wrap, { gap: space.sm }]}>
+                <Touchable
+                  accessibilityLabel={t.app.productForm.made}
+                  onPress={() => setKind('product')}
+                  style={{ paddingVertical: space.xs }}
+                >
+                  <Chip signal={feito ? 'ok' : 'neutral'} label={t.app.productForm.made} />
+                </Touchable>
+                <Touchable
+                  accessibilityLabel={t.app.productForm.resale}
+                  onPress={() => setKind('resale')}
+                  style={{ paddingVertical: space.xs }}
+                >
+                  <Chip signal={feito ? 'neutral' : 'ok'} label={t.app.productForm.resale} />
+                </Touchable>
+              </View>
+              <Text style={[type.caption, { color: color.inkMuted }]}>
+                {feito ? t.app.productForm.madeHint : t.app.productForm.resaleHint}
+              </Text>
+            </View>
+          </View>
+        </Card>
+      </Reveal>
+
+      {/* A receita e o quanto vai em cada unidade — o par que separa o
+          rendimento do tacho do tamanho do produto, que é a razão desta tela
+          existir. Assunto de produção, no âmbar de produção.
+
+          Na revenda o cartão não existe: o custo vem da nota, e perguntar
+          receita a quem revende é pedir o que não há. */}
+      {feito ? (
+        <Reveal index={iReceita}>
+          <Card
+            hue={palette.apricot}
+            icon={(c) => <GlyphProduction size={26} color={c} weight={traco} />}
+            title={t.app.productForm.whichRecipe}
+          >
+            <View style={{ gap: space.lg }}>
+              {loading ? (
+                <Text style={[type.secondary, { color: color.inkMuted }]}>
+                  {t.app.productForm.loading}
+                </Text>
+              ) : data && data.recipes.length > 0 ? (
+                <View style={[styles.wrap, { gap: space.sm }]}>
+                  {data.recipes.map((recipe) => (
+                    <Touchable
+                      key={recipe.id}
+                      accessibilityLabel={recipe.name}
+                      onPress={() => setRecipeId(recipe.id)}
+                      style={{ paddingVertical: space.xs }}
+                    >
+                      <Chip
+                        signal={recipe.id === chosenRecipe ? 'ok' : 'neutral'}
+                        label={recipe.name}
+                      />
+                    </Touchable>
+                  ))}
+                </View>
+              ) : (
+                /* Estado vazio é desenho, uma frase e A SAÍDA. A regra que separa os dois casos NÃO é "tela empilhada".
+                   `app/picking.tsx` também é empilhada e oferece a porta, com a razão medida ao
+                   lado: *"esconder o caminho já deixou duas telas sem entrada"*. O que separa é o
+                   que há para PERDER — aqui não há nada digitado, porque não há nem produto para
+                   escolher; sair não custa formulário nenhum e ficar custa a rodada inteira de quem
+                   não sabe o que fazer. Num formulário meio preenchido a resposta se inverte, e é
+                   essa a razão que estava escrita com o sujeito errado. */
+                <View>
+                  <Text style={[type.secondary, { color: color.inkMuted }]}>
+                    {t.app.productForm.noRecipes}
+                  </Text>
+                  <Button
+                    label={t.app.productForm.noRecipesAction}
+                    variant="ghost"
+                    onPress={() => router.push('/recipes/new')}
+                    style={{ marginTop: space.md }}
+                  />
+                </View>
+              )}
+
+              <Field
+                label={t.app.productForm.perUnit}
+                value={campoRendimento.valor}
+                onChangeText={setPerUnit}
+                /* A régua é a que a ficha escolheu — ml, g ou un. Chumbar "ml"
+                   aqui fazia a tela pedir mililitro de uma massa pesada em
+                   grama, e o número digitado ia para o razão assim mesmo. */
+                suffix={data?.recipes.find((r) => r.id === chosenRecipe)?.yieldUnit ?? 'ml'}
+                keyboardType="numeric"
+                hint={
+                  campoRendimento.ehSugestao && irmao
+                    ? fill(t.app.productForm.fromSibling, { product: irmao.name })
+                    : costing
+                      ? fill(t.app.productForm.perUnitHint, {
+                          units: formatQuantity(costing.units, locale),
+                        })
+                      : undefined
+                }
+              />
+            </View>
+          </Card>
+        </Reveal>
+      ) : null}
+
+      {/* A embalagem por unidade, e ela tem DUAS metades reais: o que ninguém
+          quis transformar em item (o valor digitado) e o que sai do
+          almoxarifado a cada unidade produzida (o palito que desce do estoque).
+          Assunto de insumo, no verde do insumo — duas cores porque são duas
+          perguntas, e é a segunda que faz o palito aparecer na corrida. */}
+      {feito ? (
+        <Reveal index={iEmbalagem}>
+          <Card
+            hue={palette.mint}
+            icon={(c) => <GlyphPackaging size={26} color={c} weight={traco} />}
+            title={t.app.productForm.packagingCost}
+          >
+            <View style={{ gap: space.lg }}>
+              <Field
+                label={t.app.productForm.packagingCost}
+                value={campoCusto.valor}
+                onChangeText={setPackagingCost}
+                suffix={`${currencySymbol(locale)} ${t.app.productForm.perUnitShort}`}
+                keyboardType="numeric"
+                hint={
+                  campoCusto.ehSugestao && irmaoComCusto
+                    ? fill(t.app.productForm.fromSibling, { product: irmaoComCusto.name })
+                    : t.app.productForm.packagingHint
+                }
+              />
+
+
+              {/* Só aparece quando existe embalagem cadastrada: oferecer a lista
+                  numa fábrica que não cadastrou palito é pedir o que o sistema
+                  sabe que não existe. */}
+              {(data?.wrappings ?? []).length > 0 ? (
+                <View style={{ gap: space.sm }}>
+                  {/* Frase, e por isso não vira caixa alta: as etiquetas curtas
+                      da grade são rótulo e sobem para overline, esta é uma
+                      pergunta inteira. Caixa alta numa linha de seis palavras
+                      lê-se mais devagar, e o e2e confere a frase como ela é. */}
+                  <Text style={[type.caption, { color: color.inkMuted }]}>
+                    {t.app.productForm.fromStock}
+                  </Text>
+                  <View style={[styles.wrap, { gap: space.sm }]}>
+                    {(data?.wrappings ?? []).map((item) => {
+                      const on = wrappings.some((w) => w.itemId === item.id);
+                      return (
+                        <Touchable
+                          key={item.id}
+                          accessibilityLabel={item.name}
+                          onPress={() =>
+                            setWrappings((atual) =>
+                              on
+                                ? atual.filter((w) => w.itemId !== item.id)
+                                : [...atual, { itemId: item.id, quantityPerUnit: '1' }],
+                            )
+                          }
+                          style={{ paddingVertical: space.xs }}
+                        >
+                          <Chip signal={on ? 'ok' : 'neutral'} label={item.name} />
+                        </Touchable>
+                      );
+                    })}
+                  </View>
+
+                  {/* Um campo por embalagem escolhida, e o rótulo diz de qual —
+                      quantidade sem nome do item é número órfão. */}
+                  {escolhidas.map((item) => (
+                    <Field
+                      key={item.id}
+                      label={fill(t.app.productForm.perUnitOf, { item: item.name })}
+                      value={
+                        wrappings.find((w) => w.itemId === item.id)?.quantityPerUnit ?? ''
+                      }
+                      onChangeText={(texto) =>
+                        setWrappings((atual) =>
+                          atual.map((w) =>
+                            w.itemId === item.id ? { ...w, quantityPerUnit: texto } : w,
+                          ),
+                        )
+                      }
+                      suffix={item.baseUnit}
+                      keyboardType="numeric"
+                    />
+                  ))}
+
+                  {costing && costing.itemsRate > 0 ? (
+                    <Text style={[type.caption, { color: color.inkMuted }]}>
+                      {fill(t.app.productForm.fromStockCost, {
+                        amount: formatMoney(cents(costing.itemsRate), locale),
+                      })}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
+          </Card>
+        </Reveal>
+      ) : null}
+
+      {/* Como ele fica na prateleira: caixa, engradado, quanto tempo dura e
+          quanto é "cheio". Assunto de caixa, no lilás do transporte — é esta a
+          embalagem de que a loja fala quando pede.
+
+          A validade é perguntada UMA vez, aqui, para nunca mais ser perguntada
+          no tacho: cada corrida nasce com a data calculada. Vazio é resposta
+          legítima e quer dizer "não vence" — o lote continua existindo e
+          continua rastreando. */}
+      <Reveal index={iEmpacotado}>
+        <Card
+          hue={palette.lilac}
+          icon={(c) => <GlyphBox size={26} color={c} weight={traco} />}
+          title={t.app.productForm.howPacked}
+        >
+          <View style={{ gap: space.lg }}>
+            <Text style={[type.secondary, { color: color.inkMuted }]}>
+              {t.app.productForm.howPackedHint}
+            </Text>
+
+            <Field
+              label={t.app.productForm.perBox}
+              value={perBox}
+              onChangeText={(texto) => {
+                setEmbalagemDigitada(true);
+                setPerBox(texto);
+              }}
               keyboardType="numeric"
+              // De onde veio o número, dito por extenso. Campo que nasce
+              // preenchido sem dizer de onde é campo que ninguém confere.
               hint={
-                costing
-                  ? fill(t.app.productForm.perUnitHint, {
-                      units: formatQuantity(costing.units, locale),
-                    })
+                !embalagemDigitada && linha?.packaging
+                  ? fill(t.app.productForm.fromFamily, { family: linha.name })
                   : undefined
               }
             />
             <Field
-              label={t.app.productForm.packagingCost}
-              value={packagingCost}
-              onChangeText={setPackagingCost}
-              suffix="R$ / un"
+              label={t.app.productForm.perCrate}
+              value={perCrate}
+              onChangeText={(texto) => {
+                setEmbalagemDigitada(true);
+                setPerCrate(texto);
+              }}
               keyboardType="numeric"
-              hint={t.app.productForm.packagingHint}
+              hint={packagingEcho}
+            />
+            <Field
+              label={t.app.productForm.shelfLife}
+              value={shelfLife}
+              onChangeText={setShelfLife}
+              keyboardType="numeric"
+              hint={t.app.productForm.shelfLifeHint}
+            />
+
+            {/* A régua das faixas de cor, aqui também.
+                Ela existia só para insumo, e a faixa azul do dono — "80 a 100%"
+                — é justamente sobre a câmara cheia de produto acabado: quem
+                enche a câmara para de produzir por falta de espaço, e isso não
+                aparece olhando insumo. Vazio continua sendo resposta: sem
+                régua, o produto não ganha cor nem aviso. */}
+            <Field
+              label={t.app.inputForm.fullLevel}
+              value={fullLevel}
+              onChangeText={setFullLevel}
+              keyboardType="numeric"
+              suffix={t.units.unit.other}
+              hint={t.app.inputForm.fullLevelHint}
             />
           </View>
         </Card>
-      ) : null}
+      </Reveal>
 
-      <Card tone="area">
-        <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.xs }]}>
-          {t.app.productForm.howPacked}
-        </Text>
-        <Text style={[type.secondary, { color: color.inkMuted, marginBottom: space.md }]}>
-          {t.app.productForm.howPackedHint}
-        </Text>
-
-        <View style={{ gap: space.lg }}>
-          <Field
-            label={t.app.productForm.perBox}
-            value={perBox}
-            onChangeText={setPerBox}
-            keyboardType="numeric"
-          />
-          <Field
-            label={t.app.productForm.perCrate}
-            value={perCrate}
-            onChangeText={setPerCrate}
-            keyboardType="numeric"
-            hint={packagingEcho}
-          />
-        </View>
-      </Card>
-
+      {/* A conclusão de tudo o que está acima, no azul do dinheiro.
+          Lei 6: toda conclusão abre a conta - e a conta tem que FECHAR. Com a
+          embalagem listada somando por fora, "massa + digitado" deixou de dar o
+          total: R$ 0,59 + R$ 0,05 contra R$ 0,66 na mesma tela. Foi o e2e que
+          pegou, porque só somando os três números da tela aberta é que a
+          diferença aparece. */}
       {costing ? (
-        <Card tone="area">
-          <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.productForm.unitCost}</Text>
-          <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
-            {formatMoney(costing.unit, locale)}
-          </Text>
-          <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {fill(t.app.productForm.mixPlusPackaging, {
-              mix: formatMoney(costing.mixOnly, locale),
-              packaging: formatMoney(costing.packagingCents, locale),
-            })}
-          </Text>
-          <View style={{ marginTop: space.md }}>
-            <Chip
-              signal="neutral"
-              label={fill(t.app.productForm.fullBox, {
-                amount: formatMoney(
-                  costing.unit * (hierarchy.tiers.find((t2) => t2.id === 'box')?.perBaseUnit ?? 1),
-                  locale,
-                ),
-              })}
-            />
-          </View>
-        </Card>
+        <Reveal index={iCusto}>
+          <Card hue={palette.sky} icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}>
+            <Text style={[type.overline, { color: color.inkFaint }]}>
+              {t.app.productForm.unitCost}
+            </Text>
+            <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
+              {formatMoney(costing.unit, locale)}
+            </Text>
+            <Text style={[type.secondary, { color: color.inkMuted }]}>
+              {fill(
+                costing.itemsRate > 0
+                  ? t.app.productForm.mixPlusBoth
+                  : t.app.productForm.mixPlusPackaging,
+                {
+                  mix: formatMoney(costing.mixOnly, locale),
+                  // As duas metades são TAXAS: preço por unidade produzida. Com
+                  // `formatMoney` (e, no caso do estoque, com um `Math.round`
+                  // antes), qualquer embalagem abaixo de meio centavo aparecia
+                  // como R$ 0,00 — a tela dizendo de graça o que o razão já tinha
+                  // parado de dar de graça.
+                  packaging: formatUnitRate(costing.packagingRate, locale, porMil),
+                  stock: formatUnitRate(costing.itemsRate, locale, porMil),
+                },
+              )}
+            </Text>
+            {/* Sem caixa cadastrada, o selo não existe.
+                O `?? 1` fazia o multiplicador ser um, então o selo mostrava o
+                custo de UMA unidade — o mesmo número da figura logo acima —
+                batizado de "Caixa fechada". E na mesma rolagem o campo de
+                engradado já dizia "só unidade solta, sem caixa nem engradado":
+                a tela se contradizia duas vezes com a mesma entrada. */}
+            {caixa ? (
+              <View style={{ marginTop: space.md }}>
+                <Chip
+                  signal="neutral"
+                  /* `costing.unit` é `Cents` INTEIRO: um picolé de 7,3265
+                     centavos vira 7, e sete vezes cinquenta dá R$ 3,50 numa
+                     caixa que custa R$ 3,66. Quatro e meio por cento sumindo no
+                     número que dá preço de caixa. Quem multiplica agora é o
+                     domínio, com o arredondamento no fim — a regra da casa. */
+                  label={fill(t.app.productForm.fullBox, {
+                    amount: formatMoney(costing.pack(caixa.perBaseUnit), locale),
+                  })}
+                />
+              </View>
+            ) : null}
+          </Card>
+        </Reveal>
       ) : null}
 
-      <Button
-        label={saving ? t.app.productForm.saving : t.app.productForm.save}
-        onPress={() => void onSave()}
-        disabled={!canSave || saving}
-        weighty
-      />
+      {/* Por quanto ele SAI, em cartão próprio — e o cartão próprio é correção de
+          uma foto.
+          
+          A primeira versão pôs este campo dentro de "Palito, embalagem e rótulo",
+          com o argumento de que preço ao lado de custo faz os dois decidirem
+          (Lei 3). A foto desmentiu duas coisas de uma vez: o número ao lado não é
+          o custo — é os R$ 0,05 da embalagem, comparação que não decide nada — e
+          o título do cartão diz "palito", que não é o assunto. **Verde não prova
+          tela, e argumento escrito também não.**
+          
+          Fica logo depois do custo por unidade, que é a vizinhança que a Lei 3
+          pedia de verdade: R$ 0,64 para fazer, R$ 2,50 para sair. E fica FORA do
+          `costing`, porque a revenda não tem custo calculado e é justamente ela
+          que mais tem preço.
+
+          Só para quem define o que a empresa cobra: o comprador vê custo e não vê
+          preço, de propósito, e é aqui que essa capacidade deixa de ser uma
+          palavra no vocabulário. */}
+      {data?.podeCombinar ? (
+        <Reveal index={iVenda}>
+          <Card
+            hue={palette.sky}
+            icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
+            title={t.app.productForm.sellingTitle}
+          >
+            <Field
+              label={t.app.productForm.salePrice}
+              value={salePrice}
+              onChangeText={setSalePrice}
+              placeholder={formatTyped(2.5, locale.formatting, 2)}
+              suffix={`${currencySymbol(locale)} ${t.app.productForm.perUnitShort}`}
+              keyboardType="numeric"
+              hint={t.app.productForm.salePriceHint}
+            />
+          </Card>
+        </Reveal>
+      ) : null}
+
+      {/* A frase vem ANTES do botão, e o botão fica travado: impedir e mostrar a
+          saída no mesmo gesto. Botão escondido sem explicação é a mesma coisa
+          que erro sem saída - a pessoa fica olhando um botão que não obedece.
+
+          Em cartão âmbar de aviso, com o desenho da grade: o que está ocupado é
+          a classificação, e é na grade que se desocupa. */}
+      {ocupada ? (
+        <Reveal index={iTravado}>
+          <Card
+            tone="warning"
+            icon={(c) => <GlyphCatalog size={26} color={c} weight={traco} />}
+          >
+            <Text style={[type.secondary, { color: color.ink }]}>
+              {fill(t.app.productForm.gridTaken, { name: ocupada.name })}
+            </Text>
+          </Card>
+        </Reveal>
+      ) : null}
+
+      {/* A ação, uma só, com o desenho do que ela faz dentro dela. Desabilitada
+          enquanto a grade estiver ocupada ou a conta não fechar — Lei 5: o erro
+          se impede, não se reclama. */}
+      <Reveal index={iAcao}>
+        <Button
+          label={saving ? t.app.productForm.saving : t.app.productForm.save}
+          icon={(c) => <GlyphPlus size={22} color={c} weight={traco} />}
+          onPress={() => void onSave()}
+          disabled={!canSave || saving}
+          weighty
+        />
+      </Reveal>
     </CollapsingHeader>
   );
 }
 
-function Segment({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  const { color, type, space, accent } = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      style={{
-        borderWidth: StyleSheet.hairlineWidth * 2,
-        borderColor: active ? accent : color.line,
-        backgroundColor: active ? `${accent}18` : 'transparent',
-        borderRadius: 999,
-        paddingHorizontal: space.md,
-        paddingVertical: space.sm,
-      }}
-    >
-      <Text
-        style={[
-          type.secondary,
-          { color: active ? color.ink : color.inkMuted, fontWeight: active ? '600' : '400' },
-        ]}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
+const styles = StyleSheet.create({
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
+});

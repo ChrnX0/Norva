@@ -43,29 +43,57 @@ export const ambientArea: Record<Ambient, string> = {
   mist: 'settings',
 };
 
+/**
+ * As três camadas de tinta, e por que a mais fraca não é tão fraca quanto era.
+ *
+ * `inkFaint` pinta o rótulo que diz O QUE o número é — "por mil", "valor parado",
+ * "conferido em 3/9" —, em 11 e 13 px, e a auditoria mediu **2,55:1** no tema que
+ * sai da caixa. Isso é ilegível no corredor da câmara, com luva, tela suja e luz de
+ * galpão, que é exatamente onde este aplicativo é usado. As seis paletas subiram
+ * para 4,6:1 contra o fundo mais claro em que cada uma pinta, que é a régua da WCAG
+ * para texto normal com uma casa de folga.
+ *
+ * A hierarquia continua: forte > média > fraca em toda paleta, e `src/theme/
+ * contrast.test.ts` guarda as duas coisas — a régua e a hierarquia — lendo as cores
+ * DESTE arquivo. Cor nova colada amanhã entra na medição sem ninguém acrescentar
+ * nada.
+ *
+ * **E "maior que" não bastava.** Subir a tinta fraca até a régua da WCAG empurrou ela
+ * para cima da MÉDIA nos dois temas claros: no Papel elas ficaram em 5,07 e 5,34
+ * contra o papel — uma diferença de 5%, que existe na conta e não existe no olho.
+ * Três camadas de tinta viraram duas, e a tela que depende delas para separar o
+ * rótulo do corpo ficou plana. O dono viu antes de mim, olhando o aplicativo: *"cadê
+ * o tema papel light"*.
+ *
+ * A guarda pedia ordem (`média > fraca`) e 5,34 > 5,07 passa. Ordem não é
+ * hierarquia: agora ela pede **passo mínimo de 1,35×** entre camadas, que é o que
+ * separa três tons de três nomes para o mesmo cinza. Os temas escuros já tinham
+ * 1,5× — eles são a referência, e é por isso que o escuro parecia pronto e o claro
+ * não.
+ */
 const lightPalette = {
   paper: '#F7F6F3',
   surface: '#FFFFFF',
   sunken: '#EFEDE8',
   ink: '#23211E',
   inkMuted: '#57534D',
-  inkFaint: '#8A857D',
-  line: '#E7E4DE',
-  lineStrong: '#D7D3CA',
+  inkFaint: '#6D6963',
+  line: '#C4C3C0',
+  lineStrong: '#A9A7A4',
   onAccent: '#FFFFFF',
 
   sky: '#3F7096',
-  apricot: '#A75F3A',
-  mint: '#2F7D6B',
+  apricot: '#9C5936',
+  mint: '#2C7665',
   lilac: '#67589C',
   rose: '#A3505C',
-  sage: '#5A7B49',
-  sand: '#9A7429',
+  sage: '#547244',
+  sand: '#866524',
   mist: '#6E6A64',
 
-  ok: '#2F7D5A',
-  warning: '#C7841E',
-  danger: '#C0453C',
+  ok: '#2D7756',
+  warning: '#936116',
+  danger: '#B8423A',
   neutral: '#6E6A65',
 };
 
@@ -80,9 +108,9 @@ const darkPalette: typeof lightPalette = {
   sunken: '#262626',
   ink: '#EDEBE7',
   inkMuted: '#ADA9A2',
-  inkFaint: '#7A756E',
-  line: '#333130',
-  lineStrong: '#454240',
+  inkFaint: '#928D88',
+  line: '#3B3B3A',
+  lineStrong: '#4F4E4D',
   onAccent: '#141414',
 
   sky: '#8FB6D8',
@@ -118,6 +146,14 @@ export const type = {
   secondary: { fontSize: 15, lineHeight: 21, fontWeight: '400' as const },
   /** Numbers always use tabular figures so columns stop dancing on update. */
   figure: { fontSize: 28, lineHeight: 32, fontWeight: '600' as const, letterSpacing: -0.7 },
+  /**
+   * The one number a screen is about, read at arm's length.
+   *
+   * Fifty-six points is not decoration: the briefing exists to be answered from
+   * the doorway, and a cost read at 28 has to be walked up to. One per screen -
+   * a second hero is two heroes, which is none.
+   */
+  hero: { fontSize: 56, lineHeight: 58, fontWeight: '600' as const, letterSpacing: -1.5 },
   /** Codes (lot, label) use a monospaced face: 0/O and 1/l must not blur. */
   code: { fontSize: 13, lineHeight: 18, fontWeight: '500' as const, letterSpacing: 0.4 },
   caption: { fontSize: 13, lineHeight: 18, fontWeight: '400' as const },
@@ -126,27 +162,544 @@ export const type = {
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 22, xxl: 32 } as const;
 
+/**
+ * O PISO de um alvo de toque, em dp — e ele não é uma preferência de estilo.
+ *
+ * Quarenta e oito é o piso do Android, e aqui ele vale por um motivo mais duro que a
+ * diretriz: este aplicativo é usado **de luva, a dezoito graus negativos, com a tela
+ * suja e condensada**. Um alvo de vinte e quatro dp não é "apertado" nessas condições:
+ * ele é um toque que não pega, e um toque que não pega é uma contagem que não acontece.
+ * Este arquivo já diz, noutro lugar, que equipe que vê o app como inimigo sabota o
+ * dado — errar o alvo três vezes seguidas é como isso começa.
+ *
+ * **O alvo não é o desenho.** A etiqueta continua com vinte e oito dp de altura visível;
+ * o que cresce é a área que responde ao dedo. Engordar o desenho para caber o alvo seria
+ * trocar a régua pelo sintoma.
+ *
+ * Uma constante e não o número solto porque ele apareceu escrito à mão em três telas e
+ * faltou em vinte — e um piso que cada tela lembra sozinha é um piso que não existe.
+ */
+export const ALVO = 48;
+
 /** Generous corners are the most recognizable part of the One UI signature. */
 export const radius = { sm: 9, md: 14, lg: 19, xl: 24, pill: 999 } as const;
 
 /**
- * Spring physics, never linear easing. This is where "breathing" comes from.
- * Five motion rules govern usage:
- *   1. Nothing blinks. Pulses run 2.6-3.2s.
- *   2. At most two pulsing elements per screen.
- *   3. Only what is actually live may pulse.
- *   4. Motion never delays information.
- *   5. Reduced-motion turns it all off, and the screen stays complete.
+ * Mola, nunca aceleração linear — é daqui que sai a respiração do aplicativo.
+ *
+ * **Os números subiram em 6 de setembro, e a regra que os segurava caiu.** O que
+ * estava escrito aqui eram cinco regras cujo efeito somado era movimento
+ * imperceptível de propósito: *"percebe-se se você olhar, não se percebe se você
+ * estiver trabalhando"*, e no máximo dois elementos vivos por tela. O dono abriu
+ * o aplicativo compilado e disse o contrário, pela enésima vez segundo ele
+ * mesmo: *"o app tem q ser uma obra de arte… quero as animações em todas as
+ * telas… todo o sistema funciona como um organismo vivo e vc já viu organismo
+ * vivo MORTO?"*
+ *
+ * O que estava medido quando ele disse isso, e explica por que ele estava certo:
+ * a entrada subia catorze pixels em cascata de quarenta milissegundos, o toque
+ * encolhia três por cento, e a mola tinha razão de amortecimento 0,76 — que dá
+ * dois e meio por cento de ultrapassagem, ou seja, nenhuma. Três efeitos
+ * ajustados para não serem vistos.
+ *
+ * O que continua valendo, porque não é timidez e sim o que separa vida de ruído:
+ *   1. **Nada pisca.** Ciclo curto é nervosismo; o piso continua sendo 2,6 s.
+ *   2. **Movimento nunca atrasa informação.** O texto está montado no primeiro
+ *      quadro; quem anima é a caixa.
+ *   3. **Reduzir movimento apaga tudo, e a tela continua inteira.**
+ *   4. **Só pulsa o que está vivo de verdade.** Vida ambiente (entrada, toque,
+ *      céu) é livre; alegar atividade que não existe é alerta inventado.
+ *
+ * O que caiu: o teto de dois elementos por tela, e a instrução de calibrar a
+ * amplitude para o limiar da percepção.
  */
 export const motion = {
-  settle: { damping: 18, stiffness: 140, mass: 1 },
+  /**
+   * A mola de chegada. Razão de amortecimento 0,61 — cerca de nove por cento de
+   * ultrapassagem, que é o quanto uma coisa precisa passar do lugar e voltar
+   * para o olho registrar que ela CHEGOU em vez de já estar lá.
+   */
+  settle: { damping: 15, stiffness: 150, mass: 1 },
   press: { damping: 20, stiffness: 400, mass: 0.6 },
-  pressScale: 0.97,
-  staggerMs: 40,
+  /** O aperto do toque. Três por cento não se sente na mão; cinco se sente. */
+  pressScale: 0.95,
+  /**
+   * O intervalo entre um cartão e o próximo. Setenta milissegundos ainda está
+   * abaixo do que se percebe como espera, e agora acima do que se percebe como
+   * simultâneo — com quarenta, oito cartões entravam em 280 ms, que o olho lê
+   * como um piscar só.
+   */
+  staggerMs: 70,
+  /** Quanto o cartão sobe ao entrar, em dp. */
+  riseDp: 26,
+  /** De quanto ele cresce ao entrar. Junto com a subida, dá corpo à chegada. */
+  enterScale: 0.965,
   pulseMs: 2600,
   breatheMs: 3200,
   countMs: 1250,
 } as const;
 
+/**
+ * Em quanto tempo a mola de chegada assenta, em milissegundos.
+ *
+ * Não é enfeite de precisão: é a medida de que a rede do `Reveal` precisa para
+ * saber quando pode agir sem cortar uma entrada saudável. Chumbar "mil e
+ * duzentos" aqui envelheceria no dia em que alguém mexesse em `motion.settle` —
+ * e mexer na mola é exatamente o tipo de ajuste de desenho que se faz sem olhar
+ * para este arquivo.
+ *
+ * "Assentou" aqui é **faltar menos de um por cento** para o destino.
+ *
+ * A conta é a do decaimento do oscilador amortecido, e a primeira versão dela
+ * estava errada de um jeito que só a mola integrada passo a passo pegou: eu
+ * escrevi que a distância cabe dentro de `e^(-ζωt)`, e ela não cabe — o envelope
+ * tem amplitude `1/√(1-ζ²)`, que numa mola de 0,82 de amortecimento vale 1,7.
+ * Setenta por cento de folga que a fórmula ignorava, e o teto saía cedo demais.
+ *
+ * Daí os dois regimes:
+ *
+ * - **Abaixo do amortecimento crítico** (as duas molas da casa, 0,61 e 0,65) ela
+ *   oscila em torno do destino dentro daquele envelope, e o tempo para sobrar 1%
+ *   é `ln(100/√(1-ζ²)) / (ζω)` — cerca de 640 ms na mola de chegada.
+ * - **No crítico ou acima** ela não oscila: a distância só cai, como
+ *   `(1+rt)·e^(-rt)` com `r` sendo a raiz lenta. O cruzamento de 1% está em
+ *   `rt ≈ 6,638`, e usar isso no supercrítico sobra tempo em vez de faltar, que
+ *   é o lado certo para errar numa rede de segurança.
+ */
+export function assentamentoMs({
+  damping,
+  stiffness,
+  mass,
+}: {
+  damping: number;
+  stiffness: number;
+  mass: number;
+}): number {
+  const omega = Math.sqrt(stiffness / mass);
+  const zeta = damping / (2 * Math.sqrt(stiffness * mass));
+  if (zeta < 1) {
+    return (Math.log(100 / Math.sqrt(1 - zeta * zeta)) / (zeta * omega)) * 1000;
+  }
+  /** Onde `(1+u)·e^(-u)` cruza um por cento. */
+  const CRUZAMENTO = 6.6384;
+  return (CRUZAMENTO / (omega * (zeta - Math.sqrt(zeta * zeta - 1)))) * 1000;
+}
+
+
 /** The rail that carries an area's color on a card. */
 export const RAIL_WIDTH = 3;
+
+/**
+ * As duas caras do produto.
+ *
+ * O dono viu quarenta esboços e escolheu duas identidades — **Papel** e
+ * **Orgânico** — e decidiu que as duas ficam, com claro e escuro, trocáveis nos
+ * ajustes. Não é indecisão: são dois negócios diferentes olhando a mesma tela.
+ * A fábrica que mostra o app para o contador quer a página impressa; a que abre
+ * o celular na doca às seis da manhã quer a paisagem.
+ *
+ * O que muda entre elas é o que muda numa identidade de verdade: a **paleta**,
+ * a **família tipográfica**, o **raio dos cantos** e o **cabeçalho** (a linha de
+ * traço fino contra a colina desenhada). O que NÃO muda é a escala de tamanhos:
+ * corpo 17, herói 56 e figura 28 continuam iguais nas duas, porque essa escala
+ * não é estilo — é o tamanho que se lê numa câmara fria, de luva, com a tela
+ * suja, e trocar isso por gosto seria trocar legibilidade por decoração.
+ */
+export type Skin = 'papel' | 'organico';
+
+/**
+ * O Papel, com a cor que o dono cobrou.
+ *
+ * A primeira versão era terrosa e discreta — e discrição, na tela dele, virou
+ * apagamento: *"está muito apagado, quero mais contraste entre os elementos
+ * coloridos"*. O que mudou foi só a **saturação dos tons de área**; o creme, a
+ * tinta e a serifa continuam iguais, porque o que ele gostou foi exatamente
+ * isso.
+ *
+ * E a cor entra em traço, nunca em massa: quando o ícone virou selo cheio ele
+ * recusou na hora. O motivo é o desenho do topo — a ilustração é monoline, e um
+ * ícone maciço ao lado dela parece de outro aplicativo.
+ */
+const papelClaro: Palette = {
+  paper: '#FAF7F2',
+  surface: '#FFFFFF',
+  sunken: '#F1EDE5',
+  ink: '#221F1B',
+  inkMuted: '#554D43',
+  inkFaint: '#706960',
+  line: '#CFC3B0',
+  lineStrong: '#B5A68F',
+  onAccent: '#FFFFFF',
+
+  // Tinta e terra, não cor de tela.
+  //
+  // O dono olhou a tela no Papel e disse que "as cores e todo o resto não
+  // combinam". Ele estava certo por um motivo que dá para nomear: os tons eram
+  // os do Orgânico com outra saturação — verde #15803D e lilás #5B4BA8 são
+  // cores de interface, frias, e brigam com um creme quente do mesmo jeito que
+  // um marcador fluorescente briga com papel de carta.
+  //
+  // Estes são de impressão: verde-garrafa, azul-tinta, roxo-tinta, ocre. A
+  // família inteira puxa para o quente e nenhuma delas grita.
+  sky: '#205C86',
+  apricot: '#AD3415',
+  mint: '#2D783F',
+  // Ameixa, não violeta: o violeta era a última cor de interface que sobrava na
+  // família, e uma cor fria e saturada ao lado de creme quente é o que faz a
+  // paleta inteira parecer emprestada de outro aplicativo.
+  lilac: '#7A3A54',
+  rose: '#982940',
+  sage: '#527429',
+  sand: '#8C630E',
+  mist: '#716556',
+
+  ok: '#2D783F',
+  warning: '#8C630E',
+  danger: '#AC1C1C',
+  neutral: '#716556',
+};
+
+/**
+ * O Papel no escuro é papel escuro, não um vazio.
+ *
+ * A pergunta do dono, olhando esta cara: *"esse é o tema dark?"* — e a resposta
+ * honesta é que ele tinha virado um buraco preto. Enquanto os cartões tinham
+ * fundo lavado, a massa deles separava a página do chão; no dia em que a caixa
+ * saiu (que é o que este tema pede), sobrou tudo boiando num preto quase puro,
+ * com réguas de #2F271F que ninguém enxerga.
+ *
+ * O chão sobe para um carvão QUENTE e as linhas sobem junto: é a diferença
+ * entre uma página impressa em papel escuro e uma tela apagada. Tinta creme,
+ * papel carvão, régua visível — as três coisas juntas, ou nenhuma funciona.
+ */
+const papelEscuro: Palette = {
+  paper: '#1B1610',
+  surface: '#241E17',
+  sunken: '#2C251C',
+  ink: '#F4ECE0',
+  inkMuted: '#BCAE9A',
+  inkFaint: '#998C7E',
+  // A régua é o que estrutura esta cara. Fraca demais, a página se desmancha.
+  line: '#564A3B',
+  lineStrong: '#6E5D49',
+  onAccent: '#1B1610',
+
+  // A mesma família do claro, clareada para o papel escuro: continua sendo
+  // tinta sobre papel, e não cor de interface sobre preto.
+  sky: '#78AAC5',
+  apricot: '#E48956',
+  mint: '#8EC680',
+  lilac: '#CD8B9D',
+  rose: '#D48590',
+  sage: '#A9CA84',
+  sand: '#DBB868',
+  mist: '#AFA594',
+
+  ok: '#85C591',
+  warning: '#DBB868',
+  danger: '#D97D5F',
+  neutral: '#B5A895',
+};
+
+const organicoClaro: Palette = {
+  /**
+   * O CHÃO do Orgânico, e ele precisa ser chão.
+   *
+   * Era `#F3F7F3` contra um cartão `#FFFFFF`: três por cento de diferença, que numa
+   * tela de fábrica com o brilho alto é diferença nenhuma. O cartão só existia pela
+   * sombra, e a foto mostrou o que isso vira — uma folha branca com texto, que é a
+   * cara do Papel na pele que não é o Papel.
+   *
+   * Esta pele se descreve como *cartões flutuando sobre uma paisagem*. Para flutuar
+   * é preciso haver sobre o quê, e é isso que estes onze pontos de verde a mais
+   * fazem. O dono pediu cor — *"estamos usando uma paleta pastel, mas pode usar algo
+   * mais forte uma vez ou outra"* —, e o lugar mais barato para pôr cor num tema
+   * claro é o chão, que ninguém lê: o texto continua no branco do cartão.
+   */
+  paper: '#E4EFE7',
+  surface: '#FFFFFF',
+  sunken: '#D6E4DA',
+  ink: '#16281D',
+  inkMuted: '#425249',
+  inkFaint: '#58655C',
+  line: '#B1BDB5',
+  lineStrong: '#96A39A',
+  onAccent: '#FFFFFF',
+
+  /**
+   * Os acentos do Orgânico, um tom abaixo — e o motivo é o CHÃO, não o gosto.
+   *
+   * Escurecer o `paper` para o cartão branco se ver de novo empurrou onze acentos
+   * para baixo de 4,5:1 sobre `sunken`. A régua de legibilidade recusou, e ela está
+   * certa: o número que o dono lê tem de ser lido. Então os dois desceram juntos.
+   *
+   * Cada um perdeu de cinco a oito por cento de brilho **com a matiz e a saturação
+   * intactas** — é a mesma operação que os oito acentos do Papel sofreram no dia 6,
+   * pelo mesmo motivo. Cor mais funda não é cor mais apagada: sobre um chão de
+   * verde, um azul mais fundo grita mais que um azul lavado.
+   */
+  sky: '#34649E',
+  apricot: '#905418',
+  mint: '#2A6E51',
+  lilac: '#405AC2',
+  rose: '#A54055',
+  sage: '#4E6A3F',
+  sand: '#775F2C',
+  mist: '#536659',
+
+  ok: '#2A6E51',
+  warning: '#8E5517',
+  danger: '#AA3D36',
+  neutral: '#4D6055',
+};
+
+const organicoEscuro: Palette = {
+  paper: '#0C1512',
+  surface: '#13201B',
+  sunken: '#1A2B24',
+  ink: '#EAF5EE',
+  inkMuted: '#9DB8A9',
+  inkFaint: '#80948A',
+  line: '#343D3A',
+  lineStrong: '#48514D',
+  onAccent: '#0C1512',
+
+  sky: '#7FB6E8',
+  apricot: '#F0A868',
+  mint: '#5EF2A8',
+  lilac: '#A79BEA',
+  rose: '#E58FA0',
+  sage: '#A2BE8C',
+  sand: '#E5C377',
+  mist: '#7F9A8C',
+
+  ok: '#5EF2A8',
+  warning: '#F5A35E',
+  danger: '#F5715E',
+  neutral: '#9DB8A9',
+};
+
+/**
+ * A família tipográfica de cada identidade.
+ *
+ * `serif` no Papel e nulo no Orgânico — nulo quer dizer "a fonte do sistema",
+ * que é a certa para a identidade macia e é também a que existe em qualquer
+ * aparelho. `serif` é o nome genérico que Android e iOS resolvem sozinhos, sem
+ * embarcar arquivo de fonte: um aplicativo que abre offline numa câmara fria não
+ * paga megabytes por uma família de texto.
+ */
+/**
+ * As paletas do Orgânico.
+ *
+ * *"A paleta é bem verde; seria legal poder escolher"* — e a escolha não é um
+ * botão de cor: ela move a **paisagem inteira**, porque no Orgânico o céu e a
+ * colina são a identidade, não decoração de fundo. Trocar para âmbar é o fim de
+ * tarde; para azul, a manhã fria.
+ *
+ * O que a escolha NÃO move são os sinais. Verde de "preço caiu" e vermelho de
+ * "preço subiu" são leitura, não estilo: numa fábrica que escolhesse a paleta
+ * terracota, uma alta de custo passaria a aparecer na cor do tema e deixaria de
+ * gritar. Por isso `ok`, `warning` e `danger` ficam fora daqui.
+ */
+export type Hue = 'verde' | 'azul' | 'ambar' | 'terracota' | 'lavanda';
+
+export const hues: Record<Hue, { brand: string; skyTop: string; skyBottom: string; hillFar: string; hillNear: string }> = {
+  verde: { brand: '#2F7D5C', skyTop: '#DFF0E6', skyBottom: '#BFE3CF', hillFar: '#A9DCC0', hillNear: '#7CC9A6' },
+  azul: { brand: '#2E6DA4', skyTop: '#DCEAFC', skyBottom: '#BCD8F7', hillFar: '#A9C8E8', hillNear: '#7BA9D6' },
+  ambar: { brand: '#C2751F', skyTop: '#FDEEDA', skyBottom: '#FBDCB4', hillFar: '#F0CF9A', hillNear: '#E0B273' },
+  terracota: { brand: '#B4552D', skyTop: '#FBE6DF', skyBottom: '#F6CDC0', hillFar: '#EEB9A6', hillNear: '#DD9781' },
+  lavanda: { brand: '#6B5FA8', skyTop: '#E9E4F8', skyBottom: '#D4CBF0', hillFar: '#C3B9E6', hillNear: '#A396D4' },
+};
+
+/**
+ * A mesma cor, mais fechada — e não um cinza no lugar dela.
+ *
+ * O nome diz o EFEITO e não a ocasião: ela nasceu para a noite e a segunda cena
+ * que precisou dela queria a mesma matiz um tom abaixo em pleno dia, para a
+ * silhueta se separar da colina. `noturno` obrigaria a segunda chamada a mentir
+ * sobre o que está fazendo.
+ *
+ * No escuro a paisagem pintava `sunken` sobre `surface` sobre `paper`: três
+ * cinzas separados por dezoito unidades de brilho. O desenho existia e não se
+ * via — o dono abriu o aplicativo e mandou a foto de uma caixa preta com um sol
+ * dentro, que é exatamente o que estava lá.
+ *
+ * A regra do tema ("escuro é cinza neutro, cor só de acento") vale para
+ * SUPERFÍCIE, não para cena: uma colina não é fundo de cartão, é a figura. Aqui
+ * a matiz escolhida continua, escurecida — que é o que uma colina faz à noite.
+ */
+export function escurecer(hex: string, fator: number): string {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = Math.round(((n >> 16) & 255) * fator);
+  const g = Math.round(((n >> 8) & 255) * fator);
+  const b = Math.round((n & 255) * fator);
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
+
+/**
+ * A MEDIDA da página: até onde a coluna de conteúdo cresce, em dp.
+ *
+ * O aplicativo inteiro não tinha nenhuma — zero `useWindowDimensions`, um único
+ * `maxWidth` numa caixa de diálogo — e isso não aparece num telefone, porque num
+ * telefone a largura é sempre a mesma. Aparece num tablet: **do telefone ao
+ * tablet a largura dobra**, e a coluna que serve a 393 dp vira uma tira esticada
+ * a 800, com linhas de texto que o olho perde no meio.
+ *
+ * Seiscentos é o ponto de quebra que o `CLAUDE.md` nomeia como tablet pequeno, e
+ * a escolha é de propósito: **abaixo dele nada muda**, então nenhum telefone
+ * corre risco por causa desta linha. Acima, a coluna para de crescer e se
+ * centraliza.
+ *
+ * Não é a resposta inteira, e o arquivo diz qual é: a 840 o certo é *refluir em
+ * colunas*, não centralizar uma. Mas qual cartão emparelha com qual é pergunta
+ * de cada tela, e uma tira legível é melhor que uma tira esticada enquanto essa
+ * pergunta não for respondida vinte vezes.
+ */
+export const MEDIDA_DA_PAGINA = 600;
+
+/**
+ * A partir de onde a página deixa de ser uma coluna e vira duas.
+ *
+ * A regra de layout da casa é explícita sobre isto: *"do telefone ao tablet a
+ * largura dobra, e uma coluna que serve a 393 dp vira tira esticada a 800 dp: lá
+ * o certo é **refluir em colunas**, não escalar"*. Centralizar a coluna a 600
+ * conserta a legibilidade e deixa metade do tablet vazia — resolve a linha longa
+ * demais e não resolve a página.
+ *
+ * Oitocentos e quarenta é o ponto que o `CLAUDE.md` nomeia como tablet, e é onde
+ * duas colunas de ~420 dp cabem: cada uma um pouco mais larga que um telefone
+ * comum, que é a largura em que estes cartões foram desenhados.
+ *
+ * **Não vale para toda tela, e é por isso que é escolha de quem chama.** A capa é
+ * uma página editorial — manchete, cena, diagrama, régua da semana — e lê de cima
+ * para baixo; parti-la em duas destrói a ordem que o dono aprovou. Formulário em
+ * duas colunas num aparelho de toque é pior que em uma. Quem pareia é tela feita
+ * de cartões IRMÃOS: relatórios, a gaveta do "Mais", o transporte por destino.
+ */
+export const PARES_A_PARTIR_DE = 840;
+
+/** Duas colunas de ~420 e o vão entre elas. Acima disso a página para de crescer. */
+export const MEDIDA_EM_PARES = 900;
+
+/**
+ * Os traços de uma pele: o que os componentes compartilhados perguntam a ela.
+ *
+ * **Existe porque "aplicar um tema novo" não pode ser caçar `if` pelo repositório.**
+ * Oito componentes decidiam sozinhos com `skin === 'papel' ?` — o cartão, o campo,
+ * o botão, a pastilha, a confirmação, o gráfico, o cabeçalho e o selo do tempo.
+ * Cada um deles funcionava; juntos formavam uma regra que só existia espalhada, e
+ * uma terceira pele cairia no ramo do Orgânico em todos os oito sem ninguém
+ * decidir isso. O dono foi explícito em 6 de setembro: *"qq tema futuro ou o q vc
+ * chama de skin tem q poder ser aplicado sem problemas"* — e mais skins virão.
+ *
+ * O nome de cada traço diz o que ele DECIDE, nunca qual pele o usa. `genero:
+ * 'pagina'` diz o que a pele faz; `ehPapel` diria só quem ela é, e a terceira
+ * pele voltaria a ser um `if`.
+ */
+export type Tracos = {
+  /**
+   * Como esta pele separa um assunto do outro.
+   *
+   * `'pagina'` — régua em cima, sem caixa, sem fundo, desenho solto na folha. É
+   * uma página impressa, e cor entra em traço, nunca em massa.
+   * `'superficie'` — cada assunto numa superfície própria, com crachá redondo,
+   * canto generoso e massa de cor.
+   *
+   * Sete componentes leem este traço, e é ele que faz duas peles parecerem dois
+   * produtos em vez de duas paletas.
+   */
+  genero: 'pagina' | 'superficie';
+  /**
+   * Como esta pele DESENHA o cabeçalho vivo de uma tela.
+   *
+   * `'vinheta'` — traço solto na folha: linha fina, sem fundo, sem massa. A cena é
+   * um desenho na margem de uma página impressa.
+   * `'paisagem'` — céu, duas colinas e o assunto como SILHUETA cheia no horizonte.
+   * É o mesmo vocabulário do herói da capa, e é o que faz o cabeçalho pertencer à
+   * pele em vez de visitá-la.
+   *
+   * **Este traço existe por uma correção do dono, em 7 de setembro:** *"o cabeçalho
+   * animado pegou as animações do tema do Papel. pelo visto vc esqueceu de fazer
+   * para o orgânico."* Ele estava certo, e o defeito era pior que esquecimento — a
+   * cena lia cor e espessura da pele e desenhava **uma geometria só**, que é
+   * exatamente o *"o Orgânico é o Papel com outro desenho"* que este projeto já
+   * tinha recusado uma vez na capa. A capa foi consertada movendo a peça para
+   * `src/home/capas/`; as dezoito cenas de cabeçalho ficaram para trás.
+   */
+  cabecalho: 'vinheta' | 'paisagem';
+  /**
+   * De onde sai a tinta de um botão cheio.
+   *
+   * `'marca'` — a cor do aplicativo, igual em toda tela: numa folha de contato o
+   * Papel apareceu com quatro botões de cores diferentes, e cor de seção no botão
+   * responde a pergunta errada ("registrar saída" não é outra coisa por estar
+   * noutra aba).
+   * `'area'` — o acento da área, que é como o dono escolheu o Orgânico: lá a cor
+   * É o assunto.
+   */
+  tintaCheia: 'marca' | 'area';
+  /**
+   * A marca desta pele vem do tom que a empresa escolheu nos ajustes.
+   *
+   * Falso numa pele de cara única — revista impressa não vem em cinco cores de
+   * capa. Decide a `brand` do tema e, com ela, a cor do dia morno no selo do
+   * tempo.
+   */
+  marcaVemDoTom: boolean;
+  /** O peso e o aperto do título do cabeçalho, que seguem a família. */
+  titulo: { peso: '600' | '700'; aperto: number };
+};
+
+export const skins: Record<
+  Skin,
+  {
+    light: Palette;
+    dark: Palette;
+    titleFamily: 'serif' | undefined;
+    radius: { sm: number; md: number; lg: number; xl: number; pill: number; controle: number };
+    /** A espessura do traço de um desenho nesta pele. */
+    traco: number;
+    tracos: Tracos;
+  }
+> = {
+  papel: {
+    light: papelClaro,
+    dark: papelEscuro,
+    /** Serifa nos títulos; o resto continua na fonte do sistema. */
+    titleFamily: 'serif' as const,
+    radius: { sm: 4, md: 6, lg: 8, xl: 10, pill: 999, controle: 4 },
+    tracos: {
+      cabecalho: 'vinheta',
+      genero: 'pagina',
+      tintaCheia: 'marca',
+      marcaVemDoTom: false,
+      titulo: { peso: '700', aperto: -0.2 },
+    },
+    /**
+     * A espessura do traço dos desenhos — fina, como bico de pena.
+     *
+     * Ela morava em vinte e seis lugares como `skin === 'papel' ? 1.7 : 2.2`,
+     * repetida em vinte e cinco arquivos. Isso não é redundância inofensiva: é a
+     * definição de uma decisão que ninguém consegue mudar. No dia em que o dono
+     * pedir um traço mais fino no Papel, vinte e seis edições e uma esquecida — e
+     * a tela esquecida fica com a espessura da OUTRA cara, que é a divergência
+     * que o guarda da assinatura existe para impedir noutra dimensão.
+     */
+    traco: 1.7,
+  },
+  organico: {
+    light: organicoClaro,
+    dark: organicoEscuro,
+    titleFamily: undefined,
+    radius: { sm: 12, md: 18, lg: 22, xl: 28, pill: 999, controle: 999 },
+    tracos: {
+      cabecalho: 'paisagem',
+      genero: 'superficie',
+      tintaCheia: 'area',
+      marcaVemDoTom: true,
+      titulo: { peso: '600', aperto: -0.8 },
+    },
+    /** Mais cheio: o Orgânico é um tema de massa, não de linha. */
+    traco: 2.2,
+  },
+} as const;

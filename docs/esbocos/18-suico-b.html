@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>NORVA — Suíço em quatro cores</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:412px;min-height:915px;overflow-x:hidden;background:#111;color:#fff;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+ -webkit-font-smoothing:antialiased}
+
+.band{padding:16px 20px}
+.kick{font-size:10px;font-weight:800;letter-spacing:.24em;text-transform:uppercase;opacity:.85}
+.hero{font-weight:800;letter-spacing:-.06em;line-height:.82}
+.cmp{display:flex;gap:0;margin-top:12px;border-top:2px solid currentColor}
+.cmp div{flex:1;padding-top:8px;font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase}
+.cmp div+div{border-left:2px solid currentColor;padding-left:12px}
+
+/* cabeçalho */
+.hdr{display:flex;justify-content:space-between;align-items:baseline;padding:15px 20px 13px;border-bottom:2px solid #fff}
+.brand{font-size:17px;font-weight:800;letter-spacing:.3em}
+.dt{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;opacity:.7}
+
+/* faixa vermelha — produção */
+.red{background:#e2210f;color:#fff}
+.red .hero{font-size:118px}
+
+/* faixa de blocos — a semana */
+.wkband{background:#111;padding:14px 20px 12px}
+.blocks{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;height:86px}
+.blocks b{display:flex;align-items:flex-end;background:#2c2c30}
+.blocks b i{display:block;width:100%;background:#fff}
+.blocks b.on i{background:#ffd400}
+.wklbl{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:6px;
+ font-size:10px;font-weight:800;letter-spacing:.04em;text-align:center;color:#8b8b93}
+.wklbl s{text-decoration:none;color:#ffd400}
+
+/* faixa azul — clima */
+.blue{background:#0b53d9;color:#fff;display:grid;grid-template-columns:112px 1fr;gap:14px;align-items:center}
+.blue .hero{font-size:72px}
+.wxlist{display:flex;gap:0;margin-top:10px;border-top:2px solid #fff}
+.wxlist div{flex:1;padding-top:7px;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+.wxlist div+div{border-left:2px solid #fff;padding-left:9px}
+
+/* faixa amarela — insumo */
+.yel{background:#ffc400;color:#111}
+.yel .hero{font-size:46px}
+
+/* faixa verde — expedição */
+.grn{background:#06913f;color:#fff;display:flex;align-items:center;gap:16px}
+.grn .hero{font-size:62px}
+
+/* rodapé preto — preços */
+.prices{padding:14px 20px 18px;border-top:2px solid #fff;display:grid;grid-template-columns:repeat(3,1fr);gap:0}
+.prices>div{padding:0 10px}
+.prices>div:first-child{padding-left:0}
+.prices>div+div{border-left:2px solid #3a3a40}
+.pn{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#9b9ba3;line-height:1.3;min-height:26px}
+.pv{font-size:20px;font-weight:800;letter-spacing:-.02em;margin-top:6px}
+.down{color:#3ddc7f}.up{color:#ff6a4d}
+.foot{height:112px;background:#111}
+</style></head>
+<body>
+
+<div class="hdr"><div class="brand">NORVA</div><div class="dt">Quarta · 02 set</div></div>
+
+<div class="band red">
+  <div class="kick">Produção de hoje</div>
+  <div class="hero">500</div>
+  <div class="cmp">
+    <div>Ontem<br>478</div>
+    <div>Quarta passada<br>▲ +19</div>
+  </div>
+</div>
+
+<div class="wkband">
+  <div class="blocks">
+    <b><i style="height:38%"></i></b><b><i style="height:44%"></i></b><b><i style="height:41%"></i></b>
+    <b><i style="height:6%"></i></b><b><i style="height:82%"></i></b><b><i style="height:46%"></i></b>
+    <b class="on"><i style="height:64%"></i></b>
+  </div>
+  <div class="wklbl"><span>QUI</span><span>SEX</span><span>SÁB</span><span>DOM</span><span>SEG</span><span>TER</span><s>QUA</s></div>
+</div>
+
+<div class="band blue">
+  <div>
+    <svg width="112" height="106" viewBox="0 0 118 112" fill="none" aria-hidden="true">
+      <g stroke="#fff" stroke-width="5" stroke-linecap="round">
+        <path d="M40 6v11"/><path d="M13 21l8 8"/><path d="M4 50h11"/><path d="M13 79l8-8"/><path d="M67 21l-8 8"/>
+      </g>
+      <circle cx="40" cy="50" r="19" fill="#ffd400"/>
+      <path d="M45 92h44a13 13 0 0 0 0-26 18 18 0 0 0-34-7 20 20 0 0 0-10 33z" fill="#fff"/>
+      <g fill="#9dc0ff">
+        <path d="M54 97c4 6 4 8 0 9-4-1-4-3 0-9z"/>
+        <path d="M70 99c4 6 4 8 0 9-4-1-4-3 0-9z"/>
+        <path d="M86 97c4 6 4 8 0 9-4-1-4-3 0-9z"/>
+      </g>
+    </svg>
+  </div>
+  <div>
+    <div class="kick">São Paulo</div>
+    <div class="hero">21°</div>
+    <div class="wxlist">
+      <div>Mín<br>13°</div>
+      <div>Chuva<br>47%</div>
+      <div>Amanhã<br>+4°</div>
+    </div>
+  </div>
+</div>
+
+<div class="band yel">
+  <div class="kick">Insumo acabando</div>
+  <div style="display:flex;align-items:center;gap:14px;margin-top:4px">
+    <svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
+      <polygon points="23,2 45,42 1,42" fill="#111"/>
+      <rect x="21" y="16" width="4" height="13" fill="#ffc400"/>
+      <rect x="21" y="32" width="4" height="4" fill="#ffc400"/>
+    </svg>
+    <div>
+      <div class="hero">1 dia</div>
+      <div style="font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-top:7px">
+        Polpa de morango · repor hoje</div>
+    </div>
+  </div>
+</div>
+
+<div class="band grn">
+  <svg width="52" height="52" viewBox="0 0 52 52" fill="none" stroke="#fff" stroke-width="3.4"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M3 15h27v20H3z"/><path d="M30 23h9l8 8v4H30z"/>
+    <circle cx="13" cy="41" r="4.6"/><circle cx="38" cy="41" r="4.6"/>
+  </svg>
+  <div>
+    <div class="kick">Saiu para as lojas</div>
+    <div class="hero">1</div>
+  </div>
+  <div style="margin-left:auto;text-align:right;font-size:12px;font-weight:800;
+              letter-spacing:.07em;text-transform:uppercase;line-height:1.5">
+    Caixa<br>hoje</div>
+</div>
+
+<div class="prices">
+  <div><div class="pn">Polpa de<br>morango</div><div class="pv down">▼ 0,6%</div></div>
+  <div><div class="pn">Açúcar<br>cristal</div><div class="pv down">▼ 2,2%</div></div>
+  <div><div class="pn">Glucose<br>38DE</div><div class="pv up">▲ 0,9%</div></div>
+</div>
+
+<div class="foot"></div>
+
+<!-- Barra de abas com os ícones do app. Troque apenas as cores nas variáveis. -->
+<style>
+.tabbar{position:fixed;bottom:0;left:0;right:0;height:78px;display:flex;align-items:center;
+ justify-content:space-around;padding-bottom:14px;font-size:11px;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+.tabbar a{display:flex;flex-direction:column;align-items:center;gap:5px;text-decoration:none}
+.tabbar svg{display:block}
+</style>
+<div class="tabbar" style="background:var(--tabbg,#111);border-top:1px solid var(--tabline,#3a3a40);color:var(--tabink,#8b8b93)">
+  <a style="color:var(--tabon,#ffd400)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>
+    <span style="color:var(--tabon,#ffd400);font-weight:600">Início</span></a>
+  <a style="color:var(--c2,#ff6a4d)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="6" y="2.5" width="12" height="14" rx="6"/><path d="M12 16.5v5"/></svg>
+    <span style="color:var(--tabink,#8b8b93)">Produção</span></a>
+  <a style="color:var(--c3,#3ddc7f)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5h11v9H2z"/><path d="M13 11h4l3.5 3.5v2H13z"/><circle cx="6.5" cy="18.5" r="1.9"/><circle cx="16.5" cy="18.5" r="1.9"/></svg>
+    <span style="color:var(--tabink,#8b8b93)">Transporte</span></a>
+  <a style="color:var(--c4,#6f9dff)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 20h16"/><path d="M6.5 20v-6"/><path d="M12 20V5"/><path d="M17.5 20v-9"/></svg>
+    <span style="color:var(--tabink,#8b8b93)">Relatórios</span></a>
+  <a style="color:var(--c5,#c9c4bb)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg>
+    <span style="color:var(--tabink,#8b8b93)">Mais</span></a>
+</div>
+</body></html>

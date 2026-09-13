@@ -3,26 +3,272 @@
     "defaultMode": "bypassPermissions",
     "allow": [
       "Bash",
-
-      "Read", "Edit", "MultiEdit", "Write", "NotebookEdit",
-      "Glob", "Grep", "WebFetch", "WebSearch",
-      "Task", "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet",
-      "TaskOutput", "TaskStop", "Skill", "ListSkills", "SearchSkills",
-      "SendUserFile", "PushNotification", "SendMessage", "Monitor",
-      "ScheduleWakeup", "CronCreate", "CronList", "CronDelete",
-      "ListMcpResourcesTool", "ReadMcpResourceTool", "ListConnectors",
-
-      "mcp__github", "mcp__GitHub",
-      "mcp__Vercel", "mcp__Expo", "mcp__Supabase",
-      "mcp__Claude_Code_Remote", "mcp__Figma", "mcp__GoDaddy"
+      "Read",
+      "Edit",
+      "MultiEdit",
+      "Write",
+      "NotebookEdit",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "Task",
+      "TodoWrite",
+      "TaskCreate",
+      "TaskUpdate",
+      "TaskList",
+      "TaskGet",
+      "TaskOutput",
+      "TaskStop",
+      "Skill",
+      "ListSkills",
+      "SearchSkills",
+      "SendUserFile",
+      "PushNotification",
+      "SendMessage",
+      "Monitor",
+      "ScheduleWakeup",
+      "CronCreate",
+      "CronList",
+      "CronDelete",
+      "ListMcpResourcesTool",
+      "ReadMcpResourceTool",
+      "ListConnectors",
+      "mcp__github",
+      "mcp__GitHub",
+      "mcp__Vercel",
+      "mcp__Expo",
+      "mcp__Supabase",
+      "mcp__Claude_Code_Remote",
+      "mcp__Figma",
+      "mcp__GoDaddy"
     ],
-    *"deny"*: [
-      "Bash(git push --force*)", "Bash(git push -f*)", "Bash(git push origin main*)",
-      "Bash(git reset --hard*)", "Bash(rm -rf /*)", "Bash(rm -rf ~*)",
-      "mcp__github__delete_repository", "mcp__github__merge_pull_request",
-      "mcp__Supabase__pause_project", "mcp__Supabase__delete_branch",
-      "mcp__Expo__build_submit",
-      "mcp__Vercel__buy_domain", "mcp__Vercel__buy_pro", "mcp__Vercel__buy_credits"
+    "deny": [
+      "mcp__AccuWeather",
+      "mcp__AgentMail",
+      "mcp__Asaas",
+      "mcp__Booking_com",
+      "mcp__Box",
+      "mcp__Canva",
+      "mcp__Docusign",
+      "mcp__Dropbox",
+      "mcp__ElevenLabs",
+      "mcp__Gmail",
+      "mcp__GoDaddy",
+      "mcp__Google_Calendar",
+      "mcp__Google_Drive",
+      "mcp__Hugging_Face",
+      "mcp__IFTTT",
+      "mcp__Macaly",
+      "mcp__Mem0",
+      "mcp__Mermaid_Chart",
+      "mcp__Mobbin",
+      "mcp__Notion",
+      "mcp__PayPal",
+      "mcp__PDF_Viewer",
+      "mcp__Play_Sheet_Music",
+      "mcp__Replit",
+      "mcp__Sentry",
+      "mcp__Slack",
+      "mcp__Todoist",
+      "mcp__Uber",
+      "mcp__Website_Generator_by_B12",
+      "mcp__WordPress_com",
+      "mcp__Zapier",
+      "mcp__n8n",
+      "mcp__GitHub"
     ]
-  }
+  },
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"$NORVA_INSIGHTS_CHILD\" ] || NORVA_INSIGHTS_CHILD=1 claude -p '/insights' >> \"$HOME/.claude/insights-auto.log\" 2>&1 &"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .proofgate/hooks/push-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/sem-espera.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "skillOverrides": {
+    "docx": "off",
+    "pptx": "off",
+    "xlsx": "off",
+    "pdf": "off",
+    "canvas-design": "off",
+    "algorithmic-art": "off",
+    "slack-gif-creator": "off",
+    "theme-factory": "off",
+    "brand-guidelines": "off",
+    "web-artifacts-builder": "off",
+    "internal-comms": "off",
+    "doc-coauthoring": "off",
+    "learn": "off",
+    "mcp-builder": "off",
+    "skill-creator": "off",
+    "import-memory": "off",
+    "artifact-design": "off",
+    "artifact-diagramming": "off",
+    "artifact-capabilities": "off",
+    "dataviz": "off",
+    "design": "off",
+    "claude-api": "off",
+    "init": "off",
+    "keybindings-help": "off",
+    "fewer-permission-prompts": "off",
+    "session-start-hook": "off"
+  },
+  "deniedMcpServers": [
+    {
+      "serverName": "AccuWeather"
+    },
+    {
+      "serverName": "AccuWeather®"
+    },
+    {
+      "serverName": "AgentMail"
+    },
+    {
+      "serverName": "Asaas"
+    },
+    {
+      "serverName": "Booking.com"
+    },
+    {
+      "serverName": "Booking_com"
+    },
+    {
+      "serverName": "Box"
+    },
+    {
+      "serverName": "Canva"
+    },
+    {
+      "serverName": "Docusign"
+    },
+    {
+      "serverName": "Dropbox"
+    },
+    {
+      "serverName": "ElevenLabs"
+    },
+    {
+      "serverName": "GitHub"
+    },
+    {
+      "serverName": "Gmail"
+    },
+    {
+      "serverName": "GoDaddy"
+    },
+    {
+      "serverName": "Google Calendar"
+    },
+    {
+      "serverName": "Google_Calendar"
+    },
+    {
+      "serverName": "Google Drive"
+    },
+    {
+      "serverName": "Google_Drive"
+    },
+    {
+      "serverName": "Hugging Face"
+    },
+    {
+      "serverName": "Hugging_Face"
+    },
+    {
+      "serverName": "IFTTT"
+    },
+    {
+      "serverName": "Macaly"
+    },
+    {
+      "serverName": "Mem0"
+    },
+    {
+      "serverName": "Mermaid Chart"
+    },
+    {
+      "serverName": "Mermaid_Chart"
+    },
+    {
+      "serverName": "Microsoft 365"
+    },
+    {
+      "serverName": "Mobbin"
+    },
+    {
+      "serverName": "n8n"
+    },
+    {
+      "serverName": "Notion"
+    },
+    {
+      "serverName": "PayPal"
+    },
+    {
+      "serverName": "PDF Viewer"
+    },
+    {
+      "serverName": "PDF_Viewer"
+    },
+    {
+      "serverName": "Play Sheet Music"
+    },
+    {
+      "serverName": "Play_Sheet_Music"
+    },
+    {
+      "serverName": "Replit"
+    },
+    {
+      "serverName": "Sentry"
+    },
+    {
+      "serverName": "Slack"
+    },
+    {
+      "serverName": "Stripe"
+    },
+    {
+      "serverName": "Todoist"
+    },
+    {
+      "serverName": "Uber"
+    },
+    {
+      "serverName": "Website Generator by B12"
+    },
+    {
+      "serverName": "Website_Generator_by_B12"
+    },
+    {
+      "serverName": "WordPress.com"
+    },
+    {
+      "serverName": "WordPress_com"
+    },
+    {
+      "serverName": "Zapier"
+    }
+  ]
 }

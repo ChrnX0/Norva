@@ -9,15 +9,32 @@ set -uo pipefail
 # shellcheck source=/dev/null
 . "${PROOFGATE_LIB:-$(dirname "$0")/../lib.sh}" 2>/dev/null || true
 SQL='SELECT[[:space:]].*[[:space:]]FROM[[:space:]]|INSERT[[:space:]]+INTO[[:space:]]|UPDATE[[:space:]].*[[:space:]]SET[[:space:]]|DELETE[[:space:]]+FROM[[:space:]]'  # proofgate-allow
-CONCAT='["'"'"'`][[:space:]]*\+|\+[[:space:]]*["'"'"'`]|\$\{|%s|%d|f["'"'"']|\.format[[:space:]]*\(|\|\|[[:space:]]*[[:alnum:]_]'  # proofgate-allow
+CONCAT='["'"'"'`][[:space:]]*\+|\+[[:space:]]*["'"'"'`]|\$\{|%s|%d|(^|[^[:alnum:]_])f["'"'"']|\.format[[:space:]]*\('  # proofgate-allow
+# The f-string branch needs a boundary before the `f`. Without it any word ending
+# in f before a quote matches, and hex is full of them: a line inserting the uuid
+# ...00000000000f warned, because `f'` is in the data.
+
+# SQL's concatenation operator, kept apart from the rest for one reason: in a
+# shell script `||` is or, and `psql -c "insert into t ...;" || fail` has exactly
+# the shape of `'abc' || col` - a quote, then the bars. Nothing on the line tells
+# them apart, so the file type does: shell scripts are excluded from this branch
+# alone, and keep every other pattern above.
+PIPE='["'"'"'][[:space:]]*\|\||\|\|[[:space:]]*["'"'"']'   # proofgate-allow
 tab="$(printf '\t')"; n=0
+# O verbo de SQL filtra o fluxo inteiro num grep só, e é o que corta trinta mil
+# linhas para as poucas que interessam. As decisões que dependem do TIPO DE
+# ARQUIVO — o `||` que é `or` no shell — continuam no laço, que agora vê essas
+# poucas: por linha, este guard custava sessenta e cinco segundos.
 while IFS="$tab" read -r file content; do
-  printf '%s' "$content" | grep -Eiq "$SQL"    || continue       # a SQL verb AND
-  printf '%s' "$content" | grep -Eq  "$CONCAT"  || continue       # a concat/interp on the same line
+  if ! printf '%s' "$content" | grep -Eq "$CONCAT"; then           # a concat/interp on the same line
+    case "$file" in *.sh|*.bash|*.zsh|*.bats) continue ;; esac      # ...or SQL's `||`, but not the shell's
+    printf '%s' "$content" | grep -Eq "$PIPE" || continue
+  fi
   printf '%s' "$content" | grep -Eq  'sql`'     && continue       # tagged template `sql`...`` is safe
   pg_ignored "$(pg_fingerprint sql-concat "$file" "$content")" && continue
   n=$((n + 1))
-done < <(pg_added_with_file ':(exclude)*.md' ':(exclude)*test*' ':(exclude)*spec*')
+done < <(pg_added_with_file ':(exclude)*.md' ':(exclude)*test*' ':(exclude)*spec*' \
+  | pg_match "$SQL" -i)
 if [ "$n" -gt 0 ]; then
   echo "⚠️  sql-concat: $n added line(s) build SQL by string concat/interpolation — an injection risk. Use parameterized/bound queries. (Query-builder false positive? suppress with proofgate-allow.)"
   exit 2

@@ -1,0 +1,63 @@
+<!doctype html><meta charset="utf-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:412px;height:300px;overflow:hidden;background:#f3f7f3;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#16281D}
+.topo{position:relative;height:230px}
+svg.cena{position:absolute;inset:0;width:412px;height:230px}
+.sobre{position:absolute;left:24px;top:22px}
+.marca{font-size:13px;letter-spacing:.22em;font-weight:700}
+.dia{font-size:13px;color:#4D6055;margin-top:2px}
+.n{font-size:60px;line-height:1;letter-spacing:-.04em;font-weight:600;margin-top:4px}
+.sub{font-size:14px;color:#4D6055}
+.pills{display:flex;gap:8px;margin-top:9px}
+.pills em{font-style:normal;font-size:12px;background:#ffffffcc;border-radius:20px;padding:5px 11px;color:#4D6055}
+.pills b{color:#16281D}
+
+/* O sol gira devagar; os raios são o que dá vida sem chamar atenção. */
+.raios{transform-origin:316px 62px;animation:girar 34s linear infinite}
+@keyframes girar{to{transform:rotate(360deg)}}
+/* A nuvem vagueia seis pixels para cada lado, em nove segundos. */
+.nuvem{animation:vaguear 9s ease-in-out infinite}
+@keyframes vaguear{0%,100%{transform:translateX(-5px)}50%{transform:translateX(5px)}}
+/* A chuva cai e some, com as três gotas em tempos diferentes. */
+.gota{animation:cair 2.2s linear infinite}
+.gota.b{animation-delay:.7s}
+.gota.c{animation-delay:1.4s}
+@keyframes cair{0%{transform:translateY(0);opacity:0}20%{opacity:.9}100%{transform:translateY(26px);opacity:0}}
+/* A fumaça da fábrica, mais lenta que a chuva. */
+.fum{animation:subir 7s ease-in-out infinite}
+.fum.b{animation-delay:2.4s}
+@keyframes subir{0%{transform:translateY(4px) scale(.9);opacity:0}30%{opacity:.55}100%{transform:translateY(-18px) scale(1.2);opacity:0}}
+</style>
+<div class="topo">
+  <svg class="cena" viewBox="0 0 412 230" preserveAspectRatio="none">
+    <defs><linearGradient id="ceu" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dff0e6"/><stop offset="1" stop-color="#bfe3cf"/></linearGradient></defs>
+    <rect width="412" height="230" fill="url(#ceu)"/>
+
+    <g class="raios" stroke="#ffd76a" stroke-width="5" stroke-linecap="round">
+      <path d="M316 14v10M316 100v10M264 62h10M358 62h10M280 26l7 7M345 91l7 7M352 26l-7 7M287 91l-7 7"/></g>
+    <circle cx="316" cy="62" r="30" fill="#ffd76a"/>
+
+    <g class="nuvem">
+      <path d="M232 104a24 24 0 0 1 24-23 31 31 0 0 1 58 9 20 20 0 0 1-4 40h-58a20 20 0 0 1-20-26z" fill="#ffffff"/>
+      <g fill="#8ec5fc"><circle class="gota a" cx="258" cy="140" r="4"/><circle class="gota b" cx="288" cy="146" r="4"/><circle class="gota c" cx="318" cy="140" r="4"/></g>
+    </g>
+
+    <path d="M0 150c70-22 120 14 206 2s136-30 206-12v90H0z" fill="#a9dcc0"/>
+    <g fill="#3f8f6a"><path d="M282 156h60v30h-60z"/><path d="M282 156l10-15 10 15 10-15 10 15 10-15 10 15"/>
+      <rect x="348" y="132" width="9" height="54"/></g>
+    <g fill="#ffffff"><rect x="290" y="166" width="8" height="8"/><rect x="304" y="166" width="8" height="8"/><rect x="318" y="166" width="8" height="8"/></g>
+    <g fill="#ffffff" opacity=".75"><circle class="fum a" cx="352" cy="126" r="5"/><circle class="fum b" cx="356" cy="122" r="4"/></g>
+    <path d="M0 182c80-16 130 12 206 4s130-22 206-6v50H0z" fill="#7cc9a6"/>
+  </svg>
+
+  <div class="sobre">
+    <div class="marca">NORVA</div>
+    <div class="dia">quarta-feira, 2 de setembro</div>
+    <div class="n">500</div>
+    <div class="sub">unidades produzidas hoje</div>
+    <div class="pills"><em>ontem <b>478</b></em><em>↑ <b>+19</b> que na quarta passada</em></div>
+  </div>
+</div>

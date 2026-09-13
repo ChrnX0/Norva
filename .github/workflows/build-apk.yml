@@ -1,0 +1,354 @@
+name: Compilar o APK
+
+# Compila o instalador no próprio runner, em vez de na Expo.
+#
+# Dois motivos. A cota da Expo é limitada e o dono pediu para guardá-la para
+# versão madura e OTA. E o APK da Expo sai com quatro arquiteturas — 110 MB, dos
+# quais 47 são x86 e x86_64, que só existem em emulador. Aqui sai só arm64-v8a,
+# que é o que qualquer celular dos últimos dez anos usa: 47 MB.
+#
+# O artefato é anexado ao release, que é de onde um celular consegue baixar.
+
+on:
+  workflow_dispatch:
+    inputs:
+      limpar_tags:
+        description: 'Tags de release das quais remover APKs antigos (ex: apk-0.1.0,apk-0.2.0)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Uma hora é folga generosa para uma compilação fria de NDK, e evita queimar
+    # as seis horas padrão do GitHub quando algo trava.
+    #
+    # Mas o relógio não diagnostica nada: as duas primeiras execuções morreram
+    # aqui, e a causa era falta de Metaspace, não lentidão. Um job cancelado por
+    # tempo diz "cancelled" e some com o motivo. Por isso o passo de memória
+    # abaixo e o caché que grava mesmo assim - o limite continua sendo teto, não
+    # explicação.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      # Abrir espaço em disco antes de qualquer coisa.
+      #
+      # A execução 4 compilou, publicou o APK e então falhou ao gravar o caché:
+      # `zstd: No space left on device`. O runner vem com uns 14 GB livres e o
+      # build do Android come quase tudo - e o `tar` do caché precisa escrever
+      # o `.tzst` no mesmo disco antes de mandar. Nada disto aqui é usado para
+      # compilar um APK.
+      #
+      # E o passo do caché **não falha** quando isso acontece: ele avisa e sai
+      # verde. Foi por isso que a execução 4 apareceu inteira bem-sucedida com o
+      # caché vazio - o log é a única testemunha.
+      - name: Abrir espaço em disco
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/share/swift /opt/ghc \
+                      /usr/local/share/powershell /usr/local/share/boost \
+                      /opt/hostedtoolcache/CodeQL
+          df -h /
+
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      # O caché guarda o que não muda entre commits: as dependências do Gradle
+      # já baixadas e transformadas. A chave inclui o lockfile porque uma
+      # dependência nova invalida o que estava guardado.
+      #
+      # O número, medido e não prometido (execução 5 fria contra a 6 quente,
+      # mesmo commit `1b4b749`): a compilação caiu de **24m13s para 16m53s**.
+      # Sete minutos, não a "questão de minutos" que este comentário afirmou
+      # por três execuções seguidas. As duas execuções imprimiram
+      # `871 actionable tasks: 871 executed` e nenhum `FROM-CACHE` - o que se
+      # reaproveita aqui é download e transformação de artefato, nunca saída de
+      # tarefa. Caché de dependência não é caché de compilação; para o segundo
+      # seria preciso `org.gradle.caching=true` e guardar `build-cache-1`, e
+      # isso ainda não foi medido.
+      #
+      # Restaurar e gravar são passos separados de propósito: ver o passo
+      # "Guardar o caché" no fim do arquivo.
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.cxx
+          key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.run_id }}
+          restore-keys: |
+            gradle-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+            gradle-${{ runner.os }}-
+
+      - name: Instalar as dependências
+        run: npm ci
+
+      - name: Gerar o projeto nativo
+        run: npx expo prebuild --platform android --no-install
+
+      # O manifesto que instala, conferido - não a intenção no app.json.
+      #
+      # `allowBackup` é `true` por padrão, e nesse estado o Android copia o banco
+      # do aplicativo para a conta Google do aparelho. O celular da fábrica é
+      # compartilhado por decisão escrita e costuma estar logado na conta de
+      # alguém: o livro-razão inteiro sairia dali para a nuvem pessoal de um
+      # operador. `src/release.test.ts` guarda o app.json em todo commit; isto
+      # confere o arquivo que o Expo gerou, que é o que decide de verdade.
+      - name: Conferir que o backup do Android está desligado
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          grep -o 'android:allowBackup="[^"]*"' "$MANIFEST"
+          grep -q 'android:allowBackup="false"' "$MANIFEST"
+
+      # Memória para o Gradle, medida da máquina em vez de adivinhada.
+      #
+      # O template do React Native pede 512 MB de Metaspace, e a arquitetura
+      # nova não cabe nisso: a execução de 21h encheu o Metaspace aos 26
+      # minutos, ficou vinte minutos sem escrever uma linha e morreu no relógio.
+      # Falha de memória usando o cronômetro como disfarce.
+      #
+      # A primeira correção acertou o diagnóstico e errou a dose: dei 6 GB de
+      # heap lendo "16 GB" de um comentário que eu não conferi. A compilação
+      # então foi longe - bundle, Kotlin, dex, tudo - e às 00:05 o **runner
+      # inteiro** recebeu sinal de desligamento, que é o que acontece quando as
+      # JVMs somadas passam do que a máquina tem. O Gradle não é a única: o
+      # compilador do Kotlin, o R8 e o aapt2 sobem cada um a sua.
+      #
+      # Então aqui não se escolhe número: lê-se a RAM e tira-se metade, e o
+      # `free -h` fica no log para o próximo não precisar adivinhar também.
+      - name: Dar memória ao Gradle, na medida da máquina
+        run: |
+          nproc
+          free -h
+
+          TOTAL_MB=$(free -m | awk '/^Mem:/ {print $2}')
+          HEAP_MB=$(( TOTAL_MB / 2 ))
+          if [ "$HEAP_MB" -gt 4096 ]; then HEAP_MB=4096; fi
+          if [ "$HEAP_MB" -lt 2048 ]; then HEAP_MB=2048; fi
+          echo "máquina com ${TOTAL_MB} MB de RAM; heap do Gradle: ${HEAP_MB} MB"
+
+          cd android
+          JVMARGS="-Xmx${HEAP_MB}m -XX:MaxMetaspaceSize=1g"
+          sed -i "s/^org\.gradle\.jvmargs=.*/org.gradle.jvmargs=$JVMARGS/" gradle.properties
+
+          # O prebuild gera este arquivo a cada execução. Se o Expo renomear a
+          # chave, o sed não casa - e sem esta conferência a compilação voltaria
+          # a morrer igual daqui a meses, sem pista nenhuma.
+          grep -q "^org.gradle.jvmargs=$JVMARGS$" gradle.properties
+
+          # A JVM do Kotlin é a segunda maior da soma, e o padrão dela é generoso.
+          #
+          # O `printf` começa com uma quebra de linha porque o arquivo gerado
+          # **termina sem uma**: um `echo >>` cola o texto no fim da última
+          # linha e produz `...watchedDirectories=[]kotlin.daemon.jvmargs=-Xmx1g`,
+          # que estraga as duas propriedades e não reclama. Foi assim na
+          # primeira tentativa, e só apareceu porque este passo foi rodado
+          # contra o `gradle.properties` de verdade antes de subir.
+          printf '\n%s\n' "kotlin.daemon.jvmargs=-Xmx1g" >> gradle.properties
+          grep -q '^kotlin.daemon.jvmargs=-Xmx1g$' gradle.properties
+
+          grep -E '^(org.gradle.jvmargs|kotlin.daemon.jvmargs)=' gradle.properties
+
+      # O número pelo qual o Android decide se há atualização.
+      #
+      # O `expo prebuild` regenera o `build.gradle` com `versionCode 1` toda vez,
+      # porque o app.json não declara um. Resultado: todo APK que já saiu deste
+      # repositório se anuncia como a MESMA build para o sistema - instalar por
+      # cima não é atualizar, é substituir, e o aparelho não sabe qual é mais
+      # novo.
+      #
+      # Sai da versão, não de um contador: mesma versão dá sempre o mesmo número
+      # (build reproduzível), e subir a versão sobe o código - que é a única regra
+      # que a Play Store impõe.
+      #
+      # A fórmula anterior era `a * 100000 + b * 10000 + c`, e ela COLIDIA dentro
+      # do alcance de hoje: 0.10.0 e 1.0.0 davam 100000 os dois, e o 0.10.0 já está
+      # publicado. Instalar a 1.0.0 por cima não seria atualizar - para o Android é
+      # a mesma build, e o aparelho não sabe qual é a nova.
+      #
+      # Agora cada parte tem faixa própria: `a * 1.000.000 + b * 10.000 + c * 100`.
+      # 0.10.0 continua valendo 100000 (a fórmula nova concorda com a antiga em toda
+      # versão 0.x.0, então nada do que já saiu muda de número), 0.11.0 vira 110000
+      # e 1.0.0 vira 1.000.000. O limite é menor e correção abaixo de 100, e quem
+      # guarda isso é `src/release.test.ts`, que roda em todo commit.
+      - name: Dar ao Android um número de build que cresce
+        run: |
+          VERSION="$(node -p "require('./app.json').expo.version")"
+          CODE="$(node -p "
+            const [a,b,c] = require('./app.json').expo.version.split('.').map(Number);
+            if (b > 99 || c > 99) throw new Error('menor ou correção acima de 99: a faixa colide');
+            a * 1000000 + b * 10000 + c * 100
+          ")"
+          echo "versão $VERSION → versionCode $CODE"
+
+          cd android/app
+          sed -i "s/^\( *\)versionCode .*/\1versionCode $CODE/" build.gradle
+
+          # Se o Expo mudar a forma dessa linha, o sed não casa e o APK sairia
+          # de novo como build 1, calado. Aqui ele para.
+          grep -qE "^ *versionCode $CODE$" build.gradle
+          grep -E "^ *version(Code|Name)" build.gradle
+
+      - name: Compilar, só arm64
+        run: |
+          cd android
+          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+
+      - name: Conferir que o que saiu instala
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          ls -lh "$APK"
+
+          # Assinatura: um APK sem ela não instala, e o erro no celular não
+          # explica nada. A ferramenta oficial responde antes de publicarmos.
+          SIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
+          "$SIGNER" verify --verbose "$APK" | tee /tmp/sig.txt
+          grep -q "^Verifies" /tmp/sig.txt
+
+          # E o bundle tem de estar dentro: um APK sem JS abre numa tela branca.
+          unzip -l "$APK" | grep -q assets/index.android.bundle
+
+          # Uma arquitetura só, senão o ganho de tamanho se perdeu no caminho.
+          test "$(unzip -l "$APK" | grep -oE 'lib/[a-z0-9_-]+/' | sort -u | wc -l)" -eq 1
+
+          # O nome carrega a versão, e isso não é enfeite.
+          #
+          # Todo build saía como `norva-arm64.apk`. Na pasta de downloads do
+          # celular o segundo vira "norva-arm64 (1).apk", e a pergunta "eu estou
+          # com o novo?" passa a não ter resposta olhando o arquivo. Pior: o
+          # `versionCode` do Android é 1 em todos eles, então nem o sistema
+          # distingue. O nome é a única pista que sobra para quem baixa.
+          VERSION="$(node -p "require('./app.json').expo.version")"
+          NAME="norva-$VERSION-arm64.apk"
+          cp "$APK" "$NAME"
+          echo "APK_NAME=$NAME" >> "$GITHUB_ENV"
+          ls -lh "$NAME"
+
+      # Um release, um instalador.
+      #
+      # O release `apk-0.2.0` chegou a carregar dois APKs de códigos diferentes:
+      # o compilado aqui e um build antigo da Expo que outro workflow reanexava
+      # a cada push. Quem baixasse o errado instalava um app sem metade das
+      # telas, e nada na página dizia isso. Daqui em diante o release fica com o
+      # arquivo que este job acabou de compilar, e só.
+      #
+      # A faxina das tags velhas é manual de propósito: apagar arquivo publicado
+      # é ato do dono, não efeito colateral de uma compilação.
+      - name: Limpar APKs antigos das tags pedidas
+        if: inputs.limpar_tags != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          IFS=',' read -ra TAGS <<< "${{ inputs.limpar_tags }}"
+          for TAG in "${TAGS[@]}"; do
+            TAG="$(echo "$TAG" | tr -d ' ')"
+            [ -n "$TAG" ] || continue
+            echo "== $TAG"
+            gh release view "$TAG" --json assets -q '.assets[].name' | while read -r NAME; do
+              case "$NAME" in
+                *.apk)
+                  echo "   removendo $NAME"
+                  gh release delete-asset "$TAG" "$NAME" -y
+                  ;;
+              esac
+            done
+          done
+
+      - name: Anexar ao release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # A tag sai do app.json, e nunca de um texto escrito à mão.
+          #
+          # Era fixa em `apk-0.1.0`, então o release seguia dizendo 0.1.0
+          # enquanto o conteúdo mudava - e do celular isso é indistinguível da
+          # primeira versão. Quem baixa não lê o diff; lê o título.
+          VERSION="$(node -p "require('./app.json').expo.version")"
+          TAG="apk-$VERSION"
+          echo "publicando $TAG com $APK_NAME"
+
+          # Cria o release se ele ainda não existir, em vez de só anexar.
+          #
+          # O passo era `upload` puro, então **uma versão nova quebrava a
+          # publicação**: sem release com aquela tag, o `gh` sai com erro depois
+          # de vinte minutos de compilação, e o APK fica só no runner. O caminho
+          # normal daqui em diante é justamente esse - subir a versão no
+          # `app.json` e compilar.
+          gh release create "$TAG" "$APK_NAME" \
+            --target "$(git rev-parse HEAD)" \
+            --title "NORVA $TAG" \
+            --prerelease \
+            --notes "Publicando..." \
+          || gh release upload "$TAG" "$APK_NAME" --clobber
+
+          # A pagina tem de dizer o que carrega. Trocar o arquivo sem trocar o
+          # texto deixa o release parecendo a primeira versao para sempre, e
+          # quem abre no celular nao tem como saber que baixou o novo.
+          {
+            echo "Instalador de teste do NORVA para Android."
+            echo
+            echo "**Baixe \`$APK_NAME\`** - $(du -h "$APK_NAME" | cut -f1), compilado"
+            echo "neste repositorio para arm64, que e o que qualquer celular dos"
+            echo "ultimos dez anos usa."
+            echo
+            # O texto anterior citava um \`norva.apk\` da Expo dizendo que ele
+            # "carrega duas arquiteturas que so existem em emulador". Duas
+            # mentiras numa frase: sao quatro ABIs, e duas delas - arm64-v8a e
+            # armeabi-v7a - sao de celular de verdade, entao o aparelho instala
+            # aquele arquivo sem reclamar. E ele vinha de outro commit, 25 atras
+            # deste. Um release carrega um instalador; se houver outro, ele nao
+            # e "o mesmo app menor", e outro app.
+            echo "**Como instalar:** baixe pelo proprio celular. O Android pede"
+            echo "permissao para instalar fora da Play Store - e normal em"
+            echo "aplicativo de teste, e e uma vez so."
+            echo
+            echo "**Se ja tiver a versao da Expo instalada:** desinstale antes."
+            echo "As duas sao assinadas com chaves diferentes e o Android recusa"
+            echo "instalar uma por cima da outra - e desinstalar apaga os dados."
+            echo
+            echo "---"
+            echo "Compilado de \`$(git rev-parse --short HEAD)\` - $(date -u +'%d/%m/%Y %H:%M UTC')"
+          } > notas.md
+
+          gh release edit "$TAG" --notes-file notas.md
+          echo "no release: $(gh release view "$TAG" --json url -q .url)"
+
+      # Guardar mesmo quando a compilação não terminou.
+      #
+      # O `actions/cache` inteiro só grava no fim de um job que terminou, e um
+      # job morto por timeout nunca grava. Então a execução seguinte também
+      # começava fria, e também morria no relógio: o caché que faria a
+      # compilação caber na hora só existiria se ela já tivesse cabido. Era um
+      # nó, e ele já custou duas horas de runner.
+      #
+      # O alcance disto tem borda, e ela já foi vista: `always()` cobre passo
+      # que falha e job cancelado, mas não cobre a máquina sumir. Quando o
+      # runner recebeu sinal de desligamento, este passo também foi pulado -
+      # nada roda numa máquina que morreu. Contra isso o que vale é não estourar
+      # a memória dela, que é o passo acima.
+      #
+      # A chave leva o `run_id` porque entrada de caché não se sobrescreve -
+      # sem isso a primeira gravação parcial seria a única, para sempre.
+      - name: Guardar o caché, tenha dado certo ou não
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.cxx
+          key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.run_id }}

@@ -1,0 +1,31 @@
+-- "Quebrou" estava respondendo por duas coisas que mandam olhar lugares
+-- diferentes.
+--
+-- Achado ao ler o sistema anterior do dono, 10 de setembro, e aprovado por ele.
+-- Os cinco motivos de hoje — derreteu, quebrou, venceu, cortesia, consumo
+-- interno — cobrem o que acontece com o produto DEPOIS de pronto. Nenhum deles
+-- diz que ele saiu errado do tacho.
+--
+-- E a diferença não é de palavra, é de para onde a pessoa vai olhar:
+--
+--   derreteu          -> olhe o freezer, o caminhão, a porta
+--   quebrou           -> olhe o transporte e a embalagem
+--   erro de produção  -> olhe a ficha, a dosagem, quem estava no turno
+--   qualidade         -> olhe o insumo e o fornecedor
+--
+-- Com os dois últimos caindo em "quebrou", o relatório de perdas manda a fábrica
+-- procurar no caminhão um problema que nasceu no tacho. É a mesma família de
+-- defeito que a `0031` conserta na devolução: motivo que existe para dizer ONDE
+-- mexer, e que perde o sentido quando dois casos diferentes recebem o mesmo
+-- nome.
+--
+-- **`production_error` e não `production`, de propósito.** `production` já é um
+-- `movement_kind` nesta casa, e o mesmo símbolo para duas coisas diferentes no
+-- mesmo razão é confusão barata de evitar agora e cara depois.
+--
+-- Momento: nenhuma perda foi gravada em servidor nenhum, e o vocabulário de um
+-- livro-razão só é livre para mudar enquanto não há linha — o mesmo argumento
+-- que o docblock de `LossReason` já registra sobre o `internal_use`.
+
+alter type loss_reason add value 'production_error';
+alter type loss_reason add value 'quality';

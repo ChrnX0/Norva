@@ -36,9 +36,12 @@ TOCADOS="$(printf '%s\n' "$CHANGED" | grep -E "$MANIFESTS" || true)"
 SUBIU=""
 while IFS= read -r f; do
   [ -n "$f" ] || continue
+  # Sem `-q`: ele sai no primeiro casamento, o `git diff` a montante morre de SIGPIPE,
+  # e sob `pipefail` o status do cano vira 141. Aqui isso diria "nenhuma versão subiu"
+  # num diff em que ela subiu — falso NEGATIVO, o pior lado para uma guarda.
   if git diff -U0 "$BASE"..HEAD -- "$f" 2>/dev/null \
       | grep -E '^\+' \
-      | grep -Eq '"?version"?[[:space:]]*[:=][[:space:]]*"?[0-9]+\.[0-9]+'; then
+      | grep -E '"?version"?[[:space:]]*[:=][[:space:]]*"?[0-9]+\.[0-9]+' >/dev/null; then
     SUBIU="$SUBIU $f"
   fi
 done <<EOF
@@ -54,9 +57,13 @@ if printf '%s\n' "$CHANGED" | grep -Eq '(release-please|changesets?/|\.changeset
   echo "✅ version-release: release automation is part of this delivery"
   exit 0
 fi
+# Idem, e este era o caso medido: o diff de todo `.yml` é grande, o casamento acontece
+# muito antes do fim, o cano sai 141, e o ramo positivo ficava INALCANÇÁVEL — a guarda
+# avisava "nenhum release à vista" num repositório cujo workflow faz `gh release create`
+# com o APK. Medido aqui: sete linhas de evidência e o aviso saindo.
 if printf '%s\n' "$CHANGED" | grep -Eq '(\.github/workflows/|\.gitlab-ci|Jenkinsfile|azure-pipelines)' \
    && git diff "$BASE"..HEAD -- '*.yml' '*.yaml' Jenkinsfile 2>/dev/null \
-      | grep -E '^\+' | grep -Eqi '(tags:|refs/tags|create.?release|softprops/action-gh-release|gh release)'; then
+      | grep -E '^\+' | grep -Ei '(tags:|refs/tags|create.?release|softprops/action-gh-release|gh release)' >/dev/null; then
   echo "✅ version-release: this delivery wires the release step"
   exit 0
 fi

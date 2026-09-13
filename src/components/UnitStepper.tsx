@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { formatQuantity, type LocaleSettings } from '@/i18n';
 import { breakdown, toBaseUnits, type PackagingHierarchy, type PackagingTier } from '@/domain/units';
@@ -26,6 +26,9 @@ export function UnitStepper({
   value,
   onChange,
   labels,
+  initialTierId,
+  digitavel = false,
+  rotulo,
 }: {
   hierarchy: PackagingHierarchy;
   locale: LocaleSettings;
@@ -35,21 +38,84 @@ export function UnitStepper({
   value: number;
   onChange: (baseUnits: number) => void;
   labels: { decrease: string; increase: string };
+  /**
+   * Como o campo digitável se anuncia — para o leitor de tela, e para quem dirige o
+   * aplicativo por papel em vez de por coordenada.
+   *
+   * Sem ele o campo herdaria o rótulo do botão "mais", que é mentira: um leitor de tela
+   * anunciaria "mais, campo de texto" no meio de uma contagem. Obrigatório quando
+   * `digitavel`, e é por isso que os dois andam juntos na assinatura.
+   */
+  rotulo?: string;
+  /**
+   * Which layer the stepper starts on. Defaults to the largest, because that is
+   * how a cold room thinks - twelve crates, not three thousand six hundred
+   * popsicles.
+   *
+   * Production is the exception, and the design canvas draws it: the kettle put
+   * out 250 units, and the crates are the CONSEQUENCE, echoed underneath. So
+   * that screen starts on the base unit and the echo does the packing.
+   */
+  initialTierId?: string;
+  /**
+   * O número no meio aceita TECLADO, além dos dois botões.
+   *
+   * Nasce desligado porque a separação na câmara fria é o caso que criou esta peça, e
+   * lá o teclado é o inimigo: mão de luva, −18 °C, e o alvo grande é o que faz a
+   * contagem acontecer. Ligar por padrão trocaria um gesto provado por um pior.
+   *
+   * A produção é o outro caso, e o docblock lá em cima já o previa — *"o tacho rendeu
+   * 250 unidades, e os engradados são a consequência"*. Só que o passo anda ±1 no
+   * degrau escolhido: 250 unidades seriam 250 toques. A previsão estava certa e a peça
+   * não alcançava, então ela ganha teclado em vez de nascer uma segunda ao lado.
+   */
+  digitavel?: boolean;
 }) {
   const { color, radius, space, type, accent } = useTheme();
+  /**
+   * O que está sendo digitado, enquanto está sendo digitado.
+   *
+   * Sem isto, apagar o campo para trocar "44" por "250" faria o valor virar zero e o
+   * componente reescrever "0" por cima do que a pessoa está escrevendo. `null` quer
+   * dizer "ninguém está digitando, mostre o número de verdade".
+   */
+  const [digitando, setDigitando] = useState<string | null>(null);
   const [tier, setTier] = useState<PackagingTier>(
-    () => [...hierarchy.tiers].reverse()[0] ?? hierarchy.tiers[0],
+    () =>
+      (initialTierId ? hierarchy.tiers.find((t) => t.id === initialTierId) : undefined) ??
+      [...hierarchy.tiers].reverse()[0] ??
+      hierarchy.tiers[0],
   );
 
   const countInTier = Math.round(value / tier.perBaseUnit);
 
+  /**
+   * O eco — e ele terminava a conta pela metade.
+   *
+   * A decomposição sozinha diz "1 engradado" quando o valor é um engradado
+   * exato, que é a MESMA informação do número acima. E o resto do aplicativo
+   * fala em unidade-base: o pedido diz "faltam 600 un", o saldo diz "900 un", o
+   * livro-razão guarda unidade-base. Sem o total nessa unidade, a pessoa na
+   * câmara precisa saber de cabeça que um engradado são 300 — que é exatamente
+   * a conta mental que este componente existe para remover, e que o exemplo
+   * escrito no dicionário já prometia: *"12 engradados = 72 caixas = 3.600
+   * picolés"*.
+   *
+   * Então: a decomposição, e depois o total na unidade-base. Quando o valor já
+   * ESTÁ em unidade-base, o total não se repete — eco de si mesmo é ruído.
+   */
   const echo = useMemo(() => {
-    const parts = breakdown(value, hierarchy).map(
+    const partes = breakdown(value, hierarchy);
+    if (partes.length === 0) return tierLabel(hierarchy.tiers[0].id, 0);
+
+    const escrito = partes.map(
       (part) =>
         `${formatQuantity(part.quantity, locale)} ${tierLabel(part.tier.id, part.quantity)}`,
     );
-    if (parts.length === 0) return tierLabel(hierarchy.tiers[0].id, 0);
-    return parts.join(' · ');
+    const base = hierarchy.tiers[0];
+    if (partes.length === 1 && partes[0].tier.id === base.id) return escrito[0];
+
+    return `${escrito.join(' · ')} = ${formatQuantity(value, locale)} ${tierLabel(base.id, value)}`;
   }, [value, hierarchy, locale, tierLabel]);
 
   const step = (delta: number) => {
@@ -60,6 +126,7 @@ export function UnitStepper({
 
   return (
     <View style={{ gap: space.md }}>
+      {hierarchy.tiers.length > 1 ? (
       <View
         style={[
           styles.segment,
@@ -97,15 +164,32 @@ export function UnitStepper({
           );
         })}
       </View>
+      ) : null}
 
       <View style={[styles.row, { gap: space.md }]}>
         <StepButton label={labels.decrease} symbol="−" onPress={() => step(-1)} />
-        <Text
-          style={[type.display, styles.value, { color: color.ink }]}
-          accessibilityLiveRegion="polite"
-        >
-          {formatQuantity(countInTier, locale)}
-        </Text>
+        {digitavel ? (
+          <TextInput
+            style={[type.hero, styles.value, { color: color.ink }]}
+            value={digitando ?? String(countInTier)}
+            onChangeText={(texto) => {
+              setDigitando(texto);
+              const n = Number(texto.replace(/[^\d]/g, ''));
+              onChange(toBaseUnits(Number.isFinite(n) ? n : 0, tier));
+            }}
+            onBlur={() => setDigitando(null)}
+            keyboardType="numeric"
+            accessibilityLabel={rotulo}
+            selectTextOnFocus
+          />
+        ) : (
+          <Text
+            style={[type.hero, styles.value, { color: color.ink }]}
+            accessibilityLiveRegion="polite"
+          >
+            {formatQuantity(countInTier, locale)}
+          </Text>
+        )}
         <StepButton label={labels.increase} symbol="+" onPress={() => step(1)} />
       </View>
 
@@ -127,7 +211,7 @@ function StepButton({
   symbol: string;
   onPress: () => void;
 }) {
-  const { color, space, motion } = useTheme();
+  const { color, motion } = useTheme();
   const [pressed, setPressed] = useState(false);
 
   const animated = useAnimatedStyle(() => ({
@@ -143,12 +227,14 @@ function StepButton({
       onPress={onPress}
       style={[
         styles.stepButton,
-        { backgroundColor: color.sunken, borderColor: color.lineStrong },
+        // Só contorno, como o canvas desenha: um alvo de 68 pontos que não
+        // compete com o número no meio. Fundo cheio aqui faria dois botões
+        // gritarem ao lado do único número que a tela é sobre.
+        { backgroundColor: 'transparent', borderColor: color.lineStrong },
         animated,
       ]}
     >
-      <Text style={{ fontSize: 26, lineHeight: 30, color: color.ink }}>{symbol}</Text>
-      <View style={{ width: space.xs }} />
+      <Text style={{ fontSize: 30, lineHeight: 34, color: color.ink }}>{symbol}</Text>
     </AnimatedPressable>
   );
 }
@@ -161,12 +247,12 @@ const styles = StyleSheet.create({
   echo: { textAlign: 'center', fontVariant: ['tabular-nums'] },
   /** 48dp minimum: this is pressed with gloves on, in the cold. */
   stepButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth * 2,
   },
   underline: { height: 2, borderRadius: 2, alignSelf: 'center', width: 32, opacity: 0.4 },
 });

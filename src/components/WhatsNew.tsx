@@ -6,6 +6,7 @@ import { brand } from '@/config/brand';
 import { latestRelease, releaseLines } from '@/config/releases';
 import { useLocale } from '@/i18n/useLocale';
 import { useTheme } from '@/theme/ThemeProvider';
+import { Button } from './Button';
 
 const SEEN_KEY = `${brand.slug}:release-seen`;
 
@@ -60,7 +61,11 @@ export function WhatsNew() {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={dismiss}>
-      <Pressable style={styles.backdrop} onPress={dismiss} accessibilityLabel="Fechar" />
+      {/* O rótulo vem do dicionário, e é a MESMA chave da folha irmã (`WhySheet`), para o
+          mesmo gesto: o fundo que fecha. Aqui estava `accessibilityLabel="Fechar"` cravado —
+          a única saída que o leitor de tela anuncia para este alvo, em português, numa
+          interface que pode estar em espanhol. */}
+      <Pressable style={styles.backdrop} onPress={dismiss} accessibilityLabel={t.whySheet.close} />
 
       <View
         style={{
@@ -80,7 +85,7 @@ export function WhatsNew() {
         </Text>
 
         <View style={{ marginTop: space.lg, gap: space.md }}>
-          {releaseLines().map((line) => (
+          {releaseLines(t.app.whatsNew.lines).map((line) => (
             <View key={line} style={styles.line}>
               <View style={[styles.bullet, { backgroundColor: accent }]} />
               <Text style={[type.body, { color: color.ink, flex: 1 }]}>{line}</Text>
@@ -88,23 +93,16 @@ export function WhatsNew() {
           ))}
         </View>
 
-        <Pressable
+        {/* A terceira cópia do botão, encontrada procurando pelas outras duas.
+            Ela pintava com o acento da área e declarava a tinta do rótulo como
+            `onAccent` — os dois defeitos que o `Button` resolve, e que a folha de
+            confirmação também tinha. Pílula chumbada aqui era o quarto: no Papel o
+            canto é reto, e o `Button` já sabe disso. */}
+        <Button
+          label={t.app.whatsNew.dismiss}
           onPress={dismiss}
-          accessibilityRole="button"
-          style={[
-            styles.button,
-            {
-              backgroundColor: accent,
-              borderRadius: radius.pill,
-              marginTop: space.xl,
-              paddingVertical: space.lg,
-            },
-          ]}
-        >
-          <Text style={[type.body, { color: color.onAccent, fontWeight: '600' }]}>
-            {t.app.whatsNew.dismiss}
-          </Text>
-        </Pressable>
+          style={{ alignSelf: 'stretch', justifyContent: 'center', marginTop: space.xl }}
+        />
       </View>
     </Modal>
   );
@@ -115,5 +113,4 @@ const styles = StyleSheet.create({
   grabber: { width: 38, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   line: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   bullet: { width: 6, height: 6, borderRadius: 3, marginTop: 9 },
-  button: { alignItems: 'center', justifyContent: 'center' },
 });

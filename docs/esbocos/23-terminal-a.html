@@ -1,0 +1,209 @@
+<!doctype html><meta charset="utf-8"><title>NORVA</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:412px;min-height:915px;overflow-x:hidden;-webkit-font-smoothing:antialiased;
+ font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+ background:#070910;color:#e9eef7;
+ --tabbg:#0a0d15;--tabline:#1b2131;--tabink:#5b6579;--tabon:#2ee6a8;
+ --c2:#ffb02e;--c3:#9d7bff;--c4:#4ea8ff;--c5:#7c869c}
+.wrap{padding:14px 14px 104px}
+
+.top{display:flex;align-items:flex-start;justify-content:space-between}
+.brand{font-size:20px;font-weight:700;letter-spacing:.36em;color:#f3f7ff}
+.date{font-size:10px;line-height:1.6;letter-spacing:.16em;color:#6b7488;text-transform:uppercase;text-align:right}
+.date b{color:#a9b4c8;font-weight:600}
+
+.blk{position:relative;border:1px solid #1a2030;border-radius:12px;padding:11px 13px;margin-top:10px;overflow:hidden}
+.blk::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--k)}
+.hrow{display:flex;align-items:center;gap:8px}
+.hrow svg{display:block;flex:none}
+.lbl{font-size:10px;letter-spacing:.2em;text-transform:uppercase;font-weight:600}
+.chip{margin-left:auto;font-size:11px;font-weight:700;letter-spacing:.06em;padding:3px 8px;border-radius:20px}
+
+.big{font-size:46px;font-weight:700;letter-spacing:-.04em;line-height:1;margin-top:8px;color:#f4f8ff;
+ font-variant-numeric:tabular-nums}
+.big em{font-size:15px;font-style:normal;letter-spacing:.12em;margin-left:7px;color:#7c869c}
+.cmp{font-size:12px;color:#8d97ab;margin-top:6px;letter-spacing:.02em}
+.cmp b{color:#c6cfe0;font-weight:600}
+
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.duo .blk{margin-top:0}
+.mid{font-size:30px;font-weight:700;letter-spacing:-.03em;margin-top:7px;color:#f4f8ff;font-variant-numeric:tabular-nums}
+.mid em{font-size:12px;font-style:normal;letter-spacing:.1em;color:#7c869c;margin-left:5px}
+.sub{font-size:11px;color:#8d97ab;margin-top:5px;line-height:1.45}
+.sub b{color:#c6cfe0;font-weight:600}
+
+.lvl{height:7px;border-radius:4px;background:#1c2231;margin-top:8px;overflow:hidden}
+.lvl i{display:block;height:100%;border-radius:4px}
+
+.wx{display:flex;align-items:center;gap:13px;margin-top:7px}
+.wxn{font-size:40px;font-weight:700;letter-spacing:-.04em;color:#f4f8ff;line-height:1;font-variant-numeric:tabular-nums}
+.wxg{display:grid;grid-template-columns:auto 1fr auto;gap:6px 9px;align-items:center;margin-top:9px;
+ font-size:11px;color:#8d97ab;letter-spacing:.04em}
+.wxg b{color:#dbe4f2;font-weight:600;font-variant-numeric:tabular-nums}
+.bar{height:6px;border-radius:4px;background:#182031;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:4px}
+
+.row{display:grid;grid-template-columns:1fr 104px 62px;align-items:center;gap:10px;
+ padding:7px 0;border-top:1px solid #161c2a;font-size:11.5px;color:#aab4c6;letter-spacing:.04em}
+.row:first-of-type{border-top:0}
+.trk{position:relative;height:8px;background:#141a27;border-radius:3px}
+.zero{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:#333c50}
+.trk i{position:absolute;top:0;bottom:0;border-radius:3px}
+.val{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;font-size:12px}
+.dn{color:#2ee6a8}.up{color:#ffb02e}
+
+.tabbar{position:fixed;bottom:0;left:0;right:0;height:78px;display:flex;align-items:center;
+ justify-content:space-around;padding-bottom:14px;font-size:11px;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+.tabbar a{display:flex;flex-direction:column;align-items:center;gap:5px;text-decoration:none}
+.tabbar svg{display:block}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="brand">NORVA</div>
+      <div style="font-size:9px;letter-spacing:.24em;color:#4f5a70;text-transform:uppercase;margin-top:6px">painel da fábrica</div>
+    </div>
+    <div class="date"><b>QUA · 02.09</b><br>quarta-feira<br>2 de setembro</div>
+  </div>
+
+  <!-- PRODUÇÃO -->
+  <div class="blk" style="--k:#2ee6a8;background:linear-gradient(180deg,rgba(46,230,168,.11),rgba(46,230,168,0) 58%),#0c1018">
+    <div class="hrow">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2ee6a8" stroke-width="1.8" stroke-linecap="round"><rect x="6" y="2.5" width="12" height="14" rx="6"/><path d="M12 16.5v5"/></svg>
+      <span class="lbl" style="color:#2ee6a8">produção · hoje</span>
+      <span class="chip" style="background:rgba(46,230,168,.14);color:#2ee6a8">+3,9%</span>
+    </div>
+    <div class="big">500<em>UN</em></div>
+    <div class="cmp">ontem <b>478</b> &nbsp;·&nbsp; <span style="color:#2ee6a8;font-weight:700">+19</span> contra a quarta passada</div>
+
+    <svg width="354" height="112" viewBox="0 0 354 112" style="margin-top:10px">
+      <defs>
+        <linearGradient id="gp" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#2ee6a8" stop-opacity=".42"/>
+          <stop offset="1" stop-color="#2ee6a8" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <line x1="0" y1="86" x2="354" y2="86" stroke="#1e2636"/>
+      <line x1="0" y1="51" x2="354" y2="51" stroke="#151c29" stroke-dasharray="2 5"/>
+      <line x1="0" y1="16" x2="354" y2="16" stroke="#151c29" stroke-dasharray="2 5"/>
+      <path d="M14 59.4 68 55.2 123 57.3 177 81.8 231 28.6 286 53.8 340 41.2 340 86 14 86 Z" fill="url(#gp)"/>
+      <polyline points="14,59.4 68,55.2 123,57.3 177,81.8 231,28.6 286,53.8 340,41.2"
+                fill="none" stroke="#2ee6a8" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+      <g fill="#0c1018" stroke="#2ee6a8" stroke-width="1.6">
+        <circle cx="14" cy="59.4" r="2.6"/><circle cx="68" cy="55.2" r="2.6"/><circle cx="123" cy="57.3" r="2.6"/>
+        <circle cx="177" cy="81.8" r="2.6"/><circle cx="231" cy="28.6" r="2.6"/><circle cx="286" cy="53.8" r="2.6"/>
+      </g>
+      <line x1="340" y1="41.2" x2="340" y2="86" stroke="#2ee6a8" stroke-opacity=".45" stroke-dasharray="3 3"/>
+      <circle cx="340" cy="41.2" r="7" fill="#2ee6a8" fill-opacity=".18"/>
+      <circle cx="340" cy="41.2" r="4" fill="#2ee6a8"/>
+      <g font-family="ui-monospace,Menlo,monospace" font-size="10" text-anchor="middle">
+        <text x="14" y="105" fill="#5f6a80">qui</text><text x="68" y="105" fill="#5f6a80">sex</text>
+        <text x="123" y="105" fill="#5f6a80">sáb</text><text x="177" y="105" fill="#5f6a80">dom</text>
+        <text x="231" y="105" fill="#5f6a80">seg</text><text x="286" y="105" fill="#5f6a80">ter</text>
+        <text x="340" y="105" fill="#2ee6a8" font-weight="700">qua</text>
+      </g>
+    </svg>
+  </div>
+
+  <!-- INSUMO + EXPEDIÇÃO -->
+  <div class="duo">
+    <div class="blk" style="--k:#ffb02e;background:linear-gradient(180deg,rgba(255,176,46,.11),rgba(255,176,46,0) 62%),#0c1018">
+      <div class="hrow">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffb02e" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3.2c3.6 4.2 5.6 7 5.6 9.4A5.6 5.6 0 0 1 12 18.2a5.6 5.6 0 0 1-5.6-5.6c0-2.4 2-5.2 5.6-9.4z"/></svg>
+        <span class="lbl" style="color:#ffb02e">insumo</span>
+      </div>
+      <div class="mid">1<em>DIA</em></div>
+      <div class="sub"><b>Polpa de morango</b><br>menor cobertura de hoje</div>
+      <div class="lvl"><i style="width:9%;background:#ffb02e"></i></div>
+    </div>
+
+    <div class="blk" style="--k:#9d7bff;background:linear-gradient(180deg,rgba(157,123,255,.11),rgba(157,123,255,0) 62%),#0c1018">
+      <div class="hrow">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9d7bff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5h11v9H2z"/><path d="M13 11h4l3.5 3.5v2H13z"/><circle cx="6.5" cy="18.5" r="1.9"/><circle cx="16.5" cy="18.5" r="1.9"/></svg>
+        <span class="lbl" style="color:#9d7bff">expedição</span>
+      </div>
+      <div class="mid">1<em>CAIXA</em></div>
+      <div class="sub">saiu <b>hoje</b><br>de 500 un produzidas</div>
+      <svg width="118" height="26" viewBox="0 0 118 26" fill="none" style="margin-top:6px;opacity:.9">
+        <rect x="1" y="6" width="40" height="14" rx="2" fill="#9d7bff" fill-opacity=".28" stroke="#9d7bff" stroke-width="1.3"/>
+        <path d="M41 10h11l8 6.5V20H41z" stroke="#9d7bff" stroke-width="1.3" stroke-linejoin="round"/>
+        <circle cx="12" cy="21.5" r="2.6" fill="#0c1018" stroke="#9d7bff" stroke-width="1.3"/>
+        <circle cx="52" cy="21.5" r="2.6" fill="#0c1018" stroke="#9d7bff" stroke-width="1.3"/>
+        <g stroke="#9d7bff" stroke-width="1.3" stroke-linecap="round" opacity=".45"><path d="M70 9h14M74 15h10M78 21h6"/></g>
+      </svg>
+    </div>
+  </div>
+
+  <!-- CLIMA -->
+  <div class="blk" style="--k:#38c6f4;background:linear-gradient(180deg,rgba(56,198,244,.12),rgba(56,198,244,0) 66%),#0c1018">
+    <div class="hrow">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#38c6f4" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.2 5.2l1.9 1.9M16.9 16.9l1.9 1.9M18.8 5.2l-1.9 1.9M7.1 16.9l-1.9 1.9"/></svg>
+      <span class="lbl" style="color:#38c6f4">são paulo · clima</span>
+      <span class="chip" style="background:rgba(255,176,46,.15);color:#ffb02e">amanhã +4°</span>
+    </div>
+    <div class="wx">
+      <svg width="52" height="52" viewBox="0 0 58 58" fill="none">
+        <circle cx="22" cy="21" r="9" fill="#ffb02e" fill-opacity=".22" stroke="#ffb02e" stroke-width="1.7"/>
+        <g stroke="#ffb02e" stroke-width="1.7" stroke-linecap="round" opacity=".85">
+          <path d="M22 5v4M22 33v4M6 21h4M34 21h4M11 10l2.8 2.8M30.2 29.2 33 32M33 10l-2.8 2.8M13.8 29.2 11 32"/>
+        </g>
+        <path d="M20 40a8 8 0 0 1 15.4-3A6.5 6.5 0 1 1 36 50H24a5 5 0 0 1-4-10z" fill="#0c1018" stroke="#8fb6d8" stroke-width="1.7" stroke-linejoin="round"/>
+        <g stroke="#38c6f4" stroke-width="2" stroke-linecap="round"><path d="M25 53l-1.4 3M32 53l-1.4 3M39 53l-1.4 3"/></g>
+      </svg>
+      <div>
+        <div class="wxn">21°</div>
+        <div class="sub">mínima <b>13°</b> hoje</div>
+      </div>
+    </div>
+    <div class="wxg">
+      <span>chuva</span>
+      <div class="bar"><i style="width:47%;background:#38c6f4"></i></div>
+      <b>47%</b>
+      <span>amanhã</span>
+      <div class="bar"><i style="width:70%;background:linear-gradient(90deg,#38c6f4,#ffb02e)"></i></div>
+      <b>+4°</b>
+    </div>
+  </div>
+
+  <!-- CUSTO -->
+  <div class="blk" style="--k:#4ea8ff;background:linear-gradient(180deg,rgba(78,168,255,.10),rgba(78,168,255,0) 62%),#0c1018">
+    <div class="hrow">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#4ea8ff" stroke-width="1.8" stroke-linecap="round"><path d="M4 20h16"/><path d="M6.5 20v-6"/><path d="M12 20V5"/><path d="M17.5 20v-9"/></svg>
+      <span class="lbl" style="color:#4ea8ff">custo de insumo · 24 h</span>
+      <span class="chip" style="background:rgba(78,168,255,.14);color:#4ea8ff">3 mexeram</span>
+    </div>
+    <div style="margin-top:9px">
+      <div class="row"><span>POLPA DE MORANGO</span>
+        <span class="trk"><span class="zero"></span><i style="left:40%;width:10%;background:#2ee6a8"></i></span>
+        <span class="val dn">▼0,6%</span></div>
+      <div class="row"><span>AÇÚCAR CRISTAL</span>
+        <span class="trk"><span class="zero"></span><i style="left:13.3%;width:36.7%;background:#2ee6a8"></i></span>
+        <span class="val dn">▼2,2%</span></div>
+      <div class="row"><span>GLUCOSE 38DE</span>
+        <span class="trk"><span class="zero"></span><i style="left:50%;width:15%;background:#ffb02e"></i></span>
+        <span class="val up">▲0,9%</span></div>
+    </div>
+    <div class="sub" style="margin-top:7px;font-size:10px;letter-spacing:.06em;color:#5f6a80">escala ±3% · linha central = sem mudança</div>
+  </div>
+</div>
+
+<div class="tabbar" style="background:var(--tabbg,#101014);border-top:1px solid var(--tabline,#23232b);color:var(--tabink,#6d6d78)">
+  <a style="color:var(--tabon,#8fb6d8)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>
+    <span style="color:var(--tabon,#8fb6d8);font-weight:600">Início</span></a>
+  <a style="color:var(--c2,#e2a283)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="6" y="2.5" width="12" height="14" rx="6"/><path d="M12 16.5v5"/></svg>
+    <span style="color:var(--tabink,#6d6d78)">Produção</span></a>
+  <a style="color:var(--c3,#ab9bdd)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5h11v9H2z"/><path d="M13 11h4l3.5 3.5v2H13z"/><circle cx="6.5" cy="18.5" r="1.9"/><circle cx="16.5" cy="18.5" r="1.9"/></svg>
+    <span style="color:var(--tabink,#6d6d78)">Transporte</span></a>
+  <a style="color:var(--c4,#d9b76a)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 20h16"/><path d="M6.5 20v-6"/><path d="M12 20V5"/><path d="M17.5 20v-9"/></svg>
+    <span style="color:var(--tabink,#6d6d78)">Relatórios</span></a>
+  <a style="color:var(--c5,#a8a39b)">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg>
+    <span style="color:var(--tabink,#6d6d78)">Mais</span></a>
+</div>

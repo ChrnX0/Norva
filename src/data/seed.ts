@@ -1,19 +1,12 @@
-import { fromDecimal } from '@/domain/money';
+import { fromDecimal, rate} from '@/domain/money';
 import type { PackagingHierarchy } from '@/domain/units';
 import { db } from './db';
+import { empresaDaqui } from './empresa';
 import { recordPurchase, saveItem, saveProduct, saveRecipeVersion } from './repository';
 
-/**
- * The company this device belongs to.
- *
- * One local company until sign-in lands; every row is already stamped with it,
- * so multi-company stops being a migration later and becomes a login.
- */
-export const LOCAL_COMPANY_ID = '00000000-0000-4000-8000-000000000001';
+export const LOOSE: PackagingHierarchy = { tiers: [{ id: 'unit', perBaseUnit: 1 }] };
 
-const LOOSE: PackagingHierarchy = { tiers: [{ id: 'unit', perBaseUnit: 1 }] };
-
-const STACKED: PackagingHierarchy = {
+export const STACKED: PackagingHierarchy = {
   tiers: [
     { id: 'unit', perBaseUnit: 1 },
     { id: 'box', perBaseUnit: 50 },
@@ -35,14 +28,54 @@ const STACKED: PackagingHierarchy = {
  * somebody deliberately wiped it, and an app that undoes your deletions is one
  * nobody trusts with anything else.
  */
-export async function ensureStarterData(companyId = LOCAL_COMPANY_ID): Promise<void> {
+export async function ensureStarterData(companyId = empresaDaqui()): Promise<void> {
   if (await hasSeeded()) return;
   await writeStarterData(companyId);
 }
 
 /** Puts the example back on purpose, after somebody cleared it. */
-export async function restoreStarterData(companyId = LOCAL_COMPANY_ID): Promise<void> {
+export async function restoreStarterData(companyId = empresaDaqui()): Promise<void> {
   await writeStarterData(companyId);
+}
+
+/**
+ * Se o exemplo AINDA está aqui — que é outra pergunta que `hasSeeded`.
+ *
+ * A tela de Ajustes acendia "Inclui os dados de exemplo" pela marca `seeded`, e
+ * a marca nunca é apagada: `app_meta` não é tabela apagável. Então o selo era
+ * verdadeiro em todo aparelho para sempre — apagava-se tudo, cadastrava-se o
+ * primeiro insumo próprio, e a tela continuava dizendo que a lista incluía o
+ * exemplo. Contava uma variável ("o exemplo já foi escrito alguma vez") e
+ * nomeava outra ("o que está abaixo contém o exemplo").
+ *
+ * A presença se sabe porque a semeadura anota os ids que criou. Sem a anotação
+ * — instalação que já tinha dado quando a marca foi posta — a resposta é não,
+ * que é o certo: ali o exemplo de fato não foi escrito.
+ */
+export async function exampleStillHere(companyId = empresaDaqui()): Promise<boolean> {
+  const conn = await db();
+  const row = await conn.getFirstAsync<{ value: string }>(
+    `SELECT value FROM app_meta WHERE key = 'seeded_items'`,
+  );
+  if (!row?.value) return false;
+
+  let ids: unknown;
+  try {
+    ids = JSON.parse(row.value);
+  } catch {
+    return false;
+  }
+  if (!Array.isArray(ids) || ids.length === 0) return false;
+
+  const marcas = ids.filter((id): id is string => typeof id === 'string');
+  if (marcas.length === 0) return false;
+
+  const found = await conn.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM items
+      WHERE company_id = ? AND id IN (${marcas.map(() => '?').join(', ')})`,
+    [companyId, ...marcas],
+  );
+  return (found?.n ?? 0) > 0;
 }
 
 export async function hasSeeded(): Promise<boolean> {
@@ -140,7 +173,14 @@ async function writeStarterData(companyId: string): Promise<void> {
       { kind: 'item', itemId: pulp, quantity: 18_000 },
       { kind: 'item', itemId: sugar, quantity: 6_000 },
       { kind: 'item', itemId: glucose, quantity: 1_200 },
-      { kind: 'recipe', recipeId: base.recipeId, quantity: 10_000 },
+      {
+        kind: 'recipe',
+        recipeId: base.recipeId,
+        quantity: 10_000,
+        // Nulo é "carimbe a mais nova para mim": saveRecipeVersion preenche, e é a Lei 1 —
+        // quem semeia a fábrica de exemplo não escolhe versão de calda.
+        subVersionId: null,
+      },
     ],
   });
 
@@ -149,12 +189,47 @@ async function writeStarterData(companyId: string): Promise<void> {
     kind: 'product',
     recipeId: strawberry.recipeId,
     yieldPerUnit: 75,
-    // Stick plus wrapper: packaging is a cost per unit, never per batch.
-    unitPackagingCents: fromDecimal(0.05),
+    /**
+     * A embalagem por LISTA, e não por taxa fixa — e isto era um defeito do
+     * próprio exemplo, medido em 6 de setembro.
+     *
+     * O seed comprava palito e embalagem, cobrava cinco centavos por unidade como
+     * `unitPackagingRate`, e deixava `packagingItems` vazia. O dinheiro ficava
+     * certo (a taxa congelada carregava a embalagem) e **o estoque mentia: o
+     * palito só subia, corrida após corrida** — que é palavra por palavra a
+     * cicatriz descrita em `repository.ts`, no laço que existe para consertá-la.
+     * O exemplo demonstrava o defeito que o código conserta.
+     *
+     * Com a lista, tudo o que já existe atravessa: a trava de estoque recusa a
+     * corrida sem palito, o valor consumido entra na taxa congelada pelo mesmo
+     * caminho dos outros insumos, e o movimento sai com a mesma taxa deles.
+     *
+     * E a taxa fixa vai a ZERO junto, senão a embalagem entraria duas vezes no
+     * custo — uma pelo consumo e outra pela taxa. Um picolé, um palito, uma
+     * embalagem: rendimento não devolve palito, e é por isso que a lista conta
+     * por unidade produzida e não por tacho.
+     */
+    packagingItems: [
+      { itemId: stick, quantityPerUnit: 1 },
+      { itemId: wrapper, quantityPerUnit: 1 },
+    ],
+    unitPackagingRate: rate(0, 1),
     packaging: STACKED,
   });
 
+  // Os ids que esta semeadura criou, para a tela poder dizer se o exemplo AINDA
+  // está aqui em vez de afirmar para sempre que está.
+  await markSeededItems([pulp, sugar, milkPowder, glucose, stick, wrapper]);
   await markSeeded();
+}
+
+async function markSeededItems(ids: string[]): Promise<void> {
+  const conn = await db();
+  await conn.runAsync(
+    `INSERT INTO app_meta (key, value) VALUES ('seeded_items', ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [JSON.stringify(ids)],
+  );
 }
 
 async function markSeeded(): Promise<void> {

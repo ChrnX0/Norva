@@ -1,0 +1,408 @@
+import assert from 'node:assert/strict';
+import { DatabaseSync } from 'node:sqlite';
+import { test, before } from 'node:test';
+import { __setDb, migrate, type Db, type SqlParam } from '@/data/db';
+import { gravarPagina } from '@/data/descida';
+import { recomputeItemCost } from '@/data/repository';
+import { EMPRESA_SEMENTE } from '@/data/empresa';
+import { descer } from './descer';
+import { pedido } from './descida';
+import type { PedidoDeDescida, Transport } from './engine';
+
+/**
+ * A DESCIDA exercitada no aparelho — e ela não tinha uma linha de teste.
+ *
+ * `descer.ts`, `gravarPagina`, `proximoCursor` e `pedido` entraram em 12 de setembro com
+ * `typecheck` limpo e a suíte verde, e nenhum arquivo de teste os importava. A garantia 33 do
+ * `db:verify` prova a ARITMÉTICA do cursor em SQL — que a ordem do par não pula nem repete —, e
+ * essa é outra pergunta: ela não executa uma linha deste código.
+ *
+ * É a segunda metade do portão P1 deste projeto, a que eu descobri por fora: *quem EXERCITA
+ * isto?* Uma peça pode ter chamador e nunca ter sido percorrida, e aí ela é promessa com cara de
+ * código.
+ */
+
+let sqlite: DatabaseSync;
+
+function inMemoryDb(): Db {
+  sqlite = new DatabaseSync(':memory:');
+  const bind = (params: SqlParam[]) => params.map((p) => (p === undefined ? null : p));
+  return {
+    getAllAsync: async <T,>(sql: string, params: SqlParam[] = []) =>
+      sqlite.prepare(sql).all(...bind(params)) as T[],
+    getFirstAsync: async <T,>(sql: string, params: SqlParam[] = []) =>
+      (sqlite.prepare(sql).get(...bind(params)) as T) ?? null,
+    runAsync: async (sql: string, params: SqlParam[] = []) =>
+      sqlite.prepare(sql).run(...bind(params)),
+    execAsync: async (sql: string) => {
+      sqlite.exec(sql);
+    },
+    withTransactionAsync: async (task: () => Promise<void>) => {
+      sqlite.exec('BEGIN');
+      try {
+        await task();
+        sqlite.exec('COMMIT');
+      } catch (e) {
+        sqlite.exec('ROLLBACK');
+        throw e;
+      }
+    },
+  };
+}
+
+const CO = EMPRESA_SEMENTE;
+const ITEM = '11111111-1111-4111-8111-111111111111';
+
+let conn: Db;
+
+before(async () => {
+  conn = inMemoryDb();
+  await migrate(conn);
+  __setDb(conn);
+  // O aparelho não tem tabela de empresas: a empresa dele é uma só, e mora no `app_meta`.
+  await conn.runAsync(
+    `INSERT INTO items (id, company_id, kind, name, purchase_unit, purchase_to_base, base_unit, created_at)
+     VALUES (?, ?, 'input', 'Polpa', 'kg', 1000, 'g', ?)`,
+    [ITEM, CO, '2026-09-01T00:00:00.000Z'],
+  );
+  await conn.runAsync(
+    `INSERT INTO locations (id, company_id, name, kind, created_at) VALUES (?, ?, ?, 'unit', ?)`,
+    [CO, CO, 'Fábrica', '2026-09-01T00:00:00.000Z'],
+  );
+});
+
+/** Duas compras do mesmo item, como o servidor as devolveria. */
+function duasCompras(taxas: readonly (number | null)[]): Record<string, unknown>[] {
+  return taxas.map((taxa, i) => ({
+    id: `22222222-2222-4222-8222-00000000000${i + 1}`,
+    company_id: CO,
+    kind: 'purchase',
+    occurred_at: `2026-09-0${i + 1}T10:00:00.000Z`,
+    recorded_at: `2026-09-0${i + 1}T10:00:00.000Z`,
+    item_id: ITEM,
+    quantity_base_units: 1000,
+    location_id: CO,
+    unit_cost_rate: taxa,
+    received_at: `2026-09-0${i + 1}T11:00:00.000Z`,
+  }));
+}
+
+async function mediaDepoisDeDescer(taxas: readonly (number | null)[]): Promise<number> {
+  await conn.runAsync(`DELETE FROM movements WHERE company_id = ?`, [CO]);
+  await conn.runAsync(`DELETE FROM item_costs WHERE company_id = ?`, [CO]);
+  const p = pedido('movements', null);
+  await gravarPagina('movements', p.colunas, duasCompras(taxas));
+  await recomputeItemCost(CO, ITEM);
+  const linha = await conn.getFirstAsync<{ average_rate: number }>(
+    `SELECT average_rate FROM item_costs WHERE company_id = ? AND item_id = ?`,
+    [CO, ITEM],
+  );
+  return linha?.average_rate ?? 0;
+}
+
+test('a ledger that descends through the READ gate poisons the average, and the number says so', async () => {
+  /**
+   * O defeito, e ele é de dinheiro.
+   *
+   * `transporte.ts` fazia a descida do razão ler `movements_visible` — a view que põe
+   * `has_capability(company_id, 'view_cost')` na frente do custo congelado. Para uma conta SEM
+   * `view_cost` isso devolve a linha com `unit_cost_rate` nulo, e a docblock de lá chamava isso
+   * de acerto: *"em vez de recebê-lo e esconder na tela"*.
+   *
+   * Só que a descida não é uma tela: ela ESCREVE o razão local, e `descer.ts` chama
+   * `recomporCustos` no fim da rodada. `recomputeItemCost` mistura só as linhas com taxa não
+   * nula — nulo não entra como zero, ele SAI DA CONTA —, então a média local passa a ser a
+   * média de um razão com buracos. E toda produção que aquele aparelho registrar depois congela
+   * custo a partir dela: `recordProduction` soma `consumedValue` (que vem da média) com a
+   * embalagem, e conteúdo de livro-razão não se corrige, se estorna.
+   *
+   * Este projeto já decidiu esta pergunta DUAS VEZES, nas duas direções certas: a `0047`
+   * escreveu *"o Conferente congela um preço que ele não pode ver… com o portão no caminho da
+   * escrita, a contagem do operador gravaria venda sem preço"*, e `listProductsForLedger` diz
+   * *"congelar custo e VER custo são perguntas diferentes; só a segunda tem portão"*. A descida
+   * é caminho de ESCRITA do razão local, e estava do lado errado das duas.
+   */
+  const verdade = await mediaDepoisDeDescer([0.472, 0.59]);
+  const pelaView = await mediaDepoisDeDescer([null, null]);
+
+  assert.equal(
+    verdade.toFixed(4),
+    '0.5310',
+    'a média das duas compras deixou de ser a mistura delas — o exemplo perdeu o sentido',
+  );
+  assert.notEqual(
+    pelaView.toFixed(4),
+    verdade.toFixed(4),
+    'as duas médias ficaram iguais: o exemplo não separa mais o razão inteiro do mutilado',
+  );
+  assert.equal(
+    pelaView.toFixed(4),
+    '0.0000',
+    `o razão que desceu pelo portão de leitura deu média ${pelaView.toFixed(4)} contra ` +
+      `${verdade.toFixed(4)} do razão inteiro. Nulo não entra como zero: ele sai da conta, e ` +
+      'a média local vira a média de um razão com buracos — embaixo de todo custo congelado ' +
+      'que este aparelho gravar depois.',
+  );
+});
+
+test('the descent writes the page, remembers where it stopped, and asks from there next round', async () => {
+  await conn.runAsync(`DELETE FROM movements WHERE company_id = ?`, [CO]);
+  await conn.runAsync(`DELETE FROM app_meta WHERE key LIKE 'descida%'`, []);
+
+  const pedidos: PedidoDeDescida[] = [];
+  const porRodada = [duasCompras([0.472, 0.59]), []];
+
+  const transporte: Transport = {
+    push: async () => ({ enviados: 0, rejeitadas: [] }) as never,
+    pull: async (p) => {
+      pedidos.push(p);
+      if (p.tabela !== 'movements') return { linhas: [] };
+      return { linhas: porRodada.shift() ?? [] };
+    },
+  };
+
+  const relatorio = await descer(transporte, CO);
+
+  assert.equal(relatorio.linhas, 2, 'as duas linhas do razão não entraram no aparelho');
+  assert.equal(relatorio.tabelas, 1, 'só o razão trouxe linha, e o relatório não contou uma tabela');
+  assert.equal(relatorio.erro, undefined, `a rodada parou: ${relatorio.erro}`);
+
+  const guardadas = await conn.getAllAsync<{ id: string; unit_cost_rate: number | null }>(
+    `SELECT id, unit_cost_rate FROM movements WHERE company_id = ? ORDER BY occurred_at`,
+    [CO],
+  );
+  assert.equal(guardadas.length, 2, 'a página foi relatada e não gravada');
+  assert.equal(
+    guardadas[0].unit_cost_rate,
+    0.472,
+    'a taxa congelada não chegou ao razão local — e é dela que sai a média do aparelho',
+  );
+
+  // A página CURTA é o fim da tabela: pedir outra seria uma viagem para nada. O que prova o
+  // cursor é a rodada SEGUINTE, que tem de começar de onde esta parou — e isso exige que ele
+  // tenha sido gravado no `app_meta`, não guardado numa variável que a rodada leva embora.
+  const primeiraDoRazao = pedidos.filter((p) => p.tabela === 'movements');
+  assert.equal(primeiraDoRazao.length, 1, 'a página curta é o fim da tabela: não se pede outra');
+  assert.equal(
+    primeiraDoRazao[0].depoisDe,
+    null,
+    'a primeira página pediu a partir de um cursor — um aparelho novo tem de pedir tudo',
+  );
+
+  pedidos.length = 0;
+  await descer(transporte, CO);
+  const segunda = pedidos.filter((p) => p.tabela === 'movements');
+  assert.equal(segunda.length, 1, 'a segunda rodada não pediu o razão');
+  assert.deepEqual(
+    segunda[0].depoisDe,
+    { recebidoEm: '2026-09-02T11:00:00.000Z', id: '22222222-2222-4222-8222-000000000002' },
+    'a segunda rodada não pediu DEPOIS da última linha da primeira: a descida repetiria o ' +
+      'trabalho inteiro a cada sincronia, ou pularia a linha seguinte para sempre',
+  );
+});
+
+test('an error on one table stops the round instead of skipping to the next', async () => {
+  await conn.runAsync(`DELETE FROM app_meta WHERE key LIKE 'descida%'`, []);
+
+  /**
+   * Parar a rodada é a resposta certa, e é o que fez o defeito de 13 de setembro doer tanto:
+   * `carriers` é a PRIMEIRA tabela de `DESCEM` e não tinha a coluna do cursor, então a rodada
+   * morria antes de qualquer coisa. Seguir para a próxima seria pior — o movimento desce depois
+   * do item que ele cita, e o SQLite recusaria a linha calado.
+   */
+  const vistas: string[] = [];
+  const transporte: Transport = {
+    push: async () => ({ enviados: 0, rejeitadas: [] }) as never,
+    pull: async (p) => {
+      vistas.push(p.tabela);
+      if (p.tabela === 'locations') {
+        return { linhas: [], erro: { codigo: '42703', mensagem: 'column locations.received_at does not exist' } };
+      }
+      return { linhas: [] };
+    },
+  };
+
+  const relatorio = await descer(transporte, CO);
+
+  assert.match(
+    relatorio.erro ?? '',
+    /received_at/,
+    'a rodada não devolveu o problema do servidor: a tela diria "sincronizado" sobre nada',
+  );
+  assert.equal(
+    vistas.includes('items'),
+    false,
+    'a rodada seguiu para `items` depois do erro em `locations` — descer o movimento antes do ' +
+      'item que ele cita grava referência quebrada, e o SQLite recusa a linha calado',
+  );
+});
+
+
+/**
+ * **Uma página de CADA tabela que desce — porque só `movements` era exercitada.**
+ *
+ * As checagens acima provam o razão descendo e valem: elas acharam o veneno da média e a parada
+ * na primeira tabela. O que elas não cobrem é a outra ponta da lista, e o preço apareceu em 13 de
+ * setembro com dois defeitos que atravessaram quatro rodadas de servidor:
+ *
+ * 1. `purchase_lines.created_at` é `NOT NULL` sem padrão e é coluna só do aparelho — a descida
+ *    nomeava as colunas que grava, a linha entrava sem ela, e o SQLite respondia `NOT NULL
+ *    constraint failed`. Réplica de compras morta para sempre.
+ * 2. As dez colunas que o serializador CONVERTE na ida (`packaging`, `packaging_items`,
+ *    `capabilities`, `sensor_ranges`, `active`) nunca eram pedidas na volta, então o segundo
+ *    celular gravava o padrão por cima do valor real — item sem embalagem, perfil sem permissão.
+ *
+ * É a metade do P1 que este projeto já nomeou — *"quem EXERCITA isto?"* —, e a resposta era
+ * "uma tabela de vinte e cinco". Esta checagem passa por todas, com a linha na forma do SERVIDOR
+ * (booleano, objeto, array), que é a forma que quebra.
+ *
+ * **E ela é liveness antes de ser cobertura:** uma tabela que grava zero linha reprova, senão o
+ * teste passaria medindo um `INSERT` que nunca aconteceu.
+ */
+test('cada tabela que desce grava uma página na forma que o servidor manda', async () => {
+  const { DESCEM, pedido: pedidoDe } = await import('./descida');
+
+  /** O valor que o SERVIDOR daria para esta coluna — e a forma é a dele, não a do SQLite. */
+  const valorDoServidor = (tabela: string, coluna: string, i: number): unknown => {
+    if (coluna === 'id') return `aaaaaaaa-0000-4000-8000-0000000000${String(i).padStart(2, '0')}`;
+    if (coluna === 'company_id') return CO;
+    if (coluna === 'received_at') return '2026-09-10T12:00:00.000Z';
+    // As convertidas, na forma do Postgres: é ela que derruba o driver do SQLite se ninguém
+    // converter de volta.
+    if (coluna === 'active') return true;
+    if (coluna === 'capabilities') return ['view_cost', 'record_production'];
+    if (coluna === 'packaging' || coluna === 'packaging_items') return [{ name: 'caixa', factor: 24 }];
+    if (coluna === 'sensor_ranges') return { temp: { min: -20, max: -15 } };
+    // As chaves NÃO são adivinhadas aqui: quem as resolve é `PRAGMA foreign_key_list` no laço
+    // abaixo, que sabe para qual tabela cada coluna aponta. Nulo é o padrão, e ele é legítimo na
+    // maioria delas.
+    if (coluna.endsWith('_id')) return null;
+    /**
+     * As colunas de VOCABULÁRIO, e elas são a única coisa que o gerador não pode inventar.
+     *
+     * `kind`, `status` e `post` carregam `CHECK ... IN (...)` no esquema: qualquer texto fora da
+     * lista é recusado, e a recusa não diz nada sobre a descida. Os valores abaixo são o caso
+     * normal de cada tabela — uma compra, um pedido aberto, uma sala.
+     */
+    if (coluna === 'status') return 'open';
+    if (coluna === 'kind') {
+      if (tabela === 'movements') return 'purchase';
+      if (tabela === 'locations') return 'store_room';
+      return 'input';
+    }
+    if (coluna.endsWith('_at') || coluna.endsWith('_on')) return '2026-09-10T10:00:00.000Z';
+    if (coluna.includes('cents') || coluna.includes('units') || coluna.includes('quantity')) return 1;
+    if (coluna.includes('rate') || coluna.includes('level') || coluna.includes('days')) return null;
+    return `x${i}`;
+  };
+
+  const vazias: string[] = [];
+  /** O id que esta checagem gravou em cada tabela, para as chaves das seguintes apontarem nele. */
+  const gravados = new Map<string, string>([['items', ITEM], ['locations', CO]]);
+
+  for (const [i, tabela] of DESCEM.entries()) {
+    const p = pedidoDe(tabela, null);
+    /**
+     * O tipo e a obrigatoriedade vêm do ESQUEMA, não do nome da coluna.
+     *
+     * A primeira escrita adivinhava pelo nome — `*_days` devolvia nulo — e reprovou em
+     * `locations.delivery_days`, que é `NOT NULL`. O defeito era do teste, e a lição vale para
+     * qualquer gerador de linha falsa: **um valor nulo numa coluna obrigatória mede o teste, não
+     * o código**. Perguntar ao `PRAGMA` faz a linha falsa nascer aceitável por construção, e
+     * quando o esquema ganhar uma coluna obrigatória nova ela vem preenchida sem ninguém lembrar.
+     */
+    const esquema = await conn.getAllAsync<{ name: string; type: string; notnull: number }>(
+      `PRAGMA table_info(${tabela})`,
+    );
+    const forma = new Map(esquema.map((c) => [c.name, c]));
+    /**
+     * Para onde cada chave aponta, perguntado ao SQLite em vez de adivinhado pelo nome.
+     *
+     * `movements.counterpart_location_id` aponta para `locations` e `lots.item_id` para `items`:
+     * o sufixo não diz a tabela, e uma chave preenchida com texto qualquer é recusada. Com o
+     * `PRAGMA` a linha falsa aponta para o que a tabela PAI já recebeu nesta mesma volta — que é
+     * possível justamente porque `DESCEM` está na ordem das chaves, que é a outra coisa provada
+     * nesta rodada.
+     */
+    const apontam = new Map<string, string>();
+    for (const fk of await conn.getAllAsync<{ table: string; from: string }>(
+      `PRAGMA foreign_key_list(${tabela})`,
+    )) {
+      apontam.set(fk.from, fk.table);
+    }
+
+    const linha: Record<string, unknown> = {};
+    for (const coluna of p.colunas) {
+      const pai = apontam.get(coluna);
+      const valor = pai ? (gravados.get(pai) ?? null) : valorDoServidor(String(tabela), coluna, i + 1);
+      const c = forma.get(coluna);
+      if (valor !== null || !c || c.notnull !== 1) {
+        linha[coluna] = valor;
+        continue;
+      }
+      /**
+       * Obrigatória e o gerador não soube: um escalar do tipo dela — e **um, não zero**.
+       *
+       * Zero reprovava em `location_prices.price_rate > 0`, e há mais CHECKs da mesma família no
+       * esquema (`purchase_quantity > 0`, `base_units > 0`, `quantity_base_units <> 0`). Um
+       * satisfaz todos eles e também os `>= 0`, então o preenchimento genérico deixa de esbarrar
+       * em restrição de domínio — que não é o que esta checagem está medindo.
+       */
+      linha[coluna] = c.type === 'TEXT' ? `x${i}` : 1;
+    }
+    /**
+     * O que uma tabela exige além do tipo e da chave — hoje uma só.
+     *
+     * `recipe_lines` carrega `CHECK ((item_id IS NULL) <> (sub_recipe_id IS NULL))` desde a V1: a
+     * linha é um ingrediente OU uma sub-receita, nunca as duas. A linha falsa escolhe ingrediente,
+     * e a exigência fica declarada aqui em vez de o gerador fingir que não existe — do mesmo jeito
+     * que as dispensas de coluna ficam declaradas com o motivo em vez de sumirem numa heurística.
+     */
+    if (String(tabela) === 'recipe_lines') linha.sub_recipe_id = null;
+    if (typeof linha.id === 'string') gravados.set(String(tabela), linha.id);
+
+    // Sem `try`: uma recusa aqui é exatamente o defeito que esta checagem existe para pegar, e
+    // apanhá-la transformaria a parada da réplica num teste verde — que foi o estado até hoje.
+    const gravadas = await gravarPagina(tabela, p.colunas, [linha]);
+    if (gravadas !== 1) vazias.push(String(tabela));
+  }
+
+  assert.deepEqual(
+    vazias,
+    [],
+    'estas tabelas descem e não gravaram a linha — a página cai, o cursor não anda, e a réplica ' +
+      'morre no mesmo ponto em toda tentativa seguinte.',
+  );
+
+  /**
+   * E a prova de que a CONVERSÃO aconteceu, não só o `INSERT`: o booleano do servidor virou 0/1 e
+   * o objeto virou texto. Sem estas duas o teste acima passaria com as colunas nunca pedidas.
+   *
+   * Pela linha QUE ESTA CHECAGEM DESCEU, pelo id — e não pela primeira que a consulta achar. A
+   * primeira escrita procurava `packaging IS NOT NULL` e trouxe o item semeado no `before`, que
+   * tem a embalagem PADRÃO da coluna: a asserção reprovava comparando a linha errada, e com o
+   * código certo. Régua que não olha a linha que ela plantou mede outra coisa.
+   */
+  const idDoItem = gravados.get('items');
+  const item = await conn.getFirstAsync<{ active: number; packaging: string | null }>(
+    `SELECT active, packaging FROM items WHERE id = ?`,
+    [idDoItem ?? ''],
+  );
+  assert.ok(item, 'nenhum item desceu com embalagem — a coluna convertida não foi pedida');
+  assert.equal(item.active, 1, 'o booleano do servidor tem de chegar como 0 ou 1 no SQLite');
+  assert.equal(
+    item.packaging,
+    JSON.stringify([{ name: 'caixa', factor: 24 }]),
+    'a hierarquia de embalagem tem de chegar como TEXTO — objeto cru o driver recusa',
+  );
+
+  const perfil = await conn.getFirstAsync<{ capabilities: string | null }>(
+    `SELECT capabilities FROM profiles WHERE id = ?`,
+    [gravados.get('profiles') ?? ''],
+  );
+  assert.equal(
+    perfil?.capabilities,
+    'view_cost,record_production',
+    'o `text[]` do servidor tem de chegar como a linha separada por vírgula que o aparelho lê',
+  );
+});

@@ -45,3 +45,15 @@ yarn-error.*
 
 # ProofGate writes its verdict beside the git metadata, not in the tree.
 .proofgate/verdict.json
+
+# As cópias que o `mutate` usa para nunca tocar na árvore de trabalho.
+# Ele apaga sozinho ao sair; isto cobre a execução que morreu no meio, para o
+# portão não reprovar por "árvore suja" por causa de lixo de ferramenta.
+.mutate/
+.shots/
+
+# Derivado das seções de docs/dossie/ — monta-se com `node scripts/dossie.mjs`.
+docs/DOSSIE.md
+
+# A marca que o corredor do e2e deixa enquanto roda — estado de máquina, não de projeto.
+.e2e-rodando

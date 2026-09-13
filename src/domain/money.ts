@@ -16,27 +16,6 @@ export function toDecimal(value: Cents): number {
   return value / 100;
 }
 
-export function addCents(a: Cents, b: Cents): Cents {
-  return (a + b) as Cents;
-}
-
-export function multiplyCents(value: Cents, factor: number): Cents {
-  return Math.round(value * factor) as Cents;
-}
-
-/**
- * Splits an amount across n parts without losing or inventing a cent. The
- * remainder is spread one cent at a time over the first parts, so the sum of
- * the result always equals the input exactly.
- */
-export function allocateCents(total: Cents, parts: number): Cents[] {
-  if (parts <= 0) return [];
-  const base = Math.floor(total / parts);
-  const remainder = total - base * parts;
-  return Array.from({ length: parts }, (_, i) =>
-    (base + (i < remainder ? 1 : 0)) as Cents,
-  );
-}
 
 /**
  * A unit rate: fractional cents per base unit.
@@ -63,6 +42,27 @@ export function amountOf(unitRate: Rate, quantity: number): Cents {
   return Math.round(unitRate * quantity) as Cents;
 }
 
+/**
+ * Uma TAXA em centavos fracionários vira o número que a pessoa digita e lê.
+ *
+ * Par de `toDecimal`, e separado dela de propósito: `toDecimal` recebe `Cents` inteiro — o
+ * valor que alguém paga — e esta recebe `Rate`, que é preço por unidade e nunca é inteiro.
+ * Uma só função para os dois apagaria a distinção que a fundação desta casa existe para
+ * guardar, e o tipo deixaria de reprovar quem trocar um pelo outro.
+ *
+ * Existe porque três telas dividiam por 100 na mão para mostrar a taxa, e dividir por 100
+ * na mão é metade do erro que a capa deste projeto proíbe.
+ *
+ * *No lugar onde morava `multiplyCents`, apagada em 12 de setembro: zero chamadores, e a
+ * justificativa escrita dela ("existe para ninguém escrever `Math.round(x * f)` inline")
+ * era falsa duas vezes — o inline que de fato aconteceu, vinte e cinco vezes, é `Rate ×
+ * quantidade`, que é trabalho do `amountOf`. Primitiva presente não impede inline nenhum;
+ * quem impede é a guarda de fonte.*
+ */
+export function rateToDecimal(value: Rate): number {
+  return value / 100;
+}
+
 export function rateFromCents(total: Cents, quantity: number): Rate {
   if (quantity <= 0) return 0 as Rate;
   return (total / quantity) as Rate;
@@ -71,7 +71,8 @@ export function rateFromCents(total: Cents, quantity: number): Rate {
 /**
  * Splits a total across weighted parts without losing or inventing a cent.
  *
- * The sibling of `allocateCents`, for the case where the parts are not equal.
+ * A repartição por PESO, que é a única que este produto precisa — a irmã de
+ * partes iguais existiu até 7 de setembro sem nenhum chamador e saiu pelo P1.
  * It exists because of a real defect: a recipe's batch cost was the sum of its
  * lines *after each line had been rounded*, so ten ingredients at four tenths
  * of a cent each summed to nothing while the batch really cost four cents.

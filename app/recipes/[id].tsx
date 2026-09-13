@@ -1,13 +1,20 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { amountOf } from '@/domain/money';
+import { voltar } from '@/nav';
+import { avisoDeFalha } from '@/i18n/falha';
+import { ERROS } from '@/data/erros';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { useConfirm } from '@/components/Confirm';
 import { Field } from '@/components/Field';
-import { WhySheet } from '@/components/WhySheet';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { GlyphPrice, GlyphRecipe, GlyphSack } from '@/components/Glyph';
+import { ListRow } from '@/components/ListRow';
+import { Reveal } from '@/components/Reveal';
+import { WhySheet, type Conta } from '@/components/WhySheet';
+import { empresaDaqui } from '@/data/empresa';
 import {
   itemCosts,
   labels as loadLabels,
@@ -17,21 +24,27 @@ import {
   saveRecipeVersion,
 } from '@/data/repository';
 import { useQuery } from '@/data/useQuery';
-import type { Cents } from '@/domain/money';
+import type { Rate } from '@/domain/money';
 import {
   compareVersions,
   costPerProductUnit,
   costRecipe,
   MissingRecipeError,
+  packagingRatePerUnit,
   RecipeCycleError,
   unitsPerBatch,
+  wouldCycle,
   type ItemCosts,
-  type Recipe,
+  type RecipeCost,
   type RecipeLine,
+  type RecipeGraph,
 } from '@/domain/recipe';
 import { roundUpToFullContainer } from '@/domain/units';
-import { fill, formatMoney, formatQuantity } from '@/i18n';
+import { parseTyped, formatTyped } from '@/domain/number';
+import { fill, formatMoney, formatUnitRate, formatPercent, formatQuantity } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
+import type { Dictionary, LocaleSettings } from '@/i18n';
+import { ALVO } from '@/theme/tokens';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
 
 /**
@@ -43,7 +56,93 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  *
  * Every number here is deterministic arithmetic over `src/domain/recipe.ts`,
  * which is what lets `[por quê?]` open the calculation instead of asserting it.
+ *
+ * **O corpo desta tela foi reescrito na língua da capa** (`docs/linguagem.md`),
+ * e o layout anterior saiu inteiro em vez de ganhar um caminho ao lado. O que
+ * havia: três retângulos no tom da área, sem crachá e sem tom de assunto; a
+ * barra de proporção de cada ingrediente desenhada à mão (`backgroundColor`,
+ * `borderRadius`) e por isso um bloco do Orgânico dentro do Papel; o `[por quê?]`
+ * como pílula de borda própria; e as pílulas `−10% / +10% / tirar` de um
+ * componente local (`Nudge`) que era caixa à mão em vinte e uma linhas. Nada
+ * entrava em cena — a tela aparecia de uma vez, ao lado de uma capa que entra em
+ * cascata.
+ *
+ * O que existe agora são três leituras da ficha, na ordem em que se decide:
+ * **quanto custa** (a figura com a conta ao lado, a diferença contra a versão
+ * salva e a conta que abre no `[por quê?]`), **o que entra** (cada linha com a
+ * quantidade, o quanto ela pesa no lote e o dinheiro na mesma régua da direita) e
+ * **a ficha em si** (rendimento, perda e porção). Nenhuma caixa é desenhada aqui:
+ * `Card`, `ListRow` e `Button` já sabem virar régua no Papel e bloco no Orgânico.
+ *
+ * Dois tons, e cada um é do assunto do cartão, não da tela: custo é
+ * `palette.sky`, que é o tom de dinheiro em todo o aplicativo, e o que entra é
+ * `palette.mint`, que é o tom de insumo — quem vê verde sabe que aquilo sai do
+ * almoxarifado antes de ler o nome. A área continua `apricot` pelo motivo já
+ * registrado em `app/recipes/index.tsx`: o cabeçalho não troca de cor no caminho
+ * da produção até a ficha.
+ *
+ * A barra de proporção não voltou porque não existe componente de proporção na
+ * língua — `Bars` é série de dias e `Sparkline` é série no tempo. A porcentagem
+ * continua dita por extenso na linha, e a coluna de dinheiro à direita, em
+ * figuras tabulares, é o que se compara de olho.
  */
+/**
+ * A conta de uma receita, escrita pela TELA da receita.
+ *
+ * A folha do `[por quê?]` não conhece receita nenhuma desde 7 de setembro — ela
+ * desenha parcelas e fechos. Quem sabe que "fatia do lote" e "perda esperada"
+ * querem dizer alguma coisa é esta tela, e é aqui que o fato vira frase. É a
+ * fundação da casa aplicada a uma folha: a camada de dados devolve fato, quem
+ * escreve português é a tela.
+ *
+ * A ORDEM também mora aqui, e não na folha: "o que domina o custo" é a pergunta
+ * de quem abre a conta de uma receita, e ordenar por fatia dentro da folha
+ * imporia essa pergunta a contas que não a têm.
+ */
+function contaDaReceita(
+  cost: RecipeCost,
+  locale: LocaleSettings,
+  t: Dictionary,
+  /** A régua que a ficha escolheu — ml, g ou un. Sem ela a folha diz "mil" e cala de quê. */
+  unit: string,
+): Conta {
+  const linhas = [...cost.lines].sort((a, b) => b.share - a.share);
+  return {
+    origem: t.whySheet.where,
+    parcelas: linhas.map((linha) => ({
+      rotulo: linha.label,
+      valor: formatMoney(linha.totalCents, locale),
+      parte: linha.share,
+      nota: fill(t.whySheet.shareOfBatch, { percent: formatPercent(linha.share, locale, 0) }),
+    })),
+    fechos: [
+      { rotulo: t.whySheet.batchCost, valor: formatMoney(cost.batchCents, locale) },
+      {
+        rotulo: fill(t.whySheet.expectedLoss, {
+          percent: formatPercent(cost.lossFraction, locale),
+        }),
+        valor: fill(t.whySheet.remains, { amount: formatQuantity(cost.netYield, locale) }),
+      },
+      {
+        rotulo: t.whySheet.perMassUnit,
+        // Mil unidades-base, escritas pelo formatador e não à mão: "1.000" cravado
+        // na string é o ponto de milhar do português dentro de uma tela que também
+        // abre em inglês, onde o mesmo mil é "1,000".
+        valor: fill(t.whySheet.perAmount, {
+          money: formatMoney(amountOf(cost.perYieldUnit, 1000), locale),
+          amount: formatQuantity(1000, locale),
+          // "R$ 1,03 / 1.000" — mil de quê? A Lei 3 pede a comparação junto, e
+          // sem a régua o número não decide nada: mil gramas e mil mililitros
+          // são coisas diferentes na mesma folha.
+          unit,
+        }),
+        forte: true,
+      },
+    ],
+    nota: t.whySheet.lossNote,
+  };
+}
+
 export default function RecipeScreen() {
   return (
     <AreaProvider area="apricot">
@@ -54,13 +153,21 @@ export default function RecipeScreen() {
 
 /** The parts of the editor that come from the database and never change here. */
 type Loaded = {
-  recipes: Record<string, Recipe>;
+  recipes: RecipeGraph;
   costs: ItemCosts;
+  /**
+   * Se o custo é desta pessoa para ver. Nulo em `itemCosts` é o portão, e a ficha
+   * guarda a resposta separada do mapa porque o mapa vazio ainda serve para a
+   * QUANTIDADE — quanto a receita rende sai do grafo, não do custo.
+   */
+  dinheiro: boolean;
   labels: Record<string, string>;
   items: { id: string; name: string; baseUnit: string }[];
   /** How much of the batch becomes one sellable unit, if a product says so. */
   yieldPerUnit: number | null;
-  unitPackagingCents: Cents;
+  unitPackagingRate: Rate;
+  /** A embalagem que sai do estoque, para o custo cotado bater com o congelado. */
+  packagingItems: { itemId: string; name: string; quantityPerUnit: number }[];
   packaging: { id: string; perBaseUnit: number }[];
 };
 
@@ -77,19 +184,18 @@ type Draft = {
 };
 
 function RecipeEditor() {
-  const { color, type, space, accent } = useTheme();
+  const { color, type, space, palette, traco } = useTheme();
   const confirm = useConfirm();
-  const router = useRouter();
   const { locale, t } = useLocale();
   const params = useLocalSearchParams<{ id?: string }>();
 
-  const { data, loading } = useQuery<Loaded>(async () => {
+  const { data, loading, error: erroDeLeitura, refresh } = useQuery<Loaded>(async () => {
     const [recipes, costs, labels, items, products] = await Promise.all([
-      loadRecipeGraph(LOCAL_COMPANY_ID),
-      itemCosts(LOCAL_COMPANY_ID),
-      loadLabels(LOCAL_COMPANY_ID),
-      listItems(LOCAL_COMPANY_ID),
-      listProducts(LOCAL_COMPANY_ID),
+      loadRecipeGraph(empresaDaqui()),
+      itemCosts(empresaDaqui()),
+      loadLabels(empresaDaqui()),
+      listItems(empresaDaqui()),
+      listProducts(empresaDaqui()),
     ]);
 
     const recipeId = params.id ?? Object.keys(recipes)[0];
@@ -97,19 +203,21 @@ function RecipeEditor() {
 
     return {
       recipes,
-      costs,
+      dinheiro: costs !== null,
+      costs: costs ?? {},
       labels,
       items: items
         .filter((i) => i.kind === 'input' || i.kind === 'packaging')
         .map((i) => ({ id: i.id, name: i.name, baseUnit: i.baseUnit })),
       yieldPerUnit: product?.yieldPerUnit ?? null,
-      unitPackagingCents: (product?.unitPackagingCents ?? 0) as Cents,
+      unitPackagingRate: (product?.unitPackagingRate ?? 0) as Rate,
+      packagingItems: product?.packagingItems ?? [],
       packaging: product?.packaging.tiers ?? [{ id: 'unit', perBaseUnit: 1 }],
     };
   }, params.id ?? '');
 
-  const recipeId = params.id ?? (data ? Object.keys(data.recipes)[0] : undefined);
-  const stored = recipeId && data ? data.recipes[recipeId] : undefined;
+  const recipeId = params.id ?? (data ? Object.keys(data.recipes.atual)[0] : undefined);
+  const stored = recipeId && data ? data.recipes.atual[recipeId] : undefined;
 
   const [whyOpen, setWhyOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -133,9 +241,21 @@ function RecipeEditor() {
             recipeId,
             lines: stored.lines,
             // A percentage for a text field, not money. proofgate-allow
-            lossPercent: String(Number((stored.lossFraction * 100).toFixed(2))),
-            yieldAmount: String(stored.yieldAmount),
-            perUnit: data?.yieldPerUnit ? String(data.yieldPerUnit) : '',
+            //
+            // Written with the same separator the field is read with, which is
+            // not a detail: `String(2.5)` is always "2.5", the reader here used
+            // to delete the dot, and a 2,5% loss came back as 25% - with the
+            // save button lit and nobody having touched a key. The screen was
+            // corrupting the sheet by opening it.
+            // E o mesmo comentário vale para a PRECISÃO, que ficou de fora do conserto
+            // acima: `toFixed(2)` truncava a perda para duas casas, então uma ficha com
+            // 2,535% reabria como 2,54% — e salvar sem tocar em nada gravava 0,0254 por
+            // cima de 0,02535. A tela continuava corrompendo a ficha ao abri-la, agora
+            // pela terceira casa em vez de pelo separador. `formatTyped` já sabe o
+            // idioma; quatro casas é a precisão que o campo aceita de volta.
+            lossPercent: formatTyped(stored.lossFraction * 100, locale.formatting, 4),
+            yieldAmount: formatTyped(stored.yieldAmount, locale.formatting),
+            perUnit: data?.yieldPerUnit ? formatTyped(data.yieldPerUnit, locale.formatting) : '',
           }
         : null;
 
@@ -149,7 +269,7 @@ function RecipeEditor() {
   const perUnit = form?.perUnit ?? '';
   const lines = form?.lines ?? null;
 
-  const num = (s: string) => Number(s.replace(/\./g, '').replace(',', '.'));
+  const num = (s: string) => parseTyped(s) ?? NaN;
 
   const computed = useMemo(() => {
     if (!data || !stored || !lines) return null;
@@ -167,15 +287,33 @@ function RecipeEditor() {
 
     // The draft is costed inside the real graph, so a sub-recipe of the recipe
     // being edited still resolves against what is actually saved.
-    const graph: Record<string, Recipe> = {
-      ...data.recipes,
+    /**
+     * O rascunho entra em `atual`, ao lado das fichas salvas, e as versões CARIMBADAS vêm
+     * intactas.
+     *
+     * O custo do rascunho é calculado dentro do grafo de verdade para que uma sub-receita dele
+     * resolva contra o que está salvo — e agora "o que está salvo" inclui `versoes`, senão uma
+     * linha carimbada do rascunho cairia na versão mais nova da calda e a prévia mostraria um
+     * custo que a gravação não vai congelar.
+     */
+    const graph: RecipeGraph = {
+      versoes: data.recipes.versoes,
+      atual: {
+      ...data.recipes.atual,
       [DRAFT]: {
         id: DRAFT,
+        // Um rascunho ainda não é uma versão: ele não foi salvo, então não tem
+        // identidade que uma produção pudesse gravar. O DRAFT diz isso em vez
+        // de emprestar o id da versão anterior, que apontaria uma corrida para
+        // uma fórmula que não é a que ela usou.
+        yieldUnit: stored.yieldUnit,
+        versionId: DRAFT,
         version: stored.version + 1,
         effectiveFrom: stored.effectiveFrom,
         yieldAmount: yieldValue,
         lossFraction: loss,
         lines,
+      },
       },
     };
 
@@ -183,10 +321,17 @@ function RecipeEditor() {
       const cost = costRecipe(DRAFT, graph, data.costs, data.labels);
       const before = costRecipe(recipeId!, data.recipes, data.costs, data.labels);
 
+      // Nulo já era o estado "falta dizer a porção" desta figura, e a tela já o
+      // desenha como travessão com o motivo ao lado — então o portão fechado entra
+      // pelo caminho que a tela conhece, em vez de somar zero e imprimir R$ 0,00.
       const hasPortion = Number.isFinite(portion) && portion > 0;
-      const unitCents = hasPortion
-        ? costPerProductUnit(cost, portion, data.unitPackagingCents)
-        : null;
+      const unitCents =
+        hasPortion && data.dinheiro
+          ? costPerProductUnit(cost, portion, {
+              typedRate: data.unitPackagingRate,
+              itemsRate: packagingRatePerUnit(data.packagingItems, data.costs),
+            })
+          : null;
       const units = hasPortion ? unitsPerBatch(cost, portion) : 0;
       const boxTier = data.packaging.find((t) => t.perBaseUnit > 1);
       const rounding =
@@ -224,6 +369,44 @@ function RecipeEditor() {
     );
   }, [stored, lines, yieldAmount, lossPercent]);
 
+  /**
+   * **Sair sem salvar deixa de ser silêncio.**
+   *
+   * O rascunho desta tela é uma ficha inteira — linhas acrescentadas,
+   * quantidades ajustadas, perda mexida —, com o custo já recalculado à vista. O
+   * botão de salvar existe e fica no fim da rolagem; quem sai pelo voltar do
+   * Android ou pelo X do cabeçalho perdia tudo sem uma palavra. Aconteceu comigo
+   * na primeira caminhada, e eu registrei a linha como não gravada antes de
+   * entender que ela só não tinha sido salva.
+   *
+   * `saindo` existe porque `voltar()` do próprio salvamento passa por aqui
+   * com `changed` ainda verdadeiro — o rascunho em memória não muda ao gravar.
+   * Sem essa trava, salvar perguntaria se você quer descartar o que acabou de
+   * salvar.
+   */
+  const navigation = useNavigation();
+  const saindo = useRef(false);
+
+  useEffect(() => {
+    if (!changed) return;
+    const solta = navigation.addListener('beforeRemove', (evento: { preventDefault: () => void; data: { action: Parameters<typeof navigation.dispatch>[0] } }) => {
+      if (saindo.current) return;
+      evento.preventDefault();
+      void (async () => {
+        const sair = await confirm({
+          title: t.app.recipe.leaveTitle,
+          message: fill(t.app.recipe.leaveBody, { version: stored?.version ?? 1 }),
+          confirmLabel: t.app.recipe.leaveDiscard,
+          cancelLabel: t.app.recipe.keepEditing,
+        });
+        if (!sair) return;
+        saindo.current = true;
+        navigation.dispatch(evento.data.action);
+      })();
+    });
+    return solta;
+  }, [navigation, changed, confirm, t, stored?.version]);
+
   const onSave = async () => {
     if (!stored || !lines || !recipeId || computed?.error) return;
 
@@ -242,7 +425,12 @@ function RecipeEditor() {
     // Law 5: the confirmation spells out what is about to happen, in words.
     const go = await confirm({
       title: fill(t.app.recipe.saveTitle, { version: stored.version + 1 }),
-      message: fill(t.app.recipe.saveBody, { previous: stored.version, summary }),
+      // Sem porção não há custo por unidade e não há resumo: a frase terminava
+      // num ponto e um espaço solto. Confirmação truncada ensina a não ler
+      // confirmação, que é a Lei 5 perdendo o que ela existe para comprar.
+      message: summary
+        ? fill(t.app.recipe.saveBody, { previous: stored.version, summary })
+        : fill(t.app.recipe.saveBodyPlain, { previous: stored.version }),
       confirmLabel: t.app.recipe.save,
       cancelLabel: t.app.recipe.keepEditing,
     });
@@ -250,19 +438,28 @@ function RecipeEditor() {
 
     setSaving(true);
     try {
-      await saveRecipeVersion(LOCAL_COMPANY_ID, {
+      saindo.current = true;
+      await saveRecipeVersion(empresaDaqui(), {
         recipeId,
-        name: data?.labels[recipeId] ?? 'Receita',
+        name: data?.labels[recipeId] ?? t.app.recipe.fallbackTitle,
         yieldAmount: num(yieldAmount),
-        yieldUnit: 'ml',
+        /**
+         * **A unidade é do dono, e esta linha a apagava.** Era `'ml'` literal.
+         * O cadastro oferece as três réguas — mililitros, gramas, unidades — e
+         * gravava a escolha certa; a PRIMEIRA edição da ficha a trocava por
+         * mililitro, calada. Provado no aparelho: uma ficha criada com 12.000 g
+         * voltou do salvamento como 12.000 ml, mesmo número, outra grandeza.
+         * A padaria perde a massa dela na segunda vez que abre a ficha.
+         */
+        yieldUnit: stored.yieldUnit,
         lossFraction: num(lossPercent) / 100,
         lines,
       });
-      router.back();
+      voltar();
     } catch (e) {
       await confirm({
         title: t.app.recipe.failedToSave,
-        message: e instanceof Error ? e.message : String(e),
+        message: avisoDeFalha(e, t, ERROS).message,
         acknowledge: true,
         confirmLabel: t.app.confirm.understood,
       });
@@ -283,17 +480,63 @@ function RecipeEditor() {
   const addItem = (itemId: string) =>
     edit({ lines: [...(lines ?? []), { kind: 'item', itemId, quantity: 1_000 }] });
 
+  /**
+   * Acrescentar uma RECEITA como ingrediente — a calda base dentro do picolé.
+   *
+   * A quantidade nasce em 1.000 da unidade de rendimento da sub-receita, e não em 1:
+   * calda se mede em mililitros, e um mililitro de calda num lote é um número que a
+   * pessoa teria de corrigir toda vez. Mesmo motivo do `addItem` aqui do lado.
+   */
+  const addRecipe = (id: string) =>
+    edit({
+      lines: [
+        ...(lines ?? []),
+        {
+          kind: 'recipe',
+          recipeId: id,
+          quantity: 1_000,
+          /**
+           * A linha nasce carimbada na versão que está valendo AGORA — sem seletor de versão, que
+           * é a Lei 1: escolher versão de calda não é pergunta que alguém de luva responde, e o
+           * sistema sabe a resposta.
+           *
+           * Nulo aqui seria "a mais nova, sempre", e é justamente o defeito: a linha ficaria com o
+           * custo mudando sozinho no dia em que alguém editasse a calda. `saveRecipeVersion`
+           * preencheria de qualquer forma, e carimbar na tela é o que faz a PRÉVIA de custo
+           * concordar com o que a gravação vai congelar.
+           */
+          subVersionId: data?.recipes.atual[id]?.versionId ?? null,
+        },
+      ],
+    });
+
   const title =
     recipeId && data ? (data.labels[recipeId] ?? t.app.recipe.fallbackTitle) : t.app.recipe.fallbackTitle;
 
+  /**
+   * Abrindo, ou nenhuma ficha cadastrada.
+   *
+   * Também entra em cena e também tem desenho: "está tudo bem" é estado válido e
+   * bonito, e uma frase cinza sozinha no meio da tela é a versão que ensina a
+   * ignorar. A próxima ação não está aqui porque cadastrar receita ainda não tem
+   * tela para onde mandar - o mesmo registro que `app/recipes/index.tsx` já faz.
+   */
   if (loading || !data || !stored || !lines) {
     return (
-      <CollapsingHeader title={t.app.recipe.fallbackTitle} overline={t.app.recipe.overline}>
-        <Card>
-          <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {loading ? t.app.recipe.opening : t.app.recipe.none}
-          </Text>
-        </Card>
+      <CollapsingHeader
+        cena="receitas"
+        title={t.app.recipe.fallbackTitle}
+        overline={t.app.recipe.overline}
+        erro={erroDeLeitura}
+        denovo={refresh}
+      >
+        <Reveal index={0}>
+          <Card hue={palette.apricot} icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}>
+            <Text style={[type.body, { color: color.inkMuted }]}>
+              {loading ? t.app.recipe.opening : t.app.recipe.none}
+            </Text>
+          </Card>
+        </Reveal>
       </CollapsingHeader>
     );
   }
@@ -301,244 +544,416 @@ function RecipeEditor() {
   const inRecipe = new Set(lines.map((l) => (l.kind === 'item' ? l.itemId : l.recipeId)));
   const available = data.items.filter((i) => !inRecipe.has(i.id));
 
+  /**
+   * As receitas que esta pode usar como ingrediente.
+   *
+   * O caso é o da fábrica: o picolé de morango leva "calda base de leite", e o pote de
+   * sorvete de ameixa leva a mesma calda. Aninhar é o normal, não a exceção — o banco
+   * guarda isso desde a `0018` e o domínio explode a sub-receita nos ingredientes dela
+   * pelo rendimento líquido. **O que não existia era esta lista.**
+   *
+   * O que fica de fora, e é a Lei 5 (erro IMPEDE, não reclama): o que fecharia laço não
+   * é oferecido. `explodeRequirements` já recusa ciclo, mas só na hora de custear — aí a
+   * pessoa já salvou uma ficha que não tem custo, e a tela teria de explicar uma falha
+   * em vez de nunca ter mostrado a opção.
+   */
+  const availableRecipes = recipeId
+    ? Object.keys(data.recipes.atual)
+        .filter((id) => !inRecipe.has(id) && !wouldCycle(recipeId, id, data.recipes))
+        .map((id) => ({
+          id,
+          name: data.labels[id] ?? id,
+          unit: data.recipes.atual[id]?.yieldUnit ?? '',
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    : [];
+
+  /**
+   * A cascata não pula número.
+   *
+   * O topo é um cartão só - ou o custo, ou o dado que falta para ele existir -
+   * porque os dois são a mesma pergunta respondida de dois jeitos. Quando nem um
+   * nem outro aparece, o que entra assume o índice 0 em vez de deixar um buraco
+   * na entrada.
+   */
+  const cabeca = computed?.error || computed?.cost ? 1 : 0;
+
   return (
     <CollapsingHeader
+      cena="receitas"
       title={title}
       overline={fill(t.app.recipe.overlineVersion, { version: stored.version })}
+      erro={erroDeLeitura}
+      denovo={refresh}
     >
+      {/* Falta um dado, e o erro IMPEDE em vez de reclamar: sem rendimento não
+          há custo, então o cartão do custo não aparece dizendo zero - este toma
+          o lugar dele e diz o que preencher. */}
       {computed?.error ? (
-        <Card tone="danger">
-          <Text style={[type.cardTitle, { color: color.danger }]}>{t.app.recipe.missingData}</Text>
-          <Text style={[type.secondary, { color: color.inkMuted, marginTop: space.xs }]}>
-            {computed.error}
-          </Text>
-        </Card>
-      ) : null}
-
-      {computed?.cost ? (
-        <Card tone="area">
-          <Text style={[type.overline, { color: color.inkFaint }]}>{t.app.recipe.unitCost}</Text>
-          <Text style={[type.figure, { color: color.ink, marginTop: space.xs }]}>
-            {computed.unitCents === null ? '—' : formatMoney(computed.unitCents, locale)}
-          </Text>
-
-          <Text style={[type.secondary, { color: color.inkMuted }]}>
-            {computed.unitCents === null
-              ? t.app.recipe.needPortion
-              : fill(t.app.recipe.unitsPerBatch, {
-                  units: formatQuantity(computed.units, locale),
-                  batch: formatMoney(computed.cost.batchCents, locale),
-                })}
-          </Text>
-
-          {computed.delta && changed && computed.delta.deltaCents !== 0 ? (
-            <Text
-              style={[
-                type.secondary,
-                {
-                  color: computed.delta.cheaper ? color.ok : color.warning,
-                  marginTop: space.sm,
-                  fontWeight: '600',
-                },
-              ]}
-            >
-              {computed.delta.cheaper ? '▼' : '▲'}{' '}
-              {fill(t.app.recipe.cheaperThan, {
-                amount: formatMoney(Math.abs(computed.delta.deltaCents), locale),
-                version: stored.version,
-                percent: `${(Math.abs(computed.delta.percent) * 100).toFixed(1)}%`,
-              })}
-            </Text>
-          ) : null}
-
-          {computed.rounding && computed.rounding.addedUnits > 0 ? (
-            <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
-              {fill(t.app.recipe.roundUp, {
-                rounded: formatQuantity(computed.rounding.rounded, locale),
-                loose: formatQuantity(
-                  computed.units % (computed.boxTier?.perBaseUnit ?? 1),
-                  locale,
-                ),
-                units: formatQuantity(computed.units, locale),
-              })}
-            </Text>
-          ) : null}
-
-          <Pressable
-            onPress={() => setWhyOpen(true)}
-            accessibilityRole="button"
-            style={[styles.why, { borderColor: color.lineStrong, marginTop: space.md }]}
+        <Reveal index={0}>
+          {/* sinal — falta o rendimento e o custo não existe: o cartão É o impedimento (Lei 5) */}
+          <Card
+            hue={color.danger}
+            icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}
+            title={t.app.recipe.missingData}
           >
-            <Text style={[type.caption, { color: accent, letterSpacing: 0.6 }]}>{t.app.recipe.why}</Text>
-          </Pressable>
-        </Card>
+            <Text style={[type.body, { color: color.ink }]}>{computed.error}</Text>
+          </Card>
+        </Reveal>
       ) : null}
 
-      <Card tone="area">
-        <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.md }]}>
-          {t.app.recipe.whatGoesIn}
-        </Text>
-
-        {lines.map((line, index) => {
-          const id = line.kind === 'item' ? line.itemId : line.recipeId;
-          const label = data.labels[id] ?? id;
-          const share = computed?.cost?.lines[index]?.share ?? 0;
-          const lineCost = computed?.cost?.lines[index]?.totalCents ?? 0;
-
-          return (
-            <View key={`${id}-${index}`} style={{ marginBottom: space.lg }}>
-              <View style={styles.lineRow}>
-                <Text style={[type.body, { color: color.ink, flex: 1 }]} numberOfLines={1}>
-                  {label}
-                  {line.kind === 'recipe' ? ` ·  ${t.app.recipe.subRecipe}` : ''}
-                </Text>
-                <Text style={[type.body, styles.number, { color: color.ink }]}>
-                  {formatMoney(lineCost, locale)}
-                </Text>
-              </View>
-
-              <View style={[styles.track, { backgroundColor: color.sunken }]}>
-                <View
-                  style={{
-                    width: `${Math.max(1, Math.round(share * 100))}%`,
-                    height: '100%',
-                    backgroundColor: accent,
-                    borderRadius: 99,
-                  }}
-                />
-              </View>
-
-              <View style={[styles.lineRow, { marginTop: space.sm, gap: space.sm }]}>
-                <Text style={[type.caption, { color: color.inkFaint, flex: 1 }]}>
-                  {fill(t.app.recipe.shareOfBatch, {
-                    quantity: formatQuantity(line.quantity, locale),
-                    percent: `${Math.round(share * 100)}%`,
-                  })}
-                </Text>
-                <Nudge
-                  label={t.app.recipe.lessTen}
-                  onPress={() => setQuantity(index, line.quantity * 0.9)}
-                />
-                <Nudge
-                  label={t.app.recipe.moreTen}
-                  onPress={() => setQuantity(index, line.quantity * 1.1)}
-                />
-                <Nudge label={t.app.recipe.remove} onPress={() => removeLine(index)} />
-              </View>
+      {/* QUANTO CUSTA. A única figura da tela, e ela nunca aparece sozinha: ao
+          lado vem quantas unidades saem de cada vez e quanto custa o lote
+          inteiro, embaixo a diferença contra a versão salva - a resposta de "meu
+          ajuste ajudou", feita enquanto o ajuste está aberto - e no fim a conta,
+          que abre por inteiro no `[por quê?]`. */}
+      {computed?.cost ? (
+        <Reveal index={0}>
+          <Card
+            hue={palette.sky}
+            icon={(c) => <GlyphPrice size={26} color={c} weight={traco} />}
+            title={t.app.recipe.unitCost}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.md }}>
+              <Text style={[type.figure, { color: color.ink }]}>
+                {computed.unitCents === null ? '—' : formatMoney(computed.unitCents, locale)}
+              </Text>
+              <Text style={[type.secondary, { color: color.inkMuted, flex: 1 }]}>
+                {computed.unitCents === null
+                  ? data.dinheiro
+                    ? fill(t.app.recipe.needPortion, { unit: stored.yieldUnit })
+                    : t.common.moneyHidden
+                  : fill(t.app.recipe.unitsPerBatch, {
+                      units: formatQuantity(computed.units, locale),
+                      batch: formatMoney(computed.cost.batchCents, locale),
+                    })}
+              </Text>
             </View>
-          );
-        })}
 
-        {available.length > 0 ? (
-          <>
-            <Text style={[type.caption, { color: color.inkFaint, marginBottom: space.sm }]}>
-              {t.app.recipe.add}
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={{ flexDirection: 'row', gap: space.sm }}>
-                {available.map((item) => (
-                  <Nudge key={item.id} label={`+ ${item.name}`} onPress={() => addItem(item.id)} />
-                ))}
+            {/* A seta carrega a direção porque a frase não carrega: cor sozinha
+                não é informação para quem não distingue verde de âmbar. */}
+            {computed.delta && changed && computed.delta.deltaCents !== 0 ? (
+              <Text
+                style={[
+                  type.secondary,
+                  {
+                    color: computed.delta.cheaper ? color.ok : color.warning,
+                    marginTop: space.sm,
+                    fontWeight: '600',
+                  },
+                ]}
+              >
+                {computed.delta.cheaper ? '▼' : '▲'}{' '}
+                {/* Sem base não há por cento: a versão anterior de uma ficha
+                    recém-criada não custa nada, e a frase saía dizendo as duas
+                    coisas ao mesmo tempo — "▲ R$ 0,02 por unidade contra a
+                    versão 1 (0,0%)". Subiu e não mudou, na mesma linha. */}
+                {computed.delta.percent === null
+                  ? fill(t.app.recipe.dearerThanNoBase, {
+                      amount: formatMoney(Math.abs(computed.delta.deltaCents), locale),
+                      version: stored.version,
+                    })
+                  : fill(t.app.recipe.cheaperThan, {
+                      amount: formatMoney(Math.abs(computed.delta.deltaCents), locale),
+                      version: stored.version,
+                      percent: formatPercent(Math.abs(computed.delta.percent), locale),
+                    })}
+              </Text>
+            ) : null}
+
+            {computed.rounding && computed.rounding.addedUnits > 0 ? (
+              <Text style={[type.caption, { color: color.inkMuted, marginTop: space.sm }]}>
+                {fill(t.app.recipe.roundUp, {
+                  rounded: formatQuantity(computed.rounding.rounded, locale),
+                  loose: formatQuantity(
+                    computed.units % (computed.boxTier?.perBaseUnit ?? 1),
+                    locale,
+                  ),
+                  units: formatQuantity(computed.units, locale),
+                })}
+              </Text>
+            ) : null}
+
+            {/* Lei 6: toda conclusão abre a conta. Fantasma, porque a ação desta
+                tela é salvar - abrir a conta não compete com ela. */}
+            <Button
+              label={t.app.recipe.why}
+              variant="ghost"
+              onPress={() => setWhyOpen(true)}
+              style={{ marginTop: space.md }}
+            />
+          </Card>
+        </Reveal>
+      ) : null}
+
+      {/* O QUE ENTRA. Cada linha diz quanto vai, o quanto ela pesa no lote e o
+          que ela custa, na régua da direita - é a conta do cartão de cima, item
+          por item. Sem desenho nas linhas: ícone em toda linha vira papel de
+          parede e para de ser visto; o crachá é do assunto, uma vez. Os três
+          ajustes são fantasma, porque corrigir nunca se convida. */}
+      <Reveal index={cabeca}>
+        <Card
+          hue={palette.mint}
+          icon={(c) => <GlyphSack size={26} color={c} weight={traco} />}
+          title={t.app.recipe.whatGoesIn}
+        >
+          {lines.map((line, index) => {
+            const id = line.kind === 'item' ? line.itemId : line.recipeId;
+            const label = data.labels[id] ?? id;
+            const share = computed?.cost?.lines[index]?.share ?? 0;
+            const lineCost = computed?.cost?.lines[index]?.totalCents ?? 0;
+            // "18.000" de quê? A unidade estava faltando desde antes desta
+            // reescrita, e sem ela o número não decide nada — dezoito mil
+            // gramas e dezoito mil unidades são coisas diferentes na mesma
+            // ficha. Item usa a unidade-base dele; sub-receita, a do rendimento.
+            /**
+             * A unidade da SUB-receita é a dela, não a da ficha que está aberta.
+             *
+             * Isto lia `stored?.yieldUnit` — o rendimento da MÃE. Uma ficha que rende em unidades
+             * dizia "20.000 un de calda base" para uma calda que se mede em mililitros: o número
+             * certo com a palavra errada, que é pior que sem palavra nenhuma porque parece
+             * conferido.
+             */
+            const sub = line.kind === 'recipe' ? data.recipes.atual[line.recipeId] : undefined;
+            const unidade =
+              line.kind === 'item'
+                ? (data.items.find((i) => i.id === line.itemId)?.baseUnit ?? '')
+                : (sub?.yieldUnit ?? '');
+
+            /**
+             * A versão CARIMBADA, e o convite quando a sub-receita andou.
+             *
+             * A linha diz qual versão ela compôs — *"Calda base · sub-receita · v2"* — porque é
+             * essa versão que decide o custo congelado de toda corrida desta ficha. Sem isso o
+             * carimbo existe e é invisível: quem olha a ficha não tem como saber que ela está
+             * composta com uma calda de três meses atrás.
+             *
+             * E quando a sub-receita tem versão mais nova, a linha convida com UM toque. Não é
+             * automático de propósito — abrir versão nova da mãe sozinho reivindicaria um número
+             * de versão em toda ficha que usa aquela calda, e dois aparelhos offline colidiriam
+             * no mesmo número (`unique (recipe_id, version)`), o que põe a linha de lado para
+             * sempre e trava a fila atrás dela. A medida está no `docs/insights.md`.
+             */
+            const carimbada = line.kind === 'recipe' && line.subVersionId
+              ? data.recipes.versoes[line.subVersionId] ?? sub
+              : sub;
+            const temMaisNova =
+              line.kind === 'recipe' && sub && carimbada && carimbada.versionId !== sub.versionId;
+
+            return (
+              <View key={`${id}-${index}`} style={{ marginBottom: space.sm }}>
+                <ListRow
+                  label={
+                    line.kind === 'recipe'
+                      ? `${label} · ${t.app.recipe.subRecipe}${
+                          carimbada
+                            ? ` · ${fill(t.app.recipe.subVersion, { version: String(carimbada.version) })}`
+                            : ''
+                        }`
+                      : label
+                  }
+                  detail={fill(t.app.recipe.shareOfBatch, {
+                    quantity: `${formatQuantity(line.quantity, locale)} ${unidade}`.trim(),
+                    percent: formatPercent(share, locale, 0),
+                  })}
+                  trailing={formatMoney(lineCost, locale)}
+                />
+                {temMaisNova && sub ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                    <Text style={[type.caption, { color: color.inkFaint, flex: 1 }]}>
+                      {fill(t.app.recipe.subNewer, { name: label, version: String(sub.version) })}
+                    </Text>
+                    <Button
+                      label={fill(t.app.recipe.useNewerSub, { version: String(sub.version) })}
+                      variant="ghost"
+                      onPress={() =>
+                        edit({
+                          lines: (lines ?? []).map((l, i) =>
+                            i === index && l.kind === 'recipe'
+                              ? { ...l, subVersionId: sub.versionId }
+                              : l,
+                          ),
+                        })
+                      }
+                    />
+                  </View>
+                ) : null}
+                <View style={{ flexDirection: 'row', gap: space.sm }}>
+                  <Button
+                    label={t.app.recipe.lessTen}
+                    variant="ghost"
+                    onPress={() => setQuantity(index, line.quantity * 0.9)}
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    label={t.app.recipe.moreTen}
+                    variant="ghost"
+                    onPress={() => setQuantity(index, line.quantity * 1.1)}
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    label={t.app.recipe.remove}
+                    variant="ghost"
+                    onPress={() => removeLine(index)}
+                    style={{ flex: 1 }}
+                  />
+                </View>
               </View>
-            </ScrollView>
-          </>
-        ) : null}
-      </Card>
+            );
+          })}
 
-      <Card tone="area">
-        <View style={{ gap: space.lg }}>
-          <Field
-            label={t.app.recipe.batchYield}
-            value={yieldAmount}
-            onChangeText={(value) => edit({ yieldAmount: value })}
-            suffix="ml"
-            keyboardType="numeric"
-          />
-          <Field
-            label={t.app.recipe.expectedLoss}
-            value={lossPercent}
-            onChangeText={(value) => edit({ lossPercent: value })}
-            suffix="%"
-            keyboardType="numeric"
-            hint={
-              computed?.cost
-                ? fill(t.app.recipe.lossHint, {
-                    net: formatQuantity(computed.cost.netYield, locale),
-                    gross: formatQuantity(num(yieldAmount), locale),
-                  })
-                : undefined
-            }
-          />
-          <Field
-            label={t.app.recipe.perUnit}
-            value={perUnit}
-            onChangeText={(value) => edit({ perUnit: value })}
-            suffix="ml"
-            keyboardType="numeric"
-            hint={
-              data.unitPackagingCents > 0
-                ? fill(t.app.recipe.packagingHint, {
-                    amount: formatMoney(data.unitPackagingCents, locale),
-                  })
-                : undefined
-            }
-          />
-        </View>
-      </Card>
+          {/* O que ainda não está na ficha, em texto e sem caixa - a mesma forma
+              que o almoxarifado usa para escolher, e a que sobrevive nas duas
+              caras porque não desenha nada. */}
+          {availableRecipes.length > 0 ? (
+            <>
+              {/* As receitas vêm ANTES dos insumos na hora de acrescentar, e é
+                  deliberado: quem monta um picolé pensa primeiro "leva calda base" e
+                  só depois nos ingredientes soltos. A cor separa as duas naturezas —
+                  o tom de insumo é o do almoxarifado, e sub-receita não é insumo. */}
+              <Text style={[type.overline, { color: color.inkFaint, marginTop: space.md }]}>
+                {t.app.recipe.addRecipe}
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={{ flexDirection: 'row', gap: space.lg }}>
+                  {availableRecipes.map((sub) => (
+                    <Pressable
+                      key={sub.id}
+                      onPress={() => addRecipe(sub.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t.app.recipe.addRecipe} ${sub.name}`}
+                      style={{ paddingVertical: space.sm, minHeight: ALVO, justifyContent: 'center' }}
+                    >
+                      <Text
+                        style={[type.secondary, { color: palette.apricot, fontWeight: '600' }]}
+                        numberOfLines={1}
+                      >
+                        {sub.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+            </>
+          ) : null}
 
-      <Button
-        label={
-          saving
-            ? t.app.recipe.saving
-            : fill(t.app.recipe.saveAs, { version: stored.version + 1 })
-        }
-        onPress={() => void onSave()}
-        disabled={!changed || saving || Boolean(computed?.error)}
-        weighty
-      />
+          {available.length > 0 ? (
+            <>
+              <Text style={[type.overline, { color: color.inkFaint, marginTop: space.md }]}>
+                {t.app.recipe.add}
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={{ flexDirection: 'row', gap: space.lg }}>
+                  {available.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => addItem(item.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t.app.recipe.add} ${item.name}`}
+                      style={{ paddingVertical: space.sm, minHeight: ALVO, justifyContent: 'center' }}
+                    >
+                      <Text
+                        style={[type.secondary, { color: palette.mint, fontWeight: '600' }]}
+                        numberOfLines={1}
+                      >
+                        {item.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+            </>
+          ) : null}
+        </Card>
+      </Reveal>
+
+      {/* A FICHA EM SI: o que ela rende, o que se perde no caminho e quanto vai
+          em cada unidade. Formulário continua formulário - `Field` nos campos,
+          com a dica que devolve a conta a cada tecla. Sem título: o cabeçalho já
+          diz "ficha técnica · versão N", e repetir a palavra num crachá seria
+          rótulo inventado. */}
+      <Reveal index={cabeca + 1}>
+        <Card hue={palette.apricot} icon={(c) => <GlyphRecipe size={26} color={c} weight={traco} />}>
+          <View style={{ gap: space.lg }}>
+            <Field
+              label={t.app.recipe.batchYield}
+              value={yieldAmount}
+              onChangeText={(value) => edit({ yieldAmount: value })}
+              suffix={stored.yieldUnit}
+              keyboardType="numeric"
+            />
+            <Field
+              label={t.app.recipe.expectedLoss}
+              value={lossPercent}
+              onChangeText={(value) => edit({ lossPercent: value })}
+              suffix="%"
+              keyboardType="numeric"
+              hint={
+                computed?.cost
+                  ? fill(t.app.recipe.lossHint, {
+                      net: formatQuantity(computed.cost.netYield, locale),
+                      gross: formatQuantity(num(yieldAmount), locale),
+                      unit: stored.yieldUnit,
+                    })
+                  : undefined
+              }
+            />
+            <Field
+              label={t.app.recipe.perUnit}
+              value={perUnit}
+              onChangeText={(value) => edit({ perUnit: value })}
+              suffix={stored.yieldUnit}
+              keyboardType="numeric"
+              /**
+               * **Este campo não é gravado, e por muito tempo ele não dizia.**
+               * `changed` nunca o olhou — de propósito: a porção mora no
+               * PRODUTO (`products.yield_per_unit`), e uma ficha pode alimentar
+               * dois produtos de tamanhos diferentes, então salvá-la daqui
+               * escolheria um dos dois no escuro. O que estava errado não era
+               * isso: era a tela pedir *"informe quantos ml vão em cada
+               * unidade"* como quem manda preencher um formulário, calcular a
+               * figura inteira com a resposta e deixá-la evaporar na saída, sem
+               * uma palavra. Ele fica, porque a pergunta que ele responde — "e
+               * se eu puser 100 em vez de 70?" — é o motivo desta tela existir.
+               * O que muda é que agora ele se apresenta pelo que é.
+               */
+              hint={[
+                data.unitPackagingRate > 0
+                  ? fill(t.app.recipe.packagingHint, {
+                      amount: formatUnitRate(data.unitPackagingRate, locale, fill(t.app.inputForm.perThousandOf, { unit: t.units.unit.other })),
+                    })
+                  : null,
+                fill(t.app.recipe.portionIsWhatIf, { unit: stored.yieldUnit }),
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            />
+          </View>
+        </Card>
+      </Reveal>
+
+      {/* A ação provável, uma só e embaixo, ao alcance do dedo. */}
+      <Reveal index={cabeca + 2}>
+        <Button
+          label={
+            saving
+              ? t.app.recipe.saving
+              : fill(t.app.recipe.saveAs, { version: stored.version + 1 })
+          }
+          onPress={() => void onSave()}
+          disabled={!changed || saving || Boolean(computed?.error)}
+          weighty
+        />
+      </Reveal>
 
       {computed?.cost ? (
         <WhySheet
           visible={whyOpen}
           onClose={() => setWhyOpen(false)}
-          cost={computed.cost}
-          locale={locale}
+          conta={contaDaReceita(computed.cost, locale, t, stored.yieldUnit)}
           title={title}
         />
       ) : null}
     </CollapsingHeader>
   );
 }
-
-function Nudge({ label, onPress }: { label: string; onPress: () => void }) {
-  const { color, type, space } = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={{
-        borderWidth: StyleSheet.hairlineWidth * 2,
-        borderColor: color.lineStrong,
-        borderRadius: 999,
-        paddingHorizontal: space.md,
-        paddingVertical: space.sm - 2,
-      }}
-    >
-      <Text style={[type.caption, { color: color.inkMuted }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
-  lineRow: { flexDirection: 'row', alignItems: 'center' },
-  number: { fontVariant: ['tabular-nums'], fontWeight: '600' },
-  track: { height: 6, borderRadius: 99, overflow: 'hidden', marginTop: 6 },
-  why: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-});

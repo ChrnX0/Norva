@@ -1,0 +1,13 @@
+{
+  "$comment": [
+    "O push-guard exigia veredito fresco da proofgate antes de QUALQUER push. Nasceu",
+    "certo — duas vezes num dia eu empurrei sem ler a saída da barra. Mas com a barra",
+    "agora proporcional (decisão do dono, 5 de setembro), ele passou a bloquear commit",
+    "de ambiente e de documento, que pela regra nova não pedem barra nenhuma.",
+    "",
+    "A proofgate continua existindo e continua sendo o portão de entrega: roda ao",
+    "fechar etapa e no CI, indo para main. O que saiu foi a obrigação por push.",
+    "Para religar: pushGuard true."
+  ],
+  "pushGuard": false
+}

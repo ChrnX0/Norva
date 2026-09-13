@@ -1,13 +1,22 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { avisoDeFalha } from '@/i18n/falha';
+import { ERROS } from '@/data/erros';
+import { useMemo, useState, useRef } from 'react';
+import { Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { Chip } from '@/components/Chip';
 import { useConfirm } from '@/components/Confirm';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
+import { Field } from '@/components/Field';
+import { GlyphAssistant } from '@/components/Glyph';
+import { ListRow } from '@/components/ListRow';
+import { Reveal } from '@/components/Reveal';
 import { ask, knownSkills, type Answer, type Capability } from '@/assistant';
 import { liveData } from '@/data/assistantData';
-import { LOCAL_COMPANY_ID } from '@/data/seed';
+import { currentCapabilities } from '@/data/repository';
+import { empresaDaqui } from '@/data/empresa';
+import { useQuery } from '@/data/useQuery';
 import { defaultLocale, fill } from '@/i18n';
 import { useLocale } from '@/i18n/useLocale';
 import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
@@ -25,6 +34,34 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  *   - a phrase that would record something fills a card and waits; nothing
  *     reaches the ledger without a human yes
  *   - what the person may not see is never fetched, so there is nothing to leak
+ *
+ * **O corpo desta tela foi reescrito na língua da capa** (`docs/linguagem.md`), e
+ * o layout anterior saiu inteiro em vez de ganhar um caminho ao lado. O que saiu,
+ * item por item, porque cada um era um dialeto próprio:
+ *
+ * - um `TextInput` cru com fundo, borda e canto desenhados à mão dentro do
+ *   cartão — a única caixa de texto escrita na mão do aplicativo inteiro,
+ *   enquanto vinte telas usam `Field`;
+ * - os exemplos numa fita horizontal de pastilhas com `borderRadius: pill` e
+ *   borda escritas na tela: dezesseis coisas que o assistente sabe responder,
+ *   treze delas fora do quadro, na primeira tela que alguém abre sem saber o que
+ *   perguntar;
+ * - o `[por quê?]` e o `ABRIR A TELA` como duas pílulas de `StyleSheet` local —
+ *   vocabulário do Orgânico chapado por cima do Papel, que não tem pílula;
+ * - a conta do `[por quê?]` como uma grade de `View` com `flex: 1` e
+ *   `tabular-nums` na mão, que é `ListRow` reescrito pela metade;
+ * - e a tela sem desenho nenhum e sem entrada animada: uma coluna de retângulos
+ *   que aparecia de uma vez.
+ *
+ * O que existe agora são as mesmas três coisas, na ordem em que se usa:
+ * **perguntar** (o campo e a ação, no tom do assunto), **o que se pode perguntar**
+ * (a lista tocável, que é o estado vazio desta tela — cada linha manda a própria
+ * frase, então ninguém precisa digitar para descobrir) e **a resposta** (a
+ * pergunta acima dela, a frase, a conta que abre e a ação provável).
+ *
+ * Nenhuma caixa é desenhada aqui: `Card`, `Button`, `Chip` e `ListRow` já sabem
+ * virar régua no Papel e bloco no Orgânico. E o cartão de rascunho continua sendo
+ * o único âmbar da tela — é ele que espera o sim.
  */
 export default function AssistantScreen() {
   return (
@@ -34,39 +71,80 @@ export default function AssistantScreen() {
   );
 }
 
-/** Until sign-in lands, the local user is the owner. */
-const CAPABILITIES: ReadonlySet<Capability> = new Set<Capability>([
-  'view_cost',
-  'view_sale_price',
-  'record_production',
-  'place_order',
-  'view_finance',
-]);
+/**
+ * O que o assistente pode responder é o que quem está com o aparelho pode ver.
+ *
+ * **A linha anterior era `capabilitiesFor('owner')`**, com o motivo escrito ao
+ * lado: *"until sign-in lands, whoever holds this phone is the owner"*. Era
+ * verdade quando foi escrita e deixou de ser — a grade de nomes existe, a pessoa
+ * aponta para um perfil, e o perfil carrega as capacidades. A fronteira esperava
+ * a CONTA, e o que faltava era a PESSOA, que já chegou.
+ *
+ * Enquanto a resposta não chega, o conjunto é o vazio: as habilidades que exigem
+ * capacidade não entram na lista de exemplos e não respondem. Fechado por
+ * omissão, e não aberto — se este `useQuery` falhar, o assistente responde menos
+ * em vez de responder o que não devia.
+ */
+function useCapacidades(): ReadonlySet<Capability> {
+  const { data } = useQuery(() => currentCapabilities(empresaDaqui()));
+  return data ?? VAZIO;
+}
 
-type Turn = { question: string; answer: Answer; open: boolean; applied: boolean };
+const VAZIO: ReadonlySet<Capability> = new Set();
+
+/**
+ * `id` existe por causa da chave do cartão. A lista é preenchida PELA FRENTE, então a
+ * chave `pergunta-índice` de todo cartão existente mudava a cada resposta nova — e chave
+ * nova é o React desmontando e remontando a subárvore inteira, com o `Reveal` refazendo a
+ * entrada do chão. Não era um cartão tremendo: era a tela inteira caindo 26 dp e voltando
+ * em cascata a cada pergunta respondida, com atraso crescente conforme a conversa cresce.
+ */
+type Turn = { id: number; question: string; answer: Answer; open: boolean; applied: boolean };
 
 function Conversation() {
-  const { color, radius, space, type, accent } = useTheme();
+  const { color, space, type, palette, traco } = useTheme();
   // Named apart from the assistant's own `ask`, which answers questions rather
   // than asking them.
   const askConfirm = useConfirm();
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const router = useRouter();
 
   const [question, setQuestion] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);
+  const proximoId = useRef(1);
   const [thinking, setThinking] = useState(false);
 
+  const capacidades = useCapacidades();
+
+  /**
+   * **O assistente fala português e conta o dia da FÁBRICA — as duas coisas juntas.**
+   *
+   * `locale: defaultLocale` prendia tudo em São Paulo, inclusive o fuso. Isso não é a
+   * decisão do monolíngue: essa é sobre TRADUÇÃO (*"nada de tradução das respostas"* até o
+   * áudio existir), e fuso não é idioma, é fato. O `liveData` logo acima já recebia o fuso
+   * de verdade, então o assistente lia o razão com o dia de Manaus e MONTAVA A FRASE com
+   * o dia de São Paulo — `dayWindow(nowIso(), ctx.locale.timeZone)` em quatro lugares do
+   * `skills.ts`. Às 3h30 UTC os dois discordam sobre que dia é hoje, e o assistente
+   * responde "hoje saíram 400" de um dia diferente do que toda outra tela chama de hoje.
+   *
+   * A moeda vai junto pelo mesmo motivo: quem paga em pesos vê "R$" numa conta certa, o
+   * que é pior que número errado — parece confiável. O que fica cravado é o par
+   * `language`/`formatting`, que é o que o congelamento protege.
+   */
   const context = useMemo(
     () => ({
-      data: liveData(LOCAL_COMPANY_ID),
-      capabilities: CAPABILITIES,
-      locale: defaultLocale,
+      data: liveData(empresaDaqui(), locale.timeZone),
+      capabilities: capacidades,
+      locale: {
+        ...defaultLocale,
+        timeZone: locale.timeZone,
+        currency: locale.currency,
+      },
     }),
-    [],
+    [locale.timeZone, locale.currency, capacidades],
   );
 
-  const examples = useMemo(() => knownSkills(CAPABILITIES).map((s) => s.example), []);
+  const examples = useMemo(() => knownSkills(capacidades).map((s) => s.example), [capacidades]);
 
   const send = (text: string) => {
     const asked = text.trim();
@@ -77,15 +155,19 @@ function Conversation() {
 
     ask(asked, context)
       .then((answer) =>
-        setTurns((prev) => [{ question: asked, answer, open: false, applied: false }, ...prev]),
+        setTurns((prev) => [
+          { id: proximoId.current++, question: asked, answer, open: false, applied: false },
+          ...prev,
+        ]),
       )
       .catch((e: unknown) =>
         setTurns((prev) => [
           {
+            id: proximoId.current++,
             question: asked,
             answer: {
               text: fill(t.app.assistant.trouble, {
-                error: e instanceof Error ? e.message : String(e),
+                error: avisoDeFalha(e, t, ERROS).message,
               }),
             },
             open: false,
@@ -119,7 +201,7 @@ function Conversation() {
     } catch (e) {
       await askConfirm({
         title: t.app.assistant.failed,
-        message: e instanceof Error ? e.message : String(e),
+        message: avisoDeFalha(e, t, ERROS).message,
         acknowledge: true,
         confirmLabel: t.app.confirm.understood,
       });
@@ -127,145 +209,168 @@ function Conversation() {
   };
 
   return (
-    <CollapsingHeader title={t.app.assistant.title} overline={t.app.assistant.overline}>
-      <Card tone="area">
-        <TextInput
-          value={question}
-          onChangeText={setQuestion}
-          onSubmitEditing={() => send(question)}
-          placeholder={t.app.assistant.placeholder}
-          placeholderTextColor={color.inkFaint}
-          returnKeyType="send"
-          accessibilityLabel={t.app.assistant.inputLabel}
-          selectionColor={accent}
-          multiline
-          style={[
-            type.body,
-            {
-              color: color.ink,
-              backgroundColor: color.surface,
-              borderColor: color.line,
-              borderRadius: radius.md,
-              borderWidth: StyleSheet.hairlineWidth,
-              padding: space.md,
-              minHeight: 60,
-            },
-          ]}
-        />
-
-        <Button
-          label={thinking ? t.app.assistant.thinking : t.app.assistant.ask}
-          onPress={() => send(question)}
-          disabled={thinking || question.trim().length === 0}
-          style={{ marginTop: space.md }}
-        />
-      </Card>
-
-      {turns.length === 0 ? (
-        <Card>
-          <Text style={[type.cardTitle, { color: color.ink, marginBottom: space.sm }]}>
-            {t.app.assistant.examplesTitle}
-          </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={{ flexDirection: 'row', gap: space.sm }}>
-              {examples.map((example) => (
-                <Pressable
-                  key={example}
-                  onPress={() => send(example)}
-                  accessibilityRole="button"
-                  style={{
-                    borderWidth: StyleSheet.hairlineWidth * 2,
-                    borderColor: color.lineStrong,
-                    borderRadius: radius.pill,
-                    paddingHorizontal: space.md,
-                    paddingVertical: space.sm,
-                  }}
-                >
-                  <Text style={[type.caption, { color: color.inkMuted }]}>{example}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </ScrollView>
+    <CollapsingHeader
+      cena="assistente"
+      title={t.app.assistant.title}
+      overline={t.app.assistant.overline}
+    >
+      {/* PERGUNTAR. O balão de fala é o crachá do assunto e o único desenho da
+          tela: ele diz "aqui se fala" antes de qualquer palavra ser lida. Sem
+          título no cartão — o cabeçalho já diz "Pergunte", e repetir a palavra
+          num crachá é rótulo inventado. */}
+      <Reveal index={0}>
+        <Card hue={palette.sky} icon={(c) => <GlyphAssistant size={26} color={c} weight={traco} />}>
+          <Field
+            label={t.app.assistant.inputLabel}
+            value={question}
+            onChangeText={setQuestion}
+            placeholder={t.app.assistant.placeholder}
+          />
+          <Button
+            label={thinking ? t.app.assistant.thinking : t.app.assistant.ask}
+            onPress={() => send(question)}
+            disabled={thinking || question.trim().length === 0}
+            style={{ marginTop: space.md }}
+          />
         </Card>
+      </Reveal>
+
+      {/* O QUE SE PODE PERGUNTAR — que é o estado vazio desta tela, e estado
+          vazio aqui é a primeira coisa que todo mundo vê.
+          Cada linha manda a própria frase, então a lista não ensina: ela
+          responde. Sem crachá em cada linha (desenho em toda linha vira papel de
+          parede) e sem crachá no cartão, que seria o segundo balão de fala
+          seguido — a sobrelinha diz de que lista esta é. */}
+      {turns.length === 0 ? (
+        <Reveal index={1}>
+          <Card>
+            <Text style={[type.overline, { color: color.inkFaint, marginBottom: space.xs }]}>
+              {t.app.assistant.examplesTitle.toLocaleUpperCase(locale.formatting)}
+            </Text>
+            {examples.map((example) => (
+              <ListRow key={example} label={example} onPress={() => send(example)} />
+            ))}
+          </Card>
+        </Reveal>
       ) : null}
 
+      {/* AS RESPOSTAS, da mais nova para a mais velha.
+          A pergunta fica pequena e apagada em cima: ela é o contexto, não o
+          conteúdo — quem acabou de digitar sabe o que perguntou. Âmbar quando a
+          frase virou rascunho, porque é o único cartão da tela que espera uma
+          decisão; azul quando é só resposta. */}
       {turns.map((turn, index) => (
-        <Card key={`${turn.question}-${index}`} tone={turn.answer.draft ? 'warning' : 'area'}>
-          <Text style={[type.caption, { color: color.inkFaint }]}>{turn.question}</Text>
-          <Text style={[type.cardTitle, { color: color.ink, marginTop: space.xs }]}>
-            {turn.answer.text}
-          </Text>
+        <Reveal key={turn.id} index={1 + index}>
+          <Card
+            hue={turn.answer.draft ? color.warning : palette.sky}
+            icon={(c) => <GlyphAssistant size={26} color={c} weight={traco} />}
+          >
+            <Text style={[type.caption, { color: color.inkFaint }]}>{turn.question}</Text>
+            <Text style={[type.cardTitle, { color: color.ink, marginTop: space.xs }]}>
+              {turn.answer.text}
+            </Text>
 
-          {turn.open && turn.answer.detail ? (
-            <View style={{ marginTop: space.md, gap: space.xs }}>
-              {turn.answer.detail.map((line, i) => (
-                <View key={`${line.label}-${i}`} style={styles.row}>
-                  <Text style={[type.secondary, { color: color.inkMuted, flex: 1 }]}>
-                    {line.label}
-                  </Text>
-                  <Text style={[type.secondary, styles.number, { color: color.ink }]}>
-                    {line.value}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
-
-          <View style={[styles.row, { marginTop: space.md, gap: space.sm }]}>
-            {turn.answer.detail ? (
-              <Pressable
-                onPress={() => toggleWhy(index)}
-                accessibilityRole="button"
-                style={[styles.pill, { borderColor: color.lineStrong }]}
-              >
-                <Text style={[type.caption, { color: accent, letterSpacing: 0.6 }]}>
-                  {turn.open ? t.app.assistant.close : t.app.assistant.why}
-                </Text>
-              </Pressable>
+            {/* A lista, aberta: o que o aplicativo sabe fazer, as opções da
+                pergunta de volta, os campos do rascunho. Nada disso é conta, e
+                tudo isso estava atrás de um botão escrito "POR QUÊ?" — a frase
+                terminava em dois-pontos prometendo a lista e o rótulo do botão
+                afirmava que ali estava a aritmética de um número inexistente. */}
+            {turn.answer.list ? (
+              <View style={{ marginTop: space.sm }}>
+                {turn.answer.list.map((line, i) => (
+                  <ListRow
+                    key={`${line.label}-${i}`}
+                    label={line.label}
+                    trailing={line.value}
+                    trailingTone="muted"
+                  />
+                ))}
+              </View>
             ) : null}
 
-            {turn.answer.route ? (
-              <Pressable
-                onPress={() => router.push(turn.answer.route as never)}
-                accessibilityRole="button"
-                style={[styles.pill, { borderColor: color.lineStrong }]}
-              >
-                <Text style={[type.caption, { color: color.inkMuted, letterSpacing: 0.6 }]}>
-                  {t.app.assistant.openScreen}
-                </Text>
-              </Pressable>
+            {/* A conta aberta (Lei 6): cada parcela com o que ela vale, na régua
+                da linha de lista em vez de numa grade escrita à mão. */}
+            {turn.open && turn.answer.detail ? (
+              <View style={{ marginTop: space.sm }}>
+                {turn.answer.detail.map((line, i) => (
+                  <ListRow
+                    key={`${line.label}-${i}`}
+                    label={line.label}
+                    trailing={line.value}
+                    trailingTone="muted"
+                  />
+                ))}
+              </View>
             ) : null}
-          </View>
 
-          {turn.answer.draft ? (
-            <View style={{ marginTop: space.md }}>
-              <Text style={[type.secondary, { color: color.inkMuted }]}>
-                {turn.applied ? t.app.assistant.recorded : turn.answer.draft.summary}
-              </Text>
-              {!turn.applied ? (
-                <Button
-                  label={t.app.assistant.confirmAndRecord}
-                  onPress={() => void confirmDraft(index)}
-                  weighty
-                  style={{ marginTop: space.md }}
-                />
-              ) : null}
-            </View>
-          ) : null}
-        </Card>
+            {/* As duas ações da resposta, e as duas são fantasma: abrir a conta e
+                abrir a tela não são o que se faz aqui — o que se faz aqui é
+                perguntar de novo, e a única massa de cor da tela é o botão de
+                cima. Quando a resposta trouxe rascunho, a massa é o sim dele. */}
+            {turn.answer.detail || turn.answer.route ? (
+              <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md }}>
+                {turn.answer.detail ? (
+                  <Button
+                    label={turn.open ? t.app.assistant.close : t.app.assistant.why}
+                    variant="ghost"
+                    onPress={() => toggleWhy(index)}
+                    style={{ flex: 1 }}
+                  />
+                ) : null}
+
+                {turn.answer.route ? (
+                  <Button
+                    label={t.app.assistant.openScreen}
+                    variant="ghost"
+                    onPress={() => router.push(turn.answer.route as never)}
+                    style={{ flex: 1 }}
+                  />
+                ) : null}
+              </View>
+            ) : null}
+
+            {/* O rascunho: o que vai ser gravado, escrito como se diria em voz
+                alta, e o sim embaixo. Gravado vira etiqueta de estado, não
+                parágrafo cinza — e a etiqueta some junto com o botão, porque
+                confirmar duas vezes a mesma coisa é o que se está evitando. */}
+            {turn.answer.draft ? (
+              <View style={{ marginTop: space.md, gap: space.md }}>
+                {turn.applied ? (
+                  <Chip
+                    signal="ok"
+                    label={
+                      turn.answer.draft.kind === 'item'
+                        ? t.app.assistant.registered
+                        : t.app.assistant.recorded
+                    }
+                  />
+                ) : (
+                  <>
+                    <Text style={[type.body, { color: color.ink }]}>
+                      {turn.answer.draft.summary}
+                    </Text>
+                    {/* Lançar é o que se faz com o que aconteceu, e o cadastro
+                        de um insumo não aconteceu em lugar nenhum: `saveItem`
+                        escreve a linha do item e nenhum movimento. O resumo duas
+                        linhas acima já dizia "Cadastrar", e o botão embaixo dele
+                        dizia "lançar" — o dicionário deste aplicativo separa as
+                        duas palavras de propósito. */}
+                    <Button
+                      label={
+                        turn.answer.draft.kind === 'item'
+                          ? t.app.assistant.confirmAndRegister
+                          : t.app.assistant.confirmAndRecord
+                      }
+                      onPress={() => void confirmDraft(index)}
+                      weighty
+                    />
+                  </>
+                )}
+              </View>
+            ) : null}
+          </Card>
+        </Reveal>
       ))}
     </CollapsingHeader>
   );
 }
-
-const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center' },
-  number: { fontVariant: ['tabular-nums'], fontWeight: '600' },
-  pill: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-});

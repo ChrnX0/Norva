@@ -1,6 +1,16 @@
-import type { CostChange, ItemWithCost, MovementRow, Product } from '@/data/repository';
+import type {
+  CostChange,
+  ItemWithCost,
+  MovementRow,
+  Place,
+  PlaceStock,
+  Product,
+  ProducedInWindow,
+  LossRow,
+} from '@/data/repository';
+import type { Capability } from '@/domain/access';
 import type { Cents } from '@/domain/money';
-import type { ItemCosts, Recipe } from '@/domain/recipe';
+import type { ItemCosts, RecipeGraph } from '@/domain/recipe';
 
 /**
  * The assistant, as a contract.
@@ -20,20 +30,14 @@ import type { ItemCosts, Recipe } from '@/domain/recipe';
  *      anything is recorded rather than months later in a report.
  */
 
-/** The same enum the database declares. A role is a bundle of these. */
-export type Capability =
-  | 'view_cost'
-  | 'view_sale_price'
-  | 'record_production'
-  | 'dispatch'
-  | 'check_receipt'
-  | 'record_loss'
-  | 'place_order'
-  | 'approve_order'
-  | 'adjust_stock'
-  | 'view_finance'
-  | 'issue_invoice'
-  | 'manage_company';
+/**
+ * Re-exported, never redefined.
+ *
+ * The vocabulary lives in the domain because three different things speak it:
+ * the server's row level security, this assistant, and the screens. A second
+ * copy here would drift from the first the week somebody adds a capability.
+ */
+export type { Capability } from '@/domain/access';
 
 /**
  * Everything the assistant is allowed to reach, as functions rather than SQL.
@@ -45,19 +49,79 @@ export type Capability =
 export type AssistantData = {
   listItems(): Promise<ItemWithCost[]>;
   listProducts(): Promise<Product[]>;
-  loadRecipeGraph(): Promise<Record<string, Recipe>>;
-  itemCosts(): Promise<ItemCosts>;
+  loadRecipeGraph(): Promise<RecipeGraph>;
+  /**
+   * Nulo é o portão do aparelho, e as habilidades que o leem já declaram
+   * `requires: 'view_cost'` — para elas nulo é inalcançável, e `?? {}` no ponto
+   * de uso é honesto pelo mesmo motivo que zero era antes.
+   */
+  itemCosts(): Promise<ItemCosts | null>;
   labels(): Promise<Record<string, string>>;
   recentCostChanges(limit: number): Promise<CostChange[]>;
   /** The movements behind one item's balance - what `[por quê?]` opens. */
   itemMovements(itemId: string, limit?: number): Promise<MovementRow[]>;
-  recordCount(input: { itemId: string; countedBaseUnits: number }): Promise<unknown>;
+  /**
+   * O que saiu do tacho numa janela de tempo.
+   *
+   * A capa passou a dizer isso e o assistente não sabia responder - a pergunta
+   * "quanto saiu hoje" caía no "ainda não sei". Um app em que a tela sabe uma
+   * coisa e o assistente não sabe a mesma coisa tem duas verdades, e é o
+   * assistente que perde.
+   */
+  productionOn(fromIso: string, toIso: string): Promise<ProducedInWindow[]>;
+  /** O que se perdeu numa janela, com o motivo - a mesma consulta do relatório. */
+  lossesOn(fromIso: string, toIso: string): Promise<LossRow[]>;
+  /** Os lugares cadastrados, para o assistente saber para onde a carga pode ir. */
+  listPlaces(): Promise<Place[]>;
+  /** O saldo de cada lugar - a mesma consulta que a tela de estoque faz. */
+  stockByPlace(): Promise<PlaceStock[]>;
+  /** Onde fica a fábrica, que é a origem de toda saída até existir uma segunda. */
+  defaultPlaceId(): string;
+  recordProduction(input: {
+    productId: string;
+    batches: number;
+    unitsProduced: number;
+    assistantPhrase?: string;
+  }): Promise<unknown>;
+  recordTransfer(input: {
+    itemId: string;
+    toLocationId: string;
+    baseUnits: number;
+    assistantPhrase?: string;
+  }): Promise<unknown>;
+  recordCount(input: {
+    itemId: string;
+    countedBaseUnits: number;
+    /**
+     * QUAL sala foi contada — e ela vem de quem fez a pergunta.
+     *
+     * A ligação injetava a unidade do aparelho e a habilidade comparava com o saldo
+     * da EMPRESA: com o açúcar só na câmara fria, o rascunho prometia *"faltam 25.000
+     * g"* e o razão recebia um ajuste que SOMAVA — porque o esperado no lugar onde a
+     * escrita olha era zero. A confirmação e o livro falavam de lugares diferentes.
+     *
+     * Nulo cai no padrão, que é o caso da fábrica de uma sala só.
+     */
+    locationId?: string | null;
+    assistantPhrase?: string;
+  }): Promise<unknown>;
+  /** Creates an input from a conversation. Same function the cadastro screen calls. */
+  saveItem(input: {
+    kind: 'input' | 'packaging' | 'store_supply';
+    name: string;
+    purchaseUnit: string | null;
+    purchaseToBase: number | null;
+    baseUnit: string;
+  }): Promise<string>;
   recordPurchase(input: {
+    /** Em que sala a carga entrou. Nulo cai no almoxarifado padrão da empresa. */
+    locationId?: string;
     itemId: string;
     purchaseQuantity: number;
     baseUnits: number;
     totalCents: Cents;
     supplierName?: string;
+    assistantPhrase?: string;
   }): Promise<unknown>;
 };
 
@@ -68,7 +132,7 @@ export type AssistantData = {
  * would say it out loud - with the numbers spelled out, never as field labels.
  */
 export type Draft = {
-  kind: 'purchase' | 'count';
+  kind: 'purchase' | 'count' | 'item' | 'production' | 'transfer';
   summary: string;
   apply: () => Promise<void>;
 };
@@ -78,6 +142,21 @@ export type Answer = {
   text: string;
   /** What `[por quê?]` opens: the arithmetic behind the sentence. */
   detail?: { label: string; value: string }[];
+  /**
+   * As linhas que NÃO são conta: o que o aplicativo sabe fazer, as opções da
+   * pergunta de volta, os campos do rascunho.
+   *
+   * Existe porque `detail` carregava as quatro coisas e a tela só tinha um
+   * rótulo para todas: "POR QUÊ?". Perguntando o que ele não entende, a
+   * resposta terminava em dois-pontos prometendo a lista e embaixo aparecia um
+   * botão afirmando que ali estava a conta de um número que não existia. Lei 6
+   * é sobre abrir a conta de uma conclusão — o que não é conta não pode se
+   * esconder atrás dela.
+   *
+   * Fica aberto na tela, porque nada disso é detalhe: é o que a frase acabou de
+   * prometer.
+   */
+  list?: { label: string; value?: string }[];
   /** The screen that resolves this, when there is one. */
   route?: string;
   draft?: Draft;
@@ -85,6 +164,15 @@ export type Answer = {
 
 export type SkillContext = {
   data: AssistantData;
+  /**
+   * What the person actually said, filled in by `ask`.
+   *
+   * Only the skills that WRITE use it, and they use it for one thing: stamping
+   * the movement with the sentence that created it. The plan's condition for
+   * letting an assistant write at all is that its writes stay auditable, and a
+   * movement that cannot say where it came from is not.
+   */
+  question?: string;
   capabilities: ReadonlySet<Capability>;
   locale: import('@/i18n').LocaleSettings;
 };

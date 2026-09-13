@@ -1,4 +1,19 @@
-import { markSent, pendingCount, pendingEntries, type OutboxEntry } from '@/data/outbox';
+import { empresaAdotada } from '@/data/empresa';
+import {
+  forgetSentBefore,
+  markRejected,
+  markSent,
+  pendingCount,
+  pendingEntries,
+  type OutboxEntry,
+} from '@/data/outbox';
+import { candidatarConferencia } from '@/data/candidata';
+import { ehDefinitiva, type ClasseLocal } from './recusa';
+import type { pedido as montarPedido } from './descida';
+import type { ProblemaDoServidor } from './transporte';
+
+/** O que a descida pede: a forma que `descida.ts` monta e o transporte obedece. */
+export type PedidoDeDescida = ReturnType<typeof montarPedido>;
 
 /**
  * Sending what the phone wrote while it was alone.
@@ -30,10 +45,76 @@ import { markSent, pendingCount, pendingEntries, type OutboxEntry } from '@/data
 export type PushResult = {
   /** The ids the server actually stored. Anything absent stays queued. */
   acceptedIds: string[];
+  /**
+   * As que o servidor RECUSOU, com o código dele — e este campo é a metade que faltava.
+   *
+   * Sem ele o motor só sabia "entraram menos do que eu mandei", e tratava as duas recusas
+   * possíveis do único jeito seguro que lhe restava: tentar de novo. Para uma lacuna
+   * passageira isso é certo. Para *"esta remessa já foi conferida"* — que é uma recusa
+   * CERTA, da `0051` — é a resposta errada para a resposta certa: a fila fica presa naquela
+   * linha, e tudo o que o aparelho gravou depois fica preso atrás dela, para sempre.
+   *
+   * O transporte já sabia quem era a culpada: ele manda linha por linha e para na que
+   * falhou. O que faltava era ter onde dizer.
+   *
+   * Opcional de propósito: um transporte que não classifica nada continua válido, e a fila
+   * se comporta como antes. Ausente é "não sei", e "não sei" é passageiro.
+   */
+  rejeitadas?: { id: string; codigo: string | null; local?: ClasseLocal }[];
+};
+
+/**
+ * Por que a corrida parou — FATO, não frase.
+ *
+ * Era uma cadeia de caracteres montada aqui: `O servidor aceitou 3 de 100 registros.` Duas
+ * coisas erradas nisso, e a segunda é a que dói. A primeira é a fundação desta casa — *a
+ * camada de dados devolve fato, não frase; quem escreve português é a tela* —, e o motor da
+ * fila não é nem camada de dados, é mais fundo. A segunda é que a frase AFIRMAVA o servidor:
+ * `app/settings.tsx` a interpolava crua em *"Parou no meio: {{reason}}"*, e uma falha do
+ * próprio aparelho chegava ao dono como recusa do servidor — em português, dentro de uma
+ * tela que ele pode estar lendo em inglês.
+ *
+ * `aceitos` e `de` são os números da FATIA que parou, não da corrida: `sent` e `remaining` já
+ * contam a corrida, e misturar as duas escalas foi o que fez a frase antiga parecer que a
+ * fila inteira tinha 100 linhas.
+ */
+export type ParouPorque = {
+  /**
+   * Quem impediu.
+   *
+   * `servidorRecusou` — ele respondeu, e disse não. `transporteCaiu` — a chamada não voltou:
+   * sem sinal, ou o cliente quebrou; ninguém recusou nada. As duas de `ClasseLocal` são deste
+   * aparelho, e o servidor nem foi consultado.
+   */
+  motivo: 'servidorRecusou' | 'transporteCaiu' | ClasseLocal;
+  /** Quantas linhas da fatia entraram, de quantas foram oferecidas. */
+  aceitos: number;
+  de: number;
+  /** O `SQLSTATE` do servidor, quando foi ele. Ausente quando a falha é do aparelho. */
+  codigo?: string | null;
+  /**
+   * A frase do programador, guardada e NUNCA mostrada — a mesma forma do `cru` de `Resultado`.
+   *
+   * Ela é o que se pede num suporte (*"manda o que apareceu"*), e o que jamais deve chegar a
+   * quem está de luva na câmara fria: é inglês, é sobre rede ou sobre um cliente HTTP, e não
+   * diz o que fazer. A tela lê `motivo`; isto existe para o relatório e para o dia em que
+   * houver Sentry.
+   */
+  cru?: string;
 };
 
 export type Transport = {
   push(entries: readonly OutboxEntry[]): Promise<PushResult>;
+  /**
+   * Lê uma página do servidor — o outro sentido, que não existia até 12 de setembro.
+   *
+   * Opcional no tipo de propósito: os testes que exercitam a SUBIDA montam transportes de
+   * mentira com `push` só, e obrigá-los a inventar um `pull` que ninguém chama seria
+   * escrever cerimônia. Quem desce confere antes de chamar.
+   */
+  pull?(
+    pedido: PedidoDeDescida,
+  ): Promise<{ linhas: Record<string, unknown>[]; erro?: ProblemaDoServidor }>;
 };
 
 export type SyncReport = {
@@ -43,7 +124,24 @@ export type SyncReport = {
   batches: number;
   attempts: number;
   /** Present when the run stopped early. The queue is intact either way. */
-  error?: string;
+  error?: ParouPorque;
+  /**
+   * Presente quando a fila NEM FOI TENTADA, com o motivo — e é outra coisa que
+   * `error`.
+   *
+   * "O servidor recusou" e "eu não tentei" chegavam indistinguíveis na mesma
+   * cadeia de caracteres, e a diferença é o que a tela precisa dizer: uma pede
+   * para tentar de novo, a outra pede uma decisão de quem está com o aparelho.
+   */
+  recusa?: 'semEmpresa';
+  /**
+   * Quantas linhas saíram da frente por recusa DEFINITIVA nesta corrida.
+   *
+   * Zero é o caso normal e não vira frase na tela. Diferente de zero é uma pergunta que
+   * alguém vai fazer — *"aquela conferência de terça subiu?"* —, e ela merece resposta em
+   * vez de um número de pendentes que não baixa nunca.
+   */
+  postasDeLado: number;
 };
 
 export type SyncOptions = {
@@ -51,7 +149,21 @@ export type SyncOptions = {
   maxAttempts?: number;
   /** Injected so tests do not actually wait. */
   sleep?: (ms: number) => Promise<void>;
+  /** Injected so a test pode envelhecer a fila sem esperar uma semana. */
   now?: () => number;
+  /**
+   * Por quantos dias a fila guarda o que já subiu. Sete.
+   *
+   * O docblock do `forgetSentBefore` dizia as duas metades desde que foi escrito:
+   * vale guardar "por alguns dias, para poder dizer a alguém o que subiu e o que
+   * não subiu", e vale largar depois disso "para o celular de uma fábrica movimentada
+   * não carregar um ano deles". A auditoria listou a função como sem chamador fora de
+   * teste, e ela estava certa — mas o conserto não é apagar: é a limpeza acontecer,
+   * porque sem ela a fila só cresce no dia em que a sincronia existir.
+   *
+   * Sete porque é a janela em que alguém ainda pergunta "aquilo de terça subiu?".
+   */
+  keepDays?: number;
 };
 
 /**
@@ -80,12 +192,46 @@ export async function drain(
   const maxAttempts = options.maxAttempts ?? 3;
   const sleep = options.sleep ?? defaultSleep;
 
+  // Nada sobe antes de o aparelho saber de que empresa ele é.
+  //
+  // Cada linha daqui é carimbada com a empresa deste aparelho. Enquanto ela for a
+  // semente — o id com que toda instalação nasce —, o servidor não conhece essa
+  // empresa e a conta que empurra não é membro dela: a fila inteira é recusada
+  // por chave estrangeira e por política, e o que aparece é um erro de banco.
+  // Recusar aqui é a Lei 5: o erro impede, e diz o que falta.
+  if (!empresaAdotada()) {
+    return {
+      sent: 0,
+      remaining: await pendingCount(),
+      batches: 0,
+      attempts: 0,
+      postasDeLado: 0,
+      recusa: 'semEmpresa',
+    };
+  }
+
   let sent = 0;
   let batches = 0;
   let attempts = 0;
-  let error: string | undefined;
+  let postasDeLado = 0;
+  let error: ParouPorque | undefined;
 
-  while (attempts < maxAttempts) {
+  /**
+   * **O orçamento de tentativa conta FALHA, não rodada.**
+   *
+   * `attempts` era o contador do laço e o orçamento ao mesmo tempo, e as duas coisas
+   * são diferentes: com `maxAttempts` no padrão de três e `batchSize` em cem, uma
+   * fila de mil linhas subia trezentas e parava — sem erro nenhum, com `error`
+   * indefinido e novecentas linhas pendentes. Nada na tela dizia que faltou; a
+   * corrida seguinte pegava mais trezentas. Uma fila que só anda em múltiplos de
+   * trezentos por chamada é uma fila que nunca esvazia num aparelho movimentado.
+   *
+   * Falha volta a zero depois de uma fatia aceita inteira, que é o que "três
+   * tentativas" quer dizer: três seguidas sem progresso, não três fatias na vida.
+   */
+  let falhas = 0;
+
+  while (falhas < maxAttempts) {
     const batch = await pendingEntries(batchSize);
     if (batch.length === 0) break;
 
@@ -95,9 +241,25 @@ export async function drain(
     try {
       result = await transport.push(batch);
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      /**
+       * A chamada não voltou — e isto NÃO é o servidor recusando.
+       *
+       * Era `error = e.message`: a frase da biblioteca, em inglês, guardada como se fosse o
+       * motivo, e `app/settings.tsx` a interpolava crua em *"Parou no meio: {{reason}}"*.
+       * `src/layers.test.ts` tem uma guarda para exatamente isso (`frasesCruas`) e ela não
+       * alcança: o padrão dela é `instanceof Error ? x.message :` **em telas**, e aqui a
+       * frase nasce no motor e VIAJA até a tela dentro de um campo. Guarda que olha só o
+       * último elo não vê a frase que entrou dois elos antes.
+       */
+      error = {
+        motivo: 'transporteCaiu',
+        aceitos: 0,
+        de: batch.length,
+        cru: e instanceof Error ? e.message : String(e),
+      };
+      falhas += 1;
       // Nothing is marked: the whole batch is still exactly where it was.
-      if (attempts < maxAttempts) await sleep(backoffMs(attempts));
+      if (falhas < maxAttempts) await sleep(backoffMs(falhas));
       continue;
     }
 
@@ -108,17 +270,105 @@ export async function drain(
     sent += confirmed.length;
     batches += 1;
 
-    if (confirmed.length < batch.length) {
+    /**
+     * A recusa DEFINITIVA sai da frente. As outras continuam sendo lacuna.
+     *
+     * Esta é a metade que faltava, e a assimetria de custo manda em cada linha dela:
+     * `classeDaRecusa` devolve `passageira` para todo código que não esteja na lista curta,
+     * então o caminho de tirar da frente só abre para uma certeza — hoje o `23505` que a
+     * nossa própria `0051` escolhe. Um código novo e desconhecido continua travando a fila,
+     * que é ruim e visível; tirar da frente por palpite perderia dado em silêncio.
+     *
+     * O `markRejected` NÃO carimba envio: a linha fica no aparelho, com o código ao lado,
+     * fora da contagem de pendentes e fora da faxina — porque quem conferiu vai perguntar
+     * por que ela não subiu.
+     */
+    let deLadoNestaFatia = 0;
+    for (const recusada of result.rejeitadas ?? []) {
+      // `ehDefinitiva` e não `classeDaRecusa`: a falha LOCAL não tem código do Postgres — ela
+      // acontece antes de o servidor ser consultado —, e por isso caía no padrão "passageira" e
+      // era retentada para sempre. Ver o docblock de `ehDefinitiva`.
+      if (!ehDefinitiva(recusada)) continue;
+      // Só o que estava NESTA fatia: um transporte que devolvesse id de fora não pode
+      // tirar da fila uma linha que o motor não ofereceu.
+      if (!batch.some((entry) => entry.id === recusada.id)) continue;
+      await markRejected(recusada.id, recusada.codigo, recusada.local);
+      postasDeLado += 1;
+      deLadoNestaFatia += 1;
+
+      /**
+       * A conferência recusada vira CANDIDATA em vez de desaparecer.
+       *
+       * Só faz sentido para `movements`, e `candidatarConferencia` devolve `false` para tudo
+       * o que não for uma `discrepancy` de remessa — perguntar para toda recusa permanente é
+       * mais barato que este motor ter de saber o que cada tabela significa.
+       *
+       * **E ela não pode derrubar a rodada.** Se a candidatura falhar, o que já foi feito
+       * continua feito: a linha está de lado com o código ao lado, que é o estado correto e o
+       * que a tela conta hoje. Perder a fila inteira por causa da peça que existe para
+       * EXPLICAR a perda seria o remédio pior que a doença.
+       */
+      const entrada = batch.find((e) => e.id === recusada.id);
+      if (entrada?.table === 'movements') {
+        try {
+          await candidatarConferencia(entrada.rowId);
+        } catch {
+          // Silêncio de propósito: ver o parágrafo acima.
+        }
+      }
+    }
+
+    /**
+     * A linha posta de lado NÃO é lacuna — e é isto que faz a fila voltar a andar.
+     *
+     * Somando-a ao que entrou, uma fatia em que tudo ou entrou ou saiu da frente fecha sem
+     * erro e sem gastar tentativa. A fatia que ainda tem buraco de verdade continua sendo
+     * lacuna, com a razão de sempre: mandar o que vem depois transforma uma recusa em muitas.
+     *
+     * E o que sobrou da fatia não se perde: `pendingEntries` deixa de oferecer a recusada, e
+     * a volta seguinte começa na linha seguinte a ela.
+     */
+    if (confirmed.length + deLadoNestaFatia < batch.length) {
       // A gap. Stopping here is deliberate: continuing would send rows whose
       // parents the server does not have, and turn one rejection into many.
-      error = `O servidor aceitou ${confirmed.length} de ${batch.length} registros.`;
-      if (attempts < maxAttempts) await sleep(backoffMs(attempts));
+      // O FATO, não a frase. A tela escreve, nos três idiomas — e ela precisa saber QUEM
+      // impediu: uma recusa do servidor pede tentar de novo, uma falha do aparelho pede outra
+      // coisa. A classe local da primeira recusada desta fatia manda; sem nenhuma, foi o
+      // servidor, que é o caso normal de uma lacuna passageira.
+      const culpa = (result.rejeitadas ?? []).find((r) => r.local);
+      error = {
+        motivo: culpa?.local ?? 'servidorRecusou',
+        aceitos: confirmed.length,
+        de: batch.length,
+        codigo: culpa ? undefined : ((result.rejeitadas ?? [])[0]?.codigo ?? null),
+      };
+      falhas += 1;
+      if (falhas < maxAttempts) await sleep(backoffMs(falhas));
       continue;
     }
 
+    // Fatia inteira aceita: o orçamento de tentativa recomeça. Sem isto, uma falha
+    // no começo de uma fila longa condenaria a corrida inteira duas fatias depois.
+    falhas = 0;
     error = undefined;
     if (batch.length < batchSize) break;
   }
 
-  return { sent, remaining: await pendingCount(), batches, attempts, error };
+  /**
+   * A faxina, e ela roda mesmo quando a corrida terminou torta.
+   *
+   * Só apaga linha que o SERVIDOR confirmou e que já passou da janela — as duas
+   * condições no `WHERE`, não aqui. Então não há caso em que segurá-la proteja
+   * alguém: o que está pendente fica, tenha a corrida ido bem ou mal, e é isso
+   * que o teste do outbox cobra ("only what went up").
+   *
+   * A hora vem de uma subtração de INSTANTES, nunca de recortar texto de data: a
+   * cicatriz do `dayWindow` é de um teste que carimbou `Z` numa data local e ficou
+   * cego entre meia-noite e três da manhã.
+   */
+  const agora = options.now?.() ?? Date.now();
+  const corte = new Date(agora - (options.keepDays ?? 7) * 86_400_000).toISOString();
+  await forgetSentBefore(corte);
+
+  return { sent, remaining: await pendingCount(), batches, attempts, postasDeLado, error };
 }

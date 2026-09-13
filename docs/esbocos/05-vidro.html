@@ -1,0 +1,56 @@
+<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+body{background:#0f1220;color:#f2f3f8}
+.bg{position:fixed;inset:0;background:
+ radial-gradient(600px 400px at 10% 5%,#5b7cfa55,transparent 60%),
+ radial-gradient(500px 380px at 95% 25%,#f0709955,transparent 60%),
+ radial-gradient(520px 420px at 50% 90%,#37d9a355,transparent 60%),#0f1220}
+.wrap{position:relative;padding:26px 18px 120px}
+.head{display:flex;justify-content:space-between;align-items:baseline}
+.head b{font-size:17px;letter-spacing:.02em}
+.head span{font-size:12px;color:#aab0c6}
+.g{background:#ffffff14;border:1px solid #ffffff22;border-radius:26px;backdrop-filter:blur(22px);padding:20px;margin-top:14px;box-shadow:0 8px 32px #00000040}
+.n{font-size:64px;font-weight:700;letter-spacing:-.04em;line-height:1}
+.sub{font-size:13px;color:#c3c8dc;margin-top:6px}
+.bars{display:flex;gap:6px;align-items:flex-end;height:56px;margin-top:18px}
+.bars i{flex:1;background:#ffffff2e;border-radius:5px}.bars i.on{background:#fff}
+.days{display:flex;gap:6px;font-size:10px;color:#aab0c6;margin-top:6px}.days span{flex:1;text-align:center}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.two .g{margin-top:0}
+.lbl{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#aab0c6}
+.v{font-size:28px;font-weight:700;margin-top:6px;letter-spacing:-.02em}
+.s{font-size:12px;color:#c3c8dc;margin-top:2px}
+.wrow{display:flex;align-items:center;gap:16px}
+.temp{font-size:50px;font-weight:700;letter-spacing:-.03em}
+.cta{position:fixed;bottom:96px;left:18px;right:18px;height:56px;border-radius:22px;background:#ffffffee;color:#0f1220;font-weight:700;display:flex;align-items:center;justify-content:center}
+.tab{background:#0f1220aa;border-top:1px solid #ffffff1a;color:#8f96af;backdrop-filter:blur(18px)}.tab b{color:#fff}
+</style>
+<div class="bg"></div>
+<div class="wrap sf">
+  <div class="head"><b>NORVA</b><span>quarta, 2 set</span></div>
+  <div class="g">
+    <div class="lbl">hoje na fábrica</div>
+    <div class="n">500</div>
+    <div class="sub">unidades · ontem foram 478 · +19 vs. semana passada</div>
+    <div class="bars"><i style="height:38%"></i><i style="height:44%"></i><i style="height:41%"></i><i style="height:8%"></i><i style="height:82%"></i><i style="height:46%"></i><i class="on" style="height:64%"></i></div>
+    <div class="days"><span>Q</span><span>S</span><span>S</span><span>D</span><span>S</span><span>T</span><span>Q</span></div>
+  </div>
+  <div class="g wrow">
+    <svg width="70" height="70" viewBox="0 0 70 70">
+      <circle cx="35" cy="35" r="15" fill="#ffe08a"/>
+      <g stroke="#ffe08a" stroke-width="2.6" stroke-linecap="round" opacity=".9"><path d="M35 6v8M35 56v8M6 35h8M56 35h8M14 14l6 6M50 50l6 6M56 14l-6 6M20 50l-6 6"/></g></svg>
+    <div style="flex:1"><div class="lbl">são paulo</div><div class="temp">21°</div>
+      <div class="s">mín 13° · 47% chuva · amanhã +4°</div></div>
+  </div>
+  <div class="two">
+    <div class="g"><div class="lbl">compre</div><div class="v">1 dia</div><div class="s">polpa de morango</div></div>
+    <div class="g"><div class="lbl">saiu</div><div class="v">1</div><div class="s">caixa hoje</div></div>
+  </div>
+  <div class="g"><div class="lbl">mudou de preço</div>
+    <div class="s" style="display:flex;justify-content:space-between;margin-top:10px"><span>Polpa de morango</span><span style="color:#5ef2a8">▼ 0,6%</span></div>
+    <div class="s" style="display:flex;justify-content:space-between"><span>Açúcar cristal</span><span style="color:#5ef2a8">▼ 2,2%</span></div>
+    <div class="s" style="display:flex;justify-content:space-between"><span>Glucose 38DE</span><span style="color:#ffd166">▲ 0,9%</span></div>
+  </div>
+</div>
+<div class="cta sf">Lançar produção</div>
+<div class="tab sf"><b>Início</b><span>Produção</span><span>Transporte</span><span>Relatórios</span><span>Mais</span></div>

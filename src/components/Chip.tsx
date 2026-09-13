@@ -1,3 +1,4 @@
+import type { VolumeBand } from '@/domain/alerts';
 import type { PriceVerdict } from '@/domain/cost';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -17,6 +18,7 @@ export type Signal = 'ok' | 'warning' | 'danger' | 'neutral';
  */
 export function Chip({ signal, label }: { signal: Signal; label: string }) {
   const { color, radius, type, space } = useTheme();
+  // A pílula é do Orgânico; no Papel a etiqueta é reta, como um carimbo.
   const tint = color[signal];
 
   return (
@@ -25,7 +27,7 @@ export function Chip({ signal, label }: { signal: Signal; label: string }) {
         styles.chip,
         {
           borderColor: tint,
-          borderRadius: radius.pill,
+          borderRadius: radius.controle,
           paddingVertical: space.xs + 1,
           paddingHorizontal: space.md,
           gap: space.sm - 1,
@@ -63,4 +65,31 @@ export function priceSignal(verdict: PriceVerdict | null): Signal {
   if (verdict === 'wellAbove') return 'warning';
   if (verdict === 'cheaper') return 'ok';
   return 'neutral';
+}
+
+/**
+ * A cor de uma faixa de volume.
+ *
+ * Fica ao lado do chip pelo mesmo motivo que `priceSignal`: nome de cor é fato
+ * sobre a interface, não sobre estoque. O domínio decide a FAIXA, que é juízo
+ * conferível; aqui só se escolhe com o que ela é desenhada.
+ *
+ * `zerado` e `vermelho` são a mesma cor de propósito — acabar e estar acabando
+ * são o mesmo grau de urgência para o olho, e é a FRASE que os separa ("acabou"
+ * contra "20% do cheio"). Inventar uma quinta cor para caber a diferença faria a
+ * escala deixar de ser lida de longe, que é a única coisa que ela precisa ser.
+ */
+export function bandSignal(band: VolumeBand | null): Signal | undefined {
+  if (band === 'zerado' || band === 'vermelho') return 'danger';
+  if (band === 'amarelo') return 'warning';
+  if (band === 'verde') return 'ok';
+  // Azul é "cheio demais": não é erro, é dinheiro parado e espaço no fim. O tom
+  // neutro é o que diz "olhe, não corra".
+  if (band === 'azul') return 'neutral';
+
+  // Sem faixa não há cor — e isto devolvia 'neutral', que pintava uma barra
+  // cinza em TODA linha do almoxarifado. A régua não cadastrada virava enfeite
+  // em cada item, que é o oposto exato do que a faixa existe para fazer: sem
+  // referência, o aplicativo não sabe o que é pouco e não desenha nada.
+  return undefined;
 }
