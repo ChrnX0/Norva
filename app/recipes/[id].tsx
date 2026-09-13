@@ -706,21 +706,78 @@ function RecipeEditor() {
             // reescrita, e sem ela o número não decide nada — dezoito mil
             // gramas e dezoito mil unidades são coisas diferentes na mesma
             // ficha. Item usa a unidade-base dele; sub-receita, a do rendimento.
+            /**
+             * A unidade da SUB-receita é a dela, não a da ficha que está aberta.
+             *
+             * Isto lia `stored?.yieldUnit` — o rendimento da MÃE. Uma ficha que rende em unidades
+             * dizia "20.000 un de calda base" para uma calda que se mede em mililitros: o número
+             * certo com a palavra errada, que é pior que sem palavra nenhuma porque parece
+             * conferido.
+             */
+            const sub = line.kind === 'recipe' ? data.recipes.atual[line.recipeId] : undefined;
             const unidade =
               line.kind === 'item'
                 ? (data.items.find((i) => i.id === line.itemId)?.baseUnit ?? '')
-                : (stored?.yieldUnit ?? "");
+                : (sub?.yieldUnit ?? '');
+
+            /**
+             * A versão CARIMBADA, e o convite quando a sub-receita andou.
+             *
+             * A linha diz qual versão ela compôs — *"Calda base · sub-receita · v2"* — porque é
+             * essa versão que decide o custo congelado de toda corrida desta ficha. Sem isso o
+             * carimbo existe e é invisível: quem olha a ficha não tem como saber que ela está
+             * composta com uma calda de três meses atrás.
+             *
+             * E quando a sub-receita tem versão mais nova, a linha convida com UM toque. Não é
+             * automático de propósito — abrir versão nova da mãe sozinho reivindicaria um número
+             * de versão em toda ficha que usa aquela calda, e dois aparelhos offline colidiriam
+             * no mesmo número (`unique (recipe_id, version)`), o que põe a linha de lado para
+             * sempre e trava a fila atrás dela. A medida está no `docs/insights.md`.
+             */
+            const carimbada = line.kind === 'recipe' && line.subVersionId
+              ? data.recipes.versoes[line.subVersionId] ?? sub
+              : sub;
+            const temMaisNova =
+              line.kind === 'recipe' && sub && carimbada && carimbada.versionId !== sub.versionId;
 
             return (
               <View key={`${id}-${index}`} style={{ marginBottom: space.sm }}>
                 <ListRow
-                  label={line.kind === 'recipe' ? `${label} · ${t.app.recipe.subRecipe}` : label}
+                  label={
+                    line.kind === 'recipe'
+                      ? `${label} · ${t.app.recipe.subRecipe}${
+                          carimbada
+                            ? ` · ${fill(t.app.recipe.subVersion, { version: String(carimbada.version) })}`
+                            : ''
+                        }`
+                      : label
+                  }
                   detail={fill(t.app.recipe.shareOfBatch, {
                     quantity: `${formatQuantity(line.quantity, locale)} ${unidade}`.trim(),
                     percent: formatPercent(share, locale, 0),
                   })}
                   trailing={formatMoney(lineCost, locale)}
                 />
+                {temMaisNova && sub ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                    <Text style={[type.caption, { color: color.inkFaint, flex: 1 }]}>
+                      {fill(t.app.recipe.subNewer, { name: label, version: String(sub.version) })}
+                    </Text>
+                    <Button
+                      label={fill(t.app.recipe.useNewerSub, { version: String(sub.version) })}
+                      variant="ghost"
+                      onPress={() =>
+                        edit({
+                          lines: (lines ?? []).map((l, i) =>
+                            i === index && l.kind === 'recipe'
+                              ? { ...l, subVersionId: sub.versionId }
+                              : l,
+                          ),
+                        })
+                      }
+                    />
+                  </View>
+                ) : null}
                 <View style={{ flexDirection: 'row', gap: space.sm }}>
                   <Button
                     label={t.app.recipe.lessTen}

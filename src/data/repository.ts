@@ -2092,11 +2092,22 @@ export async function listRecipes(companyId: string): Promise<RecipeSummary[]> {
  * para converter *"preciso de 10.000 ml de base"* em quantas bateladas de base fazer. Editar a
  * base entre abrir e fechar muda o CONSUMO, e o consumo é a taxa congelada.
  *
- * Fechar a outra metade pede um carimbo por sub-receita na abertura — a corrida guarda uma
- * versão só — ou a regra de tempo com os três furos acima. E a coluna que esse carimbo leria
- * **já existe**: a `V28` versionou `yield_amount`, `yield_unit` e `yield_per_unit` em
- * `recipe_versions` dizendo por escrito que entrava *"sem leitor"*, esperando "a tela de
- * histórico da ficha". O segundo leitor nomeado dela é este.
+ * **E essa metade FECHOU em 13 de setembro, por uma terceira forma que este parágrafo não
+ * tinha** — as duas que ele oferecia eram um carimbo por sub-receita na abertura (a corrida
+ * guarda uma versão só) e a regra de tempo com os três furos acima. A que entrou é a que a casa
+ * escolheria: **a LINHA da ficha carimba a versão da sub-receita** (`recipe_lines
+ * .sub_recipe_version_id`, `0066` no servidor e V39 no aparelho), porque o lote já carimba a
+ * versão que rodou e a linha deveria carimbar a versão que ela compôs.
+ *
+ * O que isso muda aqui: `versoes` traz as versões que alguma linha carimba, e `subDaLinha`
+ * resolve o carimbo antes da atual — nos DOIS usos, o rendimento e a recursão, porque converter
+ * só um produz o híbrido (os insumos da versão velha pelo rendimento da nova) que nenhuma
+ * asserção nomeia. Então cravar a raiz agora crava a árvore inteira: as linhas de toda versão já
+ * vêm nesta mesma leitura, e é de lá que sai a lista de carimbos.
+ *
+ * E a coluna que a primeira forma leria **já existia**: a `V28` versionou `yield_amount`,
+ * `yield_unit` e `yield_per_unit` em `recipe_versions` dizendo por escrito que entrava *"sem
+ * leitor"*, esperando "a tela de histórico da ficha". O leitor dela é o `COALESCE` logo abaixo.
  */
 /** Uma linha da consulta de versões — as duas consultas leem as mesmas colunas. */
 type LinhaDeVersao = {
@@ -2198,11 +2209,24 @@ export async function loadRecipeGraph(
    * resposta não muda — versão que ninguém carimba não é lida por resolvedor nenhum. As LINHAS
    * já vinham sem filtro e continuam: é delas que sai a lista de carimbos.
    */
+  /**
+   * **E o que é "já carregada" se mede por id de VERSÃO** — este filtro dizia `!(id in atual)`,
+   * e `atual` é chaveado por id de RECEITA. Um id de versão nunca é chave dele, então o filtro
+   * não excluía nada: a consulta ia embora carregando TODO carimbo, inclusive os que apontam
+   * para a versão que acabou de ser lida.
+   *
+   * A resposta era a mesma (`subDaLinha` resolve o carimbo da atual para a mesma versão), então
+   * isto não mentia um número — mentia a medida, que é o defeito desta casa: o comentário acima
+   * promete "só as alcançáveis" e o código cobrava a fábrica normal, onde ninguém reeditou calda
+   * nenhuma, por uma segunda consulta que devolve linhas que ela já tem. Com o filtro certo essa
+   * fábrica faz **zero** consultas a mais.
+   */
+  const jaCarregadas = new Set(versions.map((v) => v.id));
   const carimbados = [
     ...new Set(
       lines
         .map((l) => l.sub_recipe_version_id)
-        .filter((id): id is string => id !== null && !(id in atual)),
+        .filter((id): id is string => id !== null && !jaCarregadas.has(id)),
     ),
   ];
   const versoes: Record<string, Recipe> = {};
@@ -4837,6 +4861,19 @@ export type LotOfDay = {
    */
   runGroupId?: string | null;
   /**
+   * As SUB-receitas que aquela versão compôs, com a versão de cada uma.
+   *
+   * *"De que versão da calda saiu este lote?"* — a pergunta de um recall, e ela não tinha
+   * resposta: o lote carimba a ficha-mãe, e a mãe carimba a calda desde a `0066`, mas a tela do
+   * lote parava no primeiro carimbo. Com uma base usada por oito sabores, saber que o lote rodou
+   * *"Picolé de morango v3"* não diz qual calda entrou nele.
+   *
+   * Vazio é resposta: ficha plana não tem sub-receita. Nulo não existe aqui de propósito — a
+   * ausência de sub-receitas e a ausência de resposta seriam a mesma lista vazia, e a primeira é
+   * um fato sobre a ficha.
+   */
+  subRecipes?: readonly { name: string; version: number }[];
+  /**
    * A ficha que rodou: o nome dela e o NÚMERO da versão que estava valendo.
    *
    * Fato, nunca frase - "Picolé de morango, versão 3" é a tela quem escreve. E
@@ -5399,6 +5436,33 @@ export async function findLot(companyId: string, lotId: string): Promise<LotOfDa
   );
 
   if (!row) return null;
+
+  /**
+   * As sub-receitas daquela VERSÃO, com o carimbo de cada linha.
+   *
+   * Consulta própria e não um `join` na de cima: a de cima agrupa para somar o saldo do lote, e
+   * uma linha por sub-receita multiplicaria as linhas do `GROUP BY` — a soma sairia N vezes. É a
+   * mesma razão pela qual `fixar` tem consulta própria em `loadRecipeGraph`.
+   *
+   * A versão vem do CARIMBO quando ele existe, e da sub-receita atual quando não — o mesmo
+   * `coalesce` do resolvedor, e pelo mesmo motivo: linha de aparelho antigo não deixa o lote sem
+   * resposta.
+   */
+  const subs = await conn.getAllAsync<{ name: string; version: number }>(
+    `SELECT r.name AS name, COALESCE(carimbo.version, atual.version) AS version
+       FROM recipe_lines l
+       JOIN lots lo ON lo.recipe_version_id = l.recipe_version_id
+       JOIN recipes r ON r.id = l.sub_recipe_id
+       LEFT JOIN recipe_versions carimbo ON carimbo.id = l.sub_recipe_version_id
+       LEFT JOIN recipe_versions atual
+              ON atual.recipe_id = l.sub_recipe_id
+             AND atual.version = (SELECT MAX(v.version) FROM recipe_versions v
+                                   WHERE v.recipe_id = l.sub_recipe_id)
+      WHERE lo.id = ? AND l.company_id = ? AND l.sub_recipe_id IS NOT NULL
+      ORDER BY l.position`,
+    [row.id, companyId],
+  );
+
   return {
     id: row.id,
     code: row.code,
@@ -5409,6 +5473,7 @@ export async function findLot(companyId: string, lotId: string): Promise<LotOfDa
     runGroupId: row.group_id,
     recipeName: row.recipe_name,
     recipeVersion: row.recipe_version,
+    subRecipes: subs,
   };
 }
 

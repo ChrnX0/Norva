@@ -379,6 +379,8 @@ export const ptBR = {
       /** A ficha que rodou — dentro do app, nunca no papel que vai na caixa. */
       runTitle: 'A corrida',
       fromSheet: 'Saiu da ficha {{recipe}}, versão {{version}}.',
+      /** As sub-receitas que aquela versão compôs — "Calda base · v2". */
+      withSub: '{{recipe}} · v{{version}}',
       fromSheetWhy:
         'Corrigir a ficha depois não muda este lote: ele guarda a versão que estava valendo no dia.',
       madeOn: 'produzido em {{date}}',
@@ -1967,6 +1969,11 @@ export const ptBR = {
       why: 'POR QUÊ?',
       whatGoesIn: 'O que entra de cada vez',
       subRecipe: 'sub-receita',
+      /** Qual versão da sub-receita esta linha compôs — "Calda base · sub-receita · v2". */
+      subVersion: 'v{{version}}',
+      /** A sub-receita ganhou versão nova depois desta ficha. Um toque re-carimba. */
+      subNewer: 'a {{name}} já está na v{{version}}',
+      useNewerSub: 'usar a v{{version}}',
       shareOfBatch: '{{quantity}} · {{percent}} do lote',
       lessTen: '−10%',
       moreTen: '+10%',

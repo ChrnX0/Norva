@@ -159,6 +159,20 @@ const DEFECTS = [
       'uma secao de dicionario passa a nao ter leitor nem motivo escrito, e volta a parecer viva para quem for renomear o texto',
   },
 
+  // --- o marcador que fill NAO preenche ------------------------------------
+  //
+  // Doze frases desta rodada chegaram ao portao dizendo `v{version}` na tela, com
+  // typecheck, lint, 829 testes e navegador verdes: `fill` so troca `{{palavra}}` e deixa
+  // o que nao conhece intacto de proposito, e a guarda de paridade contava zero buracos
+  // nos tres idiomas — as tres erradas pela mesma mao é paridade perfeita.
+  {
+    file: 'src/i18n/locales/pt-BR.ts',
+    from: "      subVersion: 'v{{version}}',",
+    to: "      subVersion: 'v{version}',",
+    hurts:
+      'a tela do editor da ficha escreve "v{version}" no lugar do numero da versao da sub-receita',
+  },
+
   // --- o seletor do e2e contra o dicionário --------------------------------
   //
   // O defeito que esta guarda pega custou um CI vermelho de vinte minutos: um
@@ -644,30 +658,57 @@ const DEFECTS = [
   },
   {
     file: 'src/domain/recipe.ts',
-    from: `if (cached) return cached;
-
-  if (stack.includes(recipeId)) throw new RecipeCycleError([...stack, recipeId]);`,
-    to: `if (cached) return cached;
-
-  if (false) throw new RecipeCycleError([...stack, recipeId]);`,
+    // Re-ancorada em 13 de setembro: o corpo saiu de `costRecipe` para `custoDaVersao`, e a
+    // pilha passou a ser por VERSÃO — âncora velha sairia "o trecho mudou", que é medida que
+    // não houve.
+    from: `  if (stack.some((p) => p.versionId === recipe.versionId)) {
+    throw new RecipeCycleError([...stack.map((p) => p.recipeId), recipeId]);
+  }`,
+    to: `  if (false) {
+    throw new RecipeCycleError([...stack.map((p) => p.recipeId), recipeId]);
+  }`,
     hurts: 'receita que se referencia trava o aplicativo em vez de recusar',
   },
   {
     file: 'src/domain/recipe.ts',
-    from: `if (cached) return cached;
-
-  if (stack.includes(recipeId)) throw new RecipeCycleError([...stack, recipeId]);
-
-  const recipe = recipes[recipeId];
-  if (!recipe) throw new MissingRecipeError(recipeId);`,
-    to: `if (cached) return cached;
-
-  if (stack.includes(recipeId)) throw new RecipeCycleError([...stack, recipeId]);
-
-  const recipe = recipes[recipeId];
-  if (!recipe) return { recipeId, version: 0, batchCents: cents(0), netYield: 0, perYieldUnit: 0 as Rate, lines: [], lossFraction: 0 };`,
+    from: `  const recipe = recipes.atual[recipeId];
+  if (!recipe) throw new MissingRecipeError(recipeId);
+  return custoDaVersao(recipe, recipes, itemCosts, labels, memo, []);`,
+    to: `  const recipe = recipes.atual[recipeId];
+  if (!recipe) return { recipeId, version: 0, batchCents: cents(0), netYield: 0, perYieldUnit: 0 as Rate, lines: [], lossFraction: 0 };
+  return custoDaVersao(recipe, recipes, itemCosts, labels, memo, []);`,
     hurts: 'semi-acabado que sumiu deixa todos os sabores dele mais baratos, calado',
   },
+  {
+    file: 'src/domain/recipe.ts',
+    // O CARIMBO da sub-receita, que é o item 43 inteiro num operador: sem ele a calda editada
+    // no meio do tacho volta a mudar o custo congelado da corrida.
+    from: `  const carimbada = line.subVersionId ? graph.versoes[line.subVersionId] : undefined;
+  return carimbada ?? graph.atual[line.recipeId];`,
+    to: `  return graph.atual[line.recipeId];`,
+    hurts: 'a calda editada no meio do tacho muda o custo congelado da corrida',
+  },
+  {
+    file: 'src/domain/recipe.ts',
+    // As DUAS buscas da sub tinham de virar uma. Esta mutação restaura a segunda busca — o
+    // híbrido que consome os insumos da versão velha escalados pelo rendimento da nova.
+    from: `      const sub = subDaLinha(line, recipes);
+      if (!sub) throw new MissingRecipeError(line.recipeId);
+      // The parent asks for \`quantity\` units of the sub-recipe's *net* yield,`,
+    to: `      const sub = recipes.atual[line.recipeId];
+      if (!sub) throw new MissingRecipeError(line.recipeId);
+      // The parent asks for \`quantity\` units of the sub-recipe's *net* yield,`,
+    hurts: 'a explosão consome os insumos da calda velha pelo rendimento da nova',
+  },
+  // --- o grafo nao traz de volta o que ele ja tem --------------------------
+  {
+    file: 'src/data/repository.ts',
+    from: `        .filter((id): id is string => id !== null && !jaCarregadas.has(id)),`,
+    to: `        .filter((id): id is string => id !== null),`,
+    hurts:
+      'as seis telas que carregam o grafo pagam uma segunda consulta que devolve as versoes que a primeira ja trouxe',
+  },
+
   {
     file: 'src/domain/cost.ts',
     from: "if (change > PRICE_ALARM) return 'wellAbove';",
@@ -1355,8 +1396,10 @@ const DEFECTS = [
   },
   {
     file: 'src/data/repository.ts',
-    from: '    if (escolhida) grafo[escolhida.recipe_id] = monta(escolhida);',
-    to: '    if (!escolhida) grafo[fixar.recipeId] = grafo[fixar.recipeId];',
+    // Re-ancorada em 13 de setembro: o grafo ganhou duas chaves (`atual` e `versoes`), e a
+    // versão cravada entra por cima da ATUAL.
+    from: '    if (escolhida) grafo.atual[escolhida.recipe_id] = monta(escolhida);',
+    to: '    if (!escolhida) grafo.atual[fixar.recipeId] = grafo.atual[fixar.recipeId];',
     hurts:
       'a versao cravada chega ao grafo e e descartada em silencio: o parametro existe, o chamador passa, e o custo continua saindo da formula mais nova - a forma de defeito que mais engana, porque o conserto aparece no diff e nao acontece',
   },

@@ -305,6 +305,20 @@ function Label() {
                 version: String(lote.recipeVersion),
               })}
             </Text>
+            {/* E as SUB-receitas daquela versão, com a versão de cada uma.
+                *"De que versão da calda saiu este lote?"* é a pergunta de um recall, e ela
+                parava no primeiro carimbo: saber que o lote rodou "Picolé de morango v3" não
+                diz qual calda entrou nele quando a mesma base serve oito sabores.
+                Lista vazia não desenha nada — ficha plana não tem sub-receita, e um cartão
+                dizendo "nenhuma" é o alerta inventado com outro rosto. */}
+            {(lote.subRecipes ?? []).map((sub) => (
+              <Text
+                key={`${sub.name}-${sub.version}`}
+                style={[type.body, { color: color.inkMuted, marginTop: space.xs }]}
+              >
+                {fill(t.app.lotLabel.withSub, { recipe: sub.name, version: String(sub.version) })}
+              </Text>
+            ))}
             <Text style={[type.caption, { color: color.inkMuted, marginTop: space.xs }]}>
               {t.app.lotLabel.fromSheetWhy}
             </Text>

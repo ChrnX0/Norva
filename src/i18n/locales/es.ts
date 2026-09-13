@@ -261,6 +261,7 @@ export const es: Dictionary = {
       overline: 'para pegar en la caja',
       runTitle: 'La corrida',
       fromSheet: 'Salió de la ficha {{recipe}}, versión {{version}}.',
+      withSub: '{{recipe}} · v{{version}}',
       fromSheetWhy:
         'Corregir la ficha después no cambia este lote: guarda la versión que estaba vigente ese día.',
       madeOn: 'producido el {{date}}',
@@ -1466,6 +1467,9 @@ export const es: Dictionary = {
       why: '¿POR QUÉ?',
       whatGoesIn: 'Lo que entra cada vez',
       subRecipe: 'sub-receta',
+      subVersion: 'v{{version}}',
+      subNewer: 'la {{name}} ya está en la v{{version}}',
+      useNewerSub: 'usar la v{{version}}',
       shareOfBatch: '{{quantity}} · {{percent}} del lote',
       lessTen: '−10%',
       moreTen: '+10%',

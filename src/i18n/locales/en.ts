@@ -256,6 +256,7 @@ export const en: Dictionary = {
       overline: 'to stick on the box',
       runTitle: 'The run',
       fromSheet: 'Made from the {{recipe}} sheet, version {{version}}.',
+      withSub: '{{recipe}} · v{{version}}',
       fromSheetWhy:
         'Correcting the sheet later does not change this lot: it keeps the version that was in force that day.',
       madeOn: 'made on {{date}}',
@@ -1462,6 +1463,9 @@ export const en: Dictionary = {
       why: 'WHY?',
       whatGoesIn: 'What goes in the batch',
       subRecipe: 'sub-recipe',
+      subVersion: 'v{{version}}',
+      subNewer: '{{name}} is already on v{{version}}',
+      useNewerSub: 'use v{{version}}',
       shareOfBatch: '{{quantity}} · {{percent}} of the batch',
       lessTen: '−10%',
       moreTen: '+10%',

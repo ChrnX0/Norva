@@ -12027,3 +12027,110 @@ procurar defeito no índice.
 A âncora passou a ser o CONTEÚDO: `findIndex((passo) => passo.includes('people_name_idx'))`, com
 uma asserção de que achou. É a mesma família de *"contagem no nome de um passo de CI envelhece"* —
 referência relativa é um número disfarçado, e o disfarce é o que faz ninguém notar.
+
+## 13 de setembro — a cascata automática foi RECUSADA, e a medida é o que a recusou
+
+O item 43 previa uma configuração `sub_recipe_change = 'segue' | 'revisa'`, com `'segue'` como
+padrão porque ele preserva o comportamento de hoje: ao salvar a calda, o sistema abriria versão
+nova de cada ficha-mãe que a compõe, recursivamente para cima, re-carimbando.
+
+Uma revisão adversarial do desenho, feita antes de escrever a cascata, mediu o caminho e ele
+termina na fila travada:
+
+1. `saveRecipeVersion` numera por `MAX(version) + 1` lido do **disco local**.
+2. O aparelho A edita a base; a cascata cunha `v5` das oito mães. O aparelho B, offline, edita
+   **uma mãe qualquer** e numera `v5` também — mesmo `recipe_id`, id diferente.
+3. B sobe. O servidor tem `unique (recipe_id, version)`, e a fila sobe por `upsert` com
+   `onConflict: 'id'`: conflito de OUTRO índice vira `23505`, que é **permanente** por decisão
+   medida. A edição de ficha de B é **descartada**.
+4. As `recipe_lines` daquela versão foram enfileiradas depois dela e citam um
+   `recipe_version_id` que o servidor não tem → `23503`, que está fora de `PERMANENTES` **de
+   propósito**, com a razão escrita: *"ele não acontece — `pendingEntries` manda na ordem de
+   escrita"*. Passageira. A fila inteira fica presa atrás delas, para sempre.
+5. E a **descida** morre junto: B tem a `v5` dele, a `v5` de A desce, e o
+   `UNIQUE (recipe_id, version)` do SQLite recusa. `gravarPagina` levanta, `descer()` não tem
+   `try/catch` nessa linha, e a rodada de descida morre para TODAS as tabelas, toda vez.
+
+**O que a cascata muda não é a existência do defeito: é a superfície.** Hoje isso exige duas
+pessoas editando **a mesma ficha** offline. Com `'segue'`, uma edição da base **reivindica um
+número de versão em nove fichas que ninguém tocou** — de 1 para 9 —, e a segunda pessoa não tem
+como saber que está editando algo disputado.
+
+Então a rodada entrega só o `'revisa'`: o carimbo fica, e o editor convida com um toque quando a
+sub-receita andou. **E isso deixa de ser configuração**, porque configuração exige dois caminhos
+válidos e o outro caminho quebra a sincronia — *"depende vira dado"* vale para preferência de
+cliente, não para um desenho que não funciona.
+
+**A metade que a refutação do revisor salvou, e ela reduz o custo da decisão pela metade:** o
+docblock de `recipe.ts` promete que *"quando o leite sobe, os oito recalculam"*, e isso **continua
+verdade** — preço vem de `itemCosts`, lido fresco em cada chamada, e não passa pela versão. O que
+o carimbo congela é *"a base agora leva 2.200 g em vez de 2.000"* — a FÓRMULA. Ainda é dinheiro e
+ainda é silencioso em seis telas que não têm marcador, e é metade menor do que parecia.
+
+## 13 de setembro — onde eu DISCORDEI da revisão, e por quê
+
+A revisão recomendou promover `PGRST204` a recusa permanente, com um argumento bom: a migração
+`0066` diz que a ordem de implantação *"é evitada por ORDEM e não por código"*, e este arquivo tem
+a frase pronta — regra escrita não impede.
+
+**Recusei, e a razão é a assimetria que `recusa.ts` já tem escrita.** `PGRST204` significa
+*"coluna que este servidor não conhece"*, e isso é consertável do outro lado: aplicar a migração
+faz a mesma linha entrar. É exatamente o caso de `42501` (o grant que falta), que está fora de
+`PERMANENTES` de propósito. Promover troca uma falha ALTA e visível (a fila trava, o dono vê) por
+uma **perda silenciosa**: a linha sai da frente, o que sai de lado não volta, e a ficha nunca
+chega ao servidor — com o carimbo divergindo entre os dois lados para sempre.
+
+A doutrina desta casa escolhe a falha alta, e ela está medida: *classificar permanente como
+passageira trava a fila, que é ruim, visível e sem perda; o contrário perde dado em silêncio, que
+é o pior resultado que esta fila tem.*
+
+*O que sobra, e é honesto dizer: a exigência de ordem é real e vale para TODA coluna nova de
+tabela que atravessa — não é particularidade desta migração. Ela entra na lista do dono como passo
+de implantação, e a guarda que existe (`agreement.test.ts`) garante a metade que dá para garantir:
+o aparelho não manda coluna que as migrações não têm.*
+
+## 13 de setembro — a guarda de paridade não vê o marcador ERRADO, porque errado nos três é paridade
+
+Doze frases novas desta rodada iam para a tela dizendo, literalmente, `v{version}`. Chave única
+em vez de dupla — e **nada** no repositório reprovou: `typecheck` limpo, `lint` limpo, 829 testes
+verdes, navegador verde.
+
+A razão é bonita e é do mesmo desenho que protege a tela: `fill` só troca `{{palavra}}`, e o que
+ele não conhece **fica intacto de propósito** — há um teste que cobra isso com todas as letras
+(*"a hole nobody filled stays visible instead of becoming a blank"*), porque marcador visível é
+melhor que um branco onde devia estar um número. Então `{version}` não é erro para ninguém: é
+texto.
+
+**E a guarda que existia era a que mais parecia ir pegar.** `a translation keeps every hole the
+original has` compara os buracos de cada frase entre os três idiomas — e as três estavam erradas
+pela mesma mão, no mesmo minuto: zero buracos em português, zero em inglês, zero em espanhol,
+paridade perfeita. É a armadilha que este `CLAUDE.md` já tem escrita — *"uma guarda que compara
+duas coisas escritas pela mesma mão não guarda nada"* — e ela estava numa guarda de i18n, que é
+justamente onde a régua de paridade parecia bastar.
+
+A guarda nova não procura a chave única: **tira todo `{{palavra}}` bem-formado e vê se sobrou
+chave.** Assim ela pega também `{{version}` sem o par, `{{ version }}` com espaço e `{{}}` vazio —
+todas invisíveis para a paridade, porque nenhuma delas é um buraco. Medida antes de entrar contra
+o dicionário de verdade: acusou as **doze** e nenhuma das outras **3.577** das 3.589 frases dos
+três idiomas. O caso falso é o corpo inteiro, e não um exemplo que eu escrevi.
+
+*E a forma como isto apareceu vale mais que a guarda: não foi teste nem revisão — foi **ler o
+próprio diff antes de commitar**, e desconfiar de uma chave que não parecia com as vizinhas. Duas
+linhas acima, no mesmo arquivo, `fromSheet` usava `{{recipe}}`.*
+
+## 13 de setembro — o filtro que comparava id de VERSÃO com um mapa de RECEITA
+
+`loadRecipeGraph` carrega as versões carimbadas pelas linhas e diz, em comentário, que traz *"só
+as alcançáveis, nunca a tabela inteira"*. O filtro era `!(id in atual)` — e `atual` é chaveado por
+id de **receita**, enquanto `id` é id de **versão**. Nunca casa. O filtro não excluía nada.
+
+**A resposta continuava certa** — `subDaLinha` resolve o carimbo da versão corrente para a mesma
+versão que a `atual` já tinha —, então nenhum número mudou. O que estava errado era a medida, e
+o custo é real na fábrica normal: a que nunca reeditou uma calda paga uma segunda consulta que
+devolve exatamente as linhas que a primeira já trouxe, em seis telas e no assistente. Com o
+filtro certo (um `Set` dos ids de versão já lidos) essa fábrica faz **zero** consultas a mais.
+
+É a régua que mede a camada errada outra vez, e com a mesma assinatura do caso do
+`has_column_privilege` desta semana: o predicado compila, roda, devolve booleano, e responde uma
+pergunta que ninguém fez. A asserção que o nomeia é `Object.keys(grafo.versoes)` vazio quando o
+carimbo aponta para a versão corrente — antes ela vinha com uma entrada, e a entrada era cópia.

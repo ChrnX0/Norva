@@ -50,7 +50,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 | | |
 |---|---|
 | `npm test` | **829** testes |
-| `npm run mutate` | **150** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
+| `npm run mutate` | **154** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **59** checagens num navegador de verdade |
 | `npm run db:verify` | **38** garantias contra um Postgres descartável: **19** sob RLS, como a conta da empresa, e **19** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
@@ -1217,45 +1217,78 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     verdade; quem lê o cabeçalho da `0051` lê a promessa larga, e migração que já rodou não se
     edita.
 
-43. **A SUB-receita editada no meio do tacho ainda muda o custo congelado** — a outra metade
-    do conserto de 12 de setembro, e ela não é uma linha.
-    <!-- medida: ausente app/lots/[id].tsx :: subs -->
+43. ~~**A SUB-receita editada no meio do tacho ainda muda o custo congelado**~~ — **fechado em
+    13 de setembro, pela forma que a própria descrição chamava de "a caríssima".**
+    <!-- medida: presente src/domain/recipe.ts :: subDaLinha -->
 
-    **O ESQUEMA dos dois lados entrou em 13 de setembro** (`0066` com a chave composta e a
-    garantia 38; V39 no aparelho com `REPARO_CARIMBO_DA_SUB`), e o que falta é o que custa: o
-    grafo do domínio deixar de ser uma versão por receita. A medida acima aponta para essa
-    metade, porque é ela que decide se o custo congelado muda ou não.
-
-    O que já está fechado: `closeProductionRun` passa `fichaCravada: run.recipeVersionId` e
-    `loadRecipeGraph` aceita `fixar`, então a receita RAIZ entra na versão da abertura. Para a
-    ficha **plana** — itens e nada mais — isso é completo, porque `explodeRequirements` usa
-    `quantity × batches` e o rendimento não entra.
-
-    O que sobra tem dinheiro: para linha de SUB-receita ela usa
-    `sub.yieldAmount * (1 - sub.lossFraction)` para converter *"preciso de 10.000 ml de base"*
-    em quantas bateladas de base fazer. A corrida anota **uma** versão, então a base continua
-    entrando pela mais nova — editar a calda entre abrir e fechar muda o consumo, e consumo é
-    taxa congelada.
-
-    **As três formas, medidas, e por que nenhuma é uma linha:**
+    As três formas continuam medidas na tabela abaixo, e a escolhida é a terceira: **a linha da
+    ficha carimba a versão da sub-receita.** `recipe_lines.sub_recipe_version_id` nos dois lados
+    (`0066` no servidor com a chave composta `(sub_recipe_id, sub_recipe_version_id) ->
+    recipe_versions (recipe_id, id)`, que faz o banco recusar carimbo de OUTRA ficha; V39 no
+    aparelho com `REPARO_CARIMBO_DA_SUB`), `subDaLinha` resolvendo o carimbo antes da atual, e o
+    grafo do domínio deixando de ser uma versão por receita (`RecipeGraph = { atual, versoes }`).
 
     | forma | o que ela pede | o que ela custa |
     |---|---|---|
     | carimbo por sub-receita na abertura | coluna em `production_runs` (aparelho; a tabela não sincroniza, então sem par de servidor) | resolve só o tacho aberto; a pergunta *"de que versão da calda saiu este lote?"* continua sem resposta depois |
     | corte por TEMPO | nada de esquema | três furos já medidos: `effective_from` é DATA, `created_at` empata no milissegundo, e derivar de `occurredAt` recusaria a produção registrada depois do fato — o caminho "começar pelo fim" |
-    | **a linha da ficha nomear a VERSÃO da sub-receita** | `recipe_lines.sub_recipe_version_id` (aparelho **e** servidor) e o grafo do domínio deixar de ser uma versão por receita | é a forma certa e é a caríssima: `Record<string, Recipe>` aparece em quatro assinaturas de `src/domain/recipe.ts` e em `loadRecipeGraph`, e re-chavear por versão toca todos os chamadores |
+    | **a linha da ficha nomear a VERSÃO da sub-receita** | `recipe_lines.sub_recipe_version_id` (aparelho **e** servidor) e o grafo do domínio deixar de ser uma versão por receita | **é a que entrou**: quatro assinaturas de `src/domain/recipe.ts` e `loadRecipeGraph` re-chaveadas, e a pergunta do recall passa a ter resposta permanente |
 
-    **A terceira é a que a casa escolheria, e é por isso que ela fica escrita em vez de
-    começada.** Ela é a mesma forma de tudo aqui — o lote carimba a versão que rodou, então a
-    linha deveria carimbar a versão que ela compôs — e o P3 diz que forma de esquema se adivinha
-    de graça enquanto há zero linhas, que é agora. Mas ela é uma rodada dedicada com plano, e
-    *"nada fica pela metade"* é decisão escrita: começá-la no fim de uma rodada é entregar o
-    grafo re-chaveado pela metade.
+    **As quatro coisas que a revisão adversarial desta rodada mudou no desenho, todas medidas** —
+    porque nenhuma delas estava no plano e as quatro são dinheiro:
 
-    **E a coluna que a primeira forma leria já existe desde a `V28`**, que versionou
-    `yield_amount`, `yield_unit` e `yield_per_unit` em `recipe_versions` dizendo por escrito que
-    entrava *"sem leitor"*, esperando a tela de histórico da ficha. Qualquer das três lhe dá o
-    segundo leitor.
+    1. **Memoizar por `recipeId` viraria defeito de dinheiro no instante em que o carimbo
+       existisse**: dois picolés do mesmo dia, um com a calda v1 e outro com a v2, leriam o custo
+       um do outro. O `memo` passou a ser por `versionId`.
+    2. **A pilha de ciclo por `recipeId` levanta ciclo FALSO** com carimbo: um carimbo só nomeia
+       uma versão que já existe, então `calda → base → calda` pode ser três elos sem laço nenhum.
+       A pilha passou a ser `{versionId, recipeId}`.
+    3. **Duas buscas independentes da mesma sub tinham de virar UMA.** `explodeVersao` resolvia o
+       rendimento por um caminho e a recursão por outro; converter só um produz o **híbrido** —
+       os insumos da versão velha escalados pelo rendimento da nova —, um número que nenhuma
+       asserção deste repositório nomeia.
+    4. **`shoppingList` fica na ATUAL de propósito**, e isso não é esquecimento: a lista de
+       compras é simulação do que se vai comprar, não história do que se gastou. Carimbá-la
+       mandaria comprar pela fórmula velha.
+
+    **E o lote responde a pergunta do recall desde a mesma rodada** (`app/lots/[id].tsx`, o cartão
+    da ficha que rodou): *"De que versão da calda saiu este lote?"* parava no primeiro carimbo —
+    saber que o lote rodou "Picolé de morango v3" não diz qual calda entrou nele quando a mesma
+    base serve oito sabores. `findLot` traz as sub-receitas daquela versão com a versão de cada
+    uma, em consulta própria, e a garantia 6 do `db:verify` cobra que **linha carimbada
+    atravesse** a fila (achou 2).
+
+    **A cascata automática foi RECUSADA, e a recusa está medida** em `docs/insights.md`: uma
+    configuração `sub_recipe_change = 'segue'` re-carimbaria as fichas-mãe recursivamente, e isso
+    *"mata a sincronia NOS DOIS SENTIDOS, e basta uma pessoa editar a base"* — o número de versão
+    é cunhado por `MAX(version) + 1` lido do disco LOCAL, o servidor tem `unique (recipe_id,
+    version)`, e a cascata *"reivindica um número de versão em nove fichas que ninguém tocou — a
+    superfície de colisão vai de 1 para 9"*. Fica só o `'revisa'`: o editor convida com um toque
+    quando a sub-receita andou.
+
+44. **A prévia da produção fala da ficha de HOJE quando a corrida foi aberta ontem** — e é a
+    mesma cicatriz que o docblock do número de tachos, uma camada acima.
+    <!-- medida: ausente app/production/new.tsx :: fixar -->
+
+    `closeProductionRun` passa `fichaCravada: run.recipeVersionId` e fecha pela versão da
+    abertura — está certo, e é o que o carimbo do lote promete. A TELA
+    (`app/production/new.tsx:137`) chama `loadRecipeGraph(empresaDaqui())` **sem `fixar`** e lê
+    `data.graph.atual[selected.recipeId]`, que é a mais nova. Então, com corrida aberta e uma
+    versão salva no meio, quatro números da tela saem da fórmula nova e o razão grava a velha: o
+    previsto (`plannedUnits`), as linhas do consumo (`explodeRequirements`), o custo por unidade,
+    e — o que dói — **o portão do botão**, que é a Lei 5 ao contrário: a tela libera o toque pelo
+    consumo da fórmula nova e a escrita recusa pelo da velha, com `NotEnoughStockError`.
+
+    O docblock de `vezesDaCorrida`, dez linhas acima da chamada, descreve exatamente este defeito
+    para o NÚMERO DE TACHOS, com o dinheiro medido (*"17.075 g de polpa a R$ 0,64 na tela contra
+    18.000 g a R$ 0,67 no livro — R$ 15,40 por corrida"*). A versão da ficha é a segunda variável
+    da mesma equação, e ela não foi conferida quando a primeira foi.
+
+    **O conserto não é passar `fixar` e pronto**, e é por isso que ele fica escrito: a tela carrega
+    o grafo antes de saber qual produto está escolhido, e pode haver várias corridas abertas, cada
+    uma com a sua versão. Ou `fixar` aceita uma LISTA — uma consulta com `IN (...)`, e `atual`
+    passa a ser "a versão que vale para este produto agora" —, ou a tela recarrega o grafo ao
+    escolher um produto com corrida aberta. A primeira é a que não acrescenta ida ao banco.
 
 **O que a segunda caminhada CONFIRMOU funcionando:** as três réguas de rendimento no
 cadastro da ficha; a confirmação da ficha com os números por extenso e a régua escolhida

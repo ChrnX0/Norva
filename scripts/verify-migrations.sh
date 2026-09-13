@@ -556,6 +556,18 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -f "$PGDATA/queue-rls.sql" >/dev/null 2>"$PG
 writes=$(grep -c '^insert into' "$QUEUE")
 echo "    $writes escritas replicadas sob a política, sem uma recusa"
 
+# E a linha de SUB-receita atravessou CARIMBADA, passando pela chave composta da `0066`.
+#
+# Sem esta medida a `0066` teria chave, índice e CHECK, e nenhuma linha do aparelho passaria por
+# eles: `sub_recipe_version_id` viajaria nulo para sempre e o servidor concordaria calado. É a
+# mesma razão de a sessão gravar venda e estorno — capacidade do servidor que nenhuma fila
+# exercita é promessa que ninguém cobrou.
+CARIMBADAS=$(rows "select count(*) from recipe_lines l
+                     join recipe_versions v on v.id = l.sub_recipe_version_id
+                    where l.company_id = '$DEVICE_COMPANY';")  # proofgate-allow
+[ "${CARIMBADAS:-0}" -ge 1 ] || fail "nenhuma linha de sub-receita atravessou carimbada: a chave composta da 0066 nao foi exercitada por fila nenhuma"
+echo "    e $CARIMBADAS linha(s) de sub-receita atravessaram carimbando a versao que compuseram"
+
 # E a política está mesmo sendo avaliada, não apenas presente.
 #
 # A mesma fila, byte por byte, sob uma conta que não é membro desta empresa. Se

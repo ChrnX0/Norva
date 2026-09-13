@@ -58,6 +58,50 @@ test('a translation keeps every hole the original has', () => {
   }
 });
 
+/**
+ * Um marcador ERRADO é invisível para tudo — e foi por isso que doze frases chegaram
+ * ao portão dizendo `v{version}` na tela.
+ *
+ * `fill` só conhece `{{palavra}}`, e ele deixa o que não conhece **intacto de
+ * propósito** (o teste três abaixo cobra isso: buraco que ninguém preencheu continua
+ * visível em vez de virar branco). Então `{version}` de chave única não é erro para
+ * ninguém: o TypeScript vê uma string, o lint vê uma string, e a guarda de paridade
+ * acima conta ZERO buracos nas três traduções e aprova — as três estavam erradas pela
+ * mesma mão, que é a armadilha que este repositório já tem escrita.
+ *
+ * A régua não procura a chave única: ela **tira todo `{{palavra}}` bem-formado e vê se
+ * sobrou chave**. Assim ela pega também `{{version}` sem o par, `{{ version }}` com
+ * espaço e `{{}}` vazio — as formas que a paridade também não vê, porque nenhuma delas
+ * é um buraco.
+ *
+ * Medida antes de entrar, contra o dicionário de verdade: acusou as **doze** frases da
+ * rodada do carimbo e **nenhuma** das outras **3.577** — 3.589 frases nos três idiomas —, que é
+ * o caso falso de que a régua precisa para valer, e ele é o corpo inteiro em vez de um exemplo
+ * escrito por mim.
+ */
+test('todo marcador do dicionário é um marcador que `fill` preenche', () => {
+  const soltas: string[] = [];
+  for (const [language, dictionary] of [
+    ['pt-BR', ptBR],
+    ['en', en],
+    ['es', es],
+  ] as const) {
+    for (const [path, frase] of leaves(dictionary as unknown as Node)) {
+      const sobra = frase.replace(/\{\{\w+\}\}/g, '');
+      if (sobra.includes('{') || sobra.includes('}')) {
+        soltas.push(`${language}: "${path}" = "${frase}"`);
+      }
+    }
+  }
+  assert.deepEqual(
+    soltas,
+    [],
+    'chave solta numa frase do dicionário: `fill` só troca {{palavra}}, então isto vai para a ' +
+      'tela do jeito que está escrito. Se a chave é um marcador, ponha as duas chaves; se é ' +
+      `texto de verdade, esta guarda é o lugar de dizer por quê.\n  ${soltas.join('\n  ')}`,
+  );
+});
+
 test('a number handed to a sentence with nowhere to put it still gets said', () => {
   // A entrada com buraco recebe o número no lugar certo.
   assert.equal(plural(3, { one: '1 caixa', other: '{{n}} caixas' }, '1.200'), '1.200 caixas');

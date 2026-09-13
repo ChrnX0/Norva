@@ -467,6 +467,21 @@ test('a sub-recipe survives the round trip through the database', async () => {
     await labels(CO),
   );
   assert.equal(cost.batchCents, daBase.batchCents / 2);
+
+  /**
+   * E o grafo não traz de volta o que ele já tem.
+   *
+   * O carimbo desta linha aponta para a v1 da Base, que É a versão corrente — então `versoes`
+   * não tem nada a acrescentar, e `subDaLinha` resolve pela `atual`. O filtro comparava o id da
+   * VERSÃO carimbada contra um mapa chaveado por id de RECEITA, o que nunca casa: a consulta dos
+   * carimbos saía com todos eles, sempre, na fábrica que não reeditou calda nenhuma.
+   */
+  const grafo = await loadRecipeGraph(CO);
+  assert.deepEqual(
+    Object.keys(grafo.versoes),
+    [],
+    'o carimbo aponta para a versão corrente: nada a carregar por fora da atual',
+  );
 });
 
 test('the starter data lands, and does not come back after it is wiped', async () => {
@@ -8447,5 +8462,23 @@ test('a calda editada no meio do tacho não muda o custo congelado da corrida', 
     Math.abs((taxa?.unit_cost_rate ?? 0) - 4) < 1e-9,
     `esperava 4 centavos por unidade e veio ${taxa?.unit_cost_rate}: com a calda v2 seriam 8, e ` +
       'o lote rodou a v1 — custo congelado não se corrige, se estorna',
+  );
+
+  /**
+   * E a pergunta de um RECALL: de que versão da calda saiu este lote?
+   *
+   * O lote carimbava a ficha-mãe e parava ali. Com uma base usada por oito sabores, *"rodou
+   * Picolé de morango v3"* não diz qual calda entrou — e é a calda que um recall persegue,
+   * porque é ela que é compartilhada.
+   */
+  const oLote = (await conn.getFirstAsync<{ id: string }>(
+    `SELECT id FROM lots WHERE company_id = ? ORDER BY created_at DESC LIMIT 1`,
+    [CO],
+  ))!;
+  const lote = await findLot(CO, oLote.id);
+  assert.deepEqual(
+    lote?.subRecipes?.map((sub) => `${sub.name} v${sub.version}`),
+    ['Calda da prova v1'],
+    'o lote responde a v1 da calda, que é a que ele rodou — e não a v2 que existe hoje',
   );
 });

@@ -229,7 +229,7 @@ async function main() {
   });
 
   // And a recipe, whose lines carry an order somebody chose.
-  await saveRecipeVersion(empresaDaqui(), {
+  const base = await saveRecipeVersion(empresaDaqui(), {
     name: 'Base de creme',
     yieldAmount: 10_000,
     yieldUnit: 'ml',
@@ -238,6 +238,26 @@ async function main() {
       { kind: 'item', itemId: pulp.id, quantity: 3_000 },
       { kind: 'item', itemId: sugar.id, quantity: 1_500 },
     ],
+  });
+
+  /**
+   * E uma ficha-MÃE, que compõe a base — a única travessia deste arquivo que carrega o carimbo da
+   * versão da sub-receita.
+   *
+   * Sem ela a `0066` teria chave composta, gatilho e índice, e nenhuma linha do aparelho passaria
+   * por eles: `sub_recipe_version_id` atravessaria como `null` para sempre e o servidor concordaria
+   * calado. É a mesma razão de a sessão gravar venda e estorno — capacidade do servidor que
+   * nenhuma fila exercita é promessa que ninguém cobrou.
+   *
+   * Sem `subVersionId`: `saveRecipeVersion` carimba a mais nova, que é a Lei 1 e é o caminho que a
+   * tela usa.
+   */
+  await saveRecipeVersion(empresaDaqui(), {
+    name: 'Picolé de creme',
+    yieldAmount: 1_000,
+    yieldUnit: 'ml',
+    lossFraction: 0.02,
+    lines: [{ kind: 'recipe', recipeId: base.recipeId, quantity: 1_000, subVersionId: null }],
   });
 
   // E um cliente que liga pedindo, que é a única escrita deste app que não
