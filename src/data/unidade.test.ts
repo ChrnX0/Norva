@@ -8,11 +8,22 @@ import { readMeta, writeMeta } from './meta';
 import { defaultLocationId, recordCount, stockByPlace, recordPurchase } from './repository';
 import { ensureStarterData } from './seed';
 import {
+
   CHAVE_DA_UNIDADE,
   carregarUnidade,
   escolherUnidade,
   unidadeDaqui,
 } from './unidade';
+
+/**
+ * A hora de nascimento da segunda unidade, fixa.
+ *
+ * Era `new Date().toISOString()` — e nenhuma asserção deste arquivo lê essa data, então
+ * o relógio de verdade entrava por hábito e não por necessidade. Teste que lê o relógio
+ * é bomba com hora marcada: passa hoje e reprova para quem rodar a CI no mês em que a
+ * borda importar. Instante fixo custa uma linha e não tem borda.
+ */
+const NASCIMENTO = '2026-03-01T12:00:00.000Z';
 
 /**
  * Em qual unidade este aparelho trabalha — e a prova é onde o movimento cai.
@@ -125,7 +136,7 @@ test('o que se grava depois de trocar de unidade cai NA outra, e o saldo da prim
   await conn.runAsync(
     `INSERT INTO locations (id, company_id, name, kind, created_at)
      VALUES (?, ?, 'Marília', 'factory', ?)`,
-    [segunda, empresa, new Date().toISOString()],
+    [segunda, empresa, NASCIMENTO],
   );
 
   const item = await conn.getFirstAsync<{ id: string }>(
@@ -199,7 +210,7 @@ test('a nota lançada na segunda unidade entra NA segunda, e não no almoxarifad
   await conn.runAsync(
     `INSERT INTO locations (id, company_id, name, kind, created_at)
      VALUES (?, ?, 'Marília', 'factory', ?)`,
-    [segunda, empresa, new Date().toISOString()],
+    [segunda, empresa, NASCIMENTO],
   );
 
   const item = await conn.getFirstAsync<{ id: string }>(

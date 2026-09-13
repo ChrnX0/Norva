@@ -304,7 +304,9 @@ test('the drain sweeps what the server took long ago, and never what is still wa
   const aindaEsperando = fila.length - primeiros.length;
 
   // Agora + trinta dias: o que acabou de subir já passou da janela de sete.
-  const trintaDiasAdiante = Date.now() + 30 * 86_400_000;
+  // Relógio RELATIVO de propósito: quem grava na fila usa o relógio de verdade, e o que
+  // se mede é a JANELA de sete dias — um instante fixo aqui mediria a distância até 2026.
+  const trintaDiasAdiante = Date.now() + 30 * 86_400_000;  // proofgate-allow
   await drain(transporte, {
     sleep: async () => undefined,
     maxAttempts: 1,
@@ -343,7 +345,8 @@ test('the sweep spares what went up inside the window', async () => {
   await drain({ push: async () => ({ acceptedIds: [] }) }, {
     sleep: async () => undefined,
     maxAttempts: 1,
-    now: () => Date.now() + 30 * 86_400_000,
+    // Idem: o `sent_at` foi escrito pelo caminho de produção, com o relógio de verdade.
+    now: () => Date.now() + 30 * 86_400_000,  // proofgate-allow
   });
   const depois = await live.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM outbox');
   assert.equal(depois?.n, 0, 'passada a janela, o que subiu sai');
