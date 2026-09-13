@@ -12246,3 +12246,43 @@ derrubada como fechamento de um item. Corrigido lá, porque decisão registrada 
 *A regra de leitura que sai daqui: quando dois lugares tratam o mesmo caso de formas opostas,
 teste a razão de cada um contra o OUTRO caso. Se ela vale para os dois e conclui coisas
 diferentes, ela não é a razão — é a justificativa que alguém escreveu depois de decidir.*
+
+## 13 de setembro — dois toques transformavam o picolé em insumo, e o caminho passava por três arquivos
+
+A cadeia, cada elo defensável sozinho:
+
+1. `app/inputs/[id].tsx` oferecia *"Corrigir o cadastro"* → `/inputs/new?id=` **para qualquer
+   espécie**. Razoável: é a mesma tela que cadastra e corrige, e isso está escrito no docblock
+   dela (*"um formulário com id é coisa muito menor de manter que dois que divergem"*).
+2. `app/inputs/new.tsx` montava o rascunho com
+   `kind === 'input' || … ? existing.kind : 'input'`. Razoável: o formulário oferece três
+   espécies, e um valor fora delas precisava de um padrão.
+3. `saveItem` grava `kind = excluded.kind` no `ON CONFLICT`. Razoável: quem digitou "Palito"
+   como insumo e queria embalagem conserta num toque.
+
+**Juntos, os três apagam um produto.** Salvar aquela tela com o id de um picolé muda a espécie
+da linha: o produto sai da lista, `products.item_id` continua apontando para ela, e a
+classificação do razão passa a discordar do cadastro — em silêncio, e **sem estorno possível,
+porque cadastro não é movimento**. Nenhum dos três elos é errado no arquivo dele; o defeito só
+existe no caminho, e o caminho não tem dono.
+
+**Onde a recusa foi posta, e por quê.** Não na tela: tela é onde o defeito aparece, não onde se
+impede. `saveItem` passou a recusar a troca que **cruza a linha** entre o que se vende
+(`product`, `resale`) e o que se compra ou consome (`input`, `packaging`, `store_supply`) —
+então qualquer chamador futuro encontra a mesma parede. E a trava não é grossa de propósito:
+entre as três espécies que a fábrica de fato confunde ao cadastrar, a troca continua livre, e há
+asserção cobrando isso — uma trava que recusasse tudo seria o conserto que tira o caso de uso.
+
+**A régua da própria casa cobrou duas coisas que eu não tinha visto**, e vale registrar as duas:
+
+- O cartão de recusa que eu escrevi nasce em `color.warning`, e `src/theme/assinatura.test.ts`
+  exige o marcador `{/* sinal */}` para cartão que nasce em cor de alerta e não volta. Ela está
+  certa: o cartão **é** o impedimento, e a cor está dizendo "isto está acontecendo agora".
+- E fechar o buraco deixou uma falta à vista: **não existe editor de produto**
+  (`app/products/new.tsx` não lê `useLocalSearchParams`). O botão foi escondido para `product`
+  porque não havia para onde ele ir que não corrompesse a linha — e o que ele escondia é que
+  corrigir o nome de um picolé, o rendimento por unidade ou a embalagem por unidade não tem
+  caminho nenhum hoje. Entrou como item 45 do `docs/roadmap.md`, com medida.
+
+*A regra de método: quando três elos razoáveis produzem um defeito, o conserto vai no elo que
+todos atravessam — e o teste também. Consertar a tela deixa a próxima tela reabri-lo.*

@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **834** testes |
+| `npm test` | **835** testes |
 | `npm run mutate` | **154** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **59** checagens num navegador de verdade |
 | `npm run db:verify` | **38** garantias contra um Postgres descartável: **19** sob RLS, como a conta da empresa, e **19** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -1312,6 +1312,27 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
     uma com a sua versão. Ou `fixar` aceita uma LISTA — uma consulta com `IN (...)`, e `atual`
     passa a ser "a versão que vale para este produto agora" —, ou a tela recarrega o grafo ao
     escolher um produto com corrida aberta. A primeira é a que não acrescenta ida ao banco.
+
+45. **Não existe editor de PRODUTO, e a falta ficou visível ao fechar o buraco da espécie.**
+    <!-- medida: ausente app/products/new.tsx :: useLocalSearchParams -->
+
+    `app/products/new.tsx` cadastra e não edita — não lê `useLocalSearchParams`, então não há
+    caminho para corrigir o nome de um picolé, a embalagem por unidade nem o rendimento por
+    unidade depois de gravado.
+
+    **Como isto apareceu:** a página de um item oferecia *"Corrigir o cadastro"* para qualquer
+    espécie, apontando para o formulário de INSUMO — que coagia a espécie e, ao salvar,
+    transformava o picolé em insumo. O botão foi escondido para `product` porque não havia para
+    onde ele ir que não corrompesse a linha; a falta que ele escondia é esta.
+
+    **O que ela custa hoje:** um nome digitado errado num produto é permanente, e `yieldPerUnit`
+    e `unitPackagingRate` — que são DINHEIRO, porque entram na taxa congelada de toda corrida —
+    só se corrigem cadastrando outro produto. A trava da espécie (`EspecieDoItemNaoMudaError`)
+    impede a corrupção e não devolve o caminho.
+
+    **O que falta ter cuidado:** editar `yieldPerUnit` não reescreve corrida nenhuma — a taxa
+    congelada é do movimento e o lote carimba a versão —, mas MUDA toda previsão futura, então a
+    tela tem de dizer isso por extenso antes de salvar, como o editor de ficha já diz.
 
 **O que a segunda caminhada CONFIRMOU funcionando:** as três réguas de rendimento no
 cadastro da ficha; a confirmação da ficha com os números por extenso e a régua escolhida

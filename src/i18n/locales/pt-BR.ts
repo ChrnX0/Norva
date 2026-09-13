@@ -1236,6 +1236,10 @@ export const ptBR = {
     },
 
     inputForm: {
+      /** A linha não é insumo: este formulário reescreveria a espécie dela. */
+      notAnInput:
+        'Esta linha não é insumo, embalagem nem material de loja — então não se corrige por aqui: salvar nesta tela mudaria a espécie dela.',
+      notAnInputBack: 'Voltar',
       /** Neutro entre os três tipos: a etiqueta acesa pode dizer embalagem ou material de loja. */
       newTitle: 'Novo cadastro',
       newOverline: 'cadastro',
@@ -1289,6 +1293,8 @@ export const ptBR = {
     },
 
     inputDetail: {
+      /** A próxima ação de um produto FEITO: produzir, nunca comprar. */
+      recordProduction: 'Registrar produção',
       overline: 'almoxarifado',
       retiredOverline: 'almoxarifado · fora de circulação',
       /**

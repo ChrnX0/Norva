@@ -13,6 +13,7 @@ import {
   GlyphCount,
   GlyphLoss,
   GlyphPrice,
+  GlyphProduction,
   GlyphPurchase,
   GlyphRecipe,
   GlyphSack,
@@ -1230,23 +1231,51 @@ function InputDetail() {
         </Reveal>
       ) : null}
 
-      {/* A próxima ação provável, ao alcance do polegar: lançar a compra é o
-          que quase sempre traz alguém a esta tela. Corrigir e tirar de
-          circulação ficam fantasma — botão grande e colorido convida, e
-          ninguém deve ser convidado a desfazer. */}
+      {/* A próxima ação provável, ao alcance do polegar — e ela depende da ESPÉCIE.
+          Corrigir e tirar de circulação ficam fantasma: botão grande e colorido
+          convida, e ninguém deve ser convidado a desfazer.
+
+          **O que esta tela oferecia, e por que era grave.** Ela decidia pela ficha e não
+          pela espécie, então na página de um PICOLÉ o botão cheio dizia *"Lançar uma
+          compra"* — comprar o que a fábrica fabrica não é um ato que exista — e o fantasma
+          dizia *"Corrigir o cadastro"*, apontando para `/inputs/new?id=`. Aquele formulário
+          só edita insumo, embalagem e material de loja, e `saveItem` grava
+          `kind = excluded.kind`: salvar ali **transformava o picolé em insumo**, em dois
+          toques e em silêncio, sem estorno possível porque cadastro não é movimento.
+
+          A coerção foi consertada na raiz (`app/inputs/new.tsx` recusa a espécie errada em
+          vez de forçá-la para `'input'`), e aqui a tela para de convidar: o que se faz com
+          um produto FEITO é registrar produção. `resale` continua comprando, porque revenda
+          é exatamente a coisa que se compra. O molde é `sobrancelha` acima, que já lê
+          `item.kind` pela mesma razão. */}
       <Reveal index={8}>
         <View style={{ gap: space.sm }}>
-          <Button
-            label={t.app.inputDetail.recordPurchase}
-            onPress={() => router.push(`/purchase?itemId=${item.id}`)}
-            icon={(c) => <GlyphPurchase size={22} color={c} weight={traco} />}
-            weighty
-          />
+          {item.kind === 'product' ? (
+            <Button
+              label={t.app.inputDetail.recordProduction}
+              onPress={() => router.push('/production/new')}
+              icon={(c) => <GlyphProduction size={22} color={c} weight={traco} />}
+              weighty
+            />
+          ) : (
+            <Button
+              label={t.app.inputDetail.recordPurchase}
+              onPress={() => router.push(`/purchase?itemId=${item.id}`)}
+              icon={(c) => <GlyphPurchase size={22} color={c} weight={traco} />}
+              weighty
+            />
+          )}
+          {/* Não há editor de PRODUTO neste aplicativo — `app/products/new.tsx` não aceita
+              id. Então, para um produto feito, este botão não tem para onde ir que não
+              corrompa a linha, e a resposta honesta é não oferecê-lo. A falta do editor
+              está no `docs/roadmap.md` como item próprio, com medida. */}
+          {item.kind === 'product' ? null : (
           <Button
             label={t.app.inputDetail.correct}
             variant="ghost"
             onPress={() => router.push(`/inputs/new?id=${item.id}`)}
           />
+          )}
           <Button
             label={item.active ? t.app.inputDetail.retire : t.app.inputDetail.bringBack}
             variant="ghost"

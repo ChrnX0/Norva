@@ -401,6 +401,41 @@ export async function listItems(
   }));
 }
 
+/**
+ * A espécie de um item não atravessa a linha entre o que se COMPRA e o que se VENDE.
+ *
+ * `saveItem` grava `kind = excluded.kind` no `ON CONFLICT` — e isso é certo para as três
+ * espécies que a fábrica de fato confunde ao cadastrar: insumo, embalagem e material de
+ * loja. Quem digitou "Palito" como insumo e queria embalagem conserta num toque.
+ *
+ * **O que não pode é cruzar a linha**, e o defeito era alcançável em dois toques: a página
+ * de um item oferecia *"Corrigir o cadastro"* para qualquer espécie, o formulário de insumo
+ * COAGIA um `kind` desconhecido para `'input'`, e salvar transformava o picolé em insumo.
+ * O produto saía da lista, `products.item_id` continuava apontando para a linha, e a
+ * classificação do razão passava a discordar do cadastro — em silêncio e sem estorno
+ * possível, porque cadastro não é movimento.
+ *
+ * A tela foi consertada nos dois lados, e ainda assim a recusa mora AQUI: tela é onde o
+ * defeito aparece, não onde ele se impede. Qualquer chamador futuro — outra tela, a
+ * descida, um roteiro — encontra a mesma parede.
+ *
+ * *O servidor ainda não tem a restrição equivalente: ela é uma migração (P3) e entra na
+ * lista do dono como tal. O aparelho recusar antes continua sendo o certo — é a mesma
+ * assimetria da rodada que espelhou os CHECKs do servidor no cliente.*
+ */
+export class EspecieDoItemNaoMudaError extends Error {
+  constructor(
+    readonly de: ItemKind,
+    readonly para: ItemKind,
+  ) {
+    super(`item kind: ${de} -> ${para}`);
+    this.name = 'EspecieDoItemNaoMudaError';
+  }
+}
+
+/** O que se VENDE. O resto se compra ou se consome, e entre eles a troca é livre. */
+const VENDIDO: readonly ItemKind[] = ['product', 'resale'];
+
 export async function saveItem(
   companyId: string,
   /** `fullLevel` ausente é "não mexa no que já estava" — como a ficha de acordo. */
@@ -413,6 +448,18 @@ export async function saveItem(
   // diferente de 1, ou um degrau que não cresce — faz o `UnitStepper` oferecer
   // conversão errada e a conta de caixa sair torta, sem nada acusando.
   if (!isValidHierarchy(item.packaging)) throw new Error('packaging: degraus fora de ordem');
+
+  // A espécie não cruza a linha do que se vende. Ver `EspecieDoItemNaoMudaError`.
+  if (item.id !== undefined) {
+    const conn0 = await db();
+    const atual = await conn0.getFirstAsync<{ kind: ItemKind }>(
+      `SELECT kind FROM items WHERE company_id = ? AND id = ?`,
+      [companyId, item.id],
+    );
+    if (atual && VENDIDO.includes(atual.kind) !== VENDIDO.includes(item.kind)) {
+      throw new EspecieDoItemNaoMudaError(atual.kind, item.kind);
+    }
+  }
 
   const conn = await db();
   let id = '';

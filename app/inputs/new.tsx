@@ -130,11 +130,24 @@ function InputForm() {
     fullLevel: '',
     ...(existing
       ? {
-          kind: (existing.kind === 'input' ||
-          existing.kind === 'packaging' ||
-          existing.kind === 'store_supply'
-            ? existing.kind
-            : 'input') as Draft['kind'],
+          /**
+           * **A espécie do item, e nunca uma coerção.**
+           *
+           * Isto era `existing.kind === 'input' || … ? existing.kind : 'input'`, e a
+           * cauda desse ternário corrompia dado em silêncio: `saveItem` grava
+           * `kind = excluded.kind` no `ON CONFLICT`, então abrir esta tela com o id de um
+           * PICOLÉ (`kind = 'product'`) e salvar **transformava o picolé em insumo**. O
+           * produto saía da lista, `products.item_id` continuava apontando para a linha, e
+           * a classificação do razão passava a discordar do cadastro — sem estorno
+           * possível, porque cadastro não é movimento.
+           *
+           * Dois toques bastavam: *"Corrigir o cadastro"* na página de um produto.
+           *
+           * A coerção era o defeito, não a tela que chamava — então ela sai daqui, e o
+           * caminho inteiro passa a recusar (ver `especieErrada` abaixo). Assim nenhuma
+           * tela futura reabre o buraco só por apontar para `/inputs/new?id=`.
+           */
+          kind: existing.kind as Draft['kind'],
           name: existing.name,
           purchaseUnit: existing.purchaseUnit ?? '',
           purchaseToBase: existing.purchaseToBase
@@ -369,6 +382,48 @@ function InputForm() {
 
   /** A cascata não pula número: sem a conversão, a ação sobe uma posição. */
   const indiceAcao = mostraCusto ? 3 : 2;
+
+  /**
+   * **Este formulário edita insumo, embalagem e material de loja — e mais nada.**
+   *
+   * Erro que IMPEDE, e não que corrompe: com a espécie fora das três, a tela não desenha
+   * campo nenhum. Ela diz o que é a linha e oferece a volta, em vez de oferecer um
+   * formulário cujo salvar reescreveria a espécie.
+   *
+   * `!existing` não conta: enquanto a consulta corre, `existing` é nulo e a tela é o
+   * formulário de cadastro novo, que é o caminho certo sem id.
+   */
+  const especieErrada =
+    existing !== null &&
+    existing !== undefined &&
+    existing.kind !== 'input' &&
+    existing.kind !== 'packaging' &&
+    existing.kind !== 'store_supply';
+
+  if (especieErrada) {
+    return (
+      <CollapsingHeader
+        cena="insumos"
+        title={existing.name}
+        overline={words.editOverline}
+        erro={error}
+        denovo={refresh}
+      >
+        <Reveal index={0}>
+          {/* sinal — o cartão só existe enquanto a espécie da linha não é editável aqui: ele É o impedimento (Lei 5) */}
+          <Card hue={color.warning} icon={(c) => <GlyphPlus size={26} color={c} weight={traco} />}>
+            <Text style={[type.body, { color: color.ink }]}>{words.notAnInput}</Text>
+            <Button
+              label={words.notAnInputBack}
+              variant="ghost"
+              onPress={() => voltar()}
+              style={{ marginTop: space.md }}
+            />
+          </Card>
+        </Reveal>
+      </CollapsingHeader>
+    );
+  }
 
   return (
     <CollapsingHeader

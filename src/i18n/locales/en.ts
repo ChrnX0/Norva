@@ -906,6 +906,10 @@ export const en: Dictionary = {
     },
 
     inputForm: {
+      /** The row is not an input: this form would rewrite its kind. */
+      notAnInput:
+        "This row isn't an input, packaging or store supply — so it isn't corrected here: saving on this screen would change its kind.",
+      notAnInputBack: 'Back',
       newTitle: 'New record',
       newOverline: 'register',
       editOverline: 'correcting the record',
@@ -955,6 +959,8 @@ export const en: Dictionary = {
     },
 
     inputDetail: {
+      /** The next action for a MADE product: produce, never buy. */
+      recordProduction: 'Record production',
       overline: 'storeroom',
       retiredOverline: 'storeroom · out of circulation',
       overlineSold: 'product',

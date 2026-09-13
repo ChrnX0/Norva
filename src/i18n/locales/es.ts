@@ -911,6 +911,10 @@ export const es: Dictionary = {
     },
 
     inputForm: {
+      /** La fila no es insumo: este formulario reescribiría su especie. */
+      notAnInput:
+        'Esta fila no es insumo, empaque ni material de tienda — así que no se corrige aquí: guardar en esta pantalla cambiaría su especie.',
+      notAnInputBack: 'Volver',
       newTitle: 'Nuevo registro',
       newOverline: 'alta',
       editOverline: 'corrigiendo el alta',
@@ -960,6 +964,8 @@ export const es: Dictionary = {
     },
 
     inputDetail: {
+      /** La próxima acción de un producto HECHO: producir, nunca comprar. */
+      recordProduction: 'Registrar producción',
       overline: 'almacén',
       retiredOverline: 'almacén · fuera de circulación',
       overlineSold: 'producto',

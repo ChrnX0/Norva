@@ -93,6 +93,7 @@ import {
   lastCostMove,
   dailyOutflowOf,
   recordPurchase,
+  EspecieDoItemNaoMudaError,
   saveItem,
   saveProduct,
   saveRecipeVersion,
@@ -482,6 +483,99 @@ test('a sub-recipe survives the round trip through the database', async () => {
     [],
     'o carimbo aponta para a versão corrente: nada a carregar por fora da atual',
   );
+});
+
+/**
+ * O picolé não vira insumo — e o caminho que fazia isso eram DOIS TOQUES.
+ *
+ * A página de um item oferecia *"Corrigir o cadastro"* para qualquer espécie; o formulário
+ * de insumo coagia um `kind` desconhecido para `'input'`; e `saveItem` grava
+ * `kind = excluded.kind`. Salvar transformava a linha: o produto saía da lista, o
+ * `products.item_id` continuava apontando para ela, e a classificação do razão passava a
+ * discordar do cadastro. Cadastro não é movimento, então não há estorno — o dado fica errado.
+ *
+ * As duas telas foram consertadas, e a recusa mora aqui de propósito: tela é onde o defeito
+ * aparece, não onde se impede. O que esta asserção nomeia é a LINHA — o que se vende de um
+ * lado, o que se compra do outro —, e não uma lista de pares proibidos.
+ *
+ * E a metade que prova que a trava não é grossa: entre as três espécies que a fábrica de fato
+ * confunde ao cadastrar (insumo, embalagem, material de loja) a troca continua livre. Quem
+ * digitou "Palito" como insumo e queria embalagem conserta num toque.
+ */
+test('a espécie de um item não cruza a linha entre o que se compra e o que se vende', async () => {
+  const insumo = await saveItem(CO, {
+    kind: 'input',
+    name: 'Polpa da prova',
+    purchaseUnit: 'balde',
+    purchaseToBase: 10_000,
+    baseUnit: 'g',
+    packaging: loose,
+  });
+
+  // Dentro do que se compra, a correção é livre: é o caso de quem errou a etiqueta.
+  await saveItem(CO, {
+    id: insumo,
+    kind: 'packaging',
+    name: 'Polpa da prova',
+    purchaseUnit: 'balde',
+    purchaseToBase: 10_000,
+    baseUnit: 'g',
+    packaging: loose,
+  });
+  const conn = await db();
+  const virou = await conn.getFirstAsync<{ kind: string }>(`SELECT kind FROM items WHERE id = ?`, [
+    insumo,
+  ]);
+  assert.equal(
+    virou?.kind,
+    'packaging',
+    'insumo -> embalagem é correção de etiqueta, e continua permitido',
+  );
+
+  // E a linha que não se cruza, nos DOIS sentidos.
+  const vendido = await saveItem(CO, {
+    kind: 'product',
+    name: 'Picolé da prova',
+    purchaseUnit: 'un',
+    purchaseToBase: 1,
+    baseUnit: 'un',
+    packaging: loose,
+  });
+
+  await assert.rejects(
+    () =>
+      saveItem(CO, {
+        id: vendido,
+        kind: 'input',
+        name: 'Picolé da prova',
+        purchaseUnit: 'un',
+        purchaseToBase: 1,
+        baseUnit: 'un',
+        packaging: loose,
+      }),
+    (e: unknown) => e instanceof EspecieDoItemNaoMudaError,
+    'o que se vende não vira insumo: era isso que dois toques faziam, em silêncio',
+  );
+
+  await assert.rejects(
+    () =>
+      saveItem(CO, {
+        id: insumo,
+        kind: 'product',
+        name: 'Polpa da prova',
+        purchaseUnit: 'balde',
+        purchaseToBase: 10_000,
+        baseUnit: 'g',
+        packaging: loose,
+      }),
+    (e: unknown) => e instanceof EspecieDoItemNaoMudaError,
+    'e o contrário também não: um insumo com compras no razão não passa a ser vendido',
+  );
+
+  const ficou = await conn.getFirstAsync<{ kind: string }>(`SELECT kind FROM items WHERE id = ?`, [
+    vendido,
+  ]);
+  assert.equal(ficou?.kind, 'product', 'a linha recusada ficou como estava, e não pela metade');
 });
 
 test('the starter data lands, and does not come back after it is wiped', async () => {
