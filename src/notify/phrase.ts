@@ -59,7 +59,11 @@ export function alertPhrase(
    * Um número solto sem a unidade dele é a mesma coisa que nenhum número.
    */
   const amount =
-    alert.kind === 'insumo' || alert.kind === 'validade'
+    // O silêncio do sensor se conta em HORAS: "parou de medir há 1 dia" perde a
+    // diferença entre trinta horas e cinquenta.
+    alert.kind === 'semMedida'
+      ? plural(Math.max(1, Math.round(alert.amount)), t.app.home.hourCount)
+      : alert.kind === 'insumo' || alert.kind === 'validade'
       ? // O módulo, e não o corte em zero: a distância até o dia é a mesma contada
         // para os dois lados, e quem diz o lado é a frase, não o sinal do número.
         plural(Math.max(0, Math.floor(Math.abs(alert.amount))), t.app.home.dayCount)
@@ -77,10 +81,45 @@ export function alertPhrase(
     places: alert.places === undefined ? '' : plural(alert.places, t.app.home.placeCount),
     limit: limite === null || limite === undefined ? '' : decimo(limite),
     code: alert.code ?? '',
+    hours:
+      alert.hoursOld === undefined
+        ? ''
+        : plural(Math.max(1, Math.round(alert.hoursOld)), t.app.home.hourCount),
+    /**
+     * A última leitura, no aviso de "parou de medir" — e ela tem buraco próprio.
+     *
+     * Não cabe em `{{amount}}`, que ali são as horas de silêncio, e não é `{{limit}}`,
+     * que é a borda da faixa: quem recebe *"parou de medir há 30 horas"* decide pelo que
+     * a última medição dizia, e um freezer parado em -19 não é o mesmo caso de um parado
+     * em -8.
+     */
+    reading: alert.lastValue === undefined ? '' : decimo(alert.lastValue),
   };
 
   const molde = moldes(alert, t, abaixo, venceu);
-  return { title: fill(molde.title, valores), body: fill(molde.body, valores) };
+  /**
+   * **QUANDO a leitura foi feita — e esta frase existe porque a outra mentia.**
+   *
+   * O corpo do ambiente dizia *"-8 °C agora"* com a palavra cravada, e `hoursOld` estava
+   * nos fatos sem leitor: uma leitura de ontem à noite chegava como se fosse deste
+   * minuto. Numa câmara fria a diferença decide o que se faz — "está quente agora" é
+   * abrir a porta e olhar o motor; "estava quente às onze da noite" é olhar o que sobrou
+   * lá dentro.
+   *
+   * Uma hora é o piso do "agora": a leitura foi feita nesta hora, e nenhuma decisão muda
+   * por causa de vinte minutos.
+   */
+  const quando =
+    alert.kind !== 'ambiente' || alert.hoursOld === undefined
+      ? ''
+      : alert.hoursOld < 1
+        ? ` ${t.alertText.ambiente.justNow}`
+        : ` ${fill(t.alertText.ambiente.measuredAgo, valores)}`;
+
+  return {
+    title: fill(molde.title, valores),
+    body: fill(molde.body, valores) + quando,
+  };
 }
 
 /** Uma casa decimal, que é a régua de grandeza física deste módulo. */
@@ -118,6 +157,10 @@ function moldes(
   if (alert.kind === 'ambiente') {
     const w = t.alertText[alert.kind];
     return { title: w.title, body: abaixo ? w.belowMin : w.aboveMax };
+  }
+  if (alert.kind === 'semMedida') {
+    const w = t.alertText[alert.kind];
+    return { title: w.title, body: w.body };
   }
   if (alert.kind === 'validade') {
     const w = t.alertText[alert.kind];

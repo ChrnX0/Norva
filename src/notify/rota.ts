@@ -32,6 +32,9 @@ const DESTINO: Record<AlertKind, (id: string) => string> = {
   pedido: () => '/orders',
   // O lugar é onde a faixa mora e onde a leitura nova se registra.
   ambiente: () => '/places',
+  // Mesma tela, e pela mesma razão: quem recebeu "a câmara parou de medir" vai
+  // registrar uma leitura ou olhar o sensor, e as duas coisas moram no lugar.
+  semMedida: () => '/places',
 };
 
 export function rotaDoAviso(dado: unknown): string | null {

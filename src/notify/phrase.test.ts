@@ -36,6 +36,18 @@ const EXEMPLOS: Record<AlertKind, Alert> = {
     quantity: 'temperature',
     min: -22,
     max: -16,
+    hoursOld: 0.2,
+  },
+  semMedida: {
+    kind: 'semMedida',
+    subjectId: 'c',
+    subject: 'Câmara 1',
+    // O número deste aviso são as HORAS de silêncio, e o limite é a última medida.
+    amount: 30,
+    unit: 'C',
+    quantity: 'temperature',
+    lastValue: -19,
+    hoursOld: 30,
   },
 };
 
@@ -159,6 +171,46 @@ test('an expired lot is a different fact, with a different action', () => {
   }
 });
 
+/**
+ * **A palavra "agora" estava cravada, e `hoursOld` estava nos fatos sem leitor.**
+ *
+ * O corpo do aviso de câmara dizia *"-8 °C agora"* — sempre. Uma leitura de ontem à noite
+ * chegava como se fosse deste minuto, e numa câmara fria a diferença decide o que se faz:
+ * "está quente agora" é abrir a porta e olhar o motor; "estava quente às onze da noite" é
+ * olhar o que sobrou lá dentro.
+ */
+test('the range alert says WHEN it was measured, instead of claiming it is now', () => {
+  const t = ptBR;
+
+  // Fresca: menos de uma hora é agora, e nenhuma decisão muda por vinte minutos.
+  const agora = alertPhrase(EXEMPLOS.ambiente, t).body;
+  assert.match(agora, /agora/, 'leitura desta hora é agora');
+  assert.doesNotMatch(agora, /Medido há/, 'e não diz há quanto tempo foi');
+
+  // Velha: a mesma leitura, quatorze horas depois.
+  const velha = alertPhrase({ ...EXEMPLOS.ambiente, hoursOld: 14 }, t).body;
+  assert.match(velha, /Medido há 14 horas/, 'o corpo tem de dizer QUANDO');
+  assert.doesNotMatch(
+    velha,
+    /Medição de agora/,
+    'dizer "agora" sobre a medição de ontem à noite é o aviso mentindo com o número certo',
+  );
+
+  // Sem a informação, nenhuma das duas frases: o aviso não inventa quando foi medido.
+  const semHora = alertPhrase({ ...EXEMPLOS.ambiente, hoursOld: undefined }, t).body;
+  assert.doesNotMatch(semHora, /agora|Medido há/);
+
+  // E o aviso de "parou de medir" conta as horas no próprio corpo, com a última medida —
+  // que é o número pelo qual quem recebe decide a pressa.
+  for (const [idioma, dic] of Object.entries(IDIOMAS)) {
+    const { title, body } = alertPhrase(EXEMPLOS.semMedida, dic);
+    assert.doesNotMatch(title, /\{\{/, `${idioma}: buraco no título do sensor mudo`);
+    assert.doesNotMatch(body, /\{\{/, `${idioma}: buraco no corpo do sensor mudo`);
+    assert.match(body, /30/, `${idioma}: as horas de silêncio saíram do corpo`);
+    assert.match(body, /-19/, `${idioma}: a última medida saiu do corpo`);
+  }
+});
+
 test('one alert kind cannot be added without its words in three languages', () => {
   // O `Widen<T>` obriga a CHAVE a existir nos três idiomas; ele não obriga um
   // tipo novo de alarme a ter chave nenhuma. Este caso fecha essa fresta: um
@@ -173,7 +225,12 @@ test('one alert kind cannot be added without its words in three languages', () =
       // de ambiente cruzou um limite. Quem acrescentar um lado sem frase reprova aqui.
       const corpos =
         kind === 'ambiente'
-          ? [t.alertText.ambiente.aboveMax, t.alertText.ambiente.belowMin]
+          ? [
+              t.alertText.ambiente.aboveMax,
+              t.alertText.ambiente.belowMin,
+              t.alertText.ambiente.justNow,
+              t.alertText.ambiente.measuredAgo,
+            ]
           : kind === 'validade'
             ? [t.alertText.validade.body, t.alertText.validade.expiredBody]
             : [t.alertText[kind].body];

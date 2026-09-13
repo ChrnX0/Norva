@@ -238,6 +238,75 @@ test('several alert instants are scheduled ahead, and they respect the chosen we
   assert.deepEqual(proximosAvisos(DEFAULT_ALERTS, sexta, 0), []);
 });
 
+/**
+ * **A câmara que parou de MEDIR — `hoursOld` era coletado e lido por ninguém.**
+ *
+ * Um sensor que morre de madrugada deixa a última leitura boa de pé para sempre, e o
+ * aplicativo fica calado. Esse silêncio é pior que o aviso errado: ele tem aparência de
+ * normalidade, e quem confia no aparelho descobre a câmara quente pelo estoque perdido.
+ *
+ * Nasce DESLIGADO porque depende de uma cadência que ninguém declarou — quem anota na mão
+ * uma vez por dia seria acusado todo fim de semana, e alerta inventado ensina a ignorar
+ * alerta. É a mesma razão do volume, que também espera um cadastro.
+ */
+test('a room that stopped measuring is its own alert, and it waits to be turned on', () => {
+  const velha = {
+    locationId: 'c1',
+    place: 'Câmara 1',
+    kind: 'temperature',
+    value: -19,
+    unit: 'C',
+    min: -22,
+    max: -16,
+    // Trinta horas de silêncio, com a última leitura DENTRO da faixa: nada em
+    // `alertsDue` tinha o que dizer sobre isto antes.
+    hoursOld: 30,
+  };
+
+  // Desligado — o padrão — e o silêncio continua silêncio.
+  assert.deepEqual(
+    alertsDue({ ...nada, ambient: [velha] }, DEFAULT_ALERTS),
+    [],
+    'o alarme nasce desligado: quem mede na mão não pode ser acusado no fim de semana',
+  );
+
+  const ligado = { ...DEFAULT_ALERTS, on: { ...DEFAULT_ALERTS.on, semMedida: true } };
+  const avisos = alertsDue({ ...nada, ambient: [velha] }, ligado);
+  assert.deepEqual(
+    avisos.map((a) => [a.kind, a.subjectId]),
+    [['semMedida', 'c1']],
+    'trinta horas sem leitura, com teto de vinte e quatro, é um aviso',
+  );
+  assert.equal(avisos[0].amount, 30, 'o número do aviso são as horas de silêncio');
+  assert.equal(
+    avisos[0].lastValue,
+    -19,
+    'e ele leva a última medida, que é o que decide a pressa',
+  );
+
+  // Fresca: o teto não foi cruzado, e ninguém avisa nada.
+  assert.deepEqual(
+    alertsDue({ ...nada, ambient: [{ ...velha, hoursOld: 2 }] }, ligado),
+    [],
+    'duas horas sem leitura é uma câmara normal',
+  );
+
+  // E o teto é da EMPRESA: com seis horas escolhidas, as mesmas duas horas seguem calmas
+  // e as trinta continuam avisando — o que muda é quem mede de hora em hora.
+  const apertado = { ...ligado, staleHours: 6 };
+  assert.equal(alertsDue({ ...nada, ambient: [{ ...velha, hoursOld: 2 }] }, apertado).length, 0);
+  assert.equal(alertsDue({ ...nada, ambient: [{ ...velha, hoursOld: 8 }] }, apertado).length, 1);
+
+  // Os dois avisos de leitura convivem: fora da faixa E parada há muito tempo são dois
+  // fatos, e o de faixa vem primeiro porque é o que já está acontecendo.
+  const foraEVelha = { ...velha, value: -8 };
+  assert.deepEqual(
+    alertsDue({ ...nada, ambient: [foraEVelha] }, ligado).map((a) => a.kind),
+    ['ambiente', 'semMedida'],
+    'estar quente decide antes de não saber',
+  );
+});
+
 test('no chosen weekday means every day, never silence', () => {
   // A configuração vazia é o estado inicial de todo mundo. Se ela silenciasse,
   // o aplicativo emudeceria sem ninguém ter pedido - e o dono descobriria no

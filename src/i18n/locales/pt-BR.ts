@@ -266,6 +266,7 @@ export const ptBR = {
       openScreen: 'Abrir a tela',
       placeCount: { one: 'uma loja', other: '{{n}} lojas' },
       dayCount: { one: '1 dia', other: '{{n}} dias' },
+      hourCount: { one: '1 hora', other: '{{n}} horas' },
       stableAlways: 'nenhuma mudança de preço registrada',
       changed: 'Mudou desde a última vez',
       changedNoBase: 'novo',
@@ -1172,6 +1173,7 @@ export const ptBR = {
           pedido: 'Pedido sem estoque',
           volume: 'Volume fora da faixa',
           ambiente: 'Câmara fora da faixa',
+          semMedida: 'Câmara parou de medir',
           validade: 'Lote perto de vencer',
         },
         daysAhead: '{{days}} de antecedência',
@@ -1180,6 +1182,8 @@ export const ptBR = {
            "3 dias de antecedência" fazia a legenda prometer o que o app não cumpre. */
         insumoFloor: '{{days}} de antecedência enquanto ninguém anotou a data de um pedido. Com prazo anotado, o app usa o prazo do fornecedor mais a sua folga.',
         ambienteHint: 'Compara com a faixa que você cadastrar na câmara. Sem faixa, ele não avisa — o app não sabe qual é a temperatura boa da sua câmara.',
+        semMedidaHint: 'Avisa quando a câmara fica sem leitura nenhuma por mais tempo que o escolhido. Ligue se um sensor mede sozinho; se alguém anota na mão, ele vai avisar em todo fim de semana.',
+        staleHours: 'Depois de {{hours}} sem leitura',
         notifyFull: 'Avisar quando encher',
         volumeHint: 'Compara com a faixa que você cadastrar no item. Sem faixa, ele não avisa.',
         hour: 'Hora do aviso',
@@ -2277,13 +2281,22 @@ export const ptBR = {
       titleExpired: '{{subject}} venceu',
       expiredBody: 'Lote {{code}}, há {{amount}} — registre a perda.',
     },
+    semMedida: {
+      title: '{{subject}} parou de medir',
+      body: 'Sem leitura há {{amount}}. Confira o sensor — a última medição foi {{reading}} °{{unit}}.',
+    },
     ambiente: {
       title: '{{subject}} fora da faixa',
       /* Dois corpos, um por lado da faixa, e nenhum genérico: o aviso só existe
          porque um limite foi cruzado, e é ELE que a frase diz — Lei 3, o número
          com a comparação. Ver `src/notify/phrase.ts`. */
-      aboveMax: '{{amount}} °{{unit}} agora, e o teto é {{limit}}. Confira a porta e o motor.',
-      belowMin: '{{amount}} °{{unit}} agora, e o piso é {{limit}}. Confira a porta e o motor.',
+      aboveMax: '{{amount}} °{{unit}}, e o teto é {{limit}}. Confira a porta e o motor.',
+      belowMin: '{{amount}} °{{unit}}, e o piso é {{limit}}. Confira a porta e o motor.',
+      /* QUANDO a leitura foi feita — e a palavra "agora" saiu dos dois corpos acima por
+         isto: ela estava cravada, e o corpo dizia "agora" sobre a medição de ontem à
+         noite. O número das horas já estava nos fatos e não era lido. */
+      justNow: 'Medição de agora.',
+      measuredAgo: 'Medido há {{hours}}.',
     },
   },
 

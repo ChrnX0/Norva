@@ -7029,6 +7029,12 @@ export async function alertSettings(): Promise<AlertSettings> {
         typeof lido.weekdays === 'number' && lido.weekdays >= 0 && lido.weekdays <= 127
           ? Math.trunc(lido.weekdays)
           : DEFAULT_ALERTS.weekdays,
+      // Uma hora é o piso porque menos que isso acusaria um sensor que só piscou; uma
+      // semana é o teto porque além dela o aviso não é mais sobre o sensor.
+      staleHours:
+        typeof lido.staleHours === 'number' && lido.staleHours >= 1 && lido.staleHours <= 168
+          ? Math.trunc(lido.staleHours)
+          : DEFAULT_ALERTS.staleHours,
     };
   } catch {
     return DEFAULT_ALERTS;

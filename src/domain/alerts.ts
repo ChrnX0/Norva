@@ -27,7 +27,29 @@
  * do aparelho, que é a única parte que só um celular na mão prova.
  */
 
-export type AlertKind = 'insumo' | 'pedido' | 'volume' | 'validade' | 'ambiente';
+export type AlertKind =
+  | 'insumo'
+  | 'pedido'
+  | 'volume'
+  | 'validade'
+  | 'ambiente'
+  /**
+   * **A câmara parou de MEDIR — que é diferente de estar fora da faixa.**
+   *
+   * `hoursOld` era coletado em `AlertFacts.ambient` e lido por ninguém: um sensor que
+   * morreu de madrugada deixava a última leitura boa de pé para sempre, e o aplicativo
+   * ficava calado dizendo "está tudo bem" sobre uma câmara que ele não mede mais. É o
+   * pior silêncio possível — o mesmo do aviso que não chega, agora com aparência de
+   * normalidade.
+   *
+   * **Nasce DESLIGADO, e por regra desta casa, não por timidez.** Ele depende de uma
+   * cadência que ninguém declarou: uma fábrica que anota a temperatura na mão, uma vez
+   * por dia, receberia "parou de medir" toda segunda-feira de manhã — o alerta inventado,
+   * que ensina a ignorar a lista inteira. É a mesma razão pela qual o volume nasce
+   * desligado: alarme que depende de cadastro anterior espera o cadastro. Quem tem sensor
+   * automático liga, e aí o teto de horas quer dizer alguma coisa.
+   */
+  | 'semMedida';
 
 /** O que a empresa combinou sobre cada alarme. */
 export type AlertSettings = {
@@ -41,7 +63,7 @@ export type AlertSettings = {
    * `validade`: quantos dias antes de o lote vencer.
    * `volume` não usa dia: ele compara com as faixas abaixo.
    */
-  daysAhead: Record<Exclude<AlertKind, 'volume' | 'ambiente'>, number>;
+  daysAhead: Record<Exclude<AlertKind, 'volume' | 'ambiente' | 'semMedida'>, number>;
   /**
    * A folga que a empresa quer antes de comprar, somada ao prazo OBSERVADO do
    * fornecedor.
@@ -113,6 +135,15 @@ export type AlertSettings = {
    */
   minuteOfDay: number;
   /**
+   * Depois de quantas horas sem leitura a câmara conta como "parou de medir".
+   *
+   * Configuração da empresa, como manda a F7: uma fábrica com sensor postando de hora em
+   * hora quer saber em seis; uma que anota na mão uma vez por dia, nunca em menos de um
+   * dia. O padrão é vinte e quatro porque é o único que não acusa quem mede uma vez ao
+   * dia — e o alarme nasce desligado de qualquer forma.
+   */
+  staleHours: number;
+  /**
    * Em que dias da semana avisar, bit 0 no domingo (`src/domain/agreement`).
    *
    * Zero significa TODOS os dias, e não nenhum: uma configuração vazia que
@@ -128,12 +159,21 @@ export const DEFAULT_ALERTS: AlertSettings = {
   // aviso não depende de nenhuma régua que alguém precise cadastrar antes — a
   // faixa vem do lugar, e sem lugar medido não existe aviso nenhum de qualquer
   // forma.
-  on: { insumo: true, pedido: true, volume: false, validade: true, ambiente: true },
+  on: {
+    insumo: true,
+    pedido: true,
+    volume: false,
+    validade: true,
+    ambiente: true,
+    // Desligado: depende de uma cadência que ninguém declarou. Ver `AlertKind`.
+    semMedida: false,
+  },
   daysAhead: { insumo: 3, pedido: 2, validade: 7 },
   purchaseSafetyDays: 2,
   bands: { red: 25, yellow: 40, blue: 80, notifyFull: false },
   minuteOfDay: 7 * 60,
   weekdays: 0,
+  staleHours: 24,
 };
 
 /**
@@ -213,6 +253,22 @@ export type Alert = {
   quantity?: string;
   /** O código do lote, no aviso de validade — o que está escrito no saco. */
   code?: string;
+  /**
+   * Quantas horas desde a medição, nos dois avisos que vêm de leitura.
+   *
+   * No aviso de ambiente ele decide UMA palavra e ela é a diferença entre verdade e
+   * mentira: o corpo dizia *"-8 °C agora"* sobre uma leitura de ontem à noite. No aviso
+   * de "parou de medir" ele É o assunto.
+   */
+  hoursOld?: number;
+  /**
+   * A última leitura, no aviso de "parou de medir".
+   *
+   * Ela não é decoração e não cabe em `amount`, que ali são as HORAS de silêncio: um
+   * freezer que parou marcando -19 é um caso, e um que parou marcando -8 é outro — e
+   * quem recebe o aviso no ônibus decide com esse número.
+   */
+  lastValue?: number;
   /**
    * A faixa que o lugar tem cadastrada, no aviso de ambiente.
    *
@@ -414,6 +470,25 @@ export function alertsDue(facts: AlertFacts, settings: AlertSettings): Alert[] {
         quantity: leitura.kind,
         min: leitura.min,
         max: leitura.max,
+        hoursOld: leitura.hoursOld,
+      });
+    }
+  }
+
+  if (settings.on.semMedida) {
+    for (const leitura of facts.ambient) {
+      if (leitura.hoursOld < settings.staleHours) continue;
+      out.push({
+        kind: 'semMedida',
+        subjectId: leitura.locationId,
+        subject: leitura.place,
+        // O número do aviso são as HORAS de silêncio: é ele que diz se o sensor
+        // piscou ou se parou ontem.
+        amount: leitura.hoursOld,
+        unit: leitura.unit,
+        quantity: leitura.kind,
+        hoursOld: leitura.hoursOld,
+        lastValue: leitura.value,
       });
     }
   }
@@ -422,10 +497,13 @@ export function alertsDue(facts: AlertFacts, settings: AlertSettings): Alert[] {
   // uma compra atrasada; câmara fora de faixa custa o estoque inteiro numa noite.
   const urgencia: Record<AlertKind, number> = {
     ambiente: 0,
-    insumo: 1,
-    pedido: 2,
-    validade: 3,
-    volume: 4,
+    // Logo depois da faixa: não saber a temperatura da câmara é quase tão caro quanto
+    // sabê-la errada, e as duas custam o estoque de uma noite. Na frente de comprar.
+    semMedida: 1,
+    insumo: 2,
+    pedido: 3,
+    validade: 4,
+    volume: 5,
   };
   return out.sort((a, b) => {
     if (urgencia[a.kind] !== urgencia[b.kind]) return urgencia[a.kind] - urgencia[b.kind];
@@ -466,6 +544,11 @@ export function ordemDentroDoTipo(alert: Alert): readonly [number, number] {
     // tipo, que é o que um fato incompleto merece — nunca para a frente do
     // atrasado de verdade.
     return [alert.daysUntil ?? Number.POSITIVE_INFINITY, -alert.amount];
+  }
+  if (alert.kind === 'semMedida') {
+    // Mais tempo calado decide primeiro: um sensor mudo há dois dias não é o mesmo
+    // caso de um que perdeu uma leitura.
+    return [-alert.amount, 0];
   }
   if (alert.kind === 'ambiente') {
     const abaixo = alert.min === null || alert.min === undefined ? 0 : alert.min - alert.amount;

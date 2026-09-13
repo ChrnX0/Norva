@@ -1319,13 +1319,18 @@ function Settings() {
             </Text>
 
             <View style={{ marginTop: space.md, gap: space.sm }}>
-              {(['ambiente', 'insumo', 'pedido', 'validade', 'volume'] as AlertKind[]).map((kind) => {
+              {(
+                ['ambiente', 'semMedida', 'insumo', 'pedido', 'validade', 'volume'] as AlertKind[]
+              ).map((kind) => {
                 const ligado = alerts.on[kind];
-                // Volume e ambiente não têm antecedência: um compara com a faixa do
-                // item, o outro com a faixa do lugar. Antecedência é para o que se
-                // vê chegando; faixa é para o que já aconteceu.
+                // Volume, ambiente e "parou de medir" não têm antecedência: os dois
+                // primeiros comparam com uma faixa cadastrada, e o terceiro conta HORAS
+                // de silêncio. Antecedência é para o que se vê chegando; faixa e silêncio
+                // são para o que já aconteceu.
                 const dias =
-                  kind === 'volume' || kind === 'ambiente' ? null : alerts.daysAhead[kind];
+                  kind === 'volume' || kind === 'ambiente' || kind === 'semMedida'
+                    ? null
+                    : alerts.daysAhead[kind];
                 return (
                   <View key={kind} style={{ gap: space.xs }}>
                     <View style={[styles.row, { gap: space.sm }]}>
@@ -1338,7 +1343,9 @@ function Settings() {
                             ? t.app.settings.alerts.volumeHint
                             : kind === 'ambiente'
                               ? t.app.settings.alerts.ambienteHint
-                              : fill(
+                              : kind === 'semMedida'
+                                ? t.app.settings.alerts.semMedidaHint
+                                : fill(
                                   // O insumo é o único cujo número é PISO: com prazo do
                                   // fornecedor anotado, quem decide é prazo + folga.
                                   kind === 'insumo'
@@ -1395,6 +1402,31 @@ function Settings() {
                           label={t.app.settings.alerts.notifyFull}
                         />
                       </Pressable>
+                    ) : null}
+
+                    {/* O teto de silêncio, na mesma forma da antecedência e pela mesma
+                        razão: o número só aparece para o alarme ligado. Seis horas serve
+                        para sensor que mede sozinho; quarenta e oito, para quem anota na
+                        mão e não quer ser acusado no fim de semana. */}
+                    {kind === 'semMedida' && ligado ? (
+                      <View style={[styles.wrap, { gap: space.xs }]}>
+                        {[6, 12, 24, 48].map((h) => (
+                          <Pressable
+                            key={h}
+                            onPress={() => void mexerAlerta({ ...alerts, staleHours: h })}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: h === alerts.staleHours }}
+                            accessibilityLabel={fill(t.app.settings.alerts.staleHours, {
+                              hours: plural(h, t.app.home.hourCount),
+                            })}
+                          >
+                            <Chip
+                              signal={h === alerts.staleHours ? 'ok' : 'neutral'}
+                              label={formatQuantity(h, locale)}
+                            />
+                          </Pressable>
+                        ))}
+                      </View>
                     ) : null}
 
                     {/* A antecedência só aparece para o alarme ligado que tem dia:
