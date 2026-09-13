@@ -140,7 +140,7 @@ npm run lint
 npm test
 npm run mutate       # quebra o código de propósito: a suíte morde mesmo?
 npm run e2e:fast     # o app dirigido num navegador de verdade, em quatro fatias (~15 min)
-npm run db:verify    # Postgres descartável, trinta e oito garantias — inclui a fila
+npm run db:verify    # Postgres descartável, trinta e nove garantias — inclui a fila
                      # do aparelho reproduzida contra o servidor de verdade
 bash .proofgate/verify.sh
 ```

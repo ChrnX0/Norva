@@ -7837,6 +7837,7 @@ export async function aplicarConfigDoServidor(v: {
   ordersNeedApproval: boolean;
   purchaseSafetyDays: number;
   eraseGraceDays: number | null;
+  onlyResells: boolean;
 }): Promise<void> {
   await Promise.all([
     writeMeta(NAMES_KEY, v.namesWhoRecorded ? '1' : '0'),
@@ -7849,7 +7850,33 @@ export async function aplicarConfigDoServidor(v: {
         ? 'nunca'
         : String(Math.max(0, Math.min(365, Math.round(v.eraseGraceDays)))),
     ),
+    writeMeta(RESALE_ONLY_KEY, v.onlyResells ? '1' : '0'),
   ]);
+}
+
+const RESALE_ONLY_KEY = 'company.onlyResells';
+
+/**
+ * A empresa compra pronto e revende — e a corrente do preparo para de ser COBRADA.
+ *
+ * Quem só revende não tem insumo (o que ela compra é `resale`), não tem ficha e não faz
+ * corrida: `degrausQueFaltam` devolvia os três degraus para sempre, e a capa oferecia
+ * *"cadastre um insumo"* todo dia a quem já opera há um ano. É a queixa que abriu estas
+ * rodadas, dita por quem estava sendo mandado a um degrau que não é dele.
+ *
+ * Configuração e não dedução, com a razão medida no docblock de `degrausQueFaltam`: *"tem
+ * produto de revenda e não tem ficha"* descreve a distribuidora E a fábrica no primeiro dia,
+ * e as duas precisam de respostas opostas.
+ *
+ * Padrão `false`, que é a fábrica de picolés em que este produto nasceu.
+ */
+export async function onlyResells(): Promise<boolean> {
+  return (await readMeta(RESALE_ONLY_KEY)) === '1';
+}
+
+export async function setOnlyResells(companyId: string, revende: boolean): Promise<void> {
+  await exigirCapacidade(companyId, 'manage_company', 'dizer que a empresa so revende');
+  await writeMeta(RESALE_ONLY_KEY, revende ? '1' : '0');
 }
 
 const APPROVAL_KEY = 'orders.needApproval';

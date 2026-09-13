@@ -498,6 +498,25 @@ psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
         recipes, recipe_versions, recipe_lines,
         product_lines, product_categories, product_types, flavors,
         orders, order_lines to app_user;
+
+  -- E companies, que NAO sobe pela fila: a configuracao da empresa e um update direto
+  -- (daCasa().escrever, em src/data/configuracao.ts), fora do caminho do razao.
+  --
+  -- A falta dele era do PROVADOR e nao do servidor, e a garantia 39 foi quem mostrou: a
+  -- politica companies_write existe desde a 0001 (for update using
+  -- has_capability(id, 'manage_company')), e este bloco concede tabela por tabela — entao
+  -- companies ficou de fora e o Postgres respondia 'permission denied' para um interruptor
+  -- que a politica deixa passar. Sem o grant, o que se mede e a ausencia da linha aqui, e
+  -- nao a politica — e a garantia afirmaria que o servidor recusa um servidor que aceita.
+  --
+  -- E nem acento grave nem aspas duplas entram neste comentario: o bloco inteiro e o
+  -- argumento de um psql -c entre aspas DUPLAS, onde o acento grave e substituicao de comando
+  -- e a aspa dupla FECHA a string — as linhas seguintes passam a ser lidas pelo shell. As
+  -- duas me pegaram aqui, uma depois da outra, e e a mesma cicatriz de sempre: prosa tecnica
+  -- daqui atravessa tres linguagens, e em duas delas esses caracteres nao sao decoracao.
+  --
+  -- So UPDATE: a empresa e criada pelo caminho de cadastro do dono, nao por interruptor.
+  grant update on companies to app_user;
   -- Gente e perfil sobem com UPDATE pelo mesmo motivo que os cadastros: quem
   -- corrige o nome de alguém offline precisa que a correção alcance o servidor.
   -- A política ainda exige manage_company por cima disto — o grant abre a porta
@@ -2685,5 +2704,32 @@ DEPOIS=$(rows "select v.version from recipe_lines l join recipe_versions v on v.
 echo "    o carimbo e da propria sub, carimbo sem sub e recusado, versao carimbada nao se apaga, e o backfill acorda na mais nova"
 
 echo
-echo "OK - migrations apply and all thirty-eight guarantees hold."
+echo "==> check 39: o interruptor da revenda existe, nasce FABRICA, e a conta consegue mexer nele"
+
+# A empresa que so revende nunca fechava a corrente do preparo: sem insumo, sem ficha e sem
+# corrida, `degrausQueFaltam` devolvia os tres degraus para sempre e a capa oferecia "cadastre
+# um insumo" todo dia a quem opera ha um ano. A `0067` da a ela um interruptor.
+#
+# O que esta garantia mede, e nenhum teste de unidade alcanca: o PADRAO do servidor e a
+# POLITICA. O aparelho guarda a escolha em `app_meta`, mas ela sobe para `companies` — e a
+# cicatriz de 7 de setembro e exatamente esta: sem o grant/politica para o papel do aplicativo,
+# a escrita e recusada por permissao e o interruptor volta sozinho na descida seguinte.
+PADRAO=$(rows "select only_resells from companies where id = '${M}c1';")  # proofgate-allow
+[ "$PADRAO" = "f" ] || fail "o interruptor nasceu '$PADRAO' e o padrao tem de ser FABRICA (false): calar a corrente por padrao deixaria a fabrica de picoles sem a escada do primeiro dia"
+
+# Como a CONTA, que e quem de fato escreve: `daCasa().escrever` faz um update direto em
+# `companies`, fora da fila.
+as_user "$OWNER" "update companies set only_resells = true where id = '${M}c1';" >/dev/null
+LIGADO=$(rows "select only_resells from companies where id = '${M}c1';")  # proofgate-allow
+[ "$LIGADO" = "t" ] || fail "a conta da empresa nao conseguiu ligar o interruptor: a politica recusa, e o dono mexeria nele sem efeito nenhum"
+
+# E o da OUTRA empresa continua fora de alcance — a mesma pergunta da garantia 4, na coluna nova.
+as_user "$OWNER" "update companies set only_resells = true where id = '${M}c2';" >/dev/null 2>&1 || true
+VIZINHO=$(rows "select only_resells from companies where id = '${M}c2';")  # proofgate-allow
+[ "$VIZINHO" = "f" ] || fail "a conta de uma empresa mexeu no interruptor da OUTRA ('$VIZINHO'): a politica de companies nao esta cobrindo a coluna nova"
+
+echo "    nasce fabrica, a conta liga o dela, e nao alcanca o da empresa vizinha"
+
+echo
+echo "OK - migrations apply and all thirty-nine guarantees hold."
 

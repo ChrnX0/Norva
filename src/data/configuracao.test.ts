@@ -83,6 +83,10 @@ test('o que a casa combinou desce e vale neste aparelho', async () => {
       purchase_safety_days: 5,
       // Nulo é a escolha mais conservadora: "nunca destrói no servidor".
       erase_grace_days: null,
+      // E o interruptor da revenda desce junto: é decisão da EMPRESA, então ela vale em
+      // todo aparelho dela — sem isto o segundo celular continua cobrando a corrente que
+      // o dono acabou de calar no primeiro.
+      only_resells: true,
     },
   });
   assert.equal(await puxar(casa), true);
@@ -92,6 +96,7 @@ test('o que a casa combinou desce e vale neste aparelho', async () => {
     orders_need_approval: true,
     purchase_safety_days: 5,
     erase_grace_days: null,
+    only_resells: true,
   });
 });
 
@@ -127,6 +132,7 @@ test('interruptor mexido SEM REDE não volta sozinho na próxima descida', async
       orders_need_approval: false,
       purchase_safety_days: 6,
       erase_grace_days: 10,
+      only_resells: false,
     },
     'a casa tem de ter recebido o que estava pendente, antes de qualquer descida',
   );

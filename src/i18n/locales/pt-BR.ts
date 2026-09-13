@@ -879,6 +879,13 @@ export const ptBR = {
     },
 
     settings: {
+      /** O interruptor da empresa que compra pronto: a corrente do preparo para de ser cobrada. */
+      resaleOnly: {
+        label: 'Esta empresa só revende',
+        hint: 'Compra pronto e vende: o app para de cobrar insumo, ficha e produção na abertura.',
+        on: 'só revende',
+        off: 'fabrica',
+      },
       /**
        * De onde a corrida tira o insumo. Só aparece com mais de uma sala nossa.
        *

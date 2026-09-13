@@ -613,6 +613,13 @@ export const en: Dictionary = {
     },
 
     settings: {
+      /** The switch for the company that buys finished goods: the prep chain stops being asked for. */
+      resaleOnly: {
+        label: 'This company only resells',
+        hint: "Buys finished and sells: the app stops asking for inputs, recipes and production on the cover.",
+        on: 'resells only',
+        off: 'manufactures',
+      },
       /** Where a run draws its inputs from. Only shown with more than one room. See pt-BR. */
       consumo: {
         label: 'Where production draws from',

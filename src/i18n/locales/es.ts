@@ -618,6 +618,13 @@ export const es: Dictionary = {
     },
 
     settings: {
+      /** El interruptor de la empresa que compra hecho: la cadena de preparación deja de pedirse. */
+      resaleOnly: {
+        label: 'Esta empresa solo revende',
+        hint: 'Compra hecho y vende: la app deja de pedir insumo, ficha y producción en la portada.',
+        on: 'solo revende',
+        off: 'fabrica',
+      },
       /** De dónde saca los insumos una corrida. Solo con más de una sala. Ver pt-BR. */
       consumo: {
         label: 'De dónde saca los insumos la producción',

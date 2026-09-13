@@ -46,7 +46,13 @@ export type Summary = {
    * oferecer a porta. Com isto ela sabe qual é a próxima ação PROVÁVEL — que num
    * aplicativo vazio é cadastrar o que se compra.
    */
-  preparo: { insumos: number; fichas: number; produtos: number };
+  /**
+   * E `soRevende`, que é o que faz a corrente parar de ser cobrada.
+   *
+   * Ver `degrausQueFaltam`: a distribuidora nunca fecha a corrente, e sem isto a capa
+   * oferece "cadastre um insumo" todo dia a quem já opera há um ano.
+   */
+  preparo: { insumos: number; fichas: number; produtos: number; soRevende?: boolean };
   /** O que acaba dentro de uma semana, pelo consumo que o livro-razão viu. */
   shortly: Running[];
   /** Volumes que saíram hoje, e o que saiu sem caber em volume nenhum. */

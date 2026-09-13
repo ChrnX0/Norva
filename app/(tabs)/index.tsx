@@ -22,6 +22,7 @@ import {
   recentCostChanges,
   shipmentsOn,
   type LossRow,
+  onlyResells,
 } from '@/data/repository';
 import { ultimaCopia } from '@/data/backup';
 import { empresaDaqui } from '@/data/empresa';
@@ -164,6 +165,7 @@ function Briefing() {
       stockItems,
       fichas,
       produtos,
+      soRevende,
     ] = await Promise.all([
       recentCostChanges(empresaDaqui(), 12),
       // A MESMA unidade das vizinhas logo abaixo. Sem isto a manchete contava as
@@ -213,6 +215,7 @@ function Briefing() {
       // itens de estoque não carregam a ficha, e sem ela a corrente de cadastro dá por
       // pronta uma fábrica que só revende.
       listProducts(empresaDaqui()),
+      onlyResells(),
     ]);
 
     /**
@@ -322,6 +325,8 @@ function Briefing() {
       preparo: {
         insumos: stockItems.filter((i) => i.kind === 'input' || i.kind === 'packaging').length,
         fichas: fichas.length,
+        // O interruptor da empresa: quem só revende não é cobrado pela corrente.
+        soRevende,
         /**
          * Produto que dá para PRODUZIR — não produto cadastrado.
          *

@@ -12358,3 +12358,33 @@ demais, e a régua acusando é o aviso — não o defeito.
 *A assimetria que decide, e ela já estava escrita para testes: falso positivo custa uma leitura;
 falso negativo é uma promessa falsa, e alguém vai confiar nela. Quando as duas saídas custam,
 escolha a que erra para o lado de acusar.*
+
+## 13 de setembro — a fábrica que só revende não se DEDUZ, e a lista de `grant` do provador é um espelho feito à mão
+
+A escada do briefing cobra receita, ficha e produção de quem ainda não fez nada — e para quem
+**só revende** ela nunca vai fechar: não há receita para cadastrar, e o degrau fica de pé para
+sempre dizendo que falta o que não existe. É o alerta inventado com outro rosto, e o pior tipo,
+porque ele nunca sai da tela.
+
+A tentação era deduzir: empresa sem receita e com item de revenda é distribuidora. **E a dedução
+não separa o distribuidor da fábrica de primeiro dia** — as duas têm zero receita e zero
+produção, e o que as separa não está no razão: é INTENÇÃO. Fundação desta casa, aplicada ao pé
+da letra: *"depende de quem usa"* vira configuração, não adivinhação. Então entra um interruptor
+(`0067`, `companies.only_resells`), nasce **FABRICA** porque é o caso de quem o app foi escrever,
+e `degrausQueFaltam` devolve `[]` quando ele está ligado.
+
+*A borda, escrita porque ela é o motivo de o padrão ser esse: quem só revende paga um toque nos
+Ajustes para a escada calar. Quem fabrica não paga nada. O inverso — nascer ligado — poria a
+fábrica a descobrir por que o app não a ensina a produzir.*
+
+**E o conserto do dia veio de uma garantia que acusou o servidor errado.** A garantia 39 falhou
+com `permission denied for table companies` ao provar que a conta consegue virar o próprio
+interruptor, e eu fui ler a política. Ela existe desde a `0001` (`companies_write`) e está certa:
+**quem não tinha o `grant update` era o PROVADOR**. A lista de `grant` do `verify-migrations.sh`
+é um espelho, mantido à mão, do que o servidor concede — e um espelho com um buraco diz *"o
+servidor recusa"* sobre um servidor que aceita.
+
+Isso é a irmã da regra já escrita (*a garantia se escreve na forma com que o APARELHO manda*):
+ela também se escreve com as **permissões** que o aparelho tem. Uma garantia de RLS que falha por
+`grant` ausente reprova pelo motivo errado, e a leitura natural — "o servidor está trancado, ótimo"
+— é a pior possível, porque ela transforma um buraco do provador em prova de segurança.

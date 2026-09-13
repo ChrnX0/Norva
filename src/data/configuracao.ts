@@ -41,12 +41,13 @@ import {
   eraseGraceDays,
   floorSignIn,
   namesWhoRecorded,
+  onlyResells,
   ordersNeedApproval,
   purchaseSafetyDays,
   type FloorSignIn,
 } from './repository';
 
-/** As cinco chaves que a empresa combina, do jeito que o servidor as guarda. */
+/** As SEIS chaves que a empresa combina, do jeito que o servidor as guarda. */
 export type ConfiguracaoDaEmpresa = {
   names_who_recorded: boolean;
   floor_sign_in: FloorSignIn;
@@ -54,6 +55,12 @@ export type ConfiguracaoDaEmpresa = {
   purchase_safety_days: number;
   /** Nulo é "nunca destrói no servidor", e é uma das três respostas. */
   erase_grace_days: number | null;
+  /**
+   * A empresa compra pronto e revende: a corrente do preparo para de ser COBRADA.
+   *
+   * Ver `0067` e o docblock de `degrausQueFaltam`. Padrão `false`, que é a fábrica.
+   */
+  only_resells: boolean;
 };
 
 /**
@@ -118,7 +125,7 @@ async function daCasa(): Promise<Casa | null> {
       const { data, error } = await cliente
         .from('companies')
         .select(
-          'names_who_recorded, floor_sign_in, orders_need_approval, purchase_safety_days, erase_grace_days',
+          'names_who_recorded, floor_sign_in, orders_need_approval, purchase_safety_days, erase_grace_days, only_resells',
         )
         .limit(1);
       if (error || !data?.[0]) return null;
@@ -129,12 +136,13 @@ async function daCasa(): Promise<Casa | null> {
 
 /** O que este aparelho tem guardado. */
 export async function daqui(): Promise<ConfiguracaoDaEmpresa> {
-  const [nomes, entrada, aprovacao, folga, prazo] = await Promise.all([
+  const [nomes, entrada, aprovacao, folga, prazo, revende] = await Promise.all([
     namesWhoRecorded(),
     floorSignIn(),
     ordersNeedApproval(),
     purchaseSafetyDays(),
     eraseGraceDays(),
+    onlyResells(),
   ]);
   return {
     names_who_recorded: nomes,
@@ -142,6 +150,7 @@ export async function daqui(): Promise<ConfiguracaoDaEmpresa> {
     orders_need_approval: aprovacao,
     purchase_safety_days: folga,
     erase_grace_days: prazo,
+    only_resells: revende,
   };
 }
 
@@ -173,6 +182,10 @@ export async function guardarAqui(vinda: Partial<ConfiguracaoDaEmpresa>): Promis
         : vinda.erase_grace_days === null
           ? null
           : Number(vinda.erase_grace_days),
+    // `=== true` e não coerção: ausente e qualquer coisa que não seja `true` caem no padrão,
+    // que é a FÁBRICA. Um `!!vinda.only_resells` faria a string "false" do servidor virar
+    // verdadeiro e calar a corrente de quem precisa dela.
+    onlyResells: vinda.only_resells === true,
   });
 }
 

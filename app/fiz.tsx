@@ -12,7 +12,9 @@ import { GlyphKettle, GlyphProduction } from '@/components/Glyph';
 import { Reveal } from '@/components/Reveal';
 import { empresaDaqui } from '@/data/empresa';
 import { nowIso } from '@/data/db';
-import { listItems, listProducts, listRecipes } from '@/data/repository';
+import { listItems, listProducts, listRecipes,
+  onlyResells,
+} from '@/data/repository';
 import { useQuery } from '@/data/useQuery';
 import { degrausQueFaltam, type PrimeiroPasso } from '@/domain/briefing';
 import { parseTyped } from '@/domain/number';
@@ -61,7 +63,7 @@ export default function FizScreen() {
   );
 }
 
-type Loaded = { insumos: number; fichas: number; produtos: number };
+type Loaded = { insumos: number; fichas: number; produtos: number; soRevende: boolean };
 
 /** Cada degrau com a porta dele. Mesma tabela do primeiro passo da capa, e de propósito. */
 const PORTA: Record<PrimeiroPasso, string> = {
@@ -79,10 +81,14 @@ function Fiz() {
   const confirm = useConfirm();
 
   const { data, loading, error, refresh } = useQuery<Loaded>(async () => {
-    const [items, fichas, produtos] = await Promise.all([
+    const [items, fichas, produtos, soRevende] = await Promise.all([
       listItems(empresaDaqui()),
       listRecipes(empresaDaqui()),
       listProducts(empresaDaqui()),
+      // O mesmo interruptor da capa, e pela mesma razão: a distribuidora não é cobrada por
+      // uma corrente que não é dela. As duas telas fazem a MESMA pergunta, e é por isso que
+      // quem responde é o domínio.
+      onlyResells(),
     ]);
     return {
       insumos: items.filter((i) => i.kind === 'input' || i.kind === 'packaging').length,
@@ -96,6 +102,7 @@ function Fiz() {
        * do primeiro dia já tinha cometido, um degrau mais estreito.
        */
       produtos: produtos.filter((p) => p.recipeId).length,
+      soRevende,
     };
   });
 
@@ -152,7 +159,7 @@ function Fiz() {
     await AsyncStorage.removeItem(CHAVE_DA_INTENCAO);
   };
 
-  const preparo = data ?? { insumos: 0, fichas: 0, produtos: 0 };
+  const preparo = data ?? { insumos: 0, fichas: 0, produtos: 0, soRevende: false };
   const faltam = degrausQueFaltam(preparo);
   const TODOS: PrimeiroPasso[] = ['insumo', 'ficha', 'produto', 'producao'];
   const agora: PrimeiroPasso = faltam[0] ?? 'producao';

@@ -448,7 +448,30 @@ export function degrausQueFaltam(preparo: {
   insumos: number;
   fichas: number;
   produtos: number;
+  /**
+   * **A empresa compra pronto e revende — e então a corrente não é dela.**
+   *
+   * A corrente insumo → ficha → produto é a resposta certa para quem FABRICA. Para a
+   * distribuidora ela não fecha nunca: o que ela compra é `resale`, ficha ela não tem, corrida
+   * ela não faz. Sem isto, `degrausQueFaltam` devolve os três degraus para sempre, a capa
+   * oferece *"cadastre um insumo"* todo dia, e o aplicativo afirma que ela não começou depois
+   * de um ano operando — que é a queixa que abriu estas rodadas, dita por quem estava sendo
+   * mandado a um degrau que não é dele.
+   *
+   * **Configuração e não dedução**, e a razão é medida: *"tem produto de revenda e não tem
+   * ficha"* descreve a distribuidora E a fábrica no primeiro dia, e as duas precisam de
+   * respostas opostas — a primeira quer a corrente calada, a segunda quer ser levada pela mão.
+   * Nenhuma leitura do estado separa as duas, porque o que as separa é a INTENÇÃO de quem
+   * cadastrou. Então a empresa diz, e os dois caminhos existem (`0067`).
+   *
+   * Ausente é `false`: quem não disse nada vê a corrente, que é o comportamento de hoje.
+   */
+  soRevende?: boolean;
 }): PrimeiroPasso[] {
+  // Nada é COBRADO de quem só revende. E nada é fechado: quem ligar o interruptor e depois
+  // cadastrar uma ficha continua podendo produzir — esconder o que a pessoa pode fazer seria a
+  // irmã do defeito que isto conserta.
+  if (preparo.soRevende) return [];
   const conta: Record<(typeof CORRENTE)[number], number> = {
     insumo: preparo.insumos,
     ficha: preparo.fichas,
@@ -473,6 +496,7 @@ export function primeiroPasso(preparo: {
   insumos: number;
   fichas: number;
   produtos: number;
+  soRevende?: boolean;
 }): PrimeiroPasso {
   return degrausQueFaltam(preparo)[0] ?? 'producao';
 }

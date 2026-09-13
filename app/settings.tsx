@@ -53,6 +53,8 @@ import {
   setOrdersNeedApproval,
   setEraseGraceDays,
   setPurchaseSafetyDays,
+  onlyResells,
+  setOnlyResells,
 } from '@/data/repository';
 import { escolherUnidade, unidadeDaqui } from '@/data/unidade';
 import { agreedOn, toggleDay } from '@/domain/agreement';
@@ -374,6 +376,7 @@ function Settings() {
    * chão de fábrica, e ela vale aqui pelo mesmo motivo.
    */
   const { data: approval, refresh: refreshApproval } = useQuery<boolean>(() => ordersNeedApproval());
+  const { data: revende, refresh: refreshRevende } = useQuery<boolean>(() => onlyResells());
   const { data: folga, refresh: refreshFolga } = useQuery<number>(() => purchaseSafetyDays());
   const { data: prazo, refresh: refreshPrazo } = useQuery<number | null>(() => eraseGraceDays());
   const { data: naFila, refresh: refreshFila } = useQuery<number>(() => pendingCount());
@@ -1513,6 +1516,56 @@ function Settings() {
                 <Chip
                   signal={approval ? 'ok' : 'neutral'}
                   label={approval ? t.app.settings.approval.on : t.app.settings.approval.off}
+                />
+              </View>
+            </Card>
+          </Pressable>
+        </Reveal>
+      ) : null}
+
+      {/* **A empresa que compra pronto e REVENDE.**
+
+          Sem este interruptor a distribuidora nunca fecha a corrente do preparo: ela não tem
+          insumo (o que ela compra é `resale`), não tem ficha e não faz corrida, então a capa
+          oferece "cadastre um insumo" todo dia a quem já opera há um ano. É a queixa que abriu
+          estas rodadas, dita por quem estava sendo mandado a um degrau que não é dele.
+
+          O tom é o do assunto, e o assunto é COMPRA — a empresa que só revende compra pronto.
+          `GlyphPurchase` fala sage no registro de assinatura, e eu tinha escrito sky: a guarda
+          de cor pegou, e ela está certa, porque o desenho carrega o tom do assunto e não o da
+          tela em que mora.
+
+          E a frase diz o que o interruptor FAZ, não o que ele é: "a corrente para de ser
+          cobrada" em vez de "modo revenda". Nome de modo obriga quem lê a adivinhar a
+          consequência. */}
+      {podeEmpresa ? (
+        <Reveal index={6}>
+          <Pressable
+            onPress={async () => {
+              await setOnlyResells(empresaDaqui(), !revende);
+              // E conta para a CASA, como a aprovação: é decisão da empresa e vale em todo
+              // aparelho dela. Silencioso quando a rede falha — a mudança já valeu aqui.
+              void empurrar();
+              refreshRevende();
+            }}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: Boolean(revende) }}
+            accessibilityLabel={t.app.settings.resaleOnly.label}
+          >
+            <Card
+              hue={palette.sage}
+              icon={(c) => <GlyphPurchase size={26} color={c} weight={traco} />}
+              title={t.app.settings.resaleOnly.label}
+            >
+              <View style={[styles.row, { gap: space.md }]}>
+                <Text style={[type.caption, { color: color.inkMuted, flex: 1 }]}>
+                  {t.app.settings.resaleOnly.hint}
+                </Text>
+                <Chip
+                  signal={revende ? 'ok' : 'neutral'}
+                  label={
+                    revende ? t.app.settings.resaleOnly.on : t.app.settings.resaleOnly.off
+                  }
                 />
               </View>
             </Card>
