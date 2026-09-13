@@ -2801,5 +2801,71 @@ SOBROU_LOC=$(rows "select count(*) from locations where company_id = '${DEV}a1';
 
 echo "    o aparelho sai antes do lugar, o Reset executa, e nenhuma das duas tabelas sobrevive"
 
-echo "OK - migrations apply and all forty guarantees hold."
+echo
+echo "==> check 41: o fornecedor e uma coisa so - caixa e espaco nao criam um segundo"
+
+# O prazo OBSERVADO do fornecedor e a regua que a capa, o aviso e a ficha usam para dizer o
+# dia de comprar, e ele agrupa por fornecedor. Com nome livre, o mesmo fornecedor escrito de
+# dois jeitos sao dois historicos pela metade - e o dia de comprar sai calculado sobre metade
+# das notas, calado. A 0069 poe o indice que o molde de carriers (0044) ja usava.
+FOR=ffff0000-0000-4000-8000-0000000001
+psql -d "$DB" -v ON_ERROR_STOP=1 -q <<SQL >/dev/null
+insert into auth.users (id) values ('${FOR}a0');
+insert into companies (id, name) values ('${FOR}a1', 'Fornecedor Co');
+insert into memberships (company_id, user_id, display_name, capabilities)
+  values ('${FOR}a1', '${FOR}a0', 'Dona', enum_range(null::capability));
+insert into suppliers (id, company_id, name) values ('${FOR}b1', '${FOR}a1', 'Atacado Sao Jorge');
+SQL
+
+# (a) A MESMA palavra com outra caixa e com espaco sobrando e recusada.
+if psql -d "$DB" -q -c "
+  insert into suppliers (id, company_id, name)
+    values ('${FOR}b2','${FOR}a1','  atacado sao jorge ');" >/dev/null 2>&1; then  # proofgate-allow
+  fail "o mesmo fornecedor entrou duas vezes com outra caixa: o prazo dele passa a ser calculado sobre metade das notas"
+fi
+
+# (b) Nome em branco e recusado pelo CHECK, e nao pelo indice: um fornecedor sem nome e uma
+# linha que nenhuma tela consegue mostrar.
+if psql -d "$DB" -q -c "
+  insert into suppliers (id, company_id, name)
+    values ('${FOR}b3','${FOR}a1','   ');" >/dev/null 2>&1; then  # proofgate-allow
+  fail "fornecedor de nome em branco entrou: a lista da tela teria uma linha vazia sem jeito de escolher"
+fi
+
+# (c) E o caso FALSO, que e o que da valor aos dois de cima: fornecedor de VERDADE diferente
+# entra, e o mesmo nome na OUTRA empresa tambem - o indice e por empresa.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
+  insert into suppliers (id, company_id, name) values ('${FOR}b4','${FOR}a1','Distribuidora Aurora');" >/dev/null ||
+  fail "um fornecedor de nome diferente foi recusado: o indice ficou largo demais"
+
+# O corpo do heredoc comeca na linha SEGUINTE a que abre o redirecionamento, e nao depois do
+# operador de alternativa - entao a primeira escrita desta garantia mandou a propria linha de
+# falha para o psql como SQL. Com ON_ERROR_STOP ele abortou ali, os inserts abaixo nao rodaram,
+# e a garantia passou sem medir nada. A alternativa fica na MESMA linha do redirecionamento, e a
+# contagem logo abaixo prova que a escrita aconteceu.
+#
+# (Sem crase em nenhuma palavra acima: a guarda de src/prova-sql.test.ts acusou justamente este
+# comentario, e ela esta certa - a regiao aqui e lida pelo shell.)
+psql -d "$DB" -v ON_ERROR_STOP=1 -q >/dev/null <<SQL || fail "o mesmo nome na outra empresa foi recusado: o indice esqueceu o company_id"
+insert into auth.users (id) values ('${FOR}c0');
+insert into companies (id, name) values ('${FOR}c1', 'Vizinha Co');
+insert into suppliers (id, company_id, name) values ('${FOR}c2', '${FOR}c1', 'Atacado Sao Jorge');
+SQL
+
+# E a prova de que a linha de cima MEDIU: a linha da vizinha existe.
+VIZINHA=$(rows "select count(*) from suppliers where company_id = '${FOR}c1';")  # proofgate-allow
+[ "$VIZINHA" = "1" ] || fail "o fornecedor da empresa vizinha nao entrou ('$VIZINHA'): esta parte da garantia nao mediu nada"
+
+# (d) O que o indice NAO faz, dito aqui para ninguem acreditar que faz: acento.
+#
+# lower(btrim(name)) normaliza caixa e espaco, e nada mais. "Sao" e "Sao" com acento sao dois
+# fornecedores para este indice, e resolver isso pediria a extensao unaccent - que e decisao de
+# infraestrutura do dono, nao uma linha de migracao. Fica medido em vez de suposto.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
+  insert into suppliers (id, company_id, name) values ('${FOR}b5','${FOR}a1','Atacado São Jorge');" >/dev/null ||
+  fail "esta garantia parou de medir o que ela diz: o acento passou a colidir, e a frase abaixo virou mentira"
+
+echo "    caixa e espaco colidem, nome em branco e recusado, empresa vizinha nao colide, e ACENTO ainda e outro fornecedor"
+
+echo "OK - migrations apply and all forty-one guarantees hold."
 

@@ -64,7 +64,7 @@ const POR_EXTENSO = [
   'vinte e três', 'vinte e quatro', 'vinte e cinco', 'vinte e seis',
   'vinte e sete', 'vinte e oito', 'vinte e nove', 'trinta', 'trinta e uma',
   'trinta e duas', 'trinta e três', 'trinta e quatro', 'trinta e cinco',
-  'trinta e seis', 'trinta e sete', 'trinta e oito', 'trinta e nove', 'quarenta',
+  'trinta e seis', 'trinta e sete', 'trinta e oito', 'trinta e nove', 'quarenta', 'quarenta e uma',
 ];
 /** As outras grafias certas do mesmo número. Português tem mais de uma. */
 const SINONIMOS: Record<string, readonly string[]> = {
@@ -81,7 +81,7 @@ const IN_WORDS = [
   'twenty-two', 'twenty-three', 'twenty-four', 'twenty-five', 'twenty-six',
   'twenty-seven', 'twenty-eight', 'twenty-nine', 'thirty', 'thirty-one',
   'thirty-two', 'thirty-three', 'thirty-four', 'thirty-five', 'thirty-six',
-  'thirty-seven', 'thirty-eight', 'thirty-nine', 'forty',
+  'thirty-seven', 'thirty-eight', 'thirty-nine', 'forty', 'forty-one',
 ];
 
 const GARANTIAS = conta(SCRIPT, /^echo "==> check /gm);
