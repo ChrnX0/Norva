@@ -35,9 +35,9 @@ import {
   unitsPerBatch,
   wouldCycle,
   type ItemCosts,
-  type Recipe,
   type RecipeCost,
   type RecipeLine,
+  type RecipeGraph,
 } from '@/domain/recipe';
 import { roundUpToFullContainer } from '@/domain/units';
 import { parseTyped, formatTyped } from '@/domain/number';
@@ -153,7 +153,7 @@ export default function RecipeScreen() {
 
 /** The parts of the editor that come from the database and never change here. */
 type Loaded = {
-  recipes: Record<string, Recipe>;
+  recipes: RecipeGraph;
   costs: ItemCosts;
   /**
    * Se o custo é desta pessoa para ver. Nulo em `itemCosts` é o portão, e a ficha
@@ -216,8 +216,8 @@ function RecipeEditor() {
     };
   }, params.id ?? '');
 
-  const recipeId = params.id ?? (data ? Object.keys(data.recipes)[0] : undefined);
-  const stored = recipeId && data ? data.recipes[recipeId] : undefined;
+  const recipeId = params.id ?? (data ? Object.keys(data.recipes.atual)[0] : undefined);
+  const stored = recipeId && data ? data.recipes.atual[recipeId] : undefined;
 
   const [whyOpen, setWhyOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -287,8 +287,19 @@ function RecipeEditor() {
 
     // The draft is costed inside the real graph, so a sub-recipe of the recipe
     // being edited still resolves against what is actually saved.
-    const graph: Record<string, Recipe> = {
-      ...data.recipes,
+    /**
+     * O rascunho entra em `atual`, ao lado das fichas salvas, e as versões CARIMBADAS vêm
+     * intactas.
+     *
+     * O custo do rascunho é calculado dentro do grafo de verdade para que uma sub-receita dele
+     * resolva contra o que está salvo — e agora "o que está salvo" inclui `versoes`, senão uma
+     * linha carimbada do rascunho cairia na versão mais nova da calda e a prévia mostraria um
+     * custo que a gravação não vai congelar.
+     */
+    const graph: RecipeGraph = {
+      versoes: data.recipes.versoes,
+      atual: {
+      ...data.recipes.atual,
       [DRAFT]: {
         id: DRAFT,
         // Um rascunho ainda não é uma versão: ele não foi salvo, então não tem
@@ -302,6 +313,7 @@ function RecipeEditor() {
         yieldAmount: yieldValue,
         lossFraction: loss,
         lines,
+      },
       },
     };
 
@@ -476,7 +488,27 @@ function RecipeEditor() {
    * pessoa teria de corrigir toda vez. Mesmo motivo do `addItem` aqui do lado.
    */
   const addRecipe = (id: string) =>
-    edit({ lines: [...(lines ?? []), { kind: 'recipe', recipeId: id, quantity: 1_000 }] });
+    edit({
+      lines: [
+        ...(lines ?? []),
+        {
+          kind: 'recipe',
+          recipeId: id,
+          quantity: 1_000,
+          /**
+           * A linha nasce carimbada na versão que está valendo AGORA — sem seletor de versão, que
+           * é a Lei 1: escolher versão de calda não é pergunta que alguém de luva responde, e o
+           * sistema sabe a resposta.
+           *
+           * Nulo aqui seria "a mais nova, sempre", e é justamente o defeito: a linha ficaria com o
+           * custo mudando sozinho no dia em que alguém editasse a calda. `saveRecipeVersion`
+           * preencheria de qualquer forma, e carimbar na tela é o que faz a PRÉVIA de custo
+           * concordar com o que a gravação vai congelar.
+           */
+          subVersionId: data?.recipes.atual[id]?.versionId ?? null,
+        },
+      ],
+    });
 
   const title =
     recipeId && data ? (data.labels[recipeId] ?? t.app.recipe.fallbackTitle) : t.app.recipe.fallbackTitle;
@@ -526,9 +558,13 @@ function RecipeEditor() {
    * em vez de nunca ter mostrado a opção.
    */
   const availableRecipes = recipeId
-    ? Object.keys(data.recipes)
+    ? Object.keys(data.recipes.atual)
         .filter((id) => !inRecipe.has(id) && !wouldCycle(recipeId, id, data.recipes))
-        .map((id) => ({ id, name: data.labels[id] ?? id, unit: data.recipes[id]?.yieldUnit ?? '' }))
+        .map((id) => ({
+          id,
+          name: data.labels[id] ?? id,
+          unit: data.recipes.atual[id]?.yieldUnit ?? '',
+        }))
         .sort((a, b) => a.name.localeCompare(b.name))
     : [];
 

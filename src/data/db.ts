@@ -1086,6 +1086,26 @@ const REPARO_TAXA_DA_EMBALAGEM = `UPDATE products
  WHERE unit_packaging_rate = 0 AND unit_packaging_cents <> 0;`;
 
 /**
+ * O carimbo da versão da sub-receita nas linhas que já existem — a mais nova, que é o que o
+ * resolvedor lia antes de a coluna existir.
+ *
+ * Reexecutável por construção (`sub_recipe_version_id IS NULL`), então serve de backfill no passo
+ * e de reparo na restauração. E ele é o caso que a lista de `REPAROS` existe para pegar: uma
+ * cópia feita antes do passo volta com a coluna vazia, e linha de sub-receita sem carimbo é
+ * linha cujo custo muda sozinho quando alguém editar a calda.
+ *
+ * `order by version desc` e não `created_at`: versão é o número que a fábrica enxerga, e duas
+ * podem nascer no mesmo instante quando a fila sobe em lote.
+ */
+const REPARO_CARIMBO_DA_SUB = `UPDATE recipe_lines
+   SET sub_recipe_version_id = (
+     SELECT v.id FROM recipe_versions v
+      WHERE v.recipe_id = recipe_lines.sub_recipe_id
+      ORDER BY v.version DESC
+      LIMIT 1)
+ WHERE sub_recipe_id IS NOT NULL AND sub_recipe_version_id IS NULL;`;
+
+/**
  * O reparo do nome repetido, declarado aqui e usado pela V38 lá embaixo.
  *
  * A ordem importa e me pegou: `const` não é içado, e declará-lo junto da V38 — depois desta
@@ -1118,6 +1138,7 @@ export const REPAROS: readonly string[] = [
    * a transação volta atrás inteira, e nada se perde. Está escrito no docblock da V38.
    */
   REPARO_NOME_REPETIDO,
+  REPARO_CARIMBO_DA_SUB,
 ];
 
 /**
@@ -1408,10 +1429,34 @@ ${REPARO_NOME_REPETIDO}
 CREATE UNIQUE INDEX IF NOT EXISTS people_name_idx ON people (company_id, name);
 `;
 
+/**
+ * A linha da ficha passa a dizer QUAL versão da sub-receita ela compôs.
+ *
+ * Sem isso, quem resolve o grafo pega sempre a versão mais nova da calda — e editar a calda
+ * entre abrir e fechar o tacho muda o custo CONGELADO daquela corrida. Custo congelado é
+ * conteúdo de livro-razão: não se corrige, se estorna. É o item 43 do `docs/roadmap.md`.
+ *
+ * **A chave estrangeira aqui é SIMPLES, e a composta do servidor não tem como existir.** A `0066`
+ * referencia `recipe_versions (recipe_id, id)` — o par que diz *"a versão nomeada é DESTA
+ * receita"*. O `ALTER TABLE ADD COLUMN` do SQLite não aceita chave composta, e reconstruir a
+ * tabela para isso custaria as doze etapas do procedimento de rebuild num passo que roda no
+ * celular de quem está trabalhando. Então a regra vive em `saveRecipeVersion`, com precedente:
+ * a V30 fez o mesmo com a grade do produto, e a razão está escrita lá.
+ *
+ * **A ORDEM de implantação importa e está escrita na migração do servidor:** a `0066` é aplicada
+ * ANTES de qualquer APK com este passo mandar a coluna. Contra um servidor sem ela o PostgREST
+ * responde `PGRST204`, que não é recusa permanente — a fila ficaria presa naquela linha para
+ * sempre.
+ */
+const V39 = `
+ALTER TABLE recipe_lines ADD COLUMN sub_recipe_version_id TEXT REFERENCES recipe_versions(id) ON DELETE RESTRICT;
+${REPARO_CARIMBO_DA_SUB}
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
   V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33,
-  V34, V35, V36, V37, V38,
+  V34, V35, V36, V37, V38, V39,
 ];
 
 export type SqlParam = string | number | null;

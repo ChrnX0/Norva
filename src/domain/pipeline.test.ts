@@ -24,7 +24,7 @@ import { compareVersions, costPerProductUnit, costRecipe, unitsPerBatch, type It
 const PULP = 'pulp';
 const SUGAR = 'sugar';
 
-const recipes: Record<string, Recipe> = {
+const fichas: Record<string, Recipe> = {
   base: {
     id: 'base',
     versionId: 'base-v',
@@ -45,13 +45,15 @@ const recipes: Record<string, Recipe> = {
     lossFraction: 0.05,
     lines: [
       { kind: 'item', itemId: PULP, quantity: 18_000 },
-      { kind: 'recipe', recipeId: 'base', quantity: 10_000 },
+      { kind: 'recipe', recipeId: 'base', quantity: 10_000, subVersionId: null },
     ],
   },
 };
 
 /** Sugar at R$ 4.72/kg and pulp at R$ 12.40/kg, per gram. */
 const costs: ItemCosts = { [PULP]: rate(12.4, 1_000), [SUGAR]: rate(4.72, 1_000) };
+
+const recipes = { atual: fichas, versoes: {} };
 
 test('a purchase at a higher price raises the cost of the finished unit', () => {
   const before = costPerProductUnit(costRecipe('popsicle', recipes, costs), 75);
@@ -103,19 +105,19 @@ test('packaging is charged per unit, never smeared across the batch', () => {
 test('a version comparison answers "did my change help" in cents per unit', () => {
   const before = costRecipe('popsicle', recipes, costs);
 
-  const cheaper: Record<string, Recipe> = {
-    ...recipes,
+  const cheaperFichas: Record<string, Recipe> = {
+    ...fichas,
     popsicle: {
-      ...recipes.popsicle,
+      ...fichas.popsicle,
       version: 4,
       lines: [
         { kind: 'item', itemId: PULP, quantity: 16_000 },
-        { kind: 'recipe', recipeId: 'base', quantity: 12_000 },
+        { kind: 'recipe', recipeId: 'base', quantity: 12_000, subVersionId: null },
       ],
     },
   };
 
-  const after = costRecipe('popsicle', cheaper, costs);
+  const after = costRecipe('popsicle', { atual: cheaperFichas, versoes: {} }, costs);
   const delta = compareVersions(before, after, 75);
 
   assert.equal(delta.cheaper, true, 'tirar polpa e pôr base barateia a unidade');
@@ -150,11 +152,11 @@ test('sem custo anterior não há por cento, e nulo não é zero', () => {
   // O caso verdadeiro: uma ficha recém-criada não tem linha, então a versão
   // anterior custa nada. Zero ali fazia a tela escrever "▲ R$ 0,02 por unidade
   // contra a versão 1 (0,0%)" — subiu e não mudou, na mesma frase.
-  const vazia: Record<string, Recipe> = {
-    ...recipes,
-    popsicle: { ...recipes.popsicle, version: 1, lines: [] },
+  const vaziaFichas: Record<string, Recipe> = {
+    ...fichas,
+    popsicle: { ...fichas.popsicle, version: 1, lines: [] },
   };
-  const semBase = compareVersions(costRecipe('popsicle', vazia, costs), costRecipe('popsicle', recipes, costs), 75);
+  const semBase = compareVersions(costRecipe('popsicle', { atual: vaziaFichas, versoes: {} }, costs), costRecipe('popsicle', recipes, costs), 75);
   assert.equal(semBase.percent, null, 'sem base, o por cento não existe');
   assert.ok(semBase.deltaCents > 0, 'e mesmo assim o dinheiro subiu');
 
@@ -167,15 +169,15 @@ test('sem custo anterior não há por cento, e nulo não é zero', () => {
 });
 
 test('an item with no purchase yet costs nothing rather than crashing a screen', () => {
-  const withUnknown: Record<string, Recipe> = {
-    ...recipes,
+  const withUnknownFichas: Record<string, Recipe> = {
+    ...fichas,
     popsicle: {
-      ...recipes.popsicle,
-      lines: [...recipes.popsicle.lines, { kind: 'item', itemId: 'glucose', quantity: 1_200 }],
+      ...fichas.popsicle,
+      lines: [...fichas.popsicle.lines, { kind: 'item', itemId: 'glucose', quantity: 1_200 }],
     },
   };
 
-  const cost = costRecipe('popsicle', withUnknown, costs, { glucose: 'Glucose' });
+  const cost = costRecipe('popsicle', { atual: withUnknownFichas, versoes: {} }, costs, { glucose: 'Glucose' });
   const line = cost.lines.find((l) => l.label === 'Glucose');
 
   assert.ok(line);
@@ -251,9 +253,9 @@ test('the price moves land on the finished unit, in reais', () => {
     { itemId: 'sugar', previousRate: rate(4.72, 1_000), observedAt: '2026-08-28T10:00:00Z' },
   ];
 
-  const unitNow = costPerProductUnit(costRecipe('base', graph, now, names), 75);
+  const unitNow = costPerProductUnit(costRecipe('base', { atual: graph, versoes: {} }, now, names), 75);
   const unitBefore = costPerProductUnit(
-    costRecipe('base', graph, ratesBefore(now, moves), names),
+    costRecipe('base', { atual: graph, versoes: {} }, ratesBefore(now, moves), names),
     75,
   );
 

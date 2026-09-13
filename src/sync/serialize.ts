@@ -370,6 +370,17 @@ const CROSSINGS: Record<
       'recipe_version_id',
       'item_id',
       'sub_recipe_id',
+      /**
+       * QUAL versão da sub-receita esta linha compôs — e a ORDEM de implantação é o que importa
+       * aqui, não a coluna.
+       *
+       * A `0066` do servidor tem de estar aplicada antes de um APK com este nome na lista mandar
+       * a coluna: contra um servidor sem ela o PostgREST responde `PGRST204` ("column not
+       * found"), que não é `SQLSTATE` de recusa permanente. `classeDaRecusa` o trata como
+       * PASSAGEIRO — com razão, e é essa razão que faz o estrago: a fila retenta para sempre e
+       * tudo o que a fábrica gravar depois fica preso atrás daquela linha.
+       */
+      'sub_recipe_version_id',
       'quantity',
       'position',
     ],

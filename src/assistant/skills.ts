@@ -1011,7 +1011,7 @@ const registerProduction: Skill = {
     }
 
     const graph = await ctx.data.loadRecipeGraph();
-    const recipe = product.recipeId ? graph[product.recipeId] : undefined;
+    const recipe = product.recipeId ? graph.atual[product.recipeId] : undefined;
     if (!recipe) return { text: `A receita de ${product.name} não está neste aparelho.` };
 
     const perUnit = product.yieldPerUnit ?? 0;

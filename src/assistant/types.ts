@@ -10,7 +10,7 @@ import type {
 } from '@/data/repository';
 import type { Capability } from '@/domain/access';
 import type { Cents } from '@/domain/money';
-import type { ItemCosts, Recipe } from '@/domain/recipe';
+import type { ItemCosts, RecipeGraph } from '@/domain/recipe';
 
 /**
  * The assistant, as a contract.
@@ -49,7 +49,7 @@ export type { Capability } from '@/domain/access';
 export type AssistantData = {
   listItems(): Promise<ItemWithCost[]>;
   listProducts(): Promise<Product[]>;
-  loadRecipeGraph(): Promise<Record<string, Recipe>>;
+  loadRecipeGraph(): Promise<RecipeGraph>;
   /**
    * Nulo é o portão do aparelho, e as habilidades que o leem já declaram
    * `requires: 'view_cost'` — para elas nulo é inalcançável, e `?? {}` no ponto

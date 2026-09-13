@@ -61,7 +61,7 @@ const itemCosts = {
   wrapper: rate(0.03, 1),
 };
 
-const recipes: Record<string, Recipe> = {
+const fichas: Record<string, Recipe> = {
   creamBase: {
     id: 'creamBase',
     versionId: 'creamBase-v',
@@ -87,14 +87,28 @@ const recipes: Record<string, Recipe> = {
     lines: [
       { kind: 'item', itemId: 'strawberryPulp', quantity: 18_000 },
       { kind: 'item', itemId: 'sugar', quantity: 6_000 },
-      { kind: 'recipe', recipeId: 'creamBase', quantity: 10_000 },
+      { kind: 'recipe', recipeId: 'creamBase', quantity: 10_000, subVersionId: null },
     ],
   },
 };
 
+/**
+ * O grafo das duas chaves: estas fichas são as ATUAIS, e `versoes` nasce vazio.
+ *
+ * Vazio é o caso de quem não carimbou nada — a linha da base aqui tem `subVersionId: null`, que
+ * o resolvedor lê como "a mais nova". Os testes que provam o CARIMBO montam `versoes` de
+ * propósito, e é a diferença entre os dois que mede a coisa.
+ */
+const recipes = { atual: fichas, versoes: {} };
+
+/** O mesmo grafo com UMA ficha trocada — o molde de "e se a perda fosse zero?". */
+function comFicha(id: string, troca: Partial<Recipe>) {
+  return { atual: { ...fichas, [id]: { ...fichas[id], ...troca } }, versoes: {} };
+}
+
 test('loss makes the unit cost go up, not down', () => {
   const withLoss = costRecipe('strawberry', recipes, itemCosts);
-  const noLoss = costRecipe('strawberry', { ...recipes, strawberry: { ...recipes.strawberry, lossFraction: 0 } }, itemCosts, {}, new Map());
+  const noLoss = costRecipe('strawberry', comFicha('strawberry', { lossFraction: 0 }), itemCosts, {}, new Map());
 
   assert.equal(withLoss.netYield, 38_000);
   assert.ok(
@@ -148,7 +162,7 @@ test('a recipe that contains itself raises instead of hanging', () => {
       yieldAmount: 100,
       yieldUnit: 'ml',
       lossFraction: 0,
-      lines: [{ kind: 'recipe', recipeId: 'b', quantity: 10 }],
+      lines: [{ kind: 'recipe', recipeId: 'b', quantity: 10, subVersionId: null }],
     },
     b: {
       id: 'b',
@@ -158,11 +172,11 @@ test('a recipe that contains itself raises instead of hanging', () => {
       yieldAmount: 100,
       yieldUnit: 'ml',
       lossFraction: 0,
-      lines: [{ kind: 'recipe', recipeId: 'a', quantity: 10 }],
+      lines: [{ kind: 'recipe', recipeId: 'a', quantity: 10, subVersionId: null }],
     },
   };
 
-  assert.throws(() => costRecipe('a', looping, itemCosts), RecipeCycleError);
+  assert.throws(() => costRecipe('a', { atual: looping, versoes: {} }, itemCosts), RecipeCycleError);
 });
 
 test('the packaging that leaves stock is inside the quoted unit cost', () => {
@@ -213,7 +227,7 @@ test('product cost adds per-unit packaging on top of the mix', () => {
 test('comparing versions reports the change in plain numbers', () => {
   const v3 = costRecipe(
     'strawberry',
-    { ...recipes, strawberry: { ...recipes.strawberry, version: 3, lossFraction: 0.08 } },
+    comFicha('strawberry', { version: 3, lossFraction: 0.08 }),
     itemCosts,
     {},
     new Map(),
@@ -399,7 +413,7 @@ test('cheap lines add up instead of each rounding away to nothing', () => {
     Array.from({ length: 10 }, (_, i) => [`i${i}`, 0.4 as Rate]),
   );
 
-  const cost = costRecipe('tiny', graph, costs);
+  const cost = costRecipe('tiny', { atual: graph, versoes: {} }, costs);
 
   assert.equal(cost.batchCents, 4, 'ten times four tenths is four cents, not zero');
 
@@ -429,7 +443,7 @@ test('the breakdown always sums to the figure, however the cents fall', () => {
   // 3 x 0.3333 three times: 2.9997 cents, which is 3 after one rounding.
   const costs: ItemCosts = { a: 0.3333 as Rate, b: 0.3333 as Rate, c: 0.3333 as Rate };
 
-  const cost = costRecipe('odd', graph, costs);
+  const cost = costRecipe('odd', { atual: graph, versoes: {} }, costs);
   assert.equal(cost.batchCents, 3);
   assert.equal(cost.lines.reduce((a, l) => a + l.totalCents, 0), 3);
   assert.deepEqual(cost.lines.map((l) => l.totalCents), [1, 1, 1]);
@@ -453,7 +467,7 @@ test('a share is the line\'s real weight, not its rounded one', () => {
   };
   const costs: ItemCosts = { big: 1 as Rate, small: 0.4 as Rate };
 
-  const cost = costRecipe('mix', graph, costs);
+  const cost = costRecipe('mix', { atual: graph, versoes: {} }, costs);
   // The tiny line still rounds to nothing on screen, and must still carry its
   // real weight - otherwise "what dominates this recipe" answers with noise.
   assert.ok(cost.lines[1].share > 0, 'a line worth less than a cent is not weightless');
@@ -481,14 +495,14 @@ test('a sub-recipe that is not there stops the costing, and names itself', () =>
       yieldAmount: 10_000,
       yieldUnit: 'ml',
       lossFraction: 0,
-      lines: [{ kind: 'recipe', recipeId: 'creamBase', quantity: 4_000 }],
+      lines: [{ kind: 'recipe', recipeId: 'creamBase', quantity: 4_000, subVersionId: null }],
     },
   };
 
   // Silence here is the failure that looks like success: the popsicle would
   // simply come out cheaper, and every product standing on it with it.
   assert.throws(
-    () => costRecipe('popsicle', orphan, {}),
+    () => costRecipe('popsicle', { atual: orphan, versoes: {} }, {}),
     (e: unknown) => e instanceof MissingRecipeError && String(e.message).includes('creamBase'),
   );
 });
@@ -515,7 +529,7 @@ test('an item with no invoice yet is free, and that is not the same thing', () =
   // cost, and the storeroom screen already says so in words: "ainda sem nota
   // lançada". Refusing to cost the recipe would make the app unusable on the
   // first day, before any invoice exists.
-  const cost = costRecipe('base', priced, { sugar: 0.472 as Rate });
+  const cost = costRecipe('base', { atual: priced, versoes: {} }, { sugar: 0.472 as Rate });
   assert.equal(cost.batchCents, 236);
   assert.equal(cost.lines[1].totalCents, 0);
 });
@@ -604,7 +618,7 @@ test('o lote com embalagem é a massa mais a embalagem de cada unidade', () => {
  * leite" como ingrediente, e o pote de sorvete de ameixa usa a mesma calda. Aninhar é o
  * normal da fábrica, não a exceção — o que não pode existir é o laço.
  */
-const cozinha: Record<string, Recipe> = {
+const fichasDaCozinha: Record<string, Recipe> = {
   calda: {
     id: 'calda',
     versionId: 'calda-v',
@@ -624,7 +638,7 @@ const cozinha: Record<string, Recipe> = {
     yieldUnit: 'un',
     lossFraction: 0,
     lines: [
-      { kind: 'recipe', recipeId: 'calda', quantity: 20_000 },
+      { kind: 'recipe', recipeId: 'calda', quantity: 20_000, subVersionId: null },
       { kind: 'item', itemId: 'polpa', quantity: 5_000 },
     ],
   },
@@ -636,9 +650,11 @@ const cozinha: Record<string, Recipe> = {
     yieldAmount: 200,
     yieldUnit: 'un',
     lossFraction: 0,
-    lines: [{ kind: 'recipe', recipeId: 'calda', quantity: 30_000 }],
+    lines: [{ kind: 'recipe', recipeId: 'calda', quantity: 30_000, subVersionId: null }],
   },
 };
+
+const cozinha = { atual: fichasDaCozinha, versoes: {} };
 
 test('a mesma calda serve duas receitas, e isso não é ciclo', () => {
   // O caso que a tela precisa OFERECER: aninhar de verdade tem de ser permitido,
@@ -657,10 +673,14 @@ test('a receita não pode usar a si mesma, nem fechar laço por um caminho longo
 test('grafo já quebrado não trava a tela que tenta não quebrá-lo mais', () => {
   // `seen` existe para isto: se duas OUTRAS receitas já estão em laço, perguntar
   // "posso usar esta?" tem de responder, não pendurar.
-  const quebrado: Record<string, Recipe> = {
-    ...cozinha,
-    x: { ...cozinha.calda, id: 'x', lines: [{ kind: 'recipe', recipeId: 'y', quantity: 1 }] },
-    y: { ...cozinha.calda, id: 'y', lines: [{ kind: 'recipe', recipeId: 'x', quantity: 1 }] },
+  const laco = (de: string, para: string): Recipe => ({
+    ...fichasDaCozinha.calda,
+    id: de,
+    lines: [{ kind: 'recipe', recipeId: para, quantity: 1, subVersionId: null }],
+  });
+  const quebrado = {
+    atual: { ...fichasDaCozinha, x: laco('x', 'y'), y: laco('y', 'x') },
+    versoes: {},
   };
   assert.equal(wouldCycle('morango', 'x', quebrado), false);
 });

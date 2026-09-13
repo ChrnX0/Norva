@@ -74,7 +74,7 @@ const PRODUCTS: Product[] = [
   },
 ];
 
-const RECIPES: Record<string, Recipe> = {
+const FICHAS: Record<string, Recipe> = {
   popsicle: {
     id: 'popsicle',
     versionId: 'popsicle-v',
@@ -248,7 +248,7 @@ const data: AssistantData = {
   productionOn: async () => PRODUZIDO[PEDIDOS++] ?? [],
   lossesOn: async () => PERDAS,
   listProducts: async () => PRODUCTS,
-  loadRecipeGraph: async () => RECIPES,
+  loadRecipeGraph: async () => ({ atual: FICHAS, versoes: {} }),
   itemCosts: async () => COSTS,
   labels: async () => ({ pulp: 'Polpa de morango', sugar: 'Açúcar cristal' }),
   recentCostChanges: async () => CHANGES,

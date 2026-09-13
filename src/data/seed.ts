@@ -173,7 +173,14 @@ async function writeStarterData(companyId: string): Promise<void> {
       { kind: 'item', itemId: pulp, quantity: 18_000 },
       { kind: 'item', itemId: sugar, quantity: 6_000 },
       { kind: 'item', itemId: glucose, quantity: 1_200 },
-      { kind: 'recipe', recipeId: base.recipeId, quantity: 10_000 },
+      {
+        kind: 'recipe',
+        recipeId: base.recipeId,
+        quantity: 10_000,
+        // Nulo é "carimbe a mais nova para mim": saveRecipeVersion preenche, e é a Lei 1 —
+        // quem semeia a fábrica de exemplo não escolhe versão de calda.
+        subVersionId: null,
+      },
     ],
   });
 

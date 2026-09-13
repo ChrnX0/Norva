@@ -50,7 +50,7 @@ import {
   packagingRatePerUnit,
   unitsPerBatch,
   type ItemCosts,
-  type Recipe,
+  type RecipeGraph,
 } from '@/domain/recipe';
 import { type PackagingHierarchy, countsFromTiers } from '@/domain/units';
 import { meioDaGrade } from '@/components/grade';
@@ -111,7 +111,7 @@ type Kind = 'product' | 'resale';
 
 type Loaded = {
   recipes: RecipeSummary[];
-  graph: Record<string, Recipe>;
+  graph: RecipeGraph;
   costs: ItemCosts;
   /** Se o custo é desta pessoa para ver — nulo em `itemCosts` é o portão. */
   dinheiro: boolean;

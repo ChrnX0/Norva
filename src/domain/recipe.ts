@@ -25,7 +25,25 @@ import { allocateByWeight, cents, rateFromCents, type Cents, type Rate } from '.
 /** A line of a recipe: either a raw item or another recipe. */
 export type RecipeLine =
   | { kind: 'item'; itemId: string; quantity: number }
-  | { kind: 'recipe'; recipeId: string; quantity: number };
+  | {
+      kind: 'recipe';
+      recipeId: string;
+      quantity: number;
+      /**
+       * QUAL versão da sub-receita esta linha compôs.
+       *
+       * Sem ela, quem resolve o grafo pega sempre a versão mais nova da calda — e editar a calda
+       * entre abrir e fechar o tacho muda o custo CONGELADO daquela corrida. Custo congelado é
+       * conteúdo de livro-razão: não se corrige, se estorna.
+       *
+       * **Nulo lê como "a mais nova", e é fronteira e não desenho.** Ele existe para a linha
+       * escrita por um aparelho anterior ao passo V39; quem grava nulo NOVO está gravando uma
+       * linha cujo custo muda sozinho depois. Obrigatório no tipo — e não opcional — de propósito:
+       * assim o compilador obriga cada lugar que monta uma linha a DECIDER, em vez de herdar o
+       * esquecimento.
+       */
+      subVersionId: string | null;
+    };
 
 export type Recipe = {
   id: string;
@@ -68,6 +86,45 @@ export type Recipe = {
  * multiplication. Rates stay fractional; only amounts get rounded.
  */
 export type ItemCosts = Readonly<Record<string, Rate>>;
+
+/**
+ * O grafo de fichas com DUAS chaves, porque uma versão por receita não basta.
+ *
+ * `atual` é o que a fábrica está usando hoje, por id da RECEITA — é o que uma tela lista, o que
+ * um produto novo aponta, o que a próxima corrida vai usar. `versoes` é o que alguma linha
+ * CARIMBOU, por id da VERSÃO: a calda v1 continua existindo aqui depois de a v2 nascer, porque
+ * uma ficha-mãe salva antes dela compôs com a v1 e o custo daquela corrida é o da v1.
+ *
+ * **Por que não um mapa só.** Um mapa indexado por id de receita E por id de versão funcionaria
+ * (uuid não colide com uuid) e quebraria toda iteração: `Object.values(grafo)` passaria a devolver
+ * a mesma receita várias vezes, e o seletor de sub-receita do editor ofereceria a calda três
+ * vezes. Dois campos dizem qual pergunta se está fazendo.
+ */
+export type RecipeGraph = {
+  atual: Readonly<Record<string, Recipe>>;
+  versoes: Readonly<Record<string, Recipe>>;
+};
+
+/**
+ * A ficha que ESTA linha compôs — a versão carimbada, ou a atual quando não há carimbo.
+ *
+ * Um lugar só para a regra, porque ela é a diferença entre o custo congelado ficar quieto e mudar
+ * sozinho: três resolvedores (custo, explosão, ciclo) fariam a mesma pergunta de três jeitos, e o
+ * dia em que um deles esquecesse o carimbo seria o dia em que o número mudaria em uma tela e não
+ * em outra.
+ *
+ * Carimbo que aponta para versão que não está no grafo cai na atual, e isso é deliberado: é o
+ * mesmo caminho de `fixar` em `loadRecipeGraph`. Uma ficha não some porque uma versão dela foi
+ * apagada — o servidor recusa esse apagamento (`0066`), e o aparelho continua respondendo com o
+ * que tem em vez de deixar a tela sem custo.
+ */
+export function subDaLinha(
+  line: Extract<RecipeLine, { kind: 'recipe' }>,
+  graph: RecipeGraph,
+): Recipe | undefined {
+  const carimbada = line.subVersionId ? graph.versoes[line.subVersionId] : undefined;
+  return carimbada ?? graph.atual[line.recipeId];
+}
 
 export type CostLine = {
   label: string;
@@ -124,21 +181,47 @@ export class MissingRecipeError extends Error {
  */
 export function costRecipe(
   recipeId: string,
-  recipes: Readonly<Record<string, Recipe>>,
+  recipes: RecipeGraph,
   itemCosts: ItemCosts,
   labels: Readonly<Record<string, string>> = {},
   memo: Map<string, RecipeCost> = new Map(),
-  stack: string[] = [],
 ): RecipeCost {
-  const cached = memo.get(recipeId);
+  const recipe = recipes.atual[recipeId];
+  if (!recipe) throw new MissingRecipeError(recipeId);
+  return custoDaVersao(recipe, recipes, itemCosts, labels, memo, []);
+}
+
+/**
+ * O custo de UMA VERSÃO, e a memo é chaveada por ela — não pela receita.
+ *
+ * A memo dizia `memo.get(recipeId)`, e com carimbo isso é errado de um jeito caro: dois picolés
+ * feitos no mesmo dia, um compondo a calda v1 e outro a v2, pediriam o custo da mesma receita
+ * duas vezes e a segunda leria a resposta da primeira. Os dois congelariam o mesmo número, e um
+ * dos dois estaria errado — em silêncio, porque a memo é uma otimização e ninguém desconfia dela.
+ *
+ * **E a PILHA também é por versão, não por receita.** Uma pilha de ids de receita acusaria ciclo
+ * onde não existe: a calda v1 pode carimbar a base v1, e a base v2 carimbar a calda v1 — três
+ * elos com `calda` aparecendo duas vezes e nenhum laço, porque um carimbo só nomeia versão que
+ * já existia. Detectar por versão é a leitura certa, e o caminho do erro continua dizendo NOMES
+ * de receita para quem lê a tela.
+ */
+function custoDaVersao(
+  recipe: Recipe,
+  recipes: RecipeGraph,
+  itemCosts: ItemCosts,
+  labels: Readonly<Record<string, string>>,
+  memo: Map<string, RecipeCost>,
+  stack: readonly { versionId: string; recipeId: string }[],
+): RecipeCost {
+  const recipeId = recipe.id;
+  const cached = memo.get(recipe.versionId);
   if (cached) return cached;
 
-  if (stack.includes(recipeId)) throw new RecipeCycleError([...stack, recipeId]);
+  if (stack.some((p) => p.versionId === recipe.versionId)) {
+    throw new RecipeCycleError([...stack.map((p) => p.recipeId), recipeId]);
+  }
 
-  const recipe = recipes[recipeId];
-  if (!recipe) throw new MissingRecipeError(recipeId);
-
-  const nextStack = [...stack, recipeId];
+  const nextStack = [...stack, { versionId: recipe.versionId, recipeId }];
   const lines: CostLine[] = [];
   /** Fractional cents per line, kept fractional until the batch is settled. */
   const exactTotals: number[] = [];
@@ -152,7 +235,9 @@ export function costRecipe(
       unitRate = itemCosts[line.itemId] ?? (0 as Rate);
       label = labels[line.itemId] ?? line.itemId;
     } else {
-      const sub = costRecipe(line.recipeId, recipes, itemCosts, labels, memo, nextStack);
+      const ficha = subDaLinha(line, recipes);
+      if (!ficha) throw new MissingRecipeError(line.recipeId);
+      const sub = custoDaVersao(ficha, recipes, itemCosts, labels, memo, nextStack);
       unitRate = sub.perYieldUnit;
       label = labels[line.recipeId] ?? line.recipeId;
     }
@@ -195,7 +280,7 @@ export function costRecipe(
     lossFraction: recipe.lossFraction,
   };
 
-  memo.set(recipeId, result);
+  memo.set(recipe.versionId, result);
   return result;
 }
 
@@ -399,28 +484,47 @@ export function compareVersions(
 export function explodeRequirements(
   recipeId: string,
   batches: number,
-  recipes: Readonly<Record<string, Recipe>>,
+  recipes: RecipeGraph,
   into: Map<string, number> = new Map(),
-  stack: string[] = [],
 ): Map<string, number> {
-  if (stack.includes(recipeId)) throw new RecipeCycleError([...stack, recipeId]);
-
-  const recipe = recipes[recipeId];
+  const recipe = recipes.atual[recipeId];
   if (!recipe) throw new MissingRecipeError(recipeId);
+  return explodeVersao(recipe, batches, recipes, into, []);
+}
 
-  const nextStack = [...stack, recipeId];
+/**
+ * A explosão de UMA VERSÃO — e as DUAS buscas da sub têm de ser a mesma.
+ *
+ * Esta função procurava a sub duas vezes: uma para o rendimento (`netYieldOf(sub)`) e outra para
+ * recursar (`explodeRequirements(line.recipeId, …)`). Com carimbo, converter só uma das duas
+ * produz um híbrido que não é nenhuma das duas fichas — os insumos da versão velha escalados pelo
+ * rendimento da nova —, e nenhuma asserção deste projeto nomeia esse número. `subDaLinha` resolve
+ * uma vez e as duas leituras saem dela.
+ */
+function explodeVersao(
+  recipe: Recipe,
+  batches: number,
+  recipes: RecipeGraph,
+  into: Map<string, number>,
+  stack: readonly { versionId: string; recipeId: string }[],
+): Map<string, number> {
+  if (stack.some((p) => p.versionId === recipe.versionId)) {
+    throw new RecipeCycleError([...stack.map((p) => p.recipeId), recipe.id]);
+  }
+
+  const nextStack = [...stack, { versionId: recipe.versionId, recipeId: recipe.id }];
 
   for (const line of recipe.lines) {
     if (line.kind === 'item') {
       into.set(line.itemId, (into.get(line.itemId) ?? 0) + line.quantity * batches);
     } else {
-      const sub = recipes[line.recipeId];
+      const sub = subDaLinha(line, recipes);
       if (!sub) throw new MissingRecipeError(line.recipeId);
       // The parent asks for `quantity` units of the sub-recipe's *net* yield,
       // so convert that into how many sub-batches must actually be made.
       const netYield = netYieldOf(sub);
       const subBatches = netYield > 0 ? (line.quantity * batches) / netYield : 0;
-      explodeRequirements(line.recipeId, subBatches, recipes, into, nextStack);
+      explodeVersao(sub, subBatches, recipes, into, nextStack);
     }
   }
 
@@ -480,7 +584,7 @@ export type ShoppingLine = {
  */
 export function shoppingList(
   plan: readonly PlanLine[],
-  recipes: Readonly<Record<string, Recipe>>,
+  recipes: RecipeGraph,
   onHand: ReadonlyMap<string, number>,
 ): ShoppingLine[] {
   // Um mapa só para o plano inteiro: é isto que soma vários produtos sem
@@ -491,7 +595,16 @@ export function shoppingList(
     if (!(line.batches > 0)) continue;
     explodeRequirements(line.recipeId, line.batches, recipes, needed);
 
-    const recipe = recipes[line.recipeId];
+    /**
+     * O topo do plano lê `atual`, e isso é decisão e não descuido.
+     *
+     * A lista de compras responde *"se eu fizer três tachos de morango AMANHÃ, o que falta?"* —
+     * uma simulação, não um histórico. Amanhã a fábrica vai usar a ficha de hoje. Resolver o topo
+     * por versão carimbada trocaria a pergunta por *"o que faltou para o que já foi feito"*, que
+     * ninguém fez. As linhas DENTRO dela seguem o carimbo, porque ali a pergunta é o que aquela
+     * ficha compõe.
+     */
+    const recipe = recipes.atual[line.recipeId];
     const perUnit = line.yieldPerUnit ?? 0;
     if (!recipe || perUnit <= 0 || !line.packaging?.length) continue;
 
@@ -530,15 +643,25 @@ export function shoppingList(
 export function wouldCycle(
   parentId: string,
   childId: string,
-  recipes: Record<string, Recipe>,
+  recipes: RecipeGraph,
   seen: Set<string> = new Set(),
 ): boolean {
   if (childId === parentId) return true;
   if (seen.has(childId)) return false;
   seen.add(childId);
-  const child = recipes[childId];
+  const child = recipes.atual[childId];
   if (!child) return false;
+  /**
+   * A caminhada segue o CARIMBO, e não só a versão atual.
+   *
+   * Uma aresta pode existir apenas numa versão carimbada — a base v2 citava a calda e a v3 não
+   * cita —, e quem andasse só por `atual` aprovaria uma escolha que fecha laço no grafo que o
+   * custo de verdade percorre. `seen` continua sendo o que torna isto seguro num grafo já
+   * quebrado: um laço entre OUTRAS fichas não pode travar a tela que está tentando não criar um.
+   */
   return child.lines.some(
-    (line) => line.kind === 'recipe' && wouldCycle(parentId, line.recipeId, recipes, seen),
+    (line) =>
+      line.kind === 'recipe' &&
+      wouldCycle(parentId, subDaLinha(line, recipes)?.id ?? line.recipeId, recipes, seen),
   );
 }

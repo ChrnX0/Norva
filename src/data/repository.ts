@@ -18,7 +18,7 @@ import { ROLES, capabilities, capabilitiesFor, type Capability, type Role } from
 import { expiresOn, lotCode } from '@/domain/lot';
 import type { LossReason, MovementKind, ReturnReason } from '@/domain/ledger';
 import { explodeRequirements } from '@/domain/recipe';
-import type { ItemCosts, Recipe, RecipeLine } from '@/domain/recipe';
+import type { ItemCosts, Recipe, RecipeGraph, RecipeLine } from '@/domain/recipe';
 import type { PackagingHierarchy } from '@/domain/units';
 import { ordersCoveredBy } from '@/domain/picking';
 import { db, newId, nowIso, type Db } from './db';
@@ -2098,24 +2098,41 @@ export async function listRecipes(companyId: string): Promise<RecipeSummary[]> {
  * `recipe_versions` dizendo por escrito que entrava *"sem leitor"*, esperando "a tela de
  * histórico da ficha". O segundo leitor nomeado dela é este.
  */
+/** Uma linha da consulta de versões — as duas consultas leem as mesmas colunas. */
+type LinhaDeVersao = {
+  id: string;
+  recipe_id: string;
+  version: number;
+  effective_from: string;
+  loss_fraction: number;
+  yield_amount: number;
+  yield_unit: string;
+};
+
 export async function loadRecipeGraph(
   companyId: string,
   /** Uma receita que entra numa versão ESCOLHIDA em vez da mais nova. */
   fixar?: { recipeId: string; versionId: string },
-): Promise<Record<string, Recipe>> {
+): Promise<RecipeGraph> {
   const conn = await db();
 
-  const versions = await conn.getAllAsync<{
-    id: string;
-    recipe_id: string;
-    version: number;
-    effective_from: string;
-    loss_fraction: number;
-    yield_amount: number;
-    yield_unit: string;
-  }>(
-    `SELECT v.id, v.recipe_id, v.version, v.effective_from, v.loss_fraction, r.yield_amount,
-            r.yield_unit
+  /**
+   * O rendimento vem da VERSÃO quando ela o tem, e da receita quando não.
+   *
+   * A `V28` versionou `yield_amount` e `yield_unit` em `recipe_versions` dizendo por escrito que
+   * entrava *"sem leitor"*. Este é o leitor — e ele não pode ser um `v.yield_amount` seco: a
+   * coluna é NULÁVEL dos dois lados, enquanto `recipes.yield_amount` é `NOT NULL`. Nulo ali passa
+   * pelo tipo (o genérico é asserção, não verificação) e vira zero na primeira multiplicação:
+   * `netYieldOf` devolve 0, `perYieldUnit` vira 0, a sub-receita **não custa nada**, e
+   * `explodeRequirements` faz `subBatches = 0` — os insumos dela somem da conta sem uma
+   * reclamação. O `coalesce` é o que impede um número plausível de nascer de uma coluna vazia.
+   */
+  const COLUNAS_DA_VERSAO = `v.id, v.recipe_id, v.version, v.effective_from, v.loss_fraction,
+            COALESCE(v.yield_amount, r.yield_amount) AS yield_amount,
+            COALESCE(v.yield_unit, r.yield_unit) AS yield_unit`;
+
+  const versions = await conn.getAllAsync<LinhaDeVersao>(
+    `SELECT ${COLUNAS_DA_VERSAO}
        FROM recipe_versions v
        JOIN recipes r ON r.id = v.recipe_id
       WHERE v.company_id = ?
@@ -2123,15 +2140,16 @@ export async function loadRecipeGraph(
     [companyId],
   );
 
-  if (versions.length === 0) return {};
+  if (versions.length === 0) return { atual: {}, versoes: {} };
 
   const lines = await conn.getAllAsync<{
     recipe_version_id: string;
     item_id: string | null;
     sub_recipe_id: string | null;
+    sub_recipe_version_id: string | null;
     quantity: number;
   }>(
-    `SELECT recipe_version_id, item_id, sub_recipe_id, quantity
+    `SELECT recipe_version_id, item_id, sub_recipe_id, sub_recipe_version_id, quantity
        FROM recipe_lines WHERE company_id = ? ORDER BY position`,
     [companyId],
   );
@@ -2142,20 +2160,17 @@ export async function loadRecipeGraph(
     list.push(
       line.item_id
         ? { kind: 'item', itemId: line.item_id, quantity: line.quantity }
-        : { kind: 'recipe', recipeId: line.sub_recipe_id!, quantity: line.quantity },
+        : {
+            kind: 'recipe',
+            recipeId: line.sub_recipe_id!,
+            quantity: line.quantity,
+            subVersionId: line.sub_recipe_version_id,
+          },
     );
     byVersion.set(line.recipe_version_id, list);
   }
 
-  const monta = (v: {
-    id: string;
-    recipe_id: string;
-    version: number;
-    effective_from: string;
-    loss_fraction: number;
-    yield_amount: number;
-    yield_unit: string;
-  }): Recipe => ({
+  const monta = (v: LinhaDeVersao): Recipe => ({
     id: v.recipe_id,
     versionId: v.id,
     version: v.version,
@@ -2166,7 +2181,47 @@ export async function loadRecipeGraph(
     lines: byVersion.get(v.id) ?? [],
   });
 
-  const grafo = Object.fromEntries(versions.map((v) => [v.recipe_id, monta(v)]));
+  const atual: Record<string, Recipe> = Object.fromEntries(
+    versions.map((v) => [v.recipe_id, monta(v)]),
+  );
+
+  /**
+   * As versões CARIMBADAS por alguma linha — e só as alcançáveis, nunca a tabela inteira.
+   *
+   * A calda v1 continua existindo aqui depois de a v2 nascer, porque uma ficha-mãe salva antes
+   * dela compôs com a v1 e o custo daquela corrida é o da v1. Sem isto, `subDaLinha` não acha o
+   * carimbo e cai na atual — o defeito que este carimbo existe para matar, entrando pelo
+   * resolvedor que deveria protegê-lo.
+   *
+   * **Pelas alcançáveis, e não por `recipe_versions` inteira.** Este grafo é carregado em seis
+   * telas e no assistente; trazer toda versão de toda ficha cresce sem teto com o tempo, e a
+   * resposta não muda — versão que ninguém carimba não é lida por resolvedor nenhum. As LINHAS
+   * já vinham sem filtro e continuam: é delas que sai a lista de carimbos.
+   */
+  const carimbados = [
+    ...new Set(
+      lines
+        .map((l) => l.sub_recipe_version_id)
+        .filter((id): id is string => id !== null && !(id in atual)),
+    ),
+  ];
+  const versoes: Record<string, Recipe> = {};
+  if (carimbados.length > 0) {
+    const marcas = carimbados.map(() => '?').join(', ');
+    const doCarimbo = await conn.getAllAsync<LinhaDeVersao>(
+      `SELECT ${COLUNAS_DA_VERSAO}
+         FROM recipe_versions v
+         JOIN recipes r ON r.id = v.recipe_id
+        WHERE v.company_id = ? AND v.id IN (${marcas})`,
+      [companyId, ...carimbados],
+    );
+    for (const v of doCarimbo) versoes[v.id] = monta(v);
+  }
+
+  const grafo: { atual: Record<string, Recipe>; versoes: Record<string, Recipe> } = {
+    atual,
+    versoes,
+  };
 
   /**
    * A versão cravada entra por cima, e vem numa consulta própria de propósito.
@@ -2182,23 +2237,14 @@ export async function loadRecipeGraph(
    * um tacho que ninguém consegue fechar.
    */
   if (fixar) {
-    const escolhida = await conn.getFirstAsync<{
-      id: string;
-      recipe_id: string;
-      version: number;
-      effective_from: string;
-      loss_fraction: number;
-      yield_amount: number;
-      yield_unit: string;
-    }>(
-      `SELECT v.id, v.recipe_id, v.version, v.effective_from, v.loss_fraction, r.yield_amount,
-              r.yield_unit
+    const escolhida = await conn.getFirstAsync<LinhaDeVersao>(
+      `SELECT ${COLUNAS_DA_VERSAO}
          FROM recipe_versions v
          JOIN recipes r ON r.id = v.recipe_id
         WHERE v.company_id = ? AND v.id = ? AND v.recipe_id = ?`,
       [companyId, fixar.versionId, fixar.recipeId],
     );
-    if (escolhida) grafo[escolhida.recipe_id] = monta(escolhida);
+    if (escolhida) grafo.atual[escolhida.recipe_id] = monta(escolhida);
   }
 
   return grafo;
@@ -2320,16 +2366,53 @@ export async function saveRecipeVersion(
       const lineId = newId();
       lineIds.push(lineId);
 
+      /**
+       * O CARIMBO da versão da sub-receita: deduzido quando o chamador não diz, conferido quando
+       * diz.
+       *
+       * **Deduzir é a Lei 1** — *nunca peça o que o sistema pode deduzir*. Quem monta uma linha de
+       * sub-receita quer a ficha que está valendo; a tela não tem seletor de versão e não vai ter,
+       * porque escolher versão de calda não é uma pergunta que alguém de luva responde. Então o
+       * carimbo é a mais nova NO INSTANTE DE SALVAR, e é isso que o torna estável depois.
+       *
+       * **E é aqui que nulo para de ser escrevível.** A `0066` diz que carimbo nulo existe só para
+       * linha de aparelho antigo, e isso era promessa: `seed.ts` e o editor montavam linha sem
+       * carimbo, então a única relação de sub-receita do aplicativo — a fábrica de exemplo —
+       * nascia com a aresta solta que este carimbo existe para prender. Pior: a linha NULA não
+       * carimba, então qualquer conserto automático que procurasse "quem carimba esta calda" a
+       * pularia. Preencher na escrita fecha a porta em vez de documentá-la.
+       */
+      let carimbo: string | null = null;
+      if (line.kind === 'recipe') {
+        if (line.subVersionId) {
+          const daquela = await conn.getFirstAsync<{ id: string }>(
+            `SELECT id FROM recipe_versions WHERE id = ? AND recipe_id = ? AND company_id = ?`,
+            [line.subVersionId, line.recipeId, companyId],
+          );
+          if (!daquela) throw new VersaoDeOutraFichaError(line.recipeId, line.subVersionId);
+          carimbo = line.subVersionId;
+        } else {
+          const maisNova = await conn.getFirstAsync<{ id: string }>(
+            `SELECT id FROM recipe_versions
+              WHERE recipe_id = ? AND company_id = ?
+              ORDER BY version DESC LIMIT 1`,
+            [line.recipeId, companyId],
+          );
+          carimbo = maisNova?.id ?? null;
+        }
+      }
+
       await conn.runAsync(
         `INSERT INTO recipe_lines (id, company_id, recipe_version_id, item_id, sub_recipe_id,
-                                   quantity, position)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                                   sub_recipe_version_id, quantity, position)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           lineId,
           companyId,
           versionId,
           line.kind === 'item' ? line.itemId : null,
           line.kind === 'recipe' ? line.recipeId : null,
+          carimbo,
           line.quantity,
           position,
         ],
@@ -2633,7 +2716,7 @@ export async function recordProduction(
     // aberto antes de a fórmula mudar congela a taxa da fórmula nova.
     input.fichaCravada ? { recipeId: product.recipeId, versionId: input.fichaCravada } : undefined,
   );
-  const recipe = graph[product.recipeId];
+  const recipe = graph.atual[product.recipeId];
   if (!recipe) throw new Error(`a receita de ${product.name} não está no aparelho`);
 
   /**
@@ -4313,7 +4396,7 @@ export async function openProductionRun(
   if (!product.recipeId) throw new Error(`${product.name} é revenda: não se produz`);
 
   const graph = await loadRecipeGraph(companyId);
-  const recipe = graph[product.recipeId];
+  const recipe = graph.atual[product.recipeId];
   if (!recipe) throw new Error(`a receita de ${product.name} não está no aparelho`);
 
   const conn = await db();
@@ -6414,6 +6497,22 @@ export class NomeJaCadastradoError extends Error {
   constructor(readonly nome: string) {
     super(`name ${nome} already exists in this line`);
     this.name = 'NomeJaCadastradoError';
+  }
+}
+
+/**
+ * O carimbo nomeia uma versão de OUTRA receita.
+ *
+ * No servidor isto é a chave composta da `0066` — `(sub_recipe_id, sub_recipe_version_id)
+ * references recipe_versions (recipe_id, id)`. O SQLite não aceita chave composta num
+ * `ADD COLUMN`, então a mesma regra vive aqui, com precedente: a V30 fez o mesmo com a grade do
+ * produto. Sem ela as duas colunas seriam válidas cada uma por si e o custo sairia de uma ficha
+ * que ninguém pediu — com a fila, ainda, travada pela recusa do servidor.
+ */
+export class VersaoDeOutraFichaError extends Error {
+  constructor(readonly subRecipeId: string, readonly versionId: string) {
+    super(`version ${versionId} does not belong to recipe ${subRecipeId}`);
+    this.name = 'VersaoDeOutraFichaError';
   }
 }
 

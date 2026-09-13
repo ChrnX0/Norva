@@ -399,7 +399,7 @@ test('saving a recipe twice keeps both versions and reads back the newest', asyn
   assert.equal(second.version, 2, 'a change is a new version, never an overwrite');
 
   const graph = await loadRecipeGraph(CO);
-  const recipe = graph[first.recipeId];
+  const recipe = graph.atual[first.recipeId];
   assert.equal(recipe.version, 2);
   assert.equal(recipe.lossFraction, 0.04);
   assert.equal(recipe.lines.length, 1);
@@ -430,7 +430,7 @@ test('a sub-recipe survives the round trip through the database', async () => {
     yieldAmount: 40_000,
     yieldUnit: 'ml',
     lossFraction: 0.05,
-    lines: [{ kind: 'recipe', recipeId: base.recipeId, quantity: 10_000 }],
+    lines: [{ kind: 'recipe', recipeId: base.recipeId, quantity: 10_000, subVersionId: null }],
   });
 
   // Loaded straight from SQLite and costed by the same engine the screens use.
@@ -785,7 +785,7 @@ test('fechar o tacho carimba a ficha da ABERTURA, não a que alguém salvou no m
 
   // O id da versão vem do grafo e não do retorno de `saveRecipeVersion`, que devolve só
   // `{ recipeId, version }`. Ler do grafo é ler o que o aplicativo lê.
-  const versaoDeAntes = (await loadRecipeGraph(CO))[ficha.recipeId]?.versionId;
+  const versaoDeAntes = (await loadRecipeGraph(CO)).atual[ficha.recipeId]?.versionId;
   assert.ok(versaoDeAntes, 'a ficha salva está no grafo');
 
   const corrida = await openProductionRun(CO, { productId, batches: 1 });
@@ -1300,7 +1300,7 @@ test('a movement made by talking carries the sentence; one made by hand does not
 test('a recipe carries the identity of the version it is, not just its number', async () => {
   await ensureStarterData(EMPRESA_SEMENTE);
   const graph = await loadRecipeGraph(EMPRESA_SEMENTE);
-  const recipes = Object.values(graph);
+  const recipes = Object.values(graph.atual);
   assert.ok(recipes.length > 0, 'the seed should leave recipes to look at');
 
   for (const recipe of recipes) {
@@ -1544,7 +1544,7 @@ test('the lot says which sheet ran, and correcting the sheet later does not rewr
   const [product] = (await listProductsForLedger(EMPRESA_SEMENTE)).filter((p) => p.recipeId);
 
   // A versão que estava valendo no dia da corrida.
-  const antes = (await loadRecipeGraph(EMPRESA_SEMENTE))[product.recipeId!];
+  const antes = (await loadRecipeGraph(EMPRESA_SEMENTE)).atual[product.recipeId!];
   assert.equal(antes.version, 1);
 
   const feito = await recordProduction(EMPRESA_SEMENTE, {
@@ -1583,7 +1583,7 @@ test('the lot says which sheet ran, and correcting the sheet later does not rewr
   // guardar: aqui entrava o id da RECEITA, um uuid legítimo na coluna errada.
   const corrida = await openProductionRun(EMPRESA_SEMENTE, { productId: product.id, batches: 1 });
   assert.notEqual(corrida.recipeVersionId, product.recipeId, 'não é o id da receita');
-  const agora = (await loadRecipeGraph(EMPRESA_SEMENTE))[product.recipeId!];
+  const agora = (await loadRecipeGraph(EMPRESA_SEMENTE)).atual[product.recipeId!];
   assert.equal(corrida.recipeVersionId, agora.versionId, 'é o id da versão que está valendo');
 
   // E o que foi GRAVADO, lido de volta — não o que a função devolveu.
@@ -8327,4 +8327,125 @@ test('o piso do aparelho pessoal é o que o SERVIDOR disse, não o conjunto do d
   await setCapacidadesDaConta(null);
   const depois = await currentCapabilities(CO);
   assert.deepEqual([...depois].sort(), ['record_production'], 'nulo é ausência de resposta, não resposta vazia');
+});
+
+/**
+ * A CALDA editada no meio do tacho não muda o custo congelado — a outra metade do item 43.
+ *
+ * O irmão deste teste, logo acima, prova o carimbo da ficha RAIZ: `closeProductionRun` passa
+ * `fichaCravada` e a corrida fecha com a fórmula da abertura. Para ficha plana — itens e nada
+ * mais — isso é completo.
+ *
+ * O que faltava tem dinheiro e é uma camada abaixo: a linha de SUB-receita resolvia sempre pela
+ * versão mais nova da calda, porque a corrida anota UMA versão e o grafo trazia `MAX(version)`
+ * por receita. Editar a calda entre abrir e fechar mudava o consumo e a taxa congelada de uma
+ * corrida que rodou a calda velha — e conteúdo de livro-razão não se corrige, se estorna.
+ *
+ * A conta de cabeça inteira, porque é ela que separa o conserto do defeito:
+ *
+ *   açúcar: 100.000 g por R$ 400                       → 0,4 ¢/g
+ *   calda v1: 1.000 g de açúcar por batelada           → 400 ¢, rendendo 10.000 ml
+ *                                                      → 0,04 ¢/ml de calda
+ *   picolé: 1.000 ml de calda por batelada             → 40 ¢ a batelada
+ *           rende 1.000 ml, 100 ml por unidade         → 10 unidades
+ *                                                      → **4 ¢ por unidade**
+ *   e o açúcar consumido: 1.000 ml de calda são 0,1 batelada dela → **100 g**
+ *
+ * Com a calda v2 (o dobro de açúcar) os dois números dobram: 8 ¢ por unidade e 200 g de açúcar.
+ * Os dois são medidos, e é o par que fecha a prova — a taxa sozinha não distingue "resolveu pela
+ * v1" de "resolveu pela v2 e errou a divisão".
+ *
+ * *E a primeira versão desta conta, escrita aqui por mim, dizia 1.000 g de açúcar consumidos. O
+ * teste reprovou com `-100 !== -1000` e estava certo: 1.000 ml de calda são um DÉCIMO da batelada
+ * dela. A conta na mão é a régua que não compartilha os erros do código — e ela também erra
+ * quando não é feita até o fim.*
+ */
+test('a calda editada no meio do tacho não muda o custo congelado da corrida', async () => {
+  const acucar = await anInput('Açúcar da calda', 1_000);
+  // 1.000 g por R$ 4,00 → 0,4 ¢/g, que é o número que faz a conta fechar em inteiros.
+  await recordPurchase(CO, {
+    itemId: acucar,
+    purchaseQuantity: 100,
+    baseUnits: 100_000,
+    totalCents: fromDecimal(400),
+  });
+
+  const calda = await saveRecipeVersion(CO, {
+    name: 'Calda da prova',
+    yieldAmount: 10_000,
+    yieldUnit: 'ml',
+    lossFraction: 0,
+    lines: [{ kind: 'item', itemId: acucar, quantity: 1_000 }],
+  });
+  const caldaV1 = (await loadRecipeGraph(CO)).atual[calda.recipeId]?.versionId;
+  assert.ok(caldaV1, 'a calda v1 está no grafo');
+
+  const mae = await saveRecipeVersion(CO, {
+    name: 'Picolé com calda',
+    yieldAmount: 1_000,
+    yieldUnit: 'ml',
+    lossFraction: 0,
+    // Sem `subVersionId`: quem monta a linha não escolhe versão de calda, e
+    // `saveRecipeVersion` carimba a mais nova. É a Lei 1, e é o que faz nulo parar de existir.
+    lines: [{ kind: 'recipe', recipeId: calda.recipeId, quantity: 1_000, subVersionId: null }],
+  });
+  const { productId } = await saveProduct(CO, {
+    name: 'Picolé de calda',
+    kind: 'product',
+    recipeId: mae.recipeId,
+    yieldPerUnit: 100,
+    unitPackagingRate: rate(0, 1),
+    packaging: loose,
+  });
+
+  // O carimbo foi gravado, e ele é a v1 da calda.
+  const conn = await db();
+  const carimbo = await conn.getFirstAsync<{ sub_recipe_version_id: string | null }>(
+    `SELECT sub_recipe_version_id FROM recipe_lines
+      WHERE sub_recipe_id = ? ORDER BY position LIMIT 1`,
+    [calda.recipeId],
+  );
+  assert.equal(
+    carimbo?.sub_recipe_version_id,
+    caldaV1,
+    'a linha da mãe nasceu carimbada na calda que estava valendo — nulo aqui é a linha cujo custo muda sozinho',
+  );
+
+  const corrida = await openProductionRun(CO, { productId, batches: 1 });
+
+  // A CALDA muda no meio: o dobro de açúcar. A mãe não foi tocada, e é isso que faz este teste
+  // diferente do irmão de cima — lá a fórmula editada era a da raiz.
+  await saveRecipeVersion(CO, {
+    recipeId: calda.recipeId,
+    name: 'Calda da prova',
+    yieldAmount: 10_000,
+    yieldUnit: 'ml',
+    lossFraction: 0,
+    lines: [{ kind: 'item', itemId: acucar, quantity: 2_000 }],
+  });
+
+  await closeProductionRun(CO, {
+    runId: corrida.id,
+    unitsProduced: 10,
+    producedOn: '2026-09-13',
+  });
+
+  const lancamentos = await itemMovements(CO, acucar);
+  const consumo = lancamentos.find((m) => m.kind === 'consumption');
+  assert.equal(
+    consumo?.baseUnits,
+    -100,
+    'a corrida consumiu a calda v1: 100 g de açúcar (um décimo da batelada dela), não os 200 da v2',
+  );
+
+  const produzido = (await listItems(CO)).find((i) => i.name === 'Picolé de calda');
+  const taxa = await conn.getFirstAsync<{ unit_cost_rate: number }>(
+    `SELECT unit_cost_rate FROM movements WHERE item_id = ? AND kind = 'production'`,
+    [produzido!.id],
+  );
+  assert.ok(
+    Math.abs((taxa?.unit_cost_rate ?? 0) - 4) < 1e-9,
+    `esperava 4 centavos por unidade e veio ${taxa?.unit_cost_rate}: com a calda v2 seriam 8, e ` +
+      'o lote rodou a v1 — custo congelado não se corrige, se estorna',
+  );
 });

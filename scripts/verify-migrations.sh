@@ -2591,5 +2591,87 @@ PELA_VIEW=$(as_user "$OPERATOR" "select coalesce(unit_cost_rate::text, 'null') f
 echo "    dez colunas de dinheiro fechadas por politica, e a taxa do razao verdadeira para quem replica e nula para quem le"
 
 echo
-echo "OK - migrations apply and all thirty-seven guarantees hold."
+echo "==> check 38: a linha da ficha CARIMBA a versao da sub-receita, e o carimbo e daquela receita"
+
+# A base de creme que oito sabores usam e uma sub-receita, e a linha guardava so `sub_recipe_id`.
+# Quem resolve o grafo pegava sempre a versao MAIS NOVA: editar a base entre abrir e fechar o
+# tacho mudava o custo CONGELADO daquela corrida — conteudo de razao, que nao se corrige.
+#
+# O que so um Postgres de verdade prova aqui e a CHAVE COMPOSTA. Duas chaves separadas nao
+# conseguem dizer "a versao nomeada e DESTA receita": cada coluna seria valida por si, e o custo
+# sairia de uma ficha que ninguem pediu.
+
+CAR=cccc0000-0000-4000-8000-0000000001
+
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
+  insert into recipes (id, company_id, name, yield_amount, yield_unit)
+    values ('${CAR}a1','${M}c1','Base de creme', 10000, 'ml'),
+           ('${CAR}a2','${M}c1','Outra ficha', 20000, 'ml');
+  insert into recipe_versions (id, company_id, recipe_id, version)
+    values ('${CAR}b1','${M}c1','${CAR}a1', 1),
+           ('${CAR}b2','${M}c1','${CAR}a1', 2),
+           ('${CAR}b9','${M}c1','${CAR}a2', 1);" >/dev/null  # proofgate-allow
+
+# (a) O carimbo da PROPRIA sub entra.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
+  insert into recipe_lines (id, company_id, recipe_version_id, sub_recipe_id, sub_recipe_version_id, quantity)
+    values ('${CAR}c1','${M}c1','${CAR}b9','${CAR}a1','${CAR}b1', 1000);" >/dev/null ||
+  fail "a linha nao pode carimbar a versao 1 da propria sub-receita"
+
+# (b) O carimbo de OUTRA receita e recusado. Este e o caso que so a chave composta pega.
+if psql -d "$DB" -q -c "
+  insert into recipe_lines (id, company_id, recipe_version_id, sub_recipe_id, sub_recipe_version_id, quantity)
+    values ('${CAR}c2','${M}c1','${CAR}b9','${CAR}a1','${CAR}b9', 1000);" >/dev/null 2>&1; then  # proofgate-allow
+  fail "a linha carimbou uma versao de OUTRA receita: o custo sairia de uma ficha que ninguem pediu"
+fi
+
+# (c) Carimbo sem sub-receita e recusado: linha de ITEM nao tem versao de ficha a nomear.
+if psql -d "$DB" -q -c "
+  insert into recipe_lines (id, company_id, recipe_version_id, item_id, sub_recipe_version_id, quantity)
+    values ('${CAR}c3','${M}c1','${CAR}b9','${M}b1','${CAR}b1', 500);" >/dev/null 2>&1; then  # proofgate-allow
+  fail "uma linha de item carregou carimbo de versao: dado que ninguem le e divergencia esperando"
+fi
+
+# (d) Apagar a versao CARIMBADA e recusado — apagaria a explicacao de um custo que esta no razao.
+#
+# **E a recusa tem de ser a DESTA chave, nao qualquer recusa.** Plantei `on delete set null` para
+# ver a assercao morder e ela ficou VERDE: num `set null` de chave COMPOSTA o Postgres zera as
+# duas colunas, `sub_recipe_id` inclusive, e ai o `one_source` da `0002`
+# (`num_nonnulls(item_id, sub_recipe_id) = 1`) recusa o delete por OUTRO motivo. Asserção que so
+# pergunta "foi recusado?" e satisfeita pela recusa errada — e aqui a errada deixaria o carimbo
+# nulo em silencio, que e exatamente o estado que esta migracao existe para nao ter.
+NEGADA=$(psql -d "$DB" -q -c "delete from recipe_versions where id = '${CAR}b1';" 2>&1 >/dev/null | head -2 | tr '\n' ' ' || true)  # proofgate-allow
+case "$NEGADA" in
+  *recipe_lines_sub_version_is_of_sub*) ;;
+  '') fail "a versao carimbada por uma linha foi apagada: o custo daquela corrida perdeu a explicacao" ;;
+  *) fail "o delete da versao carimbada foi recusado por outra regra, nao pela chave do carimbo: $NEGADA" ;;
+esac
+# E a que ninguem carimba sai, porque `restrict` e sobre referencia e nao sobre versao.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "delete from recipe_versions where id = '${CAR}b2';" >/dev/null ||
+  fail "a versao que ninguem carimba nao pode ser apagada: o restrict ficou largo"
+
+# (e) E o BACKFILL acorda apontando para a MAX(version) — rodando a instrucao DA MIGRACAO, lida
+# do arquivo, e nao uma copia dela escrita aqui. Copia envelhece; o arquivo e o sistema.
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -c "
+  insert into recipe_versions (id, company_id, recipe_id, version)
+    values ('${CAR}b3','${M}c1','${CAR}a1', 3);
+  insert into recipe_lines (id, company_id, recipe_version_id, sub_recipe_id, quantity)
+    values ('${CAR}c4','${M}c1','${CAR}b9','${CAR}a1', 250);" >/dev/null  # proofgate-allow
+
+SEM_CARIMBO=$(rows "select coalesce(sub_recipe_version_id::text, 'nulo') from recipe_lines where id = '${CAR}c4';")  # proofgate-allow
+[ "$SEM_CARIMBO" = "nulo" ] || fail "a linha sem carimbo nasceu carimbada ('$SEM_CARIMBO'): o MATCH SIMPLE devia deixar o nulo passar"
+
+sed -n '/^update recipe_lines l/,/and l.sub_recipe_version_id is null;/p' \
+  supabase/migrations/0066_a_linha_da_ficha_carimba_a_versao_da_sub.sql > "$PGDATA/backfill.sql"
+[ -s "$PGDATA/backfill.sql" ] || fail "a leitura do backfill no arquivo da migracao veio vazia: esta garantia estaria medindo nada"
+psql -d "$DB" -v ON_ERROR_STOP=1 -q -f "$PGDATA/backfill.sql" >/dev/null ||
+  fail "o backfill da propria migracao nao roda uma segunda vez"
+
+DEPOIS=$(rows "select v.version from recipe_lines l join recipe_versions v on v.id = l.sub_recipe_version_id where l.id = '${CAR}c4';")  # proofgate-allow
+[ "$DEPOIS" = "3" ] || fail "o backfill carimbou a versao '$DEPOIS' e a mais nova e a 3: a linha antiga acordaria com um custo que ninguem compos"
+
+echo "    o carimbo e da propria sub, carimbo sem sub e recusado, versao carimbada nao se apaga, e o backfill acorda na mais nova"
+
+echo
+echo "OK - migrations apply and all thirty-eight guarantees hold."
 

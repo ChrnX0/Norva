@@ -39,8 +39,8 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 | telas | **36** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **28** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **30** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
-| migrações do servidor | **65** | `ls supabase/migrations \| wc -l` |
-| migrações do aparelho | **V38** | último `const V` em `src/data/db.ts` |
+| migrações do servidor | **66** | `ls supabase/migrations \| wc -l` |
+| migrações do aparelho | **V39** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
 | linhas de código | **~102.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
@@ -49,10 +49,10 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **828** testes |
+| `npm test` | **829** testes |
 | `npm run mutate` | **150** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **59** checagens num navegador de verdade |
-| `npm run db:verify` | **37** garantias contra um Postgres descartável: **19** sob RLS, como a conta da empresa, e **18** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
+| `npm run db:verify` | **38** garantias contra um Postgres descartável: **19** sob RLS, como a conta da empresa, e **19** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
 
@@ -1219,7 +1219,12 @@ contra o SQLite do aplicativo. **Nenhum defeito novo nesta perna.**
 
 43. **A SUB-receita editada no meio do tacho ainda muda o custo congelado** — a outra metade
     do conserto de 12 de setembro, e ela não é uma linha.
-    <!-- medida: ausente src/data/db.ts :: sub_recipe_version_id -->
+    <!-- medida: ausente app/lots/[id].tsx :: subs -->
+
+    **O ESQUEMA dos dois lados entrou em 13 de setembro** (`0066` com a chave composta e a
+    garantia 38; V39 no aparelho com `REPARO_CARIMBO_DA_SUB`), e o que falta é o que custa: o
+    grafo do domínio deixar de ser uma versão por receita. A medida acima aponta para essa
+    metade, porque é ela que decide se o custo congelado muda ou não.
 
     O que já está fechado: `closeProductionRun` passa `fichaCravada: run.recipeVersionId` e
     `loadRecipeGraph` aceita `fixar`, então a receita RAIZ entra na versão da abertura. Para a

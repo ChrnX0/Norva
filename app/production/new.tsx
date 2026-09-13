@@ -39,7 +39,7 @@ import { empresaDaqui } from '@/data/empresa';
 import { unidadeDaqui } from '@/data/unidade';
 import { useQuery } from '@/data/useQuery';
 import { INTERNAL_PLACE_KINDS } from '@/domain/ledger';
-import { explodeRequirements, type Recipe } from '@/domain/recipe';
+import { explodeRequirements, type Recipe, type RecipeGraph } from '@/domain/recipe';
 import { parseTyped } from '@/domain/number';
 import {
   fill,
@@ -103,7 +103,7 @@ export default function ProductionScreen() {
 
 type Loaded = {
   products: Product[];
-  graph: Record<string, Recipe>;
+  graph: RecipeGraph;
   /** O saldo da SALA em que o tacho roda, que é o piso que o livro-razão confere. */
   items: ItemWithCost[];
   names: Record<string, string>;
@@ -181,7 +181,7 @@ function Production() {
   const [saving, setSaving] = useState(false);
 
   const selected = data?.products.find((p) => p.id === productId) ?? data?.products[0] ?? null;
-  const recipe = selected?.recipeId ? data?.graph[selected.recipeId] : undefined;
+  const recipe = selected?.recipeId ? data?.graph.atual[selected.recipeId] : undefined;
 
   /**
    * **Quantas vezes — e quando há corrida aberta, quem responde é ELA.**
