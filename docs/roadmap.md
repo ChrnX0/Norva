@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **836** testes |
+| `npm test` | **839** testes |
 | `npm run mutate` | **154** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **60** checagens num navegador de verdade |
 | `npm run db:verify` | **38** garantias contra um Postgres descartável: **19** sob RLS, como a conta da empresa, e **19** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |

@@ -1100,7 +1100,7 @@ function ProductForm() {
               value={fullLevel}
               onChangeText={setFullLevel}
               keyboardType="numeric"
-              suffix="un"
+              suffix={t.units.unit.other}
               hint={t.app.inputForm.fullLevelHint}
             />
           </View>
@@ -1193,7 +1193,7 @@ function ProductForm() {
               label={t.app.productForm.salePrice}
               value={salePrice}
               onChangeText={setSalePrice}
-              placeholder="2,50"
+              placeholder={formatTyped(2.5, locale.formatting, 2)}
               suffix={`${currencySymbol(locale)} ${t.app.productForm.perUnitShort}`}
               keyboardType="numeric"
               hint={t.app.productForm.salePriceHint}

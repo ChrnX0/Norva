@@ -441,7 +441,7 @@ function RecipeEditor() {
       saindo.current = true;
       await saveRecipeVersion(empresaDaqui(), {
         recipeId,
-        name: data?.labels[recipeId] ?? 'Receita',
+        name: data?.labels[recipeId] ?? t.app.recipe.fallbackTitle,
         yieldAmount: num(yieldAmount),
         /**
          * **A unidade é do dono, e esta linha a apagava.** Era `'ml'` literal.

@@ -501,7 +501,7 @@ function InputForm() {
               label={words.perPack}
               value={purchaseToBase}
               onChangeText={setPurchaseToBase}
-              placeholder="25000"
+              placeholder={formatTyped(25_000, locale.formatting, 0)}
               suffix={baseUnit}
               keyboardType="numeric"
             />
@@ -519,7 +519,7 @@ function InputForm() {
               label={words.fullLevel}
               value={fullLevel}
               onChangeText={setFullLevel}
-              placeholder="50000"
+              placeholder={formatTyped(50_000, locale.formatting, 0)}
               suffix={baseUnit}
               keyboardType="numeric"
               hint={words.fullLevelHint}
@@ -531,7 +531,7 @@ function InputForm() {
                 label={words.price}
                 value={price}
                 onChangeText={setPrice}
-                placeholder="118,00"
+                placeholder={formatTyped(118, locale.formatting, 2)}
                 suffix={currencySymbol(locale)}
                 keyboardType="numeric"
                 // A conta enquanto se digita, e no lugar dela a frase que diz o

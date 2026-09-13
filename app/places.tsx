@@ -1032,7 +1032,7 @@ function Agreement({ place, onDone }: { place: Place; onDone: () => void }) {
               onChangeText={(texto) =>
                 setDigitado((atual) => ({ ...atual, [linha.itemId]: texto }))
               }
-              placeholder="2,50"
+              placeholder={formatTyped(2.5, locale.formatting, 2)}
               suffix={currencySymbol(locale)}
               keyboardType="numeric"
               /* Lei 3: o combinado nunca aparece sozinho — ao lado vem a tabela que

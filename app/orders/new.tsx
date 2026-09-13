@@ -27,7 +27,7 @@ import { nowIso } from '@/data/db';
 import { useQuery } from '@/data/useQuery';
 import { localDate } from '@/domain/day';
 import { receivesCargo } from '@/domain/ledger';
-import { parseTyped } from '@/domain/number';
+import { parseTyped, formatTyped } from '@/domain/number';
 import {
   fill,
   formatCalendarDate,
@@ -471,7 +471,7 @@ function NewOrder() {
               value={campoQuantidade.valor}
               onChangeText={setQuantity}
               keyboardType="numeric"
-              placeholder="0"
+              placeholder={formatTyped(0, locale.formatting, 0)}
               hint={
                 campoQuantidade.ehSugestao && place
                   ? fill(words.fromLastLoad, { place: place.name })

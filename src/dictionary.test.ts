@@ -1195,3 +1195,101 @@ test('a régua do bisturi pega a cicatriz e deixa o resto em paz', () => {
   // Recortar o que a PESSOA digitou é outra coisa, e é legítimo.
   assert.ok(!CIRURGIA_EM_TRADUCAO.test('const limpo = supplier.trim().replace(/\\s+/g, " ");'));
 });
+
+/**
+ * **Número e palavra cravados num campo não são "texto de programador": são a REGIÃO errada.**
+ *
+ * A régua de i18n deste projeto cobra frase. Estes escapavam dela porque não parecem frase:
+ * `placeholder="2,50"`, `placeholder="118,00"`, `suffix="un"`, `?? 'Receita'`. Oito ocorrências
+ * em seis telas, medidas em 13 de setembro.
+ *
+ * **E o que eles quebram não é tradução, é aritmética de leitura.** "2,50" em `en-US` se escreve
+ * "2.50", e `formatTyped` existe justamente para isso — ele é o mesmo que formata o valor que a
+ * pessoa digita, então o exemplo no campo passa a ter a MESMA forma do que ela vai escrever. Um
+ * exemplo com vírgula num aparelho que usa ponto ensina o formato errado no lugar onde o produto
+ * está pedindo dinheiro.
+ *
+ * `suffix="un"` é a abreviação de "unidades" em português cravada ao lado de um número, e
+ * `t.units.unit.other` é a mesma palavra com tradução. `?? 'Receita'` é o título de uma tela
+ * inteira, com a chave `fallbackTitle` já existindo a duas linhas dele.
+ *
+ * A régua olha o VALOR entre aspas: número com vírgula ou ponto, ou palavra que começa com
+ * maiúscula, atribuídos a `placeholder` ou `suffix`, ou depois de `??`. Prosa de comentário fica
+ * de fora — o defeito é o que chega à tela.
+ */
+/**
+ * O que é SÍMBOLO e não palavra — e a diferença é medida, não gosto.
+ *
+ * `g` é o símbolo SI de grama e `%` é por cento: os dois se escrevem igual em toda região e em
+ * todo idioma que este produto atende. Traduzi-los seria inventar uma variação que não existe,
+ * e formatá-los por região não faz sentido — não são números.
+ *
+ * A lista é escrita e só encolhe, como as outras fronteiras deste repositório. Uma unidade que
+ * MUDE de região (libra contra quilo, galão contra litro) não entra aqui: essa é escolha da
+ * empresa e mora no cadastro do item, não num `placeholder`.
+ */
+const SIMBOLO_UNIVERSAL: { trecho: string; porque: string }[] = [
+  { trecho: 'placeholder="g"', porque: 'símbolo SI de grama, igual em toda região e idioma' },
+  { trecho: 'suffix="%"', porque: 'por cento, igual em toda região e idioma' },
+];
+
+const CRAVADO = [
+  // `placeholder="2,50"` e `suffix="un"` — número ou palavra entre aspas retas.
+  /\b(placeholder|suffix)="[^"{}]+"/,
+  // `?? 'Receita'` — a palavra que substitui um dado ausente.
+  /\?\?\s*'[A-ZÀ-Ú][a-zà-ú]+'/,
+];
+
+test('nenhum campo de tela traz número ou palavra cravados no lugar da região', () => {
+  const cravados: string[] = [];
+  for (const caminho of fontes('app').filter((f) => f.endsWith('.tsx'))) {
+    readFileSync(caminho, 'utf8')
+      .split('\n')
+      .forEach((linha, i) => {
+        const limpa = linha.trim();
+        if (limpa.startsWith('*') || limpa.startsWith('//')) return;  // prosa
+        if (!CRAVADO.some((r) => r.test(linha))) return;
+        // O símbolo universal é dispensado pelo TRECHO exato, não pelo arquivo: dispensar o
+        // arquivo absolveria o `placeholder="2,50"` que aparecesse nele amanhã.
+        if (SIMBOLO_UNIVERSAL.some((e) => linha.includes(e.trecho))) return;
+        cravados.push(`${caminho}:${i + 1}: ${limpa.slice(0, 80)}`);
+      });
+  }
+  assert.deepEqual(
+    cravados,
+    [],
+    'número de exemplo passa por `formatTyped(x, locale.formatting, casas)` e palavra passa pelo ' +
+      'dicionário: "2,50" se escreve "2.50" noutra região, e um exemplo com a vírgula errada ' +
+      'ensina o formato errado no campo onde o produto pede dinheiro\n  ' + cravados.join('\n  '),
+  );
+});
+
+test('a lista de símbolo universal só guarda trecho que de fato existe', () => {
+  const codigo = fontes('app')
+    .filter((f) => f.endsWith('.tsx'))
+    .map((f) => readFileSync(f, 'utf8'))
+    .join('\n');
+  const mortos = SIMBOLO_UNIVERSAL.filter((e) => !codigo.includes(e.trecho)).map((e) => e.trecho);
+  assert.deepEqual(
+    mortos,
+    [],
+    'este trecho não está mais no código — tire-o da lista, que é fronteira escrita e só encolhe',
+  );
+});
+
+test('a régua do cravado separa o valor que chega à tela do que é prosa ou chave', () => {
+  const morde = (linha: string) => CRAVADO.some((r) => r.test(linha));
+  // Verdadeiros: os quatro que estavam no código.
+  assert.ok(morde('              placeholder="2,50"'), 'número com vírgula cravado');
+  assert.ok(morde('              placeholder="118,00"'), 'dinheiro cravado');
+  assert.ok(morde('              suffix="un"'), 'abreviação de unidade cravada');
+  assert.ok(morde("        name: data?.labels[recipeId] ?? 'Receita',"), 'título cravado no ??');
+  // Falsos: o conserto, a chave, e o `??` que devolve vazio ou dado.
+  assert.ok(
+    !morde('              placeholder={formatTyped(2.5, locale.formatting, 2)}'),
+    'o número formatado pela região é o conserto, não o defeito',
+  );
+  assert.ok(!morde('              suffix={t.units.unit.other}'), 'a palavra do dicionário passa');
+  assert.ok(!morde("  const nome = quem?.name ?? '';"), 'vazio não é palavra de tela');
+  assert.ok(!morde('  const id = escolhido ?? primeiro.id;'), 'dado não é palavra de tela');
+});

@@ -67,7 +67,7 @@ import {
 } from '@/i18n';
 import type { Dictionary } from '@/i18n';
 import { nowIso } from '@/data/db';
-import { dayWindow } from '@/domain/day';
+import { dayWindow, localDate } from '@/domain/day';
 
 import { useLocale } from '@/i18n/useLocale';
 import { ALVO } from '@/theme/tokens';
@@ -861,12 +861,26 @@ function InputDetail() {
                   : diasAteComprar > 10
                     ? t.app.inputDetail.buyCalm
                     : fill(t.app.inputDetail.buyBy, {
-                        // O dia da semana e não a data: "compre até quinta" é como
-                        // alguém fala, e "compre até 11/09" é como um sistema fala.
+                        /**
+                         * O dia da semana e não a data: "compre até quinta" é como alguém
+                         * fala, e "compre até 11/09" é como um sistema fala.
+                         *
+                         * **E o dia é o da FÁBRICA, não o do aparelho.** Isto somava
+                         * milissegundos a um instante e lia `getDay()`, que responde no fuso
+                         * de quem segura o celular: às 21h de São Paulo o aparelho de alguém
+                         * em Lisboa já está no dia seguinte, e a frase mandava comprar até
+                         * SEXTA quando o prazo é quinta. `localDate` faz a conta sobre a data
+                         * LOCAL da empresa — é a mesma peça que o fechamento do dia usa, e o
+                         * docblock dela nomeia este atalho como o errado.
+                         *
+                         * O `T00:00:00Z` com `getUTCDay()` fecha o laço: a data já está certa,
+                         * então lê-la em UTC é o único jeito de não reintroduzir o fuso do
+                         * aparelho no último passo.
+                         */
                         weekday: formatWeekdayShort(
                           new Date(
-                            new Date(data?.agora ?? '').getTime() + diasAteComprar * 86_400_000,
-                          ).getDay(),
+                            `${localDate(data?.agora ?? '', locale.timeZone, diasAteComprar)}T00:00:00Z`,
+                          ).getUTCDay(),
                           locale,
                         ),
                       })

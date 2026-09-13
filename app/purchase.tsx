@@ -31,7 +31,7 @@ import { useQuery } from '@/data/useQuery';
 import { fromDecimal, rate, type Rate, rateToDecimal, amountOf } from '@/domain/money';
 import { variacaoDoCusto, applyCostEvent, judgePriceChange } from '@/domain/cost';
 import { costPerProductUnit, packagingRatePerUnit, costRecipe } from '@/domain/recipe';
-import { parseTyped } from '@/domain/number';
+import { parseTyped, formatTyped } from '@/domain/number';
 import { localDate } from '@/domain/day';
 import { nowIso } from '@/data/db';
 
@@ -596,7 +596,7 @@ function PurchaseForm() {
                 label={t.app.purchase.freight}
                 value={frete}
                 onChangeText={setFrete}
-                placeholder="0,00"
+                placeholder={formatTyped(0, locale.formatting, 2)}
                 suffix={currencySymbol(locale)}
                 keyboardType="numeric"
                 hint={t.app.purchase.freightHint}
@@ -605,7 +605,7 @@ function PurchaseForm() {
                 label={t.app.purchase.total}
                 value={total}
                 onChangeText={setTotal}
-                placeholder="118,00"
+                placeholder={formatTyped(118, locale.formatting, 2)}
                 suffix={currencySymbol(locale)}
                 keyboardType="numeric"
                 hint={
