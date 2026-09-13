@@ -2401,7 +2401,18 @@ check('the app speaks the three languages it was written in, and the money follo
 
 check('the app has two faces, and the choice survives leaving the screen', async (page) => {
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(2500);
+  /**
+   * **Assenta, e não 2500 ms — esta checagem reprovou por causa do relógio em 13 de setembro.**
+   *
+   * Ela caiu na fatia 2 com *"a escolha da identidade está nos ajustes"*, que tem cara de
+   * defeito de verdade, e passou sozinha na repetição isolada. A causa não é "flake": os
+   * Ajustes ganharam naquela rodada um cartão que faz duas consultas novas, então a tela
+   * demora mais para montar — e uma espera fixa transforma "mais lento" em "não existe".
+   *
+   * O `assentar` mede o que interessa: o texto da tela parou de crescer. A checagem irmã já
+   * tinha sido consertada assim, com a razão escrita lá; esta ficou para trás e cobrou.
+   */
+  await assentar(page);
 
   const ajustes = await screen(page);
   assert.match(ajustes, /A cara do aplicativo/, 'a escolha da identidade está nos ajustes');
@@ -2419,9 +2430,9 @@ check('the app has two faces, and the choice survives leaving the screen', async
   // E ela sobrevive a sair da tela: a escolha vai para a gaveta local, não para
   // o estado do componente. Sem isso, voltar à capa traria a cara antiga.
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(2500);
+  await assentar(page);
   await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(2500);
+  await assentar(page);
 
   const depois = await screen(page);
   assert.match(depois, /A cara do aplicativo/, 'os ajustes continuam de pé depois da troca');

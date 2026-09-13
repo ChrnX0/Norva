@@ -12552,3 +12552,25 @@ com atenção, e a resposta foi a que este arquivo já prescreve para tudo que r
 (`src/prova-sql.test.ts`) que só olha as regiões onde o shell de fato lê — heredoc sem aspas no
 delimitador e `-c "…"` multilinha —, provada contra o caso verdadeiro e contra o heredoc citado,
 que é o falso.
+
+## 13 de setembro — a checagem reprovou pelo RELÓGIO, e a causa era o cartão que eu acrescentei
+
+A rodada da matrícula do aparelho fechou 59 de 60 no navegador. A que caiu foi *"a escolha da
+identidade está nos ajustes"* — e o `CLAUDE.md` já registra essa mesma checagem como a que
+*"tem cara de defeito de verdade"* e passa sozinha. Passou sozinha de novo.
+
+**Mas "era disputa" é meia resposta, e a outra metade é minha.** A checagem espera
+`waitForTimeout(2500)` e depois LÊ a tela. A rodada acrescentou aos Ajustes um cartão que faz
+duas consultas novas — então a tela passou a montar mais devagar, e uma espera fixa transforma
+"mais lento" em "não existe". A irmã dela já tinha sido consertada com `assentar` (esperar o
+texto parar de crescer) e a razão está escrita lá; esta ficou para trás e cobrou na primeira
+tela que engordou.
+
+A regra que sai: **quando uma checagem de navegador cai depois de uma mudança que engorda a
+tela, a pergunta não é "é flake?" — é "ela espera relógio ou condição?"**. Se for relógio, a
+causa é a mudança E a espera, e consertar a espera é o que impede a próxima.
+
+*E o tamanho da dívida está medido: sobraram **191** `waitForTimeout(2500)` na suíte. Não dá
+para trocar todas de uma vez — algumas esperam uma escrita terminar, e "o texto parou de
+crescer" passaria cedo demais —, então a conversão é caso a caso, na checagem que cair. O
+número fica escrito para a próxima sessão não descobrir isso de novo pelo sintoma.*
