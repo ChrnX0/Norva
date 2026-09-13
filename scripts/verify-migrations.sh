@@ -2447,8 +2447,10 @@ while IFS='|' read -r TABELA COLUNAS; do
   # A mesma troca que `transporte.ts` faz: o razao desce pela VIEW, que e o portao do dinheiro.
   FONTE="$TABELA"
   [ "$TABELA" = "movements" ] && FONTE=movements_visible
-  ERRO=$(as_user "$DEVICE_ACCOUNT" "select $COLUNAS from $FONTE
-          where company_id = '$DEVICE_COMPANY' order by received_at, id limit 500;" 2>&1 >/dev/null || true)  # proofgate-allow
+  # A consulta sai para uma variavel antes de ser feita, e nao por estilo: o marcador de
+  # justificativa e por LINHA, e nao existe comentario que caiba dentro de uma string de SQL.
+  PAGINA="select $COLUNAS from $FONTE where company_id = '$DEVICE_COMPANY' order by received_at, id limit 500;"  # proofgate-allow
+  ERRO=$(as_user "$DEVICE_ACCOUNT" "$PAGINA" 2>&1 >/dev/null || true)
   [ -z "$ERRO" ] || fail "a descida de '$TABELA' nao anda: $(echo "$ERRO" | head -1)"
   ANDOU=$((ANDOU + 1))
 done <<EOF
@@ -2462,7 +2464,7 @@ EOF
 # `default now()` carimba no insert e mais nada. Cadastro desce por upsert — o item muda de
 # nome — e uma correcao que nao move `received_at` fica para sempre ANTES do cursor de quem ja
 # desceu: o outro celular chama o item pelo nome velho, calado.
-ITEM=$(rows "select id from items where company_id = '$DEVICE_COMPANY' order by id limit 1;")
+ITEM=$(rows "select id from items where company_id = '$DEVICE_COMPANY' order by id limit 1;")  # proofgate-allow
 [ -n "$ITEM" ] || fail "a sessao do aparelho nao deixou item nenhum para corrigir"
 ANTES=$(rows "select received_at from items where id = '$ITEM';")  # proofgate-allow
 as_user "$DEVICE_ACCOUNT" "update items set name = name || ' (corrigido)' where id = '$ITEM';" >/dev/null 2>&1 || true  # proofgate-allow

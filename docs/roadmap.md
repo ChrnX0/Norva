@@ -77,7 +77,7 @@ mesma linha duas vezes.
 
 *Última execução do `mutate`: **13 de setembro, sobre `7e2ddb2`** — **150 plantadas, 148 pegas,
 2 equivalentes, 0 sobreviventes, 0 não medidas**, com a barra inteira verde ao lado (796 testes,
-navegador 59/59, `db:verify` 36 garantias, portão passando com sete avisos justificados). A
+navegador 59/59, `db:verify` 35 garantias (as de então), portão passando com sete avisos justificados). A
 execução ANTERIOR, no mesmo dia, deu cinco **não medidas** — cinco regras sem guarda, e nenhuma
 delas notícia sobre a suíte: eram âncoras que as rodadas de dinheiro moveram embaixo delas. Uma
 saiu de vez (`multiplyCents` foi apagada por não ter chamador), três ganharam âncora nova, e a
