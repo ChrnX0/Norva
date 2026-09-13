@@ -473,3 +473,76 @@ test('a régua da contagem separa o número que CONTA do artigo', () => {
   assert.equal(contagemNoNome('      - name: 4 fatias no navegador'), true, 'dígito também conta');
   assert.equal(contagemNoNome('      - name: duas fatias'), true);
 });
+
+/**
+ * A assinatura de entrega existe como PLUGIN, e é inócua sem a chave.
+ *
+ * **O que foi medido no artefato, em 13 de setembro:** o APK release saía assinado com
+ * `CN=Android Debug`, a `debug.keystore` que vem em todo template do React Native. A chave
+ * privada dela está no computador de qualquer pessoa. A Play recusar é o menor dos problemas: com
+ * o mesmo pacote e a mesma assinatura, **qualquer um assina um APK que o Android aceita como
+ * atualização deste**, e o substituto herda o banco — o livro-razão da fábrica.
+ *
+ * O conserto tem de ser plugin e não edição no `build.gradle`: `android/` é saída do prebuild e
+ * está no `.gitignore`, então editar o arquivo gerado é escrever numa folha que o próximo
+ * prebuild joga fora.
+ *
+ * **E ele NÃO PODE criar chave nenhuma.** Gerar e guardar a de entrega é ato do dono, e é
+ * irreversível no pior sentido: perdê-la depois de publicar significa nunca mais atualizar o
+ * aplicativo. Sem as quatro variáveis de ambiente, o plugin devolve o gradle intocado e a
+ * compilação segue com a chave de depuração — dizendo isso em voz alta.
+ */
+test('a assinatura de entrega é um plugin registrado, e não faz nada sem a chave', () => {
+  const plugins = (APP.expo.plugins ?? []).map((p) => (Array.isArray(p) ? p[0] : p));
+  assert.ok(
+    plugins.includes('./plugins/assinatura-de-entrega'),
+    'o plugin tem de estar no app.json — fora dele, o prebuild não o executa e o `build.gradle` ' +
+      'gerado volta a assinar a entrega com a chave de depuração',
+  );
+
+  const fonte = readFileSync('plugins/assinatura-de-entrega.js', 'utf8');
+
+  // Sem as quatro variáveis, ele devolve o `config` sem tocar em nada. Meia configuração seria
+  // pior que nenhuma: o gradle falharia no fim de uma compilação de oito minutos.
+  assert.match(
+    fonte,
+    /if \(!keystore \|\| !senhaArquivo \|\| !alias \|\| !senhaChave\) return cfg;/,
+    'sem as quatro variáveis o plugin tem de ser inócuo',
+  );
+
+  // E a troca é a ÚLTIMA ocorrência, porque `debug { … }` também tem uma. Trocar a primeira
+  // assinaria a build de depuração com a chave de entrega e a entrega com a de depuração —
+  // invertido, e com a compilação saindo zero.
+  assert.match(
+    fonte,
+    /lastIndexOf\(DEBUG_NO_RELEASE\)/,
+    'a troca é a última ocorrência: a primeira é o bloco `debug`, onde `signingConfigs.debug` ' +
+      'está certo',
+  );
+
+  // Nenhuma senha, caminho ou alias escrito no repositório. É o que separa "ler do ambiente" de
+  // "guardar a chave no git".
+  assert.equal(
+    /storePassword\s+'(?!\$\{)[^']/.test(fonte.replace(/`[^`]*`/g, '')),
+    false,
+    'nenhuma senha literal no plugin',
+  );
+});
+
+/**
+ * A ferramenta sabe gerar o que a LOJA aceita.
+ *
+ * A Play recusa APK desde agosto de 2021: o que se sobe é um AAB. Nenhum verbo produzia um, então
+ * o caminho de publicação não existia — e a ausência não estava escrita em lugar nenhum, o que a
+ * torna pior que uma decisão de adiar.
+ */
+test('a ferramenta do aparelho tem verbo para o pacote da loja', () => {
+  const script = readFileSync('scripts/aparelho.mjs', 'utf8');
+  assert.match(script, /function empacotar\(\)/, 'o verbo existe');
+  assert.match(script, /bundleRelease/, 'e ele chama o alvo que gera o AAB');
+  assert.match(
+    script,
+    /verbos: subir \| compilar \| empacotar/,
+    'e a ajuda o anuncia — verbo que existe e ninguém sabe é verbo que não existe',
+  );
+});

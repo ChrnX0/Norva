@@ -86,7 +86,8 @@
           }
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "./plugins/assinatura-de-entrega"
     ],
     "experiments": {
       "typedRoutes": true

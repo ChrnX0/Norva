@@ -1330,16 +1330,92 @@ function conferirAPK(apk, arquitetura) {
     );
   }
 
+  /**
+   * QUEM assinou — e esta é a única conferência que não derruba, porque o estado ruim é o
+   * estado normal HOJE.
+   *
+   * Medido em 13 de setembro: o APK release sai com `CN=Android Debug`, a chave que vem em todo
+   * template do React Native. A privada dela está no computador de qualquer pessoa, e o que isso
+   * permite não é só a Play recusar: **qualquer um assina um APK que o Android aceita como
+   * ATUALIZAÇÃO deste**, com o mesmo pacote e a mesma assinatura, e o substituto herda o banco.
+   *
+   * Gerar e guardar a chave de entrega é ato do dono e é irreversível no pior sentido — perdê-la
+   * depois de publicar significa nunca mais atualizar. Então aqui não se cria chave: diz-se em
+   * voz alta qual foi usada. O plugin `plugins/assinatura-de-entrega.js` usa a de verdade quando
+   * as variáveis de ambiente existem, e não faz nada quando não existem.
+   *
+   * Avisar em vez de derrubar é deliberado, e é a borda: derrubar aqui impediria o dono de testar
+   * no tablet hoje, o que custaria mais que o risco de um APK que só ele instala. No dia em que
+   * houver publicação, a ausência de chave passa a ser erro — e a linha abaixo é a que alguém vai
+   * procurar para mudar isso.
+   */
+  const apksigner = aapt.replace(/\/aapt$/, '/apksigner');
+  if (existsSync(apksigner)) {
+    const certs = execFileSync(apksigner, ['verify', '--print-certs', apk], { encoding: 'utf8' });
+    const dn = certs.match(/certificate DN: ([^\n]+)/)?.[1] ?? '(não declarado)';
+    if (/CN=Android Debug/.test(dn)) {
+      dizer(
+        '⚠ ASSINADO COM A CHAVE DE DEPURAÇÃO do template — a privada dela é pública. Serve para ' +
+          'testar no aparelho do dono e NÃO serve para publicar nem para entregar a terceiro.',
+      );
+    } else {
+      dizer(`assinado por ${dn}`);
+    }
+  } else {
+    dizer('⚠ apksigner não está no SDK — não sei dizer quem assinou este APK.');
+  }
+
   dizer(
     `conferido: versão ${versao}, código ${codigo}, ${arquitetura}, com o bundle dentro ` +
       'e sem as permissões bloqueadas',
   );
 }
 
+/**
+ * O AAB — o formato que a Play aceita, e o APK não é ele.
+ *
+ * A loja recusa APK desde agosto de 2021: o que se sobe é um *Android App Bundle*, e o Google
+ * gera dele um APK por aparelho. Nenhum verbo desta ferramenta produzia AAB, então o caminho de
+ * publicação não existia — e "não existe" aqui não era uma decisão, era uma ausência que ninguém
+ * havia nomeado.
+ *
+ * **Todas as arquiteturas, de propósito**, ao contrário do APK: o AAB existe justamente para o
+ * Google recortar por aparelho, e um bundle de uma arquitetura só desfaz a razão dele. É o oposto
+ * exato do `compilar`, cujo padrão é uma arquitetura porque ele é para instalar à mão.
+ *
+ * O que este verbo NÃO confere, e por isso diz: o manifesto dentro do AAB é protobuf, não o XML
+ * que o `aapt` lê. Quem prova manifesto aqui é o APK — mesmo prebuild, mesmo `app.json`, mesma
+ * compilação —, e pular essa frase seria deixar "empacotou" parecer "conferido".
+ */
+function empacotar() {
+  dizer('gerando android/ a partir do app.json (prebuild) — o manifesto do AAB sai daqui');
+  execFileSync('npx', ['expo', 'prebuild', '--platform', 'android', '--no-install'], {
+    stdio: 'inherit',
+    env: { ...process.env, ANDROID_HOME: SDK },
+  });
+
+  dizer('empacotando o AAB de loja — todas as arquiteturas, porque a Play recorta por aparelho');
+  execFileSync('./gradlew', ['bundleRelease'], {
+    cwd: 'android',
+    stdio: 'inherit',
+    env: { ...process.env, ANDROID_HOME: SDK },
+  });
+
+  const aab = 'android/app/build/outputs/bundle/release/app-release.aab';
+  if (!existsSync(aab)) throw new Error(`gradle saiu 0 e o AAB não está em ${aab}`);
+  dizer(`${aab} — ${(statSync(aab).size / 1024 / 1024).toFixed(1)} MB`);
+  dizer(
+    'o manifesto DENTRO do AAB é protobuf e não foi conferido aqui — quem prova manifesto é o ' +
+      'APK do mesmo prebuild (`compilar`), e a publicação pede os dois olhados.',
+  );
+  return aab;
+}
+
 const verbo = process.argv[2];
 const acoes = {
   subir,
   compilar: () => compilar(process.argv[3]),
+  empacotar,
   instalar: () => instalar(process.argv[3]?.startsWith('--') ? null : process.argv[3]),
   foto: () => foto(process.argv[3], process.argv[4]),
   fotos: () => fotos(process.argv[3], process.argv[4]),
@@ -1395,7 +1471,7 @@ const acoes = {
 
 if (!acoes[verbo]) {
   console.error(
-    'verbos: subir | compilar | instalar [apk] | abrir <rota> | foto <nome> [rota] |\n' +
+    'verbos: subir | compilar | empacotar | instalar [apk] | abrir <rota> | foto <nome> [rota] |\n' +
     '        fotos <nome> [rota] | tela <medida> | derrubar\n' +
     `medidas: ${Object.keys(TELAS).join(' | ')} | original`,
   );

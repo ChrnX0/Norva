@@ -11703,3 +11703,40 @@ Hoje `compilar` gera o `android/` antes de compilar, e `conferirAPK` lê o artef
 pessoa: versão e código, a arquitetura pedida, o bundle dentro, e a ausência das permissões
 bloqueadas. *E o docblock dessa função prometeu as quatro com três implementadas por vinte
 minutos — a doença desta casa, cometida no arquivo escrito para impedir o artefato de mentir.*
+
+## 13 de setembro — o APK de entrega estava assinado com uma chave que o mundo inteiro tem
+
+Medido no artefato com `apksigner verify --print-certs`: `CN=Android Debug, OU=Android,
+O=Unknown`, SHA-256 `fac6…3b9c`. É a `debug.keystore` que vem dentro de todo template do React
+Native, e o `build.gradle` gerado tem `signingConfig signingConfigs.debug` **dentro do bloco
+`release`**, com o aviso do próprio template ao lado — *"Caution! In production, you need to
+generate your own keystore file."*
+
+A Play recusar é o menor dos problemas, e é o único que se costuma citar. O que importa aqui é
+outro: com o mesmo nome de pacote e a mesma assinatura, **qualquer pessoa constrói um APK que o
+Android aceita como ATUALIZAÇÃO deste** — o aparelho troca o aplicativo e o substituto herda o
+banco de dados. Num aplicativo cujo trabalho é guardar o livro-razão de uma fábrica, é a única
+fundação que vale menos que zero quando quebrada.
+
+**Três decisões de forma, e cada uma vem de um fato deste repositório:**
+
+1. **Plugin, não edição no `build.gradle`.** `android/` é saída do prebuild e está no
+   `.gitignore`: editar o arquivo gerado é escrever numa folha que o próximo prebuild joga fora.
+2. **O plugin não cria chave nenhuma.** Gerar e guardar a de entrega é ato do dono e é
+   irreversível no pior sentido — perdê-la depois de publicar significa nunca mais atualizar o
+   aplicativo. Sem as quatro variáveis de ambiente ele devolve o gradle intocado.
+3. **A troca é a ÚLTIMA ocorrência.** `signingConfig signingConfigs.debug` aparece duas vezes: no
+   bloco `debug`, onde está certo, e no `release`, onde é o defeito. Trocar a primeira inverteria
+   as duas — depuração assinada com a chave de entrega e entrega com a de depuração — e a
+   compilação sairia zero.
+
+**E a prova foi por EXECUÇÃO, não por leitura do texto.** Rodei o prebuild com as quatro
+variáveis e conferi o gradle gerado: `entrega` no `release` (linha 121) e o `debug` intocado
+(116). Depois rodei sem elas: zero ocorrências de `entrega`, as duas linhas voltando a `debug`.
+Uma guarda que lê o código-fonte do plugin afirma o que ele DIZ; rodá-lo afirma o que ele FAZ, e
+para uma transformação de texto que depende de "a última ocorrência" a diferença é tudo.
+
+*E a conferência do assinante AVISA em vez de derrubar, deliberadamente: derrubar impediria o
+dono de testar no tablet hoje, e o risco de um APK que só ele instala é menor que o custo de não
+ter a leitura dele. No dia da publicação a ausência de chave passa a ser erro, e o docblock diz
+qual linha muda.*
