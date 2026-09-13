@@ -881,6 +881,7 @@ export const ptBR = {
         fiz: 'O que você fez?',
         places: 'Onde fica o estoque',
         people: 'Pessoas',
+        buyToday: 'Comprar hoje',
         purchases: 'Compras',
         orders: 'Pedidos',
         account: 'Conta',
@@ -1154,6 +1155,8 @@ export const ptBR = {
           + 'Zero serve para quem compra na esquina.',
         none: 'Sem folga',
         days: { one: '1 dia', other: '{{n}} dias' },
+        suggest: 'Você sempre comprou com {{observed}} de sobra. Quer avisar com {{suggested}}?',
+        suggestAction: 'Usar {{days}}',
       },
       briefing: {
         label: 'O que aparece na tela inicial',
@@ -1927,6 +1930,42 @@ export const ptBR = {
       freightOutOfCompare: 'Sem o frete de {{freight}}: ele entra no custo, mas não é preço do fornecedor.',
       failed: 'Não deu para lançar',
     },
+    /**
+     * A lista de comprar hoje — e cada frase dela existe para a conta poder abrir.
+     *
+     * O tom é o da casa: verbo na frente, segunda pessoa, e ORIENTA em vez de fiscalizar. A linha
+     * não diz "estoque baixo": diz quantos sacos pedir e por quê.
+     */
+    buyToday: {
+      title: 'Comprar hoje',
+      /** Sem repetir a palavra do título: o que ela acrescenta é de onde vem a régua. */
+      overline: 'pelo prazo de cada fornecedor',
+      loading: 'Conferindo o estoque…',
+      estimate: 'DEVE CUSTAR',
+      /** Diz de si mesma que é estimativa: a nota nova pode vir com outro preço. */
+      estimateWhy: 'Pela última nota de cada um. O preço pode ter mudado — a tela da compra compara.',
+      estimateNoMoney: 'São as embalagens a pedir. O custo não aparece para este acesso.',
+      itemCount: { one: '1 item', other: '{{n}} itens' },
+      listTitle: 'O QUE PEDIR',
+      howMuch: '{{packs}} × {{pack}} — {{amount}}',
+      daysLeft: 'dura {{days}} d',
+      dayCount: { one: '1 dia', other: '{{n}} dias' },
+      /**
+       * A conta, e são três frases porque o que se sabe muda.
+       *
+       * Com fornecedor e ciclo: a conta inteira. Sem ciclo: é a primeira compra deste fornecedor,
+       * e dizer "de 0 em 0 dias" seria inventar. Sem fornecedor cadastrado: o prazo volta a ser a
+       * folga que você escolheu, e a frase diz isso em vez de citar um fornecedor que não existe.
+       */
+      why: 'Sai {{rate}} por dia, sobram {{held}}, {{supplier}} leva {{lead}} e você compra dele a cada {{cycle}}.',
+      whyNoCycle: 'Sai {{rate}} por dia, sobram {{held}} e {{supplier}} leva {{lead}}. É a primeira recompra dele.',
+      whyNoSupplier: 'Sai {{rate}} por dia e sobram {{held}}. Ainda sem fornecedor anotado: a conta usa a folga dos ajustes.',
+      emptyTitle: 'Nada para comprar hoje',
+      empty: 'Tudo tem estoque até depois do prazo do fornecedor.',
+      emptyWhy: 'Esta lista aparece quando um insumo encosta no dia de pedir. Até lá, está tudo bem.',
+      goToInputs: 'Ver o estoque',
+    },
+
 
     /**
      * Cadastrar uma ficha — a tela que faltava.

@@ -158,6 +158,182 @@ export function reorderPoint(dailyConsumption: number, leadTimeDays: number, saf
   return Math.ceil(dailyConsumption * (leadTimeDays + safetyDays));
 }
 
+/**
+ * **De quanto em quanto tempo esta fábrica compra deste fornecedor — observado, não perguntado.**
+ *
+ * `observedLeadTimeDays` responde quanto o fornecedor demora entre o pedido e a entrega.
+ * Esta responde outra coisa: quanto tempo passa entre UMA entrega e a seguinte. As duas juntas
+ * são o que decide QUANTO pedir — um pedido que cobre só o prazo obriga a comprar de novo no dia
+ * em que a carga chega.
+ *
+ * O recorte é o mesmo de `prazoDoFornecedorAtual` e pela mesma razão: numa fábrica que compra de
+ * dois fornecedores, o intervalo médio entre todas as entregas não é o intervalo de nenhum deles.
+ * Sem fornecedor cadastrado na entrega mais nova, a conta volta a ser de todas — a resposta
+ * honesta de quem não sabe de quem comprou.
+ *
+ * **Nulo com menos de duas entregas, e isso não é borda: é o estado normal do primeiro mês.** Uma
+ * entrega só não tem intervalo, e devolver zero faria o pedido cobrir apenas prazo mais folga sem
+ * ninguém saber que o ciclo era desconhecido. Quem chama decide o que fazer com o nulo, e a
+ * decisão está escrita em `quantoComprar`.
+ */
+export function intervaloEntreCompras(
+  deliveries: readonly { receivedAt: string; supplierId?: string | null }[],
+): number | null {
+  const atual = deliveries[0]?.supplierId ?? null;
+  const recorte = atual === null ? deliveries : deliveries.filter((d) => d.supplierId === atual);
+  if (recorte.length < 2) return null;
+
+  // Ordenadas da mais nova para a mais velha por quem chama (`deliveriesOf` faz `ORDER BY
+  // arrived_at DESC`), e a conta não depende disso: ela ordena o que recebeu. Uma lista chegando
+  // ao contrário daria intervalos negativos, e um intervalo negativo viraria um pedido menor do
+  // que o necessário — o defeito silencioso desta família.
+  const dias = [...recorte]
+    .map((d) => new Date(d.receivedAt).getTime())
+    .sort((a, b) => a - b);
+  const vaos: number[] = [];
+  for (let i = 1; i < dias.length; i += 1) vaos.push((dias[i] - dias[i - 1]) / 86_400_000);
+  return vaos.reduce((a, b) => a + b, 0) / vaos.length;
+}
+
+/**
+ * **QUANTO comprar — e este número não existia em lugar nenhum do domínio.**
+ *
+ * `reorderPoint` responde *quando*: abaixo de X unidades, peça. A quantidade a PEDIR é outra
+ * conta, e sem ela a tela de compras só consegue dizer "compre" sem dizer quanto — que é
+ * exatamente a metade que a Lei 1 proíbe deixar para a pessoa calcular de cabeça.
+ *
+ * A conta é a mais simples que é honesta: o pedido cobre o que sai por dia durante o tempo até a
+ * carga chegar (`prazo`), mais a folga que a empresa escolheu, mais o tempo até a compra SEGUINTE
+ * (`ciclo`) — e desconta o que já está na prateleira. Sem o ciclo o pedido chega e já está na
+ * hora de pedir de novo; com ele, a fábrica compra na frequência em que ela realmente compra.
+ *
+ * **As duas ausências têm respostas diferentes, e as duas são decisão escrita:**
+ *
+ * - **Prazo desconhecido** cai em `settings.daysAhead.insumo`, que é o mesmo piso que
+ *   `precisaComprar` usa. Uma régua só para o *quando* e o *quanto*: se o aplicativo avisa hoje
+ *   porque a cobertura encostou nesse piso, o pedido tem de cobrir esse mesmo piso. Dois números
+ *   diferentes aqui seriam o aplicativo discordando de si mesmo, que é a doença que a régua única
+ *   de compra veio curar.
+ * - **Ciclo desconhecido** soma ZERO, e não um palpite. É o estado de quem tem uma entrega só, e
+ *   um pedido que cobre prazo mais folga está certo e curto — enquanto um ciclo inventado de sete
+ *   dias mandaria comprar o dobro do necessário na primeira compra da vida da fábrica.
+ *
+ * Nunca negativo: quem tem mais na prateleira do que o alvo não precisa comprar, e zero é a
+ * resposta. E em unidade-base, porque quem sabe converter para saco é a tela — ela é que tem a
+ * embalagem de compra, e ninguém pede 17.300 g de açúcar.
+ */
+export function quantoComprar(input: {
+  /** Quanto sai por dia, do livro-razão. Zero devolve zero: insumo parado não se compra. */
+  dailyOutflow: number;
+  onHandBaseUnits: number;
+  /** O prazo OBSERVADO do fornecedor de quem se vai comprar, ou nulo. */
+  leadTimeDays: number | null;
+  /** A folga da empresa, em dias. */
+  safetyDays: number;
+  /** O intervalo observado entre compras, ou nulo. Ver `intervaloEntreCompras`. */
+  cycleDays: number | null;
+  /** O piso de quando não se sabe o prazo — `settings.daysAhead.insumo`. */
+  floorDays: number;
+}): number {
+  if (!(input.dailyOutflow > 0)) return 0;
+  const prazo = input.leadTimeDays === null ? input.floorDays : input.leadTimeDays;
+  const alvo = prazo + input.safetyDays + (input.cycleDays ?? 0);
+  const precisa = input.dailyOutflow * alvo - Math.max(0, input.onHandBaseUnits);
+  return Math.max(0, precisa);
+}
+
+/**
+ * Quantas EMBALAGENS DE COMPRA cobrem o que falta — arredondando para cima, sempre.
+ *
+ * Ninguém pede dois terços de um saco: ou vem o saco ou não vem. Arredondar para baixo é entregar
+ * um pedido que não cobre o alvo, que é pior que comprar um pouco mais — a fábrica para por falta,
+ * não por sobra.
+ *
+ * `purchaseToBase` nulo é o item comprado na própria unidade-base (o produto de revenda contado
+ * por unidade, que a tela de compra já trata com `?? 1`): aí a resposta é a própria quantidade,
+ * arredondada para cima.
+ */
+export function pacotesAComprar(baseUnits: number, purchaseToBase: number | null): number {
+  if (!(baseUnits > 0)) return 0;
+  const fator = purchaseToBase && purchaseToBase > 0 ? purchaseToBase : 1;
+  return Math.ceil(baseUnits / fator);
+}
+
+/**
+ * Quantas compras observadas bastam para o aplicativo ter opinião sobre a folga.
+ *
+ * O nome diz o que o número DECIDE, e não quanto ele vale: quem quiser a sugestão mais cedo baixa
+ * o número sabendo o que está comprando — uma opinião formada sobre menos hábito.
+ *
+ * **Três é um palpite declarado, e ele é o ponto que a fábrica de verdade vai calibrar.** Duas
+ * compras dão uma mediana que é a média de duas — qualquer compra de pânico a domina. Com cinco a
+ * sugestão só apareceria depois de meses, e a decisão do dono sobre compras inteligentes é
+ * *construir agora, calibrar depois*. Então três, dito como palpite em vez de escondido como
+ * constante.
+ */
+export const COMPRAS_PARA_SUGERIR = 3;
+
+/**
+ * **A folga com que a fábrica REALMENTE comprou — para o aplicativo sugerir em vez de só obedecer.**
+ *
+ * A folga de compra é configuração (F7: a que compra na mesma cidade quer dois dias, a que importa
+ * essência quer duas semanas), e ela nasce em dois. Só que a fábrica não segue o número dos
+ * ajustes: ela compra quando compra, e o razão sabe disso. Se ela sempre pede com quatro dias de
+ * sobra, o aplicativo avisando em dois está atrasado dois dias em toda compra — e ninguém vai aos
+ * ajustes trocar um número que não sabe que está errado.
+ *
+ * A conta por compra: a cobertura que havia no dia do PEDIDO, menos o prazo que o fornecedor
+ * levou. O que sobra é a folga que aquela compra usou de fato.
+ *
+ * **Mediana e não média**, e é a mesma escolha que a régua de tinta das fotos fez por medida: uma
+ * compra de pânico (zero de sobra, porque acabou) ou uma de oportunidade (trinta dias, porque o
+ * preço caiu) puxa a média e não representa hábito nenhum. A mediana é o que a fábrica FAZ.
+ *
+ * **Nulo com menos de `COMPRAS_PARA_SUGERIR`, e é isto que impede a sugestão de mentir.** Com uma
+ * compra na vida a tela diria *"você sempre comprou com 0 dias de sobra"* — uma afirmação sobre
+ * hábito derivada de um evento, e pior que não sugerir nada. Nulo faz a peça DESAPARECER em vez de
+ * aparecer com um número inventado, que é a mesma regra do alerta inventado.
+ *
+ * Nunca negativa: comprar com o estoque já no negativo (contagem atrasada, compra de emergência) é
+ * folga zero, não folga negativa — um número negativo atravessaria para a tela e viraria uma
+ * sugestão de folga impossível.
+ */
+export function folgaQueAFabricaUsa(
+  compras: readonly { diasDeCoberturaAoPedir: number; prazoObservado: number }[],
+  minimo: number = COMPRAS_PARA_SUGERIR,
+): number | null {
+  if (compras.length < minimo) return null;
+  const folgas = compras
+    .map((c) => Math.max(0, c.diasDeCoberturaAoPedir - c.prazoObservado))
+    .sort((a, b) => a - b);
+  const meio = Math.floor(folgas.length / 2);
+  return folgas.length % 2 === 1 ? folgas[meio] : (folgas[meio - 1] + folgas[meio]) / 2;
+}
+
+/**
+ * **A folga observada arredondada para uma das escolhas que a tela oferece.**
+ *
+ * A tela de ajustes oferece sete folgas e não um campo livre, com a razão escrita lá: *"quem está
+ * de luva não digita, e a diferença entre 4 e 5 dias de folga não decide nada que 3 ou 7 já não
+ * decidam"*. Uma sugestão de 4,5 dias contrariaria essa decisão de duas maneiras — precisão que
+ * ninguém pediu, e um valor que nenhuma pastilha mostra selecionada.
+ *
+ * **O desempate vai para o MAIOR**, e a assimetria é a mesma de `pacotesAComprar`: errar para mais
+ * custa um pouco de estoque parado, errar para menos custa a fábrica parada por falta. Quatro dias
+ * observados entre as escolhas 3 e 5 sugerem **5**.
+ */
+export function folgaOferecida(observada: number, opcoes: readonly number[]): number | null {
+  if (opcoes.length === 0) return null;
+  let melhor = opcoes[0];
+  for (const opcao of opcoes) {
+    const distancia = Math.abs(opcao - observada);
+    const atual = Math.abs(melhor - observada);
+    // `>` no empate mantém o maior: distância igual não troca, e a ordem da lista deixa de decidir.
+    if (distancia < atual || (distancia === atual && opcao > melhor)) melhor = opcao;
+  }
+  return melhor;
+}
+
 /** One move in what an item costs, as the price history records it. */
 export type RateMove = {
   itemId: string;

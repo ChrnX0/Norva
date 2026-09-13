@@ -50,6 +50,7 @@ import {
   recordCheck,
   undoCheck,
   recordLoss,
+  shoppingToday,
   openProductionRun,
   openProductionRuns,
   cancelProductionRun,
@@ -8653,5 +8654,91 @@ test('a calda editada no meio do tacho não muda o custo congelado da corrida', 
     lote?.subRecipes?.map((sub) => `${sub.name} v${sub.version}`),
     ['Calda da prova v1'],
     'o lote responde a v1 da calda, que é a que ele rodou — e não a v2 que existe hoje',
+  );
+});
+
+/**
+ * **A lista de compras andada inteira — a metade do P1 que pergunta quem EXERCITA.**
+ *
+ * O mecanismo desta lista estava todo construído e espalhado quando esta rodada começou:
+ * `precisaComprar` decide o dia, a capa o usa por item, a ficha desenha o ponto de recompra, o
+ * aviso chega ao bolso. O que não existia era **quanto pedir** — e o caminho que junta as cinco
+ * peças (razão → prazo observado → ciclo observado → alvo → embalagem) só se vê de um teste que
+ * anda do movimento até a linha da tela.
+ *
+ * A conta, de cabeça, porque é a única régua que não compartilha os erros do código: o insumo sai
+ * a 1.000 g/dia, tem 4.000 g na prateleira, o fornecedor entrega em 6 dias, a folga da empresa é
+ * 2 e as entregas dele vêm de 7 em 7 — alvo de 15 dias, 15.000 g, menos 4.000 = **11.000 g**, que
+ * num saco de 25.000 é **1 saco**.
+ */
+test('a lista de compras diz o que comprar, quanto, e de quem', async () => {
+  await ensureStarterData(CO);
+  const polpa = await anInput('Polpa de cupuaçu', 25_000);
+
+  const agora = '2026-09-20T12:00:00.000Z';
+  const dia = (n: number) => new Date(Date.parse(agora) - n * 86_400_000).toISOString();
+
+  // **Duas notas do mesmo fornecedor, a 7 dias uma da outra** — é isto que dá o CICLO. E as duas
+  // com `orderedAt` seis dias antes da chegada, que é o PRAZO observado.
+  for (const [quando, quanto] of [[14, 25_000], [7, 25_000]] as const) {
+    await recordPurchase(CO, {
+      itemId: polpa,
+      supplierName: 'Frutas do Norte',
+      purchaseQuantity: 1,
+      baseUnits: quanto,
+      totalCents: fromDecimal(500),
+      orderedAt: dia(quando + 6),
+      occurredAt: dia(quando),
+    });
+  }
+
+  // O consumo: 7.000 g na última semana, ou seja 1.000 g/dia. Perda porque ela é uma SAÍDA de
+  // verdade e não precisa de ficha — o que a lista lê é o razão, não a receita.
+  await recordLoss(CO, {
+    itemId: polpa,
+    baseUnits: 7_000,
+    reason: 'expired',
+    occurredAt: dia(3),
+  });
+  // E a prateleira fica com 50.000 − 7.000 = 43.000, que é folga demais: sem mais saída este
+  // insumo não entra na lista. Então sai o resto, deixando 4.000 de pé.
+  await recordLoss(CO, {
+    itemId: polpa,
+    baseUnits: 39_000,
+    reason: 'expired',
+    occurredAt: dia(10),
+  });
+
+  const lista = await shoppingToday(CO, agora);
+  const linha = lista.find((l) => l.itemId === polpa);
+  assert.ok(linha, 'o insumo que acaba em quatro dias tem de estar na lista de comprar hoje');
+
+  assert.equal(linha.onHandBaseUnits, 4_000, 'a prateleira vem do razão, não de coluna guardada');
+  assert.equal(linha.dailyOutflow, 1_000, 'o consumo é a média da semana: 7.000 em sete dias');
+  assert.equal(linha.leadTimeDays, 6, 'o prazo é o OBSERVADO do fornecedor da última nota');
+  assert.equal(linha.cycleDays, 7, 'e o ciclo é o intervalo entre as duas entregas dele');
+  assert.equal(linha.supplierName, 'Frutas do Norte', 'a lista diz DE QUEM, pelo cadastro');
+
+  assert.equal(
+    linha.buyBaseUnits,
+    11_000,
+    'o quanto: 1.000/dia × (6 prazo + 2 folga + 7 ciclo) = 15.000, menos 4.000 em casa',
+  );
+  assert.equal(linha.buyPacks, 1, 'e em embalagem inteira: 11.000 g não enchem um saco de 25 kg, e pede-se um');
+
+  // A estimativa é sobre o que VAI SER PEDIDO — um saco de 25.000 —, pela taxa da última nota.
+  // R$ 500 por 25.000 g é 2 centavos por grama, então um saco estimado são os mesmos R$ 500.
+  assert.equal(
+    linha.estimateCents,
+    fromDecimal(500),
+    'a estimativa é a taxa da última nota vezes o que vai ser pedido, não vezes o que falta',
+  );
+
+  // E o insumo TRANQUILO não entra: a lista é "comprar hoje", não "tudo que existe".
+  const parado = await anInput('Corante de urucum', 1_000);
+  assert.equal(
+    (await shoppingToday(CO, agora)).some((l) => l.itemId === parado),
+    false,
+    'insumo sem saída nenhuma não tem dia de comprar, e inventar um seria o alerta inventado',
   );
 });

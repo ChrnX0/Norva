@@ -49,6 +49,7 @@ import {
   currentCapabilities,
   eraseGraceDays,
   purchaseSafetyDays,
+  folgaObservada,
   setBriefingHalf,
   setBriefingHidden,
   setAlertSettings,
@@ -67,6 +68,7 @@ import { escolherUnidade, unidadeDaqui } from '@/data/unidade';
 import { aparelhoDaqui, assumirAparelho } from '@/data/aparelho';
 import { campoComSugestao } from '@/components/campo';
 import { agreedOn, toggleDay } from '@/domain/agreement';
+import { folgaOferecida, folgaQueAFabricaUsa } from '@/domain/cost';
 import { INTERNAL_PLACE_KINDS, ehUnidade } from '@/domain/ledger';
 import { parseTyped } from '@/domain/number';
 import type { AlertKind, AlertSettings } from '@/domain/alerts';
@@ -136,6 +138,16 @@ import { AreaProvider, useTheme } from '@/theme/ThemeProvider';
  *   - a confirmação diz o que desaparece, contado, por extenso: "isso apaga 6
  *     insumos, 2 receitas e 1 produto", nunca "confirmar exclusão?"
  */
+/**
+ * As folgas que esta tela oferece — nomeadas uma vez porque DUAS coisas as leem.
+ *
+ * As pastilhas desenham a lista, e a sugestão tem de cair dentro dela (`folgaOferecida`). Duas
+ * cópias concordariam no dia em que nasceram e divergiriam na primeira vez que alguém acrescentasse
+ * uma escolha — e o sintoma seria a tela sugerindo um valor que pastilha nenhuma mostra
+ * selecionada, que é a doença das duas listas escritas pela mesma mão.
+ */
+const FOLGAS = [0, 1, 2, 3, 5, 7, 14] as const;
+
 export default function SettingsScreen() {
   return (
     <AreaProvider area="mist">
@@ -387,6 +399,17 @@ function Settings() {
   const { data: approval, refresh: refreshApproval } = useQuery<boolean>(() => ordersNeedApproval());
   const { data: revende, refresh: refreshRevende } = useQuery<boolean>(() => onlyResells());
   const { data: folga, refresh: refreshFolga } = useQuery<number>(() => purchaseSafetyDays());
+  /**
+   * **A folga com que a fábrica REALMENTE comprou — para o aplicativo sugerir em vez de só obedecer.**
+   *
+   * A folga é configuração e nasce em dois. Só que a fábrica compra quando compra, e o razão sabe:
+   * se ela sempre pede com quatro dias de sobra, o aviso em dois chega atrasado em toda compra — e
+   * ninguém vai aos ajustes trocar um número que não sabe que está errado.
+   *
+   * Da EMPRESA e não da unidade: a folga é uma configuração da empresa, então o hábito que a julga
+   * tem de ser o da empresa. Recortar por unidade daria duas respostas para um interruptor só.
+   */
+  const { data: habito } = useQuery(() => folgaObservada(empresaDaqui()));
   const { data: prazo, refresh: refreshPrazo } = useQuery<number | null>(() => eraseGraceDays());
   const { data: naFila, refresh: refreshFila } = useQuery<number>(() => pendingCount());
   /**
@@ -1817,8 +1840,51 @@ function Settings() {
             <Text style={[type.caption, { color: color.inkMuted, marginBottom: space.md }]}>
               {t.app.settings.safety.hint}
             </Text>
+            {/**
+              * A SUGESTÃO, e ela sugere — nunca decide calado.
+              *
+              * Três travas, e cada uma existe contra uma frase falsa que a tela diria sem ela:
+              *
+              * 1. **menos de `COMPRAS_PARA_SUGERIR` compras observadas devolve nulo** e a linha
+              *    desaparece. Com uma compra na vida a tela afirmaria um hábito tirado de um
+              *    evento — o alerta inventado com outro rosto;
+              * 2. **a sugestão cai numa das sete escolhas** (`folgaOferecida`), porque um valor
+              *    fora delas deixaria a fila de pastilhas sem nenhuma selecionada, e porque a razão
+              *    escrita deste cartão é que 4 e 5 dias não decidem coisas diferentes;
+              * 3. **igual ao que já está escolhido não vira linha nenhuma.** "Você comprou com dois
+              *    dias de sobra, quer dois dias?" é ruído que ensina a não ler o cartão.
+              */}
+            {(() => {
+              const observada = folgaQueAFabricaUsa(habito ?? []);
+              if (observada === null) return null;
+              const sugerida = folgaOferecida(observada, FOLGAS);
+              if (sugerida === null || sugerida === folga) return null;
+              return (
+                <View style={{ marginBottom: space.md }}>
+                  <Text style={[type.secondary, { color: color.ink }]}>
+                    {fill(t.app.settings.safety.suggest, {
+                      observed: plural(Math.round(observada), t.app.settings.safety.days),
+                      suggested: plural(sugerida, t.app.settings.safety.days),
+                    })}
+                  </Text>
+                  <View style={{ marginTop: space.sm, alignItems: 'flex-start' }}>
+                    <Button
+                      label={fill(t.app.settings.safety.suggestAction, {
+                        days: plural(sugerida, t.app.settings.safety.days),
+                      })}
+                      variant="ghost"
+                      onPress={async () => {
+                        await setPurchaseSafetyDays(empresaDaqui(), sugerida);
+                        void empurrar();
+                        refreshFolga();
+                      }}
+                    />
+                  </View>
+                </View>
+              );
+            })()}
             <View style={[styles.row, { gap: space.sm, flexWrap: 'wrap' }]}>
-              {[0, 1, 2, 3, 5, 7, 14].map((dias) => (
+              {FOLGAS.map((dias) => (
                 <Pressable
                   key={dias}
                   onPress={async () => {

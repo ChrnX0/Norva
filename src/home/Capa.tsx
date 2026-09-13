@@ -89,7 +89,24 @@ export function Porta({
 }) {
   const { type, space, accent } = useTheme();
   return (
-    <Touchable onPress={aoTocar}>
+    /**
+     * **`etiqueta` chega até o leitor de tela — e por um tempo ela não chegava a lugar nenhum.**
+     *
+     * O prop existe desde que esta peça nasceu, com o docblock acima dizendo de si mesmo *"o que o
+     * leitor de tela anuncia — o assunto, não 'abrir'"*, e o componente **não o usava**. As cinco
+     * portas da capa eram alvos de toque cujo único texto anunciável era o convite: quem navega por
+     * leitor de tela ouvia *"Abrir a tela"* cinco vezes, sem nunca saber qual tela.
+     *
+     * É o portão P1 dentro de um componente — prop com propósito escrito e nenhum consumidor —, e
+     * ele é pior que a versão em função: aqui o compilador não reclama, o desenho fica idêntico, e
+     * a única pessoa que percebe é justamente a que não vê a tela. Achado em 13 de setembro indo
+     * escrever a checagem de navegador que procurava a etiqueta e não a achava — o instrumento foi
+     * mais honesto que o código, e a tentação era consertar o instrumento.
+     *
+     * `accessibilityLabel` SUBSTITUI o texto que o leitor montaria dos filhos, e é isso que se
+     * quer: o assunto, uma vez, em vez de "cheio, Polpa de morango, acaba em 1 dia, Abrir a tela".
+     */
+    <Touchable onPress={aoTocar} accessibilityLabel={etiqueta}>
       <View>
         {children}
         <Text style={[type.caption, { color: accent, marginTop: space.sm }]}>

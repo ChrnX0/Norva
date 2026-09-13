@@ -3992,6 +3992,109 @@ check('a carga que ninguém escolheu sai COM lote — o item deduzido tem o dele
   );
 });
 
+check('a lista de comprar hoje diz quanto pedir, de quem, e abre a conta', async (page) => {
+  /**
+   * **A tela que não existia, e o que só o navegador prova aqui.**
+   *
+   * A conta é provada em Node (`quantoComprar`, `intervaloEntreCompras`, `pacotesAComprar`) e o
+   * caminho inteiro num teste de repositório. O que nenhum dos dois alcança é o que esta checagem
+   * prende: que a tela MONTA, que as chaves dos três idiomas existem, que a porta da capa chega
+   * aqui, e que a frase da conta sai com os números dentro em vez de `{{rate}}` cravado.
+   *
+   * **E ela CRIA a condição em vez de esperar que a semente tenha — medido, não suposto.** A
+   * primeira escrita só abria a tela e aceitava "a lista OU o estado vazio". Plantei os dois
+   * defeitos que ela nomeia — a conta apagada da linha e a porta da capa de volta para `/inputs` —
+   * e **os dois passaram**: com a semente crua a lista sai VAZIA e a capa não traz a peça de
+   * insumo, então nenhum dos dois ramos rodava. Verde idêntico ao de uma guarda que funciona,
+   * medindo nada. Então a checagem produz o estado: uma corrida de 900 unidades drena a polpa, e a
+   * peça do insumo é ligada nos ajustes como a checagem da nota já faz com "Preços que mexeram".
+   */
+  await page.goto(`http://localhost:${PORT}/production/new`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  await page.getByLabel(/Quantas unidades/).fill('900');
+  await assentar(page);
+  await page.getByText('Registrar produção', { exact: true }).first().click();
+  await assentar(page);
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await assentar(page);
+
+  await page.goto(`http://localhost:${PORT}/comprar`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  const tela = await screen(page);
+
+  assert.match(tela, /Comprar hoje/, 'a tela tem de montar com o título dela');
+  assert.match(
+    tela,
+    /O QUE PEDIR/,
+    'depois de drenar a polpa a lista tem de ter alguém dentro — vazia aqui é a checagem medindo nada',
+  );
+  assert.match(tela, /Polpa de morango/, 'e o insumo drenado é o que aparece');
+
+  // QUANTO, na embalagem que se pede ao fornecedor E na unidade-base: "2 baldes" não diz quanto é
+  // para quem confere a carga, e a unidade-base sozinha não diz o que pedir.
+  assert.match(
+    tela,
+    /\d+ × balde 10 kg — [\d.]+ g/,
+    'a linha diz quantas embalagens inteiras e quanto isso é na unidade de uso',
+  );
+
+  // A conta ABERTA, com os números dentro. `fill` deixa `{{palavra}}` intacto quando a chave não
+  // chega, então este é o lugar onde uma chave esquecida aparece como texto na tela.
+  assert.match(
+    tela,
+    /Sai [\d.]+ g por dia/,
+    'a conta abre: sem ela a tela pede dinheiro sem dizer de onde o número veio (Lei 6)',
+  );
+  assert.doesNotMatch(tela, /\{\{\w+\}\}/, 'nenhum marcador de substituição chegou à tela');
+  // E o "deve custar" diz de si mesmo que é estimativa, nunca um total prometido.
+  assert.match(tela, /DEVE CUSTAR/);
+  assert.match(tela, /O preço pode ter mudado/, 'a estimativa se anuncia como estimativa');
+
+  /**
+   * **E a porta da CAPA leva aqui quando há insumo acabando** — não à lista de estoque.
+   *
+   * A Lei da Inteligência pede a próxima ação provável, e com um insumo no dia de pedir a próxima
+   * ação é comprar. Antes desta rodada a mesma porta abria `/inputs`, que é a tela que mostra o
+   * problema e não a que o resolve. Só o navegador prova que o toque chega: o destino é uma string
+   * num `onPress`, e teste de unidade não aperta nada.
+   *
+   * A peça é LIGADA aqui porque ela saiu das sete que a capa traz por padrão quando o dono mandou
+   * emagrecê-la — cobrar a porta na capa padrão mediria a preferência em vez da consequência.
+   */
+  await page.goto(`http://localhost:${PORT}/settings`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  await page.getByLabel(/^Colocar na capa: Insumo acabando$/).first().click();
+  await assentar(page);
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await assentar(page);
+  assert.match(
+    await screen(page),
+    /Polpa de morango/,
+    'com a peça ligada e a polpa drenada, a capa tem de trazer o insumo acabando',
+  );
+
+  /**
+   * **Pelo RÓTULO e não pelo texto — e foi escrevendo esta linha que um defeito apareceu.**
+   *
+   * A porta da capa é um `Porta`, e o texto visível dela é o desenho do nível: *"cheio · Polpa de
+   * morango · acaba em 1 dia · Abrir a tela"*. O assunto — *"Compre esta semana"* — é o
+   * `etiqueta`, que o componente declarava como *"o que o leitor de tela anuncia"* e **não
+   * passava a ninguém**. Procurar a etiqueta aqui não achou nada, e o que estava errado não era a
+   * checagem: as cinco portas da capa eram alvos de toque que anunciavam "Abrir a tela" cinco
+   * vezes, sem dizer qual.
+   *
+   * Então esta linha prende as duas coisas de uma vez: que a etiqueta EXISTE para quem navega por
+   * leitor de tela, e que o toque nela abre a lista de comprar.
+   */
+  await page.getByLabel('Compre esta semana').first().click();
+  await assentar(page);
+  assert.match(
+    await screen(page),
+    /Comprar hoje/,
+    'a porta do insumo acabando tem de abrir a lista de comprar, não a de estoque',
+  );
+});
+
 try {
   // Rebuilt every run unless somebody explicitly asks to reuse the last one.
   //

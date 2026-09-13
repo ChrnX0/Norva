@@ -3548,3 +3548,92 @@ test('toda porta que enfileira tem portão de capacidade em todo caminho', () =>
       'alcança mais a fila). Tire a linha: registro que virou mentira é pior que registro nenhum.',
   );
 });
+
+
+/**
+ * **Toda tela tem uma PORTA — o portão P1 aplicado a telas, e ele não existia.**
+ *
+ * P1 pergunta *"quem chama isto no mesmo commit?"* e a guarda acima o cobra de função exportada.
+ * Tela nenhuma passava por essa pergunta, e a diferença importa: uma função sem chamador é código
+ * morto que ninguém executa, mas uma tela sem porta é pior — ela **existe**, compila, tem teste,
+ * tem dicionário nos três idiomas, e no aparelho não há gesto que chegue nela. É promessa completa
+ * e inalcançável, e o custo é exatamente o que este projeto pagou com `assistant_phrase` e
+ * `Draft.kind`, só que com vinte vezes mais linhas por trás.
+ *
+ * **A régua vale para rota ESTÁTICA e é isso que a torna decidível.** `app/inputs/[id].tsx` é
+ * alcançada por interpolação (`/inputs/${id}`), e exigir o literal dela daria um falso positivo em
+ * toda tela de detalhe. Rota estática não tem essa desculpa: se ninguém escreve `'/comprar'`, não
+ * há como chegar em `/comprar` — nem por toque, nem por ligação profunda que alguém tenha
+ * escrito no aplicativo.
+ *
+ * **A medida que justifica a guarda nascer agora:** 34 telas estáticas, e **todas as 34 têm porta
+ * hoje**. Guarda que nasce com a casa em ordem é guarda; se ela nascesse com dez violações seria
+ * uma lista de dispensas, que este repositório já chama de decoração. Ela existe para o dia em que
+ * a próxima tela for escrita e a porta ficar para depois — porque "para depois" é o que produziu
+ * as quatro doenças que o P1 persegue.
+ */
+test('every screen has a door somewhere, or it cannot be reached at all', async () => {
+  const { readdirSync, readFileSync, statSync } = await import('node:fs');
+
+  const telas: { arquivo: string; rota: string }[] = [];
+  const varrer = (dir: string) => {
+    for (const nome of readdirSync(dir)) {
+      const caminho = `${dir}/${nome}`;
+      if (statSync(caminho).isDirectory()) {
+        varrer(caminho);
+        continue;
+      }
+      if (!nome.endsWith('.tsx') || nome.startsWith('_')) continue;
+      // Rota dinâmica: alcançada por interpolação, e cobrar o literal dela seria falso positivo.
+      if (caminho.includes('[')) continue;
+      // `(tabs)` é grupo de layout e não aparece na rota — o Expo Router o apaga.
+      let rel = caminho.slice('app/'.length, -'.tsx'.length).replace(/\(tabs\)\/?/g, '');
+      if (rel.endsWith('/index')) rel = rel.slice(0, -'/index'.length);
+      const rota = rel === 'index' ? '/' : `/${rel}`;
+      telas.push({ arquivo: caminho, rota });
+    }
+  };
+  varrer('app');
+
+  // Liveness: uma varredura que devolvesse duas telas aprovaria o repositório inteiro para sempre.
+  assert.ok(
+    telas.length > 25,
+    `só ${telas.length} telas estáticas encontradas — a varredura não está lendo app/, e a guarda aprovaria qualquer coisa`,
+  );
+
+  /** Todo arquivo onde uma porta pode estar escrita: outra tela, ou um módulo que navega. */
+  const fontes = new Map<string, string>();
+  const coletar = (dir: string, exts: readonly string[]) => {
+    for (const nome of readdirSync(dir)) {
+      const caminho = `${dir}/${nome}`;
+      if (statSync(caminho).isDirectory()) {
+        coletar(caminho, exts);
+        continue;
+      }
+      if (exts.some((e) => nome.endsWith(e))) fontes.set(caminho, readFileSync(caminho, 'utf8'));
+    }
+  };
+  coletar('app', ['.tsx', '.ts']);
+  coletar('src', ['.ts', '.tsx']);
+
+  const semPorta: string[] = [];
+  for (const { arquivo, rota } of telas) {
+    // A capa é a raiz: quem abre o aplicativo já está nela, e não há porta a exigir.
+    if (rota === '/') continue;
+    const temPorta = [...fontes.entries()].some(
+      ([f, c]) =>
+        f !== arquivo &&
+        !f.endsWith('.test.ts') &&
+        (c.includes(`'${rota}'`) || c.includes(`"${rota}"`) || c.includes(`\`${rota}`)),
+    );
+    if (!temPorta) semPorta.push(`${arquivo} → ${rota}`);
+  }
+
+  assert.deepEqual(
+    semPorta.sort(),
+    [],
+    `${semPorta.join(' · ')}: a tela existe e nenhum gesto do aplicativo chega nela. É o portão ` +
+      'P1 aplicado a telas — promessa completa e inalcançável. Ponha a porta no mesmo commit, ou ' +
+      'apague a tela.',
+  );
+});

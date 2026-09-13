@@ -331,7 +331,18 @@ export function Mosaic(vista: BriefingView) {
       <View>
         <View style={{ gap: space.lg }}>
           {data && data.shortly.length > 0 ? (
-            <Porta aoTocar={() => go('/inputs')} etiqueta={t.app.home.runningOut} convite={t.app.home.openScreen}>
+            /**
+             * **Com insumo acabando, a porta leva a COMPRAR e não à lista de estoque.**
+             *
+             * A Lei da Inteligência pede três coisas de toda tela, e a terceira é *"qual é a
+             * próxima ação provável"*. Com um insumo encostando no dia de pedir, a próxima ação
+             * não é olhar a lista do que existe — é ver o que pedir, quanto e de quem. Levar a
+             * `/inputs` fazia a capa apontar o problema e abrir a tela que não o resolve.
+             *
+             * Quando está tudo em dia a porta continua sendo `/inputs`, e aí ela está certa: o
+             * assunto passa a ser *"quanto dura o que eu tenho"*, que é a lista de estoque.
+             */
+            <Porta aoTocar={() => go('/comprar')} etiqueta={t.app.home.runningOut} convite={t.app.home.openScreen}>
               <Nivel
                 parcela={Math.min(1, data.shortly[0].daysLeft / 30)}
                 nome={data.shortly[0].name}

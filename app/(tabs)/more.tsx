@@ -8,6 +8,7 @@ import {
   GlyphOrder,
   GlyphProduction,
   GlyphPurchase,
+  GlyphSack,
   GlyphRecipe,
   GlyphSettings,
   GlyphStock,
@@ -149,6 +150,14 @@ function Drawers() {
 
   const lancamentos: Porta[] = [
     { key: 'orders', detail: t.app.orders.overline, route: '/orders', desenho: glifo(GlyphOrder), tom: palette.sage },
+    /**
+     * "Comprar hoje" vem ANTES de "Compras", e a ordem é o verbo.
+     *
+     * Lançar uma nota é registrar o que já aconteceu; decidir o que pedir é o que acontece primeiro
+     * na vida de quem compra. Pôr a decisão embaixo do registro faria a pessoa passar pela tela de
+     * digitar nota para chegar na tela que diz o que digitar.
+     */
+    { key: 'buyToday', detail: t.app.buyToday.overline, route: '/comprar', desenho: glifo(GlyphSack), tom: palette.mint },
     { key: 'purchases', detail: t.app.purchase.overline, route: '/purchase', desenho: glifo(GlyphPurchase), tom: palette.sage },
   ];
 

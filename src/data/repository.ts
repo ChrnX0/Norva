@@ -1,7 +1,15 @@
-import { applyCostEvent, blendRate, type StockCostState } from '@/domain/cost';
+import {
+  applyCostEvent,
+  blendRate,
+  intervaloEntreCompras,
+  pacotesAComprar,
+  prazoDoFornecedorAtual,
+  quantoComprar,
+  type StockCostState,
+} from '@/domain/cost';
 import { amountOf, cents, rateFromCents, type Cents, type Rate } from '@/domain/money';
 import { isValidHierarchy } from '@/domain/units';
-import { DEFAULT_ALERTS, type AlertSettings } from '@/domain/alerts';
+import { DEFAULT_ALERTS, precisaComprar, type AlertSettings } from '@/domain/alerts';
 import {
   OUR_UNPARENTED_PLACE_KINDS,
   UNIT_ROOM_KINDS,
@@ -7087,6 +7095,209 @@ export async function runningOut(
     });
   }
   return out.sort((a, b) => a.daysLeft - b.daysLeft);
+}
+
+/**
+ * Uma linha da lista de compras: o que comprar, quanto, e de quem.
+ *
+ * Fato e nunca frase — quem escreve *"compre 2 sacos de açúcar da Distribuidora Aurora"* é a
+ * tela, nos três idiomas. O que sai daqui são os números e os nomes que a frase precisa, mais as
+ * três parcelas do alvo, para a conta poder ABRIR (Lei 6) em vez de a tela mostrar um total que
+ * ninguém consegue conferir.
+ */
+export type LinhaDeCompra = {
+  itemId: string;
+  name: string;
+  baseUnit: string;
+  /** "saco de 25 kg", ou nulo no item comprado na própria unidade-base. */
+  purchaseUnit: string | null;
+  purchaseToBase: number | null;
+  onHandBaseUnits: number;
+  dailyOutflow: number;
+  daysLeft: number;
+  /** O prazo OBSERVADO do fornecedor da última nota, ou nulo. */
+  leadTimeDays: number | null;
+  /** O intervalo observado entre compras deste fornecedor, ou nulo. */
+  cycleDays: number | null;
+  /** O nome do fornecedor NO CADASTRO, ou nulo em nota sem fornecedor. */
+  supplierName: string | null;
+  /** Quanto comprar, em unidade-base. */
+  buyBaseUnits: number;
+  /** O mesmo, em embalagens de compra inteiras — é isto que se pede ao fornecedor. */
+  buyPacks: number;
+  /**
+   * Quanto o pedido deve custar pela última taxa de MERCADORIA, e nulo sem o portão do dinheiro.
+   *
+   * Estimativa e não preço: é a taxa da última nota vezes o que vai ser pedido, e a nota nova pode
+   * vir com outro preço — é justamente para isso que a tela de compra compara. Nulo é resposta
+   * honesta para quem não vê custo, e a lista continua servindo: o que comprar e quanto não é
+   * dinheiro.
+   */
+  estimateCents: Cents | null;
+};
+
+/**
+ * **Com que folga a fábrica REALMENTE comprou, compra por compra.**
+ *
+ * Devolve o par que o domínio pede (`folgaQueAFabricaUsa`): a cobertura que havia no dia do PEDIDO
+ * e o prazo que aquela entrega levou. Fato e nunca frase — quem diz *"você sempre comprou com
+ * quatro dias de sobra"* é a tela de ajustes, nos três idiomas.
+ *
+ * **Só as compras que dão para observar entram**, e as duas exclusões são o que torna o número
+ * honesto:
+ *
+ * - **sem `ordered_at` não há dia de pedido**, e a data é a pergunta rara que a tela de compra faz
+ *   com *"não sei"* marcado por padrão. Inventar o dia do pedido a partir da chegada mediria o
+ *   prazo do fornecedor como folga da fábrica, que é o oposto do que se quer;
+ * - **sem saída na semana anterior ao pedido não há cobertura** — `daysOfCover` devolve nulo com
+ *   consumo zero, e é a resposta certa: um insumo parado não tem "dias de sobra".
+ *
+ * **Uma consulta por compra para a taxa, e isto é escolha medida e não descuido.** A janela de sete
+ * dias ANTES de cada pedido precisaria de aritmética de data dentro do SQL, e este repositório não
+ * usa nenhuma — `julianday` e `datetime` não aparecem em consulta alguma, de propósito: a mesma
+ * consulta atravessa para o Postgres na descida, e as duas famílias de função de data divergem. A
+ * aritmética fica em TypeScript, como em `observedLeadTimeDays` e em `daysBetween`.
+ *
+ * O custo é pequeno por construção: `ordered_at` é opcional e perguntado uma vez por nota, então
+ * são as poucas compras em que alguém respondeu — e isto roda na tela de ajustes, não na capa.
+ */
+export async function folgaObservada(
+  companyId: string,
+  /** De onde é a conta: sala, unidade, ou a empresa inteira. Ver `Escopo`. */
+  onde?: Escopo,
+): Promise<{ diasDeCoberturaAoPedir: number; prazoObservado: number }[]> {
+  const conn = await db();
+  const recorte = noEscopo('m.location_id', onde);
+
+  const compras = await conn.getAllAsync<{
+    item_id: string;
+    ordered_at: string;
+    arrived_at: string;
+    held_then: number;
+  }>(
+    // O saldo no instante do pedido sai de uma comparação de TEXTO — as datas são ISO-8601 em UTC,
+    // e ali a ordem lexicográfica é a ordem cronológica. É a mesma forma que `lotsInRoomAt` usa.
+    `SELECT pl.item_id, p.ordered_at, p.arrived_at,
+            COALESCE((SELECT SUM(m.quantity_base_units) FROM movements m
+                       WHERE m.company_id = pl.company_id AND m.item_id = pl.item_id
+                         AND ${recorte.sql}
+                         AND m.occurred_at <= p.ordered_at), 0) AS held_then
+       FROM purchase_lines pl
+       JOIN purchases p ON p.id = pl.purchase_id
+      WHERE pl.company_id = ?
+        AND p.ordered_at IS NOT NULL
+        AND p.arrived_at IS NOT NULL
+        AND p.arrived_at >= p.ordered_at
+      ORDER BY p.ordered_at DESC`,
+    [...recorte.params, companyId],
+  );
+
+  const out: { diasDeCoberturaAoPedir: number; prazoObservado: number }[] = [];
+  for (const c of compras) {
+    const pedido = Date.parse(c.ordered_at);
+    const semanaAntes = new Date(pedido - 7 * 86_400_000).toISOString();
+    const saida = await dailyOutflowOf(companyId, c.item_id, semanaAntes, c.ordered_at, 7, onde);
+    const cobertura = daysOfCover(c.held_then, saida);
+    // Nulo aqui é "não dá para observar", e ele SAI da amostra em vez de entrar como zero: um
+    // insumo parado não tem dias de sobra, e contá-lo como zero puxaria a mediana para baixo e
+    // faria o aplicativo sugerir comprar mais tarde do que a fábrica compra.
+    if (cobertura === null) continue;
+    out.push({
+      diasDeCoberturaAoPedir: cobertura,
+      prazoObservado: (Date.parse(c.arrived_at) - pedido) / 86_400_000,
+    });
+  }
+  return out;
+}
+
+/**
+ * **A lista que responde "o que comprar hoje, quanto, e de quem" — e ela não existia.**
+ *
+ * O mecanismo estava todo construído e espalhado: `precisaComprar` decide o DIA, a capa o usa por
+ * item, a ficha do insumo desenha o ponto de recompra, e o aviso chega ao bolso. O que não existia
+ * em lugar nenhum era **quanto pedir** — `reorderPoint` responde *quando*, nunca *quanto* — e não
+ * havia uma tela que juntasse os itens. Quem compra tinha de abrir a ficha de cada insumo, um por
+ * um, e fazer a conta de cabeça.
+ *
+ * **A régua do dia é a MESMA de todo o resto** (`precisaComprar`, com o prazo do fornecedor de
+ * cada item e a folga da empresa). Uma segunda régua aqui faria a tela de compras discordar da
+ * capa e do aviso na mesma manhã, que é o defeito que aquela função nasceu para curar.
+ *
+ * **O horizonte é um TETO, não a resposta**, como na capa: pedir o prazo de cinquenta fornecedores
+ * para decidir o dia de um insumo que dura seis meses é uma consulta por item sem nada em troca.
+ * Nenhum fornecedor deste projeto leva um mês.
+ *
+ * **Por que uma consulta por candidato, e por que isso é aceitável:** o prazo e o ciclo saem de
+ * `deliveriesOf`, que é por item — e os candidatos são poucos por construção, porque o teto já os
+ * peneirou. É a mesma forma que a capa usa desde 13 de setembro.
+ *
+ * Ordenada pelo mais apertado primeiro: quem lê uma lista de compras decide de cima para baixo, e
+ * o que decide é quanto tempo falta.
+ */
+export async function shoppingToday(
+  companyId: string,
+  agora: string,
+  /** De onde é a conta: sala, unidade, ou a empresa inteira. Ver `Escopo`. */
+  onde?: Escopo,
+  /** O teto de dias para pedir o prazo do fornecedor. O mesmo da capa. */
+  teto = 30,
+): Promise<LinhaDeCompra[]> {
+  const regras = await alertSettings();
+  const desde = new Date(new Date(agora).getTime() - 7 * 86_400_000).toISOString();
+  const candidatos = await runningOut(companyId, desde, agora, 7, teto, onde);
+  if (candidatos.length === 0) return [];
+
+  // O dinheiro é uma leitura só para a lista inteira, e ela passa pelo portão: `itemCosts`
+  // devolve nulo quando quem olha não vê custo, e aí a estimativa não existe em vez de ser zero.
+  const [taxas, itens] = await Promise.all([
+    itemCosts(companyId),
+    listItems(companyId, undefined, false, onde),
+  ]);
+  const porId = new Map(itens.map((i) => [i.id, i]));
+
+  const linhas: LinhaDeCompra[] = [];
+  for (const c of candidatos) {
+    const entregas = await deliveriesOf(companyId, c.itemId);
+    const prazo = prazoDoFornecedorAtual(entregas);
+    if (!precisaComprar(c.daysLeft, prazo, regras)) continue;
+
+    const item = porId.get(c.itemId);
+    const fator = item?.purchaseToBase ?? null;
+    // Uma vez, e a mesma nas duas pontas: calculada aqui e devolvida na linha, senão a tela
+    // explicaria a conta com um número e o pedido usaria outro.
+    const ciclo = intervaloEntreCompras(entregas);
+    const buyBaseUnits = quantoComprar({
+      dailyOutflow: c.dailyOutflow,
+      onHandBaseUnits: c.onHandBaseUnits,
+      leadTimeDays: prazo,
+      safetyDays: regras.purchaseSafetyDays,
+      cycleDays: ciclo,
+      floorDays: regras.daysAhead.insumo,
+    });
+    const buyPacks = pacotesAComprar(buyBaseUnits, fator);
+    // A estimativa é sobre o que VAI SER PEDIDO — pacotes inteiros —, não sobre o que falta: é o
+    // número que alguém compara com o orçamento antes de ligar para o fornecedor.
+    const taxa = taxas?.[c.itemId] ?? null;
+    linhas.push({
+      itemId: c.itemId,
+      name: c.name,
+      baseUnit: c.baseUnit,
+      purchaseUnit: item?.purchaseUnit ?? null,
+      purchaseToBase: fator,
+      onHandBaseUnits: c.onHandBaseUnits,
+      dailyOutflow: c.dailyOutflow,
+      daysLeft: c.daysLeft,
+      leadTimeDays: prazo,
+      cycleDays: ciclo,
+      supplierName: entregas[0]?.supplierName ?? null,
+      buyBaseUnits,
+      buyPacks,
+      estimateCents:
+        taxa === null ? null : amountOf(taxa, buyPacks * (fator && fator > 0 ? fator : 1)),
+    });
+  }
+
+  return linhas.sort((a, b) => a.daysLeft - b.daysLeft);
 }
 
 /* ---------------------------------------------------------------------------

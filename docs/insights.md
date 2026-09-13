@@ -12676,3 +12676,80 @@ nomeou em 13 de setembro (*"quem EXERCITA isto?"*), e ela cobrou duas vezes no m
 *E a régua que eu tirei disto, porque ela é transferível: quando um docblock explica por que uma
 lista pode ficar de fora, a pergunta não é se a explicação faz sentido — é para quantos dos itens
 ela vale. Aqui valia para quatro de catorze, e as dez que sobravam eram a metade que importava.*
+
+## 13 de setembro — a checagem de navegador passou nos DOIS plantios, e a causa era a semente
+
+A tela nova de comprar hoje ganhou uma checagem de navegador escrita assim: abre `/comprar`, e
+aceita **a lista OU o estado vazio** — porque as duas são respostas honestas (Lei 7). Pareceu
+cuidado. Plantei os dois defeitos que ela nomeia — a conta apagada da linha, e a porta da capa de
+volta para `/inputs` — e **os dois passaram**.
+
+A causa: com a semente crua a lista sai **vazia** e a peça do insumo não está entre as sete que a
+capa traz por padrão. Nenhum dos dois ramos rodava. Verde idêntico ao de uma guarda que funciona,
+medindo nada.
+
+**O que isto acrescenta à régua que este projeto já tem** (*plante o defeito que a asserção
+NOMEIA*) é uma pergunta anterior a ela: **o ramo onde a asserção vive é ALCANÇADO pela montagem
+do teste?** Um `if` que protege contra um estado legítimo é a forma mais educada de uma asserção
+não existir — e ela não aparece em contagem de teste nenhuma, porque o teste passa.
+
+O conserto não foi apertar a asserção: foi a checagem **produzir o estado**. Uma corrida de 900
+unidades drena a polpa, e a peça do insumo é ligada nos ajustes — que é exatamente o que a
+checagem da nota já fazia com *"Preços que mexeram"*, e que o `CLAUDE.md` registra como regra
+desde 7 de setembro (*"mudança no que uma tela mostra por PADRÃO é mudança que o `e2e` faz
+parte"*). A regra estava escrita; o que faltou foi lê-la ao escrever a checagem.
+
+## 13 de setembro — `Porta` declarava a etiqueta do leitor de tela e não a passava a ninguém
+
+Escrevendo a checagem acima, procurei na capa a etiqueta da porta do insumo — *"Compre esta
+semana"* — e ela não estava lá. O texto visível é o desenho do nível: *"cheio · Polpa de morango ·
+acaba em 1 dia · Abrir a tela"*.
+
+O que estava errado não era a checagem. `src/home/Capa.tsx` recebe `etiqueta` com o docblock
+dizendo de si mesmo *"o que o leitor de tela anuncia — o assunto, não 'abrir'"*, e o componente
+**nunca a usava**. As cinco portas da capa eram alvos de toque que anunciavam *"Abrir a tela"*
+cinco vezes, sem dizer qual tela.
+
+**É o portão P1 dentro de um componente, e ele é pior que a versão em função:** o compilador não
+reclama de prop ignorado, o desenho fica pixel a pixel idêntico, e a única pessoa que percebe é
+justamente a que não vê a tela. Uma função sem chamador ao menos aparece numa varredura de
+exportações; um prop sem consumidor não aparece em varredura nenhuma.
+
+E note de onde veio o achado: de uma **checagem de navegador que não achou o que procurava**. A
+régua desta casa diz que quando medida e conserto usam a mesma palavra é preciso perguntar qual
+ENTRADA foi medida — aqui o instrumento foi mais honesto que o código, e a tentação era consertar
+o instrumento.
+
+*O que fica sem resposta, e é do aparelho do dono: se o leitor de tela do Android anuncia a
+etiqueta como esta correção espera. O navegador prova que o rótulo EXISTE e é alcançável por
+`getByLabel`; o TalkBack é outro instrumento, e não tem nenhum aqui.*
+
+## 13 de setembro — a sugestão precisa de uma trava, e a trava precisa de um nome que diga o que decide
+
+A folga de compra é configuração desde 6 de setembro, e a tela a oferece em sete pastilhas. O que
+faltava é o outro lado: **a fábrica não segue o número dos ajustes.** Ela compra quando compra, e o
+livro-razão sabe disso — se ela sempre pede com quatro dias de sobra e o aplicativo avisa em dois,
+todo aviso chega atrasado, e ninguém vai aos ajustes trocar um número que não sabe que está errado.
+
+Construir a sugestão é fácil; o que decide se ela serve são três travas, e cada uma existe contra
+uma frase falsa que a tela diria sem ela:
+
+1. **menos de três compras observadas devolve nulo**, e a linha desaparece. Com uma compra na vida
+   ela afirmaria um hábito tirado de um evento;
+2. **a sugestão cai numa das sete escolhas** da tela, porque um valor fora delas deixaria a fila de
+   pastilhas sem nenhuma selecionada — e porque a razão escrita do cartão é que 4 e 5 dias não
+   decidem coisas diferentes;
+3. **igual ao que já está escolhido não vira linha nenhuma**: *"você comprou com dois dias de
+   sobra, quer dois dias?"* é ruído que ensina a não ler o cartão.
+
+**E a MEDIANA em vez da média não é detalhe de estatística: é o que separa hábito de acidente.** Uma
+compra de pânico (zero de sobra, porque acabou) e uma de oportunidade (trinta dias, porque o preço
+caiu) puxam a média para um número que compra nenhuma usou. É a mesma escolha que a régua de tinta
+das fotos fez em 9 de setembro, pelo mesmo motivo e com a mesma prova: o caso que engana está nos
+extremos.
+
+**O que fica registrado como palpite, e é a parte honesta:** o três. Ele está no código com o nome
+`COMPRAS_PARA_SUGERIR` — o nome diz o que o número DECIDE, não quanto ele vale, que é a regra do
+`tokens.ts` valendo para uma constante de produto — e o docblock dele diz que é palpite a calibrar
+com notas de verdade. Constante sem nome de decisão é a que alguém "otimiza" sem saber o que está
+comprando.

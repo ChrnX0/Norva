@@ -119,6 +119,8 @@ const NAO_E_DICIONARIO: Record<string, string> = {
     'idem — e vale notar que o `e2e` passa com estas duas: o rótulo existe na tela, montado pelo prefixo mais o nome da peça. Quem não o enxerga é esta guarda, que compara com frases INTEIRAS do dicionário; é exatamente para isso que esta lista existe',
   '^Colocar na capa: Preços que mexeram$':
     'o mesmo caso, do outro lado da lista: peça que está FORA da capa tem "Colocar na capa" e não "Esconder/Mostrar". As duas metades existem no dicionário e a tela as junta — e errar qual das duas listas a peça está custa trinta segundos de espera por um alvo que não existe, com o Playwright dizendo "timeout" em vez de "seletor inventado"',
+  '^Colocar na capa: Insumo acabando$':
+    'a terceira da mesma família, e ela entra porque a checagem da lista de comprar hoje PRECISA ligar esta peça: com a capa padrão a porta do insumo acabando não existe, e os dois plantios daquela checagem passaram justamente por isso — o ramo nunca rodava. Ligar a peça é a montagem do estado, não preferência medida',
   English:
     'nome de idioma escrito NA língua dele, de propósito: quem procura o próprio idioma numa lista o reconhece escrito como ele se escreve, e não precisa saber ler o idioma atual para achar o seu. Por isso não passa pelo dicionário — traduzir "English" para "Inglês" esconderia a palavra de quem só lê inglês',
 };

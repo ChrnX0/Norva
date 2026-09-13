@@ -106,6 +106,16 @@ const TELAS: Record<string, Declaracao | Declaracao[]> = {
   'app/inputs/index.tsx': { compara: /shortestCover|coverUnknown|coverComfortable/ },
   'app/inputs/[id].tsx': { compara: /wentUp|wentDown/ },
   'app/losses.tsx': { compara: /vsPrevious|firstWindow/ },
+  /**
+   * A lista de comprar hoje: o número grande é quanto o pedido DEVE CUSTAR, e a comparação é
+   * quantos itens somam esse dinheiro — `itemCount` ao lado da figura.
+   *
+   * *A segunda leitura é a razão de a comparação ser a contagem e não uma janela anterior:* sem o
+   * portão do dinheiro a figura VIRA a contagem de embalagens, e "quinze itens" continua dizendo do
+   * que o número é feito. Uma janela anterior não existe aqui — a lista de ontem não é fato
+   * guardado, é uma pergunta refeita a cada manhã sobre o razão de hoje.
+   */
+  'app/comprar.tsx': { compara: /itemCount/ },
   'app/recipes/[id].tsx': { compara: /summaryCheaper|summaryDearer|delta/ },
 
   // O Espelho da Loja: o número grande é a FRAÇÃO devolvida, e a comparação é a

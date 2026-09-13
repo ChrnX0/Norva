@@ -6,6 +6,12 @@ import {
   prazoDoFornecedorAtual,
   blendRate,
   taxaDaMercadoria,
+  intervaloEntreCompras,
+  quantoComprar,
+  pacotesAComprar,
+  folgaQueAFabricaUsa,
+  folgaOferecida,
+  COMPRAS_PARA_SUGERIR,
 } from './cost';
 
 /**
@@ -207,4 +213,265 @@ test('frete maior que o total é lido como frete nenhum, e nunca como preço neg
 
   // Quantidade zero não divide: a resposta é zero e não infinito, como em todo o resto da casa.
   assert.equal(taxaDaMercadoria(3_000 as Cents, 0 as Cents, 0), 0);
+});
+
+
+/**
+ * **O intervalo entre compras, e por que ele é do FORNECEDOR e não do item.**
+ *
+ * Numa fábrica que compra polpa de dois lugares — um da cidade toda semana e um de fora uma vez
+ * por mês —, a média dos intervalos de todas as entregas não é o intervalo de nenhum dos dois. É o
+ * mesmo recorte que `prazoDoFornecedorAtual` faz, e pela mesma razão: o número decide quanto pedir
+ * A ESTE fornecedor.
+ */
+test('o intervalo entre compras é o do fornecedor da última nota', () => {
+  const entregas = [
+    // A mais nova primeiro, como `deliveriesOf` devolve.
+    { receivedAt: '2026-09-12T00:00:00.000Z', supplierId: 'perto' },
+    { receivedAt: '2026-09-05T00:00:00.000Z', supplierId: 'perto' },
+    { receivedAt: '2026-08-29T00:00:00.000Z', supplierId: 'perto' },
+    // O de fora entrega de mês em mês, e ele NÃO entra na conta desta compra.
+    { receivedAt: '2026-07-01T00:00:00.000Z', supplierId: 'longe' },
+    { receivedAt: '2026-06-01T00:00:00.000Z', supplierId: 'longe' },
+  ];
+  assert.equal(
+    intervaloEntreCompras(entregas),
+    7,
+    'três entregas semanais do mesmo fornecedor dão sete dias — o de fora não dilui',
+  );
+
+  // O caso FALSO: sem o recorte a média das quatro janelas seria muito maior. Sem esta asserção
+  // a de cima passaria com uma implementação que ignora o fornecedor e por acaso desse sete.
+  assert.notEqual(
+    intervaloEntreCompras(entregas.map((e) => ({ ...e, supplierId: null }))),
+    7,
+    'misturando os dois fornecedores o número deixa de ser sete — é isso que o recorte evita',
+  );
+});
+
+test('uma entrega só não tem intervalo, e a resposta é nulo em vez de zero', () => {
+  /**
+   * É o estado normal do primeiro mês, não uma borda. Zero diria "compro de novo hoje" e faria o
+   * pedido cobrir apenas prazo mais folga sem ninguém saber que o ciclo era desconhecido — e a
+   * diferença entre "o ciclo é zero" e "não sei o ciclo" é a mesma que este projeto guarda em toda
+   * parte: nulo é resposta, zero é número que alguém soma.
+   */
+  assert.equal(intervaloEntreCompras([{ receivedAt: '2026-09-12T00:00:00.000Z', supplierId: 'a' }]), null);
+  assert.equal(intervaloEntreCompras([]), null);
+
+  // E duas do MESMO fornecedor já têm intervalo: o nulo é sobre a contagem, não sobre o cadastro.
+  assert.equal(
+    intervaloEntreCompras([
+      { receivedAt: '2026-09-12T00:00:00.000Z', supplierId: 'a' },
+      { receivedAt: '2026-09-02T00:00:00.000Z', supplierId: 'a' },
+    ]),
+    10,
+  );
+});
+
+test('a lista chegando ao contrário dá o mesmo intervalo, nunca um negativo', () => {
+  // Intervalo negativo viraria um alvo menor e um pedido CURTO — o defeito silencioso desta
+  // família, porque um pedido pequeno não parece errado até a fábrica parar.
+  const crescente = [
+    { receivedAt: '2026-09-01T00:00:00.000Z', supplierId: 'a' },
+    { receivedAt: '2026-09-08T00:00:00.000Z', supplierId: 'a' },
+  ];
+  assert.equal(intervaloEntreCompras(crescente), 7);
+  assert.ok((intervaloEntreCompras(crescente) ?? -1) > 0, 'nunca negativo');
+});
+
+/**
+ * **QUANTO comprar, e as três parcelas do alvo.**
+ *
+ * `reorderPoint` responde *quando*. Esta responde *quanto*, e sem ela a tela só sabe dizer
+ * "compre" — a metade que a Lei 1 proíbe deixar para a pessoa calcular de cabeça.
+ */
+test('o pedido cobre prazo, folga e o ciclo, e desconta a prateleira', () => {
+  const conta = quantoComprar({
+    dailyOutflow: 1_000,
+    onHandBaseUnits: 4_000,
+    leadTimeDays: 6,
+    safetyDays: 2,
+    cycleDays: 7,
+    floorDays: 3,
+  });
+  // 1.000/dia × (6 + 2 + 7) = 15.000 de alvo, menos 4.000 na prateleira.
+  assert.equal(conta, 11_000, 'o alvo é prazo + folga + ciclo, e o que já está em casa desconta');
+
+  // O caso que mostra que o CICLO está na conta: sem ele o pedido chega e já é hora de pedir de novo.
+  assert.equal(
+    quantoComprar({
+      dailyOutflow: 1_000,
+      onHandBaseUnits: 4_000,
+      leadTimeDays: 6,
+      safetyDays: 2,
+      cycleDays: null,
+      floorDays: 3,
+    }),
+    4_000,
+    'sem ciclo conhecido o pedido cobre prazo + folga e mais nada — curto, e honesto',
+  );
+});
+
+test('prazo desconhecido usa o MESMO piso que decide o dia de comprar', () => {
+  /**
+   * A régua do *quando* (`precisaComprar`) cai em `settings.daysAhead.insumo` quando não há prazo
+   * observado. Se o *quanto* usasse outro número, o aplicativo avisaria por uma conta e pediria por
+   * outra — a doença que a régua única de compra veio curar em 6 de setembro.
+   */
+  assert.equal(
+    quantoComprar({
+      dailyOutflow: 500,
+      onHandBaseUnits: 0,
+      leadTimeDays: null,
+      safetyDays: 2,
+      cycleDays: null,
+      floorDays: 3,
+    }),
+    2_500,
+    'sem prazo observado o alvo é o piso configurado mais a folga: 500 × (3 + 2)',
+  );
+});
+
+test('quem tem mais do que o alvo não compra, e insumo parado não se compra', () => {
+  // Zero e não negativo: um número negativo atravessaria para a tela e viraria "compre -3 sacos".
+  assert.equal(
+    quantoComprar({
+      dailyOutflow: 100,
+      onHandBaseUnits: 999_999,
+      leadTimeDays: 6,
+      safetyDays: 2,
+      cycleDays: 7,
+      floorDays: 3,
+    }),
+    0,
+    'prateleira acima do alvo devolve zero, nunca negativo',
+  );
+
+  // Sem saída não há data de acabar e não há quanto pedir — o mesmo raciocínio de `daysOfCover`
+  // devolvendo nulo. Aqui zero é a resposta certa: não se compra o que não sai.
+  assert.equal(
+    quantoComprar({
+      dailyOutflow: 0,
+      onHandBaseUnits: 0,
+      leadTimeDays: 6,
+      safetyDays: 2,
+      cycleDays: 7,
+      floorDays: 3,
+    }),
+    0,
+    'insumo parado não entra na lista de compras',
+  );
+
+  // E saldo NEGATIVO (contagem atrasada) não aumenta o pedido além do alvo: ele conta como zero,
+  // como no evento de custo e no gatilho do servidor. Somar a falta pediria estoque que a
+  // contagem vai corrigir.
+  assert.equal(
+    quantoComprar({
+      dailyOutflow: 100,
+      onHandBaseUnits: -5_000,
+      leadTimeDays: 6,
+      safetyDays: 2,
+      cycleDays: 2,
+      floorDays: 3,
+    }),
+    1_000,
+    'saldo negativo conta como zero — a mesma regra do evento de custo',
+  );
+});
+
+test('o pedido sai em EMBALAGENS inteiras, arredondando para cima', () => {
+  /**
+   * Ninguém pede dois terços de um saco. E para CIMA, não para baixo: arredondar para baixo
+   * entrega um pedido que não cobre o alvo, e a fábrica para por falta — nunca por sobra.
+   */
+  assert.equal(pacotesAComprar(11_000, 25_000), 1, 'menos de um saco ainda é um saco');
+  assert.equal(pacotesAComprar(26_000, 25_000), 2, 'um pouco mais que um saco são dois');
+  assert.equal(pacotesAComprar(50_000, 25_000), 2, 'e o múltiplo exato não vira três');
+
+  // O item comprado na própria unidade-base: o produto de revenda contado por unidade, que a tela
+  // de compra já trata com `?? 1`.
+  assert.equal(pacotesAComprar(44, null), 44, 'sem embalagem de compra, a conta é a quantidade');
+  assert.equal(pacotesAComprar(0, 25_000), 0, 'nada a comprar não vira um saco');
+});
+
+
+/**
+ * **A folga que a fábrica USA, contra a que ela CONFIGUROU.**
+ *
+ * A folga é configuração e nasce em dois. Se a fábrica sempre compra com quatro dias de sobra, o
+ * aplicativo avisando em dois chega atrasado em toda compra — e ninguém vai aos ajustes trocar um
+ * número que não sabe que está errado. Daí a sugestão; daí também a trava que a impede de mentir.
+ */
+test('a folga observada é a MEDIANA, para a compra de pânico não mandar no hábito', () => {
+  const compras = [
+    // Três compras normais com quatro dias de sobra...
+    { diasDeCoberturaAoPedir: 10, prazoObservado: 6 },
+    { diasDeCoberturaAoPedir: 10, prazoObservado: 6 },
+    { diasDeCoberturaAoPedir: 10, prazoObservado: 6 },
+    // ...e uma de pânico: pediu com o estoque no fim.
+    { diasDeCoberturaAoPedir: 6, prazoObservado: 6 },
+    // ...e uma de oportunidade: o preço caiu e comprou com um mês de sobra.
+    { diasDeCoberturaAoPedir: 36, prazoObservado: 6 },
+  ];
+  assert.equal(
+    folgaQueAFabricaUsa(compras),
+    4,
+    'a mediana devolve o hábito: quatro dias, que é o que três das cinco compras usaram',
+  );
+
+  // O caso FALSO da escolha, e é ele que justifica a mediana: a média das cinco é 6,8 — um número
+  // que compra NENHUMA usou, puxado pela de oportunidade.
+  const media = compras.reduce((n, c) => n + (c.diasDeCoberturaAoPedir - c.prazoObservado), 0) / 5;
+  assert.notEqual(media, 4, 'a média discorda da mediana neste conjunto — é por isso que a escolha importa');
+});
+
+test('com poucas compras a sugestão NÃO existe, em vez de existir errada', () => {
+  /**
+   * Com uma compra na vida a tela diria "você sempre comprou com 0 dias de sobra" — uma afirmação
+   * sobre hábito tirada de um evento. Nulo faz a peça desaparecer, que é a mesma regra do alerta
+   * inventado: melhor calar que ensinar a ignorar.
+   */
+  const uma = [{ diasDeCoberturaAoPedir: 6, prazoObservado: 6 }];
+  assert.equal(folgaQueAFabricaUsa(uma), null, 'uma compra não é hábito');
+  assert.equal(folgaQueAFabricaUsa([]), null, 'nenhuma compra, nenhuma opinião');
+
+  // E o caso VERDADEIRO do mesmo limiar: com o mínimo exato a sugestão aparece. Sem esta metade a
+  // asserção acima passaria com uma função que devolve nulo para tudo.
+  const tres = Array.from({ length: COMPRAS_PARA_SUGERIR }, () => ({
+    diasDeCoberturaAoPedir: 9,
+    prazoObservado: 6,
+  }));
+  assert.equal(folgaQueAFabricaUsa(tres), 3, 'no limiar exato ela passa a existir');
+  assert.ok(COMPRAS_PARA_SUGERIR >= 3, 'duas compras dariam uma mediana que é a média de duas');
+});
+
+test('comprar com o estoque no negativo é folga ZERO, nunca negativa', () => {
+  // Contagem atrasada ou compra de emergência: a cobertura ao pedir sai negativa, e uma folga
+  // negativa atravessaria para a tela como sugestão impossível.
+  const compras = [
+    { diasDeCoberturaAoPedir: -3, prazoObservado: 6 },
+    { diasDeCoberturaAoPedir: -3, prazoObservado: 6 },
+    { diasDeCoberturaAoPedir: -3, prazoObservado: 6 },
+  ];
+  assert.equal(folgaQueAFabricaUsa(compras), 0, 'o piso é zero');
+});
+
+test('a sugestão cai numa das escolhas da tela, e o empate vai para o MAIOR', () => {
+  const OPCOES = [0, 1, 2, 3, 5, 7, 14];
+  assert.equal(folgaOferecida(3.2, OPCOES), 3, 'perto de três, três');
+  assert.equal(folgaOferecida(6.1, OPCOES), 7, 'perto de sete, sete');
+
+  /**
+   * O empate é a asserção que importa, e ele é a mesma assimetria de `pacotesAComprar`: errar para
+   * mais custa estoque parado, errar para menos custa a fábrica parada por falta. Quatro dias entre
+   * 3 e 5 sugerem cinco.
+   */
+  assert.equal(folgaOferecida(4, OPCOES), 5, 'no empate, o maior — comprar cedo é o erro barato');
+
+  // E a ordem da lista não decide: a mesma resposta com as escolhas ao contrário.
+  assert.equal(folgaOferecida(4, [...OPCOES].reverse()), 5, 'a ordem das escolhas não muda a resposta');
+
+  assert.equal(folgaOferecida(0, OPCOES), 0, 'zero é uma escolha, não ausência de escolha');
+  assert.equal(folgaOferecida(3, []), null, 'sem escolhas não há o que sugerir');
 });

@@ -36,22 +36,22 @@ roda quinze comandos antes de acreditar numa tabela. Por isso a guarda.*
 
 | | | como conferir |
 |---|---|---|
-| telas | **36** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
+| telas | **37** | `find app -name '*.tsx' \| grep -v _layout \| wc -l` |
 | tabelas no aparelho (SQLite) | **30** | `grep -c 'CREATE TABLE IF NOT EXISTS' src/data/db.ts` |
 | tabelas no servidor (Postgres) | **30** | `grep -h '^create table' supabase/migrations/*.sql \| wc -l` |
 | migrações do servidor | **71** | `ls supabase/migrations \| wc -l` |
 | migrações do aparelho | **V42** | último `const V` em `src/data/db.ts` |
 | papéis | **7** | `src/domain/access.ts` |
 | capacidades | **12** | `src/domain/access.ts` |
-| linhas de código | **~113.500** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
+| linhas de código | **~115.000** | `find src app e2e scripts supabase -type f \( -name '*.ts*' -o -name '*.sql' -o -name '*.mjs' \) \| xargs wc -l` |
 
 E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **868** testes |
+| `npm test` | **877** testes |
 | `npm run mutate` | **154** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
-| `npm run e2e:fast` | **60** checagens num navegador de verdade |
+| `npm run e2e:fast` | **61** checagens num navegador de verdade |
 | `npm run db:verify` | **42** garantias contra um Postgres descartável: **21** sob RLS, como a conta da empresa, e **21** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
 | `.proofgate/verify.sh` | **25** guardas de entrega |
 
@@ -3031,7 +3031,7 @@ abaixo respeita duas decisões escritas dele — *"termina o layout, nada pela m
 | **3d** | ~~**As quatro peças da capa que NAVEGAM em vez de abrir**~~ **— FEITO em 6 de setembro** | virou a `Porta` (`src/home/Capa.tsx`): o toque e o aviso do toque são a mesma peça, então não dá para acrescentar uma quinta porta sem o rótulo.  <!-- medida: presente src/home/Capa.tsx :: function Porta --> |
 | **4** | ~~**Os sete médios**~~ **— ACABARAM em 6 de setembro** <!-- medida: presente src/data/configuracao.ts :: orders_need_approval --> | `unchecked` foi removida, `lastCostMove` ganhou tela na capa, e a aprovação de pedido — a única que não era trabalho e sim bloqueio — destravou quando a linha de `companies` passou a existir: `src/data/configuracao.ts` faz as quatro configurações da empresa atravessarem. Não sobrou nenhum. |
 | **5** | ~~**De onde a produção consome**~~ | **FECHADO em 8 de setembro, e nas duas metades.** O padrão foi decidido sob defeito — a tela lia a unidade, a escrita conferia uma sala, e nenhuma corrida rodava com a polpa na câmara — e é a unidade, com o consumo saindo da sala que tinha o insumo. A outra metade, que é o que a regra da casa exige, entrou junto: `consumoDaProducao` é configuração da empresa, a escrita e a tela perguntam à MESMA função, e a guarda passou a exigir a fonte comum em vez da palavra.  <!-- medida: presente src/data/repository.ts :: escopoDoConsumo --> |
-| **6** | **Compras inteligentes** | mesma classe do 3 — construir agora, calibrar depois. ~~O primeiro passo era a data do pedido, porque `ordered_at` não tinha escritor~~ — **ele tem, desde 6 de setembro** (`app/purchase.tsx:578`), e com um desenho honesto: sem resposta nada é gravado, porque lacuna vazia é mais honesta que palpite. O que falta agora não é código, é **tempo**: `observedLeadTimeDays` precisa de entregas observadas, e isso é a linha *"calibração das compras"* da espera.  <!-- medida: espera :: entregas observadas numa fábrica de verdade para calibrar o prazo --> |
+| **6** | **Compras inteligentes** | mesma classe do 3 — construir agora, calibrar depois. ~~O primeiro passo era a data do pedido, porque `ordered_at` não tinha escritor~~ — **ele tem, desde 6 de setembro** (`app/purchase.tsx:578`), e com um desenho honesto: sem resposta nada é gravado, porque lacuna vazia é mais honesta que palpite. **E a TELA entrou em 13 de setembro** (`app/comprar.tsx`), com o que faltava de verdade: `quantoComprar` — o *quanto*, que não existia em lugar nenhum do domínio, porque `reorderPoint` só responde *quando* —, `intervaloEntreCompras` para o pedido cobrir até a compra seguinte, e `pacotesAComprar` para o pedido sair em embalagem inteira. A régua do DIA continua sendo `precisaComprar`, a mesma da capa e do aviso. O que falta agora não é código, é **tempo**: o prazo e o ciclo ficam confiáveis com entregas observadas, e isso é a linha *"calibração das compras"* da espera.  <!-- medida: espera :: entregas observadas numa fábrica de verdade para calibrar o prazo e o ciclo --> |
 | — | **O fiscal** | fora, e o único que trava por algo que nenhum dado resolve: certificado A1 e homologação na SEFAZ. |
 
 De pé, nesta ordem e por este motivo:
