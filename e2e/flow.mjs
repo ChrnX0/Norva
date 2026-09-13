@@ -981,6 +981,77 @@ check('an invoice warns before it is committed, then moves everything', async (p
     'a dica do fornecedor sai com o valor dele; a da quantidade fica, porque o valor dela ficou',
   );
 
+  /**
+   * **A comparação compara MERCADORIA com MERCADORIA, e ela ESPERA a nota anterior.**
+   *
+   * Duas coisas que só o navegador prende. A primeira: o cartão "ANTES DE FECHAR" passou a
+   * aparecer só depois de a consulta da última nota voltar — antes ele afirmava "Primeira
+   * compra deste item" por meio segundo a cada troca de insumo com um total digitado. Uma
+   * condição errada ali esconde o cartão PARA SEMPRE, e nenhum teste de unidade vê isso.
+   *
+   * A segunda: o frete sai da conta. A nota anterior deste insumo foi **R$ 700 por 4 baldes, sem
+   * frete** — a que esta checagem lançou acima. Esta é a MESMA nota de R$ 700 com R$ 100 de
+   * entrega por fora, então o pouso é 800 e o fornecedor continua cobrando 700.
+   *
+   * *E o campo "Total da nota" é o da MERCADORIA, com o frete somado em cima — foi o que a
+   * primeira escrita desta checagem errou, digitando 800 no total e esperando 700 de mercadoria.
+   * A régua para qualquer número daqui em diante: a confirmação da tela escreve os três (total,
+   * nota e frete), e é ela que diz qual campo é qual.*
+   *
+   * **E o frete é R$ 100 e não R$ 30 por causa do LIMIAR, que é o defeito que eu quase deixei
+   * passar.** Com 30 de frete a alta do pouso é 4,3% — abaixo dos 5% de `PRICE_ALARM` —, então
+   * "Variação pequena" seria a resposta com o frete dentro E com ele fora: a asserção sobrevive
+   * ao próprio defeito que ela nomeia. Com 100, o pouso dá +14,3% e a tela diria "Subiu bem acima
+   * do normal". Agora as duas respostas são diferentes, e a certa é a que sai.
+   *
+   * O valor da mercadoria é derivado da nota de cima e não escolhido: mesma mercadoria é o que
+   * faz "variação pequena" ser a resposta CERTA em vez de coincidência.
+   */
+  await page.getByLabel('Total da nota').fill('700');
+  await page.getByLabel('Frete (se houver)').fill('100');
+  await assentar(page);
+  const fechando = await screen(page);
+  assert.match(
+    fechando,
+    /ANTES DE FECHAR/,
+    'o cartão da comparação tem de aparecer com a nota anterior em mão — some para sempre se a condição da espera estiver invertida',
+  );
+  assert.doesNotMatch(
+    fechando,
+    /Primeira compra deste item/,
+    'e ele não pode dizer "primeira compra" de um insumo que tem nota anterior',
+  );
+  assert.match(
+    fechando,
+    /Sem o frete de/,
+    'a conta abre: os dois números da comparação são menores que o total digitado, e a tela diz por quê',
+  );
+  assert.match(
+    fechando,
+    /Variação pequena/,
+    'mesma mercadoria, preço igual: quem pagou a entrega foi você, e o fornecedor não subiu nada',
+  );
+  // E os DOIS números por extenso, que é o que impede a asserção de cima passar por acaso:
+  // R$ 175,00 é 700 por 4 baldes. Com o frete dentro sairia R$ 200,00 de um lado e 175 do outro.
+  assert.match(
+    fechando,
+    /R\$ 175,00 agora · R\$ 175,00 na compra anterior/,
+    'a comparação mostra mercadoria contra mercadoria, e as duas são o mesmo número',
+  );
+
+  // O número da nota existe como campo, e é o único que nasce vazio: sugerir o número da nota
+  // anterior seria oferecer o envelope errado com cara de certo.
+  assert.equal(
+    await page.getByLabel('Número da nota').inputValue(),
+    '',
+    'o número da nota nasce vazio de propósito — número errado é pior que nenhum',
+  );
+
+  // E limpar o que esta parte digitou, para as asserções seguintes verem a tela como antes.
+  await page.getByLabel('Frete (se houver)').fill('');
+  await page.getByLabel('Total da nota').fill('');
+  await assentar(page);
+
   // And the briefing carries the consequence, not just the figure. Until now
   // the first card the owner saw was a bare unit cost - 55 cents, neither good
   // nor bad, with nothing beside it.
