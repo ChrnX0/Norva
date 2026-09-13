@@ -8743,6 +8743,30 @@ export async function savePerson(
   const pin = input.pin == null ? input.pin : input.pin.trim();
   if (pin != null && !/^[0-9]{4,8}$/.test(pin)) throw new Error('pin: 4 a 8 dígitos');
 
+  /**
+   * Nome repetido é recusado AQUI, e a régua é mais estreita que a do índice de propósito.
+   *
+   * O servidor tem `unique (company_id, name)` desde a `0035`, com a razão escrita lá: *"a
+   * grade mostra NOMES, e dois nomes iguais numa grade são inúteis: quem está de luva toca em
+   * um dos dois sem ter como saber qual"*. Sem esta recusa a segunda Ana entrava no aparelho, a
+   * fila levava `23505` — PERMANENTE — e a pessoa ia de lado **para sempre**, calada: quem a
+   * cadastrou a vê na grade, e o servidor nunca soube dela.
+   *
+   * **Caixa e espaço ignorados, e o índice local NÃO.** `Ana` e ` ana ` são o mesmo nome para
+   * quem olha a grade, então é isto que a tela recusa. O índice do aparelho (V38) copia o do
+   * servidor letra por letra, porque um índice mais estreito que o dele quebraria a DESCIDA:
+   * duas pessoas que o servidor aceita desceriam e a segunda bateria num índice que só existe
+   * aqui, derrubando a página inteira. Mensagem estreita, garantia igual.
+   */
+  const nome = input.name.trim();
+  if (!nome) throw new Error('pessoa sem nome não entra na grade');
+  const repetido = await conn.getFirstAsync<{ id: string }>(
+    `SELECT id FROM people
+      WHERE company_id = ? AND lower(trim(name)) = lower(?) AND id <> ?`,
+    [companyId, nome, id],
+  );
+  if (repetido) throw new NomeJaCadastradoError(nome);
+
   await conn.withTransactionAsync(async () => {
     if (input.id) {
       await conn.runAsync(

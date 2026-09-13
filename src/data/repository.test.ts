@@ -8168,3 +8168,86 @@ test('a ficha e o produto recusam aqui o que o servidor recusaria depois', async
   });
   assert.ok(revenda, 'a revenda não tem ficha nem conversão, e é isso que o servidor permite');
 });
+
+test('dois nomes iguais na grade são recusados aqui, e o índice não deixa entrar', async () => {
+  /**
+   * O servidor tem `unique (company_id, name)` em `people` desde a `0035`, com a razão escrita
+   * lá: dois nomes iguais numa grade de luva são dois nomes inúteis. O aparelho não tinha
+   * índice nenhum, e a segunda Ana entrava — a fila levava `23505`, que é PERMANENTE, e a pessoa
+   * ia de lado para sempre, calada: quem a cadastrou a vê na grade e o servidor nunca soube dela.
+   *
+   * Os dois sentidos, e a variante de caixa no meio: `Ana` repetido é recusado, ` ana ` também
+   * (porque para quem olha a grade é o mesmo nome), e `Ana Paula` entra.
+   */
+  const perfis = await listProfiles(CO);
+  const operador = perfis.find((p) => p.templateRole === 'operator')!.id;
+
+  const ana = await savePerson(CO, { name: 'Ana', profileId: operador });
+  assert.ok(ana.id, 'a primeira Ana entra');
+
+  await assert.rejects(
+    () => savePerson(CO, { name: 'Ana', profileId: operador }),
+    (e: unknown) => e instanceof NomeJaCadastradoError,
+    'a segunda Ana é recusada aqui, e não pelo servidor com 23505 daqui a uma semana',
+  );
+  await assert.rejects(
+    () => savePerson(CO, { name: '  ana  ', profileId: operador }),
+    (e: unknown) => e instanceof NomeJaCadastradoError,
+    'caixa e espaço não fazem um nome novo: na grade os dois se leem igual',
+  );
+
+  // O outro sentido: nome diferente entra, e RENOMEAR a própria pessoa continua valendo — uma
+  // guarda escrita larga acusaria a Ana de colidir consigo mesma.
+  const outra = await savePerson(CO, { name: 'Ana Paula', profileId: operador });
+  assert.ok(outra.id, 'nome parecido e diferente entra');
+  const mesma = await savePerson(CO, { id: ana.id, name: 'Ana', profileId: operador });
+  assert.equal(mesma.id, ana.id, 'salvar a mesma pessoa com o mesmo nome não é duplicar');
+
+  // E a GARANTIA, que é o índice: quem escrever direto no banco também é recusado.
+  const conn = await db();
+  await assert.rejects(
+    () =>
+      conn.runAsync(
+        `INSERT INTO people (id, company_id, name, profile_id, active, created_at)
+         VALUES ('pessoa-crua', ?, 'Ana', ?, 1, ?)`,
+        [CO, operador, nowIso()],
+      ),
+    /UNIQUE|constraint/i,
+    'o índice da V38 é a garantia; a checagem de savePerson é a mensagem',
+  );
+});
+
+test('o passo que cria o índice de nome conserta quem já tinha duas', async () => {
+  const conn = inMemoryDb();
+
+  // O banco de pé no passo ANTERIOR ao índice — o estado de quem já instalou e cadastrou duas
+  // pessoas com o mesmo nome, que era possível até hoje.
+  for (const passo of migrationSteps.slice(0, migrationSteps.length - 1)) {
+    await conn.execAsync(passo);
+  }
+  await conn.execAsync(`PRAGMA user_version = ${migrationSteps.length - 1}`);
+  await conn.runAsync(
+    `INSERT INTO profiles (id, company_id, name, template_role, capabilities, created_at)
+     VALUES ('perfil', ?, NULL, 'operator', 'record_production', '2026-01-01T00:00:00.000Z')`,
+    [CO],
+  );
+  for (const id of ['a1', 'a2', 'a3']) {
+    await conn.runAsync(
+      `INSERT INTO people (id, company_id, name, profile_id, active, created_at)
+       VALUES (?, ?, 'Ana', 'perfil', 1, '2026-01-01T00:00:00.000Z')`,
+      [id, CO],
+    );
+  }
+
+  await migrate(conn);
+
+  // Nenhuma pessoa se perde: três linhas, três nomes diferentes. Apagar a duplicada seria
+  // apagar gente cujo histórico aponta para ela.
+  const gente = await conn.getAllAsync<{ id: string; name: string }>(
+    `SELECT id, name FROM people ORDER BY id`,
+  );
+  assert.equal(gente.length, 3, 'o reparo renomeia, nunca apaga: movimento com operador que sumiu não se explica');
+  assert.equal(new Set(gente.map((g) => g.name)).size, 3, 'os três nomes ficaram diferentes');
+  assert.equal(gente[0].name, 'Ana', 'a primeira mantém o nome — quem chegou depois é que muda');
+  assert.match(gente[1].name, /^Ana #\d+$/, 'a segunda ganhou o sufixo do rowid, que é único por construção');
+});

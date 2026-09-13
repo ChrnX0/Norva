@@ -1085,12 +1085,39 @@ const REPARO_TAXA_DA_EMBALAGEM = `UPDATE products
    SET unit_packaging_rate = unit_packaging_cents
  WHERE unit_packaging_rate = 0 AND unit_packaging_cents <> 0;`;
 
+/**
+ * O reparo do nome repetido, declarado aqui e usado pela V38 lá embaixo.
+ *
+ * A ordem importa e me pegou: `const` não é içado, e declará-lo junto da V38 — depois desta
+ * lista — fazia toda a suíte morrer com `Cannot access 'REPARO_NOME_REPETIDO' before
+ * initialization`. A razão inteira dele está no docblock da V38.
+ */
+const REPARO_NOME_REPETIDO = `UPDATE people SET name = name || ' #' || rowid
+ WHERE EXISTS (SELECT 1 FROM people outra
+                WHERE outra.company_id = people.company_id
+                  AND outra.name = people.name
+                  AND outra.rowid < people.rowid);`;
+
 export const REPAROS: readonly string[] = [
   REPARO_TAXA_DA_EMBALAGEM,
   REPARO_ESPECIE_DA_UNIDADE,
   REPARO_PAI_DA_SALA,
   REPARO_QUEM_ATENDE,
   REPARO_RENDIMENTO_DA_VERSAO,
+  /**
+   * Este é um NO-OP por construção depois da V38, e está aqui dito em vez de escondido.
+   *
+   * Os outros cinco preenchem coluna que a cópia antiga não tinha. Este renomeia nome repetido,
+   * e depois da V38 o índice único não deixa dois entrarem — então quando a restauração chega
+   * aqui não existe repetido para renomear. Ele não pode agir, e não é enfeite: a lista é a
+   * resposta à pergunta *"todo backfill tem reparo?"*, e tirá-lo faria a guarda pedir uma
+   * exceção nova para um caso que não é exceção nenhuma.
+   *
+   * O caso em que ele SERIA útil — restaurar uma cópia de antes da V38 com duas pessoas de nome
+   * igual — não chega a este ponto: o `INSERT ... SELECT` da restauração falha no índice antes,
+   * a transação volta atrás inteira, e nada se perde. Está escrito no docblock da V38.
+   */
+  REPARO_NOME_REPETIDO,
 ];
 
 /**
@@ -1339,10 +1366,52 @@ const V37 = `
 ALTER TABLE purchases RENAME COLUMN received_at TO arrived_at;
 `;
 
+/**
+ * Dois nomes iguais na grade são dois nomes inúteis — e o servidor já recusava o segundo.
+ *
+ * A `0035` criou `people` com `unique (company_id, name)`, e a razão está escrita lá: *"a grade
+ * mostra NOMES, e dois nomes iguais numa grade são inúteis: quem está de luva toca em um dos
+ * dois sem ter como saber qual"*. O aparelho não tinha índice nenhum: a segunda Ana entrava
+ * aqui, a fila levava `23505` — que é PERMANENTE, por decisão medida — e a pessoa ia de lado
+ * **para sempre**, silenciosa. Quem a cadastrou vê o nome na grade e o servidor nunca soube dela.
+ *
+ * **O índice copia o do servidor LETRA POR LETRA, e isso é decisão.** As irmãs deste esquema
+ * (`carriers`, `product_lines`, `flavors`) usam `lower(trim(name))` — e lá isso está certo,
+ * porque o servidor usa `lower(btrim(name))` também. Aqui o servidor é exato, e um índice
+ * daqui MAIS estreito que o dele quebraria a descida: duas pessoas que o servidor aceita
+ * (`João` e `joão`) desceriam, a segunda bateria no índice local, e `gravarPagina` erra num
+ * `INSERT ... ON CONFLICT(id)` cujo alvo é o id e não o nome — a página inteira cai e a rodada
+ * de descida morre.
+ *
+ * A régua de luva continua existindo, e mora em `savePerson`: ela recusa o nome repetido
+ * IGNORANDO caixa e espaço, porque é ela que fala com quem digita. Índice é garantia, e
+ * garantia mais estreita que a do servidor é defeito; a mensagem é outra camada.
+ *
+ * **O reparo antes do índice, porque quem já instalou pode ter duas.** Sem ele o
+ * `CREATE UNIQUE INDEX` falha e o aplicativo não abre. O sufixo é o `rowid`, que é único por
+ * construção; e a passada é DUPLA porque a primeira pode criar uma colisão nova no caso
+ * patológico de alguém ter digitado literalmente `Ana #7`. Duas passadas cobrem um nível disso,
+ * que é mais do que a realidade oferece.
+ *
+ * **O limite que fica escrito em vez de escondido:** uma CÓPIA feita antes desta versão, com
+ * duas pessoas de nome igual, não restaura. `restaurar` repõe as linhas dentro do esquema de
+ * hoje com um `INSERT ... SELECT` genérico, e o índice novo recusa a segunda — a transação
+ * inteira volta atrás, então nada se perde, mas a restauração falha com a mensagem do SQLite.
+ * Os `REPAROS` não alcançam isto: eles rodam DEPOIS dos inserts, e aqui o insert é que não
+ * passa. Consertar de verdade pede o `restaurar` deduplicar por tabela, o que é trabalho de
+ * outra rodada; o que NÃO se faz é `INSERT OR IGNORE`, que resolveria perdendo uma pessoa em
+ * silêncio.
+ */
+const V38 = `
+${REPARO_NOME_REPETIDO}
+${REPARO_NOME_REPETIDO}
+CREATE UNIQUE INDEX IF NOT EXISTS people_name_idx ON people (company_id, name);
+`;
+
 const MIGRATIONS: readonly string[] = [
   V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18,
   V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33,
-  V34, V35, V36, V37,
+  V34, V35, V36, V37, V38,
 ];
 
 export type SqlParam = string | number | null;
